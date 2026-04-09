@@ -35,7 +35,8 @@ class WiFiClass {
   int begin(const char* ssid = nullptr, const char* pass = nullptr) { return 3; }
   int status() { return 3; }  // WL_CONNECTED
   IPAddress localIP() { return IPAddress(); }
-  void disconnect(bool wifioff = false) {}
+  void persistent(bool) {}
+  void disconnect(bool wifioff = false, bool eraseap = false) {}
   void mode(int) {}
   bool softAP(const char* ssid, const char* pass = NULL, int channel = 1, int hidden = 0, int max_connection = 4) {
     return true;
