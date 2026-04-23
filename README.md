@@ -12,9 +12,14 @@ SDL2 must be installed on the host machine.
 # macOS
 brew install sdl2
 
-
-# Linux (Debian/Ubuntu)
+# Linux — Debian/Ubuntu (including WSL)
 sudo apt install libsdl2-dev
+
+# Linux — Fedora/RHEL
+sudo dnf install SDL2-devel
+
+# Linux — Arch
+sudo pacman -S sdl2
 ```
 
 ## Integration
