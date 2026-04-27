@@ -22,9 +22,13 @@ class HWCDC : public Stream {
   int peek() override { return -1; }
   template <typename... Args>
   void printf(const char* format, Args... args) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), format, args...);
-    std::cerr << buf;
+    if constexpr (sizeof...(Args) == 0) {
+      std::cerr << format;
+    } else {
+      char buf[256];
+      snprintf(buf, sizeof(buf), format, args...);
+      std::cerr << buf;
+    }
   }
   operator bool() const { return true; }
 };
