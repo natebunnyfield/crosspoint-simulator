@@ -24,12 +24,12 @@ sudo pacman -S sdl2 openssl
 
 ## Integration
 
-Add the `run_simulator.py` script to `./scripts` in the Firmware's project root. This will add a Platformio task in the IDE to quickly run the simulator.
-
 Add the simulator to your firmware's platformio.ini as a lib_dep and configure the [env:simulator] environment. Use the sample file for your host OS:
 
 - `sample-platformio-macos.ini`
 - `sample-platformio-linux-wsl.ini`
+
+No scripts need to be copied into the firmware repo - patches and the run target are applied automatically via the library's build script when PlatformIO fetches the simulator as a dependency.
 
 For local development, replace the git reference with a symlink after you've cloned the repository:
 
