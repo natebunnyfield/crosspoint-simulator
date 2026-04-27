@@ -44,5 +44,9 @@ class EInkDisplay {
   void copyGrayscaleLsbBuffers(const uint8_t* lsbBuffer) {}
   void copyGrayscaleMsbBuffers(const uint8_t* msbBuffer) {}
   void cleanupGrayscaleBuffers(const uint8_t* bwBuffer) {}
-  void displayGrayBuffer(bool turnOffScreen = false) {}
+  void displayGrayBuffer(bool turnOffScreen = false, const unsigned char* lut = nullptr, bool factoryMode = false) {}
 };
+
+// Stub LUTs - unused in simulator but must exist so GfxRenderer.cpp compiles.
+inline const unsigned char lut_factory_fast[] = {0};
+inline const unsigned char lut_factory_quality[] = {0};
