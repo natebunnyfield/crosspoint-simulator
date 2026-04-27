@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware. It is **not** a standalone app, it ships as a PlatformIO library that downstream firmware adds as a `lib_dep` (named `simulator_mock`) and builds with `platform = native` and `-DSIMULATOR`. The result is the firmware compiled as a host binary, with the e-ink display rendered into an SDL2 window.
+A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware. It is **not** a standalone app, it ships as a PlatformIO library that downstream firmware adds as a `lib_dep` (named `simulator`) and builds with `platform = native` and `-DSIMULATOR`. The result is the firmware compiled as a host binary, with the e-ink display rendered into an SDL2 window.
 
 There is no build target inside this repo. Build and run happen in the consuming firmware project. See [README.md](README.md) for end-user setup, and [.claude/CONTEXT-sim-notes.md](.claude/CONTEXT-sim-notes.md) for the deep architecture notes and bug-fix history (read this before non-trivial changes).
 
@@ -38,8 +38,9 @@ The simulator is a collection of host-side reimplementations of the firmware's h
 
 **Host-specific code paths:**
 
-- MD5: macOS includes [src/MD5Builder.h](src/MD5Builder.h) (CommonCrypto), Linux/WSL includes [src/MD5Builder_linux.h](src/MD5Builder_linux.h) (OpenSSL). The downstream firmware swaps which header it pulls in per host.
+- MD5: [src/MD5Builder.h](src/MD5Builder.h) is a thin dispatcher that auto-selects the implementation via `#ifdef __APPLE__` / `#elif __linux__`. [src/MD5Builder_mac.h](src/MD5Builder_mac.h) uses CommonCrypto; [src/MD5Builder_linux.h](src/MD5Builder_linux.h) uses OpenSSL. No downstream swapping is needed - just include `MD5Builder.h`.
 - Build flags: macOS uses `-arch arm64` and `/opt/homebrew/{include,lib}`; Linux/WSL adds `-lssl -lcrypto -Wno-deprecated-declarations` (OpenSSL 3.x deprecates `MD5_*`). See [sample-platformio-macos.ini](sample-platformio-macos.ini) and [sample-platformio-linux-wsl.ini](sample-platformio-linux-wsl.ini). Keep both in sync when build flags change. Native Windows is not supported, WSL is.
+- Linker stubs: [src/firmware_link_stubs.cpp](src/firmware_link_stubs.cpp) provides symbols the firmware expects from other translation units (uzlib checksums, HWCDC Serial shim, LUT stubs). When the firmware adds a new global-extern symbol with no simulator counterpart, add its stub here.
 
 ## Input mapping (lives in [src/HalGPIO.cpp](src/HalGPIO.cpp))
 
