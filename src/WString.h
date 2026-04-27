@@ -1,4 +1,13 @@
 #pragma once
+
+// ArduinoJson auto-detects Arduino's String class via the ARDUINO macro, which
+// is not defined in the simulator's native build. Enable the support manually
+// so .as<String>() and serialize-to-String resolve to ArduinoJson's built-in
+// converter (matching firmware behaviour) instead of the std::string-only path.
+#ifndef ARDUINOJSON_ENABLE_ARDUINO_STRING
+#define ARDUINOJSON_ENABLE_ARDUINO_STRING 1
+#endif
+
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -86,6 +95,22 @@ class String {
   size_t write(const char* buffer, size_t size) {
     s.append(buffer, size);
     return size;
+  }
+
+  // ArduinoJson's writer for ::String calls concat() to append chunks.
+  unsigned char concat(const char* str) {
+    if (!str) return 0;
+    s += str;
+    return 1;
+  }
+  unsigned char concat(const char* str, unsigned int length) {
+    if (!str) return 0;
+    s.append(str, length);
+    return 1;
+  }
+  unsigned char concat(const String& other) {
+    s += other.s;
+    return 1;
   }
 
   operator const char*() const { return c_str(); }

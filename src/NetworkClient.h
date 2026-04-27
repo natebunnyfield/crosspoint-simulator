@@ -19,6 +19,7 @@ class NetworkClient {
   virtual int available() { return 0; }
   virtual int read() { return -1; }
   virtual void stop() {}
+  virtual void clear() {}
   virtual uint8_t connected() { return 1; }
   operator bool() { return true; }
 };
