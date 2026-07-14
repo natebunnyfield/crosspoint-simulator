@@ -189,6 +189,15 @@ inline esp_err_t esp_http_client_set_redirection(esp_http_client_handle_t /*hand
   return ESP_OK;
 }
 
+inline esp_err_t esp_http_client_close(esp_http_client_handle_t handle) {
+  if (!handle)
+    return ESP_FAIL;
+  handle->responseBody.clear();
+  handle->bodyOffset = 0;
+  handle->opened = false;
+  return ESP_OK;
+}
+
 inline int esp_http_client_read(esp_http_client_handle_t handle, char *buf,
                                 int len) {
   if (!handle || !handle->opened || !buf || len <= 0)

@@ -45,6 +45,8 @@ constexpr uint8_t kGrayDark = 96;
 constexpr uint8_t kGrayBlack = 0;
 
 GrayscalePreviewState grayscalePreviewState;
+std::array<uint8_t, HalDisplay::BUFFER_SIZE> frameBufferStorage{};
+bool frameBufferLent = false;
 
 uint32_t argbGray(uint8_t level) {
   return 0xFF000000u | (static_cast<uint32_t>(level) << 16) |
@@ -317,8 +319,29 @@ bool HalDisplay::shouldQuit() const { return quitRequested.load(); }
 void HalDisplay::deepSleep() { presentIfNeeded(); }
 
 uint8_t *HalDisplay::getFrameBuffer() const {
-  static uint8_t buffer[HalDisplay::BUFFER_SIZE];
-  return buffer;
+  if (frameBufferLent) {
+    return nullptr;
+  }
+  return frameBufferStorage.data();
+}
+
+uint8_t *HalDisplay::lendFrameBufferStorage(uint32_t *sizeOut) {
+  if (sizeOut) {
+    *sizeOut = frameBufferLent ? 0 : BUFFER_SIZE;
+  }
+  if (frameBufferLent) {
+    return nullptr;
+  }
+  frameBufferLent = true;
+  return frameBufferStorage.data();
+}
+
+void HalDisplay::returnFrameBufferStorage() {
+  if (!frameBufferLent) {
+    return;
+  }
+  frameBufferStorage.fill(0xFF);
+  frameBufferLent = false;
 }
 
 void HalDisplay::copyGrayscaleBuffers(const uint8_t *lsbBuffer,
