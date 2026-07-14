@@ -43,6 +43,7 @@ struct PNGDRAW {
   uint8_t *pPalette;
   int y;
   int iPixelType;
+  int iBpp;
   int iHasAlpha;
   int iWidth;
 };
@@ -117,6 +118,7 @@ public:
       draw.pPalette = nullptr;
       draw.y = y;
       draw.iPixelType = PNG_PIXEL_TRUECOLOR_ALPHA;
+      draw.iBpp = getBpp();
       draw.iHasAlpha = image_.hasAlpha ? 1 : 0;
       draw.iWidth = image_.width;
       if (drawCb_(&draw) == 0) {
