@@ -199,11 +199,24 @@ write-to-SD, `.cpfont` validation, registry refresh, and font-selection flow.
 `WebSocketsServer`, and `NetworkClient` shims so firmware-owned file-transfer
 routes can run on the host. Firmware web servers that bind port 80 are exposed
 on `http://127.0.0.1:8080/`; WebSocket servers that bind port 81 are exposed on
-`ws://127.0.0.1:8081/`. This supports the browser file manager, WebSocket upload
+`ws://127.0.0.1:8081/`. Set `CROSSPOINT_SIM_HTTP_PORT` to another unprivileged
+port if that pair is occupied; the WebSocket endpoint uses the following port.
+For example, `CROSSPOINT_SIM_HTTP_PORT=18080` exposes HTTP on 18080 and
+WebSocket on 18081. This supports the browser file manager, WebSocket upload
 progress, streamed downloads, and common WebDAV-style requests such as
 `OPTIONS`, `PROPFIND`, `PUT`, `DELETE`, `MKCOL`, `MOVE`, and `COPY`. WebDAV
 `LOCK` and `UNLOCK` remain compatibility-only unless the firmware implements
 locking semantics.
+
+The `run_simulator` target also accepts the port through PlatformIO, which is
+convenient when the conflict is permanent on a development machine:
+
+```ini
+[env:simulator]
+custom_simulator_http_port = 18080
+```
+
+Direct binary launches use the environment variable form.
 
 **Firmware updates**: OTA and SD-card firmware flashing are non-destructive in
 the simulator. The simulator stubs those update paths so the UI can be opened

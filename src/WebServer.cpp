@@ -1,5 +1,6 @@
 #include "WebServer.h"
 
+#include "SimulatorNetworkPorts.h"
 #include <Logging.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -273,7 +274,8 @@ struct WebServer::Impl {
     std::function<void()> uploadHandler;
   };
 
-  explicit Impl(int serverPort) : port(serverPort == 80 ? 8080 : serverPort) {}
+  explicit Impl(int serverPort)
+      : port(crosspoint_simulator::mapFirmwarePort(serverPort)) {}
 
   int port;
   int fd = -1;
