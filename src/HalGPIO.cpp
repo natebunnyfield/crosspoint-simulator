@@ -1,20 +1,25 @@
 #include "HalGPIO.h"
 
 #include <BoardConfig.h>
+#include <GfxRenderer.h>
 #include <SDL.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
+#include "HalDisplay.h"
 #include "SimulatorLifecycle.h"
 
 // Defined in HalDisplay.cpp — set here so all SDL event polling lives in one
 // place.
 extern std::atomic<bool> quitRequested;
+extern GfxRenderer renderer;
 
 // Keyboard mapping:
 //   BTN_BACK    (0) → Escape
@@ -28,6 +33,11 @@ extern std::atomic<bool> quitRequested;
 
 static constexpr int NUM_BUTTONS = 7;
 static constexpr SDL_Scancode SIMULATOR_SLEEP_SCANCODE = SDL_SCANCODE_S;
+static constexpr SDL_Scancode HOME_KEY_SCANCODE = SDL_SCANCODE_H;
+static constexpr int TOUCH_TAP_SLOP_PX = 28;
+static constexpr int TOUCH_SWIPE_MIN_PX = 60;
+static constexpr unsigned long TOUCH_SWIPE_MAX_MS = 700;
+static constexpr unsigned long HOME_KEY_LONG_PRESS_MS = 700;
 
 static const SDL_Scancode buttonScancode[NUM_BUTTONS] = {
     SDL_SCANCODE_ESCAPE, // BTN_BACK
@@ -47,23 +57,206 @@ static bool simulatorSleepRequested = false;
 
 namespace {
 
-enum class SyntheticAction { KeyDown, KeyUp, Sleep, Quit };
+struct TouchState {
+  bool down = false;
+  bool pressedThisFrame = false;
+  bool releasedThisFrame = false;
+  bool movedBeyondTapSlop = false;
+  bool activityThisFrame = false;
+  float startNx = 0.0f;
+  float startNy = 0.0f;
+  float currentNx = 0.0f;
+  float currentNy = 0.0f;
+  unsigned long pressedAt = 0;
+  unsigned long lastHeldMs = 0;
+};
+
+TouchState touchState;
+bool homeKeyDown = false;
+bool homeKeyPressedThisFrame = false;
+bool homeKeyTappedThisFrame = false;
+bool homeKeyLongPressedThisFrame = false;
+bool homeKeyLongFired = false;
+unsigned long homeKeyPressedAt = 0;
+
+enum class SyntheticAction {
+  KeyDown,
+  KeyUp,
+  TouchDown,
+  TouchUp,
+  HomeDown,
+  HomeUp,
+  Sleep,
+  Quit
+};
 
 struct SyntheticEvent {
   unsigned long atMs;
   SyntheticAction action;
   int button = -1;
+  float logicalNx = 0.0f;
+  float logicalNy = 0.0f;
   bool handled = false;
 };
 
 std::vector<SyntheticEvent> syntheticEvents;
 bool syntheticEventsInitialized = false;
 
+float clamp01(float value) { return std::max(0.0f, std::min(1.0f, value)); }
+
+void logicalToPanelNormalized(float logicalNx, float logicalNy, float &panelNx,
+                              float &panelNy) {
+  const int logicalWidth = renderer.getScreenWidth();
+  const int logicalHeight = renderer.getScreenHeight();
+  const int lx = static_cast<int>(clamp01(logicalNx) *
+                                  static_cast<float>(logicalWidth - 1));
+  const int ly = static_cast<int>(clamp01(logicalNy) *
+                                  static_cast<float>(logicalHeight - 1));
+
+  int physicalX = 0;
+  int physicalY = 0;
+  switch (renderer.getOrientation()) {
+  case GfxRenderer::Portrait:
+    physicalX = ly;
+    physicalY = HalDisplay::DISPLAY_HEIGHT - 1 - lx;
+    break;
+  case GfxRenderer::PortraitInverted:
+    physicalX = HalDisplay::DISPLAY_WIDTH - 1 - ly;
+    physicalY = lx;
+    break;
+  case GfxRenderer::LandscapeClockwise:
+    physicalX = HalDisplay::DISPLAY_WIDTH - 1 - lx;
+    physicalY = HalDisplay::DISPLAY_HEIGHT - 1 - ly;
+    break;
+  case GfxRenderer::LandscapeCounterClockwise:
+  default:
+    physicalX = lx;
+    physicalY = ly;
+    break;
+  }
+
+  panelNx = clamp01(static_cast<float>(physicalX) /
+                    static_cast<float>(HalDisplay::DISPLAY_WIDTH - 1));
+  panelNy = clamp01(static_cast<float>(physicalY) /
+                    static_cast<float>(HalDisplay::DISPLAY_HEIGHT - 1));
+}
+
+void updateTouchMovement(float panelNx, float panelNy) {
+  touchState.currentNx = panelNx;
+  touchState.currentNy = panelNy;
+  const float dx =
+      (touchState.currentNx - touchState.startNx) * HalDisplay::DISPLAY_WIDTH;
+  const float dy =
+      (touchState.currentNy - touchState.startNy) * HalDisplay::DISPLAY_HEIGHT;
+  if (std::abs(dx) > TOUCH_TAP_SLOP_PX || std::abs(dy) > TOUCH_TAP_SLOP_PX) {
+    touchState.movedBeyondTapSlop = true;
+  }
+}
+
+void beginTouch(float logicalNx, float logicalNy) {
+  if (!BoardConfig::hasTouch())
+    return;
+  float panelNx = 0.0f;
+  float panelNy = 0.0f;
+  logicalToPanelNormalized(logicalNx, logicalNy, panelNx, panelNy);
+  touchState.down = true;
+  touchState.pressedThisFrame = true;
+  touchState.activityThisFrame = true;
+  touchState.movedBeyondTapSlop = false;
+  touchState.startNx = panelNx;
+  touchState.startNy = panelNy;
+  touchState.currentNx = panelNx;
+  touchState.currentNy = panelNy;
+  touchState.pressedAt = SDL_GetTicks();
+}
+
+void moveTouch(float logicalNx, float logicalNy) {
+  if (!touchState.down)
+    return;
+  float panelNx = 0.0f;
+  float panelNy = 0.0f;
+  logicalToPanelNormalized(logicalNx, logicalNy, panelNx, panelNy);
+  updateTouchMovement(panelNx, panelNy);
+}
+
+void endTouch(float logicalNx, float logicalNy) {
+  if (!touchState.down)
+    return;
+  moveTouch(logicalNx, logicalNy);
+  touchState.down = false;
+  touchState.releasedThisFrame = true;
+  touchState.activityThisFrame = true;
+  touchState.lastHeldMs = SDL_GetTicks() - touchState.pressedAt;
+}
+
+void beginHomeKey() {
+  if (!BoardConfig::hasHomeKey() || homeKeyDown)
+    return;
+  homeKeyDown = true;
+  homeKeyPressedThisFrame = true;
+  homeKeyLongFired = false;
+  homeKeyPressedAt = SDL_GetTicks();
+}
+
+void endHomeKey() {
+  if (!homeKeyDown)
+    return;
+  if (!homeKeyLongFired &&
+      SDL_GetTicks() - homeKeyPressedAt < HOME_KEY_LONG_PRESS_MS) {
+    homeKeyTappedThisFrame = true;
+  }
+  homeKeyDown = false;
+}
+
+void updateHomeKeyHold() {
+  if (homeKeyDown && !homeKeyLongFired &&
+      SDL_GetTicks() - homeKeyPressedAt >= HOME_KEY_LONG_PRESS_MS) {
+    homeKeyLongFired = true;
+    homeKeyLongPressedThisFrame = true;
+  }
+}
+
+bool parseTouchSpec(const std::string &detail, float &x1, float &y1, float &x2,
+                    float &y2, unsigned long &duration, bool swipe) {
+  unsigned parsedDuration = swipe ? 250 : 80;
+  int parsed = 0;
+  if (swipe) {
+    parsed = std::sscanf(detail.c_str(), "%f,%f,%f,%f,%u", &x1, &y1, &x2, &y2,
+                         &parsedDuration);
+    if (parsed < 4)
+      return false;
+  } else {
+    parsed = std::sscanf(detail.c_str(), "%f,%f,%u", &x1, &y1, &parsedDuration);
+    if (parsed < 2)
+      return false;
+    x2 = x1;
+    y2 = y1;
+  }
+
+  // Scripts normally use logical display pixels because those coordinates are
+  // easy to read from UI layouts and screenshots. Preserve support for the
+  // earlier 0.0-1.0 normalized form so existing local QA scripts keep working.
+  const auto normalize = [](float value, int extent) {
+    if (value >= 0.0f && value <= 1.0f)
+      return value;
+    return clamp01(value / static_cast<float>(std::max(1, extent - 1)));
+  };
+  const int logicalWidth = renderer.getScreenWidth();
+  const int logicalHeight = renderer.getScreenHeight();
+  x1 = normalize(x1, logicalWidth);
+  y1 = normalize(y1, logicalHeight);
+  x2 = normalize(x2, logicalWidth);
+  y2 = normalize(y2, logicalHeight);
+  duration = parsedDuration;
+  return true;
+}
+
 void requestSimulatorSleep() {
   simulatorSleepRequested = true;
   // Current CrossPoint firmware sleeps on a held physical power button. Keep
   // the compatibility latch above for older consumers, and also drive the
-  // current public HalGPIO state so the S shortcut follows the firmware path.
+  // current public HalGPIO state so the S shortcut follows the real firmware
+  // sleep path.
   pressedThisFrame[HalGPIO::BTN_POWER] = true;
   syntheticButtonDown[HalGPIO::BTN_POWER] = true;
   buttonPressTime[HalGPIO::BTN_POWER] = SDL_GetTicks();
@@ -124,6 +317,29 @@ void initializeSyntheticEvents() {
         syntheticEvents.push_back({atMs, SyntheticAction::Quit});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
+      } else if (key == "HOME") {
+        const unsigned long holdMs =
+            secondColon == std::string::npos
+                ? 80
+                : std::strtoul(item.substr(secondColon + 1).c_str(), nullptr,
+                               10);
+        syntheticEvents.push_back({atMs, SyntheticAction::HomeDown});
+        syntheticEvents.push_back({atMs + holdMs, SyntheticAction::HomeUp});
+      } else if ((key == "TAP" || key == "SWIPE") &&
+                 secondColon != std::string::npos) {
+        float x1 = 0.0f;
+        float y1 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        unsigned long duration = 0;
+        const bool swipe = key == "SWIPE";
+        if (parseTouchSpec(item.substr(secondColon + 1), x1, y1, x2, y2,
+                           duration, swipe)) {
+          syntheticEvents.push_back(
+              {atMs, SyntheticAction::TouchDown, -1, x1, y1});
+          syntheticEvents.push_back(
+              {atMs + duration, SyntheticAction::TouchUp, -1, x2, y2});
+        }
       } else {
         const int button = namedButton(key);
         if (button >= 0) {
@@ -161,12 +377,26 @@ void processSyntheticEvents() {
     case SyntheticAction::KeyDown:
       pressedThisFrame[event.button] = true;
       syntheticButtonDown[event.button] = true;
-      // Synthetic presses must use the SDL clock used by real key events.
+      // Held-time calculations use SDL_GetTicks() for real keyboard events;
+      // synthetic presses must use the same clock origin to avoid unsigned
+      // underflow being mistaken for an immediate long press.
       buttonPressTime[event.button] = SDL_GetTicks();
       break;
     case SyntheticAction::KeyUp:
       releasedThisFrame[event.button] = true;
       syntheticButtonDown[event.button] = false;
+      break;
+    case SyntheticAction::TouchDown:
+      beginTouch(event.logicalNx, event.logicalNy);
+      break;
+    case SyntheticAction::TouchUp:
+      endTouch(event.logicalNx, event.logicalNy);
+      break;
+    case SyntheticAction::HomeDown:
+      beginHomeKey();
+      break;
+    case SyntheticAction::HomeUp:
+      endHomeKey();
       break;
     case SyntheticAction::Sleep:
       requestSimulatorSleep();
@@ -187,6 +417,13 @@ static void clearButtonState() {
     buttonPressTime[i] = 0;
     syntheticButtonDown[i] = false;
   }
+  touchState = {};
+  homeKeyDown = false;
+  homeKeyPressedThisFrame = false;
+  homeKeyTappedThisFrame = false;
+  homeKeyLongPressedThisFrame = false;
+  homeKeyLongFired = false;
+  homeKeyPressedAt = 0;
 }
 
 static int scancodeToButton(SDL_Scancode sc) {
@@ -198,7 +435,10 @@ static int scancodeToButton(SDL_Scancode sc) {
 }
 
 void HalGPIO::begin() {
-#if defined(SIMULATOR_DEVICE_X3)
+#if defined(SIMULATOR_DEVICE_X4_PRO)
+  _deviceType = DeviceType::X4;
+  BoardConfig::selectDevice(BoardConfig::Board::XteinkX4Pro);
+#elif defined(SIMULATOR_DEVICE_X3)
   _deviceType = DeviceType::X3;
   BoardConfig::selectDevice(BoardConfig::Board::XteinkX3);
 #else
@@ -207,9 +447,17 @@ void HalGPIO::begin() {
 #endif
 }
 
-bool HalGPIO::isXteinkDevice() const { return true; }
+bool HalGPIO::isXteinkDevice() const {
+  // Match the firmware helper's narrower meaning: the runtime-detected C3
+  // X3/X4 pair. X4 Pro is an Xteink product but uses its own S3 board profile.
+  return BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3 ||
+         BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4;
+}
 
-bool HalGPIO::hasEdgeSideButtons() const { return deviceIsX3(); }
+bool HalGPIO::hasEdgeSideButtons() const {
+  return BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3 ||
+         BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4Pro;
+}
 
 void HalGPIO::beginFrame() {
   // Clear the press/release edge latches once per frame. See update() for why
@@ -218,6 +466,12 @@ void HalGPIO::beginFrame() {
     pressedThisFrame[i] = false;
     releasedThisFrame[i] = false;
   }
+  touchState.pressedThisFrame = false;
+  touchState.releasedThisFrame = false;
+  touchState.activityThisFrame = false;
+  homeKeyPressedThisFrame = false;
+  homeKeyTappedThisFrame = false;
+  homeKeyLongPressedThisFrame = false;
 }
 
 void HalGPIO::update() {
@@ -238,6 +492,10 @@ void HalGPIO::update() {
     if (e.type == SDL_QUIT) {
       quitRequested.store(true);
     } else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
+      if (e.key.keysym.scancode == HOME_KEY_SCANCODE) {
+        beginHomeKey();
+        continue;
+      }
       if (e.key.keysym.scancode == SIMULATOR_SLEEP_SCANCODE) {
         requestSimulatorSleep();
         continue;
@@ -248,13 +506,44 @@ void HalGPIO::update() {
         buttonPressTime[btn] = SDL_GetTicks();
       }
     } else if (e.type == SDL_KEYUP) {
+      if (e.key.keysym.scancode == HOME_KEY_SCANCODE) {
+        endHomeKey();
+        continue;
+      }
       int btn = scancodeToButton(e.key.keysym.scancode);
       if (btn >= 0) {
         releasedThisFrame[btn] = true;
       }
+    } else if (e.type == SDL_MOUSEBUTTONDOWN &&
+               e.button.button == SDL_BUTTON_LEFT) {
+      const float logicalNx =
+          static_cast<float>(e.button.x) /
+          std::max(1, static_cast<int>(renderer.getScreenWidth()) - 1);
+      const float logicalNy =
+          static_cast<float>(e.button.y) /
+          std::max(1, static_cast<int>(renderer.getScreenHeight()) - 1);
+      beginTouch(logicalNx, logicalNy);
+    } else if (e.type == SDL_MOUSEMOTION && touchState.down) {
+      const float logicalNx =
+          static_cast<float>(e.motion.x) /
+          std::max(1, static_cast<int>(renderer.getScreenWidth()) - 1);
+      const float logicalNy =
+          static_cast<float>(e.motion.y) /
+          std::max(1, static_cast<int>(renderer.getScreenHeight()) - 1);
+      moveTouch(logicalNx, logicalNy);
+    } else if (e.type == SDL_MOUSEBUTTONUP &&
+               e.button.button == SDL_BUTTON_LEFT) {
+      const float logicalNx =
+          static_cast<float>(e.button.x) /
+          std::max(1, static_cast<int>(renderer.getScreenWidth()) - 1);
+      const float logicalNy =
+          static_cast<float>(e.button.y) /
+          std::max(1, static_cast<int>(renderer.getScreenHeight()) - 1);
+      endTouch(logicalNx, logicalNy);
     }
   }
   processSyntheticEvents();
+  updateHomeKeyHold();
 }
 
 bool HalGPIO::isPressed(uint8_t buttonIndex) const {
@@ -316,32 +605,77 @@ unsigned long HalGPIO::getPowerButtonHeldTime() const {
   return SDL_GetTicks() - buttonPressTime[BTN_POWER];
 }
 
-bool HalGPIO::hasTouch() const { return false; }
-bool HalGPIO::hasHomeKey() const { return false; }
-bool HalGPIO::wasHomeKeyPressed() const { return false; }
-bool HalGPIO::wasHomeKeyTapped() const { return false; }
-bool HalGPIO::wasHomeKeyLongPressed() const { return false; }
-bool HalGPIO::wasTouchTap(float & /*nx*/, float & /*ny*/) const {
-  return false;
+bool HalGPIO::hasTouch() const { return BoardConfig::hasTouch(); }
+
+bool HalGPIO::hasHomeKey() const { return BoardConfig::hasHomeKey(); }
+
+bool HalGPIO::wasHomeKeyPressed() const { return homeKeyPressedThisFrame; }
+
+bool HalGPIO::wasHomeKeyTapped() const { return homeKeyTappedThisFrame; }
+
+bool HalGPIO::wasHomeKeyLongPressed() const {
+  return homeKeyLongPressedThisFrame;
 }
-bool HalGPIO::wasTouchDown(float & /*nx*/, float & /*ny*/) const {
-  return false;
+
+bool HalGPIO::wasTouchTap(float &nx, float &ny) const {
+  if (!touchState.releasedThisFrame || touchState.movedBeyondTapSlop)
+    return false;
+  nx = touchState.startNx;
+  ny = touchState.startNy;
+  return true;
 }
-bool HalGPIO::wasTouchReleased() const { return false; }
-bool HalGPIO::isTouchTapCandidate(float & /*nx*/, float & /*ny*/,
+
+bool HalGPIO::wasTouchDown(float &nx, float &ny) const {
+  if (!touchState.pressedThisFrame)
+    return false;
+  nx = touchState.startNx;
+  ny = touchState.startNy;
+  return true;
+}
+
+bool HalGPIO::wasTouchReleased() const { return touchState.releasedThisFrame; }
+
+bool HalGPIO::isTouchTapCandidate(float &nx, float &ny,
                                   unsigned long &heldMs) const {
-  heldMs = 0;
-  return false;
+  if (!touchState.down || touchState.movedBeyondTapSlop) {
+    heldMs = 0;
+    return false;
+  }
+  nx = touchState.startNx;
+  ny = touchState.startNy;
+  heldMs = SDL_GetTicks() - touchState.pressedAt;
+  return true;
 }
-bool HalGPIO::isTouchHeldAt(float & /*nx*/, float & /*ny*/) const {
-  return false;
+
+bool HalGPIO::isTouchHeldAt(float &nx, float &ny) const {
+  if (!touchState.down)
+    return false;
+  nx = touchState.currentNx;
+  ny = touchState.currentNy;
+  return true;
 }
-unsigned long HalGPIO::lastTouchHeldMs() const { return 0; }
-bool HalGPIO::wasSwipe(float & /*nxStart*/, float & /*nyStart*/,
-                       float & /*nxEnd*/, float & /*nyEnd*/) const {
-  return false;
+
+unsigned long HalGPIO::lastTouchHeldMs() const { return touchState.lastHeldMs; }
+
+bool HalGPIO::wasSwipe(float &nxStart, float &nyStart, float &nxEnd,
+                       float &nyEnd) const {
+  if (!touchState.releasedThisFrame ||
+      touchState.lastHeldMs > TOUCH_SWIPE_MAX_MS)
+    return false;
+  const float dx =
+      (touchState.currentNx - touchState.startNx) * HalDisplay::DISPLAY_WIDTH;
+  const float dy =
+      (touchState.currentNy - touchState.startNy) * HalDisplay::DISPLAY_HEIGHT;
+  if (std::abs(dx) < TOUCH_SWIPE_MIN_PX && std::abs(dy) < TOUCH_SWIPE_MIN_PX)
+    return false;
+  nxStart = touchState.startNx;
+  nyStart = touchState.startNy;
+  nxEnd = touchState.currentNx;
+  nyEnd = touchState.currentNy;
+  return true;
 }
-bool HalGPIO::wasTouchActivity() const { return false; }
+
+bool HalGPIO::wasTouchActivity() const { return touchState.activityThisFrame; }
 void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
 
 bool HalGPIO::consumeSimulatorSleepRequest() {

@@ -44,11 +44,17 @@ the simulator's lower-level `WebServer`, `WebSocketsServer`, and
 `NetworkClient` shims. This exercises the real settings, files, status, and
 WebDAV routes instead of a reduced simulator-only substitute.
 
-The simulator defaults to the X4 panel shape. To simulate X3, extend the base
-environment with `-DSIMULATOR_DEVICE_X3`. That switches the framebuffer to
-792x528 landscape, selects the X3 board profile, and exposes the simulator tilt
-sensor. Both sample PlatformIO files include a ready-to-use `simulator_x3`
-environment.
+The simulator defaults to the X4 panel shape. Device-specific environments can
+extend the base simulator environment with one of these flags:
+
+- `-DSIMULATOR_DEVICE_X3` switches the framebuffer to 792x528 landscape,
+  selects the X3 board profile, and exposes the simulator tilt sensor.
+- `-DSIMULATOR_DEVICE_X4_PRO` keeps the X4 family's 800x480 framebuffer and
+  selects the X4 Pro board profile. It exposes touch and swipe input, the
+  capacitive Home key, the RTC, display inversion, and frontlight state.
+
+The sample PlatformIO files include ready-to-use `simulator_x3` and
+`simulator_x4_pro` environments.
 
 If a fork has a custom renderer and the auto-patch cannot recognize it, its simulator build should notify the display when orientation changes:
 
@@ -124,6 +130,8 @@ pio run -e simulator -t run_simulator
 | Escape | Back                               |
 | P      | Power                              |
 | S      | Simulate sleep                     |
+| H      | X4 Pro capacitive Home key         |
+| Mouse  | X4 Pro touch, tap, and swipe       |
 
 When the simulator is on the sleep screen, pressing any mapped simulator key wakes it. Under the hood the simulator relaunches itself and reports a synthetic power-button wake, because the native build has no real ESP deep-sleep resume path.
 
@@ -135,8 +143,13 @@ tests possible without desktop-control permissions:
 - `CROSSPOINT_SIM_INPUT_SCRIPT` schedules input as
   `<milliseconds>:<action>`, separated by semicolons. Button actions use
   `<key>[:<hold-milliseconds>]`; keys are `BACK`, `ENTER`, `LEFT`, `RIGHT`,
-  `UP`, `DOWN`, `POWER`, `SLEEP`, and `QUIT`. A normal key press is held for
-  80 ms unless a duration is provided.
+  `UP`, `DOWN`, `POWER`, `SLEEP`, `HOME`, and `QUIT`. A normal key press is
+  held for 80 ms unless a duration is provided.
+- X4 Pro touch actions use `TAP:<x>,<y>[,<hold-milliseconds>]` or
+  `SWIPE:<x1>,<y1>,<x2>,<y2>[,<duration-milliseconds>]`. Coordinates are in
+  displayed logical pixels, so they match UI layouts and screenshots after the
+  firmware changes orientation. Normalized coordinates from 0.0 to 1.0 are
+  also accepted for existing scripts.
 - `CROSSPOINT_SIM_SCREENSHOTS` saves BMP screenshots as
   `<milliseconds>:<path>`, separated by semicolons. Create the destination
   directory before running the simulator.
@@ -153,6 +166,14 @@ mkdir -p ./qa-artifacts
 CROSSPOINT_SIM_INPUT_SCRIPT='900:DOWN;1250:DOWN;1600:DOWN;1900:ENTER;3000:QUIT' \
 CROSSPOINT_SIM_SCREENSHOTS='2400:./qa-artifacts/settings.bmp' \
   .pio/build/simulator/program
+```
+
+An X4 Pro touch and Home-key smoke test can use:
+
+```bash
+CROSSPOINT_SIM_INPUT_SCRIPT='2000:TAP:240,530;3000:HOME:100;3900:QUIT' \
+CROSSPOINT_SIM_SCREENSHOTS='2500:./qa-artifacts/x4-pro-settings.bmp;3500:./qa-artifacts/x4-pro-home.bmp' \
+  .pio/build/simulator_x4_pro/program
 ```
 
 A deterministic sleep/wake smoke test can use:

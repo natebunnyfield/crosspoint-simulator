@@ -157,10 +157,12 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 }
 
 void renderBwPixels(const uint8_t *fb) {
+  const bool invert = display.isInverted();
   for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
     for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
+      const bool white = getBit(fb, x, y);
       pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] =
-          getBit(fb, x, y) ? 0xFFFFFFFFu : 0xFF000000u;
+          (white != invert) ? 0xFFFFFFFFu : 0xFF000000u;
     }
   }
   pendingPresent.store(true);
@@ -215,6 +217,8 @@ void composeGrayscalePreview() {
         }
       }
 
+      if (display.isInverted())
+        level = static_cast<uint8_t>(255 - level);
       pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] = argbGray(level);
     }
   }
@@ -258,7 +262,9 @@ static void applyWindowGeometryIfNeeded(GfxRenderer::Orientation orientation) {
 HalDisplay::HalDisplay() {}
 HalDisplay::~HalDisplay() {}
 
-#if defined(SIMULATOR_DEVICE_X3)
+#if defined(SIMULATOR_DEVICE_X4_PRO)
+static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4 Pro";
+#elif defined(SIMULATOR_DEVICE_X3)
 static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3";
 #else
 static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4";
@@ -339,6 +345,15 @@ void HalDisplay::drawImageTransparent(const uint8_t *imageData, uint16_t x,
     }
   }
 }
+
+void HalDisplay::setInverted(bool value) { inverted = value; }
+
+bool HalDisplay::toggleInverted() {
+  inverted = !inverted;
+  return inverted;
+}
+
+bool HalDisplay::isInverted() const { return inverted; }
 
 void HalDisplay::displayBuffer(RefreshMode mode, bool turnOffScreen) {
   refreshDisplay(mode, turnOffScreen);
