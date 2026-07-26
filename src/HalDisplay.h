@@ -35,6 +35,11 @@ public:
                             uint16_t w, uint16_t h,
                             bool fromProgmem = false) const;
 
+  // Persistent black/white polarity used by the X4 Pro frontlight panel.
+  void setInverted(bool inverted);
+  bool toggleInverted();
+  bool isInverted() const;
+
   void displayBuffer(RefreshMode mode = RefreshMode::FAST_REFRESH,
                      bool turnOffScreen = false);
   void displayBufferAsync(RefreshMode mode = RefreshMode::FAST_REFRESH);
@@ -87,6 +92,7 @@ public:
 
 private:
   EInkDisplay einkDisplay;
+  bool inverted = false;
 };
 
 extern HalDisplay display;
