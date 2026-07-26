@@ -9,6 +9,8 @@
 #define eIncrement 1
 #define portTICK_PERIOD_MS 1
 
+using BaseType_t = int;
+
 // ESP-IDF's portMUX_TYPE is a spinlock used with taskENTER_CRITICAL /
 // taskEXIT_CRITICAL to guard data shared between tasks (and, on multi-core
 // targets, cores). The simulator has no real critical-section primitive, so
@@ -18,8 +20,9 @@ struct SimPortMux {
   std::recursive_mutex mtx;
 };
 typedef SimPortMux portMUX_TYPE;
-#define portMUX_INITIALIZER_UNLOCKED                                          \
-  {}
+#define portMUX_INITIALIZER_UNLOCKED                                           \
+  {                                                                            \
+  }
 
 inline void taskENTER_CRITICAL(portMUX_TYPE *mux) { mux->mtx.lock(); }
 inline void taskEXIT_CRITICAL(portMUX_TYPE *mux) { mux->mtx.unlock(); }

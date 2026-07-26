@@ -1,5 +1,6 @@
 #include "HalGPIO.h"
 
+#include <BoardConfig.h>
 #include <SDL.h>
 
 #include <atomic>
@@ -57,10 +58,16 @@ static int scancodeToButton(SDL_Scancode sc) {
 void HalGPIO::begin() {
 #if defined(SIMULATOR_DEVICE_X3)
   _deviceType = DeviceType::X3;
+  BoardConfig::selectDevice(BoardConfig::Board::XteinkX3);
 #else
   _deviceType = DeviceType::X4;
+  BoardConfig::selectDevice(BoardConfig::Board::XteinkX4);
 #endif
 }
+
+bool HalGPIO::isXteinkDevice() const { return true; }
+
+bool HalGPIO::hasEdgeSideButtons() const { return deviceIsX3(); }
 
 void HalGPIO::beginFrame() {
   // Clear the press/release edge latches once per frame. See update() for why
@@ -164,6 +171,34 @@ unsigned long HalGPIO::getPowerButtonHeldTime() const {
   return SDL_GetTicks() - buttonPressTime[BTN_POWER];
 }
 
+bool HalGPIO::hasTouch() const { return false; }
+bool HalGPIO::hasHomeKey() const { return false; }
+bool HalGPIO::wasHomeKeyPressed() const { return false; }
+bool HalGPIO::wasHomeKeyTapped() const { return false; }
+bool HalGPIO::wasHomeKeyLongPressed() const { return false; }
+bool HalGPIO::wasTouchTap(float & /*nx*/, float & /*ny*/) const {
+  return false;
+}
+bool HalGPIO::wasTouchDown(float & /*nx*/, float & /*ny*/) const {
+  return false;
+}
+bool HalGPIO::wasTouchReleased() const { return false; }
+bool HalGPIO::isTouchTapCandidate(float & /*nx*/, float & /*ny*/,
+                                  unsigned long &heldMs) const {
+  heldMs = 0;
+  return false;
+}
+bool HalGPIO::isTouchHeldAt(float & /*nx*/, float & /*ny*/) const {
+  return false;
+}
+unsigned long HalGPIO::lastTouchHeldMs() const { return 0; }
+bool HalGPIO::wasSwipe(float & /*nxStart*/, float & /*nyStart*/,
+                       float & /*nxEnd*/, float & /*nyEnd*/) const {
+  return false;
+}
+bool HalGPIO::wasTouchActivity() const { return false; }
+void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
+
 bool HalGPIO::consumeSimulatorSleepRequest() {
   const bool requested = simulatorSleepRequested;
   simulatorSleepRequested = false;
@@ -200,7 +235,9 @@ void HalGPIO::startDeepSleep() {
     SDL_Delay(10);
   }
 }
-void HalGPIO::verifyPowerButtonWakeup(uint16_t /*requiredDurationMs*/,
-                                      bool /*shortPressAllowed*/) {}
+bool HalGPIO::verifyPowerButtonWakeup(uint16_t /*requiredDurationMs*/,
+                                      bool /*shortPressAllowed*/) {
+  return true;
+}
 
 HalGPIO gpio;

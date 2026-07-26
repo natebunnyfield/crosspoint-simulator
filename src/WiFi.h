@@ -29,6 +29,11 @@ enum wifi_mode_t {
   WIFI_MODE_NULL = 0
 };
 enum wifi_auth_mode_t { WIFI_AUTH_OPEN = 0, WIFI_AUTH_WPA2_PSK = 3 };
+enum wifi_scan_method_t { WIFI_FAST_SCAN = 0, WIFI_ALL_CHANNEL_SCAN };
+enum wifi_sort_method_t {
+  WIFI_CONNECT_AP_BY_SIGNAL = 0,
+  WIFI_CONNECT_AP_BY_SECURITY
+};
 
 #define WIFI_MODE_STA WIFI_STA
 #define WIFI_MODE_AP WIFI_AP
@@ -68,6 +73,9 @@ class WiFiClass {
   wifi_mode_t currentMode = WIFI_OFF;
   wl_status_t currentStatus = WL_DISCONNECTED;
   String currentSsid;
+  std::array<uint8_t, 6> currentBssid{0x02, 0x00, 0x00, 0x00, 0x00, 0x02};
+  wifi_scan_method_t scanMethod = WIFI_FAST_SCAN;
+  wifi_sort_method_t sortMethod = WIFI_CONNECT_AP_BY_SIGNAL;
   std::vector<Network> defaultNetworks{
       {"Simulator WiFi (fake)", -45, WIFI_AUTH_OPEN},
       {"Local Test Network (fake)", -62, WIFI_AUTH_WPA2_PSK}};
@@ -268,6 +276,16 @@ public:
   wifi_mode_t getMode() { return currentMode; }
   void setSleep(bool) {}
   void setAutoReconnect(bool) {}
+  void setScanMethod(wifi_scan_method_t method) { scanMethod = method; }
+  void setSortMethod(wifi_sort_method_t method) { sortMethod = method; }
+  uint8_t *BSSID(uint8_t *bssid = nullptr) {
+    if (bssid) {
+      memcpy(bssid, currentBssid.data(), currentBssid.size());
+      return bssid;
+    }
+    return currentBssid.data();
+  }
+  int32_t channel() { return currentStatus == WL_CONNECTED ? 1 : 0; }
   String getHostname() { return String("crosspoint-simulator"); }
   int softAPgetStationNum() { return 0; }
 };
