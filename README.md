@@ -6,7 +6,9 @@ A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crossp
 > **Platform support:** macOS and Linux/WSL use different native compiler and library flags. Start from `sample-platformio-macos.ini` on macOS, or `sample-platformio-linux-wsl.ini` on Linux/WSL. Native Windows is not supported; use WSL and follow the Linux instructions.
 
 > [!WARNING]
-> This has been tested on ARM64 macOS (Apple Silicon, M4) and Ubuntu under WSL on Windows. Other platforms may need additional libraries or platform-specific stubs.
+> This has been tested on x86_64 macOS (Intel), ARM64 macOS (Apple Silicon,
+> M4), and Ubuntu under WSL on Windows. Other platforms may need additional
+> libraries or platform-specific stubs.
 
 ## Prerequisites
 
@@ -35,9 +37,18 @@ Add the simulator to your firmware's platformio.ini as a `lib_dep` and configure
 
 No scripts need to be copied into the firmware repo for the simulator to build. The simulator library automatically patches consumer-side compatibility issues from its own build script when PlatformIO fetches it as a dependency, including the common `GfxRenderer::setOrientation()` hook needed for SDL window resizing.
 
-Keep the sample `build_src_filter` exclusions unless your firmware has already moved those files behind simulator guards. In the current CrossPoint/CrossInk layout, the simulator library supplies the host-side file-transfer and update shims while the lower-level `WebServer`, `WebSocketsServer`, and `NetworkClient` shims let shared network routes run on the desktop build.
+Keep the sample `build_src_filter` exclusions unless your firmware has already
+moved those files behind simulator guards. In the current CrossPoint layout,
+the firmware-owned `CrossPointWebServer` and `WebDAVHandler` compile against
+the simulator's lower-level `WebServer`, `WebSocketsServer`, and
+`NetworkClient` shims. This exercises the real settings, files, status, and
+WebDAV routes instead of a reduced simulator-only substitute.
 
-The simulator defaults to the X4 panel shape. To simulate X3, add `-DSIMULATOR_DEVICE_X3` to the consuming firmware's simulator `build_flags`. That switches the framebuffer to 792x528 landscape, reports `gpio.deviceIsX3()` as true, and exposes the simulator tilt sensor by default.
+The simulator defaults to the X4 panel shape. To simulate X3, extend the base
+environment with `-DSIMULATOR_DEVICE_X3`. That switches the framebuffer to
+792x528 landscape, selects the X3 board profile, and exposes the simulator tilt
+sensor. Both sample PlatformIO files include a ready-to-use `simulator_x3`
+environment.
 
 If a fork has a custom renderer and the auto-patch cannot recognize it, its simulator build should notify the display when orientation changes:
 

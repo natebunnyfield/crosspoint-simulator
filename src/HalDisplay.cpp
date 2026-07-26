@@ -100,10 +100,12 @@ void composeGrayscalePreview() {
   for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
     for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
       const bool baseWhite = getBit(bwBase, x, y);
-      const bool lsbActive = grayscalePreviewState.lsbValid &&
-                             getBit(grayscalePreviewState.lsbPlane.data(), x, y);
-      const bool msbActive = grayscalePreviewState.msbValid &&
-                             getBit(grayscalePreviewState.msbPlane.data(), x, y);
+      const bool lsbActive =
+          grayscalePreviewState.lsbValid &&
+          getBit(grayscalePreviewState.lsbPlane.data(), x, y);
+      const bool msbActive =
+          grayscalePreviewState.msbValid &&
+          getBit(grayscalePreviewState.msbPlane.data(), x, y);
 
       uint8_t level = kGrayWhite;
       if (!baseWhite) {
@@ -132,10 +134,12 @@ static bool isPortraitOrientation(GfxRenderer::Orientation orientation) {
 static void getLogicalWindowSize(GfxRenderer::Orientation orientation,
                                  int *width, int *height) {
   const bool isPortrait = isPortraitOrientation(orientation);
-  *width = (isPortrait ? HalDisplay::DISPLAY_HEIGHT : HalDisplay::DISPLAY_WIDTH) *
-           SIMULATOR_WINDOW_SCALE;
-  *height = (isPortrait ? HalDisplay::DISPLAY_WIDTH : HalDisplay::DISPLAY_HEIGHT) *
-            SIMULATOR_WINDOW_SCALE;
+  *width =
+      (isPortrait ? HalDisplay::DISPLAY_HEIGHT : HalDisplay::DISPLAY_WIDTH) *
+      SIMULATOR_WINDOW_SCALE;
+  *height =
+      (isPortrait ? HalDisplay::DISPLAY_WIDTH : HalDisplay::DISPLAY_HEIGHT) *
+      SIMULATOR_WINDOW_SCALE;
 }
 
 static void applyWindowGeometryIfNeeded(GfxRenderer::Orientation orientation) {
@@ -243,6 +247,16 @@ void HalDisplay::displayBuffer(RefreshMode mode, bool turnOffScreen) {
   refreshDisplay(mode, turnOffScreen);
 }
 
+void HalDisplay::displayBufferAsync(RefreshMode mode) {
+  // SDL presentation is already handed off to the main thread. The framebuffer
+  // conversion itself remains synchronous, so advertise no genuine overlap.
+  refreshDisplay(mode, false);
+}
+
+void HalDisplay::waitRefreshComplete() {}
+
+bool HalDisplay::supportsAsyncRefresh() const { return false; }
+
 void HalDisplay::displayWindow(int, int, int, int) {
   refreshDisplay(RefreshMode::FAST_REFRESH, false);
 }
@@ -349,11 +363,13 @@ void HalDisplay::copyGrayscaleBuffers(const uint8_t *lsbBuffer,
   copyGrayscaleLsbBuffers(lsbBuffer);
   copyGrayscaleMsbBuffers(msbBuffer);
 }
-void HalDisplay::displayGrayscaleBase(RefreshMode fallback, bool turnOffScreen) {
+void HalDisplay::displayGrayscaleBase(RefreshMode fallback,
+                                      bool turnOffScreen) {
   displayBuffer(fallback, turnOffScreen);
 }
 void HalDisplay::preconditionGrayscale() {}
-void HalDisplay::preconditionGrayscale(uint16_t, uint16_t, uint16_t, uint16_t) {}
+void HalDisplay::preconditionGrayscale(uint16_t, uint16_t, uint16_t, uint16_t) {
+}
 void HalDisplay::copyGrayscaleLsbBuffers(const uint8_t *lsbBuffer) {
   copyPlane(grayscalePreviewState.lsbPlane, lsbBuffer,
             grayscalePreviewState.lsbValid);

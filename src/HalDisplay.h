@@ -37,6 +37,9 @@ public:
 
   void displayBuffer(RefreshMode mode = RefreshMode::FAST_REFRESH,
                      bool turnOffScreen = false);
+  void displayBufferAsync(RefreshMode mode = RefreshMode::FAST_REFRESH);
+  void waitRefreshComplete();
+  bool supportsAsyncRefresh() const;
   void displayWindow(int x, int y, int w, int h);
   void refreshDisplay(RefreshMode mode = RefreshMode::FAST_REFRESH,
                       bool turnOffScreen = false);
@@ -73,7 +76,7 @@ public:
   // builds exercise the same low-memory path as the device firmware, and so
   // streamed plane data can feed the same grayscale preview compositor as the
   // legacy full-frame API.
-  void writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t* rows,
+  void writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
                                 uint16_t yStart, uint16_t numRows);
   bool supportsStripGrayscale() const;
 
