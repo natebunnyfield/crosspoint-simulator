@@ -127,6 +127,47 @@ pio run -e simulator -t run_simulator
 
 When the simulator is on the sleep screen, pressing any mapped simulator key wakes it. Under the hood the simulator relaunches itself and reports a synthetic power-button wake, because the native build has no real ESP deep-sleep resume path.
 
+## Automated QA and screenshots
+
+Two optional environment variables make repeatable navigation and screenshot
+tests possible without desktop-control permissions:
+
+- `CROSSPOINT_SIM_INPUT_SCRIPT` schedules input as
+  `<milliseconds>:<action>`, separated by semicolons. Button actions use
+  `<key>[:<hold-milliseconds>]`; keys are `BACK`, `ENTER`, `LEFT`, `RIGHT`,
+  `UP`, `DOWN`, `POWER`, `SLEEP`, and `QUIT`. A normal key press is held for
+  80 ms unless a duration is provided.
+- `CROSSPOINT_SIM_SCREENSHOTS` saves BMP screenshots as
+  `<milliseconds>:<path>`, separated by semicolons. Create the destination
+  directory before running the simulator.
+- A sleep/wake test starts a fresh simulator process, matching the existing
+  deep-sleep model. Set `CROSSPOINT_SIM_INPUT_SCRIPT_AFTER_WAKE` and
+  `CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE` for that second process. The
+  pre-sleep schedules are cleared during relaunch so they cannot repeat
+  forever.
+
+Times are measured from process startup. For example:
+
+```bash
+mkdir -p ./qa-artifacts
+CROSSPOINT_SIM_INPUT_SCRIPT='900:DOWN;1250:DOWN;1600:DOWN;1900:ENTER;3000:QUIT' \
+CROSSPOINT_SIM_SCREENSHOTS='2400:./qa-artifacts/settings.bmp' \
+  .pio/build/simulator/program
+```
+
+A deterministic sleep/wake smoke test can use:
+
+```bash
+CROSSPOINT_SIM_INPUT_SCRIPT='900:SLEEP;3500:ENTER' \
+CROSSPOINT_SIM_INPUT_SCRIPT_AFTER_WAKE='2200:QUIT' \
+CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE='1600:./qa-artifacts/wake.bmp' \
+  .pio/build/simulator/program
+```
+
+The screenshot contains the SDL renderer output at the host's actual drawable
+resolution, including Retina/HiDPI scaling. BMP is used because it is supported
+directly by SDL2 and adds no image-encoding dependency to the simulator.
+
 ## Notes
 
 **Host-backed network flows**: OPDS/catalog downloads and KOReader sync use the

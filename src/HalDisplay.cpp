@@ -5,8 +5,11 @@
 
 #include <array>
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <string>
+#include <vector>
 
 static SDL_Window *window = nullptr;
 static SDL_Renderer *sdl_renderer = nullptr;
@@ -47,6 +50,100 @@ constexpr uint8_t kGrayBlack = 0;
 GrayscalePreviewState grayscalePreviewState;
 std::array<uint8_t, HalDisplay::BUFFER_SIZE> frameBufferStorage{};
 bool frameBufferLent = false;
+
+struct ScreenshotEvent {
+  unsigned long atMs;
+  std::string path;
+  bool handled = false;
+};
+
+std::vector<ScreenshotEvent> screenshotEvents;
+bool screenshotEventsInitialized = false;
+
+void initializeScreenshotEvents() {
+  if (screenshotEventsInitialized)
+    return;
+  screenshotEventsInitialized = true;
+
+  const char *schedule = std::getenv("CROSSPOINT_SIM_SCREENSHOTS");
+  if (!schedule || schedule[0] == '\0')
+    return;
+
+  const std::string spec(schedule);
+  size_t start = 0;
+  while (start < spec.size()) {
+    const size_t end = spec.find(';', start);
+    const std::string item = spec.substr(
+        start, end == std::string::npos ? std::string::npos : end - start);
+    const size_t colon = item.find(':');
+    if (colon != std::string::npos && colon + 1 < item.size()) {
+      screenshotEvents.push_back(
+          {std::strtoul(item.substr(0, colon).c_str(), nullptr, 10),
+           item.substr(colon + 1)});
+    }
+    if (end == std::string::npos)
+      break;
+    start = end + 1;
+  }
+}
+
+bool hasDueScreenshot() {
+  initializeScreenshotEvents();
+  const unsigned long now = millis();
+  for (const auto &event : screenshotEvents) {
+    if (!event.handled && event.atMs <= now)
+      return true;
+  }
+  return false;
+}
+
+bool saveRendererBmp(const std::string &path) {
+  int width = 0;
+  int height = 0;
+  if (SDL_GetRendererOutputSize(sdl_renderer, &width, &height) != 0 ||
+      width <= 0 || height <= 0) {
+    std::cerr << "[SIM] Cannot determine screenshot size: " << SDL_GetError()
+              << std::endl;
+    return false;
+  }
+
+  std::vector<uint32_t> pixels(static_cast<size_t>(width) * height);
+  if (SDL_RenderReadPixels(sdl_renderer, nullptr, SDL_PIXELFORMAT_ARGB8888,
+                           pixels.data(), width * sizeof(uint32_t)) != 0) {
+    std::cerr << "[SIM] Cannot read screenshot pixels: " << SDL_GetError()
+              << std::endl;
+    return false;
+  }
+
+  SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
+      pixels.data(), width, height, 32, width * sizeof(uint32_t),
+      SDL_PIXELFORMAT_ARGB8888);
+  if (!surface) {
+    std::cerr << "[SIM] Cannot create screenshot surface: " << SDL_GetError()
+              << std::endl;
+    return false;
+  }
+
+  const bool saved = SDL_SaveBMP(surface, path.c_str()) == 0;
+  if (!saved) {
+    std::cerr << "[SIM] Cannot save screenshot " << path << ": "
+              << SDL_GetError() << std::endl;
+  } else {
+    std::cerr << "[SIM] Saved screenshot: " << path << std::endl;
+  }
+  SDL_FreeSurface(surface);
+  return saved;
+}
+
+void captureDueScreenshots() {
+  const unsigned long now = millis();
+  for (auto &event : screenshotEvents) {
+    if (event.handled || event.atMs > now)
+      continue;
+    event.handled = true;
+    saveRendererBmp(event.path);
+  }
+}
 
 uint32_t argbGray(uint8_t level) {
   return 0xFF000000u | (static_cast<uint32_t>(level) << 16) |
@@ -271,7 +368,8 @@ void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
 
 // Called from the main thread (simulator_main.cpp) to push pixels to SDL.
 void HalDisplay::presentIfNeeded() {
-  if (!pendingPresent.load())
+  const bool screenshotDue = hasDueScreenshot();
+  if (!pendingPresent.load() && !screenshotDue)
     return;
   pendingPresent.store(false);
 
@@ -325,6 +423,9 @@ void HalDisplay::presentIfNeeded() {
   }
   }
 
+  if (screenshotDue) {
+    captureDueScreenshots();
+  }
   SDL_RenderPresent(sdl_renderer);
 }
 
