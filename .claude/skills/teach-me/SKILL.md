@@ -1,5 +1,5 @@
 ---
-name: learn
+name: teach-me
 description: Turn any topic the user wants to learn into a researched, interactive, single-file HTML lesson — cooking recipes and techniques, DIY and home-improvement skills (interior painting, tiling), hobbies, practical how-tos. Use this whenever the user says they want to learn, understand, or get good at something practical, asks to be taught a technique, or asks for a lesson, tutorial, or explainer they can interact with — even if they don't say "lesson" or "interactive". Also use it when the user asks for the portable learning prompts (the Gemini Deep Research prompt or the lesson-builder prompt) to run elsewhere, or hands over a research report to turn into a lesson.
 ---
 
