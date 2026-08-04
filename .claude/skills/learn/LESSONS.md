@@ -12,5 +12,10 @@ Entry format:
 What worked / what failed, and the skill change that fixes it.
 ```
 
-(No entries yet — first context-free evaluations: pan sauces and interior
-painting, 2026-08-04.)
+## 2026-08-04 — First context-free evals: pan sauces + interior painting
+Both subagents (raw prompt only, no context) met the full contract: structured
+data, dual-verified self-tests, per-option quiz explanations, source-verified
+content with unverifiable numbers omitted. Cost ~85K tokens / ~9 min each.
+Watch-item for future entries: the self-test proves structural integrity, not
+factual truth — content accuracy still rests on verify-or-omit plus the user
+actually spot-checking a lesson against experience. No skill change needed yet.
