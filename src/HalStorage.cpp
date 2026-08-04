@@ -443,7 +443,12 @@ bool HalStorage::openFileForRead(const char *moduleName, const String &path,
 }
 bool HalStorage::openFileForWrite(const char *moduleName, const char *path,
                                   HalFile &file) {
-  file = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+  // O_RDWR, not O_WRONLY, to match SDCardManager::openFileForWrite on device
+  // (O_RDWR | O_CREAT | O_TRUNC). Firmware reads back from a write handle while
+  // it is still open -- Section::loadPageDuringBuild seeks into the .bin it is
+  // building to render an already-written page. On a write-only fd that read
+  // fails and the page renders blank.
+  file = open(path, O_RDWR | O_CREAT | O_TRUNC);
   return file.isOpen();
 }
 bool HalStorage::openFileForWrite(const char *moduleName,
