@@ -43,14 +43,15 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Two real tests do exist in `tests/`, run them when touching input or sleep paths:
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Three real tests do exist in `tests/`, run them when touching input, sleep, or WiFi paths:
 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
+c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 tests/wifi_host_test.cpp -o /tmp/wifi_host_test && /tmp/wifi_host_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
 ```
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll).
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — which is otherwise untestable anywhere, since [ios/CrossPointWiFi.mm](ios/CrossPointWiFi.mm) only compiles for iOS and no device is paired; it also guards that the desktop env-var fakes are unchanged by the hook's presence.
 
 ## Architecture
 

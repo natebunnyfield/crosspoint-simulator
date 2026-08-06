@@ -346,11 +346,12 @@ void WebSocketsServer::begin() {
 
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_addr.s_addr = htonl(crosspoint_simulator::bindAddressHostOrder());
   addr.sin_port = htons(impl_->port);
   if (::bind(impl_->fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) !=
       0) {
-    LOG_ERR("WS", "[SIM] WebSocket bind 127.0.0.1:%d failed: %s", impl_->port,
+    LOG_ERR("WS", "[SIM] WebSocket bind %s:%d failed: %s",
+            crosspoint_simulator::bindAddressLabel(), impl_->port,
             strerror(errno));
     ::close(impl_->fd);
     impl_->fd = -1;

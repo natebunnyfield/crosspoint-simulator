@@ -732,13 +732,16 @@ resetting it in `setup()`, next to the same reset for `deepSleepInProgress`.
   (`ImuType::Qmi8658` in the X3 board profile), and forcing it false would hide a
   capability the hardware exposes. Known, accepted dead zone.
 - **Physical device.** Signing identities exist; no iPhone Air is paired.
-- **WiFi.** `CROSSPOINT_NO_NETWORK=1` gates the network screens out of the iOS
-  build. A phone cannot impersonate the X3's radio — no scan API, and no soft
-  AP, which is the mode the firmware's peer-transfer flow is built on — but it
-  can serve the file-transfer web UI on the LAN and download over
-  `NSURLSession`. Note that the exclusion lists meant to strip those TUs have
-  been a silent no-op since `af2e842`, so the iOS binary carries all 18 of them
-  today. Scope, findings, entitlements and phasing: [WIFI.md](WIFI.md).
+- **WiFi.** In progress — [WIFI.md](WIFI.md) is the plan and the running state.
+  The radio backend ([CrossPointWiFi.mm](CrossPointWiFi.mm)) and the bind-address
+  switch have landed; real mDNS, the in-process HTTP client and the firmware's
+  gate split have not, and `CROSSPOINT_NO_NETWORK=1` still keeps the screens out
+  of the build. A phone cannot impersonate the X3's radio — no scan API, no soft
+  AP — but peer transfer does not need either: it happens over whatever WiFi the
+  phone is already on. **None of it has been built for iOS**; there is no Mac in
+  the loop, so the Apple-only paths are covered only by
+  [../tests/wifi_host_test.cpp](../tests/wifi_host_test.cpp), which tests the
+  logic against a scripted backend.
 
 ## Rejected reading-UX proposals — do not re-propose
 
