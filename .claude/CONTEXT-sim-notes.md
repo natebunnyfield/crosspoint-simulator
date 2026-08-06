@@ -265,6 +265,51 @@ These shaped the current code; details kept short since the fixes are already in
 
 After any of the storage / cache fixes: `rm -rf ./fs_/.crosspoint/` to drop stale caches built with broken code.
 
+## Icon assets are stored PRE-ROTATED (why new icons keep coming out rotated)
+
+Noted 2026-08-06, after Manage Files / Create Note / Claude all appeared rotated.
+**Newly generated icons keep landing 90 degrees out because the asset convention
+is pre-rotated art, not upright art.** Anything authored the obvious way — right
+way up, as a person would draw it — displays on its side.
+
+The panel framebuffer is LANDSCAPE and Portrait reading is the 90-degree
+rotation of the whole buffer. Neither icon entry point rotates the bitmap's
+*content*:
+
+- `GfxRenderer::drawImage` blits the bytes 1:1 into the framebuffer. It rotates
+  only the destination *position*, never the pixels.
+- `GfxRenderer::drawIcon` plots per-pixel with a `(size-1-row, col)` mapping
+  whose stated purpose is to "reproduce the Portrait orientation the blit
+  produced" — same result, just not byte-aligned.
+
+So for both, the bytes must already be in framebuffer order. Displayed pixel
+`(dx, dy)` comes from `stored[size-1-dx][dy]`.
+
+**To generate an icon that displays upright**, rotate before embedding:
+
+```
+stored[r][c] = upright[c][size-1-r]
+```
+
+(1bpp, MSB-first, **bit == 0 is ink**.) Round-trip check:
+`displayed[dy][dx] = stored[size-1-dx][dy]` must give back `upright`.
+
+Every asset that is correct today follows this, and two of them make it
+unambiguous — worth checking a new icon against these rather than trusting the
+eye on a symmetric shape:
+
+- `src/images/LoadingIcon.h` stores three dots in a **vertical column**, which is
+  exactly what makes them display as a horizontal "...".
+- `src/components/icons/folder.h` stores the folder **on its side, tab on the
+  left edge**, and displays tab-up.
+
+All 15 `src/components/icons/*.h` and `Logo120.h` follow it. **`src/images/MoonIcon.h`
+does not** — it holds upright art, so the sleep-screen moon renders rotated.
+Confirmed by decoding, not by eye; the corrected bytes are a straight
+application of the transform above and round-trip clean at the same 288 bytes.
+Not fixed here: it is a firmware file and this repo has read-only access to the
+fork.
+
 ## Known Remaining Work
 
 - SDL window size now follows orientation changes at present time; keep resize and `SDL_RenderSetLogicalSize` on the main-thread `presentIfNeeded()` path. The library build hook patches the common `GfxRenderer::setOrientation()` implementation so consuming repos notify `HalDisplay` without a manual source edit.
