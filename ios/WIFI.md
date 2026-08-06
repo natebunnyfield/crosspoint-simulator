@@ -1,14 +1,19 @@
 # WiFi on iOS — plan
 
-Status: Phases 0 and 1 are **done**, Phase 2 partly. Phases 3–5 are still plan.
-Written 2026-08-06 against simulator `c66d39f` and firmware `4ef1a62`.
+Status: **everything in this repo is done** — Phases 0, 1, 3 and the simulator
+half of Phase 2. What remains is the firmware half, which needs write access to
+`crosspoint-reader`: the mapped port in the painted URL (Phase 2) and the gate
+split (Phase 4). Written 2026-08-06 against simulator `c66d39f` and firmware
+`4ef1a62`.
 
-**Nothing here has been built for iOS.** There is no Mac in the loop and no
-paired device, so every Apple-only path — `ios/CrossPointWiFi.mm` above all —
-is unverified beyond `tests/wifi_host_test.cpp`, which exercises the *logic*
-`WiFiClass` runs on a phone with a scripted backend standing in for
-`NWPathMonitor` and `NEHotspotNetwork`. It cannot tell you whether iOS reports
-what this code expects.
+**None of it has been built for iOS.** There is no Mac in the loop and no paired
+device, so every Apple-only path — `ios/*.mm` above all — has never been through
+a compiler. What does cover them is four host tests
+(`wifi_host_test`, `http_dispatch_test`, `restart_semantics_test`, plus the
+existing `pad_core_test`), which exercise the *logic* those paths run by forcing
+the platform macros on and substituting scripted backends. They cannot tell you
+whether iOS reports what the code expects. Everything under "device-only" in
+Known limits is still exactly that.
 
 ## Decisions (owner, 2026-08-06)
 
@@ -58,7 +63,8 @@ fallback needs an 802.11 radio. iOS gives the first and refuses the second.
 | Connection state | **yes** | `NWPathMonitor`, no entitlement |
 | Own LAN IP | **yes** | `getifaddrs()` on `en0` |
 | Current SSID | **yes**, entitled | *Access WiFi Information* + Location. Approved |
-| mDNS `crosspoint.local` | **yes** | Bonjour — mandatory, see finding 6 |
+| Bonjour service discovery | **yes** | `DNSServiceRegister`, no entitlement beyond the local-network prompt |
+| mDNS hostname `crosspoint.local` | **no** | Bonjour publishes services, not hostnames; an app cannot claim a `.local` name |
 | Join a **named** network | yes, entitled | `NEHotspotConfiguration`, device-only. **Not needed** — see Phase 1 |
 | **Scan** | **no** | No public API at any tier |
 | **Soft AP** | **no** | An app cannot bring up an access point |
@@ -113,12 +119,15 @@ correct thing to show someone whose phone isn't on WiFi.
 5. **`WiFi.localIP()` is hardcoded `127.0.0.1`** (`WiFi.h:196`), which feeds
    finding 4.
 
-6. **mDNS is a no-op stub.** `src/ESPmDNS.h` — `begin()` returns true,
-   `addService()` does nothing. The firmware advertises and QR-encodes
-   `http://crosspoint.local/` as the **primary** address, so on iOS the main
-   peer-facing address resolves to nothing. This makes
-   `NSLocalNetworkUsageDescription` + `NSBonjourServices` required, not
-   optional.
+6. **mDNS was a no-op stub, and the hostname is unreachable regardless.**
+   `src/ESPmDNS.h` used to return true from `begin()` and do nothing. It now
+   publishes a real Bonjour service — but the firmware advertises and
+   QR-encodes `http://crosspoint.local/` as its **primary** address, and no
+   Apple API lets an app claim that hostname. So that URL is a dead link on
+   iOS whatever we do, and **the IP URL is the only address a peer can use**.
+   Fixing the port in that URL is therefore load-bearing, not cosmetic.
+   `NSLocalNetworkUsageDescription` + `NSBonjourServices` are still required
+   for the service registration itself.
 
 7. **`SimHttpFetch` `popen()`s curl** (`SimHttpFetch.h:208`). No curl binary and
    no fork/exec in the iOS sandbox. Same gap already documented for the
@@ -202,7 +211,7 @@ it turns out to be coarse or pinned the bars will step rather than glide.
 `fetchCurrent` also returns nil on the iOS Simulator, so this is a device-only
 behaviour and Simulator runs keep the env fakes.
 
-### Phase 2 — make the server reachable (simulator + firmware) — partly done
+### Phase 2 — make the server reachable (simulator + firmware) — simulator side done
 
 This is the phase that delivers peer transfer.
 
@@ -210,26 +219,41 @@ This is the phase that delivers peer transfer.
   `WebServer.cpp` and `WebSocketsServer.cpp` via
   `crosspoint_simulator::bindAddressHostOrder()`. Dev machines keep loopback,
   and the override forces either way.
-* **Real mDNS**, Bonjour-backed, replacing the `ESPmDNS.h` stub on Apple
-  platforms — without it the primary advertised address is a dead link. Use
-  `<dns_sd.h>`'s `DNSServiceRegister` rather than `NSNetService`: it is a plain
-  C API, so `ESPmDNS` stays a normal TU instead of becoming a second `.mm`.
+* ✅ **Bonjour advertisement**, `<dns_sd.h>`-backed, replacing the `ESPmDNS.h`
+  stub on Apple platforms. Registered only when the server is bound to all
+  interfaces, since advertising a loopback-only socket invites a connection
+  that cannot work.
+
+  **This does NOT make `crosspoint.local` resolve, and that claim earlier in
+  this document was wrong.** ESP-IDF's mDNS claims a *hostname*; Bonjour's
+  `DNSServiceRegister` publishes a *service*. An app may not claim an arbitrary
+  `.local` hostname — the daemon will not cede one — so the firmware's primary
+  painted URL stays unreachable on Apple platforms no matter what is
+  implemented here. What it does buy is real discovery: Finder's Network,
+  Safari's Bonjour bookmarks, `dns-sd -B _http._tcp`.
+
+  The consequence is that **the IP URL is the only reachable address**, which
+  promotes the mapped-port fix below from a polish item to the one that decides
+  whether peer transfer works at all.
 * **Teach the firmware the mapped port** so the URL and both QR codes say
   `:8080`: read `crosspoint_simulator::httpPort()` under `#ifdef SIMULATOR` at
   the three sites in `CrossPointWebServerActivity.cpp`. **Needs write access to
   the firmware repo.**
-* **Route `ESP.restart()` into `SimulatorLifecycle`** so the post-transfer
-  reboot actually happens (finding 8). Fixes desktop too. Note this is *not*
-  simply a call to `rebootAsPowerWake()` — that reports a POWER-button wake,
-  and `silentRestart()` means "reboot to Home", a different intent the wake
-  path does not currently carry. Do not wire it up until that distinction has
-  somewhere to live, or the sim will come back from a file transfer pretending
-  someone pressed POWER.
-* `isIdleTimerDisabled` while the server runs — a transfer that dies to a
-  screen lock will read as a firmware bug during QA, which is exactly the
-  failure this exercise exists to avoid.
+* ✅ **`ESP.restart()` routed into `SimulatorLifecycle`** as
+  `rebootAsFirmwareRestart()`, deliberately NOT `rebootAsPowerWake()` — that
+  sets a wake reason the firmware reads as "the user pressed POWER", and a
+  restart is nobody pressing anything. On iOS the in-process `longjmp` reboot
+  means the firmware's `RTC_NOINIT` globals survive exactly as RTC memory does
+  on hardware, so `silentRestart()`'s "come back on Home" lands. On desktop the
+  reboot is `execvp` and those globals do **not** survive, so it is opt-in via
+  `CROSSPOINT_SIM_FIRMWARE_RESTART=1` rather than changing the canary's
+  behaviour untested.
+* ✅ `isIdleTimerDisabled` while the server runs, via `sim_host_screen`. A
+  transfer is minutes of no input; without it the phone locks the screen,
+  suspends the app, and the socket stops accepting mid-transfer — which during
+  QA reads as a bug in the firmware's web server.
 
-### Phase 3 — in-process HTTP (simulator; also unbreaks Mac App Store)
+### Phase 3 — in-process HTTP (simulator) ✅ done
 
 * Split `SimHttpFetch.h` into dispatcher + backends, as `MD5Builder.h` does.
   Mock-root and `file://` paths stay shared — platform-independent and useful

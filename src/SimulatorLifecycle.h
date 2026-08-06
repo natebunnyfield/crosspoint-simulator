@@ -4,11 +4,19 @@
 #include <TargetConditionals.h>
 #endif
 
+// Overridable so the in-process branch can be typechecked off-device; it is
+// otherwise compiled only for iOS, where nothing in this environment can build
+// it. Same escape hatch as CROSSPOINT_SIM_HOST_WIFI and CROSSPOINT_SIM_HOST_HTTP.
+#ifndef CROSSPOINT_SIM_REBOOT_IN_PROCESS
 #if defined(__APPLE__) && TARGET_OS_IPHONE
 #define CROSSPOINT_SIM_REBOOT_IN_PROCESS 1
-#include <csetjmp>
 #else
 #define CROSSPOINT_SIM_REBOOT_IN_PROCESS 0
+#endif
+#endif
+
+#if CROSSPOINT_SIM_REBOOT_IN_PROCESS
+#include <csetjmp>
 #endif
 
 namespace SimulatorLifecycle {
@@ -18,6 +26,21 @@ enum class WakeReason { None, PowerButton };
 void initProcessArgs(char** argv);
 WakeReason consumeWakeReason();
 [[noreturn]] void rebootAsPowerWake();
+
+// ESP.restart(): the firmware asking for a plain reset, NOT a deep-sleep wake.
+//
+// The distinction matters and is why this is not just a call to
+// rebootAsPowerWake(). That function sets CROSSPOINT_SIM_WAKE_REASON=power, and
+// the firmware reads it as "the user pressed POWER to wake the device". A
+// restart is nobody pressing anything -- CrossPointWebServerActivity calls it on
+// the way out of file transfer to defragment the heap -- so claiming a button
+// press would send the firmware down the wrong boot path.
+//
+// May or may not return: it does not return when it reboots, and returns
+// immediately when the platform declines to (see the .cpp for which do).
+// Callers must treat it as possibly-returning, which ESP.restart()'s Arduino
+// signature already does.
+void rebootAsFirmwareRestart();
 
 #if CROSSPOINT_SIM_REBOOT_IN_PROCESS
 // A deep-sleep wake is a chip reset on real hardware, and on desktop it is a
