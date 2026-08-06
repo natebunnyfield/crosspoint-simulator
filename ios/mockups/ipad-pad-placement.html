@@ -149,6 +149,14 @@
 
   /* --- device ----------------------------------------------------------- */
   .frame-wrap { position: relative; }
+  .multi { display: flex; gap: 18px; align-items: flex-end; justify-content: center; flex-wrap: nowrap; }
+  .stage.scrollx { overflow-x: auto; justify-items: start; }
+  .multi .col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .multi .cap-name { font-size: .74rem; color: var(--ink-soft); font-weight: 600; }
+  .multi .cap-num {
+    font-size: .68rem; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+    text-align: center; line-height: 1.35;
+  }
   .frame {
     position: absolute; top: 0; left: 0;
     transform-origin: top left;
@@ -235,9 +243,10 @@
 
     <div class="grp">
       <span class="lbl">Page</span>
+      <div class="chips" id="denomChips"></div>
       <div class="slide">
-        <div class="top"><span class="name">Top of page, below the safe area</span><span class="val" id="vPage"></span></div>
-        <input type="range" id="sPage" min="0" max="600" step="1">
+        <div class="top"><span class="name">Top of page, as a ratio</span><span class="val" id="vPage"></span></div>
+        <input type="range" id="sPage" min="0" max="100" step="0.5">
         <span class="hint" id="hPage"></span>
       </div>
     </div>
@@ -245,8 +254,8 @@
     <div class="grp">
       <span class="lbl">Rockers</span>
       <div class="slide">
-        <div class="top"><span class="name">Inset from the screen edge</span><span class="val" id="vInset"></span></div>
-        <input type="range" id="sInset" min="0" max="80" step="1">
+        <div class="top"><span class="name">Inset, as a ratio of the spare margin</span><span class="val" id="vInset"></span></div>
+        <input type="range" id="sInset" min="0" max="100" step="0.5">
         <span class="hint" id="hInset"></span>
       </div>
       <div class="slide">
@@ -268,6 +277,7 @@
 
     <div class="grp toggles">
       <span class="lbl">Overlays</span>
+      <label><input type="checkbox" id="tAll"> Compare all five frames</label>
       <label><input type="checkbox" id="tGhost" checked> Shipped layout, dashed</label>
       <label><input type="checkbox" id="tSlop"> Touch target runs to the screen edge</label>
       <label><input type="checkbox" id="tGrip"> Thumb reach from a side grip</label>
@@ -334,23 +344,51 @@
     };
   }
 
-  // opts: pageGap (pt below the safe-area top), inset (pt from screen edge),
-  //       midFrac (rocker centre as a fraction of screen height),
-  //       cell (pt, square edge), bottom ("screen" | "tucked")
+  // EVERY HORIZONTAL AND VERTICAL PLACEMENT IS A RATIO, never a point value —
+  // a figure tuned on one frame has to mean the same thing on the other four.
+  // The denominators are chosen so the ratio cannot produce an illegal layout
+  // at either end of its range:
+  //
+  //   page   pagePct of the SPARE HEIGHT (0 = as high as the safe area allows,
+  //          100 = as low; 50 is exactly today's centred page). Optionally of
+  //          screen height instead — the two agree on a 13-inch frame and
+  //          diverge below it, which is a judgement rather than a detail.
+  //   inset  insetPct of the SPARE MARGIN, margin - 2 * cell. This is the only
+  //          safe denominator: the mini's margin holds a pair exactly, so its
+  //          spare is 0 and any ratio keeps it flush instead of negative.
+  //          50% is exactly today's centred-in-the-margin rockers.
+  //   cell   stays POINTS. kOptimalSquare is a thumb-sized physical optimum,
+  //          so a ratio is the wrong model for it.
+  //
+  // opts: pagePct, pageDenom ("spare" | "screen"), insetPct, midFrac (rocker
+  //       centre as a fraction of screen height), cell (pt), bottom.
+  function resolve(f, o) {
+    var cell = Math.min(o.cell != null ? o.cell : f.cell, f.margin / 2);
+    var spareMargin = Math.max(0, f.margin - 2 * cell);
+    var gap = o.pageDenom === "screen"
+      ? Math.max(0, f.dev.h * o.pagePct - f.dev.st)
+      : f.slack * o.pagePct;
+    return {
+      cell: cell,
+      pageGap: Math.min(gap, f.slack),
+      inset: spareMargin * o.insetPct,
+      spareMargin: spareMargin
+    };
+  }
+
   function place(f, o) {
-    var d = f.dev;
-    var cell = o.cell != null ? o.cell : f.cell;
-    var half = cell / 2;
-    var pageTop = d.st + o.pageGap;
+    var d = f.dev, r = resolve(f, o);
+    var cell = r.cell, half = cell / 2;
+    var pageTop = d.st + r.pageGap;
     var midTop = d.h * o.midFrac - cell / 2;
     var lowerY = o.bottom === "tucked"
       ? midTop + cell + TUCK_GAP
       : d.h - Math.max(d.sb, HOME_MIN) - half;
-    var lx = o.inset, rx = d.w - o.inset - 2 * cell;
+    var lx = r.inset, rx = d.w - r.inset - 2 * cell;
     return {
       pageTop: pageTop, pageBottom: pageTop + f.panelH,
       pageLeft: f.margin, pageRight: f.margin + f.panelW,
-      cell: cell, half: half,
+      cell: cell, half: half, spareMargin: r.spareMargin,
       midTop: midTop, lowerY: lowerY, lx: lx, rx: rx,
       rects: [
         { k: "Back",   x: lx,        y: midTop, w: cell, h: cell, pair: "l" },
@@ -367,26 +405,37 @@
   // --- option sets ---------------------------------------------------------
   // Each returns concrete opts for the selected frame, so a preset means the
   // same thing on a mini as on a 13-inch.
+  // Every preset is expressed in ratios, so selecting one means the same thing
+  // on all five frames. Note that SHIPPED is 50% / 50% — centring the page in
+  // the spare height and the pair in the spare margin is exactly what today's
+  // code does, which is the check that these denominators are the right ones.
   var PRESETS = [
-    { id: "now", name: "Shipped", note: "centred page, rockers centred in the margin",
-      of: function (f) { return { pageGap: f.nowPageGap, inset: f.nowInset, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
-    { id: "edge", name: "A — Edge only", note: "rockers flush to the edge, page untouched",
-      of: function (f) { return { pageGap: f.nowPageGap, inset: 0, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
+    { id: "now", name: "Shipped", note: "page centred in the spare height, rockers centred in the margin",
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+    { id: "owner", name: "G — Owner draft", note: "30% of the spare height, 20% of the spare margin — the 2026-08-06 dial-in",
+      of: function (f) { return { pagePct: 0.30, pageDenom: "spare", insetPct: 0.20, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+    { id: "edge", name: "A — Edge only", note: "rockers flush, page untouched",
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
     { id: "edgetop", name: "B — Edge + page to the top", note: "page as high as the safe area allows",
-      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
     { id: "grip", name: "C — B, thumbs low", note: "rockers at 62% — where a two-hand side grip sits",
-      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.62, cell: f.cell, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: OPTIMAL, bottom: "screen" }; } },
     { id: "cluster", name: "D — Low cluster", note: "page high, the whole pad low and tucked together",
-      of: function (f) { return { pageGap: 8, inset: 0, midFrac: 0.66, cell: f.cell, bottom: "tucked" }; } },
-    { id: "soft", name: "E — Softened edge", note: "8 pt off the edge, page high, thumbs low",
-      of: function (f) { return { pageGap: 0, inset: 8, midFrac: 0.6, cell: f.cell, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0.03, pageDenom: "spare", insetPct: 0, midFrac: 0.66, cell: OPTIMAL, bottom: "tucked" }; } },
+    { id: "soft", name: "E — Softened edge", note: "a fifth of the spare margin, page high, thumbs low",
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0.2, midFrac: 0.6, cell: OPTIMAL, bottom: "screen" }; } },
     { id: "big", name: "F — C, fatter cells", note: "the 13-inch margin has room for a bigger target",
-      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen" }; } }
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen" }; } }
+  ];
+
+  var DENOMS = [
+    { id: "spare", name: "of the spare height", note: "0 = as high as the safe area allows, 50 = today's centred page" },
+    { id: "screen", name: "of screen height", note: "measured from the very top of the screen" }
   ];
 
   // --- state ---------------------------------------------------------------
   var state = { dev: DEVICES[0], opts: null, preset: "now",
-                ghost: true, grip: false, labels: true, slop: false };
+                ghost: true, grip: false, labels: true, slop: false, all: false };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -399,28 +448,27 @@
     render();
   }
 
-  function clampOpts() {
-    var f = frameOf(state.dev), o = state.opts;
-    o.cell = Math.min(o.cell, f.margin / 2);          // a pair must fit the margin
-    o.pageGap = Math.min(o.pageGap, f.slack);
-    o.inset = Math.min(o.inset, Math.max(0, f.margin - 2 * o.cell));
-  }
+  // Nothing is clamped INTO the settings. The ratios are legal by
+  // construction, and the cell — the one point value — is clamped per frame
+  // inside resolve(), so the requested size survives a trip through a frame
+  // too narrow to honour it. Clamping it destructively here meant one visit to
+  // the mini pinned every frame to 54 pt.
+  function clampOpts() {}
 
   function syncInputs() {
-    clampOpts();
     var f = frameOf(state.dev), o = state.opts;
-    $("sPage").max = Math.round(f.slack);
-    $("sPage").value = Math.round(o.pageGap);
-    $("sInset").max = Math.round(Math.max(1, f.margin - 2 * o.cell));
-    $("sInset").value = Math.round(o.inset);
+    $("sPage").value = (o.pagePct * 100).toFixed(1);
+    $("sInset").value = (o.insetPct * 100).toFixed(1);
     $("sMid").value = (o.midFrac * 100).toFixed(1);
-    $("sCell").max = Math.round(Math.max(45, f.margin / 2));
     $("sCell").value = Math.round(o.cell);
     Array.prototype.forEach.call(document.querySelectorAll("#presetChips .chip"), function (c) {
       c.setAttribute("aria-pressed", String(c.dataset.id === state.preset));
     });
     Array.prototype.forEach.call(document.querySelectorAll("#bottomChips .chip"), function (c) {
       c.setAttribute("aria-pressed", String(c.dataset.id === o.bottom));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#denomChips .chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.id === o.pageDenom));
     });
   }
 
@@ -429,20 +477,22 @@
   // --- render --------------------------------------------------------------
   function px(v) { return v + "px"; }
 
-  function render() {
-    clampOpts();
-    var f = frameOf(state.dev), d = state.dev, o = state.opts;
-    var p = place(f, o);
-    var nowP = place(f, { pageGap: f.nowPageGap, inset: f.nowInset, midFrac: 0.5,
-                          cell: f.cell, bottom: "screen" });
+  function shippedOpts(f) {
+    return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5,
+             cell: f.cell, bottom: "screen" };
+  }
 
-    // fit the frame to the stage; 1 px = 1 pt before scaling
-    var stage = $("stage");
-    var pad = 28;
-    var k = Math.min((stage.clientWidth - pad) / d.w, (stage.clientHeight - pad) / d.h);
-    var frame = $("frame");
-    $("frameWrap").style.width = px(d.w * k);
-    $("frameWrap").style.height = px(d.h * k);
+  // Paints one frame at scale k into a wrapper element. The single-frame stage
+  // and the five-frame comparison both go through here, so a figure shown in
+  // one is the same figure in the other.
+  function paint(wrap, dev, o, k, detail) {
+    var f = frameOf(dev), d = dev;
+    var p = place(f, o);
+    var nowP = place(f, shippedOpts(f));
+
+    wrap.style.width = px(d.w * k);
+    wrap.style.height = px(d.h * k);
+    var frame = wrap.firstElementChild;
     frame.style.width = px(d.w);
     frame.style.height = px(d.h);
     frame.style.transform = "scale(" + k + ")";
@@ -470,7 +520,7 @@
             'px;width:' + f.panelW + 'px;height:' + f.panelH + 'px">' + pageContent(f) + '</div>';
 
     // thumb reach, drawn from a pivot on each side edge at the grip height
-    if (state.grip) html += gripSvg(f, d, o);
+    if (state.grip && detail) html += gripSvg(f, d, o);
 
     // invisible hit-slop: the stroke stays where it is, the target runs on to
     // the screen edge. Same trade the phone already banked as its fallback for
@@ -493,15 +543,64 @@
       else if (r.pair === "r") round = "border-radius:0 9px 9px 0;border-left-width:1px";
       html += '<div class="ctl" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w +
               'px;height:' + r.h + 'px;' + round + '">' +
-              (state.labels ? '<span style="font-size:' + Math.min(13, r.h / 3) + 'px">' + r.k + "</span>" : "") +
+              (state.labels && detail
+                ? '<span style="font-size:' + Math.min(13, r.h / 3) + 'px">' + r.k + "</span>"
+                : "") +
               "</div>";
     });
 
     // movement arrows for whatever actually moved
-    html += moveMarks(f, d, p, nowP);
+    if (detail) html += moveMarks(f, d, p, nowP);
 
     frame.innerHTML = html;
-    readout(f, d, o, p, nowP);
+    return { f: f, p: p, nowP: nowP };
+  }
+
+  function render() {
+    clampOpts();
+    var stage = $("stage"), o = state.opts;
+
+    if (state.all) {
+      // Five frames at ONE shared scale, so their real size differences show.
+      // The gaps are CSS pixels and do NOT scale with k, so they come out of
+      // the available width before the ratio is taken, not out of the point
+      // total — getting that backwards overflows the row by exactly the gaps.
+      var pad = 34, gap = 18, capH = 46;
+      var n = DEVICES.length;
+      var totalW = DEVICES.reduce(function (a, d) { return a + d.w; }, 0);
+      var maxH = Math.max.apply(null, DEVICES.map(function (d) { return d.h; }));
+      var k = Math.min((stage.clientWidth - pad - gap * (n - 1)) / totalW,
+                       (stage.clientHeight - pad - capH) / maxH);
+      // Below this the frames stop being readable; scroll the row instead.
+      var scrollx = k < 0.11;
+      if (scrollx) k = 0.11;
+      stage.classList.toggle("scrollx", scrollx);
+      $("frameWrap").outerHTML = '<div class="multi" id="frameWrap"></div>';
+      var multi = $("frameWrap");
+      multi.innerHTML = DEVICES.map(function (d) {
+        return '<div class="col"><div class="frame-wrap"><div class="frame"></div></div>' +
+               '<span class="cap-name">' + d.name + "</span>" +
+               '<span class="cap-num" data-for="' + d.id + '"></span></div>';
+      }).join("");
+      DEVICES.forEach(function (d, i) {
+        var col = multi.children[i];
+        var r = paint(col.querySelector(".frame-wrap"), d, o, k, false);
+        col.querySelector(".cap-num").innerHTML =
+          "page " + Math.round(r.p.pageTop) + " pt<br>inset " + Math.round(r.p.lx) + " pt";
+      });
+      readout(frameOf(state.dev), state.dev, o,
+              place(frameOf(state.dev), o), place(frameOf(state.dev), shippedOpts(frameOf(state.dev))));
+      return;
+    }
+
+    stage.classList.remove("scrollx");
+    if (!$("frameWrap").classList.contains("frame-wrap")) {
+      $("frameWrap").outerHTML = '<div class="frame-wrap" id="frameWrap"><div class="frame"></div></div>';
+    }
+    var d = state.dev, pad1 = 28;
+    var k1 = Math.min((stage.clientWidth - pad1) / d.w, (stage.clientHeight - pad1) / d.h);
+    var res = paint($("frameWrap"), d, o, k1, true);
+    readout(res.f, d, o, res.p, res.nowP);
   }
 
   function pageContent(f) {
@@ -588,6 +687,7 @@
       ["Page top", delta(nowP.pageTop, p.pageTop, pt)],
       ["Page bottom", delta(nowP.pageBottom, p.pageBottom, pt)],
       ["Rocker edge → screen edge", delta(nowP.lx, p.lx, pt) + ' <span class="n">/ ' + mm(p.lx) + "</span>"],
+      ["Spare margin, after the pair", pt(p.spareMargin)],
       ["Rocker → page, horizontally", pt(toPage) + ' <span class="n">/ ' + mm(toPage) + "</span>"],
       ["Rocker centre", pt(mid) + ' <span class="n">/ ' + (o.midFrac * 100).toFixed(1) + "% down</span>"],
       ["Rocker centre → screen bottom", pt(d.h - mid) + ' <span class="n">/ ' + mm(d.h - mid) + "</span>"],
@@ -620,17 +720,23 @@
     $("flag").hidden = msgs.length === 0;
     $("flag").textContent = msgs.join(" ");
 
-    $("vPage").textContent = Math.round(o.pageGap) + " pt";
-    $("hPage").textContent = "0 = as high as the safe area allows · shipped is " +
-      Math.round(f.nowPageGap) + " (centred) · max " + Math.round(f.slack);
-    $("vInset").textContent = Math.round(o.inset) + " pt";
-    $("hInset").textContent = "0 = flush to the edge · shipped is " + Math.round(f.nowInset) +
-      " · max " + Math.round(Math.max(0, f.margin - 2 * p.cell)) + " (against the page)";
+    $("vPage").textContent = (o.pagePct * 100).toFixed(1) + "%";
+    $("hPage").textContent = "→ " + Math.round(p.pageTop) + " pt on this frame · " +
+      (o.pageDenom === "spare"
+        ? "50% is today's centred page · spare height " + Math.round(f.slack) + " pt"
+        : "measured from the top of the screen, clamped to the spare height");
+    $("vInset").textContent = (o.insetPct * 100).toFixed(1) + "%";
+    $("hInset").textContent = "→ " + Math.round(p.lx) + " pt on this frame · 50% is today's" +
+      " centred pair · spare margin " + Math.round(p.spareMargin) + " pt" +
+      (p.spareMargin < 0.5 ? " (this frame is already flush)" : "");
     $("vMid").textContent = (o.midFrac * 100).toFixed(1) + "%";
     $("hMid").textContent = "shipped is 50% · " + mm(d.h - mid) + " up from the bottom edge";
-    $("vCell").textContent = Math.round(p.cell) + " pt";
-    $("hCell").textContent = "shipped is " + Math.round(f.cell) + " · a pair is " +
-      Math.round(2 * p.cell) + " of the " + Math.round(f.margin) + " pt margin";
+    $("vCell").textContent = Math.round(o.cell) + " pt";
+    $("hCell").textContent = (p.cell < o.cell - 0.5
+        ? "→ " + Math.round(p.cell) + " pt on this frame, capped by the margin · "
+        : "") +
+      "shipped is " + Math.round(f.cell) + " · a pair is " + Math.round(2 * p.cell) +
+      " of the " + Math.round(f.margin) + " pt margin";
   }
 
   // --- wiring --------------------------------------------------------------
@@ -644,8 +750,12 @@
     Array.prototype.forEach.call(this.querySelectorAll(".chip"), function (c) {
       c.setAttribute("aria-pressed", String(c.dataset.id === state.dev.id));
     });
-    // presets are frame-relative, so re-derive rather than carry raw points over
-    applyPreset(state.preset === "custom" ? "now" : state.preset);
+    // Settings CARRY ACROSS FRAMES untouched — that is the whole reason they
+    // are ratios. Only the cell is a point value, and syncInputs re-clamps it
+    // to the new frame's margin. (This used to re-derive from the preset,
+    // which silently discarded a hand-dialled setting on every frame switch.)
+    syncInputs();
+    render();
   });
 
   $("presetChips").innerHTML = PRESETS.map(function (p) {
@@ -664,8 +774,25 @@
     state.opts.bottom = b.dataset.id; markCustom(); render();
   });
 
-  $("sPage").addEventListener("input", function () { state.opts.pageGap = +this.value; markCustom(); render(); });
-  $("sInset").addEventListener("input", function () { state.opts.inset = +this.value; markCustom(); render(); });
+  $("denomChips").innerHTML = DENOMS.map(function (x) {
+    return '<button class="chip" data-id="' + x.id + '" title="' + x.note + '" aria-pressed="false">' +
+           x.name + "</button>";
+  }).join("");
+  $("denomChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    var o = state.opts, f = frameOf(state.dev);
+    // Switch denominator without moving the page: re-express the ratio so the
+    // resolved position is identical, then it drifts only as the user drags.
+    var cur = place(f, o).pageTop;
+    o.pageDenom = b.dataset.id;
+    o.pagePct = b.dataset.id === "screen" ? cur / f.dev.h
+                                          : (f.slack > 0 ? (cur - f.dev.st) / f.slack : 0);
+    markCustom(); render();
+  });
+
+  $("sPage").addEventListener("input", function () { state.opts.pagePct = +this.value / 100; markCustom(); render(); });
+  $("sInset").addEventListener("input", function () { state.opts.insetPct = +this.value / 100; markCustom(); render(); });
+  $("tAll").addEventListener("change", function () { state.all = this.checked; render(); });
   $("sMid").addEventListener("input", function () { state.opts.midFrac = +this.value / 100; markCustom(); render(); });
   $("sCell").addEventListener("input", function () { state.opts.cell = +this.value; markCustom(); render(); });
   $("tSlop").addEventListener("change", function () { state.slop = this.checked; render(); });
@@ -674,6 +801,6 @@
   $("tLabels").addEventListener("change", function () { state.labels = this.checked; render(); });
 
   window.addEventListener("resize", render);
-  applyPreset("edgetop");
+  applyPreset("owner");
 })();
 </script>
