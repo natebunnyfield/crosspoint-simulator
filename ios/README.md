@@ -379,6 +379,37 @@ resolves to:
 | iPad Air 11″ / iPad | 127 pt | 5 pt |
 | iPad mini | 113 pt | 0 pt |
 
+**The bottom row must clear the display's corner arcs** (owner ruling
+2026-08-06). Moving the rockers outward pushes POWER and UP|DOWN into the two
+bottom corners, and an iPad's corners are rounded — so past a certain inset the
+display itself clips the control. A clipped control is dead, not merely ugly:
+the pixels under the arc are not on the screen, so neither is the touch.
+
+The geometry is a quarter-arc of radius `r` centred at `(r, H-r)`. A control
+whose bottom edge sits `d` points up from the screen bottom pokes `r - d` into
+the arc's band, and needs `r - sqrt(r² - (r-d)²)` of inset to clear. With the
+bottom row anchored at the 20 pt home-indicator inset:
+
+| radius | bottom row at 20 pt up | minimum inset |
+|---|---|---|
+| 18 pt | above the arc band | none needed |
+| 21.5 pt | 1.5 pt into it | 0.05 pt |
+| 30 pt | 10 pt into it | **1.7 pt** |
+
+So the constraint is small but real, and it binds exactly on the frames the
+whole change is for — the M4-generation Pro bodies, whose corners are rounder
+than the 18 pt the 2018-2022 ones used. Flush-to-the-edge on a Pro 13″ clips
+POWER and DOWN by 1.6 pt.
+
+**The exact radius is `UIScreen._displayCornerRadius`, which is private**, so
+the mockup carries per-frame defaults (30 / 18 / 30 / 18 / 21.5) as a slider
+rather than a constant, draws the frame at that radius in point space, paints a
+clipped control red, and reports the overshoot. Check a layout against a radius
+*larger* than you believe, never smaller. Two corrections are offered and
+neither is free — inset the bottom row until it clears, which costs its column
+alignment with the rockers above, or raise it, which costs its screen-bottom
+anchor. All seven option sets default to insetting.
+
 **One question is still open in G:** the page ratio can be taken against the
 spare height or against screen height. Both reproduce 186 pt on a Pro 13″ — they
 are the same number there — and they diverge below it, reaching the mini at

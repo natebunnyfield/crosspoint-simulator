@@ -275,6 +275,16 @@
       <div class="chips" id="bottomChips"></div>
     </div>
 
+    <div class="grp">
+      <span class="lbl">Screen corners</span>
+      <div class="chips" id="cornerChips"></div>
+      <div class="slide">
+        <div class="top"><span class="name">Corner radius</span><span class="val" id="vCorner"></span></div>
+        <input type="range" id="sCorner" min="0" max="60" step="0.5">
+        <span class="hint" id="hCorner"></span>
+      </div>
+    </div>
+
     <div class="grp toggles">
       <span class="lbl">Overlays</span>
       <label><input type="checkbox" id="tAll"> Compare all five frames</label>
@@ -313,12 +323,58 @@
   // Portrait point sizes and portrait safe-area insets. ppi is the physical
   // panel density, used only to state reaches in millimetres.
   var DEVICES = [
-    { id: "pro13",  name: "iPad Pro 13″",  w: 1032, h: 1376, st: 24, sb: 20, s: 2, ppi: 264 },
-    { id: "air13",  name: "iPad Air 13″",  w: 1024, h: 1366, st: 24, sb: 20, s: 2, ppi: 264 },
-    { id: "pro11",  name: "iPad Pro 11″",  w:  834, h: 1210, st: 24, sb: 20, s: 2, ppi: 264 },
-    { id: "air11",  name: "iPad Air 11″",  w:  820, h: 1180, st: 24, sb: 20, s: 2, ppi: 264 },
-    { id: "mini",   name: "iPad mini",          w:  744, h: 1133, st: 24, sb: 20, s: 2, ppi: 326 }
+    { id: "pro13",  name: "iPad Pro 13″",  w: 1032, h: 1376, st: 24, sb: 20, s: 2, ppi: 264, r: 30 },
+    { id: "air13",  name: "iPad Air 13″",  w: 1024, h: 1366, st: 24, sb: 20, s: 2, ppi: 264, r: 18 },
+    { id: "pro11",  name: "iPad Pro 11″",  w:  834, h: 1210, st: 24, sb: 20, s: 2, ppi: 264, r: 30 },
+    { id: "air11",  name: "iPad Air 11″",  w:  820, h: 1180, st: 24, sb: 20, s: 2, ppi: 264, r: 18 },
+    { id: "mini",   name: "iPad mini",          w:  744, h: 1133, st: 24, sb: 20, s: 2, ppi: 326, r: 21.5 }
   ];
+
+  // --- corner arithmetic -----------------------------------------------------
+  // The display's four corners are quarter-arcs of radius `r` centred at
+  // (r,r), (W-r,r), (r,H-r) and (W-r,H-r). This matters because the BOTTOM ROW
+  // LIVES IN THE TWO BOTTOM CORNERS: pushed flush to the screen edge, a
+  // control runs under the corner arc and the display clips it. The exact
+  // radius is UIScreen's private _displayCornerRadius and the M4-generation
+  // Pro bodies are rounder than the 18 pt the 2018-2022 ones used, so it is a
+  // slider here rather than a constant -- check a layout against a radius
+  // LARGER than you believe, never smaller.
+
+  // How far outside the arc the worst corner of this rect falls, in points.
+  // 0 means the rect sits entirely on the display.
+  function cornerOvershoot(x, y, w, h, W, H, R) {
+    if (R <= 0) return 0;
+    var worst = 0;
+    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(function (q) {
+      var cx = q[0] < R ? R : (q[0] > W - R ? W - R : null);
+      var cy = q[1] < R ? R : (q[1] > H - R ? H - R : null);
+      if (cx === null || cy === null) return;        // not inside a corner square
+      var d = Math.sqrt((q[0] - cx) * (q[0] - cx) + (q[1] - cy) * (q[1] - cy));
+      if (d - R > worst) worst = d - R;
+    });
+    return worst;
+  }
+
+  // Smallest inset from a side edge at which a control spanning yTop..yBot
+  // clears the arcs on that edge. Infinity when no inset can save it.
+  function minInsetForSpan(yTop, yBot, H, R) {
+    if (R <= 0) return 0;
+    var need = 0;
+    [yTop, yBot].forEach(function (y) {
+      var dy = y < R ? R - y : (y > H - R ? y - (H - R) : 0);
+      if (dy <= 0) return;
+      if (dy >= R) { need = Infinity; return; }
+      var x = R - Math.sqrt(R * R - dy * dy);
+      if (x > need) need = x;
+    });
+    return need;
+  }
+
+  // Lowest bottom edge a control at this inset can reach and still clear.
+  function maxBottomForInset(x, H, R) {
+    if (R <= 0 || x >= R) return Infinity;
+    return H - R + Math.sqrt(R * R - (x - R) * (x - R));
+  }
 
   // --- layoutPadTablet(), transcribed --------------------------------------
   function frameOf(d) {
@@ -384,20 +440,36 @@
     var lowerY = o.bottom === "tucked"
       ? midTop + cell + TUCK_GAP
       : d.h - Math.max(d.sb, HOME_MIN) - half;
+    // CORNER CLEARANCE. The bottom row sits in the two bottom corners, so at a
+    // small inset it runs under the display's corner arc and gets clipped.
+    // Neither fix is free: insetting the row breaks its column alignment with
+    // the rockers above, raising it spends the screen-bottom anchor.
+    var R = o.cornerR != null ? o.cornerR : d.r;
+    var lxBottom = r.inset;
+    if (o.corner === "inset") {
+      var need = minInsetForSpan(lowerY, lowerY + half, d.h, R);
+      if (isFinite(need)) lxBottom = Math.max(lxBottom, need);
+    } else if (o.corner === "raise") {
+      var maxB = maxBottomForInset(r.inset, d.h, R);
+      if (isFinite(maxB) && lowerY + half > maxB) lowerY = maxB - half;
+    }
+
     var lx = r.inset, rx = d.w - r.inset - 2 * cell;
+    var rxBottom = d.w - lxBottom - 2 * cell;
     return {
       pageTop: pageTop, pageBottom: pageTop + f.panelH,
       pageLeft: f.margin, pageRight: f.margin + f.panelW,
       cell: cell, half: half, spareMargin: r.spareMargin,
       midTop: midTop, lowerY: lowerY, lx: lx, rx: rx,
+      lxBottom: lxBottom, cornerR: R,
       rects: [
-        { k: "Back",   x: lx,        y: midTop, w: cell, h: cell, pair: "l" },
-        { k: "Select", x: lx + cell, y: midTop, w: cell, h: cell, pair: "r" },
-        { k: "Left",   x: rx,        y: midTop, w: cell, h: cell, pair: "l" },
-        { k: "Right",  x: rx + cell, y: midTop, w: cell, h: cell, pair: "r" },
-        { k: "Power",  x: lx,        y: lowerY, w: cell, h: half },
-        { k: "Up",     x: rx,        y: lowerY, w: cell, h: half, pair: "l" },
-        { k: "Down",   x: rx + cell, y: lowerY, w: cell, h: half, pair: "r" }
+        { k: "Back",   x: lx,              y: midTop, w: cell, h: cell, pair: "l" },
+        { k: "Select", x: lx + cell,       y: midTop, w: cell, h: cell, pair: "r" },
+        { k: "Left",   x: rx,              y: midTop, w: cell, h: cell, pair: "l" },
+        { k: "Right",  x: rx + cell,       y: midTop, w: cell, h: cell, pair: "r" },
+        { k: "Power",  x: lxBottom,        y: lowerY, w: cell, h: half },
+        { k: "Up",     x: rxBottom,        y: lowerY, w: cell, h: half, pair: "l" },
+        { k: "Down",   x: rxBottom + cell, y: lowerY, w: cell, h: half, pair: "r" }
       ]
     };
   }
@@ -411,21 +483,30 @@
   // code does, which is the check that these denominators are the right ones.
   var PRESETS = [
     { id: "now", name: "Shipped", note: "page centred in the spare height, rockers centred in the margin",
-      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "owner", name: "G — Owner draft", note: "30% of the spare height, 20% of the spare margin — the 2026-08-06 dial-in",
-      of: function (f) { return { pagePct: 0.30, pageDenom: "spare", insetPct: 0.20, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0.30, pageDenom: "spare", insetPct: 0.20, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "edge", name: "A — Edge only", note: "rockers flush, page untouched",
-      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "edgetop", name: "B — Edge + page to the top", note: "page as high as the safe area allows",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "grip", name: "C — B, thumbs low", note: "rockers at 62% — where a two-hand side grip sits",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "cluster", name: "D — Low cluster", note: "page high, the whole pad low and tucked together",
-      of: function (f) { return { pagePct: 0.03, pageDenom: "spare", insetPct: 0, midFrac: 0.66, cell: OPTIMAL, bottom: "tucked" }; } },
+      of: function (f) { return { pagePct: 0.03, pageDenom: "spare", insetPct: 0, midFrac: 0.66, cell: OPTIMAL, bottom: "tucked", corner: "inset" }; } },
     { id: "soft", name: "E — Softened edge", note: "a fifth of the spare margin, page high, thumbs low",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0.2, midFrac: 0.6, cell: OPTIMAL, bottom: "screen" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0.2, midFrac: 0.6, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "big", name: "F — C, fatter cells", note: "the 13-inch margin has room for a bigger target",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen" }; } }
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen", corner: "inset" }; } }
+  ];
+
+  // What to do when the bottom row runs under a corner arc. Both fixes cost
+  // something, so the choice is the owner's; "flag" leaves the collision
+  // visible rather than silently papering over it.
+  var CORNERS = [
+    { id: "inset", name: "Inset the row clear", note: "push the bottom row in until it clears — costs its column alignment with the rockers" },
+    { id: "raise", name: "Raise the row clear", note: "lift the bottom row until it clears — costs its screen-bottom anchor" },
+    { id: "flag", name: "Leave it, flag only", note: "show the collision without correcting it" }
   ];
 
   var DENOMS = [
@@ -470,6 +551,10 @@
     Array.prototype.forEach.call(document.querySelectorAll("#denomChips .chip"), function (c) {
       c.setAttribute("aria-pressed", String(c.dataset.id === o.pageDenom));
     });
+    Array.prototype.forEach.call(document.querySelectorAll("#cornerChips .chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.id === o.corner));
+    });
+    $("sCorner").value = o.cornerR != null ? o.cornerR : f.dev.r;
   }
 
   function markCustom() { state.preset = "custom"; syncInputs(); }
@@ -479,7 +564,7 @@
 
   function shippedOpts(f) {
     return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5,
-             cell: f.cell, bottom: "screen" };
+             cell: f.cell, bottom: "screen", corner: "flag" };
   }
 
   // Paints one frame at scale k into a wrapper element. The single-frame stage
@@ -496,7 +581,10 @@
     frame.style.width = px(d.w);
     frame.style.height = px(d.h);
     frame.style.transform = "scale(" + k + ")";
-    frame.style.borderRadius = px(18 / k);
+    // In POINT space, like everything else in here — the frame is scaled by k
+    // afterwards. A screen-constant radius would have made the corner check a
+    // lie at every scale but one.
+    frame.style.borderRadius = px(place(f, o).cornerR);
 
     var html = "";
 
@@ -541,6 +629,8 @@
       var round = "";
       if (r.pair === "l") round = "border-radius:9px 0 0 9px;border-right-width:1px";
       else if (r.pair === "r") round = "border-radius:0 9px 9px 0;border-left-width:1px";
+      var over = cornerOvershoot(r.x, r.y, r.w, r.h, d.w, d.h, p.cornerR);
+      if (over > 0.01) round += ";border-color:var(--bad);background:var(--bad-fill);color:var(--bad)";
       html += '<div class="ctl" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w +
               'px;height:' + r.h + 'px;' + round + '">' +
               (state.labels && detail
@@ -688,6 +778,8 @@
       ["Page bottom", delta(nowP.pageBottom, p.pageBottom, pt)],
       ["Rocker edge → screen edge", delta(nowP.lx, p.lx, pt) + ' <span class="n">/ ' + mm(p.lx) + "</span>"],
       ["Spare margin, after the pair", pt(p.spareMargin)],
+      ["Bottom row, edge → screen edge", pt(p.lxBottom) +
+        (p.lxBottom > p.lx + 0.05 ? ' <span class="d">+' + pt(p.lxBottom - p.lx) + " for the corner</span>" : "")],
       ["Rocker → page, horizontally", pt(toPage) + ' <span class="n">/ ' + mm(toPage) + "</span>"],
       ["Rocker centre", pt(mid) + ' <span class="n">/ ' + (o.midFrac * 100).toFixed(1) + "% down</span>"],
       ["Rocker centre → screen bottom", pt(d.h - mid) + ' <span class="n">/ ' + mm(d.h - mid) + "</span>"],
@@ -713,6 +805,16 @@
       msgs.push("The Power / Up|Down row overlaps the rockers.");
     if (p.lowerY + p.half > d.h - Math.max(d.sb, HOME_MIN) + 0.01)
       msgs.push("The bottom row runs into the home indicator.");
+    var clipped = p.rects.filter(function (r) {
+      return cornerOvershoot(r.x, r.y, r.w, r.h, d.w, d.h, p.cornerR) > 0.01;
+    });
+    if (clipped.length)
+      msgs.push(clipped.map(function (r) { return r.k; }).join(" and ") +
+                " run" + (clipped.length === 1 ? "s" : "") + " under the display's " +
+                pt(p.cornerR) + " corner arc, by up to " +
+                pt(Math.max.apply(null, clipped.map(function (r) {
+                  return cornerOvershoot(r.x, r.y, r.w, r.h, d.w, d.h, p.cornerR);
+                }))) + " — the display clips it, and a clipped control is dead, not just ugly.");
     if (p.half < 22)
       msgs.push("The half-height row is " + pt(p.half) + " tall — under the 44 pt HIG minimum by more than the phone's own exception.");
     if (mid < d.h * 0.34 || mid > d.h * 0.8)
@@ -731,6 +833,11 @@
       (p.spareMargin < 0.5 ? " (this frame is already flush)" : "");
     $("vMid").textContent = (o.midFrac * 100).toFixed(1) + "%";
     $("hMid").textContent = "shipped is 50% · " + mm(d.h - mid) + " up from the bottom edge";
+    var bottomShift = p.lxBottom - p.lx;
+    $("vCorner").textContent = pt(p.cornerR);
+    $("hCorner").textContent = "device default " + pt(d.r) + " · _displayCornerRadius is private," +
+      " so test against a LARGER radius than you believe" +
+      (bottomShift > 0.05 ? " · bottom row pushed in " + pt(bottomShift) : "");
     $("vCell").textContent = Math.round(o.cell) + " pt";
     $("hCell").textContent = (p.cell < o.cell - 0.5
         ? "→ " + Math.round(p.cell) + " pt on this frame, capped by the margin · "
@@ -772,6 +879,18 @@
   $("bottomChips").addEventListener("click", function (e) {
     var b = e.target.closest(".chip"); if (!b) return;
     state.opts.bottom = b.dataset.id; markCustom(); render();
+  });
+
+  $("cornerChips").innerHTML = CORNERS.map(function (c) {
+    return '<button class="chip" data-id="' + c.id + '" title="' + c.note + '" aria-pressed="false">' +
+           c.name + "</button>";
+  }).join("");
+  $("cornerChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    state.opts.corner = b.dataset.id; markCustom(); render();
+  });
+  $("sCorner").addEventListener("input", function () {
+    state.opts.cornerR = +this.value; markCustom(); render();
   });
 
   $("denomChips").innerHTML = DENOMS.map(function (x) {
