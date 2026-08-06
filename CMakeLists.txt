@@ -69,6 +69,9 @@ which proves the toolchain and the input-injection model with the iOS shim only.
   OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CrossPointSources.cmake)
+# Hand-maintained, deliberately NOT part of the generated file above -- see the
+# header comment there for the regression that separation prevents.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CrossPointIOSExclusions.cmake)
 
 # ---------------------------------------------------------------------------
 # Source-set validation.
@@ -173,6 +176,20 @@ if(CROSSPOINT_BUILD_FIRMWARE)
   if(IOS)
     list(LENGTH CROSSPOINT_IOS_EXCLUDED_SIM_SOURCES _n_exc_sim)
     list(LENGTH CROSSPOINT_IOS_EXCLUDED_FW_SOURCES _n_exc_fw)
+
+    # An empty list here is the failure this whole file separation exists to
+    # prevent, and it is INVISIBLE without this check: list(REMOVE_ITEM x
+    # ${undefined}) is a silent no-op, so the strip count printed 0 for three
+    # commits while the iOS binary shipped every network TU. Fail loudly.
+    if(_n_exc_sim EQUAL 0 OR _n_exc_fw EQUAL 0)
+      message(FATAL_ERROR
+        "cmake/CrossPointIOSExclusions.cmake defined no exclusions "
+        "(${_n_exc_sim} simulator, ${_n_exc_fw} firmware). Without them the iOS "
+        "target silently builds the network/OTA source set. If a regeneration "
+        "just ran, it overwrote a file it does not own -- the lists belong in "
+        "CrossPointIOSExclusions.cmake, not CrossPointSources.cmake.")
+    endif()
+
     list(REMOVE_ITEM CROSSPOINT_SIM_SOURCES ${CROSSPOINT_IOS_EXCLUDED_SIM_SOURCES})
     list(REMOVE_ITEM CROSSPOINT_FW_SOURCES ${CROSSPOINT_IOS_EXCLUDED_FW_SOURCES})
     message(STATUS "CrossPoint iOS: stripped ${_n_exc_sim} simulator + ${_n_exc_fw} firmware network/OTA TUs")

@@ -22,6 +22,7 @@ own, and baking the host's values in would be a lie about the build.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -181,6 +182,37 @@ def main():
         f"  {len(fw_sources)} firmware TUs, {len(sim_sources)} simulator TUs\n"
         f"  {len(includes)} firmware include dirs, {len(defines)} defines"
     )
+
+    check_ios_exclusions(sim_root, sim_sources, fw_sources)
+
+
+# The iOS exclusion lists live in a file this script does NOT write -- they are
+# policy, not derived data, and an earlier version of them was lost precisely
+# because they sat in the generated file. This script still cross-checks them,
+# because an exclusion naming a TU that no longer exists is drift too: it silently
+# stops excluding anything, and the root CMakeLists.txt cannot tell the difference
+# between "already absent" and "never matched".
+def check_ios_exclusions(sim_root, sim_sources, fw_sources):
+    path = os.path.join(sim_root, "cmake", "CrossPointIOSExclusions.cmake")
+    try:
+        text = open(path).read()
+    except OSError:
+        print(f"  WARNING: {path} not found; iOS builds will fail their exclusion check")
+        return
+
+    listed = re.findall(r"^\s*(src/\S+\.(?:cpp|c))\s*$", text, re.MULTILINE)
+    known = set(sim_sources) | set(fw_sources)
+    stale = [p for p in listed if p not in known]
+
+    if stale:
+        print(
+            f"  WARNING: {len(stale)} iOS exclusion(s) match no TU in the new source set.\n"
+            "           They exclude nothing. Update cmake/CrossPointIOSExclusions.cmake:"
+        )
+        for p in stale:
+            print(f"             {p}")
+    else:
+        print(f"  {len(listed)} iOS exclusions all resolve")
 
 
 if __name__ == "__main__":
