@@ -137,6 +137,12 @@ int main(int argc, char **argv) {
     // inside, main thread only, no present forced unless something changed.
     CrossPointHarness_perFrame();
 #endif
+    // Raise or dismiss the host keyboard on the firmware's text-entry edge.
+    // Here rather than in HalGPIO::update() because update() runs on the
+    // firmware task and this ends in UIKit: on a phone it is what puts the
+    // software keyboard on the glass. Edge-triggered inside; a no-op on every
+    // frame that is not a transition.
+    gpio.pumpHostTextInput();
     // SDL must be driven from the main thread on macOS.
     // The render task writes pixels and sets pendingPresent; we flush them
     // here.
