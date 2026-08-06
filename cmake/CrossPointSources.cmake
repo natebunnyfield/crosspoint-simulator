@@ -27,6 +27,7 @@ set(CROSSPOINT_SIM_SOURCES
   src/HalSystem.cpp
   src/HalTiltSensor.cpp
   src/NetworkClient.cpp
+  src/SimulatorBuildIdentity.cpp
   src/SimulatorImageDecode.cpp
   src/SimulatorLifecycle.cpp
   src/WebServer.cpp
