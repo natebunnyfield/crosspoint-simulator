@@ -732,6 +732,12 @@ resetting it in `setup()`, next to the same reset for `deepSleepInProgress`.
   (`ImuType::Qmi8658` in the X3 board profile), and forcing it false would hide a
   capability the hardware exposes. Known, accepted dead zone.
 - **Physical device.** Signing identities exist; no iPhone Air is paired.
+- **WiFi.** `CROSSPOINT_NO_NETWORK=1` gates the network screens out of the iOS
+  build. A phone cannot impersonate the X3's radio (no scan API, no soft AP),
+  but it can serve the file-transfer web UI on the LAN and download over
+  `NSURLSession` — and the exclusion lists that were supposed to strip those TUs
+  have been a silent no-op since `af2e842`. Plan, findings and phasing:
+  [WIFI.md](WIFI.md).
 
 ## Rejected reading-UX proposals — do not re-propose
 
