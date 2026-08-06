@@ -164,13 +164,35 @@ pattern `MD5Builder.h` already uses. iOS backend in `WiFiBackend_ios.mm`:
 | `localIP()` | `getifaddrs()`, first IPv4 on `en0` |
 | `SSID()` / `SSID(0)` | `NEHotspotNetwork.fetchCurrent` (entitled) |
 | `scanNetworks()` / `scanComplete()` | **1** on WiFi — the real current network; `WIFI_SCAN_FAILED` on cellular or offline |
-| `RSSI()` | not exposed by iOS; fixed plausible value, see Open |
+| `RSSI()` / `RSSI(0)` | **real**, from the same `fetchCurrent` — see below |
 | `begin(ssid, pass)` | already associated → return `status()` |
 | `softAP()` | `false` |
 
 Desktop keeps the `CROSSPOINT_SIM_WIFI_*` env fakes untouched — they are the QA
 harness for the firmware's failure branches, and this plan leans on those
 branches more, not less.
+
+**Signal strength passes through.** `NEHotspotNetwork` carries `signalStrength`
+next to the SSID, so the `fetchCurrent` call this phase already makes returns
+both. Two things it needs on the way to `RSSI()`:
+
+* **Units.** `signalStrength` is normalised 0.0–1.0; the firmware wants dBm and
+  `barsForRssi` bands it at −85/−75/−65/−55 rising and −88/−78/−68/−58 falling
+  (`CrossPointWebServerActivity.cpp:61-68`). Map linearly onto roughly −100…−40
+  so all four bars and the hysteresis are reachable. The absolute dBm is
+  synthesised, but it is a monotone function of a real measurement, so the bars
+  move when and only when the signal does — which is the whole of what the UI
+  claims.
+* **Async.** `fetchCurrent` has a completion handler and `RSSI()` is
+  synchronous, so cache the last value and refresh it on `NWPathMonitor`
+  updates plus a slow timer. The web server activity polls RSSI in its loop
+  (line 293), so a value a second or two old is fine.
+
+**Verify granularity on device** before trusting the hysteresis: the property
+is documented as a 0–1 scale but iOS is not obliged to report it finely, and if
+it turns out to be coarse or pinned the bars will step rather than glide.
+`fetchCurrent` also returns nil on the iOS Simulator, so this is a device-only
+behaviour and Simulator runs keep the env fakes.
 
 ### Phase 2 — make the server reachable (simulator + firmware)
 
@@ -272,19 +294,29 @@ iOS, in order of what each proves:
   transfer; if it works, the primary use case is done.**
 * Backing out of File Transfer reboots to Home rather than falling through with
   a stale popup (finding 8).
+* Signal bars track reality: walk away from the router and watch them fall,
+  which is also the check for whether `signalStrength` is finely enough
+  quantised to be worth the mapping.
 * Same flows with the app backgrounded mid-transfer — expect failure, confirm
   it fails *cleanly* rather than wedging the firmware.
 * Personal Hotspot path (Phase 5).
 
 ## Open
 
-* **`RSSI()` has no iOS source.** A fixed value keeps the signal-bars UI
-  rendering, but bars that never move are a small standing lie. Hiding them
-  breaks parity. Parity wins by default; flagged because it is the one place
-  the two principles collide.
 * **The one-row mode screen.** With `CREATE_HOTSPOT` gone, `Join Network` is
-  the only choice. Parity says keep the screen; usability says skip it. Owner's
-  call at Phase 4.
+  the only choice on that screen. Parity says keep it; usability says skip
+  straight to the server. Owner's call at Phase 4, and the only design question
+  left in this plan.
+
+## Known limits, not open questions
+
 * **Peer-transfer QA needs a second machine**, so it cannot fold into a scripted
   `CROSSPOINT_SIM_INPUT_SCRIPT` run. Everything up to "the server is listening"
   can be scripted; the transfer itself stays hand-tested.
+* **Three behaviours are device-only** and cannot be QA'd on the iOS Simulator:
+  the real SSID, signal strength, and anything depending on a genuine `en0`
+  address. There is still no paired device (`README.md`, "Still deferred"),
+  which is now the binding constraint on verifying Phases 1 and 2 rather than a
+  background note.
+* **The app must stay foregrounded** for the whole of a transfer. iOS suspends
+  background apps and the listening socket stops accepting.
