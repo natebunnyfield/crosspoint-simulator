@@ -1,0 +1,679 @@
+<title>iPad pad placement — rockers to the edge, page to the top</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --paper: #FBFBF9; --ink: #2D2D2D; --ink-soft: #6A6A66; --ink-faint: #9A9A94;
+    --rule: #DFDFDA; --hair: #D9D9D7; --sunk: #F3F3F0; --chrome: #EFEFEB;
+    --glass: #E7E7E2; --bezel: #C9C9C3;
+    --now: #8C8C86; --now-fill: rgba(140,140,134,.10);
+    --prop: #1F7A6B; --prop-fill: rgba(31,122,107,.12);
+    --grip: #4B5A9B; --grip-fill: rgba(75,90,155,.10);
+    --bad: #A83A2B; --bad-fill: rgba(168,58,43,.12);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121212; --ink: #E0E0DE; --ink-soft: #9A9A96; --ink-faint: #6A6A66;
+      --rule: #2A2A2A; --hair: #333333; --sunk: #1A1A1A; --chrome: #202020;
+      --glass: #262626; --bezel: #3A3A3A;
+      --now: #7E7E78; --now-fill: rgba(126,126,120,.14);
+      --prop: #63C4B0; --prop-fill: rgba(99,196,176,.16);
+      --grip: #97A1E0; --grip-fill: rgba(151,161,224,.13);
+      --bad: #E08472; --bad-fill: rgba(224,132,114,.15);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121212; --ink: #E0E0DE; --ink-soft: #9A9A96; --ink-faint: #6A6A66;
+    --rule: #2A2A2A; --hair: #333333; --sunk: #1A1A1A; --chrome: #202020;
+    --glass: #262626; --bezel: #3A3A3A;
+    --now: #7E7E78; --now-fill: rgba(126,126,120,.14);
+    --prop: #63C4B0; --prop-fill: rgba(99,196,176,.16);
+    --grip: #97A1E0; --grip-fill: rgba(151,161,224,.13);
+    --bad: #E08472; --bad-fill: rgba(224,132,114,.15);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --paper: #FBFBF9; --ink: #2D2D2D; --ink-soft: #6A6A66; --ink-faint: #9A9A94;
+    --rule: #DFDFDA; --hair: #D9D9D7; --sunk: #F3F3F0; --chrome: #EFEFEB;
+    --glass: #E7E7E2; --bezel: #C9C9C3;
+    --now: #8C8C86; --now-fill: rgba(140,140,134,.10);
+    --prop: #1F7A6B; --prop-fill: rgba(31,122,107,.12);
+    --grip: #4B5A9B; --grip-fill: rgba(75,90,155,.10);
+    --bad: #A83A2B; --bad-fill: rgba(168,58,43,.12);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%;
+    overflow: hidden;
+  }
+  h1, h2, h3 { font-family: ui-serif, "New York", "Iowan Old Style", Palatino, Georgia, serif; font-weight: 600; }
+
+  /* --- shell ------------------------------------------------------------ */
+  .shell {
+    height: 100dvh; display: grid;
+    grid-template-columns: 330px 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "head head" "rail stage";
+  }
+  .head {
+    grid-area: head; border-bottom: 1px solid var(--rule);
+    padding: 10px 18px; display: flex; align-items: baseline;
+    gap: 14px; flex-wrap: wrap;
+  }
+  .head h1 { font-size: 1.06rem; margin: 0; letter-spacing: -.01em; }
+  .head .sub { font-size: .82rem; color: var(--ink-soft); }
+  .head .legend { margin-left: auto; }
+
+  .rail {
+    grid-area: rail; border-right: 1px solid var(--rule);
+    overflow-y: auto; padding: 14px 18px 60px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .stage {
+    grid-area: stage; overflow: hidden; position: relative;
+    display: grid; place-items: center; padding: 14px;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 9px, var(--sunk) 9px 10px);
+  }
+
+  @media (max-width: 900px) {
+    .shell {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr) minmax(0, 42dvh);
+      grid-template-areas: "head" "stage" "rail";
+    }
+    .rail { border-right: 0; border-top: 1px solid var(--rule); padding: 12px 16px 24px; }
+    .head { padding: 8px 16px; gap: 8px; }
+    .head .sub, .head .legend { display: none; }
+    .stage { padding: 8px; }
+    body { font-size: 14px; }
+  }
+
+  /* --- rail widgets ----------------------------------------------------- */
+  .grp { display: flex; flex-direction: column; gap: 7px; }
+  .grp > .lbl {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    font: inherit; font-size: .78rem; line-height: 1.2;
+    padding: 5px 9px; border: 1px solid var(--rule); border-radius: 5px;
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+    text-align: left;
+  }
+  .chip:hover { border-color: var(--ink-faint); color: var(--ink); }
+  .chip[aria-pressed="true"] {
+    background: var(--prop-fill); border-color: var(--prop); color: var(--ink);
+    font-weight: 600;
+  }
+  .chip:focus-visible, input:focus-visible { outline: 2px solid var(--prop); outline-offset: 2px; }
+
+  .slide { display: flex; flex-direction: column; gap: 3px; }
+  .slide .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .slide .name { font-size: .85rem; }
+  .slide .val {
+    font-size: .82rem; font-variant-numeric: tabular-nums; color: var(--prop);
+    font-weight: 600; white-space: nowrap;
+  }
+  .slide input[type="range"] { width: 100%; accent-color: var(--prop); margin: 0; }
+  .slide .hint { font-size: .72rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  .toggles { display: flex; flex-direction: column; gap: 5px; }
+  .toggles label { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--ink-soft); cursor: pointer; }
+  .toggles input { accent-color: var(--prop); }
+
+  /* --- readout ---------------------------------------------------------- */
+  .read { border-top: 1px solid var(--rule); padding-top: 12px; }
+  table.read-t { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  table.read-t th {
+    text-align: left; font-weight: 400; color: var(--ink-soft);
+    padding: 3px 0; font-size: .78rem;
+  }
+  table.read-t td {
+    text-align: right; font-variant-numeric: tabular-nums; padding: 3px 0;
+    white-space: nowrap;
+  }
+  table.read-t td .d { color: var(--prop); font-weight: 600; }
+  table.read-t td .n { color: var(--ink-faint); }
+  .flag {
+    margin-top: 10px; font-size: .78rem; padding: 7px 9px; border-radius: 5px;
+    background: var(--bad-fill); color: var(--bad); border: 1px solid var(--bad);
+  }
+  .flag[hidden] { display: none; }
+
+  /* --- device ----------------------------------------------------------- */
+  .frame-wrap { position: relative; }
+  .frame {
+    position: absolute; top: 0; left: 0;
+    transform-origin: top left;
+    background: var(--glass);
+    border: 1px solid var(--bezel);
+    border-radius: 18px; overflow: hidden;
+  }
+  .frame > * { position: absolute; }
+
+  .safe { left: 0; right: 0; background: var(--chrome); }
+  .homebar {
+    height: 5px; border-radius: 3px; background: var(--ink-faint); opacity: .55;
+    left: 50%; transform: translateX(-50%);
+  }
+  .statusdot { font-size: 11px; color: var(--ink-faint); }
+
+  .panel { background: var(--paper); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; }
+  .panel .ln { position: absolute; height: 6px; background: var(--ink); opacity: .17; border-radius: 1px; }
+  .panel .hd { position: absolute; height: 13px; background: var(--ink); opacity: .30; border-radius: 1px; }
+
+  .ctl {
+    border: 2px solid var(--prop); border-radius: 9px;
+    background: var(--prop-fill);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 600; color: var(--prop);
+    letter-spacing: .04em;
+  }
+  .ctl.seam::after {
+    content: ""; position: absolute; background: var(--prop); opacity: .5;
+  }
+  .ghost {
+    border: 1.5px dashed var(--now); border-radius: 9px;
+    background: var(--now-fill); pointer-events: none;
+  }
+  .ghost-panel { border: 1.5px dashed var(--now); background: transparent; }
+
+  .arc { pointer-events: none; }
+  .movearrow { pointer-events: none; }
+
+  .cap {
+    font-size: 11px; color: var(--ink-faint); letter-spacing: .05em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .legend { display: flex; gap: 14px; font-size: .74rem; color: var(--ink-soft); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 15px; height: 0; vertical-align: middle; margin-right: 5px; }
+  .legend .l-now i { border-top: 1.5px dashed var(--now); }
+  .legend .l-prop i { border-top: 2px solid var(--prop); }
+  .legend .l-slop i { border-top: 2px dotted var(--prop); }
+  .legend .l-grip i { border-top: 2px solid var(--grip); }
+
+  .slop {
+    border: 1.5px dotted var(--prop); border-right: 0; border-radius: 9px 0 0 9px;
+    background: var(--prop-fill); opacity: .5; pointer-events: none;
+  }
+  .slop.r { border: 1.5px dotted var(--prop); border-left: 0; border-radius: 0 9px 9px 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ctl, .panel, .homebar { transition: left .18s ease, top .18s ease, width .18s ease, height .18s ease; }
+  }
+</style>
+
+<div class="shell">
+  <div class="head">
+    <h1>iPad pad placement</h1>
+    <span class="sub">Rockers toward the screen edge, page toward the top — computed from <code>layoutPadTablet()</code>, not sketched.</span>
+    <span class="legend">
+      <span class="l-now"><i></i>shipped</span>
+      <span class="l-prop"><i></i>proposed</span>
+      <span class="l-slop"><i></i>hit-slop</span>
+      <span class="l-grip"><i></i>thumb reach</span>
+    </span>
+  </div>
+
+  <div class="rail">
+    <div class="grp">
+      <span class="lbl">Frame</span>
+      <div class="chips" id="devChips"></div>
+    </div>
+
+    <div class="grp">
+      <span class="lbl">Option set</span>
+      <div class="chips" id="presetChips"></div>
+    </div>
+
+    <div class="grp">
+      <span class="lbl">Page</span>
+      <div class="slide">
+        <div class="top"><span class="name">Top of page, below the safe area</span><span class="val" id="vPage"></span></div>
+        <input type="range" id="sPage" min="0" max="600" step="1">
+        <span class="hint" id="hPage"></span>
+      </div>
+    </div>
+
+    <div class="grp">
+      <span class="lbl">Rockers</span>
+      <div class="slide">
+        <div class="top"><span class="name">Inset from the screen edge</span><span class="val" id="vInset"></span></div>
+        <input type="range" id="sInset" min="0" max="80" step="1">
+        <span class="hint" id="hInset"></span>
+      </div>
+      <div class="slide">
+        <div class="top"><span class="name">Centre height</span><span class="val" id="vMid"></span></div>
+        <input type="range" id="sMid" min="30" max="82" step="0.5">
+        <span class="hint" id="hMid"></span>
+      </div>
+      <div class="slide">
+        <div class="top"><span class="name">Cell size</span><span class="val" id="vCell"></span></div>
+        <input type="range" id="sCell" min="44" max="110" step="1">
+        <span class="hint" id="hCell"></span>
+      </div>
+    </div>
+
+    <div class="grp">
+      <span class="lbl">Power &amp; Up|Down row</span>
+      <div class="chips" id="bottomChips"></div>
+    </div>
+
+    <div class="grp toggles">
+      <span class="lbl">Overlays</span>
+      <label><input type="checkbox" id="tGhost" checked> Shipped layout, dashed</label>
+      <label><input type="checkbox" id="tSlop"> Touch target runs to the screen edge</label>
+      <label><input type="checkbox" id="tGrip"> Thumb reach from a side grip</label>
+      <label><input type="checkbox" id="tLabels" checked> Control names</label>
+    </div>
+
+    <div class="read">
+      <table class="read-t"><tbody id="readout"></tbody></table>
+      <div class="flag" id="flag" hidden></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="frame-wrap" id="frameWrap"><div class="frame" id="frame"></div></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // --- the panel, exactly as the iOS build sees it -------------------------
+  // EInkDisplay X3 is 792x528 landscape px; ios/CMakeLists.txt compiles with
+  // CROSSPOINT_RENDER_SCALE=2, and the portrait framebuffer mapping puts the
+  // display's HEIGHT on the logical X axis.
+  var RS = 2, EINK_W = 792, EINK_H = 528;
+  var LOG_W = EINK_H * RS;   // 1056
+  var LOG_H = EINK_W * RS;   // 1584
+  var OPTIMAL = 60;          // kOptimalSquare
+  var HOME_MIN = 16;         // kHomeInsetMin
+  var TUCK_GAP = 14;         // gap under the rockers in "tucked" mode
+
+  // Portrait point sizes and portrait safe-area insets. ppi is the physical
+  // panel density, used only to state reaches in millimetres.
+  var DEVICES = [
+    { id: "pro13",  name: "iPad Pro 13″",  w: 1032, h: 1376, st: 24, sb: 20, s: 2, ppi: 264 },
+    { id: "air13",  name: "iPad Air 13″",  w: 1024, h: 1366, st: 24, sb: 20, s: 2, ppi: 264 },
+    { id: "pro11",  name: "iPad Pro 11″",  w:  834, h: 1210, st: 24, sb: 20, s: 2, ppi: 264 },
+    { id: "air11",  name: "iPad Air 11″",  w:  820, h: 1180, st: 24, sb: 20, s: 2, ppi: 264 },
+    { id: "mini",   name: "iPad mini",          w:  744, h: 1133, st: 24, sb: 20, s: 2, ppi: 326 }
+  ];
+
+  // --- layoutPadTablet(), transcribed --------------------------------------
+  function frameOf(d) {
+    var outWpx = d.w * d.s;
+    var availPx = Math.max(1, (d.h - d.st - d.sb) * d.s);
+    var scale = Math.min(outWpx / LOG_W, availPx / LOG_H);
+    if (scale >= 1) scale = Math.floor(scale);          // CROSSPOINT_SIM_PIXEL_EXACT
+    var panelW = LOG_W * scale / d.s;                    // points
+    var panelH = LOG_H * scale / d.s;
+    var margin = (d.w - panelW) / 2;
+    var cell = Math.min(OPTIMAL, margin / 2);
+    var availPt = d.h - d.st - d.sb;
+    return {
+      dev: d, scale: scale, panelW: panelW, panelH: panelH,
+      margin: margin, cell: cell, half: cell / 2,
+      slack: availPt - panelH,
+      ptPerMm: (d.ppi / d.s) / 25.4,
+      // what ships today
+      nowPageGap: (availPt - panelH) / 2,
+      nowInset: (margin - 2 * cell) / 2,
+      nowMidCentre: d.h / 2,
+      lowerY: d.h - Math.max(d.sb, HOME_MIN) - cell / 2
+    };
+  }
+
+  // opts: pageGap (pt below the safe-area top), inset (pt from screen edge),
+  //       midFrac (rocker centre as a fraction of screen height),
+  //       cell (pt, square edge), bottom ("screen" | "tucked")
+  function place(f, o) {
+    var d = f.dev;
+    var cell = o.cell != null ? o.cell : f.cell;
+    var half = cell / 2;
+    var pageTop = d.st + o.pageGap;
+    var midTop = d.h * o.midFrac - cell / 2;
+    var lowerY = o.bottom === "tucked"
+      ? midTop + cell + TUCK_GAP
+      : d.h - Math.max(d.sb, HOME_MIN) - half;
+    var lx = o.inset, rx = d.w - o.inset - 2 * cell;
+    return {
+      pageTop: pageTop, pageBottom: pageTop + f.panelH,
+      pageLeft: f.margin, pageRight: f.margin + f.panelW,
+      cell: cell, half: half,
+      midTop: midTop, lowerY: lowerY, lx: lx, rx: rx,
+      rects: [
+        { k: "Back",   x: lx,        y: midTop, w: cell, h: cell, pair: "l" },
+        { k: "Select", x: lx + cell, y: midTop, w: cell, h: cell, pair: "r" },
+        { k: "Left",   x: rx,        y: midTop, w: cell, h: cell, pair: "l" },
+        { k: "Right",  x: rx + cell, y: midTop, w: cell, h: cell, pair: "r" },
+        { k: "Power",  x: lx,        y: lowerY, w: cell, h: half },
+        { k: "Up",     x: rx,        y: lowerY, w: cell, h: half, pair: "l" },
+        { k: "Down",   x: rx + cell, y: lowerY, w: cell, h: half, pair: "r" }
+      ]
+    };
+  }
+
+  // --- option sets ---------------------------------------------------------
+  // Each returns concrete opts for the selected frame, so a preset means the
+  // same thing on a mini as on a 13-inch.
+  var PRESETS = [
+    { id: "now", name: "Shipped", note: "centred page, rockers centred in the margin",
+      of: function (f) { return { pageGap: f.nowPageGap, inset: f.nowInset, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
+    { id: "edge", name: "A — Edge only", note: "rockers flush to the edge, page untouched",
+      of: function (f) { return { pageGap: f.nowPageGap, inset: 0, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
+    { id: "edgetop", name: "B — Edge + page to the top", note: "page as high as the safe area allows",
+      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.5, cell: f.cell, bottom: "screen" }; } },
+    { id: "grip", name: "C — B, thumbs low", note: "rockers at 62% — where a two-hand side grip sits",
+      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.62, cell: f.cell, bottom: "screen" }; } },
+    { id: "cluster", name: "D — Low cluster", note: "page high, the whole pad low and tucked together",
+      of: function (f) { return { pageGap: 8, inset: 0, midFrac: 0.66, cell: f.cell, bottom: "tucked" }; } },
+    { id: "soft", name: "E — Softened edge", note: "8 pt off the edge, page high, thumbs low",
+      of: function (f) { return { pageGap: 0, inset: 8, midFrac: 0.6, cell: f.cell, bottom: "screen" }; } },
+    { id: "big", name: "F — C, fatter cells", note: "the 13-inch margin has room for a bigger target",
+      of: function (f) { return { pageGap: 0, inset: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen" }; } }
+  ];
+
+  // --- state ---------------------------------------------------------------
+  var state = { dev: DEVICES[0], opts: null, preset: "now",
+                ghost: true, grip: false, labels: true, slop: false };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function applyPreset(id) {
+    var p = PRESETS.filter(function (x) { return x.id === id; })[0];
+    var f = frameOf(state.dev);
+    state.opts = p.of(f);
+    state.preset = id;
+    syncInputs();
+    render();
+  }
+
+  function clampOpts() {
+    var f = frameOf(state.dev), o = state.opts;
+    o.cell = Math.min(o.cell, f.margin / 2);          // a pair must fit the margin
+    o.pageGap = Math.min(o.pageGap, f.slack);
+    o.inset = Math.min(o.inset, Math.max(0, f.margin - 2 * o.cell));
+  }
+
+  function syncInputs() {
+    clampOpts();
+    var f = frameOf(state.dev), o = state.opts;
+    $("sPage").max = Math.round(f.slack);
+    $("sPage").value = Math.round(o.pageGap);
+    $("sInset").max = Math.round(Math.max(1, f.margin - 2 * o.cell));
+    $("sInset").value = Math.round(o.inset);
+    $("sMid").value = (o.midFrac * 100).toFixed(1);
+    $("sCell").max = Math.round(Math.max(45, f.margin / 2));
+    $("sCell").value = Math.round(o.cell);
+    Array.prototype.forEach.call(document.querySelectorAll("#presetChips .chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.id === state.preset));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#bottomChips .chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.id === o.bottom));
+    });
+  }
+
+  function markCustom() { state.preset = "custom"; syncInputs(); }
+
+  // --- render --------------------------------------------------------------
+  function px(v) { return v + "px"; }
+
+  function render() {
+    clampOpts();
+    var f = frameOf(state.dev), d = state.dev, o = state.opts;
+    var p = place(f, o);
+    var nowP = place(f, { pageGap: f.nowPageGap, inset: f.nowInset, midFrac: 0.5,
+                          cell: f.cell, bottom: "screen" });
+
+    // fit the frame to the stage; 1 px = 1 pt before scaling
+    var stage = $("stage");
+    var pad = 28;
+    var k = Math.min((stage.clientWidth - pad) / d.w, (stage.clientHeight - pad) / d.h);
+    var frame = $("frame");
+    $("frameWrap").style.width = px(d.w * k);
+    $("frameWrap").style.height = px(d.h * k);
+    frame.style.width = px(d.w);
+    frame.style.height = px(d.h);
+    frame.style.transform = "scale(" + k + ")";
+    frame.style.borderRadius = px(18 / k);
+
+    var html = "";
+
+    // safe areas
+    html += '<div class="safe" style="top:0;height:' + d.st + 'px"></div>';
+    html += '<div class="safe" style="bottom:0;height:' + d.sb + 'px"></div>';
+    html += '<div class="homebar" style="bottom:' + ((d.sb - 5) / 2) + 'px;width:' + (d.w * 0.3) + 'px"></div>';
+
+    // ghost of the shipped layout
+    if (state.ghost) {
+      html += '<div class="ghost ghost-panel" style="left:' + nowP.pageLeft + 'px;top:' + nowP.pageTop +
+              'px;width:' + f.panelW + 'px;height:' + f.panelH + 'px"></div>';
+      nowP.rects.forEach(function (r) {
+        html += '<div class="ghost" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w +
+                'px;height:' + r.h + 'px"></div>';
+      });
+    }
+
+    // the page
+    html += '<div class="panel" style="left:' + p.pageLeft + 'px;top:' + p.pageTop +
+            'px;width:' + f.panelW + 'px;height:' + f.panelH + 'px">' + pageContent(f) + '</div>';
+
+    // thumb reach, drawn from a pivot on each side edge at the grip height
+    if (state.grip) html += gripSvg(f, d, o);
+
+    // invisible hit-slop: the stroke stays where it is, the target runs on to
+    // the screen edge. Same trade the phone already banked as its fallback for
+    // the half-height row.
+    if (state.slop && p.lx > 0.5) {
+      p.rects.forEach(function (r) {
+        if (Math.abs(r.x - p.lx) < 0.01)
+          html += '<div class="slop" style="left:0;top:' + r.y + 'px;width:' + p.lx +
+                  'px;height:' + r.h + 'px"></div>';
+        if (Math.abs(r.x + r.w - (d.w - p.lx)) < 0.01)
+          html += '<div class="slop r" style="left:' + (d.w - p.lx) + 'px;top:' + r.y +
+                  'px;width:' + p.lx + 'px;height:' + r.h + 'px"></div>';
+      });
+    }
+
+    // the controls
+    p.rects.forEach(function (r) {
+      var round = "";
+      if (r.pair === "l") round = "border-radius:9px 0 0 9px;border-right-width:1px";
+      else if (r.pair === "r") round = "border-radius:0 9px 9px 0;border-left-width:1px";
+      html += '<div class="ctl" style="left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w +
+              'px;height:' + r.h + 'px;' + round + '">' +
+              (state.labels ? '<span style="font-size:' + Math.min(13, r.h / 3) + 'px">' + r.k + "</span>" : "") +
+              "</div>";
+    });
+
+    // movement arrows for whatever actually moved
+    html += moveMarks(f, d, p, nowP);
+
+    frame.innerHTML = html;
+    readout(f, d, o, p, nowP);
+  }
+
+  function pageContent(f) {
+    // a plausible page, so "the page moved" reads as a page moving
+    var s = "", pad = f.panelW * 0.11, w = f.panelW - pad * 2;
+    s += '<div class="hd" style="left:' + pad + 'px;top:' + (f.panelH * 0.07) + 'px;width:' + (w * 0.62) + 'px"></div>';
+    var y = f.panelH * 0.07 + 34, i = 0;
+    while (y < f.panelH - f.panelH * 0.08) {
+      var lw = (i % 7 === 6) ? w * (0.42 + (i % 3) * 0.13) : w;
+      s += '<div class="ln" style="left:' + pad + 'px;top:' + y + 'px;width:' + lw + 'px"></div>';
+      y += 21; i++;
+    }
+    return s;
+  }
+
+  function gripSvg(f, d, o) {
+    // Pivot: the base of the thumb rests on the side edge at the grip height.
+    // Rings at 40 mm (easy) and 55 mm (stretch) — the span a thumb sweeps
+    // without the hand releasing the device.
+    var cy = d.h * o.midFrac;
+    var r1 = 40 * f.ptPerMm, r2 = 55 * f.ptPerMm;
+    var s = '<svg class="arc" width="' + d.w + '" height="' + d.h + '" style="left:0;top:0" aria-hidden="true">';
+    [[0, 1], [d.w, -1]].forEach(function (pv) {
+      [[r1, 0.5], [r2, 0.25]].forEach(function (rr) {
+        s += '<circle cx="' + pv[0] + '" cy="' + cy + '" r="' + rr[0] +
+             '" fill="none" stroke="var(--grip)" stroke-opacity="' + rr[1] +
+             '" stroke-width="2" stroke-dasharray="6 5"/>';
+      });
+      s += '<circle cx="' + pv[0] + '" cy="' + cy + '" r="7" fill="var(--grip)" fill-opacity=".55"/>';
+    });
+    s += "</svg>";
+    return s;
+  }
+
+  function moveMarks(f, d, p, nowP) {
+    var s = "", dPage = p.pageTop - nowP.pageTop, dIn = nowP.lx - p.lx;
+    if (Math.abs(dPage) < 1 && Math.abs(dIn) < 1) return "";
+    s += '<svg class="movearrow" width="' + d.w + '" height="' + d.h + '" style="left:0;top:0" aria-hidden="true">';
+    if (Math.abs(dPage) >= 1) {
+      var x = f.margin + f.panelW * 0.5;
+      s += arrow(x, nowP.pageTop, x, p.pageTop);
+      s += '<text x="' + (x + 12) + '" y="' + ((nowP.pageTop + p.pageTop) / 2) +
+           '" fill="var(--prop)" font-size="15" font-family="system-ui" font-weight="600">' +
+           (dPage < 0 ? "↑ " : "↓ ") + Math.abs(Math.round(dPage)) + " pt</text>";
+    }
+    if (Math.abs(dIn) >= 1) {
+      var y = p.midTop - 16;
+      s += arrow(nowP.lx, y, p.lx, y);
+      s += arrow(nowP.rx + 2 * nowP.cell, y, p.rx + 2 * p.cell, y);
+      s += '<text x="' + ((nowP.lx + p.lx) / 2) + '" y="' + (y - 8) +
+           '" text-anchor="middle" fill="var(--prop)" font-size="15" ' +
+           'font-family="system-ui" font-weight="600">' +
+           (dIn > 0 ? "← " : "→ ") + Math.abs(Math.round(dIn)) + " pt</text>";
+    }
+    s += "</svg>";
+    return s;
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    var a = Math.atan2(y2 - y1, x2 - x1), L = 9;
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+           '" stroke="var(--prop)" stroke-width="2"/>' +
+           '<path d="M' + x2 + ' ' + y2 +
+           " L" + (x2 - L * Math.cos(a - 0.4)) + " " + (y2 - L * Math.sin(a - 0.4)) +
+           " L" + (x2 - L * Math.cos(a + 0.4)) + " " + (y2 - L * Math.sin(a + 0.4)) +
+           ' Z" fill="var(--prop)"/>';
+  }
+
+  // --- numbers -------------------------------------------------------------
+  function readout(f, d, o, p, nowP) {
+    var mm = function (pt) { return (pt / f.ptPerMm).toFixed(1) + " mm"; };
+    var pt = function (v) { return v.toFixed(1).replace(/\.0$/, "") + " pt"; };
+    var delta = function (now, next, unit) {
+      var dd = next - now;
+      if (Math.abs(dd) < 0.5) return '<span class="n">' + unit(now) + " unchanged</span>";
+      return '<span class="d">' + unit(next) + "</span> <span class=\"n\">from " + unit(now) + "</span>";
+    };
+
+    var mid = p.midTop + p.cell / 2;
+    var toPage = p.pageLeft - (p.lx + 2 * p.cell);
+    var slopOn = state.slop && p.lx > 0.5;
+    var target = slopOn ? p.lx + p.cell : p.cell;       // outer control, edge-ward
+    var rows = [
+      ["Page top", delta(nowP.pageTop, p.pageTop, pt)],
+      ["Page bottom", delta(nowP.pageBottom, p.pageBottom, pt)],
+      ["Rocker edge → screen edge", delta(nowP.lx, p.lx, pt) + ' <span class="n">/ ' + mm(p.lx) + "</span>"],
+      ["Rocker → page, horizontally", pt(toPage) + ' <span class="n">/ ' + mm(toPage) + "</span>"],
+      ["Rocker centre", pt(mid) + ' <span class="n">/ ' + (o.midFrac * 100).toFixed(1) + "% down</span>"],
+      ["Rocker centre → screen bottom", pt(d.h - mid) + ' <span class="n">/ ' + mm(d.h - mid) + "</span>"],
+      ["Cell", delta(f.cell, p.cell, pt) + ' <span class="n">/ ' + mm(p.cell) + "</span>"],
+      ["Outer touch target, width", pt(target) +
+        (slopOn ? ' <span class="d">incl. ' + pt(p.lx) + " slop</span>"
+                : state.slop ? ' <span class="n">already flush</span>' : "")],
+      ["Margin each side", pt(f.margin)],
+      ["Page, presented", Math.round(f.panelW) + " × " + Math.round(f.panelH) + ' pt <span class="n">at ' + f.scale + "×</span>"]
+    ];
+    $("readout").innerHTML = rows.map(function (r) {
+      return "<tr><th>" + r[0] + "</th><td>" + r[1] + "</td></tr>";
+    }).join("");
+
+    // constraint checks
+    var msgs = [];
+    if (p.lx + 2 * p.cell > f.margin + 0.01)
+      msgs.push("The rockers overlap the page — the margin is only " + pt(f.margin) +
+                " and a pair is " + pt(2 * p.cell) + ".");
+    if (p.pageBottom > d.h - d.sb + 0.01)
+      msgs.push("The page runs into the home-indicator inset.");
+    if (p.lowerY < p.midTop + p.cell + 0.01)
+      msgs.push("The Power / Up|Down row overlaps the rockers.");
+    if (p.lowerY + p.half > d.h - Math.max(d.sb, HOME_MIN) + 0.01)
+      msgs.push("The bottom row runs into the home indicator.");
+    if (p.half < 22)
+      msgs.push("The half-height row is " + pt(p.half) + " tall — under the 44 pt HIG minimum by more than the phone's own exception.");
+    if (mid < d.h * 0.34 || mid > d.h * 0.8)
+      msgs.push("The rocker centre is outside the band a side grip can hold comfortably.");
+    $("flag").hidden = msgs.length === 0;
+    $("flag").textContent = msgs.join(" ");
+
+    $("vPage").textContent = Math.round(o.pageGap) + " pt";
+    $("hPage").textContent = "0 = as high as the safe area allows · shipped is " +
+      Math.round(f.nowPageGap) + " (centred) · max " + Math.round(f.slack);
+    $("vInset").textContent = Math.round(o.inset) + " pt";
+    $("hInset").textContent = "0 = flush to the edge · shipped is " + Math.round(f.nowInset) +
+      " · max " + Math.round(Math.max(0, f.margin - 2 * p.cell)) + " (against the page)";
+    $("vMid").textContent = (o.midFrac * 100).toFixed(1) + "%";
+    $("hMid").textContent = "shipped is 50% · " + mm(d.h - mid) + " up from the bottom edge";
+    $("vCell").textContent = Math.round(p.cell) + " pt";
+    $("hCell").textContent = "shipped is " + Math.round(f.cell) + " · a pair is " +
+      Math.round(2 * p.cell) + " of the " + Math.round(f.margin) + " pt margin";
+  }
+
+  // --- wiring --------------------------------------------------------------
+  $("devChips").innerHTML = DEVICES.map(function (d) {
+    return '<button class="chip" data-id="' + d.id + '" aria-pressed="' + (d.id === state.dev.id) +
+           '">' + d.name + "</button>";
+  }).join("");
+  $("devChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    state.dev = DEVICES.filter(function (d) { return d.id === b.dataset.id; })[0];
+    Array.prototype.forEach.call(this.querySelectorAll(".chip"), function (c) {
+      c.setAttribute("aria-pressed", String(c.dataset.id === state.dev.id));
+    });
+    // presets are frame-relative, so re-derive rather than carry raw points over
+    applyPreset(state.preset === "custom" ? "now" : state.preset);
+  });
+
+  $("presetChips").innerHTML = PRESETS.map(function (p) {
+    return '<button class="chip" data-id="' + p.id + '" title="' + p.note + '" aria-pressed="false">' +
+           p.name + "</button>";
+  }).join("");
+  $("presetChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (b) applyPreset(b.dataset.id);
+  });
+
+  $("bottomChips").innerHTML =
+    '<button class="chip" data-id="screen" aria-pressed="false">At the screen bottom</button>' +
+    '<button class="chip" data-id="tucked" aria-pressed="false">Tucked under the rockers</button>';
+  $("bottomChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    state.opts.bottom = b.dataset.id; markCustom(); render();
+  });
+
+  $("sPage").addEventListener("input", function () { state.opts.pageGap = +this.value; markCustom(); render(); });
+  $("sInset").addEventListener("input", function () { state.opts.inset = +this.value; markCustom(); render(); });
+  $("sMid").addEventListener("input", function () { state.opts.midFrac = +this.value / 100; markCustom(); render(); });
+  $("sCell").addEventListener("input", function () { state.opts.cell = +this.value; markCustom(); render(); });
+  $("tSlop").addEventListener("change", function () { state.slop = this.checked; render(); });
+  $("tGhost").addEventListener("change", function () { state.ghost = this.checked; render(); });
+  $("tGrip").addEventListener("change", function () { state.grip = this.checked; render(); });
+  $("tLabels").addEventListener("change", function () { state.labels = this.checked; render(); });
+
+  window.addEventListener("resize", render);
+  applyPreset("edgetop");
+})();
+</script>

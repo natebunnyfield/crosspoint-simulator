@@ -288,6 +288,63 @@ above on both frames, and a scripted `injectButton` press navigated Home —
 touch hit-testing itself is PadCore + the rects, covered by
 `tests/pad_core_test.cpp`. Not yet exercised with a real finger.
 
+### Open: rockers to the screen edge, page to the top
+
+Raised 2026-08-06. Two complaints against the layout above — the rockers are
+too far inboard for a thumb to find without looking, and the page sits too low.
+**Nothing is approved yet**; the options are live in
+[mockups/ipad-pad-placement.html](mockups/ipad-pad-placement.html), which
+computes every frame from `layoutPadTablet()`'s own arithmetic rather than
+sketching it, and draws the shipped layout underneath as a dashed ghost.
+
+Four measurements bound whatever gets chosen.
+
+**The inset complaint is a 13-inch complaint.** `leftX` centres the pair in the
+margin, so how far inboard the rockers sit is `(margin - 2 * cell) / 2` — which
+scales with the frame and is nearly nothing on the small ones:
+
+| frame | margin | cell | rocker inset | page top | vertical slack |
+|---|---|---|---|---|---|
+| iPad Pro 13″ | 252 pt | 60 | **66 pt** | 294 pt | 540 pt |
+| iPad Air 13″ | 248 pt | 60 | **64 pt** | 289 pt | 530 pt |
+| iPad Pro 11″ | 153 pt | 60 | 16.5 pt | 211 pt | 374 pt |
+| iPad Air 11″ / iPad | 146 pt | 60 | 13 pt | 196 pt | 344 pt |
+| iPad mini | 108 pt | 54 | **0 pt** | 172.5 pt | 297 pt |
+
+The mini is already flush — its 108 pt margin holds a two-cell rocker exactly —
+so "move the rockers to the edge" is a no-op there and worth 64-66 pt on the
+13-inch frames. Any rule has to be written so the mini does not go negative.
+
+**Moving the page up is free.** The tablet branch sets top and bottom insets that
+sandwich the panel exactly, so `availH` equals the panel height and
+`HalDisplay`'s own fit lands on the same scale; its
+`topMargin = topBand + min(16, slack/2)` then collapses to the band edge
+(`HalDisplay.cpp:688`). The page therefore lands at exactly whatever `topInset`
+the branch publishes, at an unchanged scale. Centring is one term —
+`(availPx - panelHpx) / 2.0f` — and replacing it with a chosen offset is the
+whole change.
+
+**The page cannot get bigger to absorb the slack.** An integer 2x panel wants
+1056 pt of width and the widest iPad is 1032, so every frame presents at 1x,
+528 × 792 pt. The 297-540 pt of vertical slack is genuinely spare space; the
+only question is where it goes, not whether it can be spent on a larger page.
+
+**The cell is capped by the margin,** `min(60, margin / 2)`, so a fatter target
+is available on the 13-inch frames (up to 126 pt) and nowhere else. Option F in
+the mockup tries 88 pt.
+
+The option sets, all with the rockers flush unless stated: **A** edge only, page
+untouched — **B** edge + page as high as the safe area allows — **C** B with the
+rockers at 62% rather than 50%, which is where a two-hand side grip actually
+sits on a tablet held for balance — **D** page high and the whole pad low and
+tucked together — **E** 8 pt off the edge instead of flush, on the argument that
+a control touching the bezel invites edge-swipe conflicts — **F** C with 88 pt
+cells. The mockup also carries a thumb-reach overlay (40 mm easy / 55 mm stretch
+rings from a pivot on the side edge, per frame's own ppi) and an optional
+hit-slop band that runs the target to the screen edge while the stroke stays
+inboard — the same trade already banked as the phone's fallback for its
+half-height row.
+
 **Regenerating the source list: clean first.** `pio run -e simulator -t
 compiledb` emits compile actions only for TUs that are not restored from the
 firmware's build cache (`build_cache_policy.py`), so an incremental run
