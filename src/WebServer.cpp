@@ -1,5 +1,6 @@
 #include "WebServer.h"
 
+#include "SimHostScreen.h"
 #include "SimulatorNetworkPorts.h"
 #include <Logging.h>
 #include <arpa/inet.h>
@@ -432,11 +433,12 @@ void WebServer::begin() {
 
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_addr.s_addr = htonl(crosspoint_simulator::bindAddressHostOrder());
   addr.sin_port = htons(impl_->port);
   if (::bind(impl_->fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) !=
       0) {
-    LOG_ERR("WEB", "[SIM] WebServer bind 127.0.0.1:%d failed: %s", impl_->port,
+    LOG_ERR("WEB", "[SIM] WebServer bind %s:%d failed: %s",
+            crosspoint_simulator::bindAddressLabel(), impl_->port,
             strerror(errno));
     ::close(impl_->fd);
     impl_->fd = -1;
@@ -450,6 +452,9 @@ void WebServer::begin() {
   }
 
   impl_->active = true;
+  // A transfer is minutes of no user input; without this the host locks the
+  // screen, suspends the app, and the socket stops accepting mid-transfer.
+  sim_host_screen::setKeepAwake(true);
   impl_->worker = std::thread([this] {
     while (impl_->active) {
       const int client = ::accept(impl_->fd, nullptr, nullptr);
@@ -696,6 +701,7 @@ void WebServer::collectHeaders(const char **headers, size_t count) {
 
 void WebServer::stop() {
   impl_->active = false;
+  sim_host_screen::setKeepAwake(false);
   if (impl_->fd >= 0) {
     ::shutdown(impl_->fd, SHUT_RDWR);
     ::close(impl_->fd);

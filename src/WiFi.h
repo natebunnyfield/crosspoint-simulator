@@ -1,5 +1,6 @@
 #pragma once
 #include "NetworkClient.h"
+#include "SimWiFiHost.h"
 #include "WString.h"
 
 #include <array>
@@ -37,6 +38,14 @@ enum wifi_sort_method_t {
 
 #define WIFI_MODE_STA WIFI_STA
 #define WIFI_MODE_AP WIFI_AP
+
+// Defined ahead of WiFiClass rather than after it, because the host scan path
+// inside the class returns WIFI_SCAN_FAILED. Keeping one definition beats
+// mirroring the value into a class constant that could drift: if the two ever
+// disagreed, a failed scan would read as a network count and the firmware would
+// index a row that does not exist.
+#define WIFI_SCAN_RUNNING -1
+#define WIFI_SCAN_FAILED -2
 
 class IPAddress {
   uint8_t bytes[4] = {0, 0, 0, 0};
@@ -156,6 +165,23 @@ class WiFiClass {
     return cachedConfiguredNetworks;
   }
 
+  // A host radio cannot scan -- iOS has no public API for it at any entitlement
+  // tier -- but it does know the one network it is associated with, and that is
+  // the only network the firmware needs to see: the phone is already on it.
+  //
+  // So the "scan" reports exactly that one real network, and the firmware's
+  // list, saved-network match and connect step all work unmodified. Offline or
+  // on cellular there is nothing true to report, and WIFI_SCAN_FAILED is the
+  // honest answer -- WifiSelectionActivity already handles it by offering
+  // manual SSID entry, which is the right screen for someone whose phone is not
+  // on WiFi.
+  static int hostScanCount() {
+    const auto net = sim_wifi_host::current();
+    return (net.connected && net.isWifi && !net.ssid.empty())
+               ? 1
+               : WIFI_SCAN_FAILED;
+  }
+
   bool ssidInConfiguredScan(const String &ssid) const {
     for (const auto &network : configuredNetworks()) {
       if (std::string(network.ssid.c_str()) == std::string(ssid.c_str())) {
@@ -169,6 +195,16 @@ public:
   wl_status_t begin(const char *ssid = nullptr, const char *pass = nullptr) {
     (void)pass;
     currentMode = WIFI_STA;
+    // On a host with a real radio the phone is already associated and the app
+    // cannot change that, so "connect" is a status read, not an action. The
+    // requested SSID is ignored rather than recorded: reporting back a network
+    // we are not on would be the one lie this whole backend exists to avoid.
+    if (sim_wifi_host::available()) {
+      const auto net = sim_wifi_host::current();
+      currentSsid = String(net.ssid.c_str());
+      currentStatus = net.connected ? WL_CONNECTED : WL_DISCONNECTED;
+      return currentStatus;
+    }
     currentSsid = ssid ? ssid : "Simulator WiFi (fake)";
     if (simEnvEquals("CROSSPOINT_SIM_WIFI_CONNECT",
                      "CROSSPOINT_EMU_WIFI_CONNECT", "fail")) {
@@ -192,8 +228,22 @@ public:
     currentStatus = WL_CONNECTED;
     return currentStatus;
   }
-  wl_status_t status() { return currentStatus; }
+  wl_status_t status() {
+    if (sim_wifi_host::available())
+      return sim_wifi_host::current().connected ? WL_CONNECTED
+                                                : WL_DISCONNECTED;
+    return currentStatus;
+  }
   IPAddress localIP() {
+    if (sim_wifi_host::available()) {
+      const auto net = sim_wifi_host::current();
+      // The firmware paints this address, and QR-encodes it, as the way a peer
+      // reaches the device. 127.0.0.1 is correct for the desktop simulator and
+      // useless on a phone, so a host that knows its real address must say so.
+      return net.hasIpv4
+                 ? IPAddress(net.ipv4[0], net.ipv4[1], net.ipv4[2], net.ipv4[3])
+                 : IPAddress();
+    }
     return currentStatus == WL_CONNECTED ? IPAddress(127, 0, 0, 1)
                                          : IPAddress();
   }
@@ -216,6 +266,14 @@ public:
     (void)max_connection;
     currentMode = WIFI_AP;
     currentSsid = ssid ? ssid : "CrossPoint-Simulator";
+    // An app cannot bring up an access point on iOS -- there is no API, and
+    // Personal Hotspot is the owner's to switch on. Reporting failure is what
+    // the firmware already knows how to handle; the menu entry that would reach
+    // here is gated off anyway (ios/WIFI.md, Phase 4).
+    if (sim_wifi_host::available()) {
+      currentStatus = WL_CONNECT_FAILED;
+      return false;
+    }
     if (simEnvEquals("CROSSPOINT_SIM_WIFI_AP", "CROSSPOINT_EMU_WIFI_AP",
                      "fail")) {
       currentStatus = WL_CONNECT_FAILED;
@@ -249,25 +307,57 @@ public:
     (void)passive;
     (void)max_ms_per_chan;
     (void)channel;
+    if (sim_wifi_host::available())
+      return hostScanCount();
     return static_cast<int>(configuredNetworks().size());
   }
-  int scanComplete() { return static_cast<int>(configuredNetworks().size()); }
+  int scanComplete() {
+    if (sim_wifi_host::available())
+      return hostScanCount();
+    return static_cast<int>(configuredNetworks().size());
+  }
   String SSID() {
+    if (sim_wifi_host::available())
+      return String(sim_wifi_host::current().ssid.c_str());
     return currentSsid.isEmpty() ? String("Simulator WiFi (fake)")
                                  : currentSsid;
   }
   String SSID(int i) {
+    if (sim_wifi_host::available())
+      return i == 0 ? String(sim_wifi_host::current().ssid.c_str()) : String();
     const auto &networks = configuredNetworks();
     return i >= 0 && i < static_cast<int>(networks.size()) ? networks[i].ssid
                                                            : String();
   }
-  int RSSI() { return -45; }
+  int RSSI() {
+    if (sim_wifi_host::available())
+      return sim_wifi_host::current().rssiDbm;
+    return -45;
+  }
   int RSSI(int i) {
+    if (sim_wifi_host::available())
+      return i == 0 ? sim_wifi_host::current().rssiDbm : 0;
     const auto &networks = configuredNetworks();
     return i >= 0 && i < static_cast<int>(networks.size()) ? networks[i].rssi
                                                            : 0;
   }
   int encryptionType(int i) {
+    if (sim_wifi_host::available()) {
+      // OPEN, and this is not a claim that the network is unencrypted.
+      //
+      // The firmware uses this for exactly one decision: isEncrypted ->
+      // selectedRequiresPassword -> "prompt for a password"
+      // (WifiSelectionActivity.cpp:165,223). On a host radio the password is
+      // never used, because begin() cannot change an association iOS already
+      // made. Reporting WPA2 would therefore demand a secret, refuse to proceed
+      // without one, and then discard it -- friction in front of a join that
+      // was already complete.
+      //
+      // OPEN answers the question actually being asked, which is "does the
+      // firmware need a credential from the user to get on this network?" It
+      // does not.
+      return WIFI_AUTH_OPEN;
+    }
     const auto &networks = configuredNetworks();
     return i >= 0 && i < static_cast<int>(networks.size()) ? networks[i].auth
                                                            : WIFI_AUTH_OPEN;
@@ -291,5 +381,4 @@ public:
 };
 extern WiFiClass WiFi;
 
-#define WIFI_SCAN_RUNNING -1
-#define WIFI_SCAN_FAILED -2
+

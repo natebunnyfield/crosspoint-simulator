@@ -52,6 +52,32 @@
   <key>LSSupportsOpeningDocumentsInPlace</key>
   <true/>
 
+  <!-- Networking. The file-transfer screen serves the firmware's web UI to a
+       peer on the same WiFi, and reports which network the phone is on.
+
+       NSLocationWhenInUseUsageDescription is NOT about location as a feature:
+       NEHotspotNetwork.fetchCurrent, the only public way to read the current
+       SSID and signal strength, is gated behind Location authorization. Without
+       it the file-transfer screen cannot name the network or draw signal bars.
+
+       NSLocalNetworkUsageDescription + NSBonjourServices are required because
+       the firmware advertises crosspoint.local as the PRIMARY address, and QR-
+       encodes it; without Bonjour that address resolves to nothing. See
+       ios/WIFI.md. -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>CrossPoint serves your books to other devices on this network during file transfer.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_http._tcp</string>
+  </array>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>CrossPoint uses location permission only to read the name and signal strength of the Wi-Fi network you are on, which it shows on the file transfer screen. Your location is never stored or sent anywhere.</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+
   <key>UILaunchScreen</key>
   <dict>
     <key>UIColorName</key>
