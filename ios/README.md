@@ -288,6 +288,204 @@ above on both frames, and a scripted `injectButton` press navigated Home —
 touch hit-testing itself is PadCore + the rects, covered by
 `tests/pad_core_test.cpp`. Not yet exercised with a real finger.
 
+### Dithered grays, moire, and the panel scale
+
+Raised 2026-08-06: the gray dithered selection area shows irregular moire on an
+iPad Pro. **The panel scale is not the cause** — checked, not assumed.
+
+`CROSSPOINT_SIM_PIXEL_EXACT=1` is set, but on `crosspoint_core` in the ROOT
+[CMakeLists.txt](../CMakeLists.txt), not in [ios/CMakeLists.txt](CMakeLists.txt)
+where you would look for it — so `INTEGER_SCALE` + `SCALEMODE_NEAREST` are both
+live on iOS. Transcribing both stages exactly (`layoutPadTablet` publishing the
+insets, then `HalDisplay`'s manual placement recomputing from them) gives, on
+every iPad:
+
+| frame | output | scale | dst | 1 texel : |
+|---|---|---|---|---|
+| iPad Pro 13″ | 2064x2752 | **1.0000** | 240,852 1584x1056 | 1 device px |
+| iPad Air 13″ | 2048x2732 | **1.0000** | 232,842 1584x1056 | 1 device px |
+| iPad Pro 11″ | 1668x2420 | **1.0000** | 42,686 1584x1056 | 1 device px |
+| iPad Air 11″ | 1640x2360 | **1.0000** | 28,656 1584x1056 | 1 device px |
+| iPad mini | 1488x2266 | **1.0000** | -48,609 1584x1056 | 1 device px |
+
+Integral scale, whole-number dst, one texel per device pixel, on all five. The
+90-degree rotation is about the dst centre and lands on whole numbers too.
+`UIRequiresFullScreen` rules out a fractional Split View window.
+
+**The dither is at LOGICAL resolution, not framebuffer resolution.** Worth
+recording because the opposite is the natural assumption and it is wrong: the
+firmware's `GfxRenderer` divides the device coordinate by `CROSSPOINT_RENDER_SCALE`
+when building the dither mask (`fillRectImpl`, the comment at
+"That keeps the dither at LOGICAL resolution"), and the per-pixel path gets the
+same result for free because `drawPixel` expands one logical pixel into an SxS
+device block. So at `RENDER_SCALE=2` a dither cell is 2x2 device pixels, not 1x1
+— the fill "looks pixel-for-pixel like scale 1, just replicated". A selection
+row is `Color::LightGray`, which is `x % 2 == 0 && y % 2 == 0`: one 2x2 device-pixel
+dot on a 4x4 device-pixel grid.
+
+That leaves the resample somewhere **below the app**. The prime suspect is
+iPadOS **Display Zoom**, which renders the whole screen at a smaller logical
+size and upscales it to the panel by a non-integer factor — on a 13-inch Pro,
+1024x1366@2x = 2048x2732 stretched to 2064x2752, a 1.0078x resample with a beat
+period around 128 px. Against a 4 px dot grid that is exactly broad irregular
+banding, it is invisible in a screenshot (captured pre-composite), and no
+arithmetic in this repo can see or undo it.
+
+`HalDisplay.cpp`'s manual placement now logs the presented geometry once and on
+every change, flagging `(FRACTIONAL)` and `(OFF-GRID)`, so this is answerable
+from the console instead of by inference:
+
+```
+[panel] out 2064x2752 px, scale 1.0000, dst 240.00,852.00 1584x1056
+```
+
+**Check `out` against the device's true native pixel size.** A 13-inch Pro
+reporting 2048x2732 rather than 2064x2752 is Display Zoom, and the fix is in
+Settings, not in the code.
+
+### Open: rockers to the screen edge, page to the top
+
+Raised 2026-08-06. Two complaints against the layout above — the rockers are
+too far inboard for a thumb to find without looking, and the page sits too low.
+**Nothing is approved yet**; the options are live in
+[mockups/ipad-pad-placement.html](mockups/ipad-pad-placement.html), which
+computes every frame from `layoutPadTablet()`'s own arithmetic rather than
+sketching it, and draws the shipped layout underneath as a dashed ghost.
+
+Four measurements bound whatever gets chosen.
+
+**The inset complaint is a 13-inch complaint.** `leftX` centres the pair in the
+margin, so how far inboard the rockers sit is `(margin - 2 * cell) / 2` — which
+scales with the frame and is nearly nothing on the small ones:
+
+| frame | margin | cell | rocker inset | page top | vertical slack |
+|---|---|---|---|---|---|
+| iPad Pro 13″ | 252 pt | 60 | **66 pt** | 294 pt | 540 pt |
+| iPad Air 13″ | 248 pt | 60 | **64 pt** | 289 pt | 530 pt |
+| iPad Pro 11″ | 153 pt | 60 | 16.5 pt | 211 pt | 374 pt |
+| iPad Air 11″ / iPad | 146 pt | 60 | 13 pt | 196 pt | 344 pt |
+| iPad mini | 108 pt | 54 | **0 pt** | 172.5 pt | 297 pt |
+
+The mini is already flush — its 108 pt margin holds a two-cell rocker exactly —
+so "move the rockers to the edge" is a no-op there and worth 64-66 pt on the
+13-inch frames. Any rule has to be written so the mini does not go negative.
+
+**Moving the page up is free.** The tablet branch sets top and bottom insets that
+sandwich the panel exactly, so `availH` equals the panel height and
+`HalDisplay`'s own fit lands on the same scale; its
+`topMargin = topBand + min(16, slack/2)` then collapses to the band edge
+(`HalDisplay.cpp:688`). The page therefore lands at exactly whatever `topInset`
+the branch publishes, at an unchanged scale. Centring is one term —
+`(availPx - panelHpx) / 2.0f` — and replacing it with a chosen offset is the
+whole change.
+
+**The page cannot get bigger to absorb the slack.** An integer 2x panel wants
+1056 pt of width and the widest iPad is 1032, so every frame presents at 1x,
+528 × 792 pt. The 297-540 pt of vertical slack is genuinely spare space; the
+only question is where it goes, not whether it can be spent on a larger page.
+
+**The cell is capped by the margin,** `min(60, margin / 2)`, so a fatter target
+is available on the 13-inch frames (up to 126 pt) and nowhere else. Option F in
+the mockup tries 88 pt.
+
+The option sets, all with the rockers flush unless stated: **A** edge only, page
+untouched — **B** edge + page as high as the safe area allows — **C** B with the
+rockers at 62% rather than 50%, which is where a two-hand side grip actually
+sits on a tablet held for balance — **D** page high and the whole pad low and
+tucked together — **E** a fifth of the spare margin instead of flush, on the
+argument that a control touching the bezel invites edge-swipe conflicts — **F**
+C with 88 pt cells — **G** the owner's 2026-08-06 dial-in, below. The mockup also
+carries a thumb-reach overlay (40 mm easy / 55 mm stretch rings from a pivot on
+the side edge, per frame's own ppi) and an optional hit-slop band that runs the
+target to the screen edge while the stroke stays inboard — the same trade
+already banked as the phone's fallback for its half-height row.
+
+**Every placement is a RATIO, never a point value** (owner ruling 2026-08-06).
+The first dial-in — page top 186 pt, rocker inset 26 pt — was tuned on an iPad
+Pro 13″ and means nothing on the other four frames, so the mockup now takes
+percentages and resolves them per frame. The denominators are picked so the
+ratio cannot express an illegal layout at either end of its range, which is what
+makes them the right ones:
+
+| setting | unit | meaning |
+|---|---|---|
+| page top | **ratio** of the spare height, `availH - panelH` | 0 = as high as the safe area allows, **50% = today's centred page**, 100 = as low |
+| rocker inset | **points** | a minimum distance in from the bezel, honoured on every frame |
+| rocker centre | **ratio** of screen height | **50% = today's centred rockers** |
+| cell | **points** | `kOptimalSquare`, a thumb-sized physical optimum |
+
+That the shipped page is exactly 50% of the spare height is the check that that
+denominator is the right one.
+
+**The rocker inset is POINTS, not a ratio** (owner ruling 2026-08-06, revising
+the first pass). Two reasons. How far a thumb travels in from the bezel is a
+physical distance, the same kind of quantity as the cell — and as a ratio of the
+spare margin it resolved to **0 pt on the mini**, whose margin holds a pair
+exactly, so the setting had no effect at all on the one frame that was already
+flush. As a point minimum it applies everywhere, and **the cell yields to make
+room**: `cell = min(requested, (margin - inset) / 2)`. The inset is capped so the
+cell can never be squeezed under the 44 pt HIG floor, and the readout says when
+that cap bites.
+
+Both point values are resolved per frame, never stored clamped — storing the
+clamp meant one visit to the mini pinned every frame to 54 pt.
+
+The owner's draft, **G — page at 30% of the spare height, rockers 26 pt in**,
+resolves to:
+
+| frame | page top | rocker inset | cell |
+|---|---|---|---|
+| iPad Pro 13″ | 186 pt | 26 pt | 60 pt |
+| iPad Air 13″ | 183 pt | 26 pt | 60 pt |
+| iPad Pro 11″ | 136 pt | 26 pt | 60 pt |
+| iPad Air 11″ / iPad | 127 pt | 26 pt | 60 pt |
+| iPad mini | 113 pt | **20 pt** | **44 pt** |
+
+**26 pt is not achievable on the mini.** Its 108 pt margin caps the inset at
+`108 - 2 x 44 = 20 pt`, and even that puts the cell exactly on the HIG floor.
+If a constant inset across all five frames matters more than the cell size, 8 pt
+is the comfortable figure — it costs the mini nothing but 4 pt of cell (54 -> 50)
+and every other frame keeps 60.
+
+**The bottom row must clear the display's corner arcs** (owner ruling
+2026-08-06). Moving the rockers outward pushes POWER and UP|DOWN into the two
+bottom corners, and an iPad's corners are rounded — so past a certain inset the
+display itself clips the control. A clipped control is dead, not merely ugly:
+the pixels under the arc are not on the screen, so neither is the touch.
+
+The geometry is a quarter-arc of radius `r` centred at `(r, H-r)`. A control
+whose bottom edge sits `d` points up from the screen bottom pokes `r - d` into
+the arc's band, and needs `r - sqrt(r² - (r-d)²)` of inset to clear. With the
+bottom row anchored at the 20 pt home-indicator inset:
+
+| radius | bottom row at 20 pt up | minimum inset |
+|---|---|---|
+| 18 pt | above the arc band | none needed |
+| 21.5 pt | 1.5 pt into it | 0.05 pt |
+| 30 pt | 10 pt into it | **1.7 pt** |
+
+So the constraint is small but real, and it binds exactly on the frames the
+whole change is for — the M4-generation Pro bodies, whose corners are rounder
+than the 18 pt the 2018-2022 ones used. Flush-to-the-edge on a Pro 13″ clips
+POWER and DOWN by 1.6 pt.
+
+**The exact radius is `UIScreen._displayCornerRadius`, which is private**, so
+the mockup carries per-frame defaults (30 / 18 / 30 / 18 / 21.5) as a slider
+rather than a constant, draws the frame at that radius in point space, paints a
+clipped control red, and reports the overshoot. Check a layout against a radius
+*larger* than you believe, never smaller. Two corrections are offered and
+neither is free — inset the bottom row until it clears, which costs its column
+alignment with the rockers above, or raise it, which costs its screen-bottom
+anchor. All seven option sets default to insetting.
+
+**One question is still open in G:** the page ratio can be taken against the
+spare height or against screen height. Both reproduce 186 pt on a Pro 13″ — they
+are the same number there — and they diverge below it, reaching the mini at
+113 pt and 153 pt respectively. Spare height holds the *proportion* of emptiness
+above and below constant across frames; screen height holds the absolute
+position and lets the page drift back toward centred on small frames. The mockup
+carries both as a toggle, switching without moving the page.
+
 **Regenerating the source list: clean first.** `pio run -e simulator -t
 compiledb` emits compile actions only for TUs that are not restored from the
 firmware's build cache (`build_cache_policy.py`), so an incremental run
