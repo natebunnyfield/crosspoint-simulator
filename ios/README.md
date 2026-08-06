@@ -733,11 +733,12 @@ resetting it in `setup()`, next to the same reset for `deepSleepInProgress`.
   capability the hardware exposes. Known, accepted dead zone.
 - **Physical device.** Signing identities exist; no iPhone Air is paired.
 - **WiFi.** `CROSSPOINT_NO_NETWORK=1` gates the network screens out of the iOS
-  build. A phone cannot impersonate the X3's radio (no scan API, no soft AP),
-  but it can serve the file-transfer web UI on the LAN and download over
-  `NSURLSession` — and the exclusion lists that were supposed to strip those TUs
-  have been a silent no-op since `af2e842`. Plan, findings and phasing:
-  [WIFI.md](WIFI.md).
+  build. A phone cannot impersonate the X3's radio — no scan API, and no soft
+  AP, which is the mode the firmware's peer-transfer flow is built on — but it
+  can serve the file-transfer web UI on the LAN and download over
+  `NSURLSession`. Note that the exclusion lists meant to strip those TUs have
+  been a silent no-op since `af2e842`, so the iOS binary carries all 18 of them
+  today. Scope, findings, entitlements and phasing: [WIFI.md](WIFI.md).
 
 ## Rejected reading-UX proposals — do not re-propose
 
