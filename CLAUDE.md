@@ -48,15 +48,18 @@ There is no linter and no per-file build commands; most changes are "tested" by 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
+tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
 ```
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll).
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll).
 
 ## Architecture
 
 The simulator is a collection of host-side reimplementations of the firmware's hardware abstraction layer (HAL) and its Arduino/ESP-IDF dependencies. Each `Hal*.cpp/.h` here corresponds to a `Hal*` class in the firmware's `lib/hal/`, and **must keep the same public surface** or the firmware will not link.
 
 **The HAL stub rule.** When the firmware adds a new method to a HAL class and calls it, the simulator fails to link until a matching stub is added to the corresponding `Hal*.cpp` here. Most additions are one-line no-ops. This is the single most common reason a simulator build breaks after pulling firmware updates.
+
+It runs the other way too, and that direction costs a firmware change: a capability the *host* has and the device does not (the keyboard channel — `setTextEntryActive` / `consumeTypedText`) has to exist on both sides, as a real implementation here and an inline no-op in the firmware's `lib/hal/HalGPIO.h`. Simulator-only methods the firmware never calls (`injectButtonDown/Up`, `injectTypedText`, `pumpHostTextInput`) need no counterpart and must not gain one.
 
 **Why the simulator's design has the shape it does** (the non-obvious parts):
 
@@ -123,6 +126,18 @@ frontlight state, inversion, and an RTC.
 `HalGPIO::update` owns the SDL event pump for the whole simulator, do not poll SDL events elsewhere. If another layer needs to observe events (the iOS harness does), use `SDL_AddEventWatch` — it sees events as they are queued without consuming them, so neither side steals from the other. Scancodes map to button indices `BTN_BACK=0` through `BTN_POWER=6`. `SDL_EVENT_QUIT` sets the `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
+
+**Host keyboards reach the firmware's text fields.** The X3 has no keyboard, so
+firmware text entry pecks characters out of an on-screen grid; `HalGPIO` also
+carries a real host keyboard into that same field — the Mac's, an iPhone's
+on-screen keyboard, a Bluetooth keyboard paired to the phone. The firmware
+opens and closes the channel (`setTextEntryActive`, a no-op on device), and
+while it is open the scancode→button map is suspended for everything except
+Escape and the arrows — without that, typing a Wi-Fi password would press POWER
+on every `p` and sleep the device on every `s`. `TYPE:<text>` in
+`CROSSPOINT_SIM_INPUT_SCRIPT` is the scripted typist (`\b` backspace, `\n`
+commit, `\e` cancel; `;` cannot appear in the text). Full behaviour table and
+what was verified where: [ios/README.md](ios/README.md).
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key
 and X4 Pro touch edges through the same `HalGPIO` state as real SDL input, and
