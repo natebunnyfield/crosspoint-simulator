@@ -148,6 +148,40 @@ correctly through the same two planes.
   keyboard is wired into this HAL yet, so a text field behaves as it does on
   device.
 
+### Three guards against a split-brain binary (2026-08-06)
+
+The follow-up to the entry above. Two defines have now gone `PRIVATE` on the
+app target and shipped (`CROSSPOINT_RENDER_SCALE`, `SIMULATOR_DEVICE_X3`), so
+the rule needed an enforcement mechanism rather than a paragraph. Owner ruling:
+guards only — `BoardConfig.h` keeps its silent X4 default, because making an
+unnamed device an `#error` would break the firmware's `[env:simulator]` and any
+upstream consumer that never named a board.
+
+- **Configure time.** [ios/CMakeLists.txt](../ios/CMakeLists.txt) compares the
+  app target's `COMPILE_DEFINITIONS` against the core's and `FATAL_ERROR`s on
+  anything present only on the app. `CROSSPOINT_HARNESS_ONLY_DEFINES` is the
+  escape hatch and asks for a reason. Verified both ways: a planted
+  `CROSSPOINT_BOGUS_TEST_DEFINE=1` on the app target failed the configure with
+  the explanatory message; removing it configured clean.
+- **Boot.** [src/SimulatorBuildIdentity.h](../src/SimulatorBuildIdentity.h)
+  carries a `localBuildIdentity()` evaluated from the *including TU's* macros,
+  and `coreBuildIdentity()` implemented in a `crosspoint_core` TU.
+  `CrossPointHarness_begin()` compares them and `abort()`s on any difference in
+  device, logical geometry or render scale. Deliberately runtime, not
+  `static_assert`: the failure is two TUs in DIFFERENT targets, which no
+  compile-time construct in either one can see. A healthy launch logs
+  `[BUILD] iOS harness and firmware core agree: X3, 792x528 logical, 2x render scale`
+  — confirmed on the iPhone 13 mini simulator.
+- **Deploy.** [ios/testflight.sh](../ios/testflight.sh) greps the generated
+  Xcode project for `SIMULATOR_DEVICE_X3` before archiving. Verified against
+  the real project (passes) and a copy with the define renamed (fails).
+- `tests/build_identity_test.cpp` proves the guard aborts, once per field, by
+  forking a child with a doctored identity — a guard that only runs on an
+  already-broken build otherwise has nothing showing it works.
+  [tools/fw_include_flags.py](../tools/fw_include_flags.py) emits the firmware
+  `-I` set from `cmake/CrossPointSources.cmake` so the host test command in
+  CLAUDE.md cannot drift from the CMake build's include list.
+
 ### Dark-mode panel inversion with instant re-present (2026-08-01)
 
 - The iOS app now follows the system appearance onto the panel itself: dark

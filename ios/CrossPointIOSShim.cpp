@@ -61,6 +61,7 @@
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "PadCore.h"
+#include "SimulatorBuildIdentity.h"
 #include "SimulatorOverlay.h"
 
 namespace {
@@ -1026,6 +1027,20 @@ void CrossPointHarness_begin() {
   // every finger event through N watches. State refreshes (theme, layout,
   // released buttons) re-run every call; registrations do not.
   static bool s_watchesInstalled = false;
+
+  // THIS FILE IS IN THE APP TARGET; the firmware and the HAL are in
+  // crosspoint_core. A cross-cutting define set on only one of the two builds
+  // a binary whose halves disagree, compiles clean, and shows up as a bug in
+  // something distant (CROSSPOINT_RENDER_SCALE: 15 builds of 1x glyphs;
+  // SIMULATOR_DEVICE_X3: every calendar sleep screen falling back to the stock
+  // logo). Compare and die here rather than ship that again. Cheap, and the
+  // matching line is a useful thing to have in a log. See
+  // src/SimulatorBuildIdentity.h.
+  static bool s_identityChecked = false;
+  if (!s_identityChecked) {
+    verifyBuildIdentityMatchesCore(localBuildIdentity(), "iOS harness");
+    s_identityChecked = true;
+  }
 
   // Touches must arrive as finger events only. Left on, SDL also synthesises
   // mouse events from the same touch, and HalGPIO consumes mouse events.

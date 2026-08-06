@@ -131,6 +131,39 @@ cmake -B "$BUILD_DIR" -G Xcode \
   -DCROSSPOINT_IOS_BUILD_NUMBER="$BUILD_NUMBER" \
   ${SEED_FONTS_ARGS[@]+"${SEED_FONTS_ARGS[@]}"} >/dev/null
 
+say "Verify device profile"
+# The app impersonates an X3, and the firmware + HAL are compiled into the
+# crosspoint_core LIBRARY target, not the app target. Builds 1-27 shipped with
+# SIMULATOR_DEVICE_X3 on the app target only, so the library built an X4:
+# HalClock never armed, and every calendar sleep screen silently fell back to
+# the stock logo screen. It compiles, links, launches and looks fine.
+#
+# ios/CMakeLists.txt now fails the configure if a define lands on the app
+# target alone, and the harness aborts at boot if its constants disagree with
+# the library's. This is the third gate, on the one thing that must be true of
+# a shipped build: check the generated project, so no future refactor of how
+# the define is set can ship a wrong-device archive.
+PBXPROJ="$BUILD_DIR/crosspoint_simulator.xcodeproj/project.pbxproj"
+[[ -f "$PBXPROJ" ]] || { echo "ERROR: no project at $PBXPROJ"; exit 1; }
+if python3 - "$PBXPROJ" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+# Xcode splits GCC_PREPROCESSOR_DEFINITIONS per target + configuration; the
+# library's Release block is the one that governs the archive.
+blocks = re.findall(r'GCC_PREPROCESSOR_DEFINITIONS\s*=\s*\((.*?)\);', text, re.S)
+ok = any('SIMULATOR_DEVICE_X3' in b for b in blocks)
+sys.exit(0 if ok else 1)
+PY
+then
+  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3"
+else
+  echo "ERROR: SIMULATOR_DEVICE_X3 does not appear in the generated project's"
+  echo "  preprocessor definitions. This archive would ship an X4 build of the"
+  echo "  firmware: no RTC, wrong panel geometry (800x480 vs 792x528), and the"
+  echo "  calendar sleep screens fall back to the stock logo screen."
+  exit 1
+fi
+
 say "Archive"
 rm -rf "$ARCHIVE"
 xcodebuild archive \
