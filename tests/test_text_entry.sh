@@ -54,6 +54,18 @@ p = '$SETTINGS'
 d = json.load(open(p)); d['ownerName'] = '''$1'''
 json.dump(d, open(p, 'w'))"
 }
+# Which text-entry activity the factory builds: 0 daisywheel, 1 13-grid,
+# 2 QWERTY (CrossPointSettings::KEYBOARD_LAYOUT). Set rather than inherited,
+# because the two activities are separate implementations of the same channel
+# and the card's own choice is not the suite's business — a card left on the
+# daisywheel used to fail this test for the wrong reason.
+set_keyboard_layout() {
+  python3 -c "
+import json
+p = '$SETTINGS'
+d = json.load(open(p)); d['keyboard'] = $1
+json.dump(d, open(p, 'w'))"
+}
 # Booting into the last book is deliberate (main.cpp: 'the device IS the current
 # book'); a non-zero crash-recovery counter is the only lever a headless script
 # has to land on Home instead. See the simulator's CLAUDE.md.
@@ -78,16 +90,19 @@ done
 NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;5500:ENTER;6700:UP;7400:ENTER"
 
 # One run: navigate to the field, play $1 (script fragment, times >= 8000), quit.
+# $3 is the activity the current layout should produce.
 run_case() {
   local label="$1"
   local typing="$2"
+  local want_activity="${3:-KeyboardEntry}"
   local log="$WORK/$label.log"
   force_home_boot
   ( cd "$FIRMWARE_DIR" && \
     CROSSPOINT_SIM_INPUT_SCRIPT="$NAV_TO_OWNER_FIELD;$typing;12000:QUIT" \
     SDL_VIDEODRIVER=dummy "$BIN" >"$log" 2>&1 )
-  if ! grep -q "Entering activity: KeyboardEntry" "$log"; then
-    echo "FAIL[$label]: never reached the text field -- the Home/Settings row counts in this script are stale"
+  if ! grep -q "Entering activity: $want_activity" "$log"; then
+    echo "FAIL[$label]: never reached $want_activity -- either the Home/Settings row"
+    echo "  counts in this script are stale, or the layout setting no longer selects it"
     grep "Entering activity" "$log" | tail -5
     exit 1
   fi
@@ -108,6 +123,9 @@ expect_owner() {
   fi
 }
 
+# The 13-grid layer of KeyboardEntryActivity.
+set_keyboard_layout 1
+
 # 1. Type, erase, commit. The two backspaces must apply where they arrived, so
 #    the ZZ never reaches the stored name.
 set_owner_name ""
@@ -124,5 +142,13 @@ expect_owner cancel "CrossPoint QA"
 run_case untouched "8400:TYPE:\\n"
 expect_owner untouched "CrossPoint QA"
 
-echo "PASS: host keyboard typed, erased, committed and cancelled in the firmware's text field"
+# 4. The daisywheel is a separate activity implementing the same channel, and
+#    the owner can be on either. It has no cursor, so typed text appends at the
+#    end -- which is where its own picks land too.
+set_keyboard_layout 0
+set_owner_name ""
+run_case daisy "8400:TYPE:CrossPoint QAZZ;9000:TYPE:\\b\\b;9600:TYPE:\\n" DaisyEntry
+expect_owner daisy "CrossPoint QA"
+
+echo "PASS: host keyboard typed, erased, committed and cancelled in both text-entry activities"
 exit 0
