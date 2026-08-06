@@ -43,10 +43,13 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Four real tests do exist in `tests/`, run them when touching input, text entry, sleep, or build-configuration paths:
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Seven real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, or build-configuration paths:
 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
+c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 tests/wifi_host_test.cpp -o /tmp/wifi_host_test && /tmp/wifi_host_test
+c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 tests/http_dispatch_test.cpp -o /tmp/http_dispatch_test && /tmp/http_dispatch_test
+c++ -std=c++20 -Isrc tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp -o /tmp/restart_test && /tmp/restart_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
 tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
 c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
@@ -55,7 +58,14 @@ c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Is
   && /tmp/build_identity_test
 ```
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below.
+**The three `-D` tests exist because the code they cover is iOS-only.** `ios/*.mm`
+cannot be compiled anywhere but a Mac and there is no paired device, so
+`CROSSPOINT_SIM_HOST_WIFI`, `CROSSPOINT_SIM_HOST_HTTP` and
+`CROSSPOINT_SIM_REBOOT_IN_PROCESS` are all overridable specifically to let the
+phone's branches be exercised on a host. Keep that escape hatch when adding
+another platform backend, or the branch ships with no coverage at all.
+
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever.
 
 ## Architecture
 
@@ -82,7 +92,8 @@ It runs the other way too, and that direction costs a firmware change: a capabil
 **Host-specific code paths:**
 
 - MD5: [src/MD5Builder.h](src/MD5Builder.h) is a thin dispatcher that auto-selects the implementation via `#ifdef __APPLE__` / `#elif __linux__`. [src/MD5Builder_mac.h](src/MD5Builder_mac.h) uses CommonCrypto; [src/MD5Builder_linux.h](src/MD5Builder_linux.h) uses OpenSSL. No downstream swapping is needed - just include `MD5Builder.h`.
-- Web server shims: [src/WebServer.cpp](src/WebServer.cpp), [src/WebSocketsServer.cpp](src/WebSocketsServer.cpp), and [src/NetworkClient.cpp](src/NetworkClient.cpp) expose firmware port 80 as `http://127.0.0.1:8080/` and port 81 WebSockets as `ws://127.0.0.1:8081/`. `CROSSPOINT_SIM_HTTP_PORT` moves the pair together when either port is occupied. Current CrossPoint builds compile their firmware-owned `CrossPointWebServer.cpp` and `WebDAVHandler.cpp` against these shims; `CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER` disables only the legacy reduced substitute in this library.
+- Web server shims: [src/WebServer.cpp](src/WebServer.cpp), [src/WebSocketsServer.cpp](src/WebSocketsServer.cpp), and [src/NetworkClient.cpp](src/NetworkClient.cpp) expose firmware port 80 as `http://127.0.0.1:8080/` and port 81 WebSockets as `ws://127.0.0.1:8081/`. `CROSSPOINT_SIM_HTTP_PORT` moves the pair together when either port is occupied. Current CrossPoint builds compile their firmware-owned `CrossPointWebServer.cpp` and `WebDAVHandler.cpp` against these shims; `CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER` disables only the legacy reduced substitute in this library. Both servers bind **loopback on desktop and all interfaces on iOS** — a phone's file-transfer screen exists to be reached from another machine, a developer's laptop should not publish a file browser to the office — and `CROSSPOINT_SIM_BIND_ALL` forces either way.
+- `ESP.restart()` reboots rather than doing nothing, which is how the firmware's `silentRestart()` (every file transfer and font download ends in one) gets exercised at all. On iOS that is the in-process `longjmp` reboot, so the firmware's `RTC_NOINIT` globals survive exactly as RTC memory does on hardware; on desktop the reboot is `execvp` and those globals do NOT survive, so it is **opt-in** via `CROSSPOINT_SIM_FIRMWARE_RESTART=1` until someone verifies it. It deliberately does not reuse `rebootAsPowerWake()`, which would have the firmware believe POWER was pressed.
 - Build flags: macOS gets architecture-correct SDL compiler and linker flags
   from `pkg-config --cflags --libs sdl3`, so the same sample works on Intel and
   Apple Silicon.

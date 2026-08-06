@@ -12,13 +12,44 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+// Whether a host HTTP client stands in for the curl subprocess.
+//
+// The curl path shells out via popen(), which is fine on a developer's machine
+// and impossible in a sandbox: iOS has no curl binary and forbids exec outright.
+// Overridable so the host branch can be exercised off-device -- the real
+// backend is iOS-only, so without this it would ship with no test at all.
+#ifndef CROSSPOINT_SIM_HOST_HTTP
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+#define CROSSPOINT_SIM_HOST_HTTP 1
+#else
+#define CROSSPOINT_SIM_HOST_HTTP 0
+#endif
+#endif
+
 namespace sim_http_fetch {
 
 struct Response {
   int statusCode = 0;
+  // Kept named for curl even when a host client produced it: HTTPClient.h maps
+  // these through simCurlExitCodeToHttpError() into the HTTPC_ERROR_* codes the
+  // firmware branches on, so a host backend reports failures in curl's
+  // vocabulary rather than introducing a second error space.
   int curlExitCode = 0;
   std::string body;
 };
+
+#if CROSSPOINT_SIM_HOST_HTTP
+// Implemented by the platform (ios/CrossPointHttp.mm). Synchronous, and must
+// never be called from the SDL main thread -- firmware download paths run on
+// task threads and that has to stay true.
+bool hostFetch(const std::string &url, const char *method,
+               const std::map<std::string, std::string> &headers,
+               const std::string &basicAuth, const char *body, Response &out);
+#endif
 
 inline bool startsWith(const std::string &value, const char *prefix) {
   return value.rfind(prefix, 0) == 0;
@@ -233,11 +264,18 @@ inline bool fetch(const std::string &url, const char *method,
                   const std::map<std::string, std::string> &headers,
                   const std::string &basicAuth, const char *body, Response &out) {
   out = Response{};
+  // The mock-root and file:// paths are platform-independent and stay ahead of
+  // any real transport: they are how scripted QA feeds fixtures in without a
+  // network, and that is as useful on a phone as on a desktop.
   if (fetchFromMockRoot(url, out))
     return true;
   if (fetchFromFileUrl(url, out))
     return true;
+#if CROSSPOINT_SIM_HOST_HTTP
+  return hostFetch(url, method, headers, basicAuth, body, out);
+#else
   return fetchWithCurl(url, method, headers, basicAuth, body, out);
+#endif
 }
 
 } // namespace sim_http_fetch

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Access WiFi Information. NEHotspotNetwork.fetchCurrent needs this (plus
+       Location permission, requested via NSLocationWhenInUseUsageDescription in
+       Info.plist.in) to return the current SSID and signal strength. Without
+       both, fetchCurrent yields nil: the file transfer screen cannot name the
+       network or draw signal bars, and WiFiClass falls back to reporting
+       WIFI_SCAN_FAILED, which lands the owner on the manual SSID entry list.
+       Degraded, not broken. But the point of this entitlement is that the phone
+       can tell the truth about the network it is on.
+
+       THIS MUST BE ENABLED ON THE APP ID before a device build will sign.
+       Apple Developer, then Certificates / Identifiers / Profiles, then the
+       app's identifier, then Access WiFi Information. Automatic signing fails
+       with a provisioning profile mismatch otherwise, which reads as a
+       certificate problem rather than as a missing capability.
+
+       Applied only to device builds; see ios/CMakeLists.txt. The iOS Simulator
+       neither needs it nor honours it, since fetchCurrent returns nil there
+       regardless. That is why this path can only be QA'd on real hardware. -->
+  <key>com.apple.developer.networking.wifi-info</key>
+  <true/>
+</dict>
+</plist>
