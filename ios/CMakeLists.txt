@@ -43,6 +43,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointIOSShim.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAppearance.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointFsPrep.cpp
   ${CROSSPOINT_SETTINGS_BUNDLE}
@@ -58,6 +59,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
 set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAppearance.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
 # Optional bundled font families. Point this at a build-sd-fonts.py output
@@ -127,8 +129,13 @@ if(NOT CROSSPOINT_BUILD_FIRMWARE)
     "-DCROSSPOINT_BUILD_FIRMWARE=ON -DCROSSPOINT_FIRMWARE_DIR=<path>.")
 endif()
 
+# NetworkExtension carries NEHotspotNetwork (SSID + signal strength); Network
+# carries NWPathMonitor (connectivity). Both are CrossPointWiFi.mm's own link
+# requirements and are named here rather than left to come in transitively.
 target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
-  "-framework UIKit")
+  "-framework UIKit"
+  "-framework Network"
+  "-framework NetworkExtension")
 
 # The harness impersonates an X3. ON THE LIBRARY, PUBLIC -- the same trap
 # CROSSPOINT_RENDER_SCALE fell into below, and it bit harder: the device macro
@@ -196,9 +203,19 @@ set_target_properties(CrossPointX3 PROPERTIES
   XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH[variant=Release] "NO")
 
 if(CROSSPOINT_IOS_TEAM_ID)
+  # Entitlements are attached to DEVICE builds only. The Simulator does not
+  # honour Access WiFi Information (fetchCurrent returns nil there whatever the
+  # entitlements say), and attaching one it cannot satisfy only invites a
+  # signing failure on a build that needs no signature at all.
+  #
+  # The capability must also be enabled on the App ID in the developer portal,
+  # or automatic signing fails with a profile mismatch. See the entitlements
+  # file itself, which spells out where.
   set_target_properties(CrossPointX3 PROPERTIES
     XCODE_ATTRIBUTE_DEVELOPMENT_TEAM ${CROSSPOINT_IOS_TEAM_ID}
-    XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic")
+    XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+    XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS
+      "${CMAKE_CURRENT_SOURCE_DIR}/CrossPointX3.entitlements")
 else()
   # Simulator builds need no signature; forcing this off keeps a machine with
   # multiple identities from picking one at random.

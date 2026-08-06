@@ -1,7 +1,14 @@
 # WiFi on iOS — plan
 
-Status: **plan only** apart from Phase 0. Written 2026-08-06 against simulator
-`c66d39f` and firmware `4ef1a62`.
+Status: Phases 0 and 1 are **done**, Phase 2 partly. Phases 3–5 are still plan.
+Written 2026-08-06 against simulator `c66d39f` and firmware `4ef1a62`.
+
+**Nothing here has been built for iOS.** There is no Mac in the loop and no
+paired device, so every Apple-only path — `ios/CrossPointWiFi.mm` above all —
+is unverified beyond `tests/wifi_host_test.cpp`, which exercises the *logic*
+`WiFiClass` runs on a phone with a scripted backend standing in for
+`NWPathMonitor` and `NEHotspotNetwork`. It cannot tell you whether iOS reports
+what this code expects.
 
 ## Decisions (owner, 2026-08-06)
 
@@ -14,6 +21,7 @@ Status: **plan only** apart from Phase 0. Written 2026-08-06 against simulator
 | Firmware companion work | **Yes**, in scope |
 | Real SSID, at the cost of a Location prompt | **Yes** |
 | Does peer transfer need the hotspot? | **No — it happens over a regular WiFi network** |
+| Show `Create Hotspot` on iOS? | **No.** Hide the row, and with one mode left skip the mode screen entirely |
 
 The last two are the ones that decide how much of this is buildable, and the
 answer is: nearly all of it.
@@ -153,7 +161,7 @@ iOS-shaped branch. That is what makes parity and honesty compatible.
   generated source set and warns on any that no longer exist, without owning
   them.
 
-### Phase 1 — the radio tells the truth (simulator)
+### Phase 1 — the radio tells the truth (simulator) ✅ done
 
 `WiFi.h` keeps its public surface; the body moves behind a dispatcher, the
 pattern `MD5Builder.h` already uses. iOS backend in `WiFiBackend_ios.mm`:
@@ -194,19 +202,29 @@ it turns out to be coarse or pinned the bars will step rather than glide.
 `fetchCurrent` also returns nil on the iOS Simulator, so this is a device-only
 behaviour and Simulator runs keep the env fakes.
 
-### Phase 2 — make the server reachable (simulator + firmware)
+### Phase 2 — make the server reachable (simulator + firmware) — partly done
 
 This is the phase that delivers peer transfer.
 
-* `CROSSPOINT_SIM_BIND_ALL`, default **on for iOS, off for desktop**, in
-  `WebServer.cpp` and `WebSocketsServer.cpp`. Dev machines keep loopback.
+* ✅ `CROSSPOINT_SIM_BIND_ALL`, default **on for iOS, off for desktop**, in
+  `WebServer.cpp` and `WebSocketsServer.cpp` via
+  `crosspoint_simulator::bindAddressHostOrder()`. Dev machines keep loopback,
+  and the override forces either way.
 * **Real mDNS**, Bonjour-backed, replacing the `ESPmDNS.h` stub on Apple
-  platforms — without it the primary advertised address is a dead link.
+  platforms — without it the primary advertised address is a dead link. Use
+  `<dns_sd.h>`'s `DNSServiceRegister` rather than `NSNetService`: it is a plain
+  C API, so `ESPmDNS` stays a normal TU instead of becoming a second `.mm`.
 * **Teach the firmware the mapped port** so the URL and both QR codes say
   `:8080`: read `crosspoint_simulator::httpPort()` under `#ifdef SIMULATOR` at
-  the three sites in `CrossPointWebServerActivity.cpp`.
+  the three sites in `CrossPointWebServerActivity.cpp`. **Needs write access to
+  the firmware repo.**
 * **Route `ESP.restart()` into `SimulatorLifecycle`** so the post-transfer
-  reboot actually happens (finding 8). Fixes desktop too.
+  reboot actually happens (finding 8). Fixes desktop too. Note this is *not*
+  simply a call to `rebootAsPowerWake()` — that reports a POWER-button wake,
+  and `silentRestart()` means "reboot to Home", a different intent the wake
+  path does not currently carry. Do not wire it up until that distinction has
+  somewhere to live, or the sim will come back from a file transfer pretending
+  someone pressed POWER.
 * `isIdleTimerDisabled` while the server runs — a transfer that dies to a
   screen lock will read as a firmware bug during QA, which is exactly the
   failure this exercise exists to avoid.
@@ -235,18 +253,36 @@ Split the blunt gate into three:
 | *(none)* | web server, WebDAV, downloads, QR, diagnostics, `WifiSelectionActivity`, `WifiCredentialStore` | **off** — these ship |
 
 `MENU_ENTRIES` is already table-driven, so dropping the hotspot row is a
-one-entry `#ifdef`, not a rewrite. With one row left, consider whether the mode
-screen should be skipped entirely on iOS — that is a parity judgement for the
-owner, not a technical one.
+one-entry `#ifdef`, not a rewrite.
+
+**And with one mode left, the mode screen is skipped entirely** (owner ruling).
+`CrossPointWebServerActivity::onEnter` goes straight to
+`onNetworkModeSelected(JOIN_NETWORK)` rather than launching
+`NetworkModeSelectionActivity`. A menu offering one choice is a keypress that
+can only go one way, and a one-row version of that screen is not parity with
+the X3 either — parity ends the moment the second row goes. Back from the WiFi
+list therefore returns Home rather than to a mode screen, which is what
+`onWifiSelectionComplete`'s cancel branch has to be pointed at.
+
+Note this leaves `NetworkModeSelectionActivity` unreachable on iOS and so
+unexercised there; it is still covered by the desktop build, which is the
+canary anyway.
 
 ### Phase 5 — the hotspot fallback, as far as it goes
 
-Only for the no-network case, since peer transfer proper is Phase 2:
+With `Create Hotspot` hidden this is no longer a screen at all — it is an owner
+workflow, documented rather than built, for the no-network case:
 
 * **Personal Hotspot.** The owner turns it on in Settings, the peer joins, the
   phone serves on the hotspot address. Topologically identical to the X3's AP
   mode; the "device raises the AP" step is manual and there is no captive
   portal.
+* One technical consequence for Phase 1: with Personal Hotspot up and no WiFi
+  association, the phone's own address is not on `en0` — it is on the hotspot's
+  bridge interface, and `NWPathMonitor` reports cellular. So `localIP()` must
+  fall back past `en0` rather than treating its absence as "no address", or the
+  server screen will paint nothing usable in exactly the case this fallback
+  exists for.
 * **Phone joins a real X3's AP.** `NEHotspotConfiguration(ssid:
    "CrossPoint-Reader")` — open network, constant name, no scan needed. This
   makes the phone a *client* of a real X3's web UI, the reverse of what the
@@ -285,8 +321,8 @@ CROSSPOINT_SIM_WIFI_CONNECT=fail .pio/build/simulator/program
 iOS, in order of what each proves:
 
 * Configure log shows a **non-zero** strip count (Phase 0).
-* Settings → File Transfer → Join Network shows a one-row list naming the
-  network the phone is actually on.
+* Settings → File Transfer goes **straight** to a one-row network list naming
+  the network the phone is actually on — no mode screen, no `Create Hotspot`.
 * The server screen paints an address with the right port, and both QR codes
   scan to something that resolves.
 * From a Mac on the same WiFi: browser fetch, `crosspoint.local:8080`
@@ -303,10 +339,8 @@ iOS, in order of what each proves:
 
 ## Open
 
-* **The one-row mode screen.** With `CREATE_HOTSPOT` gone, `Join Network` is
-  the only choice on that screen. Parity says keep it; usability says skip
-  straight to the server. Owner's call at Phase 4, and the only design question
-  left in this plan.
+Nothing. Every design question this plan raised has a ruling; what is left is
+execution and the limits below.
 
 ## Known limits, not open questions
 
