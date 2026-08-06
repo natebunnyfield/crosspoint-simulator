@@ -288,6 +288,61 @@ above on both frames, and a scripted `injectButton` press navigated Home —
 touch hit-testing itself is PadCore + the rects, covered by
 `tests/pad_core_test.cpp`. Not yet exercised with a real finger.
 
+### Dithered grays, moire, and the panel scale
+
+Raised 2026-08-06: the gray dithered selection area shows irregular moire on an
+iPad Pro. **The panel scale is not the cause** — checked, not assumed.
+
+`CROSSPOINT_SIM_PIXEL_EXACT=1` is set, but on `crosspoint_core` in the ROOT
+[CMakeLists.txt](../CMakeLists.txt), not in [ios/CMakeLists.txt](CMakeLists.txt)
+where you would look for it — so `INTEGER_SCALE` + `SCALEMODE_NEAREST` are both
+live on iOS. Transcribing both stages exactly (`layoutPadTablet` publishing the
+insets, then `HalDisplay`'s manual placement recomputing from them) gives, on
+every iPad:
+
+| frame | output | scale | dst | 1 texel : |
+|---|---|---|---|---|
+| iPad Pro 13″ | 2064x2752 | **1.0000** | 240,852 1584x1056 | 1 device px |
+| iPad Air 13″ | 2048x2732 | **1.0000** | 232,842 1584x1056 | 1 device px |
+| iPad Pro 11″ | 1668x2420 | **1.0000** | 42,686 1584x1056 | 1 device px |
+| iPad Air 11″ | 1640x2360 | **1.0000** | 28,656 1584x1056 | 1 device px |
+| iPad mini | 1488x2266 | **1.0000** | -48,609 1584x1056 | 1 device px |
+
+Integral scale, whole-number dst, one texel per device pixel, on all five. The
+90-degree rotation is about the dst centre and lands on whole numbers too.
+`UIRequiresFullScreen` rules out a fractional Split View window.
+
+**The dither is at LOGICAL resolution, not framebuffer resolution.** Worth
+recording because the opposite is the natural assumption and it is wrong: the
+firmware's `GfxRenderer` divides the device coordinate by `CROSSPOINT_RENDER_SCALE`
+when building the dither mask (`fillRectImpl`, the comment at
+"That keeps the dither at LOGICAL resolution"), and the per-pixel path gets the
+same result for free because `drawPixel` expands one logical pixel into an SxS
+device block. So at `RENDER_SCALE=2` a dither cell is 2x2 device pixels, not 1x1
+— the fill "looks pixel-for-pixel like scale 1, just replicated". A selection
+row is `Color::LightGray`, which is `x % 2 == 0 && y % 2 == 0`: one 2x2 device-pixel
+dot on a 4x4 device-pixel grid.
+
+That leaves the resample somewhere **below the app**. The prime suspect is
+iPadOS **Display Zoom**, which renders the whole screen at a smaller logical
+size and upscales it to the panel by a non-integer factor — on a 13-inch Pro,
+1024x1366@2x = 2048x2732 stretched to 2064x2752, a 1.0078x resample with a beat
+period around 128 px. Against a 4 px dot grid that is exactly broad irregular
+banding, it is invisible in a screenshot (captured pre-composite), and no
+arithmetic in this repo can see or undo it.
+
+`HalDisplay.cpp`'s manual placement now logs the presented geometry once and on
+every change, flagging `(FRACTIONAL)` and `(OFF-GRID)`, so this is answerable
+from the console instead of by inference:
+
+```
+[panel] out 2064x2752 px, scale 1.0000, dst 240.00,852.00 1584x1056
+```
+
+**Check `out` against the device's true native pixel size.** A 13-inch Pro
+reporting 2048x2732 rather than 2064x2752 is Display Zoom, and the fix is in
+Settings, not in the code.
+
 ### Open: rockers to the screen edge, page to the top
 
 Raised 2026-08-06. Two complaints against the layout above — the rockers are
