@@ -440,6 +440,14 @@ void setPanelDark(bool dark) {
 }
 } // namespace SimulatorOverlay
 
+// The window, for the one caller outside this file: HalGPIO's
+// pumpHostTextInput() has to hand SDL_StartTextInput a window, and on a phone
+// that call is what raises the software keyboard. A free function rather than
+// a HalDisplay method for the same reason SimulatorOverlay is free functions --
+// the HAL's public surface must mirror the firmware's, and an e-ink board has
+// no window handle to expose. Null before begin(); callers retry.
+SDL_Window *simulatorWindow() { return window; }
+
 HalDisplay::HalDisplay() {}
 HalDisplay::~HalDisplay() {}
 
