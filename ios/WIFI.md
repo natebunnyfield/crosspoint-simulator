@@ -1,235 +1,288 @@
 # WiFi on iOS — plan
 
 Status: **plan only**, nothing here is implemented. Written 2026-08-06 against
-`c66d39f`.
+simulator `c66d39f` and firmware `4ef1a62`.
 
-The one-line version: an iPhone cannot impersonate the X3's *radio*, but it can
-impersonate everything the radio is **for**. The firmware's WiFi features split
-cleanly into "needs an 802.11 chip we control" (impossible) and "needs an IP
-address" (already works, and is switched off by accident today).
+## Decisions (owner, 2026-08-06)
 
-## The platform ceiling
+These were open questions in the first draft; they are settled and the plan is
+shaped around them, not around the general case.
 
-Decide this before writing code, because it determines which firmware screens
-can exist on the phone at all.
+| Question | Ruling |
+|---|---|
+| What is WiFi for? | **Peer transfer first**, then Mac, then internet |
+| Why at all, given Files sharing works? | **QA of the CrossPoint fork.** The point is exercising firmware code paths on the phone, not moving files conveniently |
+| Screens that can't work — hide or keep? | **X3 parity.** The screens exist and behave like an X3 |
+| Distribution | **Personal build.** No App Review, so ATS exceptions and self-serve entitlements are available |
+| Firmware companion work | **Yes**, in scope |
+| Real SSID, at the cost of a Location prompt | **Yes** |
 
-| Firmware capability | iOS | Why |
+"QA of the fork" is the load-bearing one. It inverts the usual trade: a path
+that is *awkward but faithful* beats one that is *convenient but divergent*,
+because a divergent path QAs nothing.
+
+## What the firmware actually does
+
+Read from the fork, not assumed. This is the part the first draft got only
+half right.
+
+**File Transfer offers two modes** (`NetworkModeSelectionActivity.cpp:21-24`):
+`JOIN_NETWORK` and `CREATE_HOTSPOT`. Both end in `CrossPointWebServerActivity`
+serving the web UI.
+
+**`CREATE_HOTSPOT` is the peer-transfer flow**, and it is worth being precise
+about because it is the primary use case and the hardest one:
+
+* `WiFi.softAP("CrossPoint-Reader", nullptr, ...)` — an **open** AP, SSID and
+  password are compile-time constants (`CrossPointWebServerActivity.cpp:23-26`).
+* The screen paints a **WiFi-join QR**, `WIFI:T:nopass;S:CrossPoint-Reader;;`
+  (line 400). The peer scans it with a phone camera and joins.
+* A `DNSServer` runs a **captive portal** so any URL redirects to the device.
+* mDNS advertises `crosspoint.local`, and a second QR encodes
+  `http://crosspoint.local/` (lines 415-420).
+
+So peer transfer is: *device becomes an AP, peer joins it by scanning a QR,
+captive portal lands the peer on the web UI.*
+
+## The platform ceiling, against that flow
+
+| Firmware step | iOS | Why |
 |---|---|---|
-| Outbound TCP/TLS (`NetworkClient`, downloads) | **yes** | BSD sockets and `NSURLSession` are unrestricted |
-| Listening HTTP/WebSocket server on the LAN | **yes**, foreground only | `bind`/`listen` work; iOS suspends the app in background, so the socket stops accepting |
-| Report "am I connected, and on what" | **yes** | `NWPathMonitor`, no entitlement |
-| Report own LAN IP | **yes** | `getifaddrs()` on `en0`, no entitlement |
-| Report current SSID | **entitlement** | `NEHotspotNetwork.fetchCurrent` needs *Access WiFi Information* **and** Location permission. A reader app asking for location will be questioned at review. Recommend: don't. |
-| **Scan for networks** | **no** | No public API at any entitlement tier. `NEHotspotHelper` is MDM/carrier-only. |
-| **Join a network programmatically** | partial | `NEHotspotConfiguration` can join an SSID *you already know the name of*, with the *Hotspot Configuration* entitlement, device-only. Cannot enumerate, so it cannot back a picker. |
-| **Soft AP** | **no** | An app cannot bring up an access point. Personal Hotspot is user-driven from Settings only. |
-| OTA firmware flash | **no**, permanently | App Store guideline 2.5.2 forbids downloading and executing code |
+| Outbound TCP/TLS | **yes** | sockets and `NSURLSession` unrestricted |
+| Listening HTTP/WS server | **yes**, foreground only | iOS suspends the app in background and the socket stops accepting |
+| Report connection state | **yes** | `NWPathMonitor`, no entitlement |
+| Report own LAN IP | **yes** | `getifaddrs()` on `en0` |
+| Report current SSID | **yes**, entitled | *Access WiFi Information* + Location. Approved above |
+| mDNS `crosspoint.local` | **yes** | Bonjour, `NSBonjourServices` — see below, this is mandatory now |
+| Join a **named** network | **yes**, entitled | `NEHotspotConfiguration`, device-only. Needs no scan, and the X3's AP name is a constant |
+| **Scan** | **no** | No public API at any tier. `NEHotspotHelper` is MDM/carrier-only |
+| **Soft AP** | **no** | An app cannot bring up an access point |
+| **Captive-portal DNS** | **no** | Port 53 needs root, and nothing would route peers' DNS to the app anyway |
+| OTA / SD flash | **no** | No ESP32 to flash, no SD slot. Physical, not policy — a personal build does not unlock these |
 
-So: **`WifiSelectionActivity`'s scan-and-pick model has no iOS implementation and
-never will.** Everything else does.
+**The peer-transfer flow's two hardest steps are the two iOS refuses.** That is
+the headline. Everything downstream of "the peer is on the same network as the
+app" works; the AP and the captive portal do not.
 
-## What is actually true in the tree today
+### The one genuinely good break
 
-Five findings, all verifiable from this checkout:
+`WifiSelectionActivity` **already has the UI iOS needs.** On
+`WIFI_SCAN_FAILED` it clears the list, calls `appendHiddenNetworkEntry()`, and
+shows a network list whose only row is manual-SSID entry
+(`WifiSelectionActivity.cpp:132-142`). That is precisely the shape
+`NEHotspotConfiguration` wants: no enumeration, a typed name, a join.
 
-1. **The iOS exclusions were silently lost.** The root `CMakeLists.txt:176-177`
+So **X3 parity on the join path needs zero new firmware UI.** `scanNetworks()`
+returns `WIFI_SCAN_FAILED` on iOS, the existing failure branch renders, the
+owner types an SSID, and the harness joins it. The screen is real, the flow is
+real, and nothing is faked.
+
+## Findings in the simulator tree
+
+1. **The iOS exclusion lists are a silent no-op.** `CMakeLists.txt:176-177`
    calls `list(REMOVE_ITEM ... ${CROSSPOINT_IOS_EXCLUDED_SIM_SOURCES})`, but
-   nothing defines that variable any more. It was added in `e75ab8c` to the
-   *generated* `cmake/CrossPointSources.cmake`, and the next regeneration
-   (`af2e842`, then `5c2e067`) wiped it — `tools/gen_cmake_sources.py` has no
-   idea the lists exist. CMake does not error on `list(REMOVE_ITEM x ${undefined})`;
-   it is a no-op. The configure line prints
-   `stripped 0 simulator + 0 firmware network/OTA TUs` and the build carries the
-   entire network stack.
+   `e75ab8c` put the definitions in the *generated*
+   `cmake/CrossPointSources.cmake` and the next regeneration (`af2e842`) wiped
+   them — `tools/gen_cmake_sources.py` has no idea they exist. CMake does not
+   error on `list(REMOVE_ITEM x ${undefined})`. The configure line prints
+   `stripped 0 simulator + 0 firmware network/OTA TUs`. Hand-curated policy
+   living in a generated file.
 
-   Consequence: **hand-curated policy is living in a generated file.** Fix that
-   first, in `cmake/CrossPointIOSExclusions.cmake` (not generated), plus a
-   configure-time assert so an empty list is loud rather than silent.
-
-2. **All 18 network TUs are in the iOS source set right now** — 6 simulator
-   (`NetworkClient`, `WebServer`, `WebSocketsServer`, `CrossPointWebServer`,
-   `qrcode`, `simulator_ota`) and 12 firmware (`src/network/*`,
-   `src/activities/network/*`, `WifiCredentialStore`, `FontDownloadActivity`,
-   `OtaUpdateActivity`, `SdFirmwareUpdateActivity`, `QrUtils`). Only
+2. **All 18 network TUs are in the iOS source set today.** Only
    `CROSSPOINT_NO_NETWORK=1` (`ios/CMakeLists.txt:172`) keeps them out of the
-   UI, via `#ifdef`s on the firmware side. Whether they still *compile* for
-   `arm64-apple-ios` is unverified — they have not been exercised since the
-   exclusions were meant to remove them.
+   UI. Whether they still compile for `arm64-apple-ios` is unverified.
 
-3. **The servers bind loopback.** `WebServer.cpp:435` and
-   `WebSocketsServer.cpp:349` both use `htonl(INADDR_LOOPBACK)`. On a phone that
-   makes the file-transfer server reachable by nothing at all. Desktop wants to
-   keep loopback (binding `0.0.0.0` on a dev machine exposes it to the office);
-   this has to be a deliberate switch, not a blanket change.
+3. **Both shim servers bind `INADDR_LOOPBACK`** (`WebServer.cpp:435`,
+   `WebSocketsServer.cpp:349`) — reachable by nothing but the phone itself.
 
-4. **`WiFi.localIP()` is hardcoded `127.0.0.1`** (`WiFi.h:196`) and
-   `scanNetworks()` returns two invented SSIDs. The firmware paints that address
-   on the file-transfer screen and into the QR code, so on a phone it would
-   print an address that is correct for nobody. Note also that
-   `mapFirmwarePort` moves 80 → 8080, but the *displayed* URL comes from the
-   firmware and does not know that — on desktop the user compensates; on a
-   phone a wrong URL makes the feature useless.
+4. **The painted URL hardcodes port 80, in three places.**
+   `"http://" + connectedIP + "/"` (line 440), `http://crosspoint.local/`
+   (line 415), and both are QR-encoded. `mapFirmwarePort` moves 80 → 8080 in
+   the simulator and the firmware never learns. On desktop the developer
+   compensates; on a phone every address and both QR codes are wrong.
 
-5. **`SimHttpFetch` shells out to `curl`** (`SimHttpFetch.h:208`, `popen`).
-   There is no `curl` binary on iOS and no `fork`/`exec` in the sandbox, so
-   every download path — fonts, catalogs, sync — is dead on arrival. This is the
-   same gap already documented for the sandboxed Mac App Store build in
-   `.claude/CONTEXT-sim-notes.md:232`. **One `NSURLSession` backend closes both.**
+5. **`WiFi.localIP()` is hardcoded `127.0.0.1`** (`WiFi.h:196`), which is what
+   feeds finding 4.
+
+6. **mDNS is a no-op stub.** `src/ESPmDNS.h` — `begin()` returns true,
+   `addService()` does nothing. The firmware paints and QR-encodes
+   `http://crosspoint.local/` as the *primary* address, so on iOS the main
+   advertised URL resolves to nothing at all. This upgrades
+   `NSLocalNetworkUsageDescription` + `NSBonjourServices` from "verify whether
+   it's needed" to **required**.
+
+7. **`SimHttpFetch` `popen()`s curl** (`SimHttpFetch.h:208`). No curl binary
+   and no fork/exec in the iOS sandbox. Same gap already documented for the
+   sandboxed Mac App Store build (`.claude/CONTEXT-sim-notes.md:232`) — one
+   `NSURLSession` backend closes both.
 
 ## The model
 
-Same shape as the button pad, one layer down. The pad impersonates seven GPIO
-pins; here the harness impersonates the *result* of an ESP32 radio — an
-associated station with an IP — and refuses to impersonate the parts of the
-radio iOS will not expose. No `#if TARGET_OS_IPHONE` in the firmware.
+Same shape as the button pad, one layer down: the pad impersonates seven GPIO
+pins, the WiFi backend impersonates the *result* of an ESP32 radio — an
+associated station with an IP — and declines to impersonate what iOS will not
+expose. No `#if TARGET_OS_IPHONE` in the firmware; the seams are `WiFiClass`,
+`SimHttpFetch`, `ESPmDNS`, and the two servers' bind address.
 
-| Layer | Sees | Change |
-|---|---|---|
-| Harness (`ios/`) | `NWPathMonitor`, `getifaddrs`, `NSURLSession` | new |
-| Device (`WiFiClass`, `SimHttpFetch`) | "connected, here is my IP", "here is your HTTP response" | backend swap |
-| Firmware | a station-mode WiFi that is already associated | gating only |
-
-The honest posture for the un-impersonable parts is **absent, not faked**:
-`scanNetworks()` returns 0 and `softAP()` returns false on iOS rather than
-inventing networks, and the firmware screens that depend on them are compiled
-out. A fake scan list that cannot be joined is worse than no scan screen.
+Where a capability is missing, the firmware learns through a **return value it
+already handles** (`WIFI_SCAN_FAILED`, `softAP() == false`) rather than through
+a new iOS-shaped branch. That is what makes X3 parity and honesty compatible.
 
 ## Phases
 
-Each phase is independently shippable and leaves the desktop build green.
+### Phase 0 — restore the switch (simulator, no behaviour change)
 
-### Phase 0 — restore the switch (this repo, no behaviour change)
+* Move both exclusion lists into `cmake/CrossPointIOSExclusions.cmake`, not
+  generated, `include()`d from the root `CMakeLists.txt`.
+* Configure-time assert that they are non-empty when `IOS`, so a regeneration
+  cannot silently disarm them again.
+* `gen_cmake_sources.py` *validates* the excluded paths against the fresh
+  source set without owning them.
+* Confirm a non-zero strip count in the configure log.
 
-* Move the two exclusion lists out of the generated file into
-  `cmake/CrossPointIOSExclusions.cmake`; `include()` it from the root
-  `CMakeLists.txt`.
-* Assert at configure time that both lists are non-empty when `IOS`, so the
-  next regeneration cannot silently disarm them again.
-* Have `tools/gen_cmake_sources.py` *validate* the exclusion paths against the
-  freshly generated source set (an excluded TU that no longer exists is drift
-  too) without owning them.
-* Confirm the reported strip count is non-zero in the configure log.
+Worth doing on its own merits, independent of any WiFi decision.
 
-Ends with the iOS build in the state the commit message claimed it was in.
+### Phase 1 — the radio tells the truth (simulator)
 
-### Phase 1 — tell the truth about the connection (this repo)
+`WiFi.h` keeps its public surface; the body moves behind a dispatcher, the
+pattern `MD5Builder.h` already uses. iOS backend in `WiFiBackend_ios.mm`:
 
-* `WiFiClass` grows an iOS backend. Follow the `MD5Builder.h` dispatcher
-  pattern already in the tree: `WiFi.h` keeps the public surface, the body
-  moves behind `WiFiBackend_sim.h` / `WiFiBackend_ios.mm`.
-  * `status()` ← `NWPathMonitor`: `.satisfied` + `usesInterfaceType(.wifi)` →
-    `WL_CONNECTED`; satisfied on cellular → also connected (the firmware only
-    cares that IP works); unsatisfied → `WL_DISCONNECTED`.
-  * `localIP()` ← `getifaddrs()`, first IPv4 on `en0`.
-  * `SSID()` → a non-lying placeholder (`"iPhone network"`), *not* an
-    entitlement request. Revisit only if the owner wants the real name enough
-    to accept a Location prompt.
-  * `scanNetworks()` → 0, `softAP()` → false, `begin()` → current status.
-    The radio is not ours to command.
-* Keep the env-var fakes (`CROSSPOINT_SIM_WIFI_*`) on the desktop path
-  untouched — they are the QA harness for the firmware's failure branches.
+| Call | iOS |
+|---|---|
+| `status()` | `NWPathMonitor` — satisfied → `WL_CONNECTED` |
+| `localIP()` | `getifaddrs()`, first IPv4 on `en0` |
+| `SSID()` | `NEHotspotNetwork.fetchCurrent` (entitled, approved) |
+| `RSSI()` | not exposed by iOS; return a fixed plausible value and note it |
+| `scanNetworks()` / `scanComplete()` | `WIFI_SCAN_FAILED` — drives the existing manual-entry branch |
+| `begin(ssid, pass)` | `NEHotspotConfiguration` join, device-only |
+| `softAP()` | `false` — see Phase 2 for what the firmware then shows |
 
-### Phase 2 — make the server reachable (this repo)
+Desktop keeps the `CROSSPOINT_SIM_WIFI_*` env fakes untouched; they are the QA
+harness for the firmware's failure branches and this plan leans on those
+branches more, not less.
 
-* Bind `INADDR_ANY` under an explicit opt-in — `CROSSPOINT_SIM_BIND_ALL`,
-  defaulted **on for iOS, off for desktop**, in both `WebServer.cpp` and
-  `WebSocketsServer.cpp`. Desktop dev machines keep loopback.
-* Surface the mapped port to the firmware so the painted URL and the QR code
-  say `http://192.168.x.x:8080/` and not `http://192.168.x.x/`. Cheapest honest
-  route: a `crosspoint_simulator::httpPort()` accessor the firmware's
-  `CrossPointWebServerActivity` reads under `#ifdef SIMULATOR` (firmware
-  companion change).
-* Keep `UIApplication.isIdleTimerDisabled` set while the server is running —
-  a transfer that dies because the screen locked will read as a bug.
-* Verify from a Mac: browser to the address, and Finder → *Connect to Server*
-  for the WebDAV route.
-* Document the Personal Hotspot workaround as the AP-mode analogue: the owner
-  turns Personal Hotspot on in Settings, the Mac joins it, the server answers
-  on the hotspot address. Zero code, and it reproduces the X3's AP workflow.
+### Phase 2 — make the server reachable (simulator)
 
-### Phase 3 — in-process HTTP client (this repo; also fixes Mac App Store)
+* `CROSSPOINT_SIM_BIND_ALL`, default **on for iOS, off for desktop**, in
+  `WebServer.cpp` and `WebSocketsServer.cpp`. Dev machines keep loopback.
+* **Real mDNS.** Replace the `ESPmDNS.h` stub with a Bonjour-backed
+  implementation on Apple platforms so `crosspoint.local` — the address the
+  firmware advertises first and QR-encodes — actually resolves. Without this
+  the primary peer-transfer address is a dead link.
+* **Teach the firmware the mapped port** so the URL and both QR codes say
+  `:8080`. Firmware companion: read `crosspoint_simulator::httpPort()` under
+  `#ifdef SIMULATOR` at the three sites in `CrossPointWebServerActivity.cpp`.
+* `isIdleTimerDisabled` while the server runs — a transfer that dies to a
+  screen lock will read as a firmware bug during QA, which is the exact failure
+  mode this whole exercise is meant to avoid.
 
-* Split `SimHttpFetch.h` into a dispatcher plus backends, exactly as
-  `MD5Builder.h` does. The mock-root and `file://` paths stay shared — they are
-  platform-independent and useful on iOS for QA.
-* `SimHttpFetch_apple.mm`: `NSURLSession`, `dispatch_semaphore` to keep the
-  synchronous `fetch()` signature the call sites in `HTTPClient.h` and
-  `esp_http_client.h` expect. **Never call it from the SDL main thread** —
-  firmware download paths run on task threads, and that has to stay true.
-* Map `NSError` domains onto the `curlExitCodeToHttpError` codes the firmware
-  already branches on, so error handling does not need to change.
-* ATS: remote fetches must be HTTPS. Add `NSAllowsLocalNetworking` for the
-  local-server case rather than `NSAllowsArbitraryLoads`, which draws review
-  questions. A plain-HTTP OPDS catalog will fail, by design — flag it in the
-  UI rather than weakening ATS.
-* Use the Linux/desktop `curl` backend as the reference for behaviour parity;
-  the two must agree on redirects, timeouts, and basic auth.
+### Phase 3 — in-process HTTP (simulator; also unbreaks Mac App Store)
 
-### Phase 4 — re-enable the screens (firmware repo, companion PR)
+* Split `SimHttpFetch.h` into dispatcher + backends, as `MD5Builder.h` does.
+  The mock-root and `file://` paths stay shared — platform-independent, and
+  useful for scripted QA on iOS.
+* `SimHttpFetch_apple.mm`: `NSURLSession` + `dispatch_semaphore` to preserve
+  the synchronous `fetch()` the call sites in `HTTPClient.h` and
+  `esp_http_client.h` expect. **Never from the SDL main thread.**
+* Map `NSError` domains onto the existing `curlExitCodeToHttpError` codes so
+  firmware error handling is untouched.
+* Personal build, so ATS is a free choice: `NSAllowsLocalNetworking` for the
+  local server, and arbitrary loads are available if a plain-HTTP catalog needs
+  QA-ing. Prefer the narrow exception; take the wide one only when a real test
+  target demands it.
 
-`CROSSPOINT_NO_NETWORK` is currently one blunt switch over three unrelated
-concerns. Split it:
+### Phase 4 — re-enable the screens (firmware)
 
-| New gate | Covers | iOS |
+Split the blunt gate into three:
+
+| Gate | Covers | iOS |
 |---|---|---|
-| `CROSSPOINT_NO_WIFI_RADIO` | scan, join, soft-AP: `WifiSelectionActivity`, `NetworkModeSelectionActivity`, `WifiCredentialStore` | **on** (compiled out) |
-| `CROSSPOINT_NO_OTA` | `OtaUpdateActivity`, `SdFirmwareUpdateActivity`, `simulator_ota.cpp` | **on**, permanently |
-| *(nothing)* | web server, WebDAV, downloads, QR, diagnostics | **off** — these ship |
+| `CROSSPOINT_NO_SOFTAP` | `CREATE_HOTSPOT` row in `NetworkModeSelectionActivity` | **on** |
+| `CROSSPOINT_NO_OTA` | `OtaUpdateActivity`, `SdFirmwareUpdateActivity`, `OtaUpdater`, `FirmwareFlasher`, `simulator_ota.cpp` | **on**, permanently |
+| *(none)* | web server, WebDAV, downloads, QR, diagnostics, `WifiSelectionActivity` | **off** — these ship |
 
-Then the iOS exclusion list shrinks to the OTA/radio TUs, and
-`CrossPointWebServerActivity`, `HttpDownloader`, `WebDAVHandler`,
-`WifiDiagnostics`, `FontDownloadActivity`, `QrUtils` and `qrcode.cpp` come back.
+`WifiSelectionActivity` and `WifiCredentialStore` come back unchanged — the
+scan-failed branch carries them. `NetworkModeSelectionActivity` loses one of
+its two rows; with `MENU_ENTRIES` already table-driven
+(`NetworkModeSelectionActivity.cpp:21`) that is a one-entry `#ifdef`, not a
+rewrite.
 
-Network mode selection needs a third state for "the network is not mine to
-choose" — the phone is already on a network, so the activity either skips
-straight to the server screen or reports `WL_DISCONNECTED` with "connect this
-iPhone to WiFi in Settings".
+### Phase 5 — peer transfer, as far as it goes
 
-## What stays off, permanently
+The AP cannot exist, so the honest substitutes, in preference order:
 
-* **OTA and SD firmware flash.** Guideline 2.5.2, and there is no SD slot.
-  Do not revisit.
-* **The scan-and-join picker.** No API. If a future owner wants typed-SSID
-  joining, that is `NEHotspotConfiguration` + an entitlement + a text-entry
-  screen — a different feature from the one the firmware has, and it should be
-  proposed as such, not smuggled in as "fixing" the picker.
+1. **Both peers on one existing WiFi.** `JOIN_NETWORK` on the phone, peer opens
+   `http://crosspoint.local:8080/`. Full fidelity from the peer's side; the
+   only divergence is that the owner joined the network through iOS Settings
+   instead of the firmware's picker.
+2. **Personal Hotspot as the `CREATE_HOTSPOT` stand-in.** The owner turns it on
+   in Settings, the peer joins it, the phone serves on the hotspot address. The
+   topology matches the X3's AP mode exactly; only the "device brings up the
+   AP" step is manual, and the captive portal is absent.
+3. **Phone joins a real X3's AP.** `NEHotspotConfiguration(ssid:
+   "CrossPoint-Reader")` — an open network whose name is a compile-time
+   constant, so no scan is needed. This makes the phone a *client* of a real
+   X3's web UI, which is the reverse of what the firmware does and would be new
+   UI. **Out of scope** unless the owner wants it as a feature in its own
+   right; it is recorded here because it is the one peer-to-peer path iOS is
+   genuinely good at.
+
+Option 2 is the one to document prominently — it is what "peer transfer on the
+phone" will mean in practice.
 
 ## Entitlements and Info.plist
 
-Phases 1–3 as scoped need **no new entitlements**. What may be needed:
+Personal build, so all of these are self-serve capabilities:
 
-* `NSLocalNetworkUsageDescription` — required for *outgoing* local-network
-  connections and Bonjour. A pure listening server should not trigger it, but
-  this must be **verified on a physical device**, not assumed; the iOS local
-  network prompt has moved between releases. If `ESPmDNS` ever stops being a
-  no-op stub (`src/ESPmDNS.h`), this plus `NSBonjourServices` becomes mandatory.
-* `NSAppTransportSecurity` → `NSAllowsLocalNetworking` only.
-* `ITSAppUsesNonExemptEncryption` stays `false`: HTTPS via the OS is exempt.
+* `com.apple.developer.networking.wifi-info` (*Access WiFi Information*) +
+  `NSLocationWhenInUseUsageDescription` — real SSID, approved above.
+* `com.apple.developer.networking.HotspotConfiguration` — the typed-SSID join.
+  Device-only; the iOS Simulator will fail these calls, so Phase 1's join path
+  cannot be QA'd on the Simulator.
+* `NSLocalNetworkUsageDescription` + `NSBonjourServices` (`_http._tcp`) —
+  **required**, not optional, once Phase 2 makes mDNS real.
+* `NSAppTransportSecurity` → `NSAllowsLocalNetworking`.
+* `ITSAppUsesNonExemptEncryption` stays `false`.
+
+## What stays off, permanently
+
+* **OTA and SD firmware flash.** There is no ESP32 to flash and no SD slot.
+  A personal build does not change this — it was never only a guideline 2.5.2
+  problem.
+* **Soft AP and captive portal.** No API, and none is coming.
 
 ## Verification
 
-Desktop first, every phase — it is the canary (`CLAUDE.md`).
+Desktop first, every phase — it is the canary.
 
 ```bash
-cd $HOME/src/crosspoint-reader && pio run -e simulator     # must stay green
-CROSSPOINT_SIM_WIFI_CONNECT=fail .pio/build/simulator/program   # failure branches
+cd $HOME/src/crosspoint-reader && pio run -e simulator
+CROSSPOINT_SIM_WIFI_CONNECT=fail .pio/build/simulator/program
 ```
 
-iOS:
+iOS, in order of what each proves:
 
 * Configure log shows a **non-zero** strip count (Phase 0).
-* Simulator: file-transfer screen paints the Mac-reachable address and port.
-* Device, same WiFi as a Mac: browser fetch, WebDAV mount, a font download that
-  completes, and the same three with the app backgrounded mid-transfer (expect
-  failure — confirm it fails *cleanly*).
-* Personal Hotspot path, as the AP-mode substitute.
+* Settings → File Transfer reaches `NetworkModeSelectionActivity` with one row.
+* `JOIN_NETWORK` → the scan-failed branch renders the manual-entry list.
+* The server screen paints an address with the right port, and both QR codes
+  scan to something that resolves.
+* From a Mac on the same WiFi: browser fetch, `crosspoint.local:8080`
+  resolution, WebDAV mount, a font download that completes.
+* Same three with the app backgrounded mid-transfer — expect failure, confirm
+  it fails *cleanly* rather than wedging the firmware.
+* Personal Hotspot path end to end (Phase 5, option 2).
+* Device-only: the `NEHotspotConfiguration` join. Cannot be QA'd on the
+  Simulator, and there is still no paired device (`README.md`, "Still
+  deferred").
 
-## Open questions for the owner
+## Open
 
-1. Is the real SSID worth a Location permission prompt? Recommendation: **no**.
-2. Should the phone's server be reachable at all, or is Files/iTunes sharing
-   (`UIFileSharingEnabled`, already on) enough? Phases 2 and 4 only pay off if
-   the answer is "reachable".
-3. Font downloads on iOS overlap with `CROSSPOINT_IOS_SEED_FONTS_DIR`, which
-   already ships families in the bundle. If seeding is the answer, Phase 3
-   drops to "unbreak the Mac App Store build" and stops being iOS work.
+* **Peer-transfer QA has a floor.** Options 1 and 2 both require a second
+  machine and a manual Settings step, so this cannot become part of a scripted
+  `CROSSPOINT_SIM_INPUT_SCRIPT` run. The firmware's AP branch will stay
+  hand-tested.
+* **`RSSI()` has no iOS source.** A fixed value keeps the signal-bars UI
+  rendering, but bars that never move are a small standing lie. Alternative is
+  hiding them on iOS, which breaks X3 parity. Parity wins by default here;
+  flagging it because it is the one place the two principles collide.
