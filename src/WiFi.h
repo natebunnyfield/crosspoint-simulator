@@ -39,6 +39,14 @@ enum wifi_sort_method_t {
 #define WIFI_MODE_STA WIFI_STA
 #define WIFI_MODE_AP WIFI_AP
 
+// Defined ahead of WiFiClass rather than after it, because the host scan path
+// inside the class returns WIFI_SCAN_FAILED. Keeping one definition beats
+// mirroring the value into a class constant that could drift: if the two ever
+// disagreed, a failed scan would read as a network count and the firmware would
+// index a row that does not exist.
+#define WIFI_SCAN_RUNNING -1
+#define WIFI_SCAN_FAILED -2
+
 class IPAddress {
   uint8_t bytes[4] = {0, 0, 0, 0};
 
@@ -171,11 +179,8 @@ class WiFiClass {
     const auto net = sim_wifi_host::current();
     return (net.connected && net.isWifi && !net.ssid.empty())
                ? 1
-               : WIFI_SCAN_FAILED_VALUE;
+               : WIFI_SCAN_FAILED;
   }
-
-  // WIFI_SCAN_FAILED is #defined at the bottom of this header, after the class.
-  static constexpr int WIFI_SCAN_FAILED_VALUE = -2;
 
   bool ssidInConfiguredScan(const String &ssid) const {
     for (const auto &network : configuredNetworks()) {
@@ -338,11 +343,20 @@ public:
   }
   int encryptionType(int i) {
     if (sim_wifi_host::available()) {
-      // iOS does not report the current network's auth mode. WPA2 is the safe
-      // answer: it makes the firmware treat the row as needing a password it
-      // will never actually be asked for, whereas claiming OPEN would be a
-      // security claim about someone's network that we cannot support.
-      return i == 0 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+      // OPEN, and this is not a claim that the network is unencrypted.
+      //
+      // The firmware uses this for exactly one decision: isEncrypted ->
+      // selectedRequiresPassword -> "prompt for a password"
+      // (WifiSelectionActivity.cpp:165,223). On a host radio the password is
+      // never used, because begin() cannot change an association iOS already
+      // made. Reporting WPA2 would therefore demand a secret, refuse to proceed
+      // without one, and then discard it -- friction in front of a join that
+      // was already complete.
+      //
+      // OPEN answers the question actually being asked, which is "does the
+      // firmware need a credential from the user to get on this network?" It
+      // does not.
+      return WIFI_AUTH_OPEN;
     }
     const auto &networks = configuredNetworks();
     return i >= 0 && i < static_cast<int>(networks.size()) ? networks[i].auth
@@ -367,5 +381,4 @@ public:
 };
 extern WiFiClass WiFi;
 
-#define WIFI_SCAN_RUNNING -1
-#define WIFI_SCAN_FAILED -2
+

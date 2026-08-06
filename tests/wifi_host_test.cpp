@@ -93,6 +93,17 @@ void testOnWifiReportsOneRealNetwork() {
   expect(WiFi.RSSI(1) == 0, "no signal for a row that does not exist");
 }
 
+// The firmware turns encryptionType into "prompt the user for a password"
+// (WifiSelectionActivity.cpp:165 -> 223). On a host radio no password can be
+// used -- begin() cannot change an association iOS already made -- so anything
+// other than OPEN stops the join behind a mandatory secret that is then
+// discarded. This is the difference between a one-step join and a dead end.
+void testTheJoinNeverAsksForAPassword() {
+  sim_wifi_host::testSetNetwork(onWifi("Home Network", -58));
+  expect(WiFi.encryptionType(0) == WIFI_AUTH_OPEN,
+         "the current network needs no credential from the user");
+}
+
 // begin() is a status read, not an action: the app cannot change the phone's
 // association, so asking for another network must not make it claim to be on
 // one.
@@ -155,6 +166,7 @@ void testDesktopPathIsUntouched() {
 
 int main() {
   testOnWifiReportsOneRealNetwork();
+  testTheJoinNeverAsksForAPassword();
   testBeginDoesNotInventTheRequestedNetwork();
   testOffWifiFailsTheScanHonestly();
   testSoftApRefuses();
