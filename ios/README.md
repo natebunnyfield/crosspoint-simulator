@@ -337,13 +337,55 @@ The option sets, all with the rockers flush unless stated: **A** edge only, page
 untouched — **B** edge + page as high as the safe area allows — **C** B with the
 rockers at 62% rather than 50%, which is where a two-hand side grip actually
 sits on a tablet held for balance — **D** page high and the whole pad low and
-tucked together — **E** 8 pt off the edge instead of flush, on the argument that
-a control touching the bezel invites edge-swipe conflicts — **F** C with 88 pt
-cells. The mockup also carries a thumb-reach overlay (40 mm easy / 55 mm stretch
-rings from a pivot on the side edge, per frame's own ppi) and an optional
-hit-slop band that runs the target to the screen edge while the stroke stays
-inboard — the same trade already banked as the phone's fallback for its
-half-height row.
+tucked together — **E** a fifth of the spare margin instead of flush, on the
+argument that a control touching the bezel invites edge-swipe conflicts — **F**
+C with 88 pt cells — **G** the owner's 2026-08-06 dial-in, below. The mockup also
+carries a thumb-reach overlay (40 mm easy / 55 mm stretch rings from a pivot on
+the side edge, per frame's own ppi) and an optional hit-slop band that runs the
+target to the screen edge while the stroke stays inboard — the same trade
+already banked as the phone's fallback for its half-height row.
+
+**Every placement is a RATIO, never a point value** (owner ruling 2026-08-06).
+The first dial-in — page top 186 pt, rocker inset 26 pt — was tuned on an iPad
+Pro 13″ and means nothing on the other four frames, so the mockup now takes
+percentages and resolves them per frame. The denominators are picked so the
+ratio cannot express an illegal layout at either end of its range, which is what
+makes them the right ones:
+
+| setting | ratio of | 0% | 50% | 100% |
+|---|---|---|---|---|
+| page top | the **spare height**, `availH - panelH` | as high as the safe area allows | **today's centred page** | as low |
+| rocker inset | the **spare margin**, `margin - 2 * cell` | flush to the edge | **today's centred pair** | against the page |
+| rocker centre | screen height | — | **today's centred rockers** | — |
+
+That the shipped layout is exactly 50 / 50 / 50 in this scheme is the check that
+the denominators are right. The spare margin is the only safe denominator for
+the inset: the mini's margin holds a pair exactly, so its spare is 0 and every
+ratio keeps it flush rather than driving it negative.
+
+**The cell stays in points.** `kOptimalSquare` is a thumb-sized physical
+optimum, so a ratio is the wrong model — it is clamped per frame at resolve
+time, not stored clamped, or one visit to the mini would pin every frame to
+54 pt.
+
+The owner's draft, **G — 30% of the spare height and 20% of the spare margin**,
+resolves to:
+
+| frame | page top | rocker inset |
+|---|---|---|
+| iPad Pro 13″ | 186 pt | 26 pt |
+| iPad Air 13″ | 183 pt | 26 pt |
+| iPad Pro 11″ | 136 pt | 7 pt |
+| iPad Air 11″ / iPad | 127 pt | 5 pt |
+| iPad mini | 113 pt | 0 pt |
+
+**One question is still open in G:** the page ratio can be taken against the
+spare height or against screen height. Both reproduce 186 pt on a Pro 13″ — they
+are the same number there — and they diverge below it, reaching the mini at
+113 pt and 153 pt respectively. Spare height holds the *proportion* of emptiness
+above and below constant across frames; screen height holds the absolute
+position and lets the page drift back toward centred on small frames. The mockup
+carries both as a toggle, switching without moving the page.
 
 **Regenerating the source list: clean first.** `pio run -e simulator -t
 compiledb` emits compile actions only for TUs that are not restored from the
