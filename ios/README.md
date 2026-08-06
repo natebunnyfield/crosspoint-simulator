@@ -352,32 +352,45 @@ percentages and resolves them per frame. The denominators are picked so the
 ratio cannot express an illegal layout at either end of its range, which is what
 makes them the right ones:
 
-| setting | ratio of | 0% | 50% | 100% |
-|---|---|---|---|---|
-| page top | the **spare height**, `availH - panelH` | as high as the safe area allows | **today's centred page** | as low |
-| rocker inset | the **spare margin**, `margin - 2 * cell` | flush to the edge | **today's centred pair** | against the page |
-| rocker centre | screen height | — | **today's centred rockers** | — |
+| setting | unit | meaning |
+|---|---|---|
+| page top | **ratio** of the spare height, `availH - panelH` | 0 = as high as the safe area allows, **50% = today's centred page**, 100 = as low |
+| rocker inset | **points** | a minimum distance in from the bezel, honoured on every frame |
+| rocker centre | **ratio** of screen height | **50% = today's centred rockers** |
+| cell | **points** | `kOptimalSquare`, a thumb-sized physical optimum |
 
-That the shipped layout is exactly 50 / 50 / 50 in this scheme is the check that
-the denominators are right. The spare margin is the only safe denominator for
-the inset: the mini's margin holds a pair exactly, so its spare is 0 and every
-ratio keeps it flush rather than driving it negative.
+That the shipped page is exactly 50% of the spare height is the check that that
+denominator is the right one.
 
-**The cell stays in points.** `kOptimalSquare` is a thumb-sized physical
-optimum, so a ratio is the wrong model — it is clamped per frame at resolve
-time, not stored clamped, or one visit to the mini would pin every frame to
-54 pt.
+**The rocker inset is POINTS, not a ratio** (owner ruling 2026-08-06, revising
+the first pass). Two reasons. How far a thumb travels in from the bezel is a
+physical distance, the same kind of quantity as the cell — and as a ratio of the
+spare margin it resolved to **0 pt on the mini**, whose margin holds a pair
+exactly, so the setting had no effect at all on the one frame that was already
+flush. As a point minimum it applies everywhere, and **the cell yields to make
+room**: `cell = min(requested, (margin - inset) / 2)`. The inset is capped so the
+cell can never be squeezed under the 44 pt HIG floor, and the readout says when
+that cap bites.
 
-The owner's draft, **G — 30% of the spare height and 20% of the spare margin**,
+Both point values are resolved per frame, never stored clamped — storing the
+clamp meant one visit to the mini pinned every frame to 54 pt.
+
+The owner's draft, **G — page at 30% of the spare height, rockers 26 pt in**,
 resolves to:
 
-| frame | page top | rocker inset |
-|---|---|---|
-| iPad Pro 13″ | 186 pt | 26 pt |
-| iPad Air 13″ | 183 pt | 26 pt |
-| iPad Pro 11″ | 136 pt | 7 pt |
-| iPad Air 11″ / iPad | 127 pt | 5 pt |
-| iPad mini | 113 pt | 0 pt |
+| frame | page top | rocker inset | cell |
+|---|---|---|---|
+| iPad Pro 13″ | 186 pt | 26 pt | 60 pt |
+| iPad Air 13″ | 183 pt | 26 pt | 60 pt |
+| iPad Pro 11″ | 136 pt | 26 pt | 60 pt |
+| iPad Air 11″ / iPad | 127 pt | 26 pt | 60 pt |
+| iPad mini | 113 pt | **20 pt** | **44 pt** |
+
+**26 pt is not achievable on the mini.** Its 108 pt margin caps the inset at
+`108 - 2 x 44 = 20 pt`, and even that puts the cell exactly on the HIG floor.
+If a constant inset across all five frames matters more than the cell size, 8 pt
+is the comfortable figure — it costs the mini nothing but 4 pt of cell (54 -> 50)
+and every other frame keeps 60.
 
 **The bottom row must clear the display's corner arcs** (owner ruling
 2026-08-06). Moving the rockers outward pushes POWER and UP|DOWN into the two
