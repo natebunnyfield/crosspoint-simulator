@@ -600,6 +600,92 @@ would want 30 pt of lift, i.e. 4.5 mm of chassis gap, which is the trade this
 stops short of. Top corners never touch the pad at any size — they cover page
 text, which no pad layout can prevent.
 
+## Keyboards — Bluetooth and on-screen
+
+**Both work, in every text field the firmware has**, and they are the same
+mechanism: a keyboard is a keyboard as far as SDL is concerned. Verified on an
+iPhone 13 mini simulator (iOS 26.5) against Settings > Device owner.
+
+The X3 has seven buttons and no keyboard, so firmware text entry pecks
+characters out of an on-screen grid (or the daisywheel). That grid is untouched
+and still works — typing is an *additional* input, not a replacement, and both
+edit the same field and the same cursor.
+
+| Key | While a text field is open | Otherwise |
+|---|---|---|
+| Printable characters | inserted at the cursor | — (see suppression below) |
+| Backspace | erases before the cursor | — |
+| Return | commits the entry (the grid's OK key) | `BTN_CONFIRM` |
+| Escape | `BTN_BACK`, which cancels the entry | `BTN_BACK` |
+| Arrows | move the on-screen grid selection | `BTN_UP/DOWN/LEFT/RIGHT` |
+
+**The suppression is the load-bearing part.** `HalGPIO` maps real key events to
+buttons by scancode, and that map spends letters: `P` is POWER, `S` is the sleep
+shortcut, `H` is the Home key, Return is CONFIRM. Typing "password" into a Wi-Fi
+field would otherwise press POWER twice, sleep the device on the `s` and fire
+Home on the `h`. While a text field is open, `HalGPIO::update()` maps only
+Escape and the four arrows and routes everything else to the typed-text queue;
+`isPressed()` applies the same rule, so a held letter cannot read as a held
+button either. Measured, not assumed: typing ` psh` into the owner field on the
+phone inserts three characters and does nothing else.
+
+The firmware is what opens and closes the channel —
+`KeyboardEntryActivity`/`DaisyEntryActivity` call
+`mappedInput.setTextEntryActive()` on enter and exit — so the host keyboard is
+live exactly while a field is on screen and never while the reader is.
+
+**The on-screen keyboard comes up by itself**, because `SDL_StartTextInput()`
+is what iOS uses to raise it. It is called on the main thread from
+`simulator_main.cpp` (`gpio.pumpHostTextInput()`), edge-triggered on the
+firmware's flag — the flag is set on the firmware task, and raising a keyboard
+is UIKit work that cannot ride along there. It covers the bottom of the screen,
+including the button pad and the lower rows of the firmware's own grid; the
+panel does not move or rescale under it (verified: panel geometry is identical
+with and without the keyboard up), so the text field stays visible, which is
+the part that matters.
+
+**A paired Bluetooth keyboard suppresses the on-screen one automatically** —
+that is iOS behaviour, not something this app decides — and types straight
+through. Nothing here distinguishes the two.
+
+**One difference to know about in the Simulator.** The on-screen keyboard's
+Delete key does nothing there. SDL synthesises `SDL_SCANCODE_BACKSPACE` for a
+soft-keyboard deletion only when `!SDL_HasKeyboard()`
+(`SDL_uikitviewcontroller.m`, `textFieldTextDidChange`), on the assumption that
+a real keyboard would have sent the key itself — and an iOS Simulator reports a
+keyboard attached whether or not one is, so the synthesis is skipped. The
+harness logs both flags when text input starts:
+
+```
+[TEXT] host text input started (screen keyboard support 1, keyboard attached 1)
+```
+
+`keyboard attached 1` is the tell. On a phone with no keyboard paired it reads
+0 and soft Delete works. In the Simulator, use the Mac's own Delete key
+instead — that is a real key event and it does erase (verified). Typing on the
+soft keyboard is unaffected and works in both cases (verified by tapping its
+keys).
+
+### What was verified, and how
+
+On the iPhone 13 mini simulator, in Settings > Device owner, all with the real
+key path — not the injection hook:
+
+- Hardware keyboard: characters (` Rowan`), Backspace (erased one of two typed
+  `Q`s), Return (committed; the entry closed and the name persisted), and
+  Return again from Settings acting as CONFIRM (reopened the field), which is
+  the proof the button mapping is intact once the field is closed.
+- Suppression: ` psh` inserted three characters — no sleep, no Home, no power.
+- On-screen keyboard: raised itself when the field opened, and its letter keys
+  typed into the field.
+
+Headlessly, `tests/test_text_entry.sh` drives the same field on the desktop
+binary through `CROSSPOINT_SIM_INPUT_SCRIPT`'s `TYPE` action and asserts the
+persisted `settings.json`, and the firmware's `TypedTextEntryTest.cpp` covers
+the drain semantics (run ordering, backspace position, commit/cancel, the
+multi-byte length check). Neither can cover the suppression, because both
+inject below SDL — that is why the phone runs above are written down.
+
 ## How the harness attaches
 
 Two seams, both in simulator code — the firmware and `HalGPIO` are untouched.

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,11 @@
 // place.
 extern std::atomic<bool> quitRequested;
 extern GfxRenderer renderer;
+// Also HalDisplay.cpp's, for SDL_StartTextInput, which needs the window.
+// A free function rather than a HalDisplay method for the usual reason: the
+// HAL's public surface has to stay the shape the firmware expects, and a
+// window handle has no analog on an e-ink board.
+extern SDL_Window *simulatorWindow();
 
 // Keyboard mapping:
 //   BTN_BACK    (0) → Escape
@@ -69,6 +75,33 @@ static bool syntheticButtonDown[NUM_BUTTONS] = {};
 static std::atomic<bool> syntheticWakeEdge{false};
 static bool simulatorSleepRequested = false;
 
+// --- Host keyboard text entry (see the block comment in HalGPIO.h) ---------
+//
+// The flag is atomic because the firmware task sets it (a text-entry activity
+// entering) while the main thread reads it in pumpHostTextInput(). The buffer
+// takes a mutex rather than an atomic because the iOS harness can queue from a
+// UIKit callback on a thread of its own.
+static std::atomic<bool> textEntryActive{false};
+static std::mutex typedTextMutex;
+static std::string typedTextBuffer;
+
+// The scancodes that keep their button meaning while a text field is open.
+// Escape cancels the entry and the arrows move the on-screen grid selection --
+// both are things a typist still reaches for, and neither produces a
+// character. Every other key belongs to the text.
+static bool scancodeSurvivesTextEntry(SDL_Scancode sc) {
+  return sc == SDL_SCANCODE_ESCAPE || sc == SDL_SCANCODE_LEFT ||
+         sc == SDL_SCANCODE_RIGHT || sc == SDL_SCANCODE_UP ||
+         sc == SDL_SCANCODE_DOWN;
+}
+
+static void queueTypedBytes(const char *bytes, size_t length) {
+  if (!bytes || length == 0)
+    return;
+  std::lock_guard<std::mutex> lock(typedTextMutex);
+  typedTextBuffer.append(bytes, length);
+}
+
 namespace {
 
 struct TouchState {
@@ -100,6 +133,7 @@ enum class SyntheticAction {
   TouchUp,
   HomeDown,
   HomeUp,
+  TypeText,
   Sleep,
   Quit
 };
@@ -110,8 +144,43 @@ struct SyntheticEvent {
   int button = -1;
   float logicalNx = 0.0f;
   float logicalNy = 0.0f;
+  std::string text;
   bool handled = false;
 };
+
+// TYPE payload escapes. The script's own separators (';' between items) cannot
+// appear in text, and the three editing keys have no printable spelling, so
+// they get backslash escapes: \b backspace, \n commit (the on-screen OK key),
+// \e cancel, \\ a literal backslash.
+std::string decodeTypeEscapes(const std::string &raw) {
+  std::string out;
+  out.reserve(raw.size());
+  for (size_t i = 0; i < raw.size(); i++) {
+    if (raw[i] != '\\' || i + 1 >= raw.size()) {
+      out.push_back(raw[i]);
+      continue;
+    }
+    switch (raw[++i]) {
+    case 'b':
+      out.push_back(HalGPIO::TYPED_BACKSPACE);
+      break;
+    case 'n':
+      out.push_back(HalGPIO::TYPED_COMMIT);
+      break;
+    case 'e':
+      out.push_back(HalGPIO::TYPED_CANCEL);
+      break;
+    case '\\':
+      out.push_back('\\');
+      break;
+    default:
+      out.push_back('\\');
+      out.push_back(raw[i]);
+      break;
+    }
+  }
+  return out;
+}
 
 std::vector<SyntheticEvent> syntheticEvents;
 bool syntheticEventsInitialized = false;
@@ -339,6 +408,12 @@ void initializeSyntheticEvents() {
                                10);
         syntheticEvents.push_back({atMs, SyntheticAction::HomeDown});
         syntheticEvents.push_back({atMs + holdMs, SyntheticAction::HomeUp});
+      } else if (key == "TYPE" && secondColon != std::string::npos) {
+        // Everything after the second colon is the text, verbatim (so it may
+        // contain ':' but not ';'), through decodeTypeEscapes.
+        SyntheticEvent typed{atMs, SyntheticAction::TypeText};
+        typed.text = decodeTypeEscapes(item.substr(secondColon + 1));
+        syntheticEvents.push_back(std::move(typed));
       } else if ((key == "TAP" || key == "SWIPE") &&
                  secondColon != std::string::npos) {
         float x1 = 0.0f;
@@ -406,6 +481,9 @@ void processSyntheticEvents() {
     case SyntheticAction::HomeUp:
       endHomeKey();
       break;
+    case SyntheticAction::TypeText:
+      gpio.injectTypedText(event.text.c_str());
+      break;
     case SyntheticAction::Sleep:
       requestSimulatorSleep();
       break;
@@ -424,6 +502,10 @@ static void clearButtonState() {
     releasedThisFrame[i] = false;
     buttonPressTime[i] = 0;
     syntheticButtonDown[i] = false;
+  }
+  {
+    std::lock_guard<std::mutex> lock(typedTextMutex);
+    typedTextBuffer.clear();
   }
   touchState = {};
   homeKeyDown = false;
@@ -499,7 +581,42 @@ void HalGPIO::update() {
   while (SDL_PollEvent(&e) != 0) {
     if (e.type == SDL_EVENT_QUIT) {
       quitRequested.store(true);
-    } else if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+      continue;
+    }
+
+    // Text entry claims the keyboard first, before the scancode→button map
+    // gets a look at it. Without this the letters of the password ARE the
+    // button map: P powers off, S sleeps, H is Home, Return is Confirm. Only
+    // Escape and the arrows fall through (scancodeSurvivesTextEntry).
+    if (textEntryActive.load()) {
+      if (e.type == SDL_EVENT_TEXT_INPUT) {
+        queueTypedBytes(e.text.text, e.text.text ? SDL_strlen(e.text.text) : 0);
+        continue;
+      }
+      if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
+          !scancodeSurvivesTextEntry(e.key.scancode)) {
+        if (e.type == SDL_EVENT_KEY_DOWN) {
+          // Backspace deliberately honours key repeat -- holding it to erase a
+          // word is the whole point. Return does not: one press, one commit.
+          if (e.key.scancode == SDL_SCANCODE_BACKSPACE) {
+            const char c = HalGPIO::TYPED_BACKSPACE;
+            queueTypedBytes(&c, 1);
+          } else if (!e.key.repeat &&
+                     (e.key.scancode == SDL_SCANCODE_RETURN ||
+                      e.key.scancode == SDL_SCANCODE_KP_ENTER ||
+                      e.key.scancode == SDL_SCANCODE_RETURN2)) {
+            const char c = HalGPIO::TYPED_COMMIT;
+            queueTypedBytes(&c, 1);
+          }
+        }
+        // Everything else is swallowed: its character arrives separately as
+        // SDL_EVENT_TEXT_INPUT, already composed (dead keys, IME, an iPhone
+        // keyboard's autocorrect replacement).
+        continue;
+      }
+    }
+
+    if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.scancode == HOME_KEY_SCANCODE) {
         beginHomeKey();
         continue;
@@ -561,7 +678,15 @@ bool HalGPIO::isPressed(uint8_t buttonIndex) const {
     return false;
   // SDL3 returns const bool* here; SDL2 returned const Uint8*.
   const bool *state = SDL_GetKeyboardState(NULL);
-  return state[buttonScancode[buttonIndex]] || syntheticButtonDown[buttonIndex];
+  // Same rule as the event path in update(): while a text field is open the
+  // keyboard belongs to the text, so a held letter must not read as a held
+  // button either. The on-screen pad (syntheticButtonDown) is unaffected --
+  // it never went through a scancode.
+  const bool keyboardOwnsButton =
+      !textEntryActive.load() ||
+      scancodeSurvivesTextEntry(buttonScancode[buttonIndex]);
+  return (keyboardOwnsButton && state[buttonScancode[buttonIndex]]) ||
+         syntheticButtonDown[buttonIndex];
 }
 
 bool HalGPIO::wasPressed(uint8_t buttonIndex) const {
@@ -614,6 +739,74 @@ void HalGPIO::injectButtonUp(uint8_t buttonIndex) {
   syntheticButtonDown[buttonIndex] = false;
   if (buttonPressTime[buttonIndex] > 0)
     lastReleasedSpan = SDL_GetTicks() - buttonPressTime[buttonIndex];
+}
+
+void HalGPIO::setTextEntryActive(bool active) {
+  const bool was = textEntryActive.exchange(active);
+  if (was == active)
+    return;
+  // Both edges drop whatever is queued. On the rising edge that discards
+  // anything a mistimed host typed before the field existed; on the falling
+  // edge it stops the tail of one entry (the characters that arrived in the
+  // same frame as the commit) leaking into the next field that opens.
+  {
+    std::lock_guard<std::mutex> lock(typedTextMutex);
+    typedTextBuffer.clear();
+  }
+  SDL_Log("[TEXT] text entry %s", active ? "active" : "inactive");
+}
+
+bool HalGPIO::isTextEntryActive() const { return textEntryActive.load(); }
+
+bool HalGPIO::consumeTypedText(std::string &out) {
+  std::lock_guard<std::mutex> lock(typedTextMutex);
+  if (typedTextBuffer.empty())
+    return false;
+  out.assign(typedTextBuffer);
+  typedTextBuffer.clear();
+  return true;
+}
+
+void HalGPIO::injectTypedText(const char *utf8) {
+  if (!utf8 || !*utf8)
+    return;
+  if (!textEntryActive.load()) {
+    // Loud on purpose: a script that types before the field opens would
+    // otherwise look like a firmware bug rather than a timing bug.
+    SDL_Log("[TEXT] dropped injected text (no text field open): \"%s\"", utf8);
+    return;
+  }
+  queueTypedBytes(utf8, SDL_strlen(utf8));
+}
+
+void HalGPIO::pumpHostTextInput() {
+  static bool applied = false;
+  const bool want = textEntryActive.load();
+  if (want == applied)
+    return;
+  SDL_Window *window = simulatorWindow();
+  if (!window)
+    return; // before the first HalDisplay::begin(); retried next frame
+  applied = want;
+  if (want) {
+    // On a phone this is what raises the software keyboard; a paired Bluetooth
+    // keyboard suppresses that itself and types straight through. On desktop
+    // it is what makes SDL emit SDL_EVENT_TEXT_INPUT at all.
+    SDL_StartTextInput(window);
+    // Both flags are worth having in the log, because together they decide
+    // which keyboard the owner actually gets -- and because SDL's own
+    // software-keyboard backspace is conditional on the second one being
+    // FALSE (SDL_uikitviewcontroller.m's textFieldTextDidChange only
+    // synthesises SDL_SCANCODE_BACKSPACE when !SDL_HasKeyboard(), on the
+    // assumption that a real keyboard would have sent the key itself). An iOS
+    // Simulator reports a keyboard whether or not one is attached, so a
+    // soft-keyboard Delete does nothing there. See ios/README.md.
+    SDL_Log("[TEXT] host text input started (screen keyboard support %d, "
+            "keyboard attached %d)",
+            SDL_HasScreenKeyboardSupport() ? 1 : 0, SDL_HasKeyboard() ? 1 : 0);
+  } else {
+    SDL_StopTextInput(window);
+  }
 }
 
 unsigned long HalGPIO::getHeldTime() const {

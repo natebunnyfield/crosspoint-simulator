@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Five real tests do exist in `tests/`, run them when touching input, sleep, network, or restart paths:
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Seven real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, or build-configuration paths:
 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
@@ -51,6 +51,11 @@ c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 tests/wifi_host_test.cpp -o /t
 c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 tests/http_dispatch_test.cpp -o /tmp/http_dispatch_test && /tmp/http_dispatch_test
 c++ -std=c++20 -Isrc tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp -o /tmp/restart_test && /tmp/restart_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
+tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
+c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
+  $(python3 tools/fw_include_flags.py) \
+  tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp -o /tmp/build_identity_test \
+  && /tmp/build_identity_test
 ```
 
 **The three `-D` tests exist because the code they cover is iOS-only.** `ios/*.mm`
@@ -60,13 +65,15 @@ cannot be compiled anywhere but a Mac and there is no paired device, so
 phone's branches be exercised on a host. Keep that escape hatch when adding
 another platform backend, or the branch ships with no coverage at all.
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever.
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever.
 
 ## Architecture
 
 The simulator is a collection of host-side reimplementations of the firmware's hardware abstraction layer (HAL) and its Arduino/ESP-IDF dependencies. Each `Hal*.cpp/.h` here corresponds to a `Hal*` class in the firmware's `lib/hal/`, and **must keep the same public surface** or the firmware will not link.
 
 **The HAL stub rule.** When the firmware adds a new method to a HAL class and calls it, the simulator fails to link until a matching stub is added to the corresponding `Hal*.cpp` here. Most additions are one-line no-ops. This is the single most common reason a simulator build breaks after pulling firmware updates.
+
+It runs the other way too, and that direction costs a firmware change: a capability the *host* has and the device does not (the keyboard channel — `setTextEntryActive` / `consumeTypedText`) has to exist on both sides, as a real implementation here and an inline no-op in the firmware's `lib/hal/HalGPIO.h`. Simulator-only methods the firmware never calls (`injectButtonDown/Up`, `injectTypedText`, `pumpHostTextInput`) need no counterpart and must not gain one.
 
 **Why the simulator's design has the shape it does** (the non-obvious parts):
 
@@ -131,9 +138,56 @@ the reported board capabilities aligned with the firmware SDK. X4 Pro uses the
 same 800x480 display geometry as X4 but adds touch, a capacitive Home key,
 frontlight state, inversion, and an RTC.
 
+**One device macro, one definition — and it goes on the LIBRARY.** The iOS
+build is two CMake targets: `crosspoint_core` (firmware + HAL, ~155 TUs) and
+`CrossPointX3` (the harness, 7). The X4 default in `BoardConfig.h` is *silent*,
+so a device macro that reaches only one target produces a binary whose halves
+disagree, compiles clean, and fails somewhere far away. It has happened twice:
+
+| Define | Set only on the app target | What shipped |
+|---|---|---|
+| `CROSSPOINT_RENDER_SCALE=2` | ~15 TestFlight builds | 1x glyphs while the pbxproj read 2x |
+| `SIMULATOR_DEVICE_X3` | builds 1–27 | firmware built an X4: no RTC, so every calendar sleep screen fell back to the stock logo screen; 800x480 panel under a harness laying out 792x528 |
+
+Every cross-cutting define therefore belongs on
+`target_compile_definitions(crosspoint_core PUBLIC ...)`, never `PRIVATE` on
+the app target. Three guards enforce it, and none of them is a reviewer
+remembering this paragraph:
+
+1. **Configure time** — [ios/CMakeLists.txt](ios/CMakeLists.txt) `FATAL_ERROR`s
+   if the app target carries any define the core does not. A genuinely
+   harness-only define goes in `CROSSPOINT_HARNESS_ONLY_DEFINES` *with its
+   reason*.
+2. **Boot** — the harness calls `verifyBuildIdentityMatchesCore()`
+   ([src/SimulatorBuildIdentity.h](src/SimulatorBuildIdentity.h)), comparing
+   device, logical geometry and render scale across the target boundary, and
+   aborts on any difference. A healthy launch logs
+   `[BUILD] iOS harness and firmware core agree: X3, 792x528 logical, 2x render scale`.
+   That log line is the fastest way to confirm what a build actually is.
+   `tests/build_identity_test.cpp` proves the abort fires per field.
+3. **Deploy** — [ios/testflight.sh](ios/testflight.sh) greps the generated
+   project for `SIMULATOR_DEVICE_X3` before archiving, so a wrong-device build
+   cannot reach TestFlight.
+
+The silent `#else` default in `BoardConfig.h` stays (owner ruling 2026-08-06):
+making an unnamed device an `#error` would break the firmware's `[env:simulator]`
+and every upstream consumer that never named a board.
+
 `HalGPIO::update` owns the SDL event pump for the whole simulator, do not poll SDL events elsewhere. If another layer needs to observe events (the iOS harness does), use `SDL_AddEventWatch` — it sees events as they are queued without consuming them, so neither side steals from the other. Scancodes map to button indices `BTN_BACK=0` through `BTN_POWER=6`. `SDL_EVENT_QUIT` sets the `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
+
+**Host keyboards reach the firmware's text fields.** The X3 has no keyboard, so
+firmware text entry pecks characters out of an on-screen grid; `HalGPIO` also
+carries a real host keyboard into that same field — the Mac's, an iPhone's
+on-screen keyboard, a Bluetooth keyboard paired to the phone. The firmware
+opens and closes the channel (`setTextEntryActive`, a no-op on device), and
+while it is open the scancode→button map is suspended for everything except
+Escape and the arrows — without that, typing a Wi-Fi password would press POWER
+on every `p` and sleep the device on every `s`. `TYPE:<text>` in
+`CROSSPOINT_SIM_INPUT_SCRIPT` is the scripted typist (`\b` backspace, `\n`
+commit, `\e` cancel; `;` cannot appear in the text). Full behaviour table and
+what was verified where: [ios/README.md](ios/README.md).
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key
 and X4 Pro touch edges through the same `HalGPIO` state as real SDL input, and

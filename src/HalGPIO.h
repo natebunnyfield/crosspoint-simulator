@@ -92,6 +92,62 @@ public:
   void injectButtonDown(uint8_t buttonIndex);
   void injectButtonUp(uint8_t buttonIndex);
 
+  // --- Host keyboard text entry -------------------------------------------
+  //
+  // The X3 has seven buttons and no keyboard, so the firmware's text entry
+  // pecks characters out of an on-screen grid. Every host running the
+  // simulator DOES have a keyboard -- the Mac's, an iPhone's software
+  // keyboard, a Bluetooth keyboard paired to the phone -- and this is the
+  // channel that carries it into the firmware's own text field. The grid is
+  // untouched and still works; typing is an additional input, not a
+  // replacement.
+  //
+  // TWO HALVES, and only the first is firmware-facing:
+  //
+  //   setTextEntryActive() / consumeTypedText() mirror the device HAL, where
+  //   they are inline no-ops (`lib/hal/HalGPIO.h`). A text-entry activity
+  //   announces itself on enter, stands down on exit, and drains this queue
+  //   in its loop().
+  //
+  //   injectTypedText() / pumpHostTextInput() are simulator-only, like
+  //   injectButton*: the host's side of the same channel.
+  //
+  // WHY THE ACTIVE FLAG IS LOAD-BEARING, not just a hint. Real key events are
+  // mapped to buttons by scancode, and that map spends letters: P is POWER, S
+  // is the sleep shortcut, H is the Home key, Return is CONFIRM. Typing
+  // "password" into a Wi-Fi field would otherwise press POWER twice, sleep the
+  // device on the 's' and fire Home on the 'h'. While the flag is set,
+  // update() maps only Escape and the four arrows (cancel and grid
+  // navigation, both of which a typist still wants) and routes everything else
+  // to this queue. isPressed() applies the same rule, so a held letter cannot
+  // show up as a held button either.
+  //
+  // The queue is a byte stream, not a char stream: printable input arrives as
+  // UTF-8 (one SDL_EVENT_TEXT_INPUT can carry several code points, and an
+  // iPhone's keyboard emits emoji), and the three editing keys ride along as
+  // the control bytes below. Consumers walk the chunk and split it on those.
+  void setTextEntryActive(bool active);
+  bool isTextEntryActive() const;
+  bool consumeTypedText(std::string &out);
+
+  // Editing keys, encoded in the byte stream above. Same values on device.
+  static constexpr char TYPED_BACKSPACE = '\b';
+  static constexpr char TYPED_COMMIT = '\n';
+  static constexpr char TYPED_CANCEL = '\x1b';
+
+  // Host injection: the iOS harness, CROSSPOINT_SIM_INPUT_SCRIPT's TYPE
+  // action. Dropped (with a log line) when no text field is open, so a
+  // mistimed script fails loudly instead of leaking characters into the next
+  // field that opens.
+  void injectTypedText(const char *utf8);
+
+  // MAIN THREAD ONLY, once per frame. Starts and stops SDL text input on the
+  // active-flag edge, which on a phone is what raises and dismisses the
+  // software keyboard -- a UIKit operation, so it cannot ride along with the
+  // firmware task that flips the flag. Desktop needs the call too: SDL only
+  // emits SDL_EVENT_TEXT_INPUT between StartTextInput and StopTextInput.
+  void pumpHostTextInput();
+
   unsigned long getHeldTime() const;
   unsigned long getPowerButtonHeldTime() const;
   bool hasTouch() const;
@@ -110,21 +166,6 @@ public:
   bool wasTouchActivity() const;
   void setSharedConfirmPowerShortPressEmitsPower(bool enabled);
   bool consumeSimulatorSleepRequest();
-
-  // --- Host keyboard text entry (firmware HAL surface; see lib/hal/HalGPIO.h)
-  //
-  // The firmware's text-entry activities announce a field opening/closing and
-  // drain typed bytes every frame. Stubs for now: no host keyboard is wired
-  // into this HAL, so a field behaves exactly as it does on device (peck the
-  // characters out of the on-screen grid). They exist because
-  // MappedInputManager.h calls both unconditionally and TypedTextInput.h reads
-  // the three control bytes, so the firmware does not link without them.
-  void setTextEntryActive(bool /*active*/) {}
-  bool consumeTypedText(std::string & /*out*/) { return false; }
-
-  static constexpr char TYPED_BACKSPACE = '\b';
-  static constexpr char TYPED_COMMIT = '\n';
-  static constexpr char TYPED_CANCEL = '\x1b';
 
   // Setup wake up GPIO and enter deep sleep
   void startDeepSleep();
