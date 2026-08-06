@@ -107,6 +107,47 @@ correctly through the same two planes.
 
 ## Recent Changes (since 2026-03-17)
 
+### The iOS app was building an X4, not an X3 (2026-08-06)
+
+- Symptom, as reported: on the phone every Sleep Screen choice painted the
+  stock logo screen — CrossPoint mark, "SLEEPING", owner name at the bottom.
+- Cause: `SIMULATOR_DEVICE_X3` was `target_compile_definitions(CrossPointX3
+  PRIVATE ...)` in [ios/CMakeLists.txt](../ios/CMakeLists.txt), i.e. on the app
+  target. The firmware and the whole HAL live in `crosspoint_core`, which never
+  saw it and took [src/BoardConfig.h](../src/BoardConfig.h)'s `#else` branch.
+  The seven harness TUs compiled as X3, the other 155 as X4. Exactly the trap
+  `CROSSPOINT_RENDER_SCALE` fell into (15 TestFlight builds shipped 1x); the
+  device macro was never moved when that one was.
+- Why that hits the sleep screen: `HalClock::begin()` only arms the clock for
+  X3 / X4 Pro, so on the X4 build `getDateTime()` returned false and
+  `SleepActivity::renderCalendarSleepScreen` took its "no RTC available"
+  fallback to `renderDefaultSleepScreen` — for all five calendar modes. Custom
+  falls through to the calendar when the card has no image, so it landed on the
+  same stock screen. Cover was the one non-default mode that could still work.
+  Two more silent effects: `gpio.deviceIsX3()` was false, so the X3-only
+  differential refresh in `renderLastScreenSleepScreen()` never ran, and
+  `HalTiltSensor::begin()` left `_available` false against what ios/README.md
+  claims.
+- Fix: define it `PUBLIC` on `crosspoint_core`, so one definition reaches both
+  layers. `SIMULATOR` was already reaching both via `CROSSPOINT_DEFINES`, so
+  the app-target block went away entirely.
+- Side effect worth knowing: the panel is now 792x528 (X3) rather than 800x480,
+  which is what the harness had always been laying out — `CrossPointIOSShim`
+  sizes the panel rect from `HalDisplay::DISPLAY_*`, and those TUs were reading
+  the X3 numbers all along. Cover BMPs cached under `.crosspoint/` at the old
+  geometry are regenerated on demand.
+- Verified on an iPhone 13 mini simulator, A/B against the pre-fix binary with
+  the same card and `sleepScreen: 7`: pre-fix logs `Hardware detect: X4` and
+  paints the stock logo screen; post-fix logs `Hardware detect: X3` and paints
+  the calendar with today highlighted. Cover (`Rendering sleep cover: ...
+  bitmap 528 x 792, screen 528 x 792`) and Custom (`Loading: /sleep.bmp`) also
+  confirmed on screen.
+- Unrelated drift fixed on the way past, because the firmware no longer
+  compiled without it: `HalGPIO` gained the host-keyboard text-entry surface
+  (`setTextEntryActive`, `consumeTypedText`, `TYPED_*`). Stubs — no host
+  keyboard is wired into this HAL yet, so a text field behaves as it does on
+  device.
+
 ### Dark-mode panel inversion with instant re-present (2026-08-01)
 
 - The iOS app now follows the system appearance onto the panel itself: dark
@@ -223,6 +264,51 @@ These shaped the current code; details kept short since the fixes are already in
 **Spine entries had empty hrefs after caches loaded** — `BookMetadataCache::lutOffset` was `size_t` (8 bytes on macOS 64-bit) but `headerASize` was computed as `sizeof(uint32_t)` (4 bytes). The 4-byte mismatch shifted all spine seeks. Fixed in firmware by changing `lutOffset` to `uint32_t` (on ESP32 they're identical, so no device impact).
 
 After any of the storage / cache fixes: `rm -rf ./fs_/.crosspoint/` to drop stale caches built with broken code.
+
+## Icon assets are stored PRE-ROTATED (why new icons keep coming out rotated)
+
+Noted 2026-08-06, after Manage Files / Create Note / Claude all appeared rotated.
+**Newly generated icons keep landing 90 degrees out because the asset convention
+is pre-rotated art, not upright art.** Anything authored the obvious way — right
+way up, as a person would draw it — displays on its side.
+
+The panel framebuffer is LANDSCAPE and Portrait reading is the 90-degree
+rotation of the whole buffer. Neither icon entry point rotates the bitmap's
+*content*:
+
+- `GfxRenderer::drawImage` blits the bytes 1:1 into the framebuffer. It rotates
+  only the destination *position*, never the pixels.
+- `GfxRenderer::drawIcon` plots per-pixel with a `(size-1-row, col)` mapping
+  whose stated purpose is to "reproduce the Portrait orientation the blit
+  produced" — same result, just not byte-aligned.
+
+So for both, the bytes must already be in framebuffer order. Displayed pixel
+`(dx, dy)` comes from `stored[size-1-dx][dy]`.
+
+**To generate an icon that displays upright**, rotate before embedding:
+
+```
+stored[r][c] = upright[c][size-1-r]
+```
+
+(1bpp, MSB-first, **bit == 0 is ink**.) Round-trip check:
+`displayed[dy][dx] = stored[size-1-dx][dy]` must give back `upright`.
+
+Every asset that is correct today follows this, and two of them make it
+unambiguous — worth checking a new icon against these rather than trusting the
+eye on a symmetric shape:
+
+- `src/images/LoadingIcon.h` stores three dots in a **vertical column**, which is
+  exactly what makes them display as a horizontal "...".
+- `src/components/icons/folder.h` stores the folder **on its side, tab on the
+  left edge**, and displays tab-up.
+
+All 15 `src/components/icons/*.h` and `Logo120.h` follow it. **`src/images/MoonIcon.h`
+does not** — it holds upright art, so the sleep-screen moon renders rotated.
+Confirmed by decoding, not by eye; the corrected bytes are a straight
+application of the transform above and round-trip clean at the same 288 bytes.
+Not fixed here: it is a firmware file and this repo has read-only access to the
+fork.
 
 ## Known Remaining Work
 

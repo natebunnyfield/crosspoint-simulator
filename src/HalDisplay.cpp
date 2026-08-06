@@ -704,6 +704,37 @@ void HalDisplay::presentIfNeeded() {
     SimulatorOverlay::panelBottom.store(
         static_cast<int>(topMargin + logH * scale));
     SimulatorOverlay::panelHeight.store(static_cast<int>(logH * scale));
+
+    // Report the presented geometry once, and again whenever it changes.
+    //
+    // A fractional panel scale, or a dst rect off the pixel grid, smears the
+    // Bayer dither into irregular moire -- the firmware's grays are a dot grid
+    // with a period of a few device pixels, so anything short of 1 texel : N
+    // whole device pixels beats against it. That is invisible in a screenshot
+    // (which is captured pre-composite) and hard to eyeball on glass, so the
+    // numbers are logged rather than left to be inferred.
+    //
+    // If SCALE IS INTEGRAL AND THE DST IS WHOLE but grays still shimmer on
+    // device, the resample is happening BELOW the app: check that outW x outH
+    // is the panel's true native pixel size. iPadOS Display Zoom renders the
+    // whole screen at a smaller logical size and upscales it to the panel by a
+    // non-integer factor, which no arithmetic in here can see or undo.
+    {
+      static float lastScale = -1.0f;
+      static int lastOutW = -1, lastOutH = -1;
+      if (scale != lastScale || outW != lastOutW || outH != lastOutH) {
+        lastScale = scale;
+        lastOutW = outW;
+        lastOutH = outH;
+        const bool wholeScale = scale == SDL_floorf(scale);
+        const bool wholeDst = portraitDst.x == SDL_floorf(portraitDst.x) &&
+                              portraitDst.y == SDL_floorf(portraitDst.y);
+        SDL_Log("[panel] out %dx%d px, scale %.4f%s, dst %.2f,%.2f %.0fx%.0f%s",
+                outW, outH, scale, wholeScale ? "" : " (FRACTIONAL)",
+                portraitDst.x, portraitDst.y, portraitDst.w, portraitDst.h,
+                wholeDst ? "" : " (OFF-GRID)");
+      }
+    }
   }
 
   switch (orientation) {
