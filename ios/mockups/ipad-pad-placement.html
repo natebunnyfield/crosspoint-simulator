@@ -254,8 +254,8 @@
     <div class="grp">
       <span class="lbl">Rockers</span>
       <div class="slide">
-        <div class="top"><span class="name">Inset, as a ratio of the spare margin</span><span class="val" id="vInset"></span></div>
-        <input type="range" id="sInset" min="0" max="100" step="0.5">
+        <div class="top"><span class="name">Minimum inset from the screen edge</span><span class="val" id="vInset"></span></div>
+        <input type="range" id="sInset" min="0" max="80" step="1">
         <span class="hint" id="hInset"></span>
       </div>
       <div class="slide">
@@ -318,6 +318,7 @@
   var LOG_H = EINK_W * RS;   // 1584
   var OPTIMAL = 60;          // kOptimalSquare
   var HOME_MIN = 16;         // kHomeInsetMin
+  var MIN_CELL = 44;         // HIG minimum touch target
   var TUCK_GAP = 14;         // gap under the rockers in "tucked" mode
 
   // Portrait point sizes and portrait safe-area insets. ppi is the physical
@@ -409,26 +410,37 @@
   //          100 = as low; 50 is exactly today's centred page). Optionally of
   //          screen height instead — the two agree on a 13-inch frame and
   //          diverge below it, which is a judgement rather than a detail.
-  //   inset  insetPct of the SPARE MARGIN, margin - 2 * cell. This is the only
-  //          safe denominator: the mini's margin holds a pair exactly, so its
-  //          spare is 0 and any ratio keeps it flush instead of negative.
-  //          50% is exactly today's centred-in-the-margin rockers.
-  //   cell   stays POINTS. kOptimalSquare is a thumb-sized physical optimum,
-  //          so a ratio is the wrong model for it.
+  //   inset  POINTS, not a ratio (owner ruling 2026-08-06). How far a thumb
+  //          must travel in from the bezel is a physical distance, the same
+  //          kind of quantity as the cell -- and as a ratio of the spare
+  //          margin it resolved to 0 on the mini, whose margin holds a pair
+  //          exactly, so the setting had no effect there at all. As a point
+  //          minimum it is honoured on every frame, and THE CELL YIELDS to
+  //          make room: cell = min(requested, (margin - inset) / 2). The
+  //          inset is capped so the cell can never fall under the 44 pt HIG
+  //          floor, and the readout says when that cap bites.
+  //   cell   POINTS. kOptimalSquare is a thumb-sized physical optimum, so a
+  //          ratio is the wrong model for it.
   //
-  // opts: pagePct, pageDenom ("spare" | "screen"), insetPct, midFrac (rocker
+  // opts: pagePct, pageDenom ("spare" | "screen"), insetPt, midFrac (rocker
   //       centre as a fraction of screen height), cell (pt), bottom.
   function resolve(f, o) {
-    var cell = Math.min(o.cell != null ? o.cell : f.cell, f.margin / 2);
-    var spareMargin = Math.max(0, f.margin - 2 * cell);
+    // The inset is honoured first and the cell yields to it, so a point
+    // minimum means the same thing on every frame. Capped so the cell cannot
+    // be squeezed under the HIG floor.
+    var maxInset = Math.max(0, f.margin - 2 * MIN_CELL);
+    var inset = Math.min(o.insetPt, maxInset);
+    var cell = Math.min(o.cell != null ? o.cell : f.cell, (f.margin - inset) / 2);
     var gap = o.pageDenom === "screen"
       ? Math.max(0, f.dev.h * o.pagePct - f.dev.st)
       : f.slack * o.pagePct;
     return {
       cell: cell,
       pageGap: Math.min(gap, f.slack),
-      inset: spareMargin * o.insetPct,
-      spareMargin: spareMargin
+      inset: inset,
+      insetCapped: o.insetPt > maxInset + 0.01,
+      maxInset: maxInset,
+      spareMargin: Math.max(0, f.margin - 2 * cell)
     };
   }
 
@@ -460,6 +472,7 @@
       pageTop: pageTop, pageBottom: pageTop + f.panelH,
       pageLeft: f.margin, pageRight: f.margin + f.panelW,
       cell: cell, half: half, spareMargin: r.spareMargin,
+      insetCapped: r.insetCapped, maxInset: r.maxInset,
       midTop: midTop, lowerY: lowerY, lx: lx, rx: rx,
       lxBottom: lxBottom, cornerR: R,
       rects: [
@@ -483,21 +496,21 @@
   // code does, which is the check that these denominators are the right ones.
   var PRESETS = [
     { id: "now", name: "Shipped", note: "page centred in the spare height, rockers centred in the margin",
-      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
-    { id: "owner", name: "G — Owner draft", note: "30% of the spare height, 20% of the spare margin — the 2026-08-06 dial-in",
-      of: function (f) { return { pagePct: 0.30, pageDenom: "spare", insetPct: 0.20, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPt: f.nowInset, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+    { id: "owner", name: "G — Owner draft", note: "30% of the spare height, 26 pt off the edge — the 2026-08-06 dial-in",
+      of: function (f) { return { pagePct: 0.30, pageDenom: "spare", insetPt: 26, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "edge", name: "A — Edge only", note: "rockers flush, page untouched",
-      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+      of: function (f) { return { pagePct: 0.5, pageDenom: "spare", insetPt: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "edgetop", name: "B — Edge + page to the top", note: "page as high as the safe area allows",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPt: 0, midFrac: 0.5, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "grip", name: "C — B, thumbs low", note: "rockers at 62% — where a two-hand side grip sits",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPt: 0, midFrac: 0.62, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "cluster", name: "D — Low cluster", note: "page high, the whole pad low and tucked together",
-      of: function (f) { return { pagePct: 0.03, pageDenom: "spare", insetPct: 0, midFrac: 0.66, cell: OPTIMAL, bottom: "tucked", corner: "inset" }; } },
-    { id: "soft", name: "E — Softened edge", note: "a fifth of the spare margin, page high, thumbs low",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0.2, midFrac: 0.6, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
+      of: function (f) { return { pagePct: 0.03, pageDenom: "spare", insetPt: 0, midFrac: 0.66, cell: OPTIMAL, bottom: "tucked", corner: "inset" }; } },
+    { id: "soft", name: "E — Softened edge", note: "8 pt off the edge, page high, thumbs low",
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPt: 8, midFrac: 0.6, cell: OPTIMAL, bottom: "screen", corner: "inset" }; } },
     { id: "big", name: "F — C, fatter cells", note: "the 13-inch margin has room for a bigger target",
-      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPct: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen", corner: "inset" }; } }
+      of: function (f) { return { pagePct: 0, pageDenom: "spare", insetPt: 0, midFrac: 0.62, cell: Math.min(88, f.margin / 2), bottom: "screen", corner: "inset" }; } }
   ];
 
   // What to do when the bottom row runs under a corner arc. Both fixes cost
@@ -539,7 +552,7 @@
   function syncInputs() {
     var f = frameOf(state.dev), o = state.opts;
     $("sPage").value = (o.pagePct * 100).toFixed(1);
-    $("sInset").value = (o.insetPct * 100).toFixed(1);
+    $("sInset").value = Math.round(o.insetPt);
     $("sMid").value = (o.midFrac * 100).toFixed(1);
     $("sCell").value = Math.round(o.cell);
     Array.prototype.forEach.call(document.querySelectorAll("#presetChips .chip"), function (c) {
@@ -563,7 +576,7 @@
   function px(v) { return v + "px"; }
 
   function shippedOpts(f) {
-    return { pagePct: 0.5, pageDenom: "spare", insetPct: 0.5, midFrac: 0.5,
+    return { pagePct: 0.5, pageDenom: "spare", insetPt: f.nowInset, midFrac: 0.5,
              cell: f.cell, bottom: "screen", corner: "flag" };
   }
 
@@ -827,10 +840,12 @@
       (o.pageDenom === "spare"
         ? "50% is today's centred page · spare height " + Math.round(f.slack) + " pt"
         : "measured from the top of the screen, clamped to the spare height");
-    $("vInset").textContent = (o.insetPct * 100).toFixed(1) + "%";
-    $("hInset").textContent = "→ " + Math.round(p.lx) + " pt on this frame · 50% is today's" +
-      " centred pair · spare margin " + Math.round(p.spareMargin) + " pt" +
-      (p.spareMargin < 0.5 ? " (this frame is already flush)" : "");
+    $("vInset").textContent = Math.round(o.insetPt) + " pt";
+    $("hInset").textContent = (p.insetCapped
+        ? "→ capped to " + pt(p.lx) + " here, or the cell drops under " + pt(MIN_CELL) + " · "
+        : "") +
+      "shipped is " + Math.round(f.nowInset) + " · the cell yields to it, now " +
+      pt(p.cell) + " · max " + pt(p.maxInset) + " on this frame";
     $("vMid").textContent = (o.midFrac * 100).toFixed(1) + "%";
     $("hMid").textContent = "shipped is 50% · " + mm(d.h - mid) + " up from the bottom edge";
     var bottomShift = p.lxBottom - p.lx;
@@ -910,7 +925,7 @@
   });
 
   $("sPage").addEventListener("input", function () { state.opts.pagePct = +this.value / 100; markCustom(); render(); });
-  $("sInset").addEventListener("input", function () { state.opts.insetPct = +this.value / 100; markCustom(); render(); });
+  $("sInset").addEventListener("input", function () { state.opts.insetPt = +this.value; markCustom(); render(); });
   $("tAll").addEventListener("change", function () { state.all = this.checked; render(); });
   $("sMid").addEventListener("input", function () { state.opts.midFrac = +this.value / 100; markCustom(); render(); });
   $("sCell").addEventListener("input", function () { state.opts.cell = +this.value; markCustom(); render(); });
