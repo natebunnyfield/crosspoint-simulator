@@ -171,6 +171,57 @@ target_compile_definitions(crosspoint_core PUBLIC OMIT_FONTS)
 # firmware so nothing dangles or fails to compile without those TUs.
 target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_NETWORK=1)
 
+# --- Define parity gate ----------------------------------------------------
+#
+# Every define above is deliberately on crosspoint_core PUBLIC, because a
+# define that reaches only the app target reaches 7 of the 162 TUs and the
+# binary's two halves then disagree in silence. That has now happened twice
+# (CROSSPOINT_RENDER_SCALE, SIMULATOR_DEVICE_X3), and both times the symptom
+# surfaced somewhere unrelated to the cause.
+#
+# So: fail the CONFIGURE if the app target ever carries a define the core does
+# not. Cheap, mechanical, and it fires before a single TU is compiled — which
+# a reviewer noticing the word PRIVATE demonstrably does not.
+#
+# If a genuinely harness-only define is ever needed (something no firmware or
+# HAL TU can see by construction), add it to the allow-list below WITH the
+# reason it cannot go on the library.
+set(CROSSPOINT_HARNESS_ONLY_DEFINES
+  # <NAME> — why the core must not see it
+)
+get_target_property(_app_defs CrossPointX3 COMPILE_DEFINITIONS)
+get_target_property(_core_defs crosspoint_core COMPILE_DEFINITIONS)
+get_target_property(_core_iface_defs crosspoint_core INTERFACE_COMPILE_DEFINITIONS)
+foreach(_list _core_defs _core_iface_defs _app_defs)
+  if(NOT ${_list})
+    set(${_list} "")
+  endif()
+endforeach()
+foreach(_def IN LISTS _app_defs)
+  string(REGEX REPLACE "=.*$" "" _name "${_def}")
+  if(_name IN_LIST CROSSPOINT_HARNESS_ONLY_DEFINES)
+    continue()
+  endif()
+  set(_found FALSE)
+  foreach(_core_def IN LISTS _core_defs _core_iface_defs)
+    string(REGEX REPLACE "=.*$" "" _core_name "${_core_def}")
+    if(_core_name STREQUAL _name)
+      set(_found TRUE)
+      break()
+    endif()
+  endforeach()
+  if(NOT _found)
+    message(FATAL_ERROR
+      "'${_def}' is defined on the CrossPointX3 app target but not on "
+      "crosspoint_core. The firmware and the whole HAL are in crosspoint_core, "
+      "so this define reaches 7 TUs and misses ~155 of them — the binary's two "
+      "halves will disagree and nothing will say so at build time.\n"
+      "Move it to target_compile_definitions(crosspoint_core PUBLIC ...), or, "
+      "if it truly must not reach the library, add it to "
+      "CROSSPOINT_HARNESS_ONLY_DEFINES in ios/CMakeLists.txt with the reason.")
+  endif()
+endforeach()
+
 set_target_properties(CrossPointX3 PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/Info.plist
   XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${CROSSPOINT_IOS_BUNDLE_ID}

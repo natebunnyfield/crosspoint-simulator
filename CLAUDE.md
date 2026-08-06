@@ -43,14 +43,18 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Two real tests do exist in `tests/`, run them when touching input or sleep paths:
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Three real tests do exist in `tests/`, run them when touching input, sleep, or build-configuration paths:
 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
+c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
+  $(python3 tools/fw_include_flags.py) \
+  tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp -o /tmp/build_identity_test \
+  && /tmp/build_identity_test
 ```
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll).
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below.
 
 ## Architecture
 
@@ -119,6 +123,41 @@ The simulator is a collection of host-side reimplementations of the firmware's h
 the reported board capabilities aligned with the firmware SDK. X4 Pro uses the
 same 800x480 display geometry as X4 but adds touch, a capacitive Home key,
 frontlight state, inversion, and an RTC.
+
+**One device macro, one definition — and it goes on the LIBRARY.** The iOS
+build is two CMake targets: `crosspoint_core` (firmware + HAL, ~155 TUs) and
+`CrossPointX3` (the harness, 7). The X4 default in `BoardConfig.h` is *silent*,
+so a device macro that reaches only one target produces a binary whose halves
+disagree, compiles clean, and fails somewhere far away. It has happened twice:
+
+| Define | Set only on the app target | What shipped |
+|---|---|---|
+| `CROSSPOINT_RENDER_SCALE=2` | ~15 TestFlight builds | 1x glyphs while the pbxproj read 2x |
+| `SIMULATOR_DEVICE_X3` | builds 1–27 | firmware built an X4: no RTC, so every calendar sleep screen fell back to the stock logo screen; 800x480 panel under a harness laying out 792x528 |
+
+Every cross-cutting define therefore belongs on
+`target_compile_definitions(crosspoint_core PUBLIC ...)`, never `PRIVATE` on
+the app target. Three guards enforce it, and none of them is a reviewer
+remembering this paragraph:
+
+1. **Configure time** — [ios/CMakeLists.txt](ios/CMakeLists.txt) `FATAL_ERROR`s
+   if the app target carries any define the core does not. A genuinely
+   harness-only define goes in `CROSSPOINT_HARNESS_ONLY_DEFINES` *with its
+   reason*.
+2. **Boot** — the harness calls `verifyBuildIdentityMatchesCore()`
+   ([src/SimulatorBuildIdentity.h](src/SimulatorBuildIdentity.h)), comparing
+   device, logical geometry and render scale across the target boundary, and
+   aborts on any difference. A healthy launch logs
+   `[BUILD] iOS harness and firmware core agree: X3, 792x528 logical, 2x render scale`.
+   That log line is the fastest way to confirm what a build actually is.
+   `tests/build_identity_test.cpp` proves the abort fires per field.
+3. **Deploy** — [ios/testflight.sh](ios/testflight.sh) greps the generated
+   project for `SIMULATOR_DEVICE_X3` before archiving, so a wrong-device build
+   cannot reach TestFlight.
+
+The silent `#else` default in `BoardConfig.h` stays (owner ruling 2026-08-06):
+making an unnamed device an `#error` would break the firmware's `[env:simulator]`
+and every upstream consumer that never named a board.
 
 `HalGPIO::update` owns the SDL event pump for the whole simulator, do not poll SDL events elsewhere. If another layer needs to observe events (the iOS harness does), use `SDL_AddEventWatch` — it sees events as they are queued without consuming them, so neither side steals from the other. Scancodes map to button indices `BTN_BACK=0` through `BTN_POWER=6`. `SDL_EVENT_QUIT` sets the `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 
