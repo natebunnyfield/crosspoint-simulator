@@ -1,5 +1,6 @@
 #include "WebServer.h"
 
+#include "SimHostScreen.h"
 #include "SimulatorNetworkPorts.h"
 #include <Logging.h>
 #include <arpa/inet.h>
@@ -451,6 +452,9 @@ void WebServer::begin() {
   }
 
   impl_->active = true;
+  // A transfer is minutes of no user input; without this the host locks the
+  // screen, suspends the app, and the socket stops accepting mid-transfer.
+  sim_host_screen::setKeepAwake(true);
   impl_->worker = std::thread([this] {
     while (impl_->active) {
       const int client = ::accept(impl_->fd, nullptr, nullptr);
@@ -697,6 +701,7 @@ void WebServer::collectHeaders(const char **headers, size_t count) {
 
 void WebServer::stop() {
   impl_->active = false;
+  sim_host_screen::setKeepAwake(false);
   if (impl_->fd >= 0) {
     ::shutdown(impl_->fd, SHUT_RDWR);
     ::close(impl_->fd);

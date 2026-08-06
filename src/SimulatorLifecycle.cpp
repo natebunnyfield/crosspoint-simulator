@@ -83,4 +83,64 @@ void armRebootJump() { gRebootJumpArmed = true; }
   _exit(1);
 }
 
+void rebootAsFirmwareRestart() {
+  // Whether a firmware restart actually reboots the simulator.
+  //
+  // On iOS: yes, and it is faithful. The in-process reboot longjmps back into
+  // setup() without leaving the process, so the firmware's RTC_NOINIT globals
+  // -- silentRebootMagic and silentRebootTarget, which carry "come back up on
+  // Home" -- survive exactly as RTC memory survives a reset on hardware.
+  //
+  // On desktop: opt-in, because the reboot there is execvp() and those globals
+  // do NOT survive a new process. The firmware would reboot but lose the target
+  // it rebooted FOR, landing on the normal boot path instead of Home. That is
+  // still closer to hardware than today's do-nothing, but it is a behaviour
+  // change to a build that is the canary for everything else, and any QA script
+  // that passes through file transfer would relaunch mid-run. So desktop keeps
+  // the old no-op until someone can verify the real thing, and this variable is
+  // how they do it.
+  const char *enabled = std::getenv("CROSSPOINT_SIM_FIRMWARE_RESTART");
+  const bool set = enabled && *enabled;
+  const bool optedOut = set && std::strcmp(enabled, "0") == 0;
+
+#if CROSSPOINT_SIM_REBOOT_IN_PROCESS
+  const bool shouldReboot = !optedOut; // default on
+#else
+  const bool shouldReboot = set && !optedOut; // default off
+#endif
+
+  if (!shouldReboot) {
+    return;
+  }
+
+  // A restart is not a wake. Leaving the wake reason unset is the whole point
+  // of this function existing separately from rebootAsPowerWake().
+  unsetenv(kWakeReasonEnv);
+
+  // Loop safety, and the reason this cannot simply reuse the sleep path's
+  // promotion: a script that drives the firmware into a restart would otherwise
+  // replay from the top in the rebooted instance and restart again, forever.
+  // Clearing is the conservative choice -- an automated run that triggers a
+  // restart ends up idle rather than looping, which is visible instead of
+  // silent.
+  unsetenv(kInputScriptEnv);
+  unsetenv(kInputScriptAfterWakeEnv);
+
+#if CROSSPOINT_SIM_REBOOT_IN_PROCESS
+  if (gRebootJumpArmed) {
+    std::longjmp(gRebootJump, 1);
+  }
+  std::fputs("SimulatorLifecycle: restart requested before jump armed\n", stderr);
+  return;
+#else
+  if (!gArgv || !gArgv[0]) {
+    std::fputs("SimulatorLifecycle: missing argv for restart\n", stderr);
+    return;
+  }
+  execvp(gArgv[0], gArgv);
+  std::perror("execvp");
+  return;
+#endif
+}
+
 } // namespace SimulatorLifecycle

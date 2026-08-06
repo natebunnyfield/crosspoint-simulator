@@ -44,6 +44,8 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAppearance.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointFsPrep.cpp
   ${CROSSPOINT_SETTINGS_BUNDLE}
@@ -60,6 +62,8 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAppearance.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
 # Optional bundled font families. Point this at a build-sd-fonts.py output
