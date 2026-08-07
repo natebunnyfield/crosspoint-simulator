@@ -104,9 +104,13 @@ correct thing to show someone whose phone isn't on WiFi.
    error on `list(REMOVE_ITEM x ${undefined})`. The log prints
    `stripped 0 simulator + 0 firmware network/OTA TUs`. **Fixed in Phase 0.**
 
-2. **All 18 network TUs are in the iOS source set today.** Only
+2. ~~**All 18 network TUs are in the iOS source set today.** Only
    `CROSSPOINT_NO_NETWORK=1` keeps them out of the UI. Whether they still
-   compile for `arm64-apple-ios` is unverified.
+   compile for `arm64-apple-ios` is unverified.~~ **Resolved 2026-08-07.** They
+   compile and link: `crosspoint_core` and the `CrossPointX3` app target both
+   build for `arm64-apple-ios` with the network TUs in. `CROSSPOINT_NO_NETWORK`
+   is gone; `CROSSPOINT_NO_DEVICE_FLASH` now gates only OTA and SD Firmware
+   Update, and the exclusion list is down from 16 TUs to 4.
 
 3. **Both shim servers bind `INADDR_LOOPBACK`** (`WebServer.cpp:435`,
    `WebSocketsServer.cpp:349`) — reachable by nothing but the phone itself.
