@@ -85,14 +85,36 @@ static std::atomic<bool> textEntryActive{false};
 static std::mutex typedTextMutex;
 static std::string typedTextBuffer;
 
+static bool scancodeIsEnter(SDL_Scancode sc) {
+  return sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER ||
+         sc == SDL_SCANCODE_RETURN2;
+}
+
 // The scancodes that keep their button meaning while a text field is open.
 // Escape cancels the entry and the arrows move the on-screen grid selection --
 // both are things a typist still reaches for, and neither produces a
 // character. Every other key belongs to the text.
+//
+// RETURN IS IN THAT LIST TOO, and it is the whole reason this comment is long.
+// Return is BTN_CONFIRM, which is "Select" on every on-screen keyboard -- the
+// key that types the highlighted character. While a text field was open it was
+// swallowed here and queued as TYPED_COMMIT instead, so pressing Select on the
+// daisywheel committed the field and left the screen rather than typing. The
+// arrows survived, so the wheel still rotated; only picking was broken, which
+// is what made it read as "Select exits instead of typing".
+//
+// This was invisible to CROSSPOINT_SIM_INPUT_SCRIPT, which writes
+// syntheticButtonDown[] and never goes through a scancode at all -- so every
+// scripted run showed Select working while a human pressing the same key did
+// not. Worth remembering before trusting a scripted pass on an input bug.
+//
+// A host typist keeps a commit: Cmd+Return or Ctrl+Return, handled in update()
+// before this gate. Plain Return now belongs to the on-screen keyboard, which
+// is the default input method and has its own OK / RET key besides.
 static bool scancodeSurvivesTextEntry(SDL_Scancode sc) {
   return sc == SDL_SCANCODE_ESCAPE || sc == SDL_SCANCODE_LEFT ||
          sc == SDL_SCANCODE_RIGHT || sc == SDL_SCANCODE_UP ||
-         sc == SDL_SCANCODE_DOWN;
+         sc == SDL_SCANCODE_DOWN || scancodeIsEnter(sc);
 }
 
 static void queueTypedBytes(const char *bytes, size_t length) {
@@ -586,26 +608,31 @@ void HalGPIO::update() {
 
     // Text entry claims the keyboard first, before the scancode→button map
     // gets a look at it. Without this the letters of the password ARE the
-    // button map: P powers off, S sleeps, H is Home, Return is Confirm. Only
-    // Escape and the arrows fall through (scancodeSurvivesTextEntry).
+    // button map: P powers off, S sleeps, H is Home. Escape, the arrows and
+    // Return fall through (scancodeSurvivesTextEntry).
     if (textEntryActive.load()) {
       if (e.type == SDL_EVENT_TEXT_INPUT) {
         queueTypedBytes(e.text.text, e.text.text ? SDL_strlen(e.text.text) : 0);
+        continue;
+      }
+      // Cmd+Return / Ctrl+Return is the host typist's commit. Plain Return is
+      // BTN_CONFIRM and belongs to the on-screen keyboard's Select -- see the
+      // note on scancodeSurvivesTextEntry for why it may not be swallowed here.
+      // Checked BEFORE the survives-gate, which now lets plain Return through.
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          scancodeIsEnter(e.key.scancode) &&
+          (e.key.mod & (SDL_KMOD_GUI | SDL_KMOD_CTRL)) != 0) {
+        const char c = HalGPIO::TYPED_COMMIT;
+        queueTypedBytes(&c, 1);
         continue;
       }
       if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
           !scancodeSurvivesTextEntry(e.key.scancode)) {
         if (e.type == SDL_EVENT_KEY_DOWN) {
           // Backspace deliberately honours key repeat -- holding it to erase a
-          // word is the whole point. Return does not: one press, one commit.
+          // word is the whole point.
           if (e.key.scancode == SDL_SCANCODE_BACKSPACE) {
             const char c = HalGPIO::TYPED_BACKSPACE;
-            queueTypedBytes(&c, 1);
-          } else if (!e.key.repeat &&
-                     (e.key.scancode == SDL_SCANCODE_RETURN ||
-                      e.key.scancode == SDL_SCANCODE_KP_ENTER ||
-                      e.key.scancode == SDL_SCANCODE_RETURN2)) {
-            const char c = HalGPIO::TYPED_COMMIT;
             queueTypedBytes(&c, 1);
           }
         }
