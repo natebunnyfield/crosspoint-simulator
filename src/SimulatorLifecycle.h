@@ -42,6 +42,19 @@ WakeReason consumeWakeReason();
 // signature already does.
 void rebootAsFirmwareRestart();
 
+// The simulator relaunching itself to open a document Finder just handed it.
+//
+// Separate from both functions above because it is neither of the things they
+// model. It is not a wake, so it must not set the power-wake reason. And it is
+// not the firmware calling ESP.restart(), so it is not subject to that path's
+// desktop opt-in: rebootAsFirmwareRestart() defaults off on desktop because
+// execvp() loses the RTC_NOINIT globals the firmware restarts *for*, whereas
+// this restart carries its intent in APP_STATE on the card, which a new process
+// reads on the way up. Nothing is lost by exec'ing, so nothing gates it.
+//
+// Returns only on failure.
+void rebootForDocumentOpen();
+
 #if CROSSPOINT_SIM_REBOOT_IN_PROCESS
 // A deep-sleep wake is a chip reset on real hardware, and on desktop it is a
 // process relaunch via execvp(). Neither is available on iOS: the sandbox denies

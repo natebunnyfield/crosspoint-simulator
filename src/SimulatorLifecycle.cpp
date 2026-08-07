@@ -143,4 +143,23 @@ void rebootAsFirmwareRestart() {
 #endif
 }
 
+void rebootForDocumentOpen() {
+  // Not a wake. Same reasoning as rebootAsFirmwareRestart(): claiming a POWER
+  // press would send the firmware down the wrong boot path.
+  unsetenv(kWakeReasonEnv);
+
+  // Same loop safety as the restart path. A QA script that drives the simulator
+  // into a document open would otherwise replay from the top in the relaunched
+  // process and open it again, forever.
+  unsetenv(kInputScriptEnv);
+  unsetenv(kInputScriptAfterWakeEnv);
+
+  if (!gArgv || !gArgv[0]) {
+    std::fputs("SimulatorLifecycle: missing argv for document open\n", stderr);
+    return;
+  }
+  execvp(gArgv[0], gArgv);
+  std::perror("execvp");
+}
+
 } // namespace SimulatorLifecycle
