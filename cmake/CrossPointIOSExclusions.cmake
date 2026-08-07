@@ -17,32 +17,23 @@
 
 # Simulator HAL/shim TUs. Paths relative to this repo root.
 set(CROSSPOINT_IOS_EXCLUDED_SIM_SOURCES
+  # Dead in every configuration, not iOS-specific: the whole file sits behind
+  # #ifndef CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER and every consumer defines it.
   src/CrossPointWebServer.cpp
-  src/NetworkClient.cpp
-  src/WebServer.cpp
-  src/WebSocketsServer.cpp
-  src/qrcode.cpp
+  # The OTA stub goes out with the activity it serves.
   src/simulator_ota.cpp
 )
-
-# Firmware TUs. Paths relative to CROSSPOINT_FIRMWARE_DIR.
 set(CROSSPOINT_IOS_EXCLUDED_FW_SOURCES
-  src/WifiCredentialStore.cpp
-  src/activities/network/CrossPointWebServerActivity.cpp
-  src/activities/network/NetworkModeSelectionActivity.cpp
-  src/activities/network/WifiSelectionActivity.cpp
-  src/activities/settings/FontDownloadActivity.cpp
+  # Only what a phone genuinely cannot do.
+  #
+  # Networking came back when the iOS target grew a real radio (4a98ba8:
+  # CrossPointWiFi.mm over NetworkExtension, in-process HTTP, Bonjour, servers
+  # bound to all interfaces). Before that, excluding it was correct -- File
+  # Transfer drew a QR code pointing at 127.0.0.1 (B-008). After it, the
+  # exclusion was hiding features that work.
+  #
+  # These two write firmware to an ESP32 partition. That does not become
+  # possible; CROSSPOINT_NO_DEVICE_FLASH gates their menu entries to match.
   src/activities/settings/OtaUpdateActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
-  src/network/CrossPointWebServer.cpp
-  src/network/HttpDownloader.cpp
-  src/network/WebDAVHandler.cpp
-  src/network/WifiDiagnostics.cpp
-  # Claude chat needs a saved Wi-Fi credential (WifiCredentialStore, excluded
-  # above) and an API key read off the SD card. Neither exists on a phone, and
-  # linking it against the excluded store is what broke build 30's archive.
-  # HomeActivity hides the row under CROSSPOINT_NO_NETWORK to match.
-  src/notes/ClaudeChat.cpp
-  src/activities/util/ClaudeChatActivity.cpp
-  src/util/QrUtils.cpp
 )
