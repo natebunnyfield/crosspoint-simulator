@@ -43,7 +43,12 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Eight real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, or build-configuration paths:
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Eight real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, or build-configuration paths. `tests/run_all.sh` builds and runs the six host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The two shell tests are not in the runner: both need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport.
+
+```bash
+tests/run_all.sh
+```
+
 
 ```bash
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
