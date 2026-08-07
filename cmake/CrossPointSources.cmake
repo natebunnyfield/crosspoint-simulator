@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 1043a287cbca47291b608b8f3622f76e473a845c
-# TU counts  : 121 firmware, 20 simulator (6 C, 135 C++)
+# pinned at  : f4f9a5b9a4250283b6d490d004c38f4797a1111a
+# TU counts  : 129 firmware, 22 simulator (6 C, 145 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "1043a287cbca47291b608b8f3622f76e473a845c")
+set(CROSSPOINT_FIRMWARE_PIN "f4f9a5b9a4250283b6d490d004c38f4797a1111a")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -139,11 +139,13 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/settings/SdFirmwareUpdateActivity.cpp
   src/activities/settings/SettingsActivity.cpp
   src/activities/util/BmpViewerActivity.cpp
+  src/activities/util/ClaudeChatActivity.cpp
   src/activities/util/ConfirmationActivity.cpp
   src/activities/util/DaisyEntryActivity.cpp
   src/activities/util/FullScreenMessageActivity.cpp
   src/activities/util/IntervalSelectionActivity.cpp
   src/activities/util/KeyboardEntryActivity.cpp
+  src/activities/util/NoteEditorActivity.cpp
   src/activities/util/PrettyView.cpp
   src/activities/util/TextViewerActivity.cpp
   src/components/UITheme.cpp
@@ -156,6 +158,10 @@ set(CROSSPOINT_FW_SOURCES
   src/network/HttpDownloader.cpp
   src/network/WebDAVHandler.cpp
   src/network/WifiDiagnostics.cpp
+  src/notes/BleHidHost.cpp
+  src/notes/ClaudeChat.cpp
+  src/notes/EditorFonts.cpp
+  src/notes/KeyboardPanel.cpp
   src/util/BookCacheUtils.cpp
   src/util/ButtonNavigator.cpp
   src/util/DeviceId.cpp
