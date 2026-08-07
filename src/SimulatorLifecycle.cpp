@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <unistd.h>
 
 namespace {
@@ -43,8 +44,22 @@ WakeReason consumeWakeReason() {
     return WakeReason::None;
   }
 
+  // Copy before unsetting. getenv() hands back a pointer INTO the environment
+  // block, and unsetenv() frees that storage on macOS -- so comparing `value`
+  // after the unsetenv below is a use-after-free that reads an empty string,
+  // and the wake silently degrades to WakeReason::None. Measured: a program
+  // that setenv()s "power", getenv()s it, then unsetenv()s reads "" from the
+  // saved pointer immediately afterwards.
+  //
+  // It survived because the two callers differ in where the variable came from:
+  // a value inherited across execvp() lives in the original environ block,
+  // which unsetenv() unlinks without freeing, so the stale read happened to
+  // still see "power". Only a value planted with setenv() in the same process
+  // -- which is what restart_semantics_test does -- lands in malloc'd storage
+  // that is actually freed. Same undefined behaviour either way.
+  const std::string reason(value);
   unsetenv(kWakeReasonEnv);
-  if (std::strcmp(value, "power") == 0) {
+  if (reason == "power") {
     return WakeReason::PowerButton;
   }
   return WakeReason::None;
