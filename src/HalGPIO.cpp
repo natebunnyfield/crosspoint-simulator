@@ -640,6 +640,10 @@ void HalGPIO::update() {
         releasedThisFrame[btn] = true;
         if (buttonPressTime[btn] > 0)
           lastReleasedSpan = SDL_GetTicks() - buttonPressTime[btn];
+        // Clear it: a stale timestamp let a release-then-much-later level read
+        // report a hold of however long ago the press was. Only
+        // clearButtonState() used to reset this, at sleep entry.
+        buttonPressTime[btn] = 0;
       }
     } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                e.button.button == SDL_BUTTON_LEFT) {
@@ -739,6 +743,7 @@ void HalGPIO::injectButtonUp(uint8_t buttonIndex) {
   syntheticButtonDown[buttonIndex] = false;
   if (buttonPressTime[buttonIndex] > 0)
     lastReleasedSpan = SDL_GetTicks() - buttonPressTime[buttonIndex];
+  buttonPressTime[buttonIndex] = 0;  // see the note in update()'s key-up arm
 }
 
 void HalGPIO::setTextEntryActive(bool active) {
@@ -818,8 +823,14 @@ unsigned long HalGPIO::getHeldTime() const {
   bool anyPressed = false;
   // SDL3 returns const bool* here; SDL2 returned const Uint8*.
   const bool *state = SDL_GetKeyboardState(NULL);
+  const bool textOwnsKeyboard = textEntryActive.load();
   for (int i = 0; i < NUM_BUTTONS; i++) {
-    if ((state[buttonScancode[i]] || syntheticButtonDown[i]) &&
+    // Same rule as isPressed(): while a text field is open a held letter is
+    // text, not a held button. Without this, typing a word containing 'p' read
+    // as POWER being held and fired the long-press power-off.
+    const bool keyboardOwnsButton =
+        !textOwnsKeyboard || scancodeSurvivesTextEntry(buttonScancode[i]);
+    if (((keyboardOwnsButton && state[buttonScancode[i]]) || syntheticButtonDown[i]) &&
         buttonPressTime[i] > 0) {
       anyPressed = true;
       unsigned long held = now - buttonPressTime[i];
@@ -835,7 +846,14 @@ unsigned long HalGPIO::getHeldTime() const {
 unsigned long HalGPIO::getPowerButtonHeldTime() const {
   // SDL3 returns const bool* here; SDL2 returned const Uint8*.
   const bool *state = SDL_GetKeyboardState(NULL);
-  if ((!state[buttonScancode[BTN_POWER]] && !syntheticButtonDown[BTN_POWER]) ||
+  // Same rule as isPressed(): POWER's scancode is 'p' on the host keyboard, so
+  // while a text field is open it belongs to the text. The on-screen pad
+  // (syntheticButtonDown) never went through a scancode and is unaffected.
+  const bool keyboardOwnsPower =
+      !textEntryActive.load() ||
+      scancodeSurvivesTextEntry(buttonScancode[BTN_POWER]);
+  if ((!(keyboardOwnsPower && state[buttonScancode[BTN_POWER]]) &&
+       !syntheticButtonDown[BTN_POWER]) ||
       buttonPressTime[BTN_POWER] == 0)
     return 0;
   return SDL_GetTicks() - buttonPressTime[BTN_POWER];
