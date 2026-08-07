@@ -52,6 +52,20 @@ builds silently, at link time, in someone else's repo.
 **Close by:** leave it, and add a header comment saying who still needs it.
 Revisit only if every known consumer is confirmed to define the macro.
 
+### [ST-003] Read-aloud TTS on the iOS harness
+**scope: feature, two repos · asked for 2026-08-07**
+
+Apple speech (`AVSpeechSynthesizer`) reading the open book aloud on the phone:
+speak the page, auto page-turn at the bottom, per-word highlight, start from a
+tapped word. Behind a default-off toggle in Settings > CrossPoint X3. The full
+phased plan — channel contract, state machine, firmware work packages FW-A/FW-B,
+per-phase acceptance — is
+[.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md); it is written
+to be executed phase by phase without further design work.
+
+**Close by:** shipping Phase 4 of that plan and moving the owner-facing
+behaviour into ios/README.md, per the plan's bookkeeping section.
+
 ---
 
 ## Carried over from the firmware's tracker
