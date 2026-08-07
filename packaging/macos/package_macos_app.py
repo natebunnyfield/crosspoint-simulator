@@ -289,6 +289,28 @@ def cmd_build(args):
     if generated_icon:
         os.unlink(generated_icon.name)
 
+    # LSEnvironment: the environment a Finder-launched app gets.
+    #
+    # A .app launched from Finder inherits no shell, so the CROSSPOINT_SIM_*
+    # variables that select window scale and device-pixel sizing have nowhere to
+    # come from. Baking them here is the only way a packaged app can differ from
+    # the default build -- which is how the "device pixels" and "double size"
+    # Mac apps are meant to exist at all.
+    #
+    # This is set on the built plist rather than in Info.plist.in because the
+    # template only substitutes strings, and this is a dictionary whose keys are
+    # chosen per build.
+    if args.env:
+        environment = {}
+        for item in args.env:
+            key, sep, value = item.partition("=")
+            if not sep or not key:
+                raise PackagingError(
+                    "--env expects KEY=VALUE (got %r)" % item
+                )
+            environment[key] = value
+        info["LSEnvironment"] = environment
+
     write_plist(os.path.join(contents_dir, "Info.plist"), info)
     with open(os.path.join(contents_dir, "PkgInfo"), "w") as handle:
         handle.write("APPL????")
@@ -471,6 +493,14 @@ def build_parser():
         "--icon",
         help="path to an .icns file to install as the bundle icon "
         "(default: generated from the iOS app icon artwork)",
+    )
+    build.add_argument(
+        "--env",
+        action="append",
+        metavar="KEY=VALUE",
+        help="a variable to bake into LSEnvironment, repeatable. A Finder-launched "
+        "app inherits no shell, so this is the only way CROSSPOINT_SIM_* settings "
+        "reach one (e.g. --env CROSSPOINT_SIM_WINDOW_SCALE=2).",
     )
     build.add_argument(
         "--no-icon",
