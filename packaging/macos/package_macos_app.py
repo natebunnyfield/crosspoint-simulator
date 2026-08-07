@@ -285,7 +285,14 @@ def cmd_build(args):
     os.chmod(installed_binary, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     if icon_source:
-        shutil.copy2(icon_source, os.path.join(resources_dir, icon_file))
+        installed_icon = os.path.join(resources_dir, icon_file)
+        shutil.copy2(icon_source, installed_icon)
+        # copy2 preserves the source mode, and the generated icon comes out of
+        # NamedTemporaryFile at 0600 -- so the bundle would ship an icon only
+        # the packaging user can read. Any other account launching the app from
+        # /Applications gets the blank-document icon instead. A supplied --icon
+        # is normalised the same way for the same reason.
+        os.chmod(installed_icon, 0o644)
     if generated_icon:
         os.unlink(generated_icon.name)
 
@@ -418,7 +425,9 @@ def cmd_verify(args):
     if icon_problem:
         print("%s %s" % (plist_path, icon_problem), file=sys.stderr)
         print(
-            "\nApp Store review rejects a submission with no app icon. Rebuild with:"
+            "\nAn icon that is missing -- or unreadable, which looks the same to"
+            "\nevery account but the one that built the bundle -- fails App Store"
+            "\nreview. Rebuild with:"
             "\n  python3 %s build --binary <binary> --device <device>"
             "\n(the icon is generated from the iOS artwork; --no-icon opts out)"
             % _invocation_path(),
@@ -442,8 +451,16 @@ def _icon_problem(plist_path, contents):
 
     # CFBundleIconFile may omit the .icns extension, which macOS supplies.
     name = icon_file if icon_file.endswith(".icns") else icon_file + ".icns"
-    if not os.path.isfile(os.path.join(contents_dir, "Resources", name)):
+    installed_icon = os.path.join(contents_dir, "Resources", name)
+    if not os.path.isfile(installed_icon):
         return "names icon %s, which is not in Contents/Resources." % icon_file
+
+    # A present-but-unreadable icon fails the same way a missing one does for
+    # every account except the one that built the bundle, and looks fine to the
+    # builder. Cheap to check here, invisible otherwise.
+    mode = stat.S_IMODE(os.stat(installed_icon).st_mode)
+    if not mode & stat.S_IRGRP or not mode & stat.S_IROTH:
+        return "installs icon %s as %04o, which other users cannot read." % (icon_file, mode)
     return None
 
 
