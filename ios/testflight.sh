@@ -145,22 +145,38 @@ say "Verify device profile"
 # the define is set can ship a wrong-device archive.
 PBXPROJ="$BUILD_DIR/crosspoint_simulator.xcodeproj/project.pbxproj"
 [[ -f "$PBXPROJ" ]] || { echo "ERROR: no project at $PBXPROJ"; exit 1; }
-if python3 - "$PBXPROJ" <<'PY'
-import re, sys
-text = open(sys.argv[1]).read()
-# Xcode splits GCC_PREPROCESSOR_DEFINITIONS per target + configuration; the
-# library's Release block is the one that governs the archive.
-blocks = re.findall(r'GCC_PREPROCESSOR_DEFINITIONS\s*=\s*\((.*?)\);', text, re.S)
-ok = any('SIMULATOR_DEVICE_X3' in b for b in blocks)
-sys.exit(0 if ok else 1)
-PY
-then
-  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3"
+# Ask xcodebuild what crosspoint_core actually resolves, rather than scanning
+# the pbxproj text. The previous check regex'd EVERY
+# GCC_PREPROCESSOR_DEFINITIONS block and passed if ANY of them mentioned the
+# define, with no way to tell which target a block belonged to -- which is
+# exactly the bug it exists to catch. A define set PRIVATE on the app target
+# alone still puts the string in a block, so the guard went green on the broken
+# build. -showBuildSettings is scoped to the target and reports what the
+# compiler is actually handed. Costs ~2s.
+#
+# Render scale is checked alongside the device because it is the same class of
+# failure: ~15 TestFlight builds shipped 1x glyphs while the pbxproj read 2x.
+CORE_DEFS=$(xcodebuild -project "$BUILD_DIR/crosspoint_simulator.xcodeproj" \
+              -target crosspoint_core -configuration Release -showBuildSettings 2>/dev/null \
+            | grep -E '^[[:space:]]*GCC_PREPROCESSOR_DEFINITIONS =' || true)
+MISSING=""
+for d in SIMULATOR_DEVICE_X3 "CROSSPOINT_RENDER_SCALE=2"; do
+  case "$CORE_DEFS" in
+    *"$d"*) ;;
+    *) MISSING="$MISSING $d" ;;
+  esac
+done
+if [[ -z "$MISSING" ]]; then
+  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3 and CROSSPOINT_RENDER_SCALE=2"
 else
-  echo "ERROR: SIMULATOR_DEVICE_X3 does not appear in the generated project's"
-  echo "  preprocessor definitions. This archive would ship an X4 build of the"
-  echo "  firmware: no RTC, wrong panel geometry (800x480 vs 792x528), and the"
-  echo "  calendar sleep screens fall back to the stock logo screen."
+  echo "ERROR: crosspoint_core is missing:$MISSING"
+  echo "  These are the defines the FIRMWARE compiles against, so the archive"
+  echo "  would ship a binary whose halves disagree. Without SIMULATOR_DEVICE_X3"
+  echo "  the firmware builds an X4: no RTC, wrong panel geometry (800x480 vs"
+  echo "  792x528), and calendar sleep screens fall back to the stock logo"
+  echo "  screen. Without CROSSPOINT_RENDER_SCALE=2 it ships 1x glyphs."
+  echo "  Both have shipped before. Set the define on crosspoint_core (PUBLIC),"
+  echo "  never PRIVATE on the app target."
   exit 1
 fi
 
