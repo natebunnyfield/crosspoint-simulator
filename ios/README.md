@@ -818,16 +818,25 @@ resetting it in `setup()`, next to the same reset for `deepSleepInProgress`.
   (`ImuType::Qmi8658` in the X3 board profile), and forcing it false would hide a
   capability the hardware exposes. Known, accepted dead zone.
 - **Physical device.** Signing identities exist; no iPhone Air is paired.
-- **WiFi.** In progress — [WIFI.md](WIFI.md) is the plan and the running state.
-  The radio backend ([CrossPointWiFi.mm](CrossPointWiFi.mm)) and the bind-address
-  switch have landed; real mDNS, the in-process HTTP client and the firmware's
-  gate split have not, and `CROSSPOINT_NO_NETWORK=1` still keeps the screens out
-  of the build. A phone cannot impersonate the X3's radio — no scan API, no soft
-  AP — but peer transfer does not need either: it happens over whatever WiFi the
-  phone is already on. **None of it has been built for iOS**; there is no Mac in
-  the loop, so the Apple-only paths are covered only by
-  [../tests/wifi_host_test.cpp](../tests/wifi_host_test.cpp), which tests the
-  logic against a scripted backend.
+- **WiFi.** Landed. [WIFI.md](WIFI.md) is the plan and the running state. The
+  radio backend ([CrossPointWiFi.mm](CrossPointWiFi.mm)), the bind-address
+  switch, Bonjour (`ESP.cpp`) and the in-process HTTP client
+  ([CrossPointHttp.mm](CrossPointHttp.mm)) are all in, and the firmware's gate
+  split happened on 2026-08-07: `CROSSPOINT_NO_NETWORK` is gone, replaced by the
+  narrower `CROSSPOINT_NO_DEVICE_FLASH`, which gates only OTA and SD Firmware
+  Update — the two things that write an ESP32 partition a phone does not have.
+  Wi-Fi Networks, File Transfer, font downloads and Claude are all in the iOS
+  build and reachable from the UI.
+
+  A phone still cannot impersonate the X3's radio — no scan API, no soft AP —
+  but peer transfer needs neither: it happens over whatever WiFi the phone is
+  already on. The Apple-only paths have no automated coverage; there is no Mac
+  in the loop for them, so [../tests/wifi_host_test.cpp](../tests/wifi_host_test.cpp)
+  exercises the logic against a scripted backend and the rest is device
+  observation. **Compiling and linking is now verified** — `crosspoint_core` and
+  the `CrossPointX3` app target both build for `arm64-apple-ios` with every
+  network TU included — but "the transfer actually works from another machine"
+  is still unconfirmed on hardware.
 
 ## Rejected reading-UX proposals — do not re-propose
 
