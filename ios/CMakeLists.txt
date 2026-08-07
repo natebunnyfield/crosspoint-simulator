@@ -177,10 +177,20 @@ target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=2)
 # CalendarSleepScreen and getReaderFontId() both already handle OMIT_FONTS.
 target_compile_definitions(crosspoint_core PUBLIC OMIT_FONTS)
 
-# Network/OTA/SD-flash TUs are excluded from the iOS source set (see root
-# CMakeLists.txt). This define gates their menu entries and includes in the
-# firmware so nothing dangles or fails to compile without those TUs.
-target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_NETWORK=1)
+# Firmware-flash TUs (OTA, SD Firmware Update) are excluded from the iOS source
+# set -- see cmake/CrossPointIOSExclusions.cmake. This define gates their menu
+# entries and includes so nothing dangles or fails to compile without them.
+#
+# It used to be CROSSPOINT_NO_NETWORK, which also took Wi-Fi, File Transfer,
+# font downloads and Claude with it. That was right when the iOS build had no
+# radio -- WiFi.scanNetworks() returned a synthetic list and localIP() was
+# hardcoded to 127.0.0.1, so File Transfer drew a QR code pointing at loopback
+# (B-008). It stopped being right at 4a98ba8, which gave the target
+# CrossPointWiFi.mm over NetworkExtension, in-process HTTP, Bonjour, and servers
+# bound to all interfaces. Keeping the wider flag after that was suppressing
+# features the app can actually run. Flashing an ESP32 partition from a phone is
+# the only part that stays impossible, so the name now says only that.
+target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_DEVICE_FLASH=1)
 
 # --- Define parity gate ----------------------------------------------------
 #
