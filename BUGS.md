@@ -22,6 +22,43 @@ was found, and what closing it requires.
 
 ## OPEN
 
+### [S-009] The pad contrast dial had its resolution in the wrong place
+**severity: medium · scope: iOS settings · FIXED 2026-08-07 · `258bb14`**
+
+Two reports, one cause: "missing all the steps between default and invisible",
+and "I can't select black for dark".
+
+Nine of the nineteen rows bought nothing, and the shim's own comment said so:
+on the light side the paper is 4 levels off white, so `+1..+9` spanned
+`FBFBF9 -> FFFFFD` — 1.00:1 to 1.03:1, several rows pixel-identical. Meanwhile
+the two rows an owner most wants to choose between, the default (`-1`, 1.36:1)
+and invisible (`0`), were **adjacent integers with nothing in between**. All the
+resolution sat where nobody could see it and none where it mattered.
+
+Those rows were spent on the gap instead. Light `+1..+9` now give 1.3 / 1.24 /
+1.2 / 1.15 / 1.11 / 1.08 / 1.05 / 1.04 / 1.02; dark `-1..-8` give 1.38 / 1.29 /
+1.22 / 1.16 / 1.11 / 1.08 / 1.04 / 1.02.
+
+**Black was already reachable in dark** — level `-9` is field `121212` plus a
+`-18` delta, i.e. `000000` — but its row read "Darker than the field — 1.12:1",
+which names a ratio and never says black. Undiscoverable, not absent. It is
+labelled `1.12:1 — black` now, and kept last because 1.12:1 against the field
+really is low contrast; what earns it a row is that it vanishes into a
+true-black page on OLED.
+
+Ratios are computed from sRGB relative luminance rather than estimated, because
+the delta tables and Root.plist's row labels have to agree — the standard the
+existing comment sets. Root.plist is reordered strongest -> invisible, which is
+display order only: `Titles` and `Values` are parallel arrays, so the stored
+integers are unchanged and an existing selection still means what it meant.
+
+**Verified:** the `+/-1` default rows are untouched, so a pad left alone is
+pixel-identical; all six `static_assert`s (which pin the defaults and the 3:1,
+black and white rungs) still hold, confirmed by compiling the shim rather than
+by reading it; `plutil -lint` passes; every specifier still offers its own
+DefaultValue. Both group footers, which described the old dead zone, were
+rewritten — they were about to become false documentation.
+
 ### [S-004] `getFrameBuffer()` can return null and five callers dereference it
 **severity: high · scope: display · found 2026-08-07**
 
