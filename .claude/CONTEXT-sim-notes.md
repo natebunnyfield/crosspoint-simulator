@@ -2,7 +2,16 @@
 
 ## What This Is
 
-A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware. Compiles the firmware as a native binary (PlatformIO `platform = native`) and renders the e-ink display in an SDL2 window. Now supports macOS, Linux, and WSL — Windows native is not supported.
+> **This file was written against SDL2 and the port to SDL3 did not update it.**
+> API names were corrected on 2026-08-07 (`SDL_RenderCopyEx` ->
+> `SDL_RenderTextureRotated`, `SDL_WINDOW_ALLOW_HIGHDPI` ->
+> `SDL_WINDOW_HIGH_PIXEL_DENSITY`, `SDL_RenderSetLogicalSize` ->
+> `SDL_SetRenderLogicalPresentation`, the global scale-quality hint -> per-texture
+> `SDL_SetTextureScaleMode`). The reasoning and bug history around them are
+> unchanged and still accurate. If something here still names an SDL2 symbol,
+> trust `src/HalDisplay.cpp` over this file.
+
+A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware. Compiles the firmware as a native binary (PlatformIO `platform = native`) and renders the e-ink display in an SDL3 window. Now supports macOS, Linux, and WSL — Windows native is not supported.
 
 The repo ships as a PlatformIO library; downstream firmware adds it as a `lib_dep` named `simulator` and configures an `[env:simulator]` environment that builds with `-DSIMULATOR`.
 
@@ -16,7 +25,7 @@ The simulator builds and runs on macOS and Linux/WSL. Portrait orientation is co
 
 - macOS: `brew install sdl2`
 - Debian/Ubuntu/WSL: `sudo apt install libsdl2-dev libssl-dev`
-- Fedora/RHEL: `sudo dnf install SDL2-devel openssl-devel`
+- Fedora/RHEL: `sudo dnf install SDL3-devel openssl-devel`
 - Arch: `sudo pacman -S sdl2 openssl`
 
 Linux/WSL needs OpenSSL because [MD5Builder_linux.h](src/MD5Builder_linux.h) wraps `openssl/md5.h` instead of the macOS `CommonCrypto` path used in [MD5Builder.h](src/MD5Builder.h).
@@ -55,7 +64,7 @@ pio run -e simulator -t run_simulator
 
 **Display thread model.** SDL on macOS requires all SDL calls happen on the main thread, but firmware drives rendering from a FreeRTOS render task (now a `std::thread`). The split: [HalDisplay::refreshDisplay](src/HalDisplay.cpp) (background thread) converts the 1bpp framebuffer to ARGB pixels and sets an atomic `pendingPresent` flag. [HalDisplay::presentIfNeeded](src/HalDisplay.cpp) (called from `simulator_main` on the main thread) uploads to the texture, applies orientation rotation, and calls `SDL_RenderPresent`.
 
-**Orientation.** The renderer's `rotateCoordinates` writes content into the physical landscape buffer rotated 90° CCW for `Portrait` (and 90° CW for `PortraitInverted`). The simulator undoes this with `SDL_RenderCopyEx` rotation:
+**Orientation.** The renderer's `rotateCoordinates` writes content into the physical landscape buffer rotated 90° CCW for `Portrait` (and 90° CW for `PortraitInverted`). The simulator undoes this with `SDL_RenderTextureRotated` rotation:
 
 | Orientation        | SDL angle |
 | ------------------ | --------- |
@@ -63,9 +72,9 @@ pio run -e simulator -t run_simulator
 | `PortraitInverted` | `−90.0`   |
 | `Landscape*`       | `0`       |
 
-`SDL_RenderCopyEx` rotates around the dst rect's centre, so the dst rect is landscape-oriented (`{−80, 80, 400, 240}`) for portrait modes; after rotation it fills the portrait window.
+`SDL_RenderTextureRotated` rotates around the dst rect's centre, so the dst rect is landscape-oriented (`{−80, 80, 400, 240}`) for portrait modes; after rotation it fills the portrait window.
 
-**Rendering quality.** `SDL_WINDOW_ALLOW_HIGHDPI` plus `SDL_RenderSetLogicalSize` keeps logic in window coords while letting macOS use full Retina pixels. `SDL_HINT_RENDER_SCALE_QUALITY=1` (must be set before texture creation) enables bilinear filtering so Bayer-dithered grays don't show as harsh black/white stripes.
+**Rendering quality.** `SDL_WINDOW_HIGH_PIXEL_DENSITY` plus `SDL_SetRenderLogicalPresentation` keeps logic in panel coords while letting macOS use full Retina pixels. Filtering is set PER TEXTURE with `SDL_SetTextureScaleMode` (`src/HalDisplay.cpp:519`), which SDL3 requires to come *after* `SDL_CreateTexture` — the SDL2 global hint `SDL_HINT_RENDER_SCALE_QUALITY` no longer exists. Without it, Bayer-dithered grays show as harsh black/white stripes on Retina.
 
 **Filesystem.** [HalStorage](src/HalStorage.cpp) uses POSIX file descriptors (`::open` / `::read` / `::write` / `lseek` / `fsync`) — not `std::fstream`. fstream's separate get/put pointers, eofbit-blocks-seek behaviour, and write-only mode restrictions caused several silent-corruption bugs early on; POSIX fds avoid all of them. `HalStorage::open()` `stat()`s the path and routes to `openAsDir` (DIR\*) or file-open. Directory iteration uses `readdir`/`rewinddir`, skipping any entry starting with `.`. All paths are prefixed with `./fs_` so the simulator's filesystem is sandboxed in a single directory under the binary's working dir.
 
@@ -252,10 +261,10 @@ upstream consumer that never named a board.
 
 ### Mac App Store purpose strings (2026-07-31)
 
-- App Store Connect rejected the CrossPoint X3 upload (version 0.1.0, build 1) with ITMS-90683 for a missing `NSCameraUsageDescription`, and warned about `NSBluetoothAlwaysUsageDescription`. The simulator only calls `SDL_Init(SDL_INIT_VIDEO)` — the flagged APIs come from Apple's static scan of the linked SDL2 library, which references camera and game-controller (Bluetooth) APIs. Apple requires the purpose string regardless of whether the app calls them.
+- App Store Connect rejected the CrossPoint X3 upload (version 0.1.0, build 1) with ITMS-90683 for a missing `NSCameraUsageDescription`, and warned about `NSBluetoothAlwaysUsageDescription`. The simulator only calls `SDL_Init(SDL_INIT_VIDEO)` — the flagged APIs come from Apple's static scan of the linked SDL library, which references camera and game-controller (Bluetooth) APIs. Apple requires the purpose string regardless of whether the app calls them.
 - The repo had no bundle packaging at all, so there was no `Info.plist` to fix. New [packaging/macos/Info.plist.in](packaging/macos/Info.plist.in) holds the strings and is the single source of truth; [packaging/macos/package_macos_app.py](packaging/macos/package_macos_app.py) has `build` (wrap a binary in a `.app`), `patch` (inject missing keys into a bundle built elsewhere, preserving binary-plist format), and `verify` (non-zero exit before upload).
 - `run_simulator.py` registers a `package_macos_app` target under its own `builtins` sentinel. All path resolution happens inside the target action, never at script-load time, so a packaging problem cannot break ordinary simulator builds. The library checkout is found via `__file__` first, then a `$PROJECT_LIBDEPS_DIR/$PIOENV` scan, because SCons does not guarantee `__file__` in SConscript globals.
-- Not covered: code signing, notarization, and embedding the SDL2 dylib. Bundle id and build number are caller-supplied — a wrong bundle id or a reused build number fails the upload for reasons unrelated to purpose strings.
+- Not covered: code signing, notarization, and embedding the SDL dylib. Bundle id and build number are caller-supplied — a wrong bundle id or a reused build number fails the upload for reasons unrelated to purpose strings.
 
 ### TestFlight deploy path (2026-07-31)
 
@@ -279,9 +288,9 @@ These shaped the current code; details kept short since the fixes are already in
 
 **Black screen** — `clearScreen` was writing to the SDL pixel array instead of the framebuffer; now `memset(getFrameBuffer(), color, BUFFER_SIZE)`.
 
-**Sideways / upside-down portrait** — Two bugs: (1) Portrait and PortraitInverted had their SDL rotation angles swapped (renderer stores Portrait CCW → SDL must rotate +90° CW to undo); (2) `SDL_RenderCopyEx` rotates around dst centre, so the rect must be landscape-shaped and centre-offset, not portrait-shaped.
+**Sideways / upside-down portrait** — Two bugs: (1) Portrait and PortraitInverted had their SDL rotation angles swapped (renderer stores Portrait CCW → SDL must rotate +90° CW to undo); (2) `SDL_RenderTextureRotated` rotates around dst centre, so the rect must be landscape-shaped and centre-offset, not portrait-shaped.
 
-**Dithered UI showed harsh stripes** — Add `SDL_WINDOW_ALLOW_HIGHDPI`, `SDL_RenderSetLogicalSize`, and `SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")` *before* `SDL_CreateTexture`.
+**Dithered UI showed harsh stripes** — Add `SDL_WINDOW_HIGH_PIXEL_DENSITY` and `SDL_SetRenderLogicalPresentation`, then `SDL_SetTextureScaleMode` *after* `SDL_CreateTexture`. (Originally fixed under SDL2 with the global `SDL_HINT_RENDER_SCALE_QUALITY` hint set *before* creation; SDL3 removed that hint and made it per-texture, which inverted the ordering requirement.)
 
 **"Program quit unexpectedly" on window close** — Replaced `exit(0)` from the SDL handler with `quitRequested.store(true)`; main loop checks `display.shouldQuit()`. (Later strengthened with `_exit(0)` after `SDL_Quit` — see Recent Changes.)
 
