@@ -184,18 +184,20 @@ public:
 
 HalFile::HalFile() : impl(new Impl()) {}
 HalFile::~HalFile() {
-  if (impl && impl->fd >= 0) {
-    ::close(impl->fd);
-    impl->fd = -1;
-  }
+  // close() releases BOTH handles; this used to inline only the fd half, so a
+  // HalFile holding a directory (openNextFile, and HalStorage::open on a dir)
+  // leaked its DIR* and the fd under it. Walking the two font roots and
+  // recursing Manage Files leaked one per directory until open() started
+  // failing with EMFILE -- which surfaces as books that stop loading, naming an
+  // innocent file in the log.
+  if (impl)
+    close();
 }
 HalFile::HalFile(HalFile &&other) : impl(std::move(other.impl)) {}
 HalFile &HalFile::operator=(HalFile &&other) {
   if (this != &other) {
-    if (impl && impl->fd >= 0) {
-      ::close(impl->fd);
-      impl->fd = -1;
-    }
+    if (impl)
+      close();  // both handles -- see the note on ~HalFile
     impl = std::move(other.impl);
   }
   return *this;

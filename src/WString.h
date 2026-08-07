@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 #include <string>
 
 class String {
@@ -64,7 +65,13 @@ public:
   char charAt(size_t index) const {
     return index < s.length() ? s[index] : '\0';
   }
-  long toInt() const { return std::stoi(s); }
+  // Arduino's String::toInt() returns 0 for anything unparseable and never
+  // throws, so no firmware call site has a try. std::stoi throws
+  // invalid_argument on empty/non-numeric input and out_of_range past INT_MAX,
+  // which took the whole process down -- e.g. server.arg("page").toInt() on a
+  // missing query arg, since argByName() returns String(""). strtol matches
+  // Arduino: it parses a leading integer if there is one and yields 0 if not.
+  long toInt() const { return std::strtol(s.c_str(), nullptr, 10); }
   int read() const {
     if (readPos < s.length())
       return s[readPos++];
