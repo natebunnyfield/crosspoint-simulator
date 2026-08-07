@@ -498,7 +498,10 @@ constexpr Palette kDarkPalette{{0x12, 0x12, 0x12},
 //
 //   light outline  -9 000000 20.3:1 | -8 292927 14:1 | -7 40403E 10:1
 //                  -6 565654  7:1   | -5 747472 4.5:1| -4 929290  3:1
-//                  -3 B4B4B2  2:1   | -2 C3C3C1 1.7:1| -1 D9D9D7 1.4:1 (default)
+//                  -3 B4B4B2  2:1   | -2 C3C3C1 1.7:1| -1 D9D9D7 1.36:1 (default)
+//                  +1 DEDEDC 1.3:1  | +2 E3E3E1 1.24:1| +3 E7E7E5 1.2:1
+//                  +4 EBEBE9 1.15:1 | +5 EFEFED 1.11:1| +6 F2F2F0 1.08:1
+//                  +7 F5F5F3 1.05:1 | +8 F7F7F5 1.04:1| +9 F9F9F7 1.02:1
 //   light fill     -9 000000 20.3:1 | -8 40403E 10:1 | -7 565654   7:1
 //                  -6 747472 4.5:1  | -5 929290  3:1 | -4 B4B4B2   2:1
 //                  -3 CFCFCD 1.5:1  | -2 DEDEDC 1.3:1| -1 EDEDEB 1.13:1 (default)
@@ -513,12 +516,30 @@ constexpr Palette kDarkPalette{{0x12, 0x12, 0x12},
 // where the outline runs 1.7 / 2 / 3 -- because a wash covers a whole cell and
 // a stroke covers a line, and equal ratios do not read as equal emphasis.
 //
-// EACH APPEARANCE'S OTHER DIRECTION RUNS TO ITS GAMUT END TOO, and on the light
-// side that is a dead zone by construction: the paper is already 4 levels off
-// white, so +1..+9 spans four distinct tones (FBFBF9 -> FFFFFD, 1.00:1 to
-// 1.03:1) and several rows repeat. The rows are kept, honestly labelled, and
-// the group's FooterText says so. Dark's -1..-9 steps two levels at a time down
-// to black and needs no such caveat.
+// THE OTHER DIRECTION IS WHERE THE RESOLUTION LIVES NOW. It used to run to each
+// appearance's opposite gamut end, which on the light side was a dead zone by
+// construction -- the paper is 4 levels off white, so +1..+9 spanned FBFBF9 ->
+// FFFFFD, i.e. 1.00:1 to 1.03:1, and several rows were pixel-identical. Nine of
+// nineteen rows bought nothing, while the two rows an owner most wants to choose
+// between -- the default and invisible -- were ADJACENT INTEGERS with nothing in
+// between. Reported exactly that way: "missing all the steps between default and
+// invisible".
+//
+// So the dead rows were spent on that gap instead. Light +1..+9 and dark -1..-8
+// now step from just under the default down to just above invisible, which is
+// the whole range a reading surface actually cares about.
+//
+// Dark keeps -9 = BLACK (field 121212 + -18 = 000000). It is only 1.12:1 against
+// the field and so reads as a LOW-contrast row, which is why it sits at the end
+// of the list rather than the top -- but on an OLED panel it is the one tone
+// that vanishes into a true-black page, and it was previously reachable only by
+// picking a row labelled "Darker than the field -- 1.12:1", which named a ratio
+// and never said black. It says black now.
+//
+// Root.plist orders its rows most-visible -> invisible (then black, for dark),
+// which is display order only: Titles and Values are parallel arrays, so the
+// stored integers are unchanged and an existing selection still means what it
+// meant. The +/-1 default rows are untouched, which the static_asserts pin.
 constexpr int kContrastMin = -9;
 constexpr int kContrastMax = 9;
 constexpr int kContrastOffset = -kContrastMin;
@@ -526,16 +547,16 @@ constexpr int kContrastLevels = kContrastMax - kContrastMin + 1;
 
 constexpr int16_t kOutlineDeltaLight[kContrastLevels] = {
     -251, -210, -187, -165, -135, -105, -71, -56, -34, 0,
-    0,    1,    1,    2,    2,    3,    3,   4,   4};
+    -29,  -24,  -20,  -16,  -12,  -9,   -6,  -4,  -2};
 constexpr int16_t kFillDeltaLight[kContrastLevels] = {
     -251, -187, -165, -135, -105, -71, -44, -29, -14, 0,
-    0,    1,    1,    2,    2,    3,   3,   4,   4};
+    -12,  -10,  -8,   -7,   -6,   -5,  -4,  -3,  -2};
 constexpr int16_t kOutlineDeltaDark[kContrastLevels] = {
-    -18, -16, -14, -12, -10, -8,  -6,  -4,  -2,  0,
-    33,  43,  53,  79,  107, 141, 172, 205, 237};
+    -18, 2,  5,  8,  11,  15,  19,  23,  28,  0,
+    33,  43, 53, 79, 107, 141, 172, 205, 237};
 constexpr int16_t kFillDeltaDark[kContrastLevels] = {
-    -18, -16, -14, -12, -10, -8,  -6,  -4,  -2,  0,
-    14,  24,  34,  53,  79,  107, 141, 172, 237};
+    -18, 2,  4,  5,  6,  7,   8,   10,  12,  0,
+    14,  24, 34, 53, 79, 107, 141, 172, 237};
 
 constexpr int clampLevel(int level) {
   return level < kContrastMin ? kContrastMin
