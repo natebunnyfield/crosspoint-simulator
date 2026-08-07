@@ -1,306 +1,271 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  Settings > CrossPoint X3.
-
-  THIS FILE IS THE SOURCE OF TRUTH FOR THE DEFAULTS.
-
-  A Settings.bundle needs its defaults stated twice — DefaultValue decides what
-  Settings.app DISPLAYS for an untouched key, registerDefaults decides what
-  -boolForKey: RETURNS for it, and neither can see the other. Rather than write
-  them out twice and hope they stay in step, CrossPointPrefs.mm reads this file
-  at launch and builds its registration domain from these DefaultValues.
-
-  So: edit defaults HERE, and only here. Adding another switch needs no code
-  change at all — give it a Key and a DefaultValue and it is registered.
-
-  Keys still have to match the ones CrossPointPrefs.mm reads; checkKnown() there
-  logs a key that is missing from this file rather than silently answering NO.
--->
 <plist version="1.0">
 <dict>
-  <key>StringsTable</key>
-  <string>Root</string>
-  <key>PreferenceSpecifiers</key>
-  <array>
-    <dict>
-      <key>Type</key>
-      <string>PSGroupSpecifier</string>
-      <key>Title</key>
-      <string>Screen</string>
-      <key>FooterText</key>
-      <string>CrossPoint holds the screen on while you read. Turn these off to keep it awake instead — useful propped on a stand, where the screen dimming mid-page is the interruption.</string>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSToggleSwitchSpecifier</string>
-      <key>Title</key>
-      <string>Allow Device to Sleep on Battery</string>
-      <key>Key</key>
-      <string>allowSleepOnBattery</string>
-      <key>DefaultValue</key>
-      <true/>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSToggleSwitchSpecifier</string>
-      <key>Title</key>
-      <string>Allow Device to Sleep While Charging</string>
-      <key>Key</key>
-      <string>allowSleepWhileCharging</string>
-      <key>DefaultValue</key>
-      <true/>
-    </dict>
-
-    <!--
-      Button pad contrast.
-
-      The pad's controls are hollow: a one-pixel outline around nothing, and a
-      wash laid inside it while a control is held. These four pickers set how far
-      each of those two tones sits from the page behind it, separately for light
-      and dark appearance, because the two have opposite headroom (the paper is 4
-      levels off white, the dark field is 18 off black).
-
-      The scale is signed and shared by all four. 0 means the tone EQUALS the
-      field — 1:1, i.e. nothing is drawn. Negative is darker than the field,
-      positive is lighter, and +/-9 is the end of the gamut (black or white).
-      Each row is labelled with its real measured contrast ratio against that
-      appearance's field, so 3:1 is a row you can pick rather than a number to
-      work out. The shipped tones are the +/-1 rows and are the defaults.
-    -->
-    <dict>
-      <key>Type</key>
-      <string>PSGroupSpecifier</string>
-      <key>Title</key>
-      <string>Button Pad — Light Appearance</string>
-      <key>FooterText</key>
-      <string>Contrast against the page, measured. 0 draws nothing; 3:1 meets WCAG 1.4.11 for an unlabelled control. The lighter-than-the-page rows exist for symmetry and are close to useless: the paper is already near white, so they span four tones between 1.00:1 and 1.03:1 and several of them repeat.</string>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSMultiValueSpecifier</string>
-      <key>Title</key>
-      <string>Outline Contrast</string>
-      <key>Key</key>
-      <string>padOutlineContrastLight</string>
-      <key>DefaultValue</key>
-      <integer>-1</integer>
-      <key>Values</key>
-      <array>
-        <integer>-9</integer>
-        <integer>-8</integer>
-        <integer>-7</integer>
-        <integer>-6</integer>
-        <integer>-5</integer>
-        <integer>-4</integer>
-        <integer>-3</integer>
-        <integer>-2</integer>
-        <integer>-1</integer>
-        <integer>0</integer>
-        <integer>1</integer>
-        <integer>2</integer>
-        <integer>3</integer>
-        <integer>4</integer>
-        <integer>5</integer>
-        <integer>6</integer>
-        <integer>7</integer>
-        <integer>8</integer>
-        <integer>9</integer>
-      </array>
-      <key>Titles</key>
-      <array>
-        <string>20.3:1 — black</string>
-        <string>14:1</string>
-        <string>10:1</string>
-        <string>7:1</string>
-        <string>4.5:1</string>
-        <string>3:1 — accessible</string>
-        <string>2:1</string>
-        <string>1.7:1</string>
-        <string>1.4:1 — default</string>
-        <string>1:1 — invisible</string>
-        <string>Lighter than the page — 1.00:1</string>
-        <string>Lighter than the page — 1.01:1</string>
-        <string>Lighter than the page — 1.01:1</string>
-        <string>Lighter than the page — 1.02:1</string>
-        <string>Lighter than the page — 1.02:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-      </array>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSMultiValueSpecifier</string>
-      <key>Title</key>
-      <string>Pressed Fill Contrast</string>
-      <key>Key</key>
-      <string>padFillContrastLight</string>
-      <key>DefaultValue</key>
-      <integer>-1</integer>
-      <key>Values</key>
-      <array>
-        <integer>-9</integer>
-        <integer>-8</integer>
-        <integer>-7</integer>
-        <integer>-6</integer>
-        <integer>-5</integer>
-        <integer>-4</integer>
-        <integer>-3</integer>
-        <integer>-2</integer>
-        <integer>-1</integer>
-        <integer>0</integer>
-        <integer>1</integer>
-        <integer>2</integer>
-        <integer>3</integer>
-        <integer>4</integer>
-        <integer>5</integer>
-        <integer>6</integer>
-        <integer>7</integer>
-        <integer>8</integer>
-        <integer>9</integer>
-      </array>
-      <key>Titles</key>
-      <array>
-        <string>20.3:1 — black</string>
-        <string>10:1</string>
-        <string>7:1</string>
-        <string>4.5:1</string>
-        <string>3:1 — accessible</string>
-        <string>2:1</string>
-        <string>1.5:1</string>
-        <string>1.3:1</string>
-        <string>1.13:1 — default</string>
-        <string>1:1 — invisible</string>
-        <string>Lighter than the page — 1.00:1</string>
-        <string>Lighter than the page — 1.01:1</string>
-        <string>Lighter than the page — 1.01:1</string>
-        <string>Lighter than the page — 1.02:1</string>
-        <string>Lighter than the page — 1.02:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-        <string>Lighter than the page — 1.03:1</string>
-      </array>
-    </dict>
-
-    <dict>
-      <key>Type</key>
-      <string>PSGroupSpecifier</string>
-      <key>Title</key>
-      <string>Button Pad — Dark Appearance</string>
-      <key>FooterText</key>
-      <string>The same scale against the dark field. Here the useful direction is lighter, and the darker-than-the-field rows run out at 1.12:1 — the field is only 18 levels off black.</string>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSMultiValueSpecifier</string>
-      <key>Title</key>
-      <string>Outline Contrast</string>
-      <key>Key</key>
-      <string>padOutlineContrastDark</string>
-      <key>DefaultValue</key>
-      <integer>1</integer>
-      <key>Values</key>
-      <array>
-        <integer>9</integer>
-        <integer>8</integer>
-        <integer>7</integer>
-        <integer>6</integer>
-        <integer>5</integer>
-        <integer>4</integer>
-        <integer>3</integer>
-        <integer>2</integer>
-        <integer>1</integer>
-        <integer>0</integer>
-        <integer>-1</integer>
-        <integer>-2</integer>
-        <integer>-3</integer>
-        <integer>-4</integer>
-        <integer>-5</integer>
-        <integer>-6</integer>
-        <integer>-7</integer>
-        <integer>-8</integer>
-        <integer>-9</integer>
-      </array>
-      <key>Titles</key>
-      <array>
-        <string>18.7:1 — white</string>
-        <string>14:1</string>
-        <string>10:1</string>
-        <string>7:1</string>
-        <string>4.5:1</string>
-        <string>3:1 — accessible</string>
-        <string>2:1</string>
-        <string>1.7:1</string>
-        <string>1.5:1 — default</string>
-        <string>1:1 — invisible</string>
-        <string>Darker than the field — 1.02:1</string>
-        <string>Darker than the field — 1.03:1</string>
-        <string>Darker than the field — 1.04:1</string>
-        <string>Darker than the field — 1.06:1</string>
-        <string>Darker than the field — 1.07:1</string>
-        <string>Darker than the field — 1.08:1</string>
-        <string>Darker than the field — 1.09:1</string>
-        <string>Darker than the field — 1.11:1</string>
-        <string>Darker than the field — 1.12:1</string>
-      </array>
-    </dict>
-    <dict>
-      <key>Type</key>
-      <string>PSMultiValueSpecifier</string>
-      <key>Title</key>
-      <string>Pressed Fill Contrast</string>
-      <key>Key</key>
-      <string>padFillContrastDark</string>
-      <key>DefaultValue</key>
-      <integer>1</integer>
-      <key>Values</key>
-      <array>
-        <integer>9</integer>
-        <integer>8</integer>
-        <integer>7</integer>
-        <integer>6</integer>
-        <integer>5</integer>
-        <integer>4</integer>
-        <integer>3</integer>
-        <integer>2</integer>
-        <integer>1</integer>
-        <integer>0</integer>
-        <integer>-1</integer>
-        <integer>-2</integer>
-        <integer>-3</integer>
-        <integer>-4</integer>
-        <integer>-5</integer>
-        <integer>-6</integer>
-        <integer>-7</integer>
-        <integer>-8</integer>
-        <integer>-9</integer>
-      </array>
-      <key>Titles</key>
-      <array>
-        <string>18.7:1 — white</string>
-        <string>10:1</string>
-        <string>7:1</string>
-        <string>4.5:1</string>
-        <string>3:1 — accessible</string>
-        <string>2:1</string>
-        <string>1.5:1</string>
-        <string>1.3:1</string>
-        <string>1.15:1 — default</string>
-        <string>1:1 — invisible</string>
-        <string>Darker than the field — 1.02:1</string>
-        <string>Darker than the field — 1.03:1</string>
-        <string>Darker than the field — 1.04:1</string>
-        <string>Darker than the field — 1.06:1</string>
-        <string>Darker than the field — 1.07:1</string>
-        <string>Darker than the field — 1.08:1</string>
-        <string>Darker than the field — 1.09:1</string>
-        <string>Darker than the field — 1.11:1</string>
-        <string>Darker than the field — 1.12:1</string>
-      </array>
-    </dict>
-  </array>
+	<key>PreferenceSpecifiers</key>
+	<array>
+		<dict>
+			<key>FooterText</key>
+			<string>CrossPoint holds the screen on while you read. Turn these off to keep it awake instead — useful propped on a stand, where the screen dimming mid-page is the interruption.</string>
+			<key>Title</key>
+			<string>Screen</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>allowSleepOnBattery</string>
+			<key>Title</key>
+			<string>Allow Device to Sleep on Battery</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>allowSleepWhileCharging</string>
+			<key>Title</key>
+			<string>Allow Device to Sleep While Charging</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Contrast against the page, measured. Rows run strongest to invisible; 3:1 meets WCAG 1.4.11 for an unlabelled control. The nine rows below the default are the fine end of the dial — they used to be lighter-than-the-page duplicates worth nothing, and now step from 1.3:1 down to 1.02:1, which is where the default and invisible used to sit next to each other with nothing between them.</string>
+			<key>Title</key>
+			<string>Button Pad — Light Appearance</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>-1</integer>
+			<key>Key</key>
+			<string>padOutlineContrastLight</string>
+			<key>Title</key>
+			<string>Outline Contrast</string>
+			<key>Titles</key>
+			<array>
+				<string>20.3:1 — black</string>
+				<string>14.1:1</string>
+				<string>10:1</string>
+				<string>7.1:1</string>
+				<string>4.52:1</string>
+				<string>3.01:1 — accessible</string>
+				<string>2:1</string>
+				<string>1.7:1</string>
+				<string>1.36:1 — default</string>
+				<string>1.3:1</string>
+				<string>1.24:1</string>
+				<string>1.2:1</string>
+				<string>1.15:1</string>
+				<string>1.11:1</string>
+				<string>1.08:1</string>
+				<string>1.05:1</string>
+				<string>1.04:1</string>
+				<string>1.02:1</string>
+				<string>1:1 — invisible</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>-9</integer>
+				<integer>-8</integer>
+				<integer>-7</integer>
+				<integer>-6</integer>
+				<integer>-5</integer>
+				<integer>-4</integer>
+				<integer>-3</integer>
+				<integer>-2</integer>
+				<integer>-1</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>0</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>-1</integer>
+			<key>Key</key>
+			<string>padFillContrastLight</string>
+			<key>Title</key>
+			<string>Pressed Fill Contrast</string>
+			<key>Titles</key>
+			<array>
+				<string>20.3:1 — black</string>
+				<string>10:1</string>
+				<string>7.1:1</string>
+				<string>4.52:1</string>
+				<string>3.01:1 — accessible</string>
+				<string>2:1</string>
+				<string>1.51:1</string>
+				<string>1.3:1</string>
+				<string>1.13:1 — default</string>
+				<string>1.11:1</string>
+				<string>1.09:1</string>
+				<string>1.07:1</string>
+				<string>1.06:1</string>
+				<string>1.05:1</string>
+				<string>1.04:1</string>
+				<string>1.04:1</string>
+				<string>1.03:1</string>
+				<string>1.02:1</string>
+				<string>1:1 — invisible</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>-9</integer>
+				<integer>-8</integer>
+				<integer>-7</integer>
+				<integer>-6</integer>
+				<integer>-5</integer>
+				<integer>-4</integer>
+				<integer>-3</integer>
+				<integer>-2</integer>
+				<integer>-1</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>0</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>The same scale against the dark field, strongest to invisible. The nine rows below the default are the fine end. Black is last and is deliberately low contrast — 1.12:1, because the field is only 18 levels off black — but it is the one tone that disappears into a true-black page on OLED.</string>
+			<key>Title</key>
+			<string>Button Pad — Dark Appearance</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>1</integer>
+			<key>Key</key>
+			<string>padOutlineContrastDark</string>
+			<key>Title</key>
+			<string>Outline Contrast</string>
+			<key>Titles</key>
+			<array>
+				<string>18.7:1 — white</string>
+				<string>14.1:1</string>
+				<string>10.1:1</string>
+				<string>7.08:1</string>
+				<string>4.55:1</string>
+				<string>3.02:1 — accessible</string>
+				<string>2.02:1</string>
+				<string>1.72:1</string>
+				<string>1.48:1 — default</string>
+				<string>1.38:1</string>
+				<string>1.29:1</string>
+				<string>1.22:1</string>
+				<string>1.16:1</string>
+				<string>1.11:1</string>
+				<string>1.08:1</string>
+				<string>1.04:1</string>
+				<string>1.02:1</string>
+				<string>1:1 — invisible</string>
+				<string>1.12:1 — black</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>9</integer>
+				<integer>8</integer>
+				<integer>7</integer>
+				<integer>6</integer>
+				<integer>5</integer>
+				<integer>4</integer>
+				<integer>3</integer>
+				<integer>2</integer>
+				<integer>1</integer>
+				<integer>-1</integer>
+				<integer>-2</integer>
+				<integer>-3</integer>
+				<integer>-4</integer>
+				<integer>-5</integer>
+				<integer>-6</integer>
+				<integer>-7</integer>
+				<integer>-8</integer>
+				<integer>0</integer>
+				<integer>-9</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>1</integer>
+			<key>Key</key>
+			<string>padFillContrastDark</string>
+			<key>Title</key>
+			<string>Pressed Fill Contrast</string>
+			<key>Titles</key>
+			<array>
+				<string>18.7:1 — white</string>
+				<string>10.1:1</string>
+				<string>7.08:1</string>
+				<string>4.55:1</string>
+				<string>3.02:1 — accessible</string>
+				<string>2.02:1</string>
+				<string>1.5:1</string>
+				<string>1.31:1</string>
+				<string>1.15:1 — default</string>
+				<string>1.12:1</string>
+				<string>1.1:1</string>
+				<string>1.08:1</string>
+				<string>1.07:1</string>
+				<string>1.06:1</string>
+				<string>1.04:1</string>
+				<string>1.04:1</string>
+				<string>1.02:1</string>
+				<string>1:1 — invisible</string>
+				<string>1.12:1 — black</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>9</integer>
+				<integer>8</integer>
+				<integer>7</integer>
+				<integer>6</integer>
+				<integer>5</integer>
+				<integer>4</integer>
+				<integer>3</integer>
+				<integer>2</integer>
+				<integer>1</integer>
+				<integer>-1</integer>
+				<integer>-2</integer>
+				<integer>-3</integer>
+				<integer>-4</integer>
+				<integer>-5</integer>
+				<integer>-6</integer>
+				<integer>-7</integer>
+				<integer>-8</integer>
+				<integer>0</integer>
+				<integer>-9</integer>
+			</array>
+		</dict>
+	</array>
+	<key>StringsTable</key>
+	<string>Root</string>
 </dict>
 </plist>
