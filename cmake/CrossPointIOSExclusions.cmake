@@ -38,5 +38,11 @@ set(CROSSPOINT_IOS_EXCLUDED_FW_SOURCES
   src/network/HttpDownloader.cpp
   src/network/WebDAVHandler.cpp
   src/network/WifiDiagnostics.cpp
+  # Claude chat needs a saved Wi-Fi credential (WifiCredentialStore, excluded
+  # above) and an API key read off the SD card. Neither exists on a phone, and
+  # linking it against the excluded store is what broke build 30's archive.
+  # HomeActivity hides the row under CROSSPOINT_NO_NETWORK to match.
+  src/notes/ClaudeChat.cpp
+  src/activities/util/ClaudeChatActivity.cpp
   src/util/QrUtils.cpp
 )
