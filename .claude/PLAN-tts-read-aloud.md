@@ -1,7 +1,8 @@
 # PLAN: Read-aloud TTS on the iOS harness (Apple speech)
 
 **Status: planned, not started.** Tracked as ST-003 in [TODO.md](../TODO.md).
-Written 2026-08-07 against `main` @ `ebf2b54`.
+Written 2026-08-07 against `main` @ `ebf2b54`; revised the same day to lead
+with decisions and risks rather than mechanics.
 
 The end state: on the phone, with a book open, the app reads the page aloud in
 the system voice the owner picked in Settings > Accessibility > Spoken Content
@@ -9,64 +10,148 @@ the system voice the owner picked in Settings > Accessibility > Spoken Content
 word as it is spoken, and starts reading from any word the owner taps. All of
 it lives behind a default-off toggle in Settings > CrossPoint X3.
 
-This plan is written to be executed phase by phase by any implementer,
-including a small model, without further design work. Rules of engagement:
+The owner's four increments map onto the phases like this:
 
-- **Do the phases in order.** Each phase is a separate PR (per repo) and must
-  pass its full acceptance checklist before the next phase starts.
-- **Never skip a Traps section.** Every trap listed here is either a bug this
-  repo has already had once, or an API behaviour that was checked.
-- **When reality contradicts a step** (a symbol is missing, a grep finds
-  nothing, a log line never appears), stop and re-read the phase's Traps and
-  the Contracts section rather than improvising a workaround.
+| Asked for | Phase(s) here |
+|---|---|
+| "spike that it is possible" | 0A (speech plumbing) + 0B (text capture) + 1 (the two joined) |
+| "make it turn the page" | 2 |
+| "highlighting as it reads" | 3 |
+| "start at a given selected word" | 4 |
+
+The split of the spike into 0A/0B is deliberate and is the main thing this
+revision changes: *"can the phone speak?"* is not the risk — AVSpeech is a
+mature API and 0A is an afternoon. The risk that can sink the whole feature is
+*"can the firmware produce clean, speakable page text?"* (R1 below), and it is
+provable headlessly on Linux with no Mac and no audio. So it gets its own
+spike and an explicit go/no-go gate before any composite work starts.
+
+Rules of engagement for the implementer (unchanged, and they matter):
+
+- **Do the phases in order**; each is a separate PR per repo and must pass its
+  full acceptance checklist — and its gate, where one exists — before the
+  next phase starts.
+- **Never skip a Traps section**; every entry is either a bug this repo
+  already had once or an API behaviour that was checked.
+- **When reality contradicts a step**, stop and re-read the phase's Traps and
+  the Contracts section rather than improvising.
 - **The desktop PlatformIO build is the canary.** After every simulator-repo
-  change: the desktop build must stay green and `tests/run_all.sh` must pass.
+  change: desktop build green, `tests/run_all.sh` green.
 
 Two repos are involved:
 
-| Repo | Role in this feature |
+| Repo | Role |
 |---|---|
 | `crosspoint-simulator` (this repo) | The channel (HAL surface), the pure state machine, the AVSpeech adapter, the highlight overlay, the tap hit-test |
-| `natebunnyfield/crosspoint-reader`, branch `x3-main` (the firmware fork) | Capturing page text + word rects during page render, publishing them, clearing on reader exit, inline no-ops so the device build still links |
+| `natebunnyfield/crosspoint-reader` @ `x3-main` (the firmware fork) | Capturing page text + word rects during page render, publishing them, clearing on reader exit, inline no-ops so the device build still links |
 
-Simulator-side changes land first in every phase pair: the firmware compiles
-against this repo's HAL surface, so the surface must exist before the firmware
-calls it. The device build never breaks because every firmware-facing method
-gets an inline no-op in the firmware's own `lib/hal/HalGPIO.h` in the same
-firmware PR that starts calling it (the exact precedent: `setTextEntryActive`
-/ `consumeTypedText`, added there 2026-08-06).
+Simulator-side changes land first in every phase pair (the firmware compiles
+against this repo's HAL surface). The device build never breaks: every
+firmware-facing method gets an inline no-op in the firmware's
+`lib/hal/HalGPIO.h` in the same firmware PR that starts calling it — the
+exact precedent is `setTextEntryActive` / `consumeTypedText` (2026-08-06).
+
+---
+
+## Decisions
+
+Each records the alternatives actually weighed, so nobody relitigates them
+mid-implementation — and so a wrong call is at least a *visible* wrong call.
+
+**D1 — Page text comes from the firmware's own layout pass, over a new HAL
+channel.** Alternatives considered:
+- *Harness parses the EPUB itself* (it can read the file). Rejected: the
+  harness cannot know which text is on the current page — pagination depends
+  on font, size, margins, and the firmware's layouter, and re-implementing
+  that is a second pagination engine that drifts from the first on every
+  firmware change. The firmware already knows; ask it.
+- *VoiceOver Screen Recognition (on-device OCR).* Rejected as the mechanism:
+  zero-code but no page-turn integration, no reliable reading order, no word
+  callbacks for highlighting, unlabeled pad buttons. Worth a five-minute
+  manual experiment for curiosity, not a foundation.
+- *Expose page text as a `UIAccessibilityElement` and let Speak Screen read
+  it.* Rejected as the driver: Speak Screen reads one screenful and stops (no
+  auto page-turn), provides no word-level callbacks (no highlight), and no
+  start-at-word. But once the channel exists this is nearly free and is a
+  genuine accessibility win for VoiceOver users — recorded as optional
+  Phase 5, out of scope for the four asked-for increments.
+
+**D2 — Speech engine is `AVSpeechSynthesizer` with the system default voice**
+(`voiceWithLanguage:nil`), which honours the voice the owner picked under
+Spoken Content — same voices, same engine as Apple's built-in screen reading.
+Per-book language voices (EPUB `dc:language`) and a rate control are deferred
+(Non-goals).
+
+**D3 — Page turns are a real injected button press**
+(`HalGPIO::injectButtonDown/Up`), not a call into reader internals. The
+firmware's own handler then does pagination, progress persistence, chapter
+boundaries, and end-of-book behaviour. Injection is the same API the
+on-screen pad uses, so edge AND level reads work (`src/HalGPIO.h:71-93`).
+
+**D4 — The channel lives on `HalGPIO`,** mirroring the host-keyboard channel
+precedent (firmware-facing half + simulator-only half), and its full
+four-argument signature is fixed in Phase 0B even though rects arrive only in
+Phase 3 — the firmware-facing surface gets touched exactly once.
+
+**D5 — The toggle is phone state** (Settings.bundle, like Keep Screen Awake),
+not `settings.json`: device hardware has no speaker, so the setting means
+nothing off the phone.
+
+**D6 — The highlight is drawn by the simulator overlay,** not by the firmware
+re-rendering the word inverted. A per-word e-ink refresh has no analog on
+hardware and would push presentation-rate rendering into a firmware built
+around rare refreshes; the overlay already paints over the presented panel on
+the main thread. Accepted cost: `CROSSPOINT_SIM_SCREENSHOTS` captures
+pre-composite, so the highlight is verifiable only on-glass.
+
+**D7 — All decision logic is a pure, clock-free class**
+(`ios/ReadAloudCore`), PadCore's discipline: AVSpeech-free, SDL-free, time
+only as explicit inputs. That is what makes phases 2–4 testable on Linux in
+`tests/run_all.sh` even though the adapter itself only compiles on a Mac.
+
+---
+
+## Risk register
+
+Ordered by expected damage × discovery lateness. "Owner" is the phase whose
+acceptance proves the risk retired.
+
+| # | Risk | Owner | De-risk / kill criterion |
+|---|---|---|---|
+| R1 | The layout pass cannot yield clean reading-order text: hyphenated line-break fragments ("consid-"/"eration"), justified-text word splitting, headers/footers/page numbers interleaved, soft hyphens (U+00AD) spoken aloud | **0B** | Gate G0's word-for-word audit on three books. Two capture strategies specified; if NEITHER yields clean text, STOP — the feature as designed is not viable and the plan returns to the drawing board rather than shipping garbled speech |
+| R2 | Word rects drift from the published text (offsets computed in a different pass than the string) | 3 | Contract requires text and offsets built in one pass; multibyte core test + on-glass drift check |
+| R3 | `NSRange` is UTF-16 code units, channel offsets are UTF-8 bytes; ASCII books pass, curly quotes drift | 3 | Conversion snippet specified; multibyte unit test; curly-quote book on-glass |
+| R4 | Capture fires for a page that is not the displayed one (pre-rendering, cache warms) | 0B | Gate G0: page back/forward, generation count must track the visible page exactly |
+| R5 | Rect coordinates arrive in render-scaled pixels (iOS runs 2x) and the highlight lands at half size | 3 | Contract: logical portrait px, firmware divides by its own scale; acceptance step names the symptom |
+| R6 | Speech inaudible on muted phones (audio session category) | 0A | `AVAudioSessionCategoryPlayback` in the spike; physical-device check |
+| R7 | Async `didCancel` from a stop kills the *next* utterance | 1 | Utterance serial filter, specified; test row |
+| R8 | End of book leaves the state machine hung waiting for a page | 2 | Adapter timeout input (core stays clock-free); test row |
+| R9 | Per-word `requestPresent` breaks the presents-rarely model | 3 | Event-driven presents only on highlight *change*; word rate is a few Hz — measure in 3's acceptance, cap to sentence granularity if it matters |
+| R10 | Non-English books spoken in the wrong voice | — | Accepted for v1 (Non-goals); revisit with `dc:language` |
 
 ---
 
 ## Invariants this feature must not break
 
-Restated from CLAUDE.md because every one of them is load-bearing here:
+Restated from CLAUDE.md because every one is load-bearing here:
 
 1. **The HAL public surface mirrors the firmware's.** Firmware-facing methods
-   added to `src/HalGPIO.h` must be added, same signature, as inline no-ops in
-   the firmware's `lib/hal/HalGPIO.h`. Simulator-only methods (the harness's
-   side of the channel) must NOT gain firmware counterparts.
+   added to `src/HalGPIO.h` get identical-signature inline no-ops in the
+   firmware's `lib/hal/HalGPIO.h`. Simulator-only methods must NOT gain
+   firmware counterparts.
 2. **SDL render calls happen only on the main thread**, inside the
-   `presentIfNeeded()` path. The highlight paints from the existing
+   `presentIfNeeded()` path — the highlight paints from the existing
    `SimulatorOverlay` draw callback and nowhere else.
 3. **`HalGPIO::update()` owns the SDL event pump.** The tap detector observes
-   events from the already-installed `padWatch` event watch in
-   `ios/CrossPointIOSShim.cpp`; do not add another pump or poll.
-4. **PadCore stays pure passthrough.** Do not add gestures, timers, or word
-   logic to `ios/PadCore.*`. New decision logic goes in a new pure class,
-   `ios/ReadAloudCore.*`, which is likewise **clock-free** — it never reads a
-   clock; anything time-shaped arrives as an input from the adapter.
-5. **No new cross-cutting compile definitions.** This feature adds none. If
-   one ever becomes necessary it goes on `crosspoint_core PUBLIC` in
-   [ios/CMakeLists.txt](../ios/CMakeLists.txt), never on the app target
-   (split-brain guard, see CLAUDE.md "One device macro, one definition").
-6. **The e-ink presentation model presents rarely.** Every repaint the
-   feature needs goes through `SimulatorOverlay::requestPresent()`,
-   event-driven, never per-frame.
-7. **Firmware settings vs phone settings.** The read-aloud toggle is a
-   property of the phone (device hardware has no speaker), so it lives in the
-   iOS Settings.bundle like Keep Screen Awake, NOT in the firmware's
-   `settings.json`.
+   through the already-installed `padWatch` event watch; no new pump, no poll.
+4. **PadCore stays pure passthrough** — no gestures, timers, or word logic
+   added to it. New logic goes in `ios/ReadAloudCore.*`, likewise clock-free.
+5. **No new cross-cutting compile definitions.** This feature adds none; if
+   one ever becomes necessary it goes on `crosspoint_core PUBLIC`, never the
+   app target (split-brain guard).
+6. **Presents are event-driven** via `SimulatorOverlay::requestPresent()`,
+   never per-frame.
+7. **Firmware settings vs phone settings** — see D5.
 
 ---
 
@@ -79,10 +164,11 @@ Restated from CLAUDE.md because every one of them is load-bearing here:
     (only when                             │  (ReadAloudChannel, mutex'd)
      readAloudCaptureWanted())             ▼
   reader exit ──publishes nullptr──▶   consumeReadAloudPage()   [simulator-only]
-                                           │ drained on main thread, once per
-                                           │ frame, by the iOS adapter
+                                           │ drained on the main thread,
+                                           │ once per frame, by ONE consumer
                                            ▼
-                          ios/CrossPointReadAloud.mm  (AVSpeech adapter, ObjC++)
+              desktop: env-gated logger in simulator_main.cpp  (Phase 0B proof)
+              iOS:     ios/CrossPointReadAloud.mm  (AVSpeech adapter, ObjC++)
                             │ owns AVSpeechSynthesizer + AVAudioSession
                             │ delegate events → locked queue → perFrame drain
                             ▼
@@ -96,29 +182,57 @@ Restated from CLAUDE.md because every one of them is load-bearing here:
                             ▼
         adapter applies actions:
           speak/stop        → AVSpeechSynthesizer
-          TurnPageForward   → gpio.injectButtonDown/Up(BTN_DOWN)
+          TurnPageForward   → gpio.injectButtonDown/Up(page-forward button)
           highlight state   → painted by the SimulatorOverlay callback,
                               SimulatorOverlay::requestPresent() on change
 ```
 
-Desktop builds compile the channel (it lives in `src/`) but have no adapter;
-an env-gated logger in `simulator_main.cpp` makes the firmware half verifiable
-headlessly on Linux with no Mac involved (Phase 1).
-
 ---
 
-## Contracts (fixed in Phase 1, stable through Phase 4)
+## Contracts (fixed in Phase 0B, stable through Phase 4)
+
+### The published text — what "page text" means
+
+This is the contract R1 lives or dies by. The UTF-8 string published for a
+page is the **logical text of the page's content region**, meaning:
+
+- Reading order, single ASCII spaces between words, `\n` between paragraphs.
+- **No layout artifacts**: hyphens inserted by line breaking do not appear;
+  soft hyphens (U+00AD) are stripped; a word split across lines appears once,
+  whole.
+- **No page furniture**: chapter header, page number, progress indicator,
+  battery/status chrome are excluded — only the book content the owner would
+  read aloud themselves.
+- Images contribute nothing (their captions are content text if the reader
+  renders them as text).
+
+Two capture strategies can satisfy this; Phase 0B picks at Gate G0:
+
+- **Strategy 1 (preferred): slice the source.** A rendered page *is* a range
+  of the underlying chapter text — the paginator computed that range to lay
+  the page out. If the reader exposes "page N covers source range [a,b)",
+  publish that slice (markup removed). Clean by construction: line-break
+  hyphens never existed in the source.
+- **Strategy 2 (fallback): accumulate the draw calls,** merging fragments and
+  stripping U+00AD and layout hyphens, skipping draw calls that originate
+  from furniture. More code, more ways to drift; only if the paginator's
+  ranges are not recoverable.
 
 ### The channel surface on `HalGPIO`
 
-Firmware-facing pair — must exist field-for-field and signature-identical in
-BOTH repos (`src/HalGPIO.h` here, real implementation; `lib/hal/HalGPIO.h` in
-the firmware, inline no-ops):
+Firmware-facing pair — identical field-for-field and signature-identical in
+BOTH repos (`src/HalGPIO.h` here with real bodies; `lib/hal/HalGPIO.h` in the
+firmware as inline no-ops):
 
 ```cpp
 // POD, identical in both repos. Coordinates are LOGICAL PORTRAIT panel pixels
 // (X3: 528 wide, 792 tall; x right, y down), independent of render scale —
 // the firmware divides by its own render scale at capture time.
+//
+// A word the layout wrapped across lines publishes ONE RECT PER VISUAL
+// FRAGMENT, all sharing the word's byteOffset/byteLen — the highlight paints
+// every rect carrying the spoken range, so a hyphen-split word lights up on
+// both lines.
 struct ReadAloudWordRect {
   uint16_t x, y, w, h;
   uint32_t byteOffset;  // into the page's UTF-8 text; always a word start
@@ -132,13 +246,13 @@ void publishReadAloudPage(const char * /*utf8*/, size_t /*utf8Len*/,
                           size_t /*rectCount*/) {}
 ```
 
-The full four-argument signature is fixed from Phase 1 even though rects only
-matter in Phase 3 — the firmware passes `nullptr, 0` until then, so the
-firmware-facing surface is touched exactly once.
+The four-argument signature is fixed from Phase 0B; the firmware passes
+`nullptr, 0` for rects until Phase 3. Text and rect offsets must be built in
+**the same capture pass** (R2) — never recomputed from each other.
 
 `publishReadAloudPage(nullptr, 0, nullptr, 0)` means **"there is no page"**:
-the reader exited (or the book closed). Consumers must stop speech and clear
-the highlight.
+the reader exited or the book closed. Consumers stop speech and clear the
+highlight.
 
 Simulator-only half (no firmware counterpart, like `injectButtonDown`):
 
@@ -149,11 +263,12 @@ bool consumeReadAloudPage(ReadAloudPage &out);  // true once per publish
 
 ### `src/ReadAloudChannel.h` (new, pure, SDL-free)
 
-Header-only state holder owned by `HalGPIO`, testable with a bare `c++ -Isrc`
-compile exactly like `GrayscalePreview.h`:
+Header-only state holder owned by `HalGPIO`, testable with a bare
+`c++ -Isrc` compile exactly like `GrayscalePreview.h`:
 
 ```cpp
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -163,7 +278,7 @@ struct ReadAloudWordRect { /* as above */ };
 
 struct ReadAloudPage {
   std::string utf8;                       // empty when cleared == true
-  std::vector<ReadAloudWordRect> rects;   // may be empty (Phase 1 firmware)
+  std::vector<ReadAloudWordRect> rects;   // empty until Phase 3 firmware
   uint32_t generation = 0;                // bumps on every publish, incl. clear
   bool cleared = false;                   // publish(nullptr) => true
 };
@@ -185,15 +300,26 @@ private:
 ```
 
 `publish` copies under the mutex, bumps `generation`, sets `cleared` when
-`utf8 == nullptr`, and sets `hasNew_`. `consume` moves the page out and clears
-`hasNew_`. Publisher is the firmware task; consumer is the main thread — the
-mutex is the whole thread story.
+`utf8 == nullptr`, sets `hasNew_`. `consume` moves the page out and clears
+`hasNew_`. Publisher is the firmware task; consumer is the main thread; the
+mutex is the whole thread story. **Exactly one consumer per build** — the
+env-gated desktop logger or the iOS adapter, never both (the logger sits in
+`#if !CROSSPOINT_SIM_IOS`).
+
+### Highlight semantics
+
+`SetHighlight` carries a **byte range** `{byteOffset, byteLen}` — the spoken
+word's range — not a rect index. The painter fills every rect whose
+`byteOffset/byteLen` equal that range (the hyphenation contract above), so
+split words highlight correctly with no special cases anywhere else. The core
+dedupes: consecutive `willSpeakByte` inputs inside the same word emit nothing
+new.
 
 ### Coordinate mapping (Phase 3)
 
-Word rects are logical portrait panel pixels. The presented panel rect in
-device pixels comes from `SimulatorOverlay` (two accessors added in Phase 3
-next to the existing `panelBottomPx`/`panelHeightPx`):
+Rects are logical portrait panel pixels; the presented panel rect in device
+pixels comes from `SimulatorOverlay` (two accessors added in Phase 3 next to
+the existing pair, stored at the same site in `src/HalDisplay.cpp:704-706`):
 
 ```cpp
 // Main thread, inside the overlay draw callback:
@@ -204,23 +330,21 @@ const float y0 = SimulatorOverlay::panelBottomPx() - SimulatorOverlay::panelHeig
 SDL_FRect hl = { x0 + r.x * S, y0 + r.y * S, r.w * S, r.h * S };
 ```
 
-Landscape reading orientation is out of scope for all four phases (the phone
-harness presents portrait only).
+Landscape reading is out of scope for all phases (the phone harness presents
+portrait only).
 
 ### Log discipline
 
-Every log line this feature emits starts with `[READALOUD] `. That prefix is
-what every acceptance step greps for.
+Every log line this feature emits starts with `[READALOUD] ` — that prefix is
+what every acceptance step greps.
 
 ---
 
-## Phase 0 — Spike: prove Apple speech works inside this app
+## Phase 0A — Spike: Apple speech inside this app  *(size S; Mac required)*
 
-No firmware involvement, no channel. Deliverable: with a new Settings toggle
-on, the app speaks one canned sentence at launch through
-`AVSpeechSynthesizer`. This proves the audio session, the synthesizer, the
-delegate callbacks, and the main-thread plumbing all work inside an SDL3/UIKit
-app before any real machinery is built.
+Retires R6 and proves the delegate→queue→main-thread pattern every later
+phase scales up. No firmware involvement, no channel: with a new default-off
+Settings toggle on, the app speaks one canned sentence at launch.
 
 ### Files
 
@@ -229,9 +353,9 @@ app before any real machinery is built.
 | `ios/CrossPointReadAloud.h` | new — C-linkage API |
 | `ios/CrossPointReadAloud.mm` | new — AVSpeech adapter (spike form) |
 | `ios/CrossPointPrefs.h` / `.mm` | add `CrossPointPrefs_readAloudEnabled()` |
-| `ios/Settings.bundle/Root.plist` | add default-off toggle `read_aloud_enabled`, title "Read Aloud (experimental)" |
+| `ios/Settings.bundle/Root.plist` | default-off toggle `read_aloud_enabled`, title "Read Aloud (experimental)" |
 | `ios/CrossPointIOSShim.cpp` | call `CrossPointReadAloud_begin()` from `CrossPointHarness_begin()`, `CrossPointReadAloud_perFrame()` from `CrossPointHarness_perFrame()` |
-| `ios/CMakeLists.txt` | add `CrossPointReadAloud.mm` to the app target's source list (next to `CrossPointAppearance.mm`) and link `AVFoundation` where the other frameworks are linked (grep the file for `NetworkExtension` and mirror that pattern) |
+| `ios/CMakeLists.txt` | add the `.mm` to the app target sources (next to `CrossPointAppearance.mm`); link `AVFoundation` mirroring how `NetworkExtension` is linked |
 
 ### Steps
 
@@ -251,96 +375,76 @@ app before any real machinery is built.
    #endif
    ```
 
-2. `ios/CrossPointReadAloud.mm` spike body:
-   - statics: `AVSpeechSynthesizer *s_synth`, a delegate object, a
-     `std::mutex` + `std::vector<int>` event queue, `bool s_spikeDone`.
-   - `CrossPointReadAloud_begin()`: create the synthesizer and delegate once
-     (guard with a static bool, same idiom as `s_watchesInstalled` in
-     `CrossPointHarness_begin`).
-   - `CrossPointReadAloud_perFrame()`: if `!s_spikeDone` and
-     `CrossPointPrefs_readAloudEnabled()`, set `s_spikeDone = true`, then:
+2. `ios/CrossPointReadAloud.mm` spike body: statics for the synthesizer, a
+   delegate object, a `std::mutex` + event vector, `bool s_spikeDone`.
+   `begin()` creates synthesizer + delegate once (static-bool guard, the
+   `s_watchesInstalled` idiom). `perFrame()`: if `!s_spikeDone` and
+   `CrossPointPrefs_readAloudEnabled()`:
 
-     ```objc
-     AVAudioSession *session = [AVAudioSession sharedInstance];
-     [session setCategory:AVAudioSessionCategoryPlayback
-                     mode:AVAudioSessionModeSpokenAudio
-                  options:0 error:nil];
-     [session setActive:YES error:nil];
-     AVSpeechUtterance *utt = [AVSpeechUtterance speechUtteranceWithString:
-         @"CrossPoint read aloud is working on this device."];
-     utt.voice = [AVSpeechSynthesisVoice voiceWithLanguage:nil]; // owner's Spoken Content voice
-     [s_synth speakUtterance:utt];
-     SDL_Log("[READALOUD] spike utterance started");
-     ```
-   - Delegate implements `didFinishSpeechUtterance` and
-     `didCancelSpeechUtterance`; both just push an int into the locked queue.
-     `perFrame` drains the queue and logs
-     `[READALOUD] spike utterance finished` / `canceled`. This exercises the
-     exact delegate→queue→main-thread path every later phase relies on.
+   ```objc
+   AVAudioSession *session = [AVAudioSession sharedInstance];
+   [session setCategory:AVAudioSessionCategoryPlayback
+                   mode:AVAudioSessionModeSpokenAudio
+                options:0 error:nil];
+   [session setActive:YES error:nil];
+   AVSpeechUtterance *utt = [AVSpeechUtterance speechUtteranceWithString:
+       @"CrossPoint read aloud is working on this device."];
+   utt.voice = [AVSpeechSynthesisVoice voiceWithLanguage:nil]; // owner's Spoken Content voice
+   [s_synth speakUtterance:utt];
+   SDL_Log("[READALOUD] spike utterance started");
+   ```
 
-3. Prefs accessor: copy the `CrossPointPrefs_wantsScreenAwake` implementation
-   shape in `CrossPointPrefs.mm` (registerDefaults + `boolForKey:`), key
-   `read_aloud_enabled`, default `NO`. Root.plist gets a
-   `PSToggleSwitchSpecifier` mirroring an existing toggle entry.
+   Delegate implements `didFinishSpeechUtterance` and
+   `didCancelSpeechUtterance`; both only enqueue. `perFrame` drains and logs
+   `[READALOUD] spike utterance finished` / `canceled`.
+
+3. Prefs accessor copies the `CrossPointPrefs_wantsScreenAwake` shape
+   (registerDefaults + `boolForKey:`), key `read_aloud_enabled`, default NO;
+   Root.plist gets a `PSToggleSwitchSpecifier` mirroring an existing toggle.
 
 ### Acceptance
 
-- [ ] `cmake` configure of the iOS project succeeds (no identity-guard
-      failure — this phase adds no defines).
-- [ ] iOS Simulator (any iPhone model), toggle ON in Settings > CrossPoint X3:
-      launch speaks the sentence; log shows `spike utterance started` then
-      `finished`.
-- [ ] Toggle OFF: silent launch, neither log line, and the audio session is
-      never activated (no `setActive` call — it sits behind the pref check).
-- [ ] Desktop build unaffected: `tests/run_all.sh` passes (no desktop source
-      was touched).
+- [ ] iOS project configures (no identity-guard failure — no new defines).
+- [ ] iOS Simulator, toggle ON: sentence audible; `started` then `finished`
+      logged. Toggle OFF: silent, neither log line, session never activated.
+- [ ] **Physical iPhone with the ring/silent switch on silent**: sentence
+      still audible (this is the R6 check; the Simulator cannot make it).
+- [ ] `tests/run_all.sh` passes (no desktop source touched).
 
 ### Traps
 
-- **Everything main thread.** `begin` and `perFrame` are already called on the
-  main thread by the harness. Never call AVSpeech from a delegate callback's
-  own thread or from the firmware task.
-- **Delegate callbacks arrive on a private queue**, not the main thread. They
-  must only enqueue; all reactions happen in `perFrame`. This is the pattern
-  Phases 1–4 scale up, so get it right here.
-- **Silent switch**: `AVAudioSessionCategoryPlayback` is what makes speech
-  audible with the ringer switch muted. Without it the spike "fails" on a
-  muted phone while working in the Simulator — do not skip the session setup.
-- **`.mm` files cannot compile off-Mac.** Nothing in this phase is
-  host-testable; that is why the phase is kept this small.
+- **Everything main thread**; delegate callbacks arrive on a private queue
+  and must only enqueue.
+- **`.mm` cannot compile off-Mac** — that is why this phase is this small.
 
 ---
 
-## Phase 1 — Speak the real page (user phase "spike that it is possible")
+## Phase 0B — Spike: clean page text out of the firmware  *(size M; no Mac needed)*
 
-Deliverable: with the toggle on and a book open, the phone speaks the actual
-page text. Manual page turns re-speak the new page. Leaving the reader stops
-speech. On desktop Linux, an env var proves the firmware capture end-to-end
-with no Mac.
+The real feasibility spike (R1, R4). Deliverable: the channel exists in the
+HAL, the firmware captures page text (Strategy 1 or 2), and a headless
+desktop run proves the captured text is speakable — before any speech code
+depends on it.
 
-### 1a. Simulator repo
+### Simulator repo
 
 | File | Change |
 |---|---|
-| `src/ReadAloudChannel.h` | new — as specified in Contracts |
-| `src/HalGPIO.h` | include it; add the four methods (documented like the text-entry block at lines 95–131, stating which half is firmware-facing); add `ReadAloudChannel readAloud;` private member |
+| `src/ReadAloudChannel.h` | new — as in Contracts |
+| `src/HalGPIO.h` | include it; add the four methods (documented like the text-entry block at lines 95–131, stating which half is firmware-facing); private `ReadAloudChannel readAloud;` |
 | `src/HalGPIO.cpp` | four one-line delegating bodies |
 | `src/simulator_main.cpp` | env-gated headless drain (below) |
-| `ios/ReadAloudCore.h` / `.cpp` | new — pure core, initial state machine |
-| `ios/CrossPointReadAloud.mm` | replace spike with the real adapter |
-| `ios/CMakeLists.txt` | add `ReadAloudCore.cpp` to the app target sources |
 | `tests/read_aloud_channel_test.cpp` | new |
-| `tests/read_aloud_core_test.cpp` | new |
-| `tests/run_all.sh` | register both (below) |
+| `tests/run_all.sh` | register it (below) |
 
-**Headless drain** in `simulator_main.cpp` — inside the main loop, after
-`loop()`, guarded `#if !CROSSPOINT_SIM_IOS`:
+Headless drain, inside the main loop after `loop()`, guarded
+`#if !CROSSPOINT_SIM_IOS`:
 
 ```cpp
 // Headless proof of the read-aloud capture (see .claude/PLAN-tts-read-aloud.md):
 // CROSSPOINT_SIM_READALOUD_LOG=1 asks the firmware to capture page text and
 // logs every publish. Desktop has no speech consumer; iOS must not compile
-// this, its harness is the consumer and this drain would steal its pages.
+// this — its harness is the consumer and this drain would steal its pages.
 static const bool readAloudLog = [] {
   const char *v = SDL_getenv("CROSSPOINT_SIM_READALOUD_LOG");
   if (v && *v == '1') gpio.setReadAloudCaptureWanted(true);
@@ -349,26 +453,120 @@ static const bool readAloudLog = [] {
 if (readAloudLog) {
   ReadAloudPage page;
   while (gpio.consumeReadAloudPage(page)) {
-    SDL_Log("[READALOUD] page gen=%u cleared=%d bytes=%zu words=%zu | %.60s",
+    SDL_Log("[READALOUD] page gen=%u cleared=%d bytes=%zu words=%zu | %.200s",
             page.generation, page.cleared ? 1 : 0, page.utf8.size(),
             page.rects.size(), page.utf8.c_str());
   }
 }
 ```
 
-**`ios/ReadAloudCore.h`** — pure, clock-free, SDL-free, modeled on PadCore's
-header discipline. Phase 1 ships it with the full Action vocabulary but only
-the Phase-1 transitions implemented; later phases add transitions plus tests,
-never signature changes:
+`tests/read_aloud_channel_test.cpp` (compile: `c++ -std=c++20 -Isrc`, no
+other TU): consume-empty false; publish→consume returns text and rects,
+second consume false; publish twice → consume sees the second, generation
+strictly increasing; `publish(nullptr,0,nullptr,0)` → `cleared`, empty text;
+wanted flag round-trips. Register after the `task_registry` block:
+
+```bash
+run read_aloud_channel \
+  c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
+```
+
+### Firmware repo (work package FW-A)
+
+On a branch off `x3-main`, simulator symlinked
+(`simulator=symlink://../crosspoint-simulator`):
+
+1. **HAL no-ops**: in `lib/hal/HalGPIO.h`, next to the text-entry no-ops, add
+   `ReadAloudWordRect` and the two firmware-facing inline no-ops,
+   byte-identical layout.
+2. **Investigate Strategy 1 first**: find the paginator — how does the reader
+   know where page N starts and ends? (`grep -rn "EpubReaderActivity" src/ |
+   head`, then follow the page-render path; look for the structure that maps
+   pages to positions in the chapter text.) If a source range per page is
+   recoverable, capture = slice that range, strip markup and soft hyphens.
+3. **Else Strategy 2**: accumulate the content-region draw calls in reading
+   order, merge line-break fragments, strip U+00AD, skip furniture draws.
+4. Either way: when `gpio.readAloudCaptureWanted()` is true during a page
+   render, build the string; after the render completes,
+   `gpio.publishReadAloudPage(text.c_str(), text.size(), nullptr, 0)`. When
+   false, do nothing (the device build folds the branch away entirely).
+5. **Clear on exit**: reader activity's exit path publishes
+   `(nullptr, 0, nullptr, 0)`.
+6. New translation units need the iOS source-set regen per CLAUDE.md; prefer
+   hooking existing TUs.
+
+### Gate G0 — go/no-go (run on desktop, headless)
+
+Script pattern (per CLAUDE.md: open with `HOME`, believe `[ACT]` lines):
+
+```bash
+CROSSPOINT_SIM_READALOUD_LOG=1 \
+CROSSPOINT_SIM_INPUT_SCRIPT='2000:HOME;3000:BACK;8000:DOWN;10000:UP;15000:QUIT' \
+SDL_VIDEODRIVER=dummy .pio/build/simulator/program 2>&1 | grep -E 'READALOUD|ACT'
+```
+
+All of the following, against THREE books — one plain, one hyphenation-heavy
+(justified text, long words), one with curly quotes/accents:
+
+- [ ] Page 1's captured text matches the visible page **word for word, in
+      order** (screenshot the page, compare by eye — this is the R1 audit).
+- [ ] No hyphenated fragments, no U+00AD bytes (`grep -c $'\xc2\xad'` on the
+      captured text = 0), words split across lines appear whole, once.
+- [ ] No page furniture: chapter header / page number / progress text absent.
+- [ ] `DOWN` then `UP` produce gen=2 and gen=3 whose text matches the pages
+      actually displayed (R4: capture tracks the *visible* page).
+- [ ] BACK to Home logs a `cleared=1` publish.
+- [ ] Without the env var: zero `[READALOUD]` lines.
+- [ ] `tests/run_all.sh` green; desktop pio build green.
+
+**If neither strategy passes the audit, stop here and report.** Phases 1–4
+all speak this text; shipping them on garbled capture is worse than not
+shipping. The fallback scope to negotiate at that point is
+paragraph-granularity capture (speak paragraphs, highlight paragraphs),
+which loses per-word highlight but survives a messy layouter.
+
+### Traps
+
+- **Do not "clean up" text in the simulator.** Stripping and merging is the
+  firmware capture's job (it has the layout knowledge); the channel is a dumb
+  pipe. A simulator-side cleanup pass would mask capture bugs from the audit
+  that exists to catch them.
+- **Boot-destination variance**: scripts open `2000:HOME`; believe
+  `[ACT] Entering activity:` lines, not screenshots (four runs were burned on
+  this once already — CLAUDE.md).
+- `rm -rf ./fs_/.crosspoint/` must NOT be needed for any of this; if capture
+  behaviour depends on cache state, something is wrong.
+
+---
+
+## Phase 1 — Join them: the phone speaks the real page  *(size M)*
+
+Deliverable: toggle on + book open → the page is spoken. Manual page turns
+re-speak the new page; leaving the reader stops speech. Introduces the pure
+core (D7) and the serial filter (R7).
+
+### Files
+
+| File | Change |
+|---|---|
+| `ios/ReadAloudCore.h` / `.cpp` | new — pure core, Phase-1 transitions |
+| `ios/CrossPointReadAloud.mm` | replace spike with the real adapter |
+| `ios/CMakeLists.txt` | add `ReadAloudCore.cpp` to app target sources |
+| `tests/read_aloud_core_test.cpp` | new |
+| `tests/run_all.sh` | register it |
+
+**`ios/ReadAloudCore.h`** — modeled on PadCore's header discipline; ships the
+full Action vocabulary now, later phases add transitions but never signature
+changes:
 
 ```cpp
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "../src/ReadAloudChannel.h"  // ReadAloudWordRect
+#include "../src/ReadAloudChannel.h"  // ReadAloudWordRect, ReadAloudPage
 
 // The pure decision logic behind read-aloud. Deliberately AVSpeech-free,
-// SDL-free and CLOCK-FREE: time only enters as explicit inputs (pageTimeout),
+// SDL-free and CLOCK-FREE: time enters only as explicit inputs (pageTimeout),
 // counted by the adapter. Tested by tests/read_aloud_core_test.cpp.
 class ReadAloudCore {
 public:
@@ -377,20 +575,21 @@ public:
       StartUtterance,   // speak page text from utteranceByteOffset
       StopUtterance,    // stop current speech immediately
       TurnPageForward,  // inject a page-forward button press   (Phase 2)
-      SetHighlight,     // highlight rects[highlightIndex]      (Phase 3)
-      ClearHighlight,   //                                      (Phase 3)
+      SetHighlight,     // highlight rects covering the byte range (Phase 3)
+      ClearHighlight,   //                                         (Phase 3)
     };
     Type type;
     uint32_t utteranceByteOffset = 0;
-    int highlightIndex = -1;
+    uint32_t highlightByteOffset = 0;   // SetHighlight only
+    uint32_t highlightByteLen = 0;      //
   };
   enum class State { Off, Speaking, AwaitingNextPage };
 
   std::vector<Action> setEnabled(bool enabled);
   std::vector<Action> pageArrived(const ReadAloudPage &page);
-  std::vector<Action> utteranceFinished();   // natural end (Phase 2 grows this)
-  std::vector<Action> utteranceCanceled();   // stop / interruption: never turns the page
-  std::vector<Action> pageTimeout();         // adapter counted too long in AwaitingNextPage
+  std::vector<Action> utteranceFinished();   // natural end only
+  std::vector<Action> utteranceCanceled();   // stop/interruption: never turns the page
+  std::vector<Action> pageTimeout();         // adapter counted too long awaiting a page
   std::vector<Action> willSpeakByte(uint32_t absoluteByteOffset);  // Phase 3
   std::vector<Action> tapAtLogical(int x, int y);                  // Phase 4
   State state() const { return state_; }
@@ -398,15 +597,15 @@ public:
 private:
   State state_ = State::Off;
   bool enabled_ = false;
-  std::vector<ReadAloudWordRect> rects_;  // current page (Phase 3/4)
+  std::vector<ReadAloudWordRect> rects_;
   uint32_t textBytes_ = 0;
-  int highlightIndex_ = -1;
+  int lastHighlightRect_ = -1;   // resumable scan cursor (Phase 3)
 };
 ```
 
 Phase-1 transition table (implement exactly; everything else returns `{}`):
 
-| State | Input | Actions | Next state |
+| State | Input | Actions | Next |
 |---|---|---|---|
 | any | `setEnabled(false)` | StopUtterance (if Speaking) | Off |
 | Off | `setEnabled(true)` | — (waits for a page) | Off |
@@ -415,18 +614,17 @@ Phase-1 transition table (implement exactly; everything else returns `{}`):
 | Speaking | `utteranceFinished` | — (Phase 2 changes this) | Off |
 | Speaking | `utteranceCanceled` | — | Off |
 
-**Adapter (`CrossPointReadAloud.mm`), real form.** Statics: the synthesizer +
-delegate from Phase 0, a `ReadAloudCore s_core`, the current page's
-`std::string s_pageUtf8`, `uint32_t s_utteranceBaseByte`, and `uint32_t
-s_serial` (utterance generation). Per frame, in this order:
+**Adapter, real form.** Statics: synthesizer + delegate from 0A, a
+`ReadAloudCore s_core`, current page `std::string s_pageUtf8`,
+`uint32_t s_utteranceBaseByte`, `uint32_t s_serial`. Per frame, in order:
 
-1. Poll the pref; on change call `s_core.setEnabled(...)` and
-   `gpio.setReadAloudCaptureWanted(...)`, apply actions.
-2. `ReadAloudPage page; while (gpio.consumeReadAloudPage(page))` — keep only
-   the LAST page drained this frame, store its `utf8` in `s_pageUtf8`, feed
-   `s_core.pageArrived(page)`, apply actions.
-3. Drain the delegate event queue; drop any event whose serial !=
-   `s_serial`; feed survivors to the core; apply actions.
+1. Poll the pref; on change, `s_core.setEnabled(...)` and
+   `gpio.setReadAloudCaptureWanted(...)`; apply actions.
+2. `while (gpio.consumeReadAloudPage(page))` — keep only the LAST page
+   drained this frame; store `utf8` in `s_pageUtf8`; feed
+   `s_core.pageArrived(page)`; apply actions.
+3. Drain the delegate queue; **drop events whose serial != `s_serial`**; feed
+   survivors; apply actions.
 
 Applying `StartUtterance(off)`:
 
@@ -445,233 +643,146 @@ objc_setAssociatedObject(utt, kReadAloudSerialKey, @(s_serial),
 SDL_Log("[READALOUD] utterance start serial=%u byteOff=%u", s_serial, off);
 ```
 
-Applying `StopUtterance`: `[s_synth stopSpeakingAtBoundary:
-AVSpeechBoundaryImmediate];` — the resulting `didCancel` event carries the old
-serial and is dropped by the filter, which is exactly why the filter exists.
-Delegate callbacks read the serial back with `objc_getAssociatedObject` on the
-utterance they were handed and enqueue `{kind, serial, byteOffset}`.
+Applying `StopUtterance`:
+`[s_synth stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];` — the async
+`didCancel` carries the old serial and is dropped by the filter; that is the
+filter's whole reason to exist (R7). Delegate callbacks read the serial back
+with `objc_getAssociatedObject` and enqueue `{kind, serial, byteOffset}`.
 
-**Tests.** `tests/read_aloud_channel_test.cpp` (compile: `c++ -std=c++20
--Isrc`, no other TU — the header is self-contained): consume-empty returns
-false; publish→consume returns the text and rects, second consume false;
-publish twice → consume sees the second, generation strictly increasing;
-`publish(nullptr,0,nullptr,0)` → `cleared == true`, empty text; wanted flag
-round-trips. `tests/read_aloud_core_test.cpp` (compile: `c++ -std=c++17 -Iios`
-+ `ios/ReadAloudCore.cpp`, mirroring pad_core): every row of the Phase-1
-transition table, plus: pageArrived while disabled produces no actions;
-canceled does NOT re-speak or page-turn. Assert action sequences exactly, in
-order, like `pad_core_test` does.
-
-`tests/run_all.sh`, after the `task_registry` block:
-
-```bash
-run read_aloud_channel \
-  c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
-
-run read_aloud_core \
-  c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
-```
-
-### 1b. Firmware repo (work package FW-A)
-
-On branch off `x3-main`, with the simulator symlinked
-(`simulator=symlink://../crosspoint-simulator` per CLAUDE.md):
-
-1. **HAL no-ops**: in `lib/hal/HalGPIO.h`, next to the existing
-   `setTextEntryActive` / `consumeTypedText` inline no-ops, add the
-   `ReadAloudWordRect` struct and the two firmware-facing inline no-ops from
-   the Contracts section, byte-identical field layout.
-2. **Find the page-render completion site**: `grep -rn "EpubReaderActivity"
-   src/ | head`, then inside that activity find where a page finishes
-   rendering (the code path that runs once per displayed page — look for the
-   render call the page-turn handler invokes). The capture hook wraps the
-   text-layout pass that this render performs.
-3. **Find the text source**: the renderer lays out parsed EPUB text
-   word-by-word to draw it (`grep -rn "drawText\|drawString\|drawWord"
-   src/renderer src/ | head-20` — adjust to what exists). Phase 1 needs only
-   the concatenated plain text of the page in reading order, single spaces
-   between words, `\n` between paragraphs.
-4. **Hook**: when `gpio.readAloudCaptureWanted()` is true during a page
-   render, accumulate that text into a `std::string`; after the render
-   completes call `gpio.publishReadAloudPage(text.c_str(), text.size(),
-   nullptr, 0)`. When it is false, do nothing — zero cost on device, where
-   `readAloudCaptureWanted()` is inline `false` and the whole branch folds
-   away.
-5. **Clear on exit**: in the reader activity's exit path (`onExit` or
-   equivalent — find where it tears down), call
-   `gpio.publishReadAloudPage(nullptr, 0, nullptr, 0)`.
-6. If any new translation unit was added (prefer not to — hook in existing
-   TUs), regenerate the iOS source set per CLAUDE.md
-   (`pio run -e simulator -t compiledb` + `tools/gen_cmake_sources.py`).
+**Tests** (`c++ -std=c++17 -Iios` + `ios/ReadAloudCore.cpp`, mirroring
+pad_core; also add the `run` block to run_all.sh): every Phase-1 table row;
+pageArrived while disabled → no actions; canceled does NOT re-speak.
+Assert action sequences exactly and in order, as `pad_core_test` does.
 
 ### Acceptance
 
-Simulator repo alone (runnable in a Linux cloud session):
-- [ ] `tests/run_all.sh` passes with the two new tests listed as PASS.
-
-With the firmware checkout (desktop, headless — the firmware-side proof):
-- [ ] ```bash
-      CROSSPOINT_SIM_READALOUD_LOG=1 \
-      CROSSPOINT_SIM_INPUT_SCRIPT='2000:HOME;3000:BACK;15000:QUIT' \
-      SDL_VIDEODRIVER=dummy .pio/build/simulator/program 2>&1 | grep READALOUD
-      ```
-      (`HOME` normalises the boot state per CLAUDE.md; `BACK` from Home opens
-      the most recent book.) Output shows at least one
-      `[READALOUD] page gen=1 cleared=0 bytes=<nonzero> ...` whose text
-      preview matches the book's first page.
-- [ ] Without the env var: zero `[READALOUD]` lines (capture off by default).
-- [ ] `rm -rf ./fs_/.crosspoint/` was NOT needed — the feature must not
-      depend on cache state; if it appears to, something is wrong.
-
-On the phone / iOS Simulator:
-- [ ] Toggle on, open a book: the page is spoken.
-- [ ] Press page-forward manually mid-speech: speech stops, new page is
-      spoken from its start.
+- [ ] `tests/run_all.sh` green (both new tests PASS).
+- [ ] Phone/iOS Simulator, toggle on, open a book: page spoken.
+- [ ] Manual page-forward mid-speech: speech stops, new page spoken from its
+      start, exactly one voice at a time (R7 visible here).
 - [ ] BACK to Home mid-speech: speech stops (the cleared publish).
-- [ ] Toggle off mid-speech (background the app, flip in Settings, return):
-      speech stops on the next frame.
+- [ ] Toggle off mid-speech: speech stops on the next frame.
 
 ### Traps
 
-- **The drain steals pages.** Exactly one consumer may drain
-  `consumeReadAloudPage` per build: the env-gated logger on desktop, the
-  adapter on iOS. That is why the logger sits in `#if !CROSSPOINT_SIM_IOS`.
-- **NSRange is not needed yet** — do not implement `willSpeakRange` handling
-  in this phase; its UTF-16 trap is Phase 3's headline and doing it early
-  without the rects to check against invites an unverifiable half-feature.
-- **The serial filter is not optional.** `stopSpeaking` produces an async
-  `didCancel`; without the filter it arrives after the next `StartUtterance`
-  and kills the new page's speech. The core must never receive stale events.
-- **`byteOffset` slicing assumes word-start offsets.** Only ever pass offsets
-  that came from the channel (0, or a rect's `byteOffset`); never compute
-  arbitrary ones.
-- **Boot-destination variance** (CLAUDE.md): scripts must open `2000:HOME`.
-  Believe `[ACT] Entering activity:` lines, not the screenshot.
+- **One consumer per build** (0B trap, restated because this phase adds the
+  second consumer): the iOS adapter now drains; the desktop logger must
+  remain `#if !CROSSPOINT_SIM_IOS`.
+- **Do not implement `willSpeakRange` yet** — its UTF-16 trap belongs to
+  Phase 3 where the rects exist to verify against.
+- **Only channel-derived byte offsets** ever reach `StartUtterance` (0, or
+  later a rect's byteOffset); never compute one.
 
 ---
 
-## Phase 2 — Auto page-turn (user phase "make it turn the page")
+## Phase 2 — Auto page-turn  *(size S)*
 
-Deliverable: when speech reaches the end of the page, the firmware turns the
-page (via a real injected button press, so the firmware paginates, persists
-progress, and re-publishes exactly as if the owner pressed the button) and
-speech continues on the new page. Reading stops cleanly at the end of the
-book, on cancel, and on reader exit.
+Deliverable: speech reaching the end of the page turns it via a real
+injected button press — the firmware paginates, persists progress, and
+re-publishes exactly as if the owner pressed it — and speech continues.
+Retires R8.
 
-### Step 0 — verify the page-forward button (do this FIRST)
+### Step 0 — verify the page-forward button FIRST
 
-The working assumption is `HalGPIO::BTN_DOWN` (`src/HalGPIO.h:194`; the
-desktop key map's ↓ = "page forward" per CONTEXT-sim-notes.md). Verify both
-ways before writing code:
+Working assumption: `HalGPIO::BTN_DOWN` (`src/HalGPIO.h:194`; desktop key map
+↓ = "page forward"). Verify both ways before writing code:
 
-1. Firmware: `grep -rn "BTN_DOWN\|BTN_UP\|BTN_RIGHT" src/activities/*Reader*`
-   (adjust path from what Phase 1 found) — confirm which index the reader's
-   next-page branch tests.
-2. Desktop: input script `2000:HOME;3000:BACK;8000:DOWN;15000:QUIT` with
-   `CROSSPOINT_SIM_READALOUD_LOG=1` — the DOWN must produce a second
-   `[READALOUD] page gen=2` line.
-
-If it is not BTN_DOWN, use what the grep found and note it in the core test.
+1. Firmware: grep the reader activity (path known from 0B) for which
+   `BTN_*` its next-page branch tests.
+2. Desktop: Gate G0's script already proves `DOWN` produces the next page's
+   publish. If it is not BTN_DOWN, use what the grep found and say so in the
+   core test's comments.
 
 ### Changes
 
-**Core** (`ios/ReadAloudCore.cpp` + test rows):
+**Core** — new rows (+ tests):
 
-| State | Input | Actions | Next state |
+| State | Input | Actions | Next |
 |---|---|---|---|
 | Speaking | `utteranceFinished` | TurnPageForward | AwaitingNextPage |
 | AwaitingNextPage | `pageArrived(text)` | StartUtterance(0) | Speaking |
 | AwaitingNextPage | `pageArrived(cleared)` | — | Off |
 | AwaitingNextPage | `pageTimeout` | — | Off |
-| AwaitingNextPage | `utteranceCanceled` | — (stale, cannot happen post-filter; keep as no-op) | AwaitingNextPage |
 
-`utteranceCanceled` in Speaking still goes to Off with no page turn — that is
-the difference between "the phone stopped us" and "we finished the page", and
-the reason the delegate distinguishes didFinish from didCancel.
+`utteranceCanceled` in Speaking still goes to Off with **no** page turn —
+that is the difference between "the phone stopped us" and "we finished the
+page", and why didFinish and didCancel stay separate all the way down.
 
 **Adapter**:
 
-- `TurnPageForward` → `gpio.injectButtonDown(HalGPIO::BTN_DOWN);` then start a
-  2-count frame counter; when it hits 0 on a later `perFrame`, call
-  `gpio.injectButtonUp(HalGPIO::BTN_DOWN);`. Two frames ≈ a few ms real hold:
-  a clean edge for `wasPressed`, far below any long-press threshold (the
-  reader's font-family hold is hundreds of ms). `injectButton*` is the same
-  API the on-screen pad uses, so edge AND level reads work (see the header
-  comment at `src/HalGPIO.h:71-93`).
-- Entering AwaitingNextPage arms a timeout counter of **5000 perFrame ticks**
-  (the main loop runs ~1 kHz via `SDL_Delay(1)`, so ≈5 s); on expiry, feed
-  `s_core.pageTimeout()` and log `[READALOUD] page timeout — end of book?`.
+- `TurnPageForward` → `gpio.injectButtonDown(<verified button>)`, then a
+  2-count frame counter; on reaching 0 in a later `perFrame`,
+  `gpio.injectButtonUp(...)`. Two frames is a clean edge for `wasPressed`
+  and far below any long-press threshold (the reader's font-family hold is
+  hundreds of ms).
+- Entering AwaitingNextPage arms a timeout of **5000 perFrame ticks** (the
+  main loop runs ~1 kHz via `SDL_Delay(1)`, ≈5 s); expiry feeds
+  `s_core.pageTimeout()` and logs `[READALOUD] page timeout — end of book?`.
   Any `pageArrived` disarms it. The counter lives in the adapter because the
-  core is clock-free.
+  core is clock-free (D7).
 
-**Tests** (`read_aloud_core_test.cpp` additions): finished→TurnPageForward
-exactly once; the full happy loop (page → finished → turn → page →
-StartUtterance); canceled produces no TurnPageForward; timeout lands in Off
-and a later pageArrived while enabled starts speech again (owner turned the
-page by hand after the book ended); cleared during AwaitingNextPage → Off.
+**Test rows**: finished→TurnPageForward exactly once; the full loop
+(page → finished → turn → page → StartUtterance); canceled → no
+TurnPageForward; timeout → Off, and a later pageArrived while enabled starts
+speech again (owner turned the page by hand after the book ended); cleared
+during AwaitingNextPage → Off.
 
 ### Acceptance
 
-- [ ] `tests/run_all.sh` passes.
-- [ ] Phone/iOS Simulator: a short book chapter reads across at least three
-      consecutive pages hands-free; the visible page follows the speech.
-- [ ] The page turn is real: after listening across a page boundary, kill and
-      relaunch the app — it resumes on the page speech had reached (firmware
-      progress tracking saw the button).
-- [ ] Last page of the book: speech ends, `page timeout` logged once, no
-      further page turns, no stuck state (opening another book starts fresh).
-- [ ] Toggle off mid-read: speech stops AND no page turn fires afterwards
-      (the canceled path).
-- [ ] Desktop `tests/run_all.sh` and desktop pio build stay green.
+- [ ] `tests/run_all.sh` green.
+- [ ] A short chapter reads across ≥3 consecutive pages hands-free; the
+      visible page follows the speech.
+- [ ] **The turn is real**: after listening across a page boundary, kill and
+      relaunch the app — it resumes on the page speech reached (firmware
+      progress saw the button).
+- [ ] Last page: speech ends, `page timeout` logged once, no further turns,
+      no stuck state (another book then reads fine).
+- [ ] Toggle off mid-read: speech stops AND no page turn fires afterwards.
 
 ### Traps
 
-- **Never call `rebootAsPowerWake()`-style shortcuts or firmware pagination
-  APIs directly** — the injected button IS the feature: progress persistence,
-  chapter boundaries, and end-of-book behaviour all come from the firmware's
-  own handler.
-- **didFinish fires for finished utterances only**; stopSpeaking produces
-  didCancel. If page turns fire on cancel, the serial filter or the delegate
-  wiring is wrong — fix that, do not add state to compensate.
-- **Do not shorten the injected hold below 2 frames.** A down and up inside
-  one frame risks the same no-level-to-poll problem the deep-sleep edge-latch
-  exists for (`test_sleep_wake.sh` history).
+- **The injected button IS the feature** (D3) — never call reader internals
+  or pagination APIs directly.
+- **Page turns firing on cancel** mean the serial filter or delegate wiring
+  is broken; fix that, never add compensating state.
+- **Do not shorten the hold below 2 frames** — a down and up inside one frame
+  risks the no-level-to-poll problem the deep-sleep edge-latch exists for.
 
 ---
 
-## Phase 3 — Highlight the word being spoken (user phase "add highlighting")
+## Phase 3 — Highlight the spoken word  *(size L)*
 
-Deliverable: the word currently being spoken carries a translucent highlight
-on the panel, both appearances, tracking speech word by word. This phase has
-the feature's two hardest correctness details: UTF-16→UTF-8 offset mapping
-and rect coordinate mapping.
+Deliverable: a translucent wash on the word being spoken, both appearances,
+tracking word by word — including hyphen-split words on two lines. This
+phase carries the feature's two hardest correctness details (R2, R3, R5) and
+the presents-rarely measurement (R9).
 
 ### 3a. Simulator repo
 
-**`SimulatorOverlay` accessors.** In `src/SimulatorOverlay.h` declare
-`int panelLeftPx();` and `int panelWidthPx();` next to `panelBottomPx()`. In
-`src/HalDisplay.cpp`, next to the existing atomics at lines 417–420, add
-`panelLeft`/`panelWidth` atomics, and store them at the manual-placement site
-(lines 704–706): `panelLeft = (int)(cx - logW * scale / 2.0f)`,
-`panelWidth = (int)(logW * scale)`. Desktop letterbox path never sets them
-(stays 0), same as the existing pair — they are only meaningful under manual
-placement, which is the only place the highlight paints.
+**`SimulatorOverlay` accessors**: declare `int panelLeftPx();` and
+`int panelWidthPx();` in `src/SimulatorOverlay.h` next to `panelBottomPx()`;
+add the atomics next to the existing pair (`src/HalDisplay.cpp:417-420`) and
+store them at the manual-placement site (lines 704–706):
+`panelLeft = (int)(cx - logW * scale / 2.0f)`,
+`panelWidth = (int)(logW * scale)`. The desktop letterbox path leaves them 0,
+same as the existing pair — only manual placement paints highlights.
 
-**Core**: store `rects_` from `pageArrived`. New transitions:
+**Core**: keep `rects_` from `pageArrived`; new behaviour:
 
 | State | Input | Actions | Next |
 |---|---|---|---|
-| Speaking | `willSpeakByte(b)` | SetHighlight(i) where rects[i].byteOffset ≤ b < byteOffset+byteLen; no action if no rect matches or i unchanged | Speaking |
-| Speaking → anything that stops or finishes speech | (append) ClearHighlight | — |
+| Speaking | `willSpeakByte(b)` | SetHighlight(rects_[i].byteOffset, .byteLen) for the rect whose range contains `b`; nothing if none contains it or the word is unchanged | Speaking |
+| Speaking → any stop/finish/cancel/clear | (append) ClearHighlight | — |
 
-`rects_` is sorted by `byteOffset` (the firmware captures in reading order);
-find by linear scan from the last index — pages have a few hundred words,
-and the scan is resumable because speech only moves forward within an
-utterance.
+Find the rect by a **resumable scan** from `lastHighlightRect_` (speech only
+moves forward within an utterance; rects are in reading order). Reset the
+cursor on `pageArrived` and on any `StartUtterance` (Phase 4's backwards
+jumps depend on that reset — test row).
 
 **Adapter**:
 
-- Delegate gains `willSpeakRangeOfSpeechString:utterance:` — the UTF-16 trap:
+- Delegate gains `willSpeakRangeOfSpeechString:utterance:` — the R3 trap in
+  full:
 
   ```objc
   - (void)speechSynthesizer:(AVSpeechSynthesizer *)syn
@@ -679,104 +790,90 @@ utterance.
                         utterance:(AVSpeechUtterance *)utt {
     // range.location is UTF-16 CODE UNITS into utt.speechString. The channel
     // text and every rect offset are UTF-8 BYTES. Convert by measuring the
-    // UTF-8 length of the prefix, then rebase onto the page: this utterance
-    // may have started mid-page (Phase 4).
+    // UTF-8 length of the prefix; the adapter adds s_utteranceBaseByte on
+    // drain because this utterance may have started mid-page (Phase 4).
     NSUInteger b = [[utt.speechString substringToIndex:range.location]
                       lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-    [self enqueueKind:kEvWillSpeak
-               serial:serialOf(utt)
-           byteOffset:(uint32_t)b];  // adapter adds s_utteranceBaseByte on drain
+    [self enqueueKind:kEvWillSpeak serial:serialOf(utt) byteOffset:(uint32_t)b];
   }
   ```
 
-  On drain, the adapter feeds
-  `s_core.willSpeakByte(s_utteranceBaseByte + ev.byteOffset)`.
-- `SetHighlight(i)` / `ClearHighlight` → store `int s_highlightIndex` (plus a
-  copy of the page rects, main-thread-owned) and call
-  `SimulatorOverlay::requestPresent()`. Event-driven, word-rate — this is the
-  `requestPresent` contract working as designed, not a per-frame present.
-- Painting: `paintPad` in `CrossPointIOSShim.cpp` is the single overlay
-  callback; have it first call a new
-  `CrossPointReadAloud_paintHighlight(SDL_Renderer*, int outW, int outH)`
-  which no-ops when `s_highlightIndex < 0`, else maps the rect with the
-  Contracts formula, inflates it by 2 device px, and fills it:
+- `SetHighlight` / `ClearHighlight` → main-thread-owned highlight state (the
+  range + a copy of the page rects) + `SimulatorOverlay::requestPresent()`.
+  Event-driven and only on change — word-rate, a few Hz.
+- Painting: `paintPad` (the single overlay callback) first calls a new
+  `CrossPointReadAloud_paintHighlight(SDL_Renderer*, int outW, int outH)`:
+  no-op without an active range; else, for EVERY rect matching the range, map
+  with the Contracts formula, inflate by 2 device px, and:
 
   ```cpp
   SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-  // light: warm marker over FBFBF9 paper; dark: dimmer over 121212.
-  if (dark) SDL_SetRenderDrawColor(r, 255, 200, 0, 60);
-  else      SDL_SetRenderDrawColor(r, 255, 200, 0, 80);
+  if (dark) SDL_SetRenderDrawColor(r, 255, 200, 0, 60);  // over 121212 paper
+  else      SDL_SetRenderDrawColor(r, 255, 200, 0, 80);  // over FBFBF9 paper
   SDL_RenderFillRect(r, &hl);
   ```
 
-  The dark flag is `g_dark`, already maintained in that file. Painting OVER
-  the panel from the overlay callback is fine — the callback runs after the
-  panel texture is rendered, with logical presentation disabled, in device
-  pixels (see `src/SimulatorOverlay.h` header comment).
+  `dark` is `g_dark`, already maintained in that file. Painting over the
+  panel from the overlay callback is legitimate: it runs after the panel
+  texture, logical presentation disabled, device pixels.
 
-**Tests** (`read_aloud_core_test.cpp` additions): build a page whose text
-contains multibyte content, e.g. `"\xE2\x80\x9CHello\xE2\x80\x9D caf\xC3\xA9 world"`
-with three rects at the correct byte offsets, and assert: bytes inside word 0
-highlight index 0; advancing into word 1 emits SetHighlight(1) exactly once
-(no repeat for every byte); a byte in the inter-word gap emits nothing;
-finish/cancel/stop each emit ClearHighlight; a fresh page resets the resumable
-scan (byte 0 of the new page highlights index 0 again).
+**Test rows**: page text
+`"\xE2\x80\x9CHello\xE2\x80\x9D caf\xC3\xA9 world"` with rects at true byte
+offsets — bytes inside word 0 highlight word 0's range; entering word 1 emits
+SetHighlight once, not per byte; inter-word bytes emit nothing; a
+hyphen-split word (two rects, same range) — highlight action emitted once for
+the range; finish/cancel/stop/disable each emit ClearHighlight; a fresh page
+resets the scan cursor.
 
 ### 3b. Firmware repo (work package FW-B)
 
-Extend the FW-A capture: at the point each word is placed (the same layout
-pass that produced the text), also record its rect. Coordinates: the
-renderer's logical portrait pixels, y down — **divide by the render scale at
-capture time** if the draw site works in scaled pixels (on iOS the core runs
-`CROSSPOINT_RENDER_SCALE=2`; the contract is scale-independent logical px).
-`byteOffset`/`byteLen` must index the exact UTF-8 string being published —
-build both in the same pass so they cannot drift. Pass the vector to
-`publishReadAloudPage(text.c_str(), text.size(), rects.data(), rects.size())`.
+Extend the 0B capture: record each word's rect(s) in the same pass that
+builds the text (R2). Coordinates: logical portrait pixels, y down —
+**divide by the render scale at capture time** (R5; the iOS core runs
+`CROSSPOINT_RENDER_SCALE=2`). A word wrapped across lines records one rect
+per fragment sharing the word's byteOffset/byteLen. Pass the vector to
+`publishReadAloudPage(...)`.
 
-Verification of the firmware half, headless on desktop: the Phase-1 log line
-already prints `words=N`; extend the acceptance script and confirm `words=`
-matches the visible word count of page 1 (count them on a screenshot).
+Headless verification: Gate G0's script now shows `words=N`; N must be
+plausible against a screenshot's visible word count, and `bytes=` must be
+unchanged from 0B for the same book/page (rects must not perturb text).
 
 ### Acceptance
 
-- [ ] `tests/run_all.sh` passes (new core rows green).
-- [ ] Desktop headless: `words=` nonzero and plausible; `bytes=` unchanged
-      from Phase 1 for the same book/page (rects must not perturb text).
-- [ ] iOS Simulator, light mode: highlight sits ON the spoken word — right
-      word, right line, within a couple of px — across at least two full
-      pages including an auto page-turn (highlight clears during the turn,
-      resumes on the new page's first word).
-- [ ] Dark mode: same, with the dimmer wash, panel inverted.
-- [ ] A book with curly quotes/accents: highlight does not drift after
-      multibyte characters (this is the UTF-16/UTF-8 check on-glass).
-- [ ] Desktop pio build green (SimulatorOverlay/HalDisplay were touched —
-      desktop is the canary for those files).
+- [ ] `tests/run_all.sh` green.
+- [ ] Desktop headless: `words=` plausible, `bytes=` unchanged from 0B.
+- [ ] iOS Simulator, light mode: the wash sits ON the spoken word — right
+      word, right line, within a couple of px — across two pages including an
+      auto turn (clears during the turn, resumes on the new page).
+- [ ] Dark mode: same, dimmer wash, inverted panel.
+- [ ] A hyphenation-heavy book: a split word lights on BOTH lines.
+- [ ] A curly-quote book: no drift after multibyte characters (R3 on-glass).
+- [ ] R9 measured: reading feels smooth; if per-word presents visibly cost,
+      drop to sentence-granularity highlight and note it here.
+- [ ] Desktop pio build green (HalDisplay/SimulatorOverlay were touched —
+      desktop is their canary).
 
 ### Traps
 
-- **NSRange is UTF-16 code units.** The `substringToIndex` +
-  `lengthOfBytesUsingEncoding` conversion is the entire fix; anything that
-  treats `range.location` as bytes or as code points will pass ASCII books
-  and drift on the first curly quote. The multibyte core test plus the
-  on-glass check both exist to catch exactly this.
-- **Screenshots cannot verify the highlight.** `CROSSPOINT_SIM_SCREENSHOTS`
-  captures renderer output pre-composite (HalDisplay.cpp says so) and the
-  overlay paints after; on-glass eyes or a screen recording are the only
-  verification. Do not burn cycles wondering why the BMP shows no highlight.
-- **If the highlight lands at half/double size or offset**, the firmware
-  published scaled coordinates — fix the division at the capture site (FW-B),
-  never by fudging `S` in the simulator, which would break the next device
-  profile.
-- **Do not add another overlay callback**; `setDrawCallback` holds one
-  pointer. The pad's painter delegates to the highlight painter.
+- **NSRange is UTF-16 code units** — the `substringToIndex` +
+  `lengthOfBytesUsingEncoding` conversion is the entire fix. Anything
+  treating `range.location` as bytes or code points passes ASCII books and
+  drifts at the first curly quote; the multibyte test and the on-glass check
+  both exist for exactly this.
+- **Screenshots cannot verify the highlight** (D6): BMP capture is
+  pre-composite. On-glass eyes or a screen recording only.
+- **Highlight at half/double size or offset** = firmware published scaled
+  coordinates; fix the division at the capture site, never fudge `S` in the
+  simulator.
+- **One overlay callback** — `setDrawCallback` holds a single pointer; the
+  pad's painter delegates to the highlight painter.
 
 ---
 
-## Phase 4 — Start reading from a tapped word (user phase "start at a given selected word")
+## Phase 4 — Start reading from a tapped word  *(size S)*
 
-Deliverable: with the toggle on and a book open, tapping a word on the page
-starts (or jumps) reading from that word, highlight included. Tapping
-whitespace/margins does nothing. The pad keeps working unchanged.
+Deliverable: tapping a word starts (or jumps) reading from it, highlight
+included; whitespace/margins do nothing; the pad is untouched.
 
 ### Changes (simulator repo only — the channel already carries everything)
 
@@ -784,65 +881,64 @@ whitespace/margins does nothing. The pad keeps working unchanged.
 
 | State | Input | Actions | Next |
 |---|---|---|---|
-| any, enabled, rects present | `tapAtLogical(x,y)` hitting rects[i] | StopUtterance (if Speaking), StartUtterance(rects[i].byteOffset), SetHighlight(i) | Speaking |
+| any, enabled, rects present | `tapAtLogical(x,y)` inside rects_[i] (each rect inflated 2 logical px for fat fingers) | StopUtterance (if Speaking), StartUtterance(rects_[i].byteOffset), SetHighlight(that word's range) | Speaking |
 | any | `tapAtLogical` hitting nothing | — | unchanged |
 
-Hit-test: point-in-rect over `rects_`, first match wins; inflate each rect by
-2 logical px on all sides during the test (fat-finger margin; rects are
-glyph-tight).
+**Shim.** Tap detection lives in `padWatch` (`ios/CrossPointIOSShim.cpp`),
+which already sees every finger event and never consumes them (invariant 3).
+Three fields of candidate state in the file's anonymous namespace:
 
-**Adapter / shim.** Tap detection lives in `padWatch`
-(`ios/CrossPointIOSShim.cpp`), which already sees every finger event and
-never consumes them (invariant 3):
+- `FINGER_DOWN` hitting NO pad slot, inside the presented panel rect
+  (`panelLeftPx/panelWidthPx/panelBottomPx/panelHeightPx`) → record
+  `{fingerID, x, y}`.
+- `FINGER_MOTION` beyond `12.0f * g_ptScale` device px from the down point →
+  cancel (a drag must not start speech).
+- `FINGER_UP` on a live candidate → logical coords
+  (`lx = (fx - panelLeft) / S`, `ly = (fy - panelTop) / S`) →
+  `CrossPointReadAloud_tapAtPanel(lx, ly)` → `s_core.tapAtLogical`, apply
+  actions. `FINGER_CANCELED` / `WILL_ENTER_BACKGROUND` / `FOCUS_LOST` clear
+  the candidate (the same events the pad resets on).
+- No duration threshold — down-up without movement is a tap regardless of
+  hold. No timers, matching the pad's design.
 
-- `SDL_EVENT_FINGER_DOWN` that hit-tests to NO pad slot and lands inside the
-  presented panel rect (`panelLeftPx/panelWidthPx/panelBottomPx/panelHeightPx`)
-  records `{fingerID, x, y}` as a tap candidate.
-- `SDL_EVENT_FINGER_MOTION` moving more than `12.0f * g_ptScale` device px
-  from the down point cancels the candidate (it is a swipe/scroll, and X3
-  firmware ignores panel swipes anyway — but a drag must not start speech).
-- `SDL_EVENT_FINGER_UP` on a live candidate converts to logical panel coords
-  — `lx = (fx - panelLeft) / S`, `ly = (fy - panelTop) / S` with the Phase-3
-  `S` — and calls `CrossPointReadAloud_tapAtPanel(lx, ly)`, which feeds
-  `s_core.tapAtLogical` and applies actions. `FINGER_CANCELED`,
-  `WILL_ENTER_BACKGROUND`, `FOCUS_LOST` clear the candidate (same events the
-  pad resets on).
-- No duration threshold: down-up without movement is a tap regardless of
-  hold. No timers, matching the pad's own design.
-
-**Tests** (`read_aloud_core_test.cpp` additions): tap inside word 2 while Off
-→ Start(rects[2].byteOffset) + SetHighlight(2); tap while Speaking word 0 →
-Stop, Start(word 2), SetHighlight(2); tap in a gap → no actions; tap with no
-rects (Phase-1-era firmware) → no actions; the 2-px inflation catches a tap 1
-logical px outside a rect edge.
+**Test rows**: tap inside word 2 while Off → Start(word 2's offset) +
+SetHighlight(word 2's range); tap while Speaking word 0 → Stop, Start(word 2),
+SetHighlight; tap a gap → nothing; tap with no rects (0B-era firmware) →
+nothing; a tap 1 logical px outside a rect edge still hits (inflation); tap
+an EARLIER word while speaking a later one → correct highlight afterwards
+(the scan-cursor reset).
 
 ### Acceptance
 
-- [ ] `tests/run_all.sh` passes.
-- [ ] Phone: tap a word mid-page with speech off → reading starts at that
-      word, highlight on it; subsequent auto page-turn still works (state
-      machine is genuinely in Speaking).
-- [ ] Tap a different word while speaking → jump, no double audio, no
-      spurious page turn (serial filter again).
-- [ ] Tap margins/whitespace → nothing; tap every pad button → pad behaves
-      exactly as before (candidate logic must not eat pad presses — pad slots
-      are checked first, same as today).
-- [ ] Drag across the page → no speech start.
-- [ ] Utterance start byte equals the tapped rect's byteOffset in the log
-      (`[READALOUD] utterance start serial=… byteOff=…`).
+- [ ] `tests/run_all.sh` green.
+- [ ] Phone: tap a word with speech off → reading starts there, highlighted;
+      the subsequent auto page-turn still fires (genuinely in Speaking).
+- [ ] Tap another word while speaking → jump; no double audio, no spurious
+      page turn (R7 again).
+- [ ] Margins/whitespace taps → nothing; every pad button behaves exactly as
+      before (pad slots are checked first, as today); a drag across the page
+      → nothing.
+- [ ] `[READALOUD] utterance start … byteOff=` equals the tapped rect's
+      byteOffset.
 
 ### Traps
 
-- **Do not touch PadCore** — the candidate is three fields in the shim's
-  anonymous namespace next to the other watch state, not a new gesture class
-  bolted into the pad's pure core.
-- **Word-start slicing**: `StartUtterance` offsets from taps are rect
-  byteOffsets, which FW-B guarantees are word starts — the Phase-1 slicing
-  precondition holds by construction. Never "round" a tap to an arbitrary
-  byte.
-- **Highlight resumable-scan reset**: jumping backwards (tapping an earlier
-  word) must reset the Phase-3 scan index, or highlights stop tracking after
-  a backwards jump. A core test row covers it.
+- **Do not touch PadCore** — candidate state is three fields in the shim, not
+  a gesture bolted into the pad's pure core.
+- **Taps only ever start at rect byteOffsets** (word starts by FW-B
+  construction) — never "round" a tap to an arbitrary byte.
+
+---
+
+## Phase 5 (recorded, out of scope) — real screen-reader support
+
+Once the channel exists, exposing the page text as a `UIAccessibilityElement`
+over the panel view (plus labels on the seven pad buttons) makes VoiceOver
+and Speak Screen genuinely work — Apple's screen reading, the owner's
+gestures, no speech code of ours in the loop. It does not replace phases 1–4
+(no auto page-turn, no word callbacks, no tap-to-start) but it serves
+VoiceOver users the phases do not. Do not start it until Phase 4 ships; file
+it as its own TODO entry then.
 
 ---
 
@@ -850,26 +946,35 @@ logical px outside a rect edge.
 
 | Environment | Can verify |
 |---|---|
-| Linux cloud session, this repo only | `tests/run_all.sh` (channel + core tests, all phases' state machines), header-compile checks |
-| Desktop with firmware checkout (Mac or Linux) | Everything above, plus FW-A/FW-B end-to-end via `CROSSPOINT_SIM_READALOUD_LOG=1` (text, `words=`, clear-on-exit, page-turn republish), pio canary build |
-| Mac with Xcode, iOS Simulator | All audible/visual acceptance: speech, auto page-turn, highlight placement, taps, both appearances |
-| Physical iPhone (TestFlight via `ios/testflight.sh`) | Silent-switch behaviour, real voices (downloaded enhanced/premium), Bluetooth audio, performance |
+| Linux cloud session, this repo only | `tests/run_all.sh` (channel + all core state-machine rows), header-compile checks |
+| Desktop with firmware checkout (Mac or Linux) | Everything above, plus Gate G0's full text-quality audit, FW-A/FW-B end-to-end (`words=`, `bytes=`, clear-on-exit, page-turn republish), pio canary |
+| Mac with Xcode, iOS Simulator | All audible/visual acceptance: speech, auto turn, highlight placement, taps, both appearances |
+| Physical iPhone (TestFlight via `ios/testflight.sh`) | Silent-switch (R6), real downloaded voices, Bluetooth audio, feel/performance (R9) |
 
-Known accepted simplifications (do not "fix" in these phases): audio stops on
-backgrounding (no background-audio entitlement/Now Playing integration);
-audio-session interruptions (calls) are treated as cancel — reading does not
-auto-resume; landscape reading unsupported; sentences split across a page
-boundary are spoken with a page-turn pause in the middle; a firmware
-re-render of the same page (e.g. AA toggle) restarts its speech.
+## Non-goals and accepted simplifications (v1)
+
+Do not "fix" these inside phases 0–4; each is a deliberate cut:
+
+- No background audio / lock-screen controls — reading stops on backgrounding.
+- Audio-session interruptions (calls) are treated as cancel; no auto-resume.
+- System default voice regardless of book language (R10); no rate control UI.
+- Landscape reading unsupported (the phone harness presents portrait only).
+- A sentence split across a page boundary is spoken with the turn's pause in
+  the middle.
+- A firmware re-render of the same page (e.g. an AA toggle) restarts its
+  speech.
+- CJK and other unspaced scripts highlight whatever the capture emits as a
+  "word" (likely a layout run); correctness of speech is Apple's, of
+  segmentation is not attempted.
 
 ## Documentation & bookkeeping (part of each phase's PR)
 
-- Phase 1: add the channel to CLAUDE.md's HAL-surface notes (one short
-  paragraph next to the keyboard-channel one) and the two tests to the test
-  table and command list.
-- Phase 4 (feature complete): update ios/README.md with the owner-facing
-  behaviour table (toggle, tap, what stops reading), and close ST-003 in
-  TODO.md.
-- Each firmware PR notes the simulator version/commit it needs, and the
-  firmware pin/source-set/`firmware_repo` triple stays in sync per
-  CONTEXT-sim-notes.md's invariant if TUs were added.
+- Phase 0B: add the channel to CLAUDE.md's HAL-surface notes (a short
+  paragraph next to the keyboard-channel one) and the new test to its table
+  and command list; Phase 1 adds the core test likewise.
+- Phase 4 (feature complete): ios/README.md gains the owner-facing behaviour
+  table (toggle, tap, what stops reading); close ST-003 in TODO.md; file
+  Phase 5 as its own entry if still wanted.
+- Each firmware PR names the simulator commit it needs; the firmware
+  pin / source-set / `firmware_repo` triple stays in sync per
+  CONTEXT-sim-notes.md if TUs were added.
