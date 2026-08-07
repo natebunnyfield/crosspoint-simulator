@@ -107,6 +107,18 @@ inline const char *pcTaskGetName(TaskHandle_t h) {
 }
 inline void vTaskDelete(TaskHandle_t h) {
   if (h) {
+    // Drop the registry entry before freeing. It was left behind, so the next
+    // xTaskCreate() for the same name took the dedupe branch above and handed
+    // the caller a pointer to freed memory -- a use-after-free on the first
+    // xTaskNotify(). The dedupe exists FOR the iOS in-process reboot, which is
+    // exactly the path that re-creates tasks under their old names.
+    auto &registry = simTaskRegistry();
+    for (auto it = registry.begin(); it != registry.end(); ++it) {
+      if (it->second == h) {
+        registry.erase(it);
+        break;
+      }
+    }
     if (h->thread.joinable())
       h->thread.detach();
     delete h;
