@@ -102,6 +102,45 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 
 ## FIXED
 
+### [S-010] `CROSSPOINT_NO_NETWORK` outlived the reason it existed
+**severity: medium · scope: iOS features · FIXED 2026-08-07 · `d7e8b27`, firmware `f1459353`**
+
+The flag excluded 16 TUs and gated Wi-Fi, File Transfer, font downloads and
+Claude out of the iOS build. That was correct when it was written: the radio was
+fake — `WiFi.scanNetworks()` returned a synthetic list and `localIP()` was
+hardcoded to `127.0.0.1`, so File Transfer painted a QR code pointing at
+loopback. That is B-008, the lying-control defect.
+
+It stopped being correct at `4a98ba8`, which gave the target a real radio:
+`CrossPointWiFi.mm` over NetworkExtension, in-process HTTP, Bonjour, and servers
+bound to all interfaces on iOS. From then on the flag was suppressing features
+that work — the mirror image of the defect it was introduced to fix.
+
+Split into `CROSSPOINT_NO_DEVICE_FLASH`, which gates only OTA and SD Firmware
+Update. Those write firmware to an ESP32 partition; no phone has one. The
+exclusion list went from 16 TUs to 4.
+
+Two conflations surfaced while mapping the guard sites, both accidental:
+Bluetooth keyboard pairing sat inside the network guard (so Pair/Forget BT were
+unavailable on iOS for no reason), and Download Fonts sat inside the OTA guard
+(so it went out with firmware flashing rather than with networking). Both now
+follow the surface they belong to.
+
+**Verified:** `crosspoint_core` AND the `CrossPointX3` app target both link for
+`arm64-apple-ios` with the network TUs restored — the app-target link is the
+gate that matters, since a static library can hide unresolved symbols and that
+is exactly where build 30 died. The two flash activities' absence is proven by
+the same link: their rows and switch cases must be compiled out, or
+`OtaUpdateActivity` could not resolve. Home renders all seven rows including
+File Transfer and Claude; Settings shows Wi-Fi Networks. Device `gh_release` and
+the desktop canary both build; 215/215 firmware tests, 6/6 simulator tests.
+
+**Not confirmed on hardware:** that a transfer actually completes from another
+machine. Linking is not the same as working.
+
+**Depended on B-004.** Editing `platformio.ini` used to wipe every environment's
+build directory, which is why this kind of change was avoided.
+
 ### [S-009] The pad contrast dial had its resolution in the wrong place
 **severity: medium · scope: iOS settings · FIXED 2026-08-07 · `258bb14`**
 
