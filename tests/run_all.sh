@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Run every host-compilable simulator test.
+#
+# Exists because the only way to run this suite was to hand-copy six multi-line
+# c++ invocations out of CLAUDE.md, so in practice it ran when someone
+# remembered to. There is no CI on push or pull_request in this repo either
+# (both workflows are workflow_dispatch), which means a green suite has never
+# gated anything.
+#
+#   tests/run_all.sh          # build and run everything
+#   tests/run_all.sh -k wifi  # only tests whose name matches
+#
+# The two shell tests (test_sleep_wake.sh, test_text_entry.sh) are NOT run here:
+# both need a desktop binary built from a firmware checkout and exit 2 to mean
+# SKIP, which a plain pass/fail runner would misreport. Run them by hand with a
+# firmware path, as CLAUDE.md describes.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$HERE/.." && pwd)"
+OUT="$(mktemp -d)"
+trap 'rm -rf "$OUT"' EXIT
+
+FILTER="${2:-}"
+[[ "${1:-}" == "-k" ]] || FILTER=""
+
+pass=0 fail=0 skipped=0
+failed_names=()
+
+# run <name> <compile-command...> -- the binary is $OUT/<name>
+run() {
+  local name="$1"; shift
+  if [[ -n "$FILTER" && "$name" != *"$FILTER"* ]]; then
+    return
+  fi
+  printf '%-22s ' "$name"
+  if ! "$@" >"$OUT/$name.log" 2>&1; then
+    echo "COMPILE FAIL"
+    sed -n '1,8p' "$OUT/$name.log" | sed 's/^/    /'
+    fail=$((fail + 1)); failed_names+=("$name (compile)")
+    return
+  fi
+  if "$OUT/$name" >>"$OUT/$name.log" 2>&1; then
+    echo "PASS"
+    pass=$((pass + 1))
+  else
+    echo "FAIL"
+    tail -12 "$OUT/$name.log" | sed 's/^/    /'
+    fail=$((fail + 1)); failed_names+=("$name")
+  fi
+}
+
+cd "$REPO"
+
+run pad_core \
+  c++ -std=c++17 -Iios -o "$OUT/pad_core" tests/pad_core_test.cpp ios/PadCore.cpp
+
+run wifi_host \
+  c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 -o "$OUT/wifi_host" tests/wifi_host_test.cpp
+
+run http_dispatch \
+  c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 -o "$OUT/http_dispatch" tests/http_dispatch_test.cpp
+
+run restart_semantics \
+  c++ -std=c++20 -Isrc -o "$OUT/restart_semantics" tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp
+
+run task_registry \
+  c++ -std=c++20 -Isrc -o "$OUT/task_registry" tests/task_registry_test.cpp
+
+# build_identity needs the firmware's include set. Skip rather than fail when
+# there is no firmware checkout to point at -- that is a missing precondition,
+# not a broken test, and reporting it as FAIL would train people to ignore reds.
+if FW_FLAGS=$(python3 tools/fw_include_flags.py 2>/dev/null) && [[ -n "$FW_FLAGS" ]]; then
+  # shellcheck disable=SC2086
+  run build_identity \
+    c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc $FW_FLAGS \
+        -o "$OUT/build_identity" tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp
+else
+  printf '%-22s %s\n' "build_identity" "SKIP (no firmware include set; run a pio build first)"
+  skipped=$((skipped + 1))
+fi
+
+echo
+if [[ $fail -eq 0 ]]; then
+  echo "$pass passed, $skipped skipped"
+  exit 0
+fi
+echo "$pass passed, $fail FAILED, $skipped skipped"
+printf '  %s\n' "${failed_names[@]}"
+exit 1
