@@ -48,6 +48,10 @@ import shutil
 import stat
 import string
 import sys
+import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_icns  # noqa: E402  (path set above so this works from any cwd)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(SCRIPT_DIR, "Info.plist.in")
@@ -230,9 +234,30 @@ def cmd_build(args):
     else:
         bundle_path = os.path.join(args.output_dir, "%s.app" % executable_name)
 
-    icon_file = os.path.basename(args.icon) if args.icon else ""
-    if args.icon and not os.path.isfile(args.icon):
-        raise PackagingError("icon not found: %s" % args.icon)
+    # The icon is generated from the iOS artwork unless one is supplied. It used
+    # to be supplied by nobody, which meant every bundle this script produced
+    # shipped with the generic blank-document icon -- and App Store review
+    # rejects a submission without an app icon, so it was a latent blocker of
+    # the same kind as the ITMS-90683 purpose strings above.
+    #
+    # Generating rather than checking in a second .icns keeps one source of
+    # truth: there is one piece of icon artwork in this repo, and a hand-made
+    # copy would drift from it the first time either changed. make_icns.py
+    # explains why the iOS square cannot simply be reused on macOS.
+    generated_icon = None
+    icon_source = args.icon
+    if not icon_source and not args.no_icon:
+        try:
+            generated_icon = tempfile.NamedTemporaryFile(suffix=".icns", delete=False)
+            generated_icon.write(make_icns.build_icns(make_icns.DEFAULT_SOURCE))
+            generated_icon.close()
+            icon_source = generated_icon.name
+        except make_icns.IconError as error:
+            raise PackagingError("could not generate the app icon: %s" % error)
+
+    icon_file = ("%s.icns" % executable_name) if icon_source else ""
+    if icon_source and not os.path.isfile(icon_source):
+        raise PackagingError("icon not found: %s" % icon_source)
 
     info = load_template(
         _placeholder_mapping(
@@ -259,8 +284,10 @@ def cmd_build(args):
     mode = os.stat(installed_binary).st_mode
     os.chmod(installed_binary, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
-    if args.icon:
-        shutil.copy2(args.icon, os.path.join(resources_dir, icon_file))
+    if icon_source:
+        shutil.copy2(icon_source, os.path.join(resources_dir, icon_file))
+    if generated_icon:
+        os.unlink(generated_icon.name)
 
     write_plist(os.path.join(contents_dir, "Info.plist"), info)
     with open(os.path.join(contents_dir, "PkgInfo"), "w") as handle:
@@ -361,8 +388,41 @@ def cmd_verify(args):
         )
         return 1
 
+    # The app icon, checked here for the same reason the purpose strings are:
+    # App Store review rejects a build without one, and a bundle assembled by
+    # any pipeline can be missing it. Only reachable when verifying a real
+    # bundle -- verifying a bare Info.plist has no Resources to look in.
+    icon_problem = _icon_problem(plist_path, contents)
+    if icon_problem:
+        print("%s %s" % (plist_path, icon_problem), file=sys.stderr)
+        print(
+            "\nApp Store review rejects a submission with no app icon. Rebuild with:"
+            "\n  python3 %s build --binary <binary> --device <device>"
+            "\n(the icon is generated from the iOS artwork; --no-icon opts out)"
+            % _invocation_path(),
+            file=sys.stderr,
+        )
+        return 1
+
     print("%s has all %d required purpose strings." % (plist_path, len(REQUIRED_PRIVACY_KEYS)))
     return 0
+
+
+def _icon_problem(plist_path, contents):
+    """Describe what is wrong with the bundle's icon, or None if it is fine."""
+    icon_file = contents.get("CFBundleIconFile")
+    if not isinstance(icon_file, str) or not icon_file.strip():
+        return "has no CFBundleIconFile."
+
+    contents_dir = os.path.dirname(os.path.abspath(plist_path))
+    if os.path.basename(contents_dir) != "Contents":
+        return None  # a bare plist; nothing to resolve the name against
+
+    # CFBundleIconFile may omit the .icns extension, which macOS supplies.
+    name = icon_file if icon_file.endswith(".icns") else icon_file + ".icns"
+    if not os.path.isfile(os.path.join(contents_dir, "Resources", name)):
+        return "names icon %s, which is not in Contents/Resources." % icon_file
+    return None
 
 
 # --- CLI ---
@@ -407,7 +467,17 @@ def build_parser():
     )
     build.add_argument("--product-name", help="override the display name for this device")
     build.add_argument("--executable-name", help="override the executable name inside the bundle")
-    build.add_argument("--icon", help="path to an .icns file to install as the bundle icon")
+    build.add_argument(
+        "--icon",
+        help="path to an .icns file to install as the bundle icon "
+        "(default: generated from the iOS app icon artwork)",
+    )
+    build.add_argument(
+        "--no-icon",
+        action="store_true",
+        help="ship without an app icon. App Store review rejects this; it exists "
+        "for local builds that do not care.",
+    )
     build.add_argument(
         "--minimum-system-version",
         default=DEFAULT_MINIMUM_SYSTEM_VERSION,

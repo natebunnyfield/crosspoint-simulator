@@ -114,6 +114,16 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   linked SDL2 library and rejects the upload with ITMS-90683. Removing them
   breaks the next App Store submission. If a future upload flags another key,
   add it to the template and to `REQUIRED_PRIVACY_KEYS` so `verify` catches it.
+  **The app icon is generated, not checked in.**
+  [packaging/macos/make_icns.py](packaging/macos/make_icns.py) derives the
+  `.icns` from the iOS artwork
+  (`ios/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`) at build time, so
+  the two platforms cannot drift apart — and it is not a straight copy, because
+  iOS ships a full square that the OS masks while macOS must ship its own
+  rounded, inset shape with transparent corners. It is pure Python (no `sips`
+  or `iconutil`) so a Linux CI box builds the same icon a Mac does. `verify`
+  now fails on a bundle with no icon, for the same reason it fails on a missing
+  purpose string: App Store review rejects both.
 - TestFlight deploys: [packaging/macos/deploy.sh](packaging/macos/deploy.sh)
   runs build → bundle → verify → embed dylibs → sign → `productbuild` →
   `altool` → tag, and must run on macOS from a GUI Terminal session.
