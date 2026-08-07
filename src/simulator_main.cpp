@@ -6,6 +6,7 @@
 #include "CrossPointSettings.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
+#include "SimulatorDocumentOpen.h"
 #include "SimulatorLifecycle.h"
 
 #if defined(__APPLE__)
@@ -100,6 +101,10 @@ int main(int argc, char **argv) {
   setjmp(SimulatorLifecycle::rebootJumpBuffer());
   SimulatorLifecycle::armRebootJump();
 #endif
+  // Before setup(), because a book handed to us by Finder has to be on the card
+  // and recorded in APP_STATE before setup() reads that state and picks which
+  // activity to open. No-op on iOS and on any launch without a document.
+  SimulatorDocumentOpen::captureLaunchDocument();
   setup();
 #if CROSSPOINT_SIM_IOS
   // After setup(), because installing the gesture event watch needs SDL
@@ -143,6 +148,9 @@ int main(int argc, char **argv) {
     // software keyboard on the glass. Edge-triggered inside; a no-op on every
     // frame that is not a transition.
     gpio.pumpHostTextInput();
+    // Open a book double-clicked in Finder while the app was already running.
+    // Relaunches when there is one, so this does not return in that case.
+    SimulatorDocumentOpen::pumpPendingOpen();
     // SDL must be driven from the main thread on macOS.
     // The render task writes pixels and sets pendingPresent; we flush them
     // here.

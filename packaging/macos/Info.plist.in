@@ -38,6 +38,45 @@
 	<string>${BUNDLE_VERSION}</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.books</string>
+	<!--
+	  Makes the app a target for opening an .epub from Finder: double-click,
+	  Open With, and drag-onto-icon all route through this declaration. Without
+	  it macOS has no reason to offer the app for a book at all.
+
+	  LSHandlerRank is Alternate, not Owner. Owner asks to become the system
+	  default handler for every EPUB on the machine, which would quietly take
+	  the file type away from Books.app on install, and a simulator has no
+	  business doing that. Alternate puts it in the Open With menu and honours
+	  an explicit "Always Open With" from the owner, which is the whole feature.
+
+	  Both LSItemContentTypes and CFBundleTypeExtensions are listed on purpose.
+	  Modern macOS matches on the UTI, but the extension is what catches an
+	  .epub that arrived without one registered (a fresh download, a file copied
+	  off a device), and a declaration that only worked for correctly tagged
+	  files would fail exactly on the books people need to sideload.
+
+	  Note for editors: XML forbids a double hyphen inside a comment, and this
+	  template is parsed by plistlib at build time. Prose here uses commas.
+	-->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EPUB Book</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.idpf.epub-container</string>
+			</array>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>epub</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSMinimumSystemVersion</key>
 	<string>${MINIMUM_SYSTEM_VERSION}</string>
 	<key>NSHighResolutionCapable</key>
