@@ -1,0 +1,35 @@
+name: Host tests
+
+# The first workflow in this repo that runs on its own. Both existing ones
+# (testflight.yml, testflight-ios.yml) are workflow_dispatch only and neither
+# invokes anything under tests/, so a green suite had never gated a merge.
+#
+# macos-latest rather than ubuntu: it is the platform this simulator is
+# developed and shipped on, and the one whose behaviour these tests encode.
+# None of them needs SDL — run_all.sh passes no SDL flags — so there is nothing
+# to install and the job is a checkout plus six compiles.
+#
+# build_identity SKIPs here, and that is deliberate rather than an oversight.
+# It needs the firmware's include set, which tools/fw_include_flags.py derives
+# partly from <firmware>/.pio/libdeps — a directory that only exists after a
+# PlatformIO build. Checking out the pinned firmware is not enough to make it
+# run, so pulling that in would mean installing PlatformIO and building the
+# simulator env just to reach one test. Until that is worth the minutes, the
+# guard it covers is enforced at configure time by ios/CMakeLists.txt and at
+# boot by verifyBuildIdentityMatchesCore(), and run_all.sh reports the skip
+# rather than passing quietly.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the host suite
+        run: tests/run_all.sh
