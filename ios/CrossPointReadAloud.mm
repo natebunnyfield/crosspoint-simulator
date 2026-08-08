@@ -160,7 +160,13 @@ void applyActions(const std::vector<ReadAloudCore::Action> &actions) {
         // why perFrame injection cannot work). The firmware paginates,
         // persists progress, and re-publishes; the loop closes when that
         // page arrives on the channel.
-        gpio.queueButtonTap(HalGPIO::BTN_DOWN, kTurnHoldMs);
+        //
+        // BTN_RIGHT, not BTN_DOWN: verified against the firmware 2026-08-08
+        // (ReaderUtils::detectPageTurn) — next page is the RIGHT front button
+        // (or the side PageForward, which the owner can disable entirely).
+        // Known limitation: the firmware's nav-swap setting turns RIGHT into
+        // page-back; accepted for v1 and noted in the plan.
+        gpio.queueButtonTap(HalGPIO::BTN_RIGHT, kTurnHoldMs);
         g_awaitTicks = kAwaitTimeoutTicks;
         SDL_Log("[READALOUD] page turn queued");
         break;
@@ -209,6 +215,12 @@ void CrossPointReadAloud_begin(void) {
     g_synth.delegate = g_delegate;
     SDL_Log("[READALOUD] adapter installed");
   }
+  // Seed the capture flag NOW, before the first loop() runs: a resumed book
+  // renders its first page inside that first iteration, and a flag applied
+  // lazily from perFrame (which runs after loop()) misses that page — the
+  // exact race the desktop logger had. perFrame's edge detector then merely
+  // confirms this value.
+  gpio.setReadAloudCaptureWanted(CrossPointPrefs_readAloudEnabled() != 0);
   // Re-apply the pref on the next perFrame — a wake is exactly when the
   // owner may have flipped it in Settings.
   g_lastEnabled = -1;
