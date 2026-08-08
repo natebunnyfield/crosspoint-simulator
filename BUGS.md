@@ -22,27 +22,6 @@ was found, and what closing it requires.
 
 ## OPEN
 
-### [S-004] `getFrameBuffer()` can return null and five callers dereference it
-**severity: high · scope: display · found 2026-08-07**
-
-`HalDisplay::getFrameBuffer()` returns `nullptr` while the buffer is lent out
-(`src/HalDisplay.cpp:784`), and every consumer assumes non-null:
-`clearScreen` goes straight into `memset(getFrameBuffer(), …)`
-(`:532`), `refreshDisplay` into `snapshotBwBase` (`:612-614`), plus `drawImage`
-(`:537`), `drawImageTransparent` (`:560`) and `composeGrayscalePreview`
-(`:275`).
-
-`frameBufferLent` is a **plain `bool`** at file scope (`:114`), written by the
-borrower and read by the render thread with no synchronisation, so the window is
-not even deterministic.
-
-Dormant today: nothing in this repo calls `lendFrameBufferStorage`. It arms the
-moment the firmware's decode path does.
-
-**Close by:** deciding the contract — either the callers check, or the loan
-blocks/copies instead of handing back null — and making the flag an atomic
-either way.
-
 ### [S-003] Route handlers run on the accept worker, not the firmware task
 **severity: high · scope: web server / threading · found 2026-08-07**
 
@@ -101,6 +80,39 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-004] `getFrameBuffer()` can return null and five callers dereference it
+**severity: high · scope: display · found 2026-08-07** · FIXED 2026-08-07
+
+
+`HalDisplay::getFrameBuffer()` returns `nullptr` while the buffer is lent out
+(`src/HalDisplay.cpp:784`), and every consumer assumes non-null:
+`clearScreen` goes straight into `memset(getFrameBuffer(), …)`
+(`:532`), `refreshDisplay` into `snapshotBwBase` (`:612-614`), plus `drawImage`
+(`:537`), `drawImageTransparent` (`:560`) and `composeGrayscalePreview`
+(`:275`).
+
+`frameBufferLent` is a **plain `bool`** at file scope (`:114`), written by the
+borrower and read by the render thread with no synchronisation, so the window is
+not even deterministic.
+
+Dormant today: nothing in this repo calls `lendFrameBufferStorage`. It arms the
+moment the firmware's decode path does.
+
+**Close by:** deciding the contract — either the callers check, or the loan
+blocks/copies instead of handing back null — and making the flag an atomic
+either way.
+
+
+**Fixed.** All five dereferences now check. The behaviour on null is to skip,
+not to substitute a buffer: whoever holds the loan owns those pixels, and the
+lender's own refresh follows, so a skipped clear or blit repaints on the next
+draw. `refreshDisplay` returning early matters most — converting a half-owned
+buffer would have presented a torn frame rather than crashed, which is the worse
+failure because it looks like a rendering bug somewhere else entirely.
+
+`composeGrayscalePreview` keeps the last presented frame instead of compositing
+from null.
 
 ### [S-010] `CROSSPOINT_NO_NETWORK` outlived the reason it existed
 **severity: medium · scope: iOS features · FIXED 2026-08-07 · `d7e8b27`, firmware `f1459353`**
