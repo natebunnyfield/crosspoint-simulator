@@ -67,6 +67,12 @@ run restart_semantics \
 run task_registry \
   c++ -std=c++20 -Isrc -o "$OUT/task_registry" tests/task_registry_test.cpp
 
+run read_aloud_channel \
+  c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
+
+run read_aloud_core \
+  c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
+
 run reboot_resets \
   c++ -std=c++20 -Isrc -o "$OUT/reboot_resets" tests/reboot_resets_test.cpp
 

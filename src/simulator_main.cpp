@@ -105,6 +105,21 @@ int main(int argc, char **argv) {
   // and recorded in APP_STATE before setup() reads that state and picks which
   // activity to open. No-op on iOS and on any launch without a document.
   SimulatorDocumentOpen::captureLaunchDocument();
+#if !CROSSPOINT_SIM_IOS
+  // Headless read-aloud capture audit (.claude/PLAN-tts-read-aloud.md): "1"
+  // logs a preview per publish, "2" additionally dumps full text and rects.
+  // The wanted flag is set HERE, before setup() and the first loop(), because
+  // a small book renders its first page inside the first loop() iteration —
+  // a flag applied lazily from the main loop missed that page entirely.
+  const int readAloudLog = [] {
+    const char *v = SDL_getenv("CROSSPOINT_SIM_READALOUD_LOG");
+    const int mode =
+        (v && (v[0] == '1' || v[0] == '2') && v[1] == '\0') ? v[0] - '0' : 0;
+    if (mode)
+      gpio.setReadAloudCaptureWanted(true);
+    return mode;
+  }();
+#endif
   setup();
 #if CROSSPOINT_SIM_IOS
   // After setup(), because installing the gesture event watch needs SDL
@@ -148,6 +163,27 @@ int main(int argc, char **argv) {
     // software keyboard on the glass. Edge-triggered inside; a no-op on every
     // frame that is not a transition.
     gpio.pumpHostTextInput();
+#if !CROSSPOINT_SIM_IOS
+    // Drain and log the capture (flag set before setup(), above — a lazy flag
+    // missed any page rendered by the first loop() iteration). Desktop has no
+    // speech consumer; iOS must not compile this — its harness is the
+    // consumer and this drain would steal its pages.
+    if (readAloudLog) {
+      ReadAloudPage page;
+      while (gpio.consumeReadAloudPage(page)) {
+        SDL_Log("[READALOUD] page gen=%u cleared=%d bytes=%zu words=%zu | %.200s",
+                page.generation, page.cleared ? 1 : 0, page.utf8.size(),
+                page.rects.size(), page.utf8.c_str());
+        if (readAloudLog >= 2 && !page.cleared) {
+          SDL_Log("[READALOUD-TEXT] %s", page.utf8.c_str());
+          for (const ReadAloudWordRect &r : page.rects)
+            SDL_Log("[READALOUD-RECT] x=%u y=%u w=%u h=%u off=%u len=%u \"%.*s\"",
+                    r.x, r.y, r.w, r.h, r.byteOffset, r.byteLen,
+                    static_cast<int>(r.byteLen), page.utf8.c_str() + r.byteOffset);
+        }
+      }
+    }
+#endif
     // Open a book double-clicked in Finder while the app was already running.
     // Relaunches when there is one, so this does not return in that case.
     SimulatorDocumentOpen::pumpPendingOpen();

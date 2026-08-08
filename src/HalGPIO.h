@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "ReadAloudChannel.h"
+
 // Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
 #ifndef EPD_SCLK
 #define EPD_SCLK 8 // SPI Clock
@@ -147,6 +149,43 @@ public:
   // firmware task that flips the flag. Desktop needs the call too: SDL only
   // emits SDL_EVENT_TEXT_INPUT between StartTextInput and StopTextInput.
   void pumpHostTextInput();
+
+  // --- Read-aloud page channel --------------------------------------------
+  //
+  // The device has no speaker; every host running the simulator has one, and
+  // this channel carries the reader's page text (and per-word rects) out to
+  // a host speech consumer. Full contract: src/ReadAloudChannel.h and
+  // .claude/PLAN-tts-read-aloud.md.
+  //
+  // TWO HALVES, same split as the keyboard channel above and for the same
+  // reason — only the first is firmware-facing:
+  //
+  //   readAloudCaptureWanted() / publishReadAloudPage() mirror the device
+  //   HAL, where they are inline no-ops (`lib/hal/HalGPIO.h`: wanted is
+  //   `false`, so the capture branch folds away on device). The reader
+  //   checks wanted during a page render, publishes the displayed page's
+  //   text after it, and publishes nullptr on exit ("no page" — consumers
+  //   stop speech).
+  //
+  //   setReadAloudCaptureWanted() / consumeReadAloudPage() are
+  //   simulator-only, like injectButton*: the host consumer's side. Exactly
+  //   one consumer per build (the env-gated desktop logger in
+  //   simulator_main.cpp, or the iOS adapter).
+  bool readAloudCaptureWanted() const;
+  void publishReadAloudPage(const char *utf8, size_t utf8Len,
+                            const ReadAloudWordRect *rects, size_t rectCount);
+  void setReadAloudCaptureWanted(bool wanted);
+  bool consumeReadAloudPage(ReadAloudPage &out);
+
+  // Simulator-only. Schedule a full synthetic button tap — press edge, held
+  // level for holdMs, release edge — that fires INSIDE update(), which is
+  // the only place an injected edge is visible to the firmware: beginFrame()
+  // clears the edge latches at the top of each frame, and the harness's
+  // per-frame hook runs after loop(), so a press injected there is wiped
+  // before any wasPressed() can see it. The on-screen pad never hits this
+  // because its event watch fires inside update()'s pump; anything driven by
+  // a main-loop hook (the read-aloud page turn) must go through here.
+  void queueButtonTap(uint8_t buttonIndex, unsigned long holdMs);
 
   unsigned long getHeldTime() const;
   unsigned long getPowerButtonHeldTime() const;
