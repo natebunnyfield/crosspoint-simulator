@@ -72,6 +72,16 @@
   </array>
   <key>NSLocationWhenInUseUsageDescription</key>
   <string>CrossPoint uses location permission only to read the name and signal strength of the Wi-Fi network you are on, which it shows on the file transfer screen. Your location is never stored or sent anywhere.</string>
+  <!-- NSCameraUsageDescription is required even though nothing here opens a
+       camera. Read-aloud links AVFoundation for AVSpeechSynthesizer, and
+       Apple's static scan sees the capture APIs that framework also declares,
+       rejecting the upload with ITMS-90683. Exactly the situation the macOS
+       bundle has had since day one for SDL (packaging/macos/Info.plist.in).
+       ios/testflight.sh demands this key the moment AVFoundation appears in
+       the link, which is how the omission was caught before an upload rather
+       than by a rejection afterwards. -->
+  <key>NSCameraUsageDescription</key>
+  <string>CrossPoint never takes photos or video and never opens a camera. This notice is required because the speech framework that reads your books aloud is an Apple framework that also references the camera. No image or video data is captured, stored, or sent anywhere.</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsLocalNetworking</key>
