@@ -22,25 +22,6 @@ was found, and what closing it requires.
 
 ## OPEN
 
-### [S-013] The in-process reboot orphans the parked accept worker
-**severity: low · scope: iOS lifecycle · found 2026-08-08**
-
-Every file transfer ends in `silentRestart()`. On iOS that is a `longjmp` back
-into `setup()`, which skips destructors — so the `WebServer` whose handler
-triggered the restart is never destroyed, and its accept worker, parked on the
-dispatch condition variable, lives on forever holding a client socket. Each
-transfer leaks one thread and one fd.
-
-This is strictly better than what S-003 replaced (a cross-thread `longjmp`,
-undefined behaviour), and it is invisible on desktop, where the restart is
-`execvp` and the whole process is replaced. But a long-lived phone doing many
-transfers accumulates orphaned workers.
-
-**Close by:** on the reboot reset path (`simreset::runAll()` /
-`forceReleaseAllForReboot()`), also stop the server and join or detach its
-worker before the jump — or have the reboot tear the server down explicitly
-rather than leaving it to skipped destructors.
-
 ### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
 **severity: medium · scope: tests / firmware drift · found 2026-08-08**
 
@@ -89,6 +70,41 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-013] The in-process reboot orphans the parked accept worker
+**severity: low · scope: iOS lifecycle · found 2026-08-08** · FIXED 2026-08-08
+
+
+Every file transfer ends in `silentRestart()`. On iOS that is a `longjmp` back
+into `setup()`, which skips destructors — so the `WebServer` whose handler
+triggered the restart is never destroyed, and its accept worker, parked on the
+dispatch condition variable, lives on forever holding a client socket. Each
+transfer leaks one thread and one fd.
+
+This is strictly better than what S-003 replaced (a cross-thread `longjmp`,
+undefined behaviour), and it is invisible on desktop, where the restart is
+`execvp` and the whole process is replaced. But a long-lived phone doing many
+transfers accumulates orphaned workers.
+
+**Close by:** on the reboot reset path (`simreset::runAll()` /
+`forceReleaseAllForReboot()`), also stop the server and join or detach its
+worker before the jump — or have the reboot tear the server down explicitly
+rather than leaving it to skipped destructors.
+
+
+**Fixed.** Live `WebServer` instances register themselves, and a
+`simreset::Registrar` stops each one immediately before the in-process jump —
+beside the mutex release and the static resets that already run there. `stop()`
+sets the abandoned flag, shuts the listening socket and joins, so the worker
+exits instead of outliving the reboot.
+
+Safe to call from that point precisely because of S-003: the handler that
+triggered the restart runs on the main thread now, so the accept worker is only
+ever accepting or parked, and `stop()` releases both. Under the pre-S-003
+arrangement the worker WAS the handler and this could not have worked.
+
+Verified: 12/12 simulator tests, and 10/10 requests still served after the
+change — the registry does not disturb the normal path.
 
 ### [S-012] A throwing route handler hung the file-transfer server forever
 **severity: high · scope: web server / threading · found + FIXED 2026-08-08**
