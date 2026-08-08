@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "CrossPointAccessibility.h"
 #include "CrossPointPrefs.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -42,6 +43,7 @@ std::vector<ReadAloudWordRect> g_rects;  // copy for the painter / hit-test
 uint32_t g_serial = 0;                   // current utterance's serial
 uint32_t g_utteranceBaseByte = 0;        // page byte the utterance starts at
 int g_lastEnabled = -1;                  // pref edge detector; -1 = re-apply
+int g_lastCaptureWanted = -1;            // capture edge; toggle OR assistive tech
 int g_awaitTicks = -1;                   // >0: frames left in AwaitingNextPage
 bool g_highlightActive = false;
 uint32_t g_hlOffset = 0;
@@ -237,12 +239,29 @@ void CrossPointReadAloud_perFrame(void) {
   if (!g_synth) return;
 
   // 1. The Settings toggle, edge-triggered.
+  //
+  // SPEECH follows the toggle alone -- turning VoiceOver on must not start the
+  // app talking over it. CAPTURE follows either, because the accessibility
+  // elements are built from the same published page and are worthless without
+  // it. So the two are tracked separately: g_lastEnabled gates the core,
+  // g_lastCaptureWanted gates the firmware's display-list walk.
   const int want = CrossPointPrefs_readAloudEnabled();
   if (want != g_lastEnabled) {
     g_lastEnabled = want;
-    gpio.setReadAloudCaptureWanted(want != 0);
     applyActions(g_core.setEnabled(want != 0));
     SDL_Log("[READALOUD] %s", want ? "enabled" : "disabled");
+  }
+  // Both evaluated, deliberately not short-circuited: || would skip
+  // wantsPage() whenever the toggle is on, which made it impossible to tell
+  // "no assistive tech running" from "the detection is broken" -- the two look
+  // identical in the log. Three UIAccessibility reads a frame cost nothing.
+  const bool a11yWants = CrossPointAccessibility_wantsPage();
+  const int captureWanted = (want != 0 || a11yWants) ? 1 : 0;
+  if (captureWanted != g_lastCaptureWanted) {
+    g_lastCaptureWanted = captureWanted;
+    gpio.setReadAloudCaptureWanted(captureWanted != 0);
+    SDL_Log("[READALOUD] page capture %s", captureWanted ? "wanted" : "not wanted");
+    if (!captureWanted) CrossPointAccessibility_clear();
   }
 
   // 2. The page channel. Drain fully; only the last page matters.
@@ -259,6 +278,13 @@ void CrossPointReadAloud_perFrame(void) {
       g_rects = last.rects;
       g_awaitTicks = -1; // the awaited page (or a clear) arrived
       applyActions(g_core.pageArrived(last));
+      // The SAME page, handed to assistive technology. This is why there is no
+      // second channel consumer: the contract is one per build, and this drain
+      // is it.
+      CrossPointAccessibility_setPage(g_pageUtf8.empty() ? nullptr : g_pageUtf8.data(),
+                                      (unsigned)g_pageUtf8.size(),
+                                      g_rects.empty() ? nullptr : g_rects.data(),
+                                      (unsigned)g_rects.size());
     }
   }
 

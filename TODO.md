@@ -113,26 +113,44 @@ builds silently, at link time, in someone else's repo.
 **Close by:** leave it, and add a header comment saying who still needs it.
 Revisit only if every known consumer is confirmed to define the macro.
 
-### [ST-004] Expose the page as UIAccessibility elements (VoiceOver)
-**scope: accessibility · follow-on from ST-003 · filed 2026-08-08**
+### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
+**scope: accessibility · asked 2026-08-08 · in build-41**
 
-D1 in [the read-aloud plan](.claude/PLAN-tts-read-aloud.md) ruled that
-`UIAccessibilityElement` + Speak Screen cannot drive read-aloud: it can neither
-turn pages, nor highlight, nor start at a tapped word. That ruling stands and
-this is not a second attempt at it.
+The panel is one opaque GPU texture, so VoiceOver, Speak Screen, Braille and
+Switch Control saw nothing at all. [ios/CrossPointAccessibility.mm](ios/CrossPointAccessibility.mm)
+publishes the page the read-aloud channel already carries as accessibility
+elements over a transparent, non-interactive container above the SDL view.
 
-But the reason it was rejected no longer costs anything to fix. The channel now
-publishes the page's text AND a rect per word, which is exactly what an
-accessibility element needs. Publishing them would make the reader legible to
-VoiceOver, Speak Screen, Braille displays and Switch Control — none of which
-read the panel today, because it is one opaque SDL surface with no semantics at
-all.
+**Per LINE, not per word.** Speak Screen reads elements in sequence and
+concatenates them; per-word elements would put a pause after every word. Word
+rects sharing a `y` are merged, and the label is the text slice from the first
+to the last byte offset on that line.
 
-**Close by:** an `UIAccessibilityElement` per word rect (or per line, if
-per-word proves chatty under VoiceOver), rebuilt from the same channel drain the
-adapter already runs, with `accessibilityFrame` from the same geometry mapping.
-Worth checking whether VoiceOver's own reading order fights the read-aloud
-highlight when both are on.
+**Not a second channel consumer** — the contract is one per build. The read-aloud
+adapter's existing drain hands the page over, so there is still exactly one
+reader on iOS.
+
+**Independent of the read-aloud toggle.** Capture is wanted when the toggle is
+on OR an assistive technology is running, but SPEECH still follows the toggle
+alone: turning VoiceOver on must not start the app talking over it. The two
+edges are tracked separately for that reason.
+
+**Verified in the simulator:** 125–140 word rects collapse to 20 line elements
+per page, labels are whole lines ("off exactly at midnight. The little"), frames
+land in the right place in points, elements rebuild on every page turn, and the
+overlay does not steal touches — the pad still opens a book.
+
+**NOT verified, and it cannot be here: Speak Screen does not exist in this
+simulator.** Its Spoken Content pane offers only Speak Selection and
+Pronunciations — no Speak Screen row — so `UIAccessibilityIsSpeakScreenEnabled()`
+reads 0 and the two-finger gesture does nothing. This needs a phone.
+
+**Close by, on the device:** Settings > Accessibility > Spoken Content > Speak
+Screen on, open a book, two-finger swipe down from the top. The log line
+`[A11Y] assistive tech: speakScreen=1` confirms detection; `[A11Y] N word rects
+-> M line elements` confirms the page reached it. Worth judging at the same
+time: whether per-line is the right granularity for VoiceOver's swipe-to-next,
+or whether it should be per-word there and per-line for Speak Screen.
 
 ---
 
