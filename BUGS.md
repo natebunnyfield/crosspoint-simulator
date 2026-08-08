@@ -46,7 +46,8 @@ a firmware ref it matches. Decide which behaviour is intended before touching
 either side.
 
 ### [S-001] The simulator reports the opposite of the device in six places
-**severity: medium · scope: fidelity · found 2026-08-07**
+**severity: medium · scope: fidelity · found 2026-08-07** · HEAP HALF FIXED 2026-08-08
+
 
 Not crashes — false confidence. Each makes a firmware path look exercised when
 it never ran, and the simulator is the project's only pre-device gate.
@@ -69,6 +70,41 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+
+**The heap half is fixed; the other five reversals stay open.**
+
+`ESP.getFreeHeap()` returned a flat 1 MB, so the firmware's low-memory branches
+— the background page build (`EpubReaderActivity.cpp:268`), the plane buffer
+(`:1692`), retaining a mini font (`SdCardFont.cpp:121`), image decode
+(`ImageBlock.cpp:152`), the JPEG path and the CSS parser (`CssParser.cpp:693`)
+— could not run at all. [src/SimulatorHeap.h](src/SimulatorHeap.h) replaces it
+with two opt-in modes:
+
+    CROSSPOINT_SIM_HEAP=380000      a budget that counts down as the firmware allocates
+    CROSSPOINT_SIM_HEAP_FREE=40000  a pinned free figure
+
+Measured: default still reports a flat 1048576 (every existing script is
+untouched), the pin holds at its value, and the budget starts at 33,863 free of
+380,000 and falls to 26,391 over ten seconds.
+
+**Two honest limits, both found by measuring rather than assumed:**
+
+- The accounting is **asymmetric**. Only a sized `operator delete` can know what
+  to return, and `tests/heap_budget_test.cpp` caught libc++ freeing a
+  `std::vector`'s buffer without going through it — so the budget drifts DOWN
+  over a long run regardless of what the firmware frees. That is why the pin
+  exists: a test wanting an exact number should state it, not allocate its way
+  there. `malloc`/`free` are untracked, so vendored C (miniz, uzlib) is
+  invisible.
+- Fragmentation is not modelled, so `getMaxAllocHeap()` equals the free figure.
+  Anything comparing the two — as `BleHidHost` does — is asking a question this
+  cannot answer.
+
+**Not demonstrated:** that a specific firmware branch fires under the pin. The
+values the firmware reads definitely change, and the thresholds are now
+crossable, but I did not get a book open under a low pin to watch one trigger.
+The five remaining reversals in this entry are untouched.
 
 ### [S-002] Sleep/restart statics survive the iOS in-process reboot
 **severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
