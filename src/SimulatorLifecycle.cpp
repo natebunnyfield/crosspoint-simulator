@@ -1,4 +1,5 @@
 #include "SimulatorLifecycle.h"
+#include "SimulatorRebootResets.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -83,6 +84,9 @@ void armRebootJump() { gRebootJumpArmed = true; }
   // Preferred on iOS: re-enter setup() rather than exec a new process, which
   // the sandbox forbids. See the header for what this costs.
   if (gRebootJumpArmed) {
+    // A longjmp is not a new process: every static in this binary survives it.
+    // Put the ones that cache env-derived state back so setup() re-reads them.
+    simreset::runAll();
     std::longjmp(gRebootJump, 1);
   }
   std::fputs("SimulatorLifecycle: reboot jump not armed\n", stderr);
@@ -143,6 +147,9 @@ void rebootAsFirmwareRestart() {
 
 #if CROSSPOINT_SIM_REBOOT_IN_PROCESS
   if (gRebootJumpArmed) {
+    // A longjmp is not a new process: every static in this binary survives it.
+    // Put the ones that cache env-derived state back so setup() re-reads them.
+    simreset::runAll();
     std::longjmp(gRebootJump, 1);
   }
   std::fputs("SimulatorLifecycle: restart requested before jump armed\n", stderr);
