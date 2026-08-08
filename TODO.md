@@ -41,6 +41,20 @@ the reader), the read-aloud highlight geometry reads the same accessors and must
 follow, and the keyboard height is not a constant — it varies by device, by
 language, and with the predictive bar.
 
+**Evidence, from a real iPad in portrait, dark, keyboard up:**
+[ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png](ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png)
+(owner-supplied 2026-08-08, 2048x2732). It shows three things the simulator
+testing missed:
+
+- the iOS keyboard takes the bottom **25%** of the screen and **cuts off the
+  bottom rows of the firmware's own key grid** — the OK / backspace row is
+  simply gone, so the owner cannot reach the key that commits the entry;
+- there is a large band of dead black space ABOVE the panel. The panel does not
+  need to shrink to clear the keyboard on an iPad; it needs to move up;
+- the pad capsules are nearly invisible against a black field in dark mode,
+  which is a separate contrast question worth answering while the layout is
+  being touched anyway.
+
 **2. Mockups for iPhone Air and iPad Pro, for approval.**
 
 **The app is portrait-only today** — `Info.plist.in` lists exactly
