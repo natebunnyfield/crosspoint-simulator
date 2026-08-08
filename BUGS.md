@@ -45,21 +45,6 @@ semantics (which hold duration sleeps, from which screens), or pinning it to
 a firmware ref it matches. Decide which behaviour is intended before touching
 either side.
 
-### [S-003] Route handlers run on the accept worker, not the firmware task
-**severity: high · scope: web server / threading · found 2026-08-07**
-
-`WebServer::handleClient()` is an empty function (`src/WebServer.cpp:677`), so
-the firmware's poll does nothing and every route handler runs on
-`impl_->worker` instead (`:643`). Two consequences: unsynchronised mutation of
-firmware state and the framebuffer against the render task, and — worse —
-`ESP.restart()` reached from a handler calls `std::longjmp(gRebootJump, 1)` on
-iOS (`src/SimulatorLifecycle.cpp:146`) against a `setjmp` taken on the **main**
-thread (`src/simulator_main.cpp:101`). Longjmp across threads is undefined
-behaviour, and `silentRestart()` is how every file transfer ends.
-
-**Close by:** queueing handler invocations for `handleClient()` to drain on the
-calling thread, which is what the device does.
-
 ### [S-002] Sleep/restart statics survive the iOS in-process reboot
 **severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
 
@@ -128,6 +113,46 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-003] Route handlers run on the accept worker, not the firmware task
+**severity: high · scope: web server / threading · found 2026-08-07** · FIXED 2026-08-08
+
+
+`WebServer::handleClient()` is an empty function (`src/WebServer.cpp:677`), so
+the firmware's poll does nothing and every route handler runs on
+`impl_->worker` instead (`:643`). Two consequences: unsynchronised mutation of
+firmware state and the framebuffer against the render task, and — worse —
+`ESP.restart()` reached from a handler calls `std::longjmp(gRebootJump, 1)` on
+iOS (`src/SimulatorLifecycle.cpp:146`) against a `setjmp` taken on the **main**
+thread (`src/simulator_main.cpp:101`). Longjmp across threads is undefined
+behaviour, and `silentRestart()` is how every file transfer ends.
+
+**Close by:** queueing handler invocations for `handleClient()` to drain on the
+calling thread, which is what the device does.
+
+
+**Fixed.** `handleClient()` is no longer empty. The accept worker now accepts
+and parses only, parks the request behind a condition variable, and waits;
+`handleClient()` drains it on the caller's thread and signals back, after which
+the worker closes the socket. That is where the device runs handlers too.
+
+The thread it lands on is the point: `loop()` runs on the MAIN thread
+(`simulator_main.cpp:148`), which is the thread that took the `setjmp`. So a
+handler calling `ESP.restart()` — which every file transfer does, via
+`silentRestart()` — now longjmps on the right thread instead of committing
+undefined behaviour from a worker.
+
+Two things the shape had to get right. The dispatch runs with the mutex
+UNLOCKED, because a handler that restarts never returns and would otherwise
+leave the worker blocked on a mutex nobody will release. And `stop()` sets an
+abandoned flag before `join()`, or a worker parked on a dispatch that will never
+be drained deadlocks the shutdown.
+
+Verified against the running server: index, the file listing, a download and a
+WebDAV PUT all succeed (the PUT's bytes land on the card), and the process exits
+0 with nothing left alive. That the requests complete at all is itself the
+thread evidence — `handleClient()` is now the only thing that dispatches, so if
+it were not running they would hang.
 
 ### [S-004] `getFrameBuffer()` can return null and five callers dereference it
 **severity: high · scope: display · found 2026-08-07** · FIXED 2026-08-07

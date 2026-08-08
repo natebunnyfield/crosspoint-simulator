@@ -3,6 +3,8 @@
 #include "SimHostScreen.h"
 #include "SimulatorNetworkPorts.h"
 #include <Logging.h>
+#include <mutex>
+#include <condition_variable>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -287,7 +289,21 @@ struct WebServer::Impl {
   std::function<void()> notFoundHandler;
   std::vector<String> collectedHeaders;
 
+  // Handler dispatch is HANDED OFF to handleClient(), which the firmware calls
+  // from its own loop. The accept worker parses, parks the request here, and
+  // waits; nothing in a route handler runs on the worker thread. See the note
+  // above handleClient().
+  std::mutex dispatchMutex;
+  std::condition_variable dispatchCv;
+  bool dispatchPending = false;
+  bool dispatchDone = false;
+  bool dispatchAbandoned = false;  // server stopping: release the worker
+
   int currentClient = -1;
+  // Parked with the request because the dispatch runs on another thread now and
+  // these were locals of the accept worker's parse.
+  std::string currentContentType;
+  std::string currentBody;
   HTTPMethod currentMethod = HTTP_GET;
   String currentUri = "/";
   std::vector<std::pair<String, String>> currentArgs;
@@ -599,6 +615,35 @@ void WebServer::begin() {
 
       LOG_DBG("WEB", "[SIM] %s %s", methodText.c_str(), target.c_str());
 
+      // The dispatch runs on another thread now, so anything it needs from this
+      // parse has to travel with the request rather than as a local.
+      impl_->currentContentType = contentType;
+      impl_->currentBody = body;
+
+      // Park the request and let handleClient() run the handlers on the
+      // firmware's thread, then resume to close the socket.
+      {
+        std::unique_lock<std::mutex> lock(impl_->dispatchMutex);
+        impl_->dispatchPending = true;
+        impl_->dispatchDone = false;
+        impl_->dispatchCv.notify_all();
+        impl_->dispatchCv.wait(lock, [this] {
+          return impl_->dispatchDone || impl_->dispatchAbandoned;
+        });
+      }
+
+      ::close(client);
+      impl_->resetRequest();
+    }
+  });
+  LOG_DBG("WEB", "[SIM] WebServer running at http://127.0.0.1:%d/",
+          impl_->port);
+}
+
+// Runs the parked request's handlers. Called ONLY from handleClient(), i.e. on
+// whatever thread the firmware polls from -- the main thread, where loop()
+// runs and where setjmp() was taken.
+void WebServer::dispatchParkedRequest() {
       bool handled = false;
       for (const auto &route : impl_->routes) {
         const bool headMatchesGet =
@@ -607,8 +652,10 @@ void WebServer::begin() {
             (route.method == impl_->currentMethod || route.method == HTTP_ANY ||
              headMatchesGet)) {
           if (route.uploadHandler &&
-              contentType.find("multipart/form-data") != std::string::npos) {
-            const auto parts = parseMultipart(contentType, body);
+              impl_->currentContentType.find("multipart/form-data") !=
+                  std::string::npos) {
+            const auto parts =
+                parseMultipart(impl_->currentContentType, impl_->currentBody);
             for (const auto &part : parts) {
               if (part.filename.empty()) {
                 impl_->currentArgs.emplace_back(String(part.name),
@@ -665,16 +712,33 @@ void WebServer::begin() {
           send(404, "text/plain", "Not Found");
         }
       }
-
-      ::close(client);
-      impl_->resetRequest();
-    }
-  });
-  LOG_DBG("WEB", "[SIM] WebServer running at http://127.0.0.1:%d/",
-          impl_->port);
 }
 
-void WebServer::handleClient() {}
+// The firmware's poll. It used to be empty, and every route handler ran on the
+// accept worker instead -- which meant firmware state and the framebuffer were
+// mutated with no synchronisation against the render task, and, worse, that
+// ESP.restart() reached from a handler (every file transfer ends in
+// silentRestart()) called longjmp on the worker against a setjmp taken on the
+// main thread. Longjmp across threads is undefined behaviour.
+//
+// Now the worker only accepts and parses; this drains the parked request on the
+// caller's thread, which is where the device runs handlers too.
+void WebServer::handleClient() {
+  std::unique_lock<std::mutex> lock(impl_->dispatchMutex);
+  if (!impl_->dispatchPending) return;
+  impl_->dispatchPending = false;
+  lock.unlock();
+
+  // Unlocked across the handler: it can take as long as it likes (a file
+  // upload, a font download), and a handler that calls ESP.restart() never
+  // returns at all -- holding the lock across that would deadlock the worker
+  // on a mutex that is never released.
+  dispatchParkedRequest();
+
+  lock.lock();
+  impl_->dispatchDone = true;
+  impl_->dispatchCv.notify_all();
+}
 
 void WebServer::on(const char *uri, int method, std::function<void()> handler) {
   impl_->routes.push_back({String(uri), static_cast<HTTPMethod>(method),
@@ -702,6 +766,14 @@ void WebServer::collectHeaders(const char **headers, size_t count) {
 void WebServer::stop() {
   impl_->active = false;
   sim_host_screen::setKeepAwake(false);
+  // Release a worker parked on a dispatch nobody will drain: after this the
+  // firmware is not going to call handleClient() again, and join() below would
+  // wait for a request that never runs.
+  {
+    std::lock_guard<std::mutex> lock(impl_->dispatchMutex);
+    impl_->dispatchAbandoned = true;
+    impl_->dispatchCv.notify_all();
+  }
   if (impl_->fd >= 0) {
     ::shutdown(impl_->fd, SHUT_RDWR);
     ::close(impl_->fd);
