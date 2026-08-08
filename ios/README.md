@@ -646,9 +646,16 @@ edit the same field and the same cursor.
 |---|---|---|
 | Printable characters | inserted at the cursor | — (see suppression below) |
 | Backspace | erases before the cursor | — |
-| Return | commits the entry (the grid's OK key) | `BTN_CONFIRM` |
+| Return | commits the entry (the grid's OK key); in the note editor and Claude, inserts a NEWLINE — they are multi-line | `BTN_CONFIRM` |
 | Escape | `BTN_BACK`, which cancels the entry | `BTN_BACK` |
 | Arrows | move the on-screen grid selection | `BTN_UP/DOWN/LEFT/RIGHT` |
+
+**Every text field, including the two editors.** Wi-Fi passwords, Device owner,
+the daisywheel, **Create Note and Claude**. The two editors were the last
+holdouts: they took characters only from their own on-screen grid, so on the
+phone they raised no keyboard at all, and a paired keyboard's letters fell
+through to the button map — typing "sleep" in a note put the device to sleep.
+They now announce text entry like every other field.
 
 **The suppression is the load-bearing part.** `HalGPIO` maps real key events to
 buttons by scancode, and that map spends letters: `P` is POWER, `S` is the sleep
