@@ -72,6 +72,13 @@ public:
   ~WebServer();
   void begin();
   void handleClient();
+
+ private:
+  // Runs the parked request's handlers on the caller's thread. handleClient()
+  // is the only caller; see the note above its definition.
+  void dispatchParkedRequest();
+
+ public:
   void enableCORS(bool /*enabled*/) {
     // Host responses already include Access-Control-Allow-Origin.
   }
