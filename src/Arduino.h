@@ -34,11 +34,15 @@ inline void yield() { std::this_thread::yield(); }
 
 #include "HardwareSerial.h"
 #include "Print.h"
+#include "SimulatorHeap.h"
 #include "SimulatorLifecycle.h"
 #include "WString.h"
 
 struct ESPMock {
-  uint32_t getFreeHeap() { return 1024 * 1024; }
+  // Flat 1 MB unless CROSSPOINT_SIM_HEAP / CROSSPOINT_SIM_HEAP_FREE is set --
+  // see SimulatorHeap.h for why a flat figure made every low-memory branch in
+  // the firmware unreachable, and why this is opt-in.
+  uint32_t getFreeHeap() { return simheap::freeBytes(); }
   // Was a no-op, which meant the firmware's silentRestart() -- how every file
   // transfer and font download ends, to defragment the heap -- painted its
   // "Loading..." popup and then simply fell through. On hardware this call
@@ -46,9 +50,9 @@ struct ESPMock {
   // exercised in the simulator at all. See SimulatorLifecycle.h for why this is
   // a restart rather than a wake, and which platforms honour it.
   void restart() { SimulatorLifecycle::rebootAsFirmwareRestart(); }
-  uint32_t getHeapSize() { return 1024 * 1024; }
-  uint32_t getMinFreeHeap() { return 1024 * 1024; }
-  uint32_t getMaxAllocHeap() { return 1024 * 1024; }
+  uint32_t getHeapSize() { return simheap::totalBytes(); }
+  uint32_t getMinFreeHeap() { return simheap::minFreeBytes(); }
+  uint32_t getMaxAllocHeap() { return simheap::maxAllocBytes(); }
 };
 extern ESPMock ESP;
 

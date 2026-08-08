@@ -79,6 +79,9 @@ run reboot_resets \
 run semphr_reboot \
   c++ -std=c++20 -Isrc -o "$OUT/semphr_reboot" tests/semphr_reboot_test.cpp
 
+run heap_budget \
+  c++ -std=c++20 -Isrc -o "$OUT/heap_budget" tests/heap_budget_test.cpp src/SimulatorHeap.cpp
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.
