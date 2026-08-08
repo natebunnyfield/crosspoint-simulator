@@ -32,8 +32,12 @@ set(CROSSPOINT_IOS_EXCLUDED_FW_SOURCES
   # Transfer drew a QR code pointing at 127.0.0.1 (B-008). After it, the
   # exclusion was hiding features that work.
   #
-  # These two write firmware to an ESP32 partition. That does not become
-  # possible; CROSSPOINT_NO_DEVICE_FLASH gates their menu entries to match.
-  src/activities/settings/OtaUpdateActivity.cpp
+  # Writes firmware to an ESP32 partition. That does not become possible on a
+  # phone; CROSSPOINT_NO_DEVICE_FLASH gates the menu entry to match.
+  #
+  # OtaUpdateActivity.cpp was listed here until 2026-08-08, when the firmware's
+  # navigation audit (PR #8) deleted it. The generator warns about an exclusion
+  # that matches no TU, which is how this was caught -- a stale entry excludes
+  # nothing and quietly stops being the guard it looks like.
   src/activities/settings/SdFirmwareUpdateActivity.cpp
 )
