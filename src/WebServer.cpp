@@ -2,6 +2,7 @@
 
 #include "SimHostScreen.h"
 #include "SimulatorNetworkPorts.h"
+#include "SimulatorRebootResets.h"
 #include <Logging.h>
 #include <mutex>
 #include <condition_variable>
@@ -430,9 +431,50 @@ struct WebServer::Impl {
   }
 };
 
-WebServer::WebServer(int port) : impl_(std::make_unique<Impl>(port)) {}
+namespace {
 
-WebServer::~WebServer() { stop(); }
+// Live servers, so the in-process reboot can shut their accept workers down.
+//
+// S-013: on iOS ESP.restart() is a longjmp that skips destructors, so the
+// WebServer whose handler triggered the restart is never destroyed and its
+// worker -- parked on the dispatch condition variable holding a client socket
+// -- lives on forever. Every file transfer ends in silentRestart(), so that is
+// one leaked thread and one leaked fd per transfer. Desktop never saw it: there
+// the restart is execvp and the whole process is replaced.
+std::mutex &liveServersLock() {
+  static std::mutex m;
+  return m;
+}
+std::vector<WebServer *> &liveServers() {
+  static std::vector<WebServer *> v;
+  return v;
+}
+
+const simreset::Registrar gServerReboot{[] {
+  std::vector<WebServer *> snapshot;
+  {
+    std::lock_guard<std::mutex> lock(liveServersLock());
+    snapshot = liveServers();
+  }
+  // stop() is idempotent and joins the worker; the handler that triggered the
+  // restart runs on THIS thread (the S-003 dispatch handoff), so the worker is
+  // only ever accepting or parked -- both of which stop() releases.
+  for (WebServer *s : snapshot) s->stop();
+}};
+
+}  // namespace
+
+WebServer::WebServer(int port) : impl_(std::make_unique<Impl>(port)) {
+  std::lock_guard<std::mutex> lock(liveServersLock());
+  liveServers().push_back(this);
+}
+
+WebServer::~WebServer() {
+  stop();
+  std::lock_guard<std::mutex> lock(liveServersLock());
+  auto &v = liveServers();
+  v.erase(std::remove(v.begin(), v.end(), this), v.end());
+}
 
 void WebServer::begin() {
   if (impl_->active)
