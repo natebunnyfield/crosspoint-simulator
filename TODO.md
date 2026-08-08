@@ -17,6 +17,53 @@ started.
 
 ## OPEN
 
+### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
+**scope: iOS layout · asked 2026-08-08 · MOCKUPS NEED APPROVAL BEFORE CODE**
+
+Two related pieces.
+
+**1. The panel should sit clear of where a full keyboard lands, in portrait.**
+Today the on-screen keyboard covers the bottom of the screen — the button pad
+and the lower rows of the firmware's own grid — and the panel deliberately does
+NOT move or rescale under it (`ios/README.md`, verified: panel geometry is
+identical with and without the keyboard up). That was the right call when the
+only thing that mattered was keeping the text field visible, and it is now the
+wrong one: with Create Note and Claude raising a keyboard (crosspoint-reader
+`daf014be`), typing is a first-class activity and the pad disappearing under the
+keyboard is a real loss.
+
+The mechanism already exists: `SimulatorOverlay::setBottomInset` reserves a
+bottom band and top-aligns the panel above it, publishing `panelBottomPx()` for
+the pad to anchor to. So this is reserving a keyboard-sized band rather than
+inventing placement. Watch out for: the panel must not rescale on every
+keyboard show/hide (that would re-lay-out the firmware's page and could churn
+the reader), the read-aloud highlight geometry reads the same accessors and must
+follow, and the keyboard height is not a constant — it varies by device, by
+language, and with the predictive bar.
+
+**2. Mockups for iPhone Air and iPad Pro, for approval.**
+
+**The app is portrait-only today** — `Info.plist.in` lists exactly
+`UIInterfaceOrientationPortrait`, plus `UIRequiresFullScreen`. So landscape is
+not a layout tweak; it is enabling an orientation the harness has never run in,
+and the geometry contract (`.claude/PLAN-tts-read-aloud.md`) says "portrait
+only" in as many words. Mock it before building it.
+
+Cover: iPhone Air and iPad Pro, portrait and landscape, each with and without
+the keyboard up, showing where the panel, the pad and the text field sit. An
+iPad in landscape is mostly empty either side of a 528x792 panel — what goes
+there is the actual design question, and "nothing" is a legitimate answer.
+
+**How to present them for approval** (this has gone wrong before): put the
+mockups INTO the decision surface — `AskUserQuestion` option previews carrying
+the rendered image, or an inline widget — rather than sending a file chip or a
+link and asking a question in the same turn. A sent link does not count as the
+owner having seen it. If that is impossible, the turn that delivers the visual
+ends with "say seen", and the decision questions come in a LATER turn.
+
+**Close by:** approved mockups, then the portrait keyboard-clearance change;
+landscape only if the mockups earn it.
+
 ### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing
 **scope: HAL surface · found 2026-08-06 · verified 2026-08-07**
 
