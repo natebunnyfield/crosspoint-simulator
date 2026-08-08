@@ -1,5 +1,6 @@
 #include "SimulatorLifecycle.h"
 #include "SimulatorRebootResets.h"
+#include "freertos/semphr.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -87,6 +88,11 @@ void armRebootJump() { gRebootJumpArmed = true; }
     // A longjmp is not a new process: every static in this binary survives it.
     // Put the ones that cache env-derived state back so setup() re-reads them.
     simreset::runAll();
+    // The jump skips destructors, so any RenderLock held right now never gives
+    // its mutex back and the render task blocks forever on the first frame
+    // after the reboot. Drop every lock and wake the waiters; the threads that
+    // held them are being abandoned with their stacks anyway.
+    simsemphr::forceReleaseAllForReboot();
     std::longjmp(gRebootJump, 1);
   }
   std::fputs("SimulatorLifecycle: reboot jump not armed\n", stderr);
@@ -150,6 +156,11 @@ void rebootAsFirmwareRestart() {
     // A longjmp is not a new process: every static in this binary survives it.
     // Put the ones that cache env-derived state back so setup() re-reads them.
     simreset::runAll();
+    // The jump skips destructors, so any RenderLock held right now never gives
+    // its mutex back and the render task blocks forever on the first frame
+    // after the reboot. Drop every lock and wake the waiters; the threads that
+    // held them are being abandoned with their stacks anyway.
+    simsemphr::forceReleaseAllForReboot();
     std::longjmp(gRebootJump, 1);
   }
   std::fputs("SimulatorLifecycle: restart requested before jump armed\n", stderr);
