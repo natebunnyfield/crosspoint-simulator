@@ -61,15 +61,18 @@ tapped word. Behind a default-off toggle in Settings > CrossPoint X3. The plan �
 contracts, gates, work packages —
 is [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
-Status: **WP-1 (platform-neutral half) is implemented and host-tested** —
-channel, full `ReadAloudCore` state machine, `queueButtonTap`, overlay
-geometry accessors, headless capture logger, plus the WP-3 adapter scaffolding
-(`ios/CrossPointReadAloud.mm`, toggle, shim wiring; written blind, not yet
-compiled on a Mac). Still owed: WP-2 (firmware capture FW-A/FW-B in the fork,
-gate G0's text audit) and WP-3's on-glass verification.
+Status: **WP-1 and WP-2 done; gate G0 PASSED 2026-08-08.** The channel, the
+full `ReadAloudCore` state machine, `queueButtonTap`, the firmware capture
+(fork branch `read-aloud-capture`: display-list walk with hyphen-split
+reunification and soft-hyphen stripping), and the headless audit all verified
+on Linux — desktop build green, 8 host tests green,
+`tests/test_read_aloud_capture.sh` pins the loop end-to-end including a real
+`queueButtonTap` page turn. WP-3 adapter scaffolding is written
+(`ios/CrossPointReadAloud.mm`, toggle, shim wiring) but has never met a
+compiler: it needs a Mac.
 
-**Close by:** G0 passing, the on-glass acceptance list in the plan passing,
-and the owner-facing behaviour moving into ios/README.md.
+**Close by:** WP-3 compiling and the plan's on-glass acceptance passing on
+iOS, and the owner-facing behaviour moving into ios/README.md.
 
 ---
 

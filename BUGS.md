@@ -22,6 +22,29 @@ was found, and what closing it requires.
 
 ## OPEN
 
+### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
+**severity: medium · scope: tests / firmware drift · found 2026-08-08**
+
+The test's scenario (`2500:POWER:700` must enter deep sleep, a later 1 ms tap
+must relaunch the process) no longer matches the firmware: against the fork's
+`main` @ `4ded8fc`, the process neither sleeps nor relaunches — it idles until
+killed, and the harness reports "never relaunched as a wake". Reproduced
+byte-identically with the simulator at `origin/main` (`ebf2b54`, before any
+read-aloud work), so this is firmware drift, not a simulator regression:
+power-button semantics have grown options since the test was calibrated
+(`SHORT_PWRBTN::PAGE_TURN`, the long-press behaviour setting), and a 700 ms
+hold no longer crosses the sleep threshold on the boot-into-reader path a
+seeded card lands on.
+
+Found running the full shell-test sweep after the read-aloud input changes —
+which the bisect exonerates. `test_text_entry.sh` passes against the same
+binary, and the sleep wake edge-latch itself is untouched.
+
+**Close by:** recalibrating the test against the current firmware's power
+semantics (which hold duration sleeps, from which screens), or pinning it to
+a firmware ref it matches. Decide which behaviour is intended before touching
+either side.
+
 ### [S-004] `getFrameBuffer()` can return null and five callers dereference it
 **severity: high · scope: display · found 2026-08-07**
 

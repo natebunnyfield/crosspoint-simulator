@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Ten real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, or build-configuration paths. `tests/run_all.sh` builds and runs the eight host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The two shell tests are not in the runner: both need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport.
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Eleven real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, or build-configuration paths. `tests/run_all.sh` builds and runs the eight host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The three shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. (`test_sleep_wake.sh` currently fails against firmware `main` — pre-existing drift, filed as S-011 in BUGS.md.)
 
 ```bash
 tests/run_all.sh
@@ -60,6 +60,7 @@ c++ -std=c++20 -Isrc tests/read_aloud_channel_test.cpp -o /tmp/read_aloud_channe
 c++ -std=c++17 -Iios tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp -o /tmp/read_aloud_core_test && /tmp/read_aloud_core_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
 tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
+tests/test_read_aloud_capture.sh <firmware-checkout>  # capture + QTAP page turn, generated fixture book
 c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
   $(python3 tools/fw_include_flags.py) \
   tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp -o /tmp/build_identity_test \
@@ -73,7 +74,7 @@ cannot be compiled anywhere but a Mac and there is no paired device, so
 phone's branches be exercised on a host. Keep that escape hatch when adding
 another platform backend, or the branch ships with no coverage at all.
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever. `read_aloud_channel_test` pins the read-aloud page channel's hand-off contract (one consume per publish, latest wins, `publish(nullptr)` is the stop-speech clear); `read_aloud_core_test` covers every transition of the read-aloud state machine — most load-bearing: a canceled utterance never turns a page, and highlight/tap offsets are UTF-8 bytes (the test page has curly quotes and accents precisely so a character-counting regression fails it). `task_registry_test` pins the FreeRTOS shim's name dedupe against `vTaskDelete`: the registry used to keep pointing at a freed handle, so the create/delete/create sequence the iOS in-process reboot performs handed the caller freed memory. It asserts behaviourally (did a thread actually spawn?) because the allocator reuses the freed block, so pointer identity does not distinguish the two.
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever. `read_aloud_channel_test` pins the read-aloud page channel's hand-off contract (one consume per publish, latest wins, `publish(nullptr)` is the stop-speech clear); `read_aloud_core_test` covers every transition of the read-aloud state machine — most load-bearing: a canceled utterance never turns a page, and highlight/tap offsets are UTF-8 bytes (the test page has curly quotes and accents precisely so a character-counting regression fails it). `test_read_aloud_capture.sh` pins the firmware capture end-to-end against a tiny GENERATED two-chapter EPUB (the seed book's mono-file chapter takes tens of seconds to paginate, which made it timing-flaky here): boot page published, a `QTAP` page turn reaches a different page, multibyte survives, exit clears, and the channel stays silent without the env var. `task_registry_test` pins the FreeRTOS shim's name dedupe against `vTaskDelete`: the registry used to keep pointing at a freed handle, so the create/delete/create sequence the iOS in-process reboot performs handed the caller freed memory. It asserts behaviourally (did a thread actually spawn?) because the allocator reuses the freed block, so pointer identity does not distinguish the two.
 
 ## Architecture
 
@@ -215,12 +216,20 @@ publishes `nullptr` on exit), while `setReadAloudCaptureWanted()` /
 `consumeReadAloudPage()` are the simulator-only consumer half. One consumer
 per build: `CROSSPOINT_SIM_READALOUD_LOG=1` turns on an env-gated logger in
 `simulator_main.cpp` (desktop only) that both requests capture and prints
-every publish — the headless way to audit the firmware's capture quality. The
+every publish — the headless way to audit the firmware's capture quality
+(`=2` additionally dumps full text and every rect). The capture-wanted flag
+must be set BEFORE the first `loop()` iteration — a fast book renders its
+first page inside it, and a lazily applied flag misses that page (both
+consumers were bitten; both now seed the flag pre-loop). The
 iOS harness is the real consumer (`ios/CrossPointReadAloud.mm` speaks pages
 via AVSpeech). `HalGPIO::queueButtonTap` exists for this feature and any
 future harness automation: it schedules a synthetic press/release that fires
 inside `update()`, because an edge injected from the per-frame hook lands
-after `loop()` and is wiped by the next `beginFrame()` unseen. Design and
+after `loop()` and is wiped by the next `beginFrame()` unseen.
+`QTAP:<BUTTON>[:<holdMs>]` in `CROSSPOINT_SIM_INPUT_SCRIPT` drives that exact
+API from a script, which is how `tests/test_read_aloud_capture.sh` pins the
+page-turn loop headlessly. Page-forward on this firmware is the RIGHT front
+button (`ReaderUtils::detectPageTurn`), not DOWN. Design and
 work-package status: [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key

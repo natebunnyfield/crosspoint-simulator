@@ -3,7 +3,14 @@
 Tracked as ST-003 in [TODO.md](../TODO.md). Written 2026-08-07 against `main`
 @ `ebf2b54`; this revision is calibrated for a capable implementer — it fixes
 the contracts, gates, and sharp edges, and trusts the rest to judgment.
-**WP-1 below is implemented on this branch.**
+**Status 2026-08-08: WP-1 and WP-2 are implemented and verified headlessly —
+gate G0 PASSED (evidence in the WP-2 section). Remaining: WP-3's Mac compile
+and on-glass acceptance.** The firmware side lives on the fork's
+`read-aloud-capture` branch. Note: the firmware branch situation changed —
+`x3-main` no longer exists; the fork's `main` IS the working branch, and this
+fork's reader pages with the RIGHT front button, opens chapter selection on
+CONFIRM, and auto-opens the sole book on a fresh card (all verified, all
+diverging from older notes).
 
 The end state: on the phone, with a book open, the app reads the page aloud
 in the voice the owner picked in Settings > Accessibility > Spoken Content >
@@ -126,44 +133,55 @@ What landed, where:
   in AwaitingNextPage where rects are stale).
 - tests/read_aloud_channel_test.cpp, tests/read_aloud_core_test.cpp,
   registered in tests/run_all.sh. Green on Linux.
+- `QTAP:<BUTTON>[:<holdMs>]` input-script action driving `queueButtonTap`,
+  `CROSSPOINT_SIM_READALOUD_LOG=2` (full text + rect dump, the G0 audit
+  format), and tests/test_read_aloud_capture.sh — an end-to-end shell test
+  against a GENERATED two-chapter EPUB fixture (the seed book's mono-file
+  chapter paginates for tens of seconds; the fixture is instant and
+  deterministic).
 
-Not verifiable in the authoring environment (no firmware checkout, no SDL3):
-the desktop pio build over the HalGPIO/HalDisplay/simulator_main edits.
-**First desktop build after pulling this branch is the canary for those.**
+The desktop pio build has since been run and is green (SDL3 built from
+source on Linux; firmware fork cloned; symlink dev flow per CLAUDE.md).
 
-## WP-2 — firmware capture (fork, branch off `x3-main`)
+## WP-2 — firmware capture — DONE, gate G0 PASSED (2026-08-08)
 
-Simulator symlinked (`simulator=symlink://../crosspoint-simulator`).
+Landed on the fork's `read-aloud-capture` branch (off `main` @ `4ded8fc`;
+`x3-main` no longer exists):
 
-**FW-A (text):** add the `ReadAloudWordRect` POD and the two inline no-ops to
-`lib/hal/HalGPIO.h` (next to the text-entry no-ops, field-identical). Find
-the paginator via the reader activity (`EpubReaderActivity` →
-page-render path); prefer Strategy 1 (source-range slice). Capture only when
-`gpio.readAloudCaptureWanted()`; publish after the displayed page's render;
-publish `nullptr` on reader exit. New TUs require the iOS source-set regen
-(CLAUDE.md).
+- `lib/hal/HalGPIO.h`: the `ReadAloudWordRect` POD at NAMESPACE scope
+  (matching the simulator, so the capture code references it unqualified in
+  both builds) plus the two inline no-ops.
+- `EpubReaderActivity.cpp`: `captureReadAloudPage()` walks the display list
+  in `renderContents()` — the one site that renders the DISPLAYED page. Not
+  in `Page::render`, which the idle prewarm also runs against the NEXT page
+  ("scan only, no pixels") and which would capture the wrong text (R4).
+  What the walk does: per `PageLine`, per word, builds glue runs (tokens
+  with no visible pixel gap — punctuation slices, CJK segments — captured
+  as one word), strips soft hyphens, and reunites hyphen-split words across
+  lines (the layout stores `"consid-"` + `"eration"` as separate tokens with
+  the visible hyphen IN the prefix; a line-final `-` joins to the next
+  line's first run, hyphen dropped, fragments sharing the word's byte
+  range). Rects come from `wordXpos` + `getTextAdvanceX`, top =
+  baseline − ascender, height = line height, in logical portrait px (layout
+  runs at 1x regardless of render scale, so no division needed). Text and
+  offsets are built in the same walk (R2). `onExit()` publishes the clear.
+- Neither strategy from the original framing was needed as written: the
+  display list already carries per-word text and positions; only the
+  hyphen/glue reconstruction was real work.
 
-**Gate G0** — headless, three books (plain / hyphenation-heavy / curly
-quotes):
+**G0 evidence** (fork `main`, X3 profile, headless Linux): a justified,
+hyphenation-on page of English Fairy Tales captured word-for-word against
+its screenshot — "folk-/tale", "nurs-/ery", "extraordi-/nary" all reunited
+correctly, em-dash and curly quotes intact; 484 rects across the run, zero
+U+00AD bytes; page-forward then page-back republished byte-identical text
+for the returned-to page; reader exit published `cleared=1`; zero publishes
+without the env var. The RIGHT front button is page-forward
+(`ReaderUtils::detectPageTurn`) — the adapter was corrected from the
+BTN_DOWN assumption. `tests/test_read_aloud_capture.sh` pins all of this
+permanently, including the `queueButtonTap` page-turn path end-to-end.
 
-```bash
-CROSSPOINT_SIM_READALOUD_LOG=1 \
-CROSSPOINT_SIM_INPUT_SCRIPT='2000:HOME;3000:BACK;8000:DOWN;10000:UP;15000:QUIT' \
-SDL_VIDEODRIVER=dummy .pio/build/simulator/program 2>&1 | grep -E 'READALOUD|ACT'
-```
-
-Pass = captured text matches the visible page word-for-word in order; no
-fragments, no U+00AD, no furniture; DOWN/UP produce gens tracking the
-visible page; BACK logs `cleared=1`; zero `[READALOUD]` lines without the
-env var. Fail after both strategies = stop, report, renegotiate.
-
-**FW-B (rects):** same pass as the text (R2), logical portrait px — divide
-by the firmware's render scale at capture (R5); one rect per fragment for
-wrapped words. `words=` in the log becomes plausible against a screenshot;
-`bytes=` unchanged from FW-A.
-
-Verify page-forward is `BTN_DOWN` while in there (reader's next-page branch;
-G0's `DOWN` already shows the republish) — the adapter assumes it.
+Known accepted imperfection: a paragraph-final real hyphen would be joined
+to the next paragraph's first word (rare; the audit found zero instances).
 
 ## WP-3 — the adapter (Mac)
 
@@ -185,9 +203,11 @@ registerDefaults from the plist already). Shape:
 - Apply: StartUtterance(off) → slice `utf8` from `off` (always a rect start,
   so a valid UTF-8 boundary), bump serial, remember base offset;
   StopUtterance → `stopSpeakingAtBoundary:Immediate`; TurnPageForward →
-  `gpio.queueButtonTap(HalGPIO::BTN_DOWN, 60)` and arm a ~5000-frame
-  timeout that feeds `pageTimeout()` unless a page arrives; Set/Clear
-  highlight → main-thread state + `SimulatorOverlay::requestPresent()`.
+  `gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60)` (RIGHT, verified against
+  `ReaderUtils::detectPageTurn` — nav-swap inverts it, accepted) and arm a
+  ~5000-frame timeout that feeds `pageTimeout()` unless a page arrives;
+  Set/Clear highlight → main-thread state +
+  `SimulatorOverlay::requestPresent()`.
 - Delegate: enqueue only (callbacks arrive off-main). `willSpeakRange` →
   UTF-16→UTF-8 via
   `[[utt.speechString substringToIndex:range.location] lengthOfBytesUsingEncoding:NSUTF8StringEncoding]`,
@@ -219,6 +239,13 @@ nothing; pad unchanged; muted physical phone still audible.
   `wasPressed()` can see it. The pad works because its event watch fires
   inside `update()` (inside `loop()`). Hence `queueButtonTap`, which
   processes inside `update()`. Never inject buttons from the per-frame hook.
+- **E1b — the capture flag races the first render.** A fast book renders its
+  first page inside the FIRST `loop()` iteration; any consumer that sets
+  `setReadAloudCaptureWanted` lazily (main-loop lambda, perFrame edge
+  detector) misses that page. Both consumers seed the flag before the loop:
+  the desktop logger before `setup()`, the adapter in
+  `CrossPointReadAloud_begin()`. Found live when the fixture book published
+  chapter two's page but never chapter one's.
 - `SDL_PushEvent` cannot drive level reads (`SDL_GetKeyboardState` untouched
   by pushed events) — the existing injection APIs exist for a reason.
 - `NSRange` is UTF-16 code units (R3); ASCII books mask the bug.

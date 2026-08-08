@@ -170,7 +170,8 @@ enum class SyntheticAction {
   HomeUp,
   TypeText,
   Sleep,
-  Quit
+  Quit,
+  QueuedTap
 };
 
 struct SyntheticEvent {
@@ -181,6 +182,7 @@ struct SyntheticEvent {
   float logicalNy = 0.0f;
   std::string text;
   bool handled = false;
+  unsigned long holdMs = 0; // QueuedTap only
 };
 
 // TYPE payload escapes. The script's own separators (';' between items) cannot
@@ -449,6 +451,22 @@ void initializeSyntheticEvents() {
         SyntheticEvent typed{atMs, SyntheticAction::TypeText};
         typed.text = decodeTypeEscapes(item.substr(secondColon + 1));
         syntheticEvents.push_back(std::move(typed));
+      } else if (key == "QTAP" && secondColon != std::string::npos) {
+        // QTAP:<BUTTON>[:<holdMs>] routes through HalGPIO::queueButtonTap —
+        // the API the iOS read-aloud adapter turns pages with — so a
+        // headless script pins that exact path, not just injectButton*.
+        const std::string rest = item.substr(secondColon + 1);
+        const size_t thirdColon = rest.find(':');
+        const int button = namedButton(uppercase(
+            thirdColon == std::string::npos ? rest : rest.substr(0, thirdColon)));
+        if (button >= 0) {
+          SyntheticEvent tap{atMs, SyntheticAction::QueuedTap, button};
+          tap.holdMs = thirdColon == std::string::npos
+                           ? 60
+                           : std::strtoul(rest.substr(thirdColon + 1).c_str(),
+                                          nullptr, 10);
+          syntheticEvents.push_back(std::move(tap));
+        }
       } else if ((key == "TAP" || key == "SWIPE") &&
                  secondColon != std::string::npos) {
         float x1 = 0.0f;
@@ -524,6 +542,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::Quit:
       quitRequested.store(true);
+      break;
+    case SyntheticAction::QueuedTap:
+      gpio.queueButtonTap(static_cast<uint8_t>(event.button), event.holdMs);
       break;
     }
   }
