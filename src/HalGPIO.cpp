@@ -86,6 +86,19 @@ static std::atomic<bool> textEntryActive{false};
 static std::mutex typedTextMutex;
 static std::string typedTextBuffer;
 
+static ReadAloudChannel readAloudChannel;
+
+// Pending synthetic taps (queueButtonTap). Queued from the harness's
+// per-frame hook and drained at the top of update() — both on the main
+// thread, so no lock.
+struct PendingButtonTap {
+  uint8_t button;
+  unsigned long holdMs;
+  bool downSent = false;
+  unsigned long upAtTicks = 0;
+};
+static std::vector<PendingButtonTap> pendingButtonTaps;
+
 static bool scancodeIsEnter(SDL_Scancode sc) {
   return sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER ||
          sc == SDL_SCANCODE_RETURN2;
@@ -158,7 +171,8 @@ enum class SyntheticAction {
   HomeUp,
   TypeText,
   Sleep,
-  Quit
+  Quit,
+  QueuedTap
 };
 
 struct SyntheticEvent {
@@ -169,6 +183,7 @@ struct SyntheticEvent {
   float logicalNy = 0.0f;
   std::string text;
   bool handled = false;
+  unsigned long holdMs = 0; // QueuedTap only
 };
 
 // TYPE payload escapes. The script's own separators (';' between items) cannot
@@ -448,6 +463,22 @@ void initializeSyntheticEvents() {
         SyntheticEvent typed{atMs, SyntheticAction::TypeText};
         typed.text = decodeTypeEscapes(item.substr(secondColon + 1));
         syntheticEvents.push_back(std::move(typed));
+      } else if (key == "QTAP" && secondColon != std::string::npos) {
+        // QTAP:<BUTTON>[:<holdMs>] routes through HalGPIO::queueButtonTap —
+        // the API the iOS read-aloud adapter turns pages with — so a
+        // headless script pins that exact path, not just injectButton*.
+        const std::string rest = item.substr(secondColon + 1);
+        const size_t thirdColon = rest.find(':');
+        const int button = namedButton(uppercase(
+            thirdColon == std::string::npos ? rest : rest.substr(0, thirdColon)));
+        if (button >= 0) {
+          SyntheticEvent tap{atMs, SyntheticAction::QueuedTap, button};
+          tap.holdMs = thirdColon == std::string::npos
+                           ? 60
+                           : std::strtoul(rest.substr(thirdColon + 1).c_str(),
+                                          nullptr, 10);
+          syntheticEvents.push_back(std::move(tap));
+        }
       } else if ((key == "TAP" || key == "SWIPE") &&
                  secondColon != std::string::npos) {
         float x1 = 0.0f;
@@ -523,6 +554,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::Quit:
       quitRequested.store(true);
+      break;
+    case SyntheticAction::QueuedTap:
+      gpio.queueButtonTap(static_cast<uint8_t>(event.button), event.holdMs);
       break;
     }
   }
@@ -608,6 +642,26 @@ void HalGPIO::update() {
   // check could observe it — which made Back/Exit require repeated presses.
   // Latching edges for the whole frame keeps wasPressed() stable across all
   // update() calls in that frame, matching the on-device InputManager.
+
+  // Fire queued synthetic taps here, inside update(), so their edges land in
+  // the same window real input's do (see queueButtonTap in HalGPIO.h — an
+  // edge injected after loop() is wiped by the next beginFrame() unseen).
+  if (!pendingButtonTaps.empty()) {
+    const unsigned long now = SDL_GetTicks();
+    for (auto it = pendingButtonTaps.begin(); it != pendingButtonTaps.end();) {
+      if (!it->downSent) {
+        injectButtonDown(it->button);
+        it->downSent = true;
+        it->upAtTicks = now + it->holdMs;
+        ++it;
+      } else if (now >= it->upAtTicks) {
+        injectButtonUp(it->button);
+        it = pendingButtonTaps.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
 
   // HalGPIO owns all SDL event polling so keyboard and quit events are never
   // split between two callers (HalDisplay::presentIfNeeded only renders).
@@ -851,6 +905,30 @@ void HalGPIO::pumpHostTextInput() {
   } else {
     SDL_StopTextInput(window);
   }
+}
+
+bool HalGPIO::readAloudCaptureWanted() const {
+  return readAloudChannel.wanted();
+}
+
+void HalGPIO::publishReadAloudPage(const char *utf8, size_t utf8Len,
+                                   const ReadAloudWordRect *rects,
+                                   size_t rectCount) {
+  readAloudChannel.publish(utf8, utf8Len, rects, rectCount);
+}
+
+void HalGPIO::setReadAloudCaptureWanted(bool wanted) {
+  readAloudChannel.setWanted(wanted);
+}
+
+bool HalGPIO::consumeReadAloudPage(ReadAloudPage &out) {
+  return readAloudChannel.consume(out);
+}
+
+void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
+  if (buttonIndex >= NUM_BUTTONS)
+    return;
+  pendingButtonTaps.push_back({buttonIndex, holdMs});
 }
 
 unsigned long HalGPIO::getHeldTime() const {

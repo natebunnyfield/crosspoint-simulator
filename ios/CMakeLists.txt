@@ -46,7 +46,9 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointFsPrep.cpp
   ${CROSSPOINT_SETTINGS_BUNDLE}
   ${CROSSPOINT_ASSETS})
@@ -64,6 +66,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
 # Optional bundled font families. Point this at a build-sd-fonts.py output
@@ -136,10 +139,14 @@ endif()
 # NetworkExtension carries NEHotspotNetwork (SSID + signal strength); Network
 # carries NWPathMonitor (connectivity). Both are CrossPointWiFi.mm's own link
 # requirements and are named here rather than left to come in transitively.
+# AVFoundation carries AVSpeechSynthesizer and AVAudioSession — the read-aloud
+# adapter's (CrossPointReadAloud.mm) own link requirement, named for the same
+# reason the two above are.
 target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
   "-framework UIKit"
   "-framework Network"
-  "-framework NetworkExtension")
+  "-framework NetworkExtension"
+  "-framework AVFoundation")
 
 # The harness impersonates an X3. ON THE LIBRARY, PUBLIC -- the same trap
 # CROSSPOINT_RENDER_SCALE fell into below, and it bit harder: the device macro

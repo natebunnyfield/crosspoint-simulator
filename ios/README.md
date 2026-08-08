@@ -600,6 +600,37 @@ would want 30 pt of lift, i.e. 4.5 mm of chassis gap, which is the trade this
 stops short of. Top corners never touch the pad at any size — they cover page
 text, which no pad layout can prevent.
 
+## Read aloud
+
+Off by default; **Settings > Apps > CrossPoint X3 > Read Aloud (Experimental)**.
+With it on and a book open, the phone reads the page in the owner's Spoken
+Content voice, turns the page itself, highlights each word as it is spoken, and
+starts from any word tapped.
+
+| What the owner does | What happens |
+|---|---|
+| Turns the toggle on | Takes effect at the next page render — capture publishes when a page is drawn, so the current page is not retroactively spoken |
+| Opens a book | The page is spoken from the top, in the voice from Settings > Accessibility > Spoken Content > Voices |
+| Waits | At the end of the page the app presses the page-forward button itself and reads on. Progress persists, because the press is a REAL button press the firmware handles |
+| Turns the page manually | Speech stops and re-starts on the new page |
+| Taps a word | Reading jumps to that word. No page turn, no double audio |
+| Taps a margin, or drags | Nothing. Only a tap that lands on a word counts |
+| Presses BACK to Home | Speech stops and the highlight clears |
+| Turns the toggle off | Stops on the first frame after returning to the app |
+| Reaches the end of the book | One `[READALOUD] page timeout` and a clean stop |
+| Uses the button pad | Unchanged — read-aloud adds no gestures and takes no pad slot |
+
+The highlight is overlay chrome, so it does **not** appear in
+`CROSSPOINT_SIM_SCREENSHOTS` captures (those are taken pre-composite). A device
+screenshot does show it.
+
+Ring/silent on silent still plays: the audio session is
+`AVAudioSessionCategoryPlayback`. Verified only in the iOS Simulator — no
+physical phone is paired to this Mac, and the silent switch is exactly what a
+simulator cannot reproduce.
+
+Logs are greppable: every line starts `[READALOUD] `.
+
 ## Keyboards — Bluetooth and on-screen
 
 **Both work, in every text field the firmware has**, and they are the same
