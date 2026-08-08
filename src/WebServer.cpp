@@ -729,15 +729,32 @@ void WebServer::handleClient() {
   impl_->dispatchPending = false;
   lock.unlock();
 
-  // Unlocked across the handler: it can take as long as it likes (a file
-  // upload, a font download), and a handler that calls ESP.restart() never
-  // returns at all -- holding the lock across that would deadlock the worker
-  // on a mutex that is never released.
-  dispatchParkedRequest();
+  // The parked worker MUST be signalled on every exit path, so the signal lives
+  // in a scope guard rather than a trailing statement. Route handlers are
+  // arbitrary std::function<void()> with no no-throw contract, and this
+  // translation unit builds WITH exceptions (unlike the device's
+  // -fno-exceptions); a handler that threw std::bad_alloc under memory pressure
+  // used to skip the "dispatchDone = true" below, leaving the accept worker
+  // parked on its condition variable forever -- one throw and the whole file
+  // transfer server hung with no recovery. The guard sets the flag on normal
+  // return and on exception unwind alike.
+  struct Signal {
+    Impl *impl;
+    ~Signal() {
+      std::lock_guard<std::mutex> done(impl->dispatchMutex);
+      impl->dispatchDone = true;
+      impl->dispatchCv.notify_all();
+    }
+  } signal{impl_.get()};
 
-  lock.lock();
-  impl_->dispatchDone = true;
-  impl_->dispatchCv.notify_all();
+  // Unlocked across the handler: it can take as long as it likes (a file
+  // upload, a font download). A handler that calls ESP.restart() does not
+  // return at all -- on desktop that is execvp (this process is replaced, guard
+  // and all), on iOS a longjmp that skips the guard; the parked worker is
+  // orphaned by the reboot either way, which is a leak but not the permanent
+  // hang the throw case was. Holding the lock across the handler would instead
+  // deadlock the worker on a mutex the restart never releases.
+  dispatchParkedRequest();
 }
 
 void WebServer::on(const char *uri, int method, std::function<void()> handler) {
