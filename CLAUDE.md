@@ -237,9 +237,19 @@ and X4 Pro touch edges through the same `HalGPIO` state as real SDL input, and
 `CROSSPOINT_SIM_SCREENSHOTS` captures renderer output on the SDL main thread.
 Keep synthetic held-time timestamps on the `SDL_GetTicks()` clock used by real
 keyboard events; the firmware's `millis()` clock has a different origin. The
-deep-sleep loop must also process synthetic input. Process relaunch promotes
-the optional `*_AFTER_WAKE` schedules and clears the pre-sleep schedules so
-automation cannot enter an infinite sleep/relaunch cycle.
+deep-sleep loop must also process synthetic input. A reboot promotes the
+optional `*_AFTER_WAKE` schedules and clears the pre-sleep ones, so automation
+cannot enter an infinite sleep/relaunch cycle.
+
+That promotion used to be true only on the desktop. The desktop reboot is
+`execvp`, a fresh process, so every static re-initialises for free; iOS cannot
+exec in the sandbox and longjmps back into `setup()` in the SAME process, where
+`syntheticEventsInitialized` and `screenshotEventsInitialized` were still set and
+the promoted schedules were never re-read. **Anything that caches env-derived
+state behind a `static bool ...Initialized` must register a reset in
+[src/SimulatorRebootResets.h](src/SimulatorRebootResets.h)**, which
+`SimulatorLifecycle` runs immediately before the jump — otherwise it works on the
+desktop, is dead on the phone, and nothing says so.
 
 **Navigating to a screen from a headless script.** Work these out by watching
 `[ACT] Entering activity:` log lines — that is the reliable way to confirm where

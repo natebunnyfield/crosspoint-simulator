@@ -45,27 +45,6 @@ semantics (which hold duration sleeps, from which screens), or pinning it to
 a firmware ref it matches. Decide which behaviour is intended before touching
 either side.
 
-### [S-004] `getFrameBuffer()` can return null and five callers dereference it
-**severity: high · scope: display · found 2026-08-07**
-
-`HalDisplay::getFrameBuffer()` returns `nullptr` while the buffer is lent out
-(`src/HalDisplay.cpp:784`), and every consumer assumes non-null:
-`clearScreen` goes straight into `memset(getFrameBuffer(), …)`
-(`:532`), `refreshDisplay` into `snapshotBwBase` (`:612-614`), plus `drawImage`
-(`:537`), `drawImageTransparent` (`:560`) and `composeGrayscalePreview`
-(`:275`).
-
-`frameBufferLent` is a **plain `bool`** at file scope (`:114`), written by the
-borrower and read by the render thread with no synchronisation, so the window is
-not even deterministic.
-
-Dormant today: nothing in this repo calls `lendFrameBufferStorage`. It arms the
-moment the firmware's decode path does.
-
-**Close by:** deciding the contract — either the callers check, or the loan
-blocks/copies instead of handing back null — and making the flag an atomic
-either way.
-
 ### [S-003] Route handlers run on the accept worker, not the firmware task
 **severity: high · scope: web server / threading · found 2026-08-07**
 
@@ -82,7 +61,8 @@ behaviour, and `silentRestart()` is how every file transfer ends.
 calling thread, which is what the device does.
 
 ### [S-002] Sleep/restart statics survive the iOS in-process reboot
-**severity: medium · scope: iOS lifecycle · found 2026-08-07**
+**severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
+
 
 `rebootAsPowerWake()` promotes the `*_AFTER_WAKE` schedules
 (`src/SimulatorLifecycle.cpp:79`), but the consumers read the environment once
@@ -99,6 +79,30 @@ released and the render task deadlocks on the first post-reboot frame.
 
 **Close by:** resetting the process-scoped statics on the in-process reboot
 path, and correcting the `CLAUDE.md` claim.
+
+
+**Fixed for the statics half.** `src/SimulatorRebootResets.h` holds a registry
+that `SimulatorLifecycle` runs immediately before both in-process jumps. HalGPIO
+registers a reset for `syntheticEventsInitialized`, the pending
+`syntheticEvents`, and `textEntryActive`; HalDisplay for
+`screenshotEventsInitialized` and `screenshotEvents`. So the `*_AFTER_WAKE`
+promotion now actually reaches its consumers on the phone, and a reboot taken
+mid-text-entry no longer leaves the keyboard channel latched with the button map
+suppressed.
+
+`CLAUDE.md` no longer states the promotion unconditionally: it now says why the
+desktop got it for free (`execvp` is a new process), and that anything caching
+env-derived state behind a `static bool ...Initialized` must register a reset.
+
+`tests/reboot_resets_test.cpp` pins the contract the lifecycle depends on —
+everything registered runs, in registration order, and `runAll()` does not
+consume the registry, because a process can reboot more than once.
+
+**STILL OPEN, and why this entry stays:** the longjmp also skips destructors, so
+a `RenderLock` held when `ESP.restart()` is called is never released and the
+render task deadlocks on the first post-reboot frame. That is not a stale static
+and a reset callback cannot fix it — it needs the lock either dropped before the
+jump or made reentrant across it. Untouched here.
 
 ### [S-001] The simulator reports the opposite of the device in six places
 **severity: medium · scope: fidelity · found 2026-08-07**
@@ -124,6 +128,39 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-004] `getFrameBuffer()` can return null and five callers dereference it
+**severity: high · scope: display · found 2026-08-07** · FIXED 2026-08-07
+
+
+`HalDisplay::getFrameBuffer()` returns `nullptr` while the buffer is lent out
+(`src/HalDisplay.cpp:784`), and every consumer assumes non-null:
+`clearScreen` goes straight into `memset(getFrameBuffer(), …)`
+(`:532`), `refreshDisplay` into `snapshotBwBase` (`:612-614`), plus `drawImage`
+(`:537`), `drawImageTransparent` (`:560`) and `composeGrayscalePreview`
+(`:275`).
+
+`frameBufferLent` is a **plain `bool`** at file scope (`:114`), written by the
+borrower and read by the render thread with no synchronisation, so the window is
+not even deterministic.
+
+Dormant today: nothing in this repo calls `lendFrameBufferStorage`. It arms the
+moment the firmware's decode path does.
+
+**Close by:** deciding the contract — either the callers check, or the loan
+blocks/copies instead of handing back null — and making the flag an atomic
+either way.
+
+
+**Fixed.** All five dereferences now check. The behaviour on null is to skip,
+not to substitute a buffer: whoever holds the loan owns those pixels, and the
+lender's own refresh follows, so a skipped clear or blit repaints on the next
+draw. `refreshDisplay` returning early matters most — converting a half-owned
+buffer would have presented a torn frame rather than crashed, which is the worse
+failure because it looks like a rendering bug somewhere else entirely.
+
+`composeGrayscalePreview` keeps the last presented frame instead of compositing
+from null.
 
 ### [S-010] `CROSSPOINT_NO_NETWORK` outlived the reason it existed
 **severity: medium · scope: iOS features · FIXED 2026-08-07 · `d7e8b27`, firmware `f1459353`**
