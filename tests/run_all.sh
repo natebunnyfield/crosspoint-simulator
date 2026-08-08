@@ -67,6 +67,9 @@ run restart_semantics \
 run task_registry \
   c++ -std=c++20 -Isrc -o "$OUT/task_registry" tests/task_registry_test.cpp
 
+run reboot_resets \
+  c++ -std=c++20 -Isrc -o "$OUT/reboot_resets" tests/reboot_resets_test.cpp
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.

@@ -1,4 +1,5 @@
 #include "HalDisplay.h"
+#include "SimulatorRebootResets.h"
 
 #include <GfxRenderer.h>
 #include <Logging.h>
@@ -121,6 +122,13 @@ struct ScreenshotEvent {
 
 std::vector<ScreenshotEvent> screenshotEvents;
 bool screenshotEventsInitialized = false;
+
+// Same reason as the GPIO one: re-read CROSSPOINT_SIM_SCREENSHOTS after an
+// in-process reboot, so the promoted *_AFTER_WAKE schedule is actually honoured.
+const simreset::Registrar gDisplayRebootReset{[] {
+  screenshotEventsInitialized = false;
+  screenshotEvents.clear();
+}};
 
 void initializeScreenshotEvents() {
   if (screenshotEventsInitialized)

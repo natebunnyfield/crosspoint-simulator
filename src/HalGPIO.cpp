@@ -1,4 +1,5 @@
 #include "HalGPIO.h"
+#include "SimulatorRebootResets.h"
 
 #include <BoardConfig.h>
 #include <GfxRenderer.h>
@@ -206,6 +207,17 @@ std::string decodeTypeEscapes(const std::string &raw) {
 
 std::vector<SyntheticEvent> syntheticEvents;
 bool syntheticEventsInitialized = false;
+
+// The in-process (iOS) reboot keeps this TU's statics. Without these resets the
+// *_AFTER_WAKE promotion in rebootAsPowerWake() has no effect on the phone --
+// the schedule was already latched -- and a reboot performed while a text field
+// was open leaves the keyboard channel on, which keeps the scancode->button map
+// suppressed and makes the buttons appear dead. See SimulatorRebootResets.h.
+const simreset::Registrar gGpioRebootReset{[] {
+  syntheticEventsInitialized = false;
+  syntheticEvents.clear();
+  textEntryActive.store(false);
+}};
 
 float clamp01(float value) { return std::max(0.0f, std::min(1.0f, value)); }
 

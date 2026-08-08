@@ -38,7 +38,8 @@ behaviour, and `silentRestart()` is how every file transfer ends.
 calling thread, which is what the device does.
 
 ### [S-002] Sleep/restart statics survive the iOS in-process reboot
-**severity: medium · scope: iOS lifecycle · found 2026-08-07**
+**severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
+
 
 `rebootAsPowerWake()` promotes the `*_AFTER_WAKE` schedules
 (`src/SimulatorLifecycle.cpp:79`), but the consumers read the environment once
@@ -55,6 +56,30 @@ released and the render task deadlocks on the first post-reboot frame.
 
 **Close by:** resetting the process-scoped statics on the in-process reboot
 path, and correcting the `CLAUDE.md` claim.
+
+
+**Fixed for the statics half.** `src/SimulatorRebootResets.h` holds a registry
+that `SimulatorLifecycle` runs immediately before both in-process jumps. HalGPIO
+registers a reset for `syntheticEventsInitialized`, the pending
+`syntheticEvents`, and `textEntryActive`; HalDisplay for
+`screenshotEventsInitialized` and `screenshotEvents`. So the `*_AFTER_WAKE`
+promotion now actually reaches its consumers on the phone, and a reboot taken
+mid-text-entry no longer leaves the keyboard channel latched with the button map
+suppressed.
+
+`CLAUDE.md` no longer states the promotion unconditionally: it now says why the
+desktop got it for free (`execvp` is a new process), and that anything caching
+env-derived state behind a `static bool ...Initialized` must register a reset.
+
+`tests/reboot_resets_test.cpp` pins the contract the lifecycle depends on —
+everything registered runs, in registration order, and `runAll()` does not
+consume the registry, because a process can reboot more than once.
+
+**STILL OPEN, and why this entry stays:** the longjmp also skips destructors, so
+a `RenderLock` held when `ESP.restart()` is called is never released and the
+render task deadlocks on the first post-reboot frame. That is not a stale static
+and a reset callback cannot fix it — it needs the lock either dropped before the
+jump or made reentrant across it. Untouched here.
 
 ### [S-001] The simulator reports the opposite of the device in six places
 **severity: medium · scope: fidelity · found 2026-08-07**
