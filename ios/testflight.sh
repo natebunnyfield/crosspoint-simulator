@@ -206,11 +206,16 @@ IPA=$(find "$EXPORT_DIR" -maxdepth 1 -name '*.ipa' | head -1)
 echo "IPA: $IPA ($(du -h "$IPA" | cut -f1))"
 
 say "Verify purpose strings"
-# Build 1 was rejected with ITMS-90683: the linked SDL3 library references
-# camera and Bluetooth APIs, so App Store Connect demands purpose strings even
-# though the app never calls them. Check the IPA that will actually be
-# uploaded, not the source template, so a plist-processing regression cannot
-# slip through. Cheap (<1s) next to a wasted upload and a burned build number.
+# Build 1 was rejected with ITMS-90683: the SDL3 of that era compiled its
+# camera and Bluetooth drivers in, so the binary genuinely referenced those
+# APIs and App Store Connect demanded purpose strings. Check the IPA that will
+# actually be uploaded, not the source template, so a plist-processing
+# regression cannot slip through. Cheap (<1s) next to a wasted upload and a
+# burned build number.
+#
+# The demand is derived from the BINARY, at symbol level -- see the block
+# below. Framework-level detection turned out to over-demand: AVFoundation is
+# linked for speech (read-aloud), which references no capture API at all.
 PURPOSE_KEYS=(NSCameraUsageDescription
               NSBluetoothAlwaysUsageDescription
               NSBluetoothPeripheralUsageDescription)
@@ -235,19 +240,40 @@ unzip -q -o "$IPA" 'Payload/*.app/CrossPointX3' -d "$IPA_PLIST_DIR" 2>/dev/null 
 IPA_BIN=$(find "$IPA_PLIST_DIR/Payload" -maxdepth 2 -type f -name 'CrossPointX3' | head -1)
 NEEDS_CAMERA=0
 NEEDS_BT=0
+CAMERA_WHY="no AVCapture class reference and no compiled-in camera driver class"
+BT_WHY="CoreBluetooth not linked and no CBCentral/CBPeripheral reference"
 if [[ -n "$IPA_BIN" ]]; then
   LINKED=$(otool -L "$IPA_BIN" 2>/dev/null || true)
   CLASSES=$(otool -v -s __TEXT __objc_classname "$IPA_BIN" 2>/dev/null || true)
-  grep -q 'AVFoundation' <<<"$LINKED" && NEEDS_CAMERA=1
-  grep -qiE 'AVCapture|SDLCamera|CaptureVideoData' <<<"$CLASSES" && NEEDS_CAMERA=1
-  grep -q 'CoreBluetooth' <<<"$LINKED" && NEEDS_BT=1
-  grep -qiE 'CBCentral|CBPeripheral' <<<"$CLASSES" && NEEDS_BT=1
+  UNDEF=$(nm -u "$IPA_BIN" 2>/dev/null || true)
+  # SYMBOL-LEVEL, deliberately not framework-level. Linking AVFoundation is not
+  # a camera reference: since 2026-08-08 this binary links it for
+  # AVSpeechSynthesizer (read-aloud), and the framework-level test demanded
+  # NSCameraUsageDescription for a capability the app does not have -- measured
+  # on build 39: zero AVCapture class refs, zero camera selectors, SDL built
+  # with SDL_CAMERA_DISABLED. Using an API means an undefined
+  # _OBJC_CLASS_$_AVCapture* symbol (or SDL's own camera driver classes compiled
+  # in), so that is what is tested. If Apple ever bounces a build with
+  # ITMS-90683 naming the camera DESPITE these all being zero, re-add the
+  # framework test here and write down the build number.
+  if grep -q '_OBJC_CLASS_\$_AVCapture' <<<"$UNDEF"; then
+    NEEDS_CAMERA=1; CAMERA_WHY="binary references AVCapture classes"
+  elif grep -qiE 'SDLCamera|CaptureVideoData' <<<"$CLASSES"; then
+    NEEDS_CAMERA=1; CAMERA_WHY="SDL camera driver classes are compiled in"
+  fi
+  # CoreBluetooth vends nothing but Bluetooth, so the framework appearing in the
+  # load commands IS a Bluetooth reference; the class test is belt and braces.
+  if grep -q 'CoreBluetooth' <<<"$LINKED"; then
+    NEEDS_BT=1; BT_WHY="CoreBluetooth is linked"
+  elif grep -q '_OBJC_CLASS_\$_CBCentral\|_OBJC_CLASS_\$_CBPeripheral' <<<"$UNDEF"; then
+    NEEDS_BT=1; BT_WHY="binary references CBCentral/CBPeripheral"
+  fi
 else
   # Could not inspect the binary -- demand everything rather than silently
   # skipping the check.
   echo "  WARNING: no binary found inside the IPA; requiring all purpose strings"
-  NEEDS_CAMERA=1
-  NEEDS_BT=1
+  NEEDS_CAMERA=1; CAMERA_WHY="binary could not be inspected"
+  NEEDS_BT=1; BT_WHY="binary could not be inspected"
 fi
 
 MISSING=0
@@ -257,14 +283,23 @@ for key in "${PURPOSE_KEYS[@]}"; do
     NSBluetooth*) REQUIRED=$NEEDS_BT ;;
     *) REQUIRED=1 ;;
   esac
+  case "$key" in
+    NSCameraUsageDescription) WHY=$CAMERA_WHY ;;
+    NSBluetooth*) WHY=$BT_WHY ;;
+    *) WHY="always required" ;;
+  esac
   VALUE=$(plutil -extract "$key" raw -o - "$IPA_PLIST" 2>/dev/null) || VALUE=""
-  if [[ -n "$VALUE" ]]; then
-    echo "  $key ok"
+  if [[ -n "$VALUE" && $REQUIRED -eq 1 ]]; then
+    echo "  $key ok ($WHY)"
+  elif [[ -n "$VALUE" ]]; then
+    # Present but not demanded: harmless, but say so rather than implying it
+    # was needed -- a declared-but-unused privacy string is worth noticing.
+    echo "  $key present but not required ($WHY)"
   elif [[ $REQUIRED -eq 1 ]]; then
-    echo "  $key MISSING (binary references the API)"
+    echo "  $key MISSING ($WHY)"
     MISSING=1
   else
-    echo "  $key not needed (API not referenced by the binary)"
+    echo "  $key not needed ($WHY)"
   fi
 done
 if [[ $MISSING -ne 0 ]]; then
