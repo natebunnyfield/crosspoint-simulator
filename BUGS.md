@@ -45,6 +45,31 @@ semantics (which hold duration sleeps, from which screens), or pinning it to
 a firmware ref it matches. Decide which behaviour is intended before touching
 either side.
 
+### [S-001] The simulator reports the opposite of the device in six places
+**severity: medium · scope: fidelity · found 2026-08-07**
+
+Not crashes — false confidence. Each makes a firmware path look exercised when
+it never ran, and the simulator is the project's only pre-device gate.
+
+| Reports | Device | What it hides |
+|---|---|---|
+| 1 MB free heap (`src/Arduino.h:41,51`) | ~380 KB, no PSRAM | every graceful-degradation gate: indexing pause, glyph prewarm, SD font streaming fallback, image/CSS/JPEG bailouts |
+| `supportsAsyncRefresh()` false (`src/HalDisplay.cpp:603`) | supported | the overlapped page turn has never executed in a simulator run |
+| no panic ever (`src/HalSystem.cpp:5-8`) | 225 lines of panic handling | `CrashActivity` compiles in and cannot be entered |
+| battery 100%, USB always connected (`src/HalPowerManager.cpp:10`, `src/HalGPIO.cpp:930-931`) | real gauge + GPIO | charging bolt always drawn, plug/unplug repaint never fires |
+| `esp_ota_get_next_update_partition()` null (`src/esp_ota_ops.h:6-8`) | valid | SD firmware update shows "Invalid firmware" before reading a byte |
+| OTA pinned to NO_UPDATE (`src/simulator_ota.cpp:19-22`) | real check | the whole available→download→install flow is unreachable |
+
+The heap constant is the worst of them: heap-constrained degradation is the code
+most worth simulating and the code the simulator can least reach.
+
+**Close by:** scoping this as its own piece of work — it is a project, not a
+cleanup. A budgeted fake heap would reach most of the dead branches.
+
+---
+
+## FIXED
+
 ### [S-002] Sleep/restart statics survive the iOS in-process reboot
 **severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
 
@@ -89,30 +114,31 @@ render task deadlocks on the first post-reboot frame. That is not a stale static
 and a reset callback cannot fix it — it needs the lock either dropped before the
 jump or made reentrant across it. Untouched here.
 
-### [S-001] The simulator reports the opposite of the device in six places
-**severity: medium · scope: fidelity · found 2026-08-07**
+**Now fully fixed.** The statics half landed earlier; this closes the other one.
 
-Not crashes — false confidence. Each makes a firmware path look exercised when
-it never ran, and the simulator is the project's only pre-device gate.
+A `RenderLock` held when the longjmp fires never runs `xSemaphoreGive`, so the
+mutex stayed locked by a thread that no longer existed and the render task
+blocked forever on the first frame back. `std::recursive_mutex` offered no way
+out — unlocking one you do not own is undefined, destroying one with a waiter
+parked on it is worse — so the shim now implements the recursive mutex itself
+over a plain mutex, a condition variable and an owner/count that
+`simsemphr::forceReleaseAllForReboot()` can clear and wake. It runs beside
+`simreset::runAll()` at both jump sites.
 
-| Reports | Device | What it hides |
-|---|---|---|
-| 1 MB free heap (`src/Arduino.h:41,51`) | ~380 KB, no PSRAM | every graceful-degradation gate: indexing pause, glyph prewarm, SD font streaming fallback, image/CSS/JPEG bailouts |
-| `supportsAsyncRefresh()` false (`src/HalDisplay.cpp:603`) | supported | the overlapped page turn has never executed in a simulator run |
-| no panic ever (`src/HalSystem.cpp:5-8`) | 225 lines of panic handling | `CrashActivity` compiles in and cannot be entered |
-| battery 100%, USB always connected (`src/HalPowerManager.cpp:10`, `src/HalGPIO.cpp:930-931`) | real gauge + GPIO | charging bolt always drawn, plug/unplug repaint never fires |
-| `esp_ota_get_next_update_partition()` null (`src/esp_ota_ops.h:6-8`) | valid | SD firmware update shows "Invalid firmware" before reading a byte |
-| OTA pinned to NO_UPDATE (`src/simulator_ota.cpp:19-22`) | real check | the whole available→download→install flow is unreachable |
+`tests/semphr_reboot_test.cpp` pins it, and writing it corrected the design
+twice — both times because the test asserted the deadlock as a PRECONDITION and
+the precondition failed:
 
-The heap constant is the worst of them: heap-constrained degradation is the code
-most worth simulating and the code the simulator can least reach.
+1. Ownership by `TaskHandle_t` let any thread in. Threads not created through
+   `xTaskCreate` share a handle, so an unrelated thread read as the holder
+   re-entering.
+2. Ownership by `std::thread::id` let the *probe* in. Thread ids are recycled
+   once a thread ends — and a holder that ended without releasing is precisely
+   this bug, so the replacement thread inherited its identity.
 
-**Close by:** scoping this as its own piece of work — it is a project, not a
-cleanup. A budgeted fake heap would reach most of the dead branches.
-
----
-
-## FIXED
+Ownership is now a per-thread token from a counter that only goes up. A give
+from a non-holder is a no-op rather than a decrement, so a stale unwind after
+the release cannot free somebody else's lock.
 
 ### [S-003] Route handlers run on the accept worker, not the firmware task
 **severity: high · scope: web server / threading · found 2026-08-07** · FIXED 2026-08-08
