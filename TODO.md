@@ -57,14 +57,19 @@ Revisit only if every known consumer is confirmed to define the macro.
 
 Apple speech (`AVSpeechSynthesizer`) reading the open book aloud on the phone:
 speak the page, auto page-turn at the bottom, per-word highlight, start from a
-tapped word. Behind a default-off toggle in Settings > CrossPoint X3. The full
-phased plan — channel contract, state machine, firmware work packages FW-A/FW-B,
-per-phase acceptance — is
-[.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md); it is written
-to be executed phase by phase without further design work.
+tapped word. Behind a default-off toggle in Settings > CrossPoint X3. The plan —
+contracts, gates, work packages —
+is [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
-**Close by:** shipping Phase 4 of that plan and moving the owner-facing
-behaviour into ios/README.md, per the plan's bookkeeping section.
+Status: **WP-1 (platform-neutral half) is implemented and host-tested** —
+channel, full `ReadAloudCore` state machine, `queueButtonTap`, overlay
+geometry accessors, headless capture logger, plus the WP-3 adapter scaffolding
+(`ios/CrossPointReadAloud.mm`, toggle, shim wiring; written blind, not yet
+compiled on a Mac). Still owed: WP-2 (firmware capture FW-A/FW-B in the fork,
+gate G0's text audit) and WP-3's on-glass verification.
+
+**Close by:** G0 passing, the on-glass acceptance list in the plan passing,
+and the owner-facing behaviour moving into ios/README.md.
 
 ---
 

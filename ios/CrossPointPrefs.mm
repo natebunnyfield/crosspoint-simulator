@@ -17,6 +17,10 @@ static NSString *const kPadOutlineContrastDark = @"padOutlineContrastDark";
 static NSString *const kPadFillContrastLight = @"padFillContrastLight";
 static NSString *const kPadFillContrastDark = @"padFillContrastDark";
 
+// Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
+// feature stays off, which is also the shipped default.
+static NSString *const kReadAloudEnabled = @"readAloudEnabled";
+
 // THE DEFAULTS LIVE IN Root.plist AND NOWHERE ELSE.
 //
 // A Settings.bundle needs its defaults stated twice by construction, and the
@@ -73,6 +77,7 @@ static void ensureDefaults(void) {
         kPadOutlineContrastDark : @(1),
         kPadFillContrastLight : @(-1),
         kPadFillContrastDark : @(1),
+        kReadAloudEnabled : @NO,
       }];
     }
 
@@ -138,6 +143,16 @@ static int padContrast(NSString *key) {
 
 int CrossPointPrefs_padOutlineContrast(int dark) {
   return padContrast(dark ? kPadOutlineContrastDark : kPadOutlineContrastLight);
+}
+
+int CrossPointPrefs_readAloudEnabled(void) {
+  ensureDefaults();
+  checkKnown(kReadAloudEnabled);
+  // Read live, same as everything here: a toggle flipped in Settings.app
+  // while the app was backgrounded lands on the first frame after returning.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kReadAloudEnabled]
+             ? 1
+             : 0;
 }
 
 int CrossPointPrefs_padFillContrast(int dark) {

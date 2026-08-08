@@ -58,6 +58,7 @@
 
 #include "CrossPointAppearance.h"
 #include "CrossPointPrefs.h"
+#include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "PadCore.h"
@@ -861,6 +862,12 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 }
 
 void paintPad(SDL_Renderer *r, int outW, int outH) {
+  // SimulatorOverlay holds a single draw callback, so the pad's painter is
+  // also the dispatch point for the read-aloud word highlight. First, so the
+  // pad never paints under it (their areas are disjoint anyway: highlight on
+  // the panel, pad in the reserved band).
+  CrossPointReadAloud_paintHighlight(r, outW, outH, g_dark ? 1 : 0);
+
   // Relayout when the panel's published bottom edge moves (first present,
   // orientation change) as well as on size changes.
   static int s_layoutPanelBottom = -1;
@@ -961,6 +968,16 @@ int padHitTest(float x, float y) {
   return -1;
 }
 
+// Read-aloud tap candidate: a finger that landed on NO pad slot may become a
+// word tap. Down records it, dragging past the slop cancels it (a drag must
+// not start speech), a clean lift hands the DOWN coordinates to the adapter
+// (CrossPointReadAloud_tapAtScreen rejects anything outside the panel or off
+// a word). Cancelled by the same events that reset the pad. No timers: a tap
+// is down + up without movement, however long the hold — the pad's own
+// design, and PadCore itself stays untouched.
+long long g_tapFingerId = -1;
+float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
+
 // Finger coordinates arrive normalised; the pad needs pixels, and the harness
 // does not own the renderer, so it asks the window the event came from.
 bool windowPixelSize(SDL_WindowID id, float *w, float *h) {
@@ -984,12 +1001,26 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 
       const int hit = padHitTest(fx, fy);
       if (hit >= 0) g_windowId = e->tfinger.windowID;
+      if (hit < 0 && g_tapFingerId == -1) {
+        g_tapFingerId = e->tfinger.fingerID;
+        g_tapDownX = fx;
+        g_tapDownY = fy;
+      }
       applyActions(g_core.fingerDown(hit >= 0 ? hit : PadCore::kNoSlot,
                                      e->tfinger.fingerID));
       break;
     }
 
     case SDL_EVENT_FINGER_MOTION: {
+      // A tap candidate that drags past the slop is a swipe, not a tap.
+      if (e->tfinger.fingerID == g_tapFingerId &&
+          windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
+        const float x = e->tfinger.x * outW, y = e->tfinger.y * outH;
+        const float slop = 12.0f * g_ptScale;
+        if (SDL_fabsf(x - g_tapDownX) > slop ||
+            SDL_fabsf(y - g_tapDownY) > slop)
+          g_tapFingerId = -1;
+      }
       // Dragging off a control cancels it, matching how a system button behaves
       // and how a real key behaves when your thumb slides off it.
       const int slot = g_core.heldSlot(e->tfinger.fingerID);
@@ -1009,6 +1040,12 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // it — a second, permanent way for POWER to stop working until force quit.
     case SDL_EVENT_FINGER_UP:
     case SDL_EVENT_FINGER_CANCELED:
+      if (e->tfinger.fingerID == g_tapFingerId) {
+        g_tapFingerId = -1;
+        // A CANCELED finger (Control Center pull, incoming call) is not a tap.
+        if (e->type == SDL_EVENT_FINGER_UP)
+          CrossPointReadAloud_tapAtScreen(g_tapDownX, g_tapDownY);
+      }
       applyActions(g_core.fingerUp(e->tfinger.fingerID));
       break;
 
@@ -1016,6 +1053,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // stuck POWER would read as a long press.
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
     case SDL_EVENT_WINDOW_FOCUS_LOST:
+      g_tapFingerId = -1;
       applyActions(g_core.reset());
       break;
 
@@ -1096,6 +1134,10 @@ void CrossPointHarness_begin() {
   SDL_Log("[harness] appearance: %s, pad contrast outline %+d fill %+d",
           g_dark ? "dark" : "light", g_appliedOutline, g_appliedFill);
 
+  // Same idempotence contract as this function: creates once, refreshes the
+  // pref edge on every wake.
+  CrossPointReadAloud_begin();
+
   SimulatorOverlay::requestPresent();
 
   if (!s_watchesInstalled) {
@@ -1113,4 +1155,5 @@ void CrossPointHarness_perFrame() {
   pollAppearance();
   pollPadContrast();
   repaintAfterForeground();
+  CrossPointReadAloud_perFrame();
 }

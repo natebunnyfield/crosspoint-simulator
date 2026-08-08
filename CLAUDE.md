@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Eight real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, or build-configuration paths. `tests/run_all.sh` builds and runs the six host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The two shell tests are not in the runner: both need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport.
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Ten real tests do exist in `tests/`, run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, or build-configuration paths. `tests/run_all.sh` builds and runs the eight host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The two shell tests are not in the runner: both need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport.
 
 ```bash
 tests/run_all.sh
@@ -56,6 +56,8 @@ c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 tests/wifi_host_test.cpp -o /t
 c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 tests/http_dispatch_test.cpp -o /tmp/http_dispatch_test && /tmp/http_dispatch_test
 c++ -std=c++20 -Isrc tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp -o /tmp/restart_test && /tmp/restart_test
 c++ -std=c++20 -Isrc tests/task_registry_test.cpp -o /tmp/task_registry_test && /tmp/task_registry_test
+c++ -std=c++20 -Isrc tests/read_aloud_channel_test.cpp -o /tmp/read_aloud_channel_test && /tmp/read_aloud_channel_test
+c++ -std=c++17 -Iios tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp -o /tmp/read_aloud_core_test && /tmp/read_aloud_core_test
 tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
 tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
 c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
@@ -71,7 +73,7 @@ cannot be compiled anywhere but a Mac and there is no paired device, so
 phone's branches be exercised on a host. Keep that escape hatch when adding
 another platform backend, or the branch ships with no coverage at all.
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever. `task_registry_test` pins the FreeRTOS shim's name dedupe against `vTaskDelete`: the registry used to keep pointing at a freed handle, so the create/delete/create sequence the iOS in-process reboot performs handed the caller freed memory. It asserts behaviourally (did a thread actually spawn?) because the allocator reuses the freed block, so pointer identity does not distinguish the two.
+`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever. `read_aloud_channel_test` pins the read-aloud page channel's hand-off contract (one consume per publish, latest wins, `publish(nullptr)` is the stop-speech clear); `read_aloud_core_test` covers every transition of the read-aloud state machine — most load-bearing: a canceled utterance never turns a page, and highlight/tap offsets are UTF-8 bytes (the test page has curly quotes and accents precisely so a character-counting regression fails it). `task_registry_test` pins the FreeRTOS shim's name dedupe against `vTaskDelete`: the registry used to keep pointing at a freed handle, so the create/delete/create sequence the iOS in-process reboot performs handed the caller freed memory. It asserts behaviourally (did a thread actually spawn?) because the allocator reuses the freed block, so pointer identity does not distinguish the two.
 
 ## Architecture
 
@@ -204,6 +206,22 @@ on every `p` and sleep the device on every `s`. `TYPE:<text>` in
 `CROSSPOINT_SIM_INPUT_SCRIPT` is the scripted typist (`\b` backspace, `\n`
 commit, `\e` cancel; `;` cannot appear in the text). Full behaviour table and
 what was verified where: [ios/README.md](ios/README.md).
+
+**Read-aloud page channel.** The same host-capability split as the keyboard
+channel, pointed the other way: `readAloudCaptureWanted()` /
+`publishReadAloudPage()` are firmware-facing (inline no-ops on device — the
+reader captures the displayed page's text and word rects only when asked, and
+publishes `nullptr` on exit), while `setReadAloudCaptureWanted()` /
+`consumeReadAloudPage()` are the simulator-only consumer half. One consumer
+per build: `CROSSPOINT_SIM_READALOUD_LOG=1` turns on an env-gated logger in
+`simulator_main.cpp` (desktop only) that both requests capture and prints
+every publish — the headless way to audit the firmware's capture quality. The
+iOS harness is the real consumer (`ios/CrossPointReadAloud.mm` speaks pages
+via AVSpeech). `HalGPIO::queueButtonTap` exists for this feature and any
+future harness automation: it schedules a synthetic press/release that fires
+inside `update()`, because an edge injected from the per-frame hook lands
+after `loop()` and is wiped by the next `beginFrame()` unseen. Design and
+work-package status: [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key
 and X4 Pro touch edges through the same `HalGPIO` state as real SDL input, and

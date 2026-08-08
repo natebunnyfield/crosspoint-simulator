@@ -45,6 +45,14 @@ int CrossPointPrefs_wantsScreenAwake(void);
 int CrossPointPrefs_padOutlineContrast(int dark);
 int CrossPointPrefs_padFillContrast(int dark);
 
+// Is read-aloud TTS enabled? 1 = read the open book aloud (see
+// CrossPointReadAloud.h), 0 = off, the default. A phone property like the
+// rest of this file: the device hardware has no speaker, so the setting
+// means nothing in settings.json.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_readAloudEnabled(void);
+
 #ifdef __cplusplus
 }
 #endif

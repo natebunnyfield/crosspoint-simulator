@@ -61,6 +61,15 @@ int panelBottomPx();
 // instead of hardcoding screen points.
 int panelHeightPx();
 
+// The panel's presented left edge and width, same units and same lifecycle
+// as the pair above (0 until the first manual-placement present). Together
+// the four give the full presented rect, which is what maps logical panel
+// coordinates to the glass: the read-aloud highlight painter and tap
+// hit-test scale by panelWidthPx / <logical portrait width> and offset from
+// (panelLeftPx, panelBottomPx - panelHeightPx).
+int panelLeftPx();
+int panelWidthPx();
+
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
 // a HAL method for the same reason as the rest of this namespace -- following

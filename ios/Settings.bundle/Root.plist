@@ -264,6 +264,24 @@
 				<integer>-9</integer>
 			</array>
 		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it. Takes effect at the next page turn.</string>
+			<key>Title</key>
+			<string>Read Aloud</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>readAloudEnabled</string>
+			<key>Title</key>
+			<string>Read Aloud (Experimental)</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
 	</array>
 	<key>StringsTable</key>
 	<string>Root</string>
