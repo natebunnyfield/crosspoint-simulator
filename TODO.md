@@ -126,7 +126,16 @@ pages; manual page turn stops and re-speaks; BACK stops and clears; the Settings
 toggle turns it off on the first frame after returning; tapping a word jumps to
 it (`byteOff=543`, no page turn); the highlight sits exactly on the spoken word.
 
-**NOT verified** — see the ST-003 gaps note in
-[ios/README.md](ios/README.md#read-aloud) and the report: dark appearance, a
-hyphen-split word lighting both lines, end-of-book timeout, and anything
-requiring a physical phone (the silent switch, a downloaded enhanced voice).
+**NOT verified, and deliberately left so** (owner ruling 2026-08-08 — deferred
+to the device pass rather than chased in the simulator):
+
+| Gap | Why it is still open |
+|---|---|
+| Dark appearance highlight | reachable in the simulator; not run |
+| A hyphen-split word lighting BOTH lines | reachable in the simulator; not run. The multi-rect path it exercises is covered by `read_aloud_core` host tests, but not on glass |
+| End-of-book timeout | reachable in the simulator; not run |
+| Ring/silent switch still audible | needs a physical phone — this is what `AVAudioSessionCategoryPlayback` is for (R6) |
+| The owner's downloaded enhanced/Siri voice | needs a physical phone |
+
+The first three are cheap and should ride along with the device pass, since the
+phone has to come out for the last two regardless.
