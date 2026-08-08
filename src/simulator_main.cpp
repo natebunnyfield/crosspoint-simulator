@@ -148,6 +148,28 @@ int main(int argc, char **argv) {
     // software keyboard on the glass. Edge-triggered inside; a no-op on every
     // frame that is not a transition.
     gpio.pumpHostTextInput();
+#if !CROSSPOINT_SIM_IOS
+    // Headless proof of the read-aloud capture (.claude/PLAN-tts-read-aloud.md):
+    // CROSSPOINT_SIM_READALOUD_LOG=1 asks the firmware to capture page text
+    // and logs every publish. Desktop has no speech consumer; iOS must not
+    // compile this — its harness is the consumer and this drain would steal
+    // its pages.
+    static const bool readAloudLog = [] {
+      const char *v = SDL_getenv("CROSSPOINT_SIM_READALOUD_LOG");
+      const bool on = v && v[0] == '1' && v[1] == '\0';
+      if (on)
+        gpio.setReadAloudCaptureWanted(true);
+      return on;
+    }();
+    if (readAloudLog) {
+      ReadAloudPage page;
+      while (gpio.consumeReadAloudPage(page)) {
+        SDL_Log("[READALOUD] page gen=%u cleared=%d bytes=%zu words=%zu | %.200s",
+                page.generation, page.cleared ? 1 : 0, page.utf8.size(),
+                page.rects.size(), page.utf8.c_str());
+      }
+    }
+#endif
     // Open a book double-clicked in Finder while the app was already running.
     // Relaunches when there is one, so this does not return in that case.
     SimulatorDocumentOpen::pumpPendingOpen();
