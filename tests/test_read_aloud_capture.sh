@@ -40,7 +40,8 @@ if [[ -z "$BIN" ]]; then
 fi
 command -v python3 >/dev/null || { echo "SKIP: python3 not available"; exit 2; }
 
-CARD="$(mktemp -d)"
+CARD="${CROSSPOINT_RA_KEEP_CARD:-$(mktemp -d)}"
+mkdir -p "$CARD"
 trap 'rm -rf "$CARD"' EXIT
 mkdir -p "$CARD/fs_/books"
 
@@ -102,20 +103,124 @@ check() {
 }
 
 LOG="$CARD/run.log"
-CROSSPOINT_SIM_READALOUD_LOG=1 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+SHOT="$CARD/page1.bmp"
+# LOG=2 dumps the rects too; the screenshot is taken while that same first page
+# is on the panel, so the geometry assertion below can compare the two.
+CROSSPOINT_SIM_READALOUD_LOG=2 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
 CROSSPOINT_SIM_INPUT_SCRIPT='6000:QTAP:RIGHT;12000:BACK;15000:QUIT' \
+CROSSPOINT_SIM_SCREENSHOTS="4000:$SHOT" \
 timeout 90 "$BIN" >"$LOG" 2>&1
 
 check "two page publishes with text (boot page + QTAP page turn)" \
   "grep -q 'gen=1 cleared=0 bytes=[1-9]' '$LOG' && grep -q 'gen=2 cleared=0 bytes=[1-9]' '$LOG'"
 check "the tap reached a DIFFERENT page, not a re-render" \
   "grep -q 'gen=1 .*Chapter one' '$LOG' && grep -q 'gen=2 .*Chapter two' '$LOG'"
+# Plain -F rather than -P: BSD grep (macOS) has no -P, and the bytes below are
+# already UTF-8 in this file, so a literal match is both portable and exact.
 check "curly quotes and accents survive as UTF-8" \
-  "grep -qP 'caf\xc3\xa9' '$LOG' && grep -qP '\xe2\x80\x9ccurly' '$LOG'"
+  "grep -qF 'café' '$LOG' && grep -qF '“curly' '$LOG'"
 check "reader exit publishes the cleared page" \
   "grep -q 'READALOUD] page gen=[0-9]* cleared=1' '$LOG'"
 check "no soft hyphens in any published text" \
-  "! grep -qP '\\xc2\\xad' '$LOG'"
+  "! grep -qF \"$(printf '\\xc2\\xad')\" '$LOG'"
+
+# --- rect geometry: every rect must actually sit on its word ----------------
+#
+# The published rects are what the highlight paints, and nothing else in this
+# test would notice them drifting. They did drift: PageLine::yPos is the line's
+# TOP, but the capture subtracted the font ascender from it as though it were a
+# baseline, lifting every rect a full line -- so the highlight sat one line
+# above the word being spoken. On the first line the result clamped to 0, which
+# hid it. Caught only by looking at the panel on iOS.
+#
+# The assertion is deliberately about INK, not about the arithmetic: for each
+# sampled rect, the band it covers must contain dark pixels within its own
+# column range. That stays true if fonts, margins or line heights change, and
+# fails for any systematic offset.
+python3 - "$LOG" "$SHOT" <<'GEOEOF'
+import re, sys, struct
+
+log, shot = sys.argv[1], sys.argv[2]
+# ONLY the first page's rects: the log also carries the post-QTAP page, and
+# the screenshot is of page one. Comparing page two's rects against page one's
+# pixels is how the first version of this check "failed" on a correct build.
+rects = []
+seen_first_page = False
+for line in open(log, "rb").read().decode("utf-8", "replace").splitlines():
+    if "READALOUD] page gen=" in line:
+        if seen_first_page:
+            break          # page two starts here
+        seen_first_page = True
+        continue
+    m = re.search(r"READALOUD-RECT\] x=(\d+) y=(\d+) w=(\d+) h=(\d+).*?\"(.*)\"$", line)
+    if m:
+        rects.append(tuple(int(m.group(i)) for i in range(1, 5)) + (m.group(5),))
+if not rects:
+    print("FAIL: rect geometry — no rects in the log (LOG=2 not honoured?)"); sys.exit(1)
+
+try:
+    raw = open(shot, "rb").read()
+except OSError as e:
+    print("FAIL: rect geometry — no screenshot (%s)" % e); sys.exit(1)
+
+# Minimal BMP reader: bottom-up, 24/32bpp, no PIL dependency on CI.
+off, w, h, bpp = struct.unpack_from("<I", raw, 10)[0], *struct.unpack_from("<ii", raw, 18), struct.unpack_from("<H", raw, 28)[0]
+if bpp not in (24, 32):
+    print("SKIP-GEO: unexpected %d bpp screenshot" % bpp); sys.exit(0)
+stride = ((w * bpp // 8) + 3) & ~3
+def dark(x, y):
+    if not (0 <= x < w and 0 <= y < abs(h)): return False
+    row = (abs(h) - 1 - y) if h > 0 else y
+    i = off + row * stride + x * (bpp // 8)
+    b, g, r = raw[i], raw[i+1], raw[i+2]
+    return (r + g + b) // 3 < 128
+
+# CONTAINMENT, not overlap. Overlap is too weak to be a pin: the ascender bug
+# shifted every rect up by 26 px against a 35 px line box, so the shifted band
+# still clipped the word and a touch-test passed on a broken build. Requiring
+# the word's ink to sit INSIDE the rect (a few px of slack for descenders)
+# fails for any systematic offset of more than a few pixels.
+TOL = 5
+def bandsFor(cols):
+    """Contiguous runs of rows that have ink anywhere in these columns."""
+    out, start = [], None
+    for py in range(abs(h)):
+        hit = any(dark(px, py) for px in cols)
+        if hit and start is None:
+            start = py
+        elif not hit and start is not None:
+            out.append((start, py - 1)); start = None
+    if start is not None:
+        out.append((start, abs(h) - 1))
+    return out
+
+bad = []
+checked = 0
+for (x, y, rw, rh, word) in rects[:25]:
+    cols = range(x, min(x + rw, w))
+    # The word's own ink band: the one overlapping this rect most. Picking by
+    # overlap rather than by a window keeps a NEIGHBOURING line's ink in the
+    # same columns from being merged into the measurement.
+    best, bestOv = None, 0
+    for (a, b) in bandsFor(cols):
+        ov = min(b, y + rh) - max(a, y) + 1
+        if ov > bestOv:
+            best, bestOv = (a, b), ov
+    if best is None:
+        bad.append((word, x, y, rw, rh, "no ink in these columns")); continue
+    checked += 1
+    if best[0] < y - TOL or best[1] > y + rh + TOL:
+        bad.append((word, x, y, rw, rh, "ink %d..%d outside band %d..%d"
+                    % (best[0], best[1], y, y + rh)))
+if bad:
+    print("FAIL: rect geometry — %d of the first %d rects do not contain their word:"
+          % (len(bad), min(25, len(rects))))
+    for b in bad[:5]:
+        print("        %-16s x=%d y=%d w=%d h=%d  %s" % b)
+    sys.exit(1)
+print("rect geometry: %d rects contain their word's ink" % checked)
+GEOEOF
+if [[ $? -ne 0 ]]; then fail=1; fi
 
 LOG2="$CARD/run2.log"
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \

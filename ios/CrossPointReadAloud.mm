@@ -190,10 +190,17 @@ bool panelGeometry(float *x0, float *y0, float *scale, float *w, float *h) {
   const float panelW = (float)SimulatorOverlay::panelWidthPx();
   const float panelH = (float)SimulatorOverlay::panelHeightPx();
   if (panelW <= 0.0f || panelH <= 0.0f) return false;
-  // Portrait presented width == landscape framebuffer height, in LOGICAL
-  // panel pixels (DISPLAY_* are logical; the render scale never appears in
-  // this mapping — the channel contract keeps rects logical too).
-  *scale = panelW / (float)HalDisplay::DISPLAY_HEIGHT;
+  // Portrait presented width == landscape panel height, in LOGICAL panel
+  // pixels, because the channel's rects are logical (the firmware lays out at
+  // 1x whatever the render scale is).
+  //
+  // MUST be LOGICAL_HEIGHT, not DISPLAY_HEIGHT: the latter is multiplied by
+  // CROSSPOINT_RENDER_SCALE (HalDisplay.h:57). On the desktop that scale is 1
+  // and the two are identical, so this reads correct and tests clean; on iOS
+  // it is 2, and every highlight came out half-width at half the x-offset --
+  // a box sitting inside the wrong word. That is risk R5 in the plan, and it
+  // can only ever show up on the 2x build.
+  *scale = panelW / (float)HalDisplay::LOGICAL_HEIGHT;
   *x0 = (float)SimulatorOverlay::panelLeftPx();
   *y0 = (float)(SimulatorOverlay::panelBottomPx() -
                 SimulatorOverlay::panelHeightPx());
@@ -292,7 +299,6 @@ void CrossPointReadAloud_paintHighlight(struct SDL_Renderer *r, int outWidthPx,
                                         int outHeightPx, int dark) {
   (void)outWidthPx;
   (void)outHeightPx;
-  if (!g_highlightActive || g_rects.empty()) return;
   float x0, y0, S, w, h;
   if (!panelGeometry(&x0, &y0, &S, &w, &h)) return;
   SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
