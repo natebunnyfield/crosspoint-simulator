@@ -22,6 +22,25 @@ was found, and what closing it requires.
 
 ## OPEN
 
+### [S-013] The in-process reboot orphans the parked accept worker
+**severity: low · scope: iOS lifecycle · found 2026-08-08**
+
+Every file transfer ends in `silentRestart()`. On iOS that is a `longjmp` back
+into `setup()`, which skips destructors — so the `WebServer` whose handler
+triggered the restart is never destroyed, and its accept worker, parked on the
+dispatch condition variable, lives on forever holding a client socket. Each
+transfer leaks one thread and one fd.
+
+This is strictly better than what S-003 replaced (a cross-thread `longjmp`,
+undefined behaviour), and it is invisible on desktop, where the restart is
+`execvp` and the whole process is replaced. But a long-lived phone doing many
+transfers accumulates orphaned workers.
+
+**Close by:** on the reboot reset path (`simreset::runAll()` /
+`forceReleaseAllForReboot()`), also stop the server and join or detach its
+worker before the jump — or have the reboot tear the server down explicitly
+rather than leaving it to skipped destructors.
+
 ### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
 **severity: medium · scope: tests / firmware drift · found 2026-08-08**
 
@@ -70,6 +89,36 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-012] A throwing route handler hung the file-transfer server forever
+**severity: high · scope: web server / threading · found + FIXED 2026-08-08**
+
+Introduced by S-003's dispatch handoff (same day). `handleClient()` unlocked,
+called `dispatchParkedRequest()`, then re-locked and set `dispatchDone = true`
+to wake the accept worker parked on its condition variable. The signal was a
+trailing statement, and route handlers are arbitrary `std::function<void()>`
+with no no-throw contract — and this TU builds WITH exceptions, unlike the
+device's `-fno-exceptions`. A handler that threw (`std::bad_alloc` under memory
+pressure being the realistic case on a phone) skipped the signal, and the worker
+waited forever. Every subsequent request parked behind it: one throw and the
+whole server was dead until the app restarted.
+
+Found by the 2026-08-08 P0 audit, verified against the code: exceptions are
+enabled in both the simulator and iOS builds, so the outcome is a hang rather
+than an abort.
+
+**Fixed** by moving the signal into a scope guard, so it fires on normal return
+and on exception unwind alike. `tests/dispatch_signal_test.cpp` pins it, and its
+FIRST assertion proves the trailing-statement form still hangs — if that ever
+passes, the test has stopped exercising the bug. Verified against the running
+server too: 20 consecutive requests all return 200 where a parked worker would
+hang after the first.
+
+Noted, not fixed here: `ESP.restart()` from a handler does not return, so the
+guard is skipped (longjmp on iOS) or the whole process is replaced (execvp on
+desktop). The parked worker is orphaned by the reboot — a per-transfer thread
+and socket leak on iOS, but not the permanent hang the throw was. Tracked as
+S-013.
 
 
 **The heap half is fixed; the other five reversals stay open.**
