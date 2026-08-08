@@ -1,4 +1,5 @@
 #include "HalDisplay.h"
+#include "SimulatorRebootResets.h"
 
 #include <GfxRenderer.h>
 #include <Logging.h>
@@ -121,6 +122,13 @@ struct ScreenshotEvent {
 
 std::vector<ScreenshotEvent> screenshotEvents;
 bool screenshotEventsInitialized = false;
+
+// Same reason as the GPIO one: re-read CROSSPOINT_SIM_SCREENSHOTS after an
+// in-process reboot, so the promoted *_AFTER_WAKE schedule is actually honoured.
+const simreset::Registrar gDisplayRebootReset{[] {
+  screenshotEventsInitialized = false;
+  screenshotEvents.clear();
+}};
 
 void initializeScreenshotEvents() {
   if (screenshotEventsInitialized)
@@ -273,6 +281,7 @@ void composeGrayscalePreview() {
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
+  if (!bwBase) return;  // buffer lent out; keep the last presented frame
   for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
     for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -533,12 +542,18 @@ void HalDisplay::begin() {
 void HalDisplay::begin(bool /*seamless*/) { begin(); }
 
 void HalDisplay::clearScreen(uint8_t color) const {
-  memset(getFrameBuffer(), color, BUFFER_SIZE);
+  // getFrameBuffer() returns null while the buffer is lent out. Skipping the
+  // clear is right: whoever holds the loan owns the pixels, and the next draw
+  // after they hand it back repaints anyway.
+  uint8_t *fb = getFrameBuffer();
+  if (!fb) return;
+  memset(fb, color, BUFFER_SIZE);
 }
 
 void HalDisplay::drawImage(const uint8_t *imageData, uint16_t x, uint16_t y,
                            uint16_t w, uint16_t h, bool) const {
   uint8_t *fb = getFrameBuffer();
+  if (!fb) return;  // buffer lent out; see clearScreen
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
@@ -559,6 +574,7 @@ void HalDisplay::drawImageTransparent(const uint8_t *imageData, uint16_t x,
                                       uint16_t y, uint16_t w, uint16_t h,
                                       bool) const {
   uint8_t *fb = getFrameBuffer();
+  if (!fb) return;  // buffer lent out; see clearScreen
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
@@ -614,6 +630,9 @@ void HalDisplay::displayWindow(int, int, int, int) {
 // pixels and flag for present.
 void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
   const uint8_t *fb = getFrameBuffer();
+  // Lent out: there is nothing coherent to convert, and presenting a half-owned
+  // buffer would show a torn frame. The lender's own refresh follows.
+  if (!fb) return;
   snapshotBwBase(fb);
   renderBwPixels(fb);
 }

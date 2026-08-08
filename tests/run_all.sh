@@ -73,6 +73,9 @@ run read_aloud_channel \
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 
+run reboot_resets \
+  c++ -std=c++20 -Isrc -o "$OUT/reboot_resets" tests/reboot_resets_test.cpp
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.
