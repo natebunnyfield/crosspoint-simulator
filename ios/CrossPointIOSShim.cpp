@@ -58,6 +58,7 @@
 
 #include "CrossPointAppearance.h"
 #include "CrossPointPrefs.h"
+#include "CrossPointAccessibility.h"
 #include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -1137,6 +1138,9 @@ void CrossPointHarness_begin() {
   // Same idempotence contract as this function: creates once, refreshes the
   // pref edge on every wake.
   CrossPointReadAloud_begin();
+  // Same idempotent-across-wakes contract; installs the accessibility
+  // container over the SDL view.
+  CrossPointAccessibility_begin();
 
   SimulatorOverlay::requestPresent();
 
