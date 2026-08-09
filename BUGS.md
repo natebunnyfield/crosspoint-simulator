@@ -22,29 +22,6 @@ was found, and what closing it requires.
 
 ## OPEN
 
-### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
-**severity: medium · scope: tests / firmware drift · found 2026-08-08**
-
-The test's scenario (`2500:POWER:700` must enter deep sleep, a later 1 ms tap
-must relaunch the process) no longer matches the firmware: against the fork's
-`main` @ `4ded8fc`, the process neither sleeps nor relaunches — it idles until
-killed, and the harness reports "never relaunched as a wake". Reproduced
-byte-identically with the simulator at `origin/main` (`ebf2b54`, before any
-read-aloud work), so this is firmware drift, not a simulator regression:
-power-button semantics have grown options since the test was calibrated
-(`SHORT_PWRBTN::PAGE_TURN`, the long-press behaviour setting), and a 700 ms
-hold no longer crosses the sleep threshold on the boot-into-reader path a
-seeded card lands on.
-
-Found running the full shell-test sweep after the read-aloud input changes —
-which the bisect exonerates. `test_text_entry.sh` passes against the same
-binary, and the sleep wake edge-latch itself is untouched.
-
-**Close by:** recalibrating the test against the current firmware's power
-semantics (which hold duration sleeps, from which screens), or pinning it to
-a firmware ref it matches. Decide which behaviour is intended before touching
-either side.
-
 ### [S-001] The simulator reports the opposite of the device in six places
 **severity: medium · scope: fidelity · found 2026-08-07** · HEAP HALF FIXED 2026-08-08
 
@@ -70,6 +47,53 @@ cleanup. A budgeted fake heap would reach most of the dead branches.
 ---
 
 ## FIXED
+
+### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
+**severity: medium · scope: tests / firmware drift · found 2026-08-08** · FIXED 2026-08-08
+
+
+The test's scenario (`2500:POWER:700` must enter deep sleep, a later 1 ms tap
+must relaunch the process) no longer matches the firmware: against the fork's
+`main` @ `4ded8fc`, the process neither sleeps nor relaunches — it idles until
+killed, and the harness reports "never relaunched as a wake". Reproduced
+byte-identically with the simulator at `origin/main` (`ebf2b54`, before any
+read-aloud work), so this is firmware drift, not a simulator regression:
+power-button semantics have grown options since the test was calibrated
+(`SHORT_PWRBTN::PAGE_TURN`, the long-press behaviour setting), and a 700 ms
+hold no longer crosses the sleep threshold on the boot-into-reader path a
+seeded card lands on.
+
+Found running the full shell-test sweep after the read-aloud input changes —
+which the bisect exonerates. `test_text_entry.sh` passes against the same
+binary, and the sleep wake edge-latch itself is untouched.
+
+**Close by:** recalibrating the test against the current firmware's power
+semantics (which hold duration sleeps, from which screens), or pinning it to
+a firmware ref it matches. Decide which behaviour is intended before touching
+either side.
+
+
+**Fixed, and the cause was not firmware drift.** This entry blamed the power
+semantics growing options. Reading the code says otherwise: sleep on a hold
+needs `millis() >= allowSleepAt`, and `main.cpp:562` sets that to
+**(end of setup) + 2000 ms**. Booting into Home, setup finishes in ~400 ms and
+the test's 2500 ms press lands well clear. Booting into the READER, setup also
+paginates — tens of seconds on the seed book's mono-file chapter — so
+`allowSleepAt` moves past the press and the device never sleeps.
+
+The defect was therefore in the test, not the firmware: it `cd`s into the
+firmware checkout and runs against whatever state the working card happens to be
+in, so the same binary passed or failed depending on what had been read last.
+It now seeds `readerActivityLoadCount = 1` (the documented lever for a Home boot)
+and restores the card afterwards.
+
+Proved both directions: set the card to the boot-into-reader state that produced
+the original failure and the test passes, and the card is byte-restored after.
+
+Writing the restore also produced a small lesson worth keeping — the first
+version trapped `rm -rf "$WORK"` BEFORE the restore, and the backup lives inside
+`$WORK`, so cleanup ate the file the restore needed and silently left the seeded
+state on the working card. Restore first, clean up second.
 
 ### [S-013] The in-process reboot orphans the parked accept worker
 **severity: low · scope: iOS lifecycle · found 2026-08-08** · FIXED 2026-08-08
