@@ -387,14 +387,23 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   // element objects onto the window costs nothing SDL uses (it never touches
   // window.accessibilityElements) and is gated like the page element so the
   // confirmed VoiceOver experience keeps its single un-duplicated source.
-  UIWindow *host = overlay.window;
+  // THE HOST MOVES INTO THE ROOT VIEW CONTROLLER'S HIERARCHY (build 53).
+  // Build 52's screenshot is the controlled experiment: all four candidates
+  // visibly rendered -- Bravo in plain, ordinary gray ink -- and Speak Screen
+  // still reported no content. Every candidate was a bare WINDOW subview.
+  // Safari-class content lives under the root view controller, and SDL's own
+  // text field lives inside the metal view (the root VC's view), so subviews
+  // there are tolerated. If Speak Screen extracts from the root VC hierarchy
+  // only, window-level siblings are invisible to it no matter how visible
+  // their ink -- which is exactly what the screenshot shows.
+  UIView *host = overlay.window.rootViewController.view ?: (UIView *)overlay.window;
   // NO window-level accessibilityElements mirror. Build 50 measured it doing
   // nothing on the device (Speak Screen still issued zero queries with the
   // page vending straight from the window), and the AX probe then caught it
   // doing active harm: an explicit accessibilityElements list on the window
   // REPLACES automatic subview traversal, which hid the real text view below
   // from the very reader it exists for.
-  if (host) host.accessibilityElements = nil;
+  if (overlay.window) overlay.window.accessibilityElements = nil;
   if (host && wantsReadingPage()) {
     NSString *pageText = [[NSString alloc] initWithBytes:text.data() length:text.size()
                                                 encoding:NSUTF8StringEncoding] ?: @"";
@@ -409,7 +418,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
 
     // alpha: near-invisible ink over the panel's top half.
     UITextView *alpha = g_candAlpha;
-    if (!alpha || alpha.window != host) {
+    if (!alpha || alpha.superview != host) {
       [g_candAlpha removeFromSuperview];
       alpha = [[UITextView alloc] init];
       alpha.editable = NO;
@@ -428,7 +437,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
 
     // charlie: the build-51 clear-ink text view, panel's lower half.
     UITextView *tv = g_pageTextView;
-    if (!tv || tv.window != host) {
+    if (!tv || tv.superview != host) {
       [g_pageTextView removeFromSuperview];
       tv = [[UITextView alloc] init];
       tv.editable = NO;
@@ -448,7 +457,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
     // bravo: the POSITIVE CONTROL. Genuinely visible -- dim gray on the dark
     // band under the panel, small, but unquestionably rendered ink.
     UILabel *bravo = g_candBravo;
-    if (!bravo || bravo.window != host) {
+    if (!bravo || bravo.superview != host) {
       [g_candBravo removeFromSuperview];
       bravo = [[UILabel alloc] init];
       bravo.numberOfLines = 2;
@@ -466,7 +475,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
     // delta: a UILabel over the panel bottom edge, 3% ink -- different AX
     // class from the text views.
     UILabel *delta = g_candDelta;
-    if (!delta || delta.window != host) {
+    if (!delta || delta.superview != host) {
       [g_candDelta removeFromSuperview];
       delta = [[UILabel alloc] init];
       delta.numberOfLines = 3;
@@ -481,7 +490,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
     delta.frame = CGRectMake(px0, py0 + panelH - 60, panelW, 56);
     delta.text = [NSString stringWithFormat:@"Delta. %@", excerpt];
 
-    [host bringSubviewToFront:overlay];
+    if (overlay.superview) [overlay.superview bringSubviewToFront:overlay];
   } else if (g_pageTextView || g_candAlpha || g_candBravo || g_candDelta) {
     [g_pageTextView removeFromSuperview];
     [g_candAlpha removeFromSuperview];
