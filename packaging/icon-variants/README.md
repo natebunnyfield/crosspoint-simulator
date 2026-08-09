@@ -241,12 +241,35 @@ table (`rim=`, `solid_masses=`).
 
 ## Adopting one
 
-The variants are the same kind of file as the master — 1024x1024, 8-bit,
-non-interlaced, opaque black on white — so adopting one is a copy:
+**Adopted: `uniform-paper` is the app icon as of 2026-08-09.** The flat mark it
+was cut from is preserved byte-for-byte as
+[mark-flat-1024.png](mark-flat-1024.png), which is now the generator's default
+source -- the generator must keep reading the flat artwork, because pointing it
+at the app icon would stripe an already-striped mark.
+
+To adopt a different variant, copy it over the app icon. The variants are
+RGBA; the app icon must be RGB, because App Store validation rejects an iOS
+icon with an alpha channel -- re-encode, do not plain-copy:
 
 ```bash
-cp packaging/icon-variants/AppIcon-1024-striped-<name>.png \
-   ios/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+python3 - <<'EOF'
+import struct, sys, zlib
+sys.path.insert(0, "packaging/macos")
+from make_icns import read_png
+w, h, rgba = read_png("packaging/icon-variants/AppIcon-1024-striped-<name>.png")
+raw = bytearray()
+for y in range(h):
+    raw.append(0)
+    for x in range(w):
+        raw += rgba[(y*w + x)*4:(y*w + x)*4+3]
+def chunk(t, p):
+    return struct.pack(">I", len(p)) + t + p + struct.pack(">I", zlib.crc32(t+p) & 0xFFFFFFFF)
+open("ios/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png", "wb").write(
+    b"\x89PNG\r\n\x1a\n"
+    + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+    + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+    + chunk(b"IEND", b""))
+EOF
 ```
 
 Both platforms follow from there: iOS reads that file directly, and the macOS
@@ -257,6 +280,11 @@ Verify with:
 ```bash
 python3 packaging/macos/make_icns.py --output /tmp/check.icns
 ```
+
+The firmware fork carries the same identity in `src/images/Logo120.png` and
+`Logo120.h` (the boot/sleep screen bitmap, stored rotated 90 degrees CCW for
+the landscape framebuffer, 1=white); regenerate those from the adopted variant
+when changing this one.
 
 Judge candidates at 32px before committing. A line screen that reads well at
 1024 can collapse into flat grey in a Finder list, and the icon is judged in
