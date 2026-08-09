@@ -4,14 +4,14 @@
 # `pio run -e simulator -t compiledb`. Regenerate after any firmware change that
 # adds, removes, or renames a translation unit.
 #
-# firmware   : /Users/natebunnyfield/src/crosspoint-reader/.claude/worktrees/settings-list-order
-# pinned at  : c16d5d74bb62bbc064c170ae2546da75dc0a3e4b
-# TU counts  : 124 firmware, 23 simulator (6 C, 141 C++)
+# firmware   : /Users/natebunnyfield/src/crosspoint-reader/.claude/worktrees/colophon
+# pinned at  : 5dc638a4295a5783741717fa6ebe257d533a90c3
+# TU counts  : 125 firmware, 23 simulator (6 C, 142 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "c16d5d74bb62bbc064c170ae2546da75dc0a3e4b")
+set(CROSSPOINT_FIRMWARE_PIN "5dc638a4295a5783741717fa6ebe257d533a90c3")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -130,6 +130,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/reader/XtcReaderChapterSelectionActivity.cpp
   src/activities/settings/ClearCacheActivity.cpp
   src/activities/settings/ClockOffsetActivity.cpp
+  src/activities/settings/ColophonActivity.cpp
   src/activities/settings/EditorFontSelectionActivity.cpp
   src/activities/settings/FontSelectionActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
