@@ -105,6 +105,21 @@ per page, labels are whole lines ("off exactly at midnight. The little"), frames
 land in the right place in points, elements rebuild on every page turn, and the
 overlay does not steal touches — the pad still opens a book.
 
+**Build 42 reported "no speakable content could be found on the screen" —
+diagnosed and fixed 2026-08-08.** The container and the elements were fine; the
+page never reached them. Capture was gated on (toggle OR assistive tech), and
+the firmware publishes a page only when it RENDERS one — so switching Speak
+Screen on while a page was already drawn flipped capture to wanted and then
+published nothing until the next page turn. An owner who opens a book and then
+swipes gets an empty container every time.
+
+Three changes: capture is now UNCONDITIONAL on iOS (a display-list walk per
+render is noise on a phone, and correctness beats it); the adapter republishes
+its cached page whenever the container is empty but a page is in hand; and the
+container is re-raised every frame, because accessibility traversal is
+front-to-back and SDL rebuilds its views across a wake. Verified: elements now
+build with ZERO page turns and with every assistive flag reading 0.
+
 **NOT verified, and it cannot be here: Speak Screen does not exist in this
 simulator.** Its Spoken Content pane offers only Speak Selection and
 Pronunciations — no Speak Screen row — so `UIAccessibilityIsSpeakScreenEnabled()`

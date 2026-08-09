@@ -251,17 +251,32 @@ void CrossPointReadAloud_perFrame(void) {
     applyActions(g_core.setEnabled(want != 0));
     SDL_Log("[READALOUD] %s", want ? "enabled" : "disabled");
   }
-  // Both evaluated, deliberately not short-circuited: || would skip
-  // wantsPage() whenever the toggle is on, which made it impossible to tell
-  // "no assistive tech running" from "the detection is broken" -- the two look
-  // identical in the log. Three UIAccessibility reads a frame cost nothing.
+  // CAPTURE IS UNCONDITIONAL ON THE PHONE, and that is a deliberate reversal.
+  //
+  // It used to be gated on (toggle || assistive tech). The firmware publishes a
+  // page only when it RENDERS one, so switching Speak Screen on while a page was
+  // already drawn flipped capture to wanted and then published nothing until the
+  // next page turn -- and the owner got "no speakable content could be found on
+  // the screen" while looking at a perfectly good page. Reported on build 42.
+  //
+  // Gating bought a display-list walk per render, on a phone, where that is
+  // noise. Correctness is worth more than that, and an always-current page also
+  // removes the wake and first-launch orderings that had the same hole.
+  CrossPointAccessibility_keepFront();
   const bool a11yWants = CrossPointAccessibility_wantsPage();
-  const int captureWanted = (want != 0 || a11yWants) ? 1 : 0;
-  if (captureWanted != g_lastCaptureWanted) {
-    g_lastCaptureWanted = captureWanted;
-    gpio.setReadAloudCaptureWanted(captureWanted != 0);
-    SDL_Log("[READALOUD] page capture %s", captureWanted ? "wanted" : "not wanted");
-    if (!captureWanted) CrossPointAccessibility_clear();
+  if (g_lastCaptureWanted != 1) {
+    g_lastCaptureWanted = 1;
+    gpio.setReadAloudCaptureWanted(true);
+    SDL_Log("[READALOUD] page capture wanted (always, on iOS)");
+  }
+  (void)a11yWants;  // logged by wantsPage() on change; kept for that visibility
+
+  // The container can be empty while we still hold a page: assistive tech
+  // switched on after the last render, or a wake rebuilt the container. Push
+  // what we have rather than waiting for a page turn that may never come.
+  if (!g_pageUtf8.empty() && !g_rects.empty() && !CrossPointAccessibility_hasElements()) {
+    CrossPointAccessibility_setPage(g_pageUtf8.data(), (unsigned)g_pageUtf8.size(),
+                                    g_rects.data(), (unsigned)g_rects.size());
   }
 
   // 2. The page channel. Drain fully; only the last page matters.
