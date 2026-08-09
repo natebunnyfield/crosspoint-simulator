@@ -41,6 +41,12 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
                                      const ReadAloudWordRect *rects,
                                      unsigned rectCount);
 
+// True when the element set was built for a different Speak Screen state than
+// the current one -- the page-protocol element is included only while Speak
+// Screen is on, and toggling it mid-page must rebuild. The adapter re-pushes
+// the held page when this reports true.
+bool CrossPointAccessibility_modeChanged(void);
+
 // True when elements are currently published. The adapter uses this to notice
 // an EMPTY container while it still holds a page -- which is what happens when
 // assistive tech is switched on after the page was drawn, or when a wake

@@ -274,7 +274,8 @@ void CrossPointReadAloud_perFrame(void) {
   // The container can be empty while we still hold a page: assistive tech
   // switched on after the last render, or a wake rebuilt the container. Push
   // what we have rather than waiting for a page turn that may never come.
-  if (!g_pageUtf8.empty() && !g_rects.empty() && !CrossPointAccessibility_hasElements()) {
+  if (!g_pageUtf8.empty() && !g_rects.empty() &&
+      (!CrossPointAccessibility_hasElements() || CrossPointAccessibility_modeChanged())) {
     CrossPointAccessibility_setPage(g_pageUtf8.data(), (unsigned)g_pageUtf8.size(),
                                     g_rects.data(), (unsigned)g_rects.size());
   }
