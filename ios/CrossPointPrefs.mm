@@ -20,6 +20,7 @@ static NSString *const kPadFillContrastDark = @"padFillContrastDark";
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
 static NSString *const kReadAloudEnabled = @"readAloudEnabled";
+static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 
 // THE DEFAULTS LIVE IN Root.plist AND NOWHERE ELSE.
 //
@@ -153,6 +154,16 @@ int CrossPointPrefs_readAloudEnabled(void) {
   return [[NSUserDefaults standardUserDefaults] boolForKey:kReadAloudEnabled]
              ? 1
              : 0;
+}
+
+int CrossPointPrefs_diagnosticsEnabled(void) {
+  ensureDefaults();
+  checkKnown(kDiagnosticsEnabled);
+  // Default OFF (owner ruling 2026-08-09: "disable diagnostics for now"). The
+  // toggle stays in Settings.app so a TestFlight investigation can turn the
+  // instrument back on without shipping a build -- which is the whole reason
+  // the instrument exists.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kDiagnosticsEnabled] ? 1 : 0;
 }
 
 int CrossPointPrefs_padFillContrast(int dark) {
