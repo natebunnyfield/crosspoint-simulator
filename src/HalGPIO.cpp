@@ -1,4 +1,6 @@
 #include "HalGPIO.h"
+
+#include "ReadAloudLines.h"
 #include "SimulatorRebootResets.h"
 
 #include <BoardConfig.h>
@@ -907,14 +909,49 @@ void HalGPIO::pumpHostTextInput() {
   }
 }
 
+// CROSSPOINT_SIM_READALOUD_DUMP=1 turns capture on for the DESKTOP build and
+// prints what an assistive technology would be handed, one line per element.
+//
+// It exists because the iOS builder is the one piece of this path that cannot
+// be run off-device, and it was wrong in a way nobody could see: labels arrived
+// starting mid-word. Reading the .mm and reasoning about it produced two wrong
+// fixes; this prints the answer against a real book in one run.
+//
+// Still ONE consumer per build -- this is the desktop's, and the iOS adapter is
+// the phone's. They are never both compiled in.
+static bool readAloudDumpEnabled() {
+  static const bool on = [] {
+    const char *v = std::getenv("CROSSPOINT_SIM_READALOUD_DUMP");
+    return v != nullptr && v[0] == '1';
+  }();
+  return on;
+}
+
 bool HalGPIO::readAloudCaptureWanted() const {
-  return readAloudChannel.wanted();
+  return readAloudDumpEnabled() || readAloudChannel.wanted();
 }
 
 void HalGPIO::publishReadAloudPage(const char *utf8, size_t utf8Len,
                                    const ReadAloudWordRect *rects,
                                    size_t rectCount) {
   readAloudChannel.publish(utf8, utf8Len, rects, rectCount);
+  if (!readAloudDumpEnabled())
+    return;
+  if (utf8 == nullptr) {
+    SDL_Log("[A11Y-DUMP] page cleared");
+    return;
+  }
+  const std::string text(utf8, utf8Len);
+  const std::vector<ReadAloudWordRect> v(rects ? rects : nullptr,
+                                         rects ? rects + rectCount : nullptr);
+  const auto lines = readaloud::groupIntoLines(text, v);
+  SDL_Log("[A11Y-DUMP] %zu rects -> %zu line elements, %zu bytes of text",
+          rectCount, lines.size(), text.size());
+  for (size_t i = 0; i < lines.size(); i++) {
+    const auto &l = lines[i];
+    SDL_Log("[A11Y-DUMP]   [%02zu] bytes %u..%u at (%u,%u %ux%u) \"%s\"", i,
+            l.byteOffset, l.byteEnd, l.x, l.y, l.w, l.h, l.text.c_str());
+  }
 }
 
 void HalGPIO::setReadAloudCaptureWanted(bool wanted) {

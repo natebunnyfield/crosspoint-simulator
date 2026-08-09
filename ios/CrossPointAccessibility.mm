@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "HalDisplay.h"
+#include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
 
 // A transparent, non-interactive container over the SDL view whose only job is
@@ -100,43 +101,24 @@ NSArray *buildElements(UIView *container, const std::string &text,
   if (rects.empty() || !panelGeometryPts(&x0, &y0, &s)) return @[];
 
   NSMutableArray *out = [NSMutableArray array];
-  size_t i = 0;
-  while (i < rects.size()) {
-    const uint16_t lineY = rects[i].y;
-    size_t j = i;
-    uint32_t lo = rects[i].byteOffset;
-    uint32_t hi = rects[i].byteOffset + rects[i].byteLen;
-    CGFloat left = rects[i].x, right = rects[i].x + rects[i].w;
-    CGFloat top = rects[i].y, bottom = rects[i].y + rects[i].h;
-    while (j < rects.size() && rects[j].y == lineY) {
-      lo = std::min(lo, rects[j].byteOffset);
-      hi = std::max(hi, rects[j].byteOffset + rects[j].byteLen);
-      left = std::min(left, (CGFloat)rects[j].x);
-      right = std::max(right, (CGFloat)(rects[j].x + rects[j].w));
-      top = std::min(top, (CGFloat)rects[j].y);
-      bottom = std::max(bottom, (CGFloat)(rects[j].y + rects[j].h));
-      j++;
-    }
-
-    if (lo < hi && hi <= text.size()) {
-      // A hyphen-split word shares its byte range across two lines, so a line's
-      // slice can legitimately overlap the next one's. Reading the whole word
-      // on both lines is better than truncating it mid-word.
-      NSString *label = [[NSString alloc] initWithBytes:text.data() + lo
-                                                 length:hi - lo
-                                               encoding:NSUTF8StringEncoding];
-      if (label.length > 0) {
-        UIAccessibilityElement *el =
-            [[UIAccessibilityElement alloc] initWithAccessibilityContainer:container];
-        el.accessibilityLabel = label;
-        el.accessibilityTraits = UIAccessibilityTraitStaticText;
-        // Screen coordinates, which is what accessibilityFrame wants.
-        el.accessibilityFrame =
-            CGRectMake(x0 + left * s, y0 + top * s, (right - left) * s, (bottom - top) * s);
-        [out addObject:el];
-      }
-    }
-    i = j;
+  // Grouping lives in readaloud::groupIntoLines (src/ReadAloudLines.h), not
+  // here. This file cannot be compiled or run anywhere but a phone, and the
+  // grouping is the part that has actually been wrong -- so it belongs
+  // somewhere a host test and the desktop dump can both reach it. What is left
+  // here is the UIKit half: labels to elements, panel pixels to screen points.
+  for (const readaloud::LineLabel &line : readaloud::groupIntoLines(text, rects)) {
+    NSString *label = [[NSString alloc] initWithBytes:line.text.data()
+                                               length:line.text.size()
+                                             encoding:NSUTF8StringEncoding];
+    if (label.length == 0) continue;
+    UIAccessibilityElement *el =
+        [[UIAccessibilityElement alloc] initWithAccessibilityContainer:container];
+    el.accessibilityLabel = label;
+    el.accessibilityTraits = UIAccessibilityTraitStaticText;
+    // Screen coordinates, which is what accessibilityFrame wants.
+    el.accessibilityFrame =
+        CGRectMake(x0 + line.x * s, y0 + line.y * s, line.w * s, line.h * s);
+    [out addObject:el];
   }
   return out;
 }
