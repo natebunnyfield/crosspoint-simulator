@@ -178,6 +178,20 @@ void applyActions(const std::vector<PadCore::Action> &actions) {
 // Point coordinates, like everything else in this file.
 float g_keyboardHeightPt = 0.0f;
 
+// Where the top rocker row sits: a fixed distance UP FROM THE BOTTOM EDGE, in
+// points (owner ruling 2026-08-09). Not a fraction of screen height -- that
+// moves the buttons to a different physical spot on every device, which is
+// exactly the complaint. Points are near enough physical across iOS devices,
+// so one number puts the row under the same thumb everywhere.
+//
+// 448 pt: the owner's 450 from an iPad Pro, snapped to the 8 pt grid (56 x 8)
+// on their ruling. The 2 pt difference is invisible; grid alignment is free.
+//
+// No keyboard clamp, by ruling: "0 buffer from keyboard, no logic. keep it
+// simple." At 450 the row clears a portrait iPad Pro keyboard (~400 pt) by
+// 20 pt anyway, and every shorter keyboard by more.
+constexpr float kThumbRowFromBottom = 448.0f;
+
 constexpr float kOptimalSquare = 60.0f;      // owner-picked target size
 constexpr float kHomeInsetFallback = 34.0f;  // when the safe area is unreadable
 constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe area 0)
@@ -244,7 +258,7 @@ void layoutPadTablet(float W, float H, float S) {
   const float half = cell / 2.0f;
   const float leftX = (margin - 2.0f * cell) / 2.0f;
   const float rightX = W - margin + leftX;
-  const float midY = (H - cell) / 2.0f;
+  const float midY = H - kThumbRowFromBottom - cell / 2.0f;
   // The keyboard lifts the bottom row with it. Without this the row -- POWER
   // and the page-turn rocker -- sits UNDER the keyboard and cannot be reached
   // while typing (the keyboard is its own window and eats the touches).
@@ -363,22 +377,23 @@ void layoutPad(int outW, int outH) {
   // follows automatically and the two rows keep their spacing.
   const float lowerY = H - g_keyboardHeightPt - bottomInset - kHalf - kPipLift;
 
-  // Top row hugs the panel at the chassis-matched gap less the lift, clamped
-  // clear of the bottom row and never over the page.
+  // Top row at thumb height: the same fixed distance up from the bottom edge
+  // the tablet uses, so the buttons land in one physical place across every
+  // device (owner ruling 2026-08-09). This replaces hugging the panel's bottom
+  // edge at a chassis-derived gap -- that tracked the PAGE, which is not where
+  // a thumb rests, and moved whenever the panel resized.
+  //
+  // One clamp survives, and it is not keyboard logic: the row must not land on
+  // top of the bottom row. On a short phone 450 pt up would do exactly that.
   const float maxUpper = lowerY - kRowClear - kSquare;
-  const int panelBottomPx = SimulatorOverlay::panelBottomPx();
+  float upperY = H - kThumbRowFromBottom - kSquare / 2.0f;
+  if (upperY > maxUpper) upperY = maxUpper;
+  if (upperY < 0.0f) upperY = 0.0f;
+  // panelGap is still read below for the reserved band, which is derived from
+  // the panel rather than from the rows.
   const int panelHeightPx = SimulatorOverlay::panelHeightPx();
   const float panelGap =
       panelHeightPx > 0 ? (static_cast<float>(panelHeightPx) / S) * kPanelGapRatio : kGap;
-  float upperY;
-  if (panelBottomPx > 0) {
-    const float panelBottom = static_cast<float>(panelBottomPx) / S;
-    upperY = panelBottom + panelGap - kPipLift;
-    if (upperY < panelBottom) upperY = panelBottom;
-    if (upperY > maxUpper) upperY = maxUpper;
-  } else {
-    upperY = maxUpper;
-  }
 
   auto place = [&](int idx, float x, float y, float w, float h) {
     g_pad[idx].rect = {x * S, y * S, w * S, h * S};
