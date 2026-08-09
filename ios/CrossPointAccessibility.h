@@ -41,6 +41,18 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
                                      const ReadAloudWordRect *rects,
                                      unsigned rectCount);
 
+// True when elements are currently published. The adapter uses this to notice
+// an EMPTY container while it still holds a page -- which is what happens when
+// assistive tech is switched on after the page was drawn, or when a wake
+// rebuilds the container. Without it the owner gets "no speakable content could
+// be found on the screen" while a perfectly good page is on the panel.
+bool CrossPointAccessibility_hasElements(void);
+
+// Re-raise the container if SDL has added a view over it, or reinstall it if a
+// wake tore the hierarchy down. Called every frame; a pointer compare when
+// nothing has moved.
+void CrossPointAccessibility_keepFront(void);
+
 // The reader left: drop the elements so assistive tech stops offering a page
 // that is no longer on screen.
 void CrossPointAccessibility_clear(void);

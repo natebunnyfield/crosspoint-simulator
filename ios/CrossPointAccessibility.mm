@@ -120,7 +120,13 @@ NSArray *buildElements(UIView *container, const std::string &text,
 void CrossPointAccessibility_begin(void) {
   UIWindow *window = resolveWindow();
   if (!window) return;
-  if (g_overlay && g_overlay.superview == window) return;  // already installed
+  if (g_overlay && g_overlay.superview == window) {
+    // Already installed -- but SDL adds its own views, and a deep-sleep wake
+    // rebuilds them, which can leave this one buried. Accessibility traversal
+    // is front-to-back, so a buried container is a container nobody reads.
+    [window bringSubviewToFront:g_overlay];
+    return;
+  }
 
   CPAccessibilityOverlay *overlay =
       [[CPAccessibilityOverlay alloc] initWithFrame:window.bounds];
@@ -130,7 +136,9 @@ void CrossPointAccessibility_begin(void) {
   overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   overlay.cpElements = @[];
   [window addSubview:overlay];
+  [window bringSubviewToFront:overlay];
   g_overlay = overlay;
+  SDL_Log("[A11Y] container installed over the panel");
 }
 
 bool CrossPointAccessibility_wantsPage(void) {
@@ -180,6 +188,34 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   // Tell assistive tech the screen changed, or Speak Screen keeps reading the
   // page it already had.
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
+}
+
+// Keep the container reachable. Accessibility traversal is front-to-back, and
+// SDL adds and rebuilds its own views (notably across a deep-sleep wake), so a
+// container installed once can end up buried -- at which point assistive tech
+// reports an empty screen even though the elements are perfectly well formed.
+// Cheap enough to check every frame: a pointer compare against the last
+// subview, and a re-order only when it has actually moved.
+void CrossPointAccessibility_keepFront(void) {
+  CPAccessibilityOverlay *overlay = g_overlay;
+  if (!overlay) return;
+  UIView *parent = overlay.superview;
+  if (!parent) {
+    // Lost its window entirely (a wake rebuilt the hierarchy). Reinstall.
+    SDL_Log("[A11Y] container lost its window; reinstalling");
+    CrossPointAccessibility_begin();
+    return;
+  }
+  if (parent.subviews.lastObject != overlay) {
+    SDL_Log("[A11Y] container was buried behind %lu view(s); raising",
+            (unsigned long)(parent.subviews.count - 1));
+    [parent bringSubviewToFront:overlay];
+  }
+}
+
+bool CrossPointAccessibility_hasElements(void) {
+  CPAccessibilityOverlay *overlay = g_overlay;
+  return overlay != nil && overlay.cpElements.count > 0;
 }
 
 void CrossPointAccessibility_clear(void) {
