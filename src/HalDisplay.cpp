@@ -262,13 +262,29 @@ static void applyWindowGeometryIfNeeded(GfxRenderer::Orientation orientation) {
 HalDisplay::HalDisplay() {}
 HalDisplay::~HalDisplay() {}
 
-#if defined(SIMULATOR_DEVICE_X4_PRO)
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4 Pro";
-#elif defined(SIMULATOR_DEVICE_X3)
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3";
+#if defined(SIMULATOR_DISPLAY_UC8179)
+#define SIMULATOR_CONTROLLER_TITLE "UC8179"
+#elif defined(SIMULATOR_DISPLAY_UC8279)
+#define SIMULATOR_CONTROLLER_TITLE "UC8279"
 #else
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4";
+#define SIMULATOR_CONTROLLER_TITLE "SSD1677"
 #endif
+
+#if defined(SIMULATOR_DEVICE_X4_PRO)
+static constexpr const char *WINDOW_TITLE =
+    "Simulator - XTEINK X4 Pro (" SIMULATOR_CONTROLLER_TITLE ")";
+#elif defined(SIMULATOR_DEVICE_X3)
+#if defined(SIMULATOR_DISPLAY_UC8279)
+static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3 (UC8279d)";
+#else
+static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3 (UC8253)";
+#endif
+#else
+static constexpr const char *WINDOW_TITLE =
+    "Simulator - XTEINK X4 (" SIMULATOR_CONTROLLER_TITLE ")";
+#endif
+
+#undef SIMULATOR_CONTROLLER_TITLE
 
 void HalDisplay::begin() {
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {

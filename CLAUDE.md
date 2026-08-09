@@ -54,10 +54,12 @@ The simulator is a collection of host-side reimplementations of the firmware's h
 ## Device profiles and input mapping
 
 [src/BoardConfig.h](src/BoardConfig.h) selects X4 by default,
-`SIMULATOR_DEVICE_X3` for X3, and `SIMULATOR_DEVICE_X4_PRO` for X4 Pro. Keep
-the reported board capabilities aligned with the firmware SDK. X4 Pro uses the
-same 800x480 display geometry as X4 but adds touch, a capacitive Home key,
-frontlight state, inversion, and an RTC.
+`SIMULATOR_DEVICE_X3` for X3, and `SIMULATOR_DEVICE_X4_PRO` for X4 Pro.
+`SIMULATOR_DISPLAY_UC8179` and `SIMULATOR_DISPLAY_UC8279` select per-batch
+controller revisions without changing a device's geometry or capabilities.
+Keep the reported board and controller aligned with the firmware SDK. X4 Pro
+uses the same 800x480 display geometry as X4 but adds touch, a capacitive Home
+key, frontlight state, inversion, and an RTC.
 
 `HalGPIO::update` owns the SDL event pump for the whole simulator, do not poll SDL events elsewhere. Scancodes map to button indices `BTN_BACK=0` through `BTN_POWER=6`. `SDL_QUIT` sets the `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 

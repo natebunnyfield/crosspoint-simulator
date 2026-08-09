@@ -44,17 +44,31 @@ the simulator's lower-level `WebServer`, `WebSocketsServer`, and
 `NetworkClient` shims. This exercises the real settings, files, status, and
 WebDAV routes instead of a reduced simulator-only substitute.
 
-The simulator defaults to the X4 panel shape. Device-specific environments can
-extend the base simulator environment with one of these flags:
+The simulator defaults to the original X4 panel shape and SSD1677 controller.
+Device-specific environments can extend the base simulator environment with
+these flags:
 
 - `-DSIMULATOR_DEVICE_X3` switches the framebuffer to 792x528 landscape,
   selects the X3 board profile, and exposes the simulator tilt sensor.
 - `-DSIMULATOR_DEVICE_X4_PRO` keeps the X4 family's 800x480 framebuffer and
   selects the X4 Pro board profile. It exposes touch and swipe input, the
   capacitive Home key, the RTC, display inversion, and frontlight state.
+- `-DSIMULATOR_DISPLAY_UC8179` selects the newer UC8179 controller used by
+  some X4 and X4 Pro production batches.
+- `-DSIMULATOR_DISPLAY_UC8279` selects UC8279d on X3, or the 800x480 UC8279
+  controller on X4-family profiles.
 
-The sample PlatformIO files include ready-to-use `simulator_x3` and
-`simulator_x4_pro` environments.
+The sample PlatformIO files include ready-to-use environments for the original
+profiles plus `simulator_x3_uc8279`, `simulator_x4_uc8179`,
+`simulator_x4_uc8279`, `simulator_x4_pro_uc8179`, and
+`simulator_x4_pro_uc8279`. The UC8279 X4 Pro path mirrors current FreeInk SDK
+support but remains pending validation on physical UC8279 X4 Pro hardware.
+
+Controller profiles expose the same framebuffer geometry and device
+capabilities as their original production run. The simulator records the
+selected `BoardConfig::DisplayController` and identifies it in the window title;
+it does not attempt to model controller timing, LUT waveforms, ghosting, or
+power sequencing.
 
 If a fork has a custom renderer and the auto-patch cannot recognize it, its simulator build should notify the display when orientation changes:
 
