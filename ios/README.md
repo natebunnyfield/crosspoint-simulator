@@ -678,6 +678,12 @@ What the log answers, line by line:
   became elements. If the last such line is `page cleared (reader left)`, the
   report happened OUTSIDE the reader — Home, a menu, a .txt/.xtc book — where
   nothing publishes and "no speakable content" is currently correct.
+- `QUERY ...` / `READING ...` — assistive tech consulted the container /
+  consumed the `UIAccessibilityReadingContent` page element. Their absence
+  while Speak Screen reports no content is how the 2026-08-09 investigation
+  established that Speak Screen never reads plain static-text containers here;
+  the page element (build 49) is the platform's designed answer, and READING
+  lines are its confirmation.
 - `WARNING: all N element frames are OFF-SCREEN` — the frames landed outside
   the window, which assistive tech may skip wholesale. Measured risk, not
   hypothetical: an iPhone 13 mini rendered the panel at dst -252 px.
