@@ -176,6 +176,7 @@ __weak CPAccessibilityOverlay *g_overlay = nil;
 // is the empirical proof the route functions on this OS.
 __weak CPPageTextInputView *g_pageInput = nil;
 long g_queryBudget = 0;
+bool g_pageTurnRequested = false;
 long g_readingBudget = 0;
 bool g_inDump = false;
 // Element-set mode: whether the page element was included when the current
@@ -257,27 +258,10 @@ NSArray *buildElements(UIView *container, const std::string &text,
         CGRectMake(x0 + line.x * s, y0 + line.y * s, line.w * s, line.h * s);
     [out addObject:el];
   }
-  if (wantsReadingPage() && out.count > 0) {
-    CPReadingPageElement *page = [[CPReadingPageElement alloc] initWithAccessibilityContainer:container];
-    NSMutableArray<NSString *> *lineTexts = [NSMutableArray array];
-    NSMutableArray<NSValue *> *lineFrames = [NSMutableArray array];
-    CGRect unionF = CGRectNull;
-    NSMutableString *pageText = [NSMutableString string];
-    for (UIAccessibilityElement *el in out) {
-      [lineTexts addObject:el.accessibilityLabel ?: @""];
-      [lineFrames addObject:[NSValue valueWithCGRect:el.accessibilityFrame]];
-      unionF = CGRectUnion(unionF, el.accessibilityFrame);
-      if (pageText.length > 0) [pageText appendString:@" "];
-      [pageText appendString:el.accessibilityLabel ?: @""];
-    }
-    page.cpLines = lineTexts;
-    page.cpLineFrames = lineFrames;
-    page.cpPageText = pageText;
-    page.accessibilityFrame = unionF;
-    page.accessibilityTraits = UIAccessibilityTraitStaticText | UIAccessibilityTraitCausesPageTurn;
-    page.accessibilityIdentifier = @"crosspoint.reading-page";
-    [out addObject:page];
-  }
+  // The build-49 UIAccessibilityReadingContent page element is retired: the
+  // measured Speak Screen consumer is the UITextInput page view, and an extra
+  // whole-page element here was one more VoiceOver stop re-reading what the
+  // per-line elements already cover.
   return out;
 }
 
@@ -453,9 +437,15 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   } else {
     CrossPointDiag_log("page had %u rects but produced no elements", rectCount);
   }
-  // Tell assistive tech the screen changed, or Speak Screen keeps reading the
-  // page it already had.
-  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
+  // Tell assistive tech the screen changed. After a page turn IT requested,
+  // PageScrolled is the notification that means "same context, next page --
+  // keep reading"; ScreenChanged would reset the reading session.
+  if (g_pageTurnRequested) {
+    g_pageTurnRequested = false;
+    UIAccessibilityPostNotification(UIAccessibilityPageScrolledNotification, nil);
+  } else {
+    UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
+  }
 }
 
 // Keep the container reachable. Accessibility traversal is front-to-back, and
@@ -595,6 +585,8 @@ bool CrossPointAccessibility_modeChanged(void) {
   if (g_builtMode < 0) return false;
   return (wantsReadingPage() ? 1 : 0) != g_builtMode;
 }
+
+void CrossPointAccessibility_notePageTurnRequested(void) { g_pageTurnRequested = true; }
 
 void CrossPointAccessibility_clear(void) {
   CPAccessibilityOverlay *overlay = g_overlay;

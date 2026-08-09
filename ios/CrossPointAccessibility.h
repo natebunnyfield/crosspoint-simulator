@@ -59,6 +59,11 @@ bool CrossPointAccessibility_hasElements(void);
 // nothing has moved.
 void CrossPointAccessibility_keepFront(void);
 
+// A page turn was requested by an assistive technology (accessibilityScroll
+// on the page view). The next publish posts PageScrolled instead of
+// ScreenChanged, which is what tells continuous reading to keep going.
+void CrossPointAccessibility_notePageTurnRequested(void);
+
 // Diagnostic: log what an assistive technology would actually reach.
 void CrossPointAccessibility_dumpTree(void);
 
