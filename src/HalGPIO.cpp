@@ -1062,7 +1062,15 @@ HalGPIO::WakeupReason HalGPIO::getWakeupReason() const {
   }
   return WakeupReason::Other;
 }
-bool HalGPIO::isUsbConnected() const { return true; }
+// Always-connected hid the unplug repaint and drew the charging bolt forever
+// (S-001). CROSSPOINT_SIM_USB=0 reports unplugged; unset keeps the old true.
+bool HalGPIO::isUsbConnected() const {
+  static const bool connected = [] {
+    const char *v = std::getenv("CROSSPOINT_SIM_USB");
+    return !(v && v[0] == '0' && v[1] == '\0');
+  }();
+  return connected;
+}
 bool HalGPIO::wasUsbStateChanged() const { return false; }
 void HalGPIO::startDeepSleep() {
   clearButtonState();
