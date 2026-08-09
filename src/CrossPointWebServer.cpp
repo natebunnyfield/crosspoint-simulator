@@ -1,3 +1,16 @@
+// STILL NEEDED BY DOWNSTREAM CONSUMERS -- do not delete as dead code.
+//
+// Current CrossPoint builds never compile this: they define
+// CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER and use the firmware's own server
+// against this library's WebServer/WebSocketsServer shims instead. That makes
+// the whole file look like 1000+ lines of obvious cruft. It is not.
+//
+// The macro disables ONLY this reduced substitute. A downstream consumer that
+// has not adopted the firmware-owned server still links it, and deleting this
+// breaks their build silently, at link time, in a repo that is not ours.
+//
+// Ruled KEEP (ST-002 in TODO.md). Revisit only when every known consumer is
+// confirmed to define the macro.
 #ifndef CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER
 
 #include <HalStorage.h>
