@@ -21,7 +21,9 @@
 // associated-object hack there would fight it on every window rebuild.
 // Throttled query log; defined below the namespace block.
 void CrossPointAccessibility_noteQuery(const char *what, long value);
+extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt);
 void CrossPointAccessibility_installFocusObserver(void);
+void CrossPointAccessibility_installKeyboardObserver(void);
 
 // THE FIX SELECTED BY MEASUREMENT, and the probe that will judge it.
 //
@@ -307,6 +309,7 @@ void CrossPointAccessibility_begin(void) {
                      (double)window.screen.scale);
   CrossPointDiag_log("container installed over the panel (keyWindow=%d)", (int)window.isKeyWindow);
   CrossPointAccessibility_installFocusObserver();
+  CrossPointAccessibility_installKeyboardObserver();
 }
 
 bool CrossPointAccessibility_wantsPage(void) {
@@ -382,6 +385,10 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
       page = [[CPPageTextInputView alloc] initWithFrame:host.bounds];
       [host addSubview:page];
       g_pageInput = page;
+      // Assistive tech may already have concluded this screen has no content;
+      // a fresh element that nobody is told about stays unread until the next
+      // screen change. Post it with the new view as the focus target.
+      UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, page);
       CrossPointDiag_log("UITextInput page view installed (WWDC26-219 pattern)");
     }
     if (geo) {
@@ -392,7 +399,11 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
       // top-left, so words map with origin 0 and the panel scale.
       [page setPageText:pageText rects:v originX:0 originY:0 scale:ps];
     } else {
+      // No geometry yet (before the first present). Text is still correct, but
+      // the frame is a guess -- keep the view and let the level-triggered
+      // rebuild above re-frame it once the panel has published its geometry.
       [page setPageText:pageText rects:v originX:0 originY:0 scale:1];
+      CrossPointDiag_log("page view built before panel geometry -- will re-frame");
     }
     if (overlay.superview) [overlay.superview bringSubviewToFront:overlay];
   } else if (g_pageInput) {
@@ -562,6 +573,35 @@ void CrossPointAccessibility_noteQuery(const char *what, long value) {
 // assistive technology not only asked, it arrived. Speak Screen does not focus
 // the way VoiceOver does, so absence proves nothing -- but presence ends the
 // investigation of the exposure half outright.
+// Keyboard clearance (owner ruling 2026-08-09). WillChangeFrame carries the
+// final frame and fires for show, hide, split/undock and height changes
+// (predictive bar, language switch) -- the one notification that covers every
+// way the keyboard's height can move. The height is converted to the window's
+// point space and handed to the layout, which reserves it at the bottom so the
+// panel lifts clear.
+void CrossPointAccessibility_installKeyboardObserver(void) {
+  static bool installed = false;
+  if (installed) return;
+  installed = true;
+  [NSNotificationCenter.defaultCenter
+      addObserverForName:UIKeyboardWillChangeFrameNotification
+                  object:nil
+                   queue:NSOperationQueue.mainQueue
+              usingBlock:^(NSNotification *note) {
+                UIWindow *window = resolveWindow();
+                if (!window) return;
+                const CGRect endFrame =
+                    [note.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+                // Intersect with the window: an off-screen (dismissed) frame
+                // sits below the bottom edge and must read as zero, and a
+                // floating/split keyboard only counts for what it covers.
+                const CGRect covered = CGRectIntersection(window.bounds, endFrame);
+                const CGFloat h = CGRectIsNull(covered) ? 0 : covered.size.height;
+                CrossPointIOS_setKeyboardHeight((float)h);
+                CrossPointDiag_log("keyboard height %.0f pt", (double)h);
+              }];
+}
+
 void CrossPointAccessibility_installFocusObserver(void) {
   static bool installed = false;
   if (installed) return;
@@ -582,8 +622,22 @@ void CrossPointAccessibility_installFocusObserver(void) {
 }
 
 bool CrossPointAccessibility_modeChanged(void) {
+  // LEVEL-triggered, not edge-triggered, and that is the fix for "Speak Screen
+  // sometimes needs a page turn before it works" (owner, 2026-08-09).
+  //
+  // This used to compare the current mode against the mode the elements were
+  // BUILT in -- an edge. One rebuild that did not produce a page view (the
+  // classic case: panelGeometryPts is not answerable before the first present,
+  // so a rebuild racing the first frame builds nothing) cleared the edge
+  // anyway, and nothing retried until the next publish. A page turn republished
+  // and it worked, which is exactly the reported shape.
+  //
+  // Asking "does the world match what it should be" instead means any failed
+  // or half-finished rebuild self-heals on the very next frame.
   if (g_builtMode < 0) return false;
-  return (wantsReadingPage() ? 1 : 0) != g_builtMode;
+  const bool wants = wantsReadingPage();
+  if (wants != (g_pageInput != nil)) return true;
+  return wants != (g_builtMode == 1);
 }
 
 void CrossPointAccessibility_notePageTurnRequested(void) { g_pageTurnRequested = true; }
