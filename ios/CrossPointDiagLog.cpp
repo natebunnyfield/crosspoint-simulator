@@ -1,5 +1,7 @@
 #include "CrossPointDiagLog.h"
 
+#include "CrossPointPrefs.h"
+
 #include <SDL3/SDL.h>
 #include <sys/stat.h>
 
@@ -33,6 +35,11 @@ void rotateIfNeeded() {
 }  // namespace
 
 void CrossPointDiag_log(const char *fmt, ...) {
+  // Owner ruling 2026-08-09: diagnostics OFF by default now that Speak Screen
+  // works. One gate here silences the file, the SDL_Log mirror, the tree
+  // dumps and every probe that routes through them; the Settings.app toggle
+  // brings the whole instrument back for a future investigation.
+  if (!CrossPointPrefs_diagnosticsEnabled()) return;
   char line[512];
   va_list args;
   va_start(args, fmt);

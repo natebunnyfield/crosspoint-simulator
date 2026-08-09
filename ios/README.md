@@ -633,69 +633,67 @@ Logs are greppable: every line starts `[READALOUD] `.
 
 ### Accessibility — VoiceOver, Speak Screen, Braille, Switch Control
 
-The page is published as `UIAccessibilityElements` over a transparent container
-above the SDL view, one element per LINE (Speak Screen concatenates elements, so
-per-word would pause after every word). `[A11Y]` lines carry the state.
+**SOLVED (build 54, 2026-08-09), and the mechanism matters: iOS 26's Speak
+Screen consumes exactly one thing — a full `UITextInput` adoption on the
+accessibility element.** Seven instrumented builds measured out everything
+else: synthetic `UIAccessibilityElement` containers, the explicit container
+protocol, `UIAccessibilityReadingContent`, elements vended from the window,
+hidden real `UITextView`s, and a sentinel matrix whose fully VISIBLE `UILabel`
+went unread. VoiceOver read every one of those; Speak Screen read none. The
+recipe that works is WWDC26 session 219 ("Enhance the accessibility of your
+reading app"): `ScannedPage: UIView, UITextInput`, implemented in its
+entirety.
 
-**The trap, which cost three builds: overriding `-accessibilityElements` does
-nothing.** UIKit answers assistive technology through the
-`UIAccessibilityContainer` methods — `accessibilityElementCount`,
-`accessibilityElementAtIndex:`, `indexOfAccessibilityElement:` — and `UIView`
-derives those from the STORED `accessibilityElements` property, not from an
-override of its getter. A container with a custom getter sits in the hierarchy,
-front-most and correctly framed, reporting **zero children**, and every
-assistive technology says "no speakable content could be found on the screen".
-Implement the three methods explicitly; set the property too.
+Two surfaces, two consumers, one data source (the read-aloud channel's page
+text + per-word rects):
 
-**Diagnose it with the traversal, not by reasoning.**
-`CrossPointAccessibility_dumpTree()` walks the hierarchy using the same public
-API an assistive technology uses and logs what is reachable. It runs once per
-launch and is the fastest way to tell which half is broken:
+- **`CPAccessibilityOverlay`** — per-LINE `UIAccessibilityElements` for
+  VoiceOver, Braille and Switch Control. Per-line because Speak-anything
+  concatenates elements; per-word would pause after every word. The container
+  implements `accessibilityElementCount`/`AtIndex`/`indexOf` EXPLICITLY *and*
+  sets the stored property — overriding only the getter is the trap that cost
+  three builds (UIKit derives the container methods from the stored property,
+  not a getter override; the container reports zero children and every
+  assistive technology says "no speakable content").
+- **`CPPageTextInputView`** (`CrossPointPageTextInput.mm`) — the Speak Screen
+  consumer. A view that IS the accessibility element and adopts `UITextInput`
+  fully: UTF-8 channel offsets mapped to UTF-16 once per page, geometry
+  answered from the word rects, the stock `UITextInputStringTokenizer` riding
+  the position math. Read-only: never first responder, never the keyboard.
+  Carries `UIAccessibilityTraitCausesPageTurn`; `accessibilityScroll(.next)`
+  queues the same BTN_RIGHT tap the read-aloud adapter uses, and the next
+  publish posts `PageScrolled` (not `ScreenChanged`) so continuous reading
+  crosses the page turn. The system draws its own reading highlight from
+  `selectionRects` — owner ruling: leave it; no workarounds.
 
-    [A11Y-TREE] CPAccessibilityOverlay isElement=0 children=22
-    [A11Y-TREE]   UIAccessibilityElement isElement=1 label="and then, in silver armour, "
+**Scope (owner ruling 2026-08-09): only EPUB text is speakable.** The one
+channel publisher is `EpubReaderActivity`; Home, menus, and .txt/.xtc books
+deliberately publish nothing, and "no speakable content" there is correct
+behaviour, not a bug. The pad is SDL-drawn and invisible to accessibility by
+construction.
 
-`children=0` means the container is not exposing them — a code bug. No
-`[A11Y] N word rects -> M line elements` line at all means the page never
-arrived, which is the channel, not accessibility. Two fixes were shipped here on
-reasoning about what UIKit "should" do before anyone ran this; both were wrong.
-
-**Troubleshooting Speak Screen on a TestFlight build — read the log on the
-phone.** The app writes an accessibility log to the emulated card at
-`diagnostics/a11y.log`, and the card is browsable in the Files app: **On My
-iPhone → CrossPoint X3 → diagnostics → a11y.log**. Long-press to share it. No
-Mac required — this exists because TestFlight builds have no console and every
-"no speakable content" report used to arrive with zero evidence.
-
-What the log answers, line by line:
-
-- `---- launch: v0.1.0 (45), screen 375x812 pt @3.00x ----` — which build,
-  which device geometry.
-- `assistive tech: speakScreen=1 ...` — whether iOS reported the feature ON at
-  all. The OFF→ON edge also triggers a `TREE` dump at exactly the moment the
-  report happens, showing what an assistive technology could reach right then.
-- `N word rects -> M line elements; first "..."` — a page was published and
-  became elements. If the last such line is `page cleared (reader left)`, the
-  report happened OUTSIDE the reader — Home, a menu, a .txt/.xtc book — where
-  nothing publishes and "no speakable content" is currently correct.
-- `QUERY ...` / `READING ...` — assistive tech consulted the container /
-  consumed the `UIAccessibilityReadingContent` page element. Their absence
-  while Speak Screen reports no content is how the 2026-08-09 investigation
-  established that Speak Screen never reads plain static-text containers here;
-  the page element (build 49) is the platform's designed answer, and READING
-  lines are its confirmation.
-- `WARNING: all N element frames are OFF-SCREEN` — the frames landed outside
-  the window, which assistive tech may skip wholesale. Measured risk, not
-  hypothetical: an iPhone 13 mini rendered the panel at dst -252 px.
-
-The same grouping is observable OFF-device: `CROSSPOINT_SIM_READALOUD_DUMP=1`
-on the desktop simulator prints the exact per-line labels against a real book,
-and `tests/readaloud_lines_test.cpp` pins the grouping contract.
+**Diagnostics are OFF by default** (same ruling). Everything —
+`diagnostics/a11y.log` on the card, tree dumps, QUERY/READING/TEXTINPUT
+probes — funnels through `CrossPointDiag_log`, which is gated on the
+**Settings.app → CrossPoint X3 → Diagnostics Log** toggle. Flip it on and the
+full instrument returns without a rebuild: the log lands on the card,
+browsable in the Files app (On My iPhone → CrossPoint X3 → diagnostics),
+long-press to share. The desktop equivalents stay available always:
+`CROSSPOINT_SIM_READALOUD_DUMP=1` prints per-line labels against a real book,
+`tests/readaloud_lines_test.cpp` pins the grouping, and `tools/axprobe/`
+queries the app through Apple's real out-of-process AX channel (the
+instrument that separated "the container answers" from "nobody asks", which
+was the whole investigation).
 
 **Speak Screen cannot be tested in the simulator** — its Spoken Content pane
-offers only Speak Selection and Pronunciations, so
-`UIAccessibilityIsSpeakScreenEnabled()` reads 0 and the two-finger gesture does
-nothing. VoiceOver is available there and reads the same elements.
+offers only Speak Selection, so `UIAccessibilityIsSpeakScreenEnabled()` reads
+0 there. VoiceOver is available in the simulator and reads the line elements;
+`CROSSPOINT_SIM_FORCE_SPEAKSCREEN=1` builds the Speak Screen surfaces anyway
+so the AX probe can verify them off-device. The full investigation — six
+failed exposure mechanisms, the research fleet, the Kindle control experiment
+that overturned it, and why each probe exists — is in the git history of
+`CrossPointAccessibility.mm` and `CrossPointPageTextInput.mm`; the memory of
+it is deliberately kept there rather than here.
 
 ## Keyboards — Bluetooth and on-screen
 

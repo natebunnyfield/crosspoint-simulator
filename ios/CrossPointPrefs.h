@@ -53,6 +53,10 @@ int CrossPointPrefs_padFillContrast(int dark);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_readAloudEnabled(void);
 
+// Diagnostics file logging (diagnostics/a11y.log + tree dumps + probes).
+// Default OFF; Settings.app toggle re-arms it without a rebuild.
+int CrossPointPrefs_diagnosticsEnabled(void);
+
 #ifdef __cplusplus
 }
 #endif
