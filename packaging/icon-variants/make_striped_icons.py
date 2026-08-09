@@ -28,22 +28,35 @@ finer than a pixel once the icon is scaled down -- where drawn rectangles would
 alias into moire. Coverage is then multiplied by the mask's coverage, so stripe
 edges and shape edges antialias against each other rather than fighting.
 
-Two facts about the mark drove the defaults:
+THE THREE MEASUREMENTS THAT DRIVE EVERYTHING
+--------------------------------------------
+  * The mark's diagonals run at atan(3/5) = 30.96 degrees. DIAGONAL_ANGLE
+    matches that, so the "parallel" variants run with the artwork instead of
+    cutting a second, unrelated angle across it.
+  * Its strokes are STROKE_WIDTH = 46px wide at 1024, so a stroke's deepest
+    interior point is ~23px from an edge. Every rim decision below is really a
+    decision about that number.
+  * Its ink box is 626x696 at (198,164). Stripe phase anchors on that centre,
+    so changing pitch grows the stripes outward from the middle of the mark
+    rather than sliding them all sideways.
 
-  * Its diagonals run at atan(3/5) = 30.96 degrees. DIAGONAL_ANGLE matches that,
-    so the "parallel" variants run with the artwork instead of cutting a second,
-    unrelated angle across it.
-  * Its strokes are ~46px wide at 1024, so a stroke's deepest interior point is
-    ~23px from an edge. The keyline variants use a 26px solid rim, which is what
-    keeps those strokes SOLID (they are never deep enough to reach the striped
-    core) while the large masses -- which are much deeper -- do get striped.
-    Raise KEYLINE_RIM past ~26 and more of the mark goes solid; drop it below
-    ~23 and the thin strokes break into dashes, which is the whole failure mode
-    the keyline variants exist to avoid.
+WHY THE RIM IS THE STROKE WIDTH
+-------------------------------
+A keyline variant holds a solid rim around every edge and stripes only what is
+deeper than the rim. The rim is set to the mark's own stroke width, not to some
+smaller value that merely "works", because the rim IS an outline and the mark
+already contains outlines: the side bars and the strokes around the counters,
+all 46px. A 26px rim -- the first thing tried -- reads as a thinner outline
+around the top-right mass than around everything else, and the mark looks like
+it was drawn with two pens. Matching 46px makes every outline in the icon one
+weight.
+
+That choice pays for itself twice, because the rim is also what separates the
+mark's two solid masses. See `deep_components`.
 
 Usage:
     python3 packaging/icon-variants/make_striped_icons.py
-    python3 packaging/icon-variants/make_striped_icons.py --only keyline-diagonal
+    python3 packaging/icon-variants/make_striped_icons.py --only matched-diagonal
     python3 packaging/icon-variants/make_striped_icons.py --pitch 48 --duty 0.4
 """
 
@@ -64,73 +77,124 @@ DEFAULT_SOURCE = os.path.join(
 )
 DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# The mark's own diagonal, measured off the master: the edges advance 5px
-# horizontally per 3px vertically.
+# The mark's own diagonal: the edges advance 5px horizontally per 3px vertically.
 DIAGONAL_ANGLE = math.degrees(math.atan2(3.0, 5.0))
 
-# Solid border, in master pixels, held around every edge of the mark in the
-# keyline variants. See the module docstring for why 26 and not less.
-KEYLINE_RIM = 26.0
+# Stroke width of the mark at 1024, measured off the master. Doubles as the rim
+# that makes every outline read at one weight -- see the module docstring.
+STROKE_WIDTH = 46.0
+
+# The rim the first round used. Kept only so those variants still regenerate
+# byte-identically; it is too thin to match the mark's own outlines, and too
+# thin to separate the masses.
+NARROW_RIM = 26.0
 
 # Stripe geometry at 1024. Pitch is centre-to-centre; duty is the ink fraction.
 PITCH = 64.0
 DUTY = 0.5
 
-# name -> (angle in degrees, pitch scale, duty, keyline rim or None, blurb)
+
+def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0):
+    """One entry in the variant table.
+
+    `pitch` is a multiplier on the --pitch baseline; `rim` is in master pixels;
+    `solid_masses` is how many of the mark's masses stay flat-filled, taken from
+    the bottom-left end (see `deep_components`).
+    """
+    return dict(
+        name=name, angle=angle, pitch=pitch, duty=duty, rim=rim,
+        solid_masses=solid_masses, blurb=blurb,
+    )
+
+
+# Angles are measured so the stripes run perpendicular to the axis being swept:
+# 0 gives vertical stripes, 90 gives horizontal.
 #
-# Angles are measured so that the stripes run perpendicular to the axis being
-# swept: 0 gives vertical stripes swept along x, 90 gives horizontal stripes.
-#
-# Ordered from the treatment that protects the mark most to the one that takes
-# it apart most, because that is the axis the choice actually turns on. Duty is
-# the lever: at 0.5 a 46px stroke lands on a 32px gap often enough to break into
-# dashes, which is why the mid-set "grooved" variants run duty 0.72 -- the mark
-# stays continuous and the stripes read as cuts in the fill rather than as gaps
-# between fragments.
+# ROUND TWO is the current direction: outlines all at one weight, and the
+# bottom-left mass left flat so the line screen falls on the top-right mass
+# alone. Round one is kept below because it is the record of what those two
+# corrections were made against -- and because the variants that break the mark
+# break it informatively.
 VARIANTS = [
-    (
-        "keyline-horizontal",
-        90.0, 72.0 / 64.0, 0.45, KEYLINE_RIM,
-        "Solid keyline, horizontal stripes inside the masses only.",
+    # -- Round two: matched outlines, one mass striped ---------------------
+    # Ordered as the review sheet numbers them, most even cut first. Only the
+    # angle and pitch differ across the six; everything else is the correction.
+    variant(
+        "matched-counter", -DIAGONAL_ANGLE,
+        "Top-right mass at -31 degrees, across its own edges rather than along them.",
+        pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
     ),
-    (
-        "keyline-diagonal",
-        DIAGONAL_ANGLE, 72.0 / 64.0, 0.45, KEYLINE_RIM,
-        "Solid keyline, 31 degree stripes inside the masses only.",
+    variant(
+        "matched-vertical", 0.0,
+        "Top-right mass in vertical stripes, running with the side bars.",
+        pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
     ),
-    (
-        "grooved-horizontal",
-        90.0, 48.0 / 64.0, 0.72, None,
+    variant(
+        "matched-horizontal", 90.0,
+        "Top-right mass in horizontal stripes; bottom-left flat, outlines matched.",
+        pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
+    ),
+    variant(
+        "matched-horizontal-fine", 90.0,
+        "As matched-horizontal at a finer pitch: reads closer to a tint than to lines.",
+        pitch=42.0 / 64.0, duty=0.5, rim=STROKE_WIDTH, solid_masses=1,
+    ),
+    variant(
+        "matched-diagonal", DIAGONAL_ANGLE,
+        "Top-right mass in 31 degree stripes, running along its leading edge.",
+        pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
+    ),
+    variant(
+        "matched-diagonal-fine", DIAGONAL_ANGLE,
+        "As matched-diagonal at a finer pitch: more lines, each lighter.",
+        pitch=42.0 / 64.0, duty=0.5, rim=STROKE_WIDTH, solid_masses=1,
+    ),
+
+    # -- Round one: both masses striped, thinner rim -----------------------
+    # Ordered from the treatment that protects the mark most to the one that
+    # takes it apart most. Duty is the lever: at 0.5 a 46px stroke lands on a
+    # 32px gap often enough to break into dashes, which is why the "grooved"
+    # pair runs 0.72 -- the mark stays continuous and the stripes read as cuts
+    # in the fill rather than as gaps between fragments.
+    variant(
+        "keyline-horizontal", 90.0,
+        "Solid 26px keyline, horizontal stripes inside both masses.",
+        pitch=72.0 / 64.0, duty=0.45, rim=NARROW_RIM,
+    ),
+    variant(
+        "keyline-diagonal", DIAGONAL_ANGLE,
+        "Solid 26px keyline, 31 degree stripes inside both masses.",
+        pitch=72.0 / 64.0, duty=0.45, rim=NARROW_RIM,
+    ),
+    variant(
+        "grooved-horizontal", 90.0,
         "Thin horizontal grooves cut across an otherwise solid mark.",
+        pitch=48.0 / 64.0, duty=0.72,
     ),
-    (
-        "grooved-diagonal",
-        -DIAGONAL_ANGLE, 48.0 / 64.0, 0.72, None,
+    variant(
+        "grooved-diagonal", -DIAGONAL_ANGLE,
         "Thin grooves at -31 degrees, cutting across the diagonals.",
+        pitch=48.0 / 64.0, duty=0.72,
     ),
-    (
-        "horizontal-fine",
-        90.0, 28.0 / 64.0, DUTY, None,
+    variant(
+        "horizontal-fine", 90.0,
         "Horizontal at a fine line-screen pitch, evenly weighted.",
+        pitch=28.0 / 64.0,
     ),
-    (
-        "horizontal",
-        90.0, 1.0, DUTY, None,
+    variant(
+        "horizontal", 90.0,
         "Bold 50/50 horizontal scanlines, the e-ink raster reading.",
     ),
-    (
-        "vertical",
-        0.0, 1.0, DUTY, None,
+    variant(
+        "vertical", 0.0,
         "Bold 50/50 vertical stripes.",
     ),
-    (
-        "diagonal-parallel",
-        DIAGONAL_ANGLE, 1.0, DUTY, None,
+    variant(
+        "diagonal-parallel", DIAGONAL_ANGLE,
         "Bold stripes parallel to the mark's own 31 degree diagonals.",
     ),
-    (
-        "diagonal-counter",
-        -DIAGONAL_ANGLE, 1.0, DUTY, None,
+    variant(
+        "diagonal-counter", -DIAGONAL_ANGLE,
         "Bold stripes across the diagonals at -31 degrees.",
     ),
 ]
@@ -180,9 +244,9 @@ def edge_distance(mask, size, threshold=128):
 
     A 3-4 chamfer transform: two passes, no dependencies, and within a few
     percent of Euclidean -- accurate enough to decide "is this point deeper than
-    the 26px rim", which is all it is used for. Paper pixels are 0.
+    the rim", which is all it is used for. Paper pixels are 0.
 
-    Deliberately not an erosion loop: eroding by 26 would be 26 passes over a
+    Deliberately not an erosion loop: eroding by 46 would be 46 passes over a
     megapixel, and this is two.
     """
     INF = 1 << 28
@@ -225,6 +289,65 @@ def edge_distance(mask, size, threshold=128):
             dist[i] = d
 
     return [d / 3.0 for d in dist]
+
+
+def deep_components(distance, size, rim, min_area):
+    """Label the mark's masses: islands of interior deeper than the rim.
+
+    WHY NOT JUST LABEL THE INK. The mark is one connected shape -- its two solid
+    masses meet at the centre crossing -- so components of the ink cannot tell
+    them apart. Components of the part deeper than the rim can, but only if the
+    rim is wide enough to drown the crossing where they touch. Measured on the
+    master:
+
+        rim 26  ->  ONE island (the masses are still bridged at the crossing)
+        rim 40  ->  two islands
+        rim 46  ->  two islands, 70971px centred (655,425) and 28972px (318,685)
+
+    So the rim that matches the mark's stroke weight is also the rim that first
+    separates the masses cleanly. Below ~40 this returns one island, every mass
+    is "the bottom-left mass", and a variant asking to keep one flat would
+    silently come out as the unmodified icon -- which is why `build` refuses
+    rather than emitting it.
+
+    Returns (labels, infos) where labels is 0 for anything not deep, and infos
+    is one (label, area, cx, cy) per island bigger than min_area, ordered from
+    bottom-left to top-right by centroid.
+    """
+    labels = [0] * (size * size)
+    infos = []
+    label = 0
+
+    for start in range(size * size):
+        if labels[start] or distance[start] <= rim:
+            continue
+        label += 1
+        labels[start] = label
+        stack = [start]
+        area = sum_x = sum_y = 0
+        while stack:
+            i = stack.pop()
+            x = i % size
+            area += 1
+            sum_x += x
+            sum_y += i // size
+            for j, inside in (
+                (i - 1, x > 0),
+                (i + 1, x + 1 < size),
+                (i - size, i >= size),
+                (i + size, i + size < size * size),
+            ):
+                if inside and not labels[j] and distance[j] > rim:
+                    labels[j] = label
+                    stack.append(j)
+        if area >= min_area:
+            infos.append((label, area, sum_x / area, sum_y / area))
+
+    # Bottom-left first. The mark's masses sit on opposite sides of the centre
+    # crossing, so their centroids separate cleanly on x-y (-367 against +230 at
+    # rim 46) -- far apart enough that the ordering is not a near-tie.
+    infos.sort(key=lambda info: info[2] - info[3])
+    return labels, infos
 
 
 # --------------------------------------------------------------------------
@@ -281,7 +404,7 @@ def stripe_field(size, angle_deg, period, duty, centre):
     return field
 
 
-def render(mask, size, angle_deg, period, duty, centre, rim, distance):
+def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels, solid):
     """Composite: ink = mask coverage * fill coverage, painted black on white."""
     stripes = stripe_field(size, angle_deg, period, duty, centre)
     out = bytearray(size * size * 4)
@@ -290,12 +413,15 @@ def render(mask, size, angle_deg, period, duty, centre, rim, distance):
         if coverage:
             fill = stripes[i]
             if rim is not None and fill < 255:
-                # Inside the rim the fill is solid; the two blend over one pixel
-                # so the keyline does not show a hard step against the stripes.
                 depth = distance[i]
-                if depth <= rim:
+                # `solid` is empty unless a variant holds a mass flat, and
+                # `labels` is empty with it -- so it must be tested first.
+                if depth <= rim or (solid and labels[i] in solid):
+                    # The rim, and any mass held flat, are solid ink.
                     fill = 255
                 elif depth < rim + 1.0:
+                    # Blend over one pixel so the keyline does not show a hard
+                    # step where it meets the stripes.
                     edge = rim + 1.0 - depth
                     fill = int(fill + (255 - fill) * edge + 0.5)
             coverage = coverage * fill // 255
@@ -318,35 +444,54 @@ def build(source, output_dir, pitch, duty_override, only):
     centre = ((x0 + x1 + 1) / 2.0, (y0 + y1 + 1) / 2.0)
 
     scale = size / 1024.0
+    min_area = size * size // 500
     distance = None
+    components = {}
     written = []
 
-    for name, angle, pitch_scale, duty, rim, blurb in VARIANTS:
+    for spec in VARIANTS:
+        name = spec["name"]
         if only and name not in only:
             continue
-        if rim is not None and distance is None:
-            distance = edge_distance(mask, size)
+
+        rim = None if spec["rim"] is None else spec["rim"] * scale
+        labels, solid = [], set()
+
+        if rim is not None:
+            if distance is None:
+                distance = edge_distance(mask, size)
+            if spec["solid_masses"]:
+                if rim not in components:
+                    components[rim] = deep_components(distance, size, rim, min_area)
+                labels, infos = components[rim]
+                if len(infos) <= spec["solid_masses"]:
+                    raise IconError(
+                        "%s wants %d of the mark's masses flat, but a %.0fpx rim "
+                        "leaves only %d island(s) -- the masses are still bridged "
+                        "at the centre crossing, so every mass would be filled and "
+                        "the variant would come out as the unmodified icon. Widen "
+                        "the rim past ~40px."
+                        % (name, spec["solid_masses"], rim, len(infos))
+                    )
+                solid = {info[0] for info in infos[: spec["solid_masses"]]}
 
         rgba_out = render(
-            mask,
-            size,
-            angle,
-            pitch * pitch_scale * scale,
-            duty if duty_override is None else duty_override,
-            centre,
-            None if rim is None else rim * scale,
-            distance,
+            mask, size, spec["angle"],
+            pitch * spec["pitch"] * scale,
+            spec["duty"] if duty_override is None else duty_override,
+            centre, rim, distance, labels, solid,
         )
 
         path = os.path.join(output_dir, "AppIcon-1024-striped-%s.png" % name)
         with open(path, "wb") as handle:
             handle.write(write_png(size, size, rgba_out))
-        written.append((name, path, blurb))
-        print("wrote %s -- %s" % (os.path.relpath(path, REPO_ROOT), blurb))
+        written.append((name, path, spec["blurb"]))
+        print("wrote %s -- %s" % (os.path.relpath(path, REPO_ROOT), spec["blurb"]))
 
     if not written:
         raise IconError(
-            "no variant matched; known names: %s" % ", ".join(v[0] for v in VARIANTS)
+            "no variant matched; known names: %s"
+            % ", ".join(v["name"] for v in VARIANTS)
         )
     return written
 

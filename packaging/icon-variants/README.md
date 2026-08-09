@@ -27,7 +27,7 @@ Three numbers off the artwork drive every default in the generator:
 | Measured | Value | Why it matters |
 |---|---|---|
 | Diagonal angle | atan(3/5) = 30.96° | The "parallel" variants run with the mark instead of cutting an unrelated angle across it. |
-| Stroke width | ~46px at 1024 | A stroke's deepest interior point is ~23px from an edge, which sets the keyline rim. |
+| Stroke width | 46px at 1024 | A stroke's deepest interior point is ~23px from an edge. This sets the rim — see below. |
 | Ink bounding box | 626 x 696 at (198,164) | Stripe phase is anchored to its centre, so changing pitch grows stripes outward from the middle rather than sliding them sideways. |
 
 The mark is *not* symmetric — the top-left counter is a parallelogram and the
@@ -35,55 +35,90 @@ bottom-right one a triangle — so there is no symmetry axis to align stripes to
 Anchoring on the bounding box centre is a registration choice, not a symmetry
 one.
 
-## The variants
+## Round two: `matched-*`
 
-Ordered as the generator emits them: from the treatment that protects the mark
-most to the one that takes it apart most.
+The current direction. Every outline in the icon reads at one weight, and only
+the top-right mass carries the line screen.
 
-| File suffix | Treatment |
+| File suffix | Cut |
 |---|---|
-| `keyline-horizontal` | Solid keyline, horizontal stripes inside the masses only |
-| `keyline-diagonal` | Solid keyline, 31° stripes inside the masses only |
-| `grooved-horizontal` | Thin horizontal grooves cut across an otherwise solid mark |
-| `grooved-diagonal` | Thin grooves at -31°, cutting across the diagonals |
-| `horizontal-fine` | Horizontal at a fine line-screen pitch, evenly weighted |
-| `horizontal` | Bold 50/50 horizontal scanlines |
-| `vertical` | Bold 50/50 vertical stripes |
-| `diagonal-parallel` | Bold stripes parallel to the mark's own diagonals |
-| `diagonal-counter` | Bold stripes across the diagonals at -31° |
+| `matched-counter` | −31°, across the mass's own edges |
+| `matched-vertical` | Vertical, running with the side bars |
+| `matched-horizontal` | Horizontal |
+| `matched-horizontal-fine` | Horizontal at a finer pitch |
+| `matched-diagonal` | +31°, along the mass's leading edge |
+| `matched-diagonal-fine` | +31° at a finer pitch |
+
+**The rim is the stroke width, and that is not a coincidence twice over.** A
+keyline variant holds a solid rim around every edge and stripes only what is
+deeper than the rim. Round one used 26px, which merely *worked*; it reads as a
+thinner outline around the top-right mass than around the side bars and the
+counters, so the mark looks drawn with two pens. Setting the rim to the mark's
+own 46px stroke makes every outline one weight.
+
+The same number is also what makes "keep the bottom-left mass flat" possible.
+The mark is one connected shape — its two masses meet at the centre crossing —
+so labelling connected ink cannot tell them apart. Labelling the interior
+*deeper than the rim* can, but only once the rim is wide enough to drown that
+crossing. Measured on the master:
+
+| Rim | Islands found |
+|---|---|
+| 26px | **one** — the masses are still bridged at the crossing |
+| 40px | two |
+| 46px | two: 70,971px centred (655,425) and 28,972px centred (318,685) |
+
+Below ~40px every mass is "the bottom-left mass", and a variant asking to hold
+one flat would silently emit the unmodified icon. `build` raises rather than
+writing that file.
+
+Angle is the only real choice left in this round, and the ranking is the same
+one round one found: a stripe running *along* an edge is at the mercy of small
+angle differences, so `matched-diagonal` wedges where `matched-counter` and
+`matched-vertical` stay parallel-sided.
+
+## Round one
+
+Kept as the record of what those corrections were made against. Both masses are
+striped and the rim, where there is one, is 26px.
+
+| File suffix | Treatment | At 32px |
+|---|---|---|
+| `keyline-horizontal` | 26px keyline, horizontal stripes in both masses | Holds |
+| `keyline-diagonal` | 26px keyline, 31° stripes in both masses | Holds |
+| `grooved-horizontal` | Thin horizontal grooves, duty 0.72 | Holds |
+| `grooved-diagonal` | Thin grooves at −31°, duty 0.72 | Holds |
+| `horizontal-fine` | Fine line screen, duty 0.5 | Greys out |
+| `horizontal` | Bold 50/50 horizontal | Breaks the side bars |
+| `vertical` | Bold 50/50 vertical | Breaks the diagonals |
+| `diagonal-counter` | Bold 50/50 at −31° | Breaks the mark |
+| `diagonal-parallel` | Bold 50/50 at +31° | Breaks the mark |
 
 **Duty cycle decides whether the mark survives, not angle.** At duty 0.5 a
 46px stroke lands on a 32px gap often enough to break into dashes — that is
-what happens to the vertical bars in `horizontal`, and to the diagonals in
+what happens to the side bars in `horizontal`, and to the diagonals in
 `diagonal-parallel`, where the stripes run along the strokes and erase them
 wholesale. The `grooved-*` variants run duty 0.72 for exactly this reason: the
 mark stays continuous and the stripes read as cuts in the fill rather than as
 gaps between fragments. Angle only decides *which* strokes take the damage.
-
-The keyline variants sidestep the problem instead of tuning around it. A 26px
-solid rim is held around every edge, and since no point inside a 46px stroke is
-more than ~23px from an edge, the strokes are never deep enough to reach the
-striped core — they stay solid, and only the large masses get striped. Raise
-`KEYLINE_RIM` past ~26 and more of the mark goes solid; drop it below ~23 and
-the thin strokes break into dashes, which is the failure these variants exist
-to avoid.
 
 ## Tuning
 
 ```bash
 # One variant, at a coarser pitch and with more paper showing.
 python3 packaging/icon-variants/make_striped_icons.py \
-    --only grooved-diagonal --pitch 96 --duty 0.6
+    --only matched-counter --pitch 96 --duty 0.6
 ```
 
 `--pitch` is centre-to-centre at 1024 and scales with the source; `--duty` is
 the ink fraction of a stripe and overrides each variant's own. Both are the
-levers worth turning first.
+levers worth turning first. Rim and which masses stay flat live in the variant
+table (`rim=`, `solid_masses=`).
 
 ## Adopting one
 
-The variants are byte-for-byte the same kind of file as the master — 1024x1024,
-8-bit, non-interlaced, opaque black on white — so adopting one is a copy:
+The variants are the same kind of file as the master — 1024x1024, 8-bit,
+non-interlaced, opaque black on white — so adopting one is a copy:
 
 ```bash
 cp packaging/icon-variants/AppIcon-1024-striped-<name>.png \
