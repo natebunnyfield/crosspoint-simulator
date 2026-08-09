@@ -26,7 +26,7 @@ Three numbers off the artwork drive every default in the generator:
 
 | Measured | Value | Why it matters |
 |---|---|---|
-| Diagonal angle | atan(3/5) = 30.96° | The "parallel" variants run with the mark instead of cutting an unrelated angle across it. |
+| Page edge angle | atan(3/5) = 30.96° | `PAGE_ANGLE` is its complement, because the angle parameter names the stripe's *normal* — see below. |
 | Stroke width | 46px at 1024 | A stroke's deepest interior point is ~23px from an edge. This sets the rim — see below. |
 | Ink bounding box | 626 x 696 at (198,164) | Stripe phase is anchored to its centre, so changing pitch grows stripes outward from the middle rather than sliding them sideways. |
 
@@ -35,19 +35,61 @@ bottom-right one a triangle — so there is no symmetry axis to align stripes to
 Anchoring on the bounding box centre is a registration choice, not a symmetry
 one.
 
+## The angle convention, and a trap in it
+
+**An angle in the variant table names the stripe's normal, not the stripe.**
+A stripe parallel to an edge therefore needs the edge's angle plus 90 — and for
+this mark the two are complementary, edges at 30.96° and `PAGE_ANGLE` at
+59.04°. Passing `DIAGONAL_ANGLE` as a stripe angle produces stripes that look
+plausibly diagonal while being *exactly perpendicular* to the page edges, which
+is what every "diagonal" variant in rounds one and two turned out to be.
+
+Measured rather than assumed — stripe slope is `dx/dy = -tan(angle)`, and the
+page edge's is −5/3:
+
+| Angle passed | Stripe slope | From horizontal | Versus the page edge |
+|---|---|---|---|
+| 30.96° | −0.600 | 59.04° | perpendicular |
+| 59.04° | −1.667 | 30.96° | **parallel** |
+
+That one fact explains round two's ranking. `matched-counter` read cleanest
+because its lines met the right page's top edge at exactly 90°;
+`matched-diagonal` wedged because it met that same edge at a shallow 28°, so
+its line ends drew long tapers.
+
+## Round three: `page-*`
+
+The current direction: round two's construction with the lines lying *along*
+the right page rather than cutting across it, so they read as text ruled on the
+page. Line and gap are what vary, and they are what the filenames carry —
+`page-<line>-<gap>`, in master pixels at 1024.
+
+| File suffix | Line | Gap | Reads as |
+|---|---|---|---|
+| `page-21-21` | 21 | 21 | Even rule — round two's #4 ruling, turned onto the page |
+| `page-10-26` | 10 | 26 | Ruled text — closest to text on a white page |
+| `page-30-30` | 30 | 30 | Even rule — fewest, heaviest lines; best downscale |
+| `page-12-12` | 12 | 12 | Even rule — twice the line count |
+| `page-7-21` | 7 | 21 | Ruled text — hairline at 1:3 |
+| `page-26-10` | 26 | 10 | Inverted — ink is the field, gaps are the ruling |
+
+`page_variant(line, gap)` derives pitch and duty from that pair, so the set is
+specified in the terms actually being compared rather than in the generator's.
+
 ## Round two: `matched-*`
 
-The current direction. Every outline in the icon reads at one weight, and only
-the top-right mass carries the line screen.
+Every outline in the icon reads at one weight, and only the top-right mass
+carries the line screen. Superseded by round three only in the angle: the
+construction is identical.
 
 | File suffix | Cut |
 |---|---|
-| `matched-counter` | −31°, across the mass's own edges |
+| `matched-counter` | 59°, square across the page's top edge |
 | `matched-vertical` | Vertical, running with the side bars |
 | `matched-horizontal` | Horizontal |
 | `matched-horizontal-fine` | Horizontal at a finer pitch |
-| `matched-diagonal` | +31°, along the mass's leading edge |
-| `matched-diagonal-fine` | +31° at a finer pitch |
+| `matched-diagonal` | 59° the other way, shallow to the page edge |
+| `matched-diagonal-fine` | The same, at a finer pitch |
 
 **The rim is the stroke width, and that is not a coincidence twice over.** A
 keyline variant holds a solid rim around every edge and stripes only what is
@@ -72,10 +114,9 @@ Below ~40px every mass is "the bottom-left mass", and a variant asking to hold
 one flat would silently emit the unmodified icon. `build` raises rather than
 writing that file.
 
-Angle is the only real choice left in this round, and the ranking is the same
-one round one found: a stripe running *along* an edge is at the mercy of small
-angle differences, so `matched-diagonal` wedges where `matched-counter` and
-`matched-vertical` stay parallel-sided.
+Angle is the only real choice left in this round, and incidence against the
+page's top edge is what ranks them — 90° for `matched-counter`, 28° for
+`matched-diagonal`, which is why the latter's line ends taper.
 
 ## Round one
 
@@ -85,20 +126,20 @@ striped and the rim, where there is one, is 26px.
 | File suffix | Treatment | At 32px |
 |---|---|---|
 | `keyline-horizontal` | 26px keyline, horizontal stripes in both masses | Holds |
-| `keyline-diagonal` | 26px keyline, 31° stripes in both masses | Holds |
+| `keyline-diagonal` | 26px keyline, 59° stripes in both masses | Holds |
 | `grooved-horizontal` | Thin horizontal grooves, duty 0.72 | Holds |
-| `grooved-diagonal` | Thin grooves at −31°, duty 0.72 | Holds |
+| `grooved-diagonal` | Thin grooves at 59°, duty 0.72 | Holds |
 | `horizontal-fine` | Fine line screen, duty 0.5 | Greys out |
 | `horizontal` | Bold 50/50 horizontal | Breaks the side bars |
 | `vertical` | Bold 50/50 vertical | Breaks the diagonals |
-| `diagonal-counter` | Bold 50/50 at −31° | Breaks the mark |
-| `diagonal-parallel` | Bold 50/50 at +31° | Breaks the mark |
+| `diagonal-counter` | Bold 50/50 at 59° | Breaks the mark |
+| `diagonal-steep` | Bold 50/50 at 59°, the other way | Breaks the mark |
 
 **Duty cycle decides whether the mark survives, not angle.** At duty 0.5 a
 46px stroke lands on a 32px gap often enough to break into dashes — that is
-what happens to the side bars in `horizontal`, and to the diagonals in
-`diagonal-parallel`, where the stripes run along the strokes and erase them
-wholesale. The `grooved-*` variants run duty 0.72 for exactly this reason: the
+what happens to the side bars in `horizontal`, and to the top-left stroke in
+`diagonal-steep`, which its stripes cross at exactly 90° and chop into even
+dashes. The `grooved-*` variants run duty 0.72 for exactly this reason: the
 mark stays continuous and the stripes read as cuts in the fill rather than as
 gaps between fragments. Angle only decides *which* strokes take the damage.
 
@@ -107,7 +148,7 @@ gaps between fragments. Angle only decides *which* strokes take the damage.
 ```bash
 # One variant, at a coarser pitch and with more paper showing.
 python3 packaging/icon-variants/make_striped_icons.py \
-    --only matched-counter --pitch 96 --duty 0.6
+    --only page-10-26 --pitch 96 --duty 0.6
 ```
 
 `--pitch` is centre-to-centre at 1024 and scales with the source; `--duty` is
