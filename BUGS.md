@@ -31,10 +31,10 @@ it never ran, and the simulator is the project's only pre-device gate.
 
 | Reports | Device | What it hides |
 |---|---|---|
-| 1 MB free heap (`src/Arduino.h:41,51`) | ~380 KB, no PSRAM | every graceful-degradation gate: indexing pause, glyph prewarm, SD font streaming fallback, image/CSS/JPEG bailouts |
+| ~~1 MB free heap~~ **FIXED 2026-08-08** (`CROSSPOINT_SIM_HEAP`, `CROSSPOINT_SIM_HEAP_FREE`) (`src/Arduino.h:41,51`) | ~380 KB, no PSRAM | every graceful-degradation gate: indexing pause, glyph prewarm, SD font streaming fallback, image/CSS/JPEG bailouts |
 | `supportsAsyncRefresh()` false (`src/HalDisplay.cpp:603`) | supported | the overlapped page turn has never executed in a simulator run |
 | no panic ever (`src/HalSystem.cpp:5-8`) | 225 lines of panic handling | `CrashActivity` compiles in and cannot be entered |
-| battery 100%, USB always connected (`src/HalPowerManager.cpp:10`, `src/HalGPIO.cpp:930-931`) | real gauge + GPIO | charging bolt always drawn, plug/unplug repaint never fires |
+| ~~battery 100%, USB always connected~~ **FIXED 2026-08-08** — `CROSSPOINT_SIM_BATTERY=<0-100>`, `CROSSPOINT_SIM_USB=0`; default unchanged. Verified: at 7% unplugged the charging bolt is gone and the battery draws empty | real gauge + GPIO | was: charging bolt always drawn, plug/unplug repaint never fires |
 | `esp_ota_get_next_update_partition()` null (`src/esp_ota_ops.h:6-8`) | valid | SD firmware update shows "Invalid firmware" before reading a byte |
 | OTA pinned to NO_UPDATE (`src/simulator_ota.cpp:19-22`) | real check | the whole available→download→install flow is unreachable |
 
