@@ -106,16 +106,34 @@ PITCH = 64.0
 DUTY = 0.5
 
 
-def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0):
+def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0,
+            counter=None):
     """One entry in the variant table.
 
     `pitch` is a multiplier on the --pitch baseline; `rim` is in master pixels;
     `solid_masses` is how many of the mark's masses stay flat-filled, taken from
-    the bottom-left end (see `deep_components`).
+    the bottom-left end (see `deep_components`); `counter` treats the mark's
+    bottom-right counter -- None to leave it as paper, "solid" to fill it, or
+    (angle, line, gap, phase) to rule it.
     """
     return dict(
         name=name, angle=angle, pitch=pitch, duty=duty, rim=rim,
-        solid_masses=solid_masses, blurb=blurb,
+        solid_masses=solid_masses, counter=counter, blurb=blurb,
+    )
+
+
+def uniform_variant(name, counter, blurb):
+    """A variant whose every line is one weight: the mark's own stroke.
+
+    Line width, gap and rim are all STROKE_WIDTH, so a ruled line and an outline
+    are indistinguishable in weight and merge seamlessly where they meet. Both
+    masses are ruled -- nothing is left flat -- and the only thing that differs
+    across the family is what happens in the bottom-right counter.
+    """
+    return variant(
+        name, PAGE_ANGLE, blurb,
+        pitch=(2.0 * STROKE_WIDTH) / PITCH, duty=0.5,
+        rim=STROKE_WIDTH, solid_masses=0, counter=counter,
     )
 
 
@@ -145,6 +163,33 @@ def page_variant(line, gap, blurb):
 # earlier rounds are kept below as the record of what each correction was made
 # against, and because the variants that break the mark break it informatively.
 VARIANTS = [
+    # -- Round four: one weight throughout, varying the bottom-right -------
+    # Line width == gap == rim == STROKE_WIDTH, so nothing in the icon is drawn
+    # at a weight the mark does not already use, and a ruled line running into
+    # an outline reads as one stroke. Both masses are ruled. The bottom-right
+    # counter is the variable: paper, filled, ruled with the rest, ruled out of
+    # phase with it, or ruled the mirrored way as if it were the facing page.
+    uniform_variant(
+        "uniform-paper", None,
+        "Bottom-right left as paper.",
+    ),
+    uniform_variant(
+        "uniform-ruled", (PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.0),
+        "Bottom-right ruled with the same lines, in phase.",
+    ),
+    uniform_variant(
+        "uniform-offset", (PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.5),
+        "Bottom-right ruled half a period out of phase, so the lines interleave.",
+    ),
+    uniform_variant(
+        "uniform-mirror", (-PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.0),
+        "Bottom-right ruled the mirrored way, as if it were the facing page.",
+    ),
+    uniform_variant(
+        "uniform-solid", "solid",
+        "Bottom-right filled, the only flat area in the mark.",
+    ),
+
     # -- Round three: ruled lines lying along the page ---------------------
     # Same construction as round two -- matched rim, bottom-left mass flat --
     # turned to PAGE_ANGLE so the stripes run parallel to the right page's top
@@ -393,6 +438,110 @@ def deep_components(distance, size, rim, min_area):
     return labels, infos
 
 
+def paper_counters(mask, size, min_area, threshold=128):
+    """Label the mark's counters: paper regions enclosed by ink.
+
+    Everything else in this file operates on ink, but a counter is a hole --
+    the paper the mark encloses rather than the ink it lays down. Filling or
+    ruling one therefore needs the paper labelled, which is a flood from the
+    image border to mark the outside, then components of whatever paper is
+    left. The mark does not touch the canvas edge, so the border is all
+    outside and the flood has a clean seed.
+
+    Returns (flags, infos): flags is the label per pixel (0 = ink or outside),
+    infos is one (label, area, cx, cy) per counter over min_area, ordered
+    top-left to bottom-right by centroid. The mark has two -- a parallelogram
+    top-left, a triangle bottom-right -- and they separate on cx+cy.
+    """
+    total = size * size
+    outside = bytearray(total)
+    stack = []
+    for i in range(size):                       # top and bottom rows
+        for j in (i, total - size + i):
+            if mask[j] < threshold and not outside[j]:
+                outside[j] = 1
+                stack.append(j)
+    for y in range(size):                       # left and right columns
+        for j in (y * size, y * size + size - 1):
+            if mask[j] < threshold and not outside[j]:
+                outside[j] = 1
+                stack.append(j)
+
+    while stack:
+        i = stack.pop()
+        x = i % size
+        for j, inside in (
+            (i - 1, x > 0),
+            (i + 1, x + 1 < size),
+            (i - size, i >= size),
+            (i + size, i + size < total),
+        ):
+            if inside and not outside[j] and mask[j] < threshold:
+                outside[j] = 1
+                stack.append(j)
+
+    flags = [0] * total
+    infos = []
+    label = 0
+    for start in range(total):
+        if flags[start] or outside[start] or mask[start] >= threshold:
+            continue
+        label += 1
+        flags[start] = label
+        stack = [start]
+        area = sum_x = sum_y = 0
+        while stack:
+            i = stack.pop()
+            x = i % size
+            area += 1
+            sum_x += x
+            sum_y += i // size
+            for j, inside in (
+                (i - 1, x > 0),
+                (i + 1, x + 1 < size),
+                (i - size, i >= size),
+                (i + size, i + size < total),
+            ):
+                if inside and not flags[j] and not outside[j] and mask[j] < threshold:
+                    flags[j] = label
+                    stack.append(j)
+        if area >= min_area:
+            infos.append((label, area, sum_x / area, sum_y / area))
+
+    infos.sort(key=lambda info: info[2] + info[3])
+    return flags, infos
+
+
+def grown_counter(flags, mask, size, wanted):
+    """Membership in `wanted`, grown by one pixel into the mark's own edge AA.
+
+    The labels come off a thresholded mask, so the antialiased pixels along a
+    counter's boundary belong to neither side. Painting a counter solid without
+    this leaves those pixels at their original part-grey value -- a visible
+    hairline tracing the old boundary through the middle of a filled area.
+    """
+    total = size * size
+    grown = bytearray(total)
+    for i in range(total):
+        if flags[i] in wanted:
+            grown[i] = 1
+    out = bytearray(grown)
+    for i in range(total):
+        if grown[i] or mask[i] >= 255:
+            continue
+        x = i % size
+        for j, inside in (
+            (i - 1, x > 0),
+            (i + 1, x + 1 < size),
+            (i - size, i >= size),
+            (i + size, i + size < total),
+        ):
+            if inside and grown[j]:
+                out[i] = 1
+                break
+    return out
+
+
 # --------------------------------------------------------------------------
 # Stripes
 # --------------------------------------------------------------------------
@@ -415,7 +564,7 @@ def _band_average(t0, t1, period, on):
     return (F(t1) - F(t0)) / span
 
 
-def stripe_field(size, angle_deg, period, duty, centre):
+def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
     """Stripe coverage 0..255 per pixel for the whole canvas.
 
     Phase is anchored so an ink stripe is centred on `centre`. The mark is not
@@ -437,7 +586,7 @@ def stripe_field(size, angle_deg, period, duty, centre):
     field = bytearray(size * size)
     for y in range(size):
         # Hoisted: within a row only the x term changes, by ct each step.
-        t = (0.5 - cx) * ct + (y + 0.5 - cy) * st + on / 2.0
+        t = (0.5 - cx) * ct + (y + 0.5 - cy) * st + on / 2.0 + phase * period
         row = y * size
         for x in range(size):
             field[row + x] = int(
@@ -447,8 +596,14 @@ def stripe_field(size, angle_deg, period, duty, centre):
     return field
 
 
-def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels, solid):
-    """Composite: ink = mask coverage * fill coverage, painted black on white."""
+def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels,
+           solid, counter_flags=None, counter_field=None):
+    """Composite: ink = mask coverage * fill coverage, painted black on white.
+
+    The counter is painted OVER the result rather than added to it, so ink
+    already there is never doubled and a counter boundary that is half-ink
+    fills the rest of the way instead of overshooting.
+    """
     stripes = stripe_field(size, angle_deg, period, duty, centre)
     out = bytearray(size * size * 4)
     for i in range(size * size):
@@ -468,6 +623,10 @@ def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels, s
                     edge = rim + 1.0 - depth
                     fill = int(fill + (255 - fill) * edge + 0.5)
             coverage = coverage * fill // 255
+        if counter_flags is not None and counter_flags[i]:
+            add = 255 if counter_field is None else counter_field[i]
+            if add:
+                coverage += (255 - coverage) * add // 255
         value = 255 - coverage
         o = i * 4
         out[o] = out[o + 1] = out[o + 2] = value
@@ -490,6 +649,8 @@ def build(source, output_dir, pitch, duty_override, only):
     min_area = size * size // 500
     distance = None
     components = {}
+    counters = None
+    counter_cache = {}
     written = []
 
     for spec in VARIANTS:
@@ -518,11 +679,36 @@ def build(source, output_dir, pitch, duty_override, only):
                     )
                 solid = {info[0] for info in infos[: spec["solid_masses"]]}
 
+        counter_flags = counter_field = None
+        if spec["counter"] is not None:
+            if counters is None:
+                counters = paper_counters(mask, size, min_area)
+            flags, found = counters
+            if not found:
+                raise IconError(
+                    "%s treats the bottom-right counter, but no enclosed paper "
+                    "region over %d px was found in the artwork" % (name, min_area)
+                )
+            # Counters come back ordered top-left to bottom-right on cx+cy, so
+            # the bottom-right one is simply the last.
+            bottom_right = {found[-1][0]}
+            key = found[-1][0]
+            if key not in counter_cache:
+                counter_cache[key] = grown_counter(flags, mask, size, bottom_right)
+            counter_flags = counter_cache[key]
+            if spec["counter"] != "solid":
+                c_angle, c_line, c_gap, c_phase = spec["counter"]
+                counter_field = stripe_field(
+                    size, c_angle, (c_line + c_gap) * scale,
+                    c_line / float(c_line + c_gap), centre, c_phase,
+                )
+
         rgba_out = render(
             mask, size, spec["angle"],
             pitch * spec["pitch"] * scale,
             spec["duty"] if duty_override is None else duty_override,
             centre, rim, distance, labels, solid,
+            counter_flags, counter_field,
         )
 
         path = os.path.join(output_dir, "AppIcon-1024-striped-%s.png" % name)
