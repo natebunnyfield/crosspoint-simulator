@@ -10,8 +10,10 @@
 #define FREEINK_LOG_TRANSPORT_ROM_PRINTF 1
 #define FREEINK_LOG_TRANSPORT FREEINK_LOG_TRANSPORT_HWCDC
 
-#if defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_X4_PRO)
-#error "Select at most one simulated Xteink device"
+#if (defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_X4_PRO)) || \
+    (defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_STICKY)) ||  \
+    (defined(SIMULATOR_DEVICE_X4_PRO) && defined(SIMULATOR_DEVICE_STICKY))
+#error "Select at most one simulated device"
 #endif
 
 #if defined(SIMULATOR_DISPLAY_UC8179) && defined(SIMULATOR_DISPLAY_UC8279)
@@ -22,22 +24,37 @@
 #error "Xteink X3 revisions use UC8253 or UC8279d, not UC8179"
 #endif
 
-#if defined(SIMULATOR_DEVICE_X4_PRO)
+#if defined(SIMULATOR_DEVICE_STICKY) && \
+    (defined(SIMULATOR_DISPLAY_UC8179) || defined(SIMULATOR_DISPLAY_UC8279))
+#error "Seeed Sticky uses SSD1677; do not select an Xteink controller override"
+#endif
+
+#if defined(SIMULATOR_DEVICE_STICKY)
+#define FREEINK_DEVICE_X4 0
+#define FREEINK_DEVICE_X3 0
+#define FREEINK_DEVICE_X4PRO 0
+#define FREEINK_DEVICE_STICKY 1
+#define FREEINK_CAP_TOUCH 1
+#define FREEINK_CAP_FRONTLIGHT 0
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
 #define FREEINK_DEVICE_X4 0
 #define FREEINK_DEVICE_X3 0
 #define FREEINK_DEVICE_X4PRO 1
+#define FREEINK_DEVICE_STICKY 0
 #define FREEINK_CAP_TOUCH 1
 #define FREEINK_CAP_FRONTLIGHT 1
 #elif defined(SIMULATOR_DEVICE_X3)
 #define FREEINK_DEVICE_X4 0
 #define FREEINK_DEVICE_X3 1
 #define FREEINK_DEVICE_X4PRO 0
+#define FREEINK_DEVICE_STICKY 0
 #define FREEINK_CAP_TOUCH 0
 #define FREEINK_CAP_FRONTLIGHT 0
 #else
 #define FREEINK_DEVICE_X4 1
 #define FREEINK_DEVICE_X3 0
 #define FREEINK_DEVICE_X4PRO 0
+#define FREEINK_DEVICE_STICKY 0
 #define FREEINK_CAP_TOUCH 0
 #define FREEINK_CAP_FRONTLIGHT 0
 #endif
@@ -49,6 +66,7 @@ enum class Board {
   XteinkX3,
   XteinkX3Uc8279,
   XteinkX4Pro,
+  Sticky,
 };
 
 enum class DisplayController {
@@ -91,8 +109,12 @@ inline constexpr BoardProfile XTEINK_X3_UC8279 = {
 inline constexpr BoardProfile XTEINK_X4_PRO = {
     Board::XteinkX4Pro, "xteink_x4_pro", X4_DISPLAY_CONTROLLER,
     X4_DISPLAY_CONTROLLER_VARIANT};
+inline constexpr BoardProfile STICKY = {
+    Board::Sticky, "sticky", DisplayController::SSD1677, 0};
 
-#if defined(SIMULATOR_DEVICE_X4_PRO)
+#if defined(SIMULATOR_DEVICE_STICKY)
+inline BoardProfile ACTIVE = STICKY;
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
 inline BoardProfile ACTIVE = XTEINK_X4_PRO;
 #elif defined(SIMULATOR_DEVICE_X3)
 #if defined(SIMULATOR_DISPLAY_UC8279)
@@ -118,12 +140,16 @@ inline bool selectDevice(Board board) {
   case Board::XteinkX4Pro:
     ACTIVE = XTEINK_X4_PRO;
     return true;
+  case Board::Sticky:
+    ACTIVE = STICKY;
+    return true;
   }
   return false;
 }
 
 inline bool isX4Pro() { return ACTIVE.board == Board::XteinkX4Pro; }
-inline bool hasTouch() { return isX4Pro(); }
+inline bool isSticky() { return ACTIVE.board == Board::Sticky; }
+inline bool hasTouch() { return isX4Pro() || isSticky(); }
 inline bool hasHomeKey() { return isX4Pro(); }
 inline bool hasPwmFrontlight() { return isX4Pro(); }
 

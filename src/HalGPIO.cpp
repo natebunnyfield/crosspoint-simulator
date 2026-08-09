@@ -435,7 +435,12 @@ static int scancodeToButton(SDL_Scancode sc) {
 }
 
 void HalGPIO::begin() {
-#if defined(SIMULATOR_DEVICE_X4_PRO)
+#if defined(SIMULATOR_DEVICE_STICKY)
+  // The firmware's non-C3 path leaves the legacy device discriminator on X4;
+  // BoardConfig carries the actual Sticky identity and capabilities.
+  _deviceType = DeviceType::X4;
+  BoardConfig::selectDevice(BoardConfig::Board::Sticky);
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
   _deviceType = DeviceType::X4;
   BoardConfig::selectDevice(BoardConfig::Board::XteinkX4Pro);
 #elif defined(SIMULATOR_DEVICE_X3)

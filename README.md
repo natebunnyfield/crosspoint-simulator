@@ -53,13 +53,16 @@ these flags:
 - `-DSIMULATOR_DEVICE_X4_PRO` keeps the X4 family's 800x480 framebuffer and
   selects the X4 Pro board profile. It exposes touch and swipe input, the
   capacitive Home key, the RTC, display inversion, and frontlight state.
+- `-DSIMULATOR_DEVICE_STICKY` selects the Seeed Sticky's 800x480 SSD1677
+  profile. It exposes touch and swipe input, the RTC, and the tilt sensor
+  without exposing the X4 Pro-only Home key or frontlight.
 - `-DSIMULATOR_DISPLAY_UC8179` selects the newer UC8179 controller used by
   some X4 and X4 Pro production batches.
 - `-DSIMULATOR_DISPLAY_UC8279` selects UC8279d on X3, or the 800x480 UC8279
   controller on X4-family profiles.
 
 The sample PlatformIO files include ready-to-use environments for the original
-profiles plus `simulator_x3_uc8279`, `simulator_x4_uc8179`,
+profiles plus `simulator_sticky`, `simulator_x3_uc8279`, `simulator_x4_uc8179`,
 `simulator_x4_uc8279`, `simulator_x4_pro_uc8179`, and
 `simulator_x4_pro_uc8279`. The UC8279 X4 Pro path mirrors current FreeInk SDK
 support but remains pending validation on physical UC8279 X4 Pro hardware.
@@ -145,7 +148,7 @@ pio run -e simulator -t run_simulator
 | P      | Power                              |
 | S      | Simulate sleep                     |
 | H      | X4 Pro capacitive Home key         |
-| Mouse  | X4 Pro touch, tap, and swipe       |
+| Mouse  | Touch-device tap and swipe         |
 
 When the simulator is on the sleep screen, pressing any mapped simulator key wakes it. Under the hood the simulator relaunches itself and reports a synthetic power-button wake, because the native build has no real ESP deep-sleep resume path.
 
@@ -159,7 +162,7 @@ tests possible without desktop-control permissions:
   `<key>[:<hold-milliseconds>]`; keys are `BACK`, `ENTER`, `LEFT`, `RIGHT`,
   `UP`, `DOWN`, `POWER`, `SLEEP`, `HOME`, and `QUIT`. A normal key press is
   held for 80 ms unless a duration is provided.
-- X4 Pro touch actions use `TAP:<x>,<y>[,<hold-milliseconds>]` or
+- Touch-device actions use `TAP:<x>,<y>[,<hold-milliseconds>]` or
   `SWIPE:<x1>,<y1>,<x2>,<y2>[,<duration-milliseconds>]`. Coordinates are in
   displayed logical pixels, so they match UI layouts and screenshots after the
   firmware changes orientation. Normalized coordinates from 0.0 to 1.0 are
@@ -188,6 +191,14 @@ An X4 Pro touch and Home-key smoke test can use:
 CROSSPOINT_SIM_INPUT_SCRIPT='2000:TAP:240,530;3000:HOME:100;3900:QUIT' \
 CROSSPOINT_SIM_SCREENSHOTS='2500:./qa-artifacts/x4-pro-settings.bmp;3500:./qa-artifacts/x4-pro-home.bmp' \
   .pio/build/simulator_x4_pro/program
+```
+
+For Sticky, the same touch path is available without the Home key:
+
+```bash
+CROSSPOINT_SIM_INPUT_SCRIPT='2000:TAP:240,530;3600:QUIT' \
+CROSSPOINT_SIM_SCREENSHOTS='1500:./qa-artifacts/sticky-home.bmp;3000:./qa-artifacts/sticky-settings.bmp' \
+  .pio/build/simulator_sticky/program
 ```
 
 A deterministic sleep/wake smoke test can use:
