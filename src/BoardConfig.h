@@ -59,6 +59,8 @@
 #define FREEINK_CAP_FRONTLIGHT 0
 #endif
 
+#define FREEINK_MCU_C3 (FREEINK_DEVICE_X3 || FREEINK_DEVICE_X4)
+
 namespace BoardConfig {
 
 enum class Board {
@@ -81,6 +83,10 @@ struct BoardProfile {
   const char *name;
   DisplayController displayController;
   uint8_t displayControllerVariant;
+  struct {
+    int8_t up;
+    int8_t down;
+  } input;
 };
 
 #if defined(SIMULATOR_DISPLAY_UC8179)
@@ -101,16 +107,18 @@ inline constexpr uint8_t X4_DISPLAY_CONTROLLER_VARIANT = 0;
 
 inline constexpr BoardProfile XTEINK_X4 = {Board::XteinkX4, "xteink_x4",
                                            X4_DISPLAY_CONTROLLER,
-                                           X4_DISPLAY_CONTROLLER_VARIANT};
+                                           X4_DISPLAY_CONTROLLER_VARIANT,
+                                           {4, 5}};
 inline constexpr BoardProfile XTEINK_X3 = {Board::XteinkX3, "xteink_x3",
-                                           DisplayController::UC8253, 0};
+                                           DisplayController::UC8253, 0, {4, 5}};
 inline constexpr BoardProfile XTEINK_X3_UC8279 = {
-    Board::XteinkX3Uc8279, "xteink_x3_uc8279", DisplayController::UC8279, 0};
+    Board::XteinkX3Uc8279, "xteink_x3_uc8279", DisplayController::UC8279, 0,
+    {4, 5}};
 inline constexpr BoardProfile XTEINK_X4_PRO = {
     Board::XteinkX4Pro, "xteink_x4_pro", X4_DISPLAY_CONTROLLER,
-    X4_DISPLAY_CONTROLLER_VARIANT};
+    X4_DISPLAY_CONTROLLER_VARIANT, {0, 7}};
 inline constexpr BoardProfile STICKY = {
-    Board::Sticky, "sticky", DisplayController::SSD1677, 0};
+    Board::Sticky, "sticky", DisplayController::SSD1677, 0, {5, 6}};
 
 #if defined(SIMULATOR_DEVICE_STICKY)
 inline BoardProfile ACTIVE = STICKY;
