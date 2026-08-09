@@ -11,8 +11,9 @@ macOS .icns follows automatically (packaging/macos/make_icns.py derives it).
 
 WHY DERIVE FROM THE ARTWORK INSTEAD OF REDRAWING
 ------------------------------------------------
-There is no vector source for the mark in this repo -- the 1024 PNG *is* the
-master. Redrawing the outline by hand to fill it with stripes would produce a
+There is no vector source for the mark in this repo -- the flat 1024 PNG *is*
+the master (mark-flat-1024.png here, preserved byte-for-byte from the original
+app icon when uniform-paper was adopted in its place). Redrawing the outline by hand to fill it with stripes would produce a
 second, slightly-wrong copy of the shape, and every variant would inherit that
 error. So the mark's ink coverage is read straight out of the master PNG and
 used as a mask: the silhouette of every variant is the current icon's, exactly,
@@ -77,8 +78,11 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "packaging", "macos"))
 # the repo rather than a second copy that drifts.
 from make_icns import IconError, read_png, write_png  # noqa: E402
 
+# The FLAT mark, preserved when uniform-paper was adopted as the app icon.
+# The generator must keep reading the flat artwork: pointing it at the app
+# icon would stripe an already-striped mark.
 DEFAULT_SOURCE = os.path.join(
-    REPO_ROOT, "ios", "Assets.xcassets", "AppIcon.appiconset", "AppIcon-1024.png"
+    REPO_ROOT, "packaging", "icon-variants", "mark-flat-1024.png"
 )
 DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
