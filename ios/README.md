@@ -631,6 +631,40 @@ simulator cannot reproduce.
 
 Logs are greppable: every line starts `[READALOUD] `.
 
+### Accessibility — VoiceOver, Speak Screen, Braille, Switch Control
+
+The page is published as `UIAccessibilityElements` over a transparent container
+above the SDL view, one element per LINE (Speak Screen concatenates elements, so
+per-word would pause after every word). `[A11Y]` lines carry the state.
+
+**The trap, which cost three builds: overriding `-accessibilityElements` does
+nothing.** UIKit answers assistive technology through the
+`UIAccessibilityContainer` methods — `accessibilityElementCount`,
+`accessibilityElementAtIndex:`, `indexOfAccessibilityElement:` — and `UIView`
+derives those from the STORED `accessibilityElements` property, not from an
+override of its getter. A container with a custom getter sits in the hierarchy,
+front-most and correctly framed, reporting **zero children**, and every
+assistive technology says "no speakable content could be found on the screen".
+Implement the three methods explicitly; set the property too.
+
+**Diagnose it with the traversal, not by reasoning.**
+`CrossPointAccessibility_dumpTree()` walks the hierarchy using the same public
+API an assistive technology uses and logs what is reachable. It runs once per
+launch and is the fastest way to tell which half is broken:
+
+    [A11Y-TREE] CPAccessibilityOverlay isElement=0 children=22
+    [A11Y-TREE]   UIAccessibilityElement isElement=1 label="and then, in silver armour, "
+
+`children=0` means the container is not exposing them — a code bug. No
+`[A11Y] N word rects -> M line elements` line at all means the page never
+arrived, which is the channel, not accessibility. Two fixes were shipped here on
+reasoning about what UIKit "should" do before anyone ran this; both were wrong.
+
+**Speak Screen cannot be tested in the simulator** — its Spoken Content pane
+offers only Speak Selection and Pronunciations, so
+`UIAccessibilityIsSpeakScreenEnabled()` reads 0 and the two-finger gesture does
+nothing. VoiceOver is available there and reads the same elements.
+
 ## Keyboards — Bluetooth and on-screen
 
 **Both work, in every text field the firmware has**, and they are the same
