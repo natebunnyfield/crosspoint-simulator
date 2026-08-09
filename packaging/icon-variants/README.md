@@ -57,9 +57,36 @@ because its lines met the right page's top edge at exactly 90°;
 `matched-diagonal` wedged because it met that same edge at a shallow 28°, so
 its line ends drew long tapers.
 
+## Round four: `uniform-*`
+
+The current direction. **Nothing in the icon is drawn at a weight the mark does
+not already use:** line, gap and rim are all `STROKE_WIDTH`, so a ruled line
+running into an outline merges into one continuous stroke instead of reading as
+two elements that happen to touch. Both masses are ruled — nothing is held
+flat. The only thing that varies is the bottom-right counter.
+
+| File suffix | Bottom-right counter |
+|---|---|
+| `uniform-paper` | Left as paper |
+| `uniform-ruled` | Ruled with the same lines, in phase |
+| `uniform-offset` | Ruled half a period out of phase, so the lines interleave |
+| `uniform-mirror` | Ruled the mirrored way, as if it were the facing page |
+| `uniform-solid` | Filled, the only flat area in the mark |
+
+**A counter is paper, not ink**, which is why it needed new machinery. Every
+other treatment in this file operates on the ink mask; a counter is the paper
+the mark *encloses*. `paper_counters` floods from the canvas border to mark the
+outside, then labels whatever paper is left — two regions, a parallelogram
+top-left and a triangle bottom-right, which separate on `cx + cy`.
+
+`grown_counter` then widens that membership by one pixel into the mark's own
+edge antialiasing. Without it, filling a counter solid leaves the boundary's
+part-grey pixels untouched: a visible hairline tracing the old edge through the
+middle of a filled black area.
+
 ## Round three: `page-*`
 
-The current direction: round two's construction with the lines lying *along*
+Round two's construction with the lines lying *along*
 the right page rather than cutting across it, so they read as text ruled on the
 page. Line and gap are what vary, and they are what the filenames carry —
 `page-<line>-<gap>`, in master pixels at 1024.
