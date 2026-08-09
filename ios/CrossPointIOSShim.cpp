@@ -165,6 +165,19 @@ void applyActions(const std::vector<PadCore::Action> &actions) {
 // The top row hugs the panel (SimulatorOverlay::panelBottomPx) so thumbs rest
 // at the page; before the first present it falls back to sitting just above
 // the bottom row.
+// KEYBOARD CLEARANCE (owner ruling 2026-08-09: "move panel up so ios full
+// keyboard would not overlap it (can be dynamic, if needed to be)").
+//
+// The iOS keyboard covers the bottom ~25% of the screen and used to bury the
+// firmware's own key grid and the lower pad rows -- the panel did not move.
+// This is the dynamic answer: the harness publishes the keyboard's height as
+// it animates, layoutPad* adds it to the reserved bottom band, and the panel's
+// existing top-aligned fit lifts the page clear. Zero when no keyboard is up,
+// so the ordinary reading layout is byte-identical to before.
+//
+// Point coordinates, like everything else in this file.
+float g_keyboardHeightPt = 0.0f;
+
 constexpr float kOptimalSquare = 60.0f;      // owner-picked target size
 constexpr float kHomeInsetFallback = 34.0f;  // when the safe area is unreadable
 constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe area 0)
@@ -214,7 +227,10 @@ void layoutPadTablet(float W, float H, float S) {
   const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
   const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
   const float outWpx = W * S, outHpx = H * S;
-  const float availPx = SDL_max(1.0f, (H - safeTop - safeBottom) * S);
+  // The keyboard eats from the bottom of the usable height, so the centred
+  // panel shrinks and rises rather than sitting under the keys.
+  const float availPx =
+      SDL_max(1.0f, (H - safeTop - safeBottom - g_keyboardHeightPt) * S);
   float scale = SDL_min(outWpx / logW, availPx / logH);
   if (scale >= 1.0f) scale = SDL_floorf(scale);
   const float panelWpx = logW * scale, panelHpx = logH * scale;
@@ -229,7 +245,11 @@ void layoutPadTablet(float W, float H, float S) {
   const float leftX = (margin - 2.0f * cell) / 2.0f;
   const float rightX = W - margin + leftX;
   const float midY = (H - cell) / 2.0f;
-  const float lowerY = H - SDL_max(safeBottom, kHomeInsetMin) - half;
+  // The keyboard lifts the bottom row with it. Without this the row -- POWER
+  // and the page-turn rocker -- sits UNDER the keyboard and cannot be reached
+  // while typing (the keyboard is its own window and eats the touches).
+  const float lowerY =
+      H - g_keyboardHeightPt - SDL_max(safeBottom, kHomeInsetMin) - half;
 
   auto place = [&](int idx, float x, float y, float w, float h) {
     g_pad[idx].rect = {x * S, y * S, w * S, h * S};
@@ -243,6 +263,14 @@ void layoutPadTablet(float W, float H, float S) {
   place(kPadPower, leftX, lowerY, cell, half);
   place(kPadUp, rightX, lowerY, cell, half);
   place(kPadDown, rightX + cell, lowerY, cell, half);
+}
+
+// Called from the keyboard notifications (CrossPointHarness). Height in
+// POINTS, 0 when the keyboard is down. Cheap enough to call per frame of the
+// animation: the relayout only fires when the integer point height changes.
+extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt) {
+  if (heightPt < 0.0f) heightPt = 0.0f;
+  g_keyboardHeightPt = heightPt;
 }
 
 void layoutPad(int outW, int outH) {
@@ -330,7 +358,10 @@ void layoutPad(int outW, int outH) {
   // Bottom row: half-height, anchored at the bottom of the screen, then lifted
   // with the rest of the pad. Lifting it here rather than only the top row is
   // what keeps the pad's own proportions: the two rows move as a block.
-  const float lowerY = H - bottomInset - kHalf - kPipLift;
+  // Keyboard-aware, same reason as the tablet path: the bottom row must stay
+  // reachable while typing. maxUpper derives from lowerY, so the top row
+  // follows automatically and the two rows keep their spacing.
+  const float lowerY = H - g_keyboardHeightPt - bottomInset - kHalf - kPipLift;
 
   // Top row hugs the panel at the chassis-matched gap less the lift, clamped
   // clear of the bottom row and never over the page.
@@ -374,8 +405,10 @@ void layoutPad(int outW, int outH) {
   // the first present settles it (panelBottom-change already triggers that
   // relayout in paintPad). Before the first present the kGap fallback keeps
   // the band close to its old constant value.
+  // The keyboard band is added on top of the pad band: when a keyboard is up
+  // the pad is under it anyway, so the page must clear BOTH.
   SimulatorOverlay::setBottomInset(static_cast<int>(
-      (panelGap + kSquare + kRowClear + kHalf + bottomInset) * S));
+      (panelGap + kSquare + kRowClear + kHalf + bottomInset + g_keyboardHeightPt) * S));
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
@@ -872,11 +905,15 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // Relayout when the panel's published bottom edge moves (first present,
   // orientation change) as well as on size changes.
   static int s_layoutPanelBottom = -1;
+  static int s_layoutKeyboardPt = -1;
   const int panelBottom = SimulatorOverlay::panelBottomPx();
-  if (!g_padLaidOut || panelBottom != s_layoutPanelBottom) {
+  const int keyboardPt = static_cast<int>(g_keyboardHeightPt);
+  if (!g_padLaidOut || panelBottom != s_layoutPanelBottom ||
+      keyboardPt != s_layoutKeyboardPt) {
     layoutPad(outW, outH);
     g_padLaidOut = true;
     s_layoutPanelBottom = panelBottom;
+    s_layoutKeyboardPt = keyboardPt;
   }
   const Palette &p = palette();
   const float S = g_ptScale;
