@@ -92,6 +92,13 @@ DIAGONAL_ANGLE = math.degrees(math.atan2(3.0, 5.0))
 # angle names the normal.
 PAGE_ANGLE = math.degrees(math.atan2(5.0, 3.0))
 
+# Per-mass ruling directions for the "facing" family, in the order
+# deep_components returns the masses: bottom-left first. The lower sheet's own
+# edges run the top-left-to-bottom-right diagonal (measured +5/3 off the
+# master), so it rules at -PAGE_ANGLE; the upper page keeps PAGE_ANGLE. The
+# two rulings mirror at the fold, like text on the facing pages of the book.
+FACING_ANGLES = (-PAGE_ANGLE, PAGE_ANGLE)
+
 # Stroke width of the mark at 1024, measured off the master. Doubles as the rim
 # that makes every outline read at one weight -- see the module docstring.
 STROKE_WIDTH = 46.0
@@ -107,7 +114,7 @@ DUTY = 0.5
 
 
 def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0,
-            counter=None, fit=False):
+            counter=None, fit=False, mass_angles=None):
     """One entry in the variant table.
 
     `pitch` is a multiplier on the --pitch baseline; `rim` is in master pixels;
@@ -116,14 +123,17 @@ def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0,
     bottom-right counter -- None to leave it as paper, "solid" to fill it, or
     (angle, lines) to rule it. `fit` solves each region's gap so the ruling
     lands flush on both rims instead of wherever the phase happens to fall.
+    `mass_angles` gives each fitted mass its own ruling direction, listed
+    bottom-left mass first (the order deep_components returns them).
     """
     return dict(
         name=name, angle=angle, pitch=pitch, duty=duty, rim=rim,
-        solid_masses=solid_masses, counter=counter, fit=fit, blurb=blurb,
+        solid_masses=solid_masses, counter=counter, fit=fit,
+        mass_angles=mass_angles, blurb=blurb,
     )
 
 
-def uniform_variant(name, counter, blurb):
+def uniform_variant(name, counter, blurb, mass_angles=None):
     """A variant whose every line is one weight: the mark's own stroke.
 
     Line width, gap and rim are all STROKE_WIDTH, so a ruled line and an outline
@@ -135,6 +145,7 @@ def uniform_variant(name, counter, blurb):
         name, PAGE_ANGLE, blurb,
         pitch=(2.0 * STROKE_WIDTH) / PITCH, duty=0.5,
         rim=STROKE_WIDTH, solid_masses=0, counter=counter, fit=True,
+        mass_angles=mass_angles,
     )
 
 
@@ -158,14 +169,48 @@ def page_variant(line, gap, blurb):
 # 0 gives vertical stripes, 90 gives horizontal, and anything between names the
 # stripe's normal rather than the stripe.
 #
-# ROUND THREE is the current direction: round two's construction -- matched
-# outlines, bottom-left mass flat -- with the stripes lying ALONG the page
-# instead of cutting across it, and line/gap as the thing being varied. The
-# earlier rounds are kept below as the record of what each correction was made
-# against, and because the variants that break the mark break it informatively.
+# ROUND FIVE is the current direction: each sheet ruled along its own fold.
+# The earlier rounds are kept below as the record of what each correction was
+# made against, and because the variants that break the mark break it
+# informatively.
 VARIANTS = [
+    # -- Round five: each sheet ruled along its own fold -------------------
+    # Round four ruled everything parallel to the right page's top edge, which
+    # cuts ACROSS the lower sheet -- its own edges run the other diagonal.
+    # Here the bottom-left mass rotates to -PAGE_ANGLE, top-left to
+    # bottom-right, so each sheet's ruling lies along its own edges and the
+    # two read as the facing pages of the open book, mirrored at the fold.
+    # The bottom-right counter stays the variable: paper, ruled with the lower
+    # sheet, a single line of it, ruled with the UPPER page instead, or filled.
+    uniform_variant(
+        "facing-paper", None,
+        "Lower sheet rotated to its own diagonal; bottom-right left as paper.",
+        mass_angles=FACING_ANGLES,
+    ),
+    uniform_variant(
+        "facing-ruled", (-PAGE_ANGLE, None),
+        "Bottom-right ruled with the lower sheet.",
+        mass_angles=FACING_ANGLES,
+    ),
+    uniform_variant(
+        "facing-single", (-PAGE_ANGLE, 1),
+        "Bottom-right carrying a single line of the lower sheet's ruling.",
+        mass_angles=FACING_ANGLES,
+    ),
+    uniform_variant(
+        "facing-upper", (PAGE_ANGLE, None),
+        "Bottom-right ruled with the upper page instead.",
+        mass_angles=FACING_ANGLES,
+    ),
+    uniform_variant(
+        "facing-solid", "solid",
+        "Lower sheet rotated; bottom-right filled.",
+        mass_angles=FACING_ANGLES,
+    ),
+
     # -- Round four: one weight throughout, varying the bottom-right -------
-    # Line width == gap == rim == STROKE_WIDTH, so nothing in the icon is drawn
+    # Line width == rim == STROKE_WIDTH (gaps are solved per region), so
+    # nothing in the icon is drawn
     # at a weight the mark does not already use, and a ruled line running into
     # an outline reads as one stroke. Both masses are ruled. The bottom-right
     # counter is the variable: paper, ruled to match, ruled with a single line,
@@ -747,7 +792,8 @@ def build(source, output_dir, pitch, duty_override, only):
         # around a hole that the finished icon does not have, and leave a rim
         # arcing around an apex that is no longer there.
         work = mask
-        fill_stop = fill_probe = None
+        fill_probe = None
+        fill_flags = fill_label = None
         if spec["counter"] == "solid":
             if counters is None:
                 counters = paper_counters(mask, size, min_area)
@@ -759,14 +805,13 @@ def build(source, output_dir, pitch, duty_override, only):
                     if filled[i]:
                         work[i] = 255
                 # The counter is still painted solid below; filling `work` only
-                # changes what the rim and the fit are measured against. Its
-                # leading edge becomes where the ruling above it must stop, and
-                # any pixel inside it identifies the mass that swallowed it.
-                fill_stop = region_extent(
-                    flags, found[-1][0], size, spec["angle"], centre
-                )[0]
+                # changes what the rim and the fit are measured against. Any
+                # pixel inside it identifies the mass that swallowed it; its
+                # extent is measured in the mass loop, along that mass's own
+                # angle, to cap the ruling flush on the fill's leading edge.
+                fill_flags, fill_label = flags, found[-1][0]
                 fill_probe = next(i for i in range(size * size)
-                                  if flags[i] == found[-1][0])
+                                  if flags[i] == fill_label)
 
         if rim is not None:
             if work is mask:
@@ -786,29 +831,35 @@ def build(source, output_dir, pitch, duty_override, only):
                 labels, infos = components[comp_key]
                 line = STROKE_WIDTH * scale
                 mass_fields = {}
-                for label, _area, _cx, _cy in infos:
-                    t_lo, t_hi = region_extent(
-                        labels, label, size, spec["angle"], centre
-                    )
-                    if fill_stop is not None and labels[fill_probe] == label:
+                for index, (label, _area, _cx, _cy) in enumerate(infos):
+                    # infos is ordered bottom-left to top-right -- the same
+                    # order mass_angles is written in.
+                    angle_m = spec["angle"]
+                    if spec["mass_angles"] is not None:
+                        angles = spec["mass_angles"]
+                        angle_m = angles[min(index, len(angles) - 1)]
+                    t_lo, t_hi = region_extent(labels, label, size, angle_m, centre)
+                    if fill_probe is not None and labels[fill_probe] == label:
                         # This mass swallowed the filled counter. Fitting across
                         # the pair would put a gap astride the counter's edge and
                         # leave a wedge of paper on top of the fill; the edge is
-                        # parallel to the ruling, so ending flush on it instead
-                        # is exact.
-                        t_hi = fill_stop
+                        # parallel to this mass's ruling, so ending flush on it
+                        # instead is exact.
+                        t_hi = region_extent(
+                            fill_flags, fill_label, size, angle_m, centre
+                        )[0]
                     fitted = fit_ruling(t_lo, t_hi, line=line)
                     if fitted is None:
                         continue        # too narrow to rule; render() leaves it solid
                     period, duty_m, phase, count = fitted
-                    key = (spec["angle"], round(period, 4), round(phase, 6))
+                    key = (angle_m, round(period, 4), round(phase, 6))
                     if key not in field_cache:
                         field_cache[key] = stripe_field(
-                            size, spec["angle"], period, duty_m, centre, phase
+                            size, angle_m, period, duty_m, centre, phase
                         )
                     mass_fields[label] = field_cache[key]
-                    fits.append("mass %d: %d lines of %.0fpx, %.1fpx gaps"
-                                % (label, count, line, period - line))
+                    fits.append("mass %d: %d lines of %.0fpx, %.1fpx gaps at %+.0f deg"
+                                % (label, count, line, period - line, angle_m))
             if spec["solid_masses"]:
                 if comp_key not in components:
                     components[comp_key] = deep_components(

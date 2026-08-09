@@ -57,9 +57,33 @@ because its lines met the right page's top edge at exactly 90°;
 `matched-diagonal` wedged because it met that same edge at a shallow 28°, so
 its line ends drew long tapers.
 
+## Round five: `facing-*`
+
+The current direction. The lower sheet — the bottom-left mass, the right
+page's continuation under the fold — has its own edges on the *other*
+diagonal, top-left to bottom-right, so round four's single-direction ruling
+cut across its grain. Here each sheet is ruled along its own fold:
+the upper page keeps its direction, the lower sheet rotates to the mirrored
+angle, and the two read as the facing pages of the open book. Its two lines
+re-fit at 43.5px gaps (was 44.4 across the grain); the upper page is
+untouched.
+
+`mass_angles` carries the per-sheet directions, listed bottom-left mass first
+(the order `deep_components` returns them). The flush-stop cap for a filled
+counter is measured along the swallowed mass's own angle, so `uniform-solid`
+regenerates byte-identically.
+
+| File suffix | Bottom-right counter |
+|---|---|
+| `facing-paper` | Left as paper |
+| `facing-ruled` | Ruled with the lower sheet — the lower band reads as one chevron |
+| `facing-single` | A single line of the lower sheet's ruling |
+| `facing-upper` | Ruled with the upper page instead |
+| `facing-solid` | Filled — measured on the filled geometry |
+
 ## Round four: `uniform-*`
 
-The current direction. **Nothing in the icon is drawn at a weight the mark does
+One direction throughout, what the rotation was made against. **Nothing in the icon is drawn at a weight the mark does
 not already use:** line, gap and rim are all `STROKE_WIDTH`, so a ruled line
 running into an outline merges into one continuous stroke instead of reading as
 two elements that happen to touch. Both masses are ruled — nothing is held
