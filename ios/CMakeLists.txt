@@ -187,6 +187,19 @@ target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=2)
 # is not set, so an iOS build always has at least the four S-tier families.
 # Stripping them saves ~1 MB of arm64 .o / binary section.
 # CalendarSleepScreen and getReaderFontId() both already handle OMIT_FONTS.
+#
+# WHAT THIS DEFINE HAS ALREADY COST, so the next person weighs it properly:
+# it strips font DATA while src/fontIds.h keeps vending the ids, so callers
+# still believe the fonts exist. Nothing fails to compile and nothing warns --
+# the renderer simply has no glyphs for an id it was just handed. iOS is the
+# ONLY build that defines it, so anything it breaks is invisible on desktop.
+#
+# It broke the editor fonts exactly that way: Space Mono and IBM Plex Mono are
+# the editor's fallback on a blank card, they sat inside the guard, and on the
+# phone all five Editor Font rows fell through to UI chrome. Both are outside
+# it now, alongside Libre Franklin 14 (the reader's default answer), and
+# test/omit_fonts pins that set -- moving one back inside fails a test instead
+# of shipping silently.
 target_compile_definitions(crosspoint_core PUBLIC OMIT_FONTS)
 
 # Firmware-flash TUs (OTA, SD Firmware Update) are excluded from the iOS source
@@ -203,6 +216,13 @@ target_compile_definitions(crosspoint_core PUBLIC OMIT_FONTS)
 # features the app can actually run. Flashing an ESP32 partition from a phone is
 # the only part that stays impossible, so the name now says only that.
 target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_DEVICE_FLASH=1)
+# No side buttons on this chassis: the harness draws an on-screen pad instead,
+# so the firmware's bracket hints label controls that do not exist -- and on a
+# tablet they render inside the text column, running through the note being
+# typed (owner ruling + screenshot, 2026-08-09). PUBLIC on the CORE target, per
+# the one-device-macro rule: a define that reaches only the app target produces
+# halves that disagree.
+target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_PHYSICAL_SIDE_BUTTONS=1)
 
 # --- Define parity gate ----------------------------------------------------
 #
