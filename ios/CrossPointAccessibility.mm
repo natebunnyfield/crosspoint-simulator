@@ -159,6 +159,16 @@ void CrossPointAccessibility_noteReading(const char *what, long value);
 namespace {
 
 __weak CPAccessibilityOverlay *g_overlay = nil;
+// The REAL text view. Builds 46-50 measured Speak Screen ignoring every
+// synthetic exposure -- container methods, elements getter, ReadingContent,
+// even elements vended straight from the window -- without issuing a single
+// query, while the owner's Safari control test shows it reading real text
+// machinery fine. So the page is also carried by an actual UITextView: real
+// TextKit storage, which Speak Screen's extraction reads without ever calling
+// application code. Glyphs are clear (the panel already draws the page);
+// non-editable, non-interactive, so it can neither take the keyboard nor eat
+// a touch.
+__weak UITextView *g_pageTextView = nil;
 long g_queryBudget = 0;
 long g_readingBudget = 0;
 bool g_inDump = false;
@@ -355,7 +365,46 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   // window.accessibilityElements) and is gated like the page element so the
   // confirmed VoiceOver experience keeps its single un-duplicated source.
   UIWindow *host = overlay.window;
-  if (host) host.accessibilityElements = wantsReadingPage() ? overlay.cpElements : nil;
+  // NO window-level accessibilityElements mirror. Build 50 measured it doing
+  // nothing on the device (Speak Screen still issued zero queries with the
+  // page vending straight from the window), and the AX probe then caught it
+  // doing active harm: an explicit accessibilityElements list on the window
+  // REPLACES automatic subview traversal, which hid the real text view below
+  // from the very reader it exists for.
+  if (host) host.accessibilityElements = nil;
+  if (host && wantsReadingPage()) {
+    UITextView *tv = g_pageTextView;
+    if (!tv || tv.window != host) {
+      [g_pageTextView removeFromSuperview];
+      tv = [[UITextView alloc] initWithFrame:host.bounds];
+      tv.editable = NO;
+      tv.scrollEnabled = NO;
+      tv.userInteractionEnabled = NO;
+      tv.backgroundColor = UIColor.clearColor;
+      tv.textColor = UIColor.clearColor;
+      tv.accessibilityIdentifier = @"crosspoint.page-textview";
+      [host addSubview:tv];
+      g_pageTextView = tv;
+      CrossPointDiag_log("page text view installed");
+    }
+    // The panel rect, so the view sits where the text actually is. The text
+    // itself is the page in reading order; per-line positioning is not
+    // attempted -- Speak Screen's extraction wants the text, and the sighted
+    // rendering is the panel's own ink.
+    CGFloat px0 = 0, py0 = 0, ps = 0;
+    if (panelGeometryPts(&px0, &py0, &ps)) {
+      tv.frame = CGRectMake(px0, py0, (CGFloat)HalDisplay::LOGICAL_HEIGHT * ps,
+                            (CGFloat)HalDisplay::LOGICAL_WIDTH * ps);
+    }
+    tv.font = [UIFont systemFontOfSize:17];
+    tv.text = [[NSString alloc] initWithBytes:text.data() length:text.size()
+                                     encoding:NSUTF8StringEncoding] ?: @"";
+    [host bringSubviewToFront:overlay];
+  } else if (g_pageTextView) {
+    [g_pageTextView removeFromSuperview];
+    g_pageTextView = nil;
+    CrossPointDiag_log("page text view removed (mode off)");
+  }
   g_queryBudget = 6;
   g_readingBudget = 8;
   g_builtMode = wantsReadingPage() ? 1 : 0;
@@ -546,6 +595,6 @@ void CrossPointAccessibility_clear(void) {
   }
   overlay.cpElements = @[];
   overlay.accessibilityElements = @[];
-  if (overlay.window) overlay.window.accessibilityElements = nil;
+  g_pageTextView.text = @"";
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
 }
