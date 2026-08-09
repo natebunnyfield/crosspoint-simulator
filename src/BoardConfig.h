@@ -10,6 +10,10 @@
 #define FREEINK_LOG_TRANSPORT_ROM_PRINTF 1
 #define FREEINK_LOG_TRANSPORT FREEINK_LOG_TRANSPORT_HWCDC
 
+#if defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_X4_PRO)
+#error "Select at most one simulated Xteink device"
+#endif
+
 #if defined(SIMULATOR_DISPLAY_UC8179) && defined(SIMULATOR_DISPLAY_UC8279)
 #error "Select at most one simulated display controller"
 #endif

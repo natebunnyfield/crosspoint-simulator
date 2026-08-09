@@ -5,7 +5,8 @@
 #if __has_include_next(<PNGdec.h>)
 #include_next <PNGdec.h>
 #else
-#error "CROSSPOINT_SIM_USE_NATIVE_DECODERS requires PNGdec in this PlatformIO environment"
+#error                                                                         \
+    "CROSSPOINT_SIM_USE_NATIVE_DECODERS requires PNGdec in this PlatformIO environment"
 #endif
 #else
 #include_next <PNGdec.h>
@@ -90,9 +91,8 @@ public:
     closeCb(handle);
 
     if (totalRead <= 0 ||
-        !simulator_image::decodeImageBytes(encoded.data(),
-                                           static_cast<size_t>(totalRead), 4,
-                                           image_)) {
+        !simulator_image::decodeImageBytes(
+            encoded.data(), static_cast<size_t>(totalRead), 4, image_)) {
       return lastError_ = PNG_INVALID_FILE;
     }
 
@@ -107,6 +107,7 @@ public:
   int hasAlpha() const { return image_.hasAlpha ? 1 : 0; }
   uint32_t getTransparentColor() const { return 0; }
   int decode(void *user, int) {
+    lastError_ = PNG_SUCCESS;
     if (!drawCb_ || image_.pixels.empty() || image_.width <= 0 ||
         image_.height <= 0) {
       return lastError_ = PNG_INVALID_FILE;
