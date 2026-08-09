@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "HalDisplay.h"
+#include "HalGPIO.h"
 #include "CrossPointDiagLog.h"
 #include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
@@ -20,6 +21,81 @@
 // Throttled query log; defined below the namespace block.
 void CrossPointAccessibility_noteQuery(const char *what, long value);
 void CrossPointAccessibility_installFocusObserver(void);
+
+// THE FIX SELECTED BY MEASUREMENT, and the probe that will judge it.
+//
+// The evidence chain across builds 46-48: the page publishes, the hierarchy is
+// clean, the device AX server serves our per-line elements (VoiceOver read
+// them aloud on the owner's phone), and Speak Screen still reports "no
+// speakable content" WITHOUT ever querying the container. So Speak Screen's
+// content filter rejects a bag of plain static-text elements as page content.
+//
+// UIAccessibilityReadingContent is Apple's designed marker for exactly this --
+// paged reading apps; it is what Books adopts. One element spans the page,
+// vends the text per line and as a whole, and carries CausesPageTurn so
+// continuous reading can turn pages through the same BTN_RIGHT injection the
+// read-aloud adapter already uses.
+//
+// Every protocol method logs (throttled), so the next device log SHOWS Speak
+// Screen consuming this -- or proves it does not, in which case this class is
+// measured out the way four other hypotheses were.
+@interface CPReadingPageElement : UIAccessibilityElement <UIAccessibilityReadingContent>
+@property(nonatomic, strong) NSArray<NSString *> *cpLines;
+@property(nonatomic, strong) NSArray<NSValue *> *cpLineFrames;  // screen pts
+@property(nonatomic, copy) NSString *cpPageText;
+@end
+
+void CrossPointAccessibility_noteReading(const char *what, long value);
+
+@implementation CPReadingPageElement
+
+- (NSInteger)accessibilityLineNumberForPoint:(CGPoint)point {
+  for (NSUInteger i = 0; i < self.cpLineFrames.count; i++) {
+    if (CGRectContainsPoint(self.cpLineFrames[i].CGRectValue, point)) {
+      CrossPointAccessibility_noteReading("lineNumberForPoint", (long)i);
+      return (NSInteger)i;
+    }
+  }
+  CrossPointAccessibility_noteReading("lineNumberForPoint", -1);
+  return NSNotFound;
+}
+
+- (NSString *)accessibilityContentForLineNumber:(NSInteger)lineNumber {
+  CrossPointAccessibility_noteReading("contentForLine", (long)lineNumber);
+  if (lineNumber < 0 || lineNumber >= (NSInteger)self.cpLines.count) return nil;
+  return self.cpLines[(NSUInteger)lineNumber];
+}
+
+- (CGRect)accessibilityFrameForLineNumber:(NSInteger)lineNumber {
+  if (lineNumber < 0 || lineNumber >= (NSInteger)self.cpLineFrames.count) return CGRectZero;
+  return self.cpLineFrames[(NSUInteger)lineNumber].CGRectValue;
+}
+
+- (NSString *)accessibilityPageContent {
+  CrossPointAccessibility_noteReading("pageContent", (long)self.cpLines.count);
+  return self.cpPageText;
+}
+
+// Continuous reading turns the page: CausesPageTurn tells the reader to scroll
+// when it exhausts this element, and the scroll lands here. The injection is
+// the SAME tap the read-aloud adapter uses, already verified against the
+// firmware's detectPageTurn (BTN_RIGHT = next; nav-swap caveat noted there).
+- (BOOL)accessibilityScroll:(UIAccessibilityScrollDirection)direction {
+  if (direction == UIAccessibilityScrollDirectionNext ||
+      direction == UIAccessibilityScrollDirectionRight) {
+    CrossPointAccessibility_noteReading("scroll next -> page turn", +1);
+    gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+    return YES;
+  }
+  if (direction == UIAccessibilityScrollDirectionPrevious ||
+      direction == UIAccessibilityScrollDirectionLeft) {
+    CrossPointAccessibility_noteReading("scroll prev -> page back", -1);
+    gpio.queueButtonTap(HalGPIO::BTN_LEFT, 60);
+    return YES;
+  }
+  return NO;
+}
+@end
 
 @interface CPAccessibilityOverlay : UIView
 @property(nonatomic, strong) NSArray *cpElements;
@@ -84,7 +160,12 @@ namespace {
 
 __weak CPAccessibilityOverlay *g_overlay = nil;
 long g_queryBudget = 0;
+long g_readingBudget = 0;
 bool g_inDump = false;
+// Element-set mode: whether the page element was included when the current
+// elements were built. Speak Screen can be toggled while a page is on screen,
+// and the adapter re-pushes the held page when this goes stale.
+int g_builtMode = -1;
 
 UIWindow *resolveWindow() {
   UIWindow *fallback = nil;
@@ -121,6 +202,20 @@ bool panelGeometryPts(CGFloat *x0, CGFloat *y0, CGFloat *scale) {
 
 // One element per LINE. Rects arrive in reading order, one per visual word
 // fragment, and a line is a run sharing the same y.
+// The page element rides along whenever Speak Screen is on (or the sim run
+// forces it, so the branch is testable off-device). NOT unconditionally: the
+// owner just verified VoiceOver's per-line swipe on the device, and appending
+// a page element that VoiceOver would also stop on re-reads the page to them.
+// Speak Screen users get the protocol; the confirmed VoiceOver experience
+// stays byte-identical.
+bool wantsReadingPage() {
+  static const bool forced = [] {
+    const char *v = std::getenv("CROSSPOINT_SIM_FORCE_SPEAKSCREEN");
+    return v != nullptr && v[0] == '1';
+  }();
+  return forced || UIAccessibilityIsSpeakScreenEnabled();
+}
+
 NSArray *buildElements(UIView *container, const std::string &text,
                        const std::vector<ReadAloudWordRect> &rects) {
   CGFloat x0 = 0, y0 = 0, s = 0;
@@ -145,6 +240,27 @@ NSArray *buildElements(UIView *container, const std::string &text,
     el.accessibilityFrame =
         CGRectMake(x0 + line.x * s, y0 + line.y * s, line.w * s, line.h * s);
     [out addObject:el];
+  }
+  if (wantsReadingPage() && out.count > 0) {
+    CPReadingPageElement *page = [[CPReadingPageElement alloc] initWithAccessibilityContainer:container];
+    NSMutableArray<NSString *> *lineTexts = [NSMutableArray array];
+    NSMutableArray<NSValue *> *lineFrames = [NSMutableArray array];
+    CGRect unionF = CGRectNull;
+    NSMutableString *pageText = [NSMutableString string];
+    for (UIAccessibilityElement *el in out) {
+      [lineTexts addObject:el.accessibilityLabel ?: @""];
+      [lineFrames addObject:[NSValue valueWithCGRect:el.accessibilityFrame]];
+      unionF = CGRectUnion(unionF, el.accessibilityFrame);
+      if (pageText.length > 0) [pageText appendString:@" "];
+      [pageText appendString:el.accessibilityLabel ?: @""];
+    }
+    page.cpLines = lineTexts;
+    page.cpLineFrames = lineFrames;
+    page.cpPageText = pageText;
+    page.accessibilityFrame = unionF;
+    page.accessibilityTraits = UIAccessibilityTraitStaticText | UIAccessibilityTraitCausesPageTurn;
+    page.accessibilityIdentifier = @"crosspoint.reading-page";
+    [out addObject:page];
   }
   return out;
 }
@@ -224,6 +340,8 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   overlay.cpElements = buildElements(overlay, text, v);
   overlay.accessibilityElements = overlay.cpElements;
   g_queryBudget = 6;
+  g_readingBudget = 8;
+  g_builtMode = wantsReadingPage() ? 1 : 0;
   // Greppable like the rest: [A11Y]. The count and the first label are what
   // distinguish "elements built" from "assistive tech saw nothing".
   if (overlay.cpElements.count > 0) {
@@ -355,6 +473,13 @@ bool CrossPointAccessibility_hasElements(void) {
 // Throttled: the first 6 queries after each page change are logged with
 // timestamps, then silence until the next page. Speak Screen reading a page
 // produces dozens of calls; the SIGNAL is that any arrived at all, and when.
+void CrossPointAccessibility_noteReading(const char *what, long value) {
+  if (g_readingBudget <= 0) return;
+  g_readingBudget--;
+  CrossPointDiag_log("READING %s(%ld) -- Speak Screen is consuming the page protocol", what, value);
+  if (g_readingBudget == 0) CrossPointDiag_log("READING (muted until the next page)");
+}
+
 void CrossPointAccessibility_noteQuery(const char *what, long value) {
   // The tree dump walks the container through these same methods; logging its
   // own traversal as "assistive tech consulted us" would both lie and burn the
@@ -387,6 +512,11 @@ void CrossPointAccessibility_installFocusObserver(void) {
                                    NSStringFromClass([el class]).UTF8String,
                                    [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
               }];
+}
+
+bool CrossPointAccessibility_modeChanged(void) {
+  if (g_builtMode < 0) return false;
+  return (wantsReadingPage() ? 1 : 0) != g_builtMode;
 }
 
 void CrossPointAccessibility_clear(void) {
