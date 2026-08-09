@@ -30,9 +30,14 @@ edges and shape edges antialias against each other rather than fighting.
 
 THE THREE MEASUREMENTS THAT DRIVE EVERYTHING
 --------------------------------------------
-  * The mark's diagonals run at atan(3/5) = 30.96 degrees. DIAGONAL_ANGLE
-    matches that, so the "parallel" variants run with the artwork instead of
-    cutting a second, unrelated angle across it.
+  * The mark's page edges run at atan(3/5) = 30.96 degrees. Mind the
+    convention: an angle here names the stripe's NORMAL, not the stripe, so a
+    stripe parallel to an edge needs the edge's angle plus 90. For this mark
+    the two are complementary -- edges at 30.96, PAGE_ANGLE at 59.04 -- which
+    is a trap worth naming, because passing 30.96 gives stripes at 59.04 that
+    look plausibly diagonal while being exactly PERPENDICULAR to the edge.
+    Measured, not assumed: stripe slope is dx/dy = -tan(angle), and the page
+    edge's is -5/3.
   * Its strokes are STROKE_WIDTH = 46px wide at 1024, so a stroke's deepest
     interior point is ~23px from an edge. Every rim decision below is really a
     decision about that number.
@@ -77,8 +82,15 @@ DEFAULT_SOURCE = os.path.join(
 )
 DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# The mark's own diagonal: the edges advance 5px horizontally per 3px vertically.
+# The mark's own diagonal: the page edges advance 5px horizontally per 3px
+# vertically. Passing this as a stripe angle gives stripes PERPENDICULAR to
+# those edges -- see the convention note in the module docstring.
 DIAGONAL_ANGLE = math.degrees(math.atan2(3.0, 5.0))
+
+# Stripes parallel to the right page's top edge: ruled lines lying on the page
+# rather than cutting across it. The complement of DIAGONAL_ANGLE, because the
+# angle names the normal.
+PAGE_ANGLE = math.degrees(math.atan2(5.0, 3.0))
 
 # Stroke width of the mark at 1024, measured off the master. Doubles as the rim
 # that makes every outline read at one weight -- see the module docstring.
@@ -107,21 +119,52 @@ def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0):
     )
 
 
+def page_variant(line, gap, blurb):
+    """A ruled-page variant, named and specified in the terms being compared.
+
+    Pitch and duty are the generator's parameters, but the thing actually being
+    varied across this set is the width of an ink line and the width of the
+    paper gap between lines -- so those are what the name carries. Both are in
+    master pixels at 1024, and --pitch still scales the pair.
+    """
+    pitch = float(line + gap)
+    return variant(
+        "page-%d-%d" % (line, gap), PAGE_ANGLE, blurb,
+        pitch=pitch / PITCH, duty=line / pitch,
+        rim=STROKE_WIDTH, solid_masses=1,
+    )
+
+
 # Angles are measured so the stripes run perpendicular to the axis being swept:
-# 0 gives vertical stripes, 90 gives horizontal.
+# 0 gives vertical stripes, 90 gives horizontal, and anything between names the
+# stripe's normal rather than the stripe.
 #
-# ROUND TWO is the current direction: outlines all at one weight, and the
-# bottom-left mass left flat so the line screen falls on the top-right mass
-# alone. Round one is kept below because it is the record of what those two
-# corrections were made against -- and because the variants that break the mark
-# break it informatively.
+# ROUND THREE is the current direction: round two's construction -- matched
+# outlines, bottom-left mass flat -- with the stripes lying ALONG the page
+# instead of cutting across it, and line/gap as the thing being varied. The
+# earlier rounds are kept below as the record of what each correction was made
+# against, and because the variants that break the mark break it informatively.
 VARIANTS = [
+    # -- Round three: ruled lines lying along the page ---------------------
+    # Same construction as round two -- matched rim, bottom-left mass flat --
+    # turned to PAGE_ANGLE so the stripes run parallel to the right page's top
+    # edge and read as ruled lines of text on it. Nothing before this round was
+    # actually parallel to a page; the earlier "diagonal" cuts all sat at the
+    # complementary angle. Line and gap are what vary; the pair below runs from
+    # even rules through thin-line/wide-gap ruling to a heavy stripe.
+    page_variant(21, 21, "The round-two fine ruling, turned onto the page angle."),
+    page_variant(12, 12, "Finer even ruling: more lines, each lighter."),
+    page_variant(30, 30, "Wider even ruling: fewer, heavier lines."),
+    page_variant(10, 26, "Thin lines, wide gaps -- closest to ruled text."),
+    page_variant(26, 10, "Thick lines, thin gaps -- paper reads as the line."),
+    page_variant(7, 21, "Hairline ruling at a 1:3 line-to-gap ratio."),
+
     # -- Round two: matched outlines, one mass striped ---------------------
     # Ordered as the review sheet numbers them, most even cut first. Only the
     # angle and pitch differ across the six; everything else is the correction.
     variant(
         "matched-counter", -DIAGONAL_ANGLE,
-        "Top-right mass at -31 degrees, across its own edges rather than along them.",
+        "Top-right mass ruled at 59 degrees, square across the page's top edge.",
         pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
     ),
     variant(
@@ -141,12 +184,12 @@ VARIANTS = [
     ),
     variant(
         "matched-diagonal", DIAGONAL_ANGLE,
-        "Top-right mass in 31 degree stripes, running along its leading edge.",
+        "Top-right mass ruled at 59 degrees the other way, shallow to the page edge.",
         pitch=72.0 / 64.0, duty=0.45, rim=STROKE_WIDTH, solid_masses=1,
     ),
     variant(
         "matched-diagonal-fine", DIAGONAL_ANGLE,
-        "As matched-diagonal at a finer pitch: more lines, each lighter.",
+        "As matched-diagonal at a finer pitch; the shallow incidence is unchanged.",
         pitch=42.0 / 64.0, duty=0.5, rim=STROKE_WIDTH, solid_masses=1,
     ),
 
@@ -163,7 +206,7 @@ VARIANTS = [
     ),
     variant(
         "keyline-diagonal", DIAGONAL_ANGLE,
-        "Solid 26px keyline, 31 degree stripes inside both masses.",
+        "Solid 26px keyline, 59 degree stripes inside both masses.",
         pitch=72.0 / 64.0, duty=0.45, rim=NARROW_RIM,
     ),
     variant(
@@ -173,7 +216,7 @@ VARIANTS = [
     ),
     variant(
         "grooved-diagonal", -DIAGONAL_ANGLE,
-        "Thin grooves at -31 degrees, cutting across the diagonals.",
+        "Thin grooves at 59 degrees, square across the right page's top edge.",
         pitch=48.0 / 64.0, duty=0.72,
     ),
     variant(
@@ -190,12 +233,12 @@ VARIANTS = [
         "Bold 50/50 vertical stripes.",
     ),
     variant(
-        "diagonal-parallel", DIAGONAL_ANGLE,
-        "Bold stripes parallel to the mark's own 31 degree diagonals.",
+        "diagonal-steep", DIAGONAL_ANGLE,
+        "Bold 50/50 at 59 degrees, square across the left page's top edge.",
     ),
     variant(
         "diagonal-counter", -DIAGONAL_ANGLE,
-        "Bold stripes across the diagonals at -31 degrees.",
+        "Bold 50/50 at 59 degrees the other way, square across the right page.",
     ),
 ]
 
