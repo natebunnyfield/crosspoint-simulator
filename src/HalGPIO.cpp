@@ -435,12 +435,21 @@ static int scancodeToButton(SDL_Scancode sc) {
 }
 
 void HalGPIO::begin() {
-#if defined(SIMULATOR_DEVICE_X4_PRO)
+#if defined(SIMULATOR_DEVICE_STICKY)
+  // The firmware's non-C3 path leaves the legacy device discriminator on X4;
+  // BoardConfig carries the actual Sticky identity and capabilities.
+  _deviceType = DeviceType::X4;
+  BoardConfig::selectDevice(BoardConfig::Board::Sticky);
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
   _deviceType = DeviceType::X4;
   BoardConfig::selectDevice(BoardConfig::Board::XteinkX4Pro);
 #elif defined(SIMULATOR_DEVICE_X3)
   _deviceType = DeviceType::X3;
+#if defined(SIMULATOR_DISPLAY_UC8279)
+  BoardConfig::selectDevice(BoardConfig::Board::XteinkX3Uc8279);
+#else
   BoardConfig::selectDevice(BoardConfig::Board::XteinkX3);
+#endif
 #else
   _deviceType = DeviceType::X4;
   BoardConfig::selectDevice(BoardConfig::Board::XteinkX4);
@@ -451,11 +460,13 @@ bool HalGPIO::isXteinkDevice() const {
   // Match the firmware helper's narrower meaning: the runtime-detected C3
   // X3/X4 pair. X4 Pro is an Xteink product but uses its own S3 board profile.
   return BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3 ||
+         BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3Uc8279 ||
          BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4;
 }
 
 bool HalGPIO::hasEdgeSideButtons() const {
   return BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3 ||
+         BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX3Uc8279 ||
          BoardConfig::ACTIVE.board == BoardConfig::Board::XteinkX4Pro;
 }
 
