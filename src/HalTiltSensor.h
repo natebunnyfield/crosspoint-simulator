@@ -1,3 +1,15 @@
+// PLACEHOLDER, AHEAD OF THE FIRMWARE -- do not delete as unused.
+//
+// Nothing in the firmware calls this: lib/hal/ has exactly six HAL classes
+// (Clock, Display, GPIO, PowerManager, Storage, System) and this is not one of
+// them. It is here because the hardware is real -- the tilt sensor is device hardware,
+// and the SDK carries its own support -- so the day
+// the firmware grows a brightness control this is the file it links against.
+//
+// Ruled KEEP (ST-002 in TODO.md). Zero references is not grounds for deletion
+// in this project; deleting it means rebuilding it later, blind, by someone who
+// does not know it existed.
+
 #pragma once
 
 #include <Arduino.h>

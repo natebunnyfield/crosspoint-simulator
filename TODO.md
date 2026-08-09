@@ -78,7 +78,7 @@ ends with "say seen", and the decision questions come in a LATER turn.
 **Close by:** approved mockups, then the portrait keyboard-clearance change;
 landscape only if the mockups earn it.
 
-### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing
+### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing — RULED KEEP
 **scope: HAL surface · found 2026-08-06 · verified 2026-08-07**
 
 `src/HalFrontlight.{h,cpp}` and `src/HalTiltSensor.{h,cpp}` have no counterpart
@@ -97,7 +97,12 @@ version of keeping them is a comment at the top of each saying it is a
 placeholder ahead of the firmware, so the next reader does not mistake it for a
 mirror of something that exists.
 
-### [ST-002] The legacy web-server substitute looks dead and is not
+**Closed 2026-08-08 by doing what the close condition asked**: each file now
+carries a header saying why it exists and that it is ruled KEEP, so the next
+reader who greps for callers, finds none, and reaches for the delete key is
+answered in place rather than having to find this file.
+
+### [ST-002] The legacy web-server substitute looks dead and is not — RULED KEEP
 **scope: cruft that must stay · found 2026-08-06 · verified 2026-08-07**
 
 `src/CrossPointWebServer.cpp` is 1083 lines that current CrossPoint builds never
@@ -112,6 +117,11 @@ builds silently, at link time, in someone else's repo.
 
 **Close by:** leave it, and add a header comment saying who still needs it.
 Revisit only if every known consumer is confirmed to define the macro.
+
+**Closed 2026-08-08 by doing what the close condition asked**: each file now
+carries a header saying why it exists and that it is ruled KEEP, so the next
+reader who greps for callers, finds none, and reaches for the delete key is
+answered in place rather than having to find this file.
 
 ### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
 **scope: accessibility · asked 2026-08-08 · in build-41**
