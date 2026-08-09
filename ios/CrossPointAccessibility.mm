@@ -24,8 +24,34 @@
 - (BOOL)isAccessibilityElement {
   return NO;
 }
-- (NSArray *)accessibilityElements {
-  return self.cpElements;
+
+// THE CONTAINER API IS IMPLEMENTED EXPLICITLY, and that is the whole bug fix.
+//
+// The first version only overrode -accessibilityElements. That reads like the
+// obvious thing and is silently useless: UIKit answers assistive technology
+// through the UIAccessibilityContainer methods below, and UIView derives those
+// from the STORED accessibilityElements property -- not from an override of its
+// getter. So the container sat in the tree, front-most, correctly framed,
+// reporting accessibilityElementCount = 0. Every build reported "no speakable
+// content could be found on the screen", with or without a page turn, because
+// there genuinely were no children as far as iOS could see.
+//
+// Diagnosed by walking the tree with the same public API an assistive
+// technology uses (CrossPointAccessibility_dumpTree) instead of reasoning about
+// what UIKit "should" do. Both are implemented now: the property is set for the
+// paths that read it, and these three answer the ones that ask directly.
+- (NSInteger)accessibilityElementCount {
+  return (NSInteger)self.cpElements.count;
+}
+
+- (id)accessibilityElementAtIndex:(NSInteger)index {
+  if (index < 0 || index >= (NSInteger)self.cpElements.count) return nil;
+  return self.cpElements[(NSUInteger)index];
+}
+
+- (NSInteger)indexOfAccessibilityElement:(id)element {
+  const NSUInteger i = [self.cpElements indexOfObject:element];
+  return i == NSNotFound ? NSNotFound : (NSInteger)i;
 }
 @end
 
@@ -135,6 +161,7 @@ void CrossPointAccessibility_begin(void) {
   overlay.userInteractionEnabled = NO;
   overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   overlay.cpElements = @[];
+  overlay.accessibilityElements = @[];
   [window addSubview:overlay];
   [window bringSubviewToFront:overlay];
   g_overlay = overlay;
@@ -170,6 +197,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   const std::string text(utf8, len);
   const std::vector<ReadAloudWordRect> v(rects, rects + rectCount);
   overlay.cpElements = buildElements(overlay, text, v);
+  overlay.accessibilityElements = overlay.cpElements;
   // Greppable like the rest: [A11Y]. The count and the first label are what
   // distinguish "elements built" from "assistive tech saw nothing".
   if (overlay.cpElements.count > 0) {
@@ -213,6 +241,42 @@ void CrossPointAccessibility_keepFront(void) {
   }
 }
 
+// Walk the tree the way an assistive technology does -- from the window, via
+// the public UIAccessibility container API -- and report what is actually
+// reachable. Reasoning about why VoiceOver "should" find the elements produced
+// one wrong fix already; this answers it instead.
+static void dumpTree(id node, int depth, int *found) {
+  if (depth > 6 || !node) return;
+  NSString *pad = [@"" stringByPaddingToLength:depth * 2 withString:@" " startingAtIndex:0];
+  const BOOL isEl = [node isAccessibilityElement];
+  NSInteger count = 0;
+  if ([node respondsToSelector:@selector(accessibilityElementCount)])
+    count = [node accessibilityElementCount];
+  NSString *label = [node respondsToSelector:@selector(accessibilityLabel)]
+                        ? ([node accessibilityLabel] ?: @"")
+                        : @"";
+  if (isEl && label.length > 0) (*found)++;
+  SDL_Log("[A11Y-TREE] %s%s isElement=%d children=%ld label=\"%s\"", pad.UTF8String,
+          NSStringFromClass([node class]).UTF8String, (int)isEl, (long)count,
+          [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
+  for (NSInteger i = 0; i < count && i < 6; i++) {
+    if ([node respondsToSelector:@selector(accessibilityElementAtIndex:)])
+      dumpTree([node accessibilityElementAtIndex:i], depth + 1, found);
+  }
+  if ([node isKindOfClass:UIView.class]) {
+    for (UIView *sub in [(UIView *)node subviews]) dumpTree(sub, depth + 1, found);
+  }
+}
+
+void CrossPointAccessibility_dumpTree(void) {
+  UIWindow *window = resolveWindow();
+  if (!window) { SDL_Log("[A11Y-TREE] no window"); return; }
+  int found = 0;
+  SDL_Log("[A11Y-TREE] ---- traversal from the window ----");
+  dumpTree(window, 0, &found);
+  SDL_Log("[A11Y-TREE] ---- reachable labelled elements: %d ----", found);
+}
+
 bool CrossPointAccessibility_hasElements(void) {
   CPAccessibilityOverlay *overlay = g_overlay;
   return overlay != nil && overlay.cpElements.count > 0;
@@ -222,5 +286,6 @@ void CrossPointAccessibility_clear(void) {
   CPAccessibilityOverlay *overlay = g_overlay;
   if (!overlay) return;
   overlay.cpElements = @[];
+  overlay.accessibilityElements = @[];
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
 }

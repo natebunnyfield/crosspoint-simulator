@@ -53,6 +53,9 @@ bool CrossPointAccessibility_hasElements(void);
 // nothing has moved.
 void CrossPointAccessibility_keepFront(void);
 
+// Diagnostic: log what an assistive technology would actually reach.
+void CrossPointAccessibility_dumpTree(void);
+
 // The reader left: drop the elements so assistive tech stops offering a page
 // that is no longer on screen.
 void CrossPointAccessibility_clear(void);
