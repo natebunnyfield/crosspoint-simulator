@@ -105,8 +105,33 @@ per page, labels are whole lines ("off exactly at midnight. The little"), frames
 land in the right place in points, elements rebuild on every page turn, and the
 overlay does not steal touches — the pad still opens a book.
 
+**ROOT CAUSE, found 2026-08-08 after two wrong fixes: the container reported
+zero children.** `CPAccessibilityOverlay` overrode `-accessibilityElements`,
+which reads like the obvious thing and is silently useless — UIKit answers
+assistive technology through the `UIAccessibilityContainer` methods, and UIView
+derives those from the STORED property, not from an override of its getter. So
+the container sat in the tree, front-most and correctly framed, reporting
+`accessibilityElementCount = 0`. Every build said "no speakable content could be
+found on the screen", with or without a page turn, because as far as iOS was
+concerned there were no children.
+
+Fixed by implementing `accessibilityElementCount` /
+`accessibilityElementAtIndex:` / `indexOfAccessibilityElement:` explicitly AND
+setting the stored property, so both paths work.
+
+**What actually found it:** `CrossPointAccessibility_dumpTree()`, which walks
+the hierarchy with the same public API an assistive technology uses. Before:
+`CPAccessibilityOverlay children=0 … reachable labelled elements: 0`. After:
+`children=22` with real book text on each. Two prior fixes were reasoned from
+what UIKit "should" do and were both wrong; the traversal answered it in one
+run. The dump is kept, one-shot per launch, because it is the fastest way to
+tell on a device whether the page or the traversal is at fault.
+
+**The earlier timing fix (below) was real but not the cause** — it was masking
+nothing, since nothing was reachable either way.
+
 **Build 42 reported "no speakable content could be found on the screen" —
-diagnosed and fixed 2026-08-08.** The container and the elements were fine; the
+first diagnosis, incomplete.** The container and the elements were fine; the
 page never reached them. Capture was gated on (toggle OR assistive tech), and
 the firmware publishes a page only when it RENDERS one — so switching Speak
 Screen on while a page was already drawn flipped capture to wanted and then

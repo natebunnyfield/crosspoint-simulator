@@ -300,6 +300,8 @@ void CrossPointReadAloud_perFrame(void) {
                                       (unsigned)g_pageUtf8.size(),
                                       g_rects.empty() ? nullptr : g_rects.data(),
                                       (unsigned)g_rects.size());
+      static bool dumpedOnce = false;
+      if (!dumpedOnce) { dumpedOnce = true; CrossPointAccessibility_dumpTree(); }
     }
   }
 
