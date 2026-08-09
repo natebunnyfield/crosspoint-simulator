@@ -41,6 +41,24 @@ the reader), the read-aloud highlight geometry reads the same accessors and must
 follow, and the keyboard height is not a constant — it varies by device, by
 language, and with the predictive bar.
 
+**Second owner screenshot (2026-08-09, iPad portrait, light, Create Note,
+iOS keyboard up) pins THREE repeated overlap areas:**
+
+1. **Side-button hint brackets ↔ editor text.** The left `^` and right `v`
+   hint brackets are drawn at the panel edges mid-height, and the note's text
+   lines run straight through the left bracket. The editor reserves a right
+   gutter for hints (`NoteEditorActivity` sideGutter) but the brackets render
+   at panel-relative positions that cross the text column on the iPad aspect.
+2. **iOS system keyboard ↔ the firmware's own key grid.** The system keyboard
+   covers the grid's bottom rows (the dimmed shapes behind the suggestion bar
+   are the buried pads/rows) — the panel does not move up. This is the core
+   ST-005 clearance problem; the owner's note text in the screenshot says it
+   verbatim.
+3. **Harness pad buttons ↔ panel content.** The two pale rounded pads float
+   mid-screen inside the panel's content area (left/right, ~mid-height) in
+   this layout instead of sitting in reserved chrome, and a second pair is
+   buried under the system keyboard.
+
 **Evidence, from a real iPad in portrait, dark, keyboard up:**
 [ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png](ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png)
 (owner-supplied 2026-08-08, 2048x2732). It shows three things the simulator
@@ -77,6 +95,20 @@ ends with "say seen", and the decision questions come in a LATER turn.
 
 **Close by:** approved mockups, then the portrait keyboard-clearance change;
 landscape only if the mockups earn it.
+
+### [ST-006] iOS keyboard Return must insert a newline, not press Select
+**scope: iOS input · asked 2026-08-09**
+
+In Create Note with the iOS keyboard up, Return acts as the Select button
+instead of inserting a line break. Mechanism: while text entry is active the
+host-keyboard channel suppresses the scancode→button map for letters, but
+Return still reaches BTN_CONFIRM. The channel already defines `\n` as the
+commit byte for single-line fields (Wi-Fi password, owner name), so the fix is
+to route Return INTO the typed-text channel as `\n` during text entry and let
+the consumer decide: single-line fields keep treating it as commit, the
+multi-line note editor inserts a real newline. Touches HalGPIO (simulator) and
+NoteEditorActivity's typed-text handling (firmware). Owner report with
+screenshot (iPad, 2026-08-09).
 
 ### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
 **scope: accessibility · asked 2026-08-08 · in build-41**
