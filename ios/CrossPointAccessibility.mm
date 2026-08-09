@@ -17,6 +17,10 @@
 // to vend accessibility elements. Adding a view rather than trying to override
 // a getter on SDL's own view: SDL owns that instance, and a category or
 // associated-object hack there would fight it on every window rebuild.
+// Throttled query log; defined below the namespace block.
+void CrossPointAccessibility_noteQuery(const char *what, long value);
+void CrossPointAccessibility_installFocusObserver(void);
+
 @interface CPAccessibilityOverlay : UIView
 @property(nonatomic, strong) NSArray *cpElements;
 @end
@@ -43,10 +47,16 @@
 // what UIKit "should" do. Both are implemented now: the property is set for the
 // paths that read it, and these three answer the ones that ask directly.
 - (NSInteger)accessibilityElementCount {
+  // Query logging, throttled hard: the first few calls after each page are the
+  // signal ("iOS consulted the container at t=X"), the rest are noise. The
+  // build-46 log proved the container ANSWERS correctly when asked; what it
+  // could not prove is that assistive tech ever ASKS. This is that probe.
+  CrossPointAccessibility_noteQuery("elementCount", (long)self.cpElements.count);
   return (NSInteger)self.cpElements.count;
 }
 
 - (id)accessibilityElementAtIndex:(NSInteger)index {
+  CrossPointAccessibility_noteQuery("elementAtIndex", (long)index);
   if (index < 0 || index >= (NSInteger)self.cpElements.count) return nil;
   return self.cpElements[(NSUInteger)index];
 }
@@ -60,6 +70,8 @@
 namespace {
 
 __weak CPAccessibilityOverlay *g_overlay = nil;
+long g_queryBudget = 0;
+bool g_inDump = false;
 
 UIWindow *resolveWindow() {
   UIWindow *fallback = nil;
@@ -157,7 +169,8 @@ void CrossPointAccessibility_begin(void) {
                      [info[@"CFBundleVersion"] UTF8String] ?: "?",
                      window.bounds.size.width, window.bounds.size.height,
                      (double)window.screen.scale);
-  CrossPointDiag_log("container installed over the panel");
+  CrossPointDiag_log("container installed over the panel (keyWindow=%d)", (int)window.isKeyWindow);
+  CrossPointAccessibility_installFocusObserver();
 }
 
 bool CrossPointAccessibility_wantsPage(void) {
@@ -197,6 +210,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   const std::vector<ReadAloudWordRect> v(rects, rects + rectCount);
   overlay.cpElements = buildElements(overlay, text, v);
   overlay.accessibilityElements = overlay.cpElements;
+  g_queryBudget = 6;
   // Greppable like the rest: [A11Y]. The count and the first label are what
   // distinguish "elements built" from "assistive tech saw nothing".
   if (overlay.cpElements.count > 0) {
@@ -267,19 +281,42 @@ static void dumpTree(id node, int depth, int *found) {
   if (depth > 6 || !node) return;
   NSString *pad = [@"" stringByPaddingToLength:depth * 2 withString:@" " startingAtIndex:0];
   const BOOL isEl = [node isAccessibilityElement];
+  // NSNotFound means "not a container", and on DEVICE (unlike the simulator)
+  // plain views report exactly that -- build 46's log printed it as
+  // 9223372036854775807 on every node, which buried the real numbers.
   NSInteger count = 0;
   if ([node respondsToSelector:@selector(accessibilityElementCount)])
     count = [node accessibilityElementCount];
+  const bool container = count != NSNotFound && count > 0;
   NSString *label = [node respondsToSelector:@selector(accessibilityLabel)]
                         ? ([node accessibilityLabel] ?: @"")
                         : @"";
   if (isEl && label.length > 0) (*found)++;
-  CrossPointDiag_log("TREE %s%s isElement=%d children=%ld label=\"%s\"", pad.UTF8String,
-                     NSStringFromClass([node class]).UTF8String, (int)isEl, (long)count,
+  // The flags UIKit's own traversal filters on. The dump walks subviews
+  // manually, so it can SEE elements UIKit would skip -- hidden, transparent,
+  // or behind a modal -- and without these flags that difference is invisible,
+  // which is precisely the gap between "my walk found 15" and "Speak Screen
+  // found nothing".
+  char flags[64] = "";
+  if ([node isKindOfClass:UIView.class]) {
+    UIView *v = (UIView *)node;
+    snprintf(flags, sizeof(flags), "%s%s%s%s%s",
+             v.hidden ? " HIDDEN" : "",
+             v.alpha < 0.01 ? " ALPHA0" : "",
+             v.accessibilityElementsHidden ? " ELEMS-HIDDEN" : "",
+             v.accessibilityViewIsModal ? " MODAL" : "",
+             [v isKindOfClass:UITextField.class] && ((UITextField *)v).isFirstResponder
+                 ? " FIRST-RESPONDER" : "");
+  }
+  CrossPointDiag_log("TREE %s%s isElement=%d children=%s%s label=\"%s\"", pad.UTF8String,
+                     NSStringFromClass([node class]).UTF8String, (int)isEl,
+                     count == NSNotFound ? "nc" : [@(count).stringValue UTF8String], flags,
                      [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
-  for (NSInteger i = 0; i < count && i < 6; i++) {
-    if ([node respondsToSelector:@selector(accessibilityElementAtIndex:)])
-      dumpTree([node accessibilityElementAtIndex:i], depth + 1, found);
+  if (container) {
+    for (NSInteger i = 0; i < count && i < 6; i++) {
+      if ([node respondsToSelector:@selector(accessibilityElementAtIndex:)])
+        dumpTree([node accessibilityElementAtIndex:i], depth + 1, found);
+    }
   }
   if ([node isKindOfClass:UIView.class]) {
     for (UIView *sub in [(UIView *)node subviews]) dumpTree(sub, depth + 1, found);
@@ -290,14 +327,53 @@ void CrossPointAccessibility_dumpTree(void) {
   UIWindow *window = resolveWindow();
   if (!window) { CrossPointDiag_log("TREE: no window"); return; }
   int found = 0;
+  g_inDump = true;
   CrossPointDiag_log("TREE ---- traversal from the window ----");
   dumpTree(window, 0, &found);
   CrossPointDiag_log("TREE ---- reachable labelled elements: %d ----", found);
+  g_inDump = false;
 }
 
 bool CrossPointAccessibility_hasElements(void) {
   CPAccessibilityOverlay *overlay = g_overlay;
   return overlay != nil && overlay.cpElements.count > 0;
+}
+
+// Throttled: the first 6 queries after each page change are logged with
+// timestamps, then silence until the next page. Speak Screen reading a page
+// produces dozens of calls; the SIGNAL is that any arrived at all, and when.
+void CrossPointAccessibility_noteQuery(const char *what, long value) {
+  // The tree dump walks the container through these same methods; logging its
+  // own traversal as "assistive tech consulted us" would both lie and burn the
+  // budget, muting the REAL query that follows.
+  if (g_inDump) return;
+  if (g_queryBudget <= 0) return;
+  g_queryBudget--;
+  CrossPointDiag_log("QUERY %s(%ld) -- assistive tech is consulting the container", what, value);
+  if (g_queryBudget == 0) CrossPointDiag_log("QUERY (further queries muted until the next page)");
+}
+
+// Focus landing on one of our elements is the strongest possible signal: the
+// assistive technology not only asked, it arrived. Speak Screen does not focus
+// the way VoiceOver does, so absence proves nothing -- but presence ends the
+// investigation of the exposure half outright.
+void CrossPointAccessibility_installFocusObserver(void) {
+  static bool installed = false;
+  if (installed) return;
+  installed = true;
+  [NSNotificationCenter.defaultCenter
+      addObserverForName:UIAccessibilityElementFocusedNotification
+                  object:nil
+                   queue:NSOperationQueue.mainQueue
+              usingBlock:^(NSNotification *note) {
+                id el = note.userInfo[UIAccessibilityFocusedElementKey];
+                NSString *label = [el respondsToSelector:@selector(accessibilityLabel)]
+                                      ? ([el accessibilityLabel] ?: @"")
+                                      : @"";
+                CrossPointDiag_log("FOCUS %s \"%s\"",
+                                   NSStringFromClass([el class]).UTF8String,
+                                   [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
+              }];
 }
 
 void CrossPointAccessibility_clear(void) {
