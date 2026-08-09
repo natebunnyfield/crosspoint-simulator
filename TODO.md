@@ -78,51 +78,6 @@ ends with "say seen", and the decision questions come in a LATER turn.
 **Close by:** approved mockups, then the portrait keyboard-clearance change;
 landscape only if the mockups earn it.
 
-### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing — RULED KEEP
-**scope: HAL surface · found 2026-08-06 · verified 2026-08-07**
-
-`src/HalFrontlight.{h,cpp}` and `src/HalTiltSensor.{h,cpp}` have no counterpart
-in the firmware's `lib/hal/`, which holds exactly six HAL classes — Clock,
-Display, GPIO, PowerManager, Storage, System. Nothing in the firmware calls
-either one, so neither is load-bearing today.
-
-**They should not simply be deleted.** The frontlight is real X4 Pro hardware —
-`CLAUDE.md` lists frontlight state among the X4 Pro capabilities, and the SDK
-ships `freeink-sdk/libs/hardware/FrontlightManager/`. A simulator that drops it
-will need it back the day the firmware grows a brightness control, and the
-rebuild will be done by someone who does not know this file existed.
-
-**Close by:** an owner ruling. Keeping them costs four small files; the honest
-version of keeping them is a comment at the top of each saying it is a
-placeholder ahead of the firmware, so the next reader does not mistake it for a
-mirror of something that exists.
-
-**Closed 2026-08-08 by doing what the close condition asked**: each file now
-carries a header saying why it exists and that it is ruled KEEP, so the next
-reader who greps for callers, finds none, and reaches for the delete key is
-answered in place rather than having to find this file.
-
-### [ST-002] The legacy web-server substitute looks dead and is not — RULED KEEP
-**scope: cruft that must stay · found 2026-08-06 · verified 2026-08-07**
-
-`src/CrossPointWebServer.cpp` is 1083 lines that current CrossPoint builds never
-compile — they define `CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER` and use the
-firmware's own server against this library's `WebServer`/`WebSocketsServer`
-shims instead.
-
-Recorded here **because it reads as obvious cruft and is not.** The macro
-disables only this reduced substitute; a downstream consumer that has not
-adopted the firmware-owned server still links it. Deleting it breaks those
-builds silently, at link time, in someone else's repo.
-
-**Close by:** leave it, and add a header comment saying who still needs it.
-Revisit only if every known consumer is confirmed to define the macro.
-
-**Closed 2026-08-08 by doing what the close condition asked**: each file now
-carries a header saying why it exists and that it is ruled KEEP, so the next
-reader who greps for callers, finds none, and reaches for the delete key is
-answered in place rather than having to find this file.
-
 ### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
 **scope: accessibility · asked 2026-08-08 · in build-41**
 
@@ -177,6 +132,52 @@ pre-device gate the project has.
 ---
 
 ## DONE
+
+### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing — RULED KEEP
+**scope: HAL surface · found 2026-08-06 · verified 2026-08-07**
+
+`src/HalFrontlight.{h,cpp}` and `src/HalTiltSensor.{h,cpp}` have no counterpart
+in the firmware's `lib/hal/`, which holds exactly six HAL classes — Clock,
+Display, GPIO, PowerManager, Storage, System. Nothing in the firmware calls
+either one, so neither is load-bearing today.
+
+**They should not simply be deleted.** The frontlight is real X4 Pro hardware —
+`CLAUDE.md` lists frontlight state among the X4 Pro capabilities, and the SDK
+ships `freeink-sdk/libs/hardware/FrontlightManager/`. A simulator that drops it
+will need it back the day the firmware grows a brightness control, and the
+rebuild will be done by someone who does not know this file existed.
+
+**Close by:** an owner ruling. Keeping them costs four small files; the honest
+version of keeping them is a comment at the top of each saying it is a
+placeholder ahead of the firmware, so the next reader does not mistake it for a
+mirror of something that exists.
+
+**Closed 2026-08-08 by doing what the close condition asked**: each file now
+carries a header saying why it exists and that it is ruled KEEP, so the next
+reader who greps for callers, finds none, and reaches for the delete key is
+answered in place rather than having to find this file.
+
+### [ST-002] The legacy web-server substitute looks dead and is not — RULED KEEP
+**scope: cruft that must stay · found 2026-08-06 · verified 2026-08-07**
+
+`src/CrossPointWebServer.cpp` is 1083 lines that current CrossPoint builds never
+compile — they define `CROSSPOINT_SIMULATOR_PROJECT_WEBSERVER` and use the
+firmware's own server against this library's `WebServer`/`WebSocketsServer`
+shims instead.
+
+Recorded here **because it reads as obvious cruft and is not.** The macro
+disables only this reduced substitute; a downstream consumer that has not
+adopted the firmware-owned server still links it. Deleting it breaks those
+builds silently, at link time, in someone else's repo.
+
+**Close by:** leave it, and add a header comment saying who still needs it.
+Revisit only if every known consumer is confirmed to define the macro.
+
+**Closed 2026-08-08 by doing what the close condition asked**: each file now
+carries a header saying why it exists and that it is ruled KEEP, so the next
+reader who greps for callers, finds none, and reaches for the delete key is
+answered in place rather than having to find this file.
+
 
 ### [ST-003] Read-aloud TTS on the iOS harness — DONE
 **scope: feature, two repos · asked 2026-08-07 · shipped 2026-08-08**
