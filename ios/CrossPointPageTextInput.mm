@@ -5,6 +5,9 @@
 #include <algorithm>
 
 #include "CrossPointDiagLog.h"
+#include "HalGPIO.h"
+
+#import "CrossPointAccessibility.h"
 
 // ---- integer-offset position/range, the standard UITextInput backing ----
 
@@ -110,7 +113,11 @@ void note(const char *what) {
     self.backgroundColor = UIColor.clearColor;
     self.userInteractionEnabled = NO;
     self.isAccessibilityElement = YES;
-    self.accessibilityTraits = UIAccessibilityTraitStaticText;
+    // CausesPageTurn: when continuous reading exhausts this element, the
+    // system sends accessibilityScroll(.next) -- the pairing WWDC26-219
+    // documents. The turn is the same BTN_RIGHT tap the read-aloud adapter
+    // uses, verified against the firmware's detectPageTurn.
+    self.accessibilityTraits = UIAccessibilityTraitStaticText | UIAccessibilityTraitCausesPageTurn;
     self.accessibilityIdentifier = @"crosspoint.page-textinput";
   }
   return self;
@@ -324,6 +331,8 @@ void note(const char *what) {
   return CGRectMake(CGRectGetMinX(w->rect), CGRectGetMinY(w->rect), 2, CGRectGetHeight(w->rect));
 }
 
+// The rects also drive Speak Screen's reading highlight (owner ruling
+// 2026-08-09: leave it -- no workarounds; the system draws what it draws).
 - (NSArray<UITextSelectionRect *> *)selectionRectsForRange:(UITextRange *)range {
   note("selectionRectsForRange");
   CPTextRange *r = (CPTextRange *)range;
@@ -393,6 +402,24 @@ void note(const char *what) {
 }
 
 - (void)deleteBackward {
+}
+
+- (BOOL)accessibilityScroll:(UIAccessibilityScrollDirection)direction {
+  if (direction == UIAccessibilityScrollDirectionNext ||
+      direction == UIAccessibilityScrollDirectionRight) {
+    CrossPointDiag_log("TEXTINPUT scroll next -> page turn");
+    CrossPointAccessibility_notePageTurnRequested();
+    gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+    return YES;
+  }
+  if (direction == UIAccessibilityScrollDirectionPrevious ||
+      direction == UIAccessibilityScrollDirectionLeft) {
+    CrossPointDiag_log("TEXTINPUT scroll prev -> page back");
+    CrossPointAccessibility_notePageTurnRequested();
+    gpio.queueButtonTap(HalGPIO::BTN_LEFT, 60);
+    return YES;
+  }
+  return NO;
 }
 
 // Read-only: never become first responder, never take the keyboard.
