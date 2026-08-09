@@ -169,6 +169,29 @@ __weak CPAccessibilityOverlay *g_overlay = nil;
 // non-editable, non-interactive, so it can neither take the keyboard nor eat
 // a touch.
 __weak UITextView *g_pageTextView = nil;
+// THE CANDIDATE MATRIX (diagnostic build, owner-requested 2026-08-09: "try
+// multiple things to determine what'll work"). Builds 46-51 eliminated every
+// synthetic exposure and a clear-glyph real text view one hypothesis per
+// round trip. This ships every remaining visibility variant AT ONCE, each
+// prefixed with a distinct spoken sentinel, so whatever Speak Screen says
+// aloud names the surface it consumed:
+//
+//   "alpha"   UITextView over the panel, near-invisible ink (3% black) --
+//             tests the minimum-visibility threshold of the extraction.
+//   "bravo"   POSITIVE CONTROL: a genuinely visible gray strip under the
+//             panel. If even bravo goes unread, the app as a whole is being
+//             refused and no text treatment can matter.
+//   "charlie" UITextView with CLEAR ink (the build-51 behaviour, kept so a
+//             clear-vs-alpha split is attributable).
+//   "delta"   UILabel, visible 3% ink -- a different AX class entirely.
+//
+// All gated to Speak-Screen-on, all torn down when the mode ends, all logged.
+struct CandidateView {
+  __weak UIView *view;
+};
+__weak UITextView *g_candAlpha = nil;
+__weak UILabel *g_candBravo = nil;
+__weak UILabel *g_candDelta = nil;
 long g_queryBudget = 0;
 long g_readingBudget = 0;
 bool g_inDump = false;
@@ -373,10 +396,41 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   // from the very reader it exists for.
   if (host) host.accessibilityElements = nil;
   if (host && wantsReadingPage()) {
+    NSString *pageText = [[NSString alloc] initWithBytes:text.data() length:text.size()
+                                                encoding:NSUTF8StringEncoding] ?: @"";
+    // A short excerpt after each sentinel: enough to prove the surface was
+    // read, short enough that a candidate being spoken does not take minutes.
+    NSString *excerpt = pageText.length > 120 ? [pageText substringToIndex:120] : pageText;
+
+    CGFloat px0 = 0, py0 = 0, ps = 0;
+    const bool geo = panelGeometryPts(&px0, &py0, &ps);
+    const CGFloat panelW = geo ? (CGFloat)HalDisplay::LOGICAL_HEIGHT * ps : host.bounds.size.width;
+    const CGFloat panelH = geo ? (CGFloat)HalDisplay::LOGICAL_WIDTH * ps : host.bounds.size.height;
+
+    // alpha: near-invisible ink over the panel's top half.
+    UITextView *alpha = g_candAlpha;
+    if (!alpha || alpha.window != host) {
+      [g_candAlpha removeFromSuperview];
+      alpha = [[UITextView alloc] init];
+      alpha.editable = NO;
+      alpha.scrollEnabled = NO;
+      alpha.userInteractionEnabled = NO;
+      alpha.backgroundColor = UIColor.clearColor;
+      alpha.textColor = [UIColor.blackColor colorWithAlphaComponent:0.03];
+      alpha.accessibilityIdentifier = @"crosspoint.cand-alpha";
+      [host addSubview:alpha];
+      g_candAlpha = alpha;
+      CrossPointDiag_log("candidate alpha installed (3%% ink text view over panel)");
+    }
+    alpha.frame = CGRectMake(px0, py0, panelW, panelH / 2);
+    alpha.font = [UIFont systemFontOfSize:17];
+    alpha.text = [NSString stringWithFormat:@"Alpha. %@", excerpt];
+
+    // charlie: the build-51 clear-ink text view, panel's lower half.
     UITextView *tv = g_pageTextView;
     if (!tv || tv.window != host) {
       [g_pageTextView removeFromSuperview];
-      tv = [[UITextView alloc] initWithFrame:host.bounds];
+      tv = [[UITextView alloc] init];
       tv.editable = NO;
       tv.scrollEnabled = NO;
       tv.userInteractionEnabled = NO;
@@ -385,25 +439,59 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
       tv.accessibilityIdentifier = @"crosspoint.page-textview";
       [host addSubview:tv];
       g_pageTextView = tv;
-      CrossPointDiag_log("page text view installed");
+      CrossPointDiag_log("candidate charlie installed (clear ink text view, build-51 behaviour)");
     }
-    // The panel rect, so the view sits where the text actually is. The text
-    // itself is the page in reading order; per-line positioning is not
-    // attempted -- Speak Screen's extraction wants the text, and the sighted
-    // rendering is the panel's own ink.
-    CGFloat px0 = 0, py0 = 0, ps = 0;
-    if (panelGeometryPts(&px0, &py0, &ps)) {
-      tv.frame = CGRectMake(px0, py0, (CGFloat)HalDisplay::LOGICAL_HEIGHT * ps,
-                            (CGFloat)HalDisplay::LOGICAL_WIDTH * ps);
-    }
+    tv.frame = CGRectMake(px0, py0 + panelH / 2, panelW, panelH / 2);
     tv.font = [UIFont systemFontOfSize:17];
-    tv.text = [[NSString alloc] initWithBytes:text.data() length:text.size()
-                                     encoding:NSUTF8StringEncoding] ?: @"";
+    tv.text = [NSString stringWithFormat:@"Charlie. %@", excerpt];
+
+    // bravo: the POSITIVE CONTROL. Genuinely visible -- dim gray on the dark
+    // band under the panel, small, but unquestionably rendered ink.
+    UILabel *bravo = g_candBravo;
+    if (!bravo || bravo.window != host) {
+      [g_candBravo removeFromSuperview];
+      bravo = [[UILabel alloc] init];
+      bravo.numberOfLines = 2;
+      bravo.font = [UIFont systemFontOfSize:13];
+      bravo.textColor = [UIColor.grayColor colorWithAlphaComponent:0.9];
+      bravo.backgroundColor = UIColor.clearColor;
+      bravo.accessibilityIdentifier = @"crosspoint.cand-bravo";
+      [host addSubview:bravo];
+      g_candBravo = bravo;
+      CrossPointDiag_log("candidate bravo installed (VISIBLE control label under panel)");
+    }
+    bravo.frame = CGRectMake(12, py0 + panelH + 4, host.bounds.size.width - 24, 36);
+    bravo.text = @"Bravo. Speak Screen diagnostic: if you hear this, visible app text is readable.";
+
+    // delta: a UILabel over the panel bottom edge, 3% ink -- different AX
+    // class from the text views.
+    UILabel *delta = g_candDelta;
+    if (!delta || delta.window != host) {
+      [g_candDelta removeFromSuperview];
+      delta = [[UILabel alloc] init];
+      delta.numberOfLines = 3;
+      delta.font = [UIFont systemFontOfSize:15];
+      delta.textColor = [UIColor.blackColor colorWithAlphaComponent:0.03];
+      delta.backgroundColor = UIColor.clearColor;
+      delta.accessibilityIdentifier = @"crosspoint.cand-delta";
+      [host addSubview:delta];
+      g_candDelta = delta;
+      CrossPointDiag_log("candidate delta installed (3%% ink UILabel)");
+    }
+    delta.frame = CGRectMake(px0, py0 + panelH - 60, panelW, 56);
+    delta.text = [NSString stringWithFormat:@"Delta. %@", excerpt];
+
     [host bringSubviewToFront:overlay];
-  } else if (g_pageTextView) {
+  } else if (g_pageTextView || g_candAlpha || g_candBravo || g_candDelta) {
     [g_pageTextView removeFromSuperview];
+    [g_candAlpha removeFromSuperview];
+    [g_candBravo removeFromSuperview];
+    [g_candDelta removeFromSuperview];
     g_pageTextView = nil;
-    CrossPointDiag_log("page text view removed (mode off)");
+    g_candAlpha = nil;
+    g_candBravo = nil;
+    g_candDelta = nil;
+    CrossPointDiag_log("candidate matrix removed (mode off)");
   }
   g_queryBudget = 6;
   g_readingBudget = 8;
@@ -596,5 +684,8 @@ void CrossPointAccessibility_clear(void) {
   overlay.cpElements = @[];
   overlay.accessibilityElements = @[];
   g_pageTextView.text = @"";
+  g_candAlpha.text = @"";
+  g_candBravo.text = @"";
+  g_candDelta.text = @"";
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
 }
