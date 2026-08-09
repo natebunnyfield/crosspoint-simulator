@@ -660,6 +660,32 @@ launch and is the fastest way to tell which half is broken:
 arrived, which is the channel, not accessibility. Two fixes were shipped here on
 reasoning about what UIKit "should" do before anyone ran this; both were wrong.
 
+**Troubleshooting Speak Screen on a TestFlight build — read the log on the
+phone.** The app writes an accessibility log to the emulated card at
+`diagnostics/a11y.log`, and the card is browsable in the Files app: **On My
+iPhone → CrossPoint X3 → diagnostics → a11y.log**. Long-press to share it. No
+Mac required — this exists because TestFlight builds have no console and every
+"no speakable content" report used to arrive with zero evidence.
+
+What the log answers, line by line:
+
+- `---- launch: v0.1.0 (45), screen 375x812 pt @3.00x ----` — which build,
+  which device geometry.
+- `assistive tech: speakScreen=1 ...` — whether iOS reported the feature ON at
+  all. The OFF→ON edge also triggers a `TREE` dump at exactly the moment the
+  report happens, showing what an assistive technology could reach right then.
+- `N word rects -> M line elements; first "..."` — a page was published and
+  became elements. If the last such line is `page cleared (reader left)`, the
+  report happened OUTSIDE the reader — Home, a menu, a .txt/.xtc book — where
+  nothing publishes and "no speakable content" is currently correct.
+- `WARNING: all N element frames are OFF-SCREEN` — the frames landed outside
+  the window, which assistive tech may skip wholesale. Measured risk, not
+  hypothetical: an iPhone 13 mini rendered the panel at dst -252 px.
+
+The same grouping is observable OFF-device: `CROSSPOINT_SIM_READALOUD_DUMP=1`
+on the desktop simulator prints the exact per-line labels against a real book,
+and `tests/readaloud_lines_test.cpp` pins the grouping contract.
+
 **Speak Screen cannot be tested in the simulator** — its Spoken Content pane
 offers only Speak Selection and Pronunciations, so
 `UIAccessibilityIsSpeakScreenEnabled()` reads 0 and the two-finger gesture does

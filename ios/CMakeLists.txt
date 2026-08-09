@@ -50,6 +50,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointDiagLog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointFsPrep.cpp
   ${CROSSPOINT_SETTINGS_BUNDLE}
   ${CROSSPOINT_ASSETS})

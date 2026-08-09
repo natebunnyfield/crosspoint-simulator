@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "HalDisplay.h"
+#include "CrossPointDiagLog.h"
 #include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
 
@@ -147,7 +148,16 @@ void CrossPointAccessibility_begin(void) {
   [window addSubview:overlay];
   [window bringSubviewToFront:overlay];
   g_overlay = overlay;
-  SDL_Log("[A11Y] container installed over the panel");
+  // The launch header: every report needs this context, and asking the owner
+  // for it costs a round trip. Marketing/build versions come from the bundle,
+  // so the log itself says which TestFlight build produced it.
+  NSDictionary *info = NSBundle.mainBundle.infoDictionary;
+  CrossPointDiag_log("---- launch: v%s (%s), screen %.0fx%.0f pt @%.2fx ----",
+                     [info[@"CFBundleShortVersionString"] UTF8String] ?: "?",
+                     [info[@"CFBundleVersion"] UTF8String] ?: "?",
+                     window.bounds.size.width, window.bounds.size.height,
+                     (double)window.screen.scale);
+  CrossPointDiag_log("container installed over the panel");
 }
 
 bool CrossPointAccessibility_wantsPage(void) {
@@ -162,8 +172,15 @@ bool CrossPointAccessibility_wantsPage(void) {
   static int last = -1;
   const int now = (speak ? 1 : 0) | (vo ? 2 : 0) | (sw ? 4 : 0);
   if (now != last) {
+    const bool turnedOn = now != 0 && last <= 0;
     last = now;
-    SDL_Log("[A11Y] assistive tech: speakScreen=%d voiceOver=%d switchControl=%d", speak, vo, sw);
+    CrossPointDiag_log("assistive tech: speakScreen=%d voiceOver=%d switchControl=%d", speak, vo, sw);
+    // The moment assistive tech turns ON is the moment the report happens, so
+    // dump what it can actually reach RIGHT NOW -- not once at launch, when the
+    // interesting state has not happened yet. This is the line that separates
+    // "the container is empty" from "the container is unreachable" from "there
+    // is simply no page on this screen".
+    if (turnedOn) CrossPointAccessibility_dumpTree();
   }
   return speak || vo || sw;
 }
@@ -188,12 +205,31 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
     // rects -> lines makes the grouping visible: if these are equal, the
     // per-line grouping has silently degenerated to per-word and Speak Screen
     // will read with a pause after every word.
-    SDL_Log("[A11Y] %u word rects -> %lu line elements; first \"%s\" at (%.0f,%.0f %.0fx%.0f) pts",
-            rectCount, (unsigned long)overlay.cpElements.count,
-            first.accessibilityLabel.UTF8String ?: "", f.origin.x, f.origin.y, f.size.width,
-            f.size.height);
+    CrossPointDiag_log("%u word rects -> %lu line elements; first \"%.40s\" at (%.0f,%.0f %.0fx%.0f) pts",
+                       rectCount, (unsigned long)overlay.cpElements.count,
+                       first.accessibilityLabel.UTF8String ?: "", f.origin.x, f.origin.y,
+                       f.size.width, f.size.height);
+    // Frames outside the screen are frames Speak Screen may simply skip. This
+    // is not hypothetical: on an iPhone 13 mini the panel itself was measured
+    // rendering at dst -252,510 -- off the left edge -- so on any device where
+    // the panel lands off-screen, every element goes with it and the owner
+    // gets "no speakable content" over a page that IS published and IS
+    // reachable. The union-vs-bounds numbers make that diagnosis one line.
+    CGRect unionF = CGRectNull;
+    for (UIAccessibilityElement *el in overlay.cpElements)
+      unionF = CGRectUnion(unionF, el.accessibilityFrame);
+    const CGRect screen = overlay.window ? overlay.window.bounds : UIScreen.mainScreen.bounds;
+    if (!CGRectIntersectsRect(unionF, screen)) {
+      CrossPointDiag_log("WARNING: all %lu element frames are OFF-SCREEN (union %.0f,%.0f %.0fx%.0f vs screen %.0fx%.0f) -- assistive tech may skip them",
+                         (unsigned long)overlay.cpElements.count, unionF.origin.x, unionF.origin.y,
+                         unionF.size.width, unionF.size.height, screen.size.width, screen.size.height);
+    } else if (!CGRectContainsRect(screen, unionF)) {
+      CrossPointDiag_log("note: element union (%.0f,%.0f %.0fx%.0f) extends past the %.0fx%.0f screen",
+                         unionF.origin.x, unionF.origin.y, unionF.size.width, unionF.size.height,
+                         screen.size.width, screen.size.height);
+    }
   } else {
-    SDL_Log("[A11Y] page had %u rects but produced no elements", rectCount);
+    CrossPointDiag_log("page had %u rects but produced no elements", rectCount);
   }
   // Tell assistive tech the screen changed, or Speak Screen keeps reading the
   // page it already had.
@@ -212,13 +248,13 @@ void CrossPointAccessibility_keepFront(void) {
   UIView *parent = overlay.superview;
   if (!parent) {
     // Lost its window entirely (a wake rebuilt the hierarchy). Reinstall.
-    SDL_Log("[A11Y] container lost its window; reinstalling");
+    CrossPointDiag_log("container lost its window; reinstalling");
     CrossPointAccessibility_begin();
     return;
   }
   if (parent.subviews.lastObject != overlay) {
-    SDL_Log("[A11Y] container was buried behind %lu view(s); raising",
-            (unsigned long)(parent.subviews.count - 1));
+    CrossPointDiag_log("container was buried behind %lu view(s); raising",
+                       (unsigned long)(parent.subviews.count - 1));
     [parent bringSubviewToFront:overlay];
   }
 }
@@ -238,9 +274,9 @@ static void dumpTree(id node, int depth, int *found) {
                         ? ([node accessibilityLabel] ?: @"")
                         : @"";
   if (isEl && label.length > 0) (*found)++;
-  SDL_Log("[A11Y-TREE] %s%s isElement=%d children=%ld label=\"%s\"", pad.UTF8String,
-          NSStringFromClass([node class]).UTF8String, (int)isEl, (long)count,
-          [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
+  CrossPointDiag_log("TREE %s%s isElement=%d children=%ld label=\"%s\"", pad.UTF8String,
+                     NSStringFromClass([node class]).UTF8String, (int)isEl, (long)count,
+                     [label substringToIndex:MIN((NSUInteger)28, label.length)].UTF8String);
   for (NSInteger i = 0; i < count && i < 6; i++) {
     if ([node respondsToSelector:@selector(accessibilityElementAtIndex:)])
       dumpTree([node accessibilityElementAtIndex:i], depth + 1, found);
@@ -252,11 +288,11 @@ static void dumpTree(id node, int depth, int *found) {
 
 void CrossPointAccessibility_dumpTree(void) {
   UIWindow *window = resolveWindow();
-  if (!window) { SDL_Log("[A11Y-TREE] no window"); return; }
+  if (!window) { CrossPointDiag_log("TREE: no window"); return; }
   int found = 0;
-  SDL_Log("[A11Y-TREE] ---- traversal from the window ----");
+  CrossPointDiag_log("TREE ---- traversal from the window ----");
   dumpTree(window, 0, &found);
-  SDL_Log("[A11Y-TREE] ---- reachable labelled elements: %d ----", found);
+  CrossPointDiag_log("TREE ---- reachable labelled elements: %d ----", found);
 }
 
 bool CrossPointAccessibility_hasElements(void) {
@@ -267,6 +303,11 @@ bool CrossPointAccessibility_hasElements(void) {
 void CrossPointAccessibility_clear(void) {
   CPAccessibilityOverlay *overlay = g_overlay;
   if (!overlay) return;
+  // Only log a transition, not every no-op clear: Home repaints often, and a
+  // log line per repaint would bury the signal.
+  if (overlay.cpElements.count > 0) {
+    CrossPointDiag_log("page cleared (reader left) -- Speak Screen correctly finds nothing until a book page renders");
+  }
   overlay.cpElements = @[];
   overlay.accessibilityElements = @[];
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
