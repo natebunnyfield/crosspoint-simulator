@@ -46,6 +46,19 @@ void CrossPointAccessibility_installFocusObserver(void);
 // technology uses (CrossPointAccessibility_dumpTree) instead of reasoning about
 // what UIKit "should" do. Both are implemented now: the property is set for the
 // paths that read it, and these three answer the ones that ask directly.
+// The OTHER door. iOS can read a container two ways: the explicit
+// count/atIndex methods below, or the stored accessibilityElements property.
+// Build 47 probed only the first and logged total silence while Speak Screen
+// reported no content -- which is ambiguous until this getter is watched too.
+// Overriding a getter is exactly what broke build 42, but the trap there was
+// overriding it INSTEAD of implementing the container methods; with all three
+// implemented below, delegating to super preserves the stored property's
+// semantics bit for bit while recording that the read happened.
+- (NSArray *)accessibilityElements {
+  CrossPointAccessibility_noteQuery("elementsGetter", (long)self.cpElements.count);
+  return [super accessibilityElements];
+}
+
 - (NSInteger)accessibilityElementCount {
   // Query logging, throttled hard: the first few calls after each page are the
   // signal ("iOS consulted the container at t=X"), the rest are noise. The
