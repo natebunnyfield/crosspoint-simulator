@@ -293,6 +293,13 @@ void CrossPointAccessibility_begin(void) {
   // for it costs a round trip. Marketing/build versions come from the bundle,
   // so the log itself says which TestFlight build produced it.
   NSDictionary *info = NSBundle.mainBundle.infoDictionary;
+  // Scene hosting state, logged because the scene shim exists for Speak
+  // Screen and silently failing to be scene-hosted would invalidate the whole
+  // experiment: connectedScenes says whether iOS runs us scene-based at all,
+  // hosted says whether SDL's window was adopted into one.
+  const NSUInteger sceneCount = UIApplication.sharedApplication.connectedScenes.count;
+  CrossPointDiag_log("scenes=%lu windowHosted=%d", (unsigned long)sceneCount,
+                     (int)(window.windowScene != nil));
   CrossPointDiag_log("---- launch: v%s (%s), screen %.0fx%.0f pt @%.2fx ----",
                      [info[@"CFBundleShortVersionString"] UTF8String] ?: "?",
                      [info[@"CFBundleVersion"] UTF8String] ?: "?",
@@ -339,6 +346,16 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   const std::vector<ReadAloudWordRect> v(rects, rects + rectCount);
   overlay.cpElements = buildElements(overlay, text, v);
   overlay.accessibilityElements = overlay.cpElements;
+  // THE WINDOW-LEVEL DOOR. Every prior exposure lives on the overlay, one
+  // level down from the window, and VoiceOver demonstrably descends to it. A
+  // top-down reader that asks only the WINDOW for its elements gets nil there
+  // and can conclude "no content" without a single query reaching the overlay
+  // -- which is the precise signature builds 47-49 logged. Mirroring the same
+  // element objects onto the window costs nothing SDL uses (it never touches
+  // window.accessibilityElements) and is gated like the page element so the
+  // confirmed VoiceOver experience keeps its single un-duplicated source.
+  UIWindow *host = overlay.window;
+  if (host) host.accessibilityElements = wantsReadingPage() ? overlay.cpElements : nil;
   g_queryBudget = 6;
   g_readingBudget = 8;
   g_builtMode = wantsReadingPage() ? 1 : 0;
@@ -529,5 +546,6 @@ void CrossPointAccessibility_clear(void) {
   }
   overlay.cpElements = @[];
   overlay.accessibilityElements = @[];
+  if (overlay.window) overlay.window.accessibilityElements = nil;
   UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
 }
