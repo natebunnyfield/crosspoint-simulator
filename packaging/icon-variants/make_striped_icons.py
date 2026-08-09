@@ -107,18 +107,19 @@ DUTY = 0.5
 
 
 def variant(name, angle, blurb, pitch=1.0, duty=DUTY, rim=None, solid_masses=0,
-            counter=None):
+            counter=None, fit=False):
     """One entry in the variant table.
 
     `pitch` is a multiplier on the --pitch baseline; `rim` is in master pixels;
     `solid_masses` is how many of the mark's masses stay flat-filled, taken from
     the bottom-left end (see `deep_components`); `counter` treats the mark's
     bottom-right counter -- None to leave it as paper, "solid" to fill it, or
-    (angle, line, gap, phase) to rule it.
+    (angle, lines) to rule it. `fit` solves each region's gap so the ruling
+    lands flush on both rims instead of wherever the phase happens to fall.
     """
     return dict(
         name=name, angle=angle, pitch=pitch, duty=duty, rim=rim,
-        solid_masses=solid_masses, counter=counter, blurb=blurb,
+        solid_masses=solid_masses, counter=counter, fit=fit, blurb=blurb,
     )
 
 
@@ -133,7 +134,7 @@ def uniform_variant(name, counter, blurb):
     return variant(
         name, PAGE_ANGLE, blurb,
         pitch=(2.0 * STROKE_WIDTH) / PITCH, duty=0.5,
-        rim=STROKE_WIDTH, solid_masses=0, counter=counter,
+        rim=STROKE_WIDTH, solid_masses=0, counter=counter, fit=True,
     )
 
 
@@ -167,22 +168,26 @@ VARIANTS = [
     # Line width == gap == rim == STROKE_WIDTH, so nothing in the icon is drawn
     # at a weight the mark does not already use, and a ruled line running into
     # an outline reads as one stroke. Both masses are ruled. The bottom-right
-    # counter is the variable: paper, filled, ruled with the rest, ruled out of
-    # phase with it, or ruled the mirrored way as if it were the facing page.
+    # counter is the variable: paper, ruled to match, ruled with a single line,
+    # ruled the mirrored way as if it were the facing page, or filled.
+    #
+    # There is no out-of-phase variant here, and there cannot be: `fit` solves
+    # each region's phase so the ruling lands flush on its rims, so "offset by
+    # half a period" is exactly the sliver this family was fixed to remove.
     uniform_variant(
         "uniform-paper", None,
         "Bottom-right left as paper.",
     ),
     uniform_variant(
-        "uniform-ruled", (PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.0),
-        "Bottom-right ruled with the same lines, in phase.",
+        "uniform-ruled", (PAGE_ANGLE, None),
+        "Bottom-right ruled to match, two lines.",
     ),
     uniform_variant(
-        "uniform-offset", (PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.5),
-        "Bottom-right ruled half a period out of phase, so the lines interleave.",
+        "uniform-single", (PAGE_ANGLE, 1),
+        "Bottom-right carrying a single line.",
     ),
     uniform_variant(
-        "uniform-mirror", (-PAGE_ANGLE, STROKE_WIDTH, STROKE_WIDTH, 0.0),
+        "uniform-mirror", (-PAGE_ANGLE, None),
         "Bottom-right ruled the mirrored way, as if it were the facing page.",
     ),
     uniform_variant(
@@ -564,6 +569,63 @@ def _band_average(t0, t1, period, on):
     return (F(t1) - F(t0)) / span
 
 
+def region_extent(flags, label, size, angle_deg, centre):
+    """How far a region reaches along the stripe normal, as (t_min, t_max)."""
+    theta = math.radians(angle_deg)
+    ct, st = math.cos(theta), math.sin(theta)
+    cx, cy = centre
+    lo, hi = None, None
+    for i in range(size * size):
+        if flags[i] != label:
+            continue
+        t = (i % size + 0.5 - cx) * ct + (i // size + 0.5 - cy) * st
+        if lo is None or t < lo:
+            lo = t
+        if hi is None or t > hi:
+            hi = t
+    return lo, hi
+
+
+def fit_ruling(t_min, t_max, line, lines=None):
+    """Ruling that lands exactly on both ends of a region.
+
+    Returns (period, duty, phase, count), or None if the region is too narrow.
+
+    WHY FIT AT ALL. A periodic pattern and a rim are independent: the pattern's
+    phase decides where its first and last bands fall relative to the rim, and
+    nothing makes that land well. Measured on the first attempt at this family,
+    with line = gap = rim = 46, a scan across the right page ran
+
+        ink 48 | gap 10 | ink 46 | gap 46 | ink 46 | gap 42 | ink 90
+
+    -- perfect in the middle, and at the ends a 10px sliver and a 90px slab
+    where a line had merged into the rim. Near the bottom-right counter that
+    sliver tapers to a point and reads as a crack in the outline.
+
+    So the gap is solved for rather than chosen. The region spans t_max - t_min
+    between its two rims and is filled with n lines and n+1 gaps:
+
+        span = n*line + (n + 1)*gap
+
+    n is whichever count puts the gap nearest the line width, and the gap
+    follows exactly. Every line is then the requested width, every gap in a
+    region is identical, and both ends land flush on the rim -- no phase left
+    free to produce a sliver. Gaps differ slightly BETWEEN regions (the right
+    page is deeper than the left mass), which is the price of having none of
+    them ragged.
+    """
+    span = t_max - t_min
+    n = lines if lines is not None else int(round((span / line - 1.0) / 2.0))
+    if n < 1 or span <= n * line:
+        return None
+    gap = (span - n * line) / (n + 1)
+    period = line + gap
+    # Phase that puts the first line's leading edge at t_min + gap. stripe_field
+    # starts a band where t_raw == -on/2 - phase*period, hence the negation.
+    phase = ((-line / 2.0 - (t_min + gap)) / period) % 1.0
+    return period, line / period, phase, n
+
+
 def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
     """Stripe coverage 0..255 per pixel for the whole canvas.
 
@@ -597,31 +659,45 @@ def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
 
 
 def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels,
-           solid, counter_flags=None, counter_field=None):
+           solid, counter_flags=None, counter_field=None, mass_fields=None):
     """Composite: ink = mask coverage * fill coverage, painted black on white.
 
     The counter is painted OVER the result rather than added to it, so ink
     already there is never doubled and a counter boundary that is half-ink
     fills the rest of the way instead of overshooting.
     """
-    stripes = stripe_field(size, angle_deg, period, duty, centre)
+    # With per-mass fields there is no single pattern to fall back on, and
+    # building one would be several seconds of work nothing reads.
+    stripes = None if mass_fields is not None else stripe_field(
+        size, angle_deg, period, duty, centre
+    )
     out = bytearray(size * size * 4)
     for i in range(size * size):
         coverage = mask[i]
         if coverage:
-            fill = stripes[i]
-            if rim is not None and fill < 255:
+            if rim is None:
+                fill = stripes[i]
+            else:
                 depth = distance[i]
                 # `solid` is empty unless a variant holds a mass flat, and
                 # `labels` is empty with it -- so it must be tested first.
                 if depth <= rim or (solid and labels[i] in solid):
                     # The rim, and any mass held flat, are solid ink.
                     fill = 255
-                elif depth < rim + 1.0:
-                    # Blend over one pixel so the keyline does not show a hard
-                    # step where it meets the stripes.
-                    edge = rim + 1.0 - depth
-                    fill = int(fill + (255 - fill) * edge + 0.5)
+                else:
+                    if mass_fields is None:
+                        fill = stripes[i]
+                    else:
+                        # Each mass carries its own fitted ruling, so the
+                        # pattern comes from that mass's field rather than one
+                        # global one. A mass too small to fit stays solid.
+                        field = mass_fields.get(labels[i])
+                        fill = 255 if field is None else field[i]
+                    if fill < 255 and depth < rim + 1.0:
+                        # Blend over one pixel so the keyline does not show a
+                        # hard step where it meets the ruling.
+                        edge = rim + 1.0 - depth
+                        fill = int(fill + (255 - fill) * edge + 0.5)
             coverage = coverage * fill // 255
         if counter_flags is not None and counter_flags[i]:
             add = 255 if counter_field is None else counter_field[i]
@@ -648,9 +724,11 @@ def build(source, output_dir, pitch, duty_override, only):
     scale = size / 1024.0
     min_area = size * size // 500
     distance = None
+    filled_distance = None
     components = {}
     counters = None
     counter_cache = {}
+    field_cache = {}
     written = []
 
     for spec in VARIANTS:
@@ -660,14 +738,83 @@ def build(source, output_dir, pitch, duty_override, only):
 
         rim = None if spec["rim"] is None else spec["rim"] * scale
         labels, solid = [], set()
+        mass_fields = None
+        geometry = None
+        fits = []
+
+        # A filled counter is not a counter, so the geometry must be measured on
+        # the mark it leaves behind. Filling afterwards would lay the ruling out
+        # around a hole that the finished icon does not have, and leave a rim
+        # arcing around an apex that is no longer there.
+        work = mask
+        fill_stop = fill_probe = None
+        if spec["counter"] == "solid":
+            if counters is None:
+                counters = paper_counters(mask, size, min_area)
+            flags, found = counters
+            if found:
+                filled = grown_counter(flags, mask, size, {found[-1][0]})
+                work = bytearray(mask)
+                for i in range(size * size):
+                    if filled[i]:
+                        work[i] = 255
+                # The counter is still painted solid below; filling `work` only
+                # changes what the rim and the fit are measured against. Its
+                # leading edge becomes where the ruling above it must stop, and
+                # any pixel inside it identifies the mass that swallowed it.
+                fill_stop = region_extent(
+                    flags, found[-1][0], size, spec["angle"], centre
+                )[0]
+                fill_probe = next(i for i in range(size * size)
+                                  if flags[i] == found[-1][0])
 
         if rim is not None:
-            if distance is None:
-                distance = edge_distance(mask, size)
+            if work is mask:
+                if distance is None:
+                    distance = edge_distance(mask, size)
+                geometry = distance
+            else:
+                if filled_distance is None:
+                    filled_distance = edge_distance(work, size)
+                geometry = filled_distance
+            comp_key = (rim, work is mask)
+            if spec["fit"]:
+                if comp_key not in components:
+                    components[comp_key] = deep_components(
+                        geometry, size, rim, min_area
+                    )
+                labels, infos = components[comp_key]
+                line = STROKE_WIDTH * scale
+                mass_fields = {}
+                for label, _area, _cx, _cy in infos:
+                    t_lo, t_hi = region_extent(
+                        labels, label, size, spec["angle"], centre
+                    )
+                    if fill_stop is not None and labels[fill_probe] == label:
+                        # This mass swallowed the filled counter. Fitting across
+                        # the pair would put a gap astride the counter's edge and
+                        # leave a wedge of paper on top of the fill; the edge is
+                        # parallel to the ruling, so ending flush on it instead
+                        # is exact.
+                        t_hi = fill_stop
+                    fitted = fit_ruling(t_lo, t_hi, line=line)
+                    if fitted is None:
+                        continue        # too narrow to rule; render() leaves it solid
+                    period, duty_m, phase, count = fitted
+                    key = (spec["angle"], round(period, 4), round(phase, 6))
+                    if key not in field_cache:
+                        field_cache[key] = stripe_field(
+                            size, spec["angle"], period, duty_m, centre, phase
+                        )
+                    mass_fields[label] = field_cache[key]
+                    fits.append("mass %d: %d lines of %.0fpx, %.1fpx gaps"
+                                % (label, count, line, period - line))
             if spec["solid_masses"]:
-                if rim not in components:
-                    components[rim] = deep_components(distance, size, rim, min_area)
-                labels, infos = components[rim]
+                if comp_key not in components:
+                    components[comp_key] = deep_components(
+                        geometry, size, rim, min_area
+                    )
+                labels, infos = components[comp_key]
                 if len(infos) <= spec["solid_masses"]:
                     raise IconError(
                         "%s wants %d of the mark's masses flat, but a %.0fpx rim "
@@ -697,18 +844,30 @@ def build(source, output_dir, pitch, duty_override, only):
                 counter_cache[key] = grown_counter(flags, mask, size, bottom_right)
             counter_flags = counter_cache[key]
             if spec["counter"] != "solid":
-                c_angle, c_line, c_gap, c_phase = spec["counter"]
-                counter_field = stripe_field(
-                    size, c_angle, (c_line + c_gap) * scale,
-                    c_line / float(c_line + c_gap), centre, c_phase,
+                c_angle, c_lines = spec["counter"]
+                fitted = fit_ruling(
+                    *region_extent(flags, found[-1][0], size, c_angle, centre),
+                    line=STROKE_WIDTH * scale, lines=c_lines,
                 )
+                if fitted is None:
+                    raise IconError(
+                        "%s rules the bottom-right counter, but it is too narrow "
+                        "to hold even one %.0fpx line" % (name, STROKE_WIDTH * scale)
+                    )
+                c_period, c_duty, c_phase, c_count = fitted
+                counter_field = stripe_field(
+                    size, c_angle, c_period, c_duty, centre, c_phase
+                )
+                fits.append("counter: %d line%s of %.0fpx, %.1fpx gaps"
+                            % (c_count, "" if c_count == 1 else "s",
+                               STROKE_WIDTH * scale, c_period - c_period * c_duty))
 
         rgba_out = render(
-            mask, size, spec["angle"],
+            work, size, spec["angle"],
             pitch * spec["pitch"] * scale,
             spec["duty"] if duty_override is None else duty_override,
-            centre, rim, distance, labels, solid,
-            counter_flags, counter_field,
+            centre, rim, geometry, labels, solid,
+            counter_flags, counter_field, mass_fields,
         )
 
         path = os.path.join(output_dir, "AppIcon-1024-striped-%s.png" % name)
@@ -716,6 +875,8 @@ def build(source, output_dir, pitch, duty_override, only):
             handle.write(write_png(size, size, rgba_out))
         written.append((name, path, spec["blurb"]))
         print("wrote %s -- %s" % (os.path.relpath(path, REPO_ROOT), spec["blurb"]))
+        for line_info in fits:
+            print("    %s" % line_info)
 
     if not written:
         raise IconError(

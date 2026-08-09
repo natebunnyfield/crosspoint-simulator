@@ -68,10 +68,42 @@ flat. The only thing that varies is the bottom-right counter.
 | File suffix | Bottom-right counter |
 |---|---|
 | `uniform-paper` | Left as paper |
-| `uniform-ruled` | Ruled with the same lines, in phase |
-| `uniform-offset` | Ruled half a period out of phase, so the lines interleave |
+| `uniform-ruled` | Ruled to match, two lines |
+| `uniform-single` | Carrying a single line |
 | `uniform-mirror` | Ruled the mirrored way, as if it were the facing page |
 | `uniform-solid` | Filled, the only flat area in the mark |
+
+**The gap is solved for, not chosen.** A periodic pattern and a rim are
+independent: the phase decides where the first and last bands fall relative to
+the rim, and nothing makes that land well. With line = gap = rim = 46 a scan
+across the right page ran
+
+    ink 48 | gap 10 | ink 46 | gap 46 | ink 46 | gap 42 | ink 90
+
+— perfect in the middle, and at the ends a 10px sliver next to a 90px slab
+where a line had merged into the rim. So `fit_ruling` solves each region
+instead: it spans `t_max - t_min` between its two rims and fills it with `n`
+lines and `n+1` gaps,
+
+    span = n*line + (n + 1)*gap
+
+taking whichever `n` puts the gap nearest the line width. Every line is then
+exactly 46, every gap in a region is identical, and both ends land flush — no
+phase is left free to produce a sliver. Gaps differ slightly *between* regions
+(56.0 in the deeper right page, 44.4 in the left mass, 43.2 in the counter),
+which is the price of none of them being ragged.
+
+There is no out-of-phase variant, and there cannot be: fitting determines each
+region's phase, so "offset by half a period" is exactly the sliver this
+solves.
+
+**A filled counter is not a counter.** `uniform-solid` measures its geometry on
+the mark the fill leaves behind. Filling afterwards laid the ruling out around
+a hole the finished icon does not have, and left the rim arcing around an apex
+that was no longer there. Its ruling also stops flush on the fill's leading
+edge — which is parallel to the ruling — rather than being fitted across the
+merged region, since fitting across the pair puts a gap astride that edge and
+leaves a wedge of paper sitting on top of the fill.
 
 **A counter is paper, not ink**, which is why it needed new machinery. Every
 other treatment in this file operates on the ink mask; a counter is the paper
