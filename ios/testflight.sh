@@ -84,6 +84,65 @@ say "Desktop canary"
   && echo "desktop OK" \
   || { echo "ERROR: desktop build is red — fix that before shipping."; exit 1; }
 
+say "Source set freshness"
+# The iOS source set is GENERATED from the firmware's compile database, and the
+# archive is the only thing that reads it. Desktop PlatformIO globs its sources,
+# so a firmware TU added without regenerating builds green on the desktop,
+# passes the canary above and the device-profile gate below, and then fails at
+# the LINK several minutes into the archive:
+#
+#   Undefined symbols for architecture arm64:
+#     "EditorFontSelectionActivity::EditorFontSelectionActivity(...)"
+#     "mdrender::drawLine(...)"
+#
+# That cost a full deploy round trip. CLAUDE.md has said to regenerate since
+# before it happened, which is the point: a documented step nobody runs is not a
+# gate.
+#
+# Compares the compile database against the committed list rather than
+# regenerating and diffing -- gen_cmake_sources.py --output does NOT write an
+# equivalent file (it omits the simulator block entirely), so a whole-file diff
+# is a guaranteed false positive and would block every deploy. What is checked
+# here is the one invariant that matters: every firmware TU the desktop compiles
+# is in CROSSPOINT_FW_SOURCES, minus the declared iOS exclusions.
+( cd "$FIRMWARE_DIR" && pio run -e simulator -t compiledb >/dev/null 2>&1 ) || {
+  echo "ERROR: could not generate the firmware compile database."; exit 1; }
+python3 - "$FIRMWARE_DIR" "$REPO" <<'PYGATE' || exit 1
+import json, os, re, sys
+fw_dir, repo = os.path.realpath(sys.argv[1]), sys.argv[2]
+
+with open(os.path.join(fw_dir, "compile_commands.json")) as f:
+    db = json.load(f)
+compiled = set()
+for e in db:
+    src = os.path.realpath(os.path.join(e.get("directory", fw_dir), e["file"]))
+    if src.startswith(fw_dir + os.sep) and src.endswith((".c", ".cpp")):
+        compiled.add(os.path.relpath(src, fw_dir))
+
+listed = set(re.findall(r"^\s+(\S+\.(?:c|cpp))\s*$",
+                        open(os.path.join(repo, "cmake/CrossPointSources.cmake")).read(), re.M))
+
+excl_path = os.path.join(repo, "cmake/CrossPointIOSExclusions.cmake")
+excluded = set()
+if os.path.exists(excl_path):
+    excluded = set(re.findall(r"(\S+\.(?:c|cpp))", open(excl_path).read()))
+
+missing = sorted(compiled - listed - excluded)
+if missing:
+    print("ERROR: cmake/CrossPointSources.cmake is STALE. These firmware TUs are")
+    print("  compiled on the desktop but absent from the iOS source set, so the")
+    print("  archive will fail at the link:")
+    for m in missing:
+        print("    " + m)
+    print()
+    print("  Fix:")
+    print(f"    cd {fw_dir} && pio run -e simulator -t compiledb")
+    print(f"    python3 {repo}/tools/gen_cmake_sources.py \\")
+    print(f"      --firmware-dir {fw_dir} --compile-db compile_commands.json")
+    sys.exit(1)
+print(f"source set is current ({len(compiled)} firmware TUs compiled, all listed)")
+PYGATE
+
 say "Version"
 # Build number = highest existing build-N tag + 1, so re-uploads never collide.
 # CFBundleVersion must be unique for a marketing version; Apple rejects a repeat
