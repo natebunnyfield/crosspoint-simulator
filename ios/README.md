@@ -873,8 +873,12 @@ Three controls, one state (`hostkbd::State`, host-tested in
 | Control | Does |
 |---|---|
 | Bar above the keyboard | Lowers it. Rides on the keyboard, so it leaves with it. |
-| Keyboard chip in the pad band | Raises it. Drawn only while a field is open with the keyboard down. |
-| Tap anywhere on the page | Raises it. Same handler as the chip, which is why the chip needs no hit test. |
+| Keyboard chip, one cell wide, centred in the bottom row | Toggles it. Drawn whenever a field is open; the chevron points where the keyboard is about to go. |
+| Tap anywhere else on the page | Raises it, never lowers — so reading the page cannot dismiss the keyboard by accident. |
+
+On the phone the chip sits under the keyboard while it is up, so in practice the
+bar lowers and the chip raises. On the tablet the bottom row lifts clear (see
+below) and the chip is a true toggle, which is why it draws both chevrons.
 
 The bar is a `UIToolbar` set as `inputAccessoryView` on SDL's hidden
 `SDLUITextField`. SDL exposes neither the field nor any accessory API
@@ -901,16 +905,29 @@ Not verifiable here, and so **UNCONFIRMED**: iPad's own dismiss key driving the
 chip (the `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` path), and behavior with a paired
 Bluetooth keyboard — no iPad and no paired keyboard on this Mac.
 
-**The page shrinks while the keyboard is up, and that is now visible.** The
-clearance band (owner ruling 2026-08-09) reserves the keyboard's height out of
-the panel's space, which on a phone leaves too little room for the panel's own
-integer scale and drops it to roughly 60%. It always did — but
-`CrossPointIOS_setKeyboardHeight` never asked for a present, so the relayout
-waited for whatever page the firmware rendered next and mostly went unseen.
-Fixing that (state changes must repaint) made it immediate. The alternative is
-to stop reserving it and let the keyboard overlap the page as iOS apps normally
-do; that reverses part of the 2026-08-09 ruling, so it is the owner's call and
-has not been taken.
+### The keyboard overlaps the page; it does not shrink it
+
+Owner ruling 2026-08-10, and it replaces the panel half of the 2026-08-09
+clearance band.
+
+That band reserved the keyboard's height out of the panel's space. On a phone
+that leaves too little room for the panel's own integer scale, so the page
+dropped to roughly 60% — trading about 40% of the text for a sight of its lower
+edge. It always did; `CrossPointIOS_setKeyboardHeight` simply never asked for a
+present, so the relayout waited for whatever page the firmware rendered next and
+mostly went unseen. Fixing that made it immediate, and immediately obviously
+wrong.
+
+Now the keyboard covers the page's lower edge the way it covers content in every
+other iOS app, and the bar above it puts it away in one tap.
+
+The **bottom row still lifts on the tablet** and no longer on the phone. Same
+asymmetry `kThumbRowFromBottom` rests on: the tablet's pad lives in the margins
+*beside* the page, so lifting it costs the page nothing, while the phone's pad
+is a band *below* the page — lifting that would paint controls over the text,
+and with the panel no longer shrinking there is nowhere for a lifted band to go.
+While the keyboard is up on a phone it covers the page's lower edge and the pad
+alike.
 
 ## How the harness attaches
 
