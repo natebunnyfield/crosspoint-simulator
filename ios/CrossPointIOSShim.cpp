@@ -59,6 +59,7 @@
 #include "CrossPointAppearance.h"
 #include "CrossPointPrefs.h"
 #include "CrossPointAccessibility.h"
+#include "CrossPointKeyboardBar.h"
 #include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -107,6 +108,14 @@ PadButton g_pad[] = {
 constexpr int kPadBack = 0, kPadPower = 1, kPadUp = 2, kPadLeft = 3,
               kPadConfirm = 4, kPadRight = 5, kPadDown = 6;
 constexpr int kPadCount = 7;
+
+// The keyboard chip. NOT a PadButton and deliberately not in g_pad: it presses
+// no hardware button, so it is not a control the rule above is about -- it is
+// the way back from a state the platform has no way out of. It is drawn only
+// while a text field is open with the keyboard down, and it sits in the bottom
+// row's middle columns, which the pad has always left empty. Tapping it and
+// tapping the page do the same thing; the chip exists to say so.
+SDL_FRect g_kbChip{};
 
 bool g_padLaidOut = false;
 float g_ptScale = 3.0f;
@@ -289,7 +298,15 @@ void layoutPadTablet(float W, float H, float S) {
 // animation: the relayout only fires when the integer point height changes.
 extern "C" void CrossPointIOS_setKeyboardHeight(float heightPt) {
   if (heightPt < 0.0f) heightPt = 0.0f;
+  const int before = static_cast<int>(g_keyboardHeightPt);
   g_keyboardHeightPt = heightPt;
+  // An e-ink firmware presents rarely, so without this the new height changes
+  // nothing on screen until the firmware happens to render a page. Storing it
+  // silently is what made the keyboard-clearance lift look like it was not
+  // working: the panel did move, on whatever render came next. Same guard as
+  // the relayout, so the animation's intermediate frames cost one present each
+  // and no more.
+  if (static_cast<int>(heightPt) != before) SimulatorOverlay::requestPresent();
 }
 
 void layoutPad(int outW, int outH) {
@@ -422,6 +439,15 @@ void layoutPad(int outW, int outH) {
   place(kPadPower, colX(0), lowerY, kSquare, kHalf);
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kHalf);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kHalf);
+
+  // The keyboard chip fills what the bottom row leaves between POWER and the
+  // side rocker -- columns 1..cols-3, empty in every layout since cols is at
+  // least 5. It therefore needs no space of its own: the reserved band below
+  // is untouched, and a keyboard toggle costs the page nothing.
+  const float chipInset = kSquare * 0.14f;
+  const float chipX = colX(1) + chipInset;
+  g_kbChip = {chipX * S, lowerY * S,
+              ((colX(cols - 2) - chipInset) - chipX) * S, kHalf * S};
 
   // Reserve the pad's band out of the panel's space: the chassis-ratio gap
   // plus both rows and the home inset. The gap term makes this DERIVED from
@@ -922,6 +948,75 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
   }
 }
 
+// The way back to a keyboard the owner dismissed.
+//
+// Drawn ONLY while the firmware has a text field open and the keyboard is
+// down -- the single state with no obvious exit, since the dismiss bar rides on
+// the keyboard and leaves with it. In every other state this paints nothing, so
+// the pad the owner approved is unchanged whenever the feature is not in play.
+//
+// WORDLESS, like every control beside it. The pad names nothing, and a label
+// here would be the only text on screen outside the page. A keyboard under an
+// up chevron is the same glyph iOS puts on its own dismiss key, read the other
+// way round, and it appears in the exact context that explains it.
+void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
+                       float hairline) {
+  if (!gpio.isTextEntryActive() || gpio.isHostKeyboardVisible()) return;
+  const SDL_FRect &c = g_kbChip;
+  if (c.w <= 0 || c.h <= 0) return;
+
+  // Same stroke-then-face construction as the controls, so it belongs to the
+  // pad rather than sitting on top of it.
+  setRGB(r, p.hairline);
+  fillRoundRect(r, c, radius);
+  setRGB(r, p.face);
+  fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
+                    c.h - 2 * hairline},
+                radius - hairline);
+
+  const float glyphH = c.h * 0.52f;
+  const float chevH = glyphH * 0.26f;
+  const float bodyH = glyphH * 0.56f;
+  const float bodyW = bodyH * 1.75f;
+  const float cx = c.x + c.w / 2.0f;
+  const float top = c.y + (c.h - glyphH) / 2.0f;
+
+  // The chevron as stacked one-pixel rows: no geometry API, and it stays crisp
+  // at any density instead of being resampled from a rotated rect.
+  setRGB(r, p.hairline);
+  const float arm = SDL_max(1.0f, SDL_roundf(chevH * 0.42f));
+  for (float i = 0; i < chevH; i += 1.0f) {
+    // Converged at the TOP and spreading downward, i.e. "^". Pointing the
+    // other way is iOS's own dismiss glyph, which would say the opposite of
+    // what this control does.
+    const float off = i;
+    fillRect(r, cx - off - arm / 2, top + i, arm, 1);
+    fillRect(r, cx + off - arm / 2, top + i, arm, 1);
+  }
+
+  // The keyboard: a solid body with the keys PUNCHED back out in the face
+  // tone. Punching rather than stroking each key is what keeps it legible at
+  // this size -- outlines this small close up into a grey smear.
+  const float bx = cx - bodyW / 2.0f;
+  const float by = top + glyphH - bodyH;
+  setRGB(r, p.hairline);
+  fillRoundRect(r, {bx, by, bodyW, bodyH}, bodyH * 0.2f);
+
+  setRGB(r, p.face);
+  const float gap = SDL_max(1.0f, SDL_roundf(bodyH * 0.13f));
+  const float innerW = bodyW - gap * 2;
+  const float keyH = (bodyH - gap * 4) / 3.0f;
+  const float keyW = (innerW - gap * 3) / 4.0f;
+  for (int row = 0; row < 2; row++)
+    for (int col = 0; col < 4; col++)
+      fillRect(r, bx + gap + col * (keyW + gap), by + gap + row * (keyH + gap),
+               keyW, keyH);
+  // The space bar, inset a key's width either side so the bottom row reads as
+  // a keyboard and not as a third row of squares.
+  fillRect(r, bx + gap + keyW * 0.5f, by + gap + 2 * (keyH + gap),
+           innerW - keyW, keyH);
+}
+
 void paintPad(SDL_Renderer *r, int outW, int outH) {
   // SimulatorOverlay holds a single draw callback, so the pad's painter is
   // also the dispatch point for the read-aloud word highlight. First, so the
@@ -1023,6 +1118,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     fillRoundRect(r, inner, radius - hairline);
   }
 
+  paintKeyboardChip(r, p, radius, hairline);
 }
 
 int padHitTest(float x, float y) {
@@ -1108,10 +1204,42 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       if (e->tfinger.fingerID == g_tapFingerId) {
         g_tapFingerId = -1;
         // A CANCELED finger (Control Center pull, incoming call) is not a tap.
-        if (e->type == SDL_EVENT_FINGER_UP)
-          CrossPointReadAloud_tapAtScreen(g_tapDownX, g_tapDownY);
+        if (e->type == SDL_EVENT_FINGER_UP) {
+          // With a field open and the keyboard down, a tap anywhere off the pad
+          // asks for the keyboard back -- the chip and the page alike, which is
+          // why the chip needs no hit test of its own. It takes precedence over
+          // the read-aloud tap rather than sharing with it: that one belongs to
+          // the reader, and a text field is never on screen at the same time.
+          if (gpio.isTextEntryActive() && !gpio.isHostKeyboardVisible()) {
+            gpio.setHostKeyboardVisible(true);
+            SimulatorOverlay::requestPresent();
+          } else
+            CrossPointReadAloud_tapAtScreen(g_tapDownX, g_tapDownY);
+        }
       }
       applyActions(g_core.fingerUp(e->tfinger.fingerID));
+      break;
+
+    // The software keyboard's REAL state, from UIKit by way of SDL. SHOWN is
+    // where the dismiss bar gets attached: SDL raises it from inside
+    // -startTextInput, before becomeFirstResponder, which is the cheapest
+    // moment to hand the field an accessory view.
+    case SDL_EVENT_SCREEN_KEYBOARD_SHOWN:
+      CrossPointKeyboardBar_install();
+      SimulatorOverlay::requestPresent(); // the chip has to go away
+      break;
+
+    // HIDDEN is how a dismissal we did NOT initiate gets noticed -- iPad's own
+    // dismiss key, or a hardware keyboard connecting. Without it the harness
+    // would go on believing the keyboard is up: no chip, and no way back.
+    //
+    // Gated on a field being open, because the hide that follows a field
+    // closing is our own and means nothing. By then the firmware's flag is
+    // already false (setTextEntryActive runs before pumpHostTextInput issues
+    // the stop), so that case lands here as a no-op.
+    case SDL_EVENT_SCREEN_KEYBOARD_HIDDEN:
+      if (gpio.isTextEntryActive()) gpio.setHostKeyboardVisible(false);
+      SimulatorOverlay::requestPresent(); // ...and here it has to appear
       break;
 
     // Backgrounding must not leave a key stuck down: the finger is gone, and a
@@ -1176,6 +1304,12 @@ void CrossPointHarness_begin() {
   // mouse events from the same touch, and HalGPIO consumes mouse events.
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+
+  // NOT set, and it must stay that way: SDL_HINT_RETURN_KEY_HIDES_IME makes
+  // Return call SDL_StopTextInput (SDL_uikitviewcontroller.m:664-667). Return
+  // types a line break in a multi-line field -- owner ruling, and the whole
+  // point of src/TextEntryKeyRouting.h -- so a hint that dismissed the keyboard
+  // on every newline would undo it. Dismissing is the accessory bar's job.
 
   // Points-to-pixels, so HIG dimensions stay honest on any device scale.
   int count = 0;

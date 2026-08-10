@@ -89,6 +89,9 @@ run task_registry \
 run text_entry_enter \
   c++ -std=c++20 -Isrc -o "$OUT/text_entry_enter" tests/text_entry_enter_test.cpp
 
+run host_keyboard \
+  c++ -std=c++20 -Isrc -o "$OUT/host_keyboard" tests/host_keyboard_test.cpp
+
 run readaloud_lines \
   c++ -std=c++20 -Isrc -o "$OUT/readaloud_lines" tests/readaloud_lines_test.cpp
 

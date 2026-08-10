@@ -209,6 +209,36 @@ on every `p` and sleep the device on every `s`. `TYPE:<text>` in
 commit, `\e` cancel; `;` cannot appear in the text). Full behavior table and
 what was verified where: [ios/README.md](ios/README.md).
 
+**The software keyboard can be put away, and asked back.** The firmware raises
+it by opening a field and lowers it by closing one; nothing else could, and on
+iPhone — unlike iPad — the system keyboard carries no dismiss key, so a field
+open meant ~40% of the screen gone with no way out but leaving the screen.
+`HalGPIO::setHostKeyboardVisible` is the owner's override on top of the
+firmware's flag, simulator-only and with no device counterpart. The decision
+lives in [src/HostKeyboardState.h](src/HostKeyboardState.h) (host-tested) rather
+than as an if-ladder in `pumpHostTextInput`, because all three of its failure
+modes are silent: suppression that outlives its field is an invisible
+preference, a lower done behind `pumpHostTextInput`'s back can never be undone,
+and a raise issued while SDL already believes text input is active is a no-op.
+Suppression clears on **both** text-entry edges, so it can never go sticky.
+
+The controls are iOS-side: a dismiss bar riding on the keyboard
+([ios/CrossPointKeyboardBar.mm](ios/CrossPointKeyboardBar.mm), attached to SDL's
+hidden `SDLUITextField` — SDL has no accessory API, so the field is found by
+public traversal from the `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER` window), plus a
+wordless keyboard chip in the pad band and a tap anywhere on the page to bring
+it back. `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` feeds iPad's own dismiss key into
+the same state. **`SDL_HINT_RETURN_KEY_HIDES_IME` must stay unset** — it makes
+Return call `SDL_StopTextInput`, which would dismiss the keyboard on every line
+break in a multi-line field.
+
+**An overlay state change needs `SimulatorOverlay::requestPresent()`.** Learned
+again here: `CrossPointIOS_setKeyboardHeight` stored the new height and
+presented nothing, so the keyboard-clearance relayout only took effect on
+whatever page the firmware happened to render next — the panel did move, just
+never when the keyboard did. Anything that changes what the overlay draws has to
+ask for a present, because an e-ink firmware may not render for minutes.
+
 **Return is the exception, and it is decided per field.**
 [src/TextEntryKeyRouting.h](src/TextEntryKeyRouting.h) holds the whole rule: in
 a single-line field Return is `BTN_CONFIRM` (Select on the on-screen keyboard,
