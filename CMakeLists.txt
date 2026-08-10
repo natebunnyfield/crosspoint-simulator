@@ -207,7 +207,30 @@ if(CROSSPOINT_BUILD_FIRMWARE)
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/ios
     ${_fw_inc_abs})
-  target_compile_definitions(crosspoint_core PUBLIC ${CROSSPOINT_DEFINES})
+  # Declared HERE, not only in ios/CMakeLists.txt: that subdirectory is added
+  # further down, so on a fresh configure these would be empty at the point the
+  # core target is defined and the version would render as " ()". testflight.sh
+  # passes both with -D, so the cache already holds them on a real deploy --
+  # this is the fresh-configure and plain-`cmake` path. A later set(... CACHE)
+  # with the same name is a no-op, so ios/ keeps its own declaration.
+  set(CROSSPOINT_IOS_MARKETING_VERSION "0.1.0" CACHE STRING "CFBundleShortVersionString")
+  set(CROSSPOINT_IOS_BUILD_NUMBER "1" CACHE STRING "CFBundleVersion")
+
+  # Build identity in the UI. The generated define carries the DESKTOP's
+  # placeholder ("dev-simulator"), which tells a tester nothing about which
+  # TestFlight build a phone is running -- and this app ships several a day.
+  # The app already knows its real marketing version and build number, so swap
+  # the placeholder for those. The Settings header draws CROSSPOINT_VERSION on
+  # its right, so this surfaces as "0.1.0 (59)" there with no UI change.
+  #
+  # Filtered out of the LIST rather than re-defined afterwards: two -D flags for
+  # the same macro is a -Wmacro-redefined warning in every translation unit,
+  # which is exactly the noise that once buried the real warnings here.
+  set(_cp_defs ${CROSSPOINT_DEFINES})
+  list(FILTER _cp_defs EXCLUDE REGEX "^CROSSPOINT_VERSION=")
+  list(APPEND _cp_defs
+    "CROSSPOINT_VERSION=\"${CROSSPOINT_IOS_MARKETING_VERSION} (${CROSSPOINT_IOS_BUILD_NUMBER})\"")
+  target_compile_definitions(crosspoint_core PUBLIC ${_cp_defs})
   # The panel is scaled up on a phone, so it must land on exact device pixels.
   target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_SIM_PIXEL_EXACT=1)
   # The firmware calls SDL only through the simulator HAL, but those TUs are in
