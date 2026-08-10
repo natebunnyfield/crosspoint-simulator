@@ -7,6 +7,13 @@
 //     line-wrapped word (several rects, one range) emits one action.
 //   * taps start speech at a rect's byteOffset, are inflated for fat
 //     fingers, and are ignored in AwaitingNextPage where rects are stale.
+//   * a tap on the word BEING SPOKEN stops instead of jumping — the only
+//     asymmetry in tap handling, and the only finger-reachable stop.
+//   * magic tap is play/pause, and from a stop it resumes AT THE WORD IT
+//     STOPPED ON; Paused is a real state, distinct from Off, because the
+//     engine still holds the utterance.
+//   * a speaking-rate change re-speaks from the current word while speaking
+//     and does nothing otherwise — a slider must never start speech.
 //   * byte offsets are UTF-8; the multibyte page below drifts if anyone
 //     counts characters instead of bytes.
 //
@@ -49,6 +56,8 @@ static Action start(uint32_t off) {
   return a;
 }
 static Action stop() { return Action{Action::StopUtterance}; }
+static Action pause() { return Action{Action::PauseUtterance}; }
+static Action resume() { return Action{Action::ResumeUtterance}; }
 static Action turn() { return Action{Action::TurnPageForward}; }
 static Action hl(uint32_t off, uint32_t len) {
   Action a{Action::SetHighlight};
@@ -296,6 +305,201 @@ int main() {
     CHECK(same(core.pageArrived(p), {start(0)}));
     CHECK(core.willSpeakByte(0).empty());
     CHECK(core.tapAtLogical(15, 45).empty());
+  }
+
+  // --- TAP-TO-STOP: the word being spoken stops instead of jumping ----------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);                 // café is the current word
+    auto a = core.tapAtLogical(85, 45);     // ...and that is what gets tapped
+    CHECK(same(a, {stop(), clearHl()}));
+    CHECK(core.state() == State::Off);
+    // NOT a page turn, and not a restart: one tap, one stop.
+    CHECK(core.utteranceCanceled().empty()); // the engine's cancel is stale now
+  }
+
+  // --- ...but only that word: any other one still jumps ---------------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);                 // café current
+    auto a = core.tapAtLogical(15, 45);     // tap “Hello”
+    CHECK(same(a, {stop(), start(0), hl(0, 11)}));
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- a wrapped word: tapping EITHER fragment stops it ---------------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(wrappedPage());
+    core.willSpeakByte(2);                  // "consideration", both fragments
+    auto a = core.tapAtLogical(15, 65);     // fragment 2, on the next line
+    CHECK(same(a, {stop(), clearHl()}));
+    CHECK(core.state() == State::Off);
+  }
+
+  // --- after tap-to-stop, tapping the same word starts it again -------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);
+    core.tapAtLogical(85, 45);              // stop
+    auto a = core.tapAtLogical(85, 45);     // ...and go
+    CHECK(same(a, {start(12), hl(12, 5)}));
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- MAGIC TAP: speaking -> paused -> speaking ----------------------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);
+    auto a = core.toggleSpeech();
+    CHECK(same(a, {pause()}));
+    CHECK(core.state() == State::Paused);
+    // The highlight STAYS: it is where you are, and you are still there.
+    CHECK(core.willSpeakByte(12).empty());
+    auto b = core.toggleSpeech();
+    CHECK(same(b, {resume()}));
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- magic tap from a stop resumes at the word it stopped on --------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(18);                 // world
+    core.tapAtLogical(12, 65);              // tap it: stop
+    CHECK(core.state() == State::Off);
+    auto a = core.toggleSpeech();
+    CHECK(same(a, {start(18), hl(18, 5)})); // not byte 0 — where it stopped
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- magic tap with nothing to toggle emits nothing -----------------------
+  {
+    ReadAloudCore core;                     // disabled
+    CHECK(core.toggleSpeech().empty());
+    core.setEnabled(true);
+    CHECK(core.toggleSpeech().empty());     // enabled, but no page yet
+    core.pageArrived(multibytePage());
+    core.utteranceFinished();               // AwaitingNextPage: a turn is in flight
+    CHECK(core.toggleSpeech().empty());
+    CHECK(core.state() == State::AwaitingNextPage);
+  }
+
+  // --- a page that arrives while PAUSED still stops the held utterance ------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(0);
+    core.toggleSpeech();
+    CHECK(core.state() == State::Paused);
+    auto a = core.pageArrived(wrappedPage());
+    CHECK(same(a, {stop(), clearHl(), start(0)}));
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- disabling while paused stops it too ----------------------------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(0);
+    core.toggleSpeech();
+    auto a = core.setEnabled(false);
+    CHECK(same(a, {stop(), clearHl()}));
+    CHECK(core.state() == State::Off);
+  }
+
+  // --- tapping the current word while paused stops; another word jumps ------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);
+    core.toggleSpeech();                    // paused on café
+    auto a = core.tapAtLogical(85, 45);
+    CHECK(same(a, {stop(), clearHl()}));
+    CHECK(core.state() == State::Off);
+  }
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);
+    core.toggleSpeech();                    // paused on café
+    auto a = core.tapAtLogical(12, 65);     // world
+    CHECK(same(a, {stop(), start(18), hl(18, 5)}));
+    CHECK(core.state() == State::Speaking);
+  }
+
+  // --- an OS cancel of a paused utterance clears and stops ------------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(0);
+    core.toggleSpeech();
+    auto a = core.utteranceCanceled();
+    CHECK(same(a, {clearHl()}));
+    CHECK(core.state() == State::Off);
+  }
+
+  // --- RATE CHANGE: re-speak from the current word while speaking -----------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(12);                 // café
+    auto a = core.restartAtCurrentWord();
+    CHECK(same(a, {stop(), start(12), hl(12, 5)}));
+    CHECK(core.state() == State::Speaking);
+  }
+  // ...and never anywhere else: a slider must not start speech.
+  {
+    ReadAloudCore core;
+    CHECK(core.restartAtCurrentWord().empty());   // disabled
+    core.setEnabled(true);
+    CHECK(core.restartAtCurrentWord().empty());   // no page
+    core.pageArrived(multibytePage());
+    core.willSpeakByte(0);
+    core.toggleSpeech();
+    CHECK(core.restartAtCurrentWord().empty());   // paused: stays paused
+    CHECK(core.state() == State::Paused);
+    core.utteranceCanceled();
+    CHECK(core.restartAtCurrentWord().empty());   // stopped: stays stopped
+    CHECK(core.state() == State::Off);
+  }
+  // A restart before any word was reported starts the page over, not garbage.
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    auto a = core.restartAtCurrentWord();
+    CHECK(same(a, {stop(), start(0), hl(0, 11)}));
+  }
+
+  // --- a page without rects still pauses, resumes and restarts --------------
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    ReadAloudPage p;
+    p.utf8 = "plain text, FW-A era";
+    p.generation = 1;
+    core.pageArrived(p);
+    CHECK(same(core.toggleSpeech(), {pause()}));
+    CHECK(same(core.toggleSpeech(), {resume()}));
+    // No rects means no highlight action, but the restart still happens.
+    CHECK(same(core.restartAtCurrentWord(), {stop(), start(0)}));
   }
 
   if (failures) {
