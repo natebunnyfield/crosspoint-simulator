@@ -674,7 +674,31 @@ void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
 }
 
 // Called from the main thread (simulator_main.cpp) to push pixels to SDL.
+namespace {
+// Main thread writes it on the SDL background events; presentIfNeeded reads it
+// on the same thread. Atomic anyway, because the render task's requestPresent
+// path runs concurrently.
+std::atomic<bool> g_backgrounded{false};
+}  // namespace
+
+void HalDisplay::setBackgrounded(const bool backgrounded) {
+  const bool was = g_backgrounded.exchange(backgrounded);
+  if (was == backgrounded)
+    return;
+  SDL_Log("[DISPLAY] %s -- GPU presents %s", backgrounded ? "backgrounded" : "foregrounded",
+          backgrounded ? "suspended" : "resumed");
+  if (!backgrounded) {
+    // Whatever the firmware drew while we were away is still owed.
+    SimulatorOverlay::requestPresent();
+  }
+}
+
 void HalDisplay::presentIfNeeded() {
+  // Nothing may touch the GPU while backgrounded. Return BEFORE clearing
+  // pendingPresent so the frame stays owed and lands on the way back in.
+  if (g_backgrounded.load())
+    return;
+
   // Service inversion changes first: reconverting sets pendingPresent, so the
   // repolarized pixels ride the present below instead of waiting for the
   // firmware to refresh.
