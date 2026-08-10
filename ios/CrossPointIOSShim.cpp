@@ -178,11 +178,16 @@ void applyActions(const std::vector<PadCore::Action> &actions) {
 // Point coordinates, like everything else in this file.
 float g_keyboardHeightPt = 0.0f;
 
-// Where the top rocker row sits: a fixed distance UP FROM THE BOTTOM EDGE, in
-// points (owner ruling 2026-08-09). Not a fraction of screen height -- that
-// moves the buttons to a different physical spot on every device, which is
-// exactly the complaint. Points are near enough physical across iOS devices,
-// so one number puts the row under the same thumb everywhere.
+// Where the TABLET's side rocker rows sit: a fixed distance UP FROM THE BOTTOM
+// EDGE, in points (owner ruling 2026-08-09, iPad only). Not a fraction of
+// screen height -- that moves the buttons to a different physical spot on
+// every device, which was the complaint. Points are near enough physical
+// across iOS devices, so one number puts the row under the same thumb on every
+// iPad.
+//
+// The PHONE does not use this. It is held differently -- one hand, thumb
+// sweeping up from the bottom corner -- and its owner-approved layout hugs the
+// panel instead. Applying this there moved a row nobody asked to move.
 //
 // 448 pt: the owner's 450 from an iPad Pro, snapped to the 8 pt grid (56 x 8)
 // on their ruling. The 2 pt difference is invisible; grid alignment is free.
@@ -377,23 +382,29 @@ void layoutPad(int outW, int outH) {
   // follows automatically and the two rows keep their spacing.
   const float lowerY = H - g_keyboardHeightPt - bottomInset - kHalf - kPipLift;
 
-  // Top row at thumb height: the same fixed distance up from the bottom edge
-  // the tablet uses, so the buttons land in one physical place across every
-  // device (owner ruling 2026-08-09). This replaces hugging the panel's bottom
-  // edge at a chassis-derived gap -- that tracked the PAGE, which is not where
-  // a thumb rests, and moved whenever the panel resized.
+  // Top row hugs the panel at the chassis-matched gap less the lift, clamped
+  // clear of the bottom row and never over the page.
   //
-  // One clamp survives, and it is not keyboard logic: the row must not land on
-  // top of the bottom row. On a short phone 450 pt up would do exactly that.
+  // UNCHANGED, deliberately: kThumbRowFromBottom is an iPad-only ruling (owner,
+  // 2026-08-09 -- "rockers should only have been moved up on ipad"). The phone
+  // keeps the owner-approved 2026-08-02 arrangement, where the top row sits
+  // just under the page because that is where a phone is held. A tablet is
+  // gripped by its sides, which is why its rockers needed a fixed thumb
+  // distance and this does not.
   const float maxUpper = lowerY - kRowClear - kSquare;
-  float upperY = H - kThumbRowFromBottom - kSquare / 2.0f;
-  if (upperY > maxUpper) upperY = maxUpper;
-  if (upperY < 0.0f) upperY = 0.0f;
-  // panelGap is still read below for the reserved band, which is derived from
-  // the panel rather than from the rows.
+  const int panelBottomPx = SimulatorOverlay::panelBottomPx();
   const int panelHeightPx = SimulatorOverlay::panelHeightPx();
   const float panelGap =
       panelHeightPx > 0 ? (static_cast<float>(panelHeightPx) / S) * kPanelGapRatio : kGap;
+  float upperY;
+  if (panelBottomPx > 0) {
+    const float panelBottom = static_cast<float>(panelBottomPx) / S;
+    upperY = panelBottom + panelGap - kPipLift;
+    if (upperY < panelBottom) upperY = panelBottom;
+    if (upperY > maxUpper) upperY = maxUpper;
+  } else {
+    upperY = maxUpper;
+  }
 
   auto place = [&](int idx, float x, float y, float w, float h) {
     g_pad[idx].rect = {x * S, y * S, w * S, h * S};
