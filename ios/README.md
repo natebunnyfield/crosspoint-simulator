@@ -710,9 +710,24 @@ edit the same field and the same cursor.
 |---|---|---|
 | Printable characters | inserted at the cursor | — (see suppression below) |
 | Backspace | erases before the cursor | — |
-| Return | commits the entry (the grid's OK key); in the note editor and Claude, inserts a NEWLINE — they are multi-line | `BTN_CONFIRM` |
+| Return, single-line field | `BTN_CONFIRM` — Select on the on-screen keyboard, which types the highlighted character | `BTN_CONFIRM` |
+| Cmd/Ctrl+Return, single-line field | commits the entry, same as the grid's OK key | `BTN_CONFIRM` |
+| Return, multi-line editor | inserts a NEWLINE (note editor, Claude) | `BTN_CONFIRM` |
+| Cmd/Ctrl+Return, multi-line editor | `BTN_CONFIRM` — the panel's pick, kept reachable from a desktop keyboard | `BTN_CONFIRM` |
 | Escape | `BTN_BACK`, which cancels the entry | `BTN_BACK` |
 | Arrows | move the on-screen grid selection | `BTN_UP/DOWN/LEFT/RIGHT` |
+
+**Return is the one key whose answer depends on the field**, and both ways of
+getting it wrong have shipped. Giving it to the text in a single-line field
+made Select on the daisywheel commit and leave instead of typing a character;
+leaving it on the button in a multi-line editor made Return press Select
+instead of breaking the line (ST-006). The rule, the reasoning and the truth
+table live in [../src/TextEntryKeyRouting.h](../src/TextEntryKeyRouting.h) and
+are unit-tested in `tests/text_entry_enter_test.cpp`; the activity says which
+kind of field it opened via `setTextEntryActive(true, TextEntryLines::Multi)`.
+On hardware there is no conflict to resolve — Confirm is a GPIO button and a
+paired keyboard's Enter arrives as `'\n'` through the HID path — which is why
+this is a simulator-side decision at all.
 
 **Every text field, including the two editors.** Wi-Fi passwords, Device owner,
 the daisywheel, **Create Note and Claude**. The two editors were the last
@@ -726,7 +741,8 @@ buttons by scancode, and that map spends letters: `P` is POWER, `S` is the sleep
 shortcut, `H` is the Home key, Return is CONFIRM. Typing "password" into a Wi-Fi
 field would otherwise press POWER twice, sleep the device on the `s` and fire
 Home on the `h`. While a text field is open, `HalGPIO::update()` maps only
-Escape and the four arrows and routes everything else to the typed-text queue;
+Escape, the four arrows and (per the table above) Return, routing everything
+else to the typed-text queue;
 `isPressed()` applies the same rule, so a held letter cannot read as a held
 button either. Measured, not assumed: typing ` psh` into the owner field on the
 phone inserts three characters and does nothing else.

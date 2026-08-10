@@ -7,6 +7,7 @@
 #include <string>
 
 #include "ReadAloudChannel.h"
+#include "TextEntryKeyRouting.h"
 
 // Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
 #ifndef EPD_SCLK
@@ -128,7 +129,16 @@ public:
   // UTF-8 (one SDL_EVENT_TEXT_INPUT can carry several code points, and an
   // iPhone's keyboard emits emoji), and the three editing keys ride along as
   // the control bytes below. Consumers walk the chunk and split it on those.
-  void setTextEntryActive(bool active);
+  //
+  // The second argument says whether the open field is one line or many, and
+  // it decides one thing only: who owns the Return key. A single-line field
+  // leaves it as BTN_CONFIRM (Select on the on-screen keyboard), a multi-line
+  // one gives it to the text as a line break. Full contract and the two bug
+  // reports behind it: src/TextEntryKeyRouting.h. Defaulted so the device HAL's
+  // signature and every existing call site stay as they are.
+  using TextEntryLines = textentry::Lines;
+  void setTextEntryActive(bool active,
+                          TextEntryLines lines = TextEntryLines::Single);
   bool isTextEntryActive() const;
   bool consumeTypedText(std::string &out);
 

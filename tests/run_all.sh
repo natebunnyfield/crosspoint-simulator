@@ -86,6 +86,9 @@ run restart_semantics \
 run task_registry \
   c++ -std=c++20 -Isrc -o "$OUT/task_registry" tests/task_registry_test.cpp
 
+run text_entry_enter \
+  c++ -std=c++20 -Isrc -o "$OUT/text_entry_enter" tests/text_entry_enter_test.cpp
+
 run readaloud_lines \
   c++ -std=c++20 -Isrc -o "$OUT/readaloud_lines" tests/readaloud_lines_test.cpp
 
