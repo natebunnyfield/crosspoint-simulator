@@ -246,7 +246,7 @@ void layoutPadTablet(float W, float H, float S) {
   const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
   const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
   const float outWpx = W * S, outHpx = H * S;
-  // The keyboard eats from the bottom of the usable height, so the centred
+  // The keyboard eats from the bottom of the usable height, so the centered
   // panel shrinks and rises rather than sitting under the keys.
   const float availPx =
       SDL_max(1.0f, (H - safeTop - safeBottom - g_keyboardHeightPt) * S);
@@ -485,7 +485,7 @@ void layoutPad(int outW, int outH) {
 // ring. Two ceilings killed that: the field sits 4 levels below white in light
 // and 18 above black in dark, so in light the face had almost nowhere to go and
 // in dark the ring had to shout to clear the field. Both tones now step TOWARD
-// mid-grey -- darker than the paper, lighter than 121212 -- which is the roomy
+// mid-gray -- darker than the paper, lighter than 121212 -- which is the roomy
 // direction in both appearances. One rule where there used to be two mirrored
 // ones. (Apple's system ramp is still no help here and is still not used: it
 // runs the wrong way in dark, systemGray6 1C1C1E being lighter than
@@ -512,8 +512,8 @@ void layoutPad(int outW, int outH) {
 // pad left alone is pixel-identical to what shipped before the dial existed.
 //
 // ACCESSIBLE ONLY IF ASKED, and the number is on the row. WCAG 1.4.11 wants 3:1
-// against the adjacent colour for the visual information that identifies a
-// control, and the exemption it grants a labelled button does not apply to a pad
+// against the adjacent color for the visual information that identifies a
+// control, and the exemption it grants a labeled button does not apply to a pad
 // that has none. The default strokes measure 1.36:1 in light and 1.48:1 in dark
 // -- deliberately, this being a reading surface -- but 3:1 is now a row rather
 // than a rebuild: level -4 in light (929290) and +4 in dark (616161) hit it
@@ -594,7 +594,7 @@ constexpr Palette kDarkPalette{{0x12, 0x12, 0x12},
 // the field and so reads as a LOW-contrast row, which is why it sits at the end
 // of the list rather than the top -- but on an OLED panel it is the one tone
 // that vanishes into a true-black page, and it was previously reachable only by
-// picking a row labelled "Darker than the field -- 1.12:1", which named a ratio
+// picking a row labeled "Darker than the field -- 1.12:1", which named a ratio
 // and never said black. It says black now.
 //
 // Root.plist orders its rows most-visible -> invisible (then black, for dark),
@@ -707,7 +707,7 @@ const Palette &palette() { return g_palette; }
 // exactly what dark appearance exists to prevent.
 //
 // The inversion is a HOST presentation choice layered on the device's output,
-// not a device behaviour -- a fact worth keeping straight, both halves checked
+// not a device behavior -- a fact worth keeping straight, both halves checked
 // rather than assumed: no X3 can invert its panel, and nothing in the firmware
 // or the SDK calls setInverted/toggleInverted/isInverted; the trio exists only
 // in the simulator's HalDisplay, which applies the flip while converting the
@@ -720,7 +720,7 @@ const Palette &palette() { return g_palette; }
 // therefore posts an atomic reconvert request that presentIfNeeded (main
 // thread) services from HalDisplay's cached last frame, so the new polarity
 // lands on the very next present. SimulatorOverlay::setPanelDark is the single
-// entry point; it also honours the CROSSPOINT_SIM_DARK override, which is what
+// entry point; it also honors the CROSSPOINT_SIM_DARK override, which is what
 // lets the headless desktop tests drive the exact mechanics this path uses.
 //
 // Known cost, accepted for now: inversion is polarity-blind, so book covers
@@ -761,7 +761,7 @@ void applyTheme() {
   // The firmware presents only when it has new panel content, which on an e-ink
   // device is rare, so without this the new appearance would not appear until
   // the next page render. (setPanelDark's reconvert also raises a present, but
-  // only when the polarity actually changed; the field colour must repaint
+  // only when the polarity actually changed; the field color must repaint
   // regardless.)
   SimulatorOverlay::requestPresent();
 }
@@ -1043,7 +1043,7 @@ int padHitTest(float x, float y) {
 long long g_tapFingerId = -1;
 float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
 
-// Finger coordinates arrive normalised; the pad needs pixels, and the harness
+// Finger coordinates arrive normalized; the pad needs pixels, and the harness
 // does not own the renderer, so it asks the window the event came from.
 bool windowPixelSize(SDL_WindowID id, float *w, float *h) {
   SDL_Window *win = SDL_GetWindowFromID(id ? id : g_windowId);

@@ -69,7 +69,7 @@ int runBudget() {
   // property this budget should depend on -- measured here, libc++ frees that
   // vector without going through it. So the budget falls reliably and recovers
   // only for allocations whose size is handed back. That asymmetry is the
-  // honest behaviour and is documented in SimulatorHeap.cpp; a budget that only
+  // honest behavior and is documented in SimulatorHeap.cpp; a budget that only
   // ever falls is still a usable pressure signal, and pinning is the answer
   // when a test needs an exact number.
   const uint32_t beforeExplicit = simheap::freeBytes();

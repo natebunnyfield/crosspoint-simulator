@@ -89,7 +89,7 @@ static std::atomic<bool> textEntryActive{false};
 // TextEntryKeyRouting.h for the whole contract.
 static std::atomic<HalGPIO::TextEntryLines> textEntryLines{
     HalGPIO::TextEntryLines::Single};
-// Latched at the Return KEY_DOWN and honoured until its KEY_UP. Two reasons it
+// Latched at the Return KEY_DOWN and honored until its KEY_UP. Two reasons it
 // is a latch rather than a fresh decision each time: the modifier can be
 // released before the key is (Cmd down, Return down, Cmd up, Return up), which
 // would otherwise route the down to the button and swallow the up -- leaving
@@ -466,7 +466,7 @@ int namedButton(const std::string &name) {
 //
 // It cannot fake everything: SDL only writes its internal keyboard-state array
 // on the real-input path, so a pushed key produces edges (wasPressed /
-// wasReleased) but no level (isPressed / getHeldTime). Long-press behaviour
+// wasReleased) but no level (isPressed / getHeldTime). Long-press behavior
 // still needs injectButtonDown or a human.
 SDL_Scancode rawKeyScancode(const std::string &name) {
   if (name == "RETURN" || name == "ENTER")
@@ -832,8 +832,8 @@ void HalGPIO::update() {
               textentry::EnterOwner::Button;
         }
         if (!enterClaimedByButton) {
-          // Key repeat is honoured in a multi-line field for the same reason
-          // backspace honours it -- holding Return to open up several blank
+          // Key repeat is honored in a multi-line field for the same reason
+          // backspace honors it -- holding Return to open up several blank
           // lines is a thing people do. A single-line field's commit is one
           // press, one commit, so a repeat there must not fire twice.
           const bool multiline =
@@ -854,7 +854,7 @@ void HalGPIO::update() {
           !scancodeIsEnter(e.key.scancode) &&
           !scancodeSurvivesTextEntry(e.key.scancode)) {
         if (e.type == SDL_EVENT_KEY_DOWN) {
-          // Backspace deliberately honours key repeat -- holding it to erase a
+          // Backspace deliberately honors key repeat -- holding it to erase a
           // word is the whole point.
           if (e.key.scancode == SDL_SCANCODE_BACKSPACE) {
             const char c = HalGPIO::TYPED_BACKSPACE;

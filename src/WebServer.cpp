@@ -761,7 +761,7 @@ void WebServer::dispatchParkedRequest() {
 // mutated with no synchronisation against the render task, and, worse, that
 // ESP.restart() reached from a handler (every file transfer ends in
 // silentRestart()) called longjmp on the worker against a setjmp taken on the
-// main thread. Longjmp across threads is undefined behaviour.
+// main thread. Longjmp across threads is undefined behavior.
 //
 // Now the worker only accepts and parses; this drains the parked request on the
 // caller's thread, which is where the device runs handlers too.

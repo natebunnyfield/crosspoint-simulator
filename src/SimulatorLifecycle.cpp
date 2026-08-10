@@ -58,7 +58,7 @@ WakeReason consumeWakeReason() {
   // which unsetenv() unlinks without freeing, so the stale read happened to
   // still see "power". Only a value planted with setenv() in the same process
   // -- which is what restart_semantics_test does -- lands in malloc'd storage
-  // that is actually freed. Same undefined behaviour either way.
+  // that is actually freed. Same undefined behavior either way.
   const std::string reason(value);
   unsetenv(kWakeReasonEnv);
   if (reason == "power") {
@@ -119,7 +119,7 @@ void rebootAsFirmwareRestart() {
   // On desktop: opt-in, because the reboot there is execvp() and those globals
   // do NOT survive a new process. The firmware would reboot but lose the target
   // it rebooted FOR, landing on the normal boot path instead of Home. That is
-  // still closer to hardware than today's do-nothing, but it is a behaviour
+  // still closer to hardware than today's do-nothing, but it is a behavior
   // change to a build that is the canary for everything else, and any QA script
   // that passes through file transfer would relaunch mid-run. So desktop keeps
   // the old no-op until someone can verify the real thing, and this variable is

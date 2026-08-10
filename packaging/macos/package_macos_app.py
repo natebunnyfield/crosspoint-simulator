@@ -291,7 +291,7 @@ def cmd_build(args):
         # NamedTemporaryFile at 0600 -- so the bundle would ship an icon only
         # the packaging user can read. Any other account launching the app from
         # /Applications gets the blank-document icon instead. A supplied --icon
-        # is normalised the same way for the same reason.
+        # is normalized the same way for the same reason.
         os.chmod(installed_icon, 0o644)
     if generated_icon:
         os.unlink(generated_icon.name)

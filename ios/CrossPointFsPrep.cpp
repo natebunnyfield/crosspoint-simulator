@@ -61,7 +61,7 @@ void migrateFontFamilies(const char *fromRoot, const char *toRoot) {
   }
 
   // Collect names first: renaming entries out of a directory mid-readdir() is
-  // unspecified behaviour.
+  // unspecified behavior.
   std::vector<std::string> names;
   while (struct dirent *entry = ::readdir(dir)) {
     // "." / ".." plus the hidden/system junk the firmware's own scan skips
@@ -246,7 +246,7 @@ void seedOneFontDirectory(const std::string &from, const std::string &to) {
 //    directory; no separate seedOneFontDirectory call is needed.
 //  - A user who drops a replacement family folder via Files would write into
 //    the read-only bundle directory and get an EROFS error from iOS, which is
-//    the correct behaviour for a bundled resource. They can install a DIFFERENT
+//    the correct behavior for a bundled resource. They can install a DIFFERENT
 //    family name alongside; that will be a real directory and is never touched.
 bool symlinkFontDirectory(const std::string &from, const std::string &to) {
   struct stat st{};

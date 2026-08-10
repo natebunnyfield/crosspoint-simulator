@@ -539,7 +539,7 @@ void CrossPointAccessibility_dumpTree(void) {
   g_inDump = true;
   CrossPointDiag_log("TREE ---- traversal from the window ----");
   dumpTree(window, 0, &found);
-  CrossPointDiag_log("TREE ---- reachable labelled elements: %d ----", found);
+  CrossPointDiag_log("TREE ---- reachable labeled elements: %d ----", found);
   g_inDump = false;
 }
 

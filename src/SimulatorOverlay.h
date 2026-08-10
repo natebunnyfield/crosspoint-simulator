@@ -19,7 +19,7 @@ using DrawFn = void (*)(SDL_Renderer *renderer, int outWidthPx, int outHeightPx)
 // Register (or clear, with nullptr) the overlay painter.
 void setDrawCallback(DrawFn fn);
 
-// The colour the presentation path clears to before the panel is drawn: the
+// The color the presentation path clears to before the panel is drawn: the
 // field the panel sits on. Defaults to white, which matches a blank e-ink page
 // so the panel edge is invisible. On desktop the window is exactly panel-sized
 // and the field never shows, so nothing there needs to call this; a host that
@@ -33,7 +33,7 @@ void setClearColor(unsigned char r, unsigned char g, unsigned char b);
 void requestPresent();
 
 // Reserve the bottom `px` device pixels of the output for overlay chrome: the
-// panel is fitted TOP-ALIGNED in the space ABOVE the band instead of centred
+// panel is fitted TOP-ALIGNED in the space ABOVE the band instead of centered
 // in the whole output, so a button pad can sit directly under the panel's
 // bottom edge without ever overlapping panel content (the firmware draws its
 // own button-hint bar along that edge). 0 (the default) keeps the plain SDL

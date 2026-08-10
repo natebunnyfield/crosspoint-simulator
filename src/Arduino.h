@@ -48,7 +48,7 @@ struct ESPMock {
   // "Loading..." popup and then simply fell through. On hardware this call
   // never returns, so the reboot-to-Home that follows a transfer was never
   // exercised in the simulator at all. See SimulatorLifecycle.h for why this is
-  // a restart rather than a wake, and which platforms honour it.
+  // a restart rather than a wake, and which platforms honor it.
   void restart() { SimulatorLifecycle::rebootAsFirmwareRestart(); }
   uint32_t getHeapSize() { return simheap::totalBytes(); }
   uint32_t getMinFreeHeap() { return simheap::minFreeBytes(); }

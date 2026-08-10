@@ -5,7 +5,7 @@ name: Host tests
 # invokes anything under tests/, so a green suite had never gated a merge.
 #
 # macos-latest rather than ubuntu: it is the platform this simulator is
-# developed and shipped on, and the one whose behaviour these tests encode.
+# developed and shipped on, and the one whose behavior these tests encode.
 # None of them needs SDL — run_all.sh passes no SDL flags — so there is nothing
 # to install and the job is a checkout plus six compiles.
 #

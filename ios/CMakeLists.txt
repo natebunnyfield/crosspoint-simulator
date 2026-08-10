@@ -301,7 +301,7 @@ set_target_properties(CrossPointX3 PROPERTIES
 
 if(CROSSPOINT_IOS_TEAM_ID)
   # Entitlements are attached to DEVICE builds only. The Simulator does not
-  # honour Access WiFi Information (fetchCurrent returns nil there whatever the
+  # honor Access WiFi Information (fetchCurrent returns nil there whatever the
   # entitlements say), and attaching one it cannot satisfy only invites a
   # signing failure on a build that needs no signature at all.
   #

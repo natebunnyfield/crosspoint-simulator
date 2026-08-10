@@ -42,7 +42,7 @@ THE THREE MEASUREMENTS THAT DRIVE EVERYTHING
   * Its strokes are STROKE_WIDTH = 46px wide at 1024, so a stroke's deepest
     interior point is ~23px from an edge. Every rim decision below is really a
     decision about that number.
-  * Its ink box is 626x696 at (198,164). Stripe phase anchors on that centre,
+  * Its ink box is 626x696 at (198,164). Stripe phase anchors on that center,
     so changing pitch grows the stripes outward from the middle of the mark
     rather than sliding them all sideways.
 
@@ -112,7 +112,7 @@ STROKE_WIDTH = 46.0
 # thin to separate the masses.
 NARROW_RIM = 26.0
 
-# Stripe geometry at 1024. Pitch is centre-to-centre; duty is the ink fraction.
+# Stripe geometry at 1024. Pitch is center-to-center; duty is the ink fraction.
 PITCH = 64.0
 DUTY = 0.5
 
@@ -437,14 +437,14 @@ def deep_components(distance, size, rim, min_area):
     """Label the mark's masses: islands of interior deeper than the rim.
 
     WHY NOT JUST LABEL THE INK. The mark is one connected shape -- its two solid
-    masses meet at the centre crossing -- so components of the ink cannot tell
+    masses meet at the center crossing -- so components of the ink cannot tell
     them apart. Components of the part deeper than the rim can, but only if the
     rim is wide enough to drown the crossing where they touch. Measured on the
     master:
 
         rim 26  ->  ONE island (the masses are still bridged at the crossing)
         rim 40  ->  two islands
-        rim 46  ->  two islands, 70971px centred (655,425) and 28972px (318,685)
+        rim 46  ->  two islands, 70971px centered (655,425) and 28972px (318,685)
 
     So the rim that matches the mark's stroke weight is also the rim that first
     separates the masses cleanly. Below ~40 this returns one island, every mass
@@ -485,7 +485,7 @@ def deep_components(distance, size, rim, min_area):
         if area >= min_area:
             infos.append((label, area, sum_x / area, sum_y / area))
 
-    # Bottom-left first. The mark's masses sit on opposite sides of the centre
+    # Bottom-left first. The mark's masses sit on opposite sides of the center
     # crossing, so their centroids separate cleanly on x-y (-367 against +230 at
     # rim 46) -- far apart enough that the ordering is not a near-tie.
     infos.sort(key=lambda info: info[2] - info[3])
@@ -497,7 +497,7 @@ def paper_counters(mask, size, min_area, threshold=128):
 
     Everything else in this file operates on ink, but a counter is a hole --
     the paper the mark encloses rather than the ink it lays down. Filling or
-    ruling one therefore needs the paper labelled, which is a flood from the
+    ruling one therefore needs the paper labeled, which is a flood from the
     image border to mark the outside, then components of whatever paper is
     left. The mark does not touch the canvas edge, so the border is all
     outside and the flood has a clean seed.
@@ -571,7 +571,7 @@ def grown_counter(flags, mask, size, wanted):
 
     The labels come off a thresholded mask, so the antialiased pixels along a
     counter's boundary belong to neither side. Painting a counter solid without
-    this leaves those pixels at their original part-grey value -- a visible
+    this leaves those pixels at their original part-gray value -- a visible
     hairline tracing the old boundary through the middle of a filled area.
     """
     total = size * size
@@ -618,11 +618,11 @@ def _band_average(t0, t1, period, on):
     return (F(t1) - F(t0)) / span
 
 
-def region_extent(flags, label, size, angle_deg, centre):
+def region_extent(flags, label, size, angle_deg, center):
     """How far a region reaches along the stripe normal, as (t_min, t_max)."""
     theta = math.radians(angle_deg)
     ct, st = math.cos(theta), math.sin(theta)
-    cx, cy = centre
+    cx, cy = center
     lo, hi = None, None
     for i in range(size * size):
         if flags[i] != label:
@@ -675,10 +675,10 @@ def fit_ruling(t_min, t_max, line, lines=None):
     return period, line / period, phase, n
 
 
-def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
+def stripe_field(size, angle_deg, period, duty, center, phase=0.0):
     """Stripe coverage 0..255 per pixel for the whole canvas.
 
-    Phase is anchored so an ink stripe is centred on `centre`. The mark is not
+    Phase is anchored so an ink stripe is centered on `center`. The mark is not
     symmetric (its two counters are different shapes -- a parallelogram and a
     triangle), so there is no symmetry to preserve here; centring simply keeps
     the pattern registered to the artwork rather than to the canvas corner, so
@@ -692,7 +692,7 @@ def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
     # A one-pixel box projects onto the stripe axis as an interval this wide;
     # integrating over it is what antialiases the stripe edges.
     half = (abs(ct) + abs(st)) / 2.0
-    cx, cy = centre
+    cx, cy = center
 
     field = bytearray(size * size)
     for y in range(size):
@@ -707,7 +707,7 @@ def stripe_field(size, angle_deg, period, duty, centre, phase=0.0):
     return field
 
 
-def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels,
+def render(mask, size, angle_deg, period, duty, center, rim, distance, labels,
            solid, counter_flags=None, counter_field=None, mass_fields=None):
     """Composite: ink = mask coverage * fill coverage, painted black on white.
 
@@ -718,7 +718,7 @@ def render(mask, size, angle_deg, period, duty, centre, rim, distance, labels,
     # With per-mass fields there is no single pattern to fall back on, and
     # building one would be several seconds of work nothing reads.
     stripes = None if mass_fields is not None else stripe_field(
-        size, angle_deg, period, duty, centre
+        size, angle_deg, period, duty, center
     )
     out = bytearray(size * size * 4)
     for i in range(size * size):
@@ -768,7 +768,7 @@ def build(source, output_dir, pitch, duty_override, only):
 
     mask = ink_mask(rgba, size)
     x0, y0, x1, y1 = mask_bounds(mask, size)
-    centre = ((x0 + x1 + 1) / 2.0, (y0 + y1 + 1) / 2.0)
+    center = ((x0 + x1 + 1) / 2.0, (y0 + y1 + 1) / 2.0)
 
     scale = size / 1024.0
     min_area = size * size // 500
@@ -842,7 +842,7 @@ def build(source, output_dir, pitch, duty_override, only):
                     if spec["mass_angles"] is not None:
                         angles = spec["mass_angles"]
                         angle_m = angles[min(index, len(angles) - 1)]
-                    t_lo, t_hi = region_extent(labels, label, size, angle_m, centre)
+                    t_lo, t_hi = region_extent(labels, label, size, angle_m, center)
                     if fill_probe is not None and labels[fill_probe] == label:
                         # This mass swallowed the filled counter. Fitting across
                         # the pair would put a gap astride the counter's edge and
@@ -850,7 +850,7 @@ def build(source, output_dir, pitch, duty_override, only):
                         # parallel to this mass's ruling, so ending flush on it
                         # instead is exact.
                         t_hi = region_extent(
-                            fill_flags, fill_label, size, angle_m, centre
+                            fill_flags, fill_label, size, angle_m, center
                         )[0]
                     fitted = fit_ruling(t_lo, t_hi, line=line)
                     if fitted is None:
@@ -859,7 +859,7 @@ def build(source, output_dir, pitch, duty_override, only):
                     key = (angle_m, round(period, 4), round(phase, 6))
                     if key not in field_cache:
                         field_cache[key] = stripe_field(
-                            size, angle_m, period, duty_m, centre, phase
+                            size, angle_m, period, duty_m, center, phase
                         )
                     mass_fields[label] = field_cache[key]
                     fits.append("mass %d: %d lines of %.0fpx, %.1fpx gaps at %+.0f deg"
@@ -874,7 +874,7 @@ def build(source, output_dir, pitch, duty_override, only):
                     raise IconError(
                         "%s wants %d of the mark's masses flat, but a %.0fpx rim "
                         "leaves only %d island(s) -- the masses are still bridged "
-                        "at the centre crossing, so every mass would be filled and "
+                        "at the center crossing, so every mass would be filled and "
                         "the variant would come out as the unmodified icon. Widen "
                         "the rim past ~40px."
                         % (name, spec["solid_masses"], rim, len(infos))
@@ -901,7 +901,7 @@ def build(source, output_dir, pitch, duty_override, only):
             if spec["counter"] != "solid":
                 c_angle, c_lines = spec["counter"]
                 fitted = fit_ruling(
-                    *region_extent(flags, found[-1][0], size, c_angle, centre),
+                    *region_extent(flags, found[-1][0], size, c_angle, center),
                     line=STROKE_WIDTH * scale, lines=c_lines,
                 )
                 if fitted is None:
@@ -911,7 +911,7 @@ def build(source, output_dir, pitch, duty_override, only):
                     )
                 c_period, c_duty, c_phase, c_count = fitted
                 counter_field = stripe_field(
-                    size, c_angle, c_period, c_duty, centre, c_phase
+                    size, c_angle, c_period, c_duty, center, c_phase
                 )
                 fits.append("counter: %d line%s of %.0fpx, %.1fpx gaps"
                             % (c_count, "" if c_count == 1 else "s",
@@ -921,7 +921,7 @@ def build(source, output_dir, pitch, duty_override, only):
             work, size, spec["angle"],
             pitch * spec["pitch"] * scale,
             spec["duty"] if duty_override is None else duty_override,
-            centre, rim, geometry, labels, solid,
+            center, rim, geometry, labels, solid,
             counter_flags, counter_field, mass_fields,
         )
 
@@ -947,7 +947,7 @@ def main():
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--pitch", type=float, default=PITCH,
-        help="stripe pitch at 1024, centre to centre (default %d)" % PITCH,
+        help="stripe pitch at 1024, center to center (default %d)" % PITCH,
     )
     parser.add_argument(
         "--duty", type=float, default=None,

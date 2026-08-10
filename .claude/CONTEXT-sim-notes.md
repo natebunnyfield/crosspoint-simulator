@@ -72,11 +72,11 @@ pio run -e simulator -t run_simulator
 | `PortraitInverted` | `−90.0`   |
 | `Landscape*`       | `0`       |
 
-`SDL_RenderTextureRotated` rotates around the dst rect's centre, so the dst rect is landscape-oriented (`{−80, 80, 400, 240}`) for portrait modes; after rotation it fills the portrait window.
+`SDL_RenderTextureRotated` rotates around the dst rect's center, so the dst rect is landscape-oriented (`{−80, 80, 400, 240}`) for portrait modes; after rotation it fills the portrait window.
 
 **Rendering quality.** `SDL_WINDOW_HIGH_PIXEL_DENSITY` plus `SDL_SetRenderLogicalPresentation` keeps logic in panel coords while letting macOS use full Retina pixels. Filtering is set PER TEXTURE with `SDL_SetTextureScaleMode` (`src/HalDisplay.cpp:519`), which SDL3 requires to come *after* `SDL_CreateTexture` — the SDL2 global hint `SDL_HINT_RENDER_SCALE_QUALITY` no longer exists. Without it, Bayer-dithered grays show as harsh black/white stripes on Retina.
 
-**Filesystem.** [HalStorage](src/HalStorage.cpp) uses POSIX file descriptors (`::open` / `::read` / `::write` / `lseek` / `fsync`) — not `std::fstream`. fstream's separate get/put pointers, eofbit-blocks-seek behaviour, and write-only mode restrictions caused several silent-corruption bugs early on; POSIX fds avoid all of them. `HalStorage::open()` `stat()`s the path and routes to `openAsDir` (DIR\*) or file-open. Directory iteration uses `readdir`/`rewinddir`, skipping any entry starting with `.`. All paths are prefixed with `./fs_` so the simulator's filesystem is sandboxed in a single directory under the binary's working dir.
+**Filesystem.** [HalStorage](src/HalStorage.cpp) uses POSIX file descriptors (`::open` / `::read` / `::write` / `lseek` / `fsync`) — not `std::fstream`. fstream's separate get/put pointers, eofbit-blocks-seek behavior, and write-only mode restrictions caused several silent-corruption bugs early on; POSIX fds avoid all of them. `HalStorage::open()` `stat()`s the path and routes to `openAsDir` (DIR\*) or file-open. Directory iteration uses `readdir`/`rewinddir`, skipping any entry starting with `.`. All paths are prefixed with `./fs_` so the simulator's filesystem is sandboxed in a single directory under the binary's working dir.
 
 **Input.** [HalGPIO::update](src/HalGPIO.cpp) owns the SDL event pump (so polling isn't split between callers). It maps SDL scancodes → button indices (`BTN_BACK=0` … `BTN_POWER=6`) and maintains per-frame pressed/released arrays. On X4 Pro, SDL mouse input is transformed from the oriented logical window back into normalized physical touch coordinates, and `H` emulates the capacitive Home key. `SDL_QUIT` sets the shared `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 
@@ -214,7 +214,7 @@ upstream consumer that never named a board.
   which conversion was last, because `snapshotBwBase` clears the planes on
   every fresh BW frame. A flip that races a mid-write plane can show one torn
   frame; the render task's own compose lands right after and corrects it.
-- The polarity is a host presentation choice, not a device behaviour: nothing
+- The polarity is a host presentation choice, not a device behavior: nothing
   in the firmware or the SDK calls the inversion trio (it is sim-only), so the
   device layer keeps drawing black-on-white and no firmware path changes.
   Known cost, accepted for now: inversion is polarity-blind, so book covers
@@ -288,7 +288,7 @@ These shaped the current code; details kept short since the fixes are already in
 
 **Black screen** — `clearScreen` was writing to the SDL pixel array instead of the framebuffer; now `memset(getFrameBuffer(), color, BUFFER_SIZE)`.
 
-**Sideways / upside-down portrait** — Two bugs: (1) Portrait and PortraitInverted had their SDL rotation angles swapped (renderer stores Portrait CCW → SDL must rotate +90° CW to undo); (2) `SDL_RenderTextureRotated` rotates around dst centre, so the rect must be landscape-shaped and centre-offset, not portrait-shaped.
+**Sideways / upside-down portrait** — Two bugs: (1) Portrait and PortraitInverted had their SDL rotation angles swapped (renderer stores Portrait CCW → SDL must rotate +90° CW to undo); (2) `SDL_RenderTextureRotated` rotates around dst center, so the rect must be landscape-shaped and center-offset, not portrait-shaped.
 
 **Dithered UI showed harsh stripes** — Add `SDL_WINDOW_HIGH_PIXEL_DENSITY` and `SDL_SetRenderLogicalPresentation`, then `SDL_SetTextureScaleMode` *after* `SDL_CreateTexture`. (Originally fixed under SDL2 with the global `SDL_HINT_RENDER_SCALE_QUALITY` hint set *before* creation; SDL3 removed that hint and made it per-texture, which inverted the ordering requirement.)
 

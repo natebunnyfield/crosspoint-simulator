@@ -197,7 +197,7 @@ branches more, not less.
 next to the SSID, so the `fetchCurrent` call this phase already makes returns
 both. Two things it needs on the way to `RSSI()`:
 
-* **Units.** `signalStrength` is normalised 0.0–1.0; the firmware wants dBm and
+* **Units.** `signalStrength` is normalized 0.0–1.0; the firmware wants dBm and
   `barsForRssi` bands it at −85/−75/−65/−55 rising and −88/−78/−68/−58 falling
   (`CrossPointWebServerActivity.cpp:61-68`). Map linearly onto roughly −100…−40
   so all four bars and the hysteresis are reachable. The absolute dBm is
@@ -213,7 +213,7 @@ both. Two things it needs on the way to `RSSI()`:
 is documented as a 0–1 scale but iOS is not obliged to report it finely, and if
 it turns out to be coarse or pinned the bars will step rather than glide.
 `fetchCurrent` also returns nil on the iOS Simulator, so this is a device-only
-behaviour and Simulator runs keep the env fakes.
+behavior and Simulator runs keep the env fakes.
 
 ### Phase 2 — make the server reachable (simulator + firmware) — simulator side done
 
@@ -251,7 +251,7 @@ This is the phase that delivers peer transfer.
   on hardware, so `silentRestart()`'s "come back on Home" lands. On desktop the
   reboot is `execvp` and those globals do **not** survive, so it is opt-in via
   `CROSSPOINT_SIM_FIRMWARE_RESTART=1` rather than changing the canary's
-  behaviour untested.
+  behavior untested.
 * ✅ `isIdleTimerDisabled` while the server runs, via `sim_host_screen`. A
   transfer is minutes of no input; without it the phone locks the screen,
   suspends the app, and the socket stops accepting mid-transfer — which during

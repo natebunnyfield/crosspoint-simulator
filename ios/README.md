@@ -40,14 +40,14 @@ desktop.
 Verified on an iPhone Air simulator (`iOS 26.5`, native 1260×2736 px):
 
 - **The library and the reader both render**, with dithered covers and the
-  firmware's own 4-level greyscale.
+  firmware's own 4-level grayscale.
 - **All seven buttons drive the firmware.** `UP` `DOWN` `LEFT` `RIGHT` `CONFIRM`
   `BACK` `POWER` each log a clean down/up pair; CONFIRM opens a book, a
   horizontal press turns the page, BACK returns to the library.
 - **1-bit fidelity is exact.** 0 of 418,176 origin-aligned 2×2 blocks are
-  non-uniform, so integer scale with nearest-neighbour sampling is holding. With
+  non-uniform, so integer scale with nearest-neighbor sampling is holding. With
   the diagnostic pattern enabled the panel contains exactly two colours.
-- **Geometry.** Panel 1056×1584 px at 2×, centred, on a white field that matches
+- **Geometry.** Panel 1056×1584 px at 2×, centered, on a white field that matches
   a blank page so no panel edge is visible.
 
 Not yet run on a physical device — no iPhone Air is paired to this Mac.
@@ -184,7 +184,7 @@ Two rows on a five-column square grid (owner-approved layout 2026-08-02):
 UP/DOWN are the X3's SIDE buttons (fixed page-turn pair), fused into one
 rocker at the right of the bottom row; POWER sits at the left. BACK/SELECT and
 LEFT/RIGHT are the FRONT buttons. Every fused pair paints as one capsule —
-rounded outer corners only, a centre tick marking the seam, no pinched notch
+rounded outer corners only, a center tick marking the seam, no pinched notch
 between two rounded squares. There is no grabber/drag handle any more; the pad
 is fixed.
 
@@ -192,7 +192,7 @@ is fixed.
 palette mockups). A control is a one-device-pixel stroke around nothing: the
 face equals the field, so at rest the pad is seven outlines on the same tone as
 the paper, and a press lays a wash inside the outline while the stroke stays
-put. Both tones step *toward mid-grey* from the field — darker than the paper in
+put. Both tones step *toward mid-gray* from the field — darker than the paper in
 light, lighter than 121212 in dark — which is the direction with room in both
 appearances; the old arrangement stepped away from the field and ran into the
 4-level ceiling above white and the 18-level floor above black. The stroke is
@@ -216,7 +216,7 @@ would not serve both).
 One signed scale for all four. **0 puts the tone on the field** — 1:1, the
 control draws nothing; negative is darker than the field, positive lighter, and
 ±9 is the end of the gamut (black in light, white in dark). The rungs between
-are WCAG-meaningful ratios and every row in Settings.app is labelled with its
+are WCAG-meaningful ratios and every row in Settings.app is labeled with its
 real measured ratio against that appearance's field, so 3:1 — the WCAG 1.4.11
 figure for an unlabelled control — is a row you pick (−4 light, +4 dark) rather
 than a rebuild. **±1 is the shipped tone**, which is why the defaults are −1 in
@@ -227,7 +227,7 @@ outline's, because a wash covers a whole cell where a stroke covers a line.
 Each appearance's *other* direction runs to the gamut end too, and on the light
 side that is a **dead zone by construction**: the paper is already 4 levels off
 white, so +1..+9 spans four distinct tones between 1.00:1 and 1.03:1 and several
-rows repeat. The rows are kept and labelled honestly ("Lighter than the page —
+rows repeat. The rows are kept and labeled honestly ("Lighter than the page —
 1.02:1"); the group's footer says so. Dark's −1..−9 steps two levels at a time
 down to black and needs no caveat.
 
@@ -309,7 +309,7 @@ every iPad:
 | iPad mini | 1488x2266 | **1.0000** | -48,609 1584x1056 | 1 device px |
 
 Integral scale, whole-number dst, one texel per device pixel, on all five. The
-90-degree rotation is about the dst centre and lands on whole numbers too.
+90-degree rotation is about the dst center and lands on whole numbers too.
 `UIRequiresFullScreen` rules out a fractional Split View window.
 
 **The dither is at LOGICAL resolution, not framebuffer resolution.** Worth
@@ -409,9 +409,9 @@ makes them the right ones:
 
 | setting | unit | meaning |
 |---|---|---|
-| page top | **ratio** of the spare height, `availH - panelH` | 0 = as high as the safe area allows, **50% = today's centred page**, 100 = as low |
-| rocker inset | **points** | a minimum distance in from the bezel, honoured on every frame |
-| rocker centre | **ratio** of screen height | **50% = today's centred rockers** |
+| page top | **ratio** of the spare height, `availH - panelH` | 0 = as high as the safe area allows, **50% = today's centered page**, 100 = as low |
+| rocker inset | **points** | a minimum distance in from the bezel, honored on every frame |
+| rocker center | **ratio** of screen height | **50% = today's centered rockers** |
 | cell | **points** | `kOptimalSquare`, a thumb-sized physical optimum |
 
 That the shipped page is exactly 50% of the spare height is the check that that
@@ -453,7 +453,7 @@ bottom corners, and an iPad's corners are rounded — so past a certain inset th
 display itself clips the control. A clipped control is dead, not merely ugly:
 the pixels under the arc are not on the screen, so neither is the touch.
 
-The geometry is a quarter-arc of radius `r` centred at `(r, H-r)`. A control
+The geometry is a quarter-arc of radius `r` centered at `(r, H-r)`. A control
 whose bottom edge sits `d` points up from the screen bottom pokes `r - d` into
 the arc's band, and needs `r - sqrt(r² - (r-d)²)` of inset to clear. With the
 bottom row anchored at the 20 pt home-indicator inset:
@@ -483,7 +483,7 @@ spare height or against screen height. Both reproduce 186 pt on a Pro 13″ — 
 are the same number there — and they diverge below it, reaching the mini at
 113 pt and 153 pt respectively. Spare height holds the *proportion* of emptiness
 above and below constant across frames; screen height holds the absolute
-position and lets the page drift back toward centred on small frames. The mockup
+position and lets the page drift back toward centered on small frames. The mockup
 carries both as a toggle, switching without moving the page.
 
 **Regenerating the source list: clean first.** `pio run -e simulator -t
@@ -670,7 +670,7 @@ SIMCTL_CHILD_CROSSPOINT_SIM_READALOUD_SCRIPT='12000:TAPWORD;15000:MAGICTAP;18000
   xcrun simctl launch --console-pty <udid> com.natebunnyfield.crosspoint.x3
 ```
 
-`TAPWORD` taps the centre of the word being spoken **in screen pixels**, so the
+`TAPWORD` taps the center of the word being spoken **in screen pixels**, so the
 panel geometry and the hit-test are exercised too — which makes it precisely
 the tap-to-stop case. `MAGICTAP` calls what the gesture calls; `DELEGATETAP`
 sends `accessibilityPerformMagicTap` to the application delegate, the message
@@ -725,7 +725,7 @@ text + per-word rects):
 **Scope (owner ruling 2026-08-09): only EPUB text is speakable.** The one
 channel publisher is `EpubReaderActivity`; Home, menus, and .txt/.xtc books
 deliberately publish nothing, and "no speakable content" there is correct
-behaviour, not a bug. The pad is SDL-drawn and invisible to accessibility by
+behavior, not a bug. The pad is SDL-drawn and invisible to accessibility by
 construction.
 
 **Diagnostics are OFF by default** (same ruling). Everything —
@@ -819,7 +819,7 @@ with and without the keyboard up), so the text field stays visible, which is
 the part that matters.
 
 **A paired Bluetooth keyboard suppresses the on-screen one automatically** —
-that is iOS behaviour, not something this app decides — and types straight
+that is iOS behavior, not something this app decides — and types straight
 through. Nothing here distinguishes the two.
 
 **One difference to know about in the Simulator.** The on-screen keyboard's
@@ -981,7 +981,7 @@ resetting it in `setup()`, next to the same reset for `deepSleepInProgress`.
 - **Presentation policy is keyed on intent, not platform.**
   `CROSSPOINT_SIM_PIXEL_EXACT` selects `INTEGER_SCALE` + `SCALEMODE_NEAREST`;
   without it the desktop keeps letterbox + linear filtering, which is right at
-  1:1 because Bayer dither averaging to grey is what e-ink actually looks like.
+  1:1 because Bayer dither averaging to gray is what e-ink actually looks like.
   A desktop build can ask for exact pixels too.
 
 ## Still deferred
