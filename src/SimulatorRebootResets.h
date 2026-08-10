@@ -3,13 +3,13 @@
 #include <functional>
 #include <vector>
 
-// Process-scoped state that must be re-initialised when the simulator "reboots"
+// Process-scoped state that must be re-initialized when the simulator "reboots"
 // WITHOUT starting a new process.
 //
 // The desktop reboot is execvp: a genuinely fresh process, so every static goes
 // back to its initial value for free. iOS cannot exec inside the sandbox, so its
 // reboot is a longjmp back into setup() in the SAME process -- and there,
-// anything guarded by a `static bool ...Initialized` stays initialised, so the
+// anything guarded by a `static bool ...Initialized` stays initialized, so the
 // re-read never happens. The result is that a feature works on the desktop, is
 // dead on the phone, and the two disagree silently.
 //

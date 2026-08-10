@@ -234,7 +234,7 @@ void note(const char *what) {
       return [self positionFromPosition:position offset:-offset];
     case UITextLayoutDirectionDown:
     case UITextLayoutDirectionUp: {
-      // Line-wise movement: hop to the word on the neighbouring line nearest in x.
+      // Line-wise movement: hop to the word on the neighboring line nearest in x.
       const NSInteger idx = ((CPTextPosition *)position).idx;
       const Word *cur = [self wordContaining:idx];
       if (!cur) return position;

@@ -20,7 +20,7 @@ extern "C" {
 // Should the host display be held awake right now?
 //
 // 1 = keep awake, 0 = let iOS dim and lock normally. Answers for the CURRENT
-// power state: the owner sets sleep behaviour separately for battery and for
+// power state: the owner sets sleep behavior separately for battery and for
 // charging, because reading propped on a charger and reading in bed are
 // different situations and the same answer does not serve both.
 //

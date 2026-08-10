@@ -79,13 +79,13 @@ static int currentWindowHeight = 0;
 // Presentation policy.
 //
 // The desktop window is 1:1 with the panel, so letterbox + linear filtering is
-// right there: Bayer-dithered pixels average to a correct-looking grey, which is
+// right there: Bayer-dithered pixels average to a correct-looking gray, which is
 // what the e-ink panel actually reads like to the eye.
 //
 // CROSSPOINT_SIM_PIXEL_EXACT flips both. When the panel is scaled up (the phone
 // presents it at 2x), a fractional scale or a linear filter greys the dither and
-// every rendering judgement made against it is a lie. Integer scale plus
-// nearest-neighbour keeps one framebuffer pixel exactly N screen pixels.
+// every rendering judgment made against it is a lie. Integer scale plus
+// nearest-neighbor keeps one framebuffer pixel exactly N screen pixels.
 //
 // Keyed on the intent, not on the platform, so a desktop build can ask for exact
 // pixels too.
@@ -107,7 +107,7 @@ static constexpr SDL_ScaleMode kPanelScaleMode = SDL_SCALEMODE_LINEAR;
 // With scale = n / kPixelQuantum the presented panel is
 // (DISPLAY_HEIGHT/g)*n x (DISPLAY_WIDTH/g)*n device pixels, whole by
 // construction, and both halves of the dst rect (which is offset by half the
-// framebuffer's dimensions from the panel's centre) stay whole because the
+// framebuffer's dimensions from the panel's center) stay whole because the
 // halving is folded into the quantum: g/2 rather than g. On X3 at 2x render
 // scale that is gcd(1584, 1056)/2 = 264, i.e. steps of 0.38% -- far finer than
 // the ~5% a small phone is short by, so quantising costs nothing visible.
@@ -142,7 +142,7 @@ std::vector<ScreenshotEvent> screenshotEvents;
 bool screenshotEventsInitialized = false;
 
 // Same reason as the GPIO one: re-read CROSSPOINT_SIM_SCREENSHOTS after an
-// in-process reboot, so the promoted *_AFTER_WAKE schedule is actually honoured.
+// in-process reboot, so the promoted *_AFTER_WAKE schedule is actually honored.
 const simreset::Registrar gDisplayRebootReset{[] {
   screenshotEventsInitialized = false;
   screenshotEvents.clear();
@@ -719,7 +719,7 @@ void HalDisplay::presentIfNeeded() {
 
   SDL_UpdateTexture(texture, nullptr, pixelBuf,
                     DISPLAY_WIDTH * sizeof(uint32_t));
-  // Clear to the field colour, not the default black. On desktop the window is
+  // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
   // letterboxed (the phone presents it at 2x inside a taller screen) it is the
   // surround. It defaults to white, matching a blank e-ink page so the panel
@@ -732,9 +732,9 @@ void HalDisplay::presentIfNeeded() {
   SDL_RenderClear(sdl_renderer);
 
   // For portrait modes the landscape panel texture must be rotated to fill the
-  // portrait window. SDL_RenderTextureRotated rotates around the centre of dst,
-  // so dst must stay landscape-oriented and be offset so its centre coincides
-  // with the window centre. After rotation the result fills the portrait window.
+  // portrait window. SDL_RenderTextureRotated rotates around the center of dst,
+  // so dst must stay landscape-oriented and be offset so its center coincides
+  // with the window center. After rotation the result fills the portrait window.
   //
   // Portrait rotateCoordinates stores content rotated 90° CCW in the physical
   // buffer, so we rotate +90° CW here to undo it. PortraitInverted stores
@@ -751,9 +751,9 @@ void HalDisplay::presentIfNeeded() {
   // letterbox cannot be used -- it always centres in the WHOLE output -- so
   // logical presentation is dropped and the panel is fitted manually into the
   // space above the band, in device pixels. The dst rect is landscape-shaped
-  // and centred on the panel's display centre in both orientations: for
+  // and centered on the panel's display center in both orientations: for
   // landscape it IS the display area, for portrait the rotation about its
-  // centre turns it into one.
+  // center turns it into one.
   const int inset = SimulatorOverlay::bottomInset.load();
   const int topBand = SimulatorOverlay::topInset.load();
   const bool manualPlacement = inset > 0 || topBand > 0;
@@ -778,7 +778,7 @@ void HalDisplay::presentIfNeeded() {
     // mini leaves 1500 px of height for a 1584 px page once the status-bar band
     // and the pad's band are taken, an SE leaves 822), the next integer
     // reciprocal (1/2) is far too small to drop to, so the panel is decimated
-    // by nearest-neighbour and some framebuffer rows and columns are simply not
+    // by nearest-neighbor and some framebuffer rows and columns are simply not
     // drawn. Nothing here can avoid that.
     //
     // What it CAN do is put the result on whole device pixels, by quantising
@@ -826,7 +826,7 @@ void HalDisplay::presentIfNeeded() {
         }
       }
     }
-    // TOP-ALIGNED, not centred: the pad sits directly under the panel's
+    // TOP-ALIGNED, not centered: the pad sits directly under the panel's
     // bottom edge (published below), so slack space goes under the pad
     // instead of splitting above and below the page. The alignment is to the
     // BOTTOM of the reserved top band, never to y=0 -- on a phone that band is
@@ -847,12 +847,12 @@ void HalDisplay::presentIfNeeded() {
     const int panelPxX = (outW - panelPxW) / 2;
     const int panelPxY = static_cast<int>(topMargin);
     // NOT the presented rect: dst is LANDSCAPE-shaped in every orientation,
-    // because SDL_RenderTextureRotated rotates it about its own centre and the
+    // because SDL_RenderTextureRotated rotates it about its own center and the
     // texture is the landscape framebuffer. In portrait it therefore reaches
     // outside the window horizontally by design -- a negative dst.x on a phone
     // is normal, and reading it as a screen rect is how this was once
     // mis-diagnosed as the panel rendering off-screen. Only its CENTRE is
-    // meaningful, and that is the panel rect's centre.
+    // meaningful, and that is the panel rect's center.
     const float cx = panelPxX + panelPxW / 2.0f;
     const float cy = panelPxY + panelPxH / 2.0f;
     portraitDst = {cx - kW * scale / 2.0f, cy - kH * scale / 2.0f, kW * scale,
@@ -866,7 +866,7 @@ void HalDisplay::presentIfNeeded() {
     // Report the presented geometry once, and again whenever it changes.
     //
     // THE RECT LOGGED IS THE PRESENTED PANEL, not the dst rect handed to SDL.
-    // The dst rect is landscape-shaped and rotated about its centre, so in
+    // The dst rect is landscape-shaped and rotated about its center, so in
     // portrait it legitimately starts left of x=0 and is wider than the screen.
     // Logging it invited exactly one wrong conclusion -- "dst -252 on a 1080 px
     // screen, the panel is being drawn off-screen on small phones" -- and a
@@ -910,7 +910,7 @@ void HalDisplay::presentIfNeeded() {
 
   switch (orientation) {
   case GfxRenderer::Portrait:
-    // dst centre = window centre, landscape-sized panel texture.
+    // dst center = window center, landscape-sized panel texture.
     SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &portraitDst, 90.0,
                              nullptr, SDL_FLIP_NONE);
     break;

@@ -59,7 +59,7 @@ killed, and the harness reports "never relaunched as a wake". Reproduced
 byte-identically with the simulator at `origin/main` (`ebf2b54`, before any
 read-aloud work), so this is firmware drift, not a simulator regression:
 power-button semantics have grown options since the test was calibrated
-(`SHORT_PWRBTN::PAGE_TURN`, the long-press behaviour setting), and a 700 ms
+(`SHORT_PWRBTN::PAGE_TURN`, the long-press behavior setting), and a 700 ms
 hold no longer crosses the sleep threshold on the boot-into-reader path a
 seeded card lands on.
 
@@ -69,7 +69,7 @@ binary, and the sleep wake edge-latch itself is untouched.
 
 **Close by:** recalibrating the test against the current firmware's power
 semantics (which hold duration sleeps, from which screens), or pinning it to
-a firmware ref it matches. Decide which behaviour is intended before touching
+a firmware ref it matches. Decide which behavior is intended before touching
 either side.
 
 
@@ -106,7 +106,7 @@ dispatch condition variable, lives on forever holding a client socket. Each
 transfer leaks one thread and one fd.
 
 This is strictly better than what S-003 replaced (a cross-thread `longjmp`,
-undefined behaviour), and it is invisible on desktop, where the restart is
+undefined behavior), and it is invisible on desktop, where the restart is
 `execvp` and the whole process is replaced. But a long-lived phone doing many
 transfers accumulates orphaned workers.
 
@@ -276,7 +276,7 @@ firmware state and the framebuffer against the render task, and — worse —
 `ESP.restart()` reached from a handler calls `std::longjmp(gRebootJump, 1)` on
 iOS (`src/SimulatorLifecycle.cpp:146`) against a `setjmp` taken on the **main**
 thread (`src/simulator_main.cpp:101`). Longjmp across threads is undefined
-behaviour, and `silentRestart()` is how every file transfer ends.
+behavior, and `silentRestart()` is how every file transfer ends.
 
 **Close by:** queueing handler invocations for `handleClient()` to drain on the
 calling thread, which is what the device does.
@@ -291,7 +291,7 @@ The thread it lands on is the point: `loop()` runs on the MAIN thread
 (`simulator_main.cpp:148`), which is the thread that took the `setjmp`. So a
 handler calling `ESP.restart()` — which every file transfer does, via
 `silentRestart()` — now longjmps on the right thread instead of committing
-undefined behaviour from a worker.
+undefined behavior from a worker.
 
 Two things the shape had to get right. The dispatch runs with the mutex
 UNLOCKED, because a handler that restarts never returns and would otherwise
@@ -328,7 +328,7 @@ blocks/copies instead of handing back null — and making the flag an atomic
 either way.
 
 
-**Fixed.** All five dereferences now check. The behaviour on null is to skip,
+**Fixed.** All five dereferences now check. The behavior on null is to skip,
 not to substitute a buffer: whoever holds the loan owns those pixels, and the
 lender's own refresh follows, so a skipped clear or blit repaints on the next
 draw. `refreshDisplay` returning early matters most — converting a half-owned
@@ -397,7 +397,7 @@ Those rows were spent on the gap instead. Light `+1..+9` now give 1.3 / 1.24 /
 **Black was already reachable in dark** — level `-9` is field `121212` plus a
 `-18` delta, i.e. `000000` — but its row read "Darker than the field — 1.12:1",
 which names a ratio and never says black. Undiscoverable, not absent. It is
-labelled `1.12:1 — black` now, and kept last because 1.12:1 against the field
+labeled `1.12:1 — black` now, and kept last because 1.12:1 against the field
 really is low contrast; what earns it a row is that it vanishes into a
 true-black page on OLED.
 

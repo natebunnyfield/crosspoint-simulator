@@ -131,7 +131,7 @@ listed = set(re.findall(r"^\s+(\S+\.(?:c|cpp))\s*$", sources_text, re.M))
 # CROSSPOINT_SIM_SOURCES held all 125 firmware paths. tools/gen_cmake_sources.py
 # resolved relative compile-db paths against the process cwd and could produce
 # exactly that, silently, with exit status 0. It refuses to now; this is the
-# second line of defence, at the point of use. Independent of the comparison
+# second line of defense, at the point of use. Independent of the comparison
 # below, so it cannot introduce a false positive there.
 # Anchored on a line that is exactly ")" so a genuinely EMPTY block matches as
 # empty; `(.*?)\n\)` cannot match one and runs on into the next set(), reporting

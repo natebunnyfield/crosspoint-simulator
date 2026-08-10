@@ -34,7 +34,7 @@ int main() {
 
   simreset::runAll();
 
-  assert(!moduleInitialized && "the initialised flag must be cleared so setup() re-reads the env");
+  assert(!moduleInitialized && "the initialized flag must be cleared so setup() re-reads the env");
   assert(moduleSchedule.empty() && "a stale pre-sleep schedule must not survive the reboot");
   assert(!textEntryLatched && "a reboot mid-text-entry must not leave the keyboard channel on");
   assert(order.size() == 2);

@@ -384,7 +384,7 @@ callbacks. This is meant to make image pages and PNG sleep overlays visible
 while testing desktop flows. Native decoder libraries can be enabled with the
 sample config's opt-in flags when decoder compatibility matters more than the
 self-contained default. Neither mode simulates device-specific e-ink image
-quality, refresh behaviour, or memory pressure.
+quality, refresh behavior, or memory pressure.
 
 **Cache**: On first open of an ebook, an "Indexing..." popup will appear while the section cache is built. If you see rendering issues after a code change that affects layout, delete `./fs_/.crosspoint/` to clear stale caches.
 

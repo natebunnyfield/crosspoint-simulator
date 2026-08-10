@@ -42,13 +42,13 @@ extern HalDisplay display; // defined in main.cpp
 // [UIApplication sharedApplication]. So this IS the iOS API, reached through
 // SDL -- no Objective-C and no new iOS surface in this repo. On macOS the same
 // two entry points route to the Cocoa driver instead, so the desktop build gets
-// the equivalent behaviour for free.
+// the equivalent behavior for free.
 //
 // IMPORTANT: SDL_VideoInit disables the screensaver *by default* unless
 // SDL_HINT_VIDEO_ALLOW_SCREENSAVER is set -- SDL's rationale is that most SDL
 // programs are games or media players. Nothing in this repo sets that hint, so
 // before this setting existed the app unconditionally held the screen awake.
-// Honouring a default-OFF setting is therefore a genuine behaviour change on
+// Honouring a default-OFF setting is therefore a genuine behavior change on
 // the first frame, not a no-op.
 //
 // Edge-triggered by construction: the per-frame cost is a byte load and an
@@ -61,13 +61,13 @@ extern HalDisplay display; // defined in main.cpp
 // It is not in PadCore (which is pure and SDL-free) and it does not read the
 // SDL event queue, so HalGPIO keeps sole ownership of the event pump.
 // ON iOS THE SOURCE OF TRUTH IS Settings > CrossPoint X3, not the firmware row.
-// Sleep behaviour is a property of the phone, not of the reader, and it is also
+// Sleep behavior is a property of the phone, not of the reader, and it is also
 // power-state dependent there — the owner sets it separately for battery and
 // for charging, which a single firmware boolean cannot express.
 //
 // The firmware's "Keep Screen Awake" row is deliberately left alone for now and
 // therefore has no effect on iOS. That is a known, temporary overlap: two
-// controls for one behaviour, pending a ruling on what the firmware row should
+// controls for one behavior, pending a ruling on what the firmware row should
 // become. Do not "fix" it by deleting either side without that ruling. On the
 // desktop simulator the firmware row is still the only control and still works.
 static void applyKeepScreenAwake() {
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
   setup();
 #if CROSSPOINT_SIM_IOS
   // After setup(), because installing the gesture event watch needs SDL
-  // initialised and HalDisplay::begin() is what calls SDL_Init.
+  // initialized and HalDisplay::begin() is what calls SDL_Init.
   //
   // CALLED ON EVERY WAKE, deliberately not gated here. The function splits its
   // own work: registrations happen once (its s_watchesInstalled guard, so N
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   CrossPointHarness_begin();
 #endif
   // Startup application. setup() has loaded settings.json by now, and SDL is
-  // initialised (HalDisplay::begin calls SDL_Init). Also covers the iOS wake
+  // initialized (HalDisplay::begin calls SDL_Init). Also covers the iOS wake
   // longjmp, which re-runs setup() and lands back here.
   applyKeepScreenAwake();
 
@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
     // Yield to the OS so macOS delivers pending keyboard/window events to SDL.
     // Without this, the tight spin-loop starves the Cocoa event system and key
     // presses are only picked up sporadically. 1 ms also caps the loop at ~1
-    // kHz, which matches realistic device behaviour (the real ESP32-C3 is
+    // kHz, which matches realistic device behavior (the real ESP32-C3 is
     // limited by FreeRTOS tick rate and e-ink refresh time).
     SDL_Delay(1);
   }

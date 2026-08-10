@@ -156,7 +156,7 @@ for line in open(log, "rb").read().decode("utf-8", "replace").splitlines():
     if m:
         rects.append(tuple(int(m.group(i)) for i in range(1, 5)) + (m.group(5),))
 if not rects:
-    print("FAIL: rect geometry — no rects in the log (LOG=2 not honoured?)"); sys.exit(1)
+    print("FAIL: rect geometry — no rects in the log (LOG=2 not honored?)"); sys.exit(1)
 
 try:
     raw = open(shot, "rb").read()

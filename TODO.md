@@ -153,7 +153,7 @@ setting the stored property, so both paths work.
 
 **What actually found it:** `CrossPointAccessibility_dumpTree()`, which walks
 the hierarchy with the same public API an assistive technology uses. Before:
-`CPAccessibilityOverlay children=0 … reachable labelled elements: 0`. After:
+`CPAccessibilityOverlay children=0 … reachable labeled elements: 0`. After:
 `children=22` with real book text on each. Two prior fixes were reasoned from
 what UIKit "should" do and were both wrong; the traversal answered it in one
 run. The dump is kept, one-shot per launch, because it is the fastest way to

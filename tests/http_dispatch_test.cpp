@@ -8,7 +8,7 @@
 // the network, that they win in the right order, and that the host backend
 // takes over from curl rather than sitting alongside it.
 //
-// What it does NOT cover: NSURLSession behaviour, TLS, or redirects. Those are
+// What it does NOT cover: NSURLSession behavior, TLS, or redirects. Those are
 // device-verify items in ios/WIFI.md.
 //
 //   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1

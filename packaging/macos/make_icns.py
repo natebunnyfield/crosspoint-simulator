@@ -27,7 +27,7 @@ straight to macOS produces a hard-edged full-bleed square that reads as broken
 next to every other app in the Dock.
 
 So this rounds and insets to Apple's macOS icon grid: on a 1024 canvas the icon
-body is 824x824 centred, with a corner radius of 185. Those proportions come
+body is 824x824 centered, with a corner radius of 185. Those proportions come
 from Apple's macOS app icon template.
 
 WHY PURE PYTHON
@@ -221,7 +221,7 @@ def write_png(width, height, rgba):
 def resize(src, src_w, src_h, dst_w, dst_h):
     """Box-average downscale, alpha-weighted.
 
-    Averaging must be weighted by alpha or transparent pixels drag their colour
+    Averaging must be weighted by alpha or transparent pixels drag their color
     into the visible edge, which shows up as a dark halo around the rounded
     corners at small sizes -- the exact place icons are judged.
     """
@@ -252,7 +252,7 @@ def resize(src, src_w, src_h, dst_w, dst_h):
 
 
 def rounded_mask(size, body, radius, samples=4):
-    """Coverage 0..255 for a centred rounded rectangle, supersampled for AA.
+    """Coverage 0..255 for a centered rounded rectangle, supersampled for AA.
 
     Without antialiasing the corners stair-step, which is glaring at 512 and
     above where the curve is long enough to see.

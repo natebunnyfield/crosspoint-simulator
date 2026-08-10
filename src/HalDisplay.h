@@ -23,7 +23,7 @@
 // [env:simulator] passes it for the desktop build, ios/CMakeLists.txt for the
 // app. A single default of 2 here meant every consumer silently paid 4x the
 // framebuffer and ~2.5x the page render time, including runs that only wanted
-// to check firmware behaviour against the real panel geometry.
+// to check firmware behavior against the real panel geometry.
 #ifndef CROSSPOINT_RENDER_SCALE
 #define CROSSPOINT_RENDER_SCALE 1
 #endif

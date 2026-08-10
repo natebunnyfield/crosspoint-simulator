@@ -3,7 +3,7 @@
 // ArduinoJson auto-detects Arduino's String class via the ARDUINO macro, which
 // is not defined in the simulator's native build. Enable the support manually
 // so .as<String>() and serialize-to-String resolve to ArduinoJson's built-in
-// converter (matching firmware behaviour) instead of the std::string-only path.
+// converter (matching firmware behavior) instead of the std::string-only path.
 #ifndef ARDUINOJSON_ENABLE_ARDUINO_STRING
 #define ARDUINOJSON_ENABLE_ARDUINO_STRING 1
 #endif

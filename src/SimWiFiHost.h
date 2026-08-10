@@ -12,7 +12,7 @@
 // The contract is deliberately narrow. `available()` answers "is there a real
 // radio behind this?" and gates everything else: when it is false -- every
 // platform but iOS today -- WiFiClass keeps its existing env-var-driven
-// behaviour verbatim, so CROSSPOINT_SIM_WIFI_* stays the QA harness for the
+// behavior verbatim, so CROSSPOINT_SIM_WIFI_* stays the QA harness for the
 // firmware's failure branches and the desktop build cannot regress.
 //
 // See ios/WIFI.md for what iOS can and cannot answer, and why scanning and
@@ -46,7 +46,7 @@ struct Network {
   bool connected = false;
   bool isWifi = false;  // false => satisfied over cellular/wired
   std::string ssid;     // empty when the entitlement or permission is missing
-  int rssiDbm = 0;      // synthesised from a normalised strength; see current()
+  int rssiDbm = 0;      // synthesised from a normalized strength; see current()
   uint8_t ipv4[4] = {0, 0, 0, 0};
   bool hasIpv4 = false;
 };

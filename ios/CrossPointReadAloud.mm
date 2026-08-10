@@ -398,7 +398,7 @@ void installMagicTapHandler() {
 //              which is the message UIKit itself sends when the gesture goes
 //              unhandled all the way up the responder chain. The only part of
 //              the gesture left unproven after this is Apple's own routing.
-//   TAPWORD    a tap at the centre of the word being spoken, in SCREEN pixels,
+//   TAPWORD    a tap at the center of the word being spoken, in SCREEN pixels,
 //              so the panel geometry and the hit-test are exercised too — which
 //              makes it precisely the tap-to-stop case
 //

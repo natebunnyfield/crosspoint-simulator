@@ -178,7 +178,7 @@ def validate(db_path, n_entries, fw_root, sim_root, fw_sources, sim_sources, inc
             "the compile database is empty." + where + "\n\n"
             "  `pio run -e simulator -t compiledb` exits 0 even when it compiled\n"
             "  nothing -- a fresh worktree whose freeink-sdk submodule was never\n"
-            "  initialised does exactly that."
+            "  initialized does exactly that."
         )
 
     if not fw_sources:

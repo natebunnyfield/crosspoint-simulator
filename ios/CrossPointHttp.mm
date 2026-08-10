@@ -71,7 +71,7 @@ bool hostFetch(const std::string &url, const char *method,
 
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:nsUrl];
   // Matches the curl backend's --connect-timeout 10 --max-time 60, so a switch
-  // of transport is not also a silent switch of timeout behaviour.
+  // of transport is not also a silent switch of timeout behavior.
   request.timeoutInterval = 60.0;
   request.HTTPMethod = method && *method ? toNSString(method) : @"GET";
 

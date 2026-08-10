@@ -28,11 +28,11 @@ Three numbers off the artwork drive every default in the generator:
 |---|---|---|
 | Page edge angle | atan(3/5) = 30.96° | `PAGE_ANGLE` is its complement, because the angle parameter names the stripe's *normal* — see below. |
 | Stroke width | 46px at 1024 | A stroke's deepest interior point is ~23px from an edge. This sets the rim — see below. |
-| Ink bounding box | 626 x 696 at (198,164) | Stripe phase is anchored to its centre, so changing pitch grows stripes outward from the middle rather than sliding them sideways. |
+| Ink bounding box | 626 x 696 at (198,164) | Stripe phase is anchored to its center, so changing pitch grows stripes outward from the middle rather than sliding them sideways. |
 
 The mark is *not* symmetric — the top-left counter is a parallelogram and the
 bottom-right one a triangle — so there is no symmetry axis to align stripes to.
-Anchoring on the bounding box centre is a registration choice, not a symmetry
+Anchoring on the bounding box center is a registration choice, not a symmetry
 one.
 
 ## The angle convention, and a trap in it
@@ -137,7 +137,7 @@ top-left and a triangle bottom-right, which separate on `cx + cy`.
 
 `grown_counter` then widens that membership by one pixel into the mark's own
 edge antialiasing. Without it, filling a counter solid leaves the boundary's
-part-grey pixels untouched: a visible hairline tracing the old edge through the
+part-gray pixels untouched: a visible hairline tracing the old edge through the
 middle of a filled black area.
 
 ## Round three: `page-*`
@@ -182,7 +182,7 @@ counters, so the mark looks drawn with two pens. Setting the rim to the mark's
 own 46px stroke makes every outline one weight.
 
 The same number is also what makes "keep the bottom-left mass flat" possible.
-The mark is one connected shape — its two masses meet at the centre crossing —
+The mark is one connected shape — its two masses meet at the center crossing —
 so labelling connected ink cannot tell them apart. Labelling the interior
 *deeper than the rim* can, but only once the rim is wide enough to drown that
 crossing. Measured on the master:
@@ -191,7 +191,7 @@ crossing. Measured on the master:
 |---|---|
 | 26px | **one** — the masses are still bridged at the crossing |
 | 40px | two |
-| 46px | two: 70,971px centred (655,425) and 28,972px centred (318,685) |
+| 46px | two: 70,971px centered (655,425) and 28,972px centered (318,685) |
 
 Below ~40px every mass is "the bottom-left mass", and a variant asking to hold
 one flat would silently emit the unmodified icon. `build` raises rather than
@@ -234,7 +234,7 @@ python3 packaging/icon-variants/make_striped_icons.py \
     --only page-10-26 --pitch 96 --duty 0.6
 ```
 
-`--pitch` is centre-to-centre at 1024 and scales with the source; `--duty` is
+`--pitch` is center-to-center at 1024 and scales with the source; `--duty` is
 the ink fraction of a stripe and overrides each variant's own. Both are the
 levers worth turning first. Rim and which masses stay flat live in the variant
 table (`rim=`, `solid_masses=`).
@@ -287,5 +287,5 @@ the landscape framebuffer, 1=white); regenerate those from the adopted variant
 when changing this one.
 
 Judge candidates at 32px before committing. A line screen that reads well at
-1024 can collapse into flat grey in a Finder list, and the icon is judged in
+1024 can collapse into flat gray in a Finder list, and the icon is judged in
 both places.

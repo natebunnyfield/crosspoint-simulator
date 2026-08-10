@@ -168,8 +168,8 @@ RECENT REVISION HISTORY:
 // in this order in each pixel:
 //
 //     N=#comp     components
-//       1           grey
-//       2           grey, alpha
+//       1           gray
+//       2           gray, alpha
 //       3           red, green, blue
 //       4           red, green, blue, alpha
 //
@@ -5738,7 +5738,7 @@ static void *stbi__bmp_load(stbi__context *s, int *x, int *y, int *comp, int req
 // returns STBI_rgb or whatever, 0 on error
 static int stbi__tga_get_comp(int bits_per_pixel, int is_grey, int* is_rgb16)
 {
-   // only RGB or RGBA (incl. 16bit) or grey allowed
+   // only RGB or RGBA (incl. 16bit) or gray allowed
    if (is_rgb16) *is_rgb16 = 0;
    switch(bits_per_pixel) {
       case 8:  return STBI_grey;
@@ -5776,10 +5776,10 @@ static int stbi__tga_info(stbi__context *s, int *x, int *y, int *comp)
         }
         stbi__skip(s,4);       // skip image x and y origin
         tga_colormap_bpp = sz;
-    } else { // "normal" image w/o colormap - only RGB or grey allowed, +/- RLE
+    } else { // "normal" image w/o colormap - only RGB or gray allowed, +/- RLE
         if ( (tga_image_type != 2) && (tga_image_type != 3) && (tga_image_type != 10) && (tga_image_type != 11) ) {
             stbi__rewind(s);
-            return 0; // only RGB or grey allowed, +/- RLE
+            return 0; // only RGB or gray allowed, +/- RLE
         }
         stbi__skip(s,9); // skip colormap specification and image x/y origin
         tga_colormap_bpp = 0;
@@ -5832,7 +5832,7 @@ static int stbi__tga_test(stbi__context *s)
       if ( (sz != 8) && (sz != 15) && (sz != 16) && (sz != 24) && (sz != 32) ) goto errorEnd;
       stbi__skip(s,4);       // skip image x and y origin
    } else { // "normal" image w/o colormap
-      if ( (sz != 2) && (sz != 3) && (sz != 10) && (sz != 11) ) goto errorEnd; // only RGB or grey allowed, +/- RLE
+      if ( (sz != 2) && (sz != 3) && (sz != 10) && (sz != 11) ) goto errorEnd; // only RGB or gray allowed, +/- RLE
       stbi__skip(s,9); // skip colormap specification and image x/y origin
    }
    if ( stbi__get16le(s) < 1 ) goto errorEnd;      //   test width
@@ -6783,7 +6783,7 @@ static stbi_uc *stbi__gif_load_next(stbi__context *s, stbi__gif *g, int *comp, i
    int pcount;
    STBI_NOTUSED(req_comp);
 
-   // on first frame, any non-written pixels get the background colour (non-transparent)
+   // on first frame, any non-written pixels get the background color (non-transparent)
    first_frame = 0;
    if (g->out == 0) {
       if (!stbi__gif_header(s, g, comp,0)) return 0; // stbi__g_failure_reason set by stbi__gif_header
@@ -6797,7 +6797,7 @@ static stbi_uc *stbi__gif_load_next(stbi__context *s, stbi__gif *g, int *comp, i
          return stbi__errpuc("outofmem", "Out of memory");
 
       // image is treated as "transparent" at the start - ie, nothing overwrites the current background;
-      // background colour is only used for pixels that are not rendered first frame, after that "background"
+      // background color is only used for pixels that are not rendered first frame, after that "background"
       // color refers to the color that was there the previous frame.
       memset(g->out, 0x00, 4 * pcount);
       memset(g->background, 0x00, 4 * pcount); // state of the background (starts transparent)

@@ -44,7 +44,7 @@ already-tested core transitions.
   VoiceOver win once the channel exists: recorded as follow-on work, own
   TODO entry when Phase 4 ships.
 - **D2 — `AVSpeechSynthesizer`, system default voice** (`voiceWithLanguage:nil`
-  honours the owner's Spoken Content voice). Per-book language and a rate
+  honors the owner's Spoken Content voice). Per-book language and a rate
   control are non-goals for v1.
 - **D3 — page turns are real injected button presses** so the firmware owns
   pagination, progress, chapters, end-of-book. Via `queueButtonTap` (below),
@@ -270,7 +270,7 @@ mid-page takes effect at the next page render (capture publishes at render).
 ## Bookkeeping
 
 CLAUDE.md gains the channel note + the two tests (done with WP-1). WP-3
-completion: owner-facing behaviour table in ios/README.md, close ST-003,
+completion: owner-facing behavior table in ios/README.md, close ST-003,
 file the accessibility follow-on (D1) as its own entry. Firmware PRs name
 the simulator commit they need; pin/source-set/`firmware_repo` stay in sync
 if TUs are added.

@@ -13,7 +13,7 @@ extern "C" {
 void CrossPointHarness_prepareFilesystem();
 
 // Install the on-screen button pad and its event watch. Requires SDL to be
-// initialised, so call after setup() (HalDisplay::begin does the SDL_Init).
+// initialized, so call after setup() (HalDisplay::begin does the SDL_Init).
 //
 // There is no per-frame pump: every control is down-on-touch and up-on-lift, so
 // presses are driven entirely by touch events and carry their real duration.
