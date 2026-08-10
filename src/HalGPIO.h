@@ -153,6 +153,26 @@ public:
   // field that opens.
   void injectTypedText(const char *utf8);
 
+  // Show or hide the host's software keyboard while the field stays open --
+  // simulator-only, like injectTypedText, and with no device counterpart: a
+  // keyboard you can dismiss is a thing only a host has.
+  //
+  // It exists because on iPhone the keyboard is otherwise a trap. It covers
+  // roughly 40% of the screen, the panel is squeezed into what is left, and
+  // unlike iPad the iPhone software keyboard has NO dismiss key -- so with a
+  // field open there was no way to see the page, or to use the firmware's own
+  // on-screen grid, without leaving the screen entirely.
+  //
+  // Hiding does not close the field: the firmware's flag is untouched, the
+  // grid keyboard keeps working, and typed text still routes here the moment
+  // the keyboard comes back. Suppression is cleared on every text-entry edge,
+  // so it can never become a sticky invisible preference; see the comment in
+  // setTextEntryActive(). isHostKeyboardVisible() is false whenever no field
+  // is open, so `isTextEntryActive() && !isHostKeyboardVisible()` is exactly
+  // the state the iOS harness paints its "Tap to type" chip in.
+  void setHostKeyboardVisible(bool visible);
+  bool isHostKeyboardVisible() const;
+
   // MAIN THREAD ONLY, once per frame. Starts and stops SDL text input on the
   // active-flag edge, which on a phone is what raises and dismisses the
   // software keyboard -- a UIKit operation, so it cannot ride along with the

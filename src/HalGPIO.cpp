@@ -1,5 +1,6 @@
 #include "HalGPIO.h"
 
+#include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
 #include "SimulatorRebootResets.h"
 
@@ -99,6 +100,12 @@ static std::atomic<HalGPIO::TextEntryLines> textEntryLines{
 static bool enterClaimedByButton = false;
 static std::mutex typedTextMutex;
 static std::string typedTextBuffer;
+
+// The owner's override on top of the firmware's flag: hide the software
+// keyboard while the field stays open, so the page and the firmware's own
+// on-screen grid are reachable. All of the decision logic lives in
+// src/HostKeyboardState.h, where a host test can drive it.
+static hostkbd::State hostKeyboard;
 
 static ReadAloudChannel readAloudChannel;
 
@@ -1007,6 +1014,8 @@ void HalGPIO::setTextEntryActive(bool active, TextEntryLines lines) {
   // A field opening or closing under a held Return must not leave the latch
   // pointing at the old field's answer.
   enterClaimedByButton = false;
+  // Both edges also clear the owner's hide; see hostkbd::State::onFieldEdge.
+  hostKeyboard.onFieldEdge();
   // Both edges drop whatever is queued. On the rising edge that discards
   // anything a mistimed host typed before the field existed; on the falling
   // edge it stops the tail of one entry (the characters that arrived in the
@@ -1020,6 +1029,18 @@ void HalGPIO::setTextEntryActive(bool active, TextEntryLines lines) {
 }
 
 bool HalGPIO::isTextEntryActive() const { return textEntryActive.load(); }
+
+void HalGPIO::setHostKeyboardVisible(const bool visible) {
+  const bool wasSuppressed = hostKeyboard.suppressed();
+  hostKeyboard.requestVisible(visible);
+  if (wasSuppressed == !visible && !visible)
+    return; // already hidden by request; nothing to say
+  SDL_Log("[TEXT] host keyboard %s by request", visible ? "shown" : "hidden");
+}
+
+bool HalGPIO::isHostKeyboardVisible() const {
+  return hostKeyboard.wants(textEntryActive.load());
+}
 
 bool HalGPIO::consumeTypedText(std::string &out) {
   std::lock_guard<std::mutex> lock(typedTextMutex);
@@ -1043,14 +1064,24 @@ void HalGPIO::injectTypedText(const char *utf8) {
 }
 
 void HalGPIO::pumpHostTextInput() {
-  static bool applied = false;
-  const bool want = textEntryActive.load();
-  if (want == applied)
-    return;
+  // The window check comes first because poll() consumes the armed restart:
+  // a raise requested during startup has to survive until HalDisplay::begin()
+  // has made a window, not be swallowed by a poll that could not act on it.
   SDL_Window *window = simulatorWindow();
   if (!window)
     return; // before the first HalDisplay::begin(); retried next frame
-  applied = want;
+  const bool active = textEntryActive.load();
+  const hostkbd::Action action = hostKeyboard.poll(active);
+  if (action == hostkbd::Action::None)
+    return;
+  const bool want = hostKeyboard.wants(active);
+  if (action == hostkbd::Action::Restart) {
+    // The platform lowered the keyboard without our knowing, so SDL still
+    // believes text input is active and StartTextInput alone would not call
+    // becomeFirstResponder again. Drop it properly, then raise.
+    SDL_StopTextInput(window);
+    SDL_Log("[TEXT] host text input restarted to re-raise the keyboard");
+  }
   if (want) {
     // On a phone this is what raises the software keyboard; a paired Bluetooth
     // keyboard suppresses that itself and types straight through. On desktop

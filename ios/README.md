@@ -860,6 +860,58 @@ the drain semantics (run ordering, backspace position, commit/cancel, the
 multi-byte length check). Neither can cover the suppression, because both
 inject below SDL — that is why the phone runs above are written down.
 
+### Putting the keyboard away
+
+iPad's system keyboard has a dismiss key in its bottom-right corner. **iPhone's
+does not** — so once the firmware opened a field, the keyboard covered ~40% of
+the screen (336 pt of 812 on a 13 mini), taking the lower page and the whole
+button pad with it, and the only way out was to leave the screen.
+
+Three controls, one state (`hostkbd::State`, host-tested in
+`tests/host_keyboard_test.cpp`):
+
+| Control | Does |
+|---|---|
+| Bar above the keyboard | Lowers it. Rides on the keyboard, so it leaves with it. |
+| Keyboard chip in the pad band | Raises it. Drawn only while a field is open with the keyboard down. |
+| Tap anywhere on the page | Raises it. Same handler as the chip, which is why the chip needs no hit test. |
+
+The bar is a `UIToolbar` set as `inputAccessoryView` on SDL's hidden
+`SDLUITextField`. SDL exposes neither the field nor any accessory API
+(`grep -rn inputAccessoryView` across SDL 3.4.12: nothing), so it is found by
+public traversal — `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER` → `rootViewController`
+→ subviews → the one `UITextField`. No private headers, no ivar reads, no
+swizzling. `[harness] keyboard bar attached` on the console says it worked, and
+a failure to find the field logs loudly on the same channel, because a silent
+miss looks exactly like the bug this fixes.
+
+Verified on the iPhone 13 mini simulator with the hardware keyboard
+disconnected (`ConnectHardwareKeyboard = 0` for that device — leave it connected
+and iOS suppresses the software keyboard, so none of this is visible), driving
+Settings > Device owner:
+
+- Field opens → keyboard up, bar attached at depth 1, chip absent.
+- Tap the bar → `[TEXT] host keyboard hidden by request`, keyboard down, page
+  and firmware grid fully visible, chip drawn in the pad band's middle columns.
+- Tap the page → `host keyboard shown by request` → `host text input started`,
+  keyboard back, chip gone.
+- Typed `Ada` after the raise; it reached the firmware's field.
+
+Not verifiable here, and so **UNCONFIRMED**: iPad's own dismiss key driving the
+chip (the `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` path), and behavior with a paired
+Bluetooth keyboard — no iPad and no paired keyboard on this Mac.
+
+**The page shrinks while the keyboard is up, and that is now visible.** The
+clearance band (owner ruling 2026-08-09) reserves the keyboard's height out of
+the panel's space, which on a phone leaves too little room for the panel's own
+integer scale and drops it to roughly 60%. It always did — but
+`CrossPointIOS_setKeyboardHeight` never asked for a present, so the relayout
+waited for whatever page the firmware rendered next and mostly went unseen.
+Fixing that (state changes must repaint) made it immediate. The alternative is
+to stop reserving it and let the keyboard overlap the page as iOS apps normally
+do; that reverses part of the 2026-08-09 ruling, so it is the owner's call and
+has not been taken.
+
 ## How the harness attaches
 
 Two seams, both in simulator code — the firmware and `HalGPIO` are untouched.
