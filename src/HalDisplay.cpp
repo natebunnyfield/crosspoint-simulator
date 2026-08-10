@@ -99,6 +99,24 @@ static constexpr SDL_RendererLogicalPresentation kLogicalPresentation =
 static constexpr SDL_ScaleMode kPanelScaleMode = SDL_SCALEMODE_LINEAR;
 #endif
 
+// The step a BELOW-1x panel scale is quantised to on the manual-placement path
+// (presentIfNeeded). Above 1x the step is 1 and the panel is pixel-exact; below
+// it, the point is only that the panel land on WHOLE device pixels, so this is
+// the coarsest step for which it does.
+//
+// With scale = n / kPixelQuantum the presented panel is
+// (DISPLAY_HEIGHT/g)*n x (DISPLAY_WIDTH/g)*n device pixels, whole by
+// construction, and both halves of the dst rect (which is offset by half the
+// framebuffer's dimensions from the panel's centre) stay whole because the
+// halving is folded into the quantum: g/2 rather than g. On X3 at 2x render
+// scale that is gcd(1584, 1056)/2 = 264, i.e. steps of 0.38% -- far finer than
+// the ~5% a small phone is short by, so quantising costs nothing visible.
+static constexpr int gcdOf(int a, int b) { return b == 0 ? a : gcdOf(b, a % b); }
+static constexpr float kPixelQuantum = static_cast<float>(
+    gcdOf(HalDisplay::DISPLAY_WIDTH, HalDisplay::DISPLAY_HEIGHT) / 2);
+static_assert(kPixelQuantum >= 1.0f,
+              "panel dimensions must share a factor of at least 2");
+
 namespace {
 
 struct GrayscalePreviewState {
@@ -177,10 +195,28 @@ bool saveRendererBmp(const std::string &path) {
     return false;
   }
 
+  // Read the WHOLE OUTPUT, not the logical viewport. SDL_RenderReadPixels(NULL)
+  // reads the current viewport, which under logical presentation is the panel's
+  // letterboxed rect -- so on a host that reserves bands for its own chrome (the
+  // phone) the capture silently cropped to the page and could not show where the
+  // page sat on the screen or what was in the bands. That is precisely what a
+  // capture is wanted for when the placement itself is in question. On desktop
+  // the window IS the panel, so the two rects coincide and this changes nothing.
+  int logW = 0, logH = 0;
+  SDL_RendererLogicalPresentation logMode = SDL_LOGICAL_PRESENTATION_DISABLED;
+  SDL_GetRenderLogicalPresentation(sdl_renderer, &logW, &logH, &logMode);
+  if (logMode != SDL_LOGICAL_PRESENTATION_DISABLED)
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+
   // SDL3's SDL_RenderReadPixels returns a new surface rather than filling a
   // caller-provided buffer, so the intermediate vector and the
   // CreateRGBSurfaceWithFormatFrom wrapper the SDL2 path needed are both gone.
   SDL_Surface *surface = SDL_RenderReadPixels(sdl_renderer, nullptr);
+
+  if (logMode != SDL_LOGICAL_PRESENTATION_DISABLED)
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH, logMode);
+
   if (!surface) {
     std::cerr << "[SIM] Cannot create screenshot surface: " << SDL_GetError()
               << std::endl;
@@ -709,38 +745,120 @@ void HalDisplay::presentIfNeeded() {
         SDL_max(1.0f, static_cast<float>(outH - inset - topBand));
     float scale = SDL_min(static_cast<float>(outW) / logW, availH / logH);
     // Keep the pixel-exact policy honest on this path too.
-    if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE &&
-        scale >= 1.0f)
-      scale = SDL_floorf(scale);
+    //
+    // ABOVE 1x the answer is the whole number below: one framebuffer pixel
+    // covers exactly N screen pixels and the dither survives.
+    //
+    // BELOW 1x there is no such answer, and this is the honest statement of
+    // the trade-off: a small phone genuinely cannot fit the page (an iPhone 13
+    // mini leaves 1500 px of height for a 1584 px page once the status-bar band
+    // and the pad's band are taken, an SE leaves 822), the next integer
+    // reciprocal (1/2) is far too small to drop to, so the panel is decimated
+    // by nearest-neighbour and some framebuffer rows and columns are simply not
+    // drawn. Nothing here can avoid that.
+    //
+    // What it CAN do is put the result on whole device pixels, by quantising
+    // the scale to kPixelQuantum steps. Two things follow, and neither is
+    // cosmetic: the decimation phase is then identical for every row and
+    // column instead of the rect sitting half a pixel off the grid, and the
+    // page's edges land where the chrome anchored to them is drawn (the pad
+    // hangs off panelBottom, which is an integer). The quantisation itself
+    // costs under half a percent of the panel -- far less than the ~5% the
+    // phone is short by.
+    if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE) {
+      if (scale >= 1.0f) {
+        scale = SDL_floorf(scale);
+      } else {
+        // HYSTERESIS, and it is load-bearing. The band the host reserves is
+        // DERIVED from the panel height published below -- the phone's pad
+        // hangs off the page's bottom edge at a fraction of its height -- so
+        // what is decided here comes back as a change in availH. That loop's
+        // gain is well under 1 and settles on its own while the scale is
+        // continuous; quantised, a fixed point that falls between two steps
+        // flips between them forever, and because every flip requests a
+        // present, an app that should present once per page presents on every
+        // frame instead. Measured on an iPhone SE before this clause: an
+        // endless 548x822 <-> 544x816 flip at the display rate.
+        //
+        // So hold the current step until the fit leaves it by a whole step --
+        // which the loop's own residual (a fraction of a step) never does, and
+        // a real change (rotation, a keyboard coming up) always does. The cost
+        // is that a genuine one-step change is ignored: 0.4% of the panel,
+        // smaller than the quantisation it rides on.
+        static float heldScale = 0.0f;
+        static int heldOutW = -1, heldOutH = -1;
+        if (outW != heldOutW || outH != heldOutH) {
+          heldScale = 0.0f;
+          heldOutW = outW;
+          heldOutH = outH;
+        }
+        if (heldScale > 0.0f &&
+            SDL_fabsf(scale - heldScale) <= 1.0f / kPixelQuantum) {
+          scale = heldScale;
+        } else {
+          scale =
+              SDL_max(1.0f, SDL_floorf(scale * kPixelQuantum)) / kPixelQuantum;
+          heldScale = scale;
+        }
+      }
+    }
     // TOP-ALIGNED, not centred: the pad sits directly under the panel's
     // bottom edge (published below), so slack space goes under the pad
     // instead of splitting above and below the page. The alignment is to the
     // BOTTOM of the reserved top band, never to y=0 -- on a phone that band is
     // the status bar and the Island, and the page must start below it.
-    const float topMargin =
-        topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f);
-    const float cx = static_cast<float>(outW) / 2.0f;
-    const float cy = topMargin + logH * scale / 2.0f;
+    //
+    // Floored, and the panel rect below is built in whole pixels, because the
+    // dst rect is derived from them: a half-pixel top margin puts the whole
+    // page half a pixel off the grid, which is the thing the quantisation
+    // above exists to avoid.
+    const float topMargin = SDL_floorf(
+        topBand + SDL_min(16.0f, (availH - logH * scale) / 2.0f));
+    // The PRESENTED panel rect -- what the page actually occupies on the glass,
+    // in device pixels. Everything else here derives from it, so it is computed
+    // once, in integers, rather than recovered from the dst rect (which is a
+    // different shape; see below).
+    const int panelPxW = static_cast<int>(logW * scale);
+    const int panelPxH = static_cast<int>(logH * scale);
+    const int panelPxX = (outW - panelPxW) / 2;
+    const int panelPxY = static_cast<int>(topMargin);
+    // NOT the presented rect: dst is LANDSCAPE-shaped in every orientation,
+    // because SDL_RenderTextureRotated rotates it about its own centre and the
+    // texture is the landscape framebuffer. In portrait it therefore reaches
+    // outside the window horizontally by design -- a negative dst.x on a phone
+    // is normal, and reading it as a screen rect is how this was once
+    // mis-diagnosed as the panel rendering off-screen. Only its CENTRE is
+    // meaningful, and that is the panel rect's centre.
+    const float cx = panelPxX + panelPxW / 2.0f;
+    const float cy = panelPxY + panelPxH / 2.0f;
     portraitDst = {cx - kW * scale / 2.0f, cy - kH * scale / 2.0f, kW * scale,
                    kH * scale};
     landscapeDst = portraitDst;
-    SimulatorOverlay::panelBottom.store(
-        static_cast<int>(topMargin + logH * scale));
-    SimulatorOverlay::panelHeight.store(static_cast<int>(logH * scale));
-    SimulatorOverlay::panelLeft.store(
-        static_cast<int>(cx - logW * scale / 2.0f));
-    SimulatorOverlay::panelWidth.store(static_cast<int>(logW * scale));
+    SimulatorOverlay::panelBottom.store(panelPxY + panelPxH);
+    SimulatorOverlay::panelHeight.store(panelPxH);
+    SimulatorOverlay::panelLeft.store(panelPxX);
+    SimulatorOverlay::panelWidth.store(panelPxW);
 
     // Report the presented geometry once, and again whenever it changes.
     //
-    // A fractional panel scale, or a dst rect off the pixel grid, smears the
-    // Bayer dither into irregular moire -- the firmware's grays are a dot grid
-    // with a period of a few device pixels, so anything short of 1 texel : N
-    // whole device pixels beats against it. That is invisible in a screenshot
-    // (which is captured pre-composite) and hard to eyeball on glass, so the
-    // numbers are logged rather than left to be inferred.
+    // THE RECT LOGGED IS THE PRESENTED PANEL, not the dst rect handed to SDL.
+    // The dst rect is landscape-shaped and rotated about its centre, so in
+    // portrait it legitimately starts left of x=0 and is wider than the screen.
+    // Logging it invited exactly one wrong conclusion -- "dst -252 on a 1080 px
+    // screen, the panel is being drawn off-screen on small phones" -- and a
+    // debugging session was spent on a panel that was on screen the whole time.
+    // What a reader needs is where the page landed, so that is what this
+    // prints, and OFF-SCREEN now means the page really does leave the window.
     //
-    // If SCALE IS INTEGRAL AND THE DST IS WHOLE but grays still shimmer on
+    // A fractional panel scale, or a panel off the pixel grid, damages the
+    // Bayer dither -- the firmware's grays are a dot grid with a period of a
+    // few device pixels, so anything short of 1 texel : N whole device pixels
+    // beats against it. That is invisible in a screenshot (which is captured
+    // pre-composite) and hard to eyeball on glass, so the numbers are logged
+    // rather than left to be inferred. FRACTIONAL alone is expected on a phone
+    // too short for a 1x page and is not a fault; OFF-GRID is.
+    //
+    // If SCALE IS INTEGRAL AND THE PANEL IS WHOLE but grays still shimmer on
     // device, the resample is happening BELOW the app: check that outW x outH
     // is the panel's true native pixel size. iPadOS Display Zoom renders the
     // whole screen at a smaller logical size and upscales it to the panel by a
@@ -755,10 +873,13 @@ void HalDisplay::presentIfNeeded() {
         const bool wholeScale = scale == SDL_floorf(scale);
         const bool wholeDst = portraitDst.x == SDL_floorf(portraitDst.x) &&
                               portraitDst.y == SDL_floorf(portraitDst.y);
-        SDL_Log("[panel] out %dx%d px, scale %.4f%s, dst %.2f,%.2f %.0fx%.0f%s",
-                outW, outH, scale, wholeScale ? "" : " (FRACTIONAL)",
-                portraitDst.x, portraitDst.y, portraitDst.w, portraitDst.h,
-                wholeDst ? "" : " (OFF-GRID)");
+        const bool onScreen = panelPxX >= 0 && panelPxY >= 0 &&
+                              panelPxX + panelPxW <= outW &&
+                              panelPxY + panelPxH <= outH;
+        SDL_Log("[panel] out %dx%d px, scale %.4f%s, panel %dx%d at %d,%d%s%s",
+                outW, outH, scale, wholeScale ? "" : " (FRACTIONAL)", panelPxW,
+                panelPxH, panelPxX, panelPxY, wholeDst ? "" : " (OFF-GRID)",
+                onScreen ? "" : " (OFF-SCREEN)");
       }
     }
   }
