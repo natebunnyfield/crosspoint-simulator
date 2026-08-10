@@ -255,12 +255,17 @@ void layoutPadTablet(float W, float H, float S) {
   const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
   const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
   const float outWpx = W * S, outHpx = H * S;
-  // The keyboard OVERLAPS the page; it does not shrink it (owner ruling
-  // 2026-08-10). Reserving its height here cost the panel an integer scale --
-  // roughly 40% of the page on a phone -- to reveal a lower edge that is
-  // simply not worth that. A keyboard covering content is what every iOS app
-  // does, and the bar above it puts the keyboard away in one tap.
-  const float availPx = SDL_max(1.0f, (H - safeTop - safeBottom) * S);
+  // The keyboard eats from the bottom of the usable height, so the centered
+  // panel shrinks and rises rather than sitting under the keys.
+  //
+  // TABLET ONLY. "Overlap, not shrink" (owner ruling 2026-08-10) is an iPhone
+  // ruling -- see the phone path -- and the reason it does not carry here is
+  // that a tablet has the room. The panel is 1056x1584 device px at 2x, and an
+  // iPad Pro clears that in the ~1900 px left after a 400 pt keyboard, so
+  // reserving the height moves the page up without costing it a single integer
+  // scale. On a phone the same reservation costs one, which is 40% of the text.
+  const float availPx =
+      SDL_max(1.0f, (H - safeTop - safeBottom - g_keyboardHeightPt) * S);
   float scale = SDL_min(outWpx / logW, availPx / logH);
   if (scale >= 1.0f) scale = SDL_floorf(scale);
   const float panelWpx = logW * scale, panelHpx = logH * scale;
