@@ -614,7 +614,11 @@ starts from any word tapped.
 | Waits | At the end of the page the app presses the page-forward button itself and reads on. Progress persists, because the press is a REAL button press the firmware handles |
 | Turns the page manually | Speech stops and re-starts on the new page |
 | Taps a word | Reading jumps to that word. No page turn, no double audio |
+| **Taps the word being read** | **Reading STOPS.** The only stop a finger can reach; tapping that word again starts it back up |
 | Taps a margin, or drags | Nothing. Only a tap that lands on a word counts |
+| **Two-finger double tap (magic tap)** | **Pause / resume**, and from a full stop it starts again at the word it stopped on. VoiceOver's gesture, so it exists only while VoiceOver or AssistiveTouch is on — everyone else stops with a tap |
+| **Moves Speaking Rate** | Applies immediately: the current word is re-spoken at the new rate rather than waiting for the page to end. 50%–200% of normal, default 100% |
+| **Locks the phone** | Keeps reading, and keeps turning pages |
 | Presses BACK to Home | Speech stops and the highlight clears |
 | Turns the toggle off | Stops on the first frame after returning to the app |
 | Reaches the end of the book | One `[READALOUD] page timeout` and a clean stop |
@@ -622,14 +626,66 @@ starts from any word tapped.
 
 The highlight is overlay chrome, so it does **not** appear in
 `CROSSPOINT_SIM_SCREENSHOTS` captures (those are taken pre-composite). A device
-screenshot does show it.
+screenshot does show it. It **survives a pause** — while paused it is the
+answer to "where was I" — and clears on a stop.
 
-Ring/silent on silent still plays: the audio session is
-`AVAudioSessionCategoryPlayback`. Verified only in the iOS Simulator — no
-physical phone is paired to this Mac, and the silent switch is exactly what a
-simulator cannot reproduce.
+**The system's own Speaking Rate slider does not reach this feature.** Settings
+> Accessibility > Spoken Content > Speaking Rate applies to VoiceOver and Speak
+Screen, not to an `AVSpeechUtterance`, so without the app's own row there is no
+rate control at all. It is stored as a percentage of normal and mapped onto
+AVSpeech's 0..1 scale in [CrossPointReadAloud.mm](CrossPointReadAloud.mm) —
+that scale's DEFAULT is its MIDPOINT (0.5), so 200% lands exactly on
+`AVSpeechUtteranceMaximumSpeechRate`. Named `PSMultiValueSpecifier` steps
+rather than `PSSliderSpecifier`, because a Settings slider row carries neither
+a title nor a numeric readout: the owner would be dragging an unlabelled
+control with no way to see what they picked.
 
-Logs are greppable: every line starts `[READALOUD] `.
+Ring/silent on silent still plays, and reading survives the screen locking: the
+session is `AVAudioSessionCategoryPlayback` + `ModeSpokenAudio`, and
+`UIBackgroundModes: audio` is declared in [Info.plist.in](Info.plist.in). The
+two are one mechanism — either alone grants nothing, and the background grant
+is also what keeps the FIRMWARE running, which is what turns the pages. The
+session is handed back (`NotifyOthersOnDeactivation`) ~1.5 s after the reader
+stops, so an interrupted podcast can resume and a ~1 kHz loop is not holding
+background execution it is not using; a PAUSE deliberately does not release it.
+**Neither the silent switch nor screen-off playback can be reproduced in the
+Simulator, and no physical phone is paired to this Mac — SHIPPED, UNCONFIRMED
+on device.**
+
+Logs are greppable: every line starts `[READALOUD] `. The ones worth knowing:
+`utterance start ... rate=N% (r) voice=V`, `speaking serial=N` (the engine
+really is talking, as opposed to holding a silent utterance — otherwise
+indistinguishable), `stopped`, `paused`, `resumed`, `page turn queued`, `page
+timeout`, `audio session released`.
+
+**Driving the new controls headlessly.** Speech is inaudible to a test and the
+magic tap is a gesture no script can perform, so
+`CROSSPOINT_SIM_READALOUD_SCRIPT` fires them on the `SDL_GetTicks` millisecond
+clock `CROSSPOINT_SIM_INPUT_SCRIPT` already uses, through the same entry points
+UIKit and a finger use:
+
+```bash
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='2500:BACK;5000:RIGHT;6500:RIGHT' \
+SIMCTL_CHILD_CROSSPOINT_SIM_READALOUD_SCRIPT='12000:TAPWORD;15000:MAGICTAP;18000:DELEGATETAP' \
+  xcrun simctl launch --console-pty <udid> com.natebunnyfield.crosspoint.x3
+```
+
+`TAPWORD` taps the centre of the word being spoken **in screen pixels**, so the
+panel geometry and the hit-test are exercised too — which makes it precisely
+the tap-to-stop case. `MAGICTAP` calls what the gesture calls; `DELEGATETAP`
+sends `accessibilityPerformMagicTap` to the application delegate, the message
+UIKit itself sends once the gesture goes unhandled up the responder chain, so
+the only part left unproven is Apple's own routing. Note the book opens on its
+COVER, which has no text: page forward at least once, or the channel publishes
+a page with nothing to say and every control correctly reports "nothing to
+toggle".
+
+The magic-tap handler is installed on the app delegate's class with
+`class_addMethod`, and **the guard is that call's return value, not
+`respondsToSelector`** — UIKit declares `accessibilityPerformMagicTap` in a
+category on `NSObject`, so every class in the process answers YES and the
+obvious guard declines to install, every time. That was the first measured
+failure of this code.
 
 ### Accessibility — VoiceOver, Speak Screen, Braille, Switch Control
 

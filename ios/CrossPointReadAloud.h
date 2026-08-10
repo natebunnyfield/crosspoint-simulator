@@ -35,8 +35,23 @@ void CrossPointReadAloud_paintHighlight(struct SDL_Renderer *r, int outWidthPx,
 // A completed tap (down + up, no drag) at device-pixel screen coordinates,
 // from padWatch. The adapter maps it into logical panel coordinates and
 // starts (or jumps) reading at the tapped word; taps outside the panel or
-// off any word do nothing.
+// off any word do nothing. A tap on the word BEING SPOKEN stops reading —
+// the only finger-reachable stop, and the reason a second tap is not simply
+// another jump.
 void CrossPointReadAloud_tapAtScreen(float xPx, float yPx);
+
+// The system play/pause gesture. Returns 1 if it was consumed, 0 if there
+// was nothing to toggle — which is what the caller returns from
+// accessibilityPerformMagicTap so the system can look elsewhere.
+//
+// The adapter installs that handler itself, on the application delegate,
+// which is where UIKit looks last and therefore the one place that catches
+// the gesture wherever it started. This entry point is public anyway because
+// the QA hook below drives it, and because a future in-app control (a
+// headphone button, a lock-screen transport) wants the same door.
+//
+// Main thread only, like everything here.
+int CrossPointReadAloud_magicTap(void);
 
 #ifdef __cplusplus
 }

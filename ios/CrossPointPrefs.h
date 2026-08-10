@@ -53,6 +53,23 @@ int CrossPointPrefs_padFillContrast(int dark);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_readAloudEnabled(void);
 
+// How fast read-aloud speaks, as a PERCENTAGE OF NORMAL: 100 is the system's
+// default speaking rate, 50 is half, 200 is double. Clamped to 25..300.
+//
+// A percentage rather than AVSpeechUtterance's own 0..1 scale, and the
+// conversion lives in the adapter, because that scale is not a rate at all --
+// its midpoint 0.5 is normal speech and the number means nothing to anyone
+// reading a settings row. The stored value has to survive a restored backup
+// and a hand-edited plist, which is why the clamp is here and not only in the
+// picker's list of steps.
+//
+// NOTE the system's own Spoken Content > Speaking Rate slider does NOT reach
+// AVSpeechUtterance -- it applies to VoiceOver and Speak Screen. Without this
+// key there is no speaking-rate control for this feature at all.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_readAloudRatePercent(void);
+
 // Diagnostics file logging (diagnostics/a11y.log + tree dumps + probes).
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);

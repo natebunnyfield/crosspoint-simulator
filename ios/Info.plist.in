@@ -45,6 +45,27 @@
   <key>UIRequiresFullScreen</key>
   <true/>
 
+  <!-- Background audio, so read-aloud survives the screen locking. Half of a
+       pair: without AVAudioSessionCategoryPlayback (set in
+       CrossPointReadAloud.mm) this entry grants nothing, and without this
+       entry the playback session is cut off the moment the app leaves the
+       foreground. The grant lasts only while audio is actually playing, which
+       is why that file hands the session back after the reader has been
+       stopped for a moment — an app that keeps an idle session keeps running,
+       and this loop runs at ~1 kHz.
+
+       It also keeps the FIRMWARE alive while locked, which is what turns the
+       pages: the page-forward tap is a real button press handled by the
+       firmware loop, so suspending the process would end the reading at the
+       bottom of the current page.
+
+       ADD ONLY, NEVER REMOVE, in this file: it is the source of truth for the
+       privacy purpose strings App Store review scans for. -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+  </array>
+
   <!-- File sharing, so EPUB/TXT can be sideloaded via Files. The real X3 has no
        USB port (pogo pins), so this is the only practical way to get books in. -->
   <key>UIFileSharingEnabled</key>

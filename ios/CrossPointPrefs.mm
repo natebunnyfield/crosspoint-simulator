@@ -20,6 +20,10 @@ static NSString *const kPadFillContrastDark = @"padFillContrastDark";
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
 static NSString *const kReadAloudEnabled = @"readAloudEnabled";
+// ...and here it is malignant again: -integerForKey: on a missing key returns
+// 0, which as a percentage of normal speaking rate is silence. The clamp in
+// readAloudRatePercent() is what makes that survivable.
+static NSString *const kReadAloudRatePercent = @"readAloudRatePercent";
 static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 
 // THE DEFAULTS LIVE IN Root.plist AND NOWHERE ELSE.
@@ -79,6 +83,7 @@ static void ensureDefaults(void) {
         kPadFillContrastLight : @(-1),
         kPadFillContrastDark : @(1),
         kReadAloudEnabled : @NO,
+        kReadAloudRatePercent : @(100),
       }];
     }
 
@@ -154,6 +159,21 @@ int CrossPointPrefs_readAloudEnabled(void) {
   return [[NSUserDefaults standardUserDefaults] boolForKey:kReadAloudEnabled]
              ? 1
              : 0;
+}
+
+int CrossPointPrefs_readAloudRatePercent(void) {
+  ensureDefaults();
+  checkKnown(kReadAloudRatePercent);
+  NSInteger percent = [[NSUserDefaults standardUserDefaults]
+      integerForKey:kReadAloudRatePercent];
+  // Clamp WIDER than the steps Root.plist offers (50..200), because this is
+  // guarding against a value the picker never produced -- a restored backup,
+  // a hand-edited plist, or the 0 a missing key returns. 25 is slow enough to
+  // transcribe from and 300 is past the point AVSpeech saturates, so nothing
+  // outside is worth honouring.
+  if (percent < 25) percent = 25;
+  if (percent > 300) percent = 300;
+  return static_cast<int>(percent);
 }
 
 int CrossPointPrefs_diagnosticsEnabled(void) {

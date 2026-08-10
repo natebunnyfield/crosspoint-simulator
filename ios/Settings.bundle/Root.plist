@@ -266,7 +266,9 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it. Takes effect at the next page turn.</string>
+			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it, or tap the word being read to stop. With VoiceOver on, a two-finger double tap pauses and resumes. Reading continues with the screen locked. Turning it on takes effect at the next page turn.
+
+Speaking rate is a percentage of normal. The Spoken Content rate slider in Accessibility settings does not apply here, so this is the one that moves it.</string>
 			<key>Title</key>
 			<string>Read Aloud</string>
 			<key>Type</key>
@@ -281,6 +283,36 @@
 			<string>Read Aloud (Experimental)</string>
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>100</integer>
+			<key>Key</key>
+			<string>readAloudRatePercent</string>
+			<key>Title</key>
+			<string>Speaking Rate</string>
+			<key>Titles</key>
+			<array>
+				<string>50% — half speed</string>
+				<string>75%</string>
+				<string>100% — normal</string>
+				<string>125%</string>
+				<string>150%</string>
+				<string>175%</string>
+				<string>200% — double speed</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>50</integer>
+				<integer>75</integer>
+				<integer>100</integer>
+				<integer>125</integer>
+				<integer>150</integer>
+				<integer>175</integer>
+				<integer>200</integer>
+			</array>
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
