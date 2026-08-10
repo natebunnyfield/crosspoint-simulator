@@ -784,6 +784,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
     applyTheme();
     break;
   case SDL_EVENT_DID_ENTER_FOREGROUND:
+    HalDisplay::setBackgrounded(false);
     g_foregroundAt = SDL_GetTicks();
     SimulatorOverlay::requestPresent();
     break;
@@ -1116,6 +1117,12 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // Backgrounding must not leave a key stuck down: the finger is gone, and a
     // stuck POWER would read as a long press.
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
+      // Read-aloud keeps the process alive with the screen locked, and it
+      // turns pages while it reads -- so the firmware goes on rendering. Stop
+      // presenting: Metal work submitted from the background is grounds for
+      // termination.
+      HalDisplay::setBackgrounded(true);
+      [[fallthrough]];
     case SDL_EVENT_WINDOW_FOCUS_LOST:
       g_tapFingerId = -1;
       applyActions(g_core.reset());

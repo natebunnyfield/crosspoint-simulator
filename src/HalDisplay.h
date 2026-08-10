@@ -121,6 +121,19 @@ public:
   bool supportsStripGrayscale() const;
 
   // Simulator only: call from main thread to push rendered pixels to SDL.
+  // Suspend GPU work while the app is backgrounded.
+  //
+  // Read-aloud declares UIBackgroundModes:audio, so the process keeps running
+  // with the screen locked -- and it turns pages while it reads. A page turn
+  // renders, which sets pendingPresent, which would submit Metal work from the
+  // background. Apple documents that as grounds for TERMINATION, and being
+  // killed mid-chapter is worse than the feature is good.
+  //
+  // The pending flag is deliberately NOT cleared: the frame is still owed, and
+  // setBackgrounded(false) re-arms it so the page the owner missed appears the
+  // moment they unlock. Desktop never calls this and is unaffected.
+  static void setBackgrounded(bool backgrounded);
+
   void presentIfNeeded();
   // Simulator only: returns true once a hard shutdown has been requested.
   bool shouldQuit() const;
