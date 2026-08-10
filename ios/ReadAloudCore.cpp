@@ -21,7 +21,10 @@ std::vector<ReadAloudCore::Action> ReadAloudCore::setEnabled(bool enabled) {
     return out;
   enabled_ = enabled;
   if (!enabled_) {
-    if (state_ == State::Speaking)
+    // Paused counts as speaking here: the engine is still holding an
+    // utterance, and leaving it held is how you get speech back the moment
+    // something calls continueSpeaking.
+    if (state_ == State::Speaking || state_ == State::Paused)
       out.push_back({Action::StopUtterance});
     appendClear(out, highlightActive_);
     state_ = State::Off;
@@ -36,18 +39,20 @@ ReadAloudCore::pageArrived(const ReadAloudPage &page) {
   std::vector<Action> out;
   if (!enabled_)
     return out;
-  if (state_ == State::Speaking)
+  if (state_ == State::Speaking || state_ == State::Paused)
     out.push_back({Action::StopUtterance});
   appendClear(out, highlightActive_);
   if (page.cleared || page.utf8.empty()) {
     rects_.clear();
     textBytes_ = 0;
+    resumeOffset_ = 0;
     state_ = State::Off;
     return out;
   }
   rects_ = page.rects;
   textBytes_ = static_cast<uint32_t>(page.utf8.size());
   scanCursor_ = 0;
+  resumeOffset_ = 0;
   Action start{Action::StartUtterance};
   start.utteranceByteOffset = 0;
   out.push_back(start);
@@ -67,7 +72,9 @@ std::vector<ReadAloudCore::Action> ReadAloudCore::utteranceFinished() {
 
 std::vector<ReadAloudCore::Action> ReadAloudCore::utteranceCanceled() {
   std::vector<Action> out;
-  if (state_ != State::Speaking)
+  // Paused included: an interruption (a call, another app taking the session)
+  // cancels a held utterance just as readily as a speaking one.
+  if (state_ != State::Speaking && state_ != State::Paused)
     return out;
   appendClear(out, highlightActive_);
   state_ = State::Off;
@@ -112,6 +119,9 @@ ReadAloudCore::willSpeakByte(uint32_t absoluteByteOffset) {
   if (i < 0)
     return out;
   const ReadAloudWordRect &r = rects_[static_cast<size_t>(i)];
+  // Where a stop or a rate change would pick up again. Set BEFORE the dedupe
+  // return so it is right even when the highlight has nothing to say.
+  resumeOffset_ = r.byteOffset;
   if (highlightActive_ && highlightOffset_ == r.byteOffset &&
       highlightLen_ == r.byteLen)
     return out; // same word (or another fragment of it): nothing new
@@ -122,6 +132,75 @@ ReadAloudCore::willSpeakByte(uint32_t absoluteByteOffset) {
   a.highlightByteOffset = r.byteOffset;
   a.highlightByteLen = r.byteLen;
   out.push_back(a);
+  return out;
+}
+
+void ReadAloudCore::beginAt(uint32_t byteOffset, std::vector<Action> &out) {
+  // A resume point can outlive the page it came from only if something has
+  // gone wrong upstream, but the clamp is one compare and the alternative is
+  // an utterance starting past the end of the string.
+  if (byteOffset >= textBytes_)
+    byteOffset = 0;
+  Action start{Action::StartUtterance};
+  start.utteranceByteOffset = byteOffset;
+  out.push_back(start);
+  resumeOffset_ = byteOffset;
+  scanCursor_ = 0; // rectContaining resumes from here; the jump may be backwards
+  const int i = rectContaining(byteOffset);
+  if (i >= 0) {
+    const ReadAloudWordRect &r = rects_[static_cast<size_t>(i)];
+    highlightActive_ = true;
+    highlightOffset_ = r.byteOffset;
+    highlightLen_ = r.byteLen;
+    Action hl{Action::SetHighlight};
+    hl.highlightByteOffset = r.byteOffset;
+    hl.highlightByteLen = r.byteLen;
+    out.push_back(hl);
+  }
+  state_ = State::Speaking;
+}
+
+std::vector<ReadAloudCore::Action> ReadAloudCore::toggleSpeech() {
+  std::vector<Action> out;
+  if (!enabled_)
+    return out;
+  switch (state_) {
+    case State::Speaking:
+      out.push_back({Action::PauseUtterance});
+      state_ = State::Paused;
+      // The highlight STAYS. It is the answer to "where was I", which is the
+      // one thing the owner wants while paused.
+      break;
+    case State::Paused:
+      out.push_back({Action::ResumeUtterance});
+      state_ = State::Speaking;
+      break;
+    case State::Off:
+      // Nothing is held, so this is a start, not a resume — from the last word
+      // speech was known to be on. Needs a page: with no text there is nothing
+      // to say and the gesture is reported unhandled.
+      if (textBytes_ > 0)
+        beginAt(resumeOffset_, out);
+      break;
+    case State::AwaitingNextPage:
+      // A page turn is in flight and the rects on hand belong to the page
+      // already turned away from. Toggling into that is how you get speech
+      // starting on a page that is no longer on screen.
+      break;
+  }
+  return out;
+}
+
+std::vector<ReadAloudCore::Action> ReadAloudCore::restartAtCurrentWord() {
+  std::vector<Action> out;
+  if (!enabled_ || state_ != State::Speaking)
+    return out;
+  out.push_back({Action::StopUtterance});
+  // Only clear when beginAt has no rect to light instead: the word does not
+  // move, so a clear/set pair on the same range is a repaint for nothing.
+  if (rectContaining(resumeOffset_) < 0)
+    appendClear(out, highlightActive_);
+  beginAt(resumeOffset_, out);
   return out;
 }
 
@@ -136,20 +215,21 @@ std::vector<ReadAloudCore::Action> ReadAloudCore::tapAtLogical(int x, int y) {
         y < static_cast<int>(r.y) - kTapInflatePx ||
         y >= static_cast<int>(r.y) + static_cast<int>(r.h) + kTapInflatePx)
       continue;
-    if (state_ == State::Speaking)
+    const bool live = state_ == State::Speaking || state_ == State::Paused;
+    // TAP-TO-STOP. Keyed on the highlighted BYTE RANGE, not the rect, so
+    // either fragment of a line-wrapped word counts as "the word you are
+    // hearing" — which is what a finger aiming at it means.
+    if (live && highlightActive_ && highlightOffset_ == r.byteOffset &&
+        highlightLen_ == r.byteLen) {
       out.push_back({Action::StopUtterance});
-    Action start{Action::StartUtterance};
-    start.utteranceByteOffset = r.byteOffset;
-    out.push_back(start);
-    highlightActive_ = true;
-    highlightOffset_ = r.byteOffset;
-    highlightLen_ = r.byteLen;
-    Action hl{Action::SetHighlight};
-    hl.highlightByteOffset = r.byteOffset;
-    hl.highlightByteLen = r.byteLen;
-    out.push_back(hl);
-    scanCursor_ = static_cast<int>(i);
-    state_ = State::Speaking;
+      appendClear(out, highlightActive_);
+      resumeOffset_ = r.byteOffset; // magic tap carries on from here
+      state_ = State::Off;
+      return out;
+    }
+    if (live)
+      out.push_back({Action::StopUtterance});
+    beginAt(r.byteOffset, out);
     return out;
   }
   return out;

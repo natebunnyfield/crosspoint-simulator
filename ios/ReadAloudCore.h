@@ -25,6 +25,8 @@ public:
     enum Type {
       StartUtterance,  // speak the page's text from utteranceByteOffset
       StopUtterance,   // stop current speech immediately
+      PauseUtterance,  // hold the current utterance where it is
+      ResumeUtterance, // continue the held utterance
       TurnPageForward, // schedule a page-forward button tap
       SetHighlight,    // highlight every rect carrying [offset, offset+len)
       ClearHighlight,
@@ -35,7 +37,10 @@ public:
     uint32_t highlightByteLen = 0;    // SetHighlight
   };
 
-  enum class State { Off, Speaking, AwaitingNextPage };
+  // Paused is NOT Off: the utterance still exists inside the speech engine and
+  // resuming continues it mid-word, so no byte offset is involved. Off means
+  // there is no utterance and starting again means starting a new one.
+  enum class State { Off, Speaking, Paused, AwaitingNextPage };
 
   // The owner's toggle. Disabling stops speech; enabling waits for a page
   // (capture publishes at the next page render — see the plan's non-goals).
@@ -61,15 +66,39 @@ public:
   std::vector<Action> willSpeakByte(uint32_t absoluteByteOffset);
 
   // A tap at logical panel coordinates. Starts (or jumps) speech at the
-  // tapped word. Ignored while disabled, while no page with rects is held,
-  // and in AwaitingNextPage — the held rects belong to the page that was
-  // just turned away from.
+  // tapped word — EXCEPT on the word being spoken right now, which STOPS.
+  // That asymmetry is the whole point: without it there is no way to shut the
+  // reader up with a finger, and re-tapping the word you are hearing is what
+  // a reader reaches for first. Ignored while disabled, while no page with
+  // rects is held, and in AwaitingNextPage — the held rects belong to the
+  // page that was just turned away from.
   std::vector<Action> tapAtLogical(int x, int y);
+
+  // The system play/pause gesture (VoiceOver's two-finger double tap, routed
+  // here by accessibilityPerformMagicTap). Speaking -> paused, paused ->
+  // speaking, and from a full stop it starts again AT THE WORD IT STOPPED ON,
+  // which is what makes tap-to-stop and this pair up into a usable control.
+  // Returns no actions when there is nothing to toggle, so the adapter can
+  // report the gesture unhandled and let the system look elsewhere.
+  std::vector<Action> toggleSpeech();
+
+  // Re-speak from the current word. The one thing an utterance cannot change
+  // once it is speaking is its RATE, so a speaking-rate change has to be
+  // applied by starting a new utterance; doing it from the current word is
+  // what keeps that from sounding like a page reset. No-op unless speaking:
+  // paused and stopped speech pick the new rate up on their next utterance
+  // anyway, and neither should start talking because a slider moved.
+  std::vector<Action> restartAtCurrentWord();
 
   State state() const { return state_; }
 
 private:
   int rectContaining(uint32_t byteOffset);
+  // Emit StartUtterance at `byteOffset` (plus its SetHighlight when a rect
+  // owns that byte) and enter Speaking. Shared by tap, magic tap and restart;
+  // pageArrived deliberately does NOT use it — a fresh page starts at byte 0
+  // with no highlight until the engine reports the first word.
+  void beginAt(uint32_t byteOffset, std::vector<Action> &out);
 
   State state_ = State::Off;
   bool enabled_ = false;
@@ -82,4 +111,9 @@ private:
   bool highlightActive_ = false;
   uint32_t highlightOffset_ = 0;
   uint32_t highlightLen_ = 0;
+  // Where speech would pick up again: the last word it was known to be on.
+  // Tracked SEPARATELY from the highlight because stopping clears the
+  // highlight and the resume point has to outlive it — that is what lets a
+  // magic tap after a tap-to-stop carry on from the same word.
+  uint32_t resumeOffset_ = 0;
 };
