@@ -226,11 +226,19 @@ The controls are iOS-side: a dismiss bar riding on the keyboard
 ([ios/CrossPointKeyboardBar.mm](ios/CrossPointKeyboardBar.mm), attached to SDL's
 hidden `SDLUITextField` — SDL has no accessory API, so the field is found by
 public traversal from the `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER` window), plus a
-wordless keyboard chip in the pad band and a tap anywhere on the page to bring
-it back. `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` feeds iPad's own dismiss key into
-the same state. **`SDL_HINT_RETURN_KEY_HIDES_IME` must stay unset** — it makes
-Return call `SDL_StopTextInput`, which would dismiss the keyboard on every line
-break in a multi-line field.
+wordless one-cell chip centred in the pad's bottom row, drawn whenever a field
+is open, and a tap anywhere else on the page that raises but never lowers.
+`SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` feeds iPad's own dismiss key into the same
+state. **`SDL_HINT_RETURN_KEY_HIDES_IME` must stay unset** — it makes Return
+call `SDL_StopTextInput`, which would dismiss the keyboard on every line break
+in a multi-line field.
+
+**The keyboard OVERLAPS the page; it does not shrink it** (owner ruling
+2026-08-10, replacing the panel half of the 2026-08-09 clearance band).
+Reserving the keyboard's height out of the panel cost it an integer scale —
+about 40% of the page on a phone — to uncover a lower edge not worth that much
+text. The tablet's bottom row still lifts clear, because its pad sits in the
+margins beside the page rather than in a band below it.
 
 **An overlay state change needs `SimulatorOverlay::requestPresent()`.** Learned
 again here: `CrossPointIOS_setKeyboardHeight` stored the new height and

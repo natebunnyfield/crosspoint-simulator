@@ -255,10 +255,12 @@ void layoutPadTablet(float W, float H, float S) {
   const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
   const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
   const float outWpx = W * S, outHpx = H * S;
-  // The keyboard eats from the bottom of the usable height, so the centered
-  // panel shrinks and rises rather than sitting under the keys.
-  const float availPx =
-      SDL_max(1.0f, (H - safeTop - safeBottom - g_keyboardHeightPt) * S);
+  // The keyboard OVERLAPS the page; it does not shrink it (owner ruling
+  // 2026-08-10). Reserving its height here cost the panel an integer scale --
+  // roughly 40% of the page on a phone -- to reveal a lower edge that is
+  // simply not worth that. A keyboard covering content is what every iOS app
+  // does, and the bar above it puts the keyboard away in one tap.
+  const float availPx = SDL_max(1.0f, (H - safeTop - safeBottom) * S);
   float scale = SDL_min(outWpx / logW, availPx / logH);
   if (scale >= 1.0f) scale = SDL_floorf(scale);
   const float panelWpx = logW * scale, panelHpx = logH * scale;
@@ -276,6 +278,11 @@ void layoutPadTablet(float W, float H, float S) {
   // The keyboard lifts the bottom row with it. Without this the row -- POWER
   // and the page-turn rocker -- sits UNDER the keyboard and cannot be reached
   // while typing (the keyboard is its own window and eats the touches).
+  //
+  // KEPT on the tablet, dropped on the phone, and the asymmetry is the same one
+  // kThumbRowFromBottom rests on: here the pad lives in the MARGINS BESIDE the
+  // page, so lifting it costs the page nothing. The phone's pad is a band below
+  // the page, and lifting that paints controls over the text.
   const float lowerY =
       H - g_keyboardHeightPt - SDL_max(safeBottom, kHomeInsetMin) - half;
 
@@ -291,6 +298,12 @@ void layoutPadTablet(float W, float H, float S) {
   place(kPadPower, leftX, lowerY, cell, half);
   place(kPadUp, rightX, lowerY, cell, half);
   place(kPadDown, rightX + cell, lowerY, cell, half);
+
+  // The keyboard chip, one cell wide and centred under the page -- the same
+  // rule as the phone, in the only horizontal space the tablet's side-margin
+  // pad leaves free. It rides with the lifted row so it stays clear of the
+  // keyboard it toggles.
+  g_kbChip = {((W - cell) / 2.0f) * S, lowerY * S, cell * S, half * S};
 }
 
 // Called from the keyboard notifications (CrossPointHarness). Height in
@@ -391,13 +404,18 @@ void layoutPad(int outW, int outH) {
   }
   bottomInset = SDL_max(bottomInset, kHomeInsetMin);
 
-  // Bottom row: half-height, anchored at the bottom of the screen, then lifted
-  // with the rest of the pad. Lifting it here rather than only the top row is
-  // what keeps the pad's own proportions: the two rows move as a block.
-  // Keyboard-aware, same reason as the tablet path: the bottom row must stay
-  // reachable while typing. maxUpper derives from lowerY, so the top row
-  // follows automatically and the two rows keep their spacing.
-  const float lowerY = H - g_keyboardHeightPt - bottomInset - kHalf - kPipLift;
+  // Bottom row: half-height, anchored at the bottom of the screen. maxUpper
+  // derives from lowerY, so the top row follows automatically and the two rows
+  // keep their spacing.
+  //
+  // NOT keyboard-aware, unlike the tablet path (owner ruling 2026-08-10: the
+  // keyboard OVERLAPS, it does not push). The phone's pad is a band BELOW the
+  // page, so lifting it clear of the keyboard would paint controls over the
+  // text -- and since the panel no longer shrinks either, there is nowhere for
+  // a lifted band to go. While the keyboard is up it covers the page's lower
+  // edge and the pad alike; the bar above it puts it away in one tap, and the
+  // keyboard chip brings it back.
+  const float lowerY = H - bottomInset - kHalf - kPipLift;
 
   // Top row hugs the panel at the chassis-matched gap less the lift, clamped
   // clear of the bottom row and never over the page.
@@ -440,14 +458,14 @@ void layoutPad(int outW, int outH) {
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kHalf);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kHalf);
 
-  // The keyboard chip fills what the bottom row leaves between POWER and the
-  // side rocker -- columns 1..cols-3, empty in every layout since cols is at
-  // least 5. It therefore needs no space of its own: the reserved band below
-  // is untouched, and a keyboard toggle costs the page nothing.
-  const float chipInset = kSquare * 0.14f;
-  const float chipX = colX(1) + chipInset;
-  g_kbChip = {chipX * S, lowerY * S,
-              ((colX(cols - 2) - chipInset) - chipX) * S, kHalf * S};
+  // The keyboard chip: ONE cell wide, centred in the bottom row (owner ruling
+  // 2026-08-10). Dead centre rather than on the column grid -- with an even
+  // column count no cell straddles the middle, and a control that is not one of
+  // the seven should not pretend to sit in their grid. The bottom row leaves
+  // columns 1..cols-3 empty in every layout (cols is at least 5), so one cell
+  // in the middle always clears POWER and the side rocker, and the reserved
+  // band below is untouched.
+  g_kbChip = {((W - kSquare) / 2.0f) * S, lowerY * S, kSquare * S, kHalf * S};
 
   // Reserve the pad's band out of the panel's space: the chassis-ratio gap
   // plus both rows and the home inset. The gap term makes this DERIVED from
@@ -457,10 +475,12 @@ void layoutPad(int outW, int outH) {
   // the first present settles it (panelBottom-change already triggers that
   // relayout in paintPad). Before the first present the kGap fallback keeps
   // the band close to its old constant value.
-  // The keyboard band is added on top of the pad band: when a keyboard is up
-  // the pad is under it anyway, so the page must clear BOTH.
+  // The keyboard is NOT added on top (owner ruling 2026-08-10): it overlaps the
+  // page rather than shrinking it. Reserving its height here dropped the panel
+  // an integer scale -- about 40% of the page on a phone -- to uncover a lower
+  // edge not worth that much of the text.
   SimulatorOverlay::setBottomInset(static_cast<int>(
-      (panelGap + kSquare + kRowClear + kHalf + bottomInset + g_keyboardHeightPt) * S));
+      (panelGap + kSquare + kRowClear + kHalf + bottomInset) * S));
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
@@ -948,22 +968,25 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
   }
 }
 
-// The way back to a keyboard the owner dismissed.
+// The software keyboard's toggle.
 //
-// Drawn ONLY while the firmware has a text field open and the keyboard is
-// down -- the single state with no obvious exit, since the dismiss bar rides on
-// the keyboard and leaves with it. In every other state this paints nothing, so
-// the pad the owner approved is unchanged whenever the feature is not in play.
+// Drawn ONLY while the firmware has a text field open (owner ruling
+// 2026-08-10) -- in every other state this paints nothing, so the pad the owner
+// approved is untouched whenever the feature is not in play. It has to be a
+// toggle rather than only a way back, because the dismiss bar rides on the
+// keyboard and leaves with it, so a control that could only raise would be
+// half a switch.
 //
 // WORDLESS, like every control beside it. The pad names nothing, and a label
-// here would be the only text on screen outside the page. A keyboard under an
-// up chevron is the same glyph iOS puts on its own dismiss key, read the other
-// way round, and it appears in the exact context that explains it.
+// here would be the only text on screen outside the page. The chevron points
+// the way the keyboard is about to move -- up to summon it, down to dismiss --
+// which is the same convention as iOS's own dismiss key.
 void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
                        float hairline) {
-  if (!gpio.isTextEntryActive() || gpio.isHostKeyboardVisible()) return;
+  if (!gpio.isTextEntryActive()) return;
   const SDL_FRect &c = g_kbChip;
   if (c.w <= 0 || c.h <= 0) return;
+  const bool keyboardUp = gpio.isHostKeyboardVisible();
 
   // Same stroke-then-face construction as the controls, so it belongs to the
   // pad rather than sitting on top of it.
@@ -986,10 +1009,10 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
   setRGB(r, p.hairline);
   const float arm = SDL_max(1.0f, SDL_roundf(chevH * 0.42f));
   for (float i = 0; i < chevH; i += 1.0f) {
-    // Converged at the TOP and spreading downward, i.e. "^". Pointing the
-    // other way is iOS's own dismiss glyph, which would say the opposite of
-    // what this control does.
-    const float off = i;
+    // Points where the keyboard is about to go. Converged at the top spreading
+    // down is "^" (summon); the mirror is "v" (dismiss), which is the glyph iOS
+    // puts on its own dismiss key.
+    const float off = keyboardUp ? chevH - i : i;
     fillRect(r, cx - off - arm / 2, top + i, arm, 1);
     fillRect(r, cx + off - arm / 2, top + i, arm, 1);
   }
@@ -1121,6 +1144,15 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   paintKeyboardChip(r, p, radius, hairline);
 }
 
+// The chip is not in g_pad -- it presses no hardware button -- so it needs its
+// own test. Live only while a field is open, which is the only time it is drawn.
+bool hitKeyboardChip(float x, float y) {
+  if (!gpio.isTextEntryActive()) return false;
+  const SDL_FRect &c = g_kbChip;
+  return c.w > 0 && c.h > 0 && x >= c.x && x < c.x + c.w && y >= c.y &&
+         y < c.y + c.h;
+}
+
 int padHitTest(float x, float y) {
   for (int i = 0; i < kPadCount; i++) {
     const SDL_FRect &r = g_pad[i].rect;
@@ -1205,12 +1237,16 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_tapFingerId = -1;
         // A CANCELED finger (Control Center pull, incoming call) is not a tap.
         if (e->type == SDL_EVENT_FINGER_UP) {
-          // With a field open and the keyboard down, a tap anywhere off the pad
-          // asks for the keyboard back -- the chip and the page alike, which is
-          // why the chip needs no hit test of its own. It takes precedence over
-          // the read-aloud tap rather than sharing with it: that one belongs to
-          // the reader, and a text field is never on screen at the same time.
-          if (gpio.isTextEntryActive() && !gpio.isHostKeyboardVisible()) {
+          // The chip toggles; a tap anywhere else on the page only raises, so
+          // that reading the page cannot dismiss the keyboard by accident.
+          // Both take precedence over the read-aloud tap rather than sharing
+          // with it: that one belongs to the reader, and a text field is never
+          // on screen at the same time.
+          if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
+            gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
+            SimulatorOverlay::requestPresent();
+          } else if (gpio.isTextEntryActive() &&
+                     !gpio.isHostKeyboardVisible()) {
             gpio.setHostKeyboardVisible(true);
             SimulatorOverlay::requestPresent();
           } else
