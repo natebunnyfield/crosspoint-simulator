@@ -85,6 +85,18 @@ static bool simulatorSleepRequested = false;
 // takes a mutex rather than an atomic because the iOS harness can queue from a
 // UIKit callback on a thread of its own.
 static std::atomic<bool> textEntryActive{false};
+// Whether the open field is one line or many. Decides who owns Return; see
+// TextEntryKeyRouting.h for the whole contract.
+static std::atomic<HalGPIO::TextEntryLines> textEntryLines{
+    HalGPIO::TextEntryLines::Single};
+// Latched at the Return KEY_DOWN and honoured until its KEY_UP. Two reasons it
+// is a latch rather than a fresh decision each time: the modifier can be
+// released before the key is (Cmd down, Return down, Cmd up, Return up), which
+// would otherwise route the down to the button and swallow the up -- leaving
+// BTN_CONFIRM stuck held forever; and the level reads (isPressed,
+// getHeldTime) have no event to inspect at all and must agree with whatever
+// the edge decided.
+static bool enterClaimedByButton = false;
 static std::mutex typedTextMutex;
 static std::string typedTextBuffer;
 
@@ -111,26 +123,33 @@ static bool scancodeIsEnter(SDL_Scancode sc) {
 // both are things a typist still reaches for, and neither produces a
 // character. Every other key belongs to the text.
 //
-// RETURN IS IN THAT LIST TOO, and it is the whole reason this comment is long.
-// Return is BTN_CONFIRM, which is "Select" on every on-screen keyboard -- the
-// key that types the highlighted character. While a text field was open it was
-// swallowed here and queued as TYPED_COMMIT instead, so pressing Select on the
-// daisywheel committed the field and left the screen rather than typing. The
-// arrows survived, so the wheel still rotated; only picking was broken, which
-// is what made it read as "Select exits instead of typing".
+// RETURN IS NOT DECIDED HERE, because it is the one key whose answer depends
+// on the field: Select on a single-line grid, a line break in a multi-line
+// editor. It is routed by textentry::enterOwner() and latched in
+// enterClaimedByButton -- see TextEntryKeyRouting.h, which carries both bug
+// reports and is unit-tested (tests/text_entry_enter_test.cpp).
 //
-// This was invisible to CROSSPOINT_SIM_INPUT_SCRIPT, which writes
-// syntheticButtonDown[] and never goes through a scancode at all -- so every
-// scripted run showed Select working while a human pressing the same key did
-// not. Worth remembering before trusting a scripted pass on an input bug.
-//
-// A host typist keeps a commit: Cmd+Return or Ctrl+Return, handled in update()
-// before this gate. Plain Return now belongs to the on-screen keyboard, which
-// is the default input method and has its own OK / RET key besides.
+// Whatever you change here, remember this gate is invisible to most of
+// CROSSPOINT_SIM_INPUT_SCRIPT: TYPE and the button actions write the typed
+// queue and syntheticButtonDown[] directly and never go through a scancode, so
+// a scripted pass is not evidence about input routing. The RAWKEY action
+// exists precisely so it can be.
 static bool scancodeSurvivesTextEntry(SDL_Scancode sc) {
   return sc == SDL_SCANCODE_ESCAPE || sc == SDL_SCANCODE_LEFT ||
          sc == SDL_SCANCODE_RIGHT || sc == SDL_SCANCODE_UP ||
-         sc == SDL_SCANCODE_DOWN || scancodeIsEnter(sc);
+         sc == SDL_SCANCODE_DOWN;
+}
+
+// The single question isPressed(), getHeldTime() and getPowerButtonHeldTime()
+// all ask: with a text field open, does this button's host key still mean the
+// button? A held letter is text, not a held POWER; Return depends on the
+// field and is answered by the latch the event path set.
+static bool keyboardOwnsButtonWhileTyping(uint8_t buttonIndex) {
+  if (!textEntryActive.load())
+    return true;
+  if (buttonIndex == HalGPIO::BTN_CONFIRM)
+    return enterClaimedByButton;
+  return scancodeSurvivesTextEntry(buttonScancode[buttonIndex]);
 }
 
 static void queueTypedBytes(const char *bytes, size_t length) {
@@ -174,7 +193,14 @@ enum class SyntheticAction {
   TypeText,
   Sleep,
   Quit,
-  QueuedTap
+  QueuedTap,
+  // RawKey* push a REAL SDL key event instead of writing
+  // syntheticButtonDown[], so a script can exercise the scancode->button map
+  // and the text-entry gate that sits in front of it. Everything else here
+  // enters below SDL and cannot see either. See rawKeyScancode() for why that
+  // matters enough to justify a second key path.
+  RawKeyDown,
+  RawKeyUp
 };
 
 struct SyntheticEvent {
@@ -185,7 +211,9 @@ struct SyntheticEvent {
   float logicalNy = 0.0f;
   std::string text;
   bool handled = false;
-  unsigned long holdMs = 0; // QueuedTap only
+  unsigned long holdMs = 0;                          // QueuedTap only
+  SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;      // RawKey* only
+  SDL_Keymod keymod = SDL_KMOD_NONE;                 // RawKey* only
 };
 
 // TYPE payload escapes. The script's own separators (';' between items) cannot
@@ -234,6 +262,8 @@ const simreset::Registrar gGpioRebootReset{[] {
   syntheticEventsInitialized = false;
   syntheticEvents.clear();
   textEntryActive.store(false);
+  textEntryLines.store(HalGPIO::TextEntryLines::Single);
+  enterClaimedByButton = false;
 }};
 
 float clamp01(float value) { return std::max(0.0f, std::min(1.0f, value)); }
@@ -421,6 +451,80 @@ int namedButton(const std::string &name) {
   return -1;
 }
 
+// RAWKEY:<NAME> spellings, resolved to the scancode the host keyboard would
+// actually send. NAME may carry a modifier prefix: CMD+RETURN, CTRL+RETURN.
+//
+// WHY A SECOND KEY PATH EXISTS AT ALL. Every other action in this script writes
+// syntheticButtonDown[] (or the touch/type queues) -- it enters BELOW SDL, so it
+// never touches a scancode and therefore never meets the text-entry gate in
+// update() that decides who owns a key while a field is open. Two shipped
+// input bugs lived exactly there and were invisible to every scripted run:
+// Return committing the field instead of picking on the daisywheel (fixed in
+// "Return is Confirm while a text field is open"), and Return pressing Select
+// instead of breaking the line in the note editor (ST-006). RAWKEY pushes the
+// real SDL_EVENT_KEY_DOWN/UP, so a script can finally see that half.
+//
+// It cannot fake everything: SDL only writes its internal keyboard-state array
+// on the real-input path, so a pushed key produces edges (wasPressed /
+// wasReleased) but no level (isPressed / getHeldTime). Long-press behaviour
+// still needs injectButtonDown or a human.
+SDL_Scancode rawKeyScancode(const std::string &name) {
+  if (name == "RETURN" || name == "ENTER")
+    return SDL_SCANCODE_RETURN;
+  if (name == "ESCAPE" || name == "BACK")
+    return SDL_SCANCODE_ESCAPE;
+  if (name == "LEFT")
+    return SDL_SCANCODE_LEFT;
+  if (name == "RIGHT")
+    return SDL_SCANCODE_RIGHT;
+  if (name == "UP")
+    return SDL_SCANCODE_UP;
+  if (name == "DOWN")
+    return SDL_SCANCODE_DOWN;
+  if (name == "BACKSPACE")
+    return SDL_SCANCODE_BACKSPACE;
+  if (name == "P" || name == "POWER")
+    return SDL_SCANCODE_P;
+  if (name == "S" || name == "SLEEP")
+    return SDL_SCANCODE_S;
+  if (name == "H" || name == "HOMEKEY")
+    return SDL_SCANCODE_H;
+  return SDL_SCANCODE_UNKNOWN;
+}
+
+// Splits "CMD+RETURN" into its modifier and its key. No prefix = no modifier.
+void parseRawKeySpec(const std::string &spec, SDL_Scancode &scancode,
+                     SDL_Keymod &keymod) {
+  keymod = SDL_KMOD_NONE;
+  std::string name = spec;
+  const size_t plus = name.rfind('+');
+  if (plus != std::string::npos) {
+    const std::string mods = name.substr(0, plus);
+    name = name.substr(plus + 1);
+    if (mods.find("CMD") != std::string::npos ||
+        mods.find("GUI") != std::string::npos)
+      keymod = static_cast<SDL_Keymod>(keymod | SDL_KMOD_LGUI);
+    if (mods.find("CTRL") != std::string::npos)
+      keymod = static_cast<SDL_Keymod>(keymod | SDL_KMOD_LCTRL);
+    if (mods.find("SHIFT") != std::string::npos)
+      keymod = static_cast<SDL_Keymod>(keymod | SDL_KMOD_LSHIFT);
+  }
+  scancode = rawKeyScancode(name);
+}
+
+void pushRawKey(SDL_Scancode scancode, SDL_Keymod keymod, bool down) {
+  SDL_Event e{};
+  e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+  e.key.type = static_cast<SDL_EventType>(e.type);
+  e.key.timestamp = SDL_GetTicksNS();
+  e.key.scancode = scancode;
+  e.key.key = SDL_GetKeyFromScancode(scancode, keymod, false);
+  e.key.mod = keymod;
+  e.key.down = down;
+  e.key.repeat = false;
+  SDL_PushEvent(&e);
+}
+
 void initializeSyntheticEvents() {
   if (syntheticEventsInitialized)
     return;
@@ -465,6 +569,30 @@ void initializeSyntheticEvents() {
         SyntheticEvent typed{atMs, SyntheticAction::TypeText};
         typed.text = decodeTypeEscapes(item.substr(secondColon + 1));
         syntheticEvents.push_back(std::move(typed));
+      } else if (key == "RAWKEY" && secondColon != std::string::npos) {
+        // RAWKEY:<NAME>[:<holdMs>] -- a real SDL key event, see rawKeyScancode.
+        const std::string rest = uppercase(item.substr(secondColon + 1));
+        const size_t thirdColon = rest.find(':');
+        SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
+        SDL_Keymod keymod = SDL_KMOD_NONE;
+        parseRawKeySpec(
+            thirdColon == std::string::npos ? rest : rest.substr(0, thirdColon),
+            scancode, keymod);
+        if (scancode != SDL_SCANCODE_UNKNOWN) {
+          const unsigned long holdMs =
+              thirdColon == std::string::npos
+                  ? 80
+                  : std::strtoul(rest.substr(thirdColon + 1).c_str(), nullptr,
+                                 10);
+          SyntheticEvent down{atMs, SyntheticAction::RawKeyDown};
+          down.scancode = scancode;
+          down.keymod = keymod;
+          syntheticEvents.push_back(down);
+          SyntheticEvent up{atMs + holdMs, SyntheticAction::RawKeyUp};
+          up.scancode = scancode;
+          up.keymod = keymod;
+          syntheticEvents.push_back(up);
+        }
       } else if (key == "QTAP" && secondColon != std::string::npos) {
         // QTAP:<BUTTON>[:<holdMs>] routes through HalGPIO::queueButtonTap —
         // the API the iOS read-aloud adapter turns pages with — so a
@@ -559,6 +687,12 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::QueuedTap:
       gpio.queueButtonTap(static_cast<uint8_t>(event.button), event.holdMs);
+      break;
+    case SyntheticAction::RawKeyDown:
+      pushRawKey(event.scancode, event.keymod, /*down=*/true);
+      break;
+    case SyntheticAction::RawKeyUp:
+      pushRawKey(event.scancode, event.keymod, /*down=*/false);
       break;
     }
   }
@@ -676,25 +810,48 @@ void HalGPIO::update() {
 
     // Text entry claims the keyboard first, before the scancode→button map
     // gets a look at it. Without this the letters of the password ARE the
-    // button map: P powers off, S sleeps, H is Home. Escape, the arrows and
-    // Return fall through (scancodeSurvivesTextEntry).
+    // button map: P powers off, S sleeps, H is Home. Escape and the arrows
+    // fall through (scancodeSurvivesTextEntry); Return is decided per field,
+    // just below.
     if (textEntryActive.load()) {
       if (e.type == SDL_EVENT_TEXT_INPUT) {
         queueTypedBytes(e.text.text, e.text.text ? SDL_strlen(e.text.text) : 0);
         continue;
       }
-      // Cmd+Return / Ctrl+Return is the host typist's commit. Plain Return is
-      // BTN_CONFIRM and belongs to the on-screen keyboard's Select -- see the
-      // note on scancodeSurvivesTextEntry for why it may not be swallowed here.
-      // Checked BEFORE the survives-gate, which now lets plain Return through.
-      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-          scancodeIsEnter(e.key.scancode) &&
-          (e.key.mod & (SDL_KMOD_GUI | SDL_KMOD_CTRL)) != 0) {
-        const char c = HalGPIO::TYPED_COMMIT;
-        queueTypedBytes(&c, 1);
-        continue;
+      // Return: the on-screen keyboard's Select, or a line break in the text?
+      // TextEntryKeyRouting.h holds the answer and the reasoning. Decided on
+      // the DOWN and latched, so the matching UP goes the same way even if the
+      // modifier was let go first.
+      if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
+          scancodeIsEnter(e.key.scancode)) {
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+          const bool modifierHeld =
+              (e.key.mod & (SDL_KMOD_GUI | SDL_KMOD_CTRL)) != 0;
+          enterClaimedByButton =
+              textentry::enterOwner(textEntryLines.load(), modifierHeld) ==
+              textentry::EnterOwner::Button;
+        }
+        if (!enterClaimedByButton) {
+          // Key repeat is honoured in a multi-line field for the same reason
+          // backspace honours it -- holding Return to open up several blank
+          // lines is a thing people do. A single-line field's commit is one
+          // press, one commit, so a repeat there must not fire twice.
+          const bool multiline =
+              textEntryLines.load() == HalGPIO::TextEntryLines::Multi;
+          if (e.type == SDL_EVENT_KEY_DOWN && (!e.key.repeat || multiline)) {
+            const char c = HalGPIO::TYPED_COMMIT;
+            queueTypedBytes(&c, 1);
+          }
+          continue;
+        }
+        // Claimed by the button: fall through to the map below. Release the
+        // latch on the way out so a level read after the key is up cannot
+        // still report BTN_CONFIRM held.
+        if (e.type == SDL_EVENT_KEY_UP)
+          enterClaimedByButton = false;
       }
       if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
+          !scancodeIsEnter(e.key.scancode) &&
           !scancodeSurvivesTextEntry(e.key.scancode)) {
         if (e.type == SDL_EVENT_KEY_DOWN) {
           // Backspace deliberately honours key repeat -- holding it to erase a
@@ -781,9 +938,7 @@ bool HalGPIO::isPressed(uint8_t buttonIndex) const {
   // keyboard belongs to the text, so a held letter must not read as a held
   // button either. The on-screen pad (syntheticButtonDown) is unaffected --
   // it never went through a scancode.
-  const bool keyboardOwnsButton =
-      !textEntryActive.load() ||
-      scancodeSurvivesTextEntry(buttonScancode[buttonIndex]);
+  const bool keyboardOwnsButton = keyboardOwnsButtonWhileTyping(buttonIndex);
   return (keyboardOwnsButton && state[buttonScancode[buttonIndex]]) ||
          syntheticButtonDown[buttonIndex];
 }
@@ -841,10 +996,17 @@ void HalGPIO::injectButtonUp(uint8_t buttonIndex) {
   buttonPressTime[buttonIndex] = 0;  // see the note in update()'s key-up arm
 }
 
-void HalGPIO::setTextEntryActive(bool active) {
+void HalGPIO::setTextEntryActive(bool active, TextEntryLines lines) {
+  // Store the shape before the flag: update() runs on another thread and reads
+  // the flag first, so the reverse order lets one frame route Return against
+  // the previous field's shape.
+  textEntryLines.store(active ? lines : TextEntryLines::Single);
   const bool was = textEntryActive.exchange(active);
   if (was == active)
     return;
+  // A field opening or closing under a held Return must not leave the latch
+  // pointing at the old field's answer.
+  enterClaimedByButton = false;
   // Both edges drop whatever is queued. On the rising edge that discards
   // anything a mistimed host typed before the field existed; on the falling
   // edge it stops the tail of one entry (the characters that arrived in the
@@ -853,7 +1015,8 @@ void HalGPIO::setTextEntryActive(bool active) {
     std::lock_guard<std::mutex> lock(typedTextMutex);
     typedTextBuffer.clear();
   }
-  SDL_Log("[TEXT] text entry %s", active ? "active" : "inactive");
+  SDL_Log("[TEXT] text entry %s%s", active ? "active" : "inactive",
+          active && lines == TextEntryLines::Multi ? " (multi-line)" : "");
 }
 
 bool HalGPIO::isTextEntryActive() const { return textEntryActive.load(); }
@@ -977,13 +1140,12 @@ unsigned long HalGPIO::getHeldTime() const {
   bool anyPressed = false;
   // SDL3 returns const bool* here; SDL2 returned const Uint8*.
   const bool *state = SDL_GetKeyboardState(NULL);
-  const bool textOwnsKeyboard = textEntryActive.load();
   for (int i = 0; i < NUM_BUTTONS; i++) {
     // Same rule as isPressed(): while a text field is open a held letter is
     // text, not a held button. Without this, typing a word containing 'p' read
     // as POWER being held and fired the long-press power-off.
     const bool keyboardOwnsButton =
-        !textOwnsKeyboard || scancodeSurvivesTextEntry(buttonScancode[i]);
+        keyboardOwnsButtonWhileTyping(static_cast<uint8_t>(i));
     if (((keyboardOwnsButton && state[buttonScancode[i]]) || syntheticButtonDown[i]) &&
         buttonPressTime[i] > 0) {
       anyPressed = true;
@@ -1003,9 +1165,7 @@ unsigned long HalGPIO::getPowerButtonHeldTime() const {
   // Same rule as isPressed(): POWER's scancode is 'p' on the host keyboard, so
   // while a text field is open it belongs to the text. The on-screen pad
   // (syntheticButtonDown) never went through a scancode and is unaffected.
-  const bool keyboardOwnsPower =
-      !textEntryActive.load() ||
-      scancodeSurvivesTextEntry(buttonScancode[BTN_POWER]);
+  const bool keyboardOwnsPower = keyboardOwnsButtonWhileTyping(BTN_POWER);
   if ((!(keyboardOwnsPower && state[buttonScancode[BTN_POWER]]) &&
        !syntheticButtonDown[BTN_POWER]) ||
       buttonPressTime[BTN_POWER] == 0)

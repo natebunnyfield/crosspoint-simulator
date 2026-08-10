@@ -79,15 +79,20 @@ json.dump(d, open(p, 'w'))"
 }
 
 # Home: DOWN past every recent book to the last menu row (Settings; the list
-# does not wrap). Settings opens on row 0, and its list DOES wrap, so one UP
-# lands on the last row -- Device Owner -- whatever the row count is.
+# does not wrap). Settings opens on row 0, and its list DOES wrap, so counting
+# UP from the top reaches the tail whatever the row count is. Device Owner is
+# the SECOND-to-last row: Colophon was added after it and sits last, being
+# informational (SettingsActivity.cpp, the deviceSettings tail). One UP used to
+# be right and started silently opening Colophon instead -- the run_case guard
+# below is what caught it, so keep asserting the activity rather than trusting
+# the count.
 NAV_TO_OWNER_FIELD="2000:HOME"
 T=2400
 for _ in $(seq 1 15); do
   NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;$T:DOWN"
   T=$((T + 180))
 done
-NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;5500:ENTER;6700:UP;7400:ENTER"
+NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;5500:ENTER;6700:UP;7000:UP;7400:ENTER"
 
 # One run: navigate to the field, play $1 (script fragment, times >= 8000), quit.
 # $3 is the activity the current layout should produce.
@@ -150,5 +155,44 @@ set_owner_name ""
 run_case daisy "8400:TYPE:CrossPoint QAZZ;9000:TYPE:\\b\\b;9600:TYPE:\\n" DaisyEntry
 expect_owner daisy "CrossPoint QA"
 
-echo "PASS: host keyboard typed, erased, committed and cancelled in both text-entry activities"
+# --- The REAL key path -------------------------------------------------------
+#
+# Everything above injects at the typed queue (TYPE), which enters BELOW SDL and
+# never meets the scancode gate in HalGPIO::update(). Both shipped bugs in this
+# area lived in exactly that gate, so every scripted run passed while a human
+# pressing the same key got the wrong thing. RAWKEY pushes a real
+# SDL_EVENT_KEY_DOWN/UP, which is the only way from a script to see it.
+#
+# The contract for a SINGLE-LINE field (src/TextEntryKeyRouting.h): plain Return
+# is BTN_CONFIRM -- Select on the on-screen keyboard, the key that types the
+# highlighted character -- and Cmd/Ctrl+Return is the host typist's commit.
+set_keyboard_layout 1
+
+expect_owner_not() {
+  local label="$1"
+  local unwanted="$2"
+  local got
+  got="$(owner_name)"
+  if [ "$got" = "$unwanted" ]; then
+    echo "FAIL[$label]: ownerName is still \"$got\""
+    exit 1
+  fi
+}
+
+# 5. A plain Return must NOT commit: it is Select, so it types the highlighted
+#    key and the field stays open. If it committed, the field would close on the
+#    Return holding the seed unchanged and the later typed commit would be
+#    dropped for want of an open field -- which is the "Select exits instead of
+#    typing" bug, and is exactly what this distinguishes.
+set_owner_name "SEED"
+run_case raw_select "8400:RAWKEY:RETURN;9600:TYPE:\\n"
+expect_owner_not raw_select "SEED"
+
+# 6. Cmd+Return is the commit, through the same real key path.
+set_owner_name ""
+run_case raw_commit "8400:TYPE:Ada;9000:RAWKEY:CMD+RETURN"
+expect_owner raw_commit "Ada"
+
+echo "PASS: host keyboard typed, erased, committed and cancelled in both text-entry activities,"
+echo "      and a real Return picks rather than commits in a single-line field"
 exit 0

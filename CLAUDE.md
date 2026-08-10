@@ -209,6 +209,28 @@ on every `p` and sleep the device on every `s`. `TYPE:<text>` in
 commit, `\e` cancel; `;` cannot appear in the text). Full behaviour table and
 what was verified where: [ios/README.md](ios/README.md).
 
+**Return is the exception, and it is decided per field.**
+[src/TextEntryKeyRouting.h](src/TextEntryKeyRouting.h) holds the whole rule: in
+a single-line field Return is `BTN_CONFIRM` (Select on the on-screen keyboard,
+the key that types the highlighted character) and Cmd/Ctrl+Return commits; in a
+multi-line editor it is the other way round, so Return breaks the line and
+Cmd/Ctrl+Return still reaches the panel's pick. The activity says which it
+opened — `setTextEntryActive(true, HalGPIO::TextEntryLines::Multi)`. Both
+inversions of this have shipped as bugs; there is a truth-table test
+(`tests/text_entry_enter_test.cpp`) precisely so the next fix to one of them
+does not silently reintroduce the other.
+
+**A scripted pass is not evidence about input routing.** `TYPE` and the button
+actions write the typed queue and `syntheticButtonDown[]` directly — they enter
+*below* SDL and never meet the scancode gate, so both Return bugs above passed
+every scripted run while a human pressing the same key got the wrong thing. Use
+`RAWKEY:<NAME>[:<holdMs>]` to push a real `SDL_EVENT_KEY_DOWN`/`UP`
+(`RAWKEY:RETURN`, `RAWKEY:CMD+RETURN`, also `ESCAPE`/arrows/`BACKSPACE`/`P`).
+It is the only script action that exercises the gate. It still cannot fake a
+*level*: per the `SDL_PushEvent` note above, a pushed key produces edges but no
+`SDL_GetKeyboardState` entry, so long-press behaviour needs `injectButtonDown`
+or a human.
+
 **Read-aloud page channel.** The same host-capability split as the keyboard
 channel, pointed the other way: `readAloudCaptureWanted()` /
 `publishReadAloudPage()` are firmware-facing (inline no-ops on device — the
