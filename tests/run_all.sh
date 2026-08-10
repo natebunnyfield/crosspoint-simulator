@@ -27,6 +27,25 @@ FILTER="${2:-}"
 pass=0 fail=0 skipped=0
 failed_names=()
 
+# run_direct <name> <command...> -- already-runnable tests, no compile step.
+# The C++ tests need building first; a Python one does not, and faking a compile
+# phase for it would only make the report lie about which phase failed.
+run_direct() {
+  local name="$1"; shift
+  if [[ -n "$FILTER" && "$name" != *"$FILTER"* ]]; then
+    return
+  fi
+  printf '%-22s ' "$name"
+  if "$@" >"$OUT/$name.log" 2>&1; then
+    echo "PASS"
+    pass=$((pass + 1))
+  else
+    echo "FAIL"
+    tail -16 "$OUT/$name.log" | sed 's/^/    /'
+    fail=$((fail + 1)); failed_names+=("$name")
+  fi
+}
+
 # run <name> <compile-command...> -- the binary is $OUT/<name>
 run() {
   local name="$1"; shift
@@ -87,6 +106,13 @@ run heap_budget \
 
 run dispatch_signal \
   c++ -std=c++20 -o "$OUT/dispatch_signal" tests/dispatch_signal_test.cpp
+
+# The one Python test. tools/gen_cmake_sources.py writes the single file that
+# tells the iOS build which firmware sources to compile, and it used to be able
+# to write an empty one and exit 0. Builds its own throwaway trees, so it needs
+# no firmware checkout and never touches the real one.
+run_direct gen_cmake_sources \
+  python3 tests/gen_cmake_sources_test.py
 
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,

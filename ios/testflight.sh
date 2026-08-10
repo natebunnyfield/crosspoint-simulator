@@ -119,8 +119,36 @@ for e in db:
     if src.startswith(fw_dir + os.sep) and src.endswith((".c", ".cpp")):
         compiled.add(os.path.relpath(src, fw_dir))
 
-listed = set(re.findall(r"^\s+(\S+\.(?:c|cpp))\s*$",
-                        open(os.path.join(repo, "cmake/CrossPointSources.cmake")).read(), re.M))
+sources_text = open(os.path.join(repo, "cmake/CrossPointSources.cmake")).read()
+listed = set(re.findall(r"^\s+(\S+\.(?:c|cpp))\s*$", sources_text, re.M))
+
+# The scan above is deliberately whole-file and stays that way: scoping it to one
+# set() block would start firing on any path that legitimately appears in both
+# lists, and this gate was written to never block a deploy it did not have to.
+# The cost of that looseness is that it cannot tell WHICH block a path landed in,
+# so it passed -- printing "source set is current (125 firmware TUs compiled, all
+# listed)" -- on a generated file whose CROSSPOINT_FW_SOURCES was empty and whose
+# CROSSPOINT_SIM_SOURCES held all 125 firmware paths. tools/gen_cmake_sources.py
+# resolved relative compile-db paths against the process cwd and could produce
+# exactly that, silently, with exit status 0. It refuses to now; this is the
+# second line of defence, at the point of use. Independent of the comparison
+# below, so it cannot introduce a false positive there.
+# Anchored on a line that is exactly ")" so a genuinely EMPTY block matches as
+# empty; `(.*?)\n\)` cannot match one and runs on into the next set(), reporting
+# a count from the wrong list.
+fw_block = re.search(r"set\(CROSSPOINT_FW_SOURCES\n(.*?)^\)$", sources_text, re.S | re.M)
+n_fw_listed = len([l for l in fw_block.group(1).splitlines() if l.strip()]) if fw_block else 0
+if n_fw_listed < 64:
+    print(f"ERROR: cmake/CrossPointSources.cmake declares {n_fw_listed} firmware TUs")
+    print("  (healthy is ~125). An empty or near-empty CROSSPOINT_FW_SOURCES is not a")
+    print("  smaller build -- it is an archive that links nothing, or one quietly")
+    print("  missing whole features. The file was generated from the wrong tree.")
+    print()
+    print("  Fix:")
+    print(f"    cd {fw_dir} && pio run -e simulator -t compiledb")
+    print(f"    python3 {repo}/tools/gen_cmake_sources.py \\")
+    print(f"      --firmware-dir . --compile-db compile_commands.json")
+    sys.exit(1)
 
 excl_path = os.path.join(repo, "cmake/CrossPointIOSExclusions.cmake")
 excluded = set()
@@ -140,7 +168,8 @@ if missing:
     print(f"    python3 {repo}/tools/gen_cmake_sources.py \\")
     print(f"      --firmware-dir {fw_dir} --compile-db compile_commands.json")
     sys.exit(1)
-print(f"source set is current ({len(compiled)} firmware TUs compiled, all listed)")
+print(f"source set is current ({len(compiled)} firmware TUs compiled, "
+      f"{n_fw_listed} listed in CROSSPOINT_FW_SOURCES)")
 PYGATE
 
 say "Version"
