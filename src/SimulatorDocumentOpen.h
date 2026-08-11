@@ -1,12 +1,18 @@
 #pragma once
 
-// Opening a book by double-clicking it in Finder.
+// Opening a book handed to us by the OS: double-clicked in Finder on desktop,
+// or tapped in Files/Mail/AirDrop/the Share Sheet on iOS.
 //
-// macOS does NOT pass the document in argv. LaunchServices sends the app an
-// Apple Event ('odoc'), which SDL surfaces as SDL_EVENT_DROP_FILE -- its docs
-// call that event "the system requests a file open", and it covers both the
-// drag-and-drop and the open-document cases. So the path arrives asynchronously
-// through the SDL event queue, not at a point of our choosing.
+// Neither platform passes the document in argv. macOS LaunchServices sends the
+// app an Apple Event ('odoc'); iOS UIKit calls the app delegate's
+// application:openURL:options: (cold launch) or scene:openURLContexts: (warm).
+// SDL's AppKit and UIKit backends both fold their case into the same call --
+// SDL_SendDropFile -- so both surface here as SDL_EVENT_DROP_FILE. Verified
+// against the vendored SDL3 source (release-3.4.12):
+// src/video/uikit/SDL_uikitappdelegate.m's -handleURL: is the iOS counterpart
+// of the Cocoa 'odoc' handler and calls the identical SDL function. So the path
+// arrives asynchronously through the SDL event queue on both platforms, not at
+// a point of our choosing, and nothing below is platform-specific.
 //
 // What this module does with it: copy the book onto the simulated SD card under
 // /books and record it as APP_STATE.openEpubPath. No new firmware entry point is
@@ -20,15 +26,19 @@
 //   - launch open: the event arrives before setup(), so staging it is enough
 //     and the book is on screen at the first paint.
 //   - warm open: the app is already running and setup() has long since chosen an
-//     activity, so the process relaunches into the staged book.
+//     activity, so the process relaunches into the staged book. On iOS that
+//     relaunch is SimulatorLifecycle::rebootForDocumentOpen()'s in-process
+//     longjmp -- the sandbox forbids the execvp() desktop uses.
 //
-// Bundle-only in practice (Finder is what sends 'odoc'), but nothing here is
-// bundle-specific: dragging an .epub onto the window works the same way, and so
-// does `open -a CrossPointX3 book.epub`.
+// Bundle-only in practice, but nothing here is bundle-specific: dragging an
+// .epub onto the desktop window works the same way, and so does
+// `open -a CrossPointX3 book.epub`.
 //
-// iOS is excluded. A phone has its own document story (share sheet, Files
-// provider) and none of it routes through SDL_EVENT_DROP_FILE, so every entry
-// point below compiles to nothing there rather than pretending to work.
+// iOS document delivery is assumed to land as a real copy under the app's
+// sandbox (Inbox-style import), which is what a plain CFBundleDocumentTypes
+// declaration with no UIDocumentBrowser support gets from iOS in practice --
+// so the plain POSIX read below needs no security-scoped-resource dance. Not
+// yet confirmed against a genuine Files "Open In Place" source; see ios/README.md.
 
 namespace SimulatorDocumentOpen {
 

@@ -187,12 +187,27 @@ void rebootForDocumentOpen() {
   unsetenv(kInputScriptEnv);
   unsetenv(kInputScriptAfterWakeEnv);
 
+#if CROSSPOINT_SIM_REBOOT_IN_PROCESS
+  // iOS: same in-process jump as rebootAsPowerWake(), for the same reason --
+  // the sandbox forbids execvp() outright, it is not merely undesirable here.
+  // The header's old "nothing is lost by exec'ing, so nothing gates it"
+  // reasoning was about desktop only; on iOS exec never works regardless of
+  // what would be lost.
+  if (gRebootJumpArmed) {
+    simreset::runAll();
+    simsemphr::forceReleaseAllForReboot();
+    std::longjmp(gRebootJump, 1);
+  }
+  std::fputs("SimulatorLifecycle: reboot jump not armed for document open\n", stderr);
+  return;
+#else
   if (!gArgv || !gArgv[0]) {
     std::fputs("SimulatorLifecycle: missing argv for document open\n", stderr);
     return;
   }
   execvp(gArgv[0], gArgv);
   std::perror("execvp");
+#endif
 }
 
 } // namespace SimulatorLifecycle
