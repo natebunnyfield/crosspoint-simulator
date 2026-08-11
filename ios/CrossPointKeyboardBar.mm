@@ -111,6 +111,12 @@ void CrossPointKeyboardBar_install(void) {
                                                    style:UIBarButtonItemStylePlain
                                                   target:target
                                                   action:@selector(dismiss)];
+      // Sat 8 pt up from where the toolbar centres it (owner ruling
+      // 2026-08-11). imageInsets rather than a custom view: the item keeps its
+      // own hit target, its pressed state and its accessibility, and only the
+      // artwork moves. The bottom inset matches the negative top so the item's
+      // measured height is unchanged and the bar does not resize around it.
+      hide.imageInsets = UIEdgeInsetsMake(-8, 0, 8, 0);
       hide.accessibilityLabel = @"Hide keyboard";
       hide.accessibilityHint =
           @"Lowers the keyboard. Tap the page to bring it back.";
