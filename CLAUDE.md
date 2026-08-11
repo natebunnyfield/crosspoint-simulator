@@ -227,7 +227,8 @@ The controls are iOS-side: a dismiss bar riding on the keyboard
 hidden `SDLUITextField` — SDL has no accessory API, so the field is found by
 public traversal from the `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER` window), plus a
 wordless one-cell chip centred in the pad's bottom row, drawn whenever a field
-is open, and a tap anywhere else on the page that raises but never lowers.
+is open. ONLY the chip toggles it -- an off-pad tap does nothing, however empty
+that part of the screen looks.
 `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` feeds iPad's own dismiss key into the same
 state. **`SDL_HINT_RETURN_KEY_HIDES_IME` must stay unset** — it makes Return
 call `SDL_StopTextInput`, which would dismiss the keyboard on every line break

@@ -1242,17 +1242,20 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_tapFingerId = -1;
         // A CANCELED finger (Control Center pull, incoming call) is not a tap.
         if (e->type == SDL_EVENT_FINGER_UP) {
-          // The chip toggles; a tap anywhere else on the page only raises, so
-          // that reading the page cannot dismiss the keyboard by accident.
-          // Both take precedence over the read-aloud tap rather than sharing
-          // with it: that one belongs to the reader, and a text field is never
-          // on screen at the same time.
+          // ONLY THE CHIP TOGGLES THE KEYBOARD. A tap anywhere else does not,
+          // however empty that part of the screen looks (owner bug report
+          // 2026-08-11: "ios keyboard is popping up when I tap on negative
+          // empty space, it needs to only pop up when show keyboard is
+          // tapped").
+          //
+          // It used to raise on any off-pad tap, on the theory that a bigger
+          // target is kinder. It is not: the margins around the panel and the
+          // band around the pad are most of the screen, so putting the phone
+          // down, adjusting a grip, or resting a thumb threw the keyboard back
+          // up over the page. A control that fires when you touch nothing in
+          // particular is not a control.
           if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
-            SimulatorOverlay::requestPresent();
-          } else if (gpio.isTextEntryActive() &&
-                     !gpio.isHostKeyboardVisible()) {
-            gpio.setHostKeyboardVisible(true);
             SimulatorOverlay::requestPresent();
           } else
             CrossPointReadAloud_tapAtScreen(g_tapDownX, g_tapDownY);

@@ -874,7 +874,14 @@ Three controls, one state (`hostkbd::State`, host-tested in
 |---|---|
 | Bar above the keyboard | Lowers it. Rides on the keyboard, so it leaves with it. |
 | Keyboard chip, one cell wide, centred in the bottom row | Toggles it. Drawn whenever a field is open; the chevron points where the keyboard is about to go. |
-| Tap anywhere else on the page | Raises it, never lowers — so reading the page cannot dismiss the keyboard by accident. |
+| Tap anywhere else | **Nothing.** Only the chip toggles the keyboard. |
+
+Off-chip taps used to raise it too, on the theory that a bigger target is
+kinder. It is not: the margins around the panel and the band around the pad are
+most of the screen, so putting the phone down or shifting a grip threw the
+keyboard back over the page (owner, 2026-08-11: "it needs to only pop up when
+show keyboard is tapped"). A control that fires when you touch nothing in
+particular is not a control.
 
 On the phone the chip sits under the keyboard while it is up, so in practice the
 bar lowers and the chip raises. On the tablet the bottom row lifts clear (see
