@@ -195,7 +195,11 @@ void CrossPointKeyboardBar_install(void) {
       // paints its own background across its full height. Nothing can open a
       // gap inside an opaque bar. The container is clear, so its lower strip
       // shows the page behind and reads as space.
-      const CGFloat kButton = 44;  // HIG minimum, and the button stays square
+      // 48, not the 44 pt HIG minimum (owner ruling 2026-08-11). Snapping UP
+      // keeps it compliant and puts two numbers on the grid at once: the button
+      // itself, and the container at kButton + kGap = 56. Snapping down to 40
+      // would have broken the minimum.
+      const CGFloat kButton = 48;
       const CGFloat kGap = 8;      // the gap itself, on the 8 pt grid
       const CGFloat kEdge = 8;     // inset from the right edge
       bar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, kButton + kGap)];
