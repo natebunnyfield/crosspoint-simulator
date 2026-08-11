@@ -1105,7 +1105,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   }
   const Palette &p = palette();
   const float S = g_ptScale;
-  const float radius = 12.0f * S;
+  // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
+  // uses cornerRadius = 8 with that exact comment. 12 pt was the old value;
+  // it was not on any square grid (12 / 8 = 1.5).
+  const float radius = 8.0f * S;
 
   // ONE DEVICE PIXEL, not half a point. `S * 0.5f` is 1.5 px on a 3x phone,
   // which cannot land on the pixel grid: the stroke is antialiased across two
