@@ -344,6 +344,17 @@ void layoutPad(int outW, int outH) {
   // so the proportion holds at any device scale; kGap is the pre-first-present
   // fallback only.
   constexpr float kPanelGapRatio = 11.6f / 78.2f;
+  // WHICH EDGE the 11.6 mm is measured to, on OUR rocker: its BOTTOM (owner
+  // ruling 2026-08-11, "measure from bottom of top rocker buttons instead of
+  // center (same ~11mm distance)").
+  //
+  // The chassis figure is panel -> slot TOP, and the code used to apply it to
+  // our rocker's top as well. That only lines up if the two are the same
+  // height, and they are nowhere near: the real slot is 2.8 mm -- about 19 pt
+  // here -- while a touchable rocker has to be 64. Anchoring our much taller
+  // control by its bottom edge instead puts the part of it your thumb comes to
+  // rest against where the device's button is, and lets the extra height grow
+  // upward into the space above rather than pushing the whole control down.
   // ...and then the WHOLE PAD is lifted this far back off the chassis figure
   // (owner ruling 2026-08-04). A system Picture-in-Picture window parks in a
   // bottom corner, and at the pad's chassis position the top row cleared such a
@@ -441,7 +452,15 @@ void layoutPad(int outW, int outH) {
   float upperY;
   if (panelBottomPx > 0) {
     const float panelBottom = static_cast<float>(panelBottomPx) / S;
-    upperY = panelBottom + panelGap - kPipLift;
+    // Snapped to the 8 pt grid the pad aligns to (owner ruling 2026-08-11:
+    // "always align everything on a square grid"). The BOTTOM distance is what
+    // gets snapped, because it is the measured quantity; the top edge follows
+    // and lands on the grid too, since the row height is itself a multiple of 8.
+    //
+    // kPipLift is NOT applied here. It was a fudge that nudged the row up from
+    // a top-edge target, and against a bottom-edge target it would double-count.
+    const float bottomGap = SDL_roundf((panelHeightPx / S) * kPanelGapRatio / 8.0f) * 8.0f;
+    upperY = panelBottom + bottomGap - kCellH;
     if (upperY < panelBottom) upperY = panelBottom;
     if (upperY > maxUpper) upperY = maxUpper;
   } else {
