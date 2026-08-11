@@ -183,12 +183,30 @@ target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
 # same value and the two layers cannot disagree.
 target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=2)
 
-# The 28 built-in Noto/Ubuntu faces are unreachable on iOS: FontSelectionActivity
-# hides built-in faces whenever SD families are installed (line 93-101 in the
-# firmware), and testflight.sh hard-fails the configure when CROSSPOINT_IOS_SEED_FONTS_DIR
-# is not set, so an iOS build always has at least the four S-tier families.
-# Stripping them saves ~1 MB of arm64 .o / binary section.
-# CalendarSleepScreen and getReaderFontId() both already handle OMIT_FONTS.
+# OMIT_FONTS strips the three NON-DEFAULT built-in reader sizes: Libre Franklin
+# Reader at 12, 16 and 18 pt, four styles each -- twelve faces, ~350 KB of 2-bit
+# compressed glyph data (a direct byte count of the twelve font headers). Their
+# EpdFont objects sit under `#ifndef OMIT_FONTS` in the firmware's src/main.cpp,
+# so under the macro that data goes unreferenced and the linker drops it. Libre
+# Franklin is now the ONLY built-in reading family -- owner ruling 2026-08-07
+# deleted Noto Serif, Noto Sans and Ubuntu from the firmware outright -- so there
+# are no alternative built-in typefaces left to strip, only sizes of the one
+# family. The former "~1 MB / 28 Noto+Ubuntu faces" line described a set that no
+# longer exists.
+#
+# Safe because nothing the reader must draw depends on those three:
+#   * getReaderFontId()'s default answer is the 14 pt cut, which stays OUTSIDE
+#     the guard and so is registered in every build (firmware src/main.cpp;
+#     CrossPointSettings.cpp getReaderFontId() is written so 14 pt is the size it
+#     can always return).
+#   * a selected SD reading family resolves BEFORE the built-in switch is reached
+#     (CrossPointSettings.cpp), and an iOS build always ships seeded SD families
+#     -- testflight.sh hard-fails the configure when CROSSPOINT_SEED_FONTS_DIR is
+#     unset.
+#   * the one chrome path that reaches for the stripped 18 pt cut, the generated
+#     cover title, gates it behind renderer.getLineHeight(id) > 0 and falls back
+#     to a UI face (firmware BaseTheme.cpp) -- a stripped id reads as absence,
+#     not a crash.
 #
 # WHAT THIS DEFINE HAS ALREADY COST, so the next person weighs it properly:
 # it strips font DATA while src/fontIds.h keeps vending the ids, so callers
@@ -196,12 +214,18 @@ target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=2)
 # the renderer simply has no glyphs for an id it was just handed. iOS is the
 # ONLY build that defines it, so anything it breaks is invisible on desktop.
 #
-# It broke the editor fonts exactly that way: Space Mono and IBM Plex Mono are
-# the editor's fallback on a blank card, they sat inside the guard, and on the
-# phone all five Editor Font rows fell through to UI chrome. Both are outside
-# it now, alongside Libre Franklin 14 (the reader's default answer), and
-# test/omit_fonts pins that set -- moving one back inside fails a test instead
-# of shipping silently.
+# THE EDITOR MONOSPACE FAMILIES ARE DELIBERATELY EXEMPT -- DO NOT "TIDY" THEM
+# BACK UNDER THE GUARD. Space Mono 12 and IBM Plex Mono 12 (four styles each) are
+# the Editor Font setting's built-in answer on a blank card, and unlike the
+# reader faces they have NO SD equivalent seeded on iOS -- strip them and the
+# setting has nothing at all to resolve to. They sat inside `#ifndef OMIT_FONTS`
+# until firmware commit 63ea6e6b; because iOS is the one build that defines the
+# macro, on the phone every Editor Font row failed its
+# renderer.getFontMap().count(id) availability check and the whole setting
+# collapsed to UI chrome. Both families and their insertFont() calls now live
+# OUTSIDE the guard in firmware src/main.cpp, beside Libre Franklin Reader 14,
+# and test/omit_fonts/OmitFontsTest.cpp pins that set -- move either back inside
+# and a firmware test fails instead of iOS silently shipping the broken setting.
 target_compile_definitions(crosspoint_core PUBLIC OMIT_FONTS)
 
 # Firmware-flash TUs (OTA, SD Firmware Update) are excluded from the iOS source
