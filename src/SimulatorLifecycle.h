@@ -42,15 +42,18 @@ WakeReason consumeWakeReason();
 // signature already does.
 void rebootAsFirmwareRestart();
 
-// The simulator relaunching itself to open a document Finder just handed it.
+// The simulator relaunching itself to open a document the OS just handed it
+// (Finder's 'odoc' on desktop, Files/Mail/Share Sheet on iOS).
 //
 // Separate from both functions above because it is neither of the things they
 // model. It is not a wake, so it must not set the power-wake reason. And it is
-// not the firmware calling ESP.restart(), so it is not subject to that path's
-// desktop opt-in: rebootAsFirmwareRestart() defaults off on desktop because
+// not the firmware calling ESP.restart(), so on desktop it is not subject to
+// that path's opt-in: rebootAsFirmwareRestart() defaults off on desktop because
 // execvp() loses the RTC_NOINIT globals the firmware restarts *for*, whereas
 // this restart carries its intent in APP_STATE on the card, which a new process
-// reads on the way up. Nothing is lost by exec'ing, so nothing gates it.
+// reads on the way up -- nothing is lost by exec'ing there, so nothing gates it.
+// On iOS the gate is unconditional regardless: the sandbox forbids exec
+// outright, so this takes the same in-process longjmp rebootAsPowerWake() uses.
 //
 // Returns only on failure.
 void rebootForDocumentOpen();
