@@ -1,18 +1,5 @@
 #include "SimulatorDocumentOpen.h"
 
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#endif
-
-// iOS gets no-ops. See the header for why a phone's document story does not
-// come through this event at all.
-#if defined(__APPLE__) && TARGET_OS_IPHONE
-namespace SimulatorDocumentOpen {
-void captureLaunchDocument() {}
-void pumpPendingOpen() {}
-}  // namespace SimulatorDocumentOpen
-#else
-
 #include <SDL3/SDL.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -30,15 +17,17 @@ void pumpPendingOpen() {}
 
 namespace {
 
-// How long to let LaunchServices deliver a launch document before giving up and
+// How long to let the OS deliver a launch document (macOS LaunchServices'
+// 'odoc' Apple Event, or iOS's launch URLContexts) before giving up and
 // booting normally.
 //
 // This is a real cost on every ordinary launch, so it is a budget, not a sleep:
 // the wait returns the instant a document arrives, and a launch with no document
 // is the only case that pays it in full. 400 ms was chosen because it is long
 // enough for the 'odoc' Apple Event to land on a cold start (measured well under
-// 100 ms) and short enough to be invisible against the firmware's own boot,
-// which spends longer than that painting the splash.
+// 100 ms on desktop; not yet measured on iOS) and short enough to be invisible
+// against the firmware's own boot, which spends longer than that painting the
+// splash.
 //
 // Getting this wrong is not fatal in either direction: too short and the
 // document falls through to the warm path, which still opens the book, just with
@@ -49,10 +38,10 @@ std::mutex gMutex;
 std::string gPendingPath;   // set by the SDL watch, drained by the two entry points
 bool gStagedLaunchDocument = false;
 
-// Extensions ReaderActivity can actually open. Finder only ever sends .epub here
-// -- that is the one type the bundle declares -- but a drag-and-drop onto the
-// window can carry anything, and silently "opening" a .png as a book would be
-// worse than declining it.
+// Extensions ReaderActivity can actually open. Finder and iOS only ever send
+// .epub here -- CFBundleDocumentTypes is the one type each Info.plist declares
+// -- but a desktop drag-and-drop onto the window can carry anything, and
+// silently "opening" a .png as a book would be worse than declining it.
 bool isReadableBook(const std::string &path) {
   static const char *kExtensions[] = {".epub", ".txt", ".xtc"};
   for (const char *ext : kExtensions) {
@@ -238,5 +227,3 @@ void pumpPendingOpen() {
 }
 
 }  // namespace SimulatorDocumentOpen
-
-#endif  // iOS
