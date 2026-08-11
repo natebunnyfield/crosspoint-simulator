@@ -461,12 +461,20 @@ void layoutPad(int outW, int outH) {
   place(kPadRight, colX(cols - 1), upperY, kSquare, kCellH);
 
   // Bottom row: POWER in the first column, the fused side rocker at the end.
-  // POWER is also grown to full kCellH (owner ruling 2026-08-11 covered the
-  // side rocker; POWER was left half-height by the original scope but is
-  // changed here because one short key on an otherwise full-height row is
-  // visually inconsistent, and the 8 pt grid alignment calls for a uniform
-  // row height).
-  place(kPadPower, colX(0), lowerY, kSquare, kCellH);
+  //
+  // POWER STAYS HALF HEIGHT, and this is a ruling, not an oversight. The
+  // 2026-08-11 instruction named the side button rocker and nothing else; POWER
+  // was grown to match it anyway, on the reasoning that one short key beside
+  // full-height ones looks inconsistent. The owner's answer: "changing power
+  // button was a fuckup". The half-height bottom row is itself owner-approved
+  // (2026-08-02, see the trade-off note above layoutPad), so a short POWER is
+  // the design rather than a loose end to tidy. Do not grow it again without a
+  // ruling that says POWER.
+  //
+  // It hangs from the row's BOTTOM edge, so it shares a baseline with the
+  // full-height rocker beside it instead of floating in the middle of the row.
+  const float kPowerH = SDL_roundf(kCellH / 2.0f / 8.0f) * 8.0f;
+  place(kPadPower, colX(0), lowerY + (kCellH - kPowerH), kSquare, kPowerH);
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
 
