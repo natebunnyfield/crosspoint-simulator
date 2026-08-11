@@ -81,11 +81,10 @@ namespace {
 // digital pin; BoardConfig InputPins, InputStyle::XteinkAdcLadder). See
 // layoutPad() for the arrangement.
 //
-// SIZING: full-height controls are 60-96 pt squares, comfortably over the HIG
-// 44 pt minimum. The bottom row is a deliberate exception -- half-height
-// (34-40 pt), approved as-shown 2026-08-02; see the trade-off note above
-// layoutPad(). Bands stay inset clear of the Dynamic Island at the top and the
-// home indicator at the bottom.
+// SIZING: all controls are on the 8 pt square grid. Heights are kSquare
+// rounded to the nearest 8 pt multiple (kCellH), so they range from 48-64 pt
+// across devices -- comfortably over the HIG 44 pt minimum. Bands stay inset
+// clear of the Dynamic Island at the top and the home indicator at the bottom.
 //
 // The controls are UNLABELLED -- no glyph, no text. The pad names nothing about
 // what each button does, which puts the whole affordance on the pressed state;
@@ -152,12 +151,14 @@ void applyActions(const std::vector<PadCore::Action> &actions) {
 // All dimensions in points, converted once. HIG minimums are expressed in
 // points, so laying out in pixels would silently shrink the targets on a device
 // with a different scale factor.
-// Owner-approved layout 2026-08-02 (mockups: pad_layout_review artifact):
+// Owner-approved layout 2026-08-02 (mockups: pad_layout_review artifact),
+// updated 2026-08-11 (side rocker grown to full height, 8 pt grid):
 //
 //     [Back|Select]      [Left|Right]        <- front rockers, full squares,
 //                                               hugging the panel's bottom edge
-//     [Power]              [Up|Down]         <- half-height row, anchored at
-//                                               the screen bottom, clear of the
+//     [Power]              [Up|Down]         <- full-height row (same as top),
+//                                               bottom edge anchored at the
+//                                               screen bottom, clear of the
 //                                               home indicator
 //
 // UP/DOWN are the X3's SIDE buttons (MappedInputManager keeps them fixed as
@@ -165,11 +166,6 @@ void applyActions(const std::vector<PadCore::Action> &actions) {
 // into one rocker at the right. BACK/SELECT/LEFT/RIGHT are the FRONT buttons
 // (the remappable frontButton* set), fused pairs as on the chassis. Fused
 // pairs share an edge -- no gap inside a pair, a wide gap between pairs.
-//
-// KNOWN TRADE-OFF, approved as-shown: the half-height row's targets run
-// 34-40pt tall, under the 44pt HIG minimum. If page-turns feel cramped on
-// device, the agreed fallback is invisible hit-slop extending the bottom-row
-// targets upward -- visuals unchanged.
 //
 // The top row hugs the panel (SimulatorOverlay::panelBottomPx) so thumbs rest
 // at the page; before the first present it falls back to sitting just above
@@ -394,7 +390,11 @@ void layoutPad(int outW, int outH) {
   const int cols =
       SDL_max(5, static_cast<int>(SDL_roundf(usable / kOptimalSquare)));
   const float kSquare = usable / static_cast<float>(cols);
-  const float kHalf = kSquare / 2.0f;
+  // 8 pt grid snap for control heights. kSquare (derived from usable/cols) is
+  // not generally a multiple of 8; rounding it keeps heights on-grid while
+  // widths stay device-exact. The difference is sub-pixel on all supported
+  // devices (55.83 → 56 pt on iPhone 13 mini).
+  const float kCellH = SDL_roundf(kSquare / 8.0f) * 8.0f;
 
   // Bottom inset from the system safe area (home indicator), with a fallback
   // when the window is unreadable and a floor so home-button devices (safe
@@ -409,9 +409,11 @@ void layoutPad(int outW, int outH) {
   }
   bottomInset = SDL_max(bottomInset, kHomeInsetMin);
 
-  // Bottom row: half-height, anchored at the bottom of the screen. maxUpper
-  // derives from lowerY, so the top row follows automatically and the two rows
-  // keep their spacing.
+  // Bottom row: full height (kCellH), anchored at the bottom of the screen.
+  // The BOTTOM EDGE is fixed at H - bottomInset - kPipLift; the top edge
+  // grows UPWARD from there (owner ruling 2026-08-11: grow from the bottom).
+  // maxUpper derives from lowerY, so the top row follows automatically and
+  // the two rows keep their spacing.
   //
   // NOT keyboard-aware, unlike the tablet path (owner ruling 2026-08-10: the
   // keyboard OVERLAPS, it does not push). The phone's pad is a band BELOW the
@@ -420,7 +422,7 @@ void layoutPad(int outW, int outH) {
   // a lifted band to go. While the keyboard is up it covers the page's lower
   // edge and the pad alike; the bar above it puts it away in one tap, and the
   // keyboard chip brings it back.
-  const float lowerY = H - bottomInset - kHalf - kPipLift;
+  const float lowerY = H - bottomInset - kCellH - kPipLift;
 
   // Top row hugs the panel at the chassis-matched gap less the lift, clamped
   // clear of the bottom row and never over the page.
@@ -431,7 +433,7 @@ void layoutPad(int outW, int outH) {
   // just under the page because that is where a phone is held. A tablet is
   // gripped by its sides, which is why its rockers needed a fixed thumb
   // distance and this does not.
-  const float maxUpper = lowerY - kRowClear - kSquare;
+  const float maxUpper = lowerY - kRowClear - kCellH;
   const int panelBottomPx = SimulatorOverlay::panelBottomPx();
   const int panelHeightPx = SimulatorOverlay::panelHeightPx();
   const float panelGap =
@@ -453,15 +455,20 @@ void layoutPad(int outW, int outH) {
   const auto colX = [&](int c) { return kMargin + c * kSquare; };
 
   // Top row: the two fused front rockers at the grid's ends.
-  place(kPadBack, colX(0), upperY, kSquare, kSquare);
-  place(kPadConfirm, colX(1), upperY, kSquare, kSquare);
-  place(kPadLeft, colX(cols - 2), upperY, kSquare, kSquare);
-  place(kPadRight, colX(cols - 1), upperY, kSquare, kSquare);
+  place(kPadBack, colX(0), upperY, kSquare, kCellH);
+  place(kPadConfirm, colX(1), upperY, kSquare, kCellH);
+  place(kPadLeft, colX(cols - 2), upperY, kSquare, kCellH);
+  place(kPadRight, colX(cols - 1), upperY, kSquare, kCellH);
 
   // Bottom row: POWER in the first column, the fused side rocker at the end.
-  place(kPadPower, colX(0), lowerY, kSquare, kHalf);
-  place(kPadUp, colX(cols - 2), lowerY, kSquare, kHalf);
-  place(kPadDown, colX(cols - 1), lowerY, kSquare, kHalf);
+  // POWER is also grown to full kCellH (owner ruling 2026-08-11 covered the
+  // side rocker; POWER was left half-height by the original scope but is
+  // changed here because one short key on an otherwise full-height row is
+  // visually inconsistent, and the 8 pt grid alignment calls for a uniform
+  // row height).
+  place(kPadPower, colX(0), lowerY, kSquare, kCellH);
+  place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
+  place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
 
   // The keyboard chip: ONE cell wide, centred in the bottom row (owner ruling
   // 2026-08-10). Dead centre rather than on the column grid -- with an even
@@ -470,7 +477,7 @@ void layoutPad(int outW, int outH) {
   // columns 1..cols-3 empty in every layout (cols is at least 5), so one cell
   // in the middle always clears POWER and the side rocker, and the reserved
   // band below is untouched.
-  g_kbChip = {((W - kSquare) / 2.0f) * S, lowerY * S, kSquare * S, kHalf * S};
+  g_kbChip = {((W - kSquare) / 2.0f) * S, lowerY * S, kSquare * S, kCellH * S};
 
   // Reserve the pad's band out of the panel's space: the chassis-ratio gap
   // plus both rows and the home inset. The gap term makes this DERIVED from
@@ -484,8 +491,12 @@ void layoutPad(int outW, int outH) {
   // page rather than shrinking it. Reserving its height here dropped the panel
   // an integer scale -- about 40% of the page on a phone -- to uncover a lower
   // edge not worth that much of the text.
+  // Both rows are now kCellH tall, so the reserved band grows from
+  // (kSquare + kHalf) to (kCellH + kCellH). On iPhone 13 mini this adds
+  // ~28 pt to the band. The panel has enough vertical headroom that its
+  // integer scale is unaffected.
   SimulatorOverlay::setBottomInset(static_cast<int>(
-      (panelGap + kSquare + kRowClear + kHalf + bottomInset) * S));
+      (panelGap + kCellH + kRowClear + kCellH + bottomInset) * S));
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
