@@ -101,9 +101,10 @@ int main(int argc, char **argv) {
   setjmp(SimulatorLifecycle::rebootJumpBuffer());
   SimulatorLifecycle::armRebootJump();
 #endif
-  // Before setup(), because a book handed to us by Finder has to be on the card
-  // and recorded in APP_STATE before setup() reads that state and picks which
-  // activity to open. No-op on iOS and on any launch without a document.
+  // Before setup(), because a book handed to us by the OS (Finder on desktop,
+  // Files/Mail/Share Sheet on iOS) has to be on the card and recorded in
+  // APP_STATE before setup() reads that state and picks which activity to
+  // open. No-op on any launch without a document.
   SimulatorDocumentOpen::captureLaunchDocument();
 #if !CROSSPOINT_SIM_IOS
   // Headless read-aloud capture audit (.claude/PLAN-tts-read-aloud.md): "1"
@@ -184,7 +185,8 @@ int main(int argc, char **argv) {
       }
     }
 #endif
-    // Open a book double-clicked in Finder while the app was already running.
+    // Open a book handed to us by the OS while the app was already running
+    // (Finder double-click on desktop, Files/Mail/Share Sheet on iOS).
     // Relaunches when there is one, so this does not return in that case.
     SimulatorDocumentOpen::pumpPendingOpen();
     // SDL must be driven from the main thread on macOS.

@@ -73,6 +73,26 @@
   <key>LSSupportsOpeningDocumentsInPlace</key>
   <true/>
 
+  <!-- Tapping an .epub in Files/Mail/AirDrop, or the Share Sheet, now offers
+       "Copy to CrossPoint X3" / "Open in CrossPoint X3". org.idpf.epub-container
+       is a system UTI (Apple Books registers it too) so no UTExportedTypeDeclarations
+       are needed -- we are only a consumer of it. LSHandlerRank Alternate: this
+       app imports the book onto the simulated SD card, it does not edit the
+       original in place, so it should not compete to be the default EPUB viewer. -->
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>EPUB Book</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>org.idpf.epub-container</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+    </dict>
+  </array>
+
   <!-- Networking. The file-transfer screen serves the firmware's web UI to a
        peer on the same WiFi, and reports which network the phone is on.
 
