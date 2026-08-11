@@ -272,7 +272,10 @@ void layoutPadTablet(float W, float H, float S) {
 
   const float margin = (W - panelWpx / S) / 2.0f;
   const float cell = SDL_min(kOptimalSquare, margin / 2.0f);
-  const float half = cell / 2.0f;
+  // Snapped to the 8 pt grid, matching what the phone path already does for
+  // kPowerH (owner ruling 2026-08-11). The tablet was simply never updated when
+  // the phone was: 30 pt on a standard iPad, 27 on a mini. Now 32 and 24.
+  const float half = SDL_roundf(cell / 2.0f / 8.0f) * 8.0f;
   const float leftX = (margin - 2.0f * cell) / 2.0f;
   const float rightX = W - margin + leftX;
   const float midY = H - kThumbRowFromBottom - cell / 2.0f;
@@ -334,7 +337,9 @@ void layoutPad(int outW, int outH) {
     return;
   }
 
-  constexpr float kMargin = 20.0f;      // side inset
+  // 16, not 20 (owner ruling 2026-08-11, from the drawn options). On the 8 pt
+  // grid, and the tighter inset buys every column a little width back.
+  constexpr float kMargin = 16.0f;      // side inset
   constexpr float kGap = 16.0f;
   // Panel -> top row gap MATCHES THE CHASSIS (owner ruling 2026-08-02): on the
   // X3 the front buttons' top edge sits 11.6 mm below the panel window, 14.8%
@@ -374,7 +379,12 @@ void layoutPad(int outW, int outH) {
   // 9.8 mm of the X3's 11.6 mm. Below about 4 mm the pad stops reading as a
   // control surface under the page and starts reading as a border around it;
   // this is well clear of that.
-  constexpr float kPipLift = 12.0f;
+  // 8, not 12 (owner ruling 2026-08-11, chosen from the drawn options over my
+  // advice to leave it). It costs 4 pt of the picture-in-picture clearance the
+  // 2026-08-04 tuning bought -- the corner PiP window now clears the bottom row
+  // by ~14.7 pt rather than ~18.7 -- and buys the 8 pt grid. Recorded so the
+  // next person reads a decision rather than a stray number.
+  constexpr float kPipLift = 8.0f;
   constexpr float kRowClear = kGap;     // top row keeps at least this above the bottom row
 
   // STRICT SQUARE GRID, cell constrained to the optimum (owner ruling
