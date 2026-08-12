@@ -165,11 +165,14 @@ public:
   //
   // Hiding does not close the field: the firmware's flag is untouched, the
   // grid keyboard keeps working, and typed text still routes here the moment
-  // the keyboard comes back. Suppression is cleared on every text-entry edge,
-  // so it can never become a sticky invisible preference; see the comment in
-  // setTextEntryActive(). isHostKeyboardVisible() is false whenever no field
-  // is open, so `isTextEntryActive() && !isHostKeyboardVisible()` is exactly
-  // the state the iOS harness paints its "Tap to type" chip in.
+  // the keyboard comes back. The keyboard also does not come up on its own --
+  // every text-entry edge resets to hidden (owner ruling 2026-08-12), so a
+  // field always opens with the chip showing and waits for an explicit tap;
+  // see the comment in setTextEntryActive() and HostKeyboardState.h.
+  // isHostKeyboardVisible() is false whenever no field is open, so
+  // `isTextEntryActive() && !isHostKeyboardVisible()` is exactly the state
+  // the iOS harness paints its "Tap to type" chip in -- which now also covers
+  // the moment a field first opens, not just a keyboard dismissed mid-field.
   void setHostKeyboardVisible(bool visible);
   bool isHostKeyboardVisible() const;
 

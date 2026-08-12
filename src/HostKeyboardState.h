@@ -5,18 +5,28 @@
 // Whether the host's software keyboard should be up right now -- and, when it
 // should be up but already is, whether the platform has to be kicked.
 //
+// A field opening does NOT raise the keyboard by itself (owner ruling
+// 2026-08-12): it only makes the "Tap to type" chip appear. The keyboard
+// comes up on an explicit requestVisible(true), i.e. the chip getting tapped.
+// This used to be inverted -- every field opened with the keyboard already up
+// -- which on iPhone (see HalGPIO.h's comment on setHostKeyboardVisible) meant
+// the keyboard covering ~40% of the screen the instant any field appeared,
+// with no chance to see the page or the firmware's own grid keyboard first.
+//
 // WHY THIS IS ITS OWN HEADER
 //
 // The keyboard is raised by pumpHostTextInput() comparing the firmware's
 // text-entry flag against what it last did. Adding a second input (the owner
-// asked for it down) means three booleans interacting on a path that has no
-// visible output on desktop and cannot be single-stepped on a phone. Every bug
-// this file exists to prevent is a state bug, not a UIKit bug:
+// asking it up or down) means three booleans interacting on a path that has
+// no visible output on desktop and cannot be single-stepped on a phone. Every
+// bug this file exists to prevent is a state bug, not a UIKit bug:
 //
 //   - lowering the keyboard behind pumpHostTextInput()'s back leaves its
 //     `applied` flag saying "up", so nothing ever raises it again;
-//   - suppression that outlives the field that was open is an invisible
-//     preference with no UI, i.e. a keyboard that mysteriously never appears;
+//   - a manual show or hide that outlives the field it was requested in is an
+//     invisible preference with no UI -- a keyboard that mysteriously stays up
+//     (or stays down) across an unrelated later field, with nothing on screen
+//     saying why;
 //   - a raise issued while the platform believes text input is already active
 //     is a no-op, so the tap does nothing.
 //
@@ -65,11 +75,13 @@ constexpr Action decide(const bool applied, const bool want,
 // and only poll() runs on the main thread.
 class State {
 public:
-  // Both edges of the firmware's text-entry flag clear the owner's hide.
-  // Suppression that outlived the field would be an invisible preference with
-  // no UI anywhere: dismiss the keyboard once, and every text field for the
-  // rest of the session opens without one, with nothing on screen saying why.
-  void onFieldEdge() { suppressed_.store(false); }
+  // Both edges of the firmware's text-entry flag reset to the default: hidden.
+  // A field always opens with the keyboard down and the chip showing -- a
+  // manual show from one field must not leak into the next one, the same way
+  // a manual hide must not (that direction is the one this file used to get
+  // wrong: a dismiss used to stick for the rest of the session; now nothing
+  // sticks in either direction, because every edge re-arms the same default).
+  void onFieldEdge() { suppressed_.store(true); }
 
   void requestVisible(const bool visible) {
     // A raise ALWAYS arms the restart, even when suppression does not change.
@@ -99,7 +111,7 @@ public:
   }
 
 private:
-  std::atomic<bool> suppressed_{false};
+  std::atomic<bool> suppressed_{true};
   std::atomic<bool> forceRestart_{false};
   bool applied_ = false; // main thread only, guarded by poll()'s contract
 };

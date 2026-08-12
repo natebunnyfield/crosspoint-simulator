@@ -40,10 +40,15 @@ int main() {
     assert(s.poll(kNoField) == Action::None);
     assert(s.poll(kNoField) == Action::None);
 
-    // Field opens -> raise once, then stay put.
+    // Field opens -> keyboard stays down, chip shows; nothing raises on its
+    // own (owner ruling 2026-08-12).
     fieldEdge(s);
-    assert(s.poll(kFieldOpen) == Action::Start);
     assert(s.poll(kFieldOpen) == Action::None);
+    assert(s.poll(kFieldOpen) == Action::None);
+
+    // Owner taps the chip -> raise once, then stay put.
+    s.requestVisible(true);
+    assert(s.poll(kFieldOpen) == Action::Start);
     assert(s.poll(kFieldOpen) == Action::None);
 
     // Field closes -> lower once.
@@ -52,10 +57,14 @@ int main() {
     assert(s.poll(kNoField) == Action::None);
   }
 
-  // --- the owner hides it, then asks for it back ---
+  // --- the owner asks for it, hides it, then asks for it back ---
   {
     State s;
     fieldEdge(s);
+    assert(s.poll(kFieldOpen) == Action::None && "down until asked");
+
+    s.requestVisible(true);
+    assert(!s.suppressed());
     assert(s.poll(kFieldOpen) == Action::Start);
 
     s.requestVisible(false);
@@ -70,39 +79,43 @@ int main() {
     assert(s.poll(kFieldOpen) == Action::None);
   }
 
-  // --- suppression NEVER outlives the field, in either direction ---
+  // --- a manual show NEVER outlives the field, same as a manual hide never did ---
   //
-  // The bug this forbids: dismiss the keyboard once, and every text field for
-  // the rest of the session opens without one, with nothing on screen saying
-  // why and no setting to undo it.
+  // The bug this forbids (the current, correct direction): tap the chip to
+  // show the keyboard once, and every text field for the rest of the session
+  // must NOT open with one already up -- that was the original bug this file
+  // shipped to fix (owner report 2026-08-12: fields were opening with the
+  // keyboard already up, unasked).
   {
     State s;
     fieldEdge(s);
+    s.requestVisible(true);
     assert(s.poll(kFieldOpen) == Action::Start);
-    s.requestVisible(false);
-    assert(s.poll(kFieldOpen) == Action::Stop);
 
-    // Field closes with the hide still in force...
+    // Field closes with the keyboard still up...
     fieldEdge(s);
-    assert(!s.suppressed() && "the closing edge clears it");
-    assert(s.poll(kNoField) == Action::None && "already down; nothing to do");
+    assert(s.suppressed() && "the closing edge resets to hidden");
+    assert(s.poll(kNoField) == Action::Stop && "still up; lower it");
 
-    // ...and the next field opens with a keyboard.
+    // ...and the next field opens WITHOUT a keyboard.
     fieldEdge(s);
-    assert(s.poll(kFieldOpen) == Action::Start);
+    assert(s.poll(kFieldOpen) == Action::None);
   }
   {
-    // The same, when the hide is still in force as a NEW field opens directly
+    // The same, when the show is still in force as a NEW field opens directly
     // (activity to activity, no closed gap the caller polls in).
     State s;
     fieldEdge(s);
+    s.requestVisible(true);
     assert(s.poll(kFieldOpen) == Action::Start);
-    s.requestVisible(false);
-    assert(s.poll(kFieldOpen) == Action::Stop);
     fieldEdge(s); // close
     fieldEdge(s); // open, without an intervening poll
-    assert(!s.suppressed());
-    assert(s.poll(kFieldOpen) == Action::Start);
+    assert(s.suppressed());
+    // Nobody has told the platform to lower it yet -- the pending Start from
+    // the old field is still "applied", so the very next poll has to Stop it
+    // before the new field's hidden default counts as achieved.
+    assert(s.poll(kFieldOpen) == Action::Stop);
+    assert(s.poll(kFieldOpen) == Action::None);
   }
 
   // --- a raise while the platform hid it behind our back forces a restart ---
@@ -115,10 +128,11 @@ int main() {
   {
     State s;
     fieldEdge(s);
+    s.requestVisible(true);
     assert(s.poll(kFieldOpen) == Action::Start);
     assert(s.poll(kFieldOpen) == Action::None && "state says it is already up");
 
-    s.requestVisible(true); // asked for, while we believe it is already up
+    s.requestVisible(true); // asked for again, while we believe it is already up
     assert(s.poll(kFieldOpen) == Action::Restart);
     assert(s.poll(kFieldOpen) == Action::None && "one restart, not a loop");
   }
@@ -127,6 +141,7 @@ int main() {
   {
     State s;
     fieldEdge(s);
+    s.requestVisible(true);
     assert(s.poll(kFieldOpen) == Action::Start);
     s.requestVisible(true);
     s.requestVisible(true); // twice; still one restart
@@ -163,9 +178,9 @@ int main() {
     State s;
     assert(!s.wants(kNoField) && "no field, no keyboard, chip stays away");
     fieldEdge(s);
-    assert(s.wants(kFieldOpen));
-    s.requestVisible(false);
-    assert(!s.wants(kFieldOpen) && "field open and keyboard down: chip shows");
+    assert(!s.wants(kFieldOpen) && "field just opened: keyboard stays down, chip shows");
+    s.requestVisible(true);
+    assert(s.wants(kFieldOpen) && "owner tapped the chip: keyboard comes up");
   }
 
   // --- the pure decision, pinned per branch ---
