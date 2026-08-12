@@ -1014,7 +1014,7 @@ void HalGPIO::setTextEntryActive(bool active, TextEntryLines lines) {
   // A field opening or closing under a held Return must not leave the latch
   // pointing at the old field's answer.
   enterClaimedByButton = false;
-  // Both edges also clear the owner's hide; see hostkbd::State::onFieldEdge.
+  // Both edges also reset the keyboard to hidden; see hostkbd::State::onFieldEdge.
   hostKeyboard.onFieldEdge();
   // Both edges drop whatever is queued. On the rising edge that discards
   // anything a mistimed host typed before the field existed; on the falling
