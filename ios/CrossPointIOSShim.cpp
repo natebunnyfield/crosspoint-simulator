@@ -507,14 +507,20 @@ void layoutPad(int outW, int outH) {
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
 
-  // The keyboard chip: ONE cell wide, centred in the bottom row (owner ruling
-  // 2026-08-10). Dead centre rather than on the column grid -- with an even
-  // column count no cell straddles the middle, and a control that is not one of
-  // the seven should not pretend to sit in their grid. The bottom row leaves
-  // columns 1..cols-3 empty in every layout (cols is at least 5), so one cell
-  // in the middle always clears POWER and the side rocker, and the reserved
-  // band below is untouched.
-  g_kbChip = {((W - kSquare) / 2.0f) * S, lowerY * S, kSquare * S, kCellH * S};
+  // The keyboard chip: 48pt square, matching the "Hide keyboard" bar button's
+  // size (kButton in CrossPointKeyboardBar.mm -- change one, change the other,
+  // same pairing that file's glyph comment already enforces for the artwork)
+  // so the toggle reads as one control in two states rather than growing
+  // between them. Centred in the bottom row (owner ruling 2026-08-10) -- dead
+  // centre rather than on the column grid, since with an even column count no
+  // cell straddles the middle and a control that is not one of the seven
+  // should not pretend to sit in their grid. The bottom row leaves columns
+  // 1..cols-3 empty in every layout (cols is at least 5), so the chip always
+  // clears POWER and the side rocker, and the reserved band below is
+  // untouched.
+  constexpr float kChipSide = 48.0f;
+  g_kbChip = {((W - kChipSide) / 2.0f) * S, (lowerY + (kCellH - kChipSide) / 2.0f) * S,
+              kChipSide * S, kChipSide * S};
 
   // Reserve the pad's band out of the panel's space: the chassis-ratio gap
   // plus both rows and the home inset. The gap term makes this DERIVED from
