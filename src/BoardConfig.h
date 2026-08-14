@@ -9,6 +9,14 @@
 #define FREEINK_LOG_TRANSPORT_ROM_PRINTF 1
 #define FREEINK_LOG_TRANSPORT FREEINK_LOG_TRANSPORT_HWCDC
 
+// Both defines set at once would silently pick X4 Pro below and leave the X3
+// selection with no effect. Upstream 1a88857; the display-controller half of
+// that guard is N/A here because this fork's BoardConfig has no
+// SIMULATOR_DISPLAY_* profiles.
+#if defined(SIMULATOR_DEVICE_X3) && defined(SIMULATOR_DEVICE_X4_PRO)
+#error "Select at most one simulated Xteink device"
+#endif
+
 #if defined(SIMULATOR_DEVICE_X4_PRO)
 #define FREEINK_DEVICE_X4 0
 #define FREEINK_DEVICE_X3 0
