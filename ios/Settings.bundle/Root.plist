@@ -34,6 +34,120 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>The two colours the page is drawn in: the ink a black pixel becomes and the paper a white one becomes. Every grey in between is mixed from the pair, so the page keeps its shading whatever you choose. Each option sets a light and a dark version; the app follows the system appearance.
+
+Default is what the app has always drawn — a soft black on warm white, measured from an e-ink panel. High Contrast is pure black on pure white. Sepia and Cool Gray warm and cool the page without losing contrast (10.2:1 and 13.2:1; the default is 13.3:1).
+
+Choose Custom to type your own, in the four fields below. They keep whatever you last entered, so a detour through a preset loses nothing.</string>
+			<key>Title</key>
+			<string>Page Colours</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>1</integer>
+			<key>Key</key>
+			<string>panelPalettePreset</string>
+			<key>Title</key>
+			<string>Palette</string>
+			<key>Titles</key>
+			<array>
+				<string>Default — e-ink, 13.3:1</string>
+				<string>High Contrast — black on white, 21:1</string>
+				<string>Sepia — warm, 10.2:1</string>
+				<string>Cool Gray — cool, 13.2:1</string>
+				<string>Custom — use the colours below</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>0</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Used only when Palette is Custom. Six hex digits, as on the web: 2D2D2D, #2D2D2D and 0x2D2D2D are all accepted. A field left empty, or holding anything else, falls back to the Default colour for that slot — so one typo costs you one colour, not the page.
+
+Nothing here is checked for legibility. Ink and paper set to similar colours will produce a page you cannot read; that is the point of typing it yourself rather than picking from the list.
+
+The button pad follows the paper colour, so its outlines stay a fixed step away from whatever you choose. The contrast figures printed on the Button Pad rows are measured against the Default paper and will be approximate against a custom one.</string>
+			<key>Title</key>
+			<string>Page Colours — Custom</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string>2D2D2D</string>
+			<key>Key</key>
+			<string>panelInkLight</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>Ink (Light)</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string>FBFBF9</string>
+			<key>Key</key>
+			<string>panelPaperLight</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>Paper (Light)</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string>E0E0DE</string>
+			<key>Key</key>
+			<string>panelInkDark</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>Ink (Dark)</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string>121212</string>
+			<key>Key</key>
+			<string>panelPaperDark</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>Paper (Dark)</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>Sets all four contrast settings below at once. Current is what the app has always drawn. Accessible is 3:1 against the page, the WCAG 1.4.11 figure for a control with no label — this pad has none. Transparent draws nothing at all: the controls still work, they are simply not visible.
 
 Choose Custom to use the four settings below instead; they keep whatever you last set, so a detour through a preset loses nothing.</string>
