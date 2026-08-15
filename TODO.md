@@ -13,6 +13,22 @@ Format: `### [ST-NNN] Title` then what it is, why, and what "done" looks like.
 An item leaves this file when it ships or when it is ruled out — not when it is
 started.
 
+
+## Where the rest of the work lives
+
+Four trackers across two repos. Run the firmware repo's
+`scripts/tracker-check.sh` for all of them with open counts and the next free
+id — do not hand-pick an id.
+
+| Tracker | Ids | Holds |
+|---|---|---|
+| `../crosspoint-reader/TODO.md` | `T-` | Firmware work that is owed |
+| `../crosspoint-reader/BUGS.md` | `B-` | Firmware defects |
+| **TODO.md** / [BUGS.md](BUGS.md) | `ST-` / `S-` | This repo, owed / broken |
+
+Each tracker holds only its own prefix. Some items are paired across repos —
+`ST-007` and the firmware's `T-016` are one job, and neither is done alone.
+
 ---
 
 ## OPEN
