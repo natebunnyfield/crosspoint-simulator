@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "GrayscalePreview.h"
+#include "PanelPalette.h"
 #include "SimulatorOverlay.h"
 
 #include <array>
@@ -253,24 +254,60 @@ void captureDueScreenshots() {
 // paper rather than raw #000-on-#FFF. One palette per polarity; "inverted"
 // (dark mode) swaps to light ink on dark paper, so the grayscale ramp needs no
 // separate 255-level flip -- the ink->paper lerp direction IS the inversion.
-// Values are shared with the iOS harness field colours (CrossPointIOSShim.cpp);
-// change them together.
-struct PanelPalette {
-  uint8_t ink[3];    // a fully-black source pixel
-  uint8_t paper[3];  // a fully-white source pixel
-};
-constexpr PanelPalette kPanelLight{{0x2D, 0x2D, 0x2D}, {0xFB, 0xFB, 0xF9}};
-constexpr PanelPalette kPanelDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
+//
+// THE TONES ARE A DIAL NOW, not constants; the definitions, the presets, the
+// interpolation and the guards live in src/PanelPalette.h, and the host sets
+// them through SimulatorOverlay::setPanelPalette. Both polarities default to
+// exactly what this file used to hardcode, so a build that never calls the
+// setter -- every desktop build -- renders byte-identical pixels.
+//
+// PACKED INTO ONE ATOMIC PER POLARITY. The render task reads these while the
+// main thread (the iOS settings poll) writes them, and a Palette is six bytes
+// that must change together: reading a new ink beside an old paper for one
+// frame would show a page nobody chose. 48 bits fit in a uint64_t, so the whole
+// pair is one lock-free load.
+using PanelPalette = panelpalette::Palette;
+
+constexpr uint64_t packPalette(const PanelPalette &p) {
+  return (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
+         static_cast<uint64_t>(panelpalette::pack(p.paper));
+}
+PanelPalette unpackPalette(uint64_t v) {
+  PanelPalette p{};
+  panelpalette::unpackInto(static_cast<uint32_t>((v >> 24) & 0xFFFFFFu), p.ink);
+  panelpalette::unpackInto(static_cast<uint32_t>(v & 0xFFFFFFu), p.paper);
+  return p;
+}
+
+std::atomic<uint64_t> panelPackedLight{packPalette(panelpalette::kDefaultLight)};
+std::atomic<uint64_t> panelPackedDark{packPalette(panelpalette::kDefaultDark)};
+
+PanelPalette livePanelPalette(bool dark) {
+  return unpackPalette(dark ? panelPackedDark.load() : panelPackedLight.load());
+}
 
 // level: 0 = ink, 255 = paper (the pre-inversion grayscale convention).
 uint32_t panelColor(uint8_t level, const PanelPalette &p) {
-  uint32_t argb = 0xFF000000u;
-  for (int c = 0; c < 3; c++) {
-    const uint8_t v = static_cast<uint8_t>(
-        p.ink[c] + (static_cast<int>(p.paper[c]) - p.ink[c]) * level / 255);
-    argb |= static_cast<uint32_t>(v) << (16 - 8 * c);
-  }
-  return argb;
+  return panelpalette::colorForLevel(level, p);
+}
+
+// CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK} force a tone, on the same terms
+// as CROSSPOINT_SIM_DARK and for the same reason: the desktop has no
+// Settings.app, so without this the only way to see a non-default palette --
+// or to capture a screenshot proving one -- is a phone. Applied on EVERY
+// setPanelPalette call, so a forced tone survives any number of host settings
+// changes and both paths exercise identical mechanics from that line down.
+// Unset or unparseable leaves the caller's value alone.
+void applyPanelPaletteEnv(bool dark, PanelPalette &p) {
+  const char *inkVar =
+      dark ? "CROSSPOINT_SIM_PANEL_INK_DARK" : "CROSSPOINT_SIM_PANEL_INK_LIGHT";
+  const char *paperVar = dark ? "CROSSPOINT_SIM_PANEL_PAPER_DARK"
+                              : "CROSSPOINT_SIM_PANEL_PAPER_LIGHT";
+  const int ink = panelpalette::parseHexRgb(std::getenv(inkVar));
+  const int paper = panelpalette::parseHexRgb(std::getenv(paperVar));
+  if (ink >= 0) panelpalette::unpackInto(static_cast<uint32_t>(ink), p.ink);
+  if (paper >= 0)
+    panelpalette::unpackInto(static_cast<uint32_t>(paper), p.paper);
 }
 
 bool getBit(const uint8_t *buffer, int x, int y) {
@@ -281,7 +318,7 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 
 void renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
+  const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint32_t ink = panelColor(0, pal);
   const uint32_t paper = panelColor(255, pal);
   for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
@@ -319,7 +356,7 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 
 void composeGrayscalePreview() {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
+  const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
@@ -488,10 +525,39 @@ void setPanelDark(bool dark) {
   }
   // The field follows the panel's paper tone, so the page has no visible edge
   // in either polarity. Hosts that call setClearColor themselves (the iOS
-  // harness) use the same values, so the double write is idempotent.
-  const PanelPalette &pal = dark ? kPanelDark : kPanelLight;
+  // harness) use the same values, so the double write is idempotent. Reads the
+  // LIVE palette rather than a constant, so a host that has set a custom paper
+  // still gets an edgeless page after a polarity flip.
+  const PanelPalette pal = livePanelPalette(dark);
   setClearColor(pal.paper[0], pal.paper[1], pal.paper[2]);
   display.setInverted(dark);
+}
+
+// See SimulatorOverlay.h. Writes the packed pair for ONE polarity, applies the
+// env override on top (same contract as setPanelDark), and asks the main thread
+// to reconvert the cached frame -- inversion's mechanism, reused, because a
+// palette change has exactly inversion's problem: the tones are applied while
+// converting the 1bpp framebuffer to pixels, and an e-ink firmware may not
+// render again for minutes.
+//
+// The reconvert is requested only when the polarity being written is the one on
+// screen. Writing the other polarity's pair is a store and nothing else, so the
+// harness can publish both on every settings change without forcing a present.
+void setPanelPalette(bool dark, const unsigned char ink[3],
+                     const unsigned char paper[3]) {
+  PanelPalette p{{ink[0], ink[1], ink[2]}, {paper[0], paper[1], paper[2]}};
+  applyPanelPaletteEnv(dark, p);
+  const uint64_t packed = packPalette(p);
+  std::atomic<uint64_t> &slot = dark ? panelPackedDark : panelPackedLight;
+  if (slot.exchange(packed) == packed)
+    return;
+  if (display.isInverted() != dark)
+    return;  // the other polarity: nothing on screen changed
+  setClearColor(p.paper[0], p.paper[1], p.paper[2]);
+  pendingReconvert.store(true);
+  // reconvertLastFrame() raises the present itself, but only once a frame has
+  // been cached; the field color must repaint regardless, so ask here too.
+  requestPresent();
 }
 } // namespace SimulatorOverlay
 
@@ -591,6 +657,17 @@ void HalDisplay::begin() {
   // per-texture setting, which must therefore come after the texture exists.
   // See kPanelScaleMode above for why the choice is not unconditional.
   SDL_SetTextureScaleMode(texture, kPanelScaleMode);
+
+  // Seed both polarities with the shipped tones, THROUGH the setter, so that
+  // the CROSSPOINT_SIM_PANEL_* env override is applied on a build that never
+  // publishes a palette of its own -- which is every desktop build, there being
+  // no Settings.app on a Mac. With the vars unset this is exactly the pair the
+  // atomics already hold, so it is a no-op and the desktop stays byte-identical.
+  // The iOS harness publishes the owner's choice over the top a moment later.
+  SimulatorOverlay::setPanelPalette(false, panelpalette::kDefaultLight.ink,
+                                    panelpalette::kDefaultLight.paper);
+  SimulatorOverlay::setPanelPalette(true, panelpalette::kDefaultDark.ink,
+                                    panelpalette::kDefaultDark.paper);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
