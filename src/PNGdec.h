@@ -5,7 +5,8 @@
 #if __has_include_next(<PNGdec.h>)
 #include_next <PNGdec.h>
 #else
-#error "CROSSPOINT_SIM_USE_NATIVE_DECODERS requires PNGdec in this PlatformIO environment"
+#error                                                                         \
+    "CROSSPOINT_SIM_USE_NATIVE_DECODERS requires PNGdec in this PlatformIO environment"
 #endif
 #else
 #include_next <PNGdec.h>
@@ -61,9 +62,10 @@ public:
            PNG_SEEK_CALLBACK, PNG_DRAW_CALLBACK drawCb) {
     image_ = simulator_image::DecodedImage{};
     drawCb_ = drawCb;
+    lastError_ = PNG_SUCCESS;
 
     if (!filename || !openCb || !closeCb || !readCb) {
-      return PNG_INVALID_FILE;
+      return lastError_ = PNG_INVALID_FILE;
     }
 
     int32_t size = 0;
@@ -72,7 +74,7 @@ public:
       if (handle) {
         closeCb(handle);
       }
-      return PNG_INVALID_FILE;
+      return lastError_ = PNG_INVALID_FILE;
     }
 
     std::vector<uint8_t> encoded(static_cast<size_t>(size));
@@ -89,10 +91,9 @@ public:
     closeCb(handle);
 
     if (totalRead <= 0 ||
-        !simulator_image::decodeImageBytes(encoded.data(),
-                                           static_cast<size_t>(totalRead), 4,
-                                           image_)) {
-      return PNG_INVALID_FILE;
+        !simulator_image::decodeImageBytes(
+            encoded.data(), static_cast<size_t>(totalRead), 4, image_)) {
+      return lastError_ = PNG_INVALID_FILE;
     }
 
     return PNG_SUCCESS;
@@ -100,14 +101,16 @@ public:
   void close() { image_ = simulator_image::DecodedImage{}; }
   int getWidth() const { return image_.width; }
   int getHeight() const { return image_.height; }
+  int getLastError() const { return lastError_; }
   int getBpp() const { return 8; }
   int getPixelType() const { return PNG_PIXEL_TRUECOLOR_ALPHA; }
   int hasAlpha() const { return image_.hasAlpha ? 1 : 0; }
   uint32_t getTransparentColor() const { return 0; }
   int decode(void *user, int) {
+    lastError_ = PNG_SUCCESS;
     if (!drawCb_ || image_.pixels.empty() || image_.width <= 0 ||
         image_.height <= 0) {
-      return PNG_INVALID_FILE;
+      return lastError_ = PNG_INVALID_FILE;
     }
 
     const size_t rowStride = static_cast<size_t>(image_.width) * 4;
@@ -122,7 +125,7 @@ public:
       draw.iHasAlpha = image_.hasAlpha ? 1 : 0;
       draw.iWidth = image_.width;
       if (drawCb_(&draw) == 0) {
-        return PNG_INVALID_FILE;
+        return lastError_ = PNG_INVALID_FILE;
       }
     }
 
@@ -132,5 +135,6 @@ public:
 private:
   simulator_image::DecodedImage image_;
   PNG_DRAW_CALLBACK drawCb_{nullptr};
+  int lastError_{PNG_SUCCESS};
 };
 #endif

@@ -154,10 +154,14 @@ It runs the other way too, and that direction costs a firmware change: a capabil
 ## Device profiles and input mapping
 
 [src/BoardConfig.h](src/BoardConfig.h) selects X4 by default,
-`SIMULATOR_DEVICE_X3` for X3, and `SIMULATOR_DEVICE_X4_PRO` for X4 Pro. Keep
-the reported board capabilities aligned with the firmware SDK. X4 Pro uses the
-same 800x480 display geometry as X4 but adds touch, a capacitive Home key,
-frontlight state, inversion, and an RTC.
+`SIMULATOR_DEVICE_X3` for X3, `SIMULATOR_DEVICE_X4_PRO` for X4 Pro, and
+`SIMULATOR_DEVICE_STICKY` for Seeed Sticky.
+`SIMULATOR_DISPLAY_UC8179` and `SIMULATOR_DISPLAY_UC8279` select per-batch
+controller revisions without changing a device's geometry or capabilities.
+Keep the reported board and controller aligned with the firmware SDK. X4 Pro
+uses the same 800x480 display geometry as X4 but adds touch, a capacitive Home
+key, frontlight state, inversion, and an RTC. Sticky also uses 800x480 and adds
+touch, RTC, and tilt without a Home key or frontlight.
 
 **One device macro, one definition — and it goes on the LIBRARY.** The iOS
 build is two CMake targets: `crosspoint_core` (firmware + HAL, ~155 TUs) and
@@ -295,8 +299,8 @@ page-turn loop headlessly. Page-forward on this firmware is the RIGHT front
 button (`ReaderUtils::detectPageTurn`), not DOWN. Design and
 work-package status: [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
-For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key
-and X4 Pro touch edges through the same `HalGPIO` state as real SDL input, and
+For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key and
+touch-device edges through the same `HalGPIO` state as real SDL input, and
 `CROSSPOINT_SIM_SCREENSHOTS` captures renderer output on the SDL main thread.
 Keep synthetic held-time timestamps on the `SDL_GetTicks()` clock used by real
 keyboard events; the firmware's `millis()` clock has a different origin. The
