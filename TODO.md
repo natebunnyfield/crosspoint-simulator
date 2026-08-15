@@ -76,10 +76,13 @@ text, since every tone beyond four has to come from the 3x geometry (the
 `.cpfont` glyph data is 2 bits per pixel, quantised at build time in
 `fontconvert_sdcard.py:1053-1087`).
 
-**Still open:** whether to go further than bilinear. An exact box filter removes
-11.7x of the beat rather than 4.1x, but needs a software pass over the
-framebuffer, a second buffer, and a restructure of `presentIfNeeded`'s update
-order. Owner decision pending; see the report published 2026-08-15.
+**RULED 2026-08-15: bilinear, and stop there.** The owner chose option B off
+the published comparison. The exact box filter -- 11.7x beat reduction instead
+of bilinear's 4.1x -- is DECLINED: it costs a per-present software pass over
+2.4 M pixels, a second buffer, and a restructure of `presentIfNeeded`'s update
+order, and the residual it removes is a 0.6% ripple. Do not re-propose it as an
+improvement; it was measured, offered and turned down. Reopen only if a future
+panel size lands the presented scale somewhere bilinear genuinely fails.
 
 **The old note said "do not soften the pattern until the scale question is
 answered."** It is answered, and nothing here softens the pattern: the
