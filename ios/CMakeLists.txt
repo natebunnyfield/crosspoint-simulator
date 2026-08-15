@@ -83,6 +83,11 @@ set_source_files_properties(
 # root, so the phone gets font updates with the app instead of by hand through
 # the Files app. Globbed at configure time — CI configures fresh every run, so
 # a stale glob only affects incremental local builds.
+# ONE source of truth for the supersampling factor: it becomes the firmware
+# define AND selects which hi-res seed-font tier gets bundled. Setting it in one
+# place only is exactly how a scale-3 build shipped carrying 2x fonts.
+set(CROSSPOINT_IOS_RENDER_SCALE 3 CACHE STRING "Supersampling factor for the iOS app")
+
 set(CROSSPOINT_IOS_SEED_FONTS_DIR "" CACHE PATH
   "Directory of .cpfont font families to bundle and seed at launch")
 if(CROSSPOINT_IOS_SEED_FONTS_DIR)
@@ -101,19 +106,30 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
         math(EXPR _seed_count "${_seed_count} + ${_n}")
         message(STATUS "Seed fonts: ${_family} (${_n} files)")
       endif()
-      # Hi-res companion set. This glob is deliberately separate rather than
-      # recursive: the 2x files must keep their own bundle subdirectory, since
-      # SdCardFontManager finds a companion by the exact path `<family>/2x/<same
-      # filename>`. Flattening them into the family directory would collide with
-      # the 1x files, which carry identical names by design.
-      file(GLOB _family_fonts_2x "${_family_dir}/2x/*.cpfont")
-      if(_family_fonts_2x)
-        set_source_files_properties(${_family_fonts_2x} PROPERTIES
-          MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}/2x")
-        target_sources(CrossPointX3 PRIVATE ${_family_fonts_2x})
-        list(LENGTH _family_fonts_2x _n2)
+      # Hi-res companion set, for the tier this build actually renders at.
+      #
+      # The directory name comes from CROSSPOINT_IOS_RENDER_SCALE, not a literal
+      # "2x". Bundling 2x into a scale-3 build is worse than shipping nothing:
+      # SdCardFontManager looks for `<family>/3x/` exactly, finds no companion,
+      # and every reading face falls back to 1x replicated into 3x3 blocks --
+      # coarser than the 2x build it replaced, and silent. A 25 MB IPA that
+      # should have been ~120 MB was the only outward sign.
+      #
+      # The glob is deliberately separate rather than recursive: these files
+      # must keep their own bundle subdirectory, since the companion is found by
+      # the exact path `<family>/<scale>x/<same filename>`, and the hi-res cuts
+      # carry the 1x filenames by design.
+      file(GLOB _family_fonts_hr "${_family_dir}/${CROSSPOINT_IOS_RENDER_SCALE}x/*.cpfont")
+      if(_family_fonts_hr)
+        set_source_files_properties(${_family_fonts_hr} PROPERTIES
+          MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}/${CROSSPOINT_IOS_RENDER_SCALE}x")
+        target_sources(CrossPointX3 PRIVATE ${_family_fonts_hr})
+        list(LENGTH _family_fonts_hr _n2)
         math(EXPR _seed_count "${_seed_count} + ${_n2}")
-        message(STATUS "Seed fonts: ${_family}/2x (${_n2} files)")
+        message(STATUS "Seed fonts: ${_family}/${CROSSPOINT_IOS_RENDER_SCALE}x (${_n2} files)")
+      else()
+        message(WARNING "Seed fonts: ${_family} has no ${CROSSPOINT_IOS_RENDER_SCALE}x set -- "
+                        "it will render 1x-replicated at this scale")
       endif()
     endif()
   endforeach()
@@ -175,13 +191,21 @@ target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
 target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
 
 # Native-density glyph rasterisation, ON THE LIBRARY, not the app target.
+#
+# 3 since 2026-08-15, matching the @3x screens this ships to. Raising it is not
+# just this number: the renderer is scale-generic, but every hi-res font tier
+# must EXIST at the new scale, because the companion is blitted one bitmap pixel
+# to one device pixel. A family with no 3x set renders 1x-replicated into 3x3
+# blocks -- coarser than the 2x it replaced -- and a 2x set cannot stand in,
+# since 2 does not divide 3. So seedfonts/ carries a full 3x tier and
+# convert-builtin-fonts.sh emits _3x built-ins.
 # HalDisplay.cpp (framebuffer size) and SdCardFontManager.cpp (2x companion
 # loading) live in crosspoint_core; a define on CrossPointX3 never reaches
 # them, and HalDisplay.h silently defaults the scale to 1 -- which is exactly
 # how TestFlight builds through 15 shipped 1x while the pbxproj showed a =2
 # that only covered the seven harness TUs. PUBLIC so the harness TUs see the
 # same value and the two layers cannot disagree.
-target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=2)
+target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=${CROSSPOINT_IOS_RENDER_SCALE})
 
 # OMIT_FONTS strips the three NON-DEFAULT built-in reader sizes: Libre Franklin
 # Reader at 12, 16 and 18 pt, four styles each -- twelve faces, ~350 KB of 2-bit
