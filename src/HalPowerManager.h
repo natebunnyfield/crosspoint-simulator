@@ -21,13 +21,32 @@ class HalPowerManager {
   SemaphoreHandle_t modeMutex = nullptr; // Protect access to currentLockMode
 
 public:
-  static constexpr int LOW_POWER_FREQ = 10;                   // MHz
+  static constexpr int LOW_POWER_FREQ = 10; // MHz
+  // Upstream's light-sleep work (firmware #2525) replaced this with the four
+  // constants below. This fork has not merged #2525, so main.cpp:818 still
+  // reads IDLE_POWER_SAVING_MS -- dropping it breaks `pio run -e simulator`
+  // outright. Both sets are kept so the shim builds against the fork's
+  // firmware today and against #2525 whenever it lands.
   static constexpr unsigned long IDLE_POWER_SAVING_MS = 3000; // ms
+  static constexpr unsigned long IDLE_DOWNCLOCK_MS = 500;
+  static constexpr unsigned long IDLE_LIGHT_SLEEP_MS = 1000;
+  static constexpr unsigned long BATTERY_POLL_MS = 1500;
+  static constexpr unsigned long LIGHT_SLEEP_SLICE_MS = 50;
+  static constexpr unsigned long BUSY_SLEEP_SLICE_MS = 20;
 
   void begin();
 
   // Control CPU frequency for power saving
   void setPowerSaving(bool enabled);
+
+  bool lightSleep(const HalGPIO &) const {
+    delay(50);
+    return true;
+  }
+  bool onEinkBusyWaitSlice(int8_t, uint8_t) { return false; }
+  void noteMainLoopIteration() {}
+  void noteRenderWaitBegin() {}
+  void noteRenderWaitEnd() {}
 
   // Setup wake up GPIO and enter deep sleep
   // Should be called inside main loop() to handle the currentLockMode
