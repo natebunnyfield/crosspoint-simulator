@@ -1,5 +1,7 @@
 #include "CrossPointPrefs.h"
 
+#include "PanelPalette.h"
+
 #import <UIKit/UIKit.h>
 
 // Keys must match ios/Settings.bundle/Root.plist. A typo is silent:
@@ -30,6 +32,18 @@ static NSString *const kReadAloudEnabled = @"readAloudEnabled";
 // readAloudRatePercent() is what makes that survivable.
 static NSString *const kReadAloudRatePercent = @"readAloudRatePercent";
 static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
+
+// The panel's own two tones. The missing-key failure mode for the preset is the
+// benign one again: -integerForKey: returns 0, which here is Custom, i.e. "read
+// the four hex fields" -- and those, missing, parse as invalid and fall back to
+// the shipped tones. Every road from an empty store leads to the shipped look,
+// which is the only acceptable answer for a control that decides whether text
+// is legible at all.
+static NSString *const kPanelPalettePreset = @"panelPalettePreset";
+static NSString *const kPanelInkLight = @"panelInkLight";
+static NSString *const kPanelPaperLight = @"panelPaperLight";
+static NSString *const kPanelInkDark = @"panelInkDark";
+static NSString *const kPanelPaperDark = @"panelPaperDark";
 
 // THE DEFAULTS LIVE IN Root.plist AND NOWHERE ELSE.
 //
@@ -141,6 +155,14 @@ static void ensureDefaults(void) {
         kPadContrastPreset : @(1),  // Current
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
+        // Default preset, and the four hex fields seeded with the tones that
+        // preset selects -- so a first visit to Custom shows the page's actual
+        // colors to edit from rather than four empty boxes.
+        kPanelPalettePreset : @(1),  // panelpalette::kPresetDefault
+        kPanelInkLight : @"2D2D2D",
+        kPanelPaperLight : @"FBFBF9",
+        kPanelInkDark : @"E0E0DE",
+        kPanelPaperDark : @"121212",
       }];
     }
 
@@ -247,6 +269,30 @@ int CrossPointPrefs_diagnosticsEnabled(void) {
 
 int CrossPointPrefs_padFillContrast(int dark) {
   return padContrast(dark ? kPadFillContrastDark : kPadFillContrastLight);
+}
+
+int CrossPointPrefs_panelPalettePreset(void) {
+  ensureDefaults();
+  checkKnown(kPanelPalettePreset);
+  // NOT clamped and NOT validated here, for the same reason the pad preset is
+  // not: an unknown integer is handed straight to panelpalette::resolve, which
+  // answers anything it does not recognise with Default. Deciding that twice,
+  // in two files, is how the two answers drift.
+  return static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:kPanelPalettePreset]);
+}
+
+int CrossPointPrefs_panelCustomColor(int dark, int ink) {
+  ensureDefaults();
+  NSString *key = dark ? (ink ? kPanelInkDark : kPanelPaperDark)
+                       : (ink ? kPanelInkLight : kPanelPaperLight);
+  checkKnown(key);
+  // -stringForKey: also answers for a value stored as a number, which is what a
+  // hand-edited plist or a restored backup can hold; anything it cannot render
+  // as a string comes back nil and parses as invalid. Read live, same as
+  // everything here.
+  NSString *value = [[NSUserDefaults standardUserDefaults] stringForKey:key];
+  return panelpalette::parseHexRgb(value ? value.UTF8String : nullptr);
 }
 
 int CrossPointPrefs_padContrastPreset(void) {
