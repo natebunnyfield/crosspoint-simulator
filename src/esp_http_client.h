@@ -9,10 +9,15 @@
 
 enum http_event { HTTP_EVENT_ON_DATA, HTTP_EVENT_ON_HEADER };
 
+// Values must stay in ESP-IDF's declaration order so a partial stub keeps the
+// same numbering as the real esp_http_client_method_t. Add new methods in
+// upstream's position, not at the end.
 enum esp_http_client_method_t {
   HTTP_METHOD_GET,
   HTTP_METHOD_POST,
   HTTP_METHOD_PUT,
+  HTTP_METHOD_PATCH,
+  HTTP_METHOD_DELETE,
 };
 
 enum esp_http_client_auth_type_t {
@@ -72,6 +77,10 @@ inline const char *methodName(esp_http_client_method_t method) {
     return "POST";
   case HTTP_METHOD_PUT:
     return "PUT";
+  case HTTP_METHOD_PATCH:
+    return "PATCH";
+  case HTTP_METHOD_DELETE:
+    return "DELETE";
   case HTTP_METHOD_GET:
   default:
     return "GET";
