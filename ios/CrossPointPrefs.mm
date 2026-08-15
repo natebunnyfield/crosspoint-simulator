@@ -16,6 +16,11 @@ static NSString *const kPadOutlineContrastLight = @"padOutlineContrastLight";
 static NSString *const kPadOutlineContrastDark = @"padOutlineContrastDark";
 static NSString *const kPadFillContrastLight = @"padFillContrastLight";
 static NSString *const kPadFillContrastDark = @"padFillContrastDark";
+// The preset row above those four. 0 is Custom here, so the 0 a missing key
+// returns means "read the four pickers" — which is the one answer that is never
+// wrong whatever they hold, unlike the trap above. The registered default is
+// still 1 (Current), from Root.plist.
+static NSString *const kPadContrastPreset = @"padContrastPreset";
 
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
@@ -60,6 +65,57 @@ static NSDictionary *defaultsFromSettingsBundle(void) {
   return defaults.count ? defaults : nil;
 }
 
+// A PRESET DEFAULTING TO Current WOULD SILENTLY OVERRIDE AN EXISTING DIAL.
+//
+// The preset row is new; the four fine pickers are not. On an upgrade the
+// preset key has never been written, so it answers with its registered default
+// (Current) and the four pickers stop being read — which for anyone who had
+// dialled them in is their setting disappearing with no message and no way to
+// tell why. Removing a capability quietly is the failure mode this whole file
+// is written against, so the upgrade is migrated instead of assumed:
+//
+//   preset never written  AND  any of the four written to a NON-DEFAULT value
+//     -> write preset = Custom, once.
+//
+// Explicitly written but equal to the shipped default is left alone: it selects
+// the same tones either way, so Current is the more useful label for it. The
+// write is what makes this a one-time migration — afterwards the key exists and
+// this cannot fire again, including if the owner later chooses Current on
+// purpose.
+//
+// -persistentDomainForName:, NOT -objectForKey:. This is the whole correctness
+// of the thing and it is a trap that was live in this function for one build:
+// -objectForKey: searches the ARGUMENT and REGISTRATION domains as well as the
+// persistent one, so once registerDefaults has run — which is exactly when this
+// is called from — it answers with the registered Current for a key nobody has
+// ever written, the guard returns early every time, and the migration silently
+// never fires. The persistent domain is only what has actually been written to
+// disk, which is the question being asked.
+static void migratePadPresetForExistingCustomisation(void) {
+  NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+  NSString *suite = [[NSBundle mainBundle] bundleIdentifier];
+  NSDictionary *written = suite ? [ud persistentDomainForName:suite] : nil;
+  if (written[kPadContrastPreset] != nil) return;
+
+  NSDictionary<NSString *, NSNumber *> *shipped = @{
+    kPadOutlineContrastLight : @(-1),
+    kPadFillContrastLight : @(-1),
+    kPadOutlineContrastDark : @(1),
+    kPadFillContrastDark : @(1),
+  };
+  for (NSString *key in shipped) {
+    id stored = written[key];
+    if ([stored isKindOfClass:NSNumber.class] &&
+        [(NSNumber *)stored integerValue] != shipped[key].integerValue) {
+      [ud setInteger:0 forKey:kPadContrastPreset];  // Custom
+      NSLog(@"[CrossPoint] pad contrast: existing custom levels found (%@), "
+            @"preset migrated to Custom",
+            key);
+      return;
+    }
+  }
+}
+
 static void ensureDefaults(void) {
   static dispatch_once_t once;
   dispatch_once(&once, ^{
@@ -82,10 +138,13 @@ static void ensureDefaults(void) {
         kPadOutlineContrastDark : @(1),
         kPadFillContrastLight : @(-1),
         kPadFillContrastDark : @(1),
+        kPadContrastPreset : @(1),  // Current
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
       }];
     }
+
+    migratePadPresetForExistingCustomisation();
 
     // Off by default; without it batteryState is always UIDeviceBatteryStateUnknown.
     [UIDevice currentDevice].batteryMonitoringEnabled = YES;
@@ -188,4 +247,15 @@ int CrossPointPrefs_diagnosticsEnabled(void) {
 
 int CrossPointPrefs_padFillContrast(int dark) {
   return padContrast(dark ? kPadFillContrastDark : kPadFillContrastLight);
+}
+
+int CrossPointPrefs_padContrastPreset(void) {
+  ensureDefaults();
+  checkKnown(kPadContrastPreset);
+  // NOT clamped and NOT validated here. An unknown integer — a restored backup
+  // from a future build, a hand-edited plist — is handed straight to
+  // padpalette::resolveLevels, which resolves anything it does not recognise as
+  // Current. Deciding that twice, in two files, is how the two answers drift.
+  return static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:kPadContrastPreset]);
 }
