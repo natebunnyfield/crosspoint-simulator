@@ -13,7 +13,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 static SDL_Window *window = nullptr;
@@ -63,6 +65,7 @@ static bool simulatorWantsDevicePixels() {
 // SDL_RenderPresent. On macOS, SDL calls must happen on the main thread.
 static uint32_t
     pixelBuf[HalDisplay::DISPLAY_WIDTH * HalDisplay::DISPLAY_HEIGHT];
+static std::mutex pixelBufMutex;
 static std::atomic<bool> pendingPresent{false};
 // Set when the inversion flag changes so presentIfNeeded (main thread) re-runs
 // the framebuffer-to-pixel conversion from the cached last frame. Without it a
@@ -140,6 +143,7 @@ struct ScreenshotEvent {
 
 std::vector<ScreenshotEvent> screenshotEvents;
 bool screenshotEventsInitialized = false;
+const std::thread::id simulatorMainThread = std::this_thread::get_id();
 
 // Same reason as the GPIO one: re-read CROSSPOINT_SIM_SCREENSHOTS after an
 // in-process reboot, so the promoted *_AFTER_WAKE schedule is actually honored.
@@ -276,6 +280,7 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 }
 
 void renderBwPixels(const uint8_t *fb) {
+  const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
   const uint32_t ink = panelColor(0, pal);
   const uint32_t paper = panelColor(255, pal);
@@ -313,6 +318,7 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 }
 
 void composeGrayscalePreview() {
+  const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
@@ -500,13 +506,32 @@ SDL_Window *simulatorWindow() { return window; }
 HalDisplay::HalDisplay() {}
 HalDisplay::~HalDisplay() {}
 
-#if defined(SIMULATOR_DEVICE_X4_PRO)
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4 Pro";
-#elif defined(SIMULATOR_DEVICE_X3)
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3";
+#if defined(SIMULATOR_DISPLAY_UC8179)
+#define SIMULATOR_CONTROLLER_TITLE "UC8179"
+#elif defined(SIMULATOR_DISPLAY_UC8279)
+#define SIMULATOR_CONTROLLER_TITLE "UC8279"
 #else
-static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X4";
+#define SIMULATOR_CONTROLLER_TITLE "SSD1677"
 #endif
+
+#if defined(SIMULATOR_DEVICE_STICKY)
+static constexpr const char *WINDOW_TITLE =
+    "Simulator - Seeed Sticky (SSD1677)";
+#elif defined(SIMULATOR_DEVICE_X4_PRO)
+static constexpr const char *WINDOW_TITLE =
+    "Simulator - XTEINK X4 Pro (" SIMULATOR_CONTROLLER_TITLE ")";
+#elif defined(SIMULATOR_DEVICE_X3)
+#if defined(SIMULATOR_DISPLAY_UC8279)
+static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3 (UC8279d)";
+#else
+static constexpr const char *WINDOW_TITLE = "Simulator - XTEINK X3 (UC8253)";
+#endif
+#else
+static constexpr const char *WINDOW_TITLE =
+    "Simulator - XTEINK X4 (" SIMULATOR_CONTROLLER_TITLE ")";
+#endif
+
+#undef SIMULATOR_CONTROLLER_TITLE
 
 void HalDisplay::begin() {
   // Idempotent, because setup() can run more than once in one process.
@@ -646,6 +671,9 @@ bool HalDisplay::isInverted() const { return inverted.load(); }
 
 void HalDisplay::displayBuffer(RefreshMode mode, bool turnOffScreen) {
   refreshDisplay(mode, turnOffScreen);
+  if (std::this_thread::get_id() == simulatorMainThread) {
+    presentIfNeeded();
+  }
 }
 
 void HalDisplay::displayBufferAsync(RefreshMode mode) {
@@ -706,9 +734,8 @@ void HalDisplay::presentIfNeeded() {
     reconvertLastFrame();
 
   const bool screenshotDue = hasDueScreenshot();
-  if (!pendingPresent.load() && !screenshotDue)
+  if (!pendingPresent.exchange(false) && !screenshotDue)
     return;
-  pendingPresent.store(false);
 
   if (!texture || !sdl_renderer)
     return;
@@ -717,8 +744,11 @@ void HalDisplay::presentIfNeeded() {
   const GfxRenderer::Orientation orientation = renderer.getOrientation();
   applyWindowGeometryIfNeeded(orientation);
 
-  SDL_UpdateTexture(texture, nullptr, pixelBuf,
-                    DISPLAY_WIDTH * sizeof(uint32_t));
+  {
+    const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    SDL_UpdateTexture(texture, nullptr, pixelBuf,
+                      DISPLAY_WIDTH * sizeof(uint32_t));
+  }
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
   // letterboxed (the phone presents it at 2x inside a taller screen) it is the
