@@ -33,6 +33,41 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [ST-008] Moire in the selection dot pattern on iPhone Air
+**scope: ios display · reported 2026-08-15**
+
+Owner report: the grey dot pattern that marks a selected item now shows moire
+on an iPhone Air, with the question "is it being scaled differently today?"
+
+**Almost certainly yes, and today.** `39faa5d` ("feat(ios): render at 3x, and
+bundle the tier the build actually needs") changed the iOS render scale, and
+`ios/testflight.sh:255` now verifies `CROSSPOINT_IOS_RENDER_SCALE` is 3 before
+archiving. Build 76 (uploaded 2026-08-15) is the first TestFlight build carrying
+it. The selection band is a dithered 50% pattern -- a regular dot grid -- and a
+regular grid resampled by a non-integer ratio onto the device's own pixel grid
+is exactly what produces moire. Not yet confirmed by measurement; that is the
+first job.
+
+**What to establish before changing anything:**
+
+- Whether 3x lands on an integer ratio for the iPhone Air specifically. The
+  panel is 528x792 logical; the phone's backing scale and the presented rect
+  decide the final ratio, and `CROSSPOINT_SIM_PIXEL_EXACT` /
+  `SDL_SetRenderLogicalPresentation` decide whether it is integer-scaled or
+  letterboxed with filtering. A fractional scale or a linear filter greys the
+  dither -- the simulator `CLAUDE.md` already warns about exactly this for
+  judging renders.
+- Whether build 75 (2x) shows it on the same handset. That is the cheap A/B and
+  it settles cause.
+
+**Do not "fix" it by softening the pattern** until the scale question is
+answered -- if the ratio is the cause, changing the dither hides a presentation
+bug and makes the panel lie about what the device shows.
+
+**Done looks like:** the ratio measured on an iPhone Air, cause named, and
+either the presentation corrected or a recorded ruling that 3x is worth the
+artefact.
+
 ### [ST-007] The README no longer describes what this repo is
 **scope: docs · opened 2026-08-15**
 
