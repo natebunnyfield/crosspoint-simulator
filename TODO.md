@@ -64,6 +64,42 @@ first job.
 answered -- if the ratio is the cause, changing the dither hides a presentation
 bug and makes the panel lie about what the device shows.
 
+**The ratio, computed 2026-08-15** (fell out of the keyboard-chip chevron work;
+arithmetic only, not yet seen on the handset). It answers the first bullet, and
+it is worse than "not integer" -- **2x and 3x are on opposite sides of 1.0**:
+
+| Render scale | Framebuffer (portrait) | Presented scale on a 1260 px-wide phone | Dither cell |
+|---|---|---|---|
+| 2x | 1056 x 1584 | 1260/1056 = 1.19 -> **floored to exactly 1.0** | 2x2 device px, everywhere |
+| 3x | 1584 x 2376 | 1260/1584 = **0.795**, quantised to 315/396 | 3x3 nominal, lands on 2 **or** 3 px |
+
+Both numbers come from `presentIfNeeded`'s manual-placement branch
+(`src/HalDisplay.cpp:788-860`), which is the branch the phone always takes
+because the pad reserves a bottom band. `scale >= 1` floors to a whole number,
+so 2x presents the panel **1:1 with no resampling at all** and the dither is
+untouched. Below 1 there is no integer to floor to; it quantises to
+`kPixelQuantum` and decimates by nearest-neighbour
+(`kPanelScaleMode = SDL_SCALEMODE_NEAREST`).
+
+**That is the moire.** The dither is drawn through `GfxRenderer::drawPixel`,
+which paints a `RENDER_SCALE x RENDER_SCALE` block, so at 3x a dither cell is
+3x3 device pixels. Decimating a 3 px cell by 0.795 gives 2.39 px -- so cells
+land on 2 pixels or 3 depending on their phase, and the phase walks across the
+screen. A regular grid with a walking period is exactly a beat pattern. At 2x
+the cell is 2x2 and the scale is exactly 1.0, so every cell is identical and no
+beat exists -- which predicts the build 75 / build 76 A/B the second bullet asks
+for, without needing the handset to run it.
+
+Note the trade-off this exposes: 3x genuinely improves TEXT (glyphs come from 3x
+font tables and survive decimation as detail) while it necessarily destroys the
+DITHER (a 1-cell-period pattern cannot survive a 0.795 resample). So "3x or 2x"
+is not the only fork in the road -- drawing the selection fill at device
+resolution instead of as logical blocks would let both win, and it is the same
+gap the firmware repo filed as B-027.
+
+Still to do: confirm the iPhone Air's real point size and safe-area insets
+rather than the 420x912 @3x assumed above, and look at the handset.
+
 **Done looks like:** the ratio measured on an iPhone Air, cause named, and
 either the presentation corrected or a recorded ruling that 3x is worth the
 artefact.
