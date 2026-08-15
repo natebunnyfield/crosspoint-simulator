@@ -17,6 +17,29 @@ started.
 
 ## OPEN
 
+### [ST-007] The README no longer describes what this repo is
+**scope: docs · opened 2026-08-15**
+
+This fork has grown well past its README: an iOS target (135 firmware TUs + 20
+sim TUs for `arm64-apple-ios`), the read-aloud page channel, host keyboard text
+entry with the software-keyboard show/hide contract, pad contrast presets, panel
+palette and dark-mode re-present, `SimulatorOverlay` chrome, and Mac App Store +
+TestFlight packaging. It is also now **0 behind upstream** and 299 ahead — by a
+wide margin the most developed simulator in the ecosystem, which the README does
+not say.
+
+A README that describes a smaller project than the one it ships is the first
+thing a new contributor reads, and every stale line costs someone a session.
+
+Paired with **T-016** in the firmware repo — the owner asked for both READMEs to
+match what their repos actually provide, so neither is done until both are.
+
+Check each claim against the tree before keeping it; no claim without a grep.
+
+**Done looks like:** the README describes the desktop app, the iOS target and
+the headless QA channels as they exist today, and lists nothing that is not
+there.
+
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
 **scope: iOS layout · asked 2026-08-08 · MOCKUPS NEED APPROVAL BEFORE CODE**
 
