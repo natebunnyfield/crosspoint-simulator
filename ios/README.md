@@ -328,6 +328,84 @@ above on both frames, and a scripted `injectButton` press navigated Home —
 touch hit-testing itself is PadCore + the rects, covered by
 `tests/pad_core_test.cpp`. Not yet exercised with a real finger.
 
+### The page's ink and paper
+
+**The two tones the page is drawn in are owner-settable**, in Settings >
+CrossPoint X3 > Page Colours (added 2026-08-15). One preset row selects both
+appearances; four hex fields underneath are the manual state.
+
+| Setting | Key | Default |
+|---|---|---|
+| Palette | `panelPalettePreset` | Default (1) |
+| Ink, light | `panelInkLight` | `2D2D2D` |
+| Paper, light | `panelPaperLight` | `FBFBF9` |
+| Ink, dark | `panelInkDark` | `E0E0DE` |
+| Paper, dark | `panelPaperDark` | `121212` |
+
+| Preset | light ink / paper | dark ink / paper | Measured |
+|---|---|---|---|
+| Default (1) | 2D2D2D / FBFBF9 | E0E0DE / 121212 | 13.29:1 / 14.17:1 — the shipped tones, so an untouched install is pixel-identical |
+| High Contrast (2) | 000000 / FFFFFF | FFFFFF / 000000 | 21.00:1 both |
+| Sepia (3) | 3B3228 / F2E7D0 | E8D9BC / 1C1710 | 10.23:1 / 12.79:1 |
+| Cool Gray (4) | 1F2429 / E8ECEF | DCE3E8 / 10141A | 13.17:1 / 14.24:1 |
+| Custom (0) | the four hex fields | the four hex fields | unbounded — see below |
+
+**The intermediate grays are interpolated, never listed.** The framebuffer is
+1bpp plus two AA planes, so the panel has no colors of its own — it has a level
+0..255, and the palette says what 0 and 255 look like. `colorForLevel` lerps
+between them, which is why the 2-bit gray targets need no table of their own and
+why a custom pair still produces a graded page. It is also why **inversion needs
+no 255-level flip**: the dark palette's ink→paper direction already runs
+light-on-dark. Hardcoding an intermediate would break both properties.
+
+**A hex string, not a color well, and that is a platform limit.** A
+`Settings.bundle` has six specifier types and none is a color picker;
+`PSTextFieldSpecifier` is the only one that can carry an arbitrary color. So
+Custom is four text fields accepting `RRGGBB` / `#RRGGBB` / `0xRRGGBB`, either
+case. **Each field falls back independently** — a valid ink beside a mistyped
+paper still gives the owner their ink on the default paper, so one typo costs
+one colour rather than the page. An empty field is a fallback too, which is what
+makes clearing one a way back rather than a way to a blank screen.
+
+**Named presets are floored at 7:1; Custom is not.** `panel_palette_test`
+enforces the floor on every preset in both appearances, because a curated list
+has no business offering an unreadable page. Typing a color is an explicit act
+and gets no such guard.
+
+**The pad's field follows the paper.** The field behind the panel is the paper
+tone, which is what makes the page float edgeless; the pad's own rungs are
+relative deltas from that field, so `makePaletteOn(dark, o, f, panel.paper)`
+carries the whole ladder onto whatever the owner picked. The consequence worth
+knowing: the contrast figures printed on the Button Pad rows are measured
+against the *default* paper and are approximate against a custom one. Said so on
+the row.
+
+`pollPanelPalette()` resolves the preset and the four fields every frame from
+`NSUserDefaults` and repaints only on an edge **in the resolved pair** — the
+same shape, and the same reasons, as `pollPadContrast()` above. It runs *before*
+the pad poll, since the pad is built on the paper. The tones are applied while
+converting the framebuffer to pixels, so `SimulatorOverlay::setPanelPalette`
+reuses inversion's `pendingReconvert`: the change lands on the next present, not
+the next firmware refresh.
+
+The definitions, presets, parsing and guards live in
+[src/PanelPalette.h](../src/PanelPalette.h), pure and host-tested
+(`tests/panel_palette_test.cpp`, which also reads the shipped `Root.plist` and
+fails when a preset row's printed ratio disagrees with the tones it selects).
+Every failure mode here is a wrong *colour*, which no compiler and no other test
+in this repo can see.
+
+**Desktop and headless runs reach it through the environment**, there being no
+Settings.app on a Mac: `CROSSPOINT_SIM_PANEL_INK_LIGHT`, `_PAPER_LIGHT`,
+`_INK_DARK`, `_PAPER_DARK`, same syntax as the fields, applied inside
+`setPanelPalette` on every call so both paths exercise identical mechanics —
+the same contract `CROSSPOINT_SIM_DARK` has.
+
+```bash
+CROSSPOINT_SIM_PANEL_INK_LIGHT=3B3228 CROSSPOINT_SIM_PANEL_PAPER_LIGHT=F2E7D0 \
+  pio run -e simulator_x3 -t run_simulator
+```
+
 ### Dithered grays, moire, and the panel scale
 
 Raised 2026-08-06: the gray dithered selection area shows irregular moire on an

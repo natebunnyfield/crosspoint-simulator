@@ -87,4 +87,37 @@ int panelWidthPx();
 // other's mechanics.
 void setPanelDark(bool dark);
 
+// The panel's two tones for ONE polarity: what a fully-black source pixel is
+// drawn as (ink) and what a fully-white one is drawn as (paper), each three
+// bytes RGB. Every level in between is interpolated from the pair, which is why
+// there is no separate control for the intermediate 2-bit grays -- move the two
+// ends and the grays move with them, in proportion.
+//
+// A free hook rather than a HAL method, for the same reason as the rest of this
+// namespace: a real e-ink panel has one set of tones, decided by its physics,
+// and nothing in the firmware could ever call this.
+//
+// Both polarities default to the tones this app has always drawn
+// (panelpalette::kDefaultLight / kDefaultDark in src/PanelPalette.h), so a host
+// that never calls this -- every desktop build -- is pixel-identical.
+//
+// Takes effect on the very next present, not the next firmware refresh: the
+// tones are applied while converting the 1bpp framebuffer to pixels, so
+// HalDisplay re-runs that conversion from its cached last frame, exactly as it
+// does for a polarity change. Writing the polarity that is NOT on screen only
+// stores, so a host may publish both on every settings change.
+//
+// Setting the ON-SCREEN polarity also moves the field (setClearColor) to the
+// new paper, so the page keeps its edgeless seam against whatever the host
+// paints around it.
+//
+// CROSSPOINT_SIM_PANEL_INK_LIGHT / _PAPER_LIGHT / _INK_DARK / _PAPER_DARK
+// override the argument, "RRGGBB" / "#RRGGBB" / "0xRRGGBB"; unset or
+// unparseable follows the caller. Same contract as CROSSPOINT_SIM_DARK above,
+// and the reason is the same: it is the only way a desktop or headless run can
+// reach a non-default palette, since the owner-facing control is in the iOS
+// Settings app.
+void setPanelPalette(bool dark, const unsigned char ink[3],
+                     const unsigned char paper[3]);
+
 } // namespace SimulatorOverlay

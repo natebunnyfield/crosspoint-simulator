@@ -90,6 +90,35 @@ int CrossPointPrefs_readAloudRatePercent(void);
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);
 
+// Which named panel palette is selected: one of panelpalette::Preset
+// (0 Custom, 1 Default, 2 High Contrast, 3 Sepia, 4 Cool Gray). Anything else
+// is returned unchanged and resolved as Default by panelpalette::resolve --
+// the safe direction, since an unknown value must not produce an unreadable
+// page.
+//
+// Default is the default and is the shipped look, so an untouched install
+// renders pixel-identically to the build before this existed.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_panelPalettePreset(void);
+
+// The owner's custom panel tone for one appearance and one role, as packed
+// 0xRRGGBB, or -1 (panelpalette::kInvalidColor) when the field is empty or does
+// not hold six hex digits. `dark` is 1 for the dark appearance; `ink` is 1 for
+// the ink and 0 for the paper.
+//
+// A HEX STRING RATHER THAN A COLOR WELL because a Settings.bundle has no color
+// specifier -- PSTextFieldSpecifier is the only one that can carry an arbitrary
+// color. Parsing (and the -1 for junk) lives in src/PanelPalette.h so it is
+// host-testable; this function only fetches the string.
+//
+// ONLY CONSULTED WHEN THE PRESET ABOVE IS Custom, on the same terms as the pad's
+// four fine pickers: read and returned regardless, so switching back to Custom
+// restores whatever the owner last typed.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_panelCustomColor(int dark, int ink);
+
 #ifdef __cplusplus
 }
 #endif
