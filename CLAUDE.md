@@ -200,6 +200,19 @@ and every upstream consumer that never named a board.
 
 `HalGPIO::update` owns the SDL event pump for the whole simulator, do not poll SDL events elsewhere. If another layer needs to observe events (the iOS harness does), use `SDL_AddEventWatch` — it sees events as they are queued without consuming them, so neither side steals from the other. Scancodes map to button indices `BTN_BACK=0` through `BTN_POWER=6`. `SDL_EVENT_QUIT` sets the `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
 
+**"Side buttons" vs "front buttons" — get this straight before moving any
+button UI; it was mixed up four separate times over 2026-07-31→08-01.** The
+vocabulary is the firmware's (`MappedInputManager`): the FRONT cluster is the
+remappable Back/Confirm/Left/Right pad, and the SIDE pair is the physical
+up/down rocker that page-turns in the reader (`Button::PageBack`/`PageForward`,
+swappable via `SETTINGS.sideButtonLayout`). Whether that side pair is actually
+on the device's EDGE differs per board — `HalGPIO::hasEdgeSideButtons()`
+(`src/HalGPIO.cpp:784`) is the authority: TRUE for X3/X3-UC8279/X4 Pro, FALSE
+for X4. So an on-glass button pad must not draw an edge rocker for an X4
+profile, and "up/down" in a prompt usually means the page-turn side pair, not
+front-cluster arrows. When a layout ask says "move the buttons", confirm which
+cluster and which board profile before touching geometry.
+
 **`SDL_PushEvent` cannot drive `SDL_GetKeyboardState`** — measured, not assumed. A pushed key event reaches the queue, so edge reads (`wasPressed`/`wasReleased`, which `update()` sets straight from the event) work; but SDL's internal keyboard state array is only written on the real-input path, so level reads (`isPressed`, `anyButtonHeld`, `powerHoldDuration`) stay false for injected keys. `powerHoldDuration()` returns 0 at its early exit, so long-press power-off never fires. Anything driving the simulator synthetically must either use the `CROSSPOINT_SIM_INPUT_SCRIPT` path (which writes `syntheticButtonDown[]` directly) or extend `HalGPIO` with a live injection API. See [ios/README.md](ios/README.md).
 
 **Host keyboards reach the firmware's text fields.** The X3 has no keyboard, so
