@@ -64,6 +64,7 @@
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "PadCore.h"
+#include "PadPalette.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorOverlay.h"
 
@@ -579,228 +580,18 @@ void layoutPad(int outW, int outH) {
 
 // --- Appearance ------------------------------------------------------------
 //
-// HOLLOW CONTROLS. Each control is a one-device-pixel stroke around nothing:
-// the face IS the field, so at rest the pad is seven outlines on the same tone
-// as the page's paper. A press lays a WASH inside the outline -- the fill
-// changes and the stroke never moves.
-//
-// This reverses what the pad used to do, and the reversal is the point. The old
-// arrangement put the face AWAY from the field (lighter than the paper in light
-// appearance, darker than the background in dark) and spent the contrast on a
-// ring. Two ceilings killed that: the field sits 4 levels below white in light
-// and 18 above black in dark, so in light the face had almost nowhere to go and
-// in dark the ring had to shout to clear the field. Both tones now step TOWARD
-// mid-gray -- darker than the paper, lighter than 121212 -- which is the roomy
-// direction in both appearances. One rule where there used to be two mirrored
-// ones. (Apple's system ramp is still no help here and is still not used: it
-// runs the wrong way in dark, systemGray6 1C1C1E being lighter than
-// systemBackground 121212, and it is blue-tinted at every step against this
-// app's warm paper.)
-//
-// THE PRESS IS THE ONLY FEEDBACK, the controls being unlabelled, and it is a
-// large-area change rather than a loud one. At the default the wash is 14/255
-// against a 34/255 stroke, but it covers a 58.8 pt cell where the stroke covers
-// a line, and area is what makes it read.
-//
-// Every pair that must be told apart is >= 13/255 at the defaults, the floor
-// below which a step is not reliably visible on a phone. Verified:
-//   light  stroke/field 34, wash/field 14, stroke/wash 20
-//   dark   stroke/field 33, wash/field 14, stroke/wash 19
-//
-// THE TONES BELOW ARE THE DEFAULTS OF A DIAL, not fixed constants. Both of them
-// are owner-settable, separately for each appearance, through Settings >
-// CrossPoint X3 (Root.plist -> CrossPointPrefs_padOutlineContrast /
-// _padFillContrast -> the delta tables below). The scale is signed: 0 puts the
-// tone ON the field so the control draws nothing, negative goes darker,
-// positive lighter, +/-9 is the end of the gamut. The shipped tones are the
-// +/-1 rows, which is why the light defaults are -1 and the dark +1 and why a
-// pad left alone is pixel-identical to what shipped before the dial existed.
-//
-// ACCESSIBLE ONLY IF ASKED, and the number is on the row. WCAG 1.4.11 wants 3:1
-// against the adjacent color for the visual information that identifies a
-// control, and the exemption it grants a labeled button does not apply to a pad
-// that has none. The default strokes measure 1.36:1 in light and 1.48:1 in dark
-// -- deliberately, this being a reading surface -- but 3:1 is now a row rather
-// than a rebuild: level -4 in light (929290) and +4 in dark (616161) hit it
-// exactly, and the ladder runs on past it to 20.3:1 and 18.7:1 at the ends. The
-// mitigation this comment used to propose (paint stronger for the first few
-// launches, settle after) is unnecessary now that the owner can just turn it up.
-struct Palette {
-  Uint8 field[3];     // behind the panel and the pad
-  Uint8 hairline[3];  // the stroke: control outlines and pair ticks
-  Uint8 face[3];      // control interior at rest: EQUAL to the field, i.e. hollow
-  Uint8 faceDown[3];  // the wash, laid inside the stroke while held
-};
-
-// The field matches the panel's paper tone (HalDisplay's PanelPalette:
-// 2D2D2D-on-FBFBF9 light, E0E0DE-on-121212 dark — change them together), so
-// the page floats edgeless in the field in both appearances. `face` repeats it
-// on purpose: paintPad's existing stroke-then-face draw paints a hollow control
-// when the two are equal, so nothing structural is needed to get an outline.
-//
-// `hairline` and `faceDown` here are the DEFAULT (+/-1) tones. The live palette
-// is built by makePalette() from `field` plus a delta out of the tables below;
-// the static_asserts pin the two together, so these four lines stay the honest
-// documentation of what ships rather than drifting into decoration.
-constexpr Palette kLightPalette{{0xFB, 0xFB, 0xF9},
-                                {0xD9, 0xD9, 0xD7},
-                                {0xFB, 0xFB, 0xF9},
-                                {0xED, 0xED, 0xEB}};
-constexpr Palette kDarkPalette{{0x12, 0x12, 0x12},
-                               {0x33, 0x33, 0x33},
-                               {0x12, 0x12, 0x12},
-                               {0x20, 0x20, 0x20}};
-
-// --- The contrast ladder ---------------------------------------------------
-//
-// PRECOMPUTED, NOT DERIVED AT RUNTIME. Each entry is a delta added to every
-// channel of the field and clamped; the rungs were chosen for their measured
-// sRGB contrast ratio against that field, so the arithmetic that produced them
-// is relative-luminance work that has no business running on a phone every
-// frame. The ratios each row lands on are the ones Root.plist prints as its row
-// labels -- the two must be read together, and neither is a guess.
-//
-// Indexed by level + kContrastOffset, i.e. -9 first and +9 last.
-//
-//   light outline  -9 000000 20.3:1 | -8 292927 14:1 | -7 40403E 10:1
-//                  -6 565654  7:1   | -5 747472 4.5:1| -4 929290  3:1
-//                  -3 B4B4B2  2:1   | -2 C3C3C1 1.7:1| -1 D9D9D7 1.36:1 (default)
-//                  +1 DEDEDC 1.3:1  | +2 E3E3E1 1.24:1| +3 E7E7E5 1.2:1
-//                  +4 EBEBE9 1.15:1 | +5 EFEFED 1.11:1| +6 F2F2F0 1.08:1
-//                  +7 F5F5F3 1.05:1 | +8 F7F7F5 1.04:1| +9 F9F9F7 1.02:1
-//   light fill     -9 000000 20.3:1 | -8 40403E 10:1 | -7 565654   7:1
-//                  -6 747472 4.5:1  | -5 929290  3:1 | -4 B4B4B2   2:1
-//                  -3 CFCFCD 1.5:1  | -2 DEDEDC 1.3:1| -1 EDEDEB 1.13:1 (default)
-//   dark outline   +9 FFFFFF 18.7:1 | +8 DFDFDF 14:1 | +7 BEBEBE 10:1
-//                  +6 9F9F9F  7:1   | +5 7D7D7D 4.5:1| +4 616161  3:1
-//                  +3 474747  2:1   | +2 3D3D3D 1.7:1| +1 333333 1.5:1 (default)
-//   dark fill      +9 FFFFFF 18.7:1 | +8 BEBEBE 10:1 | +7 9F9F9F   7:1
-//                  +6 7D7D7D 4.5:1  | +5 616161  3:1 | +4 474747   2:1
-//                  +3 343434 1.5:1  | +2 2A2A2A 1.3:1| +1 202020 1.15:1 (default)
-//
-// THE FILL LADDER IS GENTLER at the low end than the outline's -- 1.3 / 1.5 / 2
-// where the outline runs 1.7 / 2 / 3 -- because a wash covers a whole cell and
-// a stroke covers a line, and equal ratios do not read as equal emphasis.
-//
-// THE OTHER DIRECTION IS WHERE THE RESOLUTION LIVES NOW. It used to run to each
-// appearance's opposite gamut end, which on the light side was a dead zone by
-// construction -- the paper is 4 levels off white, so +1..+9 spanned FBFBF9 ->
-// FFFFFD, i.e. 1.00:1 to 1.03:1, and several rows were pixel-identical. Nine of
-// nineteen rows bought nothing, while the two rows an owner most wants to choose
-// between -- the default and invisible -- were ADJACENT INTEGERS with nothing in
-// between. Reported exactly that way: "missing all the steps between default and
-// invisible".
-//
-// So the dead rows were spent on that gap instead. Light +1..+9 and dark -1..-8
-// now step from just under the default down to just above invisible, which is
-// the whole range a reading surface actually cares about.
-//
-// Dark keeps -9 = BLACK (field 121212 + -18 = 000000). It is only 1.12:1 against
-// the field and so reads as a LOW-contrast row, which is why it sits at the end
-// of the list rather than the top -- but on an OLED panel it is the one tone
-// that vanishes into a true-black page, and it was previously reachable only by
-// picking a row labeled "Darker than the field -- 1.12:1", which named a ratio
-// and never said black. It says black now.
-//
-// Root.plist orders its rows most-visible -> invisible (then black, for dark),
-// which is display order only: Titles and Values are parallel arrays, so the
-// stored integers are unchanged and an existing selection still means what it
-// meant. The +/-1 default rows are untouched, which the static_asserts pin.
-constexpr int kContrastMin = -9;
-constexpr int kContrastMax = 9;
-constexpr int kContrastOffset = -kContrastMin;
-constexpr int kContrastLevels = kContrastMax - kContrastMin + 1;
-
-constexpr int16_t kOutlineDeltaLight[kContrastLevels] = {
-    -251, -210, -187, -165, -135, -105, -71, -56, -34, 0,
-    -29,  -24,  -20,  -16,  -12,  -9,   -6,  -4,  -2};
-constexpr int16_t kFillDeltaLight[kContrastLevels] = {
-    -251, -187, -165, -135, -105, -71, -44, -29, -14, 0,
-    -12,  -10,  -8,   -7,   -6,   -5,  -4,  -3,  -2};
-constexpr int16_t kOutlineDeltaDark[kContrastLevels] = {
-    -18, 2,  5,  8,  11,  15,  19,  23,  28,  0,
-    33,  43, 53, 79, 107, 141, 172, 205, 237};
-constexpr int16_t kFillDeltaDark[kContrastLevels] = {
-    -18, 2,  4,  5,  6,  7,   8,   10,  12,  0,
-    14,  24, 34, 53, 79, 107, 141, 172, 237};
-
-constexpr int clampLevel(int level) {
-  return level < kContrastMin ? kContrastMin
-                              : (level > kContrastMax ? kContrastMax : level);
-}
-
-constexpr Uint8 toneChannel(Uint8 field, int16_t delta) {
-  return static_cast<Uint8>(field + delta < 0
-                                ? 0
-                                : (field + delta > 255 ? 255 : field + delta));
-}
-
-constexpr bool toneIs(const Uint8 (&field)[3], int16_t delta, Uint8 r, Uint8 g,
-                      Uint8 b) {
-  return toneChannel(field[0], delta) == r && toneChannel(field[1], delta) == g &&
-         toneChannel(field[2], delta) == b;
-}
-
-constexpr bool toneMatches(const Uint8 (&field)[3], int16_t delta,
-                           const Uint8 (&want)[3]) {
-  return toneIs(field, delta, want[0], want[1], want[2]);
-}
-
-// THE TABLES CANNOT DRIFT FROM THE PALETTE ABOVE OR FROM THE COMMENT.
-// +/-1 must reproduce the shipped tones exactly (this is what makes an untouched
-// pad pixel-identical), +/-4 must land on the 3:1 rung the accessibility note
-// names, and +/-9 must reach the gamut end.
-static_assert(toneMatches(kLightPalette.field,
-                          kOutlineDeltaLight[-1 + kContrastOffset],
-                          kLightPalette.hairline),
-              "light outline level -1 must be the shipped D9D9D7 stroke");
-static_assert(toneMatches(kLightPalette.field,
-                          kFillDeltaLight[-1 + kContrastOffset],
-                          kLightPalette.faceDown),
-              "light fill level -1 must be the shipped EDEDEB wash");
-static_assert(toneMatches(kDarkPalette.field,
-                          kOutlineDeltaDark[1 + kContrastOffset],
-                          kDarkPalette.hairline),
-              "dark outline level +1 must be the shipped 333333 stroke");
-static_assert(toneMatches(kDarkPalette.field, kFillDeltaDark[1 + kContrastOffset],
-                          kDarkPalette.faceDown),
-              "dark fill level +1 must be the shipped 202020 wash");
-static_assert(toneIs(kLightPalette.field,
-                     kOutlineDeltaLight[-4 + kContrastOffset], 0x92, 0x92, 0x90),
-              "light outline level -4 must be 929290, the 3:1 rung");
-static_assert(toneIs(kDarkPalette.field, kOutlineDeltaDark[4 + kContrastOffset],
-                     0x61, 0x61, 0x61),
-              "dark outline level +4 must be 616161, the 3:1 rung");
-static_assert(toneIs(kLightPalette.field,
-                     kOutlineDeltaLight[-9 + kContrastOffset], 0, 0, 0) &&
-                  toneIs(kLightPalette.field,
-                         kFillDeltaLight[-9 + kContrastOffset], 0, 0, 0),
-              "light level -9 must reach black");
-static_assert(toneIs(kDarkPalette.field, kOutlineDeltaDark[9 + kContrastOffset],
-                     0xFF, 0xFF, 0xFF) &&
-                  toneIs(kDarkPalette.field, kFillDeltaDark[9 + kContrastOffset],
-                         0xFF, 0xFF, 0xFF),
-              "dark level +9 must reach white");
-
-// The live palette. `field` and `face` come straight from the appearance's
-// constants -- only the stroke and the wash are on a dial.
-Palette makePalette(bool dark, int outlineLevel, int fillLevel) {
-  const Palette &base = dark ? kDarkPalette : kLightPalette;
-  const int16_t *outline = dark ? kOutlineDeltaDark : kOutlineDeltaLight;
-  const int16_t *fill = dark ? kFillDeltaDark : kFillDeltaLight;
-  const int oi = clampLevel(outlineLevel) + kContrastOffset;
-  const int fi = clampLevel(fillLevel) + kContrastOffset;
-  Palette p = base;
-  for (int c = 0; c < 3; c++) {
-    p.face[c] = base.field[c];
-    p.hairline[c] = toneChannel(base.field[c], outline[oi]);
-    p.faceDown[c] = toneChannel(base.field[c], fill[fi]);
-  }
-  return p;
-}
+// THE PALETTE, THE CONTRAST LADDER AND THE PRESETS LIVE IN PadPalette.h, which
+// is pure (no SDL, no UIKit, no clock) so tests/pad_palette_test.cpp can check
+// every rung, every preset and every Root.plist label on a host. The design
+// record -- hollow controls, why the fine end sits in the field's roomy
+// direction, why the scale is signed and field-relative rather than an absolute
+// 0-100% lightness, the WCAG 1.4.11 position, and the rejected alternatives --
+// is the comment at the top of that header. What stays here is only the live
+// state and the polling that keeps it current.
+using padpalette::Palette;
 
 bool g_dark = false;
-Palette g_palette = kLightPalette;
+Palette g_palette = padpalette::kLightPalette;
 const Palette &palette() { return g_palette; }
 
 // THE FIELD AND THE PANEL BOTH FOLLOW THE APPEARANCE.
@@ -848,8 +639,19 @@ int g_appliedDark = -1;
 // What makePalette was last called with. Out of range on purpose so the first
 // pollPadContrast after a theme change cannot mistake a stale level for a match;
 // applyTheme writes them itself, so in practice the poll is already satisfied.
-int g_appliedOutline = kContrastMin - 1;
-int g_appliedFill = kContrastMin - 1;
+int g_appliedOutline = padpalette::kContrastMin - 1;
+int g_appliedFill = padpalette::kContrastMin - 1;
+
+// The four fine pickers and the preset row above them collapse into the two
+// levels actually painted. Custom is the only state in which the fine pickers
+// are read at all -- see PadPalette.h for why the preset overrides rather than
+// writes them.
+padpalette::Levels currentLevels(bool dark) {
+  const int d = dark ? 1 : 0;
+  return padpalette::resolveLevels(CrossPointPrefs_padContrastPreset(), dark,
+                                   CrossPointPrefs_padOutlineContrast(d),
+                                   CrossPointPrefs_padFillContrast(d));
+}
 
 void applyTheme() {
   g_dark = systemIsDark();
@@ -857,9 +659,10 @@ void applyTheme() {
   // The levels are per-appearance, so a light->dark flip changes which pair is
   // in force. Read them here rather than leaving it to the next poll: the
   // palette this call publishes has to be the finished one.
-  g_appliedOutline = CrossPointPrefs_padOutlineContrast(g_appliedDark);
-  g_appliedFill = CrossPointPrefs_padFillContrast(g_appliedDark);
-  g_palette = makePalette(g_dark, g_appliedOutline, g_appliedFill);
+  const padpalette::Levels lv = currentLevels(g_dark);
+  g_appliedOutline = lv.outline;
+  g_appliedFill = lv.fill;
+  g_palette = padpalette::makePalette(g_dark, g_appliedOutline, g_appliedFill);
   const Palette &p = palette();
   SimulatorOverlay::setClearColor(p.field[0], p.field[1], p.field[2]);
   SimulatorOverlay::setPanelDark(g_dark);
@@ -936,6 +739,11 @@ void pollAppearance() {
 // The pad's two tones, on the same terms as pollAppearance above and for the
 // same reasons.
 //
+// EDGE-TRIGGERED ON THE RESOLVED LEVELS, not on the raw preferences. That is
+// what makes the preset row free: switching Current -> Accessible changes the
+// levels and repaints, while editing a fine picker under a non-Custom preset
+// changes nothing and correctly repaints nothing.
+//
 // SETTINGS.APP IS A SEPARATE APP, so a change to these arrives while CrossPoint
 // is backgrounded and there is no event to hang it on -- iOS posts
 // NSUserDefaultsDidChangeNotification only for changes this process made.
@@ -947,16 +755,15 @@ void pollAppearance() {
 // Main thread only, pumps no SDL events, holds no timer -- the same three
 // constraints pollAppearance lives under.
 void pollPadContrast() {
-  const int dark = g_dark ? 1 : 0;
-  const int outline = CrossPointPrefs_padOutlineContrast(dark);
-  const int fill = CrossPointPrefs_padFillContrast(dark);
-  if (outline == g_appliedOutline && fill == g_appliedFill) return;
-  g_appliedOutline = outline;
-  g_appliedFill = fill;
-  g_palette = makePalette(g_dark, outline, fill);
+  const padpalette::Levels lv = currentLevels(g_dark);
+  if (lv.outline == g_appliedOutline && lv.fill == g_appliedFill) return;
+  g_appliedOutline = lv.outline;
+  g_appliedFill = lv.fill;
+  g_palette = padpalette::makePalette(g_dark, lv.outline, lv.fill);
   SimulatorOverlay::requestPresent();
-  SDL_Log("[harness] pad contrast (%s) -> outline %+d, fill %+d",
-          g_dark ? "dark" : "light", outline, fill);
+  SDL_Log("[harness] pad contrast (%s) -> preset %d, outline %+d, fill %+d",
+          g_dark ? "dark" : "light", CrossPointPrefs_padContrastPreset(),
+          lv.outline, lv.fill);
 }
 
 // THE FIRST FRAMES AFTER A FOREGROUND RETURN ARE THROWN AWAY, so keep asking.

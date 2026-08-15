@@ -198,46 +198,86 @@ appearances; the old arrangement stepped away from the field and ran into the
 4-level ceiling above white and the 18-level floor above black. The stroke is
 specified in device pixels rather than points because the old `S * 0.5f` was
 1.5 px at 3x and could not land on the pixel grid. Numbers, the WCAG 1.4.11
-position and the rejected alternatives are in the palette comment above
-`struct Palette` in `CrossPointIOSShim.cpp`.
+position, why the scale is signed and field-relative rather than an absolute
+0–100% lightness, and the rejected alternatives are in the comment at the top of
+`ios/PadPalette.h`.
 
-**Both tones are owner-settable**, in Settings > CrossPoint X3, as four pickers:
-outline contrast and pressed-fill contrast, each once for light appearance and
-once for dark (the two appearances have opposite headroom, so one shared answer
-would not serve both).
+**Both tones are owner-settable**, in Settings > CrossPoint X3. One preset row
+sets all four at once; four pickers underneath are the manual state.
 
 | Setting | Key | Default |
 |---|---|---|
+| Preset | `padContrastPreset` | Current (1) |
 | Outline contrast, light | `padOutlineContrastLight` | −1 |
 | Outline contrast, dark | `padOutlineContrastDark` | +1 |
 | Pressed fill contrast, light | `padFillContrastLight` | −1 |
 | Pressed fill contrast, dark | `padFillContrastDark` | +1 |
 
-One signed scale for all four. **0 puts the tone on the field** — 1:1, the
-control draws nothing; negative is darker than the field, positive lighter, and
-±9 is the end of the gamut (black in light, white in dark). The rungs between
-are WCAG-meaningful ratios and every row in Settings.app is labeled with its
-real measured ratio against that appearance's field, so 3:1 — the WCAG 1.4.11
-figure for an unlabelled control — is a row you pick (−4 light, +4 dark) rather
-than a rebuild. **±1 is the shipped tone**, which is why the defaults are −1 in
-light and +1 in dark: an untouched pad is pixel-identical to the build before
-these settings existed. The fill ladder is gentler at the low end than the
-outline's, because a wash covers a whole cell where a stroke covers a line.
+The four are per-appearance because light and dark have opposite headroom, and
+per-role because a wash covers a whole cell where a stroke covers a line.
 
-Each appearance's *other* direction runs to the gamut end too, and on the light
-side that is a **dead zone by construction**: the paper is already 4 levels off
-white, so +1..+9 spans four distinct tones between 1.00:1 and 1.03:1 and several
-rows repeat. The rows are kept and labeled honestly ("Lighter than the page —
-1.02:1"); the group's footer says so. Dark's −1..−9 steps two levels at a time
-down to black and needs no caveat.
+**The presets** are `Current` (1), `Accessible` (2), `Transparent` (3) and
+`Custom` (0):
 
-The tones are precomputed delta tables in `CrossPointIOSShim.cpp` (indexed by
-level + 9, `static_assert`ed against the shipped ±1 tones, the ±4 3:1 rung and
-the ±9 gamut ends) — no sRGB luminance is computed at runtime. `pollPadContrast()`
-reads the level every frame from `NSUserDefaults` and repaints only on an edge,
-the same shape as `pollAppearance()`: Settings.app is a separate process, so a
+| Preset | light outline / fill | dark outline / fill | What it is |
+|---|---|---|---|
+| Current | −1 / −1 | +1 / +1 | The shipped look: D9D9D7 stroke and EDEDEB wash on paper (1.364:1, 1.131:1), 333333 and 202020 on ink (1.483:1, 1.150:1). The default, so an untouched install is pixel-identical to the build before presets existed. |
+| Accessible | −4 / −5 | +4 / +5 | The WCAG 1.4.11 3:1 rung, measured: 929290 at 3.01:1 for both roles in light, 616161 at 3.02:1 for both in dark. |
+| Transparent | 0 / 0 | 0 / 0 | Tone equals field. The controls still work; nothing is drawn. |
+| Custom | the four pickers | the four pickers | Whatever was last dialled in. |
+
+A preset **overrides** the four pickers rather than writing them, so a detour
+through Accessible loses nothing and Settings.app is never displaying values the
+app wrote behind its back. Upgrades are migrated once: a preset key that has
+never been written, alongside any of the four holding a non-default value, is
+written as Custom (`migratePadPresetForExistingCustomisation` in
+`CrossPointPrefs.mm`), because defaulting an existing dial to Current would be a
+setting vanishing with no message.
+
+One signed scale for all four pickers. **0 puts the tone on the field** — 1:1,
+the control draws nothing — and **±9 are the absolute gamut ends in BOTH
+appearances: −9 is #000000 and +9 is #FFFFFF whether the field is paper or ink.**
+The rungs between are WCAG-meaningful ratios and every row in Settings.app is
+labeled with its real measured ratio against that appearance's field.
+
+The sign stops meaning "darker/lighter" past ±1, and that is deliberate: **the
+fine end lives in the field's roomy direction.** In light, +1..+8 are all darker
+than the paper and run 1.300:1 down to 1.026:1; in dark, −1..−8 are all lighter
+than 121212 and do the same. That direction used to run to the field's opposite
+gamut end instead, which on the light side was a **dead zone**: +1..+9 spanned
+FBFBF9 → FFFFFD, 1.000:1 to 1.030:1, several rows pixel-identical, while the two
+rows an owner most wants to choose between — the default and invisible — were
+adjacent integers. That was fixed in `258bb14`, and this file described the
+broken state for some time after; `tonesDistinct` in `PadPalette.h` is now a
+`static_assert` that stops it returning, with a runtime check in
+`tests/pad_palette_test.cpp` alongside.
+
+Each appearance still reaches its opposite gamut end, on exactly **one** row,
+listed last after invisible: dark has always had −9 = black (1.121:1 on 121212),
+and light now has +9 = white (1.036:1 on FBFBF9). Neither is high contrast —
+that is how close each field already sits to that end — but each is the one tone
+that vanishes into a true-black or a blown-out white page, and neither was
+reachable from a row that named a ratio and never said the color. Light +9 was
+1.017:1 (F9F9F7) before this; the finest light rungs are now +8, at 1.035:1
+(stroke) and 1.026:1 (wash).
+
+The tones are precomputed delta tables in `ios/PadPalette.h` (indexed by
+level + 9, `static_assert`ed against the shipped ±1 tones, the four 3:1 rungs,
+all eight gamut ends, the three presets, and pairwise tone distinctness) — no
+sRGB luminance is computed at runtime. That header is pure — no SDL, no UIKit,
+no clock, the same discipline as `PadCore.h` — so `tests/pad_palette_test.cpp`
+recomputes every ratio on a host and cross-checks it against the label
+`Root.plist` actually ships. Every failure mode in here is silent (a rung equal
+to the field paints nothing, a mislabelled row lies to the one person the labels
+are for), which is why it is a test and not a habit.
+
+`pollPadContrast()` resolves the preset and the four levels every frame from
+`NSUserDefaults` and repaints only on an edge **in the resolved levels**, the
+same shape as `pollAppearance()`: Settings.app is a separate process, so a
 change made there arrives with no event to hang it on, and an e-ink presentation
-model cannot afford a present per frame.
+model cannot afford a present per frame. Edge-triggering on the resolved pair is
+what makes the preset free — editing a fine picker under a non-Custom preset
+changes nothing and correctly repaints nothing.
 
 | Control | Button index |
 |---|---|
