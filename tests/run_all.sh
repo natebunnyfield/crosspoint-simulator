@@ -79,6 +79,11 @@ run pad_core \
 run pad_palette \
   c++ -std=c++17 -Iios -o "$OUT/pad_palette" tests/pad_palette_test.cpp
 
+# The keyboard chip's chevron: that it antialiases, and that it is still the
+# same shape it was when the owner approved it.
+run chevron_coverage \
+  c++ -std=c++17 -Iios -o "$OUT/chevron_coverage" tests/chevron_coverage_test.cpp
+
 run wifi_host \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 -o "$OUT/wifi_host" tests/wifi_host_test.cpp
 

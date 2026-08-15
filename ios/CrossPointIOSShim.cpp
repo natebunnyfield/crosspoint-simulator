@@ -59,6 +59,7 @@
 #include "CrossPointAppearance.h"
 #include "CrossPointPrefs.h"
 #include "CrossPointAccessibility.h"
+#include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
 #include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
@@ -870,18 +871,64 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
   const float cx = c.x + c.w / 2.0f;
   const float top = c.y + (c.h - glyphH) / 2.0f;
 
-  // The chevron as stacked one-pixel rows: no geometry API, and it stays crisp
-  // at any density instead of being resampled from a rotated rect.
-  setRGB(r, p.hairline);
-  const float arm = SDL_max(1.0f, SDL_roundf(chevH * 0.42f));
-  for (float i = 0; i < chevH; i += 1.0f) {
-    // Points where the keyboard is about to go. Converged at the top spreading
-    // down is "^" (summon); the mirror is "v" (dismiss), which is the glyph iOS
-    // puts on its own dismiss key.
-    const float off = keyboardUp ? chevH - i : i;
-    fillRect(r, cx - off - arm / 2, top + i, arm, 1);
-    fillRect(r, cx + off - arm / 2, top + i, arm, 1);
+  // The chevron, rasterised by COVERAGE. No geometry API, no rotated rect to
+  // resample -- the original reasons stand, and this keeps them.
+  //
+  // WHAT WAS WRONG. It was stacked one-pixel rows with the offset stepping by a
+  // whole pixel per row, so every edge was hard: measured off the Metal renderer
+  // at iPhone numbers (402x874pt @3x), the chevron came back with exactly two
+  // levels, 0 and 255, and nothing in between. That makes it the only
+  // unantialiased diagonal on the screen -- the dismiss bar above it, the system
+  // keyboard, every SF Symbol beside it are all coverage-antialiased -- and an
+  // aliased edge among smooth ones reads as jagged even when the steps are a
+  // single device pixel.
+  //
+  // WHAT IT IS NOT. Not the block-scaling the firmware renderer has at
+  // RENDER_SCALE > 1: the overlay is painted with logical presentation dropped
+  // (HalDisplay.cpp:960-965), so these coordinates are already real device
+  // pixels, and SDL_WINDOW_HIGH_PIXEL_DENSITY (HalDisplay.cpp:571) means the
+  // drawable is the native 3x backing store. Nothing here was being upscaled.
+  //
+  // THE SHAPE IS UNCHANGED, deliberately -- blurring the old boundary would only
+  // blur a staircase, since `off` WAS the integer row index. ChevronCoverage.h
+  // holds the shape and the argument for it, and tests/chevron_coverage_test.cpp
+  // pins that it still antialiases and still has the old extents and weight.
+  // Points where the keyboard is about to go. Converged at the top spreading
+  // down is "^" (summon); the mirror is "v" (dismiss), which is the glyph iOS
+  // puts on its own dismiss key.
+  const chevron::Geometry chev{cx, top, chevH,
+                               SDL_max(1.0f, SDL_roundf(chevH * 0.42f)),
+                               keyboardUp};
+  const chevron::Bounds bb = chevron::bounds(chev);
+
+  // Partial coverage needs alpha, and every other painter here draws opaque, so
+  // the blend mode is put back rather than left changed for whatever paints next.
+  SDL_BlendMode prevBlend = SDL_BLENDMODE_NONE;
+  SDL_GetRenderDrawBlendMode(r, &prevBlend);
+  SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+  for (int py = bb.y0; py <= bb.y1; py++) {
+    // Runs of equal coverage collapse into one rect, which keeps this near the
+    // draw-call count of the loop it replaces. It only runs while a text field
+    // is open, which is the only time the chip exists at all.
+    int runStart = bb.x0;
+    int runAlpha = 0;
+    for (int px = bb.x0; px <= bb.x1 + 1; px++) {
+      const int alpha =
+          px > bb.x1 ? 0
+                     : static_cast<int>(SDL_lroundf(chevron::coverage(chev, px, py) * 255.0f));
+      if (alpha == runAlpha) continue;
+      if (runAlpha > 0) {
+        SDL_SetRenderDrawColor(r, p.hairline[0], p.hairline[1], p.hairline[2],
+                               static_cast<Uint8>(runAlpha));
+        fillRect(r, static_cast<float>(runStart), static_cast<float>(py),
+                 static_cast<float>(px - runStart), 1);
+      }
+      runStart = px;
+      runAlpha = alpha;
+    }
   }
+  SDL_SetRenderDrawBlendMode(r, prevBlend);
+  setRGB(r, p.hairline);
 
   // The keyboard: a solid body with the keys PUNCHED back out in the face
   // tone. Punching rather than stroking each key is what keeps it legible at
