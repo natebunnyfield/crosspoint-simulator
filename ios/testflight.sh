@@ -247,22 +247,34 @@ PBXPROJ="$BUILD_DIR/crosspoint_simulator.xcodeproj/project.pbxproj"
 CORE_DEFS=$(xcodebuild -project "$BUILD_DIR/crosspoint_simulator.xcodeproj" \
               -target crosspoint_core -configuration Release -showBuildSettings 2>/dev/null \
             | grep -E '^[[:space:]]*GCC_PREPROCESSOR_DEFINITIONS =' || true)
+# The expected scale is READ from ios/CMakeLists.txt rather than written here.
+# Hardcoding "=2" meant that raising the scale failed this gate with a message
+# claiming the build was missing a define it had deliberately changed -- the
+# guard accusing the fix. What must be verified is that the compiler agrees with
+# the CMakeLists, whatever value that names.
+EXPECTED_SCALE=$(sed -n 's/^set(CROSSPOINT_IOS_RENDER_SCALE \([0-9][0-9]*\).*/\1/p' \
+                   "$REPO/ios/CMakeLists.txt" | head -n 1)
+if [[ -z "$EXPECTED_SCALE" ]]; then
+  echo "ERROR: could not read CROSSPOINT_RENDER_SCALE from ios/CMakeLists.txt" >&2
+  exit 1
+fi
+
 MISSING=""
-for d in SIMULATOR_DEVICE_X3 "CROSSPOINT_RENDER_SCALE=2"; do
+for d in SIMULATOR_DEVICE_X3 "CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"; do
   case "$CORE_DEFS" in
     *"$d"*) ;;
     *) MISSING="$MISSING $d" ;;
   esac
 done
 if [[ -z "$MISSING" ]]; then
-  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3 and CROSSPOINT_RENDER_SCALE=2"
+  echo "  crosspoint_core carries SIMULATOR_DEVICE_X3 and CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE"
 else
   echo "ERROR: crosspoint_core is missing:$MISSING"
   echo "  These are the defines the FIRMWARE compiles against, so the archive"
   echo "  would ship a binary whose halves disagree. Without SIMULATOR_DEVICE_X3"
   echo "  the firmware builds an X4: no RTC, wrong panel geometry (800x480 vs"
   echo "  792x528), and calendar sleep screens fall back to the stock logo"
-  echo "  screen. Without CROSSPOINT_RENDER_SCALE=2 it ships 1x glyphs."
+  echo "  screen. Without CROSSPOINT_RENDER_SCALE=$EXPECTED_SCALE it ships 1x glyphs."
   echo "  Both have shipped before. Set the define on crosspoint_core (PUBLIC),"
   echo "  never PRIVATE on the app target."
   exit 1

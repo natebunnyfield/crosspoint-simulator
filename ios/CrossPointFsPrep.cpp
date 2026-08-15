@@ -310,11 +310,18 @@ void seedBundledFontFamilies() {
     // Fall back to copy+prune when `to` is already a real directory (existing
     // install or user-populated family). Keeps updates landing correctly.
     seedOneFontDirectory(from, to);
-    // The hi-res companion set lives in `<family>/2x/` and must be seeded into
-    // the same shape on the card, or SdCardFontManager finds no companion and
-    // the renderer silently falls back to replicating the 1x glyphs -- which
-    // looks exactly like today rather than like a failure.
-    seedOneFontDirectory(from + "/2x", to + "/2x");
+    // The hi-res companion set lives in `<family>/<scale>x/` and must be seeded
+    // into the same shape on the card, or SdCardFontManager finds no companion
+    // and the renderer silently falls back to replicating the 1x glyphs --
+    // which looks like today rather than like a failure.
+    //
+    // The tier name is derived from CROSSPOINT_RENDER_SCALE rather than written
+    // as "2x", so it follows the scale the binary was actually compiled at. A
+    // literal here would seed the wrong tier the moment the scale moved, and
+    // the symptom -- coarser glyphs -- looks like a rendering bug rather than a
+    // missing file.
+    const std::string hiResDir = "/" + std::to_string(CROSSPOINT_RENDER_SCALE) + "x";
+    seedOneFontDirectory(from + hiResDir, to + hiResDir);
   }
 }
 
