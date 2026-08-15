@@ -37,13 +37,29 @@ int CrossPointPrefs_wantsScreenAwake(void);
 // answer is stored per appearance because light and dark have opposite
 // headroom. `dark` is 1 for the dark appearance, 0 for light.
 //
-// The level indexes the delta tables in CrossPointIOSShim.cpp; the mapping from
+// The level indexes the delta tables in ios/PadPalette.h; the mapping from
 // level to a measured contrast ratio lives there and in Root.plist's row
 // labels, not here.
+//
+// THESE TWO ARE ONLY CONSULTED WHEN THE PRESET BELOW IS Custom. They are read
+// and clamped regardless, so the caller can resolve the pair itself
+// (padpalette::resolveLevels) and so that switching back to Custom restores
+// whatever the owner last dialled in.
 //
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_padOutlineContrast(int dark);
 int CrossPointPrefs_padFillContrast(int dark);
+
+// Which named pad-contrast preset is selected: one of padpalette::Preset
+// (0 Custom, 1 Current, 2 Accessible, 3 Transparent). Anything else is returned
+// unchanged and resolved as Current by padpalette::resolveLevels, which is the
+// safe direction — an unknown value must not produce an invisible pad.
+//
+// Current is the default and is the shipped look, so an untouched install is
+// pixel-identical to the build before presets existed.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_padContrastPreset(void);
 
 // Is read-aloud TTS enabled? 1 = read the open book aloud (see
 // CrossPointReadAloud.h), 0 = off, the default. A phone property like the

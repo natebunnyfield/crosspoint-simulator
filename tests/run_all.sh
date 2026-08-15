@@ -74,6 +74,11 @@ cd "$REPO"
 run pad_core \
   c++ -std=c++17 -Iios -o "$OUT/pad_core" tests/pad_core_test.cpp ios/PadCore.cpp
 
+# Reads ios/Settings.bundle/Root.plist from the repo root -- hence the `cd`
+# above -- and cross-checks every row label against the tone that row selects.
+run pad_palette \
+  c++ -std=c++17 -Iios -o "$OUT/pad_palette" tests/pad_palette_test.cpp
+
 run wifi_host \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 -o "$OUT/wifi_host" tests/wifi_host_test.cpp
 
