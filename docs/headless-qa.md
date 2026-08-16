@@ -57,6 +57,24 @@ Chapter, or on Home depending on what the previous run left in
 entirely on the next run. Either pin the state first, or capture an early
 screenshot and confirm where you actually are before trusting the rest.
 
+**The lever is `readerActivityLoadCount` in `fs_/.crosspoint/state.json`, and a
+timed-out run is what moves it.** That counter is the firmware's crash-recovery
+escape hatch: non-zero means "the reader did not exit cleanly last time, go to
+Home instead". Every headless run that ends on `QUIT` or a `timeout` leaves it
+at 1, so a series of otherwise identical runs alternates between resuming the
+book and landing on Home — which reads as a flaky harness. Writing it back to
+**0** before each launch makes the run resume the book deterministically:
+
+```bash
+python3 -c "import json;p='fs_/.crosspoint/state.json';d=json.load(open(p));\
+d['readerActivityLoadCount']=0;json.dump(d,open(p,'w'))"
+```
+
+Confirm it took by grepping the log for `Entering activity: EpubReader`. This
+is the concrete mechanism behind the paragraph above; found 2026-08-16 while
+capturing palette proofs, after five identical runs produced two different
+screens.
+
 ### 5. Captures are BMP, whatever you name them
 
 `SDL_SaveBMP` writes the file (`src/HalDisplay.cpp:266`), so `shot.png` is a
