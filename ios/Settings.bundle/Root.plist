@@ -72,13 +72,13 @@ Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then en
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>The two colours the page is drawn in: the ink a black pixel becomes and the paper a white one becomes. Every grey in between is mixed from the pair, so the page keeps its shading whatever you choose. Each option sets a light and a dark version; the app follows the system appearance.
+			<string>The two colors the page is drawn in: the ink a black pixel becomes and the paper a white one becomes. Every gray in between is mixed from the pair, so the page keeps its shading whatever you choose. Each option sets a light and a dark version; the app follows the system appearance.
 
 Default is what the app has always drawn — a soft black on warm white, measured from an e-ink panel. High Contrast is pure black on pure white. Sepia and Cool Gray warm and cool the page without losing contrast (10.2:1 and 13.2:1; the default is 13.3:1).
 
 Choose Custom to type your own, in the four fields below. They keep whatever you last entered, so a detour through a preset loses nothing.</string>
 			<key>Title</key>
-			<string>Page Colours</string>
+			<string>Page Colors</string>
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 		</dict>
@@ -101,7 +101,7 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<string>Nord — cool pale, 10.8:1</string>
 				<string>Gruvbox Light — warm pale, 10.2:1</string>
 				<string>Latte — neutral pale, 7.1:1</string>
-				<string>Custom — use the colours below</string>
+				<string>Custom — use the colors below</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -122,13 +122,13 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Used only when Palette is Custom. Six hex digits, as on the web: 2D2D2D, #2D2D2D and 0x2D2D2D are all accepted. A field left empty, or holding anything else, falls back to the Default colour for that slot — so one typo costs you one colour, not the page.
+			<string>Used only when Palette is Custom. Six hex digits, as on the web: 2D2D2D, #2D2D2D and 0x2D2D2D are all accepted. A field left empty, or holding anything else, falls back to the Default color for that slot — so one typo costs you one color, not the page.
 
-Nothing here is checked for legibility. Ink and paper set to similar colours will produce a page you cannot read; that is the point of typing it yourself rather than picking from the list.
+Nothing here is checked for legibility. Ink and paper set to similar colors will produce a page you cannot read; that is the point of typing it yourself rather than picking from the list.
 
-The button pad follows the paper colour, so its outlines stay a fixed step away from whatever you choose. The contrast figures printed on the Button Pad rows are measured against the Default paper and will be approximate against a custom one.</string>
+The button pad follows the paper color, so its outlines stay a fixed step away from whatever you choose. The contrast figures printed on the Button Pad rows are measured against the Default paper and will be approximate against a custom one.</string>
 			<key>Title</key>
-			<string>Page Colours — Custom</string>
+			<string>Page Colors — Custom</string>
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 		</dict>

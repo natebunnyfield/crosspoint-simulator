@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The two keyboard chips must take their colours from ONE source.
+"""The two keyboard chips must take their colors from ONE source.
 
 The SHOW chip is painted by SDL every frame from the pad palette, which is built
 on the owner's chosen paper (`makePaletteOn(..., panel.paper)` in
@@ -9,13 +9,13 @@ accessory bar (CrossPointKeyboardBar.mm) and is painted once, by hand.
 For a long time the hide chip carried the shipped tones written out as hex
 literals. That was invisible while the palette was fixed, and became a visible
 bug the moment it became settable: choose Green CRT and the show chip went
-phosphor while the hide chip stayed grey -- two halves of the same gesture in
-two different colours (owner, 2026-08-15: "match hide keyboard color to show
+phosphor while the hide chip stayed gray -- two halves of the same gesture in
+two different colors (owner, 2026-08-15: "match hide keyboard color to show
 keyboard color").
 
 The fix routed both through `crosspoint::panelForPrefs` in ios/PanelPrefs.h.
 This test is what stops the literals coming back, because nothing else can see
-them: a hardcoded colour compiles, links, passes every other test here, and is
+them: a hardcoded color compiles, links, passes every other test here, and is
 only wrong on screen -- and only under a non-default palette.
 
 Deliberately source-level. The real check would render the chip, but that needs
@@ -43,9 +43,9 @@ def check(ok, msg):
 bar = BAR.read_text()
 shim = SHIM.read_text()
 
-# 1. The hide chip must not carry colour literals of its own. Matches the shape
+# 1. The hide chip must not carry color literals of its own. Matches the shape
 #    the old code used -- a UIColor built from hex components -- rather than any
-#    stray 0x, so the glyph rasteriser's own constants do not trip it.
+#    stray 0x, so the glyph rasterizer's own constants do not trip it.
 literal = re.compile(r"colorWithRed:\s*0x[0-9A-Fa-f]{2}")
 hits = literal.findall(bar)
 check(
@@ -57,7 +57,7 @@ check(
 # 2. ...and it must actually reach the shared resolver.
 check(
     "panelForPrefs" in bar,
-    f"{BAR.name} never calls crosspoint::panelForPrefs -- its colours cannot be "
+    f"{BAR.name} never calls crosspoint::panelForPrefs -- its colors cannot be "
     "following the owner's palette",
 )
 check(
