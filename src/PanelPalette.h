@@ -267,7 +267,7 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // dE2000 10.4 from Amber CRT's #FFB000 -- i.e. Amber with extra steps.
   //
   // The tone axis is the sepia pigment itself, #704214 (Maerz and Paul, A
-  // Dictionary of Colour, 1930, via Wikipedia's Sepia (color)). Two deliberate
+  // Dictionary of Color, 1930, via Wikipedia's Sepia (color)). Two deliberate
   // departures from the other CRT rows, both taken to keep this row from
   // painting a page one of its neighbours already paints:
   //
