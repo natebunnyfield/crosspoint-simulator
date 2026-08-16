@@ -1068,6 +1068,21 @@ void HalGPIO::setHostKeyboardVisible(const bool visible) {
 }
 
 bool HalGPIO::isHostKeyboardVisible() const {
+  // CROSSPOINT_SIM_HOST_KEYBOARD forces the answer, on the same terms as
+  // CROSSPOINT_SIM_DARK and CROSSPOINT_SIM_PANEL_*: the desktop has no host
+  // keyboard at all, so without this the "a phone keyboard is up" branch --
+  // which is now a LAYOUT branch, since the editors drop their own panel and
+  // give the rows to text -- cannot be rendered, screenshotted or diffed
+  // anywhere but a phone. Only meaningful while a field is open, hence the
+  // same textEntryActive gate the real answer carries.
+  //
+  // Unset or unparseable leaves the real state alone.
+  if (const char *forced = std::getenv("CROSSPOINT_SIM_HOST_KEYBOARD")) {
+    if (forced[0] == '1' && forced[1] == '\0')
+      return textEntryActive.load();
+    if (forced[0] == '0' && forced[1] == '\0')
+      return false;
+  }
   return hostKeyboard.wants(textEntryActive.load());
 }
 
