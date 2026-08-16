@@ -71,7 +71,7 @@ inline constexpr Palette kDefaultDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
 //   Gruvbox Light  10.22:1 light   10.75:1 dark
 //   Latte           7.06:1 light   11.34:1 dark
 //   Red CRT        10.22:1 light    7.33:1 dark
-//   Grey CRT       11.14:1 light   13.92:1 dark
+//   Gray CRT       11.14:1 light   13.92:1 dark
 //
 // None is below 7:1 except Solarized, which is deliberate: this is a page of body text, and the
 // dial exists to change its CHARACTER, not to let someone make it unreadable by
@@ -94,7 +94,7 @@ enum Preset : int {
   kPresetLatte = 10,          // neutral pale minimal (Catppuccin Latte)
   // Appended 2026-08-16 by owner ruling. Same APPEND-ONLY rule as above.
   kPresetRedCrt = 11,         // P22R phosphor -- see the caveat at its case
-  kPresetGreyCrt = 12,        // P4 phosphor
+  kPresetGrayCrt = 12,        // P4 phosphor
 };
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
@@ -114,7 +114,7 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
          preset == kPresetNord || preset == kPresetGruvboxLight ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
-         preset == kPresetGreyCrt;
+         preset == kPresetGrayCrt;
 }
 
 // The pair a named preset selects. kPresetCustom has no pair of its own -- the
@@ -163,7 +163,7 @@ constexpr Palette presetPalette(int preset, bool dark) {
                 : Palette{{0x4C, 0x4F, 0x69}, {0xEF, 0xF1, 0xF5}};
   // P22R (Y2O2S:Eu), CIE x=0.647 y=0.343, peak 611 nm -- measured by Phosphor
   // Technology Ltd, and corroborated by the EBU/Rec.709 red primary at
-  // (0.640, 0.330), which IS this phosphor standardised.
+  // (0.640, 0.330), which IS this phosphor standardized.
   //
   // BE HONEST ABOUT WHAT THIS ROW IS. A red monochrome TERMINAL never shipped:
   // Wikipedia's Monochrome monitor article enumerates the options as green
@@ -171,7 +171,7 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // the JEDEC list carries "data display" as its application. What did exist as
   // a physically monochrome red CRT is the RED TUBE OF A THREE-TUBE PROJECTOR
   // (P56, Y2O3:Eu, x=0.650 y=0.346 -- the same europium red one designation
-  // over), plus the red gun of every colour tube and a beam-penetration display
+  // over), plus the red gun of every color tube and a beam-penetration display
   // driven at low anode voltage. So this is a real phosphor rendered as a page,
   // not a terminal anyone sat in front of. The radar oranges (P19/P26/P33/P38)
   // were considered and rejected: they emit at 590-595 nm, which is Amber CRT's
@@ -199,7 +199,7 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // not a liberty. A white data-display CRT patented separately (US4377768)
   // puts its screen at (0.275, 0.295), ~10,600 K, which agrees.
   //
-  // Called Grey rather than White because the page it makes is a grey page. It
+  // Called Gray rather than White because the page it makes is a gray page. It
   // is deliberately a stronger cool tint than Cool Gray, which is a neutral
   // page that merely leans cold: a P4 page derived honestly from the JEDEC
   // centroid lands right on top of Cool Gray unless the tint is allowed to
@@ -213,12 +213,12 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // dark ink is the JEDEC centroid at the brightest luminance sRGB can carry
   // it (#C9E7FF); tinting THAT to the family's paper luminance needs only an
   // 18% blend toward D65 and yields #D4ECFF, which measures a perfectly legal
-  // 10.23:1 and reads on the panel as a SKY BLUE page, not a grey one. Blending
+  // 10.23:1 and reads on the panel as a SKY BLUE page, not a gray one. Blending
   // 52.5% instead gives #E7F4FF at 11.14:1 -- the same hue direction, a quarter
   // of the saturation, and a page that looks like a white-phosphor tube.
   // Green and Amber never hit this because their phosphors sit so far outside
   // sRGB that reaching page luminance desaturates them anyway.
-  case kPresetGreyCrt:
+  case kPresetGrayCrt:
     return dark ? Palette{{0xC9, 0xE7, 0xFF}, {0x14, 0x18, 0x1A}}
                 : Palette{{0x2D, 0x35, 0x3C}, {0xE7, 0xF4, 0xFF}};
   case kPresetDefault:

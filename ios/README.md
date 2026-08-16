@@ -46,15 +46,15 @@ Verified on an iPhone Air simulator (`iOS 26.5`, native 1260×2736 px):
   horizontal press turns the page, BACK returns to the library.
 - **1-bit fidelity is exact.** 0 of 418,176 origin-aligned 2×2 blocks are
   non-uniform, so integer scale with nearest-neighbor sampling is holding. With
-  the diagnostic pattern enabled the panel contains exactly two colours.
+  the diagnostic pattern enabled the panel contains exactly two colors.
 - **Geometry.** Panel 1056×1584 px at 2×, centered, on a white field that matches
   a blank page so no panel edge is visible.
 
 Not yet run on a physical device — no iPhone Air is paired to this Mac. It HAS
 been built and run on the iOS Simulator (2026-08-15, iPhone 13 mini): the app
-launches, the panel presents, and the Page Colours setting was confirmed to
+launches, the panel presents, and the Page Colors setting was confirmed to
 reach pixels end to end — writing `panelPalettePreset` to 6 and relaunching
-changed the dominant colours from `#E0E0DE on #121212` to `#33FF33 on #001A00`,
+changed the dominant colors from `#E0E0DE on #121212` to `#33FF33 on #001A00`,
 matching `PanelPalette.h` exactly. That run also logged
 `scale 0.6717 (FRACTIONAL) ... filter linear`, i.e. the minified-panel bilinear
 path is live on iOS.
@@ -338,7 +338,7 @@ touch hit-testing itself is PadCore + the rects, covered by
 ### The page's ink and paper
 
 **The two tones the page is drawn in are owner-settable**, in Settings >
-CrossPoint X3 > Page Colours (added 2026-08-15). One preset row selects both
+CrossPoint X3 > Page Colors (added 2026-08-15). One preset row selects both
 appearances; four hex fields underneath are the manual state.
 
 | Setting | Key | Default |
@@ -371,7 +371,7 @@ light-on-dark. Hardcoding an intermediate would break both properties.
 Custom is four text fields accepting `RRGGBB` / `#RRGGBB` / `0xRRGGBB`, either
 case. **Each field falls back independently** — a valid ink beside a mistyped
 paper still gives the owner their ink on the default paper, so one typo costs
-one colour rather than the page. An empty field is a fallback too, which is what
+one color rather than the page. An empty field is a fallback too, which is what
 makes clearing one a way back rather than a way to a blank screen.
 
 **Named presets are floored at 7:1; Custom is not.** `panel_palette_test`
@@ -399,7 +399,7 @@ The definitions, presets, parsing and guards live in
 [src/PanelPalette.h](../src/PanelPalette.h), pure and host-tested
 (`tests/panel_palette_test.cpp`, which also reads the shipped `Root.plist` and
 fails when a preset row's printed ratio disagrees with the tones it selects).
-Every failure mode here is a wrong *colour*, which no compiler and no other test
+Every failure mode here is a wrong *color*, which no compiler and no other test
 in this repo can see.
 
 **Desktop and headless runs reach it through the environment**, there being no
@@ -479,7 +479,7 @@ sketching it, and draws the shipped layout underneath as a dashed ghost.
 
 Four measurements bound whatever gets chosen.
 
-**The inset complaint is a 13-inch complaint.** `leftX` centres the pair in the
+**The inset complaint is a 13-inch complaint.** `leftX` centers the pair in the
 margin, so how far inboard the rockers sit is `(margin - 2 * cell) / 2` — which
 scales with the frame and is nearly nothing on the small ones:
 
@@ -998,7 +998,7 @@ Three controls, one state (`hostkbd::State`, host-tested in
 | Control | Does |
 |---|---|
 | Bar above the keyboard | Lowers it. Rides on the keyboard, so it leaves with it. |
-| Keyboard chip, one cell wide, centred in the bottom row | Toggles it. Drawn whenever a field is open; the chevron points where the keyboard is about to go. |
+| Keyboard chip, one cell wide, centerd in the bottom row | Toggles it. Drawn whenever a field is open; the chevron points where the keyboard is about to go. |
 | Tap anywhere else | **Nothing.** Only the chip toggles the keyboard. |
 
 Off-chip taps used to raise it too, on the theory that a bigger target is
@@ -1303,14 +1303,14 @@ persists as an integer, so inserting one re-points every saved choice:
 | 9 | Gruvbox Light | 10.22:1 | 10.75:1 |
 | 10 | Catppuccin Latte | 7.06:1 | 11.34:1 |
 | 11 | Red CRT | 10.22:1 | 7.33:1 |
-| 12 | Grey CRT | 11.14:1 | 13.92:1 |
+| 12 | Gray CRT | 11.14:1 | 13.92:1 |
 | 0 | Custom | — | — |
 
 Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
 recomputed by `tests/panel_palette_test.cpp` from the shipped bytes on every
 run — the table cannot drift from the code without the test failing.
 
-**Red CRT and Grey CRT (2026-08-16)** are the two rows whose phosphor research
+**Red CRT and Gray CRT (2026-08-16)** are the two rows whose phosphor research
 is written down rather than assumed; the sources, the CIE coordinates and the
 derivation are in [`docs/crt-phosphor-presets.md`](../docs/crt-phosphor-presets.md).
 Two things about them are worth carrying at this level:
@@ -1321,7 +1321,7 @@ Two things about them are worth carrying at this level:
   measures **5.41:1 against pure black**: not 7:1 on any tube, at any tint,
   ever. The trace is desaturated 14.9% toward D65 to clear the floor.
 * **A red monochrome terminal never shipped.** The row is honest about being
-  a real phosphor (P22R, the red gun of every colour tube and the red tube of
+  a real phosphor (P22R, the red gun of every color tube and the red tube of
   a three-tube projector) rather than a machine anyone sat in front of.
 
 **Solarized is the one preset exempt from the 7:1 floor**, and the exemption is
