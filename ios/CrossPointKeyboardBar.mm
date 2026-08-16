@@ -82,7 +82,7 @@ UITextField *sdlTextField() {
 // matching — which is the whole point of this function existing.
 //
 // Rendered as a TEMPLATE image with the keys punched to transparent, so the
-// caller's tintColor is the only thing that decides its colour and the punched
+// caller's tintColor is the only thing that decides its color and the punched
 // keys show whatever is behind.
 UIImage *hideKeyboardGlyph(CGFloat side) {
   const CGFloat glyphH = side * 0.58;
@@ -143,7 +143,7 @@ UIImage *hideKeyboardGlyph(CGFloat side) {
 // These used to be the kDefaultLight / kDefaultDark constants written out by
 // hand. That was invisible until the palette became settable: the SHOW chip is
 // painted by the SDL side from the pad palette, which follows the chosen paper,
-// while this HIDE chip stayed grey. Pick Green CRT and one chip was phosphor
+// while this HIDE chip stayed gray. Pick Green CRT and one chip was phosphor
 // and the other was not (owner, 2026-08-15: "match hide keyboard color to show
 // keyboard color").
 //
@@ -197,7 +197,7 @@ static UIButton *g_hide = nil;
 // re-evaluates on a TRAIT change, and a palette change is not one; and
 // layer.borderColor is a CGColor, resolved once at assignment. Safe to call
 // before the bar exists -- it is a no-op then, and install() picks up the
-// current colours anyway.
+// current colors anyway.
 void CrossPointKeyboardBar_refreshTint(void) {
   dispatch_block_t work = ^{
     if (!g_hide) return;
@@ -246,7 +246,7 @@ void CrossPointKeyboardBar_install(void) {
       bar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 
       // Custom, NOT UIButtonTypeSystem: a system button pulls the app's accent
-      // colour, and this app has no accent -- the panel is ink on paper and
+      // color, and this app has no accent -- the panel is ink on paper and
       // nothing else. Type Custom plus an explicit tint keeps it monochrome.
       UIButton *hide = [UIButton buttonWithType:UIButtonTypeCustom];
       [hide setImage:hideKeyboardGlyph(kButton) forState:UIControlStateNormal];
