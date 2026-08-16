@@ -315,13 +315,22 @@ void seedBundledFontFamilies() {
     // and the renderer silently falls back to replicating the 1x glyphs --
     // which looks like today rather than like a failure.
     //
-    // The tier name is derived from CROSSPOINT_RENDER_SCALE rather than written
-    // as "2x", so it follows the scale the binary was actually compiled at. A
-    // literal here would seed the wrong tier the moment the scale moved, and
-    // the symptom -- coarser glyphs -- looks like a rendering bug rather than a
-    // missing file.
-    const std::string hiResDir = "/" + std::to_string(CROSSPOINT_RENDER_SCALE) + "x";
-    seedOneFontDirectory(from + hiResDir, to + hiResDir);
+    // EVERY tier the bundle carries, not only the one in use right now. The
+    // tier names are derived from CROSSPOINT_RENDER_SCALE (the compile-time
+    // ceiling) rather than written as "2x", so they follow what the binary was
+    // built with; a literal here would seed the wrong tier the moment the scale
+    // moved, and the symptom -- coarser glyphs -- looks like a rendering bug
+    // rather than a missing file.
+    //
+    // All of them, because the owner can change the scale in Settings and the
+    // app cannot re-seed on the way to the next launch. Seeding only the active
+    // tier would leave the OTHER one missing on the launch that starts using
+    // it, silently falling back to replicated 1x glyphs. Tier 1 needs no
+    // companion set; the loop starts at 2 for that reason.
+    for (int tier = 2; tier <= CROSSPOINT_RENDER_SCALE; ++tier) {
+      const std::string hiResDir = "/" + std::to_string(tier) + "x";
+      seedOneFontDirectory(from + hiResDir, to + hiResDir);
+    }
   }
 }
 

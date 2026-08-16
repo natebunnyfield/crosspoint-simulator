@@ -119,6 +119,25 @@ int CrossPointPrefs_panelPalettePreset(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_panelCustomColor(int dark, int ink);
 
+// The supersampling factor the panel is rendered at: 1, 2 or 3 framebuffer
+// pixels per logical pixel on each axis. Clamped by cp::setRenderScale() to
+// [1, CROSSPOINT_RENDER_SCALE], the ceiling this binary was compiled at, so a
+// stale or hand-edited value can never ask for a framebuffer bigger than the
+// one that was allocated.
+//
+// READ ONCE, AT LAUNCH -- unlike everything else in this file. The factor sizes
+// the SDL texture and selects which hi-res glyph tier is registered, both of
+// which are committed before the first frame, so a change takes effect on the
+// next launch. That is stated in the Settings footer rather than left to be
+// discovered. See RenderScale.h and docs/ios-render-scale.md.
+//
+// Defaults to 3, which is what the app has always rendered at
+// (CROSSPOINT_IOS_RENDER_SCALE in ios/CMakeLists.txt), so an untouched install
+// is pixel-identical to the build before this setting existed.
+//
+// Main thread only.
+int CrossPointPrefs_renderScale(void);
+
 #ifdef __cplusplus
 }
 #endif

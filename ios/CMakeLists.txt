@@ -106,30 +106,46 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
         math(EXPR _seed_count "${_seed_count} + ${_n}")
         message(STATUS "Seed fonts: ${_family} (${_n} files)")
       endif()
-      # Hi-res companion set, for the tier this build actually renders at.
+      # Hi-res companion sets, for EVERY tier this build can render at.
       #
-      # The directory name comes from CROSSPOINT_IOS_RENDER_SCALE, not a literal
-      # "2x". Bundling 2x into a scale-3 build is worse than shipping nothing:
+      # The directory name comes from the tier, not a literal "2x". Bundling
+      # only 2x into a scale-3 build is worse than shipping nothing:
       # SdCardFontManager looks for `<family>/3x/` exactly, finds no companion,
       # and every reading face falls back to 1x replicated into 3x3 blocks --
       # coarser than the 2x build it replaced, and silent. A 25 MB IPA that
       # should have been ~120 MB was the only outward sign.
       #
-      # The glob is deliberately separate rather than recursive: these files
+      # EVERY TIER, NOT JUST THE CEILING, since 2026-08-15: the factor is now
+      # the owner's setting, latched at launch (Settings > Page Sharpness, and
+      # RenderScale.h for the mechanism), so the tier the app will ask for is
+      # not known at build time. Missing the tier in use reproduces exactly the
+      # silent fallback above. Tier 1 needs no companion -- at 1x the 1x face
+      # already matches the framebuffer -- so the loop starts at 2, and the
+      # cost of the extra tier is the 2x set (~53 MB against the 3x set's
+      # ~114 MB on the six installed families).
+      #
+      # The globs are deliberately separate rather than recursive: these files
       # must keep their own bundle subdirectory, since the companion is found by
       # the exact path `<family>/<scale>x/<same filename>`, and the hi-res cuts
       # carry the 1x filenames by design.
-      file(GLOB _family_fonts_hr "${_family_dir}/${CROSSPOINT_IOS_RENDER_SCALE}x/*.cpfont")
-      if(_family_fonts_hr)
-        set_source_files_properties(${_family_fonts_hr} PROPERTIES
-          MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}/${CROSSPOINT_IOS_RENDER_SCALE}x")
-        target_sources(CrossPointX3 PRIVATE ${_family_fonts_hr})
-        list(LENGTH _family_fonts_hr _n2)
-        math(EXPR _seed_count "${_seed_count} + ${_n2}")
-        message(STATUS "Seed fonts: ${_family}/${CROSSPOINT_IOS_RENDER_SCALE}x (${_n2} files)")
-      else()
-        message(WARNING "Seed fonts: ${_family} has no ${CROSSPOINT_IOS_RENDER_SCALE}x set -- "
-                        "it will render 1x-replicated at this scale")
+      # Guarded: `foreach(RANGE 2 1)` is a CMake error, not an empty loop, so a
+      # ceiling of 1 would fail configure rather than simply bundle no
+      # companions.
+      if(CROSSPOINT_IOS_RENDER_SCALE GREATER_EQUAL 2)
+      foreach(_tier RANGE 2 ${CROSSPOINT_IOS_RENDER_SCALE})
+        file(GLOB _family_fonts_hr "${_family_dir}/${_tier}x/*.cpfont")
+        if(_family_fonts_hr)
+          set_source_files_properties(${_family_fonts_hr} PROPERTIES
+            MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}/${_tier}x")
+          target_sources(CrossPointX3 PRIVATE ${_family_fonts_hr})
+          list(LENGTH _family_fonts_hr _n2)
+          math(EXPR _seed_count "${_seed_count} + ${_n2}")
+          message(STATUS "Seed fonts: ${_family}/${_tier}x (${_n2} files)")
+        else()
+          message(WARNING "Seed fonts: ${_family} has no ${_tier}x set -- "
+                          "it will render 1x-replicated when the owner picks that scale")
+        endif()
+      endforeach()
       endif()
     endif()
   endforeach()
@@ -205,7 +221,19 @@ target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
 # how TestFlight builds through 15 shipped 1x while the pbxproj showed a =2
 # that only covered the seven harness TUs. PUBLIC so the harness TUs see the
 # same value and the two layers cannot disagree.
-target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_RENDER_SCALE=${CROSSPOINT_IOS_RENDER_SCALE})
+# CROSSPOINT_RENDER_SCALE is now the CEILING: static allocations and which
+# hi-res glyph tiers get compiled in are sized on it, while the factor actually
+# rendered at is latched at launch from Settings > Page Sharpness and may be
+# anything from 1 up to it. CROSSPOINT_RENDER_SCALE_RUNTIME is what turns the
+# active factor from a constant into storage; without it the two are the same
+# number and the setting would be silently ignored.
+#
+# PUBLIC on the core, never PRIVATE on the app target, for the reason the table
+# at the top of this file records: a define that reaches only one target
+# compiles clean and fails somewhere distant.
+target_compile_definitions(crosspoint_core PUBLIC
+  CROSSPOINT_RENDER_SCALE=${CROSSPOINT_IOS_RENDER_SCALE}
+  CROSSPOINT_RENDER_SCALE_RUNTIME=1)
 
 # OMIT_FONTS strips the three NON-DEFAULT built-in reader sizes: Libre Franklin
 # Reader at 12, 16 and 18 pt, four styles each -- twelve faces, ~350 KB of 2-bit
