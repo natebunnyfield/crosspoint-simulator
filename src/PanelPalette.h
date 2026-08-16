@@ -64,8 +64,14 @@ inline constexpr Palette kDefaultDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
 //   High Contrast  21.00:1 both    -- the gamut ends, no tint at all
 //   Sepia          10.23:1 light   12.79:1 dark
 //   Cool Gray      13.17:1 light   14.24:1 dark
+//   Solarized       4.13:1 light    4.75:1 dark   <-- exempt, see below
+//   Green CRT      10.31:1 light   13.50:1 dark
+//   Amber CRT      10.13:1 light   10.25:1 dark
+//   Nord           10.84:1 light    9.25:1 dark
+//   Gruvbox Light  10.22:1 light   10.75:1 dark
+//   Latte           7.06:1 light   11.34:1 dark
 //
-// None is below 7:1, which is deliberate: this is a page of body text, and the
+// None is below 7:1 except Solarized, which is deliberate: this is a page of body text, and the
 // dial exists to change its CHARACTER, not to let someone make it unreadable by
 // picking from a list. The Custom fields below have no such floor, because a
 // typed hex value is an explicit act.
@@ -75,12 +81,34 @@ enum Preset : int {
   kPresetHighContrast = 2,  // #000000 on #FFFFFF, and its inverse
   kPresetSepia = 3,         // warm paper, warm-black ink
   kPresetCoolGray = 4,      // cool paper, near-neutral cold ink
+  // Appended 2026-08-15 by owner ruling. APPEND ONLY: the value persists as an
+  // integer in NSUserDefaults, so inserting a row re-points every saved choice
+  // at a different palette.
+  kPresetSolarized = 5,       // Ethan Schoonover's, both halves, authentic
+  kPresetGreenCrt = 6,        // P1 phosphor
+  kPresetAmberCrt = 7,        // P3 phosphor
+  kPresetNord = 8,            // cool pale minimal
+  kPresetGruvboxLight = 9,    // warm pale minimal
+  kPresetLatte = 10,          // neutral pale minimal (Catppuccin Latte)
 };
+
+// Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
+// and raising it to clear the 7:1 floor the other rows meet would produce
+// something that is no longer Solarized. It is therefore the one named preset
+// exempt from that floor, by name rather than by loosening the floor for
+// everyone. tests/panel_palette_test.cpp pins both the exemption list and the
+// measured ratios, so a future palette cannot join it silently.
+constexpr bool isLowContrastByDesign(int preset) {
+  return preset == kPresetSolarized;
+}
 
 constexpr bool isKnownPreset(int preset) {
   return preset == kPresetCustom || preset == kPresetDefault ||
          preset == kPresetHighContrast || preset == kPresetSepia ||
-         preset == kPresetCoolGray;
+         preset == kPresetCoolGray || preset == kPresetSolarized ||
+         preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
+         preset == kPresetNord || preset == kPresetGruvboxLight ||
+         preset == kPresetLatte;
 }
 
 // The pair a named preset selects. kPresetCustom has no pair of its own -- the
@@ -99,6 +127,34 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetCoolGray:
     return dark ? Palette{{0xDC, 0xE3, 0xE8}, {0x10, 0x14, 0x1A}}
                 : Palette{{0x1F, 0x24, 0x29}, {0xE8, 0xEC, 0xEF}};
+  // Solarized, unmodified: base00 on base3 light, base0 on base03 dark -- the
+  // body-text pairing Schoonover specifies. One row carries both variants
+  // rather than two rows carrying one each, because every preset's dark half
+  // must be light-on-dark (a "Solarized Light" row that stayed light would hand
+  // back a blinding page at night, and the polarity assertion would reject it).
+  // So picking this gives Solarized Light by day and Solarized Dark by night.
+  case kPresetSolarized:
+    return dark ? Palette{{0x83, 0x94, 0x96}, {0x00, 0x2B, 0x36}}
+                : Palette{{0x65, 0x7B, 0x83}, {0xFD, 0xF6, 0xE3}};
+  // P1 phosphor. The DARK half is the authentic article -- green on a black
+  // tube. The light half cannot be, since a lit CRT has no light mode, so it
+  // keeps the hue instead: deep phosphor green on a paper tinted the same way.
+  case kPresetGreenCrt:
+    return dark ? Palette{{0x33, 0xFF, 0x33}, {0x00, 0x1A, 0x00}}
+                : Palette{{0x0B, 0x3D, 0x0B}, {0xDC, 0xEF, 0xD8}};
+  // P3 phosphor, same construction as the green.
+  case kPresetAmberCrt:
+    return dark ? Palette{{0xFF, 0xB0, 0x00}, {0x1A, 0x10, 0x00}}
+                : Palette{{0x4A, 0x2E, 0x00}, {0xF5, 0xE6, 0xC8}};
+  case kPresetNord:
+    return dark ? Palette{{0xD8, 0xDE, 0xE9}, {0x2E, 0x34, 0x40}}
+                : Palette{{0x2E, 0x34, 0x40}, {0xEC, 0xEF, 0xF4}};
+  case kPresetGruvboxLight:
+    return dark ? Palette{{0xEB, 0xDB, 0xB2}, {0x28, 0x28, 0x28}}
+                : Palette{{0x3C, 0x38, 0x36}, {0xFB, 0xF1, 0xC7}};
+  case kPresetLatte:
+    return dark ? Palette{{0xCD, 0xD6, 0xF4}, {0x1E, 0x1E, 0x2E}}
+                : Palette{{0x4C, 0x4F, 0x69}, {0xEF, 0xF1, 0xF5}};
   case kPresetDefault:
   case kPresetCustom:
   default:

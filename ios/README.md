@@ -1277,3 +1277,52 @@ For that to carry signal it must compile *this* working copy, so the firmware's
 `simulator=symlink:///Users/natebunnyfield/src/crosspoint-simulator` rather than
 the upstream git URL. Verified live by appending `#error` to `HalGPIO.cpp` and
 confirming the build failed with it.
+
+### Preset list (ruling 2026-08-15)
+
+Eleven rows now, appended in this order and **append-only** — the value persists
+as an integer, so inserting one re-points every saved choice:
+
+| # | Preset | Light | Dark |
+|---|---|---|---|
+| 1 | Default | 13.29:1 | 14.17:1 |
+| 2 | High Contrast | 21.00:1 | 21.00:1 |
+| 3 | Sepia | 10.23:1 | 12.79:1 |
+| 4 | Cool Gray | 13.17:1 | 14.24:1 |
+| 5 | Solarized | **4.13:1** | **4.75:1** |
+| 6 | Green CRT | 10.31:1 | 13.50:1 |
+| 7 | Amber CRT | 10.13:1 | 10.25:1 |
+| 8 | Nord | 10.84:1 | 9.25:1 |
+| 9 | Gruvbox Light | 10.22:1 | 10.75:1 |
+| 10 | Catppuccin Latte | 7.06:1 | 11.34:1 |
+| 0 | Custom | — | — |
+
+**Solarized is the one preset exempt from the 7:1 floor**, and the exemption is
+by NAME rather than by relaxing the floor. Its low contrast is the palette's
+thesis; raising it produces something that is not Solarized. `isLowContrastByDesign()`
+carries the exemption and `tests/panel_palette_test.cpp` asserts that exactly
+one preset may claim it, so a second cannot arrive inside a palette commit.
+
+**Solarized ships as ONE row, not two.** Every preset's dark half must be
+light-on-dark — the polarity assertion rejects anything else, and a
+"Solarized Light" row that stayed light in dark mode would hand back a blinding
+page at night. So the row pairs the two authentic variants: Solarized Light by
+day, Solarized Dark by night.
+
+The CRT rows are honest about which half is real: the DARK half is phosphor on
+a black tube, the authentic article. A lit CRT has no light mode, so the light
+half keeps the hue instead — deep phosphor ink on paper tinted the same way.
+
+**Rendering a palette headlessly needs the SETTING, not just the env var.**
+`CROSSPOINT_SIM_DARK=1` is applied inside `setPanelDark`, but `main.cpp:781`
+runs `display.setInverted(SETTINGS.darkMode != 0)` afterwards and wins, so a
+desktop capture comes out light no matter what the env says. Set `darkMode` in
+`fs_/.crosspoint/settings.json` to capture a dark half:
+
+```bash
+CROSSPOINT_SIM_PANEL_INK_DARK=33FF33 CROSSPOINT_SIM_PANEL_PAPER_DARK=001A00 \
+CROSSPOINT_SIM_SCREENSHOTS="4000:/tmp/shot.png" SDL_VIDEODRIVER=dummy \
+  .pio/build/simulator/program        # with darkMode=1 in settings.json
+```
+
+Captures are written by `SDL_SaveBMP` — the file is a BMP whatever you name it.
