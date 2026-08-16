@@ -100,8 +100,10 @@ static void testDefaultsAreTheShippedTones() {
   // The sentinels must be values no preset has TAKEN. 7 sat here until
   // 2026-08-15, when Amber CRT was appended and claimed it -- the test failed
   // loudly, which is the frozen-enum hazard working as intended. Anything
-  // chosen here has to stay ahead of the enum.
-  const int roads[] = {kPresetDefault, 11, -1, 999};
+  // chosen here has to stay ahead of the enum. It moved 7 -> 11 then, and
+  // 11 -> 13 on 2026-08-16 when Red CRT (11) and Grey CRT (12) were appended;
+  // whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 13, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -234,7 +236,9 @@ static void testPresetsAreLegible() {
                       {kPresetAmberCrt, "Amber CRT"},
                       {kPresetNord, "Nord"},
                       {kPresetGruvboxLight, "Gruvbox Light"},
-                      {kPresetLatte, "Latte"}};
+                      {kPresetLatte, "Latte"},
+                      {kPresetRedCrt, "Red CRT"},
+                      {kPresetGreyCrt, "Grey CRT"}};
   for (const Row &r : rows) {
     for (int d = 0; d < 2; d++) {
       const Palette p = presetPalette(r.preset, d != 0);
@@ -287,7 +291,7 @@ static void testPresetsAreLegible() {
   const int all[] = {kPresetDefault,   kPresetHighContrast, kPresetSepia,
                      kPresetCoolGray,  kPresetSolarized,    kPresetGreenCrt,
                      kPresetAmberCrt,  kPresetNord,         kPresetGruvboxLight,
-                     kPresetLatte};
+                     kPresetLatte,     kPresetRedCrt,       kPresetGreyCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {

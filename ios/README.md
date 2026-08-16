@@ -1285,10 +1285,10 @@ For that to carry signal it must compile *this* working copy, so the firmware's
 the upstream git URL. Verified live by appending `#error` to `HalGPIO.cpp` and
 confirming the build failed with it.
 
-### Preset list (ruling 2026-08-15)
+### Preset list (rulings 2026-08-15, 2026-08-16)
 
-Eleven rows now, appended in this order and **append-only** — the value persists
-as an integer, so inserting one re-points every saved choice:
+Thirteen rows now, appended in this order and **append-only** — the value
+persists as an integer, so inserting one re-points every saved choice:
 
 | # | Preset | Light | Dark |
 |---|---|---|---|
@@ -1302,7 +1302,27 @@ as an integer, so inserting one re-points every saved choice:
 | 8 | Nord | 10.84:1 | 9.25:1 |
 | 9 | Gruvbox Light | 10.22:1 | 10.75:1 |
 | 10 | Catppuccin Latte | 7.06:1 | 11.34:1 |
+| 11 | Red CRT | 10.22:1 | 7.33:1 |
+| 12 | Grey CRT | 11.14:1 | 13.92:1 |
 | 0 | Custom | — | — |
+
+Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
+recomputed by `tests/panel_palette_test.cpp` from the shipped bytes on every
+run — the table cannot drift from the code without the test failing.
+
+**Red CRT and Grey CRT (2026-08-16)** are the two rows whose phosphor research
+is written down rather than assumed; the sources, the CIE coordinates and the
+derivation are in [`docs/crt-phosphor-presets.md`](../docs/crt-phosphor-presets.md).
+Two things about them are worth carrying at this level:
+
+* **Red CRT's dark half is 7.33:1 — the tightest non-exempt figure in the
+  list — and it cannot be better while staying red.** Red carries only 0.2126
+  of the sRGB luminance coefficient, so P22R at full purity (`#FF1B00`)
+  measures **5.41:1 against pure black**: not 7:1 on any tube, at any tint,
+  ever. The trace is desaturated 14.9% toward D65 to clear the floor.
+* **A red monochrome terminal never shipped.** The row is honest about being
+  a real phosphor (P22R, the red gun of every colour tube and the red tube of
+  a three-tube projector) rather than a machine anyone sat in front of.
 
 **Solarized is the one preset exempt from the 7:1 floor**, and the exemption is
 by NAME rather than by relaxing the floor. Its low contrast is the palette's

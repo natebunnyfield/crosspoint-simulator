@@ -70,6 +70,8 @@ inline constexpr Palette kDefaultDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
 //   Nord           10.84:1 light    9.25:1 dark
 //   Gruvbox Light  10.22:1 light   10.75:1 dark
 //   Latte           7.06:1 light   11.34:1 dark
+//   Red CRT        10.22:1 light    7.33:1 dark
+//   Grey CRT       11.14:1 light   13.92:1 dark
 //
 // None is below 7:1 except Solarized, which is deliberate: this is a page of body text, and the
 // dial exists to change its CHARACTER, not to let someone make it unreadable by
@@ -90,6 +92,9 @@ enum Preset : int {
   kPresetNord = 8,            // cool pale minimal
   kPresetGruvboxLight = 9,    // warm pale minimal
   kPresetLatte = 10,          // neutral pale minimal (Catppuccin Latte)
+  // Appended 2026-08-16 by owner ruling. Same APPEND-ONLY rule as above.
+  kPresetRedCrt = 11,         // P22R phosphor -- see the caveat at its case
+  kPresetGreyCrt = 12,        // P4 phosphor
 };
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
@@ -108,7 +113,8 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetCoolGray || preset == kPresetSolarized ||
          preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
          preset == kPresetNord || preset == kPresetGruvboxLight ||
-         preset == kPresetLatte;
+         preset == kPresetLatte || preset == kPresetRedCrt ||
+         preset == kPresetGreyCrt;
 }
 
 // The pair a named preset selects. kPresetCustom has no pair of its own -- the
@@ -155,6 +161,66 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetLatte:
     return dark ? Palette{{0xCD, 0xD6, 0xF4}, {0x1E, 0x1E, 0x2E}}
                 : Palette{{0x4C, 0x4F, 0x69}, {0xEF, 0xF1, 0xF5}};
+  // P22R (Y2O2S:Eu), CIE x=0.647 y=0.343, peak 611 nm -- measured by Phosphor
+  // Technology Ltd, and corroborated by the EBU/Rec.709 red primary at
+  // (0.640, 0.330), which IS this phosphor standardised.
+  //
+  // BE HONEST ABOUT WHAT THIS ROW IS. A red monochrome TERMINAL never shipped:
+  // Wikipedia's Monochrome monitor article enumerates the options as green
+  // (P1), amber (P3) and white (P4) and names no red, and no red P-number in
+  // the JEDEC list carries "data display" as its application. What did exist as
+  // a physically monochrome red CRT is the RED TUBE OF A THREE-TUBE PROJECTOR
+  // (P56, Y2O3:Eu, x=0.650 y=0.346 -- the same europium red one designation
+  // over), plus the red gun of every colour tube and a beam-penetration display
+  // driven at low anode voltage. So this is a real phosphor rendered as a page,
+  // not a terminal anyone sat in front of. The radar oranges (P19/P26/P33/P38)
+  // were considered and rejected: they emit at 590-595 nm, which is Amber CRT's
+  // territory, not red.
+  //
+  // AND THE DARK HALF CANNOT BE THE REAL COLOUR. Red carries only 0.2126 of the
+  // sRGB luminance coefficient, so #FF1B00 -- P22R at the brightest luminance
+  // sRGB can render that chromaticity -- measures 5.41:1 against PURE BLACK.
+  // Not 7:1 on any tube, at any tint, ever. The floor therefore forces the
+  // trace 14.9% toward D65 in linear light (same dominant wavelength, lower
+  // purity -- which is also what a real trace does when the beam saturates the
+  // phosphor), giving #FF6F6C at 7.33:1. The light half has no such problem
+  // and keeps full purity in the ink.
+  case kPresetRedCrt:
+    return dark ? Palette{{0xFF, 0x6F, 0x6C}, {0x1A, 0x03, 0x00}}
+                : Palette{{0x6E, 0x05, 0x00}, {0xFF, 0xE2, 0xE1}};
+  // P4, the monochrome TV and monitor white -- "page white", and the one the
+  // sources agree reads BLUISH next to a warmer phosphor. There is no published
+  // CIE point for P4 itself; what is published is the JEDEC white region every
+  // P4 screen must fall inside, a parallelogram with corners (0.273, 0.282),
+  // (0.267, 0.303), (0.286, 0.326) and (0.290, 0.303) referenced to 6500 K
+  // +7 MPCD (US4512912). Its centroid, (0.279, 0.3035), is what this row uses;
+  // note it sits below and left of D65 (0.3127, 0.3290), so JEDEC white is
+  // DEFINITIONALLY cooler than daylight -- the blue cast is the specification,
+  // not a liberty. A white data-display CRT patented separately (US4377768)
+  // puts its screen at (0.275, 0.295), ~10,600 K, which agrees.
+  //
+  // Called Grey rather than White because the page it makes is a grey page. It
+  // is deliberately a stronger cool tint than Cool Gray, which is a neutral
+  // page that merely leans cold: a P4 page derived honestly from the JEDEC
+  // centroid lands right on top of Cool Gray unless the tint is allowed to
+  // show, and two rows that paint nearly the same page is a control that
+  // appears to do nothing. Paper spread (max channel minus min) is 24 here
+  // against Cool Gray's 7 and Green CRT's 23 -- tinted like the family, three
+  // times the neutral row.
+  //
+  // THE LIGHT PAPER IS PULLED BACK ON PURPOSE, and the first attempt is worth
+  // recording because it renders wrong in a way arithmetic does not show. The
+  // dark ink is the JEDEC centroid at the brightest luminance sRGB can carry
+  // it (#C9E7FF); tinting THAT to the family's paper luminance needs only an
+  // 18% blend toward D65 and yields #D4ECFF, which measures a perfectly legal
+  // 10.23:1 and reads on the panel as a SKY BLUE page, not a grey one. Blending
+  // 52.5% instead gives #E7F4FF at 11.14:1 -- the same hue direction, a quarter
+  // of the saturation, and a page that looks like a white-phosphor tube.
+  // Green and Amber never hit this because their phosphors sit so far outside
+  // sRGB that reaching page luminance desaturates them anyway.
+  case kPresetGreyCrt:
+    return dark ? Palette{{0xC9, 0xE7, 0xFF}, {0x14, 0x18, 0x1A}}
+                : Palette{{0x2D, 0x35, 0x3C}, {0xE7, 0xF4, 0xFF}};
   case kPresetDefault:
   case kPresetCustom:
   default:
