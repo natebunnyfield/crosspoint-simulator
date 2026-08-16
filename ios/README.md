@@ -1304,11 +1304,23 @@ persists as an integer, so inserting one re-points every saved choice:
 | 10 | Catppuccin Latte | 7.06:1 | 11.34:1 |
 | 11 | Red CRT | 10.22:1 | 7.33:1 |
 | 12 | Gray CRT | 11.14:1 | 13.92:1 |
+| 13 | Soft | 9.15:1 | 9.47:1 |
 | 0 | Custom | — | — |
 
 Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
 recomputed by `tests/panel_palette_test.cpp` from the shipped bytes on every
 run — the table cannot drift from the code without the test failing.
+
+**Soft (2026-08-16)** keeps High Contrast's grounds and eases only the ink:
+`#484848` on pure `#FFFFFF`, `#AEAEAE` on pure `#000000`. The owner asked for
+"a white background and a black background but chill on the contrast", and the
+GROUND is the thing being preserved — so both papers stay at the gamut ends and
+the entire relaxation is spent on the ink, landing at a matched ~9:1 against
+High Contrast's 21:1.
+
+It is not a softened Default. Default's paper is `#FBFBF9` and its ink
+`#2D2D2D`, already off both ends; Soft is off neither. That is also what keeps
+the two distinct under the all-pairs check.
 
 **Red CRT and Gray CRT (2026-08-16)** are the two rows whose phosphor research
 is written down rather than assumed; the sources, the CIE coordinates and the
