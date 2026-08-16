@@ -43,6 +43,15 @@ extern "C" {
 // (SDL_uikitviewcontroller.m:503), which is the cheapest moment to attach.
 void CrossPointKeyboardBar_install(void);
 
+// Re-apply the panel palette to the hide chip, if the bar is built.
+//
+// The hide chip and the SDL-drawn SHOW chip are two halves of one gesture, so
+// they have to carry the same tones. The show chip is repainted every frame
+// from the pad palette; this one is UIKit and is painted once, so a palette
+// change has to be pushed at it. Call it wherever the panel pair is published.
+// Idempotent, thread-safe, and a no-op before the bar exists.
+void CrossPointKeyboardBar_refreshTint(void);
+
 #ifdef __cplusplus
 }
 #endif
