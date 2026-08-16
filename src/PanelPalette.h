@@ -73,6 +73,8 @@ inline constexpr Palette kDefaultDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
 //   Soft            9.15:1 light    9.47:1 dark
 //   Red CRT        10.22:1 light    7.33:1 dark
 //   Gray CRT       11.14:1 light   13.92:1 dark
+//   Sepia CRT       7.59:1 light   12.51:1 dark
+//   Blue CRT       10.18:1 light    7.35:1 dark
 //
 // None is below 7:1 except Solarized, which is deliberate: this is a page of body text, and the
 // dial exists to change its CHARACTER, not to let someone make it unreadable by
@@ -102,6 +104,11 @@ enum Preset : int {
   // being preserved here, so both papers stay at the gamut ends and only the
   // ink moves inward, to a matched ~9:1 in both halves.
   kPresetSoft = 13,
+  // Appended 2026-08-16 by owner ruling, closing out the CRT group. Same
+  // APPEND-ONLY rule as above -- the Settings row ORDER is free and is where
+  // the grouping happens, so neither of these had to be inserted anywhere.
+  kPresetSepiaCrt = 14,  // NOT a phosphor. A toned tube -- see its case
+  kPresetBlueCrt = 15,   // P11 phosphor
 };
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
@@ -122,7 +129,8 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetNord || preset == kPresetGruvboxLight ||
          preset == kPresetSoft ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
-         preset == kPresetGrayCrt;
+         preset == kPresetGrayCrt || preset == kPresetSepiaCrt ||
+         preset == kPresetBlueCrt;
 }
 
 // The pair a named preset selects. kPresetCustom has no pair of its own -- the
@@ -185,7 +193,7 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // were considered and rejected: they emit at 590-595 nm, which is Amber CRT's
   // territory, not red.
   //
-  // AND THE DARK HALF CANNOT BE THE REAL COLOUR. Red carries only 0.2126 of the
+  // AND THE DARK HALF CANNOT BE THE REAL COLOR. Red carries only 0.2126 of the
   // sRGB luminance coefficient, so #FF1B00 -- P22R at the brightest luminance
   // sRGB can render that chromaticity -- measures 5.41:1 against PURE BLACK.
   // Not 7:1 on any tube, at any tint, ever. The floor therefore forces the
@@ -236,6 +244,73 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetSoft:
     return dark ? Palette{{0xAE, 0xAE, 0xAE}, {0x00, 0x00, 0x00}}
                 : Palette{{0x48, 0x48, 0x48}, {0xFF, 0xFF, 0xFF}};
+  // SEPIA IS NOT A PHOSPHOR, and this row does not pretend otherwise. There is
+  // no sepia P-number: sepia is a PHOTOGRAPHIC TONING process, in which the
+  // metallic silver of a finished black-and-white print is converted to silver
+  // sulfide -- done for archival life (the sulfide is "at least 50% more
+  // stable than silver", Wikipedia, Photographic print toning) and warm brown
+  // as a side effect. Wikipedia's Monochrome monitor article enumerates the
+  // screen colors as green (P1), amber (P3) and white (P4) and names no sepia;
+  // int10h's monochrome survey names none either. So this row is a TONED TUBE:
+  // the P4 monochrome page put through the toning bath, which is a thing you
+  // could actually have done to a photograph of a screen, rather than an
+  // invented phosphor.
+  //
+  // THE DARK HALF CANNOT BE BROWN, and that is physics rather than a gamut
+  // limit. "Brown exists as a color perception only in the presence of a
+  // brighter color contrast" (Wikipedia, Brown) -- brown IS dark orange, seen
+  // against something brighter. A trace on an unlit tube is the brightest
+  // thing in the frame, so it has nothing to be dark against and simply reads
+  // as orange. A toned print's bright end is a warm cream, so the dark half
+  // takes the toned HIGHLIGHT (#FFCCAF) rather than a sepia that cannot exist.
+  // The sepia hue driven to full emission would be #FF9D3B, which is an orange
+  // dE2000 10.4 from Amber CRT's #FFB000 -- i.e. Amber with extra steps.
+  //
+  // The tone axis is the sepia pigment itself, #704214 (Maerz and Paul, A
+  // Dictionary of Colour, 1930, via Wikipedia's Sepia (color)). Two deliberate
+  // departures from the other CRT rows, both taken to keep this row from
+  // painting a page one of its neighbours already paints:
+  //
+  //   * The light INK sits at luminance 0.060, not the family's 0.034. Toning
+  //     tones the shadows too, so a toned print's dark end is a BROWN, not a
+  //     black -- and at the family's ink luminance the sepia axis lands on
+  //     #54300C, dE2000 4.2 from Amber CRT's #4A2E00, which is a duplicate.
+  //     Lifting it to #663B11 costs contrast (7.59:1) and buys dE2000 7.3.
+  //   * The light PAPER is derived from the toned highlight, not from the
+  //     pigment. Blending #704214 up to page luminance washes the hue out
+  //     entirely -- #E9E7E5, channel spread 4, a NEUTRAL page. This is the
+  //     mirror of the trap Gray CRT hit: there the honest derivation was too
+  //     saturated, here it is too weak, and both were only visible in pixels.
+  //
+  // Honest about the result: at dE2000 10.3 from Sepia's paper and 10.5 from
+  // Amber CRT's it is more distinct from both than THEY are from each other
+  // (2.4), but the warm quadrant of this list is crowded and a careful eye
+  // will group all three.
+  case kPresetSepiaCrt:
+    return dark ? Palette{{0xFF, 0xCC, 0xAF}, {0x1A, 0x15, 0x12}}
+                : Palette{{0x66, 0x3B, 0x11}, {0xFF, 0xDF, 0xCE}};
+  // P11 (ZnS:Ag,Cl or ZnS:Zn), CIE x=0.147 y=0.076, peak 460 nm -- Phosphor
+  // Technology Ltd grade BE for the chromaticity, Wikipedia's phosphor table
+  // for the composition and the application: "Display tubes and VFDs;
+  // Oscilloscopes (for fast photographic recording)". Blue was the
+  // PHOTOGRAPHIC phosphor, because blue is where film is most sensitive.
+  //
+  // Same honesty as Red CRT: no blue monochrome TERMINAL shipped either. What
+  // P11 was is a real display-tube phosphor and the same ZnS:Ag chemistry as
+  // the blue gun of every color tube (P22B). A page, not a machine anyone sat
+  // in front of.
+  //
+  // AND THE FLOOR BITES HARDER HERE THAN ANYWHERE. Blue carries only 0.0722 of
+  // the sRGB luminance coefficient -- a third of red's 0.2126. P11 rendered at
+  // the brightest luminance sRGB can carry that chromaticity is #0038FF, whose
+  // relative luminance is 0.1005, so against PURE BLACK it measures 3.01:1.
+  // Not 7:1, not 5:1, not on any tube at any tint. The trace is therefore
+  // blended 25.8% toward D65 in linear light -- the same construction Red CRT
+  // used, and the same physical excuse (a saturating beam loses purity) --
+  // giving #8B92FF at 7.35:1, a hair above Red CRT's 7.33:1.
+  case kPresetBlueCrt:
+    return dark ? Palette{{0x8B, 0x92, 0xFF}, {0x00, 0x06, 0x1A}}
+                : Palette{{0x00, 0x1F, 0x9E}, {0xE5, 0xE7, 0xFF}};
   case kPresetDefault:
   case kPresetCustom:
   default:
