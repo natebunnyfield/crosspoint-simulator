@@ -62,6 +62,9 @@
 #include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
 #include "PanelPrefs.h"
+// The firmware owns the Dark Mode SETTING; the system owns the APPEARANCE.
+// applyTheme() below is where the two are reconciled.
+#include "CrossPointSettings.h"
 #include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -711,6 +714,28 @@ void applyPanel(const panelpalette::Palette &panel) {
 void applyTheme() {
   g_dark = systemIsDark();
   g_appliedDark = g_dark ? 1 : 0;
+
+  // Carry the system appearance into the firmware's OWN Dark Mode setting.
+  //
+  // Without this the two disagree, visibly and in the direction that reads as a
+  // bug: the panel follows iOS immediately (setPanelDark, below) while
+  // SETTINGS.darkMode keeps whatever was last stored, so System > Dark Mode in
+  // the Settings screen shows Off over a dark page. It is also the setting the
+  // firmware re-applies for itself -- main.cpp runs
+  // `display.setInverted(SETTINGS.darkMode != 0)` during setup, AFTER the
+  // harness has installed -- so a stale value does not merely display wrong, it
+  // gets pushed back onto the panel and undoes the appearance the phone asked
+  // for.
+  //
+  // Guarded on change, per the SPIFFS write rule: a repaint runs this, and a
+  // settings file rewritten on every present would be a real cost on device
+  // even though this path is host-only.
+  const uint8_t wantDark = g_dark ? 1 : 0;
+  if (SETTINGS.darkMode != wantDark) {
+    SETTINGS.darkMode = wantDark;
+    SETTINGS.saveToFile();
+    SDL_Log("[harness] SETTINGS.darkMode -> %u (system appearance)", wantDark);
+  }
   // The levels are per-appearance, so a light->dark flip changes which pair is
   // in force. Read them here rather than leaving it to the next poll: the
   // palette this call publishes has to be the finished one.
