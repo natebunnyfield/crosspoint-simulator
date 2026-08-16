@@ -422,3 +422,14 @@ a card layout is well-formed.
   python3 <simulator>/tools/gen_cmake_sources.py --firmware-dir . --compile-db compile_commands.json
   ```
 - Changing anything shared? Build the desktop env first. Green desktop + red iOS means the iOS harness is wrong; both red means the HAL drifted.
+
+## Driving it headlessly
+
+Read [docs/headless-qa.md](docs/headless-qa.md) BEFORE writing a screenshot
+script. Four of its five points cost a wrong diagnosis first, and the worst is
+that lists navigate on the FRONT pair: scripting `DOWN` at a menu does nothing,
+correctly, because the side buttons page by a screenful and a one-screen menu
+has no next screenful. Script `RIGHT`. It also records that Home starts on a
+book COVER rather than a menu row (an off-by-two), that presses need ~900 ms
+between them or half are swallowed, that launch resumes the last book so the
+starting screen is not fixed, and that captures are BMP whatever you name them.
