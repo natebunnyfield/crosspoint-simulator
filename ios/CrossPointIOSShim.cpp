@@ -66,6 +66,13 @@
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
 #include "CrossPointReadAloud.h"
+
+// Ask the firmware to RE-RENDER the current activity. Declared rather than
+// included: ActivityManager.h holds unique_ptr<Activity> and would drag the
+// whole activity header set into the harness for one call. Defined in
+// src/SimulatorRenderRequest.cpp on the firmware side.
+void crosspointRequestRender();
+
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "PadCore.h"
@@ -753,6 +760,21 @@ void applyTheme() {
   // only when the polarity actually changed; the field color must repaint
   // regardless.)
   SimulatorOverlay::requestPresent();
+
+  // ...and re-RENDER the activity, which requestPresent() does not do.
+  //
+  // requestPresent only pushes the framebuffer that already exists to the
+  // screen. Anything the firmware DREW from a value this call just changed is
+  // still the old pixels -- most visibly the System > Dark Mode row, which
+  // keeps painting "Off" over a dark page until the owner navigates away and
+  // back. The panel polarity flip inverts those pixels, so the stale row is
+  // perfectly legible and perfectly wrong, which is the worst version of it.
+  //
+  // Deferred (immediate=false) on purpose: it sets a flag the manager reads at
+  // the end of its loop, so this is safe from the harness thread and safe
+  // before any activity exists -- applyTheme runs once at install, before
+  // setup().
+  crosspointRequestRender();
 }
 
 // When the app last returned to the foreground, on the SDL_GetTicks clock, or 0
