@@ -2,6 +2,8 @@
 #include <SDL3/SDL.h>
 #include <unistd.h>
 
+#include <cstdlib>
+
 #include "Arduino.h"
 #include "CrossPointSettings.h"
 #include "HalDisplay.h"
@@ -86,8 +88,46 @@ static void applyKeepScreenAwake() {
   }
 }
 
+// Latch the render scale before ANYTHING reads panel geometry.
+//
+// This is the one setting in the app that cannot be applied live: the factor
+// sizes the SDL texture HalDisplay::begin() creates and picks which hi-res
+// glyph tier setup() registers, and both are committed for the life of the
+// process. RenderScale.h has the full argument. Everything downstream reads
+// cp::renderScale(), so the only requirement is that this run FIRST -- before
+// setup(), before begin(), before a single font is registered.
+//
+// Deliberately NOT inside the setjmp target below. A deep-sleep wake re-runs
+// setup() against a live process with the texture and the font maps already
+// built, so re-reading the setting there would change the arithmetic out from
+// under geometry that cannot follow it. The owner's new choice takes effect on
+// the next real launch, which is what the Settings footer says.
+static void latchRenderScale() {
+// A build whose ceiling is 1, or one that opted out with
+// CROSSPOINT_RENDER_SCALE_RUNTIME=0, has no setter to call: cp::renderScale()
+// is a constexpr function there and the factor is already decided. The log
+// line below still runs, so "which scale is this binary at" is answerable the
+// same way in both shapes.
+#if defined(CROSSPOINT_RENDER_SCALE_RUNTIME) && CROSSPOINT_RENDER_SCALE_RUNTIME
+#if CROSSPOINT_SIM_IOS
+  cp::setRenderScale(CrossPointPrefs_renderScale());
+#else
+  // Desktop: an env var, matching CROSSPOINT_SIM_WINDOW_SCALE and the rest of
+  // the simulator's knobs. Unset means "the ceiling this binary was compiled
+  // at", i.e. exactly the behaviour before this existed.
+  const char *env = SDL_getenv("CROSSPOINT_SIM_RENDER_SCALE");
+  if (env && env[0] != '\0') {
+    cp::setRenderScale(std::atoi(env));
+  }
+#endif
+#endif
+  LOG_INF("MAIN", "Render scale %d (ceiling %d)", cp::renderScale(),
+          cp::kRenderScaleMax);
+}
+
 int main(int argc, char **argv) {
   SimulatorLifecycle::initProcessArgs(argv);
+  latchRenderScale();
 #if CROSSPOINT_SIM_IOS
   // HalStorage's ./fs_ prefix relies on the CWD, which on iOS is the read-only
   // bundle. Must happen before setup() touches storage.

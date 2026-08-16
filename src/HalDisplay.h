@@ -28,6 +28,11 @@
 #define CROSSPOINT_RENDER_SCALE 1
 #endif
 
+// cp::renderScale() / cp::setRenderScale(). Lives in the firmware so the
+// renderer and this HAL agree on one definition; see RenderScale.h for why the
+// factor is latched at startup rather than live.
+#include <RenderScale.h>
+
 class HalDisplay {
 public:
   // Constructor with pin configuration
@@ -52,13 +57,42 @@ public:
   // believes it is driving; the logical panel the firmware lays out against is
   // still EInkDisplay::DISPLAY_WIDTH x DISPLAY_HEIGHT and is what
   // GfxRenderer::getScreenWidth()/getScreenHeight() report.
+  // THE CEILING, NOT NECESSARILY THE CURRENT GEOMETRY. These are constexpr
+  // because every static allocation in HalDisplay.cpp is sized from them --
+  // four full framebuffers plus the ARGB present buffer -- and an array bound
+  // cannot move after the compiler has run.
+  //
+  // The factor this process is ACTUALLY rendering at is cp::renderScale(),
+  // latched once at startup from the owner's setting (see RenderScale.h), and
+  // it may be anything from 1 up to RENDER_SCALE. Use the active*() accessors
+  // below for anything that walks the framebuffer, sizes the SDL texture or
+  // converts between logical and device coordinates; use these only to size
+  // storage. Getting that backwards at scale 2 on a ceiling-3 build reads
+  // 2.25x past the live picture and shows the buffer's stale tail.
   static constexpr int RENDER_SCALE = CROSSPOINT_RENDER_SCALE;
   static constexpr uint16_t DISPLAY_WIDTH = EInkDisplay::DISPLAY_WIDTH * RENDER_SCALE;
   static constexpr uint16_t DISPLAY_HEIGHT = EInkDisplay::DISPLAY_HEIGHT * RENDER_SCALE;
   static constexpr uint16_t DISPLAY_WIDTH_BYTES = DISPLAY_WIDTH / 8;
   static constexpr uint32_t BUFFER_SIZE =
       static_cast<uint32_t>(DISPLAY_WIDTH_BYTES) * DISPLAY_HEIGHT;
+
+  // Framebuffer geometry at the ACTIVE render scale. Equal to the constants
+  // above whenever the owner is running at the ceiling, which is the default.
+  static uint16_t activeWidth() {
+    return static_cast<uint16_t>(EInkDisplay::DISPLAY_WIDTH * cp::renderScale());
+  }
+  static uint16_t activeHeight() {
+    return static_cast<uint16_t>(EInkDisplay::DISPLAY_HEIGHT * cp::renderScale());
+  }
+  static uint16_t activeWidthBytes() { return static_cast<uint16_t>(activeWidth() / 8); }
+  static uint32_t activeBufferSize() {
+    return static_cast<uint32_t>(activeWidthBytes()) * activeHeight();
+  }
+
   // Logical panel geometry (what the firmware would see on real hardware).
+  // Independent of the render scale by construction, which is why the iOS
+  // coordinate mapping in CrossPointAccessibility.mm and CrossPointReadAloud.mm
+  // is spelled in these and needs no change when the scale moves.
   static constexpr uint16_t LOGICAL_WIDTH = EInkDisplay::DISPLAY_WIDTH;
   static constexpr uint16_t LOGICAL_HEIGHT = EInkDisplay::DISPLAY_HEIGHT;
 

@@ -34,6 +34,44 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>TAKES EFFECT NEXT LAUNCH. Close CrossPoint from the app switcher and open it again; nothing changes until you do. This is the one setting here that cannot be applied live — the factor sizes the page buffer and picks which set of glyph bitmaps is loaded, and both are fixed before the first page is drawn.
+
+How finely the page is drawn, as page pixels per e-ink pixel. Layout never moves: the same words break in the same places at every setting. Only the sharpness of the drawing changes.
+
+Fine (3x) is what the app has always used, and gives the most detailed letterforms. It is larger than the screen, so the page is scaled down to fit and smoothed on the way.
+
+Exact (2x) lands one page pixel on one screen pixel on this phone — no scaling and no smoothing at all. Letterforms are slightly coarser than Fine but nothing is resampled.
+
+Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then enlarges it. Blocky by design: it is for comparing against the real device, not for reading.</string>
+			<key>Title</key>
+			<string>Page Sharpness</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>3</integer>
+			<key>Key</key>
+			<string>renderScale</string>
+			<key>Title</key>
+			<string>Sharpness</string>
+			<key>Titles</key>
+			<array>
+				<string>Fine (3x) — most detail, smoothed</string>
+				<string>Exact (2x) — one page pixel per screen pixel</string>
+				<string>Panel (1x) — what the e-ink hardware draws</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>3</integer>
+				<integer>2</integer>
+				<integer>1</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>The two colours the page is drawn in: the ink a black pixel becomes and the paper a white one becomes. Every grey in between is mixed from the pair, so the page keeps its shading whatever you choose. Each option sets a light and a dark version; the app follows the system appearance.
 
 Default is what the app has always drawn — a soft black on warm white, measured from an e-ink panel. High Contrast is pure black on pure white. Sepia and Cool Gray warm and cool the page without losing contrast (10.2:1 and 13.2:1; the default is 13.3:1).
