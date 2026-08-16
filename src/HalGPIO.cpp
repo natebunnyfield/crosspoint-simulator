@@ -293,15 +293,15 @@ void logicalToPanelNormalized(float logicalNx, float logicalNy, float &panelNx,
   switch (renderer.getOrientation()) {
   case GfxRenderer::Portrait:
     physicalX = ly;
-    physicalY = HalDisplay::DISPLAY_HEIGHT - 1 - lx;
+    physicalY = HalDisplay::activeHeight() - 1 - lx;
     break;
   case GfxRenderer::PortraitInverted:
-    physicalX = HalDisplay::DISPLAY_WIDTH - 1 - ly;
+    physicalX = HalDisplay::activeWidth() - 1 - ly;
     physicalY = lx;
     break;
   case GfxRenderer::LandscapeClockwise:
-    physicalX = HalDisplay::DISPLAY_WIDTH - 1 - lx;
-    physicalY = HalDisplay::DISPLAY_HEIGHT - 1 - ly;
+    physicalX = HalDisplay::activeWidth() - 1 - lx;
+    physicalY = HalDisplay::activeHeight() - 1 - ly;
     break;
   case GfxRenderer::LandscapeCounterClockwise:
   default:
@@ -311,18 +311,18 @@ void logicalToPanelNormalized(float logicalNx, float logicalNy, float &panelNx,
   }
 
   panelNx = clamp01(static_cast<float>(physicalX) /
-                    static_cast<float>(HalDisplay::DISPLAY_WIDTH - 1));
+                    static_cast<float>(HalDisplay::activeWidth() - 1));
   panelNy = clamp01(static_cast<float>(physicalY) /
-                    static_cast<float>(HalDisplay::DISPLAY_HEIGHT - 1));
+                    static_cast<float>(HalDisplay::activeHeight() - 1));
 }
 
 void updateTouchMovement(float panelNx, float panelNy) {
   touchState.currentNx = panelNx;
   touchState.currentNy = panelNy;
   const float dx =
-      (touchState.currentNx - touchState.startNx) * HalDisplay::DISPLAY_WIDTH;
+      (touchState.currentNx - touchState.startNx) * HalDisplay::activeWidth();
   const float dy =
-      (touchState.currentNy - touchState.startNy) * HalDisplay::DISPLAY_HEIGHT;
+      (touchState.currentNy - touchState.startNy) * HalDisplay::activeHeight();
   if (std::abs(dx) > TOUCH_TAP_SLOP_PX || std::abs(dy) > TOUCH_TAP_SLOP_PX) {
     touchState.movedBeyondTapSlop = true;
   }
@@ -1306,9 +1306,9 @@ bool HalGPIO::wasSwipe(float &nxStart, float &nyStart, float &nxEnd,
       touchState.lastHeldMs > TOUCH_SWIPE_MAX_MS)
     return false;
   const float dx =
-      (touchState.currentNx - touchState.startNx) * HalDisplay::DISPLAY_WIDTH;
+      (touchState.currentNx - touchState.startNx) * HalDisplay::activeWidth();
   const float dy =
-      (touchState.currentNy - touchState.startNy) * HalDisplay::DISPLAY_HEIGHT;
+      (touchState.currentNy - touchState.startNy) * HalDisplay::activeHeight();
   if (std::abs(dx) < TOUCH_SWIPE_MIN_PX && std::abs(dy) < TOUCH_SWIPE_MIN_PX)
     return false;
   nxStart = touchState.startNx;

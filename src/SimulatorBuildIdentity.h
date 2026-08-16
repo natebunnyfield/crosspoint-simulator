@@ -43,8 +43,14 @@ struct SimulatorBuildIdentity {
   // Logical panel geometry the firmware lays out against.
   uint16_t logicalWidth;
   uint16_t logicalHeight;
-  // Supersampling factor. Comes from CROSSPOINT_RENDER_SCALE via HalDisplay.h,
+  // Supersampling CEILING. Comes from CROSSPOINT_RENDER_SCALE via HalDisplay.h,
   // which silently defaults to 1 — the other half of the 15-build 1x bug.
+  //
+  // The ceiling and not the active factor, deliberately: this struct exists to
+  // prove the harness and the core were COMPILED the same way, and the active
+  // factor is a launch-time choice both halves read from one variable. A field
+  // that can differ between two runs of the same binary would make the compare
+  // meaningless.
   int renderScale;
 };
 

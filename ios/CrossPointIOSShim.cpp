@@ -66,6 +66,7 @@
 #include "HalGPIO.h"
 #include "PadCore.h"
 #include "PadPalette.h"
+#include "PanelPalette.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorOverlay.h"
 
@@ -250,8 +251,11 @@ void layoutPadTablet(float W, float H, float S) {
   // renders the X3 portrait, so the portrait framebuffer mapping applies
   // (logical width = DISPLAY_HEIGHT). Fractional scale below 1 is kept, same
   // as HalDisplay's fallback for windows shorter than the panel.
-  const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
-  const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
+  // ACTIVE, not the ceiling: at a lower render scale the framebuffer is
+  // smaller than DISPLAY_* and fitting the ceiling's dimensions would size the
+  // panel for a picture that is not there.
+  const float logW = static_cast<float>(HalDisplay::activeHeight());
+  const float logH = static_cast<float>(HalDisplay::activeWidth());
   const float outWpx = W * S, outHpx = H * S;
   // The keyboard eats from the bottom of the usable height, so the centered
   // panel shrinks and rises rather than sitting under the keys.
@@ -654,6 +658,54 @@ padpalette::Levels currentLevels(bool dark) {
                                    CrossPointPrefs_padFillContrast(d));
 }
 
+// --- The panel's own two tones ---------------------------------------------
+//
+// The presets, the hex parsing, the interpolation and the guards live in
+// src/PanelPalette.h, pure and host-tested, for the same reasons PadPalette.h
+// is: every failure mode here is a wrong COLOR, which no compiler and no other
+// test in this repo can see. What stays here is the live state and the polling.
+//
+// The panel's PAPER is also the pad's FIELD. That is not a coincidence to be
+// tidied away -- it is what makes the page float edgeless in the surround, and
+// it is why the pad is rebuilt with makePaletteOn(..., panel.paper) rather than
+// makePalette(): the pad's rungs are relative deltas, so they follow whatever
+// paper the owner picked and stay a fixed step from it.
+panelpalette::Palette currentPanel(bool dark) {
+  const int preset = CrossPointPrefs_panelPalettePreset();
+  // Short-circuit the four string reads under a named preset. resolve() would
+  // ignore them anyway; this runs every frame, and a preset is the common case.
+  if (preset != panelpalette::kPresetCustom)
+    return panelpalette::resolve(preset, dark, panelpalette::kInvalidColor,
+                                 panelpalette::kInvalidColor);
+  const int d = dark ? 1 : 0;
+  return panelpalette::resolve(preset, dark,
+                               CrossPointPrefs_panelCustomColor(d, 1),
+                               CrossPointPrefs_panelCustomColor(d, 0));
+}
+
+uint64_t packPanel(const panelpalette::Palette &p) {
+  return (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
+         static_cast<uint64_t>(panelpalette::pack(p.paper));
+}
+
+// What applyPanel last published, packed, so the poll compares six bytes with
+// one integer compare. The sentinel cannot be a real pair (a packed pair uses
+// 48 bits), so the first call always applies.
+uint64_t g_appliedPanel = ~0ull;
+
+// Publish the panel tones and rebuild the pad on top of the new paper. Does NOT
+// request a present: setPanelPalette raises one itself when the tones it is
+// given are the ones currently on screen, and every caller here follows with a
+// present of its own for the field.
+void applyPanel(const panelpalette::Palette &panel) {
+  g_appliedPanel = packPanel(panel);
+  SimulatorOverlay::setPanelPalette(g_dark, panel.ink, panel.paper);
+  g_palette = padpalette::makePaletteOn(g_dark, g_appliedOutline, g_appliedFill,
+                                        panel.paper);
+  const Palette &p = palette();
+  SimulatorOverlay::setClearColor(p.field[0], p.field[1], p.field[2]);
+}
+
 void applyTheme() {
   g_dark = systemIsDark();
   g_appliedDark = g_dark ? 1 : 0;
@@ -663,9 +715,10 @@ void applyTheme() {
   const padpalette::Levels lv = currentLevels(g_dark);
   g_appliedOutline = lv.outline;
   g_appliedFill = lv.fill;
-  g_palette = padpalette::makePalette(g_dark, g_appliedOutline, g_appliedFill);
-  const Palette &p = palette();
-  SimulatorOverlay::setClearColor(p.field[0], p.field[1], p.field[2]);
+  // BEFORE setPanelDark, which reads the live panel palette to pick the field
+  // it clears to. Publishing after it would flip the polarity onto the previous
+  // appearance's tones and show them for one present.
+  applyPanel(currentPanel(g_dark));
   SimulatorOverlay::setPanelDark(g_dark);
   // The firmware presents only when it has new panel content, which on an e-ink
   // device is rare, so without this the new appearance would not appear until
@@ -760,11 +813,38 @@ void pollPadContrast() {
   if (lv.outline == g_appliedOutline && lv.fill == g_appliedFill) return;
   g_appliedOutline = lv.outline;
   g_appliedFill = lv.fill;
-  g_palette = padpalette::makePalette(g_dark, lv.outline, lv.fill);
+  // On the CURRENT paper, not the shipped one -- the rungs are relative, so the
+  // pad has to be rebuilt against whatever the panel is showing.
+  g_palette = padpalette::makePaletteOn(g_dark, lv.outline, lv.fill,
+                                        currentPanel(g_dark).paper);
   SimulatorOverlay::requestPresent();
   SDL_Log("[harness] pad contrast (%s) -> preset %d, outline %+d, fill %+d",
           g_dark ? "dark" : "light", CrossPointPrefs_padContrastPreset(),
           lv.outline, lv.fill);
+}
+
+// The panel's ink and paper, on exactly the terms pollPadContrast runs on and
+// for the same reasons: Settings.app is a separate process, so a change arrives
+// while CrossPoint is backgrounded with no notification to hang it on, and the
+// repaint has to be EDGE-TRIGGERED or a panel whose whole presentation model
+// assumes it presents rarely would present every frame.
+//
+// Edge-triggered on the RESOLVED PAIR rather than on the raw preferences, which
+// is what makes the preset row free: switching Default -> Sepia changes the
+// pair and repaints, while editing a hex field under a named preset changes
+// nothing and correctly repaints nothing.
+//
+// Main thread only, pumps no SDL events, holds no timer.
+void pollPanelPalette() {
+  const panelpalette::Palette panel = currentPanel(g_dark);
+  if (packPanel(panel) == g_appliedPanel) return;
+  applyPanel(panel);
+  SimulatorOverlay::requestPresent();
+  SDL_Log("[harness] panel palette (%s) -> preset %d, ink %02X%02X%02X, "
+          "paper %02X%02X%02X",
+          g_dark ? "dark" : "light", CrossPointPrefs_panelPalettePreset(),
+          panel.ink[0], panel.ink[1], panel.ink[2], panel.paper[0],
+          panel.paper[1], panel.paper[2]);
 }
 
 // THE FIRST FRAMES AFTER A FOREGROUND RETURN ARE THROWN AWAY, so keep asking.
@@ -1316,6 +1396,9 @@ void CrossPointHarness_begin() {
 
 void CrossPointHarness_perFrame() {
   pollAppearance();
+  // Before the pad: the pad is built on the panel's paper, so a palette change
+  // must land first or the pad spends one frame on the previous field.
+  pollPanelPalette();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

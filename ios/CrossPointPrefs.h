@@ -90,6 +90,54 @@ int CrossPointPrefs_readAloudRatePercent(void);
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);
 
+// Which named panel palette is selected: one of panelpalette::Preset
+// (0 Custom, 1 Default, 2 High Contrast, 3 Sepia, 4 Cool Gray). Anything else
+// is returned unchanged and resolved as Default by panelpalette::resolve --
+// the safe direction, since an unknown value must not produce an unreadable
+// page.
+//
+// Default is the default and is the shipped look, so an untouched install
+// renders pixel-identically to the build before this existed.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_panelPalettePreset(void);
+
+// The owner's custom panel tone for one appearance and one role, as packed
+// 0xRRGGBB, or -1 (panelpalette::kInvalidColor) when the field is empty or does
+// not hold six hex digits. `dark` is 1 for the dark appearance; `ink` is 1 for
+// the ink and 0 for the paper.
+//
+// A HEX STRING RATHER THAN A COLOR WELL because a Settings.bundle has no color
+// specifier -- PSTextFieldSpecifier is the only one that can carry an arbitrary
+// color. Parsing (and the -1 for junk) lives in src/PanelPalette.h so it is
+// host-testable; this function only fetches the string.
+//
+// ONLY CONSULTED WHEN THE PRESET ABOVE IS Custom, on the same terms as the pad's
+// four fine pickers: read and returned regardless, so switching back to Custom
+// restores whatever the owner last typed.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_panelCustomColor(int dark, int ink);
+
+// The supersampling factor the panel is rendered at: 1, 2 or 3 framebuffer
+// pixels per logical pixel on each axis. Clamped by cp::setRenderScale() to
+// [1, CROSSPOINT_RENDER_SCALE], the ceiling this binary was compiled at, so a
+// stale or hand-edited value can never ask for a framebuffer bigger than the
+// one that was allocated.
+//
+// READ ONCE, AT LAUNCH -- unlike everything else in this file. The factor sizes
+// the SDL texture and selects which hi-res glyph tier is registered, both of
+// which are committed before the first frame, so a change takes effect on the
+// next launch. That is stated in the Settings footer rather than left to be
+// discovered. See RenderScale.h and docs/ios-render-scale.md.
+//
+// Defaults to 3, which is what the app has always rendered at
+// (CROSSPOINT_IOS_RENDER_SCALE in ios/CMakeLists.txt), so an untouched install
+// is pixel-identical to the build before this setting existed.
+//
+// Main thread only.
+int CrossPointPrefs_renderScale(void);
+
 #ifdef __cplusplus
 }
 #endif

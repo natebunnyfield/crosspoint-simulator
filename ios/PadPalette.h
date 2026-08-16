@@ -390,9 +390,25 @@ static_assert(kOutlineDeltaLight[0 + kContrastOffset] == 0 &&
               "level 0 must be a zero delta in every ladder, or Transparent "
               "draws something");
 
-// The live palette. `field` and `face` come straight from the appearance's
-// constants -- only the stroke and the wash are on a dial.
-constexpr Palette makePalette(bool dark, int outlineLevel, int fillLevel) {
+// The live palette, on an EXPLICIT field. `face` is the field by definition
+// (that is what makes the control hollow) and the stroke and the wash are the
+// field plus a delta -- so the whole pad follows whatever tone is passed here.
+//
+// THE FIELD IS AN ARGUMENT BECAUSE THE PANEL'S PAPER IS A DIAL. The field is
+// the panel's paper (see kLightPalette above), and the owner can now set that
+// paper to any color in Settings (src/PanelPalette.h). Baking the shipped paper
+// in would leave a sepia page floating on a white field with a visible seam --
+// the one thing the field exists to prevent -- and would put the pad's ladder
+// on a tone that is no longer behind it.
+//
+// The ladder still works unchanged on any field, because every rung is a
+// RELATIVE delta clamped into gamut: that is the second reason the scale is
+// signed and field-relative rather than absolute (see the three reasons above;
+// this is now a fourth). What a rung's measured CONTRAST RATIO comes out at
+// does move with the field, so Root.plist's printed ratios are true of the
+// shipped paper and approximate of a custom one. Named on the row.
+constexpr Palette makePaletteOn(bool dark, int outlineLevel, int fillLevel,
+                                const uint8_t (&field)[3]) {
   const Palette &base = dark ? kDarkPalette : kLightPalette;
   const int16_t *outline = dark ? kOutlineDeltaDark : kOutlineDeltaLight;
   const int16_t *fill = dark ? kFillDeltaDark : kFillDeltaLight;
@@ -400,11 +416,24 @@ constexpr Palette makePalette(bool dark, int outlineLevel, int fillLevel) {
   const int fi = clampLevel(fillLevel) + kContrastOffset;
   Palette p = base;
   for (int c = 0; c < 3; c++) {
-    p.face[c] = base.field[c];
-    p.hairline[c] = toneChannel(base.field[c], outline[oi]);
-    p.faceDown[c] = toneChannel(base.field[c], fill[fi]);
+    p.field[c] = field[c];
+    p.face[c] = field[c];
+    p.hairline[c] = toneChannel(field[c], outline[oi]);
+    p.faceDown[c] = toneChannel(field[c], fill[fi]);
   }
   return p;
+}
+
+// The shipped field. Every static_assert above is written against this, and an
+// untouched install still comes through here, so the default pad is unchanged.
+constexpr Palette makePalette(bool dark, int outlineLevel, int fillLevel) {
+  // Two calls rather than a ternary on the field: a conditional operator over
+  // two arrays decays both to pointers, which will not bind to the reference
+  // parameter.
+  return dark
+             ? makePaletteOn(true, outlineLevel, fillLevel, kDarkPalette.field)
+             : makePaletteOn(false, outlineLevel, fillLevel,
+                             kLightPalette.field);
 }
 
 // Resolve the four Settings values into the two levels actually painted.

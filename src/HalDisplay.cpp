@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "GrayscalePreview.h"
+#include "PanelPalette.h"
 #include "SimulatorOverlay.h"
 
 #include <array>
@@ -92,6 +93,16 @@ static int currentWindowHeight = 0;
 //
 // Keyed on the intent, not on the platform, so a desktop build can ask for exact
 // pixels too.
+//
+// THAT ARGUMENT ONLY HOLDS WHEN MAGNIFYING, and the code applied it to both
+// directions by omission. Below 1x -- which is where a 3x render scale lands on
+// every iPhone, see panelScaleModeFor() -- point-sampling is not fidelity, it is
+// undersampling: the panel has more pixels than the glass, so some are simply
+// not drawn. Greying the dither is then the CORRECT answer rather than a lie,
+// because averaging is exactly what the eye does to a page shown smaller than
+// 1:1. Measured on the LightGray selection fill at the iPhone Air's 0.7955:
+// nearest leaves 13.42 levels of low-frequency beat (the ST-008 moire), bilinear
+// 3.29, an exact box filter 1.15, and at 1:1 all three are 0.
 #if defined(CROSSPOINT_SIM_PIXEL_EXACT) && CROSSPOINT_SIM_PIXEL_EXACT
 static constexpr SDL_RendererLogicalPresentation kLogicalPresentation =
     SDL_LOGICAL_PRESENTATION_INTEGER_SCALE;
@@ -115,10 +126,34 @@ static constexpr SDL_ScaleMode kPanelScaleMode = SDL_SCALEMODE_LINEAR;
 // scale that is gcd(1584, 1056)/2 = 264, i.e. steps of 0.38% -- far finer than
 // the ~5% a small phone is short by, so quantising costs nothing visible.
 static constexpr int gcdOf(int a, int b) { return b == 0 ? a : gcdOf(b, a % b); }
-static constexpr float kPixelQuantum = static_cast<float>(
-    gcdOf(HalDisplay::DISPLAY_WIDTH, HalDisplay::DISPLAY_HEIGHT) / 2);
-static_assert(kPixelQuantum >= 1.0f,
-              "panel dimensions must share a factor of at least 2");
+// Computed from the ACTIVE framebuffer, so it stopped being constexpr when the
+// render scale did. The gcd differs per scale -- 264 at 2x on X3, 396 at 3x,
+// 132 at 1x -- and using the ceiling's quantum at a lower scale would quantise
+// to steps the presented panel does not actually land on, which is the whole
+// fault this constant exists to prevent.
+static float pixelQuantum() {
+  const float q = static_cast<float>(
+      gcdOf(HalDisplay::activeWidth(), HalDisplay::activeHeight()) / 2);
+  return q >= 1.0f ? q : 1.0f;
+}
+
+// The texture filter for a given presented panel scale.
+//
+// Split from kPanelScaleMode because the two directions want opposite things
+// and only the magnifying one was ever chosen deliberately (see above). At or
+// above 1x the policy is unchanged, byte for byte. Below 1x the panel is being
+// resampled no matter what this returns, so the only question is whether the
+// resample is filtered or aliased, and bilinear is the filtered one the GPU
+// already has.
+//
+// An exact box filter would be better still (1.15 vs 3.29 residual on the
+// selection dither) because bilinear's kernel is one source texel wide while
+// the footprint here is ~1.26 -- but that needs a software pass over the
+// framebuffer and a second texture, and this recovers the large majority of it
+// for two lines and no per-present cost.
+static SDL_ScaleMode panelScaleModeFor(float scale) {
+  return scale < 1.0f ? SDL_SCALEMODE_LINEAR : kPanelScaleMode;
+}
 
 namespace {
 
@@ -253,41 +288,77 @@ void captureDueScreenshots() {
 // paper rather than raw #000-on-#FFF. One palette per polarity; "inverted"
 // (dark mode) swaps to light ink on dark paper, so the grayscale ramp needs no
 // separate 255-level flip -- the ink->paper lerp direction IS the inversion.
-// Values are shared with the iOS harness field colours (CrossPointIOSShim.cpp);
-// change them together.
-struct PanelPalette {
-  uint8_t ink[3];    // a fully-black source pixel
-  uint8_t paper[3];  // a fully-white source pixel
-};
-constexpr PanelPalette kPanelLight{{0x2D, 0x2D, 0x2D}, {0xFB, 0xFB, 0xF9}};
-constexpr PanelPalette kPanelDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
+//
+// THE TONES ARE A DIAL NOW, not constants; the definitions, the presets, the
+// interpolation and the guards live in src/PanelPalette.h, and the host sets
+// them through SimulatorOverlay::setPanelPalette. Both polarities default to
+// exactly what this file used to hardcode, so a build that never calls the
+// setter -- every desktop build -- renders byte-identical pixels.
+//
+// PACKED INTO ONE ATOMIC PER POLARITY. The render task reads these while the
+// main thread (the iOS settings poll) writes them, and a Palette is six bytes
+// that must change together: reading a new ink beside an old paper for one
+// frame would show a page nobody chose. 48 bits fit in a uint64_t, so the whole
+// pair is one lock-free load.
+using PanelPalette = panelpalette::Palette;
+
+constexpr uint64_t packPalette(const PanelPalette &p) {
+  return (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
+         static_cast<uint64_t>(panelpalette::pack(p.paper));
+}
+PanelPalette unpackPalette(uint64_t v) {
+  PanelPalette p{};
+  panelpalette::unpackInto(static_cast<uint32_t>((v >> 24) & 0xFFFFFFu), p.ink);
+  panelpalette::unpackInto(static_cast<uint32_t>(v & 0xFFFFFFu), p.paper);
+  return p;
+}
+
+std::atomic<uint64_t> panelPackedLight{packPalette(panelpalette::kDefaultLight)};
+std::atomic<uint64_t> panelPackedDark{packPalette(panelpalette::kDefaultDark)};
+
+PanelPalette livePanelPalette(bool dark) {
+  return unpackPalette(dark ? panelPackedDark.load() : panelPackedLight.load());
+}
 
 // level: 0 = ink, 255 = paper (the pre-inversion grayscale convention).
 uint32_t panelColor(uint8_t level, const PanelPalette &p) {
-  uint32_t argb = 0xFF000000u;
-  for (int c = 0; c < 3; c++) {
-    const uint8_t v = static_cast<uint8_t>(
-        p.ink[c] + (static_cast<int>(p.paper[c]) - p.ink[c]) * level / 255);
-    argb |= static_cast<uint32_t>(v) << (16 - 8 * c);
-  }
-  return argb;
+  return panelpalette::colorForLevel(level, p);
+}
+
+// CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK} force a tone, on the same terms
+// as CROSSPOINT_SIM_DARK and for the same reason: the desktop has no
+// Settings.app, so without this the only way to see a non-default palette --
+// or to capture a screenshot proving one -- is a phone. Applied on EVERY
+// setPanelPalette call, so a forced tone survives any number of host settings
+// changes and both paths exercise identical mechanics from that line down.
+// Unset or unparseable leaves the caller's value alone.
+void applyPanelPaletteEnv(bool dark, PanelPalette &p) {
+  const char *inkVar =
+      dark ? "CROSSPOINT_SIM_PANEL_INK_DARK" : "CROSSPOINT_SIM_PANEL_INK_LIGHT";
+  const char *paperVar = dark ? "CROSSPOINT_SIM_PANEL_PAPER_DARK"
+                              : "CROSSPOINT_SIM_PANEL_PAPER_LIGHT";
+  const int ink = panelpalette::parseHexRgb(std::getenv(inkVar));
+  const int paper = panelpalette::parseHexRgb(std::getenv(paperVar));
+  if (ink >= 0) panelpalette::unpackInto(static_cast<uint32_t>(ink), p.ink);
+  if (paper >= 0)
+    panelpalette::unpackInto(static_cast<uint32_t>(paper), p.paper);
 }
 
 bool getBit(const uint8_t *buffer, int x, int y) {
-  const int byteIdx = (y * HalDisplay::DISPLAY_WIDTH + x) / 8;
+  const int byteIdx = (y * HalDisplay::activeWidth() + x) / 8;
   const int bitIdx = 7 - (x % 8);
   return (buffer[byteIdx] & (1 << bitIdx)) != 0;
 }
 
 void renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
+  const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint32_t ink = panelColor(0, pal);
   const uint32_t paper = panelColor(255, pal);
-  for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
-    for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
+  for (int y = 0; y < HalDisplay::activeHeight(); y++) {
+    for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool white = getBit(fb, x, y);
-      pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] = white ? paper : ink;
+      pixelBuf[y * HalDisplay::activeWidth() + x] = white ? paper : ink;
     }
   }
   pendingPresent.store(true);
@@ -301,7 +372,7 @@ void clearGrayscalePlanes() {
 }
 
 void snapshotBwBase(const uint8_t *fb) {
-  memcpy(grayscalePreviewState.bwBase.data(), fb, HalDisplay::BUFFER_SIZE);
+  memcpy(grayscalePreviewState.bwBase.data(), fb, HalDisplay::activeBufferSize());
   grayscalePreviewState.bwBaseValid = true;
   clearGrayscalePlanes();
 }
@@ -313,19 +384,19 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
     dst.fill(0);
     return;
   }
-  memcpy(dst.data(), src, HalDisplay::BUFFER_SIZE);
+  memcpy(dst.data(), src, HalDisplay::activeBufferSize());
   valid = true;
 }
 
 void composeGrayscalePreview() {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  const PanelPalette &pal = display.isInverted() ? kPanelDark : kPanelLight;
+  const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
   if (!bwBase) return;  // buffer lent out; keep the last presented frame
-  for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
-    for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
+  for (int y = 0; y < HalDisplay::activeHeight(); y++) {
+    for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
       const bool lsbActive =
           grayscalePreviewState.lsbValid &&
@@ -339,7 +410,7 @@ void composeGrayscalePreview() {
 
       // No 255-level flip for inversion: the dark palette's ink->paper
       // direction already runs light-on-dark (see PanelPalette above).
-      pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] = panelColor(level, pal);
+      pixelBuf[y * HalDisplay::activeWidth() + x] = panelColor(level, pal);
     }
   }
   pendingPresent.store(true);
@@ -383,8 +454,8 @@ static bool isPortraitOrientation(GfxRenderer::Orientation orientation) {
 static void getLogicalWindowSize(GfxRenderer::Orientation orientation,
                                  int *width, int *height) {
   const bool isPortrait = isPortraitOrientation(orientation);
-  const int panelW = HalDisplay::DISPLAY_WIDTH / HalDisplay::RENDER_SCALE;
-  const int panelH = HalDisplay::DISPLAY_HEIGHT / HalDisplay::RENDER_SCALE;
+  const int panelW = HalDisplay::activeWidth() / cp::renderScale();
+  const int panelH = HalDisplay::activeHeight() / cp::renderScale();
   float w = static_cast<float>((isPortrait ? panelH : panelW) *
                                simulatorWindowScale());
   float h = static_cast<float>((isPortrait ? panelW : panelH) *
@@ -415,8 +486,8 @@ static void getLogicalWindowSize(GfxRenderer::Orientation orientation,
 static void getLogicalPresentationSize(GfxRenderer::Orientation orientation,
                                        int *width, int *height) {
   const bool isPortrait = isPortraitOrientation(orientation);
-  *width = isPortrait ? HalDisplay::DISPLAY_HEIGHT : HalDisplay::DISPLAY_WIDTH;
-  *height = isPortrait ? HalDisplay::DISPLAY_WIDTH : HalDisplay::DISPLAY_HEIGHT;
+  *width = isPortrait ? HalDisplay::activeHeight() : HalDisplay::activeWidth();
+  *height = isPortrait ? HalDisplay::activeWidth() : HalDisplay::activeHeight();
 }
 
 static void applyWindowGeometryIfNeeded(GfxRenderer::Orientation orientation) {
@@ -488,10 +559,39 @@ void setPanelDark(bool dark) {
   }
   // The field follows the panel's paper tone, so the page has no visible edge
   // in either polarity. Hosts that call setClearColor themselves (the iOS
-  // harness) use the same values, so the double write is idempotent.
-  const PanelPalette &pal = dark ? kPanelDark : kPanelLight;
+  // harness) use the same values, so the double write is idempotent. Reads the
+  // LIVE palette rather than a constant, so a host that has set a custom paper
+  // still gets an edgeless page after a polarity flip.
+  const PanelPalette pal = livePanelPalette(dark);
   setClearColor(pal.paper[0], pal.paper[1], pal.paper[2]);
   display.setInverted(dark);
+}
+
+// See SimulatorOverlay.h. Writes the packed pair for ONE polarity, applies the
+// env override on top (same contract as setPanelDark), and asks the main thread
+// to reconvert the cached frame -- inversion's mechanism, reused, because a
+// palette change has exactly inversion's problem: the tones are applied while
+// converting the 1bpp framebuffer to pixels, and an e-ink firmware may not
+// render again for minutes.
+//
+// The reconvert is requested only when the polarity being written is the one on
+// screen. Writing the other polarity's pair is a store and nothing else, so the
+// harness can publish both on every settings change without forcing a present.
+void setPanelPalette(bool dark, const unsigned char ink[3],
+                     const unsigned char paper[3]) {
+  PanelPalette p{{ink[0], ink[1], ink[2]}, {paper[0], paper[1], paper[2]}};
+  applyPanelPaletteEnv(dark, p);
+  const uint64_t packed = packPalette(p);
+  std::atomic<uint64_t> &slot = dark ? panelPackedDark : panelPackedLight;
+  if (slot.exchange(packed) == packed)
+    return;
+  if (display.isInverted() != dark)
+    return;  // the other polarity: nothing on screen changed
+  setClearColor(p.paper[0], p.paper[1], p.paper[2]);
+  pendingReconvert.store(true);
+  // reconvertLastFrame() raises the present itself, but only once a frame has
+  // been cached; the field color must repaint regardless, so ask here too.
+  requestPresent();
 }
 } // namespace SimulatorOverlay
 
@@ -550,7 +650,8 @@ void HalDisplay::begin() {
   // Boot geometry, once. This line exists because the render scale was twice
   // believed shipped while the framebuffer silently stayed 1x (a define that
   // never reached this TU); the compiled truth must be observable at runtime.
-  LOG_INF("DISP", "Framebuffer %dx%d, render scale %d", DISPLAY_WIDTH, DISPLAY_HEIGHT,
+  LOG_INF("DISP", "Framebuffer %dx%d, render scale %d (ceiling %d)",
+          activeWidth(), activeHeight(), cp::renderScale(),
           static_cast<int>(RENDER_SCALE));
 
   // SDL3 returns true on success where SDL2 returned 0.
@@ -584,13 +685,24 @@ void HalDisplay::begin() {
   currentWindowHeight = winH;
 
   texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                              SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH,
-                              DISPLAY_HEIGHT);
+                              SDL_TEXTUREACCESS_STREAMING, activeWidth(),
+                              activeHeight());
 
   // SDL3 replaced the global SDL_HINT_RENDER_SCALE_QUALITY hint with a
   // per-texture setting, which must therefore come after the texture exists.
   // See kPanelScaleMode above for why the choice is not unconditional.
   SDL_SetTextureScaleMode(texture, kPanelScaleMode);
+
+  // Seed both polarities with the shipped tones, THROUGH the setter, so that
+  // the CROSSPOINT_SIM_PANEL_* env override is applied on a build that never
+  // publishes a palette of its own -- which is every desktop build, there being
+  // no Settings.app on a Mac. With the vars unset this is exactly the pair the
+  // atomics already hold, so it is a no-op and the desktop stays byte-identical.
+  // The iOS harness publishes the owner's choice over the top a moment later.
+  SimulatorOverlay::setPanelPalette(false, panelpalette::kDefaultLight.ink,
+                                    panelpalette::kDefaultLight.paper);
+  SimulatorOverlay::setPanelPalette(true, panelpalette::kDefaultDark.ink,
+                                    panelpalette::kDefaultDark.paper);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -608,7 +720,7 @@ void HalDisplay::clearScreen(uint8_t color) const {
   // after they hand it back repaints anyway.
   uint8_t *fb = getFrameBuffer();
   if (!fb) return;
-  memset(fb, color, BUFFER_SIZE);
+  memset(fb, color, activeBufferSize());
 }
 
 void HalDisplay::drawImage(const uint8_t *imageData, uint16_t x, uint16_t y,
@@ -618,13 +730,13 @@ void HalDisplay::drawImage(const uint8_t *imageData, uint16_t x, uint16_t y,
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
-    if (destY >= DISPLAY_HEIGHT)
+    if (destY >= activeHeight())
       break;
     const uint32_t destOffset =
-        static_cast<uint32_t>(destY) * DISPLAY_WIDTH_BYTES + (x / 8);
+        static_cast<uint32_t>(destY) * activeWidthBytes() + (x / 8);
     const uint32_t srcOffset = static_cast<uint32_t>(row) * imageWidthBytes;
     for (uint16_t col = 0; col < imageWidthBytes; col++) {
-      if ((x / 8 + col) >= DISPLAY_WIDTH_BYTES)
+      if ((x / 8 + col) >= activeWidthBytes())
         break;
       fb[destOffset + col] = imageData[srcOffset + col];
     }
@@ -639,13 +751,13 @@ void HalDisplay::drawImageTransparent(const uint8_t *imageData, uint16_t x,
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
-    if (destY >= DISPLAY_HEIGHT)
+    if (destY >= activeHeight())
       break;
     const uint32_t destOffset =
-        static_cast<uint32_t>(destY) * DISPLAY_WIDTH_BYTES + (x / 8);
+        static_cast<uint32_t>(destY) * activeWidthBytes() + (x / 8);
     const uint32_t srcOffset = static_cast<uint32_t>(row) * imageWidthBytes;
     for (uint16_t col = 0; col < imageWidthBytes; col++) {
-      if ((x / 8 + col) >= DISPLAY_WIDTH_BYTES)
+      if ((x / 8 + col) >= activeWidthBytes())
         break;
       fb[destOffset + col] &= imageData[srcOffset + col];
     }
@@ -746,8 +858,11 @@ void HalDisplay::presentIfNeeded() {
 
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
+    // so at a lower scale the live picture occupies a prefix of it and the
+    // ceiling's pitch would stride past every row.
     SDL_UpdateTexture(texture, nullptr, pixelBuf,
-                      DISPLAY_WIDTH * sizeof(uint32_t));
+                      activeWidth() * sizeof(uint32_t));
   }
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
@@ -772,8 +887,8 @@ void HalDisplay::presentIfNeeded() {
   //
   // SDL3 renamed RenderCopy/RenderCopyEx to RenderTexture/RenderTextureRotated
   // and takes float rects; the arithmetic is unchanged.
-  constexpr float kW = static_cast<float>(DISPLAY_WIDTH);
-  constexpr float kH = static_cast<float>(DISPLAY_HEIGHT);
+  const float kW = static_cast<float>(activeWidth());
+  const float kH = static_cast<float>(activeHeight());
   SDL_FRect portraitDst = {(kH - kW) / 2.0f, kW / 2.0f - kH / 2.0f, kW, kH};
   SDL_FRect landscapeDst = {0.0f, 0.0f, kW, kH};
 
@@ -847,15 +962,21 @@ void HalDisplay::presentIfNeeded() {
           heldOutH = outH;
         }
         if (heldScale > 0.0f &&
-            SDL_fabsf(scale - heldScale) <= 1.0f / kPixelQuantum) {
+            SDL_fabsf(scale - heldScale) <= 1.0f / pixelQuantum()) {
           scale = heldScale;
         } else {
           scale =
-              SDL_max(1.0f, SDL_floorf(scale * kPixelQuantum)) / kPixelQuantum;
+              SDL_max(1.0f, SDL_floorf(scale * pixelQuantum())) / pixelQuantum();
           heldScale = scale;
         }
       }
     }
+    // The filter follows the scale that was just settled, not the build flag.
+    // Set here rather than at texture creation because `scale` is only known
+    // once the host's reserved bands are in; it is a cheap per-present setter
+    // and SDL only touches the sampler when the value changes.
+    SDL_SetTextureScaleMode(texture, panelScaleModeFor(scale));
+
     // TOP-ALIGNED, not centered: the pad sits directly under the panel's
     // bottom edge (published below), so slack space goes under the pad
     // instead of splitting above and below the page. The alignment is to the
@@ -930,10 +1051,13 @@ void HalDisplay::presentIfNeeded() {
         const bool onScreen = panelPxX >= 0 && panelPxY >= 0 &&
                               panelPxX + panelPxW <= outW &&
                               panelPxY + panelPxH <= outH;
-        SDL_Log("[panel] out %dx%d px, scale %.4f%s, panel %dx%d at %d,%d%s%s",
+        SDL_Log("[panel] out %dx%d px, scale %.4f%s, panel %dx%d at %d,%d%s%s, "
+                "filter %s",
                 outW, outH, scale, wholeScale ? "" : " (FRACTIONAL)", panelPxW,
                 panelPxH, panelPxX, panelPxY, wholeDst ? "" : " (OFF-GRID)",
-                onScreen ? "" : " (OFF-SCREEN)");
+                onScreen ? "" : " (OFF-SCREEN)",
+                panelScaleModeFor(scale) == SDL_SCALEMODE_NEAREST ? "nearest"
+                                                                  : "linear");
       }
     }
   }
@@ -991,7 +1115,7 @@ uint8_t *HalDisplay::getFrameBuffer() const {
 
 uint8_t *HalDisplay::lendFrameBufferStorage(uint32_t *sizeOut) {
   if (sizeOut) {
-    *sizeOut = frameBufferLent ? 0 : BUFFER_SIZE;
+    *sizeOut = frameBufferLent ? 0 : activeBufferSize();
   }
   if (frameBufferLent) {
     return nullptr;
@@ -1043,15 +1167,15 @@ void HalDisplay::displayGrayBuffer(bool, const unsigned char *, bool) {
 
 void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
                                           uint16_t yStart, uint16_t numRows) {
-  if (!rows || numRows == 0 || yStart >= DISPLAY_HEIGHT) {
+  if (!rows || numRows == 0 || yStart >= activeHeight()) {
     return;
   }
 
   const uint16_t rowsToCopy =
-      (yStart + numRows > DISPLAY_HEIGHT) ? (DISPLAY_HEIGHT - yStart) : numRows;
-  const size_t offset = static_cast<size_t>(yStart) * DISPLAY_WIDTH_BYTES;
+      (yStart + numRows > activeHeight()) ? (activeHeight() - yStart) : numRows;
+  const size_t offset = static_cast<size_t>(yStart) * activeWidthBytes();
   const size_t byteCount =
-      static_cast<size_t>(rowsToCopy) * DISPLAY_WIDTH_BYTES;
+      static_cast<size_t>(rowsToCopy) * activeWidthBytes();
   auto &plane = lsbPlane ? grayscalePreviewState.lsbPlane
                          : grayscalePreviewState.msbPlane;
   memcpy(plane.data() + offset, rows, byteCount);
@@ -1063,11 +1187,11 @@ void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
 }
 bool HalDisplay::supportsStripGrayscale() const { return true; }
 
-uint16_t HalDisplay::getDisplayWidth() const { return DISPLAY_WIDTH; }
-uint16_t HalDisplay::getDisplayHeight() const { return DISPLAY_HEIGHT; }
+uint16_t HalDisplay::getDisplayWidth() const { return activeWidth(); }
+uint16_t HalDisplay::getDisplayHeight() const { return activeHeight(); }
 uint16_t HalDisplay::getDisplayWidthBytes() const {
-  return DISPLAY_WIDTH_BYTES;
+  return activeWidthBytes();
 }
-uint32_t HalDisplay::getBufferSize() const { return BUFFER_SIZE; }
+uint32_t HalDisplay::getBufferSize() const { return activeBufferSize(); }
 
 HalDisplay display;

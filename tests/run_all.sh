@@ -83,6 +83,12 @@ run pad_palette \
 # same shape it was when the owner approved it.
 run chevron_coverage \
   c++ -std=c++17 -Iios -o "$OUT/chevron_coverage" tests/chevron_coverage_test.cpp
+# The page's own ink and paper: the defaults byte-for-byte, the interpolation
+# that produces every gray between them, the hex parsing behind the Custom
+# fields, and the contrast figures the preset rows print in Settings.app. Reads
+# Root.plist from the repo root, same as pad_palette above.
+run panel_palette \
+  c++ -std=c++17 -Isrc -o "$OUT/panel_palette" tests/panel_palette_test.cpp
 
 run wifi_host \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 -o "$OUT/wifi_host" tests/wifi_host_test.cpp

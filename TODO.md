@@ -34,35 +34,30 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 ## OPEN
 
 ### [ST-008] Moire in the selection dot pattern on iPhone Air
-**scope: ios display · reported 2026-08-15**
+**scope: ios display · reported 2026-08-15 · CAUSE FOUND, mitigation on branch `ios-aa`**
 
 Owner report: the grey dot pattern that marks a selected item now shows moire
 on an iPhone Air, with the question "is it being scaled differently today?"
 
-**Almost certainly yes, and today.** `39faa5d` ("feat(ios): render at 3x, and
-bundle the tier the build actually needs") changed the iOS render scale, and
-`ios/testflight.sh:255` now verifies `CROSSPOINT_IOS_RENDER_SCALE` is 3 before
-archiving. Build 76 (uploaded 2026-08-15) is the first TestFlight build carrying
-it. The selection band is a dithered 50% pattern -- a regular dot grid -- and a
-regular grid resampled by a non-integer ratio onto the device's own pixel grid
-is exactly what produces moire. Not yet confirmed by measurement; that is the
-first job.
+**Yes, and today.** `39faa5d` ("feat(ios): render at 3x") changed the render
+scale, and build 76 (2026-08-15) is the first TestFlight build carrying it. The
+scale question is now answered by arithmetic rather than by measuring the
+handset, because `presentIfNeeded`'s own quantisation decides it:
 
-**What to establish before changing anything:**
+| Build | Framebuffer | Presented on an iPhone Air | Scale | Resample |
+|---|---|---|---|---|
+| 75 (2x) | 1056x1584 | 1056x1584 | **1.0000** | none, pixel-exact |
+| 76 (3x) | 1584x2376 | 1260x1890 | **0.7955** | nearest, MINIFYING |
 
-- Whether 3x lands on an integer ratio for the iPhone Air specifically. The
-  panel is 528x792 logical; the phone's backing scale and the presented rect
-  decide the final ratio, and `CROSSPOINT_SIM_PIXEL_EXACT` /
-  `SDL_SetRenderLogicalPresentation` decide whether it is integer-scaled or
-  letterboxed with filtering. A fractional scale or a linear filter greys the
-  dither -- the simulator `CLAUDE.md` already warns about exactly this for
-  judging renders.
-- Whether build 75 (2x) shows it on the same handset. That is the cheap A/B and
-  it settles cause.
+A 3x framebuffer is 1584 px wide and no iPhone is; the fit is width-bound, so
+this holds for every plausible status-bar and pad band. **Build 75 could not
+moire and build 76 must** -- that is the cheap A/B, settled without the phone.
 
-**Do not "fix" it by softening the pattern** until the scale question is
-answered -- if the ratio is the cause, changing the dither hides a presentation
-bug and makes the panel lie about what the device shows.
+The selection fill is `Color::LightGray`: ink where both LOGICAL coordinates are
+even (`GfxRenderer.cpp:1041`), which at scale 3 is a 3x3 block on a 6-pixel
+period. Point-sampling that at 1.2571 source px per screen px beats at a
+**21-device-pixel period** (~1.16 mm on this display). Measured amplitude in the
+local mean, levels out of 255:
 
 **The ratio, computed 2026-08-15** (fell out of the keyboard-chip chevron work;
 arithmetic only, not yet seen on the handset). It answers the first bullet, and
@@ -97,12 +92,35 @@ is not the only fork in the road -- drawing the selection fill at device
 resolution instead of as logical blocks would let both win, and it is the same
 gap the firmware repo filed as B-027.
 
-Still to do: confirm the iPhone Air's real point size and safe-area insets
-rather than the 420x912 @3x assumed above, and look at the handset.
+| Filter at 0.7955 | Beat amplitude | Peak-to-peak |
+|---|---|---|
+| nearest (shipped) | 8.14 | 13.42 |
+| bilinear | 1.55 | 3.29 |
+| exact box (area) | 0.37 | 1.15 |
+| 2x at 1:1 | 0.00 | 0.00 |
 
-**Done looks like:** the ratio measured on an iPhone Air, cause named, and
-either the presentation corrected or a recorded ruling that 3x is worth the
-artefact.
+**Mitigation on branch `ios-aa`:** `panelScaleModeFor()` in `HalDisplay.cpp`
+returns `SDL_SCALEMODE_LINEAR` below 1x and leaves `kPanelScaleMode` untouched at
+or above it. Verified live on the iOS Simulator -- the `[panel]` log now ends
+`filter linear`, and the same build with the branch reverted logs `filter
+nearest` and differs by up to 113 levels per pixel on the Home selection tile.
+The same change is what turns the panel's four grey levels into ~17,000 for
+text, since every tone beyond four has to come from the 3x geometry (the
+`.cpfont` glyph data is 2 bits per pixel, quantised at build time in
+`fontconvert_sdcard.py:1053-1087`).
+
+**RULED 2026-08-15: bilinear, and stop there.** The owner chose option B off
+the published comparison. The exact box filter -- 11.7x beat reduction instead
+of bilinear's 4.1x -- is DECLINED: it costs a per-present software pass over
+2.4 M pixels, a second buffer, and a restructure of `presentIfNeeded`'s update
+order, and the residual it removes is a 0.6% ripple. Do not re-propose it as an
+improvement; it was measured, offered and turned down. Reopen only if a future
+panel size lands the presented scale somewhere bilinear genuinely fails.
+
+**The old note said "do not soften the pattern until the scale question is
+answered."** It is answered, and nothing here softens the pattern: the
+framebuffer is untouched and still a faithful four-level panel image. Only the
+optics of showing it smaller than 1:1 change.
 
 ### [ST-007] The README no longer describes what this repo is
 **scope: docs · opened 2026-08-15**
