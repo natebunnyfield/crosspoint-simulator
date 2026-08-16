@@ -197,9 +197,18 @@ testing missed:
   simply gone, so the owner cannot reach the key that commits the entry;
 - there is a large band of dead black space ABOVE the panel. The panel does not
   need to shrink to clear the keyboard on an iPad; it needs to move up;
-- the pad capsules are nearly invisible against a black field in dark mode,
-  which is a separate contrast question worth answering while the layout is
-  being touched anyway.
+- ~~the pad capsules are nearly invisible against a black field in dark mode~~
+  — **ANSWERED 2026-08-16.** The outline was never reaching the color its own
+  row advertised: `PadPalette`'s +/-9 rungs were field-RELATIVE deltas that
+  clamped, and a fixed delta cannot reach a fixed endpoint from an arbitrary
+  start. Measured, 18 of 20 palette halves had at least one end wrong, and High
+  Contrast -- whose entire premise is the gamut ends -- painted `#040404` and
+  `#EDEDED`. `toneChannelAt()` makes +/-9 absolute on any field, and the new
+  Black & White preset is the default, so the dark-mode outline is now actually
+  `#FFFFFF`. See `docs/pad-outline-black-and-white.md`. Still open, and now the
+  narrower question: pure white FIGHTS a tinted dark palette (on Green CRT dark
+  the capsules are the only non-phosphor element on screen) -- that is hue, not
+  contrast, and it is an owner ruling.
 
 **2. Mockups for iPhone Air and iPad Pro, for approval.**
 
