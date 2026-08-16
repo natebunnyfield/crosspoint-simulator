@@ -332,7 +332,7 @@ A toned print's *bright* end is a warm cream, so the dark half takes the toned
 ### The tone axis, and two deliberate departures from the other CRT rows
 
 The axis is the sepia pigment itself, **`#704214`** (Maerz and Paul, *A
-Dictionary of Colour*, 1930, via Wikipedia; HSV 30°, ISCC–NBS "strong brown").
+Dictionary of Color*, 1930, via Wikipedia; HSV 30°, ISCC–NBS "strong brown").
 Both departures below exist for one reason: **the warm quadrant of this list is
 already occupied**, by Paper · Sepia, Amber CRT, Red CRT and Gruvbox Light.
 
