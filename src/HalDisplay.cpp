@@ -126,10 +126,16 @@ static constexpr SDL_ScaleMode kPanelScaleMode = SDL_SCALEMODE_LINEAR;
 // scale that is gcd(1584, 1056)/2 = 264, i.e. steps of 0.38% -- far finer than
 // the ~5% a small phone is short by, so quantising costs nothing visible.
 static constexpr int gcdOf(int a, int b) { return b == 0 ? a : gcdOf(b, a % b); }
-static constexpr float kPixelQuantum = static_cast<float>(
-    gcdOf(HalDisplay::DISPLAY_WIDTH, HalDisplay::DISPLAY_HEIGHT) / 2);
-static_assert(kPixelQuantum >= 1.0f,
-              "panel dimensions must share a factor of at least 2");
+// Computed from the ACTIVE framebuffer, so it stopped being constexpr when the
+// render scale did. The gcd differs per scale -- 264 at 2x on X3, 396 at 3x,
+// 132 at 1x -- and using the ceiling's quantum at a lower scale would quantise
+// to steps the presented panel does not actually land on, which is the whole
+// fault this constant exists to prevent.
+static float pixelQuantum() {
+  const float q = static_cast<float>(
+      gcdOf(HalDisplay::activeWidth(), HalDisplay::activeHeight()) / 2);
+  return q >= 1.0f ? q : 1.0f;
+}
 
 // The texture filter for a given presented panel scale.
 //
@@ -339,7 +345,7 @@ void applyPanelPaletteEnv(bool dark, PanelPalette &p) {
 }
 
 bool getBit(const uint8_t *buffer, int x, int y) {
-  const int byteIdx = (y * HalDisplay::DISPLAY_WIDTH + x) / 8;
+  const int byteIdx = (y * HalDisplay::activeWidth() + x) / 8;
   const int bitIdx = 7 - (x % 8);
   return (buffer[byteIdx] & (1 << bitIdx)) != 0;
 }
@@ -349,10 +355,10 @@ void renderBwPixels(const uint8_t *fb) {
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint32_t ink = panelColor(0, pal);
   const uint32_t paper = panelColor(255, pal);
-  for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
-    for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
+  for (int y = 0; y < HalDisplay::activeHeight(); y++) {
+    for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool white = getBit(fb, x, y);
-      pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] = white ? paper : ink;
+      pixelBuf[y * HalDisplay::activeWidth() + x] = white ? paper : ink;
     }
   }
   pendingPresent.store(true);
@@ -366,7 +372,7 @@ void clearGrayscalePlanes() {
 }
 
 void snapshotBwBase(const uint8_t *fb) {
-  memcpy(grayscalePreviewState.bwBase.data(), fb, HalDisplay::BUFFER_SIZE);
+  memcpy(grayscalePreviewState.bwBase.data(), fb, HalDisplay::activeBufferSize());
   grayscalePreviewState.bwBaseValid = true;
   clearGrayscalePlanes();
 }
@@ -378,7 +384,7 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
     dst.fill(0);
     return;
   }
-  memcpy(dst.data(), src, HalDisplay::BUFFER_SIZE);
+  memcpy(dst.data(), src, HalDisplay::activeBufferSize());
   valid = true;
 }
 
@@ -389,8 +395,8 @@ void composeGrayscalePreview() {
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
   if (!bwBase) return;  // buffer lent out; keep the last presented frame
-  for (int y = 0; y < HalDisplay::DISPLAY_HEIGHT; y++) {
-    for (int x = 0; x < HalDisplay::DISPLAY_WIDTH; x++) {
+  for (int y = 0; y < HalDisplay::activeHeight(); y++) {
+    for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
       const bool lsbActive =
           grayscalePreviewState.lsbValid &&
@@ -404,7 +410,7 @@ void composeGrayscalePreview() {
 
       // No 255-level flip for inversion: the dark palette's ink->paper
       // direction already runs light-on-dark (see PanelPalette above).
-      pixelBuf[y * HalDisplay::DISPLAY_WIDTH + x] = panelColor(level, pal);
+      pixelBuf[y * HalDisplay::activeWidth() + x] = panelColor(level, pal);
     }
   }
   pendingPresent.store(true);
@@ -448,8 +454,8 @@ static bool isPortraitOrientation(GfxRenderer::Orientation orientation) {
 static void getLogicalWindowSize(GfxRenderer::Orientation orientation,
                                  int *width, int *height) {
   const bool isPortrait = isPortraitOrientation(orientation);
-  const int panelW = HalDisplay::DISPLAY_WIDTH / HalDisplay::RENDER_SCALE;
-  const int panelH = HalDisplay::DISPLAY_HEIGHT / HalDisplay::RENDER_SCALE;
+  const int panelW = HalDisplay::activeWidth() / cp::renderScale();
+  const int panelH = HalDisplay::activeHeight() / cp::renderScale();
   float w = static_cast<float>((isPortrait ? panelH : panelW) *
                                simulatorWindowScale());
   float h = static_cast<float>((isPortrait ? panelW : panelH) *
@@ -480,8 +486,8 @@ static void getLogicalWindowSize(GfxRenderer::Orientation orientation,
 static void getLogicalPresentationSize(GfxRenderer::Orientation orientation,
                                        int *width, int *height) {
   const bool isPortrait = isPortraitOrientation(orientation);
-  *width = isPortrait ? HalDisplay::DISPLAY_HEIGHT : HalDisplay::DISPLAY_WIDTH;
-  *height = isPortrait ? HalDisplay::DISPLAY_WIDTH : HalDisplay::DISPLAY_HEIGHT;
+  *width = isPortrait ? HalDisplay::activeHeight() : HalDisplay::activeWidth();
+  *height = isPortrait ? HalDisplay::activeWidth() : HalDisplay::activeHeight();
 }
 
 static void applyWindowGeometryIfNeeded(GfxRenderer::Orientation orientation) {
@@ -644,7 +650,8 @@ void HalDisplay::begin() {
   // Boot geometry, once. This line exists because the render scale was twice
   // believed shipped while the framebuffer silently stayed 1x (a define that
   // never reached this TU); the compiled truth must be observable at runtime.
-  LOG_INF("DISP", "Framebuffer %dx%d, render scale %d", DISPLAY_WIDTH, DISPLAY_HEIGHT,
+  LOG_INF("DISP", "Framebuffer %dx%d, render scale %d (ceiling %d)",
+          activeWidth(), activeHeight(), cp::renderScale(),
           static_cast<int>(RENDER_SCALE));
 
   // SDL3 returns true on success where SDL2 returned 0.
@@ -678,8 +685,8 @@ void HalDisplay::begin() {
   currentWindowHeight = winH;
 
   texture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                              SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH,
-                              DISPLAY_HEIGHT);
+                              SDL_TEXTUREACCESS_STREAMING, activeWidth(),
+                              activeHeight());
 
   // SDL3 replaced the global SDL_HINT_RENDER_SCALE_QUALITY hint with a
   // per-texture setting, which must therefore come after the texture exists.
@@ -713,7 +720,7 @@ void HalDisplay::clearScreen(uint8_t color) const {
   // after they hand it back repaints anyway.
   uint8_t *fb = getFrameBuffer();
   if (!fb) return;
-  memset(fb, color, BUFFER_SIZE);
+  memset(fb, color, activeBufferSize());
 }
 
 void HalDisplay::drawImage(const uint8_t *imageData, uint16_t x, uint16_t y,
@@ -723,13 +730,13 @@ void HalDisplay::drawImage(const uint8_t *imageData, uint16_t x, uint16_t y,
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
-    if (destY >= DISPLAY_HEIGHT)
+    if (destY >= activeHeight())
       break;
     const uint32_t destOffset =
-        static_cast<uint32_t>(destY) * DISPLAY_WIDTH_BYTES + (x / 8);
+        static_cast<uint32_t>(destY) * activeWidthBytes() + (x / 8);
     const uint32_t srcOffset = static_cast<uint32_t>(row) * imageWidthBytes;
     for (uint16_t col = 0; col < imageWidthBytes; col++) {
-      if ((x / 8 + col) >= DISPLAY_WIDTH_BYTES)
+      if ((x / 8 + col) >= activeWidthBytes())
         break;
       fb[destOffset + col] = imageData[srcOffset + col];
     }
@@ -744,13 +751,13 @@ void HalDisplay::drawImageTransparent(const uint8_t *imageData, uint16_t x,
   const uint16_t imageWidthBytes = w / 8;
   for (uint16_t row = 0; row < h; row++) {
     const uint16_t destY = y + row;
-    if (destY >= DISPLAY_HEIGHT)
+    if (destY >= activeHeight())
       break;
     const uint32_t destOffset =
-        static_cast<uint32_t>(destY) * DISPLAY_WIDTH_BYTES + (x / 8);
+        static_cast<uint32_t>(destY) * activeWidthBytes() + (x / 8);
     const uint32_t srcOffset = static_cast<uint32_t>(row) * imageWidthBytes;
     for (uint16_t col = 0; col < imageWidthBytes; col++) {
-      if ((x / 8 + col) >= DISPLAY_WIDTH_BYTES)
+      if ((x / 8 + col) >= activeWidthBytes())
         break;
       fb[destOffset + col] &= imageData[srcOffset + col];
     }
@@ -851,8 +858,11 @@ void HalDisplay::presentIfNeeded() {
 
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
+    // so at a lower scale the live picture occupies a prefix of it and the
+    // ceiling's pitch would stride past every row.
     SDL_UpdateTexture(texture, nullptr, pixelBuf,
-                      DISPLAY_WIDTH * sizeof(uint32_t));
+                      activeWidth() * sizeof(uint32_t));
   }
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
@@ -877,8 +887,8 @@ void HalDisplay::presentIfNeeded() {
   //
   // SDL3 renamed RenderCopy/RenderCopyEx to RenderTexture/RenderTextureRotated
   // and takes float rects; the arithmetic is unchanged.
-  constexpr float kW = static_cast<float>(DISPLAY_WIDTH);
-  constexpr float kH = static_cast<float>(DISPLAY_HEIGHT);
+  const float kW = static_cast<float>(activeWidth());
+  const float kH = static_cast<float>(activeHeight());
   SDL_FRect portraitDst = {(kH - kW) / 2.0f, kW / 2.0f - kH / 2.0f, kW, kH};
   SDL_FRect landscapeDst = {0.0f, 0.0f, kW, kH};
 
@@ -952,11 +962,11 @@ void HalDisplay::presentIfNeeded() {
           heldOutH = outH;
         }
         if (heldScale > 0.0f &&
-            SDL_fabsf(scale - heldScale) <= 1.0f / kPixelQuantum) {
+            SDL_fabsf(scale - heldScale) <= 1.0f / pixelQuantum()) {
           scale = heldScale;
         } else {
           scale =
-              SDL_max(1.0f, SDL_floorf(scale * kPixelQuantum)) / kPixelQuantum;
+              SDL_max(1.0f, SDL_floorf(scale * pixelQuantum())) / pixelQuantum();
           heldScale = scale;
         }
       }
@@ -1105,7 +1115,7 @@ uint8_t *HalDisplay::getFrameBuffer() const {
 
 uint8_t *HalDisplay::lendFrameBufferStorage(uint32_t *sizeOut) {
   if (sizeOut) {
-    *sizeOut = frameBufferLent ? 0 : BUFFER_SIZE;
+    *sizeOut = frameBufferLent ? 0 : activeBufferSize();
   }
   if (frameBufferLent) {
     return nullptr;
@@ -1157,15 +1167,15 @@ void HalDisplay::displayGrayBuffer(bool, const unsigned char *, bool) {
 
 void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
                                           uint16_t yStart, uint16_t numRows) {
-  if (!rows || numRows == 0 || yStart >= DISPLAY_HEIGHT) {
+  if (!rows || numRows == 0 || yStart >= activeHeight()) {
     return;
   }
 
   const uint16_t rowsToCopy =
-      (yStart + numRows > DISPLAY_HEIGHT) ? (DISPLAY_HEIGHT - yStart) : numRows;
-  const size_t offset = static_cast<size_t>(yStart) * DISPLAY_WIDTH_BYTES;
+      (yStart + numRows > activeHeight()) ? (activeHeight() - yStart) : numRows;
+  const size_t offset = static_cast<size_t>(yStart) * activeWidthBytes();
   const size_t byteCount =
-      static_cast<size_t>(rowsToCopy) * DISPLAY_WIDTH_BYTES;
+      static_cast<size_t>(rowsToCopy) * activeWidthBytes();
   auto &plane = lsbPlane ? grayscalePreviewState.lsbPlane
                          : grayscalePreviewState.msbPlane;
   memcpy(plane.data() + offset, rows, byteCount);
@@ -1177,11 +1187,11 @@ void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
 }
 bool HalDisplay::supportsStripGrayscale() const { return true; }
 
-uint16_t HalDisplay::getDisplayWidth() const { return DISPLAY_WIDTH; }
-uint16_t HalDisplay::getDisplayHeight() const { return DISPLAY_HEIGHT; }
+uint16_t HalDisplay::getDisplayWidth() const { return activeWidth(); }
+uint16_t HalDisplay::getDisplayHeight() const { return activeHeight(); }
 uint16_t HalDisplay::getDisplayWidthBytes() const {
-  return DISPLAY_WIDTH_BYTES;
+  return activeWidthBytes();
 }
-uint32_t HalDisplay::getBufferSize() const { return BUFFER_SIZE; }
+uint32_t HalDisplay::getBufferSize() const { return activeBufferSize(); }
 
 HalDisplay display;

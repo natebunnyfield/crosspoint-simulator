@@ -39,6 +39,11 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // the shipped tones. Every road from an empty store leads to the shipped look,
 // which is the only acceptable answer for a control that decides whether text
 // is legible at all.
+// The panel's supersampling factor. Missing-key failure mode is MALIGNANT --
+// -integerForKey: returns 0, and cp::setRenderScale(0) clamps to 1, i.e. the
+// coarsest render the app can produce -- so this key relies on ensureDefaults()
+// having seeded 3 from Root.plist, exactly like readAloudRatePercent above.
+static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
@@ -163,6 +168,10 @@ static void ensureDefaults(void) {
         kPanelPaperLight : @"FBFBF9",
         kPanelInkDark : @"E0E0DE",
         kPanelPaperDark : @"121212",
+        // The scale the app has always rendered at. 0 here would clamp to 1 --
+        // a quarter of the glyph resolution -- so this fallback is doing real
+        // work, not restating the plist for tidiness.
+        kRenderScale : @(3),
       }];
     }
 
@@ -280,6 +289,17 @@ int CrossPointPrefs_panelPalettePreset(void) {
   // in two files, is how the two answers drift.
   return static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kPanelPalettePreset]);
+}
+
+int CrossPointPrefs_renderScale(void) {
+  ensureDefaults();
+  checkKnown(kRenderScale);
+  // NOT clamped here. cp::setRenderScale() clamps to [1, the ceiling this
+  // binary was compiled at], and that ceiling is a compile-time fact this file
+  // has no business restating -- a second clamp here would be the drift that
+  // ships a 3 the framebuffer cannot hold, or refuses a 3 it can.
+  return static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:kRenderScale]);
 }
 
 int CrossPointPrefs_panelCustomColor(int dark, int ink) {
