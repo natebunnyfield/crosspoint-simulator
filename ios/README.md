@@ -1287,8 +1287,10 @@ confirming the build failed with it.
 
 ### Preset list (rulings 2026-08-15, 2026-08-16)
 
-Thirteen rows now, appended in this order and **append-only** — the value
-persists as an integer, so inserting one re-points every saved choice:
+Fifteen rows now, appended in this order and **append-only** — the value
+persists as an integer, so inserting one re-points every saved choice. The
+DISPLAY order in `Root.plist` is independent of these integers, and is where
+the Neutral / Paper / CRT grouping lives; the CRT group sorts by P-number:
 
 | # | Preset | Light | Dark |
 |---|---|---|---|
@@ -1305,6 +1307,8 @@ persists as an integer, so inserting one re-points every saved choice:
 | 11 | Red CRT | 10.22:1 | 7.33:1 |
 | 12 | Gray CRT | 11.14:1 | 13.92:1 |
 | 13 | Soft | 9.15:1 | 9.47:1 |
+| 14 | Sepia CRT | **7.59:1** | 12.51:1 |
+| 15 | Blue CRT | 10.18:1 | **7.35:1** |
 | 0 | Custom | — | — |
 
 Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
@@ -1336,6 +1340,39 @@ Two things about them are worth carrying at this level:
   a real phosphor (P22R, the red gun of every color tube and the red tube of
   a three-tube projector) rather than a machine anyone sat in front of.
 
+**Blue CRT and Sepia CRT (2026-08-16)** close the CRT group at six rows, and
+one of the two is not a phosphor. Full research and derivation in the same
+file; three things belong at this level:
+
+* **P11 is real and blue is the hardest wall in the list.** ZnS:Ag, CIE
+  0.147 / 0.076, 460 nm; Wikipedia's P-number table gives its application as
+  "Display tubes and VFDs; Oscilloscopes (for fast photographic recording)".
+  But blue carries only **0.0722** of the sRGB luminance coefficient, so P11
+  at the brightest sRGB can render it (`#0038FF`) measures **3.01:1 against
+  pure black** — worse than red's 5.41:1. The trace is blended 25.8% toward
+  D65 to reach 7.35:1. As with red, **no blue monochrome terminal shipped.**
+* **SEPIA IS NOT A PHOSPHOR.** It is a print-toning process — metallic silver
+  converted to a silver sulfide, done for archival life. There is no sepia
+  P-number and no sepia screen in any source checked, and the Settings row says
+  so: *"CRT · Sepia — toned, not a phosphor"*. It is the P4 page put through
+  the toning bath.
+* **A brown trace is a perceptual impossibility, not a gamut limit.** "Brown
+  exists as a color perception only in the presence of a brighter color
+  contrast" — brown is dark orange seen against something brighter, and a trace
+  on an unlit tube is the brightest thing in the frame. So the dark half takes
+  the toned HIGHLIGHT (`#FFCCAF`), not a sepia that cannot exist. The sepia hue
+  driven to full emission is `#FF9D3B`, ΔE2000 10.4 from Amber CRT — Amber with
+  extra steps.
+
+Sepia CRT's light half deliberately spends contrast on distinctness: at the
+family's ink luminance the sepia axis is ΔE2000 4.2 from Amber CRT's `#4A2E00`
+and the row would be a duplicate, so the ink is lifted to `#663B11` (7.59:1,
+ΔE2000 7.3). Its page is peach-pink rather than the yellow-brown most people
+picture, because the yellow-brown is already Paper · Sepia's and Amber CRT's —
+and because sepia is defined as "a *reddish*-brown color". For scale: Amber
+CRT's light paper and Paper · Sepia's are **already ΔE2000 2.4 apart** in the
+shipped set, so both new separations are wider than a pair that already ships.
+
 **Solarized is the one preset exempt from the 7:1 floor**, and the exemption is
 by NAME rather than by relaxing the floor. Its low contrast is the palette's
 thesis; raising it produces something that is not Solarized. `isLowContrastByDesign()`
@@ -1351,6 +1388,8 @@ day, Solarized Dark by night.
 The CRT rows are honest about which half is real: the DARK half is phosphor on
 a black tube, the authentic article. A lit CRT has no light mode, so the light
 half keeps the hue instead — deep phosphor ink on paper tinted the same way.
+Sepia CRT is the one row where **neither** half is a phosphor, and its Settings
+label says so rather than leaving the group's convention to imply otherwise.
 
 **Rendering a palette headlessly needs the SETTING, not just the env var.**
 `CROSSPOINT_SIM_DARK=1` is applied inside `setPanelDark`, but `main.cpp:781`
