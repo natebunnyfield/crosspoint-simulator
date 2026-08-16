@@ -313,7 +313,7 @@ void layoutPadTablet(float W, float H, float S) {
   place(kPadUp, rightX, lowerY, cell, half);
   place(kPadDown, rightX + cell, lowerY, cell, half);
 
-  // The keyboard chip, one cell wide and centred under the page -- the same
+  // The keyboard chip, one cell wide and centerd under the page -- the same
   // rule as the phone, in the only horizontal space the tablet's side-margin
   // pad leaves free. It rides with the lifted row so it stays clear of the
   // keyboard it toggles.
@@ -521,8 +521,8 @@ void layoutPad(int outW, int outH) {
   // size (kButton in CrossPointKeyboardBar.mm -- change one, change the other,
   // same pairing that file's glyph comment already enforces for the artwork)
   // so the toggle reads as one control in two states rather than growing
-  // between them. Centred in the bottom row (owner ruling 2026-08-10) -- dead
-  // centre rather than on the column grid, since with an even column count no
+  // between them. Centerd in the bottom row (owner ruling 2026-08-10) -- dead
+  // center rather than on the column grid, since with an even column count no
   // cell straddles the middle and a control that is not one of the seven
   // should not pretend to sit in their grid. The bottom row leaves columns
   // 1..cols-3 empty in every layout (cols is at least 5), so the chip always
@@ -978,7 +978,7 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
   const float cx = c.x + c.w / 2.0f;
   const float top = c.y + (c.h - glyphH) / 2.0f;
 
-  // The chevron, rasterised by COVERAGE. No geometry API, no rotated rect to
+  // The chevron, rasterized by COVERAGE. No geometry API, no rotated rect to
   // resample -- the original reasons stand, and this keeps them.
   //
   // WHAT WAS WRONG. It was stacked one-pixel rows with the offset stepping by a
@@ -1039,7 +1039,7 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
 
   // The keyboard: a solid body with the keys PUNCHED back out in the face
   // tone. Punching rather than stroking each key is what keeps it legible at
-  // this size -- outlines this small close up into a grey smear.
+  // this size -- outlines this small close up into a gray smear.
   const float bx = cx - bodyW / 2.0f;
   const float by = top + glyphH - bodyH;
   setRGB(r, p.hairline);
