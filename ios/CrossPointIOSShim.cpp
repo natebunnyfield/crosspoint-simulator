@@ -61,6 +61,7 @@
 #include "CrossPointAccessibility.h"
 #include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
+#include "PanelPrefs.h"
 #include "CrossPointReadAloud.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -671,17 +672,12 @@ padpalette::Levels currentLevels(bool dark) {
 // makePalette(): the pad's rungs are relative deltas, so they follow whatever
 // paper the owner picked and stay a fixed step from it.
 panelpalette::Palette currentPanel(bool dark) {
-  const int preset = CrossPointPrefs_panelPalettePreset();
-  // Short-circuit the four string reads under a named preset. resolve() would
-  // ignore them anyway; this runs every frame, and a preset is the common case.
-  if (preset != panelpalette::kPresetCustom)
-    return panelpalette::resolve(preset, dark, panelpalette::kInvalidColor,
-                                 panelpalette::kInvalidColor);
-  const int d = dark ? 1 : 0;
-  return panelpalette::resolve(preset, dark,
-                               CrossPointPrefs_panelCustomColor(d, 1),
-                               CrossPointPrefs_panelCustomColor(d, 0));
+  // Delegates to ios/PanelPrefs.h, which the UIKit keyboard bar also uses. One
+  // definition on purpose: the show chip is painted from this and the hide chip
+  // from that, and they have to agree.
+  return crosspoint::panelForPrefs(dark);
 }
+
 
 uint64_t packPanel(const panelpalette::Palette &p) {
   return (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
@@ -704,6 +700,12 @@ void applyPanel(const panelpalette::Palette &panel) {
                                         panel.paper);
   const Palette &p = palette();
   SimulatorOverlay::setClearColor(p.field[0], p.field[1], p.field[2]);
+  // The HIDE chip lives in the keyboard's accessory bar and is UIKit, not SDL,
+  // so nothing repaints it on its own. The SHOW chip beside the pad is redrawn
+  // from `panel.paper` every frame; without this the two halves of the same
+  // gesture carried different tones the moment a non-default palette was
+  // chosen. Cheap and idempotent, and a no-op while the keyboard is down.
+  CrossPointKeyboardBar_refreshTint();
 }
 
 void applyTheme() {

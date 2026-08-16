@@ -136,6 +136,12 @@ run dispatch_signal \
 run_direct gen_cmake_sources \
   python3 tests/gen_cmake_sources_test.py
 
+# The two keyboard chips must take their colours from one definition. Source
+# level on purpose -- the real check needs UIKit and a booted simulator, and a
+# hardcoded colour is invisible to every other test here.
+run_direct chip_tint_source \
+  python3 tests/chip_tint_source_test.py
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.

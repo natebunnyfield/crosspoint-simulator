@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include "HalGPIO.h"
+#include "PanelPrefs.h"
 
 // The SDL window, from the translation unit that owns it. Declared here rather
 // than published in a header for the same reason HalGPIO.cpp declares it the
@@ -136,24 +137,36 @@ UIImage *hideKeyboardGlyph(CGFloat side) {
   return [img imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 }
 
-// Panel ink, the two tones HalDisplay's PanelPalette uses. Monochrome by
-// definition — no system accent anywhere near this control.
-UIColor *panelInk(void) {
+// Panel ink and paper, read LIVE from the owner's palette choice rather than
+// pinned to the shipped tones.
+//
+// These used to be the kDefaultLight / kDefaultDark constants written out by
+// hand. That was invisible until the palette became settable: the SHOW chip is
+// painted by the SDL side from the pad palette, which follows the chosen paper,
+// while this HIDE chip stayed grey. Pick Green CRT and one chip was phosphor
+// and the other was not (owner, 2026-08-15: "match hide keyboard color to show
+// keyboard color").
+//
+// Dynamic provider, so a light/dark switch still re-resolves without anyone
+// rebuilding the bar. A PALETTE change does not raise a trait change, though,
+// so CrossPointKeyboardBar_refreshTint() below is what carries that half --
+// and it is required for the border in any case, since a CGColor is resolved
+// once at assignment and never re-evaluated.
+UIColor *colorFromPanel(bool wantInk) {
   return [UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *t) {
-    return t.userInterfaceStyle == UIUserInterfaceStyleDark
-               ? [UIColor colorWithRed:0xE0 / 255.0 green:0xE0 / 255.0 blue:0xDE / 255.0 alpha:1]
-               : [UIColor colorWithRed:0x2D / 255.0 green:0x2D / 255.0 blue:0x2D / 255.0 alpha:1];
+    const bool dark = t.userInterfaceStyle == UIUserInterfaceStyleDark;
+    const panelpalette::Palette p = crosspoint::panelForPrefs(dark);
+    const unsigned char *c = wantInk ? p.ink : p.paper;
+    return [UIColor colorWithRed:c[0] / 255.0
+                           green:c[1] / 255.0
+                            blue:c[2] / 255.0
+                           alpha:1];
   }];
 }
 
-// The paper the ink sits on, the other half of the same palette.
-UIColor *panelPaper(void) {
-  return [UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *t) {
-    return t.userInterfaceStyle == UIUserInterfaceStyleDark
-               ? [UIColor colorWithRed:0x12 / 255.0 green:0x12 / 255.0 blue:0x12 / 255.0 alpha:1]
-               : [UIColor colorWithRed:0xFB / 255.0 green:0xFB / 255.0 blue:0xF9 / 255.0 alpha:1];
-  }];
-}
+UIColor *panelInk(void) { return colorFromPanel(true); }
+
+UIColor *panelPaper(void) { return colorFromPanel(false); }
 
 } // namespace
 
@@ -172,10 +185,36 @@ UIColor *panelPaper(void) {
 }
 @end
 
+// File scope, not block scope: the tint refresh below has to reach the button
+// after it is built, and a palette change can arrive at any time.
+static CPKeyboardBarTarget *g_target = nil;
+static UIView *g_bar = nil;
+static UIButton *g_hide = nil;
+
+// Re-apply the current palette to an already-built chip.
+//
+// Needed because neither half re-resolves on its own: a dynamic UIColor
+// re-evaluates on a TRAIT change, and a palette change is not one; and
+// layer.borderColor is a CGColor, resolved once at assignment. Safe to call
+// before the bar exists -- it is a no-op then, and install() picks up the
+// current colours anyway.
+void CrossPointKeyboardBar_refreshTint(void) {
+  dispatch_block_t work = ^{
+    if (!g_hide) return;
+    g_hide.tintColor = panelInk();
+    g_hide.backgroundColor = panelPaper();
+    g_hide.layer.borderColor = panelInk().CGColor;
+  };
+  if (NSThread.isMainThread)
+    work();
+  else
+    dispatch_async(dispatch_get_main_queue(), work);
+}
+
 void CrossPointKeyboardBar_install(void) {
   dispatch_block_t work = ^{
-    static CPKeyboardBarTarget *target = nil;
-    static UIView *bar = nil;
+    CPKeyboardBarTarget *__strong &target = g_target;
+    UIView *__strong &bar = g_bar;
 
     UITextField *field = sdlTextField();
     if (!field) return;
@@ -231,6 +270,7 @@ void CrossPointKeyboardBar_install(void) {
       [hide addTarget:target
                     action:@selector(dismiss)
           forControlEvents:UIControlEventTouchUpInside];
+      g_hide = hide;
       [bar addSubview:hide];
     }
 
