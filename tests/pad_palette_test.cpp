@@ -74,10 +74,22 @@ struct Tone {
   uint8_t c[3];
 };
 
-static Tone toneAt(const uint8_t *field, const int16_t *table, int level) {
+// Every tone this test reasons about comes back out of makePaletteOn -- the
+// function the app actually paints from -- rather than being recomputed from a
+// table here. That is the difference between checking the ladder and checking a
+// copy of the ladder, and it is the difference that let the two gamut-end rows
+// lie on nine of the eleven page colours while every assertion passed.
+struct Role {
+  bool dark;
+  bool isFill;
+};
+
+static Tone toneAt(const uint8_t *field, Role role, int level) {
+  const uint8_t f[3] = {field[0], field[1], field[2]};
+  const Palette p = role.isFill ? makePaletteOn(role.dark, 0, level, f)
+                                : makePaletteOn(role.dark, level, 0, f);
   Tone t{};
-  for (int i = 0; i < 3; i++)
-    t.c[i] = toneChannel(field[i], table[clampLevel(level) + kContrastOffset]);
+  for (int i = 0; i < 3; i++) t.c[i] = role.isFill ? p.faceDown[i] : p.hairline[i];
   return t;
 }
 
@@ -92,8 +104,7 @@ static std::string hex(const uint8_t c[3]) {
 struct Ladder {
   const char *key;       // Root.plist key
   const uint8_t *field;  // 3 channels
-  const int16_t *table;
-  bool dark;
+  Role role;
   int defaultLevel;
   int accessibleLevel;
   int blackLevel;
@@ -101,13 +112,43 @@ struct Ladder {
 };
 
 static const Ladder kLadders[] = {
-    {"padOutlineContrastLight", kLightPalette.field, kOutlineDeltaLight, false, -1,
-     -4, -9, 9},
-    {"padFillContrastLight", kLightPalette.field, kFillDeltaLight, false, -1, -5,
-     -9, 9},
-    {"padOutlineContrastDark", kDarkPalette.field, kOutlineDeltaDark, true, 1, 4,
-     -9, 9},
-    {"padFillContrastDark", kDarkPalette.field, kFillDeltaDark, true, 1, 5, -9, 9},
+    {"padOutlineContrastLight", kLightPalette.field, {false, false}, -1, -4, -9, 9},
+    {"padFillContrastLight", kLightPalette.field, {false, true}, -1, -5, -9, 9},
+    {"padOutlineContrastDark", kDarkPalette.field, {true, false}, 1, 4, -9, 9},
+    {"padFillContrastDark", kDarkPalette.field, {true, true}, 1, 5, -9, 9},
+};
+
+// EVERY PAPER THE OWNER CAN ACTUALLY CHOOSE, both halves of all eleven page
+// colours, transcribed from src/PanelPalette.h's presetPalette(). Kept as a
+// literal table rather than including that header, so that a change to either
+// file has to be made deliberately in both and cannot be picked up silently.
+struct Paper {
+  const char *name;
+  bool dark;
+  uint8_t rgb[3];
+};
+
+static const Paper kPapers[] = {
+    {"Default light", false, {0xFB, 0xFB, 0xF9}},
+    {"Default dark", true, {0x12, 0x12, 0x12}},
+    {"High Contrast light", false, {0xFF, 0xFF, 0xFF}},
+    {"High Contrast dark", true, {0x00, 0x00, 0x00}},
+    {"Sepia light", false, {0xF2, 0xE7, 0xD0}},
+    {"Sepia dark", true, {0x1C, 0x17, 0x10}},
+    {"Cool Gray light", false, {0xE8, 0xEC, 0xEF}},
+    {"Cool Gray dark", true, {0x10, 0x14, 0x1A}},
+    {"Solarized light", false, {0xFD, 0xF6, 0xE3}},
+    {"Solarized dark", true, {0x00, 0x2B, 0x36}},
+    {"Green CRT light", false, {0xDC, 0xEF, 0xD8}},
+    {"Green CRT dark", true, {0x00, 0x1A, 0x00}},
+    {"Amber CRT light", false, {0xF5, 0xE6, 0xC8}},
+    {"Amber CRT dark", true, {0x1A, 0x10, 0x00}},
+    {"Nord light", false, {0xEC, 0xEF, 0xF4}},
+    {"Nord dark", true, {0x2E, 0x34, 0x40}},
+    {"Gruvbox Light light", false, {0xFB, 0xF1, 0xC7}},
+    {"Gruvbox Light dark", true, {0x28, 0x28, 0x28}},
+    {"Latte light", false, {0xEF, 0xF1, 0xF5}},
+    {"Latte dark", true, {0x1E, 0x1E, 0x2E}},
 };
 
 // --- A very small Root.plist reader ---------------------------------------
@@ -246,10 +287,8 @@ int main(int argc, char **argv) {
 
   // --- 4. Full gamut, both ends, both appearances, both roles --------------
   for (const Ladder &L : kLadders) {
-    const Tone black = toneAt(L.field,
-                              L.table, L.blackLevel);
-    const Tone white = toneAt(L.field,
-                              L.table, L.whiteLevel);
+    const Tone black = toneAt(L.field, L.role, L.blackLevel);
+    const Tone white = toneAt(L.field, L.role, L.whiteLevel);
     CHECKM(black.c[0] == 0 && black.c[1] == 0 && black.c[2] == 0,
            "%s level %+d is %s, not #000000", L.key, L.blackLevel,
            hex(black.c).c_str());
@@ -258,12 +297,58 @@ int main(int argc, char **argv) {
            hex(white.c).c_str());
   }
 
+  // --- 4b. ...on every paper the owner can choose, not just the shipped one -
+  //
+  // THE REGRESSION THIS FILE EXISTS FOR. Section 4 passed for the whole life of
+  // the page-colour dial while the two rows labelled "black" and "white"
+  // painted neither on nine of the eleven presets: the ladder's ends were a
+  // FIXED DELTA, and a fixed delta cannot reach a fixed endpoint from an
+  // arbitrary start. Measured on an iPhone Air simulator, Green CRT dark, the
+  // "18.73:1 — white" outline row painted #EDFFED.
+  //
+  // Both ends, both roles, both halves of all eleven palettes: 88 cells.
+  for (const Paper &pap : kPapers) {
+    for (bool isFill : {false, true}) {
+      const Role role{pap.dark, isFill};
+      const Tone black = toneAt(pap.rgb, role, kContrastMin);
+      const Tone white = toneAt(pap.rgb, role, kContrastMax);
+      CHECKM(hex(black.c) == "000000", "%s %s: level -9 is %s, not #000000",
+             pap.name, isFill ? "fill" : "outline", hex(black.c).c_str());
+      CHECKM(hex(white.c) == "FFFFFF", "%s %s: level +9 is %s, not #FFFFFF",
+             pap.name, isFill ? "fill" : "outline", hex(white.c).c_str());
+    }
+  }
+
+  // --- 4c. The Black & White preset paints black and white, everywhere ------
+  //
+  // The preset's whole content is a claim its NAME makes, so the claim is what
+  // gets checked, on every paper rather than on the shipped one.
+  for (const Paper &pap : kPapers) {
+    const Levels lv = presetLevels(kPresetBlackWhite, pap.dark);
+    const Palette p = makePaletteOn(pap.dark, lv.outline, lv.fill, pap.rgb);
+    const std::string want = pap.dark ? "FFFFFF" : "000000";
+    CHECKM(hex(p.hairline) == want, "%s: Black & White outline is %s, want %s",
+           pap.name, hex(p.hairline).c_str(), want.c_str());
+    // The wash must NOT go to the same end -- a solid cell under the finger is
+    // a different control appearing, not the same one filling.
+    CHECKM(hex(p.faceDown) != "000000" && hex(p.faceDown) != "FFFFFF",
+           "%s: Black & White wash reached the gamut end (%s)", pap.name,
+           hex(p.faceDown).c_str());
+    // ...and it must still be visible against the field, which is the one thing
+    // a wash has to do.
+    CHECKM(std::memcmp(p.faceDown, p.field, 3) != 0,
+           "%s: Black & White wash equals the field, so a press draws nothing",
+           pap.name);
+    CHECKM(std::memcmp(p.hairline, p.field, 3) != 0 ||
+               hex(p.field) == "000000" || hex(p.field) == "FFFFFF",
+           "%s: Black & White outline equals the field", pap.name);
+  }
+
   // --- 5. No dead zone: every rung of a ladder paints its own pixels -------
   for (const Ladder &L : kLadders) {
     std::map<std::string, int> seen;
     for (int lvl = kContrastMin; lvl <= kContrastMax; lvl++) {
-      const Tone t =
-          toneAt(L.field, L.table, lvl);
+      const Tone t = toneAt(L.field, L.role, lvl);
       const std::string h = hex(t.c);
       auto it = seen.find(h);
       CHECKM(it == seen.end(), "%s: levels %+d and %+d both paint %s", L.key,
@@ -273,7 +358,8 @@ int main(int argc, char **argv) {
   }
 
   // --- 6. Unknown preset resolves to Current, never to invisible ----------
-  for (int bogus : {-5, 4, 99, 1000}) {
+  // 4 is NOT in this list any more: it is kPresetBlackWhite as of 2026-08-16.
+  for (int bogus : {-5, 5, 99, 1000}) {
     for (bool dark : {false, true}) {
       const Levels lv = resolveLevels(bogus, dark, 7, 7);
       const Levels cur = presetLevels(kPresetCurrent, dark);
@@ -294,6 +380,20 @@ int main(int argc, char **argv) {
     // A preset ignores them entirely.
     CHECK(resolveLevels(kPresetTransparent, false, -9, -9).outline == 0);
     CHECK(resolveLevels(kPresetAccessible, true, 0, 0).outline == 4);
+    CHECK(resolveLevels(kPresetBlackWhite, false, 3, 3).outline == kContrastMin);
+    CHECK(resolveLevels(kPresetBlackWhite, true, 3, 3).outline == kContrastMax);
+  }
+
+  // --- 7b. Current still means what it meant -------------------------------
+  //
+  // Black & White is the DEFAULT now, which only stays a safe change while the
+  // old default is one tap away and byte-identical. Section 1 checks the tones;
+  // this checks the levels, so a future edit cannot "modernise" Current.
+  {
+    CHECK(presetLevels(kPresetCurrent, false).outline == -1);
+    CHECK(presetLevels(kPresetCurrent, false).fill == -1);
+    CHECK(presetLevels(kPresetCurrent, true).outline == 1);
+    CHECK(presetLevels(kPresetCurrent, true).fill == 1);
   }
 
   // --- 8. Root.plist agrees with the tables, row by row --------------------
@@ -323,10 +423,8 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < spec.values.size() && i < spec.titles.size(); i++) {
           const long lvl = spec.values[i];
           got.insert(lvl);
-          const Tone t = toneAt(L.field,
-                                L.table, (int)lvl);
-          const double r = contrastRatio(
-              t.c, L.field);
+          const Tone t = toneAt(L.field, L.role, (int)lvl);
+          const double r = contrastRatio(t.c, L.field);
           const std::string want = formatRatio(r);
           const std::string &title = spec.titles[i];
           CHECKM(title.rfind(want, 0) == 0,
@@ -370,13 +468,19 @@ int main(int argc, char **argv) {
       const Spec preset = readSpec(plist, "padContrastPreset");
       CHECKM(preset.found, "padContrastPreset: no specifier in Root.plist");
       if (preset.found) {
-        CHECKM(preset.defaultValue == kPresetCurrent,
-               "padContrastPreset default is %ld, not Current(%d)",
-               preset.defaultValue, kPresetCurrent);
+        CHECKM(preset.defaultValue == kPresetBlackWhite,
+               "padContrastPreset default is %ld, not Black & White(%d)",
+               preset.defaultValue, kPresetBlackWhite);
         std::set<long> vals(preset.values.begin(), preset.values.end());
-        CHECK(vals.count(kPresetCurrent) == 1);
+        // NOTHING WAS REMOVED to make room for the new row. Each of these is a
+        // look an owner may already be using, and the row is the only way back
+        // to it.
+        CHECKM(vals.count(kPresetCurrent) == 1,
+               "Current must stay reachable: it is the pre-2026-08-16 look and "
+               "the only way back to it");
         CHECK(vals.count(kPresetAccessible) == 1);
         CHECK(vals.count(kPresetTransparent) == 1);
+        CHECK(vals.count(kPresetBlackWhite) == 1);
         CHECKM(vals.count(kPresetCustom) == 1,
                "Custom must stay reachable: the four fine pickers are otherwise "
                "unreachable and that is a removed capability");
@@ -395,8 +499,7 @@ int main(int argc, char **argv) {
   for (const Ladder &L : kLadders) {
     std::printf("=== %s (field %s)\n", L.key, hex(L.field).c_str());
     for (int lvl = kContrastMin; lvl <= kContrastMax; lvl++) {
-      const Tone t =
-          toneAt(L.field, L.table, lvl);
+      const Tone t = toneAt(L.field, L.role, lvl);
       const double r =
           contrastRatio(t.c, L.field);
       std::printf("  %+3d  %s  %7.3f:1%s%s\n", lvl, hex(t.c).c_str(), r,

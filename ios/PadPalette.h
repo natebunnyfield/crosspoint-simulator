@@ -52,9 +52,11 @@
 //
 // THE SCALE IS SIGNED AND FIELD-RELATIVE, and -9/+9 ARE THE ABSOLUTE GAMUT ENDS
 // IN BOTH APPEARANCES: -9 is #000000 and +9 is #FFFFFF whether the field is
-// paper or ink. 0 puts the tone ON the field, so the control draws nothing.
-// Everything between is a rung chosen for its measured sRGB contrast ratio
-// against that appearance's field.
+// paper or ink, and now on ANY paper the owner has chosen, not only the shipped
+// one -- see toneChannelAt below, and the page-colour interaction it fixes. 0
+// puts the tone ON the field, so the control draws nothing. Everything between
+// is a rung chosen for its measured sRGB contrast ratio against that
+// appearance's field.
 //
 // WHY SIGNED AND FIELD-RELATIVE RATHER THAN AN ABSOLUTE 0-100% LIGHTNESS SCALE.
 // Three reasons, in order of weight:
@@ -216,6 +218,62 @@ constexpr uint8_t toneChannel(uint8_t field, int16_t delta) {
                                   : (field + delta > 255 ? 255 : field + delta));
 }
 
+// THE TWO END RUNGS ARE ABSOLUTE, NOT RELATIVE: -9 is #000000 and +9 is
+// #FFFFFF on ANY field, and every rung between them is still a delta on the
+// field. This is the resolver the live palette paints through.
+//
+// It is not a new rule -- it is the rule this file has stated since the ladder
+// was written ("-9 IS #000000 AND +9 IS #FFFFFF whether the field is paper or
+// ink", above), made true again. It WAS true while the field was a constant:
+// -251 and +6 clamp to the ends on FBFBF9, -18 and +237 do on 121212, and every
+// static_assert that pins it was written against those two fields. It stopped
+// being true the moment the panel's paper became a dial (src/PanelPalette.h --
+// eleven presets plus four Custom hex fields), because A FIXED DELTA CANNOT
+// REACH A FIXED ENDPOINT FROM AN ARBITRARY START. Nothing warned: the tone
+// still resolved, the row still printed its ratio, and the pad still drew an
+// outline -- just not the color the row names.
+//
+// MEASURED, on an iPhone Air simulator at native 1260x2736 (no downsampling, so
+// the stroke is exactly one unblended pixel), read back out of the screenshot:
+//
+//   Green CRT dark, field #001A00, outline level +9, row "18.73:1 -- white"
+//     painted #EDFFED.
+//
+// It is not confined to the CRTs. +9 in dark is field+237, so it reaches white
+// only if every channel of the paper is >= 18; -9 in dark is field-18, so it
+// reaches black only if every channel is <= 18. In light the two thresholds are
+// >= 249 and <= 251. Of the eleven page-colour presets only Default satisfies
+// all four. Sepia, Cool Gray, Solarized, both CRTs, Nord, Gruvbox Light and
+// Latte each miss at least one end -- and High Contrast, the palette whose
+// entire premise IS the gamut ends, painted #040404 for "black" on its white
+// paper and #EDEDED for "white" on its black one.
+//
+// CLAMPING IS WHAT HID IT. Every wrong answer was a plausible near-miss rather
+// than a visibly broken color, which is exactly the silent failure this
+// header's opening comment says the file exists to catch.
+//
+// The +/-9 entries of the delta tables are kept, and are still the tones the
+// shipped fields produce, so the ratios Root.plist prints for those two rows go
+// on being recomputed from them by tests/pad_palette_test.cpp.
+constexpr uint8_t toneChannelAt(uint8_t field,
+                                const int16_t (&table)[kContrastLevels],
+                                int level) {
+  return level <= kContrastMin ? 0
+         : level >= kContrastMax
+             ? 255
+             : toneChannel(field, table[level + kContrastOffset]);
+}
+
+// Level-addressed forms of the two helpers below, for asserting the resolver
+// itself rather than a raw table entry.
+constexpr bool levelIs(const uint8_t (&field)[3],
+                       const int16_t (&table)[kContrastLevels], int level,
+                       uint8_t r, uint8_t g, uint8_t b) {
+  return toneChannelAt(field[0], table, level) == r &&
+         toneChannelAt(field[1], table, level) == g &&
+         toneChannelAt(field[2], table, level) == b;
+}
+
 constexpr bool toneIs(const uint8_t (&field)[3], int16_t delta, uint8_t r,
                       uint8_t g, uint8_t b) {
   return toneChannel(field[0], delta) == r && toneChannel(field[1], delta) == g &&
@@ -238,15 +296,30 @@ constexpr bool toneMatches(const uint8_t (&field)[3], int16_t delta,
 // show yesterday's numbers -- and because not writing means the owner's own
 // dialled-in values survive a detour through Accessible untouched.
 //
-// Current is the shipped look, and it is the default, so an untouched install
-// is pixel-identical to the build before presets existed. Accessible is the
-// WCAG 1.4.11 3:1 rung against each appearance's field. Transparent is level 0
-// everywhere: tone equals field, nothing drawn.
+// Current is the shipped look, and it stays selectable and unchanged, so a pad
+// set to it is still pixel-identical to the build before presets existed.
+// Accessible is the WCAG 1.4.11 3:1 rung against each appearance's field.
+// Transparent is level 0 everywhere: tone equals field, nothing drawn.
+//
+// BLACK & WHITE is the outline at the absolute gamut end away from the field --
+// #000000 in light, #FFFFFF in dark, on every page colour -- with the wash left
+// on the 3:1 rung. It is the DEFAULT as of 2026-08-16, by owner ruling: the
+// shipped grey outline measured #D9D9D7 on #FBFBF9 in light and #333333 on
+// #121212 in dark, a 1.364:1 / 1.483:1 hairline, and was asked to be actually
+// black and white. Nothing was removed to do it -- Current is one tap away and
+// still resolves to the same +/-1 levels it always did, Accessible and
+// Transparent are untouched, and Custom still reads all four fine pickers.
 enum Preset : int {
   kPresetCustom = 0,
   kPresetCurrent = 1,
   kPresetAccessible = 2,
   kPresetTransparent = 3,
+  // Appended 2026-08-16 by owner ruling ("making black and white outlines
+  // actually black and white"). APPEND ONLY, for the same reason
+  // panelpalette::Preset is append-only: the value persists as an integer in
+  // NSUserDefaults, so inserting a row re-points every saved choice at a
+  // different look.
+  kPresetBlackWhite = 4,
 };
 
 struct Levels {
@@ -266,6 +339,20 @@ constexpr Levels presetLevels(int preset, bool dark) {
     // fill ladder is the gentler of the two (see above): -4/-5 in light,
     // +4/+5 in dark.
     return dark ? Levels{4, 5} : Levels{-4, -5};
+  case kPresetBlackWhite:
+    // THE OUTLINE AT THE GAMUT END AWAY FROM THE FIELD, which after
+    // toneChannelAt above is #000000 in light and #FFFFFF in dark on every page
+    // colour, not just the shipped one. That is the whole ask, in one row.
+    //
+    // THE WASH IS NOT TAKEN TO THE SAME END, and that is deliberate rather than
+    // a half-measure. A stroke covers a line and a wash covers a 58.8 pt cell
+    // (see the top of this file): -9/+9 on the fill would flip the whole
+    // interior of a held control to solid black or solid white, which is a
+    // different control appearing under the finger rather than the same one
+    // filling. It sits on the 3:1 rung the Accessible preset uses -- 929290 in
+    // light, 616161 in dark on the shipped paper -- so the press stays a wash
+    // while reading clearly against a maximum-contrast stroke.
+    return dark ? Levels{kContrastMax, 5} : Levels{kContrastMin, -5};
   case kPresetCurrent:
   case kPresetCustom:
   default:
@@ -275,7 +362,8 @@ constexpr Levels presetLevels(int preset, bool dark) {
 
 constexpr bool isKnownPreset(int preset) {
   return preset == kPresetCustom || preset == kPresetCurrent ||
-         preset == kPresetAccessible || preset == kPresetTransparent;
+         preset == kPresetAccessible || preset == kPresetTransparent ||
+         preset == kPresetBlackWhite;
 }
 
 // --- Guards ----------------------------------------------------------------
@@ -289,13 +377,21 @@ constexpr bool isKnownPreset(int preset) {
 // A dead zone is a ladder with rows that paint identically. It is invisible in
 // review -- the numbers all differ, the tones do not -- so it is a compile-time
 // check rather than a habit. Quadratic over 19 entries, at compile time, once.
+//
+// Runs over LEVELS through toneChannelAt, not over raw table entries, so it
+// checks the tones actually painted -- including the two absolute ends.
+//
+// On the SHIPPED fields only. It cannot be asserted for every field and must
+// not be: on High Contrast light the paper IS #FFFFFF, so +9 (white) and 0
+// (invisible) are the same pixels there by arithmetic, which is not a dead zone
+// but the documented behaviour of the white row on a blown-out page.
 constexpr bool tonesDistinct(const uint8_t (&field)[3],
                              const int16_t (&table)[kContrastLevels]) {
-  for (int i = 0; i < kContrastLevels; i++) {
-    for (int j = i + 1; j < kContrastLevels; j++) {
-      if (toneChannel(field[0], table[i]) == toneChannel(field[0], table[j]) &&
-          toneChannel(field[1], table[i]) == toneChannel(field[1], table[j]) &&
-          toneChannel(field[2], table[i]) == toneChannel(field[2], table[j]))
+  for (int a = kContrastMin; a <= kContrastMax; a++) {
+    for (int b = a + 1; b <= kContrastMax; b++) {
+      if (toneChannelAt(field[0], table, a) == toneChannelAt(field[0], table, b) &&
+          toneChannelAt(field[1], table, a) == toneChannelAt(field[1], table, b) &&
+          toneChannelAt(field[2], table, a) == toneChannelAt(field[2], table, b))
         return false;
     }
   }
@@ -333,31 +429,49 @@ static_assert(toneIs(kDarkPalette.field, kFillDeltaDark[5 + kContrastOffset], 0x
               "dark fill level +5 must be 616161, the 3:1 rung");
 
 // FULL GAMUT, BOTH ENDS, BOTH APPEARANCES, BOTH ROLES. Eight cells; each is
-// asserted on its own so a failure names the one that broke.
-static_assert(toneIs(kLightPalette.field,
-                     kOutlineDeltaLight[-9 + kContrastOffset], 0, 0, 0),
+// asserted on its own so a failure names the one that broke. Asserted through
+// toneChannelAt (the resolver the pad paints through), not against a raw table
+// entry -- the previous form passed for two years while the painted color on
+// nine of eleven page colours was something else.
+static_assert(levelIs(kLightPalette.field, kOutlineDeltaLight, -9, 0, 0, 0),
               "light outline level -9 must be #000000");
-static_assert(toneIs(kLightPalette.field, kFillDeltaLight[-9 + kContrastOffset], 0,
-                     0, 0),
+static_assert(levelIs(kLightPalette.field, kFillDeltaLight, -9, 0, 0, 0),
               "light fill level -9 must be #000000");
-static_assert(toneIs(kLightPalette.field,
-                     kOutlineDeltaLight[9 + kContrastOffset], 0xFF, 0xFF, 0xFF),
+static_assert(levelIs(kLightPalette.field, kOutlineDeltaLight, 9, 0xFF, 0xFF, 0xFF),
               "light outline level +9 must be #FFFFFF");
-static_assert(toneIs(kLightPalette.field, kFillDeltaLight[9 + kContrastOffset],
-                     0xFF, 0xFF, 0xFF),
+static_assert(levelIs(kLightPalette.field, kFillDeltaLight, 9, 0xFF, 0xFF, 0xFF),
               "light fill level +9 must be #FFFFFF");
-static_assert(toneIs(kDarkPalette.field, kOutlineDeltaDark[-9 + kContrastOffset],
-                     0, 0, 0),
+static_assert(levelIs(kDarkPalette.field, kOutlineDeltaDark, -9, 0, 0, 0),
               "dark outline level -9 must be #000000");
-static_assert(toneIs(kDarkPalette.field, kFillDeltaDark[-9 + kContrastOffset], 0, 0,
-                     0),
+static_assert(levelIs(kDarkPalette.field, kFillDeltaDark, -9, 0, 0, 0),
               "dark fill level -9 must be #000000");
-static_assert(toneIs(kDarkPalette.field, kOutlineDeltaDark[9 + kContrastOffset],
-                     0xFF, 0xFF, 0xFF),
+static_assert(levelIs(kDarkPalette.field, kOutlineDeltaDark, 9, 0xFF, 0xFF, 0xFF),
               "dark outline level +9 must be #FFFFFF");
-static_assert(toneIs(kDarkPalette.field, kFillDeltaDark[9 + kContrastOffset], 0xFF,
-                     0xFF, 0xFF),
+static_assert(levelIs(kDarkPalette.field, kFillDeltaDark, 9, 0xFF, 0xFF, 0xFF),
               "dark fill level +9 must be #FFFFFF");
+
+// AND ON A FIELD THAT IS NOT THE SHIPPED ONE, which is the whole point: the
+// eight above passed while these did not exist. Three papers that each broke a
+// different end before toneChannelAt, taken verbatim from src/PanelPalette.h:
+// Green CRT dark (#001A00 -- gave #EDFFED for white, #000800 for black), High
+// Contrast light (#FFFFFF -- gave #040404 for black) and Sepia dark (#1C1710 --
+// gave #FFFFFD for white). tests/pad_palette_test.cpp sweeps all eleven
+// presets; these three are here so the header cannot be edited into a build
+// that compiles and lies.
+inline constexpr uint8_t kGreenCrtDarkPaper[3] = {0x00, 0x1A, 0x00};
+inline constexpr uint8_t kHighContrastLightPaper[3] = {0xFF, 0xFF, 0xFF};
+inline constexpr uint8_t kSepiaDarkPaper[3] = {0x1C, 0x17, 0x10};
+
+static_assert(levelIs(kGreenCrtDarkPaper, kOutlineDeltaDark, 9, 0xFF, 0xFF, 0xFF),
+              "dark outline +9 must be #FFFFFF on the Green CRT paper too");
+static_assert(levelIs(kGreenCrtDarkPaper, kOutlineDeltaDark, -9, 0, 0, 0),
+              "dark outline -9 must be #000000 on the Green CRT paper too");
+static_assert(levelIs(kHighContrastLightPaper, kOutlineDeltaLight, -9, 0, 0, 0),
+              "light outline -9 must be #000000 on a pure white paper too");
+static_assert(levelIs(kSepiaDarkPaper, kOutlineDeltaDark, 9, 0xFF, 0xFF, 0xFF),
+              "dark outline +9 must be #FFFFFF on the Sepia paper too");
+static_assert(levelIs(kSepiaDarkPaper, kFillDeltaDark, 9, 0xFF, 0xFF, 0xFF),
+              "dark fill +9 must be #FFFFFF on the Sepia paper too");
 
 static_assert(tonesDistinct(kLightPalette.field, kOutlineDeltaLight) &&
                   tonesDistinct(kLightPalette.field, kFillDeltaLight) &&
@@ -378,6 +492,22 @@ static_assert(presetLevels(kPresetAccessible, false).outline == -4 &&
                   presetLevels(kPresetAccessible, true).outline == 4 &&
                   presetLevels(kPresetAccessible, true).fill == 5,
               "Accessible must select the 3:1 rungs asserted above");
+static_assert(presetLevels(kPresetBlackWhite, false).outline == kContrastMin &&
+                  presetLevels(kPresetBlackWhite, true).outline == kContrastMax,
+              "Black & White must put the OUTLINE on the absolute gamut end "
+              "away from the field: that is the entire content of the preset");
+static_assert(presetLevels(kPresetBlackWhite, false).fill == -5 &&
+                  presetLevels(kPresetBlackWhite, true).fill == 5,
+              "Black & White's wash must stay on the 3:1 rung, not follow the "
+              "stroke to the gamut end (a solid cell is a different control)");
+// The claim the preset's NAME makes, checked on a paper that is not the shipped
+// one -- which is what the name was untrue on before.
+static_assert(levelIs(kHighContrastLightPaper, kOutlineDeltaLight,
+                      presetLevels(kPresetBlackWhite, false).outline, 0, 0, 0) &&
+                  levelIs(kGreenCrtDarkPaper, kOutlineDeltaDark,
+                          presetLevels(kPresetBlackWhite, true).outline, 0xFF,
+                          0xFF, 0xFF),
+              "Black & White must paint #000000 / #FFFFFF on ANY page colour");
 static_assert(presetLevels(kPresetTransparent, false).outline == 0 &&
                   presetLevels(kPresetTransparent, false).fill == 0 &&
                   presetLevels(kPresetTransparent, true).outline == 0 &&
@@ -410,16 +540,20 @@ static_assert(kOutlineDeltaLight[0 + kContrastOffset] == 0 &&
 constexpr Palette makePaletteOn(bool dark, int outlineLevel, int fillLevel,
                                 const uint8_t (&field)[3]) {
   const Palette &base = dark ? kDarkPalette : kLightPalette;
-  const int16_t *outline = dark ? kOutlineDeltaDark : kOutlineDeltaLight;
-  const int16_t *fill = dark ? kFillDeltaDark : kFillDeltaLight;
-  const int oi = clampLevel(outlineLevel) + kContrastOffset;
-  const int fi = clampLevel(fillLevel) + kContrastOffset;
+  const int ol = clampLevel(outlineLevel);
+  const int fl = clampLevel(fillLevel);
   Palette p = base;
   for (int c = 0; c < 3; c++) {
     p.field[c] = field[c];
     p.face[c] = field[c];
-    p.hairline[c] = toneChannel(field[c], outline[oi]);
-    p.faceDown[c] = toneChannel(field[c], fill[fi]);
+    // The table is chosen INSIDE the call, not hoisted into a local, for the
+    // same reason makePalette below makes two calls rather than one: a
+    // conditional operator over two arrays decays both to pointers, which will
+    // not bind to toneChannelAt's reference parameter.
+    p.hairline[c] = dark ? toneChannelAt(field[c], kOutlineDeltaDark, ol)
+                         : toneChannelAt(field[c], kOutlineDeltaLight, ol);
+    p.faceDown[c] = dark ? toneChannelAt(field[c], kFillDeltaDark, fl)
+                         : toneChannelAt(field[c], kFillDeltaLight, fl);
   }
   return p;
 }
