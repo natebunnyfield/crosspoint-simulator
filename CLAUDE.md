@@ -423,6 +423,40 @@ a card layout is well-formed.
   ```
 - Changing anything shared? Build the desktop env first. Green desktop + red iOS means the iOS harness is wrong; both red means the HAL drifted.
 
+## The color dials, and the one rule they all share
+
+Three settings now decide what the page and the pad look like, all host-side —
+**none of this reaches device firmware**, which has no Settings.app to expose it:
+
+| Dial | Lives in | Docs |
+|---|---|---|
+| Page palette — 14 presets plus Custom | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
+| Button pad outline/fill | `ios/PadPalette.h` | `docs/pad-outline-black-and-white.md` |
+| Render scale 1x/2x/3x | `lib/GfxRenderer/RenderScale.h` (firmware), latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
+
+**A preset persists as an INTEGER.** Rows therefore APPEND and never insert —
+re-pointing one silently changes what a saved choice selects. The display order
+in `Root.plist` is independent of that integer, which is what lets the picker be
+grouped and sorted without touching a single stored value.
+
+**The test's "unknown preset" sentinel has to stay ahead of the enum.** It has
+been walked four times (7 → 11 → 13 → 14) and caught the collision every time
+rather than shipping one. Whoever appends the next preset moves it again.
+
+**One resolver, two consumers.** `crosspoint::panelForPrefs()` is the single
+definition of "what tones did the owner pick": the SDL side paints the page, the
+pad and the SHOW chip from it, and the UIKit side paints the HIDE chip in the
+keyboard bar. They diverged once — hardcoded hex in the keyboard bar meant Green
+CRT made one chip phosphor and left the other gray — and
+`tests/chip_tint_source_test.py` exists to stop the literals coming back.
+
+**A palette change raises no trait change, and a CGColor never re-resolves.** A
+UIKit control built once keeps the tones it was built with, so
+`applyPanel()` pushes `CrossPointKeyboardBar_refreshTint()` at it. Same shape as
+the appearance path: `requestPresent()` only re-pushes the framebuffer, so
+`applyTheme()` also calls `crosspointRequestRender()` or the firmware's own
+Settings screen keeps painting the value it was drawn with.
+
 ## Driving it headlessly
 
 Read [docs/headless-qa.md](docs/headless-qa.md) BEFORE writing a screenshot
