@@ -102,9 +102,10 @@ static void testDefaultsAreTheShippedTones() {
   // loudly, which is the frozen-enum hazard working as intended. Anything
   // chosen here has to stay ahead of the enum. It moved 7 -> 11 then, and
   // 11 -> 13 on 2026-08-16 when Red CRT (11) and Gray CRT (12) were appended,
-  // then 13 -> 14 the same day when Soft (13) was appended; whoever appends the
-  // next preset moves it again.
-  const int roads[] = {kPresetDefault, 14, -1, 999};
+  // then 13 -> 14 the same day when Soft (13) was appended, then 14 -> 16 the
+  // same day again when Sepia CRT (14) and Blue CRT (15) were appended;
+  // whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 16, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -240,7 +241,9 @@ static void testPresetsAreLegible() {
                       {kPresetLatte, "Latte"},
                       {kPresetRedCrt, "Red CRT"},
                       {kPresetGrayCrt, "Gray CRT"},
-                      {kPresetSoft, "Soft"}};
+                      {kPresetSoft, "Soft"},
+                      {kPresetSepiaCrt, "Sepia CRT"},
+                      {kPresetBlueCrt, "Blue CRT"}};
   for (const Row &r : rows) {
     for (int d = 0; d < 2; d++) {
       const Palette p = presetPalette(r.preset, d != 0);
@@ -294,7 +297,7 @@ static void testPresetsAreLegible() {
                      kPresetCoolGray,  kPresetSolarized,    kPresetGreenCrt,
                      kPresetAmberCrt,  kPresetNord,         kPresetGruvboxLight,
                      kPresetLatte,     kPresetRedCrt,       kPresetGrayCrt,
-                     kPresetSoft};
+                     kPresetSoft,      kPresetSepiaCrt,     kPresetBlueCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
