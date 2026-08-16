@@ -250,8 +250,11 @@ void layoutPadTablet(float W, float H, float S) {
   // renders the X3 portrait, so the portrait framebuffer mapping applies
   // (logical width = DISPLAY_HEIGHT). Fractional scale below 1 is kept, same
   // as HalDisplay's fallback for windows shorter than the panel.
-  const float logW = static_cast<float>(HalDisplay::DISPLAY_HEIGHT);
-  const float logH = static_cast<float>(HalDisplay::DISPLAY_WIDTH);
+  // ACTIVE, not the ceiling: at a lower render scale the framebuffer is
+  // smaller than DISPLAY_* and fitting the ceiling's dimensions would size the
+  // panel for a picture that is not there.
+  const float logW = static_cast<float>(HalDisplay::activeHeight());
+  const float logH = static_cast<float>(HalDisplay::activeWidth());
   const float outWpx = W * S, outHpx = H * S;
   // The keyboard eats from the bottom of the usable height, so the centered
   // panel shrinks and rises rather than sitting under the keys.
