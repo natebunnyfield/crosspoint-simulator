@@ -157,7 +157,10 @@ static void ensureDefaults(void) {
         kPadOutlineContrastDark : @(1),
         kPadFillContrastLight : @(-1),
         kPadFillContrastDark : @(1),
-        kPadContrastPreset : @(1),  // Current
+        // MUST MATCH Root.plist's DefaultValue for this key. This branch runs
+        // only when Root.plist could not be read at all, so a drift between the
+        // two is invisible until a packaging fault exposes it.
+        kPadContrastPreset : @(4),  // padpalette::kPresetBlackWhite
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
         // Default preset, and the four hex fields seeded with the tones that
