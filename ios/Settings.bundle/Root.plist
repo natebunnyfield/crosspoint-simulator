@@ -202,7 +202,7 @@ The button pad follows the paper color, so its outlines stay a fixed step away f
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Sets all four contrast settings below at once. Current is what the app has always drawn. Accessible is 3:1 against the page, the WCAG 1.4.11 figure for a control with no label — this pad has none. Transparent draws nothing at all: the controls still work, they are simply not visible.
+			<string>Sets all four contrast settings below at once. Black &amp; White draws the outlines in pure black on a light page and pure white on a dark one, whichever page colour you have chosen; it is the default. Accessible is 3:1 against the page, the WCAG 1.4.11 figure for a control with no label — this pad has none. Current is the softer grey outline the app drew before, unchanged. Transparent draws nothing at all: the controls still work, they are simply not visible.
 
 Choose Custom to use the four settings below instead; they keep whatever you last set, so a detour through a preset loses nothing.</string>
 			<key>Title</key>
@@ -212,15 +212,16 @@ Choose Custom to use the four settings below instead; they keep whatever you las
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>4</integer>
 			<key>Key</key>
 			<string>padContrastPreset</string>
 			<key>Title</key>
 			<string>Preset</string>
 			<key>Titles</key>
 			<array>
-				<string>Current</string>
+				<string>Black &amp; White</string>
 				<string>Accessible — 3:1</string>
+				<string>Current — the old grey outline</string>
 				<string>Transparent — nothing drawn</string>
 				<string>Custom — use the settings below</string>
 			</array>
@@ -228,15 +229,16 @@ Choose Custom to use the four settings below instead; they keep whatever you las
 			<string>PSMultiValueSpecifier</string>
 			<key>Values</key>
 			<array>
-				<integer>1</integer>
+				<integer>4</integer>
 				<integer>2</integer>
+				<integer>1</integer>
 				<integer>3</integer>
 				<integer>0</integer>
 			</array>
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Used only when Preset is Custom. Contrast against the page, measured. Rows run strongest to invisible; 3:1 meets WCAG 1.4.11 for an unlabelled control. The rows below the default are the fine end of the dial, stepping from 1.300:1 down to 1.026:1. White is last: the page is already four levels off white, so pure white is only 1.036:1 against it.</string>
+			<string>Used only when Preset is Custom. Contrast against the page, measured. Rows run strongest to invisible; 3:1 meets WCAG 1.4.11 for an unlabelled control. The rows below the default are the fine end of the dial, stepping from 1.300:1 down to 1.026:1. White is last: the page is already four levels off white, so pure white is only 1.036:1 against it. Black and white are absolute: those two rows paint #000000 and #FFFFFF whatever page colour you have chosen, so their printed ratios are true of the standard page and approximate of any other.</string>
 			<key>Title</key>
 			<string>Button Pad — Light Appearance</string>
 			<key>Type</key>
@@ -352,7 +354,7 @@ Choose Custom to use the four settings below instead; they keep whatever you las
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Used only when Preset is Custom. The same scale against the dark field, strongest to invisible. The rows below the default are the fine end. Black is last and is deliberately low contrast — 1.121:1, because the field is only 18 levels off black — but it is the one tone that disappears into a true-black page on OLED.</string>
+			<string>Used only when Preset is Custom. The same scale against the dark field, strongest to invisible. The rows below the default are the fine end. Black is last and is deliberately low contrast — 1.121:1, because the field is only 18 levels off black — but it is the one tone that disappears into a true-black page on OLED. White and black are absolute: those two rows paint #FFFFFF and #000000 whatever page colour you have chosen, so their printed ratios are true of the standard page and approximate of any other.</string>
 			<key>Title</key>
 			<string>Button Pad — Dark Appearance</string>
 			<key>Type</key>
