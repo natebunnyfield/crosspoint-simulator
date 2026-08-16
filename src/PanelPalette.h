@@ -70,6 +70,7 @@ inline constexpr Palette kDefaultDark{{0xE0, 0xE0, 0xDE}, {0x12, 0x12, 0x12}};
 //   Nord           10.84:1 light    9.25:1 dark
 //   Gruvbox Light  10.22:1 light   10.75:1 dark
 //   Latte           7.06:1 light   11.34:1 dark
+//   Soft            9.15:1 light    9.47:1 dark
 //   Red CRT        10.22:1 light    7.33:1 dark
 //   Gray CRT       11.14:1 light   13.92:1 dark
 //
@@ -95,6 +96,12 @@ enum Preset : int {
   // Appended 2026-08-16 by owner ruling. Same APPEND-ONLY rule as above.
   kPresetRedCrt = 11,         // P22R phosphor -- see the caveat at its case
   kPresetGrayCrt = 12,        // P4 phosphor
+  // Pure grounds, EASED ink. High Contrast's white and black pages without
+  // High Contrast's 21:1 -- the owner asked for "a white background and a black
+  // background but chill on the contrast" (2026-08-16). The ground is the thing
+  // being preserved here, so both papers stay at the gamut ends and only the
+  // ink moves inward, to a matched ~9:1 in both halves.
+  kPresetSoft = 13,
 };
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
@@ -113,6 +120,7 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetCoolGray || preset == kPresetSolarized ||
          preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
          preset == kPresetNord || preset == kPresetGruvboxLight ||
+         preset == kPresetSoft ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
          preset == kPresetGrayCrt;
 }
@@ -221,6 +229,13 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetGrayCrt:
     return dark ? Palette{{0xC9, 0xE7, 0xFF}, {0x14, 0x18, 0x1A}}
                 : Palette{{0x2D, 0x35, 0x3C}, {0xE7, 0xF4, 0xFF}};
+  // Pure white and pure black grounds, ink eased off the opposite end. NOT a
+  // softened Default: Default's paper is #FBFBF9 and its ink #2D2D2D, so it is
+  // already off both ends. This one keeps the ends and spends the whole
+  // relaxation on the ink.
+  case kPresetSoft:
+    return dark ? Palette{{0xAE, 0xAE, 0xAE}, {0x00, 0x00, 0x00}}
+                : Palette{{0x48, 0x48, 0x48}, {0xFF, 0xFF, 0xFF}};
   case kPresetDefault:
   case kPresetCustom:
   default:
