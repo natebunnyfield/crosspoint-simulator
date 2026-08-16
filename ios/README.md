@@ -1367,3 +1367,32 @@ xcrun simctl spawn $D log show --last 60s --predicate 'processImagePath CONTAINS
 `defaults write` on the booted simulator is the only way to exercise a
 Settings.app row without tapping through Settings by hand, and it is what proved
 the palette path end to end.
+
+### Dark Mode follows the system, and the SETTING follows with it
+
+`applyTheme()` writes `SETTINGS.darkMode` whenever the system appearance
+changes. Without that the two halves disagree in the direction that reads as a
+bug: the panel flips immediately via `setPanelDark`, while the firmware's own
+System > Dark Mode row keeps its stored value and shows **Off over a dark page**.
+
+It is not only cosmetic. `main.cpp` runs
+`display.setInverted(SETTINGS.darkMode != 0)` during `setup()`, which happens
+AFTER the harness installs — so a stale value is pushed back onto the panel and
+undoes the appearance the phone asked for. That is the same ordering that makes
+`CROSSPOINT_SIM_DARK` useless for desktop captures (above).
+
+The write is guarded on change, per the SPIFFS rule, because `applyTheme()` runs
+on every repaint path and an unguarded `saveToFile()` would rewrite the settings
+file constantly.
+
+Verified live on the iOS Simulator, 2026-08-16, by flipping the appearance under
+a running app and reading the firmware's own file back:
+
+| `simctl ui appearance` | `settings.json` |
+|---|---|
+| light | `darkMode = 0` |
+| dark  | `darkMode = 1` |
+| light | `darkMode = 0` |
+
+It tracks both directions rather than latching, and in light mode with the
+default already 0 no file is written at all — the guard holds.
