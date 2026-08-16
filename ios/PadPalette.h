@@ -32,7 +32,7 @@
 // systemBackground 121212, and it is blue-tinted at every step against this
 // app's warm paper.)
 //
-// THE PRESS IS THE ONLY FEEDBACK, the controls being unlabelled, and it is a
+// THE PRESS IS THE ONLY FEEDBACK, the controls being unlabeled, and it is a
 // large-area change rather than a loud one. At the default the wash is 14/255
 // against a 34/255 stroke, but it covers a 58.8 pt cell where the stroke covers
 // a line, and area is what makes it read.
@@ -53,7 +53,7 @@
 // THE SCALE IS SIGNED AND FIELD-RELATIVE, and -9/+9 ARE THE ABSOLUTE GAMUT ENDS
 // IN BOTH APPEARANCES: -9 is #000000 and +9 is #FFFFFF whether the field is
 // paper or ink, and now on ANY paper the owner has chosen, not only the shipped
-// one -- see toneChannelAt below, and the page-colour interaction it fixes. 0
+// one -- see toneChannelAt below, and the page-color interaction it fixes. 0
 // puts the tone ON the field, so the control draws nothing. Everything between
 // is a rung chosen for its measured sRGB contrast ratio against that
 // appearance's field.
@@ -242,7 +242,7 @@ constexpr uint8_t toneChannel(uint8_t field, int16_t delta) {
 // It is not confined to the CRTs. +9 in dark is field+237, so it reaches white
 // only if every channel of the paper is >= 18; -9 in dark is field-18, so it
 // reaches black only if every channel is <= 18. In light the two thresholds are
-// >= 249 and <= 251. Of the eleven page-colour presets only Default satisfies
+// >= 249 and <= 251. Of the eleven page-color presets only Default satisfies
 // all four. Sepia, Cool Gray, Solarized, both CRTs, Nord, Gruvbox Light and
 // Latte each miss at least one end -- and High Contrast, the palette whose
 // entire premise IS the gamut ends, painted #040404 for "black" on its white
@@ -302,9 +302,9 @@ constexpr bool toneMatches(const uint8_t (&field)[3], int16_t delta,
 // Transparent is level 0 everywhere: tone equals field, nothing drawn.
 //
 // BLACK & WHITE is the outline at the absolute gamut end away from the field --
-// #000000 in light, #FFFFFF in dark, on every page colour -- with the wash left
+// #000000 in light, #FFFFFF in dark, on every page color -- with the wash left
 // on the 3:1 rung. It is the DEFAULT as of 2026-08-16, by owner ruling: the
-// shipped grey outline measured #D9D9D7 on #FBFBF9 in light and #333333 on
+// shipped gray outline measured #D9D9D7 on #FBFBF9 in light and #333333 on
 // #121212 in dark, a 1.364:1 / 1.483:1 hairline, and was asked to be actually
 // black and white. Nothing was removed to do it -- Current is one tap away and
 // still resolves to the same +/-1 levels it always did, Accessible and
@@ -342,7 +342,7 @@ constexpr Levels presetLevels(int preset, bool dark) {
   case kPresetBlackWhite:
     // THE OUTLINE AT THE GAMUT END AWAY FROM THE FIELD, which after
     // toneChannelAt above is #000000 in light and #FFFFFF in dark on every page
-    // colour, not just the shipped one. That is the whole ask, in one row.
+    // color, not just the shipped one. That is the whole ask, in one row.
     //
     // THE WASH IS NOT TAKEN TO THE SAME END, and that is deliberate rather than
     // a half-measure. A stroke covers a line and a wash covers a 58.8 pt cell
@@ -384,7 +384,7 @@ constexpr bool isKnownPreset(int preset) {
 // On the SHIPPED fields only. It cannot be asserted for every field and must
 // not be: on High Contrast light the paper IS #FFFFFF, so +9 (white) and 0
 // (invisible) are the same pixels there by arithmetic, which is not a dead zone
-// but the documented behaviour of the white row on a blown-out page.
+// but the documented behavior of the white row on a blown-out page.
 constexpr bool tonesDistinct(const uint8_t (&field)[3],
                              const int16_t (&table)[kContrastLevels]) {
   for (int a = kContrastMin; a <= kContrastMax; a++) {
@@ -432,7 +432,7 @@ static_assert(toneIs(kDarkPalette.field, kFillDeltaDark[5 + kContrastOffset], 0x
 // asserted on its own so a failure names the one that broke. Asserted through
 // toneChannelAt (the resolver the pad paints through), not against a raw table
 // entry -- the previous form passed for two years while the painted color on
-// nine of eleven page colours was something else.
+// nine of eleven page colors was something else.
 static_assert(levelIs(kLightPalette.field, kOutlineDeltaLight, -9, 0, 0, 0),
               "light outline level -9 must be #000000");
 static_assert(levelIs(kLightPalette.field, kFillDeltaLight, -9, 0, 0, 0),
@@ -507,7 +507,7 @@ static_assert(levelIs(kHighContrastLightPaper, kOutlineDeltaLight,
                   levelIs(kGreenCrtDarkPaper, kOutlineDeltaDark,
                           presetLevels(kPresetBlackWhite, true).outline, 0xFF,
                           0xFF, 0xFF),
-              "Black & White must paint #000000 / #FFFFFF on ANY page colour");
+              "Black & White must paint #000000 / #FFFFFF on ANY page color");
 static_assert(presetLevels(kPresetTransparent, false).outline == 0 &&
                   presetLevels(kPresetTransparent, false).fill == 0 &&
                   presetLevels(kPresetTransparent, true).outline == 0 &&

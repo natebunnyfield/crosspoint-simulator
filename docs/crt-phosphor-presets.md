@@ -218,7 +218,7 @@ each capture gives exactly the ink and paper above, plus the two interpolated
    Solarized, which the test deliberately blocks. Default answer taken here:
    no, keep the floor, ship the lifted red.
 2. ~~**Spelling.**~~ **Settled while this was in progress — not open.** The row
-   was written as "Grey CRT", which is how the work was asked for. `f0e5210`
+   was written as "Gray CRT", which is how the work was asked for. `f0e5210`
    then landed on `main` mid-session carrying the owner ruling *"always use
    american spellings"*, so it ships as `kPresetGrayCrt` / **"Gray CRT"**,
    matching the existing `kPresetCoolGray` / "Cool Gray". The rest of this
