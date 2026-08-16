@@ -50,7 +50,14 @@ Verified on an iPhone Air simulator (`iOS 26.5`, native 1260×2736 px):
 - **Geometry.** Panel 1056×1584 px at 2×, centered, on a white field that matches
   a blank page so no panel edge is visible.
 
-Not yet run on a physical device — no iPhone Air is paired to this Mac.
+Not yet run on a physical device — no iPhone Air is paired to this Mac. It HAS
+been built and run on the iOS Simulator (2026-08-15, iPhone 13 mini): the app
+launches, the panel presents, and the Page Colours setting was confirmed to
+reach pixels end to end — writing `panelPalettePreset` to 6 and relaunching
+changed the dominant colours from `#E0E0DE on #121212` to `#33FF33 on #001A00`,
+matching `PanelPalette.h` exactly. That run also logged
+`scale 0.6717 (FRACTIONAL) ... filter linear`, i.e. the minified-panel bilinear
+path is live on iOS.
 
 ## Build and run
 
@@ -1326,3 +1333,37 @@ CROSSPOINT_SIM_SCREENSHOTS="4000:/tmp/shot.png" SDL_VIDEODRIVER=dummy \
 ```
 
 Captures are written by `SDL_SaveBMP` — the file is a BMP whatever you name it.
+
+### Running it on the iOS Simulator
+
+Worth knowing before the first build: **seed fonts are opt-in**.
+`CROSSPOINT_IOS_SEED_FONTS_DIR` defaults to empty, and the build recipe above
+does not pass it, so a plain build produces an app with NO `.cpfont` resources
+at all — 19 MB instead of 202 MB. That is deliberate (the 183 MB `ios/seedfonts/`
+is gitignored, so a clone without it must still build), but it means a bundle
+with no fonts is not evidence of a bundling bug. Pass the directory to get them:
+
+```bash
+cmake -B build/ios-app -DCROSSPOINT_IOS_SEED_FONTS_DIR=$PWD/ios/seedfonts
+cmake --build build/ios-app --config Debug --target CrossPointX3
+```
+
+Verified 2026-08-15: that bundles 24 `.cpfont` files at each of 1x, 2x and 3x
+across all six installed families — both hi-res tiers, which is what the render
+scale setting needs to change tier without a rebuild.
+
+Install and drive it:
+
+```bash
+D=$(xcrun simctl list devices available | grep -o '[0-9A-F-]\{36\}' | head -1)
+xcrun simctl boot $D
+xcrun simctl install $D build/ios-app/ios/Debug-iphonesimulator/CrossPointX3.app
+xcrun simctl spawn $D defaults write com.natebunnyfield.crosspoint.x3 panelPalettePreset -int 6
+xcrun simctl launch $D com.natebunnyfield.crosspoint.x3
+xcrun simctl io $D screenshot /tmp/shot.png
+xcrun simctl spawn $D log show --last 60s --predicate 'processImagePath CONTAINS "CrossPoint"' | grep panel
+```
+
+`defaults write` on the booted simulator is the only way to exercise a
+Settings.app row without tapping through Settings by hand, and it is what proved
+the palette path end to end.
