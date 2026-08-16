@@ -95,6 +95,12 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<string>High Contrast — black on white, 21:1</string>
 				<string>Sepia — warm, 10.2:1</string>
 				<string>Cool Gray — cool, 13.2:1</string>
+				<string>Solarized — low contrast by design, 4.1:1</string>
+				<string>Green CRT — P1 phosphor, 10.3:1</string>
+				<string>Amber CRT — P3 phosphor, 10.1:1</string>
+				<string>Nord — cool pale, 10.8:1</string>
+				<string>Gruvbox Light — warm pale, 10.2:1</string>
+				<string>Latte — neutral pale, 7.1:1</string>
 				<string>Custom — use the colours below</string>
 			</array>
 			<key>Type</key>
@@ -105,6 +111,12 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>2</integer>
 				<integer>3</integer>
 				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
 				<integer>0</integer>
 			</array>
 		</dict>

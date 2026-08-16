@@ -97,7 +97,11 @@ static void testDefaultsAreTheShippedTones() {
   // ...and every road that does not involve the owner typing something must
   // arrive at exactly them. This is the "nothing changes for someone who never
   // opens the setting" promise, enumerated.
-  const int roads[] = {kPresetDefault, 7, -1, 999};
+  // The sentinels must be values no preset has TAKEN. 7 sat here until
+  // 2026-08-15, when Amber CRT was appended and claimed it -- the test failed
+  // loudly, which is the frozen-enum hazard working as intended. Anything
+  // chosen here has to stay ahead of the enum.
+  const int roads[] = {kPresetDefault, 11, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -224,7 +228,13 @@ static void testPresetsAreLegible() {
   const Row rows[] = {{kPresetDefault, "Default"},
                       {kPresetHighContrast, "High Contrast"},
                       {kPresetSepia, "Sepia"},
-                      {kPresetCoolGray, "Cool Gray"}};
+                      {kPresetCoolGray, "Cool Gray"},
+                      {kPresetSolarized, "Solarized"},
+                      {kPresetGreenCrt, "Green CRT"},
+                      {kPresetAmberCrt, "Amber CRT"},
+                      {kPresetNord, "Nord"},
+                      {kPresetGruvboxLight, "Gruvbox Light"},
+                      {kPresetLatte, "Latte"}};
   for (const Row &r : rows) {
     for (int d = 0; d < 2; d++) {
       const Palette p = presetPalette(r.preset, d != 0);
@@ -232,9 +242,22 @@ static void testPresetsAreLegible() {
       // 7:1 is WCAG AAA for body text. A NAMED preset is a curated choice and
       // has no business landing under it; the Custom fields deliberately have
       // no such floor, because typing a color is an explicit act.
-      CHECKM(ratio >= 7.0, "%s (dark=%d) measures %.2f:1, under the 7:1 floor "
-                           "a named preset must clear",
-             r.name, d, ratio);
+      // Solarized is exempt BY NAME rather than by relaxing the floor: its low
+      // contrast is the palette's thesis, and raising it would make it a
+      // different palette. Everything else still has to clear 7:1, and the
+      // exemption list is itself asserted below so a new row cannot join it by
+      // accident.
+      if (isLowContrastByDesign(r.preset)) {
+        CHECKM(ratio >= 4.0,
+               "%s (dark=%d) measures %.2f:1 -- exempt from the 7:1 floor, but "
+               "still has to be readable",
+               r.name, d, ratio);
+      } else {
+        CHECKM(ratio >= 7.0,
+               "%s (dark=%d) measures %.2f:1, under the 7:1 floor "
+               "a named preset must clear",
+               r.name, d, ratio);
+      }
       // A preset whose ink and paper are the same is a blank page.
       CHECKM(pack(p.ink) != pack(p.paper), "%s (dark=%d) has ink == paper",
              r.name, d);
@@ -251,8 +274,20 @@ static void testPresetsAreLegible() {
 
   // No two presets may paint the same page: a row that duplicates another is a
   // control that appears to do nothing.
-  const int all[] = {kPresetDefault, kPresetHighContrast, kPresetSepia,
-                     kPresetCoolGray};
+  // Exactly one preset may be exempt. If a second ever is, that is a ruling and
+  // it has to be made deliberately, not absorbed into a palette commit.
+  {
+    int exempt = 0;
+    for (const Row &r : rows)
+      if (isLowContrastByDesign(r.preset)) exempt++;
+    CHECKM(exempt == 1, "%d presets claim the low-contrast exemption; only Solarized may", exempt);
+    CHECKM(isLowContrastByDesign(kPresetSolarized), "Solarized lost its exemption");
+  }
+
+  const int all[] = {kPresetDefault,   kPresetHighContrast, kPresetSepia,
+                     kPresetCoolGray,  kPresetSolarized,    kPresetGreenCrt,
+                     kPresetAmberCrt,  kPresetNord,         kPresetGruvboxLight,
+                     kPresetLatte};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
