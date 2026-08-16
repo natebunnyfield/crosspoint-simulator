@@ -12,11 +12,11 @@ with `PIL`, not inferred from the source. Everything inferred is labelled.
 
 ---
 
-## 1. How to measure a pad colour at all, and the trap in it
+## 1. How to measure a pad color at all, and the trap in it
 
 `CROSSPOINT_SIM_SCREENSHOTS` captures the **panel**, not the pad — the pad is
 `paintPad` in `ios/CrossPointIOSShim.cpp:1063`, which only exists in the iOS
-target. So a pad colour can only be measured by building the app, running it on
+target. So a pad color can only be measured by building the app, running it on
 an iOS Simulator, and screenshotting the device:
 
 ```bash
@@ -37,13 +37,13 @@ y=1709  #EAEAE8
 ```
 
 The total ink is right (1 + 15 + 17 = 33 levels, against a nominal 34) and the
-colour is wrong everywhere. On the **iPhone Air** simulator (`crosspoint-x3-air`,
+color is wrong everywhere. On the **iPhone Air** simulator (`crosspoint-x3-air`,
 native 1260×2736, no downsampling) the same band contains **exactly two tones**
 and the stroke is exact. Every number in this document is from the Air.
 
 This is not a bug in the pad. It is a warning about the measuring instrument:
 **on a downsampling phone no outline setting can ever produce its nominal
-colour**, including the black-and-white one this change adds.
+color**, including the black-and-white one this change adds.
 
 ---
 
@@ -59,7 +59,7 @@ colour**, including the black-and-white one this change adds.
 
 Those are levels −1 / +1 of the contrast ladder — 1.364:1 and 1.483:1 — and they
 are exactly what `ios/PadPalette.h` documents. **The ladder was doing what it was
-designed to do.** The owner looking at a grey hairline and calling it grey was
+designed to do.** The owner looking at a gray hairline and calling it gray was
 reading the design correctly, not finding a fault.
 
 Mechanism, for the record:
@@ -93,7 +93,7 @@ into a plausible near-miss.
 
 **Measured** (iPhone Air, `padOutlineContrast* = ±9`):
 
-| page colour | appearance | row label | painted |
+| page color | appearance | row label | painted |
 |---|---|---|---|
 | Default | light | 20.27:1 — black | `#000000` ✅ |
 | Default | dark | 18.73:1 — white | `#FFFFFF` ✅ |
@@ -106,7 +106,7 @@ verified model, not a guess). Reproduced exactly by
 `tests/pad_palette_test.cpp` §4b, which reports **57 failures** against the old
 resolver and 0 against the new one:
 
-| page colour | "black" (−9) | "white" (+9) |
+| page color | "black" (−9) | "white" (+9) |
 |---|---|---|
 | Default light | `#000000` ✅ | `#FFFFFF` ✅ |
 | Default dark | `#000000` ✅ | `#FFFFFF` ✅ |
@@ -168,7 +168,7 @@ raw table entries, so the no-dead-zone guard covers the ends too.
 `NSUserDefaults`, so inserting would re-point saved choices).
 
 - **outline** at the absolute gamut end away from the field: `#000000` light,
-  `#FFFFFF` dark, on every page colour.
+  `#FFFFFF` dark, on every page color.
 - **wash** left on the 3:1 rung (`−5` / `+5`). Deliberate: a stroke covers a line
   and a wash covers a 58.8 pt cell, so `±9` on the fill would flip the whole
   interior of a held control to solid black or solid white — a *different*
@@ -200,7 +200,7 @@ untouched install moves to Black & White.
 
 Preset = Black & White. Outline read back out of the pad band:
 
-| page colour | appearance | field | **outline, measured** |
+| page color | appearance | field | **outline, measured** |
 |---|---|---|---|
 | Default | light | `#FBFBF9` | **`#000000`** |
 | Default | dark | `#121212` | **`#FFFFFF`** |
@@ -220,7 +220,7 @@ untouched install, no key written for anything:
 
 ---
 
-## 6. The interaction with the coloured page palettes
+## 6. The interaction with the colored page palettes
 
 The parent question was whether a pure-white outline is right on Green CRT's
 `#001A00` paper. Rendered, looked at, and the answer is **asymmetric**:
@@ -302,10 +302,10 @@ and `#FFFFFF`. See the open questions.
    literally black and white. Not built.
 2. **Is the default change wanted, or should Black & White be opt-in?** It is
    the default here on the reading that "make my outlines black and white" means
-   the pad, not a settings row. One tap to `Current` restores the old grey
+   the pad, not a settings row. One tap to `Current` restores the old gray
    exactly; nothing was removed.
 3. **Nothing has been run on a physical phone.** On a downsampling panel (the
    13 mini does this in the Simulator, and any phone whose render size exceeds
    its panel does it in hardware) the 1-px stroke is blended and *no* setting
-   reaches its nominal colour — see §1. Worth a look on the real device before
+   reaches its nominal color — see §1. Worth a look on the real device before
    this is called done.

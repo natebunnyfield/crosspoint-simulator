@@ -78,7 +78,7 @@ struct Tone {
 // function the app actually paints from -- rather than being recomputed from a
 // table here. That is the difference between checking the ladder and checking a
 // copy of the ladder, and it is the difference that let the two gamut-end rows
-// lie on nine of the eleven page colours while every assertion passed.
+// lie on nine of the eleven page colors while every assertion passed.
 struct Role {
   bool dark;
   bool isFill;
@@ -119,7 +119,7 @@ static const Ladder kLadders[] = {
 };
 
 // EVERY PAPER THE OWNER CAN ACTUALLY CHOOSE, both halves of all eleven page
-// colours, transcribed from src/PanelPalette.h's presetPalette(). Kept as a
+// colors, transcribed from src/PanelPalette.h's presetPalette(). Kept as a
 // literal table rather than including that header, so that a change to either
 // file has to be made deliberately in both and cannot be picked up silently.
 struct Paper {
@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
   // --- 4b. ...on every paper the owner can choose, not just the shipped one -
   //
   // THE REGRESSION THIS FILE EXISTS FOR. Section 4 passed for the whole life of
-  // the page-colour dial while the two rows labelled "black" and "white"
+  // the page-color dial while the two rows labelled "black" and "white"
   // painted neither on nine of the eleven presets: the ladder's ends were a
   // FIXED DELTA, and a fixed delta cannot reach a fixed endpoint from an
   // arbitrary start. Measured on an iPhone Air simulator, Green CRT dark, the

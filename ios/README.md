@@ -293,7 +293,7 @@ changes nothing and correctly repaints nothing.
 | Up / Down / Left / Right | `BTN_UP` `BTN_DOWN` `BTN_LEFT` `BTN_RIGHT` |
 | Power | `HalGPIO::BTN_POWER` |
 
-The controls are deliberately **unlabelled** — no glyph, no text. An earlier
+The controls are deliberately **unlabeled** — no glyph, no text. An earlier
 revision of this table listed one per control; `paintPad` draws none.
 
 Each control names a `HalGPIO::BTN_*` index directly and drives it through
@@ -762,7 +762,7 @@ AVSpeech's 0..1 scale in [CrossPointReadAloud.mm](CrossPointReadAloud.mm) —
 that scale's DEFAULT is its MIDPOINT (0.5), so 200% lands exactly on
 `AVSpeechUtteranceMaximumSpeechRate`. Named `PSMultiValueSpecifier` steps
 rather than `PSSliderSpecifier`, because a Settings slider row carries neither
-a title nor a numeric readout: the owner would be dragging an unlabelled
+a title nor a numeric readout: the owner would be dragging an unlabeled
 control with no way to see what they picked.
 
 Ring/silent on silent still plays, and reading survives the screen locking: the

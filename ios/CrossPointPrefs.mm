@@ -147,7 +147,7 @@ static void ensureDefaults(void) {
       // do-no-harm answer: the alternative failure mode holds a stranger's
       // screen awake indefinitely on battery. The pad levels fall back to the
       // shipped tones for the same reason — the alternative is 0, an invisible
-      // pad, and an unlabelled control that draws nothing is not recoverable
+      // pad, and an unlabeled control that draws nothing is not recoverable
       // from inside the app.
       NSLog(@"[CrossPoint] Settings.bundle/Root.plist unreadable; defaulting to allow-sleep");
       [[NSUserDefaults standardUserDefaults] registerDefaults:@{
@@ -288,7 +288,7 @@ int CrossPointPrefs_panelPalettePreset(void) {
   checkKnown(kPanelPalettePreset);
   // NOT clamped and NOT validated here, for the same reason the pad preset is
   // not: an unknown integer is handed straight to panelpalette::resolve, which
-  // answers anything it does not recognise with Default. Deciding that twice,
+  // answers anything it does not recognize with Default. Deciding that twice,
   // in two files, is how the two answers drift.
   return static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kPanelPalettePreset]);
@@ -323,7 +323,7 @@ int CrossPointPrefs_padContrastPreset(void) {
   checkKnown(kPadContrastPreset);
   // NOT clamped and NOT validated here. An unknown integer — a restored backup
   // from a future build, a hand-edited plist — is handed straight to
-  // padpalette::resolveLevels, which resolves anything it does not recognise as
+  // padpalette::resolveLevels, which resolves anything it does not recognize as
   // Current. Deciding that twice, in two files, is how the two answers drift.
   return static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kPadContrastPreset]);
