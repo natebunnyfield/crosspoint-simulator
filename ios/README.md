@@ -1307,8 +1307,9 @@ the Neutral / Paper / CRT grouping lives; the CRT group sorts by P-number:
 | 11 | Red CRT | 10.22:1 | 7.33:1 |
 | 12 | Gray CRT | 11.14:1 | 13.92:1 |
 | 13 | Soft | 9.15:1 | 9.47:1 |
-| 14 | Sepia CRT | **7.59:1** | 12.51:1 |
+| ~~14~~ | ~~Sepia CRT~~ — RETIRED 2026-08-17 | — | — |
 | 15 | Blue CRT | 10.18:1 | **7.35:1** |
+| 16 | Reading | 14.17:1 | 11.77:1 |
 | 0 | Custom | — | — |
 
 Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
@@ -1340,7 +1341,34 @@ Two things about them are worth carrying at this level:
   a real phosphor (P22R, the red gun of every color tube and the red tube of
   a three-tube projector) rather than a machine anyone sat in front of.
 
-**Blue CRT and Sepia CRT (2026-08-16)** close the CRT group at six rows, and
+**Sepia CRT was REMOVED on 2026-08-17** by owner ruling ("remove sepia
+phosphor"), leaving the CRT group at five. Its integer, 14, is retired rather
+than recycled: a preset persists as its number, so handing 14 to anything else
+would silently change what an install that had chosen it displays. A stored 14
+now resolves to Default, the same landing every unknown integer gets, and
+`panel_palette_test` asserts both halves of that — not known, and not offered in
+Root.plist. The reasoning below is kept because it is why the row existed and
+why the number cannot come back.
+
+**Reading (16), appended 2026-08-17**, is the sixth Neutral and the first preset
+tuned for a DEVICE rather than for a look: "one more neutral page color that is
+for optimal reading paragraphs of text on iphone air screen". Three decisions,
+all about an OLED phone showing paragraphs:
+
+- **Paper off pure white** — `#F0EFEC`, not `#FFFFFF`. It is the field, not the
+  glyphs, that fills the retina over a page of prose, and an OLED drives a full
+  white field hard at reading brightness.
+- **Ink darker than Default** — `#202020` against `#2D2D2D`. The panel is 2-bit
+  and glyph edges are antialiased into it, so once the paper is dimmed a darker
+  ink is what keeps small type crisp.
+- **Black at night** — `#000000` ground, which on OLED is pixels off: no bleed,
+  no halation ring, less power. Ink eased to `#C2C2C0` rather than white, the
+  pairing that stops light-on-dark type blooming.
+
+14.17:1 light and 11.77:1 dark — inside the comfortable band, deliberately not
+High Contrast's 21:1, which is the ratio that tires eyes over paragraphs.
+
+**Blue CRT and Sepia CRT (2026-08-16)** closed the CRT group at six rows, and
 one of the two is not a phosphor. Full research and derivation in the same
 file; three things belong at this level:
 

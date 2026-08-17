@@ -95,6 +95,7 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<string>Neutral · Default — e-ink, 13.3:1</string>
 				<string>Neutral · Cool Gray — cool, 13.2:1</string>
 				<string>Neutral · Soft — pure ground, eased ink, 9.2:1</string>
+				<string>Neutral · Reading — long-form on OLED, 14.2:1</string>
 				<string>Paper · Sepia — warm, 10.2:1</string>
 				<string>Paper · Gruvbox Light — warm pale, 10.2:1</string>
 				<string>Paper · Latte — neutral pale, 7.1:1</string>
@@ -105,7 +106,6 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<string>CRT · Gray — P4 phosphor, 11.1:1</string>
 				<string>CRT · Blue — P11 phosphor, 10.2:1</string>
 				<string>CRT · Red — P22R phosphor, 10.2:1</string>
-				<string>CRT · Sepia — toned, not a phosphor, 7.6:1</string>
 				<string>Custom — use the colors below</string>
 			</array>
 			<key>Type</key>
@@ -116,6 +116,7 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>1</integer>
 				<integer>4</integer>
 				<integer>13</integer>
+				<integer>16</integer>
 				<integer>3</integer>
 				<integer>9</integer>
 				<integer>10</integer>
@@ -126,7 +127,6 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>12</integer>
 				<integer>15</integer>
 				<integer>11</integer>
-				<integer>14</integer>
 				<integer>0</integer>
 			</array>
 		</dict>
