@@ -121,7 +121,7 @@ void setPanelPalette(bool dark, const unsigned char ink[3],
                      const unsigned char paper[3]);
 
 // PHOSPHOR GLOW: how long the previous frame lingers, in milliseconds. 0 is off,
-// and off is the default and the entire desktop behaviour.
+// and off is the default and the entire desktop behavior.
 //
 // A CRT does not switch pictures, it decays into them: the beam repaints and
 // what was there fades at a rate that is a property of the phosphor. With this
@@ -143,5 +143,18 @@ void setPanelPalette(bool dark, const unsigned char ink[3],
 // CROSSPOINT_SIM_PANEL_GLOW_MS overrides the argument, for a desktop or headless
 // run that has no Settings app to reach the control.
 void setPanelGlow(float trailMs);
+
+// The color the trail decays TOWARD, for a two-layer phosphor. Null means the
+// trail keeps the tone it was drawn in, which is every ordinary phosphor.
+//
+// P7 is the reason this exists. It is a cascade -- a blue-white ZnS:Ag flash
+// over a (Zn,Cd)S:Cu layer that keeps emitting for over a minute -- so what
+// lingers is not a dimmer copy of what was written, it is a DIFFERENT COLOUR.
+// Fading toward zero would lose exactly the property the phosphor is known for.
+//
+// Applied as a color multiply on the ghost that ramps in as it decays: at full
+// brightness the trail is what was drawn, and by the end it is this hue.
+// CROSSPOINT_SIM_PANEL_GLOW_TAIL overrides the argument, "RRGGBB".
+void setPanelGlowTail(const unsigned char tint[3]);
 
 } // namespace SimulatorOverlay

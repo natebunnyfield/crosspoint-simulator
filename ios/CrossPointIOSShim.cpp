@@ -972,9 +972,10 @@ void pollPanelGlow() {
   // NO SWITCH. Owner ruling 2026-08-17: "remove setting always have it on for
   // crts." A CRT palette is a claim that the page is a tube, and a tube glows --
   // the two were never separate choices, and a switch to turn a phosphor's
-  // behaviour off while keeping its colour is a setting for a thing nobody
+  // behavior off while keeping its color is a setting for a thing nobody
   // wants. Every other palette gets 0, because a page of e-ink does not decay.
   float trail = 0.0f;
+  const unsigned char *tail = nullptr;
   const char *why = "not a phosphor";
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
@@ -982,6 +983,9 @@ void pollPanelGlow() {
     if (!info.phosphor) break;
     trail = (info.decayMs > 0.0f ? info.decayMs : kGlowMediumMs) * kGlowScale;
     why = info.persistence ? info.persistence : "class only, using P1's 20ms";
+    // A cascade phosphor's trail is a different color from its page. Pushed
+    // alongside the duration because they are one property of one phosphor.
+    tail = info.afterglow;
     break;
   }
   // Logged on EVERY change, including to zero. The first version logged only
@@ -990,6 +994,7 @@ void pollPanelGlow() {
   // this was stuck in while being debugged.
   SDL_Log("[glow] preset %d -> %.0f ms trail (%s)", preset, trail, why);
   SimulatorOverlay::setPanelGlow(trail);
+  SimulatorOverlay::setPanelGlowTail(tail);
 }
 
 void pollPanelPalette() {

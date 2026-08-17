@@ -158,6 +158,11 @@ enum Preset : int {
   kPresetWhiteCrt = 21,      // P45
   kPresetBlueFastCrt = 22,   // P47
   kPresetRedProjCrt = 23,    // P56
+  kPresetBlueTvCrt = 24,     // P22B, the blue gun of a color tube
+  // P7, the cascade. Appended last because it is the only preset whose TRAIL is
+  // a different color from its page -- see kCascadeAfterglow and the tint hook
+  // in SimulatorOverlay.
+  kPresetCascadeCrt = 25,
 };
 
 // A retired preset that was REPLACED rather than removed. Stored choices follow
@@ -193,6 +198,7 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetReadingCool || preset == kPresetGreenLongCrt ||
          preset == kPresetGreenFastCrt || preset == kPresetWhiteCrt ||
          preset == kPresetBlueFastCrt || preset == kPresetRedProjCrt ||
+         preset == kPresetBlueTvCrt || preset == kPresetCascadeCrt ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
          preset == kPresetGrayCrt || preset == kPresetReading ||
          preset == kPresetBlueCrt;
@@ -402,6 +408,21 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetRedProjCrt:
     return dark ? Palette{{0xFF, 0xA5, 0xA4}, {0x27, 0x01, 0x00}}
                 : Palette{{0x7B, 0x08, 0x00}, {0xFF, 0xF1, 0xF1}};
+  case kPresetBlueTvCrt:
+    return dark ? Palette{{0xAF, 0xB0, 0xFF}, {0x00, 0x00, 0x27}}
+                : Palette{{0x00, 0x09, 0xA9}, {0xF1, 0xF1, 0xFF}};
+  // P7 is a CASCADE: a ZnS:Ag flash on a (Zn,Cd)S:Cu layer, and the table calls
+  // its fluorescence "Blue-White" rather than blue. Neither layer has a
+  // published chromaticity here, so both are borrowed on CHEMISTRY rather than
+  // guessed -- the flash from P11 (ZnS:Ag, same activator) pulled well toward
+  // white, and the persistent layer's hue from P31 (ZnS:Cu, the same copper
+  // activator, with cadmium shifting it yellower).
+  //
+  // The page is therefore the FLASH; what it decays to is the afterglow tint
+  // below, which is the whole point of the row.
+  case kPresetCascadeCrt:
+    return dark ? Palette{{0xC4, 0xC6, 0xFF}, {0x00, 0x03, 0x27}}
+                : Palette{{0x00, 0x22, 0xA9}, {0xF1, 0xF2, 0xFF}};
   case kPresetBlueCrt:
     return dark ? Palette{{0x8B, 0x92, 0xFF}, {0x00, 0x06, 0x1A}}
                 : Palette{{0x00, 0x1F, 0x9E}, {0xE5, 0xE7, 0xFF}};
@@ -618,34 +639,51 @@ struct PresetInfo {
   // tail, decay exactly like P45 and P56. The ordering is the source's own; only
   // the numbers between the rungs are ours.
   float decayMs;
+
+  // The color this phosphor's trail decays TOWARD, or nullptr when it simply
+  // dims -- which is every phosphor here except the cascade. Three bytes RGB.
+  // See SimulatorOverlay::setPanelGlowTail.
+  const unsigned char *afterglow;
 };
 
+// P7's persistent layer. A file-scope array because PresetInfo holds a pointer:
+// the trail is (Zn,Cd)S:Cu yellow-green while the page it came from is
+// blue-white, and that difference IS the phosphor.
+inline constexpr unsigned char kCascadeAfterglow[3] = {0x69, 0xFF, 0x87};
+
 inline constexpr PresetInfo kPresetInfo[] = {
-    {kPresetHighContrast, "Neutral", "High Contrast", "black on white", nullptr, nullptr, 0.0f},
-    {kPresetDefault, "Neutral", "Default", "e-ink", nullptr, nullptr, 0.0f},
-    {kPresetReading, "Neutral", "Reading", "long-form on OLED", nullptr, nullptr, 0.0f},
-    {kPresetReadingWarm, "Neutral", "Reading Warm", "warmer paper", nullptr, nullptr, 0.0f},
-    {kPresetReadingCool, "Neutral", "Reading Cool", "cooler paper", nullptr, nullptr, 0.0f},
-    {kPresetSepia, "Paper", "Sepia", "warm", nullptr, nullptr, 0.0f},
-    {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale", nullptr, nullptr, 0.0f},
-    {kPresetLatte, "Paper", "Latte", "neutral pale", nullptr, nullptr, 0.0f},
-    {kPresetNord, "Paper", "Nord", "cool pale", nullptr, nullptr, 0.0f},
-    {kPresetSolarized, "Paper", "Solarized", "low contrast by design", nullptr, nullptr, 0.0f},
-    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f},
-    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f},
+    {kPresetHighContrast, "Neutral", "High Contrast", "black on white", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetDefault, "Neutral", "Default", "e-ink", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetReading, "Neutral", "Reading", "long-form on OLED", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetReadingWarm, "Neutral", "Reading Warm", "warmer paper", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetReadingCool, "Neutral", "Reading Cool", "cooler paper", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetSepia, "Paper", "Sepia", "warm", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetLatte, "Paper", "Latte", "neutral pale", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetNord, "Paper", "Nord", "cool pale", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetSolarized, "Paper", "Solarized", "low contrast by design", nullptr, nullptr, 0.0f, nullptr},
+    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f, nullptr},
+    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
     {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
-     "not over 7% of peak after 33 ms", 33.0f},
-    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f},
-    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f},
+     "not over 7% of peak after 33 ms", 33.0f, nullptr},
+    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
+    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
     {kPresetGreenLongCrt, "CRT", "Green Long", "P39, long persistence", "P39",
-     "Long", 150.0f},
+     "Long", 150.0f, nullptr},
     {kPresetGreenFastCrt, "CRT", "Green Fast", "P31 oscilloscope", "P31",
-     "Medium short 0.01-1 ms", 1.0f},
-    {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f},
+     "Medium short 0.01-1 ms", 1.0f, nullptr},
+    {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f, nullptr},
     {kPresetBlueFastCrt, "CRT", "Blue Fast", "P47, very short", "P47",
-     "Very short", 0.05f},
+     "Very short", 0.05f, nullptr},
     {kPresetRedProjCrt, "CRT", "Red Projector", "P56 projection tube", "P56",
-     "Medium", 10.0f},
+     "Medium", 10.0f, nullptr},
+    {kPresetBlueTvCrt, "CRT", "Blue TV", "P22B color-tube gun", "P22B",
+     "Medium", 10.0f, nullptr},
+    // The only row with an afterglow: written blue-white, left behind
+    // yellow-green, over a minute. "Very long" on the ladder.
+    {kPresetCascadeCrt, "CRT", "Cascade", "P7 blue-white to yellow-green", "P7",
+     "BluWh-Short / Yel-Long, >1 minute in low ambient illumination", 1000.0f,
+     kCascadeAfterglow},
 };
 
 inline constexpr int kPresetInfoCount =

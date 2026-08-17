@@ -111,6 +111,8 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<string>CRT · White — P45 viewfinder, 12.8:1</string>
 				<string>CRT · Blue Fast — P47 very short, 10.3:1</string>
 				<string>CRT · Red Projector — P56 projection tube, 10.2:1</string>
+				<string>CRT · Blue TV — P22B color-tube gun, 10.2:1</string>
+				<string>CRT · Cascade — P7 blue-white to yellow-green, 12.4:1</string>
 				<string>Custom — use the colors below</string>
 			</array>
 			<key>Type</key>
@@ -137,6 +139,8 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>21</integer>
 				<integer>22</integer>
 				<integer>23</integer>
+				<integer>24</integer>
+				<integer>25</integer>
 				<integer>0</integer>
 			</array>
 		</dict>

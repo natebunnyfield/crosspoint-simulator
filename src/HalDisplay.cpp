@@ -28,6 +28,10 @@ static SDL_Texture *texture = nullptr;
 static SDL_Texture *ghostTexture = nullptr;
 // How long a ghost lives, in ms. 0 = the effect is off entirely.
 static std::atomic<float> glowTrailMs{0.0f};
+// The tint a two-layer phosphor's trail decays toward, packed 0x00RRGGBB, or
+// kNoGlowTail when the trail simply dims. See setPanelGlowTail.
+static constexpr uint32_t kNoGlowTail = 0xFFFFFFFFu;
+static std::atomic<uint32_t> glowTailTint{kNoGlowTail};
 // When the ghost was captured, on the SDL_GetTicks clock. 0 = no ghost.
 static Uint64 ghostStartedAt = 0;
 // The pixels the ghost was captured from -- kept because SDL_UpdateTexture
@@ -337,7 +341,7 @@ std::atomic<uint64_t> panelPackedLight{packPalette(panelpalette::kDefaultLight)}
 std::atomic<uint64_t> panelPackedDark{packPalette(panelpalette::kDefaultDark)};
 
 // Is the page currently painted on a DARK ground? The glow asks, because a
-// phosphor's additive behaviour only makes sense against one -- see the blend
+// phosphor's additive behavior only makes sense against one -- see the blend
 // choice in presentIfNeeded. Measured off the live paper rather than off the
 // appearance flag, so a custom palette with a dark paper in light mode still
 // gets the emissive treatment.
@@ -624,6 +628,23 @@ void setPanelGlow(float trailMs) {
   glowTrailMs.store(trailMs);
 }
 
+void setPanelGlowTail(const unsigned char tint[3]) {
+  // Same escape hatch as every other knob here: a desktop or headless run has
+  // no Settings app, and without this the cascade's whole point -- that the
+  // trail is a different color from the page -- could only be seen on a phone.
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PANEL_GLOW_TAIL")) {
+    const int packed = panelpalette::parseHexRgb(env);
+    if (packed >= 0) {
+      glowTailTint.store(static_cast<uint32_t>(packed));
+      return;
+    }
+  }
+  glowTailTint.store(tint ? ((static_cast<uint32_t>(tint[0]) << 16) |
+                             (static_cast<uint32_t>(tint[1]) << 8) |
+                             static_cast<uint32_t>(tint[2]))
+                          : kNoGlowTail);
+}
+
 void setPanelPalette(bool dark, const unsigned char ink[3],
                      const unsigned char paper[3]) {
   PanelPalette p{{ink[0], ink[1], ink[2]}, {paper[0], paper[1], paper[2]}};
@@ -757,6 +778,9 @@ void HalDisplay::begin() {
   // called and the effect could not be turned on off-phone at all. 0 is off, so
   // with the var unset this is a no-op.
   SimulatorOverlay::setPanelGlow(0.0f);
+  // And the cascade tail, which had the identical hole: nullptr is "the trail
+  // keeps the tone it was drawn in", so with the var unset this is a no-op.
+  SimulatorOverlay::setPanelGlowTail(nullptr);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1253,6 +1277,23 @@ void HalDisplay::presentIfNeeded() {
                                                      : SDL_BLENDMODE_BLEND);
     SDL_SetTextureAlphaMod(ghostTexture,
                            static_cast<Uint8>(ghostAlpha * 255.0f + 0.5f));
+
+    // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES. The tint ramps in as the
+    // ghost decays -- white (no shift) while it is fresh, fully the afterglow
+    // hue by the end -- so a P7 page is written blue-white and left behind in
+    // yellow-green. Multiplicative, which is why the flash has to be a light
+    // blue-WHITE: there is no channel to multiply up, only down.
+    const uint32_t tail = glowTailTint.load();
+    if (tail != kNoGlowTail) {
+      const float t = 1.0f - ghostAlpha;  // 0 fresh, 1 fully decayed
+      auto ramp = [&](int shift) {
+        const float target = static_cast<float>((tail >> shift) & 0xFF) / 255.0f;
+        return static_cast<Uint8>((1.0f - t + t * target) * 255.0f + 0.5f);
+      };
+      SDL_SetTextureColorMod(ghostTexture, ramp(16), ramp(8), ramp(0));
+    } else {
+      SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
+    }
     switch (orientation) {
     case GfxRenderer::Portrait:
       SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
