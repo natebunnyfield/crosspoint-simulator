@@ -23,6 +23,17 @@
 static SDL_Window *window = nullptr;
 static SDL_Renderer *sdl_renderer = nullptr;
 static SDL_Texture *texture = nullptr;
+// The PREVIOUS panel image, held so it can be faded out on top of the new one.
+// Null whenever the glow is off, which is the desktop default and costs nothing.
+static SDL_Texture *ghostTexture = nullptr;
+// How long a ghost lives, in ms. 0 = the effect is off entirely.
+static std::atomic<float> glowTrailMs{0.0f};
+// When the ghost was captured, on the SDL_GetTicks clock. 0 = no ghost.
+static Uint64 ghostStartedAt = 0;
+// The pixels the ghost was captured from -- kept because SDL_UpdateTexture
+// overwrites `texture` in place, so the old picture has to be copied BEFORE the
+// new one lands, and a pixel copy is cheaper and simpler than a render target.
+static std::vector<uint32_t> ghostPixels;
 // Render the simulator at full panel size. The previous 0.5x window was too
 // small. With 1:1 pixel mapping, the simulator can be used for testing fine
 // details.
@@ -578,6 +589,17 @@ void setPanelDark(bool dark) {
 // The reconvert is requested only when the polarity being written is the one on
 // screen. Writing the other polarity's pair is a store and nothing else, so the
 // harness can publish both on every settings change without forcing a present.
+void setPanelGlow(float trailMs) {
+  // Same escape hatch as the palette: a desktop or headless run has no Settings
+  // app, so the only way to reach this is the environment.
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PANEL_GLOW_MS")) {
+    const float v = static_cast<float>(std::atof(env));
+    if (v >= 0.0f) trailMs = v;
+  }
+  if (trailMs < 0.0f) trailMs = 0.0f;
+  glowTrailMs.store(trailMs);
+}
+
 void setPanelPalette(bool dark, const unsigned char ink[3],
                      const unsigned char paper[3]) {
   PanelPalette p{{ink[0], ink[1], ink[2]}, {paper[0], paper[1], paper[2]}};
@@ -704,6 +726,13 @@ void HalDisplay::begin() {
                                     panelpalette::kDefaultLight.paper);
   SimulatorOverlay::setPanelPalette(true, panelpalette::kDefaultDark.ink,
                                     panelpalette::kDefaultDark.paper);
+
+  // Seed the glow through ITS setter for exactly the same reason, and it is not
+  // a theoretical one: the first version of this omitted the call, so
+  // CROSSPOINT_SIM_PANEL_GLOW_MS was read by a function no desktop build ever
+  // called and the effect could not be turned on off-phone at all. 0 is off, so
+  // with the var unset this is a no-op.
+  SimulatorOverlay::setPanelGlow(0.0f);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -852,6 +881,24 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
   }
 }
 
+// The ghost is created lazily and matches the panel texture's format and size.
+// Lazy because the glow is off by default and every desktop build would
+// otherwise carry a second full-panel texture for nothing.
+static void ensureGhostTexture() {
+  if (ghostTexture || !sdl_renderer)
+    return;
+  ghostTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                   SDL_TEXTUREACCESS_STREAMING,
+                                   HalDisplay::activeWidth(),
+                                   HalDisplay::activeHeight());
+  if (!ghostTexture) {
+    LOG_ERR("DISP", "glow: could not create the ghost texture (%s)",
+            SDL_GetError());
+    return;
+  }
+  SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_BLEND);
+}
+
 void HalDisplay::presentIfNeeded() {
   // Nothing may touch the GPU while backgrounded. Return BEFORE clearing
   // pendingPresent so the frame stays owed and lands on the way back in.
@@ -875,13 +922,55 @@ void HalDisplay::presentIfNeeded() {
   const GfxRenderer::Orientation orientation = renderer.getOrientation();
   applyWindowGeometryIfNeeded(orientation);
 
+  // PHOSPHOR GLOW. The old picture has to be copied before SDL_UpdateTexture
+  // overwrites `texture` in place, so this sits above the upload rather than
+  // below it. Only when the content actually CHANGED: a re-present of the same
+  // frame (a window resize, a screenshot) must not restart a trail, or the page
+  // would ghost while nothing happened.
+  const float trailMs = glowTrailMs.load();
+  bool contentChanged = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
+    if (trailMs > 0.0f) {
+      contentChanged = ghostPixels.size() != live ||
+                       std::memcmp(ghostPixels.data(), pixelBuf,
+                                   live * sizeof(uint32_t)) != 0;
+      if (contentChanged) {
+        ensureGhostTexture();
+        if (ghostTexture && !ghostPixels.empty() &&
+            ghostPixels.size() == live) {
+          // Upload the PREVIOUS pixels; `texture` is about to become the new
+          // ones on the very next line.
+          SDL_UpdateTexture(ghostTexture, nullptr, ghostPixels.data(),
+                            activeWidth() * sizeof(uint32_t));
+          ghostStartedAt = SDL_GetTicks();
+        }
+        ghostPixels.assign(pixelBuf, pixelBuf + live);
+      }
+    } else if (!ghostPixels.empty()) {
+      // Turned off: drop the copy rather than keep paying for it.
+      ghostPixels.clear();
+      ghostStartedAt = 0;
+    }
     // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
     // so at a lower scale the live picture occupies a prefix of it and the
     // ceiling's pitch would stride past every row.
     SDL_UpdateTexture(texture, nullptr, pixelBuf,
                       activeWidth() * sizeof(uint32_t));
+  }
+
+  // How much of the ghost is still on screen, 0 when it has decayed away.
+  // LINEAR in time rather than exponential: a phosphor's own curve is
+  // exponential, but it is defined by the time to 10% of peak (see
+  // panelpalette::PresetInfo) and the last 10% of an exponential is a long
+  // invisible tail that would hold a present loop open for nothing.
+  float ghostAlpha = 0.0f;
+  if (trailMs > 0.0f && ghostStartedAt != 0 && ghostTexture) {
+    const float age = static_cast<float>(SDL_GetTicks() - ghostStartedAt);
+    ghostAlpha = age >= trailMs ? 0.0f : 1.0f - age / trailMs;
+    if (ghostAlpha <= 0.0f)
+      ghostStartedAt = 0;
   }
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
@@ -1097,7 +1186,43 @@ void HalDisplay::presentIfNeeded() {
     break;
   default:
     SDL_RenderTexture(sdl_renderer, texture, nullptr, &landscapeDst);
-    break;
+  }
+
+  // The ghost goes ON TOP of the new page and fades out, which is what a
+  // phosphor does: the old picture is still emitting while the new one is
+  // written over it. Same rects and the same rotation as the panel above, so it
+  // lands exactly on the panel however the panel was placed.
+  if (ghostAlpha > 0.0f && ghostTexture) {
+    // Whatever filter the panel ended up with, the ghost must match: the two
+    // are the same picture one frame apart, and a different resample would make
+    // the trail shimmer against the page it is fading off.
+    SDL_ScaleMode panelMode = kPanelScaleMode;
+    SDL_GetTextureScaleMode(texture, &panelMode);
+    SDL_SetTextureScaleMode(ghostTexture, panelMode);
+    SDL_SetTextureAlphaMod(ghostTexture,
+                           static_cast<Uint8>(ghostAlpha * 255.0f + 0.5f));
+    switch (orientation) {
+    case GfxRenderer::Portrait:
+      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
+                               &portraitDst, 90.0, nullptr, SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::PortraitInverted:
+      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
+                               &portraitDst, -90.0, nullptr, SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::LandscapeClockwise:
+      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
+                               &landscapeDst, 180.0, nullptr, SDL_FLIP_NONE);
+      break;
+    default:
+      SDL_RenderTexture(sdl_renderer, ghostTexture, nullptr, &landscapeDst);
+    }
+
+    // A fade only animates if something presents while it fades, and the
+    // firmware will not: an e-ink reader draws a page and stops. So the trail
+    // asks for its own next frame, and stops asking the moment it is done --
+    // which is what keeps this from becoming a permanent render loop.
+    pendingPresent.store(true);
   }
 
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
