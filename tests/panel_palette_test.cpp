@@ -406,6 +406,45 @@ static void testRootPlist(const char *path) {
   }
   CHECK(sawCustom);
 
+  // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-colour button beside POWER
+  // steps through panelpalette::kPresetInfo, and the owner asked for it to cycle
+  // "in the order that they appear in page colors setting" -- which is this
+  // Root.plist row order. Two hand-kept lists of fifteen rows, so they are
+  // checked against each other rather than trusted: a mismatch is not an error
+  // anywhere, it just means the button skips around the list.
+  {
+    std::vector<int> plistOrder;
+    for (size_t i = 0; i < values.size(); i++) {
+      const int preset = std::atoi(values[i].c_str());
+      if (preset != kPresetCustom) plistOrder.push_back(preset);
+    }
+    CHECKM(plistOrder.size() == static_cast<size_t>(kPresetInfoCount),
+           "Root.plist offers %zu presets, kPresetInfo has %d -- the button's "
+           "cycle and the Settings list disagree on WHICH presets exist",
+           plistOrder.size(), kPresetInfoCount);
+    const size_t n = plistOrder.size() < static_cast<size_t>(kPresetInfoCount)
+                         ? plistOrder.size()
+                         : static_cast<size_t>(kPresetInfoCount);
+    for (size_t i = 0; i < n; i++) {
+      CHECKM(plistOrder[i] == kPresetInfo[i].preset,
+             "row %zu: Root.plist has preset %d, kPresetInfo has %d (%s . %s) "
+             "-- the button would cycle out of the order the setting shows",
+             i, plistOrder[i], kPresetInfo[i].preset, kPresetInfo[i].family,
+             kPresetInfo[i].name);
+    }
+  }
+
+  // Every preset the cycle can reach must be a KNOWN one, or a press lands on a
+  // stop that silently resolves to Default.
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    CHECKM(isKnownPreset(kPresetInfo[i].preset) &&
+               kPresetInfo[i].preset != kPresetCustom,
+           "kPresetInfo[%d] is %d, which is not a nameable preset", i,
+           kPresetInfo[i].preset);
+    CHECKM(kPresetInfo[i].family && kPresetInfo[i].name && kPresetInfo[i].note,
+           "kPresetInfo[%d] has a null string", i);
+  }
+
   // DefaultValue must be Default. This is the row that decides whether an
   // untouched install is pixel-identical, and it is one character wide.
   const size_t dv = xml.find("<key>DefaultValue</key>", specStart);

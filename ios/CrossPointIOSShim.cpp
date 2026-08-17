@@ -61,7 +61,6 @@
 #include "CrossPointAccessibility.h"
 #include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
-#include "CrossPointPalettePicker.h"
 #include "PanelPrefs.h"
 // The firmware owns the Dark Mode SETTING; the system owns the APPEARANCE.
 // applyTheme() below is where the two are reconciled.
@@ -131,12 +130,16 @@ constexpr int kPadCount = 7;
 // tapping the page do the same thing; the chip exists to say so.
 SDL_FRect g_kbChip{};
 
-// The page-colour chip, beside POWER. Like the keyboard chip it is NOT a
+// The page-colour button, beside POWER. Like the keyboard chip it is NOT a
 // PadButton and not in g_pad: it presses no hardware button. Unlike that one it
 // is drawn ALWAYS, because changing the page colour is not tied to any firmware
-// state. Owner ruling 2026-08-17: "make a page color changer button next to the
-// power button that gives a modal that shows names, values, day and night
-// preview" -- the modal is CrossPointPalettePicker.mm.
+// state.
+//
+// Owner ruling 2026-08-17, after a first version that opened a modal picker and
+// painted itself with the live palette: "it should be a button the same size and
+// styling as power, not colored itself. it cycles through the available colors
+// in the order that they appear in page colors setting." So one press, one step
+// along the list -- see cycleToNextPalette().
 SDL_FRect g_paletteChip{};
 
 bool g_padLaidOut = false;
@@ -1030,62 +1033,73 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
-// The page-colour chip: a split square, the LIGHT paper on one side and the
-// DARK paper on the other, each carrying a bar of its own ink. It is the same
-// day/night idea the modal shows at full size, at chip scale -- and it is drawn
-// from the live palette, so the button previews the choice it opens.
+// Advance to the next page colour, in the order the Page Colors setting lists
+// them (panelpalette::kPresetInfo, which IS that order -- Root.plist's row
+// order and this table are the same sequence, and the enum's numeric order is
+// deliberately not either of them).
 //
-// No text, because the SDL side of this harness has no font: every label on
-// screen is drawn by the firmware into the panel. That constraint is also why
-// the picker itself is UIKit.
-void paintPaletteChip(SDL_Renderer *r, float radius, float hairline) {
+// CUSTOM IS NOT IN THE CYCLE. It has no tones of its own until its four hex
+// fields are filled, so resolve() answers it with Default -- a stop on the ring
+// that looks identical to another stop and reads as the button having failed.
+// It stays selectable in Settings. Starting from Custom, the first press lands
+// on the first preset in the list.
+void cycleToNextPalette() {
+  const int current = CrossPointPrefs_panelPalettePreset();
+  int at = -1;
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    if (panelpalette::kPresetInfo[i].preset == current) {
+      at = i;
+      break;
+    }
+  }
+  // -1 covers Custom and any unknown integer: both start the ring at the top.
+  const int next = (at + 1) % panelpalette::kPresetInfoCount;
+  const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[next];
+  CrossPointPrefs_setPanelPalettePreset(info.preset);
+  SDL_Log("[palette] %s . %s (%s)", info.family, info.name, info.note);
+  // No apply call: pollPanelPalette() compares the resolved pair every frame and
+  // repaints the page, the pad and both keyboard chips. Writing the key IS
+  // applying it. The present is asked for so an e-ink firmware that may not
+  // render for minutes still shows the change now.
+  SimulatorOverlay::requestPresent();
+}
+
+// The page-colour button. SAME SIZE AND STYLING AS POWER (owner ruling
+// 2026-08-17) -- stroke and hollow face from the pad palette, exactly like every
+// control beside it, and NOT filled with the colours it selects. An earlier
+// version painted the live palette into the button itself; it read as a swatch
+// rather than as a control.
+//
+// It still needs to be distinguishable from POWER, which is a blank capsule of
+// the same size, so it carries one monochrome glyph: a disc with its right half
+// filled, the usual day/night mark. Drawn in the pad's own stroke tone, so it is
+// as colourless as the rest of the pad.
+void paintPaletteChip(SDL_Renderer *r, const Palette &p, float radius,
+                      float hairline) {
   const SDL_FRect &c = g_paletteChip;
   if (c.w <= 0 || c.h <= 0) return;
 
-  const Palette chip = crosspoint::chipPaletteForPrefs(g_dark);
-  setRGB(r, chip.hairline);
+  // Stroke-then-face, the pad's construction for a hollow control.
+  setRGB(r, p.hairline);
   fillRoundRect(r, c, radius);
+  setRGB(r, p.face);
+  fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
+                    c.h - 2 * hairline},
+                radius - hairline);
 
-  // The two grounds, side by side inside the stroke.
-  const panelpalette::Palette light = crosspoint::panelForPrefs(false);
-  const panelpalette::Palette dark = crosspoint::panelForPrefs(true);
-  const float ix = c.x + hairline, iy = c.y + hairline;
-  const float iw = c.w - 2 * hairline, ih = c.h - 2 * hairline;
-  const float halfW = SDL_roundf(iw / 2.0f);
-  const SDL_FRect inner{ix, iy, iw, ih};
-
-  // Each half is the WHOLE rounded interior, drawn under a clip that keeps only
-  // its side. Filling two plain rectangles instead is what the first version
-  // did, and it painted straight over the chip's rounded corners -- the button
-  // came out a bare square beside a rounded POWER key.
-  SDL_Rect prevClip{};
-  const bool hadClip = SDL_GetRenderClipRect(r, &prevClip) && !SDL_RectEmpty(&prevClip);
-  auto clipTo = [&](float x, float w) {
-    const SDL_Rect rect{static_cast<int>(SDL_floorf(x)), static_cast<int>(SDL_floorf(iy)),
-                        static_cast<int>(SDL_ceilf(w)), static_cast<int>(SDL_ceilf(ih))};
-    SDL_SetRenderClipRect(r, &rect);
-  };
-
-  clipTo(ix, halfW);
-  setRGB(r, light.paper);
-  fillRoundRect(r, inner, radius - hairline);
-
-  clipTo(ix + halfW, iw - halfW);
-  setRGB(r, dark.paper);
-  fillRoundRect(r, inner, radius - hairline);
-
-  SDL_SetRenderClipRect(r, hadClip ? &prevClip : nullptr);
-
-  // One ink bar per side, so each half shows its pair rather than just a ground.
-  const float barW = SDL_max(2.0f, halfW * 0.52f);
-  const float barH = SDL_max(1.0f, ih * 0.14f);
-  const float barY = iy + (ih - barH) / 2.0f;
-  // The bars sit centred in each half, so they never reach a rounded corner and
-  // need no clip of their own.
-  setRGB(r, light.ink);
-  fillRect(r, ix + (halfW - barW) / 2.0f, barY, barW, barH);
-  setRGB(r, dark.ink);
-  fillRect(r, ix + halfW + (iw - halfW - barW) / 2.0f, barY, barW, barH);
+  // The mark: an outlined disc whose right half is solid.
+  const float d = SDL_min(c.w, c.h) * 0.46f;
+  const float cx = c.x + c.w / 2.0f, cy = c.y + c.h / 2.0f;
+  const float rad = d / 2.0f;
+  const float step = 1.0f;
+  setRGB(r, p.hairline);
+  for (float dy = -rad; dy <= rad; dy += step) {
+    const float halfChord = SDL_sqrtf(SDL_max(0.0f, rad * rad - dy * dy));
+    // Outline on the left, solid on the right: two spans per scanline.
+    const float y = cy + dy;
+    fillRect(r, cx - halfChord, y, SDL_max(1.0f, hairline), step);
+    fillRect(r, cx, y, halfChord, step);
+  }
 }
 
 void paintKeyboardChip(SDL_Renderer *r, const Palette &, float radius,
@@ -1306,7 +1320,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   }
 
   paintKeyboardChip(r, p, radius, hairline);
-  paintPaletteChip(r, radius, hairline);
+  paintPaletteChip(r, p, radius, hairline);
 }
 
 // The chip is not in g_pad -- it presses no hardware button -- so it needs its
@@ -1421,7 +1435,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
           if (hitPaletteChip(g_tapDownX, g_tapDownY)) {
-            CrossPointPalettePicker_present();
+            cycleToNextPalette();
           } else if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();

@@ -52,7 +52,6 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
-  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPalettePicker.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointDiagLog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointFsPrep.cpp
   ${CROSSPOINT_SETTINGS_BUNDLE}
