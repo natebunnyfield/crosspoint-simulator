@@ -33,8 +33,16 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [ST-008] Moire in the selection dot pattern on iPhone Air
-**scope: ios display · reported 2026-08-15 · CAUSE FOUND, mitigation on branch `ios-aa`**
+### [ST-008] Moire in the selection dot pattern on iPhone Air — SHIPPED, unverified on the phone
+**scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
+
+**Status, checked 2026-08-16:** the `ios-aa` mitigation is on `main` —
+`panelScaleModeFor()` is [src/HalDisplay.cpp:154](src/HalDisplay.cpp:154), called
+at `:978`, and the `[panel]` log line at `:1059` prints which filter is live. It
+was already in `build-80`, so build 81 is not what carries it. What is still
+owed is one look at an actual iPhone Air: the beat amplitude figures below are
+measured, but measured off the framebuffer, not off the handset. Confirm the dot
+pattern reads clean and delete this entry.
 
 Owner report: the grey dot pattern that marks a selected item now shows moire
 on an iPhone Air, with the question "is it being scaled differently today?"
@@ -122,8 +130,32 @@ answered."** It is answered, and nothing here softens the pattern: the
 framebuffer is untouched and still a faithful four-level panel image. Only the
 optics of showing it smaller than 1:1 change.
 
-### [ST-007] The README no longer describes what this repo is
-**scope: docs · opened 2026-08-15**
+### [ST-007] The README no longer describes what this repo is — DONE 2026-08-16
+**scope: docs · opened 2026-08-15 · both halves landed 2026-08-16**
+
+**Done, and the paired `T-016` with it.** This README now opens on the two
+toolchains rather than "a desktop simulator", carries the desktop/iOS split
+table, and gained sections for the host tests (22, one command), the headless-QA
+pointer, the color dials, the host-keyboard Return contract, and a full
+opt-in table of the state the host cannot otherwise produce. The firmware README
+gained Manage Files, Create Note, Claude (key path, model, transcript), the two
+text-entry styles, Bluetooth keyboards and text antialiasing — every one checked
+against the tree first — plus a section pointing at `SCOPE.md` and
+`docs/fork-sync.md` for what was deliberately removed.
+
+**Three stale claims were found and corrected rather than reworded:**
+
+| Claim | Reality |
+|---|---|
+| "renders the e-ink display in an SDL2 window" | SDL3 on both toolchains since the iOS port |
+| `CROSSPOINT_SIM_FREE_HEAP`, `CROSSPOINT_SIM_MAX_ALLOC_HEAP` | **neither exists** — grep of `src/` returns nothing. The real ones are `CROSSPOINT_SIM_HEAP` and `CROSSPOINT_SIM_HEAP_FREE` |
+| "14 presets plus Custom" (also in CLAUDE.md) | 15 named presets; Sepia CRT and Blue CRT were appended 2026-08-16 |
+
+The last one is the interesting failure: the *test's* sentinel had already been
+walked to 16 and was correct, while two prose files still said 14. A number
+repeated in three places drifts in the two that nothing executes.
+
+**Original entry follows.**
 
 This fork has grown well past its README: an iOS target (135 firmware TUs + 20
 sim TUs for `arm64-apple-ios`), the read-aloud page channel, host keyboard text
