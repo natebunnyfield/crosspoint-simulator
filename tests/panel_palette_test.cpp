@@ -106,8 +106,9 @@ static void testDefaultsAreTheShippedTones() {
   // same day again when Sepia CRT (14) and Blue CRT (15) were appended, then
   // 16 -> 17 on 2026-08-17 when Reading (16) was appended, then 17 -> 19 the
   // same day when Reading Warm (17) and Reading Cool (18) replaced Soft and
-  // Cool Gray; whoever appends the next preset moves it again.
-  const int roads[] = {kPresetDefault, 19, -1, 999};
+  // Cool Gray, then 19 -> 24 the same day again when the five remaining
+  // phosphors (19-23) landed; whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 24, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -302,7 +303,9 @@ static void testPresetsAreLegible() {
                      kPresetReadingCool, kPresetSolarized,    kPresetGreenCrt,
                      kPresetAmberCrt,    kPresetNord,         kPresetGruvboxLight,
                      kPresetLatte,       kPresetRedCrt,       kPresetGrayCrt,
-                     kPresetReadingWarm, kPresetReading,      kPresetBlueCrt};
+                     kPresetReadingWarm, kPresetReading,      kPresetBlueCrt,
+                     kPresetGreenLongCrt, kPresetGreenFastCrt, kPresetWhiteCrt,
+                     kPresetBlueFastCrt,  kPresetRedProjCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
@@ -489,6 +492,21 @@ static void testRootPlist(const char *path) {
              i, plistOrder[i], kPresetInfo[i].preset, kPresetInfo[i].family,
              kPresetInfo[i].name);
     }
+  }
+
+  // A CRT row without a usable decay is a phosphor that cannot glow, which is
+  // the one thing the family is for. decayMs is allowed to come off the class
+  // ladder, but it may not be zero.
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    const PresetInfo &info = kPresetInfo[i];
+    const bool isCrt = std::string(info.family) == "CRT";
+    CHECKM(isCrt == (info.phosphor != nullptr),
+           "%s . %s: the CRT family and having a phosphor must agree",
+           info.family, info.name);
+    if (!isCrt) continue;
+    CHECKM(info.persistence != nullptr && info.decayMs > 0.0f,
+           "%s (%s) has no usable decay -- it would not glow", info.name,
+           info.phosphor);
   }
 
   // Every preset the cycle can reach must be a KNOWN one, or a press lands on a

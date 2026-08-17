@@ -108,11 +108,6 @@ int CrossPointPrefs_panelPalettePreset(void);
 // notices the change on the next frame and repaints; nothing else is needed.
 void CrossPointPrefs_setPanelPalettePreset(int preset);
 
-// Phosphor glow: whether a CRT page decays into the next one instead of cutting.
-// Off by default -- it is an effect, and the reader should look like the reader
-// until someone asks otherwise.
-int CrossPointPrefs_panelGlow(void);
-
 // The owner's custom panel tone for one appearance and one role, as packed
 // 0xRRGGBB, or -1 (panelpalette::kInvalidColor) when the field is empty or does
 // not hold six hex digits. `dark` is 1 for the dark appearance; `ink` is 1 for

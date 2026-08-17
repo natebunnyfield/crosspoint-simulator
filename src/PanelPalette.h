@@ -147,6 +147,17 @@ enum Preset : int {
   // which the first attempt at these was not.
   kPresetReadingWarm = 17,
   kPresetReadingCool = 18,
+  // The rest of the phosphors, appended 2026-08-17 ("now add remaining crts").
+  // They were held back until the glow existed, because until a page decays at
+  // the phosphor's own rate a second green next to P1 is just a second green --
+  // see docs/crt-phosphor-presets.md section 9. Now the difference between them
+  // is WHEN they stop emitting, which is the thing that made them different
+  // machines to sit in front of.
+  kPresetGreenLongCrt = 19,  // P39, the long-persistence green
+  kPresetGreenFastCrt = 20,  // P31, the oscilloscope green
+  kPresetWhiteCrt = 21,      // P45
+  kPresetBlueFastCrt = 22,   // P47
+  kPresetRedProjCrt = 23,    // P56
 };
 
 // A retired preset that was REPLACED rather than removed. Stored choices follow
@@ -179,7 +190,9 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetReadingWarm || preset == kPresetSolarized ||
          preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
          preset == kPresetNord || preset == kPresetGruvboxLight ||
-         preset == kPresetReadingCool ||
+         preset == kPresetReadingCool || preset == kPresetGreenLongCrt ||
+         preset == kPresetGreenFastCrt || preset == kPresetWhiteCrt ||
+         preset == kPresetBlueFastCrt || preset == kPresetRedProjCrt ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
          preset == kPresetGrayCrt || preset == kPresetReading ||
          preset == kPresetBlueCrt;
@@ -365,6 +378,30 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // blended 25.8% toward D65 in linear light -- the same construction Red CRT
   // used, and the same physical excuse (a saturating beam loses purity) --
   // giving #8B92FF at 7.35:1, a hair above Red CRT's 7.33:1.
+  // The five added 2026-08-17. Each derived the same way as the rows above --
+  // published CIE -> xyY at Y=1 -> XYZ -> linear sRGB -> normalise -> encode,
+  // then lifted toward white until it clears the ~10:1 band the CRT family sits
+  // in, which is the treatment Red CRT already needed.
+  //
+  // P39 has NO published chromaticity, and takes P1's: it is Zn2SiO4:Mn,As at
+  // 525 nm against P1's Zn2SiO4:Mn at 525 nm -- the same emitter with an
+  // arsenic co-activator added for persistence. Same light, longer tail, which
+  // is exactly why it belongs next to P1 rather than instead of it.
+  case kPresetGreenLongCrt:
+    return dark ? Palette{{0x00, 0xFF, 0x00}, {0x00, 0x27, 0x00}}
+                : Palette{{0x00, 0x4A, 0x00}, {0xF1, 0xFF, 0xF1}};
+  case kPresetGreenFastCrt:
+    return dark ? Palette{{0x3D, 0xFF, 0x6F}, {0x03, 0x27, 0x0A}}
+                : Palette{{0x0B, 0x4A, 0x1B}, {0xF2, 0xFF, 0xF3}};
+  case kPresetWhiteCrt:
+    return dark ? Palette{{0xB6, 0xEF, 0xFF}, {0x18, 0x23, 0x27}}
+                : Palette{{0x30, 0x42, 0x48}, {0xF8, 0xFD, 0xFF}};
+  case kPresetBlueFastCrt:
+    return dark ? Palette{{0xB0, 0xB4, 0xFF}, {0x03, 0x05, 0x27}}
+                : Palette{{0x1D, 0x2B, 0x99}, {0xF2, 0xF2, 0xFF}};
+  case kPresetRedProjCrt:
+    return dark ? Palette{{0xFF, 0xA5, 0xA4}, {0x27, 0x01, 0x00}}
+                : Palette{{0x7B, 0x08, 0x00}, {0xFF, 0xF1, 0xF1}};
   case kPresetBlueCrt:
     return dark ? Palette{{0x8B, 0x92, 0xFF}, {0x00, 0x06, 0x1A}}
                 : Palette{{0x00, 0x1F, 0x9E}, {0xE5, 0xE7, 0xFF}};
@@ -567,7 +604,20 @@ struct PresetInfo {
   // the glow has to fall back rather than have a number invented for it.
   const char *phosphor;     // P-number, or nullptr
   const char *persistence;  // verbatim from the source table, or nullptr
-  float decayMs;            // 0 = no published figure (class only), or not a phosphor
+  // The figure the glow uses. Where the source prints a NUMBER this is that
+  // number. Where it prints only a CLASS -- "Medium", "Long", "Very short",
+  // which is most of them -- this is that class read off the ladder below, and
+  // the ladder is THIS REPO'S interpretation, not published data. The
+  // `persistence` string above always says which you are looking at.
+  //
+  //   very short  0.05     short        0.5      medium short  1
+  //   medium     10        long       150        very long   1000
+  //
+  // The ladder exists because the alternative was worse: mapping every
+  // class-only row to one fallback made P39, whose entire identity is a long
+  // tail, decay exactly like P45 and P56. The ordering is the source's own; only
+  // the numbers between the rungs are ours.
+  float decayMs;
 };
 
 inline constexpr PresetInfo kPresetInfo[] = {
@@ -586,7 +636,16 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
      "not over 7% of peak after 33 ms", 33.0f},
     {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f},
-    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 0.0f},
+    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f},
+    {kPresetGreenLongCrt, "CRT", "Green Long", "P39, long persistence", "P39",
+     "Long", 150.0f},
+    {kPresetGreenFastCrt, "CRT", "Green Fast", "P31 oscilloscope", "P31",
+     "Medium short 0.01-1 ms", 1.0f},
+    {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f},
+    {kPresetBlueFastCrt, "CRT", "Blue Fast", "P47, very short", "P47",
+     "Very short", 0.05f},
+    {kPresetRedProjCrt, "CRT", "Red Projector", "P56 projection tube", "P56",
+     "Medium", 10.0f},
 };
 
 inline constexpr int kPresetInfoCount =
