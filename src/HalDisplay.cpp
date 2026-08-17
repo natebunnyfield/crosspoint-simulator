@@ -34,6 +34,8 @@ static Uint64 ghostStartedAt = 0;
 // overwrites `texture` in place, so the old picture has to be copied BEFORE the
 // new one lands, and a pixel copy is cheaper and simpler than a render target.
 static std::vector<uint32_t> ghostPixels;
+// The pixelBufSeq the ghost copy was taken at.
+static uint64_t ghostSeq = 0;
 // Render the simulator at full panel size. The previous 0.5x window was too
 // small. With 1:1 pixel mapping, the simulator can be used for testing fine
 // details.
@@ -79,6 +81,12 @@ static bool simulatorWantsDevicePixels() {
 static uint32_t
     pixelBuf[HalDisplay::DISPLAY_WIDTH * HalDisplay::DISPLAY_HEIGHT];
 static std::mutex pixelBufMutex;
+// Bumped by every writer of pixelBuf. The glow needs to know "is this a NEW
+// picture?", and asking the PIXELS that question cost a memcmp over the whole
+// active framebuffer on every present -- ~15 MB at 3x, and while a trail is
+// alive it presents every frame. The writers already know, so they say so, and
+// the comparison is one integer. Under pixelBufMutex like the buffer itself.
+static uint64_t pixelBufSeq = 0;
 static std::atomic<bool> pendingPresent{false};
 // Set when the inversion flag changes so presentIfNeeded (main thread) re-runs
 // the framebuffer-to-pixel conversion from the cached last frame. Without it a
@@ -328,8 +336,22 @@ PanelPalette unpackPalette(uint64_t v) {
 std::atomic<uint64_t> panelPackedLight{packPalette(panelpalette::kDefaultLight)};
 std::atomic<uint64_t> panelPackedDark{packPalette(panelpalette::kDefaultDark)};
 
+// Is the page currently painted on a DARK ground? The glow asks, because a
+// phosphor's additive behaviour only makes sense against one -- see the blend
+// choice in presentIfNeeded. Measured off the live paper rather than off the
+// appearance flag, so a custom palette with a dark paper in light mode still
+// gets the emissive treatment.
+bool panelIsDarkGround();
+
 PanelPalette livePanelPalette(bool dark) {
   return unpackPalette(dark ? panelPackedDark.load() : panelPackedLight.load());
+}
+
+bool panelIsDarkGround() {
+  const PanelPalette pal = livePanelPalette(display.isInverted());
+  // Rec.601-ish luma is plenty for "is this closer to black than to white".
+  const int luma = (pal.paper[0] * 299 + pal.paper[1] * 587 + pal.paper[2] * 114) / 1000;
+  return luma < 128;
 }
 
 // level: 0 = ink, 255 = paper (the pre-inversion grayscale convention).
@@ -364,6 +386,7 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 
 void renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
+  pixelBufSeq++;
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint32_t ink = panelColor(0, pal);
   const uint32_t paper = panelColor(255, pal);
@@ -402,6 +425,7 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 
 void composeGrayscalePreview() {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
+  pixelBufSeq++;
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
@@ -933,9 +957,10 @@ void HalDisplay::presentIfNeeded() {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
     if (trailMs > 0.0f) {
-      contentChanged = ghostPixels.size() != live ||
-                       std::memcmp(ghostPixels.data(), pixelBuf,
-                                   live * sizeof(uint32_t)) != 0;
+      // One integer, not 15 MB. A seq the ghost has not seen means the firmware
+      // (or a polarity reconvert) wrote a new picture since the last capture.
+      contentChanged = pixelBufSeq != ghostSeq || ghostPixels.size() != live;
+      ghostSeq = pixelBufSeq;
       if (contentChanged) {
         ensureGhostTexture();
         if (ghostTexture && !ghostPixels.empty() &&
@@ -960,17 +985,27 @@ void HalDisplay::presentIfNeeded() {
                       activeWidth() * sizeof(uint32_t));
   }
 
-  // How much of the ghost is still on screen, 0 when it has decayed away.
-  // LINEAR in time rather than exponential: a phosphor's own curve is
-  // exponential, but it is defined by the time to 10% of peak (see
-  // panelpalette::PresetInfo) and the last 10% of an exponential is a long
-  // invisible tail that would hold a present loop open for nothing.
+  // How much of the ghost is still emitting, 0 once it has decayed away.
+  //
+  // EXPONENTIAL, and the exponent is not a taste knob -- the source figure IS
+  // the curve. Persistence is published as the time to decay to 10% of peak
+  // (see panelpalette::PresetInfo), so the decay is 10^(-age/trail): exactly
+  // 10% left at t = trail, a tenth of that again one trail later. The first
+  // version was linear "to avoid a long tail", which threw away the only shape
+  // information the source actually gave and is why it read as a cheap
+  // cross-dissolve rather than as light dying.
+  //
+  // Cut off at 1/255 rather than at t = trail, because below one 8-bit step
+  // there is nothing left to draw and continuing would hold the present loop
+  // open for an invisible tail.
   float ghostAlpha = 0.0f;
   if (trailMs > 0.0f && ghostStartedAt != 0 && ghostTexture) {
     const float age = static_cast<float>(SDL_GetTicks() - ghostStartedAt);
-    ghostAlpha = age >= trailMs ? 0.0f : 1.0f - age / trailMs;
-    if (ghostAlpha <= 0.0f)
+    ghostAlpha = SDL_powf(10.0f, -age / trailMs);
+    if (ghostAlpha < 1.0f / 255.0f) {
+      ghostAlpha = 0.0f;
       ghostStartedAt = 0;
+    }
   }
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
@@ -1199,6 +1234,23 @@ void HalDisplay::presentIfNeeded() {
     SDL_ScaleMode panelMode = kPanelScaleMode;
     SDL_GetTextureScaleMode(texture, &panelMode);
     SDL_SetTextureScaleMode(ghostTexture, panelMode);
+
+    // A PHOSPHOR ADDS LIGHT. It does not become see-through, which is what
+    // alpha blending models and what made the first version a dissolve: the old
+    // page's PAPER faded across the new page too, so the whole sheet
+    // cross-faded instead of the text lingering.
+    //
+    // Additive is the physical answer on a dark ground: the near-black paper
+    // contributes nothing to the sum, so only the lit pixels -- the text --
+    // carry over and decay, which is what a tube actually does.
+    //
+    // On a PALE paper there is no such thing as a glowing page, and adding
+    // light to it would only wash it out. There the honest fallback is the
+    // cross-dissolve, now at least on the right curve. The CRT palettes look
+    // like CRTs in dark mode; that is where the emissive effect belongs.
+    const bool darkGround = panelIsDarkGround();
+    SDL_SetTextureBlendMode(ghostTexture, darkGround ? SDL_BLENDMODE_ADD
+                                                     : SDL_BLENDMODE_BLEND);
     SDL_SetTextureAlphaMod(ghostTexture,
                            static_cast<Uint8>(ghostAlpha * 255.0f + 0.5f));
     switch (orientation) {
