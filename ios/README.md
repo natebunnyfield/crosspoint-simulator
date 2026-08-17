@@ -1297,7 +1297,7 @@ the Neutral / Paper / CRT grouping lives; the CRT group sorts by P-number:
 | 1 | Default | 13.29:1 | 14.17:1 |
 | 2 | High Contrast | 21.00:1 | 21.00:1 |
 | 3 | Sepia | 10.23:1 | 12.79:1 |
-| 4 | Cool Gray | 13.17:1 | 14.24:1 |
+| ~~4~~ | ~~Cool Gray~~ — REPLACED by Reading Cool 2026-08-17 | — | — |
 | 5 | Solarized | **4.13:1** | **4.75:1** |
 | 6 | Green CRT | 10.31:1 | 13.50:1 |
 | 7 | Amber CRT | 10.13:1 | 10.25:1 |
@@ -1306,10 +1306,12 @@ the Neutral / Paper / CRT grouping lives; the CRT group sorts by P-number:
 | 10 | Catppuccin Latte | 7.06:1 | 11.34:1 |
 | 11 | Red CRT | 10.22:1 | 7.33:1 |
 | 12 | Gray CRT | 11.14:1 | 13.92:1 |
-| 13 | Soft | 9.15:1 | 9.47:1 |
+| ~~13~~ | ~~Soft~~ — REPLACED by Reading Warm 2026-08-17 | — | — |
 | ~~14~~ | ~~Sepia CRT~~ — RETIRED 2026-08-17 | — | — |
 | 15 | Blue CRT | 10.18:1 | **7.35:1** |
 | 16 | Reading | 14.17:1 | 11.77:1 |
+| 17 | Reading Warm | 14.26:1 | 11.70:1 |
+| 18 | Reading Cool | 13.84:1 | 11.80:1 |
 | 0 | Custom | — | — |
 
 Every figure above is sRGB relative-luminance contrast (WCAG arithmetic),
@@ -1367,6 +1369,26 @@ all about an OLED phone showing paragraphs:
 
 14.17:1 light and 11.77:1 dark — inside the comfortable band, deliberately not
 High Contrast's 21:1, which is the ratio that tires eyes over paragraphs.
+
+**Reading Warm (17) and Reading Cool (18) replaced Soft and Cool Gray**, same
+day, by owner ruling. The Neutral group is now Reading in three temperatures
+plus High Contrast and Default. All three Readings sit at 13.8-14.3:1 light and
+~11.8:1 dark, so choosing between them changes the warmth of the sheet and never
+the legibility; what separates them is the paper's channel span — 4 neutral, 20
+warm, 12 cool. A first pass had the cool paper at span 6, which is four steps
+from neutral and indistinguishable on glass; that was measured and widened
+before shipping.
+
+**Replaced is not the same as removed, and the two retire differently.** Sepia
+CRT (14) was deleted and has nowhere to go, so a stored 14 lands on Default like
+any unknown integer. Soft (13) and Cool Gray (4) were swapped for the warm and
+cool Reading pages, so `panelpalette::migratePreset` carries a stored 13 to 17
+and a stored 4 to 18 — an install that had chosen "the cool one" keeps having
+chosen the cool one. The migration is applied inside `resolve()`, the single
+function every consumer goes through, rather than at each caller: the picker,
+the cycle button and the page would otherwise each have to remember, and the one
+that forgot would show a different palette from the others. Neither number is
+ever reused.
 
 **Blue CRT and Sepia CRT (2026-08-16)** closed the CRT group at six rows, and
 one of the two is not a phosphor. Full research and derivation in the same

@@ -93,9 +93,9 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<array>
 				<string>Neutral · High Contrast — black on white, 21:1</string>
 				<string>Neutral · Default — e-ink, 13.3:1</string>
-				<string>Neutral · Cool Gray — cool, 13.2:1</string>
-				<string>Neutral · Soft — pure ground, eased ink, 9.2:1</string>
 				<string>Neutral · Reading — long-form on OLED, 14.2:1</string>
+				<string>Neutral · Reading Warm — warmer paper, 14.3:1</string>
+				<string>Neutral · Reading Cool — cooler paper, 13.8:1</string>
 				<string>Paper · Sepia — warm, 10.2:1</string>
 				<string>Paper · Gruvbox Light — warm pale, 10.2:1</string>
 				<string>Paper · Latte — neutral pale, 7.1:1</string>
@@ -114,9 +114,9 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<array>
 				<integer>2</integer>
 				<integer>1</integer>
-				<integer>4</integer>
-				<integer>13</integer>
 				<integer>16</integer>
+				<integer>17</integer>
+				<integer>18</integer>
 				<integer>3</integer>
 				<integer>9</integer>
 				<integer>10</integer>

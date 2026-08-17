@@ -104,9 +104,10 @@ static void testDefaultsAreTheShippedTones() {
   // 11 -> 13 on 2026-08-16 when Red CRT (11) and Gray CRT (12) were appended,
   // then 13 -> 14 the same day when Soft (13) was appended, then 14 -> 16 the
   // same day again when Sepia CRT (14) and Blue CRT (15) were appended, then
-  // 16 -> 17 on 2026-08-17 when Reading (16) was appended;
-  // whoever appends the next preset moves it again.
-  const int roads[] = {kPresetDefault, 17, -1, 999};
+  // 16 -> 17 on 2026-08-17 when Reading (16) was appended, then 17 -> 19 the
+  // same day when Reading Warm (17) and Reading Cool (18) replaced Soft and
+  // Cool Gray; whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 19, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -233,7 +234,7 @@ static void testPresetsAreLegible() {
   const Row rows[] = {{kPresetDefault, "Default"},
                       {kPresetHighContrast, "High Contrast"},
                       {kPresetSepia, "Sepia"},
-                      {kPresetCoolGray, "Cool Gray"},
+                      {kPresetReadingWarm, "Reading Warm"},
                       {kPresetSolarized, "Solarized"},
                       {kPresetGreenCrt, "Green CRT"},
                       {kPresetAmberCrt, "Amber CRT"},
@@ -242,7 +243,7 @@ static void testPresetsAreLegible() {
                       {kPresetLatte, "Latte"},
                       {kPresetRedCrt, "Red CRT"},
                       {kPresetGrayCrt, "Gray CRT"},
-                      {kPresetSoft, "Soft"},
+                      {kPresetReadingCool, "Reading Cool"},
                       {kPresetReading, "Reading"},
                       {kPresetBlueCrt, "Blue CRT"}};
   for (const Row &r : rows) {
@@ -294,11 +295,14 @@ static void testPresetsAreLegible() {
     CHECKM(isLowContrastByDesign(kPresetSolarized), "Solarized lost its exemption");
   }
 
-  const int all[] = {kPresetDefault,   kPresetHighContrast, kPresetSepia,
-                     kPresetCoolGray,  kPresetSolarized,    kPresetGreenCrt,
-                     kPresetAmberCrt,  kPresetNord,         kPresetGruvboxLight,
-                     kPresetLatte,     kPresetRedCrt,       kPresetGrayCrt,
-                     kPresetSoft,      kPresetReading,      kPresetBlueCrt};
+  // Every OFFERED preset, and only those -- a retired number resolves to
+  // Default, so leaving one here reports "identical to Default" and hides what
+  // the check is for.
+  const int all[] = {kPresetDefault,     kPresetHighContrast, kPresetSepia,
+                     kPresetReadingCool, kPresetSolarized,    kPresetGreenCrt,
+                     kPresetAmberCrt,    kPresetNord,         kPresetGruvboxLight,
+                     kPresetLatte,       kPresetRedCrt,       kPresetGrayCrt,
+                     kPresetReadingWarm, kPresetReading,      kPresetBlueCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
@@ -424,8 +428,39 @@ static void testRootPlist(const char *path) {
            "a stored 14 must land on Default, the same as any unknown integer");
   }
   for (size_t i = 0; i < values.size(); i++) {
-    CHECKM(std::atoi(values[i].c_str()) != kPresetSepiaCrt,
+    const int offered = std::atoi(values[i].c_str());
+    CHECKM(offered != kPresetSepiaCrt,
            "Root.plist still offers the retired preset 14");
+    CHECKM(offered != kPresetSoft && offered != kPresetCoolGray,
+           "Root.plist still offers a replaced preset (%d)", offered);
+  }
+
+  // REPLACED, not removed: a stored choice follows its replacement forward.
+  // This is the half that separates the two kinds of retirement -- 14 was
+  // deleted and lands on Default, while 4 and 13 were swapped for the cool and
+  // warm Reading pages and must keep meaning "the cool one" / "the warm one".
+  {
+    struct { int stored; int expect; const char *what; } moved[] = {
+        {kPresetSoft, kPresetReadingWarm, "Soft -> Reading Warm"},
+        {kPresetCoolGray, kPresetReadingCool, "Cool Gray -> Reading Cool"},
+    };
+    for (const auto &m : moved) {
+      CHECKM(!isKnownPreset(m.stored), "%s: the old number must not be offered",
+             m.what);
+      CHECKM(migratePreset(m.stored) == m.expect, "%s: migratePreset disagrees",
+             m.what);
+      for (int d = 0; d < 2; d++) {
+        const Palette got = resolve(m.stored, d != 0, kInvalidColor, kInvalidColor);
+        const Palette want = resolve(m.expect, d != 0, kInvalidColor, kInvalidColor);
+        CHECKM(pack(got.ink) == pack(want.ink) &&
+                   pack(got.paper) == pack(want.paper),
+               "%s (dark=%d): a stored %d must resolve to %d", m.what, d,
+               m.stored, m.expect);
+      }
+    }
+    // And the deleted one must NOT be migrated anywhere.
+    CHECKM(migratePreset(kPresetSepiaCrt) == kPresetSepiaCrt,
+           "14 was deleted, not replaced -- it must not migrate");
   }
 
   // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-colour button beside POWER
