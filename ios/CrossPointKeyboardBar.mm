@@ -160,6 +160,22 @@ UIColor *colorFromPanel(bool wantInk) {
     return [UIColor colorWithRed:c[0] / 255.0
                            green:c[1] / 255.0
                             blue:c[2] / 255.0
+                            alpha:1];
+  }];
+}
+
+// The chip's own LIGHT GRAY stroke, from the same crosspoint:: definition the
+// SHOW chip paints with. It used to be panelInk() -- full page ink -- which is
+// how this half went black alongside the SDL half when the pad's outline default
+// became Black & White. The chips were asked to be light gray; see
+// ios/PanelPrefs.h.
+UIColor *chipStroke(void) {
+  return [UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *t) {
+    const bool dark = t.userInterfaceStyle == UIUserInterfaceStyleDark;
+    const padpalette::Palette p = crosspoint::chipPaletteForPrefs(dark);
+    return [UIColor colorWithRed:p.hairline[0] / 255.0
+                           green:p.hairline[1] / 255.0
+                            blue:p.hairline[2] / 255.0
                            alpha:1];
   }];
 }
@@ -201,9 +217,9 @@ static UIButton *g_hide = nil;
 void CrossPointKeyboardBar_refreshTint(void) {
   dispatch_block_t work = ^{
     if (!g_hide) return;
-    g_hide.tintColor = panelInk();
+    g_hide.tintColor = chipStroke();
     g_hide.backgroundColor = panelPaper();
-    g_hide.layer.borderColor = panelInk().CGColor;
+    g_hide.layer.borderColor = chipStroke().CGColor;
   };
   if (NSThread.isMainThread)
     work();
@@ -250,7 +266,7 @@ void CrossPointKeyboardBar_install(void) {
       // nothing else. Type Custom plus an explicit tint keeps it monochrome.
       UIButton *hide = [UIButton buttonWithType:UIButtonTypeCustom];
       [hide setImage:hideKeyboardGlyph(kButton) forState:UIControlStateNormal];
-      hide.tintColor = panelInk();
+      hide.tintColor = chipStroke();
       // Stroke-then-face, the same construction the pad gives every control and
       // the show chip. Without a backing the glyph floated over whatever the
       // page happened to be drawing and merged with it -- the first render sat
@@ -260,7 +276,7 @@ void CrossPointKeyboardBar_install(void) {
       hide.backgroundColor = panelPaper();
       hide.layer.cornerRadius = 8;  // the 8 pt grid the pad aligns to
       hide.layer.borderWidth = 1;
-      hide.layer.borderColor = panelInk().CGColor;
+      hide.layer.borderColor = chipStroke().CGColor;
       // Top-aligned in the container, so the whole gap falls BELOW it.
       hide.frame = CGRectMake(bar.bounds.size.width - kEdge - kButton, 0, kButton, kButton);
       hide.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;

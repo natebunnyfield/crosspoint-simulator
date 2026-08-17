@@ -977,18 +977,26 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
-void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
+void paintKeyboardChip(SDL_Renderer *r, const Palette &, float radius,
                        float hairline) {
   if (!gpio.isTextEntryActive()) return;
   const SDL_FRect &c = g_kbChip;
   if (c.w <= 0 || c.h <= 0) return;
   const bool keyboardUp = gpio.isHostKeyboardVisible();
 
+  // LIGHT GRAY, from crosspoint::chipPaletteForPrefs -- not the pad palette
+  // passed in. The pad's outline default went to Black & White on 2026-08-16 by
+  // a ruling about the pad's CONTROLS, and this chip is not one (see its
+  // declaration above: "NOT a PadButton"). Borrowing `p` here is what turned the
+  // chips black, against the standing instruction that they be light gray. See
+  // ios/PanelPrefs.h for the whole reasoning and the level it uses.
+  const Palette chip = crosspoint::chipPaletteForPrefs(g_dark);
+
   // Same stroke-then-face construction as the controls, so it belongs to the
   // pad rather than sitting on top of it.
-  setRGB(r, p.hairline);
+  setRGB(r, chip.hairline);
   fillRoundRect(r, c, radius);
-  setRGB(r, p.face);
+  setRGB(r, chip.face);
   fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
                     c.h - 2 * hairline},
                 radius - hairline);
@@ -1047,7 +1055,7 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
                      : static_cast<int>(SDL_lroundf(chevron::coverage(chev, px, py) * 255.0f));
       if (alpha == runAlpha) continue;
       if (runAlpha > 0) {
-        SDL_SetRenderDrawColor(r, p.hairline[0], p.hairline[1], p.hairline[2],
+        SDL_SetRenderDrawColor(r, chip.hairline[0], chip.hairline[1], chip.hairline[2],
                                static_cast<Uint8>(runAlpha));
         fillRect(r, static_cast<float>(runStart), static_cast<float>(py),
                  static_cast<float>(px - runStart), 1);
@@ -1057,17 +1065,17 @@ void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
     }
   }
   SDL_SetRenderDrawBlendMode(r, prevBlend);
-  setRGB(r, p.hairline);
+  setRGB(r, chip.hairline);
 
   // The keyboard: a solid body with the keys PUNCHED back out in the face
   // tone. Punching rather than stroking each key is what keeps it legible at
   // this size -- outlines this small close up into a gray smear.
   const float bx = cx - bodyW / 2.0f;
   const float by = top + glyphH - bodyH;
-  setRGB(r, p.hairline);
+  setRGB(r, chip.hairline);
   fillRoundRect(r, {bx, by, bodyW, bodyH}, bodyH * 0.2f);
 
-  setRGB(r, p.face);
+  setRGB(r, chip.face);
   const float gap = SDL_max(1.0f, SDL_roundf(bodyH * 0.13f));
   const float innerW = bodyW - gap * 2;
   const float keyH = (bodyH - gap * 4) / 3.0f;
