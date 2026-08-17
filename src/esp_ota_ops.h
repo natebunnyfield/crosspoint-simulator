@@ -55,3 +55,23 @@ inline esp_err_t esp_ota_mark_app_valid_cancel_rollback() {
 inline const esp_partition_t *esp_ota_get_running_partition() {
   return nullptr;
 }
+
+// The rollback state machine, for network/OtaCommit.cpp.
+//
+// A host has no otadata and no bootloader, so there is no pending image to
+// confirm and never can be: confirmBootIfPending() takes its first early return
+// on the null running partition above and does nothing. These exist so that file
+// COMPILES in the simulator rather than having to be excluded -- which is the
+// whole point of it being a separate translation unit from the flasher.
+enum esp_ota_img_states_t {
+  ESP_OTA_IMG_NEW = 0,
+  ESP_OTA_IMG_PENDING_VERIFY = 1,
+  ESP_OTA_IMG_VALID = 2,
+  ESP_OTA_IMG_INVALID = 3,
+  ESP_OTA_IMG_ABORTED = 4,
+  ESP_OTA_IMG_UNDEFINED = 0xFFFFFFFF,
+};
+
+inline esp_err_t esp_ota_get_state_partition(const esp_partition_t *, esp_ota_img_states_t *) {
+  return ESP_FAIL;
+}
