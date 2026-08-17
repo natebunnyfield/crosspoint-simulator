@@ -219,6 +219,22 @@ iOS keyboard up) pins THREE repeated overlap areas:**
    this layout instead of sitting in reserved chrome, and a second pair is
    buried under the system keyboard.
 
+   **The edge half of this is FIXED, 2026-08-17.** On iPad Pro 13 portrait the
+   outer capsules were not merely close to the edges, they were ON them:
+   `cell` was `min(kOptimalSquare, margin / 2)`, so any margin tighter than
+   2x60 pt -- every iPad in portrait -- made `cell` exactly `margin/2`, which
+   collapsed `leftX` to 0 and put the right pair's outer edge exactly on `W`.
+   A rounded display then clipped both. `layoutPadTablet` now reads the
+   HORIZONTAL safe area (it only ever read the vertical) and floors it at
+   `kPadEdgeMin` = 16 pt, because a portrait iPad reports 0 there -- no notch to
+   describe -- while still having a corner radius. Logged geometry after:
+   `W=1032 margin=120.0 edge=16.0 cell=52.0 leftX=16.0 rightPairEnd=1016.0
+   (clearance L=16.0 R=16.0)`; before, that line would have read leftX=0.0 and
+   rightPairEnd=1032.0. The cell gives up 60 -> 52 pt to buy the clearance.
+
+   Still open in this item: the pads sitting inside the panel's content area at
+   all, and the pair buried under the system keyboard.
+
 **Evidence, from a real iPad in portrait, dark, keyboard up:**
 [ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png](ios/mockups/keyboard-clearance/ipad-portrait-keyboard-dark.png)
 (owner-supplied 2026-08-08, 2048x2732). It shows three things the simulator

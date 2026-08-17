@@ -219,6 +219,11 @@ constexpr float kThumbRowFromBottom = 448.0f;
 constexpr float kOptimalSquare = 60.0f;      // owner-picked target size
 constexpr float kHomeInsetFallback = 34.0f;  // when the safe area is unreadable
 constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe area 0)
+// Floor for the pad's OUTER edge on the tablet. A portrait iPad reports a
+// horizontal safe area of 0 -- there is no notch to describe -- but the display
+// still has a corner radius, so a capsule placed at x=0 is clipped by it. 16 pt
+// on the same 8 pt grid the rest of this layout uses.
+constexpr float kPadEdgeMin = 16.0f;
 
 // iPad (family 2) — owner-approved spec 2026-08-03 (ios/README.md, "iPad
 // (family 2)"), implemented 2026-08-04. The tablet's spare dimension is WIDTH,
@@ -248,13 +253,19 @@ constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe a
 // panelBottom, same as the phone path.
 void layoutPadTablet(float W, float H, float S) {
   float safeTop = 0.0f, safeBottom = 0.0f;
+  // The HORIZONTAL safe area was never read here, only the vertical, and that
+  // is what put the outer capsules under the screen's rounded corners -- see
+  // kPadEdgeMin below.
+  float safeLeft = 0.0f, safeRight = 0.0f;
   if (SDL_Window *win = SDL_GetWindowFromID(g_windowId)) {
     int lw = 0, lh = 0;
     SDL_Rect safe{};
-    if (SDL_GetWindowSize(win, &lw, &lh) && lh > 0 &&
+    if (SDL_GetWindowSize(win, &lw, &lh) && lh > 0 && lw > 0 &&
         SDL_GetWindowSafeArea(win, &safe)) {
       safeTop = static_cast<float>(safe.y);
       safeBottom = static_cast<float>(lh - (safe.y + safe.h));
+      safeLeft = static_cast<float>(safe.x);
+      safeRight = static_cast<float>(lw - (safe.x + safe.w));
     }
   }
 
@@ -288,13 +299,30 @@ void layoutPadTablet(float W, float H, float S) {
       static_cast<int>(SDL_max(0.0f, outHpx - topPx - panelHpx)));
 
   const float margin = (W - panelWpx / S) / 2.0f;
-  const float cell = SDL_min(kOptimalSquare, margin / 2.0f);
+
+  // THE OUTER CAPSULES USED TO TOUCH BOTH SCREEN EDGES, and on a rounded display
+  // that means they are clipped. `cell` was min(kOptimalSquare, margin / 2), so
+  // the moment the margin was tighter than 2x60 -- every iPad in portrait --
+  // cell became exactly margin/2, which collapsed leftX to 0 and put the right
+  // pair's outer edge exactly on W. Reported on iPad Pro 13 portrait, visible on
+  // Home with no keyboard involved.
+  //
+  // The band each pair gets is inset on its OUTER side by the horizontal safe
+  // area, floored at kPadEdgeMin for the devices that report 0 there (portrait
+  // iPads have no notch, so the safe area does not describe the corner radius).
+  // Same shape as kHomeInsetMin does for the bottom edge.
+  const float edge = SDL_max(SDL_max(safeLeft, safeRight), kPadEdgeMin);
+  const float band = SDL_max(0.0f, margin - edge);
+  const float cell = SDL_min(kOptimalSquare, band / 2.0f);
   // Snapped to the 8 pt grid, matching what the phone path already does for
   // kPowerH (owner ruling 2026-08-11). The tablet was simply never updated when
   // the phone was: 30 pt on a standard iPad, 27 on a mini. Now 32 and 24.
   const float half = SDL_roundf(cell / 2.0f / 8.0f) * 8.0f;
-  const float leftX = (margin - 2.0f * cell) / 2.0f;
-  const float rightX = W - margin + leftX;
+  // Centred inside each inset band, so the pair is symmetric about the band and
+  // the outer capsule stops `edge` short of the screen rather than on it.
+  const float bandPad = (band - 2.0f * cell) / 2.0f;
+  const float leftX = edge + bandPad;
+  const float rightX = W - margin + bandPad;
   const float midY = H - kThumbRowFromBottom - cell / 2.0f;
   // The keyboard lifts the bottom row with it. Without this the row -- POWER
   // and the page-turn rocker -- sits UNDER the keyboard and cannot be reached
@@ -315,6 +343,15 @@ void layoutPadTablet(float W, float H, float S) {
   place(kPadConfirm, leftX + cell, midY, cell, cell);
   place(kPadLeft, rightX, midY, cell, cell);
   place(kPadRight, rightX + cell, midY, cell, cell);
+
+  // The tablet pad's horizontal geometry, once per layout. This is the line
+  // that shows whether the outer capsules clear the screen edge -- leftX must
+  // be >= edge, and rightX + 2*cell must be <= W - edge. They were 0 and W
+  // exactly until 2026-08-17.
+  SDL_Log("[pad] tablet W=%.0f margin=%.1f edge=%.1f cell=%.1f leftX=%.1f "
+          "rightPairEnd=%.1f (clearance L=%.1f R=%.1f)",
+          W, margin, edge, cell, leftX, rightX + 2.0f * cell, leftX,
+          W - (rightX + 2.0f * cell));
 
   place(kPadPower, leftX, lowerY, cell, half);
   place(kPadUp, rightX, lowerY, cell, half);
