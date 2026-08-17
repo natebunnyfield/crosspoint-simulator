@@ -48,6 +48,57 @@ record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 
 ## OPEN
 
+### [ST-009] A glow-and-fade option for the CRT palettes
+**scope: ios display · asked 2026-08-17**
+
+Owner: "make an option for crts to have a pleasant glow and fade. (use crds web
+phase scope for reference)".
+
+**The reference, read rather than remembered.** `~/src/crds` already does this,
+and does it the cheap way: instead of clearing the canvas each frame it fills it
+with the palette background at a low alpha, so what was drawn before decays
+toward the ground rather than vanishing.
+
+| Where | What |
+|---|---|
+| `js/oldtime/crt-viz-helpers.js:221` | "of clearRect to produce phosphor afterglow" |
+| `js/oldtime/viz-worker.js:862` | "Per-frame canvas alpha — controls trail length / phosphor afterglow" |
+| `js/oldtime/viz-worker.js:968` | "Fade trail (CRT phosphor afterglow) — fade toward palette bg" |
+| `js/oldtime/i18n.js:1078` | `lissajousPersistence` — the PHASE SCOPE's control. "Lower values keep a longer phosphor trail; higher values clear faster. Applied via `vizCtx.fillRect` with `crtBgFade(alpha)`. Default 0.18. Range 0.05 to 0.60." |
+| `js/oldtime/i18n.js:1066` | `strobeArcsBgFade`, same mechanism, default 0.20 |
+
+So the parameter is ONE number — per-frame alpha toward the paper tone — and
+crds has already found the useful range (0.05–0.60) and the default (0.18) by
+use. Do not re-derive them.
+
+**The obstacle is that this panel is not a canvas.** crds fades because it
+repaints every frame anyway. Here the firmware is e-ink: it renders a page and
+then may not render again for minutes, and the harness's present path exists to
+push that one framebuffer. A decay needs a repaint per frame while the trail is
+alive, which this app deliberately does not do.
+
+So it cannot live in the framebuffer. It has to be a PRESENTATION-layer effect
+in `presentIfNeeded` (`src/HalDisplay.cpp`), blending the previous panel texture
+toward the paper tone on the frames after a change — the same place the
+inversion re-convert already works from a cached frame. Two consequences worth
+deciding before code:
+
+- **It costs continuous presents.** The trail is only visible if something
+  presents while it decays. On a phone that is battery for a decoration; the
+  honest scope is "for a second or so after the page changes", not always-on.
+- **It only makes sense on the CRT rows.** A fading e-ink page is not a thing.
+  Gate it on the preset's family — `panelpalette::kPresetInfo[i].family` is
+  already `"CRT"`, so the gate exists.
+
+**Open question for the owner, when this is picked up:** whether the glow is
+wanted on a PAGE TURN (the whole sheet decays and re-forms, which is what a
+phosphor screen does when the beam repaints) or only on the palette CHANGE. The
+first is the authentic one and the more expensive.
+
+**Done looks like:** a setting, off by default, that on a CRT palette gives the
+page a short decay after it changes; measured against crds's 0.18 rather than
+tuned by eye; and a statement of what it costs in presents per second.
+
 ### [ST-008] Moire in the selection dot pattern on iPhone Air — SHIPPED, unverified on the phone
 **scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
 
