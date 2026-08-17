@@ -40,4 +40,9 @@ set(CROSSPOINT_IOS_EXCLUDED_FW_SOURCES
   # that matches no TU, which is how this was caught -- a stale entry excludes
   # nothing and quietly stops being the guard it looks like.
   src/activities/settings/SdFirmwareUpdateActivity.cpp
+  # Same reason, other source: the one-button "Update Firmware" row on Home
+  # pulls a release off GitHub and writes it to the inactive OTA partition. The
+  # download half a phone could do; the write half it cannot, so the whole
+  # screen goes, and CROSSPOINT_NO_DEVICE_FLASH gates its Home row to match.
+  src/activities/settings/OnlineFirmwareUpdateActivity.cpp
 )

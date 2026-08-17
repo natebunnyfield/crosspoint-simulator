@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : f05b8594d1fda15bbbc9a128382400182aed84af
-# TU counts  : 130 firmware, 23 simulator (6 C, 147 C++)
+# pinned at  : 994b3d5282d3ba6850bbe4260d8e2ba6b9057039
+# TU counts  : 132 firmware, 23 simulator (6 C, 149 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "f05b8594d1fda15bbbc9a128382400182aed84af")
+set(CROSSPOINT_FIRMWARE_PIN "994b3d5282d3ba6850bbe4260d8e2ba6b9057039")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -137,6 +137,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/settings/ColophonActivity.cpp
   src/activities/settings/EditorFontSelectionActivity.cpp
   src/activities/settings/FontSelectionActivity.cpp
+  src/activities/settings/OnlineFirmwareUpdateActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
   src/activities/settings/SettingsActivity.cpp
   src/activities/util/BmpViewerActivity.cpp
@@ -157,6 +158,7 @@ set(CROSSPOINT_FW_SOURCES
   src/network/CrossPointWebServer.cpp
   src/network/FirmwareImageValidator.cpp
   src/network/HttpDownloader.cpp
+  src/network/OtaCommit.cpp
   src/network/WebDAVHandler.cpp
   src/network/WifiDiagnostics.cpp
   src/notes/BleHidHost.cpp
