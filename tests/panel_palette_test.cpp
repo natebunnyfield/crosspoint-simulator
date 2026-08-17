@@ -103,9 +103,10 @@ static void testDefaultsAreTheShippedTones() {
   // chosen here has to stay ahead of the enum. It moved 7 -> 11 then, and
   // 11 -> 13 on 2026-08-16 when Red CRT (11) and Gray CRT (12) were appended,
   // then 13 -> 14 the same day when Soft (13) was appended, then 14 -> 16 the
-  // same day again when Sepia CRT (14) and Blue CRT (15) were appended;
+  // same day again when Sepia CRT (14) and Blue CRT (15) were appended, then
+  // 16 -> 17 on 2026-08-17 when Reading (16) was appended;
   // whoever appends the next preset moves it again.
-  const int roads[] = {kPresetDefault, 16, -1, 999};
+  const int roads[] = {kPresetDefault, 17, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -242,7 +243,7 @@ static void testPresetsAreLegible() {
                       {kPresetRedCrt, "Red CRT"},
                       {kPresetGrayCrt, "Gray CRT"},
                       {kPresetSoft, "Soft"},
-                      {kPresetSepiaCrt, "Sepia CRT"},
+                      {kPresetReading, "Reading"},
                       {kPresetBlueCrt, "Blue CRT"}};
   for (const Row &r : rows) {
     for (int d = 0; d < 2; d++) {
@@ -297,7 +298,7 @@ static void testPresetsAreLegible() {
                      kPresetCoolGray,  kPresetSolarized,    kPresetGreenCrt,
                      kPresetAmberCrt,  kPresetNord,         kPresetGruvboxLight,
                      kPresetLatte,     kPresetRedCrt,       kPresetGrayCrt,
-                     kPresetSoft,      kPresetSepiaCrt,     kPresetBlueCrt};
+                     kPresetSoft,      kPresetReading,      kPresetBlueCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
@@ -405,6 +406,27 @@ static void testRootPlist(const char *path) {
            titles[i].c_str(), claimed, preset, light, dark);
   }
   CHECK(sawCustom);
+
+  // A RETIRED preset must behave exactly like an unknown one, and must not come
+  // back in the picker. 14 was Sepia CRT until 2026-08-17; the constant survives
+  // only so the number is never handed to something else, because a preset
+  // persists as its integer and an install that had chosen it would silently
+  // start showing whatever took the number.
+  CHECKM(!isKnownPreset(kPresetSepiaCrt),
+         "preset 14 is retired and must not be known");
+  {
+    const Palette l = resolve(kPresetSepiaCrt, false, kInvalidColor, kInvalidColor);
+    const Palette d = resolve(kPresetSepiaCrt, true, kInvalidColor, kInvalidColor);
+    CHECKM(pack(l.ink) == pack(kDefaultLight.ink) &&
+               pack(l.paper) == pack(kDefaultLight.paper) &&
+               pack(d.ink) == pack(kDefaultDark.ink) &&
+               pack(d.paper) == pack(kDefaultDark.paper),
+           "a stored 14 must land on Default, the same as any unknown integer");
+  }
+  for (size_t i = 0; i < values.size(); i++) {
+    CHECKM(std::atoi(values[i].c_str()) != kPresetSepiaCrt,
+           "Root.plist still offers the retired preset 14");
+  }
 
   // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-colour button beside POWER
   // steps through panelpalette::kPresetInfo, and the owner asked for it to cycle

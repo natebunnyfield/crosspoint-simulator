@@ -107,8 +107,33 @@ enum Preset : int {
   // Appended 2026-08-16 by owner ruling, closing out the CRT group. Same
   // APPEND-ONLY rule as above -- the Settings row ORDER is free and is where
   // the grouping happens, so neither of these had to be inserted anywhere.
-  kPresetSepiaCrt = 14,  // NOT a phosphor. A toned tube -- see its case
+  // RETIRED 2026-08-17 by owner ruling ("remove sepia phosphor"). The constant
+  // stays and 14 is NEVER REUSED: a preset persists as its integer, so handing
+  // 14 to something else would silently change what an install that had chosen
+  // Sepia CRT is showing. It is absent from isKnownPreset and from the palette
+  // switch, so a stored 14 now resolves to Default -- the same answer every
+  // unknown integer gets, which is the one safe landing.
+  kPresetSepiaCrt = 14,  // retired; do not reuse this number
   kPresetBlueCrt = 15,   // P11 phosphor
+  // Appended 2026-08-17. Asked for as "one more neutral page color that is for
+  // optimal reading paragraphs of text on iphone air screen", so it is tuned
+  // for an OLED phone reading long-form rather than for a look:
+  //
+  //   PAPER OFF PURE WHITE. #F0EFEC, not #FFFFFF. An OLED at reading brightness
+  //   drives a full-white field hard, and it is the field -- not the glyphs --
+  //   that fills the retina for a page of paragraphs. Four levels down from
+  //   white is enough to take the glare off and still read as paper.
+  //   INK DARKER THAN DEFAULT. #202020 against Default's #2D2D2D. The panel is
+  //   two-bit and the glyph edges are antialiased into it, so a darker ink is
+  //   what keeps small type crisp once the paper has been dimmed.
+  //   BLACK AT NIGHT. #000000 ground, because on OLED that is pixels off: no
+  //   backlight bleed, no halation ring around the type, and less power. The
+  //   ink is eased to #C2C2C0 rather than white, which is the pairing that
+  //   stops light-on-dark type blooming.
+  //
+  // 14.2:1 light and 11.8:1 dark -- inside the comfortable band rather than at
+  // High Contrast's 21:1, which is the ratio that tires eyes over paragraphs.
+  kPresetReading = 16,
 };
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
@@ -129,7 +154,7 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetNord || preset == kPresetGruvboxLight ||
          preset == kPresetSoft ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
-         preset == kPresetGrayCrt || preset == kPresetSepiaCrt ||
+         preset == kPresetGrayCrt || preset == kPresetReading ||
          preset == kPresetBlueCrt;
 }
 
@@ -286,9 +311,9 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // Amber CRT's it is more distinct from both than THEY are from each other
   // (2.4), but the warm quadrant of this list is crowded and a careful eye
   // will group all three.
-  case kPresetSepiaCrt:
-    return dark ? Palette{{0xFF, 0xCC, 0xAF}, {0x1A, 0x15, 0x12}}
-                : Palette{{0x66, 0x3B, 0x11}, {0xFF, 0xDF, 0xCE}};
+  case kPresetReading:
+    return dark ? Palette{{0xC2, 0xC2, 0xC0}, {0x00, 0x00, 0x00}}
+                : Palette{{0x20, 0x20, 0x20}, {0xF0, 0xEF, 0xEC}};
   // P11 (ZnS:Ag,Cl or ZnS:Zn), CIE x=0.147 y=0.076, peak 460 nm -- Phosphor
   // Technology Ltd grade BE for the chromaticity, Wikipedia's phosphor table
   // for the composition and the application: "Display tubes and VFDs;
@@ -492,6 +517,7 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetDefault, "Neutral", "Default", "e-ink"},
     {kPresetCoolGray, "Neutral", "Cool Gray", "cool"},
     {kPresetSoft, "Neutral", "Soft", "pure ground, eased ink"},
+    {kPresetReading, "Neutral", "Reading", "long-form on OLED"},
     {kPresetSepia, "Paper", "Sepia", "warm"},
     {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale"},
     {kPresetLatte, "Paper", "Latte", "neutral pale"},
@@ -502,7 +528,6 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor"},
     {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor"},
     {kPresetRedCrt, "CRT", "Red", "P22R phosphor"},
-    {kPresetSepiaCrt, "CRT", "Sepia", "toned, not a phosphor"},
 };
 
 inline constexpr int kPresetInfoCount =
