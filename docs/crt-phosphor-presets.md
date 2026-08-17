@@ -486,15 +486,42 @@ tail, which is precisely why it belongs beside P1 instead of replacing it.
 **The glow has no switch any more.** A CRT palette is a claim that the page is a
 tube, and a tube glows; they were never separate choices.
 
-### Still not shipped: P7
+### P7, and the color-shifting decay it forced (shipped 2026-08-17)
 
-P7 is the dual-layer one -- a blue-white flash over a yellow-green layer that
-runs ">1 minute in low ambient illumination". It is the most interesting
-phosphor in the table and the only one whose identity IS persistence, but it
-cannot be a palette row as the others are: its trail is a DIFFERENT COLOR from
-its fresh emission. That needs a colour-shifting decay in the glow (fade toward
-the persistent layer's hue rather than toward zero), which is a feature, not a
-pair of hex values. Until then a P7 row would be a lie by omission.
+P7 is the dual-layer one — a blue-white flash over a yellow-green layer that
+runs ">1 minute in low ambient illumination". It is the only phosphor in the
+table whose identity IS persistence, and it could not be a palette row as the
+others are: **its trail is a different color from its fresh emission.** A pair
+of hex values cannot say that.
+
+So the glow grew a second control. `SimulatorOverlay::setPanelGlowTail(tint)`
+takes the color the trail decays TOWARD; null (every ordinary phosphor) means
+the trail keeps the tone it was drawn in. It is applied as a color multiply on
+the ghost that ramps in as the ghost fades, so at full brightness the trail is
+what was written and by the end it is the afterglow hue. `PresetInfo` carries
+it per row (`afterglow`, null for all but P7), and
+`CROSSPOINT_SIM_PANEL_GLOW_TAIL=RRGGBB` overrides it for a desktop or headless
+run — the same escape hatch every other dial here has, and for the same reason:
+without it the cascade's whole point could only be seen on a phone.
+
+**Both of P7's layers are borrowed on chemistry, not eyeballed.** The flash is
+P11's ZnS:Ag pulled toward white (P7's front layer is the same silver-activated
+zinc sulphide); the tail's hue is P31's ZnS:Cu (same copper activator — the
+cadmium in P7's (Zn,Cd)S:Cu shifts it yellower, which is the direction the
+shipped `69FF87` sits in). Shipped: flash `0022A9` on `F1F2FF` light,
+`C4C6FF` on `000327` dark, afterglow `69FF87`.
+
+**Measured, because "it fades" is not the claim.** Headless A/B on a real page
+transition, reading the ghost's emission over the paper it sits on:
+
+| | fresh (150 ms) | decayed (900 ms) | G/R |
+|---|---|---|---|
+| tail unset (ordinary phosphor) | (161, 161, 178) | (50, 51, 56) | 1.00 → 1.02 |
+| tail `69FF87` (P7) | (144, 161, 164) | (28, 51, 36) | **1.12 → 1.82** |
+
+The control arm stays neutral as it dims; P7's trail goes green as it decays.
+That is the property, and it is the thing a screenshot of a single frame cannot
+show.
 
 ### Earlier candidate table, kept for the derivation
 
@@ -513,17 +540,25 @@ the other CRT rows sit in (~10:1), which is the same treatment Red CRT needed in
 | P56 | Y₂O₃:Eu | Medium | `7B0800` on `FFF1F1` (10.2:1) | `FFA5A4` on `270100` (10.2:1) |
 | P7 | (Zn,Cd)S:Cu on ZnS | **dual**: blue-white short + yellow-green ">1 minute in low ambient illumination" | *not derived — two-layer, needs a two-tone treatment* | |
 
-**Why they are not shipped yet, and it is this file's own rule.** §5 rejected the
-radar oranges because they "would give two rows that paint nearly the same
-page". Every candidate above is a SECOND row of a hue already present — P31 a
-second green next to P1, P45 a second white next to P4, P47 a second blue next
-to P11, P56 a second red next to P22R. By the standard already set here, that is
-a reason to decline.
+**Why they were declined once, and what changed.** §5 rejected the radar oranges
+because they "would give two rows that paint nearly the same page", and every
+candidate above is a SECOND row of a hue already present — P31 a second green
+next to P1, P45 a second white next to P4, P47 a second blue next to P11, P56 a
+second red next to P22R, P22B a third blue. By the standard set here, that was a
+reason to decline, and it stood until the glow existed.
 
-**Persistence is what would change that.** P11 is 2 ms and P31 is up to 1 ms
-while P39 is "Long" and P7 is over a minute: once ST-009's glow exists, two rows
-of the same hue are genuinely different to look at, because the difference is in
-how the page decays rather than in its color. So the honest order is glow first,
-then these rows — and P7 is the most interesting of them precisely because it is
-the one whose whole identity is persistence, a blue-white flash that leaves a
-yellow-green trail.
+**Persistence is what changed it.** P11 is 2 ms and P31 is up to 1 ms while P39
+is "Long" and P7 is over a minute. With the glow shipped, two rows of the same
+hue are genuinely different to look at, because the difference is in how the
+page decays rather than in its color — so the honest order was glow first, then
+these rows, and that is the order they landed in. All of them are now shipped
+(presets 19–25); `PresetInfo` carries each one's published persistence band
+verbatim and the decay this repo interprets it as, and the ladder from band to
+milliseconds is documented at that struct rather than being spread through the
+rows.
+
+**The ladder is this repo's interpretation, and is labelled as such.** The
+published figures are 2–33 ms, one to two frames, and invisible. It is the RATIO
+between phosphors that is real; the multiplier is taste, and taste lives in the
+host (`kGlowScale` in the iOS shim), not in the HAL — which is handed a duration
+and knows nothing about phosphors at all.

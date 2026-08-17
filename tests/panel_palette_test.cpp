@@ -107,8 +107,10 @@ static void testDefaultsAreTheShippedTones() {
   // 16 -> 17 on 2026-08-17 when Reading (16) was appended, then 17 -> 19 the
   // same day when Reading Warm (17) and Reading Cool (18) replaced Soft and
   // Cool Gray, then 19 -> 24 the same day again when the five remaining
-  // phosphors (19-23) landed; whoever appends the next preset moves it again.
-  const int roads[] = {kPresetDefault, 24, -1, 999};
+  // phosphors (19-23) landed, then 24 -> 26 the same day AGAIN when P22B (24)
+  // and the P7 cascade (25) closed the family out. Nine walks, nine catches,
+  // zero shipped collisions; whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 26, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -305,7 +307,8 @@ static void testPresetsAreLegible() {
                      kPresetLatte,       kPresetRedCrt,       kPresetGrayCrt,
                      kPresetReadingWarm, kPresetReading,      kPresetBlueCrt,
                      kPresetGreenLongCrt, kPresetGreenFastCrt, kPresetWhiteCrt,
-                     kPresetBlueFastCrt,  kPresetRedProjCrt};
+                     kPresetBlueFastCrt,  kPresetRedProjCrt,   kPresetBlueTvCrt,
+                     kPresetCascadeCrt};
   for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
     for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
       for (int d = 0; d < 2; d++) {
@@ -466,7 +469,7 @@ static void testRootPlist(const char *path) {
            "14 was deleted, not replaced -- it must not migrate");
   }
 
-  // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-colour button beside POWER
+  // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-color button beside POWER
   // steps through panelpalette::kPresetInfo, and the owner asked for it to cycle
   // "in the order that they appear in page colors setting" -- which is this
   // Root.plist row order. Two hand-kept lists of fifteen rows, so they are
@@ -507,6 +510,18 @@ static void testRootPlist(const char *path) {
     CHECKM(info.persistence != nullptr && info.decayMs > 0.0f,
            "%s (%s) has no usable decay -- it would not glow", info.name,
            info.phosphor);
+    // Exactly one row is a cascade. If a second ever gains an afterglow this
+    // does not fail -- but a NON-CRT row with one would mean the tint is being
+    // pushed for a page that never glows.
+    if (info.afterglow) {
+      const Palette d = presetPalette(info.preset, true);
+      const uint32_t glowPacked = (static_cast<uint32_t>(info.afterglow[0]) << 16) |
+                                  (static_cast<uint32_t>(info.afterglow[1]) << 8) |
+                                  static_cast<uint32_t>(info.afterglow[2]);
+      CHECKM(glowPacked != pack(d.ink),
+             "%s: an afterglow equal to the ink is not a cascade, it is a fade",
+             info.name);
+    }
   }
 
   // Every preset the cycle can reach must be a KNOWN one, or a press lands on a
