@@ -219,6 +219,48 @@ palette, so the transfer function runs 768 times per palette change rather than
 
 ---
 
+## 3b. The fringe was not the ramp: dark-mode AA was being discarded entirely
+
+Follow-up to the AA fix above, found by actually looking ("check fringe
+especially in dark mode"). The linear-light ramp was real but **could not have
+fixed what was reported**, because there were no intermediate levels for it to
+act on.
+
+`GrayscalePreview::previewLevel` returned white for any base-white pixel,
+discarding its plane flags, on the reasoning that the firmware only flags
+base-black pixels. From the firmware's own table (`GlyphAa::planes`):
+
+| | baseInk | consequence |
+|---|---|---|
+| light mode | `L0\|L1\|L2` | every coverage level painted as ink, flags arrive on BLACK, decode worked |
+| dark mode | `L0` (Standard) | partial coverage NOT painted, flags arrive on WHITE, decode discarded them |
+
+So with `darkMode: 1` every glyph edge was thrown away: 28,550 computed AA
+pixels for one book page, all rendered as paper. The text was not badly
+antialiased, it was **not antialiased at all** -- skeletal stems with hard
+edges, worst on a sans serif because its long straight verticals are almost
+entirely edge pixels at reading sizes.
+
+Fixed by letting a flag win over the base in both polarities. Light mode is
+provably unchanged: there a flagged pixel is already black, so both orderings
+agree on every input the firmware emits, and `tests/grayscale_preview_test.cpp`
+pins that with the firmware's own masks. Failing-first verified: 8 failures
+against the old decode, all "edge is the page".
+
+Measured on the same page, Green CRT dark:
+
+| arm | levels | AA px | light gray | dark gray |
+|---|---|---|---|---|
+| build 86 | 2 | 0 | — | — |
+| decode fixed | 4 | 3,637 | `32,169,32` | `11,76,11` |
+| + linear light | 4 | 3,637 | `39,208,39` | `20,130,20` |
+
+**The two fixes compound and neither is sufficient alone.** Note also that
+`CROSSPOINT_SIM_DARK` does NOT reach this: the firmware picks its AA masks from
+its own `darkMode` setting, so the env var changes the presentation polarity
+while the masks stay put. A headless check of the light-mode path has to flip
+the firmware setting, which is why the unit test carries that half.
+
 ## 4. The CRT rows are sorted (owner ask: "sort phosphors in a logical way")
 
 Hue first, **fastest to slowest inside each hue**, cascade last as the only

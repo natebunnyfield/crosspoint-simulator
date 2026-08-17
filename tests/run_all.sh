@@ -90,6 +90,13 @@ run chevron_coverage \
 run panel_palette \
   c++ -std=c++17 -Isrc -o "$OUT/panel_palette" tests/panel_palette_test.cpp
 
+# The AA plane decode. Dark mode paints only full ink in the base pass, so every
+# glyph edge arrives base-WHITE and flagged -- and the decode used to discard
+# exactly those, leaving dark-mode text with no antialiasing at all. The masks
+# are the firmware's own, so this tests the contract rather than the code.
+run grayscale_preview \
+  c++ -std=c++17 -Isrc -o "$OUT/grayscale_preview" tests/grayscale_preview_test.cpp
+
 run wifi_host \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 -o "$OUT/wifi_host" tests/wifi_host_test.cpp
 

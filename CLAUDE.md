@@ -448,6 +448,16 @@ behaviour, and `CROSSPOINT_SIM_LOG_PRESENTS=1` counts presents and tags which
 pass wrote each one -- the only way to see this headlessly, since a due
 screenshot deliberately overrides the hold. See `docs/crt-beam-and-flash.md`.
 
+**A plane flag beats the base, in BOTH polarities** (`src/GrayscalePreview.h`).
+The firmware's base pass paints every coverage level as ink in light mode but
+only full ink in DARK mode, so in dark mode every glyph edge arrives base-WHITE
+and flagged. The decode used to discard exactly those, and dark-mode text had no
+antialiasing at all -- 28,550 computed AA pixels per page, all rendered as
+paper. `CROSSPOINT_SIM_LOG_AA=1` prints the flagged count and the levels the
+compose actually produces, which is the only thing that separates "the AA looks
+bad" from "the AA is not there". Note the firmware picks its masks from its OWN
+`darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
+
 **A preset persists as an INTEGER.** Rows therefore APPEND and never insert —
 re-pointing one silently changes what a saved choice selects. The display order
 in `Root.plist` is independent of that integer, which is what lets the picker be
