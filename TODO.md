@@ -233,20 +233,6 @@ ends with "say seen", and the decision questions come in a LATER turn.
 **Close by:** approved mockups, then the portrait keyboard-clearance change;
 landscape only if the mockups earn it.
 
-### [ST-006] iOS keyboard Return must insert a newline, not press Select
-**scope: iOS input · asked 2026-08-09**
-
-In Create Note with the iOS keyboard up, Return acts as the Select button
-instead of inserting a line break. Mechanism: while text entry is active the
-host-keyboard channel suppresses the scancode→button map for letters, but
-Return still reaches BTN_CONFIRM. The channel already defines `\n` as the
-commit byte for single-line fields (Wi-Fi password, owner name), so the fix is
-to route Return INTO the typed-text channel as `\n` during text entry and let
-the consumer decide: single-line fields keep treating it as commit, the
-multi-line note editor inserts a real newline. Touches HalGPIO (simulator) and
-NoteEditorActivity's typed-text handling (firmware). Owner report with
-screenshot (iPad, 2026-08-09).
-
 ### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
 **scope: accessibility · asked 2026-08-08 · in build-41**
 
@@ -341,6 +327,36 @@ pre-device gate the project has.
 ---
 
 ## DONE
+
+### [ST-006] iOS keyboard Return must insert a newline, not press Select — SHIPPED, unverified on the phone
+**scope: iOS input · asked 2026-08-09 · fixed 2026-08-09 in `b15aec1`, entry never closed**
+
+**Landed.** `src/TextEntryKeyRouting.h` answers the question once, for both the
+event path and the level reads, and names this entry as the reason the
+multi-line case exists. `tests/text_entry_enter_test.cpp` pins it and runs in
+`tests/run_all.sh` (20/20 green on 2026-08-16). Return is a line break in the
+note editor and Claude chat; a single-line field keeps it as Select, with the
+host typist's commit on Cmd/Ctrl+Return.
+
+**Still owed:** nobody has pressed Return on an actual iOS keyboard since. The
+routing is shared with the desktop path rather than duplicated, so the fix is
+the same code in both — but whether UIKit delivers `SDL_SCANCODE_RETURN` on
+every keyboard layout is the one thing the host test cannot answer. Confirm on
+the phone, then delete this entry.
+
+**Original report follows.**
+
+In Create Note with the iOS keyboard up, Return acts as the Select button
+instead of inserting a line break. Mechanism: while text entry is active the
+host-keyboard channel suppresses the scancode→button map for letters, but
+Return still reaches BTN_CONFIRM. The channel already defines `\n` as the
+commit byte for single-line fields (Wi-Fi password, owner name), so the fix is
+to route Return INTO the typed-text channel as `\n` during text entry and let
+the consumer decide: single-line fields keep treating it as commit, the
+multi-line note editor inserts a real newline. Touches HalGPIO (simulator) and
+NoteEditorActivity's typed-text handling (firmware). Owner report with
+screenshot (iPad, 2026-08-09).
+
 
 ### [ST-001] `HalFrontlight` and `HalTiltSensor` mirror nothing — RULED KEEP
 **scope: HAL surface · found 2026-08-06 · verified 2026-08-07**
