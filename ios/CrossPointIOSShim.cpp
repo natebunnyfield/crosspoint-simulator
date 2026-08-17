@@ -965,33 +965,30 @@ constexpr float kGlowMediumMs = 20.0f;
 
 void pollPanelGlow() {
   static int s_appliedPreset = -1;
-  static int s_appliedOn = -1;
   const int preset = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
-  const int on = CrossPointPrefs_panelGlow();
-  if (preset == s_appliedPreset && on == s_appliedOn) return;
+  if (preset == s_appliedPreset) return;
   s_appliedPreset = preset;
-  s_appliedOn = on;
 
+  // NO SWITCH. Owner ruling 2026-08-17: "remove setting always have it on for
+  // crts." A CRT palette is a claim that the page is a tube, and a tube glows --
+  // the two were never separate choices, and a switch to turn a phosphor's
+  // behaviour off while keeping its colour is a setting for a thing nobody
+  // wants. Every other palette gets 0, because a page of e-ink does not decay.
   float trail = 0.0f;
-  const char *why = on ? "no phosphor on this palette" : "switched off";
-  if (on) {
-    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
-      const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
-      if (info.preset != preset) continue;
-      // Only a phosphor decays. A page of e-ink does not, and neither does a
-      // paper palette that never claimed to be a screen.
-      if (!info.phosphor) break;
-      trail = (info.decayMs > 0.0f ? info.decayMs : kGlowMediumMs) * kGlowScale;
-      why = info.persistence ? info.persistence : "class only, using P1's 20ms";
-      break;
-    }
+  const char *why = "not a phosphor";
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
+    if (info.preset != preset) continue;
+    if (!info.phosphor) break;
+    trail = (info.decayMs > 0.0f ? info.decayMs : kGlowMediumMs) * kGlowScale;
+    why = info.persistence ? info.persistence : "class only, using P1's 20ms";
+    break;
   }
   // Logged on EVERY change, including to zero. The first version logged only
   // when it found a phosphor, so "the glow did nothing" and "the glow was never
   // asked for" looked identical from the outside -- which is exactly the state
   // this was stuck in while being debugged.
-  SDL_Log("[glow] preset %d, switch %s -> %.0f ms trail (%s)", preset,
-          on ? "on" : "off", trail, why);
+  SDL_Log("[glow] preset %d -> %.0f ms trail (%s)", preset, trail, why);
   SimulatorOverlay::setPanelGlow(trail);
 }
 

@@ -456,7 +456,47 @@ Technology's table (§2) gives chromaticity but not decay.
 `decayMs` is 0 where the table gives a class rather than a number. That is
 deliberate: the glow falls back rather than having a figure invented for it.
 
-### Candidate rows, derived but NOT shipped
+### SHIPPED 2026-08-17: the remaining phosphors
+
+Owner: "remove setting always have it on for crts. now add remaining crts." The
+glow existing is what unblocked these -- until a page decayed at the phosphor's
+own rate, a second green next to P1 was just a second green. Now they differ in
+WHEN they stop emitting, which is what made them different machines.
+
+| Row | P | Persistence (source) | decayMs | Trail at 20x |
+|---|---|---|---|---|
+| Green Long | P39 | "Long" (class) | 150 | 3.0 s |
+| Green Fast | P31 | "Medium short 0.01-1 ms" | 1 | 20 ms |
+| White | P45 | "Medium" (class) | 10 | 200 ms |
+| Blue Fast | P47 | "Very short" (class) | 0.05 | 1 ms |
+| Red Projector | P56 | "Medium" (class) | 10 | 200 ms |
+
+**Most of these publish a CLASS, not a figure**, so `decayMs` comes off a ladder
+(very short 0.05, short 0.5, medium short 1, medium 10, long 150, very long
+1000) which is THIS REPO'S interpretation and is labelled as such in
+`PresetInfo`. The ordering is the source's; only the numbers between the rungs
+are ours. The alternative -- one fallback for every class-only row -- made P39,
+whose entire identity is a long tail, decay exactly like P45.
+
+**P39 takes P1's chromaticity**, which is the honest call rather than a gap: it
+is Zn2SiO4:Mn,**As** at 525 nm against P1's Zn2SiO4:Mn at 525 nm. The same
+emitter with an arsenic co-activator added for persistence -- same light, longer
+tail, which is precisely why it belongs beside P1 instead of replacing it.
+
+**The glow has no switch any more.** A CRT palette is a claim that the page is a
+tube, and a tube glows; they were never separate choices.
+
+### Still not shipped: P7
+
+P7 is the dual-layer one -- a blue-white flash over a yellow-green layer that
+runs ">1 minute in low ambient illumination". It is the most interesting
+phosphor in the table and the only one whose identity IS persistence, but it
+cannot be a palette row as the others are: its trail is a DIFFERENT COLOR from
+its fresh emission. That needs a colour-shifting decay in the glow (fade toward
+the persistent layer's hue rather than toward zero), which is a feature, not a
+pair of hex values. Until then a P7 row would be a lie by omission.
+
+### Earlier candidate table, kept for the derivation
 
 Owner asked to expand to the full list. These four are derived from the CIE
 points in §2 by the same path the shipped rows use — xyY at Y=1 → XYZ → linear
