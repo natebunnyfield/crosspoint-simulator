@@ -1434,6 +1434,7 @@ void CrossPointHarness_begin() {
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
 
+
   // NOT set, and it must stay that way: SDL_HINT_RETURN_KEY_HIDES_IME makes
   // Return call SDL_StopTextInput (SDL_uikitviewcontroller.m:664-667). Return
   // types a line break in a multi-line field -- owner ruling, and the whole

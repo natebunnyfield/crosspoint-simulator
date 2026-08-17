@@ -33,14 +33,37 @@
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
 
-  <!-- Portrait only. The X3 panel is presented portrait and the control zones
-       are laid out beneath it (phone) or beside it (iPad); rotation would
-       invalidate the integer-scale geometry the 1-bit panel depends on.
-       UIRequiresFullScreen is what makes portrait-only legal on iPad: without
-       it the App Store demands all four orientations for Split View. -->
+  <!-- LANDSCAPE ON iPad ONLY (owner ruling 2026-08-17). The phone stays
+       portrait, and the two keys below are the mechanism: the plain key applies
+       to iPhone, the ~ipad variant overrides it on tablets.
+
+       The phone was tried first, on the owner's "enable it and iterate from
+       what actually happens" — and what happened is the reason it is not
+       enabled here. Rotated, an iPhone put the panel as a small tile in the
+       lower-left corner with the whole pad stacked as a vertical column down
+       the right edge, labels rotated 90 degrees, and most of the screen empty.
+       The phone pad layout reserves a BAND BELOW the panel; in a landscape
+       window that band becomes a column beside it, which is not a layout
+       anyone designed. The tablet path already puts controls in the side
+       margins, which is why landscape is coherent there and not here.
+
+       UPSIDE-DOWN IS OUT on both. It buys nothing on a reader and costs a real
+       thing: the pad's bottom row would land under the notch/Dynamic Island.
+
+       UIRequiresFullScreen stays. It keeps the app out of iPad Split View,
+       where the window can take any aspect at any moment -- a panel that
+       re-fits per size change would churn the firmware's page layout. Adding
+       landscape does not require dropping it; the App Store rule it satisfies
+       is about Split View, not about rotation. -->
   <key>UISupportedInterfaceOrientations</key>
   <array>
     <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
   </array>
   <key>UIRequiresFullScreen</key>
   <true/>

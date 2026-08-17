@@ -260,7 +260,33 @@ testing missed:
 
 **2. Mockups for iPhone Air and iPad Pro, for approval.**
 
-**The app is portrait-only today** — `Info.plist.in` lists exactly
+**RULED 2026-08-17: landscape on iPad ONLY, and it is enabled.** The owner chose
+to skip the mockups and iterate from what actually happens, so landscape was
+turned on for both and tried. The phone was then turned back off, because what
+it does is not a layout: rotated, an iPhone put the panel as a small tile in the
+lower-left corner with the entire pad stacked as a vertical column down the right
+edge, labels rotated 90 degrees, and most of the screen empty. The phone pad
+reserves a BAND BELOW the panel, and in a landscape window that band becomes a
+column beside it. The tablet path already puts controls in the side margins,
+which is why landscape is coherent there and not here.
+
+**Info.plist is NOT what decides this, and that cost a wrong first fix.**
+`UISupportedInterfaceOrientations~ipad` is set (the App Store reads it), but SDL
+answers UIKit's `supportedInterfaceOrientations` itself from
+`UIKit_GetSupportedOrientations` (`SDL_uikitwindow.m`): with `SDL_HINT_ORIENTATIONS`
+unset and a resizable window it returns `UIInterfaceOrientationMaskAll`, and it
+falls back to the app's declared orientations only when the intersection with
+them is EMPTY -- it never intersects. So a portrait-only plist rotated anyway,
+measured on the handset. `simulator_main.cpp` now sets the hint from
+`CrossPointAppearance_isPad()` BEFORE the window is created, and logs it:
+`[orient] isPad=0 hint=Portrait`. Setting it later does not work either --
+UIKit asks once as the window comes up.
+
+Still open here: the iPad's landscape layout is enabled but not designed. The
+panel sits toward the top-left with a large empty middle; the tablet pad math
+was written for a portrait margin.
+
+**The app was portrait-only until 2026-08-17** — `Info.plist.in` lists exactly
 `UIInterfaceOrientationPortrait`, plus `UIRequiresFullScreen`. So landscape is
 not a layout tweak; it is enabling an orientation the harness has never run in,
 and the geometry contract (`.claude/PLAN-tts-read-aloud.md`) says "portrait
