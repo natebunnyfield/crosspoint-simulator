@@ -546,6 +546,32 @@ void composeGrayscalePreview() {
   }
   // The real page is ready, so whatever hold the base pass armed is over: this
   // frame presents at the first opportunity and the 1-bit one never does.
+  // Env-gated AA audit. It exists because "the antialiasing looks bad" and "the
+  // antialiasing is not there" look identical on a phone, and the second was the
+  // truth: the planes were populated and the decode threw them away. Counting
+  // the LEVELS the compose actually produces is the only thing that separates
+  // the two.
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_AA")) {
+    if (e[0] == '1') {
+      int flagged = 0, lv[256] = {0};
+      for (int y = 0; y < HalDisplay::activeHeight(); y++)
+        for (int x = 0; x < HalDisplay::activeWidth(); x++) {
+          const bool bw = getBit(bwBase, x, y);
+          const bool l = grayscalePreviewState.lsbValid &&
+                         getBit(grayscalePreviewState.lsbPlane.data(), x, y);
+          const bool m = grayscalePreviewState.msbValid &&
+                         getBit(grayscalePreviewState.msbPlane.data(), x, y);
+          if (l || m) flagged++;
+          lv[GrayscalePreview::previewLevel(bw, m, l)]++;
+        }
+      int levels = 0;
+      for (int i = 0; i < 256; i++)
+        if (lv[i]) levels++;
+      SDL_Log("[aa] %d flagged px -> %d distinct levels", flagged, levels);
+      for (int i = 0; i < 256; i++)
+        if (lv[i]) SDL_Log("[aa]   level %3d: %d px", i, lv[i]);
+    }
+  }
   lastPixelWriter.store('G');
   presentHoldUntil.store(0);
   pendingPresent.store(true);
