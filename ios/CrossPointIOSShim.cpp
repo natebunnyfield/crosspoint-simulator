@@ -130,9 +130,9 @@ constexpr int kPadCount = 7;
 // tapping the page do the same thing; the chip exists to say so.
 SDL_FRect g_kbChip{};
 
-// The page-colour button, beside POWER. Like the keyboard chip it is NOT a
+// The page-color button, beside POWER. Like the keyboard chip it is NOT a
 // PadButton and not in g_pad: it presses no hardware button. Unlike that one it
-// is drawn ALWAYS, because changing the page colour is not tied to any firmware
+// is drawn ALWAYS, because changing the page color is not tied to any firmware
 // state.
 //
 // Owner ruling 2026-08-17, after a first version that opened a modal picker and
@@ -236,8 +236,8 @@ constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe a
 // still has a corner radius, so a capsule placed at x=0 is clipped by it. 16 pt
 // on the same 8 pt grid the rest of this layout uses.
 constexpr float kPadEdgeMin = 16.0f;
-// How long the page-colour button has to be held to mean "previous colour"
-// rather than "next colour". Long enough not to fire on a slow tap, short
+// How long the page-color button has to be held to mean "previous color"
+// rather than "next color". Long enough not to fire on a slow tap, short
 // enough to feel deliberate.
 constexpr Uint64 kPaletteHoldMs = 500;
 
@@ -1037,8 +1037,8 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
-// Step the page colour along the list the Page Colors setting shows
-// (panelpalette::kPresetInfo, which IS that order). step +1 is the next colour,
+// Step the page color along the list the Page Colors setting shows
+// (panelpalette::kPresetInfo, which IS that order). step +1 is the next color,
 // -1 the previous.
 //
 // ONE function for both directions on purpose: forward and back have to agree
@@ -1049,7 +1049,7 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // fields are filled, so resolve() answers it with Default -- a stop that looks
 // identical to another stop and reads as the button having failed. It stays
 // selectable in Settings. From Custom, or from any stored integer that is not on
-// the ring, forward lands on the first colour and back on the last.
+// the ring, forward lands on the first color and back on the last.
 //
 // The stored value is migrated FIRST: an install still holding Soft (13) or Cool
 // Gray (4) is sitting on Reading Warm or Reading Cool, and stepping from it has
@@ -1076,7 +1076,7 @@ void cyclePalette(int step) {
   SimulatorOverlay::requestPresent();
 }
 
-// The page-colour button. IDENTICAL TO POWER: same size, same stroke, same
+// The page-color button. IDENTICAL TO POWER: same size, same stroke, same
 // hollow face, and NO MARK ON IT AT ALL.
 //
 // "Same styling as power" means the same styling as POWER, which is a blank
@@ -1354,7 +1354,7 @@ int padHitTest(float x, float y) {
 // design, and PadCore itself stays untouched.
 long long g_tapFingerId = -1;
 float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
-// When that finger went down, for the page-colour button's long press. The pad
+// When that finger went down, for the page-color button's long press. The pad
 // itself still needs no timers -- this clock is read at finger-UP, by one
 // control, and PadCore stays untouched.
 Uint64 g_tapDownAt = 0;
@@ -1442,7 +1442,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
             // Tap steps the ring; hold goes back to Default. Logged with the
             // measured duration, because a hold that silently reads as a tap is
             // indistinguishable from the gesture not existing.
-            // Tap goes forward, hold goes BACK -- an undo for a colour you
+            // Tap goes forward, hold goes BACK -- an undo for a color you
             // stepped past. Logged with the measured duration, because a hold
             // that silently reads as a tap is indistinguishable from the
             // gesture not existing.

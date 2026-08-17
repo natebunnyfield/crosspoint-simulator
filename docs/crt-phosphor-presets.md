@@ -430,3 +430,60 @@ Added with Sepia CRT and Blue CRT (2026-08-16):
 7. **The CRT group is sorted by P-number and Sepia has none**, so it sorts last
    in the group, after Red (P22R). Green (P1) · Amber (P3) · Gray (P4) · Blue
    (P11) · Red (P22R) · Sepia. That placement is a convention, not a derivation.
+
+## 9. Persistence, and the full P-number table (added 2026-08-17)
+
+Asked for as "incorporate the speed of persistence". Every CRT row now carries
+its phosphor's published decay in `panelpalette::PresetInfo`, for ST-009's glow.
+
+**Source:** Patrick Jankowiak (KD5OEI), *Cathode Ray Tube Phosphors Of Interest
+To The Experimenter*, rev. 20100226.1844,
+`labguysworld.com/crt_phosphor_research.pdf`. Its persistence column is defined
+as **time to decay to 10% of peak** — the figure a fade wants. It is also the
+first source found here that prints persistence per P-number at all; Phosphor
+Technology's table (§2) gives chromaticity but not decay.
+
+### Shipped rows
+
+| Row | P | Persistence, verbatim | `decayMs` |
+|---|---|---|---|
+| Green | P1 | 20ms (also "Medium 1–100 ms") | 20 |
+| Amber | P3 | 13ms | 13 |
+| Gray | P4 | not over 7% of peak after 33 ms | 33 |
+| Blue | P11 | 2ms (BE grade: "0.01–1 ms") | 2 |
+| Red | P22R | "Medium" — **class only, no figure** | 0 |
+
+`decayMs` is 0 where the table gives a class rather than a number. That is
+deliberate: the glow falls back rather than having a figure invented for it.
+
+### Candidate rows, derived but NOT shipped
+
+Owner asked to expand to the full list. These four are derived from the CIE
+points in §2 by the same path the shipped rows use — xyY at Y=1 → XYZ → linear
+sRGB → normalise → encode — then lifted toward white until they clear the band
+the other CRT rows sit in (~10:1), which is the same treatment Red CRT needed in
+§5:
+
+| P | Chemistry | Persistence | Light | Dark |
+|---|---|---|---|---|
+| P31 | ZnS:Cu or ZnS:Cu,Ag | Medium short 0.01–1 ms | `0B4A1B` on `F2FFF3` (10.1:1) | `3DFF6F` on `03270A` (12.1:1) |
+| P39 | Zn₂SiO₄:Mn,As | Long | *not derived — no published CIE* | |
+| P45 | Y₂O₂S | Medium | `304248` on `F8FDFF` (10.3:1) | `B6EFFF` on `182327` (12.8:1) |
+| P47 | Y₂SiO₅:Ce | Very short | `1D2B99` on `F2F2FF` (10.2:1) | `B0B4FF` on `030527` (10.3:1) |
+| P56 | Y₂O₃:Eu | Medium | `7B0800` on `FFF1F1` (10.2:1) | `FFA5A4` on `270100` (10.2:1) |
+| P7 | (Zn,Cd)S:Cu on ZnS | **dual**: blue-white short + yellow-green ">1 minute in low ambient illumination" | *not derived — two-layer, needs a two-tone treatment* | |
+
+**Why they are not shipped yet, and it is this file's own rule.** §5 rejected the
+radar oranges because they "would give two rows that paint nearly the same
+page". Every candidate above is a SECOND row of a hue already present — P31 a
+second green next to P1, P45 a second white next to P4, P47 a second blue next
+to P11, P56 a second red next to P22R. By the standard already set here, that is
+a reason to decline.
+
+**Persistence is what would change that.** P11 is 2 ms and P31 is up to 1 ms
+while P39 is "Long" and P7 is over a minute: once ST-009's glow exists, two rows
+of the same hue are genuinely different to look at, because the difference is in
+how the page decays rather than in its color. So the honest order is glow first,
+then these rows — and P7 is the most interesting of them precisely because it is
+the one whose whole identity is persistence, a blue-white flash that leaves a
+yellow-green trail.
