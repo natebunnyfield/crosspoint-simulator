@@ -61,6 +61,7 @@
 #include "CrossPointAccessibility.h"
 #include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
+#include "CrossPointPalettePicker.h"
 #include "PanelPrefs.h"
 // The firmware owns the Dark Mode SETTING; the system owns the APPEARANCE.
 // applyTheme() below is where the two are reconciled.
@@ -129,6 +130,14 @@ constexpr int kPadCount = 7;
 // row's middle columns, which the pad has always left empty. Tapping it and
 // tapping the page do the same thing; the chip exists to say so.
 SDL_FRect g_kbChip{};
+
+// The page-colour chip, beside POWER. Like the keyboard chip it is NOT a
+// PadButton and not in g_pad: it presses no hardware button. Unlike that one it
+// is drawn ALWAYS, because changing the page colour is not tied to any firmware
+// state. Owner ruling 2026-08-17: "make a page color changer button next to the
+// power button that gives a modal that shows names, values, day and night
+// preview" -- the modal is CrossPointPalettePicker.mm.
+SDL_FRect g_paletteChip{};
 
 bool g_padLaidOut = false;
 float g_ptScale = 3.0f;
@@ -354,6 +363,9 @@ void layoutPadTablet(float W, float H, float S) {
           W - (rightX + 2.0f * cell));
 
   place(kPadPower, leftX, lowerY, cell, half);
+  // Beside POWER, in the column the tablet pad leaves empty between the power
+  // key and the rocker on the far side.
+  g_paletteChip = {(leftX + cell) * S, lowerY * S, cell * S, half * S};
   place(kPadUp, rightX, lowerY, cell, half);
   place(kPadDown, rightX + cell, lowerY, cell, half);
 
@@ -558,6 +570,10 @@ void layoutPad(int outW, int outH) {
   // full-height rocker beside it instead of floating in the middle of the row.
   const float kPowerH = SDL_roundf(kCellH / 2.0f / 8.0f) * 8.0f;
   place(kPadPower, colX(0), lowerY + (kCellH - kPowerH), kSquare, kPowerH);
+  // Column 1, hanging from the same baseline as POWER so the pair reads as a
+  // row rather than two floating controls.
+  g_paletteChip = {colX(1) * S, (lowerY + (kCellH - kPowerH)) * S, kSquare * S,
+                   kPowerH * S};
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
 
@@ -1014,6 +1030,64 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
+// The page-colour chip: a split square, the LIGHT paper on one side and the
+// DARK paper on the other, each carrying a bar of its own ink. It is the same
+// day/night idea the modal shows at full size, at chip scale -- and it is drawn
+// from the live palette, so the button previews the choice it opens.
+//
+// No text, because the SDL side of this harness has no font: every label on
+// screen is drawn by the firmware into the panel. That constraint is also why
+// the picker itself is UIKit.
+void paintPaletteChip(SDL_Renderer *r, float radius, float hairline) {
+  const SDL_FRect &c = g_paletteChip;
+  if (c.w <= 0 || c.h <= 0) return;
+
+  const Palette chip = crosspoint::chipPaletteForPrefs(g_dark);
+  setRGB(r, chip.hairline);
+  fillRoundRect(r, c, radius);
+
+  // The two grounds, side by side inside the stroke.
+  const panelpalette::Palette light = crosspoint::panelForPrefs(false);
+  const panelpalette::Palette dark = crosspoint::panelForPrefs(true);
+  const float ix = c.x + hairline, iy = c.y + hairline;
+  const float iw = c.w - 2 * hairline, ih = c.h - 2 * hairline;
+  const float halfW = SDL_roundf(iw / 2.0f);
+  const SDL_FRect inner{ix, iy, iw, ih};
+
+  // Each half is the WHOLE rounded interior, drawn under a clip that keeps only
+  // its side. Filling two plain rectangles instead is what the first version
+  // did, and it painted straight over the chip's rounded corners -- the button
+  // came out a bare square beside a rounded POWER key.
+  SDL_Rect prevClip{};
+  const bool hadClip = SDL_GetRenderClipRect(r, &prevClip) && !SDL_RectEmpty(&prevClip);
+  auto clipTo = [&](float x, float w) {
+    const SDL_Rect rect{static_cast<int>(SDL_floorf(x)), static_cast<int>(SDL_floorf(iy)),
+                        static_cast<int>(SDL_ceilf(w)), static_cast<int>(SDL_ceilf(ih))};
+    SDL_SetRenderClipRect(r, &rect);
+  };
+
+  clipTo(ix, halfW);
+  setRGB(r, light.paper);
+  fillRoundRect(r, inner, radius - hairline);
+
+  clipTo(ix + halfW, iw - halfW);
+  setRGB(r, dark.paper);
+  fillRoundRect(r, inner, radius - hairline);
+
+  SDL_SetRenderClipRect(r, hadClip ? &prevClip : nullptr);
+
+  // One ink bar per side, so each half shows its pair rather than just a ground.
+  const float barW = SDL_max(2.0f, halfW * 0.52f);
+  const float barH = SDL_max(1.0f, ih * 0.14f);
+  const float barY = iy + (ih - barH) / 2.0f;
+  // The bars sit centred in each half, so they never reach a rounded corner and
+  // need no clip of their own.
+  setRGB(r, light.ink);
+  fillRect(r, ix + (halfW - barW) / 2.0f, barY, barW, barH);
+  setRGB(r, dark.ink);
+  fillRect(r, ix + halfW + (iw - halfW - barW) / 2.0f, barY, barW, barH);
+}
+
 void paintKeyboardChip(SDL_Renderer *r, const Palette &, float radius,
                        float hairline) {
   if (!gpio.isTextEntryActive()) return;
@@ -1232,10 +1306,17 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   }
 
   paintKeyboardChip(r, p, radius, hairline);
+  paintPaletteChip(r, radius, hairline);
 }
 
 // The chip is not in g_pad -- it presses no hardware button -- so it needs its
 // own test. Live only while a field is open, which is the only time it is drawn.
+bool hitPaletteChip(float x, float y) {
+  const SDL_FRect &c = g_paletteChip;
+  return c.w > 0 && c.h > 0 && x >= c.x && x < c.x + c.w && y >= c.y &&
+         y < c.y + c.h;
+}
+
 bool hitKeyboardChip(float x, float y) {
   if (!gpio.isTextEntryActive()) return false;
   const SDL_FRect &c = g_kbChip;
@@ -1339,7 +1420,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // down, adjusting a grip, or resting a thumb threw the keyboard back
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
-          if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
+          if (hitPaletteChip(g_tapDownX, g_tapDownY)) {
+            CrossPointPalettePicker_present();
+          } else if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
           } else

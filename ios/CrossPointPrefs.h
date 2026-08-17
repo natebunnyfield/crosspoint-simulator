@@ -102,6 +102,12 @@ int CrossPointPrefs_diagnosticsEnabled(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_panelPalettePreset(void);
 
+// Write it. Settings.app owns this key too, and both write the same
+// NSUserDefaults store, so the in-app picker is not a second source of truth --
+// it is a second editor of the one store. pollPanelPalette() in the shim
+// notices the change on the next frame and repaints; nothing else is needed.
+void CrossPointPrefs_setPanelPalettePreset(int preset);
+
 // The owner's custom panel tone for one appearance and one role, as packed
 // 0xRRGGBB, or -1 (panelpalette::kInvalidColor) when the field is empty or does
 // not hold six hex digits. `dark` is 1 for the dark appearance; `ink` is 1 for

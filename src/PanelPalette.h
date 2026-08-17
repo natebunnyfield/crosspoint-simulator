@@ -465,4 +465,47 @@ static_assert(parseHexRgb("FBFBF9F") == kInvalidColor, "too long");
 static_assert(parseHexRgb("GGGGGG") == kInvalidColor, "not hex");
 static_assert(parseHexRgb(nullptr) == kInvalidColor, "null is not a color");
 
+// --- What the presets are CALLED, and the order they are offered in --------
+//
+// Until 2026-08-17 the names existed only as row titles in
+// ios/Settings.bundle/Root.plist, which was fine while Settings.app was the
+// only picker. It is not any more: the in-app palette picker needs the same
+// names in the same order, and two hand-kept lists of fifteen rows drift.
+//
+// The ORDER here is the display order, grouped by family, and it is
+// deliberately not the enum order -- a preset persists as its integer, so the
+// enum can only ever be appended to, while the offered order is free to be
+// whatever reads best. That separation is the whole reason a saved choice
+// survives a re-grouping.
+//
+// Custom is not in this table. It has no tones of its own until the four hex
+// fields are filled, so it has nothing to preview and is presented separately.
+struct PresetInfo {
+  int preset;
+  const char *family;  // the group heading it sits under
+  const char *name;    // the preset itself
+  const char *note;    // what makes it different, in a few words
+};
+
+inline constexpr PresetInfo kPresetInfo[] = {
+    {kPresetHighContrast, "Neutral", "High Contrast", "black on white"},
+    {kPresetDefault, "Neutral", "Default", "e-ink"},
+    {kPresetCoolGray, "Neutral", "Cool Gray", "cool"},
+    {kPresetSoft, "Neutral", "Soft", "pure ground, eased ink"},
+    {kPresetSepia, "Paper", "Sepia", "warm"},
+    {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale"},
+    {kPresetLatte, "Paper", "Latte", "neutral pale"},
+    {kPresetNord, "Paper", "Nord", "cool pale"},
+    {kPresetSolarized, "Paper", "Solarized", "low contrast by design"},
+    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor"},
+    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor"},
+    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor"},
+    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor"},
+    {kPresetRedCrt, "CRT", "Red", "P22R phosphor"},
+    {kPresetSepiaCrt, "CRT", "Sepia", "toned, not a phosphor"},
+};
+
+inline constexpr int kPresetInfoCount =
+    static_cast<int>(sizeof(kPresetInfo) / sizeof(kPresetInfo[0]));
+
 }  // namespace panelpalette
