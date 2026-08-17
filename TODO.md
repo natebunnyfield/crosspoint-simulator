@@ -29,6 +29,21 @@ id — do not hand-pick an id.
 Each tracker holds only its own prefix. Some items are paired across repos —
 `ST-007` and the firmware's `T-016` are one job, and neither is done alone.
 
+## What is on TestFlight
+
+**build-82**, uploaded 2026-08-17, delivery `3f4451a4`, 50 MB. Tagged `build-82`
+here. Recorded because several items below say "SHIPPED, unverified on the
+phone" and there was no one place saying which build to verify them in.
+
+It is simulator `2e9e4c3` + firmware `c36dba242`, so on top of build-81 it
+carries `eaaa048` (**landscape on iPad only** — the phone stays portrait, and
+the ruling is in `ios/Info.plist.in`), `46f5204` (tablet pad capsules off the
+screen edges), `6dff792` (OTA rollback shims, update screen kept off iOS) and
+`1a25531` (the real image validator rather than a stub).
+
+The build number comes from the highest `build-*` tag plus one, so tags are the
+record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
+
 ---
 
 ## OPEN
