@@ -120,6 +120,37 @@ void setPanelDark(bool dark);
 void setPanelPalette(bool dark, const unsigned char ink[3],
                      const unsigned char paper[3]);
 
+// Whether the page EMITS its light rather than reflecting it.
+//
+// It changes one thing: how a partly-covered (antialiased) pixel is mixed. A
+// phosphor emitting half its light is a linear-light mix; pigment on paper is
+// not, and the integer lerp that ships for e-ink is the contract for it. On a
+// dark CRT page the difference is most of the edge ramp -- reported from the
+// phone as "the antialiasing on the sans serif fonts looks bad in crt", which
+// it did, because every edge pixel was landing a third too dark.
+//
+// Default false, so every e-ink palette renders exactly the pixels it always
+// did. CROSSPOINT_SIM_PANEL_EMISSIVE=1/0 overrides the argument, same contract
+// as CROSSPOINT_SIM_DARK.
+void setPanelEmissive(bool emissive);
+
+// BEAM PAINT: how long the new frame takes to sweep in from the top of the
+// page, in milliseconds. 0 is off, which is the default and the entire desktop
+// behaviour.
+//
+// A CRT does not swap pictures, it DRAWS them: the beam runs top to bottom at
+// the field rate, and until it arrives a given line still shows the previous
+// frame. That is a different claim from the glow -- the glow says what becomes
+// of a pixel after it is lit, the beam says the picture arrives progressively
+// rather than all at once -- so they compose rather than overlap.
+//
+// The HAL is told a DURATION, not a preset, for the same reason the glow is:
+// which rate is wanted is a host question.
+//
+// CROSSPOINT_SIM_BEAM_MS overrides the argument, for a desktop or headless run
+// with no Settings app to reach the control.
+void setBeamPaint(float sweepMs);
+
 // PHOSPHOR GLOW: how long the previous frame lingers, in milliseconds. 0 is off,
 // and off is the default and the entire desktop behavior.
 //

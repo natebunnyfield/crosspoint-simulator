@@ -100,6 +100,16 @@ int CrossPointPrefs_diagnosticsEnabled(void);
 // renders pixel-identically to the build before this existed.
 //
 // Safe to call every frame. Main thread only.
+// BEAM PAINT: how long the new page takes to sweep in from the top, in ms.
+// 0 (the default) is off -- the page arrives at once, as an e-ink panel's does.
+//
+// The stored value IS the duration, not a row index, so the picker's rows can
+// be retuned or reordered without a migration and without a saved choice
+// silently changing speed. Clamped to 0..1000 on read.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_beamPaintMs(void);
+
 int CrossPointPrefs_panelPalettePreset(void);
 
 // Write it. Settings.app owns this key too, and both write the same
