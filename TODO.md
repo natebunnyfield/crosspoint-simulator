@@ -71,33 +71,60 @@ So the parameter is ONE number — per-frame alpha toward the paper tone — and
 crds has already found the useful range (0.05–0.60) and the default (0.18) by
 use. Do not re-derive them.
 
-**The obstacle is that this panel is not a canvas.** crds fades because it
-repaints every frame anyway. Here the firmware is e-ink: it renders a page and
-then may not render again for minutes, and the harness's present path exists to
-push that one framebuffer. A decay needs a repaint per frame while the trail is
-alive, which this app deliberately does not do.
+**CORRECTION, owner 2026-08-17: "this panel is eink on the eink device, but
+oled on my phone."** The first version of this entry argued the fade would cost
+continuous presents and therefore battery, treating the panel as e-ink
+everywhere. That is wrong on the device this ships to. The X3 is e-ink; the
+phone is an OLED running the harness's ~1 kHz loop already, and it is the phone
+this feature is for. Presenting per frame while a trail decays is not a new cost
+there -- it is what the harness does anyway.
 
-So it cannot live in the framebuffer. It has to be a PRESENTATION-layer effect
-in `presentIfNeeded` (`src/HalDisplay.cpp`), blending the previous panel texture
-toward the paper tone on the frames after a change — the same place the
-inversion re-convert already works from a cached frame. Two consequences worth
-deciding before code:
+Where it lives is still `presentIfNeeded` (`src/HalDisplay.cpp`) rather than the
+framebuffer: the firmware renders a page and may not render again for minutes,
+so the decay has to be a presentation-layer blend from the cached frame, the
+same place the inversion re-convert already works from. That part of the first
+version stands; the battery argument does not.
 
-- **It costs continuous presents.** The trail is only visible if something
-  presents while it decays. On a phone that is battery for a decoration; the
-  honest scope is "for a second or so after the page changes", not always-on.
-- **It only makes sense on the CRT rows.** A fading e-ink page is not a thing.
-  Gate it on the preset's family — `panelpalette::kPresetInfo[i].family` is
-  already `"CRT"`, so the gate exists.
+**SCOPE, owner: "glow is for entire ui/ux including page turns."** Not just a
+palette change. Every transition the panel makes -- page turn, menu move,
+selection, entering an activity -- decays into the next. On a phosphor screen
+that is simply what happens when the beam repaints, so applying it to page turns
+is the authentic case rather than the expensive edge case the first version
+treated it as.
 
-**Open question for the owner, when this is picked up:** whether the glow is
-wanted on a PAGE TURN (the whole sheet decays and re-forms, which is what a
-phosphor screen does when the beam repaints) or only on the palette CHANGE. The
-first is the authentic one and the more expensive.
+**THE SPEED IS PER PHOSPHOR, not one global number.** This is the part that
+makes it more than a fade effect: each CRT row now carries its own published
+persistence, so Green decays like P1 and Blue like P11, and two rows of the same
+hue become genuinely different experiences.
 
-**Done looks like:** a setting, off by default, that on a CRT palette gives the
-page a short decay after it changes; measured against crds's 0.18 rather than
-tuned by eye; and a statement of what it costs in presents per second.
+Source, already encoded in `panelpalette::PresetInfo`: Patrick Jankowiak
+(KD5OEI), *Cathode Ray Tube Phosphors Of Interest To The Experimenter*, rev.
+20100226.1844, `labguysworld.com/crt_phosphor_research.pdf` — persistence there
+is defined as **time to decay to 10% of peak**.
+
+| Row | Phosphor | Published persistence | `decayMs` |
+|---|---|---|---|
+| CRT · Green | P1 | 20 ms | 20 |
+| CRT · Amber | P3 | 13 ms | 13 |
+| CRT · Gray | P4 | not over 7% of peak after 33 ms | 33 |
+| CRT · Blue | P11 | 2 ms | 2 |
+| CRT · Red | P22R | "Medium" (class only, no figure) | 0 |
+
+`decayMs` is 0 where the table gives only a CLASS rather than a number, so the
+glow has to fall back rather than have a figure invented for it. Do not fill
+that in from memory.
+
+**A real decay is 2–33 ms, which is one to two frames.** Taken literally the
+effect would be invisible: at 60 Hz a 2 ms P11 trail is gone before the next
+frame. So the honest design is a SCALED persistence -- the published figures set
+the RATIO between rows (P4 is 16x P11), and one global multiplier makes the
+family visible. crds's `lissajousPersistence` (default 0.18, range 0.05–0.60)
+is the shape of that multiplier, not the value to copy.
+
+**Done looks like:** a setting, off by default, that on a CRT palette decays
+every panel transition including page turns; the decay speed derived from the
+row's own published persistence rather than one global constant; and the
+scaling multiplier stated, since the real figures are one to two frames long.
 
 ### [ST-008] Moire in the selection dot pattern on iPhone Air — SHIPPED, unverified on the phone
 **scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**

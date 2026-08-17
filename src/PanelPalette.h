@@ -548,24 +548,45 @@ struct PresetInfo {
   const char *family;  // the group heading it sits under
   const char *name;    // the preset itself
   const char *note;    // what makes it different, in a few words
+
+  // --- Phosphor persistence, for the CRT rows -----------------------------
+  //
+  // Empty / 0 on everything that is not a phosphor. A page of e-ink does not
+  // decay, and pretending it does would be the same kind of lie as an invented
+  // chromaticity.
+  //
+  // SOURCE, so the next person does not re-derive it: Patrick Jankowiak
+  // (KD5OEI), "Cathode Ray Tube Phosphors Of Interest To The Experimenter",
+  // rev. 20100226.1844, labguysworld.com/crt_phosphor_research.pdf. Its
+  // persistence column is defined as TIME TO DECAY TO 10% OF PEAK, which is
+  // the number a fade wants.
+  //
+  // `persistence` is that table's own wording, verbatim. `decayMs` is the
+  // figure the glow uses -- equal to the published number where the table gives
+  // one, and where the table gives only a CLASS ("Medium") it is marked 0 and
+  // the glow has to fall back rather than have a number invented for it.
+  const char *phosphor;     // P-number, or nullptr
+  const char *persistence;  // verbatim from the source table, or nullptr
+  float decayMs;            // 0 = no published figure (class only), or not a phosphor
 };
 
 inline constexpr PresetInfo kPresetInfo[] = {
-    {kPresetHighContrast, "Neutral", "High Contrast", "black on white"},
-    {kPresetDefault, "Neutral", "Default", "e-ink"},
-    {kPresetReading, "Neutral", "Reading", "long-form on OLED"},
-    {kPresetReadingWarm, "Neutral", "Reading Warm", "warmer paper"},
-    {kPresetReadingCool, "Neutral", "Reading Cool", "cooler paper"},
-    {kPresetSepia, "Paper", "Sepia", "warm"},
-    {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale"},
-    {kPresetLatte, "Paper", "Latte", "neutral pale"},
-    {kPresetNord, "Paper", "Nord", "cool pale"},
-    {kPresetSolarized, "Paper", "Solarized", "low contrast by design"},
-    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor"},
-    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor"},
-    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor"},
-    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor"},
-    {kPresetRedCrt, "CRT", "Red", "P22R phosphor"},
+    {kPresetHighContrast, "Neutral", "High Contrast", "black on white", nullptr, nullptr, 0.0f},
+    {kPresetDefault, "Neutral", "Default", "e-ink", nullptr, nullptr, 0.0f},
+    {kPresetReading, "Neutral", "Reading", "long-form on OLED", nullptr, nullptr, 0.0f},
+    {kPresetReadingWarm, "Neutral", "Reading Warm", "warmer paper", nullptr, nullptr, 0.0f},
+    {kPresetReadingCool, "Neutral", "Reading Cool", "cooler paper", nullptr, nullptr, 0.0f},
+    {kPresetSepia, "Paper", "Sepia", "warm", nullptr, nullptr, 0.0f},
+    {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale", nullptr, nullptr, 0.0f},
+    {kPresetLatte, "Paper", "Latte", "neutral pale", nullptr, nullptr, 0.0f},
+    {kPresetNord, "Paper", "Nord", "cool pale", nullptr, nullptr, 0.0f},
+    {kPresetSolarized, "Paper", "Solarized", "low contrast by design", nullptr, nullptr, 0.0f},
+    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f},
+    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f},
+    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
+     "not over 7% of peak after 33 ms", 33.0f},
+    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f},
+    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 0.0f},
 };
 
 inline constexpr int kPresetInfoCount =
