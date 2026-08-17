@@ -48,6 +48,44 @@ record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 
 ## OPEN
 
+### [ST-010] Fade the text away naturally over time after a page turn
+**scope: ios display · asked 2026-08-17**
+
+Owner: "make an option to fade away text naturally over time after page turn".
+
+DISTINCT FROM ST-009, and worth keeping apart. ST-009 fades the PREVIOUS page
+out as the next one arrives -- a transition, over in a fraction of a second.
+This is the CURRENT page fading while you read it: the text you are looking at
+decays over seconds or minutes after the turn that drew it, the way a real
+phosphor screen goes on dimming after the beam has moved on.
+
+That makes it the first effect here that changes a page nobody is interacting
+with, which is where the design questions are:
+
+- **Where does it stop?** A page that fades to nothing is a page you cannot
+  finish reading. Either it decays to a floor (still legible, just dimmer) or
+  something re-energises it -- a tap, a scroll, the next turn.
+- **Does it fade toward the paper or toward the ink?** Toward paper is a
+  phosphor dying. Toward a mid grey is what tired e-ink actually looks like.
+  They are different effects and only the first is what was asked for.
+- **How long?** ST-009's trails run 40-660 ms from the published persistence.
+  This is a different order of magnitude -- P7's yellow-green layer is over a
+  minute, which is the only published figure in the right range and is a good
+  argument for hanging this off P7 rather than off a global setting.
+
+**Mechanism is already mostly built.** ST-009 put a ghost texture and an alpha
+blend in `presentIfNeeded`; this needs the same blend applied to the LIVE
+texture against the paper tone, on a much longer clock, plus something to keep
+presenting while it decays.
+
+**Do the cost fix first — see ST-009's note below.** A slow fade means a present
+every frame for as long as the fade lasts, which is exactly the case where the
+full-framebuffer memcmp gets expensive.
+
+**Done looks like:** an option, off by default, where the page dims after a turn
+to a legible floor and comes back on interaction; the floor and the clock both
+stated; and a measurement of what it costs per frame on the phone.
+
 ### [ST-009] A glow-and-fade option for the CRT palettes
 **scope: ios display · asked 2026-08-17**
 
@@ -120,6 +158,17 @@ frame. So the honest design is a SCALED persistence -- the published figures set
 the RATIO between rows (P4 is 16x P11), and one global multiplier makes the
 family visible. crds's `lissajousPersistence` (default 0.18, range 0.05–0.60)
 is the shape of that multiplier, not the value to copy.
+
+**COST, found while building it and not yet fixed.** The "did the content
+change?" test is a `memcmp` over the whole active framebuffer on every present.
+At 3x that is 1584x2376x4 = ~15 MB compared per frame, plus a 15 MB copy on each
+change -- and while a trail is alive it asks for a present every frame, so the
+comparison runs at the loop rate. It is guarded behind the glow being ON, so it
+costs nothing today, but it is the most likely reason the effect would feel bad
+on a phone rather than not appear at all. The fix is to stop asking the pixels:
+`refreshDisplay` already knows a new frame arrived, so a counter bumped there is
+one integer compare instead of 15 MB. Do this before ST-010, which fades for far
+longer and would pay it for the whole fade.
 
 **Done looks like:** a setting, off by default, that on a CRT palette decays
 every panel transition including page turns; the decay speed derived from the
