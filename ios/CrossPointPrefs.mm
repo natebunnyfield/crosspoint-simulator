@@ -294,6 +294,15 @@ int CrossPointPrefs_panelPalettePreset(void) {
       [[NSUserDefaults standardUserDefaults] integerForKey:kPanelPalettePreset]);
 }
 
+void CrossPointPrefs_setPanelPalettePreset(int preset) {
+  ensureDefaults();
+  // Not validated here for the same reason the getter does not validate: an
+  // unknown integer resolves to Default in panelpalette::resolve, and deciding
+  // that in a second place is how two answers drift.
+  [[NSUserDefaults standardUserDefaults] setInteger:preset
+                                             forKey:kPanelPalettePreset];
+}
+
 int CrossPointPrefs_renderScale(void) {
   ensureDefaults();
   checkKnown(kRenderScale);
