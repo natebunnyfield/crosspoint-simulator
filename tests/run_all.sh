@@ -129,6 +129,29 @@ run heap_budget \
 run dispatch_signal \
   c++ -std=c++20 -o "$OUT/dispatch_signal" tests/dispatch_signal_test.cpp
 
+# S-001's four remaining reversals. Every failure mode there is a stub quietly
+# answering the OPPOSITE of the hardware, which no compile and no screenshot can
+# see -- and the panic latch in particular has to be one-shot or the desktop
+# reboot loops back into the crash screen forever.
+run device_truth \
+  c++ -std=c++20 -Isrc -o "$OUT/device_truth" tests/device_truth_test.cpp
+
+# Known-answer vectors for the mbedtls SHA-256 shim. It was a 32-byte XOR fold
+# that returned success, and nothing but a published vector can see that: the
+# signature, the output length and the determinism are all indistinguishable
+# from a real digest. macOS uses CommonCrypto (no extra flag); Linux uses
+# OpenSSL, which the sample ini already links for the MD5 path.
+# An empty array expands to an unbound-variable error under `set -u` on the
+# bash 3.2 that ships with macOS, so the two platforms get two invocations
+# rather than one with a maybe-empty flag list.
+if [[ "$(uname -s)" == "Linux" ]]; then
+  run sha256 \
+    c++ -std=c++20 -Isrc -o "$OUT/sha256" tests/sha256_test.cpp -lcrypto
+else
+  run sha256 \
+    c++ -std=c++20 -Isrc -o "$OUT/sha256" tests/sha256_test.cpp
+fi
+
 # The one Python test. tools/gen_cmake_sources.py writes the single file that
 # tells the iOS build which firmware sources to compile, and it used to be able
 # to write an empty one and exit 0. Builds its own throwaway trees, so it needs
