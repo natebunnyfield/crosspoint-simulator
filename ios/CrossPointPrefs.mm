@@ -45,6 +45,7 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // having seeded 3 from Root.plist, exactly like readAloudRatePercent above.
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
+static NSString *const kBeamPaintMs = @"beamPaintMs";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -175,6 +176,9 @@ static void ensureDefaults(void) {
         // a quarter of the glyph resolution -- so this fallback is doing real
         // work, not restating the plist for tidiness.
         kRenderScale : @(3),
+        // Off: the page arrives at once, which is what every build before this
+        // did and what an e-ink panel does.
+        kBeamPaintMs : @(0),
       }];
     }
 
@@ -281,6 +285,23 @@ int CrossPointPrefs_diagnosticsEnabled(void) {
 
 int CrossPointPrefs_padFillContrast(int dark) {
   return padContrast(dark ? kPadFillContrastDark : kPadFillContrastLight);
+}
+
+int CrossPointPrefs_beamPaintMs(void) {
+  ensureDefaults();
+  checkKnown(kBeamPaintMs);
+  // Stored as the DURATION ITSELF rather than as a row index, so the picker's
+  // rows can be added, reordered or retuned without a migration table and
+  // without a saved choice ever pointing at a different speed. That is only
+  // safe because the value is meaningful on its own -- unlike a palette preset,
+  // which is a name for a pair of colors and must persist as an opaque integer.
+  const int ms = static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:kBeamPaintMs]);
+  if (ms < 0) return 0;
+  // A sweep longer than this is not a beam, it is a wipe transition, and it
+  // would hold the render loop open for the whole of it. Nothing in the picker
+  // reaches here; a hand-edited plist would.
+  return ms > 1000 ? 1000 : ms;
 }
 
 int CrossPointPrefs_panelPalettePreset(void) {

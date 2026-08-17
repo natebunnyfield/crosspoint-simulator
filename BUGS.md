@@ -38,11 +38,36 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-**Nothing open as of 2026-08-16.** S-001's last four reversals and S-014 both
-closed that day. An empty list here is a claim, not a decoration — if you find a
-defect, add it rather than assuming this heading means the simulator is
-finished. Work that is merely *owed* rather than broken lives in
-[TODO.md](TODO.md), which is not empty.
+### [S-015] `test_text_entry.sh` no longer reaches the field it tests
+**severity: medium · scope: tests · found 2026-08-17**
+
+It fails at case 1 against firmware `main`, and has failed since before the
+B-028 work (confirmed by stashing that fix and re-running: identical failure).
+The failure is its own navigation, not the channel it covers — which means the
+host-keyboard channel currently has NO passing end-to-end guard on the
+single-line side, and a real regression there would look exactly like this.
+
+Two stale things, both in `NAV_TO_OWNER_FIELD`, and the second is only visible
+once the first is fixed:
+
+1. **Home navigation uses `DOWN`.** Lists navigate on the FRONT pair; the side
+   buttons page by a screenful and a one-screen menu has no next screenful, so
+   the fifteen `DOWN`s move nothing and the `ENTER` opens row 0 (`Recent
+   Books`). See [docs/headless-qa.md](docs/headless-qa.md) — the same point that
+   `test_note_editor_repaint.sh` was written against. Swapping `DOWN` for
+   `RIGHT` gets it into Settings.
+2. **The Settings tail count is stale.** With Home fixed, `6700:UP;7000:UP`
+   lands on `FontSelect`, not Device Owner. The test's own comment predicted
+   exactly this ("Colophon was added after it… keep asserting the activity
+   rather than trusting the count"); something has since been appended or
+   reordered again.
+
+**Close by:** recounting the Settings tail against the current build and
+switching Home to `RIGHT`. Both arms of case 4 (the daisywheel) and cases 5–6
+(the RAWKEY path) use the same nav string, so one fix restores all six.
+
+Only diagnosed here, not fixed — it surfaced while proving B-028 and repairing
+it is a separate recount.
 
 ---
 

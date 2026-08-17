@@ -34,6 +34,7 @@
 // it for anyone who never opens the setting. The static_asserts at the bottom
 // pin them byte-for-byte; do not "tidy" the hex.
 
+#include <cmath>
 #include <cstdint>
 
 namespace panelpalette {
@@ -536,6 +537,54 @@ constexpr uint32_t colorForLevel(uint8_t level, const Palette &p) {
   return argb;
 }
 
+// THE SAME LEVEL, BLENDED AS LIGHT RATHER THAN AS CODE VALUES.
+//
+// Reported from the phone against build 85: "the antialiasing on the sans serif
+// fonts looks bad in crt". It is, and the reason is the line above.
+//
+// An antialiased edge pixel is a pixel the glyph only PARTLY covers, and the
+// panel encodes that coverage as a level. On a phosphor, half coverage means
+// half the light -- and light adds linearly, while sRGB code values do not. The
+// integer lerp above therefore under-lights every edge pixel on a dark page: for
+// the cascade's dark pair (C4C6FF ink on 000327 paper) level 128 comes out at
+// code 98 where half the light is code 146. Nearly a third of the ramp is
+// missing, so stems get a hard fringe instead of a soft one -- worst on a sans
+// serif, whose long straight verticals are almost entirely edge pixels at these
+// sizes, and which has no bracketing to hide it.
+//
+// So: decode both ends to linear light, mix THERE, re-encode. The endpoints are
+// untouched by construction (mixing 0% or 100% of anything returns it exactly),
+// which is what keeps a palette's own two tones exact while its ramp changes.
+//
+// NOT the default path, and not constexpr. colorForLevel above stays the
+// byte-for-byte contract for every e-ink palette -- a real e-ink panel's grays
+// are pigment, not emission, and its shipped look must not move. This applies
+// where the page claims to be a tube. HalDisplay caches the 256-entry ramp per
+// palette, so the transfer function runs 768 times per palette change and never
+// per pixel.
+inline float srgbToLinear(float c) {
+  return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
+}
+inline float linearToSrgb(float c) {
+  return c <= 0.0031308f ? c * 12.92f
+                         : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+}
+
+inline uint32_t colorForLevelEmissive(uint8_t level, const Palette &p) {
+  const float t = static_cast<float>(level) / 255.0f;
+  uint32_t argb = 0xFF000000u;
+  for (int c = 0; c < 3; c++) {
+    const float ink = srgbToLinear(static_cast<float>(p.ink[c]) / 255.0f);
+    const float paper = srgbToLinear(static_cast<float>(p.paper[c]) / 255.0f);
+    const float mixed = ink + (paper - ink) * t;
+    float out = linearToSrgb(mixed) * 255.0f + 0.5f;
+    if (out < 0.0f) out = 0.0f;
+    if (out > 255.0f) out = 255.0f;
+    argb |= static_cast<uint32_t>(out) << (16 - 8 * c);
+  }
+  return argb;
+}
+
 // --- Guards ----------------------------------------------------------------
 //
 // The Default preset and an untouched Custom must both be the shipped tones, or
@@ -662,23 +711,23 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetLatte, "Paper", "Latte", "neutral pale", nullptr, nullptr, 0.0f, nullptr},
     {kPresetNord, "Paper", "Nord", "cool pale", nullptr, nullptr, 0.0f, nullptr},
     {kPresetSolarized, "Paper", "Solarized", "low contrast by design", nullptr, nullptr, 0.0f, nullptr},
-    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f, nullptr},
-    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
-    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
-     "not over 7% of peak after 33 ms", 33.0f, nullptr},
-    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
-    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
-    {kPresetGreenLongCrt, "CRT", "Green Long", "P39, long persistence", "P39",
-     "Long", 150.0f, nullptr},
     {kPresetGreenFastCrt, "CRT", "Green Fast", "P31 oscilloscope", "P31",
      "Medium short 0.01-1 ms", 1.0f, nullptr},
-    {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f, nullptr},
-    {kPresetBlueFastCrt, "CRT", "Blue Fast", "P47, very short", "P47",
-     "Very short", 0.05f, nullptr},
+    {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f, nullptr},
+    {kPresetGreenLongCrt, "CRT", "Green Long", "P39, long persistence", "P39",
+     "Long", 150.0f, nullptr},
+    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
+    {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
     {kPresetRedProjCrt, "CRT", "Red Projector", "P56 projection tube", "P56",
      "Medium", 10.0f, nullptr},
+    {kPresetBlueFastCrt, "CRT", "Blue Fast", "P47, very short", "P47",
+     "Very short", 0.05f, nullptr},
+    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
     {kPresetBlueTvCrt, "CRT", "Blue TV", "P22B color-tube gun", "P22B",
      "Medium", 10.0f, nullptr},
+    {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f, nullptr},
+    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
+     "not over 7% of peak after 33 ms", 33.0f, nullptr},
     // The only row with an afterglow: written blue-white, left behind
     // yellow-green, over a minute. "Very long" on the ladder.
     {kPresetCascadeCrt, "CRT", "Cascade", "P7 blue-white to yellow-green", "P7",
@@ -688,5 +737,57 @@ inline constexpr PresetInfo kPresetInfo[] = {
 
 inline constexpr int kPresetInfoCount =
     static_cast<int>(sizeof(kPresetInfo) / sizeof(kPresetInfo[0]));
+
+// HOW LONG A PHOSPHOR'S TRAIL RUNS ON SCREEN, from its decayMs above.
+//
+// This is a TASTE decision and it lives here, in a pure function, only because
+// getting it wrong is silent: it shipped as a flat x20 multiplier inside the
+// iOS shim, and P7 -- whose decayMs is 1000, this repo's reading of ">1 minute"
+// -- therefore asked for a TWENTY SECOND trail. At 900 ms such a ghost is still
+// at 90% of full and the cascade's color shift (which ramps with 1 - alpha) has
+// barely begun, so the one phosphor whose whole identity is its afterglow was
+// the one phosphor that appeared to do nothing. Reported from the phone against
+// build 85. A desktop A/B missed it because the env override supplies the
+// duration directly and never runs this arithmetic.
+//
+// The published span is 1:20000 (P47's 0.05 ms to P7's 1000). No single
+// multiplier serves it: pick one that makes the fastest visible and the slowest
+// is unusable; pick one that keeps the slowest usable and the fastest is a
+// single frame. So the span is COMPRESSED as a square root, anchored so P1 --
+// the archetype green tube, and the row every other figure was sanity-checked
+// against -- keeps the 400 ms it already had.
+//
+// What survives compression is the ORDER, exactly (sqrt is monotone), and the
+// rough sense of proportion. What does not survive is the literal ratio, and
+// that is deliberate: 20 seconds is not a truer rendering of P7 than 2.8 is, it
+// is just an unusable one.
+inline constexpr float kTrailAnchorDecayMs = 20.0f;  // P1
+inline constexpr float kTrailAnchorMs = 400.0f;
+
+// constexpr sqrt by Newton-Raphson: std::sqrt is not constexpr before C++26 and
+// this header is included by a C++17 translation unit (the iOS harness).
+constexpr float constexprSqrt(float x) {
+  if (x <= 0.0f) return 0.0f;
+  float guess = x > 1.0f ? x : 1.0f;
+  for (int i = 0; i < 24; i++) guess = 0.5f * (guess + x / guess);
+  return guess;
+}
+
+constexpr float trailMsForDecay(float decayMs) {
+  if (decayMs <= 0.0f) return 0.0f;
+  return kTrailAnchorMs * constexprSqrt(decayMs / kTrailAnchorDecayMs);
+}
+
+// The trail for a preset: 0 for everything that is not a phosphor, because a
+// page of e-ink does not decay.
+constexpr float trailMsForPreset(int preset) {
+  const int p = migratePreset(preset);
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    if (kPresetInfo[i].preset != p) continue;
+    if (!kPresetInfo[i].phosphor) return 0.0f;
+    return trailMsForDecay(kPresetInfo[i].decayMs);
+  }
+  return 0.0f;
+}
 
 }  // namespace panelpalette

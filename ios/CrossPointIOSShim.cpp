@@ -944,24 +944,17 @@ void pollPadContrast() {
 // nothing and correctly repaints nothing.
 //
 // Main thread only, pumps no SDL events, holds no timer.
-// THE GLOW'S SPEED IS THE PHOSPHOR'S OWN, SCALED.
+// THE GLOW'S SPEED IS THE PHOSPHOR'S OWN, COMPRESSED.
 //
-// panelpalette::PresetInfo carries each row's published persistence -- time to
-// decay to 10% of peak, from the source cited there. Those figures are 2-33 ms,
-// which is one to two frames: taken literally the trail would be gone before
-// the next present and the effect would not exist. So the published numbers set
-// the RATIO between phosphors and this multiplier makes the family visible.
-// P11 stays 16x faster than P4 either way, which is the part that is real.
+// The arithmetic moved to panelpalette::trailMsForPreset() -- a pure, tested
+// function -- after the flat multiplier that used to live here shipped a
+// TWENTY SECOND trail for P7 and made the cascade look broken on the phone.
+// See the comment at that function for why the span is compressed rather than
+// scaled, and tests/panel_palette_test.cpp for what is pinned about it.
 //
-// 20x puts P11 at 40 ms (a blink) and P4 at 660 ms (a lingering smear), with P1
-// at 400 ms in between. crds's lissajousPersistence is the shape of this knob,
-// not its value -- a canvas fading per frame and a page fading per transition
-// are not the same units.
-constexpr float kGlowScale = 20.0f;
-// What a row gets when its source publishes a CLASS ("Medium") instead of a
-// figure. P1's 20 ms is the archetype of that class, so a Medium row decays like
-// the green one rather than like an invented number.
-constexpr float kGlowMediumMs = 20.0f;
+// Nothing about the choice is host-specific, which is the other half of why it
+// does not belong in an iOS-only .cpp: it could not be exercised anywhere but
+// on a phone, and it was not.
 
 void pollPanelGlow() {
   static int s_appliedPreset = -1;
@@ -974,15 +967,14 @@ void pollPanelGlow() {
   // the two were never separate choices, and a switch to turn a phosphor's
   // behavior off while keeping its color is a setting for a thing nobody
   // wants. Every other palette gets 0, because a page of e-ink does not decay.
-  float trail = 0.0f;
+  const float trail = panelpalette::trailMsForPreset(preset);
   const unsigned char *tail = nullptr;
   const char *why = "not a phosphor";
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
     if (info.preset != preset) continue;
     if (!info.phosphor) break;
-    trail = (info.decayMs > 0.0f ? info.decayMs : kGlowMediumMs) * kGlowScale;
-    why = info.persistence ? info.persistence : "class only, using P1's 20ms";
+    why = info.persistence ? info.persistence : "class only";
     // A cascade phosphor's trail is a different color from its page. Pushed
     // alongside the duration because they are one property of one phosphor.
     tail = info.afterglow;
@@ -991,10 +983,28 @@ void pollPanelGlow() {
   // Logged on EVERY change, including to zero. The first version logged only
   // when it found a phosphor, so "the glow did nothing" and "the glow was never
   // asked for" looked identical from the outside -- which is exactly the state
-  // this was stuck in while being debugged.
-  SDL_Log("[glow] preset %d -> %.0f ms trail (%s)", preset, trail, why);
+  // this was stuck in while being debugged. The TAIL is logged for the same
+  // reason: build 85's cascade was reported dead from the phone and the log
+  // could not say whether the afterglow had been pushed at all.
+  SDL_Log("[glow] preset %d -> %.0f ms trail, tail %s, %s (%s)", preset, trail,
+          tail ? "yes" : "none", trail > 0.0f ? "emissive" : "reflective", why);
+  // A phosphor page emits; an e-ink page reflects. Pushed from the same row as
+  // the trail because it is the same claim -- see SimulatorOverlay.
+  SimulatorOverlay::setPanelEmissive(trail > 0.0f);
   SimulatorOverlay::setPanelGlow(trail);
   SimulatorOverlay::setPanelGlowTail(tail);
+}
+
+// Cheap and edge-triggered, like every other poll here: reading an integer out
+// of NSUserDefaults every frame is fine, pushing it every frame is not -- the
+// setter is what the render path reads.
+void pollBeamPaint() {
+  static int s_applied = -1;
+  const int ms = CrossPointPrefs_beamPaintMs();
+  if (ms == s_applied) return;
+  s_applied = ms;
+  SDL_Log("[beam] %d ms sweep", ms);
+  SimulatorOverlay::setBeamPaint(static_cast<float>(ms));
 }
 
 void pollPanelPalette() {
@@ -1660,6 +1670,7 @@ void CrossPointHarness_perFrame() {
   // must land first or the pad spends one frame on the previous field.
   pollPanelPalette();
   pollPanelGlow();
+  pollBeamPaint();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

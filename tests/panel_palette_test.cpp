@@ -29,6 +29,7 @@
 #include "PanelPalette.h"
 
 #include <cctype>
+#include <cstring>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -582,12 +583,141 @@ static void testRootPlist(const char *path) {
   }
 }
 
+
+// THE TRAIL ARITHMETIC. It lived in an iOS-only .cpp as a flat x20 multiplier
+// and shipped a 20-SECOND trail for P7, which is why the cascade -- the one
+// phosphor whose identity is its afterglow -- was reported dead from the phone
+// against build 85. Nothing on a host could run that code, so nothing on a host
+// could catch it. Now it can.
+static void testTrailTiming() {
+  using namespace panelpalette;
+
+  // Not a phosphor, no trail: a page of e-ink does not decay.
+  CHECKM(trailMsForPreset(kPresetDefault) == 0.0f, "default has no trail");
+  CHECKM(trailMsForPreset(kPresetSepia) == 0.0f, "sepia has no trail");
+  // Through the migration, so a retired preset does not silently lose its row.
+  CHECKM(trailMsForPreset(kPresetSoft) == 0.0f, "retired Soft migrates, no trail");
+
+  // The anchor is P1 and it is exactly where it always was.
+  const float p1 = trailMsForPreset(kPresetGreenCrt);
+  CHECKM(p1 > 399.0f && p1 < 401.0f, "P1 anchors at 400 ms");
+
+  // EVERY phosphor lands in a band a person can actually see: long enough not
+  // to be one frame, short enough that the page resolves. The upper bound is
+  // the bug -- 20000 ms would fail here.
+  float slowest = 0.0f;
+  const char *slowestName = "none";
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    const PresetInfo &info = kPresetInfo[i];
+    const float t = trailMsForPreset(info.preset);
+    if (!info.phosphor) {
+      CHECKM(t == 0.0f, "non-phosphor row has no trail");
+      continue;
+    }
+    CHECKM(t >= 15.0f, "a phosphor trail is at least a frame");
+    CHECKM(t <= 3000.0f, "a phosphor trail resolves within 3 s");
+    if (t > slowest) { slowest = t; slowestName = info.phosphor; }
+  }
+
+  // P7 is the slowest, because that IS P7. If a compression ever ties it with
+  // P39 the cascade stops being the long one and the row loses its point.
+  CHECKM(std::strcmp(slowestName, "P7") == 0, "P7 is the longest trail");
+  const float p39 = trailMsForPreset(kPresetGreenLongCrt);
+  CHECKM(slowest > p39 * 1.5f, "P7 is clearly longer than P39, not merely equal");
+
+  // ORDER IS THE PART THAT SURVIVES COMPRESSION. The literal ratio does not,
+  // deliberately; the ranking is the source's own and must not be reshuffled.
+  CHECKM(trailMsForPreset(kPresetBlueFastCrt) <
+            trailMsForPreset(kPresetBlueCrt),
+        "P47 is faster than P11");
+  CHECKM(trailMsForPreset(kPresetBlueCrt) < trailMsForPreset(kPresetGreenCrt),
+        "P11 is faster than P1");
+  CHECKM(trailMsForPreset(kPresetGreenCrt) <
+            trailMsForPreset(kPresetGreenLongCrt),
+        "P1 is faster than P39");
+
+  // Monotone in the input, which is what lets the ladder's rungs mean anything.
+  float prev = -1.0f;
+  for (float d : {0.05f, 0.5f, 1.0f, 2.0f, 10.0f, 20.0f, 150.0f, 1000.0f}) {
+    const float t = trailMsForDecay(d);
+    CHECKM(t > prev, "trail is monotone in decay");
+    prev = t;
+  }
+
+  // The cascade is the only row with an afterglow, and it must not be the ink
+  // it is drawn in or the shift is invisible.
+  int withTail = 0;
+  for (int i = 0; i < kPresetInfoCount; i++)
+    if (kPresetInfo[i].afterglow) withTail++;
+  CHECKM(withTail == 1, "exactly one cascade row");
+}
+
+
+// THE EMISSIVE RAMP. Reported from the phone against build 85: "the
+// antialiasing on the sans serif fonts looks bad in crt". An AA edge pixel is a
+// partly-covered pixel, and on a phosphor partial coverage is partial LIGHT --
+// which adds linearly, while sRGB code values do not. Blending in code space
+// crushes every edge pixel on a dark page.
+//
+// Untestable anywhere else: it is a wrong COLOR on an intermediate level, which
+// no compiler sees and no screenshot comparison in this repo would flag.
+static void testEmissiveRamp() {
+  using namespace panelpalette;
+  const Palette cascadeDark = presetPalette(kPresetCascadeCrt, true);
+
+  // ENDPOINTS ARE EXACT. A palette's own two tones are what the owner picked
+  // and must not move because the ramp between them changed shape.
+  CHECKM(colorForLevelEmissive(0, cascadeDark) ==
+             (0xFF000000u | pack(cascadeDark.ink)),
+         "emissive level 0 is the ink exactly");
+  CHECKM(colorForLevelEmissive(255, cascadeDark) ==
+             (0xFF000000u | pack(cascadeDark.paper)),
+         "emissive level 255 is the paper exactly");
+
+  // THE FIX ITSELF: a half-covered pixel is brighter than the code-space lerp
+  // put it. If this ever fails equal, the emissive path has quietly become the
+  // reflective one and the fringe is back.
+  const uint32_t flat = colorForLevel(128, cascadeDark);
+  const uint32_t lit = colorForLevelEmissive(128, cascadeDark);
+  const int flatG = (flat >> 8) & 0xFF;
+  const int litG = (lit >> 8) & 0xFF;
+  CHECKM(litG > flatG + 20,
+         "emissive midpoint is materially brighter than the code-space lerp "
+         "(%d vs %d)", litG, flatG);
+
+  // Monotone -- a ramp that reverses anywhere puts a band inside a glyph edge,
+  // which is a fringe of its own. DIRECTION comes from the palette: a dark
+  // palette runs bright ink to dark paper, so its ramp descends, and asserting
+  // "ascending" here is how this test first failed 154 times against correct
+  // code.
+  const int inkG = (colorForLevelEmissive(0, cascadeDark) >> 8) & 0xFF;
+  const int paperG = (colorForLevelEmissive(255, cascadeDark) >> 8) & 0xFF;
+  const bool ascending = paperG > inkG;
+  int prev = inkG;
+  for (int level = 1; level <= 255; level++) {
+    const int g =
+        (colorForLevelEmissive(static_cast<uint8_t>(level), cascadeDark) >> 8) &
+        0xFF;
+    CHECKM(ascending ? (g >= prev) : (g <= prev),
+           "emissive ramp is monotone at level %d", level);
+    prev = g;
+  }
+  CHECKM(inkG != paperG, "the emissive ramp is not degenerate");
+
+  // THE REFLECTIVE PATH IS UNTOUCHED. Every e-ink palette must render the exact
+  // pixels it always did; this is the guard on that promise.
+  CHECKM(colorForLevel(128, kDefaultLight) == 0xFF949493u,
+         "the default palette's midpoint is unchanged by the emissive work");
+}
+
 int main(int argc, char **argv) {
   testDefaultsAreTheShippedTones();
   testRamp();
   testHexParsing();
   testCustomFallsBackPerField();
   testPresetsAreLegible();
+  testTrailTiming();
+  testEmissiveRamp();
   testRootPlist(argc > 1 ? argv[1] : "ios/Settings.bundle/Root.plist");
 
   if (failures) {

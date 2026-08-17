@@ -28,6 +28,17 @@ static SDL_Texture *texture = nullptr;
 static SDL_Texture *ghostTexture = nullptr;
 // How long a ghost lives, in ms. 0 = the effect is off entirely.
 static std::atomic<float> glowTrailMs{0.0f};
+
+// BEAM PAINT: how long the new frame takes to sweep in from the top, in ms.
+// 0 is off, and off is the default and the whole desktop behaviour.
+//
+// A CRT does not swap pictures, it DRAWS them -- one line at a time, top to
+// bottom, at the field rate. Everything above the beam is the new frame and
+// everything below it is still the old one. That is a different claim from the
+// glow: the glow says what happens to a pixel AFTER it is lit, the beam says
+// the picture arrives progressively rather than at once.
+static std::atomic<float> beamPaintMs{0.0f};
+static uint64_t beamStartedAt = 0;
 // The tint a two-layer phosphor's trail decays toward, packed 0x00RRGGBB, or
 // kNoGlowTail when the trail simply dims. See setPanelGlowTail.
 static constexpr uint32_t kNoGlowTail = 0xFFFFFFFFu;
@@ -358,9 +369,86 @@ bool panelIsDarkGround() {
   return luma < 128;
 }
 
+// Whether the page claims to be EMITTING light rather than reflecting it, which
+// decides how a partly-covered pixel is mixed. Set by the host per palette (the
+// iOS shim, from whether the preset names a phosphor) and by
+// CROSSPOINT_SIM_PANEL_EMISSIVE for a desktop run. Default false: an e-ink page
+// reflects, and every previously shipped pixel must stay exactly where it was.
+std::atomic<bool> panelEmissive{false};
+
+// THE FULL-SCREEN FLASH, and why a present can be held back.
+//
+// A page with antialiased text is painted TWICE. The firmware displays the
+// 1-bit page, then TextAntiAliasing::overlay renders the two grayscale planes
+// over it and calls displayGrayBuffer, which composes the real page some 13-22
+// ms later (measured, desktop, reader page turn). Both hit the screen. The first
+// one is a hard black-and-white rendering of the page you are about to get, and
+// on a 60 Hz screen it reads as a full-screen flash.
+//
+// On the device that first pass is not a choice -- an e-ink panel has to drive
+// every pixel hard before it can hold an intermediate level, and you watch it
+// happen. Reproducing it here reproduces the PROCESS rather than the result,
+// and the phone has none of the physics that made it necessary.
+//
+// So a present is held for a short window, and a compose landing inside that
+// window releases it -- the composed page presents, the 1-bit one never does.
+// Nothing is dropped: the frame stays OWED (pendingPresent is not consumed), so
+// if no compose follows -- every menu, every 1-bit screen -- the deadline
+// expires and that same frame presents, at most kPresentHoldMs late.
+//
+// It has to cover EVERY paint rather than just the grayscale ones, and that was
+// measured rather than assumed: the first version armed only in
+// displayGrayscaleBase, which the reader never calls. The BW pass arrives
+// through plain displayBuffer, and the only signal that a compose is coming
+// arrives after it -- so there is nothing to key on, and the hold is
+// unconditional.
+std::atomic<uint64_t> presentHoldUntil{0};
+
+// Which producer wrote the pixels currently in pixelBuf: 'B' the 1-bit pass,
+// 'G' the composed grayscale one. Diagnostic only, read by the present log --
+// but it is the diagnostic that distinguishes "the flash is gone" from "the
+// composed page is gone", which a present COUNT alone cannot.
+std::atomic<char> lastPixelWriter{'?'};
+
+// Longer than the widest observed gap (22 ms) with margin. The cost when no
+// compose follows is that a 1-bit screen paints this many ms late, which is
+// under two frames and nothing a person can see; the alternative is the flash.
+// CROSSPOINT_SIM_PRESENT_FLASH=1 restores the old behaviour for anyone who
+// wants the device's process rather than its result.
+constexpr uint64_t kPresentHoldMs = 30;
+
+bool presentFlashWanted() {
+  static const bool wanted = [] {
+    const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH");
+    return env && env[0] == '1';
+  }();
+  return wanted;
+}
+
 // level: 0 = ink, 255 = paper (the pre-inversion grayscale convention).
+//
+// The emissive ramp is CACHED, because its transfer function is two std::pow
+// calls per channel and this is called once per pixel per frame -- 1.2M pow
+// calls a frame at 792x528, which is not a thing to do sixty times a second.
+// Both callers (renderBwPixels, composeGrayscalePreview) hold pixelBufMutex for
+// the whole loop, which is what makes a plain static safe here; if a third
+// caller ever appears outside that lock, this needs its own.
 uint32_t panelColor(uint8_t level, const PanelPalette &p) {
-  return panelpalette::colorForLevel(level, p);
+  if (!panelEmissive.load())
+    return panelpalette::colorForLevel(level, p);
+
+  static uint32_t ramp[256];
+  static uint64_t rampKey = ~0ull;
+  const uint64_t key =
+      (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
+      panelpalette::pack(p.paper);
+  if (key != rampKey) {
+    for (int i = 0; i < 256; i++)
+      ramp[i] = panelpalette::colorForLevelEmissive(
+          static_cast<uint8_t>(i), p);
+    rampKey = key;
+  }
+  return ramp[level];
 }
 
 // CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK} force a tone, on the same terms
@@ -400,6 +488,9 @@ void renderBwPixels(const uint8_t *fb) {
       pixelBuf[y * HalDisplay::activeWidth() + x] = white ? paper : ink;
     }
   }
+  lastPixelWriter.store('B');
+  if (!presentFlashWanted())
+    presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
   pendingPresent.store(true);
 }
 
@@ -453,6 +544,10 @@ void composeGrayscalePreview() {
       pixelBuf[y * HalDisplay::activeWidth() + x] = panelColor(level, pal);
     }
   }
+  // The real page is ready, so whatever hold the base pass armed is over: this
+  // frame presents at the first opportunity and the 1-bit one never does.
+  lastPixelWriter.store('G');
+  presentHoldUntil.store(0);
   pendingPresent.store(true);
 }
 
@@ -628,6 +723,28 @@ void setPanelGlow(float trailMs) {
   glowTrailMs.store(trailMs);
 }
 
+void setBeamPaint(float sweepMs) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_BEAM_MS")) {
+    const float parsed = static_cast<float>(std::atof(env));
+    if (parsed >= 0.0f) sweepMs = parsed;
+  }
+  if (sweepMs < 0.0f) sweepMs = 0.0f;
+  beamPaintMs.store(sweepMs);
+}
+
+void setPanelEmissive(bool emissive) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PANEL_EMISSIVE"))
+    emissive = env[0] == '1';
+  if (panelEmissive.exchange(emissive) == emissive)
+    return;
+  // The ramp the page is drawn with just changed, and an e-ink firmware may not
+  // render again for minutes -- so reconvert the cached frame rather than let
+  // the new curve wait for the next page turn. Same contract as a palette or a
+  // polarity change.
+  pendingReconvert.store(true);
+  pendingPresent.store(true);
+}
+
 void setPanelGlowTail(const unsigned char tint[3]) {
   // Same escape hatch as every other knob here: a desktop or headless run has
   // no Settings app, and without this the cascade's whole point -- that the
@@ -781,6 +898,12 @@ void HalDisplay::begin() {
   // And the cascade tail, which had the identical hole: nullptr is "the trail
   // keeps the tone it was drawn in", so with the var unset this is a no-op.
   SimulatorOverlay::setPanelGlowTail(nullptr);
+  // And the emission flag, for the third time. Anything whose only caller is a
+  // phone needs its env override seeded here or it is dead on the desktop.
+  SimulatorOverlay::setPanelEmissive(false);
+  // Fourth time. Seed every host-only dial through its setter, or its env
+  // override is dead on the desktop and cannot be tested there.
+  SimulatorOverlay::setBeamPaint(0.0f);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -960,6 +1083,22 @@ void HalDisplay::presentIfNeeded() {
     reconvertLastFrame();
 
   const bool screenshotDue = hasDueScreenshot();
+
+  // COALESCE. See presentHoldUntil: an antialiased page's composed pass is
+  // 13-22 ms behind its 1-bit pass, and presenting the 1-bit one is the
+  // full-screen flash. The frame is left OWED (pendingPresent stays set) rather
+  // than dropped, so if no compose follows the deadline expires and this same
+  // frame presents -- late, but never lost.
+  //
+  // A due screenshot overrides the hold: headless QA asks for a capture at a
+  // wall-clock instant and must not silently receive a frame from 40 ms later.
+  const uint64_t holdUntil = presentHoldUntil.load();
+  if (holdUntil != 0 && !screenshotDue) {
+    if (SDL_GetTicks() < holdUntil)
+      return;  // pendingPresent untouched: still owed, lands next pass
+    presentHoldUntil.store(0);
+  }
+
   if (!pendingPresent.exchange(false) && !screenshotDue)
     return;
 
@@ -976,11 +1115,16 @@ void HalDisplay::presentIfNeeded() {
   // frame (a window resize, a screenshot) must not restart a trail, or the page
   // would ghost while nothing happened.
   const float trailMs = glowTrailMs.load();
+  const float beamMs = beamPaintMs.load();
+  // The beam needs the PREVIOUS frame for the same reason the glow does -- it
+  // is what is still on screen below the sweep -- so the capture is gated on
+  // either wanting it, not on the glow alone.
+  const bool wantPrevFrame = trailMs > 0.0f || beamMs > 0.0f;
   bool contentChanged = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
-    if (trailMs > 0.0f) {
+    if (wantPrevFrame) {
       // One integer, not 15 MB. A seq the ghost has not seen means the firmware
       // (or a polarity reconvert) wrote a new picture since the last capture.
       contentChanged = pixelBufSeq != ghostSeq || ghostPixels.size() != live;
@@ -994,6 +1138,7 @@ void HalDisplay::presentIfNeeded() {
           SDL_UpdateTexture(ghostTexture, nullptr, ghostPixels.data(),
                             activeWidth() * sizeof(uint32_t));
           ghostStartedAt = SDL_GetTicks();
+          beamStartedAt = ghostStartedAt;
         }
         ghostPixels.assign(pixelBuf, pixelBuf + live);
       }
@@ -1001,6 +1146,7 @@ void HalDisplay::presentIfNeeded() {
       // Turned off: drop the copy rather than keep paying for it.
       ghostPixels.clear();
       ghostStartedAt = 0;
+      beamStartedAt = 0;
     }
     // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
     // so at a lower scale the live picture occupies a prefix of it and the
@@ -1069,6 +1215,10 @@ void HalDisplay::presentIfNeeded() {
   const int inset = SimulatorOverlay::bottomInset.load();
   const int topBand = SimulatorOverlay::topInset.load();
   const bool manualPlacement = inset > 0 || topBand > 0;
+  // The presented page rect, hoisted out of the manual-placement block because
+  // the beam clips against it. Left at zero on the letterbox path, which fills
+  // it from the logical size instead.
+  int panelRectX = 0, panelRectY = 0, panelRectW = 0, panelRectH = 0;
   if (manualPlacement) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
@@ -1176,6 +1326,10 @@ void HalDisplay::presentIfNeeded() {
     portraitDst = {cx - kW * scale / 2.0f, cy - kH * scale / 2.0f, kW * scale,
                    kH * scale};
     landscapeDst = portraitDst;
+    panelRectX = panelPxX;
+    panelRectY = panelPxY;
+    panelRectW = panelPxW;
+    panelRectH = panelPxH;
     SimulatorOverlay::panelBottom.store(panelPxY + panelPxH);
     SimulatorOverlay::panelHeight.store(panelPxH);
     SimulatorOverlay::panelLeft.store(panelPxX);
@@ -1227,6 +1381,74 @@ void HalDisplay::presentIfNeeded() {
                                                                   : "linear");
       }
     }
+  }
+
+  // Draw the panel texture in whatever orientation is live. Factored out
+  // because the beam draws the panel TWICE -- the old frame, then the new one
+  // clipped to the swept band -- and the rotation arithmetic must not be
+  // duplicated to do it.
+  auto drawPanel = [&](SDL_Texture *tex) {
+    switch (orientation) {
+    case GfxRenderer::Portrait:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &portraitDst, 90.0,
+                               nullptr, SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::PortraitInverted:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &portraitDst, -90.0,
+                               nullptr, SDL_FLIP_NONE);
+      break;
+    case GfxRenderer::LandscapeClockwise:
+      SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &landscapeDst, 180.0,
+                               nullptr, SDL_FLIP_NONE);
+      break;
+    default:
+      SDL_RenderTexture(sdl_renderer, tex, nullptr, &landscapeDst);
+    }
+  };
+
+  // THE BEAM. How far down the visible page the sweep has got, 0..1.
+  //
+  // The clip rect is in the CURRENT render coordinate space, which is the same
+  // space the panel rect was computed in -- output pixels on the manual path,
+  // logical units under SDL's letterbox -- so the same rect serves both. It is
+  // also why the clip is expressed against the VISIBLE page rather than against
+  // the texture: in portrait the texture is rotated, so a band of texture rows
+  // is a band of screen COLUMNS, and clipping in texture space would sweep
+  // sideways.
+  float beamProgress = 1.0f;
+  const bool beamActive =
+      beamMs > 0.0f && beamStartedAt != 0 && ghostTexture && !ghostPixels.empty();
+  if (beamActive) {
+    beamProgress =
+        static_cast<float>(SDL_GetTicks() - beamStartedAt) / beamMs;
+    if (beamProgress >= 1.0f) {
+      beamProgress = 1.0f;
+      beamStartedAt = 0;
+    }
+  }
+  const bool beamSweeping = beamActive && beamProgress < 1.0f;
+
+  SDL_Rect visible;
+  if (manualPlacement) {
+    visible = {panelRectX, panelRectY, panelRectW, panelRectH};
+  } else {
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    visible = {0, 0, logW, logH};
+  }
+
+  if (beamSweeping) {
+    // Below the beam the OLD picture is still up -- opaque, not blended: it has
+    // not been repainted yet, so it is not a ghost of anything.
+    SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureAlphaMod(ghostTexture, 255);
+    SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
+    drawPanel(ghostTexture);
+    // ...and above it, only as much of the new frame as the beam has written.
+    const int swept =
+        static_cast<int>(static_cast<float>(visible.h) * beamProgress);
+    const SDL_Rect clip = {visible.x, visible.y, visible.w, swept};
+    SDL_SetRenderClipRect(sdl_renderer, &clip);
   }
 
   switch (orientation) {
@@ -1283,8 +1505,15 @@ void HalDisplay::presentIfNeeded() {
     // hue by the end -- so a P7 page is written blue-white and left behind in
     // yellow-green. Multiplicative, which is why the flash has to be a light
     // blue-WHITE: there is no channel to multiply up, only down.
+    //
+    // ONLY ON THE ADDITIVE PATH. A color multiply on a ghost whose paper is
+    // BLACK touches nothing but the lit ink, which is the whole intent. On the
+    // pale-paper cross-dissolve the same multiply hits the paper too, so the
+    // entire decaying frame -- margins and all -- washes green. That is not a
+    // longer-lived layer, it is a stain over the page, and it is worse than no
+    // cascade at all.
     const uint32_t tail = glowTailTint.load();
-    if (tail != kNoGlowTail) {
+    if (tail != kNoGlowTail && darkGround) {
       const float t = 1.0f - ghostAlpha;  // 0 fresh, 1 fully decayed
       auto ramp = [&](int shift) {
         const float target = static_cast<float>((tail >> shift) & 0xFF) / 255.0f;
@@ -1318,6 +1547,14 @@ void HalDisplay::presentIfNeeded() {
     pendingPresent.store(true);
   }
 
+  if (beamSweeping) {
+    SDL_SetRenderClipRect(sdl_renderer, nullptr);
+    // A sweep only sweeps if something presents while it does, and an e-ink
+    // firmware presents once per page. Same self-driving arrangement as the
+    // glow's trail, and it stops asking the moment the beam reaches the bottom.
+    pendingPresent.store(true);
+  }
+
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
   // coordinate space cannot address -- so drop logical presentation, hand the
   // painter real pixels, then restore it for the next frame.
@@ -1336,12 +1573,28 @@ void HalDisplay::presentIfNeeded() {
   if (screenshotDue) {
     captureDueScreenshots();
   }
+  // Opt-in present counter: the flash is a present that should not exist, and
+  // counting presents is the only way to see it headlessly (a screenshot
+  // deliberately overrides the hold, so it cannot photograph its own absence).
+  if (const char *env = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS")) {
+    if (env[0] == '1') {
+      static int n = 0;
+      SDL_Log("[present] #%d at %u ms, frame from %c", ++n, SDL_GetTicks(),
+              lastPixelWriter.load());
+    }
+  }
   SDL_RenderPresent(sdl_renderer);
 }
 
 bool HalDisplay::shouldQuit() const { return quitRequested.load(); }
 
-void HalDisplay::deepSleep() { presentIfNeeded(); }
+void HalDisplay::deepSleep() {
+  // Flush any held base pass first. Sleep is the one caller with no "next
+  // pass": the loop stops here, so a frame still inside the hold window would
+  // be the frame nobody ever sees -- and it is the sleep screen.
+  presentHoldUntil.store(0);
+  presentIfNeeded();
+}
 
 uint8_t *HalDisplay::getFrameBuffer() const {
   if (frameBufferLent) {
