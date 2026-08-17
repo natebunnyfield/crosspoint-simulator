@@ -91,21 +91,21 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<string>Palette</string>
 			<key>Titles</key>
 			<array>
-				<string>Neutral · High Contrast — black on white, 21:1</string>
-				<string>Neutral · Default — e-ink, 13.3:1</string>
-				<string>Neutral · Cool Gray — cool, 13.2:1</string>
-				<string>Neutral · Soft — pure ground, eased ink, 9.2:1</string>
-				<string>Paper · Sepia — warm, 10.2:1</string>
-				<string>Paper · Gruvbox Light — warm pale, 10.2:1</string>
-				<string>Paper · Latte — neutral pale, 7.1:1</string>
-				<string>Paper · Nord — cool pale, 10.8:1</string>
-				<string>Paper · Solarized — low contrast by design, 4.1:1</string>
-				<string>CRT · Green — P1 phosphor, 10.3:1</string>
-				<string>CRT · Amber — P3 phosphor, 10.1:1</string>
-				<string>CRT · Gray — P4 phosphor, 11.1:1</string>
-				<string>CRT · Blue — P11 phosphor, 10.2:1</string>
-				<string>CRT · Red — P22R phosphor, 10.2:1</string>
-				<string>CRT · Sepia — toned, not a phosphor, 7.6:1</string>
+				<string>⬜⬜  Neutral · High Contrast — black on white, 21:1</string>
+				<string>⬜⬜  Neutral · Default — e-ink, 13.3:1</string>
+				<string>⬜⬜  Neutral · Cool Gray — cool, 13.2:1</string>
+				<string>⬜⬜  Neutral · Soft — pure ground, eased ink, 9.2:1</string>
+				<string>⬜🟨  Paper · Sepia — warm, 10.2:1</string>
+				<string>🟨🟨  Paper · Gruvbox Light — warm pale, 10.2:1</string>
+				<string>⬜🟦  Paper · Latte — neutral pale, 7.1:1</string>
+				<string>⬜⬜  Paper · Nord — cool pale, 10.8:1</string>
+				<string>⬜⬜  Paper · Solarized — low contrast by design, 4.1:1</string>
+				<string>⬜🟩  CRT · Green — P1 phosphor, 10.3:1</string>
+				<string>⬜🟧  CRT · Amber — P3 phosphor, 10.1:1</string>
+				<string>⬜⬜  CRT · Gray — P4 phosphor, 11.1:1</string>
+				<string>⬜🟦  CRT · Blue — P11 phosphor, 10.2:1</string>
+				<string>⬜🟥  CRT · Red — P22R phosphor, 10.2:1</string>
+				<string>⬜🟫  CRT · Sepia — toned, not a phosphor, 7.6:1</string>
 				<string>Custom — use the colors below</string>
 			</array>
 			<key>Type</key>
