@@ -24,6 +24,7 @@
 #define CROSSPOINT_SIM_IOS 1
 #include <SDL3/SDL_main.h>
 
+#include "CrossPointAppearance.h"
 #include "CrossPointHarness.h"
 #include "CrossPointPrefs.h"
 #else
@@ -129,6 +130,24 @@ int main(int argc, char **argv) {
   SimulatorLifecycle::initProcessArgs(argv);
   latchRenderScale();
 #if CROSSPOINT_SIM_IOS
+  // LANDSCAPE ON iPad ONLY (owner ruling 2026-08-17), and it has to be set
+  // HERE -- before HalDisplay::begin() creates the window, because UIKit asks
+  // for the supported orientations once as the window comes up.
+  //
+  // Info.plist does not decide this. SDL answers UIKit itself, from
+  // UIKit_GetSupportedOrientations (SDL_uikitwindow.m): with this hint unset
+  // and a resizable window it returns UIInterfaceOrientationMaskAll, and it
+  // falls back to the app's declared orientations only when the intersection
+  // with them is empty -- it never intersects. Measured, not reasoned: an
+  // iPhone with Portrait-only in the plist rotated and laid itself out
+  // landscape. The plist keys stay because the App Store reads them; this is
+  // what the running app obeys.
+  SDL_SetHint(SDL_HINT_ORIENTATIONS, CrossPointAppearance_isPad() == 1
+                                         ? "Portrait LandscapeLeft LandscapeRight"
+                                         : "Portrait");
+  SDL_Log("[orient] isPad=%d hint=%s", CrossPointAppearance_isPad(),
+          SDL_GetHint(SDL_HINT_ORIENTATIONS));
+
   // HalStorage's ./fs_ prefix relies on the CWD, which on iOS is the read-only
   // bundle. Must happen before setup() touches storage.
   CrossPointHarness_prepareFilesystem();
