@@ -3,6 +3,20 @@
 #include "network/FirmwareFlasher.h"
 #include "network/OtaBootSwitch.h"
 
+// S-014: only the WRITE half is stubbed now.
+//
+// `validateImageFile()` and `resultName()` used to be faked here, because they
+// shared a translation unit with the flasher and the firmware's
+// `build_src_filter` had to drop the whole file. The firmware split the
+// read-only half into `network/FirmwareImageValidator.cpp`, so the REAL
+// validator now compiles into this build and runs against a real file on the
+// simulated card -- magic, segment table, XOR checksum and SHA256 trailer, the
+// last of which needs the mbedtls shim to be a genuine SHA-256 (it was an XOR
+// fold until 2026-08-16; see src/mbedtls/sha256.h).
+//
+// What stays stubbed is everything that would write: `flashFromSdPath()` here,
+// and `ota_boot::switchTo()` below. Those fail honestly rather than pretending,
+// which is a failure mode the firmware already handles and reports.
 namespace firmware_flash {
 Result flashFromSdPath(const char *, ProgressCb onProgress, void *ctx, bool) {
   LOG_DBG("FLASH",
@@ -10,50 +24,6 @@ Result flashFromSdPath(const char *, ProgressCb onProgress, void *ctx, bool) {
   if (onProgress)
     onProgress(1, 1, ctx);
   return Result::WRITE_FAIL;
-}
-
-Result validateImageFile(const char *, size_t) {
-  LOG_DBG(
-      "FLASH",
-      "[SIM] Firmware image validation is disabled in the native simulator");
-  return Result::WRITE_FAIL;
-}
-
-const char *resultName(Result r) {
-  switch (r) {
-  case Result::OK:
-    return "OK";
-  case Result::OPEN_FAIL:
-    return "OPEN_FAIL";
-  case Result::TOO_SMALL:
-    return "TOO_SMALL";
-  case Result::TOO_LARGE:
-    return "TOO_LARGE";
-  case Result::BAD_MAGIC:
-    return "BAD_MAGIC";
-  case Result::BAD_SEGMENTS:
-    return "BAD_SEGMENTS";
-  case Result::BAD_CHECKSUM:
-    return "BAD_CHECKSUM";
-  case Result::BAD_SHA:
-    return "BAD_SHA";
-  case Result::BAD_SIZE:
-    return "BAD_SIZE";
-  case Result::NO_PARTITION:
-    return "NO_PARTITION";
-  case Result::OOM:
-    return "OOM";
-  case Result::READ_FAIL:
-    return "READ_FAIL";
-  case Result::ERASE_FAIL:
-    return "ERASE_FAIL";
-  case Result::WRITE_FAIL:
-    return "UNSUPPORTED_IN_SIMULATOR";
-  case Result::OTADATA_FAIL:
-    return "OTADATA_FAIL";
-  default:
-    return "UNKNOWN";
-  }
 }
 } // namespace firmware_flash
 

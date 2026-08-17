@@ -38,8 +38,54 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-014] The image validator and the flasher are excluded from the simulator build
-**severity: medium · scope: fidelity · found 2026-08-16**
+**Nothing open as of 2026-08-16.** S-001's last four reversals and S-014 both
+closed that day. An empty list here is a claim, not a decoration — if you find a
+defect, add it rather than assuming this heading means the simulator is
+finished. Work that is merely *owed* rather than broken lives in
+[TODO.md](TODO.md), which is not empty.
+
+---
+
+## FIXED
+
+### [S-014] The image validator and the flasher are excluded from the simulator build — FIXED 2026-08-16
+**severity: medium · scope: fidelity · found and FIXED 2026-08-16**
+
+**Fixed by splitting the file, which is what the entry proposed.** The firmware
+now has `src/network/FirmwareImageValidator.cpp` holding the READ-ONLY half —
+`resultName()`, `runningPartitionChipId()`, `feedHashAndChecksum()` and
+`validateImageFile()` — with the shared layout constants moved to
+`src/network/FirmwareImageFormat.h` so neither file's existing unqualified uses
+had to be rewritten. `FirmwareFlasher.cpp` keeps `flashFromSdPath()` alone and
+stays excluded from the `simulator` env; the validator is not excluded, so the
+real one compiles in. `platformio.ini` did not need editing at all, which also
+means no build directory was wiped.
+
+The simulator's `src/simulator_firmware.cpp` dropped its fake
+`validateImageFile()` and `resultName()` (they would now be duplicate symbols)
+and kept the `flashFromSdPath()` stub. One new shim was needed:
+`esp_ota_get_running_partition()` returns null, which is honest AND safe —
+`runningPartitionChipId()` caches `0xFFFF` on a failed read and
+`validateImageFile()` explicitly skips the chip check on `0xFFFF`. So a host
+validates everything about an image except which MCU it targets, which is the
+one property a host cannot know.
+
+**Proven both directions, through the real screen** (Home → Settings → SD
+firmware update → file browser → pick a `.bin`):
+
+| Image | Result |
+|---|---|
+| the genuine 4,492,880-byte `20260807T0857Z-crosspoint-f1459353.bin` | validation passes; the **"Update firmware?"** confirmation prompt appears, which is reachable only on `Result::OK` |
+| the same file with **one byte flipped** at offset 2,246,440 | `validate: checksum mismatch computed=0x03 stored=0xFC` → `image validation failed: BAD_CHECKSUM` |
+
+That pass is also the end-to-end proof that the mbedtls SHA-256 shim is now
+real: the image carries a SHA-256 trailer, and the old XOR fold could not have
+matched it under any reading.
+
+Firmware TU count went 129 → 130, so `cmake/CrossPointSources.cmake` was
+regenerated. Desktop, iOS and 22/22 host tests all green after.
+
+**Original entry follows.**
 
 Found while closing S-001's partition half, by driving the SD firmware update
 screen to the end. With a partition now available the firmware gets as far as
@@ -91,8 +137,6 @@ observably broken by it — but the validator could never have passed its SHA
 check, and that would have been the next wrong diagnosis.
 
 ---
-
-## FIXED
 
 ### [S-001] The simulator reports the opposite of the device in six places
 **severity: medium · scope: fidelity · found 2026-08-07** · heap + battery FIXED 2026-08-08 · **remaining four FIXED 2026-08-16**
