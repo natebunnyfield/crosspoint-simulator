@@ -37,6 +37,21 @@
 #define JPEG_MODE_BASELINE 0
 #define JPEG_MODE_PROGRESSIVE 1
 
+// Error codes from getLastError(), in bitbank2/JPEGDEC's order and values --
+// firmware reads them by name (lib/JpegToBmpConverter/JpegDecodeError.h turns
+// them into log text), so a shim that omits them does not fail here, it fails
+// in the iOS target that links this file. Nothing below decodes JPEG itself,
+// so only JPEG_SUCCESS and JPEG_DECODE_ERROR are ever produced; the rest exist
+// because the firmware names them.
+enum {
+  JPEG_SUCCESS = 0,
+  JPEG_INVALID_PARAMETER,
+  JPEG_DECODE_ERROR,
+  JPEG_UNSUPPORTED_FEATURE,
+  JPEG_INVALID_FILE,
+  JPEG_ERROR_MEMORY
+};
+
 struct JPEGFILE {
   void *fHandle;
   int32_t iPos;
@@ -66,10 +81,10 @@ public:
            JPEG_SEEK_CALLBACK, JPEG_DRAW_CALLBACK drawCb) {
     image_ = simulator_image::DecodedImage{};
     drawCb_ = drawCb;
-    lastError_ = 0;
+    lastError_ = JPEG_SUCCESS;
 
     if (!filename || !openCb || !closeCb || !readCb) {
-      lastError_ = -1;
+      lastError_ = JPEG_DECODE_ERROR;
       return 0;
     }
 
@@ -79,7 +94,7 @@ public:
       if (handle) {
         closeCb(handle);
       }
-      lastError_ = -1;
+      lastError_ = JPEG_DECODE_ERROR;
       return 0;
     }
 
@@ -100,7 +115,7 @@ public:
         !simulator_image::decodeImageBytes(encoded.data(),
                                            static_cast<size_t>(totalRead), 1,
                                            image_)) {
-      lastError_ = -1;
+      lastError_ = JPEG_DECODE_ERROR;
       return 0;
     }
 
@@ -116,7 +131,7 @@ public:
   int decode(int, int, int scaleOption) {
     if (!drawCb_ || image_.pixels.empty() || image_.width <= 0 ||
         image_.height <= 0) {
-      lastError_ = -1;
+      lastError_ = JPEG_DECODE_ERROR;
       return 0;
     }
 
@@ -151,7 +166,7 @@ public:
       draw.iHeight = 1;
       draw.iWidthUsed = scaledWidth;
       if (drawCb_(&draw) == 0) {
-        lastError_ = -1;
+        lastError_ = JPEG_DECODE_ERROR;
         return 0;
       }
     }
@@ -163,6 +178,6 @@ private:
   simulator_image::DecodedImage image_;
   JPEG_DRAW_CALLBACK drawCb_{nullptr};
   void *user_{nullptr};
-  int lastError_{0};
+  int lastError_{JPEG_SUCCESS};
 };
 #endif
