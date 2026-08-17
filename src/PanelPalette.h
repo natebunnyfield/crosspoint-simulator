@@ -85,7 +85,11 @@ enum Preset : int {
   kPresetDefault = 1,       // the shipped tones; the default, hence pixel-identical
   kPresetHighContrast = 2,  // #000000 on #FFFFFF, and its inverse
   kPresetSepia = 3,         // warm paper, warm-black ink
-  kPresetCoolGray = 4,      // cool paper, near-neutral cold ink
+  // RETIRED 2026-08-17: REPLACED by Reading Cool (18), not deleted. See
+  // migratePreset -- a stored 4 follows the replacement forward rather than
+  // falling back to Default, because the owner replaced this row rather than
+  // removing it. The number itself is never reused.
+  kPresetCoolGray = 4,      // retired; do not reuse this number
   // Appended 2026-08-15 by owner ruling. APPEND ONLY: the value persists as an
   // integer in NSUserDefaults, so inserting a row re-points every saved choice
   // at a different palette.
@@ -103,7 +107,8 @@ enum Preset : int {
   // background but chill on the contrast" (2026-08-16). The ground is the thing
   // being preserved here, so both papers stay at the gamut ends and only the
   // ink moves inward, to a matched ~9:1 in both halves.
-  kPresetSoft = 13,
+  // RETIRED 2026-08-17: REPLACED by Reading Warm (17). Same treatment as 4.
+  kPresetSoft = 13,  // retired; do not reuse this number
   // Appended 2026-08-16 by owner ruling, closing out the CRT group. Same
   // APPEND-ONLY rule as above -- the Settings row ORDER is free and is where
   // the grouping happens, so neither of these had to be inserted anywhere.
@@ -134,7 +139,29 @@ enum Preset : int {
   // 14.2:1 light and 11.8:1 dark -- inside the comfortable band rather than at
   // High Contrast's 21:1, which is the ratio that tires eyes over paragraphs.
   kPresetReading = 16,
+  // Appended 2026-08-17, replacing Soft and Cool Gray by owner ruling. The same
+  // page as Reading with the paper's TEMPERATURE moved and nothing else: all
+  // three sit at 13.8-14.3:1 light and ~11.8:1 dark, so switching between them
+  // changes the warmth of the sheet and never the legibility. Paper spans (max
+  // channel minus min) are 4, 20 and 12 -- far enough apart to tell at a glance,
+  // which the first attempt at these was not.
+  kPresetReadingWarm = 17,
+  kPresetReadingCool = 18,
 };
+
+// A retired preset that was REPLACED rather than removed. Stored choices follow
+// the replacement forward; the integers themselves are still never reused.
+//
+// This is the difference between the two kinds of retirement in this file.
+// Sepia CRT (14) was deleted outright and has nowhere to go, so it lands on
+// Default like any unknown integer. Soft and Cool Gray were swapped for the
+// warm and cool Reading pages, and an install that had chosen "the cool one"
+// should keep having chosen the cool one.
+constexpr int migratePreset(int preset) {
+  if (preset == kPresetSoft) return kPresetReadingWarm;
+  if (preset == kPresetCoolGray) return kPresetReadingCool;
+  return preset;
+}
 
 // Solarized is DELIBERATELY low contrast -- that is the palette's whole thesis,
 // and raising it to clear the 7:1 floor the other rows meet would produce
@@ -149,10 +176,10 @@ constexpr bool isLowContrastByDesign(int preset) {
 constexpr bool isKnownPreset(int preset) {
   return preset == kPresetCustom || preset == kPresetDefault ||
          preset == kPresetHighContrast || preset == kPresetSepia ||
-         preset == kPresetCoolGray || preset == kPresetSolarized ||
+         preset == kPresetReadingWarm || preset == kPresetSolarized ||
          preset == kPresetGreenCrt || preset == kPresetAmberCrt ||
          preset == kPresetNord || preset == kPresetGruvboxLight ||
-         preset == kPresetSoft ||
+         preset == kPresetReadingCool ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
          preset == kPresetGrayCrt || preset == kPresetReading ||
          preset == kPresetBlueCrt;
@@ -171,9 +198,12 @@ constexpr Palette presetPalette(int preset, bool dark) {
   case kPresetSepia:
     return dark ? Palette{{0xE8, 0xD9, 0xBC}, {0x1C, 0x17, 0x10}}
                 : Palette{{0x3B, 0x32, 0x28}, {0xF2, 0xE7, 0xD0}};
-  case kPresetCoolGray:
-    return dark ? Palette{{0xDC, 0xE3, 0xE8}, {0x10, 0x14, 0x1A}}
-                : Palette{{0x1F, 0x24, 0x29}, {0xE8, 0xEC, 0xEF}};
+  // Reading, with the paper pulled COOL. 13.84:1 light, 11.80:1 dark -- the
+  // same band as the other two, so this is a temperature choice and not a
+  // legibility one. Replaced Cool Gray, whose job it inherits.
+  case kPresetReadingCool:
+    return dark ? Palette{{0xBC, 0xC3, 0xCA}, {0x00, 0x00, 0x00}}
+                : Palette{{0x1D, 0x21, 0x26}, {0xE8, 0xEE, 0xF4}};
   // Solarized, unmodified: base00 on base3 light, base0 on base03 dark -- the
   // body-text pairing Schoonover specifies. One row carries both variants
   // rather than two rows carrying one each, because every preset's dark half
@@ -266,9 +296,11 @@ constexpr Palette presetPalette(int preset, bool dark) {
   // softened Default: Default's paper is #FBFBF9 and its ink #2D2D2D, so it is
   // already off both ends. This one keeps the ends and spends the whole
   // relaxation on the ink.
-  case kPresetSoft:
-    return dark ? Palette{{0xAE, 0xAE, 0xAE}, {0x00, 0x00, 0x00}}
-                : Palette{{0x48, 0x48, 0x48}, {0xFF, 0xFF, 0xFF}};
+  // Reading, with the paper pulled WARM -- the cream of a paperback rather than
+  // the amber of the CRT rows. 14.26:1 light, 11.70:1 dark. Replaced Soft.
+  case kPresetReadingWarm:
+    return dark ? Palette{{0xC6, 0xC1, 0xB6}, {0x00, 0x00, 0x00}}
+                : Palette{{0x21, 0x1E, 0x19}, {0xF4, 0xED, 0xE0}};
   // SEPIA IS NOT A PHOSPHOR, and this row does not pretend otherwise. There is
   // no sepia P-number: sepia is a PHOTOGRAPHIC TONING process, in which the
   // metallic silver of a finished black-and-white print is converted to silver
@@ -411,6 +443,12 @@ constexpr void unpackInto(uint32_t packed, uint8_t (&rgb)[3]) {
 // away over one typo.
 constexpr Palette resolve(int preset, bool dark, int customInk,
                           int customPaper) {
+  // Replaced presets follow their replacement before anything else looks at the
+  // number. Done HERE, in the one function every consumer goes through, rather
+  // than at each caller -- the picker, the cycle button and the page would
+  // otherwise have to remember separately, and the one that forgot would show a
+  // different palette from the others.
+  preset = migratePreset(preset);
   Palette p = presetPalette(isKnownPreset(preset) ? preset : kPresetDefault,
                             dark);
   if (preset != kPresetCustom) return p;
@@ -515,9 +553,9 @@ struct PresetInfo {
 inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetHighContrast, "Neutral", "High Contrast", "black on white"},
     {kPresetDefault, "Neutral", "Default", "e-ink"},
-    {kPresetCoolGray, "Neutral", "Cool Gray", "cool"},
-    {kPresetSoft, "Neutral", "Soft", "pure ground, eased ink"},
     {kPresetReading, "Neutral", "Reading", "long-form on OLED"},
+    {kPresetReadingWarm, "Neutral", "Reading Warm", "warmer paper"},
+    {kPresetReadingCool, "Neutral", "Reading Cool", "cooler paper"},
     {kPresetSepia, "Paper", "Sepia", "warm"},
     {kPresetGruvboxLight, "Paper", "Gruvbox Light", "warm pale"},
     {kPresetLatte, "Paper", "Latte", "neutral pale"},
