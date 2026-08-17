@@ -1064,42 +1064,29 @@ void cycleToNextPalette() {
   SimulatorOverlay::requestPresent();
 }
 
-// The page-colour button. SAME SIZE AND STYLING AS POWER (owner ruling
-// 2026-08-17) -- stroke and hollow face from the pad palette, exactly like every
-// control beside it, and NOT filled with the colours it selects. An earlier
-// version painted the live palette into the button itself; it read as a swatch
-// rather than as a control.
+// The page-colour button. IDENTICAL TO POWER: same size, same stroke, same
+// hollow face, and NO MARK ON IT AT ALL.
 //
-// It still needs to be distinguishable from POWER, which is a blank capsule of
-// the same size, so it carries one monochrome glyph: a disc with its right half
-// filled, the usual day/night mark. Drawn in the pad's own stroke tone, so it is
-// as colourless as the rest of the pad.
+// "Same styling as power" means the same styling as POWER, which is a blank
+// capsule. This was got wrong twice -- first by filling the button with the live
+// palette, then, after that was rejected, by adding a monochrome half-disc to
+// "tell it apart". Neither was asked for. The pad is wordless and markless by
+// design; every control on it is a bare capsule and position is what identifies
+// them. Owner, third time: "remove color button icon".
+//
+// If it ever seems to need a glyph, that is a question for the owner, not a
+// thing to add.
 void paintPaletteChip(SDL_Renderer *r, const Palette &p, float radius,
                       float hairline) {
   const SDL_FRect &c = g_paletteChip;
   if (c.w <= 0 || c.h <= 0) return;
 
-  // Stroke-then-face, the pad's construction for a hollow control.
   setRGB(r, p.hairline);
   fillRoundRect(r, c, radius);
   setRGB(r, p.face);
   fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
                     c.h - 2 * hairline},
                 radius - hairline);
-
-  // The mark: an outlined disc whose right half is solid.
-  const float d = SDL_min(c.w, c.h) * 0.46f;
-  const float cx = c.x + c.w / 2.0f, cy = c.y + c.h / 2.0f;
-  const float rad = d / 2.0f;
-  const float step = 1.0f;
-  setRGB(r, p.hairline);
-  for (float dy = -rad; dy <= rad; dy += step) {
-    const float halfChord = SDL_sqrtf(SDL_max(0.0f, rad * rad - dy * dy));
-    // Outline on the left, solid on the right: two spans per scanline.
-    const float y = cy + dy;
-    fillRect(r, cx - halfChord, y, SDL_max(1.0f, hairline), step);
-    fillRect(r, cx, y, halfChord, step);
-  }
 }
 
 void paintKeyboardChip(SDL_Renderer *r, const Palette &, float radius,
