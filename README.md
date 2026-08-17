@@ -1,6 +1,31 @@
 # CrossPoint Simulator
 
-A desktop simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)-based firmware. Compiles the firmware natively and renders the e-ink display in an SDL2 window. No device required. Can be used with forks of Crosspoint but any new methods added to the firmware will need to be stubbed. If your fork diverges from the CrossPoint HAL, see [FORKING.md](FORKING.md).
+A simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)-based firmware. It compiles the **real firmware** for the host and renders the e-ink panel in an SDL3 window — no device required. Can be used with forks of CrossPoint, but any new methods added to the firmware will need to be stubbed. If your fork diverges from the CrossPoint HAL, see [FORKING.md](FORKING.md).
+
+**One source set, two toolchains.** The same firmware plus this HAL builds as a
+desktop binary through PlatformIO, and as a native iOS app through CMake — 129
+firmware translation units and 23 simulator ones for `arm64-apple-ios`, running
+on a real iPhone with an on-screen button pad. The desktop build stays the
+canary: it is the one that must be green first.
+
+| | Desktop | iOS |
+|---|---|---|
+| Built by | PlatformIO, from the **consuming firmware repo** | CMake + Xcode, from **this** repo |
+| Entry point | `src/simulator_main.cpp` | the same `main()`, under a UIKit harness |
+| Read this | this file | [ios/README.md](ios/README.md) |
+
+There is no desktop build target inside this repo — it ships as a PlatformIO
+library that firmware adds as a `lib_dep` named `simulator`. The iOS target is
+built here; see [ios/README.md](ios/README.md) and
+[CROSSPOINT_X3_IOS_PORT_CONTEXT.md](CROSSPOINT_X3_IOS_PORT_CONTEXT.md).
+
+**Beyond running the firmware, this fork adds:** a read-aloud page channel that
+hands the displayed page to a host text-to-speech engine, host-keyboard text
+entry into the firmware's own fields (with the software keyboard's show/hide
+contract), a 14-preset page palette and a button-pad contrast dial, dark-mode
+re-present from a cached frame, `SimulatorOverlay` for chrome outside the panel,
+1x/2x/3x render scale, and Mac App Store + TestFlight packaging. Each has its
+own section below or its own file in [docs/](docs/).
 
 > [!NOTE]
 > **Platform support:** macOS and Linux/WSL use different native compiler and library flags. Start from `sample-platformio-macos.ini` on macOS, or `sample-platformio-linux-wsl.ini` on Linux/WSL. Native Windows is not supported; use WSL and follow the Linux instructions.
@@ -156,6 +181,22 @@ pio run -e simulator -t run_simulator
 
 When the simulator is on the sleep screen, pressing any mapped simulator key wakes it. Under the hood the simulator relaunches itself and reports a synthetic power-button wake, because the native build has no real ESP deep-sleep resume path.
 
+**Your keyboard reaches the firmware's text fields.** The X3 has no keyboard, so
+firmware text entry pecks characters out of an on-screen grid — but the host's
+real keyboard is carried into that same field. The firmware opens and closes the
+channel, and while it is open **the table above is suspended** for everything
+except Escape and the arrows. Without that, typing a Wi-Fi password would press
+POWER on every `p` and sleep the device on every `s`.
+
+Return is the one key decided per field, and both inversions of this have shipped
+as bugs — hence [src/TextEntryKeyRouting.h](src/TextEntryKeyRouting.h) and a
+truth-table test:
+
+| Field | Return | Cmd/Ctrl+Return |
+|---|---|---|
+| Single-line (Wi-Fi password, device owner, rename) | Select — types the highlighted character | commits |
+| Multi-line (note editor, Claude chat) | inserts a line break | reaches the panel's pick |
+
 ## Automated QA and screenshots
 
 Two optional environment variables make repeatable navigation and screenshot
@@ -174,12 +215,18 @@ tests possible without desktop-control permissions:
 - `CROSSPOINT_SIM_SCREENSHOTS` saves BMP screenshots as
   `<milliseconds>:<path>`, separated by semicolons. Create the destination
   directory before running the simulator.
-- `CROSSPOINT_SIM_FREE_HEAP` and `CROSSPOINT_SIM_MAX_ALLOC_HEAP` override the
-  ESP heap metrics reported to firmware. They are useful for repeatable
-  low-memory paths without exhausting the host process. Values are byte counts;
-  invalid or out-of-range values use the 1 MiB default. The free-heap override
-  also controls the reported minimum free heap, and maximum allocation is
-  bounded by free heap.
+- `RAWKEY:<NAME>[:<holdMs>]` pushes a real SDL key event
+  (`RAWKEY:RETURN`, `RAWKEY:CMD+RETURN`, also `ESCAPE`, the arrows, `BACKSPACE`,
+  `P`). It is the **only** script action that goes through the scancode→button
+  gate — the button actions write the synthetic state directly, below SDL, so a
+  scripted pass proves nothing about key routing. It still cannot fake a held
+  *level*; see the note in [CLAUDE.md](CLAUDE.md).
+- `TYPE:<text>` types into an open firmware text field (`\b` backspace,
+  `\n` commit, `\e` cancel; `;` cannot appear in the text).
+- `QTAP:<BUTTON>[:<holdMs>]` queues a press that fires inside `update()` rather
+  than after `loop()`, which is what harness automation needs.
+- The heap, battery, panic and OTA overrides live in their own table under
+  [Forcing state the host does not have](#forcing-state-the-host-does-not-have).
 - A sleep/wake test starts a fresh simulator process, matching the existing
   deep-sleep model. Set `CROSSPOINT_SIM_INPUT_SCRIPT_AFTER_WAKE` and
   `CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE` for that second process. The
@@ -221,8 +268,99 @@ CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE='1600:./qa-artifacts/wake.bmp' \
 ```
 
 The screenshot contains the SDL renderer output at the host's actual drawable
-resolution, including Retina/HiDPI scaling. BMP is used because it is supported
-directly by SDL2 and adds no image-encoding dependency to the simulator.
+resolution, including Retina/HiDPI scaling. BMP is used because `SDL_SaveBMP` is
+built in and adds no image-encoding dependency to the simulator — so a capture is
+a BMP whatever you name the file, and anything that sniffs by content will refuse
+a `.png` that is really a BMP. Convert with
+`sips -s format png shot.bmp --out shot.png`.
+
+> [!IMPORTANT]
+> Read [docs/headless-qa.md](docs/headless-qa.md) before writing a screenshot
+> script. Four of its five points cost a wrong diagnosis first — the worst being
+> that **lists navigate on the FRONT pair**, so scripting `DOWN` at a menu does
+> nothing (correctly: the side buttons page by a screenful, and a one-screen menu
+> has no next screenful). Script `RIGHT`. It also records that Home starts on a
+> book cover rather than a menu row, that presses need ~900 ms between them or
+> half are swallowed, and that launch resumes the last book so the starting
+> screen is not fixed.
+
+### Forcing state the host does not have
+
+The desktop has no radio, no gauge and no panic handler, so several firmware
+branches are unreachable without help. **Every one of these is opt-in and leaves
+the historical answer in place when unset**, so an existing script or screenshot
+run is never changed by their presence.
+
+| Variable | Forces |
+|---|---|
+| `CROSSPOINT_SIM_HEAP=380000` | a heap budget that counts down as the firmware allocates |
+| `CROSSPOINT_SIM_HEAP_FREE=40000` | a pinned free-heap figure (wins over the budget) |
+| `CROSSPOINT_SIM_BATTERY=<0-100>` | battery percentage; unset reports 100 |
+| `CROSSPOINT_SIM_USB=0` | USB unplugged; unset reports always-connected |
+| `CROSSPOINT_SIM_ASYNC_REFRESH=1` | the panel advertises async refresh, so the reader's overlapped page turn runs |
+| `CROSSPOINT_SIM_PANIC=<reason>` | this boot is the boot after a panic — enters `CrashActivity` and writes `/crash_report.txt` |
+| `CROSSPOINT_SIM_OTA_PARTITION=1` | a real next-update partition exists, so SD firmware update gets past "Invalid firmware" |
+| `CROSSPOINT_SIM_OTA=none\|available\|error` | what the OTA release check reports |
+| `CROSSPOINT_SIM_OTA_VERSION=<string>` | the version that check names |
+| `CROSSPOINT_SIM_OTA_INSTALL=error\|ok\|cancel` | how an OTA install ends |
+| `CROSSPOINT_SIM_WIFI_NETWORKS`, `_CONNECT`, `_AP` | the Wi-Fi scan results and connection outcome |
+| `CROSSPOINT_SIM_HOST_KEYBOARD=1` | a host software keyboard is up — the editors drop their own panel and give the rows to text |
+| `CROSSPOINT_SIM_DARK=1` | panel polarity (but `SETTINGS.darkMode` wins during `setup()` on the desktop) |
+| `CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK}` | the page's two tones, as hex |
+| `CROSSPOINT_SIM_SD=<path>` | where the simulated SD card lives; unset uses `./fs_` |
+| `CROSSPOINT_SIM_FIRMWARE_RESTART=1` | `ESP.restart()` really re-execs, instead of doing nothing |
+
+The panic latch is deliberately **one-shot**: it consumes its own variable on the
+first read, so the reboot out of the crash screen lands somewhere else — exactly
+as the boot after a real panic does on hardware. Without that, the crash screen
+would have no exit.
+
+`CROSSPOINT_SIM_PANIC` also demonstrates the intent of the whole group. Before
+it existed, `isRebootFromPanic()` returned `false` unconditionally, so
+`CrashActivity` compiled into every build and could not be entered by any means
+— the simulator was not failing to test that screen, it was reporting the screen
+as covered. The rest of the table has the same shape.
+
+## Running the tests
+
+Twenty-two host tests build and run in one command, and it exits non-zero on the
+first failure:
+
+```bash
+tests/run_all.sh            # everything
+tests/run_all.sh -k palette # only tests whose name matches
+```
+
+They cover input routing, text entry, the panel and pad palettes, sleep, the
+network shims, restart semantics, task lifetime, read-aloud, SHA-256, the
+device-truth flags above, and the build-identity guard. Run them when touching
+any of those.
+
+Three shell tests are **not** in the runner, because each needs a firmware
+checkout and uses exit code 2 to mean SKIP, which a pass/fail runner would
+misreport as a failure:
+
+```bash
+tests/test_sleep_wake.sh <firmware-checkout>          # deep-sleep wake edge latch
+tests/test_text_entry.sh <firmware-checkout>          # host keyboard into a firmware field
+tests/test_read_aloud_capture.sh <firmware-checkout>  # page capture + a scripted page turn
+```
+
+## The color dials
+
+Three host-side settings decide what the page and the pad look like. **None of
+this reaches device firmware**, which has no Settings app to expose it.
+
+| Dial | Lives in | Documented in |
+|---|---|---|
+| Page palette — 15 named presets plus Custom | [src/PanelPalette.h](src/PanelPalette.h) | [ios/README.md](ios/README.md), [docs/crt-phosphor-presets.md](docs/crt-phosphor-presets.md) |
+| Button pad outline and fill | [ios/PadPalette.h](ios/PadPalette.h) | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
+| Render scale 1x / 2x / 3x | firmware `RenderScale.h`, latched in `simulator_main.cpp` | [docs/ios-render-scale.md](docs/ios-render-scale.md) |
+
+On the desktop the page palette is set with the `CROSSPOINT_SIM_PANEL_*`
+variables above; on iOS it is a picker in Settings.app. Both polarities default
+to what this repo always hardcoded, so a build that never sets one is
+pixel-identical to before the dial existed.
 
 ## Mac App Store packaging
 
@@ -237,7 +375,7 @@ NSCameraUsageDescription key with a user-facing purpose string
 
 The simulator only calls `SDL_Init(SDL_INIT_VIDEO)`; it never opens a camera or
 a Bluetooth device. The rejection comes from Apple's static scan of the linked
-SDL2 library, which references those APIs for camera and game-controller
+SDL library, which references those APIs for camera and game-controller
 support. As Apple's own notice puts it, "While your app might not use these
 APIs, a purpose string is still required."
 
@@ -405,9 +543,20 @@ custom_simulator_http_port = 18080
 
 Direct binary launches use the environment variable form.
 
-**Firmware updates**: OTA and SD-card firmware flashing are non-destructive in
-the simulator. The simulator stubs those update paths so the UI can be opened
-without flashing firmware or changing boot partitions.
+**Firmware updates**: nothing here ever writes flash or moves a boot pointer —
+`esp_partition_write()`, `esp_partition_erase_range()` and `ota_boot::switchTo()`
+all fail honestly, which is a failure mode the firmware already handles and
+reports. What *is* now reachable, opt-in, is everything up to the first byte
+written: `CROSSPOINT_SIM_OTA_PARTITION=1` gives the firmware a real next-update
+partition (geometry read off the firmware's own `partitions.csv`), so the SD
+firmware update screen gets past "Invalid firmware" into its size and image
+checks, and `CROSSPOINT_SIM_OTA=available` drives the release-check flow.
+
+The image validator itself is still stubbed, and that is a firmware build
+decision rather than a simulator one — `platformio.ini` drops
+`network/FirmwareFlasher.cpp` from the `simulator` env, so
+`validateImageFile()` returns `UNSUPPORTED_IN_SIMULATOR` even though it only
+reads a file and does arithmetic. Tracked as **S-014** in [BUGS.md](BUGS.md).
 
 **Image previews**: The default simulator shims decode JPEG and PNG files on the
 host and render a rough grayscale preview through the firmware's normal image

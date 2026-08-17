@@ -38,9 +38,64 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-001] The simulator reports the opposite of the device in six places
-**severity: medium · scope: fidelity · found 2026-08-07** · HEAP HALF FIXED 2026-08-08
+### [S-014] The image validator and the flasher are excluded from the simulator build
+**severity: medium · scope: fidelity · found 2026-08-16**
 
+Found while closing S-001's partition half, by driving the SD firmware update
+screen to the end. With a partition now available the firmware gets as far as
+`firmware_flash::validateImageFile()` and hits this:
+
+```
+[FW] Selected: /20260807T0857Z-crosspoint-f1459353.bin
+[FLASH] [SIM] Firmware image validation is disabled in the native simulator
+[FW] image validation failed: UNSUPPORTED_IN_SIMULATOR
+```
+
+The stub is [src/simulator_firmware.cpp:15](src/simulator_firmware.cpp), and it
+is there because the firmware's own `platformio.ini` drops the real file from
+the `simulator` env:
+
+```ini
+build_src_filter =
+  -<network/FirmwareFlasher.cpp>    ; "Firmware-update code remains
+  -<network/OtaBootSwitch.cpp>      ;  non-destructive in the simulator."
+  -<network/OtaUpdater.cpp>
+```
+
+**The exclusion is right for two of those three and wrong for the validator.**
+`flashFromSdPath()` and `switchTo()` write flash and move the boot pointer —
+nothing a host should imitate. But `validateImageFile()` writes nothing at all:
+it opens a file, checks the 0xE9 magic, walks the segment table, folds the XOR
+checksum and compares a SHA-256 trailer. That is pure computation over a file on
+the simulated card, it is the code most worth running before shipping a
+firmware image, and it has never executed here once.
+
+**Verified, not assumed:** `validateImageFile` is `src/network/FirmwareFlasher.cpp:107`
+and its only side effect is `Storage.openFileForRead` + reads. The mbedtls
+SHA-256 it needs is now real (see below); `SPI_FLASH_SEC_SIZE` is already
+shimmed at [src/spi_flash_mmap.h](src/spi_flash_mmap.h).
+
+**Close by:** splitting the validator out of `FirmwareFlasher.cpp` so the
+simulator can compile it without the flash writer, or narrowing the src_filter
+and letting the write side fail through the existing `esp_partition_write()`
+`ESP_FAIL`. Either is a FIRMWARE change, and editing `platformio.ini` wipes
+every build directory, so it wants its own pass rather than a rider on this one.
+
+**Related and already fixed here:** the mbedtls SHA-256 shim
+([src/mbedtls/sha256.h](src/mbedtls/sha256.h)) was a fake — `digest[i % 32] ^=
+input[i]`, returning success. Every SHA-256 computed in this simulator was
+silently wrong. It now uses CommonCrypto on macOS and OpenSSL on Linux, with
+`tests/sha256_test.cpp` pinning it to the published FIPS-180-4 vectors. It had
+no live caller (the only one is the excluded file above), so nothing was
+observably broken by it — but the validator could never have passed its SHA
+check, and that would have been the next wrong diagnosis.
+
+---
+
+## FIXED
+
+### [S-001] The simulator reports the opposite of the device in six places
+**severity: medium · scope: fidelity · found 2026-08-07** · heap + battery FIXED 2026-08-08 · **remaining four FIXED 2026-08-16**
 
 Not crashes — false confidence. Each makes a firmware path look exercised when
 it never ran, and the simulator is the project's only pre-device gate.
@@ -48,21 +103,55 @@ it never ran, and the simulator is the project's only pre-device gate.
 | Reports | Device | What it hides |
 |---|---|---|
 | ~~1 MB free heap~~ **FIXED 2026-08-08** (`CROSSPOINT_SIM_HEAP`, `CROSSPOINT_SIM_HEAP_FREE`) (`src/Arduino.h:41,51`) | ~380 KB, no PSRAM | every graceful-degradation gate: indexing pause, glyph prewarm, SD font streaming fallback, image/CSS/JPEG bailouts |
-| `supportsAsyncRefresh()` false (`src/HalDisplay.cpp:603`) | supported | the overlapped page turn has never executed in a simulator run |
-| no panic ever (`src/HalSystem.cpp:5-8`) | 225 lines of panic handling | `CrashActivity` compiles in and cannot be entered |
+| ~~`supportsAsyncRefresh()` false~~ **FIXED 2026-08-16** (`CROSSPOINT_SIM_ASYNC_REFRESH=1`) | supported | was: the overlapped page turn had never executed in a simulator run |
+| ~~no panic ever~~ **FIXED 2026-08-16** (`CROSSPOINT_SIM_PANIC=<reason>`) | 225 lines of panic handling | was: `CrashActivity` compiled in and could not be entered |
 | ~~battery 100%, USB always connected~~ **FIXED 2026-08-08** — `CROSSPOINT_SIM_BATTERY=<0-100>`, `CROSSPOINT_SIM_USB=0`; default unchanged. Verified: at 7% unplugged the charging bolt is gone and the battery draws empty | real gauge + GPIO | was: charging bolt always drawn, plug/unplug repaint never fires |
-| `esp_ota_get_next_update_partition()` null (`src/esp_ota_ops.h:6-8`) | valid | SD firmware update shows "Invalid firmware" before reading a byte |
-| OTA pinned to NO_UPDATE (`src/simulator_ota.cpp:19-22`) | real check | the whole available→download→install flow is unreachable |
+| ~~`esp_ota_get_next_update_partition()` null~~ **FIXED 2026-08-16** (`CROSSPOINT_SIM_OTA_PARTITION=1`) | valid | was: SD firmware update showed "Invalid firmware" before reading a byte |
+| ~~OTA pinned to NO_UPDATE~~ **FIXED 2026-08-16** (`CROSSPOINT_SIM_OTA=available\|error`) | real check | was: the available→download→install flow was unreachable — but see the caller note below |
 
-The heap constant is the worst of them: heap-constrained degradation is the code
-most worth simulating and the code the simulator can least reach.
+**All four remaining reversals now answer honestly, opt-in.** The definitions
+live in [src/SimulatorDeviceTruth.h](src/SimulatorDeviceTruth.h), pure and
+host-tested by `tests/device_truth_test.cpp`, and every default is byte-for-byte
+what this simulator always reported — so no existing headless script or
+screenshot run changes behaviour. That is the same shape the heap budget took,
+and for the same reason: turning device-truth on is a thing a test asks for.
 
-**Close by:** scoping this as its own piece of work — it is a project, not a
-cleanup. A budgeted fake heap would reach most of the dead branches.
+**Proof each one now runs, rather than merely compiles:**
+
+- **Overlapped page turn.** A/B on the same script: `CROSSPOINT_SIM_ASYNC_REFRESH=1`
+  logs `Page render (tiled async)` twice, the identical run without it logs it
+  zero times. First execution of `EpubReaderActivity.cpp:1593`'s branch in this
+  simulator's history. The `!inverted` term mirrors the device rather than being
+  invented: `FreeInkDisplay::supportsAsyncRefresh()` is
+  `!_inverted && !_inversionDirty && _driver->supportsAsyncDisplay()`, and both
+  X3 drivers (Uc8253X3, Ssd1677) answer true — so on hardware the capability
+  comes and goes with dark mode, and now it does here too.
+- **CrashActivity.** `CROSSPOINT_SIM_PANIC='Guru Meditation Error (LoadProhibited)'`
+  produces `[ACT] Entering activity: Crash`, `Previous boot panicked: …` and a
+  582-byte `/crash_report.txt` on the card. The control run with no env var
+  enters it zero times. The latch is ONE-SHOT by construction — it `unsetenv`s
+  on first read, so the desktop `execvp` reboot's child boots clean, exactly as
+  the boot after a real panic does. Without that the crash screen would have no
+  exit.
+- **Next-update partition.** A/B through the real screen (Home → Settings → SD
+  firmware update → file browser → pick the .bin). Off: `no next-update
+  partition available`. On: the firmware gets past it into the real size check.
+  **The first version of this shim invented the slot geometry and was caught by
+  that very run** — a guessed 0x1F0000 rejected a genuine 4,492,880-byte image
+  as "exceeds partition (2031616 bytes)", which is a NEW wrong answer wearing
+  the old one's clothes. The numbers now come off the firmware's own
+  `partitions.csv`: `app1, app, ota_1, 0x650000, 0x640000`.
+- **OTA check.** Answers `available` / `error` / `none` with a version and an
+  install outcome. **But nothing in this fork calls `OtaUpdater`** — grepped
+  2026-08-16 across `src/`, `lib/` and `freeink-sdk/`, the only references are
+  its own header and .cpp. So this row was unreachable for a second reason it
+  never stated: there is no caller. The one firmware-update path a person can
+  actually open is `SdFirmwareUpdateActivity`, which is the partition row above.
+
+**Where the SD update path stops now:** at `validateImageFile()`, which is a
+different stub and a different bug — filed as **S-014**.
 
 ---
-
-## FIXED
 
 ### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
 **severity: medium · scope: tests / firmware drift · found 2026-08-08** · FIXED 2026-08-08
