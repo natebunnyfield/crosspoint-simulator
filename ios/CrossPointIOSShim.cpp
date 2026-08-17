@@ -236,6 +236,10 @@ constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe a
 // still has a corner radius, so a capsule placed at x=0 is clipped by it. 16 pt
 // on the same 8 pt grid the rest of this layout uses.
 constexpr float kPadEdgeMin = 16.0f;
+// How long the page-colour button has to be held to mean "previous colour"
+// rather than "next colour". Long enough not to fire on a slow tap, short
+// enough to feel deliberate.
+constexpr Uint64 kPaletteHoldMs = 500;
 
 // iPad (family 2) — owner-approved spec 2026-08-03 (ios/README.md, "iPad
 // (family 2)"), implemented 2026-08-04. The tablet's spare dimension is WIDTH,
@@ -1033,18 +1037,25 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
-// Advance to the next page colour, in the order the Page Colors setting lists
-// them (panelpalette::kPresetInfo, which IS that order -- Root.plist's row
-// order and this table are the same sequence, and the enum's numeric order is
-// deliberately not either of them).
+// Step the page colour along the list the Page Colors setting shows
+// (panelpalette::kPresetInfo, which IS that order). step +1 is the next colour,
+// -1 the previous.
 //
-// CUSTOM IS NOT IN THE CYCLE. It has no tones of its own until its four hex
-// fields are filled, so resolve() answers it with Default -- a stop on the ring
-// that looks identical to another stop and reads as the button having failed.
-// It stays selectable in Settings. Starting from Custom, the first press lands
-// on the first preset in the list.
-void cycleToNextPalette() {
-  const int current = CrossPointPrefs_panelPalettePreset();
+// ONE function for both directions on purpose: forward and back have to agree
+// about the ring, and two copies of the wrap arithmetic is how they stop
+// agreeing.
+//
+// CUSTOM IS NOT ON THE RING. It has no tones of its own until its four hex
+// fields are filled, so resolve() answers it with Default -- a stop that looks
+// identical to another stop and reads as the button having failed. It stays
+// selectable in Settings. From Custom, or from any stored integer that is not on
+// the ring, forward lands on the first colour and back on the last.
+//
+// The stored value is migrated FIRST: an install still holding Soft (13) or Cool
+// Gray (4) is sitting on Reading Warm or Reading Cool, and stepping from it has
+// to start from where the page actually is, not restart the ring.
+void cyclePalette(int step) {
+  const int current = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
   int at = -1;
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     if (panelpalette::kPresetInfo[i].preset == current) {
@@ -1052,11 +1063,12 @@ void cycleToNextPalette() {
       break;
     }
   }
-  // -1 covers Custom and any unknown integer: both start the ring at the top.
-  const int next = (at + 1) % panelpalette::kPresetInfoCount;
+  const int n = panelpalette::kPresetInfoCount;
+  const int next = at < 0 ? (step > 0 ? 0 : n - 1) : ((at + step) % n + n) % n;
   const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[next];
   CrossPointPrefs_setPanelPalettePreset(info.preset);
-  SDL_Log("[palette] %s . %s (%s)", info.family, info.name, info.note);
+  SDL_Log("[palette] %s %s . %s (%s)", step > 0 ? "->" : "<-", info.family,
+          info.name, info.note);
   // No apply call: pollPanelPalette() compares the resolved pair every frame and
   // repaints the page, the pad and both keyboard chips. Writing the key IS
   // applying it. The present is asked for so an e-ink firmware that may not
@@ -1342,6 +1354,10 @@ int padHitTest(float x, float y) {
 // design, and PadCore itself stays untouched.
 long long g_tapFingerId = -1;
 float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
+// When that finger went down, for the page-colour button's long press. The pad
+// itself still needs no timers -- this clock is read at finger-UP, by one
+// control, and PadCore stays untouched.
+Uint64 g_tapDownAt = 0;
 
 // Finger coordinates arrive normalized; the pad needs pixels, and the harness
 // does not own the renderer, so it asks the window the event came from.
@@ -1370,6 +1386,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_tapFingerId = e->tfinger.fingerID;
         g_tapDownX = fx;
         g_tapDownY = fy;
+        g_tapDownAt = SDL_GetTicks();
       }
       applyActions(g_core.fingerDown(hit >= 0 ? hit : PadCore::kNoSlot,
                                      e->tfinger.fingerID));
@@ -1422,7 +1439,18 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
           if (hitPaletteChip(g_tapDownX, g_tapDownY)) {
-            cycleToNextPalette();
+            // Tap steps the ring; hold goes back to Default. Logged with the
+            // measured duration, because a hold that silently reads as a tap is
+            // indistinguishable from the gesture not existing.
+            // Tap goes forward, hold goes BACK -- an undo for a colour you
+            // stepped past. Logged with the measured duration, because a hold
+            // that silently reads as a tap is indistinguishable from the
+            // gesture not existing.
+            const Uint64 heldMs = SDL_GetTicks() - g_tapDownAt;
+            SDL_Log("[palette] %s (%llu ms)",
+                    heldMs >= kPaletteHoldMs ? "held" : "tapped",
+                    static_cast<unsigned long long>(heldMs));
+            cyclePalette(heldMs >= kPaletteHoldMs ? -1 : +1);
           } else if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
