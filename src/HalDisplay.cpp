@@ -7,6 +7,7 @@
 
 #include "GrayscalePreview.h"
 #include "PanelPalette.h"
+#include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 
 #include <array>
@@ -796,7 +797,25 @@ void HalDisplay::displayBufferAsync(RefreshMode mode) {
 
 void HalDisplay::waitRefreshComplete() {}
 
-bool HalDisplay::supportsAsyncRefresh() const { return false; }
+// S-001: the device supports the overlapped page turn and this said it did not,
+// so EpubReaderActivity.cpp:1593's `overlapRefresh` branch has never executed in
+// a simulator run. Opt-in rather than flipped outright, because the presentation
+// here genuinely is synchronous -- displayBufferAsync() above converts on the
+// calling thread -- so this advertises a CAPABILITY the firmware can then
+// exercise, not an overlap this HAL actually performs. What it buys is that the
+// branch runs at all; what it cannot show is a timing win that does not exist
+// off-device.
+//
+// The `!inverted` term mirrors the device rather than being invented here:
+// FreeInkDisplay::supportsAsyncRefresh() (freeink-sdk .../FreeInkDisplay.cpp:557)
+// is `!_inverted && !_inversionDirty && _driver->supportsAsyncDisplay()`, and
+// the X3's drivers (Uc8253X3, Ssd1677) both answer true -- so on hardware the
+// capability comes and goes with dark mode. Without this term a test would see
+// the overlapped path stay available through an inversion flip, which is the
+// one thing the device is guaranteed not to do.
+bool HalDisplay::supportsAsyncRefresh() const {
+  return simtruth::asyncRefreshEnabled() && !inverted.load();
+}
 
 void HalDisplay::displayWindow(int, int, int, int) {
   refreshDisplay(RefreshMode::FAST_REFRESH, false);

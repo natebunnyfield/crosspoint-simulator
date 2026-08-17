@@ -8,9 +8,11 @@
 using esp_partition_type_t = uint8_t;
 using esp_partition_subtype_t = uint8_t;
 
+#define ESP_PARTITION_TYPE_APP 0x00
 #define ESP_PARTITION_TYPE_DATA 0x01
 #define ESP_PARTITION_SUBTYPE_DATA_OTA 0x00
 #define ESP_PARTITION_SUBTYPE_APP_OTA_0 0x10
+#define ESP_PARTITION_SUBTYPE_APP_OTA_1 0x11
 
 struct esp_partition_t {
   esp_partition_type_t type = 0;
