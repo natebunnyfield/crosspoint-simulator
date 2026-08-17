@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : d3b78428d97d6ef4d4126990195fba6fba9ae1e6
-# TU counts  : 129 firmware, 23 simulator (6 C, 146 C++)
+# pinned at  : f05b8594d1fda15bbbc9a128382400182aed84af
+# TU counts  : 130 firmware, 23 simulator (6 C, 147 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "d3b78428d97d6ef4d4126990195fba6fba9ae1e6")
+set(CROSSPOINT_FIRMWARE_PIN "f05b8594d1fda15bbbc9a128382400182aed84af")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -155,6 +155,7 @@ set(CROSSPOINT_FW_SOURCES
   src/components/themes/lyra/LyraTheme.cpp
   src/main.cpp
   src/network/CrossPointWebServer.cpp
+  src/network/FirmwareImageValidator.cpp
   src/network/HttpDownloader.cpp
   src/network/WebDAVHandler.cpp
   src/network/WifiDiagnostics.cpp

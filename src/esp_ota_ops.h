@@ -42,3 +42,16 @@ inline const esp_partition_t *esp_ota_get_next_update_partition(const esp_partit
 inline esp_err_t esp_ota_mark_app_valid_cancel_rollback() {
   return ESP_OK;
 }
+
+// The slot the running image booted from. `runningPartitionChipId()` reads
+// chip_id out of it to reject an image built for a different MCU family, and
+// nothing else calls it.
+//
+// Returning null is the honest answer here and it is also the SAFE one: the
+// caller's `esp_partition_read()` would fail anyway (this HAL has no flash to
+// read), it caches 0xFFFF, and validateImageFile() explicitly skips the chip
+// check on 0xFFFF. So a host validates everything about an image EXCEPT which
+// MCU it targets — which is the one property a host genuinely cannot know.
+inline const esp_partition_t *esp_ota_get_running_partition() {
+  return nullptr;
+}
