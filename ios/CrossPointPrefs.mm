@@ -45,6 +45,7 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // having seeded 3 from Root.plist, exactly like readAloudRatePercent above.
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
+static NSString *const kPanelGlow = @"panelGlow";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -292,6 +293,12 @@ int CrossPointPrefs_panelPalettePreset(void) {
   // in two files, is how the two answers drift.
   return static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kPanelPalettePreset]);
+}
+
+int CrossPointPrefs_panelGlow(void) {
+  ensureDefaults();
+  checkKnown(kPanelGlow);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kPanelGlow] ? 1 : 0;
 }
 
 void CrossPointPrefs_setPanelPalettePreset(int preset) {

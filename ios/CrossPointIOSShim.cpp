@@ -944,6 +944,57 @@ void pollPadContrast() {
 // nothing and correctly repaints nothing.
 //
 // Main thread only, pumps no SDL events, holds no timer.
+// THE GLOW'S SPEED IS THE PHOSPHOR'S OWN, SCALED.
+//
+// panelpalette::PresetInfo carries each row's published persistence -- time to
+// decay to 10% of peak, from the source cited there. Those figures are 2-33 ms,
+// which is one to two frames: taken literally the trail would be gone before
+// the next present and the effect would not exist. So the published numbers set
+// the RATIO between phosphors and this multiplier makes the family visible.
+// P11 stays 16x faster than P4 either way, which is the part that is real.
+//
+// 20x puts P11 at 40 ms (a blink) and P4 at 660 ms (a lingering smear), with P1
+// at 400 ms in between. crds's lissajousPersistence is the shape of this knob,
+// not its value -- a canvas fading per frame and a page fading per transition
+// are not the same units.
+constexpr float kGlowScale = 20.0f;
+// What a row gets when its source publishes a CLASS ("Medium") instead of a
+// figure. P1's 20 ms is the archetype of that class, so a Medium row decays like
+// the green one rather than like an invented number.
+constexpr float kGlowMediumMs = 20.0f;
+
+void pollPanelGlow() {
+  static int s_appliedPreset = -1;
+  static int s_appliedOn = -1;
+  const int preset = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
+  const int on = CrossPointPrefs_panelGlow();
+  if (preset == s_appliedPreset && on == s_appliedOn) return;
+  s_appliedPreset = preset;
+  s_appliedOn = on;
+
+  float trail = 0.0f;
+  const char *why = on ? "no phosphor on this palette" : "switched off";
+  if (on) {
+    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+      const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
+      if (info.preset != preset) continue;
+      // Only a phosphor decays. A page of e-ink does not, and neither does a
+      // paper palette that never claimed to be a screen.
+      if (!info.phosphor) break;
+      trail = (info.decayMs > 0.0f ? info.decayMs : kGlowMediumMs) * kGlowScale;
+      why = info.persistence ? info.persistence : "class only, using P1's 20ms";
+      break;
+    }
+  }
+  // Logged on EVERY change, including to zero. The first version logged only
+  // when it found a phosphor, so "the glow did nothing" and "the glow was never
+  // asked for" looked identical from the outside -- which is exactly the state
+  // this was stuck in while being debugged.
+  SDL_Log("[glow] preset %d, switch %s -> %.0f ms trail (%s)", preset,
+          on ? "on" : "off", trail, why);
+  SimulatorOverlay::setPanelGlow(trail);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -1606,6 +1657,7 @@ void CrossPointHarness_perFrame() {
   // Before the pad: the pad is built on the panel's paper, so a palette change
   // must land first or the pad spends one frame on the previous field.
   pollPanelPalette();
+  pollPanelGlow();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

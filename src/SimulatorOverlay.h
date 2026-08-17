@@ -120,4 +120,28 @@ void setPanelDark(bool dark);
 void setPanelPalette(bool dark, const unsigned char ink[3],
                      const unsigned char paper[3]);
 
+// PHOSPHOR GLOW: how long the previous frame lingers, in milliseconds. 0 is off,
+// and off is the default and the entire desktop behaviour.
+//
+// A CRT does not switch pictures, it decays into them: the beam repaints and
+// what was there fades at a rate that is a property of the phosphor. With this
+// set, presentIfNeeded keeps the previous panel image and fades it out over
+// `trailMs` on TOP of the new one, so every transition the panel makes -- page
+// turn, menu move, selection -- ghosts instead of cutting.
+//
+// The HAL is deliberately told a DURATION and not a preset. Which phosphor is
+// selected, whether the owner turned the effect on, and how the published decay
+// figures are scaled are all host questions; this layer only knows how long to
+// hold a ghost. Same division as setPanelPalette, which is handed tones rather
+// than a preset number.
+//
+// The published figures are 2-33 ms (see panelpalette::PresetInfo), which is one
+// to two frames and invisible -- so a host is expected to scale them. It is the
+// RATIO between phosphors that is real; the multiplier is a taste decision and
+// belongs where taste lives, not here.
+//
+// CROSSPOINT_SIM_PANEL_GLOW_MS overrides the argument, for a desktop or headless
+// run that has no Settings app to reach the control.
+void setPanelGlow(float trailMs);
+
 } // namespace SimulatorOverlay

@@ -131,6 +131,16 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>panelGlow</string>
+			<key>Title</key>
+			<string>Phosphor Glow</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
 			<key>FooterText</key>
 			<string>Used only when Palette is Custom. Six hex digits, as on the web: 2D2D2D, #2D2D2D and 0x2D2D2D are all accepted. A field left empty, or holding anything else, falls back to the Default color for that slot — so one typo costs you one color, not the page.
 
