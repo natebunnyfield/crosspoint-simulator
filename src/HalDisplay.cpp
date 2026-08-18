@@ -1389,7 +1389,12 @@ void HalDisplay::presentIfNeeded() {
       // Still emitting? A deposit is spent once it has decayed below one 8-bit
       // step, which is 10^-2.4 trails. Past that the accumulator is black and
       // asking for more frames would be a permanent render loop.
-      accumLive = accumLastAddMs != 0 &&
+      // AND ONLY ON A GROUND THAT SHOWS IT. A pale page draws no trail at all
+      // (see the draw below), so keeping the accumulator "live" there bought
+      // ~30 presents per redraw -- a full clear, a 15 MB texture upload and a
+      // render-target pass each, for a picture identical to the last one.
+      // Measured by the audit; it is pure waste and it is also battery.
+      accumLive = panelIsDarkGround() && accumLastAddMs != 0 &&
                   static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
     }
   } else if (accumTexture) {
@@ -1788,8 +1793,38 @@ void HalDisplay::presentIfNeeded() {
     if (!darkGround) {
       accumLive = false;
     } else {
-      SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
-      SDL_SetTextureAlphaMod(accumTexture, 255);
+      // MAXIMUM, NOT ADD -- and this is the difference between a trail and a
+      // flash.
+      //
+      // Measured on screen: with ADD, the frame at a page turn is the
+      // arithmetic SUM of the old page and the new one. 99.77% of the page is
+      // brighter than either, and |frame - (old+new)| averages 0.11 of a level.
+      // Mean page luminance jumped 38.6 -> 71.8, +86%, decaying over a second.
+      // That is the flash the owner reported, and it survived the double-draw
+      // fix because ADD was doing it honestly all along.
+      //
+      // The physics were wrong, not the arithmetic. A pixel lit in BOTH frames
+      // is one phosphor being re-excited, not two emitters stacked -- it cannot
+      // exceed full emission. Summing says otherwise and doubles the page.
+      // Taking the MAXIMUM is the saturating model: a pixel the new page lights
+      // stays exactly as bright as the new page draws it, and a pixel only the
+      // OLD page lit still shows, decaying, which is the whole point of the
+      // trail.
+      //
+      // SDL_BLENDOPERATION_MAXIMUM ignores the blend factors, so the accumulator
+      // is composited unscaled. If a renderer cannot compose it (the call
+      // fails), fall back to ADD at reduced strength rather than to nothing:
+      // half a trail beats a flash.
+      static SDL_BlendMode maxBlend = SDL_ComposeCustomBlendMode(
+          SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
+          SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+      if (maxBlend == SDL_BLENDMODE_INVALID ||
+          !SDL_SetTextureBlendMode(accumTexture, maxBlend)) {
+        SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
+        SDL_SetTextureAlphaMod(accumTexture, 96);
+      } else {
+        SDL_SetTextureAlphaMod(accumTexture, 255);
+      }
     }
 
     // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
@@ -1817,6 +1852,11 @@ void HalDisplay::presentIfNeeded() {
     } else {
       SDL_SetTextureColorMod(accumTexture, 255, 255, 255);
     }
+    if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+      if (e[0] == '1')
+        SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,
+                (int)accumLive,
+                (unsigned)(SDL_GetTicks() - accumLastAddMs));
     if (accumLive) drawPanel(accumTexture);
 
     // A fade only animates if something presents while it fades, and the
@@ -1923,6 +1963,24 @@ void HalDisplay::presentIfNeeded() {
                 ++m, (unsigned)t0, w, h, bandMean(0, h),
                 bandMean(py0 < 0 ? 0 : py0, py1 > h ? h : py1),
                 (unsigned)(SDL_GetTicks() - t0));
+        // Optional: write the frames themselves. CROSSPOINT_SIM_SCREEN_DUMP is
+        // a directory; dumping starts at CROSSPOINT_SIM_SCREEN_DUMP_AFTER_MS
+        // and stops after CROSSPOINT_SIM_SCREEN_DUMP_COUNT frames, because a
+        // frame is 13 MB and the question only needs the ones around a change.
+        if (const char *dir = std::getenv("CROSSPOINT_SIM_SCREEN_DUMP")) {
+          static int dumped = 0;
+          const char *afterEnv = std::getenv("CROSSPOINT_SIM_SCREEN_DUMP_AFTER_MS");
+          const char *countEnv = std::getenv("CROSSPOINT_SIM_SCREEN_DUMP_COUNT");
+          const uint64_t after = afterEnv ? std::strtoull(afterEnv, nullptr, 10) : 0;
+          const int cap = countEnv ? std::atoi(countEnv) : 40;
+          if (t0 >= after && dumped < cap) {
+            char path[1024];
+            SDL_snprintf(path, sizeof(path), "%s/screen_%03d_%06u.bmp", dir,
+                         dumped, (unsigned)t0);
+            SDL_SaveBMP(conv, path);
+            dumped++;
+          }
+        }
         SDL_DestroySurface(conv);
       }
       if (shot) SDL_DestroySurface(shot);
