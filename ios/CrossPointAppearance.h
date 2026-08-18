@@ -55,6 +55,22 @@ int CrossPointAppearance_isDark(void);
 // this for the family-2 layout (see ios/README.md, "iPad (family 2)").
 int CrossPointAppearance_isPad(void);
 
+// The display's corner radius in POINTS, or 0 when it cannot be established.
+//
+// There is still no public property that hands back this number --
+// UIScreen._displayCornerRadius remains private and is not in the iOS 26.5 SDK's
+// public headers (see docs/ios-dynamic-island.md for the whole survey). What iOS
+// 26 added is UICornerRadius/UICornerConfiguration: a view can ask for a radius
+// CONCENTRIC with its container and the system resolves it, which for a view
+// filling the window is the display's own radius. This probe builds exactly that
+// view, lays it out, and reads back whatever UIKit resolved -- public API only.
+//
+// Returns 0 rather than a guess when the probe finds nothing, so callers pick
+// their own fallback and a zero is never mistaken for a square-cornered screen
+// that was actually measured. MAIN THREAD ONLY, like everything else here; the
+// answer is cached after the first successful probe.
+double CrossPointAppearance_displayCornerRadius(void);
+
 #ifdef __cplusplus
 }
 #endif

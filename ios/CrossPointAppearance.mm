@@ -70,6 +70,48 @@ int CrossPointAppearance_isPad(void) {
              : 0;
 }
 
+// THE RADIUS IS ASKED FOR, NOT LOOKED UP.
+//
+// Every published way to get this number before iOS 26 was the private
+// UIScreen._displayCornerRadius or a hardcoded per-model table, and both are
+// still what the popular packages do. iOS 26's UICornerRadius adds a supported
+// third road: containerConcentricRadius is resolved by UIKit against the view's
+// container, so a view the exact size of the window resolves to the window's
+// own corners, which are the display's. The number is never handed over
+// directly -- it is applied -- so the probe reads it back off the layer UIKit
+// configured.
+//
+// The probe view is never drawn: it is hidden, non-interactive, added only long
+// enough for one layout pass, and removed. Cached because the display's radius
+// cannot change for the life of the process, and because a failed probe would
+// otherwise repeat the whole dance on every frame.
+double CrossPointAppearance_displayCornerRadius(void) {
+  static double cached = -1.0;
+  if (cached >= 0.0) return cached;
+  @autoreleasepool {
+    UIWindow *window = resolveWindow();
+    if (!window) return 0.0;  // no window yet: do not cache, ask again later
+    double radius = 0.0;
+    if (@available(iOS 26.0, *)) {
+      UIView *probe = [[UIView alloc] initWithFrame:window.bounds];
+      probe.hidden = YES;
+      probe.userInteractionEnabled = NO;
+      probe.cornerConfiguration = [UICornerConfiguration
+          configurationWithUniformRadius:[UICornerRadius
+                                             containerConcentricRadius]];
+      [window addSubview:probe];
+      [probe layoutIfNeeded];
+      [window layoutIfNeeded];
+      radius = probe.layer.cornerRadius;
+      [probe removeFromSuperview];
+    }
+    cached = radius;
+    NSLog(@"[corner] display corner radius probe: %.2f pt (window %.0fx%.0f)",
+          radius, window.bounds.size.width, window.bounds.size.height);
+    return cached;
+  }
+}
+
 int CrossPointAppearance_isDark(void) {
   // Property getters can hand back autoreleased objects. main()'s loop is not a
   // UIKit callback, so there is no pool being drained around it -- at ~1 kHz an

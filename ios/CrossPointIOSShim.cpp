@@ -146,6 +146,10 @@ bool g_padLaidOut = false;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
+// Height of the black band above the page, in device pixels; 0 = no band.
+// Written by layoutPad (phone path only), read by paintTopBezel.
+float g_topBezelPx = 0.0f;
+
 // All finger->button decisions. The SDL adapter below owns NO button state:
 // PadCore decides, applyActions() injects. Unit-tested in
 // tests/pad_core_test.cpp.
@@ -645,13 +649,27 @@ void layoutPad(int outW, int outH) {
   // goes from 86.7 pt of headroom to 80.7.
   constexpr float kTopReserve = 80.0f;
   float topInset = 0.0f;
+  float safeTop = 0.0f;
   if (SDL_Window *win = SDL_GetWindowFromID(g_windowId)) {
     SDL_Rect safe{};
     if (SDL_GetWindowSafeArea(win, &safe) && safe.y > 0)
-      topInset = static_cast<float>(safe.y);
+      safeTop = static_cast<float>(safe.y);
   }
-  topInset = SDL_max(topInset, kTopReserve);
+  topInset = SDL_max(safeTop, kTopReserve);
   SimulatorOverlay::setTopInset(static_cast<int>(topInset * S));
+
+  // THE BEZEL BAND: where the page's rounded top corners start, in device
+  // pixels, or 0 for "do not paint one". paintTopBezel reads it; see the
+  // comment on that function for why the band exists at all.
+  //
+  // ONLY ON A DEVICE WITH A CUT-OUT. There is no public API that reports a
+  // notch or a Dynamic Island -- Apple's DTS answer is that none exists and
+  // that none is wanted (docs/ios-dynamic-island.md) -- so the only signal is
+  // the safe area, and a top inset deeper than the classic 20 pt status bar is
+  // the standard read of it. A home-button iPhone reports 20 and gets no band:
+  // it has no hole to hide, and 80 pt of black above the page would be a
+  // change nobody asked for on that hardware.
+  g_topBezelPx = safeTop > 20.0f ? topInset * S : 0.0f;
 }
 
 // --- Appearance ------------------------------------------------------------
@@ -1087,6 +1105,67 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
   }
 }
 
+// THE PAGE'S ROUNDED CORNERS START BELOW THE DYNAMIC ISLAND.
+//
+// The field is cleared edge to edge (HalDisplay's SDL_RenderClear), so on a
+// pale page the Island sat as a black pill in a white field with nothing
+// around it -- a hole punched above the page, which is exactly how the owner
+// described it (2026-08-17: "there's not a distracting hole above the panel").
+//
+// The fix is one band and two fillets: fill from y=0 down to the reserved top
+// inset in BLACK, the tone the Island itself renders, then knock the field's
+// two upper corners out to that same black. The Island then sits in solid
+// ground instead of in a field, and the page's card begins below it with its
+// own rounded corners -- the screen's corners, moved down.
+//
+// PURE BLACK, not the field and not a palette tone. The point is that the
+// Island stops being visible as a separate shape, and the Island is #000000.
+// In dark mode the field is 121212-ish, so the band still reads as a distinct
+// card edge, which is the same thing the owner asked for in the other polarity.
+//
+// THE BAND'S BOTTOM IS THE RESERVED TOP INSET, so it is guaranteed to clear
+// the cut-out without measuring it: the inset is max(safe area top, 80 pt),
+// the safe area top is the system's own promise to clear the Island, and 80 pt
+// is deeper still on every phone measured. No API reports the Island's frame
+// (docs/ios-dynamic-island.md), and this does not need one.
+//
+// THE RADIUS is asked of UIKit -- CrossPointAppearance_displayCornerRadius,
+// which resolves a container-concentric corner against the window and so lands
+// on the display's own radius, public API only. kCornerFallback covers a probe
+// that answers 0: it is the radius of the phones this app is built for, and an
+// approximate corner reads far better here than a square one.
+void paintTopBezel(SDL_Renderer *r, int outW) {
+  const float bandH = SDL_floorf(g_topBezelPx);
+  if (bandH <= 0.0f || outW <= 0) return;
+
+  constexpr float kCornerFallback = 55.0f;  // pt
+  static float s_radiusPx = -1.0f;
+  if (s_radiusPx < 0.0f) {
+    const double pt = CrossPointAppearance_displayCornerRadius();
+    const float use = pt > 0.0 ? static_cast<float>(pt) : kCornerFallback;
+    s_radiusPx = use * g_ptScale;
+    SDL_Log("[bezel] band %.0f px, corner %.1f pt (%s)", bandH, use,
+            pt > 0.0 ? "UIKit concentric" : "fallback");
+  }
+
+  SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+  fillRect(r, 0.0f, 0.0f, static_cast<float>(outW), bandH);
+
+  // The two fillets: the sliver OUTSIDE each top corner arc, filled to the same
+  // black. Same scanline arithmetic as fillRoundRect, inverted -- fillRoundRect
+  // paints the inside of the arc, this paints what it leaves over.
+  const float rad = SDL_min(s_radiusPx, static_cast<float>(outW) / 2.0f);
+  const int rows = static_cast<int>(rad);
+  for (int i = 0; i < rows; i++) {
+    const float y = static_cast<float>(i);
+    const float d = rad - y;
+    const float inset = rad - SDL_sqrtf(SDL_max(0.0f, rad * rad - d * d));
+    if (inset <= 0.0f) continue;
+    fillRect(r, 0.0f, bandH + y, inset, 1.0f);
+    fillRect(r, static_cast<float>(outW) - inset, bandH + y, inset, 1.0f);
+  }
+}
+
 // The software keyboard's toggle.
 //
 // Drawn ONLY while the firmware has a text field open (owner ruling
@@ -1297,6 +1376,11 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     s_layoutPanelBottom = panelBottom;
     s_layoutKeyboardPt = keyboardPt;
   }
+
+  // After the layout block, because layoutPad is what publishes the band's
+  // height, and before the pad, whose controls are all below the page.
+  paintTopBezel(r, outW);
+
   const Palette &p = palette();
   const float S = g_ptScale;
   // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
