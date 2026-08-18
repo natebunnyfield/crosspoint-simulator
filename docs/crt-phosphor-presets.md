@@ -100,6 +100,21 @@ So Red CRT is labeled **P22R phosphor**, which is true, and the header comment
 states plainly that it is a real phosphor rendered as a page rather than a
 machine anyone sat in front of.
 
+### OVERTURNED 2026-08-17: the radar oranges ship, and so does everything else
+
+Owner: *"where is the orange radar? be sure to include all possible phosphors"*,
+and when told they had been ruled near-duplicates: *"i said all possible
+phosphors, you ruled they were near dupes"*. **The rejection below is void.**
+P19, P26, P33 and P38 all ship, along with every other JEDEC P-number this
+repo can honestly render — 42 phosphor rows in total. See §10.
+
+The reasoning that reversed it is the same one recorded at the end of this
+file: colour was the only thing a row had when the rejection was written, and
+persistence is now rendered. Two rows that paint the same page but decay 1095 ms
+and 2828 ms are not the same control.
+
+The original rejection, kept because the emission facts in it are still true:
+
 ### Rejected: the radar oranges
 
 P19, P26, P33, P38 (all fluoride:Mn, very long persistence, the classic PPI
@@ -562,3 +577,87 @@ published figures are 2–33 ms, one to two frames, and invisible. It is the RAT
 between phosphors that is real; the multiplier is taste, and taste lives in the
 host (`kGlowScale` in the iOS shim), not in the HAL — which is handed a duration
 and knows nothing about phosphors at all.
+
+
+---
+
+## 10. The whole registry (2026-08-17)
+
+Owner ruling: **"be sure to include all possible phosphors."** Every JEDEC
+P-number in the source table now has a row, except the exclusions named below.
+
+**42 phosphor rows**, presets 6–55, sorted hue-first and fastest-to-slowest
+inside each hue, cascades then the scotophor last.
+
+### Derived by script, not by hand
+
+`tools/derive_phosphors.py` + `tools/phosphor_table.py` +
+`tools/gen_phosphor_rows.py`. Twelve rows were hand-derived and that was fine at
+twelve; thirty more by hand guarantees they drift from each other — one lifted a
+little further toward white, one rounded differently. One method now applies to
+every new row:
+
+1. published peak wavelength → CIE 1931 xy (Wyman/Sloan/Shirley analytic fits,
+   JCGT 2013, ~1% of peak error)
+2. xy at Y=1 → XYZ → linear sRGB, D65
+3. negatives clipped, desaturated toward white only as far as the gamut requires
+4. **band broadening**: 22% toward white, because a phosphor is a BAND and
+   rendering its peak as a spectral line is more saturated than any real tube
+5. paper tinted 25% toward the phosphor (light) or 1% of it (dark)
+6. ink lifted until the pair clears 10:1
+
+**A measured CIE point always beats a reconstructed one.** The seven rows with a
+published chromaticity keep it, and the white phosphors (P6, P18, P23, P35, P40)
+are taken from the JEDEC white region rather than from a two-peak monochromatic
+mix, which produced obviously wrong tinted "whites".
+
+### Two more cascades
+
+P14 (*"Blue with Orange persistence"*) and P17 (*"Blue-Yellow, Blue-Short
+Yellow-Long"*) join P7. Each has its **own** afterglow constant — sharing P7's
+green would have made all three decay to the same hue and thrown away the only
+thing that distinguishes them. The test now pins that all three tails differ.
+
+### One scotophor
+
+**P10 (KCl) does not emit — it darkens.** A dark-trace tube's beam colours the
+F-centres and the trace goes dark violet on the screen's own pale ground, so it
+is the one CRT row whose LIGHT pair is the authentic one and whose "ink" is not
+a phosphor colour at all. Derived by hand, marked in the table.
+
+### A trail floor of one frame
+
+P46 is published at 70 ns and P24 at 1–10 µs. Compressed honestly those are
+0.7 ms and 6 ms — less than one frame at 60 Hz, i.e. a trail that is drawn zero
+times. `kTrailFloorMs = 16.7` is the smallest lie that keeps "very fast
+phosphor" meaning "one frame of ghost" rather than meaning nothing.
+
+### Rows that paint the same page
+
+The duplicate check was absolute and is now conditional, which is a ruling:
+**two rows may share tones if they decay differently.** It is driven off
+`kPresetInfo` rather than the old hand-written list — which had silently stopped
+covering anything appended after it, and would have let all thirty rows land
+unchecked.
+
+Exactly one pair is identical in both tone AND decay, and it is listed by name
+in the test: **P19 (KF,MgF₂):Mn and P38 (Zn,Mg)F₂:Mn** — both 590 nm, both
+"Orange-Yellow", both "Long". Different chemistry, no published difference in
+emission, so deriving a difference would be inventing one. They ship as twins
+because a catalogue that silently drops the second of an identical pair is not
+the catalogue that was asked for.
+
+P13/P27 (640/635 nm) survive as distinct: identical light page, one byte apart
+in the dark one. The rule is now "identical in BOTH polarities".
+
+### Excluded, and why
+
+| | Reason |
+|---|---|
+| **P29** | "Alternating P2 and P25 stripes" — a striped screen, not a two-tone page. Nothing here can render it honestly. |
+| **P4 (Cd-free)** | A re-formulation of P4, not a separate colour. Same row. |
+| unnumbered entries | The table's trailing "additional phosphor types" have no P-number and no distinct published emission. |
+
+Nothing else in the source table is left out. P16's peak is 380 nm (UV) and is
+rendered at 400 nm, the visible edge of what that tube looks like — noted rather
+than silently fudged.

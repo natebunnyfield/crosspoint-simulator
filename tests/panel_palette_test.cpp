@@ -109,9 +109,10 @@ static void testDefaultsAreTheShippedTones() {
   // same day when Reading Warm (17) and Reading Cool (18) replaced Soft and
   // Cool Gray, then 19 -> 24 the same day again when the five remaining
   // phosphors (19-23) landed, then 24 -> 26 the same day AGAIN when P22B (24)
-  // and the P7 cascade (25) closed the family out. Nine walks, nine catches,
-  // zero shipped collisions; whoever appends the next preset moves it again.
-  const int roads[] = {kPresetDefault, 26, -1, 999};
+  // and the P7 cascade (25) closed the family out -- until the owner asked for
+  // every remaining JEDEC phosphor and 26-55 landed in one go. TENTH walk, and
+  // the biggest: whoever appends the next preset moves it again.
+  const int roads[] = {kPresetDefault, 56, -1, 999};
   for (int preset : roads) {
     const Palette l = resolve(preset, false, kInvalidColor, kInvalidColor);
     const Palette d = resolve(preset, true, kInvalidColor, kInvalidColor);
@@ -299,26 +300,62 @@ static void testPresetsAreLegible() {
     CHECKM(isLowContrastByDesign(kPresetSolarized), "Solarized lost its exemption");
   }
 
-  // Every OFFERED preset, and only those -- a retired number resolves to
-  // Default, so leaving one here reports "identical to Default" and hides what
-  // the check is for.
-  const int all[] = {kPresetDefault,     kPresetHighContrast, kPresetSepia,
-                     kPresetReadingCool, kPresetSolarized,    kPresetGreenCrt,
-                     kPresetAmberCrt,    kPresetNord,         kPresetGruvboxLight,
-                     kPresetLatte,       kPresetRedCrt,       kPresetGrayCrt,
-                     kPresetReadingWarm, kPresetReading,      kPresetBlueCrt,
-                     kPresetGreenLongCrt, kPresetGreenFastCrt, kPresetWhiteCrt,
-                     kPresetBlueFastCrt,  kPresetRedProjCrt,   kPresetBlueTvCrt,
-                     kPresetCascadeCrt};
-  for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++)
-    for (size_t j = i + 1; j < sizeof(all) / sizeof(all[0]); j++)
-      for (int d = 0; d < 2; d++) {
-        const Palette a = presetPalette(all[i], d != 0);
-        const Palette b = presetPalette(all[j], d != 0);
-        CHECKM(pack(a.ink) != pack(b.ink) || pack(a.paper) != pack(b.paper),
-               "presets %d and %d paint identically (dark=%d)", all[i], all[j],
-               d);
+  // TWO ROWS MAY PAINT THE SAME PAGE, IF THEY DECAY DIFFERENTLY.
+  //
+  // This check used to be absolute -- no two presets may render identical tones
+  // -- and it was right when colour was all a row had. The owner overturned it
+  // on 2026-08-17 ("be sure to include all possible phosphors", after being
+  // told they were near-duplicates), and the reason it is now safe is the glow:
+  // P19, P26, P33 and P38 are all fluoride:Mn at 590-595 nm and derive to
+  // byte-identical tones, but their trails run 1095 ms, 1095 ms, 2828 ms and
+  // 1095 ms. A row that paints the same page AND decays the same way is still a
+  // control that appears to do nothing, and that is what this now forbids.
+  //
+  // Driven off kPresetInfo rather than a hand-written list, because the old
+  // hand list silently stopped covering anything appended after it -- thirty
+  // rows landed without this check ever looking at them.
+  // Identical means identical in BOTH polarities. P13 (640 nm) and P27 (635 nm)
+  // collapse to the same light page and stay one byte apart in the dark one;
+  // that row still does something, so it is not a duplicate.
+  //
+  // The ONE genuinely identical pair is listed by name below. Anything else
+  // that collides has to be dealt with, not absorbed.
+  auto isCataloguedTwin = [](const char *a, const char *b) {
+    // P19 (KF,MgF2):Mn and P38 (Zn,Mg)F2:Mn are both published at 590 nm,
+    // both "Orange-Yellow", both "Long". Different chemistry, no published
+    // difference in EMISSION -- so deriving a difference would be inventing
+    // one. They ship as twins because the owner asked for every phosphor in
+    // the registry, and a catalogue that silently omits the second of an
+    // identical pair is not the catalogue that was asked for.
+    const bool p19p38 = (!std::strcmp(a, "P19") && !std::strcmp(b, "P38")) ||
+                        (!std::strcmp(a, "P38") && !std::strcmp(b, "P19"));
+    return p19p38;
+  };
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    for (int j = i + 1; j < kPresetInfoCount; j++) {
+      const PresetInfo &a = kPresetInfo[i];
+      const PresetInfo &b = kPresetInfo[j];
+      bool sameBoth = true;
+      for (int d = 0; d < 2 && sameBoth; d++) {
+        const Palette pa = presetPalette(a.preset, d != 0);
+        const Palette pb = presetPalette(b.preset, d != 0);
+        sameBoth = pack(pa.ink) == pack(pb.ink) &&
+                   pack(pa.paper) == pack(pb.paper);
       }
+      if (!sameBoth) continue;
+      // Two ordinary palettes with the same tones are a mistake however they
+      // decay -- only a phosphor gets to be told apart by its trail.
+      CHECKM(a.phosphor && b.phosphor,
+             "%s and %s paint identically and are not both phosphors", a.name,
+             b.name);
+      if (!a.phosphor || !b.phosphor) continue;
+      if (trailMsForPreset(a.preset) != trailMsForPreset(b.preset)) continue;
+      CHECKM(isCataloguedTwin(a.phosphor, b.phosphor),
+             "%s (%s) and %s (%s) paint identically AND decay identically -- "
+             "one of them is a control that does nothing",
+             a.name, a.phosphor, b.name, b.phosphor);
+    }
+  }
 }
 
 // --- 5. The shipped Root.plist ---------------------------------------------
@@ -619,9 +656,12 @@ static void testTrailTiming() {
     if (t > slowest) { slowest = t; slowestName = info.phosphor; }
   }
 
-  // P7 is the slowest, because that IS P7. If a compression ever ties it with
-  // P39 the cascade stops being the long one and the row loses its point.
-  CHECKM(std::strcmp(slowestName, "P7") == 0, "P7 is the longest trail");
+  // P7 is AMONG the slowest. It no longer has that alone: P33 (">1 sec") and
+  // P34 ("Very Long") read the same rung of the ladder, which is the honest
+  // answer -- the sources do not distinguish them further. What must stay true
+  // is that the very-long class is clearly longer than "Long".
+  CHECKM(trailMsForPreset(kPresetCascadeCrt) >= slowest - 0.5f,
+         "P7 is no longer among the longest trails (%s is)", slowestName);
   const float p39 = trailMsForPreset(kPresetGreenLongCrt);
   CHECKM(slowest > p39 * 1.5f, "P7 is clearly longer than P39, not merely equal");
 
@@ -646,10 +686,34 @@ static void testTrailTiming() {
 
   // The cascade is the only row with an afterglow, and it must not be the ink
   // it is drawn in or the shift is invisible.
+  // THREE cascades now: P7 (yellow-green tail), P14 (orange) and P17 (yellow).
+  // Each must carry its OWN afterglow -- sharing one constant would make all
+  // three decay to the same hue and erase the only thing that separates them,
+  // which is exactly the mistake the first draft of these rows made.
   int withTail = 0;
-  for (int i = 0; i < kPresetInfoCount; i++)
-    if (kPresetInfo[i].afterglow) withTail++;
-  CHECKM(withTail == 1, "exactly one cascade row");
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    const PresetInfo &info = kPresetInfo[i];
+    if (!info.afterglow) continue;
+    withTail++;
+    // pack() takes an array; PresetInfo::afterglow is a pointer, so these are
+    // packed by hand rather than by silently decaying to something else.
+    auto pack3 = [](const unsigned char *c) {
+      return (static_cast<uint32_t>(c[0]) << 16) |
+             (static_cast<uint32_t>(c[1]) << 8) | c[2];
+    };
+    const Palette dark = presetPalette(info.preset, true);
+    CHECKM(pack3(info.afterglow) != pack(dark.ink),
+           "%s decays toward the ink it is drawn in", info.name);
+    CHECKM(pack3(info.afterglow) != pack(dark.paper),
+           "%s decays toward its own paper", info.name);
+    for (int j = 0; j < kPresetInfoCount; j++) {
+      if (j == i || !kPresetInfo[j].afterglow) continue;
+      CHECKM(pack3(info.afterglow) != pack3(kPresetInfo[j].afterglow),
+             "%s and %s decay toward the same hue", info.name,
+             kPresetInfo[j].name);
+    }
+  }
+  CHECKM(withTail == 3, "expected three cascade rows, found %d", withTail);
 }
 
 

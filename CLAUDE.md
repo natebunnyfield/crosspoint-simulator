@@ -464,8 +464,18 @@ in `Root.plist` is independent of that integer, which is what lets the picker be
 grouped and sorted without touching a single stored value.
 
 **The test's "unknown preset" sentinel has to stay ahead of the enum.** It has
-been walked five times (7 → 11 → 13 → 14 → 16) and caught the collision every
-time rather than shipping one. Whoever appends the next preset moves it again.
+been walked ten times (7 → 11 → 13 → 14 → 16 → 17 → 19 → 24 → 26 → 56) and
+caught the collision every time rather than shipping one. Whoever appends the
+next preset moves it again.
+
+**Two palette rows MAY paint the same page, if they decay differently** (owner
+ruling 2026-08-17, "be sure to include all possible phosphors"). The whole JEDEC
+registry ships -- 42 phosphor rows -- and some of them are the same emission:
+P19/P26/P33/P38 are all 590-595 nm fluoride:Mn. Persistence is what separates
+them, and the glow is what renders it. The duplicate check is driven off
+`kPresetInfo` and allows a shared page only between two phosphors with different
+trails; exactly one true twin pair (P19/P38) is exempt BY NAME in the test.
+New phosphor rows are derived by `tools/derive_phosphors.py`, not by hand.
 
 **One resolver, two consumers.** `crosspoint::panelForPrefs()` is the single
 definition of "what tones did the owner pick": the SDL side paints the page, the

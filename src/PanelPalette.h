@@ -164,6 +164,43 @@ enum Preset : int {
   // a different color from its page -- see kCascadeAfterglow and the tint hook
   // in SimulatorOverlay.
   kPresetCascadeCrt = 25,
+  // Appended 2026-08-17 by owner ruling: "be sure to include all possible
+  // phosphors", which overturns the §5 near-duplicate rejection recorded in
+  // docs/crt-phosphor-presets.md. Some of these paint the SAME PAGE as each
+  // other -- P19/P26/P33/P38 are all 590-595 nm fluoride:Mn and derive to
+  // identical bytes -- and that is now deliberate: they are distinguished by
+  // PERSISTENCE, which the glow renders. Same APPEND-ONLY rule as every block
+  // above.
+kPresetP2Crt = 26,  // P2 ZnS:Cu(Ag), blue-green, Long
+  kPresetP5Crt = 27,  // P5 CaWO4:W, blue, Very Short
+  kPresetP6Crt = 28,  // P6 ZnS:Ag+ZnS:CdS:Ag, white, Short
+  kPresetP10Crt = 29,  // P10 KCl, green-absorbing scotophor, Long
+  kPresetP12Crt = 30,  // P12 Zn(Mg)F2:Mn, orange, Medium/long
+  kPresetP13Crt = 31,  // P13 MgSi2O6:Mn, reddish-orange, Medium
+  kPresetP14Crt = 32,  // P14 ZnS:Ag on ZnS:CdS:Cu, blue with orange persistence, Medium/long
+  kPresetP15Crt = 33,  // P15 ZnO:Zn, blue-green, Extremely Short
+  kPresetP16Crt = 34,  // P16 CaMgSi2O6:Ce, blue-purple, Very Short
+  kPresetP17Crt = 35,  // P17 ZnO,ZnCdS:Cu, blue-yellow, Blue-Short, Yellow-Long
+  kPresetP18Crt = 36,  // P18 CaMgSi2O6:Ti, BeSi2O6:Mn, white, Medium to Short
+  kPresetP19Crt = 37,  // P19 (KF,MgF2):Mn, orange-yellow, Long
+  kPresetP20Crt = 38,  // P20 (Zn,Cd)S:Ag or (Zn,Cd)S:Cu, yellow-green, 1-100 ms
+  kPresetP21Crt = 39,  // P21 MgF2:Mn2+, reddish, not published
+  kPresetP22GCrt = 40,  // P22G (Zn,Cd)S:Cu,Al, green, Short
+  kPresetP23Crt = 41,  // P23 ZnS:Ag+(Zn,Cd)S:Ag, white, Short
+  kPresetP24Crt = 42,  // P24 ZnO:Zn, green, 1-10 us
+  kPresetP25Crt = 43,  // P25 CaSi2O6:Pb:Mn, orange, Medium
+  kPresetP26Crt = 44,  // P26 (KF,MgF2):Mn, orange, Long
+  kPresetP27Crt = 45,  // P27 ZnPO4:Mn, reddish orange, Medium
+  kPresetP28Crt = 46,  // P28 (Zn,Cd)S:Cu,Cl, yellow, Medium
+  kPresetP33Crt = 47,  // P33 MgF2:Mn, orange, > 1 sec
+  kPresetP34Crt = 48,  // P34 not published, bluish green-yellow green, Very Long
+  kPresetP35Crt = 49,  // P35 ZnS,ZnSe:Ag, blue-white, Medium Short
+  kPresetP38Crt = 50,  // P38 (Zn,Mg)F2:Mn, orange-yellow, Long
+  kPresetP40Crt = 51,  // P40 ZnS:Ag+(Zn,Cd)S:Cu, white, Long
+  kPresetP43Crt = 52,  // P43 Gd2O2S:Tb, yellow-green, Medium
+  kPresetP46Crt = 53,  // P46 Y3Al5O12:Ce, green, Very short (70 ns)
+  kPresetP53Crt = 54,  // P53 Y3Al5O12:Tb, yellow-green, Short
+  kPresetP55Crt = 55,  // P55 ZnS:Ag,Al, blue, Short
 };
 
 // A retired preset that was REPLACED rather than removed. Stored choices follow
@@ -202,7 +239,37 @@ constexpr bool isKnownPreset(int preset) {
          preset == kPresetBlueTvCrt || preset == kPresetCascadeCrt ||
          preset == kPresetLatte || preset == kPresetRedCrt ||
          preset == kPresetGrayCrt || preset == kPresetReading ||
-         preset == kPresetBlueCrt;
+         preset == kPresetBlueCrt ||
+preset == kPresetP2Crt ||
+         preset == kPresetP5Crt ||
+         preset == kPresetP6Crt ||
+         preset == kPresetP10Crt ||
+         preset == kPresetP12Crt ||
+         preset == kPresetP13Crt ||
+         preset == kPresetP14Crt ||
+         preset == kPresetP15Crt ||
+         preset == kPresetP16Crt ||
+         preset == kPresetP17Crt ||
+         preset == kPresetP18Crt ||
+         preset == kPresetP19Crt ||
+         preset == kPresetP20Crt ||
+         preset == kPresetP21Crt ||
+         preset == kPresetP22GCrt ||
+         preset == kPresetP23Crt ||
+         preset == kPresetP24Crt ||
+         preset == kPresetP25Crt ||
+         preset == kPresetP26Crt ||
+         preset == kPresetP27Crt ||
+         preset == kPresetP28Crt ||
+         preset == kPresetP33Crt ||
+         preset == kPresetP34Crt ||
+         preset == kPresetP35Crt ||
+         preset == kPresetP38Crt ||
+         preset == kPresetP40Crt ||
+         preset == kPresetP43Crt ||
+         preset == kPresetP46Crt ||
+         preset == kPresetP53Crt ||
+         preset == kPresetP55Crt;
 }
 
 // The pair a named preset selects. kPresetCustom has no pair of its own -- the
@@ -421,6 +488,96 @@ constexpr Palette presetPalette(int preset, bool dark) {
   //
   // The page is therefore the FLASH; what it decays to is the afterglow tint
   // below, which is the whole point of the row.
+case kPresetP2Crt:  // P2, 10.0:1 / 14.5:1
+    return dark ? Palette{{0x81, 0xFF, 0x9C}, {0x07, 0x19, 0x0B}}
+                : Palette{{0x1F, 0x47, 0x28}, {0xE8, 0xFF, 0xEB}};
+  case kPresetP5Crt:  // P5, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xC2, 0xAC, 0xFF}, {0x0D, 0x07, 0x19}}
+                : Palette{{0x3E, 0x2D, 0x62}, {0xED, 0xE8, 0xFF}};
+  case kPresetP6Crt:  // P6, 10.0:1 / 14.0:1
+    return dark ? Palette{{0xCF, 0xE4, 0xFF}, {0x12, 0x16, 0x19}}
+                : Palette{{0x39, 0x3F, 0x48}, {0xF4, 0xF9, 0xFF}};
+  case kPresetP10Crt:  // P10, 11.9:1 / 10.0:1
+    return dark ? Palette{{0xC9, 0xB6, 0xDE}, {0x14, 0x11, 0x19}}
+                : Palette{{0x3A, 0x23, 0x52}, {0xF2, 0xF0, 0xEA}};
+  case kPresetP12Crt:  // P12, 10.1:1 / 10.3:1
+    return dark ? Palette{{0xFF, 0xAB, 0x81}, {0x19, 0x0D, 0x07}}
+                : Palette{{0x51, 0x33, 0x25}, {0xFF, 0xEE, 0xE8}};
+  case kPresetP13Crt:  // P13, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xFF, 0x9F, 0xA9}, {0x19, 0x07, 0x09}}
+                : Palette{{0x5A, 0x29, 0x2F}, {0xFF, 0xE8, 0xEA}};
+  case kPresetP14Crt:  // P14, 10.0:1 / 10.1:1
+    return dark ? Palette{{0xD5, 0xA7, 0xFF}, {0x12, 0x08, 0x19}}
+                : Palette{{0x46, 0x2D, 0x5B}, {0xF3, 0xE9, 0xFF}};
+  case kPresetP15Crt:  // P15, 10.1:1 / 14.9:1
+    return dark ? Palette{{0x81, 0xFF, 0xD7}, {0x07, 0x19, 0x14}}
+                : Palette{{0x1F, 0x46, 0x3A}, {0xE8, 0xFF, 0xF6}};
+  case kPresetP16Crt:  // P16, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xBE, 0xAD, 0xFF}, {0x0B, 0x07, 0x19}}
+                : Palette{{0x3A, 0x2E, 0x63}, {0xEC, 0xE8, 0xFF}};
+  case kPresetP17Crt:  // P17, 10.0:1 / 12.4:1
+    return dark ? Palette{{0xE4, 0xC8, 0xFF}, {0x16, 0x11, 0x19}}
+                : Palette{{0x43, 0x39, 0x4C}, {0xF9, 0xF3, 0xFF}};
+  case kPresetP18Crt:  // P18, 10.0:1 / 14.8:1
+    return dark ? Palette{{0xD8, 0xEA, 0xFF}, {0x14, 0x16, 0x19}}
+                : Palette{{0x3A, 0x40, 0x46}, {0xF6, 0xFA, 0xFF}};
+  case kPresetP19Crt:  // P19, 10.1:1 / 10.3:1
+    return dark ? Palette{{0xFF, 0xAB, 0x81}, {0x19, 0x0D, 0x07}}
+                : Palette{{0x51, 0x33, 0x25}, {0xFF, 0xEE, 0xE8}};
+  case kPresetP20Crt:  // P20, 10.1:1 / 14.9:1
+    return dark ? Palette{{0xA5, 0xFF, 0x81}, {0x0C, 0x19, 0x07}}
+                : Palette{{0x2A, 0x46, 0x1F}, {0xED, 0xFF, 0xE8}};
+  case kPresetP21Crt:  // P21, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xFF, 0xA1, 0x9A}, {0x19, 0x08, 0x07}}
+                : Palette{{0x58, 0x2C, 0x29}, {0xFF, 0xE9, 0xE8}};
+  case kPresetP22GCrt:  // P22G, 10.1:1 / 14.6:1
+    return dark ? Palette{{0x81, 0xFF, 0xB5}, {0x07, 0x19, 0x0F}}
+                : Palette{{0x1F, 0x46, 0x2F}, {0xE8, 0xFF, 0xEF}};
+  case kPresetP23Crt:  // P23, 10.1:1 / 16.1:1
+    return dark ? Palette{{0xEF, 0xF4, 0xFF}, {0x17, 0x18, 0x19}}
+                : Palette{{0x3F, 0x40, 0x44}, {0xFB, 0xFC, 0xFF}};
+  case kPresetP24Crt:  // P24, 10.1:1 / 14.9:1
+    return dark ? Palette{{0x81, 0xFF, 0xD5}, {0x07, 0x19, 0x13}}
+                : Palette{{0x1F, 0x46, 0x39}, {0xE8, 0xFF, 0xF5}};
+  case kPresetP25Crt:  // P25, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xFF, 0xA0, 0x9F}, {0x19, 0x07, 0x07}}
+                : Palette{{0x59, 0x2A, 0x29}, {0xFF, 0xE8, 0xE8}};
+  case kPresetP26Crt:  // P26, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xFF, 0xA4, 0x89}, {0x19, 0x0B, 0x07}}
+                : Palette{{0x53, 0x31, 0x26}, {0xFF, 0xEC, 0xE8}};
+  case kPresetP27Crt:  // P27, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xFF, 0x9F, 0xA8}, {0x19, 0x07, 0x09}}
+                : Palette{{0x5A, 0x29, 0x2F}, {0xFF, 0xE8, 0xEA}};
+  case kPresetP28Crt:  // P28, 10.1:1 / 13.2:1
+    return dark ? Palette{{0xFF, 0xD4, 0x81}, {0x19, 0x13, 0x07}}
+                : Palette{{0x49, 0x3B, 0x20}, {0xFF, 0xF5, 0xE8}};
+  case kPresetP33Crt:  // P33, 10.1:1 / 10.3:1
+    return dark ? Palette{{0xFF, 0xAB, 0x81}, {0x19, 0x0D, 0x07}}
+                : Palette{{0x51, 0x33, 0x25}, {0xFF, 0xEE, 0xE8}};
+  case kPresetP34Crt:  // P34, 10.1:1 / 14.7:1
+    return dark ? Palette{{0x81, 0xFF, 0xC0}, {0x07, 0x19, 0x10}}
+                : Palette{{0x1F, 0x46, 0x33}, {0xE8, 0xFF, 0xF1}};
+  case kPresetP35Crt:  // P35, 10.1:1 / 12.5:1
+    return dark ? Palette{{0xB9, 0xD6, 0xFF}, {0x0F, 0x13, 0x19}}
+                : Palette{{0x34, 0x3D, 0x4B}, {0xF0, 0xF6, 0xFF}};
+  case kPresetP38Crt:  // P38, 10.1:1 / 10.3:1
+    return dark ? Palette{{0xFF, 0xAB, 0x81}, {0x19, 0x0D, 0x07}}
+                : Palette{{0x51, 0x33, 0x25}, {0xFF, 0xEE, 0xE8}};
+  case kPresetP40Crt:  // P40, 10.1:1 / 16.5:1
+    return dark ? Palette{{0xDD, 0xFD, 0xFF}, {0x14, 0x19, 0x19}}
+                : Palette{{0x39, 0x42, 0x43}, {0xF7, 0xFE, 0xFF}};
+  case kPresetP43Crt:  // P43, 10.0:1 / 14.5:1
+    return dark ? Palette{{0x81, 0xFF, 0x95}, {0x07, 0x19, 0x0A}}
+                : Palette{{0x1F, 0x47, 0x26}, {0xE8, 0xFF, 0xEA}};
+  case kPresetP46Crt:  // P46, 10.1:1 / 14.6:1
+    return dark ? Palette{{0x81, 0xFF, 0xB5}, {0x07, 0x19, 0x0F}}
+                : Palette{{0x1F, 0x46, 0x2F}, {0xE8, 0xFF, 0xEF}};
+  case kPresetP53Crt:  // P53, 10.0:1 / 14.5:1
+    return dark ? Palette{{0x81, 0xFF, 0x99}, {0x07, 0x19, 0x0A}}
+                : Palette{{0x1F, 0x47, 0x27}, {0xE8, 0xFF, 0xEB}};
+  case kPresetP55Crt:  // P55, 10.0:1 / 10.0:1
+    return dark ? Palette{{0xBF, 0xAD, 0xFF}, {0x0C, 0x07, 0x19}}
+                : Palette{{0x3B, 0x2E, 0x62}, {0xEC, 0xE8, 0xFF}};
   case kPresetCascadeCrt:
     return dark ? Palette{{0xC4, 0xC6, 0xFF}, {0x00, 0x03, 0x27}}
                 : Palette{{0x00, 0x22, 0xA9}, {0xF1, 0xF2, 0xFF}};
@@ -700,6 +857,13 @@ struct PresetInfo {
 // blue-white, and that difference IS the phosphor.
 inline constexpr unsigned char kCascadeAfterglow[3] = {0x69, 0xFF, 0x87};
 
+// P14 and P17 are cascades too, and their tails are NOT P7's green -- the JEDEC
+// table names them "Blue with Orange persistence" and "Blue-Yellow, Blue-Short
+// Yellow-Long". Sharing one constant would have made all three decay to the
+// same hue and thrown away the only thing that distinguishes them.
+inline constexpr unsigned char kCascadeAfterglowOrange[3] = {0xFF, 0x93, 0x81};
+inline constexpr unsigned char kCascadeAfterglowYellow[3] = {0xFF, 0xE2, 0x81};
+
 inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetHighContrast, "Neutral", "High Contrast", "black on white", nullptr, nullptr, 0.0f, nullptr},
     {kPresetDefault, "Neutral", "Default", "e-ink", nullptr, nullptr, 0.0f, nullptr},
@@ -711,28 +875,58 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetLatte, "Paper", "Latte", "neutral pale", nullptr, nullptr, 0.0f, nullptr},
     {kPresetNord, "Paper", "Nord", "cool pale", nullptr, nullptr, 0.0f, nullptr},
     {kPresetSolarized, "Paper", "Solarized", "low contrast by design", nullptr, nullptr, 0.0f, nullptr},
+    // The only row with an afterglow: written blue-white, left behind
+    // yellow-green, over a minute. "Very long" on the ladder.
+{kPresetP46Crt, "CRT", "Green Fastest", "P46 Y3Al5O12:Ce", "P46", "Very short (70 ns)", 7e-05f, nullptr},
+    {kPresetP15Crt, "CRT", "Blue-Green Fastest", "P15 ZnO:Zn", "P15", "Extremely Short", 0.05f, nullptr},
+    {kPresetP24Crt, "CRT", "VFD Green", "P24 ZnO:Zn", "P24", "1-10 us", 0.05f, nullptr},
+    {kPresetP22GCrt, "CRT", "TV Green", "P22G (Zn,Cd)S:Cu,Al", "P22G", "Short", 0.5f, nullptr},
+    {kPresetP53Crt, "CRT", "Projector Green", "P53 Y3Al5O12:Tb", "P53", "Short", 0.5f, nullptr},
     {kPresetGreenFastCrt, "CRT", "Green Fast", "P31 oscilloscope", "P31",
      "Medium short 0.01-1 ms", 1.0f, nullptr},
+    {kPresetP43Crt, "CRT", "Terbium Green", "P43 Gd2O2S:Tb", "P43", "Medium", 10.0f, nullptr},
     {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f, nullptr},
+    {kPresetP20Crt, "CRT", "Terminal Green", "P20 (Zn,Cd)S:Ag or (Zn,Cd)S:Cu", "P20", "1-100 ms", 20.0f, nullptr},
     {kPresetGreenLongCrt, "CRT", "Green Long", "P39, long persistence", "P39",
      "Long", 150.0f, nullptr},
+    {kPresetP2Crt, "CRT", "Blue-Green Long", "P2 ZnS:Cu(Ag)", "P2", "Long", 150.0f, nullptr},
+    {kPresetP34Crt, "CRT", "Storage Green", "P34 not published", "P34", "Very Long", 1000.0f, nullptr},
+    {kPresetP28Crt, "CRT", "Yellow", "P28 (Zn,Cd)S:Cu,Cl", "P28", "Medium", 10.0f, nullptr},
     {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
+    {kPresetP12Crt, "CRT", "Orange Persistent", "P12 Zn(Mg)F2:Mn", "P12", "Medium/long", 60.0f, nullptr},
+    {kPresetP19Crt, "CRT", "Radar Orange", "P19 (KF,MgF2):Mn", "P19", "Long", 150.0f, nullptr},
+    {kPresetP26Crt, "CRT", "Radar Orange Long", "P26 (KF,MgF2):Mn", "P26", "Long", 150.0f, nullptr},
+    {kPresetP38Crt, "CRT", "Radar Amber", "P38 (Zn,Mg)F2:Mn", "P38", "Long", 150.0f, nullptr},
+    {kPresetP33Crt, "CRT", "Radar Orange Longest", "P33 MgF2:Mn", "P33", "> 1 sec", 1000.0f, nullptr},
     {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
     {kPresetRedProjCrt, "CRT", "Red Projector", "P56 projection tube", "P56",
      "Medium", 10.0f, nullptr},
+    {kPresetP13Crt, "CRT", "Red-Orange", "P13 MgSi2O6:Mn", "P13", "Medium", 10.0f, nullptr},
+    {kPresetP25Crt, "CRT", "Orange Lead", "P25 CaSi2O6:Pb:Mn", "P25", "Medium", 10.0f, nullptr},
+    {kPresetP27Crt, "CRT", "Red-Orange Deep", "P27 ZnPO4:Mn", "P27", "Medium", 10.0f, nullptr},
+    {kPresetP21Crt, "CRT", "Radar Red", "P21 MgF2:Mn2+", "P21", "not published", 150.0f, nullptr},
     {kPresetBlueFastCrt, "CRT", "Blue Fast", "P47, very short", "P47",
      "Very short", 0.05f, nullptr},
+    {kPresetP5Crt, "CRT", "Blue Fastest", "P5 CaWO4:W", "P5", "Very Short", 0.05f, nullptr},
+    {kPresetP16Crt, "CRT", "Violet", "P16 CaMgSi2O6:Ce", "P16", "Very Short", 0.05f, nullptr},
+    {kPresetP55Crt, "CRT", "Blue Projector", "P55 ZnS:Ag,Al", "P55", "Short", 0.5f, nullptr},
     {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
     {kPresetBlueTvCrt, "CRT", "Blue TV", "P22B color-tube gun", "P22B",
      "Medium", 10.0f, nullptr},
+    {kPresetP6Crt, "CRT", "White TV", "P6 ZnS:Ag+ZnS:CdS:Ag", "P6", "Short", 0.5f, nullptr},
+    {kPresetP23Crt, "CRT", "White Warm", "P23 ZnS:Ag+(Zn,Cd)S:Ag", "P23", "Short", 0.5f, nullptr},
+    {kPresetP18Crt, "CRT", "White Soft", "P18 CaMgSi2O6:Ti, BeSi2O6:Mn", "P18", "Medium to Short", 1.0f, nullptr},
+    {kPresetP35Crt, "CRT", "Blue-White", "P35 ZnS,ZnSe:Ag", "P35", "Medium Short", 1.0f, nullptr},
     {kPresetWhiteCrt, "CRT", "White", "P45 viewfinder", "P45", "Medium", 10.0f, nullptr},
     {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
      "not over 7% of peak after 33 ms", 33.0f, nullptr},
-    // The only row with an afterglow: written blue-white, left behind
-    // yellow-green, over a minute. "Very long" on the ladder.
+    {kPresetP40Crt, "CRT", "White Long", "P40 ZnS:Ag+(Zn,Cd)S:Cu", "P40", "Long", 150.0f, nullptr},
+    {kPresetP14Crt, "CRT", "Cascade Orange", "P14 ZnS:Ag on ZnS:CdS:Cu", "P14", "Medium/long", 150.0f, kCascadeAfterglowOrange},
+    {kPresetP17Crt, "CRT", "Cascade Yellow", "P17 ZnO,ZnCdS:Cu", "P17", "Blue-Short, Yellow-Long", 150.0f, kCascadeAfterglowYellow},
     {kPresetCascadeCrt, "CRT", "Cascade", "P7 blue-white to yellow-green", "P7",
      "BluWh-Short / Yel-Long, >1 minute in low ambient illumination", 1000.0f,
      kCascadeAfterglow},
+    {kPresetP10Crt, "CRT", "Dark Trace", "P10 KCl", "P10", "Long", 150.0f, nullptr},
 };
 
 inline constexpr int kPresetInfoCount =
@@ -773,9 +967,17 @@ constexpr float constexprSqrt(float x) {
   return guess;
 }
 
+// A FRAME IS THE FLOOR. P46 is published at 70 ns and P24 at 1-10 us; compressed
+// honestly those are 0.7 ms and 6 ms, which is less than one frame at 60 Hz --
+// a trail that is drawn zero times and therefore is not a trail. Clamping to a
+// single frame is the smallest lie that keeps "very fast phosphor" meaning
+// "one frame of ghost" instead of meaning nothing at all.
+inline constexpr float kTrailFloorMs = 16.7f;
+
 constexpr float trailMsForDecay(float decayMs) {
   if (decayMs <= 0.0f) return 0.0f;
-  return kTrailAnchorMs * constexprSqrt(decayMs / kTrailAnchorDecayMs);
+  const float t = kTrailAnchorMs * constexprSqrt(decayMs / kTrailAnchorDecayMs);
+  return t < kTrailFloorMs ? kTrailFloorMs : t;
 }
 
 // The trail for a preset: 0 for everything that is not a phosphor, because a
