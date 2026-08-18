@@ -38,8 +38,15 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-015] `test_text_entry.sh` no longer reaches the field it tests
-**severity: medium · scope: tests · found 2026-08-17**
+### [S-015] `test_text_entry.sh` no longer reaches the field it tests — FIXED 2026-08-17
+**severity: medium · scope: tests · found 2026-08-17 · fixed in ac88f12**
+
+**Cause, and it was the same fault twice:** it navigated both lists with UP and
+DOWN, which are the SIDE pair and page by a screenful. A one-screen menu has no
+next screenful, so those presses moved nothing. Home now uses RIGHT (over-pressed,
+since the row count follows the recents list), Settings uses LEFT counted
+backwards from row 0 (that list wraps: LEFT x1 Colophon, LEFT x2 Device Owner).
+Spacing was a third fault — 180 ms where ~900 ms is needed. Now PASSES.
 
 It fails at case 1 against firmware `main`, and has failed since before the
 B-028 work (confirmed by stashing that fix and re-running: identical failure).
