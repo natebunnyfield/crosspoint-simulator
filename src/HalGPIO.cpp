@@ -2,6 +2,7 @@
 
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
+#include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 
 #include <BoardConfig.h>
@@ -843,6 +844,22 @@ void HalGPIO::update() {
       continue;
     }
 
+    // ST-010: any real input re-energises a fading page. Keyed on the event
+    // TYPE rather than on a decoded button, so a touch, a key or a tap on the
+    // on-screen pad all count -- what matters is that the reader is there, not
+    // which control they reached for. A no-op when the fade is off.
+    switch (e.type) {
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP:
+    case SDL_EVENT_FINGER_DOWN:
+    case SDL_EVENT_FINGER_UP:
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+      SimulatorOverlay::notePageInteraction();
+      break;
+    default:
+      break;
+    }
+
     // Text entry claims the keyboard first, before the scancode→button map
     // gets a look at it. Without this the letters of the password ARE the
     // button map: P powers off, S sleeps, H is Home. Escape and the arrows
@@ -1007,9 +1024,13 @@ bool HalGPIO::wasAnyReleased() const {
   return false;
 }
 
+// Synthetic input enters BELOW SDL and would otherwise never re-energise the
+// page -- which would make every headless run of the fade look like it ignores
+// input.
 void HalGPIO::injectButtonDown(uint8_t buttonIndex) {
   if (buttonIndex >= NUM_BUTTONS)
     return;
+  SimulatorOverlay::notePageInteraction();
   pressedThisFrame[buttonIndex] = true;
   // The level bit is the whole point of this entry point: SDL_GetKeyboardState()
   // is never written for anything the host injects, so isPressed(),

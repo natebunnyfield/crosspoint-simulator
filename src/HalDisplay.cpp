@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "GrayscalePreview.h"
+#include "PageFade.h"
 #include "PanelPalette.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
@@ -38,6 +39,42 @@ static std::atomic<float> glowTrailMs{0.0f};
 // glow: the glow says what happens to a pixel AFTER it is lit, the beam says
 // the picture arrives progressively rather than at once.
 static std::atomic<float> beamPaintMs{0.0f};
+
+// PAGE FADE (ST-010): how long the page takes to decay after the last thing the
+// reader did, in milliseconds. 0 is off, and off is the default.
+//
+// Distinct from the glow, and the distinction is the whole feature. The glow
+// fades the PREVIOUS page out as the next arrives -- a transition, over in a
+// fraction of a second. This fades the page you are CURRENTLY READING, over
+// seconds or minutes, the way a phosphor screen goes on dimming after the beam
+// has moved on.
+//
+// It decays toward the PAPER, not toward a mid grey: a phosphor dying, which is
+// what was asked for. That falls out for free -- the field behind the panel is
+// already cleared to the paper tone, so alpha on the panel texture IS a fade
+// toward paper, in the right direction for both polarities.
+//
+// AND IT STOPS AT A FLOOR. A page that fades to nothing is a page you cannot
+// finish reading, so the decay runs to kPageFadeFloor and holds there until
+// something re-energises it. Any input does (notePageInteraction), which is the
+// e-ink equivalent of the beam coming back round.
+static std::atomic<float> pageFadeMs{0.0f};
+static std::atomic<uint64_t> lastInteractionMs{0};
+
+// 0.75, and the number is measured rather than chosen. The first draft of this
+// said 0.55 and claimed it held "every one above 6:1" -- it does not: at 0.55
+// the worst row (Blue, P11) falls to 2.88:1, below even WCAG AA for LARGE text.
+// Swept across every phosphor row in both polarities, worst case against the
+// row's own paper:
+//
+//   floor 0.55 -> 2.88:1     floor 0.70 -> 4.04:1
+//   floor 0.60 -> 3.23:1     floor 0.75 -> 4.49:1   <- AA body text, 4.5:1
+//   floor 0.65 -> 3.62:1     floor 0.80 -> 4.99:1
+//
+// So 0.75 is the DEEPEST fade that still leaves a page of prose at the body-text
+// bar. A floor of 0 would be prettier and unreadable, which is the trade this
+// setting exists to make carefully.
+static constexpr float kPageFadeFloor = 0.75f;
 static uint64_t beamStartedAt = 0;
 // The tint a two-layer phosphor's trail decays toward, packed 0x00RRGGBB, or
 // kNoGlowTail when the trail simply dims. See setPanelGlowTail.
@@ -789,6 +826,25 @@ void setPanelGlow(float trailMs) {
   glowTrailMs.store(trailMs);
 }
 
+void setPageFade(float fadeMs) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PAGE_FADE_MS")) {
+    const float parsed = static_cast<float>(std::atof(env));
+    if (parsed >= 0.0f) fadeMs = parsed;
+  }
+  if (fadeMs < 0.0f) fadeMs = 0.0f;
+  pageFadeMs.store(fadeMs);
+  lastInteractionMs.store(SDL_GetTicks());
+  pendingPresent.store(true);
+}
+
+void notePageInteraction() {
+  if (pageFadeMs.load() <= 0.0f) return;
+  lastInteractionMs.store(SDL_GetTicks());
+  // Come back at once rather than at the next page: the whole point is that
+  // touching the device re-energises what you were reading.
+  pendingPresent.store(true);
+}
+
 void setBeamPaint(float sweepMs) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_BEAM_MS")) {
     const float parsed = static_cast<float>(std::atof(env));
@@ -970,6 +1026,10 @@ void HalDisplay::begin() {
   // Fourth time. Seed every host-only dial through its setter, or its env
   // override is dead on the desktop and cannot be tested there.
   SimulatorOverlay::setBeamPaint(0.0f);
+  // Fifth time. Every host-only dial needs seeding through its setter or its
+  // env override is dead on the desktop -- and this one had exactly that bug
+  // for one build, which is how the first fade measurement showed no fade.
+  SimulatorOverlay::setPageFade(0.0f);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1540,6 +1600,39 @@ void HalDisplay::presentIfNeeded() {
     }
   }
 
+  // THE PAGE FADE. Alpha on the panel texture over a field already cleared to
+  // the paper tone IS a fade toward paper -- no second buffer, no per-pixel
+  // work, and correct in both polarities because the field follows the palette.
+  //
+  // Exponential like the glow, and for the same reason: light does not die
+  // linearly. It runs from full to kPageFadeFloor over the configured time and
+  // then holds, so the page keeps being readable however long it is left.
+  float pageAlpha = 1.0f;
+  const float fadeMs = pageFadeMs.load();
+  if (fadeMs > 0.0f) {
+    const float age =
+        static_cast<float>(SDL_GetTicks() - lastInteractionMs.load());
+    // 10^(-age/fade) reaches 10% at the configured time; remap that decay onto
+    // [1, floor] so "one fade period" is when it has settled.
+    // The floor follows the palette on screen: a low-contrast page (Solarized)
+    // cannot afford the deep fade and is left alone rather than made unreadable.
+    const PanelPalette live = livePanelPalette(inverted.load());
+    const float floor = pagefade::floorFor(live.ink, live.paper);
+    pageAlpha = pagefade::alphaFor(age, fadeMs, floor);
+    // Keep presenting while it is still moving. Once it is within one 8-bit
+    // step of the floor it has arrived and the loop stops asking -- otherwise
+    // this would be a permanent render loop for a picture that is not changing.
+    if (pagefade::stillMoving(age, fadeMs, floor)) pendingPresent.store(true);
+  }
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1' && fadeMs > 0.0f)
+      SDL_Log("[fade] age %u ms -> alpha %.3f", 
+              (unsigned)(SDL_GetTicks() - lastInteractionMs.load()), pageAlpha);
+  SDL_SetTextureBlendMode(texture, pageAlpha < 1.0f ? SDL_BLENDMODE_BLEND
+                                                    : SDL_BLENDMODE_NONE);
+  SDL_SetTextureAlphaMod(texture,
+                         static_cast<Uint8>(pageAlpha * 255.0f + 0.5f));
+
   // Draw the panel texture in whatever orientation is live. Factored out
   // because the beam draws the panel TWICE -- the old frame, then the new one
   // clipped to the swept band -- and the rotation arithmetic must not be
@@ -1699,37 +1792,6 @@ void HalDisplay::presentIfNeeded() {
     pendingPresent.store(true);
   }
 
-  if (beamSweeping) {
-    // Below the beam the OLD picture is still up -- opaque, not blended: it has
-    // not been repainted yet, so it is not a ghost of anything.
-    SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_NONE);
-    SDL_SetTextureAlphaMod(ghostTexture, 255);
-    SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
-    drawPanel(ghostTexture);
-    // ...and above it, only as much of the new frame as the beam has written.
-    const int swept =
-        static_cast<int>(static_cast<float>(visible.h) * beamProgress);
-    const SDL_Rect clip = {visible.x, visible.y, visible.w, swept};
-    SDL_SetRenderClipRect(sdl_renderer, &clip);
-  }
-
-  switch (orientation) {
-  case GfxRenderer::Portrait:
-    // dst center = window center, landscape-sized panel texture.
-    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &portraitDst, 90.0,
-                             nullptr, SDL_FLIP_NONE);
-    break;
-  case GfxRenderer::PortraitInverted:
-    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &portraitDst,
-                             -90.0, nullptr, SDL_FLIP_NONE);
-    break;
-  case GfxRenderer::LandscapeClockwise:
-    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &landscapeDst,
-                             180.0, nullptr, SDL_FLIP_NONE);
-    break;
-  default:
-    SDL_RenderTexture(sdl_renderer, texture, nullptr, &landscapeDst);
-  }
 
   // The ghost goes ON TOP of the new page and fades out, which is what a
   // phosphor does: the old picture is still emitting while the new one is

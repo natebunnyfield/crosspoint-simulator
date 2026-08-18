@@ -86,6 +86,34 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<key>DefaultValue</key>
 			<integer>0</integer>
 			<key>Key</key>
+			<string>pageFadeSeconds</string>
+			<key>Title</key>
+			<string>Page Fade</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — the page holds its brightness</string>
+				<string>15 s — dims as you settle into a page</string>
+				<string>30 s</string>
+				<string>1 min</string>
+				<string>2 min</string>
+				<string>5 min — barely perceptible</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>15</integer>
+				<integer>30</integer>
+				<integer>60</integer>
+				<integer>120</integer>
+				<integer>300</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>0</integer>
+			<key>Key</key>
 			<string>beamPaintMs</string>
 			<key>Title</key>
 			<string>Beam Paint</string>

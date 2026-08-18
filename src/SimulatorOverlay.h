@@ -134,6 +134,27 @@ void setPanelPalette(bool dark, const unsigned char ink[3],
 // as CROSSPOINT_SIM_DARK.
 void setPanelEmissive(bool emissive);
 
+// PAGE FADE: how long the page you are READING takes to decay after the last
+// input, in milliseconds. 0 is off, the default, and the entire desktop
+// behaviour.
+//
+// Distinct from the glow, and the distinction is the feature: the glow fades
+// the PREVIOUS page out as the next arrives, over a fraction of a second. This
+// fades the page in front of you, over seconds or minutes, the way a phosphor
+// screen goes on dimming after the beam has moved on.
+//
+// It decays toward the PAPER (a phosphor dying, which is what was asked for)
+// and STOPS at a legible floor -- a page that fades to nothing is a page you
+// cannot finish reading. notePageInteraction() re-energises it; any input
+// should call that.
+//
+// CROSSPOINT_SIM_PAGE_FADE_MS overrides the argument.
+void setPageFade(float fadeMs);
+
+// Something happened: restart the fade from full. Cheap and safe to call on
+// every input event -- it returns immediately when the fade is off.
+void notePageInteraction();
+
 // BEAM PAINT: how long the new frame takes to sweep in from the top of the
 // page, in milliseconds. 0 is off, which is the default and the entire desktop
 // behaviour.

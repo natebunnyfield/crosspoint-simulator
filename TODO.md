@@ -48,8 +48,43 @@ record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 
 ## OPEN
 
-### [ST-010] Fade the text away naturally over time after a page turn
-**scope: ios display · asked 2026-08-17**
+### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
+**scope: ios display · asked 2026-08-17 · built 2026-08-17**
+
+**Shipped as `Page Fade`**: Off (default) / 15 s / 30 s / 1 min / 2 min / 5 min,
+stored as the duration in seconds. The three design questions this entry raised,
+answered:
+
+- **Where does it stop?** At a floor, and any input re-energises it
+  (`notePageInteraction`, hooked to both the SDL event path and the synthetic
+  `injectButtonDown` path so headless runs behave like fingers).
+- **Toward paper or toward grey?** **Paper** — a phosphor dying, which is what
+  was asked. It falls out for free: the field behind the panel is already
+  cleared to the paper tone, so alpha on the panel texture *is* a fade toward
+  paper, correct in both polarities.
+- **How long?** A setting rather than the phosphor's own figure. P7's minute is
+  the only published number in range and hanging the feature off one row would
+  have made it unreachable from every other palette.
+
+**The floor is PER-PALETTE, and that is the part worth keeping.** 0.75 is the
+deepest fade the phosphor rows tolerate (worst case Blue/P11 at 4.49:1, the AA
+body-text bar). Solarized is exempt from this repo's 7:1 rule by design and
+falls to **2.73:1** at that floor — the one page the fade would have made
+unreadable. `pagefade::floorFor()` computes the floor from the pair on screen,
+so a palette with no contrast to spend does not fade at all. Every fading row
+measures ≥ 4.50:1; the non-fading one is left byte-identical.
+
+**Measured** on a real page turn at 3x, dark Green CRT, fade 3 s: fresh ink
+`(40,205,40)`, settled `(38,197,38)` — exactly the predicted 197 — and back to
+`(46,235,46)` a tenth of a second after a button press.
+
+**Found while building it:** the panel had been drawn TWICE per present since
+the beam work (build 90). Invisible with opaque blending, which is why nothing
+caught it, but it doubled the panel fill cost and made the fade composite
+twice — 0.75 alpha rendering as 0.94. Removed.
+
+`tests/page_fade_test.cpp` pins the curve, the settle, the loop stopping, and
+the legibility of every palette's floor.
 
 Owner: "make an option to fade away text naturally over time after page turn".
 
