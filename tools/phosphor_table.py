@@ -45,7 +45,7 @@ TABLE = [
      ('xy', 0.280, 0.300), "Medium to Short", 1.0, None),  # JEDEC white centre
     ("P19",  "Radar Orange", "(KF,MgF2):Mn", "Orange-Yellow",
      ('nm', 590), "Long", 150.0, None),
-    ("P20",  "Terminal Green", "(Zn,Cd)S:Ag or (Zn,Cd)S:Cu", "Yellow-Green",
+    ("P20",  "Yellow-Green Long", "(Zn,Cd)S:Ag or (Zn,Cd)S:Cu", "Yellow-Green",
      ('nm', 555), "1-100 ms", 20.0, None),
     ("P21",  "Radar Red", "MgF2:Mn2+", "Reddish",
      ('nm', 605), "not published", 150.0, None),
@@ -65,7 +65,7 @@ TABLE = [
      ('nm', 578), "Medium", 10.0, None),
     ("P33",  "Radar Orange Longest", "MgF2:Mn", "Orange",
      ('nm', 590), "> 1 sec", 1000.0, None),
-    ("P34",  "Storage Green", "not published", "Bluish Green-Yellow Green",
+    ("P34",  "Green Longest", "not published", "Bluish Green-Yellow Green",
      ('nm', 520), "Very Long", 1000.0, None),
     ("P35",  "Blue-White", "ZnS,ZnSe:Ag", "Blue-White",
      ('xy', 0.250, 0.265), "Medium Short", 1.0, None),  # blue-white, off-JEDEC
