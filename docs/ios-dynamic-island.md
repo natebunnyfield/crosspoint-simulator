@@ -192,9 +192,27 @@ One band and two fillets, painted by the harness's own overlay:
   mistaken for a measured square corner.
 
 **Pure black, not a palette tone**, because the point is that the Island stops
-reading as a separate shape and the Island is `#000000`. In dark mode the field
-is `#121212`, so the band is very nearly invisible there — correct, since dark
-mode never had the hole.
+reading as a separate shape and the Island is `#000000`.
+
+**CORRECTION, 2026-08-17 — dark mode DID have the hole.** The first version of
+this document claimed it did not, on the reasoning that a `#121212` field is
+"nearly invisible" against the Island. The owner reported otherwise ("dark has
+that problem") and he is right: `#121212` against `#000000` is a 6% luminance
+step that a screenshot flattens and an OLED does not — the field EMITS and the
+Island is pixels off, so the pill reads as a hole cut in the page. With a CRT
+palette it is plainer still, because those papers are tinted (Green CRT is
+`001A00`) and a pure-black pill sits in a coloured ground.
+
+The claim was made without measuring, and repeated. Measured now, dark
+appearance with `PAPER_DARK=001A00`, on the shipped build:
+
+```
+row    0 (  0.0 pt): (0, 0, 0)      <- the band; the Island disappears into it
+row  240 ( 80.0 pt): (0, 26, 0)     <- the page's own paper begins
+```
+
+So the band is painted in BOTH appearances and dark is fixed by the same change
+— it was simply never true that dark had nothing to fix.
 
 iPad is untouched: `layoutPadTablet()` returns before the phone branch, so
 `g_topBezelPx` stays 0. Desktop is untouched: this whole file is iOS-only.
