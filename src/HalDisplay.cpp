@@ -76,6 +76,11 @@ static std::atomic<uint64_t> lastInteractionMs{0};
 // setting exists to make carefully.
 static constexpr float kPageFadeFloor = 0.75f;
 static uint64_t beamStartedAt = 0;
+
+// Whether ghostTexture has been written since the glow was last turned on. The
+// texture outlives ghostPixels, so "we have a texture" is not the same question
+// as "it holds a picture" -- see where this is read.
+static bool ghostHasPicture = false;
 // The tint a two-layer phosphor's trail decays toward, packed 0x00RRGGBB, or
 // kNoGlowTail when the trail simply dims. See setPanelGlowTail.
 static constexpr uint32_t kNoGlowTail = 0xFFFFFFFFu;
@@ -591,13 +596,26 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 void composeGrayscalePreview() {
   const uint64_t composeStart = SDL_GetTicks();
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  pixelBufSeq++;
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
-  if (!bwBase) return;  // buffer lent out; keep the last presented frame
+  if (!bwBase) {
+    // Buffer lent out: keep the last presented frame. RELEASE THE HOLD ANYWAY.
+    // The plane-strip writes pushed the deadline out to 2 s on the promise that
+    // a compose was coming; this is that compose declining, and without the
+    // release the page freezes on the previous frame for the full two seconds.
+    //
+    // The seq bump also used to happen ABOVE this return, which told the next
+    // present that the content had changed when it had not -- depositing a
+    // duplicate of the current page into the accumulator and restarting the
+    // beam. It now happens only on the path that actually writes pixels.
+    presentHoldUntil.store(0);
+    pendingPresent.store(true);
+    return;
+  }
+  pixelBufSeq++;
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -1305,6 +1323,7 @@ void HalDisplay::presentIfNeeded() {
                             activeWidth() * sizeof(uint32_t));
           ghostStartedAt = SDL_GetTicks();
           beamStartedAt = ghostStartedAt;
+          ghostHasPicture = true;
         }
         ghostPixels.assign(pixelBuf, pixelBuf + live);
       }
@@ -1313,6 +1332,7 @@ void HalDisplay::presentIfNeeded() {
       ghostPixels.clear();
       ghostStartedAt = 0;
       beamStartedAt = 0;
+      ghostHasPicture = false;
     }
     // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
     // so at a lower scale the live picture occupies a prefix of it and the
@@ -1349,7 +1369,14 @@ void HalDisplay::presentIfNeeded() {
           SDL_RenderFillRect(sdl_renderer, nullptr);
         }
       }
-      if (contentChanged) {
+      // ONLY IF THE GHOST ACTUALLY HOLDS A PICTURE. The upload above is
+      // skipped when ghostPixels is empty -- the first content change after the
+      // glow turns on -- and a STREAMING texture's contents are undefined until
+      // written. Depositing it anyway put garbage into the accumulator at the
+      // exact moment the owner picked a phosphor, and on a re-entry it
+      // deposited the last page of the PREVIOUS phosphor session, because
+      // ghostTexture outlives ghostPixels.
+      if (contentChanged && ghostHasPicture) {
         // The page that was just replaced is what glows. Added at full
         // strength, 1:1 -- both textures are the panel's own size.
         SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_ADD);
@@ -1385,15 +1412,10 @@ void HalDisplay::presentIfNeeded() {
   // Cut off at 1/255 rather than at t = trail, because below one 8-bit step
   // there is nothing left to draw and continuing would hold the present loop
   // open for an invisible tail.
-  float ghostAlpha = 0.0f;
-  if (trailMs > 0.0f && ghostStartedAt != 0 && ghostTexture) {
-    const float age = static_cast<float>(SDL_GetTicks() - ghostStartedAt);
-    ghostAlpha = SDL_powf(10.0f, -age / trailMs);
-    if (ghostAlpha < 1.0f / 255.0f) {
-      ghostAlpha = 0.0f;
-      ghostStartedAt = 0;
-    }
-  }
+  // The ghost's own alpha computation lived here and is GONE with the block it
+  // fed: the accumulator owns decay now (it multiplies itself down every
+  // present), and keeping a second, independent fade of the same texture is
+  // what produced the double draw this removes.
   // Clear to the field color, not the default black. On desktop the window is
   // exactly panel-sized so this never shows, but wherever the panel is
   // letterboxed (the phone presents it at 2x inside a taller screen) it is the
@@ -1805,84 +1827,6 @@ void HalDisplay::presentIfNeeded() {
   }
 
 
-  // The ghost goes ON TOP of the new page and fades out, which is what a
-  // phosphor does: the old picture is still emitting while the new one is
-  // written over it. Same rects and the same rotation as the panel above, so it
-  // lands exactly on the panel however the panel was placed.
-  if (ghostAlpha > 0.0f && ghostTexture) {
-    // Whatever filter the panel ended up with, the ghost must match: the two
-    // are the same picture one frame apart, and a different resample would make
-    // the trail shimmer against the page it is fading off.
-    SDL_ScaleMode panelMode = kPanelScaleMode;
-    SDL_GetTextureScaleMode(texture, &panelMode);
-    SDL_SetTextureScaleMode(ghostTexture, panelMode);
-
-    // A PHOSPHOR ADDS LIGHT. It does not become see-through, which is what
-    // alpha blending models and what made the first version a dissolve: the old
-    // page's PAPER faded across the new page too, so the whole sheet
-    // cross-faded instead of the text lingering.
-    //
-    // Additive is the physical answer on a dark ground: the near-black paper
-    // contributes nothing to the sum, so only the lit pixels -- the text --
-    // carry over and decay, which is what a tube actually does.
-    //
-    // On a PALE paper there is no such thing as a glowing page, and adding
-    // light to it would only wash it out. There the honest fallback is the
-    // cross-dissolve, now at least on the right curve. The CRT palettes look
-    // like CRTs in dark mode; that is where the emissive effect belongs.
-    const bool darkGround = panelIsDarkGround();
-    SDL_SetTextureBlendMode(ghostTexture, darkGround ? SDL_BLENDMODE_ADD
-                                                     : SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(ghostTexture,
-                           static_cast<Uint8>(ghostAlpha * 255.0f + 0.5f));
-
-    // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES. The tint ramps in as the
-    // ghost decays -- white (no shift) while it is fresh, fully the afterglow
-    // hue by the end -- so a P7 page is written blue-white and left behind in
-    // yellow-green. Multiplicative, which is why the flash has to be a light
-    // blue-WHITE: there is no channel to multiply up, only down.
-    //
-    // ONLY ON THE ADDITIVE PATH. A color multiply on a ghost whose paper is
-    // BLACK touches nothing but the lit ink, which is the whole intent. On the
-    // pale-paper cross-dissolve the same multiply hits the paper too, so the
-    // entire decaying frame -- margins and all -- washes green. That is not a
-    // longer-lived layer, it is a stain over the page, and it is worse than no
-    // cascade at all.
-    const uint32_t tail = glowTailTint.load();
-    if (tail != kNoGlowTail && darkGround) {
-      const float t = 1.0f - ghostAlpha;  // 0 fresh, 1 fully decayed
-      auto ramp = [&](int shift) {
-        const float target = static_cast<float>((tail >> shift) & 0xFF) / 255.0f;
-        return static_cast<Uint8>((1.0f - t + t * target) * 255.0f + 0.5f);
-      };
-      SDL_SetTextureColorMod(ghostTexture, ramp(16), ramp(8), ramp(0));
-    } else {
-      SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
-    }
-    switch (orientation) {
-    case GfxRenderer::Portrait:
-      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
-                               &portraitDst, 90.0, nullptr, SDL_FLIP_NONE);
-      break;
-    case GfxRenderer::PortraitInverted:
-      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
-                               &portraitDst, -90.0, nullptr, SDL_FLIP_NONE);
-      break;
-    case GfxRenderer::LandscapeClockwise:
-      SDL_RenderTextureRotated(sdl_renderer, ghostTexture, nullptr,
-                               &landscapeDst, 180.0, nullptr, SDL_FLIP_NONE);
-      break;
-    default:
-      SDL_RenderTexture(sdl_renderer, ghostTexture, nullptr, &landscapeDst);
-    }
-
-    // A fade only animates if something presents while it fades, and the
-    // firmware will not: an e-ink reader draws a page and stops. So the trail
-    // asks for its own next frame, and stops asking the moment it is done --
-    // which is what keeps this from becoming a permanent render loop.
-    if (accumLive) pendingPresent.store(true);
-  }
-
   if (beamSweeping) {
     SDL_SetRenderClipRect(sdl_renderer, nullptr);
     // A sweep only sweeps if something presents while it does, and an e-ink
@@ -1935,6 +1879,57 @@ void HalDisplay::presentIfNeeded() {
       SDL_Log("[present] #%d at %u ms, frame from %c, mean luma %.1f", ++n,
               SDL_GetTicks(), lastPixelWriter.load(),
               samples ? lum / samples : 0.0);
+    }
+  }
+  // DIAGNOSIS ONLY (CROSSPOINT_SIM_LOG_SCREEN=1), no behaviour change.
+  //
+  // The [present] line above samples pixelBuf -- the PANEL FRAMEBUFFER -- so it
+  // cannot see anything the composition adds: the field clear, the page-fade
+  // alpha, the glow accumulator, the beam clip, or the overlay. A flash that
+  // lives in any of those is invisible to it. This reads back what is actually
+  // about to be shown, immediately before the present, and reports the mean
+  // luminance of the whole output and of a band inside the page.
+  if (const char *env = std::getenv("CROSSPOINT_SIM_LOG_SCREEN")) {
+    if (env[0] == '1') {
+      const uint64_t t0 = SDL_GetTicks();
+      SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                       SDL_LOGICAL_PRESENTATION_DISABLED);
+      SDL_Surface *shot = SDL_RenderReadPixels(sdl_renderer, nullptr);
+      SDL_Surface *conv =
+          shot ? SDL_ConvertSurface(shot, SDL_PIXELFORMAT_ARGB8888) : nullptr;
+      if (conv) {
+        const int w = conv->w, h = conv->h;
+        auto bandMean = [&](int y0, int y1) {
+          double sum = 0.0;
+          int n2 = 0;
+          for (int y = y0; y < y1; y += 7) {
+            const uint32_t *row = reinterpret_cast<const uint32_t *>(
+                static_cast<uint8_t *>(conv->pixels) +
+                static_cast<size_t>(y) * conv->pitch);
+            for (int x = 0; x < w; x += 7) {
+              const uint32_t px = row[x];
+              sum += 0.2126 * ((px >> 16) & 0xFF) + 0.7152 * ((px >> 8) & 0xFF) +
+                     0.0722 * (px & 0xFF);
+              n2++;
+            }
+          }
+          return n2 ? sum / n2 : 0.0;
+        };
+        const int py0 = panelRectH > 0 ? panelRectY : 0;
+        const int py1 = panelRectH > 0 ? panelRectY + panelRectH : h;
+        static int m = 0;
+        SDL_Log("[screen] #%d at %u ms, out %dx%d, whole %.2f, page %.2f, "
+                "readback %u ms",
+                ++m, (unsigned)t0, w, h, bandMean(0, h),
+                bandMean(py0 < 0 ? 0 : py0, py1 > h ? h : py1),
+                (unsigned)(SDL_GetTicks() - t0));
+        SDL_DestroySurface(conv);
+      }
+      if (shot) SDL_DestroySurface(shot);
+      int logW2 = 0, logH2 = 0;
+      getLogicalPresentationSize(orientation, &logW2, &logH2);
+      SDL_SetRenderLogicalPresentation(sdl_renderer, logW2, logH2,
+                                       kLogicalPresentation);
     }
   }
   SDL_RenderPresent(sdl_renderer);
