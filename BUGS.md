@@ -232,6 +232,16 @@ different stub and a different bug — filed as **S-014**.
 ### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
 **severity: medium · scope: tests / firmware drift · found 2026-08-08** · FIXED 2026-08-08
 
+**RE-CONFIRMED PASSING 2026-08-17, and a warning for the next person who sees it
+red: this test is sensitive to MACHINE LOAD, not only to firmware drift.** It
+failed here ("simulator still running after 30s -- the 1ms wake tap was missed")
+while two font builds were running three parallel jobs each, and passed on the
+same tree, same binary, the moment the box was idle. Everything about the
+failure reads like drift — the wake never lands, the process has to be killed —
+so check the load before re-diagnosing the firmware. A 1 ms synthetic tap has to
+be observed inside one pump of the sleep loop, and a saturated CPU is enough to
+miss it.
+
 
 The test's scenario (`2500:POWER:700` must enter deep sleep, a later 1 ms tap
 must relaunch the process) no longer matches the firmware: against the fork's
