@@ -360,3 +360,106 @@ The fillet is still drawn at the **55 pt circular** fallback while the measured
 mask is an 88 pt-extent squircle, so the page's corner is a slightly different
 shape from the glass's. Invisible against a black band, and outside what was
 asked for; recorded here so the next person does not re-measure it.
+
+---
+
+## Update 2026-08-18 (second ruling of the day): the card comes up, the page goes down
+
+Owner: **"both bring paper background behind panel closer to dynamic island and
+also bring panel down so it not too close to background edge."**
+
+Two moves in OPPOSITE directions, and the pair is the point. Until this change
+they were the same number: the black band's bottom edge and the page's top edge
+were both `topInset`, so there was **no paper above the page at all** — black ran
+from `y = 0` straight into the first line of text. "The background" the owner
+wants raised was, in that build, black.
+
+| | before | after |
+|---|---|---|
+| black band (card top) | 0 → **76.0 pt** | 0 → **68.0 pt** = the safe area |
+| paper above the page | **none** | **12.3 pt** (204 → 241 px) |
+| page top edge | 76.0 pt | **80.3 pt** (`topInset` 80.0) |
+| gap from the Island's lower edge (56.3 pt) to paper | — (black) | **11.7 pt** |
+| presented panel rect | `1148x1722 at 56,229` | `1140x1710 at 60,241` |
+| panel bottom edge | 1951 px = 650.3 pt | **1951 px = 650.3 pt** |
+| fillet: last black row at `x = 2` | 340 px = 113.3 pt | 316 px = 105.3 pt |
+
+### What changed
+
+`ios/CrossPointIOSShim.cpp`, `layoutPad()`: one number became two.
+
+```
+kCardTop     = safeTop                     // black ends, paper begins
+kPaperMargin = 12.0f                       // paper above the page
+topInset     = kCardTop + kPaperMargin     // the PAGE
+g_topBezelPx = kCardTop * S                // the BAND  (was topInset * S)
+```
+
+`paintTopBezel` is unchanged; it simply stops higher, so the rounded corners it
+cuts now belong to the **paper card**, not to the page. At 12 pt deep the
+squircle has pulled in to 12.1 pt of its 55 pt extent, inside the page's own
+~19 pt side margin, so the corner never bites the page.
+
+### Why the card stops at the safe area and not higher
+
+The safe area **is** the line iOS draws below the cut-out, and §2 above is the
+record that nothing public reports where the Island actually ends — so anything
+tighter would be a guess dressed as a measurement. On the iPhone Air the Island
+ends at 56.3 pt and the safe area at 68.0, leaving the pill 11.7 pt of black
+below it: Apple's own margin, not slack of ours. Spending it is exactly what put
+the Island in a pale field on 2026-08-17 ("a distracting hole above the panel"),
+which is the bug this band exists to prevent. Verified in **both** polarities on
+the shipped build:
+
+```
+light:  row 0 = (0,0,0)   ...  row 204 (68.0 pt) = (220,239,216)  <- paper
+dark:   row 0 = (0,0,0)   ...  row 204 (68.0 pt) = (18,18,18)     <- paper
+```
+
+### Why the margin is 12 pt and not 16
+
+**16 pt was tried first and it MOVES THE PAD**, which the owner ruled out.
+Measured, not predicted — built, screenshotted, decoded:
+
+The pad's top row hangs at a chassis-matched gap below the page,
+`round(panelHeight_pt * 11.6/78.2 / 8) * 8` (`layoutPad`, the `bottomGap` line).
+That snap flips from **88 pt to 80 pt** the instant the presented panel drops
+below **566.27 pt** tall. Pushing the page down 16 pt leaves the panel at exactly
+**566.0 pt — one device pixel past the boundary** — and the top row jumped
+**22 px (7.3 pt)** up. At 12 pt the panel lands on 570.0 pt, the gap stays in its
+88 pt bucket, and the row moves 1 px.
+
+The page's top edge then sits at 80.0 pt: a whole 8 pt step from the screen's
+top edge, and — worth noting rather than reading anything into — the old
+`kTopReserve` line these three rulings have been walking away from and back
+toward.
+
+The visible change is the **margin**, not the 4 pt: the page went from having no
+paper above it to having 12.3 pt of it.
+
+### Nothing else moved — decoded, iPhone Air, 3x, light appearance
+
+Full-image row-by-row comparison of the before and after screenshots, not a spot
+check: **every row from 2213 px (737.7 pt) down is byte-for-byte identical.**
+That covers the whole bottom row, POWER, the side rocker, the palette chip, the
+keyboard chip and the home inset.
+
+| | before | after |
+|---|---|---|
+| pad **bottom** row, ink rows | 2418 → 2609 px | **identical** |
+| pad **top** row, ink rows | 2020 → 2211 px | 2021 → 2212 px (**+1 px**, 0.33 pt) |
+| first differing row anywhere below the pad's top row | — | none |
+
+The 1 px is antialiasing residue from the panel's fractional scale, an order of
+magnitude under the 4 px the 2026-08-18 (first) change cost and two orders under
+the 22 px the 16 pt margin cost.
+
+### The knife-edge worth knowing about
+
+The 88/80 pt gap snap is the sharpest constant in this layout: it is a
+`round()` on the panel's own height, and the panel height is derived from the
+top inset, so **any future change to the top band lands within a few device
+pixels of moving the pad's top row a whole 8 pt step**. The boundary today is
+a presented panel height of 566.27 pt (1698.8 device px). Check it before
+changing `kPaperMargin`, `kCardTop` or `kTopReserve`; a screenshot diff of the
+rows below the page is the only honest way to know.

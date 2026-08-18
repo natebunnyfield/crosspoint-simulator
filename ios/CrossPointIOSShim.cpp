@@ -708,15 +708,70 @@ void layoutPad(int outW, int outH) {
   // the page instead and the pad WOULD follow it down; there is no such device
   // in the profile list today (every one is short of height), and if one
   // appears this is the line that has to grow a case for it.
-  const float kCornerClear = 8.0f;
-  topInset = safeTop > 20.0f ? safeTop + kCornerClear : kTopReserve;
-  SDL_Log("[layout] safe top %.1f pt -> page top %.1f pt (band %s)", safeTop,
-          topInset, safeTop > 20.0f ? "at the cut-out + corner clearance" : "reserve");
+  //
+  // OWNER 2026-08-18 (second ruling of the day): "both bring paper background
+  // behind panel closer to dynamic island and also bring panel down so it not
+  // too close to background edge." TWO moves, in OPPOSITE directions, and the
+  // pair is the whole point:
+  //
+  //   * the CARD (the paper field the page sits on) goes UP, to the safe area;
+  //   * the PAGE goes DOWN, to one margin below the card's own top edge.
+  //
+  // Until now those two were the same number -- the black band ended exactly
+  // where the page began -- so there was no paper above the page at all, only
+  // black. They are now separate: kCardTop is where black stops and paper
+  // starts, topInset is where the page starts.
+  //
+  // WHY THE CARD STOPS AT THE SAFE AREA AND NOT HIGHER. The safe area IS the
+  // line iOS draws below the cut-out; nothing public reports where the Island
+  // actually ends (Apple DTS, docs/ios-dynamic-island.md §2), so any tighter
+  // number would be a guess dressed as a measurement. On this phone the Island
+  // ends at 56.3 pt and the safe area at 68.0, so the pill keeps 11.7 pt of
+  // black below it -- Apple's own margin, not slack of ours. Going past it is
+  // what puts the Island back in a pale field, which is the 2026-08-17 bug
+  // ("a distracting hole above the panel") this band exists to prevent.
+  //
+  // WHY THE PAGE SITS 12 pt BELOW THE CARD'S TOP. The page already floats in
+  // paper on three sides: the fit leaves ~18 pt of field either side of it on
+  // this phone (panel 1148 px wide in a 1260 px window) and the pad's band
+  // below. The top was the one edge where the page ran straight into the black.
+  //
+  // 16 pt would match those side margins more closely and was tried FIRST. It
+  // MOVES THE PAD, which the owner ruled out: the pad's top row hangs at a
+  // chassis-matched gap below the page, round(panelHeight * 11.6/78.2 / 8) * 8,
+  // and that snap flips from 88 to 80 pt the moment the presented panel falls
+  // under 566.27 pt tall. At a 16 pt margin the panel lands on 566.0 -- ONE
+  // DEVICE PIXEL past the boundary -- and the top row jumped 22 px (7.3 pt).
+  // Measured, not predicted: build, screenshot, decode.
+  //
+  // 12 pt leaves the panel ~570 pt, keeps the gap in its 88 pt bucket, and puts
+  // the page's top edge at 80.0 pt -- which is both a whole 8 pt step from the
+  // screen's top edge and, by coincidence worth noting, the old kTopReserve
+  // line this file spent two rulings moving away from and back toward.
+  //
+  // So the page moves DOWN 4 pt and the paper above it goes from nothing to
+  // 12 pt. The visible change is the margin, not the 4 pt.
+  //
+  // The card's rounded top corners are still cut by paintTopBezel, and they now
+  // belong to the PAPER, not to the page -- at 12 pt deep the fillet has pulled
+  // in to 12.1 pt of the 55 pt extent, inside the page's own ~19 pt side
+  // margin, so the corner never bites the page.
+  const float kCardTop = safeTop;      // black ends, paper begins
+  const float kPaperMargin = 12.0f;    // paper above the page
+  topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
+  SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
+          safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
+          safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
   SimulatorOverlay::setTopInset(static_cast<int>(topInset * S));
 
-  // THE BEZEL BAND: where the page's rounded top corners start, in device
-  // pixels, or 0 for "do not paint one". paintTopBezel reads it; see the
-  // comment on that function for why the band exists at all.
+  // THE BEZEL BAND: where the black stops and the paper CARD's rounded top
+  // corners start, in device pixels, or 0 for "do not paint one". paintTopBezel
+  // reads it; see the comment on that function for why the band exists at all.
+  //
+  // This is kCardTop, NOT topInset. They were the same number until 2026-08-18
+  // and the page's own top edge doubled as the card's; now the card comes up to
+  // the safe area and the page sits kPaperMargin below it, so a band painted to
+  // topInset would swallow the paper margin that ruling asked for.
   //
   // ONLY ON A DEVICE WITH A CUT-OUT. There is no public API that reports a
   // notch or a Dynamic Island -- Apple's DTS answer is that none exists and
@@ -725,7 +780,7 @@ void layoutPad(int outW, int outH) {
   // the standard read of it. A home-button iPhone reports 20 and gets no band:
   // it has no hole to hide, and 80 pt of black above the page would be a
   // change nobody asked for on that hardware.
-  g_topBezelPx = safeTop > 20.0f ? topInset * S : 0.0f;
+  g_topBezelPx = safeTop > 20.0f ? kCardTop * S : 0.0f;
 }
 
 // --- Appearance ------------------------------------------------------------
@@ -1092,6 +1147,19 @@ void pollPageFade() {
   SimulatorOverlay::setPageFade(static_cast<float>(secs) * 1000.0f);
 }
 
+// How far that fade goes. Same edge-triggered shape; separate from the poll
+// above because the two settings are independently chosen and either can change
+// without the other.
+void pollPageFadeDepth() {
+  static int s_applied = -1;
+  const int pct = CrossPointPrefs_pageFadeDepthPercent();
+  if (pct == s_applied) return;
+  s_applied = pct;
+  SDL_Log("[fade] page fade depth %d%% of the legible floor%s", pct,
+          pct == 0 ? " (fully transparent)" : "");
+  SimulatorOverlay::setPageFadeDepth(pct);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -1204,11 +1272,14 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // In dark mode the field is 121212-ish, so the band still reads as a distinct
 // card edge, which is the same thing the owner asked for in the other polarity.
 //
-// THE BAND'S BOTTOM IS THE RESERVED TOP INSET, so it is guaranteed to clear
-// the cut-out without measuring it: the inset is max(safe area top, 80 pt),
-// the safe area top is the system's own promise to clear the Island, and 80 pt
-// is deeper still on every phone measured. No API reports the Island's frame
-// (docs/ios-dynamic-island.md), and this does not need one.
+// THE BAND'S BOTTOM IS THE SAFE AREA TOP (kCardTop in layoutPad), so it is
+// guaranteed to clear the cut-out without measuring it: the safe area top is
+// the system's own promise to clear the Island. No API reports the Island's
+// frame (docs/ios-dynamic-island.md), and this does not need one.
+//
+// It is NOT the page's top inset. Since 2026-08-18 the page sits a paper margin
+// lower than the band's bottom, so the corners this rounds are the PAPER CARD's
+// -- the field the page floats in -- and the page's own top edge is below them.
 //
 // THE RADIUS is asked of UIKit -- CrossPointAppearance_displayCornerRadius,
 // which resolves a container-concentric corner against the window and so lands
@@ -1866,6 +1937,7 @@ void CrossPointHarness_perFrame() {
   pollPanelGlow();
   pollBeamPaint();
   pollPageFade();
+  pollPageFadeDepth();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

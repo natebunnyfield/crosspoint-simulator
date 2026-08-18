@@ -66,9 +66,15 @@ int main() {
   CHECKM(atOne < kFloor + 0.05f, "one fade period barely moved (%.3f)", atOne);
   CHECKM(atOne > kFloor, "one fade period already hit the floor exactly");
 
-  // THE FLOOR IS LEGIBLE, and this is the check the constant exists for: every
-  // phosphor row, both polarities, faded ink against its own paper must clear
-  // WCAG AA body text. At 0.55 (the first draft) Blue lands at 2.88:1.
+  // THE FLOOR IS LEGIBLE AT THE DEFAULT DEPTH, and this is the check the
+  // constant exists for: every phosphor row, both polarities, faded ink against
+  // its own paper must clear WCAG AA body text. At 0.55 (the first draft) Blue
+  // lands at 2.88:1.
+  //
+  // "At the default depth" is the whole qualification the depth setting added.
+  // floorFor() is called here with no depth argument ON PURPOSE -- that is the
+  // path an install which never opens the setting takes, and it has to stay
+  // exactly what it was.
   double worst = 99.0;
   const char *worstName = "";
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
@@ -107,6 +113,105 @@ int main() {
   CHECKM(floorFor(green.ink, green.paper) == kFloor,
          "a CRT row no longer gets the full fade");
   std::printf("  worst faded contrast: %.2f:1 (%s)\n", worst, worstName);
+
+  // --- DEPTH -------------------------------------------------------------
+  //
+  // The setting is "how much of that legible floor to keep", 100 down to 0.
+  // Three things have to be true and none of them is visible in a screenshot:
+  // the default must not have moved, deeper must actually BE deeper, and 0 must
+  // reach nothing rather than merely nearly-nothing.
+
+  // 1. THE DEFAULT IS UNCHANGED, for every palette in both polarities. This is
+  //    the assertion that protects the install that never opens the setting.
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const panelpalette::PresetInfo &r = panelpalette::kPresetInfo[i];
+    for (int d = 0; d < 2; d++) {
+      const panelpalette::Palette p = panelpalette::presetPalette(r.preset, d != 0);
+      const float legible = legibleFloorFor(p.ink, p.paper);
+      CHECKM(floorFor(p.ink, p.paper) == legible,
+             "%s (%s): the default depth moved the floor", r.name,
+             d ? "dark" : "light");
+      CHECKM(floorFor(p.ink, p.paper, kDepthFull) == legible,
+             "%s (%s): depth 100 is not the legible floor", r.name,
+             d ? "dark" : "light");
+      // Out of range cannot invent a state: over-full is full, negative is 0.
+      CHECKM(floorFor(p.ink, p.paper, 1000) == legible,
+             "%s: an over-range depth is not clamped to full", r.name);
+      CHECKM(floorFor(p.ink, p.paper, -5) == 0.0f,
+             "%s: a negative depth is not clamped to transparent", r.name);
+    }
+  }
+
+  // 2. DEEPER IS DEEPER, strictly, on a row that fades at all -- and on the row
+  //    that does NOT fade at the default, because owner election is exactly
+  //    what the depth setting is for.
+  const int depths[5] = {100, 75, 50, 25, 0};
+  for (const panelpalette::Palette *pal : {&green, &sol}) {
+    const float legible = legibleFloorFor(pal->ink, pal->paper);
+    float prevFloor = 2.0f;
+    for (int di = 0; di < 5; di++) {
+      const float f = floorFor(pal->ink, pal->paper, depths[di]);
+      CHECKM(f < prevFloor, "depth %d did not fade deeper than the step above",
+             depths[di]);
+      CHECKM(std::abs(f - legible * depths[di] / 100.0f) < 1e-5f,
+             "depth %d is not that proportion of the legible floor", depths[di]);
+      prevFloor = f;
+    }
+  }
+  // Solarized does not fade at the default and DOES at every step below it.
+  // That is the guard being bypassed by election, stated as a test so nobody
+  // re-clamps it and calls the re-clamp a fix.
+  CHECKM(floorFor(sol.ink, sol.paper) >= 1.0f,
+         "Solarized fades at the default depth, which it must not");
+  CHECKM(floorFor(sol.ink, sol.paper, 50) < 1.0f,
+         "Solarized ignores an explicitly chosen deeper fade");
+
+  // 3. FULLY TRANSPARENT REACHES NOTHING. Not 0.02, not "one step above the
+  //    floor" -- alpha 0, or the option does not do what its row says.
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const panelpalette::PresetInfo &r = panelpalette::kPresetInfo[i];
+    for (int d = 0; d < 2; d++) {
+      const panelpalette::Palette p = panelpalette::presetPalette(r.preset, d != 0);
+      const float f = floorFor(p.ink, p.paper, 0);
+      CHECKM(f == 0.0f, "%s: fully transparent left a floor of %.4f", r.name, f);
+      CHECKM(alphaFor(1e6f, 3000.0f, f) == 0.0f,
+             "%s: fully transparent settles at %.4f, not 0", r.name,
+             alphaFor(1e6f, 3000.0f, f));
+      CHECKM(!stillMoving(1e6f, 3000.0f, f),
+             "%s: a fully transparent page never stops asking for frames", r.name);
+      CHECKM(stillMoving(0.0f, 3000.0f, f),
+             "%s: a fully transparent fade never starts", r.name);
+    }
+  }
+
+  // And the price of each step, printed rather than asserted at a bar, because
+  // below the default there IS no bar -- that is the owner's ruling. The
+  // numbers are here so the comment in PageFade.h can be checked against them.
+  for (int di = 0; di < 5; di++) {
+    double dworst = 99.0;
+    const char *dname = "";
+    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+      const panelpalette::PresetInfo &r = panelpalette::kPresetInfo[i];
+      for (int d = 0; d < 2; d++) {
+        const panelpalette::Palette p =
+            panelpalette::presetPalette(r.preset, d != 0);
+        const float fl = floorFor(p.ink, p.paper, depths[di]);
+        if (depths[di] == 100 && fl >= 1.0f) continue;  // this row does not fade
+        unsigned char faded[3];
+        for (int k = 0; k < 3; k++)
+          faded[k] = static_cast<unsigned char>(p.ink[k] * fl +
+                                                p.paper[k] * (1.0f - fl));
+        const double cr = ratio(lum(faded), lum(p.paper));
+        if (cr < dworst) { dworst = cr; dname = r.name; }
+      }
+    }
+    std::printf("  depth %3d%%: worst settled contrast %.2f:1 (%s)\n",
+                depths[di], dworst, dname);
+  }
+  // The default is the only depth that clears AA body text, and the deepest
+  // reaches the paper exactly.
+  CHECKM(floorFor(green.ink, green.paper, 0) == 0.0f,
+         "the deepest setting is not fully transparent");
 
   if (failures) {
     std::printf("\n%d failure(s)\n", failures);

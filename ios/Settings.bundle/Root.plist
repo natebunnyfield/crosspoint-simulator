@@ -112,6 +112,32 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
+			<integer>100</integer>
+			<key>Key</key>
+			<string>pageFadeDepthPercent</string>
+			<key>Title</key>
+			<string>Page Fade Depth</string>
+			<key>Titles</key>
+			<array>
+				<string>Readable — stops while you can still read it</string>
+				<string>Dim — past readable, plainly still there</string>
+				<string>Ghost — the shape of the page, not the words</string>
+				<string>Faint — only just visible</string>
+				<string>Fully transparent — the page disappears</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>100</integer>
+				<integer>75</integer>
+				<integer>50</integer>
+				<integer>25</integer>
+				<integer>0</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
 			<integer>0</integer>
 			<key>Key</key>
 			<string>beamPaintMs</string>
