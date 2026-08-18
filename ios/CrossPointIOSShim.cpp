@@ -1160,6 +1160,21 @@ void pollPageFadeDepth() {
   SimulatorOverlay::setPageFadeDepth(pct);
 }
 
+void pollPhosphorGrain() {
+  static int s_strength = -1;
+  static int s_coverage = -1;
+  const int strength = CrossPointPrefs_phosphorGrainPercent();
+  const int coverage = CrossPointPrefs_phosphorGrainCoverage();
+  if (strength == s_strength && coverage == s_coverage) return;
+  s_strength = strength;
+  s_coverage = coverage;
+  static const char *const kCoverageNames[] = {"even", "vignette", "mottled",
+                                               "vignette+mottled"};
+  SDL_Log("[grain] screen grain %d%% of realistic, coverage %s", strength,
+          kCoverageNames[coverage >= 0 && coverage < 4 ? coverage : 0]);
+  SimulatorOverlay::setPhosphorGrain(strength, coverage);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -1938,6 +1953,7 @@ void CrossPointHarness_perFrame() {
   pollBeamPaint();
   pollPageFade();
   pollPageFadeDepth();
+  pollPhosphorGrain();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

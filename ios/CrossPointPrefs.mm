@@ -48,6 +48,14 @@ static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
 static NSString *const kPageFadeSeconds = @"pageFadeSeconds";
 static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
+// Phosphor grain. The missing-key failure for the strength is the MALIGNANT
+// one: -integerForKey: answers 0, and 0 here is the feature switched off while
+// the picker still reads "1x — realistic". So it goes through -objectForKey:
+// like the fade depth, for the same reason. The coverage's 0 is Even, which is
+// both the shipped default and a legitimate value, so it is harmless either
+// way.
+static NSString *const kPhosphorGrainPercent = @"phosphorGrainPercent";
+static NSString *const kPhosphorGrainCoverage = @"phosphorGrainCoverage";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -313,6 +321,39 @@ int CrossPointPrefs_pageFadeSeconds(void) {
   // setting is indistinguishable from off and would hold the render loop open
   // for the whole of it.
   return s > 600 ? 600 : s;
+}
+
+int CrossPointPrefs_phosphorGrainPercent(void) {
+  ensureDefaults();
+  checkKnown(kPhosphorGrainPercent);
+  // Stored as a PERCENTAGE OF REALISTIC, the meaningful value itself rather
+  // than a row index -- so the picker can gain steps without re-pointing what
+  // an existing install already chose. 100 is realistic and is the default; 0
+  // is off; 1000 is the 10x the owner asked for.
+  //
+  // -objectForKey: rather than -integerForKey: because 0 is a REAL choice and
+  // the two cannot otherwise be told apart. The wrong answer on an install
+  // whose defaults never registered would be a flat screen for an owner who
+  // never turned grain off.
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kPhosphorGrainPercent];
+  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 1000 ? 1000 : pct;
+}
+
+int CrossPointPrefs_phosphorGrainCoverage(void) {
+  ensureDefaults();
+  checkKnown(kPhosphorGrainCoverage);
+  // 0 is Even, which is the shipped default -- so unlike the strength above,
+  // -integerForKey:'s answer for a missing key is the right one and no
+  // NSNumber dance is needed. Clamped in phosphorgrain::clampCoverage anyway;
+  // clamped again here so a garbage store cannot reach the setter at all.
+  const NSInteger raw =
+      [[NSUserDefaults standardUserDefaults] integerForKey:kPhosphorGrainCoverage];
+  if (raw < 0) return 0;
+  return raw > 3 ? 0 : (int)raw;
 }
 
 int CrossPointPrefs_pageFadeDepthPercent(void) {

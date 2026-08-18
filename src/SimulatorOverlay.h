@@ -223,4 +223,29 @@ void setPanelGlow(float trailMs);
 // CROSSPOINT_SIM_PANEL_GLOW_TAIL overrides the argument, "RRGGBB".
 void setPanelGlowTail(const unsigned char tint[3]);
 
+// PHOSPHOR GRAIN: the spatial texture of the screen itself. `strengthPercent`
+// is a percentage of what a real settled-powder screen has, so 100 is realistic
+// and the default, 0 is off (bit-exact off), and 1000 is the 10x the owner
+// asked for. `coverage` is a phosphorgrain::Coverage integer saying how that
+// grain is spread -- evenly, heavier at the rim with a dimmed corner, in
+// low-frequency blotches, or both.
+//
+// This is the answer to "the colors and persistence look good, but it is
+// flat": the palette gets the phosphor's color right and the accumulator gets
+// its decay right, and a real tube's screen is still a layer of crystals with
+// uneven coverage rather than a uniform fill.
+//
+// It only ever DARKENS -- coverage variation is a deficit against an ideal
+// screen, and a multiplier cannot lift a pixel the page left dark, which is the
+// bug class the page-turn flash and the grey-background report both came from.
+// Owner ruling 2026-08-18 rules out the other two candidates: no bloom or
+// halation (it spreads light across glyph edges and costs legibility) and no
+// scanlines (a raster artifact, not a phosphor one).
+//
+// The model lives in src/PhosphorGrain.h and is host-tested; this layer only
+// carries the two numbers. CROSSPOINT_SIM_GRAIN and
+// CROSSPOINT_SIM_GRAIN_COVERAGE override the arguments, for a desktop or
+// headless run with no Settings app to reach the control.
+void setPhosphorGrain(int strengthPercent, int coverage);
+
 } // namespace SimulatorOverlay

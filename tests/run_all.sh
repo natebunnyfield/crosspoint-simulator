@@ -142,6 +142,15 @@ run heap_budget \
 run dispatch_signal \
   c++ -std=c++20 -o "$OUT/dispatch_signal" tests/dispatch_signal_test.cpp
 
+# The grain field. Every failure mode is a wrong PICTURE -- a field that only
+# darkens is the difference between texture and the page-flash bug class, "off"
+# that is nearly-off instead of bit-exact is a silent change to every install
+# that turned it off, and a cell that regressed to one pixel drops below acuity
+# and renders as the flat fill the feature exists to replace. None of that
+# compiles differently.
+run phosphor_grain \
+  c++ -std=c++17 -Isrc -o "$OUT/phosphor_grain" tests/phosphor_grain_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop
