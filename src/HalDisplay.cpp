@@ -417,6 +417,24 @@ std::atomic<char> lastPixelWriter{'?'};
 // wants the device's process rather than its result.
 constexpr uint64_t kPresentHoldMs = 30;
 
+// AND THE EXTENSION, which is the half that makes this work at 3x.
+//
+// 30 ms was measured against an 800x480 panel, where a compose takes 13-22 ms.
+// At 3x the framebuffer is 2376x1584 and a compose measures 115-271 ms, so the
+// deadline expired every single time and the 1-bit frame presented -- the flash
+// came straight back, on the phone only. It could not be reproduced on the
+// desktop because there the firmware renders and presents on ONE thread, so
+// nothing can slip in between the two passes; on iOS the render task is a real
+// thread and the display link presents concurrently.
+//
+// A deadline alone cannot be right at every render scale, so it is no longer
+// asked to be. When the firmware starts writing AA plane strips we KNOW a
+// compose is coming -- that signal arrives after the 1-bit paint and well
+// before the composed frame -- so the hold is extended to cover it. Still
+// bounded: if a compose is abandoned mid-way the page must recover rather than
+// sit on the previous frame forever.
+constexpr uint64_t kPresentHoldExtendedMs = 2000;
+
 bool presentFlashWanted() {
   static const bool wanted = [] {
     const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH");
@@ -433,22 +451,36 @@ bool presentFlashWanted() {
 // Both callers (renderBwPixels, composeGrayscalePreview) hold pixelBufMutex for
 // the whole loop, which is what makes a plain static safe here; if a third
 // caller ever appears outside that lock, this needs its own.
-uint32_t panelColor(uint8_t level, const PanelPalette &p) {
-  if (!panelEmissive.load())
-    return panelpalette::colorForLevel(level, p);
-
-  static uint32_t ramp[256];
-  static uint64_t rampKey = ~0ull;
-  const uint64_t key =
-      (static_cast<uint64_t>(panelpalette::pack(p.ink)) << 24) |
-      panelpalette::pack(p.paper);
-  if (key != rampKey) {
-    for (int i = 0; i < 256; i++)
-      ramp[i] = panelpalette::colorForLevelEmissive(
-          static_cast<uint8_t>(i), p);
-    rampKey = key;
+// THE WHOLE 256-LEVEL RAMP, RESOLVED ONCE PER FRAME.
+//
+// This was a per-pixel function that did an atomic load and a cache-key compare
+// on every pixel. At 3x that is 3.76 MILLION atomic loads per compose, and a
+// compose measured 115-271 ms -- which mattered far beyond tidiness: the
+// present hold that suppresses the page-turn flash is a DEADLINE, and a compose
+// that takes 115 ms against a 30 ms deadline means the 1-bit frame presents
+// every single time. The flash came back on the phone and could not be
+// reproduced on the desktop, where render and present share a thread and
+// nothing can slip in between them.
+//
+// So the ramp is built once, by whoever is about to write a frame, and indexed
+// per pixel. Both writers hold pixelBufMutex for their whole loop.
+struct LevelRamp {
+  uint32_t lut[256];
+  explicit LevelRamp(const PanelPalette &p) {
+    if (panelEmissive.load()) {
+      for (int i = 0; i < 256; i++)
+        lut[i] = panelpalette::colorForLevelEmissive(static_cast<uint8_t>(i), p);
+    } else {
+      for (int i = 0; i < 256; i++)
+        lut[i] = panelpalette::colorForLevel(static_cast<uint8_t>(i), p);
+    }
   }
-  return ramp[level];
+  uint32_t operator[](uint8_t level) const { return lut[level]; }
+};
+
+uint32_t panelColor(uint8_t level, const PanelPalette &p) {
+  return panelEmissive.load() ? panelpalette::colorForLevelEmissive(level, p)
+                              : panelpalette::colorForLevel(level, p);
 }
 
 // CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK} force a tone, on the same terms
@@ -480,8 +512,9 @@ void renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   pixelBufSeq++;
   const PanelPalette pal = livePanelPalette(display.isInverted());
-  const uint32_t ink = panelColor(0, pal);
-  const uint32_t paper = panelColor(255, pal);
+  const LevelRamp ramp(pal);
+  const uint32_t ink = ramp[0];
+  const uint32_t paper = ramp[255];
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool white = getBit(fb, x, y);
@@ -519,9 +552,11 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 }
 
 void composeGrayscalePreview() {
+  const uint64_t composeStart = SDL_GetTicks();
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   pixelBufSeq++;
   const PanelPalette pal = livePanelPalette(display.isInverted());
+  const LevelRamp ramp(pal);
   const uint8_t *bwBase = grayscalePreviewState.bwBaseValid
                               ? grayscalePreviewState.bwBase.data()
                               : display.getFrameBuffer();
@@ -541,7 +576,7 @@ void composeGrayscalePreview() {
 
       // No 255-level flip for inversion: the dark palette's ink->paper
       // direction already runs light-on-dark (see PanelPalette above).
-      pixelBuf[y * HalDisplay::activeWidth() + x] = panelColor(level, pal);
+      pixelBuf[y * HalDisplay::activeWidth() + x] = ramp[level];
     }
   }
   // The real page is ready, so whatever hold the base pass armed is over: this
@@ -572,6 +607,11 @@ void composeGrayscalePreview() {
         if (lv[i]) SDL_Log("[aa]   level %3d: %d px", i, lv[i]);
     }
   }
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[compose] %llu ms for %dx%d",
+              (unsigned long long)(SDL_GetTicks() - composeStart),
+              HalDisplay::activeWidth(), HalDisplay::activeHeight());
   lastPixelWriter.store('G');
   presentHoldUntil.store(0);
   pendingPresent.store(true);
@@ -1661,6 +1701,11 @@ void HalDisplay::preconditionGrayscale() {}
 void HalDisplay::preconditionGrayscale(uint16_t, uint16_t, uint16_t, uint16_t) {
 }
 void HalDisplay::copyGrayscaleLsbBuffers(const uint8_t *lsbBuffer) {
+  // The whole-frame AA fallback (no strip support / OOM) reaches the planes
+  // through here instead, and needs the same extension or it flashes on every
+  // page while the strip path does not.
+  if (!presentFlashWanted() && presentHoldUntil.load() != 0)
+    presentHoldUntil.store(SDL_GetTicks() + kPresentHoldExtendedMs);
   copyPlane(grayscalePreviewState.lsbPlane, lsbBuffer,
             grayscalePreviewState.lsbValid);
 }
@@ -1686,6 +1731,12 @@ void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
   if (!rows || numRows == 0 || yStart >= activeHeight()) {
     return;
   }
+
+  // A compose is now guaranteed: hold the 1-bit frame until it lands. Only
+  // extends a hold that is already armed, so a stray plane write on a screen
+  // that never painted cannot stall anything.
+  if (!presentFlashWanted() && presentHoldUntil.load() != 0)
+    presentHoldUntil.store(SDL_GetTicks() + kPresentHoldExtendedMs);
 
   const uint16_t rowsToCopy =
       (yStart + numRows > activeHeight()) ? (activeHeight() - yStart) : numRows;
