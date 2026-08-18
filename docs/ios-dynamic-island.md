@@ -1,0 +1,223 @@
+# The Dynamic Island, the screen's corners, and the band above the page
+
+Written 2026-08-17 against the working tree at `db8ae1e` (`main`), Xcode's
+iPhoneSimulator **26.5** SDK, iOS **26.5** Simulator, device profile **iPhone
+Air** (`com.apple.CoreSimulator.SimDeviceType.iPhone-Air`).
+
+Each finding below is marked **VERIFIED** (read out of the shipped SDK, Apple's
+own published text, or measured on a running build) or **INFERRED**.
+
+---
+
+## 1. What was wrong
+
+`HalDisplay::presentIfNeeded` clears the whole output to the field colour
+(`src/HalDisplay.cpp:1212`) and then places the panel top-aligned below the
+reserved top band. On a pale page that field ran edge to edge, so above the page
+there was 80 pt of white with the Dynamic Island sitting in it as an unattached
+black pill. Owner, 2026-08-17: *"bring the rounded corners lower than dynamic
+island so there's not a distracting hole above the panel."*
+
+**Measured on the shipped build (VERIFIED)**, iPhone Air, 3x, window 420x912 pt
+/ 1260x2736 px:
+
+| thing | points | device px |
+|---|---|---|
+| Dynamic Island top edge | 20.0 | 60 |
+| Dynamic Island bottom edge | **56.3** | 169 |
+| Dynamic Island width | 123.7 | 371 |
+| `safeAreaInsets.top` (via `SDL_GetWindowSafeArea`) | 74 (per `ios/README.md`) | 222 |
+| `kTopReserve` floor, and so the reserved band | **80.0** | 240 |
+| panel top edge | 83.7 | 251 |
+
+So the band this app already reserves clears the Island's bottom edge by
+**23.7 pt** without measuring the Island at all. That is the whole reason the fix
+needs no Island API.
+
+---
+
+## 2. Is there a public API for the Dynamic Island / sensor housing frame?
+
+**No. `safeAreaInsets` remains the only supported signal, and Apple says so
+explicitly. (VERIFIED — Apple DTS.)**
+
+Apple Developer Forums thread 802758, *"[iOS 26] Can no longer detect whether
+iPhone has notch"*, DTS Engineer:
+
+> We don't recommend you doing this and there's no first-party API that provides
+> support for detecting whether a device has a notch or island.
+
+The workarounds offered in that thread are a device-model table or
+`window.safeAreaInsets.top > 20` — i.e. the same heuristic everyone has used
+since the iPhone X. Nothing was added in iOS 17/18/26 to replace it.
+
+Corroborating, from Apple's Human Interface Guidelines, **Layout** (fetched
+2026-08-17 from `developer.apple.com/tutorials/data/design/human-interface-guidelines/layout.json`,
+which is the page's own source; the rendered page is JS-only and does not fetch)
+— **VERIFIED, quoted verbatim**:
+
+> A *safe area* defines the area within a view that isn't covered by a toolbar,
+> tab bar, or other views a window might provide. Safe areas are essential for
+> avoiding a device's interactive and display features, like Dynamic Island on
+> iPhone or the camera housing on some Mac models.
+
+> **Respect key display and system features in each platform.** When an app or
+> game doesn't accommodate such features, it doesn't feel at home in the platform
+> and may be harder for people to use.
+
+`WidgetKit`'s `DynamicIsland` type is the *Live Activity* presentation API — it
+lets your activity render **into** the Island. It reports nothing about the
+Island's frame to an ordinary app and is not usable here. (VERIFIED — it lives in
+WidgetKit, not UIKit, and is a `View` builder.)
+
+### 2a. Apple's guidance on content that must clear the Island
+
+There is **no rule that content must clear it**; the rule is "use the safe area,"
+and full-bleed is explicitly blessed. HIG **Layout**, verbatim (VERIFIED):
+
+> **Prefer a full-bleed interface for your game.** Give players a beautiful
+> interface that fills the screen while accommodating the corner radius, sensor
+> housing, and features like Dynamic Island. If necessary, consider giving
+> players the option to view your game using a letterboxed or pillarboxed
+> appearance.
+
+Worth recording because the old HIG *did* carry the opposite-sounding line —
+"Don't mask or call special attention to key display features," which warned
+against black bars and adornments around the sensor housing. **That text is gone
+from the current Layout page** (VERIFIED: the words `mask`, `adorn`, `black bar`
+and `call special attention` do not occur anywhere in `layout.json`). The current
+guidance is only "respect the safe area," which the band below does — it *is* the
+safe area, painted.
+
+---
+
+## 3. Getting the screen's corner radius without `UIScreen._displayCornerRadius`
+
+**There is still no public property that hands back the number. (VERIFIED
+against the SDK on disk.)**
+
+- `UIScreen.h` in `iPhoneSimulator26.5.sdk` has no corner-radius property; the
+  class is largely deprecated as of iOS 26 in favour of
+  `view.window.windowScene.screen` and trait equivalents.
+- `_displayCornerRadius` appears in `UIKit.tbd` only as the Swift symbols
+  `UIMutableTraits.displayCornerRadius` and `UITraitDisplayCornerRadius` — and
+  that trait carries an `_isPrivate` static and is **absent from the public
+  `arm64-apple-ios-simulator.swiftinterface`**. It is SPI, not API.
+
+**What iOS 26 *did* add is a way to get the right corner without ever seeing the
+number** (VERIFIED — headers quoted from
+`iPhoneSimulator26.5.sdk/.../UIKit.framework/Headers/UICornerRadius.h`):
+
+```objc
+API_AVAILABLE(ios(26.0), tvos(26.0), visionos(26.0))
+@interface UICornerRadius : NSObject <NSCopying>
++ (instancetype)fixedRadius:(CGFloat)radius;
++ (instancetype)containerConcentricRadius;
++ (instancetype)containerConcentricRadiusWithMinimum:(CGFloat)minimum;
+@end
+```
+
+applied through `UICornerConfiguration` (`+configurationWithUniformRadius:`,
+`+capsule()`, per-corner variants) and set on `UIView.cornerConfiguration`.
+SwiftUI's equivalents are `GeometryProxy.concentricCornerRadii` and
+`ConcentricRectangle`. Apple's own framing is that these adapt "to the shape of
+the window scene and the display itself" — the case
+`_displayCornerRadius` used to be reached for.
+
+### The probe, and its result (VERIFIED — measured, not reasoned)
+
+`CrossPointAppearance_displayCornerRadius()`
+(`ios/CrossPointAppearance.mm`) builds the recipe the SwiftUI writeups give: a
+view exactly filling the window, `cornerConfiguration` set to a uniform
+`containerConcentricRadius`, laid out, then `layer.cornerRadius` read back.
+
+**It returns 0.** Logged from the running app:
+
+```
+[corner] display corner radius probe: 0.00 pt (window 420x912)
+[bezel] band 240 px, corner 55.0 pt (fallback)
+```
+
+**INFERRED cause, with supporting evidence:** the concentric radius is resolved
+below the CALayer the app owns, so there is nothing to read back on the client
+side. The same launch logs BaseBoard registering
+`BSCornerRadiusConfiguration` (`_topLeft`/`_topRight`/`_bottomLeft`/`_bottomRight`)
+and FrontBoard registering `safeAreaCornerInsets` /
+`safeAreaCornerInsetResolver` on `FBSSceneSettings` — i.e. the corner geometry is
+scene settings pushed from the system, not a property UIKit writes onto your
+layer. Treat "the number is not obtainable publicly" as the operating assumption.
+
+**So there are exactly two honest options for a *number*:** a hardcoded value
+(what `ScreenCorners`, `BezelKit` and every per-model table do, all of them via
+the private API or a device list), or a fallback constant. This repo takes the
+fallback: **55 pt**, `kCornerFallback` in `ios/CrossPointIOSShim.cpp`.
+
+**Not taken, and worth knowing it exists:** if the corner ever has to be *exact*,
+the way to get it is to stop asking for the number and let UIKit draw the shape —
+a real `UIView` above SDL's view with `cornerConfiguration` set to
+`containerConcentricRadius`. That costs a UIKit view in the render path and an
+inverted mask (we need the sliver *outside* the arc, which a corner
+configuration does not express), which is why the SDL fillet was preferred for a
+change this size.
+
+### `cornerCurve = .continuous`
+
+Apple's display corners are a squircle, not a circular arc; `CALayer.cornerCurve
+= .continuous` (iOS 13+) is what matches it, and it only applies to
+`layer.cornerRadius` — it is a property of a *layer*, so it does nothing for
+geometry drawn by hand. (VERIFIED: `cornerCurve` is on `CALayer`.) The band here
+is drawn with SDL scanlines against a circular arc, so it is a circular corner,
+not a squircle. At 55 pt the difference is a couple of device pixels of
+fatness near the 45-degree point and is not visible against a black band.
+**INFERRED** that it does not matter here; if the card's corner is ever compared
+side by side with the glass, this is the first thing to fix.
+
+---
+
+## 4. What shipped
+
+One band and two fillets, painted by the harness's own overlay:
+
+- `ios/CrossPointIOSShim.cpp` — `paintTopBezel()`, called from `paintPad()`
+  after the layout block. Fills `y = 0 .. g_topBezelPx` pure black, then knocks
+  the field's two upper corners out to the same black with the inverse of
+  `fillRoundRect`'s scanline arithmetic.
+- `ios/CrossPointIOSShim.cpp` — `layoutPad()` publishes `g_topBezelPx`, which is
+  the reserved top inset **only on a device with a cut-out**
+  (`safeAreaInsets.top > 20 pt`). A home-button iPhone reports 20 and gets no
+  band; it has no hole to hide and 80 pt of black would be a change nobody
+  asked for.
+- `ios/CrossPointAppearance.{h,mm}` — `CrossPointAppearance_displayCornerRadius()`,
+  the public-API probe above. Returns 0 rather than a guess, so a zero is never
+  mistaken for a measured square corner.
+
+**Pure black, not a palette tone**, because the point is that the Island stops
+reading as a separate shape and the Island is `#000000`. In dark mode the field
+is `#121212`, so the band is very nearly invisible there — correct, since dark
+mode never had the hole.
+
+iPad is untouched: `layoutPadTablet()` returns before the phone branch, so
+`g_topBezelPx` stays 0. Desktop is untouched: this whole file is iOS-only.
+
+### Verified on device profile (screenshots, iPhone Air, iOS 26.5 Simulator)
+
+| | before | after |
+|---|---|---|
+| field at `y = 0`, centre column | `#FFFFFF` | `#000000` |
+| first non-black row, centre column | 0 | **240** (= 80.0 pt) |
+| first non-black row, `x = 2` (the fillet) | 0 | **377** |
+| bottom-most row | unchanged white | unchanged white |
+| Island visible as a pill | **yes** | no |
+
+---
+
+## Sources
+
+- [Apple Developer Forums 802758 — "[iOS 26] Can no longer detect whether iPhone has notch"](https://developer.apple.com/forums/thread/802758) (DTS Engineer: no first-party API)
+- [HIG — Layout](https://developer.apple.com/design/human-interface-guidelines/layout) (quotes taken from its `layout.json` source, 2026-08-17)
+- [UICornerRadius](https://developer.apple.com/documentation/uikit/uicornerradius-swift.struct) / [UICornerConfiguration](https://developer.apple.com/documentation/uikit/uicornerconfiguration-c.class) / [UIView.cornerConfiguration](https://developer.apple.com/documentation/uikit/uiview/cornerconfiguration-7l0ja)
+- [What's New in UIKit 26 — Sebastian Vidal](https://sebvidal.com/blog/whats-new-in-uikit-26/) (containerConcentric, "previously possible through UIScreen's private `_displayCornerRadius`")
+- [How to Get the Screen Corner Radius in iOS 26 with concentricCornerRadii](https://swiftuisnippets.wordpress.com/2026/08/06/how-to-get-the-screen-corner-radius-in-ios-26-with-concentriccornerradii/) (the fill-the-screen recipe this repo's probe implements)
+- [ScreenCorners](https://github.com/kylebshr/ScreenCorners) and [Finding the Real iPhone X Corner Radius](https://kylebashour.com/posts/finding-the-real-iphone-x-corner-radius) (the private-API/hardcoded state of the art)
+- [BezelKit](https://markbattistella.com/writings/2023/introducing-bezelkit/) (per-model radius table)
+- [safeAreaInsets](https://developer.apple.com/documentation/uikit/uiview/safeareainsets), [WidgetKit DynamicIsland](https://developer.apple.com/documentation/widgetkit/dynamicisland)

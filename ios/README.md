@@ -700,6 +700,20 @@ and because the pad hangs off the page's bottom edge it moves with it, so the
 clearance `kPipLift` bought falls **18.7 → 12.7 pt** and the pinch the top row
 survives falls 55.0% → 52.5%. Page still 2×, headroom 86.7 → 80.7 pt.
 
+**That band is now PAINTED BLACK, and the page's corners are rounded below it
+(owner ask 2026-08-17).** The field was cleared edge to edge, so on a pale page
+the Dynamic Island sat in white as an unattached pill — "a distracting hole above
+the panel." `paintTopBezel()` in [CrossPointIOSShim.cpp](CrossPointIOSShim.cpp)
+fills y=0 to the reserved inset in `#000000` and knocks the field's two upper
+corners out to the same black, so the Island sits in solid ground and the page
+begins below it as a card. The band's bottom is the inset that already existed,
+which clears the Island's measured bottom edge (56.3 pt on an Air) by 23.7 pt —
+so nothing has to know where the Island is, which is just as well, because
+nothing public can. Only on a cut-out device (`safeAreaInsets.top > 20 pt`);
+a home-button iPhone gets no band. The corner radius, the survey of what iOS 26
+does and does not expose, and the measured before/after:
+[../docs/ios-dynamic-island.md](../docs/ios-dynamic-island.md).
+
 **Explored and not taken: reserving a top band so a small window misses the
 page.** `setTopInset` would grow from the safe area's 74 pt to 159.2 pt (safe
 area + the window's own 11 pt inset + a small window's 74.2 pt height), which
