@@ -1243,20 +1243,20 @@ void paintPaletteChip(SDL_Renderer *r, const Palette &p, float radius,
                 radius - hairline);
 }
 
-void paintKeyboardChip(SDL_Renderer *r, const Palette &, float radius,
+void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
                        float hairline) {
   if (!gpio.isTextEntryActive()) return;
   const SDL_FRect &c = g_kbChip;
   if (c.w <= 0 || c.h <= 0) return;
   const bool keyboardUp = gpio.isHostKeyboardVisible();
 
-  // LIGHT GRAY, from crosspoint::chipPaletteForPrefs -- not the pad palette
-  // passed in. The pad's outline default went to Black & White on 2026-08-16 by
-  // a ruling about the pad's CONTROLS, and this chip is not one (see its
-  // declaration above: "NOT a PadButton"). Borrowing `p` here is what turned the
-  // chips black, against the standing instruction that they be light gray. See
-  // ios/PanelPrefs.h for the whole reasoning and the level it uses.
-  const Palette chip = crosspoint::chipPaletteForPrefs(g_dark);
+  // THE PAD'S OWN PALETTE, owner instruction 2026-08-17: "match show/hide
+  // keyboard button outline with rest of app." This reverses the light-gray
+  // rule the chip carried until now -- see ios/PanelPrefs.h, which keeps the
+  // superseded reasoning so it is not re-derived and re-applied.
+  //
+  // `p` is the palette the pad is drawn with and it is now simply used.
+  const Palette chip = p;
 
   // Same stroke-then-face construction as the controls, so it belongs to the
   // pad rather than sitting on top of it.

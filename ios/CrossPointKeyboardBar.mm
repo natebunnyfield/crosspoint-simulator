@@ -164,11 +164,12 @@ UIColor *colorFromPanel(bool wantInk) {
   }];
 }
 
-// The chip's own LIGHT GRAY stroke, from the same crosspoint:: definition the
-// SHOW chip paints with. It used to be panelInk() -- full page ink -- which is
-// how this half went black alongside the SDL half when the pad's outline default
-// became Black & White. The chips were asked to be light gray; see
-// ios/PanelPrefs.h.
+// The chip's stroke: THE PAD'S, from the same crosspoint:: definition the SHOW
+// chip paints with. Owner instruction 2026-08-17, "match show/hide keyboard
+// button outline with rest of app" -- which reverses the light-gray rule this
+// used to implement. Still one shared definition, because the two chips going
+// different colours is invisible to every test but
+// tests/chip_tint_source_test.py.
 UIColor *chipStroke(void) {
   return [UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *t) {
     const bool dark = t.userInterfaceStyle == UIUserInterfaceStyleDark;

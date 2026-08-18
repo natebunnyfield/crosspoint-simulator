@@ -84,6 +84,38 @@ check(
 # 5. One definition, not two copies that drift.
 check(PREFS.exists(), "ios/PanelPrefs.h is missing")
 
+# 6. THE CHIPS MATCH THE PAD. Owner instruction 2026-08-17, "match show/hide
+#    keyboard button outline with rest of app", reversing the light-gray rule
+#    they carried before. The failure mode is silent -- a chip with its own
+#    tone still LOOKS deliberate -- so it is pinned in three places.
+prefs = PREFS.read_text()
+check(
+    "padPaletteForPrefs" in prefs,
+    "ios/PanelPrefs.h has no padPaletteForPrefs; the chips cannot be following "
+    "the pad",
+)
+chip_def = prefs[prefs.index("chipPaletteForPrefs(bool dark)"):]
+chip_def = chip_def[: chip_def.index("}")]
+check(
+    "padPaletteForPrefs" in chip_def,
+    "chipPaletteForPrefs no longer delegates to padPaletteForPrefs -- the chips "
+    "have become a special case again, against the 2026-08-17 instruction",
+)
+check(
+    "makePaletteOn" not in chip_def,
+    "chipPaletteForPrefs builds its own palette instead of taking the pad's",
+)
+
+# 7. The SDL chip must paint with the palette it is HANDED, not one it resolves
+#    for itself -- that is how it acquired a separate tone the first time.
+paint = shim[shim.index("void paintKeyboardChip("):]
+paint = paint[: paint.index("\n}\n")]
+check(
+    "chipPaletteForPrefs" not in paint,
+    "paintKeyboardChip resolves its own chip palette again instead of using the "
+    "pad palette passed to it",
+)
+
 if failures:
     for f in failures:
         print(f"FAIL {f}", file=sys.stderr)
