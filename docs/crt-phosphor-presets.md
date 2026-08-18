@@ -589,6 +589,47 @@ P-number in the source table now has a row, except the exclusions named below.
 **42 phosphor rows**, presets 6–55, sorted hue-first and fastest-to-slowest
 inside each hue, cascades then the scotophor last.
 
+### CORRECTION 2026-08-17: the first derivation washed every hue out
+
+Owner picked **Terminal Green** and reported a mismatch between the row and the
+page. He was right, and the fault was in the derivation, not the picker: every
+script-derived green came out a pale mint (`81FFB5`, `81FFD7`, `81FF99`…) where
+the hand-derived P1 is `33FF33`. P20 rendered `A5FF81`, a washed lime.
+
+The cause: for an out-of-gamut spectral colour the first version **added
+equal-energy white** until every component went non-negative, then broadened by
+another 22% toward white. Both operations dump white into saturated hues.
+Clamping negatives to zero instead — the obvious alternative — fixes the
+saturation but **collapses the family**: 520, 525, 530, 543, 544 and 545 nm all
+land on the same `59FF59`.
+
+Both attempts were wrong in the same place. **A phosphor's chromaticity is not
+its peak wavelength's.** It emits a band tens of nm wide, and a band sits well
+inside the spectral locus. So the broadening now happens FIRST, in chromaticity
+space, before any gamut mapping: the locus point moves 18% toward D65.
+
+**That figure is fitted, not chosen.** The four phosphors here with both a
+published peak and a measured CIE point (P1, P11, P22R, P47) give a best fit at
+k = 0.18, mean error 0.042 in xy; P11, P22R and P47 land within ~0.03, and P1 is
+worst at 0.06 because willemite's band is unusually broad. A measured
+chromaticity still beats the model everywhere it exists.
+
+Result — vivid and, crucially, still distinguishable:
+
+| | before | after |
+|---|---|---|
+| P15 504 nm | `81FFD7` | `00FFCA` |
+| P24 505 nm | `81FFD5` | `00FFC7` |
+| P46 530 nm | `81FFB5` | `00FF97` |
+| P43 545 nm | `81FF95` | `00FF5B` |
+| P20 555 nm | `A5FF81` | `7CFF00` |
+
+**Two rows were also renamed, because the name promised a hue the source does
+not give.** JEDEC calls P20 "Yellow-Green", so "Terminal Green" was overselling
+it — it is now **Yellow-Green Long**. P34's source colour is "Bluish Green-Yellow
+Green" with no published peak, so "Storage Green" became **Green Longest**,
+which claims only what is actually known about it (that it is the slowest).
+
 ### Derived by script, not by hand
 
 `tools/derive_phosphors.py` + `tools/phosphor_table.py` +

@@ -13,7 +13,10 @@ from phosphor_table import TABLE
 
 LIGHT_TINT = 0.25
 DARK_GROUND = 0.010
-BAND_BROADEN = 0.22   # a phosphor is a band; a spectral line is too saturated
+# The band is modelled in CHROMATICITY space now, inside chroma_from_nm, where
+# it belongs -- see the comment there. Mixing white in afterwards, on top of the
+# gamut mapping, is what made every green a pale mint.
+BAND_BROADEN = 0.0
 
 # hue family + sort key, so the picker stays "hue first, fastest to slowest".
 FAMILY = {

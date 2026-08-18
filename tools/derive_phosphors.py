@@ -91,16 +91,45 @@ def to_bytes(lin):
     return tuple(int(round(encode(c) * 255)) for c in lin)
 
 
+D65 = (0.3127, 0.3290)
+
+# HOW FAR A REAL PHOSPHOR SITS INSIDE THE SPECTRAL LOCUS.
+#
+# This is the correction that matters, and the first two attempts got it wrong
+# in opposite directions. A phosphor does not emit a spectral LINE; it emits a
+# band tens of nm wide, and a band's chromaticity lies well inside the locus,
+# toward white. Treating the peak wavelength as the colour makes every row far
+# more saturated than any real tube -- and then whatever fixes the gamut
+# afterwards decides the hue:
+#
+#   * adding equal-energy white until in gamut made every green a pale mint
+#     (P20 "Terminal Green" came out A5FF81, a washed lime -- reported by the
+#     owner as a mismatch between the row's name and its page);
+#   * clamping negatives to zero kept them vivid but COLLAPSED them -- 520, 525,
+#     530, 543, 544 and 545 nm all landed on the same 59FF59.
+#
+# So the broadening happens FIRST, in chromaticity space, before any gamut
+# mapping: move the locus point 18% toward D65. That is a model, and it is
+# validated rather than asserted -- fitted against the four phosphors here that
+# have BOTH a published peak and a measured CIE point (P1, P11, P22R, P47), mean
+# error 0.042 in xy. P11, P22R and P47 land within ~0.03; P1 is the worst at
+# 0.06 because willemite's band is unusually broad.
+#
+# A measured chromaticity still beats this every time, and the rows that have
+# one use it.
+BAND_TOWARD_WHITE = 0.18
+
+
 def chroma_from_nm(nm):
-    """Brightest in-gamut sRGB for a monochromatic wavelength, as linear rgb."""
-    lin = xyz_to_linear(cie_xyz(nm))
-    # Desaturate only as far as the gamut requires: add the smallest amount of
-    # equal-energy white that brings every component non-negative.
-    lo = min(lin)
-    if lo < 0:
-        lin = [c - lo for c in lin]
-    hi = max(lin)
-    return [c / hi for c in lin] if hi > 0 else [0.0, 0.0, 0.0]
+    """Brightest in-gamut sRGB for a phosphor whose peak is `nm`, linear rgb."""
+    X, Y, Z = cie_xyz(nm)
+    s = X + Y + Z
+    if s <= 0:
+        return [0.0, 0.0, 0.0]
+    x, y = X / s, Y / s
+    x += BAND_TOWARD_WHITE * (D65[0] - x)
+    y += BAND_TOWARD_WHITE * (D65[1] - y)
+    return chroma_from_xy(x, y)
 
 
 def mix(a, b, t):
