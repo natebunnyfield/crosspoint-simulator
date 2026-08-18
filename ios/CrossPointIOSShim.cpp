@@ -1097,6 +1097,20 @@ void pollPanelPalette() {
   if (packPanel(panel) == g_appliedPanel) return;
   applyPanel(panel);
   SimulatorOverlay::requestPresent();
+
+  // ...AND RE-RENDER, for the same reason applyTheme does it on an appearance
+  // change: requestPresent only pushes the framebuffer that already exists.
+  // Anything the firmware DREW using a value this changed is still the old
+  // pixels -- the palette picker's own preview row and the Settings screen it
+  // sits on are drawn by the firmware, not by us, and a page whose grays were
+  // dithered for the previous pair keeps that dither until something redraws
+  // it. Owner 2026-08-18: "refresh page on events like page color change."
+  //
+  // Deferred, not immediate: it sets a flag the activity manager reads at the
+  // end of its loop, so it is safe from this thread and safe before any
+  // activity exists.
+  crosspointRequestRender();
+
   SDL_Log("[harness] panel palette (%s) -> preset %d, ink %02X%02X%02X, "
           "paper %02X%02X%02X",
           g_dark ? "dark" : "light", CrossPointPrefs_panelPalettePreset(),
