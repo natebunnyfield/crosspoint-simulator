@@ -94,6 +94,12 @@ run panel_palette \
 # glyph edge arrives base-WHITE and flagged -- and the decode used to discard
 # exactly those, leaving dark-mode text with no antialiasing at all. The masks
 # are the firmware's own, so this tests the contract rather than the code.
+# ST-010's page fade: the decay of the page you are reading, its floor, and
+# that the floor stays legible on every palette -- including the low-contrast
+# one, which cannot afford to fade at all.
+run page_fade \
+  c++ -std=c++17 -Isrc -o "$OUT/page_fade" tests/page_fade_test.cpp
+
 run grayscale_preview \
   c++ -std=c++17 -Isrc -o "$OUT/grayscale_preview" tests/grayscale_preview_test.cpp
 

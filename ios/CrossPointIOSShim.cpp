@@ -1043,6 +1043,17 @@ void pollBeamPaint() {
   SimulatorOverlay::setBeamPaint(static_cast<float>(ms));
 }
 
+// Same edge-triggered shape as the others: read cheaply every frame, push only
+// on change, because the setter is what the render path reads.
+void pollPageFade() {
+  static int s_applied = -1;
+  const int secs = CrossPointPrefs_pageFadeSeconds();
+  if (secs == s_applied) return;
+  s_applied = secs;
+  SDL_Log("[fade] page fade %d s", secs);
+  SimulatorOverlay::setPageFade(static_cast<float>(secs) * 1000.0f);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -1773,6 +1784,7 @@ void CrossPointHarness_perFrame() {
   pollPanelPalette();
   pollPanelGlow();
   pollBeamPaint();
+  pollPageFade();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

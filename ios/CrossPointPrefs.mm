@@ -46,6 +46,7 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
+static NSString *const kPageFadeSeconds = @"pageFadeSeconds";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -179,6 +180,9 @@ static void ensureDefaults(void) {
         // Off: the page arrives at once, which is what every build before this
         // did and what an e-ink panel does.
         kBeamPaintMs : @(0),
+        // Off: the page holds its brightness for as long as you read it, which
+        // is what every build before this did.
+        kPageFadeSeconds : @(0),
       }];
     }
 
@@ -285,6 +289,22 @@ int CrossPointPrefs_diagnosticsEnabled(void) {
 
 int CrossPointPrefs_padFillContrast(int dark) {
   return padContrast(dark ? kPadFillContrastDark : kPadFillContrastLight);
+}
+
+int CrossPointPrefs_pageFadeSeconds(void) {
+  ensureDefaults();
+  checkKnown(kPageFadeSeconds);
+  // Stored as SECONDS, and as the duration itself rather than a row index --
+  // same reasoning as beamPaintMs: a duration is meaningful on its own, so the
+  // picker can be retuned without a migration and without a saved choice
+  // quietly changing speed.
+  const int s = static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:kPageFadeSeconds]);
+  if (s < 0) return 0;
+  // Ten minutes is already far past "fades while you read"; beyond it the
+  // setting is indistinguishable from off and would hold the render loop open
+  // for the whole of it.
+  return s > 600 ? 600 : s;
 }
 
 int CrossPointPrefs_beamPaintMs(void) {

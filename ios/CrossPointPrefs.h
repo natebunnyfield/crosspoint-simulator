@@ -108,6 +108,12 @@ int CrossPointPrefs_diagnosticsEnabled(void);
 // silently changing speed. Clamped to 0..1000 on read.
 //
 // Safe to call every frame. Main thread only.
+// PAGE FADE: how long the page takes to dim after the last input, in SECONDS.
+// 0 (the default) is off. Clamped to 0..600 on read.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_pageFadeSeconds(void);
+
 int CrossPointPrefs_beamPaintMs(void);
 
 int CrossPointPrefs_panelPalettePreset(void);
