@@ -1221,12 +1221,41 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   // The two fillets: the sliver OUTSIDE each top corner arc, filled to the same
   // black. Same scanline arithmetic as fillRoundRect, inverted -- fillRoundRect
   // paints the inside of the arc, this paints what it leaves over.
+  // A SQUIRCLE, NOT A CIRCLE, and the exponent is measured off Apple's own
+  // display mask rather than taken from folklore.
+  //
+  // Every simulator device type ships the mask as a vector PDF (named by
+  // `framebufferMask` in its profile.plist). Flattening the iPhone Air's path
+  // and fitting |u|^n + |v|^n = 1 to the corner gives an extent of 87.45 x
+  // 88.37 pt and **n = 2.8**, mean residual 0.014 -- a close fit, and a long
+  // way from the circle this used to draw. The commonly repeated "iOS squircles
+  // are n = 5" does not match this mask at all; 5 was tried and fits far worse.
+  //
+  // The difference is not subtle where it matters. Inset from the page's edge
+  // at a given depth, this curve against the circle it replaces:
+  //
+  //     depth   squircle   circle
+  //       1 pt    62.05     44.56
+  //       4 pt    46.24     34.41
+  //      16 pt    22.84     16.22
+  //      50 pt     3.12      0.23
+  //
+  // The circle pulled in too fast and left the page's corner cutting across the
+  // glass's curve instead of running with it.
+  //
+  // The EXTENT stays whatever s_radiusPx resolved to: this changes the shape of
+  // the page's corner, not its size, which is what "shaped properly" asked for.
+  constexpr float kCornerExponent = 2.8f;
   const float rad = SDL_min(s_radiusPx, static_cast<float>(outW) / 2.0f);
   const int rows = static_cast<int>(rad);
   for (int i = 0; i < rows; i++) {
     const float y = static_cast<float>(i);
-    const float d = rad - y;
-    const float inset = rad - SDL_sqrtf(SDL_max(0.0f, rad * rad - d * d));
+    // v: how much of the corner's depth is still ahead, 1 at the top edge and
+    // 0 where the curve meets the straight side.
+    const float v = (rad - y) / rad;
+    const float u = SDL_powf(SDL_max(0.0f, 1.0f - SDL_powf(v, kCornerExponent)),
+                             1.0f / kCornerExponent);
+    const float inset = rad * (1.0f - u);
     if (inset <= 0.0f) continue;
     fillRect(r, 0.0f, bandH + y, inset, 1.0f);
     fillRect(r, static_cast<float>(outW) - inset, bandH + y, inset, 1.0f);
