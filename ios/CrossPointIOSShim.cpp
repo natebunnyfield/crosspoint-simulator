@@ -671,9 +671,47 @@ void layoutPad(int outW, int outH) {
   // reversed: the 80 pt reserve was sized to clear a floating Picture-in-Picture
   // window parked in a top corner (see the note above and
   // mockups/pip-envelope.html). At the safe area the page no longer clears one.
-  topInset = safeTop > 20.0f ? safeTop : kTopReserve;
+  //
+  // OWNER 2026-08-18: "move panel down (without moving others) to be more clear
+  // of rounded corners at top." So the safe area is taken PLUS ONE 8 pt STEP,
+  // and the number has a measurement behind it rather than a taste.
+  //
+  // The display's own corner shape is shipped with the simulator, as the
+  // framebuffer mask of the device profile
+  // (`iPhone Air.simdevicetype/Contents/Resources/*.pdf`, a squircle path in
+  // half-device-pixel units). Flattened and converted to points, its top-left
+  // corner runs 88.5 pt across and 88.2 pt DOWN -- so at the safe area the
+  // screen edge is still curving, and the black margin beside the page's own
+  // rounded corner is pinched rather than constant. How far in the screen edge
+  // still sits, measured off that path:
+  //
+  //     y = 55 pt: 1.71 pt      y = 72 pt: 0.21 pt
+  //     y = 68 pt: 0.39 pt      y = 76 pt: 0.10 pt   <- under a third of a px
+  //
+  // 8 pt is the smallest step on the pad's grid (owner ruling 2026-08-11,
+  // "always align everything on a square grid") that gets the page's top edge
+  // to where the display's curve is done to within a third of a device pixel,
+  // so the band beside the page's top corners reads as an even margin. It is
+  // still 4 pt above the old 80 pt reserve, so the 2026-08-17 "extend top up to
+  // dynamic island" ruling is trimmed, not undone.
+  //
+  // NOTHING ELSE MOVES, and that is the constraint the owner named. The panel
+  // is HEIGHT-limited on this phone (scale 0.7323 comes from availH, not from
+  // the width), so the 8 pt comes off the panel's HEIGHT and its bottom edge --
+  // which is what the pad hangs from (SimulatorOverlay::panelBottomPx) -- stays
+  // where it is. Verified by decoded screenshot, not by argument: the bottom
+  // row, POWER, the palette chip and the keyboard chip are pixel-identical, and
+  // the top row moves 4 device pixels (1.3 pt) -- the residue of the scale
+  // quantum (6 px of panel height) plus the derived band's own shrink, an order
+  // of magnitude under the 8 pt the page moved.
+  // On a phone where the panel is WIDTH-limited the slack sits below
+  // the page instead and the pad WOULD follow it down; there is no such device
+  // in the profile list today (every one is short of height), and if one
+  // appears this is the line that has to grow a case for it.
+  const float kCornerClear = 8.0f;
+  topInset = safeTop > 20.0f ? safeTop + kCornerClear : kTopReserve;
   SDL_Log("[layout] safe top %.1f pt -> page top %.1f pt (band %s)", safeTop,
-          topInset, safeTop > 20.0f ? "at the cut-out" : "reserve");
+          topInset, safeTop > 20.0f ? "at the cut-out + corner clearance" : "reserve");
   SimulatorOverlay::setTopInset(static_cast<int>(topInset * S));
 
   // THE BEZEL BAND: where the page's rounded top corners start, in device

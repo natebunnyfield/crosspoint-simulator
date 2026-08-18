@@ -274,3 +274,89 @@ ours. Closing it means drawing inside the safe area — permitted, since the
 Island itself ends higher, but it is a deliberate step past the supported line
 and no API reports where the Island actually ends (see above). Not taken without
 being asked.
+
+---
+
+## Update 2026-08-18: the page starts 8 pt lower, and the corner is measured now
+
+Owner: **"move panel down (without moving others) to be more clear of rounded
+corners at top."**
+
+The 2026-08-17 change above put the page's top edge at the safe area, 68.0 pt.
+That is clear of the Dynamic Island, but it is **not** clear of the screen's
+rounded corners — and this write-up had no measurement of those corners at all,
+only the 55 pt fallback the fillet is drawn with.
+
+### The display's corner shape is measurable after all — off the simulator profile
+
+**VERIFIED, measured, not inferred.** Every simulator device type ships Apple's
+own display mask as a vector PDF:
+
+```
+/Library/Developer/CoreSimulator/Profiles/DeviceTypes/iPhone Air.simdevicetype/
+  Contents/Resources/1506CF9E-8F5F-48D9-91CA-E852368519A5.pdf   # profile.plist: framebufferMask
+```
+
+`MediaBox [0 0 2520 5472]` — half-device-pixel units, i.e. 2 units per device
+pixel and 6 per point on this 3x phone. Its single path is the rounded-rectangle
+squircle the framebuffer is masked with. Flattened and converted to points, the
+top-left corner runs **88.45 pt across and 88.17 pt down** — far past the 55 pt
+the fillet assumes, because a continuous corner's extent is much wider than the
+circular radius of the same corner. How far in the screen edge still sits at a
+given depth:
+
+| depth from the top | screen edge inset |
+|---|---|
+| 55.0 pt | 1.71 pt |
+| 60.0 pt | 1.03 pt |
+| 68.0 pt (the old page top) | 0.39 pt |
+| 72.0 pt | 0.21 pt |
+| **76.0 pt (the new page top)** | **0.10 pt** — under a third of a device pixel |
+| 88.2 pt | 0.00 pt — the curve ends |
+
+This does **not** overturn §3: nothing here is available to the app at runtime,
+on the Simulator or on hardware. It is a host-side measurement of one device
+profile, which is exactly what is needed to choose a constant.
+
+### What changed
+
+`ios/CrossPointIOSShim.cpp`, `layoutPad()`: on a cut-out device the top inset is
+now `safeTop + kCornerClear`, `kCornerClear = 8.0f`.
+
+8 pt is one step of the pad's 8 pt grid (owner ruling 2026-08-11), and it is the
+smallest such step that reaches a depth where the display's own curve is done to
+within a third of a device pixel — so the black band beside the page's top
+corners reads as an even margin rather than a pinched crescent. It stays 4 pt
+above the old 80 pt `kTopReserve`, so 2026-08-17's "extend top up to dynamic
+island" is trimmed, not undone.
+
+### Nothing else moved — decoded, iPhone Air, 3x
+
+| | before | after |
+|---|---|---|
+| page top edge (first non-black centre row) | 204 px = **68.0 pt** | 228 px = **76.0 pt** |
+| presented panel rect | `1160x1740 at 50,206` | `1148x1722 at 56,229` |
+| panel bottom edge | 1946 px = 648.7 pt | 1951 px = 650.3 pt |
+| pad **bottom** row top edge | 2418 px = **806.0 pt** | 2418 px = **806.0 pt** |
+| POWER / palette chip rows | 2514, 2603, 2606, 2610 px | **identical** |
+| pad **top** row top edge | 2016 px = 672.0 pt | 2020 px = 673.3 pt |
+
+The page loses the 8 pt off its own **height**, not off the pad's space: on this
+phone the panel is height-limited (the fit comes from `availH`, not the width),
+so a deeper top band shrinks the panel and its bottom edge — which is what the
+pad hangs off (`SimulatorOverlay::panelBottomPx`) — stays put. The 4 device
+pixels the top row does move are the residue of the scale quantum (6 px of panel
+height per step) plus the derived bottom band shrinking with the panel; 1.3 pt
+against the 8 pt the page moved.
+
+**On a WIDTH-limited phone this would not hold** — there the slack sits below
+the page, a deeper top band pushes the whole panel down, and the pad follows.
+No profile in use today is width-limited (every one is short of height). That is
+the line in `layoutPad` to revisit if one appears.
+
+### Open, not taken
+
+The fillet is still drawn at the **55 pt circular** fallback while the measured
+mask is an 88 pt-extent squircle, so the page's corner is a slightly different
+shape from the glass's. Invisible against a black band, and outside what was
+asked for; recorded here so the next person does not re-measure it.
