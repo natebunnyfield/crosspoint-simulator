@@ -1,93 +1,109 @@
-# Phosphor runoff, 2026-08-18
+# Phosphor runoff, 2026-08-18 — RESULT VOID
 
-Owner ranking of all 42 phosphor presets, collected with the A/B runoff page
-(one lit card at a time on pure black; sequential flip, never two lit at once).
-Elo K=32 from 1500, 105 comparisons, 5 games each except P7 Cascade at 4.
+**The result of this run is not usable.** It is kept because the failure is
+worth more than the ranking would have been: it produced a measured noise floor
+and a list of method requirements, now written up in
+[`perceptual-test-method.md`](perceptual-test-method.md).
 
-Method note that matters for reading this: the page is black and the chrome is
-neutral gray **on purpose**. Owner 2026-08-18 — 42 colored cards on one screen
-means every card is judged against its neighbors (simultaneous contrast), the
-eye white-balances to the average of the field (chromatic adaptation), and the
-raised field luminance closes the pupil. One lit card against black is the
-actual viewing condition of a CRT in a dark room.
+An earlier version of this file drew four conclusions from the run. All four are
+retracted below. Do not cite this document for a preference about phosphors.
 
-## The ranking as given
+## What was run
 
-| Tier | Phosphors |
+All 42 phosphor presets, A/B runoff on the tier page: one lit card at a time on
+pure black, flipping between two contenders. 105 comparisons, Elo K=32 from
+1500. Games: 40 items at 5, one at 6 (P12), one at 4 (P7); 210 games against 105
+comparisons, which balances.
+
+**Labels were off** for the whole run (owner confirmed). So the only thing on
+screen was a rectangle of ink-on-paper and a sentence. No P-number, no name, no
+persistence figure.
+
+## Why the result is void
+
+Simulate an item with **no quality at all** — five games, every outcome a coin
+flip, K=32 with near-even opponents:
+
+| | |
 |---|---|
-| S | P33 Radar Orange Longest, P12 Orange Persistent, P6 White TV, P18 White Soft |
-| A | P26 Radar Orange Long, P19 Radar Orange, P28 Yellow, P38 Radar Amber, P53 Projector Green, P2 Blue-Green Long |
-| B | P3 Amber, P4 Gray, P10 Dark Trace, P15 Blue-Green Fastest, P22G TV Green, P24 VFD Green, P56 Red Projector, P40 White Long, P34 Green Longest, P46 Green Fastest, P7 Cascade |
-| C | P55 Blue Projector, P47 Blue Fast, P5 Blue Fastest, P1 Green, P11 Blue, P14 Cascade Orange, P16 Violet, P17 Cascade Yellow, P21 Radar Red, P25 Orange Lead, P35 Blue-White |
-| D | P31 Green Fast, P43 Terbium Green, P23 White Warm, P39 Green Long, P13 Red-Orange, P22R Red |
-| F | P27 Red-Orange Deep, P45 White, P22B Blue TV, P20 Yellow-Green Long |
+| simulated sd of a truly average item | **35.9 points** |
+| observed sd across the 42 phosphors | **36.0 points** |
 
-## What the tiers actually resolve — READ THIS BEFORE USING THEM
+Observed variance = signal + noise. That leaves a signal sd of about **2.6
+points against 36 points of noise**. The full 1420-1580 spread is what chance
+produces on its own.
 
-**Six tiers is over-precise for 105 comparisons.** With 5 games each, Elo is
-close to a win count, and the ratings collapse into five strata:
+Confirmed independently by catch trials that happened by accident. Four
+phosphors share the ink `#FFA472` on paper `#190800`, so with labels off they
+were **byte-identical cards**:
 
-| Rating band | Count | Wins |
+| | rating | tier assigned |
 |---|---|---|
-| 1545-1580 | 8 | 4-5 |
-| 1500-1517 | 13 | 3 |
-| 1483-1487 | 14 | 2 |
-| 1452 | 5 | 1 |
-| 1420-1423 | 2 | 0 |
+| P33 Radar Orange Longest | 1580 | S |
+| P12 Orange Persistent | 1565 | S |
+| P19 Radar Orange | 1548 | A |
+| P38 Radar Amber | 1545 | A |
 
-The tier cuts are percentile cuts on the rank order, so **two of the five
-boundaries fall inside a tie group**. P2 Blue-Green Long (A) and P3 Amber (B)
-both sit at 1516 — that split is array order, not a judgment. Same for the
-C|D boundary at 1484/1483.
+Four identical stimuli spread 35 points — a full standard deviation of the whole
+ranking — and straddled a tier boundary. The other identical pair (`#00FF97` on
+`#00190A`: P22G, P46) spread 1 point. Two catch groups is a thin estimate, but
+the four-card group is decisive on its own.
 
-What IS resolved: a **top group of about 8**, a large middle of about 27, and a
-**bottom group of about 7**. Treat S+A as one finding and D+F as one finding;
-do not act on B-versus-C.
+The gap between the top band (1545-1580) and the next (1500-1517) is 28 points,
+which is inside that noise.
 
-## What the ranking correlates with
+## The cause was the pairing algorithm
 
-Measured on the shipped dark-mode tones (`presetPalette(preset, true)`):
+`makePair()` gave every item its **closest-rated** opponent from the first round.
+Justified in the code comment as "a matchup you can call instantly teaches the
+ranking nothing" — true when refining an order that has already separated, wrong
+at the start. It manufactures 50/50 matchups and stops separation from ever
+beginning. The algorithm engineered the coin flip it then reported.
 
-| Tier | n | contrast | ink luminance | ink hue | ink sat | trail |
-|---|---|---|---|---|---|---|
-| S | 4 | 11.8:1 | 0.607 | 117° | 0.39 | 918 ms |
-| A | 6 | 11.5:1 | 0.588 | 65° | 0.76 | 788 ms |
-| B | 11 | 13.0:1 | 0.686 | 159° | 0.65 | 826 ms |
-| C | 11 | 10.3:1 | 0.500 | 192° | 0.40 | 392 ms |
-| D | 6 | 11.8:1 | 0.644 | 162° | 0.64 | 349 ms |
-| F | 4 | 11.8:1 | 0.624 | 219° | 0.50 | 312 ms |
+Corroboration: the four identical cards spread 35 points where an unconstrained
+random walk predicts 72. Less than chance, because closest-rated pairing
+contracts the ratings.
 
-**Contrast is not the driver.** S and F have the *same* mean contrast, 11.8:1.
-The highest-contrast phosphor in the set, P23 White Warm at 15.8:1, landed in D;
-the lowest, P22R Red at 7.3:1, also landed in D. Whatever is being judged here,
-it is not legibility headroom.
+## The four retracted claims
 
-**Persistence is.** S/A/B average 918/788/826 ms of trail; C/D/F average
-392/349/312. The top half carries roughly 2.4x the afterglow of the bottom half.
-That is the single cleanest signal in the data.
+1. **"Contrast is not what was being judged."** The statistics were sound —
+   Spearman rho(rating, contrast) = +0.086, permutation p = 0.59, and the tie
+   structure caps a perfect predictor at |rho| = 0.987 so ties were not masking
+   anything. But the claim is **empty**: if the ranking is noise, nothing
+   predicts it, and a null says nothing about preference.
+2. **"Persistence is what was being judged."** Retracted outright, on two
+   independent grounds. Statistically, rho = +0.153, p = 0.34 — never
+   significant; the supporting figure originally cited was a comparison of tier
+   MEANS, which is a much weaker instrument and was the one that happened to
+   agree. Mechanically, worse: **the page never rendered decay.** `paint()` set
+   a background, a foreground and a string; the file contains no
+   `requestAnimationFrame`, no `setInterval`, no CSS transition. With labels off
+   there was not even a text channel. The variable was never shown.
+3. **"Hue drives it — long-lived orange on top, saturated blue at the bottom."**
+   Never established. It rested on the same tier means, and warm hue is
+   entangled with trail in this set (rho = +0.317, p = 0.041), so the two could
+   not have been separated even with real data.
+4. **"P33/P12/P19/P38 prove that rows sharing a page can be told apart by their
+   decay."** Exactly backwards. Those four were identical cards with the
+   distinguishing variable not rendered; their scatter is the noise measurement
+   above, i.e. evidence *against* the reading. The 2026-08-17 ruling that two
+   rows may share a page if they decay differently still stands on its own
+   merits — it simply gets no support from here.
 
-**Hue is the other one.** The top is orange and amber (14-47°) plus the two soft
-blue-whites; the bottom is saturated blue (P22B, 239°), cyan-white (P45, 193°),
-deep red (P27, 354°) and chartreuse (P20, 91°). Saturated primaries lose;
-long-persistence orange wins.
+## Analysis errors, separately from the data
 
-**The canonical phosphors did not win.** P1 Green — the phosphor everyone means
-when they say "CRT" — is C. P3 Amber is B. Both were beaten by their obscure
-radar-tube cousins, which paint a nearly identical page and simply hold it
-longer.
+- **Circular.** The tier split (10/15/25/25/15/10) was invented for the page,
+  applied to the ratings, and then tier membership was used as evidence *about*
+  the ratings. Tier means are not independent data.
+- **Post-hoc cut.** "Warm" as hue <= 60 deg or >= 340 deg was chosen after
+  seeing the data.
+- **Half the stimulus never tested.** Ink hue, saturation, luminance and
+  contrast were analyzed; paper tone never was.
+- Two factual slips in the first write-up: "five strata" (there are 8 bands: 1,
+  1, 6, 12, 1, 14, 5, 2) and "5 games each except P7" (P12 had 6).
 
-**The identical-page rows separated by decay, and that held up.** P33, P12, P19
-and P38 all paint the exact same ink (#FFA472) on the same paper; the ONLY thing
-distinguishing them is trail. They landed S, S, A, A — clustered, and led by
-P33, the longest tail in the set at 2828 ms. That is direct evidence for the
-2026-08-17 ruling that two palette rows may paint the same page if they decay
-differently: with the glow running, the owner can in fact tell them apart, and
-ranked them in roughly trail order. P13 and P27 (both #FF9BA5) landed D and F —
-adjacent, same result.
+## Not a removal list — and now not a list of anything
 
-## Not a removal list
-
-Owner ruling 2026-08-17, "be sure to include all possible phosphors": the whole
-JEDEC registry ships. A low tier here is a preference, not a defect, and nothing
-in this document authorizes dropping a row. See the standing rule on never
-silently removing user-facing capability.
+Owner ruling 2026-08-17 ships the whole JEDEC registry. Nothing here authorizes
+dropping a row, and after the above nothing here authorizes reordering one
+either.
