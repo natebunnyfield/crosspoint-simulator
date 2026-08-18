@@ -1744,19 +1744,31 @@ void HalDisplay::presentIfNeeded() {
     SDL_GetTextureScaleMode(texture, &panelMode);
     SDL_SetTextureScaleMode(accumTexture, panelMode);
 
-    // A PHOSPHOR ADDS LIGHT. It does not become see-through, which is what
-    // alpha blending models and what made the first version a dissolve: the old
-    // page's PAPER faded across the new page too, so the whole sheet
-    // cross-faded instead of the text lingering.
-    //
-    // On a PALE paper there is no such thing as a glowing page, and adding
-    // light to it would only wash it out. There the honest fallback is a
-    // cross-dissolve of the accumulated light. The CRT palettes look like CRTs
-    // in dark mode; that is where the emissive effect belongs.
     const bool darkGround = panelIsDarkGround();
-    SDL_SetTextureBlendMode(accumTexture, darkGround ? SDL_BLENDMODE_ADD
-                                                     : SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(accumTexture, darkGround ? 255 : 128);
+
+    // A PHOSPHOR ADDS LIGHT, and the accumulator is a buffer OF LIGHT: black
+    // wherever nothing has been emitted. That composites one way and one way
+    // only -- additively, onto a dark ground.
+    //
+    // IT USED TO CROSS-DISSOLVE ON A PALE GROUND, and that was wrong from the
+    // moment this became an accumulator (build 90). The single-ghost version it
+    // replaced held a real PICTURE -- the previous frame, paper and all -- so
+    // blending it over a pale page was a sensible dissolve. The accumulator
+    // holds light on black, so blending it at alpha 128 over a pale page draws
+    // 50% BLACK across the whole sheet: the page turns gray and the previous
+    // page's text hangs there inside it. Reported from the phone with a
+    // screenshot, on the CRT schemes in light mode.
+    //
+    // So on a pale ground there is no trail at all. That is not a regression
+    // against the pre-accumulator behaviour so much as an admission of what the
+    // comment here already said: a glowing page is a dark-ground idea, and
+    // adding light to white paper cannot express it.
+    if (!darkGround) {
+      accumLive = false;
+    } else {
+      SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
+      SDL_SetTextureAlphaMod(accumTexture, 255);
+    }
 
     // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
     // that is an APPROXIMATION and is marked as one: the buffer holds deposits
@@ -1783,7 +1795,7 @@ void HalDisplay::presentIfNeeded() {
     } else {
       SDL_SetTextureColorMod(accumTexture, 255, 255, 255);
     }
-    drawPanel(accumTexture);
+    if (accumLive) drawPanel(accumTexture);
 
     // A fade only animates if something presents while it fades, and the
     // firmware will not: an e-ink reader draws a page and stops. So the trail
@@ -1868,7 +1880,7 @@ void HalDisplay::presentIfNeeded() {
     // firmware will not: an e-ink reader draws a page and stops. So the trail
     // asks for its own next frame, and stops asking the moment it is done --
     // which is what keeps this from becoming a permanent render loop.
-    pendingPresent.store(true);
+    if (accumLive) pendingPresent.store(true);
   }
 
   if (beamSweeping) {
