@@ -239,3 +239,38 @@ iPad is untouched: `layoutPadTablet()` returns before the phone branch, so
 - [ScreenCorners](https://github.com/kylebshr/ScreenCorners) and [Finding the Real iPhone X Corner Radius](https://kylebashour.com/posts/finding-the-real-iphone-x-corner-radius) (the private-API/hardcoded state of the art)
 - [BezelKit](https://markbattistella.com/writings/2023/introducing-bezelkit/) (per-model radius table)
 - [safeAreaInsets](https://developer.apple.com/documentation/uikit/uiview/safeareainsets), [WidgetKit DynamicIsland](https://developer.apple.com/documentation/widgetkit/dynamicisland)
+
+
+---
+
+## Update 2026-08-17: the page runs up to the cut-out
+
+Owner: **"extend top up to dynamic island (too short currently)."**
+
+The band was 80 pt because `layoutPad` took `max(safeArea.top, kTopReserve)` and
+`kTopReserve = 80` always won on a cut-out phone. Measured on the iPhone Air the
+Island ends at 56.3 pt, so the page began **23.7 pt below it** — dead black with
+nothing in it.
+
+The safe area is exactly the line iOS puts below a cut-out, so on a cut-out
+device it is now taken as-is:
+
+| | before | after |
+|---|---|---|
+| safe area top | 68.0 pt | 68.0 pt |
+| page top | 80.0 pt | **68.0 pt** |
+| gap below the Island | 23.7 pt | **11.7 pt** |
+
+A phone with **no** cut-out reports the classic 20 pt status bar and keeps the
+80 pt reserve — moving its page up 60 pt is a change nobody asked for.
+
+**What this gives up**, recorded because it was a deliberate choice being
+reversed: the 80 pt reserve was sized to clear a floating Picture-in-Picture
+window parked in a top corner (`mockups/pip-envelope.html`). At the safe area
+the page no longer clears one.
+
+**The remaining 11.7 pt is Apple's own margin below the Island**, not slack of
+ours. Closing it means drawing inside the safe area — permitted, since the
+Island itself ends higher, but it is a deliberate step past the supported line
+and no API reports where the Island actually ends (see above). Not taken without
+being asked.
