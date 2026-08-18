@@ -20,8 +20,13 @@ space to time, which is not the same as removing it.
 
 - **Blank to a dark NEUTRAL field between stimuli.** Not white (it bleaches),
   and not the stimulus's own ground (it does not wash anything out).
-- **Enforce a minimum gap** of several seconds. It must not be skippable by a
-  fast keypress, or an impatient run silently reverts to back-to-back.
+- **Enforce a minimum gap, and keep it SHORT.** Owner ruling 2026-08-18, after
+  four seconds per trial made a 123-trial session not worth doing: *"reduce
+  delay to under a second."* The current pages use 900 ms between trials and
+  350 ms between the two cards of one trial. It must not be skippable by a fast
+  keypress, or an impatient run silently reverts to back-to-back — but a gap
+  long enough to be perfect and long enough to abandon the session is worth
+  nothing. Pace is a validity requirement too.
 - **Nothing else moves during the gap** — no toast, no counter ticking, no
   animation. Anything changing is a second stimulus.
 - **Silence.** No sound from the page, and run it in a quiet room.
@@ -65,6 +70,32 @@ Before analyzing factor X, grep the page for the code that renders X.
 Flat CSS `background`/`color` is not the page. The shipped panel goes through the
 emissive ramp, antialiasing, the grain pass, the beam and the glow. A judgment
 made on a flat rectangle does not transfer.
+
+## Never ask a comparison the subject cannot make
+
+The second design failed on this and it is the more expensive mistake. Pages
+were clustered by perceptual similarity and then compared **within** cluster,
+which draws almost every question from the hardest tail of the space: across the
+38 distinct pages only 12% of pairs sit under dE 20, but four of the five pairs
+actually shown were under dE 21. Owner, after five trials: *"these are all too
+close and it is a waste of my time."*
+
+His five calls calibrate the threshold exactly:
+
+| pair | dE (ink, CIELAB) | verdict |
+|---|---|---|
+| P5 vs P55 | 1.4 | too close |
+| P43 vs P31 | 9.9 | too close |
+| P15 vs P34 | 18.1 | too close |
+| P11 vs P22B | 20.5 | decisive |
+| P43 vs P39 | 21.3 | decisive |
+
+**Collapse before judging.** Group the candidates by complete linkage so no two
+members of a group exceed dE 25, judge one representative per group (the
+medoid), and let the winner carry its members. That took 38 pages to 12 real
+choices. **Auto-tie anything left under dE 20** rather than asking it — a pair
+the subject cannot separate is a pair whose answer carries no information, and
+for a shortlist two indistinguishable pages are interchangeable anyway.
 
 ## Pairing and stopping rules
 
