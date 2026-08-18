@@ -151,6 +151,20 @@ void setPanelEmissive(bool emissive);
 // CROSSPOINT_SIM_PAGE_FADE_MS overrides the argument.
 void setPageFade(float fadeMs);
 
+// PAGE FADE DEPTH: how far that decay goes, as a percentage of the palette's
+// legible floor that is KEPT. 100 is the default and is the floor described
+// above -- a build that never calls this is pixel-identical to one that cannot.
+// 0 is FULLY TRANSPARENT: the page fades all the way to paper.
+//
+// The steps between are proportions of the same per-palette figure, so a
+// low-contrast page still fades less far than a high-contrast one at the same
+// setting. Below 100 the WCAG floor is deliberately given up -- owner ruling
+// 2026-08-18, with the measured contrast at each depth written out at
+// pagefade::floorFor(). Clamped to 0..100.
+//
+// CROSSPOINT_SIM_PAGE_FADE_DEPTH overrides the argument.
+void setPageFadeDepth(int depthPercent);
+
 // Something happened: restart the fade from full. Cheap and safe to call on
 // every input event -- it returns immediately when the fade is off.
 void notePageInteraction();

@@ -49,7 +49,7 @@ record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 ## OPEN
 
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
-**scope: ios display · asked 2026-08-17 · built 2026-08-17**
+**scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
 
 **Shipped as `Page Fade`**: Off (default) / 15 s / 30 s / 1 min / 2 min / 5 min,
 stored as the duration in seconds. The three design questions this entry raised,
@@ -57,7 +57,9 @@ answered:
 
 - **Where does it stop?** At a floor, and any input re-energises it
   (`notePageInteraction`, hooked to both the SDL event path and the synthetic
-  `injectButtonDown` path so headless runs behave like fingers).
+  `injectButtonDown` path so headless runs behave like fingers). *Superseded in
+  part 2026-08-18: the floor is still where it stops, but HOW FAR down that
+  floor sits is now the owner's, down to nothing — see the depth setting below.*
 - **Toward paper or toward grey?** **Paper** — a phosphor dying, which is what
   was asked. It falls out for free: the field behind the panel is already
   cleared to the paper tone, so alpha on the panel texture *is* a fade toward
@@ -78,13 +80,63 @@ measures ≥ 4.50:1; the non-fading one is left byte-identical.
 `(40,205,40)`, settled `(38,197,38)` — exactly the predicted 197 — and back to
 `(46,235,46)` a tenth of a second after a button press.
 
+**HOW FAR it fades is a SECOND setting, added 2026-08-18.** Owner: "create
+another setting for Page Fade that includes current value and fully transparent
+and three steps in between." The first setting is how LONG; this one is how
+DEEP.
+
+**Shipped as `Page Fade Depth`**, stored as `pageFadeDepthPercent` — the
+percentage of the palette's legible floor that is KEPT, 100 (default) / 75 / 50
+/ 25 / 0. The stored number is the proportion itself, not a row index, following
+`pageFadeSeconds` and `beamPaintMs`, so the rows can be retuned without a
+migration. Storing a proportion rather than an absolute alpha is what keeps the
+per-palette adaptation alive at every step: `pagefade::floorFor()` is now
+`legibleFloorFor() * depth/100`, so a low-contrast page still fades less far
+than a high-contrast one at the same setting.
+
+**RULING: below 100 the legibility guard is bypassed, by owner election.** The
+whole reason `floorFor()` exists is that a flat 0.75 drops Solarized to 2.73:1;
+the depth setting hands that back deliberately, and it is not a bug to be
+clamped. The cost is measured rather than asserted — worst case across every
+preset in both polarities, printed by `tests/page_fade_test.cpp`:
+
+| Depth | Worst settled contrast | |
+|---|---|---|
+| 100 % | 4.50:1 (Red) | AA body text — **the default, unchanged** |
+| 75 % | 2.73:1 (Solarized) | below AA body text, still readable |
+| 50 % | 1.88:1 (Solarized) | a ghost of the page |
+| 25 % | 1.28:1 (Blue) | barely present |
+| 0 % | 1.00:1 | the page is gone; that is the option |
+
+The override is written out where someone would go to undo it — the comment
+above `pagefade::floorFor()` in [src/PageFade.h](src/PageFade.h), which names
+the ruling and carries that table.
+
+**Measured headlessly**, same rig as above (X3 desktop binary, 3x render, dark
+Green CRT `33FF33` on `001A00`, fade 3 s, settled at 12 s), ink pixel per depth:
+
+| Depth | Predicted ink | Measured | |
+|---|---|---|---|
+| 100 % | 197.8 | `(38,197,38)` | identical to the 2026-08-17 measurement |
+| 75 % | 154.8 | `(28,154,28)` | |
+| 50 % | 111.9 | `(19,112,19)` | |
+| 25 % | 68.9 | `(9,69,9)` | |
+| 0 % | 26 (= paper) | `(0,26,0)` | the ONLY color in the frame — 418 176 of 418 176 px |
+
+With `CROSSPOINT_SIM_PAGE_FADE_DEPTH` unset the capture is **byte-identical** to
+depth 100, which is the proof the default did not move.
+
 **Found while building it:** the panel had been drawn TWICE per present since
 the beam work (build 90). Invisible with opaque blending, which is why nothing
 caught it, but it doubled the panel fill cost and made the fade composite
 twice — 0.75 alpha rendering as 0.94. Removed.
 
 `tests/page_fade_test.cpp` pins the curve, the settle, the loop stopping, and
-the legibility of every palette's floor.
+the legibility of every palette's floor at the DEFAULT depth — plus, since
+2026-08-18, that depth 100 leaves every palette's floor bit-for-bit where it
+was, that each step down is strictly deeper, that Solarized (which does not fade
+at all at the default) does fade when a deeper step is chosen, and that 0 is
+alpha 0 rather than nearly-0.
 
 Owner: "make an option to fade away text naturally over time after page turn".
 

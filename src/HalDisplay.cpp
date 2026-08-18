@@ -61,6 +61,13 @@ static std::atomic<float> beamPaintMs{0.0f};
 static std::atomic<float> pageFadeMs{0.0f};
 static std::atomic<uint64_t> lastInteractionMs{0};
 
+// HOW FAR it fades, as a percentage of that floor that is KEPT. 100 is the
+// legible floor and the default -- an install that never touches this renders
+// exactly what the paragraph above describes. 0 is fully transparent: the page
+// goes all the way to paper and is gone. Owner-elected, and the legibility
+// numbers it gives up are written out at pagefade::floorFor().
+static std::atomic<int> pageFadeDepth{pagefade::kDepthFull};
+
 // 0.75, and the number is measured rather than chosen. The first draft of this
 // said 0.55 and claimed it held "every one above 6:1" -- it does not: at 0.55
 // the worst row (Blue, P11) falls to 2.88:1, below even WCAG AA for LARGE text.
@@ -855,6 +862,25 @@ void setPageFade(float fadeMs) {
   pendingPresent.store(true);
 }
 
+void setPageFadeDepth(int depthPercent) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PAGE_FADE_DEPTH")) {
+    // strtol rather than atoi, and the end pointer is checked, because atoi
+    // answers 0 for anything it cannot parse -- and 0 here is not a harmless
+    // default, it is FULLY TRANSPARENT. A typo in the variable name's VALUE
+    // would blank the page and look like a rendering bug.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) depthPercent = static_cast<int>(parsed);
+  }
+  if (depthPercent < 0) depthPercent = 0;
+  if (depthPercent > pagefade::kDepthFull) depthPercent = pagefade::kDepthFull;
+  pageFadeDepth.store(depthPercent);
+  // Repaint rather than wait: a settled page is already sitting at the OLD
+  // floor and the firmware may not render again for minutes, so without this
+  // the new depth would first appear at some unrelated page turn.
+  pendingPresent.store(true);
+}
+
 void notePageInteraction() {
   if (pageFadeMs.load() <= 0.0f) return;
   lastInteractionMs.store(SDL_GetTicks());
@@ -1048,6 +1074,11 @@ void HalDisplay::begin() {
   // env override is dead on the desktop -- and this one had exactly that bug
   // for one build, which is how the first fade measurement showed no fade.
   SimulatorOverlay::setPageFade(0.0f);
+  // Sixth time, and the same hole would have been the same bug: this dial's
+  // env override is the ONLY way to reach it off-phone, so it has to be seeded
+  // through its setter. kDepthFull is what shipped, so with the var unset this
+  // is a no-op.
+  SimulatorOverlay::setPageFadeDepth(pagefade::kDepthFull);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1644,7 +1675,10 @@ void HalDisplay::presentIfNeeded() {
     // The floor follows the palette on screen: a low-contrast page (Solarized)
     // cannot afford the deep fade and is left alone rather than made unreadable.
     const PanelPalette live = livePanelPalette(inverted.load());
-    const float floor = pagefade::floorFor(live.ink, live.paper);
+    // ...scaled by the owner's chosen depth, which at the default (100) leaves
+    // the legible floor exactly as it was and at 0 fades the page away.
+    const float floor =
+        pagefade::floorFor(live.ink, live.paper, pageFadeDepth.load());
     pageAlpha = pagefade::alphaFor(age, fadeMs, floor);
     // Keep presenting while it is still moving. Once it is within one 8-bit
     // step of the floor it has arrived and the loop stops asking -- otherwise

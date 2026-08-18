@@ -114,6 +114,17 @@ int CrossPointPrefs_diagnosticsEnabled(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_pageFadeSeconds(void);
 
+// PAGE FADE DEPTH: how FAR that fade goes, as the percentage of the palette's
+// legible floor that is kept. 100 (the default) stops where the page is still
+// at WCAG AA body text -- what shipped before this setting. 0 is fully
+// transparent: the page fades away entirely. Clamped to 0..100 on read.
+//
+// Owner-elected below 100; the contrast given up at each step is written out at
+// pagefade::floorFor() in src/PageFade.h.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_pageFadeDepthPercent(void);
+
 int CrossPointPrefs_beamPaintMs(void);
 
 int CrossPointPrefs_panelPalettePreset(void);

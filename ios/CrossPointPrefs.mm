@@ -47,6 +47,7 @@ static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
 static NSString *const kPageFadeSeconds = @"pageFadeSeconds";
+static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -183,6 +184,13 @@ static void ensureDefaults(void) {
         // Off: the page holds its brightness for as long as you read it, which
         // is what every build before this did.
         kPageFadeSeconds : @(0),
+        // 100: the fade stops at the palette's legible floor, which is what
+        // every build before this setting did. Missing-key failure mode is
+        // MALIGNANT -- -integerForKey: returns 0 for an absent key, and 0 here
+        // means FULLY TRANSPARENT, i.e. an owner who never opened this setting
+        // would find the page fading away to nothing. This fallback is the
+        // thing standing between an unseeded install and that.
+        kPageFadeDepthPercent : @(100),
       }];
     }
 
@@ -305,6 +313,26 @@ int CrossPointPrefs_pageFadeSeconds(void) {
   // setting is indistinguishable from off and would hold the render loop open
   // for the whole of it.
   return s > 600 ? 600 : s;
+}
+
+int CrossPointPrefs_pageFadeDepthPercent(void) {
+  ensureDefaults();
+  checkKnown(kPageFadeDepthPercent);
+  // Stored as the PROPORTION OF THE LEGIBLE FLOOR THAT IS KEPT, 0..100 -- the
+  // meaningful value itself rather than a row index, same reasoning as
+  // pageFadeSeconds above. 100 is today's behaviour; 0 is fully transparent.
+  //
+  // Read through -objectForKey: rather than -integerForKey: because 0 is a REAL
+  // choice here and -integerForKey: cannot tell it from an absent key. That
+  // distinction is load-bearing exactly once -- on an install whose defaults
+  // somehow did not register -- and the wrong answer there is a page that fades
+  // away for an owner who never asked it to.
+  NSNumber *v = [[NSUserDefaults standardUserDefaults]
+      objectForKey:kPageFadeDepthPercent];
+  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 100 ? 100 : pct;
 }
 
 int CrossPointPrefs_beamPaintMs(void) {
