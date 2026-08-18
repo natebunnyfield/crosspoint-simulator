@@ -232,15 +232,24 @@ different stub and a different bug — filed as **S-014**.
 ### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
 **severity: medium · scope: tests / firmware drift · found 2026-08-08** · FIXED 2026-08-08
 
-**RE-CONFIRMED PASSING 2026-08-17, and a warning for the next person who sees it
-red: this test is sensitive to MACHINE LOAD, not only to firmware drift.** It
-failed here ("simulator still running after 30s -- the 1ms wake tap was missed")
-while two font builds were running three parallel jobs each, and passed on the
-same tree, same binary, the moment the box was idle. Everything about the
-failure reads like drift — the wake never lands, the process has to be killed —
-so check the load before re-diagnosing the firmware. A 1 ms synthetic tap has to
-be observed inside one pump of the sleep loop, and a saturated CPU is enough to
-miss it.
+**ROOT CAUSE FOUND 2026-08-17, and it was never firmware drift: the test was the
+only one here that did not run HEADLESS.** It omitted `SDL_VIDEODRIVER=dummy`,
+so it opened a real SDL window and its timing followed the window server, the
+GPU and the machine's load — surfacing as "the 1ms wake tap was missed", which
+is indistinguishable from a wake regression from the outside.
+
+Measured both ways on the same tree and binary:
+
+| | result |
+|---|---|
+| windowed | 2 of 3 FAILED |
+| headless | 4 of 4 PASSED |
+
+A first guess that the wake tap needed more headroom (6 s → 15 s) was wrong and
+was reverted: it still failed windowed at 15 s. The two tests here that were
+never flaky, `test_text_entry.sh` and `test_note_editor_repaint.sh`, both set
+the variable. Dummy still renders, so the after-wake screenshot is captured
+exactly as before.
 
 
 The test's scenario (`2500:POWER:700` must enter deep sleep, a later 1 ms tap

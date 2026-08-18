@@ -67,6 +67,18 @@ SEED
   trap "[ -f '$STATE_BACKUP' ] && cp '$STATE_BACKUP' '$STATE'; rm -rf '$WORK'" EXIT
 fi
 
+# HEADLESS, and this is what made the test flaky rather than any drift.
+#
+# It was the only test here that did NOT set SDL_VIDEODRIVER=dummy, so it opened
+# a REAL SDL window and its timing followed the window server, the GPU and the
+# machine's load. It failed as "the 1ms wake tap was missed" whenever the box was
+# busy -- indistinguishable from a firmware regression, and it was filed as one
+# (S-011). Run headless it passes every time; run windowed it fails under load
+# and passes idle. The two tests that were never flaky both set this.
+#
+# Dummy still renders, so the after-wake screenshot below is captured exactly as
+# before -- that is what the other headless tests here rely on too.
+SDL_VIDEODRIVER=dummy \
 CROSSPOINT_SIM_INPUT_SCRIPT='2500:POWER:700;6000:POWER:1' \
 CROSSPOINT_SIM_INPUT_SCRIPT_AFTER_WAKE='1500:QUIT' \
 CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE="1000:$SHOT" \
