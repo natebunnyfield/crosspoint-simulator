@@ -125,6 +125,12 @@ int CrossPointPrefs_pageFadeSeconds(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_pageFadeDepthPercent(void);
 
+// PHOSPHOR GRAIN. Strength as a percentage of what a real settled-powder screen
+// has: 0 is off, 100 is realistic and the default, 1000 is 10x. Coverage is a
+// phosphorgrain::Coverage integer (0 Even, 1 Vignette, 2 Mottled, 3 both).
+int CrossPointPrefs_phosphorGrainPercent(void);
+int CrossPointPrefs_phosphorGrainCoverage(void);
+
 int CrossPointPrefs_beamPaintMs(void);
 
 int CrossPointPrefs_panelPalettePreset(void);

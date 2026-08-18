@@ -166,6 +166,64 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
+			<integer>100</integer>
+			<key>Key</key>
+			<string>phosphorGrainPercent</string>
+			<key>Title</key>
+			<string>Screen Grain</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — a perfectly even screen</string>
+				<string>1/4x — barely there</string>
+				<string>1/2x — a clean tube</string>
+				<string>1x — realistic</string>
+				<string>2x — an older screen</string>
+				<string>3x — visibly grainy</string>
+				<string>5x — coarse</string>
+				<string>7x — worn out</string>
+				<string>10x — not a real screen any more</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>25</integer>
+				<integer>50</integer>
+				<integer>100</integer>
+				<integer>200</integer>
+				<integer>300</integer>
+				<integer>500</integer>
+				<integer>700</integer>
+				<integer>1000</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>0</integer>
+			<key>Key</key>
+			<string>phosphorGrainCoverage</string>
+			<key>Title</key>
+			<string>Grain Coverage</string>
+			<key>Titles</key>
+			<array>
+				<string>Even — coated uniformly</string>
+				<string>Vignette — grainier at the rim, dimmed corners</string>
+				<string>Mottled — blotchy, the way a coating settles</string>
+				<string>Vignette + Mottled — both</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
 			<integer>1</integer>
 			<key>Key</key>
 			<string>panelPalettePreset</string>

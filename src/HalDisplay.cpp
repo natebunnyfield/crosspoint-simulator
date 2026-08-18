@@ -8,6 +8,7 @@
 #include "GrayscalePreview.h"
 #include "PageFade.h"
 #include "PanelPalette.h"
+#include "PhosphorGrain.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 
@@ -898,6 +899,44 @@ void setBeamPaint(float sweepMs) {
   beamPaintMs.store(sweepMs);
 }
 
+// PHOSPHOR GRAIN. Strength as a percentage of realistic (100 = realistic and
+// the default, 0 = off, 1000 = the 10x the owner asked for) and which coverage
+// shape spreads it. See src/PhosphorGrain.h for what those mean and why grain
+// is the one CRT treatment that survived the 2026-08-18 ruling.
+static std::atomic<int> grainStrength{phosphorgrain::kStrengthRealistic};
+static std::atomic<int> grainCoverage{phosphorgrain::Even};
+
+void setPhosphorGrain(int strengthPercent, int coverage) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN")) {
+    // strtol with the end pointer checked, not atoi: atoi answers 0 for
+    // anything it cannot parse, and 0 here is not a harmless default -- it is
+    // the feature switched off. A typo in the VALUE would look like the setting
+    // doing nothing.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) strengthPercent = static_cast<int>(parsed);
+  }
+  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_COVERAGE")) {
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env) coverage = static_cast<int>(parsed);
+  }
+  const int s = phosphorgrain::clampStrength(strengthPercent);
+  const int c = static_cast<int>(phosphorgrain::clampCoverage(coverage));
+  // BOTH exchanges, unconditionally. Written as `a.exchange(s) != s ||
+  // b.exchange(c) != c` this short-circuits: a changed strength makes the left
+  // side true and the coverage is NEVER STORED. That shipped for exactly one
+  // measurement -- all four coverage settings rendered byte-identical frames,
+  // because the only call that ever changes coverage also changes strength.
+  const bool strengthChanged = grainStrength.exchange(s) != s;
+  const bool coverageChanged = grainCoverage.exchange(c) != c;
+  if (!strengthChanged && !coverageChanged) return;
+  // Repaint rather than wait. The field is regenerated lazily by the present
+  // path, but an e-ink firmware may not render for minutes, so without this the
+  // new grain would first appear at some unrelated page turn.
+  pendingPresent.store(true);
+}
+
 void setPanelEmissive(bool emissive) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PANEL_EMISSIVE"))
     emissive = env[0] == '1';
@@ -1079,6 +1118,11 @@ void HalDisplay::begin() {
   // through its setter. kDepthFull is what shipped, so with the var unset this
   // is a no-op.
   SimulatorOverlay::setPageFadeDepth(pagefade::kDepthFull);
+  // Seventh time. Grain's default is NOT off -- it is realistic -- so this call
+  // is what makes the desktop render the same screen the phone does, and it is
+  // also the only route CROSSPOINT_SIM_GRAIN has to the atomics.
+  SimulatorOverlay::setPhosphorGrain(phosphorgrain::kStrengthRealistic,
+                                     phosphorgrain::Even);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1283,6 +1327,84 @@ static void ensureGhostTexture() {
     return;
   }
   SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_BLEND);
+}
+
+// THE GRAIN FIELD, generated at OUTPUT resolution and drawn 1:1.
+//
+// That "1:1" is the whole reason this is a present-time pass and not something
+// baked into the 1bpp->ARGB conversion. The panel is MINIFIED on a phone
+// (0.7955 on an iPhone Air at 3x); a regular field written into the framebuffer
+// beats against that resample, measured at 8.14 levels for the selection dither
+// (ST-008). A field the size of the presented rect is never resampled at all.
+//
+// Regenerated only when the rect or either dial changes -- so a page turn costs
+// one textured quad, not 2.4M hash evaluations. It is a property of the glass:
+// it must NOT be re-rolled per frame, or a still page crawls.
+static SDL_Texture *grainTexture = nullptr;
+static int grainTexW = 0, grainTexH = 0;
+static int grainTexStrength = -1, grainTexCoverage = -1;
+
+static void destroyGrainTexture() {
+  if (!grainTexture) return;
+  SDL_DestroyTexture(grainTexture);
+  grainTexture = nullptr;
+  grainTexW = grainTexH = 0;
+  grainTexStrength = grainTexCoverage = -1;
+}
+
+// True when there is a field ready to draw over a w x h rect.
+static bool ensureGrainTexture(int w, int h) {
+  const int strength = SimulatorOverlay::grainStrength.load();
+  const int coverage = SimulatorOverlay::grainCoverage.load();
+  if (strength == phosphorgrain::kStrengthOff || w <= 0 || h <= 0 ||
+      !sdl_renderer) {
+    destroyGrainTexture();
+    return false;
+  }
+  if (grainTexture && grainTexW == w && grainTexH == h &&
+      grainTexStrength == strength && grainTexCoverage == coverage)
+    return true;
+  destroyGrainTexture();
+
+  grainTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                   SDL_TEXTUREACCESS_STATIC, w, h);
+  if (!grainTexture) {
+    LOG_ERR("DISP", "grain: no field texture (%s)", SDL_GetError());
+    return false;
+  }
+  const phosphorgrain::Params params{
+      strength, phosphorgrain::clampCoverage(coverage), 0x43524F53u};
+  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+  for (int y = 0; y < h; ++y) {
+    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+    for (int x = 0; x < w; ++x) {
+      const uint32_t m = phosphorgrain::multiplierAt(params, x, y, w, h);
+      // Achromatic: grain is a coverage deficit, and a thin patch of phosphor
+      // emits LESS of its own color, not a different one. Tinting it would be
+      // inventing a second phosphor.
+      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+  if (!SDL_UpdateTexture(grainTexture, nullptr, field.data(),
+                         static_cast<int>(w * sizeof(uint32_t)))) {
+    LOG_ERR("DISP", "grain: could not upload the field (%s)", SDL_GetError());
+    destroyGrainTexture();
+    return false;
+  }
+  // MODULATE: dst = dst * src. See PhosphorGrain.h for why it can only darken.
+  SDL_SetTextureBlendMode(grainTexture, SDL_BLENDMODE_MOD);
+  // Drawn 1:1, so the filter never runs -- pinned to NEAREST anyway so a
+  // half-pixel rect can never smear the field into a gray wash.
+  SDL_SetTextureScaleMode(grainTexture, SDL_SCALEMODE_NEAREST);
+  grainTexW = w;
+  grainTexH = h;
+  grainTexStrength = strength;
+  grainTexCoverage = coverage;
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[grain] field %dx%d strength %d coverage %d", w, h, strength,
+              coverage);
+  return true;
 }
 
 void HalDisplay::presentIfNeeded() {
@@ -1907,6 +2029,44 @@ void HalDisplay::presentIfNeeded() {
     // firmware presents once per page. Same self-driving arrangement as the
     // glow's trail, and it stops asking the moment the beam reaches the bottom.
     pendingPresent.store(true);
+  }
+
+  // THE GRAIN GOES ON LAST, over the panel and everything composited into it --
+  // the beam's swept band, the accumulator's trail, the faded page. That order
+  // is the physics: all of those are LIGHT LEAVING THE PHOSPHOR, and the
+  // coverage of that phosphor is what decides how much of it gets out. A grain
+  // pass applied earlier would be a texture the trail then drew over.
+  //
+  // Drawn with logical presentation DISABLED, in real output pixels, for the
+  // reason spelled out at ensureGrainTexture: 1:1 or it beats against the
+  // phone's 0.7955 minification. It is fixed to the GLASS, so unlike the panel
+  // it does not rotate with the orientation.
+  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    SDL_FRect panel{0.0f, 0.0f, 0.0f, 0.0f};
+    bool haveRect = false;
+    if (manualPlacement) {
+      // Already output pixels on this path -- the manual placement computes the
+      // rect in device pixels precisely so the integer scale survives.
+      panel = {static_cast<float>(visible.x), static_cast<float>(visible.y),
+               static_cast<float>(visible.w), static_cast<float>(visible.h)};
+      haveRect = visible.w > 0 && visible.h > 0;
+    } else {
+      // `visible` is LOGICAL units on the letterbox path, so it cannot be used
+      // here. SDL knows where it put the presented rect; ask it.
+      haveRect = SDL_GetRenderLogicalPresentationRect(sdl_renderer, &panel) &&
+                 panel.w >= 1.0f && panel.h >= 1.0f;
+    }
+    if (haveRect &&
+        ensureGrainTexture(static_cast<int>(panel.w), static_cast<int>(panel.h)))
+      SDL_RenderTexture(sdl_renderer, grainTexture, nullptr, &panel);
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  } else if (grainTexture) {
+    destroyGrainTexture();
   }
 
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
