@@ -655,7 +655,25 @@ void layoutPad(int outW, int outH) {
     if (SDL_GetWindowSafeArea(win, &safe) && safe.y > 0)
       safeTop = static_cast<float>(safe.y);
   }
-  topInset = SDL_max(safeTop, kTopReserve);
+  // OWNER 2026-08-17: "extend top up to dynamic island (too short currently)."
+  //
+  // The page used to take max(safeArea, kTopReserve), so on a cut-out phone the
+  // 80 pt reserve always won and the page began ~24 pt BELOW the Island's lower
+  // edge (measured: Island 20.0-56.3 pt, page top 80.0 pt). That gap is dead
+  // black with nothing in it.
+  //
+  // The safe area is exactly the line iOS puts below the cut-out, so on a
+  // cut-out device it is now taken as-is and the page runs up to the Island.
+  // A phone with no cut-out reports the classic 20 pt status bar and keeps the
+  // reserve -- moving ITS page up 60 pt is a change nobody asked for.
+  //
+  // WHAT THIS GIVES UP, stated because it was a deliberate choice and is now
+  // reversed: the 80 pt reserve was sized to clear a floating Picture-in-Picture
+  // window parked in a top corner (see the note above and
+  // mockups/pip-envelope.html). At the safe area the page no longer clears one.
+  topInset = safeTop > 20.0f ? safeTop : kTopReserve;
+  SDL_Log("[layout] safe top %.1f pt -> page top %.1f pt (band %s)", safeTop,
+          topInset, safeTop > 20.0f ? "at the cut-out" : "reserve");
   SimulatorOverlay::setTopInset(static_cast<int>(topInset * S));
 
   // THE BEZEL BAND: where the page's rounded top corners start, in device
