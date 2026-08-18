@@ -1121,6 +1121,46 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
 // The ghost is created lazily and matches the panel texture's format and size.
 // Lazy because the glow is off by default and every desktop build would
 // otherwise carry a second full-panel texture for nothing.
+// THE PERSISTENCE BUFFER, and why one previous frame was never enough.
+//
+// Reported: "if I flip through pages rapidly, the persistence buffer is not
+// affected by all pages, just the most recent pages." Correct, and it was a
+// limitation of the model rather than a bug in it: the first glow kept ONE
+// previous frame and one start time, so each new page threw the last one away.
+// Flip four pages quickly and only the fourth-from-last ever glowed.
+//
+// A phosphor does not work that way. Every frame the beam writes deposits
+// energy, each deposit decays on its own from the moment it lands, and what you
+// see is the SUM. So the ghost is now an accumulator that lives on the GPU:
+// each present multiplies it down by the decay for the elapsed time, and each
+// new page ADDS the frame it replaced. Ten pages in a second leave ten
+// contributions in it, each already faded by its own age -- which falls out of
+// the arithmetic for free, because a uniform multiply applied over time is
+// exactly what per-contribution exponential decay is.
+static SDL_Texture *accumTexture = nullptr;
+static uint64_t accumLastFadeMs = 0;
+static uint64_t accumLastAddMs = 0;
+
+static void ensureAccumTexture() {
+  if (accumTexture) return;
+  accumTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                   SDL_TEXTUREACCESS_TARGET, HalDisplay::activeWidth(),
+                                   HalDisplay::activeHeight());
+  if (!accumTexture) {
+    LOG_ERR("DISP", "glow: no accumulator texture (%s)", SDL_GetError());
+    return;
+  }
+  // Additive on the way to the screen: the accumulator holds EMITTED LIGHT, and
+  // light adds. Cleared once here so the first page does not inherit garbage.
+  SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
+  SDL_Texture *prev = SDL_GetRenderTarget(sdl_renderer);
+  SDL_SetRenderTarget(sdl_renderer, accumTexture);
+  SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+  SDL_RenderClear(sdl_renderer);
+  SDL_SetRenderTarget(sdl_renderer, prev);
+  accumLastFadeMs = SDL_GetTicks();
+}
+
 static void ensureGhostTexture() {
   if (ghostTexture || !sdl_renderer)
     return;
@@ -1219,6 +1259,57 @@ void HalDisplay::presentIfNeeded() {
     // ceiling's pitch would stride past every row.
     SDL_UpdateTexture(texture, nullptr, pixelBuf,
                       activeWidth() * sizeof(uint32_t));
+  }
+
+  // FADE THE ACCUMULATOR BY ELAPSED TIME, THEN DEPOSIT THE PAGE JUST REPLACED.
+  //
+  // Order matters and is physical: what is already in there has been decaying
+  // since the last present, and the frame being replaced starts decaying only
+  // from now. Fading first and adding second is what makes a contribution's
+  // age its own.
+  bool accumLive = false;
+  if (trailMs > 0.0f && ghostTexture) {
+    ensureAccumTexture();
+    if (accumTexture) {
+      const uint64_t now = SDL_GetTicks();
+      const float dt = static_cast<float>(now - accumLastFadeMs);
+      accumLastFadeMs = now;
+      SDL_Texture *restore = SDL_GetRenderTarget(sdl_renderer);
+      SDL_SetRenderTarget(sdl_renderer, accumTexture);
+      // dst *= 10^(-dt/trail), expressed as a blend against black. This is the
+      // SAME curve the single-ghost version used; it is just applied to a
+      // running sum instead of to one frame.
+      if (dt > 0.0f) {
+        const float keep = SDL_powf(10.0f, -dt / trailMs);
+        const int drop = static_cast<int>((1.0f - keep) * 255.0f + 0.5f);
+        if (drop > 0) {
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
+                                 static_cast<Uint8>(SDL_min(255, drop)));
+          SDL_RenderFillRect(sdl_renderer, nullptr);
+        }
+      }
+      if (contentChanged) {
+        // The page that was just replaced is what glows. Added at full
+        // strength, 1:1 -- both textures are the panel's own size.
+        SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_ADD);
+        SDL_SetTextureAlphaMod(ghostTexture, 255);
+        SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
+        SDL_RenderTexture(sdl_renderer, ghostTexture, nullptr, nullptr);
+        accumLastAddMs = now;
+      }
+      SDL_SetRenderTarget(sdl_renderer, restore);
+      // Still emitting? A deposit is spent once it has decayed below one 8-bit
+      // step, which is 10^-2.4 trails. Past that the accumulator is black and
+      // asking for more frames would be a permanent render loop.
+      accumLive = accumLastAddMs != 0 &&
+                  static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
+    }
+  } else if (accumTexture) {
+    // Glow turned off: drop the buffer rather than keep paying for it.
+    SDL_DestroyTexture(accumTexture);
+    accumTexture = nullptr;
+    accumLastAddMs = 0;
   }
 
   // How much of the ghost is still emitting, 0 once it has decayed away.
@@ -1539,6 +1630,111 @@ void HalDisplay::presentIfNeeded() {
   // phosphor does: the old picture is still emitting while the new one is
   // written over it. Same rects and the same rotation as the panel above, so it
   // lands exactly on the panel however the panel was placed.
+  // THE ACCUMULATOR GOES ON TOP of the new page, which is what a phosphor does:
+  // everything written recently is still emitting while the new page is drawn
+  // over it. Same rects and rotation as the panel, so it lands exactly on the
+  // panel however the panel was placed.
+  //
+  // This draws the SUM of every recent page, not the last one. Flipping ten
+  // pages in a second leaves ten deposits in there, each already faded by its
+  // own age.
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[accum] trail %.0f live=%d tex=%d changed=%d lastAdd=%llu",
+              trailMs, (int)accumLive, accumTexture ? 1 : 0,
+              (int)contentChanged, (unsigned long long)accumLastAddMs);
+  if (accumLive && accumTexture) {
+    // Whatever filter the panel ended up with, the trail must match: they are
+    // the same picture moments apart, and a different resample would make the
+    // trail shimmer against the page it is fading off.
+    SDL_ScaleMode panelMode = kPanelScaleMode;
+    SDL_GetTextureScaleMode(texture, &panelMode);
+    SDL_SetTextureScaleMode(accumTexture, panelMode);
+
+    // A PHOSPHOR ADDS LIGHT. It does not become see-through, which is what
+    // alpha blending models and what made the first version a dissolve: the old
+    // page's PAPER faded across the new page too, so the whole sheet
+    // cross-faded instead of the text lingering.
+    //
+    // On a PALE paper there is no such thing as a glowing page, and adding
+    // light to it would only wash it out. There the honest fallback is a
+    // cross-dissolve of the accumulated light. The CRT palettes look like CRTs
+    // in dark mode; that is where the emissive effect belongs.
+    const bool darkGround = panelIsDarkGround();
+    SDL_SetTextureBlendMode(accumTexture, darkGround ? SDL_BLENDMODE_ADD
+                                                     : SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(accumTexture, darkGround ? 255 : 128);
+
+    // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
+    // that is an APPROXIMATION and is marked as one: the buffer holds deposits
+    // of many ages mixed together, and one colour multiply cannot give each its
+    // own point on the ramp. It is driven by the age of the NEWEST deposit,
+    // which is the one carrying most of the brightness. Getting this exact
+    // needs two accumulators running at the two layers' decay rates -- the
+    // honest model of what a cascade physically is -- and that is worth doing
+    // if this ever looks wrong.
+    //
+    // ONLY ON THE ADDITIVE PATH: on pale paper the same multiply hits the paper
+    // too and the whole decaying frame washes green, which is a stain, not a
+    // longer-lived layer.
+    const uint32_t tail = glowTailTint.load();
+    if (tail != kNoGlowTail && darkGround) {
+      const float age = static_cast<float>(SDL_GetTicks() - accumLastAddMs);
+      float t = trailMs > 0.0f ? age / trailMs : 1.0f;  // 0 fresh, 1 a trail old
+      if (t > 1.0f) t = 1.0f;
+      auto ramp = [&](int shift) {
+        const float target = static_cast<float>((tail >> shift) & 0xFF) / 255.0f;
+        return static_cast<Uint8>((1.0f - t + t * target) * 255.0f + 0.5f);
+      };
+      SDL_SetTextureColorMod(accumTexture, ramp(16), ramp(8), ramp(0));
+    } else {
+      SDL_SetTextureColorMod(accumTexture, 255, 255, 255);
+    }
+    drawPanel(accumTexture);
+
+    // A fade only animates if something presents while it fades, and the
+    // firmware will not: an e-ink reader draws a page and stops. So the trail
+    // asks for its own next frame, and stops asking the moment it is done --
+    // which is what keeps this from becoming a permanent render loop.
+    pendingPresent.store(true);
+  }
+
+  if (beamSweeping) {
+    // Below the beam the OLD picture is still up -- opaque, not blended: it has
+    // not been repainted yet, so it is not a ghost of anything.
+    SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureAlphaMod(ghostTexture, 255);
+    SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
+    drawPanel(ghostTexture);
+    // ...and above it, only as much of the new frame as the beam has written.
+    const int swept =
+        static_cast<int>(static_cast<float>(visible.h) * beamProgress);
+    const SDL_Rect clip = {visible.x, visible.y, visible.w, swept};
+    SDL_SetRenderClipRect(sdl_renderer, &clip);
+  }
+
+  switch (orientation) {
+  case GfxRenderer::Portrait:
+    // dst center = window center, landscape-sized panel texture.
+    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &portraitDst, 90.0,
+                             nullptr, SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::PortraitInverted:
+    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &portraitDst,
+                             -90.0, nullptr, SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::LandscapeClockwise:
+    SDL_RenderTextureRotated(sdl_renderer, texture, nullptr, &landscapeDst,
+                             180.0, nullptr, SDL_FLIP_NONE);
+    break;
+  default:
+    SDL_RenderTexture(sdl_renderer, texture, nullptr, &landscapeDst);
+  }
+
+  // The ghost goes ON TOP of the new page and fades out, which is what a
+  // phosphor does: the old picture is still emitting while the new one is
+  // written over it. Same rects and the same rotation as the panel above, so it
+  // lands exactly on the panel however the panel was placed.
   if (ghostAlpha > 0.0f && ghostTexture) {
     // Whatever filter the panel ended up with, the ghost must match: the two
     // are the same picture one frame apart, and a different resample would make
@@ -1645,8 +1841,26 @@ void HalDisplay::presentIfNeeded() {
   if (const char *env = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS")) {
     if (env[0] == '1') {
       static int n = 0;
-      SDL_Log("[present] #%d at %u ms, frame from %c", ++n, SDL_GetTicks(),
-              lastPixelWriter.load());
+      // Sampled mean luminance of what is being presented, so a frame that is
+      // mostly PAPER (a clear, a base pass) is distinguishable from a frame
+      // that is a page. A count and a producer tag cannot tell those apart,
+      // and "is there a flash-only draw" is exactly that question.
+      double lum = 0.0;
+      int samples = 0;
+      {
+        const std::lock_guard<std::mutex> lock(pixelBufMutex);
+        const size_t live =
+            static_cast<size_t>(activeWidth()) * activeHeight();
+        for (size_t i = 0; i < live; i += 97) {
+          const uint32_t px = pixelBuf[i];
+          lum += 0.2126 * ((px >> 16) & 0xFF) + 0.7152 * ((px >> 8) & 0xFF) +
+                 0.0722 * (px & 0xFF);
+          samples++;
+        }
+      }
+      SDL_Log("[present] #%d at %u ms, frame from %c, mean luma %.1f", ++n,
+              SDL_GetTicks(), lastPixelWriter.load(),
+              samples ? lum / samples : 0.0);
     }
   }
   SDL_RenderPresent(sdl_renderer);
