@@ -288,3 +288,88 @@ check, and what build 86 is for:
 - that the AA fringe is gone on sans-serif body text;
 - which beam row is the one worth keeping (17 ms may be too subtle to see at
   all on a 60 Hz panel, which is itself the interesting answer).
+
+
+---
+
+## 5. The flash that survived the flash fix (2026-08-18)
+
+Owner, after §1 shipped: **"a flash on every redraw (page turn, row change on
+home, etc)"**. §1 was real and is still right — it suppressed the 1-bit pass of a
+two-pass paint. This was a different flash, in the composition rather than the
+framebuffer, and it took three attempts because of where it was measured.
+
+### Why every earlier measurement said "clean"
+
+`CROSSPOINT_SIM_LOG_PRESENTS`'s luminance samples **`pixelBuf`** — the panel
+framebuffer. That is upstream of the field clear, the page fade's alpha, the
+glow accumulator, the beam and the overlay. **The flash lived entirely in the
+blind spot.** Every present count and every luma figure taken through that
+instrument was correct and irrelevant.
+
+`CROSSPOINT_SIM_LOG_SCREEN=1` reads back the composed frame with
+`SDL_RenderReadPixels` immediately before `SDL_RenderPresent`, over the
+published panel rect. `CROSSPOINT_SIM_SCREEN_DUMP=<dir>` writes those frames as
+BMP. That is the instrument this needed.
+
+### What it was
+
+Per pixel, over the page rect, on a reader page turn:
+
+| | mean page luma |
+|---|---|
+| old page settled | 38.60 |
+| **frame at the redraw** | **71.82** |
+| new page settled | 37.89 |
+
+99.77% of the page brighter than **both** pages; `mean |frame − (old+new)| =
+0.11`; max luma 255 against 224 in either page. The frame was the arithmetic
+**sum** of the two pages, to a rounding step — a drawn double exposure at ~1.9x,
+decaying over about a second, on every content change. Home row changes measured
+the same shape, which is why the report said "every redraw".
+
+### The physics were wrong, not the arithmetic
+
+`SDL_BLENDMODE_ADD` says two emitters stack. **A pixel lit in both frames is one
+phosphor being re-excited**, and it cannot exceed full emission.
+`SDL_BLENDOPERATION_MAXIMUM` is the saturating model: a pixel the new page
+lights is exactly as bright as the new page draws it; a pixel only the OLD page
+lit still shows and still decays, which is the entire point of a trail.
+
+| | ADD | MAXIMUM |
+|---|---|---|
+| px brighter than both pages | 99.77% | **0.00%** |
+| `mean │frame − max(old,new)│` | — | **0.00** |
+| max luma | 255 (clipped) | 224 |
+| peak lift over the old page | +58% to +86% | **−3.2%** |
+
+Falls back to ADD at alpha 96 if a renderer cannot compose the custom mode.
+
+### What remains, and it is not a bug
+
+A one-frame double exposure in **coverage**: both pages' text legible at their
+own brightness, decaying over the trail. That IS a phosphor trail. Whether it
+still reads as objectionable is device-feel — **SHIPPED, UNCONFIRMED on device.**
+What to watch for is the previous page's text briefly readable through the new
+one, NOT a brightness spike; the spike is gone and measured gone.
+
+### Also fixed here
+
+The accumulator claimed to be live on a **pale** ground, where it draws nothing:
+~30 presents per redraw, each a full clear, a 15 MB texture upload and a
+render-target pass, for an identical picture. Measured 67 presents in a run,
+now **4**.
+
+### Harness traps that cost runs
+
+- `simctl ui <dev> appearance dark` does **not** reach the app. `CROSSPOINT_SIM_DARK=1`
+  does, because `setPanelDark` applies the override on every call. The flash is
+  dark-ground + phosphor-preset only, so without that lever it cannot be
+  reproduced at all.
+- The data container GUID **changes on reinstall**. Re-resolve with
+  `get_app_container` before editing `state.json`, or the seeded
+  `readerActivityLoadCount` goes to a dead directory and the app resumes
+  wherever it was.
+- `pgrep -f "simctl launch"` matches the waiting shell itself, so wait-loops
+  never exit.
+- `simctl io recordVideo` captured 1.6 s and then went black in every run here.
