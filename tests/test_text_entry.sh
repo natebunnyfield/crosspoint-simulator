@@ -86,15 +86,40 @@ json.dump(d, open(p, 'w'))"
 # be right and started silently opening Colophon instead -- the run_case guard
 # below is what caught it, so keep asserting the activity rather than trusting
 # the count.
+# RIGHT, NOT DOWN, and 900 ms apart. Both were wrong and the test had been
+# failing against firmware main for it (S-015): a menu list navigates on the
+# FRONT pair -- DOWN is a SIDE button that pages by a screenful, and a
+# one-screen menu has no next screenful, so every DOWN here moved nothing and
+# the run never reached the field it tests. 180 ms spacing was the second
+# fault: docs/headless-qa.md measures that presses need ~900 ms or half are
+# swallowed.
+# OVER-PRESS, deliberately. The row count depends on how many RECENT BOOKS the
+# card has, so any fixed count is stale the moment someone opens a different
+# book -- which is how this went red. The Home list does NOT wrap, so pressing
+# past the end simply rests on the last row (Settings); 20 covers any plausible
+# recents list and costs only time.
 NAV_TO_OWNER_FIELD="2000:HOME"
-T=2400
-for _ in $(seq 1 15); do
-  NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;$T:DOWN"
-  T=$((T + 180))
+T=2900
+for _ in $(seq 1 20); do
+  NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;$T:RIGHT"
+  T=$((T + 900))
 done
-NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;5500:ENTER;6700:UP;7000:UP;7400:ENTER"
+NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;$T:ENTER"
+T=$((T + 1200))
+# LEFT, not UP -- and this is the SAME fault as the Home leg above, in the
+# other list: UP/DOWN are the SIDE pair and page by a screenful, so in a
+# one-screen menu they move nothing. Every UP count from 1 to 5 landed on
+# FontSelect, i.e. on row 0, which is what "the key does nothing" looks like
+# from outside.
+#
+# The Settings list DOES wrap, so counting backwards from row 0 is stable
+# whatever the row count: LEFT x1 is Colophon (last, informational), LEFT x2 is
+# Device Owner. Verified by sweeping the count against the activity log.
+NAV_TO_OWNER_FIELD="$NAV_TO_OWNER_FIELD;$T:LEFT;$((T + 900)):LEFT;$((T + 1800)):ENTER"
+# When the field is open, in ms. Every case fragment below starts after this.
+FIELD_OPEN_MS=$((T + 3000))
 
-# One run: navigate to the field, play $1 (script fragment, times >= 8000), quit.
+# One run: navigate to the field, play $1 (script fragment, times off FIELD_OPEN_MS), quit.
 # $3 is the activity the current layout should produce.
 run_case() {
   local label="$1"
@@ -103,7 +128,7 @@ run_case() {
   local log="$WORK/$label.log"
   force_home_boot
   ( cd "$FIRMWARE_DIR" && \
-    CROSSPOINT_SIM_INPUT_SCRIPT="$NAV_TO_OWNER_FIELD;$typing;12000:QUIT" \
+    CROSSPOINT_SIM_INPUT_SCRIPT="$NAV_TO_OWNER_FIELD;$typing;$((FIELD_OPEN_MS + 6000)):QUIT" \
     SDL_VIDEODRIVER=dummy "$BIN" >"$log" 2>&1 )
   if ! grep -q "Entering activity: $want_activity" "$log"; then
     echo "FAIL[$label]: never reached $want_activity -- either the Home/Settings row"
@@ -134,17 +159,17 @@ set_keyboard_layout 1
 # 1. Type, erase, commit. The two backspaces must apply where they arrived, so
 #    the ZZ never reaches the stored name.
 set_owner_name ""
-run_case commit "8400:TYPE:CrossPoint QAZZ;9000:TYPE:\\b\\b;9600:TYPE:\\n"
+run_case commit "$((FIELD_OPEN_MS + 400)):TYPE:CrossPoint QAZZ;$((FIELD_OPEN_MS + 1000)):TYPE:\\b\\b;$((FIELD_OPEN_MS + 1600)):TYPE:\\n"
 expect_owner commit "CrossPoint QA"
 
 # 2. Cancel. The field is seeded with what run 1 stored; typing then cancelling
 #    must leave the stored name exactly as it was.
-run_case cancel "8400:TYPE:ZZZ;9000:TYPE:\\e"
+run_case cancel "$((FIELD_OPEN_MS + 400)):TYPE:ZZZ;$((FIELD_OPEN_MS + 1000)):TYPE:\\e"
 expect_owner cancel "CrossPoint QA"
 
 # 3. A commit with nothing typed stores the seed unchanged (the entry is not
 #    emptied by the host having been attached).
-run_case untouched "8400:TYPE:\\n"
+run_case untouched "$((FIELD_OPEN_MS + 400)):TYPE:\\n"
 expect_owner untouched "CrossPoint QA"
 
 # 4. The daisywheel is a separate activity implementing the same channel, and
@@ -152,7 +177,7 @@ expect_owner untouched "CrossPoint QA"
 #    end -- which is where its own picks land too.
 set_keyboard_layout 0
 set_owner_name ""
-run_case daisy "8400:TYPE:CrossPoint QAZZ;9000:TYPE:\\b\\b;9600:TYPE:\\n" DaisyEntry
+run_case daisy "$((FIELD_OPEN_MS + 400)):TYPE:CrossPoint QAZZ;$((FIELD_OPEN_MS + 1000)):TYPE:\\b\\b;$((FIELD_OPEN_MS + 1600)):TYPE:\\n" DaisyEntry
 expect_owner daisy "CrossPoint QA"
 
 # --- The REAL key path -------------------------------------------------------
@@ -185,12 +210,12 @@ expect_owner_not() {
 #    dropped for want of an open field -- which is the "Select exits instead of
 #    typing" bug, and is exactly what this distinguishes.
 set_owner_name "SEED"
-run_case raw_select "8400:RAWKEY:RETURN;9600:TYPE:\\n"
+run_case raw_select "$((FIELD_OPEN_MS + 400)):RAWKEY:RETURN;$((FIELD_OPEN_MS + 1600)):TYPE:\\n"
 expect_owner_not raw_select "SEED"
 
 # 6. Cmd+Return is the commit, through the same real key path.
 set_owner_name ""
-run_case raw_commit "8400:TYPE:Ada;9000:RAWKEY:CMD+RETURN"
+run_case raw_commit "$((FIELD_OPEN_MS + 400)):TYPE:Ada;$((FIELD_OPEN_MS + 1000)):RAWKEY:CMD+RETURN"
 expect_owner raw_commit "Ada"
 
 echo "PASS: host keyboard typed, erased, committed and cancelled in both text-entry activities,"
