@@ -380,7 +380,7 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) {
   // which is a legitimate choice and not the same as never having chosen.
   NSNumber *v = [[NSUserDefaults standardUserDefaults]
       objectForKey:kPhosphorGrainMottleDepth];
-  if (![v isKindOfClass:[NSNumber class]]) return 10;
+  if (![v isKindOfClass:[NSNumber class]]) return 30;
   const int d = v.intValue;
   if (d < 0) return 0;
   return d > 100 ? 100 : d;
@@ -400,7 +400,7 @@ int CrossPointPrefs_pageFadeDepthPercent(void) {
   // away for an owner who never asked it to.
   NSNumber *v = [[NSUserDefaults standardUserDefaults]
       objectForKey:kPageFadeDepthPercent];
-  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  if (![v isKindOfClass:[NSNumber class]]) return 75;
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 100 ? 100 : pct;
