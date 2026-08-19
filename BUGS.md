@@ -38,7 +38,45 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-_Nothing open._ Every entry below has evidence, not just a passing build.
+### [S-016] The whole screen flashes on some CRT palettes — REPORTED, not reproduced
+**severity: medium · scope: ios display · reported 2026-08-19**
+
+Owner, from the phone: "there's still a bug with the full screen flashing on
+some crts." SOME, not all — the most useful part of the report, and the part not
+yet pinned down.
+
+**The desktop structurally cannot show it, and that is measured rather than
+assumed.** With the phone's own settings forced by env — glow at the preset's
+trail, beam 67 ms, page fade 5 min at Dim, grain 1x Vignette+Mottled — across
+P45, P19, P7, P22G and P11:
+
+| | |
+|---|---|
+| worst single-frame excursion above BOTH neighbours | **1.26 levels** (P45) |
+| the same with glow and beam off | 0.00 |
+
+A first pass reported ratios of 1.6x to 2.8x and that was a MEASUREMENT ERROR:
+min/max across a run spans different SCREENS, and Home with book covers is
+simply brighter than a reader page. A flash is a frame brighter than the ones
+either side of it, so the excursion above both neighbours is the metric, and by
+it nothing off-phone flashes.
+
+**Why the desktop cannot show it.** At render scale 3 with
+`CROSSPOINT_SIM_LOG_PRESENTS=1`, every present logs `frame from B` — the BASE
+pass — and `CROSSPOINT_SIM_LOG_AA=1` prints nothing at all. The grayscale
+compose never runs, so the two-pass paint that present coalescing exists to
+merge does not happen here. The flash this project already fixed once was
+exactly a base-then-compose pair reaching the screen; if this is a relative, the
+desktop is blind to it by construction. Same lesson as the last three flash
+hunts — the instrument has to overlap the shipped path.
+
+**What would crack it, cheapest first: which palettes, and on what action.** If
+it is the long-trail rows it is the accumulator; if it is the pale-ground rows
+it is the `panelIsDarkGround()` gate that disables the trail; if it is the
+cascades (P7, P14, P17) it is the tail colour multiply. Those are three
+different pieces of code and the report as it stands fits all three.
+
+---
 
 ## FIXED
 
