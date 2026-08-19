@@ -285,7 +285,12 @@ every panel transition including page turns; the decay speed derived from the
 row's own published persistence rather than one global constant; and the
 scaling multiplier stated, since the real figures are one to two frames long.
 
-### [ST-008] Moire in the selection dot pattern on iPhone Air — SHIPPED, unverified on the phone
+### [ST-008] Moire in the selection dot pattern on iPhone Air — CLOSED 2026-08-19, confirmed gone on the phone
+
+**CLOSED: the owner checked a list on a current build, 2026-08-19 — "nothing
+shimmers."** The bench repro below never worked and is kept as a negative
+result, but it no longer decides anything: the entry was only ever about whether
+the shimmer was visible, and it is not.
 
 **Attempted repro 2026-08-19, and it FAILED — recorded so nobody pays for this
 twice.** Built at `CROSSPOINT_RENDER_SCALE=3`, captured the raw framebuffer with
