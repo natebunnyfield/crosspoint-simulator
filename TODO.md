@@ -285,188 +285,6 @@ every panel transition including page turns; the decay speed derived from the
 row's own published persistence rather than one global constant; and the
 scaling multiplier stated, since the real figures are one to two frames long.
 
-### [ST-008] Moire in the selection dot pattern on iPhone Air — CLOSED 2026-08-19, confirmed gone on the phone
-
-**CLOSED: the owner checked a list on a current build, 2026-08-19 — "nothing
-shimmers."** The bench repro below never worked and is kept as a negative
-result, but it no longer decides anything: the entry was only ever about whether
-the shimmer was visible, and it is not.
-
-**Attempted repro 2026-08-19, and it FAILED — recorded so nobody pays for this
-twice.** Built at `CROSSPOINT_RENDER_SCALE=3`, captured the raw framebuffer with
-`CROSSPOINT_SIM_WINDOW_SCALE=3` (a real 1584x2376 frame), and resampled the whole
-thing to 1260x1890 — the iPhone Air's exact 0.7955 — once NEAREST and once
-BILINEAR, which is precisely the choice `panelScaleModeFor` makes. Measured on
-the most strongly dithered block in the frame, three ways:
-
-| metric | source 3x | NEAREST @ 0.7955 | BILINEAR @ 0.7955 |
-|---|---|---|---|
-| row-mean sd | 9.53 | 9.70 | 8.96 |
-| local-mean envelope, 5 px window | 3.70 | 3.62 | 2.86 |
-| aliasing envelope, 24 px window | 5.58 | 4.62 | 4.13 |
-
-Nothing resembling the 8.14-vs-1.55 this entry records. The third row is the
-right instrument — a window of five dither periods averages the dither out and
-leaves only the beat — and by it NEAREST adds no beat at all.
-
-What is NOT yet ruled out, in order of likelihood: (1) the block measured is not
-a `LightGray` fill. `GfxRenderer.h:30` makes LightGray a DITHER (`GfxRenderer.cpp:1223`
-— "both patterns have period 2 in logical"), so it renders as 1-bit black/white
-and a captured frame of it has two levels, which is what was found — but plenty
-of other 1-bit content looks identical to that search. (2) The original figure
-was measured on a different path or scale. (3) The figure is wrong.
-
-Also worth knowing for the next attempt: with `CROSSPOINT_SIM_WINDOW_SCALE=3`,
-light and dark captures came back BYTE-IDENTICAL, so the palette was not being
-applied on that path. Whatever screen those captures were of, it was not the one
-intended.
-
-**The cheap close-out is the phone, not the lab.** If a list with a selected row
-shows no shimmer on a current build, the entry closes whether or not the bench
-repro is ever made to work.
-**scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
-
-**Status, checked 2026-08-16:** the `ios-aa` mitigation is on `main` —
-`panelScaleModeFor()` is [src/HalDisplay.cpp:154](src/HalDisplay.cpp:154), called
-at `:978`, and the `[panel]` log line at `:1059` prints which filter is live. It
-was already in `build-80`, so build 81 is not what carries it. What is still
-owed is one look at an actual iPhone Air: the beat amplitude figures below are
-measured, but measured off the framebuffer, not off the handset. Confirm the dot
-pattern reads clean and delete this entry.
-
-Owner report: the grey dot pattern that marks a selected item now shows moire
-on an iPhone Air, with the question "is it being scaled differently today?"
-
-**Yes, and today.** `39faa5d` ("feat(ios): render at 3x") changed the render
-scale, and build 76 (2026-08-15) is the first TestFlight build carrying it. The
-scale question is now answered by arithmetic rather than by measuring the
-handset, because `presentIfNeeded`'s own quantisation decides it:
-
-| Build | Framebuffer | Presented on an iPhone Air | Scale | Resample |
-|---|---|---|---|---|
-| 75 (2x) | 1056x1584 | 1056x1584 | **1.0000** | none, pixel-exact |
-| 76 (3x) | 1584x2376 | 1260x1890 | **0.7955** | nearest, MINIFYING |
-
-A 3x framebuffer is 1584 px wide and no iPhone is; the fit is width-bound, so
-this holds for every plausible status-bar and pad band. **Build 75 could not
-moire and build 76 must** -- that is the cheap A/B, settled without the phone.
-
-The selection fill is `Color::LightGray`: ink where both LOGICAL coordinates are
-even (`GfxRenderer.cpp:1041`), which at scale 3 is a 3x3 block on a 6-pixel
-period. Point-sampling that at 1.2571 source px per screen px beats at a
-**21-device-pixel period** (~1.16 mm on this display). Measured amplitude in the
-local mean, levels out of 255:
-
-**The ratio, computed 2026-08-15** (fell out of the keyboard-chip chevron work;
-arithmetic only, not yet seen on the handset). It answers the first bullet, and
-it is worse than "not integer" -- **2x and 3x are on opposite sides of 1.0**:
-
-| Render scale | Framebuffer (portrait) | Presented scale on a 1260 px-wide phone | Dither cell |
-|---|---|---|---|
-| 2x | 1056 x 1584 | 1260/1056 = 1.19 -> **floored to exactly 1.0** | 2x2 device px, everywhere |
-| 3x | 1584 x 2376 | 1260/1584 = **0.795**, quantised to 315/396 | 3x3 nominal, lands on 2 **or** 3 px |
-
-Both numbers come from `presentIfNeeded`'s manual-placement branch
-(`src/HalDisplay.cpp:788-860`), which is the branch the phone always takes
-because the pad reserves a bottom band. `scale >= 1` floors to a whole number,
-so 2x presents the panel **1:1 with no resampling at all** and the dither is
-untouched. Below 1 there is no integer to floor to; it quantises to
-`kPixelQuantum` and decimates by nearest-neighbour
-(`kPanelScaleMode = SDL_SCALEMODE_NEAREST`).
-
-**That is the moire.** The dither is drawn through `GfxRenderer::drawPixel`,
-which paints a `RENDER_SCALE x RENDER_SCALE` block, so at 3x a dither cell is
-3x3 device pixels. Decimating a 3 px cell by 0.795 gives 2.39 px -- so cells
-land on 2 pixels or 3 depending on their phase, and the phase walks across the
-screen. A regular grid with a walking period is exactly a beat pattern. At 2x
-the cell is 2x2 and the scale is exactly 1.0, so every cell is identical and no
-beat exists -- which predicts the build 75 / build 76 A/B the second bullet asks
-for, without needing the handset to run it.
-
-Note the trade-off this exposes: 3x genuinely improves TEXT (glyphs come from 3x
-font tables and survive decimation as detail) while it necessarily destroys the
-DITHER (a 1-cell-period pattern cannot survive a 0.795 resample). So "3x or 2x"
-is not the only fork in the road -- drawing the selection fill at device
-resolution instead of as logical blocks would let both win, and it is the same
-gap the firmware repo filed as B-027.
-
-| Filter at 0.7955 | Beat amplitude | Peak-to-peak |
-|---|---|---|
-| nearest (shipped) | 8.14 | 13.42 |
-| bilinear | 1.55 | 3.29 |
-| exact box (area) | 0.37 | 1.15 |
-| 2x at 1:1 | 0.00 | 0.00 |
-
-**Mitigation on branch `ios-aa`:** `panelScaleModeFor()` in `HalDisplay.cpp`
-returns `SDL_SCALEMODE_LINEAR` below 1x and leaves `kPanelScaleMode` untouched at
-or above it. Verified live on the iOS Simulator -- the `[panel]` log now ends
-`filter linear`, and the same build with the branch reverted logs `filter
-nearest` and differs by up to 113 levels per pixel on the Home selection tile.
-The same change is what turns the panel's four grey levels into ~17,000 for
-text, since every tone beyond four has to come from the 3x geometry (the
-`.cpfont` glyph data is 2 bits per pixel, quantised at build time in
-`fontconvert_sdcard.py:1053-1087`).
-
-**RULED 2026-08-15: bilinear, and stop there.** The owner chose option B off
-the published comparison. The exact box filter -- 11.7x beat reduction instead
-of bilinear's 4.1x -- is DECLINED: it costs a per-present software pass over
-2.4 M pixels, a second buffer, and a restructure of `presentIfNeeded`'s update
-order, and the residual it removes is a 0.6% ripple. Do not re-propose it as an
-improvement; it was measured, offered and turned down. Reopen only if a future
-panel size lands the presented scale somewhere bilinear genuinely fails.
-
-**The old note said "do not soften the pattern until the scale question is
-answered."** It is answered, and nothing here softens the pattern: the
-framebuffer is untouched and still a faithful four-level panel image. Only the
-optics of showing it smaller than 1:1 change.
-
-### [ST-007] The README no longer describes what this repo is — DONE 2026-08-16
-**scope: docs · opened 2026-08-15 · both halves landed 2026-08-16**
-
-**Done, and the paired `T-016` with it.** This README now opens on the two
-toolchains rather than "a desktop simulator", carries the desktop/iOS split
-table, and gained sections for the host tests (22, one command), the headless-QA
-pointer, the color dials, the host-keyboard Return contract, and a full
-opt-in table of the state the host cannot otherwise produce. The firmware README
-gained Manage Files, Create Note, Claude (key path, model, transcript), the two
-text-entry styles, Bluetooth keyboards and text antialiasing — every one checked
-against the tree first — plus a section pointing at `SCOPE.md` and
-`docs/fork-sync.md` for what was deliberately removed.
-
-**Three stale claims were found and corrected rather than reworded:**
-
-| Claim | Reality |
-|---|---|
-| "renders the e-ink display in an SDL2 window" | SDL3 on both toolchains since the iOS port |
-| `CROSSPOINT_SIM_FREE_HEAP`, `CROSSPOINT_SIM_MAX_ALLOC_HEAP` | **neither exists** — grep of `src/` returns nothing. The real ones are `CROSSPOINT_SIM_HEAP` and `CROSSPOINT_SIM_HEAP_FREE` |
-| "14 presets plus Custom" (also in CLAUDE.md) | 15 named presets; Sepia CRT and Blue CRT were appended 2026-08-16 |
-
-The last one is the interesting failure: the *test's* sentinel had already been
-walked to 16 and was correct, while two prose files still said 14. A number
-repeated in three places drifts in the two that nothing executes.
-
-**Original entry follows.**
-
-This fork has grown well past its README: an iOS target (135 firmware TUs + 20
-sim TUs for `arm64-apple-ios`), the read-aloud page channel, host keyboard text
-entry with the software-keyboard show/hide contract, pad contrast presets, panel
-palette and dark-mode re-present, `SimulatorOverlay` chrome, and Mac App Store +
-TestFlight packaging. It is also now **0 behind upstream** and 299 ahead — by a
-wide margin the most developed simulator in the ecosystem, which the README does
-not say.
-
-A README that describes a smaller project than the one it ships is the first
-thing a new contributor reads, and every stale line costs someone a session.
-
-Paired with **T-016** in the firmware repo — the owner asked for both READMEs to
-match what their repos actually provide, so neither is done until both are.
-
-Check each claim against the tree before keeping it; no claim without a grep.
-
-**Done looks like:** the README describes the desktop app, the iOS target and
-the headless QA channels as they exist today, and lists nothing that is not
-there.
-
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
 **scope: iOS layout · asked 2026-08-08 · WAITING ON AN iPAD SCREENSHOT**
 
@@ -716,6 +534,189 @@ pre-device gate the project has.
 ---
 
 ## DONE
+
+### [ST-008] Moire in the selection dot pattern on iPhone Air — CLOSED 2026-08-19, confirmed gone on the phone
+
+**CLOSED: the owner checked a list on a current build, 2026-08-19 — "nothing
+shimmers."** The bench repro below never worked and is kept as a negative
+result, but it no longer decides anything: the entry was only ever about whether
+the shimmer was visible, and it is not.
+
+**Attempted repro 2026-08-19, and it FAILED — recorded so nobody pays for this
+twice.** Built at `CROSSPOINT_RENDER_SCALE=3`, captured the raw framebuffer with
+`CROSSPOINT_SIM_WINDOW_SCALE=3` (a real 1584x2376 frame), and resampled the whole
+thing to 1260x1890 — the iPhone Air's exact 0.7955 — once NEAREST and once
+BILINEAR, which is precisely the choice `panelScaleModeFor` makes. Measured on
+the most strongly dithered block in the frame, three ways:
+
+| metric | source 3x | NEAREST @ 0.7955 | BILINEAR @ 0.7955 |
+|---|---|---|---|
+| row-mean sd | 9.53 | 9.70 | 8.96 |
+| local-mean envelope, 5 px window | 3.70 | 3.62 | 2.86 |
+| aliasing envelope, 24 px window | 5.58 | 4.62 | 4.13 |
+
+Nothing resembling the 8.14-vs-1.55 this entry records. The third row is the
+right instrument — a window of five dither periods averages the dither out and
+leaves only the beat — and by it NEAREST adds no beat at all.
+
+What is NOT yet ruled out, in order of likelihood: (1) the block measured is not
+a `LightGray` fill. `GfxRenderer.h:30` makes LightGray a DITHER (`GfxRenderer.cpp:1223`
+— "both patterns have period 2 in logical"), so it renders as 1-bit black/white
+and a captured frame of it has two levels, which is what was found — but plenty
+of other 1-bit content looks identical to that search. (2) The original figure
+was measured on a different path or scale. (3) The figure is wrong.
+
+Also worth knowing for the next attempt: with `CROSSPOINT_SIM_WINDOW_SCALE=3`,
+light and dark captures came back BYTE-IDENTICAL, so the palette was not being
+applied on that path. Whatever screen those captures were of, it was not the one
+intended.
+
+**The cheap close-out is the phone, not the lab.** If a list with a selected row
+shows no shimmer on a current build, the entry closes whether or not the bench
+repro is ever made to work.
+**scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
+
+**Status, checked 2026-08-16:** the `ios-aa` mitigation is on `main` —
+`panelScaleModeFor()` is [src/HalDisplay.cpp:154](src/HalDisplay.cpp:154), called
+at `:978`, and the `[panel]` log line at `:1059` prints which filter is live. It
+was already in `build-80`, so build 81 is not what carries it. What is still
+owed is one look at an actual iPhone Air: the beat amplitude figures below are
+measured, but measured off the framebuffer, not off the handset. Confirm the dot
+pattern reads clean and delete this entry.
+
+Owner report: the grey dot pattern that marks a selected item now shows moire
+on an iPhone Air, with the question "is it being scaled differently today?"
+
+**Yes, and today.** `39faa5d` ("feat(ios): render at 3x") changed the render
+scale, and build 76 (2026-08-15) is the first TestFlight build carrying it. The
+scale question is now answered by arithmetic rather than by measuring the
+handset, because `presentIfNeeded`'s own quantisation decides it:
+
+| Build | Framebuffer | Presented on an iPhone Air | Scale | Resample |
+|---|---|---|---|---|
+| 75 (2x) | 1056x1584 | 1056x1584 | **1.0000** | none, pixel-exact |
+| 76 (3x) | 1584x2376 | 1260x1890 | **0.7955** | nearest, MINIFYING |
+
+A 3x framebuffer is 1584 px wide and no iPhone is; the fit is width-bound, so
+this holds for every plausible status-bar and pad band. **Build 75 could not
+moire and build 76 must** -- that is the cheap A/B, settled without the phone.
+
+The selection fill is `Color::LightGray`: ink where both LOGICAL coordinates are
+even (`GfxRenderer.cpp:1041`), which at scale 3 is a 3x3 block on a 6-pixel
+period. Point-sampling that at 1.2571 source px per screen px beats at a
+**21-device-pixel period** (~1.16 mm on this display). Measured amplitude in the
+local mean, levels out of 255:
+
+**The ratio, computed 2026-08-15** (fell out of the keyboard-chip chevron work;
+arithmetic only, not yet seen on the handset). It answers the first bullet, and
+it is worse than "not integer" -- **2x and 3x are on opposite sides of 1.0**:
+
+| Render scale | Framebuffer (portrait) | Presented scale on a 1260 px-wide phone | Dither cell |
+|---|---|---|---|
+| 2x | 1056 x 1584 | 1260/1056 = 1.19 -> **floored to exactly 1.0** | 2x2 device px, everywhere |
+| 3x | 1584 x 2376 | 1260/1584 = **0.795**, quantised to 315/396 | 3x3 nominal, lands on 2 **or** 3 px |
+
+Both numbers come from `presentIfNeeded`'s manual-placement branch
+(`src/HalDisplay.cpp:788-860`), which is the branch the phone always takes
+because the pad reserves a bottom band. `scale >= 1` floors to a whole number,
+so 2x presents the panel **1:1 with no resampling at all** and the dither is
+untouched. Below 1 there is no integer to floor to; it quantises to
+`kPixelQuantum` and decimates by nearest-neighbour
+(`kPanelScaleMode = SDL_SCALEMODE_NEAREST`).
+
+**That is the moire.** The dither is drawn through `GfxRenderer::drawPixel`,
+which paints a `RENDER_SCALE x RENDER_SCALE` block, so at 3x a dither cell is
+3x3 device pixels. Decimating a 3 px cell by 0.795 gives 2.39 px -- so cells
+land on 2 pixels or 3 depending on their phase, and the phase walks across the
+screen. A regular grid with a walking period is exactly a beat pattern. At 2x
+the cell is 2x2 and the scale is exactly 1.0, so every cell is identical and no
+beat exists -- which predicts the build 75 / build 76 A/B the second bullet asks
+for, without needing the handset to run it.
+
+Note the trade-off this exposes: 3x genuinely improves TEXT (glyphs come from 3x
+font tables and survive decimation as detail) while it necessarily destroys the
+DITHER (a 1-cell-period pattern cannot survive a 0.795 resample). So "3x or 2x"
+is not the only fork in the road -- drawing the selection fill at device
+resolution instead of as logical blocks would let both win, and it is the same
+gap the firmware repo filed as B-027.
+
+| Filter at 0.7955 | Beat amplitude | Peak-to-peak |
+|---|---|---|
+| nearest (shipped) | 8.14 | 13.42 |
+| bilinear | 1.55 | 3.29 |
+| exact box (area) | 0.37 | 1.15 |
+| 2x at 1:1 | 0.00 | 0.00 |
+
+**Mitigation on branch `ios-aa`:** `panelScaleModeFor()` in `HalDisplay.cpp`
+returns `SDL_SCALEMODE_LINEAR` below 1x and leaves `kPanelScaleMode` untouched at
+or above it. Verified live on the iOS Simulator -- the `[panel]` log now ends
+`filter linear`, and the same build with the branch reverted logs `filter
+nearest` and differs by up to 113 levels per pixel on the Home selection tile.
+The same change is what turns the panel's four grey levels into ~17,000 for
+text, since every tone beyond four has to come from the 3x geometry (the
+`.cpfont` glyph data is 2 bits per pixel, quantised at build time in
+`fontconvert_sdcard.py:1053-1087`).
+
+**RULED 2026-08-15: bilinear, and stop there.** The owner chose option B off
+the published comparison. The exact box filter -- 11.7x beat reduction instead
+of bilinear's 4.1x -- is DECLINED: it costs a per-present software pass over
+2.4 M pixels, a second buffer, and a restructure of `presentIfNeeded`'s update
+order, and the residual it removes is a 0.6% ripple. Do not re-propose it as an
+improvement; it was measured, offered and turned down. Reopen only if a future
+panel size lands the presented scale somewhere bilinear genuinely fails.
+
+**The old note said "do not soften the pattern until the scale question is
+answered."** It is answered, and nothing here softens the pattern: the
+framebuffer is untouched and still a faithful four-level panel image. Only the
+optics of showing it smaller than 1:1 change.
+
+### [ST-007] The README no longer describes what this repo is — DONE 2026-08-16
+**scope: docs · opened 2026-08-15 · both halves landed 2026-08-16**
+
+**Done, and the paired `T-016` with it.** This README now opens on the two
+toolchains rather than "a desktop simulator", carries the desktop/iOS split
+table, and gained sections for the host tests (22, one command), the headless-QA
+pointer, the color dials, the host-keyboard Return contract, and a full
+opt-in table of the state the host cannot otherwise produce. The firmware README
+gained Manage Files, Create Note, Claude (key path, model, transcript), the two
+text-entry styles, Bluetooth keyboards and text antialiasing — every one checked
+against the tree first — plus a section pointing at `SCOPE.md` and
+`docs/fork-sync.md` for what was deliberately removed.
+
+**Three stale claims were found and corrected rather than reworded:**
+
+| Claim | Reality |
+|---|---|
+| "renders the e-ink display in an SDL2 window" | SDL3 on both toolchains since the iOS port |
+| `CROSSPOINT_SIM_FREE_HEAP`, `CROSSPOINT_SIM_MAX_ALLOC_HEAP` | **neither exists** — grep of `src/` returns nothing. The real ones are `CROSSPOINT_SIM_HEAP` and `CROSSPOINT_SIM_HEAP_FREE` |
+| "14 presets plus Custom" (also in CLAUDE.md) | 15 named presets; Sepia CRT and Blue CRT were appended 2026-08-16 |
+
+The last one is the interesting failure: the *test's* sentinel had already been
+walked to 16 and was correct, while two prose files still said 14. A number
+repeated in three places drifts in the two that nothing executes.
+
+**Original entry follows.**
+
+This fork has grown well past its README: an iOS target (135 firmware TUs + 20
+sim TUs for `arm64-apple-ios`), the read-aloud page channel, host keyboard text
+entry with the software-keyboard show/hide contract, pad contrast presets, panel
+palette and dark-mode re-present, `SimulatorOverlay` chrome, and Mac App Store +
+TestFlight packaging. It is also now **0 behind upstream** and 299 ahead — by a
+wide margin the most developed simulator in the ecosystem, which the README does
+not say.
+
+A README that describes a smaller project than the one it ships is the first
+thing a new contributor reads, and every stale line costs someone a session.
+
+Paired with **T-016** in the firmware repo — the owner asked for both READMEs to
+match what their repos actually provide, so neither is done until both are.
+
+Check each claim against the tree before keeping it; no claim without a grep.
+
+**Done looks like:** the README describes the desktop app, the iOS target and
+the headless QA channels as they exist today, and lists nothing that is not
+there.
+
 
 ### [ST-006] iOS keyboard Return must insert a newline, not press Select — SHIPPED, unverified on the phone
 **scope: iOS input · asked 2026-08-09 · fixed 2026-08-09 in `b15aec1`, entry never closed**
