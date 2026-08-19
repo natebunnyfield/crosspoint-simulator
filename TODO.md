@@ -286,6 +286,39 @@ row's own published persistence rather than one global constant; and the
 scaling multiplier stated, since the real figures are one to two frames long.
 
 ### [ST-008] Moire in the selection dot pattern on iPhone Air — SHIPPED, unverified on the phone
+
+**Attempted repro 2026-08-19, and it FAILED — recorded so nobody pays for this
+twice.** Built at `CROSSPOINT_RENDER_SCALE=3`, captured the raw framebuffer with
+`CROSSPOINT_SIM_WINDOW_SCALE=3` (a real 1584x2376 frame), and resampled the whole
+thing to 1260x1890 — the iPhone Air's exact 0.7955 — once NEAREST and once
+BILINEAR, which is precisely the choice `panelScaleModeFor` makes. Measured on
+the most strongly dithered block in the frame, three ways:
+
+| metric | source 3x | NEAREST @ 0.7955 | BILINEAR @ 0.7955 |
+|---|---|---|---|
+| row-mean sd | 9.53 | 9.70 | 8.96 |
+| local-mean envelope, 5 px window | 3.70 | 3.62 | 2.86 |
+| aliasing envelope, 24 px window | 5.58 | 4.62 | 4.13 |
+
+Nothing resembling the 8.14-vs-1.55 this entry records. The third row is the
+right instrument — a window of five dither periods averages the dither out and
+leaves only the beat — and by it NEAREST adds no beat at all.
+
+What is NOT yet ruled out, in order of likelihood: (1) the block measured is not
+a `LightGray` fill. `GfxRenderer.h:30` makes LightGray a DITHER (`GfxRenderer.cpp:1223`
+— "both patterns have period 2 in logical"), so it renders as 1-bit black/white
+and a captured frame of it has two levels, which is what was found — but plenty
+of other 1-bit content looks identical to that search. (2) The original figure
+was measured on a different path or scale. (3) The figure is wrong.
+
+Also worth knowing for the next attempt: with `CROSSPOINT_SIM_WINDOW_SCALE=3`,
+light and dark captures came back BYTE-IDENTICAL, so the palette was not being
+applied on that path. Whatever screen those captures were of, it was not the one
+intended.
+
+**The cheap close-out is the phone, not the lab.** If a list with a selected row
+shows no shimmer on a current build, the entry closes whether or not the bench
+repro is ever made to work.
 **scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
 
 **Status, checked 2026-08-16:** the `ios-aa` mitigation is on `main` —
