@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (25 passing, 0 skipped as of 2026-08-18), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. (`test_sleep_wake.sh` currently fails against firmware `main` — pre-existing drift, filed as S-011 in BUGS.md. `test_text_entry.sh` fails too, and for a similar reason: its Home/Settings navigation is stale, so it never reaches the field it tests — S-015.)
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (25 passing, 0 skipped as of 2026-08-18), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
 
 ```bash
 tests/run_all.sh
@@ -104,15 +104,18 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   layer of phosphor crystals with uneven coverage. [src/PhosphorGrain.h](src/PhosphorGrain.h)
   is the model (pure, host-tested, for the same reason PanelPalette is: every
   failure mode is a wrong picture). Three things about the placement are
-  load-bearing. It is generated at the PRESENTED RECT's size and drawn 1:1, not
-  baked into the 1bpp->ARGB conversion, because the panel is minified to 0.7955
-  on a phone and a regular field written into the framebuffer beats against that
-  resample -- the ST-008 moire, measured at 8.14 levels. It composites with
+  load-bearing. It is generated at the OUTPUT size and drawn 1:1, not baked into
+  the 1bpp->ARGB conversion, because the panel is minified to 0.7955 on a phone
+  and a regular field written into the framebuffer beats against that resample
+  -- the ST-008 moire, measured at 8.14 levels. It composites with
   `SDL_BLENDMODE_MOD` and can only DARKEN, because coverage variation is a
   deficit against an ideal screen and because an additive pass over a dark
   ground is exactly the page-flash and gray-background bug class. And it goes on
-  LAST, over the beam's swept band and the accumulator's trail, since all of
-  those are light leaving the phosphor that its coverage then gates. Owner
+  LAST -- after the OVERLAY as well, over the whole app surface rather than just
+  the page (owner 2026-08-18: it is one sheet of glass, and texturing only the
+  panel left a grainy rectangle on a clean ground, which no physical screen
+  has). Everything under it -- the beam's swept band, the accumulator's trail,
+  the pad, the bezel -- is light the coverage then gates. Owner
   ruling 2026-08-18 rules out the alternatives: no bloom or halation (costs
   legibility), no scanlines (a raster artifact, not a phosphor one). Full
   writeup: [docs/phosphor-grain.md](docs/phosphor-grain.md).

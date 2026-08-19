@@ -1357,7 +1357,8 @@ static void ensureGhostTexture() {
   SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_BLEND);
 }
 
-// THE GRAIN FIELD, generated at OUTPUT resolution and drawn 1:1.
+// THE GRAIN FIELD, generated at the OUTPUT SIZE and drawn 1:1 over the whole
+// app surface -- panel, pad, bezel and letterbox margins alike.
 //
 // That "1:1" is the whole reason this is a present-time pass and not something
 // baked into the 1bpp->ARGB conversion. The panel is MINIFIED on a phone
@@ -2069,44 +2070,6 @@ void HalDisplay::presentIfNeeded() {
     pendingPresent.store(true);
   }
 
-  // THE GRAIN GOES ON LAST, over the panel and everything composited into it --
-  // the beam's swept band, the accumulator's trail, the faded page. That order
-  // is the physics: all of those are LIGHT LEAVING THE PHOSPHOR, and the
-  // coverage of that phosphor is what decides how much of it gets out. A grain
-  // pass applied earlier would be a texture the trail then drew over.
-  //
-  // Drawn with logical presentation DISABLED, in real output pixels, for the
-  // reason spelled out at ensureGrainTexture: 1:1 or it beats against the
-  // phone's 0.7955 minification. It is fixed to the GLASS, so unlike the panel
-  // it does not rotate with the orientation.
-  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff) {
-    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
-                                     SDL_LOGICAL_PRESENTATION_DISABLED);
-    SDL_FRect panel{0.0f, 0.0f, 0.0f, 0.0f};
-    bool haveRect = false;
-    if (manualPlacement) {
-      // Already output pixels on this path -- the manual placement computes the
-      // rect in device pixels precisely so the integer scale survives.
-      panel = {static_cast<float>(visible.x), static_cast<float>(visible.y),
-               static_cast<float>(visible.w), static_cast<float>(visible.h)};
-      haveRect = visible.w > 0 && visible.h > 0;
-    } else {
-      // `visible` is LOGICAL units on the letterbox path, so it cannot be used
-      // here. SDL knows where it put the presented rect; ask it.
-      haveRect = SDL_GetRenderLogicalPresentationRect(sdl_renderer, &panel) &&
-                 panel.w >= 1.0f && panel.h >= 1.0f;
-    }
-    if (haveRect &&
-        ensureGrainTexture(static_cast<int>(panel.w), static_cast<int>(panel.h)))
-      SDL_RenderTexture(sdl_renderer, grainTexture, nullptr, &panel);
-    int logW = 0, logH = 0;
-    getLogicalPresentationSize(orientation, &logW, &logH);
-    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
-                                     kLogicalPresentation);
-  } else if (grainTexture) {
-    destroyGrainTexture();
-  }
-
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
   // coordinate space cannot address -- so drop logical presentation, hand the
   // painter real pixels, then restore it for the next frame.
@@ -2120,6 +2083,47 @@ void HalDisplay::presentIfNeeded() {
     getLogicalPresentationSize(orientation, &logW, &logH);
     SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
                                      kLogicalPresentation);
+  }
+
+  // THE GRAIN GOES ON LAST -- and "last" now means after the OVERLAY too, over
+  // the whole app surface rather than just the panel.
+  //
+  // Owner ruling 2026-08-18: "apply the grain to the ios app background too,
+  // not just the panel." It is one sheet of glass. Texturing only the page made
+  // the panel a grainy rectangle floating on a clean ground, which is the one
+  // arrangement no physical screen has. So the field is generated at the OUTPUT
+  // size and drawn over everything -- page, pad, bezel, letterbox margins.
+  //
+  // The ordering that puts it after the beam, the accumulator and the fade was
+  // always the physics (all of those are light leaving the phosphor, and its
+  // coverage gates them); extending past the overlay is the same argument
+  // applied to the chrome the harness paints.
+  //
+  // Still drawn with logical presentation disabled, in real output pixels, 1:1.
+  // That is not cosmetic: at any other scale a regular field beats against the
+  // phone's 0.7955 minification -- the ST-008 moire, measured at 8.14 levels.
+  // Covering the full output makes this simpler than it was, since there is no
+  // longer a panel rect to recover from two different coordinate spaces.
+  //
+  // It is fixed to the GLASS: it does not rotate with the orientation, and a
+  // Vignette now darkens the corners of the SCREEN rather than of the page,
+  // which is what a vignette physically is.
+  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) && outW > 0 &&
+        outH > 0 && ensureGrainTexture(outW, outH)) {
+      const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                              static_cast<float>(outH)};
+      SDL_RenderTexture(sdl_renderer, grainTexture, nullptr, &full);
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  } else if (grainTexture) {
+    destroyGrainTexture();
   }
 
   if (screenshotDue) {
