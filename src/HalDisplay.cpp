@@ -1639,10 +1639,37 @@ void HalDisplay::presentIfNeeded() {
       // deposited the last page of the PREVIOUS phosphor session, because
       // ghostTexture outlives ghostPixels.
       if (contentChanged && ghostHasPicture) {
-        // The page that was just replaced is what glows. Added at full
+        // The page that was just replaced is what glows. Deposited at full
         // strength, 1:1 -- both textures are the panel's own size.
-        SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_ADD);
-        SDL_SetTextureAlphaMod(ghostTexture, 255);
+        //
+        // MAXIMUM, NOT ADD -- and this is S-016. The COMPOSITE to screen was
+        // changed to MAXIMUM for a reason that applies word for word here and
+        // was never carried across: a pixel lit in two frames is one phosphor
+        // being re-excited, not two emitters stacked, so it cannot exceed full
+        // emission. The deposit kept summing.
+        //
+        // Unbounded, and the bound that mattered was the decay. A short trail
+        // drains the buffer to near black before the next deposit lands, so the
+        // sum never builds; a long one does not. At P7's 2828 ms with content
+        // changing every 100 ms, `keep` is 10^(-100/2828) = 0.92 per frame and
+        // the running sum tends toward roughly 12x a single page. At P45's
+        // 283 ms it settles near 1.8x. That is precisely the report -- "it seems
+        // to be the long persistence ones" -- and it is why the short-trail
+        // palettes looked fine.
+        //
+        // Same fallback shape as the composite: if the renderer cannot compose
+        // MAXIMUM, take ADD at reduced strength rather than nothing, because
+        // half a trail beats no trail.
+        static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
+            SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
+            SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+        if (depositMax == SDL_BLENDMODE_INVALID ||
+            !SDL_SetTextureBlendMode(ghostTexture, depositMax)) {
+          SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_ADD);
+          SDL_SetTextureAlphaMod(ghostTexture, 96);
+        } else {
+          SDL_SetTextureAlphaMod(ghostTexture, 255);
+        }
         SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
         SDL_RenderTexture(sdl_renderer, ghostTexture, nullptr, nullptr);
         accumLastAddMs = now;
