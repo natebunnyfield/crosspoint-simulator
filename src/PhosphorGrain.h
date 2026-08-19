@@ -89,10 +89,32 @@ constexpr float kRealisticSigma = 0.035f;
 // is here to fix.
 constexpr int kCellPx = 2;
 
-// How many blotches across the long edge, for the mottled coverages.
-constexpr int kMottleCells = 8;
-// Peak amplitude swing the mottle applies to the grain, +/- this fraction.
-constexpr float kMottleDepth = 0.70f;
+// THE MOTTLE, and both halves of it are now owner-set rather than constants.
+//
+// How many blotches across the long edge, and how hard they swing the grain's
+// amplitude (+/- this fraction). Build 98 hardcoded 8 and 0.70; measuring that
+// against the alternatives showed the cell count barely registers while the
+// depth is the whole effect, and that 0.70 is far more swing than the page
+// wants -- so the offered depths are an order of magnitude below it. Owner
+// ruling 2026-08-18: cells 8/16/32, depth 0/0.03/0.1/0.3.
+//
+// Depth 0 is exact: it makes a Mottled coverage render byte-for-byte as Even.
+constexpr int kMottleCellsDefault = 8;
+constexpr float kMottleDepthDefault = 0.10f;
+constexpr int kMottleCellsMin = 2;
+constexpr int kMottleCellsMax = 256;
+constexpr float kMottleDepthMax = 1.0f;
+
+inline int clampMottleCells(int cells) {
+  if (cells < kMottleCellsMin) return kMottleCellsMin;
+  if (cells > kMottleCellsMax) return kMottleCellsMax;
+  return cells;
+}
+inline float clampMottleDepth(float depth) {
+  if (!(depth > 0.0f)) return 0.0f;   // also catches NaN
+  if (depth > kMottleDepthMax) return kMottleDepthMax;
+  return depth;
+}
 // Corner grain amplitude as a multiple of center, under Vignette.
 constexpr float kVignetteGain = 3.0f;
 // Corner DIMMING at 1x, and the cap it saturates to as strength is raised. 0.10
@@ -190,6 +212,11 @@ struct Params {
   int strengthPercent = kStrengthRealistic;
   Coverage coverage = Even;
   uint32_t seed = 0x43524F53u;  // 'CROS'
+  // Only read when the coverage includes mottle. Held here rather than as file
+  // constants because they are settings now, and because a pure function that
+  // reads globals cannot be tested at more than one setting.
+  int mottleCells = kMottleCellsDefault;
+  float mottleDepth = kMottleDepthDefault;
 };
 
 // How much the grain amplitude is scaled at this point on the screen, and how
@@ -217,10 +244,12 @@ inline CoverageAt coverageAt(const Params &p, float nx, float ny) {
     out.dim = dim * r2;
   }
   if (mottle) {
-    const float v = valueNoise(nx * static_cast<float>(kMottleCells),
-                               ny * static_cast<float>(kMottleCells),
-                               p.seed ^ 0x4D4F5454u);
-    out.amplitudeGain *= 1.0f + kMottleDepth * (v * 2.0f - 1.0f);
+    const float depth = clampMottleDepth(p.mottleDepth);
+    if (depth > 0.0f) {
+      const float cells = static_cast<float>(clampMottleCells(p.mottleCells));
+      const float v = valueNoise(nx * cells, ny * cells, p.seed ^ 0x4D4F5454u);
+      out.amplitudeGain *= 1.0f + depth * (v * 2.0f - 1.0f);
+    }
   }
   return out;
 }

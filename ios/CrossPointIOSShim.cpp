@@ -1163,16 +1163,25 @@ void pollPageFadeDepth() {
 void pollPhosphorGrain() {
   static int s_strength = -1;
   static int s_coverage = -1;
+  static int s_cells = -1;
+  static int s_depth = -1;
   const int strength = CrossPointPrefs_phosphorGrainPercent();
   const int coverage = CrossPointPrefs_phosphorGrainCoverage();
-  if (strength == s_strength && coverage == s_coverage) return;
+  const int cells = CrossPointPrefs_phosphorGrainMottleCells();
+  const int depth = CrossPointPrefs_phosphorGrainMottleDepth();
+  if (strength == s_strength && coverage == s_coverage && cells == s_cells &&
+      depth == s_depth)
+    return;
   s_strength = strength;
   s_coverage = coverage;
+  s_cells = cells;
+  s_depth = depth;
   static const char *const kCoverageNames[] = {"even", "vignette", "mottled",
                                                "vignette+mottled"};
-  SDL_Log("[grain] screen grain %d%% of realistic, coverage %s", strength,
-          kCoverageNames[coverage >= 0 && coverage < 4 ? coverage : 0]);
-  SimulatorOverlay::setPhosphorGrain(strength, coverage);
+  SDL_Log("[grain] screen grain %d%% of realistic, coverage %s, blotches %d x %.2f",
+          strength, kCoverageNames[coverage >= 0 && coverage < 4 ? coverage : 0],
+          cells, depth / 100.0);
+  SimulatorOverlay::setPhosphorGrain(strength, coverage, cells, depth);
 }
 
 void pollPanelPalette() {

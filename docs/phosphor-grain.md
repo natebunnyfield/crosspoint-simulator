@@ -68,7 +68,7 @@ phosphor decides how much gets out.
 | `kCellPx` | 2 | device pixels per grain cell |
 | `kVignetteGain` | 3.0 | corner grain amplitude vs center |
 | `kVignetteDim` / `kVignetteDimMax` | 0.10 / 0.30 | corner dimming at 1x, and its cap |
-| `kMottleCells` / `kMottleDepth` | 8 / 0.70 | blotches across the long edge, ± amplitude swing |
+| blotch size / depth | owner-set | see below — no longer constants |
 | `kMaxEffectiveSigma` | 0.45 | ceiling after the coverage gain multiplies in |
 | `kMinMultiplier` | 0.05 | a dead pixel is a defect, not grain |
 
@@ -88,6 +88,46 @@ uniform slight dimming — the flatness this exists to fix.
 under Vignette the corner saw σ = 1.05, every texel there clamped to
 `kMinMultiplier`, and the page lost its corners. Caught by the test's
 "even at 10x the corner keeps most of its light" check, before it shipped.
+
+## The mottle became two settings
+
+Build 98 hardcoded 8 blotches across the page at a depth of 0.70. Measuring that
+against the alternatives (48 captures, one rebuild per variant, all six
+shortlisted phosphors — artifact `df228c9c`) showed two things:
+
+- **Cell count barely registers.** At a fixed depth, 4, 8, 16 and 32 cells span
+  only +0.28 to +0.45 percentage points of blotching, three of which are inside
+  measurement noise of each other.
+- **Depth is the whole effect**, and 0.70 was far more swing than the page
+  wants: 0.35 → 0.70 → 1.00 moves it +0.14 → +0.42 → +0.71.
+
+Owner ruling 2026-08-18 therefore replaced both constants with settings, and set
+the offered depths an order of magnitude below what shipped:
+
+| Row | Key | Offered | Default |
+|---|---|---|---|
+| Blotch Size | `phosphorGrainMottleCells` | 8, 16, 32 | 8 |
+| Blotch Depth | `phosphorGrainMottleDepth` | 0, 0.03, 0.10, 0.30 | 0.10 |
+
+Depth persists in **hundredths** (0, 3, 10, 30) because a picker stores integers
+and 0 is a real choice that `-integerForKey:` cannot tell from an absent key.
+
+**Depth 0 is exact.** A Mottled coverage at depth 0 renders byte-for-byte what
+Even renders, and Vignette+Mottled at depth 0 renders exactly Vignette —
+asserted in the host test at every cell count, and confirmed end to end by two
+identical frame hashes. Without that, the bottom of the dial would be a silent
+floor rather than off.
+
+The same ruling cut the strength ladder to four: **Off, 0.3×, 1×, 3×**
+(`0, 30, 100, 300`). The old 0.25×/0.5×/2×/5×/7×/10× rows are gone from the
+picker. An install already holding one of those integers keeps rendering it —
+the clamp still accepts 0..1000 — it simply has no row to show for it.
+
+Worth recording for whoever revisits the top of that dial: at the old 10×
+setting, **P11 Blue and P22R Red fell to 5.6:1**, under this repo's 7:1 floor
+for a named preset. Nothing dropped under WCAG AA's 4.5:1, and the grain pass is
+not covered by `panel_palette_test`, which is why it went unnoticed. The four
+offered strengths do not go near it.
 
 ## The settings
 

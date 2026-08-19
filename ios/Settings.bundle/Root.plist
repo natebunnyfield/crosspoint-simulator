@@ -174,28 +174,18 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<key>Titles</key>
 			<array>
 				<string>Off — a perfectly even screen</string>
-				<string>1/4x — barely there</string>
-				<string>1/2x — a clean tube</string>
-				<string>1x — realistic</string>
-				<string>2x — an older screen</string>
-				<string>3x — visibly grainy</string>
-				<string>5x — coarse</string>
-				<string>7x — worn out</string>
-				<string>10x — not a real screen any more</string>
+				<string>0.3× — barely there</string>
+				<string>1× — realistic</string>
+				<string>3× — visibly grainy</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>Values</key>
 			<array>
 				<integer>0</integer>
-				<integer>25</integer>
-				<integer>50</integer>
+				<integer>30</integer>
 				<integer>100</integer>
-				<integer>200</integer>
 				<integer>300</integer>
-				<integer>500</integer>
-				<integer>700</integer>
-				<integer>1000</integer>
 			</array>
 		</dict>
 		<dict>
@@ -220,6 +210,52 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>1</integer>
 				<integer>2</integer>
 				<integer>3</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Key</key>
+			<string>phosphorGrainMottleCells</string>
+			<key>Title</key>
+			<string>Blotch Size</string>
+			<key>DefaultValue</key>
+			<integer>8</integer>
+			<key>Titles</key>
+			<array>
+				<string>Large — 8 across the page</string>
+				<string>Medium — 16 across</string>
+				<string>Small — 32 across</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<integer>8</integer>
+				<integer>16</integer>
+				<integer>32</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Key</key>
+			<string>phosphorGrainMottleDepth</string>
+			<key>Title</key>
+			<string>Blotch Depth</string>
+			<key>DefaultValue</key>
+			<integer>10</integer>
+			<key>Titles</key>
+			<array>
+				<string>Off — no blotching at all</string>
+				<string>0.03 — a suggestion</string>
+				<string>0.10 — visible</string>
+				<string>0.30 — plainly a coated surface</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>3</integer>
+				<integer>10</integer>
+				<integer>30</integer>
 			</array>
 		</dict>
 		<dict>

@@ -905,8 +905,15 @@ void setBeamPaint(float sweepMs) {
 // is the one CRT treatment that survived the 2026-08-18 ruling.
 static std::atomic<int> grainStrength{phosphorgrain::kStrengthRealistic};
 static std::atomic<int> grainCoverage{phosphorgrain::Even};
+// The mottle's two dials. Depth is carried as HUNDREDTHS because that is how
+// Settings.app persists it -- a picker stores integers, and 0/3/10/30 says
+// exactly what the owner chose where a float would invite rounding drift.
+static std::atomic<int> grainMottleCells{phosphorgrain::kMottleCellsDefault};
+static std::atomic<int> grainMottleDepthPct{
+    static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f)};
 
-void setPhosphorGrain(int strengthPercent, int coverage) {
+void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
+                      int mottleDepthHundredths) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN")) {
     // strtol with the end pointer checked, not atoi: atoi answers 0 for
     // anything it cannot parse, and 0 here is not a harmless default -- it is
@@ -921,8 +928,24 @@ void setPhosphorGrain(int strengthPercent, int coverage) {
     const long parsed = std::strtol(env, &end, 10);
     if (end != env) coverage = static_cast<int>(parsed);
   }
+  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_MOTTLE_CELLS")) {
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env) mottleCells = static_cast<int>(parsed);
+  }
+  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_MOTTLE_DEPTH")) {
+    // Hundredths here too, so the env path and the Settings path carry the
+    // same units and a headless run reproduces exactly what the phone shows.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env) mottleDepthHundredths = static_cast<int>(parsed);
+  }
   const int s = phosphorgrain::clampStrength(strengthPercent);
   const int c = static_cast<int>(phosphorgrain::clampCoverage(coverage));
+  const int mc = phosphorgrain::clampMottleCells(mottleCells);
+  const int md = static_cast<int>(
+      phosphorgrain::clampMottleDepth(
+          static_cast<float>(mottleDepthHundredths) / 100.0f) * 100.0f + 0.5f);
   // BOTH exchanges, unconditionally. Written as `a.exchange(s) != s ||
   // b.exchange(c) != c` this short-circuits: a changed strength makes the left
   // side true and the coverage is NEVER STORED. That shipped for exactly one
@@ -930,7 +953,10 @@ void setPhosphorGrain(int strengthPercent, int coverage) {
   // because the only call that ever changes coverage also changes strength.
   const bool strengthChanged = grainStrength.exchange(s) != s;
   const bool coverageChanged = grainCoverage.exchange(c) != c;
-  if (!strengthChanged && !coverageChanged) return;
+  const bool cellsChanged = grainMottleCells.exchange(mc) != mc;
+  const bool depthChanged = grainMottleDepthPct.exchange(md) != md;
+  if (!strengthChanged && !coverageChanged && !cellsChanged && !depthChanged)
+    return;
   // Repaint rather than wait. The field is regenerated lazily by the present
   // path, but an e-ink firmware may not render for minutes, so without this the
   // new grain would first appear at some unrelated page turn.
@@ -1121,8 +1147,10 @@ void HalDisplay::begin() {
   // Seventh time. Grain's default is NOT off -- it is realistic -- so this call
   // is what makes the desktop render the same screen the phone does, and it is
   // also the only route CROSSPOINT_SIM_GRAIN has to the atomics.
-  SimulatorOverlay::setPhosphorGrain(phosphorgrain::kStrengthRealistic,
-                                     phosphorgrain::Even);
+  SimulatorOverlay::setPhosphorGrain(
+      phosphorgrain::kStrengthRealistic, phosphorgrain::Even,
+      phosphorgrain::kMottleCellsDefault,
+      static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f));
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1343,6 +1371,7 @@ static void ensureGhostTexture() {
 static SDL_Texture *grainTexture = nullptr;
 static int grainTexW = 0, grainTexH = 0;
 static int grainTexStrength = -1, grainTexCoverage = -1;
+static int grainTexCells = -1, grainTexDepth = -1;
 
 static void destroyGrainTexture() {
   if (!grainTexture) return;
@@ -1350,19 +1379,23 @@ static void destroyGrainTexture() {
   grainTexture = nullptr;
   grainTexW = grainTexH = 0;
   grainTexStrength = grainTexCoverage = -1;
+  grainTexCells = grainTexDepth = -1;
 }
 
 // True when there is a field ready to draw over a w x h rect.
 static bool ensureGrainTexture(int w, int h) {
   const int strength = SimulatorOverlay::grainStrength.load();
   const int coverage = SimulatorOverlay::grainCoverage.load();
+  const int cells = SimulatorOverlay::grainMottleCells.load();
+  const int depthPct = SimulatorOverlay::grainMottleDepthPct.load();
   if (strength == phosphorgrain::kStrengthOff || w <= 0 || h <= 0 ||
       !sdl_renderer) {
     destroyGrainTexture();
     return false;
   }
   if (grainTexture && grainTexW == w && grainTexH == h &&
-      grainTexStrength == strength && grainTexCoverage == coverage)
+      grainTexStrength == strength && grainTexCoverage == coverage &&
+      grainTexCells == cells && grainTexDepth == depthPct)
     return true;
   destroyGrainTexture();
 
@@ -1373,7 +1406,9 @@ static bool ensureGrainTexture(int w, int h) {
     return false;
   }
   const phosphorgrain::Params params{
-      strength, phosphorgrain::clampCoverage(coverage), 0x43524F53u};
+      strength, phosphorgrain::clampCoverage(coverage), 0x43524F53u,
+      phosphorgrain::clampMottleCells(cells),
+      static_cast<float>(depthPct) / 100.0f};
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
@@ -1400,10 +1435,13 @@ static bool ensureGrainTexture(int w, int h) {
   grainTexH = h;
   grainTexStrength = strength;
   grainTexCoverage = coverage;
+  grainTexCells = cells;
+  grainTexDepth = depthPct;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
-      SDL_Log("[grain] field %dx%d strength %d coverage %d", w, h, strength,
-              coverage);
+      SDL_Log("[grain] field %dx%d strength %d coverage %d mottle %d x %.2f", w,
+              h, strength, coverage, cells,
+              static_cast<double>(depthPct) / 100.0);
   return true;
 }
 
