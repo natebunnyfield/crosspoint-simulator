@@ -865,6 +865,35 @@ inline constexpr unsigned char kCascadeAfterglowOrange[3] = {0xFF, 0x93, 0x81};
 inline constexpr unsigned char kCascadeAfterglowYellow[3] = {0xFF, 0xE2, 0x81};
 
 inline constexpr PresetInfo kPresetInfo[] = {
+    // THE SHORTLIST, and it sits at the head of this table because the head of
+    // this table IS the order Settings.app shows and the order the firmware's
+    // cycle button walks -- tests/panel_palette_test.cpp pins those two
+    // together, so a shortlist cannot be a plist-only rearrangement.
+    //
+    // Chosen by the owner in a controlled runoff, 2026-08-18: 42 presets ->
+    // 38 distinct pages -> 12 perceptually separate choices (complete linkage
+    // at dE 25), then a full round robin, 63 of 63 answered, one lit card at a
+    // time on black. Kendall's coefficient of consistency 0.843 against the
+    // 0.25 coin flips would give. docs/phosphor-shortlist-2026-08-18.md has the
+    // numbers. NOTHING IS REMOVED -- these six are promoted, the other 46 rows
+    // follow in the order they already had.
+    //
+    // Two of the six are PROVISIONAL. The runoff hid the labels and never
+    // animated decay, so it chose PAGES, not presets: P33 stands for the
+    // #FFA472 page that P12/P19/P33/P38 all paint (longest tail at 2828 ms, so
+    // with the glow on the choice means something and with it off the four are
+    // identical), and P22G stands for the #00FF97 page it shares with P46.
+    // Settle both with a test that actually renders decay.
+    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
+    {kPresetP33Crt, "CRT", "Radar Orange Longest", "P33 MgF2:Mn", "P33", "> 1 sec", 1000.0f, nullptr},
+    {kPresetP22GCrt, "CRT", "TV Green", "P22G (Zn,Cd)S:Cu,Al", "P22G", "Short", 0.5f, nullptr},
+    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
+     "not over 7% of peak after 33 ms", 33.0f, nullptr},
+    {kPresetCascadeCrt, "CRT", "Cascade", "P7 blue-white to yellow-green", "P7",
+     "BluWh-Short / Yel-Long, >1 minute in low ambient illumination", 1000.0f,
+     kCascadeAfterglow},
+    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
+    // ...and the rest, in the P-number / persistence / hue order they had.
     {kPresetHighContrast, "Neutral", "High Contrast", "black on white", nullptr, nullptr, 0.0f, nullptr},
     {kPresetDefault, "Neutral", "Default", "e-ink", nullptr, nullptr, 0.0f, nullptr},
     {kPresetReading, "Neutral", "Reading", "long-form on OLED", nullptr, nullptr, 0.0f, nullptr},
@@ -878,16 +907,9 @@ inline constexpr PresetInfo kPresetInfo[] = {
     // The only row with an afterglow: written blue-white, left behind
     {kPresetGreenCrt, "CRT", "Green", "P1 phosphor", "P1", "20ms", 20.0f, nullptr},
     {kPresetP2Crt, "CRT", "Blue-Green Long", "P2 ZnS:Cu(Ag)", "P2", "Long", 150.0f, nullptr},
-    {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
-    {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
-     "not over 7% of peak after 33 ms", 33.0f, nullptr},
     {kPresetP5Crt, "CRT", "Blue Fastest", "P5 CaWO4:W", "P5", "Very Short", 0.05f, nullptr},
     {kPresetP6Crt, "CRT", "White TV", "P6 ZnS:Ag+ZnS:CdS:Ag", "P6", "Short", 0.5f, nullptr},
-    {kPresetCascadeCrt, "CRT", "Cascade", "P7 blue-white to yellow-green", "P7",
-     "BluWh-Short / Yel-Long, >1 minute in low ambient illumination", 1000.0f,
-     kCascadeAfterglow},
     {kPresetP10Crt, "CRT", "Dark Trace", "P10 KCl", "P10", "Long", 150.0f, nullptr},
-    {kPresetBlueCrt, "CRT", "Blue", "P11 phosphor", "P11", "2ms", 2.0f, nullptr},
     {kPresetP12Crt, "CRT", "Orange Persistent", "P12 Zn(Mg)F2:Mn", "P12", "Medium/long", 60.0f, nullptr},
     {kPresetP13Crt, "CRT", "Red-Orange", "P13 MgSi2O6:Mn", "P13", "Medium", 10.0f, nullptr},
     {kPresetP14Crt, "CRT", "Cascade Orange", "P14 ZnS:Ag on ZnS:CdS:Cu", "P14", "Medium/long", 150.0f, kCascadeAfterglowOrange},
@@ -898,7 +920,6 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetP19Crt, "CRT", "Radar Orange", "P19 (KF,MgF2):Mn", "P19", "Long", 150.0f, nullptr},
     {kPresetP20Crt, "CRT", "Yellow-Green Long", "P20 (Zn,Cd)S:Ag or (Zn,Cd)S:Cu", "P20", "1-100 ms", 20.0f, nullptr},
     {kPresetP21Crt, "CRT", "Radar Red", "P21 MgF2:Mn2+", "P21", "not published", 150.0f, nullptr},
-    {kPresetP22GCrt, "CRT", "TV Green", "P22G (Zn,Cd)S:Cu,Al", "P22G", "Short", 0.5f, nullptr},
     {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
     {kPresetBlueTvCrt, "CRT", "Blue TV", "P22B color-tube gun", "P22B",
      "Medium", 10.0f, nullptr},
@@ -910,7 +931,6 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetP28Crt, "CRT", "Yellow", "P28 (Zn,Cd)S:Cu,Cl", "P28", "Medium", 10.0f, nullptr},
     {kPresetGreenFastCrt, "CRT", "Green Fast", "P31 oscilloscope", "P31",
      "Medium short 0.01-1 ms", 1.0f, nullptr},
-    {kPresetP33Crt, "CRT", "Radar Orange Longest", "P33 MgF2:Mn", "P33", "> 1 sec", 1000.0f, nullptr},
     {kPresetP34Crt, "CRT", "Green Longest", "P34 not published", "P34", "Very Long", 1000.0f, nullptr},
     {kPresetP35Crt, "CRT", "Blue-White", "P35 ZnS,ZnSe:Ag", "P35", "Medium Short", 1.0f, nullptr},
     {kPresetP38Crt, "CRT", "Radar Amber", "P38 (Zn,Mg)F2:Mn", "P38", "Long", 150.0f, nullptr},
