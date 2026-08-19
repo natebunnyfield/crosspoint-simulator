@@ -160,6 +160,15 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   or `iconutil`) so a Linux CI box builds the same icon a Mac does. `verify`
   now fails on a bundle with no icon, for the same reason it fails on a missing
   purpose string: App Store review rejects both.
+- **"deploy mac apps"** means all THREE local bundles, rebuilt and installed
+  into `/Applications`: `CrossPointX3`, `CrossPointX3-2x` (the same X3 binary
+  with `CROSSPOINT_SIM_WINDOW_SCALE=2` in `LSEnvironment`) and `CrossPointX4`
+  (the `simulator` env). Owner's phrase, 2026-08-19.
+  [packaging/macos/deploy_mac_apps.sh](packaging/macos/deploy_mac_apps.sh) does
+  it, and refuses to install a bundle that builds but does not boot. This is NOT
+  the App Store path -- these are unsigned, for this Mac. The reason it exists:
+  those three sat at build 1 from 2026-08-07 for twelve days while every palette,
+  the grain and the shortlist landed, and the Mac was being judged against them.
 - TestFlight deploys: [packaging/macos/deploy.sh](packaging/macos/deploy.sh)
   runs build → bundle → verify → embed dylibs → sign → `productbuild` →
   `altool` → tag, and must run on macOS from a GUI Terminal session.
