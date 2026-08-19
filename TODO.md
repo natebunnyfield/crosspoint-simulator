@@ -430,7 +430,32 @@ the headless QA channels as they exist today, and lists nothing that is not
 there.
 
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
-**scope: iOS layout · asked 2026-08-08 · MOCKUPS NEED APPROVAL BEFORE CODE**
+**scope: iOS layout · asked 2026-08-08 · WAITING ON AN iPAD SCREENSHOT**
+
+**Status 2026-08-19: no longer blocked on mockup approval.** Everything this
+entry's main complaint asked for has since been built, by rulings made after it
+was written:
+
+| Piece | Where it landed |
+|---|---|
+| Tablet panel rises to clear the keyboard | `CrossPointIOSShim.cpp:308` — tablet-only, and the comment says why: 1056x1584 at 2x still clears in the ~1900 px left after a 400 pt keyboard, so reserving the height costs no integer scale |
+| Phone overlaps instead of pushing | Owner ruling 2026-08-10 — the same reservation on a phone costs one scale, about 40% of the text |
+| Pad capsules on the screen edges | Fixed 2026-08-17; `layoutPadTablet` reads the horizontal safe area, floored at `kPadEdgeMin` 16 pt |
+
+What is left is the two sub-items below — the pads sitting inside the panel's
+content area, and the pair buried under the system keyboard — and both were
+written about the iPad layout BEFORE those three fixes. **Nobody knows whether
+they survived**, because the tablet pad and the keyboard lift are iOS-only and
+nothing off-phone renders them.
+
+**Agreed close-out, owner 2026-08-19:** an iPad screenshot — portrait, Create
+Note, keyboard up, dark, matching the 2026-08-08 evidence so the two compare
+directly. Check the three overlap areas against it, fix whatever survived, close
+with the screenshot as evidence. The alternatives were considered and declined:
+closing on the code reading alone (leaves a live defect untracked if one
+survived), and building fresh mockups for the larger devices (they would be
+drawings of intended geometry rather than captures, which is the prose-instead-
+of-pixels trap).
 
 Two related pieces.
 
