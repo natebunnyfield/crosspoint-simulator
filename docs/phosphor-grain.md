@@ -62,6 +62,23 @@ left a grainy rectangle floating on a clean ground, which is the one arrangement
 no physical screen has, so the field now covers the page, the button pad, the
 bezel and the letterbox margins alike.
 
+**The vignette follows the SCREEN, and that is a ruling, not a side effect.**
+Owner 2026-08-19, asked directly because the full-surface change moved it there
+without anyone choosing: corner dimming now darkens the pad's outer buttons and
+the bezel along with the page. Kept, on the same one-glass argument that moved
+the grain out past the panel — a vignette is a property of the tube's face, not
+of the page on it. The dimming is capped at 30% (a real tube's corner runs
+70-85% of centre), so the outermost pad buttons sit at worst about a third
+darker than the middle ones.
+
+Two alternatives were offered and declined: splitting the vignette so only the
+grain's amplitude rises screen-wide while the darkening stays inside the panel
+rect, and dropping the Vignette coverage entirely. Neither should be re-proposed.
+
+There is no headless proof of this one and there cannot be: the pad is drawn by
+the iOS overlay, which does not exist on the desktop, so nothing off-phone
+renders it.
+
 The ordering that already put it after the beam, the accumulator and the fade
 was the physics — all of those are light leaving the phosphor, and its coverage
 gates them — and extending past the overlay is that same argument applied to the
