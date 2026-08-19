@@ -135,6 +135,12 @@ bool ensureParentDirectories(const std::string &full) {
 }
 } // namespace
 
+// The host-settings file sits BESIDE the simulated card, and only this file
+// knows where that card is -- a Finder-launched .app puts it under Application
+// Support while a command-line build uses ./fs_. Exposed rather than
+// duplicated, because a second copy of that rule would drift.
+std::string simulatorStorageRootForHost() { return configuredStorageRoot(); }
+
 bool HalStorage::begin() {
   const std::string root = configuredStorageRoot();
   static bool loggedRoot = false;

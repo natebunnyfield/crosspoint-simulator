@@ -337,6 +337,19 @@ page-turn loop headlessly. Page-forward on this firmware is the RIGHT front
 button (`ReaderUtils::detectPageTurn`), not DOWN. Design and
 work-package status: [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
+**The desktop has a settings file, and it is the Mac's Settings app.**
+`settings.json` sits BESIDE the simulated card -- `./settings.json` for a
+command-line build, `~/Library/Application Support/<AppName>/settings.json` for
+a Finder-launched `.app` -- written with the shipped defaults on first run,
+using the SAME KEYS as iOS, and re-read about once a second so an edit applies
+without a relaunch (`src/SimulatorSettingsFile.h` for the model and its test,
+`src/SimulatorSettingsWatch.cpp` for the watcher, compiled to nothing on iOS).
+Owner ruling 2026-08-19: a packaged `.app` could otherwise only take these
+through `LSEnvironment` baked in at build time, so changing the page color meant
+rebuilding the bundle. It resolves the palette through `panelpalette::resolve`
+and derives the glow from the preset exactly as `pollPanelGlow` does on the
+phone, so the two platforms cannot disagree about what a CRT palette implies.
+
 **`CROSSPOINT_SIM_AS_SHIPPED=1` seeds the dials the iOS app actually ships
 with**, in one switch, and it is the right way to start any attempt to reproduce
 an owner report. The desktop seeds every dial OFF -- deliberately, so the canary
