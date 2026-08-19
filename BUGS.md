@@ -38,15 +38,46 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-016] The whole screen flashes on some CRT palettes — REPORTED, not reproduced
+### [S-016] The whole screen flashes on some CRT palettes — FIXED 2026-08-19, unconfirmed on the phone
 **severity: medium · scope: ios display · reported 2026-08-19**
 
 Owner, from the phone: "there's still a bug with the full screen flashing on
-some crts." SOME, not all — the most useful part of the report, and the part not
-yet pinned down.
+some crts." SOME, not all — which was the whole clue. Narrowed by the owner on
+2026-08-19 to "the long persistence ones", and that identifies the mechanism
+exactly.
 
-**The desktop structurally cannot show it, and that is measured rather than
-assumed.** With the phone's own settings forced by env — glow at the preset's
+**CAUSE: the DEPOSIT into the accumulator was `SDL_BLENDMODE_ADD`.**
+
+The composite to screen was changed to MAXIMUM back when the page-turn flash was
+fixed, with an explicit argument — a pixel lit in two frames is one phosphor
+being re-excited, not two emitters stacked, so it cannot exceed full emission.
+That argument applies word for word to the deposit and was never carried across.
+The deposit kept summing, unbounded.
+
+The bound that mattered was the DECAY, which is why only long trails showed it.
+A short trail drains the buffer to near black before the next deposit lands, so
+the sum never builds. At P7's 2828 ms with content changing every 100 ms, `keep`
+is 10^(-100/2828) = 0.92 per frame and the running sum tends toward roughly 12x
+a single page; at P45's 283 ms it settles near 1.8x.
+
+**Fixed** by depositing with the same saturating MAXIMUM blend, with the same
+ADD-at-reduced-strength fallback the composite uses. Measured on P7 with content
+changing every 200 ms, before and after, same script and same binary otherwise:
+
+| | peak | mean |
+|---|---|---|
+| ADD (before) | 35.53 | 23.09 |
+| MAXIMUM (after) | 31.04 | 17.85 |
+
+Peak down 12.6%, mean down 22.7%. The desktop understates it — it cannot drive
+content changes as fast as a finger can, and the theoretical 12x needs sustained
+rapid change — so treat those figures as the direction confirmed rather than the
+magnitude.
+
+**UNCONFIRMED on the phone.** The flash is a thing the owner sees; nothing here
+has seen it.
+
+**Why the first hunt missed it, kept because the metric was the mistake.** With the phone's own settings forced by env — glow at the preset's
 trail, beam 67 ms, page fade 5 min at Dim, grain 1x Vignette+Mottled — across
 P45, P19, P7, P22G and P11:
 
