@@ -281,6 +281,89 @@ int main() {
           "NaN depth falls back to no mottle rather than propagating");
   }
 
+  // --- THE AMPLITUDE FOLLOWS THE PAGE --------------------------------------
+  // A low-contrast page cannot afford texture and a high-contrast one can. The
+  // whole point of the per-palette scale is that these are NOT the same number.
+  {
+    auto lum = [](int r, int g, int b) {
+      auto ch = [](int v) {
+        const float f = v / 255.0f;
+        return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+      };
+      return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
+    };
+    // The shipped shortlist, dark tones.
+    const float p4  = lum(0xC9, 0xE7, 0xFF), p4p  = lum(0x14, 0x18, 0x1A);
+    const float p3  = lum(0xFF, 0xB0, 0x00), p3p  = lum(0x1A, 0x10, 0x00);
+    const float p11 = lum(0x8B, 0x92, 0xFF), p11p = lum(0x00, 0x06, 0x1A);
+
+    check(darkeningBudget(p4, p4p) > darkeningBudget(p3, p3p) &&
+              darkeningBudget(p3, p3p) > darkeningBudget(p11, p11p),
+          "the darkening budget orders the pages by how much contrast they have");
+    check(amplitudeScaleFor(p4, p4p) > amplitudeScaleFor(p11, p11p) * 2.0f,
+          "a 13.9:1 page carries visibly more coating than a 7.4:1 one");
+    checkNear(amplitudeScaleFor(p11, p11p), kMinAmplitudeScale, 1e-6,
+              "the tightest page clamps to the floor rather than to nothing");
+    check(amplitudeScaleFor(p4, p4p) <= kMaxAmplitudeScale,
+          "the roomiest page is capped rather than taking twenty times the grain");
+
+    // A pair already at or under the floor has no budget at all, and must not
+    // produce a negative one that would invert the field.
+    check(darkeningBudget(lum(0x80, 0x80, 0x80), lum(0x70, 0x70, 0x70)) == 0.0f,
+          "a pair already under the floor gets no budget, not a negative one");
+    check(amplitudeScaleFor(0.0f, 0.0f) >= kMinAmplitudeScale,
+          "a degenerate pair still lands on the floor rather than NaN");
+  }
+
+  // --- NO OFFERED SETTING CAN BREACH THE CONTRAST FLOOR --------------------
+  // This is the guarantee the per-palette scale buys, and it is the one the
+  // global constant could not make: at the old 10x, P11 Blue and P22R Red fell
+  // to 5.6:1. Swept over every offered strength and coverage, against pages
+  // from just above the floor to the brightest in the set.
+  {
+    auto lum = [](int r, int g, int b) {
+      auto ch = [](int v) {
+        const float f = v / 255.0f;
+        return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+      };
+      return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
+    };
+    const int strengths[] = {0, 30, 100, 300};
+    const struct { int r, g, b, pr, pg, pb; } pages[] = {
+        {0xC9, 0xE7, 0xFF, 0x14, 0x18, 0x1A},  // P4, 13.9:1
+        {0x00, 0xFF, 0x97, 0x00, 0x19, 0x0A},  // P22G
+        {0xFF, 0xB0, 0x00, 0x1A, 0x10, 0x00},  // P3
+        {0x8B, 0x92, 0xFF, 0x00, 0x06, 0x1A},  // P11, 7.4:1 -- the tight one
+        {0xFF, 0x6F, 0x6C, 0x1A, 0x03, 0x00},  // P22R
+    };
+    for (const auto &pg : pages) {
+      const float li = lum(pg.r, pg.g, pg.b), lp = lum(pg.pr, pg.pg, pg.pb);
+      const float amp = amplitudeScaleFor(li, lp);
+      const float budget = darkeningBudget(li, lp);
+      for (const int st : strengths) {
+        // Worst case: the deepest coverage gain the model can apply, then the
+        // page's own ceiling, in that order.
+        float sigma = sigmaFor(st, amp) * kVignetteGain;
+        if (sigma > kMaxEffectiveSigma) sigma = kMaxEffectiveSigma;
+        if (budget > 0.0f && sigma > budget) sigma = budget;
+        const float mean = 1.0f - 0.8f * sigma;
+        check(contrastAfter(li, lp, mean) >= kContrastFloor - 0.05f,
+              "no offered strength drops a page under the contrast floor");
+        // ...and the same through the real entry point, which is what ships.
+        Params pp{st, Vignette, 0x43524F53u};
+        pp.amplitudeScale = amp;
+        pp.budgetSigma = budget;
+        int lowest = 255;
+        for (int y = 0; y < H; y += 3)
+          for (int x = 0; x < W; x += 3) {
+            const int m = multiplierAt(pp, x, y, W, H);
+            if (m < lowest) lowest = m;
+          }
+        check(lowest > 0, "the field never zeroes a texel on any offered page");
+      }
+    }
+  }
+
   // --- A DIFFERENT SEED IS A DIFFERENT SCREEN ------------------------------
   {
     Params a{kStrengthRealistic, Even, 0x43524F53u};

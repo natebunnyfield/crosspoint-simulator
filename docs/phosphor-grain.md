@@ -142,6 +142,48 @@ for a named preset. Nothing dropped under WCAG AA's 4.5:1, and the grain pass is
 not covered by `panel_palette_test`, which is why it went unnoticed. The four
 offered strengths do not go near it.
 
+## The amplitude is per-palette
+
+Owner ruling 2026-08-18, after noticing the grain was **not** phosphor-specific
+when he expected it to be. It is also the better physics: phosphors differ in
+particle size and coating weight, so one field for all 52 palettes was the
+simplification, not the accurate answer.
+
+**A low-contrast page cannot afford texture; a high-contrast one can.**
+`darkeningBudget()` measures how large a sigma a given ink/paper pair can take
+before its mean attenuation drags contrast to the 7:1 floor. Across the
+shortlist that spans **7.2% (P11 Blue, already at 7.4:1) to 71.9% (P4 Gray at
+13.9:1)** — a tenfold range one constant cannot represent.
+
+`amplitudeScaleFor()` turns that budget into a multiplier on `kRealisticSigma`,
+normalised so a median page still gets 3.5% at 1× and clamped either side.
+Measured off the shipped renderer, all at 1×:
+
+| | contrast | amplitude |
+|---|---|---|
+| P4 Gray | 13.9:1 | **1.33×** |
+| P22G TV Green | 13.8:1 | **1.30×** |
+| P3 Amber | 10.3:1 | **0.87×** |
+| P11 Blue | 7.4:1 | **0.35×** (clamped) |
+
+The clamps earn their place. Without `kMaxAmplitudeScale` a 13.9:1 page would
+take twenty times the reference coating; without `kMinAmplitudeScale` P11 lands
+near 0.5% and reads as "grain is broken on blue" rather than "blue is a page
+with no room for it".
+
+**The floor guarantee is structural, and the scale alone did not deliver it.**
+The first version clamped only the amplitude and the test caught two breaches
+immediately: a Vignette multiplies sigma by up to `kVignetteGain` at the rim,
+and 3× on a page with almost no room goes under anyway. So `Params::budgetSigma`
+is a hard ceiling applied **after** the coverage gain — that ordering is the
+whole point, since the gain is what breaches it. The test sweeps every offered
+strength against five pages including the two tightest and asserts none drops
+below 7:1, which is exactly the failure the old global constant shipped at 10×.
+
+The budget is measured off the **live** palette, so the field follows a polarity
+flip and a palette change with nothing else being told. `PhosphorGrain.h` still
+knows nothing about `PanelPalette` — it takes two luminances.
+
 ## A fresh screen every launch
 
 Owner ruling 2026-08-18: *"generate new grain every start of app."*
