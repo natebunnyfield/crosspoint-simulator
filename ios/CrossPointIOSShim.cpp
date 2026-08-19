@@ -1186,6 +1186,16 @@ void pollPageFadeDepth() {
   SimulatorOverlay::setPageFadeDepth(pct);
 }
 
+void pollPresentFlash() {
+  static int s_applied = -1;
+  const int on = CrossPointPrefs_presentFlash();
+  if (on == s_applied) return;
+  s_applied = on;
+  SDL_Log("[flash] page-turn flash %s", on ? "ON (the 1-bit pass lands first)"
+                                           : "off (composed frames only)");
+  SimulatorOverlay::setPresentFlash(on != 0);
+}
+
 void pollPhosphorGrain() {
   static int s_strength = -1;
   static int s_coverage = -1;
@@ -1991,6 +2001,7 @@ void CrossPointHarness_perFrame() {
   pollBeamPaint();
   pollPageFade();
   pollPageFadeDepth();
+  pollPresentFlash();
   pollPhosphorGrain();
   pollPadContrast();
   repaintAfterForeground();

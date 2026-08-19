@@ -46,6 +46,10 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
+// Whether the 1-bit pass may reach the screen ahead of the composed one. The
+// missing-key answer from -integerForKey: is 0, which is Off, which is also the
+// shipped default -- so this one is harmless either way.
+static NSString *const kPresentFlash = @"presentFlash";
 static NSString *const kPageFadeSeconds = @"pageFadeSeconds";
 static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
 // Phosphor grain. The missing-key failure for the strength is the MALIGNANT
@@ -404,6 +408,12 @@ int CrossPointPrefs_pageFadeDepthPercent(void) {
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 100 ? 100 : pct;
+}
+
+int CrossPointPrefs_presentFlash(void) {
+  ensureDefaults();
+  checkKnown(kPresentFlash);
+  return [[NSUserDefaults standardUserDefaults] integerForKey:kPresentFlash] ? 1 : 0;
 }
 
 int CrossPointPrefs_beamPaintMs(void) {

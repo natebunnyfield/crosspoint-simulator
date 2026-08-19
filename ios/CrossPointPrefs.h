@@ -136,6 +136,9 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void);
 
 int CrossPointPrefs_beamPaintMs(void);
 
+// Whether the 1-bit pass may land on its own, ahead of the composed frame.
+int CrossPointPrefs_presentFlash(void);
+
 int CrossPointPrefs_panelPalettePreset(void);
 
 // Write it. Settings.app owns this key too, and both write the same

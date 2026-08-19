@@ -461,7 +461,14 @@ Three settings now decide what the page and the pad look like, all host-side —
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
 
-**The page-turn flash is COALESCED, and it is not optional by default.** An
+**The page-turn flash is COALESCED by default, and is now an owner setting**
+(`Page Turn Flash`, off by default, owner 2026-08-19 — "make that page-turn
+flash an option in ios settings"; the desktop keeps
+`CROSSPOINT_SIM_PRESENT_FLASH`, which still overrides). Turning it ON is not a
+bug being reinstated: it is what the panel itself does, and someone may want the
+device's process rather than only its result. Note the flag used to be a
+`static const bool` latched from the env on first call, which is precisely the
+shape that cannot become a setting. An
 antialiased page is painted twice -- 1-bit, then composed 13-22 ms later -- and
 both used to reach the screen. A present is now held 30 ms and released early by
 the compose, so only the composed frame lands; a frame with no second pass is
