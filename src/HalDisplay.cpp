@@ -1174,6 +1174,40 @@ void HalDisplay::begin() {
   // host with a real appearance to follow (the iOS harness) calls
   // setPanelDark again with it once the harness installs.
   SimulatorOverlay::setPanelDark(false);
+
+  // CROSSPOINT_SIM_AS_SHIPPED=1 seeds the dials the iOS app actually ships
+  // with, in one switch, instead of six env vars reconstructed by hand.
+  //
+  // This exists because the divergence has cost real time. The desktop seeds
+  // every dial OFF -- deliberately, so the canary and every headless capture
+  // stay byte-identical to what this repo always drew -- while the app ships
+  // CRT White with a 5 min fade at Dim depth, a 67 ms beam, and 1x grain at
+  // Vignette + Mottled 8 x 0.30. Reproducing an owner report therefore means
+  // rebuilding his settings from memory, and on 2026-08-19 that went wrong
+  // twice in one bug hunt.
+  //
+  // It does NOT change any default, and it runs LAST on purpose: the first
+  // version sat above the ordinary seeds and they overwrote it, so the log said
+  // as-shipped while the grain was still at the desktop's Even/0.10.
+  const bool asShipped = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_AS_SHIPPED");
+    return e && e[0] == '1';
+  }();
+  if (asShipped) {
+    LOG_INF("DISP", "as-shipped: seeding the iOS app's own defaults");
+    SimulatorOverlay::setPanelPalette(
+        true, panelpalette::presetPalette(panelpalette::kPresetWhiteCrt, true).ink,
+        panelpalette::presetPalette(panelpalette::kPresetWhiteCrt, true).paper);
+    SimulatorOverlay::setPanelEmissive(true);
+    SimulatorOverlay::setPanelGlow(
+        panelpalette::trailMsForPreset(panelpalette::kPresetWhiteCrt));
+    SimulatorOverlay::setPageFade(300000.0f);
+    SimulatorOverlay::setPageFadeDepth(75);
+    SimulatorOverlay::setBeamPaint(67.0f);
+    SimulatorOverlay::setPhosphorGrain(100, phosphorgrain::VignetteMottled, 8, 30);
+    SimulatorOverlay::setPanelDark(true);
+  }
+
 }
 
 void HalDisplay::begin(bool /*seamless*/) { begin(); }

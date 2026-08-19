@@ -337,6 +337,18 @@ page-turn loop headlessly. Page-forward on this firmware is the RIGHT front
 button (`ReaderUtils::detectPageTurn`), not DOWN. Design and
 work-package status: [.claude/PLAN-tts-read-aloud.md](.claude/PLAN-tts-read-aloud.md).
 
+**`CROSSPOINT_SIM_AS_SHIPPED=1` seeds the dials the iOS app actually ships
+with**, in one switch, and it is the right way to start any attempt to reproduce
+an owner report. The desktop seeds every dial OFF -- deliberately, so the canary
+and every headless capture stay byte-identical to what this repo always drew --
+while the app ships CRT White with a 5 min fade at Dim depth, a 67 ms beam, and
+1x grain at Vignette + Mottled 8 x 0.30. Rebuilding that by hand from six env
+vars is what went wrong twice inside one bug hunt on 2026-08-19. It changes no
+default (unset, every line is a no-op), an explicit env var still wins because
+each setter reads its own var last, and it is seeded LAST -- the first version
+sat above the ordinary seeds and they overwrote it, so the log said as-shipped
+while the grain was still Even/0.10.
+
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key and
 touch-device edges through the same `HalGPIO` state as real SDL input, and
 `CROSSPOINT_SIM_SCREENSHOTS` captures renderer output on the SDL main thread.
