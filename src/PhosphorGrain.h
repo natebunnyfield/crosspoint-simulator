@@ -143,6 +143,67 @@ constexpr float kMinMultiplier = 0.05f;
 // Truncation of the normal, in sigmas. Bounded exactly by construction below.
 constexpr float kSigmaClamp = 3.0f;
 
+// --- PER-PALETTE AMPLITUDE ------------------------------------------------
+//
+// A LOW-CONTRAST PAGE CANNOT AFFORD TEXTURE, and a high-contrast one can carry
+// a lot. Owner ruling 2026-08-18, after noticing the grain was NOT
+// phosphor-specific when he expected it to be. It is also the better physics:
+// phosphors differ in particle size and coating weight, so one field for all
+// 52 palettes was the simplification, not the accurate answer.
+//
+// The budget is measured, not guessed: for a given ink/paper pair, how large a
+// sigma the page can take before its MEAN attenuation drags contrast down to
+// the floor this repo holds named presets to. Measured across the shortlist it
+// spans 7.2% (P11 Blue, already at 7.4:1) to 71.9% (P4 Gray at 13.9:1) -- a
+// tenfold spread that one constant cannot represent.
+//
+// Pure, and deliberately expressed in LUMINANCES rather than palettes: this
+// header knows nothing about PanelPalette and must not start to.
+constexpr float kContrastFloor = 7.0f;
+
+// The budget's reference point, and the two clamps around it.
+//
+// kReferenceBudget is the median across the shortlisted phosphors, so a typical
+// page still gets kRealisticSigma at 1x and the setting keeps meaning what it
+// said. The clamps stop the extremes running away: without kMaxScale a
+// 13.9:1 page would take twenty times the coating of the reference, and
+// without kMinScale P11 Blue would land near 0.5% and read as "grain is broken
+// on blue" rather than "blue is a page with no room for it".
+constexpr float kReferenceBudget = 0.54f;
+constexpr float kMinAmplitudeScale = 0.35f;
+constexpr float kMaxAmplitudeScale = 1.60f;
+
+// Contrast after a uniform multiply. Both tones scale, so the ratio walks
+// toward 1 rather than holding -- which is why darkening costs contrast at all.
+inline float contrastAfter(float inkLum, float paperLum, float m) {
+  const float a = inkLum * m + 0.05f;
+  const float b = paperLum * m + 0.05f;
+  return a > b ? a / b : b / a;
+}
+
+// The largest sigma this pair can take before its mean attenuation (0.8*sigma,
+// the half-normal's mean) brings contrast to the floor. 0 when the pair is
+// already at or under it -- a page that starts below the floor gets no grain
+// budget at all rather than a negative one.
+inline float darkeningBudget(float inkLum, float paperLum) {
+  if (contrastAfter(inkLum, paperLum, 1.0f) <= kContrastFloor) return 0.0f;
+  float lo = 0.0f, hi = 1.0f;              // m, the surviving multiplier
+  for (int i = 0; i < 40; i++) {
+    const float mid = (lo + hi) * 0.5f;
+    if (contrastAfter(inkLum, paperLum, mid) >= kContrastFloor) hi = mid;
+    else lo = mid;
+  }
+  return (1.0f - hi) / 0.8f;
+}
+
+// What multiplies kRealisticSigma for this page. 1.0 is the reference page.
+inline float amplitudeScaleFor(float inkLum, float paperLum) {
+  const float scale = darkeningBudget(inkLum, paperLum) / kReferenceBudget;
+  if (!(scale > kMinAmplitudeScale)) return kMinAmplitudeScale;  // also NaN
+  if (scale > kMaxAmplitudeScale) return kMaxAmplitudeScale;
+  return scale;
+}
+
 inline int clampStrength(int strengthPercent) {
   if (strengthPercent < kStrengthOff) return kStrengthOff;
   if (strengthPercent > kStrengthMax) return kStrengthMax;
@@ -156,8 +217,8 @@ inline Coverage clampCoverage(int coverage) {
 
 // The RMS emission variation for a given strength. Linear in the dial, so "2x"
 // means twice the texture and 0 means none.
-inline float sigmaFor(int strengthPercent) {
-  return kRealisticSigma *
+inline float sigmaFor(int strengthPercent, float amplitudeScale = 1.0f) {
+  return kRealisticSigma * amplitudeScale *
          (static_cast<float>(clampStrength(strengthPercent)) /
           static_cast<float>(kStrengthRealistic));
 }
@@ -219,6 +280,15 @@ struct Params {
   // reads globals cannot be tested at more than one setting.
   int mottleCells = kMottleCellsDefault;
   float mottleDepth = kMottleDepthDefault;
+  // What this page can afford, from amplitudeScaleFor(). 1.0 is the reference
+  // page; the default keeps a caller that does not set it on the old behavior.
+  float amplitudeScale = 1.0f;
+  // ...and the HARD ceiling from darkeningBudget(), which is what actually
+  // makes the floor guarantee structural. The scale alone is not enough: a
+  // Vignette multiplies sigma by up to kVignetteGain at the rim, and 3x on a
+  // page with almost no room takes it under the floor anyway. 1.0 means "no
+  // constraint", for a caller that does not know the palette.
+  float budgetSigma = 1.0f;
 };
 
 // How much the grain amplitude is scaled at this point on the screen, and how
@@ -273,8 +343,11 @@ inline uint8_t multiplierAt(const Params &p, int x, int y, int w, int h) {
   float z = gaussFrom(cx, cy, p.seed);
   if (z < 0.0f) z = -z;
 
-  float sigma = sigmaFor(strength) * cov.amplitudeGain;
+  float sigma = sigmaFor(strength, p.amplitudeScale) * cov.amplitudeGain;
   if (sigma > kMaxEffectiveSigma) sigma = kMaxEffectiveSigma;
+  // The page's own ceiling, applied AFTER the coverage gain -- that ordering is
+  // the whole point, since the gain is what breaches it.
+  if (p.budgetSigma > 0.0f && sigma > p.budgetSigma) sigma = p.budgetSigma;
   float m = 1.0f - z * sigma - cov.dim;
   if (m < kMinMultiplier) m = kMinMultiplier;
   if (m > 1.0f) m = 1.0f;

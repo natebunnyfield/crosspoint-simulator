@@ -13,6 +13,7 @@
 #include "SimulatorOverlay.h"
 
 #include <array>
+#include <cmath>
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
@@ -1417,6 +1418,7 @@ static int grainTexW = 0, grainTexH = 0;
 static uint32_t grainTexSeed = 0;
 static int grainTexStrength = -1, grainTexCoverage = -1;
 static int grainTexCells = -1, grainTexDepth = -1;
+static int grainTexAmplitude = -1;
 
 static void destroyGrainTexture() {
   if (!grainTexture) return;
@@ -1425,6 +1427,7 @@ static void destroyGrainTexture() {
   grainTexW = grainTexH = 0;
   grainTexStrength = grainTexCoverage = -1;
   grainTexCells = grainTexDepth = -1;
+  grainTexAmplitude = -1;
   grainTexSeed = 0;
 }
 
@@ -1435,6 +1438,22 @@ static bool ensureGrainTexture(int w, int h) {
   const int cells = SimulatorOverlay::grainMottleCells.load();
   const int depthPct = SimulatorOverlay::grainMottleDepthPct.load();
   const uint32_t seed = grainSeed();
+  // WHAT THIS PAGE CAN AFFORD. Measured off the LIVE palette, so the field
+  // follows a polarity flip and a palette change without anything else being
+  // told. sRGB relative luminance, the same weights the contrast floor uses.
+  const PanelPalette live = livePanelPalette(display.isInverted());
+  auto lum = [](const unsigned char c[3]) {
+    auto ch = [](unsigned char v) {
+      const float f = static_cast<float>(v) / 255.0f;
+      return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+    };
+    return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
+  };
+  const float amplitude =
+      phosphorgrain::amplitudeScaleFor(lum(live.ink), lum(live.paper));
+  const float budget =
+      phosphorgrain::darkeningBudget(lum(live.ink), lum(live.paper));
+  const int amplitudeKey = static_cast<int>(amplitude * 1000.0f + 0.5f);
   if (strength == phosphorgrain::kStrengthOff || w <= 0 || h <= 0 ||
       !sdl_renderer) {
     destroyGrainTexture();
@@ -1443,7 +1462,7 @@ static bool ensureGrainTexture(int w, int h) {
   if (grainTexture && grainTexW == w && grainTexH == h &&
       grainTexStrength == strength && grainTexCoverage == coverage &&
       grainTexCells == cells && grainTexDepth == depthPct &&
-      grainTexSeed == seed)
+      grainTexSeed == seed && grainTexAmplitude == amplitudeKey)
     return true;
   destroyGrainTexture();
 
@@ -1456,7 +1475,7 @@ static bool ensureGrainTexture(int w, int h) {
   const phosphorgrain::Params params{
       strength, phosphorgrain::clampCoverage(coverage), seed,
       phosphorgrain::clampMottleCells(cells),
-      static_cast<float>(depthPct) / 100.0f};
+      static_cast<float>(depthPct) / 100.0f, amplitude, budget};
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
@@ -1486,12 +1505,14 @@ static bool ensureGrainTexture(int w, int h) {
   grainTexCells = cells;
   grainTexDepth = depthPct;
   grainTexSeed = seed;
+  grainTexAmplitude = amplitudeKey;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[grain] field %dx%d strength %d coverage %d mottle %d x %.2f "
-              "seed %u",
+              "seed %u amplitude %.2fx",
               w, h, strength, coverage, cells,
-              static_cast<double>(depthPct) / 100.0, seed);
+              static_cast<double>(depthPct) / 100.0, seed,
+              static_cast<double>(amplitude));
   return true;
 }
 
