@@ -320,10 +320,23 @@ than it looked:
   So the keyboard-lift question is still unanswered, and the pad-under-keyboard
   overlap cannot be judged from this capture.
 
-**Worth knowing before the next attempt:** why the system keyboard does not rise
-under `simctl` is itself unknown — it may need a real touch, or the harness may
-raise it only on a path the input script does not reach. That is the thing to
-find out; the capture pipeline itself works and is repeatable:
+**The mechanism is now known, which was the open question.** The system keyboard
+is not raised by focus or by typing: it is toggled by tapping the **keyboard
+chip** — `hitKeyboardChip()` at `CrossPointIOSShim.cpp:1724`, reached from the
+finger-up handler at `:1845`, which flips `setHostKeyboardVisible`. The chip is a
+48 pt square, dead-centre horizontally, in the pad's bottom row
+(`g_kbChip`, `:629`), and it only exists while `gpio.isTextEntryActive()`.
+
+So a scripted capture needs a `TAP` landing inside that 48 pt square, and
+guessing normalised coordinates did not hit it in four tries. The next attempt
+should log `g_kbChip` once (or compute it from `lowerY` and `kCellH` in the same
+function) and tap its centre, rather than guessing.
+
+Two gotchas that cost attempts here: opening `Simulator.app` re-orients the
+device to landscape, and **quitting Simulator.app shuts the booted device down**
+mid-run, so a screenshot after it returns nothing.
+
+The capture pipeline itself works and is repeatable:
 
 ```
 cmake -B build/ios-app -G Xcode -DCMAKE_SYSTEM_NAME=iOS \
