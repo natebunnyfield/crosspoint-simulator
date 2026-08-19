@@ -142,6 +142,53 @@ for a named preset. Nothing dropped under WCAG AA's 4.5:1, and the grain pass is
 not covered by `panel_palette_test`, which is why it went unnoticed. The four
 offered strengths do not go near it.
 
+## A fresh screen every launch
+
+Owner ruling 2026-08-18: *"generate new grain every start of app."*
+
+The seed was a constant, so every install and every launch got the same coating
+— which is the one thing a settled powder never does. It is now rolled once per
+process from `std::random_device` mixed with the tick count, held for the life
+of that process, and re-rolled on the iOS in-process reboot via a
+`simreset::Registrar` (the desktop reboot is `execvp`, so a new process gives it
+a new field for free; without the reset the phone would keep one coating for a
+whole session and the two platforms would disagree about what "start of app"
+means).
+
+Per LAUNCH, never per FRAME. Re-rolling each frame is beam-current noise, a
+different phenomenon, and it makes a still page crawl.
+
+**`CROSSPOINT_SIM_GRAIN_SEED` pins it**, and any repeatable capture needs it:
+with the seed free, two headless runs produce different frames and cannot be
+compared. Verified both ways — two unpinned launches hash differently, two
+launches at seed 12345 hash identically.
+
+## The shipped defaults changed
+
+Owner ruling 2026-08-18, from the settings screen he was actually running. A
+fresh install no longer opens on the historical e-ink page:
+
+| Row | was | now |
+|---|---|---|
+| Palette | Neutral · Default | **CRT · White** — P45 viewfinder, 12.8:1 |
+| Page Fade | Off | **5 min** |
+| Page Fade Depth | Readable (100) | **Dim** (75) |
+| Beam Paint | Off | **67 ms** |
+| Screen Grain | 1× | 1× (unchanged) |
+| Grain Coverage | Even | **Vignette + Mottled** |
+| Blotch Size | 8 | 8 (unchanged) |
+| Blotch Depth | 0.10 | **0.30** |
+
+`panel_palette_test` used to assert the palette default was `kPresetDefault`,
+guarding "an untouched install is pixel-identical." That premise is retired on
+purpose; the assertion now pins `kPresetWhiteCrt` instead, because its real job
+is unchanged — the default must never move by accident, only by decision.
+
+**This is the iOS default only.** The desktop seeds every one of these dials to
+off through its setters (`setPageFade(0)`, `setBeamPaint(0)`, grain at Even),
+which is what keeps the canary and every headless capture rendering what they
+always did.
+
 ## The settings
 
 Two rows, iOS Settings.app only — none of this reaches device firmware.

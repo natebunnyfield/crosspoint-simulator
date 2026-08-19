@@ -18,6 +18,7 @@
 #include <cstring>
 #include <iostream>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -1369,8 +1370,51 @@ static void ensureGhostTexture() {
 // Regenerated only when the rect or either dial changes -- so a page turn costs
 // one textured quad, not 2.4M hash evaluations. It is a property of the glass:
 // it must NOT be re-rolled per frame, or a still page crawls.
+// A FRESH SCREEN EVERY LAUNCH. Owner ruling 2026-08-18: "generate new grain
+// every start of app."
+//
+// The field must not re-roll per FRAME -- that is beam-current noise, a
+// different phenomenon, and it makes a still page crawl. Per LAUNCH is the
+// opposite case: two runs of the app are two screens, and a coating that came
+// out of the box identical every time is the one thing a settled powder never
+// does. Rolled once, lazily, and held for the life of the process.
+//
+// It is registered as a reboot reset so the iOS in-process relaunch re-rolls
+// too. The desktop reboot is execvp and gets a new process (and so a new seed)
+// for free; without the reset the phone would keep one screen across every
+// relaunch of a session and the two platforms would disagree.
+//
+// CROSSPOINT_SIM_GRAIN_SEED pins it, which is what a reproducible capture or a
+// proof sheet needs -- a randomised field makes two runs incomparable.
+static std::atomic<uint32_t> grainSeedValue{0};
+
+static uint32_t grainSeed() {
+  uint32_t s = grainSeedValue.load();
+  if (s != 0) return s;
+  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_SEED")) {
+    char *end = nullptr;
+    const unsigned long parsed = std::strtoul(env, &end, 10);
+    if (end != env) s = static_cast<uint32_t>(parsed);
+  }
+  if (s == 0) {
+    std::random_device rd;
+    s = static_cast<uint32_t>(rd()) ^ (static_cast<uint32_t>(SDL_GetTicks()) << 1);
+  }
+  if (s == 0) s = 0x43524F53u;  // 0 is the "not yet rolled" sentinel
+  grainSeedValue.store(s);
+  return s;
+}
+
+// Re-roll on the iOS in-process reboot. The desktop reboot is execvp and gets a
+// new process, so a fresh field falls out for free there; the phone longjmps
+// into the same one and would otherwise keep a single coating for the whole
+// session, which is the two platforms disagreeing about what "start of app"
+// means.
+const simreset::Registrar gGrainSeedReset{[] { grainSeedValue.store(0); }};
+
 static SDL_Texture *grainTexture = nullptr;
 static int grainTexW = 0, grainTexH = 0;
+static uint32_t grainTexSeed = 0;
 static int grainTexStrength = -1, grainTexCoverage = -1;
 static int grainTexCells = -1, grainTexDepth = -1;
 
@@ -1381,6 +1425,7 @@ static void destroyGrainTexture() {
   grainTexW = grainTexH = 0;
   grainTexStrength = grainTexCoverage = -1;
   grainTexCells = grainTexDepth = -1;
+  grainTexSeed = 0;
 }
 
 // True when there is a field ready to draw over a w x h rect.
@@ -1389,6 +1434,7 @@ static bool ensureGrainTexture(int w, int h) {
   const int coverage = SimulatorOverlay::grainCoverage.load();
   const int cells = SimulatorOverlay::grainMottleCells.load();
   const int depthPct = SimulatorOverlay::grainMottleDepthPct.load();
+  const uint32_t seed = grainSeed();
   if (strength == phosphorgrain::kStrengthOff || w <= 0 || h <= 0 ||
       !sdl_renderer) {
     destroyGrainTexture();
@@ -1396,7 +1442,8 @@ static bool ensureGrainTexture(int w, int h) {
   }
   if (grainTexture && grainTexW == w && grainTexH == h &&
       grainTexStrength == strength && grainTexCoverage == coverage &&
-      grainTexCells == cells && grainTexDepth == depthPct)
+      grainTexCells == cells && grainTexDepth == depthPct &&
+      grainTexSeed == seed)
     return true;
   destroyGrainTexture();
 
@@ -1407,7 +1454,7 @@ static bool ensureGrainTexture(int w, int h) {
     return false;
   }
   const phosphorgrain::Params params{
-      strength, phosphorgrain::clampCoverage(coverage), 0x43524F53u,
+      strength, phosphorgrain::clampCoverage(coverage), seed,
       phosphorgrain::clampMottleCells(cells),
       static_cast<float>(depthPct) / 100.0f};
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
@@ -1438,11 +1485,13 @@ static bool ensureGrainTexture(int w, int h) {
   grainTexCoverage = coverage;
   grainTexCells = cells;
   grainTexDepth = depthPct;
+  grainTexSeed = seed;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
-      SDL_Log("[grain] field %dx%d strength %d coverage %d mottle %d x %.2f", w,
-              h, strength, coverage, cells,
-              static_cast<double>(depthPct) / 100.0);
+      SDL_Log("[grain] field %dx%d strength %d coverage %d mottle %d x %.2f "
+              "seed %u",
+              w, h, strength, coverage, cells,
+              static_cast<double>(depthPct) / 100.0, seed);
   return true;
 }
 

@@ -573,8 +573,14 @@ static void testRootPlist(const char *path) {
            "kPresetInfo[%d] has a null string", i);
   }
 
-  // DefaultValue must be Default. This is the row that decides whether an
-  // untouched install is pixel-identical, and it is one character wide.
+  // DefaultValue must be the SHIPPED default, and it is one character wide.
+  //
+  // It was pinned to Default for as long as the point was that an untouched
+  // install stayed pixel-identical to what this repo always drew. Owner ruling
+  // 2026-08-18 retired that premise deliberately: a fresh install now opens on
+  // CRT White (P45) with the beam, the fade and a mottled vignette already on.
+  // The check stays because its real job is unchanged -- this value must never
+  // move by accident, only by decision.
   const size_t dv = xml.find("<key>DefaultValue</key>", specStart);
   CHECKM(dv != std::string::npos && dv < specEnd,
          "panelPalettePreset has no DefaultValue");
@@ -582,9 +588,9 @@ static void testRootPlist(const char *path) {
     const size_t open = xml.find("<integer>", dv);
     const size_t close = xml.find("</integer>", open);
     CHECKM(std::atoi(xml.substr(open + 9, close - open - 9).c_str()) ==
-               kPresetDefault,
-           "panelPalettePreset DefaultValue must be %d (Default)",
-           kPresetDefault);
+               kPresetWhiteCrt,
+           "panelPalettePreset DefaultValue must be %d (CRT White, P45)",
+           kPresetWhiteCrt);
   }
 
   // The four Custom fields, and their seeded defaults. A seed that does not
