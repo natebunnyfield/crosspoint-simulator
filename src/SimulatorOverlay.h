@@ -251,6 +251,17 @@ void setPanelGlowTail(const unsigned char tint[3]);
 // percentage (0, 3, 10, 30) because that is how Settings.app persists it.
 // Depth 0 is exact: a Mottled coverage then renders byte-for-byte as Even.
 // CROSSPOINT_SIM_GRAIN_MOTTLE_CELLS / _DEPTH override those two.
+// PAGE-TURN FLASH: whether the 1-bit pass is allowed to reach the screen on its
+// own, ahead of the antialiased compose that follows it 13-271 ms later.
+//
+// FALSE is the default and the shipped behaviour: a present is held briefly and
+// released early by the compose, so only the composed frame lands. TRUE restores
+// what the device itself does -- the page arrives twice, and you see the panel's
+// own refresh rather than only its result.
+//
+// CROSSPOINT_SIM_PRESENT_FLASH overrides the argument.
+void setPresentFlash(bool wanted);
+
 void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
                       int mottleDepthHundredths);
 

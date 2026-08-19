@@ -487,13 +487,16 @@ constexpr uint64_t kPresentHoldMs = 30;
 // sit on the previous frame forever.
 constexpr uint64_t kPresentHoldExtendedMs = 2000;
 
-bool presentFlashWanted() {
-  static const bool wanted = [] {
-    const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH");
-    return env && env[0] == '1';
-  }();
-  return wanted;
-}
+// OWNER-SETTABLE as of 2026-08-19, and no longer read once at first use.
+//
+// It was a `static const bool` initialised from the env on first call, which is
+// exactly the shape that cannot become a setting: the first present latches it
+// for the life of the process. Now an atomic, written through
+// SimulatorOverlay::setPresentFlash, with the env still overriding so a headless
+// run can force either behaviour.
+std::atomic<bool> presentFlashFlag{false};
+
+bool presentFlashWanted() { return presentFlashFlag.load(); }
 
 // level: 0 = ink, 255 = paper (the pre-inversion grayscale convention).
 //
@@ -914,6 +917,15 @@ static std::atomic<int> grainMottleCells{phosphorgrain::kMottleCellsDefault};
 static std::atomic<int> grainMottleDepthPct{
     static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f)};
 
+void setPresentFlash(bool wanted) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
+    wanted = env[0] == '1';
+  if (presentFlashFlag.exchange(wanted) == wanted) return;
+  // Repaint rather than wait: the next page turn might be minutes away on an
+  // e-ink firmware, and the owner just changed how one looks.
+  pendingPresent.store(true);
+}
+
 void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
                       int mottleDepthHundredths) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN")) {
@@ -1149,6 +1161,8 @@ void HalDisplay::begin() {
   // Seventh time. Grain's default is NOT off -- it is realistic -- so this call
   // is what makes the desktop render the same screen the phone does, and it is
   // also the only route CROSSPOINT_SIM_GRAIN has to the atomics.
+  // Eighth time. Off is what shipped, so with the var unset this is a no-op.
+  SimulatorOverlay::setPresentFlash(false);
   SimulatorOverlay::setPhosphorGrain(
       phosphorgrain::kStrengthRealistic, phosphorgrain::Even,
       phosphorgrain::kMottleCellsDefault,

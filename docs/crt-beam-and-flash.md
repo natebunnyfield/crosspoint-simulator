@@ -373,3 +373,24 @@ now **4**.
 - `pgrep -f "simctl launch"` matches the waiting shell itself, so wait-loops
   never exit.
 - `simctl io recordVideo` captured 1.6 s and then went black in every run here.
+
+
+## The flash became a setting, 2026-08-19
+
+Owner: *"make that page-turn flash an option in ios settings, if possible"* —
+and *"default to off"*, which is what already shipped.
+
+`Page Turn Flash` sits under Beam Paint: **Off** (the page arrives composed) or
+**On** (the 1-bit pass lands first, like the panel itself). Off is the default,
+so an install that never touches it renders exactly what it rendered before.
+
+One thing had to change to make it possible at all. `presentFlashWanted()` was a
+`static const bool` initialised from `CROSSPOINT_SIM_PRESENT_FLASH` on first
+call — the first present latched it for the life of the process, which is
+exactly the shape a setting cannot have. It is an atomic now, written through
+`SimulatorOverlay::setPresentFlash`, with the env still overriding so a headless
+run can force either behaviour.
+
+Verified end to end on the desktop by counting presents over the same script:
+**3 presents with it off, 5 with it on** — the two extra being the un-coalesced
+1-bit passes, which is the flash itself.

@@ -165,6 +165,26 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Key</key>
+			<string>presentFlash</string>
+			<key>Title</key>
+			<string>Page Turn Flash</string>
+			<key>DefaultValue</key>
+			<integer>0</integer>
+			<key>Titles</key>
+			<array>
+				<string>Off — the page arrives composed</string>
+				<string>On — the 1-bit pass lands first, like the panel itself</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+			</array>
+		</dict>
+		<dict>
 			<key>DefaultValue</key>
 			<integer>100</integer>
 			<key>Key</key>
