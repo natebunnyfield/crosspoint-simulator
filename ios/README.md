@@ -1,5 +1,27 @@
 # CrossPoint X3 on iPhone — iOS harness
 
+## Two rulings, 2026-08-19
+
+**The side rocker is gone, on every device.** Owner: *"for ipad iphone and all
+devices, lose the side button ui."* Nothing is stranded by it —
+`ReaderUtils::detectPageTurn` fires on the FRONT pair as well as the side pair
+(`wasPressed(prevButton)` / `nextButton`, which are Left and Right), so page
+turning stays on the front cluster the pad still draws. The X3's physical side
+buttons are untouched in `HalGPIO`; what went is only their on-glass
+impersonation. The slots keep zero rects rather than being deleted from `g_pad`,
+because the indices are load-bearing across `PadCore`, its test and the
+read-aloud tap path — and `padHitTest` can never match a zero-width rect.
+
+**The keyboard overlaps on every device, tablet included.** Owner: *"when ios
+keyboard is up on ipad, use the iphone pattern for showing/hiding."* This
+reverses the tablet-only lift that stood since 2026-08-10. That lift was argued
+from headroom — a tablet can reserve 400 pt without costing the panel an integer
+scale, where a phone cannot — and the argument was sound but answered the wrong
+question. The page moving is a different interaction from the one the phone
+teaches, and one pattern across the range beats a better pattern on one device.
+The way back is now identical on both: the dismiss bar riding the keyboard, or
+the chip in the pad's bottom row.
+
 A native iOS target for the CrossPoint simulator, scoped to the X3 profile
 (`SIMULATOR_DEVICE_X3`), portrait, CMake + SDL3.
 
