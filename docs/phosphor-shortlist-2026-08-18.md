@@ -86,7 +86,29 @@ the minimum separation to **dE 42.3** while costing half a win of score:
 
 Two warms, a green, a white and a blue, every pair clearly distinct.
 
-## Still open: which PRESET ships for a winning PAGE
+## SETTLED: which preset ships for a winning page
+
+Owner ruling 2026-08-19, decided on the published durations rather than on a
+rendering — a trail cannot be shown in a still, and he chose to go without one.
+
+- **Orange `#FFA472`** — painted by P12 (693 ms), P19 (1095), P33 (2828),
+  P38 (1095), plus P26 absorbed. **P19 ships**, at JEDEC's plain "Long": a ghost
+  that registers on a page turn and is gone before the first line is read. P33's
+  2828 ms — the longest tail in the set — was the provisional pick and was judged
+  too long to read against.
+- **Mint `#00FF97`** — **P22G stays**, at 63 ms over P46's 17 ms. One frame at
+  60 Hz is not a trail, so the two are indistinguishable and the canonical
+  shadow-mask green wins on name alone.
+
+Worth recording, because it makes this a real choice rather than a cosmetic one:
+**the glow ships on, with no setting.** Owner ruling 2026-08-17, "remove setting
+always have it on for crts" — a CRT palette is a claim that the page is a tube,
+and a tube glows, so `pollPanelGlow` derives the trail straight from the preset
+and every non-phosphor palette gets zero.
+
+### The original wording, kept
+
+
 
 The runoff decided pages, not presets, because labels were hidden and decay was
 never rendered. Two winners are painted by more than one preset, differing only
