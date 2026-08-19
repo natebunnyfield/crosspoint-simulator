@@ -878,14 +878,20 @@ inline constexpr PresetInfo kPresetInfo[] = {
     // numbers. NOTHING IS REMOVED -- these six are promoted, the other 46 rows
     // follow in the order they already had.
     //
-    // Two of the six are PROVISIONAL. The runoff hid the labels and never
-    // animated decay, so it chose PAGES, not presets: P33 stands for the
-    // #FFA472 page that P12/P19/P33/P38 all paint (longest tail at 2828 ms, so
-    // with the glow on the choice means something and with it off the four are
-    // identical), and P22G stands for the #00FF97 page it shares with P46.
-    // Settle both with a test that actually renders decay.
+    // The two shared pages are SETTLED (owner ruling 2026-08-19, decided on the
+    // durations rather than on a rendering, since a trail cannot be shown in a
+    // still). The #FFA472 page is painted by P12/P19/P33/P38, differing only in
+    // decay, and P19 represents it at 1095 ms -- JEDEC's plain "Long", a ghost
+    // that registers on a page turn and is gone before the first line is read.
+    // P33's 2828 ms, the longest tail in the set, was the provisional pick and
+    // was judged too long to read against. The #00FF97 page stays P22G at
+    // 63 ms over P46's 17 ms, which is one frame at 60 Hz and therefore no
+    // trail at all.
+    //
+    // The swap left P33 in the tail slot P19 vacated rather than re-deriving
+    // the whole P-number/persistence/hue sort for one row.
     {kPresetAmberCrt, "CRT", "Amber", "P3 phosphor", "P3", "13ms", 13.0f, nullptr},
-    {kPresetP33Crt, "CRT", "Radar Orange Longest", "P33 MgF2:Mn", "P33", "> 1 sec", 1000.0f, nullptr},
+    {kPresetP19Crt, "CRT", "Radar Orange", "P19 (KF,MgF2):Mn", "P19", "Long", 150.0f, nullptr},
     {kPresetP22GCrt, "CRT", "TV Green", "P22G (Zn,Cd)S:Cu,Al", "P22G", "Short", 0.5f, nullptr},
     {kPresetGrayCrt, "CRT", "Gray", "P4 phosphor", "P4",
      "not over 7% of peak after 33 ms", 33.0f, nullptr},
@@ -917,7 +923,7 @@ inline constexpr PresetInfo kPresetInfo[] = {
     {kPresetP16Crt, "CRT", "Violet", "P16 CaMgSi2O6:Ce", "P16", "Very Short", 0.05f, nullptr},
     {kPresetP17Crt, "CRT", "Cascade Yellow", "P17 ZnO,ZnCdS:Cu", "P17", "Blue-Short, Yellow-Long", 150.0f, kCascadeAfterglowYellow},
     {kPresetP18Crt, "CRT", "White Soft", "P18 CaMgSi2O6:Ti, BeSi2O6:Mn", "P18", "Medium to Short", 1.0f, nullptr},
-    {kPresetP19Crt, "CRT", "Radar Orange", "P19 (KF,MgF2):Mn", "P19", "Long", 150.0f, nullptr},
+    {kPresetP33Crt, "CRT", "Radar Orange Longest", "P33 MgF2:Mn", "P33", "> 1 sec", 1000.0f, nullptr},
     {kPresetP20Crt, "CRT", "Yellow-Green Long", "P20 (Zn,Cd)S:Ag or (Zn,Cd)S:Cu", "P20", "1-100 ms", 20.0f, nullptr},
     {kPresetP21Crt, "CRT", "Radar Red", "P21 MgF2:Mn2+", "P21", "not published", 150.0f, nullptr},
     {kPresetRedCrt, "CRT", "Red", "P22R phosphor", "P22R", "Medium", 10.0f, nullptr},
