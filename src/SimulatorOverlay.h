@@ -246,6 +246,12 @@ void setPanelGlowTail(const unsigned char tint[3]);
 // carries the two numbers. CROSSPOINT_SIM_GRAIN and
 // CROSSPOINT_SIM_GRAIN_COVERAGE override the arguments, for a desktop or
 // headless run with no Settings app to reach the control.
-void setPhosphorGrain(int strengthPercent, int coverage);
+// `mottleCells` is how many blotches span the long edge and
+// `mottleDepthHundredths` how hard they swing the grain, as an integer
+// percentage (0, 3, 10, 30) because that is how Settings.app persists it.
+// Depth 0 is exact: a Mottled coverage then renders byte-for-byte as Even.
+// CROSSPOINT_SIM_GRAIN_MOTTLE_CELLS / _DEPTH override those two.
+void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
+                      int mottleDepthHundredths);
 
 } // namespace SimulatorOverlay

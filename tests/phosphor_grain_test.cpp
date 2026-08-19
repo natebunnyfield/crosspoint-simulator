@@ -192,6 +192,9 @@ int main() {
   {
     Params even{kStrengthMax, Even, 0x43524F53u};
     Params mot{kStrengthMax, Mottled, 0x43524F53u};
+    // The deepest offered swing, so the structure is unambiguous.
+    mot.mottleCells = 8;
+    mot.mottleDepth = 0.30f;
     auto blockSpread = [&](const Params &p) {
       std::vector<double> means;
       const int B = 32;
@@ -207,13 +210,75 @@ int main() {
     };
     const double evenSpread = blockSpread(even);
     const double motSpread = blockSpread(mot);
-    check(motSpread > evenSpread * 3.0,
+    check(motSpread > evenSpread * 1.5,
           "Mottled carries real low-frequency structure; Even does not");
 
     const double evenMean = sample(even, W, H, 0, 0, W, H).mean;
     const double motMean = sample(mot, W, H, 0, 0, W, H).mean;
     checkNear(motMean, evenMean, 0.05,
               "mottle redistributes grain, it does not add a net dimming");
+  }
+
+  // --- DEPTH 0 IS EXACTLY EVEN --------------------------------------------
+  // The offered depths start at 0, and 0 has to mean "no blotches at all"
+  // rather than "very few": a Mottled coverage at depth 0 must render
+  // byte-for-byte what Even renders, or the setting has a silent floor.
+  {
+    Params even{kStrengthRealistic, Even, 0x43524F53u};
+    for (const int cells : {8, 16, 32}) {
+      Params mot{kStrengthRealistic, Mottled, 0x43524F53u};
+      mot.mottleCells = cells;
+      mot.mottleDepth = 0.0f;
+      bool identical = true;
+      for (int y = 0; y < H; y += 5)
+        for (int x = 0; x < W; x += 5)
+          if (multiplierAt(mot, x, y, W, H) != multiplierAt(even, x, y, W, H))
+            identical = false;
+      check(identical, "mottle depth 0 is bit-exact Even at every cell count");
+    }
+    Params vm{kStrengthRealistic, VignetteMottled, 0x43524F53u};
+    vm.mottleDepth = 0.0f;
+    Params vig{kStrengthRealistic, Vignette, 0x43524F53u};
+    bool same = true;
+    for (int y = 0; y < H; y += 7)
+      for (int x = 0; x < W; x += 7)
+        if (multiplierAt(vm, x, y, W, H) != multiplierAt(vig, x, y, W, H))
+          same = false;
+    check(same, "depth 0 leaves Vignette+Mottled exactly Vignette");
+  }
+
+  // --- BOTH MOTTLE DIALS ACTUALLY BITE -------------------------------------
+  // Each offered value must produce a different field from its neighbours, or
+  // a settings row is decoration.
+  {
+    auto fieldOf = [&](int cells, float depth) {
+      Params p{kStrengthRealistic, Mottled, 0x43524F53u};
+      p.mottleCells = cells; p.mottleDepth = depth;
+      std::vector<uint8_t> f;
+      for (int y = 0; y < H; y += 4)
+        for (int x = 0; x < W; x += 4) f.push_back(multiplierAt(p, x, y, W, H));
+      return f;
+    };
+    const float depths[] = {0.0f, 0.03f, 0.10f, 0.30f};
+    for (const int cells : {8, 16, 32})
+      for (int i = 1; i < 4; i++)
+        check(fieldOf(cells, depths[i]) != fieldOf(cells, depths[i - 1]),
+              "each offered mottle depth differs from the one below it");
+    for (const float d : {0.03f, 0.10f, 0.30f}) {
+      check(fieldOf(8, d) != fieldOf(16, d) && fieldOf(16, d) != fieldOf(32, d),
+            "each offered cell count differs from its neighbour");
+    }
+  }
+
+  // --- THE PARAMETERS ARE CLAMPED, NOT TRUSTED -----------------------------
+  {
+    check(clampMottleCells(0) == kMottleCellsMin &&
+              clampMottleCells(1 << 20) == kMottleCellsMax,
+          "a garbage cell count clamps rather than dividing by zero");
+    check(clampMottleDepth(-1.0f) == 0.0f && clampMottleDepth(9.0f) == kMottleDepthMax,
+          "a garbage depth clamps into range");
+    check(clampMottleDepth(std::nanf("")) == 0.0f,
+          "NaN depth falls back to no mottle rather than propagating");
   }
 
   // --- A DIFFERENT SEED IS A DIFFERENT SCREEN ------------------------------

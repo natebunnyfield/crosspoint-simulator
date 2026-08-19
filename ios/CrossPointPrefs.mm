@@ -56,6 +56,12 @@ static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
 // way.
 static NSString *const kPhosphorGrainPercent = @"phosphorGrainPercent";
 static NSString *const kPhosphorGrainCoverage = @"phosphorGrainCoverage";
+// The mottle's two dials. Depth is stored in HUNDREDTHS (0, 3, 10, 30) because
+// a picker persists integers and 0 is a real choice — "no blotching" — that
+// -integerForKey: cannot distinguish from an absent key, same trap as the
+// grain strength above.
+static NSString *const kPhosphorGrainMottleCells = @"phosphorGrainMottleCells";
+static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -354,6 +360,30 @@ int CrossPointPrefs_phosphorGrainCoverage(void) {
       [[NSUserDefaults standardUserDefaults] integerForKey:kPhosphorGrainCoverage];
   if (raw < 0) return 0;
   return raw > 3 ? 0 : (int)raw;
+}
+
+int CrossPointPrefs_phosphorGrainMottleCells(void) {
+  ensureDefaults();
+  checkKnown(kPhosphorGrainMottleCells);
+  // Blotches across the long edge. 0 is not offered and would divide the page
+  // into nothing, so -integerForKey:'s 0-for-missing is caught by the clamp.
+  const NSInteger raw = [[NSUserDefaults standardUserDefaults]
+      integerForKey:kPhosphorGrainMottleCells];
+  if (raw < 2) return 8;
+  return raw > 256 ? 256 : (int)raw;
+}
+
+int CrossPointPrefs_phosphorGrainMottleDepth(void) {
+  ensureDefaults();
+  checkKnown(kPhosphorGrainMottleDepth);
+  // Hundredths. Read through -objectForKey: because 0 means "no blotching",
+  // which is a legitimate choice and not the same as never having chosen.
+  NSNumber *v = [[NSUserDefaults standardUserDefaults]
+      objectForKey:kPhosphorGrainMottleDepth];
+  if (![v isKindOfClass:[NSNumber class]]) return 10;
+  const int d = v.intValue;
+  if (d < 0) return 0;
+  return d > 100 ? 100 : d;
 }
 
 int CrossPointPrefs_pageFadeDepthPercent(void) {

@@ -130,6 +130,9 @@ int CrossPointPrefs_pageFadeDepthPercent(void);
 // phosphorgrain::Coverage integer (0 Even, 1 Vignette, 2 Mottled, 3 both).
 int CrossPointPrefs_phosphorGrainPercent(void);
 int CrossPointPrefs_phosphorGrainCoverage(void);
+// Blotch size (cells across the long edge) and blotch depth in HUNDREDTHS.
+int CrossPointPrefs_phosphorGrainMottleCells(void);
+int CrossPointPrefs_phosphorGrainMottleDepth(void);
 
 int CrossPointPrefs_beamPaintMs(void);
 
