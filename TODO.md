@@ -31,26 +31,24 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-101**, uploaded 2026-08-19. Simulator `2bd9518` + firmware
-`f80b140b6`. Recorded because several items below say "SHIPPED, unverified on
-the phone" and there was no one place saying which build to verify them in —
-this block itself sat at build-82 for nineteen builds, which is exactly the
-failure it exists to prevent.
+**build-103**, uploaded 2026-08-19, delivery `2dd50ce8`, 52 MB IPA. Tagged
+`build-103` here. Recorded because several items below say "SHIPPED, unverified
+on the phone" and there was no one place saying which build to verify them in.
 
-Every build from 98 on was cut from a clean firmware worktree pinned at
-`f80b140b6` (`~/src/wt-build98/crosspoint-reader`), because the primary checkout
-was dirty with another session's in-flight work. So 98-101 differ from each
-other ONLY in simulator commits.
+It is simulator `6889eb3` + firmware `c9cff7894`. **This is the first build in
+nineteen whose firmware is current**: 98 through 101 were all cut from a worktree
+pinned at `f80b140b6`, so anything the firmware shipped after that — EPUB tables
+as columns, the rotated wide-table page, the OOM sweeps — was not on the phone at
+all until now.
 
-| build | carries |
-|---|---|
-| 98 | screen grain with its four coverages; dark-mode AA fix; Home page-down selects the last row; palette list sorted P-number/persistence/hue; the six-phosphor shortlist promoted to the head of the picker |
-| 99 | grain covers the whole app surface — pad, bezel and margins, not just the page |
-| 100 | the owner's own settings become the shipped defaults (CRT White, 5 min fade at Dim, 67 ms beam, Vignette + Mottled, blotch depth 0.30); a fresh grain coating every launch |
-| 101 | grain amplitude scaled per palette, from 0.35x on P11 Blue to 1.33x on P4 Gray, with a hard per-page ceiling so no setting can breach the 7:1 floor |
+Two gates fired and both were real, which is what they are for:
 
-**Not yet built**: the 1 px grain cell and P19 replacing P33 as the orange page's
-representative. Both were owner choices made on 2026-08-19.
+* the source set was STALE — `TableColumnLayout.cpp` was compiled on the desktop
+  and absent from the iOS set, so the archive would have failed at the link with
+  an undefined `tablecolumns::planColumns`. Regenerated in `6889eb3`.
+* `CROSSPOINT_SEED_FONTS_DIR` was unset, which would have shipped an app with no
+  `.cpfont` families falling back to built-in Noto. Pointed at `ios/seedfonts`,
+  all six installed families with their 2x cuts.
 
 The build number comes from the highest `build-*` tag plus one, so tags are the
 record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
