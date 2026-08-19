@@ -12,6 +12,15 @@ impersonation. The slots keep zero rects rather than being deleted from `g_pad`,
 because the indices are load-bearing across `PadCore`, its test and the
 read-aloud tap path — and `padHitTest` can never match a zero-width rect.
 
+**POWER stays where it is, and the gap stays.** Asked directly, because
+retiring the rocker left the bottom row with one control on the left and an
+empty right half, and that reads as a draw failure rather than a decision.
+Owner 2026-08-19: leave it. The position is the one approved on 2026-08-02, the
+ask was to lose the rocker rather than to move POWER, and the keyboard chip
+occupies the middle columns whenever a field is open. Centering POWER and
+widening it across the row were both offered and declined; do not re-propose
+either.
+
 **The keyboard overlaps on every device, tablet included.** Owner: *"when ios
 keyboard is up on ipad, use the iphone pattern for showing/hiding."* This
 reverses the tablet-only lift that stood since 2026-08-10. That lift was argued
