@@ -299,17 +299,19 @@ void layoutPadTablet(float W, float H, float S) {
   const float logW = static_cast<float>(HalDisplay::activeHeight());
   const float logH = static_cast<float>(HalDisplay::activeWidth());
   const float outWpx = W * S, outHpx = H * S;
-  // The keyboard eats from the bottom of the usable height, so the centered
-  // panel shrinks and rises rather than sitting under the keys.
+  // THE KEYBOARD OVERLAPS ON EVERY DEVICE NOW, tablet included (owner ruling
+  // 2026-08-19: "when ios keyboard is up on ipad, use the iphone pattern for
+  // showing/hiding").
   //
-  // TABLET ONLY. "Overlap, not shrink" (owner ruling 2026-08-10) is an iPhone
-  // ruling -- see the phone path -- and the reason it does not carry here is
-  // that a tablet has the room. The panel is 1056x1584 device px at 2x, and an
-  // iPad Pro clears that in the ~1900 px left after a 400 pt keyboard, so
-  // reserving the height moves the page up without costing it a single integer
-  // scale. On a phone the same reservation costs one, which is 40% of the text.
-  const float availPx =
-      SDL_max(1.0f, (H - safeTop - safeBottom - g_keyboardHeightPt) * S);
+  // This reverses the tablet-only lift that stood here. That lift was argued
+  // from headroom -- a tablet has the room to reserve 400 pt without costing
+  // the panel an integer scale, where a phone does not -- and the argument was
+  // sound but answered the wrong question. The point is not whether the page
+  // CAN move, it is that the page moving is a different interaction from the
+  // one the phone teaches, and one pattern across the range beats a better
+  // pattern on one device. The way back is the same on both now: the dismiss
+  // bar riding the keyboard, or the chip in the pad's bottom row.
+  const float availPx = SDL_max(1.0f, (H - safeTop - safeBottom) * S);
   float scale = SDL_min(outWpx / logW, availPx / logH);
   if (scale >= 1.0f) scale = SDL_floorf(scale);
   const float panelWpx = logW * scale, panelHpx = logH * scale;
@@ -353,7 +355,7 @@ void layoutPadTablet(float W, float H, float S) {
   // page, so lifting it costs the page nothing. The phone's pad is a band below
   // the page, and lifting that paints controls over the text.
   const float lowerY =
-      H - g_keyboardHeightPt - SDL_max(safeBottom, kHomeInsetMin) - half;
+      H - SDL_max(safeBottom, kHomeInsetMin) - half;
 
   auto place = [&](int idx, float x, float y, float w, float h) {
     g_pad[idx].rect = {x * S, y * S, w * S, h * S};
@@ -377,8 +379,20 @@ void layoutPadTablet(float W, float H, float S) {
   // Beside POWER, in the column the tablet pad leaves empty between the power
   // key and the rocker on the far side.
   g_paletteChip = {(leftX + cell) * S, lowerY * S, cell * S, half * S};
-  place(kPadUp, rightX, lowerY, cell, half);
-  place(kPadDown, rightX + cell, lowerY, cell, half);
+  // THE SIDE ROCKER IS GONE, on every device (owner ruling 2026-08-19: "for
+  // ipad iphone and all devices, lose the side button ui").
+  //
+  // Nothing is stranded by this. ReaderUtils::detectPageTurn fires on the FRONT
+  // pair as well as the side pair -- `input.wasPressed(prevButton)` /
+  // `nextButton`, which are Left/Right -- so page turning stays on the front
+  // cluster, which the pad still draws. The X3's physical side buttons are
+  // untouched in HalGPIO; what goes is only their on-glass impersonation.
+  //
+  // Zero rects rather than deletion from g_pad: the indices are load-bearing
+  // across PadCore, its test and the read-aloud tap path, and padHitTest can
+  // never match a zero-width rect (x < r.x + 0 is false for every x).
+  g_pad[kPadUp].rect = {0, 0, 0, 0};
+  g_pad[kPadDown].rect = {0, 0, 0, 0};
 
   // The keyboard chip, one cell wide and centerd under the page -- the same
   // rule as the phone, in the only horizontal space the tablet's side-margin
@@ -585,8 +599,20 @@ void layoutPad(int outW, int outH) {
   // row rather than two floating controls.
   g_paletteChip = {colX(1) * S, (lowerY + (kCellH - kPowerH)) * S, kSquare * S,
                    kPowerH * S};
-  place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
-  place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
+  // THE SIDE ROCKER IS GONE, on every device (owner ruling 2026-08-19: "for
+  // ipad iphone and all devices, lose the side button ui").
+  //
+  // Nothing is stranded by this. ReaderUtils::detectPageTurn fires on the FRONT
+  // pair as well as the side pair -- `input.wasPressed(prevButton)` /
+  // `nextButton`, which are Left/Right -- so page turning stays on the front
+  // cluster, which the pad still draws. The X3's physical side buttons are
+  // untouched in HalGPIO; what goes is only their on-glass impersonation.
+  //
+  // Zero rects rather than deletion from g_pad: the indices are load-bearing
+  // across PadCore, its test and the read-aloud tap path, and padHitTest can
+  // never match a zero-width rect (x < r.x + 0 is false for every x).
+  g_pad[kPadUp].rect = {0, 0, 0, 0};
+  g_pad[kPadDown].rect = {0, 0, 0, 0};
 
   // The keyboard chip: 48pt square, matching the "Hide keyboard" bar button's
   // size (kButton in CrossPointKeyboardBar.mm -- change one, change the other,
@@ -1620,7 +1646,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // the two targets, and the pressed half shading independently. Up|Down is
   // half-height; the same union/divider math holds because a pair shares y/h.
   const int pairs[3][2] = {
-      {kPadBack, kPadConfirm}, {kPadLeft, kPadRight}, {kPadUp, kPadDown}};
+      {kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
   bool inPair[kPadCount] = {};
   for (const auto &pr : pairs) {
     const SDL_FRect &a = g_pad[pr[0]].rect;
@@ -1661,6 +1687,9 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   for (int i = 0; i < kPadCount; i++) {
     if (inPair[i]) continue;
     const PadButton &b = g_pad[i];
+    // A retired slot has a zero rect and draws nothing. See the side-rocker
+    // ruling in the layout functions.
+    if (b.rect.w <= 0.0f || b.rect.h <= 0.0f) continue;
     setRGB(r, p.hairline);
     fillRoundRect(r, b.rect, radius);
 
