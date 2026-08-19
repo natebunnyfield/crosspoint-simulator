@@ -82,14 +82,26 @@ constexpr int kStrengthMax = 1000;
 // taste anchor with a physical justification, not as a measurement.
 constexpr float kRealisticSigma = 0.035f;
 
-// GRAIN CELL SIZE IN DEVICE PIXELS. Not 1, and the reason is acuity rather than
-// cost: a single phosphor crystal subtends far below what an eye can resolve at
-// any sane viewing distance, so what you actually see on a real tube is the
-// AGGREGATE at the finest scale you can resolve -- not the grains. On a ~460ppi
-// phone a 2px cell is about 0.11 mm, which is where that aggregate lands. A 1px
-// cell renders as a uniform slight dimming, which is exactly the flatness this
-// is here to fix.
-constexpr int kCellPx = 2;
+// GRAIN CELL SIZE IN DEVICE PIXELS. One, by owner ruling 2026-08-19 after
+// looking at 1/2/3/4/6 rendered side by side at the shipped settings.
+//
+// THIS OVERTURNS WHAT THIS COMMENT USED TO SAY, and the old claim is worth
+// keeping visible because it was wrong in a checkable way. It argued for 2 on
+// acuity grounds -- a single crystal subtends far below what an eye resolves,
+// so what you see is the aggregate at the finest resolvable scale -- and then
+// asserted that "a 1px cell renders as a uniform slight dimming, which is
+// exactly the flatness this is here to fix."
+//
+// Measured, it is the opposite. Pixel-to-pixel difference on the White page:
+//
+//   cell   1      2      3      4      6
+//   adj    2.32   1.15   0.77   0.58   0.40
+//
+// 1px has the MOST per-pixel variation, not the least; the aggregate argument
+// was about what the eye integrates, and the eye integrating a field is not the
+// same as the field being flat. The reasoning was plausible and the render
+// disagreed, so the render wins.
+constexpr int kCellPx = 1;
 
 // THE MOTTLE, and both halves of it are now owner-set rather than constants.
 //

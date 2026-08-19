@@ -78,7 +78,7 @@ verified by hash across the change.
 | Constant | Value | Note |
 |---|---|---|
 | `kRealisticSigma` | 0.035 | RMS emission variation at 1x. **CHOSEN, not measured** — see below. |
-| `kCellPx` | 2 | device pixels per grain cell |
+| `kCellPx` | 1 | device pixels per grain cell — owner ruling 2026-08-19 |
 | `kVignetteGain` | 3.0 | corner grain amplitude vs center |
 | `kVignetteDim` / `kVignetteDimMax` | 0.10 / 0.30 | corner dimming at 1x, and its cap |
 | blotch size / depth | owner-set | see below — no longer constants |
@@ -92,10 +92,29 @@ texture is visible on an OLED at arm's length while moving mean luminance by
 0.8σ = 2.8%, inside a rounding step of the page's contrast ratio. It is a taste
 anchor with a physical justification, not a measurement.
 
-`kCellPx` is 2 and not 1 for **acuity**, not cost: a single crystal subtends far
-below what an eye resolves at any sane distance, so what you see on a real tube
-is the aggregate at the finest scale you CAN resolve. A 1px cell renders as a
-uniform slight dimming — the flatness this exists to fix.
+`kCellPx` is **1**, chosen by the owner from five cell sizes rendered side by
+side at the shipped settings — and it overturns what this document used to say.
+
+The old argument was acuity: a single crystal subtends far below what an eye
+resolves, so what you see on a real tube is the aggregate at the finest
+resolvable scale, and therefore a 1px cell "renders as a uniform slight dimming
+— the flatness this exists to fix."
+
+Measured, that last step is simply false. Pixel-to-pixel difference on the White
+page:
+
+| cell | 1 | 2 | 3 | 4 | 6 |
+|---|---|---|---|---|---|
+| adjacent | **2.32** | 1.15 | 0.77 | 0.58 | 0.40 |
+| 5 px apart | 2.31 | 2.29 | 2.29 | 2.27 | 1.92 |
+
+1px has the *most* per-pixel variation, not the least. The aggregate argument was
+about what the eye integrates, and the eye integrating a field is not the same
+as the field being flat. The reasoning was plausible and the render disagreed.
+
+Worth keeping the second row too: structure at 5px is flat through cell 4 and
+only drops at 6, so anything past 4 is removing the effect rather than the
+noise. That is the fact the choice was made against, not in spite of.
 
 `kMaxEffectiveSigma` exists because the two dials otherwise MULTIPLY: at 10x
 under Vignette the corner saw σ = 1.05, every texel there clamped to
