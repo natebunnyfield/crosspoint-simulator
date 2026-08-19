@@ -31,15 +31,26 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-82**, uploaded 2026-08-17, delivery `3f4451a4`, 50 MB. Tagged `build-82`
-here. Recorded because several items below say "SHIPPED, unverified on the
-phone" and there was no one place saying which build to verify them in.
+**build-101**, uploaded 2026-08-19. Simulator `2bd9518` + firmware
+`f80b140b6`. Recorded because several items below say "SHIPPED, unverified on
+the phone" and there was no one place saying which build to verify them in —
+this block itself sat at build-82 for nineteen builds, which is exactly the
+failure it exists to prevent.
 
-It is simulator `2e9e4c3` + firmware `c36dba242`, so on top of build-81 it
-carries `eaaa048` (**landscape on iPad only** — the phone stays portrait, and
-the ruling is in `ios/Info.plist.in`), `46f5204` (tablet pad capsules off the
-screen edges), `6dff792` (OTA rollback shims, update screen kept off iOS) and
-`1a25531` (the real image validator rather than a stub).
+Every build from 98 on was cut from a clean firmware worktree pinned at
+`f80b140b6` (`~/src/wt-build98/crosspoint-reader`), because the primary checkout
+was dirty with another session's in-flight work. So 98-101 differ from each
+other ONLY in simulator commits.
+
+| build | carries |
+|---|---|
+| 98 | screen grain with its four coverages; dark-mode AA fix; Home page-down selects the last row; palette list sorted P-number/persistence/hue; the six-phosphor shortlist promoted to the head of the picker |
+| 99 | grain covers the whole app surface — pad, bezel and margins, not just the page |
+| 100 | the owner's own settings become the shipped defaults (CRT White, 5 min fade at Dim, 67 ms beam, Vignette + Mottled, blotch depth 0.30); a fresh grain coating every launch |
+| 101 | grain amplitude scaled per palette, from 0.35x on P11 Blue to 1.33x on P4 Gray, with a hard per-page ceiling so no setting can breach the 7:1 floor |
+
+**Not yet built**: the 1 px grain cell and P19 replacing P33 as the orange page's
+representative. Both were owner choices made on 2026-08-19.
 
 The build number comes from the highest `build-*` tag plus one, so tags are the
 record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
@@ -51,8 +62,9 @@ record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
 **scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
 
-**Shipped as `Page Fade`**: Off (default) / 15 s / 30 s / 1 min / 2 min / 5 min,
-stored as the duration in seconds. The three design questions this entry raised,
+**Shipped as `Page Fade`**: Off / 15 s / 30 s / 1 min / 2 min / 5 min, stored as
+the duration in seconds. **The default is 5 min as of 2026-08-19** — it shipped
+Off, and the owner's own setting became the shipped default in build 100. The three design questions this entry raised,
 answered:
 
 - **Where does it stop?** At a floor, and any input re-energises it
@@ -173,8 +185,19 @@ full-framebuffer memcmp gets expensive.
 to a legible floor and comes back on interaction; the floor and the clock both
 stated; and a measurement of what it costs per frame on the phone.
 
-### [ST-009] A glow-and-fade option for the CRT palettes
-**scope: ios display · asked 2026-08-17**
+### [ST-009] A glow-and-fade option for the CRT palettes — SHIPPED, unverified on the phone
+**scope: ios display · asked 2026-08-17 · closed 2026-08-19**
+
+**Both halves shipped, and the "option" half was ruled away rather than built.**
+The GLOW is `SimulatorOverlay::setPanelGlow`, driven by `pollPanelGlow` straight
+from the palette preset — there is no switch, by owner ruling 2026-08-17
+("remove setting always have it on for crts"): a CRT palette is a claim that the
+page is a tube, and a tube glows, so the two were never separate choices. Every
+non-phosphor palette gets 0. The FADE shipped separately as ST-010's `Page Fade`.
+
+Trail lengths come from `panelpalette::trailMsForPreset`, which is where the
+crds reference below actually landed — one number per phosphor rather than one
+global alpha.
 
 Owner: "make an option for crts to have a pleasant glow and fade. (use crds web
 phase scope for reference)".
