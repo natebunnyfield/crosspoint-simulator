@@ -38,6 +38,10 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+_Nothing open._ Every entry below has evidence, not just a passing build.
+
+## FIXED
+
 ### [S-015] `test_text_entry.sh` no longer reaches the field it tests — FIXED 2026-08-17
 **severity: medium · scope: tests · found 2026-08-17 · fixed in ac88f12**
 
@@ -76,9 +80,14 @@ switching Home to `RIGHT`. Both arms of case 4 (the daisywheel) and cases 5–6
 Only diagnosed here, not fixed — it surfaced while proving B-028 and repairing
 it is a separate recount.
 
----
+**VERIFIED FIXED 2026-08-18.** Re-run against a clean firmware worktree at
+`f80b140b6` with a seeded `fs_`: PASSES, along with the other three shell tests.
+This entry sat under `## OPEN` while its own title said FIXED, and CLAUDE.md
+went on telling every new session the test was broken — for a day after it was
+not. The lesson is the one at the top of this file pointed the other way: an
+entry also may not STAY open once there is evidence it is fixed.
 
-## FIXED
+---
 
 ### [S-014] The image validator and the flasher are excluded from the simulator build — FIXED 2026-08-16
 **severity: medium · scope: fidelity · found and FIXED 2026-08-16**

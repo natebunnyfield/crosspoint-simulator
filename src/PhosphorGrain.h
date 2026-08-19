@@ -20,11 +20,13 @@
 // that: where there is no light, grain has nothing to take away, so the ground
 // stays exactly the ground.
 //
-// WHY IT IS APPLIED AT PRESENT TIME, IN DEVICE PIXELS. The panel is MINIFIED on
-// a phone (0.7955 on an iPhone Air at 3x). A regular pattern baked into the
-// framebuffer beats against that resample -- measured at 8.14 levels for the
-// selection dither, ST-008. Grain generated at output resolution and drawn 1:1
-// cannot beat against anything, because nothing resamples it.
+// WHY IT IS APPLIED AT PRESENT TIME, IN DEVICE PIXELS, OVER THE WHOLE SURFACE.
+// The panel is MINIFIED on a phone (0.7955 on an iPhone Air at 3x). A regular
+// pattern baked into the framebuffer beats against that resample -- measured at
+// 8.14 levels for the selection dither, ST-008. Grain generated at output
+// resolution and drawn 1:1 cannot beat against anything, because nothing
+// resamples it. It covers the app's whole surface, not just the page: one sheet
+// of glass over the panel, the pad and the bezel alike (owner 2026-08-18).
 //
 // WHY NO BLOOM AND NO SCANLINES. Owner ruling 2026-08-18: halation/glow/bloom
 // spreads light across glyph edges and costs legibility, and scanlines are a

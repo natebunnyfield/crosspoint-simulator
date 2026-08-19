@@ -49,16 +49,29 @@ Turning the dial up is how you texture the ground.
 **Applied at present time, in device pixels, drawn 1:1.** Not baked into the
 1bpp→ARGB conversion. The panel is MINIFIED on a phone (0.7955 on an iPhone Air
 at 3x); a regular field written into the framebuffer beats against that
-resample. A field generated at the presented rect's size and drawn 1:1 is never
-resampled, so it cannot beat against anything. It is also fixed to the GLASS:
-it does not rotate with the orientation, and it does NOT re-roll per frame
-(animated noise is beam-current noise, a different phenomenon, and it would make
-a still page crawl).
+resample. A field generated at the OUTPUT size and drawn 1:1 is never resampled,
+so it cannot beat against anything. It is also fixed to the GLASS: it does not
+rotate with the orientation, and it does NOT re-roll per frame (animated noise
+is beam-current noise, a different phenomenon, and it would make a still page
+crawl).
 
-**It goes on LAST**, over the panel and everything composited into it — the
-beam's swept band, the accumulator's trail, the faded page. That order is the
-physics: all of those are light leaving the phosphor, and the coverage of that
-phosphor decides how much gets out.
+**It goes on LAST, over the WHOLE APP SURFACE** — and "last" includes after the
+overlay. Owner ruling 2026-08-18: *"apply the grain to the ios app background
+too, not just the panel."* It is one sheet of glass. Texturing only the page
+left a grainy rectangle floating on a clean ground, which is the one arrangement
+no physical screen has, so the field now covers the page, the button pad, the
+bezel and the letterbox margins alike.
+
+The ordering that already put it after the beam, the accumulator and the fade
+was the physics — all of those are light leaving the phosphor, and its coverage
+gates them — and extending past the overlay is that same argument applied to the
+chrome the harness paints. A side effect worth knowing: a Vignette now darkens
+the corners of the SCREEN rather than of the page, which is what a vignette
+physically is.
+
+Off-phone this is a no-op. The desktop has no chrome outside the panel, so the
+output rect and the panel rect are the same and the frames are bit-identical —
+verified by hash across the change.
 
 ### Numbers
 
