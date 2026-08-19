@@ -142,6 +142,13 @@ run heap_budget \
 run dispatch_signal \
   c++ -std=c++20 -o "$OUT/dispatch_signal" tests/dispatch_signal_test.cpp
 
+# The desktop's settings file. Every failure mode is a dial that silently does
+# not apply -- a bad line reverting every OTHER dial, a missing key answering 0
+# where 0 is a real choice (grain off, fade off), or the shipped template not
+# parsing to the defaults it documents.
+run sim_settings_file \
+  c++ -std=c++17 -Isrc -o "$OUT/sim_settings_file" tests/sim_settings_file_test.cpp
+
 # The grain field. Every failure mode is a wrong PICTURE -- a field that only
 # darkens is the difference between texture and the page-flash bug class, "off"
 # that is nearly-off instead of bit-exact is a silent change to every install

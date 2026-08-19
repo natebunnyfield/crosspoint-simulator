@@ -570,3 +570,22 @@ quality, refresh behavior, or memory pressure.
 
 > [!WARNING]
 > **Upstream compatibility:** The simulator mirrors interfaces used by Crosspoint. If Crosspoint adds or changes methods in a shared library and the simulator build reaches that code path, the simulator can fail to compile or link until a matching implementation or stub is added here. In many cases this is just a small no-op shim. Open a PR if the change tracks upstream CrossPoint, fills a gap in the emulated Arduino/ESP-IDF layer, or fixes the simulator itself. If the change only matches your own fork's HAL, maintain it in a fork of this repo instead. See [FORKING.md](FORKING.md).
+
+## Settings on the desktop
+
+The Mac and Linux builds read a `settings.json` sitting **beside** the simulated
+SD card — `./settings.json` for a command-line build, and
+`~/Library/Application Support/<AppName>/settings.json` for a Finder-launched
+`.app`. It is written with the shipped defaults on first run, uses the same keys
+as the iOS Settings app, and is re-read about once a second, so an edit applies
+without relaunching.
+
+That covers the page palette, page fade and its depth, beam paint, the page-turn
+flash, all four grain dials and the appearance. Owner ruling 2026-08-19: "mac
+app needs the same settings available to it that ios has (especially page
+color)" — before this, a packaged `.app` could only take those through
+`LSEnvironment` baked in at build time, so changing the page color meant
+rebuilding the bundle.
+
+Comments are allowed even though JSON has no comments, because the file is meant
+to be edited by a person. A malformed line costs that line only.

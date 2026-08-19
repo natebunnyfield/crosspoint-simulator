@@ -10,6 +10,7 @@
 #include "HalGPIO.h"
 #include "SimulatorDocumentOpen.h"
 #include "SimulatorLifecycle.h"
+#include "SimulatorSettingsWatch.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -205,6 +206,9 @@ int main(int argc, char **argv) {
     // times within loop(); edges must survive across those calls and only
     // reset here at the frame boundary.
     gpio.beginFrame();
+    // The desktop's answer to the iOS Settings app: one stat a second, and a
+    // reparse only when the file actually moved.
+    simsettings::pollSettingsFile();
     loop();
     // Pick up a mid-run toggle from the Settings screen. No-op unless the value
     // actually changed; see applyKeepScreenAwake().

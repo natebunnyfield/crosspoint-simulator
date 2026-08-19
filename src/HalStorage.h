@@ -126,3 +126,7 @@ using FsFile = HalFile;
 #ifdef SdMan
 #undef SdMan
 #endif
+
+// Where the simulated SD card lives, for host-side code that needs to put a
+// file NEXT to it (the desktop settings file). Not for firmware use.
+std::string simulatorStorageRootForHost();
