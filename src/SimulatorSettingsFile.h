@@ -83,36 +83,81 @@ inline int intOr(const Values &v, const char *key, int fallback) {
 // The file written on first run, so there is something to edit rather than a
 // blank. Values here are the iOS defaults, so a fresh desktop install and a
 // fresh phone install describe the same app.
-inline const char *defaultsTemplate() {
-  return R"({
-  // CrossPoint simulator — desktop settings. Edited while running; applied
-  // within a second. Same keys as the iOS Settings app.
+// The file written on first run, so there is something to edit rather than a
+// blank. Values are the iOS defaults, so a fresh desktop install and a fresh
+// phone install describe the same app.
+//
+// `paletteComment` is injected rather than hardcoded because the palette list
+// is 52 rows long and lives in kPresetInfo. Spelling it out here would be a
+// second copy that goes stale the first time a preset is appended -- and this
+// header stays free of PanelPalette so it can be host-tested on its own.
+inline std::string defaultsTemplate(const std::string &paletteComment) {
+  return std::string(R"({
+  // CrossPoint simulator - desktop settings. Edited while running and applied
+  // within a second; no relaunch. Same keys as the iOS Settings app.
   //
-  // panelPalettePreset: 21 = CRT White (P45). 1 = the e-ink default.
-  //   Every preset integer is listed in src/PanelPalette.h.
-  "panelPalettePreset": 21,
+  // Every value each key accepts is listed above it. A line you break costs
+  // that line only, and a key you delete falls back to its default.
 
-  // Seconds the page takes to fade after the last input. 0 = off.
+  // ---------------------------------------------------------------- PAGE ---
+)") + paletteComment + R"(  "panelPalettePreset": 21,
+
+  // 1 = dark page, 0 = light. Each palette defines both, so this picks which
+  // half of the chosen preset is drawn.
+  "darkMode": 1,
+
+  // ---------------------------------------------------------------- FADE ---
+  // Seconds the page takes to fade after the last input, the way a phosphor
+  // goes on dimming after the beam has moved on.
+  //   0 = off   15   30   60 = 1 min   120 = 2 min   300 = 5 min
   "pageFadeSeconds": 300,
-  // How much of the legible floor is KEPT: 100 = readable, 0 = transparent.
+
+  // How much of the legible floor is KEPT when it has finished fading.
+  //   100 = readable, stops while you can still read it
+  //    75 = dim, past readable but plainly still there
+  //    50 = ghost, the shape of the page rather than the words
+  //    25 = faint, only just visible
+  //     0 = fully transparent, the page disappears
   "pageFadeDepthPercent": 75,
 
-  // Milliseconds for the beam to sweep a new page in. 0 = arrives at once.
+  // ---------------------------------------------------------------- BEAM ---
+  // Milliseconds for the beam to sweep a new page in from the top. A CRT does
+  // not swap pictures, it draws them.
+  //   0 = off, arrives at once      17 = 60 Hz, a real field sweep
+  //   33 = 30 Hz, just visible      67 = slow enough to watch
+  //   150 = deliberate              300 = a wipe, not a tube
   "beamPaintMs": 67,
-  // 1 = let the 1-bit pass reach the screen ahead of the composed one.
+
+  // Whether the 1-bit pass may reach the screen ahead of the antialiased
+  // compose that follows it. An antialiased page is painted twice; normally
+  // only the composed frame lands.
+  //   0 = off, the page arrives composed
+  //   1 = on, the 1-bit pass lands first, like the panel itself
   "presentFlash": 0,
 
-  // Screen grain. 0, 30, 100 or 300 (percent of realistic).
+  // --------------------------------------------------------------- GRAIN ---
+  // The screen is a settled layer of phosphor crystals with uneven coverage.
+  // Strength as a percentage of what a real one has.
+  //   0 = off   30 = 0.3x, barely there   100 = 1x, realistic   300 = 3x
+  // The amplitude is scaled per palette on top of this: a page with less
+  // contrast to spare gets less coating.
   "phosphorGrainPercent": 100,
-  // 0 Even, 1 Vignette, 2 Mottled, 3 both.
-  "phosphorGrainCoverage": 3,
-  // Blotches across the page: 8, 16 or 32.
-  "phosphorGrainMottleCells": 8,
-  // Blotch depth in hundredths: 0, 3, 10 or 30.
-  "phosphorGrainMottleDepth": 30,
 
-  // 1 = dark page, 0 = light.
-  "darkMode": 1
+  // How the grain is spread across the screen.
+  //   0 = Even, coated uniformly
+  //   1 = Vignette, grainier at the rim with dimmed corners
+  //   2 = Mottled, blotchy the way a coating settles
+  //   3 = both
+  "phosphorGrainCoverage": 3,
+
+  // Blotches across the page, for the mottled coverages.
+  //   8 = large   16 = medium   32 = small
+  "phosphorGrainMottleCells": 8,
+
+  // How hard those blotches swing the grain, in hundredths.
+  //   0 = off, no blotching at all       3 = 0.03, a suggestion
+  //   10 = 0.10, visible                30 = 0.30, plainly a coated surface
+  "phosphorGrainMottleDepth": 30
 }
 )";
 }

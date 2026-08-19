@@ -21,7 +21,14 @@ int main() {
   // read, so a comment or a trailing brace that broke it would ship a file that
   // describes settings it does not apply.
   {
-    const Values v = parse(defaultsTemplate());
+    // The injected palette list is a COMMENT block, so a template built with one
+    // must parse to exactly the same values as one built without. That is the
+    // property worth pinning: a 52-row comment that swallowed a key would be
+    // invisible until someone noticed a dial no longer applied.
+    const Values v = parse(defaultsTemplate(""));
+    const Values withList = parse(defaultsTemplate(
+        "  // 6 = CRT Green (P1 phosphor)\n  // 21 = CRT White (P45)\n"));
+    check(v == withList, "the palette comment block changes no value");
     check(intOr(v, "panelPalettePreset", -1) == 21, "template: palette 21");
     check(intOr(v, "pageFadeSeconds", -1) == 300, "template: fade 300 s");
     check(intOr(v, "pageFadeDepthPercent", -1) == 75, "template: depth 75");

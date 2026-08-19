@@ -38,12 +38,40 @@ std::string settingsPath() {
   return parent + "/settings.json";
 }
 
+// Every palette, as a comment block, generated from kPresetInfo so it cannot
+// go stale the way a hand-written list of 52 rows would. The order is
+// kPresetInfo's own -- the shortlist first, then the families -- which is also
+// the order the iOS picker and the firmware's cycle button use.
+std::string paletteComment() {
+  std::string out =
+      "  // The page's two tones. Every preset below; the integer is what is\n"
+      "  // stored, and it never changes meaning even when the list is\n"
+      "  // reordered. Rows marked * are the shortlist at the head of the\n"
+      "  // iOS picker. A CRT preset also switches the page to emissive and\n"
+      "  // gives it that phosphor's glow.\n";
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
+    char line[220];
+    const float trail = panelpalette::trailMsForPreset(info.preset);
+    if (trail > 0.0f)
+      std::snprintf(line, sizeof line, "  //%s%4d = %s %s (%s, %.0f ms trail)\n",
+                    i < 6 ? " *" : "  ", info.preset, info.family, info.name,
+                    info.note, static_cast<double>(trail));
+    else
+      std::snprintf(line, sizeof line, "  //%s%4d = %s %s (%s)\n",
+                    i < 6 ? " *" : "  ", info.preset, info.family, info.name,
+                    info.note);
+    out += line;
+  }
+  return out;
+}
+
 void writeTemplateIfMissing(const std::string &path) {
   struct stat st{};
   if (stat(path.c_str(), &st) == 0) return;
   FILE *f = std::fopen(path.c_str(), "w");
   if (!f) return;
-  std::fputs(defaultsTemplate(), f);
+  std::fputs(defaultsTemplate(paletteComment()).c_str(), f);
   std::fclose(f);
   SDL_Log("[settings] wrote a starting file at %s", path.c_str());
 }
