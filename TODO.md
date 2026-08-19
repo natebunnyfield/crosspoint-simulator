@@ -302,6 +302,39 @@ written about the iPad layout BEFORE those three fixes. **Nobody knows whether
 they survived**, because the tablet pad and the keyboard lift are iOS-only and
 nothing off-phone renders them.
 
+**2026-08-19, from an attempt to produce that screenshot: the iPad SIMULATOR
+renders this after all.** The entry says nothing off-phone renders the tablet pad
+and the keyboard lift. That is half wrong, and the half that is right is narrower
+than it looked:
+
+* The app builds, installs and runs on an iPad simulator, is drivable with
+  `CROSSPOINT_SIM_INPUT_SCRIPT` through `SIMCTL_CHILD_`, and screenshots with
+  `xcrun simctl io <udid> screenshot`. `ios/mockups/ipad-create-note-2026-08-19.png`
+  is a real 2064x2752 capture of Create Note on an iPad Pro 13 — the real code,
+  the real tablet layout, not a drawing. Two of the three overlap areas (the pad
+  capsules against the panel, and the panel's own margins) can be judged from it.
+* **What it does NOT show is the iOS SYSTEM keyboard**, which is the condition
+  this entry actually turns on. Create Note on the iPad draws the firmware's own
+  key grid; the system keyboard never rose, with a hardware keyboard connected or
+  disconnected, and a scripted `TAP` into the text area did not raise it either.
+  So the keyboard-lift question is still unanswered, and the pad-under-keyboard
+  overlap cannot be judged from this capture.
+
+**Worth knowing before the next attempt:** why the system keyboard does not rise
+under `simctl` is itself unknown — it may need a real touch, or the harness may
+raise it only on a path the input script does not reach. That is the thing to
+find out; the capture pipeline itself works and is repeatable:
+
+```
+cmake -B build/ios-app -G Xcode -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCROSSPOINT_FIRMWARE_DIR=$HOME/src/crosspoint-reader -DCROSSPOINT_BUILD_FIRMWARE=ON
+cmake --build build/ios-app --config Debug --target CrossPointX3
+xcrun simctl install <udid> build/ios-app/ios/Debug-iphonesimulator/CrossPointX3.app
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='6000:RIGHT;...;10000:CONFIRM' \
+  xcrun simctl launch --terminate-running-process <udid> com.natebunnyfield.crosspoint.x3
+```
+
 **Agreed close-out, owner 2026-08-19:** an iPad screenshot — portrait, Create
 Note, keyboard up, dark, matching the 2026-08-08 evidence so the two compare
 directly. Check the three overlap areas against it, fix whatever survived, close
