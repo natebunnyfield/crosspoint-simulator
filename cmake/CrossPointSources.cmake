@@ -4,14 +4,14 @@
 # `pio run -e simulator -t compiledb`. Regenerate after any firmware change that
 # adds, removes, or renames a translation unit.
 #
-# firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 994b3d5282d3ba6850bbe4260d8e2ba6b9057039
-# TU counts  : 132 firmware, 23 simulator (6 C, 149 C++)
+# firmware   : /Users/natebunnyfield/src/wt-build98/crosspoint-reader
+# pinned at  : c9cff7894d1fb38392a4f520c28bfba09c2e68ae
+# TU counts  : 133 firmware, 23 simulator (6 C, 150 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "994b3d5282d3ba6850bbe4260d8e2ba6b9057039")
+set(CROSSPOINT_FIRMWARE_PIN "c9cff7894d1fb38392a4f520c28bfba09c2e68ae")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -72,6 +72,7 @@ set(CROSSPOINT_FW_SOURCES
   lib/Epub/Epub/parsers/ContainerParser.cpp
   lib/Epub/Epub/parsers/ContentOpfParser.cpp
   lib/Epub/Epub/parsers/TableCellLabel.cpp
+  lib/Epub/Epub/parsers/TableColumnLayout.cpp
   lib/Epub/Epub/parsers/TocNavParser.cpp
   lib/Epub/Epub/parsers/TocNcxParser.cpp
   lib/FsHelpers/FsHelpers.cpp
