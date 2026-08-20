@@ -1655,8 +1655,14 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // notch where two rounded squares would meet), a hairline divider marking
   // the two targets, and the pressed half shading independently. Up|Down is
   // half-height; the same union/divider math holds because a pair shares y/h.
-  const int pairs[3][2] = {
-      {kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
+  // TWO pairs, and the dimension must say two. It said three while listing two
+  // -- left over from when Up|Down was the third -- so the trailing row
+  // zero-initialised to {0, 0}, and kPadBack is 0. That painted a whole extra
+  // capsule over the Back half of the left rocker, with a divider tick at that
+  // half's own edge: the rocker's line stopped looking centred, which is
+  // exactly what it looked like on the phone. Sized from the initialiser now,
+  // so removing a pair can never leave a phantom one behind again.
+  const int pairs[][2] = {{kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
   bool inPair[kPadCount] = {};
   for (const auto &pr : pairs) {
     const SDL_FRect &a = g_pad[pr[0]].rect;
