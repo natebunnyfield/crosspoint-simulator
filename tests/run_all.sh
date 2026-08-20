@@ -74,6 +74,13 @@ cd "$REPO"
 run pad_core \
   c++ -std=c++17 -Iios -o "$OUT/pad_core" tests/pad_core_test.cpp ios/PadCore.cpp
 
+# The three-finger tap that toggles zen. Pure, because the real thing needs SDL,
+# a window and UIKit multitouch -- and the harness's own input script cannot
+# drive it, since its TAP feeds the FIRMWARE's touch state rather than SDL
+# finger events. Without this the toggle would ship on a code reading alone.
+run zen_gesture \
+  c++ -std=c++17 -Iios -o "$OUT/zen_gesture" tests/zen_gesture_test.cpp
+
 # Reads ios/Settings.bundle/Root.plist from the repo root -- hence the `cd`
 # above -- and cross-checks every row label against the tone that row selects.
 run pad_palette \
