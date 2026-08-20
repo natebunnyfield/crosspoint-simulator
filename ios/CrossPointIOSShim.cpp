@@ -51,6 +51,7 @@
 // timestamp together, so a hold expressed by a finger survives all the way down.
 
 #include "CrossPointHarness.h"
+#include "ZenGesture.h"
 
 #include <SDL3/SDL.h>
 
@@ -1901,15 +1902,14 @@ Uint64 g_tapDownAt = 0;
 // Tracked by count rather than by identity because iOS does not promise the
 // three arrive in any order, and the middle finger of a real three-finger tap
 // often lands a frame after its neighbours.
-int g_zenFingersDown = 0;   // active now
-int g_zenPeakFingers = 0;   // most that were down at once this gesture
-bool g_zenGestureLive = false;
-bool g_zenMoved = false;    // any finger travelled: not a tap
+// The detector itself lives in ZenGesture.h, pure and unit-tested
+// (tests/zen_gesture_test.cpp). It is a separate file for exactly one reason:
+// this function cannot be tested -- it needs SDL, a window and UIKit delivering
+// real multitouch -- and the rule it enforces has to be provable off-device.
+// Writing it here first is how the four-finger roll got in; the test caught it
+// within a minute of the extraction.
+zengesture::Detector g_zenDetector;
 float g_zenLastX = 0.0f, g_zenLastY = 0.0f;
-
-// Slop in device pixels. Generous: three fingers on glass roll slightly as they
-// lift, and a stricter budget rejected real taps in testing.
-constexpr float kZenSlopPx = 44.0f;
 
 // Finger coordinates arrive normalized; the pad needs pixels, and the harness
 // does not own the renderer, so it asks the window the event came from.
@@ -1933,10 +1933,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       const float fx = e->tfinger.x * outW, fy = e->tfinger.y * outH;
 
       g_windowId = e->tfinger.windowID;
-      g_zenFingersDown++;
-      g_zenPeakFingers = SDL_max(g_zenPeakFingers, g_zenFingersDown);
-      if (g_zenPeakFingers == 1) g_zenMoved = false;
-      g_zenGestureLive = true;
+      g_zenDetector.fingerDown(fx, fy);
       g_zenLastX = fx;
       g_zenLastY = fy;
 
@@ -1970,12 +1967,8 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // Any travel at all disqualifies the three-finger tap. Checked against the
       // finger's own landing point, not a shared one, so one drifting finger
       // cancels the gesture without the other two masking it.
-      if (windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
-        const float mx = e->tfinger.x * outW, my = e->tfinger.y * outH;
-        if (SDL_fabsf(mx - g_zenLastX) > kZenSlopPx ||
-            SDL_fabsf(my - g_zenLastY) > kZenSlopPx)
-          g_zenMoved = true;
-      }
+      if (windowPixelSize(e->tfinger.windowID, &outW, &outH))
+        g_zenDetector.fingerMoved(e->tfinger.x * outW, e->tfinger.y * outH);
 
       // Dragging off a control cancels it, matching how a system button behaves
       // and how a real key behaves when your thumb slides off it.
@@ -2000,20 +1993,15 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_zenLastX = e->tfinger.x * outW;
         g_zenLastY = e->tfinger.y * outH;
       }
-      g_zenFingersDown = SDL_max(0, g_zenFingersDown - 1);
-      if (g_zenFingersDown == 0 && g_zenGestureLive) {
-        const int peak = g_zenPeakFingers;
-        const bool moved = g_zenMoved;
-        g_zenPeakFingers = 0;
-        g_zenGestureLive = false;
-        g_zenMoved = false;
-
+      {
         const SDL_FRect &q = g_zenPanel;
-        const bool onPage = q.w > 0 && g_zenLastX >= q.x && g_zenLastX < q.x + q.w &&
-                            g_zenLastY >= q.y && g_zenLastY < q.y + q.h;
+        const zengesture::Rect page{q.x, q.y, q.w, q.h};
+        const bool cancelled = e->type == SDL_EVENT_FINGER_CANCELED;
+        const bool wasLast = g_zenDetector.activeFingers() == 1;
+        const bool toggled =
+            g_zenDetector.fingerUp(g_zenLastX, g_zenLastY, page, cancelled);
 
-        // THE TOGGLE. Three fingers, no travel, last one lifted on the page.
-        if (peak == 3 && !moved && onPage && e->type == SDL_EVENT_FINGER_UP) {
+        if (toggled) {
           g_zen = !g_zen;
           g_padLaidOut = false;  // the band changes, so the page must be refitted
           SDL_Log("[zen] %s", g_zen ? "on" : "off");
@@ -2022,19 +2010,19 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           break;
         }
 
-        // ZEN ZONES, resolved on the last finger up. One finger only: a
-        // two-finger rest should not turn a page.
-        if (g_zen && peak == 1 && !moved && e->type == SDL_EVENT_FINGER_UP) {
+        // ZEN ZONES. One finger, no travel, and only on the last lift -- a
+        // two-finger rest must not turn a page.
+        if (g_zen && wasLast && !cancelled) {
           const float third = q.w / 3.0f;
           const bool leftThird = g_zenLastX < q.x + third;
+          const bool onPage = page.contains(g_zenLastX, g_zenLastY);
           uint8_t button;
           const char *what;
           if (g_zenLastY < q.y) {
             button = HalGPIO::BTN_POWER;
             what = "power";
           } else if (onPage) {
-            // Left third goes back, the remaining two thirds go forward: the
-            // common direction gets the bigger target.
+            // The common direction gets the bigger target.
             button = leftThird ? HalGPIO::BTN_LEFT : HalGPIO::BTN_RIGHT;
             what = leftThird ? "page back" : "page forward";
           } else {

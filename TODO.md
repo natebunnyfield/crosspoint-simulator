@@ -121,12 +121,24 @@ without him:**
    makes zen look different is the pad disappearing. Recorded because "raises
    up to" sounds like a bigger change than it is, and the capture shows it.
 
-**Unverified, and it is the half that matters most: the gesture itself.** The
-harness's `CROSSPOINT_SIM_INPUT_SCRIPT` cannot drive it — its `TAP` feeds the
-FIRMWARE's touch state (`HalGPIO::beginTouch`), not SDL finger events, so it
-never reaches the pad watcher — and `simctl` cannot inject multi-touch. So
-`CROSSPOINT_SIM_ZEN=1` exists to start in zen and capture the layout, and
-whether three fingers actually toggle it is a device question.
+**The gesture's RULE is now tested; its DELIVERY still is not.** The decision —
+what counts as a three-finger tap — is a pure state machine in
+`ios/ZenGesture.h`, covered by `tests/zen_gesture_test.cpp` (10 checks, in
+`run_all.sh`). The shim calls that same unit, so the tested path and the shipped
+path are one thing.
+
+**Extracting it immediately found a false positive that a code reading had
+missed:** a hand ROLLING across the page — one finger lifting while two more
+land — passes through a peak of three without ever being a three-finger tap, and
+fired zen. The rule now counts fingers that took part, not just the peak, and a
+four-finger roll is rejected. That bug was in the version already shipped in
+build-106.
+
+What remains unverifiable here is only whether iOS delivers three simultaneous
+finger events to this watcher at all: `CROSSPOINT_SIM_INPUT_SCRIPT` cannot drive
+it (its `TAP` feeds the FIRMWARE's touch state, not SDL finger events) and
+`simctl` cannot inject multitouch. `CROSSPOINT_SIM_ZEN=1` starts in zen so the
+layout can still be captured.
 
 **Done looks like:** a three-finger tap on the page toggles zen on a real phone,
 and each of the five zones does what it says.
