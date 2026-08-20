@@ -31,6 +31,11 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
+**build-105**, uploaded 2026-08-19, delivery `1cd474e8`. Tagged `build-105`
+here. It **puts the side rocker back** (`409b3c9`): 103 and 104 both shipped
+without it, because `62b1ae5` cut it that morning under a ruling that turned out
+to be about the e-ink panel's drawn hints rather than the pad's real control.
+
 **build-104**, uploaded 2026-08-19, delivery `96c11ad4`. Tagged `build-104`
 here. It adds one fix over 103: [S-017], the Back|Select rocker's divider
 sitting hard left instead of centred — reported from the phone, and caused by
@@ -59,6 +64,24 @@ The build number comes from the highest `build-*` tag plus one, so tags are the
 record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
 
 ---
+
+## Standing ruling: the iOS pad's side rocker stays
+
+**2026-08-19.** `62b1ae5` retired the on-glass Up|Down rocker on every device
+under "for ipad iphone and all devices, lose the side button ui". `409b3c9` put
+it back the same day, on the owner's word, and it is not to be cut again without
+a ruling that names THIS control specifically.
+
+The confusion is worth keeping, because the two things sound identical and are
+not:
+
+| | What it is | Status |
+|---|---|---|
+| The firmware's side-button HINTS | drawn labels on the e-ink page, naming what the physical buttons do | removed, [T-011] |
+| The iOS pad's side ROCKER | an actual touch control, and on iOS the pad is the only input there is | **stays** |
+
+A ruling about the first is not a ruling about the second. Removing the second
+is removing capability, which is keep-and-ask.
 
 ## OPEN
 
