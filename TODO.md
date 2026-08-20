@@ -31,6 +31,11 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
+**build-106**, uploaded 2026-08-19, delivery `d4600ee7`. Tagged `build-106`.
+Carries **zen reading mode** ([ST-011] — three-finger tap on the page) and the
+**dark-mode fix** ([S-018] — the iOS appearance and CrossPoint's own Dark Mode no
+longer disagree, and the setting finally sticks).
+
 **build-105**, uploaded 2026-08-19, delivery `1cd474e8`. Tagged `build-105`
 here. It **puts the side rocker back** (`409b3c9`): 103 and 104 both shipped
 without it, because `62b1ae5` cut it that morning under a ruling that turned out
