@@ -1,6 +1,7 @@
 #include "CrossPointPrefs.h"
 
 #include "PanelPalette.h"
+#include "PhosphorGrain.h"
 
 #import <UIKit/UIKit.h>
 
@@ -58,13 +59,19 @@ static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
 // like the fade depth, for the same reason. The coverage's 0 is Even, which is
 // both the shipped default and a legitimate value, so it is harmless either
 // way.
-static NSString *const kPhosphorGrainPercent = @"phosphorGrainPercent";
+// Split per appearance 2026-08-19. The single `phosphorGrainPercent` it
+// replaces is deliberately NOT migrated: the owner asked for these two defaults
+// by name, so carrying a stored single value into both would override the thing
+// he just asked for. The old key is left in place rather than deleted -- it
+// costs nothing, and reading it later is the only way to answer "what was it
+// before" if anyone asks.
+static NSString *const kPhosphorGrainPercentLight = @"phosphorGrainPercentLight";
+static NSString *const kPhosphorGrainPercentDark = @"phosphorGrainPercentDark";
 static NSString *const kPhosphorGrainCoverage = @"phosphorGrainCoverage";
 // The mottle's two dials. Depth is stored in HUNDREDTHS (0, 3, 10, 30) because
 // a picker persists integers and 0 is a real choice — "no blotching" — that
 // -integerForKey: cannot distinguish from an absent key, same trap as the
 // grain strength above.
-static NSString *const kPhosphorGrainMottleCells = @"phosphorGrainMottleCells";
 static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
@@ -333,9 +340,11 @@ int CrossPointPrefs_pageFadeSeconds(void) {
   return s > 600 ? 600 : s;
 }
 
-int CrossPointPrefs_phosphorGrainPercent(void) {
+int CrossPointPrefs_phosphorGrainPercent(int dark) {
   ensureDefaults();
-  checkKnown(kPhosphorGrainPercent);
+  NSString *const key =
+      dark ? kPhosphorGrainPercentDark : kPhosphorGrainPercentLight;
+  checkKnown(key);
   // Stored as a PERCENTAGE OF REALISTIC, the meaningful value itself rather
   // than a row index -- so the picker can gain steps without re-pointing what
   // an existing install already chose. 100 is realistic and is the default; 0
@@ -345,9 +354,10 @@ int CrossPointPrefs_phosphorGrainPercent(void) {
   // the two cannot otherwise be told apart. The wrong answer on an install
   // whose defaults never registered would be a flat screen for an owner who
   // never turned grain off.
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kPhosphorGrainPercent];
-  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  NSNumber *v = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+  // The fallback is per appearance too: a missing key must not drop a dark
+  // screen to the light strength, which is most of the way to flat.
+  if (![v isKindOfClass:[NSNumber class]]) return dark ? 160 : 60;
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 1000 ? 1000 : pct;
@@ -366,17 +376,6 @@ int CrossPointPrefs_phosphorGrainCoverage(void) {
   return raw > 3 ? 0 : (int)raw;
 }
 
-int CrossPointPrefs_phosphorGrainMottleCells(void) {
-  ensureDefaults();
-  checkKnown(kPhosphorGrainMottleCells);
-  // Blotches across the long edge. 0 is not offered and would divide the page
-  // into nothing, so -integerForKey:'s 0-for-missing is caught by the clamp.
-  const NSInteger raw = [[NSUserDefaults standardUserDefaults]
-      integerForKey:kPhosphorGrainMottleCells];
-  if (raw < 2) return 8;
-  return raw > 256 ? 256 : (int)raw;
-}
-
 int CrossPointPrefs_phosphorGrainMottleDepth(void) {
   ensureDefaults();
   checkKnown(kPhosphorGrainMottleDepth);
@@ -384,7 +383,8 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) {
   // which is a legitimate choice and not the same as never having chosen.
   NSNumber *v = [[NSUserDefaults standardUserDefaults]
       objectForKey:kPhosphorGrainMottleDepth];
-  if (![v isKindOfClass:[NSNumber class]]) return 30;
+  if (![v isKindOfClass:[NSNumber class]])
+    return (int)(phosphorgrain::kMottleDepthDefault * 100.0f);
   const int d = v.intValue;
   if (d < 0) return 0;
   return d > 100 ? 100 : d;

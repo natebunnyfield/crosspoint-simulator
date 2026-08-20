@@ -63,6 +63,7 @@
 #include "ChevronCoverage.h"
 #include "CrossPointKeyboardBar.h"
 #include "PanelPrefs.h"
+#include "PhosphorGrain.h"
 // The firmware owns the Dark Mode SETTING; the system owns the APPEARANCE.
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
@@ -1295,7 +1296,7 @@ void pollPhosphorGrain() {
   // arrive by different routes and both have to land.
   const int strength = CrossPointPrefs_phosphorGrainPercent(g_dark ? 1 : 0);
   const int coverage = CrossPointPrefs_phosphorGrainCoverage();
-  const int cells = CrossPointPrefs_phosphorGrainMottleCells();
+  const int cells = phosphorgrain::kMottleCellsDefault;
   const int depth = CrossPointPrefs_phosphorGrainMottleDepth();
   if (strength == s_strength && coverage == s_coverage && cells == s_cells &&
       depth == s_depth)

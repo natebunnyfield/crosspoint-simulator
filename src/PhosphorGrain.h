@@ -113,8 +113,13 @@ constexpr int kCellPx = 1;
 // ruling 2026-08-18: cells 8/16/32, depth 0/0.03/0.1/0.3.
 //
 // Depth 0 is exact: it makes a Mottled coverage render byte-for-byte as Even.
-constexpr int kMottleCellsDefault = 8;
-constexpr float kMottleDepthDefault = 0.10f;
+// 5, owner ruling 2026-08-20, and no longer settable -- the picker row went
+// with it. The count is a texture property rather than a taste one: it decides
+// the SIZE of the blotches relative to the page, and a reader who moves it is
+// changing how big the paper's fibres look, which is not a question anyone
+// wanted asked twice.
+constexpr int kMottleCellsDefault = 5;
+constexpr float kMottleDepthDefault = 0.90f;  // owner ruling 2026-08-20
 constexpr int kMottleCellsMin = 2;
 constexpr int kMottleCellsMax = 256;
 constexpr float kMottleDepthMax = 1.0f;

@@ -150,14 +150,11 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   3 = both
   "phosphorGrainCoverage": 3,
 
-  // Blotches across the page, for the mottled coverages.
-  //   8 = large   16 = medium   32 = small
-  "phosphorGrainMottleCells": 8,
-
-  // How hard those blotches swing the grain, in hundredths.
+  // How hard the blotches swing the grain, in hundredths. Their SIZE is not
+  // settable -- see kMottleCellsDefault.
   //   0 = off, no blotching at all       3 = 0.03, a suggestion
-  //   10 = 0.10, visible                30 = 0.30, plainly a coated surface
-  "phosphorGrainMottleDepth": 30
+  //   10 = 0.10, visible                90 = 0.90, plainly a coated surface
+  "phosphorGrainMottleDepth": 90
 }
 )";
 }

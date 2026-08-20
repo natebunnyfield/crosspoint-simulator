@@ -336,3 +336,28 @@ strength, so the left side was true and the coverage **was never stored**. Two
 separate `bool`s now. Nothing but comparing the rendered frames could see it:
 the setter was called, the log line printed the right coverage, and the atomic
 silently kept its old value.
+
+## The blotch settings, 2026-08-20
+
+Owner ruling, verbatim: *"default to 5 phosphorGrainMottleCells, remove that as
+a setting, fix presentFlash (it didn't work on my first try), default
+phosphorGrainMottleDepth to 90."*
+
+| | was | now |
+|---|---|---|
+| `kMottleCellsDefault` | 8 | **5**, and no longer settable |
+| `kMottleDepthDefault` | 0.10 | **0.90** |
+
+**Cells is gone from both settings surfaces** — the `Root.plist` row and the
+`settings.json` template key — not just defaulted. The count decides the SIZE of
+the blotches relative to the page, which is a property of the paper rather than
+a taste dial; depth (how hard they swing the grain) stays settable and is where
+the taste lives. `clampMottleCells` and the min/max constants stay, because the
+value still has to be sane where it is used.
+
+Removing a settable value means the getter goes too: `CrossPointPrefs_-
+phosphorGrainMottleCells` was deleted rather than left orphaned, and both
+callers now read `phosphorgrain::kMottleCellsDefault` directly.
+
+`sim_settings_file_test` asserts the template no longer carries the key, so a
+re-added row fails the suite instead of quietly reappearing.
