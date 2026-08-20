@@ -85,6 +85,48 @@ is removing capability, which is keep-and-ask.
 
 ## OPEN
 
+### [ST-011] Zen reading mode — BUILT 2026-08-19, gesture unverified off-device
+**scope: ios display · asked 2026-08-19 · built the same day**
+
+Owner: "a zen reader mode… toggleable by a single three finger tap on the panel.
+in it the page background raises up to 0px above the top row of rocker buttons
+(stick to 8px grid, and use rounded corners). in zen mode, tapping on the left
+third of the panel moves back a page, and the right two thirds moves forward a
+page, above the panel is power button, below the panel is Select button for the
+right two thirds and Back button is left third."
+
+**Built.** Three-finger tap toggles; the pad stops drawing AND stops
+hit-testing; the page grows down to the top rocker row; its bottom corners are
+rounded with the same n=2.8 squircle the top pair already uses; and the screen
+becomes three zones — above the page POWER, the page itself left-third back /
+right-two-thirds forward, below the page left-third Back / right-two-thirds
+Select. Captures: `ios/mockups/zen-mode-2026-08-19.png` (on) and
+`zen-mode-off-2026-08-19.png`.
+
+**Two things the owner should know, because both are judgement calls made
+without him:**
+
+1. **0 px and the 8 pt grid cannot both hold.** On an iPhone 13 mini the top row
+   starts 170 pt from the bottom, and 170 is not a multiple of 8. The band is
+   CEILED to the grid, so the page stops **6 pt above** the row rather than
+   exactly on it — erring on the side that never covers the row. He asked for
+   both; the grid was the one he said to stick to.
+2. **The page moves only 8 pt.** It already reached to within 8 pt of the top
+   row, so raising it to the row buys almost nothing visually — what actually
+   makes zen look different is the pad disappearing. Recorded because "raises
+   up to" sounds like a bigger change than it is, and the capture shows it.
+
+**Unverified, and it is the half that matters most: the gesture itself.** The
+harness's `CROSSPOINT_SIM_INPUT_SCRIPT` cannot drive it — its `TAP` feeds the
+FIRMWARE's touch state (`HalGPIO::beginTouch`), not SDL finger events, so it
+never reaches the pad watcher — and `simctl` cannot inject multi-touch. So
+`CROSSPOINT_SIM_ZEN=1` exists to start in zen and capture the layout, and
+whether three fingers actually toggle it is a device question.
+
+**Done looks like:** a three-finger tap on the page toggles zen on a real phone,
+and each of the five zones does what it says.
+
+
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
 **scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
 

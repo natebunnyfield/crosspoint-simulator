@@ -156,7 +156,13 @@ bool g_padLaidOut = false;
 // The thirds are the point: the controls are gone, so every remaining target is
 // enormous and none of them is ambiguous. Everything comes back on the next
 // three-finger tap.
-bool g_zen = false;
+// CROSSPOINT_SIM_ZEN=1 starts in zen. The three-finger gesture cannot be driven
+// from CROSSPOINT_SIM_INPUT_SCRIPT -- its TAP feeds the FIRMWARE's touch state
+// (HalGPIO::beginTouch), not SDL finger events, so it never reaches this file --
+// and simctl cannot inject multi-touch either. Without this hook the zen LAYOUT
+// could not be captured off-device at all, and the geometry is the half that
+// has pixels to check.
+bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 // The page's rect on the last present, in device pixels -- the zen hit-test
 // needs it, and it is the same rect the pad already anchors to.
 SDL_FRect g_zenPanel{};
@@ -650,10 +656,21 @@ void layoutPad(int outW, int outH) {
   // minus panelGap, so the rows keep defining the stop even though nothing
   // draws them. Snapped to the 8 pt grid the rest of the pad is built on, so a
   // fractional panelGap cannot drag the page off it.
-  const float zenBand = kCellH + kRowClear + kCellH + bottomInset;
-  const float band = g_zen ? SDL_roundf(zenBand / 8.0f) * 8.0f
+  // Derived from the row itself, not rebuilt from the parts: reconstructing it
+  // as cells + clears + inset produced a band 10pt short and the page overlapped
+  // the row, which the log caught. upperY IS the top row's top edge, so the band
+  // that puts the page exactly there is H - upperY.
+  //
+  // CEIL to the 8pt grid, never round: rounding down would push the page back
+  // over the row, and "0px above" has a side it is allowed to err on.
+  const float zenBand = SDL_ceilf((H - upperY) / 8.0f) * 8.0f;
+  const float band = g_zen ? zenBand
                            : (panelGap + kCellH + kRowClear + kCellH + bottomInset);
   SimulatorOverlay::setBottomInset(static_cast<int>(band * S));
+  // The zen geometry claim, in numbers: the page's bottom must land exactly
+  // where the top rocker row begins. midY is that row's top edge in points.
+  SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt pageBottom=%.1fpt gap=%.1fpt",
+          g_zen ? "on " : "off", band, upperY, H - band, (H - band) - upperY);
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
