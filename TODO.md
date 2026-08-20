@@ -31,6 +31,9 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
+**build-107**, uploaded 2026-08-19. Tagged `build-107`. Fixes the zen gesture's
+false positive: a hand rolling across the page fired zen in 106.
+
 **build-106**, uploaded 2026-08-19, delivery `d4600ee7`. Tagged `build-106`.
 Carries **zen reading mode** ([ST-011] — three-finger tap on the page) and the
 **dark-mode fix** ([S-018] — the iOS appearance and CrossPoint's own Dark Mode no
