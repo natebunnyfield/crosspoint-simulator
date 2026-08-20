@@ -167,6 +167,14 @@ bool g_zen = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
 // The page's rect on the last present, in device pixels -- the zen hit-test
 // needs it, and it is the same rect the pad already anchors to.
 SDL_FRect g_zenPanel{};
+// The top rocker row's top edge in device pixels, 8pt-grid snapped: how far the
+// paper reaches in zen. Published by layoutPad so the painter and the hit test
+// read one number.
+float g_zenRowTopPx = 0.0f;
+// The PAPER in zen -- the page plus the strip below it, down to that row. The
+// zen zones are measured against this rather than the page, so the thirds line
+// up with what the reader can actually see.
+SDL_FRect g_zenPaper{};
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -652,26 +660,24 @@ void layoutPad(int outW, int outH) {
   // (kSquare + kHalf) to (kCellH + kCellH). On iPhone 13 mini this adds
   // ~28 pt to the band. The panel has enough vertical headroom that its
   // integer scale is unaffected.
-  // ZEN: the page grows down until its bottom edge meets where the TOP rocker
-  // row begins -- 0 pt of gap, per the ruling. That is exactly the normal band
-  // minus panelGap, so the rows keep defining the stop even though nothing
-  // draws them. Snapped to the 8 pt grid the rest of the pad is built on, so a
-  // fractional panelGap cannot drag the page off it.
-  // Derived from the row itself, not rebuilt from the parts: reconstructing it
-  // as cells + clears + inset produced a band 10pt short and the page overlapped
-  // the row, which the log caught. upperY IS the top row's top edge, so the band
-  // that puts the page exactly there is H - upperY.
-  //
-  // CEIL to the 8pt grid, never round: rounding down would push the page back
-  // over the row, and "0px above" has a side it is allowed to err on.
-  const float zenBand = SDL_ceilf((H - upperY) / 8.0f) * 8.0f;
-  const float band = g_zen ? zenBand
-                           : (panelGap + kCellH + kRowClear + kCellH + bottomInset);
+  // ZEN DOES NOT RESIZE THE PAGE (owner ruling 2026-08-19: "do not resize with
+  // zen"). The first version shrank this band so the page itself grew down to
+  // the row -- but that re-fits the panel, and on a phone the fit is a
+  // FRACTIONAL minification of the 3x framebuffer, so zen quietly changed how
+  // every pixel of the page was resampled (measured: 0.6212 -> 0.6818).
+  // What zen extends is the PAPER, painted below the page in paintPad. The
+  // page's own geometry is byte-identical in both modes.
+  const float band = panelGap + kCellH + kRowClear + kCellH + bottomInset;
   SimulatorOverlay::setBottomInset(static_cast<int>(band * S));
-  // The zen geometry claim, in numbers: the page's bottom must land exactly
-  // where the top rocker row begins. midY is that row's top edge in points.
-  SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt pageBottom=%.1fpt gap=%.1fpt",
-          g_zen ? "on " : "off", band, upperY, H - band, (H - band) - upperY);
+
+  // How far the paper reaches in zen: the top rocker row's top edge, in device
+  // pixels, SNAPPED DOWN to the 8pt grid. Flooring is what keeps it off the row
+  // -- it can only move the edge up, never past.
+  const float gridPx = 8.0f * S;
+  g_zenRowTopPx = SDL_floorf((upperY * S) / gridPx) * gridPx;
+  SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
+          g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
+          SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
@@ -1284,7 +1290,10 @@ void pollPhosphorGrain() {
   static int s_coverage = -1;
   static int s_cells = -1;
   static int s_depth = -1;
-  const int strength = CrossPointPrefs_phosphorGrainPercent();
+  // Reads the ACTIVE appearance's value, so the poll's own comparison below
+  // repaints on a light/dark flip as well as on a settings change -- the two
+  // arrive by different routes and both have to land.
+  const int strength = CrossPointPrefs_phosphorGrainPercent(g_dark ? 1 : 0);
   const int coverage = CrossPointPrefs_phosphorGrainCoverage();
   const int cells = CrossPointPrefs_phosphorGrainMottleCells();
   const int depth = CrossPointPrefs_phosphorGrainMottleDepth();
@@ -1499,14 +1508,32 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
 // Apple's own display mask (the derivation is in paintTopBezel and is not
 // repeated). A different radius or a circle here would be visible precisely
 // because the two pairs sit on one rectangle.
-void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel) {
+// The panel's own paper tone -- the page's background, which on a CRT palette is
+// nothing like the pad's field. panelpalette resolves the pair; this is its
+// light/dark half for the appearance in force.
+void setRGBFromPanelPaper(SDL_Renderer *r) {
+  // currentPanel() already resolves the pair for the appearance in force, and
+  // `paper` is what a fully-white source pixel becomes -- i.e. the page's own
+  // background, which is exactly what the strip has to match.
+  const panelpalette::Palette pal = currentPanel(g_dark);
+  SDL_SetRenderDrawColor(r, pal.paper[0], pal.paper[1], pal.paper[2], 255);
+}
+
+void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
+                       bool intoBlack) {
   if (panel.w <= 0.0f || panel.h <= 0.0f) return;
   constexpr float kCornerExponent = 2.8f;
   const float rad = SDL_min(8.0f * g_ptScale, panel.w / 2.0f);
-  // `field` is the tone behind both the panel and the pad -- painting the corner
-  // slivers in it is what makes them read as absent rather than as dark patches.
-  const Palette &p = palette();
-  setRGB(r, p.field);
+  // A fillet must be painted in whatever the corner is being cut OUT of: the
+  // field normally, black in zen, where the surround below the paper is black by
+  // ruling. The wrong one leaves two pale nicks on a dark screen, which reads as
+  // a rendering fault rather than as a corner.
+  if (intoBlack) {
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+  } else {
+    const Palette &p = palette();
+    setRGB(r, p.field);
+  }
   const int rows = static_cast<int>(rad);
   const float bottom = panel.y + panel.h;
   for (int i = 0; i < rows; i++) {
@@ -1748,11 +1775,36 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
                 static_cast<float>(SimulatorOverlay::panelHeightPx())};
 
   if (g_zen) {
-    // Nothing below the page draws in zen -- no capsules, no chips, no keyboard
-    // chip. The page's TOP corners are already rounded by paintTopBezel; its
-    // bottom pair now matters too, because the page no longer runs into the pad
-    // there. Same squircle, same radius, same reasoning -- see paintTopBezel.
-    paintBottomFillets(r, outW, g_zenPanel);
+    // Nothing below the page draws in zen -- no capsules, no chips.
+    //
+    // THE PAPER ENDS at the old top-rocker line, and everything below it is
+    // BLACK (owner ruling 2026-08-19). That is a CONTRACTION of the paper, not
+    // an extension: left alone the paper tone runs to the bottom of the screen,
+    // because the pad's field matches the page's paper by design -- measured on
+    // an iPhone Air, page (215,233,211) against field (215,233,211), no edge
+    // anywhere on the screen. Black is what gives the paper an edge to have
+    // corners on, and on an OLED it is the darkest a night page can be.
+    const SDL_FRect &q = g_zenPanel;
+    g_zenPaper = q;
+    const float line = g_zenRowTopPx > 0.0f ? g_zenRowTopPx : q.y + q.h;
+
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    const SDL_FRect below{0.0f, line, static_cast<float>(outW),
+                          static_cast<float>(outH) - line};
+    if (below.h > 0.0f) SDL_RenderFillRect(r, &below);
+
+    // The paper reaches that line: the page, plus the strip between the page's
+    // bottom edge and the line. The PAGE is never resized -- its fit is
+    // identical in both modes, which is the point of doing it this way.
+    if (line > q.y + q.h) {
+      g_zenPaper.h = line - q.y;
+      const SDL_FRect strip{q.x, q.y + q.h, q.w, line - (q.y + q.h)};
+      setRGBFromPanelPaper(r);
+      SDL_RenderFillRect(r, &strip);
+    }
+
+    // Top corners belong to paintTopBezel; the bottom pair is cut out of black.
+    paintBottomFillets(r, outW, g_zenPaper, /*intoBlack=*/true);
     return;
   }
 
@@ -1994,6 +2046,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_zenLastY = e->tfinger.y * outH;
       }
       {
+        // The gesture still has to land on the PAGE -- that is where the
+        // owner asked for it, and it keeps a stray three-finger grab on the
+        // margins from toggling. The zen ZONES below are wider; see there.
         const SDL_FRect &q = g_zenPanel;
         const zengesture::Rect page{q.x, q.y, q.w, q.h};
         const bool cancelled = e->type == SDL_EVENT_FINGER_CANCELED;
@@ -2013,12 +2068,18 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // ZEN ZONES. One finger, no travel, and only on the last lift -- a
         // two-finger rest must not turn a page.
         if (g_zen && wasLast && !cancelled) {
-          const float third = q.w / 3.0f;
-          const bool leftThird = g_zenLastX < q.x + third;
-          const bool onPage = page.contains(g_zenLastX, g_zenLastY);
+          // EDGE TO EDGE (owner ruling 2026-08-19: "extend tap target of panel
+          // zen button to edges of screen"). The thirds are measured across the
+          // whole SCREEN, not the page -- the margins beside the page are dead
+          // space otherwise, and a thumb reaching the far edge should still turn
+          // a page. Only the vertical bounds come from the paper.
+          const SDL_FRect &paper = g_zenPaper.h > 0 ? g_zenPaper : q;
+          const float third = outW / 3.0f;
+          const bool leftThird = g_zenLastX < third;
+          const bool onPage = g_zenLastY >= paper.y && g_zenLastY < paper.y + paper.h;
           uint8_t button;
           const char *what;
-          if (g_zenLastY < q.y) {
+          if (g_zenLastY < paper.y) {
             button = HalGPIO::BTN_POWER;
             what = "power";
           } else if (onPage) {
