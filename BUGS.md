@@ -111,6 +111,42 @@ different pieces of code and the report as it stands fits all three.
 
 ## FIXED
 
+### [S-017] The Back|Select rocker's divider sits hard left, not centred — FIXED 2026-08-19
+**severity: medium · scope: ios display · reported from the phone 2026-08-19**
+
+Owner, with a screenshot: "the left and center of it messed up. seems like the
+dividing line stopped being centered… Back and Select rocker has a dividing line
+on its left instead of centered."
+
+**A phantom third pair, left behind by today's side-rocker removal.** `paintPad`
+declares its rocker list as
+
+```
+const int pairs[3][2] = {{kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
+```
+
+— dimension **three**, two initialisers. The trailing row zero-initialises to
+`{0, 0}`, and `kPadBack` is 0 (`CrossPointIOSShim.cpp:121`). So the loop ran a
+third time with `a == b ==` the Back cell, painting an entire extra capsule over
+the left rocker's Back half and a divider tick at *that half's* own edge. The
+result reads exactly as reported: the seam on the left rocker is at the quarter
+point rather than the middle.
+
+Before today it was harmless — `Up|Down` was the third pair, and the array was
+full. The ruling "lose the side button UI on all devices" removed that pair from
+the initialiser and left the dimension at 3, which is what turned a correct
+array into a self-overdraw.
+
+**Fixed** by sizing from the initialiser, `const int pairs[][2]`, so removing a
+pair can never leave a phantom one again.
+
+**Verified by measurement, not by eye**, on an iPhone simulator in the same green
+CRT palette as the report: left rocker edges 46-375 with its divider at 210
+against a true centre of 210 (**0 px off**), right rocker 704-1033 with its
+divider at 869 against 868. Capture kept at
+`ios/mockups/pad-divider-centred-2026-08-19.png`.
+
+
 ### [S-015] `test_text_entry.sh` no longer reaches the field it tests — FIXED 2026-08-17
 **severity: medium · scope: tests · found 2026-08-17 · fixed in ac88f12**
 
