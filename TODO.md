@@ -31,6 +31,11 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
+**build-104**, uploaded 2026-08-19, delivery `96c11ad4`. Tagged `build-104`
+here. It adds one fix over 103: [S-017], the Back|Select rocker's divider
+sitting hard left instead of centred — reported from the phone, and caused by
+today's own side-rocker removal leaving a phantom third pair in `paintPad`.
+
 **build-103**, uploaded 2026-08-19, delivery `2dd50ce8`, 52 MB IPA. Tagged
 `build-103` here. Recorded because several items below say "SHIPPED, unverified
 on the phone" and there was no one place saying which build to verify them in.
