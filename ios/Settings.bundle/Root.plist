@@ -186,16 +186,18 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>100</integer>
+			<integer>60</integer>
 			<key>Key</key>
-			<string>phosphorGrainPercent</string>
+			<string>phosphorGrainPercentLight</string>
 			<key>Title</key>
-			<string>Screen Grain</string>
+			<string>Screen Grain — Light</string>
 			<key>Titles</key>
 			<array>
 				<string>Off — a perfectly even screen</string>
 				<string>0.3× — barely there</string>
+				<string>0.6× — a light tooth</string>
 				<string>1× — realistic</string>
+				<string>1.6× — coarse</string>
 				<string>3× — visibly grainy</string>
 			</array>
 			<key>Type</key>
@@ -204,7 +206,37 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<array>
 				<integer>0</integer>
 				<integer>30</integer>
+				<integer>60</integer>
 				<integer>100</integer>
+				<integer>160</integer>
+				<integer>300</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>160</integer>
+			<key>Key</key>
+			<string>phosphorGrainPercentDark</string>
+			<key>Title</key>
+			<string>Screen Grain — Dark</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — a perfectly even screen</string>
+				<string>0.3× — barely there</string>
+				<string>0.6× — a light tooth</string>
+				<string>1× — realistic</string>
+				<string>1.6× — coarse</string>
+				<string>3× — visibly grainy</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>30</integer>
+				<integer>60</integer>
+				<integer>100</integer>
+				<integer>160</integer>
 				<integer>300</integer>
 			</array>
 		</dict>
@@ -232,29 +264,7 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>3</integer>
 			</array>
 		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Key</key>
-			<string>phosphorGrainMottleCells</string>
-			<key>Title</key>
-			<string>Blotch Size</string>
-			<key>DefaultValue</key>
-			<integer>8</integer>
-			<key>Titles</key>
-			<array>
-				<string>Large — 8 across the page</string>
-				<string>Medium — 16 across</string>
-				<string>Small — 32 across</string>
-			</array>
-			<key>Values</key>
-			<array>
-				<integer>8</integer>
-				<integer>16</integer>
-				<integer>32</integer>
-			</array>
-		</dict>
-		<dict>
+				<dict>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>Key</key>
@@ -262,7 +272,7 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			<key>Title</key>
 			<string>Blotch Depth</string>
 			<key>DefaultValue</key>
-			<integer>30</integer>
+			<integer>90</integer>
 			<key>Titles</key>
 			<array>
 				<string>Off — no blotching at all</string>

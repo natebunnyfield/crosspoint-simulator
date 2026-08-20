@@ -128,10 +128,13 @@ int CrossPointPrefs_pageFadeDepthPercent(void);
 // PHOSPHOR GRAIN. Strength as a percentage of what a real settled-powder screen
 // has: 0 is off, 100 is realistic and the default, 1000 is 10x. Coverage is a
 // phosphorgrain::Coverage integer (0 Even, 1 Vignette, 2 Mottled, 3 both).
-int CrossPointPrefs_phosphorGrainPercent(void);
+// PER APPEARANCE, like the pad's contrast pair beside it (owner 2026-08-19).
+// The same grain reads very differently on a black page and a white one: what
+// is a whisper on paper is invisible on a dark screen, so one number cannot
+// serve both. `dark` is 0 for light, 1 for dark. Defaults: 60 light, 160 dark.
+int CrossPointPrefs_phosphorGrainPercent(int dark);
 int CrossPointPrefs_phosphorGrainCoverage(void);
 // Blotch size (cells across the long edge) and blotch depth in HUNDREDTHS.
-int CrossPointPrefs_phosphorGrainMottleCells(void);
 int CrossPointPrefs_phosphorGrainMottleDepth(void);
 
 int CrossPointPrefs_beamPaintMs(void);

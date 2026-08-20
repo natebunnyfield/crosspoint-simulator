@@ -469,6 +469,14 @@ std::atomic<char> lastPixelWriter{'?'};
 // wants the device's process rather than its result.
 constexpr uint64_t kPresentHoldMs = 30;
 
+// How long a flash stays on screen once presentFlash asks for one. The
+// composed pass is only 13-22 ms behind the 1-bit pass, and presents run
+// continuously at ~15 ms, so WITHOUT a deadline the flash is one or two frames
+// -- which is what "it didn't work" was: it fired every time, too briefly to
+// register. 70 ms is ~4 frames at 60 Hz and reads as a blink.
+constexpr uint64_t kPresentFlashMs = 70;
+std::atomic<uint64_t> presentFlashUntil{0};
+
 // AND THE EXTENSION, which is the half that makes this work at 3x.
 //
 // 30 ms was measured against an 800x480 panel, where a compose takes 13-22 ms.
@@ -577,8 +585,13 @@ void renderBwPixels(const uint8_t *fb) {
     }
   }
   lastPixelWriter.store('B');
-  if (!presentFlashWanted())
+  if (presentFlashWanted()) {
+    // Show this pass, and set the deadline the compose below will wait for.
+    presentFlashUntil.store(SDL_GetTicks() + kPresentFlashMs);
+    presentHoldUntil.store(0);
+  } else {
     presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
+  }
   pendingPresent.store(true);
 }
 
@@ -608,6 +621,16 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
 
 void composeGrayscalePreview() {
   const uint64_t composeStart = SDL_GetTicks();
+  // ARM THE HOLD BEFORE ANY PIXEL IS WRITTEN. The compose overwrites pixelBuf
+  // IN PLACE, so by the time the tail runs the flash frame is already gone and
+  // holding there freezes the NEW page instead -- measured 2026-08-20: the
+  // 1-bit frame presented at 12175 ms and the composed one at 12190, with the
+  // 64 ms hold landing after it. Setting it here suppresses every present from
+  // the first overwritten pixel to the deadline, which is the flash's length.
+  {
+    const uint64_t flashUntil = presentFlashUntil.load();
+    if (flashUntil > composeStart) presentHoldUntil.store(flashUntil);
+  }
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
@@ -681,7 +704,11 @@ void composeGrayscalePreview() {
               (unsigned long long)(SDL_GetTicks() - composeStart),
               HalDisplay::activeWidth(), HalDisplay::activeHeight());
   lastPixelWriter.store('G');
-  presentHoldUntil.store(0);
+  // The composed frame WAITS OUT the flash. Holding it here is the whole
+  // mechanism: the 1-bit frame is already on screen and the idle repaints keep
+  // re-presenting it, so suppressing this one is what gives the flash length.
+  const uint64_t flashUntil = presentFlashUntil.load();
+  if (flashUntil <= SDL_GetTicks()) presentHoldUntil.store(0);
   pendingPresent.store(true);
 }
 

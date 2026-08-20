@@ -394,3 +394,69 @@ run can force either behaviour.
 Verified end to end on the desktop by counting presents over the same script:
 **3 presents with it off, 5 with it on** — the two extra being the un-coalesced
 1-bit passes, which is the flash itself.
+
+## 6. The flash fired every time and still "didn't work" (2026-08-20)
+
+Owner, on build-108: *"fix presentFlash (it didn't work on my first try)."*
+
+He was right, and the earlier "verified end to end, 3 presents off / 5 on" in
+section 1 was also right. Both, at once: the setting produced its extra
+presents, and the flash was still invisible.
+
+### What was actually wrong
+
+Presents run **continuously at ~15 ms** — idle repaints for the beam and the
+grain, not just on new content. Against that, the numbers that mattered are:
+
+| | 1-bit pass presented | how long it stays |
+|---|---|---|
+| flash off | never — the 30 ms coalescing hold swallows it | — |
+| flash on, before this fix | yes | **~15 ms, one frame** |
+| flash on, after | yes | **73 ms, measured** |
+
+The compose lands only 13–22 ms behind the 1-bit pass, so "don't hold the 1-bit
+frame" bought a single frame at 60 Hz and less at 120. `presentFlash` had no
+deadline of its own — it only *declined* the hold — so there was nothing to make
+the flash last.
+
+### The fix
+
+`kPresentFlashMs = 70`, and `presentFlashUntil` armed by the 1-bit pass. The
+composed frame then waits out that deadline instead of replacing the flash on
+the next repaint.
+
+**Arm the hold at the TOP of `composeGrayscalePreview()`, before any pixel is
+written.** The compose overwrites `pixelBuf` in place, so a present landing
+mid-compose already shows composed pixels: holding at the tail freezes the NEW
+page for 70 ms and lets the flash through in one frame — exactly backwards, and
+measured that way at 12175/12190 ms before the placement was fixed.
+
+### Evidence
+
+```
+CROSSPOINT_SIM_LOG_PRESENTS=1 CROSSPOINT_SIM_PRESENT_FLASH=$fl \
+CROSSPOINT_SIM_INPUT_SCRIPT='4000:ENTER;12000:QTAP:RIGHT;18000:QUIT' \
+SDL_VIDEODRIVER=dummy .pio/build/simulator/program
+```
+```
+FLASH=1  1-bit frame presented at 12171 ms, on screen 73 ms
+FLASH=0  no 1-bit frame ever presented at the page turn
+```
+
+### Two instruments that lied, both worth knowing
+
+* **`lastPixelWriter` is sticky.** Every idle repaint carries the tag of the
+  last writer, so "time from the last B-tagged present to the first G-tagged
+  one" measures COMPOSE LATENCY, not how long a frame is on screen. It reads
+  14–25 ms whatever the hold does, which is why an early version of this fix
+  looked like it changed nothing. Use the **mean luma** column: the 1-bit frame
+  (47.7) is distinct from both the old page (43.4) and the composed one (50.3).
+* **A sampled counter hides a small effect.** The `[hold] suppressed %d` line
+  printed every 25th suppression, so a hold that suppressed 4 frames printed
+  `suppressed 1` — indistinguishable from a hold that never engaged, which is
+  what it was misread as. Removed rather than fixed; the present timeline shows
+  the gap directly.
+
+Still **UNCONFIRMED on the phone** — 73 ms is a headless measurement of when
+pixels are handed to SDL, and whether it reads as a page-turn blink is a
+device-feel question.

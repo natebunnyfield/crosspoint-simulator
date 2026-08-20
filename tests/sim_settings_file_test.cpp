@@ -36,8 +36,9 @@ int main() {
     check(intOr(v, "presentFlash", -1) == 0, "template: flash off");
     check(intOr(v, "phosphorGrainPercent", -1) == 100, "template: grain 100");
     check(intOr(v, "phosphorGrainCoverage", -1) == 3, "template: coverage 3");
-    check(intOr(v, "phosphorGrainMottleCells", -1) == 8, "template: cells 8");
-    check(intOr(v, "phosphorGrainMottleDepth", -1) == 30, "template: depth 30");
+    check(!v.count("phosphorGrainMottleCells"),
+          "template: blotch SIZE is not a setting any more");
+    check(intOr(v, "phosphorGrainMottleDepth", -1) == 90, "template: depth 90");
     check(intOr(v, "darkMode", -1) == 1, "template: dark");
   }
 

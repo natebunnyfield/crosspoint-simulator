@@ -118,8 +118,9 @@ void apply(const Values &v) {
   SimulatorOverlay::setPhosphorGrain(
       intOr(v, "phosphorGrainPercent", phosphorgrain::kStrengthRealistic),
       intOr(v, "phosphorGrainCoverage", phosphorgrain::Even),
-      intOr(v, "phosphorGrainMottleCells", phosphorgrain::kMottleCellsDefault),
-      intOr(v, "phosphorGrainMottleDepth", 10));
+      phosphorgrain::kMottleCellsDefault,
+      intOr(v, "phosphorGrainMottleDepth",
+            (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
 }
 
 }  // namespace
