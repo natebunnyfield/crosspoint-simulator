@@ -379,20 +379,14 @@ void layoutPadTablet(float W, float H, float S) {
   // Beside POWER, in the column the tablet pad leaves empty between the power
   // key and the rocker on the far side.
   g_paletteChip = {(leftX + cell) * S, lowerY * S, cell * S, half * S};
-  // THE SIDE ROCKER IS GONE, on every device (owner ruling 2026-08-19: "for
-  // ipad iphone and all devices, lose the side button ui").
-  //
-  // Nothing is stranded by this. ReaderUtils::detectPageTurn fires on the FRONT
-  // pair as well as the side pair -- `input.wasPressed(prevButton)` /
-  // `nextButton`, which are Left/Right -- so page turning stays on the front
-  // cluster, which the pad still draws. The X3's physical side buttons are
-  // untouched in HalGPIO; what goes is only their on-glass impersonation.
-  //
-  // Zero rects rather than deletion from g_pad: the indices are load-bearing
-  // across PadCore, its test and the read-aloud tap path, and padHitTest can
-  // never match a zero-width rect (x < r.x + 0 is false for every x).
-  g_pad[kPadUp].rect = {0, 0, 0, 0};
-  g_pad[kPadDown].rect = {0, 0, 0, 0};
+  // THE SIDE ROCKER STAYS. Retired on 2026-08-19 under "for ipad iphone and all
+  // devices, lose the side button ui", and RESTORED the same day when the owner
+  // saw it missing: he had called this control "the critically important side
+  // rocker in the ios sim" hours earlier, and the ruling it was cut under was
+  // about the e-ink panel's drawn side-button HINTS (T-011 in the firmware),
+  // not the pad's real control. On iOS the pad is the only input there is.
+  place(kPadUp, rightX, lowerY, cell, half);
+  place(kPadDown, rightX + cell, lowerY, cell, half);
 
   // The keyboard chip, one cell wide and centerd under the page -- the same
   // rule as the phone, in the only horizontal space the tablet's side-margin
@@ -599,20 +593,9 @@ void layoutPad(int outW, int outH) {
   // row rather than two floating controls.
   g_paletteChip = {colX(1) * S, (lowerY + (kCellH - kPowerH)) * S, kSquare * S,
                    kPowerH * S};
-  // THE SIDE ROCKER IS GONE, on every device (owner ruling 2026-08-19: "for
-  // ipad iphone and all devices, lose the side button ui").
-  //
-  // Nothing is stranded by this. ReaderUtils::detectPageTurn fires on the FRONT
-  // pair as well as the side pair -- `input.wasPressed(prevButton)` /
-  // `nextButton`, which are Left/Right -- so page turning stays on the front
-  // cluster, which the pad still draws. The X3's physical side buttons are
-  // untouched in HalGPIO; what goes is only their on-glass impersonation.
-  //
-  // Zero rects rather than deletion from g_pad: the indices are load-bearing
-  // across PadCore, its test and the read-aloud tap path, and padHitTest can
-  // never match a zero-width rect (x < r.x + 0 is false for every x).
-  g_pad[kPadUp].rect = {0, 0, 0, 0};
-  g_pad[kPadDown].rect = {0, 0, 0, 0};
+  // The side rocker, restored 2026-08-19 -- see the note in the phone layout.
+  place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
+  place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
 
   // The keyboard chip: 48pt square, matching the "Hide keyboard" bar button's
   // size (kButton in CrossPointKeyboardBar.mm -- change one, change the other,
@@ -1662,7 +1645,8 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // half's own edge: the rocker's line stopped looking centred, which is
   // exactly what it looked like on the phone. Sized from the initialiser now,
   // so removing a pair can never leave a phantom one behind again.
-  const int pairs[][2] = {{kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
+  const int pairs[][2] = {
+      {kPadBack, kPadConfirm}, {kPadLeft, kPadRight}, {kPadUp, kPadDown}};
   bool inPair[kPadCount] = {};
   for (const auto &pr : pairs) {
     const SDL_FRect &a = g_pad[pr[0]].rect;
