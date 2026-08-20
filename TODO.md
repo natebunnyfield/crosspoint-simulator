@@ -31,6 +31,12 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
+**build-108**, uploaded 2026-08-20, delivery `9aa26c68`. Tagged `build-108`.
+Two things: zen no longer resizes the page and its paper now ends at the old
+rocker line on black ([ST-011]), and **the seed fonts are rebuilt** — the bundle
+had been carrying cuts dated **3 August**, so every font fix since then,
+including B-035's arrows, had never reached the phone at all.
+
 **build-107**, uploaded 2026-08-19. Tagged `build-107`. Fixes the zen gesture's
 false positive: a hand rolling across the page fired zen in 106.
 
