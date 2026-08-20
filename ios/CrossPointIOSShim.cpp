@@ -143,6 +143,23 @@ SDL_FRect g_kbChip{};
 SDL_FRect g_paletteChip{};
 
 bool g_padLaidOut = false;
+
+// ZEN READING MODE (owner ruling 2026-08-19). A three-finger tap on the page
+// toggles it. In zen the pad stops drawing and stops hit-testing entirely, the
+// page grows down until its bottom edge meets where the top rocker row would
+// begin, and the whole screen becomes three targets:
+//
+//     above the page          POWER
+//     the page, left third    page BACK      right two thirds  page FORWARD
+//     below the page          BACK (left third)   SELECT (right two thirds)
+//
+// The thirds are the point: the controls are gone, so every remaining target is
+// enormous and none of them is ambiguous. Everything comes back on the next
+// three-finger tap.
+bool g_zen = false;
+// The page's rect on the last present, in device pixels -- the zen hit-test
+// needs it, and it is the same rect the pad already anchors to.
+SDL_FRect g_zenPanel{};
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -628,8 +645,15 @@ void layoutPad(int outW, int outH) {
   // (kSquare + kHalf) to (kCellH + kCellH). On iPhone 13 mini this adds
   // ~28 pt to the band. The panel has enough vertical headroom that its
   // integer scale is unaffected.
-  SimulatorOverlay::setBottomInset(static_cast<int>(
-      (panelGap + kCellH + kRowClear + kCellH + bottomInset) * S));
+  // ZEN: the page grows down until its bottom edge meets where the TOP rocker
+  // row begins -- 0 pt of gap, per the ruling. That is exactly the normal band
+  // minus panelGap, so the rows keep defining the stop even though nothing
+  // draws them. Snapped to the 8 pt grid the rest of the pad is built on, so a
+  // fractional panelGap cannot drag the page off it.
+  const float zenBand = kCellH + kRowClear + kCellH + bottomInset;
+  const float band = g_zen ? SDL_roundf(zenBand / 8.0f) * 8.0f
+                           : (panelGap + kCellH + kRowClear + kCellH + bottomInset);
+  SimulatorOverlay::setBottomInset(static_cast<int>(band * S));
 
   // Keep the page clear of the status bar and the Dynamic Island. The panel's
   // manual fit is top-aligned, so without a top band it starts at the very top
@@ -916,8 +940,53 @@ void applyPanel(const panelpalette::Palette &panel) {
   CrossPointKeyboardBar_refreshTint();
 }
 
+// Seed SETTINGS.darkMode from the system on the next applyTheme. Set only by
+// pollAppearance, when the SYSTEM appearance actually changed.
+// SEEDED ONCE, ON A FRESH INSTALL ONLY -- not on every launch.
+//
+// Seeding at every startup was the second half of the same bug: a relaunch is
+// not the phone changing its mind, but it looked like one, so the stored
+// setting was overwritten and an in-app toggle never survived being backgrounded.
+// A settings file that already exists means the owner has been here and their
+// choice stands; no file means first run, and the phone's appearance is the
+// only sensible opening guess.
+bool firstEverLaunch() {
+  const char *sd = std::getenv("CROSSPOINT_SIM_SD");
+  if (!sd || !*sd) return false;  // unknown: assume not, and leave the setting alone
+  const std::string settings = std::string(sd) + "/.crosspoint/settings.json";
+  FILE *f = std::fopen(settings.c_str(), "rb");
+  if (!f) return true;
+  std::fclose(f);
+  return false;
+}
+
+bool g_seedDarkFromSystem = firstEverLaunch();
+
 void applyTheme() {
-  g_dark = systemIsDark();
+  // ONE SOURCE OF TRUTH, and it is the firmware's own setting.
+  //
+  // This used to read systemIsDark() directly, which made the pad and the field
+  // follow iOS while the PAGE followed SETTINGS.darkMode -- two authorities for
+  // one question. Toggling Dark Mode inside CrossPoint then inverted the page
+  // and left the pad on the system's appearance, which is the "ios dark mode is
+  // the opposite of dark mode in crosspoint" the owner reported; and because
+  // every applyTheme wrote the system value back over the setting, the in-app
+  // control did not stick at all. Verified before changing anything: with iOS
+  // light and darkMode=1 stored, the app came up light.
+  //
+  // Now the system SEEDS the setting -- at startup, and whenever the phone's
+  // appearance actually changes -- and everything reads the setting from there,
+  // so an in-app toggle moves the whole screen and survives.
+  if (g_seedDarkFromSystem) {
+    const uint8_t wantSystem = systemIsDark() ? 1 : 0;
+    if (SETTINGS.darkMode != wantSystem) {
+      SETTINGS.darkMode = wantSystem;
+      SETTINGS.saveToFile();
+      SDL_Log("[harness] SETTINGS.darkMode -> %u (system appearance)", wantSystem);
+    }
+    g_seedDarkFromSystem = false;
+  }
+  g_dark = SETTINGS.darkMode != 0;
   g_appliedDark = g_dark ? 1 : 0;
 
   // Carry the system appearance into the firmware's OWN Dark Mode setting.
@@ -935,12 +1004,6 @@ void applyTheme() {
   // Guarded on change, per the SPIFFS write rule: a repaint runs this, and a
   // settings file rewritten on every present would be a real cost on device
   // even though this path is host-only.
-  const uint8_t wantDark = g_dark ? 1 : 0;
-  if (SETTINGS.darkMode != wantDark) {
-    SETTINGS.darkMode = wantDark;
-    SETTINGS.saveToFile();
-    SDL_Log("[harness] SETTINGS.darkMode -> %u (system appearance)", wantDark);
-  }
   // The levels are per-appearance, so a light->dark flip changes which pair is
   // in force. Read them here rather than leaving it to the next poll: the
   // palette this call publishes has to be the finished one.
@@ -1031,10 +1094,29 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
 // ownership of the pump, and it holds no timer, so nothing here can drift into
 // PadCore's clock-free territory.
 void pollAppearance() {
-  const int want = systemIsDark() ? 1 : 0;
+  // Two things can move dark mode, and both have to land: the phone's own
+  // appearance (which reseeds the setting) and the firmware's Dark Mode row
+  // (which does not). Watching only the first is what let an in-app toggle
+  // leave the pad behind.
+  // Initialised from the system on the FIRST poll, not to -1. Starting at -1
+  // made that first tick look like the phone had just changed appearance, which
+  // reseeded the setting and overwrote the owner's stored choice on every
+  // launch -- the same overwrite this fix exists to remove, reintroduced one
+  // function further down. A function-local static initialises on first call,
+  // so this is exactly "what the system was when we started".
+  static int s_lastSystem = systemIsDark() ? 1 : 0;
+  const int sys = systemIsDark() ? 1 : 0;
+  if (sys != s_lastSystem) {
+    s_lastSystem = sys;
+    g_seedDarkFromSystem = true;
+    applyTheme();
+    SDL_Log("[harness] appearance -> %s (system)", g_dark ? "dark" : "light");
+    return;
+  }
+  const int want = SETTINGS.darkMode != 0 ? 1 : 0;
   if (want == g_appliedDark) return;
   applyTheme();
-  SDL_Log("[harness] appearance -> %s", g_dark ? "dark" : "light");
+  SDL_Log("[harness] appearance -> %s (setting)", g_dark ? "dark" : "light");
 }
 
 // The pad's two tones, on the same terms as pollAppearance above and for the
@@ -1390,6 +1472,40 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   }
 }
 
+// The page's BOTTOM corners, for zen mode. paintTopBezel rounds the top pair
+// against the glass; in zen the page ends in open space rather than against the
+// pad, so the bottom pair has to be rounded too or the raised page reads as a
+// slab with two sharp corners under two soft ones.
+//
+// Deliberately the same curve as the top: kCornerExponent 2.8, measured off
+// Apple's own display mask (the derivation is in paintTopBezel and is not
+// repeated). A different radius or a circle here would be visible precisely
+// because the two pairs sit on one rectangle.
+void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel) {
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return;
+  constexpr float kCornerExponent = 2.8f;
+  const float rad = SDL_min(8.0f * g_ptScale, panel.w / 2.0f);
+  // `field` is the tone behind both the panel and the pad -- painting the corner
+  // slivers in it is what makes them read as absent rather than as dark patches.
+  const Palette &p = palette();
+  setRGB(r, p.field);
+  const int rows = static_cast<int>(rad);
+  const float bottom = panel.y + panel.h;
+  for (int i = 0; i < rows; i++) {
+    const float y = static_cast<float>(i);
+    // Mirrored: v is 1 at the bottom edge and 0 where the curve meets the side.
+    const float v = (rad - y) / rad;
+    const float u = SDL_powf(SDL_max(0.0f, 1.0f - SDL_powf(v, kCornerExponent)),
+                             1.0f / kCornerExponent);
+    const float inset = rad * (1.0f - u);
+    if (inset <= 0.0f) continue;
+    const float rowY = bottom - 1.0f - y;
+    fillRect(r, panel.x, rowY, inset, 1.0f);
+    fillRect(r, panel.x + panel.w - inset, rowY, inset, 1.0f);
+  }
+  (void)outW;
+}
+
 // The software keyboard's toggle.
 //
 // Drawn ONLY while the firmware has a text field open (owner ruling
@@ -1605,6 +1721,23 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   // height, and before the pad, whose controls are all below the page.
   paintTopBezel(r, outW);
 
+  // The page's presented rect, for the zen hit-test. Recorded every present,
+  // zen or not, so entering zen never waits a frame for geometry.
+  g_zenPanel = {static_cast<float>(SimulatorOverlay::panelLeftPx()),
+                static_cast<float>(SimulatorOverlay::panelBottomPx() -
+                                   SimulatorOverlay::panelHeightPx()),
+                static_cast<float>(SimulatorOverlay::panelWidthPx()),
+                static_cast<float>(SimulatorOverlay::panelHeightPx())};
+
+  if (g_zen) {
+    // Nothing below the page draws in zen -- no capsules, no chips, no keyboard
+    // chip. The page's TOP corners are already rounded by paintTopBezel; its
+    // bottom pair now matters too, because the page no longer runs into the pad
+    // there. Same squircle, same radius, same reasoning -- see paintTopBezel.
+    paintBottomFillets(r, outW, g_zenPanel);
+    return;
+  }
+
   const Palette &p = palette();
   const float S = g_ptScale;
   // 8 pt — the 8 pt grid the pad aligns to. CrossPointKeyboardBar.mm already
@@ -1740,6 +1873,27 @@ float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
 // control, and PadCore stays untouched.
 Uint64 g_tapDownAt = 0;
 
+// THE THREE-FINGER TAP, which is the only way in and out of zen.
+//
+// No timers and no gesture recogniser: the same shape as the pad's own tap
+// test, counting fingers. A gesture qualifies when three were down AT ONCE, all
+// three lifted, none of them travelled past the slop, and the last one landed
+// on the page. Three is deliberately more than the page ever gets otherwise --
+// the read-aloud word tap is one finger, and no control takes two.
+//
+// Tracked by count rather than by identity because iOS does not promise the
+// three arrive in any order, and the middle finger of a real three-finger tap
+// often lands a frame after its neighbours.
+int g_zenFingersDown = 0;   // active now
+int g_zenPeakFingers = 0;   // most that were down at once this gesture
+bool g_zenGestureLive = false;
+bool g_zenMoved = false;    // any finger travelled: not a tap
+float g_zenLastX = 0.0f, g_zenLastY = 0.0f;
+
+// Slop in device pixels. Generous: three fingers on glass roll slightly as they
+// lift, and a stricter budget rejected real taps in testing.
+constexpr float kZenSlopPx = 44.0f;
+
 // Finger coordinates arrive normalized; the pad needs pixels, and the harness
 // does not own the renderer, so it asks the window the event came from.
 bool windowPixelSize(SDL_WindowID id, float *w, float *h) {
@@ -1761,8 +1915,20 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       if (!windowPixelSize(e->tfinger.windowID, &outW, &outH)) break;
       const float fx = e->tfinger.x * outW, fy = e->tfinger.y * outH;
 
+      g_windowId = e->tfinger.windowID;
+      g_zenFingersDown++;
+      g_zenPeakFingers = SDL_max(g_zenPeakFingers, g_zenFingersDown);
+      if (g_zenPeakFingers == 1) g_zenMoved = false;
+      g_zenGestureLive = true;
+      g_zenLastX = fx;
+      g_zenLastY = fy;
+
+      // In zen the pad does not exist: no slots, no hit test, no PadCore. Every
+      // touch is either part of the three-finger toggle or one of the three
+      // zones, both resolved on finger UP.
+      if (g_zen) break;
+
       const int hit = padHitTest(fx, fy);
-      if (hit >= 0) g_windowId = e->tfinger.windowID;
       if (hit < 0 && g_tapFingerId == -1) {
         g_tapFingerId = e->tfinger.fingerID;
         g_tapDownX = fx;
@@ -1784,6 +1950,16 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
             SDL_fabsf(y - g_tapDownY) > slop)
           g_tapFingerId = -1;
       }
+      // Any travel at all disqualifies the three-finger tap. Checked against the
+      // finger's own landing point, not a shared one, so one drifting finger
+      // cancels the gesture without the other two masking it.
+      if (windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
+        const float mx = e->tfinger.x * outW, my = e->tfinger.y * outH;
+        if (SDL_fabsf(mx - g_zenLastX) > kZenSlopPx ||
+            SDL_fabsf(my - g_zenLastY) > kZenSlopPx)
+          g_zenMoved = true;
+      }
+
       // Dragging off a control cancels it, matching how a system button behaves
       // and how a real key behaves when your thumb slides off it.
       const int slot = g_core.heldSlot(e->tfinger.fingerID);
@@ -1802,7 +1978,59 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // slot stays latched down forever, and PadCore ignores every later press on
     // it — a second, permanent way for POWER to stop working until force quit.
     case SDL_EVENT_FINGER_UP:
-    case SDL_EVENT_FINGER_CANCELED:
+    case SDL_EVENT_FINGER_CANCELED: {
+      if (windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
+        g_zenLastX = e->tfinger.x * outW;
+        g_zenLastY = e->tfinger.y * outH;
+      }
+      g_zenFingersDown = SDL_max(0, g_zenFingersDown - 1);
+      if (g_zenFingersDown == 0 && g_zenGestureLive) {
+        const int peak = g_zenPeakFingers;
+        const bool moved = g_zenMoved;
+        g_zenPeakFingers = 0;
+        g_zenGestureLive = false;
+        g_zenMoved = false;
+
+        const SDL_FRect &q = g_zenPanel;
+        const bool onPage = q.w > 0 && g_zenLastX >= q.x && g_zenLastX < q.x + q.w &&
+                            g_zenLastY >= q.y && g_zenLastY < q.y + q.h;
+
+        // THE TOGGLE. Three fingers, no travel, last one lifted on the page.
+        if (peak == 3 && !moved && onPage && e->type == SDL_EVENT_FINGER_UP) {
+          g_zen = !g_zen;
+          g_padLaidOut = false;  // the band changes, so the page must be refitted
+          SDL_Log("[zen] %s", g_zen ? "on" : "off");
+          SimulatorOverlay::requestPresent();
+          applyActions(g_core.fingerUp(e->tfinger.fingerID));
+          break;
+        }
+
+        // ZEN ZONES, resolved on the last finger up. One finger only: a
+        // two-finger rest should not turn a page.
+        if (g_zen && peak == 1 && !moved && e->type == SDL_EVENT_FINGER_UP) {
+          const float third = q.w / 3.0f;
+          const bool leftThird = g_zenLastX < q.x + third;
+          uint8_t button;
+          const char *what;
+          if (g_zenLastY < q.y) {
+            button = HalGPIO::BTN_POWER;
+            what = "power";
+          } else if (onPage) {
+            // Left third goes back, the remaining two thirds go forward: the
+            // common direction gets the bigger target.
+            button = leftThird ? HalGPIO::BTN_LEFT : HalGPIO::BTN_RIGHT;
+            what = leftThird ? "page back" : "page forward";
+          } else {
+            button = leftThird ? HalGPIO::BTN_BACK : HalGPIO::BTN_CONFIRM;
+            what = leftThird ? "back" : "select";
+          }
+          SDL_Log("[zen] tap -> %s", what);
+          gpio.queueButtonTap(button, 60);
+          applyActions(g_core.fingerUp(e->tfinger.fingerID));
+          break;
+        }
+      }
+
       if (e->tfinger.fingerID == g_tapFingerId) {
         g_tapFingerId = -1;
         // A CANCELED finger (Control Center pull, incoming call) is not a tap.
@@ -1841,6 +2069,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       }
       applyActions(g_core.fingerUp(e->tfinger.fingerID));
       break;
+    }
 
     // The software keyboard's REAL state, from UIKit by way of SDL. SHOWN is
     // where the dismiss bar gets attached: SDL raises it from inside

@@ -111,6 +111,43 @@ different pieces of code and the report as it stands fits all three.
 
 ## FIXED
 
+### [S-018] iOS appearance and CrossPoint's Dark Mode disagree, and the setting never sticks — FIXED 2026-08-19
+**severity: high · scope: ios display · reported from the phone 2026-08-19**
+
+Owner: "fix when ios dark mode is the opposite of dark mode in crosspoint. it
+seems to use some stuck fallback."
+
+**Two authorities for one question.** `applyTheme` set `g_dark` from
+`systemIsDark()`, so the pad and the field followed iOS — while the PAGE follows
+`SETTINGS.darkMode`, which the firmware applies itself in `setup()`. Toggling
+Dark Mode inside CrossPoint therefore inverted the page and left the pad on the
+system's appearance: the two halves of one screen in opposite polarities.
+
+**And the in-app control did not stick at all.** Every `applyTheme` wrote the
+system value back over `SETTINGS.darkMode`. Reproduced before touching anything:
+iOS light, `darkMode=1` stored, app launched — **came up light, and the file read
+back 0.**
+
+**Fixed by making the firmware's setting the single source of truth.** The system
+now only SEEDS it: on a fresh install, and whenever the phone's appearance
+actually changes while running. Everything else reads the setting, so an in-app
+toggle moves the page, the pad and the field together and survives a relaunch.
+
+**Two further overwrites were found while fixing it, each hiding behind the last:**
+
+* seeding on every startup — a relaunch is not the phone changing its mind, but
+  it was treated as one, so the stored choice was overwritten every launch.
+  Seeding now happens only when there is no `settings.json` yet.
+* `pollAppearance` starting its "last system appearance" at `-1`, which made its
+  FIRST tick look like a change and reseeded immediately — the same overwrite,
+  reintroduced one function further down. It initialises from the system now.
+
+**Verified in the simulator, both directions:** iOS light with `darkMode=1`
+stored renders the whole screen dark and the file still reads 1
+(`ios/mockups/dark-mode-setting-respected-2026-08-19.png`); a live system flip to
+light while running takes the app light and the file to 0.
+
+
 ### [S-017] The Back|Select rocker's divider sits hard left, not centred — FIXED 2026-08-19
 **severity: medium · scope: ios display · reported from the phone 2026-08-19**
 
