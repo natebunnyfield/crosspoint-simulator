@@ -4,6 +4,45 @@ Added 2026-08-20. Math in [`src/PhosphorMix.h`](../src/PhosphorMix.h) (pure,
 host-tested by `tests/phosphor_mix_test.cpp`), UI in
 [`ios/CrossPointPaletteMixer.mm`](../ios/CrossPointPaletteMixer.mm).
 
+## SUPERSEDED UI: the P22 gun mixer (2026-08-21)
+
+Owner, after using the shipped modal on device: *"the mixer ui sucks and
+doesn't actually mix colors. let's keep it simple and just make a ui for only
+p22. ignore everything else for now."* Then, clarifying the observed failure:
+*"I'm not seeing colors actually mixed together. the 'flash' is the only color
+I see and its persistence is affected by the other color."*
+
+Two separate facts behind that report, both verified on the iOS Simulator the
+same day:
+
+1. **The page's live path was fine.** A `defaults write` of the four custom hex
+   fields while the app ran repainted the page within a frame (magenta probe,
+   pixel-verified). The break was in what the old four-tab UI wrote, not in the
+   poll.
+2. **The glow told the truth the page didn't.** `CrossPointMixer_glowForCustom`
+   computes from the CSV directly, so persistence responded while color did
+   not — and P22G's trail is 63 ms against P22R/P22B's 283 ms, so any two-gun
+   mix carries a color-shifting tail in the slower gun's dark ink. "The flash
+   in one color with the other's persistence" is exactly a working glow over a
+   never-updated page.
+
+The whole four-tab UI (Presets / Blend / Parts / Cascade tables, banded
+ingredient shelf, premix recipe loader) is REMOVED from
+`ios/CrossPointPaletteMixer.mm`. What replaced it is the one mixer a real
+color tube had: **three gun sliders** — P22R (preset 11), P22G (40), P22B (24),
+weights 0–100, 0 = gun off — live-applying through `phosphormix::mixBlend`
+into the Custom slot as they move, the page behind the medium-detent sheet
+being the preview. Verified end-to-end headlessly: `CROSSPOINT_SIM_MIX_GUNS=
+"80,60,10"` drives `CrossPointMixer_applyGunsForTest` (the sliders' own apply
+function) and the rendered page pixel matched the core's computed paper
+(F3EFE7 warm white, minus grain).
+
+**The core is untouched.** All three modes, the fitted premix recipes, the
+bands, the sort — everything below the UI stays, tests included, and the
+desktop `settings.json` keys still read any stored mix. "Ignore everything
+else FOR NOW" is a narrowing of the UI, not a deletion of the model; the
+sections below record the full design for when it comes back.
+
 ## The rulings, in the owner's words
 
 - *"make a custom crt interface option when i press or hold down the page color
