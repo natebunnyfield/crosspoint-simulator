@@ -20,6 +20,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "PanelPalette.h"
@@ -278,6 +279,12 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
       _shelf[phosphormix::trailBand(
                  panelpalette::trailMsForPreset(info.preset))]
           .push_back(info.preset);
+  }
+  // Within a band: trail, then hue, red first -- one key, defined in the core.
+  for (auto &band : _shelf) {
+    std::sort(band.begin(), band.end(), [](int a, int b) {
+      return phosphormix::shelfSortKey(a) < phosphormix::shelfSortKey(b);
+    });
   }
   self.tab = (CPXMixerTab)([[NSUserDefaults standardUserDefaults]
                                boolForKey:kMixActive]

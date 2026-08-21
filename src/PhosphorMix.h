@@ -269,6 +269,41 @@ inline const char *trailBandName(int band) {
   return band >= 0 && band < kTrailBandCount ? kNames[band] : "";
 }
 
+// WITHIN a band, rows sort by TRAIL then HUE (owner ruling 2026-08-21: "By
+// trail, then hue"). Persistence is nearly constant inside a band by
+// construction -- most of "A beat" is literally the same 283 ms -- so the trail
+// splits the one or two real steps a band contains and hue orders the rest.
+// The hue wheel is rotated +15 degrees so the reds -- which sit at 340-355 on
+// the raw wheel -- wrap to the front, the same convention the palette list
+// settled on 2026-08-16. The first draft rotated the other way and put every
+// red LAST, and also carved out a "near-neutral" case for the whites that
+// never fired: our whites are tinted blue-whites at saturation ~0.29,
+// inseparable from the real blues by saturation, so they simply sort as the
+// blue-ish hues they are.
+//
+// Returns a single ascending key. Pure and here rather than in the UI so the
+// mixer's shelves and the proof page sort identically.
+inline float shelfSortKey(int preset) {
+  const float trail = panelpalette::trailMsForPreset(preset);
+  const panelpalette::Palette d = detail::paletteOf(preset, true);
+  const float r = d.ink[0] / 255.0f, g = d.ink[1] / 255.0f, b = d.ink[2] / 255.0f;
+  const float mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+  const float mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+  float hue = 0.0f;               // 0..360, rotated so red leads at 0
+  const float c = mx - mn;
+  if (c > 0.0f) {
+    float h;
+    if (mx == r) h = 60.0f * ((g - b) / c);
+    else if (mx == g) h = 60.0f * (2.0f + (b - r) / c);
+    else h = 60.0f * (4.0f + (r - g) / c);
+    if (h < 0.0f) h += 360.0f;
+    hue = h + 15.0f;
+    if (hue >= 360.0f) hue -= 360.0f;
+  }
+  // trail dominates, hue breaks ties; 1e-3 keeps hue below any trail step.
+  return trail * 1000.0f + hue;
+}
+
 // --- PREMIX RECIPES --------------------------------------------------------
 // Owner rulings 2026-08-20/21: tapping a preset mix applies it whole; a
 // LONG-PRESS loads it into the mixer as an editable recipe — and the recipes
