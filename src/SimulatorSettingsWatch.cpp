@@ -137,7 +137,8 @@ bool applyMix(const Values &v, const std::string &raw) {
   SimulatorOverlay::setPanelPalette(dark, pal.ink, pal.paper);
   SimulatorOverlay::setPanelEmissive(r.trailMs > 0.0f);
   SimulatorOverlay::setPanelGlow(r.trailMs);
-  SimulatorOverlay::setPanelGlowTail(r.hasTail ? r.tail : nullptr);
+  SimulatorOverlay::setPanelGlowTail(r.hasTail ? r.tail : nullptr,
+                                     r.hasTail ? r.tailOnsetMs : 0.0f);
   SDL_Log("[settings] phosphor mix active (mode %d): %02X%02X%02X on "
           "%02X%02X%02X, trail %.0f ms%s",
           mode, pal.ink[0], pal.ink[1], pal.ink[2], pal.paper[0], pal.paper[1],

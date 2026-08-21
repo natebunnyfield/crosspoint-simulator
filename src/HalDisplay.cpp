@@ -95,6 +95,10 @@ static bool ghostHasPicture = false;
 // kNoGlowTail when the trail simply dims. See setPanelGlowTail.
 static constexpr uint32_t kNoGlowTail = 0xFFFFFFFFu;
 static std::atomic<uint32_t> glowTailTint{kNoGlowTail};
+// When the trail's hue handover completes, ms after a deposit -- the moment
+// everything faster than the surviving phosphor has died. 0 = unknown, and the
+// recolor ramps across the whole trail as it always did.
+static std::atomic<float> glowTailOnsetMs{0.0f};
 // When the ghost was captured, on the SDL_GetTicks clock. 0 = no ghost.
 static Uint64 ghostStartedAt = 0;
 // The pixels the ghost was captured from -- kept because SDL_UpdateTexture
@@ -1017,7 +1021,10 @@ void setPanelEmissive(bool emissive) {
   pendingPresent.store(true);
 }
 
-void setPanelGlowTail(const unsigned char tint[3]) {
+void setPanelGlowTail(const unsigned char tint[3], float onsetMs) {
+  // The onset stores first and unconditionally: the env override below forces
+  // the TINT only, and an onset of 0 is the old whole-trail ramp.
+  glowTailOnsetMs.store(onsetMs > 0.0f ? onsetMs : 0.0f);
   // Same escape hatch as every other knob here: a desktop or headless run has
   // no Settings app, and without this the cascade's whole point -- that the
   // trail is a different color from the page -- could only be seen on a phone.
@@ -1434,6 +1441,28 @@ static void ensureGhostTexture() {
   SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_BLEND);
 }
 
+// The INTENSITY copy of the ghost, for the accumulator's deposit. The deposit
+// used to be the page's own pixels -- green ink on black -- and the tail
+// recolor is a color MULTIPLY, which can only remove channels: green times an
+// orange tail is olive, never orange, so a mixed page's fade could never
+// change hue toward the surviving phosphor (owner report 2026-08-21, P46+P33).
+// Depositing intensity (max(r,g,b), white-on-black) lets the present-time mod
+// paint the trail ANY color: ink at first, the tail by the handover. The
+// accumulator is only ever composed on a DARK ground (see the `!darkGround ->
+// accumLive = false` gate in presentIfNeeded), where every level is the ink
+// scaled toward black, so intensity x ink reconstructs the old picture.
+static SDL_Texture *ghostIntensityTexture = nullptr;
+static void ensureGhostIntensityTexture() {
+  if (ghostIntensityTexture || !sdl_renderer)
+    return;
+  ghostIntensityTexture = SDL_CreateTexture(
+      sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+      HalDisplay::activeWidth(), HalDisplay::activeHeight());
+  if (!ghostIntensityTexture)
+    LOG_ERR("DISP", "glow: could not create the intensity ghost (%s)",
+            SDL_GetError());
+}
+
 // THE GRAIN FIELD, generated at the OUTPUT SIZE and drawn 1:1 over the whole
 // app surface -- panel, pad, bezel and letterbox margins alike.
 //
@@ -1658,6 +1687,28 @@ void HalDisplay::presentIfNeeded() {
           // ones on the very next line.
           SDL_UpdateTexture(ghostTexture, nullptr, ghostPixels.data(),
                             activeWidth() * sizeof(uint32_t));
+          // The deposit's copy is INTENSITY, not color -- see
+          // ensureGhostIntensityTexture. Only the glow deposits, so only the
+          // glow pays for the conversion; the beam keeps the colored ghost.
+          if (trailMs > 0.0f) {
+            ensureGhostIntensityTexture();
+            if (ghostIntensityTexture) {
+              static std::vector<uint32_t> intensityBuf;
+              intensityBuf.resize(live);
+              for (size_t i = 0; i < live; i++) {
+                const uint32_t px = ghostPixels[i];
+                uint32_t m = (px >> 16) & 0xFFu;
+                const uint32_t g = (px >> 8) & 0xFFu;
+                const uint32_t b = px & 0xFFu;
+                if (g > m) m = g;
+                if (b > m) m = b;
+                intensityBuf[i] = 0xFF000000u | (m << 16) | (m << 8) | m;
+              }
+              SDL_UpdateTexture(ghostIntensityTexture, nullptr,
+                                intensityBuf.data(),
+                                activeWidth() * sizeof(uint32_t));
+            }
+          }
           ghostStartedAt = SDL_GetTicks();
           beamStartedAt = ghostStartedAt;
           ghostHasPicture = true;
@@ -1738,15 +1789,21 @@ void HalDisplay::presentIfNeeded() {
         static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
             SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
             SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+        // The INTENSITY copy, so the composite's color mod can recolor the
+        // trail toward the tail (see ensureGhostIntensityTexture). Falling
+        // back to the colored ghost only if the intensity texture could not be
+        // created: a wrongly-tinted trail beats no trail.
+        SDL_Texture *deposit =
+            ghostIntensityTexture ? ghostIntensityTexture : ghostTexture;
         if (depositMax == SDL_BLENDMODE_INVALID ||
-            !SDL_SetTextureBlendMode(ghostTexture, depositMax)) {
-          SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_ADD);
-          SDL_SetTextureAlphaMod(ghostTexture, 96);
+            !SDL_SetTextureBlendMode(deposit, depositMax)) {
+          SDL_SetTextureBlendMode(deposit, SDL_BLENDMODE_ADD);
+          SDL_SetTextureAlphaMod(deposit, 96);
         } else {
-          SDL_SetTextureAlphaMod(ghostTexture, 255);
+          SDL_SetTextureAlphaMod(deposit, 255);
         }
-        SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
-        SDL_RenderTexture(sdl_renderer, ghostTexture, nullptr, nullptr);
+        SDL_SetTextureColorMod(deposit, 255, 255, 255);
+        SDL_RenderTexture(sdl_renderer, deposit, nullptr, nullptr);
         accumLastAddMs = now;
       }
       SDL_SetRenderTarget(sdl_renderer, restore);
@@ -2206,19 +2263,39 @@ void HalDisplay::presentIfNeeded() {
     // ONLY ON THE ADDITIVE PATH: on pale paper the same multiply hits the paper
     // too and the whole decaying frame washes green, which is a stain, not a
     // longer-lived layer.
+    // THE ACCUMULATOR HOLDS INTENSITY, so the color mod is what paints the
+    // trail -- and its ramp starts at the live INK, not white. The old deposit
+    // held the page's own pixels and the mod ramped white -> tail, and a
+    // multiply can only remove channels: green ink times an orange tail is
+    // olive, never orange, so the tail mathematically could not win (owner
+    // report 2026-08-21: a P46 green + P33 orange mix fades green for the
+    // whole 2.8 s). No tail = a constant ink mod, which with intensity
+    // deposits reproduces the single-phosphor look exactly.
     const uint32_t tail = glowTailTint.load();
-    if (tail != kNoGlowTail && darkGround) {
-      const float age = static_cast<float>(SDL_GetTicks() - accumLastAddMs);
-      float t = trailMs > 0.0f ? age / trailMs : 1.0f;  // 0 fresh, 1 a trail old
-      if (t > 1.0f) t = 1.0f;
-      auto ramp = [&](int shift) {
-        const float target = static_cast<float>((tail >> shift) & 0xFF) / 255.0f;
-        return static_cast<Uint8>((1.0f - t + t * target) * 255.0f + 0.5f);
-      };
-      SDL_SetTextureColorMod(accumTexture, ramp(16), ramp(8), ramp(0));
-    } else {
-      SDL_SetTextureColorMod(accumTexture, 255, 255, 255);
+    const PanelPalette livePal = livePanelPalette(display.isInverted());
+    Uint8 mod[3] = {255, 255, 255};
+    if (darkGround) {
+      for (int c = 0; c < 3; c++) mod[c] = livePal.ink[c];
+      if (tail != kNoGlowTail) {
+        const float age = static_cast<float>(SDL_GetTicks() - accumLastAddMs);
+        // The handover happens when the FAST phosphors die, not at the end of
+        // the whole fade: for the reported mix that is ~17 ms into 2828, so
+        // the ramp runs over the published ONSET when one exists. Presets
+        // that never set one (onset 0) keep the old whole-trail timing.
+        const float onset = glowTailOnsetMs.load();
+        float t = onset > 0.0f
+                      ? age / onset
+                      : (trailMs > 0.0f ? age / trailMs : 1.0f);
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+        for (int c = 0; c < 3; c++) {
+          const float target = static_cast<float>((tail >> (16 - 8 * c)) & 0xFF);
+          mod[c] = static_cast<Uint8>(
+              (1.0f - t) * static_cast<float>(mod[c]) + t * target + 0.5f);
+        }
+      }
     }
+    SDL_SetTextureColorMod(accumTexture, mod[0], mod[1], mod[2]);
     if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
       if (e[0] == '1')
         SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,

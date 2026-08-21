@@ -165,6 +165,45 @@ int main() {
           "…and not either survivor's ink alone");
   }
 
+  // --- THE HANDOVER HAPPENS WHEN THE FAST PHOSPHOR DIES --------------------
+  // Owner report 2026-08-21 (device screenshot): P46 green at 100 + P33 radar
+  // orange at 11 rendered a 2.8 s fade that stayed GREEN the whole way.
+  // Physically the green dies in tens of ms and the entire visible fade is
+  // orange, so the Result carries WHEN the recolor completes: the slowest
+  // trail among the components NOT in the survivor set.
+  {
+    const int P46 = presetOf("P46");
+    const int G22 = presetOf("P22G"), P45 = presetOf("P45");
+    check(P46 > 0 && G22 > 0 && P45 > 0, "handover phosphors exist");
+    Component repro[] = {{P46, 100}, {P33, 11}};
+    const Result rr = mixBlend(repro, 2);
+    check(rr.hasTail, "the owner's repro mix has a tail");
+    check(rr.tailOnsetMs == panelpalette::trailMsForPreset(P46),
+          "P46+P33: the recolor completes when the fast green dies");
+    check(rr.tailOnsetMs > 0.0f && rr.tailOnsetMs < rr.trailMs,
+          "…which is long before the whole fade ends");
+    // The G+W guns: fast P22G + slow P45 hand over at P22G's own trail.
+    Component gw[] = {{G22, 50}, {P45, 50}};
+    const Result rg = mixBlend(gw, 2);
+    check(rg.hasTail &&
+              rg.tailOnsetMs == panelpalette::trailMsForPreset(G22),
+          "G+W: onset is the fast component's trail");
+    // Equal trails: nothing dies first, so nothing hands over.
+    const int R22 = presetOf("P22R"), B22 = presetOf("P22B");
+    Component eq[] = {{R22, 1}, {B22, 1}};
+    const Result req = mixBlend(eq, 2);
+    check(!req.hasTail && req.tailOnsetMs == 0.0f,
+          "equal-trail blend: no tail and onset stays 0");
+    Component one[] = {{P33, 1}};
+    const Result r1 = mixBlend(one, 1);
+    check(!r1.hasTail && r1.tailOnsetMs == 0.0f,
+          "a single component has no handover");
+    // Cascade: the flash layer's death IS the handover.
+    const Result rc = mixCascade(P11, P33);
+    check(rc.tailOnsetMs == panelpalette::trailMsForPreset(P11),
+          "cascade onset is the flash layer's trail");
+  }
+
   // --- PREMIXES ARE REFUSED AS INGREDIENTS ---------------------------------
   {
     const int P7 = presetOf("P7"), P4 = presetOf("P4");

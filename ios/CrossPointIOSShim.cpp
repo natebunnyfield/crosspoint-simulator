@@ -80,7 +80,8 @@ extern "C" void CrossPointMixer_present(void);
 extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b, int w);
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
-                                              bool *hasTail);
+                                              bool *hasTail,
+                                              float *tailOnsetMs);
 
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -1250,12 +1251,21 @@ void pollPanelGlow() {
   // tint. The mixer owns that store; asked here so a relaunch, a preset trip
   // away and back, and a settings change all converge on one answer.
   static unsigned char s_mixTail[3];
+  // When the mix's hue handover completes -- the fast components' death, which
+  // for the reported P46+P33 mix is ~17 ms into a 2828 ms fade. 0 for every
+  // plain preset: their recolor keeps the old whole-trail ramp.
+  float tailOnsetMs = 0.0f;
   if (preset == panelpalette::kPresetCustom) {
     float mixTrail = 0.0f;
     bool hasTail = false;
-    if (CrossPointMixer_glowForCustom(&mixTrail, s_mixTail, &hasTail)) {
+    float mixOnset = 0.0f;
+    if (CrossPointMixer_glowForCustom(&mixTrail, s_mixTail, &hasTail,
+                                      &mixOnset)) {
       trail = mixTrail;
-      if (hasTail) tail = s_mixTail;
+      if (hasTail) {
+        tail = s_mixTail;
+        tailOnsetMs = mixOnset;
+      }
       why = "phosphor mix";
     }
   }
@@ -1281,7 +1291,7 @@ void pollPanelGlow() {
   // the trail because it is the same claim -- see SimulatorOverlay.
   SimulatorOverlay::setPanelEmissive(trail > 0.0f);
   SimulatorOverlay::setPanelGlow(trail);
-  SimulatorOverlay::setPanelGlowTail(tail);
+  SimulatorOverlay::setPanelGlowTail(tail, tailOnsetMs);
 }
 
 // Cheap and edge-triggered, like every other poll here: reading an integer out

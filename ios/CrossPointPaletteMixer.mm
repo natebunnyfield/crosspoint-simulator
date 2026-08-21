@@ -229,7 +229,8 @@ NSString *shelfTitleFor(int preset) {
 // contract from the previous UI: any stored mix mode computes through the core.
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
-                                              bool *hasTail) {
+                                              bool *hasTail,
+                                              float *tailOnsetMs) {
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
   if (![d boolForKey:kMixActive]) return false;
   int presets[kGunCount];
@@ -239,6 +240,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   *trailMs = r.trailMs;
   *hasTail = r.hasTail;
   for (int c = 0; c < 3; c++) tail[c] = r.tail[c];
+  if (tailOnsetMs) *tailOnsetMs = r.tailOnsetMs;
   return true;
 }
 
@@ -506,11 +508,18 @@ extern "C" void CrossPointMixer_present(void) {
     UINavigationController *nav =
         [[UINavigationController alloc] initWithRootViewController:mixer];
     nav.modalPresentationStyle = UIModalPresentationPageSheet;
+    // "The color tray is very slideable" (owner 2026-08-21): working the
+    // sliders near the sheet's edge kept pulling the whole tray down. Pinned:
+    // pull-down dismissal is dead, and the Done button is the only exit.
+    nav.modalInPresentation = YES;
     if (nav.sheetPresentationController) {
       // Medium: about 340 pt of controls, and the PAGE stays visible above the
-      // sheet -- the page is the preview.
+      // sheet -- the page is the preview. ONLY the medium detent, and no
+      // grabber -- a grabber is an invitation to drag the thing that must not
+      // drag.
       nav.sheetPresentationController.detents =
           @[ UISheetPresentationControllerDetent.mediumDetent ];
+      nav.sheetPresentationController.prefersGrabberVisible = NO;
       // Undimmed at medium: without this, UIKit dims the presenting view AND
       // pulls it back (down and slightly scaled), so the panel slid every time
       // the tray opened or closed (owner 2026-08-21: "prevent the panel from
