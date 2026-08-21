@@ -209,7 +209,13 @@ elif [[ "${CROSSPOINT_ALLOW_NO_FONTS:-0}" != "1" ]]; then
   echo "  Deliberately shipping without them: CROSSPOINT_ALLOW_NO_FONTS=1"
   exit 1
 fi
-cmake -B "$BUILD_DIR" -G Xcode \
+# -S pinned: with only -B, cmake takes the CALLER'S cwd as the source
+# directory, so the deploy configured whatever directory the invoking shell
+# happened to sit in. It worked for 15 builds because the shell happened to
+# sit at the repo root; build 114's first attempt died with "build-simsdk
+# does not appear to contain CMakeLists.txt" because the same shell had
+# cd'd into the simulator-SDK build tree earlier in the session.
+cmake -S "$REPO" -B "$BUILD_DIR" -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCROSSPOINT_FIRMWARE_DIR="$FIRMWARE_DIR" \
