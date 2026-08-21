@@ -280,6 +280,22 @@ int main() {
           "band index is monotonic across the gaps");
   }
 
+  // --- WITHIN A BAND: TRAIL, THEN HUE, RED FIRST ---------------------------
+  {
+    // Trail dominates: P3 at 322 ms sorts after every 283 ms row in its band.
+    const int P3 = presetOf("P3"), P45 = presetOf("P45");
+    check(trailBand(322.5f) == trailBand(282.8f) &&
+              shelfSortKey(P3) > shelfSortKey(P45),
+          "a longer trail sorts later inside the same band");
+    // Hue breaks ties on the rotated wheel: among the 283 ms rows, red-orange
+    // P13 before yellow P28 before green P43 before near-neutral white P45.
+    const int P13 = presetOf("P13"), P28 = presetOf("P28"), P43 = presetOf("P43");
+    check(shelfSortKey(P13) < shelfSortKey(P28) &&
+              shelfSortKey(P28) < shelfSortKey(P43) &&
+              shelfSortKey(P43) < shelfSortKey(P45),
+          "equal trails order by hue, red first, blue-whites late");
+  }
+
   if (failures == 0) std::printf("phosphor_mix_test: all checks passed\n");
   return failures ? 1 : 0;
 }

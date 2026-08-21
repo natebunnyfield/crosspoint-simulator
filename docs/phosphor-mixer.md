@@ -114,6 +114,17 @@ the single definition; the mixer's Blend/Parts/Cascade shelves section by them
 and the proof page groups its table the same way. The test pins that every pure
 row lands in a band, no band is empty, and the edges sit in the gaps.
 
+**Within a band: trail, then hue, red first** (owner ruling 2026-08-21). A band
+is nearly one persistence by construction, so trail splits its one or two real
+steps and hue orders the rest — the wheel rotated +15° so the reds at 340–355°
+wrap to the front, the palette list's own convention. `shelfSortKey()` is the
+single definition; the mixer's shelves sort by it and the proof page uses the
+same key from the dump. Two bugs the test caught in the first draft, kept as a
+warning: the rotation ran the wrong way and put every red LAST, and a
+"near-neutral whites last" case never fired because our whites are tinted
+blue-whites at saturation ~0.29, inseparable from real blues — they now simply
+sort as the blue-ish hues they are.
+
 | Band | Range | Rows |
 |---|---|---|
 | Gone within a frame | ≤ 20 ms | 6 |
