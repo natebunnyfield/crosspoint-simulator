@@ -458,7 +458,57 @@ git -C "$REPO" push origin "build-$BUILD_NUMBER" 2>/dev/null \
   || echo "tag push failed (non-fatal) — push it later: git push origin build-$BUILD_NUMBER"
 
 say "Uploaded"
-echo "Apple takes roughly 5-10 minutes to process before the build appears in"
-echo "the TestFlight app."
 notify 4 rocket "CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER) uploaded" \
-  "TestFlight processing takes ~5-10 min, then it appears in the TestFlight app."
+  "Watching TestFlight processing; a second ping lands when it is installable."
+
+# MEASURE the processing wait instead of estimating it (owner 2026-08-21:
+# "look at testflight times and improve estimates"). The ASC API exposes no
+# processed-at timestamp, only the build's current processingState -- so the
+# only honest number is a live poll from upload end to VALID. Non-fatal
+# throughout: the upload above already succeeded, and a polling failure must
+# not turn a green deploy red.
+say "TestFlight processing"
+UPLOAD_END=$(date +%s)
+set +e
+python3 - "$BUILD_NUMBER" "$UPLOAD_END" <<'PYWATCH'
+import jwt, time, json, sys, urllib.request
+build, t_up = sys.argv[1], int(sys.argv[2])
+KEY_ID, ISSUER = "92428LY4AJ", "69a6de73-c01e-47e3-e053-5b8c7c11a4d1"
+key = open(f"/Users/natebunnyfield/.appstoreconnect/private_keys/AuthKey_{KEY_ID}.p8").read()
+def get(path):
+    tok = jwt.encode({"iss": ISSUER, "exp": int(time.time()) + 1200,
+                      "aud": "appstoreconnect-v1"}, key,
+                     algorithm="ES256", headers={"kid": KEY_ID})
+    req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path,
+                                 headers={"Authorization": f"Bearer {tok}"})
+    return json.load(urllib.request.urlopen(req, timeout=30))
+app_id = get("/v1/apps?filter[bundleId]=com.natebunnyfield.crosspoint.x3")["data"][0]["id"]
+while time.time() - t_up < 2400:  # 40 min ceiling, then give up loudly
+    try:
+        bs = get(f"/v1/builds?filter[app]={app_id}&filter[version]={build}"
+                 "&fields[builds]=processingState")
+        state = bs["data"][0]["attributes"]["processingState"] if bs["data"] else "NOT LISTED"
+    except Exception as e:
+        state = f"poll error {e}"
+    mins = (time.time() - t_up) / 60
+    print(f"  {mins:5.1f} min  {state}", flush=True)
+    if state == "VALID":
+        print(f"installable after {mins:.1f} min from upload end")
+        sys.exit(0)
+    if state in ("INVALID", "FAILED"):
+        print(f"processing ended {state} after {mins:.1f} min")
+        sys.exit(1)
+    time.sleep(30)
+print("still not VALID after 40 min -- check TestFlight")
+sys.exit(1)
+PYWATCH
+WATCH_RC=$?
+set -e
+ELAPSED_MIN=$(( ($(date +%s) - UPLOAD_END) / 60 ))
+if [ "$WATCH_RC" -eq 0 ]; then
+  notify 4 white_check_mark "CrossPoint X3 build $BUILD_NUMBER installable" \
+    "TestFlight processed it in ${ELAPSED_MIN} min."
+else
+  notify 4 warning "CrossPoint X3 build $BUILD_NUMBER: processing unconfirmed" \
+    "Not VALID after ${ELAPSED_MIN} min of polling -- check the TestFlight app."
+fi
