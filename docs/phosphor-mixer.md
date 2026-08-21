@@ -41,6 +41,36 @@ Presets tab shows them under their own "Preset mixes" heading, picked whole.
 P35's `ZnS,ZnSe:Ag` stays mixable: a solid solution is one crystal lattice, not
 a powder mix.
 
+## Preset mixes: tap applies, long-press loads
+
+Owner ruling 2026-08-20 ("Both — tap applies, long-press loads"): tapping a
+premix row selects it whole, exactly like any preset; a long-press loads its
+**recipe** into the mixer for tweaking, switching to the right tab with the
+components pre-filled.
+
+The recipes live in `kPremixRecipes` (PhosphorMix.h), named by P-number so they
+survive renumbering, and the mapping from JEDEC compounds to this repo's pure
+rows is **approximate by construction** — sometimes exact (P4's
+`(Zn,Cd)S:Cu,Al` IS P22G), sometimes only a behavioral cousin (P7's long
+`(Zn,Cd)S:Cu` layer has no pure row; P34 is the nearest long yellow-green). A
+loaded recipe therefore does not reproduce the shipped premix byte-for-byte.
+The section footer in the modal says so, so the difference reads as stated
+rather than as a bug.
+
+| Premix | Recipe |
+|---|---|
+| P4 | Blend: P22B + P22G, 3:3 |
+| P6 | Blend: P22B + P20, 3:3 |
+| P18 | Blend: P16 + P13, 3:3 |
+| P23 | Blend: P22B + P20, 3:4 (warm — weighted toward the yellow) |
+| P40 | Blend: P22B + P34, 3:3 |
+| P7 | Cascade: flash P22B, persistence P34 |
+| P14 | Cascade: flash P22B, persistence P26 |
+| P17 | Cascade: flash P15, persistence P28 |
+
+The test pins that every premix has a recipe, every component resolves to a
+real pure row (never a premix), and P4's exact-compound match stays exact.
+
 ## How it lands in the pipeline
 
 The computed result is written into the **Custom slot's four hex fields**

@@ -242,4 +242,51 @@ inline Result mixCascade(int flashFrom, int persistFrom) {
   return r;
 }
 
+// --- PREMIX RECIPES --------------------------------------------------------
+// Owner ruling 2026-08-20: tapping a preset mix applies it whole; a LONG-PRESS
+// loads it into the mixer as an editable recipe. The mapping from each
+// premix's JEDEC compounds to this repo's pure rows is APPROXIMATE and says
+// so: JEDEC names compounds, and the nearest pure preset is sometimes an exact
+// compound match (P4's (Zn,Cd)S:Cu,Al IS P22G) and sometimes only a
+// behavioural cousin (P7's long (Zn,Cd)S:Cu layer has no pure row; P34 is the
+// nearest long yellow-green). A loaded recipe therefore does NOT reproduce the
+// shipped premix byte-for-byte -- it is a starting point, and the UI must say
+// that rather than let the difference read as a bug.
+//
+// Components are named by P-number string, not preset integer, so the table
+// survives any renumbering; resolution goes through kPresetInfo at load time.
+struct PremixRecipe {
+  const char *phosphor;      // the premix row this recipe reconstructs
+  Mode mode;                 // Blend or Cascade
+  const char *a;             // blend component 1 / cascade flash
+  const char *b;             // blend component 2 / cascade persistence
+  int weightA, weightB;      // blend only
+};
+
+inline constexpr PremixRecipe kPremixRecipes[] = {
+    // Blends. ZnS:Ag is P22B, the color tube's own blue gun.
+    {"P4", Blend, "P22B", "P22G", 3, 3},   // (Zn,Cd)S:Cu,Al IS P22G -- exact
+    {"P6", Blend, "P22B", "P20", 3, 3},    // ZnS:CdS:Ag ~ P20's (Zn,Cd)S:Ag
+    {"P18", Blend, "P16", "P13", 3, 3},    // diopside cousins: Ce for Ti, Mn silicate
+    {"P23", Blend, "P22B", "P20", 3, 4},   // warm white: weighted toward the yellow
+    {"P40", Blend, "P22B", "P34", 3, 3},   // long (Zn,Cd)S:Cu ~ P34, nearest long green
+    // Cascades: flash paints, persistence lingers.
+    {"P7", Cascade, "P22B", "P34", 0, 0},
+    {"P14", Cascade, "P22B", "P26", 0, 0},  // orange persistence ~ P26 radar orange
+    {"P17", Cascade, "P15", "P28", 0, 0},   // ZnO flash IS P15; yellow ~ P28
+};
+inline constexpr int kPremixRecipeCount =
+    static_cast<int>(sizeof(kPremixRecipes) / sizeof(kPremixRecipes[0]));
+
+inline const PremixRecipe *recipeFor(const char *pnum) {
+  if (!pnum) return nullptr;
+  for (int i = 0; i < kPremixRecipeCount; i++) {
+    const char *a = kPremixRecipes[i].phosphor;
+    const char *b = pnum;
+    while (*a && *b && *a == *b) { a++; b++; }
+    if (*a == 0 && *b == 0) return &kPremixRecipes[i];
+  }
+  return nullptr;
+}
+
 }  // namespace phosphormix

@@ -287,6 +287,9 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
 - (void)viewDidLoad {
   [super viewDidLoad];
   [self.tableView registerClass:CPXSwatchCell.class forCellReuseIdentifier:@"sw"];
+  UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+      initWithTarget:self action:@selector(longPressed:)];
+  [self.tableView addGestureRecognizer:lp];
   self.tableView.rowHeight = 74;
   UISegmentedControl *seg = [[UISegmentedControl alloc]
       initWithItems:@[ @"Presets", @"Blend", @"Parts", @"Cascade" ]];
@@ -311,6 +314,50 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
     applyStoredMix();
   }
   [self.tableView reloadData];
+}
+
+// Long-press on a preset-mix row loads its recipe into the mixer (owner
+// ruling 2026-08-20: "Both — tap applies, long-press loads"). The mapping is
+// approximate by construction -- see kPremixRecipes -- and the footer says so.
+- (void)longPressed:(UILongPressGestureRecognizer *)g {
+  if (g.state != UIGestureRecognizerStateBegan) return;
+  if (self.tab != CPXTabPresets) return;
+  NSIndexPath *ip = [self.tableView
+      indexPathForRowAtPoint:[g locationInView:self.tableView]];
+  if (!ip || ip.section != 1) return;
+  const int preset = [self presetAt:ip];
+  const panelpalette::PresetInfo *info = [self infoFor:preset];
+  const phosphormix::PremixRecipe *r =
+      phosphormix::recipeFor(info ? info->phosphor : nullptr);
+  if (!r) return;
+  // Resolve the component P-numbers to preset integers through kPresetInfo.
+  int pa = -1, pb = -1;
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const char *ph = panelpalette::kPresetInfo[i].phosphor;
+    if (!ph) continue;
+    if (!strcmp(ph, r->a)) pa = panelpalette::kPresetInfo[i].preset;
+    if (!strcmp(ph, r->b)) pb = panelpalette::kPresetInfo[i].preset;
+  }
+  if (pa < 0 || pb < 0) return;
+  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+  if (r->mode == phosphormix::Cascade) {
+    [d setInteger:pa forKey:kMixFlash];
+    [d setInteger:pb forKey:kMixPersist];
+    [d setInteger:phosphormix::Cascade forKey:kMixMode];
+    self.tab = CPXTabCascade;
+  } else {
+    phosphormix::Component comps[2] = {{pa, r->weightA}, {pb, r->weightB}};
+    saveBlend(comps, 2);
+    [d setInteger:phosphormix::Blend forKey:kMixMode];
+    self.tab = CPXTabBlend;
+  }
+  applyStoredMix();
+  UISegmentedControl *seg = (UISegmentedControl *)self.navigationItem.titleView;
+  if ([seg isKindOfClass:UISegmentedControl.class])
+    seg.selectedSegmentIndex = self.tab;
+  [self.tableView reloadData];
+  SDL_Log("[mixer] recipe %s loaded -> %s", info->phosphor,
+          r->mode == phosphormix::Cascade ? "cascade" : "blend");
 }
 
 // --- table shape -----------------------------------------------------------
@@ -342,6 +389,14 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
                                  ? @"Pick the FLASH layer — it paints the page"
                                  : @"Pick the PERSISTENCE layer — it lingers");
   }
+  return nil;
+}
+
+- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)sec {
+  if (self.tab == CPXTabPresets && sec == 1)
+    return @"Long-press a preset mix to load it into the mixer as an editable "
+           @"recipe. The recipe maps its compounds to the nearest pure "
+           @"phosphors, so it is a starting point, not an exact reproduction.";
   return nil;
 }
 

@@ -168,6 +168,31 @@ int main() {
           "weights below 1 clamp to 1 rather than dividing by zero");
   }
 
+  // --- EVERY PREMIX HAS A RECIPE, AND EVERY RECIPE RESOLVES ----------------
+  // The recipe table is data; what can rot silently is a component name that
+  // stops matching a row, or a recipe whose ingredient is itself a premix.
+  {
+    const char *premix[] = {"P4", "P6", "P7", "P14", "P17", "P18", "P23", "P40"};
+    for (const char *p : premix) {
+      const PremixRecipe *r = recipeFor(p);
+      check(r != nullptr, "every premix has a recipe");
+      if (!r) continue;
+      const int pa = presetOf(r->a), pb = presetOf(r->b);
+      check(pa > 0 && pb > 0, "recipe components name real rows");
+      check(isMixablePreset(pa) && isMixablePreset(pb),
+            "recipe components are pure, never premixes themselves");
+      if (r->mode == Blend)
+        check(r->weightA >= 1 && r->weightB >= 1, "blend weights usable");
+    }
+    check(recipeFor("P1") == nullptr, "pure phosphors have no recipe");
+    check(recipeFor(nullptr) == nullptr, "null is not a recipe");
+    // P4's second component is an EXACT compound match; pin the identity so a
+    // future remap of the table cannot silently downgrade it.
+    const PremixRecipe *p4 = recipeFor("P4");
+    check(p4 && std::strcmp(p4->b, "P22G") == 0,
+          "P4's yellow-green is P22G, the exact compound");
+  }
+
   if (failures == 0) std::printf("phosphor_mix_test: all checks passed\n");
   return failures ? 1 : 0;
 }
