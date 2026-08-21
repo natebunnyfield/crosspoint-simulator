@@ -320,10 +320,11 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
 
 - (void)tabChanged:(UISegmentedControl *)seg {
   self.tab = (CPXMixerTab)seg.selectedSegmentIndex;
-  if (self.tab != CPXTabPresets) {
-    [[NSUserDefaults standardUserDefaults] setInteger:self.tab - 1 forKey:kMixMode];
-    applyStoredMix();
-  }
+  // LOOKING IS NOT CHOOSING. The first version applied the stored mix on every
+  // tab switch, so opening Parts with unset roles -- or Blend with an empty
+  // list -- blanked the page to the default palette just for browsing. The
+  // mode is written and the mix applied only when a row is actually picked;
+  // switching tabs changes nothing on the page.
   [self.tableView reloadData];
 }
 
