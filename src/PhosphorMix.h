@@ -90,6 +90,14 @@ struct Result {
   float trailMs = 0.0f;
   bool hasTail = false;
   unsigned char tail[3] = {0, 0, 0};  // what the afterglow decays TOWARD
+  // WHEN the hue handover completes, ms after the deposit: the slowest trail
+  // among the components NOT in the survivor set -- the moment everything
+  // faster than the survivors has died. Owner report 2026-08-21 (device
+  // screenshot): P46 green at 100 + P33 radar orange at 11 fades green for the
+  // whole 2.8 s, when physically the green is gone in tens of ms and the
+  // entire visible fade is orange. 0 = no handover; the renderer keeps its old
+  // whole-trail ramp.
+  float tailOnsetMs = 0.0f;
 };
 
 // --- linear light ----------------------------------------------------------
@@ -190,6 +198,12 @@ inline Result mixBlend(const Component *comps, int n) {
   r.trailMs = slowestTrail > 0.0f ? slowestTrail : 0.0f;
   if (used > 1 && slowest >= 0 && slowestTrail > fastestTrail * 1.5f) {
     r.hasTail = true;
+    // The handover is complete when the last NON-survivor dies: the maximum
+    // trail among components not in the survivor set.
+    for (int i = 0; i < used; i++) {
+      if (trails[i] == slowestTrail) continue;
+      if (trails[i] > r.tailOnsetMs) r.tailOnsetMs = trails[i];
+    }
     // The survivors: every component whose trail IS the maximum. Their dark
     // inks blend with the same weights and the same linear-light math as the
     // full mix; comparing floats exactly is safe because every trail comes
@@ -275,6 +289,12 @@ inline Result mixCascade(int flashFrom, int persistFrom) {
   const panelpalette::Palette p = detail::paletteOf(persistFrom, true);
   r.hasTail = true;
   for (int c = 0; c < 3; c++) r.tail[c] = p.ink[c];
+  // The handover is the flash layer's own death: once its trail is spent, all
+  // remaining light is the persistence layer's. (An unset flash fell back to
+  // the Default preset above, which is no phosphor and trails 0 -- onset 0,
+  // the old whole-trail ramp.)
+  r.tailOnsetMs = panelpalette::trailMsForPreset(flashFrom);
+  if (r.tailOnsetMs < 0.0f) r.tailOnsetMs = 0.0f;
   return r;
 }
 

@@ -220,8 +220,15 @@ void setPanelGlow(float trailMs);
 //
 // Applied as a color multiply on the ghost that ramps in as it decays: at full
 // brightness the trail is what was drawn, and by the end it is this hue.
-// CROSSPOINT_SIM_PANEL_GLOW_TAIL overrides the argument, "RRGGBB".
-void setPanelGlowTail(const unsigned char tint[3]);
+// CROSSPOINT_SIM_PANEL_GLOW_TAIL overrides the tint argument, "RRGGBB".
+//
+// `onsetMs` is WHEN the handover completes: the moment every component faster
+// than the survivors has died (phosphormix::Result::tailOnsetMs). For the
+// reported P46+P33 mix that is ~17 ms into a 2828 ms fade -- the recolor must
+// CASCADE at the fast phosphor's death, not drift across the whole trail. 0
+// (the default, and every single-preset caller) keeps the old whole-trail
+// ramp, so presets that never learned about onsets are timing-unchanged.
+void setPanelGlowTail(const unsigned char tint[3], float onsetMs = 0.0f);
 
 // PHOSPHOR GRAIN: the spatial texture of the screen itself. `strengthPercent`
 // is a percentage of what a real settled-powder screen has, so 100 is realistic
