@@ -242,38 +242,80 @@ inline Result mixCascade(int flashFrom, int persistFrom) {
   return r;
 }
 
+// --- THE SHELF'S PERSISTENCE BANDS -----------------------------------------
+// Owner ruling 2026-08-21: "group ingredient shelf by natural breaks of
+// persistence fade." The breaks are the DATA's, not round numbers: sorting the
+// 34 pure trails, the ratio gaps sit at 20->63 ms (3.2x), 126->283 (2.2x) and
+// 1095->2828 (2.6x), plus the largest remaining seam at 400->693 (1.7x). Five
+// bands. One definition here so the mixer UI and the proof page cannot drift.
+constexpr int kTrailBandCount = 5;
+
+inline int trailBand(float trailMs) {
+  if (trailMs <= 21.0f) return 0;      // 16.7-20 ms: gone within a frame
+  if (trailMs <= 130.0f) return 1;     // 63-127 ms: a blink
+  if (trailMs <= 450.0f) return 2;     // 283-400 ms: a beat
+  if (trailMs <= 1200.0f) return 3;    // 693-1095 ms: lingers
+  return 4;                            // 2828 ms: holds on
+}
+
+inline const char *trailBandName(int band) {
+  static const char *const kNames[kTrailBandCount] = {
+      "Gone within a frame — under 20 ms",
+      "A blink — 60 to 130 ms",
+      "A beat — 280 to 400 ms",
+      "Lingers — 0.7 to 1.1 s",
+      "Holds on — nearly 3 s",
+  };
+  return band >= 0 && band < kTrailBandCount ? kNames[band] : "";
+}
+
 // --- PREMIX RECIPES --------------------------------------------------------
-// Owner ruling 2026-08-20: tapping a preset mix applies it whole; a LONG-PRESS
-// loads it into the mixer as an editable recipe. The mapping from each
-// premix's JEDEC compounds to this repo's pure rows is APPROXIMATE and says
-// so: JEDEC names compounds, and the nearest pure preset is sometimes an exact
-// compound match (P4's (Zn,Cd)S:Cu,Al IS P22G) and sometimes only a
-// behavioural cousin (P7's long (Zn,Cd)S:Cu layer has no pure row; P34 is the
-// nearest long yellow-green). A loaded recipe therefore does NOT reproduce the
-// shipped premix byte-for-byte -- it is a starting point, and the UI must say
-// that rather than let the difference read as a bug.
+// Owner rulings 2026-08-20/21: tapping a preset mix applies it whole; a
+// LONG-PRESS loads it into the mixer as an editable recipe — and the recipes
+// are FITTED, not composition maps.
+//
+// The first table mapped each premix's JEDEC compounds to their nearest pure
+// rows (P4 = P22B + P22G, which is chemically exact). Measured against the
+// shipped premixes it was off by dE 26-47, and the reason is structural: the
+// shipped premix pages were derived from JEDEC WHITE POINTS through the
+// palette pipeline (band broadening, gamut mapping, contrast lift), while the
+// component rows went through that pipeline separately — the two constructions
+// do not commute, so blending the stylized rows cannot land on the stylized
+// premix. Chemistry-true recipes that render visibly wrong teach the wrong
+// lesson, so on "recompute the eight presets" the table was refitted by
+// exhaustive search (pairs and triples of pure rows, weights 1-9) to minimize
+// CIELAB distance to each shipped premix's dark pair. Fitted scores are dE
+// 3.8-9.6 — a 4-8x improvement — and are pinned by the test.
+//
+// One physical guardrail: P10 is excluded as a donor. KCl is a dark-trace
+// screen — it absorbs where every other row emits — and the unconstrained fit
+// happily used it as a dimming agent, which is a fit artifact, not a recipe
+// anyone should be handed.
 //
 // Components are named by P-number string, not preset integer, so the table
-// survives any renumbering; resolution goes through kPresetInfo at load time.
+// survives renumbering; resolution goes through kPresetInfo at load time.
 struct PremixRecipe {
   const char *phosphor;      // the premix row this recipe reconstructs
   Mode mode;                 // Blend or Cascade
   const char *a;             // blend component 1 / cascade flash
   const char *b;             // blend component 2 / cascade persistence
-  int weightA, weightB;      // blend only
+  const char *c;             // blend component 3, or nullptr (owner: "you need three")
+  int weightA, weightB, weightC;
 };
 
 inline constexpr PremixRecipe kPremixRecipes[] = {
-    // Blends. ZnS:Ag is P22B, the color tube's own blue gun.
-    {"P4", Blend, "P22B", "P22G", 3, 3},   // (Zn,Cd)S:Cu,Al IS P22G -- exact
-    {"P6", Blend, "P22B", "P20", 3, 3},    // ZnS:CdS:Ag ~ P20's (Zn,Cd)S:Ag
-    {"P18", Blend, "P16", "P13", 3, 3},    // diopside cousins: Ce for Ti, Mn silicate
-    {"P23", Blend, "P22B", "P20", 3, 4},   // warm white: weighted toward the yellow
-    {"P40", Blend, "P22B", "P34", 3, 3},   // long (Zn,Cd)S:Cu ~ P34, nearest long green
-    // Cascades: flash paints, persistence lingers.
-    {"P7", Cascade, "P22B", "P34", 0, 0},
-    {"P14", Cascade, "P22B", "P26", 0, 0},  // orange persistence ~ P26 radar orange
-    {"P17", Cascade, "P15", "P28", 0, 0},   // ZnO flash IS P15; yellow ~ P28
+    // Blends, fitted 2026-08-21. Fit score in the comment is CIELAB
+    // dE(ink) + 0.5*dE(paper) against the shipped dark pair.
+    {"P4", Blend, "P13", "P45", "P5", 1, 6, 1},     // 4.8 (was 32.5)
+    {"P6", Blend, "P5", "P45", nullptr, 1, 2, 0},   // 3.8 (was 41.6)
+    {"P18", Blend, "P5", "P45", "P56", 2, 7, 1},    // 4.7 (was 42.3)
+    {"P23", Blend, "P45", "P56", nullptr, 9, 4, 0}, // 9.6 (was 46.8)
+    {"P40", Blend, "P28", "P45", nullptr, 1, 6, 0}, // 8.4 (was 26.1)
+    // Cascades, fitted the same day: flash to the shipped page, persistence to
+    // the shipped afterglow tint and trail.
+    {"P7", Cascade, "P47", "P34", nullptr, 0, 0, 0},
+    {"P14", Cascade, "P5", "P26", nullptr, 0, 0, 0},
+    {"P17", Cascade, "P5", "P19", nullptr, 0, 0, 0},
 };
 inline constexpr int kPremixRecipeCount =
     static_cast<int>(sizeof(kPremixRecipes) / sizeof(kPremixRecipes[0]));

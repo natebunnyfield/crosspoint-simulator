@@ -255,8 +255,10 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
 @end
 
 @implementation CPXMixerController {
-  // The ingredient shelf: every pure phosphor row, in kPresetInfo order.
-  std::vector<int> _pure;
+  // The ingredient shelf: every pure phosphor row, grouped by persistence band
+  // (owner ruling 2026-08-21: "group ingredient shelf by natural breaks of
+  // persistence fade"). Within a band, kPresetInfo order.
+  std::vector<int> _shelf[phosphormix::kTrailBandCount];
   // The premixes, offered as preset mixes (owner ruling: not ingredients).
   std::vector<int> _premix;
   // Everything, for the Presets tab (kPresetInfo order = picker order).
@@ -273,7 +275,9 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
     if (phosphormix::isPremixPhosphor(info.phosphor))
       _premix.push_back(info.preset);
     else
-      _pure.push_back(info.preset);
+      _shelf[phosphormix::trailBand(
+                 panelpalette::trailMsForPreset(info.preset))]
+          .push_back(info.preset);
   }
   self.tab = (CPXMixerTab)([[NSUserDefaults standardUserDefaults]
                                boolForKey:kMixActive]
@@ -331,14 +335,15 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
       phosphormix::recipeFor(info ? info->phosphor : nullptr);
   if (!r) return;
   // Resolve the component P-numbers to preset integers through kPresetInfo.
-  int pa = -1, pb = -1;
+  int pa = -1, pb = -1, pc = -1;
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     const char *ph = panelpalette::kPresetInfo[i].phosphor;
     if (!ph) continue;
     if (!strcmp(ph, r->a)) pa = panelpalette::kPresetInfo[i].preset;
     if (!strcmp(ph, r->b)) pb = panelpalette::kPresetInfo[i].preset;
+    if (r->c && !strcmp(ph, r->c)) pc = panelpalette::kPresetInfo[i].preset;
   }
-  if (pa < 0 || pb < 0) return;
+  if (pa < 0 || pb < 0 || (r->c && pc < 0)) return;
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
   if (r->mode == phosphormix::Cascade) {
     [d setInteger:pa forKey:kMixFlash];
@@ -346,8 +351,9 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
     [d setInteger:phosphormix::Cascade forKey:kMixMode];
     self.tab = CPXTabCascade;
   } else {
-    phosphormix::Component comps[2] = {{pa, r->weightA}, {pb, r->weightB}};
-    saveBlend(comps, 2);
+    phosphormix::Component comps[3] = {{pa, r->weightA}, {pb, r->weightB},
+                                       {pc, r->weightC}};
+    saveBlend(comps, pc >= 0 ? 3 : 2);
     [d setInteger:phosphormix::Blend forKey:kMixMode];
     self.tab = CPXTabBlend;
   }
@@ -365,9 +371,9 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv {
   switch (self.tab) {
     case CPXTabPresets: return 2;             // presets, then preset mixes
-    case CPXTabBlend: return 1;               // the shelf, checkable
-    case CPXTabParts: return 2;               // role picker note + shelf
-    case CPXTabCascade: return 2;             // role picker note + shelf
+    case CPXTabBlend: return phosphormix::kTrailBandCount;
+    case CPXTabParts: return 1 + phosphormix::kTrailBandCount;
+    case CPXTabCascade: return 1 + phosphormix::kTrailBandCount;
   }
   return 1;
 }
@@ -378,16 +384,26 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
       return s == 0 ? @"Presets"
                     : @"Preset mixes — already blends or cascades, picked whole";
     case CPXTabBlend:
-      return @"Blend — pick up to 4 phosphors, weight with the slider";
-    case CPXTabParts:
-      return s == 0 ? nil : (self.partsRole == 0
-                                 ? @"Pick the INK phosphor"
-                                 : self.partsRole == 1 ? @"Pick the PAPER phosphor"
-                                                       : @"Pick the FADE phosphor");
-    case CPXTabCascade:
-      return s == 0 ? nil : (self.cascadeRole == 0
-                                 ? @"Pick the FLASH layer — it paints the page"
-                                 : @"Pick the PERSISTENCE layer — it lingers");
+      return s == 0
+                 ? [NSString stringWithFormat:
+                       @"Blend — up to 4 phosphors, slider weights · %s",
+                       phosphormix::trailBandName(0)]
+                 : @(phosphormix::trailBandName((int)s));
+    case CPXTabParts: {
+      if (s == 0)
+        return self.partsRole == 0
+                   ? @"Pick the INK phosphor"
+                   : self.partsRole == 1 ? @"Pick the PAPER phosphor"
+                                         : @"Pick the FADE phosphor";
+      return @(phosphormix::trailBandName((int)s - 1));
+    }
+    case CPXTabCascade: {
+      if (s == 0)
+        return self.cascadeRole == 0
+                   ? @"Pick the FLASH layer — it paints the page"
+                   : @"Pick the PERSISTENCE layer — it lingers";
+      return @(phosphormix::trailBandName((int)s - 1));
+    }
   }
   return nil;
 }
@@ -404,9 +420,9 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
   switch (self.tab) {
     case CPXTabPresets: return s == 0 ? (NSInteger)(_all.size() - _premix.size())
                                       : (NSInteger)_premix.size();
-    case CPXTabBlend: return (NSInteger)_pure.size();
-    case CPXTabParts: return s == 0 ? 1 : (NSInteger)_pure.size();
-    case CPXTabCascade: return s == 0 ? 1 : (NSInteger)_pure.size();
+    case CPXTabBlend: return (NSInteger)_shelf[s].size();
+    case CPXTabParts: return s == 0 ? 1 : (NSInteger)_shelf[s - 1].size();
+    case CPXTabCascade: return s == 0 ? 1 : (NSInteger)_shelf[s - 1].size();
   }
   return 0;
 }
@@ -432,8 +448,10 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
       }
       return _all[0];
     }
+    case CPXTabBlend:
+      return _shelf[ip.section][ip.row];
     default:
-      return _pure[ip.row];
+      return _shelf[ip.section - 1][ip.row];
   }
 }
 

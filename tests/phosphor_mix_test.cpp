@@ -8,6 +8,7 @@
 
 #include <cstdio>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 using namespace phosphormix;
@@ -216,11 +217,67 @@ int main() {
     }
     check(recipeFor("P1") == nullptr, "pure phosphors have no recipe");
     check(recipeFor(nullptr) == nullptr, "null is not a recipe");
-    // P4's second component is an EXACT compound match; pin the identity so a
-    // future remap of the table cannot silently downgrade it.
-    const PremixRecipe *p4 = recipeFor("P4");
-    check(p4 && std::strcmp(p4->b, "P22G") == 0,
-          "P4's yellow-green is P22G, the exact compound");
+    // The recipes are FITTED (2026-08-21), and the fit is the contract: each
+    // blend recipe's computed dark ink must land within dE 12 of its shipped
+    // premix, and no recipe may use P10 -- a dark-trace screen absorbs, so a
+    // fit that leans on it is an artifact.
+    auto lab3 = [](const unsigned char c[3], float out[3]) {
+      auto lin = [](unsigned char v) {
+        const float f = v / 255.0f;
+        return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+      };
+      const float r = lin(c[0]), g = lin(c[1]), b = lin(c[2]);
+      const float X = .4124f * r + .3576f * g + .1805f * b;
+      const float Y = .2126f * r + .7152f * g + .0722f * b;
+      const float Z = .0193f * r + .1192f * g + .9505f * b;
+      auto f = [](float t) { return t > 0.008856f ? std::cbrt(t) : 7.787f * t + 16.0f / 116; };
+      const float fx = f(X / 0.95047f), fy = f(Y), fz = f(Z / 1.08883f);
+      out[0] = 116 * fy - 16; out[1] = 500 * (fx - fy); out[2] = 200 * (fy - fz);
+    };
+    for (int i = 0; i < kPremixRecipeCount; i++) {
+      const PremixRecipe &r = kPremixRecipes[i];
+      check(std::strcmp(r.a, "P10") && std::strcmp(r.b, "P10") &&
+                (!r.c || std::strcmp(r.c, "P10")),
+            "no recipe uses the dark-trace screen as a donor");
+      if (r.mode != Blend) continue;
+      Component c[3] = {{presetOf(r.a), r.weightA},
+                        {presetOf(r.b), r.weightB},
+                        {r.c ? presetOf(r.c) : -1, r.weightC}};
+      const Result m = mixBlend(c, 3);
+      const panelpalette::Palette ship =
+          panelpalette::resolve(presetOf(r.phosphor), true, -1, -1);
+      float la[3], lb[3];
+      lab3(m.dark.ink, la); lab3(ship.ink, lb);
+      const float d = std::sqrt((la[0]-lb[0])*(la[0]-lb[0]) +
+                                (la[1]-lb[1])*(la[1]-lb[1]) +
+                                (la[2]-lb[2])*(la[2]-lb[2]));
+      check(d < 12.0f, "a fitted recipe lands near its shipped premix");
+    }
+  }
+
+  // --- THE PERSISTENCE BANDS COVER THE SHELF, IN ORDER ---------------------
+  // Every pure row lands in a band, band index is monotonic in trail, and no
+  // band is empty -- an empty band is a header over nothing.
+  {
+    int counts[kTrailBandCount] = {};
+    float prevTrail = -1.0f;
+    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+      const auto &info = panelpalette::kPresetInfo[i];
+      if (!info.phosphor || isPremixPhosphor(info.phosphor)) continue;
+      const float t = panelpalette::trailMsForPreset(info.preset);
+      const int b = trailBand(t);
+      check(b >= 0 && b < kTrailBandCount, "every pure row lands in a band");
+      counts[b]++;
+    }
+    for (int b = 0; b < kTrailBandCount; b++)
+      check(counts[b] > 0, "no persistence band is empty");
+    check(trailBand(16.7f) == 0 && trailBand(126.5f) == 1 &&
+              trailBand(282.8f) == 2 && trailBand(1095.4f) == 3 &&
+              trailBand(2828.4f) == 4,
+          "the band edges sit in the data's own gaps");
+    check(trailBand(20.0f) < trailBand(63.2f) &&
+              trailBand(400.0f) < trailBand(692.8f),
+          "band index is monotonic across the gaps");
   }
 
   if (failures == 0) std::printf("phosphor_mix_test: all checks passed\n");
