@@ -1385,9 +1385,25 @@ void HalGPIO::startDeepSleep() {
   // The press that put the device to sleep set the wake edge on its way down;
   // consume it so entering sleep does not instantly wake.
   syntheticWakeEdge.store(false);
+  // Same consumption for the tap queue: a queued POWER tap sleeps the device
+  // ~10 ms into its 60 ms hold (SHORT_PWRBTN::SLEEP), so its release is still
+  // pending here. That entry belongs to the press that slept us; left in the
+  // queue it would read as a fresh press below and wake instantly.
+  pendingButtonTaps.clear();
 
   while (true) {
     processSyntheticEvents();
+    // Queued taps (queueButtonTap: zen's zones, accessibility taps, QTAP in a
+    // script) only ever fire inside update(), which never runs during sleep —
+    // so without this a zen POWER tap could never wake the device and the app
+    // sat on the sleep frame forever. A tap queued now is a press, and any
+    // press since sleep began is a wake. Consume rather than fire: the wake
+    // press has no release (same contract as requestSimulatorSleep above),
+    // and a fired DOWN would leave its UP to a run this reboot abandons.
+    if (!pendingButtonTaps.empty()) {
+      pendingButtonTaps.clear();
+      syntheticWakeEdge.store(true);
+    }
     if (quitRequested.load())
       return;
     // EDGE, not level: syntheticButtonDown[] can already be false again if the
