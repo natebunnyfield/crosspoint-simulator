@@ -43,6 +43,25 @@ sharp corners under two soft ones. Same curve as the top pair — `kCornerExpone
 2.8`, off Apple's display mask — because the two pairs sit on one rectangle and
 any difference is visible precisely there.
 
+**Same RADIUS too, 8 pt, `kPaperCornerPt`** (owner ruling 2026-08-20: *"use the
+bottom corner radius on the top of the paper too"*). The top pair used to ask
+UIKit for the display's own radius — ~55 pt — so the card's corners ran with the
+glass. On one rectangle that is a 165 px curve at the top against a 24 px curve
+at the bottom, which reads as two different objects rather than as a sheet.
+`CrossPointAppearance_displayCornerRadius` stays available; nothing calls it
+today.
+
+Verified both pairs on an iPhone Air, insets from each side by row:
+
+| row from edge | top pair | bottom pair |
+|---|---|---|
+| 0 | 24 | 24 |
+| 1 | 13 | 13 |
+| 2 | 10 | 10 |
+| 3 | 8 | 8 |
+| 4 | 7 | 7 |
+| 5 | 6 | 6 |
+
 Two ways to get this wrong, both shipped and both caught in a screenshot:
 
 * **Cutting them out of the page's rect.** The page is 1056 px wide on a 1260 px
@@ -56,8 +75,7 @@ Two ways to get this wrong, both shipped and both caught in a screenshot:
   band's straight top. `g_zenPaper.h` must follow the line in BOTH directions,
   not just when paper is added.
 
-Verified profile (device px, bottom row first): inset 24, 13, 10, 8 — a
-superellipse, symmetric to the pixel on both sides.
+Both are a superellipse, symmetric to the pixel on both sides.
 
 ## Checking it without a device
 
