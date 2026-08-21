@@ -2332,6 +2332,53 @@ void CrossPointHarness_perFrame() {
   pollPageFade();
   pollPageFadeDepth();
   pollPresentFlash();
+  // DIAGNOSTIC ONLY (CROSSPOINT_SIM_OPEN_MIXER=1): present the mixer shortly
+  // after launch with no finger involved. Exists because the color chip's tap
+  // crashed on a device (owner report 2026-08-21) and the iOS Simulator is the
+  // one place a symbolicated crash can be produced on demand -- simctl cannot
+  // synthesize a tap, so the trigger has to come from inside. A frame counter
+  // rather than a timer: the pad's no-timers rule holds even for diagnostics.
+  {
+    static int s_openMixerCountdown = -2;
+    if (s_openMixerCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_OPEN_MIXER");
+      s_openMixerCountdown = (e && e[0] == '1') ? 120 : -1;  // ~2 s of frames
+    }
+    if (s_openMixerCountdown > 0 && --s_openMixerCountdown == 0) {
+      SDL_Log("[mixer] diagnostic auto-open");
+      CrossPointMixer_present();
+    }
+    // CROSSPOINT_SIM_TAP_CHIP=1: the FULL finger path, not just the modal --
+    // synthesizes SDL_EVENT_FINGER_DOWN/UP at the chip's center, so padWatch,
+    // hitPaletteChip and the whole tap branch run exactly as a thumb runs them.
+    // Exists because the auto-open above reproduced nothing while the device
+    // crash was reported against the tap.
+    static int s_tapChipCountdown = -2;
+    if (s_tapChipCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_TAP_CHIP");
+      s_tapChipCountdown = (e && e[0] == '1') ? 150 : -1;
+    }
+    if (s_tapChipCountdown > 0 && --s_tapChipCountdown == 0 &&
+        g_paletteChip.w > 0) {
+      float outW = 0, outH = 0;
+      if (windowPixelSize(g_windowId, &outW, &outH)) {
+        const float cx = (g_paletteChip.x + g_paletteChip.w / 2) / outW;
+        const float cy = (g_paletteChip.y + g_paletteChip.h / 2) / outH;
+        SDL_Log("[mixer] diagnostic chip tap at %.3f,%.3f", cx, cy);
+        SDL_Event down{};
+        down.type = SDL_EVENT_FINGER_DOWN;
+        down.tfinger.touchID = 99;
+        down.tfinger.fingerID = 99;
+        down.tfinger.x = cx;
+        down.tfinger.y = cy;
+        down.tfinger.windowID = g_windowId;
+        SDL_PushEvent(&down);
+        SDL_Event up = down;
+        up.type = SDL_EVENT_FINGER_UP;
+        SDL_PushEvent(&up);
+      }
+    }
+  }
   pollPhosphorGrain();
   pollPadContrast();
   repaintAfterForeground();
