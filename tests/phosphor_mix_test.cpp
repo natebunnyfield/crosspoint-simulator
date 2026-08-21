@@ -93,16 +93,20 @@ int main() {
 
   // --- THE TRAIL IS THE SLOWEST COMPONENT'S, AND SO IS THE TAIL ------------
   // P33 (1000 ms class) blended with P15 (extremely short): the mixture's
-  // afterglow lasts as long as P33 and dies toward P33's color, because P15 has
-  // already gone dark.
+  // afterglow lasts as long as P33 and dies toward P33's HUE -- at HALF
+  // brightness, because P33 holds half this mix's emission (owner 2026-08-21:
+  // the tail carries the survivor's share, not a relit full ink).
   {
     Component c[] = {{P15, 1}, {P33, 1}};
     const Result r = mixBlend(c, 2);
     check(r.trailMs == panelpalette::trailMsForPreset(P33),
           "blend trail is the slowest component's");
     const Palette p33 = panelpalette::resolve(P33, true, -1, -1);
-    check(r.hasTail && std::memcmp(r.tail, p33.ink, 3) == 0,
-          "what lingers is the slow component's ink");
+    unsigned char half[3];
+    for (int ch = 0; ch < 3; ch++)
+      half[ch] = fromLinear(toLinear(p33.ink[ch]) / 2.0f);
+    check(r.hasTail && std::memcmp(r.tail, half, 3) == 0,
+          "what lingers is the slow component's ink at its half share");
     // equal-speed blend: dims without changing color
     Component eq[] = {{P1, 1}, {P3, 1}};
     const Result re = mixBlend(eq, 2);
@@ -154,15 +158,44 @@ int main() {
           "the triad's trail is the slow pair's 283 ms");
     const Palette rInk = panelpalette::resolve(R22, true, -1, -1);
     const Palette bInk = panelpalette::resolve(B22, true, -1, -1);
+    // Divided by the FULL total (3), not the survivor total (2): the tail
+    // carries the survivors' SHARE of the emission. Owner 2026-08-21: "1 and
+    // 100 have the same fade but they should be very different" -- the old
+    // survivor-total normalization relit any survivor to full brightness.
     unsigned char expect[3];
     for (int c = 0; c < 3; c++)
       expect[c] = fromLinear(
-          (toLinear(rInk.ink[c]) + toLinear(bInk.ink[c])) / 2.0f);
+          (toLinear(rInk.ink[c]) + toLinear(bInk.ink[c])) / 3.0f);
     check(std::memcmp(r.tail, expect, 3) == 0,
-          "the tail is the equal-weight linear blend of the two survivors");
+          "the tail is the survivors' linear blend at their share of the total");
     check(std::memcmp(r.tail, rInk.ink, 3) != 0 &&
               std::memcmp(r.tail, bInk.ink, 3) != 0,
           "…and not either survivor's ink alone");
+  }
+
+  // --- THE TAIL'S BRIGHTNESS IS THE SURVIVOR'S WEIGHT, NOT A CONSTANT ------
+  // Owner report 2026-08-21: "it seems like fade of the individual gun is
+  // taking the brightest intensity instead of its own individual one, so 1 and
+  // 100 have the same fade but they should be very different." Same fast gun,
+  // same slow gun, survivor weight 1 vs 100: the two tails must differ, and
+  // the weight-1 tail must be far dimmer -- its gun holds ~1% of the light.
+  {
+    const int G22 = presetOf("P22G");
+    Component dim[] = {{G22, 100}, {P33, 1}};
+    Component bright[] = {{G22, 1}, {P33, 100}};
+    const Result rd = mixBlend(dim, 2);
+    const Result rb = mixBlend(bright, 2);
+    check(rd.hasTail && rb.hasTail, "both share mixes carry a tail");
+    auto lum = [](const unsigned char t[3]) {
+      return toLinear(t[0]) + toLinear(t[1]) + toLinear(t[2]);
+    };
+    check(std::memcmp(rd.tail, rb.tail, 3) != 0,
+          "weight 1 and weight 100 survivors fade differently");
+    check(lum(rd.tail) * 10.0f < lum(rb.tail),
+          "a weight-1 survivor's tail is far dimmer than a weight-100 one's");
+    const Palette p33 = panelpalette::resolve(P33, true, -1, -1);
+    check(lum(rd.tail) < lum(p33.ink) / 4.0f,
+          "…and far dimmer than the survivor's own full ink");
   }
 
   // --- THE HANDOVER HAPPENS WHEN THE FAST PHOSPHOR DIES --------------------
