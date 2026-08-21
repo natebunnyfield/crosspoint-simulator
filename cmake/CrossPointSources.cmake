@@ -4,14 +4,14 @@
 # `pio run -e simulator -t compiledb`. Regenerate after any firmware change that
 # adds, removes, or renames a translation unit.
 #
-# firmware   : /Users/natebunnyfield/src/wt-ship/crosspoint-reader
-# pinned at  : f1dbdb3256638be73568fd97be758b3e36d05c26
-# TU counts  : 133 firmware, 24 simulator (6 C, 151 C++)
+# firmware   : /Users/natebunnyfield/src/crosspoint-reader
+# pinned at  : 6c5ebf2a5c2f2dedbf969a4926fc8b3c19227c12
+# TU counts  : 137 firmware, 24 simulator (6 C, 155 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "f1dbdb3256638be73568fd97be758b3e36d05c26")
+set(CROSSPOINT_FIRMWARE_PIN "6c5ebf2a5c2f2dedbf969a4926fc8b3c19227c12")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -85,6 +85,8 @@ set(CROSSPOINT_FW_SOURCES
   lib/I18n/I18nStrings.cpp
   lib/InflateReader/InflateReader.cpp
   lib/JpegToBmpConverter/JpegToBmpConverter.cpp
+  lib/JsonParser/ReleaseJsonParser.cpp
+  lib/JsonParser/StreamingJsonParser.cpp
   lib/Logging/Logging.cpp
   lib/Memory/BuildScratch.cpp
   lib/MiniBidi/BidiUtils.cpp
@@ -139,6 +141,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/settings/ColophonActivity.cpp
   src/activities/settings/EditorFontSelectionActivity.cpp
   src/activities/settings/FontSelectionActivity.cpp
+  src/activities/settings/LibraryUpdateActivity.cpp
   src/activities/settings/OnlineFirmwareUpdateActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
   src/activities/settings/SettingsActivity.cpp
@@ -160,6 +163,7 @@ set(CROSSPOINT_FW_SOURCES
   src/network/CrossPointWebServer.cpp
   src/network/FirmwareImageValidator.cpp
   src/network/HttpDownloader.cpp
+  src/network/LibraryUpdater.cpp
   src/network/OtaCommit.cpp
   src/network/WebDAVHandler.cpp
   src/network/WifiDiagnostics.cpp
@@ -191,6 +195,7 @@ set(CROSSPOINT_FW_INCLUDE_DIRS
   lib/I18n
   lib/InflateReader
   lib/JpegToBmpConverter
+  lib/JsonParser
   lib/Logging
   lib/Memory
   lib/MiniBidi

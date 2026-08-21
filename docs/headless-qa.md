@@ -43,6 +43,13 @@ RIGHT x6  -> Create Note
 Counting from the menu rather than from the cover is an off-by-two, and it lands
 you in Manage Files while you think you are in Create Note.
 
+The full menu after Create Note, as of 2026-08-21: Claude, Update Firmware
+(dropped on builds that cannot flash, i.e. iOS), **Update Library**, Settings.
+Update Library landed above Settings on 2026-08-21, so any older script whose
+RIGHT-count targeted Settings or "the row above Settings" shifted by one.
+Selection clamps at Settings (no wrap), so over-shooting with extra RIGHTs
+still lands on Settings; it is the rows above it that moved.
+
 ### 3. Presses need roughly 900 ms between them
 
 At 500 ms only about half register — the panel repaint has not finished and the

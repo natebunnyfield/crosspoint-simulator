@@ -436,9 +436,11 @@ like a screenshot of a screen that never changed.
   activates the selected row. Home lists the recent books followed by the menu
   items — on the bunnyfield fork as of 2026-08-04: Browse Files, Recents,
   File Transfer, Manage Files, Settings (no OPDS), Settings last, with no
-  wrap-around — so `DOWN` x15 then `ENTER` reaches Settings regardless of how
-  many books are listed, and `DOWN` x15 then `UP` then `ENTER` reaches Manage
-  Files.
+  wrap-around. Update Library sits ABOVE Settings as of 2026-08-21, so the
+  menu is six rows: `DOWN` x16 then `ENTER` reaches Settings regardless of how
+  many books are listed, `DOWN` x16 then `UP` then `ENTER` reaches Update
+  Library, and x16 `UP` x2 reaches Manage Files. (The old x15 counts predate
+  the Update Library row and land one item short.)
 - **Scripts that list ALL files (Manage Files) shift by one after the first
   run**: the firmware creates `.crosspoint/` on the test card during boot, and
   in a show-everything list it sorts to row 0 of the root. A DOWN-count written
