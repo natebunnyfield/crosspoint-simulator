@@ -49,27 +49,34 @@ premix row selects it whole, exactly like any preset; a long-press loads its
 components pre-filled.
 
 The recipes live in `kPremixRecipes` (PhosphorMix.h), named by P-number so they
-survive renumbering, and the mapping from JEDEC compounds to this repo's pure
-rows is **approximate by construction** — sometimes exact (P4's
-`(Zn,Cd)S:Cu,Al` IS P22G), sometimes only a behavioral cousin (P7's long
-`(Zn,Cd)S:Cu` layer has no pure row; P34 is the nearest long yellow-green). A
-loaded recipe therefore does not reproduce the shipped premix byte-for-byte.
-The section footer in the modal says so, so the difference reads as stated
-rather than as a bug.
+survive renumbering — and as of 2026-08-21 they are **fitted, not composition
+maps**. The first table mapped each premix's JEDEC compounds to their nearest
+pure rows (P4 = P22B + P22G, chemically exact) and missed the shipped premixes
+by ΔE 26–47. The reason is structural: the shipped premix pages were derived
+from JEDEC **white points** through the palette pipeline, while the component
+rows went through that pipeline separately — the two constructions do not
+commute, so blending the stylized rows cannot land on the stylized premix.
+Chemistry-true recipes that render visibly wrong teach the wrong lesson, so on
+the owner's "recompute the eight presets" they were refitted by exhaustive
+search (pairs and triples, weights 1–9, CIELAB against the shipped dark pair).
+One guardrail: P10 is excluded as a donor — a dark-trace screen absorbs, and
+the unconstrained fit used it as a dimming agent.
 
-| Premix | Recipe |
-|---|---|
-| P4 | Blend: P22B + P22G, 3:3 |
-| P6 | Blend: P22B + P20, 3:3 |
-| P18 | Blend: P16 + P13, 3:3 |
-| P23 | Blend: P22B + P20, 3:4 (warm — weighted toward the yellow) |
-| P40 | Blend: P22B + P34, 3:3 |
-| P7 | Cascade: flash P22B, persistence P34 |
-| P14 | Cascade: flash P22B, persistence P26 |
-| P17 | Cascade: flash P15, persistence P28 |
+| Premix | Fitted recipe | ΔE (was) |
+|---|---|---|
+| P4 | Blend: P13 1 : P45 6 : P5 1 | 4.8 (32.5) |
+| P6 | Blend: P5 1 : P45 2 | 3.8 (41.6) |
+| P18 | Blend: P5 2 : P45 7 : P56 1 | 4.7 (42.3) |
+| P23 | Blend: P45 9 : P56 4 | 9.6 (46.8) |
+| P40 | Blend: P28 1 : P45 6 | 8.4 (26.1) |
+| P7 | Cascade: flash P47, persistence P34 | — |
+| P14 | Cascade: flash P5, persistence P26 | — |
+| P17 | Cascade: flash P5, persistence P19 | — |
 
 The test pins that every premix has a recipe, every component resolves to a
-real pure row (never a premix), and P4's exact-compound match stays exact.
+real pure row (never a premix), no recipe uses P10, and every blend recipe's
+computed dark ink lands within ΔE 12 of its shipped premix — the fit is the
+contract now.
 
 ## How it lands in the pipeline
 
@@ -96,6 +103,24 @@ each with its hex value, plus the time to fade (`trailMsForPreset`). That is
 verbatim what was asked for, and it is the same data the proof artifacts show.
 
 ## Not done, said plainly
+
+## The shelf is banded by persistence
+
+Owner ruling 2026-08-21: "group ingredient shelf by natural breaks of
+persistence fade." The five bands are the data's own gaps, not round numbers —
+sorting the 34 pure trails, the ratio jumps sit at 20→63 ms, 126→283,
+400→693 and 1095→2828. `trailBand()` / `trailBandName()` in PhosphorMix.h are
+the single definition; the mixer's Blend/Parts/Cascade shelves section by them
+and the proof page groups its table the same way. The test pins that every pure
+row lands in a band, no band is empty, and the edges sit in the gaps.
+
+| Band | Range | Rows |
+|---|---|---|
+| Gone within a frame | ≤ 20 ms | 6 |
+| A blink | 60–130 ms | 6 |
+| A beat | 280–400 ms | 12 |
+| Lingers | 0.7–1.1 s | 8 |
+| Holds on | ~2.8 s | 2 |
 
 - ~~Desktop parity~~ — **DONE 2026-08-21** (owner ruling, closing the gap his
   2026-08-19 parity ruling opened). `settings.json` carries the same
