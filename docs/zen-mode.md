@@ -27,6 +27,14 @@ against 215,233,211 on an iPhone Air — so without the black there is no visibl
 edge anywhere on the screen and the sheet has nothing to have corners on. On an
 OLED it is also the darkest a night page can be.
 
+**The sheet BLEEDS TO THE GLASS.** It is not a card floating on black. Owner
+ruling 2026-08-20, picked off a side-by-side of two live renders rather than a
+description: the bounded version spent 204 px of the 1260 on margin and read as
+a smaller object sitting on a screen, where the full-bleed one reads as the
+screen being paper. The page itself is 1056 px wide either way — the page is
+never resized in zen — so this is purely what the 204 px either side is painted
+with, and it is paper. Black is for below the line only.
+
 **The paper runs FOUR CELLS PAST the old top-rocker line** (ruling 2026-08-20).
 The first version stopped at that line, which left 84 px of paper above the
 first ink against 45 px below the last: bottom-heavy the wrong way, and the
