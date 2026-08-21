@@ -59,7 +59,6 @@ Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then en
 			<array>
 				<string>Fine (3x) — most detail, smoothed</string>
 				<string>Exact (2x) — one page pixel per screen pixel</string>
-				<string>Panel (1x) — what the e-ink hardware draws</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -67,7 +66,6 @@ Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then en
 			<array>
 				<integer>3</integer>
 				<integer>2</integer>
-				<integer>1</integer>
 			</array>
 		</dict>
 		<dict>
