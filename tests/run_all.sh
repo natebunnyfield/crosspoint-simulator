@@ -156,6 +156,13 @@ run dispatch_signal \
 run sim_settings_file \
   c++ -std=c++17 -Isrc -o "$OUT/sim_settings_file" tests/sim_settings_file_test.cpp
 
+# The phosphor mixer's math. Every failure mode is a wrong color or a wrong
+# decay: a blend averaged in sRGB bytes instead of linear light darkens every
+# mixture, a premix accepted as an ingredient mixes a mixture, and a tail that
+# points at the wrong component makes the afterglow die toward the wrong color.
+run phosphor_mix \
+  c++ -std=c++17 -Isrc -o "$OUT/phosphor_mix" tests/phosphor_mix_test.cpp
+
 # The grain field. Every failure mode is a wrong PICTURE -- a field that only
 # darkens is the difference between texture and the page-flash bug class, "off"
 # that is nearly-off instead of bit-exact is a silent change to every install

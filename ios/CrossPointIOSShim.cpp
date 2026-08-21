@@ -74,6 +74,12 @@
 // whole activity header set into the harness for one call. Defined in
 // src/SimulatorRenderRequest.cpp on the firmware side.
 void crosspointRequestRender();
+// The page-color mixer (CrossPointPaletteMixer.mm). present() opens the modal;
+// glowForCustom() is the Custom slot's mix-aware glow branch.
+extern "C" void CrossPointMixer_present(void);
+extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
+                                              unsigned char tail[3],
+                                              bool *hasTail);
 
 #include "HalDisplay.h"
 #include "HalGPIO.h"
@@ -273,10 +279,8 @@ constexpr float kHomeInsetMin = 16.0f;  // floor for home-button devices (safe a
 // still has a corner radius, so a capsule placed at x=0 is clipped by it. 16 pt
 // on the same 8 pt grid the rest of this layout uses.
 constexpr float kPadEdgeMin = 16.0f;
-// How long the page-color button has to be held to mean "previous color"
-// rather than "next color". Long enough not to fire on a slow tap, short
-// enough to feel deliberate.
-constexpr Uint64 kPaletteHoldMs = 500;
+// kPaletteHoldMs lived here until 2026-08-20: tap and hold both open the
+// mixer now, so there is no second gesture to time.
 
 // iPad (family 2) — owner-approved spec 2026-08-03 (ios/README.md, "iPad
 // (family 2)"), implemented 2026-08-04. The tablet's spare dimension is WIDTH,
@@ -1221,10 +1225,15 @@ void pollPadContrast() {
 // does not belong in an iOS-only .cpp: it could not be exercised anywhere but
 // on a phone, and it was not.
 
+// Set by the mixer when the mix changes UNDER the Custom preset: the dedupe
+// below is on the preset integer, which does not move during a mix edit.
+std::atomic<bool> g_glowDirty{false};
+extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
+
 void pollPanelGlow() {
   static int s_appliedPreset = -1;
   const int preset = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
-  if (preset == s_appliedPreset) return;
+  if (preset == s_appliedPreset && !g_glowDirty.exchange(false)) return;
   s_appliedPreset = preset;
 
   // NO SWITCH. Owner ruling 2026-08-17: "remove setting always have it on for
@@ -1232,9 +1241,24 @@ void pollPanelGlow() {
   // the two were never separate choices, and a switch to turn a phosphor's
   // behavior off while keeping its color is a setting for a thing nobody
   // wants. Every other palette gets 0, because a page of e-ink does not decay.
-  const float trail = panelpalette::trailMsForPreset(preset);
+  float trail = panelpalette::trailMsForPreset(preset);
   const unsigned char *tail = nullptr;
   const char *why = "not a phosphor";
+  // THE CUSTOM SLOT MAY BE A MIX. Plain Custom has no phosphor and gets 0, but
+  // an active mix carries its own decay -- a blend dies at its slowest
+  // component's rate, a cascade at its persistence layer's -- and its own tail
+  // tint. The mixer owns that store; asked here so a relaunch, a preset trip
+  // away and back, and a settings change all converge on one answer.
+  static unsigned char s_mixTail[3];
+  if (preset == panelpalette::kPresetCustom) {
+    float mixTrail = 0.0f;
+    bool hasTail = false;
+    if (CrossPointMixer_glowForCustom(&mixTrail, s_mixTail, &hasTail)) {
+      trail = mixTrail;
+      if (hasTail) tail = s_mixTail;
+      why = "phosphor mix";
+    }
+  }
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[i];
     if (info.preset != preset) continue;
@@ -1597,44 +1621,10 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
 // here would be the only text on screen outside the page. The chevron points
 // the way the keyboard is about to move -- up to summon it, down to dismiss --
 // which is the same convention as iOS's own dismiss key.
-// Step the page color along the list the Page Colors setting shows
-// (panelpalette::kPresetInfo, which IS that order). step +1 is the next color,
-// -1 the previous.
-//
-// ONE function for both directions on purpose: forward and back have to agree
-// about the ring, and two copies of the wrap arithmetic is how they stop
-// agreeing.
-//
-// CUSTOM IS NOT ON THE RING. It has no tones of its own until its four hex
-// fields are filled, so resolve() answers it with Default -- a stop that looks
-// identical to another stop and reads as the button having failed. It stays
-// selectable in Settings. From Custom, or from any stored integer that is not on
-// the ring, forward lands on the first color and back on the last.
-//
-// The stored value is migrated FIRST: an install still holding Soft (13) or Cool
-// Gray (4) is sitting on Reading Warm or Reading Cool, and stepping from it has
-// to start from where the page actually is, not restart the ring.
-void cyclePalette(int step) {
-  const int current = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
-  int at = -1;
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
-    if (panelpalette::kPresetInfo[i].preset == current) {
-      at = i;
-      break;
-    }
-  }
-  const int n = panelpalette::kPresetInfoCount;
-  const int next = at < 0 ? (step > 0 ? 0 : n - 1) : ((at + step) % n + n) % n;
-  const panelpalette::PresetInfo &info = panelpalette::kPresetInfo[next];
-  CrossPointPrefs_setPanelPalettePreset(info.preset);
-  SDL_Log("[palette] %s %s . %s (%s)", step > 0 ? "->" : "<-", info.family,
-          info.name, info.note);
-  // No apply call: pollPanelPalette() compares the resolved pair every frame and
-  // repaints the page, the pad and both keyboard chips. Writing the key IS
-  // applying it. The present is asked for so an e-ink firmware that may not
-  // render for minutes still shows the change now.
-  SimulatorOverlay::requestPresent();
-}
+// cyclePalette() lived here until 2026-08-20. Owner ruling replaced the
+// chip's cycling with the mixer modal (CrossPointPaletteMixer.mm) for both tap
+// and hold, so the ring-stepping function is gone with its callers. The 500 ms
+// hold threshold went with it.
 
 // The page-color button. IDENTICAL TO POWER: same size, same stroke, same
 // hollow face, and NO MARK ON IT AT ALL.
@@ -2168,18 +2158,14 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
           if (hitPaletteChip(g_tapDownX, g_tapDownY)) {
-            // Tap steps the ring; hold goes back to Default. Logged with the
-            // measured duration, because a hold that silently reads as a tap is
-            // indistinguishable from the gesture not existing.
-            // Tap goes forward, hold goes BACK -- an undo for a color you
-            // stepped past. Logged with the measured duration, because a hold
-            // that silently reads as a tap is indistinguishable from the
-            // gesture not existing.
-            const Uint64 heldMs = SDL_GetTicks() - g_tapDownAt;
-            SDL_Log("[palette] %s (%llu ms)",
-                    heldMs >= kPaletteHoldMs ? "held" : "tapped",
-                    static_cast<unsigned long long>(heldMs));
-            cyclePalette(heldMs >= kPaletteHoldMs ? -1 : +1);
+            // TAP AND HOLD BOTH OPEN THE MIXER (owner ruling 2026-08-20:
+            // "Both open the modal"). This supersedes the 2026-08-17 cycling
+            // ruling -- stepping the ring moved into the modal's Presets tab,
+            // and the modal is now the whole page-color surface: presets,
+            // preset mixes, and the three-mode phosphor mixer.
+            SDL_Log("[palette] chip -> mixer (%llu ms)",
+                    static_cast<unsigned long long>(SDL_GetTicks() - g_tapDownAt));
+            CrossPointMixer_present();
           } else if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
