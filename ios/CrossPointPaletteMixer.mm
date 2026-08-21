@@ -28,7 +28,12 @@
 #include "SimulatorOverlay.h"
 #include "CrossPointPrefs.h"
 
-extern "C" void crosspointRequestRender(void);
+// C++ LINKAGE, deliberately: the definition lives in the firmware
+// (SimulatorRenderRequest.cpp) with no extern "C", so declaring it C here made
+// the mixer reference an unmangled symbol that does not exist -- the second of
+// two link deaths in deploy #2, both invisible to the desktop, which never
+// compiles this file.
+void crosspointRequestRender();
 extern "C" void CrossPointMixer_glowChanged(void);
 
 // --- persistence -----------------------------------------------------------
