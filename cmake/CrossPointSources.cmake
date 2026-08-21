@@ -4,14 +4,14 @@
 # `pio run -e simulator -t compiledb`. Regenerate after any firmware change that
 # adds, removes, or renames a translation unit.
 #
-# firmware   : /Users/natebunnyfield/src/wt-build98/crosspoint-reader
-# pinned at  : c9cff7894d1fb38392a4f520c28bfba09c2e68ae
+# firmware   : /Users/natebunnyfield/src/wt-ship/crosspoint-reader
+# pinned at  : f1dbdb3256638be73568fd97be758b3e36d05c26
 # TU counts  : 133 firmware, 24 simulator (6 C, 151 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "c9cff7894d1fb38392a4f520c28bfba09c2e68ae")
+set(CROSSPOINT_FIRMWARE_PIN "f1dbdb3256638be73568fd97be758b3e36d05c26")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
