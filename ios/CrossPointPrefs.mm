@@ -457,12 +457,19 @@ void CrossPointPrefs_setPanelPalettePreset(int preset) {
 int CrossPointPrefs_renderScale(void) {
   ensureDefaults();
   checkKnown(kRenderScale);
-  // NOT clamped here. cp::setRenderScale() clamps to [1, the ceiling this
-  // binary was compiled at], and that ceiling is a compile-time fact this file
-  // has no business restating -- a second clamp here would be the drift that
-  // ships a 3 the framebuffer cannot hold, or refuses a 3 it can.
-  return static_cast<int>(
+  // CEILING not clamped here. cp::setRenderScale() clamps to [1, the ceiling
+  // this binary was compiled at], and that ceiling is a compile-time fact this
+  // file has no business restating -- a second clamp here would be the drift
+  // that ships a 3 the framebuffer cannot hold, or refuses a 3 it can.
+  //
+  // FLOOR of 2 on iOS (owner ruling 2026-08-21: "keep 2x and 3x"). Panel (1x)
+  // left the Sharpness picker, so a stored 1 from before the trim maps to
+  // Exact (2x) -- the nearest survivor -- rather than silently keeping an
+  // option the row no longer offers. Desktop QA can still force 1x through
+  // CROSSPOINT_SIM_RENDER_SCALE, which bypasses this getter entirely.
+  const int raw = static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kRenderScale]);
+  return raw == 1 ? 2 : raw;
 }
 
 int CrossPointPrefs_panelCustomColor(int dark, int ink) {
