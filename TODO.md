@@ -31,48 +31,30 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-108**, uploaded 2026-08-20, delivery `9aa26c68`. Tagged `build-108`.
-Two things: zen no longer resizes the page and its paper now ends at the old
-rocker line on black ([ST-011]), and **the seed fonts are rebuilt** — the bundle
-had been carrying cuts dated **3 August**, so every font fix since then,
-including B-035's arrows, had never reached the phone at all.
+**build-110**, uploaded 2026-08-21 at 02:53. Simulator `2572cfe`+link-fixes
+(`main` at the upload was the two-link-bug fix commit), firmware worktree at
+`f1dbdb325` (1.5.4-BD — the settings reduction). 85.8 MB.
 
-**build-107**, uploaded 2026-08-19. Tagged `build-107`. Fixes the zen gesture's
-false positive: a hand rolling across the page fired zen in 106.
+On top of build-109 it carries the ENTIRE phosphor mixer arc, none of which any
+earlier build had: the page-color chip opening the mixer modal (tap or hold —
+cycling is gone, superseded 2026-08-20), Blend/Parts/Cascade with premixes as
+preset mixes, long-press loading fitted recipes, the persistence-banded shelf
+sorted trail-then-hue, the tab-switch fix (browsing a tab no longer blanks the
+page), and the desktop settings.json parity including the mix keys. Plus the
+firmware settings reduction.
 
-**build-106**, uploaded 2026-08-19, delivery `d4600ee7`. Tagged `build-106`.
-Carries **zen reading mode** ([ST-011] — three-finger tap on the page) and the
-**dark-mode fix** ([S-018] — the iOS appearance and CrossPoint's own Dark Mode no
-longer disagree, and the setting finally sticks).
+It took four deploy attempts, recorded here so the pattern is known: #1 died
+because the shipping worktree was moved under the running archive; #2 died at
+LINK on two mixer bugs invisible to desktop builds (extern "C" inside an
+anonymous namespace; C-linkage declaration of the firmware's C++
+crosspointRequestRender) — misdiagnosed first as a stale source set; #3 was
+killed carrying the same code; #4 shipped with the fixes after arm64-ios
+symbol-resolution verification. Anything only the iOS target compiles must be
+verified by compiling AND resolving symbols for arm64-ios.
 
-**build-105**, uploaded 2026-08-19, delivery `1cd474e8`. Tagged `build-105`
-here. It **puts the side rocker back** (`409b3c9`): 103 and 104 both shipped
-without it, because `62b1ae5` cut it that morning under a ruling that turned out
-to be about the e-ink panel's drawn hints rather than the pad's real control.
-
-**build-104**, uploaded 2026-08-19, delivery `96c11ad4`. Tagged `build-104`
-here. It adds one fix over 103: [S-017], the Back|Select rocker's divider
-sitting hard left instead of centred — reported from the phone, and caused by
-today's own side-rocker removal leaving a phantom third pair in `paintPad`.
-
-**build-103**, uploaded 2026-08-19, delivery `2dd50ce8`, 52 MB IPA. Tagged
-`build-103` here. Recorded because several items below say "SHIPPED, unverified
-on the phone" and there was no one place saying which build to verify them in.
-
-It is simulator `6889eb3` + firmware `c9cff7894`. **This is the first build in
-nineteen whose firmware is current**: 98 through 101 were all cut from a worktree
-pinned at `f80b140b6`, so anything the firmware shipped after that — EPUB tables
-as columns, the rotated wide-table page, the OOM sweeps — was not on the phone at
-all until now.
-
-Two gates fired and both were real, which is what they are for:
-
-* the source set was STALE — `TableColumnLayout.cpp` was compiled on the desktop
-  and absent from the iOS set, so the archive would have failed at the link with
-  an undefined `tablecolumns::planColumns`. Regenerated in `6889eb3`.
-* `CROSSPOINT_SEED_FONTS_DIR` was unset, which would have shipped an app with no
-  `.cpfont` families falling back to built-in Noto. Pointed at `ios/seedfonts`,
-  all six installed families with their 2x cuts.
+Firmware releases the same night: 1.5.3-BD (font work) and 1.5.4-BD (settings
+reduction), both Latest in sequence on GitHub. Mac apps at build 111, all
+three, at the reduction commit.
 
 The build number comes from the highest `build-*` tag plus one, so tags are the
 record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.
