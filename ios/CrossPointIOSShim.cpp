@@ -1459,18 +1459,30 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // on the display's own radius, public API only. kCornerFallback covers a probe
 // that answers 0: it is the radius of the phones this app is built for, and an
 // approximate corner reads far better here than a square one.
+// The paper card's corner radius, both pairs. On the 8 pt grid the pad aligns
+// to, and deliberately ONE number: the top and bottom pairs sit on the same
+// rectangle, so any difference between them is visible precisely there.
+constexpr float kPaperCornerPt = 8.0f;
+
 void paintTopBezel(SDL_Renderer *r, int outW) {
   const float bandH = SDL_floorf(g_topBezelPx);
   if (bandH <= 0.0f || outW <= 0) return;
 
-  constexpr float kCornerFallback = 55.0f;  // pt
+  // 8 pt -- THE SAME RADIUS THE BOTTOM PAIR USES (owner ruling 2026-08-20:
+  // "use the bottom corner radius on the top of the paper too").
+  //
+  // This replaces the display's own radius, which UIKit reports as ~55 pt and
+  // which used to be asked for here so the card's corners ran with the glass.
+  // They are one rectangle: a 165 px curve at the top against a 24 px curve at
+  // the bottom does not read as a sheet of paper, it reads as two different
+  // objects. Matching them is what makes it a card. The probe
+  // (CrossPointAppearance_displayCornerRadius) stays available for anything
+  // that genuinely needs the glass radius; nothing does today.
   static float s_radiusPx = -1.0f;
   if (s_radiusPx < 0.0f) {
-    const double pt = CrossPointAppearance_displayCornerRadius();
-    const float use = pt > 0.0 ? static_cast<float>(pt) : kCornerFallback;
-    s_radiusPx = use * g_ptScale;
-    SDL_Log("[bezel] band %.0f px, corner %.1f pt (%s)", bandH, use,
-            pt > 0.0 ? "UIKit concentric" : "fallback");
+    s_radiusPx = kPaperCornerPt * g_ptScale;
+    SDL_Log("[bezel] band %.0f px, corner %.1f pt (paper radius)", bandH,
+            kPaperCornerPt);
   }
 
   SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -1544,7 +1556,7 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
                        bool intoBlack) {
   if (panel.w <= 0.0f || panel.h <= 0.0f) return;
   constexpr float kCornerExponent = 2.8f;
-  const float rad = SDL_min(8.0f * g_ptScale, panel.w / 2.0f);
+  const float rad = SDL_min(kPaperCornerPt * g_ptScale, panel.w / 2.0f);
   // A fillet must be painted in whatever the corner is being cut OUT of: the
   // field normally, black in zen, where the surround below the paper is black by
   // ruling. The wrong one leaves two pale nicks on a dark screen, which reads as
