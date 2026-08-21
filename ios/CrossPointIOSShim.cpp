@@ -1228,7 +1228,6 @@ void pollPadContrast() {
 // Set by the mixer when the mix changes UNDER the Custom preset: the dedupe
 // below is on the preset integer, which does not move during a mix edit.
 std::atomic<bool> g_glowDirty{false};
-extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
 
 void pollPanelGlow() {
   static int s_appliedPreset = -1;
@@ -2227,6 +2226,12 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 }
 
 }  // namespace
+
+// OUTSIDE the anonymous namespace, deliberately. This was defined inside it
+// once, where extern "C" still gets internal linkage, and the mixer's
+// reference to it killed the TestFlight archive at link -- a failure no
+// desktop build can see, since only the iOS target compiles the mixer.
+extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
 
 // --- Public entry points ---------------------------------------------------
 //
