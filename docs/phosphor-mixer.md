@@ -102,6 +102,75 @@ Four swatches per phosphor — dark ink, dark paper, light ink, light paper —
 each with its hex value, plus the time to fade (`trailMsForPreset`). That is
 verbatim what was asked for, and it is the same data the proof artifacts show.
 
+## Mix candidates — 36 blends in the 127 ms–1.1 s window
+
+Owner request 2026-08-21, placement ruled "just the proof html page": a curated
+exploration, not presets and not a library table. Recorded here so the next
+session does not regenerate them — every one was computed by the shipped core
+(`mixBlend` over 2–3 pure rows, P10 excluded as ever), selected from 715,118
+in-window blends for mutual distinctness and fade spread. White means chroma
+C\* < 20 on a bright ink; warm needs b\* > 6 **and** a\* > −4 (the first
+classifier split on b\* alone and called mint-green "warm"); cool is the
+mirror; colored requires C\* ≥ 28. The CSV column is the mixer's own
+`preset:weight` form — paste it into `settings.json`'s `phosphorMixBlend` or
+rebuild it in the Blend tab.
+
+**Warm whites**
+
+| Name | Recipe | Dark pair | Fade | CSV |
+|---|---|---|---|---|
+| Ivory Rose | P11 2 : P22R 3 : P53 2 | `BCB0A7` on `0E0C0B` | 283 ms | `15:2,11:3,54:2` |
+| Candle | P28 5 : P45 9 : P56 2 | `DADBCD` on `1B1B1C` | 283 ms | `46:5,21:9,23:2` |
+| Dusk Linen | P3 7 : P45 5 : P47 3 | `DBC9C1` on `16171B` | 322 ms | `7:7,21:5,22:3` |
+| Parchment | P3 1 : P45 1 : P56 1 | `EAC5B4` on `1E1514` | 322 ms | `7:1,21:1,23:1` |
+| Clay | P11 1 : P1 1 : P13 3 | `D4B4B0` on `120809` | 400 ms | `15:1,6:1,31:3` |
+| Hearth | P1 3 : P16 5 : P22R 9 | `D7A5A6` on `120809` | 400 ms | `6:3,34:5,11:9` |
+| Sandstone | P11 2 : P20 1 : P28 2 | `C3C2AA` on `0E0F0D` | 400 ms | `15:2,38:1,46:2` |
+| Amber Veil | P11 1 : P20 1 : P22R 2 | `CEAA9A` on `110B09` | 400 ms | `15:1,38:1,11:2` |
+| Lamplight | P12 2 : P28 5 : P45 5 | `E4D4B2` on `191917` | 693 ms | `30:2,46:5,21:5` |
+| Old Paper | P19 3 : P45 5 : P56 9 | `EDBFBF` on `211112` | 1.1 s | `37:3,21:5,23:9` |
+| Firelight | P2 3 : P16 3 : P26 7 | `D3BEA7` on `110B09` | 1.1 s | `26:3,34:3,44:7` |
+| Tungsten | P11 2 : P22R 5 : P39 3 | `C4B18F` on `101407` | 1.1 s | `15:2,11:5,19:3` |
+
+**Neutral whites**
+
+| Name | Recipe | Dark pair | Fade | CSV |
+|---|---|---|---|---|
+| Moonstone | P28 1 : P45 9 : P56 2 | `CCE2E9` on `1B1E21` | 283 ms | `46:1,21:9,23:2` |
+| Dove | P16 2 : P22R 5 : P24 5 | `BBC4B6` on `0E0E0D` | 283 ms | `34:2,11:5,42:5` |
+| Fog | P3 9 : P11 7 : P45 9 | `CCC3D1` on `14171A` | 322 ms | `7:9,15:7,21:9` |
+| Silverpoint | P11 7 : P1 5 : P25 5 | `ACBDBE` on `090D0E` | 400 ms | `15:7,6:5,43:5` |
+| Limestone | P3 2 : P12 2 : P45 5 | `DAD4CA` on `191B1B` | 693 ms | `7:2,30:2,21:5` |
+| Gallery | P11 2 : P2 2 : P22R 3 | `BCB0A8` on `0E0C0B` | 1.1 s | `15:2,26:2,11:3` |
+
+**Cool whites**
+
+| Name | Recipe | Dark pair | Fade | CSV |
+|---|---|---|---|---|
+| North Sky | P28 1 : P45 9 | `BFEBF3` on `182225` | 283 ms | `46:1,21:9` |
+| Harbor | P22G 7 : P11 9 : P28 3 | `90CACA` on `051012` | 283 ms | `40:7,15:9,46:3` |
+| Frost | P3 1 : P45 9 : P47 7 | `B9D6F8` on `111926` | 322 ms | `7:1,21:9,22:7` |
+| Glacier | P3 1 : P11 7 : P1 3 | `8CBBD2` on `030E13` | 400 ms | `7:1,15:7,6:3` |
+| Pewter | P12 2 : P22B 1 : P45 3 | `D1D0DD` on `16181F` | 693 ms | `30:2,24:1,21:3` |
+| Ice | P11 7 : P2 1 : P28 3 | `B1AFD3` on `090C13` | 1.1 s | `15:7,26:1,46:3` |
+
+**Colored**
+
+| Name | Recipe | Dark pair | Fade | CSV |
+|---|---|---|---|---|
+| Blue Beat | P11 9 : P22B 1 | `8F95FF` on `00051C` | 283 ms | `15:9,24:1` |
+| Violet Beat | P5 9 : P35 5 : P56 9 | `D6AFE1` on `190412` | 283 ms | `27:9,49:5,23:9` |
+| Orange Beat 2 | P22B 2 : P28 7 : P56 9 | `F8B494` on `1F0807` | 283 ms | `24:2,46:7,23:9` |
+| Orange Beat | P3 9 : P22R 5 : P28 1 | `FFA03F` on `1A0C00` | 322 ms | `7:9,11:5,46:1` |
+| Sky Beat | P22G 2 : P11 7 : P1 1 | `77BCE3` on `000E16` | 400 ms | `40:2,15:7,6:1` |
+| Teal Beat | P1 1 : P24 9 : P45 7 | `7AF9DC` on `0C1E1C` | 400 ms | `6:1,42:9,21:7` |
+| Gold Beat | P3 1 : P20 5 : P28 5 | `D1E100` on `131500` | 400 ms | `7:1,38:5,46:5` |
+| Rose Ember | P11 2 : P12 1 : P22R 7 | `EE7D9A` on `160407` | 693 ms | `15:2,30:1,11:7` |
+| Teal Long | P22G 1 : P2 2 : P15 1 | `00FF94` on `00190A` | 1.1 s | `40:1,26:2,33:1` |
+| Gold Long | P22R 9 : P24 3 : P39 5 | `C0C476` on `111603` | 1.1 s | `11:9,42:3,19:5` |
+| Chartreuse Long | P22G 3 : P20 5 : P26 3 | `A3EA6B` on `0C1503` | 1.1 s | `40:3,38:5,44:3` |
+| Green Long | P1 1 : P39 9 | `0BFF0B` on `002600` | 1.1 s | `6:1,19:9` |
+
 ## Not done, said plainly
 
 ## The shelf is banded by persistence
