@@ -114,6 +114,87 @@
       <key>LSHandlerRank</key>
       <string>Alternate</string>
     </dict>
+    <!-- The other book formats the firmware reads (FsHelpers.cpp:166-183,
+         NextBookFinder.cpp:15): plain text, Markdown, and XTC. A received
+         copy is imported onto the simulated SD card's books/ folder by
+         CrossPointBookImport.mm. public.plain-text is a system UTI; the
+         Markdown and XTC UTIs are imported below -- this app only consumes
+         them, it does not own the formats. -->
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Plain Text Book</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.plain-text</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Markdown Book</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>net.daringfireball.markdown</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>XTC Book</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.natebunnyfield.crosspoint.xtc</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+    </dict>
+  </array>
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>net.daringfireball.markdown</string>
+      <key>UTTypeDescription</key>
+      <string>Markdown Text</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.plain-text</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <!-- Only "md": the firmware's hasMarkdownExtension matches ".md"
+             alone, so advertising ".markdown" would accept files the reader
+             then cannot open. -->
+        <array>
+          <string>md</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>text/markdown</string>
+        </array>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.natebunnyfield.crosspoint.xtc</string>
+      <key>UTTypeDescription</key>
+      <string>XTC Book</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>xtc</string>
+          <string>xtch</string>
+        </array>
+      </dict>
+    </dict>
   </array>
 
   <!-- Networking. The file-transfer screen serves the firmware's web UI to a
