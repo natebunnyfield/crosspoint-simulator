@@ -491,6 +491,7 @@ Three settings now decide what the page and the pad look like, all host-side —
 | Page palette — 15 named presets plus Custom | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
 | Button pad outline/fill | `ios/PadPalette.h` | `docs/pad-outline-black-and-white.md` |
 | Render scale 1x/2x/3x | `lib/GfxRenderer/RenderScale.h` (firmware), latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
+| Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
 | Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded` | `docs/phosphor-grain.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
