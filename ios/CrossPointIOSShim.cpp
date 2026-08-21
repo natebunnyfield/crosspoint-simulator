@@ -1950,7 +1950,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
 }
 
 // The chip is not in g_pad -- it presses no hardware button -- so it needs its
-// own test. Live only while a field is open, which is the only time it is drawn.
+// own test. ALWAYS live outside zen (the "only while a field is open" that
+// stood here described the keyboard chip below, not this one); zen never
+// reaches it, because zen's finger-down breaks before the tap candidate is
+// set and the chip test is gated on that candidate.
 bool hitPaletteChip(float x, float y) {
   const SDL_FRect &c = g_paletteChip;
   return c.w > 0 && c.h > 0 && x >= c.x && x < c.x + c.w && y >= c.y &&

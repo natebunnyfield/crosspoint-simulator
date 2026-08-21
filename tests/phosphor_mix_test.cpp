@@ -183,6 +183,30 @@ int main() {
           "cascade: what lingers is the persistence layer's ink");
   }
 
+  // --- A MIX UNDER CONSTRUCTION PAINTS AS IT GOES --------------------------
+  // The first role picked must show on the page; unset roles take their part
+  // from the Default preset. The old behavior blanked to the full default
+  // until every role was set, which on a phone read as "picking does nothing".
+  {
+    const Result r = mixParts(P1, -1, -1);
+    const Palette gD = panelpalette::resolve(P1, true, -1, -1);
+    check(std::memcmp(r.dark.ink, gD.ink, 3) == 0,
+          "parts: the one picked role paints immediately");
+    check(std::memcmp(r.dark.paper, panelpalette::kDefaultDark.paper, 3) == 0,
+          "parts: the unset paper role is the Default preset's");
+    const Result rc = mixCascade(P11, -1);
+    check(std::memcmp(rc.dark.ink,
+                      panelpalette::resolve(P11, true, -1, -1).ink, 3) == 0,
+          "cascade: the flash paints before the persistence is chosen");
+    check(rc.trailMs == panelpalette::trailMsForPreset(panelpalette::kPresetDefault),
+          "cascade: unset persistence is the Default preset's (no glow)");
+    // ...and a premix donor still bails whole, exactly as before.
+    const int P4 = presetOf("P4");
+    const Result rp = mixParts(P4, -1, -1);
+    check(std::memcmp(rp.dark.ink, panelpalette::kDefaultDark.ink, 3) == 0,
+          "parts: a premix donor still falls back whole");
+  }
+
   // --- DEGENERATE INPUT IS THE DEFAULT PAGE, NOT GARBAGE -------------------
   {
     const Result r = mixBlend(nullptr, 0);
