@@ -1825,6 +1825,11 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // out of the page's rect put two notches at x=102 and x=1158, mid-field,
     // eight pixels of nothing in the middle of the paper -- which is what the
     // 2026-08-20 screenshot caught. The corners that exist are the SCREEN's.
+    //
+    // The sheet BLEEDS TO THE GLASS -- it is not a card floating on black
+    // (owner ruling 2026-08-20, picked off a side-by-side of live renders).
+    // The bounded version cost 204 px of width to margin and read as a smaller
+    // object on a screen, where this reads as the screen being paper.
     g_zenPaper = {0.0f, q.y, static_cast<float>(outW), q.h};
     const float line = g_zenRowTopPx > 0.0f ? g_zenRowTopPx : q.y + q.h;
 
@@ -1846,7 +1851,7 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // in: the strip between the page's bottom edge and the line. The PAGE is
     // never resized -- its fit is identical in both modes.
     if (line > q.y + q.h) {
-      const SDL_FRect strip{0.0f, q.y + q.h, static_cast<float>(outW),
+      const SDL_FRect strip{g_zenPaper.x, q.y + q.h, g_zenPaper.w,
                            line - (q.y + q.h)};
       setRGBFromPanelPaper(r);
       SDL_RenderFillRect(r, &strip);
