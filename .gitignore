@@ -11,3 +11,4 @@ compile_commands.json
 .claude/worktrees/
 ios/seedfonts/
 __pycache__/
+build-simsdk/

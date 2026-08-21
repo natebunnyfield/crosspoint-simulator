@@ -1,56 +1,54 @@
-// The page-color modal: presets, and the phosphor mixer.
+// The page-color modal: the P22 gun mixer.
 //
-// Owner rulings 2026-08-20, in order:
-//   - press OR hold on the page-color chip opens this modal (it no longer
-//     cycles; the modal is the whole page-color surface now)
-//   - all three mix models: Blend, Parts, Cascade
-//   - one live mix slot, persisted, occupying the Custom preset
-//   - premixed phosphors (P4, P6, P7, P14, P17, P18, P23, P40) are NOT
-//     ingredients; they are offered as preset mixes instead
-//   - every phosphor row shows the exact colors -- dark and light, ink and
-//     paper -- and its time to fade
+// Owner ruling 2026-08-21: "the mixer ui sucks and doesn't actually mix
+// colors. let's keep it simple and just make a ui for only p22. ignore
+// everything else for now." This file previously held a four-tab table
+// (Presets / Blend / Parts / Cascade, premix recipes, persistence-banded
+// shelves); all of it is gone. What remains is the one mixer a color tube
+// actually had: THREE GUNS.
 //
-// The mixing MATH lives in src/PhosphorMix.h, pure and host-tested. This file
-// is only UIKit: rows, swatches, sliders, and writing the result into the
-// stores the rest of the app already reads. The page updates live because
-// pollPanelPalette/pollPanelGlow compare stored values every frame -- writing
-// the keys IS applying them.
+//   [R slider]  P22R, the red gun
+//   [G slider]  P22G, the green gun
+//   [B slider]  P22B, the blue gun
+//
+// The blend is computed by the shipped core (phosphormix::mixBlend, linear
+// light) and applied LIVE into the Custom slot as the sliders move -- the page
+// behind the half-height sheet is the preview. Preset selection stays in
+// Settings.app; this modal is only the mixer.
+//
+// The persistence story is flat by construction: all three P22 guns share the
+// same 283 ms class, so the mixture dims in place with no color-shifting tail
+// -- which the core reports on its own (equal-speed blends carry no tail).
+//
+// Storage is unchanged: the same phosphorMixBlend "preset:weight" CSV, mode
+// Blend, mixActive -- so a mix built here reads back on the desktop through
+// settings.json exactly as before, and old stored mixes from the removed UI
+// still compute (the core kept every mode; only the UI narrowed).
+//
+// Owner's device crash (build 110, iOS 26.6) note carried forward: NO
+// self.title anywhere in this controller. objc_retain(0x1) inside UIKit's
+// setTitle: was the crash site, sidestepped in build 111; this rewrite keeps
+// the sidestep.
 
 #import <UIKit/UIKit.h>
 
 #include <SDL3/SDL.h>
-
-#include <algorithm>
-#include <vector>
 
 #include "PanelPalette.h"
 #include "PhosphorMix.h"
 #include "SimulatorOverlay.h"
 #include "CrossPointPrefs.h"
 
-// C++ LINKAGE, deliberately: the definition lives in the firmware
-// (SimulatorRenderRequest.cpp) with no extern "C", so declaring it C here made
-// the mixer reference an unmangled symbol that does not exist -- the second of
-// two link deaths in deploy #2, both invisible to the desktop, which never
-// compiles this file.
+// C++ LINKAGE, deliberately: defined in the firmware with no extern "C" --
+// declaring it C made the mixer reference an unmangled symbol that does not
+// exist, one of build 110's two link deaths.
 void crosspointRequestRender();
 extern "C" void CrossPointMixer_glowChanged(void);
 
-// --- persistence -----------------------------------------------------------
-// The mix is ONE slot, stored small and flat. Component lists are a CSV of
-// "preset:weight" because NSUserDefaults arrays of dictionaries are noisy to
-// version; a string either parses or the mix is simply absent.
+// --- persistence (same keys as the removed UI and the desktop) --------------
 static NSString *const kMixMode = @"phosphorMixMode";
-static NSString *const kMixBlend = @"phosphorMixBlend";        // "6:2,15:1"
-static NSString *const kMixInkFrom = @"phosphorMixInkFrom";
-static NSString *const kMixPaperFrom = @"phosphorMixPaperFrom";
-static NSString *const kMixTrailFrom = @"phosphorMixTrailFrom";
-static NSString *const kMixFlash = @"phosphorMixFlash";
-static NSString *const kMixPersist = @"phosphorMixPersist";
+static NSString *const kMixBlend = @"phosphorMixBlend";   // "11:w,40:w,24:w"
 static NSString *const kMixActive = @"phosphorMixActive";
-
-// Custom-slot hex fields the palette pipeline already reads (CrossPointPrefs
-// parses them exactly as Settings.app writes them).
 static NSString *const kInkLight = @"panelInkLight";
 static NSString *const kPaperLight = @"panelPaperLight";
 static NSString *const kInkDark = @"panelInkDark";
@@ -58,78 +56,69 @@ static NSString *const kPaperDark = @"panelPaperDark";
 
 namespace {
 
+// The guns. Preset integers pinned by name in PanelPalette.h.
+constexpr int kGunPreset[3] = {panelpalette::kPresetRedCrt,     // P22R
+                               panelpalette::kPresetP22GCrt,    // P22G
+                               panelpalette::kPresetBlueTvCrt}; // P22B
+// Slider range. 0 = that gun off (component omitted); the core clamps weights
+// below 1, so omission is the only honest zero.
+constexpr int kWeightMax = 100;
+
 NSString *hexOf(const unsigned char c[3]) {
   return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
 }
 
-UIColor *colorOf(const unsigned char c[3]) {
-  return [UIColor colorWithRed:c[0] / 255.0 green:c[1] / 255.0 blue:c[2] / 255.0 alpha:1];
-}
-
-NSString *trailLabel(float ms) {
-  if (ms <= 0.0f) return @"no glow";
-  if (ms >= 1000.0f) return [NSString stringWithFormat:@"%.1f s fade", ms / 1000.0];
-  return [NSString stringWithFormat:@"%.0f ms fade", ms];
-}
-
-// The current blend components, parsed from the store.
-int loadBlend(phosphormix::Component *out, int cap) {
+// Current gun weights from the store; absent or foreign CSV -> equal thirds.
+void loadGuns(int w[3]) {
+  w[0] = w[1] = w[2] = kWeightMax / 2;
   NSString *csv = [[NSUserDefaults standardUserDefaults] stringForKey:kMixBlend];
-  if (!csv.length) return 0;
-  int n = 0;
+  if (!csv.length) return;
+  int seen = 0;
+  int parsed[3] = {0, 0, 0};
   for (NSString *pair in [csv componentsSeparatedByString:@","]) {
-    if (n >= cap) break;
     NSArray<NSString *> *kv = [pair componentsSeparatedByString:@":"];
     if (kv.count != 2) continue;
     const int preset = kv[0].intValue;
-    if (!phosphormix::isMixablePreset(preset)) continue;   // stale premix, drop
-    out[n].preset = preset;
-    out[n].weight = MAX(1, MIN(9, kv[1].intValue));
+    for (int g = 0; g < 3; g++)
+      if (preset == kGunPreset[g]) {
+        parsed[g] = MAX(0, MIN(kWeightMax, kv[1].intValue));
+        seen++;
+      }
+  }
+  // Only adopt the stored mix when it IS a gun mix; a Parts/Cascade-era store
+  // or a blend of other phosphors keeps the neutral default instead of
+  // half-adopting a foreign recipe.
+  if (seen > 0)
+    for (int g = 0; g < 3; g++) w[g] = parsed[g];
+}
+
+phosphormix::Result computeGuns(const int w[3]) {
+  phosphormix::Component comps[3];
+  int n = 0;
+  for (int g = 0; g < 3; g++) {
+    if (w[g] <= 0) continue;             // gun off = component absent
+    comps[n].preset = kGunPreset[g];
+    comps[n].weight = w[g];
     n++;
   }
-  return n;
+  return phosphormix::mixBlend(comps, n);  // n==0 -> the default page
 }
 
-void saveBlend(const phosphormix::Component *comps, int n) {
+void applyGuns(const int w[3]) {
   NSMutableArray *parts = [NSMutableArray array];
-  for (int i = 0; i < n; i++)
-    [parts addObject:[NSString stringWithFormat:@"%d:%d", comps[i].preset,
-                                                comps[i].weight]];
-  [[NSUserDefaults standardUserDefaults]
-      setObject:[parts componentsJoinedByString:@","]
-         forKey:kMixBlend];
-}
-
-// Compute the live mix from the store, whatever mode it is in.
-phosphormix::Result computeStoredMix() {
+  for (int g = 0; g < 3; g++)
+    [parts addObject:[NSString stringWithFormat:@"%d:%d", kGunPreset[g], w[g]]];
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  const int mode = (int)[d integerForKey:kMixMode];
-  if (mode == phosphormix::Parts)
-    return phosphormix::mixParts((int)[d integerForKey:kMixInkFrom],
-                                 (int)[d integerForKey:kMixPaperFrom],
-                                 (int)[d integerForKey:kMixTrailFrom]);
-  if (mode == phosphormix::Cascade)
-    return phosphormix::mixCascade((int)[d integerForKey:kMixFlash],
-                                   (int)[d integerForKey:kMixPersist]);
-  phosphormix::Component comps[phosphormix::kMaxComponents];
-  const int n = loadBlend(comps, phosphormix::kMaxComponents);
-  return phosphormix::mixBlend(comps, n);
-}
+  [d setObject:[parts componentsJoinedByString:@","] forKey:kMixBlend];
+  [d setInteger:phosphormix::Blend forKey:kMixMode];
 
-// Write the mix into the Custom slot and select it. This is the ONLY writer of
-// the four hex fields outside Settings.app, and it goes through the same keys
-// so the pipeline cannot tell the difference.
-void applyStoredMix() {
-  const phosphormix::Result r = computeStoredMix();
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+  const phosphormix::Result r = computeGuns(w);
   [d setObject:hexOf(r.light.ink) forKey:kInkLight];
   [d setObject:hexOf(r.light.paper) forKey:kPaperLight];
   [d setObject:hexOf(r.dark.ink) forKey:kInkDark];
   [d setObject:hexOf(r.dark.paper) forKey:kPaperDark];
   [d setBool:YES forKey:kMixActive];
   CrossPointPrefs_setPanelPalettePreset(panelpalette::kPresetCustom);
-  // The preset integer may not have moved (editing a mix while already on
-  // Custom), so tell the glow poll its dedupe is stale.
   CrossPointMixer_glowChanged();
   SimulatorOverlay::requestPresent();
   crosspointRequestRender();
@@ -137,494 +126,156 @@ void applyStoredMix() {
 
 }  // namespace
 
-// The glow branch for the Custom slot, called from pollPanelGlow: a mix has a
-// trail of its own where plain Custom has none. Returns false when no mix is
-// active, and the caller falls back to trail 0.
+// The glow branch for the Custom slot (called from pollPanelGlow). Unchanged
+// contract from the previous UI: any stored mix mode computes through the core.
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
                                               bool *hasTail) {
-  if (![[NSUserDefaults standardUserDefaults] boolForKey:kMixActive]) return false;
-  const phosphormix::Result r = computeStoredMix();
+  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+  if (![d boolForKey:kMixActive]) return false;
+  int w[3];
+  loadGuns(w);
+  const phosphormix::Result r = computeGuns(w);
   *trailMs = r.trailMs;
   *hasTail = r.hasTail;
   for (int c = 0; c < 3; c++) tail[c] = r.tail[c];
   return true;
 }
 
-// --- the swatch row --------------------------------------------------------
-// One phosphor, exactly as the owner asked to see it: four color chips (dark
-// ink, dark paper, light ink, light paper) with their hex values, the name, and
-// the time to fade.
+// --- the controller ---------------------------------------------------------
 
-@interface CPXSwatchCell : UITableViewCell
-@property(nonatomic, strong) NSMutableArray<UIView *> *chips;
-@property(nonatomic, strong) NSMutableArray<UILabel *> *hexes;
-@property(nonatomic, strong) UILabel *name;
-@property(nonatomic, strong) UILabel *fade;
-@property(nonatomic, strong) UISlider *weight;      // blend rows only
-@property(nonatomic, copy) void (^onWeight)(int);
+@interface CPXGunMixerController : UIViewController
 @end
 
-@implementation CPXSwatchCell
-- (instancetype)initWithStyle:(UITableViewCellStyle)style
-              reuseIdentifier:(NSString *)reuse {
-  self = [super initWithStyle:style reuseIdentifier:reuse];
-  if (!self) return nil;
-  _name = [UILabel new];
-  _name.font = [UIFont monospacedSystemFontOfSize:14 weight:UIFontWeightSemibold];
-  _fade = [UILabel new];
-  _fade.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
-  _fade.textColor = UIColor.secondaryLabelColor;
-  _chips = [NSMutableArray array];
-  _hexes = [NSMutableArray array];
-  for (int i = 0; i < 4; i++) {
-    UIView *chip = [UIView new];
-    chip.layer.cornerRadius = 4;
-    chip.layer.borderWidth = 1;
-    chip.layer.borderColor = UIColor.separatorColor.CGColor;
-    [_chips addObject:chip];
-    [self.contentView addSubview:chip];
-    UILabel *hex = [UILabel new];
-    hex.font = [UIFont monospacedSystemFontOfSize:9 weight:UIFontWeightRegular];
-    hex.textColor = UIColor.secondaryLabelColor;
-    hex.textAlignment = NSTextAlignmentCenter;
-    [_hexes addObject:hex];
-    [self.contentView addSubview:hex];
-  }
-  _weight = [UISlider new];
-  _weight.minimumValue = 1;
-  _weight.maximumValue = 9;
-  _weight.hidden = YES;
-  [_weight addTarget:self action:@selector(weightMoved)
-     forControlEvents:UIControlEventValueChanged];
-  [self.contentView addSubview:_name];
-  [self.contentView addSubview:_fade];
-  [self.contentView addSubview:_weight];
-  return self;
-}
-
-- (void)weightMoved {
-  if (self.onWeight) self.onWeight((int)lroundf(self.weight.value));
-}
-
-- (void)layoutSubviews {
-  [super layoutSubviews];
-  const CGFloat W = self.contentView.bounds.size.width;
-  self.name.frame = CGRectMake(16, 8, W - 140, 18);
-  self.fade.frame = CGRectMake(W - 120, 10, 104, 14);
-  // four chips in a row: dark ink, dark paper, light ink, light paper
-  const CGFloat chipW = 44, gap = 8, y = 32;
-  CGFloat x = 16;
-  for (int i = 0; i < 4; i++) {
-    self.chips[i].frame = CGRectMake(x, y, chipW, 22);
-    self.hexes[i].frame = CGRectMake(x - 4, y + 24, chipW + 8, 12);
-    x += chipW + gap;
-  }
-  if (!self.weight.hidden)
-    self.weight.frame = CGRectMake(x + 8, y + 4, W - x - 28, 30);
-}
-
-- (void)fillWithPreset:(int)preset info:(const panelpalette::PresetInfo *)info {
-  using panelpalette::resolve;
-  const panelpalette::Palette d = resolve(preset, true, -1, -1);
-  const panelpalette::Palette l = resolve(preset, false, -1, -1);
-  const unsigned char *tones[4] = {d.ink, d.paper, l.ink, l.paper};
-  static const char *roles[4] = {"D ink", "D paper", "L ink", "L paper"};
-  for (int i = 0; i < 4; i++) {
-    self.chips[i].backgroundColor = colorOf(tones[i]);
-    self.hexes[i].text =
-        [NSString stringWithFormat:@"%s %@", roles[i], hexOf(tones[i])];
-  }
-  self.name.text =
-      info ? [NSString stringWithFormat:@"%s %s", info->phosphor ? info->phosphor : "",
-                                        info->name]
-           : @"?";
-  self.fade.text = trailLabel(panelpalette::trailMsForPreset(preset));
-  self.fade.textAlignment = NSTextAlignmentRight;
-}
-@end
-
-// --- the controller --------------------------------------------------------
-
-typedef NS_ENUM(NSInteger, CPXMixerTab) {
-  CPXTabPresets = 0,   // every preset, including premixes, selectable as-is
-  CPXTabBlend,
-  CPXTabParts,
-  CPXTabCascade,
-};
-
-@interface CPXMixerController
-    : UITableViewController <UIAdaptivePresentationControllerDelegate>
-@property(nonatomic) CPXMixerTab tab;
-@property(nonatomic) int partsRole;      // 0 ink, 1 paper, 2 trail
-@property(nonatomic) int cascadeRole;    // 0 flash, 1 persist
-@end
-
-@implementation CPXMixerController {
-  // The ingredient shelf: every pure phosphor row, grouped by persistence band
-  // (owner ruling 2026-08-21: "group ingredient shelf by natural breaks of
-  // persistence fade"). Within a band, kPresetInfo order.
-  std::vector<int> _shelf[phosphormix::kTrailBandCount];
-  // The premixes, offered as preset mixes (owner ruling: not ingredients).
-  std::vector<int> _premix;
-  // Everything, for the Presets tab (kPresetInfo order = picker order).
-  std::vector<int> _all;
-}
-
-- (instancetype)init {
-  self = [super initWithStyle:UITableViewStyleInsetGrouped];
-  if (!self) return nil;
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
-    const auto &info = panelpalette::kPresetInfo[i];
-    _all.push_back(info.preset);
-    if (!info.phosphor) continue;
-    if (phosphormix::isPremixPhosphor(info.phosphor))
-      _premix.push_back(info.preset);
-    else
-      _shelf[phosphormix::trailBand(
-                 panelpalette::trailMsForPreset(info.preset))]
-          .push_back(info.preset);
-  }
-  // Within a band: trail, then hue, red first -- one key, defined in the core.
-  for (auto &band : _shelf) {
-    std::sort(band.begin(), band.end(), [](int a, int b) {
-      return phosphormix::shelfSortKey(a) < phosphormix::shelfSortKey(b);
-    });
-  }
-  NSInteger restoredTab = [[NSUserDefaults standardUserDefaults]
-                              boolForKey:kMixActive]
-                              ? [[NSUserDefaults standardUserDefaults]
-                                    integerForKey:kMixMode] + 1
-                              : CPXTabPresets;
-  // Clamped: a garbage stored mode would otherwise become an out-of-range
-  // segment index in viewDidLoad, and every switch below indexes on the tab.
-  if (restoredTab < CPXTabPresets || restoredTab > CPXTabCascade)
-    restoredTab = CPXTabPresets;
-  self.tab = (CPXMixerTab)restoredTab;
-  // NO self.title. On the owner's device (iPhone 18,4 / iOS 26.6, build 110)
-  // the chip tap crashed with objc_retain(0x1) INSIDE UIKit's setTitle:, and
-  // the disassembly of the shipped binary put the faulting call exactly here --
-  // with the init loop's registers showing it had completed cleanly, so the
-  // corruption is in UIKit's own title plumbing on that OS, not in this class.
-  // Four simulator repros (Debug/Release, fresh/lived-in state, real finger
-  // path) never fired. The title was dead UI anyway: viewDidLoad replaces it
-  // with the segmented control as titleView, so the string never rendered.
-  // Sidestepped rather than understood, and the breadcrumb below is what turns
-  // the next device crash log into a line number.
-  SDL_Log("[mixer] controller init complete");
-  return self;
+@implementation CPXGunMixerController {
+  UISlider *_slider[3];
+  UILabel *_value[3];
+  UIView *_swatchDark;
+  UIView *_swatchLight;
+  UILabel *_readout;
+  int _w[3];
 }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  SDL_Log("[mixer] viewDidLoad");
-  [self.tableView registerClass:CPXSwatchCell.class forCellReuseIdentifier:@"sw"];
-  UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
-      initWithTarget:self action:@selector(longPressed:)];
-  [self.tableView addGestureRecognizer:lp];
-  self.tableView.rowHeight = 74;
-  UISegmentedControl *seg = [[UISegmentedControl alloc]
-      initWithItems:@[ @"Presets", @"Blend", @"Parts", @"Cascade" ]];
-  seg.selectedSegmentIndex = self.tab;
-  [seg addTarget:self action:@selector(tabChanged:)
-      forControlEvents:UIControlEventValueChanged];
-  self.navigationItem.titleView = seg;
-  self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                           target:self
-                           action:@selector(done)];
+  SDL_Log("[mixer] p22 viewDidLoad");
+  self.view.backgroundColor = UIColor.systemBackgroundColor;
+
+  loadGuns(_w);
+
+  static const char *kGunName[3] = {"P22R — red gun", "P22G — green gun",
+                                    "P22B — blue gun"};
+  UIFont *mono = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightSemibold];
+  UIFont *monoS = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+
+  CGFloat y = 28;
+  const CGFloat margin = 20;
+  const CGFloat W = self.view.bounds.size.width;
+
+  for (int g = 0; g < 3; g++) {
+    const panelpalette::Palette gun =
+        panelpalette::resolve(kGunPreset[g], true, -1, -1);
+    UIColor *tint = [UIColor colorWithRed:gun.ink[0] / 255.0
+                                    green:gun.ink[1] / 255.0
+                                     blue:gun.ink[2] / 255.0
+                                    alpha:1];
+    UILabel *name = [UILabel new];
+    name.text = @(kGunName[g]);
+    name.font = mono;
+    name.frame = CGRectMake(margin, y, W - 2 * margin - 60, 18);
+    [self.view addSubview:name];
+
+    _value[g] = [UILabel new];
+    _value[g].font = monoS;
+    _value[g].textColor = UIColor.secondaryLabelColor;
+    _value[g].textAlignment = NSTextAlignmentRight;
+    _value[g].frame = CGRectMake(W - margin - 56, y, 56, 18);
+    [self.view addSubview:_value[g]];
+
+    _slider[g] = [UISlider new];
+    _slider[g].minimumValue = 0;
+    _slider[g].maximumValue = kWeightMax;
+    _slider[g].value = _w[g];
+    _slider[g].minimumTrackTintColor = tint;
+    _slider[g].tag = g;
+    [_slider[g] addTarget:self
+                   action:@selector(gunMoved:)
+         forControlEvents:UIControlEventValueChanged];
+    _slider[g].frame = CGRectMake(margin, y + 20, W - 2 * margin, 32);
+    [self.view addSubview:_slider[g]];
+    y += 62;
+  }
+
+  // The computed pair, both polarities, with exact hex. The page behind the
+  // sheet is the real preview; these are the numbers.
+  y += 6;
+  _swatchDark = [UIView new];
+  _swatchDark.layer.cornerRadius = 8;
+  _swatchDark.layer.borderWidth = 1;
+  _swatchDark.layer.borderColor = UIColor.separatorColor.CGColor;
+  _swatchDark.frame = CGRectMake(margin, y, (W - 2 * margin - 12) / 2, 44);
+  [self.view addSubview:_swatchDark];
+
+  _swatchLight = [UIView new];
+  _swatchLight.layer.cornerRadius = 8;
+  _swatchLight.layer.borderWidth = 1;
+  _swatchLight.layer.borderColor = UIColor.separatorColor.CGColor;
+  _swatchLight.frame = CGRectMake(margin + (W - 2 * margin + 12) / 2, y,
+                                  (W - 2 * margin - 12) / 2, 44);
+  [self.view addSubview:_swatchLight];
+  y += 52;
+
+  _readout = [UILabel new];
+  _readout.font = monoS;
+  _readout.textColor = UIColor.secondaryLabelColor;
+  _readout.numberOfLines = 2;
+  _readout.frame = CGRectMake(margin, y, W - 2 * margin, 36);
+  [self.view addSubview:_readout];
+
+  UIButton *done = [UIButton buttonWithType:UIButtonTypeSystem];
+  [done setTitle:@"Done" forState:UIControlStateNormal];
+  done.titleLabel.font = mono;
+  [done addTarget:self
+                action:@selector(dismissSelf)
+      forControlEvents:UIControlEventTouchUpInside];
+  done.frame = CGRectMake(W - margin - 60, 0, 60, 28);
+  [self.view addSubview:done];
+
+  [self refresh];
+  SDL_Log("[mixer] p22 controller ready");
 }
 
-- (void)done {
+- (void)dismissSelf {
   [self dismissViewControllerAnimated:YES completion:nil];
 }
 
-- (void)tabChanged:(UISegmentedControl *)seg {
-  self.tab = (CPXMixerTab)seg.selectedSegmentIndex;
-  // LOOKING IS NOT CHOOSING. The first version applied the stored mix on every
-  // tab switch, so opening Parts with unset roles -- or Blend with an empty
-  // list -- blanked the page to the default palette just for browsing. The
-  // mode is written and the mix applied only when a row is actually picked;
-  // switching tabs changes nothing on the page.
-  [self.tableView reloadData];
+- (void)gunMoved:(UISlider *)s {
+  _w[s.tag] = (int)lroundf(s.value);
+  applyGuns(_w);
+  [self refresh];
 }
 
-// Long-press on a preset-mix row loads its recipe into the mixer (owner
-// ruling 2026-08-20: "Both — tap applies, long-press loads"). The mapping is
-// approximate by construction -- see kPremixRecipes -- and the footer says so.
-- (void)longPressed:(UILongPressGestureRecognizer *)g {
-  if (g.state != UIGestureRecognizerStateBegan) return;
-  if (self.tab != CPXTabPresets) return;
-  NSIndexPath *ip = [self.tableView
-      indexPathForRowAtPoint:[g locationInView:self.tableView]];
-  if (!ip || ip.section != 1) return;
-  const int preset = [self presetAt:ip];
-  const panelpalette::PresetInfo *info = [self infoFor:preset];
-  const phosphormix::PremixRecipe *r =
-      phosphormix::recipeFor(info ? info->phosphor : nullptr);
-  if (!r) return;
-  // Resolve the component P-numbers to preset integers through kPresetInfo.
-  int pa = -1, pb = -1, pc = -1;
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
-    const char *ph = panelpalette::kPresetInfo[i].phosphor;
-    if (!ph) continue;
-    if (!strcmp(ph, r->a)) pa = panelpalette::kPresetInfo[i].preset;
-    if (!strcmp(ph, r->b)) pb = panelpalette::kPresetInfo[i].preset;
-    if (r->c && !strcmp(ph, r->c)) pc = panelpalette::kPresetInfo[i].preset;
-  }
-  if (pa < 0 || pb < 0 || (r->c && pc < 0)) return;
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  if (r->mode == phosphormix::Cascade) {
-    [d setInteger:pa forKey:kMixFlash];
-    [d setInteger:pb forKey:kMixPersist];
-    [d setInteger:phosphormix::Cascade forKey:kMixMode];
-    self.tab = CPXTabCascade;
-  } else {
-    phosphormix::Component comps[3] = {{pa, r->weightA}, {pb, r->weightB},
-                                       {pc, r->weightC}};
-    saveBlend(comps, pc >= 0 ? 3 : 2);
-    [d setInteger:phosphormix::Blend forKey:kMixMode];
-    self.tab = CPXTabBlend;
-  }
-  applyStoredMix();
-  UISegmentedControl *seg = (UISegmentedControl *)self.navigationItem.titleView;
-  if ([seg isKindOfClass:UISegmentedControl.class])
-    seg.selectedSegmentIndex = self.tab;
-  [self.tableView reloadData];
-  SDL_Log("[mixer] recipe %s loaded -> %s", info->phosphor,
-          r->mode == phosphormix::Cascade ? "cascade" : "blend");
-}
-
-// --- table shape -----------------------------------------------------------
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tv {
-  switch (self.tab) {
-    case CPXTabPresets: return 2;             // presets, then preset mixes
-    case CPXTabBlend: return phosphormix::kTrailBandCount;
-    case CPXTabParts: return 1 + phosphormix::kTrailBandCount;
-    case CPXTabCascade: return 1 + phosphormix::kTrailBandCount;
-  }
-  return 1;
-}
-
-- (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s {
-  switch (self.tab) {
-    case CPXTabPresets:
-      return s == 0 ? @"Presets"
-                    : @"Preset mixes — already blends or cascades, picked whole";
-    case CPXTabBlend:
-      return s == 0
-                 ? [NSString stringWithFormat:
-                       @"Blend — up to 4 phosphors, slider weights · %s",
-                       phosphormix::trailBandName(0)]
-                 : @(phosphormix::trailBandName((int)s));
-    case CPXTabParts: {
-      if (s == 0)
-        return self.partsRole == 0
-                   ? @"Pick the INK phosphor"
-                   : self.partsRole == 1 ? @"Pick the PAPER phosphor"
-                                         : @"Pick the FADE phosphor";
-      return @(phosphormix::trailBandName((int)s - 1));
-    }
-    case CPXTabCascade: {
-      if (s == 0)
-        return self.cascadeRole == 0
-                   ? @"Pick the FLASH layer — it paints the page"
-                   : @"Pick the PERSISTENCE layer — it lingers";
-      return @(phosphormix::trailBandName((int)s - 1));
-    }
-  }
-  return nil;
-}
-
-- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)sec {
-  if (self.tab == CPXTabPresets && sec == 1)
-    return @"Long-press a preset mix to load it into the mixer as an editable "
-           @"recipe. The recipe maps its compounds to the nearest pure "
-           @"phosphors, so it is a starting point, not an exact reproduction.";
-  return nil;
-}
-
-- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s {
-  switch (self.tab) {
-    case CPXTabPresets: return s == 0 ? (NSInteger)(_all.size() - _premix.size())
-                                      : (NSInteger)_premix.size();
-    case CPXTabBlend: return (NSInteger)_shelf[s].size();
-    case CPXTabParts: return s == 0 ? 1 : (NSInteger)_shelf[s - 1].size();
-    case CPXTabCascade: return s == 0 ? 1 : (NSInteger)_shelf[s - 1].size();
-  }
-  return 0;
-}
-
-- (const panelpalette::PresetInfo *)infoFor:(int)preset {
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++)
-    if (panelpalette::kPresetInfo[i].preset == preset)
-      return &panelpalette::kPresetInfo[i];
-  return nullptr;
-}
-
-- (int)presetAt:(NSIndexPath *)ip {
-  switch (self.tab) {
-    case CPXTabPresets: {
-      if (ip.section == 1) return _premix[ip.row];
-      // presets minus premixes, keeping order
-      NSInteger n = -1;
-      for (int p : _all) {
-        bool isPre = false;
-        for (int q : _premix) if (q == p) { isPre = true; break; }
-        if (isPre) continue;
-        if (++n == ip.row) return p;
-      }
-      return _all[0];
-    }
-    case CPXTabBlend:
-      return _shelf[ip.section][ip.row];
-    default:
-      return _shelf[ip.section - 1][ip.row];
-  }
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tv
-         cellForRowAtIndexPath:(NSIndexPath *)ip {
-  // The role-picker row on Parts/Cascade
-  if ((self.tab == CPXTabParts || self.tab == CPXTabCascade) && ip.section == 0) {
-    UITableViewCell *cell =
-        [tv dequeueReusableCellWithIdentifier:@"role"]
-            ?: [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
-                                      reuseIdentifier:@"role"];
-    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-    if (self.tab == CPXTabParts) {
-      const panelpalette::PresetInfo *ink = [self infoFor:(int)[d integerForKey:kMixInkFrom]];
-      const panelpalette::PresetInfo *pap = [self infoFor:(int)[d integerForKey:kMixPaperFrom]];
-      const panelpalette::PresetInfo *tr = [self infoFor:(int)[d integerForKey:kMixTrailFrom]];
-      cell.textLabel.text = [NSString
-          stringWithFormat:@"ink %s · paper %s · fade %s",
-                           ink && ink->phosphor ? ink->phosphor : "—",
-                           pap && pap->phosphor ? pap->phosphor : "—",
-                           tr && tr->phosphor ? tr->phosphor : "—"];
-      cell.detailTextLabel.text = @"Tap to switch which role you are picking";
-    } else {
-      const panelpalette::PresetInfo *fl = [self infoFor:(int)[d integerForKey:kMixFlash]];
-      const panelpalette::PresetInfo *pe = [self infoFor:(int)[d integerForKey:kMixPersist]];
-      cell.textLabel.text = [NSString
-          stringWithFormat:@"flash %s · persistence %s",
-                           fl && fl->phosphor ? fl->phosphor : "—",
-                           pe && pe->phosphor ? pe->phosphor : "—"];
-      cell.detailTextLabel.text = @"Tap to switch which layer you are picking";
-    }
-    cell.textLabel.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightMedium];
-    return cell;
-  }
-
-  CPXSwatchCell *cell = [tv dequeueReusableCellWithIdentifier:@"sw"];
-  const int preset = [self presetAt:ip];
-  [cell fillWithPreset:preset info:[self infoFor:preset]];
-
-  cell.weight.hidden = YES;
-  cell.onWeight = nil;
-  cell.accessoryType = UITableViewCellAccessoryNone;
-
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  if (self.tab == CPXTabPresets) {
-    const int current =
-        panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
-    if (preset == current)
-      cell.accessoryType = UITableViewCellAccessoryCheckmark;
-  } else if (self.tab == CPXTabBlend) {
-    phosphormix::Component comps[phosphormix::kMaxComponents];
-    const int n = loadBlend(comps, phosphormix::kMaxComponents);
-    for (int i = 0; i < n; i++) {
-      if (comps[i].preset != preset) continue;
-      cell.accessoryType = UITableViewCellAccessoryCheckmark;
-      cell.weight.hidden = NO;
-      cell.weight.value = comps[i].weight;
-      cell.onWeight = ^(int w) {
-        phosphormix::Component cc[phosphormix::kMaxComponents];
-        const int m = loadBlend(cc, phosphormix::kMaxComponents);
-        for (int j = 0; j < m; j++)
-          if (cc[j].preset == preset) cc[j].weight = w;
-        saveBlend(cc, m);
-        // The slider is a PICK, so it claims the mode like every other pick.
-        // Without this, adjusting a leftover checked row while the stored mode
-        // was Cascade recomputed the CASCADE -- the slider moved and the page
-        // answered with a different mix entirely.
-        [[NSUserDefaults standardUserDefaults] setInteger:phosphormix::Blend
-                                                   forKey:kMixMode];
-        applyStoredMix();
-      };
-    }
-  } else if (self.tab == CPXTabParts) {
-    const int sel = (int)[d integerForKey:self.partsRole == 0
-                                              ? kMixInkFrom
-                                              : self.partsRole == 1 ? kMixPaperFrom
-                                                                    : kMixTrailFrom];
-    if (preset == sel) cell.accessoryType = UITableViewCellAccessoryCheckmark;
-  } else if (self.tab == CPXTabCascade) {
-    const int sel = (int)[d
-        integerForKey:self.cascadeRole == 0 ? kMixFlash : kMixPersist];
-    if (preset == sel) cell.accessoryType = UITableViewCellAccessoryCheckmark;
-  }
-  return cell;
-}
-
-- (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
-  [tv deselectRowAtIndexPath:ip animated:YES];
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-
-  if ((self.tab == CPXTabParts || self.tab == CPXTabCascade) && ip.section == 0) {
-    if (self.tab == CPXTabParts) self.partsRole = (self.partsRole + 1) % 3;
-    else self.cascadeRole = (self.cascadeRole + 1) % 2;
-    [tv reloadData];
-    return;
-  }
-
-  const int preset = [self presetAt:ip];
-  switch (self.tab) {
-    case CPXTabPresets:
-      // A preset -- or a preset MIX -- picked whole. Leaves the mix stored but
-      // inactive, so coming back to a mix tab restores it.
-      [d setBool:NO forKey:kMixActive];
-      CrossPointPrefs_setPanelPalettePreset(preset);
-      SimulatorOverlay::requestPresent();
-      crosspointRequestRender();
-      break;
-    case CPXTabBlend: {
-      phosphormix::Component comps[phosphormix::kMaxComponents];
-      int n = loadBlend(comps, phosphormix::kMaxComponents);
-      int at = -1;
-      for (int i = 0; i < n; i++)
-        if (comps[i].preset == preset) at = i;
-      if (at >= 0) {           // deselect
-        for (int i = at; i < n - 1; i++) comps[i] = comps[i + 1];
-        n--;
-      } else if (n < phosphormix::kMaxComponents) {
-        comps[n].preset = preset;
-        comps[n].weight = 3;
-        n++;
-      }
-      saveBlend(comps, n);
-      [d setInteger:phosphormix::Blend forKey:kMixMode];
-      applyStoredMix();
-      break;
-    }
-    case CPXTabParts:
-      [d setInteger:preset
-             forKey:self.partsRole == 0 ? kMixInkFrom
-                    : self.partsRole == 1 ? kMixPaperFrom : kMixTrailFrom];
-      [d setInteger:phosphormix::Parts forKey:kMixMode];
-      applyStoredMix();
-      break;
-    case CPXTabCascade:
-      [d setInteger:preset forKey:self.cascadeRole == 0 ? kMixFlash : kMixPersist];
-      [d setInteger:phosphormix::Cascade forKey:kMixMode];
-      applyStoredMix();
-      break;
-  }
-  [tv reloadData];
+- (void)refresh {
+  const phosphormix::Result r = computeGuns(_w);
+  _swatchDark.backgroundColor = [UIColor colorWithRed:r.dark.paper[0] / 255.0
+                                                green:r.dark.paper[1] / 255.0
+                                                 blue:r.dark.paper[2] / 255.0
+                                                alpha:1];
+  _swatchLight.backgroundColor = [UIColor colorWithRed:r.light.paper[0] / 255.0
+                                                 green:r.light.paper[1] / 255.0
+                                                  blue:r.light.paper[2] / 255.0
+                                                 alpha:1];
+  _readout.text = [NSString
+      stringWithFormat:@"dark %@ on %@ · light %@ on %@\nfade %.0f ms",
+                       hexOf(r.dark.ink), hexOf(r.dark.paper),
+                       hexOf(r.light.ink), hexOf(r.light.paper),
+                       (double)r.trailMs];
+  for (int g = 0; g < 3; g++)
+    _value[g].text = _w[g] > 0 ? [NSString stringWithFormat:@"%d", _w[g]] : @"off";
 }
 @end
 
-// --- entry point -----------------------------------------------------------
+// --- entry point ------------------------------------------------------------
 
 extern "C" void CrossPointMixer_present(void) {
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -634,23 +285,28 @@ extern "C" void CrossPointMixer_present(void) {
     SDL_free(wins);
     if (!win) return;
     UIWindow *uiWindow = (__bridge UIWindow *)SDL_GetPointerProperty(
-        SDL_GetWindowProperties(win), SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER, nullptr);
+        SDL_GetWindowProperties(win), SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER,
+        nullptr);
     UIViewController *root = uiWindow.rootViewController;
     if (!root || root.presentedViewController) return;
-    CPXMixerController *mixer = [CPXMixerController new];
-    UINavigationController *nav =
-        [[UINavigationController alloc] initWithRootViewController:mixer];
-    nav.modalPresentationStyle = UIModalPresentationPageSheet;
-    if (nav.sheetPresentationController) {
-      nav.sheetPresentationController.detents = @[
-        UISheetPresentationControllerDetent.mediumDetent,
-        UISheetPresentationControllerDetent.largeDetent
-      ];
-      // Medium first: the page stays visible behind the sheet, which is the
-      // whole point of a LIVE mixer.
-      nav.sheetPresentationController.selectedDetentIdentifier =
-          UISheetPresentationControllerDetentIdentifierMedium;
+    CPXGunMixerController *mixer = [CPXGunMixerController new];
+    mixer.modalPresentationStyle = UIModalPresentationPageSheet;
+    if (mixer.sheetPresentationController) {
+      // Medium: about 320 pt of controls, and the PAGE stays visible above the
+      // sheet -- the page is the preview.
+      mixer.sheetPresentationController.detents =
+          @[ UISheetPresentationControllerDetent.mediumDetent ];
     }
-    [root presentViewController:nav animated:YES completion:nil];
+    [root presentViewController:mixer animated:YES completion:nil];
   });
+}
+
+// Headless test hook: drive the EXACT function the sliders call, so a scripted
+// run exercises the same write path a finger does. Same family as
+// CROSSPOINT_SIM_OPEN_MIXER / _TAP_CHIP in the shim.
+extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b) {
+  int w[3] = {MAX(0, MIN(kWeightMax, r)), MAX(0, MIN(kWeightMax, g)),
+              MAX(0, MIN(kWeightMax, b))};
+  applyGuns(w);
+  SDL_Log("[mixer] test hook applied guns %d/%d/%d", w[0], w[1], w[2]);
 }
