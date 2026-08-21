@@ -671,11 +671,31 @@ void layoutPad(int outW, int outH) {
   const float band = panelGap + kCellH + kRowClear + kCellH + bottomInset;
   SimulatorOverlay::setBottomInset(static_cast<int>(band * S));
 
-  // How far the paper reaches in zen: the top rocker row's top edge, in device
-  // pixels, SNAPPED DOWN to the 8pt grid. Flooring is what keeps it off the row
-  // -- it can only move the edge up, never past.
+  // How far the paper reaches in zen: the top rocker row's top edge, snapped
+  // DOWN to the 8pt grid, PLUS four cells.
+  //
+  // The row's top edge alone was the first ruling, and measured on an iPhone
+  // Air it made the page bottom-heavy the WRONG way: 84 px of paper above the
+  // first ink against 45 px below the last, so the sheet read as sliding off
+  // the bottom of the screen. The bottom band cannot be fixed by moving this
+  // edge up -- up is where the ink is. Owner ruling 2026-08-20, picking cell 82
+  // of 8 on that device: go four cells PAST the old line, giving 141 px below
+  // the ink against 84 px above.
+  //
+  // Four CELLS rather than 96 px so it holds on any device: the grid is in
+  // points, so this is 32 pt everywhere and lands on the grid by construction.
+  // Nothing is drawn in that band in zen -- the row the old line protected is
+  // one of the things zen hides -- so there is nothing left to run into.
+  constexpr float kZenPaperCellsBelowRow = 4.0f;
   const float gridPx = 8.0f * S;
-  g_zenRowTopPx = SDL_floorf((upperY * S) / gridPx) * gridPx;
+  g_zenRowTopPx = SDL_floorf((upperY * S) / gridPx) * gridPx +
+                  kZenPaperCellsBelowRow * gridPx;
+  // Never past the glass. The home indicator's inset is the floor: the paper
+  // must not run under it, or the corners are cut off-screen and the sheet
+  // loses the bottom pair entirely -- the bug this whole pass started from.
+  const float maxPaperPx =
+      SDL_floorf(((H - bottomInset) * S) / gridPx) * gridPx;
+  g_zenRowTopPx = SDL_min(g_zenRowTopPx, maxPaperPx);
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -1786,7 +1806,14 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // anywhere on the screen. Black is what gives the paper an edge to have
     // corners on, and on an OLED it is the darkest a night page can be.
     const SDL_FRect &q = g_zenPanel;
-    g_zenPaper = q;
+    // THE PAPER IS THE FULL WIDTH OF THE SCREEN, not the page's rect. The page
+    // is 1056 px wide on a 1260 px screen, and the pad's field is the SAME tone
+    // as the page's paper by design (measured 215,233,211 against 215,233,211),
+    // so what the eye reads as one sheet runs edge to edge. Cutting the corners
+    // out of the page's rect put two notches at x=102 and x=1158, mid-field,
+    // eight pixels of nothing in the middle of the paper -- which is what the
+    // 2026-08-20 screenshot caught. The corners that exist are the SCREEN's.
+    g_zenPaper = {0.0f, q.y, static_cast<float>(outW), q.h};
     const float line = g_zenRowTopPx > 0.0f ? g_zenRowTopPx : q.y + q.h;
 
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -1794,12 +1821,21 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
                           static_cast<float>(outH) - line};
     if (below.h > 0.0f) SDL_RenderFillRect(r, &below);
 
-    // The paper reaches that line: the page, plus the strip between the page's
-    // bottom edge and the line. The PAGE is never resized -- its fit is
-    // identical in both modes, which is the point of doing it this way.
+    // THE PAPER ENDS AT THE LINE, in both directions. This is the whole rect
+    // the corners are cut out of, so it has to follow the line even when the
+    // line is ABOVE the page's own bottom edge -- the contraction case, which
+    // is the usual one. Leaving it at the panel's height put the fillets down
+    // inside the black band where nothing could see them, and what the eye read
+    // as the paper's edge was the band's straight top: a slab with two sharp
+    // bottom corners, which is the bug in the 2026-08-20 screenshot.
+    g_zenPaper.h = SDL_max(0.0f, line - q.y);
+
+    // Only when the line falls BELOW the page does paper have to be painted
+    // in: the strip between the page's bottom edge and the line. The PAGE is
+    // never resized -- its fit is identical in both modes.
     if (line > q.y + q.h) {
-      g_zenPaper.h = line - q.y;
-      const SDL_FRect strip{q.x, q.y + q.h, q.w, line - (q.y + q.h)};
+      const SDL_FRect strip{0.0f, q.y + q.h, static_cast<float>(outW),
+                           line - (q.y + q.h)};
       setRGBFromPanelPaper(r);
       SDL_RenderFillRect(r, &strip);
     }
