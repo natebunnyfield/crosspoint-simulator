@@ -77,7 +77,7 @@ void crosspointRequestRender();
 // The page-color mixer (CrossPointPaletteMixer.mm). present() opens the modal;
 // glowForCustom() is the Custom slot's mix-aware glow branch.
 extern "C" void CrossPointMixer_present(void);
-extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b);
+extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b, int w);
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
                                               bool *hasTail);
@@ -2382,24 +2382,33 @@ void CrossPointHarness_perFrame() {
         SDL_PushEvent(&up);
       }
     }
-    // CROSSPOINT_SIM_MIX_GUNS="r,g,b": call the sliders' own apply function
+    // CROSSPOINT_SIM_MIX_GUNS="r,g,b,w": call the sliders' own apply function
     // (CrossPointMixer_applyGunsForTest -> applyGuns) shortly after launch.
-    // Exists because the owner's report "not seeing colors actually mixed"
+    // A three-value CSV still parses, with w treated as 0. Assignments are the
+    // defaults; there is no env for them. Exists because the owner's report
+    // "not seeing colors actually mixed"
     // (2026-08-21) needed the WRITE half of the mixer proven headlessly --
     // the poll half was proven live with defaults-write, but a slider cannot
     // be dragged by simctl, so the function it calls gets driven from inside.
     static int s_mixGunsCountdown = -2;
-    static int s_mixGuns[3] = {0, 0, 0};
+    static int s_mixGuns[4] = {0, 0, 0, 0};
     if (s_mixGunsCountdown == -2) {
       const char *e = std::getenv("CROSSPOINT_SIM_MIX_GUNS");
-      if (e && sscanf(e, "%d,%d,%d", &s_mixGuns[0], &s_mixGuns[1],
-                      &s_mixGuns[2]) == 3)
+      int parsed = e ? sscanf(e, "%d,%d,%d,%d", &s_mixGuns[0], &s_mixGuns[1],
+                              &s_mixGuns[2], &s_mixGuns[3])
+                     : 0;
+      if (parsed == 3) {
+        s_mixGuns[3] = 0;
+        parsed = 4;
+      }
+      if (parsed == 4)
         s_mixGunsCountdown = 180;  // ~3 s: after the first page render
       else
         s_mixGunsCountdown = -1;
     }
     if (s_mixGunsCountdown > 0 && --s_mixGunsCountdown == 0)
-      CrossPointMixer_applyGunsForTest(s_mixGuns[0], s_mixGuns[1], s_mixGuns[2]);
+      CrossPointMixer_applyGunsForTest(s_mixGuns[0], s_mixGuns[1], s_mixGuns[2],
+                                       s_mixGuns[3]);
   }
   pollPhosphorGrain();
   pollPadContrast();

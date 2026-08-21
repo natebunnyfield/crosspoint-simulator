@@ -43,6 +43,25 @@ desktop `settings.json` keys still read any stored mix. "Ignore everything
 else FOR NOW" is a narrowing of the UI, not a deletion of the model; the
 sections below record the full design for when it comes back.
 
+### 2026-08-21: four assignable guns (RGBW)
+
+Same day, the gun mixer grew from three fixed P22 guns to **four assignable
+guns** named **R / G / B / W** — the industry-standard four-emitter channel
+scheme (owner delegated the naming pick). Each gun's name row is now a menu
+button: any preset passing `phosphormix::isMixablePreset` can be assigned,
+with the menu grouped into the core's persistence bands (`trailBand` /
+`trailBandName`) and ordered within each band by `shelfSortKey` — the same
+grouping and order as the shelves below. Defaults: R=P22R (11), G=P22G (40),
+B=P22B (24), W=P45 (`kPresetWhiteCrt`, 21). **W ships at weight 0**, so a
+fresh open renders the same page the three-gun build did. Assignments persist
+in a new `phosphorGunAssign` CSV of four preset ints; `phosphorMixBlend`
+stays the mix of record, now carrying all four "preset:weight" pairs
+(weight-0 guns included, as before). The hand-placed Done button is gone: the
+sheet is now a `UINavigationController` with a standard nav-bar Done item (no
+title string is ever set — the build 110 crash sidestep holds).
+`CROSSPOINT_SIM_MIX_GUNS` takes "r,g,b,w" (a three-value CSV still parses,
+w=0; assignments are always the defaults).
+
 ## The rulings, in the owner's words
 
 - *"make a custom crt interface option when i press or hold down the page color
