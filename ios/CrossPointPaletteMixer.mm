@@ -104,7 +104,15 @@ phosphormix::Result computeGuns(const int w[3]) {
   return phosphormix::mixBlend(comps, n);  // n==0 -> the default page
 }
 
-void applyGuns(const int w[3]) {
+// renderPage = ask the firmware for a full page re-render (re-layout + dither
+// for the new pair). That render costs hundreds of ms and queues per call, so
+// it must NOT ride on every slider tick -- a drag emits dozens of them and the
+// page falls seconds behind the thumb (owner report 2026-08-21: "there is a
+// large lag"). The LIVE half is cheap: the four hex fields plus
+// requestPresent(), which recolors the CACHED framebuffer at present time,
+// same mechanism as a dark-mode flip. The re-dither happens ONCE, when the
+// finger lifts.
+void applyGuns(const int w[3], bool renderPage) {
   NSMutableArray *parts = [NSMutableArray array];
   for (int g = 0; g < 3; g++)
     [parts addObject:[NSString stringWithFormat:@"%d:%d", kGunPreset[g], w[g]]];
@@ -121,7 +129,7 @@ void applyGuns(const int w[3]) {
   CrossPointPrefs_setPanelPalettePreset(panelpalette::kPresetCustom);
   CrossPointMixer_glowChanged();
   SimulatorOverlay::requestPresent();
-  crosspointRequestRender();
+  if (renderPage) crosspointRequestRender();
 }
 
 }  // namespace
@@ -201,6 +209,11 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
     [_slider[g] addTarget:self
                    action:@selector(gunMoved:)
          forControlEvents:UIControlEventValueChanged];
+    [_slider[g] addTarget:self
+                   action:@selector(gunDropped:)
+         forControlEvents:UIControlEventTouchUpInside |
+                          UIControlEventTouchUpOutside |
+                          UIControlEventTouchCancel];
     _slider[g].frame = CGRectMake(margin, y + 20, W - 2 * margin, 32);
     [self.view addSubview:_slider[g]];
     y += 62;
@@ -251,8 +264,14 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 
 - (void)gunMoved:(UISlider *)s {
   _w[s.tag] = (int)lroundf(s.value);
-  applyGuns(_w);
+  applyGuns(_w, /*renderPage=*/false);
   [self refresh];
+}
+
+// The finger lifted: the mix is settled, so pay for the one firmware
+// re-render that re-dithers the page's grays for the final pair.
+- (void)gunDropped:(UISlider *)s {
+  applyGuns(_w, /*renderPage=*/true);
 }
 
 - (void)refresh {
@@ -307,6 +326,6 @@ extern "C" void CrossPointMixer_present(void) {
 extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b) {
   int w[3] = {MAX(0, MIN(kWeightMax, r)), MAX(0, MIN(kWeightMax, g)),
               MAX(0, MIN(kWeightMax, b))};
-  applyGuns(w);
+  applyGuns(w, /*renderPage=*/true);
   SDL_Log("[mixer] test hook applied guns %d/%d/%d", w[0], w[1], w[2]);
 }
