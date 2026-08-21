@@ -145,10 +145,14 @@ inline int usableCount(const Component *comps, int n) {
 // --- BLEND -----------------------------------------------------------------
 // Weighted linear-light average of inks and papers, in both polarities. The
 // trail is the SLOWEST component's -- the visible afterglow lasts until the
-// last phosphor has gone dark -- and what lingers is that component's dark ink,
-// because everything faster has already died out of the mixture. A tail is only
-// reported when the components' persistences actually differ; a blend of
-// equal-speed phosphors dims without changing color.
+// last phosphor has gone dark -- and what lingers is the blend of every
+// component that shares that slowest trail (the survivors at the end of the
+// fade), in the same weights and the same linear light as the full mix,
+// because everything faster has already died out of the mixture. G + R + B
+// with equal 283 ms R and B therefore fades toward the R+B magenta, not
+// toward R alone; a single slowest component degenerates to its own ink. A
+// tail is only reported when the components' persistences actually differ; a
+// blend of equal-speed phosphors dims without changing color.
 inline Result mixBlend(const Component *comps, int n) {
   Result r;
   panelpalette::Palette darks[kMaxComponents];
@@ -186,7 +190,22 @@ inline Result mixBlend(const Component *comps, int n) {
   r.trailMs = slowestTrail > 0.0f ? slowestTrail : 0.0f;
   if (used > 1 && slowest >= 0 && slowestTrail > fastestTrail * 1.5f) {
     r.hasTail = true;
-    for (int c = 0; c < 3; c++) r.tail[c] = darks[slowest].ink[c];
+    // The survivors: every component whose trail IS the maximum. Their dark
+    // inks blend with the same weights and the same linear-light math as the
+    // full mix; comparing floats exactly is safe because every trail comes
+    // from the same trailMsForPreset call.
+    panelpalette::Palette survivors[kMaxComponents];
+    float survW[kMaxComponents];
+    int survN = 0;
+    float survTotal = 0.0f;
+    for (int i = 0; i < used; i++) {
+      if (trails[i] != slowestTrail) continue;
+      survivors[survN] = darks[i];
+      survW[survN] = w[i];
+      survTotal += w[i];
+      survN++;
+    }
+    detail::blendChannel(survivors, survW, survN, survTotal, false, r.tail);
   }
   return r;
 }
