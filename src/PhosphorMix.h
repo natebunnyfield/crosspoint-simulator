@@ -208,18 +208,24 @@ inline Result mixBlend(const Component *comps, int n) {
     // inks blend with the same weights and the same linear-light math as the
     // full mix; comparing floats exactly is safe because every trail comes
     // from the same trailMsForPreset call.
+    //
+    // Normalized by the FULL mix total, not the survivor total, so the tail
+    // carries only the survivors' SHARE of the emission (owner 2026-08-21:
+    // "1 and 100 have the same fade but they should be very different") -- a
+    // weight-1 survivor in a 101-weight mix keeps ~1% of the light and fades
+    // near-black, a weight-100 survivor keeps almost all of it. Renormalizing
+    // over survTotal was the bug: it relit the survivor to full mix
+    // brightness however small its gun was.
     panelpalette::Palette survivors[kMaxComponents];
     float survW[kMaxComponents];
     int survN = 0;
-    float survTotal = 0.0f;
     for (int i = 0; i < used; i++) {
       if (trails[i] != slowestTrail) continue;
       survivors[survN] = darks[i];
       survW[survN] = w[i];
-      survTotal += w[i];
       survN++;
     }
-    detail::blendChannel(survivors, survW, survN, survTotal, false, r.tail);
+    detail::blendChannel(survivors, survW, survN, total, false, r.tail);
   }
   return r;
 }
