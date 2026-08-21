@@ -177,6 +177,52 @@ const panelpalette::PresetInfo *infoForPreset(int preset) {
   return nullptr;
 }
 
+// --- the shelf, resolved ONCE per process ----------------------------------
+// Band membership, in-band order and row titles never change at runtime, but
+// the old code recomputed all of them (34 resolve() calls per menu) on every
+// reassignment, which is half of why the selector felt slow (owner 2026-08-21:
+// "make the phosphor selector snappier"). The other half is fixed at the call
+// sites: the menus are deferred, and the re-dither no longer rides the menu
+// dismiss animation.
+const std::vector<std::vector<int>> &shelfBands() {
+  static const std::vector<std::vector<int>> bands = [] {
+    std::vector<std::vector<int>> out(phosphormix::kTrailBandCount);
+    struct Row { int preset; float key; };
+    for (int band = 0; band < phosphormix::kTrailBandCount; band++) {
+      std::vector<Row> rows;
+      for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+        const auto &info = panelpalette::kPresetInfo[i];
+        if (!phosphormix::isMixablePreset(info.preset)) continue;
+        if (phosphormix::trailBand(
+                panelpalette::trailMsForPreset(info.preset)) != band)
+          continue;
+        rows.push_back({info.preset, phosphormix::shelfSortKey(info.preset)});
+      }
+      std::sort(rows.begin(), rows.end(),
+                [](const Row &a, const Row &b) { return a.key < b.key; });
+      for (const Row &row : rows) out[band].push_back(row.preset);
+    }
+    return out;
+  }();
+  return bands;
+}
+
+NSString *shelfTitleFor(int preset) {
+  static NSMutableDictionary<NSNumber *, NSString *> *titles;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    titles = [NSMutableDictionary dictionary];
+    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+      const auto &info = panelpalette::kPresetInfo[i];
+      if (!phosphormix::isMixablePreset(info.preset)) continue;
+      titles[@(info.preset)] = [NSString
+          stringWithFormat:@"%s %s", info.phosphor ? info.phosphor : "?",
+                           info.name ? info.name : "?"];
+    }
+  });
+  return titles[@(preset)] ?: @"?";
+}
+
 }  // namespace
 
 // The glow branch for the Custom slot (called from pollPanelGlow). Unchanged
@@ -210,6 +256,8 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   UILabel *_readout;
   int _presets[kGunCount];
   int _w[kGunCount];
+  // The coalesced deferred settle: the one pending firmware re-render, or nil.
+  dispatch_block_t _pendingSettle;
 }
 
 - (void)viewDidLoad {
@@ -256,6 +304,20 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                           UIControlEventTouchCancel];
     [self.view addSubview:_slider[g]];
     [self applyAssignment:g];
+
+    // The menu is DEFERRED and built once: the provider runs when the finger
+    // opens it, never on a reassignment. Uncached, so the checkmark always
+    // reflects the current assignment without any rebuild bookkeeping.
+    __weak CPXGunMixerController *weakSelf = self;
+    const int gun = g;
+    _name[g].menu = [UIMenu
+        menuWithTitle:@""
+             children:@[ [UIDeferredMenuElement elementWithUncachedProvider:^(
+                            void (^completion)(NSArray<UIMenuElement *> *)) {
+               CPXGunMixerController *strongSelf = weakSelf;
+               completion(strongSelf ? [strongSelf menuSectionsForGun:gun]
+                                     : @[]);
+             }] ]];
   }
 
   // The computed pair, both polarities, with exact hex. The page behind the
@@ -303,8 +365,9 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   _readout.frame = CGRectMake(margin, y, W - 2 * margin, 36);
 }
 
-// Re-tints the gun's slider, retitles its menu button, and rebuilds its menu
-// (the checkmark moved). Called at build time and on every reassignment.
+// Re-tints the gun's slider and retitles its menu button. Called at build
+// time and on every reassignment. The menu itself never needs rebuilding: it
+// is a deferred element whose provider reads _presets when opened.
 - (void)applyAssignment:(int)g {
   const panelpalette::Palette gun =
       panelpalette::resolve(_presets[g], true, -1, -1);
@@ -318,39 +381,22 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                  info && info->phosphor ? info->phosphor : "?",
                                  info ? info->name : "?"];
   [_name[g] setTitle:title forState:UIControlStateNormal];
-  _name[g].menu = [self menuForGun:g];
 }
 
 // Every mixable phosphor, grouped into the core's persistence bands (section
 // titles from trailBandName), ordered within each band by shelfSortKey — the
-// same grouping and order as the proof page, by construction.
-- (UIMenu *)menuForGun:(int)g {
+// same grouping and order as the proof page, by construction. Membership,
+// order and titles come from the once-per-process shelf caches; only the
+// checkmark and the actions are built here, when the menu opens.
+- (NSArray<UIMenuElement *> *)menuSectionsForGun:(int)g {
   __weak CPXGunMixerController *weakSelf = self;
-  NSMutableArray<UIMenu *> *sections = [NSMutableArray array];
+  NSMutableArray<UIMenuElement *> *sections = [NSMutableArray array];
+  const std::vector<std::vector<int>> &bands = shelfBands();
   for (int band = 0; band < phosphormix::kTrailBandCount; band++) {
-    // Collect this band's mixable presets from the preset table.
-    struct Row { int preset; float key; };
-    std::vector<Row> rows;
-    for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
-      const auto &info = panelpalette::kPresetInfo[i];
-      if (!phosphormix::isMixablePreset(info.preset)) continue;
-      if (phosphormix::trailBand(
-              panelpalette::trailMsForPreset(info.preset)) != band)
-        continue;
-      rows.push_back({info.preset, phosphormix::shelfSortKey(info.preset)});
-    }
-    if (rows.empty()) continue;
-    std::sort(rows.begin(), rows.end(),
-              [](const Row &a, const Row &b) { return a.key < b.key; });
+    if (bands[band].empty()) continue;
     NSMutableArray<UIAction *> *actions = [NSMutableArray array];
-    for (const Row &row : rows) {
-      const panelpalette::PresetInfo *info = infoForPreset(row.preset);
-      NSString *itemTitle =
-          [NSString stringWithFormat:@"%s %s",
-                                     info && info->phosphor ? info->phosphor : "?",
-                                     info ? info->name : "?"];
-      const int preset = row.preset;
-      UIAction *a = [UIAction actionWithTitle:itemTitle
+    for (const int preset : bands[band]) {
+      UIAction *a = [UIAction actionWithTitle:shelfTitleFor(preset)
                                         image:nil
                                    identifier:nil
                                       handler:^(UIAction *action) {
@@ -366,15 +412,37 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                       options:UIMenuOptionsDisplayInline
                                      children:actions]];
   }
-  return [UIMenu menuWithTitle:@"" children:sections];
+  return sections;
 }
 
 - (void)assignGun:(int)g preset:(int)preset {
   _presets[g] = preset;
   [self applyAssignment:g];
-  // A reassignment is a settled change, so pay for the one page re-render.
-  applyGuns(_presets, _w, /*renderPage=*/true);
+  // The CHEAP half lands now, so the page tint changes in the same frame the
+  // menu starts dismissing; the firmware re-dither (hundreds of ms) is
+  // deferred past the dismiss animation instead of stuttering it.
+  applyGuns(_presets, _w, /*renderPage=*/false);
   [self refresh];
+  [self scheduleSettle];
+}
+
+// The deferred, COALESCED settle: one firmware re-render, 0.35 s after the
+// newest change. A newer change (another reassignment, or a slider touch-up,
+// which renders on its own) cancels the pending one, so re-dithers never
+// stack up behind a fast series of picks.
+- (void)scheduleSettle {
+  [self cancelPendingSettle];
+  _pendingSettle = dispatch_block_create((dispatch_block_flags_t)0, ^{
+    crosspointRequestRender();
+  });
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), _pendingSettle);
+}
+
+- (void)cancelPendingSettle {
+  if (!_pendingSettle) return;
+  dispatch_block_cancel(_pendingSettle);
+  _pendingSettle = nil;
 }
 
 - (void)dismissSelf {
@@ -382,14 +450,19 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 }
 
 - (void)gunMoved:(UISlider *)s {
+  // A drag is a newer change: a settle pending from a reassignment must not
+  // fire mid-drag and put a re-render on the drag path.
+  [self cancelPendingSettle];
   _w[s.tag] = (int)lroundf(s.value);
   applyGuns(_presets, _w, /*renderPage=*/false);
   [self refresh];
 }
 
 // The finger lifted: the mix is settled, so pay for the one firmware
-// re-render that re-dithers the page's grays for the final pair.
+// re-render that re-dithers the page's grays for the final pair. This render
+// supersedes any deferred settle still pending.
 - (void)gunDropped:(UISlider *)s {
+  [self cancelPendingSettle];
   applyGuns(_presets, _w, /*renderPage=*/true);
 }
 
@@ -438,6 +511,13 @@ extern "C" void CrossPointMixer_present(void) {
       // sheet -- the page is the preview.
       nav.sheetPresentationController.detents =
           @[ UISheetPresentationControllerDetent.mediumDetent ];
+      // Undimmed at medium: without this, UIKit dims the presenting view AND
+      // pulls it back (down and slightly scaled), so the panel slid every time
+      // the tray opened or closed (owner 2026-08-21: "prevent the panel from
+      // sliding up and down"). The page above the sheet stays full-bright and
+      // in place -- it IS the preview.
+      nav.sheetPresentationController.largestUndimmedDetentIdentifier =
+          UISheetPresentationControllerDetentIdentifierMedium;
     }
     [root presentViewController:nav animated:YES completion:nil];
   });

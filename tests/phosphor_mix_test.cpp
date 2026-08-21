@@ -138,6 +138,33 @@ int main() {
           "a fifth component is ignored at the cap, not a buffer overrun");
   }
 
+  // --- THE TAIL IS THE SURVIVORS' BLEND, NOT ONE SURVIVOR'S INK ------------
+  // Equal P22R + P22G + P22B: the green gun (63 ms) dies first, R and B (283 ms
+  // each) survive together, so the fade heads for their magenta blend -- the
+  // linear-light equal-weight mix of the two dark inks, computed here with the
+  // same public helpers the core uses, never hardcoded bytes. Owner ruling
+  // 2026-08-21: the persistence fade "should cascade and change based on the
+  // longer gun color", and R-alone was the old single-ink bug.
+  {
+    const int R22 = presetOf("P22R"), G22 = presetOf("P22G"), B22 = presetOf("P22B");
+    Component triad[] = {{R22, 1}, {G22, 1}, {B22, 1}};
+    const Result r = mixBlend(triad, 3);
+    check(r.hasTail, "the triad's guns decay at different rates, so it has a tail");
+    check(r.trailMs == panelpalette::trailMsForPreset(R22),
+          "the triad's trail is the slow pair's 283 ms");
+    const Palette rInk = panelpalette::resolve(R22, true, -1, -1);
+    const Palette bInk = panelpalette::resolve(B22, true, -1, -1);
+    unsigned char expect[3];
+    for (int c = 0; c < 3; c++)
+      expect[c] = fromLinear(
+          (toLinear(rInk.ink[c]) + toLinear(bInk.ink[c])) / 2.0f);
+    check(std::memcmp(r.tail, expect, 3) == 0,
+          "the tail is the equal-weight linear blend of the two survivors");
+    check(std::memcmp(r.tail, rInk.ink, 3) != 0 &&
+              std::memcmp(r.tail, bInk.ink, 3) != 0,
+          "…and not either survivor's ink alone");
+  }
+
   // --- PREMIXES ARE REFUSED AS INGREDIENTS ---------------------------------
   {
     const int P7 = presetOf("P7"), P4 = presetOf("P4");
