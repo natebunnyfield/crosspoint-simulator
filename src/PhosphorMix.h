@@ -197,14 +197,25 @@ inline Result mixBlend(const Component *comps, int n) {
 // tail: nothing here is a mixture, so nothing changes color as it dies.
 inline Result mixParts(int inkFrom, int paperFrom, int trailFrom) {
   Result r;
-  // Same rule as the blend: a premix cannot donate a part. Fall back to the
-  // default rather than silently using a mixture as an ingredient.
-  if (!isMixablePreset(inkFrom) || !isMixablePreset(paperFrom) ||
-      !isMixablePreset(trailFrom)) {
+  // AN UNSET ROLE (< 0) TAKES ITS PART FROM THE DEFAULT PRESET, so a mix under
+  // construction shows each pick as it lands instead of blanking to the
+  // default page until all three roles are chosen -- which is exactly what it
+  // did, and on a phone read as "picking a donor does nothing".
+  // A premix still cannot donate a part -- that is a stale store, not a
+  // partial pick, and falling back whole is the honest answer. Validated on
+  // the donors the caller actually SET: the Default substitute below is not a
+  // phosphor, so running it through isMixablePreset would re-create the very
+  // blanking this fallback removes.
+  if ((inkFrom >= 0 && !isMixablePreset(inkFrom)) ||
+      (paperFrom >= 0 && !isMixablePreset(paperFrom)) ||
+      (trailFrom >= 0 && !isMixablePreset(trailFrom))) {
     r.dark = panelpalette::kDefaultDark;
     r.light = panelpalette::kDefaultLight;
     return r;
   }
+  if (inkFrom < 0) inkFrom = panelpalette::kPresetDefault;
+  if (paperFrom < 0) paperFrom = panelpalette::kPresetDefault;
+  if (trailFrom < 0) trailFrom = panelpalette::kPresetDefault;
   const panelpalette::Palette inkD = detail::paletteOf(inkFrom, true);
   const panelpalette::Palette inkL = detail::paletteOf(inkFrom, false);
   const panelpalette::Palette papD = detail::paletteOf(paperFrom, true);
@@ -227,11 +238,17 @@ inline Result mixParts(int inkFrom, int paperFrom, int trailFrom) {
 // (kCascadeAfterglow is P7's persistence layer's emission).
 inline Result mixCascade(int flashFrom, int persistFrom) {
   Result r;
-  if (!isMixablePreset(flashFrom) || !isMixablePreset(persistFrom)) {
+  // Same construction rule as Parts: an unset layer falls back to the Default
+  // preset so the first pick paints, rather than the pair blanking until both
+  // layers are chosen.
+  if ((flashFrom >= 0 && !isMixablePreset(flashFrom)) ||
+      (persistFrom >= 0 && !isMixablePreset(persistFrom))) {
     r.dark = panelpalette::kDefaultDark;
     r.light = panelpalette::kDefaultLight;
     return r;
   }
+  if (flashFrom < 0) flashFrom = panelpalette::kPresetDefault;
+  if (persistFrom < 0) persistFrom = panelpalette::kPresetDefault;
   r.dark = detail::paletteOf(flashFrom, true);
   r.light = detail::paletteOf(flashFrom, false);
   r.trailMs = panelpalette::trailMsForPreset(persistFrom);

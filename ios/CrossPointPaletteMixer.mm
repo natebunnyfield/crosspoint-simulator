@@ -291,11 +291,16 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
       return phosphormix::shelfSortKey(a) < phosphormix::shelfSortKey(b);
     });
   }
-  self.tab = (CPXMixerTab)([[NSUserDefaults standardUserDefaults]
-                               boolForKey:kMixActive]
-                               ? [[NSUserDefaults standardUserDefaults]
-                                     integerForKey:kMixMode] + 1
-                               : CPXTabPresets);
+  NSInteger restoredTab = [[NSUserDefaults standardUserDefaults]
+                              boolForKey:kMixActive]
+                              ? [[NSUserDefaults standardUserDefaults]
+                                    integerForKey:kMixMode] + 1
+                              : CPXTabPresets;
+  // Clamped: a garbage stored mode would otherwise become an out-of-range
+  // segment index in viewDidLoad, and every switch below indexes on the tab.
+  if (restoredTab < CPXTabPresets || restoredTab > CPXTabCascade)
+    restoredTab = CPXTabPresets;
+  self.tab = (CPXMixerTab)restoredTab;
   // NO self.title. On the owner's device (iPhone 18,4 / iOS 26.6, build 110)
   // the chip tap crashed with objc_retain(0x1) INSIDE UIKit's setTitle:, and
   // the disassembly of the shipped binary put the faulting call exactly here --
@@ -539,6 +544,12 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
         for (int j = 0; j < m; j++)
           if (cc[j].preset == preset) cc[j].weight = w;
         saveBlend(cc, m);
+        // The slider is a PICK, so it claims the mode like every other pick.
+        // Without this, adjusting a leftover checked row while the stored mode
+        // was Cascade recomputed the CASCADE -- the slider moved and the page
+        // answered with a different mix entirely.
+        [[NSUserDefaults standardUserDefaults] setInteger:phosphormix::Blend
+                                                   forKey:kMixMode];
         applyStoredMix();
       };
     }
