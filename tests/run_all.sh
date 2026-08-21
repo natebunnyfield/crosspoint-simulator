@@ -216,9 +216,20 @@ if FW_FLAGS=$(python3 tools/fw_include_flags.py 2>/dev/null) && [[ -n "$FW_FLAGS
   run build_identity \
     c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc $FW_FLAGS \
         -o "$OUT/build_identity" tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp
+
+  # Update Library's compare logic (firmware src/network/LibrarySyncPlan.h).
+  # Pure header, but it lives in the firmware repo, so it rides the same
+  # include-set guard as build_identity. Every wrong verdict is silent on
+  # device: a skipped update, a book re-downloaded forever, or a manifest
+  # filename escaping /books/.
+  # shellcheck disable=SC2086
+  run library_sync_plan \
+    c++ -std=c++17 -Isrc $FW_FLAGS \
+        -o "$OUT/library_sync_plan" tests/library_sync_plan_test.cpp
 else
   printf '%-22s %s\n' "build_identity" "SKIP (no firmware include set; run a pio build first)"
-  skipped=$((skipped + 1))
+  printf '%-22s %s\n' "library_sync_plan" "SKIP (no firmware include set; run a pio build first)"
+  skipped=$((skipped + 2))
 fi
 
 echo
