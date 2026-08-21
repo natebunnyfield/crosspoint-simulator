@@ -296,12 +296,23 @@ typedef NS_ENUM(NSInteger, CPXMixerTab) {
                                ? [[NSUserDefaults standardUserDefaults]
                                      integerForKey:kMixMode] + 1
                                : CPXTabPresets);
-  self.title = @"Page Color";
+  // NO self.title. On the owner's device (iPhone 18,4 / iOS 26.6, build 110)
+  // the chip tap crashed with objc_retain(0x1) INSIDE UIKit's setTitle:, and
+  // the disassembly of the shipped binary put the faulting call exactly here --
+  // with the init loop's registers showing it had completed cleanly, so the
+  // corruption is in UIKit's own title plumbing on that OS, not in this class.
+  // Four simulator repros (Debug/Release, fresh/lived-in state, real finger
+  // path) never fired. The title was dead UI anyway: viewDidLoad replaces it
+  // with the segmented control as titleView, so the string never rendered.
+  // Sidestepped rather than understood, and the breadcrumb below is what turns
+  // the next device crash log into a line number.
+  SDL_Log("[mixer] controller init complete");
   return self;
 }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  SDL_Log("[mixer] viewDidLoad");
   [self.tableView registerClass:CPXSwatchCell.class forCellReuseIdentifier:@"sw"];
   UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
       initWithTarget:self action:@selector(longPressed:)];
