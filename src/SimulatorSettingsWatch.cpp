@@ -21,6 +21,7 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 #include "HalStorage.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
+#include "PhosphorMix.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorSettingsFile.h"
 
@@ -87,6 +88,64 @@ std::string readAll(const std::string &path) {
   return out;
 }
 
+// The mix, from the same keys iOS persists, through the same core. A recipe
+// typed here and one built on the phone compute the same page and the same
+// glow, because both go through PhosphorMix.h -- that identity is the whole
+// point of the parity ruling (owner 2026-08-21).
+//
+// Returns true when a mix is ACTIVE, in which case it owns the palette and the
+// glow and the preset key is ignored. phosphorMixMode: -1 off, 0 blend,
+// 1 parts, 2 cascade.
+void applyDials(const Values &v);
+
+bool applyMix(const Values &v, const std::string &raw) {
+  const int mode = intOr(v, "phosphorMixMode", -1);
+  if (mode < phosphormix::Blend || mode > phosphormix::Cascade) return false;
+
+  phosphormix::Result r;
+  if (mode == phosphormix::Parts) {
+    r = phosphormix::mixParts(intOr(v, "phosphorMixInkFrom", -1),
+                              intOr(v, "phosphorMixPaperFrom", -1),
+                              intOr(v, "phosphorMixTrailFrom", -1));
+  } else if (mode == phosphormix::Cascade) {
+    r = phosphormix::mixCascade(intOr(v, "phosphorMixFlash", -1),
+                                intOr(v, "phosphorMixPersist", -1));
+  } else {
+    // "preset:weight,preset:weight" -- the same CSV iOS stores.
+    phosphormix::Component comps[phosphormix::kMaxComponents];
+    int n = 0;
+    const std::string csv = quotedValue(raw, "phosphorMixBlend");
+    size_t at = 0;
+    while (at < csv.size() && n < phosphormix::kMaxComponents) {
+      size_t end = csv.find(',', at);
+      if (end == std::string::npos) end = csv.size();
+      const std::string pair = csv.substr(at, end - at);
+      at = end + 1;
+      const size_t colon = pair.find(':');
+      if (colon == std::string::npos) continue;
+      comps[n].preset = std::atoi(pair.substr(0, colon).c_str());
+      comps[n].weight = std::atoi(pair.substr(colon + 1).c_str());
+      n++;
+    }
+    if (n == 0) return false;   // blend mode with no components is no mix
+    r = phosphormix::mixBlend(comps, n);
+  }
+
+  const bool dark = intOr(v, "darkMode", 1) != 0;
+  SimulatorOverlay::setPanelDark(dark);
+  const panelpalette::Palette &pal = dark ? r.dark : r.light;
+  SimulatorOverlay::setPanelPalette(dark, pal.ink, pal.paper);
+  SimulatorOverlay::setPanelEmissive(r.trailMs > 0.0f);
+  SimulatorOverlay::setPanelGlow(r.trailMs);
+  SimulatorOverlay::setPanelGlowTail(r.hasTail ? r.tail : nullptr);
+  SDL_Log("[settings] phosphor mix active (mode %d): %02X%02X%02X on "
+          "%02X%02X%02X, trail %.0f ms%s",
+          mode, pal.ink[0], pal.ink[1], pal.ink[2], pal.paper[0], pal.paper[1],
+          pal.paper[2], static_cast<double>(r.trailMs),
+          r.hasTail ? ", tinted tail" : "");
+  return true;
+}
+
 void apply(const Values &v) {
   // Polarity first: the palette is resolved FOR a polarity, so setting the
   // tones before the appearance would push the wrong pair for one frame.
@@ -110,6 +169,12 @@ void apply(const Values &v) {
       tail = panelpalette::kPresetInfo[i].afterglow;
   SimulatorOverlay::setPanelGlowTail(tail);
 
+  applyDials(v);
+}
+
+// The dials that are not the page's tones or its glow -- shared by the preset
+// path and the mix path.
+void applyDials(const Values &v) {
   SimulatorOverlay::setPageFade(
       static_cast<float>(intOr(v, "pageFadeSeconds", 0)) * 1000.0f);
   SimulatorOverlay::setPageFadeDepth(intOr(v, "pageFadeDepthPercent", 100));
@@ -146,13 +211,20 @@ void pollSettingsFile() {
   if (st.st_mtime == lastMtime) return;
   lastMtime = st.st_mtime;
 
-  const Values v = parse(readAll(path));
+  const std::string raw = readAll(path);
+  const Values v = parse(raw);
   if (v.empty()) {
     SDL_Log("[settings] %s parsed to nothing — leaving every dial alone",
             path.c_str());
     return;
   }
   SDL_Log("[settings] applied %zu keys from %s", v.size(), path.c_str());
+  if (applyMix(v, raw)) {
+    // The mix owns the page and the glow; the remaining dials (fade, beam,
+    // flash, grain) still apply from the same file.
+    applyDials(v);
+    return;
+  }
   apply(v);
 }
 
