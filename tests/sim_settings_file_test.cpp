@@ -42,6 +42,23 @@ int main() {
     check(intOr(v, "darkMode", -1) == 1, "template: dark");
   }
 
+  // --- THE MIX KEYS PARSE, AND DEFAULT TO OFF ------------------------------
+  // The template ships the mixer disabled; a fresh file must read as "no mix"
+  // or every desktop install silently switches to whatever -1 misparses as.
+  {
+    const Values v = parse(defaultsTemplate(""));
+    check(intOr(v, "phosphorMixMode", -99) == -1, "template: mix off");
+    check(intOr(v, "phosphorMixFlash", -99) == -1, "template: cascade roles empty");
+    check(quotedValue(defaultsTemplate(""), "phosphorMixBlend").empty(),
+          "template: blend list empty");
+    const std::string t = "{\"phosphorMixBlend\": \"6:3,15:1\", \"x\": 1}";
+    check(quotedValue(t, "phosphorMixBlend") == "6:3,15:1",
+          "a blend CSV reads back exactly");
+    check(quotedValue(t, "phosphorMixFlash").empty(),
+          "quotedValue answers only its own key");
+    check(quotedValue("", "phosphorMixBlend").empty(), "empty text, empty value");
+  }
+
   // --- ZERO IS A VALUE, ABSENCE IS NOT -------------------------------------
   // Most of these dials treat 0 as a real choice — grain off, fade off, flash
   // off — so a missing key must return the CALLER'S default and not zero.

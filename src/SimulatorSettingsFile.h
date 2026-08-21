@@ -73,6 +73,23 @@ inline Values parse(const std::string &text) {
   return out;
 }
 
+// A QUOTED value for one specific key, for the mix's component list -- the one
+// setting that is not a number. Returns empty when absent. Kept narrow on
+// purpose: the parser stays a map of numbers, and this scans the raw text for
+// exactly one key rather than growing a string type.
+inline std::string quotedValue(const std::string &text, const char *key) {
+  const std::string needle = std::string("\"") + key + "\"";
+  size_t at = text.find(needle);
+  if (at == std::string::npos) return {};
+  at = text.find(':', at + needle.size());
+  if (at == std::string::npos) return {};
+  size_t q1 = text.find('"', at);
+  if (q1 == std::string::npos) return {};
+  size_t q2 = text.find('"', q1 + 1);
+  if (q2 == std::string::npos) return {};
+  return text.substr(q1 + 1, q2 - q1 - 1);
+}
+
 // Read with a default, so a missing or malformed key leaves the dial alone.
 inline int intOr(const Values &v, const char *key, int fallback) {
   const auto it = v.find(key);
@@ -154,7 +171,32 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   // settable -- see kMottleCellsDefault.
   //   0 = off, no blotching at all       3 = 0.03, a suggestion
   //   10 = 0.10, visible                90 = 0.90, plainly a coated surface
-  "phosphorGrainMottleDepth": 90
+  "phosphorGrainMottleDepth": 90,
+
+  // --------------------------------------------------------- PHOSPHOR MIX ---
+  // The same mixer the iOS page-color modal drives, through the same math. A
+  // mix OWNS the page and its glow while active; panelPalettePreset is ignored.
+  //   -1 = off (use panelPalettePreset above)
+  //    0 = blend    weighted mixture of up to 4 pure phosphors
+  //    1 = parts    ink, paper and fade from three donors
+  //    2 = cascade  a flash layer that paints, a persistence layer that lingers
+  // Premixed phosphors (P4 P6 P7 P14 P17 P18 P23 P40) are not ingredients --
+  // pick them as presets instead. Every phosphor's integer is in the palette
+  // list at the top of this file.
+  "phosphorMixMode": -1,
+
+  // Blend: "preset:weight" pairs, comma-separated, weights 1-9.
+  // e.g. "6:3,15:1" is P1 green 3 parts to P11 blue 1 part.
+  "phosphorMixBlend": "",
+
+  // Parts: which preset donates each role.
+  "phosphorMixInkFrom": -1,
+  "phosphorMixPaperFrom": -1,
+  "phosphorMixTrailFrom": -1,
+
+  // Cascade: the flash paints the page, the persistence lingers in its color.
+  "phosphorMixFlash": -1,
+  "phosphorMixPersist": -1
 }
 )";
 }

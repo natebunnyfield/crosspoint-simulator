@@ -97,10 +97,16 @@ verbatim what was asked for, and it is the same data the proof artifacts show.
 
 ## Not done, said plainly
 
-- **Desktop parity.** The Mac's `settings.json` cannot express a mix; a
-  mix-built page shows on the Mac only through the four custom hex fields if
-  copied by hand, without the glow. The keys are documented above if it is ever
-  wanted.
+- ~~Desktop parity~~ — **DONE 2026-08-21** (owner ruling, closing the gap his
+  2026-08-19 parity ruling opened). `settings.json` carries the same
+  `phosphorMix*` keys iOS persists — mode, the `preset:weight` blend CSV, the
+  Parts and Cascade role assignments — and the watcher runs them through the
+  identical `PhosphorMix.h` core, so a recipe typed on the Mac and one built on
+  the phone compute the same page and the same glow. A mix OWNS the page while
+  active; `panelPalettePreset` is ignored until `phosphorMixMode` returns to
+  -1. Verified end to end: a typed P15+P33 blend reached the composed frame
+  (hash changed against preset mode) and carried P33's 2828 ms trail with the
+  tinted tail.
 - **Unconfirmed on the phone.** Everything below the math is UIKit and only
   runs there. The modal, the live apply, the sheet detents and the sliders all
   need eyes on a device.

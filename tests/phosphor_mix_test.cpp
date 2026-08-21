@@ -7,6 +7,7 @@
 #include "PhosphorMix.h"
 
 #include <cstdio>
+#include <algorithm>
 #include <cstring>
 
 using namespace phosphormix;
@@ -105,6 +106,35 @@ int main() {
     Component eq[] = {{P1, 1}, {P3, 1}};
     const Result re = mixBlend(eq, 2);
     check(re.trailMs > 0.0f, "equal-ish blend still glows");
+  }
+
+  // --- THREE COMPONENTS: THE TRIAD IS THE COLOR TUBE'S OWN WHITE -----------
+  // A color CRT made every color, white included, from exactly three
+  // phosphors. Blending our P22R + P22G + P22B must come out near-neutral --
+  // the channels within a factor that reads as white, not as any member's own
+  // hue -- and moving one gun's weight must pull the mixture toward that gun.
+  {
+    const int R22 = presetOf("P22R"), G22 = presetOf("P22G"), B22 = presetOf("P22B");
+    check(R22 > 0 && G22 > 0 && B22 > 0, "the triad exists");
+    Component triad[] = {{R22, 1}, {G22, 1}, {B22, 1}};
+    const Result w = mixBlend(triad, 3);
+    const int mx = std::max({w.dark.ink[0], w.dark.ink[1], w.dark.ink[2]});
+    const int mn = std::min({w.dark.ink[0], w.dark.ink[1], w.dark.ink[2]});
+    check(mn > 0 && mx < 256 && (mx - mn) < 96,
+          "equal-weight triad ink is near-neutral: the tube's white");
+    Component redHeavy[] = {{R22, 5}, {G22, 1}, {B22, 1}};
+    const Result rw = mixBlend(redHeavy, 3);
+    check(rw.dark.ink[0] > w.dark.ink[0] && rw.dark.ink[1] < w.dark.ink[1],
+          "turning up one gun pulls the mixture toward it");
+    // and four components is the ceiling, enforced not crashed
+    Component four[] = {{R22, 1}, {G22, 1}, {B22, 1}, {presetOf("P1"), 1}};
+    const Result f4 = mixBlend(four, 4);
+    check(f4.trailMs > 0.0f, "four components mix");
+    Component five[] = {{R22, 1}, {G22, 1}, {B22, 1}, {presetOf("P1"), 1},
+                        {presetOf("P3"), 1}};
+    const Result f5 = mixBlend(five, 5);
+    check(std::memcmp(f5.dark.ink, f4.dark.ink, 3) == 0,
+          "a fifth component is ignored at the cap, not a buffer overrun");
   }
 
   // --- PREMIXES ARE REFUSED AS INGREDIENTS ---------------------------------
