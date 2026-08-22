@@ -24,6 +24,14 @@ std::jmp_buf gRebootJump;
 bool gRebootJumpArmed = false;
 #endif
 
+// CROSSPOINT_SIM_LOG_POWER=1: the lifecycle station of the [power] path (the
+// display and GPIO halves live in HalDisplay.cpp / HalGPIO.cpp). fprintf, not
+// SDL_Log, because this TU is compiled SDL-free by restart_semantics_test.
+bool powerLogWanted() {
+  const char *e = std::getenv("CROSSPOINT_SIM_LOG_POWER");
+  return e && e[0] == '1';
+}
+
 void promoteAfterWakeValue(const char *target, const char *afterWake) {
   const char *value = std::getenv(afterWake);
   if (value) {
@@ -85,6 +93,8 @@ void armRebootJump() { gRebootJumpArmed = true; }
   // Preferred on iOS: re-enter setup() rather than exec a new process, which
   // the sandbox forbids. See the header for what this costs.
   if (gRebootJumpArmed) {
+    if (powerLogWanted())
+      std::fprintf(stderr, "[power] longjmp reboot (power wake)\n");
     // A longjmp is not a new process: every static in this binary survives it.
     // Put the ones that cache env-derived state back so setup() re-reads them.
     simreset::runAll();
@@ -102,6 +112,8 @@ void armRebootJump() { gRebootJumpArmed = true; }
     std::fputs("SimulatorLifecycle: missing argv for reboot\n", stderr);
     _exit(1);
   }
+  if (powerLogWanted())
+    std::fprintf(stderr, "[power] execvp reboot (power wake)\n");
   execvp(gArgv[0], gArgv);
 
   std::perror("execvp");
