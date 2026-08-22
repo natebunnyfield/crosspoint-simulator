@@ -52,6 +52,7 @@
 
 #include "CrossPointHarness.h"
 #include "ZenGesture.h"
+#include "ZenVerbs.h"
 
 #include <SDL3/SDL.h>
 
@@ -157,16 +158,11 @@ bool g_padLaidOut = false;
 
 // ZEN READING MODE (owner ruling 2026-08-19). A three-finger tap on the page
 // toggles it. In zen the pad stops drawing and stops hit-testing entirely, the
-// page grows down until its bottom edge meets where the top rocker row would
-// begin, and the whole screen becomes three targets:
-//
-//     above the page          POWER
-//     the page, left third    page BACK      right two thirds  page FORWARD
-//     below the page          BACK (left third)   SELECT (right two thirds)
-//
-// The thirds are the point: the controls are gone, so every remaining target is
-// enormous and none of them is ambiguous. Everything comes back on the next
-// three-finger tap.
+// paper extends down toward where the top rocker row would begin, and input
+// becomes the GESTURE LANGUAGE of 2026-08-22 (which replaced the original
+// screen-thirds tap zones): taps, one- and two-finger swipes, pinch/spread and
+// a four-finger power tap, classified by ZenVerbs.h and delivered as button
+// taps. Everything comes back on the next three-finger tap.
 // CROSSPOINT_SIM_ZEN=1 starts in zen. The three-finger gesture cannot be driven
 // from CROSSPOINT_SIM_INPUT_SCRIPT -- its TAP feeds the FIRMWARE's touch state
 // (HalGPIO::beginTouch), not SDL finger events, so it never reaches this file --
@@ -185,18 +181,17 @@ float g_zenRowTopPx = 0.0f;
 // zen zones are measured against this rather than the page, so the thirds line
 // up with what the reader can actually see.
 SDL_FRect g_zenPaper{};
-// The zen zone tap tracker (owner 2026-08-22: "need to disable all swiping,
-// we want all taps to be as deliberate as possible"). A zone fires only for a
-// single stationary finger: armed on the FIRST finger down, disqualified by a
-// second finger, by travel past the slop, or by a hold longer than a
-// deliberate tap -- and the zone is judged from the LANDING point, not the
-// lift, so a drag can never walk a tap into a different zone.
-int64_t g_zenZoneFingerId = -1;
-float g_zenZoneDownX = 0.0f, g_zenZoneDownY = 0.0f;
-Uint64 g_zenZoneDownAt = 0;
-bool g_zenZoneSpoiled = false;
-constexpr float kZenTapSlopPx = 28.0f;
-constexpr Uint64 kZenTapMaxMs = 400;
+// The zen GESTURE LANGUAGE replaced the zen tap zones on 2026-08-22 (owner:
+// "let's switch to tap is Down button, swipe right is Up, swipe left is Down,
+// two finger swipe left is Right, two finger swipe is right is Left, two
+// finger swipe down is Select button, two finger swipe up is Back button,
+// four finger tap is Power button", amended same day with "pinch and spread
+// control font size"). The thirds/bands zone tracker died with it; the
+// classifier -- pure, host-tested -- lives in ZenVerbs.h, along with the
+// succession note for the same-day no-swipe ruling its tap gate inherits.
+// The shim only feeds it finger events and forwards its verb to
+// gpio.queueButtonTap on the last lift.
+zenverbs::Classifier g_zenVerbs;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -2268,25 +2263,17 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 
       g_windowId = e->tfinger.windowID;
       g_zenDetector.fingerDown(fx, fy);
+      // Fed in EVERY mode, acted on only in zen: a gesture in flight when the
+      // three-finger toggle flips g_zen must not arrive at a half-seen
+      // classifier.
+      g_zenVerbs.fingerDown(e->tfinger.fingerID, fx, fy, SDL_GetTicks());
       g_zenLastX = fx;
       g_zenLastY = fy;
 
-      // In zen the pad does not exist: no slots, no hit test, no PadCore. Every
-      // touch is either part of the three-finger toggle or one of the three
-      // zones, both resolved on finger UP.
-      if (g_zen) {
-        if (g_zenZoneFingerId == -1 && !g_zenZoneSpoiled) {
-          g_zenZoneFingerId = e->tfinger.fingerID;
-          g_zenZoneDownX = fx;
-          g_zenZoneDownY = fy;
-          g_zenZoneDownAt = SDL_GetTicks();
-        } else {
-          // A second finger is not a deliberate single tap (it is probably
-          // the toggle); spoil the candidate until every finger lifts.
-          g_zenZoneSpoiled = true;
-        }
-        break;
-      }
+      // In zen the pad does not exist: no slots, no hit test, no PadCore.
+      // Every touch is either part of the three-finger toggle or part of a
+      // gesture verb, both resolved on the last finger UP.
+      if (g_zen) break;
 
       const int hit = padHitTest(fx, fy);
       if (hit < 0 && g_tapFingerId == -1) {
@@ -2301,13 +2288,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     }
 
     case SDL_EVENT_FINGER_MOTION: {
-      if (g_zen && e->tfinger.fingerID == g_zenZoneFingerId &&
-          windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
-        const float mx = e->tfinger.x * outW, my = e->tfinger.y * outH;
-        if (SDL_fabsf(mx - g_zenZoneDownX) > kZenTapSlopPx ||
-            SDL_fabsf(my - g_zenZoneDownY) > kZenTapSlopPx)
-          g_zenZoneSpoiled = true;
-      }
+      if (windowPixelSize(e->tfinger.windowID, &outW, &outH))
+        g_zenVerbs.fingerMove(e->tfinger.fingerID, e->tfinger.x * outW,
+                              e->tfinger.y * outH);
       // A tap candidate that drags past the slop is a swipe, not a tap.
       if (e->tfinger.fingerID == g_tapFingerId &&
           windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
@@ -2353,22 +2336,17 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         const SDL_FRect &q = g_zenPanel;
         const zengesture::Rect page{q.x, q.y, q.w, q.h};
         const bool cancelled = e->type == SDL_EVENT_FINGER_CANCELED;
-        const bool wasLast = g_zenDetector.activeFingers() == 1;
+        const bool zenBefore = g_zen;
         const bool toggled =
             g_zenDetector.fingerUp(g_zenLastX, g_zenLastY, page, cancelled);
 
-        // The zone tracker resolves on the last lift, whatever happens.
-        const bool zoneCandidate =
-            g_zen && wasLast && !cancelled && !g_zenZoneSpoiled &&
-            e->tfinger.fingerID == g_zenZoneFingerId &&
-            SDL_GetTicks() - g_zenZoneDownAt <= kZenTapMaxMs;
-        const float zoneX = g_zenZoneDownX, zoneY = g_zenZoneDownY;
-        if (wasLast) {
-          g_zenZoneFingerId = -1;
-          g_zenZoneSpoiled = false;
-        } else if (e->tfinger.fingerID == g_zenZoneFingerId) {
-          g_zenZoneFingerId = -1;
-        }
+        // The classifier resolves on the last lift, whatever happens. One
+        // owner per gesture: the toggle is a three-finger tap and the
+        // classifier answers None at peak three, so the two can never fire
+        // from one gesture (pinned in tests/zen_verbs_test.cpp).
+        const zenverbs::Verb verb = g_zenVerbs.fingerUp(
+            e->tfinger.fingerID, g_zenLastX, g_zenLastY, SDL_GetTicks(),
+            cancelled);
 
         if (toggled) {
           g_zen = !g_zen;
@@ -2379,35 +2357,30 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           break;
         }
 
-        // ZEN ZONES. One finger, stationary, brief, and only on the last
-        // lift -- a swipe, a drag, a long-press, a rest, or a second finger
-        // fires NOTHING (owner 2026-08-22: "disable all swiping, we want all
-        // taps to be as deliberate as possible"). The zone comes from the
-        // LANDING point, so a finger cannot walk a tap into another zone.
-        if (zoneCandidate) {
-          // EDGE TO EDGE (owner ruling 2026-08-19: "extend tap target of panel
-          // zen button to edges of screen"). The thirds are measured across the
-          // whole SCREEN, not the page -- the margins beside the page are dead
-          // space otherwise, and a thumb reaching the far edge should still turn
-          // a page. Only the vertical bounds come from the paper.
-          const SDL_FRect &paper = g_zenPaper.h > 0 ? g_zenPaper : q;
-          const float third = outW / 3.0f;
-          const bool leftThird = zoneX < third;
-          const bool onPage = zoneY >= paper.y && zoneY < paper.y + paper.h;
-          uint8_t button;
-          const char *what;
-          if (zoneY < paper.y) {
-            button = HalGPIO::BTN_POWER;
-            what = "power";
-          } else if (onPage) {
-            // The common direction gets the bigger target.
-            button = leftThird ? HalGPIO::BTN_LEFT : HalGPIO::BTN_RIGHT;
-            what = leftThird ? "page back" : "page forward";
-          } else {
-            button = leftThird ? HalGPIO::BTN_BACK : HalGPIO::BTN_CONFIRM;
-            what = leftThird ? "back" : "select";
+        // ZEN VERBS (owner 2026-08-22 gesture language; see ZenVerbs.h for the
+        // ruling verbatim and the classification rules). Judged against the
+        // mode the gesture STARTED under (zenBefore), and anything the
+        // classifier calls ambiguous fires NOTHING -- the deliberate-tap
+        // discipline the zones had, carried over as the classifier's gates.
+        // FontUp/FontDown ride the SIDE pair because on this fork a side tap
+        // IS the font-size step (longPressButtonBehavior is constexpr
+        // FONT_SIZE_STEP; PageForward = BTN_DOWN steps +1), so a zen pinch
+        // repaginates, persists and clamps exactly as the physical buttons do.
+        if (zenBefore && verb != zenverbs::Verb::None) {
+          uint8_t button = HalGPIO::BTN_DOWN;
+          switch (verb) {
+            case zenverbs::Verb::Down: button = HalGPIO::BTN_DOWN; break;
+            case zenverbs::Verb::Up: button = HalGPIO::BTN_UP; break;
+            case zenverbs::Verb::Left: button = HalGPIO::BTN_LEFT; break;
+            case zenverbs::Verb::Right: button = HalGPIO::BTN_RIGHT; break;
+            case zenverbs::Verb::Select: button = HalGPIO::BTN_CONFIRM; break;
+            case zenverbs::Verb::Back: button = HalGPIO::BTN_BACK; break;
+            case zenverbs::Verb::Power: button = HalGPIO::BTN_POWER; break;
+            case zenverbs::Verb::FontUp: button = HalGPIO::BTN_DOWN; break;
+            case zenverbs::Verb::FontDown: button = HalGPIO::BTN_UP; break;
+            case zenverbs::Verb::None: break;
           }
-          SDL_Log("[zen] tap -> %s", what);
+          SDL_Log("[zen] verb -> %s", zenverbs::verbName(verb));
           gpio.queueButtonTap(button, 60);
           applyActions(g_core.fingerUp(e->tfinger.fingerID));
           break;
