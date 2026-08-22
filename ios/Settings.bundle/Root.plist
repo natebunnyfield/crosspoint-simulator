@@ -225,6 +225,32 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>DefaultValue</key>
+			<integer>100</integer>
+			<key>Key</key>
+			<string>scanlineBloomPercent</string>
+			<key>Title</key>
+			<string>Scanline Bloom</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — the lines ignore the page</string>
+				<string>Subtle — bright text just thickens its line</string>
+				<string>Standard — a tube's own blooming</string>
+				<string>Strong — bright rows close the gap</string>
+				<string>Extreme — text burns through the raster</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>50</integer>
+				<integer>100</integer>
+				<integer>200</integer>
+				<integer>400</integer>
+			</array>
+		</dict>
+		<dict>
 			<key>FooterText</key>
 			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it, or tap the word being read to stop. With VoiceOver on, a two-finger double tap pauses and resumes. Reading continues with the screen locked. Turning it on takes effect at the next page turn.
 

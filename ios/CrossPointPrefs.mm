@@ -89,6 +89,15 @@ static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
 // the grain strength above.
 static NSString *const kLetterpressPercent = @"letterpressPercent";
 static NSString *const kScanlinesPercent = @"scanlinesPercent";
+// The raster's PITCH, as a percent of the source-row pitch. 100 is the shipped
+// one-line-per-row; there is no "off" value, so -integerForKey: would be safe
+// here -- it is read the same way as its siblings anyway, because a 0 from an
+// absent key would silently mean the finest pitch rather than "unset".
+static NSString *const kScanlineSizePercent = @"scanlineSizePercent";
+// Bloom strength, percent of the standard gain. 0 IS a real choice here -- a
+// field with no content awareness at all -- so this one genuinely needs
+// -objectForKey:, the same trap as the grain strength above.
+static NSString *const kScanlineBloomPercent = @"scanlineBloomPercent";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -467,6 +476,32 @@ int CrossPointPrefs_scanlinesPercent(void) {
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 300 ? 300 : pct;
+}
+
+int CrossPointPrefs_scanlineSizePercent(void) {
+  ensureDefaults();
+  checkKnown(kScanlineSizePercent);
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlineSizePercent];
+  // 100 -- one scan line per page row -- is the pitch build 126 shipped, so an
+  // untouched install and every older install render exactly as before.
+  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  const int pct = v.intValue;
+  if (pct < 100) return 100;
+  return pct > 300 ? 300 : pct;
+}
+
+int CrossPointPrefs_scanlineBloomPercent(void) {
+  ensureDefaults();
+  checkKnown(kScanlineBloomPercent);
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlineBloomPercent];
+  // 100 -- the standard gain -- is what build 126 shipped, so an untouched
+  // install and every older install render exactly as before.
+  if (![v isKindOfClass:[NSNumber class]]) return 100;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 400 ? 400 : pct;
 }
 
 int CrossPointPrefs_pageFadeDepthPercent(void) {

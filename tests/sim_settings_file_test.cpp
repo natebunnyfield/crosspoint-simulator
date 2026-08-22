@@ -43,6 +43,10 @@ int main() {
     // byte-identical canary -- while the iOS app defaults both to Subtle.
     check(intOr(v, "letterpressPercent", -1) == 0, "template: letterpress off");
     check(intOr(v, "scanlinesPercent", -1) == 0, "template: scanlines off");
+    check(intOr(v, "scanlineSizePercent", -1) == 100,
+          "template: scanline size is the shipped 1-line-per-row pitch");
+    check(intOr(v, "scanlineBloomPercent", -1) == 100,
+          "template: scanline bloom is the shipped standard gain");
     check(intOr(v, "darkMode", -1) == 1, "template: dark");
   }
 

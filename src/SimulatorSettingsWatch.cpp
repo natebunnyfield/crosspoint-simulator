@@ -22,6 +22,7 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
 #include "PhosphorMix.h"
+#include "Scanlines.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorSettingsFile.h"
 
@@ -191,6 +192,10 @@ void applyDials(const Values &v) {
   // without the keys renders what the desktop always rendered.
   SimulatorOverlay::setLetterpress(intOr(v, "letterpressPercent", 0));
   SimulatorOverlay::setScanlines(intOr(v, "scanlinesPercent", 0));
+  SimulatorOverlay::setScanlineSize(
+      intOr(v, "scanlineSizePercent", scanlines::kSizeFine));
+  SimulatorOverlay::setScanlineBloom(
+      intOr(v, "scanlineBloomPercent", scanlines::kBloomStandard));
 }
 
 }  // namespace

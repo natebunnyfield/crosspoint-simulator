@@ -305,4 +305,26 @@ void setLetterpress(int strengthPercent);
 // CROSSPOINT_SIM_SCANLINES overrides the argument.
 void setScanlines(int intensityPercent);
 
+// SCANLINE SIZE: the line PITCH, as a percent of the SOURCE-ROW pitch (owner
+// order 2026-08-22, from build 126). 100 = one line per page row, which is
+// what build 126 shipped, so the default changes nothing. Settings.app offers
+// 100 / 150 / 200 / 300 -- MULTIPLES of the lattice the panel already resamples
+// on, never absolute pixels, because a free ratio against a per-device
+// presentation scale is the rejected fixed-tube design. Measured on the ST-008
+// subject (a bilinear-minified Bayer fill): the field adds +0.05 / +0.11 /
+// +0.17 / +0.05 levels of low-frequency banding at the four rungs, against the
+// 1.55 levels that fill already carries and the 8.14 that was the bug.
+// Model: scanlines::pitchFor. CROSSPOINT_SIM_SCANLINE_PITCH overrides.
+void setScanlineSize(int percentOfRowPitch);
+
+// SCANLINE BLOOM: how far beam current widens the lit band, as a percent of
+// the standard gain (owner order 2026-08-22, "add another ios app settings for
+// selecting bloom values with scanlines"). 0 off (bit-exact: the field stops
+// being content-aware at all), 50 subtle, 100 standard -- what build 126
+// shipped and the default -- 200 strong, 400 extreme. It is a fraction of the
+// PITCH, so it stays proportionate at every scanline size. It cannot lift a
+// pixel: bloom darkens the gap LESS near bright content, never adds light.
+// Model: scanlines::bloomGainFor. CROSSPOINT_SIM_SCANLINE_BLOOM overrides.
+void setScanlineBloom(int percentOfStandard);
+
 } // namespace SimulatorOverlay

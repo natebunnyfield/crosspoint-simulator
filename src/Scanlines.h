@@ -13,16 +13,25 @@
 //   - A scan line is the beam's spot dragged horizontally; the spot's vertical
 //     profile is close to GAUSSIAN. A line is untouched at its centre and the
 //     gap between lines is where the darkening lives.
-//   - LINE PITCH IS TIED TO THE SOURCE RASTER: one scan line per logical page
-//     row. In device pixels the pitch is exactly the panel's presentation
-//     scale (~2.39 on an iPhone, 2.0 on the 2x Mac app, 1.0 at 1:1 -- where
-//     the structure correctly self-attenuates toward a uniform dimming, which
-//     is what a real tube looks like once its lines cannot be resolved).
-//     Emulating a fixed ~500-line tube instead would lay a SECOND lattice over
-//     792 content rows and beat at the difference frequency -- the ST-008
-//     failure class by construction. High-resolution monochrome page CRTs are
-//     the honest fiction here (the Macintosh Portrait Display was a 640x870
+//   - LINE PITCH IS TIED TO THE SOURCE RASTER: a scan line every N logical
+//     page rows. In device pixels the base (N = 1) pitch is exactly the
+//     panel's presentation scale (~2.39 on an iPhone, 2.0 on the 2x Mac app,
+//     1.0 at 1:1 -- where the structure correctly self-attenuates toward a
+//     uniform dimming, which is what a real tube looks like once its lines
+//     cannot be resolved). Emulating a fixed ~500-line tube instead would lay
+//     a SECOND, unrelated lattice over 792 content rows -- the ST-008 failure
+//     class by construction. High-resolution monochrome page CRTs are the
+//     honest fiction here (the Macintosh Portrait Display was a 640x870
 //     monochrome raster tube).
+//   - PITCH SIZE IS AN OWNER SETTING (owner order 2026-08-22, from build 126:
+//     "scanlines need a sizing setting in ios settings"). It is offered as
+//     MULTIPLES of the source-row pitch -- 1x, 1.5x, 2x, 3x -- never as
+//     absolute pixels: a simple rational multiple of the lattice the panel
+//     already resamples on repeats its phase every 1 or 2 source rows, so the
+//     raster and the text rows keep a fixed relationship and no long-period
+//     difference frequency can exist. An absolute pixel pitch would be a free
+//     ratio against a per-device presentation scale, which is the rejected
+//     fixed-tube design wearing a settings row.
 //   - BLOOM: spot size grows with beam current, so bright content WIDENS the
 //     lit part of its line and thins the gap. This is the hyperrealism most
 //     fakes skip, and it is why the field is content-aware (`level`).
@@ -70,10 +79,81 @@ constexpr int kIntensityMax = 300;
 constexpr float kDepthAt100 = 0.40f;
 constexpr float kDepthMax = 0.60f;
 
+// PITCH SIZE, as a percent of the SOURCE-ROW pitch. 100 is one scan line per
+// page row -- what shipped in build 126, so the default changes nothing. The
+// offered rungs are the simple ratios only; see pitchFor().
+constexpr int kSizeFine = 100;    // 1 line per source row  (~2.39 px on phone)
+constexpr int kSizeMedium = 150;  // 1 per 1.5 rows         (~3.58 px)
+constexpr int kSizeCoarse = 200;  // 1 per 2 rows           (~4.77 px)
+constexpr int kSizeChunky = 300;  // 1 per 3 rows           (~7.16 px)
+constexpr int kSizeMin = kSizeFine;
+constexpr int kSizeMax = kSizeChunky;
+
+// Range clamp, not a snap: the four rungs above are what Settings.app offers,
+// while CROSSPOINT_SIM_SCANLINE_PITCH may name anything between them for a
+// measurement run. Same shape as clampIntensity against its own ladder.
+inline int clampSize(int percentOfRowPitch) {
+  if (percentOfRowPitch < kSizeMin) return kSizeMin;
+  if (percentOfRowPitch > kSizeMax) return kSizeMax;
+  return percentOfRowPitch;
+}
+
+// THE SEAM: the caller measures the panel's source-row pitch in device pixels
+// and asks for it at the owner's size. Params::pitchPx stays the one final
+// device-pixel pitch -- the model has no second degree of freedom to keep in
+// step, and the ladder has exactly one definition, here, where the test can
+// reach it.
+inline float pitchFor(float sourceRowPitchPx, int sizePercent) {
+  if (sourceRowPitchPx <= 0.0f) return 0.0f;
+  return sourceRowPitchPx * static_cast<float>(clampSize(sizePercent)) /
+         static_cast<float>(kSizeFine);
+}
+
 // Beam spot sigma as a fraction of pitch at zero beam current (FWHM ~0.52 of
 // the pitch), and how far full brightness widens it.
+//
+// A FRACTION OF PITCH, AT EVERY RUNG -- deliberately not retuned per rung.
+// A real tube's spot scales with its raster: fewer lines over the same screen
+// height means a proportionally fatter beam, or the tube would show gaps
+// between its own lines. Holding the fraction constant is that physics, and it
+// is what makes a 7.16 px pitch read as CHUNKY (3.7 px lit, 3.4 px dark) rather
+// than as thin stripes with gaps. Measured on a flat dark ground: line
+// peak-to-peak 69/255 at 1x, 77 at 1.5x, 79 at 2x, 81 at 3x -- the duty cycle
+// is the same 52% at all four, only the scale changes.
 constexpr float kSigmaFrac = 0.22f;
 constexpr float kBloomGain = 0.8f;
+
+// BLOOM STRENGTH, as a percent of that standard gain (owner order 2026-08-22:
+// "add another ios app settings for selecting bloom values with scanlines").
+// 100 is kBloomGain itself -- the shipped behaviour -- so the default changes
+// nothing.
+//
+// A FRACTION OF PITCH, NOT PIXELS, and that is the whole reason it needs no
+// per-rung retune: bloom widens sigma, sigma is kSigmaFrac * pitch, so the
+// widening is proportionate at every size. A coarse raster's fatter lines
+// bloom by proportionately more absolute pixels, which is what a real tube
+// does -- the same beam current on a coarser raster covers more of the screen.
+//
+// 0 is BIT-EXACT off: the level term is the ONLY place `level` enters the
+// model, so a zero gain makes the field content-independent rather than
+// nearly so.
+constexpr int kBloomOff = 0;
+constexpr int kBloomSubtle = 50;
+constexpr int kBloomStandard = 100;  // kBloomGain, the shipped value
+constexpr int kBloomStrong = 200;
+constexpr int kBloomExtreme = 400;
+constexpr int kBloomMax = kBloomExtreme;
+
+inline int clampBloom(int percent) {
+  if (percent < kBloomOff) return kBloomOff;
+  if (percent > kBloomMax) return kBloomMax;
+  return percent;
+}
+
+inline float bloomGainFor(int percent) {
+  return kBloomGain * static_cast<float>(clampBloom(percent)) /
+         static_cast<float>(kBloomStandard);
+}
 
 // Per-line imperfection: phase offset as a fraction of pitch, thickness as a
 // +/- fraction of sigma. Overridable in Params so the test can isolate the
@@ -120,6 +200,9 @@ struct Params {
   // Blotch swing on the line depth, from mottleDepthFor(). Held here rather
   // than derived inside so the core is testable at more than one value.
   float mottleDepth = 0.0f;
+  // How far full beam current widens the spot, from bloomGainFor(). Held as
+  // the gain rather than the percent for the same reason mottleDepth is.
+  float bloomGain = kBloomGain;
   // Largest MEAN darkening the page can take (0.8 * darkeningBudget of the
   // live pair). 1.0 means "no constraint".
   float budgetMeanDarkening = 1.0f;
@@ -155,7 +238,7 @@ inline float rowTransmissionRaw(const Params &p, float y, float level) {
                     (uPhase - 0.5f) * 2.0f * p.phaseJitterFrac * pitch;
     float sigma = kSigmaFrac * pitch *
                   (1.0f + (uThick - 0.5f) * 2.0f * p.thickJitter) *
-                  (1.0f + kBloomGain * level);
+                  (1.0f + p.bloomGain * level);
     if (sigma < 1e-4f) sigma = 1e-4f;
     sum += lineIntegral(y, y + 1.0f, c, sigma);
   }
