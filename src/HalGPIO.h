@@ -215,6 +215,16 @@ public:
   void setReadAloudCaptureWanted(bool wanted);
   bool consumeReadAloudPage(ReadAloudPage &out);
 
+  // The reader's FINAL text-block insets — top after the paint-time cap-ink
+  // trim, then right, bottom, left — in FRAMEBUFFER pixels. Firmware-facing
+  // half of the same split as the read-aloud channel: an inline no-op on
+  // device (lib/hal/HalGPIO.h), a real store here. EpubReaderActivity
+  // publishes on every render; the host reads the latest values through
+  // SimulatorOverlay::readerTextInsetsPx() (the iOS zen sheet places the page
+  // from them instead of calibrated constants). Atomics, because publish runs
+  // on the firmware task and the consumer is the main-thread relayout.
+  void publishReaderTextInsets(int topPx, int rightPx, int bottomPx, int leftPx);
+
   // Simulator-only. Schedule a full synthetic button tap — press edge, held
   // level for holdMs, release edge — that fires INSIDE update(), which is
   // the only place an injected edge is visible to the firmware: beginFrame()

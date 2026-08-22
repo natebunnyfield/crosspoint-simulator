@@ -1238,6 +1238,40 @@ bool HalGPIO::consumeReadAloudPage(ReadAloudPage &out) {
   return readAloudChannel.consume(out);
 }
 
+// --- Reader text insets ------------------------------------------------------
+//
+// Published by EpubReaderActivity on every render, in FRAMEBUFFER pixels, top
+// already carrying the paint-time cap-ink trim. `readerInsetsValid` separates
+// "never published" (a boot that has not rendered a page yet) from a published
+// zero, so the consumer can keep its documented fallback until real numbers
+// exist. Plain atomics: the four are advisory placement hints read on the next
+// relayout, so a torn read across two publishes of the SAME layout is harmless
+// and publishes only change values when the margins or font actually change.
+static std::atomic<bool> readerInsetsValid{false};
+static std::atomic<int> readerInsetTop{0}, readerInsetRight{0},
+    readerInsetBottom{0}, readerInsetLeft{0};
+
+void HalGPIO::publishReaderTextInsets(int topPx, int rightPx, int bottomPx,
+                                      int leftPx) {
+  readerInsetTop.store(topPx);
+  readerInsetRight.store(rightPx);
+  readerInsetBottom.store(bottomPx);
+  readerInsetLeft.store(leftPx);
+  readerInsetsValid.store(true);
+}
+
+namespace SimulatorOverlay {
+bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
+  if (!readerInsetsValid.load())
+    return false;
+  top = readerInsetTop.load();
+  right = readerInsetRight.load();
+  bottom = readerInsetBottom.load();
+  left = readerInsetLeft.load();
+  return true;
+}
+} // namespace SimulatorOverlay
+
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
   if (buttonIndex >= NUM_BUTTONS)
     return;

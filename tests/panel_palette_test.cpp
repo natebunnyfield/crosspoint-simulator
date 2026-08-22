@@ -428,6 +428,10 @@ static void testRootPlist(const char *path) {
       "panelPaperLight",
       "panelInkDark",
       "panelPaperDark",
+      // Removed 2026-08-22, its own owner order ("let's remove the option for
+      // every ratio but 1:2"): the zen band proportion is a constant 1:2 in
+      // the shim now, and a one-option row is decoration.
+      "zenBottomRatio",
   };
   for (const char *key : removedKeys)
     CHECKM(xml.find(std::string("<string>") + key + "</string>") ==
@@ -436,13 +440,13 @@ static void testRootPlist(const char *path) {
 
   // ...and the survivors are still there, so the absences above cannot be
   // satisfied by an empty or wrong file. The Page Colors group now ENDS at
-  // Zen Bottom Margin; Read Aloud survives whole; the new Zen toggle sits at
+  // Beam Paint; Read Aloud survives whole; the new Zen toggle sits at
   // the very top.
   const size_t zenToggle = xml.find("<string>zenModeEnabled</string>");
   CHECKM(zenToggle != std::string::npos,
          "zenModeEnabled (the Zen toggle) must be in Root.plist");
-  CHECKM(xml.find("<string>zenBottomRatio</string>") != std::string::npos,
-         "zenBottomRatio must stay in Root.plist");
+  CHECKM(xml.find("<string>beamPaintMs</string>") != std::string::npos,
+         "beamPaintMs (the Page Colors group's last row) must stay in Root.plist");
   CHECKM(xml.find("<string>readAloudEnabled</string>") != std::string::npos,
          "the Read Aloud section must survive the removal");
   CHECKM(xml.find("<string>diagnosticsEnabled</string>") != std::string::npos,
