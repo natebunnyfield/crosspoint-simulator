@@ -1576,6 +1576,30 @@ void pollPhosphorGrain() {
   SimulatorOverlay::setPhosphorGrain(strength, coverage, cells, depth);
 }
 
+// THE 2026-08-22 DOCTRINE DIALS. Same edge-triggered shape as the polls
+// around them: letterpress is the light page's surface, scanlines the dark
+// one's, and HalDisplay itself gates each on the live appearance and skips
+// the grain while its mode's dial is on -- so these only carry the numbers.
+void pollLetterpress() {
+  static int s_applied = -1;
+  const int pct = CrossPointPrefs_letterpressPercent();
+  if (pct == s_applied) return;
+  s_applied = pct;
+  SDL_Log("[letterpress] %d%% of standard%s", pct,
+          pct == 0 ? " (off)" : " (light pages only)");
+  SimulatorOverlay::setLetterpress(pct);
+}
+
+void pollScanlines() {
+  static int s_applied = -1;
+  const int pct = CrossPointPrefs_scanlinesPercent();
+  if (pct == s_applied) return;
+  s_applied = pct;
+  SDL_Log("[scanlines] %d%% of standard%s", pct,
+          pct == 0 ? " (off)" : " (dark pages only)");
+  SimulatorOverlay::setScanlines(pct);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -2502,6 +2526,18 @@ extern "C" void CrossPointZen_toggleFromRecognizer(void) {
   SimulatorOverlay::requestPresent();
 }
 
+// Belt-and-suspenders for the zen long-press select (native recognizer,
+// CrossPointZenRecognizers.mm): the tap classifier's 400 ms ceiling already
+// answers None for a finger held to the ~500 ms recognition point, but the
+// same finger streams into SDL, so the candidate is spoiled the way the
+// 3-finger toggle spoils it rather than depending on event ordering between
+// UIKit's recognition and SDL's lift. Main thread (recognizer action), same
+// as the toggle above.
+extern "C" void CrossPointZen_spoilTapCandidate(void) {
+  g_tapCand.spoil();
+  g_zenVerbs = zenverbs::Classifier{};
+}
+
 // --- Public entry points ---------------------------------------------------
 //
 // CrossPointHarness_prepareFilesystem lives in CrossPointFsPrep.cpp: it is
@@ -2734,6 +2770,8 @@ void CrossPointHarness_perFrame() {
                                        s_mixGuns[3]);
   }
   pollPhosphorGrain();
+  pollLetterpress();
+  pollScanlines();
   pollReaderInsets();
   pollZenMode();
   pollPadContrast();

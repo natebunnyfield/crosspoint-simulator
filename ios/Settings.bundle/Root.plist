@@ -181,6 +181,54 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>DefaultValue</key>
+			<integer>50</integer>
+			<key>Key</key>
+			<string>letterpressPercent</string>
+			<key>Title</key>
+			<string>Letterpress</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — flat ink</string>
+				<string>Subtle — a printed page</string>
+				<string>Standard — visible impression</string>
+				<string>Heavy — deliberately pressed</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>50</integer>
+				<integer>100</integer>
+				<integer>200</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>50</integer>
+			<key>Key</key>
+			<string>scanlinesPercent</string>
+			<key>Title</key>
+			<string>Scanlines</string>
+			<key>Titles</key>
+			<array>
+				<string>Off — a settled screen</string>
+				<string>Subtle — the raster at a glance</string>
+				<string>Standard — plainly a tube</string>
+				<string>Deep — lines you can count</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>50</integer>
+				<integer>100</integer>
+				<integer>150</integer>
+			</array>
+		</dict>
+		<dict>
 			<key>FooterText</key>
 			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it, or tap the word being read to stop. With VoiceOver on, a two-finger double tap pauses and resumes. Reading continues with the screen locked. Turning it on takes effect at the next page turn.
 

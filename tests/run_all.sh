@@ -195,6 +195,15 @@ run gun_mix_csv \
 run phosphor_grain \
   c++ -std=c++17 -Isrc -o "$OUT/phosphor_grain" tests/phosphor_grain_test.cpp
 
+# The 2026-08-22 doctrine split: letterpress is the light page's surface,
+# scanlines the dark one's. Both pure headers whose every failure mode is a
+# wrong picture -- same reason phosphor_grain has a test.
+run letterpress \
+  c++ -std=c++17 -Isrc -o "$OUT/letterpress" tests/letterpress_test.cpp
+
+run scanlines \
+  c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

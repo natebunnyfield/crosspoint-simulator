@@ -152,6 +152,15 @@ int CrossPointPrefs_beamPaintMs(void);
 // Whether the 1-bit pass may land on its own, ahead of the composed frame.
 int CrossPointPrefs_presentFlash(void);
 
+// THE 2026-08-22 DOCTRINE DIALS. Light mode is paper and ink: LETTERPRESS,
+// percent of standard (0 off, 50 subtle -- the default -- 100 standard, 200
+// heavy). Dark mode is a CRT: SCANLINES replace the mottled grain, percent of
+// standard (0 off, 50 subtle -- the default -- 100 standard, 150 deep; the
+// blotch depth is folded into the dial by scanlines::mottleDepthFor). While
+// either is active in its mode the grain pass is skipped by HalDisplay.
+int CrossPointPrefs_letterpressPercent(void);
+int CrossPointPrefs_scanlinesPercent(void);
+
 // CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
 // proportion is a constant 1:2 (Van de Graaf) in the shim now, so the setting
 // row died with it (a one-option row is decoration). Stored values are ignored

@@ -187,6 +187,10 @@ void applyDials(const Values &v) {
       phosphorgrain::kMottleCellsDefault,
       intOr(v, "phosphorGrainMottleDepth",
             (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
+  // The 2026-08-22 doctrine dials. 0 is the desktop default for both -- a file
+  // without the keys renders what the desktop always rendered.
+  SimulatorOverlay::setLetterpress(intOr(v, "letterpressPercent", 0));
+  SimulatorOverlay::setScanlines(intOr(v, "scanlinesPercent", 0));
 }
 
 }  // namespace

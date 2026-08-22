@@ -82,6 +82,13 @@ static NSString *const kPhosphorGrainCoverage = @"phosphorGrainCoverage";
 // -integerForKey: cannot distinguish from an absent key, same trap as the
 // grain strength above.
 static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
+// The 2026-08-22 doctrine dials: letterpress for the light page, scanlines for
+// the dark one. Both stored as the meaningful percent, both read through
+// -objectForKey: because 0 is a real choice (the effect off) that
+// -integerForKey: cannot tell from an absent key -- the same malignant trap as
+// the grain strength above.
+static NSString *const kLetterpressPercent = @"letterpressPercent";
+static NSString *const kScanlinesPercent = @"scanlinesPercent";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -432,6 +439,31 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) {
   const int d = v.intValue;
   if (d < 0) return 0;
   return d > 100 ? 100 : d;
+}
+
+int CrossPointPrefs_letterpressPercent(void) {
+  ensureDefaults();
+  checkKnown(kLetterpressPercent);
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kLetterpressPercent];
+  // 50 (Subtle) is the shipped light-mode default -- the doctrine makes the
+  // effect the mode's identity, subtle because it is a reading page.
+  if (![v isKindOfClass:[NSNumber class]]) return 50;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 400 ? 400 : pct;
+}
+
+int CrossPointPrefs_scanlinesPercent(void) {
+  ensureDefaults();
+  checkKnown(kScanlinesPercent);
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlinesPercent];
+  // 50 (Subtle) is the shipped dark-mode default, same argument as above.
+  if (![v isKindOfClass:[NSNumber class]]) return 50;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 300 ? 300 : pct;
 }
 
 int CrossPointPrefs_pageFadeDepthPercent(void) {
