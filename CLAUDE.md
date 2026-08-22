@@ -557,6 +557,32 @@ the appearance path: `requestPresent()` only re-pushes the framebuffer, so
 `applyTheme()` also calls `crosspointRequestRender()` or the firmware's own
 Settings screen keeps painting the value it was drawn with.
 
+## The 2026-08-22 channels and hooks (quick index)
+
+Grown in one day; each is documented at its definition, this is the map:
+
+- **Reader text-block insets**: the firmware publishes its final insets
+  (framebuffer px) through the HAL keyboard-channel pattern; the sim stores
+  them (`SimulatorOverlay::readerTextInsetsPx`) and the zen placement consumes
+  them, with 60/35 device px as the documented pre-first-render fallback.
+- **Zen placement**: in zen the panel is PLACED within the sheet (band pixels
+  trade bottom→top so the fit box, and therefore the page's scale, never
+  changes). The shift is snapshotted per layout pass — band and top inset must
+  consume the same value or the page resizes (shipped once, build 123).
+- **`CROSSPOINT_SIM_MIX_GUNS="r,g,b[,w]"`** drives the mixer's own apply
+  function headlessly. **`CROSSPOINT_SIM_TAP_PAD=<BUTTON>`** synthesizes a real
+  SDL finger tap through padWatch (~590 ms hold — too slow for the zen
+  deliberate-tap gate, whose ceiling is 400 ms; `CROSSPOINT_SIM_TAP_CHIP=1`
+  pushes a same-frame tap that passes it). **`CROSSPOINT_SIM_OPEN_MIXER=1`**
+  presents the mixer with no finger.
+- **`CROSSPOINT_SIM_LOG_POWER=1`**: [power] stations across sleep entry / wake
+  source / reboot boundary / first update-refresh-present.
+- **`CROSSPOINT_SIM_IMPORT_FILE=<path>`**: drives the book-import path (copy
+  to card, then open) exactly as an incoming Files/share-sheet epub does.
+- **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,
+  ≤400 ms, zone judged from the LANDING point. Swipes, drags, holds, and
+  multi-finger do nothing.
+
 ## Driving it headlessly
 
 Read [docs/headless-qa.md](docs/headless-qa.md) BEFORE writing a screenshot
