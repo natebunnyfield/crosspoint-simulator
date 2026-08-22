@@ -161,6 +161,21 @@ int CrossPointPrefs_presentFlash(void);
 int CrossPointPrefs_letterpressPercent(void);
 int CrossPointPrefs_scanlinesPercent(void);
 
+// SCANLINE SIZE: the line pitch, as a percent of the SOURCE-ROW pitch (owner
+// order 2026-08-22, from build 126). 100 = one line per page row, the pitch
+// build 126 shipped and the default here; 150 / 200 / 300 are one line per
+// 1.5 / 2 / 3 rows. Multiples of the page's own lattice rather than absolute
+// pixels, so no rung can lay a second lattice over the panel -- see
+// scanlines::pitchFor.
+int CrossPointPrefs_scanlineSizePercent(void);
+
+// SCANLINE BLOOM: how far beam current widens the lit band, as a percent of
+// the standard gain (owner order 2026-08-22). 0 off (bit-exact -- the field
+// stops being content-aware), 50 subtle, 100 standard (build 126's value, and
+// the default), 200 strong, 400 extreme. A fraction of the PITCH, so it stays
+// proportionate at every scanline size.
+int CrossPointPrefs_scanlineBloomPercent(void);
+
 // CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
 // proportion is a constant 1:2 (Van de Graaf) in the shim now, so the setting
 // row died with it (a one-option row is decoration). Stored values are ignored

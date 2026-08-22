@@ -189,6 +189,21 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   50 = subtle   100 = standard   150 = deep
   "scanlinesPercent": 0,
 
+  // Scanline SIZE: the line pitch, as a percent of the SOURCE-ROW pitch.
+  // Multiples of the page's own row lattice, never absolute pixels -- an
+  // absolute pitch is a free ratio against a per-device presentation scale,
+  // which is the second lattice this design exists to avoid.
+  //   100 = 1 line per page row (the shipped pitch)   150 = 1 per 1.5 rows
+  //   200 = 1 per 2 rows                              300 = 1 per 3 rows
+  "scanlineSizePercent": 100,
+
+  // Scanline BLOOM: how far beam current widens the lit band, as a percent of
+  // the standard gain. A fraction of the pitch, so it stays proportionate at
+  // every scanline size. It can only spare light, never add it.
+  //   0 = off (the field stops being content-aware)   50 = subtle
+  //   100 = standard (the shipped tube)   200 = strong   400 = extreme
+  "scanlineBloomPercent": 100,
+
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A
   // mix OWNS the page and its glow while active; panelPalettePreset is ignored.
