@@ -390,11 +390,19 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
     _name[g].frame = CGRectMake(margin, y, W - 2 * margin - 60, 20);
     _value[g].frame = CGRectMake(W - margin - 56, y, 56, 20);
     _slider[g].frame = CGRectMake(margin, y + 20, W - 2 * margin, 32);
-    // The gradient underlay sits exactly on the slider's own track rect, so
-    // it reads as THE track rather than a stripe behind one.
+    // A THICK gradient bar, not the slider's own hairline track rect (owner
+    // 2026-08-22, from a device screenshot: "sliders need to have thick
+    // gradient color preview instead of thin line" -- the 4 pt system track
+    // read as a dark thread on the light sheet). 16 pt tall, centered on the
+    // track's own centerline so the thumb still rides it naturally.
+    constexpr CGFloat kTrackBarPt = 16.0f;
     const CGRect tr = [_slider[g] trackRectForBounds:_slider[g].bounds];
-    _track[g].frame = [_slider[g] convertRect:tr toView:self.view];
-    _track[g].layer.cornerRadius = _track[g].frame.size.height / 2;
+    CGRect bar = [_slider[g] convertRect:tr toView:self.view];
+    bar.origin.y += (bar.size.height - kTrackBarPt) / 2;
+    bar.size.height = kTrackBarPt;
+    _track[g].frame = bar;
+    _track[g].layer.cornerRadius = kTrackBarPt / 2;
+    _track[g].clipsToBounds = YES;
     y += 60;
   }
   if (_track[0].bounds.size.width != _trackWidth) {
