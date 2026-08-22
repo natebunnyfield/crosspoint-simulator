@@ -35,6 +35,7 @@
 // either. objc_retain(0x1) inside UIKit's setTitle: was the crash site,
 // sidestepped in build 111; this rewrite keeps the sidestep.
 
+#import <QuartzCore/QuartzCore.h>  // CACurrentMediaTime, for the rebuild-cost log
 #import <UIKit/UIKit.h>
 
 #include <SDL3/SDL.h>
@@ -88,6 +89,10 @@ constexpr int kDefaultGunWeight[kGunCount] = {50, 50, 50, 0};
 constexpr int kWeightMax = 100;
 static_assert(kWeightMax == gunmix::kWeightMax,
               "the slider's ceiling and the codec's clamp must agree");
+
+// Samples along a gradient track. The mix is smooth in the weight, so 16
+// stops interpolated by CoreGraphics are indistinguishable from per-pixel.
+constexpr int kGradientSamples = 16;
 
 NSString *hexOf(const unsigned char c[3]) {
   return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
@@ -236,12 +241,22 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 @implementation CPXGunMixerController {
   UIButton *_name[kGunCount];
   UISlider *_slider[kGunCount];
+  // The LIVE GRADIENT track (owner-approved 2026-08-22): each gun's track
+  // previews the actual resulting mix at every position of that slider,
+  // computed through the shipped core (computeGuns -> phosphormix::mixBlend)
+  // exactly like the readout swatches. A UISlider track IMAGE cannot do this
+  // continuously -- UIKit stretches the minimum-track image into the segment
+  // left of the thumb, so the gradient would compress as the thumb moves --
+  // so the gradient lives in a UIImageView placed on the slider's own track
+  // rect, and the slider's min/max track images are transparent.
+  UIImageView *_track[kGunCount];
   UILabel *_value[kGunCount];
   UIView *_swatchDark;
   UIView *_swatchLight;
   UILabel *_readout;
   int _presets[kGunCount];
   int _w[kGunCount];
+  CGFloat _trackWidth;  // last width the gradients were built at
   // The coalesced deferred settle: the one pending firmware re-render, or nil.
   dispatch_block_t _pendingSettle;
 }
@@ -275,11 +290,27 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
     _value[g].textAlignment = NSTextAlignmentRight;
     [self.view addSubview:_value[g]];
 
+    _track[g] = [UIImageView new];
+    _track[g].userInteractionEnabled = NO;
+    _track[g].clipsToBounds = YES;
+    [self.view addSubview:_track[g]];
+
     _slider[g] = [UISlider new];
     _slider[g].minimumValue = 0;
     _slider[g].maximumValue = kWeightMax;
     _slider[g].value = _w[g];
     _slider[g].tag = g;
+    // Transparent system track, both halves: the gradient underlay IS the
+    // track. (This also supersedes the old per-gun minimumTrackTintColor.)
+    static UIImage *clearTrack;
+    static dispatch_once_t clearOnce;
+    dispatch_once(&clearOnce, ^{
+      UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc]
+          initWithSize:CGSizeMake(1, 1)];
+      clearTrack = [r imageWithActions:^(UIGraphicsImageRendererContext *c){}];
+    });
+    [_slider[g] setMinimumTrackImage:clearTrack forState:UIControlStateNormal];
+    [_slider[g] setMaximumTrackImage:clearTrack forState:UIControlStateNormal];
     [_slider[g] addTarget:self
                    action:@selector(gunMoved:)
          forControlEvents:UIControlEventValueChanged];
@@ -341,7 +372,16 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
     _name[g].frame = CGRectMake(margin, y, W - 2 * margin - 60, 20);
     _value[g].frame = CGRectMake(W - margin - 56, y, 56, 20);
     _slider[g].frame = CGRectMake(margin, y + 20, W - 2 * margin, 32);
+    // The gradient underlay sits exactly on the slider's own track rect, so
+    // it reads as THE track rather than a stripe behind one.
+    const CGRect tr = [_slider[g] trackRectForBounds:_slider[g].bounds];
+    _track[g].frame = [_slider[g] convertRect:tr toView:self.view];
+    _track[g].layer.cornerRadius = _track[g].frame.size.height / 2;
     y += 60;
+  }
+  if (_track[0].bounds.size.width != _trackWidth) {
+    _trackWidth = _track[0].bounds.size.width;
+    [self rebuildTrackGradients:-1];
   }
   y += 6;
   _swatchDark.frame = CGRectMake(margin, y, (W - 2 * margin - 12) / 2, 44);
@@ -351,22 +391,76 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   _readout.frame = CGRectMake(margin, y, W - 2 * margin, 36);
 }
 
-// Re-tints the gun's slider and retitles its menu button. Called at build
-// time and on every reassignment. The menu itself never needs rebuilding: it
-// is a deferred element whose provider reads _presets when opened.
+// Retitles the gun's menu button. Called at build time and on every
+// reassignment. The menu itself never needs rebuilding: it is a deferred
+// element whose provider reads _presets when opened. (The old per-gun
+// minimumTrackTintColor is gone: the gradient track underlay replaced it.)
 - (void)applyAssignment:(int)g {
-  const panelpalette::Palette gun =
-      panelpalette::resolve(_presets[g], true, -1, -1);
-  _slider[g].minimumTrackTintColor = [UIColor colorWithRed:gun.ink[0] / 255.0
-                                                     green:gun.ink[1] / 255.0
-                                                      blue:gun.ink[2] / 255.0
-                                                     alpha:1];
   const panelpalette::PresetInfo *info = infoForPreset(_presets[g]);
   NSString *title =
       [NSString stringWithFormat:@"%s — %s %s", kGunLabel[g],
                                  info && info->phosphor ? info->phosphor : "?",
                                  info ? info->name : "?"];
   [_name[g] setTitle:title forState:UIControlStateNormal];
+}
+
+// The live gradient for gun g's track: at track position t (weight 0..100),
+// the color is the mix's DARK-appearance PAPER tone -- the page the owner
+// would see -- with gun g's weight set to t and the other three guns at their
+// current weights, computed through the same computeGuns -> mixBlend path as
+// the readout swatches (so duplicate-gun assignments sum in linear light here
+// too). Dark paper regardless of the app's appearance, deliberately: the CRT
+// page is the dark-mode object, and the readout already shows both
+// polarities.
+- (UIImage *)trackGradientForGun:(int)g size:(CGSize)size {
+  CGFloat comps[kGradientSamples * 4];
+  CGFloat locs[kGradientSamples];
+  int w[kGunCount];
+  for (int i = 0; i < kGunCount; i++) w[i] = _w[i];
+  for (int s = 0; s < kGradientSamples; s++) {
+    const float t = (float)s / (kGradientSamples - 1);
+    w[g] = (int)lroundf(t * kWeightMax);
+    const phosphormix::Result r = computeGuns(_presets, w);
+    comps[s * 4 + 0] = r.dark.paper[0] / 255.0;
+    comps[s * 4 + 1] = r.dark.paper[1] / 255.0;
+    comps[s * 4 + 2] = r.dark.paper[2] / 255.0;
+    comps[s * 4 + 3] = 1.0;
+    locs[s] = t;
+  }
+  CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+  CGGradientRef grad =
+      CGGradientCreateWithColorComponents(space, comps, locs, kGradientSamples);
+  CGColorSpaceRelease(space);
+  UIGraphicsImageRenderer *ren =
+      [[UIGraphicsImageRenderer alloc] initWithSize:size];
+  UIImage *img = [ren imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+    CGContextDrawLinearGradient(ctx.CGContext, grad,
+                                CGPointMake(0, size.height / 2),
+                                CGPointMake(size.width, size.height / 2), 0);
+  }];
+  CGGradientRelease(grad);
+  return img;
+}
+
+// Rebuild the gradient tracks. skip = the gun whose gradient is already
+// current (a gun's own gradient does not depend on its own weight, so a drag
+// only invalidates the OTHER three), or -1 for all four -- a reassignment
+// changes gun g's tint base as well as the others' mixes. Inline on the main
+// thread: a full x4 rebuild is 4 x 16 mixBlend calls plus four small images,
+// measured well under the ~5 ms drag budget (see the [mixer] log line).
+- (void)rebuildTrackGradients:(int)skip {
+  const CFTimeInterval t0 = CACurrentMediaTime();
+  int built = 0;
+  for (int g = 0; g < kGunCount; g++) {
+    if (g == skip) continue;
+    const CGSize sz = _track[g].bounds.size;
+    if (sz.width < 1 || sz.height < 1) continue;  // pre-layout: nothing to draw
+    _track[g].image = [self trackGradientForGun:g size:sz];
+    built++;
+  }
+  if (built)
+    SDL_Log("[mixer] gradient rebuild x%d: %.2f ms", built,
+            (CACurrentMediaTime() - t0) * 1000.0);
 }
 
 // Every mixable phosphor, grouped into the core's persistence bands (section
@@ -409,6 +503,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   // deferred past the dismiss animation instead of stuttering it.
   applyGuns(_presets, _w, /*renderPage=*/false);
   [self refresh];
+  [self rebuildTrackGradients:-1];
   [self scheduleSettle];
 }
 
@@ -442,6 +537,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   _w[s.tag] = (int)lroundf(s.value);
   applyGuns(_presets, _w, /*renderPage=*/false);
   [self refresh];
+  [self rebuildTrackGradients:(int)s.tag];
 }
 
 // The finger lifted: the mix is settled, so pay for the one firmware
