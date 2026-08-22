@@ -56,6 +56,7 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <limits>
 
 #include "CrossPointAppearance.h"
 #include "CrossPointPrefs.h"
@@ -728,17 +729,14 @@ void layoutPad(int outW, int outH) {
   // and still clamped to the home-indicator floor. Owner ask 2026-08-21:
   // "extend the bottom margin of paper in zen mode to an optimal and proven
   // distance", after rejecting the bare floor ("there is a geometry to it").
-  // The proportion is a SETTING now (owner 2026-08-21: "add ios setting for
-  // bottom margin to extend so the paper ratio is 1:2 2:3 3:5 5:8 1:phi") --
-  // top black band : bottom black band, anchored to the VISIBLE paper card's
-  // top edge. All five are the classical ladder (the Fibonacci convergents
-  // walking toward phi, plus Van de Graaf's 1:2, which stays the default and
-  // is what shipped). Persisted as an index; rows append, never insert.
-  static const float kZenRatioMult[] = {2.0f, 1.5f, 5.0f / 3.0f, 1.6f,
-                                        1.618f};
-  const int ratioIdx = CrossPointPrefs_zenBottomRatio();
-  const float mult =
-      (ratioIdx >= 0 && ratioIdx < 5) ? kZenRatioMult[ratioIdx] : 2.0f;
+  // The proportion is a CONSTANT again: top black band : bottom black band =
+  // 1:2, Van de Graaf's canon, anchored to the VISIBLE paper card's top edge.
+  // A five-rung ladder (1:2, 2:3, 3:5, 5:8, 1:phi — the Fibonacci convergents
+  // walking toward phi) shipped as a setting on 2026-08-21 and was reduced to
+  // 1:2 by owner order 2026-08-22 ("let's remove the option for every ratio
+  // but 1:2"); a one-option row is decoration, so the row died with the other
+  // four rungs (Root.plist, CrossPointPrefs).
+  const float mult = 2.0f;
   const float gridPx = 8.0f * S;
   const float topBandPx = g_cardTopPx > 0 ? g_cardTopPx : 68.0f * S;
   // NOT grid-snapped: the neighboring rungs (5:8 and 1:phi) differ by under
@@ -751,23 +749,51 @@ void layoutPad(int outW, int outH) {
   g_zenRowTopPx = SDL_min(ratioToPx, floorToPx);
   // PANEL PLACEMENT WITHIN THE SHEET (owner 2026-08-22: "place the panel
   // where it is best within the paper, based on the ratio and the rendered
-  // content"). The selected band ratio also governs where the page sits: the
+  // content"). The band ratio also governs where the page sits: the
   // VISUAL margins -- paper edge to ink, not to the panel's bounds -- split
-  // top : bottom = 1 : r. The content insets are measured from real full
-  // pages at this device class (60 px above the first ink, ~35 px of design
-  // margin below the last line, both at the presented scale); the leftover
-  // line-fill whitespace varies per page and is deliberately not chased.
+  // top : bottom = 1 : r.
+  //
+  // The ink insets come from the FIRMWARE now: EpubReaderActivity publishes
+  // its final text-block insets (top after the cap-ink trim) in framebuffer
+  // px through HalGPIO::publishReaderTextInsets, and they scale to device px
+  // by the same presented factor the panel itself was scaled by. The two
+  // constants below are the documented FALLBACK for the window before the
+  // first page render publishes anything: they were measured from real full
+  // pages at this device class (docs/zen-page-margins.md §4) and are exact
+  // only at the config they were measured at -- which is precisely why the
+  // published values replace them (2026-08-22 layout exactness pass).
   {
     constexpr float kInkTopInsetPx = 60.0f;
     constexpr float kInkBottomInsetPx = 35.0f;
+    float inkTopPx = kInkTopInsetPx;
+    float inkBottomPx = kInkBottomInsetPx;
+    const char *inkSrc = "fallback";
+    {
+      int t = 0, r = 0, b = 0, l = 0;
+      // Portrait presented height corresponds to the framebuffer's WIDTH
+      // (the firmware renders the X3 landscape and the presentation rotates),
+      // same mapping the panel fit above uses (logH = activeWidth()).
+      const float fbPortraitH = static_cast<float>(HalDisplay::activeWidth());
+      const float presentedH =
+          static_cast<float>(SimulatorOverlay::panelHeightPx());
+      if (SimulatorOverlay::readerTextInsetsPx(t, r, b, l) &&
+          fbPortraitH > 0 && presentedH > 0) {
+        const float toDevice = presentedH / fbPortraitH;
+        inkTopPx = t * toDevice;
+        inkBottomPx = b * toDevice;
+        inkSrc = "published";
+      }
+    }
+    SDL_Log("[zen] ink insets (%s): top=%.1fpx bottom=%.1fpx", inkSrc,
+            inkTopPx, inkBottomPx);
     const float paperTopPx = topBandPx;
     const float panelHPx =
         static_cast<float>(SimulatorOverlay::panelHeightPx());
     if (panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
       const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
-      const float visTotal = slack + kInkTopInsetPx + kInkBottomInsetPx;
+      const float visTotal = slack + inkTopPx + inkBottomPx;
       const float aboveVis = visTotal / (1.0f + mult);
-      const float panelTopWant = paperTopPx + aboveVis - kInkTopInsetPx;
+      const float panelTopWant = paperTopPx + aboveVis - inkTopPx;
       // The non-zen panel top is the card top plus the 12 pt paper margin --
       // computed absolutely rather than read back from the overlay, because
       // the published panel top already contains the previous pass's shift
@@ -1274,22 +1300,33 @@ void pollAppearance() {
 // the repaint is EDGE-TRIGGERED on the applied level: without that this would
 // force a present every frame on a panel whose presentation model assumes it
 // presents rarely.
-//
-// Main thread only, pumps no SDL events, holds no timer -- the same three
-// constraints pollAppearance lives under.
-void pollZenRatio() {
-  static int s_applied = -1;
-  const int idx = CrossPointPrefs_zenBottomRatio();
-  if (idx == s_applied) return;
-  const bool first = s_applied < 0;
-  s_applied = idx;
-  if (first) return;  // boot pass: the first layout already read the pref
-  g_padLaidOut = false;  // force the relayout that recomputes the zen band
+// (pollZenRatio lived here 2026-08-21..22, watching the zenBottomRatio rung;
+// it died with the setting when the band was fixed at 1:2.)
+
+// Re-fit the zen sheet when the firmware's published ink insets appear or
+// move. The placement block reads SimulatorOverlay::readerTextInsetsPx at
+// LAYOUT time, but the first layout runs before the reader has rendered a
+// page — the log then honestly says "fallback" — and nothing else would
+// trigger a relayout on a boot that resumes straight into a book with zen
+// already on, so the published values would sit unread forever. Edge-triggered
+// on the published pair, same discipline as every poll here: one relayout per
+// change (the first publish, then only a margin or font-size change), not one
+// per frame.
+void pollReaderInsets() {
+  if (!g_zen) return;
+  static int s_top = std::numeric_limits<int>::min();
+  static int s_bottom = std::numeric_limits<int>::min();
+  int t = 0, r = 0, b = 0, l = 0;
+  if (!SimulatorOverlay::readerTextInsetsPx(t, r, b, l)) return;
+  if (t == s_top && b == s_bottom) return;
+  s_top = t;
+  s_bottom = b;
+  g_padLaidOut = false;  // force the relayout that re-places the zen sheet
   SimulatorOverlay::requestPresent();
-  SDL_Log("[zen] bottom ratio -> option %d", idx);
+  SDL_Log("[zen] published ink insets %d/%d fb-px -> relayout", t, b);
 }
 
-// Zen mode from Settings.app, on pollZenRatio's terms: edge-triggered on the
+// Zen mode from Settings.app, on this file's polling terms: edge-triggered on the
 // STORED value, so the setting is authoritative only when it changes — the
 // three-finger gesture and the CROSSPOINT_SIM_ZEN env var keep toggling the
 // live g_zen freely in between. The first pass SEEDS the launch state from the
@@ -2596,7 +2633,7 @@ void CrossPointHarness_perFrame() {
                                        s_mixGuns[3]);
   }
   pollPhosphorGrain();
-  pollZenRatio();
+  pollReaderInsets();
   pollZenMode();
   pollPadContrast();
   repaintAfterForeground();

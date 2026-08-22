@@ -52,7 +52,10 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
-static NSString *const kZenBottomRatio = @"zenBottomRatio";
+// `zenBottomRatio` RETIRED 2026-08-22 (owner: "let's remove the option for
+// every ratio but 1:2") — the five-rung ladder shipped 2026-08-21 and the shim
+// now fixes the multiplier at 1:2. A stored value on an existing install is an
+// ignored orphan key: nothing reads it, so checkKnown never fires for it.
 // Whether the 1-bit pass may reach the screen ahead of the composed one. The
 // missing-key answer from -integerForKey: is 0, which is Off, which is also the
 // shipped default -- so this one is harmless either way.
@@ -238,7 +241,6 @@ static void ensureDefaults(void) {
         // Off: the page arrives at once, which is what every build before this
         // did and what an e-ink panel does.
         kBeamPaintMs : @(0),
-        kZenBottomRatio : @(0),
         // Off: the page holds its brightness for as long as you read it, which
         // is what every build before this did.
         kPageFadeSeconds : @(0),
@@ -473,16 +475,6 @@ int CrossPointPrefs_beamPaintMs(void) {
   // would hold the render loop open for the whole of it. Nothing in the picker
   // reaches here; a hand-edited plist would.
   return ms > 1000 ? 1000 : ms;
-}
-
-int CrossPointPrefs_zenBottomRatio(void) {
-  ensureDefaults();
-  checkKnown(kZenBottomRatio);
-  // NOT clamped here, same reasoning as the palette preset: the shim resolves
-  // an unknown integer to the default ratio, and deciding that twice is how
-  // two answers drift.
-  return static_cast<int>(
-      [[NSUserDefaults standardUserDefaults] integerForKey:kZenBottomRatio]);
 }
 
 int CrossPointPrefs_panelPalettePreset(void) {

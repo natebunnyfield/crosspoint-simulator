@@ -421,11 +421,16 @@ int main(int argc, char **argv) {
                  std::string::npos,
              "padContrastPreset: row is back in Root.plist (removed "
              "2026-08-22; the app is pinned to Accessible)");
+      // Removed 2026-08-22 (owner: "let's remove the option for every ratio
+      // but 1:2") — the zen band proportion is a constant 1:2 in the shim, so
+      // a returning row would be decoration.
+      CHECKM(plist.find("<string>zenBottomRatio</string>") ==
+                 std::string::npos,
+             "zenBottomRatio: row is back in Root.plist (removed 2026-08-22)");
       // The absence checks cannot be satisfied by an empty or wrong file: a
       // kept row must still be present.
-      CHECKM(plist.find("<string>zenBottomRatio</string>") !=
-                 std::string::npos,
-             "zenBottomRatio must stay in Root.plist — is this the right file?");
+      CHECKM(plist.find("<string>beamPaintMs</string>") != std::string::npos,
+             "beamPaintMs must stay in Root.plist — is this the right file?");
     }
   }
 

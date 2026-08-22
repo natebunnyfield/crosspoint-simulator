@@ -152,10 +152,10 @@ int CrossPointPrefs_beamPaintMs(void);
 // Whether the 1-bit pass may land on its own, ahead of the composed frame.
 int CrossPointPrefs_presentFlash(void);
 
-// The zen sheet's band proportion (top black band : bottom black band):
-// 0 = 1:2 (Van de Graaf, the default), 1 = 2:3, 2 = 3:5, 3 = 5:8,
-// 4 = 1:phi. Persisted as the INDEX; rows append, never insert.
-int CrossPointPrefs_zenBottomRatio(void);
+// CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
+// proportion is a constant 1:2 (Van de Graaf) in the shim now, so the setting
+// row died with it (a one-option row is decoration). Stored values are ignored
+// orphan keys.
 
 int CrossPointPrefs_panelPalettePreset(void);
 

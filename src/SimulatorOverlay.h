@@ -70,6 +70,16 @@ int panelHeightPx();
 int panelLeftPx();
 int panelWidthPx();
 
+// The reader's FINAL text-block insets — top after the firmware's paint-time
+// cap-ink trim, then right, bottom, left — in FRAMEBUFFER pixels, as published
+// by EpubReaderActivity through HalGPIO::publishReaderTextInsets on every
+// render. Returns false until the first page render publishes (a caller keeps
+// its own fallback then). Device px = value * (presented panel size /
+// HalDisplay::active* framebuffer size). Implemented in HalGPIO.cpp beside the
+// publisher; declared here because this namespace is already the host-facing
+// window onto panel geometry (panel*Px above).
+bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
+
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
 // a HAL method for the same reason as the rest of this namespace -- following
