@@ -396,98 +396,36 @@ int main(int argc, char **argv) {
     CHECK(presetLevels(kPresetCurrent, true).fill == 1);
   }
 
-  // --- 8. Root.plist agrees with the tables, row by row --------------------
+  // --- 8. The Button Pad rows are OUT of Root.plist, deliberately -----------
   //
-  // The labels are the product here — an honestly-labelled control is the whole
-  // design — so each one is recomputed from the tone its own Value selects.
+  // Owner order 2026-08-22: "remove all settings in app system settings below
+  // zen bottom margin ... and switch to Accessible only for button colors."
+  // The Button Pad group, its preset row and all four contrast ladders left
+  // Settings.app that day. The KEYS keep working — a stored value still
+  // resolves through padpalette::resolveLevels, and CrossPointPrefs.mm
+  // registers the former defaults — but the app pins Accessible at its single
+  // resolution point (currentLevels in ios/CrossPointIOSShim.cpp), so the rows
+  // would be decoration. Asserted ABSENT so a future re-add is a conscious
+  // act, not a merge accident; sections 1–7b above still pin every preset and
+  // every rung of the ladders themselves.
   {
     const std::string plist = slurp(plistPath);
     CHECKM(!plist.empty(), "could not read %s (pass the path as argv[1])",
            plistPath.c_str());
     if (!plist.empty()) {
-      for (const Ladder &L : kLadders) {
-        const Spec spec = readSpec(plist, L.key);
-        CHECKM(spec.found, "%s: no specifier in Root.plist", L.key);
-        if (!spec.found) continue;
-        CHECKM(spec.titles.size() == spec.values.size(),
-               "%s: %zu titles vs %zu values", L.key, spec.titles.size(),
-               spec.values.size());
-        CHECKM(spec.values.size() == (size_t)kContrastLevels,
-               "%s: %zu rows, expected %d", L.key, spec.values.size(),
-               kContrastLevels);
-        CHECKM(spec.defaultValue == L.defaultLevel,
-               "%s: DefaultValue %ld, expected %d", L.key, spec.defaultValue,
-               L.defaultLevel);
-
-        std::set<long> got;
-        for (size_t i = 0; i < spec.values.size() && i < spec.titles.size(); i++) {
-          const long lvl = spec.values[i];
-          got.insert(lvl);
-          const Tone t = toneAt(L.field, L.role, (int)lvl);
-          const double r = contrastRatio(t.c, L.field);
-          const std::string want = formatRatio(r);
-          const std::string &title = spec.titles[i];
-          CHECKM(title.rfind(want, 0) == 0,
-                 "%s level %+ld (%s) measures %s but the row says \"%s\"", L.key,
-                 lvl, hex(t.c).c_str(), want.c_str(), title.c_str());
-
-          // The named rows have to be on the rows they name.
-          const bool isBlack = t.c[0] == 0 && t.c[1] == 0 && t.c[2] == 0;
-          const bool isWhite = t.c[0] == 255 && t.c[1] == 255 && t.c[2] == 255;
-          if (lvl == 0)
-            CHECKM(title.find("invisible") != std::string::npos,
-                   "%s level 0 is not labelled invisible: \"%s\"", L.key,
-                   title.c_str());
-          else if (isBlack)
-            CHECKM(title.find("black") != std::string::npos,
-                   "%s: %s is not labelled black: \"%s\"", L.key, hex(t.c).c_str(),
-                   title.c_str());
-          else if (isWhite)
-            CHECKM(title.find("white") != std::string::npos,
-                   "%s: %s is not labelled white: \"%s\"", L.key, hex(t.c).c_str(),
-                   title.c_str());
-          else if (lvl == L.defaultLevel)
-            CHECKM(title.find("default") != std::string::npos,
-                   "%s level %+d is not labelled default: \"%s\"", L.key,
-                   L.defaultLevel, title.c_str());
-          else if (lvl == L.accessibleLevel)
-            CHECKM(title.find("accessible") != std::string::npos,
-                   "%s level %+d is not labelled accessible: \"%s\"", L.key,
-                   L.accessibleLevel, title.c_str());
-        }
-        for (int lvl = kContrastMin; lvl <= kContrastMax; lvl++)
-          CHECKM(got.count(lvl) == 1, "%s: level %+d appears %zu times in Values",
-                 L.key, lvl, got.count(lvl));
-
-        std::set<std::string> uniqueTitles(spec.titles.begin(), spec.titles.end());
-        CHECKM(uniqueTitles.size() == spec.titles.size(),
-               "%s: two rows print the same label", L.key);
-      }
-
-      // The preset row itself.
-      const Spec preset = readSpec(plist, "padContrastPreset");
-      CHECKM(preset.found, "padContrastPreset: no specifier in Root.plist");
-      if (preset.found) {
-        CHECKM(preset.defaultValue == kPresetBlackWhite,
-               "padContrastPreset default is %ld, not Black & White(%d)",
-               preset.defaultValue, kPresetBlackWhite);
-        std::set<long> vals(preset.values.begin(), preset.values.end());
-        // NOTHING WAS REMOVED to make room for the new row. Each of these is a
-        // look an owner may already be using, and the row is the only way back
-        // to it.
-        CHECKM(vals.count(kPresetCurrent) == 1,
-               "Current must stay reachable: it is the pre-2026-08-16 look and "
-               "the only way back to it");
-        CHECK(vals.count(kPresetAccessible) == 1);
-        CHECK(vals.count(kPresetTransparent) == 1);
-        CHECK(vals.count(kPresetBlackWhite) == 1);
-        CHECKM(vals.count(kPresetCustom) == 1,
-               "Custom must stay reachable: the four fine pickers are otherwise "
-               "unreachable and that is a removed capability");
-        CHECK(preset.titles.size() == preset.values.size());
-        for (long v : preset.values)
-          CHECKM(isKnownPreset((int)v), "Root.plist offers unknown preset %ld", v);
-      }
+      for (const Ladder &L : kLadders)
+        CHECKM(plist.find(std::string("<string>") + L.key + "</string>") ==
+                   std::string::npos,
+               "%s: row is back in Root.plist (removed 2026-08-22)", L.key);
+      CHECKM(plist.find("<string>padContrastPreset</string>") ==
+                 std::string::npos,
+             "padContrastPreset: row is back in Root.plist (removed "
+             "2026-08-22; the app is pinned to Accessible)");
+      // The absence checks cannot be satisfied by an empty or wrong file: a
+      // kept row must still be present.
+      CHECKM(plist.find("<string>zenBottomRatio</string>") !=
+                 std::string::npos,
+             "zenBottomRatio must stay in Root.plist — is this the right file?");
     }
   }
 
