@@ -61,6 +61,16 @@ int CrossPointPrefs_padFillContrast(int dark);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_padContrastPreset(void);
 
+// Is zen mode on? 1 = just the page: the button pad disappears and the screen
+// becomes three big tap targets. Same state the three-finger gesture and the
+// CROSSPOINT_SIM_ZEN env var toggle; the setting is authoritative only when its
+// stored value CHANGES (compare-applied in the shim's pollZenMode), so the
+// gesture keeps working between edits. Missing-key failure mode is benign — NO
+// is the shipped default.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_zenModeEnabled(void);
+
 // Is read-aloud TTS enabled? 1 = read the open book aloud (see
 // CrossPointReadAloud.h), 0 = off, the default. A phone property like the
 // rest of this file: the device hardware has no speaker, so the setting

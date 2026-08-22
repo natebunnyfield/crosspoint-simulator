@@ -25,6 +25,11 @@ static NSString *const kPadFillContrastDark = @"padFillContrastDark";
 // still 1 (Current), from Root.plist.
 static NSString *const kPadContrastPreset = @"padContrastPreset";
 
+// Zen mode. Missing-key failure mode is benign — NO means the pad stays, which
+// is the shipped default; the three-finger gesture and CROSSPOINT_SIM_ZEN can
+// still toggle the live state regardless.
+static NSString *const kZenModeEnabled = @"zenModeEnabled";
+
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
 static NSString *const kReadAloudEnabled = @"readAloudEnabled";
@@ -168,6 +173,31 @@ static void ensureDefaults(void) {
   static dispatch_once_t once;
   dispatch_once(&once, ^{
     NSDictionary *fromBundle = defaultsFromSettingsBundle();
+    // ROWS REMOVED FROM Settings.app 2026-08-22 (owner: "remove all settings
+    // in app system settings below zen bottom margin"). The KEYS keep working
+    // — stored values, env overrides, and the in-app chip/mixer still read
+    // and write them — but the derivation above no longer sees their
+    // DefaultValues, so the former values are registered here. Without this
+    // an untouched install would silently change look: panelPalettePreset
+    // would answer 0 (Custom -> Default page) instead of CRT White, and grain
+    // coverage would fall from Vignette + Mottled to Even.
+    [[NSUserDefaults standardUserDefaults] registerDefaults:@{
+      kPresentFlash : @(0),
+      kPhosphorGrainPercentLight : @(60),
+      kPhosphorGrainPercentDark : @(160),
+      kPhosphorGrainCoverage : @(3),
+      kPhosphorGrainMottleDepth : @(90),
+      kPanelPalettePreset : @(21),  // panelpalette::kPresetWhiteCrt
+      kPanelInkLight : @"2D2D2D",
+      kPanelPaperLight : @"FBFBF9",
+      kPanelInkDark : @"E0E0DE",
+      kPanelPaperDark : @"121212",
+      kPadContrastPreset : @(4),  // padpalette::kPresetBlackWhite
+      kPadOutlineContrastLight : @(-1),
+      kPadFillContrastLight : @(-1),
+      kPadOutlineContrastDark : @(1),
+      kPadFillContrastDark : @(1),
+    }];
     if (fromBundle) {
       [[NSUserDefaults standardUserDefaults] registerDefaults:fromBundle];
     } else {
@@ -190,6 +220,7 @@ static void ensureDefaults(void) {
         // only when Root.plist could not be read at all, so a drift between the
         // two is invisible until a packaging fault exposes it.
         kPadContrastPreset : @(4),  // padpalette::kPresetBlackWhite
+        kZenModeEnabled : @NO,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
         // Default preset, and the four hex fields seeded with the tones that
@@ -285,6 +316,15 @@ static int padContrast(NSString *key) {
 
 int CrossPointPrefs_padOutlineContrast(int dark) {
   return padContrast(dark ? kPadOutlineContrastDark : kPadOutlineContrastLight);
+}
+
+int CrossPointPrefs_zenModeEnabled(void) {
+  ensureDefaults();
+  checkKnown(kZenModeEnabled);
+  // Read live, same as everything here: a toggle flipped in Settings.app
+  // while the app was backgrounded lands on the first frame after returning.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kZenModeEnabled] ? 1
+                                                                            : 0;
 }
 
 int CrossPointPrefs_readAloudEnabled(void) {

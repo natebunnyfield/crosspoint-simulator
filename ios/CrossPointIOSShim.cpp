@@ -187,6 +187,13 @@ SDL_FRect g_zenPaper{};
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
+// In zen the panel is PLACED within the sheet rather than top-aligned: this
+// many device px of the reserved band are moved from the bottom inset to the
+// top inset, so the fit box height -- and therefore the page's scale -- is
+// UNCHANGED (the 2026-08-19 no-resize ruling), while the page rides lower.
+// Computed each layout pass from the selected band ratio and the measured
+// content insets; converges over two passes like the band itself.
+float g_zenPanelShiftPx = 0.0f;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -678,7 +685,10 @@ void layoutPad(int outW, int outH) {
   // What zen extends is the PAPER, painted below the page in paintPad. The
   // page's own geometry is byte-identical in both modes.
   const float band = panelGap + kCellH + kRowClear + kCellH + bottomInset;
-  SimulatorOverlay::setBottomInset(static_cast<int>(band * S));
+  // The zen placement shift: pixels move from this bottom reserve to the top
+  // inset below, in equal measure, so the panel's fit box never changes size.
+  const float shiftPt = g_zen ? g_zenPanelShiftPx / S : 0.0f;
+  SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
 
   // How far the paper reaches in zen: the top rocker row's top edge, snapped
   // DOWN to the 8pt grid, PLUS four cells.
@@ -739,6 +749,41 @@ void layoutPad(int outW, int outH) {
   const float floorToPx =
       SDL_floorf(((H - bottomInset) * S) / gridPx) * gridPx;
   g_zenRowTopPx = SDL_min(ratioToPx, floorToPx);
+  // PANEL PLACEMENT WITHIN THE SHEET (owner 2026-08-22: "place the panel
+  // where it is best within the paper, based on the ratio and the rendered
+  // content"). The selected band ratio also governs where the page sits: the
+  // VISUAL margins -- paper edge to ink, not to the panel's bounds -- split
+  // top : bottom = 1 : r. The content insets are measured from real full
+  // pages at this device class (60 px above the first ink, ~35 px of design
+  // margin below the last line, both at the presented scale); the leftover
+  // line-fill whitespace varies per page and is deliberately not chased.
+  {
+    constexpr float kInkTopInsetPx = 60.0f;
+    constexpr float kInkBottomInsetPx = 35.0f;
+    const float paperTopPx = topBandPx;
+    const float panelHPx =
+        static_cast<float>(SimulatorOverlay::panelHeightPx());
+    if (panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
+      const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
+      const float visTotal = slack + kInkTopInsetPx + kInkBottomInsetPx;
+      const float aboveVis = visTotal / (1.0f + mult);
+      const float panelTopWant = paperTopPx + aboveVis - kInkTopInsetPx;
+      // The non-zen panel top is the card top plus the 12 pt paper margin --
+      // computed absolutely rather than read back from the overlay, because
+      // the published panel top already contains the previous pass's shift
+      // and reading it would feed the loop its own output. The shift is the
+      // difference, never negative (the page never rises above its non-zen
+      // position) and never more than the band can give.
+      const float panelTopNonZen = g_cardTopPx + 12.0f * S;
+      float want = panelTopWant - panelTopNonZen;
+      if (want < 0.0f) want = 0.0f;
+      const float bandPx = band * S;
+      if (want > bandPx - 8.0f * S) want = bandPx - 8.0f * S;
+      g_zenPanelShiftPx = want;
+    } else if (!g_zen) {
+      g_zenPanelShiftPx = 0.0f;
+    }
+  }
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -881,6 +926,7 @@ void layoutPad(int outW, int outH) {
   const float kPaperMargin = 12.0f;    // paper above the page
   topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
   g_cardTopPx = (safeTop > 20.0f ? kCardTop : topInset) * S;
+  if (g_zen) topInset += g_zenPanelShiftPx / S;
   SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
           safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
           safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
@@ -974,8 +1020,13 @@ int g_appliedFill = padpalette::kContrastMin - 1;
 // are read at all -- see PadPalette.h for why the preset overrides rather than
 // writes them.
 padpalette::Levels currentLevels(bool dark) {
+  // ACCESSIBLE ONLY (owner order 2026-08-22: "switch to Accessible only for
+  // button colors", alongside removing the Button Pad rows from Settings.app).
+  // The stored padContrastPreset and the four fine pickers are ignored at this
+  // single resolution point; PadPalette's other presets and its machinery stay
+  // for the library and its tests — only this app's choice is pinned.
   const int d = dark ? 1 : 0;
-  return padpalette::resolveLevels(CrossPointPrefs_padContrastPreset(), dark,
+  return padpalette::resolveLevels(padpalette::kPresetAccessible, dark,
                                    CrossPointPrefs_padOutlineContrast(d),
                                    CrossPointPrefs_padFillContrast(d));
 }
@@ -1236,6 +1287,33 @@ void pollZenRatio() {
   g_padLaidOut = false;  // force the relayout that recomputes the zen band
   SimulatorOverlay::requestPresent();
   SDL_Log("[zen] bottom ratio -> option %d", idx);
+}
+
+// Zen mode from Settings.app, on pollZenRatio's terms: edge-triggered on the
+// STORED value, so the setting is authoritative only when it changes — the
+// three-finger gesture and the CROSSPOINT_SIM_ZEN env var keep toggling the
+// live g_zen freely in between. The first pass SEEDS the launch state from the
+// pref (the env var, when set, wins that one and stays the headless hook)
+// without logging a change; a later flip does exactly what the gesture's
+// toggle branch does after flipping g_zen — invalidate the layout so the band
+// is refitted, and ask for a present.
+void pollZenMode() {
+  static int s_applied = -1;
+  const int on = CrossPointPrefs_zenModeEnabled();
+  if (on == s_applied) return;
+  const bool first = s_applied < 0;
+  s_applied = on;
+  if (first) {
+    if (std::getenv("CROSSPOINT_SIM_ZEN") == nullptr && g_zen != (on != 0)) {
+      g_zen = on != 0;
+      g_padLaidOut = false;  // in case a layout pass beat this first poll
+    }
+    return;
+  }
+  g_zen = on != 0;
+  g_padLaidOut = false;  // the band changes, so the page must be refitted
+  SDL_Log("[zen] %s (setting)", g_zen ? "on" : "off");
+  SimulatorOverlay::requestPresent();
 }
 
 void pollPadContrast() {
@@ -2519,6 +2597,7 @@ void CrossPointHarness_perFrame() {
   }
   pollPhosphorGrain();
   pollZenRatio();
+  pollZenMode();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

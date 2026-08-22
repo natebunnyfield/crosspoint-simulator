@@ -408,52 +408,47 @@ static void testRootPlist(const char *path) {
     return;
   }
 
-  // The preset row.
-  const size_t key = xml.find("<string>panelPalettePreset</string>");
-  CHECKM(key != std::string::npos,
-         "panelPalettePreset: no specifier in Root.plist");
-  if (key == std::string::npos) return;
-  const size_t specStart = xml.rfind("<dict>", key);
-  const size_t specEnd = xml.find("</dict>", key);
+  // THE PAGE-COLOR ROWS BELOW Zen Bottom Margin ARE OUT, DELIBERATELY (owner
+  // order 2026-08-22: "remove all settings in app system settings below zen
+  // bottom margin"). Every KEY keeps working — stored values, env overrides,
+  // and the in-app chip/mixer still read and write them, and
+  // CrossPointPrefs.mm registers the former defaults so an untouched install
+  // renders identically — but Settings.app no longer offers the rows.
+  // Asserted ABSENT so a future re-add is a conscious act, not a merge
+  // accident. The pure phases above still pin every preset's tones, contrast,
+  // migration and trail.
+  const char *removedKeys[] = {
+      "presentFlash",
+      "phosphorGrainPercentLight",
+      "phosphorGrainPercentDark",
+      "phosphorGrainCoverage",
+      "phosphorGrainMottleDepth",
+      "panelPalettePreset",
+      "panelInkLight",
+      "panelPaperLight",
+      "panelInkDark",
+      "panelPaperDark",
+  };
+  for (const char *key : removedKeys)
+    CHECKM(xml.find(std::string("<string>") + key + "</string>") ==
+               std::string::npos,
+           "%s: row is back in Root.plist (removed 2026-08-22)", key);
 
-  const std::vector<std::string> titles =
-      arrayAfter(xml, specStart, specEnd, "Titles");
-  const std::vector<std::string> values =
-      arrayAfter(xml, specStart, specEnd, "Values");
-  CHECKM(titles.size() == values.size() && !values.empty(),
-         "panelPalettePreset: %zu titles vs %zu values", titles.size(),
-         values.size());
-  if (titles.size() != values.size()) return;
-
-  bool sawCustom = false;
-  for (size_t i = 0; i < values.size(); i++) {
-    const int preset = std::atoi(values[i].c_str());
-    CHECKM(isKnownPreset(preset), "Root.plist offers unknown preset %d", preset);
-    if (preset == kPresetCustom) {
-      sawCustom = true;
-      continue;
-    }
-    // If the row prints a ratio, it must be the ratio the tones measure. A
-    // label that lies is worse than no label: it is the only information the
-    // owner has about a choice they cannot preview.
-    const size_t colon = titles[i].find(":1");
-    if (colon == std::string::npos) continue;
-    size_t start = colon;
-    while (start > 0 && (isdigit(titles[i][start - 1]) ||
-                         titles[i][start - 1] == '.'))
-      start--;
-    const double claimed = std::atof(titles[i].substr(start, colon - start).c_str());
-    const double light = contrast(presetPalette(preset, false));
-    const double dark = contrast(presetPalette(preset, true));
-    // The row prints ONE number for a preset that has two halves, so it is
-    // allowed to match either -- but it must match one of them to a rounding
-    // step, not sit between them decoratively.
-    CHECKM(std::fabs(claimed - light) < 0.06 || std::fabs(claimed - dark) < 0.06,
-           "Root.plist row \"%s\" claims %.2f:1; preset %d measures %.2f:1 "
-           "light / %.2f:1 dark",
-           titles[i].c_str(), claimed, preset, light, dark);
-  }
-  CHECK(sawCustom);
+  // ...and the survivors are still there, so the absences above cannot be
+  // satisfied by an empty or wrong file. The Page Colors group now ENDS at
+  // Zen Bottom Margin; Read Aloud survives whole; the new Zen toggle sits at
+  // the very top.
+  const size_t zenToggle = xml.find("<string>zenModeEnabled</string>");
+  CHECKM(zenToggle != std::string::npos,
+         "zenModeEnabled (the Zen toggle) must be in Root.plist");
+  CHECKM(xml.find("<string>zenBottomRatio</string>") != std::string::npos,
+         "zenBottomRatio must stay in Root.plist");
+  CHECKM(xml.find("<string>readAloudEnabled</string>") != std::string::npos,
+         "the Read Aloud section must survive the removal");
+  CHECKM(xml.find("<string>diagnosticsEnabled</string>") != std::string::npos,
+         "diagnosticsEnabled sits inside Read Aloud and stays");
+  CHECKM(zenToggle < xml.find("<string>allowSleepOnBattery</string>"),
+         "the Zen toggle belongs at the very top of Settings");
 
   // A RETIRED preset must behave exactly like an unknown one, and must not come
   // back in the picker. 14 was Sepia CRT until 2026-08-17; the constant survives
@@ -471,13 +466,8 @@ static void testRootPlist(const char *path) {
                pack(d.paper) == pack(kDefaultDark.paper),
            "a stored 14 must land on Default, the same as any unknown integer");
   }
-  for (size_t i = 0; i < values.size(); i++) {
-    const int offered = std::atoi(values[i].c_str());
-    CHECKM(offered != kPresetSepiaCrt,
-           "Root.plist still offers the retired preset 14");
-    CHECKM(offered != kPresetSoft && offered != kPresetCoolGray,
-           "Root.plist still offers a replaced preset (%d)", offered);
-  }
+  // (The "must not be offered in the picker" half of retirement is subsumed by
+  // the row's absence, asserted above.)
 
   // REPLACED, not removed: a stored choice follows its replacement forward.
   // This is the half that separates the two kinds of retirement -- 14 was
@@ -507,33 +497,10 @@ static void testRootPlist(const char *path) {
            "14 was deleted, not replaced -- it must not migrate");
   }
 
-  // THE CYCLE ORDER IS THE SETTINGS ORDER. The page-color button beside POWER
-  // steps through panelpalette::kPresetInfo, and the owner asked for it to cycle
-  // "in the order that they appear in page colors setting" -- which is this
-  // Root.plist row order. Two hand-kept lists of fifteen rows, so they are
-  // checked against each other rather than trusted: a mismatch is not an error
-  // anywhere, it just means the button skips around the list.
-  {
-    std::vector<int> plistOrder;
-    for (size_t i = 0; i < values.size(); i++) {
-      const int preset = std::atoi(values[i].c_str());
-      if (preset != kPresetCustom) plistOrder.push_back(preset);
-    }
-    CHECKM(plistOrder.size() == static_cast<size_t>(kPresetInfoCount),
-           "Root.plist offers %zu presets, kPresetInfo has %d -- the button's "
-           "cycle and the Settings list disagree on WHICH presets exist",
-           plistOrder.size(), kPresetInfoCount);
-    const size_t n = plistOrder.size() < static_cast<size_t>(kPresetInfoCount)
-                         ? plistOrder.size()
-                         : static_cast<size_t>(kPresetInfoCount);
-    for (size_t i = 0; i < n; i++) {
-      CHECKM(plistOrder[i] == kPresetInfo[i].preset,
-             "row %zu: Root.plist has preset %d, kPresetInfo has %d (%s . %s) "
-             "-- the button would cycle out of the order the setting shows",
-             i, plistOrder[i], kPresetInfo[i].preset, kPresetInfo[i].family,
-             kPresetInfo[i].name);
-    }
-  }
+  // THE CYCLE ORDER used to be checked against this Root.plist row's order;
+  // the row left Settings.app 2026-08-22, so panelpalette::kPresetInfo is now
+  // the single definition of the cycle and there is no second list to drift
+  // from. Its own invariants are still pinned below.
 
   // A CRT row without a usable decay is a phosphor that cannot glow, which is
   // the one thing the family is for. decayMs is allowed to come off the class
@@ -573,57 +540,9 @@ static void testRootPlist(const char *path) {
            "kPresetInfo[%d] has a null string", i);
   }
 
-  // DefaultValue must be the SHIPPED default, and it is one character wide.
-  //
-  // It was pinned to Default for as long as the point was that an untouched
-  // install stayed pixel-identical to what this repo always drew. Owner ruling
-  // 2026-08-18 retired that premise deliberately: a fresh install now opens on
-  // CRT White (P45) with the beam, the fade and a mottled vignette already on.
-  // The check stays because its real job is unchanged -- this value must never
-  // move by accident, only by decision.
-  const size_t dv = xml.find("<key>DefaultValue</key>", specStart);
-  CHECKM(dv != std::string::npos && dv < specEnd,
-         "panelPalettePreset has no DefaultValue");
-  if (dv != std::string::npos && dv < specEnd) {
-    const size_t open = xml.find("<integer>", dv);
-    const size_t close = xml.find("</integer>", open);
-    CHECKM(std::atoi(xml.substr(open + 9, close - open - 9).c_str()) ==
-               kPresetWhiteCrt,
-           "panelPalettePreset DefaultValue must be %d (CRT White, P45)",
-           kPresetWhiteCrt);
-  }
-
-  // The four Custom fields, and their seeded defaults. A seed that does not
-  // parse, or that is not the shipped tone, means the owner's first visit to
-  // Custom silently changes the page.
-  struct Field {
-    const char *key;
-    uint32_t want;
-  };
-  const Field fields[] = {{"panelInkLight", pack(kDefaultLight.ink)},
-                          {"panelPaperLight", pack(kDefaultLight.paper)},
-                          {"panelInkDark", pack(kDefaultDark.ink)},
-                          {"panelPaperDark", pack(kDefaultDark.paper)}};
-  for (const Field &f : fields) {
-    const std::string needle = std::string("<string>") + f.key + "</string>";
-    const size_t at = xml.find(needle);
-    CHECKM(at != std::string::npos, "%s: no specifier in Root.plist", f.key);
-    if (at == std::string::npos) continue;
-    const size_t start = xml.rfind("<dict>", at);
-    const size_t end = xml.find("</dict>", at);
-    const size_t d = xml.find("<key>DefaultValue</key>", start);
-    CHECKM(d != std::string::npos && d < end, "%s has no DefaultValue", f.key);
-    if (d == std::string::npos || d >= end) continue;
-    const size_t open = xml.find("<string>", d);
-    const size_t close = xml.find("</string>", open);
-    const std::string seeded = xml.substr(open + 8, close - open - 8);
-    CHECKM(static_cast<uint32_t>(parseHexRgb(seeded.c_str())) == f.want,
-           "%s is seeded \"%s\"; expected %06X", f.key, seeded.c_str(), f.want);
-    // The field must be a text field: no other specifier type can carry a hex
-    // color, and a PSMultiValueSpecifier here would silently store an index.
-    CHECKM(xml.find("PSTextFieldSpecifier", start) < end,
-           "%s must be a PSTextFieldSpecifier", f.key);
-  }
+  // The DefaultValue and Custom-field-seed checks left with their rows. The
+  // shipped default itself (CRT White, with its registered fallback) is now
+  // stated in CrossPointPrefs.mm's supplemental registerDefaults, not here.
 }
 
 
