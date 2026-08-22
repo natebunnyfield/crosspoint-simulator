@@ -163,6 +163,13 @@ run sim_settings_file \
 run phosphor_mix \
   c++ -std=c++17 -Isrc -o "$OUT/phosphor_mix" tests/phosphor_mix_test.cpp
 
+# The four-gun mixer's CSV codec. Weights are POSITIONAL, never matched by
+# preset: two guns may share a phosphor, and the by-preset lookup this
+# replaces collapsed both onto one stored pair (the duplicated-guns bug,
+# 2026-08-22). Every failure mode is a silently rewritten recipe.
+run gun_mix_csv \
+  c++ -std=c++17 -Isrc -o "$OUT/gun_mix_csv" tests/gun_mix_csv_test.cpp
+
 # The grain field. Every failure mode is a wrong PICTURE -- a field that only
 # darkens is the difference between texture and the page-flash bug class, "off"
 # that is nearly-off instead of bit-exact is a silent change to every install
