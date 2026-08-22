@@ -60,6 +60,7 @@
 #include "HalGPIO.h"
 
 extern "C" bool CrossPointMixer_isPresented(void);
+extern "C" bool CrossPointInkPicker_isPresented(void);
 // The shim's toggle: flip g_zen, refit, present, and spoil the SDL-side tap
 // candidate and classifier for the same three fingers.
 extern "C" void CrossPointZen_toggleFromRecognizer(void);
@@ -84,8 +85,8 @@ bool g_zenOn = false;
   // The mixer sheet leaves the view under it hit-testable (pageSheet with an
   // undimmed medium detent); a gesture on the exposed page must not drive the
   // reader while the tray is up. Same rule as the shim's finger gate.
-  if (CrossPointMixer_isPresented()) {
-    SDL_Log("[zen] recognizer %s swallowed (mixer presented)", what);
+  if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
+    SDL_Log("[zen] recognizer %s swallowed (palette sheet presented)", what);
     return;
   }
   SDL_Log("[zen] recognizer %s -> button %d", what, (int)button);
@@ -158,8 +159,8 @@ bool g_zenOn = false;
 }
 
 - (void)threeTap:(UITapGestureRecognizer *)g {
-  if (CrossPointMixer_isPresented()) {
-    SDL_Log("[zen] recognizer 3-finger toggle swallowed (mixer presented)");
+  if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
+    SDL_Log("[zen] recognizer 3-finger toggle swallowed (palette sheet presented)");
     return;
   }
   SDL_Log("[zen] recognizer 3-finger tap -> toggle");
@@ -199,8 +200,8 @@ bool g_zenOn = false;
     return;
   }
   if (!g_zenOn) return;  // shake is a zen verb only
-  if (CrossPointMixer_isPresented()) {
-    SDL_Log("[zen] shake swallowed (mixer presented)");
+  if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
+    SDL_Log("[zen] shake swallowed (palette sheet presented)");
     return;
   }
   SDL_Log("[zen] shake -> font family step");
@@ -302,6 +303,11 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
           initWithTarget:g_handler
                   action:@selector(longPress:)];
       lp.numberOfTouchesRequired = 1;
+      // 0.75 s, not UIKit's 0.5 (owner 2026-08-22, from device: "long tap
+      // select is too fast. make at least 1.5x longer"). The stock feel is
+      // still the recognizer's; only the threshold is ours, because a reader
+      // rests a thumb on the page far more than a springboard does.
+      lp.minimumPressDuration = 0.75;
       [rs addObject:lp];
 
       for (UIGestureRecognizer *r in rs) {
