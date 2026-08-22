@@ -173,6 +173,22 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   10 = 0.10, visible                90 = 0.90, plainly a coated surface
   "phosphorGrainMottleDepth": 90,
 
+  // ---------------------------------------------- LETTERPRESS / SCANLINES ---
+  // The 2026-08-22 doctrine: light mode is paper and ink (letterpress), dark
+  // mode is a CRT (scanlines instead of the mottled grain). While either is
+  // active in its mode the grain above is skipped; set it to 0 to get the old
+  // grain back for comparison. Both 0 here so the desktop renders what it
+  // always did; the iOS app defaults both to 50.
+  // Letterpress, percent of standard: ink-squeeze rim, deboss shadow, plate
+  // pressure, paper tooth.
+  //   0 = off   50 = subtle   100 = standard   200 = heavy
+  "letterpressPercent": 0,
+
+  // Scanlines, percent of standard: one scan line per page row, Gaussian
+  // beam, bright-content bloom, blotch depth folded into the dial.
+  //   0 = off   50 = subtle   100 = standard   150 = deep
+  "scanlinesPercent": 0,
+
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A
   // mix OWNS the page and its glow while active; panelPalettePreset is ignored.

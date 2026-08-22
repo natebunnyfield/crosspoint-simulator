@@ -282,4 +282,27 @@ void setPresentFlash(bool wanted);
 void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
                       int mottleDepthHundredths);
 
+// LETTERPRESS: the LIGHT page's surface treatment (owner doctrine 2026-08-22:
+// light mode is paper-and-ink emulation, dark mode is CRT emulation). Percent
+// of standard: 0 off (bit-exact), 50 subtle (the iOS light default), 100
+// standard, 200 heavy. Ink-squeeze rim, deboss shadow, plate pressure and
+// paper tooth, all darken-only, drawn over the PANEL only -- it is a property
+// of the page, not the glass. Model: src/Letterpress.h (host-tested); design:
+// docs/letterpress-and-scanlines.md. While it is active in light mode the
+// grain pass is skipped (the doctrine replaces it); dial it to 0 to A/B the
+// old grain. CROSSPOINT_SIM_LETTERPRESS overrides the argument.
+void setLetterpress(int strengthPercent);
+
+// SCANLINES: the DARK page's screen texture, replacing the mottled grain
+// (supersedes the 2026-08-18 "no scanlines" ruling -- owner order 2026-08-22).
+// Percent of standard: 0 off (bit-exact), 50 subtle (the iOS dark default),
+// 100 standard, 150 deep. One scan line per source row, Gaussian beam profile
+// box-integrated at output size (the ST-008 lesson), content-aware bloom, and
+// the mottle folded into the ladder as depth modulation ON the line
+// structure. Darken-only, over the whole app surface like the grain was.
+// Model: src/Scanlines.h (host-tested). While it is active in dark mode the
+// grain pass is skipped; dial it to 0 to A/B the old grain.
+// CROSSPOINT_SIM_SCANLINES overrides the argument.
+void setScanlines(int intensityPercent);
+
 } // namespace SimulatorOverlay

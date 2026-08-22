@@ -1,5 +1,17 @@
 # Phosphor screen grain
 
+> **SUPERSEDED IN PART, 2026-08-22.** The owner's doctrine order — *light mode
+> is paper-and-ink emulation with a letterpress experience, dark mode is CRT
+> emulation, "replace mottled noise in dark mode with hyperrealistic
+> scanlines"* — **overturns this file's 2026-08-18 "no scanlines" ruling for
+> dark mode**, and replaces the grain as the default texture in BOTH modes:
+> letterpress (light) and scanlines (dark), each skipping the grain pass while
+> its dial is on. The grain machinery, its dials, its env vars and its test all
+> remain — any mode whose new dial is OFF falls back to exactly the behavior
+> documented here, which is also what keeps the desktop canary byte-identical.
+> The "What was ruled out" table below is kept as the historical record it is.
+> See [docs/letterpress-and-scanlines.md](letterpress-and-scanlines.md).
+
 Added 2026-08-18. Model in [`src/PhosphorGrain.h`](../src/PhosphorGrain.h),
 composited in `HalDisplay::presentIfNeeded`, host-tested by
 [`tests/phosphor_grain_test.cpp`](../tests/phosphor_grain_test.cpp).

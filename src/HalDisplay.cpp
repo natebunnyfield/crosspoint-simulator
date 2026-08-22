@@ -6,9 +6,11 @@
 #include <SDL3/SDL.h>
 
 #include "GrayscalePreview.h"
+#include "Letterpress.h"
 #include "PageFade.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
+#include "Scanlines.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 
@@ -989,6 +991,14 @@ static std::atomic<int> grainCoverage{phosphorgrain::Even};
 static std::atomic<int> grainMottleCells{phosphorgrain::kMottleCellsDefault};
 static std::atomic<int> grainMottleDepthPct{
     static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f)};
+// THE 2026-08-22 DOCTRINE SPLIT: light mode is paper-and-ink (letterpress),
+// dark mode is CRT (scanlines, superseding the mottled grain there). Both
+// default OFF so a build that never calls the setters -- every desktop build
+// -- renders byte-for-byte what it always did; the iOS defaults live in
+// CrossPointPrefs. See src/Letterpress.h, src/Scanlines.h and
+// docs/letterpress-and-scanlines.md.
+static std::atomic<int> letterpressStrength{letterpress::kStrengthOff};
+static std::atomic<int> scanlinesIntensity{scanlines::kIntensityOff};
 
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
@@ -1047,6 +1057,30 @@ void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
   // Repaint rather than wait. The field is regenerated lazily by the present
   // path, but an e-ink firmware may not render for minutes, so without this the
   // new grain would first appear at some unrelated page turn.
+  pendingPresent.store(true);
+}
+
+void setLetterpress(int strengthPercent) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_LETTERPRESS")) {
+    // strtol with the end pointer checked, same reason as the grain's: atoi
+    // answers 0 for garbage, and 0 here is the feature switched off.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) strengthPercent = static_cast<int>(parsed);
+  }
+  const int s = letterpress::clampStrength(strengthPercent);
+  if (letterpressStrength.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setScanlines(int intensityPercent) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINES")) {
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) intensityPercent = static_cast<int>(parsed);
+  }
+  const int s = scanlines::clampIntensity(intensityPercent);
+  if (scanlinesIntensity.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
@@ -1243,6 +1277,12 @@ void HalDisplay::begin() {
       phosphorgrain::kStrengthRealistic, phosphorgrain::Even,
       phosphorgrain::kMottleCellsDefault,
       static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f));
+  // Ninth and tenth time. Off is what the desktop ships, so with the vars
+  // unset both are no-ops -- but CROSSPOINT_SIM_LETTERPRESS and
+  // CROSSPOINT_SIM_SCANLINES are read inside the setters, and an unseeded
+  // dial's env override is dead on the desktop.
+  SimulatorOverlay::setLetterpress(letterpress::kStrengthOff);
+  SimulatorOverlay::setScanlines(scanlines::kIntensityOff);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1281,6 +1321,10 @@ void HalDisplay::begin() {
     SimulatorOverlay::setPageFadeDepth(75);
     SimulatorOverlay::setBeamPaint(67.0f);
     SimulatorOverlay::setPhosphorGrain(100, phosphorgrain::VignetteMottled, 8, 30);
+    // The 2026-08-22 doctrine dials, at the iOS defaults: letterpress Subtle
+    // for light, scanlines Subtle for dark.
+    SimulatorOverlay::setLetterpress(50);
+    SimulatorOverlay::setScanlines(50);
     SimulatorOverlay::setPanelDark(true);
   }
 
@@ -1684,6 +1728,287 @@ static bool ensureGrainTexture(int w, int h) {
               w, h, strength, coverage, cells,
               static_cast<double>(depthPct) / 100.0, seed,
               static_cast<double>(amplitude));
+  return true;
+}
+
+// sRGB relative luminance of a palette tone -- the same weights the contrast
+// floor and the grain's budget use.
+static float srgbLumOf(const unsigned char c[3]) {
+  auto ch = [](unsigned char v) {
+    const float f = static_cast<float>(v) / 255.0f;
+    return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+  };
+  return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
+}
+
+// --- LETTERPRESS (light mode) ----------------------------------------------
+//
+// A MOD texture at FRAMEBUFFER size, drawn through the same rotation and dst
+// rect as the panel itself -- letterpress is a property of the PAGE, not the
+// glass, so unlike the grain it covers the panel only. Content-locked and
+// aperiodic, so scaling with the panel cannot beat against the presentation
+// (the ST-008 moire needs a regular lattice). Regenerated only when the
+// content, the dial, the palette or the launch seed changes: a still page
+// costs nothing. Model and reasoning: src/Letterpress.h.
+static SDL_Texture *letterpressTexture = nullptr;
+static int letterTexW = 0, letterTexH = 0;
+static uint64_t letterTexSeq = 0;
+static int letterTexStrength = -1;
+static uint32_t letterTexKey = 0;
+
+static void destroyLetterpressTexture() {
+  if (!letterpressTexture) return;
+  SDL_DestroyTexture(letterpressTexture);
+  letterpressTexture = nullptr;
+  letterTexW = letterTexH = 0;
+  letterTexSeq = 0;
+  letterTexStrength = -1;
+  letterTexKey = 0;
+}
+
+static bool ensureLetterpressTexture() {
+  const int strength = SimulatorOverlay::letterpressStrength.load();
+  const int w = HalDisplay::activeWidth();
+  const int h = HalDisplay::activeHeight();
+  if (strength <= 0 || w <= 0 || h <= 0 || !sdl_renderer) {
+    destroyLetterpressTexture();
+    return false;
+  }
+  const PanelPalette live = livePanelPalette(display.isInverted());
+  const uint32_t seed = grainSeed() ^ 0x50524553u;  // 'PRES'
+  const uint32_t palKey =
+      phosphorgrain::hash3(static_cast<uint32_t>(live.ink[0]) << 16 |
+                               static_cast<uint32_t>(live.ink[1]) << 8 |
+                               live.ink[2],
+                           static_cast<uint32_t>(live.paper[0]) << 16 |
+                               static_cast<uint32_t>(live.paper[1]) << 8 |
+                               live.paper[2],
+                           seed);
+  // Read the frame and its seq together, under the lock, so the key can never
+  // describe pixels from a different frame than the ones read.
+  std::vector<uint8_t> inkness;
+  uint64_t seq = 0;
+  {
+    const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    seq = pixelBufSeq;
+    if (letterpressTexture && letterTexW == w && letterTexH == h &&
+        letterTexSeq == seq && letterTexStrength == strength &&
+        letterTexKey == palKey)
+      return true;
+    // INKNESS: where each pixel sits on the ink->paper segment, 255 = ink.
+    // Projection in byte space, because pixelBuf's grays are integer-lerped
+    // between exactly these two tones.
+    const float dr = static_cast<float>(live.paper[0]) - live.ink[0];
+    const float dg = static_cast<float>(live.paper[1]) - live.ink[1];
+    const float db = static_cast<float>(live.paper[2]) - live.ink[2];
+    const float denom = dr * dr + dg * dg + db * db;
+    if (denom < 1.0f) return false;  // degenerate palette: no edges to find
+    inkness.resize(static_cast<size_t>(w) * h);
+    for (size_t i = 0; i < inkness.size(); ++i) {
+      const uint32_t px = pixelBuf[i];
+      const float pr = static_cast<float>((px >> 16) & 0xFF) - live.ink[0];
+      const float pg = static_cast<float>((px >> 8) & 0xFF) - live.ink[1];
+      const float pb = static_cast<float>(px & 0xFF) - live.ink[2];
+      float t = 1.0f - (pr * dr + pg * dg + pb * db) / denom;
+      if (t < 0.0f) t = 0.0f;
+      if (t > 1.0f) t = 1.0f;
+      inkness[i] = static_cast<uint8_t>(t * 255.0f + 0.5f);
+    }
+  }
+
+  destroyLetterpressTexture();
+  letterpressTexture =
+      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                        SDL_TEXTUREACCESS_STATIC, w, h);
+  if (!letterpressTexture) {
+    LOG_ERR("DISP", "letterpress: no field texture (%s)", SDL_GetError());
+    return false;
+  }
+  letterpress::Params params;
+  params.strengthPercent = strength;
+  params.seed = seed;
+  params.paperDarkenBudget =
+      letterpress::paperBudget(srgbLumOf(live.ink), srgbLumOf(live.paper));
+  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+  auto tAt = [&](int x, int y) {
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= w) x = w - 1;
+    if (y >= h) y = h - 1;
+    return static_cast<float>(inkness[static_cast<size_t>(y) * w + x]) / 255.0f;
+  };
+  for (int y = 0; y < h; ++y) {
+    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+    for (int x = 0; x < w; ++x) {
+      float win[3][3];
+      for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx)
+          win[dy + 1][dx + 1] = tAt(x + dx, y + dy);
+      const uint32_t m = letterpress::multiplierAt(params, win, x, y, w, h);
+      // Achromatic, like the grain: pressed ink is MORE of its own pigment and
+      // a deboss shadow is LESS of the paper's light, not a different colour.
+      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+  if (!SDL_UpdateTexture(letterpressTexture, nullptr, field.data(),
+                         static_cast<int>(w * sizeof(uint32_t)))) {
+    LOG_ERR("DISP", "letterpress: could not upload the field (%s)",
+            SDL_GetError());
+    destroyLetterpressTexture();
+    return false;
+  }
+  SDL_SetTextureBlendMode(letterpressTexture, SDL_BLENDMODE_MOD);
+  letterTexW = w;
+  letterTexH = h;
+  letterTexSeq = seq;
+  letterTexStrength = strength;
+  letterTexKey = palKey;
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f",
+              w, h, strength, seed,
+              static_cast<double>(params.paperDarkenBudget));
+  return true;
+}
+
+// --- SCANLINES (dark mode) -------------------------------------------------
+//
+// A MOD texture at OUTPUT size, drawn 1:1 over the whole app surface -- one
+// raster covers the glass, the same one-sheet ruling the grain followed. The
+// per-row erf work is x-independent, so it is cached per (row, level bucket)
+// and folded per pixel through scanlines::combine, which the host test pins
+// as exactly multiplierAt. Bloom levels come from reading back the composed
+// backbuffer at regeneration time, so the beam-current model sees the true
+// light -- palette, fade and accumulator included. Regenerated per content
+// seq (page turns), never per frame: a still page must not crawl.
+static SDL_Texture *scanTexture = nullptr;
+static int scanTexW = 0, scanTexH = 0;
+static uint64_t scanTexSeq = 0;
+static int scanTexIntensity = -1;
+static uint32_t scanTexKey = 0;
+static int scanTexPitchKey = -1;
+
+static void destroyScanTexture() {
+  if (!scanTexture) return;
+  SDL_DestroyTexture(scanTexture);
+  scanTexture = nullptr;
+  scanTexW = scanTexH = 0;
+  scanTexSeq = 0;
+  scanTexIntensity = -1;
+  scanTexKey = 0;
+  scanTexPitchKey = -1;
+}
+
+static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
+  const int intensity = SimulatorOverlay::scanlinesIntensity.load();
+  if (intensity <= 0 || w <= 0 || h <= 0 || pitchPx <= 0.0f || !sdl_renderer) {
+    destroyScanTexture();
+    return false;
+  }
+  const PanelPalette live = livePanelPalette(display.isInverted());
+  const uint32_t seed = grainSeed() ^ 0x5343414Eu;  // 'SCAN'
+  const uint32_t palKey =
+      phosphorgrain::hash3(static_cast<uint32_t>(live.ink[0]) << 16 |
+                               static_cast<uint32_t>(live.ink[1]) << 8 |
+                               live.ink[2],
+                           static_cast<uint32_t>(live.paper[0]) << 16 |
+                               static_cast<uint32_t>(live.paper[1]) << 8 |
+                               live.paper[2],
+                           seed);
+  const int pitchKey = static_cast<int>(pitchPx * 1000.0f + 0.5f);
+  const uint64_t seq = pixelBufSeq;
+  if (scanTexture && scanTexW == w && scanTexH == h && scanTexSeq == seq &&
+      scanTexIntensity == intensity && scanTexKey == palKey &&
+      scanTexPitchKey == pitchKey)
+    return true;
+
+  scanlines::Params params;
+  params.intensityPercent = intensity;
+  params.seed = seed;
+  params.pitchPx = pitchPx;
+  params.mottleDepth = scanlines::mottleDepthFor(intensity);
+  params.budgetMeanDarkening =
+      0.8f * phosphorgrain::darkeningBudget(srgbLumOf(live.ink),
+                                            srgbLumOf(live.paper));
+
+  // The beam-current map: 16 brightness buckets off the composed frame.
+  // Everything already drawn this present -- page, chrome, letterbox -- is
+  // exactly the light the raster carries, so nothing needs the panel rect or
+  // the orientation arithmetic.
+  std::vector<uint8_t> bucket(static_cast<size_t>(w) * h, 0);
+  if (SDL_Surface *snap = SDL_RenderReadPixels(sdl_renderer, nullptr)) {
+    SDL_Surface *conv = snap;
+    if (snap->format != SDL_PIXELFORMAT_ARGB8888)
+      conv = SDL_ConvertSurface(snap, SDL_PIXELFORMAT_ARGB8888);
+    if (conv) {
+      const int cw = conv->w < w ? conv->w : w;
+      const int chh = conv->h < h ? conv->h : h;
+      for (int y = 0; y < chh; ++y) {
+        const uint32_t *src = reinterpret_cast<const uint32_t *>(
+            static_cast<const uint8_t *>(conv->pixels) +
+            static_cast<size_t>(y) * conv->pitch);
+        uint8_t *dst = bucket.data() + static_cast<size_t>(y) * w;
+        for (int x = 0; x < cw; ++x) {
+          const uint32_t px = src[x];
+          const uint32_t luma = 54u * ((px >> 16) & 0xFF) +
+                                183u * ((px >> 8) & 0xFF) + 19u * (px & 0xFF);
+          dst[x] = static_cast<uint8_t>((luma >> 8) >> 4);  // 0..15
+        }
+      }
+      if (conv != snap) SDL_DestroySurface(conv);
+    }
+    SDL_DestroySurface(snap);
+  }
+
+  // Per-(row, bucket) transmission: the erf work, done once per row.
+  std::vector<float> rowT(static_cast<size_t>(h) * 16);
+  for (int y = 0; y < h; ++y)
+    for (int b = 0; b < 16; ++b)
+      rowT[static_cast<size_t>(y) * 16 + b] = scanlines::rowTransmission(
+          params, static_cast<float>(y),
+          (static_cast<float>(b) + 0.5f) / 16.0f);
+
+  destroyScanTexture();
+  scanTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                                  SDL_TEXTUREACCESS_STATIC, w, h);
+  if (!scanTexture) {
+    LOG_ERR("DISP", "scanlines: no field texture (%s)", SDL_GetError());
+    return false;
+  }
+  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+  for (int y = 0; y < h; ++y) {
+    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+    const float *tRow = rowT.data() + static_cast<size_t>(y) * 16;
+    const uint8_t *bRow = bucket.data() + static_cast<size_t>(y) * w;
+    for (int x = 0; x < w; ++x) {
+      const uint32_t m = scanlines::combine(params, tRow[bRow[x]], x, y, w, h);
+      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+  if (!SDL_UpdateTexture(scanTexture, nullptr, field.data(),
+                         static_cast<int>(w * sizeof(uint32_t)))) {
+    LOG_ERR("DISP", "scanlines: could not upload the field (%s)",
+            SDL_GetError());
+    destroyScanTexture();
+    return false;
+  }
+  SDL_SetTextureBlendMode(scanTexture, SDL_BLENDMODE_MOD);
+  // Drawn 1:1; pinned to NEAREST so a half-pixel rect can never smear the
+  // raster into a gray wash.
+  SDL_SetTextureScaleMode(scanTexture, SDL_SCALEMODE_NEAREST);
+  scanTexW = w;
+  scanTexH = h;
+  scanTexSeq = seq;
+  scanTexIntensity = intensity;
+  scanTexKey = palKey;
+  scanTexPitchKey = pitchKey;
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[scanlines] field %dx%d intensity %d pitch %.3f px/line "
+              "mottle %.2f seed %u budget %.3f",
+              w, h, intensity, static_cast<double>(pitchPx),
+              static_cast<double>(params.mottleDepth), seed,
+              static_cast<double>(params.budgetMeanDarkening));
   return true;
 }
 
@@ -2401,6 +2726,27 @@ void HalDisplay::presentIfNeeded() {
     pendingPresent.store(true);
   }
 
+  // LETTERPRESS -- the LIGHT page's surface treatment (doctrine 2026-08-22:
+  // light is paper and ink, dark is CRT). Drawn over the PANEL only, through
+  // the same drawPanel rotation and dst as the page itself, because ink
+  // squash is a property of the paper and not of the glass -- the one-sheet
+  // argument that moved the grain OUT past the overlay runs the other way
+  // here. Content-locked and aperiodic, so scaling with the panel cannot
+  // beat against the presentation. MOD blend: it can only darken. Its filter
+  // copies the panel texture's live one, so the ring gets whatever treatment
+  // the glyph edges themselves get at this scale.
+  if (!display.isInverted() &&
+      SimulatorOverlay::letterpressStrength.load() > 0) {
+    if (ensureLetterpressTexture()) {
+      SDL_ScaleMode panelMode = kPanelScaleMode;
+      SDL_GetTextureScaleMode(texture, &panelMode);
+      SDL_SetTextureScaleMode(letterpressTexture, panelMode);
+      drawPanel(letterpressTexture);
+    }
+  } else if (letterpressTexture) {
+    destroyLetterpressTexture();
+  }
+
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
   // coordinate space cannot address -- so drop logical presentation, hand the
   // painter real pixels, then restore it for the next frame.
@@ -2439,7 +2785,66 @@ void HalDisplay::presentIfNeeded() {
   // It is fixed to the GLASS: it does not rotate with the orientation, and a
   // Vignette now darkens the corners of the SCREEN rather than of the page,
   // which is what a vignette physically is.
-  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff) {
+  // THE 2026-08-22 DOCTRINE SPLIT decides what texture the glass gets:
+  // SCANLINES in dark mode (the CRT half), LETTERPRESS -- drawn above, in
+  // panel space -- in light mode (the paper half). While either is active the
+  // grain pass is SKIPPED: the doctrine replaces it, not layers over it. The
+  // grain machinery stays compiled and its dials intact, so any mode whose
+  // new dial is OFF falls back to exactly the old grain behavior -- which is
+  // what keeps the desktop canary byte-identical (the desktop seeds both new
+  // dials off) -- and A/B against the old look is one env var
+  // (CROSSPOINT_SIM_SCANLINES=0 CROSSPOINT_SIM_GRAIN=100).
+  const bool darkNow = display.isInverted();
+  const bool scanlinesActive =
+      darkNow && SimulatorOverlay::scanlinesIntensity.load() > 0;
+  const bool letterpressActive =
+      !darkNow && SimulatorOverlay::letterpressStrength.load() > 0;
+
+  if (scanlinesActive) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
+        outW > 0 && outH > 0) {
+      // THE PITCH IS THE PRESENTATION SCALE: one scan line per SOURCE row
+      // (logical page rows, render scale divided out), so the raster carries
+      // the page's own lattice and cannot beat against a second one. See
+      // src/Scanlines.h for why a fixed ~500-line tube was rejected.
+      const int srcRows = (isPortraitOrientation(orientation)
+                               ? activeWidth()
+                               : activeHeight()) /
+                          cp::renderScale();
+      float pitch = 0.0f;
+      if (manualPlacement && panelRectH > 0 && srcRows > 0) {
+        pitch = static_cast<float>(panelRectH) / static_cast<float>(srcRows);
+      } else if (srcRows > 0) {
+        int logW = 0, logH = 0;
+        getLogicalPresentationSize(orientation, &logW, &logH);
+        if (logW > 0 && logH > 0) {
+          float s = SDL_min(static_cast<float>(outW) / logW,
+                            static_cast<float>(outH) / logH);
+          if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE &&
+              s >= 1.0f)
+            s = SDL_floorf(s);
+          pitch = s * static_cast<float>(logH) / static_cast<float>(srcRows);
+        }
+      }
+      if (ensureScanlinesTexture(outW, outH, pitch)) {
+        const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                                static_cast<float>(outH)};
+        SDL_RenderTexture(sdl_renderer, scanTexture, nullptr, &full);
+      }
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  } else if (scanTexture) {
+    destroyScanTexture();
+  }
+
+  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff &&
+      !scanlinesActive && !letterpressActive) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;

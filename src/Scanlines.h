@@ -1,0 +1,227 @@
+#pragma once
+
+// SCANLINES -- the raster structure of a monochrome CRT, for the DARK page.
+//
+// DOCTRINE (owner order 2026-08-22): dark mode is CRT emulation -- phosphors,
+// gun mixes, fade persistence -- and its screen texture is now SCANLINES,
+// replacing the mottled grain. Light mode is letterpress (src/Letterpress.h).
+// Design, research and the succession over the 2026-08-18 "no scanlines"
+// ruling: docs/letterpress-and-scanlines.md and docs/phosphor-grain.md.
+//
+// THE MODEL, in the order the physics happens:
+//
+//   - A scan line is the beam's spot dragged horizontally; the spot's vertical
+//     profile is close to GAUSSIAN. A line is untouched at its centre and the
+//     gap between lines is where the darkening lives.
+//   - LINE PITCH IS TIED TO THE SOURCE RASTER: one scan line per logical page
+//     row. In device pixels the pitch is exactly the panel's presentation
+//     scale (~2.39 on an iPhone, 2.0 on the 2x Mac app, 1.0 at 1:1 -- where
+//     the structure correctly self-attenuates toward a uniform dimming, which
+//     is what a real tube looks like once its lines cannot be resolved).
+//     Emulating a fixed ~500-line tube instead would lay a SECOND lattice over
+//     792 content rows and beat at the difference frequency -- the ST-008
+//     failure class by construction. High-resolution monochrome page CRTs are
+//     the honest fiction here (the Macintosh Portrait Display was a 640x870
+//     monochrome raster tube).
+//   - BLOOM: spot size grows with beam current, so bright content WIDENS the
+//     lit part of its line and thins the gap. This is the hyperrealism most
+//     fakes skip, and it is why the field is content-aware (`level`).
+//     Structurally it can only darken LESS -- never lift.
+//   - IRREGULARITY: each line sits fractionally off pitch and varies slightly
+//     in thickness (scan geometry and focus are not perfect).
+//   - The owner's "variable mottled noise" rides ON the structure: the same
+//     low-frequency value-noise field the grain used modulates the line DEPTH,
+//     so the raster goes blotchy the way a real screen's coating is uneven --
+//     it is not a separate speckle layer.
+//
+// WHY NO MOIRE (the ST-008 lesson, applied to a periodic field): generated at
+// OUTPUT size and drawn 1:1, like the grain -- and because the period is a
+// non-integer number of device pixels, each device-pixel row takes the BOX
+// INTEGRAL of the continuous profile over its extent (an erf pair per nearby
+// line) rather than a point sample. Exact sampling has no long-period beat;
+// the test pins per-period stability.
+//
+// WHY IT ONLY DARKENS. Same modulate contract as PhosphorGrain and
+// Letterpress; the gap is a deficit against the line, and an additive pass is
+// the page-flash bug class.
+//
+// ONE DIAL. The mottle depth is FOLDED into the intensity ladder
+// (mottleDepthFor): blotchiness varies with how visible the structure is, and
+// the reduced-settings ruling allows one row. 0 is bit-exact off. Persisted as
+// the meaningful percent.
+//
+// Pure and clock-free; tests/scanlines_test.cpp is the only instrument.
+
+#include <cmath>
+#include <cstdint>
+
+#include "PhosphorGrain.h"  // hash3 / unitFromHash / valueNoise, all pure
+
+namespace scanlines {
+
+// INTENSITY IS A PERCENTAGE OF STANDARD. Offered rungs: 0 (off), 50 (subtle,
+// the dark-mode default), 100 (standard), 150 (deep). Clamp leaves headroom.
+constexpr int kIntensityOff = 0;
+constexpr int kIntensityStandard = 100;
+constexpr int kIntensityMax = 300;
+
+// Gap depth at 100%, and its cap. CHOSEN like kRealisticSigma was: deep
+// enough to read as a raster at arm's length, short of a shutter grille.
+constexpr float kDepthAt100 = 0.40f;
+constexpr float kDepthMax = 0.60f;
+
+// Beam spot sigma as a fraction of pitch at zero beam current (FWHM ~0.52 of
+// the pitch), and how far full brightness widens it.
+constexpr float kSigmaFrac = 0.22f;
+constexpr float kBloomGain = 0.8f;
+
+// Per-line imperfection: phase offset as a fraction of pitch, thickness as a
+// +/- fraction of sigma. Overridable in Params so the test can isolate the
+// integrator's exactness from the intended irregularity.
+constexpr float kPhaseJitterFrac = 0.06f;
+constexpr float kThickJitter = 0.08f;
+
+// The mottle's blotch count shares the grain's 2026-08-20 ruling: a texture
+// property, not a taste dial. Depth is folded into the ladder below.
+constexpr int kMottleCells = 5;
+constexpr float kMottleDepthMax = 0.40f;
+
+constexpr float kMinMultiplier = 0.05f;
+
+// Conservative bound on the mean gap fraction (1 - mean transmission) over a
+// period at depth 1, worst thickness jitter. Used to turn a palette's mean
+// darkening budget (phosphorgrain::darkeningBudget * 0.8) into a depth cap.
+constexpr float kMaxMeanGap = 0.50f;
+
+inline int clampIntensity(int percent) {
+  if (percent < kIntensityOff) return kIntensityOff;
+  if (percent > kIntensityMax) return kIntensityMax;
+  return percent;
+}
+
+inline float depthFor(int percent) {
+  const float d = kDepthAt100 * static_cast<float>(clampIntensity(percent)) /
+                  static_cast<float>(kIntensityStandard);
+  return d > kDepthMax ? kDepthMax : d;
+}
+
+// The folded mottle: monotone in the dial, 0 at off (bit-exact), capped.
+// 50 -> 0.15, 100 -> 0.30, 150 -> 0.40.
+inline float mottleDepthFor(int percent) {
+  const float m = 0.003f * static_cast<float>(clampIntensity(percent));
+  return m > kMottleDepthMax ? kMottleDepthMax : m;
+}
+
+struct Params {
+  int intensityPercent = kIntensityStandard;
+  uint32_t seed = 0x5343414Eu;  // 'SCAN'
+  // Device pixels per scan line = the panel's presentation scale.
+  float pitchPx = 2.0f;
+  // Blotch swing on the line depth, from mottleDepthFor(). Held here rather
+  // than derived inside so the core is testable at more than one value.
+  float mottleDepth = 0.0f;
+  // Largest MEAN darkening the page can take (0.8 * darkeningBudget of the
+  // live pair). 1.0 means "no constraint".
+  float budgetMeanDarkening = 1.0f;
+  // Irregularity, overridable for tests; the shipped values are the constants.
+  float phaseJitterFrac = kPhaseJitterFrac;
+  float thickJitter = kThickJitter;
+};
+
+inline float phi(float z) { return 0.5f * (1.0f + std::erf(z * 0.70710678f)); }
+
+// Integral over [y0, y1] of a peak-1 Gaussian centred at c with spread sigma.
+inline float lineIntegral(float y0, float y1, float c, float sigma) {
+  return sigma * 2.50662827f * (phi((y1 - c) / sigma) - phi((y0 - c) / sigma));
+}
+
+// Transmission of device-pixel row y (covering [y, y+1)) BEFORE normalization:
+// the box integral of every nearby line's profile. `level` is the composed
+// content's brightness under this pixel, 0..1; it widens the spot (bloom).
+inline float rowTransmissionRaw(const Params &p, float y, float level) {
+  const float pitch = p.pitchPx;
+  if (pitch <= 0.0f) return 1.0f;
+  if (level < 0.0f) level = 0.0f;
+  if (level > 1.0f) level = 1.0f;
+  const int i0 = static_cast<int>(std::floor(y / pitch)) - 2;
+  float sum = 0.0f;
+  for (int i = i0; i <= i0 + 4; ++i) {
+    const uint32_t li = static_cast<uint32_t>(i + 0x10000);
+    const float uPhase = phosphorgrain::unitFromHash(
+        phosphorgrain::hash3(li, 0x50484153u, p.seed));
+    const float uThick = phosphorgrain::unitFromHash(
+        phosphorgrain::hash3(li, 0x5448434Bu, p.seed));
+    const float c = (static_cast<float>(i) + 0.5f) * pitch +
+                    (uPhase - 0.5f) * 2.0f * p.phaseJitterFrac * pitch;
+    float sigma = kSigmaFrac * pitch *
+                  (1.0f + (uThick - 0.5f) * 2.0f * p.thickJitter) *
+                  (1.0f + kBloomGain * level);
+    if (sigma < 1e-4f) sigma = 1e-4f;
+    sum += lineIntegral(y, y + 1.0f, c, sigma);
+  }
+  return sum;
+}
+
+// What an unjittered, unbloomed line transmits through the pixel row centred
+// on it -- the normalizer that makes a line centre EXACTLY untouched.
+inline float baseCenterTransmission(float pitchPx) {
+  if (pitchPx <= 0.0f) return 1.0f;
+  const float sigma = kSigmaFrac * pitchPx;
+  float sum = 0.0f;
+  for (int i = -2; i <= 2; ++i)
+    sum += lineIntegral(-0.5f, 0.5f, static_cast<float>(i) * pitchPx, sigma);
+  return sum > 1e-6f ? sum : 1.0f;
+}
+
+// Normalized transmission, 0..1: 1 at a base line centre, small mid-gap,
+// pulled toward 1 everywhere by bloom.
+inline float rowTransmission(const Params &p, float y, float level) {
+  const float t = rowTransmissionRaw(p, y, level) /
+                  baseCenterTransmission(p.pitchPx);
+  return t > 1.0f ? 1.0f : (t < 0.0f ? 0.0f : t);
+}
+
+// The effective gap depth after the palette's budget: mean darkening is at
+// most depth * kMaxMeanGap, so the cap keeps the page's mean at or above the
+// contrast floor structurally, the same shape as the grain's budgetSigma.
+inline float effectiveDepth(const Params &p) {
+  float d = depthFor(p.intensityPercent);
+  const float budget = p.budgetMeanDarkening;
+  if (budget < 1.0f && d * kMaxMeanGap > budget) d = budget / kMaxMeanGap;
+  return d < 0.0f ? 0.0f : d;
+}
+
+// Fold the mottle and the transmission into the final modulate value. Split
+// out so a caller may cache rowTransmission per (row, level bucket) -- the
+// erf work is x-independent -- and still run the exact shipped math.
+inline uint8_t combine(const Params &p, float transmission, int x, int y,
+                       int w, int h) {
+  float depth = effectiveDepth(p);
+  if (p.mottleDepth > 0.0f && w > 0 && h > 0) {
+    const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w);
+    const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h);
+    const float v = phosphorgrain::valueNoise(nx * kMottleCells,
+                                              ny * kMottleCells,
+                                              p.seed ^ 0x4D4F5454u);
+    depth *= 1.0f + p.mottleDepth * (v * 2.0f - 1.0f);
+    if (depth < 0.0f) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+  }
+  float m = 1.0f - depth * (1.0f - transmission);
+  if (m < kMinMultiplier) m = kMinMultiplier;
+  if (m > 1.0f) m = 1.0f;
+  return static_cast<uint8_t>(m * 255.0f + 0.5f);
+}
+
+// THE ANSWER: the 0..255 modulate value for one OUTPUT pixel. 255 is
+// untouched; intensity 0 returns 255 everywhere, so OFF is bit-exact.
+inline uint8_t multiplierAt(const Params &p, int x, int y, int w, int h,
+                            float level) {
+  if (clampIntensity(p.intensityPercent) == kIntensityOff || w <= 0 || h <= 0 ||
+      p.pitchPx <= 0.0f)
+    return 255;
+  return combine(p, rowTransmission(p, static_cast<float>(y), level), x, y, w,
+                 h);
+}
+
+}  // namespace scanlines
