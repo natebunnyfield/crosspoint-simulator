@@ -223,6 +223,10 @@ float g_zenPanelShiftPx = 0.0f;
 // The value of the shift consumed by THIS layout pass (band and top inset
 // must agree; see the snapshot comment at the band).
 float g_zenShiftThisPass = 0.0f;
+// The paper->ink visual gap in device px, published by the zen placement pass.
+// It is the diameter of the construction's top-margin circle, and the paper
+// card's corner radius is that circle's radius (owner 2026-08-22).
+float g_paperGapPx = 0.0f;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -830,6 +834,13 @@ void layoutPad(int outW, int outH) {
       const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
       const float visTotal = slack + inkTopPx + inkBottomPx;
       const float aboveVis = visTotal / (1.0f + mult);
+      // THE MODULE. Owner 2026-08-22: "use the circle that determines the
+      // height gap between paper and text to make the corner radius of the
+      // paper." That gap IS a circle in the construction -- one circle above
+      // the ink, two below -- so the sheet's corners are struck with the same
+      // circle: radius = half the gap. The card's curve and its top margin
+      // stop being two unrelated numbers.
+      g_paperGapPx = aboveVis;
       const float panelTopWant = paperTopPx + aboveVis - inkTopPx;
       // The non-zen panel top is the card top plus the 12 pt paper margin --
       // computed absolutely rather than read back from the overlay, because
@@ -1610,21 +1621,28 @@ void pollLetterpress() {
   SimulatorOverlay::setLetterpress(pct);
 }
 
-// Intensity AND pitch size, edge-triggered on the PAIR: the size is only
-// meaningful with the intensity that renders it, and two separate caches would
-// let a size change alone go unapplied until the next intensity change.
+// Intensity, pitch size AND bloom, edge-triggered on the TRIPLE: the last two
+// are only meaningful with the intensity that renders them, and separate
+// caches would let a size or bloom change alone go unapplied until the next
+// intensity change.
 void pollScanlines() {
   static int s_applied = -1;
   static int s_appliedSize = -1;
+  static int s_appliedBloom = -1;
   const int pct = CrossPointPrefs_scanlinesPercent();
   const int size = CrossPointPrefs_scanlineSizePercent();
-  if (pct == s_applied && size == s_appliedSize) return;
+  const int bloom = CrossPointPrefs_scanlineBloomPercent();
+  if (pct == s_applied && size == s_appliedSize && bloom == s_appliedBloom)
+    return;
   s_applied = pct;
   s_appliedSize = size;
-  SDL_Log("[scanlines] %d%% of standard, pitch %d%% of the row lattice%s", pct,
-          size, pct == 0 ? " (off)" : " (dark pages only)");
+  s_appliedBloom = bloom;
+  SDL_Log("[scanlines] %d%% of standard, pitch %d%% of the row lattice, "
+          "bloom %d%%%s",
+          pct, size, bloom, pct == 0 ? " (off)" : " (dark pages only)");
   SimulatorOverlay::setScanlines(pct);
   SimulatorOverlay::setScanlineSize(size);
+  SimulatorOverlay::setScanlineBloom(bloom);
 }
 
 void pollPanelPalette() {
@@ -1772,11 +1790,17 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   // objects. Matching them is what makes it a card. The probe
   // (CrossPointAppearance_displayCornerRadius) stays available for anything
   // that genuinely needs the glass radius; nothing does today.
+  // The radius is the module's, when the placement has published one (zen);
+  // the 8 pt constant remains the fallback for every other state, including
+  // the pre-first-placement frames.
   static float s_radiusPx = -1.0f;
-  if (s_radiusPx < 0.0f) {
-    s_radiusPx = kPaperCornerPt * g_ptScale;
-    SDL_Log("[bezel] band %.0f px, corner %.1f pt (paper radius)", bandH,
-            kPaperCornerPt);
+  static float s_radiusFrom = -1.0f;
+  const float module = (g_zen && g_paperGapPx > 0.0f) ? g_paperGapPx : 0.0f;
+  if (s_radiusPx < 0.0f || module != s_radiusFrom) {
+    s_radiusFrom = module;
+    s_radiusPx = module > 0.0f ? module / 2.0f : kPaperCornerPt * g_ptScale;
+    SDL_Log("[bezel] band %.0f px, corner %.1f px (%s)", bandH, s_radiusPx,
+            module > 0.0f ? "half the paper-to-ink gap" : "8 pt fallback");
   }
 
   SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -1850,7 +1874,12 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
                        bool intoBlack) {
   if (panel.w <= 0.0f || panel.h <= 0.0f) return;
   constexpr float kCornerExponent = 2.8f;
-  const float rad = SDL_min(kPaperCornerPt * g_ptScale, panel.w / 2.0f);
+  // Same module as the top pair -- they are one rectangle (the 2026-08-20
+  // ruling that matched them survives; only the number's SOURCE changed).
+  const float moduleRad = (g_zen && g_paperGapPx > 0.0f)
+                              ? g_paperGapPx / 2.0f
+                              : kPaperCornerPt * g_ptScale;
+  const float rad = SDL_min(moduleRad, panel.w / 2.0f);
   // A fillet must be painted in whatever the corner is being cut OUT of: the
   // field normally, black in zen, where the surround below the paper is black by
   // ruling. The wrong one leaves two pale nicks on a dark screen, which reads as
