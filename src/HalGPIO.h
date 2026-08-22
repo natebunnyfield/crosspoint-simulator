@@ -235,6 +235,16 @@ public:
   // a main-loop hook (the read-aloud page turn) must go through here.
   void queueButtonTap(uint8_t buttonIndex, unsigned long holdMs);
 
+  // Simulator-only, the host consumer's side like injectButton* — the
+  // firmware never calls it. Drop every queued tap, releasing the press of
+  // any tap whose down already fired so no held level survives the caller's
+  // boundary. The reboot registry and the sleep path clear the queue on their
+  // own; the caller this exists for is APP BACKGROUNDING (iOS harness): a
+  // queued tap that survived a backgrounding fired its release with the whole
+  // background span attached on return, which the firmware classifies as a
+  // long press.
+  void clearPendingButtonTaps();
+
   unsigned long getHeldTime() const;
   unsigned long getPowerButtonHeldTime() const;
   bool hasTouch() const;

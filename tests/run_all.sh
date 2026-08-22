@@ -74,19 +74,25 @@ cd "$REPO"
 run pad_core \
   c++ -std=c++17 -Iios -o "$OUT/pad_core" tests/pad_core_test.cpp ios/PadCore.cpp
 
-# The three-finger tap that toggles zen. Pure, because the real thing needs SDL,
-# a window and UIKit multitouch -- and the harness's own input script cannot
-# drive it, since its TAP feeds the FIRMWARE's touch state rather than SDL
-# finger events. Without this the toggle would ship on a code reading alone.
-run zen_gesture \
-  c++ -std=c++17 -Iios -o "$OUT/zen_gesture" tests/zen_gesture_test.cpp
+# zen_gesture retired 2026-08-22: the three-finger toggle is a native
+# UITapGestureRecognizer now (owner: "be sure to swap 3 finger tap to apple";
+# ios/CrossPointZenRecognizers.mm), so the SDL detector and its test are
+# archived beside their old paths.
 
-# The zen gesture LANGUAGE (owner 2026-08-22): taps, swipes, pinch/spread and
-# the four-finger power tap. Pure for the same reason as zen_gesture above --
-# and it is the ONLY coverage multi-finger gestures get anywhere, because no
-# existing hook can synthesize two moving fingers.
+# The zen deliberate TAP -- the one gesture left on the SDL classifier since
+# every gesture that moves became a native UIKit recognizer (owner 2026-08-22
+# "let's use apple for swiping instead"; ios/CrossPointZenRecognizers.mm).
+# Pins the tap gates and that the classifier answers None for all motion and
+# all multi-finger taps, which is half of the no-double-fire argument.
 run zen_verbs \
   c++ -std=c++17 -Iios -o "$OUT/zen_verbs" tests/zen_verbs_test.cpp
+
+# The page-tap candidate's arm/spoil lifecycle (2026-08-21 audit findings #1
+# and #3): no exit path may leave it latched, and a second concurrent finger
+# spoils it. Pure because the SDL event watch it was extracted from cannot be
+# compiled off-device, and both failure modes are silent.
+run tap_candidate \
+  c++ -std=c++17 -Iios -o "$OUT/tap_candidate" tests/tap_candidate_test.cpp
 
 # Reads ios/Settings.bundle/Root.plist from the repo root -- hence the `cd`
 # above -- and cross-checks every row label against the tone that row selects.

@@ -51,7 +51,7 @@
 // timestamp together, so a hold expressed by a finger survives all the way down.
 
 #include "CrossPointHarness.h"
-#include "ZenGesture.h"
+#include "TapCandidate.h"
 #include "ZenVerbs.h"
 
 #include <SDL3/SDL.h>
@@ -79,6 +79,15 @@ void crosspointRequestRender();
 // The page-color mixer (CrossPointPaletteMixer.mm). present() opens the modal;
 // glowForCustom() is the Custom slot's mix-aware glow branch.
 extern "C" void CrossPointMixer_present(void);
+// True while the mixer sheet is on screen. The sheet is a pageSheet with an
+// undimmed medium detent, so UIKit passes every touch OUTSIDE the sheet
+// through to the SDL view underneath (2026-08-21 audit, finding #6): without
+// this gate, page taps kept reaching the pad, the tap candidate and the zen
+// paths while the tray was up.
+extern "C" bool CrossPointMixer_isPresented(void);
+// Zen's motion gestures are native UIKit recognizers now
+// (CrossPointZenRecognizers.mm); enabled only while zen is on.
+extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
 extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b, int w);
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
@@ -160,9 +169,12 @@ bool g_padLaidOut = false;
 // toggles it. In zen the pad stops drawing and stops hit-testing entirely, the
 // paper extends down toward where the top rocker row would begin, and input
 // becomes the GESTURE LANGUAGE of 2026-08-22 (which replaced the original
-// screen-thirds tap zones): taps, one- and two-finger swipes, pinch/spread and
-// a four-finger power tap, classified by ZenVerbs.h and delivered as button
-// taps. Everything comes back on the next three-finger tap.
+// screen-thirds tap zones). Every gesture that MOVES — one- and two-finger
+// swipes, pinch/spread — plus the multi-finger taps are native UIKit
+// recognizers now (CrossPointZenRecognizers.mm; owner: "let's use apple for
+// swiping instead"); the one-finger deliberate TAP stays on ZenVerbs.h and
+// this file's SDL finger path. Everything comes back on the next three-finger
+// tap.
 // CROSSPOINT_SIM_ZEN=1 starts in zen. The three-finger gesture cannot be driven
 // from CROSSPOINT_SIM_INPUT_SCRIPT -- its TAP feeds the FIRMWARE's touch state
 // (HalGPIO::beginTouch), not SDL finger events, so it never reaches this file --
@@ -182,15 +194,12 @@ float g_zenRowTopPx = 0.0f;
 // up with what the reader can actually see.
 SDL_FRect g_zenPaper{};
 // The zen GESTURE LANGUAGE replaced the zen tap zones on 2026-08-22 (owner:
-// "let's switch to tap is Down button, swipe right is Up, swipe left is Down,
-// two finger swipe left is Right, two finger swipe is right is Left, two
-// finger swipe down is Select button, two finger swipe up is Back button,
-// four finger tap is Power button", amended same day with "pinch and spread
-// control font size"). The thirds/bands zone tracker died with it; the
-// classifier -- pure, host-tested -- lives in ZenVerbs.h, along with the
-// succession note for the same-day no-swipe ruling its tap gate inherits.
-// The shim only feeds it finger events and forwards its verb to
-// gpio.queueButtonTap on the last lift.
+// The classifier -- pure, host-tested -- lives in ZenVerbs.h with the full
+// succession note (zones -> hand-rolled verbs -> native recognizers for all
+// motion). Since the "let's use apple for swiping instead" ruling it owns
+// exactly ONE verb, the one-finger deliberate tap; the shim feeds it finger
+// events and forwards that verb to gpio.queueButtonTap on the last lift.
+// Multi-finger and moving gestures are CrossPointZenRecognizers.mm's.
 zenverbs::Classifier g_zenVerbs;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
@@ -1378,11 +1387,13 @@ void pollZenMode() {
       g_zen = on != 0;
       g_padLaidOut = false;  // in case a layout pass beat this first poll
     }
+    CrossPointZenRecognizers_setEnabled(g_zen);
     return;
   }
   g_zen = on != 0;
   g_padLaidOut = false;  // the band changes, so the page must be refitted
   SDL_Log("[zen] %s (setting)", g_zen ? "on" : "off");
+  CrossPointZenRecognizers_setEnabled(g_zen);
   SimulatorOverlay::requestPresent();
 }
 
@@ -2206,38 +2217,27 @@ int padHitTest(float x, float y) {
   return -1;
 }
 
-// Read-aloud tap candidate: a finger that landed on NO pad slot may become a
-// word tap. Down records it, dragging past the slop cancels it (a drag must
-// not start speech), a clean lift hands the DOWN coordinates to the adapter
-// (CrossPointReadAloud_tapAtScreen rejects anything outside the panel or off
-// a word). Cancelled by the same events that reset the pad. No timers: a tap
-// is down + up without movement, however long the hold — the pad's own
-// design, and PadCore itself stays untouched.
-long long g_tapFingerId = -1;
-float g_tapDownX = 0.0f, g_tapDownY = 0.0f;
-// When that finger went down, for the page-color button's long press. The pad
-// itself still needs no timers -- this clock is read at finger-UP, by one
-// control, and PadCore stays untouched.
-Uint64 g_tapDownAt = 0;
+// Read-aloud / chip tap candidate: a finger that landed on NO pad slot may
+// become a word tap or a chip tap. Down records it, dragging past the slop
+// cancels it (a drag must not start speech), a clean lift hands the DOWN
+// coordinates to the adapter (CrossPointReadAloud_tapAtScreen rejects
+// anything outside the panel or off a word). No timers: a tap is down + up
+// without movement, however long the hold — the pad's own design, and PadCore
+// itself stays untouched. The arm/spoil lifecycle lives in TapCandidate.h
+// (pure, tests/tap_candidate_test.cpp) because the 2026-08-21 audit found two
+// silent failures in the inline version: a candidate latched forever by the
+// zen toggle's early break (finding #1), and a candidate firing while more
+// fingers were down, giving one gesture two effects (finding #3).
+tapcand::Candidate g_tapCand;
 
-// THE THREE-FINGER TAP, which is the only way in and out of zen.
-//
-// No timers and no gesture recogniser: the same shape as the pad's own tap
-// test, counting fingers. A gesture qualifies when three were down AT ONCE, all
-// three lifted, none of them travelled past the slop, and the last one landed
-// on the page. Three is deliberately more than the page ever gets otherwise --
-// the read-aloud word tap is one finger, and no control takes two.
-//
-// Tracked by count rather than by identity because iOS does not promise the
-// three arrive in any order, and the middle finger of a real three-finger tap
-// often lands a frame after its neighbours.
-// The detector itself lives in ZenGesture.h, pure and unit-tested
-// (tests/zen_gesture_test.cpp). It is a separate file for exactly one reason:
-// this function cannot be tested -- it needs SDL, a window and UIKit delivering
-// real multitouch -- and the rule it enforces has to be provable off-device.
-// Writing it here first is how the four-finger roll got in; the test caught it
-// within a minute of the extraction.
-zengesture::Detector g_zenDetector;
+// THE THREE-FINGER TAP, which is the only way in and out of zen, is a native
+// UITapGestureRecognizer now (owner 2026-08-22: "be sure to swap 3 finger tap
+// to apple"), attached in BOTH modes — it has to fire while zen is OFF to get
+// in. CrossPointZenRecognizers.mm owns it and calls
+// CrossPointZen_toggleFromRecognizer() below; the pure SDL detector it
+// replaces (ZenGesture.h, archived 2026-08-22) is gone with the rest of the
+// hand-rolled multi-finger recognition. The old page-landing constraint
+// (last lift ON the page) retired with the detector.
 float g_zenLastX = 0.0f, g_zenLastY = 0.0f;
 
 // Finger coordinates arrive normalized; the pad needs pixels, and the harness
@@ -2258,11 +2258,15 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 
   switch (e->type) {
     case SDL_EVENT_FINGER_DOWN: {
+      // With the mixer sheet up, UIKit passes touches outside the sheet
+      // through to this view (pageSheet, undimmed medium detent — audit #6).
+      // The sheet is the only control surface then: feed NOTHING. Fingers
+      // never enter the trackers, so their lifts are no-ops below.
+      if (CrossPointMixer_isPresented()) break;
       if (!windowPixelSize(e->tfinger.windowID, &outW, &outH)) break;
       const float fx = e->tfinger.x * outW, fy = e->tfinger.y * outH;
 
       g_windowId = e->tfinger.windowID;
-      g_zenDetector.fingerDown(fx, fy);
       // Fed in EVERY mode, acted on only in zen: a gesture in flight when the
       // three-finger toggle flips g_zen must not arrive at a half-seen
       // classifier.
@@ -2271,17 +2275,29 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       g_zenLastY = fy;
 
       // In zen the pad does not exist: no slots, no hit test, no PadCore.
-      // Every touch is either part of the three-finger toggle or part of a
-      // gesture verb, both resolved on the last finger UP.
+      // Every touch is either the deliberate tap or a native recognizer's
+      // gesture (the 3-finger toggle included).
       if (g_zen) break;
 
-      const int hit = padHitTest(fx, fy);
-      if (hit < 0 && g_tapFingerId == -1) {
-        g_tapFingerId = e->tfinger.fingerID;
-        g_tapDownX = fx;
-        g_tapDownY = fy;
-        g_tapDownAt = SDL_GetTicks();
+      // A SECOND concurrent finger means this is a gesture (the 3-finger zen
+      // toggle, or nothing), not a control press (audit #2/#3). Spoil the tap
+      // candidate, release any held capsule NOW — so a thumb resting on
+      // POWER during a 3-finger tap cannot accumulate a long-press span and
+      // sleep the device — and press nothing for this finger. Presses the
+      // FIRST finger already fired before a second landed cannot be recalled:
+      // injectButtonDown edges drain into the firmware within the same
+      // frame's update(), so suppression here is prospective, not
+      // retroactive.
+      const int concurrent = g_zenVerbs.activeFingers();
+      if (concurrent > 1) {
+        g_tapCand.spoil();
+        applyActions(g_core.reset());
+        break;
       }
+
+      const int hit = padHitTest(fx, fy);
+      g_tapCand.fingerDown(e->tfinger.fingerID, fx, fy, SDL_GetTicks(),
+                           hit >= 0, concurrent);
       applyActions(g_core.fingerDown(hit >= 0 ? hit : PadCore::kNoSlot,
                                      e->tfinger.fingerID));
       break;
@@ -2292,19 +2308,9 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_zenVerbs.fingerMove(e->tfinger.fingerID, e->tfinger.x * outW,
                               e->tfinger.y * outH);
       // A tap candidate that drags past the slop is a swipe, not a tap.
-      if (e->tfinger.fingerID == g_tapFingerId &&
-          windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
-        const float x = e->tfinger.x * outW, y = e->tfinger.y * outH;
-        const float slop = 12.0f * g_ptScale;
-        if (SDL_fabsf(x - g_tapDownX) > slop ||
-            SDL_fabsf(y - g_tapDownY) > slop)
-          g_tapFingerId = -1;
-      }
-      // Any travel at all disqualifies the three-finger tap. Checked against the
-      // finger's own landing point, not a shared one, so one drifting finger
-      // cancels the gesture without the other two masking it.
       if (windowPixelSize(e->tfinger.windowID, &outW, &outH))
-        g_zenDetector.fingerMoved(e->tfinger.x * outW, e->tfinger.y * outH);
+        g_tapCand.fingerMove(e->tfinger.fingerID, e->tfinger.x * outW,
+                             e->tfinger.y * outH, 12.0f * g_ptScale);
 
       // Dragging off a control cancels it, matching how a system button behaves
       // and how a real key behaves when your thumb slides off it.
@@ -2330,75 +2336,49 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         g_zenLastY = e->tfinger.y * outH;
       }
       {
-        // The gesture still has to land on the PAGE -- that is where the
-        // owner asked for it, and it keeps a stray three-finger grab on the
-        // margins from toggling. The zen ZONES below are wider; see there.
-        const SDL_FRect &q = g_zenPanel;
-        const zengesture::Rect page{q.x, q.y, q.w, q.h};
         const bool cancelled = e->type == SDL_EVENT_FINGER_CANCELED;
         const bool zenBefore = g_zen;
-        const bool toggled =
-            g_zenDetector.fingerUp(g_zenLastX, g_zenLastY, page, cancelled);
 
         // The classifier resolves on the last lift, whatever happens. One
-        // owner per gesture: the toggle is a three-finger tap and the
-        // classifier answers None at peak three, so the two can never fire
-        // from one gesture (pinned in tests/zen_verbs_test.cpp).
+        // owner per gesture: the 3-finger toggle and every moving gesture are
+        // native recognizers now (CrossPointZenRecognizers.mm), and the
+        // classifier answers None for anything but one still finger, so none
+        // of them can also fire this path (pinned in tests/zen_verbs_test.cpp).
         const zenverbs::Verb verb = g_zenVerbs.fingerUp(
             e->tfinger.fingerID, g_zenLastX, g_zenLastY, SDL_GetTicks(),
             cancelled);
 
-        if (toggled) {
-          g_zen = !g_zen;
-          g_padLaidOut = false;  // the band changes, so the page must be refitted
-          SDL_Log("[zen] %s", g_zen ? "on" : "off");
-          SimulatorOverlay::requestPresent();
-          applyActions(g_core.fingerUp(e->tfinger.fingerID));
-          break;
-        }
-
-        // ZEN VERBS (owner 2026-08-22 gesture language; see ZenVerbs.h for the
-        // ruling verbatim and the classification rules). Judged against the
-        // mode the gesture STARTED under (zenBefore), and anything the
-        // classifier calls ambiguous fires NOTHING -- the deliberate-tap
-        // discipline the zones had, carried over as the classifier's gates.
-        // FontUp/FontDown ride the SIDE pair because on this fork a side tap
-        // IS the font-size step (longPressButtonBehavior is constexpr
-        // FONT_SIZE_STEP; PageForward = BTN_DOWN steps +1), so a zen pinch
-        // repaginates, persists and clamps exactly as the physical buttons do.
-        if (zenBefore && verb != zenverbs::Verb::None) {
-          uint8_t button = HalGPIO::BTN_DOWN;
-          switch (verb) {
-            // SWAPPED by owner ruling 2026-08-22 ("I think I was mixing up
-            // up/down with left/right. swap them with your best effort."):
-            // the 1-finger verbs drive the PAGE (front Left/Right, since on
-            // this fork side taps step font size), and the 2-finger
-            // horizontals drive FONT SIZE (side Up/Down) alongside
-            // pinch/spread, which were already correct. Reading on one
-            // finger, sizing on two.
-            case zenverbs::Verb::Down: button = HalGPIO::BTN_RIGHT; break;
-            case zenverbs::Verb::Up: button = HalGPIO::BTN_LEFT; break;
-            case zenverbs::Verb::Left: button = HalGPIO::BTN_UP; break;
-            case zenverbs::Verb::Right: button = HalGPIO::BTN_DOWN; break;
-            case zenverbs::Verb::Select: button = HalGPIO::BTN_CONFIRM; break;
-            case zenverbs::Verb::Back: button = HalGPIO::BTN_BACK; break;
-            case zenverbs::Verb::Power: button = HalGPIO::BTN_POWER; break;
-            case zenverbs::Verb::FontUp: button = HalGPIO::BTN_DOWN; break;
-            case zenverbs::Verb::FontDown: button = HalGPIO::BTN_UP; break;
-            case zenverbs::Verb::None: break;
-          }
+        // Audit #6: with the mixer sheet up, gestures on the exposed page
+        // are the sheet's business, nobody else's. The trackers were still
+        // fed above so no per-finger state leaks past the sheet, but nothing
+        // fires. (Fingers that went down after the sheet presented never
+        // entered the trackers at all — see FINGER_DOWN.)
+        if (CrossPointMixer_isPresented()) {
+          g_tapCand.spoil();
+        } else if (zenBefore && verb == zenverbs::Verb::Down) {
+          // THE DELIBERATE TAP, the one verb left on this path — page
+          // forward, mapped to the front Right button per the swap ruling
+          // (owner 2026-08-22: "reading on one finger"). Every gesture that
+          // moves, and every multi-finger tap, is a native recognizer in
+          // CrossPointZenRecognizers.mm now ("let's use apple for swiping
+          // instead"); the classifier answers None for all of them, so a
+          // swipe can never fire both a recognizer and this branch.
           SDL_Log("[zen] verb -> %s (button %d)", zenverbs::verbName(verb),
-                  (int)button);
-          gpio.queueButtonTap(button, 60);
+                  (int)HalGPIO::BTN_RIGHT);
+          gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
           applyActions(g_core.fingerUp(e->tfinger.fingerID));
           break;
         }
       }
 
-      if (e->tfinger.fingerID == g_tapFingerId) {
-        g_tapFingerId = -1;
-        // A CANCELED finger (Control Center pull, incoming call) is not a tap.
-        if (e->type == SDL_EVENT_FINGER_UP) {
+      {
+        // A CANCELED finger (Control Center pull, incoming call) is not a
+        // tap; fingerUp answers false for it and clears either way — no exit
+        // path may leave the candidate latched (audit #1).
+        const float candX = g_tapCand.downX(), candY = g_tapCand.downY();
+        const Uint64 candAt = g_tapCand.downMs();
+        if (g_tapCand.fingerUp(e->tfinger.fingerID,
+                               e->type == SDL_EVENT_FINGER_CANCELED)) {
           // ONLY THE CHIP TOGGLES THE KEYBOARD. A tap anywhere else does not,
           // however empty that part of the screen looks (owner bug report
           // 2026-08-11: "ios keyboard is popping up when I tap on negative
@@ -2411,20 +2391,20 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // down, adjusting a grip, or resting a thumb threw the keyboard back
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
-          if (hitPaletteChip(g_tapDownX, g_tapDownY)) {
+          if (hitPaletteChip(candX, candY)) {
             // TAP AND HOLD BOTH OPEN THE MIXER (owner ruling 2026-08-20:
             // "Both open the modal"). This supersedes the 2026-08-17 cycling
             // ruling -- stepping the ring moved into the modal's Presets tab,
             // and the modal is now the whole page-color surface: presets,
             // preset mixes, and the three-mode phosphor mixer.
             SDL_Log("[palette] chip -> mixer (%llu ms)",
-                    static_cast<unsigned long long>(SDL_GetTicks() - g_tapDownAt));
+                    static_cast<unsigned long long>(SDL_GetTicks() - candAt));
             CrossPointMixer_present();
-          } else if (hitKeyboardChip(g_tapDownX, g_tapDownY)) {
+          } else if (hitKeyboardChip(candX, candY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
           } else
-            CrossPointReadAloud_tapAtScreen(g_tapDownX, g_tapDownY);
+            CrossPointReadAloud_tapAtScreen(candX, candY);
         }
       }
       applyActions(g_core.fingerUp(e->tfinger.fingerID));
@@ -2463,7 +2443,16 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       HalDisplay::setBackgrounded(true);
       [[fallthrough]];
     case SDL_EVENT_WINDOW_FOCUS_LOST:
-      g_tapFingerId = -1;
+      // Audit #5: everything per-touch and everything queued dies at this
+      // boundary, not just PadCore. A queued tap that survived a
+      // backgrounding used to fire its release with the whole background
+      // span attached on return — which the firmware classifies as a long
+      // press. The trackers reset too: their fingers are gone, and a
+      // half-seen gesture must not resolve against touches from before the
+      // background.
+      g_tapCand.spoil();
+      gpio.clearPendingButtonTaps();
+      g_zenVerbs = zenverbs::Classifier{};
       applyActions(g_core.reset());
       break;
 
@@ -2487,6 +2476,31 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 // reference to it killed the TestFlight archive at link -- a failure no
 // desktop build can see, since only the iOS target compiles the mixer.
 extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
+
+// THE ZEN TOGGLE, called by the native 3-finger UITapGestureRecognizer
+// (CrossPointZenRecognizers.mm; owner 2026-08-22 "be sure to swap 3 finger
+// tap to apple"). Exactly what the retired SDL toggle branch did — flip,
+// refit, log, present — plus the seam the native move creates: the same three
+// fingers also stream into SDL, so the tap candidate and the classifier are
+// spoiled here the way the toggle branch spoiled them (audit #1: a
+// gesture-consuming exit clears the candidate, always). The classifier would
+// answer None for a 3-finger gesture anyway (peak != 1); the reset makes that
+// not depend on event ordering between UIKit's recognition and SDL's lifts.
+// Runs on the main thread (recognizer action), the same thread the SDL pump
+// and the overlay run on.
+extern "C" void CrossPointZen_toggleFromRecognizer(void) {
+  g_zen = !g_zen;
+  g_padLaidOut = false;  // the band changes, so the page must be refitted
+  SDL_Log("[zen] %s (3-finger tap)", g_zen ? "on" : "off");
+  g_tapCand.spoil();
+  g_zenVerbs = zenverbs::Classifier{};
+  // Audit #2's honest hammer: release anything PadCore still holds, so no
+  // capsule press a straddling finger fired stays held into zen, where the
+  // pad does not exist. reset() releases held slots and fires nothing else.
+  applyActions(g_core.reset());
+  CrossPointZenRecognizers_setEnabled(g_zen);
+  SimulatorOverlay::requestPresent();
+}
 
 // --- Public entry points ---------------------------------------------------
 //
@@ -2546,9 +2560,15 @@ void CrossPointHarness_begin() {
   SimulatorOverlay::setDrawCallback(paintPad);
 
   // A wake begins with no fingers on glass; drop any state a pre-sleep touch
-  // left behind, and relayout against the (possibly rotated) window.
+  // left behind — the tap candidate and the gesture trackers included, since
+  // this process longjmps through here with statics intact — and relayout
+  // against the (possibly rotated) window.
+  g_tapCand.spoil();
+  g_zenVerbs = zenverbs::Classifier{};
   applyActions(g_core.reset());
   g_padLaidOut = false;
+  // Recognizer enablement follows the live zen flag across wakes too.
+  CrossPointZenRecognizers_setEnabled(g_zen);
 
   // Appearance. SDL_Init has already run (HalDisplay::begin calls it), so the
   // theme is populated and can be read straight away; the watch keeps it current

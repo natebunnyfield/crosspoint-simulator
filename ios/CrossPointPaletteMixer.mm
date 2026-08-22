@@ -41,6 +41,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <atomic>
 #include <vector>
 
 #include "GunMixCsv.h"
@@ -234,6 +235,19 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 }
 
 // --- the controller ---------------------------------------------------------
+
+// The sheet's live presentation state, for the input layers underneath. The
+// sheet is a pageSheet with an undimmed medium detent, so UIKit passes every
+// touch OUTSIDE the sheet through to the presenting (SDL) view — the shim's
+// finger paths and the zen recognizers ask this before acting (2026-08-21
+// input-lifecycle audit, finding #6). Touches ON the sheet's own controls
+// never reach SDL, so slider drags need no exemption. Atomic because the
+// askers sit on the SDL/firmware loop.
+static std::atomic<bool> g_mixerPresented{false};
+
+extern "C" bool CrossPointMixer_isPresented(void) {
+  return g_mixerPresented.load();
+}
 
 @interface CPXGunMixerController : UIViewController
 @end
@@ -556,6 +570,15 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   [self dismissViewControllerAnimated:YES completion:nil];
 }
 
+// The nav never pushes a second controller, so disappearing means DISMISSED —
+// Done is the only exit (modalInPresentation pins pull-down). Cleared here
+// rather than in dismissSelf so any dismissal path UIKit ever grows also
+// clears the flag.
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  g_mixerPresented.store(false);
+}
+
 - (void)gunMoved:(UISlider *)s {
   // A drag is a newer change: a settle pending from a reassignment must not
   // fire mid-drag and put a re-render on the drag path.
@@ -634,6 +657,7 @@ extern "C" void CrossPointMixer_present(void) {
       nav.sheetPresentationController.largestUndimmedDetentIdentifier =
           UISheetPresentationControllerDetentIdentifierMedium;
     }
+    g_mixerPresented.store(true);
     [root presentViewController:nav animated:YES completion:nil];
   });
 }
