@@ -184,6 +184,9 @@ float g_zenRowTopPx = 0.0f;
 // zen zones are measured against this rather than the page, so the thirds line
 // up with what the reader can actually see.
 SDL_FRect g_zenPaper{};
+// The visible paper card's top edge in device px, published by the layout
+// pass; the zen band math reads it as the TOP BAND the eye actually sees.
+float g_cardTopPx = 0.0f;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -715,13 +718,27 @@ void layoutPad(int outW, int outH) {
   // and still clamped to the home-indicator floor. Owner ask 2026-08-21:
   // "extend the bottom margin of paper in zen mode to an optimal and proven
   // distance", after rejecting the bare floor ("there is a geometry to it").
+  // The proportion is a SETTING now (owner 2026-08-21: "add ios setting for
+  // bottom margin to extend so the paper ratio is 1:2 2:3 3:5 5:8 1:phi") --
+  // top black band : bottom black band, anchored to the VISIBLE paper card's
+  // top edge. All five are the classical ladder (the Fibonacci convergents
+  // walking toward phi, plus Van de Graaf's 1:2, which stays the default and
+  // is what shipped). Persisted as an index; rows append, never insert.
+  static const float kZenRatioMult[] = {2.0f, 1.5f, 5.0f / 3.0f, 1.6f,
+                                        1.618f};
+  const int ratioIdx = CrossPointPrefs_zenBottomRatio();
+  const float mult =
+      (ratioIdx >= 0 && ratioIdx < 5) ? kZenRatioMult[ratioIdx] : 2.0f;
   const float gridPx = 8.0f * S;
-  const float topBandPx = g_zenPaper.y > 0 ? g_zenPaper.y : 80.0f * S / 3.0f;
-  const float goldenToPx = H * S - 1.618f * topBandPx;
+  const float topBandPx = g_cardTopPx > 0 ? g_cardTopPx : 68.0f * S;
+  // NOT grid-snapped: the neighboring rungs (5:8 and 1:phi) differ by under
+  // 4 px on a phone, and the 24 px snap rendered them identical -- a settings
+  // row that paints the same pixels as its neighbor is decoration. The floor
+  // keeps its snap; the ratio edge is exact.
+  const float ratioToPx = SDL_roundf(H * S - mult * topBandPx);
   const float floorToPx =
       SDL_floorf(((H - bottomInset) * S) / gridPx) * gridPx;
-  g_zenRowTopPx =
-      SDL_min(SDL_floorf(goldenToPx / gridPx) * gridPx, floorToPx);
+  g_zenRowTopPx = SDL_min(ratioToPx, floorToPx);
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -863,6 +880,7 @@ void layoutPad(int outW, int outH) {
   const float kCardTop = safeTop;      // black ends, paper begins
   const float kPaperMargin = 12.0f;    // paper above the page
   topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
+  g_cardTopPx = (safeTop > 20.0f ? kCardTop : topInset) * S;
   SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
           safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
           safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
@@ -1208,6 +1226,18 @@ void pollAppearance() {
 //
 // Main thread only, pumps no SDL events, holds no timer -- the same three
 // constraints pollAppearance lives under.
+void pollZenRatio() {
+  static int s_applied = -1;
+  const int idx = CrossPointPrefs_zenBottomRatio();
+  if (idx == s_applied) return;
+  const bool first = s_applied < 0;
+  s_applied = idx;
+  if (first) return;  // boot pass: the first layout already read the pref
+  g_padLaidOut = false;  // force the relayout that recomputes the zen band
+  SimulatorOverlay::requestPresent();
+  SDL_Log("[zen] bottom ratio -> option %d", idx);
+}
+
 void pollPadContrast() {
   const padpalette::Levels lv = currentLevels(g_dark);
   if (lv.outline == g_appliedOutline && lv.fill == g_appliedFill) return;
@@ -2488,6 +2518,7 @@ void CrossPointHarness_perFrame() {
                                        s_mixGuns[3]);
   }
   pollPhosphorGrain();
+  pollZenRatio();
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();

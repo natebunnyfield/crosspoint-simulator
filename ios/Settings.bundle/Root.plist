@@ -163,6 +163,32 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>DefaultValue</key>
+			<integer>0</integer>
+			<key>Key</key>
+			<string>zenBottomRatio</string>
+			<key>Title</key>
+			<string>Zen Bottom Margin</string>
+			<key>Titles</key>
+			<array>
+				<string>1:2 — Van de Graaf</string>
+				<string>2:3</string>
+				<string>3:5</string>
+				<string>5:8</string>
+				<string>1:φ — golden</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+			</array>
+		</dict>
+		<dict>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>Key</key>
