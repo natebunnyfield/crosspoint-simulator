@@ -20,6 +20,14 @@ extern "C" {
 // same contract as CrossPointHarness_begin (which calls it).
 void CrossPointReadAloud_begin(void);
 
+// The in-process reboot boundary: stop the speech engine, force the core
+// idle, drop the abandoned boot's page/highlight/accessibility elements and
+// any delegate events still in flight. Called from CrossPointHarness_begin
+// BEFORE _begin re-seeds; a no-op on the first boot (nothing exists yet).
+// Without it the adapter kept speaking the old page over the rebooted
+// firmware, and its didFinish fired a phantom page-turn into the new boot.
+void CrossPointReadAloud_resetForReboot(void);
+
 // The per-frame pump, called from CrossPointHarness_perFrame: applies the
 // Settings toggle on its edge, drains the page channel and the speech
 // delegate's event queue into ReadAloudCore, and applies the resulting

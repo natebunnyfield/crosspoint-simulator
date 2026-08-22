@@ -306,6 +306,18 @@ const std::thread::id simulatorMainThread = std::this_thread::get_id();
 const simreset::Registrar gDisplayRebootReset{[] {
   screenshotEventsInitialized = false;
   screenshotEvents.clear();
+  // The loan does not survive a reboot. A reboot can land mid-book-build --
+  // every file transfer ends in the firmware's silentRestart() -- and the
+  // longjmp abandons the borrower's stack with the loan still open, so
+  // getFrameBuffer() answered nullptr for the rest of the session: a frozen
+  // panel. Take the storage back exactly as returnFrameBufferStorage() would.
+  frameBufferStorage.fill(0xFF);
+  frameBufferLent = false;
+  // The page fade's clock. lastInteractionMs rides SDL_GetTicks, which no
+  // reboot re-bases, so with the shipped 5-minute fade a device slept longer
+  // than that woke up already dimmed until the first touch. A boot is an
+  // interaction: the owner just pressed POWER.
+  lastInteractionMs.store(SDL_GetTicks());
 }};
 
 void initializeScreenshotEvents() {

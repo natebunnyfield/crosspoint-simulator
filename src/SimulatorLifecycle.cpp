@@ -1,4 +1,5 @@
 #include "SimulatorLifecycle.h"
+#include "SimulatorClock.h"
 #include "SimulatorRebootResets.h"
 #include "freertos/semphr.h"
 
@@ -18,6 +19,15 @@ constexpr const char *kScreenshotsEnv = "CROSSPOINT_SIM_SCREENSHOTS";
 constexpr const char *kScreenshotsAfterWakeEnv =
     "CROSSPOINT_SIM_SCREENSHOTS_AFTER_WAKE";
 char **gArgv = nullptr;
+
+// A hardware reset zeroes the tick counter; the in-process (iOS) reboot must
+// too, or every `millis() - startedAt` the rebooted firmware writes -- and
+// every *_AFTER_WAKE schedule offset the resets above this one re-parse --
+// compares against a clock already hours in, and fires instantly. Registered
+// here because this TU owns the reboot boundary. Desktop is untouched by
+// construction: its reboot is execvp and simreset::runAll() only runs on the
+// armed in-process path, so the canary's clock behavior is unchanged.
+const simreset::Registrar gClockRebase{[] { simclock::rebaseForReboot(); }};
 
 #if CROSSPOINT_SIM_REBOOT_IN_PROCESS
 std::jmp_buf gRebootJump;
