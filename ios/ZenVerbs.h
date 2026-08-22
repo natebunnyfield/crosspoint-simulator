@@ -3,75 +3,58 @@
 #include <cmath>
 #include <cstdint>
 
-// The zen gesture language (owner ruling 2026-08-22, verbatim): "let's switch
-// to tap is Down button, swipe right is Up, swipe left is Down, two finger
-// swipe left is Right, two finger swipe is right is Left, two finger swipe
-// down is Select button, two finger swipe up is Back button, four finger tap
-// is Power button." Amended the same day: "pinch and spread control font size
-// (go one size up, go one size down)."
+// The zen DELIBERATE TAP — the one gesture left on the SDL finger stream.
 //
-// This REPLACES the zen tap zones (the screen thirds and the above/below-paper
-// bands, shipped 2026-08-19..22). It also SUPERSEDES the same-day no-swipe
-// ruling ("need to disable all swiping, we want all taps to be as deliberate
-// as possible", owner 2026-08-22) -- the swipes are back, as the language
-// itself, but the deliberate-tap DISCIPLINE survives here as the tap gate:
-// the shipped constants (28 px slop, 400 ms) still decide what counts as a
-// tap, and anything ambiguous fires NOTHING rather than the nearest verb.
+// Succession (all owner rulings, 2026-08-22): the tap ZONES (screen thirds,
+// 2026-08-19..22) were replaced by a hand-rolled gesture LANGUAGE classified
+// here ("let's switch to tap is Down button, swipe right is Up, ..."); the
+// device then showed the hand-rolled thresholds mis-modeled real hands ("two
+// finger left and right swap is not working most of the time, spread and
+// pinch never worked"), and the owner moved every gesture that MOVES to
+// Apple's recognition engine ("are these not ios standard gestures?", "let's
+// use apple for swiping instead") — see ios/CrossPointZenRecognizers.mm for
+// the recognizer set and the full mapping table. What stays here is exactly
+// one verb: the ONE-FINGER DELIBERATE TAP, page forward.
+//
+// The deliberate-tap DISCIPLINE survives from the no-swipe ruling ("we want
+// all taps to be as deliberate as possible"): the shipped constants (28 px
+// slop, 400 ms) still decide what counts as a tap, and anything else fires
+// NOTHING here — motion, multi-finger taps and the three-finger toggle all
+// belong to the recognizers ("be sure to swap 3 finger tap to apple"). That
+// split is also what makes a double fire impossible by construction: a touch
+// that fires a swipe recognizer traveled far past the 28 px slop, so this
+// classifier answers None for it, and a tap inside the slop is motion no
+// swipe recognizer recognizes.
 //
 // Same discipline as PadCore and ZenGesture beside it: pure, clock-free, no
 // SDL types, so the rules are provable off-device. The caller feeds finger
 // events with positions, ids and its own millisecond timestamps; the
 // classifier answers on the LAST lift with at most one verb per gesture.
 //
-// THE RULES, each one a way a real hand fails a gesture:
+// THE RULES, each one a way a real hand fails the tap:
 //
 //   * finger count is the PEAK concurrent fingers, and every finger that
 //     touched must have been part of that peak (touched == peak). A hand
-//     rolling across the glass -- lift one, land another -- is not any
-//     gesture.
-//   * TAP: every finger's whole-gesture excursion stays within 28 px and the
-//     gesture (first down to last lift) takes at most 400 ms. One finger is
-//     Down; four is Power; two, three (the zen toggle's count, owned by
-//     ZenGesture), five and up are nothing.
-//   * SWIPE: at most 700 ms, direction from the AVERAGE of the fingers'
-//     down-to-final vectors (a finger that lifts early contributes its final
-//     position), dominant-axis travel >= 60 px with the dominant axis at
-//     least twice the cross axis -- a diagonal is ambiguous and fires
-//     nothing. One finger: left is Down, right is Up, vertical is nothing.
-//     Two fingers: left is Right, right is Left, down is Select, up is Back.
-//     Three or more fingers swiping is nothing.
-//   * PINCH / SPREAD (two fingers only): the inter-finger distance changes by
-//     at least 60 px while the centroid stays within 28 px -- opposed motion,
-//     where a swipe is common motion. Shrinking is FontDown (one size down),
-//     growing is FontUp (one size up). Distance and centroid both large, or
-//     both small, is ambiguous and fires nothing.
+//     rolling across the glass -- lift one, land another -- is not a tap.
+//   * exactly ONE finger. Two is the recognizers' select, three is the zen
+//     toggle's (also a recognizer), four is the recognizers' power; all None
+//     here.
+//   * the finger's whole-gesture excursion stays within 28 px and the gesture
+//     (down to lift) takes at most 400 ms. Anything that travels or lingers
+//     is None — travel is the recognizers' domain now.
 //   * a cancelled finger (iOS takes touches for its own gestures) poisons the
 //     whole gesture. So does an eleventh finger.
 namespace zenverbs {
 
 enum class Verb {
   None,
-  Down,      // 1-finger tap, 1-finger swipe left
-  Up,        // 1-finger swipe right
-  Left,      // 2-finger swipe right
-  Right,     // 2-finger swipe left
-  Select,    // 2-finger swipe down, 2-finger tap
-  Back,      // 2-finger swipe up
-  Power,     // 4-finger tap
-  FontUp,    // 2-finger spread
-  FontDown,  // 2-finger pinch
+  Down,  // 1-finger deliberate tap -> page forward (the swap ruling maps it
+         // to the front Right button in the shim)
 };
 
-// The deliberate-tap gate, unchanged from the zone tracker it replaces.
+// The deliberate-tap gate, unchanged since the zone tracker.
 constexpr float kTapSlopPx = 28.0f;
 constexpr uint64_t kTapMaxMs = 400;
-// TOUCH_SWIPE_MIN_PX precedent (src/HalGPIO.cpp).
-constexpr float kSwipeMinPx = 60.0f;
-constexpr float kSwipeAxisRatio = 2.0f;
-constexpr uint64_t kSwipeMaxMs = 700;
-// Pinch: opposed travel past the swipe threshold, centroid within the tap slop.
-constexpr float kPinchMinPx = 60.0f;
-constexpr float kPinchCentroidMaxPx = 28.0f;
 
 class Classifier {
  public:
@@ -103,7 +86,8 @@ class Classifier {
   }
 
   // The classifier answers only when THIS lift is the last one.
-  Verb fingerUp(int64_t id, float x, float y, uint64_t tMs, bool cancelled = false) {
+  Verb fingerUp(int64_t id, float x, float y, uint64_t tMs,
+                bool cancelled = false) {
     Finger *f = find(id);
     if (f) {
       fingerMove(id, x, y);
@@ -138,61 +122,15 @@ class Classifier {
   Verb classify(uint64_t tMs) const {
     if (cancelled_ || overflow_) return Verb::None;
     // Every participant must have been down at the peak: a rolling hand
-    // passes through low peaks without ever being any of these gestures.
+    // passes through low peaks without ever being a tap.
     if (touched_ != peak_ || touched_ == 0) return Verb::None;
+    // One finger only: every multi-finger gesture has another owner now
+    // (recognizers; the 3-finger toggle is ZenGesture's).
+    if (peak_ != 1) return Verb::None;
     const uint64_t durMs = tMs >= firstDownMs_ ? tMs - firstDownMs_ : 0;
-
-    bool allWithinTapSlop = true;
-    float sumDx = 0, sumDy = 0;
-    for (int i = 0; i < touched_; ++i) {
-      if (slots_[i].excursion > kTapSlopPx) allWithinTapSlop = false;
-      sumDx += slots_[i].lastX - slots_[i].downX;
-      sumDy += slots_[i].lastY - slots_[i].downY;
-    }
-
-    if (allWithinTapSlop && durMs <= kTapMaxMs) {
-      // Three fingers belong to the zen toggle (ZenGesture.h); answering None
-      // here is what keeps one gesture from having two owners.
-      if (peak_ == 1) return Verb::Down;
-      if (peak_ == 2) return Verb::Select;   // owner 2026-08-22: "confirm is
-                                             // also two finger tap"
-      if (peak_ == 4) return Verb::Power;
-      return Verb::None;
-    }
-
-    if (durMs > kSwipeMaxMs) return Verb::None;
-    const float avgDx = sumDx / static_cast<float>(touched_);
-    const float avgDy = sumDy / static_cast<float>(touched_);
-
-    if (peak_ == 2) {
-      // Opposed vs common motion: a pinch changes the inter-finger distance
-      // while the centroid stays put; a swipe moves the centroid while the
-      // distance holds. Final positions, so a finger that lifted early still
-      // counts where it ended.
-      const float d0 = std::hypot(slots_[1].downX - slots_[0].downX,
-                                  slots_[1].downY - slots_[0].downY);
-      const float d1 = std::hypot(slots_[1].lastX - slots_[0].lastX,
-                                  slots_[1].lastY - slots_[0].lastY);
-      const float dd = d1 - d0;
-      const float centroid = std::hypot(avgDx, avgDy);
-      if (std::fabs(dd) >= kPinchMinPx) {
-        if (centroid < kPinchCentroidMaxPx)
-          return dd > 0 ? Verb::FontUp : Verb::FontDown;
-        return Verb::None;  // both opposed and common motion: ambiguous
-      }
-    } else if (peak_ != 1) {
-      return Verb::None;  // 3+ finger swipes are nobody's gesture
-    }
-
-    const float ax = std::fabs(avgDx), ay = std::fabs(avgDy);
-    if (ax >= ay) {
-      if (ax < kSwipeMinPx || ax < kSwipeAxisRatio * ay) return Verb::None;
-      if (peak_ == 1) return avgDx < 0 ? Verb::Down : Verb::Up;
-      return avgDx < 0 ? Verb::Right : Verb::Left;
-    }
-    if (ay < kSwipeMinPx || ay < kSwipeAxisRatio * ax) return Verb::None;
-    if (peak_ == 1) return Verb::None;  // no vertical 1-finger verb
-    return avgDy > 0 ? Verb::Select : Verb::Back;
+    if (durMs > kTapMaxMs) return Verb::None;
+    if (slots_[0].excursion > kTapSlopPx) return Verb::None;
+    return Verb::Down;
   }
 
   void reset() {
@@ -213,25 +151,9 @@ class Classifier {
   uint64_t firstDownMs_ = 0;
 };
 
-// The verb's button, in the firmware's terms. Kept beside the classifier so
-// the mapping is testable; the shim only forwards it to queueButtonTap.
-// FontUp/FontDown have no row here: they resolve to the SIDE pair (see the
-// shim), because on this fork a side-button tap IS the font-size step
-// (CrossPointSettings.h: longPressButtonBehavior is constexpr FONT_SIZE_STEP,
-// sideButtonLayout constexpr PREV_NEXT, so PageForward/BTN_DOWN steps +1 and
-// PageBack/BTN_UP steps -1 in EpubReaderActivity::stepReaderFontSize, clamped
-// at the ramp ends with no wrap and no settings write when already there).
 inline const char *verbName(Verb v) {
   switch (v) {
     case Verb::Down: return "down";
-    case Verb::Up: return "up";
-    case Verb::Left: return "left";
-    case Verb::Right: return "right";
-    case Verb::Select: return "select";
-    case Verb::Back: return "back";
-    case Verb::Power: return "power";
-    case Verb::FontUp: return "font up";
-    case Verb::FontDown: return "font down";
     case Verb::None: break;
   }
   return "none";

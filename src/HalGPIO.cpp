@@ -1298,6 +1298,16 @@ void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
   pendingButtonTaps.push_back({buttonIndex, holdMs});
 }
 
+void HalGPIO::clearPendingButtonTaps() {
+  for (const PendingButtonTap &t : pendingButtonTaps) {
+    // A tap mid-hold has its down injected and its up still pending; dropping
+    // the entry without this would leave the button's level held forever.
+    if (t.downSent)
+      injectButtonUp(t.button);
+  }
+  pendingButtonTaps.clear();
+}
+
 unsigned long HalGPIO::getHeldTime() const {
   // While a button is held: longest held time among the pressed buttons.
   // Nothing held: span of the last completed press, matching the device's
