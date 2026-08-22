@@ -278,6 +278,18 @@ const simreset::Registrar gGpioRebootReset{[] {
   enterClaimedByButton = false;
 }};
 
+// CROSSPOINT_SIM_LOG_POWER=1: the GPIO half of the [power] stations (see
+// HalDisplay.cpp for the display half). Off by default; every station fires at
+// most once per sleep/wake, never per frame.
+bool powerLogWanted() {
+  const char *e = std::getenv("CROSSPOINT_SIM_LOG_POWER");
+  return e && e[0] == '1';
+}
+// One-shot: the first update() after an in-process reboot announces itself.
+// Checked (a plain bool) before any env read, so the off cost is nil.
+bool powerLogFirstUpdate = false;
+const simreset::Registrar gGpioPowerLogReset{[] { powerLogFirstUpdate = true; }};
+
 float clamp01(float value) { return std::max(0.0f, std::min(1.0f, value)); }
 
 void logicalToPanelNormalized(float logicalNx, float logicalNy, float &panelNx,
@@ -805,6 +817,11 @@ void HalGPIO::beginFrame() {
 }
 
 void HalGPIO::update() {
+  if (powerLogFirstUpdate) {
+    powerLogFirstUpdate = false;
+    if (powerLogWanted())
+      SDL_Log("[power] first HalGPIO::update after reboot");
+  }
   // Per-frame press/release edges are intentionally NOT cleared here; that
   // happens once per frame in beginFrame(). The firmware calls update() several
   // times within a single frame (e.g. CrossPointWebServerActivity polls input
@@ -1381,6 +1398,9 @@ bool HalGPIO::isUsbConnected() const {
 }
 bool HalGPIO::wasUsbStateChanged() const { return false; }
 void HalGPIO::startDeepSleep() {
+  if (powerLogWanted())
+    SDL_Log("[power] deep sleep loop entered (pre-sleep taps and wake edge "
+            "consumed)");
   clearButtonState();
   // The press that put the device to sleep set the wake edge on its way down;
   // consume it so entering sleep does not instantly wake.
@@ -1403,6 +1423,8 @@ void HalGPIO::startDeepSleep() {
     if (!pendingButtonTaps.empty()) {
       pendingButtonTaps.clear();
       syntheticWakeEdge.store(true);
+      if (powerLogWanted())
+        SDL_Log("[power] wake edge: queued tap (QTAP / queueButtonTap)");
     }
     if (quitRequested.load())
       return;
@@ -1410,6 +1432,8 @@ void HalGPIO::startDeepSleep() {
     // tap's down and up both arrived in this iteration's pump (see the latch's
     // declaration comment). Any injected press since sleep began is a wake.
     if (syntheticWakeEdge.exchange(false)) {
+      if (powerLogWanted())
+        SDL_Log("[power] waking: injected/synthetic edge -> rebootAsPowerWake");
       clearButtonState();
       SimulatorLifecycle::rebootAsPowerWake();
     }
@@ -1423,6 +1447,9 @@ void HalGPIO::startDeepSleep() {
 
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
           scancodeToButton(e.key.scancode) >= 0) {
+        if (powerLogWanted())
+          SDL_Log("[power] waking: real key (scancode %d) -> rebootAsPowerWake",
+                  (int)e.key.scancode);
         clearButtonState();
         SimulatorLifecycle::rebootAsPowerWake();
       }

@@ -168,6 +168,36 @@ static std::atomic<bool> pendingReconvert{false};
 // shouldQuit().
 std::atomic<bool> quitRequested{false};
 
+// CROSSPOINT_SIM_LOG_POWER=1: grep-able [power] lines at every station of the
+// sleep -> wake -> reboot path. Added for the 2026-08-21 device report (a
+// corrupted band frozen across the top of the page after a power press); this
+// is the instrumentation the NEXT power report gets read against. Off by
+// default and costs one getenv at stations that fire at most once per
+// sleep/wake, never per frame.
+static bool powerLogWanted() {
+  const char *e = std::getenv("CROSSPOINT_SIM_LOG_POWER");
+  return e && e[0] == '1';
+}
+// One-shot latches so the first update/refresh/present AFTER an in-process
+// reboot announce themselves. Armed by the reboot Registrar below; checked
+// (a plain bool) before any env read, so the off cost is nil.
+static bool powerLogFirstRefresh = false;
+static bool powerLogFirstPresent = false;
+
+// The display is on its way into deep sleep (HalDisplay::deepSleep has run;
+// the firmware's only caller goes straight into the sleep loop from there and
+// leaves it only through a reboot -- main.cpp:610). While this is set,
+// presentIfNeeded treats the beam and the glow trail as OFF, so every present
+// that still lands settles to the full sleep screen instead of freezing a
+// transient on the glass. It cannot be a one-shot settle in deepSleep() itself:
+// the sleep screen's antialiasing compose arrives on the render task ~15-50 ms
+// AFTER deepSleep()'s flush, and its present restarted the beam -- proven by
+// the [power] boundary log (sleep entry: beamStartedAt=0; reboot boundary:
+// beamStartedAt=12207, accumLastAddMs=12220, both timestamps after the flush).
+// Cleared at the in-process reboot boundary by the Registrar below; the
+// desktop wake is execvp, where a fresh process clears it for free.
+static std::atomic<bool> displaySleeping{false};
+
 static int currentWindowWidth = 0;
 static int currentWindowHeight = 0;
 
@@ -1355,6 +1385,11 @@ void HalDisplay::displayWindow(int, int, int, int) {
 // Called from the render task (background thread): convert framebuffer to
 // pixels and flag for present.
 void HalDisplay::refreshDisplay(RefreshMode /*mode*/, bool /*turnOffScreen*/) {
+  if (powerLogFirstRefresh) {
+    powerLogFirstRefresh = false;
+    if (powerLogWanted())
+      SDL_Log("[power] first refreshDisplay after reboot");
+  }
   const uint8_t *fb = getFrameBuffer();
   // Lent out: there is nothing coherent to convert, and presenting a half-owned
   // buffer would show a torn frame. The lender's own refresh follows.
@@ -1405,6 +1440,26 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
 static SDL_Texture *accumTexture = nullptr;
 static uint64_t accumLastFadeMs = 0;
 static uint64_t accumLastAddMs = 0;
+
+// The [power] boundary station. Runs immediately before the in-process reboot's
+// longjmp (desktop execvp resets everything for free and never gets here). It
+// only REPORTS: deepSleep() below settles the beam and the glow on the way
+// down, so anything nonzero here is state that would have crossed into the next
+// boot and is worth a line in the log. The one-shot latches arm the
+// first-refresh / first-present stations for the boot that follows.
+const simreset::Registrar gPowerLogBoundary{[] {
+  powerLogFirstRefresh = true;
+  powerLogFirstPresent = true;
+  // The boot on the other side of the jump is awake, whatever it renders.
+  displaySleeping.store(false);
+  if (!powerLogWanted()) return;
+  SDL_Log("[power] reboot boundary: beamStartedAt=%llu ghostStartedAt=%llu "
+          "accumLastAddMs=%llu pendingPresent=%d holdUntil=%llu flashUntil=%llu",
+          (unsigned long long)beamStartedAt, (unsigned long long)ghostStartedAt,
+          (unsigned long long)accumLastAddMs, (int)pendingPresent.load(),
+          (unsigned long long)presentHoldUntil.load(),
+          (unsigned long long)presentFlashUntil.load());
+}};
 
 static void ensureAccumTexture() {
   if (accumTexture) return;
@@ -1626,6 +1681,15 @@ void HalDisplay::presentIfNeeded() {
   if (g_backgrounded.load())
     return;
 
+  if (powerLogFirstPresent) {
+    powerLogFirstPresent = false;
+    if (powerLogWanted())
+      SDL_Log("[power] first presentIfNeeded after reboot: pendingPresent=%d "
+              "beamStartedAt=%llu accumLastAddMs=%llu",
+              (int)pendingPresent.load(), (unsigned long long)beamStartedAt,
+              (unsigned long long)accumLastAddMs);
+  }
+
   // Service inversion changes first: reconverting sets pendingPresent, so the
   // repolarized pixels ride the present below instead of waiting for the
   // firmware to refresh.
@@ -1664,8 +1728,14 @@ void HalDisplay::presentIfNeeded() {
   // below it. Only when the content actually CHANGED: a re-present of the same
   // frame (a window resize, a screenshot) must not restart a trail, or the page
   // would ghost while nothing happened.
-  const float trailMs = glowTrailMs.load();
-  const float beamMs = beamPaintMs.load();
+  // Entering deep sleep: whatever presents from here on is the frame the glass
+  // holds for the whole sleep, so the beam and the trail are treated as OFF and
+  // the existing off-paths below settle everything (ghost dropped, accumulator
+  // destroyed, no self-requested next frame). See displaySleeping's comment for
+  // the owner report this closes and why deepSleep() cannot settle it alone.
+  const bool sleepSettled = displaySleeping.load();
+  const float trailMs = sleepSettled ? 0.0f : glowTrailMs.load();
+  const float beamMs = sleepSettled ? 0.0f : beamPaintMs.load();
   // The beam needs the PREVIOUS frame for the same reason the glow does -- it
   // is what is still on screen below the sweep -- so the capture is gated on
   // either wanting it, not on the glow alone.
@@ -2481,11 +2551,37 @@ void HalDisplay::presentIfNeeded() {
 bool HalDisplay::shouldQuit() const { return quitRequested.load(); }
 
 void HalDisplay::deepSleep() {
+  if (powerLogWanted())
+    SDL_Log("[power] sleep entry: beamMs=%.0f beamStartedAt=%llu sweeping=%d "
+            "trailMs=%.0f accumLastAddMs=%llu pendingPresent=%d holdUntil=%llu "
+            "writer=%c",
+            (double)beamPaintMs.load(), (unsigned long long)beamStartedAt,
+            (int)(beamPaintMs.load() > 0.0f && beamStartedAt != 0),
+            (double)glowTrailMs.load(), (unsigned long long)accumLastAddMs,
+            (int)pendingPresent.load(),
+            (unsigned long long)presentHoldUntil.load(), lastPixelWriter.load());
   // Flush any held base pass first. Sleep is the one caller with no "next
   // pass": the loop stops here, so a frame still inside the hold window would
   // be the frame nobody ever sees -- and it is the sleep screen.
   presentHoldUntil.store(0);
+  // SETTLE EVERY PRESENT FROM HERE ON, not just the one below. The frames
+  // presented after this call are the last ones: presents stop shortly after
+  // the sleep loop starts, so a beam mid-sweep would freeze half-composited on
+  // the glass for the whole sleep and past the wake until the firmware's first
+  // post-wake render. That was the owner's corrupted band (2026-08-21;
+  // reproduced as a top band of the sleep screen double-exposed over the
+  // previous page, byte-identical from sleep entry to 1.2 s past the wake
+  // tap). A one-shot settle here is NOT enough -- the sleep screen's AA
+  // compose lands on the render task tens of ms later and its present started
+  // a fresh sweep -- so the flag makes presentIfNeeded settle for as long as
+  // the sleep lasts. Completing the beam and retiring the glow is also the
+  // physics: by the time the tube is dark, the sweep has finished and the
+  // phosphor has decayed. Desktop builds seed both dials to 0, so this is a
+  // no-op there and the canary is unchanged.
+  displaySleeping.store(true);
   presentIfNeeded();
+  if (powerLogWanted())
+    SDL_Log("[power] sleep screen flushed; transients settle while sleeping");
 }
 
 uint8_t *HalDisplay::getFrameBuffer() const {
