@@ -85,6 +85,15 @@ extern "C" void CrossPointMixer_present(void);
 // this gate, page taps kept reaching the pad, the tap candidate and the zen
 // paths while the tray was up.
 extern "C" bool CrossPointMixer_isPresented(void);
+// The LIGHT-appearance page-color picker (CrossPointLightInkPicker.mm):
+// historical inks at variable density on proven papers. The chip branches on
+// the live appearance -- light opens this, dark opens the gun mixer
+// (docs/light-ink-picker.md). Same sheet discipline, same presented-flag
+// contract, so every gate below checks both.
+extern "C" void CrossPointInkPicker_present(void);
+extern "C" bool CrossPointInkPicker_isPresented(void);
+extern "C" void CrossPointInkPicker_applyForTest(int ink, int paper,
+                                                 int density);
 // Zen's motion gestures are native UIKit recognizers now
 // (CrossPointZenRecognizers.mm); enabled only while zen is on.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
@@ -1512,13 +1521,18 @@ void pollPanelGlow() {
 // Cheap and edge-triggered, like every other poll here: reading an integer out
 // of NSUserDefaults every frame is fine, pushing it every frame is not -- the
 // setter is what the render path reads.
+// HARD SET, not a setting (owner 2026-08-22: "hard set beam paint to 55ms,
+// remove ios setting"). 55 ms is the shipped sweep now -- between the 33 ms
+// that is barely visible and the 67 ms that shipped, tuned on device. The
+// desktop keeps CROSSPOINT_SIM_BEAM_MS for QA sweeps, which setBeamPaint
+// still honors; the phone has no dial.
 void pollBeamPaint() {
-  static int s_applied = -1;
-  const int ms = CrossPointPrefs_beamPaintMs();
-  if (ms == s_applied) return;
-  s_applied = ms;
-  SDL_Log("[beam] %d ms sweep", ms);
-  SimulatorOverlay::setBeamPaint(static_cast<float>(ms));
+  static bool s_applied = false;
+  if (s_applied) return;
+  s_applied = true;
+  constexpr float kBeamPaintMs = 55.0f;
+  SDL_Log("[beam] %.0f ms sweep (fixed)", kBeamPaintMs);
+  SimulatorOverlay::setBeamPaint(kBeamPaintMs);
 }
 
 // Same edge-triggered shape as the others: read cheaply every frame, push only
@@ -1596,14 +1610,21 @@ void pollLetterpress() {
   SimulatorOverlay::setLetterpress(pct);
 }
 
+// Intensity AND pitch size, edge-triggered on the PAIR: the size is only
+// meaningful with the intensity that renders it, and two separate caches would
+// let a size change alone go unapplied until the next intensity change.
 void pollScanlines() {
   static int s_applied = -1;
+  static int s_appliedSize = -1;
   const int pct = CrossPointPrefs_scanlinesPercent();
-  if (pct == s_applied) return;
+  const int size = CrossPointPrefs_scanlineSizePercent();
+  if (pct == s_applied && size == s_appliedSize) return;
   s_applied = pct;
-  SDL_Log("[scanlines] %d%% of standard%s", pct,
-          pct == 0 ? " (off)" : " (dark pages only)");
+  s_appliedSize = size;
+  SDL_Log("[scanlines] %d%% of standard, pitch %d%% of the row lattice%s", pct,
+          size, pct == 0 ? " (off)" : " (dark pages only)");
   SimulatorOverlay::setScanlines(pct);
+  SimulatorOverlay::setScanlineSize(size);
 }
 
 void pollPanelPalette() {
@@ -2292,7 +2313,8 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // through to this view (pageSheet, undimmed medium detent — audit #6).
       // The sheet is the only control surface then: feed NOTHING. Fingers
       // never enter the trackers, so their lifts are no-ops below.
-      if (CrossPointMixer_isPresented()) break;
+      if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented())
+        break;
       if (!windowPixelSize(e->tfinger.windowID, &outW, &outH)) break;
       const float fx = e->tfinger.x * outW, fy = e->tfinger.y * outH;
 
@@ -2383,7 +2405,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // fed above so no per-finger state leaks past the sheet, but nothing
         // fires. (Fingers that went down after the sheet presented never
         // entered the trackers at all — see FINGER_DOWN.)
-        if (CrossPointMixer_isPresented()) {
+        if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
           g_tapCand.spoil();
         } else if (zenBefore && verb == zenverbs::Verb::Down) {
           // THE DELIBERATE TAP, the one verb left on this path — page
@@ -2422,14 +2444,21 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
           if (hitPaletteChip(candX, candY)) {
-            // TAP AND HOLD BOTH OPEN THE MIXER (owner ruling 2026-08-20:
+            // TAP AND HOLD BOTH OPEN THE MODAL (owner ruling 2026-08-20:
             // "Both open the modal"). This supersedes the 2026-08-17 cycling
-            // ruling -- stepping the ring moved into the modal's Presets tab,
-            // and the modal is now the whole page-color surface: presets,
-            // preset mixes, and the three-mode phosphor mixer.
-            SDL_Log("[palette] chip -> mixer (%llu ms)",
+            // ruling -- stepping the ring moved into the modal's Presets tab.
+            // WHICH modal is the live appearance's (owner order 2026-08-22):
+            // dark is the CRT and keeps the gun mixer; light is paper-and-ink
+            // and opens the historical-ink picker. g_dark rather than the
+            // system appearance, because g_dark is what the page is actually
+            // rendering (the darkMode setting can override the system).
+            SDL_Log("[palette] chip -> %s (%llu ms)",
+                    g_dark ? "mixer" : "ink picker",
                     static_cast<unsigned long long>(SDL_GetTicks() - candAt));
-            CrossPointMixer_present();
+            if (g_dark)
+              CrossPointMixer_present();
+            else
+              CrossPointInkPicker_present();
           } else if (hitKeyboardChip(candX, candY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
@@ -2669,6 +2698,33 @@ void CrossPointHarness_perFrame() {
     if (s_openMixerCountdown > 0 && --s_openMixerCountdown == 0) {
       SDL_Log("[mixer] diagnostic auto-open");
       CrossPointMixer_present();
+    }
+    // CROSSPOINT_SIM_OPEN_INKPICKER=1: same hook for the light picker, same
+    // frame-counter shape, same reason (simctl cannot synthesize a tap).
+    static int s_openInkPickerCountdown = -2;
+    if (s_openInkPickerCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_OPEN_INKPICKER");
+      s_openInkPickerCountdown = (e && e[0] == '1') ? 120 : -1;
+    }
+    if (s_openInkPickerCountdown > 0 && --s_openInkPickerCountdown == 0) {
+      SDL_Log("[inkpicker] diagnostic auto-open");
+      CrossPointInkPicker_present();
+    }
+    // CROSSPOINT_SIM_APPLY_INK="ink,paper,density": drive the picker's exact
+    // apply path with no finger -- the mixer's applyGunsForTest pattern.
+    static int s_applyInkCountdown = -2;
+    static int s_applyInkArgs[3] = {0, 0, 100};
+    if (s_applyInkCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_APPLY_INK");
+      s_applyInkCountdown =
+          (e && std::sscanf(e, "%d,%d,%d", &s_applyInkArgs[0],
+                            &s_applyInkArgs[1], &s_applyInkArgs[2]) == 3)
+              ? 120
+              : -1;
+    }
+    if (s_applyInkCountdown > 0 && --s_applyInkCountdown == 0) {
+      CrossPointInkPicker_applyForTest(s_applyInkArgs[0], s_applyInkArgs[1],
+                                       s_applyInkArgs[2]);
     }
     // CROSSPOINT_SIM_TAP_CHIP=1: the FULL finger path, not just the modal --
     // synthesizes SDL_EVENT_FINGER_DOWN/UP at the chip's center, so padWatch,

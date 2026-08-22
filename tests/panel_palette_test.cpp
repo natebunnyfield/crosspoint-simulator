@@ -445,8 +445,10 @@ static void testRootPlist(const char *path) {
   const size_t zenToggle = xml.find("<string>zenModeEnabled</string>");
   CHECKM(zenToggle != std::string::npos,
          "zenModeEnabled (the Zen toggle) must be in Root.plist");
-  CHECKM(xml.find("<string>beamPaintMs</string>") != std::string::npos,
-         "beamPaintMs (the Page Colors group's last row) must stay in Root.plist");
+  CHECKM(xml.find("<string>beamPaintMs</string>") == std::string::npos,
+         "beamPaintMs: the row is gone (owner 2026-08-22, hard set at 55 ms)");
+  CHECKM(xml.find("<string>pageFadeSeconds</string>") != std::string::npos,
+         "pageFadeSeconds (a kept Page Colors row) must be in Root.plist");
   CHECKM(xml.find("<string>readAloudEnabled</string>") != std::string::npos,
          "the Read Aloud section must survive the removal");
   CHECKM(xml.find("<string>diagnosticsEnabled</string>") != std::string::npos,

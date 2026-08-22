@@ -154,34 +154,6 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>67</integer>
-			<key>Key</key>
-			<string>beamPaintMs</string>
-			<key>Title</key>
-			<string>Beam Paint</string>
-			<key>Titles</key>
-			<array>
-				<string>Off — the page arrives at once</string>
-				<string>17 ms — 60 Hz, a real field sweep</string>
-				<string>33 ms — 30 Hz, just visible</string>
-				<string>67 ms — slow enough to watch</string>
-				<string>150 ms — deliberate</string>
-				<string>300 ms — a wipe, not a tube</string>
-			</array>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Values</key>
-			<array>
-				<integer>0</integer>
-				<integer>17</integer>
-				<integer>33</integer>
-				<integer>67</integer>
-				<integer>150</integer>
-				<integer>300</integer>
-			</array>
-		</dict>
-		<dict>
-			<key>DefaultValue</key>
 			<integer>50</integer>
 			<key>Key</key>
 			<string>letterpressPercent</string>
@@ -226,6 +198,30 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 				<integer>50</integer>
 				<integer>100</integer>
 				<integer>150</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>100</integer>
+			<key>Key</key>
+			<string>scanlineSizePercent</string>
+			<key>Title</key>
+			<string>Scanline Size</string>
+			<key>Titles</key>
+			<array>
+				<string>Fine — one line per page row</string>
+				<string>Medium — one line per 1½ rows</string>
+				<string>Coarse — one line per 2 rows</string>
+				<string>Chunky — one line per 3 rows</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>100</integer>
+				<integer>150</integer>
+				<integer>200</integer>
+				<integer>300</integer>
 			</array>
 		</dict>
 		<dict>

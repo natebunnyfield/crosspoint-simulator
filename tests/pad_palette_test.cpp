@@ -429,8 +429,11 @@ int main(int argc, char **argv) {
              "zenBottomRatio: row is back in Root.plist (removed 2026-08-22)");
       // The absence checks cannot be satisfied by an empty or wrong file: a
       // kept row must still be present.
-      CHECKM(plist.find("<string>beamPaintMs</string>") != std::string::npos,
-             "beamPaintMs must stay in Root.plist — is this the right file?");
+      CHECKM(plist.find("<string>beamPaintMs</string>") == std::string::npos,
+             "beamPaintMs: row is back in Root.plist (removed 2026-08-22, the "
+             "sweep is hard set at 55 ms)");
+      CHECKM(plist.find("<string>pageFadeSeconds</string>") != std::string::npos,
+             "pageFadeSeconds must stay in Root.plist — is this the right file?");
     }
   }
 
