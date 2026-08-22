@@ -62,6 +62,18 @@ public:
     hasNew_ = true;
   }
 
+  // The in-process (iOS) reboot boundary. The run that published is being
+  // abandoned, so a page still waiting here must not deliver into the next
+  // boot's consumer -- stale text spoken over whatever the rebooted firmware
+  // shows. wanted_ is left alone: each consumer re-seeds it on its own boot
+  // path (the iOS adapter in CrossPointReadAloud_begin, the desktop logger
+  // before the first loop()).
+  void resetForReboot() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    page_ = ReadAloudPage{};
+    hasNew_ = false;
+  }
+
   // True once per publish; `out` receives the page.
   bool consume(ReadAloudPage &out) {
     std::lock_guard<std::mutex> lock(mutex_);

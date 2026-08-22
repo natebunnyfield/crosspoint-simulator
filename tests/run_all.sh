@@ -137,8 +137,11 @@ run read_aloud_channel \
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 
+# SimulatorLifecycle.cpp is compiled in so the millis-rebase registrar it
+# registers is the REAL one the test's runAll() exercises (same trick as
+# restart_semantics below).
 run reboot_resets \
-  c++ -std=c++20 -Isrc -o "$OUT/reboot_resets" tests/reboot_resets_test.cpp
+  c++ -std=c++20 -Isrc -o "$OUT/reboot_resets" tests/reboot_resets_test.cpp src/SimulatorLifecycle.cpp
 
 run semphr_reboot \
   c++ -std=c++20 -Isrc -o "$OUT/semphr_reboot" tests/semphr_reboot_test.cpp

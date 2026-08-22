@@ -210,6 +210,21 @@ bool stageDocument(const std::string &hostPath) {
 namespace SimulatorDocumentOpen {
 
 void captureLaunchDocument() {
+  // ONCE PER PROCESS, not once per boot. This call sits after main()'s setjmp,
+  // so the in-process (iOS) reboot re-runs it on every wake -- and it used to
+  // install another SDL event watch each time (N wakes = N stacked watches,
+  // each drop event delivered N times) and pay the 400 ms launch-document wait
+  // again. A wake is not a launch: the OS delivers a launch document once, and
+  // anything arriving later lands in pumpPendingOpen() from the main loop.
+  // Same shape as CrossPointHarness_begin's s_watchesInstalled guard.
+  //
+  // Deliberately NOT a simreset-cleared static -- surviving the reboot is the
+  // point. The desktop reboot is execvp, where a fresh process re-runs the
+  // full path anyway.
+  static bool s_ranThisProcess = false;
+  if (s_ranThisProcess) return;
+  s_ranThisProcess = true;
+
   // Early, because the event queue has to exist before LaunchServices delivers.
   // Refcounted against HalDisplay::begin()'s own SDL_Init, so the single
   // SDL_Quit() at the end of main() still tears everything down.

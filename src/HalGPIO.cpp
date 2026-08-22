@@ -168,6 +168,10 @@ static void queueTypedBytes(const char *bytes, size_t length) {
   typedTextBuffer.append(bytes, length);
 }
 
+// Defined after the namespace below; forward-declared so the reboot Registrar
+// in that namespace can run it at the in-process reboot boundary.
+static void clearButtonState();
+
 namespace {
 
 struct TouchState {
@@ -276,6 +280,22 @@ const simreset::Registrar gGpioRebootReset{[] {
   textEntryActive.store(false);
   textEntryLines.store(HalGPIO::TextEntryLines::Single);
   enterClaimedByButton = false;
+  // Input state does not survive a reboot. The sleep path clears it on the
+  // way down (startDeepSleep), but the OTHER two in-process reboots --
+  // rebootAsFirmwareRestart (how every file transfer and font download ends)
+  // and rebootForDocumentOpen -- did not: a key held or a tap queued at the
+  // restart drained into the rebooted firmware as a phantom press. All three
+  // paths run this registry, so this is the one place. lastReleasedSpan was
+  // never cleared anywhere, and a stale span makes the rebooted firmware's
+  // first release classify against the previous boot's press.
+  clearButtonState();
+  pendingButtonTaps.clear();
+  lastReleasedSpan = 0;
+  syntheticWakeEdge.store(false);
+  // A page published just before the reboot must not deliver into the next
+  // boot's consumer (it would be spoken over whatever the rebooted firmware
+  // shows). The wanted flag re-seeds on each consumer's own boot path.
+  readAloudChannel.resetForReboot();
 }};
 
 // CROSSPOINT_SIM_LOG_POWER=1: the GPIO half of the [power] stations (see

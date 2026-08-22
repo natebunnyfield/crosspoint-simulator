@@ -18,17 +18,16 @@
 #define PGM_P const char *
 #define PSTR(s) (s)
 
-inline unsigned long millis() {
-  using namespace std::chrono;
-  static const auto start = steady_clock::now();
-  return duration_cast<milliseconds>(steady_clock::now() - start).count();
-}
+// The epoch lives in SimulatorClock.h, NOT in a function-local static here: a
+// function-local start survives the iOS in-process (longjmp) reboot, so
+// millis() kept counting across a wake while hardware zeroes it at reset.
+// SimulatorLifecycle re-bases the epoch at that boundary; on desktop the
+// reboot is execvp and the registrar never runs, so nothing changes there.
+#include "SimulatorClock.h"
 
-inline unsigned long micros() {
-  using namespace std::chrono;
-  static const auto start = steady_clock::now();
-  return duration_cast<microseconds>(steady_clock::now() - start).count();
-}
+inline unsigned long millis() { return simclock::millisSinceEpoch(); }
+
+inline unsigned long micros() { return simclock::microsSinceEpoch(); }
 
 inline void delay(unsigned long ms) {
   std::this_thread::sleep_for(std::chrono::milliseconds(ms));

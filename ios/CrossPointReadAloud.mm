@@ -20,6 +20,7 @@
 #include "HalGPIO.h"
 #include "ReadAloudCore.h"
 #include "SimulatorOverlay.h"
+#include "SimulatorRebootResets.h"
 
 // The AVSpeech adapter. Everything below runs on the main thread EXCEPT the
 // AVSpeechSynthesizerDelegate callbacks, which arrive on a private queue and
@@ -402,18 +403,28 @@ void installMagicTapHandler() {
 //              so the panel geometry and the hit-test are exercised too — which
 //              makes it precisely the tap-to-stop case
 //
-// Parsed once, fired in order, never rearmed.
+// Parsed once per BOOT, fired in order. The in-process reboot re-arms the
+// parse (registrar below) so a wake re-reads the env, exactly like the input
+// and screenshot schedules -- a function-local `static bool parsed` survived
+// the longjmp and left the hook dead after the first wake.
 struct QaEvent {
   uint64_t atMs;
   int verb; // 0 = MAGICTAP, 1 = TAPWORD, 2 = DELEGATETAP
 };
 std::vector<QaEvent> g_qa;
 size_t g_qaNext = 0;
+bool g_qaParsed = false;
+bool g_qaRebooted = false; // a re-parse must skip the pre-wake timeline
+const simreset::Registrar g_qaRebootReset{[] {
+  g_qaParsed = false;
+  g_qaRebooted = true;
+}};
 
 void parseQaScript() {
-  static bool parsed = false;
-  if (parsed) return;
-  parsed = true;
+  if (g_qaParsed) return;
+  g_qaParsed = true;
+  g_qa.clear();
+  g_qaNext = 0;
   const char *env = std::getenv("CROSSPOINT_SIM_READALOUD_SCRIPT");
   if (!env || !*env) return;
   const std::string spec(env);
@@ -440,7 +451,17 @@ void parseQaScript() {
     }
     g_qa.push_back(ev);
   }
-  SDL_Log("[READALOUD] qa script armed: %zu event(s)", g_qa.size());
+  // Timestamps ride SDL_GetTicks, which no reboot re-bases. After a wake the
+  // pre-sleep portion of the schedule is already in the past, and firing it
+  // all at once at the wake instant is exactly the *_AFTER_WAKE bug class --
+  // skip it; only events dated after the wake still fire.
+  if (g_qaRebooted) {
+    const uint64_t now = SDL_GetTicks();
+    while (g_qaNext < g_qa.size() && g_qa[g_qaNext].atMs <= now) g_qaNext++;
+    if (g_qaNext > 0)
+      SDL_Log("[READALOUD] qa: skipped %zu pre-wake event(s)", g_qaNext);
+  }
+  SDL_Log("[READALOUD] qa script armed: %zu event(s)", g_qa.size() - g_qaNext);
 }
 
 void qaTapCurrentWord() {
@@ -500,6 +521,43 @@ void pumpQaScript() {
 
 } // namespace
 
+void CrossPointReadAloud_resetForReboot(void) {
+  // The in-process reboot boundary (called from CrossPointHarness_begin, so it
+  // runs before begin() re-seeds; a first boot returns here with nothing to
+  // reset). Without this the adapter kept SPEAKING the old page over the
+  // rebooted firmware, its didFinish then queued a phantom page-turn into the
+  // new boot, the stale highlight rects painted over whatever the reboot
+  // landed on, and VoiceOver still exposed the dead page's elements.
+  if (!g_synth) return;
+  // Stop the engine unconditionally -- the core's state may already be Off
+  // while the engine still holds an utterance (a reboot can land mid-action).
+  [g_synth stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+  // Force the core idle. setEnabled(false) stops/clears from any state;
+  // begin() sets g_lastEnabled = -1, so the next perFrame re-applies the
+  // owner's actual pref against a clean core.
+  applyActions(g_core.setEnabled(false));
+  g_lastEnabled = 0;
+  // The stop's async didCancel -- and any didFinish already in flight --
+  // belongs to the boot being abandoned. Bump the serial so the filter drops
+  // them (a post-reboot didFinish must never turn a page), and drop what has
+  // already been enqueued.
+  g_serial++;
+  {
+    std::lock_guard<std::mutex> lock(g_evMutex);
+    g_events.clear();
+  }
+  g_pageUtf8.clear();
+  g_rects.clear();
+  g_highlightActive = false;
+  g_awaitTicks = -1;
+  g_idleTicks = -1; // core is Off now; restart the session-release countdown
+  // The dead page must not stay in the accessibility tree either.
+  CrossPointAccessibility_setPage(nullptr, 0, nullptr, 0);
+  // Unpaint the highlight now; an e-ink firmware may not present for minutes.
+  SimulatorOverlay::requestPresent();
+  SDL_Log("[READALOUD] reset for reboot");
+}
+
 void CrossPointReadAloud_begin(void) {
   // Registrations once; state refreshes every call (deep-sleep wake contract,
   // same as CrossPointHarness_begin).
@@ -510,9 +568,11 @@ void CrossPointReadAloud_begin(void) {
     g_delegate = [[CPReadAloudDelegate alloc] init];
     g_synth.delegate = g_delegate;
     installMagicTapHandler();
-    parseQaScript();
     SDL_Log("[READALOUD] adapter installed");
   }
+  // Outside the one-shot: self-guarded, and the reboot registrar re-arms it so
+  // a wake re-reads the env (a script dated after the wake still fires).
+  parseQaScript();
   // Seed the capture flag NOW, before the first loop() runs: a resumed book
   // renders its first page inside that first iteration, and a flag applied
   // lazily from perFrame (which runs after loop()) misses that page — the

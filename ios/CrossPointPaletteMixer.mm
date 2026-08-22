@@ -351,6 +351,24 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   _swatchLight.layer.borderColor = UIColor.separatorColor.CGColor;
   [self.view addSubview:_swatchLight];
 
+  // A CGColor never re-resolves: separatorColor was flattened at creation, so
+  // an appearance flip while the sheet is up kept the stale border -- the
+  // keyboard-bar-chip bug, one file over (CrossPointKeyboardBar_refreshTint).
+  // Re-push it on every color-appearance change. registerForTraitChanges is
+  // the iOS 17+ replacement for traitCollectionDidChange:; the deployment
+  // target is 26.0. Self arrives as the handler's parameter, so nothing is
+  // captured and there is no retain cycle.
+  [self registerForTraitChanges:@[ UITraitUserInterfaceStyle.class ]
+                    withHandler:^(CPXGunMixerController *vc,
+                                  UITraitCollection *previous) {
+                      CGColorRef border =
+                          [UIColor.separatorColor
+                              resolvedColorWithTraitCollection:vc.traitCollection]
+                              .CGColor;
+                      vc->_swatchDark.layer.borderColor = border;
+                      vc->_swatchLight.layer.borderColor = border;
+                    }];
+
   _readout = [UILabel new];
   _readout.font = monoS;
   _readout.textColor = UIColor.secondaryLabelColor;
