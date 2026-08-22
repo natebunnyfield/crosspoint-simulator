@@ -561,6 +561,18 @@ the appearance path: `requestPresent()` only re-pushes the framebuffer, so
 `applyTheme()` also calls `crosspointRequestRender()` or the firmware's own
 Settings screen keeps painting the value it was drawn with.
 
+## Proof images are lossless, always
+
+Owner P0, 2026-08-22: "all proof images need to be losslessly shared or we're
+defeating the whole purpose of proofing." Every image in an artifact, a file
+send, or any channel he judges by eye is **PNG at native pixels**. Never JPEG.
+If a set will not fit the artifact cap, scale by an INTEGER factor with NEAREST
+resampling (and say so on the page), split across two artifacts, or crop to the
+region under judgment at 1:1 -- never compress. Add `image-rendering: pixelated`
+so the browser does not smooth it back. The subjects here are tone, dither,
+grain, scanlines and antialiasing: the exact things a lossy codec eats first.
+The simulator captures BMP; convert to PNG, never to JPEG.
+
 ## The 2026-08-22 channels and hooks (quick index)
 
 Grown in one day; each is documented at its definition, this is the map:
