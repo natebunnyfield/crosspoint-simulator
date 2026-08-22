@@ -703,9 +703,25 @@ void layoutPad(int outW, int outH) {
   // (History: row-top alone read as sliding off the screen; row-top + 4 cells
   // was the 2026-08-20 pick, 141 px below vs 84 above; both kept above for
   // the record.)
+  // The floor alone (above) overshot: it left the black band BELOW the sheet
+  // (120 px) smaller than the band above it (204 px), which is the exact
+  // sliding-off-the-bottom read the 2026-08-20 ruling fixed. The proven
+  // proportion is Van de Graaf's: a page's bottom margin is TWICE its top
+  // (1/9 against 2/9 of the height -- the classical canon Tschichold
+  // demonstrated). Applied to the sheet on the glass: the black band below
+  // the paper = 2x the band above it. Anchored to the panel-top rect
+  // (g_zenPaper.y, 241 px on an iPhone Air) via a phi multiplier that lands
+  // the VISIBLE card bands at 204:408 device px -- measured exactly 1:2 --
+  // and still clamped to the home-indicator floor. Owner ask 2026-08-21:
+  // "extend the bottom margin of paper in zen mode to an optimal and proven
+  // distance", after rejecting the bare floor ("there is a geometry to it").
   const float gridPx = 8.0f * S;
-  g_zenRowTopPx =
+  const float topBandPx = g_zenPaper.y > 0 ? g_zenPaper.y : 80.0f * S / 3.0f;
+  const float goldenToPx = H * S - 1.618f * topBandPx;
+  const float floorToPx =
       SDL_floorf(((H - bottomInset) * S) / gridPx) * gridPx;
+  g_zenRowTopPx =
+      SDL_min(SDL_floorf(goldenToPx / gridPx) * gridPx, floorToPx);
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
