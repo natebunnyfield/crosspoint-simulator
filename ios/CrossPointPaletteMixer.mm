@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "GunMixCsv.h"
 #include "PanelPalette.h"
 #include "PhosphorMix.h"
 #include "SimulatorOverlay.h"
@@ -66,6 +67,8 @@ static NSString *const kPaperDark = @"panelPaperDark";
 namespace {
 
 constexpr int kGunCount = 4;
+static_assert(kGunCount == gunmix::kGunCount,
+              "the mixer's gun count and the CSV codec's must agree");
 
 // The channel labels: the industry-standard four-emitter scheme.
 constexpr const char *kGunLabel[kGunCount] = {"R", "G", "B", "W"};
@@ -83,17 +86,22 @@ constexpr int kDefaultGunWeight[kGunCount] = {50, 50, 50, 0};
 // Slider range. 0 = that gun off (component omitted); the core clamps weights
 // below 1, so omission is the only honest zero.
 constexpr int kWeightMax = 100;
+static_assert(kWeightMax == gunmix::kWeightMax,
+              "the slider's ceiling and the codec's clamp must agree");
 
 NSString *hexOf(const unsigned char c[3]) {
   return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
 }
 
-// Current gun assignments + weights from the store. Assignments come from
-// phosphorGunAssign and must be EXACTLY four valid mixable presets or the
-// whole set falls back to the defaults -- half a stored assignment is a
-// foreign recipe. Weights come from phosphorMixBlend matched by preset; a
-// preset in the blend CSV not among the assignments is ignored, and a gun
-// with no stored weight keeps its default.
+// Current gun assignments + weights from the store, through the pure codec
+// (src/GunMixCsv.h, host-tested). Assignments come from phosphorGunAssign and
+// must be EXACTLY four valid mixable presets or the whole set falls back to
+// the defaults -- half a stored assignment is a foreign recipe. Weights come
+// from phosphorMixBlend POSITIONALLY: pair g belongs to gun g, with each
+// pair's preset cross-checked against the assignment. Never matched by
+// preset -- two guns may share a phosphor (owner bug report 2026-08-22:
+// "duplicated guns"), and a by-preset lookup collapsed both onto whichever
+// shared pair parsed last, destroying one gun's weight on every load.
 void loadGuns(int presets[kGunCount], int w[kGunCount]) {
   for (int g = 0; g < kGunCount; g++) {
     presets[g] = kDefaultGunPreset[g];
@@ -101,27 +109,9 @@ void loadGuns(int presets[kGunCount], int w[kGunCount]) {
   }
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
   NSString *assign = [d stringForKey:kGunAssign];
-  if (assign.length) {
-    NSArray<NSString *> *parts = [assign componentsSeparatedByString:@","];
-    int parsed[kGunCount];
-    bool ok = parts.count == kGunCount;
-    for (int g = 0; ok && g < kGunCount; g++) {
-      parsed[g] = parts[g].intValue;
-      ok = phosphormix::isMixablePreset(parsed[g]);
-    }
-    if (ok)
-      for (int g = 0; g < kGunCount; g++) presets[g] = parsed[g];
-  }
+  if (assign.length) gunmix::parseAssign(assign.UTF8String, presets);
   NSString *csv = [d stringForKey:kMixBlend];
-  if (!csv.length) return;
-  for (NSString *pair in [csv componentsSeparatedByString:@","]) {
-    NSArray<NSString *> *kv = [pair componentsSeparatedByString:@":"];
-    if (kv.count != 2) continue;
-    const int preset = kv[0].intValue;
-    for (int g = 0; g < kGunCount; g++)
-      if (preset == presets[g])
-        w[g] = MAX(0, MIN(kWeightMax, kv[1].intValue));
-  }
+  if (csv.length) gunmix::parseWeights(csv.UTF8String, presets, w);
 }
 
 phosphormix::Result computeGuns(const int presets[kGunCount],
@@ -147,15 +137,9 @@ phosphormix::Result computeGuns(const int presets[kGunCount],
 // finger lifts.
 void applyGuns(const int presets[kGunCount], const int w[kGunCount],
                bool renderPage) {
-  NSMutableArray *assign = [NSMutableArray array];
-  NSMutableArray *parts = [NSMutableArray array];
-  for (int g = 0; g < kGunCount; g++) {
-    [assign addObject:[NSString stringWithFormat:@"%d", presets[g]]];
-    [parts addObject:[NSString stringWithFormat:@"%d:%d", presets[g], w[g]]];
-  }
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  [d setObject:[assign componentsJoinedByString:@","] forKey:kGunAssign];
-  [d setObject:[parts componentsJoinedByString:@","] forKey:kMixBlend];
+  [d setObject:@(gunmix::encodeAssign(presets).c_str()) forKey:kGunAssign];
+  [d setObject:@(gunmix::encodeBlend(presets, w).c_str()) forKey:kMixBlend];
   [d setInteger:phosphormix::Blend forKey:kMixMode];
 
   const phosphormix::Result r = computeGuns(presets, w);

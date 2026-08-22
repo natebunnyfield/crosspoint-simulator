@@ -419,6 +419,29 @@ int main() {
           "equal trails order by hue, red first, blue-whites late");
   }
 
+  // --- DUPLICATED GUNS: WEIGHTS ADD ----------------------------------------
+  // The four-gun mixer lets two guns hold the SAME phosphor (owner bug report
+  // 2026-08-22), and the desktop's applyMix hands the blend CSV to mixBlend
+  // positionally, duplicates included. Physically coherent: the same powder
+  // fed by two guns is just more of that powder, so P22G at 70 plus P22G at
+  // 10 must equal one P22G at 80 -- byte-identical in every field, tail and
+  // onset included. Pinned so neither platform ever starts collapsing or
+  // double-counting a shared preset.
+  {
+    const int P22G = presetOf("P22G"), P22B = presetOf("P22B");
+    check(P22G > 0 && P22B > 0, "duplicate-gun test phosphors exist");
+    const Component dup[3] = {{P22G, 70}, {P22G, 10}, {P22B, 50}};
+    const Component merged[2] = {{P22G, 80}, {P22B, 50}};
+    const Result a = mixBlend(dup, 3);
+    const Result b = mixBlend(merged, 2);
+    check(samePalette(a.dark, b.dark) && samePalette(a.light, b.light),
+          "duplicated component weights sum: pages byte-identical");
+    check(a.trailMs == b.trailMs && a.hasTail == b.hasTail &&
+              std::memcmp(a.tail, b.tail, 3) == 0 &&
+              a.tailOnsetMs == b.tailOnsetMs,
+          "duplicated component weights sum: decay identical too");
+  }
+
   if (failures == 0) std::printf("phosphor_mix_test: all checks passed\n");
   return failures ? 1 : 0;
 }
