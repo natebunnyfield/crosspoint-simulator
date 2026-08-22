@@ -147,6 +147,11 @@ run readaloud_lines \
 run read_aloud_channel \
   c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
 
+# The shake -> font-family channel (consume-once, bursts collapse, reboot
+# drops a pending step). Pure for the same reason ReadAloudChannel is.
+run font_family_step \
+  c++ -std=c++17 -Isrc -o "$OUT/font_family_step" tests/font_family_step_channel_test.cpp
+
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 

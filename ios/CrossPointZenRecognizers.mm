@@ -63,6 +63,17 @@ extern "C" bool CrossPointMixer_isPresented(void);
 // The shim's toggle: flip g_zen, refit, present, and spoil the SDL-side tap
 // candidate and classifier for the same three fingers.
 extern "C" void CrossPointZen_toggleFromRecognizer(void);
+// The shim's spoil, without the toggle: the long-press select needs the same
+// candidate/classifier reset the toggle performs, for the same finger-also-
+// streams-into-SDL reason.
+extern "C" void CrossPointZen_spoilTapCandidate(void);
+
+namespace {
+// Tracks the flag CrossPointZenRecognizers_setEnabled was last given, so the
+// shake catcher (a UIResponder, not a recognizer — .enabled does not exist for
+// it) can gate on zen the way the verb recognizers do.
+bool g_zenOn = false;
+}  // namespace
 
 @interface CPXZenGestureHandler : NSObject
 @end
@@ -132,6 +143,20 @@ extern "C" void CrossPointZen_toggleFromRecognizer(void);
   [self queueButton:HalGPIO::BTN_POWER as:"4-finger tap (power)"];
 }
 
+// Zen long-press = select (owner 2026-08-22: "in zen mode, long tap is select
+// button (please use apple for this so everything works as expected)"). Fires
+// at RECOGNITION (.began, UIKit's default ~0.5 s and default movement
+// allowance), not at release — the expected iOS long-press feel. No double
+// fire with the SDL deliberate tap by construction: the tap's 400 ms ceiling
+// answers None for anything held to recognition; the spoil makes that not
+// depend on event ordering, the same belt-and-suspenders as the toggle.
+- (void)longPress:(UILongPressGestureRecognizer *)g {
+  if (g.state != UIGestureRecognizerStateBegan) return;
+  CrossPointZen_spoilTapCandidate();
+  SDL_Log("[zen] long-press -> select");
+  [self queueButton:HalGPIO::BTN_CONFIRM as:"long-press (select)"];
+}
+
 - (void)threeTap:(UITapGestureRecognizer *)g {
   if (CrossPointMixer_isPresented()) {
     SDL_Log("[zen] recognizer 3-finger toggle swallowed (mixer presented)");
@@ -139,6 +164,47 @@ extern "C" void CrossPointZen_toggleFromRecognizer(void);
   }
   SDL_Log("[zen] recognizer 3-finger tap -> toggle");
   CrossPointZen_toggleFromRecognizer();
+}
+
+@end
+
+// THE SHAKE CATCHER (owner 2026-08-22: "change reader font on shake in zen
+// mode"). Shake is not a gesture recognizer: UIKit delivers it as a MOTION
+// event to the first responder, and SDL's view controller never overrides
+// canBecomeFirstResponder (UIResponder's default NO — verified in
+// SDL_uikitviewcontroller.m, whose only becomeFirstResponder is the hidden
+// text field that raises the keyboard). So the seam is a small invisible
+// responder view on the SDL view: zero frame, draws nothing, touches
+// disabled, made first responder while zen is on. It fires the HAL's
+// font-family step channel (HalGPIO::injectFontFamilyStep — consume-once, the
+// reader polls it and cycles the family); SHAKE in
+// CROSSPOINT_SIM_INPUT_SCRIPT drives the same channel headlessly.
+//
+// Known ceiling, stated rather than hidden: motion events reach the FIRST
+// responder only, so if something else takes that status while zen is on (the
+// keyboard's text field is the one candidate), a shake during that span is
+// dropped. Zen has no text fields; each zen enable re-asserts the status.
+@interface CPXShakeCatcher : UIView
+@end
+
+@implementation CPXShakeCatcher
+
+- (BOOL)canBecomeFirstResponder {
+  return YES;
+}
+
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+  if (motion != UIEventSubtypeMotionShake) {
+    [super motionEnded:motion withEvent:event];
+    return;
+  }
+  if (!g_zenOn) return;  // shake is a zen verb only
+  if (CrossPointMixer_isPresented()) {
+    SDL_Log("[zen] shake swallowed (mixer presented)");
+    return;
+  }
+  SDL_Log("[zen] shake -> font family step");
+  gpio.injectFontFamilyStep();
 }
 
 @end
@@ -151,6 +217,9 @@ NSArray<UIGestureRecognizer *> *g_recognizers = nil;
 // The 3-finger TOGGLE: attached with the rest but ALWAYS enabled — it is the
 // way INTO zen, so it must fire while the verb recognizers are off.
 UITapGestureRecognizer *g_toggle = nil;
+// The shake catcher: attached with the rest; first-responder status tracks
+// the zen flag (see the class comment above).
+CPXShakeCatcher *g_shake = nil;
 
 UIView *sdlView(void) {
   int count = 0;
@@ -225,6 +294,16 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       t4.numberOfTouchesRequired = 4;
       [rs addObject:t4];
 
+      // Long-press select (owner 2026-08-22, quoted at the action above).
+      // UIKit defaults on purpose — ~0.5 s, default movement allowance —
+      // because "please use apple for this" is exactly a request for the
+      // stock feel. Zen-only, so it rides in the verb set.
+      UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+          initWithTarget:g_handler
+                  action:@selector(longPress:)];
+      lp.numberOfTouchesRequired = 1;
+      [rs addObject:lp];
+
       for (UIGestureRecognizer *r in rs) {
         tameRecognizer(r);
         [view addGestureRecognizer:r];
@@ -240,11 +319,31 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       tameRecognizer(g_toggle);
       [view addGestureRecognizer:g_toggle];
 
+      // The shake catcher: invisible (zero frame, no drawing, no touches —
+      // shake arrives as a motion event, not a touch, so disabling user
+      // interaction costs nothing) and parked on the SDL view so it sits in
+      // the window's responder graph.
+      g_shake = [[CPXShakeCatcher alloc] initWithFrame:CGRectZero];
+      g_shake.userInteractionEnabled = NO;
+      [view addSubview:g_shake];
+
       SDL_Log("[zen] recognizers attached "
-              "(6 swipes, pinch, 2-tap, 4-tap; 3-tap toggle always on)");
+              "(6 swipes, pinch, long-press, 2-tap, 4-tap; 3-tap toggle "
+              "always on; shake catcher installed)");
     }
+    g_zenOn = on;
     for (UIGestureRecognizer *r in g_recognizers)
       r.enabled = on ? YES : NO;
+    // First-responder status for the shake, asserted per enable rather than
+    // once: SDL's text field takes the status whenever the keyboard rises,
+    // and nothing gives it back.
+    if (on) {
+      const BOOL got = [g_shake becomeFirstResponder];
+      SDL_Log("[zen] shake catcher %s first responder",
+              got ? "is" : "FAILED to become");
+    } else {
+      [g_shake resignFirstResponder];
+    }
     SDL_Log("[zen] verb recognizers %s", on ? "enabled" : "disabled");
   });
 }

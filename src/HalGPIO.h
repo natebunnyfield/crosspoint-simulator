@@ -215,6 +215,23 @@ public:
   void setReadAloudCaptureWanted(bool wanted);
   bool consumeReadAloudPage(ReadAloudPage &out);
 
+  // --- Font-family step channel (shake -> next reading font) --------------
+  //
+  // Same two-halves split as the read-aloud channel, pointed the same way as
+  // the keyboard channel: a host gesture the device does not have (an iPhone
+  // SHAKE in zen mode) asks the reader to cycle to the next font family.
+  // Contract: src/FontFamilyStepChannel.h (consume-once, bursts collapse).
+  //
+  //   consumeFontFamilyStep() is firmware-facing and mirrors the device HAL,
+  //   where it is an inline no-op returning false (lib/hal/HalGPIO.h), so the
+  //   reader's poll folds away on device.
+  //
+  //   injectFontFamilyStep() is simulator-only, like injectButton*: the
+  //   host's side (the zen shake responder on iOS, SHAKE in
+  //   CROSSPOINT_SIM_INPUT_SCRIPT on the desktop).
+  bool consumeFontFamilyStep();
+  void injectFontFamilyStep();
+
   // The reader's FINAL text-block insets — top after the paint-time cap-ink
   // trim, then right, bottom, left — in FRAMEBUFFER pixels. Firmware-facing
   // half of the same split as the read-aloud channel: an inline no-op on

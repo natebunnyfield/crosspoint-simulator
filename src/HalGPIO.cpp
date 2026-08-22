@@ -1,5 +1,6 @@
 #include "HalGPIO.h"
 
+#include "FontFamilyStepChannel.h"
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
@@ -111,6 +112,9 @@ static hostkbd::State hostKeyboard;
 
 static ReadAloudChannel readAloudChannel;
 
+// Shake -> next reading font family (contract: FontFamilyStepChannel.h).
+static FontFamilyStepChannel fontFamilyStepChannel;
+
 // Pending synthetic taps (queueButtonTap). Queued from the harness's
 // per-frame hook and drained at the top of update() — both on the main
 // thread, so no lock.
@@ -210,6 +214,10 @@ enum class SyntheticAction {
   Sleep,
   Quit,
   QueuedTap,
+  // SHAKE fires HalGPIO::injectFontFamilyStep — the API the iOS zen shake
+  // responder steps fonts with — so a headless script pins that exact path,
+  // the same argument as QueuedTap below.
+  FontFamilyStep,
   // RawKey* push a REAL SDL key event instead of writing
   // syntheticButtonDown[], so a script can exercise the scancode->button map
   // and the text-entry gate that sits in front of it. Everything else here
@@ -296,6 +304,9 @@ const simreset::Registrar gGpioRebootReset{[] {
   // boot's consumer (it would be spoken over whatever the rebooted firmware
   // shows). The wanted flag re-seeds on each consumer's own boot path.
   readAloudChannel.resetForReboot();
+  // A shake injected in the abandoned run must not step the next boot's
+  // reader font.
+  fontFamilyStepChannel.resetForReboot();
 }};
 
 // CROSSPOINT_SIM_LOG_POWER=1: the GPIO half of the [power] stations (see
@@ -609,6 +620,11 @@ void initializeSyntheticEvents() {
                                           : secondColon - firstColon - 1));
       if (key == "QUIT") {
         syntheticEvents.push_back({atMs, SyntheticAction::Quit});
+      } else if (key == "SHAKE") {
+        // SHAKE routes through HalGPIO::injectFontFamilyStep — the channel
+        // the iOS zen shake fires — so the firmware's family cycle is
+        // provable without a phone.
+        syntheticEvents.push_back({atMs, SyntheticAction::FontFamilyStep});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
       } else if (key == "HOME") {
@@ -743,6 +759,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::QueuedTap:
       gpio.queueButtonTap(static_cast<uint8_t>(event.button), event.holdMs);
+      break;
+    case SyntheticAction::FontFamilyStep:
+      gpio.injectFontFamilyStep();
       break;
     case SyntheticAction::RawKeyDown:
       pushRawKey(event.scancode, event.keymod, /*down=*/true);
@@ -1257,6 +1276,12 @@ void HalGPIO::setReadAloudCaptureWanted(bool wanted) {
 bool HalGPIO::consumeReadAloudPage(ReadAloudPage &out) {
   return readAloudChannel.consume(out);
 }
+
+// --- Font-family step channel ------------------------------------------------
+
+bool HalGPIO::consumeFontFamilyStep() { return fontFamilyStepChannel.consume(); }
+
+void HalGPIO::injectFontFamilyStep() { fontFamilyStepChannel.inject(); }
 
 // --- Reader text insets ------------------------------------------------------
 //

@@ -1383,6 +1383,12 @@ void pollZenMode() {
   const bool first = s_applied < 0;
   s_applied = on;
   if (first) {
+    // Logged because the seed is otherwise silent, and a wrong launch state
+    // (zen defaults ON, owner 2026-08-22) has no other trace to debug from.
+    SDL_Log("[zen] seed: pref=%d env=%s -> %s", on,
+            std::getenv("CROSSPOINT_SIM_ZEN") ? "set" : "unset",
+            (std::getenv("CROSSPOINT_SIM_ZEN") ? g_zen : (on != 0)) ? "on"
+                                                                    : "off");
     if (std::getenv("CROSSPOINT_SIM_ZEN") == nullptr && g_zen != (on != 0)) {
       g_zen = on != 0;
       g_padLaidOut = false;  // in case a layout pass beat this first poll
