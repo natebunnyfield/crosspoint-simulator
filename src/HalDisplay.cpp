@@ -999,6 +999,13 @@ static std::atomic<int> grainMottleDepthPct{
 // docs/letterpress-and-scanlines.md.
 static std::atomic<int> letterpressStrength{letterpress::kStrengthOff};
 static std::atomic<int> scanlinesIntensity{scanlines::kIntensityOff};
+// The raster's PITCH, as a percent of the source-row pitch. kSizeFine (100) is
+// one line per page row -- build 126's only behaviour -- so an unseeded build
+// renders exactly what it did before this dial existed.
+static std::atomic<int> scanlineSize{scanlines::kSizeFine};
+// How far beam current widens the spot, as a percent of the standard gain.
+// kBloomStandard is what build 126 shipped.
+static std::atomic<int> scanlineBloom{scanlines::kBloomStandard};
 
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
@@ -1081,6 +1088,33 @@ void setScanlines(int intensityPercent) {
   }
   const int s = scanlines::clampIntensity(intensityPercent);
   if (scanlinesIntensity.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setScanlineSize(int percentOfRowPitch) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINE_PITCH")) {
+    // strtol with the end pointer checked, same reason as the grain's: atoi
+    // answers 0 for garbage, and 0 here would clamp to the finest pitch --
+    // a typo in the VALUE would look like the setting doing nothing.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed > 0) percentOfRowPitch = static_cast<int>(parsed);
+  }
+  const int s = scanlines::clampSize(percentOfRowPitch);
+  if (scanlineSize.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setScanlineBloom(int percentOfStandard) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINE_BLOOM")) {
+    // strtol with the end pointer checked: atoi answers 0 for garbage, and 0
+    // here is bloom switched OFF -- a typo would silently flatten the tube.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
+  }
+  const int s = scanlines::clampBloom(percentOfStandard);
+  if (scanlineBloom.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
@@ -1283,6 +1317,11 @@ void HalDisplay::begin() {
   // dial's env override is dead on the desktop.
   SimulatorOverlay::setLetterpress(letterpress::kStrengthOff);
   SimulatorOverlay::setScanlines(scanlines::kIntensityOff);
+  // Eleventh. The default IS the shipped pitch, so this seeds nothing new --
+  // it is here only so CROSSPOINT_SIM_SCANLINE_PITCH is read on the desktop,
+  // where nothing else calls the setter.
+  SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
+  SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1325,6 +1364,8 @@ void HalDisplay::begin() {
     // for light, scanlines Subtle for dark.
     SimulatorOverlay::setLetterpress(50);
     SimulatorOverlay::setScanlines(50);
+    SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
+    SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
     SimulatorOverlay::setPanelDark(true);
   }
 
@@ -1829,6 +1870,15 @@ static bool ensureLetterpressTexture() {
   params.seed = seed;
   params.paperDarkenBudget =
       letterpress::paperBudget(srgbLumOf(live.ink), srgbLumOf(live.paper));
+  // NO TOOTH IN THE PANEL FIELD (owner 2026-08-22: "make sure panel and paper
+  // actually match visually, in color and texture with light mode"). The
+  // paper's tooth is a property of the SHEET and is drawn output-wide by the
+  // sheet-tooth pass below, over card and page alike -- putting it here as
+  // well textured the page's paper twice and left the card flat, which is the
+  // visible rectangle that report is about. What stays here is everything
+  // carried by ink or its edges (ring, deboss, pressure, in-stroke), all of
+  // which are zero on flat paper, so the panel boundary contributes nothing.
+  params.includeTooth = false;
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   auto tAt = [&](int x, int y) {
     if (x < 0) x = 0;
@@ -1871,6 +1921,80 @@ static bool ensureLetterpressTexture() {
   return true;
 }
 
+// --- SHEET TOOTH (light mode) ----------------------------------------------
+//
+// The paper-tooth half of the letterpress, at OUTPUT size, drawn 1:1 over the
+// whole app surface -- the one-sheet ruling, applied to paper (owner
+// 2026-08-22: "make sure panel and paper actually match visually, in color
+// and texture with light mode"). Content-independent by construction (a pure
+// hash of output coordinates), so it regenerates only when the size, the dial
+// or the palette budget changes -- never per page.
+static SDL_Texture *sheetToothTexture = nullptr;
+static int sheetTexW = 0, sheetTexH = 0;
+static int sheetTexStrength = -1;
+static uint32_t sheetTexKey = 0;
+
+static void destroySheetToothTexture() {
+  if (!sheetToothTexture) return;
+  SDL_DestroyTexture(sheetToothTexture);
+  sheetToothTexture = nullptr;
+  sheetTexW = sheetTexH = 0;
+  sheetTexStrength = -1;
+  sheetTexKey = 0;
+}
+
+static bool ensureSheetToothTexture(int w, int h) {
+  const int strength = SimulatorOverlay::letterpressStrength.load();
+  if (strength <= 0 || w <= 0 || h <= 0 || !sdl_renderer) {
+    destroySheetToothTexture();
+    return false;
+  }
+  const PanelPalette live = livePanelPalette(display.isInverted());
+  letterpress::Params params;
+  params.strengthPercent = strength;
+  params.seed = grainSeed() ^ 0x50524553u;  // 'PRES', same pressing as the panel
+  params.paperDarkenBudget =
+      letterpress::paperBudget(srgbLumOf(live.ink), srgbLumOf(live.paper));
+  const uint32_t key = phosphorgrain::hash3(
+      static_cast<uint32_t>(live.paper[0]) << 16 |
+          static_cast<uint32_t>(live.paper[1]) << 8 | live.paper[2],
+      static_cast<uint32_t>(params.paperDarkenBudget * 65535.0f), params.seed);
+  if (sheetToothTexture && sheetTexW == w && sheetTexH == h &&
+      sheetTexStrength == strength && sheetTexKey == key)
+    return true;
+  destroySheetToothTexture();
+  sheetToothTexture =
+      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                        SDL_TEXTUREACCESS_STATIC, w, h);
+  if (!sheetToothTexture) {
+    LOG_ERR("DISP", "sheet tooth: no field texture (%s)", SDL_GetError());
+    return false;
+  }
+  std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+  for (int y = 0; y < h; ++y) {
+    uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+    for (int x = 0; x < w; ++x) {
+      const uint32_t m = letterpress::sheetToothMultiplierAt(params, x, y);
+      row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+  if (!SDL_UpdateTexture(sheetToothTexture, nullptr, field.data(),
+                         static_cast<int>(w * sizeof(uint32_t)))) {
+    LOG_ERR("DISP", "sheet tooth: could not upload the field (%s)",
+            SDL_GetError());
+    destroySheetToothTexture();
+    return false;
+  }
+  SDL_SetTextureBlendMode(sheetToothTexture, SDL_BLENDMODE_MOD);
+  // Drawn 1:1 at output size; NEAREST states that, same as the grain.
+  SDL_SetTextureScaleMode(sheetToothTexture, SDL_SCALEMODE_NEAREST);
+  sheetTexW = w;
+  sheetTexH = h;
+  sheetTexStrength = strength;
+  sheetTexKey = key;
+  return true;
+}
+
 // --- SCANLINES (dark mode) -------------------------------------------------
 //
 // A MOD texture at OUTPUT size, drawn 1:1 over the whole app surface -- one
@@ -1887,6 +2011,7 @@ static uint64_t scanTexSeq = 0;
 static int scanTexIntensity = -1;
 static uint32_t scanTexKey = 0;
 static int scanTexPitchKey = -1;
+static int scanTexBloom = -1;
 
 static void destroyScanTexture() {
   if (!scanTexture) return;
@@ -1897,6 +2022,7 @@ static void destroyScanTexture() {
   scanTexIntensity = -1;
   scanTexKey = 0;
   scanTexPitchKey = -1;
+  scanTexBloom = -1;
 }
 
 static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
@@ -1916,10 +2042,11 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
                                live.paper[2],
                            seed);
   const int pitchKey = static_cast<int>(pitchPx * 1000.0f + 0.5f);
+  const int bloom = SimulatorOverlay::scanlineBloom.load();
   const uint64_t seq = pixelBufSeq;
   if (scanTexture && scanTexW == w && scanTexH == h && scanTexSeq == seq &&
       scanTexIntensity == intensity && scanTexKey == palKey &&
-      scanTexPitchKey == pitchKey)
+      scanTexPitchKey == pitchKey && scanTexBloom == bloom)
     return true;
 
   scanlines::Params params;
@@ -1927,6 +2054,7 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   params.seed = seed;
   params.pitchPx = pitchPx;
   params.mottleDepth = scanlines::mottleDepthFor(intensity);
+  params.bloomGain = scanlines::bloomGainFor(bloom);
   params.budgetMeanDarkening =
       0.8f * phosphorgrain::darkeningBudget(srgbLumOf(live.ink),
                                             srgbLumOf(live.paper));
@@ -2002,12 +2130,13 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   scanTexIntensity = intensity;
   scanTexKey = palKey;
   scanTexPitchKey = pitchKey;
+  scanTexBloom = bloom;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[scanlines] field %dx%d intensity %d pitch %.3f px/line "
-              "mottle %.2f seed %u budget %.3f",
+              "mottle %.2f bloom %d%% seed %u budget %.3f",
               w, h, intensity, static_cast<double>(pitchPx),
-              static_cast<double>(params.mottleDepth), seed,
+              static_cast<double>(params.mottleDepth), bloom, seed,
               static_cast<double>(params.budgetMeanDarkening));
   return true;
 }
@@ -2806,10 +2935,13 @@ void HalDisplay::presentIfNeeded() {
     int outW = 0, outH = 0;
     if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
         outW > 0 && outH > 0) {
-      // THE PITCH IS THE PRESENTATION SCALE: one scan line per SOURCE row
+      // THE BASE PITCH IS THE PRESENTATION SCALE: one scan line per SOURCE row
       // (logical page rows, render scale divided out), so the raster carries
       // the page's own lattice and cannot beat against a second one. See
-      // src/Scanlines.h for why a fixed ~500-line tube was rejected.
+      // src/Scanlines.h for why a fixed ~500-line tube was rejected. The
+      // owner's size dial then takes a simple MULTIPLE of that pitch
+      // (scanlines::pitchFor, applied once below), which is phase-locked to
+      // the same lattice and so inherits the same guarantee.
       const int srcRows = (isPortraitOrientation(orientation)
                                ? activeWidth()
                                : activeHeight()) /
@@ -2829,6 +2961,7 @@ void HalDisplay::presentIfNeeded() {
           pitch = s * static_cast<float>(logH) / static_cast<float>(srcRows);
         }
       }
+      pitch = scanlines::pitchFor(pitch, SimulatorOverlay::scanlineSize.load());
       if (ensureScanlinesTexture(outW, outH, pitch)) {
         const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
                                 static_cast<float>(outH)};
@@ -2841,6 +2974,30 @@ void HalDisplay::presentIfNeeded() {
                                      kLogicalPresentation);
   } else if (scanTexture) {
     destroyScanTexture();
+  }
+
+  // THE SHEET'S TOOTH -- the paper half of the letterpress, over the WHOLE
+  // output, after the overlay, exactly where the grain draws: page, card, pad,
+  // one sheet of paper (owner 2026-08-22, "make sure panel and paper actually
+  // match visually, in color and texture with light mode"). The panel-space
+  // letterpress field above carries no tooth any more, so the paper texture
+  // inside and outside the page's rect is this one field and cannot seam.
+  if (letterpressActive) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
+        outW > 0 && outH > 0 && ensureSheetToothTexture(outW, outH)) {
+      const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                              static_cast<float>(outH)};
+      SDL_RenderTexture(sdl_renderer, sheetToothTexture, nullptr, &full);
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  } else if (sheetToothTexture) {
+    destroySheetToothTexture();
   }
 
   if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff &&

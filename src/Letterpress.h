@@ -114,6 +114,11 @@ struct Params {
   // Largest mean darkening the PAPER can take, from paperBudget(). 1.0 means
   // "no constraint", for a caller that does not know the palette.
   float paperDarkenBudget = 1.0f;
+  // Whether multiplierAt paints the paper TOOTH itself, or leaves it to the
+  // sheet pass (sheetToothMultiplierAt below). Default true keeps the original
+  // single-pass model; HalDisplay passes false for the panel field now that
+  // the tooth is drawn output-wide -- see the 2026-08-22 seam note there.
+  bool includeTooth = true;
 };
 
 // THE ANSWER: the 0..255 modulate value for one panel pixel, from its 3x3
@@ -173,9 +178,55 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   const float budget = p.paperDarkenBudget;
   if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
   if (toothAmp < 0.0f) toothAmp = 0.0f;
-  const float tooth = toothAmp * u * (1.0f - t);
+  const float tooth = p.includeTooth ? toothAmp * u * (1.0f - t) : 0.0f;
 
   float m = 1.0f - (ring + deboss + press + irregular + tooth);
+  if (m < kMinMultiplier) m = kMinMultiplier;
+  if (m > 1.0f) m = 1.0f;
+  return static_cast<uint8_t>(m * 255.0f + 0.5f);
+}
+
+// --- THE SHEET'S TOOTH -----------------------------------------------------
+//
+// Owner, 2026-08-22 (device report on build 126): "make sure panel and paper
+// actually match visually, in color and texture with light mode." The panel
+// field above textured only the PAGE, so the paper card painted around it was
+// dead flat while the page had tooth -- the 'grainy rectangle on a clean
+// ground' failure in reverse, the exact arrangement the grain pass was moved
+// output-wide to avoid. Paper properties belong to the whole sheet; glyph
+// properties belong to the page. So the components split:
+//
+//   ring, deboss, pressure, in-stroke   PANEL space (multiplierAt, with
+//                                       includeTooth=false) -- all carried by
+//                                       ink or its edges, zero on flat paper,
+//                                       so the panel boundary shows nothing.
+//   paper tooth                         OUTPUT space, this function, drawn
+//                                       over the whole sheet -- page, card,
+//                                       pad -- one paper, one tooth field.
+//
+// (Plate pressure is ink-carried by model -- its term multiplies inkness --
+// so it is zero on bare sheet on BOTH sides of the boundary: continuous with
+// nothing to extend.)
+//
+// Same amplitude, same sqrt(dial) ride, same paper budget clamp and the same
+// 'TOOT' seed lane as the in-panel term it replaces, so the darken-only and
+// off-bit-exact invariants and the contrast floor argument carry over
+// unchanged: mean darkening of uniform [0,a] noise is a/2 <= budget. A pure
+// hash of output coordinates is stationary -- no lattice, no seam, and (per
+// ST-008) noise drawn 1:1 at output size cannot moire.
+inline uint8_t sheetToothMultiplierAt(const Params &p, int x, int y) {
+  const int strength = clampStrength(p.strengthPercent);
+  if (strength == kStrengthOff) return 255;
+  const float s = static_cast<float>(strength) /
+                  static_cast<float>(kStrengthStandard);
+  float toothAmp = kToothAt100 * std::sqrt(s);
+  const float budget = p.paperDarkenBudget;
+  if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
+  if (toothAmp < 0.0f) toothAmp = 0.0f;
+  const float u = phosphorgrain::unitFromHash(phosphorgrain::hash3(
+      static_cast<uint32_t>(x), static_cast<uint32_t>(y),
+      p.seed ^ 0x544F4F54u));
+  float m = 1.0f - toothAmp * u;
   if (m < kMinMultiplier) m = kMinMultiplier;
   if (m > 1.0f) m = 1.0f;
   return static_cast<uint8_t>(m * 255.0f + 0.5f);

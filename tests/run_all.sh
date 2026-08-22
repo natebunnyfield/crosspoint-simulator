@@ -110,6 +110,16 @@ run chevron_coverage \
 run panel_palette \
   c++ -std=c++17 -Isrc -o "$OUT/panel_palette" tests/panel_palette_test.cpp
 
+# The light page's historical-ink picker core (2026-08-22 doctrine: light mode
+# is paper and ink; dark keeps the gun mixer). Every ink x paper pair floor
+# swept at 7:1, the Beer-Lambert dilution ramp pinned monotone and byte-exact
+# at both ends, and the default pinned to the shipped 2D2D2D-on-FBFBF9 -- all
+# wrong-COLOR failure modes no other test can see. -Iios as well: it also pins
+# that makePaletteOn preserves every offered paper byte-for-byte as the pad's
+# field, which is the color half of the panel/sheet seam.
+run light_ink \
+  c++ -std=c++17 -Isrc -Iios -o "$OUT/light_ink" tests/light_ink_test.cpp
+
 # The AA plane decode. Dark mode paints only full ink in the base pass, so every
 # glyph edge arrives base-WHITE and flagged -- and the decode used to discard
 # exactly those, leaving dark-mode text with no antialiasing at all. The masks

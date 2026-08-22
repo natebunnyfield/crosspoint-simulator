@@ -241,6 +241,8 @@ integer; rows append, never insert):
 |---|---|---|---|
 | Letterpress | `letterpressPercent` | percent, 0/50/100/200 | 50 (Subtle) |
 | Scanlines | `scanlinesPercent` | percent, 0/50/100/150 | 50 (Subtle) |
+| Scanline Size | `scanlineSizePercent` | percent of the row pitch, 100/150/200/300 | 100 (Fine) |
+| Scanline Bloom | `scanlineBloomPercent` | percent of the standard gain, 0/50/100/200/400 | 100 (Standard) |
 
 Both read through `-objectForKey:` (0 is a real choice, the
 `-integerForKey:` missing-key trap). Desktop mirrors:
@@ -249,3 +251,123 @@ through `SimulatorOverlay::setLetterpress` / `setScanlines` at init (ninth and
 tenth dials to need that seed), plus the same keys in the desktop
 `settings.json`. The desktop seeds both **0**: dials off = byte-identical
 canary, proven by before/after capture md5.
+
+`CROSSPOINT_SIM_SCANLINE_PITCH` and `CROSSPOINT_SIM_SCANLINE_BLOOM` are the
+eleventh and twelfth dials to need an init seed. Both default to the value
+build 126 shipped, so they change nothing on an untouched install; the desktop
+canary is byte-identical with either set to anything while scanlines are off
+(md5 `8cc692a6…` across pitch 100/150/300 and bloom 0/400, grain seed pinned).
+
+### Scanline Size (owner order 2026-08-22, from build 126)
+
+*"scanlines need a sizing setting in ios settings."*
+
+**MULTIPLES of the source-row pitch, never absolute pixels.** An absolute pitch
+is a free ratio against a per-device presentation scale — the fixed-tube design
+this file already rejected, wearing a settings row. A simple rational multiple
+repeats its phase against the row lattice every 1–3 rows, so no long-period
+difference frequency can exist. Rungs **Fine 100** (1 line per row, the shipped
+pitch), **Medium 150**, **Coarse 200**, **Chunky 300**.
+
+**The beat measurements** (the honest version, because the first two instruments
+had no power and saying so is the point):
+
+| Instrument | What it showed |
+|---|---|
+| Flat fill, low-frequency peak-to-peak | 0.06–0.4 levels at *every* multiple from 1.0 to 4.0 — and a point-sampled positive control was equally quiet. **The field alone cannot beat at any pitch**: it is generated at output size and never resampled. This instrument cannot distinguish the ladder from a fixed tube. |
+| Realistic text page | 2.13–2.17 levels at every multiple, against a field-OFF floor of 2.171. The page's own line structure dominates; the field adds nothing measurable. |
+| **Bayer-dithered fill — the actual ST-008 subject** | The discriminating one. Field-off floor 0.000; the field adds **+0.052 (1x), +0.112 (1.5x), +0.165 (2x), +0.052 (3x)**. Worst multiple anywhere in 1.0–4.0 is 1.2x at +0.535. Compare the ST-008 note's own figures: 8.14 levels nearest, 1.55 bilinear. |
+
+So **1.5x stays**: it measures *cleaner* than 2x, and the half-integer beat this
+ladder was designed to avoid does not appear at any offered rung.
+
+**No per-rung sigma retune.** `kSigmaFrac` is a fraction of pitch, so the duty
+cycle is a constant ~52% at every size — 3.7 px lit against 3.4 px dark at the
+7.16 px Chunky pitch on a phone. That is also the physics: a coarser raster on
+the same screen has a proportionately fatter beam. Line peak-to-peak on a flat
+dark ground: 69 / 77 / 79 / 81 of 255 across the four rungs.
+
+**One measured degeneracy, pre-existing and not introduced here.** At a base
+pitch of *exactly* 2.0 device px — the 2x Mac app at Fine — the line centres
+`(i+0.5)·pitch` land on integer pixel boundaries, every row straddles a line
+identically, and the periodic component collapses to a uniform dimming (measured
+per-phase swing 0.0 levels; what remains is the phase jitter's irregular
+texture). The phone's 2.39 px base is not degenerate, and no other rung on
+either host is.
+
+### Scanline Bloom (owner order 2026-08-22)
+
+*"add another ios app settings for selecting bloom values with scanlines."*
+
+Percent of `kBloomGain`: **Off 0** (bit-exact — the field stops depending on
+`level` at all, so it is not a small bloom but no bloom), **Subtle 50**,
+**Standard 100** (the shipped gain), **Strong 200**, **Extreme 400**.
+
+**A fraction of the pitch, not a pixel count.** Bloom widens sigma and sigma is
+`kSigmaFrac · pitch`, so the bloomed spot is the same fraction of pitch at every
+size — an identity, pinned exactly. The *rendered* effect is only nearly
+scale-invariant: the fraction of available darkening bloom returns runs
+0.645 / 0.557 / 0.527 / 0.507 across the four sizes at Subtle. That 0.138 spread
+is the pixel grid (a device row is 42% of a 2.39 px pitch but 14% of a 7.16 px
+one, so the box integral smears the fine raster more), not a scale error.
+
+**The ladder saturates at the top of the level range, and the rungs are still
+distinct.** At full white the shipped gain already closes the gap completely
+(37.2 levels spared at 1x), so Standard, Strong and Extreme are identical
+*there*. What the upper rungs buy is the mid-tones: at level 0.2 the sparing
+runs 5.0 / 9.9 / 19.5 / 35.3. Averaged over levels 0.1–1.0 the ladder is
+0 / 13.4 / 24.3 / 31.6 / 35.2 — monotone and distinct. The test measures the
+integral, not the endpoint, precisely because the endpoint would call three real
+rungs decoration.
+
+**Darken-only holds.** Bloom raises transmission toward 1 (untouched) and
+`combine` clamps the multiplier at 1.0, so no rung at any size can lift a pixel;
+swept over the whole bloom x pitch x intensity matrix, as is the 7:1 floor.
+
+### The raster is GLASS, not phosphor (owner ruling 2026-08-22)
+
+*"scanlines should not be persisting, that is handled by crt guns."*
+
+Audited, and it is a **clean bill** — the model has no clock and the wiring has
+no per-frame path:
+
+- `src/Scanlines.h` is a pure function of `(Params, x, y, w, h, level)`. Nothing
+  in it reads a time, and the test hashes the field, evaluates forty calls at
+  other parameters, and re-hashes to pin that nothing caches between calls.
+- `ensureScanlinesTexture` regenerates only when `w`, `h`, `pixelBufSeq`,
+  intensity, palette, pitch or bloom changes. `pixelBufSeq` is bumped **only**
+  on the two paths that actually write framebuffer pixels — a page turn — and
+  not by the fade, the beam sweep or the glow accumulator's decay.
+- The bloom level map is read from the composed backbuffer **at regeneration
+  time**, so a fading page keeps the raster the fresh page had. The structure
+  does not fade with it.
+- The field is drawn last, over everything, with `SDL_BLENDMODE_MOD`. So the
+  decaying ghost *is* re-scanlined every frame by the *same* static texture:
+  static structure, moving light behind it, which is exactly the ruling.
+- The per-launch seed roll stays. That is a new tube each session, not
+  persistence.
+
+## 2026-08-22 addendum: the tooth moved to the SHEET
+
+Owner, device report on build 126: "make sure panel and paper actually match
+visually, in color and texture with light mode." The letterpress field
+textured only the PAGE, so the paper card painted around it was dead flat
+while the page had tooth -- the 'grainy rectangle on a clean ground' failure
+in reverse. The components therefore split by what they are properties OF:
+
+* **Panel space** (`multiplierAt` with `includeTooth=false`): ink squeeze
+  ring, deboss shadow, plate pressure, in-stroke irregularity -- all carried
+  by ink or its edges, ZERO on flat paper, so the panel boundary contributes
+  nothing.
+* **Output space, whole surface** (`sheetToothMultiplierAt`, drawn after the
+  overlay exactly where the grain draws): the paper tooth, one field over
+  page, card and pad -- one sheet of paper. Same amplitude, same sqrt-dial
+  ride, same paper-budget clamp, same 'TOOT' seed lane.
+
+Darken-only and off-bit-exact hold unchanged; the contrast floor sweep was
+re-run against the tight palette (Latte light) at every rung and passes.
+`tests/letterpress_test.cpp` pins the split: flat paper in the panel field is
+bit-exact 255 at any strength, the sheet field is stationary (block means
+agree across any boundary), and the flat sheet holds the floor. The color half
+of the same seam -- the card and clear tone being the resolved paper
+byte-for-byte -- is pinned in `tests/light_ink_test.cpp`.
