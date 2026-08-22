@@ -95,6 +95,33 @@ static_assert(kWeightMax == gunmix::kWeightMax,
 // stops interpolated by CoreGraphics are indistinguishable from per-pixel.
 constexpr int kGradientSamples = 16;
 
+// The FACETS each gun's track previews, stacked top to bottom inside the one
+// 16 pt bar (owner 2026-08-22: "the gun mixer needs multiple preview gradient
+// for each gun, not just the paper or whatever one it currently has"). The
+// order is the LIFE OF A GLYPH, which is the only ordering that needs no
+// labels once you know it:
+//
+//   band 0  dark INK    the lit glyph at the instant the beam paints it
+//   band 1  dark TAIL   the color the afterglow hands over to as it decays
+//   band 2  dark PAPER  the unlit ground it settles back into
+//
+// All three are the DARK appearance, for the same reason the single gradient
+// was: a CRT page is a dark-mode object. The light pair is not a fourth band
+// -- it is already shown exactly, at the current weights, by the light swatch
+// and the hex readout below, and four bands in 16 pt are 3.6 pt each, under
+// what reads on a phone once the separators are subtracted.
+//
+// Why TAIL earns a band the other two cannot supply: the tail is normalized by
+// the FULL mix weight, so raising a FAST gun steals emission share from the
+// slow survivor and dims the afterglow, while ink and paper barely move. That
+// is the one thing about a mix a static pair of swatches cannot show.
+constexpr int kTrackBands = 3;
+
+// Left transparent between bands so the sheet's own background shows through:
+// black between bands in dark appearance, white in light, which is the correct
+// separator in both without a second dynamic color to keep re-resolved.
+constexpr CGFloat kBandGapPt = 0.5f;
+
 NSString *hexOf(const unsigned char c[3]) {
   return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
 }
@@ -258,7 +285,8 @@ extern "C" bool CrossPointMixer_isPresented(void) {
   // The LIVE GRADIENT track (owner-approved 2026-08-22): each gun's track
   // previews the actual resulting mix at every position of that slider,
   // computed through the shipped core (computeGuns -> phosphormix::mixBlend)
-  // exactly like the readout swatches. A UISlider track IMAGE cannot do this
+  // exactly like the readout swatches. THREE stacked facet bands per track --
+  // ink, tail, paper, see kTrackBands. A UISlider track IMAGE cannot do this
   // continuously -- UIKit stretches the minimum-track image into the segment
   // left of the thumb, so the gradient would compress as the thumb moves --
   // so the gradient lives in a UIImageView placed on the slider's own track
@@ -307,6 +335,11 @@ extern "C" bool CrossPointMixer_isPresented(void) {
     _track[g] = [UIImageView new];
     _track[g].userInteractionEnabled = NO;
     _track[g].clipsToBounds = YES;
+    // Shows through the transparent gaps between the facet bands. A dynamic
+    // UIColor on a UIView DOES re-resolve on an appearance flip (unlike the
+    // flattened CGColors on the swatch borders below), so this one needs no
+    // trait handler.
+    _track[g].backgroundColor = UIColor.systemBackgroundColor;
     [self.view addSubview:_track[g]];
 
     _slider[g] = [UISlider new];
@@ -444,16 +477,19 @@ extern "C" bool CrossPointMixer_isPresented(void) {
   [_name[g] setTitle:title forState:UIControlStateNormal];
 }
 
-// The live gradient for gun g's track: at track position t (weight 0..100),
-// the color is the mix's DARK-appearance PAPER tone -- the page the owner
-// would see -- with gun g's weight set to t and the other three guns at their
-// current weights, computed through the same computeGuns -> mixBlend path as
-// the readout swatches (so duplicate-gun assignments sum in linear light here
-// too). Dark paper regardless of the app's appearance, deliberately: the CRT
-// page is the dark-mode object, and the readout already shows both
-// polarities.
+// The live gradient stack for gun g's track: at track position t (weight
+// 0..100), each band is one facet of the mix -- ink, tail, paper, per
+// kTrackBands above -- with gun g's weight set to t and the other three guns
+// at their current weights, computed through the same computeGuns -> mixBlend
+// path as the readout swatches (so duplicate-gun assignments sum in linear
+// light here too).
+//
+// ONE SWEEP, THREE GRADIENTS. Every facet falls out of the SAME mixBlend call,
+// so previewing three quantities costs no extra mixing at all -- only two more
+// small clipped fills per gun. That is what keeps the x4 rebuild inside the
+// drag budget (see the [mixer] log line) rather than tripling it.
 - (UIImage *)trackGradientForGun:(int)g size:(CGSize)size {
-  CGFloat comps[kGradientSamples * 4];
+  CGFloat comps[kTrackBands][kGradientSamples * 4];
   CGFloat locs[kGradientSamples];
   int w[kGunCount];
   for (int i = 0; i < kGunCount; i++) w[i] = _w[i];
@@ -461,24 +497,56 @@ extern "C" bool CrossPointMixer_isPresented(void) {
     const float t = (float)s / (kGradientSamples - 1);
     w[g] = (int)lroundf(t * kWeightMax);
     const phosphormix::Result r = computeGuns(_presets, w);
-    comps[s * 4 + 0] = r.dark.paper[0] / 255.0;
-    comps[s * 4 + 1] = r.dark.paper[1] / 255.0;
-    comps[s * 4 + 2] = r.dark.paper[2] / 255.0;
-    comps[s * 4 + 3] = 1.0;
+    // hasTail is false when every component fades at the same rate: there is
+    // no hue handover, the trail simply DIMS, and the color it dims along is
+    // the ink itself (HalDisplay's kNoGlowTail path, pushed as a null tint).
+    // Painting the ink there is the honest answer -- the alternative, a hole
+    // or a black band, would read as "no afterglow" when there is one.
+    const unsigned char *facet[kTrackBands] = {
+        r.dark.ink, r.hasTail ? r.tail : r.dark.ink, r.dark.paper};
+    for (int b = 0; b < kTrackBands; b++) {
+      comps[b][s * 4 + 0] = facet[b][0] / 255.0;
+      comps[b][s * 4 + 1] = facet[b][1] / 255.0;
+      comps[b][s * 4 + 2] = facet[b][2] / 255.0;
+      comps[b][s * 4 + 3] = 1.0;
+    }
     locs[s] = t;
   }
   CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-  CGGradientRef grad =
-      CGGradientCreateWithColorComponents(space, comps, locs, kGradientSamples);
+  CGGradientRef grad[kTrackBands];
+  for (int b = 0; b < kTrackBands; b++)
+    grad[b] = CGGradientCreateWithColorComponents(space, comps[b], locs,
+                                                  kGradientSamples);
   CGColorSpaceRelease(space);
+  // The bar's full height is unchanged (owner asked for thick, 2026-08-22);
+  // it is DIVIDED, not shrunk. 16 pt -> three 5 pt bands with 0.5 pt gaps.
+  const CGFloat bandH =
+      (size.height - kBandGapPt * (kTrackBands - 1)) / kTrackBands;
+  // Explicitly NON-opaque: the gaps between bands are transparent, and the
+  // track view's background paints them. An opaque format would fill them
+  // black, which is invisible in dark appearance and a bug in light.
+  UIGraphicsImageRendererFormat *fmt =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  fmt.opaque = NO;
   UIGraphicsImageRenderer *ren =
-      [[UIGraphicsImageRenderer alloc] initWithSize:size];
+      [[UIGraphicsImageRenderer alloc] initWithSize:size format:fmt];
+  // A block cannot capture a C array by name; the pointer is fine, and the
+  // block runs synchronously inside this scope so the array outlives it.
+  CGGradientRef *grads = grad;
   UIImage *img = [ren imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-    CGContextDrawLinearGradient(ctx.CGContext, grad,
-                                CGPointMake(0, size.height / 2),
-                                CGPointMake(size.width, size.height / 2), 0);
+    for (int b = 0; b < kTrackBands; b++) {
+      const CGRect band =
+          CGRectMake(0, b * (bandH + kBandGapPt), size.width, bandH);
+      CGContextSaveGState(ctx.CGContext);
+      CGContextClipToRect(ctx.CGContext, band);
+      CGContextDrawLinearGradient(ctx.CGContext, grads[b],
+                                  CGPointMake(0, CGRectGetMidY(band)),
+                                  CGPointMake(size.width, CGRectGetMidY(band)),
+                                  0);
+      CGContextRestoreGState(ctx.CGContext);
+    }
   }];
-  CGGradientRelease(grad);
+  for (int b = 0; b < kTrackBands; b++) CGGradientRelease(grad[b]);
   return img;
 }
 
@@ -607,11 +675,13 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                                                  green:r.light.paper[1] / 255.0
                                                   blue:r.light.paper[2] / 255.0
                                                  alpha:1];
+  // The band order is named here rather than on the tracks: three 5 pt bands
+  // hold no text, and one legend for four identical stacks is not clutter.
   _readout.text = [NSString
-      stringWithFormat:@"dark %@ on %@ · light %@ on %@\nfade %.0f ms",
-                       hexOf(r.dark.ink), hexOf(r.dark.paper),
-                       hexOf(r.light.ink), hexOf(r.light.paper),
-                       (double)r.trailMs];
+      stringWithFormat:
+          @"dark %@ on %@ · light %@ on %@\nfade %.0f ms · track: ink/tail/paper",
+          hexOf(r.dark.ink), hexOf(r.dark.paper), hexOf(r.light.ink),
+          hexOf(r.light.paper), (double)r.trailMs];
   for (int g = 0; g < kGunCount; g++)
     _value[g].text = _w[g] > 0 ? [NSString stringWithFormat:@"%d", _w[g]] : @"off";
 }
