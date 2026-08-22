@@ -36,6 +36,7 @@ constexpr Uint64 kLaunchDocumentWaitMs = 400;
 
 std::mutex gMutex;
 std::string gPendingPath;   // set by the SDL watch, drained by the two entry points
+std::string gPendingCardPath;  // set by requestOpenOfCardCopy (iOS import), card-relative
 bool gStagedLaunchDocument = false;
 
 // Extensions ReaderActivity can actually open. Finder and iOS only ever send
@@ -74,6 +75,42 @@ std::string takePendingPath() {
   std::string path;
   path.swap(gPendingPath);
   return path;
+}
+
+std::string takePendingCardPath() {
+  std::lock_guard<std::mutex> lock(gMutex);
+  std::string path;
+  path.swap(gPendingCardPath);
+  return path;
+}
+
+// Point the firmware's boot routing at a book that is already on the card.
+//
+// The state-writing half of stageDocument(), without the copy: the caller (the
+// iOS import) has already put the file at `cardPath` with its own collision
+// rules, and re-copying it here would be at best redundant and at worst a
+// truncating write racing the copy that just finished. Same three fields, same
+// reasoning as stageDocument() below. No isReadableBook() re-check either: the
+// import vetted the file against the firmware's own format list
+// (.epub/.xtc/.xtch/.txt/.md, FsHelpers-cited in CrossPointBookImport.mm),
+// which is broader than this module's desktop drag-and-drop list and is the
+// authority for what ReaderActivity opens.
+bool stageCardResident(const std::string &cardPath) {
+  if (cardPath.empty()) return false;
+
+  // Idempotent, and required when this runs before setup() (a cold-launch
+  // import landing inside captureLaunchDocument's wait).
+  Storage.begin();
+
+  APP_STATE.loadFromFile();
+  APP_STATE.openEpubPath = cardPath;
+  APP_STATE.readerActivityLoadCount = 0;
+  APP_STATE.lastSleepFromReader = true;
+  APP_STATE.saveToFile();
+
+  std::fprintf(stderr, "[SIM] document open: staged card copy %s\n",
+               cardPath.c_str());
+  return true;
 }
 
 // Read the whole book into memory before writing any of it.
@@ -187,19 +224,52 @@ void captureLaunchDocument() {
   // nothing else is reading the queue, and the watch above is what keeps the
   // two from stealing from each other once it is.
   const Uint64 deadline = SDL_GetTicks() + kLaunchDocumentWaitMs;
+  std::string cardPath;
   std::string path;
   do {
     SDL_PumpEvents();
+    // Card copy first: on iOS the import watch runs before this module's watch
+    // on the same drop event (it registered earlier), imports the file, and
+    // requests its CARD copy -- which supersedes the raw source path, whose
+    // Inbox original the import may already have deleted.
+    cardPath = takePendingCardPath();
+    if (!cardPath.empty()) break;
     path = takePendingPath();
     if (!path.empty()) break;
     SDL_Delay(5);
   } while (SDL_GetTicks() < deadline);
 
+  if (!cardPath.empty()) {
+    takePendingPath();  // the raw drop of the same document; do not double-handle
+    gStagedLaunchDocument = stageCardResident(cardPath);
+    return;
+  }
   if (path.empty()) return;
   gStagedLaunchDocument = stageDocument(path);
 }
 
 void pumpPendingOpen() {
+  const std::string cardPath = takePendingCardPath();
+  if (!cardPath.empty()) {
+    // The raw drop that produced this import (if any) is the same document;
+    // the card copy is the one to open, never the Inbox/source original.
+    takePendingPath();
+
+    // The launch document arriving a second time -- iOS can replay a launch
+    // URL late enough that the import runs again (an identical-size skip) and
+    // re-requests the card copy captureLaunchDocument() already staged.
+    if (gStagedLaunchDocument) {
+      gStagedLaunchDocument = false;
+      if (APP_STATE.openEpubPath == cardPath) return;
+    }
+
+    if (!stageCardResident(cardPath)) return;
+    std::fprintf(stderr, "[SIM] document open: relaunching into %s\n",
+                 APP_STATE.openEpubPath.c_str());
+    SimulatorLifecycle::rebootForDocumentOpen();
+    return;
+  }
+
   const std::string path = takePendingPath();
   if (path.empty()) return;
 
@@ -224,6 +294,12 @@ void pumpPendingOpen() {
   std::fprintf(stderr, "[SIM] document open: relaunching into %s\n",
                APP_STATE.openEpubPath.c_str());
   SimulatorLifecycle::rebootForDocumentOpen();
+}
+
+void requestOpenOfCardCopy(const char *cardPath) {
+  if (!cardPath || !*cardPath) return;
+  std::lock_guard<std::mutex> lock(gMutex);
+  gPendingCardPath = cardPath;
 }
 
 }  // namespace SimulatorDocumentOpen

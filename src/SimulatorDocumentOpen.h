@@ -60,4 +60,24 @@ void captureLaunchDocument();
 // is no in-process "open this book now" entry point to call instead.
 void pumpPendingOpen();
 
+// Ask for a book that is ALREADY on the card to be opened (owner 2026-08-22:
+// an imported book was tapped to be READ, not just filed).
+//
+// The iOS import path (ios/CrossPointBookImport.mm) is the caller: it copies an
+// incoming book into <card>/books with its own collision rules -- rename on a
+// size mismatch, skip on an identical twin -- so the file to open is its CARD
+// copy under whatever name import chose, never the Inbox/source original this
+// module's own event watch saw. `cardPath` is therefore card-relative
+// ("/books/Name 2.epub"), exactly what APP_STATE.openEpubPath holds.
+//
+// Deliberately a request, not an action: it only records the path, and the two
+// existing entry points act on it at the moments that are already known safe --
+// captureLaunchDocument() stages it before setup() with no reboot at all, and
+// pumpPendingOpen() stages + reboots from the main-loop boundary. A pending
+// card request also supersedes the raw drop of the same document, which is what
+// keeps the two watchers (import's and this module's) from double-handling one
+// incoming file. Thread-safe; latest wins. Never called on desktop, where
+// behavior is unchanged.
+void requestOpenOfCardCopy(const char *cardPath);
+
 }  // namespace SimulatorDocumentOpen

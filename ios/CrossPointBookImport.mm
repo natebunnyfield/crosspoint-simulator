@@ -45,6 +45,7 @@
 #include <cstring>
 #include <string>
 
+#include "SimulatorDocumentOpen.h"
 #include "SimulatorOverlay.h"
 
 // Ask the firmware to RE-RENDER the current activity, so an open library
@@ -216,6 +217,7 @@ void importBookFile(const char *sourcePath) {
   ::mkdir(booksDir.c_str(), 0777); // exists already on any booted card
 
   bool handled = false;
+  std::string importedName; // the card name the book ended up under
   for (int attempt = 1; attempt <= 99 && !handled; ++attempt) {
     const std::string name = attempt == 1 ? base : withCollisionSuffix(base, attempt);
     const std::string dst = booksDir + "/" + name;
@@ -225,6 +227,7 @@ void importBookFile(const char *sourcePath) {
         SDL_Log("[import] %s already imported as %s (same size %lld); skipping copy",
                 src.c_str(), dst.c_str(), static_cast<long long>(dstSize));
         handled = true;
+        importedName = name;
       } else {
         SDL_Log("[import] %s exists with different size (%lld vs %lld); trying \"%s\"",
                 dst.c_str(), static_cast<long long>(dstSize),
@@ -237,6 +240,7 @@ void importBookFile(const char *sourcePath) {
       SDL_Log("[import] copied %s -> %s (%lld bytes)", src.c_str(), dst.c_str(),
               static_cast<long long>(srcSize));
       handled = true;
+      importedName = name;
     } else {
       SDL_Log("[import] copy %s -> %s FAILED: %s", src.c_str(), dst.c_str(),
               std::strerror(errno));
@@ -261,6 +265,20 @@ void importBookFile(const char *sourcePath) {
               std::strerror(errno));
     }
   }
+
+  // The user tapped this book to READ it (owner 2026-08-22, "when opening
+  // epub, after copying to files, open in ios app"): after the copy lands --
+  // fresh, renamed, or the identical-size skip -- open the CARD copy, under
+  // whatever name import chose, never the Inbox/source original (which may
+  // just have been deleted above). Deliberately a deferred request through the
+  // document-open machinery rather than a reboot from here: this function runs
+  // inside SDL's event dispatch or a GCD block, possibly before the firmware
+  // has finished booting, and SimulatorDocumentOpen acts on the request only
+  // at its two safe points (pre-setup() staging at cold launch, the main-loop
+  // boundary otherwise).
+  const std::string cardPath = "/books/" + importedName;
+  SDL_Log("[import] opening %s", cardPath.c_str());
+  SimulatorDocumentOpen::requestOpenOfCardCopy(cardPath.c_str());
 
   // Re-push the frame AND re-render the activity: requestPresent() only
   // re-presents the framebuffer that already exists, so an open library
