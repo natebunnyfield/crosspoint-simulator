@@ -226,6 +226,83 @@ int main() {
           "a negative-sized panel is untouched");
   }
 
+  // --- THE SHEET SPLIT (owner 2026-08-22: "make sure panel and paper -------
+  // actually match visually, in color and texture with light mode").
+  // The panel field with includeTooth=false must leave FLAT PAPER untouched
+  // exactly -- every remaining component is carried by ink or its edges -- so
+  // the only texture on paper, inside or outside the page's rect, is the one
+  // output-wide sheet field, and the boundary cannot seam by construction.
+  {
+    Params p{kStrengthMax, 0x50524553u, 1.0f, false};
+    bool clean = true;
+    for (int y = 0; y < 16; ++y)
+      for (int x = 0; x < 16; ++x)
+        if (at(p, pg, x, y) != 255) clean = false;
+    check(clean, "panel field without tooth leaves flat paper bit-exact");
+    // ...while the glyph-edge components still paint.
+    check(at(p, pg, 30, 20) < 255,
+          "panel field without tooth still darkens the stroke's rim");
+  }
+
+  // The sheet-tooth field itself: off is bit-exact, it only darkens, it is
+  // real texture (not flat), and it is STATIONARY -- block means across an
+  // arbitrary boundary agree, which is the no-discontinuity half of the seam
+  // claim (the other half is the bit-exact flat paper above).
+  {
+    Params off{kStrengthOff, 0x50524553u, 1.0f};
+    Params p{kStrengthStandard, 0x50524553u, 1.0f};
+    bool offClean = true, darkenOnly = true;
+    double sumL = 0.0, sumR = 0.0;
+    int lo = 255, hi = 0;
+    const int N = 64;
+    for (int y = 0; y < N; ++y)
+      for (int x = 0; x < 2 * N; ++x) {
+        if (sheetToothMultiplierAt(off, x, y) != 255) offClean = false;
+        const int m = sheetToothMultiplierAt(p, x, y);
+        if (m > 255) darkenOnly = false;
+        if (m < lo) lo = m;
+        if (m > hi) hi = m;
+        (x < N ? sumL : sumR) += m;
+      }
+    check(offClean, "sheet tooth at strength 0 is a bit-exact no-op");
+    check(darkenOnly && hi <= 255, "sheet tooth can only darken");
+    check(hi > lo, "sheet tooth carries real texture, not a flat fill");
+    const double meanL = sumL / (N * N), meanR = sumR / (N * N);
+    check(std::abs(meanL - meanR) < 1.0,
+          "sheet tooth is stationary: block means agree across any boundary");
+    // Mean darkening bounded by the model: uniform [0, a] noise means a/2,
+    // with a = kToothAt100 at the standard rung.
+    check(255.0 - meanL <= 255.0 * kToothAt100 / 2.0 + 1.0,
+          "sheet tooth mean darkening stays within the model's amplitude");
+  }
+
+  // The sheet field obeys the same paper budget as the in-panel term did:
+  // swept against the tight palette (Latte light, 7.06:1), the flat sheet
+  // must hold the floor at every offered rung.
+  {
+    auto lum = [](int r, int g, int b) {
+      auto ch = [](int v) {
+        const float f = v / 255.0f;
+        return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+      };
+      return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
+    };
+    const float li = lum(0x4C, 0x4F, 0x69);   // Latte ink
+    const float lp = lum(0xEF, 0xF1, 0xF5);   // Latte paper
+    const int rungs[] = {0, 50, 100, 200, 400};
+    for (const int r : rungs) {
+      Params p{r, 0x50524553u, paperBudget(li, lp)};
+      double sum = 0.0;
+      for (int y = 0; y < 64; ++y)
+        for (int x = 0; x < 64; ++x) sum += sheetToothMultiplierAt(p, x, y);
+      const double mPaper = sum / (64.0 * 64.0 * 255.0);
+      const float ratio =
+          (lp * static_cast<float>(mPaper) + 0.05f) / (li + 0.05f);
+      check(ratio >= kContrastFloor - 0.05f,
+            "no offered rung drags the flat SHEET under the contrast floor");
+    }
+  }
+
   if (failures == 0) std::printf("letterpress_test: all checks passed\n");
   return failures ? 1 : 0;
 }
