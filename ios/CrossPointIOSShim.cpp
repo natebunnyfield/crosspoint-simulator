@@ -692,16 +692,20 @@ void layoutPad(int outW, int outH) {
   // points, so this is 32 pt everywhere and lands on the grid by construction.
   // Nothing is drawn in that band in zen -- the row the old line protected is
   // one of the things zen hides -- so there is nothing left to run into.
-  constexpr float kZenPaperCellsBelowRow = 4.0f;
+  // SUPERSEDED 2026-08-21 (owner: "extend the bottom margin of paper in zen
+  // mode to an optimal and proven distance"): the +4-cells rule above gave
+  // 141 px of paper below the ink and left 624 px (208 pt) of black glass
+  // under the sheet on an iPhone Air, measured. The proven distance is the
+  // boundary this code already trusted as its clamp: the HOME INDICATOR'S
+  // inset, the system's own safe floor, adopted after the bug where the
+  // paper's corners ran off-glass. The paper now extends TO that floor --
+  // maximal glass, a boundary Apple defines, no third arbitrary constant.
+  // (History: row-top alone read as sliding off the screen; row-top + 4 cells
+  // was the 2026-08-20 pick, 141 px below vs 84 above; both kept above for
+  // the record.)
   const float gridPx = 8.0f * S;
-  g_zenRowTopPx = SDL_floorf((upperY * S) / gridPx) * gridPx +
-                  kZenPaperCellsBelowRow * gridPx;
-  // Never past the glass. The home indicator's inset is the floor: the paper
-  // must not run under it, or the corners are cut off-screen and the sheet
-  // loses the bottom pair entirely -- the bug this whole pass started from.
-  const float maxPaperPx =
+  g_zenRowTopPx =
       SDL_floorf(((H - bottomInset) * S) / gridPx) * gridPx;
-  g_zenRowTopPx = SDL_min(g_zenRowTopPx, maxPaperPx);
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -2390,6 +2394,53 @@ void CrossPointHarness_perFrame() {
         SDL_Event up = down;
         up.type = SDL_EVENT_FINGER_UP;
         SDL_PushEvent(&up);
+      }
+    }
+    // CROSSPOINT_SIM_TAP_PAD=<BUTTON NAME, e.g. BACK>: one synthetic finger
+    // tap on that pad button, down ~2.5 s after launch and up 12 frames later.
+    // The FULL finger path -- padWatch, padHitTest, PadCore, applyActions --
+    // because simctl cannot synthesize a touch. Added for the build-120 "back
+    // from Settings opens the book" investigation: it proves on the iOS
+    // Simulator that one finger tap yields exactly ONE press and ONE release
+    // injection, never two. ASSERT ON THE [harness] <NAME> down/up LOG LINES,
+    // not on [ACT] transitions: this hook runs AFTER loop() on the firmware
+    // thread, so the injected EDGES land in the gap the next beginFrame()
+    // wipes (the queueButtonTap race, HalGPIO.h) and the firmware never acts
+    // on them. A real thumb's events are pushed during update()'s pump inside
+    // loop() and do not have this problem; end-to-end consumption is proven by
+    // the desktop script driving the same injectButtonDown/Up API.
+    static int s_tapPadCountdown = -2;
+    static int s_tapPadSlot = -1;
+    if (s_tapPadCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_TAP_PAD");
+      s_tapPadCountdown = -1;
+      if (e && e[0]) {
+        for (int i = 0; i < kPadCount; ++i) {
+          if (SDL_strcasecmp(e, g_pad[i].name) == 0) {
+            s_tapPadSlot = i;
+            s_tapPadCountdown = 150;
+            break;
+          }
+        }
+      }
+    }
+    if (s_tapPadCountdown > 0 && g_pad[s_tapPadSlot >= 0 ? s_tapPadSlot : 0].rect.w > 0) {
+      const int tick = s_tapPadCountdown--;
+      if (tick == 12 || tick == 1) {  // 12: finger down; 1: finger up
+        float outW = 0, outH = 0;
+        if (windowPixelSize(g_windowId, &outW, &outH)) {
+          const SDL_FRect &r = g_pad[s_tapPadSlot].rect;
+          SDL_Event ev{};
+          ev.type = (tick == 12) ? SDL_EVENT_FINGER_DOWN : SDL_EVENT_FINGER_UP;
+          ev.tfinger.touchID = 98;
+          ev.tfinger.fingerID = 98;
+          ev.tfinger.x = (r.x + r.w / 2) / outW;
+          ev.tfinger.y = (r.y + r.h / 2) / outH;
+          ev.tfinger.windowID = g_windowId;
+          SDL_Log("[padtap] diagnostic %s finger %s",
+                  g_pad[s_tapPadSlot].name, tick == 12 ? "down" : "up");
+          SDL_PushEvent(&ev);
+        }
       }
     }
     // CROSSPOINT_SIM_MIX_GUNS="r,g,b,w": call the sliders' own apply function
