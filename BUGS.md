@@ -38,6 +38,41 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
+**severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics**
+
+King's crash-report store (pulled over pymobiledevice3, Developer Mode
+enabled 2026-08-22) holds five `CrossPointX3.cpu_resource` reports — builds
+76, 78, 78, 79 (all 2026-08-15) and **107** (2026-08-20):
+
+```
+Event:  cpu usage
+CPU:    90 seconds cpu time over 179 seconds (50% cpu average),
+        exceeding limit of 50% cpu over 180 seconds
+Action taken: none
+```
+
+The heaviest stack is the main run loop into app code (unsymbolicated —
+release build, dSYM not to hand), which is the shape of the SDL
+present/compose loop repainting every frame whether or not anything changed.
+iOS only diagnoses at this rate ("action: none"), but half a core for the
+length of a reading session is battery, and the phone was at 9% when it came
+in for this checkup.
+
+**Close by** symbolicating one report against the build-107 archive's dSYM to
+confirm the loop, then making the present loop event-driven when the screen
+is static — the firmware's e-ink model already knows when nothing repaints;
+the shell should idle with it. Re-verify with a fresh cpu_resource-free week
+on the phone.
+
+The same pull's full disposition, for the record: five real crash reports,
+all build 110, all the SAME `objc_retain(0x1)` in `-[UIViewController
+setTitle:]` — the palette-mixer crash already found on-device and sidestepped
+in build 111 (`CrossPointPaletteMixer.mm` carries the note); and seventeen
+JetsamEvent appearances, every one `long-idle-exit` housekeeping, zero
+memory-pressure kills. No unknown crashes.
+
+
 ### [S-016] The whole screen flashes on some CRT palettes — FIXED 2026-08-19, unconfirmed on the phone
 **severity: medium · scope: ios display · reported 2026-08-19**
 
