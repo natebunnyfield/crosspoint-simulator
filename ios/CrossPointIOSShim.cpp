@@ -207,6 +207,9 @@ float g_cardTopPx = 0.0f;
 // Computed each layout pass from the selected band ratio and the measured
 // content insets; converges over two passes like the band itself.
 float g_zenPanelShiftPx = 0.0f;
+// The value of the shift consumed by THIS layout pass (band and top inset
+// must agree; see the snapshot comment at the band).
+float g_zenShiftThisPass = 0.0f;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
 
@@ -700,7 +703,16 @@ void layoutPad(int outW, int outH) {
   const float band = panelGap + kCellH + kRowClear + kCellH + bottomInset;
   // The zen placement shift: pixels move from this bottom reserve to the top
   // inset below, in equal measure, so the panel's fit box never changes size.
-  const float shiftPt = g_zen ? g_zenPanelShiftPx / S : 0.0f;
+  // ONE shift value per layout pass. The band (here) and the top inset
+  // (below) must consume the SAME shift, or the fit box changes height inside
+  // a single pass and the panel re-fits at a NEW SCALE -- the no-resize
+  // ruling broken by the very code built to honor it. That shipped in build
+  // 123: the published-insets relayout updated the shift between the two
+  // consumers and the page silently resized 0.7197 -> 0.7096. The snapshot
+  // makes the pair atomic; a CHANGED shift schedules one more relayout below,
+  // so the placement still converges -- at a constant scale every step.
+  g_zenShiftThisPass = g_zen ? g_zenPanelShiftPx : 0.0f;
+  const float shiftPt = g_zenShiftThisPass / S;
   SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
 
   // How far the paper reaches in zen: the top rocker row's top edge, snapped
@@ -817,7 +829,21 @@ void layoutPad(int outW, int outH) {
       if (want < 0.0f) want = 0.0f;
       const float bandPx = band * S;
       if (want > bandPx - 8.0f * S) want = bandPx - 8.0f * S;
-      g_zenPanelShiftPx = want;
+      if (SDL_fabsf(want - g_zenPanelShiftPx) > 0.5f) {
+        // The whole computation, printed on every CHANGE of its answer -- the
+        // 2026-08-22 convergence bug was debugged blind because nothing said
+        // what shift was wanted or which panelH/insets produced it.
+        SDL_Log("[zen] shift %.1f -> %.1fpx (panelH=%.0f slack=%.0f "
+                "ink=%.1f/%.1f %s want=%.1f)",
+                g_zenPanelShiftPx, want, panelHPx, slack, inkTopPx,
+                inkBottomPx, inkSrc, want);
+        g_zenPanelShiftPx = want;
+        g_padLaidOut = false;  // consume the new value in a full, atomic pass
+        // ...and ASK for that pass: relayout happens inside a present, and an
+        // e-ink firmware may not present again for minutes. The overlay rule,
+        // one level deeper than the poll that already follows it.
+        SimulatorOverlay::requestPresent();
+      }
     } else if (!g_zen) {
       g_zenPanelShiftPx = 0.0f;
     }
@@ -964,7 +990,7 @@ void layoutPad(int outW, int outH) {
   const float kPaperMargin = 12.0f;    // paper above the page
   topInset = safeTop > 20.0f ? kCardTop + kPaperMargin : kTopReserve;
   g_cardTopPx = (safeTop > 20.0f ? kCardTop : topInset) * S;
-  if (g_zen) topInset += g_zenPanelShiftPx / S;
+  if (g_zen) topInset += g_zenShiftThisPass / S;
   SDL_Log("[layout] safe top %.1f pt -> card top %.1f pt, page top %.1f pt (%s)",
           safeTop, safeTop > 20.0f ? kCardTop : topInset, topInset,
           safeTop > 20.0f ? "paper card below the cut-out" : "reserve");
@@ -1966,8 +1992,17 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   const int keyboardPt = static_cast<int>(g_keyboardHeightPt);
   if (!g_padLaidOut || panelBottom != s_layoutPanelBottom ||
       keyboardPt != s_layoutKeyboardPt) {
-    layoutPad(outW, outH);
+    // BEFORE the call, not after. layoutPad clears g_padLaidOut when the zen
+    // shift changes, to schedule the one extra pass that consumes the new
+    // value; setting true after the call clobbered that request. The clobber
+    // was invisible while the panel moved every present (a changed
+    // panelBottom re-fires this gate on its own), which is the whole boot
+    // convergence -- but the published-insets relayout changes NOTHING this
+    // pass (the snapshot holds the old shift, correctly), so the panel does
+    // not move, the gate never fires again, and the recomputed shift sat
+    // unconsumed forever. That was the stable wrong fixed point.
     g_padLaidOut = true;
+    layoutPad(outW, outH);
     s_layoutPanelBottom = panelBottom;
     s_layoutKeyboardPt = keyboardPt;
   }
@@ -1983,6 +2018,19 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
                                    SimulatorOverlay::panelHeightPx()),
                 static_cast<float>(SimulatorOverlay::panelWidthPx()),
                 static_cast<float>(SimulatorOverlay::panelHeightPx())};
+  // The presented POSITION, logged on change. HalDisplay's [panel] line only
+  // prints when the scale or the output size changes, so a shift-only move --
+  // which is the entire zen placement mechanism -- was invisible in every log
+  // this was debugged from. A settled layout prints nothing here.
+  {
+    static SDL_FRect s_lastZenPanel{-1.0f, -1.0f, -1.0f, -1.0f};
+    if (g_zenPanel.x != s_lastZenPanel.x || g_zenPanel.y != s_lastZenPanel.y ||
+        g_zenPanel.w != s_lastZenPanel.w || g_zenPanel.h != s_lastZenPanel.h) {
+      s_lastZenPanel = g_zenPanel;
+      SDL_Log("[zen] panel %.0fx%.0f at %.0f,%.0f", g_zenPanel.w, g_zenPanel.h,
+              g_zenPanel.x, g_zenPanel.y);
+    }
+  }
 
   if (g_zen) {
     // Nothing below the page draws in zen -- no capsules, no chips.
@@ -2528,6 +2576,11 @@ void CrossPointHarness_begin() {
   SDL_Log("[harness] appearance: %s, pad contrast outline %+d fill %+d",
           g_dark ? "dark" : "light", g_appliedOutline, g_appliedFill);
 
+  // BEFORE _begin: on a wake the previous boot's speech is still running --
+  // the longjmp abandoned the run mid-utterance -- and the old page must not
+  // keep speaking (or phantom-turn pages) over the rebooted firmware. First
+  // boot: no-op, nothing exists yet.
+  CrossPointReadAloud_resetForReboot();
   // Same idempotence contract as this function: creates once, refreshes the
   // pref edge on every wake.
   CrossPointReadAloud_begin();
