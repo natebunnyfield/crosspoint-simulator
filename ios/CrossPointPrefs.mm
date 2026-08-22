@@ -230,7 +230,10 @@ static void ensureDefaults(void) {
         // only when Root.plist could not be read at all, so a drift between the
         // two is invisible until a packaging fault exposes it.
         kPadContrastPreset : @(4),  // padpalette::kPresetBlackWhite
-        kZenModeEnabled : @NO,
+        // ON by default (owner 2026-08-22: "default to zen mode on app
+        // launch"). Registered defaults only fill ABSENCE: an install whose
+        // owner stored zenModeEnabled=false keeps that choice.
+        kZenModeEnabled : @YES,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
         // Default preset, and the four hex fields seeded with the tones that

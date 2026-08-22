@@ -39,6 +39,10 @@ int main() {
     check(!v.count("phosphorGrainMottleCells"),
           "template: blotch SIZE is not a setting any more");
     check(intOr(v, "phosphorGrainMottleDepth", -1) == 90, "template: depth 90");
+    // The 2026-08-22 doctrine dials ship OFF on the desktop -- that is the
+    // byte-identical canary -- while the iOS app defaults both to Subtle.
+    check(intOr(v, "letterpressPercent", -1) == 0, "template: letterpress off");
+    check(intOr(v, "scanlinesPercent", -1) == 0, "template: scanlines off");
     check(intOr(v, "darkMode", -1) == 1, "template: dark");
   }
 
