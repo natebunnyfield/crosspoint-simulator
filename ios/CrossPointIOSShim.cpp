@@ -185,6 +185,18 @@ float g_zenRowTopPx = 0.0f;
 // zen zones are measured against this rather than the page, so the thirds line
 // up with what the reader can actually see.
 SDL_FRect g_zenPaper{};
+// The zen zone tap tracker (owner 2026-08-22: "need to disable all swiping,
+// we want all taps to be as deliberate as possible"). A zone fires only for a
+// single stationary finger: armed on the FIRST finger down, disqualified by a
+// second finger, by travel past the slop, or by a hold longer than a
+// deliberate tap -- and the zone is judged from the LANDING point, not the
+// lift, so a drag can never walk a tap into a different zone.
+int64_t g_zenZoneFingerId = -1;
+float g_zenZoneDownX = 0.0f, g_zenZoneDownY = 0.0f;
+Uint64 g_zenZoneDownAt = 0;
+bool g_zenZoneSpoiled = false;
+constexpr float kZenTapSlopPx = 28.0f;
+constexpr Uint64 kZenTapMaxMs = 400;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -2214,7 +2226,19 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // In zen the pad does not exist: no slots, no hit test, no PadCore. Every
       // touch is either part of the three-finger toggle or one of the three
       // zones, both resolved on finger UP.
-      if (g_zen) break;
+      if (g_zen) {
+        if (g_zenZoneFingerId == -1 && !g_zenZoneSpoiled) {
+          g_zenZoneFingerId = e->tfinger.fingerID;
+          g_zenZoneDownX = fx;
+          g_zenZoneDownY = fy;
+          g_zenZoneDownAt = SDL_GetTicks();
+        } else {
+          // A second finger is not a deliberate single tap (it is probably
+          // the toggle); spoil the candidate until every finger lifts.
+          g_zenZoneSpoiled = true;
+        }
+        break;
+      }
 
       const int hit = padHitTest(fx, fy);
       if (hit < 0 && g_tapFingerId == -1) {
@@ -2229,6 +2253,13 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     }
 
     case SDL_EVENT_FINGER_MOTION: {
+      if (g_zen && e->tfinger.fingerID == g_zenZoneFingerId &&
+          windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
+        const float mx = e->tfinger.x * outW, my = e->tfinger.y * outH;
+        if (SDL_fabsf(mx - g_zenZoneDownX) > kZenTapSlopPx ||
+            SDL_fabsf(my - g_zenZoneDownY) > kZenTapSlopPx)
+          g_zenZoneSpoiled = true;
+      }
       // A tap candidate that drags past the slop is a swipe, not a tap.
       if (e->tfinger.fingerID == g_tapFingerId &&
           windowPixelSize(e->tfinger.windowID, &outW, &outH)) {
@@ -2278,6 +2309,19 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         const bool toggled =
             g_zenDetector.fingerUp(g_zenLastX, g_zenLastY, page, cancelled);
 
+        // The zone tracker resolves on the last lift, whatever happens.
+        const bool zoneCandidate =
+            g_zen && wasLast && !cancelled && !g_zenZoneSpoiled &&
+            e->tfinger.fingerID == g_zenZoneFingerId &&
+            SDL_GetTicks() - g_zenZoneDownAt <= kZenTapMaxMs;
+        const float zoneX = g_zenZoneDownX, zoneY = g_zenZoneDownY;
+        if (wasLast) {
+          g_zenZoneFingerId = -1;
+          g_zenZoneSpoiled = false;
+        } else if (e->tfinger.fingerID == g_zenZoneFingerId) {
+          g_zenZoneFingerId = -1;
+        }
+
         if (toggled) {
           g_zen = !g_zen;
           g_padLaidOut = false;  // the band changes, so the page must be refitted
@@ -2287,9 +2331,12 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           break;
         }
 
-        // ZEN ZONES. One finger, no travel, and only on the last lift -- a
-        // two-finger rest must not turn a page.
-        if (g_zen && wasLast && !cancelled) {
+        // ZEN ZONES. One finger, stationary, brief, and only on the last
+        // lift -- a swipe, a drag, a long-press, a rest, or a second finger
+        // fires NOTHING (owner 2026-08-22: "disable all swiping, we want all
+        // taps to be as deliberate as possible"). The zone comes from the
+        // LANDING point, so a finger cannot walk a tap into another zone.
+        if (zoneCandidate) {
           // EDGE TO EDGE (owner ruling 2026-08-19: "extend tap target of panel
           // zen button to edges of screen"). The thirds are measured across the
           // whole SCREEN, not the page -- the margins beside the page are dead
@@ -2297,11 +2344,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // a page. Only the vertical bounds come from the paper.
           const SDL_FRect &paper = g_zenPaper.h > 0 ? g_zenPaper : q;
           const float third = outW / 3.0f;
-          const bool leftThird = g_zenLastX < third;
-          const bool onPage = g_zenLastY >= paper.y && g_zenLastY < paper.y + paper.h;
+          const bool leftThird = zoneX < third;
+          const bool onPage = zoneY >= paper.y && zoneY < paper.y + paper.h;
           uint8_t button;
           const char *what;
-          if (g_zenLastY < paper.y) {
+          if (zoneY < paper.y) {
             button = HalGPIO::BTN_POWER;
             what = "power";
           } else if (onPage) {
