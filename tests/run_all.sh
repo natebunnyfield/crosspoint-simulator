@@ -81,6 +81,13 @@ run pad_core \
 run zen_gesture \
   c++ -std=c++17 -Iios -o "$OUT/zen_gesture" tests/zen_gesture_test.cpp
 
+# The zen gesture LANGUAGE (owner 2026-08-22): taps, swipes, pinch/spread and
+# the four-finger power tap. Pure for the same reason as zen_gesture above --
+# and it is the ONLY coverage multi-finger gestures get anywhere, because no
+# existing hook can synthesize two moving fingers.
+run zen_verbs \
+  c++ -std=c++17 -Iios -o "$OUT/zen_verbs" tests/zen_verbs_test.cpp
+
 # Reads ios/Settings.bundle/Root.plist from the repo root -- hence the `cd`
 # above -- and cross-checks every row label against the tone that row selects.
 run pad_palette \
