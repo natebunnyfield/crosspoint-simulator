@@ -2369,10 +2369,17 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         if (zenBefore && verb != zenverbs::Verb::None) {
           uint8_t button = HalGPIO::BTN_DOWN;
           switch (verb) {
-            case zenverbs::Verb::Down: button = HalGPIO::BTN_DOWN; break;
-            case zenverbs::Verb::Up: button = HalGPIO::BTN_UP; break;
-            case zenverbs::Verb::Left: button = HalGPIO::BTN_LEFT; break;
-            case zenverbs::Verb::Right: button = HalGPIO::BTN_RIGHT; break;
+            // SWAPPED by owner ruling 2026-08-22 ("I think I was mixing up
+            // up/down with left/right. swap them with your best effort."):
+            // the 1-finger verbs drive the PAGE (front Left/Right, since on
+            // this fork side taps step font size), and the 2-finger
+            // horizontals drive FONT SIZE (side Up/Down) alongside
+            // pinch/spread, which were already correct. Reading on one
+            // finger, sizing on two.
+            case zenverbs::Verb::Down: button = HalGPIO::BTN_RIGHT; break;
+            case zenverbs::Verb::Up: button = HalGPIO::BTN_LEFT; break;
+            case zenverbs::Verb::Left: button = HalGPIO::BTN_UP; break;
+            case zenverbs::Verb::Right: button = HalGPIO::BTN_DOWN; break;
             case zenverbs::Verb::Select: button = HalGPIO::BTN_CONFIRM; break;
             case zenverbs::Verb::Back: button = HalGPIO::BTN_BACK; break;
             case zenverbs::Verb::Power: button = HalGPIO::BTN_POWER; break;
@@ -2380,7 +2387,8 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
             case zenverbs::Verb::FontDown: button = HalGPIO::BTN_UP; break;
             case zenverbs::Verb::None: break;
           }
-          SDL_Log("[zen] verb -> %s", zenverbs::verbName(verb));
+          SDL_Log("[zen] verb -> %s (button %d)", zenverbs::verbName(verb),
+                  (int)button);
           gpio.queueButtonTap(button, 60);
           applyActions(g_core.fingerUp(e->tfinger.fingerID));
           break;
