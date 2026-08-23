@@ -215,8 +215,19 @@ fi
 # sit at the repo root; build 114's first attempt died with "build-simsdk
 # does not appear to contain CMakeLists.txt" because the same shell had
 # cd'd into the simulator-SDK build tree earlier in the session.
+# CROSSPOINT_IOS_RENDER_SCALE is a CACHE variable, so a build dir configured
+# before it changed keeps the OLD value forever and the source of truth in
+# ios/CMakeLists.txt is silently overruled. Build 130 died on exactly that: the
+# file said 2, the cache still said 3, and the identity gate below refused the
+# archive. Passing it explicitly makes the file win every time, which is what a
+# single source of truth has to mean.
+CONFIGURE_SCALE=$(sed -n 's/^set(CROSSPOINT_IOS_RENDER_SCALE \([0-9][0-9]*\).*/\1/p' \
+  "$REPO/ios/CMakeLists.txt" | head -1)
+[[ -n "$CONFIGURE_SCALE" ]] || { echo "ERROR: cannot read CROSSPOINT_IOS_RENDER_SCALE from ios/CMakeLists.txt"; exit 1; }
+
 cmake -S "$REPO" -B "$BUILD_DIR" -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS \
+  -DCROSSPOINT_IOS_RENDER_SCALE="$CONFIGURE_SCALE" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCROSSPOINT_FIRMWARE_DIR="$FIRMWARE_DIR" \
   -DCROSSPOINT_BUILD_FIRMWARE=ON \
