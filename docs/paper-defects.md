@@ -313,17 +313,21 @@ affordable at all.
 
 ## 5. The dial
 
-`Paper Defects`, 0–100, default 30.
+`Paper Defects`, 0–100. **On iOS it is no longer a dial at all: it is frozen at
+0** (owner ruling 2026-08-23, from a screenshot reading "0% (a fresh sheet)").
+The model keeps its full range and its own default of 30 — this is the app's
+choice, not a change to what the model considers normal.
 
-- iOS: a slider in the light-mode page-color drawer's **Paper** group, and a
-  `PSSliderSpecifier` row in `Settings.bundle/Root.plist` bound to the SAME
-  `paperDefectsPercent` key — a Settings.bundle row is a view onto a
-  `NSUserDefaults` key, so this is one source of truth with two views, not two
-  sources. It has to be a slider row and not the `PSMultiValueSpecifier` every
-  other row uses: a multi-value row renders BLANK for a drawer value of 47.
+It had two views onto one `paperDefectsPercent` key, a drawer slider and a
+`PSSliderSpecifier` row (a slider and not the `PSMultiValueSpecifier` every
+other row used, because a multi-value row renders BLANK for a drawer value of
+47). Both are gone: the Settings row with the whole Paper Defects group, the
+drawer slider with the rest of the paper instrument.
+
 - Desktop: `CROSSPOINT_SIM_PAPER_DEFECTS`, and `paperDefectsPercent` in
-  `settings.json`.
-- `CROSSPOINT_SIM_AS_SHIPPED=1` seeds 30, with the rest of the iOS defaults.
+  `settings.json`. **These stay** — the desktop is where the model is exercised
+  and proved, and every render in this document was made through them.
+- `CROSSPOINT_SIM_AS_SHIPPED=1` seeds 0, matching the frozen app.
 
 Every proof and render run needs `CROSSPOINT_SIM_DARK=0` alongside it:
 `CROSSPOINT_SIM_AS_SHIPPED=1` forces DARK, and letterpress only draws on a light
