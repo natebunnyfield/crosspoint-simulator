@@ -293,6 +293,18 @@ void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
 // old grain. CROSSPOINT_SIM_LETTERPRESS overrides the argument.
 void setLetterpress(int strengthPercent);
 
+// PAPER TOOTH: how rough the SHEET the letterpress is printed on is, as a
+// percent of the reference stock's (owner order 2026-08-22, with the paper
+// tint slider: "be sure to be adding the existing noise treatment to it").
+// 100 is the shipped Bright White, so an unseeded build renders the tooth it
+// always did; a chamois at full tint asks for 180. The number comes from
+// lightink::toothScaleFor(paperIndex, paperStrengthPercent), so dialing a
+// stock's tone up brings its texture up with it. It scales the sheet pass's
+// amplitude only -- the ink-carried components are a property of the press,
+// not the paper. Model: src/Letterpress.h. CROSSPOINT_SIM_PAPER_TOOTH
+// overrides the argument.
+void setPaperTooth(int percentOfReference);
+
 // SCANLINES: the DARK page's screen texture, replacing the mottled grain
 // (supersedes the 2026-08-18 "no scanlines" ruling -- owner order 2026-08-22).
 // Percent of standard: 0 off (bit-exact), 50 subtle (the iOS dark default),

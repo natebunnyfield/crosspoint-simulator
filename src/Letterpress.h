@@ -44,6 +44,12 @@
 // proportion (sqrt of the dial): a harder press does not make the paper
 // toothier. 0 is bit-exact off. Persisted as the meaningful percent.
 //
+// ...but the tooth has a SECOND input, and it is not the press: which paper
+// this is. p.toothScale carries the stock's own roughness (owner order
+// 2026-08-22, with the paper slider), and p.formationDepth its cloudiness.
+// Both default to the shipped reference, so a caller that knows nothing about
+// paper stocks renders exactly what this header always drew.
+//
 // Pure and clock-free, like PhosphorGrain: every failure mode is a wrong
 // PICTURE, and tests/letterpress_test.cpp is the only instrument that can see
 // one.
@@ -74,6 +80,35 @@ constexpr float kToothAt100 = 0.03f;   // paper tooth amplitude (rides sqrt)
 // Blotches across the page long edge for the pressure field. A texture-scale
 // property like the grain's mottle cells, not a taste dial.
 constexpr int kPressCells = 4;
+
+// --- THE SHEET'S FORMATION -------------------------------------------------
+//
+// Owner order 2026-08-22, on the paper slider: "be sure to be adding the
+// existing noise treatment to it." Read against what light mode actually did:
+// the tooth already covered the whole surface (the 2026-08-22 seam fix), so
+// the gap was not coverage. It was that the sheet had no LOW-FREQUENCY
+// structure at all. Every existing low-frequency term -- plate pressure here,
+// the grain's mottle -- multiplies INKNESS or belongs to the dark page, so
+// bare paper was pure white noise: a fine tooth on a perfectly even sheet,
+// which no real stock is. Paper FORMATION (the cloudiness you see holding a
+// sheet to a light, from fibres flocculating in the headbox) is the missing
+// half, and it is exactly the phenomenon the grain's Mottled coverage models
+// for a phosphor screen.
+//
+// So it is built the same way, out of the SAME primitive -- one noise
+// implementation in this repo -- and it MODULATES the tooth's amplitude
+// rather than adding a darkening of its own. That choice is what keeps the
+// paper budget structural: a symmetric +/- swing on the amplitude leaves the
+// mean darkening exactly a/2, so the contrast-floor argument carries over
+// with nothing new to prove.
+//
+// Cells is a texture-scale property (how big the cloud is relative to the
+// sheet), not a taste dial, same posture as kPressCells and the grain's
+// blotch count. Depth is a Params field defaulting to 0, so the pure model's
+// old behavior is bit-exact and only a caller that asks gets formation.
+constexpr int kFormationCells = 3;
+constexpr float kFormationDepthDefault = 0.55f;
+constexpr float kFormationDepthMax = 1.0f;
 
 // Never take a texel out entirely; a black speck is a defect, not impression.
 constexpr float kMinMultiplier = 0.25f;
@@ -119,7 +154,24 @@ struct Params {
   // single-pass model; HalDisplay passes false for the panel field now that
   // the tooth is drawn output-wide -- see the 2026-08-22 seam note there.
   bool includeTooth = true;
+  // THE STOCK'S OWN ROUGHNESS, as a multiple of the reference sheet's
+  // (owner 2026-08-22: the paper slider brings a stock's texture up with its
+  // tone). Supplied by lightink::toothScaleFor(); 1.0 is the shipped Bright
+  // White, so a caller that does not set it renders what it always did. This
+  // header stays ignorant of the paper TABLE -- it takes a number, the same
+  // contract paperDarkenBudget has with the palette.
+  float toothScale = 1.0f;
+  // Paper formation: how hard the sheet's cloudiness swings the tooth's
+  // amplitude, +/- this fraction. 0 is bit-exact "no formation", and is the
+  // default so the model's old renderings are unchanged.
+  float formationDepth = 0.0f;
 };
+
+inline float clampFormationDepth(float depth) {
+  if (!(depth > 0.0f)) return 0.0f;  // also catches NaN
+  if (depth > kFormationDepthMax) return kFormationDepthMax;
+  return depth;
+}
 
 // THE ANSWER: the 0..255 modulate value for one panel pixel, from its 3x3
 // inkness window. win[row][col], row 0 up, col 0 left; inkness is 0 at paper,
@@ -174,7 +226,7 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
       static_cast<uint32_t>(x), static_cast<uint32_t>(y),
       p.seed ^ 0x544F4F54u));
   const float irregular = kIrregularAt100 * s * u * t;
-  float toothAmp = kToothAt100 * sHalf;
+  float toothAmp = kToothAt100 * sHalf * (p.toothScale > 0.0f ? p.toothScale : 0.0f);
   const float budget = p.paperDarkenBudget;
   if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
   if (toothAmp < 0.0f) toothAmp = 0.0f;
@@ -208,18 +260,41 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
 // so it is zero on bare sheet on BOTH sides of the boundary: continuous with
 // nothing to extend.)
 //
-// Same amplitude, same sqrt(dial) ride, same paper budget clamp and the same
-// 'TOOT' seed lane as the in-panel term it replaces, so the darken-only and
-// off-bit-exact invariants and the contrast floor argument carry over
-// unchanged: mean darkening of uniform [0,a] noise is a/2 <= budget. A pure
-// hash of output coordinates is stationary -- no lattice, no seam, and (per
-// ST-008) noise drawn 1:1 at output size cannot moire.
-inline uint8_t sheetToothMultiplierAt(const Params &p, int x, int y) {
+// Same sqrt(dial) ride, same paper budget clamp and the same 'TOOT' seed lane
+// as the in-panel term it replaces, so the darken-only and off-bit-exact
+// invariants and the contrast floor argument carry over unchanged: mean
+// darkening of uniform [0,a] noise is a/2 <= budget. A pure hash of output
+// coordinates is stationary -- no lattice, no seam, and (per ST-008) noise
+// drawn 1:1 at output size cannot moire.
+//
+// Two things ride ON that amplitude now (owner 2026-08-22): the STOCK's own
+// roughness, p.toothScale, so a chamois wears more tooth than a coated bright
+// white and the paper slider brings a stock's texture up with its tone; and
+// the sheet's FORMATION, a low-frequency swing described above. Both multiply
+// the amplitude before the budget clamp, so neither can breach the floor.
+// FORMATION needs the sheet's SIZE, so w/h joined the signature -- defaulted
+// to 0, which means "no formation field" and leaves every pre-existing call
+// byte-identical. The tooth itself is stationary and needs neither.
+inline uint8_t sheetToothMultiplierAt(const Params &p, int x, int y, int w = 0,
+                                      int h = 0) {
   const int strength = clampStrength(p.strengthPercent);
   if (strength == kStrengthOff) return 255;
   const float s = static_cast<float>(strength) /
                   static_cast<float>(kStrengthStandard);
-  float toothAmp = kToothAt100 * std::sqrt(s);
+  float toothAmp = kToothAt100 * std::sqrt(s) *
+                   (p.toothScale > 0.0f ? p.toothScale : 0.0f);
+  // The sheet's cloudiness, as a symmetric swing ON the tooth's amplitude --
+  // so it costs no extra mean darkening and the budget clamp below still
+  // bounds every point. Same primitive and same shape as the grain's mottle.
+  const float depth = clampFormationDepth(p.formationDepth);
+  if (depth > 0.0f && w > 0 && h > 0) {
+    const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w);
+    const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h);
+    const float v = phosphorgrain::valueNoise(
+        nx * static_cast<float>(kFormationCells),
+        ny * static_cast<float>(kFormationCells), p.seed ^ 0x464F524Du);
+    toothAmp *= 1.0f + depth * (v * 2.0f - 1.0f);
+  }
   const float budget = p.paperDarkenBudget;
   if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
   if (toothAmp < 0.0f) toothAmp = 0.0f;

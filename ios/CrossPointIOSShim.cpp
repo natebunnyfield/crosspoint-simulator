@@ -66,6 +66,7 @@
 #include "CrossPointKeyboardBar.h"
 #include "PanelPrefs.h"
 #include "PhosphorGrain.h"
+#include "LightInkPalette.h"  // kPaperStrengthDefault, for the APPLY_INK script
 // The firmware owns the Dark Mode SETTING; the system owns the APPEARANCE.
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
@@ -93,7 +94,12 @@ extern "C" bool CrossPointMixer_isPresented(void);
 extern "C" void CrossPointInkPicker_present(void);
 extern "C" bool CrossPointInkPicker_isPresented(void);
 extern "C" void CrossPointInkPicker_applyForTest(int ink, int paper,
-                                                 int density);
+                                                 int density,
+                                                 int paperStrength);
+// The sheet's roughness for the STORED paper selection, seeded at launch by
+// pollPaperTooth below -- the picker may never be opened and the paper still
+// has a texture.
+extern "C" int CrossPointInkPicker_paperToothPercent(void);
 // Zen's motion gestures are native UIKit recognizers now
 // (CrossPointZenRecognizers.mm); enabled only while zen is on.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
@@ -1621,6 +1627,22 @@ void pollLetterpress() {
   SimulatorOverlay::setLetterpress(pct);
 }
 
+// THE SHEET'S ROUGHNESS, from the stored paper selection (owner order
+// 2026-08-22: "be sure to be adding the existing noise treatment to it"). The
+// picker pushes this the moment a finger moves, so the poll is here for the
+// launch seed and for any path that writes the keys without going through the
+// picker -- an edge-triggered read costs a defaults lookup per frame and the
+// alternative is a sheet that wears the reference stock's tooth until someone
+// opens the modal.
+void pollPaperTooth() {
+  static int s_applied = -1;
+  const int pct = CrossPointInkPicker_paperToothPercent();
+  if (pct == s_applied) return;
+  s_applied = pct;
+  SDL_Log("[letterpress] sheet tooth %d%% of the reference stock", pct);
+  SimulatorOverlay::setPaperTooth(pct);
+}
+
 // Intensity, pitch size AND bloom, edge-triggered on the TRIPLE: the last two
 // are only meaningful with the intensity that renders them, and separate
 // caches would let a size or bloom change alone go unapplied until the next
@@ -2742,18 +2764,22 @@ void CrossPointHarness_perFrame() {
     // CROSSPOINT_SIM_APPLY_INK="ink,paper,density": drive the picker's exact
     // apply path with no finger -- the mixer's applyGunsForTest pattern.
     static int s_applyInkCountdown = -2;
-    static int s_applyInkArgs[3] = {0, 0, 100};
+    // The fourth field is the PAPER STRENGTH and is optional -- it defaults to
+    // full, so every three-field recipe written before the paper dial existed
+    // still means exactly what it meant.
+    static int s_applyInkArgs[4] = {0, 0, 100, lightink::kPaperStrengthDefault};
     if (s_applyInkCountdown == -2) {
       const char *e = std::getenv("CROSSPOINT_SIM_APPLY_INK");
-      s_applyInkCountdown =
-          (e && std::sscanf(e, "%d,%d,%d", &s_applyInkArgs[0],
-                            &s_applyInkArgs[1], &s_applyInkArgs[2]) == 3)
-              ? 120
-              : -1;
+      const int parsed =
+          e ? std::sscanf(e, "%d,%d,%d,%d", &s_applyInkArgs[0],
+                          &s_applyInkArgs[1], &s_applyInkArgs[2],
+                          &s_applyInkArgs[3])
+            : 0;
+      s_applyInkCountdown = (parsed == 3 || parsed == 4) ? 120 : -1;
     }
     if (s_applyInkCountdown > 0 && --s_applyInkCountdown == 0) {
       CrossPointInkPicker_applyForTest(s_applyInkArgs[0], s_applyInkArgs[1],
-                                       s_applyInkArgs[2]);
+                                       s_applyInkArgs[2], s_applyInkArgs[3]);
     }
     // CROSSPOINT_SIM_TAP_CHIP=1: the FULL finger path, not just the modal --
     // synthesizes SDL_EVENT_FINGER_DOWN/UP at the chip's center, so padWatch,
@@ -2862,6 +2888,7 @@ void CrossPointHarness_perFrame() {
   }
   pollPhosphorGrain();
   pollLetterpress();
+  pollPaperTooth();
   pollScanlines();
   pollReaderInsets();
   pollZenMode();
