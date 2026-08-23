@@ -1822,12 +1822,23 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   // objects. Matching them is what makes it a card. The probe
   // (CrossPointAppearance_displayCornerRadius) stays available for anything
   // that genuinely needs the glass radius; nothing does today.
-  // The radius is the module's, when the placement has published one (zen);
-  // the 8 pt constant remains the fallback for every other state, including
-  // the pre-first-placement frames.
+  // The radius is the module's, when the placement has published one; the 8 pt
+  // constant remains the fallback for the pre-first-placement frames only.
+  //
+  // NOT GATED ON ZEN (owner 2026-08-23: "make top corners of not zen mode
+  // match top corner radius of zen mode"). The gate used to be
+  // `g_zen && g_paperGapPx > 0`, so the same card was struck with a 106 px
+  // curve in zen and a 24 px one out of it -- two different objects on one
+  // screen, which is the same complaint the 2026-08-20 ruling fixed between
+  // the top and bottom pairs. The module is mode-independent by construction:
+  // layoutPad publishes g_paperGapPx from the card top, the panel height and
+  // the firmware's ink insets, none of which zen changes (the no-resize
+  // ruling), so the two modes read one number rather than agreeing by
+  // coincidence. Reading it here changes no geometry -- the fit box, the band
+  // and the shift are all decided before this paints.
   static float s_radiusPx = -1.0f;
   static float s_radiusFrom = -1.0f;
-  const float module = (g_zen && g_paperGapPx > 0.0f) ? g_paperGapPx : 0.0f;
+  const float module = g_paperGapPx > 0.0f ? g_paperGapPx : 0.0f;
   if (s_radiusPx < 0.0f || module != s_radiusFrom) {
     s_radiusFrom = module;
     s_radiusPx = module > 0.0f ? module / 2.0f : kPaperCornerPt * g_ptScale;
