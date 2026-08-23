@@ -56,9 +56,7 @@
 
 How finely the page is drawn, as page pixels per e-ink pixel. Layout never moves: the same words break in the same places at every setting. Only the sharpness of the drawing changes.
 
-Fine (3x) is what the app has always used, and gives the most detailed letterforms. It is larger than the screen, so the page is scaled down to fit and smoothed on the way.
-
-Exact (2x) lands one page pixel on one screen pixel on this phone — no scaling and no smoothing at all. Letterforms are slightly coarser than Fine but nothing is resampled.
+Exact (2x) lands one page pixel on one screen pixel on this phone — no scaling and no smoothing at all.
 
 Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then enlarges it. Blocky by design: it is for comparing against the real device, not for reading.</string>
 			<key>Title</key>
@@ -68,22 +66,22 @@ Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then en
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>3</integer>
+			<integer>2</integer>
 			<key>Key</key>
 			<string>renderScale</string>
 			<key>Title</key>
 			<string>Sharpness</string>
 			<key>Titles</key>
 			<array>
-				<string>Fine (3x) — most detail, smoothed</string>
 				<string>Exact (2x) — one page pixel per screen pixel</string>
+				<string>Panel (1x) — what the e-ink hardware draws</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>Values</key>
 			<array>
-				<integer>3</integer>
 				<integer>2</integer>
+				<integer>1</integer>
 			</array>
 		</dict>
 		<dict>

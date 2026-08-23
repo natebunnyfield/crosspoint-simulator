@@ -12,9 +12,45 @@ lives, and what it costs.*
 
 | Row | Stored | Framebuffer (X3) | On an iPhone Air |
 |---|---|---|---|
-| Fine (3x) — most detail, smoothed | `3` (default) | 2376x1584 | presented at 0.7955, bilinear |
-| Exact (2x) — one page pixel per screen pixel | `2` | 1584x1056 | presented at 1.0, nothing resampled |
+| Exact (2x) — one page pixel per screen pixel | `2` (default) | 1584x1056 | presented at 1.0, nothing resampled |
 | Panel (1x) — what the e-ink hardware draws | `1` | 792x528 | presented at 2.0, nearest, blocky by design |
+
+**Fine (3x) is RETIRED as of 2026-08-23** — owner: "drop 3x support for now".
+The row is gone from the picker and the default moved from 3 to 2. A store
+written by build 129 or earlier answers `3`, which most installs will, so
+`CrossPointPrefs_renderScale()` maps it to 2 the way `panelpalette::resolve`
+maps a retired preset: a retired row behaves like an unknown one rather than
+falling through. That mapping is deliberately NOT left to
+`cp::setRenderScale()`'s ceiling clamp, which lands on the same 2 today and
+would silently mean something else the moment the ceiling moved.
+
+**Panel (1x) is back in the picker**, having been trimmed on 2026-08-21 when the
+choice was 1x/2x/3x. It costs no bundle at all — the 1x tier is structural,
+since the hi-res companions carry bitmaps only and take their metrics from the
+1x tables — and without it the row would offer exactly one value.
+
+### Putting 3x back
+
+Everything the engine needs is still here; nothing was deleted. The whole
+re-enable is:
+
+1. `set(CROSSPOINT_IOS_RENDER_SCALE 3 ...)` in [ios/CMakeLists.txt](../ios/CMakeLists.txt).
+   That one number re-arms all four gates at once: `all.h`'s
+   `#if CROSSPOINT_RENDER_SCALE >= 3` include block, `main.cpp`'s matching
+   registration block, the seed loop's `<family>/3x/` glob, and
+   `CrossPointFsPrep`'s tier loop. `ios/testflight.sh` reads the same number, so
+   its pre-archive gate follows.
+2. Add the `Fine (3x)` row back to `ios/Settings.bundle/Root.plist` — **appended,
+   with value 3**, never inserted, because the choice persists as an integer.
+   Restore the paragraph in the group's `FooterText`.
+3. Drop the `raw == 3 ? 2 : raw` retirement map in `ios/CrossPointPrefs.mm`, and
+   decide whether the default goes back to 3 (`registerDefaults` and the plist's
+   `DefaultValue` must agree).
+4. Nothing to rebuild: `build/seedfonts/<Family>/3x/` still holds the full 3x
+   tier (195,420,632 bytes across 7 families), and `build-sd-fonts.py --scale 3`
+   still works. Excluding the tier at bundle time rather than deleting it is
+   exactly what makes this step free — a rebuild is a ~40 minute rasterisation
+   run, and Heros needs `--drop-codepoints 0x2E3B` at 3x.
 
 **It takes effect on the next launch, and the footer says so.** That is not a
 shortcut: the factor sizes the SDL texture and selects which hi-res glyph tier
@@ -29,12 +65,12 @@ only the raster changes. Verified by capture at all three.
 | Piece | File |
 |---|---|
 | Owner-facing rows + footer | `ios/Settings.bundle/Root.plist`, group **Page Sharpness** |
-| Reading the key | `ios/CrossPointPrefs.{h,mm}` — `CrossPointPrefs_renderScale()`, key `renderScale`, `registerDefaults` fallback `3` |
+| Reading the key | `ios/CrossPointPrefs.{h,mm}` — `CrossPointPrefs_renderScale()`, key `renderScale`, `registerDefaults` fallback `2`, retired `3` mapped to `2` |
 | The latch | `src/simulator_main.cpp` `latchRenderScale()`, first statement of `main()` |
 | The variable | `crosspoint-reader/lib/GfxRenderer/RenderScale.h` — `cp::renderScale()` |
 | Active framebuffer geometry | `src/HalDisplay.h` — `activeWidth()` / `activeHeight()` / `activeWidthBytes()` / `activeBufferSize()` |
-| Both font tiers in the bundle | `ios/CMakeLists.txt`, the `foreach(_tier RANGE 2 ...)` seed-font loop |
-| Both font tiers onto the card | `ios/CrossPointFsPrep.cpp`, the `for (int tier = 2; ...)` seed loop |
+| Which font tiers reach the bundle | `ios/CMakeLists.txt`, the `foreach(_tier RANGE 2 ${CROSSPOINT_IOS_RENDER_SCALE})` seed-font loop |
+| Which font tiers reach the card | `ios/CrossPointFsPrep.cpp`, the `for (int tier = 2; tier <= CROSSPOINT_RENDER_SCALE; ...)` seed loop |
 | The runtime switch itself | `crosspoint-reader/scripts/sim_render_scale.py` emits `CROSSPOINT_RENDER_SCALE_RUNTIME`; `ios/CMakeLists.txt` sets it PUBLIC on `crosspoint_core` |
 
 `CROSSPOINT_RENDER_SCALE` still exists and still means what it always did on the
@@ -66,11 +102,19 @@ factor rather than the ceiling. They do — the captures are byte-identical at 1
 
 ## What it costs
 
-**About +53 MB of app bundle.** The six installed families' hi-res sets measure
-16 MB (1x), 53 MB (2x) and 114 MB (3x); the app already carried 1x and 3x, and
-supporting the 2x setting means carrying 2x as well. (A directory measurement —
-`.cpfont` compresses, so the archived delta is smaller by an unmeasured amount.)
-1x needs no companion set at all.
+Measured 2026-08-23 on the shipped seven-family tree, from the build-129 IPA's
+own `unzip -lv` figures — not a directory estimate:
+
+| tier | installed (bytes) | in the IPA (bytes) |
+|---|---:|---:|
+| 1x | 26,979,496 | 10,361,498 |
+| 2x | 90,675,364 | 23,844,577 |
+| **3x** | **195,420,632** | **38,841,265** |
+
+So dropping 3x is **−195,420,632 installed and −38,841,265 of the download**
+from the seed fonts alone, before the builtin 3x glyph tables the same ceiling
+change removes from the binary. 1x needs no companion set at all — at 1x the 1x
+face already matches the framebuffer — which is why the loop starts at tier 2.
 
 Also, per render: `drawPixel`'s block loop and the fill path's `MASK_PERIOD`
 modulo are variables rather than constants on a host build. Per row for the
@@ -78,6 +122,12 @@ modulo, per pixel for the loop bound. Not measured; the device build is
 untouched, where all of it still folds to literals.
 
 ## Status
+
+**2x default: SHIPPED — UNCONFIRMED on device.** Verified in the iOS Simulator
+(a page renders in a bundled card family at 2x, `[BUILD]` agreement logged) and
+on the desktop canary; not yet on a phone.
+
+**The 2026-08-15 entry below stands as written.**
 
 **SHIPPED — UNCONFIRMED on device.** Nothing here has run on an iPhone or in the
 iOS Simulator; the iOS CMake configure has not been run either (it needs the

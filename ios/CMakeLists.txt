@@ -94,10 +94,83 @@ set_source_files_properties(
 # ONE source of truth for the supersampling factor: it becomes the firmware
 # define AND selects which hi-res seed-font tier gets bundled. Setting it in one
 # place only is exactly how a scale-3 build shipped carrying 2x fonts.
-set(CROSSPOINT_IOS_RENDER_SCALE 3 CACHE STRING "Supersampling factor for the iOS app")
+#
+# 2 since 2026-08-23 (owner: "drop 3x support for now"). The number is the
+# CEILING, so lowering it does four things at once and that is the point:
+# all.h's `#if CROSSPOINT_RENDER_SCALE >= 3` block stops compiling the 3x
+# builtin tables, main.cpp stops registering them, the seed loop below stops
+# bundling `<family>/3x/`, and CrossPointFsPrep stops looking for that tier on
+# the card. Nothing is deleted from disk or from the engine -- the 3x seed
+# trees and `build-sd-fonts.py --scale 3` are untouched, so putting 3 back
+# here is the whole re-enable. docs/ios-render-scale.md carries the checklist.
+set(CROSSPOINT_IOS_RENDER_SCALE 2 CACHE STRING "Supersampling factor for the iOS app")
 
 set(CROSSPOINT_IOS_SEED_FONTS_DIR "" CACHE PATH
   "Directory of .cpfont font families to bundle and seed at launch")
+
+# Ship the seeded fonts BLOCK-COMPRESSED (owner 2026-08-23: "compress fonts in
+# ios app").
+#
+# `.cpfont` stores its 2-bit glyph bitmaps raw -- 108 MB of the 118 MB the
+# 1x+2x tiers occupy, at 2.4 bits/byte -- so the IPA's own zip squeezes them
+# 3.4:1 for the download and the phone then expands them right back for the
+# install. tools/compress_seed_fonts.py rewrites each file as a CPZ1 container
+# and src/SimCompressedFile.h opens it transparently at the HAL's file layer,
+# so the bytes stay compressed ON DISK and are inflated 32 KB at a time as the
+# reader seeks. Measured on the shipped tree: 117,654,860 -> 34,837,381 bytes
+# installed (0.296), against a download that grows by 1,398,702 because the
+# containers no longer compress inside the zip -- 83 MB off the phone for
+# 1.4 MB of download. Both figures are from docs/ios-app-size.md's 2026-08-23
+# section, measured on the same zip settings for both arms.
+#
+# It runs HERE, at configure time, rather than being a step someone has to
+# remember before a deploy: the whole class of bug this file already guards
+# against is a bundle whose contents do not match what the build believes.
+# ~40 s for the full tree, and skipped per file when the output is newer than
+# its input, so a re-configure costs nothing.
+#
+# OFF is a supported build: the reader sniffs for the magic per file, so an
+# uncompressed tree bundles and reads exactly as it always did. That is the
+# escape hatch if a container is ever suspected, and it is what the desktop
+# canary keeps exercising.
+set(CROSSPOINT_IOS_COMPRESS_SEED_FONTS ON CACHE BOOL
+  "Bundle seed fonts as CPZ1 block-compressed containers")
+
+# The tree the FONTS came from, kept separate from the tree they are BUNDLED
+# from: after compression those are two different directories, and every
+# diagnostic below is about the source one -- that is where a family is added
+# or removed.
+set(_seed_source_dir "${CROSSPOINT_IOS_SEED_FONTS_DIR}")
+
+if(CROSSPOINT_IOS_SEED_FONTS_DIR AND CROSSPOINT_IOS_COMPRESS_SEED_FONTS)
+  set(_seed_cpz_dir "${CMAKE_BINARY_DIR}/seedfonts-cpz")
+  message(STATUS "Seed fonts: compressing ${CROSSPOINT_IOS_SEED_FONTS_DIR} "
+                 "-> ${_seed_cpz_dir}")
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env python3
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/compress_seed_fonts.py"
+            --input "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
+            --output "${_seed_cpz_dir}"
+            --max-tier ${CROSSPOINT_IOS_RENDER_SCALE}
+            --quiet
+    RESULT_VARIABLE _seed_cpz_rc
+    OUTPUT_VARIABLE _seed_cpz_out
+    ERROR_VARIABLE _seed_cpz_err)
+  if(NOT _seed_cpz_rc EQUAL 0)
+    # FATAL rather than a fallback to the raw tree: silently shipping 118 MB
+    # where 35 MB was intended is exactly the kind of "it built fine" that the
+    # gates below exist to stop.
+    message(FATAL_ERROR
+      "Seed fonts: compression failed (${_seed_cpz_rc}).\n"
+      "${_seed_cpz_out}${_seed_cpz_err}\n"
+      "Build it uncompressed with -DCROSSPOINT_IOS_COMPRESS_SEED_FONTS=OFF if "
+      "that is what you want; do not leave this failing silently.")
+  endif()
+  string(STRIP "${_seed_cpz_out}" _seed_cpz_out)
+  message(STATUS "Seed fonts: ${_seed_cpz_out}")
+  set(CROSSPOINT_IOS_SEED_FONTS_DIR "${_seed_cpz_dir}")
+endif()
+
 if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   file(GLOB _seed_families RELATIVE "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
     "${CROSSPOINT_IOS_SEED_FONTS_DIR}/*")
@@ -130,9 +203,15 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       # RenderScale.h for the mechanism), so the tier the app will ask for is
       # not known at build time. Missing the tier in use reproduces exactly the
       # silent fallback above. Tier 1 needs no companion -- at 1x the 1x face
-      # already matches the framebuffer -- so the loop starts at 2, and the
-      # cost of the extra tier is the 2x set (~53 MB against the 3x set's
-      # ~114 MB on the six installed families).
+      # already matches the framebuffer -- so the loop starts at 2.
+      #
+      # The ceiling is what excludes a tier, not a delete. At ceiling 2 this
+      # loop simply never globs `<family>/3x/`, so the 3x trees stay in
+      # build/seedfonts costing nothing in the bundle: 195,420,632 bytes
+      # installed and 38,841,265 of the IPA that build 129 carried and build
+      # 130 does not. Excluded rather than deleted deliberately -- rebuilding
+      # a 3x tier is a ~40 minute rasterisation run, and this way re-enabling
+      # is one number.
       #
       # The globs are deliberately separate rather than recursive: these files
       # must keep their own bundle subdirectory, since the companion is found by
@@ -161,7 +240,7 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   endforeach()
   if(_seed_count EQUAL 0)
     message(FATAL_ERROR
-      "CROSSPOINT_IOS_SEED_FONTS_DIR=${CROSSPOINT_IOS_SEED_FONTS_DIR} "
+      "CROSSPOINT_IOS_SEED_FONTS_DIR=${_seed_source_dir} "
       "contains no <Family>/*.cpfont files — wrong path, or the font build "
       "did not run.")
   endif()
@@ -218,7 +297,7 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
     string(REPLACE ";" ", " _installed_text "${_installed_families}")
     message(FATAL_ERROR
       "Seed fonts: ${_unreachable_text} — bundled from "
-      "${CROSSPOINT_IOS_SEED_FONTS_DIR} but NOT in installed_families "
+      "${_seed_source_dir} but NOT in installed_families "
       "(${_installed_text}) in ${_sd_fonts_yaml}.\n"
       "No reading or editor surface in the app can select a family that list "
       "does not name, so this is megabytes of unreachable bundle. Remove it "
@@ -243,11 +322,12 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
     message(FATAL_ERROR
       "Seed fonts: ${_unbundled_text} — named in installed_families "
       "(${_sd_fonts_yaml}) but NOT bundled from "
-      "${CROSSPOINT_IOS_SEED_FONTS_DIR}.\n"
+      "${_seed_source_dir}.\n"
       "The firmware believes these are installed on every surface, so the app "
       "would ship believing in a font it does not carry. Build them into the "
-      "seed tree at EVERY tier the app renders (renderScale defaults to 3):\n"
-      "  for sc in 1 2 3; do build-sd-fonts.py --only <Family> --scale $sc "
+      "seed tree at EVERY tier the app renders -- 1x and 2x since 2026-08-23, "
+      "and CROSSPOINT_IOS_RENDER_SCALE above is what decides that:\n"
+      "  for sc in 1 2; do build-sd-fonts.py --only <Family> --scale $sc "
       "--output-dir <seed tree>; done\n"
       "If a family is deliberately device-only, it does not belong in "
       "installed_families — that list means every surface.")
@@ -307,13 +387,14 @@ target_compile_definitions(crosspoint_core PUBLIC SIMULATOR_DEVICE_X3)
 
 # Native-density glyph rasterisation, ON THE LIBRARY, not the app target.
 #
-# 3 since 2026-08-15, matching the @3x screens this ships to. Raising it is not
-# just this number: the renderer is scale-generic, but every hi-res font tier
-# must EXIST at the new scale, because the companion is blitted one bitmap pixel
-# to one device pixel. A family with no 3x set renders 1x-replicated into 3x3
-# blocks -- coarser than the 2x it replaced -- and a 2x set cannot stand in,
-# since 2 does not divide 3. So seedfonts/ carries a full 3x tier and
-# convert-builtin-fonts.sh emits _3x built-ins.
+# 3 from 2026-08-15 to 2026-08-23, matching the @3x screens this ships to; 2
+# since, per the owner ruling. Moving it is not just this number: the renderer
+# is scale-generic, but every hi-res font tier must EXIST at the new scale,
+# because the companion is blitted one bitmap pixel to one device pixel. A
+# family with no set at the tier in use renders 1x-replicated into NxN blocks --
+# coarser than the tier it replaced -- and a 2x set cannot stand in for 3x,
+# since 2 does not divide 3. So a tier is only offered when seedfonts/ carries
+# it AND convert-builtin-fonts.sh has emitted its built-ins.
 # HalDisplay.cpp (framebuffer size) and SdCardFontManager.cpp (2x companion
 # loading) live in crosspoint_core; a define on CrossPointX3 never reaches
 # them, and HalDisplay.h silently defaults the scale to 1 -- which is exactly

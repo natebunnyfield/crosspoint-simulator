@@ -355,12 +355,24 @@ this reaches device firmware**, which has no Settings app to expose it.
 |---|---|---|
 | Page palette — 15 named presets plus Custom | [src/PanelPalette.h](src/PanelPalette.h) | [ios/README.md](ios/README.md), [docs/crt-phosphor-presets.md](docs/crt-phosphor-presets.md) |
 | Button pad outline and fill | [ios/PadPalette.h](ios/PadPalette.h) | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
-| Render scale 1x / 2x / 3x | firmware `RenderScale.h`, latched in `simulator_main.cpp` | [docs/ios-render-scale.md](docs/ios-render-scale.md) |
+| Render scale 1x / 2x (3x dropped 2026-08-23) | firmware `RenderScale.h`, latched in `simulator_main.cpp` | [docs/ios-render-scale.md](docs/ios-render-scale.md) |
 
 On the desktop the page palette is set with the `CROSSPOINT_SIM_PANEL_*`
 variables above; on iOS it is a picker in Settings.app. Both polarities default
 to what this repo always hardcoded, so a build that never sets one is
 pixel-identical to before the dial existed.
+
+**The iOS app's bundled fonts are block-compressed.** `.cpfont` stores its glyph
+bitmaps raw, so the bundle used to install 118 MB of what its own zip carried in
+34 MB. [tools/compress_seed_fonts.py](tools/compress_seed_fonts.py) rewrites
+them as CPZ1 containers at CMake configure time and
+[src/SimCompressedFile.h](src/SimCompressedFile.h) opens them transparently at
+the HAL's file layer, so nothing above `HalFile` knows: 117,654,860 -> 34,837,381
+bytes installed, and the firmware still sees `Edgar_14.cpfont` at its real
+length. `-DCROSSPOINT_IOS_COMPRESS_SEED_FONTS=OFF` turns it off; the desktop is
+unaffected either way, since it reads whatever is on the simulated card.
+Details, and the three alternatives that were measured and rejected:
+[docs/seed-font-compression.md](docs/seed-font-compression.md).
 
 ## Mac App Store packaging
 

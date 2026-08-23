@@ -1524,9 +1524,12 @@ cmake -B build/ios-app -DCROSSPOINT_IOS_SEED_FONTS_DIR=$PWD/ios/seedfonts
 cmake --build build/ios-app --config Debug --target CrossPointX3
 ```
 
-Verified 2026-08-15: that bundles 24 `.cpfont` files at each of 1x, 2x and 3x
-across all six installed families — both hi-res tiers, which is what the render
-scale setting needs to change tier without a rebuild.
+Verified 2026-08-23: that bundles 28 `.cpfont` files at each of 1x and 2x
+across all seven installed families — 3x is no longer bundled (owner ruling; see
+`docs/ios-render-scale.md`), and the files are CPZ1 containers unless the build
+sets `-DCROSSPOINT_IOS_COMPRESS_SEED_FONTS=OFF` (`docs/seed-font-compression.md`).
+The 2026-08-15 measurement this replaces was 24 files at each of 1x, 2x and 3x
+across six families.
 
 Install and drive it:
 

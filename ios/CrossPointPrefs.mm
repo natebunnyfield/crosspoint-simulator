@@ -48,7 +48,7 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // The panel's supersampling factor. Missing-key failure mode is MALIGNANT --
 // -integerForKey: returns 0, and cp::setRenderScale(0) clamps to 1, i.e. the
 // coarsest render the app can produce -- so this key relies on ensureDefaults()
-// having seeded 3 from Root.plist, exactly like readAloudRatePercent above.
+// having seeded 2 from Root.plist, exactly like readAloudRatePercent above.
 static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
 static NSString *const kBeamPaintMs = @"beamPaintMs";
@@ -261,10 +261,12 @@ static void ensureDefaults(void) {
         kPanelPaperLight : @"FBFBF9",
         kPanelInkDark : @"E0E0DE",
         kPanelPaperDark : @"121212",
-        // The scale the app has always rendered at. 0 here would clamp to 1 --
-        // a quarter of the glyph resolution -- so this fallback is doing real
-        // work, not restating the plist for tidiness.
-        kRenderScale : @(3),
+        // The scale the app renders at. 0 here would clamp to 1 -- a quarter of
+        // the glyph resolution -- so this fallback is doing real work, not
+        // restating the plist for tidiness. 2 since 2026-08-23, and it must
+        // track Root.plist's DefaultValue: this is the value a store that has
+        // never seen the Settings screen answers with.
+        kRenderScale : @(2),
         // Off: the page arrives at once, which is what every build before this
         // did and what an e-ink panel does.
         kBeamPaintMs : @(0),
@@ -559,14 +561,24 @@ int CrossPointPrefs_renderScale(void) {
   // file has no business restating -- a second clamp here would be the drift
   // that ships a 3 the framebuffer cannot hold, or refuses a 3 it can.
   //
-  // FLOOR of 2 on iOS (owner ruling 2026-08-21: "keep 2x and 3x"). Panel (1x)
-  // left the Sharpness picker, so a stored 1 from before the trim maps to
-  // Exact (2x) -- the nearest survivor -- rather than silently keeping an
-  // option the row no longer offers. Desktop QA can still force 1x through
-  // CROSSPOINT_SIM_RENDER_SCALE, which bypasses this getter entirely.
+  // A RETIRED ROW MAPS TO ITS NEAREST SURVIVOR, because the choice persists as
+  // an integer and an install that has already stored one keeps answering with
+  // it long after the row is gone. Same shape as panelpalette::resolve, where a
+  // retired preset behaves exactly like an unknown one rather than falling
+  // through to whatever the enum now numbers.
+  //
+  // 3 is retired as of 2026-08-23 (owner: "drop 3x support for now"), so a
+  // store written by build 129 or earlier -- where 3 was both an offered row
+  // and the DEFAULT, i.e. most installs -- answers 3 here. It maps to 2.
+  //
+  // Doing it HERE and not leaving it to cp::setRenderScale()'s ceiling clamp is
+  // the difference between a decision and a coincidence: the clamp would also
+  // land on 2 today, and would silently start meaning something else the moment
+  // the ceiling moved. The clamp is about what the binary can hold; this is
+  // about which rows the picker offers.
   const int raw = static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kRenderScale]);
-  return raw == 1 ? 2 : raw;
+  return raw == 3 ? 2 : raw;
 }
 
 int CrossPointPrefs_panelCustomColor(int dark, int ink) {

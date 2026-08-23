@@ -2,6 +2,12 @@
 
 *Measured 2026-08-22 against `build/CrossPointX3.xcarchive` (build 126, marketing 0.1.0) and `build/export/CrossPoint X3.ipa`, the artifacts `ios/testflight.sh` last produced. Every number below is either a command output quoted here or an arithmetic combination of them; anything derived from a ratio rather than measured directly is labelled **estimated**.*
 
+> **Superseded in part, 2026-08-23.** Sections 1-7 are the build-126 audit as
+> taken and are left as taken. Two of their items have since shipped: the 3x
+> tier is gone and the seed fonts are block-compressed, which together took the
+> install from 329 MB to 45.8 MB. Read the dated section at the foot of this
+> file before acting on any number above it.
+
 ## 1. The headline
 
 | | bytes | note |
@@ -132,7 +138,7 @@ So **every uncompressed byte of glyph table removed from the binary is worth ≈
 - **3x block** `#if CROSSPOINT_RENDER_SCALE >= 3` (`all.h:95-132`).
 - Nitti Typewriter and PragmataPro come in through `main.cpp` behind `__has_include` (commercial, gitignored).
 
-`ios/CMakeLists.txt:97` sets `CROSSPOINT_IOS_RENDER_SCALE 3`, pushed to the library at `:242-244` as `CROSSPOINT_RENDER_SCALE=3` plus `CROSSPOINT_RENDER_SCALE_RUNTIME=1`, so **all three tiers compile in**. That is correct, not a bug: `RenderScale.h` makes the macro a *ceiling* and latches the active factor at launch from the owner's setting, and `all.h:60-77` spells out why registering the wrong tier's companions is worse than registering none.
+`ios/CMakeLists.txt` set `CROSSPOINT_IOS_RENDER_SCALE 3` when this was taken (2 since 2026-08-23), pushed to the library at `:242-244` as `CROSSPOINT_RENDER_SCALE=3` plus `CROSSPOINT_RENDER_SCALE_RUNTIME=1`, so **all three tiers compile in**. That is correct, not a bug: `RenderScale.h` makes the macro a *ceiling* and latches the active factor at launch from the owner's setting, and `all.h:60-77` spells out why registering the wrong tier's companions is worse than registering none.
 
 **Note that the 1x tier cannot be dropped even though 1x is unselectable.** `ios/Settings.bundle/Root.plist` Page Sharpness now offers `Values: [3, 2]` only — the "Panel (1x)" row described in its own `FooterText` is no longer in `Titles`/`Values` (a stale footer worth fixing separately). But the hi-res companions carry bitmaps *only*; metrics come from the 1x tables (`convert-builtin-fonts.sh:441-444`), so the 1x set is structural.
 
@@ -393,3 +399,99 @@ carries the command.
 bundled family is missing from `installed_families`; the inverse check — an
 `installed_families` entry with no bundled files — is the one that would have
 caught this, and does not exist yet.
+
+---
+
+# 2026-08-23 — 3x dropped, seed fonts compressed
+
+*Owner ruling, verbatim: "drop 3x support for now. compress fonts in ios app".
+Two changes, measured together and separately. Method is §8's, with one
+deliberate substitution: both arms were zipped here with `zip -r -9 -X` over a
+`Payload/` directory rather than compared through two differently-produced
+IPAs, so the compressor is identical on both sides. That makes the two columns
+comparable to each other; it makes them ~2.8 % smaller than Apple's own
+packaging, which is why the build-129 download reads 81,324,453 below and
+83,643,205 in its shipped IPA (the `Symbols/` dSYM directory, another
+2,605,164, sits beside `Payload/` and does not install).*
+
+## The headline
+
+| | installed (bytes) | download (bytes) |
+|---|---:|---:|
+| **build 129** — scale 3, raw `.cpfont` | **329,310,056** | **81,324,453** |
+| **after** — scale 2, CPZ1 containers | **45,776,580** | **41,048,304** |
+| | **−283,533,476 (−86.1 %)** | **−40,276,149 (−49.5 %)** |
+
+Per top-level entry:
+
+| Entry | before raw | before comp | after raw | after comp |
+|---|---:|---:|---:|---:|
+| `SeedFonts/` 1x (36) | 26,979,496 | 10,253,007 | 10,710,671 | 10,708,862 |
+| `SeedFonts/` 2x (35) | 90,675,364 | 23,180,248 | 24,126,710 | 24,123,095 |
+| `SeedFonts/` 3x (35) | 195,420,632 | 37,295,579 | — | — |
+| `CrossPointX3` (Mach-O) | 15,946,912 | 10,385,403 | 10,713,656 | 6,028,259 |
+| `SeedBooks/` | 165,677 | 164,969 | 165,677 | 164,969 |
+| everything else | 121,975 | 45,247 | 59,866 | 23,119 |
+
+The "everything else" row is the one place the two arms are not the same
+experiment: build 129's `.app` came out of a signed archive and carries
+`_CodeSignature/` and `embedded.mobileprovision`, which the unsigned
+measurement build does not. That accounts for the whole 62,109-byte difference
+in that row and for nothing else.
+
+## Attribution, exactly
+
+The two changes are separable, and the columns above add up to the byte:
+
+**Dropping 3x** (`CROSSPOINT_IOS_RENDER_SCALE` 3 → 2, `ios/CMakeLists.txt`):
+
+| | installed | download |
+|---|---:|---:|
+| the 3x seed tier, no longer bundled | −195,420,632 | −37,295,579 |
+| the 3x builtin glyph tables, no longer compiled | −5,233,256 | −4,357,144 |
+| | **−200,653,888** | **−41,652,723** |
+
+The builtin half is free of any edit to the font tooling: `all.h:95-132` and
+`main.cpp`'s registration block are already `#if CROSSPOINT_RENDER_SCALE >= 3`,
+so lowering the ceiling removes them. This is **A5′** from §6, which that
+section measured and recommended against — the ruling supersedes it, and the
+seed figure it estimated at 32,393,916 for six families measures 37,295,579 for
+the seven that actually shipped.
+
+**Compressing the survivors** (CPZ1, `docs/seed-font-compression.md`):
+
+| | installed | download |
+|---|---:|---:|
+| 1x + 2x seed fonts | 117,654,860 → 34,837,381 = **−82,817,479** | 33,433,255 → 34,831,957 = **+1,398,702** |
+
+The download **grows** by 1.4 MB, and that is the deal: a container does not
+compress again inside the zip, so the zip's 3.5:1 on raw `.cpfont` is traded for
+keeping the same ratio on disk. 83 MB off the phone for 1.4 MB of download.
+
+This is **A6** from §6, arrived at from the other end. A6 proposed the format
+change (bump `CPFONT_VERSION`, teach `SdCardFont` to read `EpdFontGroup`s) and
+priced the installed tree at ~74.4 MB for nine families. What shipped instead is
+a container at the HAL's file layer, which the device never compiles and no
+published font pack has to be re-emitted for — and it compresses *more*, because
+it takes the 9.6 MB of glyph/interval/kern metadata with it instead of only the
+bitmap section. The three rejected alternatives are priced in
+`docs/seed-font-compression.md`; the one worth repeating here is that inflating
+at first launch would have made the install **bigger**, because the bundle copy
+cannot be deleted and `CrossPointFsPrep` symlinks rather than copies.
+
+## What did not change
+
+- The families are still the seven in `installed_families`, and both gates in
+  `ios/CMakeLists.txt` still hold in both directions.
+- `SeedBooks/`, `Assets.car` and `Settings.bundle` are byte-identical.
+- The 3x seed trees are still on disk in `build/seedfonts/<Family>/3x/` and
+  `build-sd-fonts.py --scale 3` still works. The tier is excluded at bundle
+  time, not deleted — re-enabling it is one number, not a 40-minute
+  rasterisation run. Checklist: `docs/ios-render-scale.md`.
+
+## Still open from §6
+
+A2 (the SDL Vulkan/GPU options) and A3 (`DEAD_CODE_STRIPPING`) are untouched by
+this pass and still worth their ~250 KB. A4 landed before build 129 — the Noto
+Sans hi-res companions are gone from `all.h`, which is why the build-129 Mach-O
+measures 15,946,912 against this document's original 20,562,800.
