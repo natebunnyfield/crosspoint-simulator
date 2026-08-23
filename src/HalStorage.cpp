@@ -1,5 +1,7 @@
 #include "HalStorage.h"
 
+#include "SimCompressedFile.h"
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -164,6 +166,14 @@ public:
   int fd = -1;
   std::string path;
   DIR *dir = nullptr;
+  // Set only when the bytes on disk are a CPZ1 container (SimCompressedFile.h).
+  // Everything below then works in the container's LOGICAL space -- the size,
+  // the position, the seeks and the reads are all about the payload, and the
+  // firmware above cannot tell the difference. `pos` exists because the fd's
+  // own offset stops being the answer once reads are served from an inflated
+  // block instead of from the fd.
+  std::unique_ptr<SimCpzFile> cpz;
+  uint64_t pos = 0;
 
   bool open(const char *p, int flags) {
     path = p;
@@ -174,8 +184,31 @@ public:
     if (fd < 0) {
       fprintf(stderr, "[SIM] open failed: %s (flags=0x%x errno=%d %s)\n",
               path.c_str(), flags, errno, strerror(errno));
+      return false;
     }
-    return fd >= 0;
+    pos = 0;
+    // Sniff for the container, READ-ONLY opens only: a writer that found the
+    // magic and then wrote through the decoder would corrupt the file, and
+    // nothing in this simulator writes a .cpfont anyway.
+    if ((flags & O_ACCMODE) == O_RDONLY) {
+      unsigned char probe[sizeof(simcpz::kMagic)];
+      if (::pread(fd, probe, sizeof(probe), 0) ==
+              static_cast<ssize_t>(sizeof(probe)) &&
+          std::memcmp(probe, simcpz::kMagic, sizeof(probe)) == 0) {
+        std::unique_ptr<SimCpzFile> reader(new SimCpzFile());
+        if (!reader->open(fd, path.c_str())) {
+          // FAIL, do not fall back. Handing the caller the container's own
+          // bytes as if they were the payload is the silent version of this
+          // failure, and for a font it surfaces as a blank page with
+          // successful renders in the log.
+          ::close(fd);
+          fd = -1;
+          return false;
+        }
+        cpz = std::move(reader);
+      }
+    }
+    return true;
   }
 
   bool openAsDir(const char *p) {
@@ -232,6 +265,8 @@ size_t HalFile::getName(char *name, size_t len) {
 size_t HalFile::size() {
   if (!impl || impl->fd < 0)
     return 0;
+  if (impl->cpz)
+    return (size_t)impl->cpz->size();
   off_t cur = lseek(impl->fd, 0, SEEK_CUR);
   off_t end = lseek(impl->fd, 0, SEEK_END);
   lseek(impl->fd, cur, SEEK_SET);
@@ -281,6 +316,10 @@ bool HalFile::getModifyDateTime(uint16_t *pdate, uint16_t *ptime) {
 bool HalFile::seek(size_t pos) {
   if (!impl || impl->fd < 0)
     return false;
+  if (impl->cpz) {
+    impl->pos = pos;
+    return true;
+  }
   return lseek(impl->fd, (off_t)pos, SEEK_SET) >= 0;
 }
 bool HalFile::seek64(uint64_t pos) {
@@ -288,21 +327,39 @@ bool HalFile::seek64(uint64_t pos) {
     return false;
   if (pos > static_cast<uint64_t>(std::numeric_limits<off_t>::max()))
     return false;
+  if (impl->cpz) {
+    impl->pos = pos;
+    return true;
+  }
   return lseek(impl->fd, static_cast<off_t>(pos), SEEK_SET) >= 0;
 }
 bool HalFile::seekCur(int64_t offset) {
   if (!impl || impl->fd < 0)
     return false;
+  if (impl->cpz) {
+    if (offset < 0 && static_cast<uint64_t>(-offset) > impl->pos)
+      return false;
+    impl->pos = (uint64_t)((int64_t)impl->pos + offset);
+    return true;
+  }
   return lseek(impl->fd, (off_t)offset, SEEK_CUR) >= 0;
 }
 bool HalFile::seekSet(size_t offset) {
   if (!impl || impl->fd < 0)
     return false;
+  if (impl->cpz) {
+    impl->pos = offset;
+    return true;
+  }
   return lseek(impl->fd, (off_t)offset, SEEK_SET) >= 0;
 }
 int HalFile::available() const {
   if (!impl || impl->fd < 0)
     return 0;
+  if (impl->cpz) {
+    const uint64_t total = impl->cpz->size();
+    return impl->pos >= total ? 0 : (int)(total - impl->pos);
+  }
   off_t cur = lseek(impl->fd, 0, SEEK_CUR);
   off_t end = lseek(impl->fd, 0, SEEK_END);
   lseek(impl->fd, cur, SEEK_SET);
@@ -311,12 +368,20 @@ int HalFile::available() const {
 size_t HalFile::position() const {
   if (!impl || impl->fd < 0)
     return 0;
+  if (impl->cpz)
+    return (size_t)impl->pos;
   off_t pos = lseek(impl->fd, 0, SEEK_CUR);
   return pos < 0 ? 0 : (size_t)pos;
 }
 int HalFile::read(void *buf, size_t count) {
   if (!impl || impl->fd < 0)
     return -1;
+  if (impl->cpz) {
+    const int n = impl->cpz->read(impl->pos, buf, count);
+    if (n > 0)
+      impl->pos += (uint64_t)n;
+    return n;
+  }
   ssize_t n = ::read(impl->fd, buf, count);
   return (int)n;
 }
@@ -324,10 +389,18 @@ int HalFile::read() {
   if (!impl || impl->fd < 0)
     return -1;
   uint8_t c;
+  if (impl->cpz)
+    return read(&c, 1) == 1 ? c : -1;
   return (::read(impl->fd, &c, 1) == 1) ? c : -1;
 }
 size_t HalFile::write(const void *buf, size_t count) {
   if (!impl || impl->fd < 0)
+    return 0;
+  // Unreachable by construction -- the decoder is only attached to O_RDONLY
+  // opens -- and refused rather than left to ::write's EBADF, because the
+  // failure it would guard against is not a failed write but a SUCCESSFUL one:
+  // raw bytes landing at the fd's offset inside a container.
+  if (impl->cpz)
     return 0;
   ssize_t n = ::write(impl->fd, buf, count);
   return n < 0 ? 0 : (size_t)n;
@@ -365,6 +438,9 @@ bool HalFile::close() {
     impl->dir = nullptr;
   }
   if (impl->fd >= 0) {
+    // The decoder borrows the fd, so it goes first.
+    impl->cpz.reset();
+    impl->pos = 0;
     ::close(impl->fd);
     impl->fd = -1;
   }

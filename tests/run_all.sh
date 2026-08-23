@@ -289,10 +289,31 @@ if FW_FLAGS=$(python3 tools/fw_include_flags.py 2>/dev/null) && [[ -n "$FW_FLAGS
   run library_sync_plan \
     c++ -std=c++17 -Isrc $FW_FLAGS \
         -o "$OUT/library_sync_plan" tests/library_sync_plan_test.cpp
+
+  # The CPZ1 container the HAL's file layer opens transparently. Rides the same
+  # guard because it decodes with the firmware's miniz (InflateStream), and it
+  # compiles those two TUs rather than stubbing them: a stub would prove the
+  # container's arithmetic and nothing about the decoder the app actually runs.
+  # -Wno-deprecated silences clang's note about compiling miniz_impl.c in C++
+  # mode, which is how every other build here compiles it too.
+  FW_DIR=$(printf '%s\n' $FW_FLAGS | sed -n 's|^-I\(.*\)/lib/miniz/src$|\1|p' | head -n 1)
+  if [[ -n "$FW_DIR" ]]; then
+    # shellcheck disable=SC2086
+    run cpz_container \
+      c++ -std=c++17 -Wno-deprecated -Isrc -DCPZ_REPO_ROOT="\"$REPO\"" $FW_FLAGS \
+          -o "$OUT/cpz_container" tests/cpz_container_test.cpp \
+          "$FW_DIR/lib/miniz/src/InflateStream.cpp" \
+          "$FW_DIR/lib/Memory/BuildScratch.cpp" \
+          "$FW_DIR/lib/miniz/src/miniz_impl.c"
+  else
+    printf '%-22s %s\n' "cpz_container" "SKIP (no firmware miniz include dir)"
+    skipped=$((skipped + 1))
+  fi
 else
   printf '%-22s %s\n' "build_identity" "SKIP (no firmware include set; run a pio build first)"
   printf '%-22s %s\n' "library_sync_plan" "SKIP (no firmware include set; run a pio build first)"
-  skipped=$((skipped + 2))
+  printf '%-22s %s\n' "cpz_container" "SKIP (no firmware include set; run a pio build first)"
+  skipped=$((skipped + 3))
 fi
 
 echo
