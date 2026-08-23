@@ -422,6 +422,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
     _inkRow[i] = [UIButton buttonWithType:UIButtonTypeCustom];
     _inkRow[i].tag = i;
     _inkRow[i].layer.cornerRadius = 6;
+    _inkRow[i].accessibilityLabel = @(lightink::kInks[i].name);
+    _inkRow[i].accessibilityTraits = UIAccessibilityTraitButton;
     [_inkRow[i] addTarget:self
                    action:@selector(inkTapped:)
          forControlEvents:UIControlEventTouchUpInside];
@@ -466,6 +468,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _track = [UIImageView new];
   _track.userInteractionEnabled = NO;
   _track.clipsToBounds = YES;
+  _track.isAccessibilityElement = NO;
   [_scroll addSubview:_track];
 
   // Transparent system track, both halves, for BOTH sliders: the gradient
@@ -484,6 +487,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
       lightink::floorDensityPct(_ink, _paper, _paperStrength);
   _slider.maximumValue = lightink::kDensityMax;
   _slider.value = _density;
+  _slider.accessibilityLabel = @"Density";
   [_slider setMinimumTrackImage:clearTrack forState:UIControlStateNormal];
   [_slider setMaximumTrackImage:clearTrack forState:UIControlStateNormal];
   [_slider addTarget:self
@@ -500,6 +504,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
     _paperRow[p].tag = p;
     _paperRow[p].backgroundColor = colorOf(lightink::kPapers[p].tone);
     _paperRow[p].layer.cornerRadius = 6;
+    _paperRow[p].accessibilityLabel = @(lightink::kPapers[p].name);
+    _paperRow[p].accessibilityTraits = UIAccessibilityTraitButton;
     _paperRow[p].titleLabel.font =
         [UIFont monospacedSystemFontOfSize:8 weight:UIFontWeightMedium];
     [_paperRow[p] setTitle:@(lightink::kPapers[p].name)
@@ -531,6 +537,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _paperTrack = [UIImageView new];
   _paperTrack.userInteractionEnabled = NO;
   _paperTrack.clipsToBounds = YES;
+  _paperTrack.isAccessibilityElement = NO;
   [_scroll addSubview:_paperTrack];
 
   // The paper dial runs 0..100 with a CEILING rather than a floor: 0 is the
@@ -542,6 +549,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _paperSlider.maximumValue =
       lightink::maxPaperStrengthPct(_ink, _paper, _density);
   _paperSlider.value = _paperStrength;
+  _paperSlider.accessibilityLabel = @"Paper";
   [_paperSlider setMinimumTrackImage:clearTrack forState:UIControlStateNormal];
   [_paperSlider setMaximumTrackImage:clearTrack forState:UIControlStateNormal];
   [_paperSlider addTarget:self
@@ -643,6 +651,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   *strip = [UIImageView new];
   (*strip).userInteractionEnabled = NO;
   (*strip).clipsToBounds = YES;
+  (*strip).isAccessibilityElement = NO;
   (*strip).layer.borderWidth = 1;
   (*strip).layer.borderColor = UIColor.separatorColor.CGColor;
   [_scroll addSubview:*strip];
@@ -651,6 +660,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   (*slider).minimumValue = mn;
   (*slider).maximumValue = mx;
   (*slider).value = cur;
+  (*slider).accessibilityLabel = title;
   [*slider setMinimumTrackImage:clearTrack forState:UIControlStateNormal];
   [*slider setMaximumTrackImage:clearTrack forState:UIControlStateNormal];
   [*slider addTarget:self action:moved forControlEvents:UIControlEventValueChanged];
@@ -992,6 +1002,9 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
     _inkSwatch[i].backgroundColor = colorOf(wash);
     _inkRow[i].backgroundColor =
         i == _ink ? UIColor.tertiarySystemFillColor : UIColor.clearColor;
+    _inkRow[i].accessibilityTraits =
+        i == _ink ? UIAccessibilityTraitButton | UIAccessibilityTraitSelected
+                  : UIAccessibilityTraitButton;
   }
   // The stock swatches show each paper AT THE CURRENT STRENGTH, not its table
   // tone: the row you tap is the sheet you get, and at 30% every row being
@@ -1004,16 +1017,21 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
     _paperRow[p].layer.borderColor = p == _paper
                                          ? UIColor.labelColor.CGColor
                                          : UIColor.separatorColor.CGColor;
+    _paperRow[p].accessibilityTraits =
+        p == _paper ? UIAccessibilityTraitButton | UIAccessibilityTraitSelected
+                    : UIAccessibilityTraitButton;
   }
   uint8_t wash[3], ground[3];
   lightink::inkAtDensity(_ink, _paper, _density, wash, _paperStrength);
   lightink::paperAtStrength(_paper, _paperStrength, ground);
   _densityValue.text =
       [NSString stringWithFormat:@"%d%% (floor %d%%)", _density, floorPct];
+  _slider.accessibilityValue = _densityValue.text;
   _paperValue.text =
       [NSString stringWithFormat:@"%d%% (max %d%%) · tooth %.2fx",
                                  _paperStrength, ceilingPct,
                                  lightink::toothScaleFor(_paper, _paperStrength)];
+  _paperSlider.accessibilityValue = _paperValue.text;
   _readout.text = [NSString
       stringWithFormat:@"%s %d%% on %s %d%% — %.1f:1 · %@ on %@",
                        lightink::kInks[_ink].name, _density,
@@ -1025,15 +1043,21 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
       stringWithFormat:@"%d%% · sheet %.2fx", storedToothPct(),
                        storedToothPct() / 100.0f *
                            lightink::toothScaleFor(_paper, _paperStrength)];
+  _toothSlider.accessibilityValue = _toothValue.text;
   _formationValue.text =
       [NSString stringWithFormat:@"%d%%", storedFormationPct()];
+  _formationSlider.accessibilityValue = _formationValue.text;
   _defectsValue.text =
       [NSString stringWithFormat:@"%d%%%@", storedDefectsPct(),
                 storedDefectsPct() == 0 ? @" (a fresh sheet)" : @""];
+  _defectsSlider.accessibilityValue = _defectsValue.text;
   _ringValue.text = [NSString stringWithFormat:@"%d%% of standard", storedRingPct()];
+  _ringSlider.accessibilityValue = _ringValue.text;
   _debossValue.text = [NSString stringWithFormat:@"%d%% of standard", storedDebossPct()];
+  _debossSlider.accessibilityValue = _debossValue.text;
   _pressureValue.text =
       [NSString stringWithFormat:@"%d%% of standard", storedPressurePct()];
+  _pressureSlider.accessibilityValue = _pressureValue.text;
   [self rebuildTrackGradient];
   [self rebuildPaperTrackGradient];
   [self rebuildStrips];
