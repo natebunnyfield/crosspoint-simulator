@@ -15,6 +15,7 @@
 
 #include "PaperDefects.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -283,9 +284,17 @@ int main() {
     }
     check(total30 * 2 < total100,
           "the whole ladder is measurably sparser at 30 than at 100");
-    for (int k = 0; k < paperdefects::kKindCount; ++k)
-      check(paperdefects::countFor(k, 100) > 0,
-            "every offered defect kind actually appears at dial 100");
+    // Every offered kind must actually appear at dial 100 -- but the incidence
+    // law is now TWO terms, and the four kinds appended with the raised ceiling
+    // carry all of theirs in the surge (countAt100 is deliberately 0 for them,
+    // which is what freezes the lower half). Asking countFor alone would report
+    // them missing when they are the whole point of the change.
+    for (int k = 0; k < paperdefects::kKindCount; ++k) {
+      bool ever = false;
+      for (uint32_t seed = 1; seed <= 40 && !ever; ++seed)
+        ever = paperdefects::totalCountFor(k, 100, seed * 2654435761u) > 0;
+      check(ever, "every offered defect kind actually appears at dial 100");
+    }
     // Every rung differs from its neighbour somewhere, or the slider is
     // decoration between those two values.
     letterpress::Params lp;
@@ -349,9 +358,26 @@ int main() {
         {"at the floor",     {0x5A, 0x5A, 0x5A}, {0xE8, 0xE8, 0xE8}},
     };
     int sawTight = 0, sawLoose = 0;
+    // The dial rungs run across the RAISED ceiling, not only the old one: the
+    // surge does all its work above 50 and a sweep that stopped at 60 would
+    // never see the state the owner is judging.
     const int strengths[] = {50, 100, 200, 400};
     const int tooths[] = {60, 100, 180, 400};
-    const int dials[] = {0, 30, 60, 100};
+    const int dials[] = {0, 30, 60, 75, 90, 100};
+    double worstRatio = 1e9;
+    const char *worstWhere = "";
+    int worstDial = -1;
+    // ...and the same figure restricted to the top of the dial, which is the
+    // number the raised ceiling is actually judged on.
+    double worstAt100 = 1e9;
+    const char *worstAt100Where = "";
+    double worstAt100Mean = 0.0;
+    // The tightest palette is latte, whose remaining budget is 0 -- the defect
+    // layer correctly vanishes there and the figure above is the TOOTH's. The
+    // number that describes the raised ceiling is the worst case where marks
+    // were actually painted.
+    double worstPainting = 1e9;
+    const char *worstPaintingWhere = "";
     for (const Pal &pal : pals) {
       const float li = lumOf(pal.ink[0], pal.ink[1], pal.ink[2]);
       const float lp_ = lumOf(pal.paper[0], pal.paper[1], pal.paper[2]);
@@ -394,11 +420,39 @@ int main() {
               check(ratio >= letterpress::kContrastFloor - 0.05f,
                     "no (palette, strength, tooth, dial) state drags the flat "
                     "sheet under 7:1");
+              if (ratio < worstRatio) {
+                worstRatio = ratio;
+                worstWhere = pal.name;
+                worstDial = dial;
+              }
+              if (dial == paperdefects::kDialMax && ratio < worstAt100) {
+                worstAt100 = ratio;
+                worstAt100Where = pal.name;
+                worstAt100Mean = mean;
+              }
+              if (dial == paperdefects::kDialMax && remaining > 0.0f &&
+                  ratio < worstPainting) {
+                worstPainting = ratio;
+                worstPaintingWhere = pal.name;
+              }
             }
           }
     }
     check(sawTight > 0, "the sweep includes palettes in the clamped regime");
     check(sawLoose > 0, "the sweep includes palettes in the unclamped regime");
+    // PRINTED, not only asserted. The raised ceiling's whole defence is a
+    // number, and a number that only exists inside a passing assertion is a
+    // number nobody ever reads.
+    std::printf("paper_defects_test: worst sheet contrast over the sweep "
+                "%.3f:1 (%s, dial %d), floor %.1f:1\n",
+                worstRatio, worstWhere, worstDial,
+                static_cast<double>(letterpress::kContrastFloor));
+    std::printf("paper_defects_test: worst at DIAL 100 %.3f:1 (%s), mean paper "
+                "darkening %.4f\n",
+                worstAt100, worstAt100Where, worstAt100Mean);
+    std::printf("paper_defects_test: worst at DIAL 100 where marks were "
+                "actually painted %.3f:1 (%s)\n",
+                worstPainting, worstPaintingWhere);
   }
 
   // A palette with NOTHING left hands the defect layer nothing, and it obeys.
@@ -546,6 +600,425 @@ int main() {
       for (int x = 0; x < 8; ++x)
         check(letterpress::multiplierAt(noTooth, flatWin, x, y, 8, 8) == 255,
               "every press term is exactly nothing on bare paper");
+  }
+
+  // ---------------------------------------- THE LOWER HALF IS FROZEN ------
+  //
+  // The raised-ceiling change (2026-08-22) has exactly one hard promise: "the
+  // dial's TOP gets much stronger while its BOTTOM stays exactly where it is."
+  // Nothing but a checksum taken from the SHIPPED code can hold that promise
+  // -- a re-derivation from the new code would agree with itself no matter
+  // what moved. These six figures were frozen off commit 28029d1 before a line
+  // of the new model was written, over the sheet HalDisplay actually builds
+  // (tooth first, then the marks), and they are the reason the surge is
+  // identically zero at or below dial 50 rather than merely small there.
+  {
+    struct Golden { int dial; unsigned long long sum; int marks; };
+    const Golden golds[] = {
+        {0, 9636907258187077136ull, 0},
+        {10, 2283774712941133090ull, 6},
+        {20, 9217427099062340126ull, 15},
+        {30, 5355970931111899653ull, 22},
+        {40, 12697331351836334584ull, 27},
+        {50, 2436428307720569540ull, 33},
+    };
+    for (const Golden &g : golds) {
+      letterpress::Params lp;
+      lp.strengthPercent = 100;
+      lp.paperDarkenBudget = 0.5f;
+      paperdefects::Params dp;
+      dp.dialPercent = g.dial;
+      dp.seed = 0x5EED1234u;
+      dp.remainingBudget = letterpress::remainingPaperBudget(lp);
+      const int W = 420, H = 300;
+      std::vector<uint8_t> buf(static_cast<size_t>(3) * W * H);
+      for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+          const uint8_t m =
+              letterpress::sheetToothMultiplierAt(lp, x, y, W, H);
+          const size_t i = 3 * (static_cast<size_t>(y) * W + x);
+          buf[i] = buf[i + 1] = buf[i + 2] = m;
+        }
+      paperdefects::Mark mk[paperdefects::kMaxMarks];
+      const int n = paperdefects::generate(dp, W, H, mk);
+      check(n == g.marks, "the frozen dial renders the frozen mark count");
+      for (int k = 0; k < n; ++k) {
+        int x0, y0, x1, y1;
+        if (!paperdefects::bounds(mk[k], W, H, x0, y0, x1, y1)) continue;
+        for (int y = y0; y < y1; ++y)
+          for (int x = x0; x < x1; ++x) {
+            float mu[3];
+            if (!paperdefects::multiplierAt(mk[k], x, y, mu)) continue;
+            const size_t i = 3 * (static_cast<size_t>(y) * W + x);
+            for (int c = 0; c < 3; ++c) {
+              const int v = static_cast<int>(buf[i + c] * mu[c] + 0.5f);
+              buf[i + c] = static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+            }
+          }
+      }
+      unsigned long long hsh = 1469598103934665603ull;
+      for (uint8_t c : buf) {
+        hsh ^= c;
+        hsh *= 1099511628211ull;
+      }
+      check(hsh == g.sum,
+            "dial <= 50 is byte-identical to what shipped before the ceiling "
+            "was raised");
+    }
+    // ...and the mechanism that guarantees it, stated directly.
+    for (int d = 0; d <= paperdefects::kSurgeStart; ++d)
+      check(paperdefects::surgeFor(d) == 0.0f,
+            "the surge is EXACTLY zero through the whole lower half");
+    check(paperdefects::surgeFor(51) > 0.0f, "...and non-zero above it");
+    check(paperdefects::surgeFor(100) == 1.0f, "...and exactly 1 at the top");
+  }
+
+  // ----------------------------------------------- THE CURVE'S SHAPE ------
+  //
+  // "Modest through the low half, aggressive in the top quarter." A test can
+  // say that as arithmetic: the surge must be monotone, must still be a small
+  // fraction at the three-quarter mark, and must do most of its travel in the
+  // last quarter -- otherwise it is a straight ramp wearing a curve's name.
+  {
+    float prev = -1.0f;
+    for (int d = 0; d <= 100; ++d) {
+      const float s = paperdefects::surgeFor(d);
+      check(s >= prev, "the surge never goes backwards");
+      prev = s;
+    }
+    check(paperdefects::surgeFor(75) <= 0.30f,
+          "at the three-quarter mark the surge is still a quarter of its top");
+    check(paperdefects::surgeFor(100) - paperdefects::surgeFor(75) >
+              paperdefects::surgeFor(75),
+          "more of the surge happens in the top quarter than below it");
+    // Every rung of the top half must differ from the one below it, in the
+    // mark list -- or the new range is decoration.
+    letterpress::Params lp;
+    lp.strengthPercent = 100;
+    lp.paperDarkenBudget = 0.7f;
+    const int rungs[] = {50, 60, 70, 80, 90, 100};
+    double prevBound = -1.0;
+    for (const int d : rungs) {
+      paperdefects::Params p;
+      p.dialPercent = d;
+      p.seed = 0xC0FFEEu;
+      p.remainingBudget = letterpress::remainingPaperBudget(lp);
+      paperdefects::Mark marks[paperdefects::kMaxMarks];
+      const int n = paperdefects::generate(p, 792, 528, marks);
+      const double bound =
+          paperdefects::meanDarkeningBound(marks, n, 792, 528);
+      check(bound > prevBound, "each rung above 50 spends strictly more");
+      prevBound = bound;
+    }
+  }
+
+  // ---------------------------------------------- THE RAISED CEILING ------
+  //
+  // The owner's measured complaint: at dial 100 the strongest mark moved a
+  // pixel by ~36 of 255. The fix is only real if it is measurable in the same
+  // unit, so it is asserted in that unit -- per kind, because a ceiling raised
+  // on the average while one kind stayed faint is exactly the failure that
+  // shipped. Measured on the repo-default paper tone, which is what the
+  // default palette actually paints.
+  {
+    const int paper[3] = {251, 251, 249};
+    paperdefects::Params dp;
+    dp.dialPercent = 100;
+    dp.remainingBudget = 1.0f;
+    for (int k = 0; k < paperdefects::kKindCount; ++k) {
+      int best = 0;
+      for (uint32_t seed = 1; seed <= 6 && best < 90; ++seed) {
+        dp.seed = seed * 2654435761u;
+        paperdefects::Mark marks[paperdefects::kMaxMarks];
+        const int n = paperdefects::generate(dp, 792, 528, marks);
+        for (int j = 0; j < n; ++j) {
+          if (marks[j].kind != k) continue;
+          int x0, y0, x1, y1;
+          if (!paperdefects::bounds(marks[j], 792, 528, x0, y0, x1, y1))
+            continue;
+          for (int y = y0; y < y1; ++y)
+            for (int x = x0; x < x1; ++x) {
+              float m[3];
+              if (!paperdefects::multiplierAt(marks[j], x, y, m)) continue;
+              for (int c = 0; c < 3; ++c) {
+                const int d =
+                    paper[c] - static_cast<int>(paper[c] * m[c] + 0.5f);
+                if (d > best) best = d;
+              }
+            }
+        }
+      }
+      // 90 of 255 is 2.5x what the whole SHIPPED table could reach, and it is
+      // the floor rather than the target: the table's own figures run 42..238.
+      // Wax and set-off are deliberately the shallow end -- wax is translucency
+      // and set-off is a ghost -- so they are held to a lower bar by name
+      // rather than by weakening the check for everything.
+      const bool shallow = (k == paperdefects::WaxSpot ||
+                            k == paperdefects::SetOff);
+      check(best >= (shallow ? 40 : 90),
+            "every kind reaches a level shift the owner would call a mark");
+    }
+    // ...and the shallow pair really is the shallow pair, not an oversight.
+    check(paperdefects::lumDeficitOf(
+              paperdefects::kKinds[paperdefects::WaxSpot].tintDeep) <
+              paperdefects::lumDeficitOf(
+                  paperdefects::kKinds[paperdefects::Foxing].tintDeep),
+          "wax at the top of the dial is still shallower than foxing");
+  }
+
+  // ----------------------------------------- ALL THREE AXES ACTUALLY RISE --
+  //
+  // Count, depth and SIZE. The brief named all three, and a change that raised
+  // only the count would pass every mean-darkening check in this file.
+  {
+    for (int k = 0; k < paperdefects::kKindCount; ++k) {
+      const paperdefects::KindInfo &info = paperdefects::kKinds[k];
+      check(info.radiusMaxDeep > info.radiusMax,
+            "every kind's size range opens at the top of the dial");
+      check(info.countSurge > 0,
+            "every kind gains incidence at the top of the dial");
+      check(paperdefects::lumDeficitOf(info.tintDeep) >
+                paperdefects::lumDeficitOf(info.tint),
+            "every kind's tint deepens at the top of the dial");
+      // The deep tint is a real colour, not a channel driven negative.
+      for (int c = 0; c < 3; ++c) {
+        check(info.tintDeep[c] >= 0.0f && info.tintDeep[c] <= 1.0f,
+              "a deep tint is a legal multiplier on every channel");
+        check(info.tint[c] >= 0.0f && info.tint[c] <= 1.0f,
+              "a shallow tint is a legal multiplier on every channel");
+      }
+    }
+    check(paperdefects::kDepthMinHi > paperdefects::kDepthMinLo,
+          "the depth range's floor rises with the dial");
+    check(paperdefects::kDepthMinHi + paperdefects::kDepthSpanHi <= 1.0f + 1e-6f,
+          "...without the depth range's top ever exceeding 1");
+    // Measured, not just tabulated: the marks a page actually gets are bigger.
+    double area30 = 0.0, area100 = 0.0;
+    for (uint32_t seed = 1; seed <= 8; ++seed) {
+      paperdefects::Params p;
+      p.remainingBudget = 1.0f;
+      p.seed = seed * 40503u;
+      paperdefects::Mark marks[paperdefects::kMaxMarks];
+      p.dialPercent = 30;
+      int n = paperdefects::generate(p, 792, 528, marks);
+      double a = 0.0;
+      int c30 = 0;
+      for (int j = 0; j < n; ++j)
+        if (marks[j].kind == paperdefects::Foxing) { a += marks[j].rx * marks[j].ry; c30++; }
+      area30 += c30 ? a / c30 : 0.0;
+      p.dialPercent = 100;
+      n = paperdefects::generate(p, 792, 528, marks);
+      a = 0.0;
+      int c100 = 0;
+      for (int j = 0; j < n; ++j)
+        if (marks[j].kind == paperdefects::Foxing) { a += marks[j].rx * marks[j].ry; c100++; }
+      area100 += c100 ? a / c100 : 0.0;
+    }
+    check(area100 > area30 * 1.5,
+          "the average foxing spot is measurably larger at 100 than at 30");
+  }
+
+  // ------------------------------------------- THE NEW KINDS ARE REAL -----
+  //
+  // Four kinds appended for "paper making realism". Each has to be reachable,
+  // has to be distinguishable, and -- the one that actually bites -- has to
+  // obey the rect footprint arithmetic, because two of them are NOT ellipses
+  // and a bound computed with pi instead of 4 under-states by 27%.
+  {
+    check(paperdefects::kKindCount == 10, "four kinds were appended, not more");
+    check(std::string(paperdefects::kKinds[paperdefects::Shive].name) == "shive",
+          "the wood-splinter kind is called a shive");
+    check(std::string(paperdefects::kKinds[paperdefects::Crease].name) ==
+              "crease",
+          "the fold kind is called a crease");
+    check(std::string(paperdefects::kKinds[paperdefects::ClippingBurn].name) ==
+              "clipping burn",
+          "the acid-migration kind is called a clipping burn");
+    check(std::string(paperdefects::kKinds[paperdefects::SetOff].name) ==
+              "set-off",
+          "the offset-ghosting kind carries the trade's own word, set-off");
+    for (int k = 0; k < paperdefects::kKindCount; ++k) {
+      const bool appended = k >= paperdefects::Shive;
+      check((paperdefects::kKinds[k].countAt100 == 0) == appended,
+            "the appended kinds are reachable ONLY through the surge, which is "
+            "what freezes the lower half");
+    }
+    // Every kind, old and new, actually appears at dial 100 on some page.
+    int everSeen[paperdefects::kKindCount] = {0};
+    int maxMarks = 0;
+    for (uint32_t seed = 1; seed <= 40; ++seed) {
+      paperdefects::Params p;
+      p.dialPercent = 100;
+      p.seed = seed * 2654435761u;
+      p.remainingBudget = 1.0f;
+      paperdefects::Mark marks[paperdefects::kMaxMarks];
+      const int n = paperdefects::generate(p, 792, 528, marks);
+      if (n > maxMarks) maxMarks = n;
+      for (int j = 0; j < n; ++j) everSeen[marks[j].kind]++;
+    }
+    for (int k = 0; k < paperdefects::kKindCount; ++k)
+      check(everSeen[k] > 0, "every kind appears somewhere at dial 100");
+    // The storage cap must not be the thing deciding what a page carries. It
+    // is reached last-kind-first, so a cap that bit would starve exactly the
+    // four kinds added here and nothing would say so.
+    check(maxMarks < paperdefects::kMaxMarks,
+          "dial 100 never reaches the mark-array cap");
+
+    // A rect kind's bound uses 4*rx*ry, an ellipse kind's uses pi*rx*ry.
+    check(paperdefects::footprintFactorFor(paperdefects::ShapeBand) == 4.0f &&
+              paperdefects::footprintFactorFor(paperdefects::ShapeGhost) == 4.0f,
+          "the rect shapes are bounded over a rect footprint");
+    check(paperdefects::footprintFactorFor(paperdefects::ShapeBump) > 3.0f &&
+              paperdefects::footprintFactorFor(paperdefects::ShapeBump) < 3.2f,
+          "the ellipse shapes are bounded over an ellipse footprint");
+
+    // THE CLIPPING BURN'S EDGE IS STRAIGHT, and that is the entire point of
+    // giving it its own shape. Sampled across the band's hard side: the
+    // multiplier must step from untouched to nearly-full over one pixel, at
+    // the same offset all along the edge. An ellipse cannot do that.
+    paperdefects::Mark band;
+    band.kind = paperdefects::ClippingBurn;
+    band.cx = 200.0f;
+    band.cy = 150.0f;
+    band.rx = 120.0f;
+    band.ry = 60.0f;
+    band.cosA = 1.0f;
+    band.sinA = 0.0f;
+    band.depth = 1.0f;
+    for (int c = 0; c < 3; ++c)
+      band.tint[c] = paperdefects::kKinds[paperdefects::ClippingBurn].tintDeep[c];
+    band.salt = 1u;
+    for (int x = 140; x <= 260; x += 20) {
+      float outside[3], inside[3];
+      const bool o = paperdefects::multiplierAt(band, x, 89, outside);
+      const bool in = paperdefects::multiplierAt(band, x, 91, inside);
+      check(!o, "one pixel outside the clipping's edge is untouched");
+      check(in && inside[2] < 0.55f,
+            "one pixel inside it is already nearly the full burn");
+    }
+    // ...and the wash really does wash: the far side is far lighter.
+    float nearEdge[3], farEdge[3];
+    paperdefects::multiplierAt(band, 200, 95, nearEdge);
+    paperdefects::multiplierAt(band, 200, 205, farEdge);
+    check(farEdge[2] > nearEdge[2] + 0.3f,
+          "the burn fades away from the clipping's edge");
+
+    // SET-OFF IS STRIPED. A ghost of lines of type, not a smudge: the variance
+    // down a column has to be far larger than the variance across a row, or it
+    // is just a rectangle and reads as a rendering bug.
+    paperdefects::Params gp;
+    gp.dialPercent = 100;
+    gp.remainingBudget = 1.0f;
+    std::vector<double> ghostRatios;
+    for (uint32_t seed = 1; seed <= 20; ++seed) {
+      gp.seed = seed * 2654435761u;
+      paperdefects::Mark marks[paperdefects::kMaxMarks];
+      const int n = paperdefects::generate(gp, 792, 528, marks);
+      for (int j = 0; j < n; ++j) {
+        if (marks[j].kind != paperdefects::SetOff) continue;
+        const paperdefects::Mark &g = marks[j];
+        // The metric is the STRIPE FACTOR's high-frequency energy, with the
+        // mark's own soft envelope divided back out. Measuring the rendered
+        // multiplier directly does not work: the envelope (1-u^2)^2(1-v^2)^2 is
+        // present on BOTH axes and, sampled over a window, contributes as much
+        // roughness as the stripes do -- which is how a first attempt at this
+        // check scored one instance at 0.87 while the picture was plainly
+        // striped. The envelope is closed form here, so it can be removed
+        // exactly rather than modelled around.
+        const float deficitG =
+            1.0f - paperdefects::kKinds[paperdefects::SetOff].tintDeep[1];
+        auto stripeAt = [&](int x, int y, float &outStripe) {
+          float m[3];
+          if (!paperdefects::multiplierAt(g, x, y, m)) return false;
+          const float ddx = static_cast<float>(x) + 0.5f - g.cx;
+          const float ddy = static_cast<float>(y) + 0.5f - g.cy;
+          const float u = (ddx * g.cosA + ddy * g.sinA) / g.rx;
+          const float v = (-ddx * g.sinA + ddy * g.cosA) / g.ry;
+          const float a = 1.0f - u * u, b = 1.0f - v * v;
+          const float env = a * a * b * b;
+          if (env < 0.05f) return false;  // the rim, where the ratio is noise
+          outStripe = (1.0f - m[1]) / (env * g.depth * deficitG);
+          return true;
+        };
+        // The stride is half the stripe's own cell, taken from the kind's
+        // table rather than guessed, so the sample lands on the frequency the
+        // model CLAIMS to put structure at.
+        int stride = static_cast<int>(
+            g.ry * paperdefects::kKinds[paperdefects::SetOff].raggedCellsY *
+            0.5f);
+        if (stride < 1) stride = 1;
+        auto roughnessOf = [&](bool downColumn) {
+          double total = 0.0;
+          int lines = 0;
+          for (int off = -20; off <= 20; off += 10) {
+            double sum = 0.0;
+            int cnt = 0;
+            float prevV = 0.0f;
+            bool have = false;
+            for (int t = -40; t <= 40; t += stride) {
+              const int x = static_cast<int>(g.cx) + (downColumn ? off : t);
+              const int y = static_cast<int>(g.cy) + (downColumn ? t : off);
+              float sv;
+              if (!stripeAt(x, y, sv)) {
+                have = false;
+                continue;
+              }
+              if (have) {
+                sum += std::fabs(static_cast<double>(sv) - prevV);
+                cnt++;
+              }
+              prevV = sv;
+              have = true;
+            }
+            if (cnt) {
+              total += sum / cnt;
+              lines++;
+            }
+          }
+          return lines ? total / lines : 0.0;
+        };
+        const double vCol = roughnessOf(true);
+        const double vRow = roughnessOf(false);
+        // EVERY instance, not the first one found: one sampled mark is the
+        // shape of measurement that lets a broken kind through on a lucky
+        // seed. A single scan line through a single mark is a NOISY estimator,
+        // so the claim is made twice -- no instance may fall to a smudge's 1.0,
+        // and the MEDIAN (not the mean, which one 42:1 outlier would carry)
+        // has to be decisive.
+        check(vCol > vRow * 1.5,
+              "set-off varies down the page far more than across it: it is "
+              "ghosted LINES of type, not a smudge");
+        ghostRatios.push_back(vCol / (vRow + 1e-12));
+      }
+    }
+    check(!ghostRatios.empty(), "dial 100 produced a set-off mark to measure");
+    if (!ghostRatios.empty()) {
+      std::sort(ghostRatios.begin(), ghostRatios.end());
+      check(ghostRatios[ghostRatios.size() / 2] > 4.0,
+            "set-off's striping is decisive at the median, not marginal");
+    }
+
+    // A CREASE IS A LINE ACROSS THE SHEET, not a blob. Its long axis has to be
+    // orders of magnitude longer than its short one, or it is a brown stain
+    // with a different name.
+    paperdefects::Params cp;
+    cp.dialPercent = 100;
+    cp.remainingBudget = 1.0f;
+    bool sawCrease = false;
+    for (uint32_t seed = 1; seed <= 20; ++seed) {
+      cp.seed = seed * 40503u + 7u;
+      paperdefects::Mark marks[paperdefects::kMaxMarks];
+      const int n = paperdefects::generate(cp, 792, 528, marks);
+      for (int j = 0; j < n; ++j) {
+        if (marks[j].kind != paperdefects::Crease) continue;
+        sawCrease = true;
+        check(marks[j].rx > 100.0f,
+              "a crease spans a serious fraction of the sheet");
+        check(marks[j].rx > marks[j].ry * 25.0f,
+              "a crease is a LINE, not a blob");
+      }
+    }
+    check(sawCrease, "dial 100 produced a crease to measure");
   }
 
   // ------------------------------------------------------ VOCABULARY -----
