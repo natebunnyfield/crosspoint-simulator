@@ -175,7 +175,46 @@ Two additions only:
 The mix itself persists in `phosphorMix*` NSUserDefaults keys (mode, a
 `preset:weight` CSV for the blend, role assignments for the others). Picking a
 plain preset sets `phosphorMixActive` to NO but leaves the recipe stored, so
-returning to a mix tab restores it.
+moving any gun afterwards restores it.
+
+## Getting back to a named preset (2026-08-23)
+
+Owner ruling: **"add a Presets row back to the pickers."** `claimCustomFor` only
+ever points the shared integer AT Custom, and the Settings.app palette row left
+with the other page rows on 2026-08-22 — so one gun move made every named preset
+unreachable as a preset.
+
+A **Presets bar button** now sits opposite Done and pushes
+[ios/CrossPointPresetList.mm](../ios/CrossPointPresetList.mm), the same list the
+light-mode ink picker pushes. Pushed onto this sheet's own navigation
+controller, so nothing about the sheet changes: it is still medium-detent-only
+with no grabber (owner 2026-08-21, "the color tray is very slideable"). The
+cells preview the **dark** pairs here, because this is the dark page's editor;
+every preset is offered in both lists, since a preset defines both appearances.
+
+Selection is `panelsource::releaseCustom`, the inverse of the claim: both
+polarities go back to the preset, and `phosphorMixActive` and
+`panelDarkSnapshotPreset` are cleared rather than left. Clearing the mix flag is
+the load-bearing half — `glowPreset` asks it BEFORE the frozen phosphor, so a
+stale mix would own the decay of a preset chosen after it, and would only start
+doing so at the NEXT claim, long after the change that caused it.
+
+Nothing about the mix is destroyed: `phosphorGunAssign` and `phosphorMixBlend`
+survive, so moving a gun after selecting a preset claims the slot back and
+resumes the recipe — with the light page frozen at the preset's own light pair,
+through the same shared claim.
+
+While a named preset is in force, this sheet's readout reads
+`Preset <name> — move a gun to take over` rather than the mix's hex: the mix is
+still a valid recipe and is simply not what is on screen, and a drawer
+describing a page it no longer owns is the lie S-020 shipped.
+
+Measured on an iPhone Air simulator, 2026-08-23: with a P22R-only mix in force
+(`FF6F6C` on `1A0300`, glow "phosphor mix"), selecting White CRT gave
+`[harness] panel palette (dark) -> preset 21, ink B6EFFF, paper 182327` and
+`[glow] preset 21 -> 283 ms trail ... (Medium)`, with `phosphorMixActive` false
+and `phosphorMixBlend` still `11:100,40:0,24:0,21:0`. A light-mode ink pick
+after that froze phosphor 21, not the dead mix.
 
 ## Every row shows the exact numbers
 

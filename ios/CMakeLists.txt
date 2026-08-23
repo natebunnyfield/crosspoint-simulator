@@ -54,6 +54,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPaletteMixer.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointLightInkPicker.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPresetList.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointZenRecognizers.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointBookImport.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointDiagLog.cpp
@@ -80,6 +81,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPaletteMixer.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointLightInkPicker.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPresetList.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointZenRecognizers.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointBookImport.mm
   PROPERTIES COMPILE_FLAGS "-fobjc-arc")

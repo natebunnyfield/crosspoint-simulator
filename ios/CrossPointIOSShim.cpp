@@ -92,6 +92,9 @@ extern "C" bool CrossPointMixer_isPresented(void);
 // (docs/light-ink-picker.md). Same sheet discipline, same presented-flag
 // contract, so every gate below checks both.
 extern "C" void CrossPointInkPicker_present(void);
+// The named-preset list both editors push (CrossPointPresetList.mm). Only its
+// headless hook is needed here; the UI entry points are the drawers' own.
+extern "C" void CrossPointPresetList_selectForTest(int preset);
 extern "C" bool CrossPointInkPicker_isPresented(void);
 extern "C" void CrossPointInkPicker_applyForTest(int ink, int paper,
                                                  int density,
@@ -2840,6 +2843,24 @@ void CrossPointHarness_perFrame() {
       CrossPointInkPicker_applyForTest(s_applyInkArgs[0], s_applyInkArgs[1],
                                        s_applyInkArgs[2], s_applyInkArgs[3]);
     }
+    // CROSSPOINT_SIM_SELECT_PRESET=<int>: pick a NAMED PRESET through the exact
+    // path the Presets list's cells take, with no finger. The other half of the
+    // round trip APPLY_INK and MIX_GUNS drive -- those claim the shared Custom
+    // slot, this is the only thing that hands it back -- so a headless run can
+    // prove both directions in one launch sequence.
+    static int s_selectPresetCountdown = -2;
+    static int s_selectPreset = -1;
+    if (s_selectPresetCountdown == -2) {
+      const char *e = std::getenv("CROSSPOINT_SIM_SELECT_PRESET");
+      // ~4 s, deliberately AFTER APPLY_INK's 120 and MIX_GUNS' 180: with all
+      // three set, one launch walks the whole round trip in order -- claim the
+      // slot from light, claim it from dark, then hand both back to a name --
+      // with a page render between each.
+      s_selectPresetCountdown =
+          (e && std::sscanf(e, "%d", &s_selectPreset) == 1) ? 240 : -1;
+    }
+    if (s_selectPresetCountdown > 0 && --s_selectPresetCountdown == 0)
+      CrossPointPresetList_selectForTest(s_selectPreset);
     // CROSSPOINT_SIM_TAP_CHIP=1: the FULL finger path, not just the modal --
     // synthesizes SDL_EVENT_FINGER_DOWN/UP at the chip's center, so padWatch,
     // hitPaletteChip and the whole tap branch run exactly as a thumb runs them.

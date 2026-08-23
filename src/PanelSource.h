@@ -128,6 +128,61 @@ constexpr Claim claimCustom(int storedPreset, bool editingDark) {
   return c;
 }
 
+// WHAT PICKING A NAMED PRESET MEANS -- the inverse of the claim above.
+//
+// Owner ruling 2026-08-23: "add a Presets row back to the pickers." The two
+// editors can only ever point the shared integer AT Custom, and since
+// 2026-08-22 nothing pointed it back at a name: the Settings.app palette row
+// left with the other eight page rows that day, so every named preset became
+// unreachable AS A PRESET the first time either editor was touched. This is the
+// road back, and it is the mirror image of claimCustom: instead of freezing the
+// other polarity so one editor may own the slot, it hands BOTH polarities to
+// the preset, which is what choosing one by name means (panelFor resolves a
+// named preset for either appearance and ignores the hex fields).
+//
+// THE TWO CUSTOM-ONLY KEYS HAVE TO BE WRITTEN, not merely left. Each speaks
+// only while the slot is Custom, so a stale one is invisible right up until the
+// next claim -- and then it contradicts the state the owner just chose. The mix
+// flag is the sharp one: glowPreset asks it BEFORE the frozen phosphor, so a
+// dead blend nobody can see or reach would decide the dark page's decay for a
+// preset chosen after it.
+//
+// THE FOUR HEX FIELDS ARE LEFT ALONE, deliberately. A named preset already
+// ignores them (panelFor), and clearing them would throw away the other
+// polarity's edit to no purpose -- the next claim re-freezes whichever polarity
+// it does not own from the preset's own pair, so nothing stale can survive into
+// a Custom slot.
+struct Release {
+  // Is this preset a row a picker may select? False for Custom -- which is not
+  // a choice, it is what an EDIT produces -- and for anything unknown, so a
+  // restored backup or a hand-edited store cannot select a blank page.
+  bool apply = false;
+  int preset = panelpalette::kPresetDefault;
+  bool mixActive = false;
+  int darkSnapshotPreset = panelpalette::kPresetCustom;
+};
+
+constexpr Release releaseCustom(int storedPreset) {
+  Release r{};
+  const int preset = panelpalette::migratePreset(storedPreset);
+  if (preset == panelpalette::kPresetCustom) return r;
+  if (!panelpalette::isKnownPreset(preset)) return r;
+  r.apply = true;
+  r.preset = preset;
+  return r;
+}
+
+// The three fields a selection moves, and no others -- one place says so, for
+// the adapter and the test both.
+constexpr Store applyRelease(const Store &s, const Release &r) {
+  if (!r.apply) return s;
+  Store out = s;
+  out.preset = r.preset;
+  out.mixActive = r.mixActive;
+  out.darkSnapshotPreset = r.darkSnapshotPreset;
+  return out;
+}
+
 // --- pinned here as well as in the test, so a wrong answer cannot compile ----
 
 // A named preset owns both polarities, whatever the hex fields hold.
@@ -186,5 +241,38 @@ static_assert(claimCustom(21, /*editingDark=*/true).freezeOther &&
 static_assert(!claimCustom(panelpalette::kPresetCustom, false).freezeOther &&
                   !claimCustom(panelpalette::kPresetCustom, true).freezeOther,
               "an already-Custom slot holds owner choices in both polarities");
+
+// A selection hands BOTH polarities to the preset, whatever the store holds --
+// a claimed Custom slot, four edited hex fields, a live mix and a frozen
+// phosphor all at once, which is the worst case an editor can leave behind.
+inline constexpr Store kFullyClaimed{panelpalette::kPresetCustom,
+                                     {0x112233, 0x445566},
+                                     {0x778899, 0xAABBCC},
+                                     true,
+                                     panelpalette::kPresetWhiteCrt};
+
+static_assert(panelFor(applyRelease(kFullyClaimed,
+                                    releaseCustom(panelpalette::kPresetGreenCrt)),
+                       false)
+                      .ink[0] == 0x0B,
+              "selecting a preset takes the LIGHT page back from Custom");
+static_assert(panelFor(applyRelease(kFullyClaimed,
+                                    releaseCustom(panelpalette::kPresetGreenCrt)),
+                       true)
+                      .ink[1] == 0xFF,
+              "...and the DARK page with it, in the same act");
+static_assert(glowPreset(applyRelease(kFullyClaimed, releaseCustom(
+                                                         panelpalette::kPresetGreenCrt))) ==
+                  panelpalette::kPresetGreenCrt,
+              "...and the phosphor follows, rather than a dead mix going on "
+              "answering for a page it no longer paints");
+
+static_assert(!releaseCustom(panelpalette::kPresetCustom).apply,
+              "Custom is what an edit produces, never a row to select");
+static_assert(!releaseCustom(4242).apply,
+              "an unknown integer selects nothing rather than a blank page");
+static_assert(releaseCustom(panelpalette::kPresetSoft).preset ==
+                  panelpalette::kPresetReadingWarm,
+              "a retired row selects its replacement, as everywhere else here");
 
 }  // namespace panelsource

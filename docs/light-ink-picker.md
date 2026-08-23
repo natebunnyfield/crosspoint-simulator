@@ -462,6 +462,56 @@ Pinned by `tests/panel_source_test.cpp` (bytes, both polarities, load / switch /
 both editor orders) and `tests/panel_source_test.py` (each editor writes only
 its own polarity's keys). Both fail against the pre-fix tree.
 
+### 7a. The road back: a Presets button, and what it hands over (2026-08-23)
+
+Owner ruling, same day: **"add a Presets row back to the pickers."** The claim
+above only points the shared integer AT Custom, and the Settings.app palette row
+left with the other page rows on 2026-08-22 — so from the first ink pick, the
+fifty-two named presets were unreachable as presets. Nothing in the app could
+write a name back.
+
+The control is a **Presets bar button** in this drawer's nav bar, opposite Done,
+which pushes [ios/CrossPointPresetList.mm](../ios/CrossPointPresetList.mm) — the
+same list the mixer pushes. A bar button rather than a row in the scroll for two
+reasons: it costs the drawer no vertical space, and the mixer has none to give
+(medium detent, pinned since 2026-08-21), so this is the one shape both editors
+can carry identically.
+
+The list is this drawer's paper grid, re-used: a wrapped grid of swatch cells
+under family headings, three across, each cell painted in the preset's own paper
+with its name in the preset's own ink. **Every preset is offered here and in the
+mixer both** — a preset defines BOTH appearances, so filtering either list would
+remove a choice that used to be reachable from Settings.app. What differs is the
+preview: this drawer renders the light page, so its cells show light pairs.
+
+Selection is the exact inverse of the claim
+(`CrossPointPrefs_selectPanelPreset` → `panelsource::releaseCustom`): the preset
+integer moves to the name, and the two keys that only speak while the slot is
+Custom — `phosphorMixActive` and `panelDarkSnapshotPreset` — are **cleared**,
+not left. Leaving them is the trap: the glow asks the mix flag before the frozen
+phosphor, so a blend from a page that is no longer on screen would own the decay
+of a preset chosen after it. The four hex fields ARE left, because a named
+preset ignores them and the next claim re-freezes whichever polarity it does not
+own.
+
+This drawer's readout says so. While a named preset is in force it reads
+`Preset <name> — tap an ink to take over` instead of describing an ink the page
+is not using: the picker showing Payne's Gray over a page that was not Payne's
+Gray is exactly what the owner reported as S-020, and it would have been
+reintroduced pointing the other way.
+
+Measured on an iPhone Air simulator, 2026-08-23 (screenshots at native pixels,
+`[harness] panel palette` lines quoted):
+
+| station | light page | dark page | glow |
+|---|---|---|---|
+| White CRT selected | `304248` on `F8FDFF` | `B6EFFF` on `182327` | preset 21, 283 ms |
+| Payne's Gray picked | `323D47` on `FBFBF9` | `B6EFFF` on `182327` (frozen) | preset 21, 283 ms |
+| Green CRT selected | `0B3D0B` on `DCEFD8` | `33FF33` on `001A00` | preset 6, 400 ms |
+
+The dark crop before and after the ink pick differs by a mean of 0.0 levels
+(max 1) — the freeze — and by a mean of 63.9 after the preset selection.
+
 ## 8. The drawer WAS the paper instrument (2026-08-22), and the sheet is FROZEN (2026-08-23)
 
 Owner order, 2026-08-22: "make tooth, formation, pressure and all other paper

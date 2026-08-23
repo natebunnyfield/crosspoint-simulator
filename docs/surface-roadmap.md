@@ -918,6 +918,20 @@ re-proposed by the next session.
 - **The whole queue below is approved**, as iOS settings where taste genuinely
   varies and frozen where one value is obviously right. Note the context: the
   same day removed nine Settings.app rows, so a new row has to earn itself.
+- **The named presets stay reachable, from inside the drawers.** "Add a Presets
+  row back to the pickers." Removing the Settings.app palette row left the claim
+  protocol as the only writer of `panelPalettePreset`, and it can only point at
+  Custom — so one ink pick retired all 52 names. The answer is a Presets bar
+  button in BOTH page-color drawers opening ONE shared list
+  (`ios/CrossPointPresetList.mm`), not a returning Settings.app row: the drawer
+  is where page color is chosen now, and the page behind an undimmed sheet is
+  the preview a Settings row cannot be. Both lists offer every preset, differing
+  only in which appearance the swatches preview — a preset defines both halves,
+  and filtering either list would remove a choice that used to be offered.
+  Selecting one is `panelsource::releaseCustom`, the exact inverse of the claim,
+  and it CLEARS `phosphorMixActive` and `panelDarkSnapshotPreset` rather than
+  leaving them; see docs/phosphor-mixer.md for why the stale mix flag is the
+  dangerous half.
 
 
 ## 5. The whole list, ranked

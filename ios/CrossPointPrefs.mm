@@ -650,6 +650,31 @@ void CrossPointPrefs_claimCustomFor(int editingDark) {
             : @"");
 }
 
+void CrossPointPrefs_selectPanelPreset(int preset) {
+  ensureDefaults();
+  const panelsource::Release release = panelsource::releaseCustom(preset);
+  if (!release.apply) {
+    NSLog(@"[CrossPoint] palette: preset %d is not a selectable row; ignored",
+          preset);
+    return;
+  }
+  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+  // THE TWO CUSTOM-ONLY KEYS GO FIRST, and they are written rather than left.
+  // Both are read only while the slot is Custom, so a stale one is silent until
+  // the next claim and then decides against the owner: glowPreset asks the mix
+  // flag BEFORE the frozen phosphor, so a blend from a page that is no longer
+  // on screen would own the decay of a preset chosen after it. src/PanelSource.h.
+  [d setBool:release.mixActive ? YES : NO forKey:kPhosphorMixActive];
+  [d setInteger:release.darkSnapshotPreset forKey:kPanelDarkSnapshotPreset];
+  CrossPointPrefs_setPanelPalettePreset(release.preset);
+  // The four hex fields are deliberately untouched -- a named preset ignores
+  // them, and the next claim re-freezes whichever polarity it does not own from
+  // the preset's own pair.
+  NSLog(@"[CrossPoint] palette: preset %d selected for BOTH appearances "
+        @"(mix cleared, no frozen phosphor)",
+        release.preset);
+}
+
 int CrossPointPrefs_renderScale(void) {
   ensureDefaults();
   // No checkKnown: renderScale is deliberately not a Settings.bundle row any
