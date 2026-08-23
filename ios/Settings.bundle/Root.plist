@@ -101,6 +101,24 @@ Speaking rate is a percentage of normal. The Spoken Content rate slider in Acces
 			</array>
 		</dict>
 		<dict>
+			<key>FooterText</key>
+			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
+			<key>Title</key>
+			<string>Sleep</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>powerOffCollapse</string>
+			<key>Title</key>
+			<string>Power-Off Collapse</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
 			<key>DefaultValue</key>
 			<false/>
 			<key>Key</key>

@@ -53,7 +53,39 @@ per-stock tooth, sheet formation, six defect types, and a per-page deterministic
 seed so a leaf is the same leaf forever. What follows is what is still absent,
 each rated on what it *is*, whether it *matters*, cost, and risk.
 
-### 1a. Show-through from the other side of the leaf — **the biggest single gap**
+### 1a. Show-through from the other side of the leaf — **SHIPPED 2026-08-23**
+
+**Built as specified, with four corrections, and the full writeup is
+[show-through.md](show-through.md).** What changed against the design below:
+
+1. **`ghostPixels` is the wrong source, and it was checked rather than
+   assumed.** It still exists, but it is maintained only while the phosphor
+   trail or the beam is on (both dark-mode ideas, both off on a paper page), it
+   is ARGB that would need re-projecting onto the ink/paper axis, and it holds
+   the previous FRAME rather than the previous PAGE — and an antialiased page
+   produces two frames. The letterpress pass's own inkness plane is the right
+   source and is already computed per page, in light mode, for free.
+2. **The mirror has to be applied in PRESENTED space, not the framebuffer.** The
+   framebuffer is landscape and the page is rotated into it, so a mirror about
+   its x axis is a mirror about the page's *vertical* axis.
+3. **The per-stock gate is a ratio of TRANSMISSIONS, not of opacities** —
+   `(1 - opacity) / (1 - reference opacity)`, off a new ISO 2471 `opacity` field
+   on the stock table. India 3.0x, Kozo 3.7x, calfskin vellum 0.25x.
+4. **The budget is now split four ways**, and show-through takes its share
+   *before* the marks are generated, so a sheet with the dial at 0 keeps
+   byte-identical marks.
+
+Measured: **+1.5 ms** per page turn at the reference stock and **+3.2 ms** at a
+bible paper, on a 0.42 Mpx output; **+10.7 ms** at 1.67 Mpx. Output-space, so it
+scales with output pixels — roughly **+22 ms** on a phone's 3.4 Mpx, which is
+the cheap class this section predicted. Effect delta off vs on, whole frame:
+mean 0.37 / max 6.0 code values on Bright White, mean 1.14 / max 17.0 on an
+India-class stock, **signed negative at every pixel**. Frozen at 100 in the app;
+the stock is the dial.
+
+*The original entry, kept because its reasoning is the design:*
+
+### 1a (original). Show-through from the other side of the leaf — **the biggest single gap**
 
 **What it is.** Paper is not opaque. On any stock under about 90 gsm the ink on
 the *verso* is faintly visible from the recto: not readable, but a soft mottling
@@ -468,7 +500,26 @@ up to **15%** centre-to-edge for a monochrome faceplate at 34% transmittance,
 against 7% for a color tube at 55%) and already available for free as the
 grain's Vignette coverage. Take that half; leave the warp.
 
-**D3. Corner defocus — the cheapest real item on this list.**
+**D3. Corner defocus — SHIPPED 2026-08-23.** Built as specified, including the
+research's ellipticity refinement. Full writeup: [corner-defocus.md](corner-defocus.md).
+Two things this entry did not anticipate, both measured:
+
+- **The mean-preserving normalization must divide out the DEFOCUS and not the
+  BLOOM.** Both scale the same sigma, so the tempting economy is one table axis
+  over their product; it is arithmetically identical inside the integrator and
+  wrong at the normalization, and it softened the raster by 27% AT THE CENTRE.
+- **The effect is sub-code-value at the raster depths this app ships.** The
+  corner's raster peak-to-peak falls 41% (1.79 → 1.05 levels) and the centre's
+  falls exactly 0%, which is the model working — but the whole-frame delta is
+  `max |d| = 1.0` code value, so no honest native-pixel figure can show it. Cost
+  is **+10.3 ms** per dark page turn at 0.42 Mpx and **+23.5 ms** at 1.67 Mpx,
+  extrapolating to ~+42 ms on a phone. Whether that trade is worth making is a
+  live question and the doc states it rather than burying it; turning
+  `cornerDefocusPercent` to 0 costs nothing and keeps the work banked.
+
+*The original entry:*
+
+**D3 (original). Corner defocus — the cheapest real item on this list.**
 *Mechanism:* the corner is further away and the beam lands obliquely, so the
 spot is both larger and **elliptical**. Correction circuits drive focus from a
 signal proportional to **X² + Y²**, which is exactly the shape of the error. The
@@ -570,7 +621,23 @@ cool-retro-term) both use static gradients that do not move with the viewer,
 which is the entire physical point. The phone's actual glass already reflects
 the actual room, correctly and for free.
 
-**D8. The power-off collapsing dot — the one delight I would ship.**
+**D8. The power-off collapsing dot — SHIPPED 2026-08-23**, and it is the one
+item of the three that became a Settings.app row rather than a frozen value:
+turning it on trades the sleep screen for the shutdown, and that is a trade only
+the owner may make. Default OFF. Full writeup:
+[power-off-collapse.md](power-off-collapse.md). The place it goes is not
+`presentIfNeeded` — it is `HalGPIO::startDeepSleep`'s terminal loop, which is
+the only place an animation can run *after* the app is asleep without delaying
+sleep by a millisecond. One measured surprise: **the firmware draws its sleep
+screen in LIGHT polarity even when the reader was dark**, so the obvious
+"is the page dark" gate answers about the sleep screen and the artifact never
+fires; a `lastReadingDarkGround` latch on every non-sleep present is the fix.
+Measured at 1028 ms end to end, and zero cost to a page turn because it never
+runs during one.
+
+*The original entry:*
+
+**D8 (original). The power-off collapsing dot — the one delight I would ship.**
 The sweeps collapse before the cathode is cut off, so the beam concentrates at
 the centre and leaves a bright stationary spot that fades over about a second;
 there are patent families devoted to protecting the phosphor from it. It is
@@ -861,11 +928,11 @@ legibility, and mostly through resampling.
 
 | # | Item | § | Value | Cost | Risk |
 |---|---|---|---|---|---|
-| 1 | Show-through from the verso | 1a | **high** | med-low | low |
+| 1 | ~~Show-through from the verso~~ **SHIPPED 2026-08-23** | 1a | **high** | med-low | low |
 | 2 | Faceplate diffusion (the glass, not the beam) | D1 | **high** | med | med-high |
 | 3 | ~~Sheet-to-sheet color drift~~ **SHIPPED 2026-08-22** | 1c | med-high | **trivial** | low |
 | 4 | ~~Present-path timing instrumentation~~ **SHIPPED 2026-08-22** | 4c | (enabling) | **trivial** | none |
-| 5 | Corner defocus as ellipticity, sigma(r)=sigma0(1+kr^2) | D3 | med | **trivial** | low |
+| 5 | ~~Corner defocus as ellipticity, sigma(r)=sigma0(1+kr^2)~~ **SHIPPED 2026-08-23** | D3 | med | ~~trivial~~ med (a second table axis; +10-24 ms) | low |
 | 6 | Accessibility labels on the drawer | 4b | med | **trivial** | none |
 | 7 | HV sag, 0.5-2%, **transient only** | D4 | med-high | low | med (see the condition) |
 | 8 | Ink spread / dot gain per stock | 1b | med | low | med |
@@ -873,7 +940,7 @@ legibility, and mostly through resampling.
 | 10 | E-ink as a third mode | 4d | **high** | high | med |
 | 11 | Justification stretch limit | T2 | med-high | med | med |
 | 12 | Video-amp horizontal asymmetry, sub-pixel | D5 | med | low | med (fatiguing if visible) |
-| 13 | Power-off collapsing dot at sleep | D8 | low (delight) | low | none |
+| 13 | ~~Power-off collapsing dot at sleep~~ **SHIPPED 2026-08-23** | D8 | low (delight) | low | none |
 | 14 | Corner luminance falloff, 15% (vignette only) | D2 | med-low | **trivial** | none |
 | 15 | Total-fit breaker with hyphen demerits | T1 | **high** | **high** | high |
 | 16 | Laid chain lines + watermark | 1f | med-low | low-med | med (regular field → ST-008) |
@@ -898,7 +965,9 @@ and when it became clear the effect is exactly zero on a static page.
 
 ## 6. Do these three next
 
-**1. Show-through from the other side of the leaf (§1a).** The biggest single
+**1. ~~Show-through from the other side of the leaf (§1a).~~ SHIPPED
+2026-08-23** — see §1a for what the build changed against this design and for
+the measurements. The biggest single
 thing a printed page does that this one does not, and the only paper phenomenon
 that carries *information* rather than texture. `ghostPixels` already holds a
 whole previous framebuffer, the sheet field already takes darken-only

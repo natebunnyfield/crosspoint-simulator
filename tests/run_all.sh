@@ -219,6 +219,32 @@ run letterpress \
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 
+# The 2026-08-23 roadmap items, all three pure headers with the same property:
+# every failure mode is a wrong picture nobody is looking at when it happens.
+#
+# show_through covers the paper item (roadmap 1a) and the per-stock opacity it
+# rides on -- a mirror in the wrong coordinate space, a downsample that samples
+# the dither instead of averaging it (ST-008 through the back door), and a
+# fourth consumer of the paper budget that does not declare its share.
+run show_through \
+  c++ -std=c++17 -Isrc -o "$OUT/show_through" tests/show_through_test.cpp
+
+# corner_defocus covers the dark item (D3), and the claim only a test can make:
+# a defocused corner must lose raster CONTRAST while losing no LIGHT. A field
+# that forgets to divide the widening out of its own normalization lifts the
+# corners instead, which is the page-flash bug class wearing a physics
+# argument. It also pins the ellipse -- an isotropic model passes every other
+# check here and reads as "the corner text is worse".
+run corner_defocus \
+  c++ -std=c++17 -O1 -Isrc -o "$OUT/corner_defocus" tests/corner_defocus_test.cpp
+
+# power_off_collapse covers the sleep animation (D8). Its first frame must be
+# the sleep screen byte for byte -- anything else is a flash at sleep -- and its
+# last must be exactly dark, or a lit dot sits on the glass all night.
+run power_off_collapse \
+  c++ -std=c++17 -Isrc -o "$OUT/power_off_collapse" \
+  tests/power_off_collapse_test.cpp
+
 # Chain and laid lines for a laid paper stock (2026-08-22 paper research). At
 # ~1.9 px the laid pitch is ST-008 territory, so this pins the box-integrated
 # no-beat case the way scanlines_test pins its 2.39 px pitch, plus per-page

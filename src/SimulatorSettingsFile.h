@@ -276,6 +276,33 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   100 = standard (the shipped tube)   200 = strong   400 = extreme
   "scanlineBloomPercent": 100,
 
+  // SHOW-THROUGH from the other side of the leaf, percent of the reference
+  // sheet's. LIGHT mode, and it rides the letterpress sheet pass, so it needs
+  // letterpressPercent above it to be on. The iOS picker multiplies the chosen
+  // STOCK's factor into this (India 3.0x, Kozo 3.7x, a calfskin 0.25x); this
+  // file has no paper picker, so the raw product goes here.
+  //   0 = off (bit-exact, the historical rendering)   100 = the reference sheet
+  //   300 = about what a bible paper does
+  "showThroughPercent": 0,
+
+  // CORNER DEFOCUS: the beam spot grows and turns elliptical off-axis, so the
+  // raster softens toward the corners. DARK mode, and it modulates the
+  // SCANLINE field -- with scanlinesPercent at 0 this does nothing. It softens
+  // without changing the page's mean brightness, so it spends no contrast
+  // budget.
+  //   0 = off (bit-exact)   100 = the shipped tube (corner spot 1.45x,
+  //   astigmatism 1.23 against TG18's 1.5 limit)
+  "cornerDefocusPercent": 0,
+
+  // THE POWER-OFF COLLAPSING DOT: at sleep the picture squeezes to a bright
+  // line, the line closes to a dot, and the dot fades. DARK mode only, and it
+  // leaves the glass BLACK for the rest of the sleep instead of holding the
+  // sleep screen -- which is why it is off by default here and why it is the
+  // one surface dial that is a Settings row on the phone rather than a frozen
+  // value.
+  //   0 = off   1 = on
+  "powerOffCollapse": 0,
+
   // --------------------------------------------------------- PHOSPHOR MIX ---
   // The same mixer the iOS page-color modal drives, through the same math. A
   // mix OWNS the page and its glow while active; panelPalettePreset is ignored.

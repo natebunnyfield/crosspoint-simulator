@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (38 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, the compressed-font container, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (41 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, the compressed-font container, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
 
 ```bash
 tests/run_all.sh
@@ -57,6 +57,9 @@ c++ -std=c++17 -Isrc tests/panel_palette_test.cpp -o /tmp/panel_palette_test && 
 c++ -std=c++17 -Isrc tests/phosphor_grain_test.cpp -o /tmp/phosphor_grain_test && /tmp/phosphor_grain_test
 c++ -std=c++17 -Isrc tests/letterpress_test.cpp -o /tmp/letterpress_test && /tmp/letterpress_test
 c++ -std=c++17 -Isrc tests/scanlines_test.cpp -o /tmp/scanlines_test && /tmp/scanlines_test
+c++ -std=c++17 -Isrc tests/show_through_test.cpp -o /tmp/show_through_test && /tmp/show_through_test
+c++ -std=c++17 -O1 -Isrc tests/corner_defocus_test.cpp -o /tmp/corner_defocus_test && /tmp/corner_defocus_test
+c++ -std=c++17 -Isrc tests/power_off_collapse_test.cpp -o /tmp/poc_test && /tmp/poc_test
 c++ -std=c++17 -Wno-deprecated -Isrc -DCPZ_REPO_ROOT='"'"$PWD"'"' $(python3 tools/fw_include_flags.py) \
   tests/cpz_container_test.cpp <firmware>/lib/miniz/src/InflateStream.cpp \
   <firmware>/lib/Memory/BuildScratch.cpp <firmware>/lib/miniz/src/miniz_impl.c \
@@ -106,6 +109,20 @@ It runs the other way too, and that direction costs a firmware change: a capabil
 - **Presentation policy is keyed on intent, not platform — and on DIRECTION.** `CROSSPOINT_SIM_PIXEL_EXACT` selects `INTEGER_SCALE` + `SCALEMODE_NEAREST`; without it the build gets letterbox + linear filtering. Linear is right at 1:1, where Bayer dither averaging to gray is what e-ink actually looks like; exact pixels are right wherever the panel is scaled **up**, because a fractional scale or a linear filter greys the dither and every rendering judgment made against it is a lie. **Below 1x that argument inverts**, and the code applied it in both directions by omission until 2026-08-15. A 3x render scale does not fit any iPhone's width (1584 framebuffer px against 1260 on an iPhone Air), so the phone MINIFIES — nearest-neighbour then simply does not draw 324 of every 1584 columns, the panel's four grey levels stay four instead of blending into the ~17,000 the geometry could give, and the selection dither's regular grid beats against the sampling lattice at a 21-device-pixel period. That beat is ST-008, and it is one reason the 3x tier was cheap to give up when it was dropped on 2026-08-23. `panelScaleModeFor()` now returns `SDL_SCALEMODE_LINEAR` below 1x and the unchanged `kPanelScaleMode` at or above it; the `[panel]` log line prints which is live. Measured beat amplitude on the `LightGray` fill at 0.7955: nearest 8.14 levels, bilinear 1.55, an exact box filter 0.37, and 0 at 1:1 — which is also why build 75 (2x, presented at exactly 1.0) could not show it and build 76 (3x) must.
 - **`SimulatorOverlay` for chrome outside the panel.** [src/SimulatorOverlay.h](src/SimulatorOverlay.h) is a free hook `presentIfNeeded` calls, deliberately *not* a `HalDisplay` method — the HAL's public surface must mirror the firmware's, and on-screen chrome has no analog on real hardware. The callback runs with logical presentation disabled and receives the real output size, so it can paint the letterboxed margins the panel's logical space cannot reach. `requestPresent()` exists because an e-ink firmware presents rarely, so overlay state changes would otherwise not appear until the next page render.
 - **Panel palette + reserved pad band.** The 1bpp/AA framebuffer presents as tinted ink on tinted paper. The pair is a **dial**, not a constant: definitions, presets, hex parsing and the interpolation live in [src/PanelPalette.h](src/PanelPalette.h), the live pair is two atomics in [src/HalDisplay.cpp](src/HalDisplay.cpp), and hosts set it through `SimulatorOverlay::setPanelPalette` (the iOS Settings app; `CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK}` on desktop). Both polarities default to what this repo always hardcoded — 2D2D2D-on-FBFBF9 light, E0E0DE-on-121212 dark — so a build that never calls the setter is pixel-identical. The dark ramp's ink→paper direction IS the inversion (no separate 255−level flip), and every intermediate gray is LERPED from the two ends, so the 2-bit gray targets need no table and a custom pair still grades — do not hardcode an intermediate. The pad's field is the paper tone (`padpalette::makePaletteOn`), so the pad follows a custom paper and its printed contrast ratios become approximate. `SimulatorOverlay::setBottomInset` reserves a bottom band for chrome: the panel then fits TOP-ALIGNED above the band (manual placement, integer scale preserved under `CROSSPOINT_SIM_PIXEL_EXACT`) and publishes its bottom edge via `panelBottomPx()` — the iOS pad anchors to it. Desktop keeps inset 0 and the plain letterbox path.
+- **The sleep loop draws, and that is where an animation can run without
+  delaying sleep.** `HalGPIO::startDeepSleep` is the firmware's terminal loop,
+  and `SimulatorOverlay::stepPowerOffCollapse()` is stepped from the bottom of
+  it: the firmware has already handed over, every wake check runs first, and a
+  wake mid-animation abandons it on the same iteration. Anything else that wants
+  to draw *after* the app is asleep belongs there and nowhere else --
+  `presentIfNeeded` is never called again. Note it also has to run its own
+  due-screenshot check, or the moment it exists for is the one moment headless
+  QA cannot photograph.
+- **The sleep screen is drawn in LIGHT polarity even when the reader was dark**
+  (measured 2026-08-23: `inverted=0`, paper F9F9F8, on a run whose every page
+  turn built a scanline field). So "is the page dark" asked at sleep time
+  answers about the sleep screen, not about the tube. `lastReadingDarkGround` is
+  latched on every non-sleep present for exactly this reason.
 - **Screen grain is a PRESENT-TIME pass, in device pixels, drawn last.** The
   page's flatness is not a palette problem -- a real tube's screen is a settled
   layer of phosphor crystals with uneven coverage. [src/PhosphorGrain.h](src/PhosphorGrain.h)
@@ -526,8 +543,28 @@ Three settings now decide what the page and the pad look like, all host-side —
 | The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it; the drawer keeps only the ink list, Density and the stock grid | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8 |
 | Laid structure — chain + laid lines for a laid PAPER stock (`lightink::Paper::laid`; Laid Antique today), rides the paper slider, output-space box-integrated (the ~1.9 px laid pitch is ST-008 territory), darken-only, per-page seed | `src/LaidStructure.h`, folded into the sheet field in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LAIDLINES` | `docs/letterpress-and-scanlines.md`, `docs/paper-colorimetry-sources.md` §3c |
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
+| Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 100; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x) | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
+| Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). FROZEN at 100 (TG18 caps the corner astigmatism ratio at 1.5; shipped 1.23) | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture`; `CROSSPOINT_SIM_CORNER_DEFOCUS` | `docs/corner-defocus.md` |
+| Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
+
+**Three dials are frozen and one is a row, and that split is the 2026-08-23
+ruling in miniature.** Show-through and corner defocus each have one obviously
+right value -- one is gated by a stock the owner already picks, the other by a
+published TG18 bound -- so they are frozen constants with no control. The
+collapsing dot has a genuine TRADE (the glass stays dark for the whole sleep
+instead of holding the sleep screen), so it is a Settings.app row and it ships
+OFF. Every surface dial that reached Settings.app before that date was removed
+on it; a new appearance row has to earn itself against that.
+
+**A/B captures of the SCANLINE field must pin `CROSSPOINT_SIM_GRAIN_SEED`.** Its
+phase jitter, thickness jitter and mottle all hang off `grainSeed()`, which is
+re-rolled every launch, so two runs of identical dials differ by ~2.2 code
+values before any dial moves -- larger than corner defocus. And **every arm of a
+page-content A/B must restore the same `fs_/.crosspoint/`**: a run leaves its
+final page position behind, so the next arm starts somewhere else and the
+"effect delta" measures the book. Both cost a wrong reading on 2026-08-23.
 
 **The page-turn flash is COALESCED by default, and is now an owner setting**
 (`Page Turn Flash`, off by default, owner 2026-08-19 — "make that page-turn

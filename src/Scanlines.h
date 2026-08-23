@@ -221,11 +221,28 @@ inline float lineIntegral(float y0, float y1, float c, float sigma) {
 // Transmission of device-pixel row y (covering [y, y+1)) BEFORE normalization:
 // the box integral of every nearby line's profile. `level` is the composed
 // content's brightness under this pixel, 0..1; it widens the spot (bloom).
-inline float rowTransmissionRaw(const Params &p, float y, float level) {
+//
+// `sigmaScale` is the off-axis defocus (src/CornerDefocus.h), a second and
+// independent widening of the same spot. It is a trailing defaulted argument
+// of exactly 1.0f, and a multiply by 1.0f is bit-exact in IEEE arithmetic, so
+// every caller from before defocus existed gets byte-identical numbers.
+inline float rowTransmissionRaw(const Params &p, float y, float level,
+                                float sigmaScale = 1.0f) {
   const float pitch = p.pitchPx;
   if (pitch <= 0.0f) return 1.0f;
   if (level < 0.0f) level = 0.0f;
   if (level > 1.0f) level = 1.0f;
+  if (sigmaScale < 1.0f) sigmaScale = 1.0f;
+  // THE SUMMATION WINDOW IS FIXED AT +/-2 LINES, at every sigma. That is the
+  // historical behaviour and it is deliberately not widened for the defocus,
+  // for two reasons that point the same way. It keeps the OFF path bit-exact
+  // by construction rather than by arithmetic luck; and it is the treatment
+  // BLOOM already gets, so a spot widened by beam current and a spot widened
+  // by deflection are integrated identically instead of one of them silently
+  // costing more. Measured: widening it with the scale cost +93 ms per dark
+  // page turn (the window grows with the product of bloom and defocus, so at
+  // Extreme bloom it reached 27 lines) and moved the corner's mean by under a
+  // twentieth of a code value. docs/corner-defocus.md.
   const int i0 = static_cast<int>(std::floor(y / pitch)) - 2;
   float sum = 0.0f;
   for (int i = i0; i <= i0 + 4; ++i) {
@@ -238,7 +255,7 @@ inline float rowTransmissionRaw(const Params &p, float y, float level) {
                     (uPhase - 0.5f) * 2.0f * p.phaseJitterFrac * pitch;
     float sigma = kSigmaFrac * pitch *
                   (1.0f + (uThick - 0.5f) * 2.0f * p.thickJitter) *
-                  (1.0f + p.bloomGain * level);
+                  (1.0f + p.bloomGain * level) * sigmaScale;
     if (sigma < 1e-4f) sigma = 1e-4f;
     sum += lineIntegral(y, y + 1.0f, c, sigma);
   }
@@ -258,9 +275,20 @@ inline float baseCenterTransmission(float pitchPx) {
 
 // Normalized transmission, 0..1: 1 at a base line centre, small mid-gap,
 // pulled toward 1 everywhere by bloom.
-inline float rowTransmission(const Params &p, float y, float level) {
-  const float t = rowTransmissionRaw(p, y, level) /
-                  baseCenterTransmission(p.pitchPx);
+//
+// THE DEFOCUS DIVIDES OUT, AND THAT IS THE POINT. The period-mean of the raw
+// sum is the area under one line's profile divided by the pitch, which is
+// LINEAR in sigma -- so dividing by sigmaScale leaves the mean where it was and
+// removes only the modulation. Defocus therefore SOFTENS the raster without
+// changing how much light the page loses to it: a corner is blurrier, not
+// brighter and not darker, the 7:1 budget is untouched, and there is no way for
+// this to become the corner-is-lit bug. Without the division a wide spot's
+// integral would simply grow and the corners would read as lifted.
+inline float rowTransmission(const Params &p, float y, float level,
+                             float sigmaScale = 1.0f) {
+  if (sigmaScale < 1.0f) sigmaScale = 1.0f;
+  const float t = rowTransmissionRaw(p, y, level, sigmaScale) /
+                  (baseCenterTransmission(p.pitchPx) * sigmaScale);
   return t > 1.0f ? 1.0f : (t < 0.0f ? 0.0f : t);
 }
 
@@ -298,13 +326,17 @@ inline uint8_t combine(const Params &p, float transmission, int x, int y,
 
 // THE ANSWER: the 0..255 modulate value for one OUTPUT pixel. 255 is
 // untouched; intensity 0 returns 255 everywhere, so OFF is bit-exact.
+//
+// sigmaScale is the off-axis defocus at this pixel, from
+// cornerdefocus::sigmaScaleAt. Defaulted to 1.0f -- the on-axis spot -- so a
+// caller that does not model defocus is unchanged.
 inline uint8_t multiplierAt(const Params &p, int x, int y, int w, int h,
-                            float level) {
+                            float level, float sigmaScale = 1.0f) {
   if (clampIntensity(p.intensityPercent) == kIntensityOff || w <= 0 || h <= 0 ||
       p.pitchPx <= 0.0f)
     return 255;
-  return combine(p, rowTransmission(p, static_cast<float>(y), level), x, y, w,
-                 h);
+  return combine(p, rowTransmission(p, static_cast<float>(y), level, sigmaScale),
+                 x, y, w, h);
 }
 
 }  // namespace scanlines

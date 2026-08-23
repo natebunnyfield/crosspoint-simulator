@@ -1579,6 +1579,15 @@ void HalGPIO::startDeepSleep() {
       }
     }
 
+    // THE POWER-OFF COLLAPSE (roadmap D8, src/PowerOffCollapse.h). Stepped
+    // HERE, at the bottom of the sleep loop, so it can never delay sleep: the
+    // firmware has already handed over, every wake check above runs first, and
+    // a wake arriving mid-collapse abandons it on the same iteration. It
+    // returns false the moment there is nothing left to draw -- disabled, a
+    // light page, or finished -- and then this is one predictable branch per
+    // 10 ms tick for the rest of the sleep.
+    SimulatorOverlay::stepPowerOffCollapse();
+
     SDL_Delay(10);
   }
 }

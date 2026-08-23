@@ -131,6 +131,14 @@ struct Paper {
   // docs/paper-colorimetry-sources.md section 3c). A per-stock flag rather
   // than a name check, so a future laid row inherits the field for free.
   bool laid = false;
+  // OPACITY, as ISO 2471 reports it: the fraction of incident light the sheet
+  // does NOT pass. It is the only field in this struct that is a measurable
+  // absolute rather than a multiple of the reference sheet, because the
+  // quantity it feeds -- show-through from the verso (src/ShowThrough.h) -- is
+  // proportional to what gets THROUGH, 1 - opacity, and a ratio of two
+  // multiples would hide that. Bright White's 0.94 is the reference divisor;
+  // see showThroughScaleFor. Derivation per row: docs/show-through.md.
+  float opacity = 0.94f;
 };
 
 // APPEND ONLY. See the header comment; the stored integer IS the row. Rows 8
@@ -246,14 +254,16 @@ inline constexpr Ink kInks[kInkCount] = {
 
 inline constexpr Paper kPapers[kPaperCount] = {
     {"Bright White", "bright text stock (shipped)", {0xFB, 0xFB, 0xF9}, 1.00f,
-     1.00f, false},
+     1.00f, false, 0.94f},
     {"Cream", "cream trade-book stock", {0xF8, 0xF0, 0xD9}, 1.30f, 1.10f,
-     false},
-    {"Bone", "natural offset", {0xEF, 0xEA, 0xE0}, 1.45f, 1.15f, false},
-    {"Chamois", "aged tan", {0xEC, 0xDA, 0xB7}, 1.80f, 1.30f, false},
+     false, 0.93f},
+    {"Bone", "natural offset", {0xEF, 0xEA, 0xE0}, 1.45f, 1.15f, false,
+     0.94f},
+    {"Chamois", "aged tan", {0xEC, 0xDA, 0xB7}, 1.80f, 1.30f, false, 0.95f},
     {"Press Gray", "cool press stock", {0xE9, 0xEA, 0xEC}, 1.60f, 1.00f,
-     false},
-    {"Sepia Toned", "toned sheet", {0xEE, 0xDF, 0xCC}, 1.50f, 1.20f, false},
+     false, 0.95f},
+    {"Sepia Toned", "toned sheet", {0xEE, 0xDF, 0xCC}, 1.50f, 1.20f, false,
+     0.94f},
     // --- appended 2026-08-22 -------------------------------------------------
     // THE 7:1 FLOOR CONFINES EVERY PAPER TO AN ELEVEN-L* BAND. The shipped
     // Walnut & Bistre ink has relative luminance 0.0458, so a sheet clears the
@@ -266,30 +276,30 @@ inline constexpr Paper kPapers[kPaperCount] = {
     // every pair. Derivation and sources per row: docs/light-ink-picker.md
     // section 9b and docs/paper-colorimetry-sources.md.
     {"India", "Bible paper: thin, warm, smooth", {0xF9, 0xF3, 0xE9}, 1.12f,
-     0.70f, false},
+     0.70f, false, 0.82f},
     // ^ formation 0.70: mineral filler for opacity plus heavy calendering is
     //   what evens a bible sheet's look -- tied lowest with Brightened White.
     {"Vellum", "calfskin, faintly pink", {0xF9, 0xE7, 0xD7}, 1.22f, 0.80f,
-     false},
+     false, 0.985f},
     // ^ formation 0.80: skin, not a fibre suspension -- no headbox flocs, only
     //   the hide's own unevenness, so low rather than zero.
     {"Laid Antique", "handmade laid, no brighteners", {0xE3, 0xDB, 0xCA},
-     1.85f, 1.50f, true},
+     1.85f, 1.50f, true, 0.97f},
     // ^ the table's one laid=true row: chain and laid lines are rendered for
     //   it by src/LaidStructure.h (measured geometry: laid ~1 mm pitch,
     //   chains 26-39 mm apart, chains darker -- Heritage Science 11 (2023);
     //   docs/paper-colorimetry-sources.md section 3c).
     {"Kozo", "unbleached washi: buff, fibrous", {0xEE, 0xE6, 0xC3}, 1.95f,
-     1.90f, false},
+     1.90f, false, 0.78f},
     // ^ the tone's DEPTH (b* +18) is a reconstruction -- measured white kozo
     //   sits at b* +2..+3 -- but the formation claim is instrumental: handmade
     //   kozo scored the worst formation index of ten shoji sheets, 131 vs
     //   60-97 for the machine-made ones (Hirai, Yokoyama & Gunji 2003), which
     //   is why this row tops the formation ladder as well as the tooth one.
     {"Azzurrata", "carta azzurra, blue rag", {0xE0, 0xE0, 0xED}, 1.55f, 1.20f,
-     false},
+     false, 0.96f},
     {"Newsprint", "groundwood news, gray-buff", {0xDE, 0xDC, 0xD3}, 1.70f,
-     1.40f, false},
+     1.40f, false, 0.92f},
     // ^ to measurement precision this IS a real grade: FOGRA48 improved
     //   newsprint (INP) measures Lab 88/0/+2 -> #DEDDD9, within 6 code values
     //   of this row on every channel, and clears the floor (worst ink
@@ -299,7 +309,7 @@ inline constexpr Paper kPapers[kPaperCount] = {
     //   (Norske Skog NorNews, ISO 5631 C/2: a* -1.1, b* +5.3).
     //   Sources: docs/paper-colorimetry-sources.md section 1a.
     {"Brightened White", "OBA-brightened modern stock", {0xEF, 0xF0, 0xFC},
-     1.05f, 0.70f, false},
+     1.05f, 0.70f, false, 0.96f},
     // ^ appended from the 2026-08-22 paper research (G1/I3): FOGRA51's
     //   measured M1 substrate, Lab 95.00/1.50/-6.00 -> #EFF0FC -- the
     //   OBA-brightened stock most modern books are printed on, and the only
@@ -464,6 +474,32 @@ inline float formationScaleFor(int paperIdx, int strengthPct) {
   if (s > kPaperStrengthMax) s = kPaperStrengthMax;
   const float t = static_cast<float>(s) / static_cast<float>(kPaperStrengthMax);
   return base + (stock.formation - base) * t;
+}
+
+// THE STOCK'S SHOW-THROUGH AT THIS STRENGTH -- the third member of the
+// toothScaleFor / formationScaleFor family, and the one derived from a
+// measurable absolute rather than from a chosen ordering.
+//
+// What shows through is what gets THROUGH, so the factor is the ratio of
+// TRANSMISSIONS, (1 - opacity) / (1 - reference opacity), not of opacities. On
+// this table that puts India at 3.0x and Kozo at 3.7x the reference sheet
+// while a calfskin vellum sits at 0.25x -- which is the whole point of the
+// feature: a bible paper's show-through is its defining characteristic and a
+// skin's is nearly absent, and no other field in this file expresses that.
+//
+// Same linear ride on the paper-strength dial as its two twins, and exactly
+// Bright White's 1.0 at strength 0, so the dial takes a stock's thinness away
+// with its tone. Multiplies showthrough::Params::stockScale at the pusher.
+inline float showThroughScaleFor(int paperIdx, int strengthPct) {
+  const float refT = 1.0f - kPapers[kPaperBrightWhite].opacity;
+  if (refT <= 0.0f) return 1.0f;
+  const Paper &stock = kPapers[clampPaperIndex(paperIdx)];
+  int s = strengthPct;
+  if (s < 0) s = 0;
+  if (s > kPaperStrengthMax) s = kPaperStrengthMax;
+  const float t = static_cast<float>(s) / static_cast<float>(kPaperStrengthMax);
+  const float target = (1.0f - stock.opacity) / refT;
+  return 1.0f + (target - 1.0f) * t;
 }
 
 // --- SHEET-TO-SHEET DRIFT --------------------------------------------------

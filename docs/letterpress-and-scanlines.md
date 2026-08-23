@@ -244,6 +244,14 @@ ios app settings as options."* The whole Page Colors group went with them.
 | Scanlines | `scanlinesPercent` | **50** (Subtle) |
 | Scanline Size | `scanlineSizePercent` | **100** (Fine, one line per page row) |
 | Scanline Bloom | `scanlineBloomPercent` | **400** (Extreme) |
+| never a row | `showThroughPercent` | **100** — the light page's verso showing through, gated by the STOCK's own opacity ([show-through.md](show-through.md)) |
+| never a row | `cornerDefocusPercent` | **100** — the dark raster softening off-axis, which MODULATES the scanline field above ([corner-defocus.md](corner-defocus.md)) |
+
+The last two arrived on 2026-08-23 and were frozen at birth rather than
+demoted: each has one obviously right value, so under the ruling above neither
+earned a row. `powerOffCollapse` arrived with them and DID earn one, because it
+trades the sleep screen away and only the owner may make that trade
+([power-off-collapse.md](power-off-collapse.md)).
 
 They are returned by `ios/CrossPointPrefs.mm` **without consulting
 NSUserDefaults**, which is the part that matters and is not the obvious

@@ -1677,6 +1677,31 @@ void pollScanlines() {
   SimulatorOverlay::setScanlineBloom(bloom);
 }
 
+// CORNER DEFOCUS and the POWER-OFF COLLAPSE, the two 2026-08-23 dark-mode
+// items. Frozen and Settings-backed respectively, but both are polled the same
+// way: the toggle can move in Settings.app while the app is foregrounded, and
+// the frozen one still needs its one push. Edge-triggered on the pair, the
+// scanline poll's shape.
+//
+// SHOW-THROUGH IS NOT HERE. It is a paper dial, so it rides
+// CrossPointInkPicker_pushPaperDials with the tooth, the formation and the
+// wires -- the stock's own factor has to multiply into it, and the picker is
+// the one place that knows which stock is chosen.
+void pollDarkSurfaceItems() {
+  static int s_defocus = -1;
+  static int s_collapse = -1;
+  const int defocus = CrossPointPrefs_cornerDefocusPercent();
+  const int collapse = CrossPointPrefs_powerOffCollapse();
+  if (defocus == s_defocus && collapse == s_collapse) return;
+  s_defocus = defocus;
+  s_collapse = collapse;
+  SDL_Log("[crt] corner defocus %d%%%s, power-off collapse %s", defocus,
+          defocus == 0 ? " (off)" : " (dark pages only)",
+          collapse ? "ON -- the glass stays dark through sleep" : "off");
+  SimulatorOverlay::setCornerDefocus(defocus);
+  SimulatorOverlay::setPowerOffCollapse(collapse != 0);
+}
+
 void pollPanelPalette() {
   const panelpalette::Palette panel = currentPanel(g_dark);
   if (packPanel(panel) == g_appliedPanel) return;
@@ -2911,6 +2936,7 @@ void CrossPointHarness_perFrame() {
   pollLetterpress();
   pollPaperTooth();
   pollScanlines();
+  pollDarkSurfaceItems();
   pollReaderInsets();
   pollZenMode();
   pollPadContrast();
