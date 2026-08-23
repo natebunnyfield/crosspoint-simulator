@@ -9,6 +9,26 @@
 #include "ReadAloudChannel.h"
 #include "TextEntryKeyRouting.h"
 
+// A STABLE 64-bit key for a book, from its path. MIRRORS the firmware's
+// lib/hal/HalGPIO.h definition exactly -- this header shadows that one on a
+// simulator build, so the two must agree byte for byte or the same book keys
+// differently on device and off it.
+//
+// FNV-1a spelled out rather than borrowed, because determinism across builds is
+// the whole point: std::hash<std::string> is implementation-defined and libc++
+// and libstdc++ disagree. Consumed by publishReaderPageIdentity below.
+#ifndef CROSSPOINT_READER_BOOK_KEY
+#define CROSSPOINT_READER_BOOK_KEY
+inline uint64_t readerBookKey(const std::string& path) {
+  uint64_t h = 1469598103934665603ull;  // FNV offset basis
+  for (const char c : path) {
+    h ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+    h *= 1099511628211ull;  // FNV prime
+  }
+  return h;
+}
+#endif
+
 // Display SPI pins (custom pins for XteinkX4, not hardware SPI defaults)
 #ifndef EPD_SCLK
 #define EPD_SCLK 8 // SPI Clock
@@ -241,6 +261,29 @@ public:
   // from them instead of calibrated constants). Atomics, because publish runs
   // on the firmware task and the consumer is the main-thread relayout.
   void publishReaderTextInsets(int topPx, int rightPx, int bottomPx, int leftPx);
+
+  // WHICH PAGE OF WHICH BOOK IS ON SCREEN. Firmware-facing half of the same
+  // split as the insets channel above: an inline no-op on device
+  // (lib/hal/HalGPIO.h), a real latch here. Published once per DISPLAYED page
+  // by every reader activity; the host reads it through
+  // SimulatorOverlay::readerPageIdentity().
+  //
+  // WHY THIS EXISTS. The light page's paper is generated, and paper is not a
+  // property of the LAUNCH -- a book is not re-printed when you close it. Both
+  // light-mode fields seed from a hash of these three numbers, so a page you
+  // turn back to is the same sheet, including across a relaunch. See
+  // src/PaperDefects.h and docs/paper-defects.md.
+  //
+  // NOTHING CLEARS THE LATCH, deliberately. Walk out of a book into a menu and
+  // the menu keeps the last page's sheet rather than snapping back to the
+  // launch seed: cheaper (no field rebuild on every menu entry) and truer.
+  // A cold boot that never opens a book has no identity and uses the launch
+  // seed, exactly as before this channel existed.
+  //
+  // Atomics, because publish runs on the firmware task and the consumer is the
+  // main-thread present path.
+  void publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
+                                 int32_t pageInSpine);
 
   // Simulator-only. Schedule a full synthetic button tap — press edge, held
   // level for holdMs, release edge — that fires INSIDE update(), which is

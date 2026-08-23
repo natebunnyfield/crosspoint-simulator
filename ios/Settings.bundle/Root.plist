@@ -177,6 +177,30 @@ Choose Custom to type your own, in the four fields below. They keep whatever you
 			</array>
 		</dict>
 		<dict>
+			<key>FooterText</key>
+			<string>How marked the sheet is. Foxing, red rag flecks, blue marks, brown stains, fly specks and wax spots — the things a book that has been kept somewhere for two hundred years actually carries. Turning it up gives an older book, not a dirtier ink: the marks get commoner, not darker. A mark never sits on a letter, and the whole layer is bounded by what the page can spend without dropping under 7:1.
+
+Left is a fresh sheet. The light-mode page-color drawer has this same slider, and moves with it.</string>
+			<key>Title</key>
+			<string>Paper Defects</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>30</integer>
+			<key>Key</key>
+			<string>paperDefectsPercent</string>
+			<key>Title</key>
+			<string>Paper Defects</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+			<key>MinimumValue</key>
+			<integer>0</integer>
+			<key>MaximumValue</key>
+			<integer>100</integer>
+		</dict>
+		<dict>
 			<key>DefaultValue</key>
 			<integer>50</integer>
 			<key>Key</key>

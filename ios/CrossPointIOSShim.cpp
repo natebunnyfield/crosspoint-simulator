@@ -100,6 +100,12 @@ extern "C" void CrossPointInkPicker_applyForTest(int ink, int paper,
 // pollPaperTooth below -- the picker may never be opened and the paper still
 // has a texture.
 extern "C" int CrossPointInkPicker_paperToothPercent(void);
+// ...and the rest of the paper instrument, same argument one step further: the
+// drawer may never be opened, and Settings.app can move the Defects row without
+// the drawer ever coming up. The signature is a cheap change detector so the
+// poll stays edge-triggered.
+extern "C" void CrossPointInkPicker_pushPaperDials(void);
+extern "C" uint32_t CrossPointInkPicker_paperDialSignature(void);
 // Zen's motion gestures are native UIKit recognizers now
 // (CrossPointZenRecognizers.mm); enabled only while zen is on.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
@@ -1635,12 +1641,16 @@ void pollLetterpress() {
 // alternative is a sheet that wears the reference stock's tooth until someone
 // opens the modal.
 void pollPaperTooth() {
-  static int s_applied = -1;
-  const int pct = CrossPointInkPicker_paperToothPercent();
-  if (pct == s_applied) return;
-  s_applied = pct;
-  SDL_Log("[letterpress] sheet tooth %d%% of the reference stock", pct);
-  SimulatorOverlay::setPaperTooth(pct);
+  static uint32_t s_applied = 0;
+  static bool s_seeded = false;
+  const uint32_t sig = CrossPointInkPicker_paperDialSignature();
+  if (s_seeded && sig == s_applied) return;
+  s_applied = sig;
+  s_seeded = true;
+  // The picker logs the whole composition -- it is the one place that knows
+  // every dial, and duplicating the read here is the shape that lets the log
+  // and the applied values drift apart.
+  CrossPointInkPicker_pushPaperDials();
 }
 
 // Intensity, pitch size AND bloom, edge-triggered on the TRIPLE: the last two

@@ -7,6 +7,7 @@
 
 #include "GrayscalePreview.h"
 #include "Letterpress.h"
+#include "PaperDefects.h"
 #include "PageFade.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
@@ -1002,6 +1003,23 @@ static std::atomic<int> letterpressStrength{letterpress::kStrengthOff};
 // lightink::toothScaleFor(). 100 is the shipped Bright White, so a build that
 // never calls the setter draws the tooth it always drew.
 static std::atomic<int> paperToothPct{100};
+// THE REST OF THE PAPER INSTRUMENT (owner order 2026-08-22: "make tooth,
+// formation, pressure and all other paper variables sliders in the color
+// button drawer"). Every one of these seeds at the value that reproduces what
+// this repo already drew, so a desktop build -- which calls none of the
+// setters -- is byte-identical.
+//
+// Formation is the exception worth naming: the SHEET pass has always passed
+// letterpress::kFormationDepthDefault, so that, and not 0, is the unchanged
+// value here.
+static std::atomic<int> paperFormationPct{
+    static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)};
+static std::atomic<int> paperDefectsPct{paperdefects::kDialOff};
+// The press's three PART ratios, as percents of the standard press. 100 is the
+// shipped composition, so an unseeded build renders exactly what it did.
+static std::atomic<int> pressRingPct{100};
+static std::atomic<int> pressDebossPct{100};
+static std::atomic<int> pressPressurePct{100};
 static std::atomic<int> scanlinesIntensity{scanlines::kIntensityOff};
 // The raster's PITCH, as a percent of the source-row pitch. kSizeFine (100) is
 // one line per page row -- build 126's only behaviour -- so an unseeded build
@@ -1097,6 +1115,67 @@ void setPaperTooth(int percentOfReference) {
   if (pct < 0) pct = 0;
   if (pct > 400) pct = 400;
   if (paperToothPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+// The rest of the paper instrument. All five share one shape, and it is the
+// grain's: strtol with the end pointer checked (atoi answers 0 for garbage, and
+// 0 is a real setting for every one of these), clamp through the pure model,
+// store, and ask for a present because an e-ink firmware may not render again
+// for minutes and the owner just moved a slider.
+static int envPercentOr(const char *name, int fallback) {
+  if (const char *env = std::getenv(name)) {
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) return static_cast<int>(parsed);
+  }
+  return fallback;
+}
+
+void setPaperFormation(int depthPercent) {
+  depthPercent = envPercentOr("CROSSPOINT_SIM_PAPER_FORMATION", depthPercent);
+  const int pct = static_cast<int>(
+      letterpress::clampFormationDepth(static_cast<float>(depthPercent) /
+                                       100.0f) * 100.0f + 0.5f);
+  if (paperFormationPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+void setPaperDefects(int dialPercent) {
+  dialPercent = envPercentOr("CROSSPOINT_SIM_PAPER_DEFECTS", dialPercent);
+  const int pct = paperdefects::clampDial(dialPercent);
+  if (paperDefectsPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+static int clampPartPercent(int pct) {
+  const int cap =
+      static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f);
+  if (pct < 0) return 0;
+  return pct > cap ? cap : pct;
+}
+
+void setPressRing(int percentOfStandard) {
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_PRESS_RING", percentOfStandard);
+  const int pct = clampPartPercent(percentOfStandard);
+  if (pressRingPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+void setPressDeboss(int percentOfStandard) {
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_PRESS_DEBOSS", percentOfStandard);
+  const int pct = clampPartPercent(percentOfStandard);
+  if (pressDebossPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+void setPressPressure(int percentOfStandard) {
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_PRESS_PRESSURE", percentOfStandard);
+  const int pct = clampPartPercent(percentOfStandard);
+  if (pressPressurePct.exchange(pct) == pct) return;
   pendingPresent.store(true);
 }
 
@@ -1392,6 +1471,17 @@ void HalDisplay::begin() {
     // The 2026-08-22 doctrine dials, at the iOS defaults: letterpress Subtle
     // for light, scanlines Subtle for dark.
     SimulatorOverlay::setLetterpress(50);
+    // ...and the paper instrument's own shipped defaults. The desktop seeds
+    // every one of these at "what this repo already drew" so the canary stays
+    // byte-identical; the app ships a sheet with formation and marks on it, and
+    // rebuilding that by hand from five env vars is exactly the drift this
+    // switch exists to stop.
+    SimulatorOverlay::setPaperFormation(static_cast<int>(
+        letterpress::kFormationDepthDefault * 100.0f + 0.5f));
+    SimulatorOverlay::setPaperDefects(paperdefects::kDialDefault);
+    SimulatorOverlay::setPressRing(100);
+    SimulatorOverlay::setPressDeboss(100);
+    SimulatorOverlay::setPressPressure(100);
     SimulatorOverlay::setScanlines(50);
     SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
     SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
@@ -1811,6 +1901,56 @@ static float srgbLumOf(const unsigned char c[3]) {
   return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
 }
 
+// --- THE PAGE'S OWN SEED ---------------------------------------------------
+//
+// A SHEET IS NOT A SCREEN. grainSeed() is deliberately re-rolled every launch
+// (and across the iOS in-process reboot) because two runs of the app are two
+// tubes -- and that is exactly wrong for paper. A book is not re-printed when
+// you close it, so a page you turn back to must be the same sheet, including
+// after a relaunch.
+//
+// So the LIGHT page's two fields seed from the page's IDENTITY, published by
+// every reader activity through HalGPIO::publishReaderPageIdentity. NOTE what
+// is NOT in the hash: grainSeed(). Mixing it in would leave the field differing
+// per page AND per launch, which looks like the feature and is not it.
+//
+// No identity published (a cold boot into a menu, Settings, anything that is
+// not a reader) falls back to the launch seed, exactly as before this existed.
+// Nothing clears the latch, so walking out of a book keeps the last page's
+// paper rather than snapping to a launch seed -- see HalGPIO.h.
+//
+// This is provable because in light mode with letterpress on the grain pass is
+// SKIPPED (see presentIfNeeded), so a light page is fully determined by this
+// number and nothing else random survives. docs/paper-defects.md.
+static uint32_t pageSheetSeed() {
+  uint64_t bookKey = 0;
+  int spine = 0, page = 0;
+  if (!SimulatorOverlay::readerPageIdentity(bookKey, spine, page))
+    return grainSeed() ^ 0x50524553u;  // 'PRES', the pre-identity behaviour
+  return phosphorgrain::hash3(static_cast<uint32_t>(bookKey & 0xFFFFFFFFu),
+                              static_cast<uint32_t>(bookKey >> 32) ^
+                                  static_cast<uint32_t>(spine),
+                              static_cast<uint32_t>(page));
+}
+
+// THE PAGE'S INKNESS, hoisted out of ensureLetterpressTexture so the SHEET pass
+// can mask its defects against the glyphs (a mark never sits on a letter: ink
+// is printed ON the paper). It was a function-local vector in PANEL space; the
+// sheet is built in OUTPUT space, so the sheet pass also needs the inverse of
+// the presentation transform -- outputToPanel(), below.
+//
+// Published rather than recomputed because the two passes run in the SAME
+// present, panel first: ensureLetterpressTexture writes it, ensureSheetTooth
+// Texture reads whatever is current. That snapshot is keyed to pixelBufSeq,
+// which increments TWICE per displayed page (the 1-bit pass, then the AA
+// compose), so the sheet masks against the first pass's glyph shapes while the
+// compose paints slightly softer edges -- a sub-pixel difference at glyph
+// boundaries, under a mask that is already a fade. Keying the sheet on the seq
+// instead would regenerate a ~3.4 Mpx field twice per page turn, which is the
+// cost this arrangement exists to avoid.
+static std::vector<uint8_t> sheetInkness;
+static int sheetInknessW = 0, sheetInknessH = 0;
+
 // --- LETTERPRESS (light mode) ----------------------------------------------
 //
 // A MOD texture at FRAMEBUFFER size, drawn through the same rotation and dst
@@ -1845,7 +1985,7 @@ static bool ensureLetterpressTexture() {
     return false;
   }
   const PanelPalette live = livePanelPalette(display.isInverted());
-  const uint32_t seed = grainSeed() ^ 0x50524553u;  // 'PRES'
+  const uint32_t seed = pageSheetSeed();
   const uint32_t palKey =
       phosphorgrain::hash3(static_cast<uint32_t>(live.ink[0]) << 16 |
                                static_cast<uint32_t>(live.ink[1]) << 8 |
@@ -1886,13 +2026,26 @@ static bool ensureLetterpressTexture() {
     }
   }
 
-  destroyLetterpressTexture();
-  letterpressTexture =
-      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                        SDL_TEXTUREACCESS_STATIC, w, h);
-  if (!letterpressTexture) {
-    LOG_ERR("DISP", "letterpress: no field texture (%s)", SDL_GetError());
-    return false;
+  // Hand the snapshot to the sheet pass before anything can fail below: the
+  // defect mask wants the CURRENT glyphs even on a frame where the texture
+  // upload goes wrong.
+  sheetInkness = inkness;
+  sheetInknessW = w;
+  sheetInknessH = h;
+
+  // REUSED, not destroyed and recreated. The field is per-PAGE now, so this
+  // runs on every page turn rather than on a dial change; a STATIC texture of
+  // ~3.4 Mpx destroyed and reallocated per turn is a driver allocation nobody
+  // asked for. Only a size change needs a new texture.
+  if (!letterpressTexture || letterTexW != w || letterTexH != h) {
+    destroyLetterpressTexture();
+    letterpressTexture =
+        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                          SDL_TEXTUREACCESS_STATIC, w, h);
+    if (!letterpressTexture) {
+      LOG_ERR("DISP", "letterpress: no field texture (%s)", SDL_GetError());
+      return false;
+    }
   }
   letterpress::Params params;
   params.strengthPercent = strength;
@@ -1908,6 +2061,16 @@ static bool ensureLetterpressTexture() {
   // carried by ink or its edges (ring, deboss, pressure, in-stroke), all of
   // which are zero on flat paper, so the panel boundary contributes nothing.
   params.includeTooth = false;
+  // The press's three PARTS, from the drawer's Press group. Composed
+  // multiplicatively with the master strength above, so each quantity has one
+  // stored value; 100% each is the shipped composition.
+  params.ringScale =
+      static_cast<float>(SimulatorOverlay::pressRingPct.load()) / 100.0f;
+  params.debossScale =
+      static_cast<float>(SimulatorOverlay::pressDebossPct.load()) / 100.0f;
+  params.pressScale =
+      static_cast<float>(SimulatorOverlay::pressPressurePct.load()) / 100.0f;
+  const uint64_t letterT0 = SDL_GetTicksNS();
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   auto tAt = [&](int x, int y) {
     if (x < 0) x = 0;
@@ -1944,25 +2107,63 @@ static bool ensureLetterpressTexture() {
   letterTexKey = palKey;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
-      SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f",
+      SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f "
+              "in %.1f ms",
               w, h, strength, seed,
-              static_cast<double>(params.paperDarkenBudget));
+              static_cast<double>(params.paperDarkenBudget),
+              static_cast<double>(SDL_GetTicksNS() - letterT0) / 1.0e6);
   return true;
 }
 
-// --- SHEET TOOTH (light mode) ----------------------------------------------
+// --- THE SHEET (light mode) ------------------------------------------------
 //
-// The paper-tooth half of the letterpress, at OUTPUT size, drawn 1:1 over the
-// whole app surface -- the one-sheet ruling, applied to paper (owner
-// 2026-08-22: "make sure panel and paper actually match visually, in color
-// and texture with light mode"). Content-independent by construction (a pure
-// hash of output coordinates), so it regenerates only when the size, the dial
-// or the palette budget changes -- never per page.
+// The paper half of the letterpress, at OUTPUT size, drawn 1:1 over the whole
+// app surface -- the one-sheet ruling applied to paper (owner 2026-08-22:
+// "make sure panel and paper actually match visually, in color and texture
+// with light mode"). It carries TWO things: the sheet's tooth, and the marks
+// the sheet itself carries (src/PaperDefects.h -- foxing, red rag flecks, blue
+// marks, brown stains, fly specks, wax spots).
+//
+// THIS COMMENT USED TO SAY "never per page", and both halves of that sentence
+// are now the opposite (owner order 2026-08-22, the per-page paper work). It
+// was:
+//
+//     Content-independent by construction (a pure hash of output coordinates),
+//     so it regenerates only when the size, the dial or the palette budget
+//     changes -- never per page.
+//
+// The field is now CONTENT-DEPENDENT (defects are masked by the page's inkness,
+// because a mark never sits on a glyph) and PER-PAGE (its seed is the page's
+// identity, so a page you turn back to is the same sheet -- see pageSheetSeed
+// above and docs/paper-defects.md). Exactly ONE rebuild per displayed page: the
+// cache key folds the page seed, and NOT pixelBufSeq, which increments twice
+// per page and would rebuild a ~3.4 Mpx field twice per turn.
+//
+// The rebuild is two passes: the tooth per pixel as before, then each mark over
+// its OWN bounding box. The extra cost is proportional to the marks' area, not
+// the sheet's, which is what makes a per-page rebuild affordable at all. The
+// texture is REUSED across rebuilds and destroyed only on a size change, for
+// the same reason.
 static SDL_Texture *sheetToothTexture = nullptr;
 static int sheetTexW = 0, sheetTexH = 0;
 static int sheetTexStrength = -1;
 static int sheetTexTooth = -1;
+static int sheetTexFormation = -1;
+static int sheetTexDefects = -1;
 static uint32_t sheetTexKey = 0;
+
+// The PRESENTED page rect in OUTPUT pixels, plus the orientation it was
+// presented in -- what outputToPanel below inverts.
+//
+// F2: on the desktop these were never computed. manualPlacement is
+// `inset > 0 || topBand > 0` and the desktop keeps both at 0, so only the iOS
+// path ever filled the panel rect; the letterbox branch works in LOGICAL units
+// (which is right for the beam's clip rect, and wrong for a field drawn with
+// logical presentation disabled). So the letterbox branch fills these from
+// SDL_GetRenderLogicalPresentationRect instead, which is the same rect in real
+// output pixels. Publishing geometry only; it changes no drawing.
+static int sheetPanelX = 0, sheetPanelY = 0, sheetPanelW = 0, sheetPanelH = 0;
+static int sheetPanelOrientation = GfxRenderer::Portrait;
 
 static void destroySheetToothTexture() {
   if (!sheetToothTexture) return;
@@ -1971,7 +2172,72 @@ static void destroySheetToothTexture() {
   sheetTexW = sheetTexH = 0;
   sheetTexStrength = -1;
   sheetTexTooth = -1;
+  sheetTexFormation = -1;
+  sheetTexDefects = -1;
   sheetTexKey = 0;
+}
+
+// OUTPUT PIXEL -> FRAMEBUFFER PIXEL. The inverse of the presentation, and it is
+// not a scale: drawPanel rotates the landscape framebuffer by 90 / -90 / 180
+// depending on orientation, about the dst rect's centre.
+//
+// Derived rather than fitted. A clockwise quarter turn sends framebuffer pixel
+// (x, y) to (kH-1-y, x) in the presented image, so the inverse of a presented
+// normalized (u, v) is fbX = v*kW, fbY = (1-u)*kH; counter-clockwise is the
+// same relation the other way round, and 180 is a double flip.
+//
+// Returns false when the point is outside the presented page -- which is bare
+// SHEET (the card, the pad, the bezel), inkness 0, full defect. That is the
+// correct physics under the one-sheet ruling and it is what stops a mark
+// halting dead at the page's edge.
+static bool outputToPanel(int ox, int oy, int &fx, int &fy) {
+  if (sheetPanelW <= 0 || sheetPanelH <= 0) return false;
+  const float u = (static_cast<float>(ox) + 0.5f -
+                   static_cast<float>(sheetPanelX)) /
+                  static_cast<float>(sheetPanelW);
+  const float v = (static_cast<float>(oy) + 0.5f -
+                   static_cast<float>(sheetPanelY)) /
+                  static_cast<float>(sheetPanelH);
+  if (u < 0.0f || u >= 1.0f || v < 0.0f || v >= 1.0f) return false;
+  const float kW = static_cast<float>(HalDisplay::activeWidth());
+  const float kH = static_cast<float>(HalDisplay::activeHeight());
+  float fxf = 0.0f, fyf = 0.0f;
+  switch (sheetPanelOrientation) {
+  case GfxRenderer::Portrait:
+    fxf = v * kW;
+    fyf = (1.0f - u) * kH;
+    break;
+  case GfxRenderer::PortraitInverted:
+    fxf = (1.0f - v) * kW;
+    fyf = u * kH;
+    break;
+  case GfxRenderer::LandscapeClockwise:
+    fxf = (1.0f - u) * kW;
+    fyf = (1.0f - v) * kH;
+    break;
+  default:
+    fxf = u * kW;
+    fyf = v * kH;
+    break;
+  }
+  fx = static_cast<int>(fxf);
+  fy = static_cast<int>(fyf);
+  if (fx < 0) fx = 0;
+  if (fy < 0) fy = 0;
+  if (fx >= sheetInknessW) fx = sheetInknessW - 1;
+  if (fy >= sheetInknessH) fy = sheetInknessH - 1;
+  return true;
+}
+
+// Inkness at an OUTPUT pixel: 0 on bare sheet, 1 under solid ink.
+static float sheetInknessAt(int ox, int oy) {
+  if (sheetInkness.empty() || sheetInknessW <= 0 || sheetInknessH <= 0)
+    return 0.0f;
+  int fx = 0, fy = 0;
+  if (!outputToPanel(ox, oy, fx, fy)) return 0.0f;
+  return static_cast<float>(
+             sheetInkness[static_cast<size_t>(fy) * sheetInknessW + fx]) /
+         255.0f;
 }
 
 static bool ensureSheetToothTexture(int w, int h) {
@@ -1981,33 +2247,41 @@ static bool ensureSheetToothTexture(int w, int h) {
     return false;
   }
   const int toothPct = SimulatorOverlay::paperToothPct.load();
+  const int formationPct = SimulatorOverlay::paperFormationPct.load();
+  const int defectsPct = SimulatorOverlay::paperDefectsPct.load();
   const PanelPalette live = livePanelPalette(display.isInverted());
   letterpress::Params params;
   params.strengthPercent = strength;
-  params.seed = grainSeed() ^ 0x50524553u;  // 'PRES', same pressing as the panel
+  params.seed = pageSheetSeed();  // 'PRES' lane folded into the page identity
   params.paperDarkenBudget =
       letterpress::paperBudget(srgbLumOf(live.ink), srgbLumOf(live.paper));
   // The STOCK's roughness and the sheet's cloudiness -- the paper half of the
   // 2026-08-22 picker. Both live on the sheet pass alone: the panel field's
   // components are carried by ink, and paper is not a property of ink.
   params.toothScale = static_cast<float>(toothPct) / 100.0f;
-  params.formationDepth = letterpress::kFormationDepthDefault;
+  params.formationDepth = static_cast<float>(formationPct) / 100.0f;
   const uint32_t key = phosphorgrain::hash3(
       static_cast<uint32_t>(live.paper[0]) << 16 |
           static_cast<uint32_t>(live.paper[1]) << 8 | live.paper[2],
       static_cast<uint32_t>(params.paperDarkenBudget * 65535.0f), params.seed);
   if (sheetToothTexture && sheetTexW == w && sheetTexH == h &&
       sheetTexStrength == strength && sheetTexTooth == toothPct &&
+      sheetTexFormation == formationPct && sheetTexDefects == defectsPct &&
       sheetTexKey == key)
     return true;
-  destroySheetToothTexture();
-  sheetToothTexture =
-      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                        SDL_TEXTUREACCESS_STATIC, w, h);
-  if (!sheetToothTexture) {
-    LOG_ERR("DISP", "sheet tooth: no field texture (%s)", SDL_GetError());
-    return false;
+  // REUSED across rebuilds -- see the block comment. Only a size change costs a
+  // new texture, because this now runs once per PAGE.
+  if (!sheetToothTexture || sheetTexW != w || sheetTexH != h) {
+    destroySheetToothTexture();
+    sheetToothTexture =
+        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                          SDL_TEXTUREACCESS_STATIC, w, h);
+    if (!sheetToothTexture) {
+      LOG_ERR("DISP", "sheet: no field texture (%s)", SDL_GetError());
+      return false;
+    }
   }
+  const uint64_t t0 = SDL_GetTicksNS();
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
@@ -2017,10 +2291,47 @@ static bool ensureSheetToothTexture(int w, int h) {
       row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
     }
   }
+
+  // THE MARKS. Folded into the SAME field, per channel: MOD multiplies channels
+  // independently, so a brown foxing spot is legal and still strictly
+  // darkening. Their budget is what the tooth LEFT (letterpress::
+  // remainingPaperBudget, which reproduces the tooth's CONDITIONAL clamp), and
+  // paperdefects::generate scales every mark's depth to fit it -- so the
+  // composite cannot breach the palette's contrast floor by construction.
+  paperdefects::Params dp;
+  dp.dialPercent = defectsPct;
+  dp.seed = params.seed;
+  dp.remainingBudget = letterpress::remainingPaperBudget(params);
+  paperdefects::Mark marks[paperdefects::kMaxMarks];
+  const int markCount = paperdefects::generate(dp, w, h, marks);
+  for (int k = 0; k < markCount; ++k) {
+    int x0, y0, x1, y1;
+    if (!paperdefects::bounds(marks[k], w, h, x0, y0, x1, y1)) continue;
+    for (int y = y0; y < y1; ++y) {
+      uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+      for (int x = x0; x < x1; ++x) {
+        float mult[3];
+        if (!paperdefects::multiplierAt(marks[k], x, y, mult)) continue;
+        // INK MASKS DEFECTS: ink is printed ON the paper, so a mark fades to
+        // nothing under a glyph. This is also what protects legibility at every
+        // dial setting.
+        paperdefects::applyInkMask(mult, sheetInknessAt(x, y));
+        const uint32_t px = row[x];
+        auto fold = [](uint32_t base, float f) {
+          const int v = static_cast<int>(static_cast<float>(base) * f + 0.5f);
+          return static_cast<uint32_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+        };
+        row[x] = 0xFF000000u |
+                 (fold((px >> 16) & 0xFF, mult[0]) << 16) |
+                 (fold((px >> 8) & 0xFF, mult[1]) << 8) |
+                 fold(px & 0xFF, mult[2]);
+      }
+    }
+  }
+
   if (!SDL_UpdateTexture(sheetToothTexture, nullptr, field.data(),
                          static_cast<int>(w * sizeof(uint32_t)))) {
-    LOG_ERR("DISP", "sheet tooth: could not upload the field (%s)",
-            SDL_GetError());
+    LOG_ERR("DISP", "sheet: could not upload the field (%s)", SDL_GetError());
     destroySheetToothTexture();
     return false;
   }
@@ -2031,7 +2342,18 @@ static bool ensureSheetToothTexture(int w, int h) {
   sheetTexH = h;
   sheetTexStrength = strength;
   sheetTexTooth = toothPct;
+  sheetTexFormation = formationPct;
+  sheetTexDefects = defectsPct;
   sheetTexKey = key;
+  // A PER-PAGE rebuild is exactly when this wants instrumenting: without a
+  // number here, "does the paper cost a page turn" is guesswork.
+  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    if (e[0] == '1')
+      SDL_Log("[sheet] field %dx%d seed %u tooth %d%% formation %d%% "
+              "defects %d%% (%d marks, budget left %.4f) in %.1f ms",
+              w, h, params.seed, toothPct, formationPct, defectsPct, markCount,
+              static_cast<double>(dp.remainingBudget),
+              static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6);
   return true;
 }
 
@@ -2571,6 +2893,15 @@ void HalDisplay::presentIfNeeded() {
     panelRectY = panelPxY;
     panelRectW = panelPxW;
     panelRectH = panelPxH;
+    // ...and the same rect for the SHEET pass, which draws in output pixels
+    // with logical presentation disabled and has to invert this transform to
+    // find the page's ink. Same numbers on this path; the letterbox branch
+    // below recovers them from SDL instead.
+    sheetPanelX = panelPxX;
+    sheetPanelY = panelPxY;
+    sheetPanelW = panelPxW;
+    sheetPanelH = panelPxH;
+    sheetPanelOrientation = orientation;
     SimulatorOverlay::panelBottom.store(panelPxY + panelPxH);
     SimulatorOverlay::panelHeight.store(panelPxH);
     SimulatorOverlay::panelLeft.store(panelPxX);
@@ -2712,6 +3043,25 @@ void HalDisplay::presentIfNeeded() {
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);
     visible = {0, 0, logW, logH};
+    // THE SAME RECT IN OUTPUT PIXELS, for the sheet pass. `visible` is in
+    // LOGICAL units here -- correct for the beam's clip, which is applied in
+    // the current render coordinate space -- but the sheet is drawn with
+    // logical presentation disabled, so it needs the real letterboxed rect.
+    // Without this the desktop divided by a zero panel width (F2: the four
+    // panelRect values were only ever filled on the manual/iOS path).
+    SDL_FRect present = {0.0f, 0.0f, 0.0f, 0.0f};
+    if (SDL_GetRenderLogicalPresentationRect(sdl_renderer, &present) &&
+        present.w > 0.0f && present.h > 0.0f) {
+      sheetPanelX = static_cast<int>(present.x);
+      sheetPanelY = static_cast<int>(present.y);
+      sheetPanelW = static_cast<int>(present.w);
+      sheetPanelH = static_cast<int>(present.h);
+    } else {
+      sheetPanelX = sheetPanelY = 0;
+      sheetPanelW = logW;
+      sheetPanelH = logH;
+    }
+    sheetPanelOrientation = orientation;
   }
 
   if (beamSweeping) {

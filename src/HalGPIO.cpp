@@ -1317,6 +1317,41 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
 }
 } // namespace SimulatorOverlay
 
+// --- Reader page identity ----------------------------------------------------
+//
+// Published by every reader activity once per DISPLAYED page, in the same place
+// and for the same reason as the read-aloud capture: that call site IS the
+// commitment that this page is the one on screen. `readerPageValid` separates
+// "no book has rendered yet" (a boot into a menu, which keeps the launch seed)
+// from a published zero, which is a real page.
+//
+// Plain atomics, like the insets beside them, and the same argument: a torn
+// read across two publishes of the SAME page is impossible because the three
+// values only change together at a page turn, and a torn read across a page
+// turn costs one frame of the previous page's paper.
+static std::atomic<bool> readerPageValid{false};
+static std::atomic<uint64_t> readerBookKeyValue{0};
+static std::atomic<int> readerSpineIndex{0}, readerPageInSpine{0};
+
+void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
+                                        int32_t pageInSpine) {
+  readerBookKeyValue.store(bookKey);
+  readerSpineIndex.store(static_cast<int>(spineIndex));
+  readerPageInSpine.store(static_cast<int>(pageInSpine));
+  readerPageValid.store(true);
+}
+
+namespace SimulatorOverlay {
+bool readerPageIdentity(uint64_t &bookKey, int &spineIndex, int &pageInSpine) {
+  if (!readerPageValid.load())
+    return false;
+  bookKey = readerBookKeyValue.load();
+  spineIndex = readerSpineIndex.load();
+  pageInSpine = readerPageInSpine.load();
+  return true;
+}
+} // namespace SimulatorOverlay
+
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
   if (buttonIndex >= NUM_BUTTONS)
     return;

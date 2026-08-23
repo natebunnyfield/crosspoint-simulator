@@ -39,10 +39,16 @@
 // rectangle was in reverse. Content-locked and aperiodic, so scaling with the
 // panel cannot moire.
 //
-// ONE DIAL. Ring and deboss scale linearly together -- they are the same
+// ONE MASTER DIAL. Ring and deboss scale linearly together -- they are the same
 // physical variable, packing pressure -- and the paper's tooth rides at HALF
 // proportion (sqrt of the dial): a harder press does not make the paper
 // toothier. 0 is bit-exact off. Persisted as the meaningful percent.
+//
+// ...with THREE PART RATIOS riding on it (p.ringScale / p.debossScale /
+// p.pressScale, owner order 2026-08-22 with the paper instrument). The master
+// stays the Settings.bundle row; the parts are the drawer's Press group. They
+// compose multiplicatively, so each quantity has exactly one stored value and
+// neither control is a second authority over the other. All default to 1.0.
 //
 // ...but the tooth has a SECOND input, and it is not the press: which paper
 // this is. p.toothScale carries the stock's own roughness (owner order
@@ -80,6 +86,22 @@ constexpr float kToothAt100 = 0.03f;   // paper tooth amplitude (rides sqrt)
 // Blotches across the page long edge for the pressure field. A texture-scale
 // property like the grain's mottle cells, not a taste dial.
 constexpr int kPressCells = 4;
+
+// THE PART RATIOS' CEILING, and it is not a taste number -- it is the
+// no-new-worst-case bound. The master dial's top OFFERED rung is 200 (Heavy)
+// and clampStrength's ceiling is kStrengthMax = 400, so a part ratio of 2.0 on
+// the heaviest offered press lands exactly on a state the master ladder could
+// already reach on its own. Any state the drawer can select, the shipped
+// Letterpress row could already select; tests/paper_defects_test.cpp proves it
+// term by term rather than leaving it as this paragraph.
+constexpr float kPartScaleMax = 2.0f;
+constexpr int kOfferedStrengthMax = 200;
+
+inline float clampPartScale(float s) {
+  if (!(s > 0.0f)) return 0.0f;  // also catches NaN
+  if (s > kPartScaleMax) return kPartScaleMax;
+  return s;
+}
 
 // --- THE SHEET'S FORMATION -------------------------------------------------
 //
@@ -165,12 +187,79 @@ struct Params {
   // amplitude, +/- this fraction. 0 is bit-exact "no formation", and is the
   // default so the model's old renderings are unchanged.
   float formationDepth = 0.0f;
+  // THE PRESS'S THREE PARTS, as multiples of the constants above (owner order
+  // 2026-08-22, with the paper instrument: "make tooth, formation, pressure
+  // and all other paper variables sliders"). kRingAt100, kDebossAt100 and
+  // kPressAt100 are the STANDARD press; these are the per-component ratios the
+  // drawer dials, composing multiplicatively with the master strength dial so
+  // there is exactly one stored value per quantity and no duplicate authority.
+  //
+  // All three default to 1.0, so every pre-existing caller and every existing
+  // rendering is bit-exact. APPENDED, never inserted, for the same reason the
+  // preset integers are append-only: the aggregate initialisers in
+  // tests/letterpress_test.cpp are positional.
+  //
+  // kPressCells is NOT among them and stays a constant -- cells are texture
+  // scale, and a dial on them would be decoration (owner ruling, same order).
+  float ringScale = 1.0f;
+  float debossScale = 1.0f;
+  float pressScale = 1.0f;
 };
+
+// A non-negative scale, NaN included. The three press ratios and the tooth
+// scale all take this: a negative multiplier would turn a darkening into a
+// lift, which is the bug class this whole header is written against.
+inline float clampScale(float s) {
+  if (!(s > 0.0f)) return 0.0f;  // also catches NaN
+  return s;
+}
 
 inline float clampFormationDepth(float depth) {
   if (!(depth > 0.0f)) return 0.0f;  // also catches NaN
   if (depth > kFormationDepthMax) return kFormationDepthMax;
   return depth;
+}
+
+// --- THE TOOTH'S SHARE OF THE BUDGET ---------------------------------------
+//
+// Hoisted out of the two places that used to inline it, because a SECOND paper
+// layer (src/PaperDefects.h) now has to know what the tooth already spent. Two
+// copies of this arithmetic would be two chances to disagree, and a
+// disagreement here is a page under the contrast floor that nothing else can
+// see.
+//
+// The clamp is CONDITIONAL, and that is the load-bearing detail: above a budget
+// of 0.5 the tooth is not clamped at all. A caller computing "what is left"
+// while assuming the clamp always bites asserts a bound the tooth does not
+// obey. Reproduced here once, exactly, so it cannot be got wrong twice.
+inline float nominalToothAmp(const Params &p) {
+  const int strength = clampStrength(p.strengthPercent);
+  const float s =
+      static_cast<float>(strength) / static_cast<float>(kStrengthStandard);
+  return kToothAt100 * std::sqrt(s) * clampScale(p.toothScale);
+}
+
+inline float applyToothBudgetClamp(float toothAmp, float budget) {
+  if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
+  if (toothAmp < 0.0f) toothAmp = 0.0f;
+  return toothAmp;
+}
+
+inline float clampedToothAmp(const Params &p) {
+  return applyToothBudgetClamp(nominalToothAmp(p), p.paperDarkenBudget);
+}
+
+// WHAT IS LEFT for a second paper layer. The mean darkening of uniform [0, a]
+// noise is a/2, so that is the tooth's share; anything else painted on bare
+// paper must fit in the remainder or the two are individually safe and jointly
+// over the floor. Never negative: a palette at the floor leaves nothing, and
+// the defect layer correctly vanishes there.
+//
+// Formation is not subtracted. It is a SYMMETRIC swing on the amplitude, so it
+// is mean-preserving by construction -- the reason it was built that way.
+inline float remainingPaperBudget(const Params &p) {
+  const float r = p.paperDarkenBudget - clampedToothAmp(p) * 0.5f;
+  return r > 0.0f ? r : 0.0f;
 }
 
 // THE ANSWER: the 0..255 modulate value for one panel pixel, from its 3x3
@@ -184,7 +273,6 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   if (strength == kStrengthOff || w <= 0 || h <= 0) return 255;
   const float s = static_cast<float>(strength) /
                   static_cast<float>(kStrengthStandard);
-  const float sHalf = std::sqrt(s);
 
   const float t = win[1][1];  // inkness at the pixel itself
 
@@ -197,7 +285,7 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   if (gmag > 1.0f) gmag = 1.0f;
 
   // INK SQUEEZE: the rim of the stroke, weighted onto the ink side.
-  const float ring = kRingAt100 * s * gmag * t;
+  const float ring = kRingAt100 * clampScale(p.ringScale) * s * gmag * t;
 
   // DEBOSS SHADOW: the paper side of edges whose ink lies toward the
   // bottom-right -- i.e. the top-left walls of the depression, the ones a
@@ -206,7 +294,8 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
   float lightDot = (gx + gy) * 0.70710678f;
   if (lightDot < 0.0f) lightDot = 0.0f;
   if (lightDot > 1.0f) lightDot = 1.0f;
-  const float deboss = kDebossAt100 * s * lightDot * (1.0f - t);
+  const float deboss =
+      kDebossAt100 * clampScale(p.debossScale) * s * lightDot * (1.0f - t);
 
   const float nx = (static_cast<float>(x) + 0.5f) / static_cast<float>(w);
   const float ny = (static_cast<float>(y) + 0.5f) / static_cast<float>(h);
@@ -216,7 +305,7 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
                                             p.seed ^ 0x504C5445u);
   float heavy = v * 2.0f - 1.0f;
   if (heavy < 0.0f) heavy = 0.0f;
-  const float press = kPressAt100 * s * heavy * t;
+  const float press = kPressAt100 * clampScale(p.pressScale) * s * heavy * t;
 
   // IN-STROKE IRREGULARITY (ink) and PAPER TOOTH (paper), both uniform noise
   // in [0, amplitude]. Tooth rides sqrt of the dial and is clamped to the
@@ -226,10 +315,7 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
       static_cast<uint32_t>(x), static_cast<uint32_t>(y),
       p.seed ^ 0x544F4F54u));
   const float irregular = kIrregularAt100 * s * u * t;
-  float toothAmp = kToothAt100 * sHalf * (p.toothScale > 0.0f ? p.toothScale : 0.0f);
-  const float budget = p.paperDarkenBudget;
-  if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
-  if (toothAmp < 0.0f) toothAmp = 0.0f;
+  const float toothAmp = clampedToothAmp(p);
   const float tooth = p.includeTooth ? toothAmp * u * (1.0f - t) : 0.0f;
 
   float m = 1.0f - (ring + deboss + press + irregular + tooth);
@@ -281,8 +367,7 @@ inline uint8_t sheetToothMultiplierAt(const Params &p, int x, int y, int w = 0,
   if (strength == kStrengthOff) return 255;
   const float s = static_cast<float>(strength) /
                   static_cast<float>(kStrengthStandard);
-  float toothAmp = kToothAt100 * std::sqrt(s) *
-                   (p.toothScale > 0.0f ? p.toothScale : 0.0f);
+  float toothAmp = nominalToothAmp(p);
   // The sheet's cloudiness, as a symmetric swing ON the tooth's amplitude --
   // so it costs no extra mean darkening and the budget clamp below still
   // bounds every point. Same primitive and same shape as the grain's mottle.
@@ -295,9 +380,7 @@ inline uint8_t sheetToothMultiplierAt(const Params &p, int x, int y, int w = 0,
         ny * static_cast<float>(kFormationCells), p.seed ^ 0x464F524Du);
     toothAmp *= 1.0f + depth * (v * 2.0f - 1.0f);
   }
-  const float budget = p.paperDarkenBudget;
-  if (budget < 0.5f && toothAmp > 2.0f * budget) toothAmp = 2.0f * budget;
-  if (toothAmp < 0.0f) toothAmp = 0.0f;
+  toothAmp = applyToothBudgetClamp(toothAmp, p.paperDarkenBudget);
   const float u = phosphorgrain::unitFromHash(phosphorgrain::hash3(
       static_cast<uint32_t>(x), static_cast<uint32_t>(y),
       p.seed ^ 0x544F4F54u));
