@@ -140,6 +140,27 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   turn built a scanline field). So "is the page dark" asked at sleep time
   answers about the sleep screen, not about the tube. `lastReadingDarkGround` is
   latched on every non-sleep present for exactly this reason.
+- **The WAKE path does NOT have the mirror of that trap** — checked rather than
+  assumed, 2026-08-23. The wake's `Boot` activity enters and exits within 9 ms
+  **without presenting at all**, so the first post-wake present is already the
+  reading polarity. The warm-up therefore reads `lastReadingDarkGround` as a
+  guard, not a latch.
+- **State that must survive a reboot travels in the ENVIRONMENT.** The desktop
+  reboot is `execvp` (statics reborn, `environ` inherited) and the iOS reboot is
+  a `longjmp` (statics survive, nothing inherited) — so neither a static nor a
+  file alone covers both. `CROSSPOINT_SIM_TUBE_OFF`, which the collapse sets and
+  `HalDisplay::begin()` consumes, is the pattern. Consume rather than peek, or a
+  later launch inherits a state that was already spent. And put the consume
+  ABOVE `begin()`'s idempotent early return: iOS wakes with the window already
+  built, so everything past that return is skipped on exactly the boot the
+  feature exists for.
+- **A model finer than one frame is a lie, not detail.** The warm-up's bzzt gate
+  first had nine bursts inside 80 ms, four of them 1.6–4 ms. A burst shorter
+  than a frame falls BETWEEN two frames and is never drawn: every unit test
+  passed and the render had no flicker in it at all. Any pure model whose output
+  is sampled once per present needs a frame-length floor (`poweron::kMinBurstMs`
+  and the test that sweeps it), because the state function is correct at every
+  instant it is asked about.
 - **Screen grain is a PRESENT-TIME pass, in device pixels, drawn last.** The
   page's flatness is not a palette problem -- a real tube's screen is a settled
   layer of phosphor crystals with uneven coverage. [src/PhosphorGrain.h](src/PhosphorGrain.h)
@@ -597,6 +618,7 @@ Three settings now decide what the page and the pad look like, all host-side —
 | Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 100; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x) | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
 | Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). FROZEN at 100 (TG18 caps the corner astigmatism ratio at 1.5; shipped 1.23) | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture`; `CROSSPOINT_SIM_CORNER_DEFOCUS` | `docs/corner-defocus.md` |
 | Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
+| BZZT THONK power-on warm-up — the OTHER HALF of that same row, no second control. Fires only where the collapse actually switched the tube off (a recorded state, not a wake event): dot relit → flicker + crackle with the line punching out in steps → raster slams open, overshoots into overscan, bounces, lands → 6% sag and back to exactly nominal. 395 ms, DARK only, skippable on any press DOWN | `src/PowerOnWarmUp.h`, composited by `powerOnWarmUpFrame()` in `HalDisplay::presentIfNeeded`; armed by `CROSSPOINT_SIM_TUBE_OFF` (set by the collapse), QA hatch `CROSSPOINT_SIM_POWERON_WARMUP` | `docs/power-off-collapse.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
 

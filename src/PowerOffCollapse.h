@@ -36,6 +36,14 @@
 // trades the sleep screen -- a real feature, with a book cover or a clock on it
 // -- for the shutdown. Nobody may make that trade on the owner's behalf.
 //
+// AND THE OTHER HALF READS THAT DECISION. Because this ends at EXACTLY zero
+// rather than leaving a lit dot, src/PowerOnWarmUp.h cannot trigger off "is
+// there a dot on the glass" -- it triggers off a flag this animation records on
+// the frame it starts, and it RELIGHTS the dot at kDotWidthFrac as its own first
+// beat. The four constants below are shared across that seam and pinned against
+// it by tests/power_on_warm_up_test.cpp; if they drift, the two halves stop
+// meeting. Same Settings row, both directions.
+//
 // Pure and clock-free; tests/power_off_collapse_test.cpp is the only
 // instrument. The caller owns the clock, exactly as it owns the render.
 
