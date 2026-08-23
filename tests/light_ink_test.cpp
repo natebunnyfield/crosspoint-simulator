@@ -34,6 +34,21 @@
 //     and Bright White is exactly 1.0 everywhere.
 //   * The sheet pass actually USES it: a rougher factor darkens more, a 0
 //     factor is a bit-exact smooth sheet, and the paper budget still holds.
+//
+// And, from SHEET-TO-SHEET DRIFT (docs/surface-roadmap.md 1c):
+//   * Off is bit-exact off at every seed and on every stock, and the bound is
+//     EXACT -- the 7:1 clamps take it as the darkest leaf, so an offset able
+//     to exceed it would put a page under the floor with nothing to catch it.
+//   * Page 47 is the same tint forever, pinned as literals: the offsets are a
+//     pure function of the page seed, so a leaf survives a relaunch.
+//   * Every offset in the range actually occurs over a book's worth of leaves
+//     (the first draft's lightness term could not reach the ends of its own
+//     dial) and the draw carries no net darkening bias.
+//   * The drift moves the GROUND only: the drifted ratio is the PUBLISHED
+//     wash against a drifted sheet, which is what makes the all-negative leaf
+//     provably the darkest -- re-measured over the whole 125-leaf box.
+//   * The 2-D floor surface re-swept at the top of the drift dial, every
+//     strength, both clamps, plus the restored-backup clamp order.
 
 #include <cmath>
 #include <cstdio>
@@ -838,6 +853,295 @@ int main() {
                 kInks[i].name, kPapers[p].name, r, ratio);
         }
       }
+    }
+  }
+
+  // --- SHEET-TO-SHEET DRIFT (docs/surface-roadmap.md 1c) -------------------
+  //
+  // Every failure mode here is either an invisible dial, a page that is not
+  // the same page it was yesterday, or a leaf sitting under the contrast
+  // floor -- and no compiler and no other test in this repo can see any of
+  // the three.
+  {
+    // OFF IS BIT-EXACT OFF, at every seed and for every stock. A dial whose
+    // zero moves a code value is not off; it is a permanently drifted page
+    // nobody chose.
+    for (int p = 0; p < kPaperCount; p++) {
+      for (uint32_t seed = 0; seed < 4000; seed++) {
+        int off[3];
+        paperDriftOffsets(seed, kPaperDriftOff, off);
+        CHECK(off[0] == 0 && off[1] == 0 && off[2] == 0,
+              "drift off must be exactly 0, seed %u gave %d/%d/%d", seed,
+              off[0], off[1], off[2]);
+        uint8_t out[3];
+        paperDrifted(kPapers[p].tone, seed, kPaperDriftOff, out);
+        CHECK(std::memcmp(out, kPapers[p].tone, 3) == 0,
+              "%s at drift 0 must be byte-exact, got %02X%02X%02X",
+              kPapers[p].name, out[0], out[1], out[2]);
+      }
+    }
+    CHECK(maxDriftCodeValues(kPaperDriftOff) == 0,
+          "the bound at dial 0 must be 0 code values");
+    CHECK(maxDriftCodeValues(kPaperDriftMax) == kPaperDriftCodeValuesAt100,
+          "the bound at dial 100 must be %d code values",
+          kPaperDriftCodeValuesAt100);
+
+    // THE BOUND IS EXACT, not approximate. The 7:1 clamps take it as the
+    // darkest sheet the dial can produce, so an offset able to exceed it
+    // would put a leaf under the floor with nothing to catch it.
+    for (int dial = 0; dial <= kPaperDriftMax; dial++) {
+      const int bound = maxDriftCodeValues(dial);
+      for (uint32_t seed = 0; seed < 2000; seed++) {
+        int off[3];
+        paperDriftOffsets(seed, dial, off);
+        for (int c = 0; c < 3; c++)
+          CHECK(off[c] >= -bound && off[c] <= bound,
+                "dial %d, seed %u, channel %d: offset %d exceeds the bound %d",
+                dial, seed, c, off[c], bound);
+      }
+    }
+
+    // DETERMINISTIC. Page 47 is the same tint forever, including across a
+    // relaunch: the offsets are a pure function of the page seed and of
+    // nothing else -- no clock, no launch salt, no call count. Pinned as
+    // literals, so a "harmless" change to the hash or to the 3:1 split fails
+    // here rather than silently reprinting the book.
+    {
+      const uint32_t kPage47 = 47u;
+      const int kPinnedPage47[3] = {-1, -2, -2};
+      int a[3], b[3];
+      paperDriftOffsets(kPage47, kPaperDriftMax, a);
+      for (int rep = 0; rep < 100; rep++) {
+        paperDriftOffsets(kPage47, kPaperDriftMax, b);
+        CHECK(a[0] == b[0] && a[1] == b[1] && a[2] == b[2],
+              "seed 47 must give one answer forever, got %d/%d/%d then "
+              "%d/%d/%d",
+              a[0], a[1], a[2], b[0], b[1], b[2]);
+      }
+      CHECK(a[0] == kPinnedPage47[0] && a[1] == kPinnedPage47[1] &&
+                a[2] == kPinnedPage47[2],
+            "seed 47 at dial 100 is pinned at %d/%d/%d, got %d/%d/%d",
+            kPinnedPage47[0], kPinnedPage47[1], kPinnedPage47[2], a[0], a[1],
+            a[2]);
+      uint8_t tone[3];
+      paperDrifted(kPapers[kPaperCream].tone, kPage47, kPaperDriftMax, tone);
+      uint8_t expect[3];
+      applyPaperDrift(kPapers[kPaperCream].tone, kPinnedPage47, expect);
+      CHECK(std::memcmp(tone, expect, 3) == 0,
+            "page 47's Cream must be %02X%02X%02X, got %02X%02X%02X", expect[0],
+            expect[1], expect[2], tone[0], tone[1], tone[2]);
+    }
+
+    // IT SHIFTS THE PAPER AND NOTHING ELSE. The wash the picker publishes is
+    // computed on the nominal sheet and a leaf's drift does not reprint it, so
+    // the contrast at a given (ink, density, strength) differs from the
+    // undrifted one ONLY in the ground.
+    for (int i = 0; i < kInkCount; i++)
+      for (int p = 0; p < kPaperCount; p++)
+        for (int t = 0; t <= kPaperStrengthMax; t += 25)
+          for (int d = 0; d <= kDensityMax; d += 10) {
+            uint8_t ground[3], wash[3], leaf[3];
+            paperAtStrength(p, t, ground);
+            inkAtDensity(i, p, d, wash, t);  // the tone the picker publishes
+            paperWorstDrift(ground, kPaperDriftMax, leaf);
+            CHECK(std::fabs(contrastAtDensity(i, p, d, t, kPaperDriftMax) -
+                            contrastRatio(wash, leaf)) < 1e-9,
+                  "%s on %s d%d t%d: the drifted ratio must be the PUBLISHED "
+                  "wash against a drifted ground -- nothing may reprint the "
+                  "ink",
+                  kInks[i].name, kPapers[p].name, d, t);
+          }
+
+    // IT IS REAL, AND IT IS SMALL. Over a book's worth of leaves the offsets
+    // must actually vary (a constant offset is a global tint, which is the
+    // palette dial) and must carry no net darkening or lightening bias (a
+    // biased draw reads as the whole book being off-tone).
+    {
+      long sum = 0;
+      int seen[2 * kPaperDriftCodeValuesAt100 + 1] = {0};
+      const int kLeaves = 20000;
+      for (uint32_t seed = 0; seed < (uint32_t)kLeaves; seed++) {
+        int off[3];
+        paperDriftOffsets(seed, kPaperDriftMax, off);
+        sum += off[1];
+        seen[off[1] + kPaperDriftCodeValuesAt100]++;
+      }
+      for (int v = 0; v < 2 * kPaperDriftCodeValuesAt100 + 1; v++)
+        CHECK(seen[v] > kLeaves / 100,
+              "offset %d occurs %d times in %d leaves -- the dial cannot "
+              "reach it in practice",
+              v - kPaperDriftCodeValuesAt100, seen[v], kLeaves);
+      const double mean = (double)sum / kLeaves;
+      CHECK(std::fabs(mean) < 0.05,
+            "the lightness draw is biased: mean offset %.4f over %d leaves",
+            mean, kLeaves);
+      std::printf("sheet drift: mean %.4f over %d leaves, "
+                  "-2/-1/0/+1/+2 = %d/%d/%d/%d/%d\n",
+                  mean, kLeaves, seen[0], seen[1], seen[2], seen[3], seen[4]);
+    }
+
+    // THE DARKEST LEAF IS THE ALL-NEGATIVE ONE -- and it is EVERY leaf that is
+    // checked here, not just the eight corners, because the whole box is
+    // cheap at this bound. The wash is held at the tone the picker publishes
+    // (computed on the nominal sheet), which is what makes the ratio
+    // monotone in the ground and lets the clamp evaluate one sheet instead of
+    // a minimum over 125. This is the measurement that licenses that.
+    {
+      const int densities[] = {40, 70, 100};
+      const int strengths[] = {0, 50, 100};
+      const int bound = maxDriftCodeValues(kPaperDriftMax);
+      for (int i = 0; i < kInkCount; i++)
+        for (int p = 0; p < kPaperCount; p++)
+          for (const int d : densities)
+            for (const int t : strengths) {
+              uint8_t base[3], wash[3];
+              paperAtStrength(p, t, base);
+              washOnGround(i, base, d, wash);
+              uint8_t worstTone[3];
+              paperWorstDrift(base, kPaperDriftMax, worstTone);
+              const double worst = contrastRatio(wash, worstTone);
+              CHECK(std::fabs(worst - contrastAtDensity(i, p, d, t,
+                                                        kPaperDriftMax)) < 1e-9,
+                    "contrastAtDensity must report the darkest leaf's ratio");
+              for (int r = -bound; r <= bound; r++)
+                for (int g = -bound; g <= bound; g++)
+                  for (int b = -bound; b <= bound; b++) {
+                    const int off[3] = {r, g, b};
+                    uint8_t tone[3];
+                    applyPaperDrift(base, off, tone);
+                    const double c = contrastRatio(wash, tone);
+                    CHECK(c >= worst - 1e-9,
+                          "%s on %s d%d t%d: leaf %d/%d/%d is %.4f:1, below "
+                          "the all-negative %.4f:1 the clamp assumes",
+                          kInks[i].name, kPapers[p].name, d, t, off[0], off[1],
+                          off[2], c, worst);
+                  }
+            }
+    }
+
+    // THE REGION IS STILL NEVER EMPTY. Full density has to stay legal at
+    // every strength on the darkest leaf, or the density clamp has nowhere to
+    // land.
+    {
+      double worst = 1e9;
+      int wi = 0, wp = 0, wt = 0;
+      for (int i = 0; i < kInkCount; i++)
+        for (int p = 0; p < kPaperCount; p++)
+          for (int t = 0; t <= kPaperStrengthMax; t++) {
+            const double c =
+                contrastAtDensity(i, p, kDensityMax, t, kPaperDriftMax);
+            if (c < worst) {
+              worst = c;
+              wi = i;
+              wp = p;
+              wt = t;
+            }
+          }
+      CHECK(worst >= kContrastFloor,
+            "%s at full density on %s at strength %d is %.3f:1 on the darkest "
+            "leaf -- full density must stay legal everywhere",
+            kInks[wi].name, kPapers[wp].name, wt, worst);
+      std::printf("sheet drift: worst full-density pair on the darkest leaf is "
+                  "%s on %s at strength %d, %.3f:1\n",
+                  kInks[wi].name, kPapers[wp].name, wt, worst);
+    }
+
+    // THE CLAMPS MOVE THE RIGHT WAY. Drift can only cost contrast, so the
+    // density floor may only rise and the paper ceiling may only fall.
+    for (int i = 0; i < kInkCount; i++)
+      for (int p = 0; p < kPaperCount; p++)
+        for (int t = 0; t <= kPaperStrengthMax; t += 10) {
+          CHECK(floorDensityPct(i, p, t, kPaperDriftMax) >=
+                    floorDensityPct(i, p, t, kPaperDriftOff),
+                "%s on %s at strength %d: the drifted floor is below the "
+                "undrifted one",
+                kInks[i].name, kPapers[p].name, t);
+          CHECK(maxPaperStrengthPct(i, p, t, kPaperDriftMax) <=
+                    maxPaperStrengthPct(i, p, t, kPaperDriftOff),
+                "%s on %s at density %d: the drifted ceiling is above the "
+                "undrifted one",
+                kInks[i].name, kPapers[p].name, t);
+        }
+
+    // THE 2-D FLOOR SURFACE, RE-SWEPT AT THE TOP OF THE DRIFT DIAL. Same
+    // shape as the undrifted sweep above -- suffix property on density,
+    // PREFIX property on strength, because byte quantization makes contrast
+    // non-monotone in strength and a scan down from 100 would return a
+    // ceiling with illegal strengths beneath it.
+    {
+      long checked = 0;
+      for (int i = 0; i < kInkCount; i++) {
+        for (int p = 0; p < kPaperCount; p++) {
+          for (int t = 0; t <= kPaperStrengthMax; t++) {
+            const int f = floorDensityPct(i, p, t, kPaperDriftMax);
+            CHECK(contrastAtDensity(i, p, f, t, kPaperDriftMax) >=
+                      kContrastFloor,
+                  "%s on %s at strength %d: drifted floor %d does not clear "
+                  "7:1",
+                  kInks[i].name, kPapers[p].name, t, f);
+            for (int d = f; d <= kDensityMax; d++) {
+              checked++;
+              if (contrastAtDensity(i, p, d, t, kPaperDriftMax) <
+                  kContrastFloor) {
+                CHECK(false,
+                      "%s on %s at strength %d, density %d: %.3f:1 on the "
+                      "darkest leaf -- a HOLE above the drifted floor",
+                      kInks[i].name, kPapers[p].name, t, d,
+                      contrastAtDensity(i, p, d, t, kPaperDriftMax));
+                break;
+              }
+            }
+          }
+          for (int d = 0; d <= kDensityMax; d++) {
+            const int c = maxPaperStrengthPct(i, p, d, kPaperDriftMax);
+            if (contrastAtDensity(i, p, d, 0, kPaperDriftMax) <
+                kContrastFloor) {
+              CHECK(c == 0,
+                    "%s on %s density %d: nothing is legal on the darkest "
+                    "leaf, the ceiling must report 0, got %d",
+                    kInks[i].name, kPapers[p].name, d, c);
+              continue;
+            }
+            for (int t = 0; t <= c; t++) {
+              checked++;
+              if (contrastAtDensity(i, p, d, t, kPaperDriftMax) <
+                  kContrastFloor) {
+                CHECK(false,
+                      "%s on %s density %d: strength %d is %.3f:1 under a "
+                      "drifted ceiling of %d -- a HOLE below it",
+                      kInks[i].name, kPapers[p].name, d, t,
+                      contrastAtDensity(i, p, d, t, kPaperDriftMax), c);
+                break;
+              }
+            }
+            CHECK(clampPaperStrengthPct(i, p, d, 999, kPaperDriftMax) == c,
+                  "the drifted clamp above the ceiling must land on it");
+          }
+        }
+      }
+      std::printf("2-D floor sweep at drift %d%%: %ld (density, strength) "
+                  "states checked\n",
+                  kPaperDriftMax, checked);
+    }
+
+    // AND THE CLAMP ORDER STILL LANDS LEGAL from any stored integers with the
+    // drift dial in play -- the restored-backup path.
+    {
+      const int probes[] = {-50, 0, 37, 100, 250};
+      for (int i = 0; i < kInkCount; i++)
+        for (int p = 0; p < kPaperCount; p++)
+          for (const int rd : probes)
+            for (const int rt : probes) {
+              const int t =
+                  clampPaperStrengthPct(i, p, rd, rt, kPaperDriftMax);
+              const int d = clampDensityPct(i, p, rd, t, kPaperDriftMax);
+              CHECK(contrastAtDensity(i, p, d, t, kPaperDriftMax) >=
+                        kContrastFloor,
+                    "%s on %s: stored (%d, %d) clamps to (%d, %d) at %.2f:1 on "
+                    "the darkest leaf",
+                    kInks[i].name, kPapers[p].name, rd, rt, d, t,
+                    contrastAtDensity(i, p, d, t, kPaperDriftMax));
+            }
     }
   }
 

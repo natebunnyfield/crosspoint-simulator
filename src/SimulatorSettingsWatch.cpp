@@ -23,6 +23,7 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 #include "PhosphorGrain.h"
 #include "PhosphorMix.h"
 #include "Letterpress.h"
+#include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "Scanlines.h"
 #include "SimulatorOverlay.h"
@@ -202,6 +203,8 @@ void applyDials(const Values &v) {
       static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)));
   SimulatorOverlay::setPaperDefects(
       intOr(v, "paperDefectsPercent", paperdefects::kDialOff));
+  SimulatorOverlay::setPaperDrift(
+      intOr(v, "paperDriftPercent", lightink::kPaperDriftDefault));
   // A raw percent, not a paper index: the desktop file has no ink/paper
   // picker, so laidness cannot be derived here the way the phone derives it.
   // 0 is the historical desktop rendering.

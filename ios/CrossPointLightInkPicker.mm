@@ -92,6 +92,10 @@ static NSString *const kPaperStrengthKey = @"lightPaperStrengthPercent";
 // is what makes that one source of truth rather than two.
 static NSString *const kPaperToothKey = @"paperToothPercent";
 static NSString *const kPaperFormationKey = @"paperFormationPercent";
+// SHEET-TO-SHEET DRIFT, appended last so no stored key moves. Same units
+// and same name as the desktop settings.json key, so a phone and a
+// settings.json cannot disagree about how much a book's leaves vary.
+static NSString *const kPaperDriftKey = @"paperDriftPercent";
 static NSString *const kPressRingKey = @"pressRingPercent";
 static NSString *const kPressDebossKey = @"pressDebossPercent";
 static NSString *const kPressPressureKey = @"pressPressurePercent";
@@ -114,6 +118,11 @@ UIColor *colorOf(const uint8_t c[3]) {
                           blue:c[2] / 255.0
                          alpha:1];
 }
+
+// Forward-declared: the drift dial lives with the paper instrument's other
+// stored dials below, but both clamps in loadSelection need it -- the floor
+// has to hold for the darkest leaf, not for the nominal sheet.
+int storedDriftPct(void);
 
 // Stored selection, clamped through the core so a restored backup from a
 // future build lands on the shipped rows rather than out of bounds. The
@@ -138,10 +147,15 @@ void loadSelection(int *ink, int *paper, int *density, int *paperStrength) {
   const int rawStrength = storedStrength
                               ? (int)[d integerForKey:kPaperStrengthKey]
                               : lightink::kPaperStrengthDefault;
+  // BOTH CLAMPS CARRY THE DRIFT DIAL. The floor has to hold for the darkest
+  // leaf the drift can produce, not for the nominal sheet -- a pair clamped
+  // without it sits exactly ON 7.0 and the next leaf two code values darker is
+  // under it.
+  const int drift = storedDriftPct();
   *paperStrength = lightink::clampPaperStrengthPct(*ink, *paper, rawDensity,
-                                                   rawStrength);
-  *density =
-      lightink::clampDensityPct(*ink, *paper, rawDensity, *paperStrength);
+                                                   rawStrength, drift);
+  *density = lightink::clampDensityPct(*ink, *paper, rawDensity,
+                                       *paperStrength, drift);
 }
 
 // --- the paper instrument's six dials ---------------------------------------
@@ -170,6 +184,10 @@ int storedFormationPct(void) {
                               (int)(letterpress::kFormationDepthDefault * 100.0f +
                                     0.5f)),
                   0, (int)(letterpress::kFormationDepthMax * 100.0f + 0.5f));
+}
+int storedDriftPct(void) {
+  return clampPct(storedIntOr(kPaperDriftKey, lightink::kPaperDriftDefault),
+                  lightink::kPaperDriftOff, lightink::kPaperDriftMax);
 }
 int storedRingPct(void) { return clampPct(storedIntOr(kPressRingKey, 100), 0, kPartPercentMax); }
 int storedDebossPct(void) { return clampPct(storedIntOr(kPressDebossKey, 100), 0, kPartPercentMax); }
@@ -213,20 +231,23 @@ int laidLinesPercentFor(int paper, int paperStrength) {
 // still has a texture.
 void pushPaperDials(int paper, int paperStrength) {
   SDL_Log("[letterpress] paper: tooth %d%% (stock %.2fx x dial %d%%), "
-          "formation %d%% (stock %.2fx x dial %d%%), laid %d%%, defects %d%% "
+          "formation %d%% (stock %.2fx x dial %d%%), laid %d%%, defects %d%%, "
+          "drift %d%% (+/-%d code values) "
           "| press: ring %d%% deboss %d%% pressure %d%%",
           paperToothPercentFor(paper, paperStrength),
           (double)lightink::toothScaleFor(paper, paperStrength),
           storedToothPct(), paperFormationPercentFor(paper, paperStrength),
           (double)lightink::formationScaleFor(paper, paperStrength),
           storedFormationPct(), laidLinesPercentFor(paper, paperStrength),
-          storedDefectsPct(), storedRingPct(), storedDebossPct(),
-          storedPressurePct());
+          storedDefectsPct(), storedDriftPct(),
+          lightink::maxDriftCodeValues(storedDriftPct()), storedRingPct(),
+          storedDebossPct(), storedPressurePct());
   SimulatorOverlay::setPaperTooth(paperToothPercentFor(paper, paperStrength));
   SimulatorOverlay::setPaperFormation(
       paperFormationPercentFor(paper, paperStrength));
   SimulatorOverlay::setLaidLines(laidLinesPercentFor(paper, paperStrength));
   SimulatorOverlay::setPaperDefects(storedDefectsPct());
+  SimulatorOverlay::setPaperDrift(storedDriftPct());
   SimulatorOverlay::setPressRing(storedRingPct());
   SimulatorOverlay::setPressDeboss(storedDebossPct());
   SimulatorOverlay::setPressPressure(storedPressurePct());
@@ -377,6 +398,9 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   UILabel *_defectsLabel, *_defectsValue;
   UISlider *_defectsSlider;
   UIImageView *_defectsStrip;
+  UILabel *_driftLabel, *_driftValue;
+  UISlider *_driftSlider;
+  UIImageView *_driftStrip;
   UILabel *_ringLabel, *_ringValue;
   UISlider *_ringSlider;
   UIImageView *_ringStrip;
@@ -508,7 +532,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
   _slider = [UISlider new];
   _slider.minimumValue =
-      lightink::floorDensityPct(_ink, _paper, _paperStrength);
+      lightink::floorDensityPct(_ink, _paper, _paperStrength, storedDriftPct());
   _slider.maximumValue = lightink::kDensityMax;
   _slider.value = _density;
   _slider.accessibilityLabel = @"Density";
@@ -571,7 +595,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _paperSlider = [UISlider new];
   _paperSlider.minimumValue = 0;
   _paperSlider.maximumValue =
-      lightink::maxPaperStrengthPct(_ink, _paper, _density);
+      lightink::maxPaperStrengthPct(_ink, _paper, _density, storedDriftPct());
   _paperSlider.value = _paperStrength;
   _paperSlider.accessibilityLabel = @"Paper";
   [_paperSlider setMinimumTrackImage:clearTrack forState:UIControlStateNormal];
@@ -605,6 +629,12 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
               min:paperdefects::kDialOff max:paperdefects::kDialMax
           current:storedDefectsPct()
             moved:@selector(defectsMoved:) dropped:@selector(dialDropped:)
+       clearTrack:clearTrack name:name small:small];
+  [self buildDial:&_driftLabel value:&_driftValue slider:&_driftSlider
+            strip:&_driftStrip title:@"Sheet drift"
+              min:lightink::kPaperDriftOff max:lightink::kPaperDriftMax
+          current:storedDriftPct()
+            moved:@selector(driftMoved:) dropped:@selector(dialDropped:)
        clearTrack:clearTrack name:name small:small];
   [self buildDial:&_ringLabel value:&_ringValue slider:&_ringSlider
             strip:&_ringStrip title:@"Ink squeeze" min:0 max:kPartPercentMax
@@ -777,6 +807,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   y += 54;
   layoutDial(_defectsLabel, _defectsValue, _defectsSlider, _defectsStrip, y);
   y += 54;
+  layoutDial(_driftLabel, _driftValue, _driftSlider, _driftStrip, y);
+  y += 54;
 
   _groupPress.frame = CGRectMake(margin, y, W - 2 * margin, 14);
   y += 18;
@@ -886,6 +918,22 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
       },
       false);
   _defectsStrip.image = paperStrip([](letterpress::Params &, float) {}, true);
+
+  // THE DRIFT STRIP SHOWS LEAVES, not one leaf. The dial's whole effect is the
+  // difference BETWEEN sheets, which no single sheet can display, so each
+  // column band is its own page seed with the dial swept left to right -- the
+  // defect strip's own device. The steps are small by design (two code values
+  // at the top of the dial); the value label carries the number.
+  _driftStrip.image = renderStrip(
+      size, scale,
+      [&ground](int x, int y, int w, int h, uint8_t rgb[3]) {
+        (void)y;
+        (void)h;
+        const float t = w > 1 ? (float)x / (float)(w - 1) : 0.0f;
+        const int dial = (int)(t * lightink::kPaperDriftMax + 0.5f);
+        const uint32_t seed = 0x44524654u ^ (uint32_t)(x / 12);
+        lightink::paperDrifted(ground, seed, dial, rgb);
+      });
 
   // A PRESS strip: a synthetic ink bar down the middle, so the ring, the deboss
   // and the pressure all have an edge to live on.
@@ -1009,12 +1057,18 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 // Re-clamp the density for the current ink+paper (the floor moves with both),
 // refresh every swatch, the slider's floor, the gradient and the readout.
 - (void)refresh {
-  const int floorPct = lightink::floorDensityPct(_ink, _paper, _paperStrength);
-  _density = lightink::clampDensityPct(_ink, _paper, _density, _paperStrength);
+  // Every clamp in this method carries the drift dial: the floor and the
+  // ceiling are the DARKEST leaf's, so that no page of the book falls under
+  // 7:1 rather than only the nominal sheet clearing it.
+  const int drift = storedDriftPct();
+  const int floorPct =
+      lightink::floorDensityPct(_ink, _paper, _paperStrength, drift);
+  _density =
+      lightink::clampDensityPct(_ink, _paper, _density, _paperStrength, drift);
   const int ceilingPct =
-      lightink::maxPaperStrengthPct(_ink, _paper, _density);
+      lightink::maxPaperStrengthPct(_ink, _paper, _density, drift);
   _paperStrength = lightink::clampPaperStrengthPct(_ink, _paper, _density,
-                                                   _paperStrength);
+                                                   _paperStrength, drift);
   _slider.minimumValue = floorPct;
   if ((int)lroundf(_slider.value) != _density) _slider.value = _density;
   _paperSlider.maximumValue = ceilingPct;
@@ -1024,7 +1078,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   for (int i = 0; i < lightink::kInkCount; i++) {
     uint8_t wash[3];
     lightink::inkAtDensity(
-        i, _paper, lightink::clampDensityPct(i, _paper, _density, _paperStrength),
+        i, _paper,
+        lightink::clampDensityPct(i, _paper, _density, _paperStrength, drift),
         wash, _paperStrength);
     _inkSwatch[i].backgroundColor = colorOf(wash);
     _inkRow[i].backgroundColor =
@@ -1079,6 +1134,14 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
       [NSString stringWithFormat:@"%d%%%@", storedDefectsPct(),
                 storedDefectsPct() == 0 ? @" (a fresh sheet)" : @""];
   _defectsSlider.accessibilityValue = _defectsValue.text;
+  _driftValue.text = [NSString
+      stringWithFormat:@"%d%%%@", storedDriftPct(),
+                       storedDriftPct() == 0
+                           ? @" (one tone per book)"
+                           : [NSString stringWithFormat:@" · ±%d of 255",
+                                       lightink::maxDriftCodeValues(
+                                           storedDriftPct())]];
+  _driftSlider.accessibilityValue = _driftValue.text;
   _ringValue.text = [NSString stringWithFormat:@"%d%% of standard", storedRingPct()];
   _ringSlider.accessibilityValue = _ringValue.text;
   _debossValue.text = [NSString stringWithFormat:@"%d%% of standard", storedDebossPct()];
@@ -1098,8 +1161,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 // this can never fail to find a legal pair.
 - (void)inkTapped:(UIButton *)b {
   _ink = (int)b.tag;
-  _density =
-      lightink::clampDensityPct(_ink, _paper, _density, _paperStrength);
+  _density = lightink::clampDensityPct(_ink, _paper, _density, _paperStrength,
+                                       storedDriftPct());
   applySelection(_ink, _paper, _density, _paperStrength, /*renderPage=*/false);
   [self refresh];
   [self scheduleSettle];
@@ -1107,8 +1170,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
 - (void)paperTapped:(UIButton *)b {
   _paper = (int)b.tag;
-  _density =
-      lightink::clampDensityPct(_ink, _paper, _density, _paperStrength);
+  _density = lightink::clampDensityPct(_ink, _paper, _density, _paperStrength,
+                                       storedDriftPct());
   applySelection(_ink, _paper, _density, _paperStrength, /*renderPage=*/false);
   [self refresh];
   [self scheduleSettle];
@@ -1117,7 +1180,7 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 - (void)densityMoved:(UISlider *)s {
   [self cancelPendingSettle];
   _density = lightink::clampDensityPct(_ink, _paper, (int)lroundf(s.value),
-                                       _paperStrength);
+                                       _paperStrength, storedDriftPct());
   applySelection(_ink, _paper, _density, _paperStrength, /*renderPage=*/false);
   [self refresh];
 }
@@ -1129,8 +1192,8 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
 - (void)paperStrengthMoved:(UISlider *)s {
   [self cancelPendingSettle];
-  _paperStrength = lightink::clampPaperStrengthPct(_ink, _paper, _density,
-                                                   (int)lroundf(s.value));
+  _paperStrength = lightink::clampPaperStrengthPct(
+      _ink, _paper, _density, (int)lroundf(s.value), storedDriftPct());
   applySelection(_ink, _paper, _density, _paperStrength, /*renderPage=*/false);
   [self refresh];
 }
@@ -1174,6 +1237,21 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   // Through CrossPointPrefs, not -setInteger: here: this key is ALSO a
   // Settings.bundle row, and both views must clamp identically.
   CrossPointPrefs_setPaperDefectsPercent((int)lroundf(s.value));
+  [self dialChanged];
+}
+
+- (void)driftMoved:(UISlider *)s {
+  [self cancelPendingSettle];
+  [self storeDial:kPaperDriftKey value:(int)lroundf(s.value)];
+  // The drift moves the 7:1 floor, so the ink and paper sliders have to
+  // re-clamp against the new darkest leaf -- the same re-clamp a paper change
+  // triggers, and for the same reason.
+  _paperStrength = lightink::clampPaperStrengthPct(_ink, _paper, _density,
+                                                   _paperStrength,
+                                                   storedDriftPct());
+  _density = lightink::clampDensityPct(_ink, _paper, _density, _paperStrength,
+                                       storedDriftPct());
+  applySelection(_ink, _paper, _density, _paperStrength, /*renderPage=*/false);
   [self dialChanged];
 }
 
@@ -1245,9 +1323,11 @@ extern "C" void CrossPointInkPicker_applyForTest(int ink, int paper,
                                                  int paperStrength) {
   ink = lightink::clampInkIndex(ink);
   paper = lightink::clampPaperIndex(paper);
-  paperStrength =
-      lightink::clampPaperStrengthPct(ink, paper, density, paperStrength);
-  density = lightink::clampDensityPct(ink, paper, density, paperStrength);
+  paperStrength = lightink::clampPaperStrengthPct(ink, paper, density,
+                                                  paperStrength,
+                                                  storedDriftPct());
+  density = lightink::clampDensityPct(ink, paper, density, paperStrength,
+                                      storedDriftPct());
   applySelection(ink, paper, density, paperStrength, /*renderPage=*/true);
   uint8_t wash[3], ground[3];
   lightink::inkAtDensity(ink, paper, density, wash, paperStrength);
@@ -1289,8 +1369,8 @@ extern "C" uint32_t CrossPointInkPicker_paperDialSignature(void) {
   uint32_t h = 2166136261u;
   const int parts[] = {paperToothPercentFor(paper, strength),
                        storedFormationPct(), storedDefectsPct(),
-                       storedRingPct(),      storedDebossPct(),
-                       storedPressurePct()};
+                       storedDriftPct(),     storedRingPct(),
+                       storedDebossPct(),    storedPressurePct()};
   for (const int v : parts) {
     h ^= (uint32_t)v;
     h *= 16777619u;

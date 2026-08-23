@@ -450,6 +450,7 @@ surface was built from is a live control, and the sheet became a
 | Paper | Tooth | a MULTIPLIER on the stock's own `lightink::toothScaleFor` factor | 0..400 % (100) | `CROSSPOINT_SIM_PAPER_TOOTH` |
 | Paper | Formation | `letterpress::Params::formationDepth` | 0..100 % (55) | `CROSSPOINT_SIM_PAPER_FORMATION` |
 | Paper | Defects | `paperdefects::Params::dialPercent` | 0..100 (30 on iOS, 0 on desktop) | `CROSSPOINT_SIM_PAPER_DEFECTS` |
+| Paper | Sheet drift | this leaf's paper tone against the stock's, off the page seed (`lightink::paperDriftOffsets`) | 0..100 (0, both platforms) | `CROSSPOINT_SIM_PAPER_DRIFT` |
 | Press | Ink squeeze | `Params::ringScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_RING` |
 | Press | Deboss | `Params::debossScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_DEBOSS` |
 | Press | Plate pressure | `Params::pressScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_PRESSURE` |

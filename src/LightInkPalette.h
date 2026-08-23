@@ -60,6 +60,8 @@
 #include <cmath>
 #include <cstdint>
 
+#include "PhosphorGrain.h"  // hash3 / unitFromHash, pure -- the sheet drift
+
 namespace lightink {
 
 // THE INK FAMILY a row belongs to. Presentation only: the table grew past a
@@ -464,6 +466,132 @@ inline float formationScaleFor(int paperIdx, int strengthPct) {
   return base + (stock.formation - base) * t;
 }
 
+// --- SHEET-TO-SHEET DRIFT --------------------------------------------------
+//
+// A book is printed from several reams and then ages unevenly, so no two
+// leaves of it measure the same tone. Every page in this app measures exactly
+// the same, which is the most machine-like property the light page still has
+// (docs/surface-roadmap.md section 1c).
+//
+// TWO TERMS, because paper varies in two ways and not in three. Ream-to-ream
+// variation is dominated by BRIGHTNESS (ISO 2470, quoted in whole points),
+// with a smaller swing in YELLOWNESS -- the b* axis ageing also moves along;
+// a* barely moves at all. So the offset is one achromatic lightness term plus
+// one warm/cool term pushing red against blue, and there is no third degree of
+// freedom to give it.
+//
+// ONE SEED. Both terms come from the page identity the tooth, the wires and
+// the defects already use, so a leaf is the same leaf in every respect and
+// stays that leaf across a relaunch. There is deliberately no second seed and
+// no launch salt: a book is not reprinted when it is closed.
+//
+// THE PAPER ONLY. The ink is a film ON the sheet; a different ream does not
+// change the pigment. Moving both would be a global tint, which is the palette
+// dial, not this.
+//
+// THE BOUND IS TWO CODE VALUES at the top of the dial, and it is bounded
+// EXACTLY -- every offset is clamped to maxDriftCodeValues() rather than left
+// to the arithmetic -- because the 7:1 clamps below take that bound as the
+// darkest sheet the dial can produce. A bound that were only approximately
+// true would leak straight into the contrast floor.
+inline constexpr int kPaperDriftOff = 0;
+inline constexpr int kPaperDriftMax = 100;
+// OFF, and bit-exact off: an untouched install renders one tone per book, as
+// it always has.
+inline constexpr int kPaperDriftDefault = kPaperDriftOff;
+// The per-channel swing at dial 100, in 8-bit code values. Small on purpose:
+// this tone is the whole page's ground, so a wide swing is a flicker at every
+// page turn rather than a sheet.
+inline constexpr int kPaperDriftCodeValuesAt100 = 2;
+
+constexpr int clampPaperDriftPct(int pct) {
+  return pct < kPaperDriftOff ? kPaperDriftOff
+                              : (pct > kPaperDriftMax ? kPaperDriftMax : pct);
+}
+
+// The largest per-channel offset this dial can produce, in code values. Zero
+// at dial 0, which is what makes OFF bit-exact rather than nearly-off.
+inline int maxDriftCodeValues(int driftPct) {
+  const int d = clampPaperDriftPct(driftPct);
+  return static_cast<int>(
+      std::lround(static_cast<double>(kPaperDriftCodeValuesAt100) *
+                  static_cast<double>(d) /
+                  static_cast<double>(kPaperDriftMax)));
+}
+
+// This page's offsets, in code values, from its own seed.
+inline void paperDriftOffsets(uint32_t seed, int driftPct, int out[3]) {
+  const int bound = maxDriftCodeValues(driftPct);
+  if (bound <= 0) {
+    out[0] = out[1] = out[2] = 0;
+    return;
+  }
+  const double a = static_cast<double>(bound);
+  // Two independent draws off the one seed. LIGHTNESS SPANS THE WHOLE BOUND
+  // and warmth is a third of it laid on top, clamped -- not a 3:1 split of the
+  // bound between them, which was the first version and could not reach the
+  // ends: with lightness confined to 3/4 of a two-value bound, the green
+  // channel rounded to +/-1 forever and the top of the dial was a lie. The
+  // test asserts every offset in the range actually occurs, which is what
+  // caught it.
+  const double lum =
+      (2.0 * static_cast<double>(phosphorgrain::unitFromHash(
+                 phosphorgrain::hash3(seed, 0x53484554u, 0x4C554D4Eu))) -
+       1.0) *
+      a;
+  const double warm =
+      (2.0 * static_cast<double>(phosphorgrain::unitFromHash(
+                 phosphorgrain::hash3(seed, 0x53484554u, 0x5741524Du))) -
+       1.0) *
+      0.35 * a;
+  const double ch[3] = {lum + warm, lum, lum - warm};
+  for (int c = 0; c < 3; c++) {
+    int v = static_cast<int>(std::lround(ch[c]));
+    if (v < -bound) v = -bound;
+    if (v > bound) v = bound;
+    out[c] = v;
+  }
+}
+
+inline void applyPaperDrift(const uint8_t in[3], const int off[3],
+                            uint8_t out[3]) {
+  for (int c = 0; c < 3; c++) {
+    const int v = static_cast<int>(in[c]) + off[c];
+    out[c] = static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+  }
+}
+
+// The tone this page's sheet is painted in.
+inline void paperDrifted(const uint8_t in[3], uint32_t seed, int driftPct,
+                         uint8_t out[3]) {
+  int off[3];
+  paperDriftOffsets(seed, driftPct, off);
+  applyPaperDrift(in, off, out);
+}
+
+// THE DARKEST SHEET THE DIAL CAN PRODUCE: every channel at the full negative
+// bound. This one sheet is what the 7:1 clamps have to hold for, and holding
+// for it holds for every seed -- exactly, not nearly, because of what the
+// drift does and does not move.
+//
+// THE WASH IS FIXED WHILE THE GROUND DRIFTS, and that is the whole argument.
+// The picker computes the wash once on the NOMINAL sheet and publishes it as
+// the ink; only the paper then drifts, per leaf, at render time. So the
+// numerator of the contrast ratio varies and the denominator does not, the
+// ratio is strictly increasing in the ground's luminance, and luminance is
+// strictly increasing in every channel -- the all-negative corner is the
+// minimum, full stop. (Recompute the wash on the drifted ground instead, which
+// is what this file did for one draft, and the argument fails: byte
+// quantization in the wash puts a ripple in that made -2/-2/0 measure 0.004
+// BELOW -2/-2/-2 on eleven pairs. It is also not what ships.) The test still
+// sweeps all 27 corners, because the claim is worth re-measuring and not worth
+// re-deriving.
+inline void paperWorstDrift(const uint8_t in[3], int driftPct, uint8_t out[3]) {
+  const int bound = maxDriftCodeValues(driftPct);
+  const int off[3] = {-bound, -bound, -bound};
+  applyPaperDrift(in, off, out);
+}
+
 // The wash: ink `inkIdx` at `densityPct` (0..100) on paper `paperIdx` held at
 // `paperStrengthPct`. densityPct is clamped to [0, 100]; indices fall back per
 // the clamps above. The two ends return exact bytes -- stated as code, not
@@ -473,12 +601,12 @@ inline float formationScaleFor(int paperIdx, int strengthPct) {
 // paperStrengthPct is a TRAILING DEFAULTED argument on purpose: every call
 // site written before the paper dial existed keeps meaning exactly what it
 // meant, which is the stock at full strength.
-inline void inkAtDensity(int inkIdx, int paperIdx, int densityPct,
-                         uint8_t out[3],
-                         int paperStrengthPct = kPaperStrengthDefault) {
+// The wash on an EXPLICIT ground. Factored out of inkAtDensity so the
+// drift-aware floor below can dilute against a drifted sheet without a second
+// copy of the Beer-Lambert arithmetic.
+inline void washOnGround(int inkIdx, const uint8_t ground[3], int densityPct,
+                         uint8_t out[3]) {
   const Ink &ink = kInks[clampInkIndex(inkIdx)];
-  uint8_t ground[3];
-  paperAtStrength(paperIdx, paperStrengthPct, ground);
   if (densityPct >= kDensityMax) {
     for (int c = 0; c < 3; c++) out[c] = ink.full[c];
     return;
@@ -497,12 +625,35 @@ inline void inkAtDensity(int inkIdx, int paperIdx, int densityPct,
   }
 }
 
-// The contrast of a wash against its own paper, at that paper's strength.
-inline double contrastAtDensity(int inkIdx, int paperIdx, int densityPct,
-                                int paperStrengthPct = kPaperStrengthDefault) {
-  uint8_t wash[3], ground[3];
-  inkAtDensity(inkIdx, paperIdx, densityPct, wash, paperStrengthPct);
+inline void inkAtDensity(int inkIdx, int paperIdx, int densityPct,
+                         uint8_t out[3],
+                         int paperStrengthPct = kPaperStrengthDefault) {
+  uint8_t ground[3];
   paperAtStrength(paperIdx, paperStrengthPct, ground);
+  washOnGround(inkIdx, ground, densityPct, out);
+}
+
+// The contrast of a wash against its own paper, at that paper's strength.
+//
+// worstDriftPct is a TRAILING DEFAULTED argument on the paper dial's own
+// pattern, and it does NOT mean "this page's drift": it means "the drift dial
+// is at this value, so report the contrast of the DARKEST sheet that dial can
+// produce". The floor has to hold for every leaf in the book, and only the
+// worst one is worth scanning. 0 -- every call site written before the drift
+// existed -- is the undrifted sheet, byte for byte what it always was.
+inline double contrastAtDensity(int inkIdx, int paperIdx, int densityPct,
+                                int paperStrengthPct = kPaperStrengthDefault,
+                                int worstDriftPct = kPaperDriftOff) {
+  uint8_t ground[3], wash[3];
+  paperAtStrength(paperIdx, paperStrengthPct, ground);
+  // The wash comes off the NOMINAL sheet -- that is the ink the picker
+  // publishes, and a leaf's drift does not reprint it. Only the ground moves.
+  washOnGround(inkIdx, ground, densityPct, wash);
+  if (worstDriftPct > kPaperDriftOff) {
+    uint8_t drifted[3];
+    paperWorstDrift(ground, worstDriftPct, drifted);
+    for (int c = 0; c < 3; c++) ground[c] = drifted[c];
+  }
   return contrastRatio(wash, ground);
 }
 
@@ -527,7 +678,12 @@ inline double contrastAtDensity(int inkIdx, int paperIdx, int densityPct,
 // by table construction -- so full density is legal at every strength, and a
 // floor always exists. Symmetrically, if a state is legal then lowering the
 // paper strength keeps it legal (a whiter ground can only raise contrast), so
-// a ceiling always exists too.
+// a ceiling always exists too. That survives the drift: the worst pair at full
+// density on the darkest sheet the dial can produce is Van Dyke Brown on Laid
+// Antique at 7.53:1 (measured over the whole ink x paper x strength grid,
+// against 7.68:1 undrifted), so full density stays legal everywhere and a
+// floor still always exists. It is the test that re-measures this, not this
+// comment.
 //
 // Both are found by SCAN rather than by inverting the formula, and the
 // direction each scans in is not cosmetic. Contrast is exactly monotone in
@@ -543,11 +699,23 @@ inline double contrastAtDensity(int inkIdx, int paperIdx, int densityPct,
 // points of strength in the worst corner (Prussian Blue on Cream at 66%
 // density) and it makes the guarantee exact instead of approximate.
 
-// The smallest density whose wash clears 7:1 on this paper AT THIS STRENGTH.
+// THE DRIFT IS THE THIRD AXIS, and it is folded into the two clamps rather
+// than checked beside them. Both scanners already stop exactly AT 7.0, so a
+// sheet two code values darker than the one they measured would sit below the
+// floor by construction -- there is no bound on the drift small enough to be
+// safe against a boundary state. Passing the dial through makes the boundary
+// itself move instead: with drift on, the floor is the floor of the DARKEST
+// leaf, and every other leaf is lighter and therefore clears it. That costs a
+// point or two of density at the drift dial's top and it makes the guarantee
+// exact rather than probabilistic.
+
+// The smallest density whose wash clears 7:1 on this paper AT THIS STRENGTH,
+// on the darkest sheet the drift dial can produce.
 inline int floorDensityPct(int inkIdx, int paperIdx,
-                           int paperStrengthPct = kPaperStrengthDefault) {
+                           int paperStrengthPct = kPaperStrengthDefault,
+                           int driftPct = kPaperDriftOff) {
   for (int pct = 0; pct <= kDensityMax; pct++) {
-    if (contrastAtDensity(inkIdx, paperIdx, pct, paperStrengthPct) >=
+    if (contrastAtDensity(inkIdx, paperIdx, pct, paperStrengthPct, driftPct) >=
         kContrastFloor)
       return pct;
   }
@@ -557,8 +725,10 @@ inline int floorDensityPct(int inkIdx, int paperIdx,
 // The clamp the density slider and every stored density go through: never
 // below the floor for this ink on this sheet, never above full strength.
 inline int clampDensityPct(int inkIdx, int paperIdx, int densityPct,
-                           int paperStrengthPct = kPaperStrengthDefault) {
-  const int floor = floorDensityPct(inkIdx, paperIdx, paperStrengthPct);
+                           int paperStrengthPct = kPaperStrengthDefault,
+                           int driftPct = kPaperDriftOff) {
+  const int floor = floorDensityPct(inkIdx, paperIdx, paperStrengthPct,
+                                    driftPct);
   if (densityPct < floor) return floor;
   if (densityPct > kDensityMax) return kDensityMax;
   return densityPct;
@@ -568,10 +738,12 @@ inline int clampDensityPct(int inkIdx, int paperIdx, int densityPct,
 // every strength up to it also clearing 7:1 -- the prefix boundary, for the
 // quantization reason above. 0 when even the bare white ground cannot clear
 // the floor, which only a state the density clamp has not yet fixed can reach.
-inline int maxPaperStrengthPct(int inkIdx, int paperIdx, int densityPct) {
+inline int maxPaperStrengthPct(int inkIdx, int paperIdx, int densityPct,
+                               int driftPct = kPaperDriftOff) {
   int last = 0;
   for (int pct = 0; pct <= kPaperStrengthMax; pct++) {
-    if (contrastAtDensity(inkIdx, paperIdx, densityPct, pct) < kContrastFloor)
+    if (contrastAtDensity(inkIdx, paperIdx, densityPct, pct, driftPct) <
+        kContrastFloor)
       break;
     last = pct;
   }
@@ -580,8 +752,10 @@ inline int maxPaperStrengthPct(int inkIdx, int paperIdx, int densityPct) {
 
 // The clamp the paper slider and every stored strength go through.
 inline int clampPaperStrengthPct(int inkIdx, int paperIdx, int densityPct,
-                                 int paperStrengthPct) {
-  const int ceiling = maxPaperStrengthPct(inkIdx, paperIdx, densityPct);
+                                 int paperStrengthPct,
+                                 int driftPct = kPaperDriftOff) {
+  const int ceiling =
+      maxPaperStrengthPct(inkIdx, paperIdx, densityPct, driftPct);
   if (paperStrengthPct < 0) return 0;
   if (paperStrengthPct > ceiling) return ceiling;
   return paperStrengthPct;
