@@ -355,3 +355,41 @@ No link map exists and none was generated (that needs a link, and this pass was 
 ---
 
 **Files that would change**, for whoever picks this up: `.github/workflows/testflight-ios.yml:154-157` (A1) · `CMakeLists.txt:158-159` (A2) · `ios/CMakeLists.txt:342-364` (A3), `:97,:142-157` (A5) · `crosspoint-reader/lib/EpdFont/scripts/convert-builtin-fonts.sh:57,:441-465` and `lib/EpdFont/builtinFonts/all.h:57-131` (A4, A5) · `ios/Settings.bundle/Root.plist` (A5, and the stale 1x footer regardless) · `crosspoint-reader/lib/EpdFont/scripts/fontconvert_sdcard.py` + `lib/EpdFont/SdCardFont.cpp` + `lib/EpdFont/scripts/cpfont_version.py` (A6).
+
+## The bundle is built from `build/seedfonts`, not `ios/seedfonts`
+
+Recorded 2026-08-23 after it nearly shipped a family invisibly. The two trees
+are NOT the same thing and both are real:
+
+- **`ios/seedfonts/`** is the reference set — full, unsubsetted, and what
+  `sd-fonts.yaml` means when its comment says nothing in the firmware repo can
+  reach the iOS seed directory.
+- **`build/seedfonts/`** is what actually reaches the app. `ios/CMakeLists.txt`
+  copies it into `Resources/SeedFonts/`, and its files are ~10% smaller because
+  they carry the subsetted charsets from the A-series cuts above.
+
+Adding a family to the S tier therefore means building it into
+`build/seedfonts` as well, at **every tier the app can render** — 1x, 2x and 3x,
+since `renderScale` defaults to 3. TeX Gyre Heros was installed to
+`ios/seedfonts` and to the card, passed every check, and would have shipped in
+build 129 with the firmware believing in seven families and the bundle carrying
+six. Nothing failed; the family simply would not have been there.
+
+```bash
+for sc in 1 2 3; do
+  python3 <firmware>/lib/EpdFont/scripts/build-sd-fonts.py \
+    --only <Family> --scale $sc --output-dir <simulator>/build/seedfonts
+done
+```
+
+Hi-res tiers can fail on a single glyph: at 3x the 16 pt slot rasterises as
+48 pt, and a glyph over 255 px in either dimension cannot be expressed by
+`EpdGlyph`'s uint8 fields, so the SIZE raises a ValueError rather than
+degrading. Heros needs `--drop-codepoints 0x2E3B` at 3x for exactly that
+reason (its three-em dash measures 276 px); the recipe in `sd-fonts.yaml`
+carries the command.
+
+**Worth making mechanical.** The configure-time gate already fails when a
+bundled family is missing from `installed_families`; the inverse check — an
+`installed_families` entry with no bundled files — is the one that would have
+caught this, and does not exist yet.
