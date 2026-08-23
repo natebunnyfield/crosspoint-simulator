@@ -531,6 +531,23 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
+**Settings.app is now four rows.** Owner ruling 2026-08-23, from a screenshot
+of his own chosen values: *"make these settings the default and remove them from
+ios app settings as options."* The whole **Page Colors** and **Paper Defects**
+groups left `Root.plist`, leaving Zen toggle / Screen / Sharpness / Read Aloud.
+The frozen values are page fade **Off**, fade depth **fully transparent**,
+letterpress **Standard**, scanlines **Subtle** at **Fine** pitch with **Extreme**
+bloom, defects **0**.
+
+Six of the seven getters in `ios/CrossPointPrefs.mm` now return a constant
+**without consulting NSUserDefaults**, which is the part that matters: an install
+that stored a different value before the row was removed must not keep rendering
+it, and with the row gone there would be no way to change it back. The seventh,
+`paperDefectsPercent`, is still read — the light picker's own Defects slider
+writes it, and that drawer is a different surface than Settings.app.
+`CROSSPOINT_SIM_AS_SHIPPED` was moved to match, since its whole job is to be the
+complete list of what the app's dials actually are.
+
 **A preset persists as an INTEGER.** Rows therefore APPEND and never insert —
 re-pointing one silently changes what a saved choice selects. The display order
 in `Root.plist` is independent of that integer, which is what lets the picker be

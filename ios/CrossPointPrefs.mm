@@ -272,16 +272,9 @@ static void ensureDefaults(void) {
         // Off: the page arrives at once, which is what every build before this
         // did and what an e-ink panel does.
         kBeamPaintMs : @(0),
-        // Off: the page holds its brightness for as long as you read it, which
-        // is what every build before this did.
-        kPageFadeSeconds : @(0),
-        // 100: the fade stops at the palette's legible floor, which is what
-        // every build before this setting did. Missing-key failure mode is
-        // MALIGNANT -- -integerForKey: returns 0 for an absent key, and 0 here
-        // means FULLY TRANSPARENT, i.e. an owner who never opened this setting
-        // would find the page fading away to nothing. This fallback is the
-        // thing standing between an unseeded install and that.
-        kPageFadeDepthPercent : @(100),
+        // pageFadeSeconds and pageFadeDepthPercent were registered here until
+        // 2026-08-23. Their getters no longer consult NSUserDefaults at all,
+        // so registering a default would state a value nothing reads.
       }];
     }
 
@@ -399,21 +392,14 @@ int CrossPointPrefs_padFillContrast(int dark) {
   return padContrast(dark ? kPadFillContrastDark : kPadFillContrastLight);
 }
 
-int CrossPointPrefs_pageFadeSeconds(void) {
-  ensureDefaults();
-  checkKnown(kPageFadeSeconds);
-  // Stored as SECONDS, and as the duration itself rather than a row index --
-  // same reasoning as beamPaintMs: a duration is meaningful on its own, so the
-  // picker can be retuned without a migration and without a saved choice
-  // quietly changing speed.
-  const int s = static_cast<int>(
-      [[NSUserDefaults standardUserDefaults] integerForKey:kPageFadeSeconds]);
-  if (s < 0) return 0;
-  // Ten minutes is already far past "fades while you read"; beyond it the
-  // setting is indistinguishable from off and would hold the render loop open
-  // for the whole of it.
-  return s > 600 ? 600 : s;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 0 = Off: the page holds its brightness.
+int CrossPointPrefs_pageFadeSeconds(void) { return 0; }
 
 int CrossPointPrefs_phosphorGrainPercent(int dark) {
   ensureDefaults();
@@ -465,26 +451,29 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) {
   return d > 100 ? 100 : d;
 }
 
-int CrossPointPrefs_letterpressPercent(void) {
-  ensureDefaults();
-  checkKnown(kLetterpressPercent);
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kLetterpressPercent];
-  // 50 (Subtle) is the shipped light-mode default -- the doctrine makes the
-  // effect the mode's identity, subtle because it is a reading page.
-  if (![v isKindOfClass:[NSNumber class]]) return 50;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 400 ? 400 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 100 = Standard, a visible impression. Still the master the light
+// drawer's press sub-dials scale against.
+int CrossPointPrefs_letterpressPercent(void) { return 100; }
 
 int CrossPointPrefs_paperDefectsPercent(void) {
   ensureDefaults();
-  checkKnown(kPaperDefectsPercent);
+  // No checkKnown: this key is deliberately NOT a Settings.bundle row any more
+  // (owner ruling 2026-08-23). The light picker's Defects slider is its only
+  // control, so an absent value is the normal state, not a missing row.
   NSNumber *v =
       [[NSUserDefaults standardUserDefaults] objectForKey:kPaperDefectsPercent];
-  // 30 is the shipped default: a book that has been somewhere, not a ruin.
-  if (![v isKindOfClass:[NSNumber class]]) return 30;
+  // 0 by owner ruling 2026-08-23, when the Settings.bundle row was removed.
+  // Unlike the six frozen above this one is still READ, because the light
+  // picker's own Defects slider writes it -- that drawer is a different
+  // surface and was not part of the ruling. A page carries no marks until
+  // the owner asks for them there.
+  if (![v isKindOfClass:[NSNumber class]]) return 0;
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 100 ? 100 : pct;
@@ -497,63 +486,42 @@ void CrossPointPrefs_setPaperDefectsPercent(int pct) {
                                              forKey:kPaperDefectsPercent];
 }
 
-int CrossPointPrefs_scanlinesPercent(void) {
-  ensureDefaults();
-  checkKnown(kScanlinesPercent);
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlinesPercent];
-  // 50 (Subtle) is the shipped dark-mode default, same argument as above.
-  if (![v isKindOfClass:[NSNumber class]]) return 50;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 300 ? 300 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 50 = Subtle, the raster at a glance.
+int CrossPointPrefs_scanlinesPercent(void) { return 50; }
 
-int CrossPointPrefs_scanlineSizePercent(void) {
-  ensureDefaults();
-  checkKnown(kScanlineSizePercent);
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlineSizePercent];
-  // 100 -- one scan line per page row -- is the pitch build 126 shipped, so an
-  // untouched install and every older install render exactly as before.
-  if (![v isKindOfClass:[NSNumber class]]) return 100;
-  const int pct = v.intValue;
-  if (pct < 100) return 100;
-  return pct > 300 ? 300 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 100 = Fine, one line per page row.
+int CrossPointPrefs_scanlineSizePercent(void) { return 100; }
 
-int CrossPointPrefs_scanlineBloomPercent(void) {
-  ensureDefaults();
-  checkKnown(kScanlineBloomPercent);
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kScanlineBloomPercent];
-  // 100 -- the standard gain -- is what build 126 shipped, so an untouched
-  // install and every older install render exactly as before.
-  if (![v isKindOfClass:[NSNumber class]]) return 100;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 400 ? 400 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 400 = Extreme, text burns through the raster.
+int CrossPointPrefs_scanlineBloomPercent(void) { return 400; }
 
-int CrossPointPrefs_pageFadeDepthPercent(void) {
-  ensureDefaults();
-  checkKnown(kPageFadeDepthPercent);
-  // Stored as the PROPORTION OF THE LEGIBLE FLOOR THAT IS KEPT, 0..100 -- the
-  // meaningful value itself rather than a row index, same reasoning as
-  // pageFadeSeconds above. 100 is today's behaviour; 0 is fully transparent.
-  //
-  // Read through -objectForKey: rather than -integerForKey: because 0 is a REAL
-  // choice here and -integerForKey: cannot tell it from an absent key. That
-  // distinction is load-bearing exactly once -- on an install whose defaults
-  // somehow did not register -- and the wrong answer there is a page that fades
-  // away for an owner who never asked it to.
-  NSNumber *v = [[NSUserDefaults standardUserDefaults]
-      objectForKey:kPageFadeDepthPercent];
-  if (![v isKindOfClass:[NSNumber class]]) return 75;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 100 ? 100 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+// 0 = fully transparent. Moot while the fade is Off, and kept honest
+// anyway so the two cannot disagree if the fade is ever revived.
+int CrossPointPrefs_pageFadeDepthPercent(void) { return 0; }
 
 int CrossPointPrefs_presentFlash(void) {
   ensureDefaults();
