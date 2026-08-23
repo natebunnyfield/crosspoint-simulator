@@ -94,6 +94,14 @@ constexpr int kPressCells = 4;
 // already reach on its own. Any state the drawer can select, the shipped
 // Letterpress row could already select; tests/paper_defects_test.cpp proves it
 // term by term rather than leaving it as this paragraph.
+//
+// ...for RING and DEBOSS. PRESSURE is exempt since the 2026-08-22 widening
+// (kPressWidenAboveStandard below): its top now exceeds what the master
+// ladder alone could reach, deliberately. That does not reopen any contrast
+// argument, because the press term is carried by INK (it multiplies t, is
+// exactly zero on bare paper, and darkening ink RAISES a light page's
+// contrast); the floor arguments all live on the paper side. The exemption is
+// pinned in both tests rather than left here.
 constexpr float kPartScaleMax = 2.0f;
 constexpr int kOfferedStrengthMax = 200;
 
@@ -101,6 +109,31 @@ inline float clampPartScale(float s) {
   if (!(s > 0.0f)) return 0.0f;  // also catches NaN
   if (s > kPartScaleMax) return kPartScaleMax;
   return s;
+}
+
+// --- THE PRESSURE DIAL'S WIDENED RANGE (2026-08-22 audit fix) --------------
+//
+// The shipped Plate Pressure slider was a near-dead control, measured: the
+// FULL 0..200% sweep moved 0.39% of rendered pixels by at most 8 code values.
+// The mechanism is the press term's own gates -- kPressAt100 * ratio * s *
+// heavy * t caps at 0.12 of the INK's light across the whole dial, and ink at
+// the shipped #2D2D2D has only ~45 code values for a multiplier to act on, so
+// 0.12 of it is five levels in the heaviest blotch and less than one at
+// typical `heavy`. The physical effect is honestly subtle at this scale, so
+// the fix is the honest one: the dial's MAPPED RANGE is widened to span what
+// the model CAN show, not a different effect wearing the name. Below the
+// standard ratio the mapping is the identity -- 1.0 stays byte-exact the
+// shipped standard press, and the master ladder (which sweeps `s` at ratio 1)
+// is untouched -- and above it each step buys kPressWidenAboveStandard times
+// the amplitude, so 200% reaches 8x standard: ~0.48 of the ink's light in the
+// heaviest blotch, a visibly uneven forme. Safe by construction: the term is
+// ink-carried (zero on bare paper, so no paper-budget or floor argument
+// moves) and the kMinMultiplier clamp still bounds it.
+constexpr float kPressWidenAboveStandard = 7.0f;
+
+inline float pressAmpScale(float ratio) {
+  if (ratio <= 1.0f) return ratio;
+  return 1.0f + (ratio - 1.0f) * kPressWidenAboveStandard;
 }
 
 // --- THE SHEET'S FORMATION -------------------------------------------------
@@ -305,7 +338,11 @@ inline uint8_t multiplierAt(const Params &p, const float win[3][3], int x,
                                             p.seed ^ 0x504C5445u);
   float heavy = v * 2.0f - 1.0f;
   if (heavy < 0.0f) heavy = 0.0f;
-  const float press = kPressAt100 * clampScale(p.pressScale) * s * heavy * t;
+  // The ratio runs through pressAmpScale -- the widened dial (see above).
+  // clampScale first, then the widening, so the drawer's 0..2 stays the
+  // stored range and the widening has one definition.
+  const float press = kPressAt100 * pressAmpScale(clampScale(p.pressScale)) *
+                      s * heavy * t;
 
   // IN-STROKE IRREGULARITY (ink) and PAPER TOOTH (paper), both uniform noise
   // in [0, amplitude]. Tooth rides sqrt of the dial and is clamped to the

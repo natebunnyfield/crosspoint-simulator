@@ -221,6 +221,19 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   "pressRingPercent": 100,
   "pressDebossPercent": 100,
   "pressPressurePercent": 100,
+  // ...note the pressure dial's mapped range is WIDENED above 100: the
+  // physical effect (heavy areas darkening ink) is subtle at this scale, so
+  // 100..200 spans 1x..8x of the standard amplitude while 0..100 stays the
+  // identity. src/Letterpress.h, pressAmpScale.
+
+  // CHAIN AND LAID LINES, for a laid stock. The iOS picker derives this from
+  // the chosen paper (only Laid Antique carries wires today) and its
+  // strength; this raw percent is the desktop's way in, since this file has
+  // no paper picker. 0 = off (bit-exact, the historical rendering);
+  // 100 = standard. Measured geometry -- laid ~1 mm pitch, chains 26-39 mm,
+  // chains darker, antique strip along each chain: src/LaidStructure.h and
+  // docs/paper-colorimetry-sources.md section 3c.
+  "laidLinesPercent": 0,
 
   // Scanlines, percent of standard: one scan line per page row, Gaussian
   // beam, bright-content bloom, blotch depth folded into the dial.

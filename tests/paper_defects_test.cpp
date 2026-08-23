@@ -528,6 +528,15 @@ int main() {
   // term no larger than the SHIPPED master ladder could already reach on its
   // own at kStrengthMax. If this fails, the drawer has invented a new worst
   // case and every contrast argument in Letterpress.h has to be re-derived.
+  //
+  // FOR RING AND DEBOSS. Pressure left this sweep with the 2026-08-22 widened
+  // dial (letterpress::pressAmpScale): its top deliberately exceeds the old
+  // master-ladder worst case, which is legal because the press term is
+  // ink-carried -- it multiplies t, is exactly zero on bare paper (the
+  // flatWin block below pins that at the widened maximum), and darkening ink
+  // RAISES a light page's contrast, so no paper-side floor argument moves.
+  // The widened dial's own contract (monotone, per-rung distinct, min-clamped)
+  // is pinned in tests/letterpress_test.cpp.
   {
     check(letterpress::kPartScaleMax *
                   static_cast<float>(letterpress::kOfferedStrengthMax) <=
@@ -556,7 +565,7 @@ int main() {
             p.strengthPercent = st;
             p.ringScale = letterpress::clampPartScale(r);
             p.debossScale = letterpress::clampPartScale(r);
-            p.pressScale = letterpress::clampPartScale(r);
+            p.pressScale = 1.0f;  // widened dial exempt -- see block comment
             const uint8_t got = letterpress::multiplierAt(p, win, x, y, 8, 8);
             check(got >= shipped,
                   "no drawer state darkens more than the shipped ladder's top");

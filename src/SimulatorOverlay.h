@@ -350,6 +350,19 @@ void setPaperFormation(int depthPercent);
 // and citations: docs/paper-defects.md. CROSSPOINT_SIM_PAPER_DEFECTS overrides.
 void setPaperDefects(int dialPercent);
 
+// CHAIN AND LAID LINES: the wire structure of a hand mould, for a stock that
+// carries it (lightink::Paper::laid -- Laid Antique today). Percent of
+// standard; the iOS picker pushes the paper-strength percent for a laid stock
+// and 0 for every wove one, so the wires ride the paper slider the way tooth
+// and formation do. 0 off and bit-exact -- the desktop default, so the canary
+// is unchanged. Generated at OUTPUT size inside the sheet pass (at ~1.9 px
+// the laid pitch is ST-008 territory in the framebuffer), darken-only, seeded
+// by the page's identity so a page is the same sheet forever. Model:
+// src/LaidStructure.h (host-tested); measured geometry:
+// docs/paper-colorimetry-sources.md section 3c. CROSSPOINT_SIM_LAIDLINES
+// overrides the argument.
+void setLaidLines(int strengthPercent);
+
 // THE PRESS'S THREE PARTS, each a percent of the standard press (100 is the
 // shipped composition, 0 removes that component, 200 is the ceiling -- which is
 // not taste but the no-new-worst-case bound: 200% on the heaviest OFFERED

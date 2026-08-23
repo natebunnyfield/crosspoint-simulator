@@ -371,3 +371,79 @@ bit-exact 255 at any strength, the sheet field is stationary (block means
 agree across any boundary), and the flat sheet holds the floor. The color half
 of the same seam -- the card and clear tone being the resolved paper
 byte-for-byte -- is pinned in `tests/light_ink_test.cpp`.
+
+## 2026-08-22 addendum: the plate-pressure dial was near-dead, and how it died
+
+The HTML audit measured the shipped Press "plate pressure" slider and found a
+control that barely exists: **the full 0..200% sweep moved 0.39% of rendered
+pixels by at most 8 code values, and any rung looked byte-identical to the
+default while dragging**. Traced from zero, the dial was being eaten twice:
+
+1. **The cache ate the slider live** (`src/HalDisplay.cpp`,
+   `ensureLetterpressTexture`). The letterpress panel-field cache keyed on
+   size, frame seq, master strength and palette -- but NOT on the three press
+   part percents. A drawer slider stored its value and asked for a present;
+   the present found seq/strength/palette unchanged and served the cached
+   texture, so the new ratio first painted at some unrelated page turn. The
+   three percents are cache keys now (`letterTexRing/Deboss/Press`).
+2. **The pixel math had almost nothing to show** (`src/Letterpress.h:308`,
+   the line `kPressAt100 * ratio * s * heavy * t`). The term is gated by
+   `heavy` (the positive half of a smooth 4-cell noise field -- small on most
+   of the page) and by `t` (inkness -- pressure darkens INK), and ink at the
+   shipped `#2D2D2D` has only ~45 code values for a multiplier to act on.
+   0.12 x 45 is five levels in the heaviest blotch, under one level typically.
+   That is the honest physics: plate pressure IS subtle at this scale.
+
+**The fix is the sanctioned one -- the dial's mapped range is widened to span
+what the model CAN show**, not a different darkening wearing the name.
+`letterpress::pressAmpScale`: identity at and below the standard ratio (so
+1.0 is byte-exact the shipped press and the master ladder, which sweeps `s`
+at ratio 1, is untouched), and above it each step buys
+`kPressWidenAboveStandard` (7x) more amplitude, so 200% reaches 8x standard
+-- ~0.48 of the ink's light in the heaviest blotch. Ink-carried, so zero on
+bare paper and floor-safe by construction; still `kMinMultiplier`-clamped.
+The no-new-worst-case bound in `paper_defects_test` now scopes to ring and
+deboss, with pressure's exemption pinned separately (ink-gated, monotone,
+per-rung distinct) in `letterpress_test`.
+
+Measured on the model's own render (Standard ink on Bright White, panel field
+only, vs the rung-0 render): before, the full sweep peaked at max 6 levels
+with 0.26% of pixels moved by more than 4; after, rungs 0/50/100 are
+unchanged (identity), 150% reaches max 12 (5.05% > 4 levels) and 200% max 20
+(8.16% > 4 levels), strictly monotone.
+
+## 2026-08-22 addendum: chain and laid lines (the light page's laid stock)
+
+The biggest renderable texture the paper research surfaced
+([paper-colorimetry-sources.md](paper-colorimetry-sources.md) §3c, measured
+geometry from Heritage Science 11 (2023)): laid lines at ~1 mm pitch (5-15
+per cm), chain lines 26-39 mm apart, perpendicular, chains DARKER (they sit
+on top of the laid wires), and on ANTIQUE laid a soft dark strip along each
+chain (pre-1800s rib suction). Model: `src/LaidStructure.h`, host test
+`tests/laid_structure_test.cpp`.
+
+The constraints, all inherited from this doc's own passes:
+
+* **Output size, box-integrated.** At 1.85 px/mm (the one stated px/mm
+  assumption, one named constant -- no physical panel dimension exists in the
+  repo) the laid pitch is ~1.9 px: a regular lattice in ST-008 territory. So
+  the field is generated at output size inside the SHEET pass and every
+  row/column takes the erf box integral of the line profile, exactly the
+  scanlines cure; the test pins per-window flatness at the phone's fractional
+  scale the way scanlines_test pins its 2.39 px case. Where the pitch cannot
+  be resolved the structure self-attenuates to a faint even toning, which is
+  what an unresolvable laid sheet looks like.
+* **Darken-only, off bit-exact, budget-capped.** The field takes HALF of what
+  the tooth leaves of the palette's paper budget (the defect layer keeps the
+  rest, minus what the wires report spending), with the depth capped through
+  `kMeanFieldBound` -- scanlines' effectiveDepth shape -- so the 7:1 floor
+  holds at the top of the dial on the tightest palettes, swept in the test.
+* **The PAPER owns the dial.** `lightink::Paper::laid` is a per-stock flag
+  (Laid Antique today; a future laid row inherits it); the picker pushes the
+  paper-strength percent for a laid stock and 0 for everything else, so the
+  wires ride the paper slider like tooth and formation. Desktop:
+  `laidLinesPercent` in settings.json, `CROSSPOINT_SIM_LAIDLINES` env, both
+  defaulting 0 so the canary is unchanged.
+* **Per-page determinism.** Seeded by `pageSheetSeed()`: page 47 is the same
+  sheet forever, and each line's phase jitter hashes off that seed, so two
+  pages are two pressings of the same mould -- phase moves, geometry does not.

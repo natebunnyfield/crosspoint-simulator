@@ -202,6 +202,10 @@ void applyDials(const Values &v) {
       static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)));
   SimulatorOverlay::setPaperDefects(
       intOr(v, "paperDefectsPercent", paperdefects::kDialOff));
+  // A raw percent, not a paper index: the desktop file has no ink/paper
+  // picker, so laidness cannot be derived here the way the phone derives it.
+  // 0 is the historical desktop rendering.
+  SimulatorOverlay::setLaidLines(intOr(v, "laidLinesPercent", 0));
   SimulatorOverlay::setPressRing(intOr(v, "pressRingPercent", 100));
   SimulatorOverlay::setPressDeboss(intOr(v, "pressDebossPercent", 100));
   SimulatorOverlay::setPressPressure(intOr(v, "pressPressurePercent", 100));

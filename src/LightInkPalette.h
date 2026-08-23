@@ -112,6 +112,23 @@ struct Paper {
   // exactly 1.0 -- an untouched install renders the tooth it always did.
   // Per-stock derivation: docs/light-ink-picker.md section 6.
   float tooth;
+  // FORMATION: this stock's cloudiness, as a multiple of the reference
+  // sheet's -- the tooth's low-frequency twin (2026-08-22 paper research,
+  // docs/paper-colorimetry-sources.md section 3b). It scales the letterpress
+  // formation DEPTH the same way tooth scales the amplitude. Unlike tooth it
+  // MAY sit below 1.0: a filler-loaded calendered sheet or a premium coated
+  // one reads more even than the reference text stock, and there is no
+  // shipped-default argument pinning the floor at 1 -- only Bright White's
+  // own 1.0 is pinned, so an untouched install is unchanged. The one measured
+  // anchor is kozo: formation index 131 vs 60-97 for nine machine sheets
+  // (Hirai et al. 2003), which is what puts it at the top of this ladder at
+  // roughly 1.5-2x. Every other value is CHOSEN ordering, like tooth's.
+  float formation = 1.0f;
+  // LAID: whether this stock carries the chain-and-laid wire structure of a
+  // hand mould (rendered by src/LaidStructure.h; measured geometry in
+  // docs/paper-colorimetry-sources.md section 3c). A per-stock flag rather
+  // than a name check, so a future laid row inherits the field for free.
+  bool laid = false;
 };
 
 // APPEND ONLY. See the header comment; the stored integer IS the row. Rows 8
@@ -152,6 +169,7 @@ enum PaperIndex : int {
   kPaperKozo,             // unbleached Japanese kozo: buff, open, fibrous
   kPaperAzzurrata,        // carta azzurrata, the blue-gray drawing stock
   kPaperNewsprint,        // groundwood news: gray-buff, rough, low brightness
+  kPaperBrightenedWhite,  // FOGRA51 substrate: the OBA-brightened modern page
   kPaperCount
 };
 
@@ -225,32 +243,71 @@ inline constexpr Ink kInks[kInkCount] = {
 };
 
 inline constexpr Paper kPapers[kPaperCount] = {
-    {"Bright White", "bright text stock (shipped)", {0xFB, 0xFB, 0xF9}, 1.00f},
-    {"Cream", "cream trade-book stock", {0xF8, 0xF0, 0xD9}, 1.30f},
-    {"Bone", "natural offset", {0xEF, 0xEA, 0xE0}, 1.45f},
-    {"Chamois", "aged tan", {0xEC, 0xDA, 0xB7}, 1.80f},
-    {"Press Gray", "cool press stock", {0xE9, 0xEA, 0xEC}, 1.60f},
-    {"Sepia Toned", "toned sheet", {0xEE, 0xDF, 0xCC}, 1.50f},
+    {"Bright White", "bright text stock (shipped)", {0xFB, 0xFB, 0xF9}, 1.00f,
+     1.00f, false},
+    {"Cream", "cream trade-book stock", {0xF8, 0xF0, 0xD9}, 1.30f, 1.10f,
+     false},
+    {"Bone", "natural offset", {0xEF, 0xEA, 0xE0}, 1.45f, 1.15f, false},
+    {"Chamois", "aged tan", {0xEC, 0xDA, 0xB7}, 1.80f, 1.30f, false},
+    {"Press Gray", "cool press stock", {0xE9, 0xEA, 0xEC}, 1.60f, 1.00f,
+     false},
+    {"Sepia Toned", "toned sheet", {0xEE, 0xDF, 0xCC}, 1.50f, 1.20f, false},
     // --- appended 2026-08-22 -------------------------------------------------
     // THE 7:1 FLOOR CONFINES EVERY PAPER TO AN ELEVEN-L* BAND. The shipped
     // Walnut & Bistre ink has relative luminance 0.0458, so a sheet clears the
     // floor against it only above Y 0.6203 -- L* 82.9. That is why there is no
     // aged newsprint here and why the Newsprint row is lighter than the mills'
-    // own measurement (see its note). Twelve stocks inside eleven L* is
-    // crowded, so these six are placed by a*/b* -- pink, olive, violet, buff --
-    // rather than by lightness, and the test now requires four code values of
-    // separation between every pair. Derivation and sources per row:
-    // docs/light-ink-picker.md section 9b.
-    {"India", "Bible paper: thin, warm, smooth", {0xF9, 0xF3, 0xE9}, 1.12f},
-    {"Vellum", "calfskin, faintly pink", {0xF9, 0xE7, 0xD7}, 1.22f},
-    {"Laid Antique", "handmade laid, no brighteners", {0xE3, 0xDB, 0xCA}, 1.85f},
-    {"Kozo", "unbleached washi: buff, fibrous", {0xEE, 0xE6, 0xC3}, 1.95f},
-    {"Azzurrata", "carta azzurra, blue rag", {0xE0, 0xE0, 0xED}, 1.55f},
-    {"Newsprint", "groundwood news, gray-buff", {0xDE, 0xDC, 0xD3}, 1.70f},
-    // ^ the mill's own hue (Norske Skog NorNews, ISO 5631 C/2: a* -1.1,
-    //   b* +5.3) at L* 87.8 rather than its measured L* 82. Real fresh
-    //   newsprint reaches only 6.81:1 against Walnut & Bistre and cannot be
-    //   offered under this floor at all; the lift is named, not hidden.
+    // own measurement (see its note). Thirteen stocks inside eleven L* is
+    // crowded, so the appended rows are placed by a*/b* -- pink, olive,
+    // violet, buff, and the one negative-b* modern white -- rather than by
+    // lightness, and the test requires eight code values of separation between
+    // every pair. Derivation and sources per row: docs/light-ink-picker.md
+    // section 9b and docs/paper-colorimetry-sources.md.
+    {"India", "Bible paper: thin, warm, smooth", {0xF9, 0xF3, 0xE9}, 1.12f,
+     0.70f, false},
+    // ^ formation 0.70: mineral filler for opacity plus heavy calendering is
+    //   what evens a bible sheet's look -- tied lowest with Brightened White.
+    {"Vellum", "calfskin, faintly pink", {0xF9, 0xE7, 0xD7}, 1.22f, 0.80f,
+     false},
+    // ^ formation 0.80: skin, not a fibre suspension -- no headbox flocs, only
+    //   the hide's own unevenness, so low rather than zero.
+    {"Laid Antique", "handmade laid, no brighteners", {0xE3, 0xDB, 0xCA},
+     1.85f, 1.50f, true},
+    // ^ the table's one laid=true row: chain and laid lines are rendered for
+    //   it by src/LaidStructure.h (measured geometry: laid ~1 mm pitch,
+    //   chains 26-39 mm apart, chains darker -- Heritage Science 11 (2023);
+    //   docs/paper-colorimetry-sources.md section 3c).
+    {"Kozo", "unbleached washi: buff, fibrous", {0xEE, 0xE6, 0xC3}, 1.95f,
+     1.90f, false},
+    // ^ the tone's DEPTH (b* +18) is a reconstruction -- measured white kozo
+    //   sits at b* +2..+3 -- but the formation claim is instrumental: handmade
+    //   kozo scored the worst formation index of ten shoji sheets, 131 vs
+    //   60-97 for the machine-made ones (Hirai, Yokoyama & Gunji 2003), which
+    //   is why this row tops the formation ladder as well as the tooth one.
+    {"Azzurrata", "carta azzurra, blue rag", {0xE0, 0xE0, 0xED}, 1.55f, 1.20f,
+     false},
+    {"Newsprint", "groundwood news, gray-buff", {0xDE, 0xDC, 0xD3}, 1.70f,
+     1.40f, false},
+    // ^ to measurement precision this IS a real grade: FOGRA48 improved
+    //   newsprint (INP) measures Lab 88/0/+2 -> #DEDDD9, within 6 code values
+    //   of this row on every channel, and clears the floor (worst ink
+    //   7.78:1). Standard newsprint is what the floor excludes: FOGRA42 SNP
+    //   measures 82.38/0.11/3.28 -> #CFCDC7 and reaches only ~6.7:1 against
+    //   the worst shipped ink. The hue also agrees with the mill sheet
+    //   (Norske Skog NorNews, ISO 5631 C/2: a* -1.1, b* +5.3).
+    //   Sources: docs/paper-colorimetry-sources.md section 1a.
+    {"Brightened White", "OBA-brightened modern stock", {0xEF, 0xF0, 0xFC},
+     1.05f, 0.70f, false},
+    // ^ appended from the 2026-08-22 paper research (G1/I3): FOGRA51's
+    //   measured M1 substrate, Lab 95.00/1.50/-6.00 -> #EFF0FC -- the
+    //   OBA-brightened stock most modern books are printed on, and the only
+    //   row whose negative b* is EARNED by brighteners rather than dye
+    //   (docs/paper-colorimetry-sources.md section 2). Tooth near 1.0 and
+    //   formation low: a premium coated 2013-era sheet is coated-era smooth
+    //   and optically even. The floor and separation claims are re-proven by
+    //   tests/light_ink_test.cpp, not trusted from the doc: 7:1 against all
+    //   17 inks (worst 9.34:1, Van Dyke) and >= 8 code values from every
+    //   other row.
 };
 
 // THE DISPLAY ORDER, DERIVED. Fills `out` with every ink index exactly once,
@@ -384,6 +441,27 @@ inline float toothScaleFor(int paperIdx, int strengthPct) {
   if (s > kPaperStrengthMax) s = kPaperStrengthMax;
   const float t = static_cast<float>(s) / static_cast<float>(kPaperStrengthMax);
   return base + (stock.tooth - base) * t;
+}
+
+// THE STOCK'S FORMATION AT THIS STRENGTH -- toothScaleFor's exact twin for the
+// sheet's cloudiness (2026-08-22 paper research: formation ignored the stock,
+// so a hand-formed kozo and a filler-evened bible sheet wore the same clouds
+// while their tooth already differed). Same linear ride on the strength dial,
+// same reading: 40% of the way from the reference sheet's evenness to this
+// stock's own. Exactly 1.0 at strength 0 for every stock and everywhere for
+// Bright White, so the dial takes the clouds away with the tone and an
+// untouched install is unchanged. Unlike tooth the destination MAY be below
+// 1.0 -- dialing in a more even stock legitimately calms the sheet. The
+// factor multiplies the letterpress formation DEPTH at the pusher (the iOS
+// picker; the desktop settings file carries a raw percent and is unchanged).
+inline float formationScaleFor(int paperIdx, int strengthPct) {
+  const Paper &stock = kPapers[clampPaperIndex(paperIdx)];
+  const float base = kPapers[kPaperBrightWhite].formation;
+  int s = strengthPct;
+  if (s < 0) s = 0;
+  if (s > kPaperStrengthMax) s = kPaperStrengthMax;
+  const float t = static_cast<float>(s) / static_cast<float>(kPaperStrengthMax);
+  return base + (stock.formation - base) * t;
 }
 
 // The wash: ink `inkIdx` at `densityPct` (0..100) on paper `paperIdx` held at
@@ -524,6 +602,10 @@ static_assert(kPapers[kPaperBrightWhite].tone[0] == 0xFB &&
 static_assert(kPapers[kPaperBrightWhite].tooth == 1.0f,
               "Bright White's tooth is the reference the sheet pass was "
               "calibrated on; moving it re-textures the shipped default");
+static_assert(kPapers[kPaperBrightWhite].formation == 1.0f &&
+                  !kPapers[kPaperBrightWhite].laid,
+              "Bright White is the formation reference and carries no wire "
+              "structure; either moving silently re-textures the default");
 static_assert(clampInkIndex(-1) == kInkStandard &&
                   clampInkIndex(kInkCount) == kInkStandard &&
                   clampPaperIndex(999) == kPaperBrightWhite,
