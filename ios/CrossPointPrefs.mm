@@ -545,7 +545,29 @@ int CrossPointPrefs_showThroughPercent(void) { return 100; }
 // and the one published bound (TG18's corner astigmatism ratio < 1.5) leaves no
 // interesting range to offer. 100 = a corner spot 1.45x the centre's, an
 // astigmatism ratio of 1.23.
-int CrossPointPrefs_cornerDefocusPercent(void) { return 100; }
+//
+// TEMPORARY OVERRIDE, added 2026-08-23 by owner ruling ("decide it on device
+// first"): the effect measures SUB-CODE-VALUE on this app's rasters -- the
+// corner loses 41% of its depth while the whole frame deviates by 1.0 code
+// value -- so no honest screenshot can settle whether it is visible, and both
+// of us would be guessing from numbers. This reads a defaults key so the owner
+// can flip it in place on the phone rather than waiting on a build per arm:
+//
+//   xcrun simctl spawn booted defaults write <container> cornerDefocusOverride -int 0
+//
+// or, on a device, whatever writes that key. An ABSENT key keeps the shipped
+// 100, so this changes nothing for anyone who does not set it. Delete this
+// whole branch once the question is answered -- it is a probe, not a setting,
+// and it should not outlive the decision.
+int CrossPointPrefs_cornerDefocusPercent(void) {
+  NSNumber *probe = [[NSUserDefaults standardUserDefaults]
+      objectForKey:@"cornerDefocusOverride"];
+  if ([probe isKindOfClass:[NSNumber class]]) {
+    const int pct = probe.intValue;
+    return pct < 0 ? 0 : (pct > 200 ? 200 : pct);
+  }
+  return 100;
+}
 
 // A ROW, NOT A FROZEN VALUE, and the only one of the three 2026-08-23 items
 // that is. Every other surface dial has an answer that is simply right; this
