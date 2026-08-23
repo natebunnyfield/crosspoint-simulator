@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "GrayscalePreview.h"
+#include "LaidStructure.h"
 #include "Letterpress.h"
 #include "PaperDefects.h"
 #include "PageFade.h"
@@ -1015,6 +1016,10 @@ static std::atomic<int> paperToothPct{100};
 static std::atomic<int> paperFormationPct{
     static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)};
 static std::atomic<int> paperDefectsPct{paperdefects::kDialOff};
+// CHAIN AND LAID LINES, for a stock that carries them (lightink::Paper::laid;
+// the iOS picker pushes the paper-strength percent for a laid stock and 0 for
+// everything else). Off is the desktop default, so the canary is unchanged.
+static std::atomic<int> laidLinesStrength{laidstructure::kStrengthOff};
 // The press's three PART ratios, as percents of the standard press. 100 is the
 // shipped composition, so an unseeded build renders exactly what it did.
 static std::atomic<int> pressRingPct{100};
@@ -1145,6 +1150,13 @@ void setPaperDefects(int dialPercent) {
   dialPercent = envPercentOr("CROSSPOINT_SIM_PAPER_DEFECTS", dialPercent);
   const int pct = paperdefects::clampDial(dialPercent);
   if (paperDefectsPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+void setLaidLines(int strengthPercent) {
+  strengthPercent = envPercentOr("CROSSPOINT_SIM_LAIDLINES", strengthPercent);
+  const int pct = laidstructure::clampStrength(strengthPercent);
+  if (laidLinesStrength.exchange(pct) == pct) return;
   pendingPresent.store(true);
 }
 
@@ -1482,6 +1494,9 @@ void HalDisplay::begin() {
     SimulatorOverlay::setPressRing(100);
     SimulatorOverlay::setPressDeboss(100);
     SimulatorOverlay::setPressPressure(100);
+    // 0 because the app's default stock (Bright White) carries no wires; the
+    // dial follows the paper picker, not a Settings row.
+    SimulatorOverlay::setLaidLines(0);
     SimulatorOverlay::setScanlines(50);
     SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
     SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
@@ -1965,6 +1980,12 @@ static int letterTexW = 0, letterTexH = 0;
 static uint64_t letterTexSeq = 0;
 static int letterTexStrength = -1;
 static uint32_t letterTexKey = 0;
+// The press's three PART percents are cache keys too. They were not, and that
+// was the live half of the dead plate-pressure dial (2026-08-22 audit): a
+// drawer slider stored its value and asked for a present, the present found
+// seq, strength and palette unchanged, and served the cached field -- the new
+// ratio first painted at some unrelated page turn.
+static int letterTexRing = -1, letterTexDeboss = -1, letterTexPress = -1;
 
 static void destroyLetterpressTexture() {
   if (!letterpressTexture) return;
@@ -1974,6 +1995,7 @@ static void destroyLetterpressTexture() {
   letterTexSeq = 0;
   letterTexStrength = -1;
   letterTexKey = 0;
+  letterTexRing = letterTexDeboss = letterTexPress = -1;
 }
 
 static bool ensureLetterpressTexture() {
@@ -1994,6 +2016,10 @@ static bool ensureLetterpressTexture() {
                                static_cast<uint32_t>(live.paper[1]) << 8 |
                                live.paper[2],
                            seed);
+  // The part ratios join the cache check -- see the statics' comment.
+  const int ringPct = SimulatorOverlay::pressRingPct.load();
+  const int debossPct = SimulatorOverlay::pressDebossPct.load();
+  const int pressPct = SimulatorOverlay::pressPressurePct.load();
   // Read the frame and its seq together, under the lock, so the key can never
   // describe pixels from a different frame than the ones read.
   std::vector<uint8_t> inkness;
@@ -2003,7 +2029,8 @@ static bool ensureLetterpressTexture() {
     seq = pixelBufSeq;
     if (letterpressTexture && letterTexW == w && letterTexH == h &&
         letterTexSeq == seq && letterTexStrength == strength &&
-        letterTexKey == palKey)
+        letterTexKey == palKey && letterTexRing == ringPct &&
+        letterTexDeboss == debossPct && letterTexPress == pressPct)
       return true;
     // INKNESS: where each pixel sits on the ink->paper segment, 255 = ink.
     // Projection in byte space, because pixelBuf's grays are integer-lerped
@@ -2064,12 +2091,9 @@ static bool ensureLetterpressTexture() {
   // The press's three PARTS, from the drawer's Press group. Composed
   // multiplicatively with the master strength above, so each quantity has one
   // stored value; 100% each is the shipped composition.
-  params.ringScale =
-      static_cast<float>(SimulatorOverlay::pressRingPct.load()) / 100.0f;
-  params.debossScale =
-      static_cast<float>(SimulatorOverlay::pressDebossPct.load()) / 100.0f;
-  params.pressScale =
-      static_cast<float>(SimulatorOverlay::pressPressurePct.load()) / 100.0f;
+  params.ringScale = static_cast<float>(ringPct) / 100.0f;
+  params.debossScale = static_cast<float>(debossPct) / 100.0f;
+  params.pressScale = static_cast<float>(pressPct) / 100.0f;
   const uint64_t letterT0 = SDL_GetTicksNS();
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   auto tAt = [&](int x, int y) {
@@ -2105,6 +2129,9 @@ static bool ensureLetterpressTexture() {
   letterTexSeq = seq;
   letterTexStrength = strength;
   letterTexKey = palKey;
+  letterTexRing = ringPct;
+  letterTexDeboss = debossPct;
+  letterTexPress = pressPct;
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f "
@@ -2150,6 +2177,11 @@ static int sheetTexStrength = -1;
 static int sheetTexTooth = -1;
 static int sheetTexFormation = -1;
 static int sheetTexDefects = -1;
+// The laid dial and the presentation scale it converts through (milli-px per
+// source px) are cache keys too, or a stock change or a window rescale would
+// serve a field with the wrong wires -- the letterpress part-ratio lesson.
+static int sheetTexLaid = -1;
+static int sheetTexScaleKey = -1;
 static uint32_t sheetTexKey = 0;
 
 // The PRESENTED page rect in OUTPUT pixels, plus the orientation it was
@@ -2174,6 +2206,8 @@ static void destroySheetToothTexture() {
   sheetTexTooth = -1;
   sheetTexFormation = -1;
   sheetTexDefects = -1;
+  sheetTexLaid = -1;
+  sheetTexScaleKey = -1;
   sheetTexKey = 0;
 }
 
@@ -2240,7 +2274,7 @@ static float sheetInknessAt(int ox, int oy) {
          255.0f;
 }
 
-static bool ensureSheetToothTexture(int w, int h) {
+static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   const int strength = SimulatorOverlay::letterpressStrength.load();
   if (strength <= 0 || w <= 0 || h <= 0 || !sdl_renderer) {
     destroySheetToothTexture();
@@ -2249,6 +2283,8 @@ static bool ensureSheetToothTexture(int w, int h) {
   const int toothPct = SimulatorOverlay::paperToothPct.load();
   const int formationPct = SimulatorOverlay::paperFormationPct.load();
   const int defectsPct = SimulatorOverlay::paperDefectsPct.load();
+  const int laidPct = SimulatorOverlay::laidLinesStrength.load();
+  const int scaleKey = static_cast<int>(outPxPerSourcePx * 1000.0f + 0.5f);
   const PanelPalette live = livePanelPalette(display.isInverted());
   letterpress::Params params;
   params.strengthPercent = strength;
@@ -2267,6 +2303,7 @@ static bool ensureSheetToothTexture(int w, int h) {
   if (sheetToothTexture && sheetTexW == w && sheetTexH == h &&
       sheetTexStrength == strength && sheetTexTooth == toothPct &&
       sheetTexFormation == formationPct && sheetTexDefects == defectsPct &&
+      sheetTexLaid == laidPct && sheetTexScaleKey == scaleKey &&
       sheetTexKey == key)
     return true;
   // REUSED across rebuilds -- see the block comment. Only a size change costs a
@@ -2292,16 +2329,59 @@ static bool ensureSheetToothTexture(int w, int h) {
     }
   }
 
+  // THE WIRES. Chain and laid lines, folded into the same field when the
+  // selected stock carries them (laidPct is 0 for every wove stock, and 0 is
+  // a bit-exact skip). Achromatic like the tooth -- a furrow is less pulp,
+  // not a different color -- and generated HERE, at output size, because at
+  // ~1.9 px the laid pitch in the framebuffer would beat against the phone's
+  // fractional minification (ST-008; src/LaidStructure.h). Its budget is HALF
+  // of what the tooth left; the other half stays with the defect layer below,
+  // so the three paper passes jointly stay inside the palette's floor.
+  laidstructure::Params laidParams;
+  laidParams.strengthPercent = laidPct;
+  laidParams.seed = params.seed;
+  laidParams.outPxPerSourcePx = outPxPerSourcePx;
+  laidParams.budgetMeanDarkening =
+      0.5f * letterpress::remainingPaperBudget(params);
+  if (laidPct > 0 && outPxPerSourcePx > 0.0f) {
+    // The erf work is separable: laid darkness is x-independent, chain
+    // darkness y-independent, and the host test pins combine(row, col) ==
+    // multiplierAt, so the caches run the exact shipped math.
+    std::vector<float> rowD(static_cast<size_t>(h));
+    std::vector<float> colD(static_cast<size_t>(w));
+    for (int y = 0; y < h; ++y)
+      rowD[y] = laidstructure::rowLaidDarkness(laidParams,
+                                               static_cast<float>(y));
+    for (int x = 0; x < w; ++x)
+      colD[x] = laidstructure::colChainDarkness(laidParams,
+                                                static_cast<float>(x));
+    for (int y = 0; y < h; ++y) {
+      uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+      for (int x = 0; x < w; ++x) {
+        const uint32_t m = laidstructure::combine(laidParams, rowD[y], colD[x]);
+        if (m == 255) continue;
+        const uint32_t px = row[x];
+        auto mul = [m](uint32_t base) { return base * m / 255u; };
+        row[x] = 0xFF000000u | (mul((px >> 16) & 0xFF) << 16) |
+                 (mul((px >> 8) & 0xFF) << 8) | mul(px & 0xFF);
+      }
+    }
+  }
+
   // THE MARKS. Folded into the SAME field, per channel: MOD multiplies channels
   // independently, so a brown foxing spot is legal and still strictly
   // darkening. Their budget is what the tooth LEFT (letterpress::
-  // remainingPaperBudget, which reproduces the tooth's CONDITIONAL clamp), and
+  // remainingPaperBudget, which reproduces the tooth's CONDITIONAL clamp),
+  // MINUS what the wires above will spend of it (0 when no laid stock is
+  // selected, so a wove sheet's marks are byte-identical), and
   // paperdefects::generate scales every mark's depth to fit it -- so the
   // composite cannot breach the palette's contrast floor by construction.
   paperdefects::Params dp;
   dp.dialPercent = defectsPct;
   dp.seed = params.seed;
-  dp.remainingBudget = letterpress::remainingPaperBudget(params);
+  dp.remainingBudget = letterpress::remainingPaperBudget(params) -
+                       laidstructure::meanDarkeningBound(laidParams);
+  if (dp.remainingBudget < 0.0f) dp.remainingBudget = 0.0f;
   paperdefects::Mark marks[paperdefects::kMaxMarks];
   const int markCount = paperdefects::generate(dp, w, h, marks);
   for (int k = 0; k < markCount; ++k) {
@@ -2344,14 +2424,18 @@ static bool ensureSheetToothTexture(int w, int h) {
   sheetTexTooth = toothPct;
   sheetTexFormation = formationPct;
   sheetTexDefects = defectsPct;
+  sheetTexLaid = laidPct;
+  sheetTexScaleKey = scaleKey;
   sheetTexKey = key;
   // A PER-PAGE rebuild is exactly when this wants instrumenting: without a
   // number here, "does the paper cost a page turn" is guesswork.
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[sheet] field %dx%d seed %u tooth %d%% formation %d%% "
-              "defects %d%% (%d marks, budget left %.4f) in %.1f ms",
-              w, h, params.seed, toothPct, formationPct, defectsPct, markCount,
+              "laid %d%% (scale %.3f) defects %d%% (%d marks, budget left "
+              "%.4f) in %.1f ms",
+              w, h, params.seed, toothPct, formationPct, laidPct,
+              static_cast<double>(outPxPerSourcePx), defectsPct, markCount,
               static_cast<double>(dp.remainingBudget),
               static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6);
   return true;
@@ -3319,6 +3403,30 @@ void HalDisplay::presentIfNeeded() {
   const bool letterpressActive =
       !darkNow && SimulatorOverlay::letterpressStrength.load() > 0;
 
+  // OUTPUT pixels per SOURCE-logical panel pixel -- the presentation scale
+  // with the render scale divided out. Computed in ONE place because two
+  // consumers now derive lattices from it: the scanlines' base pitch (one
+  // scan line per source row) and the laid field's mm conversion. Two copies
+  // of this arithmetic would be two chances for the raster and the wires to
+  // disagree about what scale the panel presents at.
+  auto outPxPerSourcePxAt = [&](int outW, int outH) -> float {
+    const int srcRows = (isPortraitOrientation(orientation) ? activeWidth()
+                                                            : activeHeight()) /
+                        cp::renderScale();
+    if (srcRows <= 0) return 0.0f;
+    if (manualPlacement && panelRectH > 0)
+      return static_cast<float>(panelRectH) / static_cast<float>(srcRows);
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    if (logW <= 0 || logH <= 0) return 0.0f;
+    float s = SDL_min(static_cast<float>(outW) / logW,
+                      static_cast<float>(outH) / logH);
+    if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE &&
+        s >= 1.0f)
+      s = SDL_floorf(s);
+    return s * static_cast<float>(logH) / static_cast<float>(srcRows);
+  };
+
   if (scanlinesActive) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
@@ -3331,26 +3439,9 @@ void HalDisplay::presentIfNeeded() {
       // src/Scanlines.h for why a fixed ~500-line tube was rejected. The
       // owner's size dial then takes a simple MULTIPLE of that pitch
       // (scanlines::pitchFor, applied once below), which is phase-locked to
-      // the same lattice and so inherits the same guarantee.
-      const int srcRows = (isPortraitOrientation(orientation)
-                               ? activeWidth()
-                               : activeHeight()) /
-                          cp::renderScale();
-      float pitch = 0.0f;
-      if (manualPlacement && panelRectH > 0 && srcRows > 0) {
-        pitch = static_cast<float>(panelRectH) / static_cast<float>(srcRows);
-      } else if (srcRows > 0) {
-        int logW = 0, logH = 0;
-        getLogicalPresentationSize(orientation, &logW, &logH);
-        if (logW > 0 && logH > 0) {
-          float s = SDL_min(static_cast<float>(outW) / logW,
-                            static_cast<float>(outH) / logH);
-          if (kLogicalPresentation == SDL_LOGICAL_PRESENTATION_INTEGER_SCALE &&
-              s >= 1.0f)
-            s = SDL_floorf(s);
-          pitch = s * static_cast<float>(logH) / static_cast<float>(srcRows);
-        }
-      }
+      // the same lattice and so inherits the same guarantee. The scale itself
+      // comes from the shared lambda above.
+      float pitch = outPxPerSourcePxAt(outW, outH);
       pitch = scanlines::pitchFor(pitch, SimulatorOverlay::scanlineSize.load());
       if (ensureScanlinesTexture(outW, outH, pitch)) {
         const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
@@ -3377,7 +3468,8 @@ void HalDisplay::presentIfNeeded() {
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;
     if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
-        outW > 0 && outH > 0 && ensureSheetToothTexture(outW, outH)) {
+        outW > 0 && outH > 0 &&
+        ensureSheetToothTexture(outW, outH, outPxPerSourcePxAt(outW, outH))) {
       const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
                               static_cast<float>(outH)};
       SDL_RenderTexture(sdl_renderer, sheetToothTexture, nullptr, &full);

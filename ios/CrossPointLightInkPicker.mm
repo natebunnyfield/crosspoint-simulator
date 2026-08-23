@@ -189,19 +189,43 @@ int paperToothPercentFor(int paper, int paperStrength) {
   return (int)lroundf(stock * (float)storedToothPct());
 }
 
+// The sheet's cloudiness, same composition: the STOCK's own formation factor
+// (lightink::formationScaleFor -- kozo's is the one measured value in that
+// ladder) times the owner's Formation dial. The overlay clamps the product at
+// the model's max, so a kozo at a high dial saturates rather than overswings.
+int paperFormationPercentFor(int paper, int paperStrength) {
+  const float stock = lightink::formationScaleFor(paper, paperStrength);
+  return (int)lroundf(stock * (float)storedFormationPct());
+}
+
+// The stock's WIRES: the paper-strength percent for a laid stock, 0 for every
+// wove one -- the laid field rides the paper slider the way tooth and
+// formation do, and a stock with no wires pushes an explicit 0 so switching
+// off a laid stock takes its lines away.
+int laidLinesPercentFor(int paper, int paperStrength) {
+  return lightink::kPapers[lightink::clampPaperIndex(paper)].laid
+             ? paperStrength
+             : 0;
+}
+
 // Push every paper dial at the SDL side. Called on any change and by the shim's
 // launch seed, because the drawer may never be opened and the stored sheet
 // still has a texture.
 void pushPaperDials(int paper, int paperStrength) {
   SDL_Log("[letterpress] paper: tooth %d%% (stock %.2fx x dial %d%%), "
-          "formation %d%%, defects %d%% | press: ring %d%% deboss %d%% "
-          "pressure %d%%",
+          "formation %d%% (stock %.2fx x dial %d%%), laid %d%%, defects %d%% "
+          "| press: ring %d%% deboss %d%% pressure %d%%",
           paperToothPercentFor(paper, paperStrength),
           (double)lightink::toothScaleFor(paper, paperStrength),
-          storedToothPct(), storedFormationPct(), storedDefectsPct(),
-          storedRingPct(), storedDebossPct(), storedPressurePct());
+          storedToothPct(), paperFormationPercentFor(paper, paperStrength),
+          (double)lightink::formationScaleFor(paper, paperStrength),
+          storedFormationPct(), laidLinesPercentFor(paper, paperStrength),
+          storedDefectsPct(), storedRingPct(), storedDebossPct(),
+          storedPressurePct());
   SimulatorOverlay::setPaperTooth(paperToothPercentFor(paper, paperStrength));
-  SimulatorOverlay::setPaperFormation(storedFormationPct());
+  SimulatorOverlay::setPaperFormation(
+      paperFormationPercentFor(paper, paperStrength));
+  SimulatorOverlay::setLaidLines(laidLinesPercentFor(paper, paperStrength));
   SimulatorOverlay::setPaperDefects(storedDefectsPct());
   SimulatorOverlay::setPressRing(storedRingPct());
   SimulatorOverlay::setPressDeboss(storedDebossPct());
@@ -827,7 +851,10 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
           p.paperDarkenBudget = budget;
           p.toothScale = (float)storedToothPct() / 100.0f *
                          lightink::toothScaleFor(_paper, _paperStrength);
-          p.formationDepth = (float)storedFormationPct() / 100.0f;
+          // The stock's own factor rides here too, so the strip previews the
+          // sheet the push actually builds (paperFormationPercentFor).
+          p.formationDepth = (float)storedFormationPct() / 100.0f *
+                             lightink::formationScaleFor(_paper, _paperStrength);
           set(p, t);
           const uint8_t m = letterpress::sheetToothMultiplierAt(p, x, y, w, h);
           for (int c = 0; c < 3; c++)
@@ -1044,8 +1071,9 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
                        storedToothPct() / 100.0f *
                            lightink::toothScaleFor(_paper, _paperStrength)];
   _toothSlider.accessibilityValue = _toothValue.text;
-  _formationValue.text =
-      [NSString stringWithFormat:@"%d%%", storedFormationPct()];
+  _formationValue.text = [NSString
+      stringWithFormat:@"%d%% · sheet %.2fx", storedFormationPct(),
+                       lightink::formationScaleFor(_paper, _paperStrength)];
   _formationSlider.accessibilityValue = _formationValue.text;
   _defectsValue.text =
       [NSString stringWithFormat:@"%d%%%@", storedDefectsPct(),

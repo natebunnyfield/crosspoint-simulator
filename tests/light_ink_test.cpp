@@ -227,6 +227,8 @@ int main() {
         {kPaperChamois, "Chamois", {0xEC, 0xDA, 0xB7}, 1.80f},
         {kPaperPressGray, "Press Gray", {0xE9, 0xEA, 0xEC}, 1.60f},
         {kPaperSepiaToned, "Sepia Toned", {0xEE, 0xDF, 0xCC}, 1.50f},
+        // Appended when they shipped, per the block comment above.
+        {kPaperBrightenedWhite, "Brightened White", {0xEF, 0xF0, 0xFC}, 1.05f},
     };
     for (const PinnedInk &pin : kPinnedInks) {
       CHECK(std::strcmp(kInks[pin.idx].name, pin.name) == 0,
@@ -401,7 +403,14 @@ int main() {
     CHECK(std::memcmp(at100, kPapers[p].tone, 3) == 0,
           "%s at strength 100 must be the stock exactly", kPapers[p].name);
 
-    double prevY = 1e9;
+    // MONOTONE PER CHANNEL, toward that channel's own end -- the true
+    // Beer-Lambert invariant, and since Brightened White the honest one: an
+    // OBA sheet's blue channel sits ABOVE the ground's (brighteners lift
+    // blue), so its blue legitimately RISES with loading while the sheet's
+    // luminance still ends lower than it began. The old blanket "luminance
+    // never rises" tripped on one-code-value quantization upticks exactly
+    // there; per-channel direction plus the end-to-end luminance drop below
+    // is strictly stronger everywhere else.
     int distinct = 0;
     uint8_t prev[3] = {0, 0, 0};
     bool first = true;
@@ -413,18 +422,24 @@ int main() {
               "Bright White must be bit-exact at strength %d -- it IS the "
               "ground, so its slider is a no-op at every value",
               t);
-      const double y = relativeLuminance(tone);
-      CHECK(y <= prevY + 1e-12,
-            "%s: tint ramp brightens at strength %d -- more colorant cannot "
-            "make a sheet lighter",
-            kPapers[p].name, t);
-      prevY = y;
-      if (first || std::memcmp(tone, prev, 3) != 0) {
-        distinct++;
-        std::memcpy(prev, tone, 3);
-        first = false;
+      if (!first) {
+        for (int c = 0; c < 3; c++) {
+          const bool falling =
+              kPapers[p].tone[c] <= kPapers[kPaperBrightWhite].tone[c];
+          CHECK(falling ? tone[c] <= prev[c] : tone[c] >= prev[c],
+                "%s: channel %d moves against its own colorant at strength %d",
+                kPapers[p].name, c, t);
+        }
       }
+      if (first || std::memcmp(tone, prev, 3) != 0) distinct++;
+      std::memcpy(prev, tone, 3);
+      first = false;
     }
+    CHECK(relativeLuminance(kPapers[p].tone) <=
+              relativeLuminance(kPapers[kPaperBrightWhite].tone) + 1e-12,
+          "%s: a loaded sheet may lean blue but must not end LIGHTER than the "
+          "bare ground",
+          kPapers[p].name);
     if (p == kPaperBrightWhite) {
       CHECK(distinct == 1, "Bright White's ramp must be one color, got %d",
             distinct);
@@ -585,6 +600,100 @@ int main() {
         CHECK(kPapers[kPaperKozo].tooth >= kPapers[p].tooth,
               "Kozo is documented as the roughest offered, but %s is rougher",
               kPapers[p].name);
+  }
+
+  // --- the formation factor (2026-08-22 paper research) --------------------
+  // toothScaleFor's twin for the sheet's cloudiness. Same shape -- exactly 1.0
+  // at strength 0, the stock's own value at 100, monotone in between, clamped
+  // outside -- but the destination MAY sit below 1.0, because a filler-evened
+  // or premium-coated sheet is legitimately calmer than the reference. The
+  // ladder's one measured anchor: handmade kozo scored formation index 131
+  // against 60-97 for nine machine sheets (Hirai et al. 2003), which is what
+  // justifies roughly 1.5-2x and the top rung.
+  {
+    CHECK(kPapers[kPaperBrightWhite].formation == 1.0f,
+          "Bright White is the formation reference and must be exactly 1.0");
+    for (int p = 0; p < kPaperCount; p++) {
+      CHECK(kPapers[p].formation > 0.0f && kPapers[p].formation <= 2.0f,
+            "%s: formation %.2f out of the sane band", kPapers[p].name,
+            kPapers[p].formation);
+      CHECK(formationScaleFor(p, 0) == 1.0f,
+            "%s at strength 0 is the reference sheet and must be exactly 1.0",
+            kPapers[p].name);
+      CHECK(std::fabs(formationScaleFor(p, 100) - kPapers[p].formation) < 1e-6f,
+            "%s at strength 100 must be the stock's own factor",
+            kPapers[p].name);
+      // Monotone TOWARD the stock's value, whichever side of 1.0 it sits on.
+      const bool rising = kPapers[p].formation >= 1.0f;
+      float prev = rising ? -1.0f : 2.0f;
+      for (int t = 0; t <= kPaperStrengthMax; t++) {
+        const float f = formationScaleFor(p, t);
+        CHECK(rising ? f >= prev - 1e-6f : f <= prev + 1e-6f,
+              "%s: formation moves against its own stock at strength %d",
+              kPapers[p].name, t);
+        prev = f;
+      }
+      CHECK(formationScaleFor(p, 900) == formationScaleFor(p, 100) &&
+                formationScaleFor(p, -9) == formationScaleFor(p, 0),
+            "%s: formation factor must clamp outside 0..100", kPapers[p].name);
+    }
+    // The ladder the research argues: kozo highest (measured), laid antique
+    // above everything else, calendered India and Brightened White the floor.
+    CHECK(kPapers[kPaperKozo].formation >= 1.5f &&
+              kPapers[kPaperKozo].formation <= 2.0f,
+          "kozo's formation must sit in the measured 1.5-2x band");
+    for (int p = 0; p < kPaperCount; p++) {
+      if (p != kPaperKozo)
+        CHECK(kPapers[kPaperKozo].formation > kPapers[p].formation,
+              "kozo must top the formation ladder, but %s matches or beats it",
+              kPapers[p].name);
+      if (p != kPaperKozo && p != kPaperLaidAntique)
+        CHECK(kPapers[kPaperLaidAntique].formation > kPapers[p].formation,
+              "laid antique must be second on the formation ladder, but %s "
+              "matches or beats it",
+              kPapers[p].name);
+      CHECK(kPapers[p].formation >=
+                kPapers[kPaperBrightenedWhite].formation - 1e-6f,
+            "Brightened White must sit at the formation floor, but %s is "
+            "calmer",
+            kPapers[p].name);
+      CHECK(kPapers[p].formation >= kPapers[kPaperIndia].formation - 1e-6f,
+            "India must sit at the formation floor, but %s is calmer",
+            kPapers[p].name);
+    }
+    // ...and the factor is only real if it changes the sheet's cloudiness:
+    // block-mean spread at the kozo-scaled depth must beat the India-scaled
+    // one, same instrument as the formation structure check below.
+    {
+      const float dial = letterpress::kFormationDepthDefault;
+      auto spreadAt = [&](float scale) {
+        letterpress::Params lp;
+        lp.strengthPercent = letterpress::kStrengthStandard;
+        lp.toothScale = 1.5f;
+        lp.formationDepth = letterpress::clampFormationDepth(dial * scale);
+        const int BW = 256, BH = 256, BLK = 32;
+        double lo = 1e9, hi = -1e9;
+        for (int by = 0; by < BH; by += BLK)
+          for (int bx = 0; bx < BW; bx += BLK) {
+            double s = 0.0;
+            for (int y = by; y < by + BLK; y++)
+              for (int x = bx; x < bx + BLK; x++)
+                s += letterpress::sheetToothMultiplierAt(lp, x, y, BW, BH);
+            s /= BLK * BLK;
+            if (s < lo) lo = s;
+            if (s > hi) hi = s;
+          }
+        return hi - lo;
+      };
+      const double cloudy =
+          spreadAt(formationScaleFor(kPaperKozo, kPaperStrengthMax));
+      const double calm =
+          spreadAt(formationScaleFor(kPaperIndia, kPaperStrengthMax));
+      CHECK(cloudy > calm * 1.5,
+            "the formation factor must reach the sheet: kozo's clouds (%.3f) "
+            "should clearly beat India's (%.3f)",
+            cloudy, calm);
+    }
   }
 
   // --- the sheet pass actually uses it -------------------------------------

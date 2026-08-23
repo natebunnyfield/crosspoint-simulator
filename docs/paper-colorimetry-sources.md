@@ -630,6 +630,22 @@ Gaps measurement argues to fill (new rows; append-only):
 
 Each with its citation; none moves an index.
 
+**Implementation status, 2026-08-22 (same day, follow-up session):** I1 and
+C3 landed as comment/doc text (`src/LightInkPalette.h` Newsprint and Kozo
+rows, [light-ink-picker.md](light-ink-picker.md) §9b); I2 was NOT taken (the
+shipped bytes stay); I3 landed as row 12 "Brightened White" (`#EFF0FC`, tooth
+1.05, formation 0.70 — the floor and separation re-proven by
+`tests/light_ink_test.cpp`, worst ink 9.34:1); I4 was NOT taken (Press Gray
+keeps its tone; after I3 the table wants it as the low-OBA gray, exactly as
+this doc's C2 note says); I5 landed as `src/LaidStructure.h` +
+`tests/laid_structure_test.cpp`, gated on a new per-stock `laid` flag and
+documented in [letterpress-and-scanlines.md](letterpress-and-scanlines.md);
+§3b's per-stock formation gap landed as `lightink::formationScaleFor` (kozo
+1.90 on the measured 131-vs-60–97 index, India/Brightened White 0.70 floor).
+I6 (the formation CELL COUNT, C4) and I7 (the aging dial) remain open; I8's
+b\*-sign guard is carried by the per-channel tint-ramp test and the row
+comments rather than a dedicated check.
+
 - **I1 (text only).** Newsprint row note: cite FOGRA48 (INP, 88/0/2,
   `#DEDDD9`) as the measured grade the shipped tone coincides with, and
   FOGRA42 (SNP, 82.38/0.11/3.28, `#CFCDC7`, worst ink ≈6.7:1) as the

@@ -194,6 +194,87 @@ int main() {
           "a pair under the floor gets zero paper budget, not a negative one");
   }
 
+  // --- THE PLATE-PRESSURE DIAL IS ALIVE (2026-08-22 audit fix) -------------
+  // The shipped dial was measured near-dead: the full 0..200% sweep moved
+  // 0.39% of pixels by at most 8 code values, because the press term caps at
+  // 0.12 of the INK's ~45 code values. The mapping is now widened above the
+  // standard ratio (letterpress::pressAmpScale); this block is the contract:
+  // identity at and below 1.0 (the shipped standard press is byte-exact),
+  // monotone, and every offered rung of the drawer's sweep measurably
+  // distinct on a flat ink field -- where the press term lives.
+  {
+    check(pressAmpScale(0.0f) == 0.0f && pressAmpScale(1.0f) == 1.0f,
+          "the widened mapping fixes 0 at 0 and the standard ratio at 1");
+    check(std::fabs(pressAmpScale(kPartScaleMax) -
+                    (1.0f + kPressWidenAboveStandard)) < 1e-6f,
+          "the dial's top reaches the widened amplitude");
+    check(pressAmpScale(0.5f) == 0.5f,
+          "below standard the mapping is the identity, not a curve");
+
+    // Flat ink everywhere: gmag = 0, so ring and deboss are out and the mean
+    // darkening is press + in-stroke only. Mean over a field big enough to
+    // average the 4-cell pressure noise.
+    float inkWin[3][3];
+    for (int dy = 0; dy < 3; ++dy)
+      for (int dx = 0; dx < 3; ++dx) inkWin[dy][dx] = 1.0f;
+    auto meanInk = [&](float ratio) {
+      Params p;
+      p.strengthPercent = kStrengthStandard;
+      p.seed = 0x50524553u;
+      p.paperDarkenBudget = 1.0f;
+      p.pressScale = ratio;
+      double sum = 0.0;
+      const int N = 128;
+      for (int y = 0; y < N; ++y)
+        for (int x = 0; x < N; ++x)
+          sum += multiplierAt(p, inkWin, x, y, N, N);
+      return sum / (N * N);
+    };
+    const float rungs[] = {0.0f, 0.5f, 1.0f, 1.5f, 2.0f};
+    double dark[5];
+    for (int i = 0; i < 5; ++i) dark[i] = 255.0 - meanInk(rungs[i]);
+    bool monotone = true, distinct = true;
+    for (int i = 1; i < 5; ++i) {
+      if (dark[i] <= dark[i - 1]) monotone = false;
+      if (dark[i] - dark[i - 1] < 0.3) distinct = false;
+    }
+    check(monotone, "more pressure is never less pressure");
+    check(distinct, "every offered pressure rung is measurably its own");
+    // dark[0] is the in-stroke irregularity alone (press at ratio 0), so the
+    // press's own contribution is the delta against it.
+    check(dark[4] - dark[0] > (dark[2] - dark[0]) * 4.0,
+          "the widened top actually reaches the field: 200%% is several times "
+          "the standard press, not a hair over it");
+
+    // The safety half. Bare paper carries no pressure at any ratio -- the
+    // term is ink-gated, which is what exempts it from the no-new-worst-case
+    // sweep -- and the widened maximum still respects the multiplier floor.
+    float paperWin[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    Params hard;
+    hard.strengthPercent = kStrengthMax;
+    hard.paperDarkenBudget = 1.0f;
+    hard.includeTooth = false;
+    hard.pressScale = kPartScaleMax;
+    bool paperClean = true;
+    int inkLo = 255;
+    for (int y = 0; y < 64; ++y)
+      for (int x = 0; x < 64; ++x) {
+        if (multiplierAt(hard, paperWin, x, y, 64, 64) != 255)
+          paperClean = false;
+        const int m = multiplierAt(hard, inkWin, x, y, 64, 64);
+        if (m < inkLo) inkLo = m;
+      }
+    check(paperClean, "widened pressure is still exactly nothing on bare paper");
+    check(inkLo >= static_cast<int>(kMinMultiplier * 255.0f),
+          "widened pressure at every extreme still respects the floor clamp");
+    // OFF is still bit-exact with the dial parked anywhere.
+    Params off;
+    off.strengthPercent = kStrengthOff;
+    off.pressScale = kPartScaleMax;
+    check(multiplierAt(off, inkWin, 7, 9, 64, 64) == 255,
+          "strength 0 stays bit-exact whatever the pressure ratio");
+  }
+
   // --- FIXED TO THE PAGE, NOT TO THE FRAME ---------------------------------
   {
     Params p{kStrengthStandard, 0x50524553u, 1.0f};
