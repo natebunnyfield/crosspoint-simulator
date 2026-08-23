@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 6c5ebf2a5c2f2dedbf969a4926fc8b3c19227c12
-# TU counts  : 137 firmware, 24 simulator (6 C, 155 C++)
+# pinned at  : ac8dc109cb51b969bc26e15bc4978d5869a7715f
+# TU counts  : 139 firmware, 24 simulator (6 C, 157 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "6c5ebf2a5c2f2dedbf969a4926fc8b3c19227c12")
+set(CROSSPOINT_FIRMWARE_PIN "ac8dc109cb51b969bc26e15bc4978d5869a7715f")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -53,6 +53,7 @@ set(CROSSPOINT_FW_SOURCES
   lib/EpdFont/SdCardFontRegistry.cpp
   lib/Epub/Epub.cpp
   lib/Epub/Epub/BookMetadataCache.cpp
+  lib/Epub/Epub/BookNotes.cpp
   lib/Epub/Epub/Page.cpp
   lib/Epub/Epub/ParsedText.cpp
   lib/Epub/Epub/Section.cpp
@@ -129,6 +130,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/home/RecentBooksActivity.cpp
   src/activities/network/CrossPointWebServerActivity.cpp
   src/activities/network/WifiSelectionActivity.cpp
+  src/activities/reader/BookNotesActivity.cpp
   src/activities/reader/EpubReaderActivity.cpp
   src/activities/reader/EpubReaderChapterSelectionActivity.cpp
   src/activities/reader/EpubReaderFootnotesActivity.cpp
