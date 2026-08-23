@@ -232,20 +232,26 @@ behavior (which is what keeps the desktop canary byte-identical, since the
 desktop seeds both new dials OFF), and A/B against the old look is one env var
 (`CROSSPOINT_SIM_SCANLINES=0 CROSSPOINT_SIM_GRAIN=100 ...`).
 
-## Settings
+## Settings — FROZEN 2026-08-23, no longer rows
 
-Two rows, appended to the surviving Page Colors group (a preset persists as an
-integer; rows append, never insert):
+These were four Settings.app rows until the owner ruled, from a screenshot of
+his own chosen values: *"make these settings the default and remove them from
+ios app settings as options."* The whole Page Colors group went with them.
 
-| Row | Key | Stored | Default |
-|---|---|---|---|
-| Letterpress | `letterpressPercent` | percent, 0/50/100/200 | 50 (Subtle) |
-| Scanlines | `scanlinesPercent` | percent, 0/50/100/150 | 50 (Subtle) |
-| Scanline Size | `scanlineSizePercent` | percent of the row pitch, 100/150/200/300 | 100 (Fine) |
-| Scanline Bloom | `scanlineBloomPercent` | percent of the standard gain, 0/50/100/200/400 | 100 (Standard) |
+| Was a row | Key | Frozen value |
+|---|---|---|
+| Letterpress | `letterpressPercent` | **100** (Standard, visible impression) |
+| Scanlines | `scanlinesPercent` | **50** (Subtle) |
+| Scanline Size | `scanlineSizePercent` | **100** (Fine, one line per page row) |
+| Scanline Bloom | `scanlineBloomPercent` | **400** (Extreme) |
 
-Both read through `-objectForKey:` (0 is a real choice, the
-`-integerForKey:` missing-key trap). Desktop mirrors:
+They are returned by `ios/CrossPointPrefs.mm` **without consulting
+NSUserDefaults**, which is the part that matters and is not the obvious
+implementation: keeping the read and changing the registered default would
+leave an install that had stored a different value still rendering it, with the
+row gone and no way back. The `-objectForKey:` discipline the old text
+described (0 is a real choice, so `-integerForKey:` cannot be used) no longer
+applies to these four, because nothing is read at all. Desktop mirrors:
 `CROSSPOINT_SIM_LETTERPRESS` / `CROSSPOINT_SIM_SCANLINES` (percent), seeded
 through `SimulatorOverlay::setLetterpress` / `setScanlines` at init (ninth and
 tenth dials to need that seed), plus the same keys in the desktop
