@@ -561,6 +561,32 @@ the appearance path: `requestPresent()` only re-pushes the framebuffer, so
 `applyTheme()` also calls `crosspointRequestRender()` or the firmware's own
 Settings screen keeps painting the value it was drawn with.
 
+## Proof figures: three mechanical checks, and where they go
+
+Owner rulings 2026-08-22, in the order he found each failure. A figure that is
+EVIDENCE (its subject is fine structure -- scanlines, grain, tooth, dither,
+antialiasing, letterpress edges, defects) must pass all three before it ships;
+a figure that is CONTEXT (layout, geometry, an overview) is exempt but must be
+labelled as context in its caption.
+
+1. **Lossless.** PNG at native pixels. Never JPEG. Integer-factor NEAREST if it
+   must be scaled, stated on the page, with `image-rendering: pixelated`.
+2. **Not shrunk past the effect.** One figure per row at full column width, a
+   native-pixel CROP of the region under judgment -- never a 3-up grid of whole
+   pages. "do better at not reducing images like this. it's a miss, as is."
+3. **The crop must contain the thing.** Measure before publishing: content
+   coverage (fraction of pixels away from the modal background -- under ~10% is
+   a picture of empty paper) AND effect delta against the figure's own baseline
+   (mean, max, % of pixels changed by more than 4 levels). For SPARSE subjects
+   -- defects, flecks, a single hairline -- a page band always fails: diff the
+   renders to LOCATE the feature, crop tight around it, magnify by an integer
+   factor, and say the magnification in the caption. "I don't think you're
+   intending to show a mostly empty example here."
+
+DELIVERY, ruled 2026-08-22: repair figures IN PLACE at the artifact's existing
+URL. Do not publish a fresh gallery to carry corrections -- he tracks these
+pages by their links.
+
 ## Proof images are lossless, always
 
 Owner P0, 2026-08-22: "all proof images need to be losslessly shared or we're
