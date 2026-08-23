@@ -637,6 +637,8 @@ void CrossPointReadAloud_perFrame(void) {
     SDL_Log("[READALOUD] page capture wanted (always, on iOS)");
   }
   (void)a11yWants;  // logged by wantsPage() on change; kept for that visibility
+  // The whole chain in one line, throttled to changes of its shape.
+  CrossPointAccessibility_logChain((unsigned)g_pageUtf8.size(), (unsigned)g_rects.size());
 
   // The container can be empty while we still hold a page: assistive tech
   // switched on after the last render, or a wake rebuilt the container. Push
@@ -668,8 +670,21 @@ void CrossPointReadAloud_perFrame(void) {
                                       (unsigned)g_pageUtf8.size(),
                                       g_rects.empty() ? nullptr : g_rects.data(),
                                       (unsigned)g_rects.size());
+      // The tree dump, once, on the first page that HAS TEXT.
+      //
+      // It used to fire on the first publish full stop, and that is always the
+      // wrong one: a book opens on its cover wrapper (an <img> with no prose),
+      // the reader publishes an empty capture, and the dump the owner is asked
+      // to send shows an empty container over a page that legitimately has
+      // nothing in it. Measured 2026-08-23 on English Fairy Tales: every dump
+      // that run produced -- and every dump in the log the owner would have
+      // sent -- was of that cover page. The first page with words in it is the
+      // one worth a dump.
       static bool dumpedOnce = false;
-      if (!dumpedOnce) { dumpedOnce = true; CrossPointAccessibility_dumpTree(); }
+      if (!dumpedOnce && !g_pageUtf8.empty()) {
+        dumpedOnce = true;
+        CrossPointAccessibility_dumpTree();
+      }
     }
   }
 

@@ -154,6 +154,9 @@ run host_keyboard \
 run readaloud_lines \
   c++ -std=c++20 -Isrc -o "$OUT/readaloud_lines" tests/readaloud_lines_test.cpp
 
+run readaloud_geometry \
+  c++ -std=c++20 -Isrc -o "$OUT/readaloud_geometry" tests/readaloud_geometry_test.cpp
+
 run read_aloud_channel \
   c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
 

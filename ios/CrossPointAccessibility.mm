@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "HalGPIO.h"
 #include "CrossPointDiagLog.h"
 #import "CrossPointPageTextInput.h"
+#include "ReadAloudGeometry.h"
 #include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
 
@@ -209,13 +211,19 @@ UIWindow *resolveWindow() {
 bool panelGeometryPts(CGFloat *x0, CGFloat *y0, CGFloat *scale) {
   UIWindow *window = resolveWindow();
   if (!window) return false;
-  const CGFloat screenScale = window.screen.scale > 0 ? window.screen.scale : 1;
-  const CGFloat panelW = (CGFloat)SimulatorOverlay::panelWidthPx();
-  const CGFloat panelH = (CGFloat)SimulatorOverlay::panelHeightPx();
-  if (panelW <= 0 || panelH <= 0) return false;
-  *scale = (panelW / (CGFloat)HalDisplay::LOGICAL_HEIGHT) / screenScale;
-  *x0 = (CGFloat)SimulatorOverlay::panelLeftPx() / screenScale;
-  *y0 = (CGFloat)(SimulatorOverlay::panelBottomPx() - SimulatorOverlay::panelHeightPx()) / screenScale;
+  // The arithmetic itself lives in src/ReadAloudGeometry.h, pure and
+  // host-tested (tests/readaloud_geometry_test.cpp), because every one of its
+  // failure modes is a silently misplaced frame. What is left here is the
+  // UIKit half: which window, and where the panel says it presented.
+  readaloud::PanelGeometryPts g;
+  if (!readaloud::panelGeometryPts(
+          SimulatorOverlay::panelLeftPx(), SimulatorOverlay::panelBottomPx(),
+          SimulatorOverlay::panelWidthPx(), SimulatorOverlay::panelHeightPx(),
+          HalDisplay::LOGICAL_HEIGHT, (double)window.screen.scale, &g))
+    return false;
+  *scale = (CGFloat)g.scale;
+  *x0 = (CGFloat)g.x0;
+  *y0 = (CGFloat)g.y0;
   return true;
 }
 
@@ -457,6 +465,43 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   } else {
     UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
   }
+}
+
+// One line that answers the whole chain at once (2026-08-23). The 2026-08-09
+// investigation cost twelve TestFlight builds because each link had to be
+// inferred separately; when the same symptom came back the FIRST question was
+// again "which link is empty", and nothing printed all five together. It is
+// throttled to one line per five seconds and to CHANGES of the shape, so it
+// costs nothing in a normal session and is the first thing in the log when the
+// instrument is turned on.
+void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount) {
+  CPAccessibilityOverlay *overlay = g_overlay;
+  CGFloat gx = 0, gy = 0, gs = 0;
+  const bool geo = panelGeometryPts(&gx, &gy, &gs);
+  CPPageTextInputView *page = g_pageInput;
+  UIWindow *window = resolveWindow();
+  UIView *host = window.rootViewController.view;
+  const int inHierarchy = (page != nil && page.superview != nil && page.window != nil) ? 1 : 0;
+  const CGRect f = page ? page.frame : CGRectZero;
+  // The shape, not the numbers: a page whose byte count changes every turn
+  // must not produce a line every turn.
+  char shape[128];
+  snprintf(shape, sizeof(shape), "%d%d%d%d%d%d%d", (int)wantsReadingPage(),
+           pageBytes > 0, rectCount > 0, (int)geo, page != nil, inHierarchy,
+           (int)(overlay != nil && overlay.cpElements.count > 0));
+  static char lastShape[128] = "";
+  static Uint64 lastAt = 0;
+  const Uint64 now = SDL_GetTicks();
+  if (strcmp(shape, lastShape) == 0 && now - lastAt < 5000) return;
+  snprintf(lastShape, sizeof(lastShape), "%s", shape);
+  lastAt = now;
+  CrossPointDiag_log(
+      "CHAIN wants=%d page=%uB rects=%u geo=%d(%.0f,%.0f x%.3f) view=%d frame=(%.0f,%.0f %.0fx%.0f) "
+      "inWindow=%d host=%s elements=%lu",
+      (int)wantsReadingPage(), pageBytes, rectCount, (int)geo, (double)gx, (double)gy, (double)gs,
+      page != nil, f.origin.x, f.origin.y, f.size.width, f.size.height, inHierarchy,
+      host ? NSStringFromClass(host.class).UTF8String : "nil",
+      (unsigned long)(overlay ? overlay.cpElements.count : 0));
 }
 
 // Keep the container reachable. Accessibility traversal is front-to-back, and

@@ -64,6 +64,12 @@ void CrossPointAccessibility_keepFront(void);
 // ScreenChanged, which is what tells continuous reading to keep going.
 void CrossPointAccessibility_notePageTurnRequested(void);
 
+// Diagnostic: one line answering every link of the Speak Screen chain at once
+// -- assistive tech on, page held, rects held, panel geometry, page view
+// installed, page view in the window, elements published. Throttled to changes
+// of that shape. Called every frame from the read-aloud adapter's drain.
+void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount);
+
 // Diagnostic: log what an assistive technology would actually reach.
 void CrossPointAccessibility_dumpTree(void);
 
