@@ -156,13 +156,28 @@ Nine families × 4 point sizes × 3 scale tiers = 108 files, 338,233,138 bytes.
 | **tier totals** | | | **10,808,653** | **25,095,263** | **41,092,092** |
 | | 28,759,836 | | 97,882,289 | 211,591,013 | |
 
+**Added since this audit.** TeX Gyre Heros joined `installed_families` on
+2026-08-23 (owner ruling, firmware `docs/sd-card-fonts.md`) and is now in the
+CI seed list, so a build from that day on carries one more family than the
+table above. Measured on `ios/seedfonts/TeXGyreHeros/` with the same zlib
+accounting:
+
+| family | uncompressed | compressed | 1x c. | 2x c. | 3x c. |
+|---|---:|---:|---:|---:|---:|
+| TeXGyreHeros | 48,778,166 | 12,214,509 | 1,777,375 | 3,989,761 | 6,447,373 |
+
+That is +12.2 MB compressed, and it is *reachable* data — unlike the three iA
+Writer families below, it is in `installed_families` and both reading surfaces
+offer it. The rest of the audit's numbers are the build-126 measurement and are
+left as taken.
+
 ### Duplication between compiled-in and card faces
 
 Libre Franklin is in both — and it is **not** redundant. The compiled-in `librefranklin_reader` ramp is 12/14/16/18 (`convert-builtin-fonts.sh:74`); the card cut is 10/12/14/16. More importantly `CrossPointSettings.h:405` defaults `sdFontFamilyName` to `""`, so **a fresh install reads with the compiled-in face**, and `ios/CMakeLists.txt:246-267` records in detail what happened the last time someone removed builtin reader cuts on a safety argument: `getReaderFontId()` returned `LIBREFRANKLIN_READER_18_FONT_ID`, `drawText`'s `fontMap` lookup missed, and the page rendered **completely blank** while the firmware logged successful renders. Do not touch the compiled-in reader ramp.
 
 ### The real duplication: three card families nothing can reach
 
-`sd-fonts.yaml:145-151` names the six installed reading families: Edgar, Coelacanth, TeXGyreSchola, LibreFranklin, LibrisADF, InknutJunicode. The bundle ships **nine**. The extra three are iA Writer Duo, Mono and Quattro, and the code says plainly that none of them is reachable from the card:
+`sd-fonts.yaml:145-152` names the installed reading families — six when this audit was taken, **seven since 2026-08-23**: Edgar, Coelacanth, TeXGyreSchola, LibreFranklin, LibrisADF, InknutJunicode and TeXGyreHeros. The build this audit measured shipped **nine**. The extra three are iA Writer Duo, Mono and Quattro, and the code says plainly that none of them is reachable from the card:
 
 - Both reading surfaces filter through one predicate. `FontSelectionActivity.cpp:135` and `EpubReaderActivity.cpp:835` each call `readingfonts::offeredForReading()`, which returns false for writing-only families (`ReadingFontList.cpp:34-39`).
 - `iAWriterDuo` and `iAWriterMono` are in `FORMER_WRITING_FAMILIES` (`EditorFonts.cpp:107-112`, removed 2026-08-15) so `isWritingOnlyFamily()` returns true (`:155-164`). Not offered for reading, and no longer rows in the editor's `FAMILIES` either. **Nothing in the app can select them.**

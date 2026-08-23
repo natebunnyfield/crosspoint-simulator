@@ -58,7 +58,7 @@ on:
           installed_families — ios/CMakeLists.txt fails the configure
           otherwise, because nothing in the app can select a family that list
           does not name (docs/ios-app-size.md A1).
-        default: Edgar,Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode
+        default: Edgar,Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode,TeXGyreHeros
         required: false
 
 env:
