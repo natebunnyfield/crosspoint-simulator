@@ -887,3 +887,11 @@ restored from a snapshot before every run so all 30 frames show the same page.
 Every capture has a distinct md5, which is the cheap proof that the env pair
 actually reached the renderer in each cell rather than one of them silently
 falling back to the default.
+
+## The preset list shows only this page's presets
+
+Owner ruling 2026-08-23: *"only show presets available in that mode."* The ink
+picker offers the **10 paper palettes**; the 42 phosphors belong to the mixer.
+The rule is `panelpalette::presetOfferedInDark` and the reasoning is in
+`docs/phosphor-mixer.md` -- it filters which editor OFFERS a preset, never what
+a preset defines.

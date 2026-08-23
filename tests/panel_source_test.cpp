@@ -127,7 +127,36 @@ static void naiveSelected(panelsource::Store &s, int preset) {
   s.preset = preset;
 }
 
+
+// ONLY WHAT THIS PAGE CAN BE -- owner ruling 2026-08-23, "only show presets
+// available in that mode". The partition must be TOTAL (every preset belongs to
+// exactly one editor) and must match the doctrine (a decay means a tube), or a
+// preset becomes unreachable from both lists, which is how the presets were
+// lost in the first place.
+static void testPresetOfferPartition() {
+  using namespace panelpalette;
+  int dark = 0, light = 0;
+  for (int i = 0; i < kPresetInfoCount; i++) {
+    const int p = kPresetInfo[i].preset;
+    const bool inDark = presetOfferedInDark(p);
+    // Total: exactly one list offers it. (The predicate is a bool, so this
+    // checks the DOCTRINE rather than the tautology: a trail implies dark.)
+    check(inDark == (trailMsForPreset(p) > 0.0f),
+          "a preset is offered where its own decay says it belongs");
+    (inDark ? dark : light)++;
+  }
+  check(dark + light == kPresetInfoCount,
+        "every preset is offered in exactly one appearance");
+  // Neither list may be empty, or an editor ships a Presets button opening
+  // nothing.
+  check(dark > 0 && light > 0,
+        "both lists have rows -- neither editor opens an empty list");
+  std::printf("panel_source_test: preset offers %d dark / %d light\n",
+              dark, light);
+}
+
 int main() {
+  testPresetOfferPartition();
   // The install the owner had: the app's registered default preset is White
   // CRT (ios/CrossPointPrefs.mm registerDefaults, panelPalettePreset 21).
   constexpr int kWhiteCrt = panelpalette::kPresetWhiteCrt;
