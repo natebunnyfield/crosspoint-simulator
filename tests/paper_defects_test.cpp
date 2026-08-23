@@ -829,20 +829,19 @@ int main() {
 
   // ------------------------------------------- THE NEW KINDS ARE REAL -----
   //
-  // Four kinds appended for "paper making realism". Each has to be reachable,
-  // has to be distinguishable, and -- the one that actually bites -- has to
-  // obey the rect footprint arithmetic, because two of them are NOT ellipses
-  // and a bound computed with pi instead of 4 under-states by 27%.
+  // Kinds appended for "paper making realism". Each has to be reachable, has
+  // to be distinguishable, and -- the one that actually bites -- has to obey
+  // the rect footprint arithmetic, because set-off is NOT an ellipse and a
+  // bound computed with pi instead of 4 under-states by 27%.
+  //
+  // Two of the four appended kinds, crease and clipping burn, were REMOVED on
+  // 2026-08-23 by owner ruling: a long straight line is too distracting to
+  // read against. This count is what is left, and it is pinned so their
+  // removal cannot be quietly undone by a re-add.
   {
-    check(paperdefects::kKindCount == 10, "four kinds were appended, not more");
+    check(paperdefects::kKindCount == 8, "two appended kinds survive, not more");
     check(std::string(paperdefects::kKinds[paperdefects::Shive].name) == "shive",
           "the wood-splinter kind is called a shive");
-    check(std::string(paperdefects::kKinds[paperdefects::Crease].name) ==
-              "crease",
-          "the fold kind is called a crease");
-    check(std::string(paperdefects::kKinds[paperdefects::ClippingBurn].name) ==
-              "clipping burn",
-          "the acid-migration kind is called a clipping burn");
     check(std::string(paperdefects::kKinds[paperdefects::SetOff].name) ==
               "set-off",
           "the offset-ghosting kind carries the trade's own word, set-off");
@@ -869,48 +868,16 @@ int main() {
       check(everSeen[k] > 0, "every kind appears somewhere at dial 100");
     // The storage cap must not be the thing deciding what a page carries. It
     // is reached last-kind-first, so a cap that bit would starve exactly the
-    // four kinds added here and nothing would say so.
+    // kinds added here and nothing would say so.
     check(maxMarks < paperdefects::kMaxMarks,
           "dial 100 never reaches the mark-array cap");
 
     // A rect kind's bound uses 4*rx*ry, an ellipse kind's uses pi*rx*ry.
-    check(paperdefects::footprintFactorFor(paperdefects::ShapeBand) == 4.0f &&
-              paperdefects::footprintFactorFor(paperdefects::ShapeGhost) == 4.0f,
-          "the rect shapes are bounded over a rect footprint");
+    check(paperdefects::footprintFactorFor(paperdefects::ShapeGhost) == 4.0f,
+          "the rect shape is bounded over a rect footprint");
     check(paperdefects::footprintFactorFor(paperdefects::ShapeBump) > 3.0f &&
               paperdefects::footprintFactorFor(paperdefects::ShapeBump) < 3.2f,
           "the ellipse shapes are bounded over an ellipse footprint");
-
-    // THE CLIPPING BURN'S EDGE IS STRAIGHT, and that is the entire point of
-    // giving it its own shape. Sampled across the band's hard side: the
-    // multiplier must step from untouched to nearly-full over one pixel, at
-    // the same offset all along the edge. An ellipse cannot do that.
-    paperdefects::Mark band;
-    band.kind = paperdefects::ClippingBurn;
-    band.cx = 200.0f;
-    band.cy = 150.0f;
-    band.rx = 120.0f;
-    band.ry = 60.0f;
-    band.cosA = 1.0f;
-    band.sinA = 0.0f;
-    band.depth = 1.0f;
-    for (int c = 0; c < 3; ++c)
-      band.tint[c] = paperdefects::kKinds[paperdefects::ClippingBurn].tintDeep[c];
-    band.salt = 1u;
-    for (int x = 140; x <= 260; x += 20) {
-      float outside[3], inside[3];
-      const bool o = paperdefects::multiplierAt(band, x, 89, outside);
-      const bool in = paperdefects::multiplierAt(band, x, 91, inside);
-      check(!o, "one pixel outside the clipping's edge is untouched");
-      check(in && inside[2] < 0.55f,
-            "one pixel inside it is already nearly the full burn");
-    }
-    // ...and the wash really does wash: the far side is far lighter.
-    float nearEdge[3], farEdge[3];
-    paperdefects::multiplierAt(band, 200, 95, nearEdge);
-    paperdefects::multiplierAt(band, 200, 205, farEdge);
-    check(farEdge[2] > nearEdge[2] + 0.3f,
-          "the burn fades away from the clipping's edge");
 
     // SET-OFF IS STRIPED. A ghost of lines of type, not a smudge: the variance
     // down a column has to be far larger than the variance across a row, or it
@@ -1007,28 +974,34 @@ int main() {
             "set-off's striping is decisive at the median, not marginal");
     }
 
-    // A CREASE IS A LINE ACROSS THE SHEET, not a blob. Its long axis has to be
-    // orders of magnitude longer than its short one, or it is a brown stain
-    // with a different name.
-    paperdefects::Params cp;
-    cp.dialPercent = 100;
-    cp.remainingBudget = 1.0f;
-    bool sawCrease = false;
-    for (uint32_t seed = 1; seed <= 20; ++seed) {
-      cp.seed = seed * 40503u + 7u;
-      paperdefects::Mark marks[paperdefects::kMaxMarks];
-      const int n = paperdefects::generate(cp, 792, 528, marks);
-      for (int j = 0; j < n; ++j) {
-        if (marks[j].kind != paperdefects::Crease) continue;
-        sawCrease = true;
-        check(marks[j].rx > 100.0f,
-              "a crease spans a serious fraction of the sheet");
-        check(marks[j].rx > marks[j].ry * 25.0f,
-              "a crease is a LINE, not a blob");
+  }
+
+    // NOTHING DRAWS A LONG STRAIGHT LINE. The owner's ruling is a property of
+    // the rendered sheet, not of two deleted table rows, so it is checked as
+    // one: no kind at any dial may produce a mark whose long axis runs a
+    // serious fraction of the sheet at a high aspect ratio. Set-off is the
+    // near miss and is deliberately inside the bar -- it is a soft block the
+    // size of a text page, aspect ~1.6, not a line.
+    {
+      paperdefects::Params lp;
+      lp.remainingBudget = 1.0f;
+      for (int dial = 10; dial <= 100; dial += 10) {
+        lp.dialPercent = dial;
+        for (uint32_t seed = 1; seed <= 40; ++seed) {
+          lp.seed = seed * 40503u + 7u;
+          paperdefects::Mark marks[paperdefects::kMaxMarks];
+          const int n = paperdefects::generate(lp, 792, 528, marks);
+          for (int j = 0; j < n; ++j) {
+            const float lo = marks[j].rx > marks[j].ry ? marks[j].rx : marks[j].ry;
+            const float sh = marks[j].rx > marks[j].ry ? marks[j].ry : marks[j].rx;
+            const bool longAxis = lo > 100.0f;
+            const bool thin = sh > 0.0f && lo > sh * 8.0f;
+            check(!(longAxis && thin),
+                  "no mark is a long thin line across the sheet");
+          }
+        }
       }
     }
-    check(sawCrease, "dial 100 produced a crease to measure");
-  }
 
   // ------------------------------------------------------ VOCABULARY -----
   //

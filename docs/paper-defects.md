@@ -147,8 +147,6 @@ through the frozen half.
 | fly speck | | **238** |
 | wax spot | | **42** (deliberately the shallow end — wax is translucency) |
 | shive | | **206** |
-| crease | | **94** |
-| clipping burn | | **145** |
 | set-off | | **82** (deliberately the shallow end — it is a ghost) |
 
 Whole page against the same page at dial 0: mean channel delta **14.2 / 255**,
@@ -218,11 +216,10 @@ were faint — a taste decision — not because the safety argument made them fa
 The structural reason sparse deep marks are cheap: the bound is
 `area × profileMean × depth × lumDeficit / (w·h)`. A fly speck is near-black
 (`lumDeficit` 0.90) and 2 px across, so twenty-four of them cost 0.00026. What
-costs is *area*: the two clipping burns are 52% of the whole bill at dial 100.
+costs is *area*: the largest-area kinds dominate the bill at dial 100.
 
 **After the raise, at dial 100:** total bound **0.0577**, measured mean
-darkening **0.0461** (792×528, seed `0xABCDEF01`; the two clipping burns are
-still the single biggest line at ~50% of the bill, foxing and brown stain next).
+darkening **0.0461** (792×528, seed `0xABCDEF01`).
 Still **10× inside** what the repo default leaves and **6× inside** sepia.
 The clamp continues not to bite on any palette with real headroom, and the
 ceiling is therefore set by TASTE — which is the honest thing to say about it.
@@ -353,8 +350,6 @@ rejections on its own.
 | Kind | Shape | Mechanism, and the source it comes from |
 |---|---|---|
 | **shive** | hard ellipse, high aspect | An undigested bundle of fibres — a splinter of wood that survived pulping — dark brown against the sheet. The characteristic defect of mechanical/groundwood and unbleached kraft stock, and the thing "shive counting" is a standard pulp QC measure *for*. Distinct from **red rag**, which is a *dyed textile* fleck from the rag engine of a pre-1850 European mill (Hunter, *Papermaking*): different furnish, different colour, different era. This is the papermaking one the table lacked. |
-| **crease** | soft ellipse, aspect ~1:100 | A fold's shadow: a soft dark line clean across the sheet, slightly soiled along its length. Handling damage, and the commonest thing in a second-hand copy. Modulated along its length (`raggedCellsX/Y` are separate per axis precisely so a 400×3 px mark can vary along itself without dissolving across itself). |
-| **clipping burn** | rotated rect, HARD edge one side, wash to the other | Acid migration from an inclusion left in the book — a newspaper clipping is the classic, and preservation guidance names newsprint, pressed flowers and metal clips together for the same reason. The signature is a **straight brown edge** where the clipping lay, with a graded wash into the sheet. It gets its own shape because an ellipse cannot make a straight edge, and the straight edge is the entire tell. Placed against a margin (`PlaceMargin`). |
 | **set-off** | rotated rect, soft, striped | The trade's own word for a facing page's still-wet ink transferring to the sheet opposite. Slip-sheeting and anti-set-off spray exist because of it; it is routine in hand-press books (Gaskell, *A New Introduction to Bibliography*). Rendered as a faint block the size of a text block, striped along the short axis so it reads as ghosted *lines of type*. **This is an approximation and is labelled one**: a true ghost would need the facing page's framebuffer, which this layer does not have. |
 
 ### Out, with reasons
@@ -382,7 +377,7 @@ rejections on its own.
   paints; and a hole is a *hole* — `kMinMultiplier`'s comment draws exactly that
   line ("a hole in the sheet is a different phenomenon and this is not it"). The
   drying-loft mark that *is* real and *is* distinct is the rope mark the sheet
-  hung over, which is a **crease** by another name and is in.
+  hung over, which is a fold line and is now out with the rest of them.
 - **Deckle-edge fibre wander.** Real — the feathered thin edge left by the
   mould's frame. Rejected because the "sheet" in this simulator is the whole
   output surface and has no visible silhouette: a deckle would draw a band along
@@ -406,3 +401,36 @@ in a bounds function. Both profile means are closed form and both are rounded
 band  = mean_u min(1, (1-u^2)/0.55) x mean_v (1-v)/2 = 0.8462 x 0.5 = 0.4231 -> 0.43
 ghost = (mean_u (1-u^2)^2)^2                         = (8/15)^2      = 0.2844 -> 0.29
 ```
+
+
+## Removed 2026-08-23: crease and clipping burn
+
+Owner ruling: *"lose clipping burn and crease effect. anything with a long
+straight line is too distracting."*
+
+Both were appended the day before with the raised ceiling, and both were
+straight lines by construction — a crease is a fold's shadow run clean across
+the sheet at aspect ~1:100, and a clipping burn's entire signature is the hard
+straight edge where the newsprint lay. That is exactly what the ruling names.
+A blob in the margin is scenery; a line across the text block is something the
+eye tracks instead of reading.
+
+They are **removed, not disabled**. `ShapeBand` and `PlaceMargin` went with
+them (nothing else used either), and `kKindCount` fell 10 → 8. A kind's integer
+is not persisted, so nothing stored re-points; pages simply re-roll, which is
+expected — the per-page seed is stable but the table it indexes changed.
+
+The ruling is now enforced as a **property of the rendered sheet rather than as
+the absence of two table rows**: `paper_defects_test` sweeps every dial and 40
+seeds and fails if any kind produces a mark whose long axis exceeds 100 px at
+an aspect ratio over 8:1. Re-adding a line-shaped defect fails that check
+without anyone remembering this paragraph. Set-off is the near miss and passes
+deliberately — it is a soft block the size of a facing text page at aspect
+~1.6, not a line.
+
+**Still shipping a long straight line, and NOT covered by this ruling:** the
+laid-paper wires (`src/LaidStructure.h`), which are the defining structure of
+the Laid Antique stock rather than a defect, and only render when that stock is
+chosen. Flagged here because it plainly meets the words of the ruling; left in
+because removing an opt-in stock's whole reason for existing is not what was
+asked. Say the word and it goes.

@@ -128,18 +128,20 @@ enum Kind : int {
   // --- appended 2026-08-22 with the raised ceiling. APPEND ONLY: a kind's
   // integer is not persisted, but kKinds is indexed by it from three files.
   Shive,           // undigested wood-fibre splinter in cheap pulp
-  Crease,          // a fold's shadow: a soft line across the whole sheet
-  ClippingBurn,    // acid migration under a newspaper clipping, straight-edged
+  // Crease and ClippingBurn lived here between 2026-08-22 and 2026-08-23 and
+  // were REMOVED, not disabled: owner ruling, "anything with a long straight
+  // line is too distracting." A fold's shadow and a clipping's acid edge are
+  // both, essentially, a straight line drawn across the page, and the eye
+  // tracks a line the way it does not track a blob. ShapeBand went with them.
   SetOff,          // a facing page's wet ink ghosted onto this one
   kKindCount
 };
 
-// HOW A MARK IS SHAPED. Four profiles, because the four things they draw are
-// four different physical events and an ellipse cannot fake a straight edge.
+// HOW A MARK IS SHAPED. Three profiles, because the three things they draw are
+// three different physical events.
 enum Shape : int {
   ShapeBump = 0,  // soft quartic ellipse: a diffusion into the fibre mat
   ShapeDisc,      // hard ellipse with a short ramp: a particle sitting on top
-  ShapeBand,      // rotated rect, HARD edge on one side, wash to the other
   ShapeGhost,     // rotated rect, soft on both axes, striped like lines of type
 };
 
@@ -148,7 +150,6 @@ enum Placement : int {
   PlaceUniform = 0,
   PlaceEdge,    // damp reaches the block's edges first (foxing)
   PlaceCenter,  // it is the TEXT BLOCK that offsets, and that is centred
-  PlaceMargin,  // a clipping is laid along an edge, across the page
 };
 
 // One kind's constants.
@@ -200,25 +201,15 @@ constexpr float kSoftProfileMean = 1.0f / 3.0f;
 constexpr float kHardProfileMean = 0.85f;
 constexpr float kSpeckRamp = 0.3f;
 
-// The band is separable over its RECT footprint (4*rx*ry, not pi*rx*ry):
-// along the long axis min(1, (1-u^2)/kBandEndRamp), mean 0.8462 at 0.55;
-// across it the wash (1-v)/2, mean exactly 0.5. Product 0.4231, rounded UP to
-// 0.43 -- the bound must over-state, never under-state. The ramp is 0.55 and
-// not the 0.15 first tried because at 0.15 the clipping's ENDS were nearly as
-// hard as its EDGE, and the mark read as a drawn rectangle. Only the edge is
-// meant to be straight; that is the whole signature, and the ends are where a
-// clipping's corners lifted off the sheet.
-constexpr float kBandEndRamp = 0.55f;
-constexpr float kBandProfileMean = 0.43f;
 // The ghost is (1-u^2)^2 * (1-v^2)^2 over the same rect footprint. Each factor
 // has mean 8/15 over [-1,1], so the product is (8/15)^2 = 0.2844, rounded up.
 // Its stripe multiply only reduces further.
 constexpr float kGhostProfileMean = 0.29f;
 
-// The footprint AREA factor. An ellipse is pi*rx*ry; the two rect shapes are
+// The footprint AREA factor. An ellipse is pi*rx*ry; the rect shape is
 // 4*rx*ry, and getting this wrong would under-state the bound by 27%.
 inline float footprintFactorFor(int shape) {
-  return (shape == ShapeBand || shape == ShapeGhost) ? 4.0f : 3.14159265f;
+  return shape == ShapeGhost ? 4.0f : 3.14159265f;
 }
 
 // CHOSEN, not measured -- no sheet was photographed for this repo, same honesty
@@ -258,14 +249,6 @@ constexpr KindInfo kKinds[kKindCount] = {
      {0.86f, 0.78f, 0.66f}, {0.40f, 0.29f, 0.17f},
      0.0022f, 0.0060f, 0.0110f, 0.12f, 0.30f, 1.0f, 0, 40,
      kHardProfileMean, 0.0f, 0.0f, 0.0f},
-    {"crease", ShapeBump, PlaceUniform,
-     {0.94f, 0.93f, 0.91f}, {0.66f, 0.63f, 0.58f},
-     0.3000f, 0.5500f, 0.7800f, 0.0055f, 0.0130f, 1.0f, 0, 3,
-     kSoftProfileMean, 0.45f, 0.05f, 8.00f},
-    {"clipping burn", ShapeBand, PlaceMargin,
-     {0.96f, 0.92f, 0.84f}, {0.70f, 0.55f, 0.34f},
-     0.0900f, 0.1800f, 0.2500f, 0.22f, 0.45f, 0.10f, 0, 2,
-     kBandProfileMean, 0.0f, 0.0f, 0.0f},
     {"set-off", ShapeGhost, PlaceCenter,
      {0.965f, 0.955f, 0.94f}, {0.72f, 0.68f, 0.60f},
      0.1800f, 0.2600f, 0.3400f, 0.70f, 1.10f, 0.05f, 0, 2,
@@ -446,8 +429,6 @@ inline int generate(const Params &p, int w, int h, Mark *out) {
       } else if (k.placement == PlaceCenter) {
         u = toCenter(u);
         v = toCenter(v);
-      } else if (k.placement == PlaceMargin) {
-        v = toEdge(v);
       }
       const float rUnit = phosphorgrain::unitFromHash(
           phosphorgrain::hash3(base, 0x2u, p.seed));
@@ -517,12 +498,11 @@ inline int generate(const Params &p, int w, int h, Mark *out) {
 inline bool bounds(const Mark &m, int w, int h, int &x0, int &y0, int &x1,
                    int &y1) {
   float ex, ey;
-  if (kKinds[m.kind].shape == ShapeBand ||
-      kKinds[m.kind].shape == ShapeGhost) {
+  if (kKinds[m.kind].shape == ShapeGhost) {
     // A rotated RECT reaches its corners, which is strictly further out than
-    // the inscribed ellipse. Using the ellipse form here would clip both new
-    // rect kinds along their diagonals -- and a clipped straight edge reads as
-    // a rendering artifact, not as a bug in a bounds function.
+    // the inscribed ellipse. Using the ellipse form here would clip the rect
+    // kind along its diagonals, which reads as a rendering artifact rather
+    // than as a bug in a bounds function.
     ex = std::fabs(m.rx * m.cosA) + std::fabs(m.ry * m.sinA);
     ey = std::fabs(m.rx * m.sinA) + std::fabs(m.ry * m.cosA);
   } else {
@@ -559,16 +539,7 @@ inline bool multiplierAt(const Mark &m, int x, int y, float mult[3]) {
 
   const KindInfo &k = kKinds[m.kind];
   float f;
-  if (k.shape == ShapeBand) {
-    // THE CLIPPING'S EDGE. Hard at ryv = -1, where the newsprint lay, washing
-    // out to nothing at ryv = +1 as the acid migrated into the sheet. The ends
-    // of the band fade because a clipping's corners never sat flat.
-    if (rxv <= -1.0f || rxv >= 1.0f || ryv <= -1.0f || ryv >= 1.0f)
-      return false;
-    const float su = 1.0f - rxv * rxv;
-    const float gu = su >= kBandEndRamp ? 1.0f : su / kBandEndRamp;
-    f = gu * (1.0f - ryv) * 0.5f;
-  } else if (k.shape == ShapeGhost) {
+  if (k.shape == ShapeGhost) {
     // SET-OFF. A soft rectangle the size of the facing page's text block,
     // striped along its short axis by the ragged multiply below, which is what
     // makes it read as ghosted LINES of type rather than as a smudge.
@@ -593,8 +564,7 @@ inline bool multiplierAt(const Mark &m, int x, int y, float mult[3]) {
     // A RAGGED EDGE. Foxing is fungal and metallic in a fibre mat; a clean
     // ellipse reads as a printed dot. The noise can only REDUCE f, which is
     // also what keeps the analytic bound above an upper bound. The cell counts
-    // are per axis so a crease modulates along its length without dissolving
-    // across its two-pixel width, and so set-off stripes horizontally.
+    // are per axis so set-off stripes horizontally rather than dissolving.
     const float nx = (static_cast<float>(x) - m.cx) / (m.rx * k.raggedCellsX);
     const float ny = (static_cast<float>(y) - m.cy) / (m.ry * k.raggedCellsY);
     f *= (1.0f - k.raggedAmp) +
