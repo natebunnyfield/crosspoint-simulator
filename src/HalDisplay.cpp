@@ -250,6 +250,11 @@ static bool powerLogFirstPresent = false;
 // desktop wake is execvp, where a fresh process clears it for free.
 static std::atomic<bool> displaySleeping{false};
 
+// See presentIfNeeded for why this is not simply panelIsDarkGround() at the
+// moment it is read. Defaults false: a build that never presents a dark page
+// never switches a tube off.
+static std::atomic<bool> lastReadingDarkGround{false};
+
 static int currentWindowWidth = 0;
 static int currentWindowHeight = 0;
 
@@ -2851,7 +2856,13 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
 // raster covers the glass, the same one-sheet ruling the grain followed. The
 // per-row erf work is x-independent, so it is cached per (row, level bucket)
 // and folded per pixel through scanlines::combine, which the host test pins
-// as exactly multiplierAt. Bloom levels come from reading back the composed
+// as exactly multiplierAt.
+//
+// A/B CAPTURES OF THIS FIELD MUST PIN CROSSPOINT_SIM_GRAIN_SEED. The raster's
+// phase jitter, thickness jitter and mottle all hang off grainSeed(), which is
+// re-rolled every launch, so two runs of the same dials differ by ~2.2 code
+// values before any dial is touched -- which is larger than the corner-defocus
+// effect being measured. Cost a wrong reading on 2026-08-23. Bloom levels come from reading back the composed
 // backbuffer at regeneration time, so the beam-current model sees the true
 // light -- palette, fade and accumulator included. Regenerated per content
 // seq (page turns), never per frame: a still page must not crawl.
@@ -2906,14 +2917,27 @@ static bool ensureDefocusMap(int w, int h, const cornerdefocus::Params &cd) {
   return true;
 }
 
-// How finely the (row, sigma scale) table is sampled when defocus is on. The
-// OFF path keeps its own 16-bucket table over the LEVEL, untouched and
-// bit-exact; this one buckets the PRODUCT of the bloom widening and the
-// defocus widening, because the model multiplies them into one sigma and there
-// is no reason to carry two dimensions of a single quantity. 24 buckets with
-// linear interpolation is finer in practice than the 16 unhinterpolated ones,
-// and costs 1.5x the erf work rather than the 8x a second dimension would.
-static constexpr int kDefocusScaleBuckets = 24;
+// How many defocus anchors the (row, level, defocus) table carries when the
+// dial is on. The OFF path keeps its own 16-bucket table over the LEVEL alone,
+// untouched and bit-exact.
+//
+// IT HAS TO BE A SECOND AXIS, and the cheaper thing that is not was tried and
+// measured wrong. Bloom and defocus both scale the same sigma, so the obvious
+// economy is to bucket their PRODUCT and keep one axis. That is arithmetically
+// identical inside rowTransmissionRaw and WRONG at the normalization: the
+// defocus divides back out (mean-preserving, which is the whole point) and the
+// bloom must not (it spares light, which is ITS whole point). Collapsed onto
+// one axis the divide hits both, and the measured result was a raster softened
+// by 27% AT THE CENTRE, where the defocus scale is exactly 1 -- an effect
+// uniform across the screen wearing the name of one that is not.
+//
+// Three anchors span a range of only 0.45 (1.0 at the centre to 1.45 at the
+// corner), interpolated per pixel; the transmission is smooth enough in sigma
+// over that span that the sampling error stays under a tenth of a code value,
+// measured. Cost is 3x the erf work, which is ~8% of this pass.
+// Five anchors were measured first and cost +13.5 ms per page turn against
+// three at +6; the extra accuracy was not visible.
+static constexpr int kDefocusAnchors = 3;
 
 static void destroyScanTexture() {
   if (!scanTexture) return;
@@ -3012,32 +3036,23 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   // before this existed.
   const bool defocusLive = ensureDefocusMap(w, h, cd);
   const float defocusSpan = cornerdefocus::maxSigmaScale(cd) - 1.0f;
-  // The sigma-scale table spans one widening and the other multiplied
-  // together: bloom takes the spot to (1 + gain) at full beam current, defocus
-  // takes it to maxSigmaScale at the corner, and the model uses the product.
-  const float scaleMax =
-      defocusLive ? (1.0f + params.bloomGain) * cornerdefocus::maxSigmaScale(cd)
-                  : 1.0f;
-  const float scaleStep =
-      defocusLive ? (scaleMax - 1.0f) /
-                        static_cast<float>(kDefocusScaleBuckets - 1)
+  const float defocusStep =
+      defocusLive ? defocusSpan / static_cast<float>(kDefocusAnchors - 1)
                   : 0.0f;
 
-  // Per-(row, bucket) transmission: the erf work, done once per row.
-  const int buckets = defocusLive ? kDefocusScaleBuckets : 16;
-  std::vector<float> rowT(static_cast<size_t>(h) * buckets);
+  // Per-(row, level bucket [, defocus anchor]) transmission: the erf work,
+  // done once per row rather than once per pixel.
+  const int anchors = defocusLive ? kDefocusAnchors : 1;
+  std::vector<float> rowT(static_cast<size_t>(h) * 16 * anchors);
   for (int y = 0; y < h; ++y)
-    for (int b = 0; b < buckets; ++b)
-      rowT[static_cast<size_t>(y) * buckets + b] =
-          defocusLive
-              // Level 0 with an explicit sigma scale: level and defocus enter
-              // the model through the same product, so one axis carries both.
-              ? scanlines::rowTransmission(
-                    params, static_cast<float>(y), 0.0f,
-                    1.0f + scaleStep * static_cast<float>(b))
-              : scanlines::rowTransmission(params, static_cast<float>(y),
-                                           (static_cast<float>(b) + 0.5f) /
-                                               16.0f);
+    for (int b = 0; b < 16; ++b) {
+      const float level = (static_cast<float>(b) + 0.5f) / 16.0f;
+      float *cell = rowT.data() + (static_cast<size_t>(y) * 16 + b) * anchors;
+      for (int d = 0; d < anchors; ++d)
+        cell[d] = scanlines::rowTransmission(
+            params, static_cast<float>(y), level,
+            1.0f + defocusStep * static_cast<float>(d));
+    }
 
   destroyScanTexture();
   scanTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
@@ -3049,29 +3064,25 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
-    const float *tRow = rowT.data() + static_cast<size_t>(y) * buckets;
+    const float *tRow = rowT.data() + static_cast<size_t>(y) * 16 * anchors;
     const uint8_t *bRow = bucket.data() + static_cast<size_t>(y) * w;
     const uint8_t *dRow =
         defocusLive ? defocusMap.data() + static_cast<size_t>(y) * w : nullptr;
     for (int x = 0; x < w; ++x) {
       float t;
       if (dRow) {
-        // The two widenings, multiplied, then interpolated between the two
-        // bracketing table entries -- a bucket edge on a smooth field would
-        // otherwise show as a contour across the page.
-        const float bf =
-            1.0f + params.bloomGain *
-                       ((static_cast<float>(bRow[x]) + 0.5f) / 16.0f);
-        const float scale =
-            bf * (1.0f + defocusSpan * (static_cast<float>(dRow[x]) / 255.0f));
-        float fb = (scale - 1.0f) / (scaleStep > 0.0f ? scaleStep : 1.0f);
-        if (fb < 0.0f) fb = 0.0f;
-        if (fb > static_cast<float>(buckets - 1))
-          fb = static_cast<float>(buckets - 1);
-        const int b0 = static_cast<int>(fb);
-        const int b1 = b0 + 1 < buckets ? b0 + 1 : b0;
-        const float fr = fb - static_cast<float>(b0);
-        t = tRow[b0] + (tRow[b1] - tRow[b0]) * fr;
+        // Interpolated between the two bracketing anchors: an anchor edge on a
+        // field this smooth would otherwise draw a contour across the screen.
+        const float fa =
+            (defocusSpan * (static_cast<float>(dRow[x]) / 255.0f)) /
+            (defocusStep > 0.0f ? defocusStep : 1.0f);
+        int a0 = static_cast<int>(fa);
+        if (a0 < 0) a0 = 0;
+        if (a0 > anchors - 1) a0 = anchors - 1;
+        const int a1 = a0 + 1 < anchors ? a0 + 1 : a0;
+        const float fr = fa - static_cast<float>(a0);
+        const float *cell = tRow + static_cast<size_t>(bRow[x]) * anchors;
+        t = cell[a0] + (cell[a1] - cell[a0]) * fr;
       } else {
         t = tRow[bRow[x]];
       }
@@ -3160,6 +3171,19 @@ void HalDisplay::presentIfNeeded() {
 
   if (!texture || !sdl_renderer)
     return;
+
+  // THE POLARITY YOU WERE READING IN, latched on every present that is not part
+  // of going to sleep.
+  //
+  // It exists for the power-off collapse, and it exists because the obvious
+  // test is wrong: by the time the sleep loop runs, the firmware has drawn its
+  // SLEEP SCREEN, and it draws that in LIGHT polarity even when the reader was
+  // dark (measured 2026-08-23: inverted=0, paper F9F9F8, on a run whose every
+  // page turn had built a scanline field). Asking "is the page dark" at the
+  // moment of collapse therefore answers about the sleep screen, and a
+  // dark-mode-only artifact never fires. What the fiction wants is the tube the
+  // reader was looking at.
+  if (!displaySleeping.load()) lastReadingDarkGround = panelIsDarkGround();
 
   // The timing frame is armed HERE, past every early return, so a present that
   // was held or coalesced away is not reported as a free one.
@@ -4229,14 +4253,29 @@ void drawCollapsedPanel(SDL_Texture *tex, float sx, float sy) {
 
 namespace SimulatorOverlay {
 bool stepPowerOffCollapse() {
-  if (!powerOffCollapse.load() || collapseFinished) return false;
-  if (!sdl_renderer || !texture) return false;
+  // SAY WHY, ONCE. Four of the five ways this returns false are silent by
+  // nature -- an owner who turned the row on and saw nothing has no way to
+  // tell "off" from "light page" from "no geometry yet", and neither did the
+  // first attempt at photographing it headlessly.
+  const auto bail = [](const char *why) {
+    static bool said = false;
+    if (!said && powerLogWanted()) {
+      said = true;
+      SDL_Log("[power] collapse not drawn: %s", why);
+    }
+    return false;
+  };
+  if (!powerOffCollapse.load()) return bail("the dial is off");
+  if (collapseFinished) return false;
+  if (!sdl_renderer || !texture) return bail("no renderer or no frame");
   // A PAPER PAGE DOES NOT SWITCH OFF. Same gate the accumulator uses: this is
   // a CRT artifact, and on a pale ground it would be a page being eaten.
-  if (!panelIsDarkGround()) return false;
+  if (!lastReadingDarkGround.load())
+    return bail("the page being read was a pale ground");
   // Nothing has been presented yet, so there is no geometry to collapse and no
   // picture to collapse it from.
-  if (sheetPanelW <= 0 || sheetPanelH <= 0) return false;
+  if (sheetPanelW <= 0 || sheetPanelH <= 0)
+    return bail("no presented panel rect yet");
 
   const uint64_t now = SDL_GetTicks();
   if (collapseStartedAt == 0) collapseStartedAt = now;
@@ -4296,6 +4335,12 @@ bool stepPowerOffCollapse() {
     SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
   }
 
+  // THE COLLAPSE CANNOT BE PHOTOGRAPHED FROM presentIfNeeded, because it never
+  // goes through it -- so the due-screenshot check runs here too. Without this
+  // the one moment this feature exists for is the one moment headless QA
+  // cannot see, which is the same hole CROSSPOINT_SIM_LOG_PRESENTS exists to
+  // fill for the page-turn flash.
+  if (hasDueScreenshot()) captureDueScreenshots();
   SDL_RenderPresent(sdl_renderer);
   if (st.finished) {
     collapseFinished = true;

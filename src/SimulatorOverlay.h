@@ -429,4 +429,49 @@ void setScanlineSize(int percentOfRowPitch);
 // Model: scanlines::bloomGainFor. CROSSPOINT_SIM_SCANLINE_BLOOM overrides.
 void setScanlineBloom(int percentOfStandard);
 
+// SHOW-THROUGH: the previous leaf, mirrored and heavily blurred, faintly
+// visible through this one (roadmap 1a). LIGHT mode only -- it is the paper
+// half of the doctrine -- and it rides on the letterpress sheet pass, so it
+// draws only where that pass does. 0 off (bit-exact), 100 the reference
+// sheet's own show-through; the CHOSEN STOCK then scales it, which is the
+// whole feature (India 3.0x, Kozo 3.7x, a calfskin vellum 0.25x), so the
+// percent handed here is already the dial times
+// lightink::showThroughScaleFor. Darken-only, and its share of the paper's
+// 7:1 budget is taken before the marks are generated.
+// Model: src/ShowThrough.h (host-tested). CROSSPOINT_SIM_SHOW_THROUGH
+// overrides.
+void setShowThrough(int percentOfStandard);
+
+// CORNER DEFOCUS: the beam spot grows and turns elliptical off-axis, so the
+// raster softens toward the corners (roadmap D3). DARK mode only, and it
+// modulates the SCANLINE field rather than drawing one of its own -- with
+// scanlines off it does nothing at all. 0 off (bit-exact), 100 the shipped
+// tube. It softens without changing the page's mean brightness (the period
+// mean divides out; see scanlines::rowTransmission), so it cannot lift a
+// corner and it costs the contrast budget nothing.
+// Model: src/CornerDefocus.h (host-tested). CROSSPOINT_SIM_CORNER_DEFOCUS
+// overrides.
+void setCornerDefocus(int percentOfStandard);
+
+// THE POWER-OFF COLLAPSING DOT (roadmap D8): at sleep, the picture squeezes to
+// a bright line, the line closes to a dot, and the dot fades out. DARK mode
+// only, off by default, and the one surface dial that is an iOS Settings row
+// rather than a frozen value -- turning it on means the glass stays dark for
+// the whole sleep instead of holding the sleep screen, and that is a trade
+// only the owner may make.
+// Model: src/PowerOffCollapse.h (host-tested).
+// CROSSPOINT_SIM_POWEROFF_COLLAPSE overrides.
+void setPowerOffCollapse(bool enabled);
+
+// Advance the collapse by one frame and present it. Called from the deep-sleep
+// loop (HalGPIO::startDeepSleep), which is where it can run WITHOUT delaying
+// sleep: the firmware has already handed over, the wake checks run before this
+// on every iteration, and a wake mid-collapse simply abandons it.
+//
+// Returns true while there are more frames to draw. False means "nothing to do"
+// -- disabled, not a dark page, already finished, or no frame to collapse -- and
+// the caller must stop asking. Main thread only, like every other SDL call in
+// this library.
+bool stepPowerOffCollapse();
+
 } // namespace SimulatorOverlay

@@ -183,6 +183,18 @@ int paperFormationPercentFor(int paper, int paperStrength) {
   return (int)lroundf(stock * (float)storedFormationPct());
 }
 
+// The stock's THINNESS: how much of the previous leaf shows through this one
+// (roadmap 1a). Same composition as tooth and formation -- the STOCK's factor
+// times the frozen dial -- and it is the composition that carries the whole
+// feature, because a bible paper's show-through is its defining property and a
+// calfskin's is nearly absent. lightink::showThroughScaleFor derives the factor
+// from the stock's ISO 2471 opacity, so the ladder is a ratio of measured
+// transmissions rather than a chosen ordering.
+int showThroughPercentFor(int paper, int paperStrength) {
+  const float stock = lightink::showThroughScaleFor(paper, paperStrength);
+  return (int)lroundf(stock * (float)CrossPointPrefs_showThroughPercent());
+}
+
 // The stock's WIRES: the paper-strength percent for a laid stock, 0 for every
 // wove one -- the laid field rides the paper strength the way tooth and
 // formation do, and a stock with no wires pushes an explicit 0 so switching
@@ -195,11 +207,13 @@ int laidLinesPercentFor(int paper, int paperStrength) {
 
 // Push every paper dial at the SDL side. Called on any change and by the shim's
 // launch seed, because the drawer may never be opened and the chosen stock
-// still has a texture. Six of the eight numbers are frozen constants now; the
-// tooth, the formation and the wires still move with the stock.
+// still has a texture. Six of the nine numbers are frozen constants now; the
+// tooth, the formation, the wires and the show-through still move with the
+// stock.
 void pushPaperDials(int paper, int paperStrength) {
   SDL_Log("[letterpress] paper: tooth %d%% (stock %.2fx x dial %d%%), "
-          "formation %d%% (stock %.2fx x dial %d%%), laid %d%%, defects %d%%, "
+          "formation %d%% (stock %.2fx x dial %d%%), laid %d%%, "
+          "showthrough %d%% (stock %.2fx x dial %d%%), defects %d%%, "
           "drift %d%% (+/-%d code values) "
           "| press: ring %d%% deboss %d%% pressure %d%%",
           paperToothPercentFor(paper, paperStrength),
@@ -207,13 +221,18 @@ void pushPaperDials(int paper, int paperStrength) {
           storedToothPct(), paperFormationPercentFor(paper, paperStrength),
           (double)lightink::formationScaleFor(paper, paperStrength),
           storedFormationPct(), laidLinesPercentFor(paper, paperStrength),
-          storedDefectsPct(), storedDriftPct(),
+          showThroughPercentFor(paper, paperStrength),
+          (double)lightink::showThroughScaleFor(paper, paperStrength),
+          CrossPointPrefs_showThroughPercent(), storedDefectsPct(),
+          storedDriftPct(),
           lightink::maxDriftCodeValues(storedDriftPct()), storedRingPct(),
           storedDebossPct(), storedPressurePct());
   SimulatorOverlay::setPaperTooth(paperToothPercentFor(paper, paperStrength));
   SimulatorOverlay::setPaperFormation(
       paperFormationPercentFor(paper, paperStrength));
   SimulatorOverlay::setLaidLines(laidLinesPercentFor(paper, paperStrength));
+  SimulatorOverlay::setShowThrough(
+      showThroughPercentFor(paper, paperStrength));
   SimulatorOverlay::setPaperDefects(storedDefectsPct());
   SimulatorOverlay::setPaperDrift(storedDriftPct());
   SimulatorOverlay::setPressRing(storedRingPct());
@@ -799,6 +818,7 @@ extern "C" uint32_t CrossPointInkPicker_paperDialSignature(void) {
   loadSelection(&ink, &paper, &density, &strength);
   uint32_t h = 2166136261u;
   const int parts[] = {paperToothPercentFor(paper, strength),
+                       showThroughPercentFor(paper, strength),
                        storedFormationPct(), storedDefectsPct(),
                        storedDriftPct(),     storedRingPct(),
                        storedDebossPct(),    storedPressurePct()};

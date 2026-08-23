@@ -184,6 +184,25 @@ int CrossPointPrefs_scanlineSizePercent(void);
 // proportionate at every scanline size.
 int CrossPointPrefs_scanlineBloomPercent(void);
 
+// SHOW-THROUGH from the other side of the leaf, percent of the reference
+// sheet's (roadmap 1a). FROZEN 2026-08-23: the quantity that varies is the
+// STOCK's thinness, which the paper picker already owns, and the picker
+// multiplies its factor into this before pushing. Light pages only.
+int CrossPointPrefs_showThroughPercent(void);
+
+// CORNER DEFOCUS, percent of the standard tube (roadmap D3). FROZEN
+// 2026-08-23: it is set by a tube's geometry under TG18's astigmatism bound,
+// not by taste. Dark pages only, and it modulates the scanline raster rather
+// than drawing a field of its own.
+int CrossPointPrefs_cornerDefocusPercent(void);
+
+// THE POWER-OFF COLLAPSING DOT (roadmap D8). 1 = at sleep the picture squeezes
+// to a bright line, the line closes to a dot, and the dot fades -- after which
+// the glass stays DARK for the rest of the sleep instead of holding the sleep
+// screen. That trade is why this is a Settings row rather than a frozen value,
+// and why it ships off. Dark pages only.
+int CrossPointPrefs_powerOffCollapse(void);
+
 // CrossPointPrefs_zenBottomRatio was RETIRED 2026-08-22: the zen band
 // proportion is a constant 1:2 (Van de Graaf) in the shim now, so the setting
 // row died with it (a one-option row is decoration). Stored values are ignored

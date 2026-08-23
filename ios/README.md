@@ -382,8 +382,15 @@ chosen stock). `crosspoint::panelForPrefs()` is the single resolver both the
 SDL side and the UIKit side read, so the page, the pad and both chips cannot
 disagree about what was picked.
 
-What remains in Settings.app after the 2026-08-23 ruling is four rows: the Zen
-toggle, the two sleep toggles, Sharpness, and the Read Aloud group. Everything
+What remains in Settings.app after the 2026-08-23 ruling is the Zen toggle, the
+two sleep toggles, the Read Aloud group, Diagnostics Log -- and, added later the
+same day, **Power-Off Collapse** (`powerOffCollapse`, default off), the CRT
+shutdown at sleep. It is the one surface item since the purge to earn a row, and
+it earned it by having a TRADE rather than a right answer: turning it on means
+the glass stays dark for the whole sleep instead of holding the sleep screen.
+See [../docs/power-off-collapse.md](../docs/power-off-collapse.md). The two
+items that shipped beside it -- show-through and corner defocus -- are frozen
+constants with no control, for the opposite reason. Everything
 about how the page and the sheet look is either frozen in
 `ios/CrossPointPrefs.mm` or chosen in the app. The frozen values are listed in
 the repo's `CLAUDE.md`; the reason they are returned WITHOUT reading

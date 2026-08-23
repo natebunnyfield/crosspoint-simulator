@@ -106,6 +106,9 @@ static NSString *const kScanlineSizePercent = @"scanlineSizePercent";
 // field with no content awareness at all -- so this one genuinely needs
 // -objectForKey:, the same trap as the grain strength above.
 static NSString *const kScanlineBloomPercent = @"scanlineBloomPercent";
+// THE POWER-OFF COLLAPSING DOT. A Settings.app row, and the only surface dial
+// that is one -- see its getter for the argument.
+static NSString *const kPowerOffCollapse = @"powerOffCollapse";
 static NSString *const kPanelInkLight = @"panelInkLight";
 static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
@@ -505,6 +508,36 @@ int CrossPointPrefs_scanlineBloomPercent(void) { return 400; }
 // 0 = fully transparent. Moot while the fade is Off, and kept honest
 // anyway so the two cannot disagree if the fade is ever revived.
 int CrossPointPrefs_pageFadeDepthPercent(void) { return 0; }
+
+// FROZEN 2026-08-23 with the roadmap item that introduced it (1a). There is
+// one obviously right value: show-through is physics, and the quantity that
+// genuinely varies -- how thin the sheet is -- is already a choice the owner
+// makes, in the paper picker, so a second dial beside it would be two
+// authorities over one number. 100 = the reference sheet's own show-through;
+// CrossPointInkPicker multiplies the CHOSEN STOCK's factor into it before it
+// reaches the SDL side, which is why a bible paper shows through three times as
+// much as a bright white and a calfskin barely at all.
+int CrossPointPrefs_showThroughPercent(void) { return 100; }
+
+// FROZEN 2026-08-23 with the roadmap item that introduced it (D3). Same
+// argument: the corner spot's growth is set by a tube's geometry, not by taste,
+// and the one published bound (TG18's corner astigmatism ratio < 1.5) leaves no
+// interesting range to offer. 100 = a corner spot 1.45x the centre's, an
+// astigmatism ratio of 1.23.
+int CrossPointPrefs_cornerDefocusPercent(void) { return 100; }
+
+// A ROW, NOT A FROZEN VALUE, and the only one of the three 2026-08-23 items
+// that is. Every other surface dial has an answer that is simply right; this
+// one has a TRADE. Turning it on means the tube switches off at sleep and the
+// glass stays dark for the whole sleep, instead of holding the sleep screen --
+// which is a real feature with a book cover or a clock on it. Nobody may make
+// that trade on the owner's behalf, which is also why it defaults OFF.
+int CrossPointPrefs_powerOffCollapse(void) {
+  ensureDefaults();
+  checkKnown(kPowerOffCollapse);
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kPowerOffCollapse] ? 1
+                                                                              : 0;
+}
 
 int CrossPointPrefs_presentFlash(void) {
   ensureDefaults();
