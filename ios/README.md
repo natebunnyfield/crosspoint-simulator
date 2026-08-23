@@ -1554,6 +1554,53 @@ xcrun simctl spawn $D log show --last 60s --predicate 'processImagePath CONTAINS
 Settings.app row without tapping through Settings by hand, and it is what proved
 the palette path end to end.
 
+**CORRECTION, 2026-08-23: `simctl spawn <dev> defaults write <bundleid>` writes
+the WRONG STORE.** A sandboxed app's `NSUserDefaults` live in its data
+container, not in the simulator's root domain, so that command writes a plist
+nothing reads — it reports success, `simctl spawn defaults read` reads its own
+write back, and the app goes on rendering the old value. Measured: with
+`panelPalettePreset` "written" to 21 the app logged
+`[glow] preset 0 ... (phosphor mix)` and painted the Custom pair, and the
+container plist still held `0`. The store that matters is
+
+```bash
+"$(xcrun simctl get_app_container <udid> com.natebunnyfield.crosspoint.x3 data)"/Library/Preferences/com.natebunnyfield.crosspoint.x3.plist
+```
+
+Editing that file with `plutil -replace` works only if the app is terminated
+AND `cfprefsd` has not cached it, which it usually has. **Prefer the app's own
+env hooks** (`CROSSPOINT_SIM_SELECT_PRESET`, `CROSSPOINT_SIM_APPLY_INK`,
+`CROSSPOINT_SIM_MIX_GUNS`): they drive the shipped write paths from inside the
+process, so the store, the page and the log all agree by construction.
+
+**The page's polarity does not follow `simctl ui appearance` unless the app is
+ALREADY RUNNING.** The page follows `SETTINGS.darkMode`, and the system only
+reseeds that when the appearance CHANGES under a running app (`pollAppearance`).
+Setting the appearance and then launching leaves the page in whichever polarity
+the setting already held — which looks exactly like a palette that ignored the
+dark half. Launch first, flip second, then screenshot.
+
+### The page-color drawers, headlessly
+
+`simctl` cannot synthesize a tap, so each drawer and each write path has an env
+hook. All of them are read once and fire on a frame countdown, deliberately
+staggered so one launch can walk a whole sequence in order:
+
+| Variable | Fires at | What it drives |
+|---|---|---|
+| `CROSSPOINT_SIM_OPEN_INKPICKER=1` | ~120 frames | presents the light-mode ink picker |
+| `CROSSPOINT_SIM_OPEN_MIXER=1` | ~120 frames | presents the dark-mode gun mixer |
+| `CROSSPOINT_SIM_OPEN_PRESETS=1` | with either | pushes the shared preset list onto whichever drawer opened |
+| `CROSSPOINT_SIM_APPLY_INK=ink,paper,density[,strength]` | ~120 frames | the ink picker's own apply (claims Custom for light) |
+| `CROSSPOINT_SIM_MIX_GUNS=r,g,b[,w]` | ~180 frames | the mixer's own apply (claims Custom for dark) |
+| `CROSSPOINT_SIM_SELECT_PRESET=<int>` | ~240 frames | the preset list's own selection (hands BOTH polarities back to that preset) |
+
+A frame here is one `CrossPointHarness_perFrame`, not 1/60 s: the app presents
+rarely, so 240 frames took ~15 s on an iPhone Air simulator. Wait for the log
+line, do not assume the arithmetic — the lines are `[inkpicker] test hook`,
+`[mixer] test hook` and `[presets] selected`, each followed by
+`[harness] panel palette` with the applied tones and `[glow]` with the trail.
+
 ### Dark Mode follows the system, and the SETTING follows with it
 
 `applyTheme()` writes `SETTINGS.darkMode` whenever the system appearance

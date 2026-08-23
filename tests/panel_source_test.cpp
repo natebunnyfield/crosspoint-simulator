@@ -113,6 +113,20 @@ static void mixerApplies(panelsource::Store &s, int preset, int weight) {
   s.mixActive = true;
 }
 
+// ...and the Presets list, as ios/CrossPointPresetList.mm performs it through
+// CrossPointPrefs_selectPanelPreset: one shared protocol, three fields.
+static void presetSelected(panelsource::Store &s, int preset) {
+  s = panelsource::applyRelease(s, panelsource::releaseCustom(preset));
+}
+
+// THE WRONG WAY TO WRITE THE SAME FEATURE, kept because it is the one this
+// test exists to reject. Moving only the integer looks correct on screen and
+// in the store; what it leaves behind is a mix flag that outranks the frozen
+// phosphor at the NEXT claim.
+static void naiveSelected(panelsource::Store &s, int preset) {
+  s.preset = preset;
+}
+
 int main() {
   // The install the owner had: the app's registered default preset is White
   // CRT (ios/CrossPointPrefs.mm registerDefaults, panelPalettePreset 21).
@@ -222,6 +236,152 @@ int main() {
     lightink::inkAtDensity(2, 0, 100, iron);
     checkRgb(panelsource::panelFor(s, false).ink, iron[0], iron[1], iron[2],
              "and the light page is the newly chosen ink");
+  }
+
+  // --- THE ROUND TRIP: preset -> edit an ink -> preset again --------------
+  //
+  // Owner ruling 2026-08-23, "add a Presets row back to the pickers." Every
+  // named preset became unreachable AS A PRESET on 2026-08-22, when the
+  // Settings.app palette row left: from then on the only writer of the shared
+  // integer was the claim, which can only ever point it AT Custom. This case is
+  // the road back, and it asserts BYTES at every station because a selection
+  // that looks right and leaves one Custom-only key behind is invisible until
+  // the claim after it.
+  {
+    panelsource::Store s{};
+    s.preset = kWhiteCrt;
+
+    // 1. A named preset owns both polarities and glows as itself.
+    check(same(panelsource::panelFor(s, false), crtLight),
+          "round trip station 1: light is the preset's light pair");
+    check(same(panelsource::panelFor(s, true), crtDark),
+          "round trip station 1: dark is the preset's dark pair");
+    checkInt(panelsource::glowPreset(s), kWhiteCrt,
+             "round trip station 1: the phosphor is the preset's");
+
+    // 2. Edit an ink: light becomes the ink, dark FREEZES with its phosphor,
+    //    and the slot is Custom.
+    inkPickerApplies(s, kPaynesGray, /*paper=*/0, /*densityPct=*/100);
+    checkInt(s.preset, panelpalette::kPresetCustom,
+             "round trip station 2: editing an ink claims the Custom slot");
+    checkRgb(panelsource::panelFor(s, false).ink, 0x32, 0x3D, 0x47,
+             "round trip station 2: light is the chosen ink");
+    check(same(panelsource::panelFor(s, true), crtDark),
+          "round trip station 2: dark is frozen at the preset's pair");
+    checkInt(panelsource::glowPreset(s), kWhiteCrt,
+             "round trip station 2: the frozen phosphor survives");
+
+    // 3. Pick a preset again: BOTH polarities go back, byte for byte, and the
+    //    phosphor is the new preset's -- not the frozen one, and not none.
+    constexpr int kGreen = panelpalette::kPresetGreenCrt;
+    presetSelected(s, kGreen);
+    checkInt(s.preset, kGreen, "round trip station 3: the integer is the name");
+    check(same(panelsource::panelFor(s, false),
+               panelpalette::presetPalette(kGreen, false)),
+          "round trip station 3: the LIGHT page is the preset's, over the ink "
+          "that claimed the slot");
+    check(same(panelsource::panelFor(s, true),
+               panelpalette::presetPalette(kGreen, true)),
+          "round trip station 3: the DARK page is the preset's, over the pair "
+          "that was frozen into it");
+    checkInt(panelsource::glowPreset(s), kGreen,
+             "round trip station 3: THE PHOSPHOR FOLLOWS -- the half of S-020 "
+             "that was the glow rather than the tones");
+    check(panelpalette::trailMsForPreset(panelsource::glowPreset(s)) > 0.0f,
+          "round trip station 3: ...and Green CRT is a phosphor, so it glows");
+    checkInt(s.darkSnapshotPreset, panelpalette::kPresetCustom,
+             "round trip station 3: the frozen-phosphor key is CLEARED, not "
+             "left to contradict the preset");
+    check(!s.mixActive,
+          "round trip station 3: the mix flag is cleared with it");
+
+    // ...and the store is now indistinguishable from a fresh install that had
+    // simply chosen Green CRT. That is what "both polarities are that preset"
+    // has to mean; stale hex under a name must not be reachable.
+    panelsource::Store fresh{};
+    fresh.preset = kGreen;
+    check(same(panelsource::panelFor(s, false),
+               panelsource::panelFor(fresh, false)) &&
+              same(panelsource::panelFor(s, true),
+                   panelsource::panelFor(fresh, true)) &&
+              panelsource::glowPreset(s) == panelsource::glowPreset(fresh),
+          "round trip station 3: the edited store now renders exactly as an "
+          "untouched install that chose the same preset");
+
+    // 4. ...and the trip runs again from there: the claim still works after a
+    //    release, freezing the NEW preset's dark pair and phosphor.
+    inkPickerApplies(s, /*ink=*/2 /*Iron Gall*/, 0, 100);
+    check(same(panelsource::panelFor(s, true),
+               panelpalette::presetPalette(kGreen, true)),
+          "round trip station 4: the second claim freezes the NEW preset's "
+          "dark pair");
+    checkInt(panelsource::glowPreset(s), kGreen,
+             "round trip station 4: ...and the NEW preset's phosphor");
+  }
+
+  // --- THE SAME TRIP THROUGH THE MIXER, which is where the mix flag bites ---
+  //
+  // A selection that only moved the integer would pass every assertion above:
+  // glowPreset returns early on a named preset, so a stale mix is silent. It
+  // speaks at the NEXT claim, and then it outranks the frozen phosphor -- the
+  // dark page decays at the rate of a blend that is no longer reachable from
+  // any control. Both halves are asserted here, the right one and the wrong.
+  {
+    panelsource::Store s{};
+    s.preset = kWhiteCrt;
+    mixerApplies(s, panelpalette::kPresetGreenCrt, 100);
+    check(s.mixActive, "the mixer leaves a mix in force");
+    checkInt(panelsource::glowPreset(s), panelpalette::kPresetCustom,
+             "...which owns the decay while it does");
+
+    panelsource::Store correct = s;
+    presetSelected(correct, kWhiteCrt);
+    panelsource::Store naive = s;
+    naiveSelected(naive, kWhiteCrt);
+
+    // On screen, immediately after the pick, the two are indistinguishable.
+    check(same(panelsource::panelFor(correct, true),
+               panelsource::panelFor(naive, true)) &&
+              panelsource::glowPreset(correct) == panelsource::glowPreset(naive),
+          "a naive selection is invisible at the moment it is made -- which is "
+          "why this is asserted through the claim that follows it");
+
+    // One ink pick later, it is not.
+    inkPickerApplies(correct, kPaynesGray, 0, 100);
+    inkPickerApplies(naive, kPaynesGray, 0, 100);
+    checkInt(panelsource::glowPreset(correct), kWhiteCrt,
+             "after a proper selection, the next claim freezes the SELECTED "
+             "preset's phosphor");
+    checkInt(panelsource::glowPreset(naive), panelpalette::kPresetCustom,
+             "after a naive one, a mix nobody can reach answers instead -- the "
+             "contradiction Release exists to prevent");
+  }
+
+  // --- CUSTOM IS NOT A ROW, AND NEITHER IS A NUMBER FROM THE FUTURE --------
+  {
+    panelsource::Store s{};
+    s.preset = kWhiteCrt;
+    inkPickerApplies(s, kPaynesGray, 0, 100);
+    const panelsource::Store before = s;
+    presetSelected(s, panelpalette::kPresetCustom);
+    check(s.preset == before.preset && s.mixActive == before.mixActive &&
+              s.darkSnapshotPreset == before.darkSnapshotPreset,
+          "selecting Custom changes nothing: Custom is what an EDIT produces, "
+          "and treating it as a row would clear the freeze that edit took");
+    presetSelected(s, 4242);
+    check(s.preset == before.preset,
+          "an unknown integer selects nothing rather than a page the store "
+          "cannot describe");
+    // The retired numbers, which a list can never offer but a store can hold.
+    for (int p = 0; p < 60; p++) {
+      const int migrated = panelpalette::migratePreset(p);
+      if (migrated == p) continue;
+      panelsource::Store r{};
+      r.preset = panelpalette::kPresetCustom;
+      presetSelected(r, p);
+      checkInt(r.preset, migrated,
+               "selecting a retired preset selects its replacement");
+    }
   }
 
   // --- SWITCH: the same store, asked for the other polarity ---------------

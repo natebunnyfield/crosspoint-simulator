@@ -35,6 +35,7 @@ PREFS_H = REPO / "ios" / "PanelPrefs.h"
 PREFS_MM = REPO / "ios" / "CrossPointPrefs.mm"
 SHIM = REPO / "ios" / "CrossPointIOSShim.cpp"
 SOURCE = REPO / "src" / "PanelSource.h"
+PRESETS = REPO / "ios" / "CrossPointPresetList.mm"
 
 failures = []
 
@@ -182,6 +183,74 @@ check(
     "padPaletteForPrefs hands the raw stored contrasts to makePaletteOn again "
     "-- that is the divergence itself",
 )
+
+# 8. THE ROAD BACK OUT OF CUSTOM has exactly one writer too. The two editors
+#    can only point the shared integer AT Custom; the Presets list is the only
+#    thing that points it back at a name (owner ruling 2026-08-23, "add a
+#    Presets row back to the pickers"). It must not do that by hand.
+check(PRESETS.exists(), "ios/CrossPointPresetList.mm is missing")
+presets = PRESETS.read_text() if PRESETS.exists() else ""
+check(
+    "CrossPointPrefs_selectPanelPreset" in presets,
+    f"{PRESETS.name} does not select through CrossPointPrefs_selectPanelPreset, "
+    "so the release has two definitions the way the claim once did",
+)
+check(
+    "CrossPointPrefs_setPanelPalettePreset" not in presets,
+    f"{PRESETS.name} writes the preset integer directly, which skips the two "
+    "Custom-only keys that have to be cleared with it",
+)
+for key in ("phosphorMixActive", "panelDarkSnapshotPreset", "panelInkLight",
+            "panelPaperLight", "panelInkDark", "panelPaperDark"):
+    check(
+        key not in presets,
+        f"{PRESETS.name} names '{key}'. It is neither polarity's editor and it "
+        "does not own the store: everything it changes goes through "
+        "CrossPointPrefs_selectPanelPreset.",
+    )
+
+# 9. ...and that function must ask src/PanelSource.h and write BOTH Custom-only
+#    keys. Clearing only one is the failure the C++ test's naive arm models: a
+#    stale mix outranks the frozen phosphor at the next claim, so the dark page
+#    decays at the rate of a blend no control can reach.
+select = body_of(PREFS_MM.read_text(),
+                 "void CrossPointPrefs_selectPanelPreset(", PREFS_MM.name)
+check(
+    "panelsource::releaseCustom" in select,
+    "CrossPointPrefs_selectPanelPreset decides for itself instead of asking "
+    "src/PanelSource.h, so the rule has two definitions again",
+)
+for key in ("kPhosphorMixActive", "kPanelDarkSnapshotPreset"):
+    check(
+        key in select,
+        f"CrossPointPrefs_selectPanelPreset leaves {key} behind. It speaks only "
+        "while the slot is Custom, so a stale one is silent until the next "
+        "claim and then contradicts the preset the owner just chose.",
+    )
+check(
+    "CrossPointPrefs_setPanelPalettePreset" in select,
+    "CrossPointPrefs_selectPanelPreset never moves the preset integer",
+)
+
+# 10. ONE LIST, BOTH DRAWERS, each previewing the appearance it renders. Two
+#     lists would be two answers to "what does choosing Green CRT do", which is
+#     the shape src/PanelSource.h exists to prevent.
+for path, text, want_dark in ((MIXER, mixer, "YES"), (PICKER, picker, "NO")):
+    check(
+        "CrossPointPresetList_make" in text,
+        f"{path.name} does not open the shared preset list, so either the "
+        "presets are unreachable from it or it grew a list of its own",
+    )
+    check(
+        f"CrossPointPresetList_make(/*dark=*/{want_dark}" in text,
+        f"{path.name} previews the preset rows in the wrong appearance "
+        f"(expected dark={want_dark}); it renders the other one",
+    )
+    check(
+        "CrossPointPrefs_selectPanelPreset" not in text,
+        f"{path.name} selects a preset itself rather than through the shared "
+        "list -- one writer, for the same reason there is one claim",
+    )
 
 if failures:
     for f in failures:

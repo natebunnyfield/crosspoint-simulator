@@ -958,6 +958,48 @@ inline constexpr PresetInfo kPresetInfo[] = {
 inline constexpr int kPresetInfoCount =
     static_cast<int>(sizeof(kPresetInfo) / sizeof(kPresetInfo[0]));
 
+// The row a preset integer names, or nullptr for Custom and for anything this
+// build does not know. Linear over ~50 entries, which is nothing at the rate a
+// UI asks -- and it MIGRATES first, so a retired stored value reads back as the
+// row that replaced it rather than as no row at all.
+constexpr const PresetInfo *infoForPreset(int preset) {
+  const int p = migratePreset(preset);
+  for (int i = 0; i < kPresetInfoCount; i++)
+    if (kPresetInfo[i].preset == p) return &kPresetInfo[i];
+  return nullptr;
+}
+
+// --- THE SHORTLIST IS THE HEAD OF THE TABLE, and a picker has to say so -----
+//
+// The promoted rows carry family "CRT" like every other phosphor, so a picker
+// that grouped purely by `family` would print CRT twice -- once for these, once
+// for the forty-one below Paper -- and give the reader nothing to tell the two
+// apart. The retired Settings.app row solved it by prefixing them
+// "Shortlist -"; the in-app pickers give them a heading of their own.
+//
+// A COUNT rather than a flag on the row, because being shortlisted is a
+// property of the ORDER: promoting a seventh preset means moving its row to the
+// head of this table and bumping this number, which is one edit and cannot
+// leave a promoted row stranded in the middle of the list.
+inline constexpr int kShortlistCount = 6;
+inline constexpr const char *kShortlistGroupName = "Shortlist";
+
+// The heading a display row sits under. Rows are walked in table order and a
+// heading is emitted whenever this answer changes, the same walk the ink
+// picker's families use (lightink::buildInkDisplayOrder).
+constexpr const char *groupNameForRow(int row) {
+  return row < kShortlistCount ? kShortlistGroupName : kPresetInfo[row].family;
+}
+
+// The boundary, pinned: the shortlist ends exactly where the Neutral family
+// begins. A row appended to the wrong end of the promotion block breaks this
+// rather than shipping a heading that lies.
+static_assert(kShortlistCount < kPresetInfoCount, "the shortlist is a prefix");
+static_assert(kPresetInfo[0].preset == kPresetAmberCrt,
+              "the shortlist still starts at Amber");
+static_assert(kPresetInfo[kShortlistCount].preset == kPresetHighContrast,
+              "the shortlist still ends where Neutral begins");
+
 // HOW LONG A PHOSPHOR'S TRAIL RUNS ON SCREEN, from its decayMs above.
 //
 // This is a TASTE decision and it lives here, in a pure function, only because

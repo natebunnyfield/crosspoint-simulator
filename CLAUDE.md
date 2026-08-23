@@ -535,7 +535,7 @@ Three settings now decide what the page and the pad look like, all host-side —
 
 | Dial | Lives in | Docs |
 |---|---|---|
-| Page palette — 15 named presets plus Custom | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
+| Page palette — 52 named presets plus Custom, chosen from the Presets button in either drawer (`ios/CrossPointPresetList.mm`) | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
 | Button pad outline/fill | `ios/PadPalette.h` | `docs/pad-outline-black-and-white.md` |
 | Render scale 1x/2x — **3x dropped 2026-08-23** ("drop 3x support for now"); the tier machinery, the seed trees and `build-sd-fonts.py --scale 3` all still work, so re-enabling is one number | `lib/GfxRenderer/RenderScale.h` (firmware), ceiling in `ios/CMakeLists.txt`, latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
 | Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
@@ -686,6 +686,26 @@ asserts a delegation CHAIN and never a tone. `tests/panel_source_test.cpp`
 asserts BYTES for both polarities across load, switch and both editor orders;
 `tests/panel_source_test.py` pins that the two editors still write only their own
 polarity. Both fail against the pre-fix tree.
+
+**And there is a road BACK, because the claim is one-way.** Owner ruling
+2026-08-23, "add a Presets row back to the pickers": the claim only ever points
+the shared integer AT Custom, and Settings.app's palette row left with the other
+page rows on 2026-08-22 — so the first ink pick or gun move made all 52 named
+presets unreachable AS presets. `panelsource::releaseCustom` is the inverse
+protocol and `CrossPointPrefs_selectPanelPreset` performs it: both polarities go
+back to the preset, and the two keys that only speak while the slot is Custom —
+`phosphorMixActive` and `panelDarkSnapshotPreset` — are **cleared, not left**.
+The mix flag is the one that bites: `glowPreset` asks it BEFORE the frozen
+phosphor, so a stale blend would decide the decay of a preset chosen after it,
+and only from the NEXT claim onward — invisible at the moment of the mistake.
+The four hex fields are deliberately left, since a named preset ignores them.
+Both drawers reach it through ONE list
+([ios/CrossPointPresetList.mm](ios/CrossPointPresetList.mm), a Presets bar
+button opposite Done), previewing the appearance that drawer renders and
+offering every preset in both — a preset defines both appearances, so filtering
+either list would remove a choice Settings.app used to offer. Round trip proven
+in bytes on an iPhone Air simulator and pinned in `panel_source_test.cpp`, whose
+naive arm models the wrong implementation so the protocol has to earn itself.
 
 **The pad's Accessible pin also had two resolution points**, found the same day
 and a separate bug: `CrossPointIOSShim.cpp`'s `currentLevels()` pinned

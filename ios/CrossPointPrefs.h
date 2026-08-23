@@ -262,6 +262,19 @@ int CrossPointPrefs_darkSnapshotPreset(void);
 // choice, and overwriting them is the reported bug.
 void CrossPointPrefs_claimCustomFor(int editingDark);
 
+// SELECT A NAMED PRESET FOR BOTH POLARITIES -- the inverse of the claim above,
+// and the road back out of Custom. Owner ruling 2026-08-23: "add a Presets row
+// back to the pickers", after the Settings.app palette row left with the other
+// page rows on 2026-08-22 and the first touch of either editor made every named
+// preset unreachable as a preset.
+//
+// Both editors reach it through ios/CrossPointPresetList.mm, which is the one
+// list they share. It writes the shared preset integer AND clears the two keys
+// that only speak while the slot is Custom -- see src/PanelSource.h::Release
+// for why leaving them is not the harmless option it looks like. An unknown
+// integer, or Custom itself, selects nothing.
+void CrossPointPrefs_selectPanelPreset(int preset);
+
 // The supersampling factor the panel is rendered at: 1, 2 or 3 framebuffer
 // pixels per logical pixel on each axis. Clamped by cp::setRenderScale() to
 // [1, CROSSPOINT_RENDER_SCALE], the ceiling this binary was compiled at, so a

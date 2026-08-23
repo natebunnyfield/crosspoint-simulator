@@ -60,6 +60,8 @@
 
 #include <atomic>
 
+#include "CrossPointPresetList.h"
+
 #include "CrossPointPrefs.h"
 #include "LightInkPalette.h"
 #include "PanelPalette.h"
@@ -297,6 +299,9 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 }
 
 @interface CPXLightInkPickerController : UIViewController
+// Declared so the presenter's completion block can drive the diagnostic push
+// (CROSSPOINT_SIM_OPEN_PRESETS); the bar button reaches it by selector.
+- (void)showPresets;
 @end
 
 @implementation CPXLightInkPickerController {
@@ -348,6 +353,17 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self
                            action:@selector(dismissSelf)];
+  // PRESETS, opposite Done. A BAR BUTTON rather than a row in the scroll, for
+  // two reasons: it costs the drawer no vertical space (the mixer has none to
+  // give -- medium detent, pinned), and it is the same control in both editors,
+  // which is what makes the shared list read as one feature. The build 110
+  // crash was UIViewController's own -setTitle:, not a bar button's; no title
+  // is set on this controller or its navigationItem here either.
+  self.navigationItem.leftBarButtonItem =
+      [[UIBarButtonItem alloc] initWithTitle:@"Presets"
+                                       style:UIBarButtonItemStylePlain
+                                      target:self
+                                      action:@selector(showPresets)];
 
   _scroll = [UIScrollView new];
   _scroll.alwaysBounceVertical = YES;
@@ -682,13 +698,24 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _densityValue.text =
       [NSString stringWithFormat:@"%d%% (floor %d%%)", _density, floorPct];
   _slider.accessibilityValue = _densityValue.text;
-  _readout.text = [NSString
+  NSString *mine = [NSString
       stringWithFormat:@"%s %d%% on %s %d%% — %.1f:1 · %@ on %@",
                        lightink::kInks[_ink].name, _density,
                        lightink::kPapers[_paper].name, _paperStrength,
                        lightink::contrastAtDensity(_ink, _paper, _density,
                                                    _paperStrength),
                        hexOf(wash), hexOf(ground)];
+  // WHAT THE PAGE IS ACTUALLY SHOWING, which since the Presets list exists is
+  // not always this drawer's selection: a named preset owns both appearances
+  // until an ink, a stock or the density is touched. A readout that went on
+  // describing its own ink would be S-020's lie pointing the other way -- the
+  // picker showing Payne's Gray while the page rendered something else.
+  const panelpalette::PresetInfo *live =
+      panelpalette::infoForPreset(CrossPointPrefs_panelPalettePreset());
+  _readout.text =
+      live ? [NSString stringWithFormat:@"Preset %s — tap an ink to take over",
+                                        live->name]
+           : mine;
   [self rebuildTrackGradient];
 }
 
@@ -746,6 +773,22 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   if (!_pendingSettle) return;
   dispatch_block_cancel(_pendingSettle);
   _pendingSettle = nil;
+}
+
+// The shared named-preset list, pushed onto this drawer's own nav controller.
+// LIGHT previews, because this is light mode's editor and the page behind the
+// sheet is the light page; the ROWS are every preset, since each one defines
+// both appearances and this list is the only place any of them is reachable.
+- (void)showPresets {
+  __weak CPXLightInkPickerController *weakSelf = self;
+  UIViewController *list = CrossPointPresetList_make(/*dark=*/NO, ^{
+    // The picker's ink, stock and density are untouched by a preset selection
+    // and are no longer what the page shows. Refresh so the readout says so
+    // rather than going on describing a page this drawer stopped owning --
+    // the same lie S-020 shipped, pointing the other way.
+    [weakSelf refresh];
+  });
+  [self.navigationController pushViewController:list animated:YES];
 }
 
 - (void)dismissSelf {
@@ -865,6 +908,14 @@ extern "C" void CrossPointInkPicker_present(void) {
           UISheetPresentationControllerDetentIdentifierMedium;
     }
     g_pickerPresented.store(true);
-    [root presentViewController:nav animated:YES completion:nil];
+    [root presentViewController:nav
+                       animated:YES
+                     completion:^{
+                       // CROSSPOINT_SIM_OPEN_PRESETS=1 -- the diagnostic push,
+                       // so a headless run can screenshot the preset list on
+                       // the stack it really lives on.
+                       if (CrossPointPresetList_autoOpen())
+                         [picker showPresets];
+                     }];
   });
 }

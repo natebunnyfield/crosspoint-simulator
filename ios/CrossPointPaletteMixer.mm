@@ -44,6 +44,8 @@
 #include <atomic>
 #include <vector>
 
+#include "CrossPointPresetList.h"
+
 #include "GunMixCsv.h"
 #include "PanelPalette.h"
 #include "PhosphorMix.h"
@@ -210,13 +212,6 @@ void applyGuns(const int presets[kGunCount], const int w[kGunCount],
   if (renderPage) crosspointRequestRender();
 }
 
-const panelpalette::PresetInfo *infoForPreset(int preset) {
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++)
-    if (panelpalette::kPresetInfo[i].preset == preset)
-      return &panelpalette::kPresetInfo[i];
-  return nullptr;
-}
-
 // --- the shelf, resolved ONCE per process ----------------------------------
 // Band membership, in-band order and row titles never change at runtime, but
 // the old code recomputed all of them (34 resolve() calls per menu) on every
@@ -300,6 +295,9 @@ extern "C" bool CrossPointMixer_isPresented(void) {
 }
 
 @interface CPXGunMixerController : UIViewController
+// Declared so the presenter's completion block can drive the diagnostic push
+// (CROSSPOINT_SIM_OPEN_PRESETS); the bar button reaches it by selector.
+- (void)showPresets;
 @end
 
 @implementation CPXGunMixerController {
@@ -334,6 +332,16 @@ extern "C" bool CrossPointMixer_isPresented(void) {
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self
                            action:@selector(dismissSelf)];
+  // PRESETS, opposite Done, and the same control the ink picker carries. A bar
+  // button rather than a row because this sheet has no vertical space to give:
+  // it is pinned to the medium detent with no grabber (owner 2026-08-21), and
+  // the four guns, the swatches and the readout already fill it. Pushing onto
+  // the nav controller keeps that pin intact -- no detent moves.
+  self.navigationItem.leftBarButtonItem =
+      [[UIBarButtonItem alloc] initWithTitle:@"Presets"
+                                       style:UIBarButtonItemStylePlain
+                                      target:self
+                                      action:@selector(showPresets)];
 
   loadGuns(_presets, _w);
 
@@ -492,7 +500,8 @@ extern "C" bool CrossPointMixer_isPresented(void) {
 // element whose provider reads _presets when opened. (The old per-gun
 // minimumTrackTintColor is gone: the gradient track underlay replaced it.)
 - (void)applyAssignment:(int)g {
-  const panelpalette::PresetInfo *info = infoForPreset(_presets[g]);
+  const panelpalette::PresetInfo *info =
+      panelpalette::infoForPreset(_presets[g]);
   NSString *title =
       [NSString stringWithFormat:@"%s — %s %s", kGunLabel[g],
                                  info && info->phosphor ? info->phosphor : "?",
@@ -657,6 +666,25 @@ extern "C" bool CrossPointMixer_isPresented(void) {
   _pendingSettle = nil;
 }
 
+// The shared named-preset list. DARK previews, because this is dark mode's
+// editor and the page behind the sheet is the dark page; every preset is
+// offered, since each defines both appearances and this list is the only place
+// any of them is reachable now.
+//
+// A selection clears the mix flag (the shared release protocol), so
+// the guns below stop owning the page -- and moving one afterwards claims the
+// slot back through applyGuns, freezing the light page at the preset's own
+// light pair. Both directions are the shared protocol; neither is special-cased
+// here.
+- (void)showPresets {
+  __weak CPXGunMixerController *weakSelf = self;
+  UIViewController *list = CrossPointPresetList_make(/*dark=*/YES, ^{
+    // The gun weights are untouched and are no longer what the page shows.
+    [weakSelf refresh];
+  });
+  [self.navigationController pushViewController:list animated:YES];
+}
+
 - (void)dismissSelf {
   [self dismissViewControllerAnimated:YES completion:nil];
 }
@@ -700,11 +728,23 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                                                  alpha:1];
   // The band order is named here rather than on the tracks: three 5 pt bands
   // hold no text, and one legend for four identical stacks is not clutter.
-  _readout.text = [NSString
-      stringWithFormat:
-          @"dark %@ on %@ · light %@ on %@\nfade %.0f ms · track: ink/tail/paper",
-          hexOf(r.dark.ink), hexOf(r.dark.paper), hexOf(r.light.ink),
-          hexOf(r.light.paper), (double)r.trailMs];
+  //
+  // ...unless a NAMED PRESET owns the page, which it does from the moment one
+  // is chosen in the Presets list until a gun is moved. The mix below is then
+  // still a valid recipe and is simply not what is on screen, so the readout
+  // says which -- a drawer describing a page it no longer owns is the lie
+  // S-020 shipped.
+  const panelpalette::PresetInfo *live =
+      panelpalette::infoForPreset(CrossPointPrefs_panelPalettePreset());
+  _readout.text =
+      live ? [NSString stringWithFormat:@"Preset %s — %s\nmove a gun to take over",
+                                        live->name, live->note ? live->note : ""]
+           : [NSString
+                 stringWithFormat:
+                     @"dark %@ on %@ · light %@ on %@\nfade %.0f ms · track: "
+                     @"ink/tail/paper",
+                     hexOf(r.dark.ink), hexOf(r.dark.paper), hexOf(r.light.ink),
+                     hexOf(r.light.paper), (double)r.trailMs];
   for (int g = 0; g < kGunCount; g++)
     _value[g].text = _w[g] > 0 ? [NSString stringWithFormat:@"%d", _w[g]] : @"off";
 }
@@ -751,7 +791,15 @@ extern "C" void CrossPointMixer_present(void) {
           UISheetPresentationControllerDetentIdentifierMedium;
     }
     g_mixerPresented.store(true);
-    [root presentViewController:nav animated:YES completion:nil];
+    [root presentViewController:nav
+                       animated:YES
+                     completion:^{
+                       // CROSSPOINT_SIM_OPEN_PRESETS=1 -- the diagnostic push,
+                       // so a headless run can screenshot the preset list on
+                       // the stack it really lives on.
+                       if (CrossPointPresetList_autoOpen())
+                         [mixer showPresets];
+                     }];
   });
 }
 
