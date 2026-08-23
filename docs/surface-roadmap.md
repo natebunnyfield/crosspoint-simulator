@@ -703,6 +703,82 @@ any code:
   **My view: this is a THIRD doctrine, not a light-mode feature** — see §4d. The
   paper page should not flash, because paper does not. The e-ink page should.
 
+### 4e. The plumbing — one dial table, and why it is the root cause
+
+**Added 2026-08-23, owner ruling: "yes — it is the root cause."**
+
+Adding one surface effect used to touch this many places:
+
+| Site | What it carried |
+|---|---|
+| `src/SimulatorOverlay.h` | the setter's declaration |
+| `src/HalDisplay.cpp` | the atomic |
+| `src/HalDisplay.cpp` | the setter, with its own hand-rolled `strtol` env parser |
+| `src/HalDisplay.cpp` | a line in the desktop boot seed |
+| `src/HalDisplay.cpp` | a line in the `CROSSPOINT_SIM_AS_SHIPPED` block |
+| `src/HalDisplay.cpp` | the use in the render path |
+| `src/SimulatorSettingsFile.h` | a template entry |
+| `src/SimulatorSettingsWatch.cpp` | a `dial()` line |
+| `ios/CrossPointPrefs.{h,mm}` | a getter |
+| `ios/CrossPointIOSShim.cpp` | a poll |
+| `tests/run_all.sh` | a line, if the model gets its own test |
+
+Three of those — the boot seed, the watcher's `dial()` line and the as-shipped
+block — were **parallel lists of the same numbers, kept in sync by hand**. They
+drifted twice in one day:
+
+- the **beam** sat at 67 ms after the app hard-set 55 (a 21% longer sweep on
+  every desktop reproduction of a beam or page-turn report);
+- the **grain** had three of its four arguments wrong — 100/8/30 against the
+  app's 160/5/90.
+
+Both were found by a person reading two files side by side. Nothing failed,
+and nothing *could* fail: the app's values live in Objective-C that no host
+test can compile, and the seed's live in a C++ block no phone runs.
+
+**[`src/SimulatorDials.h`](../src/SimulatorDials.h) is now the one list.** One
+row per dial — name, env var, settings key, clamp bounds, desktop default,
+shipped value, flags — and the seed, the watcher and the as-shipped block are
+all generated from it. `SimulatorOverlay::applyDials` /`applyDialGroup`
+(defined in `HalDisplay.cpp`, beside the atomics) are the only thing that turns
+a row into a setter call; the table itself holds no function pointers, so it
+stays pure and host-testable.
+
+Three dials genuinely do not share the others' shape, and each is a **flag**
+rather than a special case at three call sites:
+
+| Flag | Dial | Why |
+|---|---|---|
+| `kMultiArg` | the grain's four rows | `setPhosphorGrain` takes four arguments together; the rows share a group, so the watcher's absent-key rule is all-or-nothing across them |
+| `kReconverts` | sheet drift | it moves the page's own tones, so the cached frame must be re-converted, not just re-presented |
+| `kNoPresent` | power-off collapse | nothing about a live page changes, and it is read only once the firmware is asleep |
+
+A fourth turned up while converting the env parsers: the grain's **coverage,
+cell count and mottle depth accept a NEGATIVE env value** and let the pure model
+clamp it, while the strength beside them refuses one. Preserved as
+`envPercentOr(..., kAcceptAnyValue)` rather than quietly normalized — a refactor
+is not the place to decide which of the two is right.
+
+**[`tests/dial_table_test.cpp`](../tests/dial_table_test.cpp) is the point of
+the exercise.** It reads the shipped `ios/` sources as text — the frozen
+getters in `CrossPointPrefs.mm`, the paper constants in
+`CrossPointLightInkPicker.mm`, `kBeamPaintMs` in `CrossPointIOSShim.cpp`, the
+toggle defaults in `Root.plist` — and fails when what `CROSSPOINT_SIM_AS_SHIPPED`
+seeds is not what the app pushes. Both historical drifts were replayed against
+it: the beam produces one failure naming both numbers, the grain produces
+exactly three.
+
+That test deliberately does **not** solve the problem by making
+`CrossPointPrefs.mm` return `simdials::kDials[].shippedValue`. That would leave
+one record, and a test comparing a value to itself proves nothing. Two
+independent records, mechanically compared, is the design.
+
+What a new dial costs now: the same four irreducible sites (declaration,
+atomic, setter, render use), **one table row** in place of the three
+hand-synced value lines, and one `case` in `applyDialGroup` — which has no
+`default:` label, so a row added without one is a `-Wswitch` warning rather
+than a dial that ships doing nothing.
+
 ### 4b. Accessibility — one part is exemplary, one part is untouched
 
 **The page is fine, and better than fine.** `ios/CrossPointAccessibility.h`

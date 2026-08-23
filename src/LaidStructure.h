@@ -50,6 +50,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "GaussianLine.h"
 #include "PhosphorGrain.h"  // hash3 / unitFromHash, pure
 
 namespace laidstructure {
@@ -159,12 +160,11 @@ inline float meanDarkeningBound(const Params &p) {
   return effectiveDepth(p) * kMeanFieldBound;
 }
 
-inline float phi(float z) { return 0.5f * (1.0f + std::erf(z * 0.70710678f)); }
-
-// Integral over [v0, v1] of a peak-1 Gaussian centered at c with spread sigma.
-inline float lineIntegral(float v0, float v1, float c, float sigma) {
-  return sigma * 2.50662827f * (phi((v1 - c) / sigma) - phi((v0 - c) / sigma));
-}
+// The box-integrated Gaussian line, shared with the raster's comb: one
+// definition in src/GaussianLine.h, named here so the combs below read the way
+// they always did. This header's interval runs across the sheet, not down it.
+using gaussline::lineIntegral;
+using gaussline::phi;
 
 // Box integral over pixel [v, v+1) of a jittered comb of peak-1 Gaussians:
 // pitch apart, each line's center offset by its own hashed jitter plus a

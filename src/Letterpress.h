@@ -63,6 +63,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "ContrastFloor.h"
 #include "PhosphorGrain.h"  // hash3 / unitFromHash / valueNoise, all pure
 
 namespace letterpress {
@@ -168,8 +169,9 @@ constexpr float kFormationDepthMax = 1.0f;
 // Never take a texel out entirely; a black speck is a defect, not impression.
 constexpr float kMinMultiplier = 0.25f;
 
-// This repo's floor for a named preset. Same figure as phosphorgrain's.
-constexpr float kContrastFloor = 7.0f;
+// This repo's floor for a named preset -- WCAG AAA, defined once in
+// src/ContrastFloor.h and narrowed here because this whole header is float.
+constexpr float kContrastFloor = static_cast<float>(wcag::kContrastFloorAAA);
 
 inline int clampStrength(int strengthPercent) {
   if (strengthPercent < kStrengthOff) return kStrengthOff;

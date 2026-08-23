@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "SimulatorDials.h"
+
 struct SDL_Renderer;
 
 // Simulator-only chrome drawn outside the panel.
@@ -473,5 +475,26 @@ void setPowerOffCollapse(bool enabled);
 // the caller must stop asking. Main thread only, like every other SDL call in
 // this library.
 bool stepPowerOffCollapse();
+
+// --- THE DIAL TABLE'S APPLIERS ---------------------------------------------
+//
+// src/SimulatorDials.h is the single definition of what each surface dial is
+// called, which env var and settings key reach it, what it clamps to, what an
+// unseeded desktop draws and what the iOS app ships. These two functions are
+// the only thing that turns a row into a setter call, and they are what let the
+// desktop boot seed, the settings-file watcher and CROSSPOINT_SIM_AS_SHIPPED
+// all be generated from that one list instead of hand-kept in three.
+//
+// They live here rather than in the table because the table must stay free of
+// this header: a pure data table can be host-tested, a table of pointers into
+// HalDisplay.cpp cannot be linked by a test.
+
+// Push ONE dial -- or, for the grain's four-argument group, the whole group.
+// `group` must be a group leader (simdials::isGroupLeader); a member row is a
+// no-op, because its value reaches the setter through its leader's call.
+void applyDialGroup(simdials::Id group, const simdials::Values &v);
+
+// Push every dial, once each, in table order.
+void applyDials(const simdials::Values &v);
 
 } // namespace SimulatorOverlay

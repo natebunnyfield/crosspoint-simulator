@@ -261,6 +261,16 @@ run laid_structure \
 run paper_defects \
   c++ -std=c++17 -O1 -Isrc -o "$OUT/paper_defects" tests/paper_defects_test.cpp
 
+# THE DIAL TABLE, and the divergence nothing could catch before it. Adding one
+# surface effect used to touch nine plumbing sites, three of which were parallel
+# lists of the same values kept in sync by hand -- and on 2026-08-23 two of them
+# drifted in a single day (the beam at 67 ms against the app's 55, and three of
+# the grain's four arguments). This reads the shipped ios/ sources as text and
+# fails when what CROSSPOINT_SIM_AS_SHIPPED seeds is not what the app pushes.
+# Reads from the repo root, same as pad_palette and panel_palette above.
+run dial_table \
+  c++ -std=c++17 -Isrc -o "$OUT/dial_table" tests/dial_table_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

@@ -60,6 +60,9 @@
 #include <cmath>
 #include <cstdint>
 
+#include "ContrastFloor.h"
+#include "Srgb.h"
+
 #include "PhosphorGrain.h"  // hash3 / unitFromHash, pure -- the sheet drift
 
 namespace lightink {
@@ -334,7 +337,9 @@ inline void buildInkDisplayOrder(int out[kInkCount]) {
       if (kInks[i].group == g) out[n++] = i;
 }
 
-inline constexpr double kContrastFloor = 7.0;
+// WCAG AAA, defined once in src/ContrastFloor.h. Double here, and double is
+// the definition's own precision: these decide the ink and paper tables once.
+inline constexpr double kContrastFloor = wcag::kContrastFloorAAA;
 inline constexpr int kDensityMax = 100;
 // The PAPER's dial, the ink density's twin (owner order 2026-08-22: "paper
 // needs a 0-100 slider too"). 0 is the neutral bright-white ground -- row 0's
@@ -356,13 +361,16 @@ constexpr int clampPaperIndex(int i) {
 
 // --- Contrast (WCAG relative luminance, the repo's standing arithmetic) ----
 
+// The curve itself lives in src/Srgb.h; these keep this namespace's own
+// spelling of it -- a BYTE in, a byte out, because a paper or an ink tone is
+// always carried as one here -- and forward. DOUBLE, because these decide the
+// ink table and the contrast floor once rather than per pixel.
 inline double srgbToLinear(uint8_t v) {
-  const double c = v / 255.0;
-  return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
+  return srgb::toLinear(v / 255.0);
 }
 
 inline uint8_t linearToSrgb(double l) {
-  double v = l <= 0.0031308 ? l * 12.92 : 1.055 * std::pow(l, 1.0 / 2.4) - 0.055;
+  double v = srgb::fromLinear(l);
   v = v * 255.0;
   if (v < 0.0) v = 0.0;
   if (v > 255.0) v = 255.0;

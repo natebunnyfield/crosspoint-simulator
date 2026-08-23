@@ -64,6 +64,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "GaussianLine.h"
 #include "PhosphorGrain.h"  // hash3 / unitFromHash / valueNoise, all pure
 
 namespace scanlines {
@@ -211,12 +212,11 @@ struct Params {
   float thickJitter = kThickJitter;
 };
 
-inline float phi(float z) { return 0.5f * (1.0f + std::erf(z * 0.70710678f)); }
-
-// Integral over [y0, y1] of a peak-1 Gaussian centred at c with spread sigma.
-inline float lineIntegral(float y0, float y1, float c, float sigma) {
-  return sigma * 2.50662827f * (phi((y1 - c) / sigma) - phi((y0 - c) / sigma));
-}
+// The box-integrated Gaussian line, shared with the laid sheet's combs: one
+// definition in src/GaussianLine.h, named here so the field below reads the way
+// it always did. This header's interval runs down the raster.
+using gaussline::lineIntegral;
+using gaussline::phi;
 
 // Transmission of device-pixel row y (covering [y, y+1)) BEFORE normalization:
 // the box integral of every nearby line's profile. `level` is the composed

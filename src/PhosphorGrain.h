@@ -41,6 +41,8 @@
 
 #include <cstdint>
 
+#include "ContrastFloor.h"
+
 namespace phosphorgrain {
 
 // HOW THE GRAIN IS SPREAD ACROSS THE SCREEN. Amplitude is modulated spatially;
@@ -176,7 +178,7 @@ constexpr float kSigmaClamp = 3.0f;
 //
 // Pure, and deliberately expressed in LUMINANCES rather than palettes: this
 // header knows nothing about PanelPalette and must not start to.
-constexpr float kContrastFloor = 7.0f;
+constexpr float kContrastFloor = static_cast<float>(wcag::kContrastFloorAAA);
 
 // The budget's reference point, and the two clamps around it.
 //

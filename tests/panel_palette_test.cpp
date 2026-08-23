@@ -27,6 +27,7 @@
 //     && /tmp/panel_palette_test ios/Settings.bundle/Root.plist
 
 #include "PanelPalette.h"
+#include "ContrastFloor.h"
 
 #include <cctype>
 #include <cstring>
@@ -269,7 +270,7 @@ static void testPresetsAreLegible() {
                "still has to be readable",
                r.name, d, ratio);
       } else {
-        CHECKM(ratio >= 7.0,
+        CHECKM(ratio >= wcag::kContrastFloorAAA,
                "%s (dark=%d) measures %.2f:1, under the 7:1 floor "
                "a named preset must clear",
                r.name, d, ratio);
