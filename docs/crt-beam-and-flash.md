@@ -380,9 +380,14 @@ now **4**.
 Owner: *"make that page-turn flash an option in ios settings, if possible"* —
 and *"default to off"*, which is what already shipped.
 
-`Page Turn Flash` sits under Beam Paint: **Off** (the page arrives composed) or
-**On** (the 1-bit pass lands first, like the panel itself). Off is the default,
-so an install that never touches it renders exactly what it rendered before.
+`Page Turn Flash` sat under Beam Paint: **Off** (the page arrives composed) or
+**On** (the 1-bit pass lands first, like the panel itself). Off was the default.
+
+**Both rows are gone.** `presentFlash` left on 2026-08-22 with the palette rows,
+and `beamPaintMs` with it when the sweep was hard set at 55 ms; the rest of the
+Page Colors group followed on 2026-08-23. The behaviour is unchanged -- Off, and
+composed -- but it is no longer selectable, and the desktop env
+`CROSSPOINT_SIM_PRESENT_FLASH` is now the only way to see the flash at all.
 
 One thing had to change to make it possible at all. `presentFlashWanted()` was a
 `static const bool` initialised from `CROSSPOINT_SIM_PRESENT_FLASH` on first
