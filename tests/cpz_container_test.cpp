@@ -343,6 +343,47 @@ void testParseHeaderIsPure() {
 
 }  // namespace
 
+
+// The overflow case, added 2026-08-23 after an adversarial review reproduced a
+// SEGV from a 24-byte file under ASan. originalSize near UINT64_MAX makes the
+// ceiling-divide wrap; a crafted value lands it on 0, which matches a declared
+// blockCount of 0, and the header parses with an empty block index.
+static int testOverflowHeader() {
+  int failures = 0;
+  auto reject = [&](uint32_t blockSize, uint64_t originalSize,
+                    uint32_t blockCount, const char *what) {
+    unsigned char buf[simcpz::kHeaderBytes] = {0};
+    std::memcpy(buf, simcpz::kMagic, sizeof(simcpz::kMagic));
+    for (int i = 0; i < 4; i++) buf[4 + i] = (blockSize >> (8 * i)) & 0xFF;
+    for (int i = 0; i < 8; i++) buf[8 + i] = (originalSize >> (8 * i)) & 0xFF;
+    for (int i = 0; i < 4; i++) buf[16 + i] = (blockCount >> (8 * i)) & 0xFF;
+    simcpz::Header h{};
+    if (simcpz::parseHeader(buf, sizeof(buf), h)) {
+      std::printf("FAIL: header accepted (%s)\n", what);
+      failures++;
+    }
+  };
+  reject(1024, UINT64_MAX, 0, "originalSize UINT64_MAX wraps the ceiling-divide");
+  reject(1024, UINT64_MAX - 1022, 0, "one below the wrap point");
+  reject(1024, 4096, 0, "a payload with zero blocks");
+  reject(1024, 0, 1, "zero payload with a block");
+  // ...and the honest case still passes, or the rejections above prove nothing.
+  {
+    unsigned char buf[simcpz::kHeaderBytes] = {0};
+    std::memcpy(buf, simcpz::kMagic, sizeof(simcpz::kMagic));
+    const uint32_t bs = 32768; const uint64_t os = 100000; const uint32_t bc = 4;
+    for (int i = 0; i < 4; i++) buf[4 + i] = (bs >> (8 * i)) & 0xFF;
+    for (int i = 0; i < 8; i++) buf[8 + i] = (os >> (8 * i)) & 0xFF;
+    for (int i = 0; i < 4; i++) buf[16 + i] = (bc >> (8 * i)) & 0xFF;
+    simcpz::Header h{};
+    if (!simcpz::parseHeader(buf, sizeof(buf), h)) {
+      std::printf("FAIL: a valid header was rejected\n");
+      failures++;
+    }
+  }
+  return failures;
+}
+
 int main(int argc, char **argv) {
   // A scratch directory for the containers this writes and damages. Given as
   // argv[1] when a caller wants it somewhere specific.
@@ -354,6 +395,7 @@ int main(int argc, char **argv) {
   testShortPayload();
   testHeaderRejection();
   testCorruptBlockIsLoud();
+  failures += testOverflowHeader();
 
   if (failures == 0) {
     std::printf("cpz_container_test: all checks passed\n");

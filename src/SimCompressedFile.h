@@ -84,8 +84,20 @@ inline bool parseHeader(const unsigned char *buf, size_t len, Header &out) {
   const uint64_t originalSize = readU64(buf + 8);
   const uint32_t blockCount = readU32(buf + 16);
   if (blockSize < kMinBlockSize || blockSize > kMaxBlockSize) return false;
+  // The ceiling-divide OVERFLOWS for a large originalSize, and a crafted header
+  // can aim the wrap at zero: 0xFFFF...FFFF with a 1024-byte block wraps to
+  // 1022, giving expected = 0, which matches a declared blockCount of 0. The
+  // header then PARSES, open() succeeds with an empty block index, and the
+  // first read indexes it -- a segfault on file content, reached from any
+  // read-only open of any file on the card, not only a font. Found by
+  // adversarial review 2026-08-23 and reproduced under ASan from a 24-byte
+  // file.
+  if (originalSize > UINT64_MAX - (blockSize - 1)) return false;
   const uint64_t expected = (originalSize + blockSize - 1) / blockSize;
   if (expected != blockCount) return false;
+  // ...and state the relationship the division only implies, so a zero count
+  // can never coexist with a payload.
+  if ((blockCount == 0) != (originalSize == 0)) return false;
   out.blockSize = blockSize;
   out.originalSize = originalSize;
   out.blockCount = blockCount;

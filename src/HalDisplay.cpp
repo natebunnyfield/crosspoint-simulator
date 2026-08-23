@@ -5,6 +5,7 @@
 #include <Logging.h>
 #include <SDL3/SDL.h>
 
+#include "CornerDefocus.h"
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
 #include "Letterpress.h"
@@ -13,7 +14,9 @@
 #include "PageFade.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
+#include "PowerOffCollapse.h"
 #include "Scanlines.h"
+#include "ShowThrough.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 
@@ -1107,6 +1110,15 @@ static std::atomic<int> scanlineSize{scanlines::kSizeFine};
 // kBloomStandard is what build 126 shipped.
 static std::atomic<int> scanlineBloom{scanlines::kBloomStandard};
 
+// SHOW-THROUGH (light), CORNER DEFOCUS (dark) and the POWER-OFF COLLAPSE
+// (dark, at sleep) -- the 2026-08-23 roadmap items 1a, D3 and D8. All three
+// default OFF here, so a build that never calls their setters draws exactly
+// what this repo drew before they existed; the iOS shim pushes the first two
+// as frozen constants and the third from its Settings row.
+static std::atomic<int> showThroughStrength{showthrough::kStrengthOff};
+static std::atomic<int> cornerDefocusStrength{cornerdefocus::kStrengthOff};
+static std::atomic<bool> powerOffCollapse{false};
+
 void setPresentFlash(bool wanted) {
   if (const char *env = std::getenv("CROSSPOINT_SIM_PRESENT_FLASH"))
     wanted = env[0] == '1';
@@ -1312,6 +1324,39 @@ void setScanlineBloom(int percentOfStandard) {
   const int s = scanlines::clampBloom(percentOfStandard);
   if (scanlineBloom.exchange(s) == s) return;
   pendingPresent.store(true);
+}
+
+void setShowThrough(int percentOfStandard) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_SHOW_THROUGH")) {
+    // strtol with the end pointer checked, same reason as its neighbours: atoi
+    // answers 0 for garbage, and 0 here is the feature switched off -- a typo
+    // in the VALUE would look like the setting doing nothing.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
+  }
+  const int s = showthrough::clampStrength(percentOfStandard);
+  if (showThroughStrength.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setCornerDefocus(int percentOfStandard) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_CORNER_DEFOCUS")) {
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
+  }
+  const int s = cornerdefocus::clampStrength(percentOfStandard);
+  if (cornerDefocusStrength.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setPowerOffCollapse(bool enabled) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_POWEROFF_COLLAPSE"))
+    enabled = env[0] == '1';
+  // No present: nothing about a live page changes, and this one is read only
+  // once the firmware has already gone to sleep.
+  powerOffCollapse.store(enabled);
 }
 
 void setPanelEmissive(bool emissive) {
@@ -1531,6 +1576,14 @@ void HalDisplay::begin() {
   // new -- it is here only so CROSSPOINT_SIM_PAPER_DRIFT is read on the
   // desktop, where nothing else calls the setter.
   SimulatorOverlay::setPaperDrift(lightink::kPaperDriftDefault);
+  // Thirteenth, fourteenth and fifteenth. The 2026-08-23 roadmap items. Off is
+  // what the desktop ships for all three, so these seed nothing new -- they are
+  // here only so CROSSPOINT_SIM_SHOW_THROUGH, CROSSPOINT_SIM_CORNER_DEFOCUS and
+  // CROSSPOINT_SIM_POWEROFF_COLLAPSE are read on the desktop, where nothing
+  // else calls the setters.
+  SimulatorOverlay::setShowThrough(showthrough::kStrengthOff);
+  SimulatorOverlay::setCornerDefocus(cornerdefocus::kStrengthOff);
+  SimulatorOverlay::setPowerOffCollapse(false);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1569,7 +1622,12 @@ void HalDisplay::begin() {
     // more, so these are the app's only values rather than its defaults.
     SimulatorOverlay::setPageFade(0.0f);
     SimulatorOverlay::setPageFadeDepth(0);
-    SimulatorOverlay::setBeamPaint(67.0f);
+    // 55, not the 67 this seeded until 2026-08-23. The app hard-set the sweep
+    // to 55 ms on 2026-08-22 and this block was updated for the paper and
+    // doctrine dials the same night but not for the beam, so every desktop
+    // reproduction of a beam or page-turn report ran a 21% longer sweep than
+    // the phone -- exactly the divergence this switch exists to stop.
+    SimulatorOverlay::setBeamPaint(55.0f);
     SimulatorOverlay::setPhosphorGrain(100, phosphorgrain::VignetteMottled, 8, 30);
     // The 2026-08-22 doctrine dials. Letterpress was frozen at Standard on
     // 2026-08-23 with the settings removal; scanlines stayed Subtle.
@@ -1602,6 +1660,15 @@ void HalDisplay::begin() {
     SimulatorOverlay::setScanlines(50);
     SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
     SimulatorOverlay::setScanlineBloom(scanlines::kBloomExtreme);
+    // The 2026-08-23 roadmap items, both FROZEN in the app rather than offered
+    // as rows. Show-through is the dial only: the STOCK's factor is the other
+    // half and it multiplies in at the picker, which is why the number here is
+    // 100 and not the product -- the app's default stock is Bright White, whose
+    // factor is exactly 1.00. The collapsing dot is NOT seeded: it is the one
+    // Settings row of the three and it ships off, so leaving it alone is
+    // reproducing the app.
+    SimulatorOverlay::setShowThrough(showthrough::kStrengthStandard);
+    SimulatorOverlay::setCornerDefocus(cornerdefocus::kStrengthStandard);
     SimulatorOverlay::setPanelDark(true);
   }
 
@@ -2109,6 +2176,89 @@ PanelPalette livePanelPalette(bool dark) {
 static std::vector<uint8_t> sheetInkness;
 static int sheetInknessW = 0, sheetInknessH = 0;
 
+// --- SHOW-THROUGH: THE OTHER SIDE OF THE LEAF ------------------------------
+//
+// Two blurred, downsampled copies of the inkness plane above: the leaf being
+// read (`rectoVerso`) and the leaf before it (`versoMap`, which is what shows
+// through). The promotion happens on the PAGE SEED, not on pixelBufSeq: the
+// seq increments twice per displayed page (1-bit pass, then the AA compose),
+// and promoting on it would put the SAME page behind itself half the time.
+//
+// THE SOURCE IS THE INKNESS PLANE, NOT ghostPixels. The roadmap proposed
+// ghostPixels -- a whole previous framebuffer that HalDisplay already keeps --
+// and it is the wrong source on three counts: it is only maintained while the
+// phosphor trail or the beam is on (both dark-mode ideas, both off on a paper
+// page), it is ARGB that would have to be re-projected onto the palette's
+// ink/paper axis to be useful, and it is a copy of the previous FRAME rather
+// than of the previous PAGE. The letterpress pass already computes exactly the
+// quantity wanted, per page, in light mode, for free.
+//
+// WHAT SHOWS THROUGH PAGE N IS PAGE N+1, AND THIS IS PAGE N-1. Stated in the
+// code as well as the doc because it is the one dishonesty in the feature: a
+// show-through is never legible, and what the eye reads off it -- the measure,
+// the line grid, the paragraph rag, the chapter opening's white -- is right for
+// either neighbour. Rendering N+1 truthfully would cost a second pagination and
+// a second render per page turn on a device whose whole design is to render
+// rarely. docs/show-through.md, section "the honesty problem".
+static std::vector<uint8_t> versoMap;
+static std::vector<uint8_t> rectoVerso;
+static int versoMapW = 0, versoMapH = 0;
+static uint32_t versoSeed = 0;
+static bool versoSeeded = false;
+// Bumped on every promotion, so the sheet field's cache key can see that the
+// leaf behind this one changed even when nothing else did.
+static uint64_t versoGeneration = 0;
+
+// The two maps are per-LAUNCH state about a book, not about a tube, so they do
+// NOT survive the iOS in-process reboot: a wake starts a fresh session and the
+// first page it draws has nothing behind it yet. Same contract the grain seed
+// has, for the opposite reason.
+const simreset::Registrar gVersoReset{[] {
+  versoMap.clear();
+  rectoVerso.clear();
+  versoMapW = versoMapH = 0;
+  versoSeed = 0;
+  versoSeeded = false;
+  versoGeneration = 0;
+}};
+
+// Promote and rebuild, from the inkness plane the letterpress pass just made.
+// A no-op when the dial is off, so nothing is paid for a feature nobody asked
+// for -- and the maps are dropped, because a 26 kB pair kept alive for a
+// disabled dial is state that can go stale.
+static void updateVersoMaps(const std::vector<uint8_t> &inkness, int w, int h,
+                            uint32_t seed) {
+  if (SimulatorOverlay::showThroughStrength.load() <= showthrough::kStrengthOff) {
+    if (!versoMap.empty()) {
+      versoMap.clear();
+      rectoVerso.clear();
+      versoMapW = versoMapH = 0;
+      versoSeeded = false;
+    }
+    return;
+  }
+  const int mw = showthrough::mapDim(w), mh = showthrough::mapDim(h);
+  if (mw <= 0 || mh <= 0) return;
+  if (versoMapW != mw || versoMapH != mh) {
+    versoMapW = mw;
+    versoMapH = mh;
+    versoMap.assign(static_cast<size_t>(mw) * mh, 0);
+    rectoVerso.assign(static_cast<size_t>(mw) * mh, 0);
+    versoSeeded = false;
+  }
+  if (!versoSeeded || seed != versoSeed) {
+    // A NEW LEAF: what was the recto is now the back of the sheet in hand.
+    versoMap = rectoVerso;
+    versoSeed = seed;
+    versoSeeded = true;
+    ++versoGeneration;
+  }
+  showthrough::downsample(inkness.data(), w, h, rectoVerso.data());
+  static std::vector<uint8_t> scratch;
+  scratch.resize(rectoVerso.size());
+  showthrough::blur(rectoVerso.data(), mw, mh, scratch.data());
+}
+
 // --- LETTERPRESS (light mode) ----------------------------------------------
 //
 // A MOD texture at FRAMEBUFFER size, drawn through the same rotation and dst
@@ -2204,6 +2354,8 @@ static bool ensureLetterpressTexture() {
   sheetInkness = inkness;
   sheetInknessW = w;
   sheetInknessH = h;
+  // ...and the same plane, blurred down, for the NEXT leaf to show through.
+  updateVersoMaps(inkness, w, h, seed);
 
   // REUSED, not destroyed and recreated. The field is per-PAGE now, so this
   // runs on every page turn rather than on a dial change; a STATIC texture of
@@ -2332,6 +2484,12 @@ static int sheetTexDefects = -1;
 // serve a field with the wrong wires -- the letterpress part-ratio lesson.
 static int sheetTexLaid = -1;
 static int sheetTexScaleKey = -1;
+// Show-through's dial, and the generation of the leaf BEHIND this one. The
+// generation is the load-bearing half: everything else about a page can be
+// unchanged while the verso is a different page, and without it the field
+// would keep the previous leaf's show-through forever.
+static int sheetTexShowThrough = -1;
+static uint64_t sheetTexVersoGen = 0;
 static uint32_t sheetTexKey = 0;
 
 // The PRESENTED page rect in OUTPUT pixels, plus the orientation it was
@@ -2358,6 +2516,8 @@ static void destroySheetToothTexture() {
   sheetTexDefects = -1;
   sheetTexLaid = -1;
   sheetTexScaleKey = -1;
+  sheetTexShowThrough = -1;
+  sheetTexVersoGen = 0;
   sheetTexKey = 0;
 }
 
@@ -2434,6 +2594,7 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   const int formationPct = SimulatorOverlay::paperFormationPct.load();
   const int defectsPct = SimulatorOverlay::paperDefectsPct.load();
   const int laidPct = SimulatorOverlay::laidLinesStrength.load();
+  const int showPct = SimulatorOverlay::showThroughStrength.load();
   const int scaleKey = static_cast<int>(outPxPerSourcePx * 1000.0f + 0.5f);
   const PanelPalette live = livePanelPalette(display.isInverted());
   letterpress::Params params;
@@ -2454,6 +2615,7 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
       sheetTexStrength == strength && sheetTexTooth == toothPct &&
       sheetTexFormation == formationPct && sheetTexDefects == defectsPct &&
       sheetTexLaid == laidPct && sheetTexScaleKey == scaleKey &&
+      sheetTexShowThrough == showPct && sheetTexVersoGen == versoGeneration &&
       sheetTexKey == key) {
     if (timingLogWanted()) timingFrame.sheet.served = true;
     return true;
@@ -2471,12 +2633,98 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
     }
   }
   const uint64_t t0 = SDL_GetTicksNS();
+
+  // THE PAPER'S BUDGET, SPLIT FOUR WAYS, HOISTED HERE BECAUSE SHOW-THROUGH
+  // FOLDS INTO THE FIRST LOOP. What the tooth left is shared, in this order:
+  // the wires take half of it, show-through takes half of what remains, and
+  // the marks take the rest. Every share is a MEAN bound, and each pass clamps
+  // its own depth to fit, so the composite cannot breach the palette's 7:1
+  // floor by construction. With both new consumers at zero the marks receive
+  // exactly the number they received before either existed -- which is what
+  // keeps a wove sheet with show-through off byte-identical.
+  laidstructure::Params laidParams;
+  laidParams.strengthPercent = laidPct;
+  laidParams.seed = params.seed;
+  laidParams.outPxPerSourcePx = outPxPerSourcePx;
+  const float paperLeft = letterpress::remainingPaperBudget(params);
+  laidParams.budgetMeanDarkening = 0.5f * paperLeft;
+  float afterWires = paperLeft - laidstructure::meanDarkeningBound(laidParams);
+  if (afterWires < 0.0f) afterWires = 0.0f;
+
+  showthrough::Params stParams;
+  stParams.strengthPercent = showPct;
+  // The STOCK's factor is already folded into the percent by the pusher (the
+  // iOS light picker composes lightink::showThroughScaleFor into it, the way
+  // it composes tooth and formation), so this stays 1.0 and there is exactly
+  // one authority for how thin the sheet is.
+  stParams.stockScale = 1.0f;
+  stParams.budgetMeanDarkening = 0.5f * afterWires;
+
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
+
+  // THE LEAF BEHIND THIS ONE, resampled onto a coarse OUTPUT-space lattice.
+  //
+  // Built on a lattice and interpolated rather than inverted per pixel: the
+  // field is a heavy blur, so it has no detail a 4 px grid can lose, and
+  // inverting the presentation transform (outputToPanel -- a rotation, a
+  // divide and four clamps) 3.4 million times is the cost this avoids. The
+  // MIRROR is applied here, in presented pixels, because it is the back of the
+  // sheet -- see showthrough::mirrorOutputX for why it cannot be done in the
+  // framebuffer, which is landscape.
+  const bool showThroughLive =
+      showthrough::effectiveDepth(stParams) > 0.0f && !versoMap.empty() &&
+      versoMapW > 0 && versoMapH > 0 && sheetPanelW > 0 && sheetPanelH > 0 &&
+      sheetInknessW > 0 && sheetInknessH > 0;
+  const int gcell = showthrough::kOutCellPx;
+  const int gw = w / gcell + 2, gh = h / gcell + 2;
+  std::vector<uint8_t> stGrid;
+  if (showThroughLive) {
+    stGrid.assign(static_cast<size_t>(gw) * gh, 255);
+    const float fbW = static_cast<float>(HalDisplay::activeWidth());
+    const float fbH = static_cast<float>(HalDisplay::activeHeight());
+    for (int gy = 0; gy < gh; ++gy) {
+      const int oy = gy * gcell;
+      uint8_t *grow = stGrid.data() + static_cast<size_t>(gy) * gw;
+      for (int gx = 0; gx < gw; ++gx) {
+        const int ox = gx * gcell;
+        int fx = 0, fy = 0;
+        float density = 0.0f;
+        if (outputToPanel(
+                showthrough::mirrorOutputX(ox, sheetPanelX, sheetPanelW), oy,
+                fx, fy))
+          density = showthrough::sampleAt(
+              versoMap.data(), versoMapW, versoMapH,
+              (static_cast<float>(fx) + 0.5f) / fbW,
+              (static_cast<float>(fy) + 0.5f) / fbH);
+        grow[gx] = showthrough::multiplierAt(stParams, density);
+      }
+    }
+  }
+
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
+    const int gy = y / gcell;
+    const float ty = static_cast<float>(y - gy * gcell) /
+                     static_cast<float>(gcell);
+    const uint8_t *g0 =
+        showThroughLive ? stGrid.data() + static_cast<size_t>(gy) * gw : nullptr;
+    const uint8_t *g1 = g0 ? g0 + gw : nullptr;
     for (int x = 0; x < w; ++x) {
-      const uint32_t m =
-          letterpress::sheetToothMultiplierAt(params, x, y, w, h);
+      uint32_t m = letterpress::sheetToothMultiplierAt(params, x, y, w, h);
+      if (g0) {
+        const int gx = x / gcell;
+        const float tx = static_cast<float>(x - gx * gcell) /
+                         static_cast<float>(gcell);
+        const float a = static_cast<float>(g0[gx]) +
+                        (static_cast<float>(g0[gx + 1]) -
+                         static_cast<float>(g0[gx])) * tx;
+        const float b = static_cast<float>(g1[gx]) +
+                        (static_cast<float>(g1[gx + 1]) -
+                         static_cast<float>(g1[gx])) * tx;
+        const uint32_t st =
+            static_cast<uint32_t>(a + (b - a) * ty + 0.5f);
+        if (st < 255) m = m * st / 255u;
+      }
       row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
     }
   }
@@ -2489,12 +2737,6 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   // fractional minification (ST-008; src/LaidStructure.h). Its budget is HALF
   // of what the tooth left; the other half stays with the defect layer below,
   // so the three paper passes jointly stay inside the palette's floor.
-  laidstructure::Params laidParams;
-  laidParams.strengthPercent = laidPct;
-  laidParams.seed = params.seed;
-  laidParams.outPxPerSourcePx = outPxPerSourcePx;
-  laidParams.budgetMeanDarkening =
-      0.5f * letterpress::remainingPaperBudget(params);
   if (laidPct > 0 && outPxPerSourcePx > 0.0f) {
     // The erf work is separable: laid darkness is x-independent, chain
     // darkness y-independent, and the host test pins combine(row, col) ==
@@ -2524,15 +2766,16 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   // independently, so a brown foxing spot is legal and still strictly
   // darkening. Their budget is what the tooth LEFT (letterpress::
   // remainingPaperBudget, which reproduces the tooth's CONDITIONAL clamp),
-  // MINUS what the wires above will spend of it (0 when no laid stock is
-  // selected, so a wove sheet's marks are byte-identical), and
+  // MINUS what the wires and the show-through above will spend of it (both 0
+  // by default, so a wove sheet with show-through off has byte-identical
+  // marks), and
   // paperdefects::generate scales every mark's depth to fit it -- so the
   // composite cannot breach the palette's contrast floor by construction.
   paperdefects::Params dp;
   dp.dialPercent = defectsPct;
   dp.seed = params.seed;
-  dp.remainingBudget = letterpress::remainingPaperBudget(params) -
-                       laidstructure::meanDarkeningBound(laidParams);
+  dp.remainingBudget =
+      afterWires - showthrough::meanDarkeningBound(stParams);
   if (dp.remainingBudget < 0.0f) dp.remainingBudget = 0.0f;
   paperdefects::Mark marks[paperdefects::kMaxMarks];
   const int markCount = paperdefects::generate(dp, w, h, marks);
@@ -2578,6 +2821,8 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   sheetTexDefects = defectsPct;
   sheetTexLaid = laidPct;
   sheetTexScaleKey = scaleKey;
+  sheetTexShowThrough = showPct;
+  sheetTexVersoGen = versoGeneration;
   sheetTexKey = key;
   if (timingLogWanted()) {
     timingFrame.sheet.built = true;
@@ -2588,10 +2833,13 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[sheet] field %dx%d seed %u tooth %d%% formation %d%% "
-              "laid %d%% (scale %.3f) defects %d%% (%d marks, budget left "
-              "%.4f) in %.1f ms",
+              "laid %d%% (scale %.3f) showthrough %d%% (depth %.4f, verso gen "
+              "%llu, %s) defects %d%% (%d marks, budget left %.4f) in %.1f ms",
               w, h, params.seed, toothPct, formationPct, laidPct,
-              static_cast<double>(outPxPerSourcePx), defectsPct, markCount,
+              static_cast<double>(outPxPerSourcePx), showPct,
+              static_cast<double>(showthrough::effectiveDepth(stParams)),
+              static_cast<unsigned long long>(versoGeneration),
+              showThroughLive ? "live" : "no verso yet", defectsPct, markCount,
               static_cast<double>(dp.remainingBudget),
               static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6);
   return true;
@@ -2614,6 +2862,58 @@ static int scanTexIntensity = -1;
 static uint32_t scanTexKey = 0;
 static int scanTexPitchKey = -1;
 static int scanTexBloom = -1;
+static int scanTexDefocus = -1;
+
+// --- CORNER DEFOCUS --------------------------------------------------------
+//
+// The per-pixel vertical sigma scale, cached as a normalized byte. It depends
+// on the OUTPUT SIZE and the dial and on nothing else -- not the page, not the
+// palette, not the content -- so it is built once and read on every page turn
+// thereafter. That is the whole reason this item is affordable: computing an
+// ellipse's vertical semi-axis (a divide and a square root) 3.4 million times
+// per page turn would have cost more than the raster it modulates.
+//
+// Stored as (scale - 1) / (max - 1) so the byte spans the useful range at full
+// precision whatever the strength; scaleOf inverts it.
+static std::vector<uint8_t> defocusMap;
+static int defocusMapW = 0, defocusMapH = 0;
+static int defocusMapStrength = -1;
+
+static bool ensureDefocusMap(int w, int h, const cornerdefocus::Params &cd) {
+  if (cornerdefocus::isOff(cd) || w <= 0 || h <= 0) {
+    defocusMap.clear();
+    defocusMapW = defocusMapH = 0;
+    defocusMapStrength = -1;
+    return false;
+  }
+  if (defocusMapW == w && defocusMapH == h &&
+      defocusMapStrength == cd.strengthPercent)
+    return true;
+  const float span = cornerdefocus::maxSigmaScale(cd) - 1.0f;
+  if (span <= 0.0f) return false;
+  defocusMap.assign(static_cast<size_t>(w) * h, 0);
+  for (int y = 0; y < h; ++y) {
+    uint8_t *row = defocusMap.data() + static_cast<size_t>(y) * w;
+    for (int x = 0; x < w; ++x) {
+      const float t = (cornerdefocus::sigmaScaleAt(cd, x, y, w, h) - 1.0f) / span;
+      const int v = static_cast<int>(t * 255.0f + 0.5f);
+      row[x] = static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+    }
+  }
+  defocusMapW = w;
+  defocusMapH = h;
+  defocusMapStrength = cd.strengthPercent;
+  return true;
+}
+
+// How finely the (row, sigma scale) table is sampled when defocus is on. The
+// OFF path keeps its own 16-bucket table over the LEVEL, untouched and
+// bit-exact; this one buckets the PRODUCT of the bloom widening and the
+// defocus widening, because the model multiplies them into one sigma and there
+// is no reason to carry two dimensions of a single quantity. 24 buckets with
+// linear interpolation is finer in practice than the 16 unhinterpolated ones,
+// and costs 1.5x the erf work rather than the 8x a second dimension would.
+static constexpr int kDefocusScaleBuckets = 24;
 
 static void destroyScanTexture() {
   if (!scanTexture) return;
@@ -2625,6 +2925,7 @@ static void destroyScanTexture() {
   scanTexKey = 0;
   scanTexPitchKey = -1;
   scanTexBloom = -1;
+  scanTexDefocus = -1;
 }
 
 static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
@@ -2645,10 +2946,13 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
                            seed);
   const int pitchKey = static_cast<int>(pitchPx * 1000.0f + 0.5f);
   const int bloom = SimulatorOverlay::scanlineBloom.load();
+  cornerdefocus::Params cd;
+  cd.strengthPercent = SimulatorOverlay::cornerDefocusStrength.load();
   const uint64_t seq = pixelBufSeq;
   if (scanTexture && scanTexW == w && scanTexH == h && scanTexSeq == seq &&
       scanTexIntensity == intensity && scanTexKey == palKey &&
-      scanTexPitchKey == pitchKey && scanTexBloom == bloom) {
+      scanTexPitchKey == pitchKey && scanTexBloom == bloom &&
+      scanTexDefocus == cd.strengthPercent) {
     if (timingLogWanted()) timingFrame.scanlines.served = true;
     return true;
   }
@@ -2702,13 +3006,38 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
         static_cast<double>(SDL_GetTicksNS() - readT0) / 1.0e6;
   }
 
+  // CORNER DEFOCUS decides which of two tables the raster is built from, and
+  // the OFF branch is the original code untouched -- not a special case of the
+  // new one -- so a build with the dial at zero is byte-identical to one from
+  // before this existed.
+  const bool defocusLive = ensureDefocusMap(w, h, cd);
+  const float defocusSpan = cornerdefocus::maxSigmaScale(cd) - 1.0f;
+  // The sigma-scale table spans one widening and the other multiplied
+  // together: bloom takes the spot to (1 + gain) at full beam current, defocus
+  // takes it to maxSigmaScale at the corner, and the model uses the product.
+  const float scaleMax =
+      defocusLive ? (1.0f + params.bloomGain) * cornerdefocus::maxSigmaScale(cd)
+                  : 1.0f;
+  const float scaleStep =
+      defocusLive ? (scaleMax - 1.0f) /
+                        static_cast<float>(kDefocusScaleBuckets - 1)
+                  : 0.0f;
+
   // Per-(row, bucket) transmission: the erf work, done once per row.
-  std::vector<float> rowT(static_cast<size_t>(h) * 16);
+  const int buckets = defocusLive ? kDefocusScaleBuckets : 16;
+  std::vector<float> rowT(static_cast<size_t>(h) * buckets);
   for (int y = 0; y < h; ++y)
-    for (int b = 0; b < 16; ++b)
-      rowT[static_cast<size_t>(y) * 16 + b] = scanlines::rowTransmission(
-          params, static_cast<float>(y),
-          (static_cast<float>(b) + 0.5f) / 16.0f);
+    for (int b = 0; b < buckets; ++b)
+      rowT[static_cast<size_t>(y) * buckets + b] =
+          defocusLive
+              // Level 0 with an explicit sigma scale: level and defocus enter
+              // the model through the same product, so one axis carries both.
+              ? scanlines::rowTransmission(
+                    params, static_cast<float>(y), 0.0f,
+                    1.0f + scaleStep * static_cast<float>(b))
+              : scanlines::rowTransmission(params, static_cast<float>(y),
+                                           (static_cast<float>(b) + 0.5f) /
+                                               16.0f);
 
   destroyScanTexture();
   scanTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
@@ -2720,10 +3049,33 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
-    const float *tRow = rowT.data() + static_cast<size_t>(y) * 16;
+    const float *tRow = rowT.data() + static_cast<size_t>(y) * buckets;
     const uint8_t *bRow = bucket.data() + static_cast<size_t>(y) * w;
+    const uint8_t *dRow =
+        defocusLive ? defocusMap.data() + static_cast<size_t>(y) * w : nullptr;
     for (int x = 0; x < w; ++x) {
-      const uint32_t m = scanlines::combine(params, tRow[bRow[x]], x, y, w, h);
+      float t;
+      if (dRow) {
+        // The two widenings, multiplied, then interpolated between the two
+        // bracketing table entries -- a bucket edge on a smooth field would
+        // otherwise show as a contour across the page.
+        const float bf =
+            1.0f + params.bloomGain *
+                       ((static_cast<float>(bRow[x]) + 0.5f) / 16.0f);
+        const float scale =
+            bf * (1.0f + defocusSpan * (static_cast<float>(dRow[x]) / 255.0f));
+        float fb = (scale - 1.0f) / (scaleStep > 0.0f ? scaleStep : 1.0f);
+        if (fb < 0.0f) fb = 0.0f;
+        if (fb > static_cast<float>(buckets - 1))
+          fb = static_cast<float>(buckets - 1);
+        const int b0 = static_cast<int>(fb);
+        const int b1 = b0 + 1 < buckets ? b0 + 1 : b0;
+        const float fr = fb - static_cast<float>(b0);
+        t = tRow[b0] + (tRow[b1] - tRow[b0]) * fr;
+      } else {
+        t = tRow[bRow[x]];
+      }
+      const uint32_t m = scanlines::combine(params, t, x, y, w, h);
       row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
     }
   }
@@ -2745,6 +3097,7 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   scanTexKey = palKey;
   scanTexPitchKey = pitchKey;
   scanTexBloom = bloom;
+  scanTexDefocus = cd.strengthPercent;
   if (timingLogWanted()) {
     timingFrame.scanlines.built = true;
     timingFrame.scanlines.ms =
@@ -2753,9 +3106,13 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[scanlines] field %dx%d intensity %d pitch %.3f px/line "
-              "mottle %.2f bloom %d%% seed %u budget %.3f",
+              "mottle %.2f bloom %d%% defocus %d%% (corner spot %.3fx, "
+              "astigmatism %.3f) seed %u budget %.3f",
               w, h, intensity, static_cast<double>(pitchPx),
-              static_cast<double>(params.mottleDepth), bloom, seed,
+              static_cast<double>(params.mottleDepth), bloom,
+              cd.strengthPercent,
+              static_cast<double>(cornerdefocus::maxSigmaScale(cd)),
+              static_cast<double>(cornerdefocus::astigmatismRatio(cd)), seed,
               static_cast<double>(params.budgetMeanDarkening));
   return true;
 }
@@ -3806,6 +4163,150 @@ void HalDisplay::presentIfNeeded() {
             timingFrame.readbackMs, timingFrame.flipMs);
   }
 }
+
+// --- THE POWER-OFF COLLAPSING DOT (dark mode, at sleep) --------------------
+//
+// Roadmap D8. The model is src/PowerOffCollapse.h; this is the four draws it
+// implies. It lives HERE rather than inside presentIfNeeded because it is not
+// a present: the firmware has already gone, the page is not going to change
+// again, and every frame below is one the app would not otherwise have drawn.
+//
+// It runs from HalGPIO::startDeepSleep's loop -- see the header's note on why
+// that is the one place it cannot delay sleep.
+namespace {
+uint64_t collapseStartedAt = 0;
+bool collapseFinished = false;
+
+// The iOS wake is a longjmp back into setup() in the SAME process, so without
+// this a second sleep in one session would find the animation already spent
+// and show nothing. The desktop wake is execvp and clears it for free.
+const simreset::Registrar gCollapseReset{[] {
+  collapseStartedAt = 0;
+  collapseFinished = false;
+}};
+
+// Draw the panel scaled by (sx, sy) about the PRESENTED page's centre, in
+// output pixels.
+//
+// The scales are in SCREEN terms and the dst rect is not: SDL_RenderTextureRotated
+// turns the landscape framebuffer about the dst rect's own centre, so in
+// portrait the rect's width becomes the screen's HEIGHT and its height the
+// screen's width. Squeezing the picture vertically therefore narrows the rect.
+// Getting this backwards collapses the page sideways, which is a different
+// television.
+void drawCollapsedPanel(SDL_Texture *tex, float sx, float sy) {
+  const float kW = static_cast<float>(HalDisplay::activeWidth());
+  const float kH = static_cast<float>(HalDisplay::activeHeight());
+  if (kW <= 0.0f || kH <= 0.0f || sheetPanelW <= 0 || sheetPanelH <= 0) return;
+  const bool portrait = isPortraitOrientation(
+      static_cast<GfxRenderer::Orientation>(sheetPanelOrientation));
+  const float base =
+      portrait ? static_cast<float>(sheetPanelW) / kH
+               : static_cast<float>(sheetPanelW) / kW;
+  const float cx = static_cast<float>(sheetPanelX) + sheetPanelW * 0.5f;
+  const float cy = static_cast<float>(sheetPanelY) + sheetPanelH * 0.5f;
+  const float dw = kW * base * (portrait ? sy : sx);
+  const float dh = kH * base * (portrait ? sx : sy);
+  const SDL_FRect dst = {cx - dw * 0.5f, cy - dh * 0.5f, dw, dh};
+  switch (sheetPanelOrientation) {
+  case GfxRenderer::Portrait:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 90.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::PortraitInverted:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, -90.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::LandscapeClockwise:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 180.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  default:
+    SDL_RenderTexture(sdl_renderer, tex, nullptr, &dst);
+  }
+}
+}  // namespace
+
+namespace SimulatorOverlay {
+bool stepPowerOffCollapse() {
+  if (!powerOffCollapse.load() || collapseFinished) return false;
+  if (!sdl_renderer || !texture) return false;
+  // A PAPER PAGE DOES NOT SWITCH OFF. Same gate the accumulator uses: this is
+  // a CRT artifact, and on a pale ground it would be a page being eaten.
+  if (!panelIsDarkGround()) return false;
+  // Nothing has been presented yet, so there is no geometry to collapse and no
+  // picture to collapse it from.
+  if (sheetPanelW <= 0 || sheetPanelH <= 0) return false;
+
+  const uint64_t now = SDL_GetTicks();
+  if (collapseStartedAt == 0) collapseStartedAt = now;
+  poweroff::Params pp;
+  pp.enabled = true;
+  const poweroff::State st =
+      poweroff::stateAt(pp, static_cast<float>(now - collapseStartedAt));
+
+  SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                   SDL_LOGICAL_PRESENTATION_DISABLED);
+  int outW = 0, outH = 0;
+  SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
+  // BLACK, not the field colour. A tube with no supplies is not a dark page,
+  // it is an unlit screen, and the surround has to go with the picture or the
+  // collapse happens inside a lit rectangle.
+  SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+  SDL_RenderClear(sdl_renderer);
+
+  if (st.showPicture) {
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+    SDL_SetTextureAlphaMod(texture, 255);
+    SDL_SetTextureColorMod(texture, 255, 255, 255);
+    drawCollapsedPanel(texture, st.horizontalScale, st.verticalScale);
+    // THE BRIGHTNESS RISE, as a second additive draw of the same picture --
+    // the cathode is still delivering the same current into a smaller raster.
+    // A colour mod cannot express it: SDL_SetTextureColorMod only ever
+    // attenuates.
+    if (st.gain > 1.0f) {
+      const float over = (st.gain - 1.0f) / (poweroff::kGainMax - 1.0f);
+      const int a = static_cast<int>(over * 255.0f + 0.5f);
+      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
+      SDL_SetTextureAlphaMod(
+          texture, static_cast<Uint8>(a < 0 ? 0 : (a > 255 ? 255 : a)));
+      drawCollapsedPanel(texture, st.horizontalScale, st.verticalScale);
+      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+      SDL_SetTextureAlphaMod(texture, 255);
+    }
+  }
+
+  // THE LINE, THEN THE DOT. One rect: the same object at two widths, in the
+  // live phosphor's own colour, because the beam does not change what it is
+  // made of on the way out.
+  if (st.dotAlpha > 0.0f && st.dotWidthFrac > 0.0f) {
+    const PanelPalette live = livePanelPalette(true);
+    float lw = static_cast<float>(sheetPanelW) * st.dotWidthFrac;
+    float lh = static_cast<float>(outH) * poweroff::kLineHeightFrac;
+    if (lw < 1.0f) lw = 1.0f;
+    if (lh < 1.0f) lh = 1.0f;
+    const float cx = static_cast<float>(sheetPanelX) + sheetPanelW * 0.5f;
+    const float cy = static_cast<float>(sheetPanelY) + sheetPanelH * 0.5f;
+    const SDL_FRect bar = {cx - lw * 0.5f, cy - lh * 0.5f, lw, lh};
+    const int a = static_cast<int>(st.dotAlpha * 255.0f + 0.5f);
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_ADD);
+    SDL_SetRenderDrawColor(sdl_renderer, live.ink[0], live.ink[1], live.ink[2],
+                           static_cast<Uint8>(a > 255 ? 255 : a));
+    SDL_RenderFillRect(sdl_renderer, &bar);
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+  }
+
+  SDL_RenderPresent(sdl_renderer);
+  if (st.finished) {
+    collapseFinished = true;
+    if (powerLogWanted())
+      SDL_Log("[power] collapse finished after %u ms; the glass stays dark",
+              (unsigned)(now - collapseStartedAt));
+    return false;
+  }
+  return true;
+}
+}  // namespace SimulatorOverlay
 
 bool HalDisplay::shouldQuit() const { return quitRequested.load(); }
 
