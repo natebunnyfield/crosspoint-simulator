@@ -1940,8 +1940,23 @@ static float srgbLumOf(const unsigned char c[3]) {
 static uint32_t pageSheetSeed() {
   uint64_t bookKey = 0;
   int spine = 0, page = 0;
-  if (!SimulatorOverlay::readerPageIdentity(bookKey, spine, page))
+  if (!SimulatorOverlay::readerPageIdentity(bookKey, spine, page)) {
+    // SAY SO ONCE. This branch is legitimate for pre-channel firmware, and
+    // that is exactly why it shipped as a bug: build 127 was archived against
+    // a firmware checkout one commit behind the publisher, so this fired on
+    // every page and the whole app -- home screen, every page of every book --
+    // wore one sheet. Nothing in any log said so, and the picture is subtle
+    // enough that "the flaws are not changing" was the only symptom. A build
+    // that never sees an identity now announces it the first time.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SDL_Log("[paper] no page identity published -- every sheet will use the "
+              "launch seed. The firmware does not call "
+              "publishReaderPageIdentity; per-page paper is INACTIVE.");
+    }
     return grainSeed() ^ 0x50524553u;  // 'PRES', the pre-identity behaviour
+  }
   return phosphorgrain::hash3(static_cast<uint32_t>(bookKey & 0xFFFFFFFFu),
                               static_cast<uint32_t>(bookKey >> 32) ^
                                   static_cast<uint32_t>(spine),
