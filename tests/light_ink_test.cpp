@@ -35,6 +35,14 @@
 //   * The sheet pass actually USES it: a rougher factor darkens more, a 0
 //     factor is a bit-exact smooth sheet, and the paper budget still holds.
 //
+// And, from THE FROZEN SHEET (owner ruling 2026-08-23, docs/light-ink-picker.md
+// section 8 -- the drawer's paper instrument was removed and its values became
+// constants):
+//   * The 7:1 floor swept AT the frozen set, which is the only place it now
+//     matters: every ink on every stock at every reachable density, with drift
+//     at the TOP of its range (every page, not a worst case) and the frozen
+//     tooth and formation painted on the DARKEST leaf.
+//
 // And, from SHEET-TO-SHEET DRIFT (docs/surface-roadmap.md 1c):
 //   * Off is bit-exact off at every seed and on every stock, and the bound is
 //     EXACT -- the 7:1 clamps take it as the darkest leaf, so an offset able
@@ -1143,6 +1151,99 @@ int main() {
                     contrastAtDensity(i, p, d, t, kPaperDriftMax));
             }
     }
+  }
+
+  // --- THE FROZEN SHEET (owner ruling 2026-08-23) --------------------------
+  //
+  // The iOS drawer's paper instrument is gone: paper strength 100, tooth 300%,
+  // formation 80%, defects 0, sheet drift 100, press 100/100/100, and no
+  // control anywhere that reaches any of them. The constants below are the
+  // ones ios/CrossPointLightInkPicker.mm freezes; they are repeated here
+  // because a host test cannot compile Objective-C++, and this is the one
+  // place a change there has to be mirrored.
+  //
+  // Drift at the TOP of its range used to be a worst case and is now every
+  // page, so the floor sweep has to run there: for every ink on every stock at
+  // every density the drawer can still reach, the darkest leaf under the
+  // frozen tooth and formation must clear 7:1. Mean sheet darkening is the
+  // instrument, matching letterpress_test's own floor sweep -- the field is
+  // noise, and the floor is a property of the page rather than of one pixel.
+  {
+    constexpr int kFrozenPaperStrengthPct = 100;
+    constexpr int kFrozenToothPct = 300;
+    constexpr int kFrozenFormationPct = 80;
+    constexpr int kFrozenDriftPct = kPaperDriftMax;
+    constexpr int kFrozenLetterpressPct = 100;  // CrossPointPrefs, frozen too
+    const int W = 64, H = 64;
+    auto lum = [](const uint8_t c[3]) {
+      auto ch = [](uint8_t v) {
+        const float f = v / 255.0f;
+        return f <= 0.04045f ? f / 12.92f
+                             : std::pow((f + 0.055f) / 1.055f, 2.4f);
+      };
+      return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
+    };
+    double worstModel = 1e9, worstSheet = 1e9;
+    int worstModelInk = 0, worstModelPaper = 0, worstSheetInk = 0,
+        worstSheetPaper = 0;
+    for (int i = 0; i < kInkCount; i++)
+      for (int p = 0; p < kPaperCount; p++) {
+        // The strength the picker derives: the frozen request through the
+        // ceiling clamp, at full density, carrying the drift.
+        const int strength = clampPaperStrengthPct(
+            i, p, kDensityMax, kFrozenPaperStrengthPct, kFrozenDriftPct);
+        const int floorPct = floorDensityPct(i, p, strength, kFrozenDriftPct);
+        for (int d = floorPct; d <= kDensityMax; d++) {
+          const double model =
+              contrastAtDensity(i, p, d, strength, kFrozenDriftPct);
+          if (model < worstModel) {
+            worstModel = model;
+            worstModelInk = i;
+            worstModelPaper = p;
+          }
+          CHECK(model >= kContrastFloor - 0.005,
+                "frozen sheet: %s %d%% on %s %d%% at drift %d falls to %.3f:1",
+                kInks[i].name, d, kPapers[p].name, strength, kFrozenDriftPct,
+                model);
+        }
+        // ...and the same pair with the frozen TOOTH and FORMATION painted on
+        // the darkest leaf. The budget is computed from that leaf, not the
+        // nominal sheet, which is what makes this a check and not a tautology.
+        uint8_t ground[3], wash[3], leaf[3];
+        paperAtStrength(p, strength, ground);
+        washOnGround(i, ground, floorDensityPct(i, p, strength,
+                                                kFrozenDriftPct),
+                     wash);
+        paperWorstDrift(ground, kFrozenDriftPct, leaf);
+        letterpress::Params lp;
+        lp.strengthPercent = kFrozenLetterpressPct;
+        lp.paperDarkenBudget = letterpress::paperBudget(lum(wash), lum(leaf));
+        lp.toothScale =
+            toothScaleFor(p, strength) * (kFrozenToothPct / 100.0f);
+        lp.formationDepth = letterpress::clampFormationDepth(
+            formationScaleFor(p, strength) * (kFrozenFormationPct / 100.0f));
+        double sum = 0.0;
+        for (int y = 0; y < H; y++)
+          for (int x = 0; x < W; x++)
+            sum += letterpress::sheetToothMultiplierAt(lp, x, y, W, H);
+        const double meanMul = sum / (W * H * 255.0);
+        const double ratio = (lum(leaf) * meanMul + 0.05) / (lum(wash) + 0.05);
+        if (ratio < worstSheet) {
+          worstSheet = ratio;
+          worstSheetInk = i;
+          worstSheetPaper = p;
+        }
+        CHECK(ratio >= kContrastFloor - 0.05,
+              "frozen sheet: tooth %d%% + formation %d%% on the darkest leaf "
+              "drags %s on %s to %.3f:1",
+              kFrozenToothPct, kFrozenFormationPct, kInks[i].name,
+              kPapers[p].name, ratio);
+      }
+    std::printf("frozen sheet worst: model %.3f:1 (%s on %s), textured "
+                "%.3f:1 (%s on %s)\n",
+                worstModel, kInks[worstModelInk].name,
+                kPapers[worstModelPaper].name, worstSheet,
+                kInks[worstSheetInk].name, kPapers[worstSheetPaper].name);
   }
 
   // --- the reference tables, printed (docs/light-ink-picker.md mirrors) ----

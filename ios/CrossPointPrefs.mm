@@ -96,10 +96,6 @@ static NSString *const kLetterpressPercent = @"letterpressPercent";
 // can store 47, and a PSMultiValueSpecifier renders BLANK for a value that is
 // not one of its listed Values.
 //
-// Read through -objectForKey: like the grain's strength, and for the same
-// malignant reason: -integerForKey: answers 0 for a missing key, and 0 here is
-// a fresh sheet while the drawer still shows the shipped 30.
-static NSString *const kPaperDefectsPercent = @"paperDefectsPercent";
 static NSString *const kScanlinesPercent = @"scanlinesPercent";
 // The raster's PITCH, as a percent of the source-row pitch. 100 is the shipped
 // one-line-per-row; there is no "off" value, so -integerForKey: would be safe
@@ -461,30 +457,18 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) {
 // drawer's press sub-dials scale against.
 int CrossPointPrefs_letterpressPercent(void) { return 100; }
 
-int CrossPointPrefs_paperDefectsPercent(void) {
-  ensureDefaults();
-  // No checkKnown: this key is deliberately NOT a Settings.bundle row any more
-  // (owner ruling 2026-08-23). The light picker's Defects slider is its only
-  // control, so an absent value is the normal state, not a missing row.
-  NSNumber *v =
-      [[NSUserDefaults standardUserDefaults] objectForKey:kPaperDefectsPercent];
-  // 0 by owner ruling 2026-08-23, when the Settings.bundle row was removed.
-  // Unlike the six frozen above this one is still READ, because the light
-  // picker's own Defects slider writes it -- that drawer is a different
-  // surface and was not part of the ruling. A page carries no marks until
-  // the owner asks for them there.
-  if (![v isKindOfClass:[NSNumber class]]) return 0;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 100 ? 100 : pct;
-}
-
-void CrossPointPrefs_setPaperDefectsPercent(int pct) {
-  if (pct < 0) pct = 0;
-  if (pct > 100) pct = 100;
-  [[NSUserDefaults standardUserDefaults] setInteger:pct
-                                             forKey:kPaperDefectsPercent];
-}
+// FROZEN 2026-08-23 by owner ruling: this was a Settings.bundle row, then for
+// part of one day the light drawer's Defects slider, and is now neither ("set
+// Paper, tooth, formation, defects and press to these parameter values, then
+// remove sliders and option to set this in app"). The value below is the one
+// the owner had chosen when he ruled, and it is returned WITHOUT consulting
+// NSUserDefaults -- an install that stored a different value before the
+// control was removed must not keep rendering it, and with the control gone
+// there would be no way to change it back. The setter and the
+// paperDefectsPercent key went with it: nothing writes that key any more, and
+// a key naming a value nothing consults is worse than no key.
+// 0 = a fresh sheet, unmarked.
+int CrossPointPrefs_paperDefectsPercent(void) { return 0; }
 
 // FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
 // not any more. The value below is the one the owner had chosen when he ruled
