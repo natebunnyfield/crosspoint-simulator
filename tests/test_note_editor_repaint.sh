@@ -89,18 +89,39 @@ json.dump(d, open(p, 'w'))"
 # page by a screenful, and a one-screen menu has no next screenful, so DOWN here
 # does nothing at all (correctly). See docs/headless-qa.md.
 #
-# RIGHT x15 walks past every recent book to the last row (Settings; the list
-# does not wrap), then LEFT counts back up to Create Note. The count depends on
-# whether the Update Firmware row is compiled in (CROSSPOINT_NO_DEVICE_FLASH),
-# so it is ASSERTED from the log rather than trusted -- same rule as
-# test_text_entry.sh's Settings row count.
+# RIGHT walks past every recent book to the LAST row (the list does not wrap),
+# then LEFT counts back up to Create Note.
+#
+# The RIGHT count is deliberately generous rather than exact. It was 15, and 15
+# was one short after Update Library joined the menu on 2026-08-21 -- the walk
+# stopped one row early and every LEFT then counted from the wrong place, so the
+# test opened ClaudeChat and reported "never reached NoteEditor". Overshooting
+# is FREE, because the list does not wrap: any surplus RIGHT presses sit on the
+# last row doing nothing. Under-shooting silently changes which screen the test
+# drives. So this is not "the number of rows" -- it is a bound comfortably above
+# it, and adding a menu row does not break it again.
 NAV="2000:HOME"
 T=2400
-for _ in $(seq 1 15); do
+for _ in $(seq 1 24); do
   NAV="$NAV;$T:RIGHT"
   T=$((T + 250))
 done
-NAV="$NAV;6600:LEFT;6900:LEFT;7200:LEFT;8000:ENTER"
+#
+# FOUR lefts, not three. From the last row the menu runs backwards Settings ->
+# Update Library -> Update Firmware -> Claude -> CREATE NOTE, so three lands on
+# Claude and the test reports "never reached NoteEditor" while driving the wrong
+# screen entirely. Three was right before Update Library joined the menu on
+# 2026-08-21. The order is HomeActivity.h's indexToMenuItem; read it rather than
+# counting what a screenshot seems to show, and note Update Firmware is
+# conditional on CROSSPOINT_NO_DEVICE_FLASH -- the assertion below is what
+# actually catches a miscount, so leave it in place.
+LEFT_T=$((T + 400))
+for _ in 1 2 3 4; do
+  NAV="$NAV;$LEFT_T:LEFT"
+  LEFT_T=$((LEFT_T + 300))
+done
+ENTER_T=$((LEFT_T + 500))
+NAV="$NAV;$ENTER_T:ENTER"
 
 # One arm. $1 is the CROSSPOINT_SIM_HOST_KEYBOARD value, $2 a label.
 run_arm() {
@@ -112,8 +133,9 @@ run_arm() {
   force_home_boot
   ( cd "$FIRMWARE_DIR" && \
     CROSSPOINT_SIM_HOST_KEYBOARD="$hk" \
-    CROSSPOINT_SIM_INPUT_SCRIPT="$NAV;10000:TYPE:hello world;13000:BACK;15000:QUIT" \
-    CROSSPOINT_SIM_SCREENSHOTS="9500:$before;12500:$after" \
+    CROSSPOINT_SIM_DARK=0 \
+    CROSSPOINT_SIM_INPUT_SCRIPT="$NAV;$((ENTER_T + 2000)):TYPE:hello world;$((ENTER_T + 5000)):BACK;$((ENTER_T + 7000)):QUIT" \
+    CROSSPOINT_SIM_SCREENSHOTS="$((ENTER_T + 1500)):$before;$((ENTER_T + 4500)):$after" \
     SDL_VIDEODRIVER=dummy "$BIN" >"$log" 2>&1 )
 
   if ! grep -q "Entering activity: NoteEditor" "$log"; then

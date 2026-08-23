@@ -106,6 +106,14 @@ LOG="$CARD/run.log"
 SHOT="$CARD/page1.bmp"
 # LOG=2 dumps the rects too; the screenshot is taken while that same first page
 # is on the panel, so the geometry assertion below can compare the two.
+# CROSSPOINT_SIM_DARK=0 is not decoration. The rect-geometry check below asks
+# whether a word's ink sits inside its rect, and it decides "ink" by a pixel
+# being darker than mid-grey -- so on a DARK page every row of every column is
+# ink, every band spans the whole panel, and all 14 rects fail. This test read
+# the developer's own settings.json, which has darkMode 1, so it passed for
+# whoever wrote it and failed for the next person. Pin the polarity: the test is
+# about geometry, not about which mode the machine was left in.
+CROSSPOINT_SIM_DARK=0 \
 CROSSPOINT_SIM_READALOUD_LOG=2 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
 CROSSPOINT_SIM_INPUT_SCRIPT='6000:QTAP:RIGHT;12000:BACK;15000:QUIT' \
 CROSSPOINT_SIM_SCREENSHOTS="4000:$SHOT" \
