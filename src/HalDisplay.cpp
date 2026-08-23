@@ -998,6 +998,10 @@ static std::atomic<int> grainMottleDepthPct{
 // CrossPointPrefs. See src/Letterpress.h, src/Scanlines.h and
 // docs/letterpress-and-scanlines.md.
 static std::atomic<int> letterpressStrength{letterpress::kStrengthOff};
+// The SHEET's roughness, as a percent of the reference stock, from
+// lightink::toothScaleFor(). 100 is the shipped Bright White, so a build that
+// never calls the setter draws the tooth it always drew.
+static std::atomic<int> paperToothPct{100};
 static std::atomic<int> scanlinesIntensity{scanlines::kIntensityOff};
 // The raster's PITCH, as a percent of the source-row pitch. kSizeFine (100) is
 // one line per page row -- build 126's only behaviour -- so an unseeded build
@@ -1077,6 +1081,22 @@ void setLetterpress(int strengthPercent) {
   }
   const int s = letterpress::clampStrength(strengthPercent);
   if (letterpressStrength.exchange(s) == s) return;
+  pendingPresent.store(true);
+}
+
+void setPaperTooth(int percentOfReference) {
+  if (const char *env = std::getenv("CROSSPOINT_SIM_PAPER_TOOTH")) {
+    // strtol with the end pointer checked, the grain's reason: atoi answers 0
+    // for garbage, and 0 here is a perfectly smooth sheet -- a typo in the
+    // VALUE would look like the paper losing its texture.
+    char *end = nullptr;
+    const long parsed = std::strtol(env, &end, 10);
+    if (end != env && parsed >= 0) percentOfReference = static_cast<int>(parsed);
+  }
+  int pct = percentOfReference;
+  if (pct < 0) pct = 0;
+  if (pct > 400) pct = 400;
+  if (paperToothPct.exchange(pct) == pct) return;
   pendingPresent.store(true);
 }
 
@@ -1246,6 +1266,15 @@ void HalDisplay::begin() {
   window = SDL_CreateWindow(WINDOW_TITLE, winW, winH,
                             SDL_WINDOW_HIGH_PIXEL_DENSITY);
   sdl_renderer = SDL_CreateRenderer(window, nullptr);
+
+  // Which backend actually won. A nullptr driver name takes the first entry of
+  // SDL_render.c's render_drivers[], and the build turns SDL_GPU off on the
+  // strength of Metal outranking it there -- so print the answer rather than
+  // leave the next reader to re-derive it from SDL's source.
+  if (sdl_renderer) {
+    const char* rendererName = SDL_GetRendererName(sdl_renderer);
+    SDL_Log("[panel] renderer: %s", rendererName ? rendererName : "(unknown)");
+  }
 
   // Rendering logic runs in FRAMEBUFFER coordinates (see
   // getLogicalPresentationSize); SDL maps that space into the window's
@@ -1932,6 +1961,7 @@ static bool ensureLetterpressTexture() {
 static SDL_Texture *sheetToothTexture = nullptr;
 static int sheetTexW = 0, sheetTexH = 0;
 static int sheetTexStrength = -1;
+static int sheetTexTooth = -1;
 static uint32_t sheetTexKey = 0;
 
 static void destroySheetToothTexture() {
@@ -1940,6 +1970,7 @@ static void destroySheetToothTexture() {
   sheetToothTexture = nullptr;
   sheetTexW = sheetTexH = 0;
   sheetTexStrength = -1;
+  sheetTexTooth = -1;
   sheetTexKey = 0;
 }
 
@@ -1949,18 +1980,25 @@ static bool ensureSheetToothTexture(int w, int h) {
     destroySheetToothTexture();
     return false;
   }
+  const int toothPct = SimulatorOverlay::paperToothPct.load();
   const PanelPalette live = livePanelPalette(display.isInverted());
   letterpress::Params params;
   params.strengthPercent = strength;
   params.seed = grainSeed() ^ 0x50524553u;  // 'PRES', same pressing as the panel
   params.paperDarkenBudget =
       letterpress::paperBudget(srgbLumOf(live.ink), srgbLumOf(live.paper));
+  // The STOCK's roughness and the sheet's cloudiness -- the paper half of the
+  // 2026-08-22 picker. Both live on the sheet pass alone: the panel field's
+  // components are carried by ink, and paper is not a property of ink.
+  params.toothScale = static_cast<float>(toothPct) / 100.0f;
+  params.formationDepth = letterpress::kFormationDepthDefault;
   const uint32_t key = phosphorgrain::hash3(
       static_cast<uint32_t>(live.paper[0]) << 16 |
           static_cast<uint32_t>(live.paper[1]) << 8 | live.paper[2],
       static_cast<uint32_t>(params.paperDarkenBudget * 65535.0f), params.seed);
   if (sheetToothTexture && sheetTexW == w && sheetTexH == h &&
-      sheetTexStrength == strength && sheetTexKey == key)
+      sheetTexStrength == strength && sheetTexTooth == toothPct &&
+      sheetTexKey == key)
     return true;
   destroySheetToothTexture();
   sheetToothTexture =
@@ -1974,7 +2012,8 @@ static bool ensureSheetToothTexture(int w, int h) {
   for (int y = 0; y < h; ++y) {
     uint32_t *row = field.data() + static_cast<size_t>(y) * w;
     for (int x = 0; x < w; ++x) {
-      const uint32_t m = letterpress::sheetToothMultiplierAt(params, x, y);
+      const uint32_t m =
+          letterpress::sheetToothMultiplierAt(params, x, y, w, h);
       row[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
     }
   }
@@ -1991,6 +2030,7 @@ static bool ensureSheetToothTexture(int w, int h) {
   sheetTexW = w;
   sheetTexH = h;
   sheetTexStrength = strength;
+  sheetTexTooth = toothPct;
   sheetTexKey = key;
   return true;
 }

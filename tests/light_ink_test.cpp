@@ -20,12 +20,27 @@
 //   * Unknown indices fall back to the shipped rows.
 //   * No two inks and no two papers are the same bytes -- a duplicate row is
 //     decoration.
+//
+// And, from the PAPER dial (owner order 2026-08-22, "paper needs a 0-100
+// slider too. and be sure to be adding the existing noise treatment to it"):
+//   * The 7:1 floor swept as a SURFACE: the whole 8 inks x 6 papers x 101
+//     densities x 101 strengths grid, checked against both clamps. That is
+//     ~490k contrast evaluations and it is the only instrument that can see a
+//     hole in a two-dimensional legal region.
+//   * The tint ramp is byte-exact at both ends, monotone, non-degenerate, and
+//     Bright White is bit-exact at EVERY strength -- the no-op row.
+//   * The tooth factor rises with the stock's roughness AND with the strength
+//     dial, is exactly 1.0 at strength 0 for every stock (the smooth ground),
+//     and Bright White is exactly 1.0 everywhere.
+//   * The sheet pass actually USES it: a rougher factor darkens more, a 0
+//     factor is a bit-exact smooth sheet, and the paper budget still holds.
 
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 
 #include "LightInkPalette.h"
+#include "Letterpress.h"
 #include "PadPalette.h"
 
 static int failures = 0;
@@ -200,6 +215,371 @@ int main() {
     for (int p = 0; p < kPaperCount; p++)
       std::printf(" %5.2f/%02d", contrastAtDensity(i, p, 100),
                   floorDensityPct(i, p));
+    std::printf("\n");
+  }
+
+  // === THE PAPER DIAL ======================================================
+
+  // --- the tint ramp: exact ends, monotone, non-degenerate, white is a no-op
+  for (int p = 0; p < kPaperCount; p++) {
+    uint8_t at0[3], at100[3];
+    paperAtStrength(p, 0, at0);
+    paperAtStrength(p, 100, at100);
+    CHECK(std::memcmp(at0, kPapers[kPaperBrightWhite].tone, 3) == 0,
+          "%s at strength 0 must be the bright-white ground exactly",
+          kPapers[p].name);
+    CHECK(std::memcmp(at100, kPapers[p].tone, 3) == 0,
+          "%s at strength 100 must be the stock exactly", kPapers[p].name);
+
+    double prevY = 1e9;
+    int distinct = 0;
+    uint8_t prev[3] = {0, 0, 0};
+    bool first = true;
+    for (int t = 0; t <= kPaperStrengthMax; t++) {
+      uint8_t tone[3];
+      paperAtStrength(p, t, tone);
+      if (p == kPaperBrightWhite)
+        CHECK(std::memcmp(tone, kPapers[kPaperBrightWhite].tone, 3) == 0,
+              "Bright White must be bit-exact at strength %d -- it IS the "
+              "ground, so its slider is a no-op at every value",
+              t);
+      const double y = relativeLuminance(tone);
+      CHECK(y <= prevY + 1e-12,
+            "%s: tint ramp brightens at strength %d -- more colorant cannot "
+            "make a sheet lighter",
+            kPapers[p].name, t);
+      prevY = y;
+      if (first || std::memcmp(tone, prev, 3) != 0) {
+        distinct++;
+        std::memcpy(prev, tone, 3);
+        first = false;
+      }
+    }
+    if (p == kPaperBrightWhite) {
+      CHECK(distinct == 1, "Bright White's ramp must be one color, got %d",
+            distinct);
+    } else {
+      // A paper spans far less range than an ink wash does -- Bone moves ~12
+      // code values -- so the bar is only that the dial is not decoration.
+      CHECK(distinct >= 8, "%s: only %d distinct tones across the tint ramp",
+            kPapers[p].name, distinct);
+    }
+  }
+
+  // --- THE 2-D FLOOR: the whole ink x paper x density x strength grid ------
+  // The clamps must land INSIDE the legal region from anywhere, and the
+  // region under a clamped ceiling must have no holes -- with two dials, a
+  // clamp that is right at the endpoints and wrong in between is exactly the
+  // failure no compiler and no single-dial test can see.
+  {
+    long checked = 0;
+    for (int i = 0; i < kInkCount; i++) {
+      for (int p = 0; p < kPaperCount; p++) {
+        for (int t = 0; t <= kPaperStrengthMax; t++) {
+          // Full density is legal at EVERY strength: that is what makes the
+          // density floor always exist, so it is asserted rather than assumed.
+          CHECK(contrastAtDensity(i, p, kDensityMax, t) >= kContrastFloor,
+                "%s at full density on %s at strength %d is %.2f:1",
+                kInks[i].name, kPapers[p].name, t,
+                contrastAtDensity(i, p, kDensityMax, t));
+          const int f = floorDensityPct(i, p, t);
+          CHECK(contrastAtDensity(i, p, f, t) >= kContrastFloor,
+                "%s on %s at strength %d: floor %d does not clear 7:1",
+                kInks[i].name, kPapers[p].name, t, f);
+          if (f > 0)
+            CHECK(contrastAtDensity(i, p, f - 1, t) < kContrastFloor,
+                  "%s on %s at strength %d: floor %d is not minimal",
+                  kInks[i].name, kPapers[p].name, t, f);
+          // Everything at or above the floor clears it (the suffix property).
+          for (int d = f; d <= kDensityMax; d++) {
+            checked++;
+            if (contrastAtDensity(i, p, d, t) < kContrastFloor) {
+              CHECK(false,
+                    "%s on %s at strength %d, density %d: %.3f:1 -- a HOLE "
+                    "above the floor",
+                    kInks[i].name, kPapers[p].name, t, d,
+                    contrastAtDensity(i, p, d, t));
+              break;
+            }
+          }
+        }
+        // ...and the mirror: everything at or below the ceiling clears it,
+        // for every density the density clamp can leave behind.
+        //
+        // Densities below the BARE GROUND's floor are excluded, and that is
+        // the honest statement rather than a dodge: if a wash cannot clear 7:1
+        // even on plain white, no amount of paper dial makes it legal and the
+        // ceiling is undefined (reported as 0). Those states exist only until
+        // the density clamp runs, which the clamp-order block below proves.
+        for (int d = 0; d <= kDensityMax; d++) {
+          const int c = maxPaperStrengthPct(i, p, d);
+          if (contrastAtDensity(i, p, d, 0) < kContrastFloor) {
+            CHECK(c == 0,
+                  "%s on %s density %d: nothing is legal, the ceiling must "
+                  "report 0, got %d",
+                  kInks[i].name, kPapers[p].name, d, c);
+            continue;
+          }
+          for (int t = 0; t <= c; t++) {
+            checked++;
+            if (contrastAtDensity(i, p, d, t) < kContrastFloor) {
+              CHECK(false,
+                    "%s on %s density %d: strength %d is %.3f:1 under a "
+                    "ceiling of %d -- a HOLE below the ceiling",
+                    kInks[i].name, kPapers[p].name, d, t,
+                    contrastAtDensity(i, p, d, t), c);
+              break;
+            }
+          }
+          CHECK(clampPaperStrengthPct(i, p, d, 999) == c,
+                "clamp above the ceiling must land on it");
+          CHECK(clampPaperStrengthPct(i, p, d, -5) == 0,
+                "clamp below 0 must land on the bare ground");
+        }
+      }
+    }
+    std::printf("2-D floor sweep: %ld (density, strength) states checked\n",
+                checked);
+  }
+
+  // --- the clamp ORDER loadSelection uses lands legal from any integers ----
+  // The rule is "the slider you move stops, the other holds", but a restored
+  // backup moves neither: strength is pinned to its ceiling for the stored
+  // density, then density to its floor at the result. From ANY pair.
+  {
+    const int probes[] = {-50, 0, 1, 37, 64, 99, 100, 250};
+    for (int i = 0; i < kInkCount; i++)
+      for (int p = 0; p < kPaperCount; p++)
+        for (const int rd : probes)
+          for (const int rt : probes) {
+            const int t = clampPaperStrengthPct(i, p, rd, rt);
+            const int d = clampDensityPct(i, p, rd, t);
+            CHECK(contrastAtDensity(i, p, d, t) >= kContrastFloor,
+                  "%s on %s: stored (%d, %d) clamps to (%d, %d) at %.2f:1 -- "
+                  "below the floor",
+                  kInks[i].name, kPapers[p].name, rd, rt, d, t,
+                  contrastAtDensity(i, p, d, t));
+          }
+  }
+
+  // --- the tooth factor ----------------------------------------------------
+  {
+    CHECK(kPapers[kPaperBrightWhite].tooth == 1.0f,
+          "Bright White is the reference stock and must be exactly 1.0");
+    for (int p = 0; p < kPaperCount; p++) {
+      CHECK(toothScaleFor(p, 0) == 1.0f,
+            "%s at strength 0 is the smooth ground and must be exactly 1.0x",
+            kPapers[p].name);
+      CHECK(std::fabs(toothScaleFor(p, 100) - kPapers[p].tooth) < 1e-6f,
+            "%s at strength 100 must be the stock's own factor", kPapers[p].name);
+      CHECK(kPapers[p].tooth >= 1.0f,
+            "%s: no stock may be SMOOTHER than the reference -- the shipped "
+            "default is the smoothest offered",
+            kPapers[p].name);
+      // Monotone in the strength dial, and strictly so for a stock that is
+      // not the reference (a flat rung is a slider position that does nothing).
+      float prev = -1.0f;
+      for (int t = 0; t <= kPaperStrengthMax; t++) {
+        const float f = toothScaleFor(p, t);
+        CHECK(f >= prev - 1e-6f, "%s: tooth falls at strength %d",
+              kPapers[p].name, t);
+        prev = f;
+      }
+      if (p != kPaperBrightWhite)
+        CHECK(toothScaleFor(p, 100) > toothScaleFor(p, 50) &&
+                  toothScaleFor(p, 50) > toothScaleFor(p, 0),
+              "%s: the tooth must RISE with the tint, or the dial only "
+              "recolors the sheet",
+              kPapers[p].name);
+      // Out of range is clamped, not extrapolated.
+      CHECK(toothScaleFor(p, 900) == toothScaleFor(p, 100) &&
+                toothScaleFor(p, -9) == toothScaleFor(p, 0),
+            "%s: tooth factor must clamp outside 0..100", kPapers[p].name);
+    }
+    // Uncoated stocks are rougher than the coated bright white, and the aged
+    // chamois is the roughest offered -- the ordering the doc states.
+    CHECK(kPapers[kPaperChamois].tooth > kPapers[kPaperCream].tooth &&
+              kPapers[kPaperCream].tooth > kPapers[kPaperBrightWhite].tooth,
+          "the stock ordering must be bright white < cream < chamois");
+    for (int p = 0; p < kPaperCount; p++)
+      if (p != kPaperChamois)
+        CHECK(kPapers[kPaperChamois].tooth >= kPapers[p].tooth,
+              "Chamois is documented as the roughest offered, but %s is "
+              "rougher",
+              kPapers[p].name);
+  }
+
+  // --- the sheet pass actually uses it -------------------------------------
+  // The factor is only real if it changes pixels. Mean darkening of the
+  // output-wide tooth field must RISE with the factor, a 0 factor must be a
+  // bit-exact smooth sheet, and the paper budget must still hold at the
+  // roughest stock -- swept against Chamois under the darkest ink, the
+  // tightest pair this picker can select.
+  {
+    const int W = 64, H = 64;
+    auto meanOf = [&](float toothScale, float formation, int strength) {
+      letterpress::Params lp;
+      lp.strengthPercent = strength;
+      lp.toothScale = toothScale;
+      lp.formationDepth = formation;
+      double sum = 0.0;
+      for (int y = 0; y < H; y++)
+        for (int x = 0; x < W; x++)
+          sum += letterpress::sheetToothMultiplierAt(lp, x, y, W, H);
+      return sum / (W * H);
+    };
+    const double flat = meanOf(0.0f, 0.0f, letterpress::kStrengthStandard);
+    CHECK(flat == 255.0,
+          "a tooth factor of 0 must be a bit-exact smooth sheet, got %.3f",
+          flat);
+    // PAIRWISE, not down the table: the rows are in display order, not tooth
+    // order, so "each row darker than the last" would be asserting the wrong
+    // thing. A rougher stock must darken more than a smoother one, whichever
+    // rows they are.
+    double mean[kPaperCount];
+    for (int p = 0; p < kPaperCount; p++) {
+      mean[p] = meanOf(kPapers[p].tooth, letterpress::kFormationDepthDefault,
+                       letterpress::kStrengthStandard);
+      CHECK(mean[p] < 255.0, "%s must actually texture the sheet",
+            kPapers[p].name);
+    }
+    for (int a = 0; a < kPaperCount; a++)
+      for (int b = 0; b < kPaperCount; b++) {
+        if (kPapers[a].tooth <= kPapers[b].tooth) continue;
+        CHECK(mean[a] < mean[b],
+              "%s (%.2fx) must wear more tooth than %s (%.2fx), but the sheet "
+              "means are %.3f and %.3f -- the factor is not reaching the field",
+              kPapers[a].name, kPapers[a].tooth, kPapers[b].name,
+              kPapers[b].tooth, mean[a], mean[b]);
+      }
+    // ...and the strength dial moves it, for one stock, end to end.
+    const double atNone =
+        meanOf(toothScaleFor(kPaperChamois, 0),
+               letterpress::kFormationDepthDefault, letterpress::kStrengthStandard);
+    const double atFull =
+        meanOf(toothScaleFor(kPaperChamois, 100),
+               letterpress::kFormationDepthDefault, letterpress::kStrengthStandard);
+    CHECK(atFull < atNone,
+          "Chamois at full tint must wear more tooth than at none (%.3f vs "
+          "%.3f)",
+          atFull, atNone);
+    // Formation is bit-exact off at depth 0, and adds no net darkening when on
+    // -- it swings the amplitude symmetrically, it does not deepen it.
+    {
+      letterpress::Params a, b;
+      a.toothScale = b.toothScale = kPapers[kPaperChamois].tooth;
+      b.formationDepth = 0.0f;
+      a.formationDepth = 0.0f;
+      bool same = true;
+      for (int y = 0; y < 16 && same; y++)
+        for (int x = 0; x < 16; x++)
+          if (letterpress::sheetToothMultiplierAt(a, x, y, W, H) !=
+              letterpress::sheetToothMultiplierAt(b, x, y, 0, 0)) {
+            same = false;
+            break;
+          }
+      CHECK(same, "formation depth 0 must render bit-exactly as no formation");
+      const double even =
+          meanOf(kPapers[kPaperChamois].tooth, 0.0f,
+                 letterpress::kStrengthStandard);
+      const double clouded =
+          meanOf(kPapers[kPaperChamois].tooth,
+                 letterpress::kFormationDepthDefault,
+                 letterpress::kStrengthStandard);
+      CHECK(std::fabs(even - clouded) < 1.0,
+            "formation must not change the sheet's MEAN darkening (%.3f vs "
+            "%.3f)",
+            even, clouded);
+      // ...but it must carry real low-frequency structure, which only BLOCK
+      // means can see: per-pixel spread cannot tell a cloudy sheet from an
+      // even one.
+      letterpress::Params c;
+      c.toothScale = kPapers[kPaperChamois].tooth;
+      c.formationDepth = letterpress::kFormationDepthDefault;
+      letterpress::Params e = c;
+      e.formationDepth = 0.0f;
+      const int BW = 256, BH = 256, BLK = 32;
+      double spreadC = 0.0, spreadE = 0.0;
+      double loC = 1e9, hiC = -1e9, loE = 1e9, hiE = -1e9;
+      for (int by = 0; by < BH; by += BLK)
+        for (int bx = 0; bx < BW; bx += BLK) {
+          double sc = 0.0, se = 0.0;
+          for (int y = by; y < by + BLK; y++)
+            for (int x = bx; x < bx + BLK; x++) {
+              sc += letterpress::sheetToothMultiplierAt(c, x, y, BW, BH);
+              se += letterpress::sheetToothMultiplierAt(e, x, y, BW, BH);
+            }
+          sc /= BLK * BLK;
+          se /= BLK * BLK;
+          if (sc < loC) loC = sc;
+          if (sc > hiC) hiC = sc;
+          if (se < loE) loE = se;
+          if (se > hiE) hiE = se;
+        }
+      spreadC = hiC - loC;
+      spreadE = hiE - loE;
+      CHECK(spreadC > spreadE * 2.0,
+            "formation must show as block-mean structure (%.3f levels vs "
+            "%.3f without it)",
+            spreadC, spreadE);
+    }
+    // The floor, through the sheet pass, at the roughest stock and the
+    // heaviest press: the flat sheet must still clear 7:1 against its ink.
+    for (int i = 0; i < kInkCount; i++) {
+      for (int p = 0; p < kPaperCount; p++) {
+        uint8_t ground[3], wash[3];
+        paperAtStrength(p, kPaperStrengthMax, ground);
+        const int d = floorDensityPct(i, p, kPaperStrengthMax);
+        inkAtDensity(i, p, d, wash, kPaperStrengthMax);
+        const float li = (float)relativeLuminance(wash);
+        const float lp = (float)relativeLuminance(ground);
+        const int rungs[] = {0, 50, 100, 200, 400};
+        for (const int r : rungs) {
+          letterpress::Params lp2;
+          lp2.strengthPercent = r;
+          lp2.paperDarkenBudget = letterpress::paperBudget(li, lp);
+          lp2.toothScale = toothScaleFor(p, kPaperStrengthMax);
+          lp2.formationDepth = letterpress::kFormationDepthDefault;
+          double sum = 0.0;
+          for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+              sum += letterpress::sheetToothMultiplierAt(lp2, x, y, W, H);
+          const double m = sum / (W * H * 255.0);
+          const double ratio = (lp * m + 0.05) / (li + 0.05);
+          CHECK(ratio >= kContrastFloor - 0.05,
+                "%s on %s at press %d%%: the textured sheet falls to %.3f:1",
+                kInks[i].name, kPapers[p].name, r, ratio);
+        }
+      }
+    }
+  }
+
+  // --- the reference tables, printed (docs/light-ink-picker.md mirrors) ----
+  std::printf("paper tint ramp and tooth (strength 0/50/100):\n");
+  for (int p = 0; p < kPaperCount; p++) {
+    std::printf("  %-13s", kPapers[p].name);
+    for (int t = 0; t <= 100; t += 50) {
+      uint8_t tone[3];
+      paperAtStrength(p, t, tone);
+      std::printf(" %02X%02X%02X", tone[0], tone[1], tone[2]);
+    }
+    std::printf("   tooth %.2f/%.2f/%.2f\n", toothScaleFor(p, 0),
+                toothScaleFor(p, 50), toothScaleFor(p, 100));
+  }
+  std::printf("density floor at paper strength 0/50/100:\n");
+  for (int i = 0; i < kInkCount; i++) {
+    std::printf("  %-16s", kInks[i].name);
+    for (int p = 0; p < kPaperCount; p++)
+      std::printf(" %02d/%02d/%02d", floorDensityPct(i, p, 0),
+                  floorDensityPct(i, p, 50), floorDensityPct(i, p, 100));
+    std::printf("\n");
+  }
+  std::printf("max paper strength at density 100/90/80:\n");
+  for (int i = 0; i < kInkCount; i++) {
+    std::printf("  %-16s", kInks[i].name);
+    for (int p = 0; p < kPaperCount; p++)
+      std::printf(" %3d/%3d/%3d", maxPaperStrengthPct(i, p, 100),
+                  maxPaperStrengthPct(i, p, 90), maxPaperStrengthPct(i, p, 80));
     std::printf("\n");
   }
 

@@ -1,4 +1,4 @@
-# The light-mode ink picker — historical inks at variable density on proven papers
+# The light-mode ink and paper picker — historical inks at variable density on proven papers at variable tint
 
 2026-08-22. Owner order (verbatim): "need a different color picker for light
 mode (crt stays for dark mode). should allow for typical and proven to be most
@@ -163,15 +163,236 @@ exactly where 7:1 would break on the CURRENT paper, per ink. Computed floors
 | Indigo | 75 | 79 | 82 | 89 | 82 | 86 |
 | Prussian Blue | 64 | 67 | 69 | 75 | 70 | 73 |
 
-## 5. How it applies, and what dark mode keeps
+## 5. The paper's own 0-100 slider — tint strength
+
+Owner order, 2026-08-22 (verbatim): "paper needs a 0-100 slider too. and be
+sure to be adding the existing noise treatment to it."
+
+The paper dial is the ink density's twin: **0 is the neutral bright-white
+ground (`#FBFBF9`, row 0's own tone) and 100 is the stock at full strength**,
+the table hex in §4. It is stored as a fourth append-only integer,
+`lightPaperStrengthPercent`, defaulting to 100 — so an untouched install, and
+every selection made before this dial existed, reads exactly as it did.
+
+### The model: the same absorption law, not a lerp
+
+A stock's tint is a colorant carried in an otherwise white sheet — pulp dye, a
+coating, or the oxidation of an aged one — and **a colorant is a subtractive
+filter over white**. That is the same physics the ink's dilution obeys, so it
+gets the same law rather than a second one. Per channel in linear light:
+
+```
+stockAt(s) = white_lin * (stock_lin / white_lin)^s        s in [0..1]
+```
+
+Why Beer–Lambert here and not the linear-light lerp the spec allowed: the chord
+toward white runs through the neutral, so a half-strength cream desaturates
+toward gray-white rather than staying a pale cream. Over the tiny gamut a paper
+covers the two curves are genuinely close — measured at 50% strength, the
+largest disagreement is 2 code values (Cream `#F9F5E8` exponential vs `#FAF6EA`
+lerped; Chamois `#F3EAD6` vs `#F4EBDB`) — so this is not a dramatic
+improvement, and saying so is the honest version. The reason to take it anyway
+is that **one absorption law now describes both dials**, which is worth more
+than two code values: a reader who understands what the density slider does
+understands what the paper slider does, and the code has one curve to maintain.
+
+Both ends are byte-exact, and **Bright White is a bit-exact no-op at every
+strength** — it *is* the ground, so its slider legitimately does nothing, and
+that is asserted rather than left to `pow(1, s)`.
+
+Measured ramp (test-printed, `paperAtStrength`):
+
+| Paper | 0% | 25% | 50% | 75% | 100% |
+|---|---|---|---|---|---|
+| Bright White | `#FBFBF9` | `#FBFBF9` | `#FBFBF9` | `#FBFBF9` | `#FBFBF9` |
+| Cream | `#FBFBF9` | `#FAF8F1` | `#F9F5E8` | `#F9F3E1` | `#F8F0D9` |
+| Bone | `#FBFBF9` | `#F8F7F3` | `#F5F2EC` | `#F2EEE6` | `#EFEAE0` |
+| Chamois | `#FBFBF9` | `#F7F2E7` | `#F3EAD6` | `#F0E2C6` | `#ECDAB7` |
+| Press Gray | `#FBFBF9` | `#F6F7F6` | `#F2F2F2` | `#EDEEEF` | `#E9EAEC` |
+| Sepia Toned | `#FBFBF9` | `#F8F4ED` | `#F4EDE1` | `#F1E6D6` | `#EEDFCC` |
+
+### The 7:1 floor is now a SURFACE, and the clamp rule is one sentence
+
+With two dials the legal region is two-dimensional: contrast falls as the ink
+is diluted *and* falls again as the paper is tinted. The rule the UI and the
+core both implement:
+
+> **The slider you are moving is the one that stops; the other holds.**
+
+Density has a **floor** (dilute far enough and the wash meets its paper); paper
+strength has a **ceiling** (tint far enough and the ground meets the ink). Each
+is computed at the *other* dial's live value. Changing the ink or the paper
+STOCK is not a slider move, so it re-clamps the **density** and leaves the
+sheet where the owner put it — the paper is the deliberate choice, the ink is
+the variable that pays for it.
+
+The region is never empty. Density 100 is the ink itself, independent of the
+ground, and every one of the 48 pairs clears 7:1 at full paper strength by
+table construction (§4), so full density is legal at every strength and a floor
+always exists. Symmetrically, lowering the paper strength can only raise
+contrast, so a ceiling always exists too.
+
+**One measured wrinkle, and it decided the ceiling's implementation.** Contrast
+is exactly monotone in DENSITY (zero inversions across the whole grid), so the
+first clearing percent *is* the boundary. It is **not** exactly monotone in
+paper STRENGTH: the tone quantizes to a byte at every step, so the ratio
+ripples by up to 0.068 on its way down (Standard on Chamois runs 13.29 → 10.02
+with local rises). A ceiling found by scanning DOWN from 100 would therefore
+have illegal strengths beneath it — 3,300 of them across the grid, the worst
+6.96:1. Those are rounding wiggles, not a legibility cliff, but "every
+reachable state clears 7:1" has to be *checkable*, so `maxPaperStrengthPct`
+scans **up** and stops at the first failure. It costs at most 19 points of
+strength in the worst corner (Prussian Blue on Cream at 66% density) and it
+makes the guarantee exact instead of approximate.
+
+Density floor, at paper strength 0 / 50 / 100 (test-printed):
+
+| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned |
+|---|---|---|---|---|---|---|
+| Standard | 65/65/65 | 65/67/68 | 65/67/70 | 65/70/76 | 65/68/70 | 65/69/74 |
+| Carbon Black | 53/53/53 | 53/54/55 | 53/55/57 | 53/57/61 | 53/55/57 | 53/56/59 |
+| Iron Gall | 62/62/62 | 62/63/65 | 62/64/66 | 62/66/72 | 62/64/67 | 62/65/70 |
+| Sepia | 65/65/65 | 65/67/69 | 65/68/71 | 65/71/77 | 65/67/71 | 65/69/74 |
+| Walnut & Bistre | 76/76/76 | 76/78/81 | 76/80/83 | 76/83/91 | 76/80/83 | 76/81/88 |
+| Oxblood | 58/58/58 | 58/60/61 | 58/60/63 | 58/63/69 | 58/60/63 | 58/62/67 |
+| Indigo | 75/75/75 | 75/77/79 | 75/78/82 | 75/82/89 | 75/78/82 | 75/80/86 |
+| Prussian Blue | 64/64/64 | 64/66/67 | 64/66/69 | 64/69/75 | 64/67/70 | 64/68/73 |
+
+Paper-strength ceiling, at density 100 / 90 / 80. Full strength is available
+everywhere at full density, which is the table-construction guarantee restated;
+the ceilings only bite once the ink is also diluted, and only for the two
+weakest inks:
+
+| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned |
+|---|---|---|---|---|---|---|
+| Standard | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+| Carbon Black | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+| Iron Gall | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+| Sepia | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+| Walnut & Bistre | 100/100/100 | 100/100/**95** | 100/100/**60** | 100/**95**/**30** | 100/100/**60** | 100/100/**39** |
+| Oxblood | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+| Indigo | 100/100/100 | 100/100/100 | 100/100/**84** | 100/100/**45** | 100/100/**74** | 100/100/**53** |
+| Prussian Blue | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 | 100/100/100 |
+
+`tests/light_ink_test.cpp` sweeps the whole 8 x 6 x 101 x 101 grid — 324,316
+(density, strength) states — asserting there is no hole above a floor and none
+below a ceiling, and that the load-time clamp order lands legal from any pair
+of integers whatsoever.
+
+## 6. The noise treatment on the paper — per-stock tooth, and the sheet's formation
+
+Owner: "be sure to be adding the existing noise treatment to it." Read against
+what light mode actually did, rather than assumed:
+
+- The letterpress **paper tooth** was already an output-wide sheet pass (the
+  2026-08-22 seam fix, `letterpress::sheetToothMultiplierAt`), so coverage was
+  not the gap.
+- The **phosphor grain's** mottle machinery (`src/PhosphorGrain.h`) belongs to
+  the dark page, and while letterpress is on the grain pass is skipped in light
+  mode.
+
+So the gap was that the tooth **did not vary with the paper**: a coated bright
+white and an aged chamois wore identical grain. Two things close it.
+
+### 6a. Per-stock tooth amplitude
+
+Each stock carries a tooth factor — a multiple of the reference sheet's — that
+scales the sheet pass's amplitude (`letterpress::Params::toothScale`). They are
+CHOSEN, on the same footing as every other amplitude in `Letterpress.h`: no
+sheet was profilometered for this repo. The ordering is the real claim, and it
+is the printing one — coated and calendered stock is smooth, uncoated is open,
+and an aged antique sheet is the roughest a trade book ever is.
+
+| # | Paper | Tooth | Why |
+|---|---|---|---|
+| 0 | Bright White | **1.00** | Coated, calendered bright text stock. The reference, and it must stay exactly 1.0 or the shipped default silently re-textures — there is a `static_assert` on it. |
+| 1 | Cream | 1.30 | Uncoated trade-book stock: a real but fine surface. |
+| 2 | Bone | 1.45 | Natural/bone offset, a more open uncoated sheet than cream. |
+| 3 | Chamois | **1.80** | Aged antique/eggshell book paper — the roughest offered, and the test pins that no row exceeds it. |
+| 4 | Press Gray | 1.60 | Uncoated cool press stock, newsprint-adjacent: rough and open, but not aged. |
+| 5 | Sepia Toned | 1.50 | A toned uncoated sheet, between bone and press gray. |
+
+**The strength slider scales it**, linearly: `toothScaleFor(paper, s)` runs from
+the reference 1.00 at strength 0 to the stock's own factor at 100. Linear, and
+deliberately unlike the tone: tone is an absorption depth and exponentiates,
+while tooth is "how much of this stock's SURFACE you asked for", and the honest
+reading of a slider at 40% is 40% of the way from the smooth ground to that
+stock's texture. Dialing a stock up therefore brings its roughness up with its
+tone, and dialing it to 0 takes both away together — which is the same
+statement as "strength 0 is the bright-white ground", now true of the texture
+as well as the color.
+
+The number reaches the renderer as a percent through
+`SimulatorOverlay::setPaperTooth` (env override `CROSSPOINT_SIM_PAPER_TOOTH`),
+pushed live by the picker and polled at launch by the shim so a stock chosen
+last week still has its texture on the next cold start.
+
+### 6b. The sheet's formation — the missing low-frequency half
+
+The other honest finding: the bare sheet had **no low-frequency structure at
+all**. Every existing low-frequency term multiplies INKNESS (letterpress plate
+pressure) or belongs to the dark page (the grain's Mottled coverage), so paper
+outside a glyph was pure white noise — a fine tooth on a perfectly even sheet,
+which no real stock is. Paper **formation** — the cloudiness you see holding a
+sheet up to a light, from fibres flocculating in the headbox — is exactly the
+phenomenon the grain's Mottled coverage models for a phosphor screen.
+
+It is therefore built out of **the same primitive** (`phosphorgrain::valueNoise`
+— one noise implementation in this repo is the standing pattern), on a 3-cell
+lattice across the sheet, and it **modulates the tooth's amplitude** rather
+than adding a darkening of its own. That choice is what keeps the contrast
+floor structural: a symmetric ±55% swing on the amplitude leaves the mean
+darkening exactly `a/2`, so the existing paper-budget argument carries over with
+nothing new to prove, and the budget clamp still runs after it so no point can
+breach the floor. Depth 0 is bit-exact "no formation" and is the model's
+default, so `Letterpress.h`'s old renderings are unchanged; only `HalDisplay`
+asks for it.
+
+Both stay **darken-only** and **off-bit-exact**, the two invariants every
+surface pass in this repo holds.
+
+### 6c. What it measures, on screen
+
+From the shipped iOS build (build-simsdk Release, iPhone Air simulator, light
+appearance, letterpress 100%, Standard ink at 100%), sampled over a blank
+960 x 140 device-pixel block of the page foot. Relative standard deviation of
+the paper — the texture, independent of how dark the sheet is:
+
+| | paper 0% | paper 50% | paper 100% | model at 100% |
+|---|---|---|---|---|
+| Cream | 0.0092 | 0.0094 | 0.0099 | 0.0124 |
+| Chamois | 0.0097 | 0.0115 | 0.0140 | 0.0172 |
+| Press Gray | 0.0082 | 0.0129 | 0.0156 | 0.0152 |
+
+Three things to read off it. The **strength-0 column agrees across all three
+stocks** — that is the no-op ground, texture included. The texture **rises
+monotonically with the dial in every column**. And the neutral Press Gray lands
+on the model's own figure while the two WARM stocks measure 15–20% under it —
+a measurement-path artifact of the simulator's screenshot color conversion
+(the effect is confined to saturated tones; the neutral matches exactly), not
+a model error: the model itself is verified directly by the host test, and the
+plumbing by the agreeing zero column.
+
+Renders, lossless PNG at native pixels (proof-image P0):
+
+- `qa/paper-slider/paper-strength-matrix-3x3.png` — three stocks x three
+  strengths on a real text page, each tile a 1:1 crop of the device
+  framebuffer, no resampling.
+- `qa/paper-slider/tooth-detail-3x-coated-vs-uncoated.png` — Bright White
+  (1.00x) against Chamois (1.80x) at full strength, magnified by an INTEGER 3
+  with NEAREST so one device pixel is one 3x3 block.
+
+## 7. How it applies, and what dark mode keeps
 
 Selection applies LIVE through the existing custom light fields
 (`panelInkLight`/`panelPaperLight` + preset Custom), so the whole downstream —
 letterpress, pad-on-paper, the keyboard chips — follows for free through
-`crosspoint::panelForPrefs()`. Persistence is three new append-only integer
-keys (`lightInkIndex`, `lightInkDensityPercent`, `lightPaperIndex`), with the
-applied result mirrored into the light hex fields — the mixer's storage
-discipline.
+`crosspoint::panelForPrefs()`. Persistence is four append-only integer
+keys (`lightInkIndex`, `lightInkDensityPercent`, `lightPaperIndex`,
+`lightPaperStrengthPercent`), with the applied result mirrored into the light
+hex fields — the mixer's storage discipline. The paper hex written there is the
+TINTED tone at the current strength, not the table tone, so the whole
+downstream sees the sheet the owner actually chose.
 
 Dark mode's stored state is unaffected: the custom DARK fields stay the
 mixer's. One consequence handled explicitly: the preset integer is shared by
