@@ -1,6 +1,8 @@
 #include "CrossPointPrefs.h"
 
 #include "PanelPalette.h"
+#include "PanelPrefs.h"
+#include "PanelSource.h"
 #include "PhosphorGrain.h"
 
 #import <UIKit/UIKit.h>
@@ -114,6 +116,19 @@ static NSString *const kPanelPaperLight = @"panelPaperLight";
 static NSString *const kPanelInkDark = @"panelInkDark";
 static NSString *const kPanelPaperDark = @"panelPaperDark";
 
+// NOT a Settings.bundle row, and deliberately so: nothing chooses this: it is
+// written by whichever editor claims the Custom slot, so the OTHER polarity's
+// phosphor survives the move. See CrossPointPrefs_claimCustomFor below and
+// src/PanelSource.h. checkKnown() is therefore not called on it.
+static NSString *const kPanelDarkSnapshotPreset = @"panelDarkSnapshotPreset";
+
+// The mixer's own "a blend is in force" flag. Its writer is
+// ios/CrossPointPaletteMixer.mm (kMixActive there); it is read here because the
+// panel resolver has to know whether the mixer owns the dark page's decay.
+// Two files naming one key is the existing shape in this store (panelInkLight
+// is named in three), and the pairing is pinned by tests/panel_source_test.cpp.
+static NSString *const kPhosphorMixActive = @"phosphorMixActive";
+
 // THE DEFAULTS LIVE IN Root.plist AND NOWHERE ELSE.
 //
 // A Settings.bundle needs its defaults stated twice by construction, and the
@@ -197,6 +212,12 @@ static void migratePadPresetForExistingCustomisation(void) {
       return;
     }
   }
+}
+
+// Six uppercase hex digits, the form every panel* field in this store holds and
+// the only form panelpalette::parseHexRgb has to accept back.
+static NSString *hexStringOf(const uint8_t c[3]) {
+  return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
 }
 
 static void ensureDefaults(void) {
@@ -581,6 +602,52 @@ void CrossPointPrefs_setPanelPalettePreset(int preset) {
   // that in a second place is how two answers drift.
   [[NSUserDefaults standardUserDefaults] setInteger:preset
                                              forKey:kPanelPalettePreset];
+}
+
+int CrossPointPrefs_phosphorMixActive(void) {
+  ensureDefaults();
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kPhosphorMixActive]
+             ? 1
+             : 0;
+}
+
+int CrossPointPrefs_darkSnapshotPreset(void) {
+  ensureDefaults();
+  // An absent key answers 0 = kPresetCustom = "no phosphor", which is the
+  // historical answer for every install that predates this key. Not validated,
+  // for the third time in this file: panelsource::glowPreset and
+  // panelpalette::trailMsForPreset resolve an unknown integer themselves.
+  return static_cast<int>([[NSUserDefaults standardUserDefaults]
+      integerForKey:kPanelDarkSnapshotPreset]);
+}
+
+void CrossPointPrefs_claimCustomFor(int editingDark) {
+  ensureDefaults();
+  const panelsource::Claim claim = panelsource::claimCustom(
+      CrossPointPrefs_panelPalettePreset(), editingDark != 0);
+  if (!claim.freezeOther) return;  // already Custom: both polarities are chosen
+
+  // RESOLVED BEFORE THE PRESET MOVES, which is the whole point: once the preset
+  // is Custom the named preset's pair is unreachable and the frozen polarity
+  // would fall back to whatever stale hex the fields happen to hold.
+  const panelpalette::Palette other = crosspoint::panelForPrefs(claim.freezeDark);
+  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+  [d setObject:hexStringOf(other.ink)
+        forKey:claim.freezeDark ? kPanelInkDark : kPanelInkLight];
+  [d setObject:hexStringOf(other.paper)
+        forKey:claim.freezeDark ? kPanelPaperDark : kPanelPaperLight];
+  if (claim.freezeDark)
+    [d setInteger:claim.rememberPhosphor forKey:kPanelDarkSnapshotPreset];
+  CrossPointPrefs_setPanelPalettePreset(panelpalette::kPresetCustom);
+  NSLog(@"[CrossPoint] palette: %@ editor claimed Custom; froze %@ at "
+        @"%@ on %@%@",
+        editingDark ? @"dark (mixer)" : @"light (ink picker)",
+        claim.freezeDark ? @"dark" : @"light", hexStringOf(other.ink),
+        hexStringOf(other.paper),
+        claim.freezeDark
+            ? [NSString stringWithFormat:@", phosphor preset %d",
+                                         claim.rememberPhosphor]
+            : @"");
 }
 
 int CrossPointPrefs_renderScale(void) {

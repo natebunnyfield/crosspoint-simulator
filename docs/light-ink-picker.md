@@ -429,12 +429,38 @@ Dark mode's stored state is unaffected: the custom DARK fields stay the
 mixer's. One consequence handled explicitly: the preset integer is shared by
 both appearances, so setting Custom for the light page would otherwise yank a
 named dark preset (the shipped White CRT) off the dark page too. The picker
-therefore snapshots the currently-RESOLVED dark pair into the dark hex fields
+therefore freezes the currently-RESOLVED dark pair into the dark hex fields
 once, before the preset first moves to Custom — the dark page keeps rendering
-the same tones. Known, accepted cost: a named CRT preset's *phosphor trail* is
-a property of the preset row, not of the hex pair, so after that snapshot the
-dark page keeps its color but not its decay (unless a gun mix is active, which
-carries its own).
+the same tones.
+
+**REVISED 2026-08-23, owner P1 ("ink is not being picked up ... fix sourcing for
+light and dark to be more accurate on load, switch etc").** Two things about the
+paragraph above were wrong, and both were fixed the same day.
+
+1. **The freeze is not this file's any more.** It is
+   `CrossPointPrefs_claimCustomFor(editingDark)`, one protocol both editors
+   call, decided by [src/PanelSource.h](../src/PanelSource.h). It had to be
+   shared because the mixer had no freeze at all: `applyGuns` wrote all FOUR hex
+   fields, so a gun moved in dark mode overwrote whatever ink had been chosen
+   here. Measured on an iPhone Air simulator: an applied Payne's Gray stored
+   `panelInkLight=323D47` and rendered page text at (30,37,43); one gun move
+   rewrote it to `6E0500` and the same text measured (64,3,0) — a red — while
+   `lightInkIndex` still read 15 and this picker still showed Payne's Gray as
+   the chosen row. That is the owner's report, in pixels.
+
+2. **The phosphor loss was never an acceptable cost, and is no longer paid.**
+   The old text called it "known, accepted": after the freeze the dark page kept
+   a named CRT's color but not its decay, because `pollPanelGlow` read the
+   preset integer and Custom names no phosphor. Measured: White CRT's 283 ms
+   emissive trail became 0 ms reflective the moment an ink was picked, and
+   stayed that way across relaunches. The claim now freezes the phosphor with
+   the tones, into `panelDarkSnapshotPreset`, and the glow asks
+   `crosspoint::glowPresetForPrefs()`. A gun mix still carries its own decay and
+   still wins.
+
+Pinned by `tests/panel_source_test.cpp` (bytes, both polarities, load / switch /
+both editor orders) and `tests/panel_source_test.py` (each editor writes only
+its own polarity's keys). Both fail against the pre-fix tree.
 
 ## 8. The drawer WAS the paper instrument (2026-08-22), and the sheet is FROZEN (2026-08-23)
 

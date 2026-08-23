@@ -61,8 +61,13 @@ static NSString *const kMixMode = @"phosphorMixMode";
 static NSString *const kMixBlend = @"phosphorMixBlend";   // "11:w,40:w,24:w,21:w"
 static NSString *const kMixActive = @"phosphorMixActive";
 static NSString *const kGunAssign = @"phosphorGunAssign"; // "11,40,24,21"
-static NSString *const kInkLight = @"panelInkLight";
-static NSString *const kPaperLight = @"panelPaperLight";
+// THE LIGHT PAGE'S TWO KEYS ARE DELIBERATELY NOT NAMED IN THIS FILE, and
+// tests/panel_source_test.py fails if they come back. This is DARK mode's
+// editor (2026-08-22 doctrine, docs/light-ink-picker.md); writing the light
+// pair from here is the owner's P1 of 2026-08-23. The one legal exception --
+// freezing the light page once, when this editor claims the shared Custom
+// slot -- goes through CrossPointPrefs_claimCustomFor, so it cannot be done
+// two different ways in two files.
 static NSString *const kInkDark = @"panelInkDark";
 static NSString *const kPaperDark = @"panelPaperDark";
 
@@ -175,13 +180,31 @@ void applyGuns(const int presets[kGunCount], const int w[kGunCount],
   [d setObject:@(gunmix::encodeBlend(presets, w).c_str()) forKey:kMixBlend];
   [d setInteger:phosphormix::Blend forKey:kMixMode];
 
+  // CLAIM THE CUSTOM SLOT FOR DARK, which freezes LIGHT first.
+  //
+  // THIS IS THE OWNER'S P1 OF 2026-08-23 ("ink is not being picked up"). Until
+  // it was written, the four lines below were SIX: this function also wrote
+  // r.light.ink and r.light.paper. That was correct while the mixer was the
+  // editor for both polarities, and became the bug on 2026-08-22 when the
+  // doctrine split them -- light is paper and ink with its own historical-ink
+  // picker, dark is the CRT and keeps this mixer (docs/light-ink-picker.md,
+  // which says in as many words that this file "remains dark mode's picker").
+  // The split moved the chip's branch and left this write, so every gun move in
+  // dark mode silently overwrote the light page's chosen ink. Measured: an
+  // applied Payne's Gray (the light ink field 323D47, page text (30,37,43))
+  // became
+  // 6E0500 and (64,3,0) after one gun move, with lightInkIndex still reading 15.
+  //
+  // The freeze is the mirror image of the ink picker's, through the same shared
+  // rule, so neither editor can be updated without the other being obviously
+  // wrong. src/PanelSource.h.
+  CrossPointPrefs_claimCustomFor(/*editingDark=*/1);
+
+  // DARK ONLY, from here down.
   const phosphormix::Result r = computeGuns(presets, w);
-  [d setObject:hexOf(r.light.ink) forKey:kInkLight];
-  [d setObject:hexOf(r.light.paper) forKey:kPaperLight];
   [d setObject:hexOf(r.dark.ink) forKey:kInkDark];
   [d setObject:hexOf(r.dark.paper) forKey:kPaperDark];
   [d setBool:YES forKey:kMixActive];
-  CrossPointPrefs_setPanelPalettePreset(panelpalette::kPresetCustom);
   CrossPointMixer_glowChanged();
   SimulatorOverlay::requestPresent();
   if (renderPage) crosspointRequestRender();
