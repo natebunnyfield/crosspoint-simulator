@@ -82,6 +82,26 @@ is the concrete mechanism behind the paragraph above; found 2026-08-16 while
 capturing palette proofs, after five identical runs produced two different
 screens.
 
+**A script CAN hold a button during boot, and that is the other half of the
+lever** (measured 2026-08-23; CLAUDE.md said it could not, and that sentence was
+wrong). `main.cpp:957` routes to Home when *either* the counter is non-zero
+**or** Back is held at the routing check, and a scheduled tap with a hold long
+enough to span it does exactly that:
+
+```
+CROSSPOINT_SIM_INPUT_SCRIPT='200:QTAP:BACK:2500;5000:QTAP:BACK;…'
+```
+
+The check runs around 850–1000 ms after launch, so a 2.5 s hold from 200 ms
+covers it with room for a slow first boot. It works because `QTAP` writes
+`syntheticButtonDown[]` directly — a *level*, which `isPressed()` reads — where
+a pushed SDL key event would produce only an edge. Where the counter needs the
+card written before launch (impossible from inside XCUITest, which can set only
+environment variables), this needs nothing but the script, so it is the portable
+one: `tools/axprobe`'s cover test uses it, and every launch there now starts on
+Home. Note the two levers point OPPOSITE ways — the counter above is written to
+0 to force the *book*, this forces *Home*.
+
 ### 5. Captures are BMP, whatever you name them
 
 `SDL_SaveBMP` writes the file (`src/HalDisplay.cpp:266`), so `shot.png` is a

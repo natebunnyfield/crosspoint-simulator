@@ -157,6 +157,9 @@ run readaloud_lines \
 run readaloud_geometry \
   c++ -std=c++20 -Isrc -o "$OUT/readaloud_geometry" tests/readaloud_geometry_test.cpp
 
+run spoken_page_text \
+  c++ -std=c++20 -Isrc -o "$OUT/spoken_page_text" tests/spoken_page_text_test.cpp
+
 run read_aloud_channel \
   c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
 

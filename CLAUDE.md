@@ -509,9 +509,14 @@ like a screenshot of a screen that never changed.
   `fs_/.crosspoint/state.json`.** Booting into the last book is deliberate —
   `main.cpp`'s comment is "The device IS the current book" — and Home exists only
   as an escape hatch for the two cases that need it: holding BACK during boot, or
-  a non-zero `readerActivityLoadCount` (the crash-recovery counter). Setting that
-  counter is the only lever a headless script has, since it cannot hold a button
-  during boot. Clearing `openEpubPath` or `lastSleepFromReader` does NOT work —
+  a non-zero `readerActivityLoadCount` (the crash-recovery counter). **A script
+  CAN hold a button during boot** — measured 2026-08-23, correcting the sentence
+  that stood here: `200:QTAP:BACK:2500` holds Back across the routing check
+  (~850–1000 ms) because `QTAP` writes `syntheticButtonDown[]`, a level that
+  `isPressed()` reads. That is the lever to prefer, since it needs no write to
+  the card and therefore works from XCUITest, which can set only environment
+  variables (`docs/headless-qa.md` §4).
+  Clearing `openEpubPath` or `lastSleepFromReader` does NOT work —
   both are checked, then the branch opens the book anyway unless one of those two
   escape conditions holds.
 - `HOME` is **not** handled by the reader. It reaches Home from Home (a no-op)
@@ -534,9 +539,11 @@ like a screenshot of a screen that never changed.
   against the current card (`find fs_ -print`) or grep the activity's log
   before trusting the script — this burned a debugging cycle on 2026-08-04
   (the "wrong file moved" was the script, not the firmware).
-- Inside the reader **Confirm does nothing** — there is no reader menu. Sending
-  `ENTER` while still on Home opens a book, which logs a page render; that is
-  the only thing ENTER does on either screen.
+- Inside the reader **Confirm opens Select Chapter** (`[ACT] Entering activity:
+  EpubReaderChapterSelection`, measured 2026-08-23 — this line used to say it
+  did nothing, which made it look like a state-independent way to reach the
+  reader; it is not, and a run was burned on that). From Home `ENTER` opens the
+  selected book, which logs a page render.
 - In Settings, `ENTER` on the first row cycles the category tab, so repeated
   `ENTER` + screenshot walks every tab.
 

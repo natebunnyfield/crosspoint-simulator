@@ -41,6 +41,21 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
                                      const ReadAloudWordRect *rects,
                                      unsigned rectCount);
 
+// Publish a page that RENDERED WITH NO CAPTURABLE TEXT -- a book's cover
+// wrapper (an <img> and nothing else), a dropped illustration -- together with
+// the words that truthfully describe it, or nothing at all.
+//
+// Owner ruling 2026-08-23: make the cover speak something. `utf8` comes from
+// spokenpage::forPage (src/SpokenPageText.h), which is where the honesty rules
+// live; an empty `utf8` means nothing true is known about this page, and this
+// then behaves exactly as it always did -- no element, and iOS correctly
+// reports that there is nothing to speak.
+//
+// NOT the same event as the reader leaving: the channel has always
+// distinguished them (ReadAloudChannel::publish sets `cleared` only for
+// publish(nullptr)), and a page still on screen keeps its element.
+void CrossPointAccessibility_setFallbackPage(const char *utf8, unsigned len);
+
 // True when the element set was built for a different Speak Screen state than
 // the current one -- the page-protocol element is included only while Speak
 // Screen is on, and toggling it mid-page must rebuild. The adapter re-pushes
@@ -68,7 +83,12 @@ void CrossPointAccessibility_notePageTurnRequested(void);
 // -- assistive tech on, page held, rects held, panel geometry, page view
 // installed, page view in the window, elements published. Throttled to changes
 // of that shape. Called every frame from the read-aloud adapter's drain.
-void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount);
+//
+// `fallbackBytes` is the textless-page substitute the adapter is holding, and
+// it is the link the 2026-08-23 cover ruling added: `page=0B rects=0 fb=0B` is
+// a page nothing can name, `page=0B rects=0 fb=48B` is a cover that speaks.
+void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount,
+                                      unsigned fallbackBytes);
 
 // Diagnostic: log what an assistive technology would actually reach.
 void CrossPointAccessibility_dumpTree(void);

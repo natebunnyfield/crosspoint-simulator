@@ -16,9 +16,30 @@ import XCTest
 // (ReaderUtils::detectPageTurn -- page-forward is the RIGHT front button, not
 // DOWN).
 final class CrossPointAXTests: XCTestCase {
-  private static let openAndReachText =
-    "4000:QTAP:BACK;10000:QTAP:RIGHT;14000:QTAP:RIGHT;18000:QTAP:RIGHT"
-  private static let settleSeconds: TimeInterval = 22
+  // `200:QTAP:BACK:2500` holds Back across the boot routing check, which is
+  // main.cpp's own escape hatch to Home (:957) and the only lever XCUITest has
+  // -- it can set environment variables and nothing else, and the alternative
+  // lever (readerActivityLoadCount in state.json) needs the card written before
+  // launch. Without it the boot destination alternates run to run, so `BACK`
+  // means "open the book" on one run and "leave the reader" on the next.
+  // Measured 2026-08-23; docs/headless-qa.md §4.
+  //
+  // Then Back opens the book, the LEFTs page to the FRONT of it, and one RIGHT
+  // steps off the cover onto the first page with prose on it.
+  //
+  // Paging back first is what makes "a body page" mean the same page every run.
+  // The app resumes wherever the last run left it, and this book's front matter
+  // is a run of nearly empty pages -- a half-title of 19 characters, a title
+  // page of 26 -- so a fixed number of RIGHTs from an unknown start lands on
+  // one of those about as often as on prose, and the >40-character assertion
+  // then fails on a page the app rendered and published perfectly. Measured
+  // twice on 2026-08-23 before this was pinned down.
+  private static let openAndReachText: String = {
+    var s = "200:QTAP:BACK:2500;5000:QTAP:BACK"
+    for i in 0..<8 { s += ";\(11000 + i * 2200):QTAP:LEFT" }
+    return s + ";29000:QTAP:RIGHT"
+  }()
+  private static let settleSeconds: TimeInterval = 40
 
   private func launchIntoABodyPage(forceSpeakScreen: Bool) -> XCUIApplication {
     let app = XCUIApplication(bundleIdentifier: "com.natebunnyfield.crosspoint.x3")
@@ -83,6 +104,74 @@ final class CrossPointAXTests: XCTestCase {
     XCTAssertGreaterThan(frame.width, 100, "page frame is collapsed horizontally")
     XCTAssertGreaterThan(frame.height, 100, "page frame is collapsed vertically")
     XCTAssertTrue(frame.intersects(screen), "the page frame is entirely off-screen")
+  }
+
+  // THE COVER, THROUGH APPLE'S OWN CHANNEL (owner ruling 2026-08-23).
+  //
+  // Every other test here pages PAST the cover, because a cover wrapper is an
+  // <img> and nothing else and the firmware correctly captures an empty page.
+  // This one stops on it deliberately. Until the ruling, an empty capture meant
+  // no element at all, so the first page of every book -- the one an owner sees
+  // the moment they open it -- answered Speak Screen with "No speakable content
+  // could be found on the screen" while the whole chain behind it was healthy.
+  //
+  // What it must now vend is something TRUE about the page: the book's name,
+  // from the recents entry the firmware wrote before the first render, and the
+  // fact that this page has no text on it. Never invented prose, and never the
+  // previous page's -- so the assertion is on the fallback's own words, not
+  // merely on the element being non-empty.
+  //
+  // Getting there is the fiddly half, and none of it is guesswork:
+  //
+  //  - `200:QTAP:BACK:2500` HOLDS Back across the boot routing check, which is
+  //    main.cpp's own escape hatch to Home (:957). Without it the boot
+  //    destination alternates -- a run killed inside the reader leaves
+  //    readerActivityLoadCount=1 and the next launch lands on Home instead of
+  //    the book -- and a fixed script then means something different every
+  //    other run. docs/headless-qa.md carries the measurement.
+  //  - Then Back opens the book from Home, and RIGHT-then-LEFTs walk to the
+  //    front of it. The app resumes wherever the last run left off, so the
+  //    surplus LEFTs are the margin; at the start of the book they are no-ops.
+  //  - The RIGHT before them is load-bearing: a page TURN onto the cover is
+  //    what publishes it. If the reader were already sitting on the cover,
+  //    every LEFT would be a no-op, nothing would publish, and the element
+  //    under test would never be built.
+  func testCoverPageSpeaksTheBookInstead() throws {
+    let app = XCUIApplication(bundleIdentifier: "com.natebunnyfield.crosspoint.x3")
+    var script = "200:QTAP:BACK:2500;5000:QTAP:BACK;10000:QTAP:RIGHT"
+    for i in 0..<10 { script += ";\(16000 + i * 2200):QTAP:LEFT" }
+    app.launchEnvironment["CROSSPOINT_SIM_INPUT_SCRIPT"] = script
+    app.launchEnvironment["CROSSPOINT_SIM_FORCE_SPEAKSCREEN"] = "1"
+    app.launch()
+    Thread.sleep(forTimeInterval: 44)
+
+    let page = app.descendants(matching: .any)["crosspoint.page-textinput"]
+    print("AXPROBE cover page-textinput exists: \(page.exists)")
+    XCTAssertTrue(page.exists,
+      "a page with no text vends NO element at all -- the cover is silent again")
+
+    let value = (page.value as? String) ?? ""
+    print("AXPROBE cover page-textinput value: \"\(value)\"")
+    print("AXPROBE cover page-textinput frame=\(page.frame)")
+    XCTAssertFalse(value.isEmpty, "the cover's element is served but carries nothing")
+    XCTAssertTrue(value.contains("This page has no text"),
+      "the cover vends \"\(value)\" -- not the textless-page fallback. Either the "
+      + "reader is not on the cover (page back further), or the card could not "
+      + "name the book (recent.json / state.json).")
+    // The frame is the panel's, exactly as a text page's is: an element iOS
+    // cannot place is an element it may skip.
+    XCTAssertGreaterThan(page.frame.width, 100, "cover page frame is collapsed horizontally")
+    XCTAssertGreaterThan(page.frame.height, 100, "cover page frame is collapsed vertically")
+
+    // AND NOT A SUPPLEMENT. There are no words on this page, so there are no
+    // line elements over the panel either -- VoiceOver's experience of a blank
+    // page is byte-identical to what it was before the fallback existed.
+    let overPanel = app.staticTexts.allElementsBoundByIndex.filter {
+      $0.frame.intersects(page.frame) && !$0.label.isEmpty
+    }
+    print("AXPROBE cover line elements over the panel: \(overPanel.count)")
+    XCTAssertEqual(overPanel.count, 0,
+      "a page with no words produced line elements: \(overPanel.map { $0.label })")
   }
 
   // The same, but with the REAL system flag rather than the app's override.
