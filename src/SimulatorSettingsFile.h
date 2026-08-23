@@ -97,6 +97,17 @@ inline int intOr(const Values &v, const char *key, int fallback) {
   return static_cast<int>(it->second);
 }
 
+// Is CROSSPOINT_SIM_AS_SHIPPED on? Latched once, and shared rather than
+// re-derived, because the watcher and the boot seed have to agree about it.
+inline bool asShippedWanted() {
+  static const bool wanted = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_AS_SHIPPED");
+    return e && e[0] == '1';
+  }();
+  return wanted;
+}
+
+
 // The file written on first run, so there is something to edit rather than a
 // blank. Values here are the iOS defaults, so a fresh desktop install and a
 // fresh phone install describe the same app.

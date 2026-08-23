@@ -191,32 +191,49 @@ void applyDials(const Values &v) {
       phosphorgrain::kMottleCellsDefault,
       intOr(v, "phosphorGrainMottleDepth",
             (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
+  // An ABSENT key is not the same thing as a key set to the default, and the
+  // difference is the whole of this lambda. The watcher re-reads the file about
+  // once a second, so applying a default for a key nobody wrote silently
+  // overwrote whatever seeded the dial at boot -- which meant
+  // CROSSPOINT_SIM_AS_SHIPPED undid itself a second after it ran, the exact
+  // divergence that switch exists to prevent. Found 2026-08-23 after it cost
+  // two rounds of wrong measurements. An explicit key still wins in both modes:
+  // a value the owner typed is a decision, a missing key is not.
+  const auto dial = [&v](const char *key, int fallback, void (*set)(int)) {
+    const auto it = v.find(key);
+    if (it != v.end()) {
+      set(static_cast<int>(it->second));
+    } else if (!asShippedWanted()) {
+      set(fallback);
+    }
+  };
+
   // The 2026-08-22 doctrine dials. 0 is the desktop default for both -- a file
   // without the keys renders what the desktop always rendered.
-  SimulatorOverlay::setLetterpress(intOr(v, "letterpressPercent", 0));
+  dial("letterpressPercent", 0, SimulatorOverlay::setLetterpress);
   // The paper instrument. Same keys and same units as the iOS app, so a
   // settings.json and a phone cannot disagree about what a sheet looks like.
   // Defaults are the desktop's historical values, not the app's.
-  SimulatorOverlay::setPaperTooth(intOr(v, "paperToothPercent", 100));
-  SimulatorOverlay::setPaperFormation(intOr(
-      v, "paperFormationPercent",
-      static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)));
-  SimulatorOverlay::setPaperDefects(
-      intOr(v, "paperDefectsPercent", paperdefects::kDialOff));
-  SimulatorOverlay::setPaperDrift(
-      intOr(v, "paperDriftPercent", lightink::kPaperDriftDefault));
+  dial("paperToothPercent", 100, SimulatorOverlay::setPaperTooth);
+  dial("paperFormationPercent",
+       static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f),
+       SimulatorOverlay::setPaperFormation);
+  dial("paperDefectsPercent", paperdefects::kDialOff,
+       SimulatorOverlay::setPaperDefects);
+  dial("paperDriftPercent", lightink::kPaperDriftDefault,
+       SimulatorOverlay::setPaperDrift);
   // A raw percent, not a paper index: the desktop file has no ink/paper
   // picker, so laidness cannot be derived here the way the phone derives it.
   // 0 is the historical desktop rendering.
-  SimulatorOverlay::setLaidLines(intOr(v, "laidLinesPercent", 0));
-  SimulatorOverlay::setPressRing(intOr(v, "pressRingPercent", 100));
-  SimulatorOverlay::setPressDeboss(intOr(v, "pressDebossPercent", 100));
-  SimulatorOverlay::setPressPressure(intOr(v, "pressPressurePercent", 100));
-  SimulatorOverlay::setScanlines(intOr(v, "scanlinesPercent", 0));
-  SimulatorOverlay::setScanlineSize(
-      intOr(v, "scanlineSizePercent", scanlines::kSizeFine));
-  SimulatorOverlay::setScanlineBloom(
-      intOr(v, "scanlineBloomPercent", scanlines::kBloomStandard));
+  dial("laidLinesPercent", 0, SimulatorOverlay::setLaidLines);
+  dial("pressRingPercent", 100, SimulatorOverlay::setPressRing);
+  dial("pressDebossPercent", 100, SimulatorOverlay::setPressDeboss);
+  dial("pressPressurePercent", 100, SimulatorOverlay::setPressPressure);
+  dial("scanlinesPercent", 0, SimulatorOverlay::setScanlines);
+  dial("scanlineSizePercent", scanlines::kSizeFine,
+       SimulatorOverlay::setScanlineSize);
+  dial("scanlineBloomPercent", scanlines::kBloomStandard,
+       SimulatorOverlay::setScanlineBloom);
 }
 
 }  // namespace
