@@ -73,8 +73,87 @@ same cache key.
 | **Fly specks** | Insect frass. Genuinely near-black, genuinely tiny, and the reason this layer needs its own floor. | Hard-edged near-black dots | achromatic, deep |
 | **Wax spots** | Candle wax and sebum, which make the sheet locally translucent so it reads slightly darker against the ground behind it. | Soft, very shallow, larger | achromatic, shallow |
 
-Incidence scales with the dial (0–100, default 30); the DEPTHS do not. Turning
-the dial up gives an older book, not a dirtier ink.
+Four more were appended on 2026-08-22 with the raised ceiling — see §6.
+
+## 2b. The dial's two halves (2026-08-22)
+
+Owner order, after seeing a render: *"raise the defect ceiling so 100% is
+actually distracting. be sure to include examples of flecks and marks and other
+paper making realism."*
+
+The complaint was measured, and it was right. At dial 100 the strongest mark on
+a 792×528 sheet moved a pixel by about **36 of 255** across a soft bloom. The
+brief for the two ends is `30` = "happens occasionally and not every page" and
+`100` = "distracting and not very legible"; 30 was already right and 100 was
+nowhere near.
+
+Those two ends pull opposite ways, so the dial is now **two terms** and only one
+of them is new:
+
+```
+incidence(d) = d / 100                          the shipped linear law, untouched
+surge(d)     = t^2,  t = (d - 50) / 50,  and EXACTLY 0 at or below d = 50
+```
+
+Everything the model already did rides `incidence`. Everything added — the deep
+tints, the larger radii, the extra counts, the deeper depth range, and all four
+new kinds — rides `surge`.
+
+**Why the square, and why it starts at 50.** A straight ramp from 50 is already
+half strength at 75; the owner's word for the top is a *quarter* of the dial.
+`surge(75) = 0.25`, `surge(90) = 0.64`, `surge(100) = 1`, so three quarters of
+the travel happens in the top quarter, which is where he asked for it.
+
+**Why "exactly 0" matters more than "small".** Because `surge` is identically
+zero through the lower half, the model emits the *same mark list, byte for byte*,
+that shipped — at every dial from 0 to 50, including the default 30. That is not
+an intention, it is checked: `tests/paper_defects_test.cpp` carries six FNV-1a
+checksums of the composited sheet (tooth + marks, 420×300, seed `0x5EED1234`)
+frozen off commit `28029d1` **before a line of the new model was written**, and
+asserts them at dials 0/10/20/30/40/50. A checksum re-derived from the new code
+would agree with itself no matter what moved; these do not.
+
+The verified delta at dial 30 is therefore **zero on every byte**.
+
+### What actually rose, on all three axes
+
+| Axis | At `surge` 0 | At `surge` 1 |
+|---|---|---|
+| Tint | `KindInfo::tint` — the shipped column, unmoved | `KindInfo::tintDeep`, lerped per mark |
+| Size | `radiusMin..radiusMax` | `radiusMin..radiusMaxDeep`, roughly 2× the top |
+| Count | `countAt100 × d/100`, rounded | plus `countSurge × surge`, floor + a per-page Bernoulli on the fraction |
+| Depth | `0.55 + 0.45u` | `0.72 + 0.28u` — the floor rises, the top stays 1.0 |
+
+**The tint had to travel rather than be scaled.** Deep foxing is a rust brown.
+The shipped tint is `(1.00, 0.93, 0.86)`, whose red deficit is exactly zero, so
+*any* scalar multiple of that deficit vector is a neon orange — no amount of
+"more depth" can reach brown from there. A second tint per kind, interpolated,
+is the only way the hue arrives somewhere real.
+
+**The fractional counts are a per-page Bernoulli, not a rounding.** A kind whose
+expectation is 0.4 marks then "happens occasionally and not every page" — the
+owner's own phrase, applied at the top of the dial to the rare damage kinds. It
+is safe to do this only for the surge term, because the surge term is zero
+through the frozen half.
+
+### Measured, at dial 100, 792×528, repo-default palette
+
+| Kind | Peak channel shift, before | after |
+|---|---|---|
+| foxing | ≈36 | **179** |
+| red rag | | **170** |
+| blue mark | | **143** |
+| brown stain | | **142** |
+| fly speck | | **238** |
+| wax spot | | **42** (deliberately the shallow end — wax is translucency) |
+| shive | | **206** |
+| crease | | **94** |
+| clipping burn | | **145** |
+| set-off | | **82** (deliberately the shallow end — it is a ghost) |
+
+Whole page against the same page at dial 0: mean channel delta **14.2 / 255**,
+**29.6%** of pixels changed by more than 4 levels. At dial 30 the same figures
+are 0.062 and 0.44%.
 
 ## 3. Safety, which is the part with teeth
 
@@ -109,6 +188,63 @@ explicitly** rather than sampling and hoping.
 
 When a palette sits at the floor, `remaining` is 0 and the defects vanish. That
 is correct, and it is the same structural posture the tooth already has.
+
+### 3b-bis. The bound was never what made the marks faint (2026-08-22)
+
+This is the honest re-derivation the raised ceiling rests on, and it overturns
+the assumption the first version of this feature was tuned under.
+
+The budget is denominated in **mean luminance darkening over the whole sheet**.
+Measured on a 792×528 sheet at dial 100, the SHIPPED table spent:
+
+```
+total bound = 0.00038      (brown stain 72%, foxing 16%, fly speck 7%, wax 4%, rest ~1%)
+```
+
+against what the palettes actually leave:
+
+| Palette | `paperBudget` | tooth's share | `remainingPaperBudget` |
+|---|---|---|---|
+| black on white | 0.7000 | 0.0150 | **0.6850** |
+| repo default (2D2D2D on FBFBF9) | 0.4980 | 0.0150 | **0.4830** |
+| iron gall on rag | 0.4386 | 0.0150 | **0.4236** |
+| sepia ink on tan | 0.3169 | 0.0150 | **0.3019** |
+| latte | 0.0093 | 0.0186 | **0.0000** |
+
+So on the repo default the layer was spending **1/1270th** of its allowance. The
+budget clamp had never once bitten. The marks were faint because their *tints*
+were faint — a taste decision — not because the safety argument made them faint.
+
+The structural reason sparse deep marks are cheap: the bound is
+`area × profileMean × depth × lumDeficit / (w·h)`. A fly speck is near-black
+(`lumDeficit` 0.90) and 2 px across, so twenty-four of them cost 0.00026. What
+costs is *area*: the two clipping burns are 52% of the whole bill at dial 100.
+
+**After the raise, at dial 100:** total bound **0.0577**, measured mean
+darkening **0.0461** (792×528, seed `0xABCDEF01`; the two clipping burns are
+still the single biggest line at ~50% of the bill, foxing and brown stain next).
+Still **10× inside** what the repo default leaves and **6× inside** sepia.
+The clamp continues not to bite on any palette with real headroom, and the
+ceiling is therefore set by TASTE — which is the honest thing to say about it.
+
+### 3b-ter. The ceiling IS palette-dependent, and it always was
+
+The brief asked for a palette-dependent ceiling if the honest bound would not
+let 100 be distracting on a tight palette. It already is one, and no new
+mechanism was needed: `remainingBudget` is per-palette and `generate()` scales
+every mark's depth by `remaining / bound`. So the same dial 100 is
+
+- **loud** on black-on-white and the repo default (0.68 / 0.48 remaining, no
+  scaling at all — the marks render at full strength);
+- **restrained** on a tight palette, scaled down continuously;
+- **absent** on latte, whose budget is 0.0093 and which the tooth alone
+  exhausts. The layer vanishes rather than taking the page under 7:1.
+
+The worst case the sweep finds at dial 100 *where marks were actually painted*
+is **7.002:1** — on latte, at the (strength, tooth) combination that leaves it a
+sliver of headroom. That figure is the clamp binding tightly rather than loosely,
+which is exactly what it should do: it spends the last of the allowance and
+stops at the floor.
 
 ### 3c. The bound is an upper bound, and it is enforced in the model
 
@@ -196,3 +332,77 @@ Every proof and render run needs `CROSSPOINT_SIM_DARK=0` alongside it:
 `CROSSPOINT_SIM_AS_SHIPPED=1` forces DARK, and letterpress only draws on a light
 page. Getting that wrong yields captures with no letterpress at all, which look
 exactly like a failed feature.
+
+
+## 6. Four kinds appended, six candidates rejected (2026-08-22)
+
+Owner: *"be sure to include examples of flecks and marks and other paper making
+realism."* The brief named nine candidates. Four are in; five are out, and one
+of the four was reshaped on the way. Nothing here was photographed — the tints
+and sizes are CHOSEN to match what the sources describe, the same honesty
+posture as `Letterpress.h`'s component table.
+
+The bar each candidate had to clear: **(a)** real, **(b)** visible at 792×528 on
+a reading page, **(c)** not already covered by an existing kind, **(d)**
+expressible as a strictly-darkening per-channel multiplier — this layer composites
+`SDL_BLENDMODE_MOD` and *cannot lighten anything*, which decides three of the
+rejections on its own.
+
+### In
+
+| Kind | Shape | Mechanism, and the source it comes from |
+|---|---|---|
+| **shive** | hard ellipse, high aspect | An undigested bundle of fibres — a splinter of wood that survived pulping — dark brown against the sheet. The characteristic defect of mechanical/groundwood and unbleached kraft stock, and the thing "shive counting" is a standard pulp QC measure *for*. Distinct from **red rag**, which is a *dyed textile* fleck from the rag engine of a pre-1850 European mill (Hunter, *Papermaking*): different furnish, different colour, different era. This is the papermaking one the table lacked. |
+| **crease** | soft ellipse, aspect ~1:100 | A fold's shadow: a soft dark line clean across the sheet, slightly soiled along its length. Handling damage, and the commonest thing in a second-hand copy. Modulated along its length (`raggedCellsX/Y` are separate per axis precisely so a 400×3 px mark can vary along itself without dissolving across itself). |
+| **clipping burn** | rotated rect, HARD edge one side, wash to the other | Acid migration from an inclusion left in the book — a newspaper clipping is the classic, and preservation guidance names newsprint, pressed flowers and metal clips together for the same reason. The signature is a **straight brown edge** where the clipping lay, with a graded wash into the sheet. It gets its own shape because an ellipse cannot make a straight edge, and the straight edge is the entire tell. Placed against a margin (`PlaceMargin`). |
+| **set-off** | rotated rect, soft, striped | The trade's own word for a facing page's still-wet ink transferring to the sheet opposite. Slip-sheeting and anti-set-off spray exist because of it; it is routine in hand-press books (Gaskell, *A New Introduction to Bibliography*). Rendered as a faint block the size of a text block, striped along the short axis so it reads as ghosted *lines of type*. **This is an approximation and is labelled one**: a true ghost would need the facing page's framebuffer, which this layer does not have. |
+
+### Out, with reasons
+
+- **Laid pattern (chain and wire lines).** Real, and the single most recognisable
+  feature of pre-1757 European paper — laid lines ~20–28 to the inch, chain lines
+  ~25 mm apart (Hunter). **Rejected from this table because it is not a defect**:
+  it is a property of the *stock*, uniform over the whole sheet, and its home is
+  `Letterpress.h`/`LightInkPalette.h` beside the tooth and the formation, not a
+  list of marks with positions. There is also a hard technical objection recorded
+  here so it is not re-derived: a regular grid at roughly one line per 2–3 device
+  pixels written into a full-sheet field is precisely the ST-008 moiré generator
+  (the panel is minified to 0.7955 on a phone), and the measured beat amplitude
+  for a regular field at that scale was 8.14 levels. If laid paper is ever wanted
+  it needs its own design, at output size, with that beat measured — not a row in
+  `kKinds`.
+- **Watermark ghosting.** Real: a wire design sewn to the mould thins the sheet
+  there. Rejected on two independent grounds. It is a **lightening** in
+  transmitted light and this layer can only darken, so implementing it here would
+  be physically backwards; and a watermark is one design per *mould*, so it would
+  have to repeat identically across every page of a book — a book-level property,
+  not a page-level one, and the seed here is `(book, spine, page)`.
+- **Pin holes / needle marks.** Rejected as **already covered and out of contract**.
+  At 792×528 a hole reads as a small dark dot, which is what **fly speck** already
+  paints; and a hole is a *hole* — `kMinMultiplier`'s comment draws exactly that
+  line ("a hole in the sheet is a different phenomenon and this is not it"). The
+  drying-loft mark that *is* real and *is* distinct is the rope mark the sheet
+  hung over, which is a **crease** by another name and is in.
+- **Deckle-edge fibre wander.** Real — the feathered thin edge left by the
+  mould's frame. Rejected because the "sheet" in this simulator is the whole
+  output surface and has no visible silhouette: a deckle would draw a band along
+  the *bezel*, not along a page edge. It is also a thinning, i.e. a lightening.
+- **A separate "tide line" kind.** Rejected as duplicate: **brown stain** is
+  already tannin migration and old water damage, and a second large soft brown
+  kind would be two rows painting the same page.
+
+### The rect footprint, which is where this could have gone quietly wrong
+
+Two of the four are rectangles, not ellipses. `markDarkeningBound` therefore takes
+its footprint from `footprintFactorFor(shape)` — `π·rx·ry` for the ellipse shapes,
+`4·rx·ry` for the rect ones — and `bounds()` uses the rotated-rect extent
+`|rx·cosA| + |ry·sinA|` rather than the inscribed ellipse's. Getting the first
+wrong understates the bound by 27%; getting the second wrong clips a straight
+edge along its diagonal, which reads as a rendering artifact rather than as a bug
+in a bounds function. Both profile means are closed form and both are rounded
+**up**, because the bound must over-state:
+
+```
+band  = mean_u min(1, (1-u^2)/0.55) x mean_v (1-v)/2 = 0.8462 x 0.5 = 0.4231 -> 0.43
+ghost = (mean_u (1-u^2)^2)^2                         = (8/15)^2      = 0.2844 -> 0.29
+```
