@@ -296,6 +296,41 @@ xcodebuild archive \
   -archivePath "$ARCHIVE" \
   "${AUTH[@]}" | tail -5
 
+say "Collect dSYM"
+# The archive's dSYMs/ comes out EMPTY on its own, and that is a CMake artifact
+# rather than a missing setting: CMake pins CONFIGURATION_BUILD_DIR to its own
+# build tree, so DWARF_DSYM_FOLDER_PATH lands outside the archive's products
+# path and Xcode's collector never sees it. The .app still reaches the archive
+# because it goes through INSTALL_PATH; the dSYM has no such route. So copy it
+# in, and PROVE it belongs to the binary that shipped -- a mismatched UUID
+# symbolicates nothing while looking exactly like a dSYM that works.
+#
+# Not cosmetic: build 110's device crash (2026-08-21) had to be read off a
+# disassembly because these archives carried no symbols at all.
+DSYM_SRC="$BUILD_DIR/ios/Release-iphoneos/CrossPointX3.app.dSYM"
+if [[ ! -d "$DSYM_SRC" ]]; then
+  echo "ERROR: no dSYM at $DSYM_SRC — DEBUG_INFORMATION_FORMAT is not producing one."
+  exit 1
+fi
+mkdir -p "$ARCHIVE/dSYMs"
+rm -rf "$ARCHIVE/dSYMs/CrossPointX3.app.dSYM"
+cp -R "$DSYM_SRC" "$ARCHIVE/dSYMs/"
+APP_UUID=$(otool -l "$ARCHIVE/Products/Applications/CrossPointX3.app/CrossPointX3"            | grep -A2 LC_UUID | awk '/uuid/{print $2}')
+DSYM_UUID=$(dwarfdump --uuid "$ARCHIVE/dSYMs/CrossPointX3.app.dSYM" | awk '{print $2}')
+if [[ -z "$APP_UUID" || "$APP_UUID" != "$DSYM_UUID" ]]; then
+  echo "ERROR: dSYM UUID $DSYM_UUID does not match the binary's $APP_UUID."
+  exit 1
+fi
+# And that it covers the FIRMWARE, not just the harness. crosspoint_core is 144
+# of the 162 TUs; an archive whose dSYM has only the harness in it is the
+# stripped-static-library failure (see ios/CMakeLists.txt STRIP_INSTALLED_PRODUCT).
+DSYM_CUS=$(dwarfdump --debug-info "$ARCHIVE/dSYMs/CrossPointX3.app.dSYM" 2>/dev/null            | grep -c DW_TAG_compile_unit || true)
+if (( DSYM_CUS < 100 )); then
+  echo "ERROR: dSYM carries only $DSYM_CUS compile units — the firmware is missing from it."
+  exit 1
+fi
+echo "  dSYM $APP_UUID, $DSYM_CUS compile units, $(du -sh "$ARCHIVE/dSYMs" | cut -f1)"
+
 say "Export IPA"
 rm -rf "$EXPORT_DIR"
 xcodebuild -exportArchive \

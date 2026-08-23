@@ -102,6 +102,7 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   file(GLOB _seed_families RELATIVE "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
     "${CROSSPOINT_IOS_SEED_FONTS_DIR}/*")
   set(_seed_count 0)
+  set(_seed_bundled_families "")
   foreach(_family IN LISTS _seed_families)
     set(_family_dir "${CROSSPOINT_IOS_SEED_FONTS_DIR}/${_family}")
     if(IS_DIRECTORY "${_family_dir}")
@@ -112,6 +113,7 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
         target_sources(CrossPointX3 PRIVATE ${_family_fonts})
         list(LENGTH _family_fonts _n)
         math(EXPR _seed_count "${_seed_count} + ${_n}")
+        list(APPEND _seed_bundled_families "${_family}")
         message(STATUS "Seed fonts: ${_family} (${_n} files)")
       endif()
       # Hi-res companion sets, for EVERY tier this build can render at.
@@ -163,6 +165,69 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       "contains no <Family>/*.cpfont files — wrong path, or the font build "
       "did not run.")
   endif()
+
+  # --- Installed-family gate -----------------------------------------------
+  #
+  # A bundled family that sd-fonts.yaml's `installed_families` does not name is
+  # DEAD WEIGHT, not a bonus: every reading surface filters through
+  # readingfonts::offeredForReading(), and the editor faces resolve from the
+  # compiled-in tables without ever consulting the card
+  # (lib/EpdFont/../EditorFonts.h). Nothing in the app can select it, and
+  # nothing said so — the seed list was hand-typed in two places (the CI
+  # `seed_fonts` input and whatever local tree CROSSPOINT_SEED_FONTS_DIR points
+  # at) with no cross-check. Build 126 shipped iA Writer Duo, Mono and Quattro
+  # that way: 16,163,105 compressed bytes of the IPA (18.2 %) and 73,935,812
+  # installed, all unreachable. See docs/ios-app-size.md A1.
+  #
+  # Same shape as the define-parity gate below: mechanical, at configure time,
+  # before a single TU compiles.
+  set(_sd_fonts_yaml "${CROSSPOINT_FIRMWARE_DIR}/lib/EpdFont/scripts/sd-fonts.yaml")
+  if(NOT EXISTS "${_sd_fonts_yaml}")
+    message(FATAL_ERROR
+      "Seed fonts were requested but ${_sd_fonts_yaml} is missing, so the "
+      "bundled families cannot be checked against installed_families. Point "
+      "CROSSPOINT_FIRMWARE_DIR at a firmware checkout.")
+  endif()
+  file(STRINGS "${_sd_fonts_yaml}" _sd_fonts_lines)
+  set(_installed_families "")
+  set(_in_installed FALSE)
+  foreach(_line IN LISTS _sd_fonts_lines)
+    if(_line MATCHES "^installed_families:")
+      set(_in_installed TRUE)
+    elseif(_in_installed)
+      if(_line MATCHES "^  *- +([A-Za-z0-9_]+)")
+        list(APPEND _installed_families "${CMAKE_MATCH_1}")
+      elseif(_line MATCHES "^[A-Za-z]")
+        set(_in_installed FALSE)
+      endif()
+    endif()
+  endforeach()
+  if(NOT _installed_families)
+    message(FATAL_ERROR
+      "Parsed no installed_families out of ${_sd_fonts_yaml}. The key moved or "
+      "its list format changed; fix this gate rather than deleting it.")
+  endif()
+  set(_unreachable_families "")
+  foreach(_family IN LISTS _seed_bundled_families)
+    if(NOT _family IN_LIST _installed_families)
+      list(APPEND _unreachable_families "${_family}")
+    endif()
+  endforeach()
+  if(_unreachable_families)
+    string(REPLACE ";" ", " _unreachable_text "${_unreachable_families}")
+    string(REPLACE ";" ", " _installed_text "${_installed_families}")
+    message(FATAL_ERROR
+      "Seed fonts: ${_unreachable_text} — bundled from "
+      "${CROSSPOINT_IOS_SEED_FONTS_DIR} but NOT in installed_families "
+      "(${_installed_text}) in ${_sd_fonts_yaml}.\n"
+      "No reading or editor surface in the app can select a family that list "
+      "does not name, so this is megabytes of unreachable bundle. Remove it "
+      "from the seed tree (and from the CI seed_fonts input), or, if it really "
+      "should be selectable, add it to installed_families — which is an owner "
+      "ruling, not a build fix.")
+  endif()
+  list(LENGTH _seed_bundled_families _n_fam)
+  message(STATUS "Seed fonts: ${_n_fam} families, all in installed_families")
 endif()
 
 # Default books, always bundled (small public-domain testers checked into
@@ -348,6 +413,15 @@ set_target_properties(CrossPointX3 PROPERTIES
   # moves the pad into the side margins (owner-approved spec, ios/README.md).
   XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
   XCODE_ATTRIBUTE_ENABLE_BITCODE "NO"
+  # ld64's DEAD_CODE_STRIPPING defaults to NO (Ld.xcspec), so until 2026-08-22
+  # the archive linked with no -dead_strip at all: the summed object
+  # contributions of libcrosspoint_core.a + libSDL3.a (21.07 MB) essentially
+  # equalled the binary's non-zerofill segments (20.35 MB). The glyph tables
+  # are all reached from setupDisplayAndFonts(), the harness loads no plugin
+  # and does no dlsym, and __objc_classlist is 240 bytes -- so there is nothing
+  # here that only a runtime lookup can find. Measure __TEXT,__const before and
+  # after when touching this: if it MOVES, a glyph table was stripped.
+  XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING "YES"
   XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
   # Required for `xcodebuild archive` to produce a DISTRIBUTABLE archive.
   #
@@ -361,7 +435,38 @@ set_target_properties(CrossPointX3 PROPERTIES
   XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
   # A release build for distribution should not carry the simulator's debug
   # assertions; the firmware is noisy enough on a 64-bit host as it is.
-  XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH[variant=Release] "NO")
+  XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH[variant=Release] "NO"
+  # A SHIPPED BUILD MUST BE SYMBOLICATABLE. CMake's Release config carries no
+  # `-g`, so Xcode wrote GCC_GENERATE_DEBUGGING_SYMBOLS = NO, no DWARF was
+  # emitted, and every archive's dSYMs/ directory came out EMPTY -- which is
+  # only discovered when a crash report arrives. Build 110's device crash
+  # (2026-08-21) had to be diagnosed by disassembling the shipped binary and
+  # reading registers, for exactly this reason.
+  #
+  # Debug info lives in the .o files and is collected into the dSYM at link
+  # time; the shipped Mach-O keeps only the debug map in its symbol table, and
+  # the product is stripped. So this is close to free in the IPA -- measured
+  # rather than assumed; the numbers are in docs/ios-app-size.md.
+  XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Release] "YES"
+  XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT[variant=Release] "dwarf-with-dsym")
+
+# And on the LIBRARY as well, for the same reason every cross-cutting define
+# goes there: the app target is 7 TUs of 162. A dSYM built from the harness
+# alone symbolicates the harness alone, and every firmware frame -- which is
+# where the crashes are -- stays a bare address.
+#
+# STRIP_INSTALLED_PRODUCT NO is the other half, and without it the first half
+# is a placebo. `xcodebuild archive` runs with DEPLOYMENT_POSTPROCESSING=YES,
+# which strips every INSTALLED product -- including this static library, which
+# CMake installs into UninstalledProducts/ and then links the app against by
+# absolute path. Stripping an .a removes its DWARF, dsymutil finds no debug map
+# entry for those objects, and the dSYM comes out covering the 18 harness TUs
+# and none of the 144 firmware ones: 2.7 MB of exactly the frames that never
+# crash. Measured that way once (2026-08-22) before this line was added.
+set_target_properties(crosspoint_core PROPERTIES
+  XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS[variant=Release] "YES"
+  XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT[variant=Release] "dwarf-with-dsym"
+  XCODE_ATTRIBUTE_STRIP_INSTALLED_PRODUCT "NO")
 
 if(CROSSPOINT_IOS_TEAM_ID)
   # Entitlements are attached to DEVICE builds only. The Simulator does not
