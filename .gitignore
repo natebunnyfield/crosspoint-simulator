@@ -12,3 +12,10 @@ compile_commands.json
 ios/seedfonts/
 __pycache__/
 build-simsdk/
+
+# Generated: the packaged Mac bundles (deploy_mac_apps.sh) and the QA capture
+# scratch. Both are build products of scripts in this repo, both are tens of MB,
+# and both were untracked-but-not-ignored until 2026-08-23 -- so every git status
+# offered to add 38 MB of binaries.
+dist/
+qa/
