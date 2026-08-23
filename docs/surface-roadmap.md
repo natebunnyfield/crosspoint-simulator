@@ -283,7 +283,9 @@ change repaginates — `ReaderRenderSpec` keys the section cache). Risk: high, a
 it is a firmware change, not a simulator one. But it is the difference between
 "a machine broke these lines" and "a typesetter did".
 
-**T2. Justification has no word-space limit — by explicit decision.**
+**T2. Justification has no word-space limit — by explicit decision.** PARTLY OVERTAKEN 2026-08-23 by automatic justification (firmware `7b75aa06d`): the measure now decides justified vs ragged at Bringhurst's 40-character threshold, so the worst case this item describes -- a short justified line with few gaps -- can no longer arise from a NARROW measure. It can still arise inside a wide measure on a short last-line-but-one, so the stretch limit remains a real item, at lower value.
+
+ORIGINAL ITEM: 
 `computeJustifyExtra()` (`ParsedText.cpp:200-208`) distributes spare space
 evenly across the gaps and the comment says it **deliberately does not cap the
 stretch**. There is no minimum/maximum word space, no glue shrink, and no
@@ -294,7 +296,9 @@ either hyphenates harder or gives up and sets the line ragged. Cost: medium.
 Risk: medium (it changes measure-fit, so pagination moves). This and T1 are the
 same conversation.
 
-**T3. Optical margins are right-edge only.** The opening quote, the opening
+**T3. ~~Optical margins are right-edge only.~~ SHIPPED 2026-08-23** (firmware `bdfe5f663`). One table with a leading column rather than a parallel table; trailing values byte-identical. Measured on X3 at 18 px: opening double quote -5 px, single -3, open paren -2, em dash -10, ordinary lines 0, line bands unchanged. Dashes hang a QUARTER not a half -- half an em measured 14 px, wider than the whole left margin at Screen Margin 0. The build also found a clipping bug the item did not anticipate: an uncapped hang walks off the panel edge rather than into a margin, so it is clamped to the real gutter. Section cache 42 -> 43, because a hang is break-neutral but its painted x lives in the cached blocks.
+
+ORIGINAL ITEM:  The opening quote, the opening
 parenthesis, and a capital `T`/`W`/`A` at the start of a line should also hang
 *left* — that is what "optical margin alignment" means in a proper setter, and
 the left edge is the one the eye reads down. Half the feature is missing and it

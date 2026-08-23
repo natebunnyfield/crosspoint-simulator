@@ -1574,21 +1574,25 @@ void HalDisplay::begin() {
     // The 2026-08-22 doctrine dials. Letterpress was frozen at Standard on
     // 2026-08-23 with the settings removal; scanlines stayed Subtle.
     SimulatorOverlay::setLetterpress(100);
-    // ...and the paper instrument's own shipped defaults. The desktop seeds
-    // every one of these at "what this repo already drew" so the canary stays
-    // byte-identical; the app ships a sheet with formation and marks on it, and
-    // rebuilding that by hand from five env vars is exactly the drift this
-    // switch exists to stop.
-    SimulatorOverlay::setPaperFormation(static_cast<int>(
-        letterpress::kFormationDepthDefault * 100.0f + 0.5f));
-    // 0 since 2026-08-23: the app ships an unmarked sheet, and the light
-    // picker's Defects slider is now the only thing that marks one.
+    // ...and the paper instrument, FROZEN 2026-08-23. There is no drawer and no
+    // Settings row that reaches any of these on the phone any more, so this
+    // switch is not seeding the app's defaults, it is seeding its only values.
+    // The numbers are ios/CrossPointLightInkPicker.mm's frozen constants and
+    // have to be changed with them. Literals rather than the model's defaults
+    // on purpose: kFormationDepthDefault and kPaperDriftDefault still mean
+    // "what the model ships", and the app's frozen values differ from both.
+    //
+    // Paper STRENGTH is frozen at 100 and reaches the sheet through these two:
+    // the tooth and the formation are the dial times the STOCK's factor at that
+    // strength, and the app's default stock (Bright White) has a factor of
+    // exactly 1.00 for both, so 300 and 80 are what the phone pushes.
+    SimulatorOverlay::setPaperTooth(300);
+    SimulatorOverlay::setPaperFormation(80);
+    // 0: the app ships an unmarked sheet, and nothing marks one any more.
     SimulatorOverlay::setPaperDefects(paperdefects::kDialOff);
-    // The app ships sheet drift OFF, so this line changes nothing -- it is
-    // here because this switch is meant to be the complete list of what the
-    // app's dials are, and a dial missing from it is the divergence the
-    // switch exists to stop.
-    SimulatorOverlay::setPaperDrift(lightink::kPaperDriftDefault);
+    // Drift frozen at the TOP of its range, so every leaf of a book measures
+    // slightly differently. NOT kPaperDriftDefault, which is off.
+    SimulatorOverlay::setPaperDrift(lightink::kPaperDriftMax);
     SimulatorOverlay::setPressRing(100);
     SimulatorOverlay::setPressDeboss(100);
     SimulatorOverlay::setPressPressure(100);

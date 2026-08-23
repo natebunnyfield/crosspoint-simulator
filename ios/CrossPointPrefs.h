@@ -163,12 +163,11 @@ int CrossPointPrefs_scanlinesPercent(void);
 
 // PAPER DEFECTS: how marked the light page's sheet is, 0..100 (0 a fresh sheet
 // and bit-exact off, 30 the default, 100 a thoroughly used book). An INCIDENCE
-// dial. Bound to the Settings.bundle's only PSSliderSpecifier AND to the
-// light-mode page-color drawer's Defects slider -- one key, two views onto it,
-// which is why the setter exists here rather than in the drawer. Model:
-// src/PaperDefects.h; design: docs/paper-defects.md.
+// dial. FROZEN at 0 on 2026-08-23 with no control anywhere that reaches it --
+// the Settings.bundle row and then the light drawer's slider both went. The
+// setter went with them. Model: src/PaperDefects.h; design:
+// docs/paper-defects.md.
 int CrossPointPrefs_paperDefectsPercent(void);
-void CrossPointPrefs_setPaperDefectsPercent(int pct);
 
 // SCANLINE SIZE: the line pitch, as a percent of the SOURCE-ROW pitch (owner
 // order 2026-08-22, from build 126). 100 = one line per page row, the pitch

@@ -436,72 +436,100 @@ a property of the preset row, not of the hex pair, so after that snapshot the
 dark page keeps its color but not its decay (unless a gun mix is active, which
 carries its own).
 
-## 8. The drawer is the paper instrument now (2026-08-22)
+## 8. The drawer WAS the paper instrument (2026-08-22), and the sheet is FROZEN (2026-08-23)
 
-Owner order, the same day: "make tooth, formation, pressure and all other paper
+Owner order, 2026-08-22: "make tooth, formation, pressure and all other paper
 variables sliders in the 'color button' drawer." Every constant the light page's
-surface was built from is a live control, and the sheet became a
-**`UIScrollView` with three labeled groups**.
+surface was built from became a live control, and the sheet became a
+`UIScrollView` with three labeled groups.
 
-| Group | Slider | What it moves | Range (default) | Desktop mirror |
-|---|---|---|---|---|
-| Ink | Density | `lightInkDensityPercent` | floor..100 (100) | — |
-| Paper | Paper | `lightPaperStrengthPercent` | 0..ceiling (100) | — |
-| Paper | Tooth | a MULTIPLIER on the stock's own `lightink::toothScaleFor` factor | 0..400 % (100) | `CROSSPOINT_SIM_PAPER_TOOTH` |
-| Paper | Formation | `letterpress::Params::formationDepth` | 0..100 % (55) | `CROSSPOINT_SIM_PAPER_FORMATION` |
-| Paper | Defects | `paperdefects::Params::dialPercent` | 0..100 (30 on iOS, 0 on desktop) | `CROSSPOINT_SIM_PAPER_DEFECTS` |
-| Paper | Sheet drift | this leaf's paper tone against the stock's, off the page seed (`lightink::paperDriftOffsets`) | 0..100 (0, both platforms) | `CROSSPOINT_SIM_PAPER_DRIFT` |
-| Press | Ink squeeze | `Params::ringScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_RING` |
-| Press | Deboss | `Params::debossScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_DEBOSS` |
-| Press | Plate pressure | `Params::pressScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_PRESSURE` |
+Owner ruling, 2026-08-23, sent with a screenshot of the drawer at the values he
+had settled on: **"set Paper, tooth, formation, defects and press to these
+parameter values, then remove sliders and option to set this in app."** So the
+instrument served exactly one day, and its job is done: the numbers it was for
+finding have been found, and they are now constants.
 
-Four rulings are worth keeping, because each of them was a real fork:
+| Parameter | FROZEN at | Was |
+|---|---|---|
+| Paper (stock tint strength) | **100** — full, then through `clampPaperStrengthPct` | 0..ceiling slider |
+| Tooth | **300 %** of the stock's own `toothScaleFor` factor | 0..400 % slider |
+| Formation | **80 %** of the stock's own `formationScaleFor` factor | 0..100 % slider |
+| Defects | **0** — a fresh, unmarked sheet | 0..100 slider (and a Settings row before that) |
+| Sheet drift | **100** — `lightink::kPaperDriftMax` | 0..100 slider |
+| Ink squeeze | **100 %** | 0..200 % slider |
+| Deboss | **100 %** | 0..200 % slider |
+| Plate pressure | **100 %** | 0..200 % slider |
+
+What stays in the drawer: the ink list with its family headings and swatches,
+the **Density** slider, the **paper STOCK grid** (choosing the stock is not the
+same control as the strength slider), Done, and the summary readout.
+
+**Sheet drift is the one he did not name**, because it landed after the build
+his screenshot came from. Frozen at the top of its range by a ruling later the
+same day — the leaves of a book measure slightly differently now, always.
+It is deliberately **not** `lightink::kPaperDriftDefault`: that constant still
+means "the model ships this off", the desktop and the tests read it as such, and
+the app's frozen value simply differs from it.
+
+**How a value is frozen** (the shape, and it is not negotiable): the getter
+returns its constant **without consulting `NSUserDefaults`**. Not "keep the read
+and change the default" — an install that stored a different value before the
+control was removed must not keep rendering it, and with the slider gone there
+is no way to change it back. The precedent is `ios/CrossPointPrefs.mm`'s own
+frozen getters from earlier the same day; `ios/CrossPointLightInkPicker.mm`
+follows it exactly. The seven `lightPaperStrengthPercent` / `paperToothPercent`
+/ `paperFormationPercent` / `paperDriftPercent` / `press*Percent` keys and the
+`paperDefectsPercent` key are **deleted**, along with
+`CrossPointPrefs_setPaperDefectsPercent` — a key naming a value nothing consults
+is worse than no key.
+
+**The paper strength is RE-DERIVED, not carried.** `clampPaperStrengthPct` is a
+ceiling that moves with the ink, so every change re-runs the frozen request of
+100 through it (`reclampSelection`). Carrying the last clamped value instead
+would ratchet: a dark ink lowers the strength, and with no slider left nothing
+could ever raise it again. The re-clamp runs BEFORE `applySelection`, because
+that is what writes the hex fields the page renders from.
+
+**The 7:1 floor at the frozen set.** Drift at the top of its range used to be a
+worst case and is now every page, so `tests/light_ink_test.cpp` sweeps it: every
+ink on every stock, every density from the floor up, at drift 100 with tooth
+300 % and formation 80 % painted on the DARKEST leaf. Worst measured
+2026-08-23 — model **7.001:1** (Verdigris on Kozo), textured **7.000:1**
+(Standard on India, mean sheet darkening over 64x64; the same figure converges
+to 7.0000 ± 0.0002 at 512x512). The frozen set sits exactly ON the floor, which
+is what `letterpress::paperBudget` is for — it clamps the tooth amplitude to
+whatever 7:1 leaves, so raising the tooth dial buys texture out of a budget
+rather than out of legibility.
+
+Rulings from the instrument's one day that are still load-bearing:
 
 **Tooth is a MULTIPLIER, not a replacement.** A stock has its own roughness
-(`toothScaleFor`), and the dial rides on it, so a chamois still reads as a
-chamois at every setting. Setting it to replace the stock factor would have made
-the Paper row's texture half of its meaning disappear.
+(`toothScaleFor`), and the frozen 300 % rides on it, so a chamois still reads as
+a chamois. Setting it to replace the stock factor would have made the stock
+grid's texture half of its meaning disappear.
 
-**`kPressCells` stays a constant.** Cells are texture scale, not taste; a dial
-on them would be decoration. Same posture as the grain's mottle cells.
+**`kPressCells` stays a constant.** Cells are texture scale, not taste. Same
+posture as the grain's mottle cells.
 
-**The Press ceiling is 200 %, and that is a BOUND rather than a preference.**
-The master `Letterpress` row's top offered rung is 200 and
-`letterpress::kStrengthMax` is 400, so 200 % on the heaviest offered press lands
-exactly on a state the shipped ladder could already reach on its own. Any state
-the drawer can select, Settings.app could already select.
-`tests/paper_defects_test.cpp` proves it term by term.
+**The frozen press parts are 100 % of standard**, which is a state the shipped
+`Letterpress` master could already select on its own. Nothing the frozen sheet
+renders is outside the ladder that existed before the drawer did.
 
-**One source of truth per quantity.** The Settings.bundle `Letterpress` row
-stays as the MASTER scale and the three Press sliders are the per-component
-PARTS, composing multiplicatively with it. `Paper Defects` has a Settings.bundle
-row AND a drawer slider, and that is still one source of truth: a
-Settings.bundle row *is* a view onto an `NSUserDefaults` key, and both bind to
-`paperDefectsPercent`. It had to be a **`PSSliderSpecifier`** — the bundle's
-first, every other row being a `PSMultiValueSpecifier` — because a multi-value
-row renders BLANK for a drawer value of 47.
+**Layout.** Manual frames stay; they are frames inside the scroll view's content.
+The sheet keeps **medium** as its opening detent and **large** beside it — the
+ink list alone is longer than a medium detent.
 
-**Layout.** Manual frames stay; they are frames inside the scroll view's content
-now, which is a smaller change than adopting Auto Layout mid-flight. The sheet
-keeps **medium** as its opening detent so the drawer still opens exactly the size
-it always did, and gains **large** beside it — nine controls do not fit a medium
-detent, and scrolling a half-height sheet for the Press group is worse than being
-able to pull it up.
-
-**The six new sliders get a swatch STRIP, not a gradient track.** A colour ramp
-is meaningless for a texture. Each strip is the model itself, evaluated left to
-right across that dial's own range on the CURRENT paper — the paper three
-through the sheet pass, the press three through the panel pass over a synthetic
-ink bar, because ring, deboss and pressure are all carried by ink or its edges
-and are exactly nothing on bare sheet. A strip of blank paper would show three
-identical white bars and say the sliders do nothing.
-
-The dials are also seeded at LAUNCH by the shim
+The frozen values are pushed at LAUNCH by the shim
 (`CrossPointInkPicker_pushPaperDials`, edge-triggered on
-`CrossPointInkPicker_paperDialSignature`), because the drawer may never be
-opened and the sheet the owner set last week still has a formation, marks and a
-press composition — and because Settings.app can move the Defects row without
-the drawer ever coming up.
+`CrossPointInkPicker_paperDialSignature`), because the drawer may never be opened
+and the sheet still has a texture; the tooth, the formation and the wires still
+move when the owner picks a different stock.
+
+`CROSSPOINT_SIM_AS_SHIPPED=1` seeds the whole frozen set on the desktop
+(`src/HalDisplay.cpp`) — tooth 300, formation 80, defects 0, drift 100, press
+100/100/100, wires 0. The desktop's own `CROSSPOINT_SIM_PAPER_*` env vars and
+`settings.json` keys are unchanged and still reach the setters: the freeze is an
+iOS-app ruling, not a model change.
 
 Design and citations for the marks themselves: [paper-defects.md](paper-defects.md).
 

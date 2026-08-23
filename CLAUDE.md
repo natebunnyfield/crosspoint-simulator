@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (25 passing, 0 skipped as of 2026-08-18), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (37 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
 
 ```bash
 tests/run_all.sh
@@ -498,8 +498,9 @@ Three settings now decide what the page and the pad look like, all host-side —
 | Render scale 1x/2x/3x | `lib/GfxRenderer/RenderScale.h` (firmware), latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
 | Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
 | Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded` | `docs/phosphor-grain.md` |
-| Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink, off and bit-exact off by default. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
+| Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink. Bit-exact off at dial 0, which is still the MODEL's default (`kPaperDriftDefault`) and the desktop's — but the iOS app FREEZES it at 100 (2026-08-23), so on the phone every leaf differs. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
 | Letterpress — LIGHT pages only (doctrine 2026-08-22: light is paper and ink), Off/Subtle/Standard/Heavy, ink-squeeze rim + deboss shadow + pressure + tooth, panel-space, darken-only. The pressure part's mapped range is WIDENED above 100% (`pressAmpScale`, 200% = 8x standard) — the 2026-08-22 audit found the dial near-dead, eaten by both the pixel math and a cache key that omitted the part percents | `src/Letterpress.h`, composited over the panel in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LETTERPRESS` | `docs/letterpress-and-scanlines.md` |
+| The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it; the drawer keeps only the ink list, Density and the stock grid | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8 |
 | Laid structure — chain + laid lines for a laid PAPER stock (`lightink::Paper::laid`; Laid Antique today), rides the paper slider, output-space box-integrated (the ~1.9 px laid pitch is ST-008 territory), darken-only, per-page seed | `src/LaidStructure.h`, folded into the sheet field in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LAIDLINES` | `docs/letterpress-and-scanlines.md`, `docs/paper-colorimetry-sources.md` §3c |
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
@@ -539,14 +540,32 @@ The frozen values are page fade **Off**, fade depth **fully transparent**,
 letterpress **Standard**, scanlines **Subtle** at **Fine** pitch with **Extreme**
 bloom, defects **0**.
 
-Six of the seven getters in `ios/CrossPointPrefs.mm` now return a constant
+All seven getters in `ios/CrossPointPrefs.mm` now return a constant
 **without consulting NSUserDefaults**, which is the part that matters: an install
 that stored a different value before the row was removed must not keep rendering
-it, and with the row gone there would be no way to change it back. The seventh,
-`paperDefectsPercent`, is still read — the light picker's own Defects slider
-writes it, and that drawer is a different surface than Settings.app.
+it, and with the row gone there would be no way to change it back.
+`paperDefectsPercent` held out for part of that day, because the light picker's
+Defects slider still wrote it; it froze at 0 with the rest when that slider went
+(below), and `CrossPointPrefs_setPaperDefectsPercent` and the key itself were
+deleted.
 `CROSSPOINT_SIM_AS_SHIPPED` was moved to match, since its whole job is to be the
 complete list of what the app's dials actually are.
+
+**The light page-color drawer is no longer the paper instrument.** Owner ruling
+the same day, sent with a screenshot of the values he had settled on: *"set
+Paper, tooth, formation, defects and press to these parameter values, then
+remove sliders and option to set this in app."* Seven sliders and the PRESS
+group header left the drawer — Paper strength, Tooth, Formation, Defects, Sheet
+drift and the three press parts — frozen at **100 / 300% / 80% / 0 / 100 /
+100 / 100 / 100**. The drawer keeps the ink list, **Density**, the paper STOCK
+grid (choosing the stock is not the strength slider), Done and the readout. Same
+freeze discipline as the Settings rows, same reason. The paper strength is
+RE-DERIVED from the frozen 100 on every change rather than carried, because its
+clamp is a ceiling that moves with the ink and a value once lowered could never
+be raised again. Drift at the top of its range is now every page rather than a
+worst case, so `tests/light_ink_test.cpp` sweeps the 7:1 floor there: worst
+measured 7.001:1 (model) and 7.000:1 (with tooth and formation on the darkest
+leaf). Details: `docs/light-ink-picker.md` §8.
 
 **A preset persists as an INTEGER.** Rows therefore APPEND and never insert —
 re-pointing one silently changes what a saved choice selects. The display order
