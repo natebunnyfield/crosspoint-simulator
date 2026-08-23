@@ -286,6 +286,37 @@ else
   exit 1
 fi
 
+# FOURTH GATE: the firmware checkout must carry the host CHANNELS this build's
+# features consume. Build 127 shipped with the ship worktree one commit behind
+# the page-identity publish, so HalGPIO::publishReaderPageIdentity was never
+# called; SimulatorOverlay::readerPageIdentity returned false on every page and
+# pageSheetSeed() fell back to its per-LAUNCH constant. Result on the phone: the
+# same paper flaws on the home screen and on every page of every book, with
+# nothing in any log to say why -- the fallback is a legitimate branch for
+# pre-channel firmware, which is exactly what made it invisible.
+#
+# A channel is only real when BOTH halves exist, so check the caller, not the
+# inline no-op in lib/hal (which is present in every firmware ever built).
+say "Verify firmware channels"
+MISSING_CHANNELS=()
+for call in publishReaderPageIdentity publishReadAloudPage; do
+  if ! grep -rq "$call" "$FIRMWARE_DIR/src/" 2>/dev/null; then
+    MISSING_CHANNELS+=("$call")
+  fi
+done
+if (( ${#MISSING_CHANNELS[@]} )); then
+  echo "ERROR: the firmware at $FIRMWARE_DIR never calls:"
+  printf '  %s\n' "${MISSING_CHANNELS[@]}"
+  echo
+  echo "  These are host-capability channels the simulator consumes. The"
+  echo "  consumer side degrades SILENTLY to a fallback when a channel is"
+  echo "  never published, so this ships as a feature that quietly does"
+  echo "  nothing (build 127: one paper sheet for the entire app)."
+  echo "  Advance the firmware checkout before deploying."
+  exit 1
+fi
+echo "  firmware publishes every channel this build consumes"
+
 say "Archive"
 rm -rf "$ARCHIVE"
 xcodebuild archive \
