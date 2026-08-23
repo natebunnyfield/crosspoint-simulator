@@ -828,6 +828,31 @@ change to typesetting. Cost is genuinely low: a vignette (exists), grain
 (exists), and a defect layer (exists). I would rank it second behind e-ink.
 
 
+
+## Standing rulings, 2026-08-23
+
+Recorded here because a decision that lives only in a transcript gets
+re-proposed by the next session.
+
+- **Font compression STAYS ON.** The device-side question -- fewer SD bytes to
+  read against inflate cost on a 160 MHz core -- is still unmeasured, and the
+  ruling is to keep the 70% install cut while it stays that way. Turning it off
+  is one build flag.
+- **The laid-paper wires STAY**, despite meeting the words of the
+  no-long-straight-lines ruling that deleted the crease and clipping-burn
+  defects. They are the Laid Antique stock's defining structure rather than
+  something that happens TO a page, and they render only when that stock is
+  chosen.
+- **The measure overrides a book's own CSS alignment**, and the reader is told
+  so: the Select Chapter screen carries a verbose notice naming every
+  book-specific decision the firmware has made. The general form of that ruling
+  is the part to remember -- when the app silently works around something in a
+  book, say so somewhere the reader can find it.
+- **The whole queue below is approved**, as iOS settings where taste genuinely
+  varies and frozen where one value is obviously right. Note the context: the
+  same day removed nine Settings.app rows, so a new row has to earn itself.
+
+
 ## 5. The whole list, ranked
 
 Value is what it buys the page. Cost is engineering effort including the test
