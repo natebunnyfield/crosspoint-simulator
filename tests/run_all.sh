@@ -251,6 +251,15 @@ run power_off_collapse \
   c++ -std=c++17 -Isrc -o "$OUT/power_off_collapse" \
   tests/power_off_collapse_test.cpp
 
+# power_on_warm_up covers the other half of the same switch. Its LAST frame must
+# be the page byte for byte, or every wake leaves a permanent dim; and its
+# settle phase must never ask for more light than nominal, because that phase
+# composites over the finished page as a darken-only MOD and an additive pass
+# over a dark ground is the page-flash bug class.
+run power_on_warm_up \
+  c++ -std=c++17 -Isrc -o "$OUT/power_on_warm_up" \
+  tests/power_on_warm_up_test.cpp
+
 # Chain and laid lines for a laid paper stock (2026-08-22 paper research). At
 # ~1.9 px the laid pitch is ST-008 territory, so this pins the box-integrated
 # no-beat case the way scanlines_test pins its 2.39 px pitch, plus per-page

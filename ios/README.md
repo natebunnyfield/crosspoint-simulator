@@ -388,6 +388,15 @@ same day, **Power-Off Collapse** (`powerOffCollapse`, default off), the CRT
 shutdown at sleep. It is the one surface item since the purge to earn a row, and
 it earned it by having a TRADE rather than a right answer: turning it on means
 the glass stays dark for the whole sleep instead of holding the sleep screen.
+That one row owns BOTH halves of the tube's life. Owner ruling the same day:
+*"show crt powering on animation if power off animation is enabled"*, refined to
+*"only when there's a dot there, then do the 'bzzt thonk' screen warmup
+animation."* So a wake out of a collapse plays the warm-up -- dot relit, an
+electrical flicker with the line punching out sideways, then the raster slamming
+open -- in 395 ms, over the top of the boot rather than in front of it, and any
+press abandons it. There is no second row and no second value: the warm-up arms
+itself from the collapse having run.
+
 See [../docs/power-off-collapse.md](../docs/power-off-collapse.md). The two
 items that shipped beside it -- show-through and corner defocus -- are frozen
 constants with no control, for the opposite reason. Everything

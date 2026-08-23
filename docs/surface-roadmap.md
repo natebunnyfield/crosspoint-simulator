@@ -635,6 +635,22 @@ fires; a `lastReadingDarkGround` latch on every non-sleep present is the fix.
 Measured at 1028 ms end to end, and zero cost to a page turn because it never
 runs during one.
 
+**D8b. BZZT THONK, the tube coming back — SHIPPED 2026-08-23**, on the SAME row
+(owner: *"show crt powering on animation if power off animation is enabled"*,
+refined to *"only when there's a dot there, then do the 'bzzt thonk' screen
+warmup animation"*). The trigger is a recorded STATE -- the collapse having
+actually switched the tube off -- not a wake event, so a cold launch, a wake with
+the dial off and a firmware restart all miss it. 395 ms: the dot relit at the
+collapse's own width, an electrical flicker with the line punching out sideways
+in four steps, the raster slamming open past the panel and bouncing back, then a
+6% sag under the finished page and exactly nominal. It composites in
+`presentIfNeeded` rather than owning its frames, because the firmware is booting
+underneath it. Two measured surprises: the wake path does NOT have the mirror of
+the sleep screen's polarity trap (the `Boot` activity exits without presenting),
+and a gate finer than one frame is never drawn at all -- the first bzzt had four
+bursts of 1.6-4 ms and rendered as no flicker whatsoever. Full writeup:
+[power-off-collapse.md](power-off-collapse.md).
+
 *The original entry:*
 
 **D8 (original). The power-off collapsing dot — the one delight I would ship.**

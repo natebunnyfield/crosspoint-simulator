@@ -476,6 +476,23 @@ void setPowerOffCollapse(bool enabled);
 // this library.
 bool stepPowerOffCollapse();
 
+// THE TUBE WARMING UP -- the other half of the same switch (owner ruling
+// 2026-08-23: "show crt powering on animation if power off animation is
+// enabled"). There is deliberately NO setter and no second Settings row: the
+// warm-up arms itself when the collapse actually switches the tube off, and
+// reads the same `Sleep > Power-Off Collapse` value through the same atomic.
+// It composites inside HalDisplay::presentIfNeeded, so it never delays the
+// wake -- the firmware boots and renders underneath it.
+// Model: src/PowerOnWarmUp.h (host-tested).
+// CROSSPOINT_SIM_POWERON_WARMUP=1 arms it on a plain desktop launch, which is
+// the only way to photograph it without a whole sleep/wake cycle; 0 suppresses.
+//
+// Abandon a warm-up in progress and show the page at once. Called from
+// HalGPIO's event pump on a fresh press DOWN -- and only on a DOWN, because the
+// release of the tap that woke the device can still be in the queue. A no-op
+// when nothing is warming up. Safe from the firmware task.
+void cancelPowerOnWarmUp();
+
 // --- THE DIAL TABLE'S APPLIERS ---------------------------------------------
 //
 // src/SimulatorDials.h is the single definition of what each surface dial is

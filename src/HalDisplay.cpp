@@ -16,6 +16,7 @@
 #include "PhosphorGrain.h"
 #include "Srgb.h"
 #include "PowerOffCollapse.h"
+#include "PowerOnWarmUp.h"
 #include "Scanlines.h"
 #include "ShowThrough.h"
 #include "SimulatorDeviceTruth.h"
@@ -256,6 +257,37 @@ static std::atomic<bool> displaySleeping{false};
 // moment it is read. Defaults false: a build that never presents a dark page
 // never switches a tube off.
 static std::atomic<bool> lastReadingDarkGround{false};
+
+// --- THE TUBE WARMING UP: what this boot inherited --------------------------
+//
+// The warm-up fires on a WAKE and on nothing else, and the signal it fires on
+// is not "was this a power wake" but the stricter "did the tube actually go
+// dark" -- the collapse sets kTubeOffEnv on the frame it starts, so the animated
+// switch-OFF is what licenses the animated switch-ON. That gate answers the
+// polarity question for free: the collapse only ever runs on a dark ground, so
+// a build that woke into a pale page cannot have armed this.
+//
+// It travels as an ENVIRONMENT VARIABLE because it has to cross a reboot in two
+// different ways: the desktop wake is execvp, where environ is what the child
+// inherits and every static is reborn, and the iOS wake is a longjmp, where the
+// statics survive but nothing is inherited from anywhere. One mechanism covers
+// both. It is consumed (unset) once per boot, so a second launch cannot inherit
+// a switch-off that already had its warm-up.
+static constexpr const char *kTubeOffEnv = "CROSSPOINT_SIM_TUBE_OFF";
+
+static bool warmUpArmed = false;       // this boot follows a tube switch-off
+static uint64_t warmUpBootMs = 0;      // when this boot's display came up
+static uint64_t warmUpStartedAt = 0;   // 0 until the first frame that shows it
+static bool warmUpFinished = false;
+// Log-once, at NAMESPACE scope rather than as a static local inside the bail
+// lambda: an iOS wake is a longjmp and a function-local static survives it, so a
+// second sleep/wake in one session would decline SILENTLY. begin() clears it
+// with the rest. (The collapse's own bail still has the lambda-local shape; it
+// is pre-existing and out of this change's scope.)
+static bool warmUpBailSaid = false;
+// Written from the firmware task (HalGPIO's event pump), read on the main
+// thread. Every other flag here is main-thread only.
+static std::atomic<bool> warmUpCanceled{false};
 
 static int currentWindowWidth = 0;
 static int currentWindowHeight = 0;
@@ -1074,6 +1106,23 @@ void setPageFadeDepth(int depthPercent) {
   pendingPresent.store(true);
 }
 
+// A FRESH PRESS ABANDONS THE WARM-UP. It is the one animation in this repo
+// standing between the owner and a page he just asked for, so it has to be
+// droppable; the collapse never needs this because the sleep loop checks for
+// wakes before it steps.
+//
+// Only a press DOWN may skip. The release of the very tap that woke the device
+// can still be in the queue when the rebooted firmware starts pumping events --
+// on iOS the queue is not even a new one -- so accepting an UP would skip the
+// warm-up on every wake, silently, and only on the phone.
+void cancelPowerOnWarmUp() {
+  if (warmUpFinished || !warmUpArmed) return;
+  warmUpCanceled.store(true);
+  // Bring the page at once rather than at the firmware's next render: the whole
+  // point of a skip is that the reader stops waiting.
+  pendingPresent.store(true);
+}
+
 void notePageInteraction() {
   if (pageFadeMs.load() <= 0.0f) return;
   lastInteractionMs.store(SDL_GetTicks());
@@ -1527,6 +1576,27 @@ static constexpr const char *WINDOW_TITLE =
 #undef SIMULATOR_CONTROLLER_TITLE
 
 void HalDisplay::begin() {
+  // THE WARM-UP'S ARMING, and it is ABOVE the idempotent return below on
+  // purpose: iOS wakes by re-entering setup() with the window already built, so
+  // everything past that return is skipped on exactly the boot this feature
+  // exists for. Consume rather than peek, so a launch that is not a wake cannot
+  // inherit a switch-off that already had its warm-up.
+  {
+    const char *armed = std::getenv(kTubeOffEnv);
+    warmUpArmed = armed && armed[0] == '1';
+    unsetenv(kTubeOffEnv);
+    // The desktop's way in without a sleep cycle: 1 arms the warm-up on a plain
+    // launch (which is the only way to photograph it in one run), 0 suppresses
+    // it. Unset is the honest path -- a wake, and nothing else.
+    if (const char *env = std::getenv("CROSSPOINT_SIM_POWERON_WARMUP"))
+      warmUpArmed = env[0] == '1';
+    warmUpStartedAt = 0;
+    warmUpFinished = false;
+    warmUpBailSaid = false;
+    warmUpCanceled.store(false);
+    warmUpBootMs = SDL_GetTicks();
+  }
+
   // Idempotent, because setup() can run more than once in one process.
   //
   // A deep-sleep wake is a chip reset on hardware and a process relaunch on
@@ -3132,6 +3202,127 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   return true;
 }
 
+namespace {
+// Draw the panel scaled by (sx, sy) about the PRESENTED page's centre, in
+// output pixels. BOTH halves of the tube's life use it -- the collapse squeezes
+// the raster shut at sleep, the warm-up opens it at wake -- which is why it
+// sits above presentIfNeeded rather than beside either one.
+//
+// The scales are in SCREEN terms and the dst rect is not: SDL_RenderTextureRotated
+// turns the landscape framebuffer about the dst rect's own centre, so in
+// portrait the rect's width becomes the screen's HEIGHT and its height the
+// screen's width. Scaling the picture vertically therefore narrows the rect.
+// Getting this backwards runs the raster sideways, which is a different
+// television.
+void drawPanelAtRasterScale(SDL_Texture *tex, float sx, float sy) {
+  const float kW = static_cast<float>(HalDisplay::activeWidth());
+  const float kH = static_cast<float>(HalDisplay::activeHeight());
+  if (kW <= 0.0f || kH <= 0.0f || sheetPanelW <= 0 || sheetPanelH <= 0) return;
+  const bool portrait = isPortraitOrientation(
+      static_cast<GfxRenderer::Orientation>(sheetPanelOrientation));
+  const float base =
+      portrait ? static_cast<float>(sheetPanelW) / kH
+               : static_cast<float>(sheetPanelW) / kW;
+  const float cx = static_cast<float>(sheetPanelX) + sheetPanelW * 0.5f;
+  const float cy = static_cast<float>(sheetPanelY) + sheetPanelH * 0.5f;
+  const float dw = kW * base * (portrait ? sy : sx);
+  const float dh = kH * base * (portrait ? sx : sy);
+  const SDL_FRect dst = {cx - dw * 0.5f, cy - dh * 0.5f, dw, dh};
+  switch (sheetPanelOrientation) {
+  case GfxRenderer::Portrait:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 90.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::PortraitInverted:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, -90.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  case GfxRenderer::LandscapeClockwise:
+    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 180.0, nullptr,
+                             SDL_FLIP_NONE);
+    break;
+  default:
+    SDL_RenderTexture(sdl_renderer, tex, nullptr, &dst);
+  }
+}
+
+// Advance the warm-up by one frame, and say what the tube can currently show.
+// An inactive state is the identity: the caller draws the ordinary present.
+//
+// WHERE THE CLOCK STARTS, and why the heater costs nothing. The animation is
+// timed from the first frame that can show it, less whatever of the heater the
+// boot has ALREADY spent -- a cold cathode and a booting firmware are the same
+// dark glass, and charging the owner twice for it would be the one thing this
+// feature must not do. Measured on the desktop: 1357 ms from the execvp wake to
+// the first present, so the 80 ms heater is spent seventeen times over before
+// there is a frame. An in-process iOS wake may beat it, which is exactly why
+// the phase exists rather than being assumed away.
+//
+// THE COST TO A PAGE TURN IS TWO BOOLEANS. Every ordinary present -- every
+// build that never turned the dial on, and every present after this has run
+// once -- leaves on the first line.
+poweron::State powerOnWarmUpFrame() {
+  const poweron::State idle;  // active = false: nothing to draw
+  // SAY WHY, ONCE. Four of the five ways this declines are silent by nature,
+  // and an owner who turned the row on and saw nothing at wake has no way to
+  // tell "off" from "not a wake" from "a pale page" -- the same hole the
+  // collapse's bail log fills.
+  const auto bail = [&](const char *why) {
+    if (!warmUpBailSaid && powerLogWanted()) {
+      warmUpBailSaid = true;
+      SDL_Log("[power] warm-up not drawn: %s", why);
+    }
+    return idle;
+  };
+  if (!warmUpArmed || warmUpFinished) return idle;
+  if (!SimulatorOverlay::powerOffCollapse.load())
+    return bail("the dial is off");
+  if (warmUpCanceled.load()) {
+    warmUpFinished = true;
+    return bail("a press skipped it");
+  }
+  // The reverse of the collapse's polarity trap, and MEASURED rather than
+  // assumed (2026-08-23): the wake's Boot activity exits without presenting, so
+  // the first post-wake present is already the reading polarity and this is a
+  // guard rather than a latch. It needs no lastReadingDarkGround-style memory
+  // because the arming flag already carries one -- the collapse only ever runs
+  // on a dark ground, so a boot that armed this was a dark tube.
+  if (!lastReadingDarkGround.load())
+    return bail("the page this boot presents is a pale ground");
+  if (sheetPanelW <= 0 || sheetPanelH <= 0)
+    return bail("no presented panel rect yet");
+
+  const uint64_t now = SDL_GetTicks();
+  if (warmUpStartedAt == 0) {
+    const uint64_t bootAge = now >= warmUpBootMs ? now - warmUpBootMs : 0;
+    const uint64_t heater = static_cast<uint64_t>(poweron::kHeaterMs);
+    const uint64_t credit = bootAge < heater ? bootAge : heater;
+    warmUpStartedAt = now - credit;
+    if (powerLogWanted())
+      SDL_Log("[power] warm-up: boot already spent %u of the %u ms heater",
+              (unsigned)credit, (unsigned)heater);
+  }
+
+  poweron::Params pp;
+  pp.enabled = true;
+  const poweron::State st =
+      poweron::stateAt(pp, static_cast<float>(now - warmUpStartedAt));
+  if (st.finished) {
+    warmUpFinished = true;
+    if (powerLogWanted())
+      SDL_Log("[power] warm-up finished after %u ms; the page is untouched now",
+              (unsigned)(now - warmUpStartedAt));
+    return idle;  // this frame IS the ordinary present, byte for byte
+  }
+  // A warm-up only warms up if something presents while it does, and an e-ink
+  // firmware presents once per page. Same self-driving arrangement as the beam
+  // and the glow trail, and it stops asking the moment it is done -- which is
+  // what keeps this from becoming a permanent render loop.
+  pendingPresent.store(true);
+  return st;
+}
+}  // namespace
+
 void HalDisplay::presentIfNeeded() {
   // Nothing may touch the GPU while backgrounded. Return BEFORE clearing
   // pendingPresent so the frame stays owed and lands on the way back in.
@@ -4066,6 +4257,177 @@ void HalDisplay::presentIfNeeded() {
     destroyGrainTexture();
   }
 
+  // --- BZZT THONK: THE TUBE WARMING UP (roadmap D8's other half) ------------
+  //
+  // The model is src/PowerOnWarmUp.h; this is the draws it implies. Unlike the
+  // collapse, this one IS a present -- the firmware is booting underneath it
+  // and the page has to be ready when the raster arrives -- so it composites
+  // here rather than owning its own frame.
+  //
+  // AFTER THE GRAIN AND THE SCANLINES, and that placement is not taste. The
+  // scanline field is built from a READBACK of the composed frame and cached
+  // against the framebuffer's seq, so a black or half-open frame reaching that
+  // readback would bake an all-dark beam-current map and hold it until the next
+  // page turn. Everything above therefore composes the finished page normally;
+  // this decides how much of it the tube is currently able to show.
+  const poweron::State warm = powerOnWarmUpFrame();
+  if (warm.active) {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    int outW = 0, outH = 0;
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) &&
+        outW > 0 && outH > 0) {
+      const float cx = static_cast<float>(sheetPanelX) + sheetPanelW * 0.5f;
+      const float cy = static_cast<float>(sheetPanelY) + sheetPanelH * 0.5f;
+      float lh = static_cast<float>(outH) * poweron::kLineHeightFrac;
+      if (lh < 1.0f) lh = 1.0f;
+
+      if (warm.phase != poweron::Phase::Settle) {
+        // BLACK, and the frame just composed goes with it. Same argument the
+        // collapse makes: a tube with no raster is not a dark page, it is an
+        // unlit screen, and the surround has to go with the picture or the
+        // dot lights up inside a lit rectangle.
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(sdl_renderer);
+        const PanelPalette live = livePanelPalette(true);
+
+        // THE PICTURE, once the raster has height to carry it (the thonk).
+        // Blended rather than opaque, because in the overshoot the raster is
+        // OVERSCANNED and genuinely dimmer -- same beam over more glass -- and
+        // the alpha is what expresses that.
+        if (warm.showPicture) {
+          const float lit = warm.drive < 1.0f ? warm.drive : 1.0f;
+          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+          SDL_SetTextureAlphaMod(texture,
+                                 static_cast<Uint8>(lit * 255.0f + 0.5f));
+          drawPanelAtRasterScale(texture, warm.horizontalScale,
+                                 warm.verticalScale);
+          // The rise, as a second additive draw of the same picture -- the
+          // cathode is delivering the same current into a raster that is not
+          // yet full. A colour mod cannot express it: SDL_SetTextureColorMod
+          // only ever attenuates.
+          if (warm.drive > 1.0f) {
+            const float over =
+                (warm.drive - 1.0f) / (poweron::kGainMax - 1.0f);
+            int a = static_cast<int>(over * 255.0f + 0.5f);
+            if (a > 255) a = 255;
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(texture, static_cast<Uint8>(a < 0 ? 0 : a));
+            drawPanelAtRasterScale(texture, warm.horizontalScale,
+                                   warm.verticalScale);
+          }
+          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+          SDL_SetTextureAlphaMod(texture, 255);
+        }
+
+        // THE DOT, THEN THE LINE. One rect at two widths, in the live
+        // phosphor's own colour, because the beam does not change what it is
+        // made of on the way in either. It is the collapse's own bar run
+        // backwards: relit as a dot, punched out sideways through the bzzt,
+        // and dissolving into the raster during the thonk rather than being
+        // replaced by it -- so the two never cross-fade through a gap.
+        if (warm.lineAlpha > 0.0f && warm.lineWidthFrac > 0.0f) {
+          float lw = static_cast<float>(sheetPanelW) * warm.lineWidthFrac;
+          if (lw < 1.0f) lw = 1.0f;
+          const SDL_FRect bar = {cx - lw * 0.5f, cy - lh * 0.5f, lw, lh};
+          const int a = static_cast<int>(warm.lineAlpha * 255.0f + 0.5f);
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_ADD);
+          SDL_SetRenderDrawColor(sdl_renderer, live.ink[0], live.ink[1],
+                                 live.ink[2],
+                                 static_cast<Uint8>(a > 255 ? 255 : a));
+          SDL_RenderFillRect(sdl_renderer, &bar);
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+        }
+
+        // THE CRACKLE -- the bzzt's interference, full width across the GLASS
+        // rather than across the page, because a supply fault is not a
+        // property of the picture. Placed from the burst index, so the streaks
+        // jump with each burst instead of crawling through it.
+        if (warm.crackle > 0.0f) {
+          const int a = static_cast<int>(warm.crackle * 190.0f + 0.5f);
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_ADD);
+          SDL_SetRenderDrawColor(sdl_renderer, live.ink[0], live.ink[1],
+                                 live.ink[2],
+                                 static_cast<Uint8>(a > 255 ? 255 : a));
+          for (int i = 0; i < poweron::kCrackleStreaks; ++i) {
+            const float y = poweron::crackleRowFrac(warm.crackleBurst, i) *
+                            static_cast<float>(outH);
+            const SDL_FRect streak = {0.0f, y, static_cast<float>(outW),
+                                      lh * 0.5f < 1.0f ? 1.0f : lh * 0.5f};
+            SDL_RenderFillRect(sdl_renderer, &streak);
+          }
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+        }
+
+        // PUT THE GLASS BACK ON. The clear above threw away the field the
+        // scanline/grain pass had just drawn, and without this the raster's own
+        // texture APPEARS at the handover -- measured 2026-08-23 as a 2.7% step
+        // in mean luminance between the last thonk frame and the first settle
+        // frame, which is a pop where there should be none. Both fields are
+        // fixed to the GLASS rather than to the page, so re-drawing them over a
+        // scaled raster is not an approximation: they are the screen, not the
+        // picture. Dark mode only, so the two light-mode fields cannot be live.
+        SDL_Texture *glass = scanlinesActive ? scanTexture : grainTexture;
+        if (glass) {
+          const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                                  static_cast<float>(outH)};
+          SDL_RenderTexture(sdl_renderer, glass, nullptr, &full);
+        }
+      } else {
+        // THE CHROME COMES UP AFTER THE PAGE. The letterbox margins on a
+        // desktop and the button pad on a phone are not part of the firmware's
+        // raster and cannot be scaled with it, so holding them dark across the
+        // handover and lifting them here is what keeps the pad from appearing
+        // whole in one frame. Four rects around the page, not one over it:
+        // veiling the page would undo the raster that just slammed open.
+        if (warm.surroundVeil > 0.0f) {
+          int a = static_cast<int>(warm.surroundVeil * 255.0f + 0.5f);
+          if (a > 255) a = 255;
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
+                                 static_cast<Uint8>(a < 0 ? 0 : a));
+          const float px = static_cast<float>(sheetPanelX);
+          const float py = static_cast<float>(sheetPanelY);
+          const float pw = static_cast<float>(sheetPanelW);
+          const float ph = static_cast<float>(sheetPanelH);
+          const SDL_FRect around[4] = {
+              {0.0f, 0.0f, static_cast<float>(outW), py},
+              {0.0f, py + ph, static_cast<float>(outW), outH - (py + ph)},
+              {0.0f, py, px, ph},
+              {px + pw, py, outW - (px + pw), ph},
+          };
+          for (const SDL_FRect &r : around)
+            if (r.w > 0.0f && r.h > 0.0f) SDL_RenderFillRect(sdl_renderer, &r);
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+        }
+        // THE SUPPLIES COMING TO REST, as a MOD pass over the whole app
+        // surface: darken-only, the same rule the grain, the scanlines and the
+        // letterpress all obey. src/PowerOnWarmUp.h's driveAt is what
+        // guarantees this branch never needs to LIFT -- an additive pass over
+        // a dark ground is the page-flash bug class -- and it touches nominal
+        // exactly at both ends, so neither the handover nor the last frame
+        // steps.
+        if (warm.drive < 1.0f) {
+          int m = static_cast<int>(warm.drive * 255.0f + 0.5f);
+          if (m < 0) m = 0;
+          if (m > 255) m = 255;
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_MOD);
+          SDL_SetRenderDrawColor(sdl_renderer, static_cast<Uint8>(m),
+                                 static_cast<Uint8>(m), static_cast<Uint8>(m),
+                                 255);
+          const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                                  static_cast<float>(outH)};
+          SDL_RenderFillRect(sdl_renderer, &full);
+          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+        }
+      }
+    }
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  }
+
   if (screenshotDue) {
     captureDueScreenshots();
   }
@@ -4213,46 +4575,6 @@ const simreset::Registrar gCollapseReset{[] {
   collapseFinished = false;
 }};
 
-// Draw the panel scaled by (sx, sy) about the PRESENTED page's centre, in
-// output pixels.
-//
-// The scales are in SCREEN terms and the dst rect is not: SDL_RenderTextureRotated
-// turns the landscape framebuffer about the dst rect's own centre, so in
-// portrait the rect's width becomes the screen's HEIGHT and its height the
-// screen's width. Squeezing the picture vertically therefore narrows the rect.
-// Getting this backwards collapses the page sideways, which is a different
-// television.
-void drawCollapsedPanel(SDL_Texture *tex, float sx, float sy) {
-  const float kW = static_cast<float>(HalDisplay::activeWidth());
-  const float kH = static_cast<float>(HalDisplay::activeHeight());
-  if (kW <= 0.0f || kH <= 0.0f || sheetPanelW <= 0 || sheetPanelH <= 0) return;
-  const bool portrait = isPortraitOrientation(
-      static_cast<GfxRenderer::Orientation>(sheetPanelOrientation));
-  const float base =
-      portrait ? static_cast<float>(sheetPanelW) / kH
-               : static_cast<float>(sheetPanelW) / kW;
-  const float cx = static_cast<float>(sheetPanelX) + sheetPanelW * 0.5f;
-  const float cy = static_cast<float>(sheetPanelY) + sheetPanelH * 0.5f;
-  const float dw = kW * base * (portrait ? sy : sx);
-  const float dh = kH * base * (portrait ? sx : sy);
-  const SDL_FRect dst = {cx - dw * 0.5f, cy - dh * 0.5f, dw, dh};
-  switch (sheetPanelOrientation) {
-  case GfxRenderer::Portrait:
-    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 90.0, nullptr,
-                             SDL_FLIP_NONE);
-    break;
-  case GfxRenderer::PortraitInverted:
-    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, -90.0, nullptr,
-                             SDL_FLIP_NONE);
-    break;
-  case GfxRenderer::LandscapeClockwise:
-    SDL_RenderTextureRotated(sdl_renderer, tex, nullptr, &dst, 180.0, nullptr,
-                             SDL_FLIP_NONE);
-    break;
-  default:
-    SDL_RenderTexture(sdl_renderer, tex, nullptr, &dst);
-  }
-}
 }  // namespace
 
 namespace SimulatorOverlay {
@@ -4282,7 +4604,15 @@ bool stepPowerOffCollapse() {
     return bail("no presented panel rect yet");
 
   const uint64_t now = SDL_GetTicks();
-  if (collapseStartedAt == 0) collapseStartedAt = now;
+  if (collapseStartedAt == 0) {
+    collapseStartedAt = now;
+    // THE TUBE IS GOING DARK, so the next boot owes it a warm-up. Set here
+    // rather than at sleep ENTRY because this is the first frame that actually
+    // switches the tube off: every reason this function bails -- the dial, a
+    // pale page, no frame yet -- has already been checked above, so the flag
+    // means what it says and the warm-up needs no gate of its own.
+    setenv(kTubeOffEnv, "1", 1);
+  }
   poweroff::Params pp;
   pp.enabled = true;
   const poweroff::State st =
@@ -4302,7 +4632,7 @@ bool stepPowerOffCollapse() {
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
     SDL_SetTextureAlphaMod(texture, 255);
     SDL_SetTextureColorMod(texture, 255, 255, 255);
-    drawCollapsedPanel(texture, st.horizontalScale, st.verticalScale);
+    drawPanelAtRasterScale(texture, st.horizontalScale, st.verticalScale);
     // THE BRIGHTNESS RISE, as a second additive draw of the same picture --
     // the cathode is still delivering the same current into a smaller raster.
     // A colour mod cannot express it: SDL_SetTextureColorMod only ever
@@ -4313,7 +4643,7 @@ bool stepPowerOffCollapse() {
       SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
       SDL_SetTextureAlphaMod(
           texture, static_cast<Uint8>(a < 0 ? 0 : (a > 255 ? 255 : a)));
-      drawCollapsedPanel(texture, st.horizontalScale, st.verticalScale);
+      drawPanelAtRasterScale(texture, st.horizontalScale, st.verticalScale);
       SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
       SDL_SetTextureAlphaMod(texture, 255);
     }

@@ -906,10 +906,18 @@ void HalGPIO::update() {
     // which control they reached for. A no-op when the fade is off.
     switch (e.type) {
     case SDL_EVENT_KEY_DOWN:
-    case SDL_EVENT_KEY_UP:
     case SDL_EVENT_FINGER_DOWN:
-    case SDL_EVENT_FINGER_UP:
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
+      // A fresh press also abandons the power-on warm-up, so the wake is never
+      // something the owner has to wait out. DOWN only: the release of the very
+      // tap that woke the device can still be in the queue when the rebooted
+      // firmware starts pumping, and on iOS it is not even a new queue -- so
+      // accepting an UP would skip the warm-up on every wake, silently, and
+      // only on the phone.
+      SimulatorOverlay::cancelPowerOnWarmUp();
+      [[fallthrough]];
+    case SDL_EVENT_KEY_UP:
+    case SDL_EVENT_FINGER_UP:
       SimulatorOverlay::notePageInteraction();
       break;
     default:
@@ -1087,6 +1095,10 @@ void HalGPIO::injectButtonDown(uint8_t buttonIndex) {
   if (buttonIndex >= NUM_BUTTONS)
     return;
   SimulatorOverlay::notePageInteraction();
+  // Synthetic input enters below SDL, so the event-pump skip above never sees
+  // it -- and a headless run has no other way to prove the warm-up IS
+  // skippable. QTAP and the script's button actions both land here.
+  SimulatorOverlay::cancelPowerOnWarmUp();
   pressedThisFrame[buttonIndex] = true;
   // The level bit is the whole point of this entry point: SDL_GetKeyboardState()
   // is never written for anything the host injects, so isPressed(),
