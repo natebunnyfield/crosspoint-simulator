@@ -3,7 +3,7 @@
 // LIGHT INK PALETTE -- historical inks at variable density on proven paper
 // stocks, for the LIGHT page. Doctrine (owner order 2026-08-22): light mode is
 // paper-and-ink emulation; dark mode is the CRT and keeps the gun mixer. This
-// header is the light picker's whole model: the ink table, the six papers, the
+// header is the light picker's whole model: the ink table, the paper table, the
 // dilution curve, the contrast math and the 7:1 clamps. Research and the
 // derivation of every number: docs/light-ink-picker.md.
 //
@@ -34,8 +34,8 @@
 //
 // THE 7:1 FLOOR IS A CLAMP, NOT ADVICE -- AND IT IS NOW A SURFACE. Every ink x
 // paper pair clears 7:1 at full density on the full-strength stock (the tables
-// were derived under that constraint; the test re-measures the whole 8 x 6 x
-// density x strength grid), and each slider stops where 7:1 would break at the
+// were derived under that constraint; the test re-measures the whole
+// ink x paper x density x strength grid), and each slider stops where 7:1 would break at the
 // OTHER slider's current value -- the PhosphorGrain budget pattern, in two
 // dimensions. The rule is stated in full above floorDensityPct.
 //
@@ -62,10 +62,44 @@
 
 namespace lightink {
 
+// THE INK FAMILY a row belongs to. Presentation only: the table grew past a
+// dozen rows on 2026-08-22 and an undifferentiated list of eighteen inks is a
+// wall rather than a menu. It changes NO stored value -- a choice still
+// persists as the row's table index, and the display order is DERIVED from
+// this field (buildInkDisplayOrder) rather than stored anywhere, so appending
+// a row slots it into its family with no second list to keep in sync.
+//
+// The families are the ones pigment literature actually uses (the Colour Index
+// generic names group the same way: Pigment Black, Brown, Red, Blue, Violet,
+// Green), with violets folded into the blues because one violet does not earn
+// a heading.
+//
+// THE ORDER IS BORROWED, NOT INVENTED. Blacks and grays adjacent, browns their
+// own family and never filed under reds, then blues, reds, greens: that is
+// R.D. Harley's ordering in "Artists' Pigments c.1600-1835" and Winsor &
+// Newton's own chart order, collapsed for a set that is mostly blacks and
+// browns because this is a table of READING inks. Note the Colour Index's
+// numbers within a hue (PBk6, 7, 8, 9...) are CHRONOLOGICAL, not chromatic --
+// they are not an ordering to copy.
+enum InkGroup : int {
+  kGroupBlacks = 0,
+  kGroupGrays,
+  kGroupBrowns,
+  kGroupBlues,   // and violets
+  kGroupReds,
+  kGroupGreens,
+  kInkGroupCount
+};
+
+inline constexpr const char *kInkGroupNames[kInkGroupCount] = {
+    "BLACKS", "GRAYS", "BROWNS", "BLUES & VIOLETS", "REDS", "GREENS",
+};
+
 struct Ink {
   const char *name;
   const char *era;      // one-line era note, shown in the picker row
   uint8_t full[3];      // the full-strength film (density 100)
+  int group;            // InkGroup -- display only, never stored
 };
 
 struct Paper {
@@ -80,7 +114,10 @@ struct Paper {
   float tooth;
 };
 
-// APPEND ONLY. See the header comment; the stored integer IS the row.
+// APPEND ONLY. See the header comment; the stored integer IS the row. Rows 8
+// and up were appended 2026-08-22 ("add more papers and inks"); the eight
+// above them keep their indices and their bytes, so every selection made
+// before that day still selects the same ink.
 enum InkIndex : int {
   kInkStandard = 0,   // the shipped e-ink tone; the default stays a row
   kInkCarbonBlack,    // lampblack/soot, Egypt & China ~2500 BCE
@@ -90,6 +127,15 @@ enum InkIndex : int {
   kInkOxblood,        // deep madder/carmine red, dark enough for body text
   kInkIndigo,         // the vat dye's violet-leaning blue
   kInkPrussianBlue,   // 1704, the first synthetic pigment
+  kInkBoneBlack,      // charred bone; the WARM black, against lampblack's cool
+  kInkVanDyke,        // Cassel earth, the lignite brown; famously fugitive
+  kInkSanguine,       // red chalk / hematite, the Renaissance drawing red
+  kInkVermilion,      // mercury sulfide: the red of manuscript rubrication
+  kInkMadderLake,     // Rubia tinctorum lake -- the cool crimson against oxblood
+  kInkCopyingViolet,  // methyl violet: hectograph, carbon paper, indelible pencil
+  kInkVerdigris,      // copper acetate, the manuscript green that eats its page
+  kInkPaynesGray,     // William Payne's mixed blue-gray, c. 1790
+  kInkDavysGray,      // powdered slate; OLIVE, not the neutral the web claims
   kInkCount
 };
 
@@ -100,6 +146,12 @@ enum PaperIndex : int {
   kPaperChamois,          // aged tan; darkest field, sets most floors
   kPaperPressGray,        // cool gray press stock; the one cool option
   kPaperSepiaToned,       // browner and pinker than chamois' yellow tan
+  kPaperIndia,            // Bible/India paper: thin, warm, very smooth
+  kPaperVellum,           // calfskin: creamy, faintly pink, unevenly toned
+  kPaperLaidAntique,      // handmade laid: gray-cream, the roughest but one
+  kPaperKozo,             // unbleached Japanese kozo: buff, open, fibrous
+  kPaperAzzurrata,        // carta azzurrata, the blue-gray drawing stock
+  kPaperNewsprint,        // groundwood news: gray-buff, rough, low brightness
   kPaperCount
 };
 
@@ -109,14 +161,67 @@ enum PaperIndex : int {
 // (A Dictionary of Color, 1930) sits ~42% along this table's sepia curve on
 // Cream -- so the anchors are darker than the famous hex on purpose.
 inline constexpr Ink kInks[kInkCount] = {
-    {"Standard", "the shipped e-ink tone", {0x2D, 0x2D, 0x2D}},
-    {"Carbon Black", "soot & binder, ~2500 BCE", {0x1E, 0x1C, 0x1A}},
-    {"Iron Gall", "5th-19th c. blue-black, browns with age", {0x1B, 0x2A, 0x3C}},
-    {"Sepia", "cuttlefish wash, 18th-19th c.", {0x3E, 0x2A, 0x18}},
-    {"Walnut & Bistre", "old-master brown washes", {0x4B, 0x3A, 0x15}},
-    {"Oxblood", "deep madder red", {0x4F, 0x15, 0x11}},
-    {"Indigo", "the vat dye's blue", {0x2A, 0x3B, 0x5C}},
-    {"Prussian Blue", "1704, first synthetic pigment", {0x0B, 0x30, 0x50}},
+    {"Standard", "the shipped e-ink tone", {0x2D, 0x2D, 0x2D}, kGroupBlacks},
+    {"Carbon Black", "soot & binder, ~2500 BCE", {0x1E, 0x1C, 0x1A}, kGroupBlacks},
+    {"Iron Gall", "5th-19th c. blue-black, browns with age", {0x1B, 0x2A, 0x3C}, kGroupBlues},
+    {"Sepia", "cuttlefish wash, 18th-19th c.", {0x3E, 0x2A, 0x18}, kGroupBrowns},
+    {"Walnut & Bistre", "old-master brown washes", {0x4B, 0x3A, 0x15}, kGroupBrowns},
+    {"Oxblood", "deep madder red", {0x4F, 0x15, 0x11}, kGroupReds},
+    {"Indigo", "the vat dye's blue", {0x2A, 0x3B, 0x5C}, kGroupBlues},
+    {"Prussian Blue", "1704, first synthetic pigment", {0x0B, 0x30, 0x50}, kGroupBlues},
+    // --- appended 2026-08-22 -------------------------------------------------
+    // Four of these nine are a MEASURED masstone used verbatim rather than a
+    // derivation -- Richard Kirk / FilmLight spectrophotometered 100 Winsor &
+    // Newton watercolours at three densities each, published as CIE L*a*b*, and
+    // where a paint's full-strength film already sits at reading density there
+    // is nothing to derive. Those rows carry their Lab in the comment. The rest
+    // are the recognized hue carried down its own line in linear light to clear
+    // the 7:1 floor, the rule section 1 of the doc states. Provenance per row:
+    // docs/light-ink-picker.md section 9a.
+    //
+    // THERE IS NO MODERN PRINTER'S-INK ROW, and that is a measurement rather
+    // than an oversight. ISO 2846-1:2017 Table 1 puts the offset process black
+    // at L*18.0 a*0.8 b*0.0 -- #2D2C2C -- which is ONE code value from the
+    // shipped Standard row's #2D2D2D. The row already exists; it is row 0.
+    // FOGRA51's measured K100 solid on premium coated is #2B2B29, two code
+    // values away, and FOGRA52's on uncoated is #56534C, which reaches only
+    // 6.18:1 on Chamois and cannot be offered under this floor at all. Both
+    // sources: docs/ink-colorimetry-sources.md.
+    {"Bone Black", "charred bone; the warm black", {0x39, 0x34, 0x2D}, kGroupBlacks},
+    // ^ measured: W&N Ivory/Bone Black masstone L*21.87 a*0.73 b*5.13. Its
+    //   warmth is a RESIDUE effect and therefore constant: bone black is only
+    //   ~10% carbon in a calcium-phosphate matrix, and the matrix is what is
+    //   brown. That is NOT true of row 1: a soot black's warm/cool character is
+    //   a particle-size effect and it FLIPS WITH DENSITY -- fine carbon reads
+    //   blue in masstone and brown in dilute tint, coarse carbon the opposite,
+    //   measured at delta-b* 6.5 at matched lightness
+    //   (docs/ink-palette-research.md). This table stores ONE hue per ink and
+    //   dilutes it along a fixed locus, so it cannot express that flip: every
+    //   carbon row here is its MASSTONE character, held all the way down. A
+    //   known limitation of the model, not of the measurement.
+    {"Van Dyke Brown", "Cassel earth, 17th c.; fugitive", {0x4D, 0x3B, 0x31}, kGroupBrowns},
+    // ^ measured: W&N Vandyke Brown masstone L*26.55 a*6.24 b*9.20.
+    {"Sanguine", "red chalk, the Renaissance drawing red", {0x5C, 0x33, 0x2B}, kGroupBrowns},
+    {"Vermilion", "the red of rubrication", {0x6D, 0x28, 0x12}, kGroupReds},
+    {"Madder Lake", "the cool crimson lake", {0x68, 0x24, 0x3C}, kGroupReds},
+    {"Copying Violet", "hectograph & carbon paper, 1861-", {0x59, 0x1B, 0x83}, kGroupBlues},
+    // ^ RECONSTRUCTED, and the only row in this table that is. No measured Lab
+    //   or reflectance exists for a hectograph / ditto / copying-pencil purple
+    //   anywhere in the conservation or forensic literature
+    //   (docs/ink-colorimetry-sources.md). What IS measured is the dye:
+    //   crystal violet's absorption maximum is 590 nm in water, which removes
+    //   the orange-yellow and puts the survivor on the BLUE side of the purple
+    //   locus. So the hue is sourced and the lightness and chroma are this
+    //   repo's, carried to reading density. Do not describe this row as
+    //   measured.
+    {"Verdigris", "copper green; it eats its own page", {0x2C, 0x41, 0x2C}, kGroupGreens},
+    {"Payne's Gray", "William Payne's mix, c. 1790", {0x32, 0x3D, 0x47}, kGroupGrays},
+    // ^ measured: W&N Payne's Gray masstone L*25.24 a*-1.97 b*-7.56.
+    {"Davy's Gray", "powdered slate; olive, not neutral", {0x42, 0x3C, 0x29}, kGroupGrays},
+    // ^ from measured W&N Davy's Gray masstone L*51.88 a*-1.17 b*+20.71. The
+    //   circulated #555555 is a chroma-ZERO ISCC-NBS block centroid and is ~21
+    //   b* units from what a spectrophotometer says the paint is; this row is
+    //   olive because the measurement is.
 };
 
 inline constexpr Paper kPapers[kPaperCount] = {
@@ -126,7 +231,39 @@ inline constexpr Paper kPapers[kPaperCount] = {
     {"Chamois", "aged tan", {0xEC, 0xDA, 0xB7}, 1.80f},
     {"Press Gray", "cool press stock", {0xE9, 0xEA, 0xEC}, 1.60f},
     {"Sepia Toned", "toned sheet", {0xEE, 0xDF, 0xCC}, 1.50f},
+    // --- appended 2026-08-22 -------------------------------------------------
+    // THE 7:1 FLOOR CONFINES EVERY PAPER TO AN ELEVEN-L* BAND. The shipped
+    // Walnut & Bistre ink has relative luminance 0.0458, so a sheet clears the
+    // floor against it only above Y 0.6203 -- L* 82.9. That is why there is no
+    // aged newsprint here and why the Newsprint row is lighter than the mills'
+    // own measurement (see its note). Twelve stocks inside eleven L* is
+    // crowded, so these six are placed by a*/b* -- pink, olive, violet, buff --
+    // rather than by lightness, and the test now requires four code values of
+    // separation between every pair. Derivation and sources per row:
+    // docs/light-ink-picker.md section 9b.
+    {"India", "Bible paper: thin, warm, smooth", {0xF9, 0xF3, 0xE9}, 1.12f},
+    {"Vellum", "calfskin, faintly pink", {0xF9, 0xE7, 0xD7}, 1.22f},
+    {"Laid Antique", "handmade laid, no brighteners", {0xE3, 0xDB, 0xCA}, 1.85f},
+    {"Kozo", "unbleached washi: buff, fibrous", {0xEE, 0xE6, 0xC3}, 1.95f},
+    {"Azzurrata", "carta azzurra, blue rag", {0xE0, 0xE0, 0xED}, 1.55f},
+    {"Newsprint", "groundwood news, gray-buff", {0xDE, 0xDC, 0xD3}, 1.70f},
+    // ^ the mill's own hue (Norske Skog NorNews, ISO 5631 C/2: a* -1.1,
+    //   b* +5.3) at L* 87.8 rather than its measured L* 82. Real fresh
+    //   newsprint reaches only 6.81:1 against Walnut & Bistre and cannot be
+    //   offered under this floor at all; the lift is named, not hidden.
 };
+
+// THE DISPLAY ORDER, DERIVED. Fills `out` with every ink index exactly once,
+// grouped by family in `InkGroup` order and, within a family, in table (append)
+// order. Nothing stores this: appending a row puts it in its family with no
+// second list to fall out of sync, and no stored integer moves. The picker
+// walks it and emits a heading whenever the family changes.
+inline void buildInkDisplayOrder(int out[kInkCount]) {
+  int n = 0;
+  for (int g = 0; g < kInkGroupCount; g++)
+    for (int i = 0; i < kInkCount; i++)
+      if (kInks[i].group == g) out[n++] = i;
+}
 
 inline constexpr double kContrastFloor = 7.0;
 inline constexpr int kDensityMax = 100;

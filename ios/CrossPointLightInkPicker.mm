@@ -329,6 +329,18 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   UILabel *_groupInk;
   UILabel *_groupPaper;
   UILabel *_groupPress;
+  // ONE SUB-HEADING PER INK FAMILY. The table passed a dozen rows on
+  // 2026-08-22 and an undifferentiated list of eighteen inks is a wall in the
+  // same way nine unlabeled sliders were. The families and the order they
+  // appear in are the MODEL's (lightink::kInkGroupNames,
+  // lightink::buildInkDisplayOrder), not this file's -- appending a row must
+  // not require editing a layout list. A family's heading is drawn once, above
+  // its first row.
+  UILabel *_inkFamily[lightink::kInkGroupCount];
+  // The picker's display order, filled once from the model. Slot -> ink index.
+  // NOT a stored preference: the persisted value is still the ink's table
+  // index, which this permutation never touches.
+  int _inkOrder[lightink::kInkCount];
   // The paper instrument's six. Each is label + value + slider + a preview
   // STRIP (the model itself across the dial's range) rather than a gradient:
   // a colour ramp cannot show what a tooth does.
@@ -394,6 +406,13 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   _groupInk = makeGroup(@"INK");
   _groupPaper = makeGroup(@"PAPER");
   _groupPress = makeGroup(@"PRESS");
+  lightink::buildInkDisplayOrder(_inkOrder);
+  for (int g = 0; g < lightink::kInkGroupCount; g++) {
+    _inkFamily[g] = makeGroup(@(lightink::kInkGroupNames[g]));
+    _inkFamily[g].font =
+        [UIFont monospacedSystemFontOfSize:9 weight:UIFontWeightSemibold];
+    _inkFamily[g].textColor = UIColor.tertiaryLabelColor;
+  }
 
   for (int i = 0; i < lightink::kInkCount; i++) {
     // A custom button with label/swatch SUBVIEWS rather than a titled system
@@ -669,12 +688,27 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
   _groupInk.frame = CGRectMake(margin, y, W - 2 * margin, 14);
   y += 18;
-  for (int i = 0; i < lightink::kInkCount; i++) {
-    _inkRow[i].frame = CGRectMake(margin - 8, y, W - 2 * margin + 16, rowH);
-    _inkSwatch[i].frame = CGRectMake(8, (rowH - 16) / 2, 26, 16);
-    _inkName[i].frame = CGRectMake(42, 0, W / 2 - 42, rowH);
-    _inkEra[i].frame = CGRectMake(W / 2, y + (rowH - 14) / 2, W / 2 - margin, 14);
-    y += rowH;
+  // Walk the MODEL's display order, emitting a family heading whenever the
+  // family changes. Every heading is laid out exactly once, and any that the
+  // walk never reaches would be a stray label -- the model's test proves no
+  // family is empty, so the walk reaches all of them.
+  {
+    int prevGroup = -1;
+    for (int s = 0; s < lightink::kInkCount; s++) {
+      const int i = _inkOrder[s];
+      const int g = lightink::kInks[i].group;
+      if (g != prevGroup) {
+        _inkFamily[g].frame = CGRectMake(margin, y + 3, W - 2 * margin, 11);
+        y += 16;
+        prevGroup = g;
+      }
+      _inkRow[i].frame = CGRectMake(margin - 8, y, W - 2 * margin + 16, rowH);
+      _inkSwatch[i].frame = CGRectMake(8, (rowH - 16) / 2, 26, 16);
+      _inkName[i].frame = CGRectMake(42, 0, W / 2 - 42, rowH);
+      _inkEra[i].frame =
+          CGRectMake(W / 2, y + (rowH - 14) / 2, W / 2 - margin, 14);
+      y += rowH;
+    }
   }
   y += 8;
   layoutDial(_densityLabel, _densityValue, _slider, _track, y);
@@ -682,13 +716,25 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
   _groupPaper.frame = CGRectMake(margin, y, W - 2 * margin, 14);
   y += 18;
+  // THE STOCKS WRAP. One row of `kPaperCount` cells was fine at six and is a
+  // 24 pt sliver at twelve -- under the 44 pt minimum touch target, with a name
+  // shrunk past reading. So the grid is a fixed SIX per row and as many rows as
+  // the table needs, which keeps every cell the size it has always been and
+  // makes a thirteenth stock cost a row of height rather than a millimetre off
+  // every existing cell.
   const CGFloat gap = 6;
+  constexpr int kPapersPerRow = 6;
   const CGFloat cell =
-      (W - 2 * margin - gap * (lightink::kPaperCount - 1)) / lightink::kPaperCount;
+      (W - 2 * margin - gap * (kPapersPerRow - 1)) / kPapersPerRow;
+  const CGFloat cellH = 44;
+  const int paperRows =
+      (lightink::kPaperCount + kPapersPerRow - 1) / kPapersPerRow;
   for (int p = 0; p < lightink::kPaperCount; p++) {
-    _paperRow[p].frame = CGRectMake(margin + p * (cell + gap), y, cell, 40);
+    const int col = p % kPapersPerRow, row = p / kPapersPerRow;
+    _paperRow[p].frame = CGRectMake(margin + col * (cell + gap),
+                                    y + row * (cellH + gap), cell, cellH);
   }
-  y += 48;
+  y += paperRows * (cellH + gap) + 2;
   layoutDial(_paperLabel, _paperValue, _paperSlider, _paperTrack, y);
   y += 54;
   layoutDial(_toothLabel, _toothValue, _toothSlider, _toothStrip, y);
