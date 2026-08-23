@@ -59,7 +59,42 @@ at the bottom, which reads as two different objects rather than as a sheet.
 `CrossPointAppearance_displayCornerRadius` stays available; nothing calls it
 today.
 
-Verified both pairs on an iPhone Air, insets from each side by row:
+**Then the radius stopped being a constant** (owner 2026-08-22: *"use the circle
+that determines the height gap between paper and text to make the corner radius
+of the paper"*). `layoutPad` publishes the visual paper→ink gap as
+`g_paperGapPx` and the corner is struck with the same circle: radius = half the
+gap. On an iPhone Air that is 105.8 px against the 24 px constant it replaced.
+The 8 pt constant survives only as the pre-first-placement fallback, which is
+one boot pass — the `[bezel]` line logs which of the two is live.
+
+**And it is not gated on zen** (owner 2026-08-23: *"paper bug: make top corners
+of not zen mode match top corner radius of zen mode"*). It was: `paintTopBezel`
+read the module only when `g_zen` was set, so the same card was struck with a
+106 px curve in zen and a 24 px one out of it. The module is mode-independent by
+construction — it is derived from the card top, the panel height and the
+firmware's published ink insets, and zen changes none of them (the no-resize
+ruling) — so the gate was suppressing a number that was already correct and
+already being computed. Measured on an iPhone Air, top-left inset at the card's
+first row, before and after:
+
+| | non-zen | zen |
+|---|---|---|
+| before | 24 px | 106 px |
+| after | 106 px | 106 px |
+
+Light and dark alike, and the full 120-row inset profile is identical between
+the two modes rather than merely equal at row 0. The panel's fit is untouched:
+`[panel] out 1260x2736 px, scale 1.0000, panel 1056x1584 at 102,256` either
+side of the change.
+
+**The BOTTOM pair is zen-only, and stays that way.** `paintBottomFillets` is
+called from the zen branch alone. Out of zen there is no bottom edge to round:
+the pad's field is the paper tone and runs to the bottom of the glass, where the
+display's own mask is the only curve. Measured in zen, the bottom pair's profile
+is the top pair's, to the pixel.
+
+Verified both pairs on an iPhone Air, insets from each side by row (at the 8 pt
+constant, i.e. the fallback the table was measured at):
 
 | row from edge | top pair | bottom pair |
 |---|---|---|
