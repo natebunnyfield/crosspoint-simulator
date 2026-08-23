@@ -435,8 +435,10 @@ int main(int argc, char **argv) {
       // pageFadeSeconds was the sentinel here until 2026-08-23, when the
       // whole Page Colors group left Settings.app. renderScale is the survivor
       // that proves the file is the real one.
-      CHECKM(plist.find("<string>renderScale</string>") != std::string::npos,
-             "renderScale must stay in Root.plist — is this the right file?");
+      // renderScale was the sentinel until 2026-08-23, when the last page row
+      // left with the 3x drop. The Zen toggle is the survivor now.
+      CHECKM(plist.find("<string>zenModeEnabled</string>") != std::string::npos,
+             "zenModeEnabled must stay in Root.plist — is this the right file?");
     }
   }
 

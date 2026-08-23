@@ -261,12 +261,9 @@ static void ensureDefaults(void) {
         kPanelPaperLight : @"FBFBF9",
         kPanelInkDark : @"E0E0DE",
         kPanelPaperDark : @"121212",
-        // The scale the app renders at. 0 here would clamp to 1 -- a quarter of
-        // the glyph resolution -- so this fallback is doing real work, not
-        // restating the plist for tidiness. 2 since 2026-08-23, and it must
-        // track Root.plist's DefaultValue: this is the value a store that has
-        // never seen the Settings screen answers with.
-        kRenderScale : @(2),
+        // renderScale was registered here until 2026-08-23, when its row went
+        // and its getter stopped consulting NSUserDefaults. Registering a
+        // default now would state a value nothing reads.
         // Off: the page arrives at once, which is what every build before this
         // did and what an e-ink panel does.
         kBeamPaintMs : @(0),
@@ -555,7 +552,8 @@ void CrossPointPrefs_setPanelPalettePreset(int preset) {
 
 int CrossPointPrefs_renderScale(void) {
   ensureDefaults();
-  checkKnown(kRenderScale);
+  // No checkKnown: renderScale is deliberately not a Settings.bundle row any
+  // more, so an absent value is the normal state rather than a missing row.
   // CEILING not clamped here. cp::setRenderScale() clamps to [1, the ceiling
   // this binary was compiled at], and that ceiling is a compile-time fact this
   // file has no business restating -- a second clamp here would be the drift
@@ -569,16 +567,19 @@ int CrossPointPrefs_renderScale(void) {
   //
   // 3 is retired as of 2026-08-23 (owner: "drop 3x support for now"), so a
   // store written by build 129 or earlier -- where 3 was both an offered row
-  // and the DEFAULT, i.e. most installs -- answers 3 here. It maps to 2.
+  // and the DEFAULT, i.e. most installs -- answers 3 here. 1 was retired
+  // earlier, on 2026-08-21 ("keep 2x and 3x").
   //
-  // Doing it HERE and not leaving it to cp::setRenderScale()'s ceiling clamp is
-  // the difference between a decision and a coincidence: the clamp would also
-  // land on 2 today, and would silently start meaning something else the moment
-  // the ceiling moved. The clamp is about what the binary can hold; this is
-  // about which rows the picker offers.
-  const int raw = static_cast<int>(
-      [[NSUserDefaults standardUserDefaults] integerForKey:kRenderScale]);
-  return raw == 3 ? 2 : raw;
+  // With both of those gone the row itself went (owner 2026-08-23): a
+  // one-value control is worse than no control. So this is no longer a
+  // PREFERENCE -- it is the single scale the app renders at, and every stored
+  // value maps to it. Reading NSUserDefaults at all would only let an old
+  // store re-point something the owner can no longer see or change.
+  //
+  // Deliberately not left to cp::setRenderScale()'s ceiling clamp, which is
+  // about what the BINARY can hold and would silently start meaning something
+  // else the moment that ceiling moved.
+  return 2;
 }
 
 int CrossPointPrefs_panelCustomColor(int dark, int ink) {

@@ -463,8 +463,13 @@ static void testRootPlist(const char *path) {
          "zenModeEnabled (the Zen toggle) must be in Root.plist");
   CHECKM(xml.find("<string>beamPaintMs</string>") == std::string::npos,
          "beamPaintMs: the row is gone (owner 2026-08-22, hard set at 55 ms)");
-  CHECKM(xml.find("<string>renderScale</string>") != std::string::npos,
-         "renderScale (the last surviving page row) must be in Root.plist");
+  // Every page row is gone as of 2026-08-23 -- renderScale was the last, and
+  // it went when 3x was dropped and a one-value control was judged worse than
+  // none. The Zen toggle is the sentinel now.
+  CHECKM(xml.find("<string>renderScale</string>") == std::string::npos,
+         "renderScale: the row is gone (owner 2026-08-23, frozen at 2x)");
+  CHECKM(xml.find("<string>zenModeEnabled</string>") != std::string::npos,
+         "zenModeEnabled must be in Root.plist — is this the right file?");
   CHECKM(xml.find("<string>readAloudEnabled</string>") != std::string::npos,
          "the Read Aloud section must survive the removal");
   CHECKM(xml.find("<string>diagnosticsEnabled</string>") != std::string::npos,
