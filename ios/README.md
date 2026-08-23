@@ -368,17 +368,27 @@ touch hit-testing itself is PadCore + the rects, covered by
 
 ### The page's ink and paper
 
-**The two tones the page is drawn in are owner-settable**, in Settings >
-CrossPoint X3 > Page Colors (added 2026-08-15). One preset row selects both
-appearances; four hex fields underneath are the manual state.
+**The two tones the page is drawn in are owner-settable, IN THE APP** -- not in
+Settings.app. This moved twice and the table that used to sit here (a
+`panelPalettePreset` row plus four hex fields) has been wrong since 2026-08-22,
+when those rows left `Root.plist`; it was still being read as current a day
+later.
 
-| Setting | Key | Default |
-|---|---|---|
-| Palette | `panelPalettePreset` | Default (1) |
-| Ink, light | `panelInkLight` | `2D2D2D` |
-| Paper, light | `panelPaperLight` | `FBFBF9` |
-| Ink, dark | `panelInkDark` | `E0E0DE` |
-| Paper, dark | `panelPaperDark` | `121212` |
+Where it lives now: the page-color chip in the button pad opens the picker. In
+DARK mode that is the phosphor mixer (`ios/CrossPointPaletteMixer.mm`, four
+assignable RGBW guns over the JEDEC registry); in LIGHT it is the ink picker
+(`ios/CrossPointLightInkPicker.mm`, historical inks at variable density on a
+chosen stock). `crosspoint::panelForPrefs()` is the single resolver both the
+SDL side and the UIKit side read, so the page, the pad and both chips cannot
+disagree about what was picked.
+
+What remains in Settings.app after the 2026-08-23 ruling is four rows: the Zen
+toggle, the two sleep toggles, Sharpness, and the Read Aloud group. Everything
+about how the page and the sheet look is either frozen in
+`ios/CrossPointPrefs.mm` or chosen in the app. The frozen values are listed in
+the repo's `CLAUDE.md`; the reason they are returned WITHOUT reading
+NSUserDefaults is that an install which stored something else before its
+control was removed must not keep rendering it.
 
 | Preset | light ink / paper | dark ink / paper | Measured |
 |---|---|---|---|
