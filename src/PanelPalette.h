@@ -1050,6 +1050,22 @@ constexpr float trailMsForDecay(float decayMs) {
 
 // The trail for a preset: 0 for everything that is not a phosphor, because a
 // page of e-ink does not decay.
+// WHICH EDITOR OFFERS A PRESET. Owner ruling 2026-08-23: "only show presets
+// available in that mode."
+//
+// The partition is the 2026-08-22 doctrine, not a new rule -- light is paper
+// and ink, dark is a tube -- and it falls out of the table rather than needing
+// a flag: a preset with a decay is a PHOSPHOR and belongs to the mixer; one
+// without is a paper and belongs to the ink picker. Measured on the shipped
+// table: 42 phosphors, 10 papers, no row ambiguous.
+//
+// Note this decides which editor OFFERS a preset, not which appearances the
+// preset defines. Every preset still resolves both, so choosing Green CRT in
+// the mixer sets the light page too -- it is the offering that is filtered,
+// because a phosphor listed under a paper page previews a rendition that page
+// will never show.
+constexpr bool presetOfferedInDark(int preset);
+
 constexpr float trailMsForPreset(int preset) {
   const int p = migratePreset(preset);
   for (int i = 0; i < kPresetInfoCount; i++) {
@@ -1058,6 +1074,10 @@ constexpr float trailMsForPreset(int preset) {
     return trailMsForDecay(kPresetInfo[i].decayMs);
   }
   return 0.0f;
+}
+
+constexpr bool presetOfferedInDark(int preset) {
+  return trailMsForPreset(preset) > 0.0f;
 }
 
 }  // namespace panelpalette

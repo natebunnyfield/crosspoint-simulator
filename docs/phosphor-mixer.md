@@ -335,3 +335,22 @@ sort as the blue-ish hues they are.
 - **Unconfirmed on the phone.** Everything below the math is UIKit and only
   runs there. The modal, the live apply, the sheet detents and the sliders all
   need eyes on a device.
+
+## The preset list shows only this page's presets
+
+Owner ruling 2026-08-23: *"only show presets available in that mode."*
+
+The mixer offers the **42 phosphors**; the light ink picker offers the **10
+papers**. The partition falls out of the table rather than needing a flag --
+`panelpalette::presetOfferedInDark` is `trailMsForPreset(preset) > 0`, because a
+preset with a decay IS a tube -- and it is the 2026-08-22 doctrine restated, not
+a new rule.
+
+What it filters is the OFFERING, not the definition. Every preset still resolves
+both appearances, so choosing Green CRT here sets the light page too. The reason
+to filter is that a phosphor listed under a paper page previews a rendition that
+page will never show, and the reverse.
+
+`tests/panel_source_test.cpp` pins the partition as TOTAL and non-empty on both
+sides: a preset offered by neither list would be unreachable, which is the exact
+way the presets were lost before this list existed.

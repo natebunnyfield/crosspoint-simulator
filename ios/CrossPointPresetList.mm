@@ -128,7 +128,20 @@ void selectPreset(int preset) {
   // Walk the table in ITS order, emitting a heading whenever the group changes.
   _headingCount = 0;
   const char *prevGroup = nullptr;
+  int offered = 0;
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    // ONLY WHAT THIS PAGE CAN BE (owner 2026-08-23: "only show presets
+    // available in that mode"). A phosphor listed under a paper page previews a
+    // rendition that page will never show, and the reverse. The rule lives in
+    // PanelPalette.h so both editors and the test read one definition; it does
+    // not change what a preset DEFINES, only which editor offers it.
+    if (panelpalette::presetOfferedInDark(panelpalette::kPresetInfo[i].preset) !=
+        (_dark != NO)) {
+      _cell[i] = nil;
+      _headingBeforeRow[i] = -1;
+      continue;
+    }
+    offered++;
     const char *group = panelpalette::groupNameForRow(i);
     _headingBeforeRow[i] = -1;
     if (!prevGroup || std::strcmp(group, prevGroup) != 0) {
@@ -175,7 +188,8 @@ void selectPreset(int preset) {
   }
 
   [self refresh];
-  SDL_Log("[presets] %d rows in %d groups", panelpalette::kPresetInfoCount,
+  SDL_Log("[presets] %d of %d rows offered in %s, %d groups", offered,
+          panelpalette::kPresetInfoCount, _dark ? "dark" : "light",
           _headingCount);
 }
 
@@ -194,6 +208,11 @@ void selectPreset(int preset) {
   // with the heading rather than running on from the previous family.
   int col = 0;
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    // A row this appearance does not offer has no cell. Messaging nil is a
+    // no-op so the frame assignment below would be harmless, but the column
+    // counter is NOT -- advancing it would reserve a hole in the grid for a
+    // swatch that is never drawn.
+    if (!_cell[i]) continue;
     if (_headingBeforeRow[i] >= 0) {
       if (col != 0) {
         y += kCellH + kGap;
