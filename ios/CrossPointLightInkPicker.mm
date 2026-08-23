@@ -254,29 +254,29 @@ void applySelection(int ink, int paper, int density, int paperStrength,
   // The paper strength is NOT persisted: it is frozen, and re-derived from the
   // frozen request at every load and every change.
 
-  // THE DARK SNAPSHOT, once, before the preset first moves to Custom. The
-  // preset integer is shared by both appearances, so flipping it to Custom
+  // CLAIM THE CUSTOM SLOT FOR LIGHT, which freezes DARK first.
+  //
+  // The preset integer is shared by both appearances, so pointing it at Custom
   // for the light page would otherwise yank a named dark preset (the shipped
-  // White CRT) off the dark page and hand dark whatever the custom dark
-  // fields held. Resolving the CURRENT dark pair first and writing it into
-  // those fields keeps the dark page rendering the same tones. When the
-  // preset is already Custom the dark fields are the mixer's and are not
-  // touched -- dark mode's stored state stays the mixer's.
-  if (CrossPointPrefs_panelPalettePreset() != panelpalette::kPresetCustom) {
-    const panelpalette::Palette darkNow = crosspoint::panelForPrefs(true);
-    [d setObject:hexOf(darkNow.ink) forKey:kInkDark];
-    [d setObject:hexOf(darkNow.paper) forKey:kPaperDark];
-    SDL_Log("[inkpicker] dark snapshot %s on %s (preset was %d)",
-            hexOf(darkNow.ink).UTF8String, hexOf(darkNow.paper).UTF8String,
-            CrossPointPrefs_panelPalettePreset());
-  }
+  // White CRT) off the dark page. This file used to do that freeze inline and
+  // for the TONES ONLY, which left half the bug in place: the dark page kept
+  // White CRT's colors and lost White CRT's 283 ms trail, because pollPanelGlow
+  // reads the preset and Custom names no phosphor (owner P1 2026-08-23, "fix
+  // sourcing for light and dark"). The shared claim freezes the phosphor with
+  // the tones, and it is shared precisely so the mixer -- which had no freeze at
+  // all and simply overwrote this picker's ink -- performs the mirror image of
+  // it. src/PanelSource.h holds the rule; when the slot is already Custom this
+  // is a no-op and the dark fields stay the mixer's.
+  CrossPointPrefs_claimCustomFor(/*editingDark=*/0);
 
+  // LIGHT ONLY, from here down. This picker is light mode's editor and writes
+  // light mode's two fields; it must never touch the dark pair, and the freeze
+  // above is the one exception, taken once.
   uint8_t wash[3], ground[3];
   lightink::inkAtDensity(ink, paper, density, wash, paperStrength);
   lightink::paperAtStrength(paper, paperStrength, ground);
   [d setObject:hexOf(wash) forKey:kInkLight];
   [d setObject:hexOf(ground) forKey:kPaperLight];
-  CrossPointPrefs_setPanelPalettePreset(panelpalette::kPresetCustom);
   // The sheet's texture follows its tone: a stock dialed up is rougher as
   // well as warmer. Pushed here rather than only polled, so a drag shows the
   // grain change on the same frame the color changes.

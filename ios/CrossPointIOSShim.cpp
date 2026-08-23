@@ -1122,13 +1122,17 @@ int g_appliedFill = padpalette::kContrastMin - 1;
 padpalette::Levels currentLevels(bool dark) {
   // ACCESSIBLE ONLY (owner order 2026-08-22: "switch to Accessible only for
   // button colors", alongside removing the Button Pad rows from Settings.app).
-  // The stored padContrastPreset and the four fine pickers are ignored at this
-  // single resolution point; PadPalette's other presets and its machinery stay
-  // for the library and its tests — only this app's choice is pinned.
-  const int d = dark ? 1 : 0;
-  return padpalette::resolveLevels(padpalette::kPresetAccessible, dark,
-                                   CrossPointPrefs_padOutlineContrast(d),
-                                   CrossPointPrefs_padFillContrast(d));
+  // The stored padContrastPreset and the four fine pickers are ignored;
+  // PadPalette's other presets and its machinery stay for the library and its
+  // tests — only this app's choice is pinned.
+  //
+  // NOT PINNED HERE, though it was until 2026-08-23, and that is what made it a
+  // bug: this was not a single resolution point. ios/PanelPrefs.h resolved the
+  // pad a second time for the UIKit HIDE chip and went on handing the raw
+  // stored contrasts to makePaletteOn, so the chip drew Current's +/-1 hairline
+  // beside a pad drawn at Accessible's -4/+4 — two halves of one gesture, 4-5x
+  // apart in contrast, under a header comment promising one definition.
+  return crosspoint::padLevelsForPrefs(dark);
 }
 
 // --- The panel's own two tones ---------------------------------------------
@@ -1480,7 +1484,16 @@ std::atomic<bool> g_glowDirty{false};
 
 void pollPanelGlow() {
   static int s_appliedPreset = -1;
-  const int preset = panelpalette::migratePreset(CrossPointPrefs_panelPalettePreset());
+  // THE PHOSPHOR THE PAGE CLAIMS TO BE, not the raw stored preset.
+  //
+  // They differ whenever an editor has claimed the Custom slot for the OTHER
+  // polarity: the dark page then keeps a named phosphor's tones, frozen, and
+  // this read used to lose the phosphor with the integer -- picking a
+  // light-mode ink turned a 283 ms White CRT trail into 0 ms reflective and
+  // left it that way across relaunches (owner P1 2026-08-23, measured from the
+  // app's own [glow] line). crosspoint::glowPresetForPrefs answers Custom only
+  // when the MIXER owns the decay, which is the branch below.
+  const int preset = crosspoint::glowPresetForPrefs();
   if (preset == s_appliedPreset && !g_glowDirty.exchange(false)) return;
   s_appliedPreset = preset;
 

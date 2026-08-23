@@ -138,10 +138,33 @@ contract now.
 
 ## How it lands in the pipeline
 
-The computed result is written into the **Custom slot's four hex fields**
-(`panelInkLight/panelPaperLight/panelInkDark/panelPaperDark`) and
-`panelPalettePreset` is set to Custom — so `resolve()`, the pad tint and the
-keyboard chips all keep working without learning anything. Two additions only:
+The computed result is written into the **Custom slot's DARK hex fields**
+(`panelInkDark`/`panelPaperDark`), and `panelPalettePreset` is pointed at Custom
+through `CrossPointPrefs_claimCustomFor(/*editingDark=*/1)` — so `resolve()`,
+the pad tint and the keyboard chips all keep working without learning anything.
+
+**DARK ONLY, since 2026-08-23.** It used to write all four, which was correct
+while this was the editor for both appearances and became a bug on 2026-08-22
+when the doctrine split them: light is paper and ink with its own historical-ink
+picker (`docs/light-ink-picker.md`), dark is the CRT and keeps this mixer. The
+chip's branch moved and this write did not, so every gun move in dark mode
+silently overwrote the light page's chosen ink — owner P1, "ink is not being
+picked up". Measured: an applied Payne's Gray (`panelInkLight` `323D47`, page
+text (30,37,43)) became `6E0500` and (64,3,0) after one slider move.
+
+`claimCustomFor` is the shared protocol both editors use: it freezes the OTHER
+polarity's currently-rendered pair (and, when that polarity is dark, its
+phosphor) before the shared preset integer moves, and does nothing at all once
+the slot is already Custom — by then both polarities hold owner choices.
+Decided in [src/PanelSource.h](../src/PanelSource.h), pinned by
+`tests/panel_source_test.cpp` and `tests/panel_source_test.py`.
+
+Note the mixer's LIGHT swatch is unchanged and still previews the blend's light
+rendition. That is a true property of the phosphor mix; it is no longer what the
+light page will render. Left as-is deliberately, flagged here rather than
+quietly redesigned.
+
+Two additions only:
 
 - `pollPanelGlow` asks `CrossPointMixer_glowForCustom()` when the preset is
   Custom, because plain Custom has no phosphor and would get trail 0 while a

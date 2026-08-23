@@ -233,6 +233,35 @@ void CrossPointPrefs_setPanelPalettePreset(int preset);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_panelCustomColor(int dark, int ink);
 
+// IS A PHOSPHOR MIX THE DARK PAGE'S SOURCE? (`phosphorMixActive`, written by
+// ios/CrossPointPaletteMixer.mm.) Read here as well as there because the panel
+// resolver has to know whether the mixer owns the dark page's decay before it
+// falls back to the frozen phosphor below -- see src/PanelSource.h::glowPreset.
+int CrossPointPrefs_phosphorMixActive(void);
+
+// THE PHOSPHOR THE DARK PAGE WAS FROZEN FROM (`panelDarkSnapshotPreset`).
+//
+// When an editor claims the Custom slot for ONE polarity -- the light-mode ink
+// picker is the case that shipped -- the other polarity's tones are frozen so
+// they do not change underfoot. Its PHOSPHOR has to be frozen with them, or the
+// dark page keeps a named preset's colors and silently loses its trail: Custom
+// names no phosphor, and pollPanelGlow used to read the preset integer raw.
+// Owner P1 2026-08-23. 0 (kPresetCustom), which is also what an absent key
+// reads as, means "no phosphor" -- the historical answer.
+int CrossPointPrefs_darkSnapshotPreset(void);
+
+// CLAIM THE CUSTOM SLOT FOR ONE POLARITY'S EDITOR. `editingDark` is 1 for the
+// gun mixer (dark is the CRT) and 0 for the historical-ink picker (light is
+// paper and ink) -- the 2026-08-22 doctrine split, docs/light-ink-picker.md.
+//
+// ONE function for both editors, called BEFORE either writes its own two hex
+// fields, because the failure is invisible from inside either one. It freezes
+// the other polarity's currently-rendered pair (and, if that polarity is dark,
+// its phosphor) and then points the preset at Custom. When the slot is already
+// Custom it does nothing at all: those fields are then the other editor's
+// choice, and overwriting them is the reported bug.
+void CrossPointPrefs_claimCustomFor(int editingDark);
+
 // The supersampling factor the panel is rendered at: 1, 2 or 3 framebuffer
 // pixels per logical pixel on each axis. Clamped by cp::setRenderScale() to
 // [1, CROSSPOINT_RENDER_SCALE], the ceiling this binary was compiled at, so a

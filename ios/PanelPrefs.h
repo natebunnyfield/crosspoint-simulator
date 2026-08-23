@@ -19,21 +19,43 @@
 #include "CrossPointPrefs.h"
 #include "PadPalette.h"
 #include "PanelPalette.h"
+#include "PanelSource.h"
 
 namespace crosspoint {
 
-// The pair for one appearance. Reads the preset first and only touches the four
-// custom hex fields when the preset actually is Custom -- resolve() would
-// ignore them otherwise, and this runs per frame on the SDL side.
+// The stored state the page's appearance is decided from, gathered in one
+// place. THE DECISIONS ARE NOT HERE -- they are in src/PanelSource.h, pure and
+// host-tested, because every failure mode is a wrong color on one appearance
+// (owner P1 2026-08-23, "ink is not being picked up ... fix sourcing for light
+// and dark"). This function only fetches; that file only decides.
+//
+// Read live on every call, per frame on the SDL side. Two integer reads and
+// four short strings out of NSUserDefaults is not a cost worth caching, and a
+// cache is the shape that goes stale across an appearance switch.
+inline panelsource::Store panelStoreFromPrefs() {
+  panelsource::Store s{};
+  s.preset = CrossPointPrefs_panelPalettePreset();
+  for (int d = 0; d < 2; d++) {
+    s.customInk[d] = CrossPointPrefs_panelCustomColor(d, 1);
+    s.customPaper[d] = CrossPointPrefs_panelCustomColor(d, 0);
+  }
+  s.mixActive = CrossPointPrefs_phosphorMixActive() != 0;
+  s.darkSnapshotPreset = CrossPointPrefs_darkSnapshotPreset();
+  return s;
+}
+
+// The pair for one appearance.
 inline panelpalette::Palette panelForPrefs(bool dark) {
-  const int preset = CrossPointPrefs_panelPalettePreset();
-  if (preset != panelpalette::kPresetCustom)
-    return panelpalette::resolve(preset, dark, panelpalette::kInvalidColor,
-                                 panelpalette::kInvalidColor);
-  const int d = dark ? 1 : 0;
-  return panelpalette::resolve(preset, dark,
-                               CrossPointPrefs_panelCustomColor(d, 1),
-                               CrossPointPrefs_panelCustomColor(d, 0));
+  return panelsource::panelFor(panelStoreFromPrefs(), dark);
+}
+
+// Which phosphor the page claims to be, for pollPanelGlow. NOT simply the
+// stored preset: a Custom slot that some editor froze from a named phosphor
+// still IS that phosphor, and reading the raw integer is what turned a
+// light-mode ink pick into a dead dark-mode trail. Returns kPresetCustom when
+// the mixer owns the answer -- it computes its own decay from the stored blend.
+inline int glowPresetForPrefs() {
+  return panelsource::glowPreset(panelStoreFromPrefs());
 }
 
 // The two keyboard chips' tones: THE PAD'S OWN, as of 2026-08-17.
@@ -80,10 +102,21 @@ inline panelpalette::Palette panelForPrefs(bool dark) {
 //   because a divergence between them is invisible to every other test here.
 // --- end superseded ----------------------------------------------------------
 
-inline padpalette::Palette padPaletteForPrefs(bool dark) {
+// The pad's two levels. Delegated to padpalette::shippedLevels so that the SDL
+// side (the pad, the SHOW chip) and the UIKit side (the HIDE chip) cannot
+// resolve them differently -- which they did, from 2026-08-22 until this was
+// written: the shim pinned Accessible and this file went on handing the raw
+// stored contrasts to makePaletteOn, so the two chips sat 4-5x apart in
+// contrast under a header comment promising one definition.
+inline padpalette::Levels padLevelsForPrefs(bool dark) {
   const int d = dark ? 1 : 0;
-  return padpalette::makePaletteOn(dark, CrossPointPrefs_padOutlineContrast(d),
-                                   CrossPointPrefs_padFillContrast(d),
+  return padpalette::shippedLevels(dark, CrossPointPrefs_padOutlineContrast(d),
+                                   CrossPointPrefs_padFillContrast(d));
+}
+
+inline padpalette::Palette padPaletteForPrefs(bool dark) {
+  const padpalette::Levels lv = padLevelsForPrefs(dark);
+  return padpalette::makePaletteOn(dark, lv.outline, lv.fill,
                                    panelForPrefs(dark).paper);
 }
 

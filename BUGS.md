@@ -146,6 +146,86 @@ different pieces of code and the report as it stands fits all three.
 
 ## FIXED
 
+### [S-020] A gun moved in dark mode throws away the light page's chosen ink — FIXED 2026-08-23
+**severity: high · scope: ios palette sourcing · owner P1 from the phone 2026-08-23**
+
+Owner, verbatim: *"p1 bug: ink is not being picked up. recreate, review and fix
+sourcing for light and dark to be more accurate on load, switch etc."*
+
+**What broke.** The 2026-08-22 doctrine split gave each appearance its own
+editor — light is paper and ink (`ios/CrossPointLightInkPicker.mm`), dark is the
+CRT (`ios/CrossPointPaletteMixer.mm`), and the page-color chip branches on the
+live appearance (`ios/CrossPointIOSShim.cpp:2555`). They share ONE store: a
+preset integer plus four hex fields, two per appearance. The mixer was left
+`untouched` by that split — `docs/light-ink-picker.md` says so in as many words —
+and went on writing **all four** fields from the blend
+(`CrossPointPaletteMixer.mm` `applyGuns`, the `r.light.*` writes). So one gun
+move in dark mode replaced whatever ink had been chosen in light.
+
+Second half, same shared-slot cause: pointing the preset at Custom for the light
+page cost the DARK page its phosphor. The ink picker already froze the dark
+TONES, but `pollPanelGlow` (`CrossPointIOSShim.cpp:1483`) read the preset
+integer raw, and Custom names no phosphor — so a light-mode ink pick turned
+White CRT's 283 ms emissive trail into 0 ms reflective, and kept it that way
+across relaunches.
+
+**Reproduced first, on an iPhone Air simulator (`663B0B14`), 2026-08-23**, with
+`CROSSPOINT_SIM_APPLY_INK` and `CROSSPOINT_SIM_MIX_GUNS` driving the editors'
+own apply functions:
+
+| step | `panelInkLight` | page text, measured |
+|---|---|---|
+| Payne's Gray applied in light | `323D47` | (30, 37, 43) |
+| relaunch (load) | `323D47` | (30, 37, 43) |
+| dark, then light again (switch) | `323D47` | (30, 37, 43) |
+| **one gun moved in dark mode** | **`6E0500`** | **(64, 3, 0)** — a red |
+
+`lightInkIndex` still read 15 throughout, so the picker went on showing Payne's
+Gray as the chosen row while the page rendered a color nobody picked. The glow
+half came off the app's own log: `[glow] preset 21 -> 283 ms trail ... emissive`
+at boot, `[glow] preset 0 -> 0 ms trail ... reflective` six seconds later, after
+one ink pick.
+
+**Fix.** The decision moved to `src/PanelSource.h` — pure, host-tested — and
+`ios/PanelPrefs.h` only fetches. One editor per polarity, neither writing the
+other's fields, and one shared claim protocol
+(`CrossPointPrefs_claimCustomFor(editingDark)`) that freezes the other
+polarity's currently-rendered pair **and its phosphor**
+(`panelDarkSnapshotPreset`, append-only, 0 = none) before the shared preset
+integer moves — and does nothing once the slot is already Custom. The glow asks
+`crosspoint::glowPresetForPrefs()`.
+
+**Verified after, same device, same sequence**: the light page measured
+(30, 36, 43) on load, after a light↔dark switch, and after the same gun move that
+used to destroy it; the store kept `panelInkLight=323D47`; and the trail stayed
+283 ms emissive through the ink pick and across a relaunch. Native-pixel PNGs of
+each step were captured with the run.
+
+**Why nothing caught it.** `tests/chip_tint_source_test.py` guards this exact
+area and passed through the whole bug: it asserts a delegation CHAIN and never a
+tone, and the chain was intact the entire time. `tests/panel_source_test.cpp`
+(bytes, both polarities, load / switch / both editor orders) and
+`tests/panel_source_test.py` (each editor writes only its own polarity's keys)
+now cover it; both fail against the pre-fix tree — 3 and 20 failures
+respectively.
+
+### [S-021] The pad's Accessible pin lived at one of its two resolution points — FIXED 2026-08-23
+**severity: medium · scope: ios pad and keyboard chips · found 2026-08-23 while fixing S-020**
+
+Owner order 2026-08-22 pinned the button pad to `kPresetAccessible`. The pin
+went into `CrossPointIOSShim.cpp`'s `currentLevels()`, which feeds the pad and
+the SDL SHOW chip. `ios/PanelPrefs.h`'s `padPaletteForPrefs` resolves the pad a
+SECOND time, for the UIKit HIDE chip in the keyboard bar, and went on handing
+the raw stored contrasts to `makePaletteOn` — the registered defaults, which are
+the Current preset's ±1. So the hide chip drew a ±1 hairline beside a pad drawn
+at Accessible's ∓4: the two halves of one gesture, 4–5× apart in contrast, under
+a header comment in that very file promising one definition.
+
+Separate defect from S-020 — different control, different mechanism — found in
+the same file because the owner's report pointed at it. Both resolution points
+call `padpalette::shippedLevels()` now, pinned by `tests/panel_source_test.cpp`
+and by `tests/panel_source_test.py`.
+
 ### [S-018] iOS appearance and CrossPoint's Dark Mode disagree, and the setting never sticks — FIXED 2026-08-19
 **severity: high · scope: ios display · reported from the phone 2026-08-19**
 

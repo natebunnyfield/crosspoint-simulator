@@ -580,4 +580,34 @@ constexpr Levels resolveLevels(int preset, bool dark, int outlinePref,
   return presetLevels(isKnownPreset(preset) ? preset : kPresetCurrent, dark);
 }
 
+// THE LEVELS THIS APP ACTUALLY SHIPS, for BOTH of its resolution points.
+//
+// ACCESSIBLE ONLY -- owner order 2026-08-22, "switch to Accessible only for
+// button colors", given alongside the removal of the Button Pad rows from
+// Settings.app. The stored preset and the four fine pickers are ignored; the
+// rest of this file's presets and machinery stay for the library and its tests.
+//
+// HERE, rather than at the one call site it had, because there are TWO. The pin
+// went into ios/CrossPointIOSShim.cpp's currentLevels() for the pad and the SDL
+// SHOW chip, and ios/PanelPrefs.h went on resolving the pad a second time for
+// the UIKit HIDE chip out of the raw stored contrasts -- so the chip drew
+// Current's +/-1 hairline beside a pad drawn at Accessible's -4/+4. Two halves
+// of one gesture, 4-5x apart in contrast, invisible to every test here (found
+// 2026-08-23, alongside the panel-sourcing P1). The preferences are still
+// passed in and still ignored, exactly as resolveLevels documents: a preset
+// overrides them rather than writing them, so returning to Custom restores
+// whatever the owner last set.
+constexpr Levels shippedLevels(bool dark, int outlinePref, int fillPref) {
+  return resolveLevels(kPresetAccessible, dark, outlinePref, fillPref);
+}
+
+static_assert(shippedLevels(false, 0, 0).outline == -4 &&
+                  shippedLevels(false, 0, 0).fill == -5 &&
+                  shippedLevels(true, 0, 0).outline == 4 &&
+                  shippedLevels(true, 0, 0).fill == 5,
+              "the pad ships pinned to Accessible in both appearances");
+static_assert(shippedLevels(false, 9, -9).outline == -4 &&
+                  shippedLevels(true, -9, 9).fill == 5,
+              "the fine pickers are overridden, not consulted");
+
 }  // namespace padpalette

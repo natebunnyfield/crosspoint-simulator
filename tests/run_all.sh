@@ -297,6 +297,19 @@ run_direct gen_cmake_sources \
 run_direct chip_tint_source \
   python3 tests/chip_tint_source_test.py
 
+# WHERE EACH POLARITY'S TONES COME FROM (owner P1 2026-08-23, "ink is not being
+# picked up"). Two tests, because the bug had two halves and neither could see
+# the other: the C++ one drives the shipped decision functions and compares
+# BYTES for both appearances across load, switch and both editor orders, while
+# the Python one pins that the light-mode ink picker and the dark-mode gun mixer
+# still write only their own polarity's fields. chip_tint_source above passed
+# through this entire bug -- it asserts a delegation chain and never a tone.
+run panel_source \
+  c++ -std=c++17 -Isrc -Iios -o "$OUT/panel_source" tests/panel_source_test.cpp
+
+run_direct panel_source_owners \
+  python3 tests/panel_source_test.py
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.
