@@ -28,6 +28,7 @@ shipped model is:
 | Structure | letterpress: squeeze ring, deboss shadow, plate pressure, in-stroke irregularity (`src/Letterpress.h`) | scanlines: box-integrated Gaussian raster, content-dependent bloom, mottle folded in (`src/Scanlines.h`) |
 | Sheet / glass | paper tooth (per-stock, output-wide) + formation clouding | phosphor grain (fallback when scanlines are off, `src/PhosphorGrain.h`) |
 | Marks | 6 paper defects, per-page deterministic seed (`src/PaperDefects.h`) | — |
+| Leaf | sheet-to-sheet tone drift off the same page seed, +/-2 code values, off by default (`src/LightInkPalette.h`) | — |
 | Motion | **nothing** | beam sweep, phosphor trail, cascade afterglow, page fade |
 
 Every one of those passes obeys the same four invariants, and any new item on
@@ -123,7 +124,17 @@ floor. But at high spread on a rough stock, counters (the holes in e, a, o) can
 close at small sizes — a legibility failure the contrast floor cannot see. Needs
 a coverage cap tied to the stroke width, not a free dial.
 
-### 1c. Sheet-to-sheet color drift through a book — **the cheapest real win on this list**
+### 1c. Sheet-to-sheet color drift through a book — **SHIPPED 2026-08-22**
+
+**Status.** Built. `Sheet drift` in the light picker's Paper group, off by
+default and bit-exact off; model in `src/LightInkPalette.h`
+(`paperDriftOffsets`, `paperWorstDrift`), applied at the single read that
+decides what tones the page is painted in (`livePanelPalette` in
+`src/HalDisplay.cpp`); `paperDriftPercent` in `settings.json`,
+`CROSSPOINT_SIM_PAPER_DRIFT` on the desktop; swept by
+`tests/light_ink_test.cpp`. What follows is the original entry, kept because
+its reasoning is what the build was measured against, with the outcome noted
+per paragraph.
 
 **What it is.** A book is printed on many sheets from several reams and, more
 importantly, ages unevenly: the block's edges yellow faster than its middle
@@ -140,12 +151,48 @@ at `src/SimulatorOverlay.h:97`). Drift is: hash the seed to a small signed
 offset, apply it to the resolved paper tone before `panelForPrefs` publishes it,
 and clamp so the 7:1 floor holds at the extreme. Perhaps 40 lines.
 
+*Outcome.* Two corrections to that plan, both found by building it. **It does
+not go where `panelForPrefs` publishes the tone**: that resolver runs on iOS
+only, so putting the offset there would leave the desktop and the phone free to
+disagree about what page 47 looks like. It goes at `livePanelPalette`, the one
+read every consumer of the page's color already goes through — the
+framebuffer conversion, both contrast budgets, the grain's amplitude, the fade
+floor and every field cache key. And **the clamp cannot be "clamp so the floor
+holds at the extreme"** as a separate step: both existing sliders stop exactly
+AT 7.0, so a leaf two code values darker sits under it by construction and no
+bound is small enough to be safe. The drift dial is threaded through
+`floorDensityPct` and `maxPaperStrengthPct` instead, so the boundary itself
+moves and the floor is the DARKEST leaf's. That is exact rather than
+probabilistic, and it costs a point or two of density at the top of the dial.
+The 7:1 floor survives it with room: the worst pair at full density on the
+darkest leaf is Van Dyke Brown on Laid Antique at 7.53:1, against 7.68:1
+undrifted.
+
+*Why the wash is not recomputed on the drifted sheet, which matters.* The
+picker publishes the wash computed on the NOMINAL sheet and only the paper then
+drifts. Holding the numerator fixed is what makes the all-negative leaf
+provably the darkest — the ratio is then monotone in the ground's luminance.
+Recomputing the wash on each leaf (one draft did) breaks that: byte
+quantization in the wash puts a ripple in that made the −2/−2/0 leaf measure
+0.004 below −2/−2/−2 on eleven ink x paper pairs, and the clamp would have had
+to take a 125-way minimum. It is also not what ships.
+
 **Risk.** Low but not zero, and it is worth naming: the paper tone reaches the
 letterbox clear color and the pad field byte-for-byte (pinned by
 `tests/light_ink_test.cpp`), so a per-page drift moves the *whole app chrome*
 by a code value or two on every page turn. That is either delightful (the whole
 book is one object) or a flicker. It must be **small** — ±2 code values, not
 ±8 — and it must be a dial with an off position.
+
+*Outcome.* ±2 at the top of the dial, exactly, clamped rather than left to the
+arithmetic, and off by default. The chrome question resolved the other way and
+deliberately: the letterbox clear comes from `SimulatorOverlay::clearColor`
+(host-published) and the pad from `padPaletteForPrefs`, and both keep the
+PUBLISHED tone. The sheet drifts; the device around it does not. Measured on
+six page-matched consecutive leaves at dial 100, offsets +2/+2/+1, +2/+2/+2,
++2/+2/+1, 0/0/+1, +1/+1/+1, −2/−2/−1 against a byte-identical FBFBF9 on every
+drift-0 frame; no pixel anywhere moves more than 2 levels, and the six frames
+are byte-identical across a relaunch.
 
 ### 1d. Deckle edges — **wanted, awkward, and probably not worth it**
 
@@ -637,7 +684,9 @@ of thing an App Store reviewer notices.
 
 ### 4c. Power and thermal on a phone
 
-The measurable costs, in order:
+The measurable costs, **as this section originally ranked them** — kept because
+the measurement below overturns two of the three, and the wrong ranking is
+worth being able to see:
 
 1. **`SDL_RenderReadPixels` of the whole output.** The scanline pass reads the
    composed backbuffer back to the CPU to compute its bloom level map
@@ -650,27 +699,80 @@ The measurable costs, in order:
    rasterized over their own bounding boxes only, so the marks are cheap; the
    tooth is the per-pixel cost.
 3. **The letterpress panel field** is framebuffer-sized (2376x1584 at 3x on an
-   X3 page = 3.8 Mpx) and regenerates on `pixelBufSeq`, i.e. twice per page
-   (1-bit pass, then AA compose).
+   X3 page = 3.8 Mpx) and regenerates on `pixelBufSeq`, i.e. up to twice per
+   page (1-bit pass, then AA compose).
 
-So a page turn currently costs roughly: two panel-field builds, one sheet-field
-build, one full readback, and several texture uploads. That is a lot of work for
-one page turn, and it is all on the main thread inside `presentIfNeeded`.
+So a page turn currently costs roughly: one to two panel-field builds, one
+sheet-field build, one full readback, and several texture uploads, all on the
+main thread inside `presentIfNeeded`.
 
-**The real risk is not average power, it is the page-turn latency spike.** A
-reader turns pages in bursts. Nobody has measured this — there is no timing
-instrumentation on the present path — and **that measurement is the prerequisite
-for anything on this roadmap that adds a fifth field.** A
-`CROSSPOINT_SIM_LOG_PRESENT_MS` counter alongside the existing
-`CROSSPOINT_SIM_LOG_PRESENTS` would cost an hour and would tell us whether
-show-through (§1a) is free or is the thing that pushes a page turn past the
-perceptual threshold. **Do this before doing anything else on the list.**
+### Measured, 2026-08-22 — `CROSSPOINT_SIM_LOG_TIMING=1`
 
-One cheap structural win regardless: the panel field rebuilding **twice** per
-page is a known consequence of `pixelBufSeq` incrementing on both passes — the
-paper-defects work already recorded this as a negative result and routed the
-*sheet* field around it via the page identity. The *panel* field still pays it.
-Keying it the same way would halve the most expensive per-page item.
+This section used to say "nobody has measured this". It is measured now. The
+instrument is `CROSSPOINT_SIM_LOG_TIMING=1` (`src/HalDisplay.cpp`): one
+`[timing]` line per present, reporting each pass as **BUILD / cache / off**
+with its wall time, the readback separately, the flip separately, and the
+total. The env read is **latched once** rather than read per present, and every
+station is a branch on a `false` bool when it is unset — an instrument that
+added a `getenv` and a clock read to each pass it measures could not report
+those passes honestly.
+
+Conditions: Mac, Metal renderer, real window, X3 profile, six consecutive page
+turns of a real EPUB driven by `QTAP:RIGHT`. Medians over the six; the cold
+first build is excluded. Idle = a present where every pass is served from
+cache.
+
+| Arm | Render scale | Page turn, total | Panel letterpress field | Sheet field | Scanline field | Readback | Idle present |
+|---|---|---|---|---|---|---|---|
+| Light, letterpress 100 + tooth 180 + formation 55 + defects 30 | 1x | **99.0 ms** (66–148) | 56.8 ms | 31.9 ms | off | none | **0.41 ms** |
+| Light, same dials | 3x | **697 ms** (574–727) | 489 ms | 29.8 ms | off | none | **2.38 ms** |
+| Dark, scanlines 50 | 1x | **42.6 ms** (40–52) | off | off | 35.8 ms | 1.77 ms | **0.42 ms** |
+| Dark, scanlines 50 | 3x | **115 ms** (49–153) | off | off | 38.6 ms | 2.51 ms | **2.85 ms** |
+
+Six things in there are worth naming, and three of them contradict what this
+section assumed (items 1, 2 and 3; items 4 and 5 confirm it).
+
+1. **The readback is not the expensive item — it is the cheapest thing on the
+   list.** It was ranked first here. Measured, it is 1.8–2.5 ms of a 43–115 ms
+   dark page turn: 2–6%, and it barely moves with the render scale because it
+   is output-sized. The GPU→CPU stall that the ~13 MB figure implies does not
+   materialise on this renderer.
+2. **The letterpress panel field dominates absolutely everything, and it is
+   the one pass that scales with the render scale.** 57 ms at 1x, **489 ms at
+   3x** — 8.6x for 9x the pixels, so it is purely per-pixel work. At the
+   phone's 3x that is half a second of main-thread time per page turn from one
+   field.
+3. **The panel field does NOT rebuild twice per page as a rule.** Measured: 9
+   builds across 7 rendered pages, 1.3x per page. The present coalescing
+   (`kPresentHoldMs`) usually suppresses the 1-bit pass's present, so the
+   second build happens only when a frame escapes the hold — and when it does,
+   the page turn costs about double. That is exactly where the 148 ms outlier
+   at 1x and the 727 ms one at 3x come from. The structural win named below is
+   therefore worth ~490 ms on roughly a third of page turns rather than half of
+   every one.
+4. **The sheet field is render-scale independent**, ~30 ms at both scales,
+   because it is generated at OUTPUT size — and it rebuilds exactly once per
+   page, which is the page-identity keying working as designed. The scanline
+   field is the same shape (35.8 → 38.6 ms).
+5. **A still page really is free**: 0.4 ms at 1x, 2.4–2.9 ms at 3x with every
+   field served from cache. The 3x idle cost is not a field at all; it is the
+   ~15 MB panel texture upload.
+6. **So the cost of a new pass is decided by which space it lives in.** At 3x,
+   a new PANEL-space field is in the ~490 ms class and a new OUTPUT-space field
+   is in the ~30 ms class. Show-through (§1a) is specified as a fold into the
+   *sheet* field, which puts it in the cheap class — the question this
+   measurement existed to answer, answered: **show-through is affordable, and
+   the letterpress panel field is the thing that is not.**
+
+Caveat, stated rather than buried: this is a Mac, not a phone. The phone's CPU
+is slower, so the 3x column is a lower bound for the device it describes.
+
+One cheap structural win regardless: the panel field rebuilding **twice** on
+the page turns where a frame escapes the present hold is a consequence of
+`pixelBufSeq` incrementing on both passes — the paper-defects work already
+recorded this as a negative result and routed the *sheet* field around it via
+the page identity. The *panel* field still pays it, and at 3x that is 490 ms
+of duplicated work on about a third of page turns.
 
 ### 4d. Is there a third mode wanted?
 
@@ -732,8 +834,8 @@ legibility, and mostly through resampling.
 |---|---|---|---|---|---|
 | 1 | Show-through from the verso | 1a | **high** | med-low | low |
 | 2 | Faceplate diffusion (the glass, not the beam) | D1 | **high** | med | med-high |
-| 3 | Sheet-to-sheet color drift | 1c | med-high | **trivial** | low |
-| 4 | Present-path timing instrumentation | 4c | (enabling) | **trivial** | none |
+| 3 | ~~Sheet-to-sheet color drift~~ **SHIPPED 2026-08-22** | 1c | med-high | **trivial** | low |
+| 4 | ~~Present-path timing instrumentation~~ **SHIPPED 2026-08-22** | 4c | (enabling) | **trivial** | none |
 | 5 | Corner defocus as ellipticity, sigma(r)=sigma0(1+kr^2) | D3 | med | **trivial** | low |
 | 6 | Accessibility labels on the drawer | 4b | med | **trivial** | none |
 | 7 | HV sag, 0.5-2%, **transient only** | D4 | med-high | low | med (see the condition) |
@@ -787,18 +889,20 @@ and say so: real monochrome tubes measure a glare ratio of 89–138 against
 TG18's minimum acceptable 400, so the authentic setting is worse than any
 setting a reading app should offer.
 
-**3. Sheet-to-sheet color drift (§1c).** Cheapest thing on the list by a wide
-margin, and it removes the single most machine-like remaining property of the
-light page: every leaf being byte-identical in tone. The per-page deterministic
-seed exists and already survives a relaunch. Keep the amplitude tiny (±2 code
-values), because the paper tone reaches the app chrome, and give it an off
-switch.
+**3. ~~Sheet-to-sheet color drift (§1c).~~ SHIPPED 2026-08-22.** Cheapest thing
+on the list by a wide margin, and it removes the single most machine-like
+remaining property of the light page: every leaf being byte-identical in tone.
+Built as described, with the two corrections recorded in §1c: the offset rides
+`livePanelPalette` rather than the iOS-only resolver, and the drift dial is
+threaded through the two existing 7:1 clamps rather than checked beside them.
 
-**Before all three: instrument the present path (§4c).** One counter, an
-afternoon. A page turn currently costs two panel-field builds, one sheet-field
-build and one full-output GPU readback, and nobody has ever measured it. Every
-item above adds to that budget and none should be added blind. Not a feature,
-which is why it is not in the three — but it is the first commit.
+**~~Before all three: instrument the present path (§4c).~~ SHIPPED
+2026-08-22**, as `CROSSPOINT_SIM_LOG_TIMING=1`, with the measured table in
+§4c. The headline for the two items still open above it: at the phone's 3x, a
+new OUTPUT-space field costs ~30 ms per page turn and a new PANEL-space field
+costs ~490 ms. Show-through (§1a) folds into the sheet field, so it is in the
+cheap class. The readback this section ranked as the top cost is 2–6% of a page
+turn and can be forgotten.
 
 **Two honorable mentions that cost almost nothing.** Corner defocus (D3) is
 roughly a two-line change to a model that already computes a per-pixel sigma,

@@ -498,6 +498,7 @@ Three settings now decide what the page and the pad look like, all host-side —
 | Render scale 1x/2x/3x | `lib/GfxRenderer/RenderScale.h` (firmware), latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
 | Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
 | Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded` | `docs/phosphor-grain.md` |
+| Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink, off and bit-exact off by default. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
 | Letterpress — LIGHT pages only (doctrine 2026-08-22: light is paper and ink), Off/Subtle/Standard/Heavy, ink-squeeze rim + deboss shadow + pressure + tooth, panel-space, darken-only. The pressure part's mapped range is WIDENED above 100% (`pressAmpScale`, 200% = 8x standard) — the 2026-08-22 audit found the dial near-dead, eaten by both the pixel math and a cache key that omitted the part percents | `src/Letterpress.h`, composited over the panel in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LETTERPRESS` | `docs/letterpress-and-scanlines.md` |
 | Laid structure — chain + laid lines for a laid PAPER stock (`lightink::Paper::laid`; Laid Antique today), rides the paper slider, output-space box-integrated (the ~1.9 px laid pitch is ST-008 territory), darken-only, per-page seed | `src/LaidStructure.h`, folded into the sheet field in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LAIDLINES` | `docs/letterpress-and-scanlines.md`, `docs/paper-colorimetry-sources.md` §3c |
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
@@ -621,6 +622,16 @@ Grown in one day; each is documented at its definition, this is the map:
   presents the mixer with no finger.
 - **`CROSSPOINT_SIM_LOG_POWER=1`**: [power] stations across sleep entry / wake
   source / reboot boundary / first update-refresh-present.
+- **`CROSSPOINT_SIM_LOG_TIMING=1`**: one `[timing]` line per present --
+  every field pass tagged BUILD / cache / off with its wall time, the
+  scanline readback and the flip apart, and the total. The env read is
+  LATCHED once, not read per present: an instrument that added a getenv and
+  a clock read to each pass it measures could not report those passes
+  honestly. Measured page-turn costs and what they overturned:
+  `docs/surface-roadmap.md` section 4c -- shortest version, at the phone's
+  3x an OUTPUT-space field costs ~30 ms per page turn and a PANEL-space one
+  ~490 ms, and the GPU readback everyone assumed was the expensive item is
+  2-6%.
 - **`CROSSPOINT_SIM_IMPORT_FILE=<path>`**: drives the book-import path (copy
   to card, then open) exactly as an incoming Files/share-sheet epub does.
 - **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,

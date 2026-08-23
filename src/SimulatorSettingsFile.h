@@ -209,6 +209,16 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = a fresh sheet (bit-exact off)   30 = the iOS default   100 = used
   "paperDefectsPercent": 0,
 
+  // SHEET-TO-SHEET DRIFT: how far one leaf's paper tone may sit from the
+  // stock's. A book is printed from several reams and ages unevenly, so no two
+  // leaves measure the same; every page here measures identically without
+  // this. Derived from the same page identity the tooth, the wires and the
+  // marks use, so a page is the same leaf across a relaunch, and it moves the
+  // PAPER only. +/-2 code values at 100, because this tone is the whole page's
+  // ground. docs/surface-roadmap.md section 1c.
+  //   0 = one tone per book (bit-exact off, both platforms)   100 = +/-2
+  "paperDriftPercent": 0,
+
   // THE PRESS'S THREE PARTS, as percents of the standard press. The
   // letterpressPercent above is the MASTER; these are the per-component ratios
   // and compose multiplicatively with it, so there is one stored value per

@@ -350,6 +350,22 @@ void setPaperFormation(int depthPercent);
 // and citations: docs/paper-defects.md. CROSSPOINT_SIM_PAPER_DEFECTS overrides.
 void setPaperDefects(int dialPercent);
 
+// SHEET-TO-SHEET DRIFT: how far this leaf's paper tone may sit from the
+// stock's, 0..100 (0 off and bit-exact, which is the shipped value on both
+// platforms). A book is printed from several reams and ages unevenly, so no
+// two leaves measure the same tone; every page here measures identically
+// without this. The offset is derived from the SAME page identity the tooth,
+// the wires and the defects use, so a leaf is the same leaf across a
+// relaunch, and it moves the PAPER only -- a different ream does not change
+// the pigment. Bounded to +/-2 code values at the top of the dial, because
+// this tone is the whole page's ground; the 7:1 clamps take that bound as the
+// darkest sheet the dial can produce and move the density floor to suit.
+// Applied at ONE read (livePanelPalette in HalDisplay.cpp), so no consumer of
+// the page's tone can be forgotten. Model: src/LightInkPalette.h
+// (host-tested); design: docs/surface-roadmap.md section 1c.
+// CROSSPOINT_SIM_PAPER_DRIFT overrides the argument.
+void setPaperDrift(int dialPercent);
+
 // CHAIN AND LAID LINES: the wire structure of a hand mould, for a stock that
 // carries it (lightink::Paper::laid -- Laid Antique today). Percent of
 // standard; the iOS picker pushes the paper-strength percent for a laid stock

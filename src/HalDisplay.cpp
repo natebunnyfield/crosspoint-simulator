@@ -8,6 +8,7 @@
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
 #include "Letterpress.h"
+#include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "PageFade.h"
 #include "PanelPalette.h"
@@ -182,6 +183,50 @@ static bool powerLogWanted() {
   const char *e = std::getenv("CROSSPOINT_SIM_LOG_POWER");
   return e && e[0] == '1';
 }
+// CROSSPOINT_SIM_LOG_TIMING=1: what a present actually costs, per pass.
+//
+// The roadmap's prerequisite (docs/surface-roadmap.md section 4c): a page turn
+// pays for one or two panel-field builds, a sheet-field build and a
+// full-output GPU readback, all on the main thread inside presentIfNeeded, and
+// nothing had ever measured it -- so every proposal that adds a fifth field
+// was being argued blind. The measured table is in that section, and three of
+// its four assumptions were wrong: the readback is 2-6% of a page turn rather
+// than the top cost, the panel field is 490 ms of a 700 ms page turn at 3x,
+// and it rebuilds 1.3 times per page rather than twice because the present
+// hold usually swallows the 1-bit pass.
+//
+// LATCHED, not read per present, and that is the whole point of the shape. An
+// instrument that adds a getenv and a clock read to every pass it measures
+// cannot report the cost of those passes honestly. Unset, every station below
+// is a branch on a bool that is false and no clock is read at all.
+static bool timingLogWanted() {
+  static const bool wanted = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_LOG_TIMING");
+    return e && e[0] == '1';
+  }();
+  return wanted;
+}
+
+// One pass's verdict for this present. A cache HIT is as interesting as a
+// build: "the sheet rebuilt twice this page" and "the sheet was served" are
+// the two answers the field-keying work exists to distinguish, and a bare
+// duration cannot tell them apart.
+struct PassTiming {
+  bool built = false;   // the field was regenerated this present
+  bool served = false;  // a cached field was drawn
+  double ms = 0.0;      // wall time of the regeneration, 0 when served
+};
+struct PresentTiming {
+  PassTiming letterpress, sheet, grain, scanlines;
+  bool readback = false;  // SDL_RenderReadPixels of the whole output
+  double readbackMs = 0.0;
+  uint64_t startNs = 0;
+  double flipMs = 0.0;  // SDL_RenderPresent itself
+};
+// Main thread only: every writer is either presentIfNeeded or an ensure*()
+// that only presentIfNeeded calls.
+static PresentTiming timingFrame;
+
 // One-shot latches so the first update/refresh/present AFTER an in-process
 // reboot announce themselves. Armed by the reboot Registrar below; checked
 // (a plain bool) before any env read, so the off cost is nil.
@@ -460,9 +505,30 @@ std::atomic<uint64_t> panelPackedDark{packPalette(panelpalette::kDefaultDark)};
 // gets the emissive treatment.
 bool panelIsDarkGround();
 
-PanelPalette livePanelPalette(bool dark) {
+// The pair the HOST published -- the stock's own tone, before this page's
+// sheet drift. Only two callers want it: the letterbox clear color (the device
+// around the sheet, not the sheet) and the drift itself.
+PanelPalette publishedPanelPalette(bool dark) {
   return unpackPalette(dark ? panelPackedDark.load() : panelPackedLight.load());
 }
+
+// THE TONES THIS PAGE IS PAINTED IN -- the published pair with the leaf's own
+// sheet-to-sheet drift folded in. Defined below pageSheetSeed(), because that
+// is where the page identity is turned into a seed; declared here because
+// everything from the 1bpp->ARGB conversion down reads it.
+//
+// THE DRIFT LIVES HERE AND NOWHERE ELSE, and that is the whole design choice.
+// This function is already the single read point for "what color is the
+// page": the framebuffer conversion, the letterpress and sheet contrast
+// budgets, the grain's amplitude, the page fade's floor and every field cache
+// key all come through it. Applying the offset at the one read means no
+// consumer can be forgotten and none can be told twice -- and every field key
+// already folds live.paper, so a drifted page rebuilds its fields and can
+// never be served a neighbouring leaf's. The alternative, drifting the tone
+// where the host publishes it, would put the offset in two places at once
+// (iOS PanelPrefs and the desktop settings watch) and leave the desktop and
+// the phone free to disagree about what page 47 looks like.
+PanelPalette livePanelPalette(bool dark);
 
 bool panelIsDarkGround() {
   const PanelPalette pal = livePanelPalette(display.isInverted());
@@ -908,7 +974,11 @@ void setPanelDark(bool dark) {
   // harness) use the same values, so the double write is idempotent. Reads the
   // LIVE palette rather than a constant, so a host that has set a custom paper
   // still gets an edgeless page after a polarity flip.
-  const PanelPalette pal = livePanelPalette(dark);
+  //
+  // The PUBLISHED tone, not the drifted one: the field is the device around
+  // the sheet, and a surround that stepped with every page turn would be the
+  // chrome flicker the drift's bound exists to avoid.
+  const PanelPalette pal = publishedPanelPalette(dark);
   setClearColor(pal.paper[0], pal.paper[1], pal.paper[2]);
   display.setInverted(dark);
 }
@@ -1016,6 +1086,9 @@ static std::atomic<int> paperToothPct{100};
 static std::atomic<int> paperFormationPct{
     static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)};
 static std::atomic<int> paperDefectsPct{paperdefects::kDialOff};
+// SHEET-TO-SHEET DRIFT: how far this leaf's paper tone may sit from the
+// stock's. Off is the shipped value on both platforms, and off is bit-exact.
+static std::atomic<int> paperDriftPct{lightink::kPaperDriftDefault};
 // CHAIN AND LAID LINES, for a stock that carries them (lightink::Paper::laid;
 // the iOS picker pushes the paper-strength percent for a laid stock and 0 for
 // everything else). Off is the desktop default, so the canary is unchanged.
@@ -1150,6 +1223,18 @@ void setPaperDefects(int dialPercent) {
   dialPercent = envPercentOr("CROSSPOINT_SIM_PAPER_DEFECTS", dialPercent);
   const int pct = paperdefects::clampDial(dialPercent);
   if (paperDefectsPct.exchange(pct) == pct) return;
+  pendingPresent.store(true);
+}
+
+void setPaperDrift(int dialPercent) {
+  dialPercent = envPercentOr("CROSSPOINT_SIM_PAPER_DRIFT", dialPercent);
+  const int pct = lightink::clampPaperDriftPct(dialPercent);
+  if (paperDriftPct.exchange(pct) == pct) return;
+  // The panel's own tones change, so the cached frame has to be reconverted --
+  // the palette path's mechanism, for the same reason: an e-ink firmware may
+  // not render again for minutes and the page would otherwise keep the tone it
+  // was converted in.
+  pendingReconvert.store(true);
   pendingPresent.store(true);
 }
 
@@ -1442,6 +1527,10 @@ void HalDisplay::begin() {
   // where nothing else calls the setter.
   SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
   SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
+  // Twelfth. Off is the shipped value on both platforms, so this seeds nothing
+  // new -- it is here only so CROSSPOINT_SIM_PAPER_DRIFT is read on the
+  // desktop, where nothing else calls the setter.
+  SimulatorOverlay::setPaperDrift(lightink::kPaperDriftDefault);
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1491,6 +1580,11 @@ void HalDisplay::begin() {
     SimulatorOverlay::setPaperFormation(static_cast<int>(
         letterpress::kFormationDepthDefault * 100.0f + 0.5f));
     SimulatorOverlay::setPaperDefects(paperdefects::kDialDefault);
+    // The app ships sheet drift OFF, so this line changes nothing -- it is
+    // here because this switch is meant to be the complete list of what the
+    // app's dials are, and a dial missing from it is the divergence the
+    // switch exists to stop.
+    SimulatorOverlay::setPaperDrift(lightink::kPaperDriftDefault);
     SimulatorOverlay::setPressRing(100);
     SimulatorOverlay::setPressDeboss(100);
     SimulatorOverlay::setPressPressure(100);
@@ -1852,8 +1946,11 @@ static bool ensureGrainTexture(int w, int h) {
   if (grainTexture && grainTexW == w && grainTexH == h &&
       grainTexStrength == strength && grainTexCoverage == coverage &&
       grainTexCells == cells && grainTexDepth == depthPct &&
-      grainTexSeed == seed && grainTexAmplitude == amplitudeKey)
+      grainTexSeed == seed && grainTexAmplitude == amplitudeKey) {
+    if (timingLogWanted()) timingFrame.grain.served = true;
     return true;
+  }
+  const uint64_t grainT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   destroyGrainTexture();
 
   grainTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
@@ -1896,6 +1993,11 @@ static bool ensureGrainTexture(int w, int h) {
   grainTexDepth = depthPct;
   grainTexSeed = seed;
   grainTexAmplitude = amplitudeKey;
+  if (timingLogWanted()) {
+    timingFrame.grain.built = true;
+    timingFrame.grain.ms =
+        static_cast<double>(SDL_GetTicksNS() - grainT0) / 1.0e6;
+  }
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[grain] field %dx%d strength %d coverage %d mottle %d x %.2f "
@@ -1962,6 +2064,24 @@ static uint32_t pageSheetSeed() {
                                   static_cast<uint32_t>(spine),
                               static_cast<uint32_t>(page));
 }
+
+// See the declaration above for why the drift lives at this one read.
+//
+// LIGHT ONLY. Sheet-to-sheet variation is a property of stock; a phosphor
+// screen is one screen, and the dark page's ground is glass, not paper. Off is
+// the default and off is a bit-exact early return, so a build that never
+// touches the dial -- every desktop build, and an untouched install -- reads
+// exactly the pair the host published, and pageSheetSeed() is not even called.
+namespace {
+PanelPalette livePanelPalette(bool dark) {
+  const PanelPalette pal = publishedPanelPalette(dark);
+  const int driftPct = SimulatorOverlay::paperDriftPct.load();
+  if (dark || driftPct <= lightink::kPaperDriftOff) return pal;
+  PanelPalette out = pal;
+  lightink::paperDrifted(pal.paper, pageSheetSeed(), driftPct, out.paper);
+  return out;
+}
+}  // namespace
 
 // THE PAGE'S INKNESS, hoisted out of ensureLetterpressTexture so the SHEET pass
 // can mask its defects against the glyphs (a mark never sits on a letter: ink
@@ -2045,8 +2165,10 @@ static bool ensureLetterpressTexture() {
     if (letterpressTexture && letterTexW == w && letterTexH == h &&
         letterTexSeq == seq && letterTexStrength == strength &&
         letterTexKey == palKey && letterTexRing == ringPct &&
-        letterTexDeboss == debossPct && letterTexPress == pressPct)
+        letterTexDeboss == debossPct && letterTexPress == pressPct) {
+      if (timingLogWanted()) timingFrame.letterpress.served = true;
       return true;
+    }
     // INKNESS: where each pixel sits on the ink->paper segment, 255 = ink.
     // Projection in byte space, because pixelBuf's grays are integer-lerped
     // between exactly these two tones.
@@ -2147,6 +2269,11 @@ static bool ensureLetterpressTexture() {
   letterTexRing = ringPct;
   letterTexDeboss = debossPct;
   letterTexPress = pressPct;
+  if (timingLogWanted()) {
+    timingFrame.letterpress.built = true;
+    timingFrame.letterpress.ms =
+        static_cast<double>(SDL_GetTicksNS() - letterT0) / 1.0e6;
+  }
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[letterpress] field %dx%d strength %d seed %u budget %.3f "
@@ -2319,8 +2446,10 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
       sheetTexStrength == strength && sheetTexTooth == toothPct &&
       sheetTexFormation == formationPct && sheetTexDefects == defectsPct &&
       sheetTexLaid == laidPct && sheetTexScaleKey == scaleKey &&
-      sheetTexKey == key)
+      sheetTexKey == key) {
+    if (timingLogWanted()) timingFrame.sheet.served = true;
     return true;
+  }
   // REUSED across rebuilds -- see the block comment. Only a size change costs a
   // new texture, because this now runs once per PAGE.
   if (!sheetToothTexture || sheetTexW != w || sheetTexH != h) {
@@ -2442,6 +2571,10 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   sheetTexLaid = laidPct;
   sheetTexScaleKey = scaleKey;
   sheetTexKey = key;
+  if (timingLogWanted()) {
+    timingFrame.sheet.built = true;
+    timingFrame.sheet.ms = static_cast<double>(SDL_GetTicksNS() - t0) / 1.0e6;
+  }
   // A PER-PAGE rebuild is exactly when this wants instrumenting: without a
   // number here, "does the paper cost a page turn" is guesswork.
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
@@ -2507,8 +2640,11 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   const uint64_t seq = pixelBufSeq;
   if (scanTexture && scanTexW == w && scanTexH == h && scanTexSeq == seq &&
       scanTexIntensity == intensity && scanTexKey == palKey &&
-      scanTexPitchKey == pitchKey && scanTexBloom == bloom)
+      scanTexPitchKey == pitchKey && scanTexBloom == bloom) {
+    if (timingLogWanted()) timingFrame.scanlines.served = true;
     return true;
+  }
+  const uint64_t scanT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
 
   scanlines::Params params;
   params.intensityPercent = intensity;
@@ -2525,6 +2661,10 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   // exactly the light the raster carries, so nothing needs the panel rect or
   // the orientation arithmetic.
   std::vector<uint8_t> bucket(static_cast<size_t>(w) * h, 0);
+  // THE READBACK, timed on its own line. It is the one GPU->CPU stall in the
+  // whole present and the roadmap's first-named cost, so it is reported apart
+  // from the field build it feeds rather than buried inside it.
+  const uint64_t readT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   if (SDL_Surface *snap = SDL_RenderReadPixels(sdl_renderer, nullptr)) {
     SDL_Surface *conv = snap;
     if (snap->format != SDL_PIXELFORMAT_ARGB8888)
@@ -2547,6 +2687,11 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
       if (conv != snap) SDL_DestroySurface(conv);
     }
     SDL_DestroySurface(snap);
+  }
+  if (timingLogWanted()) {
+    timingFrame.readback = true;
+    timingFrame.readbackMs =
+        static_cast<double>(SDL_GetTicksNS() - readT0) / 1.0e6;
   }
 
   // Per-(row, bucket) transmission: the erf work, done once per row.
@@ -2592,6 +2737,11 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   scanTexKey = palKey;
   scanTexPitchKey = pitchKey;
   scanTexBloom = bloom;
+  if (timingLogWanted()) {
+    timingFrame.scanlines.built = true;
+    timingFrame.scanlines.ms =
+        static_cast<double>(SDL_GetTicksNS() - scanT0) / 1.0e6;
+  }
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1')
       SDL_Log("[scanlines] field %dx%d intensity %d pitch %.3f px/line "
@@ -2645,6 +2795,13 @@ void HalDisplay::presentIfNeeded() {
 
   if (!texture || !sdl_renderer)
     return;
+
+  // The timing frame is armed HERE, past every early return, so a present that
+  // was held or coalesced away is not reported as a free one.
+  if (timingLogWanted()) {
+    timingFrame = PresentTiming{};
+    timingFrame.startNs = SDL_GetTicksNS();
+  }
 
   extern GfxRenderer renderer;
   const GfxRenderer::Orientation orientation = renderer.getOrientation();
@@ -3616,7 +3773,30 @@ void HalDisplay::presentIfNeeded() {
                                        kLogicalPresentation);
     }
   }
+  const uint64_t flipT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
   SDL_RenderPresent(sdl_renderer);
+  if (timingLogWanted()) {
+    const uint64_t end = SDL_GetTicksNS();
+    timingFrame.flipMs = static_cast<double>(end - flipT0) / 1.0e6;
+    const double total =
+        static_cast<double>(end - timingFrame.startNs) / 1.0e6;
+    // BUILD / cache / off per pass, because a duration alone cannot say which
+    // of the three a 0.0 ms pass was, and "off" and "served from cache" are
+    // different answers to "what does a page turn cost".
+    auto tag = [](const PassTiming &p) {
+      return p.built ? "BUILD" : (p.served ? "cache" : "off");
+    };
+    static int n = 0;
+    SDL_Log("[timing] #%d total %.2f ms | panel %s %.2f | sheet %s %.2f | "
+            "scanlines %s %.2f | grain %s %.2f | readback %s %.2f | "
+            "flip %.2f",
+            ++n, total, tag(timingFrame.letterpress),
+            timingFrame.letterpress.ms, tag(timingFrame.sheet),
+            timingFrame.sheet.ms, tag(timingFrame.scanlines),
+            timingFrame.scanlines.ms, tag(timingFrame.grain),
+            timingFrame.grain.ms, timingFrame.readback ? "yes" : "-",
+            timingFrame.readbackMs, timingFrame.flipMs);
+  }
 }
 
 bool HalDisplay::shouldQuit() const { return quitRequested.load(); }
