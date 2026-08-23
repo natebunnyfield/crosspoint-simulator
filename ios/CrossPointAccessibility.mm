@@ -275,6 +275,43 @@ NSArray *buildElements(UIView *container, const std::string &text,
   return out;
 }
 
+// Install (or re-frame) the WWDC26-219 page view over the panel, carrying
+// `text`. Shared by the published page and by the textless-page fallback: the
+// two differ only in where the words come from, and everything else here --
+// which host, the frame, the not-yet-presented case, telling assistive tech a
+// fresh element exists -- is the same problem either way. It was duplicated
+// once and the copy immediately drifted.
+void installPageView(UIView *host, NSString *text, const std::vector<ReadAloudWordRect> &rects) {
+  CGFloat px0 = 0, py0 = 0, ps = 0;
+  const bool geo = panelGeometryPts(&px0, &py0, &ps);
+  CPPageTextInputView *page = g_pageInput;
+  if (!page || page.superview != host) {
+    [g_pageInput removeFromSuperview];
+    page = [[CPPageTextInputView alloc] initWithFrame:host.bounds];
+    [host addSubview:page];
+    g_pageInput = page;
+    // Assistive tech may already have concluded this screen has no content;
+    // a fresh element that nobody is told about stays unread until the next
+    // screen change. Post it with the new view as the focus target.
+    UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, page);
+    CrossPointDiag_log("UITextInput page view installed (WWDC26-219 pattern)");
+  }
+  if (geo) {
+    const CGFloat panelW = (CGFloat)HalDisplay::LOGICAL_HEIGHT * ps;
+    const CGFloat panelH = (CGFloat)HalDisplay::LOGICAL_WIDTH * ps;
+    page.frame = CGRectMake(px0, py0, panelW, panelH);
+    // Word rects are logical panel px; the view's own origin is the panel's
+    // top-left, so words map with origin 0 and the panel scale.
+    [page setPageText:text rects:rects originX:0 originY:0 scale:ps];
+  } else {
+    // No geometry yet (before the first present). Text is still correct, but
+    // the frame is a guess -- keep the view and let the level-triggered
+    // rebuild re-frame it once the panel has published its geometry.
+    [page setPageText:text rects:rects originX:0 originY:0 scale:1];
+    CrossPointDiag_log("page view built before panel geometry -- will re-frame");
+  }
+}
+
 }  // namespace
 
 void CrossPointAccessibility_begin(void) {
@@ -385,34 +422,7 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   if (host && wantsReadingPage()) {
     NSString *pageText = [[NSString alloc] initWithBytes:text.data() length:text.size()
                                                 encoding:NSUTF8StringEncoding] ?: @"";
-    CGFloat px0 = 0, py0 = 0, ps = 0;
-    const bool geo = panelGeometryPts(&px0, &py0, &ps);
-    CPPageTextInputView *page = g_pageInput;
-    if (!page || page.superview != host) {
-      [g_pageInput removeFromSuperview];
-      page = [[CPPageTextInputView alloc] initWithFrame:host.bounds];
-      [host addSubview:page];
-      g_pageInput = page;
-      // Assistive tech may already have concluded this screen has no content;
-      // a fresh element that nobody is told about stays unread until the next
-      // screen change. Post it with the new view as the focus target.
-      UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, page);
-      CrossPointDiag_log("UITextInput page view installed (WWDC26-219 pattern)");
-    }
-    if (geo) {
-      const CGFloat panelW = (CGFloat)HalDisplay::LOGICAL_HEIGHT * ps;
-      const CGFloat panelH = (CGFloat)HalDisplay::LOGICAL_WIDTH * ps;
-      page.frame = CGRectMake(px0, py0, panelW, panelH);
-      // Word rects are logical panel px; the view's own origin is the panel's
-      // top-left, so words map with origin 0 and the panel scale.
-      [page setPageText:pageText rects:v originX:0 originY:0 scale:ps];
-    } else {
-      // No geometry yet (before the first present). Text is still correct, but
-      // the frame is a guess -- keep the view and let the level-triggered
-      // rebuild above re-frame it once the panel has published its geometry.
-      [page setPageText:pageText rects:v originX:0 originY:0 scale:1];
-      CrossPointDiag_log("page view built before panel geometry -- will re-frame");
-    }
+    installPageView(host, pageText, v);
     if (overlay.superview) [overlay.superview bringSubviewToFront:overlay];
   } else if (g_pageInput) {
     [g_pageInput removeFromSuperview];
@@ -467,6 +477,68 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
   }
 }
 
+// THE COVER, AND EVERY OTHER PAGE WITH NOTHING ON IT (owner ruling 2026-08-23).
+//
+// A book opens on its cover wrapper, the firmware captures an empty page --
+// correctly, there is no text in an <img> -- and this app used to answer that
+// with no element at all. Every link of the chain was healthy and iOS still
+// said "No speakable content could be found on the screen", which from the
+// owner's chair is indistinguishable from the bug that message has already cost
+// two investigations. So a textless page now vends what is TRUE about it: the
+// book it belongs to, and that this page has no text.
+//
+// The words themselves are decided by spokenpage::forPage (src/SpokenPageText.h,
+// host-tested) and arrive here already chosen; the adapter reads the card. What
+// is decided HERE is the exposure, and there are only two rules:
+//
+//  - Empty text means nothing true is known, and then this is a clear. Never an
+//    invented sentence, and never the previous page's prose.
+//  - It rides the SAME gate as the page view -- wantsReadingPage(), i.e. Speak
+//    Screen or the sim override. NOT the per-line elements, which stay empty:
+//    there are no words on this page to frame, and an element VoiceOver would
+//    also stop on re-reads a page it has already read (the hard-won rule at
+//    wantsReadingPage()). VoiceOver's experience on a blank page is byte for
+//    byte what it was before this existed.
+void CrossPointAccessibility_setFallbackPage(const char *utf8, unsigned len) {
+  CPAccessibilityOverlay *overlay = g_overlay;
+  if (!overlay) return;
+  if (!utf8 || len == 0) {
+    CrossPointAccessibility_clear();
+    return;
+  }
+  // No line elements: a page with no words has nothing to group into lines and
+  // nothing to place. Anything left over from the previous page must go, or the
+  // blank page inherits its text -- the one lie the ruling names outright.
+  overlay.cpElements = @[];
+  overlay.accessibilityElements = @[];
+  if (overlay.window) overlay.window.accessibilityElements = nil;
+  UIView *host = overlay.window.rootViewController.view ?: (UIView *)overlay.window;
+  if (host && wantsReadingPage()) {
+    NSString *text = [[NSString alloc] initWithBytes:utf8 length:len
+                                            encoding:NSUTF8StringEncoding] ?: @"";
+    installPageView(host, text, std::vector<ReadAloudWordRect>{});
+    if (overlay.superview) [overlay.superview bringSubviewToFront:overlay];
+    CrossPointDiag_log("textless page -- speaking the book instead: \"%.60s\"",
+                       text.UTF8String ?: "");
+  } else if (g_pageInput) {
+    [g_pageInput removeFromSuperview];
+    g_pageInput = nil;
+    CrossPointDiag_log("UITextInput page view removed (mode off)");
+  }
+  g_queryBudget = 6;
+  g_readingBudget = 8;
+  g_builtMode = wantsReadingPage() ? 1 : 0;
+  // A page turn ONTO a textless page is still a page turn: PageScrolled keeps a
+  // continuous reading session alive across it, where ScreenChanged would end
+  // the session on the cover of the next book.
+  if (g_pageTurnRequested) {
+    g_pageTurnRequested = false;
+    UIAccessibilityPostNotification(UIAccessibilityPageScrolledNotification, nil);
+  } else {
+    UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
+  }
+}
+
 // One line that answers the whole chain at once (2026-08-23). The 2026-08-09
 // investigation cost twelve TestFlight builds because each link had to be
 // inferred separately; when the same symptom came back the FIRST question was
@@ -474,7 +546,8 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
 // throttled to one line per five seconds and to CHANGES of the shape, so it
 // costs nothing in a normal session and is the first thing in the log when the
 // instrument is turned on.
-void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount) {
+void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount,
+                                      unsigned fallbackBytes) {
   CPAccessibilityOverlay *overlay = g_overlay;
   CGFloat gx = 0, gy = 0, gs = 0;
   const bool geo = panelGeometryPts(&gx, &gy, &gs);
@@ -486,9 +559,9 @@ void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount) {
   // The shape, not the numbers: a page whose byte count changes every turn
   // must not produce a line every turn.
   char shape[128];
-  snprintf(shape, sizeof(shape), "%d%d%d%d%d%d%d", (int)wantsReadingPage(),
+  snprintf(shape, sizeof(shape), "%d%d%d%d%d%d%d%d", (int)wantsReadingPage(),
            pageBytes > 0, rectCount > 0, (int)geo, page != nil, inHierarchy,
-           (int)(overlay != nil && overlay.cpElements.count > 0));
+           (int)(overlay != nil && overlay.cpElements.count > 0), fallbackBytes > 0);
   static char lastShape[128] = "";
   static Uint64 lastAt = 0;
   const Uint64 now = SDL_GetTicks();
@@ -496,10 +569,10 @@ void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount) {
   snprintf(lastShape, sizeof(lastShape), "%s", shape);
   lastAt = now;
   CrossPointDiag_log(
-      "CHAIN wants=%d page=%uB rects=%u geo=%d(%.0f,%.0f x%.3f) view=%d frame=(%.0f,%.0f %.0fx%.0f) "
-      "inWindow=%d host=%s elements=%lu",
-      (int)wantsReadingPage(), pageBytes, rectCount, (int)geo, (double)gx, (double)gy, (double)gs,
-      page != nil, f.origin.x, f.origin.y, f.size.width, f.size.height, inHierarchy,
+      "CHAIN wants=%d page=%uB rects=%u fb=%uB geo=%d(%.0f,%.0f x%.3f) view=%d "
+      "frame=(%.0f,%.0f %.0fx%.0f) inWindow=%d host=%s elements=%lu",
+      (int)wantsReadingPage(), pageBytes, rectCount, fallbackBytes, (int)geo, (double)gx, (double)gy,
+      (double)gs, page != nil, f.origin.x, f.origin.y, f.size.width, f.size.height, inHierarchy,
       host ? NSStringFromClass(host.class).UTF8String : "nil",
       (unsigned long)(overlay ? overlay.cpElements.count : 0));
 }

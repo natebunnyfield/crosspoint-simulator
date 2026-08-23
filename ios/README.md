@@ -915,6 +915,28 @@ deliberately publish nothing, and "no speakable content" there is correct
 behavior, not a bug. The pad is SDL-drawn and invisible to accessibility by
 construction.
 
+**A PAGE WITH NO TEXT ON IT STILL SAYS SOMETHING (owner ruling 2026-08-23:
+"make the cover speak something").** A book opens on its cover wrapper — an
+`<img>` and nothing else — so the capture is legitimately empty and, until this
+ruling, the first page of every book answered Speak Screen with nothing.
+`CrossPointAccessibility_setFallbackPage` now vends the book's title and author
+plus "This page has no text", into the same `CPPageTextInputView` behind the
+same `wantsReadingPage()` gate. Three things hold it honest, and all three are
+pinned by `tests/spoken_page_text_test.cpp`:
+
+- the words come from the card the firmware already writes
+  (`/.crosspoint/state.json`'s `openEpubPath` matched EXACTLY against
+  `/.crosspoint/recent.json`), so there is no new HAL channel and no guessing —
+  an unmatched path speaks nothing at all rather than the most recent book's
+  title;
+- it fires only on an EMPTY capture, so a page with one word on it speaks that
+  word (`spokenpage::forPage`);
+- no line elements are added, so VoiceOver's experience of a blank page is
+  byte-identical to what it was.
+
+Full write-up, including the CHAIN line's new `fb=` field:
+[../docs/speak-screen-chain.md](../docs/speak-screen-chain.md).
+
 **Diagnostics are OFF by default** (same ruling). Everything —
 `diagnostics/a11y.log` on the card, tree dumps, QUERY/READING/TEXTINPUT
 probes — funnels through `CrossPointDiag_log`, which is gated on the

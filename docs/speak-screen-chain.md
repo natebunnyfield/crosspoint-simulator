@@ -21,6 +21,7 @@ stops the same candidates being re-proposed forever.
 | 4 | Panel geometry maps logical px to screen points | `src/ReadAloudGeometry.h` (pure), called from `ios/CrossPointAccessibility.mm` | `geo=1(x0,y0 xSCALE)` |
 | 5a | Per-**line** `UIAccessibilityElement`s — VoiceOver, Braille, Switch Control | `CPAccessibilityOverlay` | `elements=<N>` |
 | 5b | The **`UITextInput`** page view — **the only thing Speak Screen consumes** | `ios/CrossPointPageTextInput.mm` (`CPPageTextInputView`) | `view=1 frame=(...) inWindow=1` |
+| 6 | A page with **no text** still says something true | `src/SpokenPageText.h` (pure), fed by `CrossPointAccessibility_setFallbackPage` | `fb=43B` and `textless page -- speaking the book instead: "..."` |
 
 Speak Screen reads **5b and nothing else**. That was established by measurement
 in 2026-08-09 against six other exposure mechanisms (synthetic element
@@ -40,12 +41,15 @@ One line answers all five links at once. It is throttled to changes of its
 session.
 
 ```
-CHAIN wants=1 page=765B rects=142 geo=1(34,124 x0.667) view=1 \
+CHAIN wants=1 page=765B rects=142 fb=0B geo=1(34,124 x0.667) view=1 \
       frame=(34,124 352x528) inWindow=1 host=SDL_uikitmetalview elements=21
 ```
 
 - `wants` — `wantsReadingPage()`: Speak Screen on, or the override.
 - `page` / `rects` — what the adapter is holding, i.e. links 1–3.
+- `fb` — the textless-page substitute (link 6, added 2026-08-23). `page=0B
+  rects=0 fb=0B` is a page nothing can name; `page=0B rects=0 fb=43B` is a
+  cover that speaks.
 - `geo` — link 4; `0(0,0 x0.000)` means the panel has not presented yet, which
   is normal for the first ~600 ms and self-heals.
 - `view` / `frame` / `inWindow` — link 5b.
@@ -143,10 +147,10 @@ Also verified healthy, each of which had been proposed as a suspect:
 | 24 consecutive page turns | every page published a non-empty capture (20–143 rects). **No hole in the firmware capture path** |
 | `UIAccessibilityIsSpeakScreenEnabled()` | not deprecated in the iOS 26.5 SDK; returns true off `SpeakThisEnabled` (§3) |
 
-### The one condition that reproduces the message
+### The one condition that reproduced the message
 
-**The displayed page genuinely has no text.** The firmware then publishes an
-empty capture, the adapter clears, and the container is correctly empty:
+**The displayed page genuinely has no text.** The firmware then published an
+empty capture, the adapter cleared, and the container was correctly empty:
 
 ```
 [ERS] Loading file: OEBPS/wrap0000.xhtml, index: 0
@@ -159,15 +163,92 @@ Two things follow, and both matter:
 1. It renders as an **entirely blank panel**. Measured: the whole panel area is
    three adjacent code values, no ink at all. The cover image is dropped (one
    of the fourteen "book notes" the firmware now raises is *images dropped*).
+   **This rendering bug is out of scope and stays logged** (owner, 2026-08-23).
 2. It is **the page a book opens on**, and the page a reader resumed at
-   `spine=0 page=0` lands on. So the very first thing an owner sees after
-   opening a book is a blank page on which Speak Screen says, accurately,
-   that there is nothing to speak.
+   `spine=0 page=0` lands on. So the very first thing an owner saw after
+   opening a book was a blank page on which Speak Screen said, accurately, that
+   there was nothing to speak.
 
 Per the 2026-08-09 scope ruling ("only EPUB text is speakable; Home, menus and
 `.txt`/`.xtc` publish nothing, and *no speakable content* there is correct
-behavior") this is working as designed. From the owner's chair it is
-indistinguishable from the bug that ruling was written after.
+behavior") that was working as designed. From the owner's chair it was
+indistinguishable from the bug that ruling was written after — which is exactly
+why it did not stay that way.
+
+### THE COVER NOW SPEAKS (owner ruling 2026-08-23)
+
+> make the cover speak something
+
+An empty capture no longer means an empty screen. `src/SpokenPageText.h` decides
+what such a page is worth saying, and the rules are all honesty rules:
+
+- **The words are true or there are none.** The cover *is* the book's title and
+  author, so saying them describes the page rather than inventing prose. When
+  the book cannot be named, the fallback is the empty string and iOS goes on
+  reporting nothing — which is then the truth.
+- **The closing sentence** — "This page has no text." — is what keeps it honest
+  on a page that is *not* the cover. Nothing reachable at that moment says which
+  page this is, so a blank interior page or a dropped illustration gets a true
+  sentence instead of an implied cover.
+- **Only on a genuinely empty page.** `spokenpage::forPage` returns the page
+  whenever it holds anything but whitespace, so a page with one word on it
+  speaks that word. The fallback is a substitute, never a supplement.
+- **VoiceOver does not change.** The fallback rides the page view and the
+  `wantsReadingPage()` gate, exactly as the page element does; no line element
+  is added, because there are no words on the page to frame.
+
+**Where the text comes from, and what was rejected.** The firmware already
+writes both halves to the card in `EpubReaderActivity::onEnter`, before the
+first render: `APP_STATE.saveToFile()` (`openEpubPath` →
+`/.crosspoint/state.json`) at :183 and `RECENT_BOOKS.addBook()` (path, title,
+author → `/.crosspoint/recent.json`, which `saveToFile()`s immediately) at :184.
+So the simulator reads them with its own `HalStorage` and needs **no new HAL
+channel** — which was the stop condition on this task, since a channel is a
+firmware change. Rejected on the way:
+
+| Considered | Why not |
+|---|---|
+| The firmware's live `Epub` object (`getTitle()`/`getAuthor()`) | Reachable only through a new HAL channel or by reaching into activity internals from the harness. Firmware change; out of scope |
+| The FRONT entry of `recent.json` | It is the most recently *opened* book, so it is usually right — which is what makes it dangerous. `openEpubPath` must match exactly, or nothing is said. A wrong title spoken over the right cover is a silent lie |
+| Speaking the previous page's text | Named in the ruling as exactly what dishonesty looks like here. A textless publish clears the held page first |
+| Rendering the cover so it has text | The blank-cover rendering bug is deliberately out of scope |
+
+Measured, iPhone Air simulator, `CROSSPOINT_SIM_FORCE_SPEAKSCREEN=1`:
+
+```
+[ERS] Loading file: OEBPS/wrap0000.xhtml, index: 0
+[A11Y-FILE] UITextInput page view installed (WWDC26-219 pattern)
+[A11Y-FILE] textless page -- speaking the book instead: "English Fairy Tales. This page has no text."
+[A11Y-FILE] CHAIN wants=1 page=0B rects=0 fb=43B geo=1(34,124 x0.667) view=1 frame=(34,124 352x528) inWindow=1 elements=0
+```
+
+Note the shape of that line against the one above it: `page=0B rects=0` is
+unchanged — the firmware is still right that there is no text — and `view=1`
+with `fb=43B` is the difference. `elements=0` is deliberate: no line elements,
+so VoiceOver's blank page is byte-identical to what it was.
+
+And through **Apple's own out-of-process channel**, which is the one that
+matters — `tools/axprobe`, on the same blank page:
+
+```
+AXPROBE cover page-textinput exists: true
+AXPROBE cover page-textinput value: "English Fairy Tales. This page has no text."
+AXPROBE cover page-textinput frame=(34.0, 132.0, 352.0, 528.0)
+AXPROBE cover line elements over the panel: 0
+```
+
+The routing shows up in the same suite by accident, which is the best kind of
+evidence: two front-matter pages carrying almost nothing — 19 and 26 characters
+— vended `"ENGLISH FAIRY TALES"` and `"COLLECTED BY JOSEPH JACOBS"`, their own
+text, not the book's name. A page with words on it speaks its words however few
+they are.
+
+**Device-unconfirmed:** that iOS *speaks* it. A simulator cannot be sent the
+two-finger swipe that invokes Speak Screen (§3), so what is proven here is that
+Apple's own out-of-process channel is served the words. Also unconfirmed: how
+Speak Screen draws its reading highlight over an element with no selection
+rects — a textless page has no word geometry to give it, and the expectation
+(untested) is that it simply draws none.
 
 ### One minor defect found, NOT fixed (a proposal, not a change)
 
@@ -214,18 +295,23 @@ D=<udid>
 xcrun simctl install $D build/ios-app/ios/Debug-iphonesimulator/CrossPointX3.app
 xcrun simctl spawn $D defaults write com.apple.Accessibility SpeakThisEnabled -bool true
 
-# The chain, live. QTAP:BACK opens the book from Home; each QTAP:RIGHT is one
-# page forward. Page PAST the cover or you are measuring a blank page.
+# The chain, live. The leading HELD Back (200:QTAP:BACK:2500) spans the boot
+# routing check and forces a Home boot, so the rest of the script means the
+# same thing every run -- without it the launch resumes the book on alternate
+# runs and `BACK` then LEAVES the reader instead of entering it. The next BACK
+# opens the book (on its cover); each QTAP:RIGHT is one page forward, so this
+# walks cover -> body and prints both CHAIN shapes.
 SIMCTL_CHILD_CROSSPOINT_SIM_DIAGNOSTICS=1 \
-SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='4000:QTAP:BACK;10000:QTAP:RIGHT;14000:QTAP:RIGHT' \
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='200:QTAP:BACK:2500;5000:QTAP:BACK;10000:QTAP:RIGHT' \
   xcrun simctl launch --console-pty $D com.natebunnyfield.crosspoint.x3
 
 # Apple's real AX channel
 cd tools/axprobe && xcodegen generate
 xcodebuild test -project AXProbe.xcodeproj -scheme AXProbe -destination "id=$D"
 
-# The pure geometry, on the host
+# The pure geometry and the textless-page words, on the host
 tests/run_all.sh -k readaloud
+tests/run_all.sh -k spoken
 ```
 
 `CROSSPOINT_SIM_FORCE_SPEAKSCREEN=1` still forces `wantsReadingPage()` for runs
@@ -246,7 +332,10 @@ exercises the branch a phone actually takes.
    show` shows the `SDL_Log` half and none of the `[ACT]`/`[ERS]`/`[SCT]`
    lines. Launch with `--console-pty` or the activity trail is invisible.
 4. **The reader opens on a blank page** (above). Four consecutive runs read as
-   "the chain is dead" when they were measuring a cover wrapper.
+   "the chain is dead" when they were measuring a cover wrapper. Since the
+   cover ruling that page reports `fb=43B view=1`, so it no longer *looks* like
+   a dead chain — but `page=0B rects=0` still means you are not measuring the
+   firmware's capture.
 5. **The tree dump used to fire on the first publish**, which is always that
    same empty cover page — so every dump ever collected for this bug was of an
    empty container over a page with nothing in it. Fixed 2026-08-23: it fires
@@ -261,6 +350,8 @@ exercises the branch a phone actually takes.
 | `tests/readaloud_geometry_test.cpp` | `src/ReadAloudGeometry.h`: not answerable before the first present (the level-triggered self-heal depends on it), the iPhone Air's measured numbers, `panelBottom` as an EDGE not an origin, a scale-less screen meaning 1x rather than a NaN frame, a strictly positive scale, and that `DISPLAY_HEIGHT` in place of `LOGICAL_HEIGHT` produces a detectably wrong answer. Mutation-checked: three separate breakages of the header each fail it |
 | `tools/axprobe` `testSpeakScreenIsServedThePageWithASaneFrame` | through Apple's real out-of-process channel: the `crosspoint.page-textinput` element exists, carries non-empty text, and is framed over the screen rather than collapsed or off it |
 | `tools/axprobe` `testRealSpeakScreenFlagReachesThePageView` | the same on the SHIPPED branch (`SpeakThisEnabled`), not the override. Skips, rather than fails, on a simulator where the flag was not set |
+| `tests/spoken_page_text_test.cpp` | `src/SpokenPageText.h`: that a one-word page speaks its word and not the book (the fallback substitutes, never supplements), that an unnamed book speaks nothing at all rather than the front recents entry's title, the exact-path match, the sentence's punctuation, and JSON that is not the shape a naive reader assumes -- braces, quotes and the text `"path"` inside a title, `\u` escapes including a surrogate pair, unknown fields of every type, and nine broken documents. Mutation-checked: guessing the front entry, appending the book to a real page, and breaking one escape each fail it |
+| `tools/axprobe` `testCoverPageSpeaksTheBookInstead` | through Apple's real out-of-process channel: a page with NO text vends an element, carrying the fallback's own words, framed over the panel -- and no line elements over the panel, so VoiceOver's blank page is unchanged |
 
 All three pass as of 2026-08-23 against the instrumented build:
 
@@ -274,6 +365,15 @@ AXPROBE real-flag page-textinput value: 705 chars
 The middle line is the one that matters most: the SHIPPED branch — real
 `SpeakThisEnabled`, no override — builds the page view and hands 705 characters
 of the displayed page to Apple's own out-of-process channel.
+
+The cover pair, re-measured after the 2026-08-23 ruling — the same run, one page
+apart, and the whole change in two lines:
+
+```
+AXPROBE cover page-textinput value: "English Fairy Tales. This page has no text."
+AXPROBE page-textinput value: 520 chars -- "The Project Gutenberg eBook of English Fairy Tales This eBoo"
+** TEST SUCCEEDED **
+```
 | `tests/test_read_aloud_capture.sh` | links 1–2 end to end against a generated EPUB |
 | `tests/read_aloud_channel_test.cpp`, `tests/read_aloud_core_test.cpp` | the channel's hand-off contract and every state transition |
 

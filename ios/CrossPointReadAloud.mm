@@ -18,9 +18,11 @@
 #include "CrossPointPrefs.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
+#include "HalStorage.h"
 #include "ReadAloudCore.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
+#include "SpokenPageText.h"
 
 // The AVSpeech adapter. Everything below runs on the main thread EXCEPT the
 // AVSpeechSynthesizerDelegate callbacks, which arrive on a private queue and
@@ -45,6 +47,13 @@ std::vector<Ev> g_events; // delegate queue -> drained by perFrame
 ReadAloudCore g_core;
 std::string g_pageUtf8;                  // current page, the slicing source
 std::vector<ReadAloudWordRect> g_rects;  // copy for the painter / hit-test
+// The textless-page substitute: what assistive tech is offered on a page that
+// rendered with no capturable text (a cover wrapper, a dropped illustration).
+// Held rather than recomputed, because the level-triggered self-heal below runs
+// every frame and the card must not be read at the main loop's ~1 kHz. It can
+// never go stale across books: a different book's cover is a different publish.
+std::string g_fallbackUtf8;
+bool g_pageTextless = false;
 uint32_t g_serial = 0;                   // current utterance's serial
 uint32_t g_spokeSerial = 0;              // last serial seen to actually speak
 uint32_t g_utteranceBaseByte = 0;        // page byte the utterance starts at
@@ -76,6 +85,23 @@ void enqueueEv(EvKind kind, uint32_t serial, uint32_t byteOffset) {
 uint32_t serialOf(AVSpeechUtterance *utt) {
   NSNumber *n = objc_getAssociatedObject(utt, kSerialKey);
   return n ? n.unsignedIntValue : 0;
+}
+
+// Which book is open, from the card the firmware already writes.
+//
+// THIS IS WHY THE COVER FALLBACK NEEDS NO NEW HAL CHANNEL. EpubReaderActivity's
+// onEnter saves APP_STATE (openEpubPath) and then addBook()s the title and
+// author into the recents store, both before the first page renders -- so the
+// two files below already answer "which book, and what is it called" by the
+// time any capture can arrive. Reaching into the firmware's live Epub object
+// instead would mean a firmware change, which this task is not.
+//
+// Called ONLY on a page with no text -- in practice twice per book opened -- so
+// an ordinary page turn still costs nothing.
+spokenpage::BookIdentity openBookIdentity() {
+  const std::string state = Storage.readFile("/.crosspoint/state.json").s;
+  const std::string recent = Storage.readFile("/.crosspoint/recent.json").s;
+  return spokenpage::identityForOpenBook(state, recent);
 }
 
 } // namespace
@@ -548,6 +574,10 @@ void CrossPointReadAloud_resetForReboot(void) {
   }
   g_pageUtf8.clear();
   g_rects.clear();
+  // The abandoned boot's textless-page substitute goes with it: the next boot
+  // may open a different book, and a held title is a title spoken over it.
+  g_fallbackUtf8.clear();
+  g_pageTextless = false;
   g_highlightActive = false;
   g_awaitTicks = -1;
   g_idleTicks = -1; // core is Off now; restart the session-release countdown
@@ -638,7 +668,8 @@ void CrossPointReadAloud_perFrame(void) {
   }
   (void)a11yWants;  // logged by wantsPage() on change; kept for that visibility
   // The whole chain in one line, throttled to changes of its shape.
-  CrossPointAccessibility_logChain((unsigned)g_pageUtf8.size(), (unsigned)g_rects.size());
+  CrossPointAccessibility_logChain((unsigned)g_pageUtf8.size(), (unsigned)g_rects.size(),
+                                   (unsigned)g_fallbackUtf8.size());
 
   // The container can be empty while we still hold a page: assistive tech
   // switched on after the last render, or a wake rebuilt the container. Push
@@ -647,6 +678,13 @@ void CrossPointReadAloud_perFrame(void) {
       (!CrossPointAccessibility_hasElements() || CrossPointAccessibility_modeChanged())) {
     CrossPointAccessibility_setPage(g_pageUtf8.data(), (unsigned)g_pageUtf8.size(),
                                     g_rects.data(), (unsigned)g_rects.size());
+  } else if (g_pageTextless && !g_fallbackUtf8.empty() &&
+             CrossPointAccessibility_modeChanged()) {
+    // The same self-heal for a textless page. It cannot key on
+    // hasElements() -- such a page publishes no line elements by design, so
+    // "empty container" is its normal state and would re-push every frame.
+    CrossPointAccessibility_setFallbackPage(g_fallbackUtf8.data(),
+                                            (unsigned)g_fallbackUtf8.size());
   }
 
   // 2. The page channel. Drain fully; only the last page matters.
@@ -663,13 +701,33 @@ void CrossPointReadAloud_perFrame(void) {
       g_rects = last.rects;
       g_awaitTicks = -1; // the awaited page (or a clear) arrived
       applyActions(g_core.pageArrived(last));
+      // A page that RENDERED with nothing capturable on it is not the same
+      // event as the reader leaving, and the channel has always distinguished
+      // them: ReadAloudChannel::publish sets `cleared` for publish(nullptr) and
+      // for nothing else. Collapsing the two is what left a book's cover with
+      // no accessible content at all (owner ruling 2026-08-23).
+      g_pageTextless = !last.cleared && g_pageUtf8.empty();
+      // What this page is worth speaking. spokenpage::forPage owns the choice
+      // -- page text wins whenever there is any, so a one-word page speaks its
+      // word and the book is a substitute, never a supplement -- and it is
+      // host-tested (tests/spoken_page_text_test.cpp). All that is decided here
+      // is that the card is read on a textless page and not on every turn.
+      g_fallbackUtf8 = g_pageTextless
+                           ? spokenpage::forPage(g_pageUtf8, openBookIdentity())
+                           : std::string();
       // The SAME page, handed to assistive technology. This is why there is no
       // second channel consumer: the contract is one per build, and this drain
       // is it.
-      CrossPointAccessibility_setPage(g_pageUtf8.empty() ? nullptr : g_pageUtf8.data(),
-                                      (unsigned)g_pageUtf8.size(),
-                                      g_rects.empty() ? nullptr : g_rects.data(),
-                                      (unsigned)g_rects.size());
+      if (g_pageTextless) {
+        CrossPointAccessibility_setFallbackPage(
+            g_fallbackUtf8.empty() ? nullptr : g_fallbackUtf8.data(),
+            (unsigned)g_fallbackUtf8.size());
+      } else {
+        CrossPointAccessibility_setPage(g_pageUtf8.empty() ? nullptr : g_pageUtf8.data(),
+                                        (unsigned)g_pageUtf8.size(),
+                                        g_rects.empty() ? nullptr : g_rects.data(),
+                                        (unsigned)g_rects.size());
+      }
       // The tree dump, once, on the first page that HAS TEXT.
       //
       // It used to fire on the first publish full stop, and that is always the
