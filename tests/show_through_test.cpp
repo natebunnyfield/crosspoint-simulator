@@ -14,6 +14,7 @@
 
 #include "Letterpress.h"
 #include "LightInkPalette.h"
+#include "ContrastFloor.h"
 
 #include <cmath>
 #include <cstdio>
@@ -396,7 +397,7 @@ int main() {
           // darkening the ink would only raise the ratio.
           const float ratio = static_cast<float>(
               (lp * mPaper + 0.05) / (li + 0.05));
-          check(ratio >= 7.0f - 0.05f,
+          check(ratio >= static_cast<float>(wcag::kContrastFloorAAA) - 0.05f,
                 "no offered show-through on any stock drops a light page "
                 "under the contrast floor");
         }

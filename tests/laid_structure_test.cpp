@@ -15,6 +15,7 @@
 #include <initializer_list>
 
 #include "Letterpress.h"  // the budget arithmetic the sheet pass shares
+#include "ContrastFloor.h"
 
 using namespace laidstructure;
 
@@ -267,7 +268,7 @@ int main() {
         }
         const double m = sum / (W * H);
         const double ratio = (lp * m + 0.05) / (li + 0.05);
-        check(ratio >= 7.0 - 0.05,
+        check(ratio >= wcag::kContrastFloorAAA - 0.05,
               "no offered rung drags a flat laid sheet under the contrast "
               "floor");
       }

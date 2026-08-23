@@ -11,6 +11,7 @@
 #include "CornerDefocus.h"
 
 #include "Scanlines.h"
+#include "ContrastFloor.h"
 
 #include <cmath>
 #include <cstdio>
@@ -242,7 +243,7 @@ int main() {
           const float ratio =
               (li * static_cast<float>(sumInk / n / 255.0) + 0.05f) /
               (lp * static_cast<float>(sumPaper / n / 255.0) + 0.05f);
-          check(ratio >= 7.0f - 0.05f,
+          check(ratio >= static_cast<float>(wcag::kContrastFloorAAA) - 0.05f,
                 "no defocus setting drops a corner under the contrast floor");
         }
       }

@@ -159,10 +159,17 @@ the slot is already Custom — by then both polarities hold owner choices.
 Decided in [src/PanelSource.h](../src/PanelSource.h), pinned by
 `tests/panel_source_test.cpp` and `tests/panel_source_test.py`.
 
-Note the mixer's LIGHT swatch is unchanged and still previews the blend's light
-rendition. That is a true property of the phosphor mix; it is no longer what the
-light page will render. Left as-is deliberately, flagged here rather than
-quietly redesigned.
+The mixer's LIGHT swatch is **gone** (owner 2026-08-23, "drop the light swatch
+entirely"). It previewed the blend's light rendition, which is a true property
+of the phosphor mix but stopped being what the light page renders the day the
+doctrine split handed light to its own ink picker — and, once this editor claims
+the Custom slot, the light pair is frozen rather than computed, so the swatch
+was previewing a page that could not appear. The dark ground now takes the whole
+swatch row; row height and everything below it are unchanged. `Result::light` is
+untouched: a preset still defines both appearances and `claimCustomFor` still
+needs the light pair to freeze. The hex readout below the swatch still prints
+`light XXXXXX on YYYYYY` — it is a recipe number, not a preview, and the ruling
+named the swatch.
 
 Two additions only:
 

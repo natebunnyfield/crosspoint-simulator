@@ -43,7 +43,7 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (43 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, device-fidelity flags, the compressed-font container, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
+There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (44 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, the dial table, device-fidelity flags, the compressed-font container, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
 
 ```bash
 tests/run_all.sh
@@ -54,6 +54,7 @@ tests/run_all.sh
 c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
 c++ -std=c++17 -Iios tests/pad_palette_test.cpp -o /tmp/pad_palette_test && /tmp/pad_palette_test ios/Settings.bundle/Root.plist
 c++ -std=c++17 -Isrc tests/panel_palette_test.cpp -o /tmp/panel_palette_test && /tmp/panel_palette_test ios/Settings.bundle/Root.plist
+c++ -std=c++17 -Isrc tests/dial_table_test.cpp -o /tmp/dial_table_test && /tmp/dial_table_test
 c++ -std=c++17 -Isrc -Iios tests/panel_source_test.cpp -o /tmp/panel_source_test && /tmp/panel_source_test
 python3 tests/panel_source_test.py   # one editor per polarity; run from the repo root
 c++ -std=c++17 -Isrc tests/phosphor_grain_test.cpp -o /tmp/phosphor_grain_test && /tmp/phosphor_grain_test
@@ -406,15 +407,28 @@ phone, so the two platforms cannot disagree about what a CRT palette implies.
 
 **`CROSSPOINT_SIM_AS_SHIPPED=1` seeds the dials the iOS app actually ships
 with**, in one switch, and it is the right way to start any attempt to reproduce
-an owner report. The desktop seeds every dial OFF -- deliberately, so the canary
-and every headless capture stay byte-identical to what this repo always drew --
-while the app ships CRT White with a 5 min fade at Dim depth, a 67 ms beam, and
-1x grain at Vignette + Mottled 8 x 0.30. Rebuilding that by hand from six env
-vars is what went wrong twice inside one bug hunt on 2026-08-19. It changes no
-default (unset, every line is a no-op), an explicit env var still wins because
-each setter reads its own var last, and it is seeded LAST -- the first version
-sat above the ordinary seeds and they overwrote it, so the log said as-shipped
-while the grain was still Even/0.10.
+an owner report. The desktop seeds every dial at its HISTORICAL value --
+deliberately, so the canary and every headless capture stay byte-identical to
+what this repo always drew -- while the app ships CRT White with letterpress and
+scanlines on, a heavily textured sheet, and a 55 ms beam. Rebuilding that by hand
+from a dozen env vars is what went wrong twice inside one bug hunt on 2026-08-19.
+It changes no default (unset, every line is a no-op), an explicit env var still
+wins because each setter reads its own var last, and it is seeded LAST -- the
+first version sat above the ordinary seeds and they overwrote it, so the log said
+as-shipped while the grain was still Even/0.10.
+
+**Its numbers are no longer written out by hand, and that is the fix for the way
+it kept drifting.** They are `shippedValue` in
+[src/SimulatorDials.h](src/SimulatorDials.h) -- one row per dial (name, env var,
+settings key, clamp, desktop default, shipped value, flags) driving the desktop
+boot seed, the settings watcher and this block from a single definition --
+checked against the app's own frozen constants by `tests/dial_table_test.cpp`,
+which reads the shipped `ios/` sources as text. Before the table this paragraph
+itself was one of the stale records: it said 5 min fade / 67 ms beam / 8 x 0.30
+grain while the app had moved to Off / 55 ms / 5 x 0.90, and the seed's own code
+said something different again. Adding a dial now means one table row plus one
+`case` in `applyDialGroup`, not three hand-synced lists. Full writeup:
+`docs/surface-roadmap.md` section 4e.
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key and
 touch-device edges through the same `HalGPIO` state as real SDL input, and
@@ -518,6 +532,7 @@ a card layout is well-formed.
 ## When making changes
 
 - Adding a new HAL method? Mirror the firmware signature exactly and stub it (usually no-op) in the matching `Hal*.cpp/.h`. Do not invent new public methods that don't exist in the firmware HAL.
+- Adding a new host-side surface dial? Add ONE row to [src/SimulatorDials.h](src/SimulatorDials.h) and one `case` to `applyDialGroup` in [src/HalDisplay.cpp](src/HalDisplay.cpp). Do NOT add a line to the desktop boot seed, the settings watcher's dial block or the `CROSSPOINT_SIM_AS_SHIPPED` block — all three are generated from the table, and hand-keeping them in sync is exactly what drifted twice on 2026-08-23. `tests/dial_table_test.cpp` reads the shipped `ios/` sources and fails when the table's shipped value is not the one the app pushes.
 - Adding a new Arduino/ESP-IDF symbol? Add the minimum stub to the corresponding header in [src/](src/) (e.g. [src/WiFi.h](src/WiFi.h), [src/Arduino.h](src/Arduino.h)). Match the upstream signature, return a sensible default.
 - Touching storage or caching code? After the change, `rm -rf ./fs_/.crosspoint/` in the firmware project before re-running, otherwise stale caches built by the old code will mask the fix.
 - Touching display, threading, or shutdown? Re-read the "Why the simulator's design has the shape it does" section above first. Several of those decisions undo subtle bugs that will resurface if reverted.

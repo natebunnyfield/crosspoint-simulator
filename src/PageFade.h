@@ -1,6 +1,8 @@
 #pragma once
 #include <cmath>
 
+#include "Srgb.h"
+
 // ST-010: how bright the page you are READING should be, given how long it is
 // since the reader last did anything.
 //
@@ -38,10 +40,7 @@ inline constexpr float kFloor = 0.75f;
 // floorFor() below, which is this scaled by the owner's chosen depth.
 inline float legibleFloorFor(const unsigned char ink[3],
                              const unsigned char paper[3]) {
-  auto lin = [](double c) {
-    c /= 255.0;
-    return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
-  };
+  auto lin = [](double c) { return srgb::toLinear(c / 255.0); };
   auto lum = [&](double r, double g, double b) {
     return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
   };

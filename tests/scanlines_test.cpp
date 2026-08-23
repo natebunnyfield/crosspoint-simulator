@@ -6,6 +6,7 @@
 // floor. Same reason PhosphorGrain has its test.
 
 #include "Scanlines.h"
+#include "ContrastFloor.h"
 
 #include <cmath>
 #include <cstdio>
@@ -258,7 +259,7 @@ int main() {
           const float ratio =
               (li * static_cast<float>(mInk) + 0.05f) /
               (lp * static_cast<float>(mPaper) + 0.05f);
-          check(ratio >= 7.0f - 0.05f,
+          check(ratio >= static_cast<float>(wcag::kContrastFloorAAA) - 0.05f,
                 "no offered rung at any size drops a dark page under the "
                 "contrast floor");
         }
@@ -564,7 +565,7 @@ int main() {
             const double mPaper = meanRows(p, 0, 600, lp) / 255.0;
             const float ratio = (li * static_cast<float>(mInk) + 0.05f) /
                                 (lp * static_cast<float>(mPaper) + 0.05f);
-            check(ratio >= 7.0f - 0.05f,
+            check(ratio >= static_cast<float>(wcag::kContrastFloorAAA) - 0.05f,
                   "no bloom x pitch x intensity combination drops a dark page "
                   "under the contrast floor");
           }

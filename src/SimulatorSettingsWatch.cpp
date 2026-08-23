@@ -19,15 +19,9 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 
 #include "HalDisplay.h"
 #include "HalStorage.h"
-#include "CornerDefocus.h"
 #include "PanelPalette.h"
-#include "PhosphorGrain.h"
 #include "PhosphorMix.h"
-#include "Letterpress.h"
-#include "LightInkPalette.h"
-#include "PaperDefects.h"
-#include "Scanlines.h"
-#include "ShowThrough.h"
+#include "SimulatorDials.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorSettingsFile.h"
 
@@ -199,88 +193,47 @@ void apply(const Values &v) {
 
 // The dials that are not the page's tones or its glow -- shared by the preset
 // path and the mix path.
+//
+// TABLE-DRIVEN since 2026-08-23. This was twenty hand-written lines naming each
+// key, its desktop default and its setter; those three facts now come from
+// simdials::kDials, and the file that names them also drives the boot seed and
+// the as-shipped block. See src/SimulatorDials.h for why.
+//
+// AN ABSENT KEY IS NOT THE SAME THING AS A KEY SET TO THE DEFAULT, and the
+// difference is the whole of the rule below. The watcher re-reads the file
+// about once a second, so applying a default for a key nobody wrote silently
+// overwrote whatever seeded the dial at boot -- which meant
+// CROSSPOINT_SIM_AS_SHIPPED undid itself a second after it ran, the exact
+// divergence that switch exists to prevent. Found 2026-08-23 after it cost two
+// rounds of wrong measurements. An explicit key still wins in both modes: a
+// value the owner typed is a decision, a missing key is not.
+//
+// THE GRAIN IS ALL-OR-NOTHING, because its setter takes its four arguments
+// together: a file naming ANY of the four is deciding all four. That is the
+// kMultiArg flag, and it is handled here as group presence rather than as a
+// special case, so the next multi-argument dial needs no code in this file.
 void applyDials(const Values &v) {
-  // These four were left outside the absent-key rule when it was added and so
-  // still reset the seed a second after boot. Same rule, same reason.
-  const auto has = [&v](const char *k) { return v.find(k) != v.end(); };
-  if (has("pageFadeSeconds") || !asShippedWanted())
-    SimulatorOverlay::setPageFade(
-        static_cast<float>(intOr(v, "pageFadeSeconds", 0)) * 1000.0f);
-  if (has("pageFadeDepthPercent") || !asShippedWanted())
-    SimulatorOverlay::setPageFadeDepth(intOr(v, "pageFadeDepthPercent", 100));
-  if (has("beamPaintMs") || !asShippedWanted())
-    SimulatorOverlay::setBeamPaint(
-        static_cast<float>(intOr(v, "beamPaintMs", 0)));
-  if (has("presentFlash") || !asShippedWanted())
-    SimulatorOverlay::setPresentFlash(intOr(v, "presentFlash", 0) != 0);
-  // Grain's four arguments arrive together, so it is all-or-nothing under the
-  // rule: if the file names ANY of them the file is deciding, otherwise the
-  // seed keeps what it set. The cell count gains a key here -- it had none, so
-  // no file could express the 8 the app ships and this call always passed the
-  // model default of 5.
-  if (has("phosphorGrainPercent") || has("phosphorGrainCoverage") ||
-      has("phosphorGrainMottleCells") || has("phosphorGrainMottleDepth") ||
-      !asShippedWanted()) {
-    SimulatorOverlay::setPhosphorGrain(
-        intOr(v, "phosphorGrainPercent", phosphorgrain::kStrengthRealistic),
-        intOr(v, "phosphorGrainCoverage", phosphorgrain::Even),
-        intOr(v, "phosphorGrainMottleCells", phosphorgrain::kMottleCellsDefault),
-        intOr(v, "phosphorGrainMottleDepth",
-              (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
+  simdials::Values dials = simdials::desktopDefaults();
+  bool present[simdials::kDialCount] = {false};
+  for (int i = 0; i < simdials::kDialCount; i++) {
+    const auto it = v.find(simdials::kDials[i].settingsKey);
+    if (it == v.end()) continue;
+    dials.v[i] = static_cast<int>(it->second);
+    present[i] = true;
   }
-  // An ABSENT key is not the same thing as a key set to the default, and the
-  // difference is the whole of this lambda. The watcher re-reads the file about
-  // once a second, so applying a default for a key nobody wrote silently
-  // overwrote whatever seeded the dial at boot -- which meant
-  // CROSSPOINT_SIM_AS_SHIPPED undid itself a second after it ran, the exact
-  // divergence that switch exists to prevent. Found 2026-08-23 after it cost
-  // two rounds of wrong measurements. An explicit key still wins in both modes:
-  // a value the owner typed is a decision, a missing key is not.
-  const auto dial = [&v](const char *key, int fallback, void (*set)(int)) {
-    const auto it = v.find(key);
-    if (it != v.end()) {
-      set(static_cast<int>(it->second));
-    } else if (!asShippedWanted()) {
-      set(fallback);
-    }
-  };
 
-  // The 2026-08-22 doctrine dials. 0 is the desktop default for both -- a file
-  // without the keys renders what the desktop always rendered.
-  dial("letterpressPercent", 0, SimulatorOverlay::setLetterpress);
-  // The paper instrument. Same keys and same units as the iOS app, so a
-  // settings.json and a phone cannot disagree about what a sheet looks like.
-  // Defaults are the desktop's historical values, not the app's.
-  dial("paperToothPercent", 100, SimulatorOverlay::setPaperTooth);
-  dial("paperFormationPercent",
-       static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f),
-       SimulatorOverlay::setPaperFormation);
-  dial("paperDefectsPercent", paperdefects::kDialOff,
-       SimulatorOverlay::setPaperDefects);
-  dial("paperDriftPercent", lightink::kPaperDriftDefault,
-       SimulatorOverlay::setPaperDrift);
-  // A raw percent, not a paper index: the desktop file has no ink/paper
-  // picker, so laidness cannot be derived here the way the phone derives it.
-  // 0 is the historical desktop rendering.
-  dial("laidLinesPercent", 0, SimulatorOverlay::setLaidLines);
-  dial("pressRingPercent", 100, SimulatorOverlay::setPressRing);
-  dial("pressDebossPercent", 100, SimulatorOverlay::setPressDeboss);
-  dial("pressPressurePercent", 100, SimulatorOverlay::setPressPressure);
-  dial("scanlinesPercent", 0, SimulatorOverlay::setScanlines);
-  dial("scanlineSizePercent", scanlines::kSizeFine,
-       SimulatorOverlay::setScanlineSize);
-  dial("scanlineBloomPercent", scanlines::kBloomStandard,
-       SimulatorOverlay::setScanlineBloom);
-  // The 2026-08-23 roadmap items. Off is the desktop's historical rendering
-  // for all three, so a file without the keys is unchanged.
-  dial("showThroughPercent", showthrough::kStrengthOff,
-       SimulatorOverlay::setShowThrough);
-  dial("cornerDefocusPercent", cornerdefocus::kStrengthOff,
-       SimulatorOverlay::setCornerDefocus);
-  // A flag rather than a percent, so it takes the int dial's shape through a
-  // thunk instead of a second lookup path.
-  dial("powerOffCollapse", 0,
-       [](int on) { SimulatorOverlay::setPowerOffCollapse(on != 0); });
+  // A group counts as named when ANY of its rows was.
+  bool groupPresent[simdials::kDialCount] = {false};
+  for (int i = 0; i < simdials::kDialCount; i++)
+    if (present[i]) groupPresent[simdials::kDials[i].group] = true;
+
+  const bool asShipped = asShippedWanted();
+  for (int i = 0; i < simdials::kDialCount; i++) {
+    const simdials::Id id = static_cast<simdials::Id>(i);
+    if (!simdials::isGroupLeader(id)) continue;
+    if (groupPresent[i] || !asShipped)
+      SimulatorOverlay::applyDialGroup(id, dials);
+  }
 }
 
 }  // namespace

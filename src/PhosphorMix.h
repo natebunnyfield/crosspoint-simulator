@@ -29,6 +29,8 @@
 
 #include <cmath>
 
+#include "Srgb.h"
+
 #include "PanelPalette.h"
 
 namespace phosphormix {
@@ -106,16 +108,16 @@ struct Result {
 // 50/50 blend of two phosphors at equal brightness must be as bright as either,
 // not dimmer than both.
 
+// The curve itself lives in src/Srgb.h; these keep this namespace's own
+// spelling of it -- a byte in, a byte out -- and forward.
 inline float toLinear(unsigned char c) {
-  const float f = static_cast<float>(c) / 255.0f;
-  return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
+  return srgb::toLinear(static_cast<float>(c) / 255.0f);
 }
 
 inline unsigned char fromLinear(float v) {
   if (v <= 0.0f) return 0;
   if (v >= 1.0f) return 255;
-  const float f =
-      v <= 0.0031308f ? v * 12.92f : 1.055f * std::pow(v, 1.0f / 2.4f) - 0.055f;
+  const float f = srgb::fromLinear(v);
   const int b = static_cast<int>(f * 255.0f + 0.5f);
   return static_cast<unsigned char>(b < 0 ? 0 : (b > 255 ? 255 : b));
 }

@@ -113,10 +113,11 @@ constexpr int kGradientSamples = 16;
 //   band 2  dark PAPER  the unlit ground it settles back into
 //
 // All three are the DARK appearance, for the same reason the single gradient
-// was: a CRT page is a dark-mode object. The light pair is not a fourth band
-// -- it is already shown exactly, at the current weights, by the light swatch
-// and the hex readout below, and four bands in 16 pt are 3.6 pt each, under
-// what reads on a phone once the separators are subtracted.
+// was: a CRT page is a dark-mode object. The light pair gets no fourth band
+// because it is not this editor's page at all -- the 2026-08-22 doctrine split
+// gave light its own ink picker, and this editor only FREEZES the light pair it
+// finds (see claimCustomFor below). Previewing a rendition the light page will
+// never show is what the dropped light swatch did, owner 2026-08-23.
 //
 // Why TAIL earns a band the other two cannot supply: the tail is normalized by
 // the FULL mix weight, so raising a FAST gun steals emission share from the
@@ -315,7 +316,6 @@ extern "C" bool CrossPointMixer_isPresented(void) {
   UIImageView *_track[kGunCount];
   UILabel *_value[kGunCount];
   UIView *_swatchDark;
-  UIView *_swatchLight;
   UILabel *_readout;
   int _presets[kGunCount];
   int _w[kGunCount];
@@ -415,19 +415,20 @@ extern "C" bool CrossPointMixer_isPresented(void) {
              }] ]];
   }
 
-  // The computed pair, both polarities, with exact hex. The page behind the
-  // sheet is the real preview; these are the numbers.
+  // The computed DARK ground, with exact hex below it. The page behind the
+  // sheet is the real preview; this is the number.
+  //
+  // There is deliberately no LIGHT swatch (owner 2026-08-23, "drop the light
+  // swatch entirely"). It used to sit beside this one and preview the blend's
+  // light rendition, which was honest while this sheet owned both polarities.
+  // Since the doctrine split it has been a preview of a page that will never
+  // render: light is the ink picker's, and the moment this editor claims the
+  // Custom slot it FREEZES the light pair rather than computing one.
   _swatchDark = [UIView new];
   _swatchDark.layer.cornerRadius = 8;
   _swatchDark.layer.borderWidth = 1;
   _swatchDark.layer.borderColor = UIColor.separatorColor.CGColor;
   [self.view addSubview:_swatchDark];
-
-  _swatchLight = [UIView new];
-  _swatchLight.layer.cornerRadius = 8;
-  _swatchLight.layer.borderWidth = 1;
-  _swatchLight.layer.borderColor = UIColor.separatorColor.CGColor;
-  [self.view addSubview:_swatchLight];
 
   // A CGColor never re-resolves: separatorColor was flattened at creation, so
   // an appearance flip while the sheet is up kept the stale border -- the
@@ -444,7 +445,6 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                               resolvedColorWithTraitCollection:vc.traitCollection]
                               .CGColor;
                       vc->_swatchDark.layer.borderColor = border;
-                      vc->_swatchLight.layer.borderColor = border;
                     }];
 
   _readout = [UILabel new];
@@ -488,9 +488,10 @@ extern "C" bool CrossPointMixer_isPresented(void) {
     [self rebuildTrackGradients:-1];
   }
   y += 6;
-  _swatchDark.frame = CGRectMake(margin, y, (W - 2 * margin - 12) / 2, 44);
-  _swatchLight.frame = CGRectMake(margin + (W - 2 * margin + 12) / 2, y,
-                                  (W - 2 * margin - 12) / 2, 44);
+  // Full width: this row used to be a half-and-half pair and the light half
+  // is gone, so the dark ground takes the whole row rather than leaving a
+  // hole. Height and the row's advance are unchanged, so nothing below moves.
+  _swatchDark.frame = CGRectMake(margin, y, W - 2 * margin, 44);
   y += 52;
   _readout.frame = CGRectMake(margin, y, W - 2 * margin, 36);
 }
@@ -722,10 +723,10 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                                                 green:r.dark.paper[1] / 255.0
                                                  blue:r.dark.paper[2] / 255.0
                                                 alpha:1];
-  _swatchLight.backgroundColor = [UIColor colorWithRed:r.light.paper[0] / 255.0
-                                                 green:r.light.paper[1] / 255.0
-                                                  blue:r.light.paper[2] / 255.0
-                                                 alpha:1];
+  // r.light is deliberately not painted anywhere: see the swatch's own note in
+  // viewDidLoad. It still EXISTS on the Result because a preset defines both
+  // appearances and claimCustomFor needs the light pair to freeze.
+  //
   // The band order is named here rather than on the tracks: three 5 pt bands
   // hold no text, and one legend for four identical stacks is not clutter.
   //

@@ -14,6 +14,7 @@
 #include "PageFade.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
+#include "Srgb.h"
 #include "PowerOffCollapse.h"
 #include "Scanlines.h"
 #include "ShowThrough.h"
@@ -23,6 +24,7 @@
 #include <array>
 #include <cmath>
 #include <atomic>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -1023,16 +1025,46 @@ void setPageFade(float fadeMs) {
   pendingPresent.store(true);
 }
 
-void setPageFadeDepth(int depthPercent) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_PAGE_FADE_DEPTH")) {
-    // strtol rather than atoi, and the end pointer is checked, because atoi
-    // answers 0 for anything it cannot parse -- and 0 here is not a harmless
-    // default, it is FULLY TRANSPARENT. A typo in the variable name's VALUE
-    // would blank the page and look like a rendering bug.
+// ONE ENV PARSER for every integer dial below.
+//
+// strtol with the end pointer checked, never atoi: atoi answers 0 for anything
+// it cannot parse, and 0 is a REAL SETTING for every dial here -- the grain
+// switched off, a perfectly smooth sheet, a fully transparent page. A typo in
+// a variable's VALUE would therefore look like the setting doing nothing,
+// which is the one failure mode none of these can report.
+//
+// `minAccepted` is the floor a parsed value must reach to be believed at all,
+// and the callers do not agree about it -- which is a real difference between
+// them, not a tidiness problem, so it is a parameter rather than a rule:
+//
+//   0 (the default)   most dials. 0 is a choice; a negative one is not.
+//   1                 setScanlineSize ONLY. Its 0 clamps to the finest pitch,
+//                     so a typo and a deliberate 0 render identically and the
+//                     0 has to be refused instead.
+//   kAcceptAnyValue   the grain's coverage, cell count and mottle depth, which
+//                     have always taken a NEGATIVE env value and let the pure
+//                     model clamp it. Preserved deliberately: the strength dial
+//                     beside them refuses negatives and these three do not, and
+//                     a refactor is not the place to decide which is right.
+//
+// This sits ABOVE every caller on purpose. It used to sit in the middle of
+// them, so the six dials defined above it each carried their own copy of the
+// four lines below -- not because they differed, but because the helper was
+// not in scope yet.
+constexpr int kAcceptAnyValue = INT_MIN;
+
+static int envPercentOr(const char *name, int fallback, int minAccepted = 0) {
+  if (const char *env = std::getenv(name)) {
     char *end = nullptr;
     const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) depthPercent = static_cast<int>(parsed);
+    if (end != env && parsed >= minAccepted) return static_cast<int>(parsed);
   }
+  return fallback;
+}
+
+void setPageFadeDepth(int depthPercent) {
+  // 0 here is FULLY TRANSPARENT, not a harmless default -- see envPercentOr.
+  depthPercent = envPercentOr("CROSSPOINT_SIM_PAGE_FADE_DEPTH", depthPercent);
   if (depthPercent < 0) depthPercent = 0;
   if (depthPercent > pagefade::kDepthFull) depthPercent = pagefade::kDepthFull;
   pageFadeDepth.store(depthPercent);
@@ -1135,32 +1167,19 @@ void setPresentFlash(bool wanted) {
 
 void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
                       int mottleDepthHundredths) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN")) {
-    // strtol with the end pointer checked, not atoi: atoi answers 0 for
-    // anything it cannot parse, and 0 here is not a harmless default -- it is
-    // the feature switched off. A typo in the VALUE would look like the setting
-    // doing nothing.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) strengthPercent = static_cast<int>(parsed);
-  }
-  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_COVERAGE")) {
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env) coverage = static_cast<int>(parsed);
-  }
-  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_MOTTLE_CELLS")) {
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env) mottleCells = static_cast<int>(parsed);
-  }
-  if (const char *env = std::getenv("CROSSPOINT_SIM_GRAIN_MOTTLE_DEPTH")) {
-    // Hundredths here too, so the env path and the Settings path carry the
-    // same units and a headless run reproduces exactly what the phone shows.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env) mottleDepthHundredths = static_cast<int>(parsed);
-  }
+  strengthPercent = envPercentOr("CROSSPOINT_SIM_GRAIN", strengthPercent);
+  // These three take kAcceptAnyValue, unlike the strength above them: they have
+  // always passed a negative env value straight to the pure model's clamp. See
+  // envPercentOr.
+  coverage =
+      envPercentOr("CROSSPOINT_SIM_GRAIN_COVERAGE", coverage, kAcceptAnyValue);
+  mottleCells = envPercentOr("CROSSPOINT_SIM_GRAIN_MOTTLE_CELLS", mottleCells,
+                             kAcceptAnyValue);
+  // Hundredths here too, so the env path and the Settings path carry the same
+  // units and a headless run reproduces exactly what the phone shows.
+  mottleDepthHundredths =
+      envPercentOr("CROSSPOINT_SIM_GRAIN_MOTTLE_DEPTH", mottleDepthHundredths,
+                   kAcceptAnyValue);
   const int s = phosphorgrain::clampStrength(strengthPercent);
   const int c = static_cast<int>(phosphorgrain::clampCoverage(coverage));
   const int mc = phosphorgrain::clampMottleCells(mottleCells);
@@ -1185,46 +1204,20 @@ void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
 }
 
 void setLetterpress(int strengthPercent) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_LETTERPRESS")) {
-    // strtol with the end pointer checked, same reason as the grain's: atoi
-    // answers 0 for garbage, and 0 here is the feature switched off.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) strengthPercent = static_cast<int>(parsed);
-  }
+  strengthPercent = envPercentOr("CROSSPOINT_SIM_LETTERPRESS", strengthPercent);
   const int s = letterpress::clampStrength(strengthPercent);
   if (letterpressStrength.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
 void setPaperTooth(int percentOfReference) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_PAPER_TOOTH")) {
-    // strtol with the end pointer checked, the grain's reason: atoi answers 0
-    // for garbage, and 0 here is a perfectly smooth sheet -- a typo in the
-    // VALUE would look like the paper losing its texture.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) percentOfReference = static_cast<int>(parsed);
-  }
+  percentOfReference =
+      envPercentOr("CROSSPOINT_SIM_PAPER_TOOTH", percentOfReference);
   int pct = percentOfReference;
   if (pct < 0) pct = 0;
   if (pct > 400) pct = 400;
   if (paperToothPct.exchange(pct) == pct) return;
   pendingPresent.store(true);
-}
-
-// The rest of the paper instrument. All five share one shape, and it is the
-// grain's: strtol with the end pointer checked (atoi answers 0 for garbage, and
-// 0 is a real setting for every one of these), clamp through the pure model,
-// store, and ask for a present because an e-ink firmware may not render again
-// for minutes and the owner just moved a slider.
-static int envPercentOr(const char *name, int fallback) {
-  if (const char *env = std::getenv(name)) {
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) return static_cast<int>(parsed);
-  }
-  return fallback;
 }
 
 void setPaperFormation(int depthPercent) {
@@ -1294,63 +1287,43 @@ void setPressPressure(int percentOfStandard) {
 }
 
 void setScanlines(int intensityPercent) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINES")) {
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) intensityPercent = static_cast<int>(parsed);
-  }
+  intensityPercent = envPercentOr("CROSSPOINT_SIM_SCANLINES", intensityPercent);
   const int s = scanlines::clampIntensity(intensityPercent);
   if (scanlinesIntensity.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
 void setScanlineSize(int percentOfRowPitch) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINE_PITCH")) {
-    // strtol with the end pointer checked, same reason as the grain's: atoi
-    // answers 0 for garbage, and 0 here would clamp to the finest pitch --
-    // a typo in the VALUE would look like the setting doing nothing.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed > 0) percentOfRowPitch = static_cast<int>(parsed);
-  }
+  // THE ONE DIAL WITH A MINIMUM: 0 here would clamp to the finest pitch, which
+  // is indistinguishable from the setting doing nothing, so a parsed 0 is read
+  // as a typo and refused rather than believed.
+  percentOfRowPitch =
+      envPercentOr("CROSSPOINT_SIM_SCANLINE_PITCH", percentOfRowPitch,
+                   /*minAccepted=*/1);
   const int s = scanlines::clampSize(percentOfRowPitch);
   if (scanlineSize.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
 void setScanlineBloom(int percentOfStandard) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_SCANLINE_BLOOM")) {
-    // strtol with the end pointer checked: atoi answers 0 for garbage, and 0
-    // here is bloom switched OFF -- a typo would silently flatten the tube.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
-  }
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_SCANLINE_BLOOM", percentOfStandard);
   const int s = scanlines::clampBloom(percentOfStandard);
   if (scanlineBloom.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
 void setShowThrough(int percentOfStandard) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_SHOW_THROUGH")) {
-    // strtol with the end pointer checked, same reason as its neighbours: atoi
-    // answers 0 for garbage, and 0 here is the feature switched off -- a typo
-    // in the VALUE would look like the setting doing nothing.
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
-  }
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_SHOW_THROUGH", percentOfStandard);
   const int s = showthrough::clampStrength(percentOfStandard);
   if (showThroughStrength.exchange(s) == s) return;
   pendingPresent.store(true);
 }
 
 void setCornerDefocus(int percentOfStandard) {
-  if (const char *env = std::getenv("CROSSPOINT_SIM_CORNER_DEFOCUS")) {
-    char *end = nullptr;
-    const long parsed = std::strtol(env, &end, 10);
-    if (end != env && parsed >= 0) percentOfStandard = static_cast<int>(parsed);
-  }
+  percentOfStandard =
+      envPercentOr("CROSSPOINT_SIM_CORNER_DEFOCUS", percentOfStandard);
   const int s = cornerdefocus::clampStrength(percentOfStandard);
   if (cornerDefocusStrength.exchange(s) == s) return;
   pendingPresent.store(true);
@@ -1362,6 +1335,106 @@ void setPowerOffCollapse(bool enabled) {
   // No present: nothing about a live page changes, and this one is read only
   // once the firmware has already gone to sleep.
   powerOffCollapse.store(enabled);
+}
+
+// --- THE DIAL TABLE'S APPLIERS ---------------------------------------------
+//
+// The one place a simdials::Id becomes a setter call. Everything above this
+// line is the dial itself -- its atomic, its clamp, its env override, its
+// present-or-reconvert contract -- and everything that used to hand-write a
+// LIST of these calls (the boot seed, the settings watcher, the as-shipped
+// block) now goes through here instead. See src/SimulatorDials.h.
+//
+// NO `default:` LABEL, on purpose. A row added to the table without a case
+// here is then a -Wswitch warning at the next build, rather than a dial that
+// compiles, ships, and quietly does nothing.
+void applyDialGroup(simdials::Id group, const simdials::Values &v) {
+  using namespace simdials;
+  switch (group) {
+    // SECONDS in the table, MILLISECONDS at the setter.
+    case PageFadeSeconds:
+      setPageFade(static_cast<float>(v[PageFadeSeconds]) * 1000.0f);
+      break;
+    case PageFadeDepthPercent:
+      setPageFadeDepth(v[PageFadeDepthPercent]);
+      break;
+    case BeamPaintMs:
+      setBeamPaint(static_cast<float>(v[BeamPaintMs]));
+      break;
+    case PresentFlash:
+      setPresentFlash(v[PresentFlash] != 0);
+      break;
+    // THE MULTI-ARGUMENT ONE. Its four rows arrive as one call, which is why
+    // they share a group: the setter stores all four or none, and splitting it
+    // into four calls would repaint three times and (worse) let a caller push
+    // half a grain setting.
+    case GrainPercent:
+      setPhosphorGrain(v[GrainPercent], v[GrainCoverage], v[GrainMottleCells],
+                       v[GrainMottleDepth]);
+      break;
+    // The other three grain rows ride their leader above. Listed rather than
+    // swept into a default, so the switch stays exhaustive.
+    case GrainCoverage:
+    case GrainMottleCells:
+    case GrainMottleDepth:
+      break;
+    case LetterpressPercent:
+      setLetterpress(v[LetterpressPercent]);
+      break;
+    case PaperToothPercent:
+      setPaperTooth(v[PaperToothPercent]);
+      break;
+    case PaperFormationPercent:
+      setPaperFormation(v[PaperFormationPercent]);
+      break;
+    case PaperDefectsPercent:
+      setPaperDefects(v[PaperDefectsPercent]);
+      break;
+    // kReconverts: the setter also raises pendingReconvert, because this one
+    // moves the page's own tones rather than compositing over them.
+    case PaperDriftPercent:
+      setPaperDrift(v[PaperDriftPercent]);
+      break;
+    case LaidLinesPercent:
+      setLaidLines(v[LaidLinesPercent]);
+      break;
+    case PressRingPercent:
+      setPressRing(v[PressRingPercent]);
+      break;
+    case PressDebossPercent:
+      setPressDeboss(v[PressDebossPercent]);
+      break;
+    case PressPressurePercent:
+      setPressPressure(v[PressPressurePercent]);
+      break;
+    case ScanlinesPercent:
+      setScanlines(v[ScanlinesPercent]);
+      break;
+    case ScanlineSizePercent:
+      setScanlineSize(v[ScanlineSizePercent]);
+      break;
+    case ScanlineBloomPercent:
+      setScanlineBloom(v[ScanlineBloomPercent]);
+      break;
+    case ShowThroughPercent:
+      setShowThrough(v[ShowThroughPercent]);
+      break;
+    case CornerDefocusPercent:
+      setCornerDefocus(v[CornerDefocusPercent]);
+      break;
+    // kNoPresent: the setter deliberately asks for no repaint -- nothing about
+    // a live page changes, and this is read only once the firmware is asleep.
+    case PowerOffCollapseOn:
+      setPowerOffCollapse(v[PowerOffCollapseOn] != 0);
+      break;
+  }
+}
+
+void applyDials(const simdials::Values &v) {
+  for (int i = 0; i < simdials::kDialCount; i++) {
+    const simdials::Id id = static_cast<simdials::Id>(i);
+    if (simdials::isGroupLeader(id)) applyDialGroup(id, v);
+  }
 }
 
 void setPanelEmissive(bool emissive) {
@@ -1545,50 +1618,25 @@ void HalDisplay::begin() {
   // And the emission flag, for the third time. Anything whose only caller is a
   // phone needs its env override seeded here or it is dead on the desktop.
   SimulatorOverlay::setPanelEmissive(false);
-  // Fourth time. Seed every host-only dial through its setter, or its env
-  // override is dead on the desktop and cannot be tested there.
-  SimulatorOverlay::setBeamPaint(0.0f);
-  // Fifth time. Every host-only dial needs seeding through its setter or its
-  // env override is dead on the desktop -- and this one had exactly that bug
-  // for one build, which is how the first fade measurement showed no fade.
-  SimulatorOverlay::setPageFade(0.0f);
-  // Sixth time, and the same hole would have been the same bug: this dial's
-  // env override is the ONLY way to reach it off-phone, so it has to be seeded
-  // through its setter. kDepthFull is what shipped, so with the var unset this
-  // is a no-op.
-  SimulatorOverlay::setPageFadeDepth(pagefade::kDepthFull);
-  // Seventh time. Grain's default is NOT off -- it is realistic -- so this call
-  // is what makes the desktop render the same screen the phone does, and it is
-  // also the only route CROSSPOINT_SIM_GRAIN has to the atomics.
-  // Eighth time. Off is what shipped, so with the var unset this is a no-op.
-  SimulatorOverlay::setPresentFlash(false);
-  SimulatorOverlay::setPhosphorGrain(
-      phosphorgrain::kStrengthRealistic, phosphorgrain::Even,
-      phosphorgrain::kMottleCellsDefault,
-      static_cast<int>(phosphorgrain::kMottleDepthDefault * 100.0f + 0.5f));
-  // Ninth and tenth time. Off is what the desktop ships, so with the vars
-  // unset both are no-ops -- but CROSSPOINT_SIM_LETTERPRESS and
-  // CROSSPOINT_SIM_SCANLINES are read inside the setters, and an unseeded
-  // dial's env override is dead on the desktop.
-  SimulatorOverlay::setLetterpress(letterpress::kStrengthOff);
-  SimulatorOverlay::setScanlines(scanlines::kIntensityOff);
-  // Eleventh. The default IS the shipped pitch, so this seeds nothing new --
-  // it is here only so CROSSPOINT_SIM_SCANLINE_PITCH is read on the desktop,
-  // where nothing else calls the setter.
-  SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
-  SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
-  // Twelfth. Off is the shipped value on both platforms, so this seeds nothing
-  // new -- it is here only so CROSSPOINT_SIM_PAPER_DRIFT is read on the
-  // desktop, where nothing else calls the setter.
-  SimulatorOverlay::setPaperDrift(lightink::kPaperDriftDefault);
-  // Thirteenth, fourteenth and fifteenth. The 2026-08-23 roadmap items. Off is
-  // what the desktop ships for all three, so these seed nothing new -- they are
-  // here only so CROSSPOINT_SIM_SHOW_THROUGH, CROSSPOINT_SIM_CORNER_DEFOCUS and
-  // CROSSPOINT_SIM_POWEROFF_COLLAPSE are read on the desktop, where nothing
-  // else calls the setters.
-  SimulatorOverlay::setShowThrough(showthrough::kStrengthOff);
-  SimulatorOverlay::setCornerDefocus(cornerdefocus::kStrengthOff);
-  SimulatorOverlay::setPowerOffCollapse(false);
+  // ...AND EVERY SURFACE DIAL, from the table.
+  //
+  // This used to be nineteen hand-written calls, numbered in their comments up
+  // to "fifteenth" because each one was added for the same reason and the
+  // reason had to be restated every time. The reason is: a dial whose only
+  // caller is a phone must still be pushed through its setter here, or its
+  // CROSSPOINT_SIM_* override is read by a function no desktop build ever
+  // calls and the dial cannot be exercised off-phone at all. That has been a
+  // real bug twice -- the glow and the fade both shipped that way, which is how
+  // the first fade measurement showed no fade.
+  //
+  // Every value is simdials::kDials[].desktopDefault, and every one of those is
+  // what this repo already drew, so with no env var set this whole call is a
+  // no-op and the desktop canary stays byte-identical. Five dials that were
+  // NEVER seeded here get their env override on the desktop for the first time
+  // (tooth, formation, defects, laid wires and the three press ratios); they
+  // reached the atomics only through the settings file before, about a second
+  // after boot.
+  SimulatorOverlay::applyDials(simdials::desktopDefaults());
 
   // Default appearance is light, so a desktop build stays byte-identical to
   // what it always rendered; CROSSPOINT_SIM_DARK is applied inside
@@ -1598,15 +1646,25 @@ void HalDisplay::begin() {
   SimulatorOverlay::setPanelDark(false);
 
   // CROSSPOINT_SIM_AS_SHIPPED=1 seeds the dials the iOS app actually ships
-  // with, in one switch, instead of six env vars reconstructed by hand.
+  // with, in one switch, instead of a dozen env vars reconstructed by hand.
   //
   // This exists because the divergence has cost real time. The desktop seeds
-  // every dial OFF -- deliberately, so the canary and every headless capture
-  // stay byte-identical to what this repo always drew -- while the app ships
-  // CRT White with a 5 min fade at Dim depth, a 67 ms beam, and 1x grain at
-  // Vignette + Mottled 8 x 0.30. Reproducing an owner report therefore means
-  // rebuilding his settings from memory, and on 2026-08-19 that went wrong
-  // twice in one bug hunt.
+  // every dial at its historical value -- deliberately, so the canary and every
+  // headless capture stay byte-identical to what this repo always drew -- while
+  // the app ships CRT White with letterpress and scanlines on, a heavily
+  // textured sheet, and a 55 ms beam. Reproducing an owner report therefore
+  // means rebuilding his settings from memory, and on 2026-08-19 that went
+  // wrong twice in one bug hunt.
+  //
+  // THE DIAL VALUES NO LONGER LIVE HERE. They are simdials::kDials[].
+  // shippedValue, checked against the app's own frozen constants by
+  // tests/dial_table_test.cpp -- because writing them out here by hand is
+  // exactly what drifted twice on 2026-08-23 (the beam at 67 against the app's
+  // 55, and three of the grain's four arguments at 100/8/30 against 160/5/90).
+  //
+  // What stays hand-written is the PAGE, which is not a dial: the palette, the
+  // emission flag, the glow and the polarity are one coherent choice -- the app
+  // ships CRT White -- rather than 23 independent numbers.
   //
   // It does NOT change any default, and it runs LAST on purpose: the first
   // version sat above the ordinary seeds and they overwrote it, so the log said
@@ -1623,57 +1681,11 @@ void HalDisplay::begin() {
     SimulatorOverlay::setPanelEmissive(true);
     SimulatorOverlay::setPanelGlow(
         panelpalette::trailMsForPreset(panelpalette::kPresetWhiteCrt));
-    // FROZEN 2026-08-23: fade Off, depth fully transparent. Not settings any
-    // more, so these are the app's only values rather than its defaults.
-    SimulatorOverlay::setPageFade(0.0f);
-    SimulatorOverlay::setPageFadeDepth(0);
-    // 55, not the 67 this seeded until 2026-08-23. The app hard-set the sweep
-    // to 55 ms on 2026-08-22 and this block was updated for the paper and
-    // doctrine dials the same night but not for the beam, so every desktop
-    // reproduction of a beam or page-turn report ran a 21% longer sweep than
-    // the phone -- exactly the divergence this switch exists to stop.
-    SimulatorOverlay::setBeamPaint(55.0f);
-    SimulatorOverlay::setPhosphorGrain(100, phosphorgrain::VignetteMottled, 8, 30);
-    // The 2026-08-22 doctrine dials. Letterpress was frozen at Standard on
-    // 2026-08-23 with the settings removal; scanlines stayed Subtle.
-    SimulatorOverlay::setLetterpress(100);
-    // ...and the paper instrument, FROZEN 2026-08-23. There is no drawer and no
-    // Settings row that reaches any of these on the phone any more, so this
-    // switch is not seeding the app's defaults, it is seeding its only values.
-    // The numbers are ios/CrossPointLightInkPicker.mm's frozen constants and
-    // have to be changed with them. Literals rather than the model's defaults
-    // on purpose: kFormationDepthDefault and kPaperDriftDefault still mean
-    // "what the model ships", and the app's frozen values differ from both.
-    //
-    // Paper STRENGTH is frozen at 100 and reaches the sheet through these two:
-    // the tooth and the formation are the dial times the STOCK's factor at that
-    // strength, and the app's default stock (Bright White) has a factor of
-    // exactly 1.00 for both, so 300 and 80 are what the phone pushes.
-    SimulatorOverlay::setPaperTooth(300);
-    SimulatorOverlay::setPaperFormation(80);
-    // 0: the app ships an unmarked sheet, and nothing marks one any more.
-    SimulatorOverlay::setPaperDefects(paperdefects::kDialOff);
-    // Drift frozen at the TOP of its range, so every leaf of a book measures
-    // slightly differently. NOT kPaperDriftDefault, which is off.
-    SimulatorOverlay::setPaperDrift(lightink::kPaperDriftMax);
-    SimulatorOverlay::setPressRing(100);
-    SimulatorOverlay::setPressDeboss(100);
-    SimulatorOverlay::setPressPressure(100);
-    // 0 because the app's default stock (Bright White) carries no wires; the
-    // dial follows the paper picker, not a Settings row.
-    SimulatorOverlay::setLaidLines(0);
-    SimulatorOverlay::setScanlines(50);
-    SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
-    SimulatorOverlay::setScanlineBloom(scanlines::kBloomExtreme);
-    // The 2026-08-23 roadmap items, both FROZEN in the app rather than offered
-    // as rows. Show-through is the dial only: the STOCK's factor is the other
-    // half and it multiplies in at the picker, which is why the number here is
-    // 100 and not the product -- the app's default stock is Bright White, whose
-    // factor is exactly 1.00. The collapsing dot is NOT seeded: it is the one
-    // Settings row of the three and it ships off, so leaving it alone is
-    // reproducing the app.
-    SimulatorOverlay::setShowThrough(showthrough::kStrengthStandard);
-    SimulatorOverlay::setCornerDefocus(cornerdefocus::kStrengthStandard);
+    SimulatorOverlay::applyDials(simdials::shippedValues());
+    // LAST, and after the dials: the grain's shipped strength is the DARK one
+    // (the app stores a strength per appearance and the desktop carries a
+    // single atomic), so the polarity this selects is the one those numbers
+    // describe.
     SimulatorOverlay::setPanelDark(true);
   }
 
@@ -1995,6 +2007,15 @@ static void destroyGrainTexture() {
   grainTexSeed = 0;
 }
 
+// sRGB relative luminance of a palette tone -- the same weights the contrast
+// floor and the grain's budget use. Defined HERE, above its first caller,
+// because the previous arrangement put it 78 lines below and the first caller
+// therefore carried a byte-identical lambda copy of it. The curve is
+// src/Srgb.h's; this is only the WCAG weighting over it.
+static float srgbLumOf(const unsigned char c[3]) {
+  return srgb::relativeLuminance(c);
+}
+
 // True when there is a field ready to draw over a w x h rect.
 static bool ensureGrainTexture(int w, int h) {
   const int strength = SimulatorOverlay::grainStrength.load();
@@ -2006,17 +2027,10 @@ static bool ensureGrainTexture(int w, int h) {
   // follows a polarity flip and a palette change without anything else being
   // told. sRGB relative luminance, the same weights the contrast floor uses.
   const PanelPalette live = livePanelPalette(display.isInverted());
-  auto lum = [](const unsigned char c[3]) {
-    auto ch = [](unsigned char v) {
-      const float f = static_cast<float>(v) / 255.0f;
-      return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
-    };
-    return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
-  };
-  const float amplitude =
-      phosphorgrain::amplitudeScaleFor(lum(live.ink), lum(live.paper));
-  const float budget =
-      phosphorgrain::darkeningBudget(lum(live.ink), lum(live.paper));
+  const float inkLum = srgbLumOf(live.ink);
+  const float paperLum = srgbLumOf(live.paper);
+  const float amplitude = phosphorgrain::amplitudeScaleFor(inkLum, paperLum);
+  const float budget = phosphorgrain::darkeningBudget(inkLum, paperLum);
   const int amplitudeKey = static_cast<int>(amplitude * 1000.0f + 0.5f);
   if (strength == phosphorgrain::kStrengthOff || w <= 0 || h <= 0 ||
       !sdl_renderer) {
@@ -2086,16 +2100,6 @@ static bool ensureGrainTexture(int w, int h) {
               static_cast<double>(depthPct) / 100.0, seed,
               static_cast<double>(amplitude));
   return true;
-}
-
-// sRGB relative luminance of a palette tone -- the same weights the contrast
-// floor and the grain's budget use.
-static float srgbLumOf(const unsigned char c[3]) {
-  auto ch = [](unsigned char v) {
-    const float f = static_cast<float>(v) / 255.0f;
-    return f <= 0.04045f ? f / 12.92f : std::pow((f + 0.055f) / 1.055f, 2.4f);
-  };
-  return 0.2126f * ch(c[0]) + 0.7152f * ch(c[1]) + 0.0722f * ch(c[2]);
 }
 
 // --- THE PAGE'S OWN SEED ---------------------------------------------------
