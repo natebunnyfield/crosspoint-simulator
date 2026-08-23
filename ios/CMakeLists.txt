@@ -226,8 +226,34 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       "should be selectable, add it to installed_families — which is an owner "
       "ruling, not a build fix.")
   endif()
+  # ...and the INVERSE, which is the direction that actually bit. A family in
+  # installed_families with nothing bundled is SILENT: the firmware believes it
+  # is installed, every existing check passes, and the app simply does not have
+  # the font. TeX Gyre Heros reached the upload step that way on 2026-08-23 --
+  # built into ios/seedfonts and onto the card, but not into the tree this
+  # bundle is actually copied from -- and only a hand check caught it.
+  set(_unbundled_families "")
+  foreach(_family IN LISTS _installed_families)
+    if(NOT _family IN_LIST _seed_bundled_families)
+      list(APPEND _unbundled_families "${_family}")
+    endif()
+  endforeach()
+  if(_unbundled_families)
+    string(REPLACE ";" ", " _unbundled_text "${_unbundled_families}")
+    message(FATAL_ERROR
+      "Seed fonts: ${_unbundled_text} — named in installed_families "
+      "(${_sd_fonts_yaml}) but NOT bundled from "
+      "${CROSSPOINT_IOS_SEED_FONTS_DIR}.\n"
+      "The firmware believes these are installed on every surface, so the app "
+      "would ship believing in a font it does not carry. Build them into the "
+      "seed tree at EVERY tier the app renders (renderScale defaults to 3):\n"
+      "  for sc in 1 2 3; do build-sd-fonts.py --only <Family> --scale $sc "
+      "--output-dir <seed tree>; done\n"
+      "If a family is deliberately device-only, it does not belong in "
+      "installed_families — that list means every surface.")
+  endif()
   list(LENGTH _seed_bundled_families _n_fam)
-  message(STATUS "Seed fonts: ${_n_fam} families, all in installed_families")
+  message(STATUS "Seed fonts: ${_n_fam} families, matching installed_families exactly")
 endif()
 
 # Default books, always bundled (small public-domain testers checked into
