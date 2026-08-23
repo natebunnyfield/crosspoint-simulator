@@ -19,6 +19,7 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 
 #include "HalDisplay.h"
 #include "HalStorage.h"
+#include "CornerDefocus.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
 #include "PhosphorMix.h"
@@ -26,6 +27,7 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "Scanlines.h"
+#include "ShowThrough.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorSettingsFile.h"
 
@@ -74,6 +76,16 @@ std::string paletteComment() {
 void writeTemplateIfMissing(const std::string &path) {
   struct stat st{};
   if (stat(path.c_str(), &st) == 0) return;
+  // ...and NOT while reproducing the app. The template names every dial, so
+  // writing it makes every key PRESENT -- which defeats the whole of the
+  // absent-key rule below and silently un-does the as-shipped seed one second
+  // after boot. The first fix for that missed this: it was measured on a
+  // machine whose settings.json predated the template, so no key was present
+  // and the guard appeared to work. On a fresh machine it did not.
+  //
+  // A file the owner has already written still wins, in both modes. This
+  // declines only to CREATE one.
+  if (asShippedWanted()) return;
   FILE *f = std::fopen(path.c_str(), "w");
   if (!f) return;
   std::fputs(defaultsTemplate(paletteComment()).c_str(), f);
@@ -154,6 +166,14 @@ bool applyMix(const Values &v, const std::string &raw) {
 void apply(const Values &v) {
   // Polarity first: the palette is resolved FOR a polarity, so setting the
   // tones before the appearance would push the wrong pair for one frame.
+  // AS-SHIPPED LEAVES THE TONES ALONE TOO. The absent-key rule below covers the
+  // dials; the polarity and the palette are the other half of what the seed
+  // sets, and re-applying a default here put a Default dark pair over the
+  // seed's White CRT one second after boot (measured: 67% of bytes moved).
+  const bool haveDark = v.find("darkMode") != v.end();
+  const bool havePreset = v.find("panelPalettePreset") != v.end();
+  if (asShippedWanted() && !haveDark && !havePreset) return applyDials(v);
+
   const bool dark = intOr(v, "darkMode", 1) != 0;
   SimulatorOverlay::setPanelDark(dark);
 
@@ -180,17 +200,34 @@ void apply(const Values &v) {
 // The dials that are not the page's tones or its glow -- shared by the preset
 // path and the mix path.
 void applyDials(const Values &v) {
-  SimulatorOverlay::setPageFade(
-      static_cast<float>(intOr(v, "pageFadeSeconds", 0)) * 1000.0f);
-  SimulatorOverlay::setPageFadeDepth(intOr(v, "pageFadeDepthPercent", 100));
-  SimulatorOverlay::setBeamPaint(static_cast<float>(intOr(v, "beamPaintMs", 0)));
-  SimulatorOverlay::setPresentFlash(intOr(v, "presentFlash", 0) != 0);
-  SimulatorOverlay::setPhosphorGrain(
-      intOr(v, "phosphorGrainPercent", phosphorgrain::kStrengthRealistic),
-      intOr(v, "phosphorGrainCoverage", phosphorgrain::Even),
-      phosphorgrain::kMottleCellsDefault,
-      intOr(v, "phosphorGrainMottleDepth",
-            (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
+  // These four were left outside the absent-key rule when it was added and so
+  // still reset the seed a second after boot. Same rule, same reason.
+  const auto has = [&v](const char *k) { return v.find(k) != v.end(); };
+  if (has("pageFadeSeconds") || !asShippedWanted())
+    SimulatorOverlay::setPageFade(
+        static_cast<float>(intOr(v, "pageFadeSeconds", 0)) * 1000.0f);
+  if (has("pageFadeDepthPercent") || !asShippedWanted())
+    SimulatorOverlay::setPageFadeDepth(intOr(v, "pageFadeDepthPercent", 100));
+  if (has("beamPaintMs") || !asShippedWanted())
+    SimulatorOverlay::setBeamPaint(
+        static_cast<float>(intOr(v, "beamPaintMs", 0)));
+  if (has("presentFlash") || !asShippedWanted())
+    SimulatorOverlay::setPresentFlash(intOr(v, "presentFlash", 0) != 0);
+  // Grain's four arguments arrive together, so it is all-or-nothing under the
+  // rule: if the file names ANY of them the file is deciding, otherwise the
+  // seed keeps what it set. The cell count gains a key here -- it had none, so
+  // no file could express the 8 the app ships and this call always passed the
+  // model default of 5.
+  if (has("phosphorGrainPercent") || has("phosphorGrainCoverage") ||
+      has("phosphorGrainMottleCells") || has("phosphorGrainMottleDepth") ||
+      !asShippedWanted()) {
+    SimulatorOverlay::setPhosphorGrain(
+        intOr(v, "phosphorGrainPercent", phosphorgrain::kStrengthRealistic),
+        intOr(v, "phosphorGrainCoverage", phosphorgrain::Even),
+        intOr(v, "phosphorGrainMottleCells", phosphorgrain::kMottleCellsDefault),
+        intOr(v, "phosphorGrainMottleDepth",
+              (int)(phosphorgrain::kMottleDepthDefault * 100.0f)));
+  }
   // An ABSENT key is not the same thing as a key set to the default, and the
   // difference is the whole of this lambda. The watcher re-reads the file about
   // once a second, so applying a default for a key nobody wrote silently
@@ -234,6 +271,16 @@ void applyDials(const Values &v) {
        SimulatorOverlay::setScanlineSize);
   dial("scanlineBloomPercent", scanlines::kBloomStandard,
        SimulatorOverlay::setScanlineBloom);
+  // The 2026-08-23 roadmap items. Off is the desktop's historical rendering
+  // for all three, so a file without the keys is unchanged.
+  dial("showThroughPercent", showthrough::kStrengthOff,
+       SimulatorOverlay::setShowThrough);
+  dial("cornerDefocusPercent", cornerdefocus::kStrengthOff,
+       SimulatorOverlay::setCornerDefocus);
+  // A flag rather than a percent, so it takes the int dial's shape through a
+  // thunk instead of a second lookup path.
+  dial("powerOffCollapse", 0,
+       [](int on) { SimulatorOverlay::setPowerOffCollapse(on != 0); });
 }
 
 }  // namespace
