@@ -432,8 +432,11 @@ int main(int argc, char **argv) {
       CHECKM(plist.find("<string>beamPaintMs</string>") == std::string::npos,
              "beamPaintMs: row is back in Root.plist (removed 2026-08-22, the "
              "sweep is hard set at 55 ms)");
-      CHECKM(plist.find("<string>pageFadeSeconds</string>") != std::string::npos,
-             "pageFadeSeconds must stay in Root.plist — is this the right file?");
+      // pageFadeSeconds was the sentinel here until 2026-08-23, when the
+      // whole Page Colors group left Settings.app. renderScale is the survivor
+      // that proves the file is the real one.
+      CHECKM(plist.find("<string>renderScale</string>") != std::string::npos,
+             "renderScale must stay in Root.plist — is this the right file?");
     }
   }
 

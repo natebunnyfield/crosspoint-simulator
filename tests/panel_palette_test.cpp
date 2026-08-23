@@ -432,6 +432,22 @@ static void testRootPlist(const char *path) {
       // every ratio but 1:2"): the zen band proportion is a constant 1:2 in
       // the shim now, and a one-option row is decoration.
       "zenBottomRatio",
+      // Removed 2026-08-23, owner ruling from a screenshot of his own chosen
+      // values: "make these settings the default and remove them from ios app
+      // settings as options." Both GROUPS went with their rows. The values are
+      // frozen in CrossPointPrefs.mm and returned WITHOUT reading
+      // NSUserDefaults, so an install that stored something else cannot keep
+      // rendering it -- with the row gone there would be no way back.
+      "pageFadeSeconds",
+      "pageFadeDepthPercent",
+      "letterpressPercent",
+      "scanlinesPercent",
+      "scanlineSizePercent",
+      "scanlineBloomPercent",
+      // paperDefectsPercent left with them, but it is the one key here that is
+      // still READ: the light picker's own Defects slider writes it, and that
+      // drawer is a different surface than Settings.app.
+      "paperDefectsPercent",
   };
   for (const char *key : removedKeys)
     CHECKM(xml.find(std::string("<string>") + key + "</string>") ==
@@ -439,16 +455,16 @@ static void testRootPlist(const char *path) {
            "%s: row is back in Root.plist (removed 2026-08-22)", key);
 
   // ...and the survivors are still there, so the absences above cannot be
-  // satisfied by an empty or wrong file. The Page Colors group now ENDS at
-  // Beam Paint; Read Aloud survives whole; the new Zen toggle sits at
-  // the very top.
+  // satisfied by an empty or wrong file. Page Colors and Paper Defects are
+  // gone entirely as of 2026-08-23, leaving Sharpness as the only page row;
+  // Read Aloud survives whole; the Zen toggle sits at the very top.
   const size_t zenToggle = xml.find("<string>zenModeEnabled</string>");
   CHECKM(zenToggle != std::string::npos,
          "zenModeEnabled (the Zen toggle) must be in Root.plist");
   CHECKM(xml.find("<string>beamPaintMs</string>") == std::string::npos,
          "beamPaintMs: the row is gone (owner 2026-08-22, hard set at 55 ms)");
-  CHECKM(xml.find("<string>pageFadeSeconds</string>") != std::string::npos,
-         "pageFadeSeconds (a kept Page Colors row) must be in Root.plist");
+  CHECKM(xml.find("<string>renderScale</string>") != std::string::npos,
+         "renderScale (the last surviving page row) must be in Root.plist");
   CHECKM(xml.find("<string>readAloudEnabled</string>") != std::string::npos,
          "the Read Aloud section must survive the removal");
   CHECKM(xml.find("<string>diagnosticsEnabled</string>") != std::string::npos,

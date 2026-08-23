@@ -1565,13 +1565,15 @@ void HalDisplay::begin() {
     SimulatorOverlay::setPanelEmissive(true);
     SimulatorOverlay::setPanelGlow(
         panelpalette::trailMsForPreset(panelpalette::kPresetWhiteCrt));
-    SimulatorOverlay::setPageFade(300000.0f);
-    SimulatorOverlay::setPageFadeDepth(75);
+    // FROZEN 2026-08-23: fade Off, depth fully transparent. Not settings any
+    // more, so these are the app's only values rather than its defaults.
+    SimulatorOverlay::setPageFade(0.0f);
+    SimulatorOverlay::setPageFadeDepth(0);
     SimulatorOverlay::setBeamPaint(67.0f);
     SimulatorOverlay::setPhosphorGrain(100, phosphorgrain::VignetteMottled, 8, 30);
-    // The 2026-08-22 doctrine dials, at the iOS defaults: letterpress Subtle
-    // for light, scanlines Subtle for dark.
-    SimulatorOverlay::setLetterpress(50);
+    // The 2026-08-22 doctrine dials. Letterpress was frozen at Standard on
+    // 2026-08-23 with the settings removal; scanlines stayed Subtle.
+    SimulatorOverlay::setLetterpress(100);
     // ...and the paper instrument's own shipped defaults. The desktop seeds
     // every one of these at "what this repo already drew" so the canary stays
     // byte-identical; the app ships a sheet with formation and marks on it, and
@@ -1579,7 +1581,9 @@ void HalDisplay::begin() {
     // switch exists to stop.
     SimulatorOverlay::setPaperFormation(static_cast<int>(
         letterpress::kFormationDepthDefault * 100.0f + 0.5f));
-    SimulatorOverlay::setPaperDefects(paperdefects::kDialDefault);
+    // 0 since 2026-08-23: the app ships an unmarked sheet, and the light
+    // picker's Defects slider is now the only thing that marks one.
+    SimulatorOverlay::setPaperDefects(paperdefects::kDialOff);
     // The app ships sheet drift OFF, so this line changes nothing -- it is
     // here because this switch is meant to be the complete list of what the
     // app's dials are, and a dial missing from it is the divergence the
@@ -1593,7 +1597,7 @@ void HalDisplay::begin() {
     SimulatorOverlay::setLaidLines(0);
     SimulatorOverlay::setScanlines(50);
     SimulatorOverlay::setScanlineSize(scanlines::kSizeFine);
-    SimulatorOverlay::setScanlineBloom(scanlines::kBloomStandard);
+    SimulatorOverlay::setScanlineBloom(scanlines::kBloomExtreme);
     SimulatorOverlay::setPanelDark(true);
   }
 
