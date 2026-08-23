@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 struct SDL_Renderer;
 
 // Simulator-only chrome drawn outside the panel.
@@ -79,6 +81,20 @@ int panelWidthPx();
 // publisher; declared here because this namespace is already the host-facing
 // window onto panel geometry (panel*Px above).
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
+
+// WHICH PAGE OF WHICH BOOK IS ON SCREEN, as published by every reader activity
+// through HalGPIO::publishReaderPageIdentity on every displayed page. Returns
+// false until a book has rendered once — a boot into a menu has no page, and
+// the caller keeps its launch-seeded field then.
+//
+// The consumer is the LIGHT page's paper: both letterpress fields seed from
+// hash3(lo32(bookKey), hi32(bookKey) ^ spineIndex, pageInSpine) with NO launch
+// term, which is what makes a revisited page the same sheet across a relaunch.
+// Declared here rather than on HalDisplay for the same reason as everything
+// else in this namespace: nothing in the firmware could ever consume it, and
+// the HAL surface must stay the firmware's shape. Implemented in HalGPIO.cpp
+// beside the publisher.
+bool readerPageIdentity(uint64_t &bookKey, int &spineIndex, int &pageInSpine);
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
@@ -304,6 +320,51 @@ void setLetterpress(int strengthPercent);
 // not the paper. Model: src/Letterpress.h. CROSSPOINT_SIM_PAPER_TOOTH
 // overrides the argument.
 void setPaperTooth(int percentOfReference);
+
+// THE REST OF THE PAPER INSTRUMENT (owner order 2026-08-22: "make tooth,
+// formation, pressure and all other paper variables sliders in the 'color
+// button' drawer"). Every one of these was a constant inside the model until
+// this order; each is now a live dial, grouped Ink / Paper / Press in the
+// light-mode page-color drawer, and each defaults to the value that reproduces
+// exactly what this repo already drew.
+//
+// ONE SOURCE OF TRUTH PER QUANTITY. The Settings.bundle `Letterpress` row stays
+// as the MASTER scale (setLetterpress above); the three Press dials here are
+// the per-component PARTS, composing multiplicatively with it. Neither is a
+// second authority over the other.
+
+// PAPER FORMATION: the sheet's cloudiness -- how hard the low-frequency fibre
+// distribution swings the tooth's amplitude, as a percent (0 = a perfectly even
+// sheet, which no real stock is; 55 is what this repo shipped; 100 is the
+// model's maximum). Mean-preserving by construction, so it costs nothing
+// against the paper's contrast budget. CROSSPOINT_SIM_PAPER_FORMATION
+// overrides.
+void setPaperFormation(int depthPercent);
+
+// PAPER DEFECTS: how marked the sheet is, 0..100 (0 off and bit-exact, 30 the
+// iOS default, 100 a thoroughly used book). It is an INCIDENCE dial -- turning
+// it up gives an older book, not a dirtier ink. Foxing, red rag flecks, blue
+// marks, brown stains, fly specks and wax spots, masked by the page's own ink
+// so a mark never sits on a glyph, and bounded by whatever the tooth left of
+// the palette's paper budget. Model: src/PaperDefects.h (host-tested); design
+// and citations: docs/paper-defects.md. CROSSPOINT_SIM_PAPER_DEFECTS overrides.
+void setPaperDefects(int dialPercent);
+
+// THE PRESS'S THREE PARTS, each a percent of the standard press (100 is the
+// shipped composition, 0 removes that component, 200 is the ceiling -- which is
+// not taste but the no-new-worst-case bound: 200% on the heaviest OFFERED
+// master rung lands exactly on letterpress::kStrengthMax, a state the shipped
+// Letterpress ladder could already reach).
+//
+//   ring     the ink-squeeze rim around every stroke, the letterpress signature
+//   deboss   the shadowed top-left walls of the type's bite into the sheet
+//   pressure the low-frequency unevenness of impression across the forme
+//
+// All three are carried by ink or its edges, so none can breach the PAPER's
+// contrast floor. CROSSPOINT_SIM_PRESS_RING / _DEBOSS / _PRESSURE override.
+void setPressRing(int percentOfStandard);
+void setPressDeboss(int percentOfStandard);
+void setPressPressure(int percentOfStandard);
 
 // SCANLINES: the DARK page's screen texture, replacing the mottled grain
 // (supersedes the 2026-08-18 "no scanlines" ruling -- owner order 2026-08-22).

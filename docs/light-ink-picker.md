@@ -404,3 +404,71 @@ the same tones. Known, accepted cost: a named CRT preset's *phosphor trail* is
 a property of the preset row, not of the hex pair, so after that snapshot the
 dark page keeps its color but not its decay (unless a gun mix is active, which
 carries its own).
+
+## 8. The drawer is the paper instrument now (2026-08-22)
+
+Owner order, the same day: "make tooth, formation, pressure and all other paper
+variables sliders in the 'color button' drawer." Every constant the light page's
+surface was built from is a live control, and the sheet became a
+**`UIScrollView` with three labeled groups**.
+
+| Group | Slider | What it moves | Range (default) | Desktop mirror |
+|---|---|---|---|---|
+| Ink | Density | `lightInkDensityPercent` | floor..100 (100) | — |
+| Paper | Paper | `lightPaperStrengthPercent` | 0..ceiling (100) | — |
+| Paper | Tooth | a MULTIPLIER on the stock's own `lightink::toothScaleFor` factor | 0..400 % (100) | `CROSSPOINT_SIM_PAPER_TOOTH` |
+| Paper | Formation | `letterpress::Params::formationDepth` | 0..100 % (55) | `CROSSPOINT_SIM_PAPER_FORMATION` |
+| Paper | Defects | `paperdefects::Params::dialPercent` | 0..100 (30 on iOS, 0 on desktop) | `CROSSPOINT_SIM_PAPER_DEFECTS` |
+| Press | Ink squeeze | `Params::ringScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_RING` |
+| Press | Deboss | `Params::debossScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_DEBOSS` |
+| Press | Plate pressure | `Params::pressScale` | 0..200 % (100) | `CROSSPOINT_SIM_PRESS_PRESSURE` |
+
+Four rulings are worth keeping, because each of them was a real fork:
+
+**Tooth is a MULTIPLIER, not a replacement.** A stock has its own roughness
+(`toothScaleFor`), and the dial rides on it, so a chamois still reads as a
+chamois at every setting. Setting it to replace the stock factor would have made
+the Paper row's texture half of its meaning disappear.
+
+**`kPressCells` stays a constant.** Cells are texture scale, not taste; a dial
+on them would be decoration. Same posture as the grain's mottle cells.
+
+**The Press ceiling is 200 %, and that is a BOUND rather than a preference.**
+The master `Letterpress` row's top offered rung is 200 and
+`letterpress::kStrengthMax` is 400, so 200 % on the heaviest offered press lands
+exactly on a state the shipped ladder could already reach on its own. Any state
+the drawer can select, Settings.app could already select.
+`tests/paper_defects_test.cpp` proves it term by term.
+
+**One source of truth per quantity.** The Settings.bundle `Letterpress` row
+stays as the MASTER scale and the three Press sliders are the per-component
+PARTS, composing multiplicatively with it. `Paper Defects` has a Settings.bundle
+row AND a drawer slider, and that is still one source of truth: a
+Settings.bundle row *is* a view onto an `NSUserDefaults` key, and both bind to
+`paperDefectsPercent`. It had to be a **`PSSliderSpecifier`** — the bundle's
+first, every other row being a `PSMultiValueSpecifier` — because a multi-value
+row renders BLANK for a drawer value of 47.
+
+**Layout.** Manual frames stay; they are frames inside the scroll view's content
+now, which is a smaller change than adopting Auto Layout mid-flight. The sheet
+keeps **medium** as its opening detent so the drawer still opens exactly the size
+it always did, and gains **large** beside it — nine controls do not fit a medium
+detent, and scrolling a half-height sheet for the Press group is worse than being
+able to pull it up.
+
+**The six new sliders get a swatch STRIP, not a gradient track.** A colour ramp
+is meaningless for a texture. Each strip is the model itself, evaluated left to
+right across that dial's own range on the CURRENT paper — the paper three
+through the sheet pass, the press three through the panel pass over a synthetic
+ink bar, because ring, deboss and pressure are all carried by ink or its edges
+and are exactly nothing on bare sheet. A strip of blank paper would show three
+identical white bars and say the sliders do nothing.
+
+The dials are also seeded at LAUNCH by the shim
+(`CrossPointInkPicker_pushPaperDials`, edge-triggered on
+`CrossPointInkPicker_paperDialSignature`), because the drawer may never be
+opened and the sheet the owner set last week still has a formation, marks and a
+press composition — and because Settings.app can move the Defects row without
+the drawer ever coming up.
+
+Design and citations for the marks themselves: [paper-defects.md](paper-defects.md).

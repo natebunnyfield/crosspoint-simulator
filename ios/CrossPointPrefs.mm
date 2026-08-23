@@ -88,6 +88,18 @@ static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
 // -integerForKey: cannot tell from an absent key -- the same malignant trap as
 // the grain strength above.
 static NSString *const kLetterpressPercent = @"letterpressPercent";
+// PAPER DEFECTS. Bound to a PSSliderSpecifier in Root.plist -- the bundle's
+// FIRST slider row, every other one being a multi-value picker -- and to the
+// light-mode drawer's Defects slider. ONE key, two views: a Settings.bundle row
+// IS a view onto an NSUserDefaults key, so this is not a second source of
+// truth. It has to be a slider and not a picker precisely because the drawer
+// can store 47, and a PSMultiValueSpecifier renders BLANK for a value that is
+// not one of its listed Values.
+//
+// Read through -objectForKey: like the grain's strength, and for the same
+// malignant reason: -integerForKey: answers 0 for a missing key, and 0 here is
+// a fresh sheet while the drawer still shows the shipped 30.
+static NSString *const kPaperDefectsPercent = @"paperDefectsPercent";
 static NSString *const kScanlinesPercent = @"scanlinesPercent";
 // The raster's PITCH, as a percent of the source-row pitch. 100 is the shipped
 // one-line-per-row; there is no "off" value, so -integerForKey: would be safe
@@ -464,6 +476,25 @@ int CrossPointPrefs_letterpressPercent(void) {
   const int pct = v.intValue;
   if (pct < 0) return 0;
   return pct > 400 ? 400 : pct;
+}
+
+int CrossPointPrefs_paperDefectsPercent(void) {
+  ensureDefaults();
+  checkKnown(kPaperDefectsPercent);
+  NSNumber *v =
+      [[NSUserDefaults standardUserDefaults] objectForKey:kPaperDefectsPercent];
+  // 30 is the shipped default: a book that has been somewhere, not a ruin.
+  if (![v isKindOfClass:[NSNumber class]]) return 30;
+  const int pct = v.intValue;
+  if (pct < 0) return 0;
+  return pct > 100 ? 100 : pct;
+}
+
+void CrossPointPrefs_setPaperDefectsPercent(int pct) {
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  [[NSUserDefaults standardUserDefaults] setInteger:pct
+                                             forKey:kPaperDefectsPercent];
 }
 
 int CrossPointPrefs_scanlinesPercent(void) {

@@ -22,6 +22,8 @@ void pollSettingsFile() {}   // the phone has NSUserDefaults
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
 #include "PhosphorMix.h"
+#include "Letterpress.h"
+#include "PaperDefects.h"
 #include "Scanlines.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorSettingsFile.h"
@@ -191,6 +193,18 @@ void applyDials(const Values &v) {
   // The 2026-08-22 doctrine dials. 0 is the desktop default for both -- a file
   // without the keys renders what the desktop always rendered.
   SimulatorOverlay::setLetterpress(intOr(v, "letterpressPercent", 0));
+  // The paper instrument. Same keys and same units as the iOS app, so a
+  // settings.json and a phone cannot disagree about what a sheet looks like.
+  // Defaults are the desktop's historical values, not the app's.
+  SimulatorOverlay::setPaperTooth(intOr(v, "paperToothPercent", 100));
+  SimulatorOverlay::setPaperFormation(intOr(
+      v, "paperFormationPercent",
+      static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f)));
+  SimulatorOverlay::setPaperDefects(
+      intOr(v, "paperDefectsPercent", paperdefects::kDialOff));
+  SimulatorOverlay::setPressRing(intOr(v, "pressRingPercent", 100));
+  SimulatorOverlay::setPressDeboss(intOr(v, "pressDebossPercent", 100));
+  SimulatorOverlay::setPressPressure(intOr(v, "pressPressurePercent", 100));
   SimulatorOverlay::setScanlines(intOr(v, "scanlinesPercent", 0));
   SimulatorOverlay::setScanlineSize(
       intOr(v, "scanlineSizePercent", scanlines::kSizeFine));

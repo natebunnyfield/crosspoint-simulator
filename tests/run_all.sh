@@ -219,6 +219,15 @@ run letterpress \
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 
+# The paper the letterpress prints on: its marks, and its identity. Two failure
+# classes no compiler can see. A defect that LIFTS is the page-flash bug class;
+# a mark that outlives the paper's REMAINING budget (the tooth already spent
+# against it, and its clamp is conditional) puts a reading page under 7:1; and a
+# page seed that still carries the launch seed renders perfectly while failing
+# the one claim the feature exists for -- the same page is the same sheet.
+run paper_defects \
+  c++ -std=c++17 -O1 -Isrc -o "$OUT/paper_defects" tests/paper_defects_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

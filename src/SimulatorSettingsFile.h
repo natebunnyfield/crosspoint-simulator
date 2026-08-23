@@ -184,6 +184,44 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off   50 = subtle   100 = standard   200 = heavy
   "letterpressPercent": 0,
 
+  // THE PAPER INSTRUMENT. Everything the light page's sheet is made of, as
+  // live dials (owner order 2026-08-22). Each default below is what this
+  // simulator already drew, so a file without these keys renders exactly what
+  // it always did -- which is why paperDefectsPercent is 0 here and 30 in the
+  // iOS app.
+  //
+  // How rough the SHEET is, as a percent of the reference stock. 100 is the
+  // shipped Bright White; the iOS picker derives this from the chosen paper
+  // and its strength, so setting it here is the desktop's way in.
+  "paperToothPercent": 100,
+
+  // The sheet's FORMATION -- its cloudiness, the low-frequency fibre
+  // distribution you see holding a sheet to a light. A symmetric swing on the
+  // tooth's amplitude, so it costs nothing against the contrast floor.
+  //   0 = a perfectly even sheet (no real stock)   55 = the shipped reference
+  //   100 = the model's maximum
+  "paperFormationPercent": 55,
+
+  // PAPER DEFECTS: how marked the sheet is. An INCIDENCE dial -- turning it up
+  // gives an older book, not a dirtier ink. Foxing, red rag flecks, blue marks,
+  // brown stains, fly specks and wax spots, masked by the page's own ink so a
+  // mark never sits on a glyph. docs/paper-defects.md.
+  //   0 = a fresh sheet (bit-exact off)   30 = the iOS default   100 = used
+  "paperDefectsPercent": 0,
+
+  // THE PRESS'S THREE PARTS, as percents of the standard press. The
+  // letterpressPercent above is the MASTER; these are the per-component ratios
+  // and compose multiplicatively with it, so there is one stored value per
+  // quantity. 200 is the ceiling, and it is the no-new-worst-case bound rather
+  // than taste. All carried by ink or its edges, so none touches the paper's
+  // contrast budget.
+  //   ring     the ink-squeeze rim, the letterpress signature
+  //   deboss   the shadowed walls of the type's bite
+  //   pressure the unevenness of impression across the forme
+  "pressRingPercent": 100,
+  "pressDebossPercent": 100,
+  "pressPressurePercent": 100,
+
   // Scanlines, percent of standard: one scan line per page row, Gaussian
   // beam, bright-content bloom, blotch depth folded into the dial.
   //   0 = off   50 = subtle   100 = standard   150 = deep
