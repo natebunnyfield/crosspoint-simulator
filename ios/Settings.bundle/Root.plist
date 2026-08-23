@@ -52,40 +52,6 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>TAKES EFFECT NEXT LAUNCH. Close CrossPoint from the app switcher and open it again; nothing changes until you do. This is the one setting here that cannot be applied live — the factor sizes the page buffer and picks which set of glyph bitmaps is loaded, and both are fixed before the first page is drawn.
-
-How finely the page is drawn, as page pixels per e-ink pixel. Layout never moves: the same words break in the same places at every setting. Only the sharpness of the drawing changes.
-
-Exact (2x) lands one page pixel on one screen pixel on this phone — no scaling and no smoothing at all.
-
-Panel (1x) draws exactly what the e-ink hardware draws, pixel for pixel, then enlarges it. Blocky by design: it is for comparing against the real device, not for reading.</string>
-			<key>Title</key>
-			<string>Page Sharpness</string>
-			<key>Type</key>
-			<string>PSGroupSpecifier</string>
-		</dict>
-		<dict>
-			<key>DefaultValue</key>
-			<integer>2</integer>
-			<key>Key</key>
-			<string>renderScale</string>
-			<key>Title</key>
-			<string>Sharpness</string>
-			<key>Titles</key>
-			<array>
-				<string>Exact (2x) — one page pixel per screen pixel</string>
-				<string>Panel (1x) — what the e-ink hardware draws</string>
-			</array>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Values</key>
-			<array>
-				<integer>2</integer>
-				<integer>1</integer>
-			</array>
-		</dict>
-		<dict>
-			<key>FooterText</key>
 			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it, or tap the word being read to stop. With VoiceOver on, a two-finger double tap pauses and resumes. Reading continues with the screen locked. Turning it on takes effect at the next page turn.
 
 Speaking rate is a percentage of normal. The Spoken Content rate slider in Accessibility settings does not apply here, so this is the one that moves it.</string>

@@ -135,3 +135,20 @@ gitignored 183 MB `ios/seedfonts/` tree). What HAS run: the desktop simulator at
 all three scales with byte-identical output against fixed-scale references, the
 ESP32-C3 device build, and `tests/run_all.sh` at 18/18. Full ledger, including
 what to look at on the phone, in the firmware doc.
+
+## The row itself is gone, 2026-08-23
+
+Dropping 3x left the picker with one value, and the owner ruled a one-value
+control worse than no control: *"2x only — remove the row."* Sharpness and its
+group left `Root.plist` the same day the doctrine dials did.
+
+So render scale is no longer a preference. It is **2**, returned as a constant
+by `CrossPointPrefs_renderScale` without consulting `NSUserDefaults` — the same
+discipline the frozen page dials use, and for the same reason: a store written
+by build 129 or earlier holds 3 (it was both an offered row and the default),
+and reading it would let an old value re-point something the owner can no
+longer see or change. 1 was already retired on 2026-08-21.
+
+Putting the CHOICE back therefore means restoring the row, the registration,
+and the getter's read — not only rebuilding the tier. The checklist above still
+covers the tier half.
