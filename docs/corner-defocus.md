@@ -166,3 +166,26 @@ Two things follow, and they should be decided rather than assumed:
 `multiplierAt` with a sigma scale of exactly 1 is asserted byte-identical to the
 call that predates this feature, and the HalDisplay off-path is the original
 code untouched rather than a special case of the new one.
+
+## OPEN: is it visible? (owner ruling 2026-08-23)
+
+The measurement is honest and it does not settle the question. On this app's
+rasters the corner loses **41%** of its peak-to-peak depth while the centre and
+the side midpoints lose **exactly 0%** -- the ellipse doing precisely what it
+models -- but whole-frame deviation is **1.0 code value**. No native-pixel crop
+can show that, so the figure fails the repo's third proof check and none was
+faked.
+
+Sub-code-value is not the same claim as imperceptible: what moved is the DEPTH
+OF A PERIODIC FIELD, and the eye integrates a repeating structure differently
+than it does an isolated pixel. So the numbers argue both ways and the owner
+ruled to decide it on the phone instead.
+
+**The probe.** `CrossPointPrefs_cornerDefocusPercent` reads a
+`cornerDefocusOverride` defaults key when one is present, so the two arms can be
+compared in place without a build each. An absent key keeps the shipped 100.
+
+**It is a probe, not a setting.** Delete the branch once the question is
+answered. Its cost is real -- roughly **+42 ms per dark page turn on a phone**,
+above the ~30 ms class the timing work calls cheap -- so "leave it on because
+nobody minds" is not a free answer.
