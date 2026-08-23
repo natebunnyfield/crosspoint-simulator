@@ -7,6 +7,8 @@
 
 #import <UIKit/UIKit.h>
 
+#include <cstdlib>
+
 // Keys must match ios/Settings.bundle/Root.plist. A typo is silent:
 // -boolForKey: on a missing key returns NO, which here would read as "never
 // allow sleep" and hold the screen on forever. checkKnown() below turns that
@@ -398,6 +400,17 @@ int CrossPointPrefs_readAloudRatePercent(void) {
 }
 
 int CrossPointPrefs_diagnosticsEnabled(void) {
+  // The headless door. A sandboxed app's NSUserDefaults live in its data
+  // container, so a simulator run cannot flip the Settings.app row without
+  // tapping through Settings by hand -- and the accessibility log is the one
+  // instrument this area has. `CROSSPOINT_SIM_DIAGNOSTICS=1` turns it on for a
+  // scripted run; it is read once, and it can only ENABLE (the owner's Off
+  // stays Off unless a run asks for the instrument).
+  static const bool forced = [] {
+    const char *v = std::getenv("CROSSPOINT_SIM_DIAGNOSTICS");
+    return v != nullptr && v[0] == '1';
+  }();
+  if (forced) return 1;
   ensureDefaults();
   checkKnown(kDiagnosticsEnabled);
   // Default OFF (owner ruling 2026-08-09: "disable diagnostics for now"). The

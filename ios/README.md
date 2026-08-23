@@ -928,11 +928,48 @@ queries the app through Apple's real out-of-process AX channel (the
 instrument that separated "the container answers" from "nobody asks", which
 was the whole investigation).
 
-**Speak Screen cannot be tested in the simulator** — its Spoken Content pane
-offers only Speak Selection, so `UIAccessibilityIsSpeakScreenEnabled()` reads
-0 there. VoiceOver is available in the simulator and reads the line elements;
-`CROSSPOINT_SIM_FORCE_SPEAKSCREEN=1` builds the Speak Screen surfaces anyway
-so the AX probe can verify them off-device. The full investigation — six
+**Speak Screen CAN be tested in the simulator, and the note that said
+otherwise was wrong** (corrected 2026-08-23; the old note is a large part of
+why the 2026-08-09 arc had to run on TestFlight twelve builds at a time). The
+pane is named *Speak Screen*; the preference behind it is not. From
+`libAccessibility.dylib`'s own strings the key is **`SpeakThisEnabled`** —
+Speak Screen shipped as "Speak This" internally — and writing it to the
+**system** domain makes `UIAccessibilityIsSpeakScreenEnabled()` return true:
+
+```bash
+xcrun simctl spawn <udid> defaults write com.apple.Accessibility SpeakThisEnabled -bool true
+```
+
+Measured on an iPhone Air simulator, iOS 26.5: `assistive tech: speakScreen=1`,
+with the whole chain following. `SpeakScreenEnabled` — the obvious guess — is
+accepted by `defaults` and read by nothing. Unlike the app's own settings this
+really is a system preference, so the app-container trap above does not apply.
+
+What still cannot be done off-device is **invoking** Speak Screen (the
+two-finger swipe from the top edge) and hearing it speak: `simctl` cannot
+synthesize a two-finger swipe and XCUITest has no public multi-finger swipe.
+The exposure is fully testable; the speech is not. VoiceOver is also available
+in the simulator and reads the line elements, and
+`CROSSPOINT_SIM_FORCE_SPEAKSCREEN=1` still forces the Speak Screen surfaces for
+a run that does not want to touch the system preference.
+
+**The whole chain in one log line**, and the headless door to it:
+`CROSSPOINT_SIM_DIAGNOSTICS=1` turns the diagnostics file on for a scripted run
+(the Settings.app toggle cannot be reached by `simctl` — see the app-container
+correction above), and `CrossPointAccessibility_logChain` then prints
+
+```
+CHAIN wants=1 page=765B rects=142 geo=1(34,124 x0.667) view=1 \
+      frame=(34,124 352x528) inWindow=1 host=SDL_uikitmetalview elements=21
+```
+
+— assistive tech on, page held, rects held, panel geometry, the `UITextInput`
+page view, whether it is in the window, and how many line elements. Throttled
+to changes of that shape. **Read it before forming a hypothesis**: it says
+which link is empty, and the answer is very often "the displayed page has no
+text", because a book opens on its cover wrapper and that page is blank. Full
+measurement, the list of links checked and found healthy, and the traps:
+[../docs/speak-screen-chain.md](../docs/speak-screen-chain.md). The full investigation — six
 failed exposure mechanisms, the research fleet, the Kindle control experiment
 that overturned it, and why each probe exists — is in the git history of
 `CrossPointAccessibility.mm` and `CrossPointPageTextInput.mm`; the memory of
