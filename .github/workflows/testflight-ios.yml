@@ -54,8 +54,11 @@ on:
         description: >-
           Comma-separated sd-fonts.yaml family names to build and bundle into
           the app; they seed the phone's fonts/ folder at launch. Blank
-          disables bundling.
-        default: Junicode
+          disables bundling. MUST be a subset of sd-fonts.yaml's
+          installed_families — ios/CMakeLists.txt fails the configure
+          otherwise, because nothing in the app can select a family that list
+          does not name (docs/ios-app-size.md A1).
+        default: Edgar,Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode
         required: false
 
 env:
@@ -145,6 +148,12 @@ jobs:
         # Resources/SeedFonts/; ios/CrossPointFsPrep.cpp copies them into the
         # phone's visible fonts/ root at launch. freetype-py ships macOS
         # wheels with libfreetype embedded, so no brew dependency.
+        #
+        # The list is hand-typed, so it is CHECKED: the Configure step below
+        # fails when a bundled family is missing from sd-fonts.yaml's
+        # installed_families. Build 126 shipped iA Writer Duo, Mono and
+        # Quattro through this input — 16.2 MB compressed of bundle that no
+        # reading or editor surface could reach (docs/ios-app-size.md A1).
         if: ${{ inputs.seed_fonts != '' }}
         run: |
           python3 -m pip install --quiet --break-system-packages \

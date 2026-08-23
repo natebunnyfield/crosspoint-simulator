@@ -156,7 +156,20 @@ set(SDL_HIDAPI OFF CACHE BOOL "" FORCE)
 set(SDL_JOYSTICK OFF CACHE BOOL "" FORCE)
 set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
 set(SDL_RENDER_VULKAN OFF CACHE BOOL "" FORCE)
-set(SDL_GPU_VULKAN OFF CACHE BOOL "" FORCE)
+# SDL_VULKAN, not SDL_GPU_VULKAN. `SDL_GPU_VULKAN` is not a user option in
+# SDL 3.4.12 -- it is an internal variable SDL sets from SDL_VIDEO_VULKAN
+# (_deps/sdl3-src/CMakeLists.txt, `set(SDL_GPU_VULKAN 1)`), so FORCEing it in
+# the cache changed nothing and SDL_gpu_vulkan.o (144,592 bytes of Vulkan
+# driver, in an iOS binary) linked in unconditionally: SDL_gpu.o has an
+# undefined `_VulkanDriver` that only that member defines.
+set(SDL_VULKAN OFF CACHE BOOL "" FORCE)
+# And the whole GPU subsystem with it. SDL_CreateRenderer(window, nullptr)
+# takes the FIRST available driver from render_drivers[] (SDL_render.c:110),
+# where METAL sits at :120 and GPU at :143 -- so on iOS the GPU backend can
+# never be selected, and the renderer logs its name at startup ("[panel]
+# renderer: metal") for whoever doubts it. SDL_RENDER_GPU is dep_option-ed on
+# SDL_GPU, so this drops SDL_gpu.o, SDL_gpu_metal.o and SDL_shaders_gpu.o too.
+set(SDL_GPU OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(SDL3
   GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
   GIT_TAG ${CROSSPOINT_SDL3_TAG}
