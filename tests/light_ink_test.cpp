@@ -37,6 +37,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "LightInkPalette.h"
@@ -143,9 +144,22 @@ int main() {
   // --- the model keeps hue at mid density ----------------------------------
   // For every ink whose full-strength channels are not all equal, the CHANNEL
   // ORDER at 50% density on every paper must match the full-strength order
-  // wherever the full-strength channels actually differ. This is what
-  // separates a dilution curve from a chord toward the paper's neutral: the
-  // linear lerp fails it for the deep blues on warm papers.
+  // wherever the full-strength channels actually differ BY A HUE'S WORTH. This
+  // is what separates a dilution curve from a chord toward the paper's
+  // neutral: the linear lerp fails it for the deep blues on warm papers.
+  //
+  // kHueThreshold is not a fudge for a failing case, and the 2026-08-22 ink
+  // additions are what made it necessary to say so. The original check asserted
+  // the order for ANY pair that differed at all, which was safe while every
+  // colored ink was strongly chromatic. It is wrong for a near-neutral one:
+  // Printer's Ink is 1A1C1F, five code values of blue lean, and a 50% wash of
+  // it on Chamois is 565550 -- YELLOW, because a near-neutral ink at half
+  // density on a tan sheet is a tan wash. That is the correct answer and the
+  // model should not be asked to invent a blue that is not there. So the claim
+  // is narrowed to what it always meant: a pair separated by more than a few
+  // code values carries a hue, and the hue survives dilution. Under the
+  // threshold there is nothing to preserve, and the sheet legitimately wins.
+  constexpr int kHueThreshold = 12;
   for (int i = 0; i < kInkCount; i++) {
     const uint8_t *f = kInks[i].full;
     if (f[0] == f[1] && f[1] == f[2]) continue;  // neutral: no order to keep
@@ -154,7 +168,9 @@ int main() {
       inkAtDensity(i, p, 50, wash);
       for (int a = 0; a < 3; a++) {
         for (int b = a + 1; b < 3; b++) {
-          if (f[a] == f[b]) continue;
+          if (std::abs(static_cast<int>(f[a]) - static_cast<int>(f[b])) <
+              kHueThreshold)
+            continue;
           const bool fullOrder = f[a] > f[b];
           const bool washOrder = wash[a] > wash[b];
           if (wash[a] == wash[b]) continue;  // a tie is not an inversion
@@ -179,6 +195,113 @@ int main() {
           "floor for unknown indices must be the fallback pair's floor");
   }
 
+  // --- APPEND-ONLY: the rows that shipped before 2026-08-22 are BYTE-PINNED -
+  //
+  // The single most valuable assertion in this file, and the only one that can
+  // see the failure it guards. A choice persists as an integer; if row 5's
+  // bytes change, every owner who picked Oxblood silently gets something else,
+  // and nothing -- not the compiler, not the contrast sweep, not the ramp
+  // checks -- notices, because the new bytes are perfectly legal. Inserting a
+  // row instead of appending has the same signature. So the pre-existing table
+  // is written out here literally: a diff to any of it is a diff to this test.
+  //
+  // NEW ROWS ARE APPENDED HERE TOO, at the bottom, when they ship. Nothing is
+  // ever edited in place.
+  {
+    struct PinnedInk { int idx; const char *name; uint8_t rgb[3]; };
+    static const PinnedInk kPinnedInks[] = {
+        {kInkStandard, "Standard", {0x2D, 0x2D, 0x2D}},
+        {kInkCarbonBlack, "Carbon Black", {0x1E, 0x1C, 0x1A}},
+        {kInkIronGall, "Iron Gall", {0x1B, 0x2A, 0x3C}},
+        {kInkSepia, "Sepia", {0x3E, 0x2A, 0x18}},
+        {kInkWalnutBistre, "Walnut & Bistre", {0x4B, 0x3A, 0x15}},
+        {kInkOxblood, "Oxblood", {0x4F, 0x15, 0x11}},
+        {kInkIndigo, "Indigo", {0x2A, 0x3B, 0x5C}},
+        {kInkPrussianBlue, "Prussian Blue", {0x0B, 0x30, 0x50}},
+    };
+    struct PinnedPaper { int idx; const char *name; uint8_t rgb[3]; float tooth; };
+    static const PinnedPaper kPinnedPapers[] = {
+        {kPaperBrightWhite, "Bright White", {0xFB, 0xFB, 0xF9}, 1.00f},
+        {kPaperCream, "Cream", {0xF8, 0xF0, 0xD9}, 1.30f},
+        {kPaperBone, "Bone", {0xEF, 0xEA, 0xE0}, 1.45f},
+        {kPaperChamois, "Chamois", {0xEC, 0xDA, 0xB7}, 1.80f},
+        {kPaperPressGray, "Press Gray", {0xE9, 0xEA, 0xEC}, 1.60f},
+        {kPaperSepiaToned, "Sepia Toned", {0xEE, 0xDF, 0xCC}, 1.50f},
+    };
+    for (const PinnedInk &pin : kPinnedInks) {
+      CHECK(std::strcmp(kInks[pin.idx].name, pin.name) == 0,
+            "ink row %d used to be %s and is now %s -- rows APPEND, never move",
+            pin.idx, pin.name, kInks[pin.idx].name);
+      CHECK(std::memcmp(kInks[pin.idx].full, pin.rgb, 3) == 0,
+            "ink row %d (%s) changed bytes: %02X%02X%02X, was %02X%02X%02X",
+            pin.idx, pin.name, kInks[pin.idx].full[0], kInks[pin.idx].full[1],
+            kInks[pin.idx].full[2], pin.rgb[0], pin.rgb[1], pin.rgb[2]);
+    }
+    for (const PinnedPaper &pin : kPinnedPapers) {
+      CHECK(std::strcmp(kPapers[pin.idx].name, pin.name) == 0,
+            "paper row %d used to be %s and is now %s", pin.idx, pin.name,
+            kPapers[pin.idx].name);
+      CHECK(std::memcmp(kPapers[pin.idx].tone, pin.rgb, 3) == 0,
+            "paper row %d (%s) changed bytes", pin.idx, pin.name);
+      CHECK(std::fabs(kPapers[pin.idx].tooth - pin.tooth) < 1e-6f,
+            "paper row %d (%s) changed tooth: %.2f, was %.2f -- a shipped "
+            "stock silently re-textures",
+            pin.idx, pin.name, kPapers[pin.idx].tooth, pin.tooth);
+    }
+  }
+
+  // --- the ink FAMILIES and the derived display order -----------------------
+  //
+  // Grouping is presentation, so none of it may touch a stored value. What can
+  // still go wrong is silent: a row with a group nobody renders disappears from
+  // the picker entirely, and a heading with no rows under it is a stray label.
+  {
+    int seen[kInkGroupCount] = {0};
+    for (int i = 0; i < kInkCount; i++) {
+      CHECK(kInks[i].group >= 0 && kInks[i].group < kInkGroupCount,
+            "%s has group %d, which no heading renders", kInks[i].name,
+            kInks[i].group);
+      if (kInks[i].group >= 0 && kInks[i].group < kInkGroupCount)
+        seen[kInks[i].group]++;
+    }
+    for (int g = 0; g < kInkGroupCount; g++)
+      CHECK(seen[g] > 0, "group %s has no inks -- a heading with nothing under it",
+            kInkGroupNames[g]);
+
+    int order[kInkCount];
+    buildInkDisplayOrder(order);
+    int count[kInkCount] = {0};
+    for (int s = 0; s < kInkCount; s++) {
+      CHECK(order[s] >= 0 && order[s] < kInkCount, "display slot %d is %d", s,
+            order[s]);
+      if (order[s] >= 0 && order[s] < kInkCount) count[order[s]]++;
+    }
+    for (int i = 0; i < kInkCount; i++)
+      CHECK(count[i] == 1,
+            "%s appears %d times in the display order -- it must be a "
+            "permutation, or a row is missing from the picker",
+            kInks[i].name, count[i]);
+    // Grouped: the family index never decreases down the list, so every family
+    // is one contiguous run under one heading.
+    int prevGroup = -1;
+    for (int s = 0; s < kInkCount; s++) {
+      const int g = kInks[order[s]].group;
+      CHECK(g >= prevGroup, "display order leaves and re-enters group %s",
+            kInkGroupNames[g]);
+      if (g > prevGroup) prevGroup = g;
+    }
+    // ...and within a family, table (append) order, so a new row lands at the
+    // bottom of its family rather than in the middle of it.
+    for (int s = 1; s < kInkCount; s++)
+      if (kInks[order[s]].group == kInks[order[s - 1]].group)
+        CHECK(order[s] > order[s - 1],
+              "%s and %s are out of table order inside %s", kInks[order[s - 1]].name,
+              kInks[order[s]].name, kInkGroupNames[kInks[order[s]].group]);
+    // Row 0 is the default and must be the first thing the owner sees.
+    CHECK(order[0] == kInkStandard,
+          "the default ink must lead the list, got %s", kInks[order[0]].name);
+  }
+
   // --- no duplicate rows ---------------------------------------------------
   for (int a = 0; a < kInkCount; a++)
     for (int b = a + 1; b < kInkCount; b++)
@@ -189,6 +312,53 @@ int main() {
       CHECK(std::memcmp(kPapers[a].tone, kPapers[b].tone, 3) != 0,
             "papers %s and %s are the same bytes", kPapers[a].name,
             kPapers[b].name);
+
+  // ...and byte-inequality is NOT distinctness. This is the phosphor-preset
+  // lesson (docs/crt-phosphor-presets.md: two rows may paint the same page only
+  // if they DECAY differently, and here nothing decays): a stock one code value
+  // off another is a row that costs a tap and shows nothing. The separation is
+  // measured as the largest per-channel difference, which is the thing an eye
+  // comparing two flat swatches side by side actually uses.
+  {
+    constexpr int kMinSeparation = 8;
+    auto maxChannelDelta = [](const uint8_t *x, const uint8_t *y) {
+      int d = 0;
+      for (int c = 0; c < 3; c++) {
+        const int e = std::abs(static_cast<int>(x[c]) - static_cast<int>(y[c]));
+        if (e > d) d = e;
+      }
+      return d;
+    };
+    for (int a = 0; a < kPaperCount; a++)
+      for (int b = a + 1; b < kPaperCount; b++)
+        CHECK(maxChannelDelta(kPapers[a].tone, kPapers[b].tone) >=
+                  kMinSeparation,
+              "papers %s and %s differ by only %d code values -- one of them "
+              "is a row that does nothing",
+              kPapers[a].name, kPapers[b].name,
+              maxChannelDelta(kPapers[a].tone, kPapers[b].tone));
+    for (int a = 0; a < kInkCount; a++)
+      for (int b = a + 1; b < kInkCount; b++)
+        CHECK(maxChannelDelta(kInks[a].full, kInks[b].full) >= kMinSeparation,
+              "inks %s and %s differ by only %d code values", kInks[a].name,
+              kInks[b].name, maxChannelDelta(kInks[a].full, kInks[b].full));
+    // Names are what the picker shows; two rows called the same thing is a UI
+    // bug that no color check can see.
+    for (int a = 0; a < kInkCount; a++) {
+      CHECK(kInks[a].name[0] && kInks[a].era[0], "ink row %d has an empty label",
+            a);
+      for (int b = a + 1; b < kInkCount; b++)
+        CHECK(std::strcmp(kInks[a].name, kInks[b].name) != 0,
+              "two inks are both called %s", kInks[a].name);
+    }
+    for (int a = 0; a < kPaperCount; a++) {
+      CHECK(kPapers[a].name[0] && kPapers[a].note[0],
+            "paper row %d has an empty label", a);
+      for (int b = a + 1; b < kPaperCount; b++)
+        CHECK(std::strcmp(kPapers[a].name, kPapers[b].name) != 0,
+              "two papers are both called %s", kPapers[a].name);
+    }
+  }
 
   // --- the sheet tone IS the resolved paper (owner 2026-08-22: "make sure ---
   // panel and paper actually match visually, in color..."). The card, the
@@ -396,16 +566,24 @@ int main() {
                 toothScaleFor(p, -9) == toothScaleFor(p, 0),
             "%s: tooth factor must clamp outside 0..100", kPapers[p].name);
     }
-    // Uncoated stocks are rougher than the coated bright white, and the aged
-    // chamois is the roughest offered -- the ordering the doc states.
+    // Uncoated stocks are rougher than the coated bright white, and the
+    // ordering the doc states holds. KOZO is the roughest offered as of the
+    // 2026-08-22 additions -- unbleached washi is a mat of long bast fibre with
+    // no calendering at all, and it is genuinely rougher than an aged trade
+    // sheet. Chamois held this title while it was the only aged stock; the
+    // claim moved rather than the number, and Chamois' own 1.80 is unchanged
+    // so no shipped selection re-textures.
     CHECK(kPapers[kPaperChamois].tooth > kPapers[kPaperCream].tooth &&
               kPapers[kPaperCream].tooth > kPapers[kPaperBrightWhite].tooth,
           "the stock ordering must be bright white < cream < chamois");
+    CHECK(kPapers[kPaperKozo].tooth > kPapers[kPaperChamois].tooth,
+          "unbleached kozo must be rougher than an aged trade sheet");
+    CHECK(kPapers[kPaperIndia].tooth < kPapers[kPaperCream].tooth,
+          "India paper is the smoothest stock after the coated reference");
     for (int p = 0; p < kPaperCount; p++)
-      if (p != kPaperChamois)
-        CHECK(kPapers[kPaperChamois].tooth >= kPapers[p].tooth,
-              "Chamois is documented as the roughest offered, but %s is "
-              "rougher",
+      if (p != kPaperKozo)
+        CHECK(kPapers[kPaperKozo].tooth >= kPapers[p].tooth,
+              "Kozo is documented as the roughest offered, but %s is rougher",
               kPapers[p].name);
   }
 

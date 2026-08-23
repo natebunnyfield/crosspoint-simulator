@@ -27,7 +27,8 @@ folklore, per the order.
 
 ## 1. The inks — history, hue anchors, and what "variable" means
 
-Eight rows. APPEND-ONLY indices, the PanelPalette rule: a choice persists as an
+Eight rows **as first shipped; ten more were appended 2026-08-22 — see §9,
+which is the authoritative table.** APPEND-ONLY indices, the PanelPalette rule: a choice persists as an
 integer, so rows are never inserted or re-pointed. `Standard` is row 0 and is
 the shipped e-ink tone, so an untouched install changes nothing.
 
@@ -116,6 +117,10 @@ page is proven therapeutic. The floor (7:1 at every offered combination) is
 the proven part, and it is enforced by test, not by advice.
 
 ## 4. The six papers — real stock, and every pair's contrast
+
+**Six as first shipped; six more were appended 2026-08-22 — see §9 for those and
+for the current 18 x 12 contrast grid.** The tables in this section are the
+original set, kept because the reasoning in §5 and §6 refers to them.
 
 Row 0 is the shipped paper. Honesty note: real "bright white" text stock
 (e.g., a 96–98 brightness sheet) is itself not `#FFFFFF`, so the shipped
@@ -472,3 +477,281 @@ press composition — and because Settings.app can move the Defects row without
 the drawer ever coming up.
 
 Design and citations for the marks themselves: [paper-defects.md](paper-defects.md).
+
+## 9. The 2026-08-22 expansion — nine more inks, six more papers, and families
+
+Owner order (verbatim): *"add more papers and inks and make suggestions on where
+there are gaps to be filled, enhancements to be made or anything else that I
+should consider."* The suggestions half is a separate document,
+[surface-roadmap.md](surface-roadmap.md). This section is the additions.
+
+**Sourcing, and it is a step up from §1.** §1 was written without web access and
+said so. This round had it, and the sources are recorded in two companion
+documents in this repo — [ink-colorimetry-sources.md](ink-colorimetry-sources.md)
+(the standards-grade measurements) and
+[ink-palette-research.md](ink-palette-research.md) (the pigment history and the
+particle-size regime rule). Four rows below are now a **published
+spectrophotometric measurement used verbatim** rather than a derivation. The
+labels are used strictly:
+
+- **MEASURED** — an instrument reading published with its conditions. The
+  backbone here is Richard Kirk / FilmLight's spectrophotometry of 100 Winsor &
+  Newton watercolours *on paper* at three densities each, published as CIE
+  L\*a\*b\*, plus the ISO/FOGRA characterization datasets.
+- **ATLAS** — a name matched to a physical color atlas by a competent authority:
+  Maerz & Paul's *A Dictionary of Color* (1930) → the NBS/ISCC *Dictionary of
+  Color Names* block → that block's published Munsell renotation → sRGB. Real
+  published colorimetry, reached through a 1950s expert's visual judgment.
+- **RECONSTRUCTED** — this repo's, from a constraint that is measured (a dye's
+  absorption maximum) plus a density choice that is not.
+
+Where a row is not MEASURED, the anchor is still the recognized hue carried down
+**its own line in linear light at constant chromaticity** to clear the 7:1 floor
+— the rule §1 states, and the reason the anchors are darker than the famous
+swatch.
+
+**And a warning the sources are emphatic about**, carried here because it is the
+main way a table like this goes wrong: most "pigment hex codes" circulating on
+the web are color-*name* centroids or paint-brand marketing, not measurements of
+the material. Three that were checked and **rejected**: verdigris `#43B3AE`
+(no source cited anywhere; it is the patina on a bronze statue, not the
+pigment), Van Dyke brown `#44362F` (cited to a house-paint company), and Davy's
+gray `#555555` (traceable to a real ISCC-NBS block, but that block has chroma
+*zero* and the measured paint is 21 b\* units away from neutral).
+
+### 9a. The nine new inks
+
+Rows 8–16. Append-only, so nothing above them moves; `tests/light_ink_test.cpp`
+now pins the original eight rows' names and bytes literally, which is the only
+thing that can catch a row being re-pointed or inserted.
+
+| # | Ink | Anchor | Label | Family | Era, mechanism, and why it is here |
+|---|-----|--------|-------|--------|------------------------------------|
+| 8 | Bone Black | `#39342D` | **MEASURED** | Blacks | Charred bone: only ~10% carbon in an ~84% calcium-hydroxyapatite matrix (CI Pigment Black 9). It is here because it is **genuinely a different black from lamp black**, which the table already had as Carbon Black — and the difference is now measured rather than asserted: W&N Ivory/Bone Black masstone L\* 21.87 / a\* 0.73 / **b\* +5.13**, against Lamp Black's L\* 9.81 / −0.03 / **b\* −0.18**. Bone black is warmer at *every* density, by Δb\* 5 to 9. The warmth is the *matrix*, not the carbon. |
+| 9 | Van Dyke Brown | `#4D3B31` | **MEASURED** | Browns | Cassel/Kassel earth: a lignite or peat earth, 60–90% organic humic matter rather than an iron oxide (CI Natural Brown 8). Named for Anthony van Dyck (d. 1641). W&N Vandyke Brown masstone L\* 26.55 / a\* 6.24 / b\* 9.20. It is the third brown deliberately: sepia is the red-leaning one, bistre/walnut the yellow-leaning one, and Van Dyke the *dark neutral* between. Also the table's cautionary tale — it is famously fugitive, it greys in alkali, and it cracks the films it is bound into. |
+| 10 | Sanguine | `#5C332B` | **ATLAS** | Browns | Red chalk: natural hematite (Fe₂O₃) in a clay matrix, cut into sticks. Leonardo was the first major artist to use it as a drawing medium, late 15th c.; then Michelangelo and Raphael. The anchor is unusually clean: Maerz & Paul's **`red chalk`, `red ochre` and `rubrica` all map to the same ISCC-NBS block 43, Moderate Reddish Brown, Munsell 9R 3.4/5.2** — a triple convergence, carried down to reading density. Filed under Browns rather than Reds because that is what an iron-oxide red *is* at body-text density. |
+| 11 | Vermilion | `#6D2812` | **MEASURED** | Reds | Mercury(II) sulfide, HgS; the natural mineral is cinnabar, the dry-process synthetic is documented from roughly the 8th–9th century (CI Pigment Red 106). **This is the red of rubrication**, which §1 recorded as unavailable at a 7:1 floor — it is available *at density*. Anchored on the measured W&N Vermilion masstone L\* 50.16 / a\* 45.82 / b\* 46.00, hue angle ≈45°, which settles that vermilion is a scarlet-**orange** and not a crimson. Its own historical defect is blackening to metacinnabar, and the mechanism is now known to be chloride ions from surface dirt rather than light alone. |
+| 12 | Madder Lake | `#68243C` | ATLAS | Reds | A lake: alizarin and purpurin from *Rubia tinctorum* root, precipitated onto an alum substrate — the substrate is what turns a dyestuff into a pigment. It earns a row beside Oxblood and Vermilion because it is the **cool** red: measured Rose Madder sits at hue ≈25° against vermilion's ≈45°. Anchored on Maerz & Paul `madder lake` → ISCC-NBS block 255, Strong Purplish Red, 7.3RP 4.4/11.4, because at reading density the measured pink-crimson and the measured vermilion converge to within 5 code values and two rows that look alike is what this table forbids. |
+| 13 | Copying Violet | `#591B83` | **RECONSTRUCTED** | Blues & violets | Methyl violet / crystal violet, a triarylmethane aniline dye first made in 1861. The purple of **copying ink, indelible pencils, carbon paper, hectographs and spirit duplicators** — every mimeographed worksheet before the photocopier. **The only reconstructed row in the table**, and deliberately labeled: no measured Lab or reflectance for a hectograph, ditto or copying-pencil impression exists in the conservation or forensic literature. What *is* measured is the dye — crystal violet's absorption maximum is **590 nm** in water, which removes the orange-yellow and puts the survivor on the **blue** side of the purple locus. The hue is sourced; the lightness and chroma are this repo's. |
+| 14 | Verdigris | `#2C412C` | ATLAS | Greens | Basic copper acetate, made by standing copper over fermenting grape skins (CI Pigment Green 20). The principal green of medieval manuscripts, and **the sibling to iron gall's famous defect**: copper(II) ions migrate through the sheet in humidity and catalyze both oxidation and hydrolysis of cellulose, eating holes clean through the leaf. It is also the one pigment where the alkaline-buffering reflex is *contraindicated*. The table had no green at all; anchored on Maerz & Paul `verdigris [green]` → ISCC-NBS block 136, 0.5G 5.5/4.8, carried deep because a light green cannot clear 7:1 on any sheet. |
+| 15 | Payne's Gray | `#323D47` | **MEASURED** | Grays | Not a pigment but a **mix**, attributed to the English watercolorist William Payne, c. 1790 — classically Prussian blue with a crimson lake and sometimes an ochre; today phthalo blue, lamp black and quinacridone. Watercolorists use it *instead of black* because it darkens without deadening, which is the same argument this app's own eased-ink ruling makes. W&N Payne's Gray masstone L\* 25.24 / a\* −1.97 / **b\* −7.56**: unambiguously a cool blue-gray, and the anchor needed no scaling at all because the paint's own masstone already sits at reading density. |
+| 16 | Davy's Gray | `#423C29` | **MEASURED** | Grays | Powdered slate, sold under that name by Winsor & Newton and named for Henry Davy; the current formulation is slate plus lamp black plus chromium oxide green. **The measurement overturns the folklore here, which is why this row exists in the form it does.** The circulated `#555555` is a chroma-*zero* ISCC-NBS centroid; the measured paint is L\* 51.88 / a\* −1.17 / **b\* +20.71** — an olive, barely green and strongly yellow, about 21 b\* units from the neutral everyone repeats. This row is olive because the spectrophotometer says so. It also sets the table's minimum contrast and is the honest edge of the offered range. |
+
+**No modern printer's-ink row, and that is a measurement rather than an
+oversight.** It was the obvious candidate and the numbers closed it: ISO
+2846-1:2017 Table 1 puts the offset process black at **L\* 18.0 / a\* 0.8 /
+b\* 0.0 → `#2D2C2C`**, which is **one code value from the shipped Standard row's
+`#2D2D2D`**. FOGRA51's measured K100 solid on premium coated is `#2B2B29`, two
+code values away. The row already exists; it is row 0, and the "shipped e-ink
+tone" turns out to be standardized printer's ink to within a rounding error. The
+*uncoated* variant is a different color — FOGRA52 measures L\* 32.69 → `#4F4C4D`
+— and it cannot be offered at all, because it reaches only **6.18:1 on Chamois**.
+Two findings fall out of that pair and both are worth keeping: a single-ink
+offset black is not black (L\* 16 is a quarter of the way up the lightness
+scale — body text in K-only offset is `#2B2B29`, not `#000000`, and the genuinely
+dark black of print is the four-color overprint, which is also visibly *warm* at
+b\* +4.89); and **on uncoated book paper it only reaches L\* 33**, which is why
+a paperback's text never looks as black as a coated page's.
+
+**One model limitation, stated because the sources make it unavoidable.** A
+soot black's warm/cool character is a **particle-size effect that flips with
+density**: fine carbon reads blue in masstone and brown in dilute tint, coarse
+carbon the opposite, measured at Δb\* ≈ 6.5 at matched lightness. This table
+stores one hue per ink and dilutes it along a fixed locus, so it cannot express
+that flip — every carbon row here is its *masstone* character held all the way
+down. Bone Black is exempt, because its warmth is the calcium-phosphate matrix
+rather than the particle size and really is constant. Recorded so no future
+comment claims a constant warm/cool for a carbon ink.
+
+**Grouping, and why it is presentation only.** Seventeen rows is a wall. The
+picker now emits a heading per family — **BLACKS, GRAYS, BROWNS, BLUES &
+VIOLETS, REDS, GREENS** — and the display order is **derived** from a `group`
+field by `lightink::buildInkDisplayOrder`, never stored. Three consequences, all
+of them the point:
+
+- **No stored value moves.** A selection is still the table index. This is the
+  separation the preset picker already uses ("the display order in `Root.plist`
+  is independent of that integer"), applied to a C++ table.
+- **Appending a row cannot desynchronize anything.** There is no hand-written
+  order list to forget; a new ink lands at the bottom of its own family, and the
+  test proves the result is a permutation with every family contiguous and
+  non-empty.
+- **Standard still leads.** Row 0 is the default and the test pins that it is the
+  first row displayed, because a default buried under a heading is a different
+  default.
+
+The order is **borrowed, not invented**: blacks and grays adjacent, browns their
+own family and never filed under reds, is R.D. Harley's ordering in *Artists'
+Pigments c.1600–1835* and Winsor & Newton's own chart order, collapsed for a set
+that is mostly blacks and browns because this is a table of *reading* inks. Note
+that the Colour Index's numbers within a hue (PBk6, 7, 8, 9…) are
+**chronological, not chromatic** — they are not an ordering to copy. Sanguine is
+filed under Browns because that is what it paints at reading density: the
+grouping is by what the row *looks like*, not what the mineral is called.
+
+### 9b. The six new papers
+
+| # | Paper | Tone | Tooth | Stock, and the claim |
+|---|-------|------|-------|----------------------|
+| 6 | India | `#F9F3E9` | **1.12** | Bible/India paper: a very thin (22–40 gsm) rag or flax sheet loaded with mineral filler for opacity, warm-white, pressed extremely smooth. Oxford University Press's primary histories date the first India-paper printing to **1842** and the commercial arrival to **1874** — the widely repeated 1875 appears in neither. **The smoothest stock in the table after the coated reference**, and the anchor is a real negative: delfort publishes brightness for its thin-print grades but prints a literal "–" in the CIE-whiteness column, which is a mill telling you not to model bible paper as a blue-white sheet. Its defining characteristic, show-through, the model cannot yet render at all — [surface-roadmap.md](surface-roadmap.md) §1a, where it is the top item. |
+| 7 | Vellum | `#F9E7D7` | 1.22 | Calfskin. Creamy and faintly pink rather than yellow, and — the part worth having — **unevenly toned**: hair side and flesh side differ, the hair side showing higher saturation and lower reflectance. **No published absolute CIE Lab for parchment exists**, and that is a searched-for negative rather than a gap: the conservation literature reports aging *deltas* and never a baseline, and manufacturer-to-manufacturer variation swamps species variation (modern calf parchment from one supplier reads dark, from another light). The constraints that *are* sourced — darker and warmer than rag paper, positive b\* — are what this tone honors. Note the trade's homonym: a paper sold with a "vellum finish" is an unrelated thing. |
+| 8 | Laid Antique | `#E3DBCA` | **1.85** | Handmade or mould-made laid: the sheet that carries chain and laid lines from the mould's wires; wove displaced it only around 1810, so laid reads as pre-1800 and deliberately archaic after. The anchor is a purchasing standard rather than a study — the US GPO's JCP A120, *50% Cotton Laid-Finish Antique Text*, specifies **72% ±2 brightness with optical brighteners expressly not permitted**, against **≥88%** for its modern laid grade. That 16-point gap plus the OBA prohibition *is* the visual difference, and it is why this row is warm: **antique stocks have positive b\*, modern brightened stocks negative** — the single axis that separates old paper from new. The **chain lines are not rendered**; they are a regular low-frequency field and therefore an ST-008 hazard that must be generated at output size, which makes them item 16 on the roadmap. |
+| 9 | Kozo | `#EEE6C3` | **1.95** | Unbleached Japanese washi from the inner bast of *Broussonetia papyrifera*. Two independent measured gamuts converge here, which makes it the best-anchored of the six: Edo-through-contemporary washi at **L\* 60–85 with a\* toward negative and b\* toward positive**, and 227 undyed Korean hanji samples at **L\* mean 88.2, a\* −3..+3, b\* 0–20**, where "yellowness is the main characteristic" and most sheets read greener than redder. Structurally the roughest thing in the table: very long fibres, formed by hand, never calendered. **This row takes the "roughest offered" title from Chamois**, which held it only while it was the only non-machine sheet; Chamois' own 1.80 is unchanged, so nothing already selected re-textures. |
+| 10 | Azzurrata | `#E0E0ED` | 1.55 | *Carta azzurra*, the blue-tinted Italian writing and drawing stock — first recorded in northern Italy in **1389**, taken up by artists a century later, and the support Carpaccio, Titian and Tintoretto drew on; Aldus Manutius printed the first book on it in Venice, 1514. **Two corrections the sources force.** It was tinted by **blue-dyed rags — indigo and woad — not smalt**; smalt was primarily a Dutch 17th–18th-c. *whitening* additive, a different practice and a later one. And **red fibres are present in almost every blue rag paper**, added deliberately to bulk the pulp and adjust the tone, which is why the sheet reads **gray-violet rather than pure blue** — an optical mixture of blue and red fibre, not a flat blue field. This row is the table's only cool option with real chroma; Press Gray is a neutral. |
+| 11 | Newsprint | `#DEDCD3` | 1.70 | Groundwood/mechanical pulp: high lignin, rough, and the gray-buff cast no rag sheet has. The best-resolved stock in the set — Norske Skog's own NorNews sheet gives **ISO brightness 57%, L\* 82 / a\* −1.1 / b\* +5.3 (ISO 5631, C/2°), PPS 4.5 µm** from one document, and ISO 12647-3's normative standard-newsprint aim independently lands at **L\* 82 / a\* 0 / b\* +3**. **See the compromise below: this row carries the mills' hue at a lightness they did not measure, because the real one cannot clear the floor.** |
+
+### 9c. The findings, which are the part worth keeping
+
+**The shipped Walnut & Bistre row sets a hard darkness floor on every future
+paper, and it is why there is no real newsprint here.** This is the answer to
+"should any pairing be excluded rather than clamped", and it is arithmetic, not
+taste:
+
+- Full-density contrast is a fixed number per pair — the density slider cannot
+  rescue it, because density 100 *is* the ink. So a new paper is legal only if
+  every existing ink already clears 7:1 on it.
+- The binding ink is Walnut & Bistre, relative luminance **0.0458**. Solving
+  `(Yₚ + 0.05) / (0.0458 + 0.05) ≥ 7` gives **Yₚ ≥ 0.6203**, i.e. **L\* ≥ 82.9**.
+  Every paper this table will ever offer must be lighter than that, forever,
+  unless a shipped ink row changes — which the append-only rule forbids.
+- **Real fresh newsprint sits below that line.** At the measured L\* 82 it reaches
+  **6.81:1** against Walnut & Bistre. The Newsprint row therefore carries the
+  mills' measured *hue* (a\* −1.1, b\* +5.3) at **L\* 87.8** — a lift of nearly
+  six lightness units, named here rather than quietly rendered as a lie.
+- **Aged newsprint is further out and is not offered.** A real 1913 wood-pulp
+  book page measures **L\* 83.1 / a\* +3.6 / b\* +18.9** — b\* more than triples
+  from fresh and a\* crosses from green to red, which is the aging trajectory in
+  numbers. It clears the floor at exactly **7.03:1**, with no margin for the
+  sheet-tooth budget to spend, so it stays out.
+
+**My recommendation on exclusion, since the order asked:** do **not** add a
+per-pair exclusion mechanism to buy the dark stocks. It costs a new kind of state
+(a legality table the picker grays rows out from), it makes two independent lists
+conditional on each other, and it buys three or four stocks that are by
+construction the least legible on offer. *Every ink on every paper, always* is
+worth more than an aged newsprint. If the dark end is ever wanted badly enough,
+the honest lever is a **second floor** — an owner-visible AAA/AA choice that
+drops `kContrastFloor` from 7.0 to 4.5 and re-derives every clamp, which is one
+constant and a re-run of the sweep. A deliberate, labeled, reversible reduction
+in contrast, not a hidden exception.
+
+**The floor also confines every paper to an eleven-L\* band**, from Bright White's
+98.6 down to the 87.8 the newest row sits at. Twelve stocks inside eleven
+lightness units is crowded, which is why the six new tones are placed by **a\*
+and b\*** — pink, olive, violet, buff — rather than by lightness, and why the
+test now requires eight code values of separation between every pair rather than
+mere byte-inequality.
+
+**Coated art paper was considered and rejected as a duplicate.** A gloss art
+sheet is smoother and brighter than the reference, and the model's tooth scale
+*starts* at the reference: `kPapers[kPaperBrightWhite].tooth == 1.0f` is a
+`static_assert` and the test forbids any stock smoother than it. Bright White is
+already described as coated, calendered bright text stock. Measured PPS confirms
+there would be nothing to render: Sappi's gloss art is 0.6–0.8 µm against
+newsprint's 4.5 — but note the trade lesson that came with it, that **"coated"
+is the wrong axis**: the same mill's coated *matte* runs 3.2–4.0 µm and its bulky
+matte 4.5, rougher than newsprint. Gloss is the smooth thing, not coated.
+
+**The greenish cast of mid-century pulp paperbacks: real, misdescribed, and still
+not shipped.** It is a greenish **yellow**, not a green-gray, and the mechanism
+is manufacturing rather than aging — bleached mechanical pulp measures a\* ≈ −2
+riding on b\* ≈ +6 to +10, and blue shading dye added without a red correction
+"generally produces a slight color shift towards green" (which is why the correct
+shading dye for paper is violet). Two things rule it out as a row: aging pushes
+*away* from green (the 1913 page is a\* +3.6, firmly red), so a green cast is
+as-manufactured and not the aged look the row would be for; and no colorimetry of
+paperback stock exists anywhere, so the row would be an invention wearing a
+mechanism. Recorded as a negative result so it is not re-proposed — and if it is
+ever wanted, the anchor is ISO 12647-2:2004 paper type 5, **L\* 88 / a\* 0 /
+b\* +6**, pulled to a\* −1.5..−2, and **never** with a negative b\*.
+
+**A test assumption had to be narrowed, and it was a real one.** The hue-retention
+check asserted that a wash keeps the ink's channel *order* at 50% density for any
+pair of channels differing at all. That was safe while every colored ink was
+strongly chromatic and is wrong for a near-neutral one: a five-code-value blue
+lean, washed to half density on a tan sheet, comes back **yellow** — because a
+near-neutral ink at half density on a tan sheet *is* a tan wash. That is the
+correct answer and the model should not be asked to invent a blue that is not
+there. The check now applies only to channel pairs separated by more than 12 code
+values. Payne's Gray and Davy's Gray hit the same edge, which is what makes it a
+rule rather than a special case.
+
+**Two new guards, because the failure modes are silent.** Byte-inequality is not
+distinctness — two stocks a code value apart is a row that costs a tap and shows
+nothing — so every pair of inks and every pair of papers must now differ by at
+least **8** code values on some channel, which is what the tables were placed to
+clear. And the pre-2026-08-22 rows are written out **literally** in the test, so
+a re-pointed or inserted row fails loudly instead of silently re-coloring an
+owner's saved choice.
+
+### 9d. The picker, at seventeen and twelve
+
+Two layout changes, both forced by the row counts:
+
+- **The ink list gained family headings** (§9a) and stays one column, because the
+  era note needs the width. Seventeen rows plus six headings is about 520 pt of
+  scroll content — long, but the sheet is already a `UIScrollView` with a `large`
+  detent.
+- **The stock swatches wrap.** One row of `kPaperCount` cells was fine at six and
+  is a **24 pt sliver at twelve** — under the 44 pt minimum touch target, with the
+  name shrunk past reading. The grid is now a fixed **six per row** over as many
+  rows as the table needs, and the cell height rose from 40 to 44. A thirteenth
+  stock now costs a row of sheet height rather than a millimetre off every
+  existing cell.
+
+### 9e. Full-density contrast, all 17 x 12
+
+Recomputed by the test on every run, and printed in display (family) order.
+Minimum in bold; every pair clears 7:1, so no offered combination can be
+illegible.
+
+| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned | India | Vellum | Laid Antique | Kozo | Azzurrata | Newsprint |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Standard | 13.29 | 12.10 | 11.49 | 10.02 | 11.44 | 10.53 | 12.48 | 11.44 | 10.00 | 10.98 | 10.53 | 10.02 |
+| Carbon Black | 16.40 | 14.93 | 14.17 | 12.36 | 14.11 | 12.99 | 15.39 | 14.11 | 12.34 | 13.54 | 12.99 | 12.36 |
+| Bone Black | 11.90 | 10.84 | 10.28 | 8.97 | 10.24 | 9.43 | 11.17 | 10.24 | 8.96 | 9.83 | 9.43 | 8.97 |
+| Payne's Gray | 10.70 | 9.74 | 9.25 | 8.07 | 9.21 | 8.48 | 10.04 | 9.21 | 8.05 | 8.84 | 8.48 | 8.07 |
+| Davy's Gray | 10.61 | 9.66 | 9.17 | 8.00 | 9.13 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.00 |
+| Sepia | 13.08 | 11.91 | 11.31 | 9.86 | 11.26 | 10.37 | 12.28 | 11.26 | 9.84 | 10.81 | 10.36 | 9.87 |
+| Walnut & Bistre | 10.58 | 9.64 | 9.15 | 7.98 | 9.11 | 8.39 | 9.93 | 9.11 | 7.96 | 8.74 | 8.38 | 7.98 |
+| Van Dyke Brown | 10.21 | 9.30 | 8.82 | 7.70 | 8.79 | 8.09 | 9.58 | 8.78 | **7.68** | 8.43 | 8.09 | 7.70 |
+| Sanguine | 10.32 | 9.40 | 8.92 | 7.78 | 8.88 | 8.18 | 9.69 | 8.88 | 7.77 | 8.53 | 8.18 | 7.78 |
+| Iron Gall | 14.05 | 12.79 | 12.14 | 10.59 | 12.09 | 11.13 | 13.18 | 12.09 | 10.57 | 11.60 | 11.13 | 10.59 |
+| Indigo | 10.79 | 9.83 | 9.32 | 8.13 | 9.29 | 8.55 | 10.13 | 9.28 | 8.12 | 8.91 | 8.55 | 8.14 |
+| Prussian Blue | 13.05 | 11.89 | 11.28 | 9.84 | 11.23 | 10.34 | 12.25 | 11.23 | 9.82 | 10.78 | 10.34 | 9.84 |
+| Copying Violet | 10.62 | 9.67 | 9.17 | 8.00 | 9.14 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.01 |
+| Oxblood | 14.00 | 12.75 | 12.10 | 10.55 | 12.05 | 11.09 | 13.14 | 12.05 | 10.53 | 11.56 | 11.09 | 10.56 |
+| Vermilion | 10.33 | 9.41 | 8.93 | 7.79 | 8.89 | 8.18 | 9.69 | 8.89 | 7.77 | 8.53 | 8.18 | 7.79 |
+| Madder Lake | 10.63 | 9.68 | 9.19 | 8.02 | 9.15 | 8.43 | 9.98 | 9.15 | 8.00 | 8.78 | 8.42 | 8.02 |
+| Verdigris | 10.67 | 9.72 | 9.22 | 8.04 | 9.18 | 8.46 | 10.02 | 9.18 | 8.03 | 8.81 | 8.45 | 8.05 |
+
+The minimum is **Van Dyke Brown on Laid Antique at 7.68:1** — a measured pigment
+masstone on the sheet the GPO says carries no brighteners. That corner is where
+the table was designed toward rather than an accident: Van Dyke's anchor is a
+measurement that was *not* darkened to buy margin, and Laid Antique is as dark as
+the floor allows. Every ink's density floor and every paper's strength ceiling
+are recomputed and printed by `tests/light_ink_test.cpp` on each run; the full
+17 x 12 x 101 x 101 grid — 2.1 million (density, strength) states — is swept for
+holes above a floor and states below a ceiling, as §5 describes.
+
+### 9f. Renders
+
+Proof images, lossless PNG at native device pixels (X3, render scale 1, 528x792,
+no resampling), letterpress 100%, formation 55, defects 30, grain seed pinned:
+
+- `SHEET-new-inks.png` — every new ink at full density, each on **Bright White**
+  (left of its pair) and on **Chamois** (right). Eighteen 1:1 crops of the device
+  framebuffer, tiled without resampling.
+- `SHEET-new-papers.png` — every new paper at full tint with its own tooth
+  factor, each under **Standard** ink and under **Iron Gall**. Twelve 1:1 crops.
+
+Method, so the captures are reproducible: X3 desktop env, `SDL_VIDEODRIVER=dummy`,
+`CROSSPOINT_SIM_DARK=0`, `CROSSPOINT_SIM_LETTERPRESS=100`,
+`CROSSPOINT_SIM_PAPER_TOOTH=<stock tooth x 100>`,
+`CROSSPOINT_SIM_PAPER_FORMATION=55`, `CROSSPOINT_SIM_PAPER_DEFECTS=30`,
+`CROSSPOINT_SIM_GRAIN_SEED=7`, the pair driven through
+`CROSSPOINT_SIM_PANEL_INK_LIGHT` / `_PAPER_LIGHT`, and the reader's progress
+restored from a snapshot before every run so all 30 frames show the same page.
+Every capture has a distinct md5, which is the cheap proof that the env pair
+actually reached the renderer in each cell rather than one of them silently
+falling back to the default.
