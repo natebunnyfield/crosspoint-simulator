@@ -214,6 +214,13 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   the desktop canary keeps exercising. Full writeup, including the three
   alternatives that were priced and rejected:
   [docs/seed-font-compression.md](docs/seed-font-compression.md).
+- **Which surface fields composite is ONE decision, in one place.**
+  [src/FieldSelection.h](src/FieldSelection.h) answers it purely, and it exists
+  because the answer used to be computed twice sixty lines apart from the same
+  two mutable atomics. Every field's contrast budget was derived assuming its
+  pass is the only one running, so a wrong answer here breaches the 7:1 floor
+  silently -- no compiler sees it and no rendered page announces it. The budget
+  shares live there too, rather than being re-typed as literals in four tests.
 - **FreeRTOS shim.** [src/freertos/](src/freertos/) maps `xTaskCreate` to `std::thread`, task notifies to a condvar + counter, and `SemaphoreHandle_t` to `std::recursive_mutex`. A `thread_local SimTaskHandle*` lets each task thread find its own handle.
 - **`_exit(0)` not `return 0`, on desktop.** [src/simulator_main.cpp](src/simulator_main.cpp) ends with `_exit(0)` after `SDL_Quit()` to skip C++ global destructors. The render task is `[[noreturn]]`, so running destructors while it is mid-render races and produces a "quit unexpectedly" dialog. Keep this. iOS is the one exception — it reports a self-terminating process as a crash, so that build returns normally.
 - **Time uses `steady_clock`.** `millis()` / `micros()` in [src/Arduino.h](src/Arduino.h) deliberately use `steady_clock`, not `system_clock`, so wall-clock changes do not perturb timing.
