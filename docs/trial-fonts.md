@@ -1,8 +1,61 @@
 # Fonts on trial
 
-Written 2026-08-23. **This document describes a temporary state.** When every
-face below has been ruled on, the trial list is empty, this file records what
-happened, and nothing in the build carries an exemption any more.
+Written 2026-08-23. **CLOSED 2026-08-24** — every face below has been ruled on,
+`CROSSPOINT_IOS_TRIAL_FAMILIES` is empty, and nothing in the build carries an
+exemption any more. This file is now the record of what happened rather than a
+description of a live state; the sections below are left as they were written,
+with the outcome at the top.
+
+## The ruling (2026-08-24)
+
+> keep almendra but add in accurate dates and authors
+>
+> lose arvo and the other candidate fonts
+
+| Family | Outcome | What that meant |
+|---|---|---|
+| **Almendra** | **PROMOTED** | added to `installed_families:` in the firmware's `sd-fonts.yaml` — the eighth S-tier family — and its name removed from the trial list. Kept in the seed tree, and copied into `ios/seedfonts/` as well so both trees still satisfy the installed-but-not-bundled half of the gate. |
+| Arvo | declined | out of the trial list, `.cpfont` tree deleted from `build/seedfonts/`, recipe and `FontDisplayNames.h` label kept |
+| Merriweather | declined | same. Second ruling against it — it was already C tier from 2026-08-12 |
+| IBMPlexSans | declined | same. The most expensive of the five, 4,421,311 installed bytes, because its recipe asks for Greek and Cyrillic |
+| FiraSansBook | declined | same, except it never had a picker label to keep |
+
+The declined four also came off the simulator's card (`fs_/fonts/` in the
+firmware repo), which is what `install-sim-fonts.py`'s `prune_cut_families`
+does on a full run — done by hand here, since a full run would have rebuilt
+every tier of all eight families to change nothing.
+
+**Measured after, on a FRESH configure** (the cache trap below is real; the
+build directory is new, not reconfigured):
+
+```
+-- Seed fonts: cpz: 64 written, 0 up to date; 121,821,093 -> 36,032,290 bytes (0.296), block 32768
+-- Seed fonts: 8 families, matching installed_families exactly
+```
+
+No `ON TRIAL` clause — that is the settled-tree status line, and the gate is
+exactly what it was before the trial existed. The seed payload in the bundle
+goes from 47,274,326 bytes (twelve families) to 36,032,290 (eight), i.e.
+**−11,242,036 bytes, −23.8 %**, which is the sum of the four declined families'
+own figures in the Weight table below.
+
+**Two things the removal proved on the way**, both worth knowing:
+
+- A card that had one of the cut families SELECTED recovers by itself. The
+  simulator's persisted `sdFontFamilyName` was `FiraSansBook`, and the first
+  boot after the prune logged
+  `[SDFS] SD font family not found on card: FiraSansBook (clearing)` and fell
+  back. Nothing had to be reset by hand.
+- Promotion carries a cost the trial did not have to pay, and it is FLAGGED
+  rather than fixed: Almendra is the only one of the eight still on
+  `intervals: latin-ext`, so it has no arrows and no U+2212 MINUS, and it is
+  now the only INSTALLED family failing the firmware's
+  `test/sd_font_arrows`. Raising it to the tier's `reading` baseline costs
+  4.3x its size. The measurements and the reasoning are in the firmware repo's
+  `docs/sd-card-fonts.md`, under "Almendra is S tier".
+
+---
+
 
 ## What was asked
 
@@ -90,7 +143,9 @@ Per face, when he rules:
   is what every other C-tier recipe does, and it costs nothing.
 
 When the list is empty the status line goes back to "matching
-installed_families exactly" and the gate is exactly what it was.
+installed_families exactly" and the gate is exactly what it was. That happened
+on 2026-08-24 — see the ruling at the top of this file; the status line was
+confirmed on a fresh configure.
 
 **Emptying the list needs a fresh configure.** `CROSSPOINT_IOS_TRIAL_FAMILIES`
 is a CMake CACHE variable, so a build directory configured while a name was in
@@ -150,7 +205,7 @@ The trial:
 | Family | pt sizes | x-height px | advanceY px | against the tier |
 |---|---|---|---|---|
 | Merriweather | 10/12/13/15 | 12/14/16/18 | 34/41/44/51 | on the rhythm; leading ±1-2 px |
-| Almendra | 10/12/14/17 | 12/14/16/18 | 32/39/45/55 | on the rhythm; slot 3 +4 px loose |
+| **Almendra** (promoted) | 10/12/14/17 | 12/14/16/18 | 32/39/45/55 | on the rhythm; slot 3 +4 px loose — **re-measured unchanged at promotion, and no span fixes it**: `metrics:` and `line_height_scale` are both family-wide multipliers, so pulling 55 to 51 takes the two EXACT slots to 36 and 42 |
 | IBMPlexSans | 12/14/16/18 | 13/15/17/20 | 33/38/43/49 | +1..+2 px large, 1-2 px tight |
 | Arvo | 12/14/16/18 | 13/15/17/19 | 31/36/41/46 | +1 px large, **3-5 px tight** |
 | FiraSansBook | 12/14/16/18 | 14/15/18/20 | 30/35/40/45 | +1..+2 px large, **4-6 px tight**, uneven step |
@@ -210,6 +265,10 @@ Cyrillic as well.
   visibly apart from the tier — and is the reason no display-name rows were
   added. `IBMPlexSans` and `FiraSansBook` therefore appear unspaced in the
   picker; cosmetic, and it goes away with a `FontDisplayNames.h` row if either
-  is promoted.
+  is promoted. **Almendra is the exception and it is worth knowing why**: it
+  DID have a row, and still sorted last, because that row dated it
+  `1350 London` — an invented model year the firmware's `docs/font-dates.md`
+  had flagged as uncited since 2026-08-12. The stage was struck on 2026-08-24
+  when the face was promoted; it now reports 2011 and sorts **first**.
 - Each face loads and renders a real book page: `[SDFS] Loaded SD card font
   family: <name>` with the matching `_14.cpfont`, five for five.
