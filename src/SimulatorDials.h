@@ -194,7 +194,7 @@ inline constexpr Dial kDials[kDialCount] = {
   // against the reference sheet, and wove. So the shipped figures below are the
   // frozen dials (300 tooth, 80 formation, 100 show-through) times THOSE
   // factors: 336, 56 and 300. The test proves the factors rather than trusting
-  // this sentence, and it reads the frozen stock out of ios/FrozenPage.h rather
+  // this sentence, and it reads the frozen stock out of src/FrozenPage.h rather
   // than assuming which one it is.
   {PaperToothPercent, "paper tooth", "CROSSPOINT_SIM_PAPER_TOOTH",
    "paperToothPercent", 0, 400, 100, 336, kPlain, PaperToothPercent},

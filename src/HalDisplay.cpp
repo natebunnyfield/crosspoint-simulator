@@ -19,6 +19,7 @@
 #include "PowerOffCollapse.h"
 #include "PowerOnWarmUp.h"
 #include "Scanlines.h"
+#include "FrozenPage.h"
 #include "ShowThrough.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
@@ -1765,9 +1766,22 @@ void HalDisplay::begin() {
   // exactly what drifted twice on 2026-08-23 (the beam at 67 against the app's
   // 55, and three of the grain's four arguments at 100/8/30 against 160/5/90).
   //
-  // What stays hand-written is the PAGE, which is not a dial: the palette, the
-  // emission flag, the glow and the polarity are one coherent choice -- the app
-  // ships CRT White -- rather than 23 independent numbers.
+  // THE PAGE IS NOT HAND-WRITTEN EITHER, since 2026-08-24. It used to be, on
+  // the argument that the palette, the emission flag, the glow and the polarity
+  // are one coherent choice rather than 23 independent numbers -- true, and
+  // beside the point: a hand-written coherent choice drifts exactly like a
+  // hand-written number. It did, the same day it was frozen. The app moved to
+  // Sanguine on India and the owner's four-gun mix while this block still said
+  // CRT White, so `AS_SHIPPED` -- the documented way to reproduce an owner
+  // report -- painted a page that ships nowhere: India's tooth, formation and
+  // show-through over a paper tone that is not India's, and a dark page off by
+  // a nearly 4x trail. Found by adversarial review, not by any test, because
+  // this half was deliberately outside the dial table's reach.
+  //
+  // It now reads src/FrozenPage.h, which is the SAME definition the iOS app
+  // renders from -- that file moved out of ios/ for this, since it is pure C++
+  // and its four dependencies were already here. One definition, so the two
+  // cannot disagree again.
   //
   // It does NOT change any default, and it runs LAST on purpose: the first
   // version sat above the ordinary seeds and they overwrote it, so the log said
@@ -1778,12 +1792,22 @@ void HalDisplay::begin() {
   }();
   if (asShipped) {
     LOG_INF("DISP", "as-shipped: seeding the iOS app's own defaults");
-    SimulatorOverlay::setPanelPalette(
-        true, panelpalette::presetPalette(panelpalette::kPresetWhiteCrt, true).ink,
-        panelpalette::presetPalette(panelpalette::kPresetWhiteCrt, true).paper);
+    // BOTH polarities, because both are frozen now. The light pair was never
+    // seeded at all, so an as-shipped LIGHT run kept the repo's historical
+    // 2D2D2D-on-FBFBF9 while the app rendered Sanguine on India.
+    const panelpalette::Palette shippedDark = frozenpage::darkPair();
+    const panelpalette::Palette shippedLight = frozenpage::lightPair();
+    SimulatorOverlay::setPanelPalette(true, shippedDark.ink, shippedDark.paper);
+    SimulatorOverlay::setPanelPalette(false, shippedLight.ink, shippedLight.paper);
     SimulatorOverlay::setPanelEmissive(true);
-    SimulatorOverlay::setPanelGlow(
-        panelpalette::trailMsForPreset(panelpalette::kPresetWhiteCrt));
+    // The mix's decay, not a preset's: the app's dark page is a four-gun blend
+    // in the Custom slot, so glowPresetForPrefs answers kPresetCustom and the
+    // mixer owns the trail. Seeding a preset's trail here is what left the
+    // desktop 283 ms against the app's 1095.
+    const phosphormix::Result &shippedMix = frozenpage::darkMix();
+    SimulatorOverlay::setPanelGlow(shippedMix.trailMs);
+    if (shippedMix.hasTail)
+      SimulatorOverlay::setPanelGlowTail(shippedMix.tail, shippedMix.tailOnsetMs);
     SimulatorOverlay::applyDials(simdials::shippedValues());
     // LAST, and after the dials: the grain's shipped strength is the DARK one
     // (the app stores a strength per appearance and the desktop carries a
@@ -3512,7 +3536,17 @@ void HalDisplay::presentIfNeeded() {
   // means: it is now the polarity of the frame sleepSourcePixels kept, latched
   // on the same present and by the same guard, rather than a stand-in for a
   // frame nobody kept.
-  if (!displaySleeping.load()) lastReadingDarkGround = panelIsDarkGround();
+  // ...AND NOT ONCE THE SLEEP SCREEN HAS ANNOUNCED ITSELF. displaySleeping is
+  // set in deepSleep(), which is LATE: SleepActivity::onEnter has already
+  // called setInverted(false) by then, so any present landing in between
+  // latched PALE and the collapse declined -- blaming the palette, on a page
+  // that was a tube. Only the 30 ms present hold stood between that and a
+  // shipped bug, and CROSSPOINT_SIM_PRESENT_FLASH=1 spends it every time
+  // (reproduced by adversarial review, 2026-08-24). The screen identity the
+  // base Activity publishes arrives BEFORE the inversion, so this is the edge
+  // rather than the margin.
+  if (!displaySleeping.load() && !SimulatorOverlay::sleepScreenEntered())
+    lastReadingDarkGround = panelIsDarkGround();
 
   // The timing frame is armed HERE, past every early return, so a present that
   // was held or coalesced away is not reported as a free one.

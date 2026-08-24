@@ -185,7 +185,7 @@ SDL_FRect g_kbChip{};
 // synthetic-tap hatch all left with it; the two drawers did NOT -- they are
 // whole and still reachable from CROSSPOINT_SIM_OPEN_INKPICKER /
 // CROSSPOINT_SIM_OPEN_MIXER, because "for now" is reversible and the page it
-// used to edit is frozen rather than gone (ios/FrozenPage.h).
+// used to edit is frozen rather than gone (src/FrozenPage.h).
 //
 // DO NOT CONFUSE IT WITH THE KEYBOARD CHIP ABOVE, which stays. That one is the
 // only way to put the iPhone's software keyboard away -- an off-pad tap does
@@ -1749,7 +1749,7 @@ void pollPanelPalette() {
   crosspointRequestRender();
 
   // THE STORED PRESET IS NO LONGER PART OF THE ANSWER, so it is no longer
-  // logged: since 2026-08-24 both pages are frozen (ios/FrozenPage.h) and
+  // logged: since 2026-08-24 both pages are frozen (src/FrozenPage.h) and
   // panelStoreFromPrefs consults NSUserDefaults for nothing. Printing the
   // stored integer beside tones it did not decide is exactly the kind of log
   // line that costs an investigation.
@@ -2551,7 +2551,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // color button from single finger (not zen) mode ui"). A tap or a
           // hold opened the live appearance's drawer -- the gun mixer in dark,
           // the historical-ink picker in light. Both drawers still exist and
-          // both pages are frozen (ios/FrozenPage.h); what is gone is the way
+          // both pages are frozen (src/FrozenPage.h); what is gone is the way
           // in. A tap that lands where the button used to be now falls through
           // to the read-aloud word tap, which is what an empty part of the pad
           // band has always done.

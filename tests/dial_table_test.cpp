@@ -160,6 +160,12 @@ void pinShipped(simdials::Id id, int fromIos, const char *whereFrom) {
 
 int main(int argc, char **argv) {
   const std::string iosDir = argc > 1 ? argv[1] : "ios";
+  // The repo's src/, derived from whatever ios/ was given, so passing an
+  // absolute ios/ path (which run_all.sh does) still finds it.
+  auto srcDirFor = [](const std::string &ios) {
+    const size_t at = ios.rfind("/ios");
+    return at == std::string::npos ? std::string("src") : ios.substr(0, at) + "/src";
+  };
 
   // ---------------------------------------------------------------- shape ---
   // The table's own consistency. None of this can be seen by a compiler: every
@@ -438,12 +444,15 @@ int main(int argc, char **argv) {
   // THE STOCK IS SCRAPED, NOT ASSUMED. Owner ruling 2026-08-24 froze the light
   // page at Sanguine on India ("set them to sanguine and india paper"), and
   // before that it was whatever the owner had last chosen in a drawer that no
-  // longer opens. Reading the enumerator out of ios/FrozenPage.h is the same
+  // longer opens. Reading the enumerator out of src/FrozenPage.h is the same
   // two-independent-records discipline the rest of this file follows: naming
   // kPaperIndia here would be a copy of the app's choice rather than a check on
   // it, and a stock changed in one place would pass.
   {
-    const std::string frozenPage = slurp(iosDir + "/FrozenPage.h");
+    // src/, not ios/: FrozenPage.h moved there on 2026-08-24 so the desktop's
+    // CROSSPOINT_SIM_AS_SHIPPED seed and the iOS app read ONE definition of the
+    // page. It is pure C++ and its four dependencies were already in src/.
+    const std::string frozenPage = slurp(srcDirFor(iosDir) + "/FrozenPage.h");
     if (frozenPage.empty()) return 1;
     // `kPaperIndia` -> "india", matched against kPapers[i].name with its spaces
     // dropped and lowercased ("Bright White" -> "brightwhite"). Derived rather
@@ -453,7 +462,7 @@ int main(int argc, char **argv) {
       const std::string decl = "inline constexpr int kLightPaper = lightink::kPaper";
       const size_t at = frozenPage.find(decl);
       if (at == std::string::npos) {
-        std::printf("FAIL: ios/FrozenPage.h has no `%s...` -- the frozen light "
+        std::printf("FAIL: src/FrozenPage.h has no `%s...` -- the frozen light "
                     "stock cannot be read, so the four stock-derived dials "
                     "cannot be checked against it\n",
                     decl.c_str());
@@ -472,7 +481,7 @@ int main(int argc, char **argv) {
           if (name == sym) paper = i;
         }
         if (paper < 0) {
-          std::printf("FAIL: ios/FrozenPage.h freezes light stock '%s', which "
+          std::printf("FAIL: src/FrozenPage.h freezes light stock '%s', which "
                       "matches no lightink::kPapers[] row. The four "
                       "stock-derived shipped values depend on which one it "
                       "is.\n",

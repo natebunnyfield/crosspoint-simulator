@@ -32,7 +32,7 @@ namespace crosspoint {
 //
 // FROZEN 2026-08-24 by owner ruling ("take out paper and crt settings for now.
 // set them to sanguine and india paper and attached image for crt"). It used to
-// read six values out of NSUserDefaults; it now answers from ios/FrozenPage.h
+// read six values out of NSUserDefaults; it now answers from src/FrozenPage.h
 // and consults the store for NONE of them, which is the same discipline
 // CrossPointPrefs.mm's seven frozen getters follow and is here for the same
 // reason: an install that stored a different ink, stock or recipe before the

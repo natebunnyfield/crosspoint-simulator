@@ -118,6 +118,9 @@ bool sheetIsReaderPage();
 // True while the firmware has a text field open. The letterpress pass holds its
 // cached field while this is set -- see ensureLetterpressTexture.
 bool textEntryOpen();
+// The firmware has entered its sleep screen. The page-polarity latch stops
+// sampling here -- see the note at sleepScreenEnteredValue in HalGPIO.cpp.
+bool sleepScreenEntered();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than

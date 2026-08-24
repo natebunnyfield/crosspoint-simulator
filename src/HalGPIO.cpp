@@ -1378,6 +1378,26 @@ static std::atomic<uint32_t> sheetSeedValue{0};
 // identified.
 static std::atomic<bool> sheetIsReaderPageValue{false};
 
+// THE SLEEP SCREEN HAS ANNOUNCED ITSELF, and the page's polarity must stop
+// being sampled from this instant.
+//
+// SleepActivity::onEnter calls setInverted(false) before it draws anything, so
+// panelIsDarkGround() answers PALE from that moment -- and the collapse's
+// "was the reader on a dark tube" latch is fed by every present. The only thing
+// that kept it honest was the 30 ms present hold: measured 2026-08-24, the
+// sleep screen's present registers its hold about 2 ms before deepSleep() sets
+// displaySleeping, leaving 28 ms of margin. Anything that spends that margin
+// latches PALE and the collapse then declines with a message blaming the
+// palette. `CROSSPOINT_SIM_PRESENT_FLASH=1` spends it every time, which is how
+// adversarial review found this; any firmware change that puts work between the
+// sleep-screen refresh and deepSleep() would too.
+//
+// The base Activity::onEnter publishes a screen identity for every non-reader
+// screen, and it runs BEFORE that setInverted -- so this is the exact edge,
+// arriving early enough to be a guard rather than a race. Margin is not a
+// mechanism; this is.
+static std::atomic<bool> sleepScreenEnteredValue{false};
+
 void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
                                         int32_t pageInSpine) {
   readerBookKeyValue.store(bookKey);
@@ -1391,12 +1411,20 @@ void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
   // never sees "reader page" paired with a screen's seed. The reverse pairing
   // is harmless: it only declines a frame of bleed.
   sheetIsReaderPageValue.store(sheetid::showThroughAllowed(sheet));
+  // A book page is being drawn, so the reader is up and this is not sleep.
+  // Readers never publish a screen identity, so without this the flag would
+  // survive a wake straight back into the book.
+  sleepScreenEnteredValue.store(false);
 }
 
 void HalGPIO::publishScreenIdentity(uint32_t screenKey) {
   const sheetid::Sheet sheet = sheetid::sheetForScreen(screenKey);
   sheetIsReaderPageValue.store(sheetid::showThroughAllowed(sheet));
   sheetSeedValue.store(sheet.seed);
+  // Set on the sleep screen, CLEARED on every other screen -- so a wake that
+  // routes through Boot or Home re-arms the sampling without needing its own
+  // reset, and a sleep that is abandoned mid-entry does not leave it stuck.
+  sleepScreenEnteredValue.store(screenKey == sheetid::screenKey("Sleep"));
 }
 
 namespace SimulatorOverlay {
@@ -1429,6 +1457,8 @@ bool sheetIsReaderPage() { return sheetIsReaderPageValue.load(); }
 // HalDisplay has no handle on one, and this is the same shape as the sheet
 // query above: one atomic, read from the render path.
 bool textEntryOpen() { return textEntryActive.load(); }
+
+bool sleepScreenEntered() { return sleepScreenEnteredValue.load(); }
 } // namespace SimulatorOverlay
 
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {

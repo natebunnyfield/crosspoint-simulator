@@ -13,7 +13,7 @@
 // F9F3E9. Both are pinned here, because getting that distinction wrong is the
 // single most likely way to freeze the wrong thing and it looks correct.
 //
-// WHY A TEST AND NOT A COMMENT. ios/FrozenPage.h states the INPUTS -- four gun
+// WHY A TEST AND NOT A COMMENT. src/FrozenPage.h states the INPUTS -- four gun
 // assignments with weights, an ink index, a stock index -- and derives every
 // tone from the pure models. That is the right way round (a hand-typed hex pair
 // is a second record, which is what drifted twice on 2026-08-23), but it means
@@ -21,7 +21,7 @@
 // weight or a transposed gun compiles perfectly. This is the third party that
 // compares the derivation with the number the owner read off his screen.
 //
-// It compiles ios/FrozenPage.h directly, which is possible because that header
+// It compiles src/FrozenPage.h directly, which is possible because that header
 // is plain C++ over src/ models with no Objective-C in it -- the same reason
 // ios/PadPalette.h is host-tested.
 //

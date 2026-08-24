@@ -10,7 +10,7 @@
 // pad (ios/CrossPointIOSShim.cpp) and nothing on the phone opens either drawer
 // any more. THE DRAWERS THEMSELVES ARE INTACT -- CrossPointLightInkPicker.mm,
 // CrossPointPaletteMixer.mm, CrossPointPresetList.mm and all of their machinery
-// are still compiled, still correct, and still reachable from the diagnostic
+// are still compiled and still reachable from the diagnostic
 // env hooks a QA run uses (CROSSPOINT_SIM_OPEN_INKPICKER / _OPEN_MIXER). What
 // was removed is the ENTRY POINT, not the capability: "for now" is explicitly
 // reversible, and deleting two working editors to honour a temporary ruling is
