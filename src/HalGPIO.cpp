@@ -1418,6 +1418,17 @@ bool sheetIdentitySeed(uint32_t &seed) {
 }
 
 bool sheetIsReaderPage() { return sheetIsReaderPageValue.load(); }
+
+// A TEXT FIELD IS OPEN. The panel-space surface field is content-locked, so
+// every keystroke changed the content and re-derived the whole field: measured
+// 2026-08-24 in the note editor, 53.6 ms of a 69 ms present, per CHARACTER,
+// with the sheet already served from cache. That is the delay the owner called
+// an e-ink delay, and on the phone the same pass covers four times the pixels.
+//
+// Exposed here rather than reached through the HalGPIO instance because
+// HalDisplay has no handle on one, and this is the same shape as the sheet
+// query above: one atomic, read from the render path.
+bool textEntryOpen() { return textEntryActive.load(); }
 } // namespace SimulatorOverlay
 
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {

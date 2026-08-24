@@ -2467,10 +2467,33 @@ static bool ensureLetterpressTexture() {
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     seq = pixelBufSeq;
+    // HOLD THE FIELD WHILE A TEXT FIELD IS OPEN. Owner 2026-08-24: "remove
+    // eink delay." This pass is content-locked, so every keystroke was a new
+    // seq and a full re-derivation -- measured that day in the note editor,
+    // 53.6 ms of a 69 ms present, PER CHARACTER, with every other pass already
+    // cached or off. On the phone the same pass covers four times the pixels.
+    //
+    // What is traded, stated plainly because it IS a fidelity loss: the field
+    // keeps describing the glyphs it was built for, so while a line is being
+    // typed the ink-squeeze rims and deboss sit where the PREVIOUS characters
+    // were. It is faint and darken-only, and it re-registers on the first
+    // present after the field closes, when the seq check applies again.
+    //
+    // Chosen over dropping the pass outright (owner picked it over that): the
+    // paper stays visible the whole time, so nothing appears or disappears when
+    // a keyboard opens. Deliberately NOT scoped to a HOST keyboard -- the seq
+    // churn is the same whichever way characters arrive, and the firmware's own
+    // on-screen grid pecking pays exactly the same 53.6 ms per pick.
+    //
+    // Only the SEQ is waived. Every other term still invalidates, so a palette
+    // change, a dial move or a resize during text entry rebuilds normally.
+    const bool holdForTextEntry =
+        letterpressTexture && SimulatorOverlay::textEntryOpen();
     if (letterpressTexture && letterTexW == w && letterTexH == h &&
-        letterTexSeq == seq && letterTexStrength == strength &&
-        letterTexKey == palKey && letterTexRing == ringPct &&
-        letterTexDeboss == debossPct && letterTexPress == pressPct) {
+        (letterTexSeq == seq || holdForTextEntry) &&
+        letterTexStrength == strength && letterTexKey == palKey &&
+        letterTexRing == ringPct && letterTexDeboss == debossPct &&
+        letterTexPress == pressPct) {
       if (timingLogWanted()) timingFrame.letterpress.served = true;
       return true;
     }
