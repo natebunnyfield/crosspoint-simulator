@@ -28,12 +28,21 @@ int main() {
         "  // 6 = CRT Green (P1 phosphor)\n  // 21 = CRT White (P45)\n"));
     check(v == withList, "the palette comment block changes no value");
     check(intOr(v, "panelPalettePreset", -1) == 21, "template: palette 21");
-    check(intOr(v, "pageFadeSeconds", -1) == 300, "template: fade 300 s");
-    check(intOr(v, "pageFadeDepthPercent", -1) == 75, "template: depth 75");
-    check(intOr(v, "beamPaintMs", -1) == 67, "template: beam 67 ms");
+    // These four were 300 / 75 / 67 / 3 until 2026-08-23, and they were WRONG
+    // -- the template is the file a fresh desktop gets, so it must carry the
+    // DESKTOP defaults, and it carried a 5 min fade and a 67 ms beam that no
+    // desktop default ever had. The dial-table commit unified three of the
+    // parallel records and missed this, the fourth. Consequence measured on
+    // the dev box: its machine-written settings.json held exactly these, so
+    // every desktop reproduction here swept the beam 21% slow -- the clean
+    // state trap in reverse, where the developer's machine is the one WITH
+    // the bug. The mechanical pin below is what stops it recurring.
+    check(intOr(v, "pageFadeSeconds", -1) == 0, "template: fade off");
+    check(intOr(v, "pageFadeDepthPercent", -1) == 100, "template: depth 100");
+    check(intOr(v, "beamPaintMs", -1) == 0, "template: beam off");
     check(intOr(v, "presentFlash", -1) == 0, "template: flash off");
     check(intOr(v, "phosphorGrainPercent", -1) == 100, "template: grain 100");
-    check(intOr(v, "phosphorGrainCoverage", -1) == 3, "template: coverage 3");
+    check(intOr(v, "phosphorGrainCoverage", -1) == 0, "template: coverage even");
     check(!v.count("phosphorGrainMottleCells"),
           "template: blotch SIZE is not a setting any more");
     check(intOr(v, "phosphorGrainMottleDepth", -1) == 90, "template: depth 90");

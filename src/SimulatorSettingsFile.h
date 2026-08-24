@@ -138,7 +138,7 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   // Seconds the page takes to fade after the last input, the way a phosphor
   // goes on dimming after the beam has moved on.
   //   0 = off   15   30   60 = 1 min   120 = 2 min   300 = 5 min
-  "pageFadeSeconds": 300,
+  "pageFadeSeconds": 0,
 
   // How much of the legible floor is KEPT when it has finished fading.
   //   100 = readable, stops while you can still read it
@@ -146,7 +146,7 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //    50 = ghost, the shape of the page rather than the words
   //    25 = faint, only just visible
   //     0 = fully transparent, the page disappears
-  "pageFadeDepthPercent": 75,
+  "pageFadeDepthPercent": 100,
 
   // ---------------------------------------------------------------- BEAM ---
   // Milliseconds for the beam to sweep a new page in from the top. A CRT does
@@ -154,7 +154,7 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   0 = off, arrives at once      17 = 60 Hz, a real field sweep
   //   33 = 30 Hz, just visible      67 = slow enough to watch
   //   150 = deliberate              300 = a wipe, not a tube
-  "beamPaintMs": 67,
+  "beamPaintMs": 0,
 
   // Whether the 1-bit pass may reach the screen ahead of the antialiased
   // compose that follows it. An antialiased page is painted twice; normally
@@ -176,7 +176,7 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   //   1 = Vignette, grainier at the rim with dimmed corners
   //   2 = Mottled, blotchy the way a coating settles
   //   3 = both
-  "phosphorGrainCoverage": 3,
+  "phosphorGrainCoverage": 0,
 
   // How hard the blotches swing the grain, in hundredths. Their SIZE is not
   // settable -- see kMottleCellsDefault.
