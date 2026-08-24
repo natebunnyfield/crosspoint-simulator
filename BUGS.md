@@ -226,6 +226,45 @@ the same file because the owner's report pointed at it. Both resolution points
 call `padpalette::shippedLevels()` now, pinned by `tests/panel_source_test.cpp`
 and by `tests/panel_source_test.py`.
 
+### [S-022] Tapping Presets left the page under the sheet live for the rest of the session — FIXED 2026-08-23
+**severity: high · scope: ios input gating · found by adversarial review 2026-08-23, hours after the Presets list shipped**
+
+Both page-color drawers PUSH `ios/CrossPointPresetList.mm` onto their own
+navigation controller. UIKit sends `viewDidDisappear:` to the PUSHING controller
+when it does, and both controllers cleared their presented flag there
+unconditionally — `g_mixerPresented`, `g_pickerPresented`. Nothing set it back:
+there was no `viewDidAppear:` anywhere in the three files, and the flag was set
+true exactly once, at presentation.
+
+Those sheets are undimmed medium detents, deliberately, so the page above them
+stays visible as the preview — which means UIKit passes every touch OUTSIDE the
+sheet straight through to the SDL view. Five sites gate on the flags
+(`CrossPointIOSShim.cpp`'s two finger paths, `CrossPointZenRecognizers.mm`'s
+three recognizers). So the sequence "open a drawer, tap Presets, touch the page"
+turned the page on a tap, drove font size on a swipe, and toggled zen on a
+three-finger tap, while the owner believed he was in a color picker — and it
+stayed that way until the sheet was dismissed.
+
+The comment that stood at the clear said "the nav never pushes a second
+controller, so disappearing means DISMISSED." That was true when it was written
+and false twenty minutes later, which is the whole lesson: an invariant asserted
+in prose does not hold itself.
+
+Both controllers now reassert in `viewDidAppear:` and clear only when
+`navigationController.topViewController == self`, so a push holds the gate and a
+pop restores it. The sheet cannot be dismissed while the list is up
+(`modalInPresentation` pins pull-down and the list carries no Done), so "top of
+the stack" is the whole distinction. Each transition logs
+(`[mixer] on screen; touch gate UP` / `covered by a push; touch gate HELD`), and
+`tests/panel_source_test.py` fails an unconditional clear or a missing
+`viewDidAppear:`.
+
+Measured on an iPhone Air simulator (`663B0B14`) with
+`CROSSPOINT_SIM_OPEN_MIXER=1 CROSSPOINT_SIM_OPEN_PRESETS=1`: gate UP at
+presentation, `covered by a push; touch gate HELD` when the list arrives. The
+dismiss and pop branches rest on UIKit's push/pop semantics rather than a probe
+— neither can be driven headlessly, since there is no hook that taps Done.
+
 ### [S-018] iOS appearance and CrossPoint's Dark Mode disagree, and the setting never sticks — FIXED 2026-08-19
 **severity: high · scope: ios display · reported from the phone 2026-08-19**
 

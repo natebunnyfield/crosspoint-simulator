@@ -106,6 +106,10 @@ premix row selects it whole, exactly like any preset; a long-press loads its
 **recipe** into the mixer for tweaking, switching to the right tab with the
 components pre-filled.
 
+The long-press half went with the four-tab UI on 2026-08-21, but the table
+below is live again from 2026-08-23: it is what `seedForPreset` loads into the
+guns when a blend premix is selected. See "Selecting a preset seeds the guns".
+
 The recipes live in `kPremixRecipes` (PhosphorMix.h), named by P-number so they
 survive renumbering — and as of 2026-08-21 they are **fitted, not composition
 maps**. The first table mapped each premix's JEDEC compounds to their nearest
@@ -206,15 +210,15 @@ the load-bearing half — `glowPreset` asks it BEFORE the frozen phosphor, so a
 stale mix would own the decay of a preset chosen after it, and would only start
 doing so at the NEXT claim, long after the change that caused it.
 
-Nothing about the mix is destroyed: `phosphorGunAssign` and `phosphorMixBlend`
-survive, so moving a gun after selecting a preset claims the slot back and
-resumes the recipe — with the light page frozen at the preset's own light pair,
-through the same shared claim.
+Moving a gun after selecting a preset claims the slot back and resumes the
+recipe — with the light page frozen at the preset's own light pair, through the
+same shared claim. What the recipe *is* at that moment changed on 2026-08-23:
+see the next section.
 
-While a named preset is in force, this sheet's readout reads
-`Preset <name> — move a gun to take over` rather than the mix's hex: the mix is
-still a valid recipe and is simply not what is on screen, and a drawer
-describing a page it no longer owns is the lie S-020 shipped.
+While a named preset is in force, this sheet's readout names the preset rather
+than the mix's hex: the mix is still a valid recipe and is simply not what is on
+screen, and a drawer describing a page it no longer owns is the lie S-020
+shipped.
 
 Measured on an iPhone Air simulator, 2026-08-23: with a P22R-only mix in force
 (`FF6F6C` on `1A0300`, glow "phosphor mix"), selecting White CRT gave
@@ -222,6 +226,87 @@ Measured on an iPhone Air simulator, 2026-08-23: with a P22R-only mix in force
 `[glow] preset 21 -> 283 ms trail ... (Medium)`, with `phosphorMixActive` false
 and `phosphorMixBlend` still `11:100,40:0,24:0,21:0`. A light-mode ink pick
 after that froze phosphor 21, not the dead mix.
+
+## Selecting a preset seeds the guns (2026-08-23)
+
+Owner request: **"selecting a preset should set the guns' values too."** Until
+this landed, a selection moved the page and left the stored recipe untouched, so
+opening the mixer afterwards showed a blend from some earlier session and the
+first slider move *jumped* the page to it instead of nudging it.
+
+The rule is one sentence: **seed the guns when, and only when, the preset's page
+is a four-gun blend of pure phosphors; otherwise leave the stored recipe exactly
+as it is.** The decision is `phosphormix::seedForPreset`
+([src/PhosphorMix.h](../src/PhosphorMix.h), pure and host-tested); the store
+adapter is [ios/GunStore.h](../ios/GunStore.h), which is now the only file that
+names `phosphorGunAssign` and `phosphorMixBlend`; the caller is
+`CrossPointPrefs_selectPanelPreset`, immediately after the release.
+
+Four categories, exhaustive over the shipped table (34 + 5 + 3 + 10 = 52):
+
+| Category | Rows | Seed |
+|---|---|---|
+| Pure phosphor | 34 | one gun at 100, the other three at 0 |
+| Blend premix | P4 P6 P18 P23 P40 | its fitted recipe from `kPremixRecipes` |
+| Cascade premix | P7 P14 P17 | none — the guns are left |
+| No phosphor (paper) | 10 | none — the guns are left |
+
+**The pure case is EXACT.** `mixBlend` of one component is `resolve()` of that
+preset, in both polarities, byte for byte — so the recipe the mixer shows is not
+an approximation of where the page is, it is where the page is, and the next gun
+move is a nudge.
+
+**The blend premixes reuse the fitted table above**, which was refitted for
+exactly this ("a long-press loads it into the mixer as an editable recipe"). The
+weights scale by an **integer** factor so the ratios survive intact — `mixBlend`
+normalizes by the total, so only ratios render, and a rounded seed would be a
+different mixture from the one the table was fitted to. P23's 9:4 becomes 99:44,
+P18's 2:7:1 becomes 28:98:14. A premix page and its seed therefore differ by the
+fit's ΔE and by nothing the seed adds.
+
+**The cascades are a refusal, not a gap.** A cascade is two layers in sequence:
+the flash layer paints the page, the persistence layer is what lingers, in its
+own color. No blend is both — zero the persistence gun and there is no
+afterglow; give it weight and it tints a page the cascade never tints. Seeding
+one would put a recipe in the mixer that renders a *different* page from the one
+on screen, which is S-020 pointing the other way. The test asserts the refusal
+against the naive alternative, so the choice has to keep earning itself.
+
+**A paper preset touches nothing**, for the same reason plus the doctrine: paper
+rows are exactly the rows the light ink picker offers
+(`presetOfferedInDark` is false there), light is paper and ink, and the guns are
+the dark page's editor.
+
+**The mix is not switched on.** `phosphorMixActive` stays false and the preset
+goes on owning the page; the guns are seeded to *match*, not activated.
+
+**The assignment is disturbed as little as possible.** A phosphor already on a
+gun lights that gun — selecting White with the shipped assignment lights W and
+reads as itself — and only a phosphor on no gun displaces one, which is gun 0.
+The other guns keep their phosphor at weight 0.
+
+Measured on an iPhone Air simulator (`663B0B14`), 2026-08-23, from a clean
+install, reading `Library/Preferences/com.natebunnyfield.crosspoint.x3.plist`:
+
+| Step | `panelPalettePreset` | `phosphorGunAssign` | `phosphorMixBlend` | `phosphorMixActive` |
+|---|---|---|---|---|
+| one gun moved | 0 (Custom) | `11,40,24,21` | `11:100,40:20,24:0,21:0` | true |
+| select White (P45) | 21 | `11,40,24,21` | `11:0,40:0,24:0,21:100` | false |
+| select White Warm (P23) | 41 | `21,23,24,21` | `21:99,23:44,24:0,21:0` | false |
+| select Cascade (P7) | 25 | `21,23,24,21` | `21:99,23:44,24:0,21:0` | false |
+| select Sepia (paper) | 3 | `21,23,24,21` | `21:99,23:44,24:0,21:0` | false |
+
+White landed on the W gun it was already assigned to. The two refusals left the
+recipe byte for byte. The page followed the preset in every case: Green CRT's
+page measured modal paper `CDE0CB` and ink `062206` against its `0B3D0B` on
+`DCEFD8` pair (the light surface stack darkens both), Sepia's `EDE2CC` /
+`231D18` against `3B3228` on `F2E7D0`.
+
+The readout says which case a preset is: `Preset White — the guns are set to
+it / move one to take over`, against `Preset Cascade — a cascade, not a blend /
+the guns keep their own recipe`. It compares the arrays to the seed rather than
+trusting `seed.apply`, because a readout that trusts its own reasoning instead
+of the store is the exact shape of the bug this area was rewritten for.
 
 ## Every row shows the exact numbers
 
