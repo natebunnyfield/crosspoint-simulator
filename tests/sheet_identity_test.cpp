@@ -172,8 +172,50 @@ static void testFirmwareCopyMatches(const char *path) {
         "firmware Activity::onEnter still publishes for non-readers only");
 }
 
+// --- WHO MAY BLEED THROUGH --------------------------------------------------
+//
+// Owner ruling 2026-08-24, "do not have verso bleed outside of reading mode."
+// Both directions matter and both are silent: bleed on a menu is the bug he
+// reported, and bleed declined on a real book page is the bug an over-eager
+// fix ships instead -- that one looks like nothing at all, which is why it
+// needs a test rather than an eyeball.
+static void testShowThroughIsReaderOnly() {
+  // Every screen this app has, by the name its activity publishes. None may
+  // bleed. Listed out rather than looped over a helper, so adding a screen that
+  // somehow answers true has to walk past this list to do it.
+  const char *screens[] = {"Home",     "Settings", "Library",  "ManageFiles",
+                           "Boot",     "Sleep",    "Notes",    "FontPicker",
+                           "WiFi",     "Calendar", "Browser",  "TextEntry"};
+  for (const char *name : screens) {
+    const sheetid::Sheet s = sheetid::sheetForScreen(sheetid::screenKey(name));
+    check(!sheetid::showThroughAllowed(s),
+          (std::string("system screen must not bleed: ") + name).c_str());
+    check(s.seed != 0,
+          (std::string("but it still gets a sheet: ") + name).c_str());
+  }
+
+  // A book page may, and must -- including page 0 of spine 0 of book 0, which
+  // is the one a naive "is anything set" test would call empty.
+  const sheetid::Sheet first = sheetid::sheetForPage(0, 0, 0);
+  check(sheetid::showThroughAllowed(first),
+        "the first page of the first book still bleeds");
+  const sheetid::Sheet later = sheetid::sheetForPage(0x9E3779B97F4A7C15ull, 12, 3);
+  check(sheetid::showThroughAllowed(later), "an ordinary book page bleeds");
+  check(first.seed != later.seed, "and the two are different leaves");
+
+  // No publisher at all -- pre-channel firmware. The safe answer is no bleed,
+  // NOT bleed off whatever seed happened to be lying around.
+  check(!sheetid::showThroughAllowed(sheetid::Sheet{}),
+        "an unpublished sheet does not bleed");
+  // And the seed test is not redundant with the kind test: a reader page whose
+  // seed never arrived must still decline.
+  check(!sheetid::showThroughAllowed(sheetid::Sheet{0u, true}),
+        "a reader page with no seed does not bleed");
+}
+
 int main(int argc, char **argv) {
   testNeverZero();
+  testShowThroughIsReaderOnly();
   testDeterminism();
   testDistinctness();
   testNoCrossLaneCollision();
