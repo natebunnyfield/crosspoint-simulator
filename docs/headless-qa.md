@@ -111,6 +111,57 @@ BMP. Anything that sniffs by content will refuse it. Convert first:
 sips -s format png shot.png --out shot_real.png
 ```
 
+## Where you actually are — confirm it, do not assume it
+
+Moved here from `CLAUDE.md` on 2026-08-23, along with the correction that made
+the move necessary: that file taught a `DOWN`-count walk to Settings, which
+§1 above shows is a no-op, and a menu order that §2 above supersedes. What
+follows is the part of it that was measured and is not recorded anywhere else.
+
+**Grep `[ACT] Entering activity:` before believing any screenshot.** A capture
+of the wrong screen looks a great deal like a capture of a screen that never
+changed, and every wasted run below was diagnosed that way in the end.
+
+**A startup screenshot looks like the reader even when it is Home.** Under the
+Lyra Six theme the Home screen renders the current book's page, so "the reader
+is open" is not something a picture can tell you. The log line can.
+
+**Three levers that do NOT change the boot destination**, each verified after it
+was assumed to:
+
+| Tried | What actually happens |
+|---|---|
+| `rm -rf ./fs_/.crosspoint/` | clears caches only. Verified 2026-08-04: with the directory deleted the sim still went `Boot -> Reader -> EpubReader` within 500 ms |
+| clearing `openEpubPath` | checked, then the branch opens the book anyway unless one of the two escape conditions in §4 holds |
+| clearing `lastSleepFromReader` | same |
+
+Booting into the last book is deliberate — `main.cpp`'s comment is "The device
+IS the current book" — and Home is the escape hatch, reached only by the two
+levers in §4 (hold Back across the routing check, or a non-zero
+`readerActivityLoadCount`).
+
+**`HOME` is not a state-independent opener.** It reaches Home from Home (a
+no-op) and does nothing at all from `EpubReader`. An earlier `CLAUDE.md`
+recommended opening every script with `2000:HOME` for exactly that reason and
+was wrong; it then said so two bullets later, in the same list. Pin the boot
+state with a §4 lever instead of trying to normalize at runtime.
+
+**Inside the reader, Confirm opens Select Chapter** (`[ACT] Entering activity:
+EpubReaderChapterSelection`, measured 2026-08-23). It is not a way back to the
+reader from somewhere else, and a run was burned on believing it was. From Home,
+Confirm opens the selected book, which logs a page render.
+
+**In Settings, Confirm on the first row cycles the category tab**, so repeated
+Confirm + screenshot walks every tab.
+
+**Scripts that list ALL files (Manage Files) shift by one after the first run.**
+The firmware creates `.crosspoint/` on the test card during boot, and in a
+show-everything list it sorts to row 0 of the root. A press-count written
+against a fresh card acts on the wrong rows in every later run. Recount against
+the current card (`find fs_ -print`) or grep the activity's log before trusting
+the script — this burned a debugging cycle on 2026-08-04, where the "wrong file
+moved" was the script and not the firmware.
+
 ## A working example
 
 Open Create Note and capture the editor:

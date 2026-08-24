@@ -1017,13 +1017,51 @@ re-proposed by the next session.
   button in BOTH page-color drawers opening ONE shared list
   (`ios/CrossPointPresetList.mm`), not a returning Settings.app row: the drawer
   is where page color is chosen now, and the page behind an undimmed sheet is
-  the preview a Settings row cannot be. Both lists offer every preset, differing
-  only in which appearance the swatches preview — a preset defines both halves,
-  and filtering either list would remove a choice that used to be offered.
+  the preview a Settings row cannot be.
   Selecting one is `panelsource::releaseCustom`, the exact inverse of the claim,
   and it CLEARS `phosphorMixActive` and `panelDarkSnapshotPreset` rather than
   leaving them; see docs/phosphor-mixer.md for why the stale mix flag is the
   dangerous half.
+- **Each list offers only its OWN page's presets**, which SUPERSEDES the sentence
+  that stood in the bullet above for about four hours the same day ("both lists
+  offer every preset ... filtering either would remove a choice that used to be
+  offered"). Owner: *"only show presets available in that mode."* The dark-mode
+  mixer offers the 42 phosphors, the light-mode ink picker the 10 papers, and the
+  partition is `panelpalette::presetOfferedInDark` = `trailMsForPreset > 0` -- a
+  preset with a decay IS a tube -- so it restates the 2026-08-22 doctrine instead
+  of adding a second source of truth. It filters the OFFERING and never the
+  definition: choosing Green CRT in the mixer still sets the light page. The test
+  pins the partition as TOTAL and non-empty on both sides, because a preset
+  offered by neither list would be unreachable -- which is exactly how the presets
+  were lost before this list existed. Homes: `docs/phosphor-mixer.md`,
+  `docs/light-ink-picker.md`.
+- **Corner defocus ships OFF (0), and the reason is a lesson about proof.** It
+  was shipped as a Settings row so the owner could judge it on glass; he looked
+  and reported "nothing is being rendered in any corners", which is the correct
+  observation and not a missed one. The field it modulates is the scanline field,
+  and at the shipped 2 px pitch that field is 5 code values deep at the centre and
+  0 at the corner -- the box-integrated structure self-attenuates to nearly flat
+  when a scan line is two device pixels tall. The 41% corner-versus-centre figure
+  `docs/corner-defocus.md` quoted throughout was 41% of a quantity that is itself
+  5/255: a ratio reported without checking the magnitude of what it was a ratio
+  OF, when the honest whole-frame figure of one code value was available from the
+  start. The model, its host test and its doc all stand, so re-enabling is one
+  number, and returning 0 gives back ~42 ms per dark page turn. Full writeup:
+  `docs/corner-defocus.md`.
+- **Render scale is FROZEN at 2 and is no longer a preference.** 1 retired
+  2026-08-21, 3 retired 2026-08-23 ("drop 3x support for now"), and a one-value
+  control is worse than no control -- so the Sharpness row left Settings.app with
+  the rest. `CrossPointPrefs_renderScale()` returns 2 WITHOUT reading
+  NSUserDefaults, because most installs stored a 3 and must not keep re-pointing
+  something the owner can no longer see or change. Re-enabling 3x is one number in
+  `ios/CMakeLists.txt`; the tier machinery, the seed trees and
+  `build-sd-fonts.py --scale 3` were never removed. Home:
+  `docs/ios-render-scale.md`.
+- **The Speak Screen underline is CLOSED -- it is iOS's own, and it is kept.**
+  Owner: *"consider it resolved."* No code changed for it and none should. The
+  next report of an underline under spoken text starts at Accessibility > Spoken
+  Content > Highlight Content, not at our selection rects, which were measured and
+  are correct. Home: `docs/speak-screen-chain.md`.
 
 
 ## 5. The whole list, ranked

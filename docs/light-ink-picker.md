@@ -118,9 +118,12 @@ the proven part, and it is enforced by test, not by advice.
 
 ## 4. The six papers — real stock, and every pair's contrast
 
-**Six as first shipped; six more were appended 2026-08-22 — see §9 for those and
-for the current 18 x 12 contrast grid.** The tables in this section are the
-original set, kept because the reasoning in §5 and §6 refers to them.
+> **The paper table below is the ORIGINAL six, kept because §5 and §6 quote its
+> hex values. Six more were appended 2026-08-22 — see §9b for those. For contrast
+> figures go straight to §9e, which is the complete 17 x 12 grid recomputed by
+> the test on every run; the 8 x 6 grid that used to sit here was a subset of it
+> and is deleted (2026-08-23) so a top-down reader cannot mistake it for the
+> current one.**
 
 Row 0 is the shipped paper. Honesty note: real "bright white" text stock
 (e.g., a 96–98 brightness sheet) is itself not `#FFFFFF`, so the shipped
@@ -136,26 +139,18 @@ keeps the default a row.
 | 4 | Press Gray | `#E9EAEC` | Cool gray press stock (uncoated cool-white/newsprint-adjacent). The one cool option. |
 | 5 | Sepia Toned | `#EEDFCC` | A sepia-toned sheet — browner and pinker than chamois' yellow tan. |
 
-**Full-density contrast, every ink x every paper** (WCAG ratio, recomputed by
-the test; minimum in bold):
-
-| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned |
-|---|---|---|---|---|---|---|
-| Standard | 13.29 | 12.10 | 11.49 | 10.02 | 11.44 | 10.53 |
-| Carbon Black | 16.40 | 14.93 | 14.17 | 12.36 | 14.11 | 12.99 |
-| Iron Gall | 14.05 | 12.79 | 12.14 | 10.59 | 12.09 | 11.13 |
-| Sepia | 13.08 | 11.91 | 11.31 | 9.86 | 11.26 | 10.37 |
-| Walnut & Bistre | 10.58 | 9.64 | 9.15 | **7.98** | 9.11 | 8.39 |
-| Oxblood | 14.00 | 12.75 | 12.10 | 10.55 | 12.05 | 11.09 |
-| Indigo | 10.79 | 9.83 | 9.32 | 8.13 | 9.29 | 8.55 |
-| Prussian Blue | 13.05 | 11.89 | 11.28 | 9.84 | 11.23 | 10.34 |
-
 Every pair clears 7:1 at full density, so no offered combination can be
-illegible — same posture as the preset list's floor.
+illegible — same posture as the preset list's floor. **The figures are in §9e**,
+for all 17 inks x 12 papers; the 8 x 6 subset that used to be printed here said
+the same thing about the same pairs and is deleted rather than kept in two
+places.
 
 **The density floor is the PhosphorGrain budget pattern:** the slider clamps
 exactly where 7:1 would break on the CURRENT paper, per ink. Computed floors
-(minimum density %, from `lightink::floorDensityPct`, pinned by test):
+(minimum density %, from `lightink::floorDensityPct`, pinned by test). This
+table is KEPT rather than deleted with the contrast grid above, because no later
+section reprints the floors — it is the original 8 x 6 corner of a surface that
+is now 17 x 12, and the test is the authority for the rest:
 
 | Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned |
 |---|---|---|---|---|---|---|

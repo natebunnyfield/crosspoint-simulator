@@ -1,5 +1,14 @@
 # Simulator Development Context
 
+**Status: ARCHIVE — a dated record, not a description of current behavior.**
+Read [CLAUDE.md](../CLAUDE.md) for how the simulator works today and
+[ios/README.md](../ios/README.md) for the iOS target, both of which supersede
+anything here that disagrees with them. What this file is FOR is the two things
+it is the only copy of: the **Historical Bug Fixes** and **Recent Changes**
+sections, which record what a fix undid and why reverting it would resurface the
+bug. Everything above those is background from 2026-03 through 2026-08 and has
+been trimmed rather than maintained.
+
 ## What This Is
 
 > **This file was written against SDL2 and the port to SDL3 did not update it.**
@@ -23,10 +32,13 @@ The simulator builds and runs on macOS and Linux/WSL. Portrait orientation is co
 
 **Prerequisites**
 
-- macOS: `brew install sdl2`
-- Debian/Ubuntu/WSL: `sudo apt install libsdl2-dev libssl-dev`
+- macOS: `brew install sdl3`
+- Debian/Ubuntu/WSL: `sudo apt install libsdl3-dev libssl-dev`
 - Fedora/RHEL: `sudo dnf install SDL3-devel openssl-devel`
-- Arch: `sudo pacman -S sdl2 openssl`
+- Arch: `sudo pacman -S sdl3 openssl`
+
+(SDL**3**, corrected 2026-08-23 — these four lines still named SDL2 packages long
+after the port. `README.md` is the canonical setup.)
 
 Linux/WSL needs OpenSSL because [MD5Builder_linux.h](src/MD5Builder_linux.h) wraps `openssl/md5.h` instead of the macOS `CommonCrypto` path used in [MD5Builder.h](src/MD5Builder.h).
 
@@ -44,45 +56,35 @@ Linux/WSL needs OpenSSL because [MD5Builder_linux.h](src/MD5Builder_linux.h) wra
 pio run -e simulator -t run_simulator
 ```
 
-## Architecture (Key Files)
+## Architecture — see CLAUDE.md
 
-| Purpose                     | Path                                                                |
-| --------------------------- | ------------------------------------------------------------------- |
-| Simulator entry point       | [src/simulator_main.cpp](src/simulator_main.cpp)                    |
-| SDL display impl            | [src/HalDisplay.cpp](src/HalDisplay.cpp)                            |
-| SDL keyboard / quit input   | [src/HalGPIO.cpp](src/HalGPIO.cpp)                                  |
-| POSIX-fd filesystem mock    | [src/HalStorage.cpp](src/HalStorage.cpp)                            |
-| FreeRTOS → std::thread mock | [src/freertos/](src/freertos/)                                      |
-| Arduino / ESP-IDF stubs     | [src/Arduino.h](src/Arduino.h), [src/ESP.cpp](src/ESP.cpp), etc.    |
-| MD5: macOS path             | [src/MD5Builder.h](src/MD5Builder.h) (CommonCrypto)                 |
-| MD5: Linux path             | [src/MD5Builder_linux.h](src/MD5Builder_linux.h) (OpenSSL)          |
-| Sample firmware ini (macOS) | [sample-platformio-macos.ini](sample-platformio-macos.ini)          |
-| Sample firmware ini (Linux) | [sample-platformio-linux-wsl.ini](sample-platformio-linux-wsl.ini)  |
-| Filesystem root (runtime)   | `./fs_/` relative to the binary's working dir                       |
+This file used to carry a second architecture summary, and by 2026-08-23 it had
+drifted: it said directory iteration skips every entry starting with `.` (it
+skips only `.` and `..` — `src/HalStorage.cpp:453` and `:683`, and the firmware
+does its own hidden-file filtering, which is why Manage Files lists dotfiles),
+and it gave a portrait dst rect of `{-80, 80, 400, 240}`, a geometry no shipped
+device profile has. Two required-reading files answering the same question
+differently is worse than one answering it once, so the summary is gone.
 
-## How It Works
-
-**Display thread model.** SDL on macOS requires all SDL calls happen on the main thread, but firmware drives rendering from a FreeRTOS render task (now a `std::thread`). The split: [HalDisplay::refreshDisplay](src/HalDisplay.cpp) (background thread) converts the 1bpp framebuffer to ARGB pixels and sets an atomic `pendingPresent` flag. [HalDisplay::presentIfNeeded](src/HalDisplay.cpp) (called from `simulator_main` on the main thread) uploads to the texture, applies orientation rotation, and calls `SDL_RenderPresent`.
-
-**Orientation.** The renderer's `rotateCoordinates` writes content into the physical landscape buffer rotated 90° CCW for `Portrait` (and 90° CW for `PortraitInverted`). The simulator undoes this with `SDL_RenderTextureRotated` rotation:
+**[CLAUDE.md](../CLAUDE.md) is the architecture reference** — thread model,
+orientation, HiDPI and dither, presentation policy, the panel palette, the
+overlay, storage, the FreeRTOS shim, the exit path and the host-specific code
+paths are all there, and that is the copy that gets corrected. What survives
+here, because it is nowhere else:
 
 | Orientation        | SDL angle |
 | ------------------ | --------- |
 | `Portrait`         | `+90.0`   |
-| `PortraitInverted` | `−90.0`   |
+| `PortraitInverted` | `-90.0`   |
 | `Landscape*`       | `0`       |
 
-`SDL_RenderTextureRotated` rotates around the dst rect's center, so the dst rect is landscape-oriented (`{−80, 80, 400, 240}`) for portrait modes; after rotation it fills the portrait window.
+`SDL_RenderTextureRotated` rotates around the dst rect's center, so the dst rect
+is landscape-shaped and center-offset for the portrait modes; after rotation it
+fills the portrait window.
 
-**Rendering quality.** `SDL_WINDOW_HIGH_PIXEL_DENSITY` plus `SDL_SetRenderLogicalPresentation` keeps logic in panel coords while letting macOS use full Retina pixels. Filtering is set PER TEXTURE with `SDL_SetTextureScaleMode` (`src/HalDisplay.cpp:519`), which SDL3 requires to come *after* `SDL_CreateTexture` — the SDL2 global hint `SDL_HINT_RENDER_SCALE_QUALITY` no longer exists. Without it, Bayer-dithered grays show as harsh black/white stripes on Retina.
-
-**Filesystem.** [HalStorage](src/HalStorage.cpp) uses POSIX file descriptors (`::open` / `::read` / `::write` / `lseek` / `fsync`) — not `std::fstream`. fstream's separate get/put pointers, eofbit-blocks-seek behavior, and write-only mode restrictions caused several silent-corruption bugs early on; POSIX fds avoid all of them. `HalStorage::open()` `stat()`s the path and routes to `openAsDir` (DIR\*) or file-open. Directory iteration uses `readdir`/`rewinddir`, skipping any entry starting with `.`. All paths are prefixed with `./fs_` so the simulator's filesystem is sandboxed in a single directory under the binary's working dir.
-
-**Input.** [HalGPIO::update](src/HalGPIO.cpp) owns the SDL event pump (so polling isn't split between callers). It maps SDL scancodes → button indices (`BTN_BACK=0` … `BTN_POWER=6`) and maintains per-frame pressed/released arrays. On X4 Pro, SDL mouse input is transformed from the oriented logical window back into normalized physical touch coordinates, and `H` emulates the capacitive Home key. `SDL_QUIT` sets the shared `quitRequested` atomic that `HalDisplay::shouldQuit()` reads.
-
-**Threading.** [src/freertos/](src/freertos/) maps `xTaskCreate` to `std::thread`, `ulTaskNotifyTake`/`xTaskNotify` to a condvar + counter, and `SemaphoreHandle_t` to `std::recursive_mutex`. `thread_local SimTaskHandle*` lets each task thread find its own handle for notifies.
-
-**Time.** [Arduino.h](src/Arduino.h) `millis()` and `micros()` use `std::chrono::steady_clock`, not `system_clock`, so wall-clock changes don't affect timing. (Was `system_clock` originally; switched for predictability across host systems.)
+On X4 Pro, SDL mouse input is transformed from the oriented logical window back
+into normalized physical touch coordinates, and `H` emulates the capacitive Home
+key.
 
 ## Grayscale preview (text anti-aliasing)
 

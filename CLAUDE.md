@@ -6,11 +6,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader) firmware. On the desktop it is **not** a standalone app: it ships as a PlatformIO library that downstream firmware adds as a `lib_dep` (named `simulator`) and builds with `platform = native` and `-DSIMULATOR`. The result is the firmware compiled as a host binary, with the e-ink display rendered into an SDL3 window.
 
-There is no desktop build target inside this repo. Desktop build and run happen in the consuming firmware project. See [README.md](README.md) for end-user setup, and [.claude/CONTEXT-sim-notes.md](.claude/CONTEXT-sim-notes.md) for the deep architecture notes and bug-fix history (read this before non-trivial changes).
+There is no desktop build target inside this repo. Desktop build and run happen in the consuming firmware project. See [README.md](README.md) for end-user setup.
 
 **There is also a native iOS target**, driven by CMake over the same source set — see [ios/README.md](ios/README.md). It compiles the firmware plus this HAL for `arm64-apple-ios` and presents the panel on an iPhone with an on-screen button pad. One source set, two toolchains; the desktop PlatformIO build stays the canary, so keep it green.
 
 **SDL3, not SDL2.** Both toolchains build against SDL3 so the shared sources need no per-platform SDL shim. The desktop env gets its flags from `!pkg-config --cflags --libs sdl3`.
+
+## Which doc do I read?
+
+Split REFERENCE from ARCHIVE before you cite anything. A doc in the left column
+describes what the code does now and is expected to be corrected when the code
+moves; a doc in the right column is a dated record whose conclusions may have
+been overtaken, kept because the negative results and the measurements in it
+cost real money to produce. **Never cite an archive doc for current behavior.**
+
+| Question | REFERENCE — read this |
+|---|---|
+| How do I run the tests, and what does each one cover? | `tests/run_all.sh` (the catalog; each entry carries its own rationale) |
+| Why is this defect the way it is? | `BUGS.md` (`S-` ids) · `TODO.md` (`ST-` ids) |
+| How does the iOS app work? | [ios/README.md](ios/README.md) — the best-maintained file here, and it self-corrects where this one goes stale |
+| How do I drive it headlessly? | [docs/headless-qa.md](docs/headless-qa.md) |
+| What is missing from the surface model, and what did the owner rule? | [docs/surface-roadmap.md](docs/surface-roadmap.md) — including its **Standing rulings, 2026-08-23** section |
+| The light page: inks, papers, density, the frozen sheet | [docs/light-ink-picker.md](docs/light-ink-picker.md) · marks: [docs/paper-defects.md](docs/paper-defects.md) · stock colorimetry: [docs/paper-colorimetry-sources.md](docs/paper-colorimetry-sources.md) · ink sources: [docs/ink-colorimetry-sources.md](docs/ink-colorimetry-sources.md), [docs/ink-palette-research.md](docs/ink-palette-research.md) |
+| The dark page: phosphors, glow, the tube | [docs/crt-phosphor-presets.md](docs/crt-phosphor-presets.md) · [docs/phosphor-mixer.md](docs/phosphor-mixer.md) · [docs/crt-beam-and-flash.md](docs/crt-beam-and-flash.md) · [docs/power-off-collapse.md](docs/power-off-collapse.md) · which phosphors ship and why: [docs/phosphor-shortlist-2026-08-18.md](docs/phosphor-shortlist-2026-08-18.md) |
+| One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
+| The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
+| Zen mode's geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
+| The screen's safe areas on an iPhone | [docs/ios-dynamic-island.md](docs/ios-dynamic-island.md) |
+| Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
+| "No speakable content could be found on the screen" | [docs/speak-screen-chain.md](docs/speak-screen-chain.md) — read it FIRST; the message has cost two investigations |
+| How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
+
+| ARCHIVE — a dated record, do not cite for current behavior | What it is |
+|---|---|
+| [.claude/CONTEXT-sim-notes.md](.claude/CONTEXT-sim-notes.md) | The historical bug-fix log. Its "Historical Bug Fixes" and "Recent Changes" sections are the reason to open it; its architecture summary was a second, drifting copy of this file's and has been cut to a pointer. |
+| [CROSSPOINT_X3_IOS_PORT_CONTEXT.md](CROSSPOINT_X3_IOS_PORT_CONTEXT.md) | The planning record for the iOS port. §5 and §7 are superseded by `ios/README.md`. |
+| [docs/phosphor-ranking-2026-08-18.md](docs/phosphor-ranking-2026-08-18.md) | **RESULT VOID.** Kept for the measured noise floor, which became `perceptual-test-method.md`. |
+| [docs/ios-app-size.md](docs/ios-app-size.md) | The build-126 size audit. Two of its items have since shipped (3x dropped, fonts compressed); read the dated section at the foot before acting on any number above it. |
 
 ## Build and run (from the consuming firmware repo)
 
@@ -43,72 +75,52 @@ CROSSPOINT_SIM_INPUT_SCRIPT='5000:QUIT' SDL_VIDEODRIVER=dummy .pio/build/simulat
 
 For local dev against this repo, the firmware's `platformio.ini` should reference it as `simulator=symlink://../crosspoint-simulator` instead of the git URL.
 
-There is no linter and no per-file build commands; most changes are "tested" by running the simulator and exercising the affected feature. Host tests exist in `tests/` (44 passing, 0 skipped as of 2026-08-23), run them when touching input, text entry, sleep, network, restart, task lifetime, read-aloud, palettes, the dial table, device-fidelity flags, the compressed-font container, or build-configuration paths. `tests/run_all.sh` builds and runs the host tests in one go (`-k <substring>` to filter) and exits non-zero on the first failure — the individual commands below are what it runs, kept here because they are also how you debug one in isolation. The four shell tests are not in the runner: all need a firmware checkout and use exit 2 for SKIP, which a pass/fail runner would misreport. All four PASS as of 2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a seeded `fs_`; S-011 and S-015 are both closed and this sentence used to claim otherwise long after they were fixed. They need a card: with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads as "not failing" rather than "not run".
+There is no linter and no per-file build commands; most changes are "tested" by
+running the simulator and exercising the affected feature. Host tests live in
+`tests/` — run them when touching input, text entry, sleep, network, restart,
+task lifetime, read-aloud, palettes, the dial table, device-fidelity flags, the
+compressed-font container, or build-configuration paths.
 
 ```bash
-tests/run_all.sh
+tests/run_all.sh            # build and run every host test; non-zero on the first failure
+tests/run_all.sh -k wifi    # only tests whose name matches
 ```
 
+**`tests/run_all.sh` is the CATALOG, not just the runner, and it is the only
+copy.** Every test's compile line, its platform branch, its skip condition, and
+the paragraph saying what it covers and which silent failure mode it exists for
+sit in that file beside the command that runs it, where they stay current. This
+file used to carry a second copy of ~30 of those rationales in one paragraph,
+and that copy had already drifted: it listed no `light_ink`, `paper_defects`,
+`page_fade`, `heap_budget` or `phosphor_mix`, and quoted a pass count from a
+suite that has since grown past it. Read the runner. The deeper history of a
+specific defect is in `BUGS.md` under its `S-` id — `task_registry_test`'s
+whole story, for one, is S-008 there.
 
-```bash
-c++ -std=c++17 -Iios tests/pad_core_test.cpp ios/PadCore.cpp -o /tmp/pad_core_test && /tmp/pad_core_test
-c++ -std=c++17 -Iios tests/pad_palette_test.cpp -o /tmp/pad_palette_test && /tmp/pad_palette_test ios/Settings.bundle/Root.plist
-c++ -std=c++17 -Isrc tests/panel_palette_test.cpp -o /tmp/panel_palette_test && /tmp/panel_palette_test ios/Settings.bundle/Root.plist
-c++ -std=c++17 -Isrc tests/dial_table_test.cpp -o /tmp/dial_table_test && /tmp/dial_table_test
-c++ -std=c++17 -Isrc -Iios tests/panel_source_test.cpp -o /tmp/panel_source_test && /tmp/panel_source_test
-python3 tests/panel_source_test.py   # one editor per polarity; run from the repo root
-c++ -std=c++17 -Isrc tests/phosphor_grain_test.cpp -o /tmp/phosphor_grain_test && /tmp/phosphor_grain_test
-c++ -std=c++17 -Isrc tests/letterpress_test.cpp -o /tmp/letterpress_test && /tmp/letterpress_test
-c++ -std=c++17 -Isrc tests/scanlines_test.cpp -o /tmp/scanlines_test && /tmp/scanlines_test
-c++ -std=c++17 -Isrc tests/show_through_test.cpp -o /tmp/show_through_test && /tmp/show_through_test
-c++ -std=c++17 -O1 -Isrc tests/corner_defocus_test.cpp -o /tmp/corner_defocus_test && /tmp/corner_defocus_test
-c++ -std=c++17 -Isrc tests/power_off_collapse_test.cpp -o /tmp/poc_test && /tmp/poc_test
-c++ -std=c++17 -Wno-deprecated -Isrc -DCPZ_REPO_ROOT='"'"$PWD"'"' $(python3 tools/fw_include_flags.py) \
-  tests/cpz_container_test.cpp <firmware>/lib/miniz/src/InflateStream.cpp \
-  <firmware>/lib/Memory/BuildScratch.cpp <firmware>/lib/miniz/src/miniz_impl.c \
-  -o /tmp/cpz_container_test && /tmp/cpz_container_test
-c++ -std=c++17 -Isrc tests/laid_structure_test.cpp -o /tmp/laid_structure_test && /tmp/laid_structure_test
-c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_WIFI=1 tests/wifi_host_test.cpp -o /tmp/wifi_host_test && /tmp/wifi_host_test
-c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 tests/http_dispatch_test.cpp -o /tmp/http_dispatch_test && /tmp/http_dispatch_test
-c++ -std=c++20 -Isrc tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp -o /tmp/restart_test && /tmp/restart_test
-c++ -std=c++20 -Isrc tests/task_registry_test.cpp -o /tmp/task_registry_test && /tmp/task_registry_test
-c++ -std=c++20 -Isrc tests/read_aloud_channel_test.cpp -o /tmp/read_aloud_channel_test && /tmp/read_aloud_channel_test
-c++ -std=c++20 -Isrc tests/device_truth_test.cpp -o /tmp/device_truth_test && /tmp/device_truth_test
-c++ -std=c++20 -Isrc tests/sha256_test.cpp -o /tmp/sha256_test && /tmp/sha256_test   # add -lcrypto on Linux
-c++ -std=c++17 -Iios tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp -o /tmp/read_aloud_core_test && /tmp/read_aloud_core_test
-c++ -std=c++17 -Isrc tests/readaloud_geometry_test.cpp -o /tmp/readaloud_geometry_test && /tmp/readaloud_geometry_test
-python3 tests/gen_cmake_sources_test.py   # the source-set generator; builds its own throwaway trees
-tests/test_sleep_wake.sh <firmware-checkout>   # needs the desktop binary built
-tests/test_text_entry.sh <firmware-checkout>   # host keyboard into a firmware text field
-tests/test_read_aloud_capture.sh <firmware-checkout>  # capture + QTAP page turn, generated fixture book
-tests/test_note_editor_repaint.sh <firmware-checkout>  # a note repaints while a HOST keyboard types
-c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc \
-  $(python3 tools/fw_include_flags.py) \
-  tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp -o /tmp/build_identity_test \
-  && /tmp/build_identity_test
-```
-
-**The three `-D` tests exist because the code they cover is iOS-only.** `ios/*.mm`
-cannot be compiled anywhere but a Mac and there is no paired device, so
-`CROSSPOINT_SIM_HOST_WIFI`, `CROSSPOINT_SIM_HOST_HTTP` and
-`CROSSPOINT_SIM_REBOOT_IN_PROCESS` are all overridable specifically to let the
-phone's branches be exercised on a host. Keep that escape hatch when adding
+Three tests compile with a `-D` override (`CROSSPOINT_SIM_HOST_WIFI`,
+`CROSSPOINT_SIM_HOST_HTTP`, `CROSSPOINT_SIM_REBOOT_IN_PROCESS`) because the code
+they cover is iOS-only: `ios/*.mm` cannot be compiled anywhere but a Mac and
+there is no paired device, so those three are overridable specifically to let
+the phone's branches be exercised on a host. Keep that escape hatch when adding
 another platform backend, or the branch ships with no coverage at all.
 
-`pad_core_test` covers the iOS pad's finger→button passthrough (PadCore is pure and clock-free by design — do not add timers to it). `pad_palette_test` covers the pad's contrast ladder and its Current/Accessible/Transparent presets (`ios/PadPalette.h`, pure for the same reason): it recomputes every rung's sRGB contrast ratio, pins the Current preset to the exact shipped tones, proves −9/+9 reach #000000/#FFFFFF in both appearances and both roles, and — the part no `static_assert` can do — reads the shipped `ios/Settings.bundle/Root.plist` and fails when a row's printed ratio disagrees with the tone that row selects. Every failure mode there is silent: a rung equal to the field paints nothing, a mislabelled row lies. It is one of two tests that take a path argument (defaulted to the repo-relative plist), so run it from the repo root. `panel_palette_test` is the other, and covers the PAGE's two tones (`src/PanelPalette.h`, pure for the same reason): that the default ink/paper pair is byte-for-byte what this repo hardcoded before the dial existed, that every road not involving typing arrives back at it, that the 0..255 ramp between them stays integer-truncated and non-degenerate (this is the 2-bit gray handling -- the intermediate levels are LERPED, never tabulated), that every way a Settings.app hex field can be wrong falls back per-field rather than blanking the page, that no named preset drops under 7:1 or duplicates another, and -- reading the shipped `Root.plist` -- that each preset row's printed contrast figure matches the tones that row actually selects. Every failure mode here is a wrong COLOR, which no compiler and no other test in this repo can see. `panel_source_test` covers WHERE each polarity's tones come from (`src/PanelSource.h`, pure for the same reason `panel_palette_test`'s subject is), and it exists because `chip_tint_source_test.py` guarded that area and passed straight through the owner's P1 of 2026-08-23 -- it asserts a delegation CHAIN and never a tone, and one reader over a store with two writers is still one reader. So this one asserts BYTES: that a named preset owns both appearances whatever stale hex the fields hold, that Custom takes each polarity's own two fields independently, that a light-mode ink pick leaves the dark page's tones AND its phosphor alone, that a gun moved in dark mode leaves the light page's chosen ink alone (the reported bug, which moved a page from 323D47 to 6E0500), that both hold across load, four appearance switches and a relaunch in either editor order, that the claim which freezes the other polarity is ONE-SHOT, and that a frozen phosphor follows `migratePreset` rather than reviving a retired row. Its companion `panel_source_test.py` is source-level and pins what no byte can see -- that the two editors still write only their own polarity's keys and still take the shared claim before the shared preset integer moves. Both fail against the pre-fix tree (3 and 20 failures); together they also pin the pad's Accessible ladder at BOTH of its resolution points, which is S-021. `phosphor_grain_test` covers the screen-grain field (`src/PhosphorGrain.h`, pure for the same reason): that OFF is BIT-EXACT off rather than nearly-off on every coverage, that the field can only ever darken (a multiplier above 1 is the additive lift that produced both the page-flash and the gray-background reports), that the cell stays `kCellPx` square, that the dial is linear across the offered strengths, that Vignette is a no-op at the exact center and still leaves a readable corner at the top of the dial, and that Mottled carries real low-frequency structure without adding a net dimming -- measured on BLOCK means, since per-pixel spread cannot tell a blotchy field from an even one. It also pins the three things added after the owner started tuning it: that a mottle DEPTH of 0 is bit-exact Even at every cell count (and leaves Vignette+Mottled exactly Vignette), so the bottom of that dial is off rather than a silent floor; that every offered depth and cell count differs from its neighbour, or a settings row is decoration; and that no offered strength drops any page below the 7:1 contrast floor, swept against five palettes including the two tightest -- which is exactly what the old global sigma shipped at the since-removed 10x, where P11 Blue and P22R Red fell to 5.6:1. `letterpress_test` and `scanlines_test` hold the 2026-08-22 doctrine dials (`src/Letterpress.h` light, `src/Scanlines.h` dark, both pure for the same reason) to the same bar: OFF bit-exact per mode, darken-only, ladder monotone with every rung distinct, and the 7:1 floor swept on five palettes including the tightest (Latte light 7.06:1 for letterpress -- the paper-budget clamp is what holds it -- and P11/P22R dark for scanlines). Letterpress additionally pins edge-band correctness on a synthetic glyph (the squeeze ring darkens the ink rim well below the stroke interior, flat ink and flat paper beyond the band stay untouched but for their own noise terms, and the deboss shadow falls on the top wall only); scanlines additionally pin that the box-integrated field has no long-period beat at the phone's fractional 2.39 px pitch (the ST-008 lesson), that the structure self-attenuates to near-uniform at 1:1, that bloom only ever SPARES a row, that the folded mottle carries block-mean structure without net brightening, and that `combine(rowTransmission)` is exactly `multiplierAt` -- the cache split HalDisplay ships. `test_text_entry.sh` drives Settings > Device owner and asserts the persisted `settings.json`, so it covers the host-keyboard channel end to end; what it cannot cover is the suppression that keeps typed letters off the button map, because it injects below SDL — that half is verified on the phone and written up in [ios/README.md](ios/README.md). `test_note_editor_repaint.sh` is its sibling for the MULTI-line case and asserts something a file cannot show: it compares the FRAME before a `TYPE` with the frame after it, in a fresh Create Note, with `CROSSPOINT_SIM_HOST_KEYBOARD` at both 0 and 1. It exists because firmware B-028 was invisible to every file-contents assertion — the note editor drained the typed text into its buffer and saved it perfectly while never repainting once, because its debounced `requestUpdate()` sat below an `if (panelHidden) return;` that is taken exactly when a phone's software keyboard is up. Two byte-identical BMPs were the only observable. `test_sleep_wake.sh` pins the deep-sleep wake edge-latch: a 1 ms synthetic POWER tap during sleep must relaunch the process (the sleep loop consumes an edge set by `injectButtonDown`, because a fast tap's down and up can both land in one pump burst and leave no level to poll). `build_identity_test` proves the split-brain guard aborts — see "One device macro, one definition" below. `wifi_host_test` covers the branch `WiFiClass` takes when a real radio is behind it — the iOS path — and guards that the desktop env-var fakes are unchanged by the hook's presence. `http_dispatch_test` pins that the mock-root and `file://` fixture paths still beat the network, and in that order, now that a second transport exists. `restart_semantics_test` pins the two silent ways `ESP.restart()` can go wrong: claiming a POWER press it never received, and leaving an input script in place so an automated run restarts forever. `read_aloud_channel_test` pins the read-aloud page channel's hand-off contract (one consume per publish, latest wins, `publish(nullptr)` is the stop-speech clear); `read_aloud_core_test` covers every transition of the read-aloud state machine — most load-bearing: a canceled utterance never turns a page, and highlight/tap offsets are UTF-8 bytes (the test page has curly quotes and accents precisely so a character-counting regression fails it). `readaloud_geometry_test` covers where a published page lands on the glass
-(`src/ReadAloudGeometry.h`, pure for the same reason PanelPalette is): every
-failure mode of that arithmetic is a SILENTLY misplaced frame -- the text is
-right, nothing logs, and the only symptom is an assistive technology skipping
-elements it believes are off-screen, which reaches the owner as "No speakable
-content could be found on the screen" over a page that is published, correct
-and on screen. It pins that the call is NOT answerable before the first present
-(the container's level-triggered self-heal depends on that rather than a
-plausible zero), the iPhone Air's measured numbers, that `panelBottomPx` is an
-EDGE and not an origin, that a screen reporting no scale is a 1x screen rather
-than a NaN frame, that the scale is never zero when the call succeeds, and that
-`DISPLAY_HEIGHT` in place of `LOGICAL_HEIGHT` -- the mistake that once halved
-the read-aloud highlight -- gives a detectably wrong answer at every shipped
-render scale. `test_read_aloud_capture.sh` pins the firmware capture end-to-end against a tiny GENERATED two-chapter EPUB (the seed book's mono-file chapter takes tens of seconds to paginate, which made it timing-flaky here): boot page published, a `QTAP` page turn reaches a different page, multibyte survives, exit clears, and the channel stays silent without the env var. `task_registry_test` pins the FreeRTOS shim's name dedupe against `vTaskDelete`: the registry used to keep pointing at a freed handle, so the create/delete/create sequence the iOS in-process reboot performs handed the caller freed memory. It asserts behaviourally (did a thread actually spawn?) because the allocator reuses the freed block, so pointer identity does not distinguish the two. `gen_cmake_sources_test.py` exists because `cmake/CrossPointSources.cmake` is the only thing telling the iOS build which firmware sources to compile: the generator resolved the compile database's relative `file` paths against the process cwd instead of each entry's own `directory`, so running it from anywhere but the firmware checkout filed all 125 firmware TUs as simulator sources, wrote an empty `CROSSPOINT_FW_SOURCES`, and exited 0. The test pins cwd-independence plus every refusal (empty, zero-firmware, zero-simulator, wrong tree, stale, partial, no include dirs, malformed JSON) and that a refused run leaves the existing file byte-identical. `device_truth_test` covers S-001's last four reversals (`src/SimulatorDeviceTruth.h`, pure for the same reason PadPalette is): the flag spellings, that anything unrecognised falls back to the HISTORICAL answer rather than inventing a state, the panic report's field order against the firmware's own writer, and — the one that matters most — that the panic latch is ONE-SHOT. It consumes `CROSSPOINT_SIM_PANIC` on first read, because the desktop reboot is `execvp` and hands `environ` to the child, so without that a single injected panic would route every boot into `CrashActivity` forever and the crash screen would have no exit. `cpz_container_test` covers the CPZ1 container the HAL's file layer opens transparently (`src/SimCompressedFile.h`, the writer being `tools/compress_seed_fonts.py`), and it drives the REAL writer through `std::system` rather than reimplementing its packing -- two implementations of one layout that agree with each other and not with the spec is the drift worth catching. Byte-exact sequential round trip at six chunk sizes that straddle block boundaries, 400 random `(offset, length)` reads, a payload shorter than one block, reads at and past EOF, five ways a header can be internally inconsistent (each of which must fail the OPEN, because falling back to the raw bytes hands container headers to the font loader as glyph data), a non-monotonic index, and a damaged block -- which must come back as -1, never as a short read, because a short read looks like end of file to `SdCardFont`. Every failure mode here is a font that does not load, which is a blank page with successful renders in the log. `sha256_test` pins the mbedtls shim to the published FIPS-180-4 vectors, including the million-'a' case and a chunked digest matching the one-shot; that shim WAS a fake (`digest[i % 32] ^= input[i]`, returning success), and nothing but a known-answer vector can see such a thing — the signature, the length and the determinism are all indistinguishable from a real digest.
+Two tests take the shipped `ios/Settings.bundle/Root.plist` as an argument
+(defaulted to the repo-relative path), so run them from the repo root — which is
+what `run_all.sh` does.
+
+**The four shell tests are NOT in the runner**: all need a firmware checkout and
+use exit 2 for SKIP, which a pass/fail runner would misreport. They need a card
+too — with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a
+casual run reads as "not failing" rather than "not run". All four PASS as of
+2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a
+seeded `fs_`.
+
+```bash
+tests/test_sleep_wake.sh <firmware-checkout>           # deep-sleep wake edge-latch
+tests/test_text_entry.sh <firmware-checkout>           # host keyboard into a firmware text field
+tests/test_read_aloud_capture.sh <firmware-checkout>   # capture + QTAP page turn, generated fixture book
+tests/test_note_editor_repaint.sh <firmware-checkout>  # a note repaints while a HOST keyboard types
+```
 
 ## Architecture
 
@@ -279,8 +291,11 @@ key, frontlight state, inversion, and an RTC. Sticky also uses 800x480 and adds
 touch, RTC, and tilt without a Home key or frontlight.
 
 **One device macro, one definition — and it goes on the LIBRARY.** The iOS
-build is two CMake targets: `crosspoint_core` (firmware + HAL, ~155 TUs) and
-`CrossPointX3` (the harness, 7). The X4 default in `BoardConfig.h` is *silent*,
+build is two CMake targets: `crosspoint_core` (firmware + HAL — the generated
+`cmake/CrossPointSources.cmake` is the count, and it moves every time a
+translation unit is added, so do not memorize one) and `CrossPointX3` (the
+harness, the source list in `ios/CMakeLists.txt`). The X4 default in
+`BoardConfig.h` is *silent*,
 so a device macro that reaches only one target produces a binary whose halves
 disagree, compiles clean, and fails somewhere far away. It has happened twice:
 
@@ -322,7 +337,8 @@ remappable Back/Confirm/Left/Right pad, and the SIDE pair is the physical
 up/down rocker that page-turns in the reader (`Button::PageBack`/`PageForward`,
 swappable via `SETTINGS.sideButtonLayout`). Whether that side pair is actually
 on the device's EDGE differs per board — `HalGPIO::hasEdgeSideButtons()`
-(`src/HalGPIO.cpp:784`) is the authority: TRUE for X3/X3-UC8279/X4 Pro, FALSE
+(`src/HalGPIO.cpp:836` — grep the name, this citation has moved once) is
+the authority: TRUE for X3/X3-UC8279/X4 Pro, FALSE
 for X4. So an on-glass button pad must not draw an edge rocker for an X4
 profile, and "up/down" in a prompt usually means the page-turn side pair, not
 front-cluster arrows. When a layout ask says "move the buttons", confirm which
@@ -465,17 +481,13 @@ wins because each setter reads its own var last, and it is seeded LAST -- the
 first version sat above the ordinary seeds and they overwrote it, so the log said
 as-shipped while the grain was still Even/0.10.
 
-**Its numbers are no longer written out by hand, and that is the fix for the way
-it kept drifting.** They are `shippedValue` in
-[src/SimulatorDials.h](src/SimulatorDials.h) -- one row per dial (name, env var,
-settings key, clamp, desktop default, shipped value, flags) driving the desktop
-boot seed, the settings watcher and this block from a single definition --
-checked against the app's own frozen constants by `tests/dial_table_test.cpp`,
-which reads the shipped `ios/` sources as text. Before the table this paragraph
-itself was one of the stale records: it said 5 min fade / 67 ms beam / 8 x 0.30
-grain while the app had moved to Off / 55 ms / 5 x 0.90, and the seed's own code
-said something different again. Adding a dial now means one table row plus one
-`case` in `applyDialGroup`, not three hand-synced lists. Full writeup:
+**Its numbers are not written out by hand, and must not be.** They are
+`shippedValue` in [src/SimulatorDials.h](src/SimulatorDials.h) -- one row per
+dial driving the desktop boot seed, the settings watcher and this block from a
+single definition -- checked against the app's own frozen constants by
+`tests/dial_table_test.cpp`, which reads the shipped `ios/` sources as text. The
+three parallel lists that preceded it drifted twice in one day, and this
+paragraph was itself one of the stale records; the whole account is
 `docs/surface-roadmap.md` section 4e.
 
 For repeatable QA, `CROSSPOINT_SIM_INPUT_SCRIPT` schedules synthetic key and
@@ -497,80 +509,14 @@ state behind a `static bool ...Initialized` must register a reset in
 `SimulatorLifecycle` runs immediately before the jump — otherwise it works on the
 desktop, is dead on the phone, and nothing says so.
 
-**Navigating to a screen from a headless script.** Work these out by watching
-`[ACT] Entering activity:` log lines — that is the reliable way to confirm where
-a script actually landed, because a screenshot of the wrong screen looks a lot
-like a screenshot of a screen that never changed.
-
-- The app boots into **Home**, not the reader. Under the Lyra Six theme Home
-  renders the current book's page, so a startup screenshot looks exactly like
-  the reader. Do not read that as "the reader is open."
-- **But it does not always boot into Home**, and this is the single biggest
-  time-sink in scripting these runs. Depending on the state the previous run
-  left behind, a launch either lands on Home or resumes straight into the book
-  (`Boot -> Reader -> EpubReader`, all within ~5 ms, before any input). The two
-  need opposite openings: from Home the first key must be a `DOWN`, while from
-  the reader it must be a `BACK` to get to Home first — and a `BACK` sent while
-  already on Home *opens* the most recent book instead, landing you in the wrong
-  place with a script that looks correct. Do not write the script blind and
-  trust it: run it, grep `[ACT] Entering activity:`, and only believe the
-  screenshot once the log shows the activity you meant to reach. Four
-  consecutive runs were burned on this on 2026-08-03.
-- **Open every script with `2000:HOME`, not `BACK`.** This is the fix for the
-  above, found on 2026-08-04 after four more wasted runs. `HOME` reaches Home
-  from either starting state and is a no-op when already there, so the rest of
-  the script can assume Home. `BACK` cannot: it means "up" from the reader and
-  "open the last book" from Home, so with a boot path that alternates run to
-  run it lands you somewhere different every other time.
-- `rm -rf ./fs_/.crosspoint/` does **not** force the Home path — an earlier
-  version of this file claimed it did. Verified 2026-08-04: with the directory
-  deleted the sim still went `Boot -> Reader -> EpubReader` within 500 ms. It
-  clears caches; it does not decide the boot destination.
-- **To force a Home boot, set `readerActivityLoadCount` to 1 in
-  `fs_/.crosspoint/state.json`.** Booting into the last book is deliberate —
-  `main.cpp`'s comment is "The device IS the current book" — and Home exists only
-  as an escape hatch for the two cases that need it: holding BACK during boot, or
-  a non-zero `readerActivityLoadCount` (the crash-recovery counter). **A script
-  CAN hold a button during boot** — measured 2026-08-23, correcting the sentence
-  that stood here: `200:QTAP:BACK:2500` holds Back across the routing check
-  (~850–1000 ms) because `QTAP` writes `syntheticButtonDown[]`, a level that
-  `isPressed()` reads. That is the lever to prefer, since it needs no write to
-  the card and therefore works from XCUITest, which can set only environment
-  variables (`docs/headless-qa.md` §4).
-  Clearing `openEpubPath` or `lastSleepFromReader` does NOT work —
-  both are checked, then the branch opens the book anyway unless one of those two
-  escape conditions holds.
-- `HOME` is **not** handled by the reader. It reaches Home from Home (a no-op)
-  and does nothing from `EpubReader`, so it is not the state-independent opener
-  an earlier version of this file suggested. Force the boot state with the
-  counter above and script from Home; do not try to normalise at runtime.
-- On Home, **Back** opens the most recently read book and **Confirm/ENTER**
-  activates the selected row. Home lists the recent books followed by the menu
-  items — on the bunnyfield fork as of 2026-08-04: Browse Files, Recents,
-  File Transfer, Manage Files, Settings (no OPDS), Settings last, with no
-  wrap-around. Update Library sits ABOVE Settings as of 2026-08-21, so the
-  menu is six rows: `DOWN` x16 then `ENTER` reaches Settings regardless of how
-  many books are listed, `DOWN` x16 then `UP` then `ENTER` reaches Update
-  Library, and x16 `UP` x2 reaches Manage Files. (The old x15 counts predate
-  the Update Library row and land one item short.)
-- **Scripts that list ALL files (Manage Files) shift by one after the first
-  run**: the firmware creates `.crosspoint/` on the test card during boot, and
-  in a show-everything list it sorts to row 0 of the root. A DOWN-count written
-  against a fresh card acts on the wrong rows in every later run. Recount
-  against the current card (`find fs_ -print`) or grep the activity's log
-  before trusting the script — this burned a debugging cycle on 2026-08-04
-  (the "wrong file moved" was the script, not the firmware).
-- Inside the reader **Confirm opens Select Chapter** (`[ACT] Entering activity:
-  EpubReaderChapterSelection`, measured 2026-08-23 — this line used to say it
-  did nothing, which made it look like a state-independent way to reach the
-  reader; it is not, and a run was burned on that). From Home `ENTER` opens the
-  selected book, which logs a page render.
-- In Settings, `ENTER` on the first row cycles the category tab, so repeated
-  `ENTER` + screenshot walks every tab.
+**Navigating to a screen from a headless script: read
+[docs/headless-qa.md](docs/headless-qa.md) first** — see "Driving it headlessly"
+at the foot of this file for why. A `DOWN`-count walk to Settings stood here for
+weeks and was a no-op the whole time.
 
 ```bash
-CROSSPOINT_SIM_INPUT_SCRIPT='2000:DOWN;2200:DOWN;…;4800:DOWN;5400:ENTER;6800:ENTER;11500:QUIT' \
-CROSSPOINT_SIM_SCREENSHOTS='6300:./qa/tab1.bmp;7700:./qa/tab2.bmp' \
+CROSSPOINT_SIM_INPUT_SCRIPT='4000:RIGHT;4900:RIGHT;5800:RIGHT;9600:CONFIRM' \
+CROSSPOINT_SIM_SCREENSHOTS='12500:./qa/shot.bmp' \
   .pio/build/simulator/program
 ```
 
@@ -600,36 +546,43 @@ a card layout is well-formed.
 
 ## The color dials, and the one rule they all share
 
-Three settings now decide what the page and the pad look like, all host-side —
-**none of this reaches device firmware**, which has no Settings.app to expose it:
+Sixteen host-side dials decide what the page and the pad look like — **none of
+this reaches device firmware**, which has no Settings.app to expose it. "Dial"
+here means *a knob this repo's model exposes*, which is NOT the same as a knob
+the phone offers: after 2026-08-23 most of them are frozen constants on iOS and
+remain live only through `settings.json` and the `CROSSPOINT_SIM_*` env vars on
+the desktop. The rightmost column says which each one is.
 
 | Dial | Lives in | Docs |
 |---|---|---|
 | Page palette — 52 named presets plus Custom, chosen from the Presets button in either drawer (`ios/CrossPointPresetList.mm`) | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
 | Button pad outline/fill | `ios/PadPalette.h` | `docs/pad-outline-black-and-white.md` |
-| Render scale 1x/2x — **3x dropped 2026-08-23** ("drop 3x support for now"); the tier machinery, the seed trees and `build-sd-fonts.py --scale 3` all still work, so re-enabling is one number | `lib/GfxRenderer/RenderScale.h` (firmware), ceiling in `ios/CMakeLists.txt`, latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
+| Render scale — **FROZEN AT 2 on iOS, and no longer a preference at all** (2026-08-23). 1 was retired 2026-08-21, 3 the same day as this ("drop 3x support for now"), and a one-value control is worse than no control, so the Sharpness row left Settings.app with it. `CrossPointPrefs_renderScale()` returns 2 without reading NSUserDefaults — a store written by build 129 or earlier holds a 3 and must not re-point something the owner can no longer see. The tier machinery, the seed trees and `build-sd-fonts.py --scale 3` all still work, so re-enabling is one number in `ios/CMakeLists.txt` | `lib/GfxRenderer/RenderScale.h` (firmware), CEILING in `ios/CMakeLists.txt`, latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
 | Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
-| Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded` | `docs/phosphor-grain.md` |
+| Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on, which the app ships BOTH of. **A desktop dial only**: its rows left `Root.plist` on 2026-08-22 and `tests/panel_palette_test.cpp` asserts them absent, so nothing on the phone reaches it. As of 2026-08-23 `CrossPointPrefs.mm` returns 60 light / 160 dark, Vignette+Mottled, depth 0.90 as constants — and because the app also freezes letterpress and scanlines ON, that field is never actually composited on a phone; it is frozen honestly so that turning a doctrine dial off falls back to the grain the app last shipped | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_GRAIN*` | `docs/phosphor-grain.md` |
 | Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink. Bit-exact off at dial 0, which is still the MODEL's default (`kPaperDriftDefault`) and the desktop's — but the iOS app FREEZES it at 100 (2026-08-23), so on the phone every leaf differs. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
 | Letterpress — LIGHT pages only (doctrine 2026-08-22: light is paper and ink), Off/Subtle/Standard/Heavy, ink-squeeze rim + deboss shadow + pressure + tooth, panel-space, darken-only. The pressure part's mapped range is WIDENED above 100% (`pressAmpScale`, 200% = 8x standard) — the 2026-08-22 audit found the dial near-dead, eaten by both the pixel math and a cache key that omitted the part percents | `src/Letterpress.h`, composited over the panel in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LETTERPRESS` | `docs/letterpress-and-scanlines.md` |
-| The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it; the drawer keeps only the ink list, Density and the stock grid | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8 |
+| The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it; the drawer keeps only the ink list, Density and the stock grid | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8; the marks themselves are `docs/paper-defects.md` |
 | Laid structure — chain + laid lines for a laid PAPER stock (`lightink::Paper::laid`; Laid Antique today), rides the paper slider, output-space box-integrated (the ~1.9 px laid pitch is ST-008 territory), darken-only, per-page seed | `src/LaidStructure.h`, folded into the sheet field in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LAIDLINES` | `docs/letterpress-and-scanlines.md`, `docs/paper-colorimetry-sources.md` §3c |
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
 | Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 100; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x) | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
-| Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). FROZEN at 100 (TG18 caps the corner astigmatism ratio at 1.5; shipped 1.23) | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture`; `CROSSPOINT_SIM_CORNER_DEFOCUS` | `docs/corner-defocus.md` |
+| Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). **FROZEN OFF (0) since 2026-08-23** — a Settings row was shipped so the owner could judge it on glass and he correctly reported "nothing is being rendered in any corners": at the shipped 2 px scanline pitch the field it modulates is 5/255 deep at the centre and 0 at the corner, so there was nothing there to defocus. The model, its test and its doc all stand; re-enabling is this one number, and returning 0 gave back ~42 ms per dark page turn | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture`; `CROSSPOINT_SIM_CORNER_DEFOCUS`; `CrossPointPrefs_cornerDefocusPercent()` returns 0 | `docs/corner-defocus.md` |
 | Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
 | BZZT THONK power-on warm-up — the OTHER HALF of that same row, no second control. Fires only where the collapse actually switched the tube off (a recorded state, not a wake event): dot relit → flicker + crackle with the line punching out in steps → raster slams open, overshoots into overscan, bounces, lands → 6% sag and back to exactly nominal. 395 ms, DARK only, skippable on any press DOWN | `src/PowerOnWarmUp.h`, composited by `powerOnWarmUpFrame()` in `HalDisplay::presentIfNeeded`; armed by `CROSSPOINT_SIM_TUBE_OFF` (set by the collapse), QA hatch `CROSSPOINT_SIM_POWERON_WARMUP` | `docs/power-off-collapse.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
 
-**Three dials are frozen and one is a row, and that split is the 2026-08-23
-ruling in miniature.** Show-through and corner defocus each have one obviously
-right value -- one is gated by a stock the owner already picks, the other by a
-published TG18 bound -- so they are frozen constants with no control. The
-collapsing dot has a genuine TRADE (the glass stays dark for the whole sleep
-instead of holding the sleep screen), so it is a Settings.app row and it ships
-OFF. Every surface dial that reached Settings.app before that date was removed
-on it; a new appearance row has to earn itself against that.
+**Two of the three 2026-08-23 items are frozen and one is a row, and that split
+is the ruling in miniature.** Show-through and corner defocus each have one
+answer that is simply right, so they are frozen constants with no control:
+show-through at 100, because the STOCK's ISO 2471 opacity is what varies it and
+the owner already picks the stock; corner defocus at **0**, because it was
+shipped as a row for him to judge and he could not see it — the scanline field
+it modulates is 5/255 deep at the shipped pitch. The collapsing dot has a
+genuine TRADE (the glass stays dark for the whole sleep instead of holding the
+sleep screen), so it is a Settings.app row and it ships OFF. Every surface dial
+that reached Settings.app before that date was removed on it; a new appearance
+row has to earn itself against that.
 
 **A/B captures of the SCANLINE field must pin `CROSSPOINT_SIM_GRAIN_SEED`.** Its
 phase jitter, thickness jitter and mottle all hang off `grainSeed()`, which is
@@ -639,14 +592,17 @@ page-content A/B must restore the same `fs_/.crosspoint/`**: a run leaves its
 final page position behind, so the next arm starts somewhere else and the
 "effect delta" measures the book. Both cost a wrong reading on 2026-08-23.
 
-**The page-turn flash is COALESCED by default, and is now an owner setting**
-(`Page Turn Flash`, off by default, owner 2026-08-19 — "make that page-turn
-flash an option in ios settings"; the desktop keeps
-`CROSSPOINT_SIM_PRESENT_FLASH`, which still overrides). Turning it ON is not a
-bug being reinstated: it is what the panel itself does, and someone may want the
-device's process rather than only its result. Note the flag used to be a
-`static const bool` latched from the env on first call, which is precisely the
-shape that cannot become a setting. An
+**The page-turn flash is COALESCED by default.** It was briefly an iOS settings
+row (`Page Turn Flash`, off by default, owner 2026-08-19 — "make that page-turn
+flash an option in ios settings"), and that row went with the rest of the page
+group on 2026-08-22; `tests/panel_palette_test.cpp` asserts `presentFlash`
+ABSENT from `Root.plist` so a re-add is a conscious act. On the phone it is frozen off:
+`CrossPointPrefs_presentFlash()` returns 0 without consulting NSUserDefaults, so
+an install that stored a 1 before the row went cannot keep flashing. The desktop
+keeps `CROSSPOINT_SIM_PRESENT_FLASH`, which still overrides. Turning it ON is not a bug being reinstated: it is what the panel itself
+does, and someone may want the device's process rather than only its result.
+Note the flag used to be a `static const bool` latched from the env on first
+call, which is precisely the shape that cannot become a setting. An
 antialiased page is painted twice -- 1-bit, then composed 13-22 ms later -- and
 both used to reach the screen. A present is now held 30 ms and released early by
 the compose, so only the composed frame lands; a frame with no second pass is
@@ -665,14 +621,24 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now four rows.** Owner ruling 2026-08-23, from a screenshot
-of his own chosen values: *"make these settings the default and remove them from
-ios app settings as options."* The whole **Page Colors** and **Paper Defects**
-groups left `Root.plist`; Sharpness followed the same day when 3x was
-dropped, leaving Zen toggle / Screen / Read Aloud.
-The frozen values are page fade **Off**, fade depth **fully transparent**,
-letterpress **Standard**, scanlines **Subtle** at **Fine** pitch with **Extreme**
-bloom, defects **0**.
+**Settings.app is now four groups and six rows** — count them out of
+`ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
+is how this paragraph was wrong twice:
+
+| Group | Rows |
+|---|---|
+| Zen | Zen Mode |
+| Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
+| Read Aloud | Read Aloud (Experimental) · Speaking Rate |
+| Sleep | Power-Off Collapse · Diagnostics Log |
+
+Owner ruling 2026-08-23, from a screenshot of his own chosen values: *"make
+these settings the default and remove them from ios app settings as options."*
+The whole **Page Colors** and **Paper Defects** groups left `Root.plist`;
+Sharpness followed the same day when 3x was dropped. The frozen values are page
+fade **Off**, fade depth **fully transparent**, letterpress **Standard**,
+scanlines **Subtle** at **Fine** pitch with **Extreme** bloom, defects **0**,
+render scale **2**, corner defocus **off**.
 
 All seven getters in `ios/CrossPointPrefs.mm` now return a constant
 **without consulting NSUserDefaults**, which is the part that matters: an install
@@ -772,9 +738,17 @@ and only from the NEXT claim onward — invisible at the moment of the mistake.
 The four hex fields are deliberately left, since a named preset ignores them.
 Both drawers reach it through ONE list
 ([ios/CrossPointPresetList.mm](ios/CrossPointPresetList.mm), a Presets bar
-button opposite Done), previewing the appearance that drawer renders and
-offering every preset in both — a preset defines both appearances, so filtering
-either list would remove a choice Settings.app used to offer. Round trip proven
+button opposite Done), previewing the appearance that drawer renders. **Each
+list then offers only its OWN page's presets** (owner 2026-08-23, "only show
+presets available in that mode"): the dark-mode mixer offers the 42 phosphors,
+the light-mode ink picker the 10 papers. The partition is
+`panelpalette::presetOfferedInDark`, which is `trailMsForPreset > 0` — a preset
+with a decay IS a tube — so it restates the 2026-08-22 doctrine rather than
+adding a second source of truth. It filters the OFFERING, never the definition:
+every preset still resolves BOTH appearances, so choosing Green CRT in the mixer
+still sets the light page. The test pins the partition as total and non-empty on
+both sides, because a preset offered by neither list would be unreachable, which
+is exactly how the presets were lost before this list existed. Round trip proven
 in bytes on an iPhone Air simulator and pinned in `panel_source_test.cpp`, whose
 naive arm models the wrong implementation so the protocol has to earn itself.
 
@@ -816,21 +790,19 @@ labelled as context in its caption.
    factor, and say the magnification in the caption. "I don't think you're
    intending to show a mostly empty example here."
 
+Check 1 is a **P0** and its scope is wider than figures: owner 2026-08-22, "all
+proof images need to be losslessly shared or we're defeating the whole purpose
+of proofing." Every image in an artifact, a file send, or any channel he judges
+by eye is PNG at native pixels — never JPEG. If a set will not fit the artifact
+cap, scale by an INTEGER factor with NEAREST resampling (and say so on the
+page), split across two artifacts, or crop to the region under judgment at 1:1;
+never compress. The subjects here are tone, dither, grain, scanlines and
+antialiasing, the exact things a lossy codec eats first. The simulator captures
+BMP whatever you name the file; convert with `sips -s format png`.
+
 DELIVERY, ruled 2026-08-22: repair figures IN PLACE at the artifact's existing
 URL. Do not publish a fresh gallery to carry corrections -- he tracks these
 pages by their links.
-
-## Proof images are lossless, always
-
-Owner P0, 2026-08-22: "all proof images need to be losslessly shared or we're
-defeating the whole purpose of proofing." Every image in an artifact, a file
-send, or any channel he judges by eye is **PNG at native pixels**. Never JPEG.
-If a set will not fit the artifact cap, scale by an INTEGER factor with NEAREST
-resampling (and say so on the page), split across two artifacts, or crop to the
-region under judgment at 1:1 -- never compress. Add `image-rendering: pixelated`
-so the browser does not smooth it back. The subjects here are tone, dither,
-grain, scanlines and antialiasing: the exact things a lossy codec eats first.
-The simulator captures BMP; convert to PNG, never to JPEG.
 
 ## The 2026-08-22 channels and hooks (quick index)
 
@@ -878,3 +850,13 @@ has no next screenful. Script `RIGHT`. It also records that Home starts on a
 book COVER rather than a menu row (an off-by-two), that presses need ~900 ms
 between them or half are swallowed, that launch resumes the last book so the
 starting screen is not fixed, and that captures are BMP whatever you name them.
+
+Beyond those five it carries the two levers that pin the boot destination (write
+`readerActivityLoadCount` to 0 for the book; hold Back across the routing check
+with `200:QTAP:BACK:2500` for Home), the three things that look like levers and
+are not, and the `[ACT] Entering activity:` grep that is the only honest
+confirmation of where a script actually landed — a capture of the wrong screen
+looks a great deal like a capture of a screen that never changed. **That
+navigation material used to be duplicated in this file, in a 70-line block that
+taught a `DOWN`-count walk to Settings and a menu order two revisions old.** It
+was moved into that doc on 2026-08-23 rather than corrected in two places.
