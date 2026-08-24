@@ -115,6 +115,9 @@ bool sheetIdentitySeed(uint32_t &seed);
 // every other sheet field is a property of the stock and a menu is printed on
 // the same paper as a page.
 bool sheetIsReaderPage();
+// True while the firmware has a text field open. The letterpress pass holds its
+// cached field while this is set -- see ensureLetterpressTexture.
+bool textEntryOpen();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
