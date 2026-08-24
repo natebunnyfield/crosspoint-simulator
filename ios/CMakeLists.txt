@@ -288,24 +288,102 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       "Parsed no installed_families out of ${_sd_fonts_yaml}. The key moved or "
       "its list format changed; fix this gate rather than deleting it.")
   endif()
+  # TRIAL FAMILIES — bundled on purpose, and deliberately NOT installed.
+  #
+  # The gate above is right that a bundled-but-uninstalled family is normally
+  # dead weight. It is wrong for exactly one case: a face the owner asked to
+  # LOOK AT on the device before deciding whether it earns a place. Owner
+  # 2026-08-23: "without committing it to s tier, quickly and minimally add
+  # arvo and merriweather and Almendra to a testflight build for my to check
+  # out", then "add ibm plex sans text too" and "add fira sans book too".
+  #
+  # Putting those five in installed_families would be the very commitment he
+  # withheld — that list is the S tier and it means every surface, both device
+  # SD cards included. Disabling the gate would throw away a check that caught
+  # a real near-miss the same day. So the third road: an explicit, named,
+  # temporary allowance. A family here is treated as bundled-but-not-installed
+  # ON PURPOSE; a family in NEITHER list still fails configure exactly as
+  # before.
+  #
+  # Why a trial family IS still selectable, which is what makes this safe:
+  # readingfonts::offeredForReading() (firmware src/ReadingFontList.cpp) says
+  # yes to every family on the card that is not a writing-only editor face and
+  # not retired — including "families this project has never heard of". So the
+  # reading picker offers whatever the card carries. installed_families governs
+  # what a card is GIVEN, not what the reader does with one. That is the whole
+  # reason a trial can be a bundle-only change.
+  #
+  # THIS LIST SHOULD BE EMPTY. Every name in it is an open question addressed
+  # to Nate. When he rules on one, it either moves to installed_families in
+  # sd-fonts.yaml (promoted) or leaves the seed tree entirely (declined) — and
+  # either way its name comes out of here. See docs/trial-fonts.md.
+  #
+  # It is a CACHE variable, which carries the same staleness trap
+  # CROSSPOINT_IOS_RENDER_SCALE hit on build 130: a build directory configured
+  # while a name was in this list keeps that name after the line here is
+  # deleted, so the exemption outlives its removal in exactly the tree someone
+  # is about to archive from. Emptying the list means a fresh configure (or
+  # -DCROSSPOINT_IOS_TRIAL_FAMILIES= on the command line); the ON TRIAL status
+  # line below is how you check which one a given build directory believes.
+  set(CROSSPOINT_IOS_TRIAL_FAMILIES
+    Arvo
+    Merriweather
+    Almendra
+    IBMPlexSans
+    FiraSansBook
+    CACHE STRING
+    "Families bundled for on-device evaluation only, exempt from the \
+installed_families check. Empty in a settled tree.")
+
   set(_unreachable_families "")
+  set(_trial_bundled "")
   foreach(_family IN LISTS _seed_bundled_families)
-    if(NOT _family IN_LIST _installed_families)
+    if(_family IN_LIST CROSSPOINT_IOS_TRIAL_FAMILIES)
+      list(APPEND _trial_bundled "${_family}")
+    elseif(NOT _family IN_LIST _installed_families)
       list(APPEND _unreachable_families "${_family}")
     endif()
   endforeach()
   if(_unreachable_families)
     string(REPLACE ";" ", " _unreachable_text "${_unreachable_families}")
     string(REPLACE ";" ", " _installed_text "${_installed_families}")
+    string(REPLACE ";" ", " _trial_text "${CROSSPOINT_IOS_TRIAL_FAMILIES}")
+    if(NOT _trial_text)
+      set(_trial_text "<empty>")
+    endif()
     message(FATAL_ERROR
       "Seed fonts: ${_unreachable_text} — bundled from "
-      "${_seed_source_dir} but NOT in installed_families "
-      "(${_installed_text}) in ${_sd_fonts_yaml}.\n"
-      "No reading or editor surface in the app can select a family that list "
-      "does not name, so this is megabytes of unreachable bundle. Remove it "
-      "from the seed tree (and from the CI seed_fonts input), or, if it really "
-      "should be selectable, add it to installed_families — which is an owner "
-      "ruling, not a build fix.")
+      "${_seed_source_dir} but in NEITHER installed_families "
+      "(${_installed_text}) in ${_sd_fonts_yaml} NOR "
+      "CROSSPOINT_IOS_TRIAL_FAMILIES (${_trial_text}).\n"
+      "This is the BUNDLED-BUT-UNCLAIMED direction: megabytes nobody asked "
+      "for. Pick one of three:\n"
+      "  - remove it from the seed tree (and from the CI seed_fonts input);\n"
+      "  - name it in CROSSPOINT_IOS_TRIAL_FAMILIES, if it is going on a "
+      "build for the owner to evaluate — temporary, and it must come back out;\n"
+      "  - add it to installed_families, if it really should ship on every "
+      "surface — which is an owner ruling, not a build fix.")
+  endif()
+  # A trial family that is ALSO installed is a contradiction, not a belt and
+  # braces: the trial list means "not committed", installed_families means
+  # "committed on every surface". Left unchecked, a promotion that forgot to
+  # empty the trial list would leave a permanent exemption sitting over a
+  # shipped family, and the next unclaimed bundle under that name would sail
+  # through.
+  set(_trial_and_installed "")
+  foreach(_family IN LISTS CROSSPOINT_IOS_TRIAL_FAMILIES)
+    if(_family IN_LIST _installed_families)
+      list(APPEND _trial_and_installed "${_family}")
+    endif()
+  endforeach()
+  if(_trial_and_installed)
+    string(REPLACE ";" ", " _both_text "${_trial_and_installed}")
+    message(FATAL_ERROR
+      "Seed fonts: ${_both_text} — named in BOTH installed_families "
+      "(${_sd_fonts_yaml}) and CROSSPOINT_IOS_TRIAL_FAMILIES.\n"
+      "Those lists mean opposite things. If the trial ended in a promotion, "
+      "take the name out of CROSSPOINT_IOS_TRIAL_FAMILIES; the exemption has "
+      "done its job and leaving it there disarms this gate for that name.")
   endif()
   # ...and the INVERSE, which is the direction that actually bit. A family in
   # installed_families with nothing bundled is SILENT: the firmware believes it
@@ -334,8 +412,43 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       "If a family is deliberately device-only, it does not belong in "
       "installed_families — that list means every surface.")
   endif()
+  # ...and the same inverse for the TRIAL list, for the same reason: a name in
+  # it with nothing bundled is a trial that silently did not happen, and the
+  # only outward sign would be the owner not finding the face in the picker on
+  # a build made expressly for him to find it in. WARNING rather than FATAL,
+  # because unlike installed_families this list ships no belief to the firmware
+  # — a desktop or CI configure pointed at a partial tree is a normal thing to
+  # do, and failing it would make the trial list harder to carry than to drop.
+  set(_trial_unbundled "")
+  foreach(_family IN LISTS CROSSPOINT_IOS_TRIAL_FAMILIES)
+    if(NOT _family IN_LIST _seed_bundled_families)
+      list(APPEND _trial_unbundled "${_family}")
+    endif()
+  endforeach()
+  if(_trial_unbundled)
+    string(REPLACE ";" ", " _trial_unbundled_text "${_trial_unbundled}")
+    message(WARNING
+      "Seed fonts: ${_trial_unbundled_text} — named in "
+      "CROSSPOINT_IOS_TRIAL_FAMILIES but NOT bundled from ${_seed_source_dir}. "
+      "This build carries no such font, so nobody can evaluate it. Build it at "
+      "every tier this app renders:\n"
+      "  for sc in 1 2; do build-sd-fonts.py --only <Family> --scale $sc "
+      "--output-dir <seed tree>; done")
+  endif()
+
   list(LENGTH _seed_bundled_families _n_fam)
-  message(STATUS "Seed fonts: ${_n_fam} families, matching installed_families exactly")
+  list(LENGTH _trial_bundled _n_trial)
+  if(_trial_bundled)
+    string(REPLACE ";" ", " _trial_bundled_text "${_trial_bundled}")
+    math(EXPR _n_installed_bundled "${_n_fam} - ${_n_trial}")
+    message(STATUS
+      "Seed fonts: ${_n_fam} families — ${_n_installed_bundled} matching "
+      "installed_families exactly, plus ${_n_trial} ON TRIAL "
+      "(${_trial_bundled_text}), which are bundled and selectable but "
+      "committed to nothing")
+  else()
+    message(STATUS "Seed fonts: ${_n_fam} families, matching installed_families exactly")
+  endif()
 endif()
 
 # Default books, always bundled (small public-domain testers checked into
