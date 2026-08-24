@@ -325,12 +325,14 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # is about to archive from. Emptying the list means a fresh configure (or
   # -DCROSSPOINT_IOS_TRIAL_FAMILIES= on the command line); the ON TRIAL status
   # line below is how you check which one a given build directory believes.
+  # EMPTY since 2026-08-24, and that is the settled state — the trial it was
+  # built for is over. Almendra was promoted (installed_families in
+  # sd-fonts.yaml, and a real lineage row in src/FontDisplayNames.h); Arvo,
+  # Merriweather, IBM Plex Sans and Fira Sans Book were declined ("lose arvo
+  # and the other candidate fonts") and their .cpfont trees deleted from the
+  # seed set, recipes kept. docs/trial-fonts.md records what happened to each.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    Arvo
-    Merriweather
-    Almendra
-    IBMPlexSans
-    FiraSansBook
+    ""
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
