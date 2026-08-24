@@ -193,3 +193,29 @@ same day being emptied, and it is labelled temporary in its own footer.
 answered. Its cost is real -- roughly **+42 ms per dark page turn on a phone**,
 above the ~30 ms class the timing work calls cheap -- so "leave it on because
 nobody minds" is not a free answer.
+
+## ANSWERED 2026-08-23: off, because it cannot be seen
+
+The owner looked for it on the phone and reported *"nothing is being rendered in
+any corners."* That is the correct observation, and the test was the thing at
+fault.
+
+The instruction asked him to compare the crispness of a periodic texture in the
+corners of a reading page -- which hold no text. The region where the effect is
+strongest is uniform ground, and a one-code-value change in the depth of a faint
+raster there is nothing at all. A rounded panel corner was investigated as an
+explanation and ruled out on measurement: it removes only 9% of the modelled
+peak.
+
+**The lesson is upstream of the dial.** The model is sound and the physics are
+cited, but nobody established that the effect would be VISIBLE before building
+it. "Measure before optimizing" has a sibling: measure whether anyone can see it
+before rendering it. The 41% figure is real and describes a quantity no reader
+perceives; the whole-frame figure -- one code value -- was the one that mattered
+and it was known from the start.
+
+Shipped strength is 0, in `CrossPointPrefs.mm` and in the dial table's shipped
+column (the dial-table test caught the two drifting apart within seconds of the
+first edit, which is exactly what it is for). The model, its host test and this
+document all stand, so re-enabling is one number if a denser panel ever makes it
+visible. Turning it off also returns roughly **42 ms per dark page turn**.

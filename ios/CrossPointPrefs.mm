@@ -559,28 +559,30 @@ int CrossPointPrefs_showThroughPercent(void) { return 100; }
 // interesting range to offer. 100 = a corner spot 1.45x the centre's, an
 // astigmatism ratio of 1.23.
 //
-// TEMPORARY ROW, added 2026-08-23 by owner ruling ("decide it on device
-// first"). The effect measures SUB-CODE-VALUE on this app's rasters -- the
-// corner loses 41% of its raster depth while the whole frame deviates by 1.0
-// code value -- so no screenshot can settle whether it is visible and both of
-// us would be guessing from numbers.
+// OFF, 2026-08-23, and the reason is worth more than the feature.
 //
-// It is a Settings ROW and not a defaults key, because the first attempt was a
-// defaults key: unusable on a TestFlight build, where the owner has no shell.
-// A probe he cannot reach is not a probe. The lesson generalises -- an
-// on-device question needs an on-device control.
+// The model is right: the beam spot grows and turns elliptical off-axis, so the
+// corner loses 41% of its raster depth while the centre and the side midpoints
+// lose exactly nothing. TG18 bounds the astigmatism ratio and the shipped 1.23
+// sits inside it. None of that is in question.
 //
-// DELETE THE ROW AND THIS BRANCH once the question is answered. It is a
-// comparison, not a setting, and it should not outlive the decision. An absent
-// key reads as ON, so an install that never opens Settings keeps the shipped
-// value.
-int CrossPointPrefs_cornerDefocusPercent(void) {
-  ensureDefaults();
-  NSNumber *v = [[NSUserDefaults standardUserDefaults]
-      objectForKey:@"cornerDefocusEnabled"];
-  if ([v isKindOfClass:[NSNumber class]] && !v.boolValue) return 0;
-  return 100;
-}
+// What is in question is whether a reader can SEE it, and the answer is no.
+// Whole-frame deviation is one code value; the effect modulates the scanline
+// field, and the corners of a reading page hold no text -- so the region where
+// the effect is strongest is uniform ground, where a 1/255 change in the depth
+// of a faint periodic texture is nothing at all. A Settings row was shipped to
+// let the owner judge it on glass; he looked and reported "nothing is being
+// rendered in any corners", which is the correct observation, not a missed one.
+//
+// The test designed to answer this could not be passed. That is a fault in the
+// test, and by extension in shipping an effect whose visibility was never
+// established before it was built.
+//
+// Kept, not deleted: src/CornerDefocus.h, its host test and its doc all stand,
+// so re-enabling is this one number if a denser panel ever makes it visible.
+// Returning 0 also gives back ~42 ms per dark page turn, which was above the
+// cheap class.
+int CrossPointPrefs_cornerDefocusPercent(void) { return 0; }
 
 // A ROW, NOT A FROZEN VALUE, and the only one of the three 2026-08-23 items
 // that is. Every other surface dial has an answer that is simply right; this

@@ -378,3 +378,123 @@ AXPROBE page-textinput value: 520 chars -- "The Project Gutenberg eBook of Engli
 | `tests/read_aloud_channel_test.cpp`, `tests/read_aloud_core_test.cpp` | the channel's hand-off contract and every state transition |
 
 None of these can see whether iOS *speaks*. That remains device-only.
+
+---
+
+## 7. "It seems to have an underlining" — build 132, 2026-08-23
+
+Owner report, on the phone, on the build where Speak Screen first worked:
+*"reading works. though it seems to have an underlining."*
+
+**The underline is drawn by iOS, not by this app, and it is the Speak Screen
+SENTENCE highlight whose shipped default style is Underline.** Everything below
+is measured; the one thing that is not is his own phone's setting, which cannot
+be read from here.
+
+### The app's own read-aloud highlight is a BLOCK — excluded in pixels
+
+`CrossPointReadAloud_paintHighlight` (`ios/CrossPointReadAloud.mm`) is a
+`SDL_RenderFillRect` of the word rect inflated 2 px on every side, warm marker
+at alpha 80 light / 60 dark. Reproduced on an iPhone Air simulator, same book,
+same page, same restored `Documents/.crosspoint` per arm, `readAloudEnabled`
+true vs false: the only difference in the band is a solid rectangle over the
+spoken word, 1060x200 device px band at 21.5 % content coverage, effect mean
+12.2 code values / max 42 / 33.2 % of pixels moved by more than 4. **No arm of
+this app draws a line under anything.** So an underline on the glass is the
+system's.
+
+### The rects are the right shape — full line box, not ink extent
+
+Measured on `/books/ai-engineering-from-zero.epub`, X3 at 2x, logical panel
+pixels (`CROSSPOINT_SIM_READALOUD_LOG=2` against a screenshot of the same
+frame):
+
+| Quantity | Value |
+|---|---|
+| `ReadAloudWordRect.h`, every rect on the page | **51** |
+| Line pitch (successive rect `y`: 255, 306, 357, 408, 459, 510, 561, 612, 663) | **51** |
+| Ink top (cap height) within a band starting at `B` | `B + 12` |
+| Baseline (measured on a descender-free line) | `B + 40` |
+| Descender bottom | `B + 47` |
+| Rect bottom edge | `B + 50` |
+
+So `h` **is** the line box: the bands are contiguous, each rect's bottom is the
+next rect's top. `selectionRectsForRange:` unions those per line, which is the
+shape WWDC26-219 prescribes. A second book agrees through a different route:
+`139 word rects -> 22 line elements; first ... 299x23 pts` at panel scale
+0.667 pt/px, i.e. 34.5 logical px, again that font's line pitch.
+
+An underline drawn at the bottom of such a rect therefore lands **11 logical px
+below the baseline and 3 px below the descenders** — about 7.3 pt on the phone
+against a 34 pt line. That is a normal-looking underline, not a detached rule,
+and it is exactly where UIKit puts one for any full-line-fragment selection
+rect. There is nothing to fix in the geometry.
+
+### iOS's own default IS Underline — read off a clean simulator
+
+`Settings > Accessibility > Spoken Content > Highlight Content`. The
+preferences live in `com.apple.Accessibility` beside `SpeakThisEnabled`, and the
+key names are not the obvious guesses:
+
+| Setting | Key | Getter | Clean iOS 26.5 simulator |
+|---|---|---|---|
+| Highlight Content | `QuickSpeakHighlightTextEnabled` | `_AXSQuickSpeakHighlightTextEnabled()` | **NO** (off) |
+| Words / Sentences / both | `QuickSpeakHighlightChoice` | `-[AXSettings quickSpeakHighlightOption]` | **3** = Words and Sentences |
+| Sentence Highlight Style | `QuickSpeakUnderlineSentence` (bool) and the option below | `-[AXSettings quickSpeakSentenceHighlightOption]` | **1** |
+| Word / Sentence color | `QuickSpeakWordHighlightColor`, `QuickSpeakSentenceHighlightColor` | — | 0 |
+
+The enum's meaning comes from Apple's own settings plist, not from a guess —
+`/System/Library/PreferenceBundles/AccessibilitySettings.bundle/HighlightContentSettings.plist`:
+
+```
+{ "_sentenceHighlightOption" => "1", "label" => "UNDERLINE" }
+{ "_sentenceHighlightOption" => "2", "label" => "HIGHLIGHT" }
+```
+
+So the moment Highlight Content is switched on, iOS highlights the spoken WORD
+with a background block and underlines the spoken SENTENCE. Nothing in this app
+selects that; nothing in this app can override it.
+
+Read them on any booted simulator with a throwaway iphonesimulator binary that
+`dlopen`s the two private libraries and calls the getters — `defaults read`
+shows only keys that have been WRITTEN, and every one of these is unset on a
+clean device, which is precisely when the defaults are what matters.
+
+Two traps in reading them, both hit on 2026-08-23. **Check the property type
+before casting a getter's return** (`class_getProperty` +
+`property_getAttributes`): `quickSpeakSentenceHighlightOption` and
+`quickSpeakHighlightOption` are `Q` (NSUInteger) and read cleanly, but several
+neighbours in `AXSettings` are `NSNumber *` properties and a `BOOL` cast of one
+of those reads the low byte of a pointer. And **the enum is the trustworthy
+half**: `quickSpeakUnderlineSentence` (a real `B`) read NO on the very first
+call of a fresh boot and YES on every call after, with a byte-identical
+`com.apple.Accessibility.plist` and the key persisted nowhere on the device —
+it answers off a cache the accessibility daemon publishes, so a first read can
+race it. `quickSpeakSentenceHighlightOption` returned 1 on every read including
+that first one, and it is what Apple's own settings row binds to.
+
+### What could NOT be measured, and why
+
+**Speak Screen cannot be invoked in the Simulator.** Three routes were tried on
+2026-08-23 and all three failed, so the next session does not pay for them
+again:
+
+1. The two-finger swipe from the top edge — XCUITest has no arbitrary
+   multi-touch API. (Already recorded in §4.)
+2. The **Speech Controller** (`ShowSpeechController` in the same domain, the
+   floating play button). Set through `-[AXSettings setShowSpeechController:]`,
+   confirmed by read-back, and it never appeared — not on a fresh launch and not
+   after `launchctl stop com.apple.SpringBoard`.
+3. `SpeakThisServices` — the real client API, in
+   `/System/Library/PrivateFrameworks/SpeakThisServices.framework`:
+   `+[SpeakThisServices sharedInstance]`, then
+   `-speakThisWithOptions:errorHandler:` (also `…forAppWithBundleID:` and
+   `…forSceneID:`). Called from inside the frontmost app through
+   `SIMCTL_CHILD_DYLD_INSERT_LIBRARIES`. **The call is accepted — no error
+   handler ever fires — and nothing happens:** no speech, zero changed pixels
+   across ten screenshots, and not one `TEXTINPUT` line, so the protocol was
+   never consumed. The UI server behind it does not run in the Simulator.
+
+Therefore: **UNCONFIRMED on device** that the line he sees is this underline.
+It is the only drawer left once the app's own highlight is excluded in pixels,
+and its default is Underline — but nobody has photographed it.
