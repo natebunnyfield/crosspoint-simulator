@@ -498,3 +498,20 @@ again:
 Therefore: **UNCONFIRMED on device** that the line he sees is this underline.
 It is the only drawer left once the app's own highlight is excluded in pixels,
 and its default is Underline — but nobody has photographed it.
+
+### CLOSED 2026-08-23 — the underline is iOS's, and the owner is keeping it
+
+Owner: *"consider it resolved."*
+
+Recorded so it is not re-investigated. The reported underline under spoken text
+is **iOS's own sentence-highlight style**, not anything this app draws. Our
+selection rects were measured and are correct: full line-box height, contiguous
+band to band, with the bottom edge where UIKit puts an underline for any line
+fragment.
+
+If it ever comes back as a report, the first thing to check is
+**Accessibility > Spoken Content > Highlight Content > Sentence Highlight
+Style** — not our geometry. The path from there to the enum values is in §7
+above.
+
+No code changed for this, and none should.
