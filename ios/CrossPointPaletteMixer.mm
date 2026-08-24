@@ -1,5 +1,19 @@
 // The page-color modal: the four-gun (RGBW) mixer.
 //
+// NOTHING ON THE PHONE OPENS THIS DRAWER, since 2026-08-24. The page-color chip
+// beside POWER was removed from the pad by owner ruling ("remove the color
+// button from single finger (not zen) mode ui"), and the dark page is frozen at
+// the four-gun blend he chose in this very mixer -- P38 at 19, P45 at 88, P20
+// at 17, P22R at 36, which resolves to CFD4CC on 171B1B with a 1095 ms fade
+// (ios/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS FILE: it is still
+// compiled, still correct, and still opened by CROSSPOINT_SIM_OPEN_MIXER for a
+// headless QA run. "For now" is explicitly reversible and this drawer is what
+// there would be to go back to.
+//
+// gunstore::load is frozen to that recipe, so opening it shows the page the
+// owner is looking at; gunstore::save still writes, and nothing reads what it
+// writes while the freeze holds.
+//
 // Owner ruling 2026-08-21: "the mixer ui sucks and doesn't actually mix
 // colors. let's keep it simple and just make a ui for only p22. ignore
 // everything else for now." This file previously held a four-tab table
@@ -237,13 +251,19 @@ NSString *shelfTitleFor(int preset) {
 }  // namespace
 
 // The glow branch for the Custom slot (called from pollPanelGlow). Unchanged
-// contract from the previous UI: any stored mix mode computes through the core.
+// contract from the previous UI: the mix computes through the core.
+//
+// THE `kMixActive` GATE IS GONE, 2026-08-24. The dark page is frozen at a
+// four-gun blend (ios/FrozenPage.h), and ios/PanelPrefs.h says so
+// unconditionally -- so the store's flag no longer decides anything, and
+// reading it here would have answered NO on any install that never touched the
+// mixer: correct tones, dead tube, 0 ms trail. gunstore::load is frozen to the
+// same recipe, so this returns the frozen decay (1095 ms, handing over to a
+// 613B27 tail at 400 ms) without consulting NSUserDefaults at all.
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
                                               bool *hasTail,
                                               float *tailOnsetMs) {
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  if (![d boolForKey:kMixActive]) return false;
   int presets[kGunCount];
   int w[kGunCount];
   gunstore::load(presets, w);

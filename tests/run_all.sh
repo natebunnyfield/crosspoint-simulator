@@ -326,6 +326,22 @@ run sheet_identity \
 run dial_table \
   c++ -std=c++17 -Isrc -o "$OUT/dial_table" tests/dial_table_test.cpp
 
+# THE FROZEN PAGE. Owner ruling 2026-08-24 took the paper and CRT controls out
+# of the app and froze both appearances -- Sanguine on India for light, and for
+# dark the four-gun blend from his own screenshot of the mixer. ios/FrozenPage.h
+# states only the INPUTS and derives every tone from the pure models, which is
+# the right way round but means nothing in the source says what the page looks
+# like: a transposed gun or a wrong weight compiles perfectly, and there is no
+# longer any control on the phone that would show it. This is the third party
+# that compares the derivation against the numbers he read off the mixer's own
+# readout (dark CFD4CC on 171B1B, fade 1095 ms), pins the light page as
+# something OTHER than that blend's light rendition -- confusing the two is the
+# likeliest way to freeze the wrong thing -- and re-derives the 7:1 contrast of
+# both pairs independently of the clamp that chose them. Compiles ios/ directly,
+# which works because FrozenPage.h is plain C++ over src/ models.
+run frozen_page \
+  c++ -std=c++17 -Isrc -Iios -o "$OUT/frozen_page" tests/frozen_page_test.cpp
+
 # S-001's four remaining reversals. Every failure mode there is a stub quietly
 # answering the OPPOSITE of the hardware, which no compile and no screenshot can
 # see -- and the panic latch in particular has to be one-shot or the desktop

@@ -17,30 +17,49 @@
 // neither build needs a new translation unit.
 
 #include "CrossPointPrefs.h"
+#include "FrozenPage.h"
 #include "PadPalette.h"
 #include "PanelPalette.h"
 #include "PanelSource.h"
 
 namespace crosspoint {
 
-// The stored state the page's appearance is decided from, gathered in one
-// place. THE DECISIONS ARE NOT HERE -- they are in src/PanelSource.h, pure and
-// host-tested, because every failure mode is a wrong color on one appearance
-// (owner P1 2026-08-23, "ink is not being picked up ... fix sourcing for light
-// and dark"). This function only fetches; that file only decides.
+// The state the page's appearance is decided from, gathered in one place. THE
+// DECISIONS ARE NOT HERE -- they are in src/PanelSource.h, pure and host-tested,
+// because every failure mode is a wrong color on one appearance (owner P1
+// 2026-08-23, "ink is not being picked up ... fix sourcing for light and dark").
+// This function only supplies; that file only decides.
 //
-// Read live on every call, per frame on the SDL side. Two integer reads and
-// four short strings out of NSUserDefaults is not a cost worth caching, and a
-// cache is the shape that goes stale across an appearance switch.
+// FROZEN 2026-08-24 by owner ruling ("take out paper and crt settings for now.
+// set them to sanguine and india paper and attached image for crt"). It used to
+// read six values out of NSUserDefaults; it now answers from ios/FrozenPage.h
+// and consults the store for NONE of them, which is the same discipline
+// CrossPointPrefs.mm's seven frozen getters follow and is here for the same
+// reason: an install that stored a different ink, stock or recipe before the
+// page-color chip was removed must not keep rendering it, and with no chip
+// there is no way back. The owner's own store held 483835 on F9F5F2 when he
+// ruled, which is neither frozen pair.
+//
+// THE SHAPE IS UNCHANGED, deliberately: a Custom slot with an active mix, which
+// is exactly the state the two drawers produced. So panelFor still resolves
+// each polarity from its own pair and glowPreset still answers kPresetCustom,
+// handing the decay to the mixer -- the whole downstream keeps working and
+// unfreezing this is one function body.
 inline panelsource::Store panelStoreFromPrefs() {
   panelsource::Store s{};
-  s.preset = CrossPointPrefs_panelPalettePreset();
-  for (int d = 0; d < 2; d++) {
-    s.customInk[d] = CrossPointPrefs_panelCustomColor(d, 1);
-    s.customPaper[d] = CrossPointPrefs_panelCustomColor(d, 0);
-  }
-  s.mixActive = CrossPointPrefs_phosphorMixActive() != 0;
-  s.darkSnapshotPreset = CrossPointPrefs_darkSnapshotPreset();
+  s.preset = panelpalette::kPresetCustom;
+  const panelpalette::Palette light = frozenpage::lightPair();
+  const panelpalette::Palette dark = frozenpage::darkPair();
+  s.customInk[0] = static_cast<int>(panelpalette::pack(light.ink));
+  s.customPaper[0] = static_cast<int>(panelpalette::pack(light.paper));
+  s.customInk[1] = static_cast<int>(panelpalette::pack(dark.ink));
+  s.customPaper[1] = static_cast<int>(panelpalette::pack(dark.paper));
+  // The dark page IS a blend, not a named phosphor, so the mixer answers for
+  // its decay (1095 ms, handing over to a 613B27 tail at 400 ms). Without this
+  // glowPreset would fall through to the frozen-phosphor snapshot and the page
+  // would resolve as reflective -- correct tones, dead tube.
+  s.mixActive = true;
+  s.darkSnapshotPreset = panelpalette::kPresetCustom;
   return s;
 }
 

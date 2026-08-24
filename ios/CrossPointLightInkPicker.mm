@@ -3,10 +3,18 @@
 //
 // Doctrine (owner order 2026-08-22): light mode is paper-and-ink emulation
 // with letterpress; dark mode is the CRT and keeps the gun mixer
-// (CrossPointPaletteMixer.mm). The page-color chip branches on the live
-// appearance -- light opens this, dark opens the mixer. Research, the ink and
-// paper tables, and every derived number: docs/light-ink-picker.md; the model
-// itself is pure and host-tested in src/LightInkPalette.h.
+// (CrossPointPaletteMixer.mm). Research, the ink and paper tables, and every
+// derived number: docs/light-ink-picker.md; the model itself is pure and
+// host-tested in src/LightInkPalette.h.
+//
+// NOTHING ON THE PHONE OPENS THIS DRAWER, since 2026-08-24. The page-color chip
+// that branched on the live appearance -- light opened this, dark opened the
+// mixer -- was removed from the pad by owner ruling ("remove the color button
+// from single finger (not zen) mode ui"), and the light page is frozen at
+// Sanguine on India (ios/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS
+// FILE: it is still compiled, still correct, and still opened by
+// CROSSPOINT_SIM_OPEN_INKPICKER for a headless QA run. "For now" is explicitly
+// reversible and this drawer is what there would be to go back to.
 //
 // The UI is three controls, top to bottom:
 //   * the INK LIST -- one row per historical ink: a swatch at the CURRENT
@@ -63,6 +71,7 @@
 #include "CrossPointPresetList.h"
 
 #include "CrossPointPrefs.h"
+#include "FrozenPage.h"
 #include "LightInkPalette.h"
 #include "PanelPalette.h"
 #include "PanelPrefs.h"
@@ -133,37 +142,37 @@ int storedPressurePct(void) { return 100; }
 // surfaces cannot disagree about how marked the sheet is.
 int storedDefectsPct(void) { return CrossPointPrefs_paperDefectsPercent(); }
 
-// Stored selection, clamped through the core so a restored backup from a
-// future build lands on the shipped rows rather than out of bounds. The
-// missing-key trap on the density is the malignant -integerForKey: one: absent
-// answers 0, and 0 here is a real value nobody chose -- a floor-clamped wash.
-// Absent means "never touched", which is full density.
+// THE WHOLE SELECTION IS FROZEN, 2026-08-24 (owner ruling: "take out paper and
+// crt settings for now. set them to sanguine and india paper"). The ink, the
+// stock, the density and the paper strength are ios/FrozenPage.h's, and NONE of
+// them is read from NSUserDefaults -- the same discipline the sheet's seven
+// parameters above already follow, and now for the same reason applied to the
+// three keys that had survived it: the page-color chip is gone from the pad, so
+// nothing on the phone opens this drawer, and an install holding a different
+// ink or stock would render it forever with no control that could change it.
 //
-// The paper strength is not stored at all any more: the request is the frozen
-// constant, and it still runs through clampPaperStrengthPct because that clamp
-// is what holds 7:1 against the chosen ink and stock. The owner's own screen
-// read "100% (max 100%)" -- the clamped result, not the request.
+// The three keys stay named above and applySelection still writes them. Nothing
+// reads them meanwhile; keeping the write is what makes unfreezing this one
+// function body.
 //
-// The two clamps run in the order the invariant needs: the paper strength is
-// pinned to its ceiling for the STORED density first, then the density to its
-// floor at the resulting strength.
+// THE CLAMPS ARE STILL RUN, and that is the load-bearing part: they are what
+// holds the 7:1 legibility floor against the chosen ink and stock, so the
+// frozen page is a page that passes rather than a pair of hex values that
+// happened to look right. Both carry the DRIFT dial -- the floor has to hold
+// for the darkest leaf the drift can produce, not for the nominal sheet, and
+// with drift frozen at the top of its range that is every page rather than a
+// worst case. They run in the order the invariant needs: the paper strength is
+// pinned to its ceiling for the requested density first, then the density to
+// its floor at the resulting strength. Sanguine on India clears both untouched
+// (100% at max 100%, full density), which is exactly what a frozen selection
+// should do and not something to assume: FrozenPage.h does the clamping and
+// this reads the result.
 void loadSelection(int *ink, int *paper, int *density, int *paperStrength) {
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  *ink = lightink::clampInkIndex((int)[d integerForKey:kInkIndexKey]);
-  *paper = lightink::clampPaperIndex((int)[d integerForKey:kPaperIndexKey]);
-  id storedDensity = [d objectForKey:kInkDensityKey];
-  const int rawDensity = storedDensity ? (int)[d integerForKey:kInkDensityKey]
-                                       : lightink::kDensityMax;
-  // BOTH CLAMPS CARRY THE DRIFT DIAL. The floor has to hold for the darkest
-  // leaf the drift can produce, not for the nominal sheet -- a pair clamped
-  // without it sits exactly ON 7.0 and the next leaf two code values darker is
-  // under it. With drift frozen at the top of its range that is no longer a
-  // worst case, it is every page.
-  const int drift = storedDriftPct();
-  *paperStrength = lightink::clampPaperStrengthPct(
-      *ink, *paper, rawDensity, kFrozenPaperStrengthPct, drift);
-  *density = lightink::clampDensityPct(*ink, *paper, rawDensity,
-                                       *paperStrength, drift);
+  const frozenpage::LightSelection s = frozenpage::lightSelection();
+  *ink = s.ink;
+  *paper = s.paper;
+  *density = s.density;
+  *paperStrength = s.paperStrength;
 }
 
 // The sheet's roughness for this selection, as the percent SimulatorOverlay

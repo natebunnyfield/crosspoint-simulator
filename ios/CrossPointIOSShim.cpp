@@ -175,17 +175,28 @@ constexpr int kPadCount = 7;
 // tapping the page do the same thing; the chip exists to say so.
 SDL_FRect g_kbChip{};
 
-// The page-color button, beside POWER. Like the keyboard chip it is NOT a
-// PadButton and not in g_pad: it presses no hardware button. Unlike that one it
-// is drawn ALWAYS, because changing the page color is not tied to any firmware
-// state.
+// THE PAGE-COLOR BUTTON IS GONE, 2026-08-24. Owner ruling: "remove the color
+// button from single finger (not zen) mode ui."
 //
-// Owner ruling 2026-08-17, after a first version that opened a modal picker and
-// painted itself with the live palette: "it should be a button the same size and
-// styling as power, not colored itself. it cycles through the available colors
-// in the order that they appear in page colors setting." So one press, one step
-// along the list -- see cycleToNextPalette().
-SDL_FRect g_paletteChip{};
+// It sat beside POWER on the phone and in the tablet pad's empty column, was
+// drawn ALWAYS (changing the page color was tied to no firmware state), and a
+// tap or a hold opened the light-mode ink picker or the dark-mode gun mixer
+// depending on the live appearance. Its layout, its paint, its hit test and its
+// synthetic-tap hatch all left with it; the two drawers did NOT -- they are
+// whole and still reachable from CROSSPOINT_SIM_OPEN_INKPICKER /
+// CROSSPOINT_SIM_OPEN_MIXER, because "for now" is reversible and the page it
+// used to edit is frozen rather than gone (ios/FrozenPage.h).
+//
+// DO NOT CONFUSE IT WITH THE KEYBOARD CHIP ABOVE, which stays. That one is the
+// only way to put the iPhone's software keyboard away -- an off-pad tap does
+// nothing and iPhone's keyboard carries no dismiss key of its own -- so
+// removing it would trap a reader in a text field with 40% of the screen gone.
+// They were told apart by what each is gated on and what each does: the
+// keyboard chip draws and hit-tests only while `gpio.isTextEntryActive()`, is
+// centered in the bottom row, carries a chevron glyph, and toggles
+// `setHostKeyboardVisible`; the color button was unconditional, sat in column 1
+// beside POWER, was a bare unmarked capsule, and called
+// CrossPointMixer_present() / CrossPointInkPicker_present().
 
 bool g_padLaidOut = false;
 
@@ -473,9 +484,9 @@ void layoutPadTablet(float W, float H, float S) {
           W - (rightX + 2.0f * cell));
 
   place(kPadPower, leftX, lowerY, cell, half);
-  // Beside POWER, in the column the tablet pad leaves empty between the power
-  // key and the rocker on the far side.
-  g_paletteChip = {(leftX + cell) * S, lowerY * S, cell * S, half * S};
+  // The page-color button used to take the column beside POWER here. Removed
+  // 2026-08-24; that column is empty again, which is what it was before the
+  // button existed.
   // THE SIDE ROCKER STAYS. Retired on 2026-08-19 under "for ipad iphone and all
   // devices, lose the side button ui", and RESTORED the same day when the owner
   // saw it missing: he had called this control "the critically important side
@@ -686,10 +697,10 @@ void layoutPad(int outW, int outH) {
   // full-height rocker beside it instead of floating in the middle of the row.
   const float kPowerH = SDL_roundf(kCellH / 2.0f / 8.0f) * 8.0f;
   place(kPadPower, colX(0), lowerY + (kCellH - kPowerH), kSquare, kPowerH);
-  // Column 1, hanging from the same baseline as POWER so the pair reads as a
-  // row rather than two floating controls.
-  g_paletteChip = {colX(1) * S, (lowerY + (kCellH - kPowerH)) * S, kSquare * S,
-                   kPowerH * S};
+  // The page-color button used to hang from POWER's baseline in column 1.
+  // Removed 2026-08-24; column 1 is empty again, which is what it was before
+  // the button existed. POWER is unchanged -- it keeps its half height and its
+  // bottom-edge hang, which is a ruling of its own (see above).
   // The side rocker, restored 2026-08-19 -- see the note in the phone layout.
   place(kPadUp, colX(cols - 2), lowerY, kSquare, kCellH);
   place(kPadDown, colX(cols - 1), lowerY, kSquare, kCellH);
@@ -1737,11 +1748,15 @@ void pollPanelPalette() {
   // activity exists.
   crosspointRequestRender();
 
-  SDL_Log("[harness] panel palette (%s) -> preset %d, ink %02X%02X%02X, "
+  // THE STORED PRESET IS NO LONGER PART OF THE ANSWER, so it is no longer
+  // logged: since 2026-08-24 both pages are frozen (ios/FrozenPage.h) and
+  // panelStoreFromPrefs consults NSUserDefaults for nothing. Printing the
+  // stored integer beside tones it did not decide is exactly the kind of log
+  // line that costs an investigation.
+  SDL_Log("[harness] panel palette (%s) -> frozen, ink %02X%02X%02X, "
           "paper %02X%02X%02X",
-          g_dark ? "dark" : "light", CrossPointPrefs_panelPalettePreset(),
-          panel.ink[0], panel.ink[1], panel.ink[2], panel.paper[0],
-          panel.paper[1], panel.paper[2]);
+          g_dark ? "dark" : "light", panel.ink[0], panel.ink[1], panel.ink[2],
+          panel.paper[0], panel.paper[1], panel.paper[2]);
 }
 
 // THE FIRST FRAMES AFTER A FOREGROUND RETURN ARE THROWN AWAY, so keep asking.
@@ -2008,31 +2023,14 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
 // chip's cycling with the mixer modal (CrossPointPaletteMixer.mm) for both tap
 // and hold, so the ring-stepping function is gone with its callers. The 500 ms
 // hold threshold went with it.
-
-// The page-color button. IDENTICAL TO POWER: same size, same stroke, same
-// hollow face, and NO MARK ON IT AT ALL.
 //
-// "Same styling as power" means the same styling as POWER, which is a blank
-// capsule. This was got wrong twice -- first by filling the button with the live
-// palette, then, after that was rejected, by adding a monochrome half-disc to
-// "tell it apart". Neither was asked for. The pad is wordless and markless by
-// design; every control on it is a bare capsule and position is what identifies
-// them. Owner, third time: "remove color button icon".
-//
-// If it ever seems to need a glyph, that is a question for the owner, not a
-// thing to add.
-void paintPaletteChip(SDL_Renderer *r, const Palette &p, float radius,
-                      float hairline) {
-  const SDL_FRect &c = g_paletteChip;
-  if (c.w <= 0 || c.h <= 0) return;
-
-  setRGB(r, p.hairline);
-  fillRoundRect(r, c, radius);
-  setRGB(r, p.face);
-  fillRoundRect(r, {c.x + hairline, c.y + hairline, c.w - 2 * hairline,
-                    c.h - 2 * hairline},
-                radius - hairline);
-}
+// paintPaletteChip() lived here until 2026-08-24, when the button itself was
+// removed ("remove the color button from single finger (not zen) mode ui"). It
+// drew a bare unmarked capsule identical to POWER -- which was itself a ruling
+// taken three times, the last being "remove color button icon", after versions
+// that filled it with the live palette and then added a half-disc to tell it
+// apart. Recorded because it is the answer to "should the button get a glyph"
+// if it ever comes back: no, and it was asked and answered.
 
 void paintKeyboardChip(SDL_Renderer *r, const Palette &p, float radius,
                        float hairline) {
@@ -2352,20 +2350,10 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   }
 
   paintKeyboardChip(r, p, radius, hairline);
-  paintPaletteChip(r, p, radius, hairline);
 }
 
-// The chip is not in g_pad -- it presses no hardware button -- so it needs its
-// own test. ALWAYS live outside zen (the "only while a field is open" that
-// stood here described the keyboard chip below, not this one); zen never
-// reaches it, because zen's finger-down breaks before the tap candidate is
-// set and the chip test is gated on that candidate.
-bool hitPaletteChip(float x, float y) {
-  const SDL_FRect &c = g_paletteChip;
-  return c.w > 0 && c.h > 0 && x >= c.x && x < c.x + c.w && y >= c.y &&
-         y < c.y + c.h;
-}
-
+// hitPaletteChip() went with the button on 2026-08-24. The keyboard chip's own
+// test below is a different control and stays -- see the note at g_kbChip.
 bool hitKeyboardChip(float x, float y) {
   if (!gpio.isTextEntryActive()) return false;
   const SDL_FRect &c = g_kbChip;
@@ -2541,7 +2529,10 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // tap; fingerUp answers false for it and clears either way — no exit
         // path may leave the candidate latched (audit #1).
         const float candX = g_tapCand.downX(), candY = g_tapCand.downY();
-        const Uint64 candAt = g_tapCand.downMs();
+        // The down TIMESTAMP had one reader, the page-color chip's log line,
+        // and left with the chip on 2026-08-24. The candidate itself still
+        // records it -- a tap is down + up without movement however long the
+        // hold, so nothing here needs a duration.
         if (g_tapCand.fingerUp(e->tfinger.fingerID,
                                e->type == SDL_EVENT_FINGER_CANCELED)) {
           // ONLY THE CHIP TOGGLES THE KEYBOARD. A tap anywhere else does not,
@@ -2556,23 +2547,15 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // down, adjusting a grip, or resting a thumb threw the keyboard back
           // up over the page. A control that fires when you touch nothing in
           // particular is not a control.
-          if (hitPaletteChip(candX, candY)) {
-            // TAP AND HOLD BOTH OPEN THE MODAL (owner ruling 2026-08-20:
-            // "Both open the modal"). This supersedes the 2026-08-17 cycling
-            // ruling -- stepping the ring moved into the modal's Presets tab.
-            // WHICH modal is the live appearance's (owner order 2026-08-22):
-            // dark is the CRT and keeps the gun mixer; light is paper-and-ink
-            // and opens the historical-ink picker. g_dark rather than the
-            // system appearance, because g_dark is what the page is actually
-            // rendering (the darkMode setting can override the system).
-            SDL_Log("[palette] chip -> %s (%llu ms)",
-                    g_dark ? "mixer" : "ink picker",
-                    static_cast<unsigned long long>(SDL_GetTicks() - candAt));
-            if (g_dark)
-              CrossPointMixer_present();
-            else
-              CrossPointInkPicker_present();
-          } else if (hitKeyboardChip(candX, candY)) {
+          // THE PAGE-COLOR CHIP'S BRANCH WAS HERE until 2026-08-24 ("remove the
+          // color button from single finger (not zen) mode ui"). A tap or a
+          // hold opened the live appearance's drawer -- the gun mixer in dark,
+          // the historical-ink picker in light. Both drawers still exist and
+          // both pages are frozen (ios/FrozenPage.h); what is gone is the way
+          // in. A tap that lands where the button used to be now falls through
+          // to the read-aloud word tap, which is what an empty part of the pad
+          // band has always done.
+          if (hitKeyboardChip(candX, candY)) {
             gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
             SimulatorOverlay::requestPresent();
           } else
@@ -2861,36 +2844,13 @@ void CrossPointHarness_perFrame() {
     }
     if (s_selectPresetCountdown > 0 && --s_selectPresetCountdown == 0)
       CrossPointPresetList_selectForTest(s_selectPreset);
-    // CROSSPOINT_SIM_TAP_CHIP=1: the FULL finger path, not just the modal --
-    // synthesizes SDL_EVENT_FINGER_DOWN/UP at the chip's center, so padWatch,
-    // hitPaletteChip and the whole tap branch run exactly as a thumb runs them.
-    // Exists because the auto-open above reproduced nothing while the device
-    // crash was reported against the tap.
-    static int s_tapChipCountdown = -2;
-    if (s_tapChipCountdown == -2) {
-      const char *e = std::getenv("CROSSPOINT_SIM_TAP_CHIP");
-      s_tapChipCountdown = (e && e[0] == '1') ? 150 : -1;
-    }
-    if (s_tapChipCountdown > 0 && --s_tapChipCountdown == 0 &&
-        g_paletteChip.w > 0) {
-      float outW = 0, outH = 0;
-      if (windowPixelSize(g_windowId, &outW, &outH)) {
-        const float cx = (g_paletteChip.x + g_paletteChip.w / 2) / outW;
-        const float cy = (g_paletteChip.y + g_paletteChip.h / 2) / outH;
-        SDL_Log("[mixer] diagnostic chip tap at %.3f,%.3f", cx, cy);
-        SDL_Event down{};
-        down.type = SDL_EVENT_FINGER_DOWN;
-        down.tfinger.touchID = 99;
-        down.tfinger.fingerID = 99;
-        down.tfinger.x = cx;
-        down.tfinger.y = cy;
-        down.tfinger.windowID = g_windowId;
-        SDL_PushEvent(&down);
-        SDL_Event up = down;
-        up.type = SDL_EVENT_FINGER_UP;
-        SDL_PushEvent(&up);
-      }
-    }
+    // CROSSPOINT_SIM_TAP_CHIP LEFT WITH THE BUTTON, 2026-08-24. It synthesized
+    // a finger down/up at the page-color chip's center so padWatch,
+    // hitPaletteChip and the whole tap branch ran exactly as a thumb ran them
+    // -- it existed because a device crash was reported against that tap and
+    // the auto-open below reproduced nothing. With no chip there is no center
+    // to aim at; the two auto-opens above still present each drawer, which is
+    // what a headless run of either one needs.
     // CROSSPOINT_SIM_TAP_PAD=<BUTTON NAME, e.g. BACK>: one synthetic finger
     // tap on that pad button, down ~2.5 s after launch and up 12 frames later.
     // The FULL finger path -- padWatch, padHitTest, PadCore, applyActions --
