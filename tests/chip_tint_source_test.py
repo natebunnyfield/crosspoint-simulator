@@ -116,8 +116,66 @@ check(
     "pad palette passed to it",
 )
 
+# 8. THE KEYBOARD CHIP STILL EXISTS -- draws, hit-tests, and toggles.
+#
+#    Widening, 2026-08-24. This file was about the two chips' TONES; it gains
+#    one about the keyboard chip's EXISTENCE, because that day the OTHER chip
+#    was removed from the pad (owner: "remove the color button from single
+#    finger (not zen) mode ui") and the two sat forty lines apart in the same
+#    three functions -- the layout, the paint and the finger-up branch. Taking
+#    the wrong one is a small edit that compiles, links and passes everything
+#    here, and its cost is a reader stuck in a text field with 40% of the
+#    screen gone: an off-pad tap does nothing by deliberate ruling, and the
+#    iPhone keyboard carries no dismiss key of its own, so this chip is the
+#    only way back. A comment saying "do not confuse these" is what stood in
+#    the way before, and a comment is not a control.
+for needle, what in (
+    ("g_kbChip", "the chip's own rect"),
+    ("void paintKeyboardChip(", "its paint"),
+    ("bool hitKeyboardChip(", "its hit test"),
+    ("paintKeyboardChip(r, p, radius, hairline);", "the paint being CALLED"),
+    ("hitKeyboardChip(candX, candY)", "the hit test being CALLED on finger-up"),
+    ("const bool want = !gpio.isHostKeyboardVisible();", "the TOGGLE's flip"),
+    ("gpio.setHostKeyboardVisible(want);", "the TOGGLE's push"),
+):
+    check(
+        needle in shim,
+        f"{SHIM.name} has lost {what} ({needle!r}). The keyboard chip is the "
+        "only way to dismiss the iPhone software keyboard -- an off-pad tap "
+        "does nothing by ruling, and iPhone's keyboard has no dismiss key -- "
+        "so removing it traps a reader in a text field.",
+    )
+check(
+    "if (!gpio.isTextEntryActive()) return;" in shim,
+    f"{SHIM.name}'s paintKeyboardChip no longer gates on an open field. That "
+    "gate is what distinguishes it from the removed page-color button, which "
+    "drew unconditionally (owner ruling 2026-08-10: the chip appears only "
+    "while the feature is in play).",
+)
+
+# 9. ...and the PAGE-COLOR button does not. Removed 2026-08-24; the drawers it
+#    opened are deliberately intact and unreachable, so a chip that comes back
+#    must be a conscious act rather than a merge. Same shape as
+#    panel_palette_test.py asserting `presentFlash` absent from Root.plist.
+#    Checked on the shim with its COMMENTS STRIPPED, because the prose that
+#    records why the button went -- and that it must not be confused with the
+#    chip beside it -- names it several times, and a guard satisfied by deleting
+#    that explanation is worse than no guard.
+shim_code = "\n".join(
+    line for line in shim.splitlines() if not line.lstrip().startswith("//")
+)
+check(
+    "g_paletteChip" not in shim_code and "PaletteChip" not in shim_code,
+    f"{SHIM.name} declares or uses g_paletteChip in CODE. The page-color "
+    "button was removed by owner ruling 2026-08-24 ('remove the color button "
+    "from single finger (not zen) mode ui'); bringing it back is a ruling, not "
+    "a cleanup. The drawers it opened are still whole -- unfreeze "
+    "src/FrozenPage.h and re-add the entry point together, or the button opens "
+    "editors whose sliders move nothing.",
+)
+
 if failures:
     for f in failures:
         print(f"FAIL {f}", file=sys.stderr)
     sys.exit(1)
-print("chip tint source: one definition, both chips")
+print("chip tint source: one definition, and only the keyboard chip is left")
