@@ -559,26 +559,26 @@ int CrossPointPrefs_showThroughPercent(void) { return 100; }
 // interesting range to offer. 100 = a corner spot 1.45x the centre's, an
 // astigmatism ratio of 1.23.
 //
-// TEMPORARY OVERRIDE, added 2026-08-23 by owner ruling ("decide it on device
-// first"): the effect measures SUB-CODE-VALUE on this app's rasters -- the
-// corner loses 41% of its depth while the whole frame deviates by 1.0 code
-// value -- so no honest screenshot can settle whether it is visible, and both
-// of us would be guessing from numbers. This reads a defaults key so the owner
-// can flip it in place on the phone rather than waiting on a build per arm:
+// TEMPORARY ROW, added 2026-08-23 by owner ruling ("decide it on device
+// first"). The effect measures SUB-CODE-VALUE on this app's rasters -- the
+// corner loses 41% of its raster depth while the whole frame deviates by 1.0
+// code value -- so no screenshot can settle whether it is visible and both of
+// us would be guessing from numbers.
 //
-//   xcrun simctl spawn booted defaults write <container> cornerDefocusOverride -int 0
+// It is a Settings ROW and not a defaults key, because the first attempt was a
+// defaults key: unusable on a TestFlight build, where the owner has no shell.
+// A probe he cannot reach is not a probe. The lesson generalises -- an
+// on-device question needs an on-device control.
 //
-// or, on a device, whatever writes that key. An ABSENT key keeps the shipped
-// 100, so this changes nothing for anyone who does not set it. Delete this
-// whole branch once the question is answered -- it is a probe, not a setting,
-// and it should not outlive the decision.
+// DELETE THE ROW AND THIS BRANCH once the question is answered. It is a
+// comparison, not a setting, and it should not outlive the decision. An absent
+// key reads as ON, so an install that never opens Settings keeps the shipped
+// value.
 int CrossPointPrefs_cornerDefocusPercent(void) {
-  NSNumber *probe = [[NSUserDefaults standardUserDefaults]
-      objectForKey:@"cornerDefocusOverride"];
-  if ([probe isKindOfClass:[NSNumber class]]) {
-    const int pct = probe.intValue;
-    return pct < 0 ? 0 : (pct > 200 ? 200 : pct);
-  }
+  ensureDefaults();
+  NSNumber *v = [[NSUserDefaults standardUserDefaults]
+      objectForKey:@"cornerDefocusEnabled"];
+  if ([v isKindOfClass:[NSNumber class]] && !v.boolValue) return 0;
   return 100;
 }
 

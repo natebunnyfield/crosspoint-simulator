@@ -181,9 +181,13 @@ OF A PERIODIC FIELD, and the eye integrates a repeating structure differently
 than it does an isolated pixel. So the numbers argue both ways and the owner
 ruled to decide it on the phone instead.
 
-**The probe.** `CrossPointPrefs_cornerDefocusPercent` reads a
-`cornerDefocusOverride` defaults key when one is present, so the two arms can be
-compared in place without a build each. An absent key keeps the shipped 100.
+**The probe is a Settings row**, `Screen Test > Corner Defocus`, default on.
+
+It was a `defaults` key first, and that was a mistake worth recording: on a
+TestFlight build the owner has no shell, so the probe could not be reached by
+the one person whose eyes the question needed. **An on-device question needs an
+on-device control.** The row costs a line in a Settings screen that spent the
+same day being emptied, and it is labelled temporary in its own footer.
 
 **It is a probe, not a setting.** Delete the branch once the question is
 answered. Its cost is real -- roughly **+42 ms per dark page turn on a phone**,
