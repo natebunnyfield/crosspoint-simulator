@@ -23,9 +23,9 @@
 // behind the half-height sheet is the preview. Preset selection stays in
 // Settings.app; this modal is only the mixer.
 //
-// Storage: phosphorGunAssign is the new CSV of four assigned preset ints;
-// phosphorMixBlend stays the mix of record, the same "preset:weight" CSV as
-// before (weight-0 guns included) -- so a mix built here reads back on the
+// Storage: ios/GunStore.h. phosphorGunAssign is the CSV of four assigned preset
+// ints; phosphorMixBlend stays the mix of record, the same "preset:weight" CSV
+// as before (weight-0 guns included) -- so a mix built here reads back on the
 // desktop through settings.json exactly as before, and old stored mixes from
 // the removed UI still compute (the core kept every mode; only the UI
 // narrowed).
@@ -47,6 +47,7 @@
 #include "CrossPointPresetList.h"
 
 #include "GunMixCsv.h"
+#include "GunStore.h"
 #include "PanelPalette.h"
 #include "PhosphorMix.h"
 #include "SimulatorOverlay.h"
@@ -59,10 +60,12 @@ void crosspointRequestRender();
 extern "C" void CrossPointMixer_glowChanged(void);
 
 // --- persistence (same keys as the removed UI and the desktop) --------------
-static NSString *const kMixMode = @"phosphorMixMode";
-static NSString *const kMixBlend = @"phosphorMixBlend";   // "11:w,40:w,24:w,21:w"
+// THE TWO GUN KEYS ARE NOT NAMED HERE ANY MORE. They moved to ios/GunStore.h
+// on 2026-08-23, when preset selection gained a second, legitimate reason to
+// write them (it seeds the guns to match the preset chosen). One reader and one
+// writer for that pair, in a file that decides nothing -- the lesson of the
+// same day's P1.
 static NSString *const kMixActive = @"phosphorMixActive";
-static NSString *const kGunAssign = @"phosphorGunAssign"; // "11,40,24,21"
 // THE LIGHT PAGE'S TWO KEYS ARE DELIBERATELY NOT NAMED IN THIS FILE, and
 // tests/panel_source_test.py fails if they come back. This is DARK mode's
 // editor (2026-08-22 doctrine, docs/light-ink-picker.md); writing the light
@@ -82,21 +85,16 @@ static_assert(kGunCount == gunmix::kGunCount,
 // The channel labels: the industry-standard four-emitter scheme.
 constexpr const char *kGunLabel[kGunCount] = {"R", "G", "B", "W"};
 
-// Default assignments. Preset integers pinned by name in PanelPalette.h.
-constexpr int kDefaultGunPreset[kGunCount] = {
-    panelpalette::kPresetRedCrt,    // P22R
-    panelpalette::kPresetP22GCrt,   // P22G
-    panelpalette::kPresetBlueTvCrt, // P22B
-    panelpalette::kPresetWhiteCrt}; // P45
-
-// Default weights. W ships at 0 so a fresh open matches the three-gun build.
-constexpr int kDefaultGunWeight[kGunCount] = {50, 50, 50, 0};
-
 // Slider range. 0 = that gun off (component omitted); the core clamps weights
 // below 1, so omission is the only honest zero.
 constexpr int kWeightMax = 100;
 static_assert(kWeightMax == gunmix::kWeightMax,
               "the slider's ceiling and the codec's clamp must agree");
+
+// The channel scheme and its shipped starting recipe live in the core now
+// (phosphormix::kDefaultGunPreset / kDefaultGunWeight), because seedForPreset
+// has to be able to fill a slot the store cannot supply and a second copy of a
+// default set is a second opinion about what an unwritten key means.
 
 // Samples along a gradient track. The mix is smooth in the weight, so 16
 // stops interpolated by CoreGraphics are indistinguishable from per-pixel.
@@ -134,27 +132,6 @@ NSString *hexOf(const unsigned char c[3]) {
   return [NSString stringWithFormat:@"%02X%02X%02X", c[0], c[1], c[2]];
 }
 
-// Current gun assignments + weights from the store, through the pure codec
-// (src/GunMixCsv.h, host-tested). Assignments come from phosphorGunAssign and
-// must be EXACTLY four valid mixable presets or the whole set falls back to
-// the defaults -- half a stored assignment is a foreign recipe. Weights come
-// from phosphorMixBlend POSITIONALLY: pair g belongs to gun g, with each
-// pair's preset cross-checked against the assignment. Never matched by
-// preset -- two guns may share a phosphor (owner bug report 2026-08-22:
-// "duplicated guns"), and a by-preset lookup collapsed both onto whichever
-// shared pair parsed last, destroying one gun's weight on every load.
-void loadGuns(int presets[kGunCount], int w[kGunCount]) {
-  for (int g = 0; g < kGunCount; g++) {
-    presets[g] = kDefaultGunPreset[g];
-    w[g] = kDefaultGunWeight[g];
-  }
-  NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  NSString *assign = [d stringForKey:kGunAssign];
-  if (assign.length) gunmix::parseAssign(assign.UTF8String, presets);
-  NSString *csv = [d stringForKey:kMixBlend];
-  if (csv.length) gunmix::parseWeights(csv.UTF8String, presets, w);
-}
-
 phosphormix::Result computeGuns(const int presets[kGunCount],
                                 const int w[kGunCount]) {
   phosphormix::Component comps[kGunCount];
@@ -179,9 +156,7 @@ phosphormix::Result computeGuns(const int presets[kGunCount],
 void applyGuns(const int presets[kGunCount], const int w[kGunCount],
                bool renderPage) {
   NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-  [d setObject:@(gunmix::encodeAssign(presets).c_str()) forKey:kGunAssign];
-  [d setObject:@(gunmix::encodeBlend(presets, w).c_str()) forKey:kMixBlend];
-  [d setInteger:phosphormix::Blend forKey:kMixMode];
+  gunstore::save(presets, w);
 
   // CLAIM THE CUSTOM SLOT FOR DARK, which freezes LIGHT first.
   //
@@ -271,7 +246,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
   if (![d boolForKey:kMixActive]) return false;
   int presets[kGunCount];
   int w[kGunCount];
-  loadGuns(presets, w);
+  gunstore::load(presets, w);
   const phosphormix::Result r = computeGuns(presets, w);
   *trailMs = r.trailMs;
   *hasTail = r.hasTail;
@@ -343,7 +318,7 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                                       target:self
                                       action:@selector(showPresets)];
 
-  loadGuns(_presets, _w);
+  gunstore::load(_presets, _w);
 
   UIFont *mono = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightSemibold];
   UIFont *monoS = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
@@ -668,35 +643,83 @@ extern "C" bool CrossPointMixer_isPresented(void) {
 }
 
 // The shared named-preset list. DARK previews, because this is dark mode's
-// editor and the page behind the sheet is the dark page; every preset is
-// offered, since each defines both appearances and this list is the only place
-// any of them is reachable now.
+// editor and the page behind the sheet is the dark page; every preset it
+// offers is a phosphor, since a paper row belongs to the ink picker.
 //
-// A selection clears the mix flag (the shared release protocol), so
-// the guns below stop owning the page -- and moving one afterwards claims the
-// slot back through applyGuns, freezing the light page at the preset's own
-// light pair. Both directions are the shared protocol; neither is special-cased
-// here.
+// A selection clears the mix flag (the shared release protocol), so the guns
+// below stop owning the page -- and moving one afterwards claims the slot back
+// through applyGuns, freezing the light page at the preset's own light pair.
+// Both directions are the shared protocol; neither is special-cased here.
+//
+// IT ALSO SEEDS THE GUNS to the preset (owner 2026-08-23, "selecting a preset
+// should set the guns' values too"), so this controller must RE-READ the store
+// rather than trust the arrays it loaded in viewDidLoad. Nothing here decides
+// what the seed is -- CrossPointPrefs_selectPanelPreset has already written it
+// by the time the block runs, and phosphormix::seedForPreset decided it.
 - (void)showPresets {
   __weak CPXGunMixerController *weakSelf = self;
   UIViewController *list = CrossPointPresetList_make(/*dark=*/YES, ^{
-    // The gun weights are untouched and are no longer what the page shows.
-    [weakSelf refresh];
+    [weakSelf reloadGunsFromStore];
   });
   [self.navigationController pushViewController:list animated:YES];
+}
+
+// The store moved under us. Sliders, menus, gradients and readout all follow
+// the two arrays, so every one of them is stale until this runs -- and a
+// selection that left the guns alone (a cascade premix) must move nothing,
+// which falls out of simply reading what is there.
+- (void)reloadGunsFromStore {
+  gunstore::load(_presets, _w);
+  for (int g = 0; g < kGunCount; g++) {
+    _slider[g].value = _w[g];
+    [self applyAssignment:g];
+  }
+  [self refresh];
+  [self rebuildTrackGradients:-1];
 }
 
 - (void)dismissSelf {
   [self dismissViewControllerAnimated:YES completion:nil];
 }
 
-// The nav never pushes a second controller, so disappearing means DISMISSED —
-// Done is the only exit (modalInPresentation pins pull-down). Cleared here
-// rather than in dismissSelf so any dismissal path UIKit ever grows also
-// clears the flag.
+// THE FLAG MEANS "A PAGE-COLOR SHEET IS COVERING THE SDL VIEW", and a PUSH is
+// not the end of one.
+//
+// What used to stand here said "the nav never pushes a second controller, so
+// disappearing means DISMISSED". The Presets list falsified that the same day
+// it was written (owner 2026-08-23, "add a Presets row back to the pickers"),
+// and the consequence is not cosmetic: UIKit sends viewDidDisappear: to this
+// controller when the list is pushed ON TOP of it, so the gate was cleared
+// while the sheet was still on screen and never came back. The sheet is an
+// undimmed medium detent, which means UIKit passes every touch OUTSIDE it
+// straight through to SDL -- so from the moment Presets was tapped, a tap on
+// the page above turned it, a swipe drove font size and a three-finger tap
+// toggled zen, all while the owner believed he was in a color picker. Five
+// call sites read this (CrossPointIOSShim.cpp's finger paths,
+// CrossPointZenRecognizers.mm's three recognizers).
+//
+// So: reassert on every appearance -- a pop back from the list is one -- and
+// clear only when this controller is LEAVING the stack rather than being
+// covered by something pushed onto it. The sheet cannot be dismissed while the
+// list is up (modalInPresentation pins pull-down and the list carries no Done),
+// so "top of the stack" is the whole distinction.
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+  g_mixerPresented.store(true);
+  SDL_Log("[mixer] on screen; touch gate UP");
+}
+
 - (void)viewDidDisappear:(BOOL)animated {
   [super viewDidDisappear:animated];
+  UINavigationController *nav = self.navigationController;
+  if (nav && nav.topViewController != self) {
+    // Covered by a push, not dismissed. Logged because the failure it replaces
+    // was invisible: nothing said the gate had dropped.
+    SDL_Log("[mixer] covered by a push; touch gate HELD");
+    return;
+  }
   g_mixerPresented.store(false);
+  SDL_Log("[mixer] dismissed; touch gate released");
 }
 
 - (void)gunMoved:(UISlider *)s {
@@ -735,11 +758,35 @@ extern "C" bool CrossPointMixer_isPresented(void) {
   // still a valid recipe and is simply not what is on screen, so the readout
   // says which -- a drawer describing a page it no longer owns is the lie
   // S-020 shipped.
-  const panelpalette::PresetInfo *live =
-      panelpalette::infoForPreset(CrossPointPrefs_panelPalettePreset());
+  //
+  // Since 2026-08-23 a selection also SEEDS the guns, so the second line says
+  // whether they hold that preset. MEASURED against the arrays rather than
+  // assumed from seed.apply: the two agree today, and a readout that trusts
+  // its own reasoning instead of the store is the exact shape of the bug this
+  // whole area was rewritten for. The three presets a blend cannot be -- the
+  // P7 / P14 / P17 cascades -- say so instead of pretending.
+  const int livePreset = CrossPointPrefs_panelPalettePreset();
+  const panelpalette::PresetInfo *live = panelpalette::infoForPreset(livePreset);
+  NSString *presetLine = nil;
+  if (live) {
+    const phosphormix::GunSeed seed =
+        phosphormix::seedForPreset(livePreset, _presets);
+    bool seeded = seed.apply;
+    for (int g = 0; g < kGunCount && seeded; g++)
+      seeded = _presets[g] == seed.preset[g] && _w[g] == seed.weight[g];
+    presetLine =
+        seeded
+            ? [NSString stringWithFormat:@"Preset %s — the guns are set to it\n"
+                                         @"move one to take over",
+                                         live->name]
+            : [NSString stringWithFormat:@"Preset %s — %s\nthe guns keep their "
+                                         @"own recipe",
+                                         live->name,
+                                         phosphormix::seedReasonText(seed.reason)];
+  }
   _readout.text =
-      live ? [NSString stringWithFormat:@"Preset %s — %s\nmove a gun to take over",
-                                        live->name, live->note ? live->note : ""]
+      presetLine
+           ? presetLine
            : [NSString
                  stringWithFormat:
                      @"dark %@ on %@ · light %@ on %@\nfade %.0f ms · track: "
@@ -812,7 +859,7 @@ extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b, int w) {
   int weights[kGunCount] = {
       MAX(0, MIN(kWeightMax, r)), MAX(0, MIN(kWeightMax, g)),
       MAX(0, MIN(kWeightMax, b)), MAX(0, MIN(kWeightMax, w))};
-  applyGuns(kDefaultGunPreset, weights, /*renderPage=*/true);
+  applyGuns(phosphormix::kDefaultGunPreset, weights, /*renderPage=*/true);
   SDL_Log("[mixer] test hook applied guns %d/%d/%d/%d", weights[0], weights[1],
           weights[2], weights[3]);
 }

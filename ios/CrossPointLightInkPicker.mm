@@ -777,8 +777,12 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
 
 // The shared named-preset list, pushed onto this drawer's own nav controller.
 // LIGHT previews, because this is light mode's editor and the page behind the
-// sheet is the light page; the ROWS are every preset, since each one defines
-// both appearances and this list is the only place any of them is reachable.
+// sheet is the light page; the rows it offers are the PAPER presets, since a
+// phosphor belongs to the mixer (panelpalette::presetOfferedInDark).
+//
+// A paper row names no phosphor, so it seeds nothing into the dark page's gun
+// recipe -- deliberately, and pinned in tests/panel_source_test.cpp. Light is
+// paper and ink; the guns are not this editor's to move.
 - (void)showPresets {
   __weak CPXLightInkPickerController *weakSelf = self;
   UIViewController *list = CrossPointPresetList_make(/*dark=*/NO, ^{
@@ -795,12 +799,44 @@ extern "C" bool CrossPointInkPicker_isPresented(void) {
   [self dismissViewControllerAnimated:YES completion:nil];
 }
 
-// Disappearing means DISMISSED (Done is the only exit; modalInPresentation
-// pins pull-down). Cleared here so any dismissal path UIKit ever grows also
-// clears the flag -- the mixer's shape.
+// THE FLAG MEANS "A PAGE-COLOR SHEET IS COVERING THE SDL VIEW", and a PUSH is
+// not the end of one.
+//
+// What used to stand here said "the nav never pushes a second controller, so
+// disappearing means DISMISSED". The Presets list falsified that the same day
+// it was written (owner 2026-08-23, "add a Presets row back to the pickers"),
+// and the consequence is not cosmetic: UIKit sends viewDidDisappear: to this
+// controller when the list is pushed ON TOP of it, so the gate was cleared
+// while the sheet was still on screen and never came back. The sheet is an
+// undimmed medium detent, which means UIKit passes every touch OUTSIDE it
+// straight through to SDL -- so from the moment Presets was tapped, a tap on
+// the page above turned it, a swipe drove font size and a three-finger tap
+// toggled zen, all while the owner believed he was in a color picker. Five
+// call sites read this (CrossPointIOSShim.cpp's finger paths,
+// CrossPointZenRecognizers.mm's three recognizers).
+//
+// So: reassert on every appearance -- a pop back from the list is one -- and
+// clear only when this controller is LEAVING the stack rather than being
+// covered by something pushed onto it. The sheet cannot be dismissed while the
+// list is up (modalInPresentation pins pull-down and the list carries no Done),
+// so "top of the stack" is the whole distinction.
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+  g_pickerPresented.store(true);
+  SDL_Log("[inkpicker] on screen; touch gate UP");
+}
+
 - (void)viewDidDisappear:(BOOL)animated {
   [super viewDidDisappear:animated];
+  UINavigationController *nav = self.navigationController;
+  if (nav && nav.topViewController != self) {
+    // Covered by a push, not dismissed. Logged because the failure it replaces
+    // was invisible: nothing said the gate had dropped.
+    SDL_Log("[inkpicker] covered by a push; touch gate HELD");
+    return;
+  }
   g_pickerPresented.store(false);
+  SDL_Log("[inkpicker] dismissed; touch gate released");
 }
 
 @end

@@ -36,6 +36,7 @@ PREFS_MM = REPO / "ios" / "CrossPointPrefs.mm"
 SHIM = REPO / "ios" / "CrossPointIOSShim.cpp"
 SOURCE = REPO / "src" / "PanelSource.h"
 PRESETS = REPO / "ios" / "CrossPointPresetList.mm"
+GUNSTORE = REPO / "ios" / "GunStore.h"
 
 failures = []
 
@@ -43,6 +44,29 @@ failures = []
 def check(ok, msg):
     if not ok:
         failures.append(msg)
+
+
+def code_of(text):
+    """`text` with its comments removed.
+
+    The "must not name this key" checks are about CODE. Prose that explains
+    where a key lives -- which is most of why these files are readable -- is
+    not a second writer, and a guard that cannot tell the two apart is one that
+    gets satisfied by deleting the explanation.
+    """
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
 
 
 def body_of(text, signature, where):
@@ -62,13 +86,15 @@ def body_of(text, signature, where):
 
 mixer = MIXER.read_text()
 picker = PICKER.read_text()
+mixer_code = code_of(mixer)
+picker_code = code_of(picker)
 
 # 1. THE REPORTED BUG. The dark editor must not name, let alone write, either
 #    light hex key. Checked on the whole file rather than on applyGuns, because
 #    a helper called from applyGuns would be just as wrong and far less visible.
 for key in ("panelInkLight", "panelPaperLight"):
     check(
-        key not in mixer,
+        key not in mixer_code,
         f"{MIXER.name} names '{key}'. It is DARK mode's editor (2026-08-22 "
         "doctrine); writing the light pair from it is the owner's P1 of "
         "2026-08-23, where one gun move replaced a chosen Payne's Gray with a "
@@ -93,7 +119,11 @@ check(
 # 3. Both editors must actually take the shared claim, and take it BEFORE they
 #    write their own fields: it resolves the other polarity's live pair, which
 #    is unreachable once the preset has moved to Custom.
-for path, text, want_dark in ((MIXER, mixer, "1"), (PICKER, picker, "0")):
+# NOTE the inline `/*editingDark=*/` argument comments: these two look at the
+# RAW text, because the thing being checked IS the comment that names the
+# argument. Everything about who may NAME a key reads code_of() instead.
+for path, text, raw, want_dark in ((MIXER, mixer_code, mixer, "1"),
+                                   (PICKER, picker_code, picker, "0")):
     check(
         "CrossPointPrefs_claimCustomFor" in text,
         f"{path.name} never calls CrossPointPrefs_claimCustomFor, so it either "
@@ -106,7 +136,7 @@ for path, text, want_dark in ((MIXER, mixer, "1"), (PICKER, picker, "0")):
         "skipped",
     )
     check(
-        f"claimCustomFor(/*editingDark=*/{want_dark})" in text,
+        f"claimCustomFor(/*editingDark=*/{want_dark})" in raw,
         f"{path.name} does not claim the slot for the polarity it owns "
         f"(expected editingDark={want_dark})",
     )
@@ -189,7 +219,7 @@ check(
 #    thing that points it back at a name (owner ruling 2026-08-23, "add a
 #    Presets row back to the pickers"). It must not do that by hand.
 check(PRESETS.exists(), "ios/CrossPointPresetList.mm is missing")
-presets = PRESETS.read_text() if PRESETS.exists() else ""
+presets = code_of(PRESETS.read_text()) if PRESETS.exists() else ""
 check(
     "CrossPointPrefs_selectPanelPreset" in presets,
     f"{PRESETS.name} does not select through CrossPointPrefs_selectPanelPreset, "
@@ -201,7 +231,8 @@ check(
     "Custom-only keys that have to be cleared with it",
 )
 for key in ("phosphorMixActive", "panelDarkSnapshotPreset", "panelInkLight",
-            "panelPaperLight", "panelInkDark", "panelPaperDark"):
+            "panelPaperLight", "panelInkDark", "panelPaperDark",
+            "phosphorGunAssign", "phosphorMixBlend"):
     check(
         key not in presets,
         f"{PRESETS.name} names '{key}'. It is neither polarity's editor and it "
@@ -213,7 +244,7 @@ for key in ("phosphorMixActive", "panelDarkSnapshotPreset", "panelInkLight",
 #    keys. Clearing only one is the failure the C++ test's naive arm models: a
 #    stale mix outranks the frozen phosphor at the next claim, so the dark page
 #    decays at the rate of a blend no control can reach.
-select = body_of(PREFS_MM.read_text(),
+select = body_of(code_of(PREFS_MM.read_text()),
                  "void CrossPointPrefs_selectPanelPreset(", PREFS_MM.name)
 check(
     "panelsource::releaseCustom" in select,
@@ -232,17 +263,80 @@ check(
     "CrossPointPrefs_selectPanelPreset never moves the preset integer",
 )
 
+# 9b. ...and it SEEDS THE GUNS to the preset (owner 2026-08-23, "selecting a
+#     preset should set the guns' values too") without switching the mix on.
+#     Turning it on would put a blend on screen under a preset's name, which is
+#     S-020 -- and it is one line, invisible in review, and correct-looking.
+check(
+    "phosphormix::seedForPreset" in select,
+    "CrossPointPrefs_selectPanelPreset does not seed the guns through "
+    "phosphormix::seedForPreset. Selecting a preset must leave the mixer "
+    "showing that preset, or it opens on a recipe from an earlier session and "
+    "the first slider move jumps the page.",
+)
+check(
+    "gunstore::save" in select and "gunstore::load" in select,
+    "CrossPointPrefs_selectPanelPreset reads or writes the gun store some "
+    "other way than ios/GunStore.h",
+)
+check(
+    "setBool:YES forKey:kPhosphorMixActive" not in select,
+    "CrossPointPrefs_selectPanelPreset switches the mix ON. The guns are "
+    "seeded to MATCH the preset, never activated: the preset must go on owning "
+    "the page.",
+)
+
+# 9c. ONE FILE NAMES THE GUN KEYS. Two hand-written copies of that load is the
+#     shape that produced the same day's P1 -- one store, two writers, no owner
+#     -- and the seed gave that pair a second legitimate caller.
+check(GUNSTORE.exists(), "ios/GunStore.h is missing")
+for key in ("phosphorGunAssign", "phosphorMixBlend"):
+    owners = sorted(
+        f.name
+        for f in (REPO / "ios").glob("*.*")
+        if f.suffix in (".h", ".mm", ".cpp") and key in code_of(f.read_text())
+    )
+    check(
+        owners == [GUNSTORE.name],
+        f"'{key}' is named in {owners}; it belongs to {GUNSTORE.name} alone, "
+        "which decides nothing and is the only reader and writer of the pair",
+    )
+
+# 9d. THE SHEETS' TOUCH GATE MUST SURVIVE A PUSH. Both editors push the shared
+#     Presets list onto their own nav controller, and UIKit sends
+#     viewDidDisappear: to the pushing controller when it does. Clearing the
+#     flag there dropped the gate for the rest of the sheet's life: the sheet is
+#     an undimmed medium detent, so every touch outside it reaches SDL -- a tap
+#     turned the page, a swipe drove font size, a three-finger tap toggled zen,
+#     all under an open color picker. Five sites read these flags.
+for path, text, flag in ((MIXER, mixer_code, "g_mixerPresented"),
+                         (PICKER, picker_code, "g_pickerPresented")):
+    check(
+        "- (void)viewDidAppear:" in text and f"{flag}.store(true)" in
+        body_of(text, "- (void)viewDidAppear:", path.name),
+        f"{path.name} has no viewDidAppear: restoring {flag}. A push clears it "
+        "and a pop must put it back, or tapping Presets leaves the page under "
+        "the sheet live for the rest of the session.",
+    )
+    gone = body_of(text, "- (void)viewDidDisappear:", path.name)
+    check(
+        "topViewController != self" in gone,
+        f"{path.name}'s viewDidDisappear: clears {flag} unconditionally. It "
+        "fires on a PUSH too, and the sheet is still on screen then.",
+    )
+
 # 10. ONE LIST, BOTH DRAWERS, each previewing the appearance it renders. Two
 #     lists would be two answers to "what does choosing Green CRT do", which is
 #     the shape src/PanelSource.h exists to prevent.
-for path, text, want_dark in ((MIXER, mixer, "YES"), (PICKER, picker, "NO")):
+for path, text, raw, want_dark in ((MIXER, mixer_code, mixer, "YES"),
+                                   (PICKER, picker_code, picker, "NO")):
     check(
         "CrossPointPresetList_make" in text,
         f"{path.name} does not open the shared preset list, so either the "
         "presets are unreachable from it or it grew a list of its own",
     )
     check(
-        f"CrossPointPresetList_make(/*dark=*/{want_dark}" in text,
+        f"CrossPointPresetList_make(/*dark=*/{want_dark}" in raw,
         f"{path.name} previews the preset rows in the wrong appearance "
         f"(expected dark={want_dark}); it renders the other one",
     )

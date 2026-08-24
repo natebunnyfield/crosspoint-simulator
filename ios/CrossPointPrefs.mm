@@ -1,5 +1,6 @@
 #include "CrossPointPrefs.h"
 
+#include "GunStore.h"
 #include "PanelPalette.h"
 #include "PanelPrefs.h"
 #include "PanelSource.h"
@@ -634,6 +635,37 @@ void CrossPointPrefs_selectPanelPreset(int preset) {
   NSLog(@"[CrossPoint] palette: preset %d selected for BOTH appearances "
         @"(mix cleared, no frozen phosphor)",
         release.preset);
+
+  // ...AND THE GUNS ARE SEEDED TO MATCH IT. Owner 2026-08-23: "selecting a
+  // preset should set the guns' values too." Without this the mixer opened
+  // showing a recipe from some earlier session, and the first slider move
+  // jumped the page to it instead of nudging it.
+  //
+  // THE MIX IS NOT TURNED ON. phosphorMixActive was just cleared above and
+  // stays cleared: the preset still owns the page (panelsource::panelFor
+  // resolves the name and ignores the hex), and moving a gun claims the Custom
+  // slot exactly as it did before. The guns are being seeded to MATCH, not
+  // activated -- turning them on here would put a blend on screen under a
+  // preset's name, which is S-020.
+  //
+  // The decision is phosphormix::seedForPreset and nothing about it is decided
+  // here; a preset a four-gun blend cannot be (the three cascade premixes, and
+  // every paper row the LIGHT picker offers) refuses, and refusing means the
+  // stored recipe is left exactly as it was.
+  int guns[gunmix::kGunCount], weights[gunmix::kGunCount];
+  gunstore::load(guns, weights);
+  const phosphormix::GunSeed seed =
+      phosphormix::seedForPreset(release.preset, guns);
+  if (!seed.apply) {
+    NSLog(@"[CrossPoint] palette: guns left alone -- %s",
+          phosphormix::seedReasonText(seed.reason));
+    return;
+  }
+  gunstore::save(seed.preset, seed.weight);
+  NSLog(@"[CrossPoint] palette: guns seeded (%s) %d:%d,%d:%d,%d:%d,%d:%d",
+        phosphormix::seedReasonText(seed.reason), seed.preset[0],
+        seed.weight[0], seed.preset[1], seed.weight[1], seed.preset[2],
+        seed.weight[2], seed.preset[3], seed.weight[3]);
 }
 
 int CrossPointPrefs_renderScale(void) {

@@ -414,4 +414,214 @@ inline const PremixRecipe *recipeFor(const char *pnum) {
   return nullptr;
 }
 
+// The preset a P-number names. The recipe table above is written in P-numbers
+// so it survives renumbering, which means something has to resolve them; this
+// is it, and it is the only direction that needs a lookup (a preset carries its
+// own pnum in kPresetInfo).
+inline int presetForPhosphor(const char *pnum) {
+  if (!pnum) return -1;
+  for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
+    const char *a = panelpalette::kPresetInfo[i].phosphor;
+    if (!a) continue;
+    const char *b = pnum;
+    while (*a && *b && *a == *b) { a++; b++; }
+    if (*a == 0 && *b == 0) return panelpalette::kPresetInfo[i].preset;
+  }
+  return -1;
+}
+
+// --- THE FOUR GUNS ---------------------------------------------------------
+// The mixer's channel scheme and its shipped starting recipe, here rather than
+// in ios/CrossPointPaletteMixer.mm because three places now need them: the
+// mixer itself, the store adapter that loads and saves them, and seedForPreset
+// below, which must never emit an assignment the CSV codec would reject. Two
+// copies of a default set is how a store gains a second opinion about what an
+// unwritten key means.
+//
+// W ships at weight 0, so a fresh open renders the page the three-gun build
+// did.
+constexpr int kGunWeightMax = 100;
+
+inline constexpr int kDefaultGunPreset[kMaxComponents] = {
+    panelpalette::kPresetRedCrt,     // R -- P22R
+    panelpalette::kPresetP22GCrt,    // G -- P22G
+    panelpalette::kPresetBlueTvCrt,  // B -- P22B
+    panelpalette::kPresetWhiteCrt};  // W -- P45
+
+inline constexpr int kDefaultGunWeight[kMaxComponents] = {50, 50, 50, 0};
+
+// --- WHAT "THE GUNS FOR THIS PRESET" MEANS ---------------------------------
+//
+// Owner request 2026-08-23: "selecting a preset should set the guns' values
+// too." Choosing a named preset in the shared list points the page at that
+// preset (panelsource::releaseCustom) and leaves the stored gun recipe as it
+// was -- so opening the mixer afterwards showed a blend from some earlier
+// session, and the first slider move jumped the page to it. The guns are being
+// SEEDED TO MATCH, not switched on: phosphorMixActive stays false, the preset
+// still owns the page, and moving a gun claims the Custom slot exactly as
+// before.
+//
+// THE RULE IS ONE SENTENCE: seed the guns when, and only when, the preset's
+// page is a four-gun blend of pure phosphors; otherwise leave the stored recipe
+// exactly as it is. Three cases fall out of the shipped table, and they are
+// exhaustive -- 34 pure phosphors, 8 premixes (5 blends, 3 cascades), 10 paper
+// rows with no phosphor at all:
+//
+//   PURE PHOSPHOR (34 rows) -- one gun at kGunWeightMax, the other three at 0.
+//     mixBlend of a single component IS resolve() of that preset, in both
+//     polarities, byte for byte, so the seeded recipe reproduces the page it
+//     was seeded from. That exactness is the property worth having: the recipe
+//     the mixer shows is not an approximation of where the page is, it is where
+//     the page is.
+//
+//   BLEND PREMIX (P4 P6 P18 P23 P40) -- the FITTED recipe from kPremixRecipes,
+//     which exists for precisely this ("a LONG-PRESS loads it into the mixer as
+//     an editable recipe", owner 2026-08-20/21) and was refitted by exhaustive
+//     search to dE 3.8-9.6 against the shipped premix pair. Weights scale by an
+//     INTEGER factor so the ratios are exact -- mixBlend normalizes by the
+//     total, so only ratios render, and a rounded seed would be a different
+//     mixture from the one the table was fitted to. A premix page and its seed
+//     therefore differ by the fit's dE and by nothing this file adds.
+//
+//   CASCADE PREMIX (P7 P14 P17) -- NOT SEEDED, and this is a refusal rather
+//     than a gap. A cascade is two layers in sequence: the flash layer paints
+//     the page, the persistence layer is what lingers, in its own color. A
+//     blend cannot be both. To put the flash layer's color on the page the
+//     persistence gun has to go to 0, and then there is no afterglow; to get
+//     the afterglow the persistence gun has to carry weight, and then it tints
+//     the page the cascade never tints. There is no four-gun recipe that is
+//     this preset, so seeding one would put a recipe in the mixer that renders
+//     a DIFFERENT page from the one on screen -- which is the lie S-020
+//     shipped, in the other direction.
+//
+//   NO PHOSPHOR (10 paper rows) -- NOT SEEDED, for the same reason and the
+//     doctrine besides. These are the only rows the LIGHT ink picker offers
+//     (panelpalette::presetOfferedInDark is false exactly here), so this is
+//     also the answer to "what does a preset chosen in the light picker do to
+//     the guns": nothing. Light is paper and ink; the guns are the dark page's
+//     editor, and a paper row names no phosphor for them to hold.
+//
+// Pure and host-tested (tests/panel_source_test.cpp) for the reason everything
+// in this file is: a wrong seed is a wrong stored recipe, which no compiler
+// sees and which only shows itself one slider move later.
+enum SeedReason : int {
+  SeedPurePhosphor = 0,  // one gun at full; exact
+  SeedBlendPremix = 1,   // the fitted blend; exact in ratio, dE 3.8-9.6 in tone
+  SeedCascadePremix = 2, // refused: no blend is a cascade
+  SeedNoPhosphor = 3,    // refused: a paper row, and not this editor's page
+  // Refused because the recipe table names a component this palette no longer
+  // carries. Unreachable on the shipped tables (the test proves it) and kept
+  // separate from the two DELIBERATE refusals above, which are answers rather
+  // than faults.
+  SeedBrokenRecipe = 4,
+};
+
+struct GunSeed {
+  // False means LEAVE THE STORED RECIPE ALONE. The arrays are still filled with
+  // what was passed in, so a caller that writes unconditionally writes back
+  // exactly what it read -- but it should not write at all.
+  bool apply = false;
+  SeedReason reason = SeedNoPhosphor;
+  int preset[kMaxComponents] = {};
+  int weight[kMaxComponents] = {};
+  // Pure-phosphor case only: which gun ended up carrying it, for the log.
+  int carrier = -1;
+};
+
+// `assigned` is the gun assignment as loaded. Any slot that is not a usable
+// ingredient is replaced by that channel's default, so the result is always
+// four mixable presets -- gunmix::parseAssign rejects a CSV that is not, whole,
+// and a seed the next load throws away is worse than no seed at all.
+inline GunSeed seedForPreset(int preset, const int assigned[kMaxComponents]) {
+  GunSeed s{};
+  for (int g = 0; g < kMaxComponents; g++) {
+    s.preset[g] = (assigned && isMixablePreset(assigned[g]))
+                      ? panelpalette::migratePreset(assigned[g])
+                      : kDefaultGunPreset[g];
+    s.weight[g] = 0;
+  }
+  const int p = panelpalette::migratePreset(preset);
+
+  if (isMixablePreset(p)) {
+    // THE GUN IT IS ALREADY ON, if any -- the shelf assignments are the owner's
+    // and a selection is about the page, not about the shelf. Selecting White
+    // with the shipped assignment therefore lights the W gun and reads as
+    // itself; only a phosphor that is on no gun displaces one, and it displaces
+    // the first, which is the only choice that does not need a rule nobody can
+    // predict.
+    s.carrier = 0;
+    for (int g = 0; g < kMaxComponents; g++) {
+      if (s.preset[g] != p) continue;
+      s.carrier = g;
+      break;
+    }
+    s.preset[s.carrier] = p;
+    s.weight[s.carrier] = kGunWeightMax;
+    s.apply = true;
+    s.reason = SeedPurePhosphor;
+    return s;
+  }
+
+  const panelpalette::PresetInfo *info = panelpalette::infoForPreset(p);
+  if (!info || !info->phosphor) {
+    s.reason = SeedNoPhosphor;
+    return s;
+  }
+  const PremixRecipe *r = recipeFor(info->phosphor);
+  if (!r || r->mode != Blend) {
+    s.reason = SeedCascadePremix;
+    return s;
+  }
+
+  const char *const pnum[3] = {r->a, r->b, r->c};
+  const int raw[3] = {r->weightA, r->weightB, r->weightC};
+  int comp[3];
+  int maxW = 0, used = 0;
+  for (int i = 0; i < 3; i++) {
+    if (!pnum[i]) break;
+    comp[i] = presetForPhosphor(pnum[i]);
+    // A component the table names and the palette no longer carries is a
+    // BROKEN recipe, not a partial one: blending what is left would hand the
+    // owner a mixture nothing fitted. Refuse whole. (The test proves every
+    // shipped component resolves, so this is unreachable today and is here so
+    // that deleting a phosphor row cannot ship a silently wrong seed.)
+    if (comp[i] < 0 || !isMixablePreset(comp[i])) {
+      s.reason = SeedBrokenRecipe;
+      return s;
+    }
+    if (raw[i] > maxW) maxW = raw[i];
+    used++;
+  }
+  if (used < 1 || maxW < 1) {
+    s.reason = SeedBrokenRecipe;
+    return s;
+  }
+  // INTEGER scale, so the fitted ratios survive exactly. 9 -> x11 (99/44),
+  // 7 -> x14, 6 -> x16, 2 -> x50: every shipped recipe lands at or just under
+  // the slider ceiling with its proportions untouched.
+  const int k = kGunWeightMax / maxW;
+  for (int i = 0; i < used; i++) {
+    s.preset[i] = comp[i];
+    s.weight[i] = raw[i] * (k < 1 ? 1 : k);
+  }
+  s.apply = true;
+  s.reason = SeedBlendPremix;
+  return s;
+}
+
+// SHORT ON PURPOSE: this reaches the mixer's two-line readout, where the long
+// form was truncated with an ellipsis on an iPhone Air -- measured, not
+// guessed. The reasoning is in the comments above; the label only has to name
+// which case this is.
+inline const char *seedReasonText(SeedReason r) {
+  switch (r) {
+    case SeedPurePhosphor: return "one gun at full";
+    case SeedBlendPremix: return "its fitted blend";
+    case SeedCascadePremix: return "a cascade, not a blend";
+    case SeedNoPhosphor: return "a paper page";
+    case SeedBrokenRecipe: return "an unresolvable recipe";
+  }
+  return "";
+}
+
 }  // namespace phosphormix

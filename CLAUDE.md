@@ -565,7 +565,7 @@ the desktop. The rightmost column says which each one is.
 | Page palette — 52 named presets plus Custom, chosen from the Presets button in either drawer (`ios/CrossPointPresetList.mm`) | `src/PanelPalette.h`, resolved by `ios/PanelPrefs.h` | `ios/README.md`, `docs/crt-phosphor-presets.md` |
 | Button pad outline/fill | `ios/PadPalette.h` | `docs/pad-outline-black-and-white.md` |
 | Render scale — **FROZEN AT 2 on iOS, and no longer a preference at all** (2026-08-23). 1 was retired 2026-08-21, 3 the same day as this ("drop 3x support for now"), and a one-value control is worse than no control, so the Sharpness row left Settings.app with it. `CrossPointPrefs_renderScale()` returns 2 without reading NSUserDefaults — a store written by build 129 or earlier holds a 3 and must not re-point something the owner can no longer see. The tier machinery, the seed trees and `build-sd-fonts.py --scale 3` all still work, so re-enabling is one number in `ios/CMakeLists.txt` | `lib/GfxRenderer/RenderScale.h` (firmware), CEILING in `ios/CMakeLists.txt`, latched in `simulator_main.cpp` | `docs/ios-render-scale.md` |
-| Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients | `src/PhosphorMix.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
+| Phosphor mixer — Blend / Parts / Cascade into the Custom slot; premixes (P4 P6 P7 P14 P17 P18 P23 P40) are preset mixes, never ingredients; selecting a named preset SEEDS the four guns to it where a blend can be it | `src/PhosphorMix.h` (`seedForPreset`), store `ios/GunStore.h`, UI `ios/CrossPointPaletteMixer.mm`, opened by the page-color chip (tap or hold) | `docs/phosphor-mixer.md` |
 | Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on, which the app ships BOTH of. **A desktop dial only**: its rows left `Root.plist` on 2026-08-22 and `tests/panel_palette_test.cpp` asserts them absent, so nothing on the phone reaches it. As of 2026-08-23 `CrossPointPrefs.mm` returns 60 light / 160 dark, Vignette+Mottled, depth 0.90 as constants — and because the app also freezes letterpress and scanlines ON, that field is never actually composited on a phone; it is frozen honestly so that turning a doctrine dial off falls back to the grain the app last shipped | `src/PhosphorGrain.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_GRAIN*` | `docs/phosphor-grain.md` |
 | Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink. Bit-exact off at dial 0, which is still the MODEL's default (`kPaperDriftDefault`) and the desktop's — but the iOS app FREEZES it at 100 (2026-08-23), so on the phone every leaf differs. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
 | Letterpress — LIGHT pages only (doctrine 2026-08-22: light is paper and ink), Off/Subtle/Standard/Heavy, ink-squeeze rim + deboss shadow + pressure + tooth, panel-space, darken-only. The pressure part's mapped range is WIDENED above 100% (`pressAmpScale`, 200% = 8x standard) — the 2026-08-22 audit found the dial near-dead, eaten by both the pixel math and a cache key that omitted the part percents | `src/Letterpress.h`, composited over the panel in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LETTERPRESS` | `docs/letterpress-and-scanlines.md` |
@@ -758,6 +758,45 @@ both sides, because a preset offered by neither list would be unreachable, which
 is exactly how the presets were lost before this list existed. Round trip proven
 in bytes on an iPhone Air simulator and pinned in `panel_source_test.cpp`, whose
 naive arm models the wrong implementation so the protocol has to earn itself.
+
+**...and a selection now SEEDS THE GUNS to the preset.** Owner 2026-08-23,
+"selecting a preset should set the guns' values too": the release left the
+stored recipe untouched, so the mixer opened on a blend from an earlier session
+and the first slider move jumped the page to it. `phosphormix::seedForPreset`
+decides, `ios/GunStore.h` stores (and is now the ONLY file naming
+`phosphorGunAssign` / `phosphorMixBlend`), `CrossPointPrefs_selectPanelPreset`
+calls it right after the release. **Seed only what a four-gun blend can BE, and
+leave the recipe alone otherwise** — 34 pure phosphors take one gun at 100 (and
+`mixBlend` of one component is `resolve()` of that preset byte for byte, so the
+seed is exact); the 5 blend premixes take their fitted `kPremixRecipes` row with
+weights scaled by an INTEGER factor, because only ratios render and a rounded
+seed is a different mixture from the one the table was fitted to; the 3 CASCADE
+premixes and the 10 paper rows seed nothing, because no blend is two layers in
+sequence and a paper row names no phosphor. That last one is also the answer to
+"what does a preset chosen in the LIGHT picker do to the guns" — nothing,
+deliberately, since the papers are exactly what that picker offers. **The mix
+is NOT switched on**: `phosphorMixActive` stays false and the preset goes on
+owning the page, or a blend renders under a preset's name, which is S-020.
+A phosphor already on a gun lights THAT gun rather than displacing another.
+Measured on an iPhone Air from a clean install, and pinned in
+`panel_source_test.cpp` against four wrong implementations (never seed, rounded
+weights, seed the cascade, switch the mix on) — each fails its own assertion.
+
+**A PUSH is not a dismissal, and the sheets' touch gate must know it.** Found by
+adversarial review the same day, hours after the Presets list shipped. Both
+drawers PUSH that list onto their own nav controller, and UIKit sends
+`viewDidDisappear:` to the pushing controller when it does — so
+`g_mixerPresented` / `g_pickerPresented` were cleared while the sheet was still
+on screen, and never came back. Those sheets are undimmed medium detents, which
+means UIKit passes every touch OUTSIDE them straight to SDL: from the moment
+Presets was tapped, a tap on the page above turned it, a swipe drove font size
+and a three-finger tap toggled zen, under an open color picker. Five sites read
+those flags. Both controllers now reassert in `viewDidAppear:` and clear only
+when `navigationController.topViewController == self`; the log says which
+(`[mixer] on screen; touch gate UP` / `covered by a push; touch gate HELD`), and
+`tests/panel_source_test.py` fails an unconditional clear. The comment that
+stood there said "the nav never pushes a second controller" — true when written,
+false twenty minutes later.
 
 **The pad's Accessible pin also had two resolution points**, found the same day
 and a separate bug: `CrossPointIOSShim.cpp`'s `currentLevels()` pinned
