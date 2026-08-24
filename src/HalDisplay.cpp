@@ -2367,6 +2367,23 @@ static void updateVersoMaps(const std::vector<uint8_t> &inkness, int w, int h,
     }
     return;
   }
+  // OUTSIDE READING MODE THE MAPS FREEZE -- they are not cleared, and nothing
+  // is promoted into them. Owner 2026-08-24: "do not have verso bleed outside
+  // of reading mode."
+  //
+  // FREEZE rather than clear, which is the whole subtlety here. Clearing would
+  // throw away the book's own verso every time you opened a menu, so coming
+  // back to the page would show a blank back for one leaf. Returning early also
+  // leaves versoSeed pinned to the page you left, so coming back to THAT page
+  // promotes nothing -- it is the same leaf, and it is still the same leaf
+  // after a trip through Settings.
+  //
+  // And it is what stops a MENU becoming the back of the next page you read.
+  // The recto is downsampled below on every pass, so without this early return
+  // the Settings screen would be the verso the next page turn promotes, and the
+  // bleed inside reading mode would be showing something that was never a page.
+  // That is the same ruling read the other way round.
+  if (!SimulatorOverlay::sheetIsReaderPage()) return;
   const int mw = showthrough::mapDim(w), mh = showthrough::mapDim(h);
   if (mw <= 0 || mh <= 0) return;
   if (versoMapW != mw || versoMapH != mh) {
@@ -2724,7 +2741,14 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   const int formationPct = SimulatorOverlay::paperFormationPct.load();
   const int defectsPct = SimulatorOverlay::paperDefectsPct.load();
   const int laidPct = SimulatorOverlay::laidLinesStrength.load();
-  const int showPct = SimulatorOverlay::showThroughStrength.load();
+  // THE EFFECTIVE strength, not the dial. Off the reader this is kStrengthOff,
+  // which is how the ruling reaches every consumer at once: stParams below, and
+  // -- because sheetTexShowThrough is part of the sheet cache key -- the
+  // invalidation too. Gating only the draw would have left a cached sheet with
+  // the bleed baked into it being served on the screen that must not have it.
+  const int showPct = SimulatorOverlay::sheetIsReaderPage()
+                          ? SimulatorOverlay::showThroughStrength.load()
+                          : showthrough::kStrengthOff;
   const int scaleKey = static_cast<int>(outPxPerSourcePx * 1000.0f + 0.5f);
   const PanelPalette live = livePanelPalette(display.isInverted());
   letterpress::Params params;

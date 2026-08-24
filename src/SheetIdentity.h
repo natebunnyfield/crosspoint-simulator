@@ -90,4 +90,44 @@ inline constexpr uint32_t screenKey(const char *name) {
   return h;
 }
 
+// --- WHOSE SHEET IS IT ------------------------------------------------------
+//
+// The seed alone cannot say whether a book page or a system screen produced it:
+// both lanes are ordinary 32-bit hashes and neither reserves a range, by
+// design, since reserving one would make the two sheets statistically different
+// paper. So the KIND travels beside the seed, and this is the pair.
+//
+// It exists because show-through is the one sheet field that is not a property
+// of the stock. Tooth, formation, marks, wires and drift all describe paper,
+// and a menu is printed on the same paper as a page -- they belong everywhere.
+// The back of a leaf is different: it is the previous PAGE, and a menu is not
+// one. Owner ruling 2026-08-24, "do not have verso bleed outside of reading
+// mode."
+//
+// Pure and host-tested for the reason every decision in this repo is: the
+// failure mode is a picture, no compiler sees it, and both directions are
+// silent. Bleed on a menu is the bug he reported; bleed DECLINED on a real page
+// is the bug a careless fix ships instead, and it looks like nothing at all.
+struct Sheet {
+  uint32_t seed = 0;
+  bool readerPage = false;
+};
+
+inline Sheet sheetForPage(uint64_t bookKey, int spineIndex, int pageInSpine) {
+  return Sheet{forPage(bookKey, spineIndex, pageInSpine), true};
+}
+
+inline Sheet sheetForScreen(uint32_t key) {
+  return Sheet{forScreen(key), false};
+}
+
+// The verso map may promote, and the bleed may draw. Requires BOTH a published
+// identity and a reader page -- the seed test is not redundant, because a
+// firmware with no publisher at all leaves the default-constructed Sheet, and
+// the safe answer there is no bleed rather than bleed off a screen nobody
+// identified.
+inline bool showThroughAllowed(const Sheet &s) {
+  return s.seed != 0 && s.readerPage;
+}
+
 }  // namespace sheetid

@@ -109,6 +109,12 @@ bool readerPageIdentity(uint64_t &bookKey, int &spineIndex, int &pageInSpine);
 // which book was last displayed, and a screen entered on top of a book does not
 // make it false. Implemented in HalGPIO.cpp beside both publishers.
 bool sheetIdentitySeed(uint32_t &seed);
+// True when the sheet identity above came from a reader page rather than from a
+// system screen. Show-through is gated on it -- owner 2026-08-24, "do not have
+// verso bleed outside of reading mode" -- and nothing else reads it, because
+// every other sheet field is a property of the stock and a menu is printed on
+// the same paper as a page.
+bool sheetIsReaderPage();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than

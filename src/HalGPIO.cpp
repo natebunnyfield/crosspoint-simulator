@@ -1362,18 +1362,41 @@ static std::atomic<int> readerSpineIndex{0}, readerPageInSpine{0};
 // entry of the new session republishes within milliseconds.
 static std::atomic<uint32_t> sheetSeedValue{0};
 
+// WHICH KIND published the seed above. A seed alone cannot answer it -- both
+// lanes produce an ordinary 32-bit hash and neither reserves a range -- and
+// show-through needs the answer, because a leaf has a back only inside a book.
+//
+// Owner ruling 2026-08-24: "do not have verso bleed outside of reading mode."
+// Worth stating that the bleed on system screens was ONE DAY OLD when he called
+// it: until publishScreenIdentity landed, those screens had no sheet identity
+// at all, so the verso map never promoted there and show-through was bit-exact
+// dead on them. Giving them a proper sheet is what woke it. See
+// src/SheetIdentity.h.
+//
+// Defaults FALSE, which is the safe direction: a firmware with no publisher at
+// all gets no verso bleed rather than bleed sourced from a screen nobody
+// identified.
+static std::atomic<bool> sheetIsReaderPageValue{false};
+
 void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
                                         int32_t pageInSpine) {
   readerBookKeyValue.store(bookKey);
   readerSpineIndex.store(static_cast<int>(spineIndex));
   readerPageInSpine.store(static_cast<int>(pageInSpine));
   readerPageValid.store(true);
-  sheetSeedValue.store(sheetid::forPage(bookKey, static_cast<int>(spineIndex),
-                                        static_cast<int>(pageInSpine)));
+  const sheetid::Sheet sheet = sheetid::sheetForPage(
+      bookKey, static_cast<int>(spineIndex), static_cast<int>(pageInSpine));
+  sheetSeedValue.store(sheet.seed);
+  // Store the kind AFTER the seed, and clear it BEFORE, so a reader of the two
+  // never sees "reader page" paired with a screen's seed. The reverse pairing
+  // is harmless: it only declines a frame of bleed.
+  sheetIsReaderPageValue.store(sheetid::showThroughAllowed(sheet));
 }
 
 void HalGPIO::publishScreenIdentity(uint32_t screenKey) {
-  sheetSeedValue.store(sheetid::forScreen(screenKey));
+  const sheetid::Sheet sheet = sheetid::sheetForScreen(screenKey);
+  sheetIsReaderPageValue.store(sheetid::showThroughAllowed(sheet));
+  sheetSeedValue.store(sheet.seed);
 }
 
 namespace SimulatorOverlay {
@@ -1393,6 +1416,8 @@ bool sheetIdentitySeed(uint32_t &seed) {
   seed = s;
   return true;
 }
+
+bool sheetIsReaderPage() { return sheetIsReaderPageValue.load(); }
 } // namespace SimulatorOverlay
 
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
