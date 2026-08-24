@@ -306,6 +306,16 @@ run laid_structure \
 run paper_defects \
   c++ -std=c++17 -O1 -Isrc -o "$OUT/paper_defects" tests/paper_defects_test.cpp
 
+# WHICH sheet each of those pages is -- and, since 2026-08-24, each system
+# screen too. A seed that folds to 0 reads as "nothing published" and silently
+# restores the per-launch sheet; a screen seed that collides with a page seed
+# prints a menu on a leaf of the open book; and the FNV-1a behind a screen's key
+# has two copies that cannot share a header (the firmware is not linked against
+# this repo on device), so this reads the firmware's copy as text where a
+# sibling checkout exists. Run from the repo root, like pad_palette above.
+run sheet_identity \
+  c++ -std=c++17 -Isrc -o "$OUT/sheet_identity" tests/sheet_identity_test.cpp
+
 # THE DIAL TABLE, and the divergence nothing could catch before it. Adding one
 # surface effect used to touch nine plumbing sites, three of which were parallel
 # lists of the same values kept in sync by hand -- and on 2026-08-23 two of them

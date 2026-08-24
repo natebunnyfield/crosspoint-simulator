@@ -31,6 +31,25 @@ shipped model is:
 | Leaf | sheet-to-sheet tone drift off the same page seed, +/-2 code values, off by default (`src/LightInkPalette.h`) | — |
 | Motion | **nothing** | beam sweep, phosphor trail, cascade afterglow, page fade |
 
+**Every one of those passes applies on every SCREEN, not only in the reader** —
+and that was true from the day each landed, unstated, because none of them is
+gated on the activity: the polarity and the dial's own value are the whole
+condition. Home, Settings, the pickers and the file lists carry the letterpress,
+the sheet, the wires, the marks, the drift, the scanlines, the grain and the
+corner radius. Measured dial-by-dial on the Settings screen in
+[paper-defects.md](paper-defects.md) §1b, which is also where the one exception
+is written up: the SHEET's identity was per-launch on those screens until
+2026-08-24, which additionally left show-through bit-exact dead there.
+
+The one background a system screen has that a page does not is the SELECTION
+BAND — a 25% `Color::LightGray` dither, with the selected row's text in the same
+polarity as the dither. It is outside every budget on this page: measured on the
+Settings screen at 8.84:1 light and **5.41:1 dark**, against a 7:1 floor. It is
+the firmware's own design and not anything a surface pass did — the same band
+with every field off is 8.53:1 and 5.36:1, so the stack moves it UPWARD, which
+is what a darken-only field must do to a background whose foreground is already
+at the floor.
+
 Every one of those passes obeys the same four invariants, and any new item on
 this roadmap has to as well:
 

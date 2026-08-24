@@ -29,9 +29,10 @@ So the light page's seed is now a hash of the page's IDENTITY:
 seed = hash3(lo32(bookKey), hi32(bookKey) ^ spineIndex, pageInSpine)
 ```
 
-with `bookKey = fnv1a64(book path)`. When no identity has been published (a cold
-boot into a menu, the settings screen, anything that is not a reader) the seed
-falls back to `grainSeed() ^ 'PRES'`, which is exactly what shipped.
+with `bookKey = fnv1a64(book path)`. **Since 2026-08-24 a system screen publishes
+an identity too** — see §1b — so the `grainSeed() ^ 'PRES'` fallback is now
+reached only before the firmware's first activity has entered, which is a few
+milliseconds at boot.
 
 Three details are load-bearing:
 
@@ -48,15 +49,117 @@ Three details are load-bearing:
   a time and has no book-cumulative page number; `pageCount` is a watermark, not
   a count. The pair is exact where the watermark is not.
 
-Nothing clears the latch. Walk out of a book into a menu and the menu keeps the
-last page's sheet rather than snapping back to the launch seed — cheaper (no
-field rebuild on every menu entry) and truer: you did not put the book down on
-different paper.
+Nothing *clears* the latch; it is superseded by whichever publisher spoke last.
+Until 2026-08-24 there was only one publisher, so walking out of a book into a
+menu kept the last page's sheet — stated then as "cheaper and truer", and the
+half of that which was true is that it beat the alternative on offer, which was
+a per-launch seed. §1b replaced both.
 
 **Why this is provable at all.** In light mode with letterpress on, the phosphor
 grain pass is skipped, so a light page is fully determined by the page seed and
 nothing else random survives. Capture page N, kill the process, relaunch, revisit
 N: the frames are byte-identical, with no `CROSSPOINT_SIM_GRAIN_SEED` pinning.
+
+## 1b. And a system screen is a sheet too (2026-08-24)
+
+Owner ruling: the system screens — Home, Settings, the font picker, Manage
+Files, Recents, chapter select — get the paper and ink treatment a book page
+gets, rather than plain chrome.
+
+**Most of that was already true and had never been written down.** Measured on
+the Settings screen at `CROSSPOINT_SIM_AS_SHIPPED=1`, window scale 2, against
+the same screen with each dial turned off (max per-channel delta over the whole
+frame, and the fraction of pixels moved by more than 4 code values):
+
+| Pass | mean Δ | max Δ | pixels >4 |
+|---|---|---|---|
+| letterpress + sheet, whole stack | 13.56 | 61 | 82.6% |
+| paper tooth + formation | 11.76 | 37 | 76.8% |
+| laid wires (at 100; ships 0 for Bright White) | 10.83 | 38 | 94.0% |
+| paper defects (at 100; ships 0) | 9.27 | 237 | 25.8% |
+| press ring / deboss / pressure | 1.52 | 36 | 9.4% |
+| sheet-to-sheet drift | 1.84 | 2 | 0% |
+| phosphor grain (dark, scanlines off) | 8.61 | 199 | 64.6% |
+| **show-through** | **0.000** | **0** | **0%** |
+
+None of those passes was ever gated on the activity — they are keyed on the
+polarity and their own dial and nothing else, which is why eleven of twelve
+already reached every screen. The corner radius is likewise ungated (owner
+2026-08-23), and the dark page's scanlines apply: on the Settings screen its row
+profile alternates 33.81 / 34.84 where the same screen with the dial off is a
+flat 34.84.
+
+Show-through was the exception, and it is the one nothing but a measurement
+would have found. It promotes the leaf behind the page when the **seed changes**
+(`updateVersoMaps`), and a system screen's seed never changed, so the map stayed
+the all-zero buffer it was allocated with. The dial moved 0.000 code values at
+any strength.
+
+So a screen publishes an identity of its own, off its activity NAME:
+
+```
+seed = hash3(fnv1a32(activityName), 'SCR1', 0)
+```
+
+One call, in `Activity::onEnter()` — the single place every screen in the
+firmware passes through, which is why it is in the base and not in the 34
+overrides. `src/SheetIdentity.h` holds both producers and the reasoning;
+`tests/sheet_identity_test.cpp` pins that no seed is ever 0 (the latch's
+sentinel), that the shipped screen names are all distinct, and that no screen
+lands on any of 72,000 book pages.
+
+**Readers are skipped there.** A reader publishes the finer identity — the
+actual page — from its render, which runs after its `onEnter()`. Publishing both
+would put one screen-seeded present between the two on every book open, carrying
+the OUTGOING screen's pixels on a third sheet: a visible paper-tone flicker and
+a wasted output-size field build.
+
+Measured after: the Settings screen is **byte-identical across two launches**
+whose launch seeds differ, where before it was a different sheet every run; and
+the show-through dial moves 0.592 mean / 6 max / 0.80% of pixels on that screen,
+against 0.000 before. A reader page is byte-identical across the change
+(mean 0.0000, max 0), which it must be: `forPage` is the old expression moved,
+not rewritten.
+
+The `[paper] no page identity published` warning went with this. It fired on the
+FIRST no-identity present, so it fired on every launch that booted to Home, and
+it asserted — falsely, on every one of those runs — that the firmware does not
+call the publisher. A diagnostic that is wrong on most runs is not read on the
+run where it is right. It now waits 120 presents, which a healthy boot never
+reaches and a firmware with no publisher at all trips within a second.
+
+**Cost, measured with `CROSSPOINT_SIM_LOG_TIMING=1`.** Mac, Metal renderer, X3,
+as-shipped dials, eleven `RIGHT`s down the Home menu and a `CONFIRM` into
+Settings:
+
+| | before | after |
+|---|---|---|
+| per keypress within a list | panel BUILD 51–53 ms, sheet **cache** | unchanged |
+| per screen ENTRY | sheet **cache** | sheet BUILD **126–133 ms**, once |
+| at boot | sheet BUILD ~130 ms, once | unchanged |
+
+Navigation *within* a screen is untouched, and that is the part that decides
+whether a menu feels slow: the seed does not move when the SELECTION does, so
+the output-size sheet field is served from cache and only the panel-space
+letterpress field rebuilds — which it already did, on every redraw, long before
+any of this. What the change adds is one sheet rebuild per screen entry, which
+is exactly what a page turn already costs in a book.
+
+**If that 130 ms has to go, drop FORMATION, not show-through.** Measured on the
+same run by turning one dial off at a time:
+
+| Arm | sheet BUILD |
+|---|---|
+| as shipped | 126, 133 ms |
+| `CROSSPOINT_SIM_SHOW_THROUGH=0` | 117, 118 ms |
+| `CROSSPOINT_SIM_PAPER_TOOTH=100` (not 300) | 126, 127 ms |
+| `CROSSPOINT_SIM_PAPER_FORMATION=0` | **54, 56 ms** |
+
+The cloudiness is more than half the field's whole build — 72 ms of it — and the
+tooth's own dial does not move the cost at all, which is worth knowing before
+anyone optimizes the pass everyone assumes is the tooth. Note this is a general
+finding about the sheet field, not about system screens: a book page has been
+paying the same 130 ms per page turn since the field landed.
 
 ## 2. What the defects are
 

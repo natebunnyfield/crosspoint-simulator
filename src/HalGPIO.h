@@ -274,16 +274,34 @@ public:
   // turn back to is the same sheet, including across a relaunch. See
   // src/PaperDefects.h and docs/paper-defects.md.
   //
-  // NOTHING CLEARS THE LATCH, deliberately. Walk out of a book into a menu and
-  // the menu keeps the last page's sheet rather than snapping back to the
-  // launch seed: cheaper (no field rebuild on every menu entry) and truer.
-  // A cold boot that never opens a book has no identity and uses the launch
-  // seed, exactly as before this channel existed.
+  // NOTHING CLEARS THE LATCH, deliberately: it is superseded rather than
+  // cleared, by whichever publisher spoke last. Since 2026-08-24 that is
+  // either this or publishScreenIdentity below, so walking out of a book into
+  // a menu moves to the MENU's sheet rather than keeping the last page's --
+  // see that comment for why the earlier "keep the page's sheet" answer went
+  // with the launch-seed fallback it existed to soften.
   //
   // Atomics, because publish runs on the firmware task and the consumer is the
   // main-thread present path.
   void publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
                                  int32_t pageInSpine);
+
+  // WHICH SYSTEM SCREEN IS ON GLASS. Same split as the identity above: an
+  // inline no-op on device (lib/hal/HalGPIO.h), a real latch here. Published
+  // once per activity entry by Activity::onEnter() -- the one place every
+  // screen in the firmware passes through -- for every activity that is NOT a
+  // reader.
+  //
+  // WHY READERS ARE SKIPPED THERE rather than publishing and being overwritten:
+  // a reader publishes its page identity from its RENDER, which is strictly
+  // after its onEnter(), so publishing here as well would put one screen-seeded
+  // present between the two on every book open. That present would carry the
+  // previous screen's pixels on a third sheet, which is a visible flicker of
+  // the paper tone and a wasted output-size field build.
+  //
+  // The argument is `screenKey`, the FNV-1a of the activity name; the seed the
+  // fields use is sheetid::forScreen of it. See src/SheetIdentity.h.
+  void publishScreenIdentity(uint32_t screenKey);
 
   // Simulator-only. Schedule a full synthetic button tap — press edge, held
   // level for holdMs, release edge — that fires INSIDE update(), which is

@@ -2175,49 +2175,66 @@ static bool ensureGrainTexture(int w, int h) {
 
 // --- THE PAGE'S OWN SEED ---------------------------------------------------
 //
+// How many no-identity presents to tolerate before the warning below. The
+// firmware's first activity enters within ~10 ms of the display coming up and
+// the simulator presents at tens of hertz, so this is orders of magnitude more
+// slack than a healthy boot needs and still trips within a second on a build
+// whose firmware has no publisher.
+static constexpr int kNoIdentityGrace = 120;
+//
 // A SHEET IS NOT A SCREEN. grainSeed() is deliberately re-rolled every launch
 // (and across the iOS in-process reboot) because two runs of the app are two
 // tubes -- and that is exactly wrong for paper. A book is not re-printed when
 // you close it, so a page you turn back to must be the same sheet, including
 // after a relaunch.
 //
-// So the LIGHT page's two fields seed from the page's IDENTITY, published by
-// every reader activity through HalGPIO::publishReaderPageIdentity. NOTE what
-// is NOT in the hash: grainSeed(). Mixing it in would leave the field differing
-// per page AND per launch, which looks like the feature and is not it.
+// So the LIGHT page's two fields seed from the SCREEN's IDENTITY: a page of a
+// book from HalGPIO::publishReaderPageIdentity, a system screen from
+// HalGPIO::publishScreenIdentity, resolved to one seed by the latch both write
+// (SimulatorOverlay::sheetIdentitySeed). NOTE what is NOT in the hash:
+// grainSeed(). Mixing it in would leave the field differing per page AND per
+// launch, which looks like the feature and is not it.
 //
-// No identity published (a cold boot into a menu, Settings, anything that is
-// not a reader) falls back to the launch seed, exactly as before this existed.
-// Nothing clears the latch, so walking out of a book keeps the last page's
-// paper rather than snapping to a launch seed -- see HalGPIO.h.
+// SYSTEM SCREENS GOT THIS ON 2026-08-24 and did not have it before, which is
+// worth stating because the code reads as though they always did. Until then
+// only readers published, so Home, Settings, the pickers and the file lists all
+// fell to the branch below -- a per-LAUNCH sheet, and a show-through that was
+// bit-exact dead there because the verso map promotes on a seed CHANGE. See
+// src/SheetIdentity.h for the measurements and for why readers do not publish
+// from onEnter().
 //
 // This is provable because in light mode with letterpress on the grain pass is
 // SKIPPED (see presentIfNeeded), so a light page is fully determined by this
 // number and nothing else random survives. docs/paper-defects.md.
 static uint32_t pageSheetSeed() {
-  uint64_t bookKey = 0;
-  int spine = 0, page = 0;
-  if (!SimulatorOverlay::readerPageIdentity(bookKey, spine, page)) {
-    // SAY SO ONCE. This branch is legitimate for pre-channel firmware, and
-    // that is exactly why it shipped as a bug: build 127 was archived against
-    // a firmware checkout one commit behind the publisher, so this fired on
-    // every page and the whole app -- home screen, every page of every book --
-    // wore one sheet. Nothing in any log said so, and the picture is subtle
-    // enough that "the flaws are not changing" was the only symptom. A build
-    // that never sees an identity now announces it the first time.
-    static bool warned = false;
-    if (!warned) {
-      warned = true;
-      SDL_Log("[paper] no page identity published -- every sheet will use the "
-              "launch seed. The firmware does not call "
-              "publishReaderPageIdentity; per-page paper is INACTIVE.");
-    }
-    return grainSeed() ^ 0x50524553u;  // 'PRES', the pre-identity behaviour
+  uint32_t seed = 0;
+  if (SimulatorOverlay::sheetIdentitySeed(seed)) return seed;
+
+  // SAY SO, BUT NOT ON THE FIRST PRESENT. This branch is legitimate for
+  // pre-channel firmware, and that is exactly why it shipped as a bug: build
+  // 127 was archived against a firmware checkout one commit behind the
+  // publisher, so this fired on every page and the whole app -- home screen,
+  // every page of every book -- wore one sheet. Nothing in any log said so,
+  // and the picture is subtle enough that "the flaws are not changing" was the
+  // only symptom.
+  //
+  // The warning it grew then fired on the FIRST no-identity present, which
+  // meant it fired on every launch that booted to Home and asserted, falsely,
+  // that the firmware does not call the publisher. A diagnostic that is wrong
+  // on most runs is not read on the run where it is right, so it now waits:
+  // a healthy firmware publishes within the first activity entry, a few
+  // milliseconds in, where a build with no publisher at all never does.
+  static int presentsWithNoIdentity = 0;
+  static bool warned = false;
+  if (!warned && ++presentsWithNoIdentity > kNoIdentityGrace) {
+    warned = true;
+    SDL_Log("[paper] no sheet identity after %d presents -- every sheet will "
+            "use the launch seed. The firmware calls neither "
+            "publishReaderPageIdentity nor publishScreenIdentity; per-page "
+            "paper is INACTIVE.",
+            kNoIdentityGrace);
   }
-  return phosphorgrain::hash3(static_cast<uint32_t>(bookKey & 0xFFFFFFFFu),
-                              static_cast<uint32_t>(bookKey >> 32) ^
-                                  static_cast<uint32_t>(spine),
-                              static_cast<uint32_t>(page));
+  return grainSeed() ^ 0x50524553u;  // 'PRES', the pre-identity behaviour
 }
 
 // See the declaration above for why the drift lives at this one read.
