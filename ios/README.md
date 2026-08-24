@@ -1669,7 +1669,14 @@ dark half. Launch first, flip second, then screenshot.
 
 `simctl` cannot synthesize a tap, so each drawer and each write path has an env
 hook. All of them are read once and fire on a frame countdown, deliberately
-staggered so one launch can walk a whole sequence in order:
+staggered so one launch can walk a whole sequence in order.
+
+**Since 2026-08-24 these are the ONLY way into either drawer** — the page-color
+chip that opened them left the pad — and none of what they write reaches the
+page any more, because both appearances are frozen in
+[src/FrozenPage.h](../src/FrozenPage.h) and nothing consults the store. They
+still exercise the shipped write paths, which is what they were for; they no
+longer change what you see.
 
 | Variable | Fires at | What it drives |
 |---|---|---|
@@ -1679,6 +1686,19 @@ staggered so one launch can walk a whole sequence in order:
 | `CROSSPOINT_SIM_APPLY_INK=ink,paper,density[,strength]` | ~120 frames | the ink picker's own apply (claims Custom for light) |
 | `CROSSPOINT_SIM_MIX_GUNS=r,g,b[,w]` | ~180 frames | the mixer's own apply (claims Custom for dark) |
 | `CROSSPOINT_SIM_SELECT_PRESET=<int>` | ~240 frames | the preset list's own selection (hands BOTH polarities back to that preset) |
+| `CROSSPOINT_SIM_TAP_CHIP=<ms>` | that many ms after launch | one synthetic finger tap at the KEYBOARD chip's center, through the whole finger path |
+
+`CROSSPOINT_SIM_TAP_CHIP` is the odd one out and takes a wall-clock delay rather
+than a `1`. It aimed at the page-color button until that button was removed on
+2026-08-24, and was re-aimed rather than deleted: the surviving chip is the only
+way to dismiss the iPhone software keyboard, and after the removal it had no
+synthetic-tap path at all — so "does it still work" could only be answered by a
+human with a finger, which is not a form of proof this repo accepts. It hits
+only while a text field is open, so schedule it AFTER whatever navigation opens
+one. `[kbchip] diagnostic tap ... (field open, keyboard down)` says the chip was
+live and `[kbchip] tap -> keyboard up` says the toggle fired. Verified on an
+iPhone Air simulator 2026-08-24: those two lines, and the system keyboard on
+screen in the next capture.
 
 A frame here is one `CrossPointHarness_perFrame`, not 1/60 s: the app presents
 rarely, so 240 frames took ~15 s on an iPhone Air simulator. Wait for the log

@@ -4,6 +4,32 @@ Added 2026-08-20. Math in [`src/PhosphorMix.h`](../src/PhosphorMix.h) (pure,
 host-tested by `tests/phosphor_mix_test.cpp`), UI in
 [`ios/CrossPointPaletteMixer.mm`](../ios/CrossPointPaletteMixer.mm).
 
+> **FROZEN 2026-08-24, and nothing on the phone opens this drawer any more.**
+> Owner ruling: *"take out paper and crt settings for now ... attached image for
+> crt"*, sent with a screenshot of this mixer, and *"remove the color button
+> from single finger (not zen) mode ui."* The page-color chip that opened it is
+> gone from the pad.
+>
+> The dark page is frozen at **the recipe in that screenshot** — R **P38 Radar
+> Amber 19**, G **P45 White 88**, B **P20 Yellow-Green Long 17**, W **P22R Red
+> 36** — which this file's own math resolves to **`CFD4CC` on `171B1B`, fade
+> **1095 ms**, handing over to a `613B27` tail at 400 ms. The recipe is stated
+> as four gun assignments and four weights in
+> [`src/FrozenPage.h`](../src/FrozenPage.h) and every tone is DERIVED from
+> `mixBlend`, so the numbers above are a consequence of this model rather than a
+> second copy of it; `tests/frozen_page_test.cpp` is what compares the two.
+>
+> **What that changes in the file below: the WAY IN, and nothing else.** The
+> model is unchanged and correct. The UI still compiles and still opens from
+> `CROSSPOINT_SIM_OPEN_MIXER=1` for a headless QA run — but its sliders no
+> longer move the page, because the render consults the store for none of it
+> (`ios/PanelPrefs.h`, `ios/GunStore.h`). That is the freeze working, not a bug.
+> Everything from `applyGuns` down still writes the store; nothing reads it
+> while the freeze holds, which is what makes unfreezing one function body.
+>
+> The three sections below describe live controls in the present tense. Read
+> them as the model's documentation.
+
 ## SUPERSEDED UI: the P22 gun mixer (2026-08-21)
 
 Owner, after using the shipped modal on device: *"the mixer ui sucks and

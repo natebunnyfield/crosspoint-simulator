@@ -2556,7 +2556,15 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // to the read-aloud word tap, which is what an empty part of the pad
           // band has always done.
           if (hitKeyboardChip(candX, candY)) {
-            gpio.setHostKeyboardVisible(!gpio.isHostKeyboardVisible());
+            const bool want = !gpio.isHostKeyboardVisible();
+            gpio.setHostKeyboardVisible(want);
+            // Logged since 2026-08-24. This chip became the pad's ONLY
+            // non-button control that day, and the one whose loss would trap a
+            // reader in a text field; without a line here the difference
+            // between "the tap missed" and "the toggle did nothing" is
+            // invisible from outside, which is the state the page-color chip's
+            // own crash investigation started in.
+            SDL_Log("[kbchip] tap -> keyboard %s", want ? "up" : "down");
             SimulatorOverlay::requestPresent();
           } else
             CrossPointReadAloud_tapAtScreen(candX, candY);
@@ -2844,13 +2852,71 @@ void CrossPointHarness_perFrame() {
     }
     if (s_selectPresetCountdown > 0 && --s_selectPresetCountdown == 0)
       CrossPointPresetList_selectForTest(s_selectPreset);
-    // CROSSPOINT_SIM_TAP_CHIP LEFT WITH THE BUTTON, 2026-08-24. It synthesized
-    // a finger down/up at the page-color chip's center so padWatch,
-    // hitPaletteChip and the whole tap branch ran exactly as a thumb ran them
-    // -- it existed because a device crash was reported against that tap and
-    // the auto-open below reproduced nothing. With no chip there is no center
-    // to aim at; the two auto-opens above still present each drawer, which is
-    // what a headless run of either one needs.
+    // CROSSPOINT_SIM_TAP_CHIP=<ms>: one synthetic finger tap at the KEYBOARD
+    // chip's center, `ms` after launch, through the FULL finger path -- the SDL
+    // event watch, g_tapCand, hitKeyboardChip and the toggle, exactly as a
+    // thumb runs them.
+    //
+    // IT USED TO AIM AT THE PAGE-COLOR CHIP, which was removed on 2026-08-24;
+    // it was written because a device crash was reported against that tap and
+    // the auto-opens above reproduced nothing. Re-aimed rather than deleted,
+    // because the surviving chip is the one that MATTERS -- it is the only way
+    // to dismiss the iPhone software keyboard -- and after the removal it had
+    // no synthetic-tap path at all, so "does the chip still work" could only be
+    // answered by a human with a finger. That is exactly the shape of claim
+    // this repo does not accept.
+    //
+    // A TIME, not a frame count, and no default: a frame here is one
+    // CrossPointHarness_perFrame and the app presents rarely, so 150 frames was
+    // ~10 s on one device and ~2 s on another. The chip only hit-tests while a
+    // field is open, so the caller has to schedule this AFTER the navigation
+    // that opens one -- which is the whole point, and why the wall clock is the
+    // honest unit. Logs whether the chip was live, so a miss reads as a miss
+    // rather than as a broken toggle.
+    //
+    // ONE-SHOT ACROSS A REBOOT, deliberately, and therefore NOT registered in
+    // src/SimulatorRebootResets.h -- unlike the schedules that file exists for.
+    // The iOS reboot is a longjmp in the same process, so these statics survive
+    // it and the tap does not fire twice. That is what is wanted here: a
+    // diagnostic tap that re-armed itself would press the chip again on a
+    // machine whose field is long closed. Same shape as the auto-opens above.
+    static Uint64 s_tapChipAt = 0;
+    static bool s_tapChipDone = true;
+    static bool s_tapChipRead = false;
+    if (!s_tapChipRead) {
+      s_tapChipRead = true;
+      const char *e = std::getenv("CROSSPOINT_SIM_TAP_CHIP");
+      int ms = 0;
+      if (e && std::sscanf(e, "%d", &ms) == 1 && ms > 0) {
+        s_tapChipAt = static_cast<Uint64>(ms);
+        s_tapChipDone = false;
+      }
+    }
+    if (!s_tapChipDone && SDL_GetTicks() >= s_tapChipAt) {
+      s_tapChipDone = true;
+      float outW = 0, outH = 0;
+      if (g_kbChip.w > 0 && windowPixelSize(g_windowId, &outW, &outH)) {
+        const float cx = (g_kbChip.x + g_kbChip.w / 2) / outW;
+        const float cy = (g_kbChip.y + g_kbChip.h / 2) / outH;
+        SDL_Log("[kbchip] diagnostic tap at %.3f,%.3f (field %s, keyboard %s)",
+                cx, cy, gpio.isTextEntryActive() ? "open" : "CLOSED -- the chip "
+                                                            "does not hit-test",
+                gpio.isHostKeyboardVisible() ? "up" : "down");
+        SDL_Event down{};
+        down.type = SDL_EVENT_FINGER_DOWN;
+        down.tfinger.touchID = 99;
+        down.tfinger.fingerID = 99;
+        down.tfinger.x = cx;
+        down.tfinger.y = cy;
+        down.tfinger.windowID = g_windowId;
+        SDL_PushEvent(&down);
+        SDL_Event up = down;
+        up.type = SDL_EVENT_FINGER_UP;
+        SDL_PushEvent(&up);
+      } else {
+        SDL_Log("[kbchip] diagnostic tap skipped: the pad has not been laid out");
+      }
+    }
     // CROSSPOINT_SIM_TAP_PAD=<BUTTON NAME, e.g. BACK>: one synthetic finger
     // tap on that pad button, down ~2.5 s after launch and up 12 frames later.
     // The FULL finger path -- padWatch, padHitTest, PadCore, applyActions --
