@@ -22,11 +22,18 @@
 // on a shrinking area and the line is genuinely brighter than the picture was.
 // gainAt is 1 / verticalScale, which is that statement, capped -- see kGainMax.
 //
+// WHAT IT SQUEEZES IS THE SCREEN THAT WAS THERE. Owner ruling 2026-08-24:
+// "when power off collapse is enabled, don't switch to showing sleep screen.
+// use the existing screen as source for the effect." The firmware still draws
+// its sleep screen -- this is host-side and reaches no device -- but from
+// deep-sleep entry onward HalDisplay drops every present and keeps the page the
+// reader was looking at, so the tube switches off showing what was on it.
+//
 // WHY IT CANNOT DELAY SLEEP. The animation does not run before the device
-// sleeps; it runs INSIDE the sleep loop, after HalDisplay::deepSleep() has
-// flushed the sleep screen and the firmware has handed control to
-// HalGPIO::startDeepSleep. Nothing waits for it: a wake edge arriving in the
-// middle of the collapse is serviced on the same iteration it arrives, because
+// sleeps; it runs INSIDE the sleep loop, after HalDisplay::deepSleep() has run
+// and the firmware has handed control to HalGPIO::startDeepSleep. Nothing waits
+// for it: a wake edge arriving in the middle of the collapse is serviced on the
+// same iteration it arrives, because
 // the loop checks for wakes before it steps this. The frames it draws are frames
 // that would otherwise not exist.
 //
@@ -34,7 +41,10 @@
 // That is also why this is the one dial in the surface stack that is a settings
 // row rather than a frozen constant, and why it defaults OFF: turning it on
 // trades the sleep screen -- a real feature, with a book cover or a clock on it
-// -- for the shutdown. Nobody may make that trade on the owner's behalf.
+// -- for the shutdown. Nobody may make that trade on the owner's behalf. Since
+// 2026-08-24 the trade is the whole of it: the sleep screen is not shown even
+// for the instant before the collapse, because the collapse's source is the
+// page it replaced.
 //
 // AND THE OTHER HALF READS THAT DECISION. Because this ends at EXACTLY zero
 // rather than leaving a lit dot, src/PowerOnWarmUp.h cannot trigger off "is
@@ -105,8 +115,8 @@ struct State {
 // THE ANSWER: what the glass shows `elapsedMs` after the tube was switched off.
 //
 // t = 0 is the IDENTITY -- scales exactly 1, gain exactly 1, no dot -- so the
-// first frame of a collapse is byte-identical to the sleep screen and the
-// animation can never flash on its opening frame.
+// first frame of a collapse is byte-identical to the frame already on the glass
+// and the animation can never flash on its opening frame.
 inline State stateAt(const Params &p, float elapsedMs) {
   State s;
   if (!p.enabled) return s;

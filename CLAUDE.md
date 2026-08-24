@@ -152,7 +152,21 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   (measured 2026-08-23: `inverted=0`, paper F9F9F8, on a run whose every page
   turn built a scanline field). So "is the page dark" asked at sleep time
   answers about the sleep screen, not about the tube. `lastReadingDarkGround` is
-  latched on every non-sleep present for exactly this reason.
+  latched on every non-sleep present for exactly this reason, and the
+  2026-08-24 ruling below does NOT retire it: suppressing the sleep screen's
+  present does not suppress the firmware's `setInverted(false)`, which
+  `SleepActivity::onEnter` calls before it draws anything.
+- **When the collapse will run, the sleep screen is DROPPED, not shown.** Owner
+  2026-08-24: *"use the existing screen as source for the effect."*
+  `presentIfNeeded` drops every present from `deepSleep()` onward while the dial
+  is on and the page was dark, so the panel texture and the glass keep the page
+  the reader was looking at; `sleepSourcePixels` keeps a copy of that page (one
+  per page turn, only while the dial is on) and the collapse re-uploads it on the
+  frame it starts, which is what makes the drop immune to a sleep-screen present
+  that beats it by a frame. Dropped rather than held, because an owed frame lands
+  on the iOS wake, where the reboot is a `longjmp`. With the dial off, or on a
+  pale page, the sleep screen flushes exactly as before — proven byte-identical.
+  `docs/power-off-collapse.md`.
 - **The WAKE path does NOT have the mirror of that trap** — checked rather than
   assumed, 2026-08-23. The wake's `Boot` activity enters and exits within 9 ms
   **without presenting at all**, so the first post-wake present is already the
@@ -575,7 +589,7 @@ the desktop. The rightmost column says which each one is.
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, composited over the whole app surface in `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
 | Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 100; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x) | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
 | Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). **FROZEN OFF (0) since 2026-08-23** — a Settings row was shipped so the owner could judge it on glass and he correctly reported "nothing is being rendered in any corners": at the shipped 2 px scanline pitch the field it modulates is 5/255 deep at the centre and 0 at the corner, so there was nothing there to defocus. The model, its test and its doc all stand; re-enabling is this one number, and returning 0 gave back ~42 ms per dark page turn | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture`; `CROSSPOINT_SIM_CORNER_DEFOCUS`; `CrossPointPrefs_cornerDefocusPercent()` returns 0 | `docs/corner-defocus.md` |
-| Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
+| Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. The picture is the PAGE that was on the glass, not the sleep screen (owner 2026-08-24) — the sleep screen's present is dropped and a copy of the reading page is kept for the source. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
 | BZZT THONK power-on warm-up — the OTHER HALF of that same row, no second control. Fires only where the collapse actually switched the tube off (a recorded state, not a wake event): dot relit → flicker + crackle with the line punching out in steps → raster slams open, overshoots into overscan, bounces, lands → 6% sag and back to exactly nominal. 395 ms, DARK only, skippable on any press DOWN | `src/PowerOnWarmUp.h`, composited by `powerOnWarmUpFrame()` in `HalDisplay::presentIfNeeded`; armed by `CROSSPOINT_SIM_TUBE_OFF` (set by the collapse), QA hatch `CROSSPOINT_SIM_POWERON_WARMUP` | `docs/power-off-collapse.md` |
 | Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
 | Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |

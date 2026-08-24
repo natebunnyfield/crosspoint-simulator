@@ -21,6 +21,12 @@ from `HalGPIO::startDeepSleep`.
 **Dark mode only. Off by default. The one surface dial that is an iOS Settings
 row rather than a frozen value.**
 
+**It squeezes the screen that was there.** Owner ruling 2026-08-24: *"when power
+off collapse is enabled, don't switch to showing sleep screen. use the existing
+screen as source for the effect."* The page, the menu, whatever was on the glass
+— that is what the tube switches off showing. See
+[The source is the page, not the sleep screen](#the-source-is-the-page-not-the-sleep-screen).
+
 ## What it is
 
 Cutting mains power drains a CRT's deflection supplies faster than its EHT
@@ -43,6 +49,11 @@ DARK for the whole sleep, instead of holding the sleep screen — which is a rea
 feature with a book cover or a clock on it. Nobody may make that trade on the
 owner's behalf, which is also why it ships OFF.
 
+Since 2026-08-24 the trade is the whole of it: the sleep screen is not shown even
+for the instant before the collapse. That is the ruling above, and it makes the
+row's meaning simpler rather than larger — with it on, sleep is the tube going
+out; with it off, sleep is the sleep screen.
+
 It is also the shape the surviving Settings.app rows have after the 2026-08-23
 purge: Zen Mode, the two sleep toggles, Read Aloud, Diagnostics — all behaviour
 switches, no appearance dials. `Sleep > Power-Off Collapse`,
@@ -58,7 +69,9 @@ sleep loop:
 
     firmware enterDeepSleep()
       -> activityManager.goToSleep()      the sleep screen is rendered
-      -> display.deepSleep()              the held frame is flushed, transients settle
+      -> display.deepSleep()              displaySleeping = true, then present:
+                                          FLUSHED with the dial off,
+                                          DROPPED when the collapse will run
       -> powerManager.startDeepSleep()
            -> HalGPIO::startDeepSleep()   the terminal loop, 10 ms ticks
                 processSyntheticEvents()
@@ -79,7 +92,30 @@ tick for the rest of the sleep.
 It never fires on an ordinary page render because it is not in `presentIfNeeded`
 at all.
 
-## The polarity latch — the non-obvious bug
+## The source is the page, not the sleep screen
+
+Owner ruling 2026-08-24. Two things carry it, and they are **not** redundant.
+
+**1. The sleep screen never reaches the glass.** `presentIfNeeded` drops every
+present from `deepSleep()` onward while the collapse is going to run — dropped
+rather than held, because a frame left owed would land on the iOS wake, where the
+reboot is a `longjmp` and `pendingPresent` survives it. The panel texture
+therefore still holds the page the reader was looking at, the glass still shows
+it, and the collapse squeezes that. With the dial off, or on a pale page, the
+sleep screen flushes exactly as it always did. `[power] sleep screen dropped` vs
+`[power] sleep screen flushed` says which happened.
+
+**2. A kept copy of that page** (`sleepSourcePixels` in `HalDisplay.cpp`), which
+the collapse re-uploads on the frame it starts. This is what makes (1) immune to
+timing. The sleep screen's own present is held for `kPresentHoldMs` and is
+normally *still held* when `deepSleep()` runs — measured 2026-08-24, 30 ms of
+hold with about 5 ms of it spent — but nothing guarantees the firmware reaches
+`deepSleep()` inside that window, and one slow sleep entry would arm the veto a
+frame late and silently put the sleep screen back into the collapse. The copy is
+taken beside the ghost's, on the same guard as the polarity latch, and only when
+`pixelBufSeq` moves: one copy per page turn, and none at all with the dial off.
+
+## The polarity latch — the non-obvious bug, and why it survived the ruling
 
 The obvious gate, "is the page dark right now", is **wrong**, and it was written
 that way first.
@@ -96,6 +132,29 @@ looking at, not the screen that replaced it. `CROSSPOINT_SIM_LOG_POWER=1` report
 the bail reason once, because four of the five ways this returns false are silent
 by nature.
 
+**The 2026-08-24 ruling does not retire it, and that was checked rather than
+assumed.** Suppressing the sleep screen's *present* does not suppress the
+firmware's `setInverted(false)`: `SleepActivity::onEnter` calls it before it
+draws anything, presents or no presents
+(`crosspoint-reader/src/activities/boot_sleep/SleepActivity.cpp:45`), and
+`panelIsDarkGround()` reads `display.isInverted()` live. So the question is still
+answered by the sleep screen if it is asked at collapse time. What changed is
+what the flag *means*: it is now the polarity of the frame the copy above kept,
+latched on the same present and by the same guard, rather than a stand-in for a
+frame nobody kept.
+
+**A hazard found while proving this, pre-existing and NOT fixed here.** If a
+present of the sleep screen does slip in before `displaySleeping` is set, that
+present latches `lastReadingDarkGround` PALE and the collapse declines
+altogether — `[power] collapse not drawn: the page being read was a pale ground`,
+with the dial on and a dark page. Reproduced 2026-08-24 by scheduling a
+screenshot inside the sleep-entry window, which forces the held frame out early:
+4 of 12 runs. Ordinary use does not force that present, and every unforced run
+took the hold. It is left alone deliberately — the fix is a decision about what
+signal replaces "is the page dark", which is a larger question than this ruling
+asked, and the kept copy already protects the *source* whichever way the race
+goes.
+
 ## The shape of the animation
 
 | Phase | Duration | What happens |
@@ -106,8 +165,8 @@ by nature.
 | **Total** | **1020 ms** | measured on the desktop at 1028 ms |
 
 `t = 0` is the **identity** — scales exactly 1, gain exactly 1, no line — so the
-first frame of a collapse is byte-identical to the sleep screen and the
-animation can never flash on its opening frame. The terminal state is exactly
+first frame of a collapse is byte-identical to the frame already on the glass and
+the animation can never flash on its opening frame. The terminal state is exactly
 black, not nearly black: a dot left at one part in a thousand would sit on the
 glass all night.
 
@@ -137,6 +196,21 @@ runs inside `stepPowerOffCollapse` too. Without that the one moment this feature
 exists for is the one moment headless QA cannot see — the same hole
 `CROSSPOINT_SIM_LOG_PRESENTS` fills for the page-turn flash.
 
+**And it keeps running after the animation ends.** The sleep loop owns the
+thread, so `presentIfNeeded` is not called for the whole sleep, and since
+2026-08-24 its own capture is behind the veto — so the terminal black screen
+would otherwise be the one state a script cannot ask for. The finished branch
+redraws black and captures rather than reading back a presented buffer, whose
+contents are undefined.
+
+**Which path took a capture is observable, and that is how a frame is proved to
+be the collapse's.** With `CROSSPOINT_SIM_LOG_PRESENTS=1`, a capture serviced by
+`presentIfNeeded` is followed immediately by its `[present] #N` line; one
+serviced by the collapse has no line after it. Use this rather than guessing from
+the timestamps — the tick at which the sleep loop starts moves by tens of ms
+between runs, and a due screenshot forces a present, which perturbs the very
+window being aimed at.
+
     CROSSPOINT_SIM_AS_SHIPPED=1 CROSSPOINT_SIM_DARK=1 \
     CROSSPOINT_SIM_POWEROFF_COLLAPSE=1 CROSSPOINT_SIM_LOG_POWER=1 \
     CROSSPOINT_SIM_INPUT_SCRIPT='3000:QTAP:RIGHT;4500:QTAP:POWER;9000:QUIT' \
@@ -164,6 +238,46 @@ CRT White dark:
 Duration 1028 ms, from the `[power]` log. Cost to a page turn: **zero** — it
 never runs during one.
 
+## Measured again, 2026-08-24 — the source
+
+Desktop X3, 1x, output 528x792, `CROSSPOINT_SIM_DARK=1`,
+`CROSSPOINT_SIM_GRAIN_SEED=7`, same `fs_/.crosspoint` restored before every arm.
+Every collapse frame below is proven to have come from `stepPowerOffCollapse`
+rather than from `presentIfNeeded`: with `CROSSPOINT_SIM_LOG_PRESENTS=1` a
+capture made by the present path is followed immediately by its own `[present]`
+line, and these have none.
+
+| Frame | Mean luminance | Lit geometry | What it is |
+|---|---|---|---|
+| last present before sleep | 40.020 | the whole 528x792 | the page being read |
+| collapse, early | 40.752 | rows 73–718 | the same page, squeezed to 81.6% |
+| collapse, mid | 28.420 | rows 246–545 | the same page, squeezed to 37.9% |
+| line | 0.827 | rows 394–396, cols 6–520 | |
+| line closing | 0.148 | rows 394–396, cols 217–308 | |
+| dot | 0.0024 | rows 394–396, cols 262–264 | 3 px = `kDotWidthFrac` x 528 |
+| final | 0.00000 | nothing above luminance 8 | exactly black |
+
+**It is the page and not the sleep screen, in numbers.** Undo the vertical
+squeeze on the early frame by nearest-neighbour and correlate it against each
+candidate (brightness-normalised, so the collapse's own gain does not enter):
+
+| Collapse frame | vs the reading page | vs the sleep screen |
+|---|---|---|
+| early (81.6% height) | **+0.8925** | −0.0319 |
+| mid (37.9% height) | **+0.6208** | −0.0175 |
+
+For scale, the reading page and the sleep screen correlate −0.0195 with each
+other: they are unrelated pictures, and the collapse is squeezing the first one.
+With the dial OFF the same run holds the sleep screen instead — the stock logo
+screen, mean 41.864, a different image in 100% of its pixels.
+
+**Light polarity is untouched, byte for byte.** With `CROSSPOINT_SIM_DARK=0` the
+dial-on and dial-off arms produce identical captures (md5
+`6b7fcf2e…` reading, `e13bd4a1…` sleep screen), the log says
+`sleep screen flushed` in both, and the collapse declines on a pale ground. The
+veto's condition includes the collapse actually running, so a build that never
+switches the tube off cannot lose its sleep screen.
+
 ## The contrast floor does not apply, and the substitute does
 
 Every other pass here is held to 7:1 because it composites over a page being
@@ -182,10 +296,23 @@ the untouched sleep screen **exactly**, and the last is exactly black.
 - a disabled animation that is not bit-exact identity changes what sleep looks
   like for every install that never turned it on.
 
+Two more live in `HalDisplay.cpp` rather than in the model, because they are
+about the SOURCE and the model has no opinion about where its picture comes from
+— both are silent, and both are checked by capture rather than by a unit test:
+
+- a veto that fires when the collapse will not run takes the sleep screen away
+  from an install that wants it, and nothing in the app says so (the light-mode
+  byte-identity arm above is what catches this);
+- a veto that arms a frame late puts the sleep screen back into the collapse,
+  looking exactly like the feature never changed (the kept copy is what stops
+  this, and the correlation figures are what would catch it).
+
 **Status: SHIPPED — UNCONFIRMED on device.** The frames above are desktop
 captures under the software renderer. What has not been observed is the thing
 this feature is for: the collapse at 60 Hz on glass, and whether the wake still
-feels immediate while it is running.
+feels immediate while it is running. Nor has the 2026-08-24 source change been
+seen on a phone — where the sleep path is an in-process `longjmp` rather than an
+`execvp`, so the dropped frame's `pendingPresent` clearing is the part to watch.
 
 ---
 
@@ -235,6 +362,29 @@ runs on a dark ground, so a boot that armed this was looking at a dark tube; a
 cold launch, a wake with the dial off, a wake from a light page, a firmware
 restart and a document-open relaunch all miss it, because none of them
 collapsed.
+
+**What it comes back TO, since 2026-08-24.** The page the collapse squeezed.
+Measured on a full sleep/wake cycle that day, `wake-0-reading.png` against
+`wake-4-settled.png`: the settled post-wake frame reproduces the pre-sleep page
+to within **3 code values**, worst pixel, over 528x792 — mean absolute
+difference 1.03, and **not one pixel** differs by more than 4.
+
+It is NOT byte-identical, and the first writeup of this claimed it was, from a
+comparison of the wrong pair (`dark-1-reading` against `wake-0-reading`, which
+are the same capture and so prove nothing about the wake). What accounts for the
+residue is documented and expected: `grainSeed()` is deliberately re-rolled on
+every launch and across the iOS longjmp reboot, because two runs of the app are
+two tubes, and on a dark page the scanline field's phase jitter, thickness
+jitter and mottle all hang off it. The known figure for that is ~2.2 code values
+between two runs at identical dials, which is what this is. Pin
+`CROSSPOINT_SIM_GRAIN_SEED` and it goes away; a wake in ordinary use does not,
+and should not.
+
+The two halves also still meet at the dot — the
+collapse's last lit pixels are rows 394–396, cols 262–264, and the warm-up's
+relit dot is rows 394–396, cols 262–264. Before the ruling, the tube collapsed a
+sleep screen and opened onto a page; now the picture that goes out is the picture
+that comes back.
 
 **The reverse of the collapse's polarity trap was checked, not assumed.** The
 collapse had to latch `lastReadingDarkGround` because the firmware draws its
