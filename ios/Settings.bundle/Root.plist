@@ -52,28 +52,6 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Temporary. Corner defocus softens the picture toward the corners, the way a CRT's beam widens off-axis. It measures below one code value on this panel, so it cannot be judged from a screenshot — only by eye. Turn it off and on while reading a dark page and tell me if you can see any difference at all. This row comes out once that is answered.</string>
-			<key>Title</key>
-			<string>Screen Test</string>
-			<key>Type</key>
-			<string>PSGroupSpecifier</string>
-		</dict>
-		<dict>
-			<key>DefaultValue</key>
-			<true/>
-			<key>FalseValue</key>
-			<false/>
-			<key>Key</key>
-			<string>cornerDefocusEnabled</string>
-			<key>Title</key>
-			<string>Corner Defocus</string>
-			<key>TrueValue</key>
-			<true/>
-			<key>Type</key>
-			<string>PSToggleSwitchSpecifier</string>
-		</dict>
-		<dict>
-			<key>FooterText</key>
 			<string>Experimental: reads the open book aloud in your Spoken Content voice, turning pages as it goes. Tap a word to start reading from it, or tap the word being read to stop. With VoiceOver on, a two-finger double tap pauses and resumes. Reading continues with the screen locked. Turning it on takes effect at the next page turn.
 
 Speaking rate is a percentage of normal. The Spoken Content rate slider in Accessibility settings does not apply here, so this is the one that moves it.</string>

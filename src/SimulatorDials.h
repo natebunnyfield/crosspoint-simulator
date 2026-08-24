@@ -237,10 +237,14 @@ inline constexpr Dial kDials[kDialCount] = {
    "showThroughPercent", showthrough::kStrengthOff, showthrough::kStrengthMax,
    showthrough::kStrengthOff, showthrough::kStrengthStandard, kPlain,
    ShowThroughPercent},
-  {CornerDefocusPercent, "corner defocus", "CROSSPOINT_SIM_CORNER_DEFOCUS",
+  // Shipped value 0 since 2026-08-23: the owner looked for it on glass and
+   // correctly saw nothing -- whole-frame deviation is one code value, and the
+   // corners of a reading page are uniform ground. The model stays; only the
+   // shipped strength is off. See CrossPointPrefs.mm for the full reasoning.
+   {CornerDefocusPercent, "corner defocus", "CROSSPOINT_SIM_CORNER_DEFOCUS",
    "cornerDefocusPercent", cornerdefocus::kStrengthOff,
    cornerdefocus::kStrengthMax, cornerdefocus::kStrengthOff,
-   cornerdefocus::kStrengthStandard, kPlain, CornerDefocusPercent},
+   cornerdefocus::kStrengthOff, kPlain, CornerDefocusPercent},
   // The one of the three 2026-08-23 items that is still a Settings ROW rather
   // than a frozen value, because it is the one with a trade: it leaves the
   // glass dark for the whole sleep instead of holding the sleep screen. Ships
