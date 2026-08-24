@@ -219,3 +219,28 @@ column (the dial-table test caught the two drifting apart within seconds of the
 first edit, which is exactly what it is for). The model, its host test and this
 document all stand, so re-enabling is one number if a denser panel ever makes it
 visible. Turning it off also returns roughly **42 ms per dark page turn**.
+
+### The measured reason, found after the fact
+
+Asked for a figure that would actually show the effect, and it produced the
+answer the earlier reasoning had missed. Rendering the scanline field alone from
+the shipped model, same-size samples from the panel centre and a corner:
+
+| Raster pitch | Centre depth | Corner depth | Corner keeps |
+|---|---|---|---|
+| 6 px (coarse) | 66 / 255 | 37 / 255 | 56% |
+| **2 px (shipped Fine at 2x)** | **5 / 255** | **0 / 255** | **0%** |
+
+At a coarse raster the effect is obvious and works exactly as modelled. At the
+shipped pitch the raster's OWN depth is five code values, because the
+box-integrated field self-attenuates to nearly flat when a scan line is two
+device pixels tall. Corner defocus was modulating something already at the edge
+of invisibility, and in the corner it takes that 5 to 0.
+
+**So the effect is real and the thing it acts on is not there.** That is a
+better reason to ship it off than "too subtle", and it also exposes the error in
+the 41% figure quoted throughout this document: 41% of a quantity that is itself
+5/255. A ratio was reported without checking the magnitude of what it was a
+ratio OF -- the same class of mistake as a percentage improvement on something
+that does not matter. The whole-frame figure of one code value was the honest
+one and it was available from the start.
