@@ -239,6 +239,11 @@ static PresentTiming timingFrame;
 // (a plain bool) before any env read, so the off cost is nil.
 static bool powerLogFirstRefresh = false;
 static bool powerLogFirstPresent = false;
+// Log-once for the sleep-screen veto below. At namespace scope rather than as a
+// static local, because an iOS wake is a longjmp and a function-local static
+// survives it -- a second sleep in one session would then drop its frames
+// silently. Cleared at the reboot boundary with the rest.
+static bool powerLogSleepVetoSaid = false;
 
 // The display is on its way into deep sleep (HalDisplay::deepSleep has run;
 // the firmware's only caller goes straight into the sleep loop from there and
@@ -258,6 +263,33 @@ static std::atomic<bool> displaySleeping{false};
 // moment it is read. Defaults false: a build that never presents a dark page
 // never switches a tube off.
 static std::atomic<bool> lastReadingDarkGround{false};
+
+// --- THE PAGE THE COLLAPSE SQUEEZES -----------------------------------------
+//
+// Owner ruling 2026-08-24: "when power off collapse is enabled, don't switch to
+// showing sleep screen. use the existing screen as source for the effect." The
+// tube switches off showing what was on it, which is the page, the menu, or
+// whatever the reader was looking at -- never the screen the firmware drew to
+// replace it.
+//
+// Two things carry that and they are not redundant. presentIfNeeded DROPS every
+// present from deep-sleep entry onward (see the veto there), so the sleep screen
+// reaches neither the glass nor `texture`; this copy is what makes that immune
+// to timing. The sleep screen's own present is held for kPresentHoldMs and is
+// normally still held when deepSleep() runs -- measured 2026-08-24, 30 ms of
+// hold with ~5 ms of it spent -- but nothing GUARANTEES the firmware reaches
+// deepSleep() inside that window, and one slow sleep-entry would arm the veto a
+// frame late and silently put the sleep screen back in the collapse. The
+// collapse re-uploads this copy on the frame it starts, so the source is the
+// reading page whichever way that race went.
+//
+// Kept only while the dial is on, and re-copied only when the picture actually
+// changes: one copy per page turn, not one per present. Same shape and same
+// cost as ghostPixels, which is next to it in presentIfNeeded for the same
+// reason -- SDL_UpdateTexture overwrites `texture` in place, so a frame worth
+// keeping has to be copied before the next one lands.
+static std::vector<uint32_t> sleepSourcePixels;
+static uint64_t sleepSourceSeq = 0;
 
 // --- THE TUBE WARMING UP: what this boot inherited --------------------------
 //
@@ -1938,6 +1970,7 @@ static uint64_t accumLastAddMs = 0;
 const simreset::Registrar gPowerLogBoundary{[] {
   powerLogFirstRefresh = true;
   powerLogFirstPresent = true;
+  powerLogSleepVetoSaid = false;
   // The boot on the other side of the jump is awake, whatever it renders.
   displaySleeping.store(false);
   if (!powerLogWanted()) return;
@@ -3357,6 +3390,32 @@ void HalDisplay::presentIfNeeded() {
               (unsigned long long)accumLastAddMs);
   }
 
+  // THE SLEEP SCREEN DOES NOT REACH THE GLASS WHEN THE TUBE IS ABOUT TO SWITCH
+  // OFF. Owner ruling 2026-08-24 -- see sleepSourcePixels for the sentence and
+  // for why the kept copy exists alongside this. From deepSleep() onward every
+  // frame the firmware offers is part of going to sleep, so it is DROPPED here:
+  // `texture` keeps the page the reader was looking at, the glass keeps showing
+  // it, and the collapse squeezes that.
+  //
+  // DROPPED, not held. A frame left owed would land on the iOS wake, where the
+  // reboot is a longjmp and pendingPresent survives it -- the sleep screen would
+  // then flash on the far side of a warm-up the owner skipped.
+  //
+  // Only when the collapse will actually run. With the dial off, or on a pale
+  // page, the sleep screen flushes exactly as it always did, which is the whole
+  // point of the sleep screen: an e-ink panel holds it with the power off.
+  if (displaySleeping.load() && SimulatorOverlay::powerOffCollapse.load() &&
+      lastReadingDarkGround.load()) {
+    pendingPresent.store(false);
+    presentHoldUntil.store(0);
+    if (!powerLogSleepVetoSaid && powerLogWanted()) {
+      powerLogSleepVetoSaid = true;
+      SDL_Log("[power] sleep screen dropped: the collapse keeps the page that "
+              "was on the glass");
+    }
+    return;
+  }
+
   // Service inversion changes first: reconverting sets pendingPresent, so the
   // repolarized pixels ride the present below instead of waiting for the
   // firmware to refresh.
@@ -3397,6 +3456,15 @@ void HalDisplay::presentIfNeeded() {
   // moment of collapse therefore answers about the sleep screen, and a
   // dark-mode-only artifact never fires. What the fiction wants is the tube the
   // reader was looking at.
+  //
+  // THE 2026-08-24 RULING DOES NOT RETIRE THIS, checked rather than assumed.
+  // Suppressing the sleep screen's PRESENT does not suppress the firmware's
+  // setInverted(false) -- SleepActivity::onEnter calls it before it draws
+  // anything, presents or no presents -- so panelIsDarkGround() still answers
+  // about the sleep screen at collapse time. What did change is what this flag
+  // means: it is now the polarity of the frame sleepSourcePixels kept, latched
+  // on the same present and by the same guard, rather than a stand-in for a
+  // frame nobody kept.
   if (!displaySleeping.load()) lastReadingDarkGround = panelIsDarkGround();
 
   // The timing frame is armed HERE, past every early return, so a present that
@@ -3479,6 +3547,23 @@ void HalDisplay::presentIfNeeded() {
       beamStartedAt = 0;
       ghostHasPicture = false;
     }
+    // KEEP THIS PAGE FOR THE COLLAPSE. Same guard as the polarity latch above
+    // and for the same reason: what the fiction wants is the tube the reader
+    // was looking at. Keyed on the seq rather than copied every present, so a
+    // glow trail redrawing the same picture 60 times a second pays nothing.
+    if (SimulatorOverlay::powerOffCollapse.load()) {
+      if (!sleepSettled &&
+          (sleepSourceSeq != pixelBufSeq || sleepSourcePixels.size() != live)) {
+        sleepSourcePixels.assign(pixelBuf, pixelBuf + live);
+        sleepSourceSeq = pixelBufSeq;
+      }
+    } else if (!sleepSourcePixels.empty()) {
+      // Turned off: drop the copy rather than keep paying for it, exactly as
+      // the ghost does.
+      sleepSourcePixels.clear();
+      sleepSourceSeq = 0;
+    }
+
     // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
     // so at a lower scale the live picture occupies a prefix of it and the
     // ceiling's pitch would stride past every row.
@@ -4611,6 +4696,24 @@ const simreset::Registrar gCollapseReset{[] {
   collapseFinished = false;
 }};
 
+// PUT THE READING PAGE BACK IN THE PANEL TEXTURE. presentIfNeeded has been
+// dropping frames since deepSleep(), so `texture` should already hold it and
+// this is a no-op re-upload of identical pixels -- it is here for the one case
+// where it is not: a sleep-screen present that beat the veto by a frame. Called
+// once, on the frame the collapse starts, and nothing else writes the panel
+// texture while the device is asleep. Silent when there is no copy (the dial
+// was turned on after the last present), which leaves the previous behaviour
+// rather than a black panel.
+void restoreSleepSourceFrame() {
+  if (!texture) return;
+  const std::lock_guard<std::mutex> lock(pixelBufMutex);
+  const size_t live = static_cast<size_t>(HalDisplay::activeWidth()) *
+                      HalDisplay::activeHeight();
+  if (sleepSourcePixels.size() != live) return;
+  SDL_UpdateTexture(texture, nullptr, sleepSourcePixels.data(),
+                    HalDisplay::activeWidth() * sizeof(uint32_t));
+}
+
 }  // namespace
 
 namespace SimulatorOverlay {
@@ -4628,7 +4731,24 @@ bool stepPowerOffCollapse() {
     return false;
   };
   if (!powerOffCollapse.load()) return bail("the dial is off");
-  if (collapseFinished) return false;
+  if (collapseFinished) {
+    // THE GLASS IS BLACK FOR THE REST OF THE SLEEP, AND THAT IS PHOTOGRAPHABLE.
+    // The sleep loop owns the thread, so presentIfNeeded is not running, and
+    // from 2026-08-24 its own capture is behind the sleep-screen veto -- so
+    // without this the terminal state is the one state headless QA cannot ask
+    // for, which is the same hole the due-screenshot check below fills for the
+    // animation itself. Redrawn rather than read back: a presented backbuffer's
+    // contents are undefined, and a garbage capture is worse than none.
+    if (sdl_renderer && hasDueScreenshot()) {
+      SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                       SDL_LOGICAL_PRESENTATION_DISABLED);
+      SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+      SDL_RenderClear(sdl_renderer);
+      captureDueScreenshots();
+      SDL_RenderPresent(sdl_renderer);
+    }
+    return false;
+  }
   if (!sdl_renderer || !texture) return bail("no renderer or no frame");
   // A PAPER PAGE DOES NOT SWITCH OFF. Same gate the accumulator uses: this is
   // a CRT artifact, and on a pale ground it would be a page being eaten.
@@ -4642,6 +4762,8 @@ bool stepPowerOffCollapse() {
   const uint64_t now = SDL_GetTicks();
   if (collapseStartedAt == 0) {
     collapseStartedAt = now;
+    // THE SOURCE IS THE PAGE, NOT THE SLEEP SCREEN (owner, 2026-08-24).
+    restoreSleepSourceFrame();
     // THE TUBE IS GOING DARK, so the next boot owes it a warm-up. Set here
     // rather than at sleep ENTRY because this is the first frame that actually
     // switches the tube off: every reason this function bails -- the dial, a
@@ -4737,7 +4859,10 @@ void HalDisplay::deepSleep() {
             (unsigned long long)presentHoldUntil.load(), lastPixelWriter.load());
   // Flush any held base pass first. Sleep is the one caller with no "next
   // pass": the loop stops here, so a frame still inside the hold window would
-  // be the frame nobody ever sees -- and it is the sleep screen.
+  // be the frame nobody ever sees -- and it is the sleep screen. When the
+  // collapse is going to run there is no frame to flush and presentIfNeeded's
+  // veto (below displaySleeping) drops it instead; the ordering here is what
+  // makes that work, since the flag is set before the present.
   presentHoldUntil.store(0);
   // SETTLE EVERY PRESENT FROM HERE ON, not just the one below. The frames
   // presented after this call are the last ones: presents stop shortly after
@@ -4756,7 +4881,8 @@ void HalDisplay::deepSleep() {
   displaySleeping.store(true);
   presentIfNeeded();
   if (powerLogWanted())
-    SDL_Log("[power] sleep screen flushed; transients settle while sleeping");
+    SDL_Log("[power] sleep screen %s; transients settle while sleeping",
+            powerLogSleepVetoSaid ? "dropped" : "flushed");
 }
 
 uint8_t *HalDisplay::getFrameBuffer() const {
