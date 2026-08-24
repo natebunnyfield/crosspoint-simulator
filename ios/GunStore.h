@@ -36,7 +36,7 @@ inline NSString *const kMode = @"phosphorMixMode";
 // Current assignments + weights.
 //
 // FROZEN 2026-08-24 by owner ruling ("take out paper and crt settings for now
-// ... attached image for crt"): the four guns are ios/FrozenPage.h's, and this
+// ... attached image for crt"): the four guns are src/FrozenPage.h's, and this
 // consults NSUserDefaults for NEITHER key. Same discipline as
 // CrossPointPrefs.mm's frozen getters -- with the page-color chip gone from the
 // pad there is no control that reaches the mixer, so an install holding an

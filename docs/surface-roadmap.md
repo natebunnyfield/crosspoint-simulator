@@ -1007,6 +1007,63 @@ change to typesetting. Cost is genuinely low: a vignette (exists), grain
 
 
 
+## Standing rulings, 2026-08-24
+
+**The page is frozen, and the controls are gone.** *"take out paper and crt
+settings for now. set them to sanguine and india paper and attached image for
+crt"* and *"remove the color button from single finger (not zen) mode ui."* The
+image was a screenshot of the gun mixer; the recipe is P38 Radar Amber 19, P45
+White 88, P20 Yellow-Green Long 17, P22R Red 36.
+
+| | Frozen at | Resolves to |
+|---|---|---|
+| Light | Sanguine ink, India paper | `5C332B` on `F9F3E9` |
+| Dark | that four-gun blend | `CFD4CC` on `171B1B`, 1095 ms fade |
+
+`src/FrozenPage.h` is the only place either is named, and it freezes the
+**inputs**: the tones are derived by the same `lightink::` and
+`phosphormix::mixBlend` models the drawers drive, so a model retune carries the
+frozen page with it. It lives in `src/` rather than `ios/` deliberately — the
+desktop's `CROSSPOINT_SIM_AS_SHIPPED` seed reads the same definition, which is
+what stops the two platforms drifting.
+
+**They drifted within hours of the freeze, which is why that matters.** The
+first version left `AS_SHIPPED` hand-writing the page (on the reasonable-sounding
+argument that a palette, an emission flag and a glow are one coherent choice
+rather than 23 numbers). It seeded CRT White and never seeded light at all, so
+the documented way to reproduce an owner report painted India's tooth,
+formation and show-through onto a paper tone that is not India's, and a dark
+page off by a nearly 4x trail. Found by adversarial review, not by a test,
+because that half was deliberately outside the dial table's reach. **A
+hand-written coherent choice drifts exactly like a hand-written number.**
+
+**The drawers stay, unreachable.** Both editors and the preset list are still
+compiled and still open from `CROSSPOINT_SIM_OPEN_INKPICKER` / `_OPEN_MIXER`.
+"For now" is reversible and deleting two working editors to honour a temporary
+ruling is a one-way door. **Their sliders no longer move the page** — the render
+consults the store for none of it — which is the freeze working, not a bug.
+
+**Verso bleed is reading-mode only.** *"do not have verso bleed outside of
+reading mode."* Show-through is the one sheet field that is not a property of
+the stock: the back of a leaf is the previous PAGE, and a menu is not one. The
+bleed on system screens was one day old when he called it — giving those screens
+a sheet identity on 2026-08-23 is what woke it.
+
+**The tube switches off showing the page.** *"when power off collapse is
+enabled, don't switch to showing sleep screen. use the existing screen as source
+for the effect."* Host-side only; the firmware still draws its sleep screen and
+the device still holds it with the power off.
+
+**Typing does not re-derive the page.** *"remove eink delay."* The letterpress
+field is content-locked, so every keystroke rebuilt the whole panel-space field:
+53.6 ms per character at 1x, 205 ms at 2x, which is what the phone renders at.
+The field is now held while a text field is open. The trade, accepted
+explicitly: mid-line the ink-squeeze rims sit where the previous glyphs were.
+
+**Heros' fit is accepted as drawn.** Reported, measured, ruled: the tight `at`
+is the face's own (35/1000 em against Libre Franklin's 107). Not a bug, does not
+reopen. `~/src/crosspoint-reader/docs/heros-letterfit-2026-08-24.md`.
+
 ## Standing rulings, 2026-08-23
 
 Recorded here because a decision that lives only in a transcript gets

@@ -374,7 +374,24 @@ Settings.app. This moved twice and the table that used to sit here (a
 when those rows left `Root.plist`; it was still being read as current a day
 later.
 
-Where it lives now: the page-color chip in the button pad opens the picker. In
+**FROZEN 2026-08-24, and nothing on the phone opens either drawer any more.**
+Owner ruling: *"take out paper and crt settings for now. set them to sanguine
+and india paper and attached image for crt"* and *"remove the color button from
+single finger (not zen) mode ui."* The light page is Sanguine `5C332B` on India
+`F9F3E9`; the dark page is his own four-gun mix (P38 Radar Amber 19, P45 White
+88, P20 Yellow-Green Long 17, P22R Red 36), resolving to `CFD4CC` on `171B1B`
+with a 1095 ms fade. Both are derived, not typed, in
+[src/FrozenPage.h](../src/FrozenPage.h) — which the desktop's
+`CROSSPOINT_SIM_AS_SHIPPED` seed reads too, so the two platforms cannot
+disagree about what the app ships.
+
+The description below is how it worked BEFORE that ruling, kept because "for
+now" is explicitly reversible and both drawers are still compiled — they are
+reachable from `CROSSPOINT_SIM_OPEN_INKPICKER` / `_OPEN_MIXER` for QA, though
+their sliders no longer move the page while the freeze holds. Unfreezing is one
+function body in `ios/PanelPrefs.h`.
+
+Where it lived: the page-color chip in the button pad opened the picker. In
 DARK mode that is the phosphor mixer (`ios/CrossPointPaletteMixer.mm`, four
 assignable RGBW guns over the JEDEC registry); in LIGHT it is the ink picker
 (`ios/CrossPointLightInkPicker.mm`, historical inks at variable density on a

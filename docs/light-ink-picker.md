@@ -10,8 +10,14 @@ have been proven in the same way."
 Doctrine context this lands in: light mode is paper-and-ink emulation with
 letterpress ([letterpress-and-scanlines.md](letterpress-and-scanlines.md));
 dark mode is the CRT with the gun mixer (`ios/CrossPointPaletteMixer.mm`,
-untouched — it remains dark mode's picker). The page-color chip now branches on
-the live appearance: light opens this picker, dark opens the gun mixer.
+untouched — it remains dark mode's picker). The page-color chip used to branch
+on the live appearance: light opened this picker, dark opened the gun mixer.
+
+> **FROZEN 2026-08-24.** That chip is gone and this drawer no longer opens on
+> the phone (owner: *"remove the color button from single finger (not zen) mode
+> ui"*). The light page is frozen at **Sanguine `5C332B` on India `F9F3E9`**,
+> derived in [src/FrozenPage.h](../src/FrozenPage.h). Everything below still
+> describes the model correctly — only the way in is gone. See §8.
 
 Implementation: core in [src/LightInkPalette.h](../src/LightInkPalette.h)
 (pure, host-tested by `tests/light_ink_test.cpp`), UI in

@@ -11,10 +11,19 @@
 // that branched on the live appearance -- light opened this, dark opened the
 // mixer -- was removed from the pad by owner ruling ("remove the color button
 // from single finger (not zen) mode ui"), and the light page is frozen at
-// Sanguine on India (ios/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS
-// FILE: it is still compiled, still correct, and still opened by
-// CROSSPOINT_SIM_OPEN_INKPICKER for a headless QA run. "For now" is explicitly
-// reversible and this drawer is what there would be to go back to.
+// Sanguine on India (src/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS
+// FILE: it is still compiled and still opened by CROSSPOINT_SIM_OPEN_INKPICKER
+// for a headless QA run. "For now" is explicitly reversible and this drawer is
+// what there would be to go back to.
+//
+// BUT IT NO LONGER DRIVES THE PAGE. Its sliders write to NSUserDefaults, while
+// the render reads crosspoint::panelStoreFromPrefs(), which since the freeze
+// consults the store for none of it -- so a slider moves this drawer's own
+// swatches and leaves the page alone. That is the freeze working, not a
+// rendering bug, and unfreezing is one function body in ios/PanelPrefs.h. An
+// earlier version of this comment claimed the drawer was "still correct", which
+// was wrong and would have sent the next reader hunting a bug that is not
+// there. Found by adversarial review, 2026-08-24.
 //
 // The UI is three controls, top to bottom:
 //   * the INK LIST -- one row per historical ink: a swatch at the CURRENT
@@ -144,7 +153,7 @@ int storedDefectsPct(void) { return CrossPointPrefs_paperDefectsPercent(); }
 
 // THE WHOLE SELECTION IS FROZEN, 2026-08-24 (owner ruling: "take out paper and
 // crt settings for now. set them to sanguine and india paper"). The ink, the
-// stock, the density and the paper strength are ios/FrozenPage.h's, and NONE of
+// stock, the density and the paper strength are src/FrozenPage.h's, and NONE of
 // them is read from NSUserDefaults -- the same discipline the sheet's seven
 // parameters above already follow, and now for the same reason applied to the
 // three keys that had survived it: the page-color chip is gone from the pad, so

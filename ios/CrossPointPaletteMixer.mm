@@ -5,10 +5,21 @@
 // button from single finger (not zen) mode ui"), and the dark page is frozen at
 // the four-gun blend he chose in this very mixer -- P38 at 19, P45 at 88, P20
 // at 17, P22R at 36, which resolves to CFD4CC on 171B1B with a 1095 ms fade
-// (ios/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS FILE: it is still
-// compiled, still correct, and still opened by CROSSPOINT_SIM_OPEN_MIXER for a
-// headless QA run. "For now" is explicitly reversible and this drawer is what
-// there would be to go back to.
+// (src/FrozenPage.h). THE ENTRY POINT WAS REMOVED, NOT THIS FILE: it is still
+// compiled and still opened by CROSSPOINT_SIM_OPEN_MIXER for a headless QA run.
+// "For now" is explicitly reversible and this drawer is what there would be to
+// go back to.
+//
+// BUT IT NO LONGER DRIVES THE PAGE, and saying so is the point of this
+// paragraph. applyGuns writes panelInkDark / panelPaperDark /
+// phosphorMixActive and asks for a present, while the render reads
+// crosspoint::panelStoreFromPrefs(), which since the freeze consults the store
+// for none of them -- so a gun move updates this drawer's own swatches and its
+// local preview, and leaves the page alone. That is the freeze working, not a
+// rendering bug, and unfreezing is one function body in ios/PanelPrefs.h.
+// An earlier version of this comment claimed the drawer was "still correct",
+// which was wrong and would have sent the next reader hunting a bug that is
+// not there. Found by adversarial review, 2026-08-24.
 //
 // gunstore::load is frozen to that recipe, so opening it shows the page the
 // owner is looking at; gunstore::save still writes, and nothing reads what it
@@ -254,7 +265,7 @@ NSString *shelfTitleFor(int preset) {
 // contract from the previous UI: the mix computes through the core.
 //
 // THE `kMixActive` GATE IS GONE, 2026-08-24. The dark page is frozen at a
-// four-gun blend (ios/FrozenPage.h), and ios/PanelPrefs.h says so
+// four-gun blend (src/FrozenPage.h), and ios/PanelPrefs.h says so
 // unconditionally -- so the store's flag no longer decides anything, and
 // reading it here would have answered NO on any install that never touched the
 // mixer: correct tones, dead tube, 0 ms trail. gunstore::load is frozen to the

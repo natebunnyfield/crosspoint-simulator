@@ -328,7 +328,7 @@ run dial_table \
 
 # THE FROZEN PAGE. Owner ruling 2026-08-24 took the paper and CRT controls out
 # of the app and froze both appearances -- Sanguine on India for light, and for
-# dark the four-gun blend from his own screenshot of the mixer. ios/FrozenPage.h
+# dark the four-gun blend from his own screenshot of the mixer. src/FrozenPage.h
 # states only the INPUTS and derives every tone from the pure models, which is
 # the right way round but means nothing in the source says what the page looks
 # like: a transposed gun or a wrong weight compiles perfectly, and there is no
