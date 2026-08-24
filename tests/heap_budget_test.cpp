@@ -16,6 +16,8 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
 namespace {
 
@@ -24,42 +26,42 @@ constexpr uint32_t kFlat = 1024u * 1024u;
 int runDefault() {
   // The whole point of opt-in: an existing headless run must see exactly what
   // it saw before.
-  assert(!simheap::budgetEnabled());
-  assert(simheap::freeBytes() == kFlat);
-  assert(simheap::totalBytes() == kFlat);
-  assert(simheap::maxAllocBytes() == kFlat);
+  CHECK(!simheap::budgetEnabled());
+  CHECK(simheap::freeBytes() == kFlat);
+  CHECK(simheap::totalBytes() == kFlat);
+  CHECK(simheap::maxAllocBytes() == kFlat);
   // Allocating must not move it, or every existing screenshot script starts
   // reporting a different heap than it used to.
   auto *waste = new std::vector<char>(200000, 'x');
-  assert(simheap::freeBytes() == kFlat && "default mode must ignore allocations");
+  CHECK(simheap::freeBytes() == kFlat && "default mode must ignore allocations");
   delete waste;
   return 0;
 }
 
 int runPinned() {
-  assert(simheap::budgetEnabled());
-  assert(simheap::freeBytes() == 40000);
-  assert(simheap::maxAllocBytes() == 40000);
+  CHECK(simheap::budgetEnabled());
+  CHECK(simheap::freeBytes() == 40000);
+  CHECK(simheap::maxAllocBytes() == 40000);
   auto *waste = new std::vector<char>(200000, 'x');
-  assert(simheap::freeBytes() == 40000 && "a pin does not move under allocation");
+  CHECK(simheap::freeBytes() == 40000 && "a pin does not move under allocation");
   delete waste;
   // A pinned value is what a test asserting "the CSS parser refuses below
   // 48 KB" would use: it is under the threshold and it stays there.
-  assert(simheap::freeBytes() < 48u * 1024u);
+  CHECK(simheap::freeBytes() < 48u * 1024u);
   return 0;
 }
 
 int runBudget() {
-  assert(simheap::budgetEnabled());
-  assert(simheap::totalBytes() == 380000);
+  CHECK(simheap::budgetEnabled());
+  CHECK(simheap::totalBytes() == 380000);
   const uint32_t before = simheap::freeBytes();
-  assert(before > 0 && before <= 380000);
+  CHECK(before > 0 && before <= 380000);
 
   // THE PROPERTY THAT MATTERS: it falls under pressure.
   auto *block = new std::vector<char>(120000, 'x');
   const uint32_t during = simheap::freeBytes();
-  assert(during < before && "the budget must shrink as the firmware allocates");
-  assert(before - during >= 100000 && "a 120 KB allocation should cost roughly that");
+  CHECK(during < before && "the budget must shrink as the firmware allocates");
+  CHECK(before - during >= 100000 && "a 120 KB allocation should cost roughly that");
 
   delete block;
 
@@ -75,19 +77,19 @@ int runBudget() {
   const uint32_t beforeExplicit = simheap::freeBytes();
   void *raw = ::operator new(64000);
   const uint32_t withRaw = simheap::freeBytes();
-  assert(withRaw < beforeExplicit && "an explicit new must cost the budget");
+  CHECK(withRaw < beforeExplicit && "an explicit new must cost the budget");
   ::operator delete(raw, 64000);
   const uint32_t after = simheap::freeBytes();
-  assert(after > withRaw && "a sized delete must give the budget back");
+  CHECK(after > withRaw && "a sized delete must give the budget back");
 
   // The low-water mark remembers the worst moment, which is what a "did we ever
   // get close?" question is really asking.
-  assert(simheap::minFreeBytes() <= during);
+  CHECK(simheap::minFreeBytes() <= during);
 
   // A reboot starts the budget over; the in-process reboot keeps every static,
   // so without the reset a rebooted run begins already spent.
   simheap::resetForReboot();
-  assert(simheap::freeBytes() > after && "resetForReboot must return the whole budget");
+  CHECK(simheap::freeBytes() > after && "resetForReboot must return the whole budget");
   return 0;
 }
 

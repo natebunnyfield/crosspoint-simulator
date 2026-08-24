@@ -12,16 +12,9 @@
 
 #include <cstdio>
 #include <vector>
+#include "TestCheck.h"
 
-static int failures = 0;
-#define CHECK(cond)                                                        \
-  do {                                                                     \
-    if (!(cond)) {                                                         \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);          \
-      failures++;                                                          \
-    }                                                                      \
-  } while (0)
-
+static int &failures = testcheck::g_failures;
 using Action = PadCore::Action;
 
 static bool same(const std::vector<Action> &got,

@@ -12,14 +12,12 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace gunmix;
 
-static int failures = 0;
-static void check(bool ok, const char *what) {
-  if (!ok) { std::printf("FAIL: %s\n", what); failures++; }
-}
-
+static int &failures = testcheck::g_failures;
 static bool same4(const int a[4], const int b[4]) {
   return std::memcmp(a, b, 4 * sizeof(int)) == 0;
 }

@@ -66,18 +66,10 @@
 #include "LightInkPalette.h"
 #include "Letterpress.h"
 #include "PadPalette.h"
+#define TESTCHECK_CHECK_TAKES_MESSAGE
+#include "TestCheck.h"
 
-static int failures = 0;
-
-#define CHECK(cond, ...)                                                       \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::printf("FAIL %s:%d: ", __FILE__, __LINE__);                         \
-      std::printf(__VA_ARGS__);                                                \
-      std::printf("\n");                                                       \
-      failures++;                                                              \
-    }                                                                          \
-  } while (0)
+static int &failures = testcheck::g_failures;
 
 using namespace lightink;
 
@@ -401,16 +393,6 @@ int main() {
             "pad field must be %s's paper byte-for-byte (dark=%d)",
             kPapers[p].name, dark);
     }
-  }
-
-  // --- the reference tables, printed (docs/light-ink-picker.md mirrors) ----
-  std::printf("full-density contrast / floor pct:\n");
-  for (int i = 0; i < kInkCount; i++) {
-    std::printf("  %-16s", kInks[i].name);
-    for (int p = 0; p < kPaperCount; p++)
-      std::printf(" %5.2f/%02d", contrastAtDensity(i, p, 100),
-                  floorDensityPct(i, p));
-    std::printf("\n");
   }
 
   // === THE PAPER DIAL ======================================================
@@ -1244,35 +1226,6 @@ int main() {
                 worstModel, kInks[worstModelInk].name,
                 kPapers[worstModelPaper].name, worstSheet,
                 kInks[worstSheetInk].name, kPapers[worstSheetPaper].name);
-  }
-
-  // --- the reference tables, printed (docs/light-ink-picker.md mirrors) ----
-  std::printf("paper tint ramp and tooth (strength 0/50/100):\n");
-  for (int p = 0; p < kPaperCount; p++) {
-    std::printf("  %-13s", kPapers[p].name);
-    for (int t = 0; t <= 100; t += 50) {
-      uint8_t tone[3];
-      paperAtStrength(p, t, tone);
-      std::printf(" %02X%02X%02X", tone[0], tone[1], tone[2]);
-    }
-    std::printf("   tooth %.2f/%.2f/%.2f\n", toothScaleFor(p, 0),
-                toothScaleFor(p, 50), toothScaleFor(p, 100));
-  }
-  std::printf("density floor at paper strength 0/50/100:\n");
-  for (int i = 0; i < kInkCount; i++) {
-    std::printf("  %-16s", kInks[i].name);
-    for (int p = 0; p < kPaperCount; p++)
-      std::printf(" %02d/%02d/%02d", floorDensityPct(i, p, 0),
-                  floorDensityPct(i, p, 50), floorDensityPct(i, p, 100));
-    std::printf("\n");
-  }
-  std::printf("max paper strength at density 100/90/80:\n");
-  for (int i = 0; i < kInkCount; i++) {
-    std::printf("  %-16s", kInks[i].name);
-    for (int p = 0; p < kPaperCount; p++)
-      std::printf(" %3d/%3d/%3d", maxPaperStrengthPct(i, p, 100),
-                  maxPaperStrengthPct(i, p, 90), maxPaperStrengthPct(i, p, 80));
-    std::printf("\n");
   }
 
   if (failures) {

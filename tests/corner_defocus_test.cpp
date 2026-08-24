@@ -8,25 +8,22 @@
 // a physics argument. And an "off" that is nearly-off silently changes every
 // dark page that never asked for this.
 
+#include "FieldSelection.h"
 #include "CornerDefocus.h"
 
 #include "Scanlines.h"
 #include "ContrastFloor.h"
+#include "TestPalettes.h"  // the shipped pages, derived from PanelPalette.h
 
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace cornerdefocus;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // The phone's own geometry: an iPhone-class output at the shipped 2x render
 // scale, and the source-row pitch that follows from it.
@@ -211,13 +208,7 @@ int main() {
       };
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
-    const struct { int r, g, b, pr, pg, pb; } pages[] = {
-        {0xC9, 0xE7, 0xFF, 0x14, 0x18, 0x1A},  // P4, 13.9:1
-        {0x00, 0xFF, 0x97, 0x00, 0x19, 0x0A},  // P22G
-        {0xFF, 0xB0, 0x00, 0x1A, 0x10, 0x00},  // P3
-        {0x8B, 0x92, 0xFF, 0x00, 0x06, 0x1A},  // P11, 7.4:1 -- the tight one
-        {0xFF, 0x6F, 0x6C, 0x1A, 0x03, 0x00},  // P22R
-    };
+    const auto &pages = testpalettes::kDarkSweep;
     for (const auto &page : pages) {
       const float li = lum(page.r, page.g, page.b);
       const float lp = lum(page.pr, page.pg, page.pb);
@@ -230,7 +221,8 @@ int main() {
           sp.pitchPx = kPitch;
           sp.mottleDepth = scanlines::mottleDepthFor(rung);
           sp.budgetMeanDarkening =
-              0.8f * phosphorgrain::darkeningBudget(li, lp);
+              fieldselect::kRasterBudgetShare *
+              phosphorgrain::darkeningBudget(li, lp);
           // Measured AT THE CORNER, which is where the scale is largest.
           double sumInk = 0.0, sumPaper = 0.0;
           int n = 0;

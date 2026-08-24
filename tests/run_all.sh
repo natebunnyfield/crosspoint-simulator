@@ -117,8 +117,10 @@ run panel_palette \
 # wrong-COLOR failure modes no other test can see. -Iios as well: it also pins
 # that makePaletteOn preserves every offered paper byte-for-byte as the pad's
 # field, which is the color half of the panel/sheet seam.
+# -O1 is not a style choice: the ink x paper x dial sweeps make this the
+# suite's single biggest cost (~6.4 s at -O0 against 0.15 s to compile it).
 run light_ink \
-  c++ -std=c++17 -Isrc -Iios -o "$OUT/light_ink" tests/light_ink_test.cpp
+  c++ -std=c++17 -O1 -Isrc -Iios -o "$OUT/light_ink" tests/light_ink_test.cpp
 
 # The AA plane decode. Dark mode paints only full ink in the base pass, so every
 # glyph edge arrives base-WHITE and flagged -- and the decode used to discard
@@ -183,8 +185,14 @@ run semphr_reboot \
 run heap_budget \
   c++ -std=c++20 -Isrc -o "$OUT/heap_budget" tests/heap_budget_test.cpp src/SimulatorHeap.cpp
 
-run dispatch_signal \
-  c++ -std=c++20 -o "$OUT/dispatch_signal" tests/dispatch_signal_test.cpp
+# The web server's dispatch hand-off must signal the parked worker from a SCOPE
+# GUARD (src/WebServer.cpp, handleClient()). Source-level since 2026-08-23: the
+# C++ test this replaces included ZERO repo headers and re-implemented both the
+# bug and the fix locally, so deleting the guard from the shipping code left it
+# green -- and its assertions were bare assert(), which -DNDEBUG compiles away.
+# The archived original sits beside its old path.
+run_direct dispatch_signal \
+  python3 tests/dispatch_signal_test.py
 
 # The desktop's settings file. Every failure mode is a dial that silently does
 # not apply -- a bad line reverting every OTHER dial, a missing key answering 0
@@ -215,6 +223,28 @@ run gun_mix_csv \
 # compiles differently.
 run phosphor_grain \
   c++ -std=c++17 -Isrc -o "$OUT/phosphor_grain" tests/phosphor_grain_test.cpp
+
+# WHICH of those fields composites, and the mutual exclusion that makes every
+# budget above and below it true. Each surface pass clamps itself to a budget
+# computed on the assumption that IT IS THE ONLY PASS, so two fields over one
+# page multiply and the product can sit under the 7:1 floor that seven separate
+# tests each prove individually. That rule was five lines in the middle of a
+# 4,800-line present function with no coverage at all until 2026-08-23; it is
+# src/FieldSelection.h now, and this sweeps the whole dial space for it. Also
+# pins the two budget SHARES, which were bare literals at three sites in
+# HalDisplay.cpp and four more in this directory -- so the app and its tests
+# could disagree with no symptom at all.
+run field_selection \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/field_selection" tests/field_selection_test.cpp
+
+# Known-answer vectors for the host MD5 shim, RFC 1321's own test suite. Exactly
+# the argument sha256 above is here for, never applied to MD5 until 2026-08-23:
+# src/MD5Builder.h is a dispatcher over TWO implementations that must agree
+# (CommonCrypto on macOS, OpenSSL on Linux) and neither had a single vector. A
+# divergence is not a crash, it is the same book hashing two ways on two
+# machines -- which the file-transfer and font-download paths compare.
+run md5 \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/md5" tests/md5_test.cpp
 
 # The 2026-08-22 doctrine split: letterpress is the light page's surface,
 # scanlines the dark one's. Both pure headers whose every failure mode is a

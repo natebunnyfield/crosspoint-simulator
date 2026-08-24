@@ -43,6 +43,8 @@ void testSetAvailable(bool v) { g_availableFlag = v; }
 }  // namespace sim_wifi_host
 
 #include "WiFi.h"
+#include "TestCheck.h"
+using testcheck::expect;
 
 WiFiClass WiFi;
 
@@ -60,13 +62,6 @@ sim_wifi_host::Network onWifi(const char *ssid, int dbm) {
   n.ipv4[3] = 42;
   n.hasIpv4 = true;
   return n;
-}
-
-void expect(bool cond, const char *what) {
-  if (!cond) {
-    std::fprintf(stderr, "FAIL: %s\n", what);
-    std::exit(1);
-  }
 }
 
 // On WiFi the "scan" reports exactly the one real network, so the firmware's

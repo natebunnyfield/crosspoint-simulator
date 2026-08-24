@@ -14,19 +14,12 @@
 
 #include "SimulatorDeviceTruth.h"
 #include "esp_ota_ops.h"
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
 using namespace simtruth;
 
-static int checks = 0;
-#define CHECK(cond)                                                          \
-  do {                                                                       \
-    checks++;                                                                \
-    if (!(cond)) {                                                           \
-      std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);   \
-      std::exit(1);                                                          \
-    }                                                                        \
-  } while (0)
-
+static int &checks = testcheck::g_checks;
 static void testFlagParsing() {
   // The spellings other CROSSPOINT_SIM_* flags in this repo accept.
   CHECK(flagFrom("1"));

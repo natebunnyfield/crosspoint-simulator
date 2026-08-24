@@ -6,30 +6,19 @@
 // Same reason PadPalette and PanelPalette have theirs.
 
 #include "PhosphorGrain.h"
+#include "TestPalettes.h"  // the shipped pages, derived from PanelPalette.h
 
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
+using testcheck::checkNear;
 
 using namespace phosphorgrain;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
-
-static void checkNear(double got, double want, double tol, const char *what) {
-  if (!(std::fabs(got - want) <= tol)) {
-    std::printf("FAIL: %s (got %.6f, want %.6f +/- %.6f)\n", what, got, want,
-                tol);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 struct Stats {
   double mean = 0.0;
@@ -293,9 +282,12 @@ int main() {
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
     // The shipped shortlist, dark tones.
-    const float p4  = lum(0xC9, 0xE7, 0xFF), p4p  = lum(0x14, 0x18, 0x1A);
-    const float p3  = lum(0xFF, 0xB0, 0x00), p3p  = lum(0x1A, 0x10, 0x00);
-    const float p11 = lum(0x8B, 0x92, 0xFF), p11p = lum(0x00, 0x06, 0x1A);
+    const auto &g4 = testpalettes::kDarkP4;
+    const auto &g3 = testpalettes::kDarkP3;
+    const auto &g11 = testpalettes::kDarkP11;
+    const float p4  = lum(g4.r, g4.g, g4.b),    p4p  = lum(g4.pr, g4.pg, g4.pb);
+    const float p3  = lum(g3.r, g3.g, g3.b),    p3p  = lum(g3.pr, g3.pg, g3.pb);
+    const float p11 = lum(g11.r, g11.g, g11.b), p11p = lum(g11.pr, g11.pg, g11.pb);
 
     check(darkeningBudget(p4, p4p) > darkeningBudget(p3, p3p) &&
               darkeningBudget(p3, p3p) > darkeningBudget(p11, p11p),
@@ -329,13 +321,7 @@ int main() {
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
     const int strengths[] = {0, 30, 100, 300};
-    const struct { int r, g, b, pr, pg, pb; } pages[] = {
-        {0xC9, 0xE7, 0xFF, 0x14, 0x18, 0x1A},  // P4, 13.9:1
-        {0x00, 0xFF, 0x97, 0x00, 0x19, 0x0A},  // P22G
-        {0xFF, 0xB0, 0x00, 0x1A, 0x10, 0x00},  // P3
-        {0x8B, 0x92, 0xFF, 0x00, 0x06, 0x1A},  // P11, 7.4:1 -- the tight one
-        {0xFF, 0x6F, 0x6C, 0x1A, 0x03, 0x00},  // P22R
-    };
+    const auto &pages = testpalettes::kDarkSweep;
     for (const auto &pg : pages) {
       const float li = lum(pg.r, pg.g, pg.b), lp = lum(pg.pr, pg.pg, pg.pb);
       const float amp = amplitudeScaleFor(li, lp);

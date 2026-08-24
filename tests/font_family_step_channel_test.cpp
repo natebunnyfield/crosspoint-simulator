@@ -12,16 +12,9 @@
 #include "FontFamilyStepChannel.h"
 
 #include <cstdio>
+#include "TestCheck.h"
 
-static int failures = 0;
-#define CHECK(cond)                                                        \
-  do {                                                                     \
-    if (!(cond)) {                                                         \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);          \
-      failures++;                                                          \
-    }                                                                      \
-  } while (0)
-
+static int &failures = testcheck::g_failures;
 int main() {
   // --- idle channel: nothing to consume --------------------------------------
   {

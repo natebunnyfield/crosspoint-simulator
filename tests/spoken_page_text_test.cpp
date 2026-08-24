@@ -15,22 +15,11 @@
 
 #include <cstdio>
 #include <string>
+#include "TestCheck.h"
+using testcheck::check;
+using testcheck::checkEq;
 
-static int g_failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    g_failures++;
-  }
-}
-
-static void checkEq(const std::string &got, const std::string &want, const char *what) {
-  if (got != want) {
-    std::printf("FAIL: %s\n  got  \"%s\"\n  want \"%s\"\n", what, got.c_str(), want.c_str());
-    g_failures++;
-  }
-}
+static int &g_failures = testcheck::g_failures;
 
 // The card's real files, copied from a live fs_ (paths and field order as the
 // firmware's RecentBooksStore::toJson writes them).

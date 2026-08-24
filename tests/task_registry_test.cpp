@@ -28,20 +28,15 @@
 #include <chrono>
 #include <cstdio>
 #include <thread>
+#include "TestCheck.h"
+using testcheck::check;
 
 namespace {
 
 std::atomic<int> gRan{0};
 void body(void *) { gRan.fetch_add(1); }
 
-int failures = 0;
-void check(bool cond, const char *what) {
-  if (!cond) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
-
+int &failures = testcheck::g_failures;
 // The shim's threads are real OS threads, so give them a moment to be
 // scheduled. Generous on purpose: a slow CI box must not read as a red test.
 void settle() { std::this_thread::sleep_for(std::chrono::milliseconds(200)); }

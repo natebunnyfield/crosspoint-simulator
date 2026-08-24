@@ -14,6 +14,8 @@
 #include <chrono>
 #include <cstdio>
 #include <thread>
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
 namespace {
 
@@ -42,23 +44,23 @@ int main() {
   // --- it is still a mutex -------------------------------------------------
   SemaphoreHandle_t sem = xSemaphoreCreateMutex();
   xSemaphoreTake(sem, 0);
-  assert(xQueuePeek(sem, nullptr, 0) == pdFALSE && "a held mutex must read as unavailable");
-  assert(!takenWithin(sem, std::chrono::milliseconds(150)) &&
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdFALSE && "a held mutex must read as unavailable");
+  CHECK(!takenWithin(sem, std::chrono::milliseconds(150)) &&
          "another thread must NOT get in while it is held");
   xSemaphoreGive(sem);
-  assert(xQueuePeek(sem, nullptr, 0) == pdTRUE);
-  assert(takenWithin(sem, std::chrono::milliseconds(500)) && "released: the next taker gets in");
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdTRUE);
+  CHECK(takenWithin(sem, std::chrono::milliseconds(500)) && "released: the next taker gets in");
 
   // --- recursive for the holder --------------------------------------------
   xSemaphoreTake(sem, 0);
   xSemaphoreTake(sem, 0);
   xSemaphoreTake(sem, 0);
-  assert(xQueuePeek(sem, nullptr, 0) == pdFALSE);
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdFALSE);
   xSemaphoreGive(sem);
   xSemaphoreGive(sem);
-  assert(xQueuePeek(sem, nullptr, 0) == pdFALSE && "still held: three takes need three gives");
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdFALSE && "still held: three takes need three gives");
   xSemaphoreGive(sem);
-  assert(xQueuePeek(sem, nullptr, 0) == pdTRUE);
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdTRUE);
 
   // --- THE REGRESSION ------------------------------------------------------
   // A thread takes the lock and vanishes without giving it back, which is
@@ -67,14 +69,14 @@ int main() {
     std::thread abandoner([&] { xSemaphoreTake(sem, 0); });
     abandoner.join();  // gone, still holding
   }
-  assert(xQueuePeek(sem, nullptr, 0) == pdFALSE && "precondition: the lock is stuck");
-  assert(!takenWithin(sem, std::chrono::milliseconds(150)) &&
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdFALSE && "precondition: the lock is stuck");
+  CHECK(!takenWithin(sem, std::chrono::milliseconds(150)) &&
          "precondition: nobody else can take it — this is the deadlock");
 
   simsemphr::forceReleaseAllForReboot();
 
-  assert(xQueuePeek(sem, nullptr, 0) == pdTRUE && "the reboot release must free it");
-  assert(takenWithin(sem, std::chrono::milliseconds(500)) &&
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdTRUE && "the reboot release must free it");
+  CHECK(takenWithin(sem, std::chrono::milliseconds(500)) &&
          "after the reboot release the render task gets its frame");
 
   // --- a late give from the abandoned holder must not corrupt anything ------
@@ -85,10 +87,10 @@ int main() {
     std::thread stale([&] { xSemaphoreGive(sem); });
     stale.join();
   }
-  assert(xQueuePeek(sem, nullptr, 0) == pdFALSE &&
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdFALSE &&
          "a give from a non-holder must not release someone else's lock");
   xSemaphoreGive(sem);
-  assert(xQueuePeek(sem, nullptr, 0) == pdTRUE);
+  CHECK(xQueuePeek(sem, nullptr, 0) == pdTRUE);
 
   // --- the release covers every mutex, not just the last one ---------------
   SemaphoreHandle_t a = xSemaphoreCreateMutex();
@@ -101,7 +103,7 @@ int main() {
     t.join();
   }
   simsemphr::forceReleaseAllForReboot();
-  assert(xQueuePeek(a, nullptr, 0) == pdTRUE && xQueuePeek(b, nullptr, 0) == pdTRUE &&
+  CHECK(xQueuePeek(a, nullptr, 0) == pdTRUE && xQueuePeek(b, nullptr, 0) == pdTRUE &&
          "every registered mutex is released, not only the most recent");
 
   std::puts("semphr_reboot: PASS");

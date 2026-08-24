@@ -118,45 +118,56 @@ int CrossPointPrefs_diagnosticsEnabled(void);
 // silently changing speed. Clamped to 0..1000 on read.
 //
 // Safe to call every frame. Main thread only.
+// EVERY GETTER FROM HERE TO THE POWER-OFF DOT IS FROZEN (owner ruling
+// 2026-08-23, "make these settings the default and remove them from ios app
+// settings as options"). Each returns a constant WITHOUT consulting
+// NSUserDefaults, so an install that stored a different value before its row
+// was removed cannot go on rendering it with no way back. The clamps these
+// comments used to describe went with the reads: there is nothing left to
+// clamp. All are safe to call every frame, main thread only.
+
 // PAGE FADE: how long the page takes to dim after the last input, in SECONDS.
-// 0 (the default) is off. Clamped to 0..600 on read.
-//
-// Safe to call every frame. Main thread only.
+// Frozen at 0 -- off, the page holds its brightness.
 int CrossPointPrefs_pageFadeSeconds(void);
 
 // PAGE FADE DEPTH: how FAR that fade goes, as the percentage of the palette's
-// legible floor that is kept. 100 (the default) stops where the page is still
-// at WCAG AA body text -- what shipped before this setting. 0 is fully
-// transparent: the page fades away entirely. Clamped to 0..100 on read.
-//
-// Owner-elected below 100; the contrast given up at each step is written out at
-// pagefade::floorFor() in src/PageFade.h.
-//
-// Safe to call every frame. Main thread only.
+// legible floor that is kept. Frozen at 0 -- fully transparent, the page would
+// fade away entirely. Moot while the fade above is off, and frozen honestly
+// anyway so the two cannot disagree if it revives. The contrast given up at
+// each step is written out at pagefade::floorFor() in src/PageFade.h.
 int CrossPointPrefs_pageFadeDepthPercent(void);
 
 // PHOSPHOR GRAIN. Strength as a percentage of what a real settled-powder screen
-// has: 0 is off, 100 is realistic and the default, 1000 is 10x. Coverage is a
-// phosphorgrain::Coverage integer (0 Even, 1 Vignette, 2 Mottled, 3 both).
+// has: 0 is off, 100 is realistic, 1000 is 10x. Coverage is a
+// phosphorgrain::Coverage integer (0 Even, 1 Vignette, 2 Mottled, 3 both);
+// blotch depth is in HUNDREDTHS. Frozen at 60 light / 160 dark, coverage 3,
+// depth 90.
+//
 // PER APPEARANCE, like the pad's contrast pair beside it (owner 2026-08-19).
 // The same grain reads very differently on a black page and a white one: what
 // is a whisper on paper is invisible on a dark screen, so one number cannot
-// serve both. `dark` is 0 for light, 1 for dark. Defaults: 60 light, 160 dark.
+// serve both. `dark` is 0 for light, 1 for dark.
+//
+// None of it composites in the shipped app: HalDisplay skips the grain pass
+// while letterpress (light) or scanlines (dark) is live, and both are frozen
+// on. See the .mm for why it is still frozen honestly.
 int CrossPointPrefs_phosphorGrainPercent(int dark);
 int CrossPointPrefs_phosphorGrainCoverage(void);
-// Blotch size (cells across the long edge) and blotch depth in HUNDREDTHS.
 int CrossPointPrefs_phosphorGrainMottleDepth(void);
-
-int CrossPointPrefs_beamPaintMs(void);
+// The blotch SIZE has never been a stored setting and has no getter: the shim
+// pushes phosphorgrain::kMottleCellsDefault directly.
 
 // Whether the 1-bit pass may land on its own, ahead of the composed frame.
+// Frozen at 0 -- off, composed frames only. The owner did ask for this as a row
+// on 2026-08-19; see the .mm for what happened to it and what reinstating it
+// would take.
 int CrossPointPrefs_presentFlash(void);
 
 // THE 2026-08-22 DOCTRINE DIALS. Light mode is paper and ink: LETTERPRESS,
-// percent of standard (0 off, 50 subtle -- the default -- 100 standard, 200
-// heavy). Dark mode is a CRT: SCANLINES replace the mottled grain, percent of
-// standard (0 off, 50 subtle -- the default -- 100 standard, 150 deep; the
-// blotch depth is folded into the dial by scanlines::mottleDepthFor). While
+// percent of standard (0 off, 50 subtle, 100 standard -- the frozen value --
+// 200 heavy). Dark mode is a CRT: SCANLINES replace the mottled grain, percent
+// of standard (0 off, 50 subtle -- the frozen value -- 100 standard, 150 deep;
+// the blotch depth is folded into the dial by scanlines::mottleDepthFor). While
 // either is active in its mode the grain pass is skipped by HalDisplay.
 int CrossPointPrefs_letterpressPercent(void);
 int CrossPointPrefs_scanlinesPercent(void);
@@ -171,16 +182,16 @@ int CrossPointPrefs_paperDefectsPercent(void);
 
 // SCANLINE SIZE: the line pitch, as a percent of the SOURCE-ROW pitch (owner
 // order 2026-08-22, from build 126). 100 = one line per page row, the pitch
-// build 126 shipped and the default here; 150 / 200 / 300 are one line per
+// build 126 shipped; 150 / 200 / 300 are one line per
 // 1.5 / 2 / 3 rows. Multiples of the page's own lattice rather than absolute
 // pixels, so no rung can lay a second lattice over the panel -- see
-// scanlines::pitchFor.
+// scanlines::pitchFor. Frozen at 100.
 int CrossPointPrefs_scanlineSizePercent(void);
 
 // SCANLINE BLOOM: how far beam current widens the lit band, as a percent of
 // the standard gain (owner order 2026-08-22). 0 off (bit-exact -- the field
-// stops being content-aware), 50 subtle, 100 standard (build 126's value, and
-// the default), 200 strong, 400 extreme. A fraction of the PITCH, so it stays
+// stops being content-aware), 50 subtle, 100 standard (build 126's value), 200
+// strong, 400 extreme -- the frozen value. A fraction of the PITCH, so it stays
 // proportionate at every scanline size.
 int CrossPointPrefs_scanlineBloomPercent(void);
 

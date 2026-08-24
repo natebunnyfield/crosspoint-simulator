@@ -11,20 +11,15 @@
 #include "ZenVerbs.h"
 
 #include <cstdio>
+#include "TestCheck.h"
+using testcheck::check;
 
 namespace {
 
 using zenverbs::Classifier;
 using zenverbs::Verb;
 
-int failures = 0;
-
-void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+int &failures = testcheck::g_failures;
 
 const char *name(Verb v) { return zenverbs::verbName(v); }
 

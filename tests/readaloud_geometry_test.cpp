@@ -13,15 +13,10 @@
 #include <cstdio>
 #include <initializer_list>
 #include <cstdlib>
+#include "TestCheck.h"
+using testcheck::check;
 
-static int g_failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    g_failures++;
-  }
-}
+static int &g_failures = testcheck::g_failures;
 
 static void checkNear(double got, double want, double tol, const char *what) {
   if (std::fabs(got - want) > tol) {

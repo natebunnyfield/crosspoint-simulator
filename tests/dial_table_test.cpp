@@ -45,22 +45,13 @@
 
 #include "SimulatorDials.h"
 #include "SimulatorSettingsFile.h"
+#include "TestCheck.h"
+using testcheck::check;
+using testcheck::checkEq;
 
 namespace {
 
-int g_failures = 0;
-
-void check(bool ok, const std::string &what) {
-  if (ok) return;
-  std::printf("FAIL: %s\n", what.c_str());
-  g_failures++;
-}
-
-void checkEq(int got, int want, const std::string &what) {
-  if (got == want) return;
-  std::printf("FAIL: %s -- got %d, want %d\n", what.c_str(), got, want);
-  g_failures++;
-}
+int &g_failures = testcheck::g_failures;
 
 std::string slurp(const std::string &path) {
   std::ifstream f(path);
@@ -354,28 +345,49 @@ int main(int argc, char **argv) {
              frozenReturn(prefs, "CrossPointPrefs_cornerDefocusPercent"),
              "CrossPointPrefs.mm");
 
-  // The two dials that are still Settings ROWS. Their shipped value is the
+  // THE ONE DIAL THAT IS STILL A SETTINGS ROW. Its shipped value is the
   // registered default, which is what an install that never touches the switch
   // renders -- and that is what as-shipped must reproduce.
-  pinShipped(simdials::PresentFlash, registeredDefault(prefs, "kPresentFlash"),
-             "CrossPointPrefs.mm registerDefaults");
   pinShipped(simdials::PowerOffCollapseOn,
              plistToggleDefault(plist, "powerOffCollapse"),
              "Settings.bundle/Root.plist");
 
-  // THE GRAIN, all four. The strength is the DARK figure because as-shipped
-  // forces a dark page; the desktop carries one atomic for both appearances,
-  // so the polarity it selects decides which of the app's two strengths is the
-  // one being reproduced.
-  pinShipped(simdials::GrainPercent,
-             registeredDefault(prefs, "kPhosphorGrainPercentDark"),
-             "CrossPointPrefs.mm registerDefaults (DARK)");
-  pinShipped(simdials::GrainCoverage,
-             registeredDefault(prefs, "kPhosphorGrainCoverage"),
-             "CrossPointPrefs.mm registerDefaults");
+  // THE PAGE-TURN FLASH used to be the second of those rows and is not any
+  // more: the 2026-08-22 sweep took it with the rest of the group and it has
+  // had no writer since, so its getter was frozen on 2026-08-23 like the seven
+  // above it. Scraped from the frozen constant now rather than from a
+  // registerDefaults entry that no longer exists.
+  pinShipped(simdials::PresentFlash,
+             frozenReturn(prefs, "CrossPointPrefs_presentFlash"),
+             "CrossPointPrefs.mm frozen getter");
+
+  // THE GRAIN, all four -- also frozen 2026-08-23, and for the same reason:
+  // rows with no writer left a stored value rendering forever with no way back.
+  // The strength is the DARK figure because as-shipped forces a dark page; the
+  // desktop carries one atomic for both appearances, so the polarity it selects
+  // decides which of the app's two strengths is the one being reproduced.
+  //
+  // Two of the three are pinned as a TEXT match plus a value match rather than
+  // through frozenReturn, which reads a leading integer literal and so cannot
+  // see either a ternary or a symbol. That is deliberate on the source side:
+  // the strength is genuinely two numbers, and the coverage names the model's
+  // own enumerator so the app and the model cannot drift apart.
+  check(prefs.find("int CrossPointPrefs_phosphorGrainPercent(int dark) { "
+                   "return dark ? 160 : 60; }") != std::string::npos,
+        "the app freezes the grain at 160 dark / 60 light; if that line moved, "
+        "this test's record of the app's value has gone stale");
+  checkEq(row(simdials::GrainPercent).shippedValue, 160,
+          "screen grain: as-shipped against the app's frozen DARK value");
+  check(prefs.find("return phosphorgrain::VignetteMottled;") !=
+            std::string::npos,
+        "the app freezes the grain coverage at the model's VignetteMottled; if "
+        "that line moved, this test's record of the app's value has gone stale");
+  checkEq(row(simdials::GrainCoverage).shippedValue,
+          phosphorgrain::VignetteMottled,
+          "grain coverage: as-shipped against the app's frozen value");
   pinShipped(simdials::GrainMottleDepth,
-             registeredDefault(prefs, "kPhosphorGrainMottleDepth"),
-             "CrossPointPrefs.mm registerDefaults");
+             frozenReturn(prefs, "CrossPointPrefs_phosphorGrainMottleDepth"),
+             "CrossPointPrefs.mm frozen getter");
   // The blotch SIZE is not a stored setting on either side: the shim pushes the
   // model's own default. Pinned as a text match plus a value match, because a
   // scraped integer cannot see a symbol.

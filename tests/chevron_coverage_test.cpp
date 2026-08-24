@@ -22,15 +22,10 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
 
-static int failures = 0;
-
-static void check(const bool ok, const std::string &what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what.c_str());
-    ++failures;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // The real numbers: a 48 pt chip on a 3x phone is 144 device px, and
 // paintKeyboardChip derives the glyph from that exactly this way.

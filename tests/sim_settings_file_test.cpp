@@ -8,13 +8,11 @@
 
 #include <cstdio>
 #include <string>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace simsettings;
-static int failures = 0;
-static void check(bool ok, const char *what) {
-  if (!ok) { std::printf("FAIL: %s\n", what); failures++; }
-}
-
+static int &failures = testcheck::g_failures;
 int main() {
   // --- THE SHIPPED TEMPLATE MUST PARSE TO THE SHIPPED DEFAULTS -------------
   // It is written on first run and is the only documentation most people will

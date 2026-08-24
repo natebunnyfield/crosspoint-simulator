@@ -14,6 +14,7 @@
 // theirs.
 
 #include "PaperDefects.h"
+#include "TestPalettes.h"  // the shipped pages, derived from PanelPalette.h
 
 #include <algorithm>
 #include <cmath>
@@ -23,15 +24,10 @@
 #include <vector>
 
 #include "Letterpress.h"
+#include "TestCheck.h"
+using testcheck::check;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // --- the sheet, exactly as HalDisplay builds it -----------------------------
 //
@@ -348,15 +344,8 @@ int main() {
   // clamp is CONDITIONAL (Letterpress.h clamps only when budget < 0.5), so both
   // regimes are swept EXPLICITLY rather than sampled and hoped over.
   {
-    struct Pal { const char *name; int ink[3]; int paper[3]; };
-    const Pal pals[] = {
-        {"black on white",   {0x00, 0x00, 0x00}, {0xFF, 0xFF, 0xFF}},
-        {"repo default",     {0x2D, 0x2D, 0x2D}, {0xFB, 0xFB, 0xF9}},
-        {"latte",            {0x4C, 0x4F, 0x69}, {0xEF, 0xF1, 0xF5}},
-        {"sepia ink on tan", {0x3A, 0x2E, 0x22}, {0xEA, 0xDF, 0xC6}},
-        {"iron gall on rag", {0x2A, 0x2A, 0x3A}, {0xF2, 0xEC, 0xDC}},
-        {"at the floor",     {0x5A, 0x5A, 0x5A}, {0xE8, 0xE8, 0xE8}},
-    };
+    using Pal = testpalettes::Pal;
+    const auto &pals = testpalettes::kLightPals;
     int sawTight = 0, sawLoose = 0;
     // The dial rungs run across the RAISED ceiling, not only the old one: the
     // surge does all its work above 50 and a sweep that stopped at 60 would
