@@ -36,6 +36,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
 int main() {
   // Mirrors the real shape: a module-scope flag latched on first use.
@@ -55,19 +57,19 @@ int main() {
 
   simreset::runAll();
 
-  assert(!moduleInitialized && "the initialized flag must be cleared so setup() re-reads the env");
-  assert(moduleSchedule.empty() && "a stale pre-sleep schedule must not survive the reboot");
-  assert(!textEntryLatched && "a reboot mid-text-entry must not leave the keyboard channel on");
-  assert(order.size() == 2);
-  assert(order[0] == "gpio" && order[1] == "display" && "resets run in registration order");
+  CHECK(!moduleInitialized && "the initialized flag must be cleared so setup() re-reads the env");
+  CHECK(moduleSchedule.empty() && "a stale pre-sleep schedule must not survive the reboot");
+  CHECK(!textEntryLatched && "a reboot mid-text-entry must not leave the keyboard channel on");
+  CHECK(order.size() == 2);
+  CHECK(order[0] == "gpio" && order[1] == "display" && "resets run in registration order");
 
   // A reboot can happen more than once in a process. Running again must be
   // safe and must not drop callbacks.
   moduleInitialized = true;
   order.clear();
   simreset::runAll();
-  assert(!moduleInitialized && "a second in-process reboot must reset just like the first");
-  assert(order.size() == 2 && "runAll must not consume the registry");
+  CHECK(!moduleInitialized && "a second in-process reboot must reset just like the first");
+  CHECK(order.size() == 2 && "runAll must not consume the registry");
 
   // --- The millis()/micros() epoch re-base (audit R1) ----------------------
   // Fake a boot that has been up a while, then cross the boundary through the
@@ -76,19 +78,19 @@ int main() {
   std::this_thread::sleep_for(std::chrono::milliseconds(60));
   const unsigned long preRebootMs = simclock::millisSinceEpoch();
   const unsigned long preRebootUs = simclock::microsSinceEpoch();
-  assert(preRebootMs >= 50 && "the pre-reboot clock must have advanced");
+  CHECK(preRebootMs >= 50 && "the pre-reboot clock must have advanced");
   simreset::runAll();
   const unsigned long postRebootMs = simclock::millisSinceEpoch();
   const unsigned long postRebootUs = simclock::microsSinceEpoch();
-  assert(postRebootMs < preRebootMs &&
+  CHECK(postRebootMs < preRebootMs &&
          "millis() must restart at the reboot boundary, like a chip reset");
-  assert(postRebootMs < 50 &&
+  CHECK(postRebootMs < 50 &&
          "the rebooted clock must be near 0, not merely smaller");
-  assert(postRebootUs < preRebootUs &&
+  CHECK(postRebootUs < preRebootUs &&
          "micros() must restart with the same epoch");
   // ...and keep counting forward from there.
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  assert(simclock::millisSinceEpoch() >= postRebootMs &&
+  CHECK(simclock::millisSinceEpoch() >= postRebootMs &&
          "the re-based clock must still be monotonic");
 
   // --- ReadAloudChannel across the boundary (audit R6) ---------------------
@@ -100,15 +102,15 @@ int main() {
     channel.publish("stale page", 10, &rect, 1);
     channel.resetForReboot();
     ReadAloudPage page;
-    assert(!channel.consume(page) &&
+    CHECK(!channel.consume(page) &&
            "a pre-reboot publish must not deliver after the boundary");
-    assert(channel.wanted() &&
+    CHECK(channel.wanted() &&
            "the wanted flag is the consumer's to re-seed, not the boundary's");
     // The channel still works for the boot that follows.
     channel.publish("fresh page", 10, nullptr, 0);
-    assert(channel.consume(page) && page.utf8 == "fresh page" &&
+    CHECK(channel.consume(page) && page.utf8 == "fresh page" &&
            "the channel must keep working after the boundary");
-    assert(!page.cleared);
+    CHECK(!page.cleared);
   }
 
   std::puts("reboot_resets: PASS");

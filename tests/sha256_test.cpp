@@ -12,17 +12,10 @@
 #include <string>
 
 #include "mbedtls/sha256.h"
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
-static int checks = 0;
-#define CHECK(cond)                                                        \
-  do {                                                                     \
-    checks++;                                                              \
-    if (!(cond)) {                                                         \
-      std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-      std::exit(1);                                                        \
-    }                                                                      \
-  } while (0)
-
+static int &checks = testcheck::g_checks;
 static std::string hexOf(const unsigned char d[32]) {
   static const char *k = "0123456789abcdef";
   std::string s;

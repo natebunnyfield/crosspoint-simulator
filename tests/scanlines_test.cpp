@@ -5,23 +5,20 @@
 // sparing, a mottle that nets brightening, a tight palette dragged under the
 // floor. Same reason PhosphorGrain has its test.
 
+#include "FieldSelection.h"
 #include "Scanlines.h"
 #include "ContrastFloor.h"
+#include "TestPalettes.h"  // the shipped pages, derived from PanelPalette.h
 
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace scanlines;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // The iPhone Air case from the ST-008 writeup: 3x render presented at 0.7955.
 static constexpr float kPhonePitch = 3.0f * 0.7955f;
@@ -230,13 +227,7 @@ int main() {
       };
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
-    const struct { int r, g, b, pr, pg, pb; } pages[] = {
-        {0xC9, 0xE7, 0xFF, 0x14, 0x18, 0x1A},  // P4, 13.9:1
-        {0x00, 0xFF, 0x97, 0x00, 0x19, 0x0A},  // P22G
-        {0xFF, 0xB0, 0x00, 0x1A, 0x10, 0x00},  // P3
-        {0x8B, 0x92, 0xFF, 0x00, 0x06, 0x1A},  // P11, 7.4:1 -- the tight one
-        {0xFF, 0x6F, 0x6C, 0x1A, 0x03, 0x00},  // P22R
-    };
+    const auto &pages = testpalettes::kDarkSweep;
     // Swept across the SIZE ladder too: a coarser pitch darkens the page more
     // (the mean gap grows with the pitch), so a floor proved at one pitch says
     // nothing about the others. The budget cap is pitch-independent, which is
@@ -253,7 +244,8 @@ int main() {
           p.pitchPx = pitchFor(kPhonePitch, sz);
           p.mottleDepth = mottleDepthFor(r);
           p.budgetMeanDarkening =
-              0.8f * phosphorgrain::darkeningBudget(li, lp);
+              fieldselect::kRasterBudgetShare *
+              phosphorgrain::darkeningBudget(li, lp);
           const double mInk = meanRows(p, 0, 600, li) / 255.0;
           const double mPaper = meanRows(p, 0, 600, lp) / 255.0;
           const float ratio =
@@ -543,10 +535,7 @@ int main() {
       };
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
-    const struct { int r, g, b, pr, pg, pb; } pages[] = {
-        {0x8B, 0x92, 0xFF, 0x00, 0x06, 0x1A},  // P11, 7.4:1 -- the tight one
-        {0xFF, 0x6F, 0x6C, 0x1A, 0x03, 0x00},  // P22R
-    };
+    const auto &pages = testpalettes::kDarkTightest;
     for (const auto &page : pages) {
       const float li = lum(page.r, page.g, page.b);
       const float lp = lum(page.pr, page.pg, page.pb);
@@ -560,7 +549,8 @@ int main() {
             p.mottleDepth = mottleDepthFor(r);
             p.bloomGain = bloomGainFor(b);
             p.budgetMeanDarkening =
-                0.8f * phosphorgrain::darkeningBudget(li, lp);
+                fieldselect::kRasterBudgetShare *
+              phosphorgrain::darkeningBudget(li, lp);
             const double mInk = meanRows(p, 0, 600, li) / 255.0;
             const double mPaper = meanRows(p, 0, 600, lp) / 255.0;
             const float ratio = (li * static_cast<float>(mInk) + 0.05f) /

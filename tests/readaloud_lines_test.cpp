@@ -18,6 +18,8 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#define TESTCHECK_FATAL_DIALECT
+#include "TestCheck.h"
 
 namespace {
 
@@ -37,11 +39,11 @@ int main() {
         wr(10, 100, 30, 20, 0, 3), wr(45, 100, 50, 20, 4, 5), wr(100, 100, 50, 20, 10, 5),
         wr(155, 100, 25, 20, 16, 3)};
     const auto lines = groupIntoLines(text, rects);
-    assert(lines.size() == 1);
-    assert(lines[0].text == "the quick brown fox" && "a line's label is its whole span, not its first word");
+    CHECK(lines.size() == 1);
+    CHECK(lines[0].text == "the quick brown fox" && "a line's label is its whole span, not its first word");
     // Union of the rects, so the highlight covers the line.
-    assert(lines[0].x == 10 && lines[0].y == 100);
-    assert(lines[0].w == 170 && lines[0].h == 20);
+    CHECK(lines[0].x == 10 && lines[0].y == 100);
+    CHECK(lines[0].w == 170 && lines[0].h == 20);
   }
 
   // --- two lines, split by y ---
@@ -50,10 +52,10 @@ int main() {
     const std::vector<ReadAloudWordRect> rects = {wr(10, 100, 40, 20, 0, 5),  wr(55, 100, 30, 20, 6, 4),
                                                   wr(10, 130, 55, 20, 11, 6), wr(70, 130, 30, 20, 18, 4)};
     const auto lines = groupIntoLines(text, rects);
-    assert(lines.size() == 2);
-    assert(lines[0].text == "first line");
-    assert(lines[1].text == "second line");
-    assert(lines[0].y == 100 && lines[1].y == 130);
+    CHECK(lines.size() == 2);
+    CHECK(lines[0].text == "first line");
+    CHECK(lines[1].text == "second line");
+    CHECK(lines[0].y == 100 && lines[1].y == 130);
   }
 
   // --- a hyphen-split word reads WHOLE on both lines ---
@@ -72,12 +74,12 @@ int main() {
         wr(80, 130, 60, 20, 16, 7),   // "readers"
     };
     const auto lines = groupIntoLines(text, rects);
-    assert(lines.size() == 2);
-    assert(lines[0].text == "the interest" && "the word must not be cut to its prefix");
-    assert(lines[1].text == "interest of readers" && "nor to its suffix -- the second line repeats it whole");
+    CHECK(lines.size() == 2);
+    CHECK(lines[0].text == "the interest" && "the word must not be cut to its prefix");
+    CHECK(lines[1].text == "interest of readers" && "nor to its suffix -- the second line repeats it whole");
     // Never "inter" / "est": a reader hearing either half alone is the bug.
-    assert(lines[0].text.find("inter ") == std::string::npos);
-    assert(lines[1].text.substr(0, 3) != "est" && "a label starting mid-word is the reported symptom");
+    CHECK(lines[0].text.find("inter ") == std::string::npos);
+    CHECK(lines[1].text.substr(0, 3) != "est" && "a label starting mid-word is the reported symptom");
   }
 
   // --- rects out of order on the y axis are NOT sorted ---
@@ -88,9 +90,9 @@ int main() {
     const std::string text = "alpha beta";
     const std::vector<ReadAloudWordRect> rects = {wr(10, 200, 40, 20, 0, 5), wr(10, 100, 40, 20, 6, 4)};
     const auto lines = groupIntoLines(text, rects);
-    assert(lines.size() == 2);
-    assert(lines[0].text == "alpha" && lines[0].y == 200 && "publish order wins over y order");
-    assert(lines[1].text == "beta");
+    CHECK(lines.size() == 2);
+    CHECK(lines[0].text == "alpha" && lines[0].y == 200 && "publish order wins over y order");
+    CHECK(lines[1].text == "beta");
   }
 
   // --- a range past the end of the text is DROPPED, not clamped ---
@@ -101,15 +103,15 @@ int main() {
   {
     const std::string text = "short";
     const std::vector<ReadAloudWordRect> rects = {wr(10, 100, 40, 20, 0, 99)};
-    assert(groupIntoLines(text, rects).empty());
+    CHECK(groupIntoLines(text, rects).empty());
   }
 
   // --- degenerate inputs ---
   {
-    assert(groupIntoLines("", {}).empty());
-    assert(groupIntoLines("text", {}).empty());
+    CHECK(groupIntoLines("", {}).empty());
+    CHECK(groupIntoLines("text", {}).empty());
     // Zero-length range: nothing to say.
-    assert(groupIntoLines("text", {wr(0, 0, 10, 10, 2, 0)}).empty());
+    CHECK(groupIntoLines("text", {wr(0, 0, 10, 10, 2, 0)}).empty());
   }
 
   // --- every line of a real-shaped page produces a non-empty label ---
@@ -126,10 +128,10 @@ int main() {
       }
     }
     const auto lines = groupIntoLines(text, rects);
-    assert(lines.size() == 20 && "one element per line, not per word -- per-word pauses after every word");
+    CHECK(lines.size() == 20 && "one element per line, not per word -- per-word pauses after every word");
     for (const auto &l : lines) {
-      assert(!l.text.empty());
-      assert(l.text.substr(0, 4) == "word" && "every label starts at a word boundary");
+      CHECK(!l.text.empty());
+      CHECK(l.text.substr(0, 4) == "word" && "every label starts at a word boundary");
     }
   }
 

@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include "TestCheck.h"
+using testcheck::expect;
 
 #if !CROSSPOINT_SIM_HOST_HTTP
 #error "build with -DCROSSPOINT_SIM_HOST_HTTP=1; see the header comment"
@@ -58,13 +60,6 @@ const std::string &testLastAuth() { return g_lastAuth; }
 namespace {
 
 const std::map<std::string, std::string> kNoHeaders;
-
-void expect(bool cond, const char *what) {
-  if (!cond) {
-    std::fprintf(stderr, "FAIL: %s\n", what);
-    std::exit(1);
-  }
-}
 
 std::string tempDir() {
   const char *base = std::getenv("TMPDIR");

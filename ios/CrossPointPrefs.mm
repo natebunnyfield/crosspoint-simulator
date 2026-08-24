@@ -49,67 +49,21 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // the shipped tones. Every road from an empty store leads to the shipped look,
 // which is the only acceptable answer for a control that decides whether text
 // is legible at all.
-// The panel's supersampling factor. Missing-key failure mode is MALIGNANT --
-// -integerForKey: returns 0, and cp::setRenderScale(0) clamps to 1, i.e. the
-// coarsest render the app can produce -- so this key relies on ensureDefaults()
-// having seeded 2 from Root.plist, exactly like readAloudRatePercent above.
-static NSString *const kRenderScale = @"renderScale";
 static NSString *const kPanelPalettePreset = @"panelPalettePreset";
-static NSString *const kBeamPaintMs = @"beamPaintMs";
-// `zenBottomRatio` RETIRED 2026-08-22 (owner: "let's remove the option for
-// every ratio but 1:2") — the five-rung ladder shipped 2026-08-21 and the shim
-// now fixes the multiplier at 1:2. A stored value on an existing install is an
-// ignored orphan key: nothing reads it, so checkKnown never fires for it.
-// Whether the 1-bit pass may reach the screen ahead of the composed one. The
-// missing-key answer from -integerForKey: is 0, which is Off, which is also the
-// shipped default -- so this one is harmless either way.
-static NSString *const kPresentFlash = @"presentFlash";
-static NSString *const kPageFadeSeconds = @"pageFadeSeconds";
-static NSString *const kPageFadeDepthPercent = @"pageFadeDepthPercent";
-// Phosphor grain. The missing-key failure for the strength is the MALIGNANT
-// one: -integerForKey: answers 0, and 0 here is the feature switched off while
-// the picker still reads "1x — realistic". So it goes through -objectForKey:
-// like the fade depth, for the same reason. The coverage's 0 is Even, which is
-// both the shipped default and a legitimate value, so it is harmless either
-// way.
-// Split per appearance 2026-08-19. The single `phosphorGrainPercent` it
-// replaces is deliberately NOT migrated: the owner asked for these two defaults
-// by name, so carrying a stored single value into both would override the thing
-// he just asked for. The old key is left in place rather than deleted -- it
-// costs nothing, and reading it later is the only way to answer "what was it
-// before" if anyone asks.
-static NSString *const kPhosphorGrainPercentLight = @"phosphorGrainPercentLight";
-static NSString *const kPhosphorGrainPercentDark = @"phosphorGrainPercentDark";
-static NSString *const kPhosphorGrainCoverage = @"phosphorGrainCoverage";
-// The mottle's two dials. Depth is stored in HUNDREDTHS (0, 3, 10, 30) because
-// a picker persists integers and 0 is a real choice — "no blotching" — that
-// -integerForKey: cannot distinguish from an absent key, same trap as the
-// grain strength above.
-static NSString *const kPhosphorGrainMottleDepth = @"phosphorGrainMottleDepth";
-// The 2026-08-22 doctrine dials: letterpress for the light page, scanlines for
-// the dark one. Both stored as the meaningful percent, both read through
-// -objectForKey: because 0 is a real choice (the effect off) that
-// -integerForKey: cannot tell from an absent key -- the same malignant trap as
-// the grain strength above.
-static NSString *const kLetterpressPercent = @"letterpressPercent";
-// PAPER DEFECTS. Bound to a PSSliderSpecifier in Root.plist -- the bundle's
-// FIRST slider row, every other one being a multi-value picker -- and to the
-// light-mode drawer's Defects slider. ONE key, two views: a Settings.bundle row
-// IS a view onto an NSUserDefaults key, so this is not a second source of
-// truth. It has to be a slider and not a picker precisely because the drawer
-// can store 47, and a PSMultiValueSpecifier renders BLANK for a value that is
-// not one of its listed Values.
-//
-static NSString *const kScanlinesPercent = @"scanlinesPercent";
-// The raster's PITCH, as a percent of the source-row pitch. 100 is the shipped
-// one-line-per-row; there is no "off" value, so -integerForKey: would be safe
-// here -- it is read the same way as its siblings anyway, because a 0 from an
-// absent key would silently mean the finest pitch rather than "unset".
-static NSString *const kScanlineSizePercent = @"scanlineSizePercent";
-// Bloom strength, percent of the standard gain. 0 IS a real choice here -- a
-// field with no content awareness at all -- so this one genuinely needs
-// -objectForKey:, the same trap as the grain strength above.
-static NSString *const kScanlineBloomPercent = @"scanlineBloomPercent";
+// ORPHANED KEYS -- stored on existing installs, named by nothing here.
+// `renderScale`, `beamPaintMs`, `pageFadeSeconds`, `pageFadeDepthPercent`,
+// `presentFlash`, `letterpressPercent`, `scanlinesPercent`,
+// `scanlineSizePercent`, `scanlineBloomPercent`, `paperDefectsPercent`,
+// `phosphorGrainPercentLight`, `phosphorGrainPercentDark`,
+// `phosphorGrainCoverage`, `phosphorGrainMottleDepth`, the pre-2026-08-19
+// single `phosphorGrainPercent` and `zenBottomRatio` all had constants here
+// until their getters were frozen or deleted. A constant for a key no getter
+// reads is not documentation, it is a claim that something reads it; the frozen
+// getters below carry the reasons now. The VALUES are left in the store rather
+// than cleared from it -- that costs nothing, and reading one later is the only
+// way to answer "what was it before" if anyone asks. checkKnown() never fires
+// for any of them, because nothing looks them up.
+
 // THE POWER-OFF COLLAPSING DOT. A Settings.app row, and the only surface dial
 // that is one -- see its getter for the argument.
 static NSString *const kPowerOffCollapse = @"powerOffCollapse";
@@ -227,19 +181,23 @@ static void ensureDefaults(void) {
   dispatch_once(&once, ^{
     NSDictionary *fromBundle = defaultsFromSettingsBundle();
     // ROWS REMOVED FROM Settings.app 2026-08-22 (owner: "remove all settings
-    // in app system settings below zen bottom margin"). The KEYS keep working
-    // — stored values, env overrides, and the in-app chip/mixer still read
-    // and write them — but the derivation above no longer sees their
-    // DefaultValues, so the former values are registered here. Without this
-    // an untouched install would silently change look: panelPalettePreset
-    // would answer 0 (Custom -> Default page) instead of CRT White, and grain
-    // coverage would fall from Vignette + Mottled to Even.
+    // in app system settings below zen bottom margin"). The KEYS that still
+    // have readers keep working — stored values, env overrides, and the in-app
+    // chip/mixer read and write them — but the derivation above no longer sees
+    // their DefaultValues, so the former values are registered here. Without
+    // this an untouched install would silently change look: panelPalettePreset
+    // would answer 0 (Custom -> Default page) instead of CRT White.
+    //
+    // presentFlash and the four phosphorGrain* keys were registered here until
+    // 2026-08-23, when their getters stopped consulting NSUserDefaults.
+    // Registering a default now would state a value nothing reads -- the same
+    // reason renderScale and the two pageFade keys already say so below.
+    //
+    // THIS BLOCK IS UNCONDITIONAL AND RUNS FIRST, which is what lets the
+    // Root.plist-unreadable branch below carry only the keys that branch alone
+    // owns. It used to restate ten of these, one of them (panelPalettePreset)
+    // with a DIFFERENT value -- see there.
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{
-      kPresentFlash : @(0),
-      kPhosphorGrainPercentLight : @(60),
-      kPhosphorGrainPercentDark : @(160),
-      kPhosphorGrainCoverage : @(3),
-      kPhosphorGrainMottleDepth : @(90),
       kPanelPalettePreset : @(21),  // panelpalette::kPresetWhiteCrt
       kPanelInkLight : @"2D2D2D",
       kPanelPaperLight : @"FBFBF9",
@@ -257,45 +215,36 @@ static void ensureDefaults(void) {
       // Root.plist missing or unreadable — a packaging fault, not a
       // configuration. Fall back to letting the phone sleep, which is the
       // do-no-harm answer: the alternative failure mode holds a stranger's
-      // screen awake indefinitely on battery. The pad levels fall back to the
-      // shipped tones for the same reason — the alternative is 0, an invisible
-      // pad, and an unlabeled control that draws nothing is not recoverable
-      // from inside the app.
+      // screen awake indefinitely on battery. The pad's levels and the page's
+      // colors need no fallback here at all — the unconditional block above
+      // already registered them, and it registered exactly the shipped tones,
+      // which is what makes a plist this branch cannot read a chrome failure
+      // rather than a visual one.
       NSLog(@"[CrossPoint] Settings.bundle/Root.plist unreadable; defaulting to allow-sleep");
+      // ONLY THE KEYS THIS BRANCH ALONE OWNS. Everything the unconditional
+      // block above already registered is deliberately absent: -registerDefaults:
+      // MERGES into the registration domain, and a key named twice takes the
+      // value of the LAST call (measured, not assumed), so restating a key here
+      // could only either repeat it or contradict it.
+      //
+      // It did contradict it. panelPalettePreset was registered @(21) (CRT
+      // White) above and @(1) (Default) here, so a packaging fault silently
+      // changed the page's colors on top of losing the sleep rows -- the one
+      // symptom nobody would connect to an unreadable plist. 21 is the correct
+      // value and the block above is its one statement: it is what the app
+      // ships and what an untouched install renders, and a plist that will not
+      // load is a reason to keep rendering that, not to repaint the page.
+      // The four panelInk/panelPaper hex fields left with it; they were exact
+      // duplicates, and a named preset ignores them anyway.
       [[NSUserDefaults standardUserDefaults] registerDefaults:@{
         kAllowSleepOnBattery : @YES,
         kAllowSleepWhileCharging : @YES,
-        kPadOutlineContrastLight : @(-1),
-        kPadOutlineContrastDark : @(1),
-        kPadFillContrastLight : @(-1),
-        kPadFillContrastDark : @(1),
-        // MUST MATCH Root.plist's DefaultValue for this key. This branch runs
-        // only when Root.plist could not be read at all, so a drift between the
-        // two is invisible until a packaging fault exposes it.
-        kPadContrastPreset : @(4),  // padpalette::kPresetBlackWhite
         // ON by default (owner 2026-08-22: "default to zen mode on app
         // launch"). Registered defaults only fill ABSENCE: an install whose
         // owner stored zenModeEnabled=false keeps that choice.
         kZenModeEnabled : @YES,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
-        // Default preset, and the four hex fields seeded with the tones that
-        // preset selects -- so a first visit to Custom shows the page's actual
-        // colors to edit from rather than four empty boxes.
-        kPanelPalettePreset : @(1),  // panelpalette::kPresetDefault
-        kPanelInkLight : @"2D2D2D",
-        kPanelPaperLight : @"FBFBF9",
-        kPanelInkDark : @"E0E0DE",
-        kPanelPaperDark : @"121212",
-        // renderScale was registered here until 2026-08-23, when its row went
-        // and its getter stopped consulting NSUserDefaults. Registering a
-        // default now would state a value nothing reads.
-        // Off: the page arrives at once, which is what every build before this
-        // did and what an e-ink panel does.
-        kBeamPaintMs : @(0),
-        // pageFadeSeconds and pageFadeDepthPercent were registered here until
-        // 2026-08-23. Their getters no longer consult NSUserDefaults at all,
-        // so registering a default would state a value nothing reads.
       }];
     }
 
@@ -433,55 +382,36 @@ int CrossPointPrefs_padFillContrast(int dark) {
 // 0 = Off: the page holds its brightness.
 int CrossPointPrefs_pageFadeSeconds(void) { return 0; }
 
-int CrossPointPrefs_phosphorGrainPercent(int dark) {
-  ensureDefaults();
-  NSString *const key =
-      dark ? kPhosphorGrainPercentDark : kPhosphorGrainPercentLight;
-  checkKnown(key);
-  // Stored as a PERCENTAGE OF REALISTIC, the meaningful value itself rather
-  // than a row index -- so the picker can gain steps without re-pointing what
-  // an existing install already chose. 100 is realistic and is the default; 0
-  // is off; 1000 is the 10x the owner asked for.
-  //
-  // -objectForKey: rather than -integerForKey: because 0 is a REAL choice and
-  // the two cannot otherwise be told apart. The wrong answer on an install
-  // whose defaults never registered would be a flat screen for an owner who
-  // never turned grain off.
-  NSNumber *v = [[NSUserDefaults standardUserDefaults] objectForKey:key];
-  // The fallback is per appearance too: a missing key must not drop a dark
-  // screen to the light strength, which is most of the way to flat.
-  if (![v isKindOfClass:[NSNumber class]]) return dark ? 160 : 60;
-  const int pct = v.intValue;
-  if (pct < 0) return 0;
-  return pct > 1000 ? 1000 : pct;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+//
+// ALL FOUR OF THE GRAIN'S DIALS, frozen at the values their rows registered:
+// 60 light / 160 dark strength, Vignette+Mottled coverage, 0.90 blotch depth,
+// and the model's own blotch SIZE (never a stored setting -- the shim pushes
+// phosphorgrain::kMottleCellsDefault).
+//
+// PER APPEARANCE, and that is not cosmetic: the same grain reads very
+// differently on a black page and a white one, so one number cannot serve both.
+// `dark` is 0 for light, 1 for dark.
+//
+// NOTE WHAT THIS ACTUALLY RENDERS TODAY, WHICH IS NOTHING. HalDisplay skips the
+// grain pass entirely while letterpress (light) or scanlines (dark) is live,
+// and the app freezes BOTH of those on -- so on the phone this field is never
+// composited. It is frozen honestly anyway, so that turning a doctrine dial off
+// falls back to exactly the grain the app last shipped rather than to whatever
+// a pre-2026-08-22 install happens to hold.
+int CrossPointPrefs_phosphorGrainPercent(int dark) { return dark ? 160 : 60; }
 
 int CrossPointPrefs_phosphorGrainCoverage(void) {
-  ensureDefaults();
-  checkKnown(kPhosphorGrainCoverage);
-  // 0 is Even, which is the shipped default -- so unlike the strength above,
-  // -integerForKey:'s answer for a missing key is the right one and no
-  // NSNumber dance is needed. Clamped in phosphorgrain::clampCoverage anyway;
-  // clamped again here so a garbage store cannot reach the setter at all.
-  const NSInteger raw =
-      [[NSUserDefaults standardUserDefaults] integerForKey:kPhosphorGrainCoverage];
-  if (raw < 0) return 0;
-  return raw > 3 ? 0 : (int)raw;
+  return phosphorgrain::VignetteMottled;
 }
 
-int CrossPointPrefs_phosphorGrainMottleDepth(void) {
-  ensureDefaults();
-  checkKnown(kPhosphorGrainMottleDepth);
-  // Hundredths. Read through -objectForKey: because 0 means "no blotching",
-  // which is a legitimate choice and not the same as never having chosen.
-  NSNumber *v = [[NSUserDefaults standardUserDefaults]
-      objectForKey:kPhosphorGrainMottleDepth];
-  if (![v isKindOfClass:[NSNumber class]])
-    return (int)(phosphorgrain::kMottleDepthDefault * 100.0f);
-  const int d = v.intValue;
-  if (d < 0) return 0;
-  return d > 100 ? 100 : d;
-}
+// Hundredths, so 90 is a depth of 0.90.
+int CrossPointPrefs_phosphorGrainMottleDepth(void) { return 90; }
 
 // FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
 // not any more. The value below is the one the owner had chosen when he ruled
@@ -597,28 +527,22 @@ int CrossPointPrefs_powerOffCollapse(void) {
                                                                               : 0;
 }
 
-int CrossPointPrefs_presentFlash(void) {
-  ensureDefaults();
-  checkKnown(kPresentFlash);
-  return [[NSUserDefaults standardUserDefaults] integerForKey:kPresentFlash] ? 1 : 0;
-}
+// FROZEN 2026-08-23 by owner ruling: these were Settings.bundle rows and are
+// not any more. The value below is the one the owner had chosen when he ruled
+// ("make these settings the default and remove them from ios app settings as
+// options"), and it is returned WITHOUT consulting NSUserDefaults -- an install
+// that stored a different value before the row was removed must not keep
+// rendering it, and with the row gone there would be no way to change it back.
+//
+// 0 = off: the 1-bit pass is held and only the composed frame lands, which is
+// what every build before the flash became a dial did. The owner did ask for
+// this one as a row on 2026-08-19 ("make that page-turn flash an option in ios
+// settings"); the 2026-08-22 sweep of everything below the zen margin took it
+// with the rest of the group, and it has had no writer since. Reinstating it is
+// a Root.plist row plus unfreezing this -- an owner decision, not a cleanup.
+// The desktop keeps CROSSPOINT_SIM_PRESENT_FLASH either way.
+int CrossPointPrefs_presentFlash(void) { return 0; }
 
-int CrossPointPrefs_beamPaintMs(void) {
-  ensureDefaults();
-  checkKnown(kBeamPaintMs);
-  // Stored as the DURATION ITSELF rather than as a row index, so the picker's
-  // rows can be added, reordered or retuned without a migration table and
-  // without a saved choice ever pointing at a different speed. That is only
-  // safe because the value is meaningful on its own -- unlike a palette preset,
-  // which is a name for a pair of colors and must persist as an opaque integer.
-  const int ms = static_cast<int>(
-      [[NSUserDefaults standardUserDefaults] integerForKey:kBeamPaintMs]);
-  if (ms < 0) return 0;
-  // A sweep longer than this is not a beam, it is a wipe transition, and it
-  // would hold the render loop open for the whole of it. Nothing in the picker
-  // reaches here; a hand-edited plist would.
-  return ms > 1000 ? 1000 : ms;
-}
 
 int CrossPointPrefs_panelPalettePreset(void) {
   ensureDefaults();

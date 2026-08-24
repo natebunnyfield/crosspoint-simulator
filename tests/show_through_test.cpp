@@ -20,17 +20,12 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace showthrough;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // A synthetic page: horizontal ink bands on a paper ground, the statistics a
 // real text block has (a line band every kLinePitch, ink for part of it).

@@ -38,26 +38,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "TestCheck.h"
 
-static int failures = 0;
-#define CHECK(cond)                                                            \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);              \
-      failures++;                                                              \
-    }                                                                          \
-  } while (0)
-
-#define CHECKM(cond, ...)                                                      \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::printf("FAIL %s:%d: ", __FILE__, __LINE__);                         \
-      std::printf(__VA_ARGS__);                                                \
-      std::printf("\n");                                                       \
-      failures++;                                                              \
-    }                                                                          \
-  } while (0)
-
+static int &failures = testcheck::g_failures;
 using namespace panelpalette;
 
 // --- sRGB contrast, recomputed independently of the app --------------------

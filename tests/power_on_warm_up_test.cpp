@@ -21,17 +21,12 @@
 
 #include <cmath>
 #include <cstdio>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace poweron;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 static bool isIdentity(const State &s) {
   return s.phase == Phase::Settle && s.verticalScale == 1.0f &&

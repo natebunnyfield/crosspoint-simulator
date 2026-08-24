@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "CornerDefocus.h"
+#include "FieldSelection.h"
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
 #include "Letterpress.h"
@@ -2726,7 +2727,7 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   laidParams.seed = params.seed;
   laidParams.outPxPerSourcePx = outPxPerSourcePx;
   const float paperLeft = letterpress::remainingPaperBudget(params);
-  laidParams.budgetMeanDarkening = 0.5f * paperLeft;
+  laidParams.budgetMeanDarkening = fieldselect::kSheetShareStep * paperLeft;
   float afterWires = paperLeft - laidstructure::meanDarkeningBound(laidParams);
   if (afterWires < 0.0f) afterWires = 0.0f;
 
@@ -2737,7 +2738,7 @@ static bool ensureSheetToothTexture(int w, int h, float outPxPerSourcePx) {
   // it composes tooth and formation), so this stays 1.0 and there is exactly
   // one authority for how thin the sheet is.
   stParams.stockScale = 1.0f;
-  stParams.budgetMeanDarkening = 0.5f * afterWires;
+  stParams.budgetMeanDarkening = fieldselect::kSheetShareStep * afterWires;
 
   std::vector<uint32_t> field(static_cast<size_t>(w) * h);
 
@@ -3063,8 +3064,9 @@ static bool ensureScanlinesTexture(int w, int h, float pitchPx) {
   params.mottleDepth = scanlines::mottleDepthFor(intensity);
   params.bloomGain = scanlines::bloomGainFor(bloom);
   params.budgetMeanDarkening =
-      0.8f * phosphorgrain::darkeningBudget(srgbLumOf(live.ink),
-                                            srgbLumOf(live.paper));
+      fieldselect::kRasterBudgetShare *
+      phosphorgrain::darkeningBudget(srgbLumOf(live.ink),
+                                     srgbLumOf(live.paper));
 
   // The beam-current map: 16 brightness buckets off the composed frame.
   // Everything already drawn this present -- page, chrome, letterbox -- is
@@ -4085,6 +4087,23 @@ void HalDisplay::presentIfNeeded() {
     pendingPresent.store(true);
   }
 
+  // WHICH FIELD COMPOSITES THIS PRESENT -- decided ONCE, here, before the first
+  // of the three draw sites. src/FieldSelection.h holds the rule and the
+  // argument; the short version is that each field's darkening budget assumes
+  // it is the only pass, so "at most one" is what makes those budgets true.
+  //
+  // COMPUTED ONCE ON PURPOSE. The letterpress predicate below and the grain
+  // suppression sixty lines further down used to be two independent reads of
+  // the same two mutable values -- `display.isInverted()` and an atomic, either
+  // of which another thread can move mid-present. Agreeing by construction
+  // costs nothing; disagreeing draws letterpress AND grain over one page, which
+  // is the exact budget breach the exclusion exists to prevent, and it would
+  // show up as a page a few percent too dark on no particular frame.
+  const fieldselect::Active fields = fieldselect::select(
+      {display.isInverted(), SimulatorOverlay::scanlinesIntensity.load(),
+       SimulatorOverlay::letterpressStrength.load(),
+       SimulatorOverlay::grainStrength.load()});
+
   // LETTERPRESS -- the LIGHT page's surface treatment (doctrine 2026-08-22:
   // light is paper and ink, dark is CRT). Drawn over the PANEL only, through
   // the same drawPanel rotation and dst as the page itself, because ink
@@ -4094,8 +4113,7 @@ void HalDisplay::presentIfNeeded() {
   // beat against the presentation. MOD blend: it can only darken. Its filter
   // copies the panel texture's live one, so the ring gets whatever treatment
   // the glyph edges themselves get at this scale.
-  if (!display.isInverted() &&
-      SimulatorOverlay::letterpressStrength.load() > 0) {
+  if (fields.letterpress) {
     if (ensureLetterpressTexture()) {
       SDL_ScaleMode panelMode = kPanelScaleMode;
       SDL_GetTextureScaleMode(texture, &panelMode);
@@ -4153,11 +4171,13 @@ void HalDisplay::presentIfNeeded() {
   // what keeps the desktop canary byte-identical (the desktop seeds both new
   // dials off) -- and A/B against the old look is one env var
   // (CROSSPOINT_SIM_SCANLINES=0 CROSSPOINT_SIM_GRAIN=100).
-  const bool darkNow = display.isInverted();
-  const bool scanlinesActive =
-      darkNow && SimulatorOverlay::scanlinesIntensity.load() > 0;
-  const bool letterpressActive =
-      !darkNow && SimulatorOverlay::letterpressStrength.load() > 0;
+  //
+  // The decision itself is `fields`, taken once above the letterpress draw.
+  // These two names are kept because the warm-up's glass pick further down
+  // reads one of them, and because "scanlinesActive" says what it means at the
+  // three sites that ask.
+  const bool scanlinesActive = fields.scanlines;
+  const bool letterpressActive = fields.letterpress;
 
   // OUTPUT pixels per SOURCE-logical panel pixel -- the presentation scale
   // with the render scale divided out. Computed in ONE place because two
@@ -4238,8 +4258,7 @@ void HalDisplay::presentIfNeeded() {
     destroySheetToothTexture();
   }
 
-  if (SimulatorOverlay::grainStrength.load() != phosphorgrain::kStrengthOff &&
-      !scanlinesActive && !letterpressActive) {
+  if (fields.grain) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;

@@ -61,14 +61,6 @@ inline bool isPremixPhosphor(const char *pnum) {
   return false;
 }
 
-inline bool isPremixPreset(int preset) {
-  preset = panelpalette::migratePreset(preset);
-  for (int i = 0; i < panelpalette::kPresetInfoCount; i++)
-    if (panelpalette::kPresetInfo[i].preset == preset)
-      return isPremixPhosphor(panelpalette::kPresetInfo[i].phosphor);
-  return false;
-}
-
 // A usable INGREDIENT: a real phosphor row that is not itself a mix.
 inline bool isMixablePreset(int preset) {
   preset = panelpalette::migratePreset(preset);
@@ -143,14 +135,6 @@ inline void blendChannel(const panelpalette::Palette *pals, const float *w,
 }
 
 }  // namespace detail
-
-// How many usable components a list holds.
-inline int usableCount(const Component *comps, int n) {
-  int count = 0;
-  for (int i = 0; i < n && i < kMaxComponents; i++)
-    if (comps[i].preset >= 0) count++;
-  return count;
-}
 
 // --- BLEND -----------------------------------------------------------------
 // Weighted linear-light average of inks and papers, in both polarities. The

@@ -6,21 +6,17 @@
 // Same reason PhosphorGrain, PadPalette and PanelPalette have theirs.
 
 #include "Letterpress.h"
+#include "TestPalettes.h"  // the shipped pages, derived from PanelPalette.h
 
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace letterpress;
 
-static int failures = 0;
-
-static void check(bool ok, const char *what) {
-  if (!ok) {
-    std::printf("FAIL: %s\n", what);
-    failures++;
-  }
-}
+static int &failures = testcheck::g_failures;
 
 // A synthetic page: 64x64 of paper with a filled 24x24 ink square at [20,44).
 // Inkness is exactly 0 or 1, the way a 1-bit glyph interior is.
@@ -169,13 +165,7 @@ int main() {
       };
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
-    const struct { int r, g, b, pr, pg, pb; } pages[] = {
-        {0x2D, 0x2D, 0x2D, 0xFB, 0xFB, 0xF9},  // Default, 13.3:1
-        {0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF},  // High Contrast, 21:1
-        {0x3B, 0x32, 0x28, 0xF2, 0xE7, 0xD0},  // Sepia, 10.2:1
-        {0x3C, 0x38, 0x36, 0xFB, 0xF1, 0xC7},  // Gruvbox Light, 10.2:1
-        {0x4C, 0x4F, 0x69, 0xEF, 0xF1, 0xF5},  // Latte, 7.06:1 -- the tight one
-    };
+    const auto &pages = testpalettes::kLightSweep;
     const int rungs[] = {0, 50, 100, 200};
     for (const auto &page : pages) {
       const float li = lum(page.r, page.g, page.b);
@@ -368,8 +358,9 @@ int main() {
       };
       return 0.2126f * ch(r) + 0.7152f * ch(g) + 0.0722f * ch(b);
     };
-    const float li = lum(0x4C, 0x4F, 0x69);   // Latte ink
-    const float lp = lum(0xEF, 0xF1, 0xF5);   // Latte paper
+    const auto &latte = testpalettes::kLightTightest;
+    const float li = lum(latte.r, latte.g, latte.b);     // Latte ink
+    const float lp = lum(latte.pr, latte.pg, latte.pb);  // Latte paper
     const int rungs[] = {0, 50, 100, 200, 400};
     for (const int r : rungs) {
       Params p{r, 0x50524553u, paperBudget(li, lp)};

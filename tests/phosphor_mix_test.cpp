@@ -10,15 +10,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include "TestCheck.h"
+using testcheck::check;
 
 using namespace phosphormix;
 using panelpalette::Palette;
 
-static int failures = 0;
-static void check(bool ok, const char *what) {
-  if (!ok) { std::printf("FAIL: %s\n", what); failures++; }
-}
-
+static int &failures = testcheck::g_failures;
 static int presetOf(const char *pnum) {
   for (int i = 0; i < panelpalette::kPresetInfoCount; i++) {
     const char *p = panelpalette::kPresetInfo[i].phosphor;

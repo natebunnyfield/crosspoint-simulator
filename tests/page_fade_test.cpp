@@ -13,18 +13,9 @@
 #include <cmath>
 #include <cstdio>
 #include <utility>
+#include "TestCheck.h"
 
-static int failures = 0;
-#define CHECKM(cond, ...)                                                      \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::printf("FAIL %s:%d: ", __FILE__, __LINE__);                         \
-      std::printf(__VA_ARGS__);                                                \
-      std::printf("\n");                                                       \
-      failures++;                                                              \
-    }                                                                          \
-  } while (0)
-
+static int &failures = testcheck::g_failures;
 static double lin(double c) {
   c /= 255.0;
   return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);

@@ -24,15 +24,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "TestCheck.h"
+using testcheck::expect;
 
 namespace {
-
-void expect(bool cond, const char *what) {
-  if (!cond) {
-    std::fprintf(stderr, "FAIL: %s\n", what);
-    std::exit(1);
-  }
-}
 
 bool isSet(const char *name) {
   const char *v = std::getenv(name);

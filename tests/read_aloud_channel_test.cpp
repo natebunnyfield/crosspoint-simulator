@@ -11,16 +11,9 @@
 
 #include <cstdio>
 #include <cstring>
+#include "TestCheck.h"
 
-static int failures = 0;
-#define CHECK(cond)                                                        \
-  do {                                                                     \
-    if (!(cond)) {                                                         \
-      std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);          \
-      failures++;                                                          \
-    }                                                                      \
-  } while (0)
-
+static int &failures = testcheck::g_failures;
 int main() {
   // --- empty channel: nothing to consume ------------------------------------
   {

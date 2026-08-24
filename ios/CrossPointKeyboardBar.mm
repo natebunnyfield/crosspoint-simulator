@@ -181,8 +181,11 @@ UIColor *chipStroke(void) {
   }];
 }
 
-UIColor *panelInk(void) { return colorFromPanel(true); }
-
+// Only the PAPER side is taken today -- the HIDE chip is a filled cell, and
+// its stroke comes from chipStroke() above rather than from the page's ink.
+// colorFromPanel keeps its `wantInk` parameter anyway: it is the pairing that
+// makes it obvious the two tones come from one resolver, and a chip that ever
+// wants the ink again should not have to reintroduce the concept.
 UIColor *panelPaper(void) { return colorFromPanel(false); }
 
 } // namespace

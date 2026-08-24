@@ -31,18 +31,9 @@
 #include <utility>
 
 #include <cstdio>
+#include "TestCheck.h"
 
-static int failures = 0;
-
-#define CHECKM(cond, ...)                                                      \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::printf("FAIL %s:%d: ", __FILE__, __LINE__);                         \
-      std::printf(__VA_ARGS__);                                                \
-      std::printf("\n");                                                       \
-      failures++;                                                              \
-    }                                                                          \
-  } while (0)
+static int &failures = testcheck::g_failures;
 
 namespace {
 
