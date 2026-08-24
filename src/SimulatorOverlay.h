@@ -98,6 +98,18 @@ bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left);
 // beside the publisher.
 bool readerPageIdentity(uint64_t &bookKey, int &spineIndex, int &pageInSpine);
 
+// THE SHEET the screen on glass is printed on, as a seed, whether that screen
+// is a book page or a system screen — the resolved form of the two publishers
+// above and the only thing the light fields read. Returns false only before
+// the first activity has entered, which on a healthy firmware is a handful of
+// milliseconds at boot; the caller keeps its launch-seeded field until then.
+//
+// Separate from readerPageIdentity() rather than replacing it, because the two
+// answer different questions: that one is still the truth about which page of
+// which book was last displayed, and a screen entered on top of a book does not
+// make it false. Implemented in HalGPIO.cpp beside both publishers.
+bool sheetIdentitySeed(uint32_t &seed);
+
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
 // a HAL method for the same reason as the rest of this namespace -- following

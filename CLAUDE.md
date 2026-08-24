@@ -78,8 +78,9 @@ For local dev against this repo, the firmware's `platformio.ini` should referenc
 There is no linter and no per-file build commands; most changes are "tested" by
 running the simulator and exercising the affected feature. Host tests live in
 `tests/` — run them when touching input, text entry, sleep, network, restart,
-task lifetime, read-aloud, palettes, the dial table, device-fidelity flags, the
-compressed-font container, or build-configuration paths.
+task lifetime, read-aloud, palettes, the dial table, the sheet identity,
+device-fidelity flags, the compressed-font container, or build-configuration
+paths.
 
 ```bash
 tests/run_all.sh            # build and run every host test; non-zero on the first failure
@@ -590,6 +591,48 @@ genuine TRADE (the glass stays dark for the whole sleep instead of holding the
 sleep screen), so it is a Settings.app row and it ships OFF. Every surface dial
 that reached Settings.app before that date was removed on it; a new appearance
 row has to earn itself against that.
+
+**EVERY DIAL IN THAT TABLE APPLIES ON EVERY SCREEN, and always has.** None of
+those passes is gated on the activity — the polarity and the dial's own value
+are the whole condition — so Home, Settings, the pickers and the file lists get
+the letterpress, the sheet, the wires, the marks, the drift, the scanlines, the
+grain and the corner radius exactly as a book page does. Measured on the
+Settings screen, dial-by-dial, in `docs/paper-defects.md` §1b. Do not go looking
+for the switch that turns the treatment on for system screens; there is none,
+and adding one is how a page and a menu start disagreeing about what the device
+is made of.
+
+**The one thing that was NOT per-screen is the SHEET, and it is since
+2026-08-24** (owner: the system screens get the paper and ink treatment a book
+page gets). Only reader activities published a page identity, so every other
+screen fell to `grainSeed() ^ 'PRES'` — a per-LAUNCH sheet, which made Settings
+a different leaf every run and left **show-through bit-exact dead** on those
+screens, because the verso map promotes on a seed CHANGE and that seed never
+changed. `Activity::onEnter()` publishes a screen identity now
+(`HalGPIO::publishScreenIdentity`, `src/SheetIdentity.h`,
+`tests/sheet_identity_test.cpp`); readers are skipped there and keep publishing
+their finer page identity from their render. Cost, measured on Metal with the
+as-shipped dials: one sheet rebuild per screen ENTRY, **126–133 ms**, which is
+what a page turn has always cost; navigation WITHIN a screen is unchanged
+(51–53 ms of panel field per keypress, sheet served from cache) because the seed
+does not move when the selection does. If that entry cost ever has to go, the
+dial to drop is **formation** — 72 of those 130 ms — and not show-through (10 ms)
+or the tooth (0).
+
+**A menu's worst background is not paper, it is the SELECTION BAND**, and no
+field's budget knows it exists. `LyraTheme::drawList` fills it
+`Color::LightGray`, which `GfxRenderer` dithers `x % 2 == 0 && y % 2 == 0`, and
+the selected row's text is drawn in the SAME polarity as that dither. Measured
+on the Settings screen, band background against the text on it: **8.84:1 light,
+5.41:1 dark**. The dark figure is under the 7:1 floor every other surface in
+this repo is swept against; it is the firmware's own design and NOT anything a
+surface pass did — with every field off the same band measures 8.53:1 and
+5.36:1, so the stack moves it the wrong way by 0.3 and 0.05 of a ratio point,
+UPWARD. That direction is not luck: the fields are darken-only, so they darken
+the band's paper pixels while the ink is already at the floor. Recorded here
+rather than fixed, because the fix is a firmware UI change nobody asked for.
+Band against the ground beside it — "is the row obviously selected" — is 1.62:1
+light and 2.34:1 dark, against 1.55:1 and 2.35:1 with the fields off.
 
 **A/B captures of the SCANLINE field must pin `CROSSPOINT_SIM_GRAIN_SEED`.** Its
 phase jitter, thickness jitter and mottle all hang off `grainSeed()`, which is

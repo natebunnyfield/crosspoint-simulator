@@ -3,6 +3,7 @@
 #include "FontFamilyStepChannel.h"
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
+#include "SheetIdentity.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 
@@ -1345,12 +1346,34 @@ static std::atomic<bool> readerPageValid{false};
 static std::atomic<uint64_t> readerBookKeyValue{0};
 static std::atomic<int> readerSpineIndex{0}, readerPageInSpine{0};
 
+// THE SHEET, as one number, written by BOTH publishers. 0 means nothing has
+// published yet -- sheetid::forPage/forScreen never return it, which is what
+// lets a single atomic carry both "which sheet" and "is there one".
+//
+// Last writer wins, and that is the whole arbitration: a reader publishes its
+// page from its render and a system screen publishes its name from onEnter(),
+// so the most recent publish is always the screen actually on glass. No
+// recency counter, no per-kind priority, nothing to get out of step.
+//
+// DELIBERATELY NOT in simreset::Registrar, unlike grainSeed() and the verso
+// maps beside it. Those are per-SESSION state about a tube; this is which sheet
+// of paper is in hand, and a wake is not a new ream. Carrying it across the iOS
+// in-process reboot also costs nothing to be wrong about: the first activity
+// entry of the new session republishes within milliseconds.
+static std::atomic<uint32_t> sheetSeedValue{0};
+
 void HalGPIO::publishReaderPageIdentity(uint64_t bookKey, int32_t spineIndex,
                                         int32_t pageInSpine) {
   readerBookKeyValue.store(bookKey);
   readerSpineIndex.store(static_cast<int>(spineIndex));
   readerPageInSpine.store(static_cast<int>(pageInSpine));
   readerPageValid.store(true);
+  sheetSeedValue.store(sheetid::forPage(bookKey, static_cast<int>(spineIndex),
+                                        static_cast<int>(pageInSpine)));
+}
+
+void HalGPIO::publishScreenIdentity(uint32_t screenKey) {
+  sheetSeedValue.store(sheetid::forScreen(screenKey));
 }
 
 namespace SimulatorOverlay {
@@ -1360,6 +1383,14 @@ bool readerPageIdentity(uint64_t &bookKey, int &spineIndex, int &pageInSpine) {
   bookKey = readerBookKeyValue.load();
   spineIndex = readerSpineIndex.load();
   pageInSpine = readerPageInSpine.load();
+  return true;
+}
+
+bool sheetIdentitySeed(uint32_t &seed) {
+  const uint32_t s = sheetSeedValue.load();
+  if (s == 0)
+    return false;
+  seed = s;
   return true;
 }
 } // namespace SimulatorOverlay
