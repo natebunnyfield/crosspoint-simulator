@@ -35,6 +35,7 @@
 // frozen constant in ios/CrossPointPrefs.mm, and re-run. It names the dial, the
 // two numbers, and the file the second one came from.
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -431,24 +432,62 @@ int main(int argc, char **argv) {
           "sheet drift: as-shipped against the app's frozen value");
 
   // THE FOUR STOCK-DERIVED DIALS. What reaches the setter is the app's frozen
-  // dial times the CHOSEN STOCK's own factor, so the shipped value here is a
-  // product, not a constant. Proved rather than asserted: the app's default
-  // stock is Bright White at full strength, and these are its factors.
+  // dial times the FROZEN STOCK's own factor, so the shipped value here is a
+  // product, not a constant.
+  //
+  // THE STOCK IS SCRAPED, NOT ASSUMED. Owner ruling 2026-08-24 froze the light
+  // page at Sanguine on India ("set them to sanguine and india paper"), and
+  // before that it was whatever the owner had last chosen in a drawer that no
+  // longer opens. Reading the enumerator out of ios/FrozenPage.h is the same
+  // two-independent-records discipline the rest of this file follows: naming
+  // kPaperIndia here would be a copy of the app's choice rather than a check on
+  // it, and a stock changed in one place would pass.
   {
-    const int paper = lightink::kPaperBrightWhite;
+    const std::string frozenPage = slurp(iosDir + "/FrozenPage.h");
+    if (frozenPage.empty()) return 1;
+    // `kPaperIndia` -> "india", matched against kPapers[i].name with its spaces
+    // dropped and lowercased ("Bright White" -> "brightwhite"). Derived rather
+    // than listed, so appending a stock to the model needs no edit here.
+    int paper = -1;
+    {
+      const std::string decl = "inline constexpr int kLightPaper = lightink::kPaper";
+      const size_t at = frozenPage.find(decl);
+      if (at == std::string::npos) {
+        std::printf("FAIL: ios/FrozenPage.h has no `%s...` -- the frozen light "
+                    "stock cannot be read, so the four stock-derived dials "
+                    "cannot be checked against it\n",
+                    decl.c_str());
+        g_failures++;
+      } else {
+        std::string sym;
+        for (size_t i = at + decl.size();
+             i < frozenPage.size() && (std::isalnum((unsigned char)frozenPage[i]));
+             i++)
+          sym += (char)std::tolower((unsigned char)frozenPage[i]);
+        for (int i = 0; i < lightink::kPaperCount; i++) {
+          std::string name;
+          for (const char *p = lightink::kPapers[i].name; *p; p++)
+            if (std::isalnum((unsigned char)*p))
+              name += (char)std::tolower((unsigned char)*p);
+          if (name == sym) paper = i;
+        }
+        if (paper < 0) {
+          std::printf("FAIL: ios/FrozenPage.h freezes light stock '%s', which "
+                      "matches no lightink::kPapers[] row. The four "
+                      "stock-derived shipped values depend on which one it "
+                      "is.\n",
+                      sym.c_str());
+          g_failures++;
+        }
+      }
+    }
+    if (paper < 0) paper = lightink::kPaperBrightWhite;  // keep going, one FAIL
     const int strength = lightink::kPaperStrengthMax;
     const float tooth = lightink::toothScaleFor(paper, strength);
     const float formation = lightink::formationScaleFor(paper, strength);
     const float through = lightink::showThroughScaleFor(paper, strength);
-    check(std::fabs(tooth - 1.0f) < 1e-6f,
-          "the default stock's tooth factor is 1.00, which is why the shipped "
-          "tooth is the frozen dial itself");
-    check(std::fabs(formation - 1.0f) < 1e-6f,
-          "the default stock's formation factor is 1.00");
-    check(std::fabs(through - 1.0f) < 1e-6f,
-          "the default stock's show-through factor is 1.00");
     check(!lightink::kPapers[paper].laid,
-          "the default stock is wove, which is why the shipped wires are 0");
+          "the frozen stock is wove, which is why the shipped wires are 0");
 
     const int frozenTooth = frozenReturn(picker, "storedToothPct");
     const int frozenFormation = frozenReturn(picker, "storedFormationPct");

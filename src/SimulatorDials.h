@@ -187,16 +187,21 @@ inline constexpr Dial kDials[kDialCount] = {
    "letterpressPercent", letterpress::kStrengthOff, letterpress::kStrengthMax,
    letterpress::kStrengthOff, 100, kPlain, LetterpressPercent},
   // The four stock-derived rows below carry the PRODUCT of the app's frozen
-  // dial and the chosen paper's own factor. The shipped figures here are that
-  // product for the app's default stock (Bright White), whose tooth, formation
-  // and show-through factors are all exactly 1.00 and which carries no wires.
-  // The test proves those factors rather than trusting this sentence.
+  // dial and the chosen paper's own factor. THE STOCK IS NO LONGER THE DEFAULT
+  // ONE: owner ruling 2026-08-24 froze the light page at Sanguine ink on INDIA
+  // paper ("set them to sanguine and india paper"), and India is a thin, warm,
+  // very smooth bible stock -- 1.12x tooth, 0.70x formation, 3.0x show-through
+  // against the reference sheet, and wove. So the shipped figures below are the
+  // frozen dials (300 tooth, 80 formation, 100 show-through) times THOSE
+  // factors: 336, 56 and 300. The test proves the factors rather than trusting
+  // this sentence, and it reads the frozen stock out of ios/FrozenPage.h rather
+  // than assuming which one it is.
   {PaperToothPercent, "paper tooth", "CROSSPOINT_SIM_PAPER_TOOTH",
-   "paperToothPercent", 0, 400, 100, 300, kPlain, PaperToothPercent},
+   "paperToothPercent", 0, 400, 100, 336, kPlain, PaperToothPercent},
   {PaperFormationPercent, "paper formation", "CROSSPOINT_SIM_PAPER_FORMATION",
    "paperFormationPercent", 0,
    static_cast<int>(letterpress::kFormationDepthMax * 100.0f + 0.5f),
-   static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f), 80,
+   static_cast<int>(letterpress::kFormationDepthDefault * 100.0f + 0.5f), 56,
    kPlain, PaperFormationPercent},
   {PaperDefectsPercent, "paper defects", "CROSSPOINT_SIM_PAPER_DEFECTS",
    "paperDefectsPercent", paperdefects::kDialOff, paperdefects::kDialMax,
@@ -233,9 +238,14 @@ inline constexpr Dial kDials[kDialCount] = {
   {ScanlineBloomPercent, "scanline bloom", "CROSSPOINT_SIM_SCANLINE_BLOOM",
    "scanlineBloomPercent", 0, scanlines::kBloomMax, scanlines::kBloomStandard,
    scanlines::kBloomExtreme, kPlain, ScanlineBloomPercent},
+  // 300, not 100: the dial is frozen at 100 (the reference sheet's own
+  // show-through) and INDIA's ISO 2471 opacity multiplies it by 3.0 -- a bible
+  // paper's show-through is its defining property. That lands exactly on
+  // showthrough::kStrengthMax, which is the ceiling and not a coincidence: the
+  // model's max was sized for the thinnest stock it offers.
   {ShowThroughPercent, "show-through", "CROSSPOINT_SIM_SHOW_THROUGH",
    "showThroughPercent", showthrough::kStrengthOff, showthrough::kStrengthMax,
-   showthrough::kStrengthOff, showthrough::kStrengthStandard, kPlain,
+   showthrough::kStrengthOff, showthrough::kStrengthMax, kPlain,
    ShowThroughPercent},
   // Shipped value 0 since 2026-08-23: the owner looked for it on glass and
    // correctly saw nothing -- whole-frame deviation is one code value, and the
