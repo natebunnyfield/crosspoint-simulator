@@ -529,6 +529,41 @@ int main(int argc, char **argv) {
           "CROSSPOINT_SIM_AS_SHIPPED reproduces nothing");
   }
 
+  // ---- THE TEMPLATE IS THE FOURTH RECORD, and it had no mechanical check ----
+  //
+  // SimulatorSettingsFile.h's defaultsTemplate() is the file a fresh desktop
+  // gets on first run, and applyDials then overwrites the seed with any key
+  // PRESENT in that file -- so the template is not documentation, it is what a
+  // clean machine renders. The dial-table work unified the boot seed, the
+  // watcher and the as-shipped block; the template was the one parallel record
+  // it missed, and it drifted: a 5 min fade, 75% depth and a 67 ms beam that no
+  // desktop default ever had. The dev box's own machine-written settings.json
+  // carried exactly those, so every reproduction on it swept the beam 21% slow.
+  //
+  // Comparing the two records mechanically is the only thing that stops a fifth
+  // drift. A key the template does not name is fine -- the seed then owns it --
+  // but a key it DOES name must agree with the desktop default, or a fresh
+  // machine and a seeded one disagree about the same dial.
+  {
+    const simsettings::Values tmpl =
+        simsettings::parse(simsettings::defaultsTemplate(""));
+    int compared = 0;
+    for (int i = 0; i < simdials::kDialCount; i++) {
+      const simdials::Dial &d = simdials::kDials[i];
+      if (!d.settingsKey || !*d.settingsKey) continue;
+      const auto it = tmpl.find(d.settingsKey);
+      if (it == tmpl.end()) continue;  // not named: the seed owns it
+      compared++;
+      checkEq(static_cast<int>(it->second), d.desktopDefault,
+              (std::string("template agrees with the desktop default for ") +
+               d.name).c_str());
+    }
+    check(compared > 0,
+          "the template names at least one dial -- a zero here would make this "
+          "block vacuous, which is how the drift survived in the first place");
+    std::printf("dial_table_test: template compared %d dials\n", compared);
+  }
+
   if (g_failures) {
     std::printf("\n%d failure(s)\n", g_failures);
     return 1;
