@@ -36,6 +36,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
 | "No speakable content could be found on the screen" | [docs/speak-screen-chain.md](docs/speak-screen-chain.md) — read it FIRST; the message has cost two investigations |
 | How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
+| Which font/size/spacing actually got the most reading done? | [docs/reading-experiments.md](docs/reading-experiments.md) — the ledger, the outcome definitions, and the power estimate that says which questions it can and cannot answer |
 
 | ARCHIVE — a dated record, do not cite for current behavior | What it is |
 |---|---|

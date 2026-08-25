@@ -21,6 +21,8 @@
 #include "Scanlines.h"
 #include "FrozenPage.h"
 #include "ShowThrough.h"
+#include "ReadingLog.h"
+#include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
 
@@ -587,6 +589,42 @@ bool panelIsDarkGround();
 PanelPalette publishedPanelPalette(bool dark) {
   return unpackPalette(dark ? panelPackedDark.load() : panelPackedLight.load());
 }
+
+} // namespace
+
+// THE HOST HALF OF A LEDGER LINE -- what the page was PAINTED with, as against
+// the typography the firmware laid it out with.
+//
+// Declared in ReadingLog.h and defined HERE because this file is the only one
+// that knows the live polarity and the live pair. Putting it the other way
+// round would make ReadingLog.h include the display, and a pure model that
+// cannot be compiled in a host test with no SDL is not a pure model.
+//
+// The PUBLISHED pair, not the drifted one: the drift is a per-leaf offset of at
+// most two code values (LightInkPalette.h), so recording it would give every
+// page its own config id and shatter the very comparison the ledger exists to
+// make. The sheet a page is printed on is not a setting.
+namespace readinglog {
+HostSnapshot hostSnapshot() {
+  HostSnapshot h;
+  const SimulatorBuildIdentity id = localBuildIdentity();
+  h.device = id.device;
+  h.renderScale = cp::renderScale();
+  h.panelW = id.logicalWidth;
+  h.panelH = id.logicalHeight;
+  h.dark = display.isInverted();
+  const PanelPalette pal = publishedPanelPalette(h.dark);
+  h.ink = (static_cast<uint32_t>(pal.ink[0]) << 16) | (static_cast<uint32_t>(pal.ink[1]) << 8) |
+          static_cast<uint32_t>(pal.ink[2]);
+  h.paper = (static_cast<uint32_t>(pal.paper[0]) << 16) | (static_cast<uint32_t>(pal.paper[1]) << 8) |
+            static_cast<uint32_t>(pal.paper[2]);
+  // experiment / arm / armSeed stay empty until the Phase 2 randomizer exists.
+  // See src/ReadingArm.h and docs/reading-experiments.md.
+  return h;
+}
+} // namespace readinglog
+
+namespace {
 
 // THE TONES THIS PAGE IS PAINTED IN -- the published pair with the leaf's own
 // sheet-to-sheet drift folded in. Defined below pageSheetSeed(), because that
