@@ -1009,6 +1009,49 @@ change to typesetting. Cost is genuinely low: a vignette (exists), grain
 
 ## Standing rulings, 2026-08-24
 
+**FOUR LEVELS, AND THAT IS THE POINT.** Owner ruling, asked whether the iOS
+app's bit depth could be improved and how: *"Keep 4 levels — fidelity is the
+point."* **Do not re-propose deeper glyph rendering.** The analysis below is
+kept so the next reader does not pay for it again.
+
+The page content is exactly four levels and nothing else —
+`GrayscalePreview::previewLevel()` returns one of `kWhite 255`, `kLight 200`,
+`kDark 96`, `kBlack 0`. Those are LERPed into the live ink/paper pair, so they
+present as four TINTED levels. The surface passes on top (letterpress, sheet,
+show-through, scanlines, grain) composite in full 8-bit and are continuous-tone;
+they sit ON a device-exact page rather than changing what the page is. That
+distinction is the ruling: the fiction is allowed around the text, not inside it.
+
+Bit depth and RESOLUTION are separate and get conflated. iOS matches the device
+exactly on depth (4 levels) and deliberately does not on resolution — at 2x the
+framebuffer is 1584x1056 against the panel's 792x528, four times the pixels,
+four levels each.
+
+**Where the depth is lost, if anyone needs the numbers.** Two quantizations, not
+one:
+
+| Stage | What happens |
+|---|---|
+| Build | FreeType 8-bit coverage -> a 4-bit buffer (`pixels4g`) -> **thresholded to 2-bit** at 192/128/64 (`fontconvert_sdcard.py:1090-1121`) |
+| Runtime | the firmware paints a 1bpp base plus 2 AA plane bits = 4 levels |
+
+So a deeper FONT alone would buy nothing — the framebuffer path squeezes it back
+to four regardless. Both halves would have to move together, which is what makes
+the full fix expensive: the bitmap payload roughly doubles (108,068,437 of
+117,654,860 bytes in the seed tree are glyph bitmap) and the firmware's renderer
+changes. Note the generator already COMPUTES the 4-bit buffer and discards it, so
+the cheap-looking half is genuinely cheap; it is the other half that is not.
+
+**The option that was declined even though it is nearly free.** At 3x the phone
+MINIFIES (1584 framebuffer px against 1260), and a box filter over that resample
+blends four levels into roughly 17,000 — the phone's awkwardness is exactly the
+mechanism that would have given depth away. `panelScaleModeFor()` already selects
+LINEAR below 1x, so most of the machinery exists. It was declined on the same
+ground: it would make the page less like the panel. This also removes "more
+levels" as an argument for re-enabling 3x — see `docs/ios-render-scale.md`, where
+3x stays retired for the phone and remains an open question only for tablets.
+
+
 **The page is frozen, and the controls are gone.** *"take out paper and crt
 settings for now. set them to sanguine and india paper and attached image for
 crt"* and *"remove the color button from single finger (not zen) mode ui."* The
