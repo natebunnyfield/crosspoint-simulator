@@ -45,9 +45,27 @@ at 2 and the desktop defaults to 1, so **no shipped or buildable configuration
 compiles these files.** They are half a million lines of generated output for a
 tier nothing selects.
 
-They are kept because re-enabling 3x is documented as "one number in
-`ios/CMakeLists.txt`." That promise survives deletion, because these are
-*generated*: the recipe is `fontconvert.py` and it still works.
+**CORRECTION, same day.** The paragraph above originally said these files are
+compiled by nothing. That is true of every SHIPPED configuration and false in
+general: `CROSSPOINT_RENDER_SCALE=3` remains a supported desktop opt-in, so
+`#if CROSSPOINT_RENDER_SCALE >= 3` is a condition a developer can still select.
+They are conditionally live, not dead.
+
+The correction matters because of what prompted it — the owner asked whether 3x
+would work at native resolution on an iPad Pro or a MacBook Pro, and the
+arithmetic says **yes on both, and on every Mac**: 3x makes the framebuffer
+1584x2376, which fits at 1.02 on an iPad Pro 11", 1.16 on a 13", and 1.24-1.41
+on the MacBook Pros, against 0.80 on an iPhone Air. The full table is in
+`docs/ios-render-scale.md`. So the tier is retired for the phone on evidence
+that does not apply to the larger displays, and these files are the assets a
+tablet or Mac build would need.
+
+They are still kept because re-enabling 3x is documented as "one number in
+`ios/CMakeLists.txt`", and that promise survives deletion because these are
+*generated*: the recipe is `fontconvert.py` and it still works. But the honest
+framing of Tier 1 is **"delete regenerable artifacts and document the
+regeneration"**, not "delete dead code" — a weaker claim, and one that turns a
+working env var into a regenerate-first step. Decide it on that basis.
 
 **Gate before deleting anything: prove reproducibility.** Regenerate two or
 three of them and diff byte-for-byte against what is committed. If the generator
