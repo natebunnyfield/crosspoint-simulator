@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 2efd1ff705cae8199d00cacdc7950f3ad2d21f16
-# TU counts  : 141 firmware, 24 simulator (6 C, 159 C++)
+# pinned at  : b6d785eca615ebe6f37b2e2a327d7fa819789f39
+# TU counts  : 143 firmware, 24 simulator (6 C, 161 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "2efd1ff705cae8199d00cacdc7950f3ad2d21f16")
+set(CROSSPOINT_FIRMWARE_PIN "b6d785eca615ebe6f37b2e2a327d7fa819789f39")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -48,6 +48,7 @@ set(CROSSPOINT_FW_SOURCES
   lib/EpdFont/EpdFont.cpp
   lib/EpdFont/EpdFontFamily.cpp
   lib/EpdFont/FontDecompressor.cpp
+  lib/EpdFont/LigatureControl.cpp
   lib/EpdFont/SdCardFont.cpp
   lib/EpdFont/SdCardFontManager.cpp
   lib/EpdFont/SdCardFontRegistry.cpp
@@ -149,6 +150,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/settings/OnlineFirmwareUpdateActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
   src/activities/settings/SettingsActivity.cpp
+  src/activities/settings/TypographySettingsActivity.cpp
   src/activities/util/BmpViewerActivity.cpp
   src/activities/util/ClaudeChatActivity.cpp
   src/activities/util/DaisyEntryActivity.cpp
