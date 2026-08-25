@@ -184,6 +184,42 @@ stop guessing:
 CROSSPOINT_SIM_SCREENSHOTS="3000:/tmp/a.png;5000:/tmp/b.png;6500:/tmp/c.png"
 ```
 
+## Getting a DARK page headlessly — and why `CROSSPOINT_SIM_DARK` is not it
+
+**`CROSSPOINT_SIM_DARK=1` does not give you a dark reader page.** It sets the
+simulator's polarity, and `setPanelDark` does call `display.setInverted` — but
+the FIRMWARE asserts its own `darkMode` setting during startup and overrides it.
+On a card with no saved settings that value is 0, so the page renders light no
+matter what the env var says.
+
+This cost two separate dead ends on 2026-08-24: a collapse investigation that
+could not reproduce a dark-ground bug, and a Tier-2 refactor baseline whose
+"dark" and "light" captures came out byte-identical and therefore proved nothing.
+
+The firmware reads `/.crosspoint/settings.json` (`CrossPointSettings.h:563`),
+which on a fresh simulated card **does not exist** — every value is a default.
+Write one:
+
+```bash
+python3 -c "import json; json.dump({'darkMode':1}, open('fs_/.crosspoint/settings.json','w'))"
+```
+
+Missing keys take their defaults (`fromJson` is `doc[key] | default`), so a
+one-key file is safe and does not disturb anything else.
+
+**Confirm it took by sampling the page, not by trusting the flag.** With the
+as-shipped dials the dark ground is `171B1B` and the light sheet is `F9F3E9`;
+sample the modal color of the middle third of a capture. Both arms coming back
+identical is the signature of this trap.
+
+```bash
+CROSSPOINT_SIM_AS_SHIPPED=1 CROSSPOINT_SIM_GRAIN_SEED=7 CROSSPOINT_SIM_INPUT_SCRIPT='9000:QUIT' CROSSPOINT_SIM_SCREENSHOTS='6000:./dark.bmp'   SDL_VIDEODRIVER=dummy ./program
+```
+
+Note this is also the cheapest end-to-end check that the frozen dark page is
+what the app actually renders: `171B1B` at the centre is the owner's four-gun
+mix resolving correctly through the whole stack, which no host test proves.
+
 ## Forcing state the desktop does not have
 
 The desktop has no phone, so several branches are unreachable without help.
