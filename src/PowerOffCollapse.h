@@ -110,6 +110,24 @@ struct State {
   // brightness, 0..1. Zero width means there is no line yet.
   float dotWidthFrac = 0.0f;
   float dotAlpha = 0.0f;
+  // How dark the chrome OUTSIDE the page is. 0 = normal, 1 = fully dark.
+  //
+  // THE PAPER GOES OUT WITH THE PICTURE, NOT AHEAD OF IT. Owner report
+  // 2026-08-25: "panel and paper need to be painted at the same time on power
+  // collapse and any other time." The caller used to clear the whole output to
+  // black on the collapse's FIRST frame -- so the letterboxed paper surround,
+  // the button pad and the glass's own scanline field all vanished in the
+  // frame before the raster had moved at all. Measured on the desktop at 1x:
+  // 100% of pixels stepped by +1 code value between the last present and the
+  // opening collapse frame, with zero geometry change, which is precisely the
+  // opening flash this model's t = 0 identity exists to forbid.
+  //
+  // Same field, same sense and the same 1 = dark convention as
+  // poweron::State::surroundVeil, because this IS that animation run
+  // backwards: the warm-up lifts the chrome during Settle, this one takes it
+  // down during the vertical collapse. Keeping the two names and polarities
+  // identical is what lets the two draw sites be read against each other.
+  float surroundVeil = 0.0f;
 };
 
 // THE ANSWER: what the glass shows `elapsedMs` after the tube was switched off.
@@ -140,6 +158,10 @@ inline State stateAt(const Params &p, float elapsedMs) {
     // never cross-fade through a gap.
     s.dotWidthFrac = 1.0f;
     s.dotAlpha = k;
+    // The chrome outside the page goes out on the SAME curve the raster
+    // closes on -- k, not u -- so the paper and the panel are always one
+    // picture. At k = 0 that is the identity, which is the whole point.
+    s.surroundVeil = k;
     return s;
   }
 
@@ -154,6 +176,9 @@ inline State stateAt(const Params &p, float elapsedMs) {
     s.gain = kGainMax;
     s.dotWidthFrac = s.horizontalScale;
     s.dotAlpha = 1.0f;
+    // The picture is already a line by now; everything that is not the line is
+    // unlit glass.
+    s.surroundVeil = 1.0f;
     return s;
   }
 
@@ -165,6 +190,7 @@ inline State stateAt(const Params &p, float elapsedMs) {
   s.showPicture = false;
   s.gain = kGainMax;
   s.dotWidthFrac = kDotWidthFrac;
+  s.surroundVeil = 1.0f;
   if (age >= kFadeMs) {
     // EXACTLY off, not nearly off: the terminal state is a black screen, and a
     // dot left at one part in a thousand would sit on the glass all night.

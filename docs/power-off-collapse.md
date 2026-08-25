@@ -172,15 +172,87 @@ glass all night.
 
 ## Drawing
 
-Four draws over a black clear (black, not the field colour: a tube with no
-supplies is not a dark page, it is an unlit screen, and the surround has to go
-with the picture or the collapse happens inside a lit rectangle).
+`presentIfNeeded`'s own order — field, picture, chrome, glass — repeated, so the
+frame the collapse opens with is the frame the present closed with:
 
-1. the panel, squeezed about the presented page's centre;
-2. the same panel again, additively, at `(gain-1)/(gainMax-1)` alpha — a colour
+1. clear to the **field colour** (`SimulatorOverlay::clearColor`, the paper
+   tone), then fill the page's own rect black, because what the raster vacates
+   is unlit glass and not paper;
+2. the panel, squeezed about the presented page's centre;
+3. the same panel again, additively, at `(gain-1)/(gainMax-1)` alpha — a colour
    mod cannot express a rise, `SDL_SetTextureColorMod` only ever attenuates;
-3. the line/dot rect, in the live phosphor's own ink tone, additive;
-4. `SDL_RenderPresent`.
+4. the line/dot rect, in the live phosphor's own ink tone, additive;
+5. the **chrome**, through `SimulatorOverlay::overlayDraw` — the button pad and
+   the bezel on a phone, nothing on the desktop;
+6. the **surround veil**, four black rects AROUND the page at `surroundVeil`
+   (never one rect over it: veiling the page would undo the raster);
+7. the **glass** — `scanTexture` or `grainTexture`, whichever the last present
+   built, over the whole output;
+8. `SDL_RenderPresent`.
+
+### Panel and paper are painted at the same time — the 2026-08-25 report
+
+Owner: *"panel and paper need to be painted at the same time on power collapse
+and any other time, hold panel update if needed."*
+
+Steps 1, 5, 6 and 7 above are that fix; before it there were only four draws,
+over a clear to BLACK. That clear is a second, smaller composite than the one
+`presentIfNeeded` had just put on the glass — no glass field, no chrome, no
+paper surround — so all three vanished on the collapse's OPENING frame, before
+the raster had moved at all. That is exactly the flash `stateAt`'s t = 0
+identity exists to forbid, and the identity was only ever true of the MODEL:
+nothing checked that the draw delivered it.
+
+Measured on the desktop, X3 at 1x, dark, `CROSSPOINT_SIM_AS_SHIPPED=1` with
+`CROSSPOINT_SIM_SCANLINES=0 CROSSPOINT_SIM_GRAIN=300` so the glass field is
+large enough to see, `CROSSPOINT_SIM_GRAIN_SEED=7`, same `fs_/.crosspoint`
+restored before each arm. Both frames come from ONE run: the last present and
+the collapse's opening frame, identified by the `[present] #N` lines around each
+capture.
+
+| | last present → opening collapse frame | pixels moved >4 levels | ground of the page |
+|---|---|---|---|
+| before | mean luminance 36.83 → **47.32** (+28%) | **85.6%** | one flat tone over **80.4%** of the band |
+| after | mean luminance 36.83 → **36.35** (−1.3%) | 25.5% | the same textured spread as the present (11.6 / 9.6 / 6.5% against 12.2 / 10.1 / 6.8%) |
+
+The 25.5% that still move after the fix are glyph edges: that capture lands
+about 20 ms in (rows 8–782 rather than 0–791), so the raster has already
+squeezed by 2%. The ground — which the squeeze cannot move — is unchanged, and
+that is the claim.
+
+The argument for black was never wrong, only mistimed. A tube with no supplies
+IS an unlit screen, so the surround still ends black; it now gets there on the
+raster's own curve (`poweroff::State::surroundVeil`), which is zero at t = 0.
+This is the exact mirror of the warm-up, which had already found and fixed both
+halves of the same problem in the other direction — "PUT THE GLASS BACK ON"
+(2026-08-23, a 2.7% luminance step at the handover) and "THE CHROME COMES UP
+AFTER THE PAGE". The collapse simply never got either.
+
+`[power] collapse composite:` reports what the opening frame was made of —
+field colour, chrome drawn or not, which glass texture — once per run, because
+a missing glass texture makes the guarantee silently false again and that is
+precisely how this bug was produced.
+
+### ...and "any other time" — checked, and the everyday paths are already atomic
+
+Recorded so the next session does not pay for this again. Every other moment
+where the page and the sheet could disagree was measured or traced, and none of
+them splits across two frames:
+
+| Moment | What was checked | Result |
+|---|---|---|
+| page turn, light | `CROSSPOINT_SIM_LOG_TIMING=1` across two turns | `panel BUILD 53.6 / sheet BUILD 32.3` on the SAME present, three times out of three. No frame carries a new panel field over a cached sheet |
+| page turn, dark | same | `scanlines BUILD 38.3 \| readback yes 4.6` — the raster's readback is of the frame composed in that present, so it cannot describe an earlier page |
+| screen entry | the sheet's cache key (`ensureSheetToothTexture`) | keyed on the screen identity, rebuilt in the present that first draws the new screen |
+| palette change, polarity flip | `setPanelPalette` / `setPanelDark` | both the panel's reconvert and every field's cache key move together; the field keys carry `live.paper` and the ink→paper budget |
+| the two-store race on those setters | thread audit | `simsettings::pollSettingsFile()` (desktop) and `applyPanel()` (iOS) both run on the MAIN thread, in the same loop as `presentIfNeeded`, so a present cannot land between `setClearColor` and the reconvert request |
+| keyboard show/hide | the fields' `scaleKey` | the panel's presented scale changes, which is in the key, so the sheet rebuilds in the same present |
+| text entry | `holdForTextEntry` in `ensureLetterpressTexture` | the panel field DOES hold its old glyphs while a field is open — deliberately, owner 2026-08-24 "remove eink delay", and the sheet holds with it because its key carries no seq |
+
+So no present hold was added, and none is needed: the everyday composite is
+already built and presented in one pass. The hold the owner authorised would
+have been spent on a problem that is not there, and would have cost the ~130 ms
+sheet rebuild on every page turn.
 
 **The scales are in SCREEN terms and the dst rect is not.**
 `SDL_RenderTextureRotated` turns the landscape framebuffer about the dst rect's
