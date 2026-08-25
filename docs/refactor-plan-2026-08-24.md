@@ -32,7 +32,21 @@ the phone: **2,273 lines**.
 
 Firmware, own code: the largest files are all GENERATED builtin font headers.
 
-## Tier 1 — delete generated artifacts for a retired configuration
+## Tier 1 — RULED: keep. Not dead code, dormant assets
+
+**OWNER RULING 2026-08-24: keep the 3x font headers.** Asked directly, with the
+deletion and the regeneration-proof gate laid out, he kept them — because 3x
+fits at native resolution on iPad Pro, iPad Air 13" and every Mac, so these are
+the assets a tablet or desktop build would need rather than leftovers from a
+retired tier. See `docs/ios-render-scale.md`. **This tier is closed. Do not
+re-propose it**, and note that the plan's largest item by two orders of
+magnitude is therefore off the table — which makes Tier 2 the real work, not
+the consolation prize.
+
+The original analysis is kept below, because the reasoning is what makes the
+ruling reversible if a future release genuinely drops tablet ambitions.
+
+### Original analysis — delete generated artifacts for a retired configuration
 
 **The single largest and safest item, by two orders of magnitude.**
 

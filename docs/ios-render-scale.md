@@ -73,6 +73,14 @@ iPad below the Pro/Air 13" does.
    ~30 ms at 2x (`src/HalDisplay.cpp:675`), because it is 2.25x the pixels.
    Fitting is necessary, not sufficient.
 
+**STANDING RULING, owner 2026-08-24: the 3x assets STAY.** Asked whether to
+delete the 62 generated 3x builtin font headers (495,933 lines, 44 MB) as the
+largest item in `docs/refactor-plan-2026-08-24.md`, he chose to keep them, on
+the ground this table establishes: 3x has a future on the tablets and the Mac,
+and these are the assets such a build needs. **Do not re-propose deleting them
+as dead code.** They are dormant assets for a tier that fits every display in
+the lower half of the table, not leftovers.
+
 **What this does NOT change.** 3x stays retired: the ruling was "drop 3x support
 for now" and the shipped app is a phone app, where the arithmetic above says it
 cannot fit on any model. This section exists so that a future decision to
