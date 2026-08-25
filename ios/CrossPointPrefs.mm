@@ -482,7 +482,15 @@ int CrossPointPrefs_pageFadeDepthPercent(void) { return 0; }
 // CrossPointInkPicker multiplies the CHOSEN STOCK's factor into it before it
 // reaches the SDL side, which is why a bible paper shows through three times as
 // much as a bright white and a calfskin barely at all.
-int CrossPointPrefs_showThroughPercent(void) { return 100; }
+//
+// HALVED TO 50 on 2026-08-24, owner: "half the verso bleed visibility." 100 was
+// the reference sheet's own show-through, and with India's 3.0x that landed on
+// showthrough::kStrengthMax exactly -- the model's ceiling, sized for the
+// thinnest stock it offers. So the shipped page was carrying the most
+// show-through the model can express, on the thinnest paper in the list. 50
+// puts it at 150, half the visibility and half the sheet's darkening budget
+// share, with the stock still doing the varying.
+int CrossPointPrefs_showThroughPercent(void) { return 50; }
 
 // FROZEN 2026-08-23 with the roadmap item that introduced it (D3). Same
 // argument: the corner spot's growth is set by a tube's geometry, not by taste,
