@@ -32,7 +32,8 @@ int main() {
       const State s = stateAt(off, t);
       if (s.active || s.finished || s.verticalScale != 1.0f ||
           s.horizontalScale != 1.0f || s.gain != 1.0f || !s.showPicture ||
-          s.dotAlpha != 0.0f || s.dotWidthFrac != 0.0f)
+          s.dotAlpha != 0.0f || s.dotWidthFrac != 0.0f ||
+          s.surroundVeil != 0.0f)
         identity = false;
     }
     check(identity,
@@ -50,10 +51,52 @@ int main() {
     check(s.dotAlpha == 0.0f, "there is no line on the opening frame");
     check(s.showPicture, "the opening frame shows the picture");
     check(!s.finished, "the opening frame is not the last one");
+    // AND THE PAPER IS STILL PAPER. Owner report 2026-08-25, "panel and paper
+    // need to be painted at the same time on power collapse": the caller used
+    // to black out the whole output on this frame, so the letterboxed surround,
+    // the button pad and the glass's own field all went before the raster had
+    // moved. Measured before the fix, desktop 1x with the grain field up:
+    // the opening frame's mean luminance jumped 36.83 -> 47.32 and 85.6% of
+    // pixels moved by more than four code values, with the page's textured
+    // ground replaced by ONE flat tone across 80% of it.
+    check(s.surroundVeil == 0.0f,
+          "the chrome outside the page is untouched on the opening frame");
     // Negative elapsed (a clock that has not started) is the same frame.
     const State before = stateAt(on, -100.0f);
     check(before.verticalScale == 1.0f && before.gain == 1.0f,
           "a clock that has not started shows the untouched picture");
+    check(before.surroundVeil == 0.0f,
+          "a clock that has not started leaves the chrome alone too");
+  }
+
+  // --- THE CHROME GOES OUT WITH THE PICTURE, NOT AHEAD OF IT ---------------
+  // The veil is the paper half of "painted at the same time": it rides the
+  // raster's own curve, so there is no instant at which the page is whole and
+  // the surround is not. Monotone for the same reason the scales are -- a
+  // surround that came back would read as the tube reviving.
+  {
+    bool mono = true, everAhead = false;
+    float prev = -1.0f;
+    for (float t = 0.0f; t <= totalMs(); t += 1.0f) {
+      const State s = stateAt(on, t);
+      if (s.surroundVeil < prev - 1e-6f) mono = false;
+      if (s.surroundVeil < 0.0f || s.surroundVeil > 1.0f) mono = false;
+      // NEVER DARKER THAN THE RASTER HAS CLOSED, in the raster's own units:
+      // the vertical sweep runs 1 -> kLineScale, so the fraction of it already
+      // spent is (1 - v) / (1 - kLineScale). The chrome may match that and may
+      // not lead it, which is the whole failure this exists to forbid -- a
+      // surround that goes dark first IS the flash the owner reported.
+      const float closed =
+          (1.0f - s.verticalScale) / (1.0f - kLineScale);
+      if (s.surroundVeil > closed + 1e-3f) everAhead = true;
+      prev = s.surroundVeil;
+    }
+    check(mono, "the chrome only ever darkens, and stays in 0..1");
+    check(!everAhead, "the chrome never goes dark ahead of the raster");
+    check(stateAt(on, kVerticalMs).surroundVeil == 1.0f,
+          "by the time the picture is a line the surround is fully dark");
+    check(stateAt(on, totalMs()).surroundVeil == 1.0f,
+          "the surround is still dark on the last frame");
   }
 
   // --- IT ONLY EVER CLOSES --------------------------------------------------

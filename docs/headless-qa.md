@@ -220,6 +220,58 @@ Note this is also the cheapest end-to-end check that the frozen dark page is
 what the app actually renders: `171B1B` at the centre is the owner's four-gun
 mix resolving correctly through the whole stack, which no host test proves.
 
+## A `settings.json` beside the binary overrides the palette, once a second
+
+**`CROSSPOINT_SIM_AS_SHIPPED=1` does not win the palette.** The desktop settings
+watcher re-reads `./settings.json` — beside the simulated card, so
+`<firmware>/settings.json` for a command-line run — about once a second and
+pushes the palette it names. `applyDials` was taught in 2026-08-23 to respect
+as-shipped for the DIALS (an absent key is not a key set to the default), but
+the palette and mix paths were not, so a stored pair keeps re-asserting itself
+over the seed.
+
+That is not hypothetical and it is not subtle to fall for. On 2026-08-25 the
+file left in `~/src/crosspoint-reader` from an earlier session differed from the
+frozen dark pair by exactly ONE code value on every channel, so every capture
+after the first second of a run was the shipped page + 1: `171B1B` ground read
+back as `181C1C`, ink `B5EEFE` as `B6EFFF`. A collapse investigation measured
+that step, found it 100% of pixels with zero geometry change, and nearly filed
+it as the bug it was looking for. It was the settings file. `CROSSPOINT_SIM_PANEL_INK_DARK`
+does not save you either — the watcher's palette path does not go through the
+env override.
+
+Run from a clean working directory instead, with the card symlinked in:
+
+```bash
+mkdir -p /tmp/simrun && ln -sfn <firmware>/fs_ /tmp/simrun/fs_
+echo '{}' > /tmp/simrun/settings.json      # names no key, so nothing is asserted
+cd /tmp/simrun && <firmware>/.pio/build/simulator_x3/program
+```
+
+Confirm it took by sampling the ground, exactly as the dark-mode check above
+says: with the as-shipped dials it must read `171B1B`, not `181C1C`.
+
+## Screenshots are FLUSHED IN A BATCH, so a dense sweep is not a film strip
+
+`captureDueScreenshots()` walks the whole schedule and writes **every** entry
+whose time has passed, from the frame currently in the backbuffer. Under the
+software renderer a collapse iteration costs ~130 ms, so a sweep at 8 ms
+spacing writes sixteen byte-identical files and looks like a frozen picture.
+Worse, each capture is a full-output readback, and forty of them starve the
+input pump enough that a scripted `QTAP:POWER` can be missed entirely — a run
+that then never sleeps at all.
+
+Schedule **six or fewer** captures around the moment you want, and identify
+which path served each from the `[present] #N` line that follows it (a capture
+with no `[present]` after it came from the collapse). Both facts cost a run on
+2026-08-25.
+
+**To catch the collapse's OPENING frame**, schedule a capture for a time between
+the last ordinary present and sleep entry. From `deepSleep()` onward
+`presentIfNeeded` returns before its own capture check, so a pending shot in
+that window is not consumed by a present — it waits, and the collapse's first
+iteration serves it at elapsed 0.
+
 ## Forcing state the desktop does not have
 
 The desktop has no phone, so several branches are unreachable without help.

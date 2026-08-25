@@ -4899,11 +4899,49 @@ bool stepPowerOffCollapse() {
                                    SDL_LOGICAL_PRESENTATION_DISABLED);
   int outW = 0, outH = 0;
   SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH);
-  // BLACK, not the field colour. A tube with no supplies is not a dark page,
-  // it is an unlit screen, and the surround has to go with the picture or the
-  // collapse happens inside a lit rectangle.
-  SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+  // PANEL AND PAPER ARE ONE PICTURE, AND THEY GO OUT TOGETHER (owner report
+  // 2026-08-25: "panel and paper need to be painted at the same time on power
+  // collapse and any other time, hold panel update if needed").
+  //
+  // This used to clear the whole output to BLACK and draw the raw panel on it,
+  // which is a second, smaller composite than the one presentIfNeeded had just
+  // put on the glass: no glass field, no chrome, no paper surround. All three
+  // therefore disappeared on the collapse's OPENING frame, before the raster
+  // had moved at all -- measured on the desktop at 1x with the as-shipped
+  // dials, 100% of pixels stepping by exactly +1 code value with zero geometry
+  // change, which is the dropped scanline field and nothing else. On a phone
+  // the same frame also loses the letterboxed paper surround and the whole
+  // button pad at once.
+  //
+  // The argument for black was never wrong, only mistimed: a tube with no
+  // supplies IS an unlit screen. So the surround still ends black -- it just
+  // gets there on the raster's own curve (poweroff::State::surroundVeil, zero
+  // at t = 0), which makes the opening frame the identity this model has
+  // always promised. It is the exact mirror of the warm-up, which lifts the
+  // same chrome during Settle for the same reason.
+  //
+  // The order below is presentIfNeeded's order, deliberately -- field, picture,
+  // chrome, glass. Reordering it is how the two composites drift apart again.
+  const uint32_t collapseField = SimulatorOverlay::clearColor.load();
+  SDL_SetRenderDrawColor(sdl_renderer, static_cast<Uint8>(collapseField >> 16),
+                         static_cast<Uint8>(collapseField >> 8),
+                         static_cast<Uint8>(collapseField), 255);
   SDL_RenderClear(sdl_renderer);
+  // ...and the PAGE's own rect is unlit glass from the first frame the raster
+  // leaves it, because what the picture vacates is not paper. At t = 0 the
+  // picture covers this exactly, so it costs the identity nothing.
+  {
+    const SDL_FRect page = {
+        static_cast<float>(sheetPanelX), static_cast<float>(sheetPanelY),
+        static_cast<float>(sheetPanelW), static_cast<float>(sheetPanelH)};
+    // The blend mode is set rather than inherited: this is the first draw of
+    // the frame and the mode is whatever the last present happened to leave.
+    // Every mode gives black here today, which is exactly the kind of accident
+    // that stops being true when a pass is added above.
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+    SDL_RenderFillRect(sdl_renderer, &page);
+  }
 
   if (st.showPicture) {
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
@@ -4944,6 +4982,72 @@ bool stepPowerOffCollapse() {
                            static_cast<Uint8>(a > 255 ? 255 : a));
     SDL_RenderFillRect(sdl_renderer, &bar);
     SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+  }
+
+  // THE CHROME, exactly where presentIfNeeded draws it and by the same call.
+  // On a phone this is the button pad and the bezel; on the desktop the hook is
+  // null and this whole block costs a branch. Logical presentation is already
+  // disabled here, which is the state the painter is documented to want.
+  if (SimulatorOverlay::overlayDraw && outW > 0)
+    SimulatorOverlay::overlayDraw(sdl_renderer, outW, outH);
+
+  // THE SURROUND GOING DARK, as four rects AROUND the page rather than one over
+  // it -- veiling the page would undo the raster that is the whole animation.
+  // Copied in shape from the warm-up's Settle branch on purpose: the two are
+  // the same chrome moving in opposite directions, and a reader comparing them
+  // should find the same four rects.
+  if (st.surroundVeil > 0.0f) {
+    int a = static_cast<int>(st.surroundVeil * 255.0f + 0.5f);
+    if (a < 0) a = 0;
+    if (a > 255) a = 255;
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, static_cast<Uint8>(a));
+    const float px = static_cast<float>(sheetPanelX);
+    const float py = static_cast<float>(sheetPanelY);
+    const float pw = static_cast<float>(sheetPanelW);
+    const float ph = static_cast<float>(sheetPanelH);
+    const SDL_FRect around[4] = {
+        {0.0f, 0.0f, static_cast<float>(outW), py},
+        {0.0f, py + ph, static_cast<float>(outW), outH - (py + ph)},
+        {0.0f, py, px, ph},
+        {px + pw, py, outW - (px + pw), ph},
+    };
+    for (const SDL_FRect &r : around)
+      if (r.w > 0.0f && r.h > 0.0f) SDL_RenderFillRect(sdl_renderer, &r);
+    SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_NONE);
+  }
+
+  // PUT THE GLASS BACK ON -- the same sentence, and the same two lines, as the
+  // warm-up's handover. The clear above threw away the field the scanline (or
+  // grain) pass drew into the frame presentIfNeeded last put up, and without
+  // this the collapse's opening frame is that page with its screen texture
+  // taken off. Both fields are fixed to the GLASS rather than to the page, so
+  // re-drawing one over a squeezed raster is not an approximation: it is the
+  // screen the picture is behind. At most one of the two ever exists -- each
+  // present destroys the field it did not select -- so this needs no dial read
+  // to pick between them, and null means the dials are off and there is
+  // nothing to restore.
+  {
+    SDL_Texture *glass = scanTexture ? scanTexture : grainTexture;
+    // SAY WHAT THE OPENING FRAME WAS MADE OF, ONCE. The whole point of this
+    // block is that the collapse's first frame equals the last present, and a
+    // missing glass texture makes that silently false again -- which is exactly
+    // how the 2026-08-25 report was produced. One line, on the power log.
+    static bool saidGlass = false;
+    if (!saidGlass && powerLogWanted()) {
+      saidGlass = true;
+      SDL_Log("[power] collapse composite: field %06X, chrome %s, glass %s, "
+              "out %dx%d, page %dx%d at %d,%d",
+              (unsigned)collapseField,
+              SimulatorOverlay::overlayDraw ? "drawn" : "none",
+              scanTexture ? "scanlines" : (grainTexture ? "grain" : "NONE"),
+              outW, outH, sheetPanelW, sheetPanelH, sheetPanelX, sheetPanelY);
+    }
+    if (glass && outW > 0 && outH > 0) {
+      const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(outW),
+                              static_cast<float>(outH)};
+      SDL_RenderTexture(sdl_renderer, glass, nullptr, &full);
+    }
   }
 
   // THE COLLAPSE CANNOT BE PHOTOGRAPHED FROM presentIfNeeded, because it never
