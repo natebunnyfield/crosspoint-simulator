@@ -238,14 +238,21 @@ inline constexpr Dial kDials[kDialCount] = {
   {ScanlineBloomPercent, "scanline bloom", "CROSSPOINT_SIM_SCANLINE_BLOOM",
    "scanlineBloomPercent", 0, scanlines::kBloomMax, scanlines::kBloomStandard,
    scanlines::kBloomExtreme, kPlain, ScanlineBloomPercent},
-  // 300, not 100: the dial is frozen at 100 (the reference sheet's own
-  // show-through) and INDIA's ISO 2471 opacity multiplies it by 3.0 -- a bible
-  // paper's show-through is its defining property. That lands exactly on
-  // showthrough::kStrengthMax, which is the ceiling and not a coincidence: the
-  // model's max was sized for the thinnest stock it offers.
+  // 150: the dial is frozen at 50 and INDIA's ISO 2471 opacity multiplies it by
+  // 3.0 -- a bible paper's show-through is its defining property, so the STOCK
+  // is what varies this and the frozen number is only the reference sheet's
+  // share of it.
+  //
+  // It was 100, which with India's 3.0x landed exactly on
+  // showthrough::kStrengthMax -- the model's ceiling, sized for the thinnest
+  // stock it offers. So the shipped page carried the most show-through the
+  // model can express, on the thinnest paper in the list, and the owner asked
+  // for "half the verso bleed visibility" on 2026-08-24. Halving the frozen
+  // base rather than clamping the product keeps the stock factor meaningful:
+  // a calfskin still barely shows through and India still shows through most.
   {ShowThroughPercent, "show-through", "CROSSPOINT_SIM_SHOW_THROUGH",
    "showThroughPercent", showthrough::kStrengthOff, showthrough::kStrengthMax,
-   showthrough::kStrengthOff, showthrough::kStrengthMax, kPlain,
+   showthrough::kStrengthOff, showthrough::kStrengthMax / 2, kPlain,
    ShowThroughPercent},
   // Shipped value 0 since 2026-08-23: the owner looked for it on glass and
    // correctly saw nothing -- whole-frame deviation is one code value, and the
