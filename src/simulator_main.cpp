@@ -9,6 +9,7 @@
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "SimulatorDocumentOpen.h"
+#include "ReadingLog.h"
 #include "SimulatorLifecycle.h"
 #include "SimulatorSettingsWatch.h"
 
@@ -166,6 +167,17 @@ int main(int argc, char **argv) {
   // APP_STATE before setup() reads that state and picks which activity to
   // open. No-op on any launch without a document.
   SimulatorDocumentOpen::captureLaunchDocument();
+
+  // The reading ledger's launch boundary, and its once-per-launch export
+  // service. AFTER the filesystem prep above, because the export marker is
+  // looked for in the card root and on iOS that is the directory prep chdir()s
+  // into; BEFORE setup(), because a fast book renders its first page inside the
+  // first loop() iteration and a `page` line with no preceding `boot` line
+  // would put that page in the previous session. Also reached by the iOS
+  // longjmp reboot, which lands on the setjmp above -- so the per-launch config
+  // latch is reset there rather than needing a SimulatorRebootResets entry.
+  // See docs/reading-experiments.md.
+  readinglog::publishBoot();
 #if !CROSSPOINT_SIM_IOS
   // Headless read-aloud capture audit (.claude/PLAN-tts-read-aloud.md): "1"
   // logs a preview per publish, "2" additionally dumps full text and rects.

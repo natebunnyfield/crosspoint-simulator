@@ -4,6 +4,7 @@
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
 #include "SheetIdentity.h"
+#include "ReadingLog.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
 
@@ -1425,6 +1426,20 @@ void HalGPIO::publishScreenIdentity(uint32_t screenKey) {
   // routes through Boot or Home re-arms the sampling without needing its own
   // reset, and a sleep that is abandoned mid-entry does not leave it stuck.
   sleepScreenEnteredValue.store(screenKey == sheetid::screenKey("Sleep"));
+  // The reading ledger's "he stopped reading" boundary, for free: this is
+  // called on entry to every screen that is NOT a reader, so the first one
+  // after a run of page lines is exactly where the run ended. Without it a
+  // reader who closes the book and browses for ten minutes before sleeping is
+  // indistinguishable from one who stared at the last page.
+  readinglog::publishScreen(screenKey);
+}
+
+// One JSONL line per displayed reader page. The whole consumer is in
+// ReadingLog.h -- kept there rather than here because every decision it makes
+// (which config this is, whether the config changed, when to rotate) is pure
+// and its failure mode is a wrong number in a file that nothing checks.
+void HalGPIO::publishReadingPage(const ReadingPageSample &sample) {
+  readinglog::publishPage(sample);
 }
 
 namespace SimulatorOverlay {
@@ -1634,6 +1649,10 @@ void HalGPIO::startDeepSleep() {
   if (powerLogWanted())
     SDL_Log("[power] deep sleep loop entered (pre-sleep taps and wake edge "
             "consumed)");
+  // The ledger's session boundary. This is the firmware's TERMINAL loop -- it
+  // never returns -- so a line written after it would never be written at all,
+  // and a session that ended in sleep would look like one that is still open.
+  readinglog::publishSleep("deep");
   clearButtonState();
   // The press that put the device to sleep set the wake edge on its way down;
   // consume it so entering sleep does not instantly wake.

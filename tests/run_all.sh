@@ -391,6 +391,39 @@ run panel_source \
 run_direct panel_source_owners \
   python3 tests/panel_source_test.py
 
+# THE READING LEDGER (docs/reading-experiments.md). Three tests for one feature,
+# because it has three independent silent failure modes and no visible ones --
+# nothing renders differently when any of this is wrong, and the cost of a
+# mistake is a conclusion about which font to read in that was never true.
+#
+# reading_log covers the MODEL: the config id (a collision merges two arms into
+# one, a spurious change shatters a comparison into singletons -- and both look
+# like data), the JSON escaping (a quote in an SD card font family name makes a
+# line no parser accepts, and the loss looks exactly like "he did not read much
+# with that font"), the retention bound, and the append/rotate round trip. It
+# also reads the FIRMWARE's copy of the mirrored POD as text where a sibling
+# checkout exists, since the two cannot share a header and a field reordered on
+# one side would compile cleanly on both. It prints the measured cost of one
+# appended line beside the 30-130 ms a page turn already costs.
+run reading_log \
+  c++ -std=c++17 -Isrc -o "$OUT/reading_log" tests/reading_log_test.cpp
+
+# reading_arm covers PHASE 2's assignment, which nothing calls yet. Tested
+# early on purpose: an assignment that is not balanced, not deterministic, or
+# not re-derivable from the seed in the log produces a clean-looking dataset and
+# a wrong answer, and by the time there is enough data to notice, the data is
+# what there is. The properties asserted there ARE the design.
+run reading_arm \
+  c++ -std=c++17 -Isrc -o "$OUT/reading_arm" tests/reading_arm_test.cpp
+
+# reading_report covers the OUTCOME COMPUTATION, which lives offline in
+# tools/reading_report.py because an outcome definition baked into the device is
+# one that cannot be revised. Its central case is the one that would otherwise
+# be found by believing a result: a log where the BOOKS differ enormously and
+# the arms do not differ at all must not produce a significant arm effect.
+run_direct reading_report \
+  python3 tests/reading_report_test.py
+
 # build_identity needs the firmware's include set. Skip rather than fail when
 # there is no firmware checkout to point at -- that is a missing precondition,
 # not a broken test, and reporting it as FAIL would train people to ignore reds.

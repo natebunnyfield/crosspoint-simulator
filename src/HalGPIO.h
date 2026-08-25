@@ -7,6 +7,7 @@
 #include <string>
 
 #include "ReadAloudChannel.h"
+#include "ReadingChannel.h"
 #include "TextEntryKeyRouting.h"
 
 // A STABLE 64-bit key for a book, from its path. MIRRORS the firmware's
@@ -302,6 +303,17 @@ public:
   // The argument is `screenKey`, the FNV-1a of the activity name; the seed the
   // fields use is sheetid::forScreen of it. See src/SheetIdentity.h.
   void publishScreenIdentity(uint32_t screenKey);
+
+  // WHAT THE READER JUST PUT ON GLASS, AND WHAT IT WAS SET TO WHEN IT DID.
+  // Firmware-facing half; an inline no-op on device (lib/hal/HalGPIO.h). The
+  // sink is readinglog::publishPage -- one JSONL line per displayed page,
+  // never leaving the device. See src/ReadingLog.h and
+  // docs/reading-experiments.md.
+  //
+  // Deliberately NOT the identity channel with more fields: that one seeds the
+  // PAPER on the present path and is superseded rather than cleared, this one
+  // appends to a ledger. Two consumers, two lifetimes, two channels.
+  void publishReadingPage(const ReadingPageSample &sample);
 
   // Simulator-only. Schedule a full synthetic button tap — press edge, held
   // level for holdMs, release edge — that fires INSIDE update(), which is
