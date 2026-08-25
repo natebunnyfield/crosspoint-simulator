@@ -24,6 +24,64 @@ falling through. That mapping is deliberately NOT left to
 `cp::setRenderScale()`'s ceiling clamp, which lands on the same 2 today and
 would silently mean something else the moment the ceiling moved.
 
+## Which displays 3x would actually fit — arithmetic, 2026-08-24
+
+Owner question: *"would 3x work at native res on ipad pro or macbook pro?"*
+Recorded rather than measured; the numbers below are arithmetic from published
+native panel resolutions, NOT a run on hardware. Nothing here is a claim about
+how it looks.
+
+3x makes the X3 framebuffer **1584 x 2376** (portrait) or **2376 x 1584**
+(landscape). The fit factor is `min(displayW/panelW, displayH/panelH)`. **At or
+above 1.00 the panel is not minified**, which is the whole question: below 1.00
+the presentation resamples and the selection dither beats against the sampling
+lattice, which is ST-008 and is why the tier was dropped for the phone.
+
+| Device | Native px | Fit | |
+|---|---|---:|---|
+| iPhone SE (3rd gen) | 750 x 1334 | 0.47 | minifies |
+| iPhone 15 / 16 | 1179 x 2556 | 0.74 | minifies |
+| iPhone 16 Pro | 1206 x 2622 | 0.76 | minifies |
+| iPhone Air | 1260 x 2736 | **0.80** | minifies — the measured ST-008 case |
+| iPhone 16 Pro Max | 1320 x 2868 | 0.83 | minifies |
+| iPad mini (A17) | 1488 x 2266 | 0.94 | minifies |
+| iPad 10.9 / iPad Air 11" | 1640 x 2360 | 0.99 | minifies, barely |
+| iPad Pro 11" (M4) | 1668 x 2420 | **1.02** | fits, barely |
+| iPad Air 13" | 2048 x 2732 | 1.15 | fits |
+| iPad Pro 13" (M4) | 2064 x 2752 | **1.16** | fits |
+| MacBook Air 13" | 2560 x 1664 | 1.05 | fits |
+| MacBook Air 15" | 2880 x 1864 | 1.18 | fits |
+| MacBook Pro 14" | 3024 x 1964 | **1.24** | fits |
+| MacBook Pro 16" | 3456 x 2234 | **1.41** | fits |
+| Studio Display | 5120 x 2880 | 1.82 | fits |
+| Pro Display XDR | 6016 x 3384 | 2.14 | fits |
+
+So the answer is **yes for both, and for every Mac** — no iPhone fits and no
+iPad below the Pro/Air 13" does.
+
+**Three caveats, and the first two decide the marginal rows.**
+
+1. **These are RAW panel dimensions.** The usable area is smaller: safe areas
+   and the button pad on iOS, window chrome and the menu bar on macOS. On a
+   tablet the pad sits in the margins BESIDE the page rather than in a band
+   below it, so it eats WIDTH — which is exactly the dimension the iPad Pro 11"
+   has 2% of headroom in. Expect the 11" to fall under 1.00 in practice. The
+   13" and every Mac have real margin.
+2. **Height is the binding constraint on every iPad**, width on every Mac,
+   because the panel is presented portrait on one and landscape on the other.
+3. **The cost is not small.** A compose at 3x measures **115-271 ms** against
+   ~30 ms at 2x (`src/HalDisplay.cpp:675`), because it is 2.25x the pixels.
+   Fitting is necessary, not sufficient.
+
+**What this does NOT change.** 3x stays retired: the ruling was "drop 3x support
+for now" and the shipped app is a phone app, where the arithmetic above says it
+cannot fit on any model. This section exists so that a future decision to
+re-enable it for tablets or the Mac starts from numbers instead of from scratch,
+and so that `docs/refactor-plan-2026-08-24.md` Tier 1 is read with its
+correction: the 3x builtin font headers are NOT dead in every configuration,
+because `CROSSPOINT_RENDER_SCALE=3` remains a supported desktop opt-in
+(`src/main.cpp:93`) and every display in the lower half of that table fits it.
+
 **Panel (1x) is back in the picker**, having been trimmed on 2026-08-21 when the
 choice was 1x/2x/3x. It costs no bundle at all — the 1x tier is structural,
 since the hi-res companions carry bitmaps only and take their metrics from the
