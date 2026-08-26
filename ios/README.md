@@ -1612,9 +1612,20 @@ is gitignored, so a clone without it must still build), but it means a bundle
 with no fonts is not evidence of a bundling bug. Pass the directory to get them:
 
 ```bash
-cmake -B build/ios-app -DCROSSPOINT_IOS_SEED_FONTS_DIR=$PWD/ios/seedfonts
+cmake -B build/ios-app -DCROSSPOINT_IOS_SEED_FONTS_DIR=$PWD/build/seedfonts
 cmake --build build/ios-app --config Debug --target CrossPointX3
 ```
+
+**Point it at `build/seedfonts`, NOT `ios/seedfonts`.** Both are gitignored
+font trees and for a long time either worked, which is exactly what made this a
+trap: `build/seedfonts` is the tree `ios/testflight.sh` actually ships and the
+one kept current, while `ios/seedfonts` was last regenerated before the
+2026-08-26 ramp changes. Building against the stale one produces an app whose
+picker offers six size slots whose lower two resolve to nothing, and whose
+Almendra is two points small at every slot — an app that looks plausible and is
+a fortnight out of date. `ios/seedfonts/` was deleted on 2026-08-26 for that
+reason; if you find one on your machine, prefer `build/seedfonts` or regenerate
+with `build-sd-fonts.py`.
 
 Verified 2026-08-23: that bundles 28 `.cpfont` files at each of 1x and 2x
 across all seven installed families — 3x is no longer bundled (owner ruling; see
