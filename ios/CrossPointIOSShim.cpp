@@ -123,6 +123,7 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 #include "PadCore.h"
 #include "PadPalette.h"
 #include "PanelPalette.h"
+#include "SimHostScreen.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorOverlay.h"
 
@@ -2703,6 +2704,28 @@ void CrossPointHarness_begin() {
   static bool s_identityChecked = false;
   if (!s_identityChecked) {
     verifyBuildIdentityMatchesCore(localBuildIdentity(), "iOS harness");
+    // WHAT THE PANEL CAN DO, AND WHETHER THIS BUILD IS ALLOWED TO USE IT.
+    //
+    // Owner directive 2026-08-26, "enable 120hz if possible on iphone air".
+    // Two independent things have to be true and each is invisible on its own,
+    // so both are read back from the running system and printed together:
+    // UIScreen says what the display is capable of, and the bundle's own
+    // Info.plist says whether CADisableMinimumFrameDuration lifted the 60 Hz
+    // clamp iOS otherwise applies to every app. A ProMotion phone with no key
+    // runs at 60 and looks fine; a key on a 60 Hz panel does nothing and also
+    // looks fine. This line is the only thing that tells the two apart, and it
+    // is the reason not to answer the question from a model name.
+    //
+    // Beside the [BUILD] identity check because it is the same kind of fact --
+    // what this binary on this hardware actually is -- and the same log is
+    // where anyone already looks for it.
+    const int maxFps = sim_host_screen::maximumFramesPerSecond();
+    const bool declared = sim_host_screen::highFrameRateDeclared();
+    std::printf("[BUILD] display: %d Hz maximum, high frame rate %s -> app may "
+                "present at up to %d Hz\n",
+                maxFps, declared ? "DECLARED" : "not declared",
+                declared ? maxFps : (maxFps > 60 ? 60 : maxFps));
+    std::fflush(stdout);
     s_identityChecked = true;
   }
 

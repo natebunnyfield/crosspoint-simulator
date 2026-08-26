@@ -132,6 +132,17 @@ run light_ink \
 run page_fade \
   c++ -std=c++17 -Isrc -o "$OUT/page_fade" tests/page_fade_test.cpp
 
+# When a phosphor trail stops being able to change a pixel -- the rule that ends
+# the self-driving present loop. Both failure modes are silent: one present too
+# early and a visible ghost pops off the glass, one trail too late and a core
+# burns redrawing one picture. It is also the case where the desktop canary is
+# actively MISLEADING: SDL's software blitter truncates its blends, so the trail
+# dies earlier there than on a rounding GPU backend, and a model tuned against a
+# desktop capture ships a ghost to the phone. The test runs both arithmetics
+# against the bound.
+run trail_lifetime \
+  c++ -std=c++17 -Isrc -o "$OUT/trail_lifetime" tests/trail_lifetime_test.cpp
+
 run grayscale_preview \
   c++ -std=c++17 -Isrc -o "$OUT/grayscale_preview" tests/grayscale_preview_test.cpp
 
