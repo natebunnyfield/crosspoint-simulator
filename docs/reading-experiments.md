@@ -21,6 +21,34 @@ deliberately not wired.**
 
 ---
 
+## 0. Standing rulings — read before proposing a change here
+
+**Phase 1 only. The randomizer stays wired to nothing.** Owner, 2026-08-25,
+asked directly whether to wire it now so the same weeks would produce causal
+rather than observational data: *"Phase 1 only — observe first."* Nothing about
+his reading changes; the ledger records what he already does. **Do not wire
+Phase 2, and do not add its Settings row, without a new ruling.**
+
+The argument that was made FOR wiring it, so it is not re-made from scratch:
+observational logs cannot establish cause, because settings are chosen for
+reasons tangled with mood, book and time of day, so any correlation found in
+them is uninterpretable. That is true and it was heard. What it buys instead is
+the **within-book variability** — the single number the whole power estimate
+rests on (§6 assumes a cv of 0.15 and says plainly that it is a guess). Measured
+first, it says whether any experiment here can resolve anything at all before
+the reading experience is disturbed to run one. If the variability comes back
+high, no arm was ever going to resolve, and that is learned for free.
+
+It is also reversible in the useful direction: the lines written now stay valid
+as baseline when the randomizer is switched on later.
+
+**Colour cannot be an arm.** Same day, same reasoning: `src/FrozenPage.h` holds
+both appearances frozen (2026-08-24) and lifting that freeze is a separate
+ruling. Asked whether to lift it for a trial, the answer was *"Not yet — measure
+your variability first."* `ink` and `paper` are recorded in every `cfg` line
+regardless, so the day it lifts, every line already written says which side of
+the change it was on.
+
 ## 1. What is built
 
 | | Phase 1 — instrumentation | Phase 2 — the randomizer |
