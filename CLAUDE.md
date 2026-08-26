@@ -134,6 +134,29 @@ It runs the other way too, and that direction costs a firmware change: a capabil
 
 **Why the simulator's design has the shape it does** (the non-obvious parts):
 
+- **The surface passes live in four files, not one, and the split is by WHEN they
+  draw rather than by what they draw.** `HalDisplay.cpp` keeps the SDL lifecycle,
+  the texture, the present policy, the palette reads and the 1bpp→ARGB
+  conversion. `SurfaceSheet.cpp` builds the light stack (letterpress, tooth,
+  formation, laid wires, show-through, marks, drift), `SurfaceTube.cpp` the dark
+  stack (scanlines, corner defocus, grain), and `SurfacePower.cpp` the collapse
+  and the warm-up. The MODELS were already pure headers; what moved is only
+  their compositing.
+  It was 5,210 lines in one file until 2026-08-25, which is worth knowing because
+  the reason for the split was **contention, not tidiness**: three separate tasks
+  serialized behind that file in one day and two agents collided in it. Every unit
+  moved byte-for-byte, gated on nine renders that had to come back with identical
+  md5s — including arms with the grain at 1000 and a corner-defocus pair, because
+  a dial frozen at its shipped value moves too few pixels for a gate to see it.
+  Two things follow for anyone editing here. `FieldSelection.h` is still the ONE
+  authority on which fields composite and how the darkening budget is shared, and
+  it deliberately did not move — every pass reads its constants, none re-derives
+  them. And the new files bind `HalDisplay.cpp`'s file-scope statics by reference
+  under their original names, which is what let the bodies move unedited; that
+  glue is load-bearing, not leftover.
+  Full account, including why `ios/CrossPointIOSShim.cpp` was NOT split:
+  [docs/refactor-plan-2026-08-24.md](docs/refactor-plan-2026-08-24.md).
+
 - **SDL on main thread.** macOS requires all SDL calls to come from the main thread, but firmware drives rendering from a FreeRTOS render task. The split lives in [src/HalDisplay.cpp](src/HalDisplay.cpp): `refreshDisplay` (background thread) converts the 1bpp framebuffer to ARGB and sets an atomic `pendingPresent` flag. `presentIfNeeded` (called from `simulator_main` on the main thread) does the actual SDL upload and present. Do not call SDL render functions from anywhere else.
 - **Orientation rotation lives in two places.** The firmware's renderer rotates content into the landscape framebuffer (90 CCW for `Portrait`). The simulator undoes that with `SDL_RenderTextureRotated`. If you change one, change the other. The dst rect is landscape-shaped and center-offset because the rotation happens around the dst center.
 - **HiDPI / dithering.** `SDL_WINDOW_HIGH_PIXEL_DENSITY` plus `SDL_SetRenderLogicalPresentation`, and a scale mode set on the texture (SDL3 replaced the global `SDL_HINT_RENDER_SCALE_QUALITY` hint with a per-texture setting, so it must come *after* `SDL_CreateTexture`). Without these, Bayer-dithered grays render as harsh black/white stripes on Retina.
