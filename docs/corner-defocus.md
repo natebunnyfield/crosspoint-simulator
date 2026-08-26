@@ -4,8 +4,8 @@
 ([surface-roadmap.md](surface-roadmap.md) §3). Model:
 [src/CornerDefocus.h](../src/CornerDefocus.h). Test:
 [tests/corner_defocus_test.cpp](../tests/corner_defocus_test.cpp). It modulates
-the scanline field (`HalDisplay::ensureScanlinesTexture`) rather than drawing
-one of its own.
+the scanline field (`ensureScanlinesTexture`, in `src/SurfaceTube.cpp` since
+2026-08-25) rather than drawing one of its own.
 
 **Dark mode only**, and only where scanlines are: with
 `scanlinesPercent` at 0 this does nothing at all.

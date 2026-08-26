@@ -13,8 +13,8 @@
 > See [docs/letterpress-and-scanlines.md](letterpress-and-scanlines.md).
 
 Added 2026-08-18. Model in [`src/PhosphorGrain.h`](../src/PhosphorGrain.h),
-composited in `HalDisplay::presentIfNeeded`, host-tested by
-[`tests/phosphor_grain_test.cpp`](../tests/phosphor_grain_test.cpp).
+built in `src/SurfaceTube.cpp` and composited by `HalDisplay::presentIfNeeded`,
+host-tested by [`tests/phosphor_grain_test.cpp`](../tests/phosphor_grain_test.cpp).
 Rendered proof (real captures, every strength and coverage):
 `https://claude.ai/code/artifact/6254c879-9342-4586-80e6-0f049974b2bf`
 
