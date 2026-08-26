@@ -531,6 +531,15 @@ found by reading, and the two are labelled apart, because the standing rule
 after 2026-08-09 is that a second failure gets instrumentation rather than
 another plausible patch.
 
+> **SUPERSEDED BY §9, 2026-08-26.** The cause was found and reproduced: the
+> capture flag is re-seeded FALSE on every in-process reboot and the correcting
+> edge never fires again (S-023). Nothing measured in this section was wrong —
+> the chain really is healthy from a cold launch, which is exactly why none of
+> it explained the report. **Every measurement here was taken from boot 1, and
+> the condition needs a reboot.** The three self-heal holes below are real and
+> their repairs stand; they were not the reported bug. Keep reading this section
+> for what was checked and found CLEAN, not for the conclusion.
+
 ### Measured healthy on HEAD (`a8def02`), and none of it explains the report
 
 | Checked | Result |
@@ -680,3 +689,97 @@ measurement and his phone that no simulator can settle (§3, §7).
 **Device-unconfirmed.** Nothing here was seen on a phone. Three defects were
 found and repaired; whether any of them is the one he hit is unknown, and the
 honest status is SHIPPED — UNCONFIRMED on device.
+
+---
+
+## 9. FOUND, REPRODUCED AND FIXED — 2026-08-26 (S-023)
+
+**§8's conclusion is superseded, not deleted.** Everything it measured was
+true — the chain IS healthy on HEAD from a cold launch, and that is precisely
+why nothing in it explained the report. The condition is not reachable from a
+cold launch at all. It needs a **reboot** in the middle of the session, and
+every measurement in §8 was taken from a first boot.
+
+### The mechanism
+
+One flag, two writers that had drifted apart, across a boundary that resets one
+of them and not the other. Full account with the owner's log excerpt and both
+measured arms: `BUGS.md` **S-023**. In brief:
+
+* `CrossPointReadAloud_begin()` seeded the firmware's capture flag from
+  `CrossPointPrefs_readAloudEnabled()` — correct before capture became
+  unconditional on the phone (the build-42 fix for the *previous* incarnation of
+  this same message), never updated with it. A Speak Screen user leaves the Read
+  Aloud (Experimental) toggle OFF, so begin() seeded **false** on every boot.
+* `CrossPointReadAloud_perFrame()` corrected it to true on the edge
+  `g_lastCaptureWanted != 1`.
+* The iOS reboot is a `longjmp` into `setup()` in the SAME process.
+  `ReadAloudChannel::resetForReboot()` deliberately leaves `wanted_` alone
+  ("the consumer re-seeds it"), begin() re-seeds it **false**, and
+  `g_lastCaptureWanted` survives at 1 — so the correcting edge never fires
+  again. `readAloudCaptureWanted()` is false for the rest of the process,
+  `captureReadAloudPage` returns at its first line, and `page=0B` forever.
+* `fb=0B` follows from the same root and needs no separate fix: the
+  textless-page fallback is only computed inside the drain's `if (got)` block,
+  so a channel that never delivers starves the substitute too.
+
+Every file transfer, every font download and every sleep/wake crosses that
+boundary. **This is exactly the trap `CLAUDE.md` documents** — a static that
+caches state across the in-process reboot works on the desktop and is dead on
+the phone — with the twist that the comment saying "the consumer re-seeds it"
+was true of a consumer that had an edge guard in front of its re-seed.
+
+### Running it, and why the §5 recipe cannot show this
+
+The §5 script never reboots, so it can only ever measure boot 1. Add a
+sleep/wake to cross the `longjmp`:
+
+```bash
+D=<udid>
+SIMCTL_CHILD_CROSSPOINT_SIM_DIAGNOSTICS=1 \
+SIMCTL_CHILD_CROSSPOINT_SIM_LOG_POWER=1 \
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='200:QTAP:BACK:2500;5000:QTAP:BACK;10000:QTAP:RIGHT;13000:QTAP:RIGHT;22000:POWER:700;28000:POWER:1' \
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT_AFTER_WAKE='7000:QTAP:RIGHT;11000:QTAP:RIGHT;18000:QUIT' \
+  xcrun simctl launch --console-pty $D com.natebunnyfield.crosspoint.x3
+```
+
+`22000:POWER:700` is the firmware's own sleep threshold and `28000:POWER:1` is
+the wake; `[power] longjmp reboot (power wake)` in the output is the boundary
+being crossed, and it is the line to grep for before believing any post-reboot
+CHAIN. Measured on `crosspoint-x3-air`, iOS 26.5, 2026-08-26, same script both
+arms:
+
+| | before the reboot | after |
+|---|---|---|
+| pre-fix | `page=746B rects=151`, `790B/165`, `780B/156` | `page=0B rects=0 fb=0B` at +0 s, +5 s, +10 s, +15 s, across two page turns |
+| fixed | `page=812B rects=158 elements=22` | `page=812B rects=158 elements=22`, then `746B/151` after a turn |
+
+**The cheapest single tell** is `[READALOUD] page capture wanted (always, on
+iOS)`: it prints once per boot when the chain is healthy, and exactly once for
+the whole process when it is not.
+
+### What holds it
+
+`tests/readaloud_reboot_seed_test.py`, in `tests/run_all.sh`. It fails on all
+three of its properties against the pre-fix file, and its third assertion is the
+general one — every `int g_last* = -1;` edge cache in the adapter must be
+re-armed in `begin()`. Source-level for the same reason
+`chip_tint_source_test.py` is: the live check needs UIKit, a booted phone and a
+reboot mid-run.
+
+### The sibling audit, including what was CLEAN
+
+Nine other edge-cached statics cross the same boundary
+(`g_appliedDark`/`Outline`/`Fill`, `pollBeamPaint`, `pollPageFade`,
+`pollPanelGlow`, `pollLetterpress`, `pollPaperTooth`, `pollScanlines`). **None
+has this bug**, and the reason is structural rather than lucky:
+`gDisplayRebootReset` does not touch the surface dials — they are atomics in
+`HalDisplay` that survive the `longjmp` — so a stale poll edge is suppressing a
+push of a value that is already applied. `applyTheme()` writes `g_appliedDark`
+unconditionally on every `CrossPointHarness_begin()`, so that edge is re-armed
+by construction. `fontFamilyStepChannel` has no wanted flag and no consumer-side
+edge at all.
+
+**A surviving edge cache is only a bug where something else RESETS what it
+mirrors.** That is the pair to look for when auditing this class, not the static
+by itself.

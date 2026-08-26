@@ -608,12 +608,41 @@ void CrossPointReadAloud_begin(void) {
   // lazily from perFrame (which runs after loop()) misses that page — the
   // exact race the desktop logger had. perFrame's edge detector then merely
   // confirms this value.
-  gpio.setReadAloudCaptureWanted(CrossPointPrefs_readAloudEnabled() != 0);
+  //
+  // UNCONDITIONALLY TRUE, and that is the whole of S-023. This line used to
+  // read `CrossPointPrefs_readAloudEnabled() != 0`, which had been correct
+  // before capture became unconditional on the phone (see perFrame below) and
+  // was never updated with it. That left two writers of one flag disagreeing,
+  // and across the in-process reboot the disagreement became permanent:
+  //
+  //   boot 1  begin() seeds `false` (Speak Screen users leave the Read Aloud
+  //           toggle off), perFrame's edge fires and sets it TRUE. Healthy.
+  //   REBOOT  a longjmp, not a new process. ReadAloudChannel::resetForReboot()
+  //           deliberately leaves `wanted_` alone ("the consumer re-seeds it"),
+  //           and every static in this file survives — g_lastCaptureWanted at 1.
+  //   boot 2  begin() seeds `false` AGAIN. perFrame's edge is already satisfied,
+  //           so nothing ever sets it back. readAloudCaptureWanted() is false
+  //           for the rest of the session, EpubReaderActivity's capture returns
+  //           at its first line, and the owner gets "No speakable content could
+  //           be found on the screen" over a page that is on the glass, with
+  //           `page=0B rects=0 fb=0B` in every CHAIN line. His a11y.log,
+  //           2026-08-26: healthy at t=112, dead from t=3738 onward.
+  //
+  // Every file transfer, every font download and every sleep/wake goes through
+  // that boundary, so the phone reaches boot 2 in the course of ordinary use.
+  gpio.setReadAloudCaptureWanted(true);
   // Re-apply the prefs on the next perFrame — a wake is exactly when the
   // owner may have changed them in Settings. -1 on the rate also means "first
   // read", which suppresses the restart: there is nothing speaking to restart.
+  //
+  // g_lastCaptureWanted joins them for the same reason, and its ABSENCE from
+  // this list was the second half of the bug above: an edge cache that outlives
+  // the boot whose state it mirrors is a cache that lies. Every `g_last*` edge
+  // in this file is re-armed here; tests/readaloud_reboot_seed_test.py fails if
+  // a new one is added and this list is not.
   g_lastEnabled = -1;
   g_lastRatePercent = -1;
+  g_lastCaptureWanted = -1;
 }
 
 void CrossPointReadAloud_perFrame(void) {
@@ -661,9 +690,16 @@ void CrossPointReadAloud_perFrame(void) {
   // removes the wake and first-launch orderings that had the same hole.
   CrossPointAccessibility_keepFront();
   const bool a11yWants = CrossPointAccessibility_wantsPage();
+  // PUSHED EVERY FRAME, NOT ON AN EDGE, and the static below throttles only the
+  // LOG. The setter is one atomic store (ReadAloudChannel::setWanted), so an
+  // edge guard around it was buying nothing measurable and cost the whole
+  // failure above: a guard whose cached answer survives a boundary that the
+  // thing it guards does not is a guard that can suppress the one call that
+  // mattered, silently, on one platform only. Re-arming the cache in begin()
+  // fixes the instance; pushing unconditionally retires the class.
+  gpio.setReadAloudCaptureWanted(true);
   if (g_lastCaptureWanted != 1) {
     g_lastCaptureWanted = 1;
-    gpio.setReadAloudCaptureWanted(true);
     SDL_Log("[READALOUD] page capture wanted (always, on iOS)");
   }
   (void)a11yWants;  // logged by wantsPage() on change; kept for that visibility
