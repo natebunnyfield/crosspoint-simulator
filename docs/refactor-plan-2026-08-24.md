@@ -120,6 +120,68 @@ made this split tractable and it stays the single authority.
 candidate: pad layout, hit tests, tap synthesis, and the harness hooks are four
 separable concerns.
 
+### Unit 1 landed, 2026-08-25 — `SurfacePower.cpp`
+
+`src/HalDisplay.cpp` 5,210 → 4,623 lines. New: `src/SurfacePower.cpp` 763,
+`src/SurfacePower.h` 109. Eight blocks moved: the kept sleep-source page and its
+two statics, the warm-up's arming flags and `CROSSPOINT_SIM_TUBE_OFF`,
+`cancelPowerOnWarmUp`, `begin()`'s arming block, `drawPanelAtRasterScale` +
+`powerOnWarmUpFrame`, the sleep-source keep/drop, the BZZT THONK composite, and
+the whole collapse.
+
+**Every block moved VERBATIM** — sliced by line range, not retyped — and a
+script re-checks that each byte range from the pre-split file appears in the new
+one and no longer in the old. That is what makes the diff readable as a move.
+
+**What had to cross the boundary, and it is the number that matters for the
+remaining units: 13 pieces of mutable state and 6 functions.** State: the
+renderer, the panel texture, the two glass fields (`scanTexture`,
+`grainTexture`), the presented panel's five geometry fields, `pixelBufMutex`,
+`lastReadingDarkGround`, `pendingPresent`, `kLogicalPresentation`, and three
+`SimulatorOverlay` statics (`clearColor`, `overlayDraw`, `powerOffCollapse`).
+Functions: `powerLogWanted`, `hasDueScreenshot`, `captureDueScreenshots`,
+`livePanelPalette`, `isPortraitOrientation`, `getLogicalPresentationSize`.
+
+`SurfacePower.h`'s accessors return REFERENCES and `SurfacePower.cpp` binds
+file-scope references to them under the ORIGINAL NAMES. That is what allows the
+verbatim move: no body needed an edit. It is not free — it is 19 lines of
+binding that a reader must accept as glue — but the alternative was retyping
+~400 lines of compositing, which is exactly where a pixel difference hides.
+
+**The gates, and what they cost to build.** The reader page is byte-identical in
+both polarities (dark `3e917630…`, light `e8b581e8…`). The reader page does NOT
+exercise the power path at all, so the second gate is the animations themselves,
+and building it turned up something worth recording: **a fixed screenshot
+schedule cannot photograph the collapse reproducibly.** Both animations sample
+`now - startedAt` off the wall clock, and the tick at which the sleep loop
+starts moves by tens of ms between runs — measured, 3 of 4 frames differed
+between two runs of the SAME binary. The gate therefore needed a temporary
+patch (not committed) pinning the model clock to a fixed step per frame, applied
+identically to both trees; with it, 27 collapse frames (all 27 distinct) and 29
+warm-up presents are reproducible run to run and are byte-identical across the
+split. Anyone doing an A/B on either animation needs that, and
+`docs/power-off-collapse.md`'s headless recipe does not currently say so.
+
+**Verified:** `tests/run_all.sh` 54/54, `pio run -e simulator_x3`,
+`pio run -e simulator`, iOS `CrossPointX3` Debug.
+
+**Tractability of the remaining three, assessed rather than assumed.** This unit
+was the LEAST entangled and the 19 bindings are still the floor, not the
+ceiling. The collapse is not a present — it owns its own frame, reads a fixed
+set of state and draws — so nothing had to be threaded back through
+`presentIfNeeded`'s locals. `SurfaceSheet.cpp` and `SurfaceTube.cpp` will not be
+that: their passes sit INSIDE `presentIfNeeded`, mid-function, reading locals it
+computes (`orientation`, `outPxPerSourcePx`, the field selection, the timing
+frame) and writing texture caches keyed on state it owns. Two of the entry
+points here already had to take such locals as parameters (`compositeWarmUp`
+takes `orientation` and `scanlinesActive`; `keepSleepSourceFrame` takes the
+buffer, the length and the seq because it is called with the mutex held) — and
+those are the two most awkward parts of this unit. Expect the sheet and the tube
+to be mostly that. They are still worth doing, but budget a real parameter
+object, and do NOT expect a verbatim move: those bodies will need their local
+reads rewritten, which means the byte-identity gate stops being a formality and
+becomes the only thing standing between the split and a silent pixel change.
+
 ## Tier 3 — resolve the frozen surface
 
 13 getters return constants. 22 dial rows exist. 2,273 lines of picker UI cannot
