@@ -99,12 +99,17 @@ behind the leaf. Three options were considered:
 The choice is recorded in the code as well as here, above `versoMap` in
 `HalDisplay.cpp`.
 
-## The source is the inkness plane, NOT ghostPixels
+## The source is the inkness plane, NOT the previous frame
 
 The roadmap proposed `ghostPixels` — a whole previous framebuffer HalDisplay
-already keeps. **Verified 2026-08-23: it still exists (`src/HalDisplay.cpp`, the
-`wantPrevFrame` block in `presentIfNeeded`) and it is the wrong source**, on
+kept. **Verified 2026-08-23: it existed (`src/HalDisplay.cpp`, the
+`wantPrevFrame` block in `presentIfNeeded`) and it was the wrong source**, on
 three counts:
+
+*(2026-08-26: `ghostPixels` has since been deleted. The previous picture is now
+captured from the composed GLASS at output resolution — `whole-glass-crt.md` —
+which makes all three objections below stronger, not weaker: it is one step
+further from the page's own ink than the framebuffer was.)*
 
 - it is maintained only while the phosphor trail or the beam is on, and both are
   dark-mode ideas that are off on a paper page;

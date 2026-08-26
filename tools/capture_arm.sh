@@ -20,6 +20,29 @@
 # 3. TWO ARMS COMING BACK IDENTICAL IS THE SIGNATURE of both traps above, not a
 #    result. If dark and light give the same md5, something is overriding you.
 #
+# 4. ...AND PARKING IS NOT AIRTIGHT, so trap 2 is now CHECKED rather than
+#    prevented. Measured 2026-08-26: run two arms back to back and the SECOND
+#    one intermittently reads the settings file anyway -- 3 of 7 pairs, in one
+#    sitting, on an unchanged binary. The light arm came back as a DARK page in
+#    the desktop file's palette, which reads exactly like a rendering
+#    regression; it cost a real investigation before the log gave it away. The
+#    tell is one line the simulator prints and this script used to throw at
+#    /dev/null:
+#
+#        [settings] applied 30 keys from ./settings.json
+#
+#    So the log is kept and grepped, and a run that read the file FAILS with a
+#    message instead of returning a plausible wrong hash. A gate, not a
+#    paragraph: the paragraph above it was already there and did not help.
+#
+#    The settle loop below (wait for a straggling restore before parking) cuts
+#    the rate but does NOT close it -- measured after adding it, 1 arm in 10
+#    still reads the file, and that one was the DARK arm, so "the previous arm's
+#    restore is in flight" is at most part of the mechanism. Treat exit 3 as a
+#    RETRY, not as a result: re-run that arm and it passes. Do not paper over it
+#    by looping here, because a harness that silently retries is how a genuine
+#    failure gets averaged away.
+#
 # To reach a SYSTEM screen instead of the book, set readerActivityLoadCount to 1
 # (this script forces the book with 0). Holding Back does NOT work against that
 # -- main.cpp's `counter != 0 || backHeld` resolves to the reader either way.
@@ -43,6 +66,18 @@ restore() {
 }
 trap restore EXIT
 
+# AN ABSENT SETTINGS FILE AT THIS MOMENT IS SUSPICIOUS, not a green light. The
+# previous arm restores its own park from an EXIT trap, and the evidence (trap 4
+# above) is that the restore can still be in flight when the next arm starts: if
+# this arm sees no file it parks nothing, and the previous arm's `mv` then drops
+# one into place while THIS arm's simulator is already running and watching for
+# it. So wait a moment for a straggler before concluding there is genuinely no
+# settings file. Two seconds, and a machine that really has none pays them once
+# per arm; the check below is what actually catches the case either way.
+for _ in 1 2 3 4 5 6 7 8; do
+  [ -f "$FW/settings.json" ] && break
+  sleep 0.25
+done
 if [ -f "$FW/settings.json" ]; then
   PARKED="$(mktemp -t cpsettings)"
   mv "$FW/settings.json" "$PARKED"
@@ -60,12 +95,26 @@ PY
 
 SCRIPT="9000:QUIT"
 [ -n "$EXTRA" ] && SCRIPT="$EXTRA;9000:QUIT"
+LOG="$(mktemp -t cparmlog)"
 ( cd "$FW" && timeout 120 env \
     CROSSPOINT_SIM_AS_SHIPPED=1 \
     CROSSPOINT_SIM_GRAIN_SEED="${CROSSPOINT_SIM_GRAIN_SEED:-7}" \
     CROSSPOINT_SIM_INPUT_SCRIPT="$SCRIPT" \
     CROSSPOINT_SIM_SCREENSHOTS="$AT:$OUT" \
-    SDL_VIDEODRIVER=dummy "$PROG" >/dev/null 2>&1 ) || true
+    SDL_VIDEODRIVER=dummy "$PROG" >"$LOG" 2>&1 ) || true
+
+# Trap 4 above. The settings file was parked, so the simulator must never have
+# seen one; if it did, whatever this arm drew is the FILE's palette and not the
+# one the caller asked for, and the hash is worse than useless.
+if grep -q 'applied .* keys from \./settings.json' "$LOG"; then
+  echo "capture_arm: this run READ $FW/settings.json despite the park --" >&2
+  grep 'applied .* keys from' "$LOG" | tail -1 >&2
+  echo "capture_arm: the capture at $OUT is the FILE's appearance, not the" \
+       "requested one. Re-run this arm on its own." >&2
+  rm -f "$LOG"
+  exit 3
+fi
+rm -f "$LOG"
 
 [ -f "$OUT" ] || { echo "capture_arm: no capture at $OUT" >&2; exit 1; }
 md5 -q "$OUT" 2>/dev/null || md5sum "$OUT" | cut -d' ' -f1

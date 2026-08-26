@@ -220,6 +220,16 @@ three:
   a failed run still restores it. That file sits beside the binary and its
   watcher re-asserts the palette about once a second, over
   `CROSSPOINT_SIM_AS_SHIPPED`.
+- **…and it CHECKS the park, because parking is not airtight.** Added
+  2026-08-26 after a false regression: run two arms back to back and one of them
+  intermittently reads the file anyway — measured at 3 of 7 pairs, and still
+  ~1 arm in 10 after a settle loop was added. What comes back is a plausible
+  hash of the wrong appearance (a "light" arm returning a DARK page in the
+  file's palette), which reads exactly like a rendering change and cost a real
+  investigation. The tell is a log line the script used to discard:
+  `[settings] applied 30 keys from ./settings.json`. It now greps for it and
+  **exits 3 with a message** instead of printing a hash. Treat exit 3 as a
+  RETRY — re-run that arm alone and it passes.
 - **It fails loudly when no capture appears**, rather than printing the md5 of a
   stale file from a previous arm.
 
@@ -329,6 +339,28 @@ Each of these leaves the real state alone when unset or unparseable:
 | `CROSSPOINT_SIM_HOST_KEYBOARD=1` | a host software keyboard is up — the editors then drop their own panel and give the rows to text |
 | `CROSSPOINT_SIM_PANEL_{INK,PAPER}_{LIGHT,DARK}` | the panel's two tones |
 | `CROSSPOINT_SIM_DARK=1` | panel polarity — **but see below** |
+| `CROSSPOINT_SIM_TOP_INSET` | a reserved top band, as the phone keeps for the status bar and the Island |
+| `CROSSPOINT_SIM_BOTTOM_INSET` | a reserved bottom band, as the phone keeps for the button pad |
+
+**The two band variables are the only way this machine has a SURROUND at all.**
+The desktop takes the plain letterbox path, where the window is exactly
+panel-sized, so every effect that lives outside the page — the whole-glass
+phosphor, the whole-glass beam, the grain and the scanlines over the pad — is
+unreachable without them. Each value is a **schedule**: `"120"` reserves 120
+device pixels from boot, and `"200;5290:420"` reserves 200 and grows it to 420
+at 5290 ms on the `SDL_GetTicks` clock. The second form is what photographs a
+live trail while the PAGE MOVES under it — zen placing the panel within the
+sheet, or a keyboard coming up — which is otherwise an iOS-only situation. There
+is still no overlay painter on the desktop, so a reserved band is empty field
+colour with no pad in it.
+
+Two limits, both measured rather than guessed. Steps are consumed in WRITTEN
+order and only the last one due is applied, so an out-of-order schedule
+(`"5000:100;1000:200"`) swallows the earlier entry — write them in time order.
+And the clock is `SDL_GetTicks`, which the reboot does **not** rebase (it
+rebases the Arduino `millis()` epoch instead), so after a wake every step is
+already due and the whole schedule collapses to its last entry on the first loop
+iteration: a band schedule cannot photograph anything across a sleep/wake.
 
 `CROSSPOINT_SIM_DARK` does **not** survive on the desktop: the firmware runs
 `display.setInverted(SETTINGS.darkMode != 0)` during `setup()`, after the

@@ -35,6 +35,12 @@ struct PresentTiming {
   // non-draw time in a trail present had no station and was being attributed to
   // "the rest of the present".
   PassTiming upload, accum;
+  // THE GLASS CAPTURE -- the readback, the intensity pass and the two uploads
+  // that give the whole-sheet phosphor and the whole-sheet beam their previous
+  // picture (2026-08-26). It is per NEW PICTURE, never per present, so a trail
+  // shows it `served` for its whole length; `built` on a frame that is not a
+  // page turn means something is invalidating the capture and is worth chasing.
+  PassTiming glass;
   bool readback = false;  // SDL_RenderReadPixels of the whole output
   double readbackMs = 0.0;
   uint64_t startNs = 0;

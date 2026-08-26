@@ -95,14 +95,19 @@ static int sheetInknessW = 0, sheetInknessH = 0;
 // seq increments twice per displayed page (1-bit pass, then the AA compose),
 // and promoting on it would put the SAME page behind itself half the time.
 //
-// THE SOURCE IS THE INKNESS PLANE, NOT ghostPixels. The roadmap proposed
-// ghostPixels -- a whole previous framebuffer that HalDisplay already keeps --
-// and it is the wrong source on three counts: it is only maintained while the
-// phosphor trail or the beam is on (both dark-mode ideas, both off on a paper
-// page), it is ARGB that would have to be re-projected onto the palette's
-// ink/paper axis to be useful, and it is a copy of the previous FRAME rather
+// THE SOURCE IS THE INKNESS PLANE, NOT THE PREVIOUS FRAME. The roadmap proposed
+// `ghostPixels` -- a whole previous framebuffer HalDisplay used to keep -- and
+// it was the wrong source on three counts: it was only maintained while the
+// phosphor trail or the beam was on (both dark-mode ideas, both off on a paper
+// page), it was ARGB that would have to be re-projected onto the palette's
+// ink/paper axis to be useful, and it was a copy of the previous FRAME rather
 // than of the previous PAGE. The letterpress pass already computes exactly the
 // quantity wanted, per page, in light mode, for free.
+//
+// `ghostPixels` itself is GONE since 2026-08-26 (docs/whole-glass-crt.md): the
+// previous picture is now captured from the composed GLASS at output
+// resolution, which makes all three objections worse rather than better -- it
+// is further from the page's own ink than the framebuffer was.
 //
 // WHAT SHOWS THROUGH PAGE N IS PAGE N+1, AND THIS IS PAGE N-1. Stated in the
 // code as well as the doc because it is the one dishonesty in the feature: a

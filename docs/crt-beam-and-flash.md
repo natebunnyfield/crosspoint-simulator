@@ -115,17 +115,35 @@ silently changing speed. Clamped to 0..1000 on read.
 
 ### How it draws
 
-The old frame is drawn opaque across the panel, then the new frame is drawn
-clipped to the swept band. The clip is expressed against the **visible page
-rect**, not against the texture: in portrait the texture is rotated, so a band
-of texture rows is a band of screen *columns*, and clipping in texture space
-would sweep sideways. The same rect serves both presentation paths because the
-clip is in the current render coordinate space — output pixels on the manual
-path, logical units under SDL's letterbox — which is the space the panel rect
-was computed in either way.
+The old picture is drawn opaque across the glass, then the new frame is drawn
+clipped to the swept band. The clip is expressed against the **visible rect**,
+not against the texture: in portrait the texture is rotated, so a band of
+texture rows is a band of screen *columns*, and clipping in texture space would
+sweep sideways. The clip is in the current render coordinate space — output
+pixels on the manual path, logical units under SDL's letterbox — which is the
+space the panel rect was computed in either way.
 
-The previous frame is captured for the beam as well as for the glow, so the
+The previous picture is captured for the beam as well as for the glow, so the
 beam works with the glow off.
+
+**IT SWEEPS THE WHOLE FACE, since 2026-08-26** (owner: *"apply persistence and
+other crt effects equally to paper and panel"*). It used to sweep the PANEL: the
+old picture below the line was the previous panel framebuffer and the band was
+the panel rect, so the button pad was painted afterwards, unclipped, and arrived
+all at once. A tube has one gun and one raster. The old picture is now the
+previous composed GLASS drawn 1:1 in device pixels, the band spans the output,
+the overlay re-states the same band so the pad is swept too, and the letterpress
+moved inside the clip (the old picture already carries its own). The accumulator
+stays clipped to the band, deliberately — below the line the previous frame is
+standing there with whatever trail it had, and lighting it again brightened the
+un-swept region by 18% on a renderer without MAXIMUM.
+
+That change also fixed something nobody had noticed: **the old picture used to
+be the wrong picture.** The raw framebuffer reached the window by a different
+resample from the one the live panel takes, so for the length of every sweep the
+un-swept half was a blurrier, ~9% darker copy of the frame standing there a
+moment earlier (band means 48.7/50.3 before the turn, 44.4/46.3 during the
+sweep). It is now bit-identical. Measurements: `docs/whole-glass-crt.md`.
 
 ### Evidence
 
