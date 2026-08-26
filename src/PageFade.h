@@ -126,4 +126,58 @@ inline bool stillMoving(float ageMs, float fadeMs, float floor = kFloor) {
   return fadeMs > 0.0f && alphaFor(ageMs, fadeMs, floor) > floor + 1.0f / 255.0f;
 }
 
+// WHEN THE NEXT VISIBLE STEP IS DUE, which is the difference between a fade
+// and a render loop.
+//
+// The alpha this curve produces is pushed through SDL_SetTextureAlphaMod, so
+// what actually reaches the glass is `round(alpha * 255)` -- one of 256 values.
+// Over a five-minute fade the curve moves 0.008 of a code value per 60 Hz
+// frame, so 126 of every 127 presents draw a frame that is EQUAL, BIT FOR BIT,
+// to the one before it. Measured before this existed: 507 presents in 30
+// idle seconds and 10.3% of a core, on a page nobody was looking at.
+//
+// So the renderer asks this instead: given the age it just drew, at what age
+// does the quantized alpha first differ? Presenting then, and not before,
+// draws exactly the same SEQUENCE OF DISTINCT FRAMES at exactly the same wall
+// times -- the picture is unchanged and the frames in between were never
+// visible.
+//
+// Returns the age in ms, or a negative value when there is no next step (the
+// fade has arrived at its floor). Always > ageMs when positive, so a caller
+// that schedules on it cannot spin.
+inline float nextStepAgeMs(float ageMs, float fadeMs, float floor = kFloor) {
+  if (fadeMs <= 0.0f) return -1.0f;
+  if (ageMs < 0.0f) ageMs = 0.0f;
+  const float alpha = alphaFor(ageMs, fadeMs, floor);
+  // The next lower quantization boundary: the alpha at which round(a*255)
+  // first drops below what is on screen now. Half a step below the CURRENT
+  // quantized value, not below the exact alpha -- otherwise a frame drawn
+  // slightly past a boundary schedules the boundary it has already crossed.
+  const float here = std::floor(alpha * 255.0f + 0.5f);
+  const float target = (here - 0.5f) / 255.0f;
+  // Below the floor there is nothing left to cross.
+  if (target <= floor) return -1.0f;
+  // Invert alpha = floor + (1 - floor) * 10^(-age/fade).
+  const float ratio = (target - floor) / (1.0f - floor);
+  if (ratio <= 0.0f || ratio >= 1.0f) return -1.0f;
+  float age = -fadeMs * std::log10(ratio);
+  if (age < ageMs) age = ageMs;
+  // WHOLE MILLISECONDS, ROUNDED UP. The caller schedules on SDL_GetTicks,
+  // which is integer ms, so a fractional age truncates BACKWARD and would wake
+  // on the frame just drawn. Rounding up costs at most 1 ms per step -- 255 ms
+  // across an entire fade, however long -- and cannot wake early.
+  age = std::ceil(age);
+  // The analytic boundary is exact in real arithmetic; in float, an age landing
+  // exactly on it still rounds to the value already on screen. Walk forward
+  // until it does not. Bounded, because a fade short enough to cross several
+  // values in one millisecond crosses them together and the first step already
+  // differs.
+  const float here255 = std::floor(alphaFor(ageMs, fadeMs, floor) * 255.0f + 0.5f);
+  for (int i = 0; i < 64; i++) {
+    if (std::floor(alphaFor(age, fadeMs, floor) * 255.0f + 0.5f) != here255) break;
+    age += 1.0f;
+  }
+  return age > ageMs ? age : ageMs + 1.0f;
+}
+
 }  // namespace pagefade

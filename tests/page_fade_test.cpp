@@ -204,6 +204,74 @@ int main() {
   CHECKM(floorFor(green.ink, green.paper, 0) == 0.0f,
          "the deepest setting is not fully transparent");
 
+  // ---------------------------------------------------------------------
+  // WHEN THE NEXT VISIBLE STEP IS DUE (S-019). The renderer schedules the
+  // fade's next present off nextStepAgeMs instead of asking for every frame,
+  // so this has to be exactly right in three ways or the page either freezes
+  // mid-fade or goes back to being a render loop:
+  //   1. it must never return an age at or before the one just drawn (a
+  //      caller scheduling on it would spin, which is the bug it removes);
+  //   2. the quantized alpha at the returned age must actually DIFFER from
+  //      the one at the age just drawn -- one step, not two, or the fade
+  //      visibly jumps;
+  //   3. it must eventually say "no more steps", or a settled page owes a
+  //      frame forever.
+  {
+    const float floors[] = {0.75f, 0.90f, 1.0f / 255.0f * 200.0f};
+    const float fades[] = {1000.0f, 30000.0f, 300000.0f};
+    for (float fade : fades) {
+      for (float fl : floors) {
+        int steps = 0;
+        float age = 0.0f;
+        bool ended = false;
+        for (int i = 0; i < 4096; i++) {
+          const float next = nextStepAgeMs(age, fade, fl);
+          if (next < 0.0f) { ended = true; break; }
+          CHECKM(next > age, "nextStepAgeMs did not advance");
+          const int here =
+              static_cast<int>(alphaFor(age, fade, fl) * 255.0f + 0.5f);
+          const int there =
+              static_cast<int>(alphaFor(next, fade, fl) * 255.0f + 0.5f);
+          CHECKM(there != here, "the scheduled step draws the same alpha");
+          // At least one value, and at most what the curve's own slope can
+          // cross in the one millisecond the schedule is rounded to. A fade
+          // fast enough to cross several in a millisecond crosses them
+          // together, exactly as it did when every frame was drawn.
+          CHECKM(there < here, "the scheduled step went the wrong way");
+          age = next;
+          steps++;
+        }
+        CHECKM(ended, "the fade never stopped owing a frame");
+        // Every step it schedules is one the unconditional version also drew,
+        // and there are at most 255 of them however long the fade runs -- which
+        // is the whole saving: a 300 s fade presented ~18,000 times at 60 Hz.
+        CHECKM(steps <= 255, "more steps than there are 8-bit values");
+        CHECKM(steps > 0, "a moving fade scheduled no steps at all");
+        // Once stillMoving() says it has arrived, nothing more is owed.
+        CHECKM(!stillMoving(age, fade, fl) || nextStepAgeMs(age, fade, fl) < 0.0f,
+               "arrived, but still owed a frame");
+      }
+    }
+    // THE NO-SPIN CONTRACT, swept directly rather than only along the walk
+    // above: at ANY age, the answer is either "later than this" or "never".
+    // The renderer schedules on it, so an answer at or before the age just
+    // drawn is a present that immediately asks for another one.
+    for (float fade : fades) {
+      for (float fl : floors) {
+        for (float age = 0.0f; age < fade * 4.0f; age += fade / 512.0f) {
+          const float next = nextStepAgeMs(age, fade, fl);
+          CHECKM(next < 0.0f || next > age,
+                 "nextStepAgeMs answered at or before the age just drawn");
+        }
+      }
+    }
+
+    // Off is off: no schedule at all.
+    CHECKM(nextStepAgeMs(0.0f, 0.0f, 0.75f) < 0.0f,
+           "a fade that is off scheduled a step");
+    std::printf("  next-step schedule: <=255 presents per fade, at any length\n");
+  }
+
   if (failures) {
     std::printf("\n%d failure(s)\n", failures);
     return 1;

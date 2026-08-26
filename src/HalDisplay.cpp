@@ -78,6 +78,12 @@ static std::atomic<float> beamPaintMs{0.0f};
 // something re-energises it. Any input does (notePageInteraction), which is the
 // e-ink equivalent of the beam coming back round.
 static std::atomic<float> pageFadeMs{0.0f};
+// WHEN THE FADE OWES ITS NEXT FRAME (SDL ticks), 0 when it owes none. The fade
+// is the one animation whose steps are minutes apart rather than milliseconds,
+// so it cannot drive itself by re-arming pendingPresent every present without
+// drawing hundreds of identical frames between the ones that differ. It parks
+// the due time here instead and presentIfNeeded's gate wakes on it.
+static std::atomic<uint64_t> pageFadeStepDueMs{0};
 static std::atomic<uint64_t> lastInteractionMs{0};
 
 // HOW FAR it fades, as a percentage of that floor that is KEPT. 100 is the
@@ -2382,6 +2388,19 @@ void HalDisplay::presentIfNeeded() {
     presentHoldUntil.store(0);
   }
 
+  // THE PAGE FADE'S OWN WAKE. It parks the wall-clock instant its next
+  // quantized alpha step is due (see the block that computes it) rather than
+  // asking for every frame in between; this is what turns that parked time back
+  // into a present. An atomic load and a compare per main-loop pass, on a loop
+  // that is otherwise doing nothing.
+  {
+    const uint64_t fadeDue = pageFadeStepDueMs.load();
+    if (fadeDue != 0 && SDL_GetTicks() >= fadeDue) {
+      pageFadeStepDueMs.store(0);
+      pendingPresent.store(true);
+    }
+  }
+
   if (!pendingPresent.exchange(false) && !screenshotDue)
     return;
 
@@ -2867,7 +2886,31 @@ void HalDisplay::presentIfNeeded() {
     // Keep presenting while it is still moving. Once it is within one 8-bit
     // step of the floor it has arrived and the loop stops asking -- otherwise
     // this would be a permanent render loop for a picture that is not changing.
-    if (pagefade::stillMoving(age, fadeMs, floor)) pendingPresent.store(true);
+    //
+    // ...AND NOT ONE FRAME BEFORE THE NEXT ONE DIFFERS. What reaches the glass
+    // is round(alpha * 255), and over a five-minute fade that moves 0.008 of a
+    // code value per frame: re-arming unconditionally drew ~127 bit-identical
+    // frames for every frame that changed, at 10.3% of a core, for as long as
+    // the fade ran (S-019). pagefade::nextStepAgeMs says when the quantized
+    // alpha actually moves; the wake is serviced at the top of this function.
+    // The sequence of DISTINCT frames, and the wall time each lands at, are
+    // unchanged -- only the duplicates are gone.
+    //
+    // NOTHING RE-ARMS pendingPresent HERE, deliberately. nextStepAgeMs either
+    // names an age STRICTLY LATER than the one just drawn or says there is no
+    // step left; re-arming on the second answer would be the render loop this
+    // removes, reintroduced at the last millisecond of the fade -- and
+    // stillMoving() and "a quantized step remains" disagree in a band one
+    // eighth of a code value wide, which float arithmetic will find.
+    const float nextAge = pagefade::stillMoving(age, fadeMs, floor)
+                              ? pagefade::nextStepAgeMs(age, fadeMs, floor)
+                              : -1.0f;
+    pageFadeStepDueMs.store(nextAge > age
+                                ? lastInteractionMs.load() +
+                                      static_cast<uint64_t>(nextAge)
+                                : 0);
+  } else {
+    pageFadeStepDueMs.store(0);
   }
   if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
     if (e[0] == '1' && fadeMs > 0.0f)
