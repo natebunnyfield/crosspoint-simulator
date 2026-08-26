@@ -313,12 +313,28 @@ what this machine shows and what the phone shows:
 [accum] composite blend: ADD fallback (no MAXIMUM here)
 ```
 
-SDL's **software** renderer — the desktop canary and all three packaged Mac apps
-— cannot compose `SDL_BLENDOPERATION_MAXIMUM`, so both the deposit and the
-composite take the documented ADD-at-alpha-96 fallback. The phone's Metal
+**CORRECTED 2026-08-26 — this paragraph named the wrong set, and the error was
+in the direction that discards good data.** ADD is a property of SDL's SOFTWARE
+renderer, and a headless run gets that only because `SDL_VIDEODRIVER=dummy`
+leaves no alternative. **The three packaged Mac apps do NOT take it.** The same
+binary launched with a window logs `[panel] renderer: metal`, `[accum] deposit
+blend: MAXIMUM`, `[accum] composite blend: MAXIMUM`, and the installed bundles
+set only `CROSSPOINT_SIM_DEVICE_PIXELS` and `CROSSPOINT_SIM_WINDOW_SCALE` in
+`LSEnvironment` — nothing forces software.
+
+So the true statement is narrower: **a HEADLESS desktop run takes the ADD
+fallback; a windowed Mac run takes MAXIMUM, exactly as the phone does.** As
+written this told the next reader that no Mac measurement of the trail can be
+trusted, which would have thrown away every windowed measurement including the
+52-preset ground-lift sweep below.
+
+SDL's software renderer cannot compose `SDL_BLENDOPERATION_MAXIMUM`, so under
+`SDL_VIDEODRIVER=dummy` both the deposit and the composite take the documented
+ADD-at-alpha-96 fallback. The phone's Metal
 backend takes MAXIMUM. That is not cosmetic: ADD *brightens* a pixel that the
-old frame and the new one both lit, MAXIMUM leaves it alone. **Every
-trail-brightness figure ever measured on this machine is the fallback path**, a
+old frame and the new one both lit, MAXIMUM leaves it alone. **Every trail-brightness figure measured HEADLESSLY on this machine is the
+fallback path** — check the `[accum]` log line rather than assuming, since the
+same binary reports honestly either way —, a
 page that brightens under a trail on the desktop is expected rather than a bug,
 and S-016's "the physics were wrong, not the arithmetic" argument only actually
 takes effect on the phone.
@@ -464,3 +480,68 @@ phone applies to the panel. Specifically, on device:
 - does the whole-face beam sweep look right crossing from the page into the pad;
 - is the trail visibly unchanged, as §6 predicts;
 - what the capture's readback actually costs on Metal, once per page turn.
+
+---
+
+## 8. The ground lift, measured across all 52 presets — 2026-08-26
+
+The whole-glass work above surfaced this and deliberately did not fix it. It has
+now been characterised end to end. **Nothing here is shipped**; the fix sits as
+`scratchpad/patches/trail-excitation.patch` and behind
+`CROSSPOINT_SIM_TRAIL_EXCITATION`, default off, pending an owner ruling.
+
+Artifact with the pictures: https://claude.ai/code/artifact/12faff6a-6905-4e4f-a6e2-b149de56250a
+
+### What it is
+
+The deposit writes the composed glass as emitted light — including the page's
+own **paper** tone. Unexcited phosphor emits nothing, so depositing the paper as
+light is a model error, and the trail lifts the ground it should leave alone.
+
+### The numbers, from two independent methods that agree
+
+| | analytic (from `PanelPalette.h`) | measured (real page turn, modal ground) |
+|---|---|---|
+| presets that lift ≥1 code value | **42 of 52** | **43 of 52** |
+| worst | **+29 R / +27 G**, Cascade | **+28**, Cascade |
+| the shipped pair | **−2 / −5 / −6** | unchanged, `22,26,26` both ways |
+
+The render never differs from the model by more than **one** code value on any
+row. With the fix in, **zero** presets lift. Face area changed by the trail goes
+from >50% on 31 presets to ~20% — the ghost alone — on all 52.
+
+**Two corrections to the framing in §5.** Ten of the 42 have no trail at all and
+can never show it (Solarized, the +27 headline row, is one), so the honest count
+is **39 presets that both lift and trail**. And the four `Neutral/*` rows have
+pure-black paper, so their model lift is 0 regardless.
+
+### What the fix COSTS, which is the half that decides it
+
+Rescaling the deposit by the ink's own span raises the brightest ghost pixel
+wherever a preset's ink does not reach 255. **42 of 52 have a 255 channel and see
+no peak change at all — so the cost lands almost entirely on the page the owner
+actually reads.** Dark Trace is worst (ink peaks 222, ghost 168 → 197); the
+shipped pair gains exactly **1.20×** (91 → 98 measured, max 11 levels over 28% of
+pixels).
+
+Also: below captured level 98 the deposit gets *dimmer*, so the ghost gains
+contrast and loses its faintest tissue; the pad and surround, painted at the
+paper tone, stop depositing entirely; and a Custom pair with ink and paper close
+together in dark mode is unguarded, because the span is the divisor and there is
+no clamp.
+
+### The recommendation
+
+**Take the fix, paired with a 0.83× deposit scale.** The peak gain is exactly
+`255 / max(ink)` = 1.203 on the shipped pair, so it is precisely compensable:
+the owner's ghost stays as he tuned it while 39 presets stop washing the glass.
+That turns a taste question into a no-op for the page he reads.
+
+### A trap that cost a whole sweep
+
+`CROSSPOINT_SIM_AS_SHIPPED=1` imposes the shipped four-gun mix's **amber tail**
+on whatever preset you override, so the composite's colour mod is not the
+preset's own ink. The first full sweep read ~25% low with a bogus R>G asymmetry
+because of it. Pin `CROSSPOINT_SIM_PANEL_GLOW_TAIL` to each preset's own ink when
+sweeping presets, or the numbers describe the shipped tail rather than the preset
+under test.
