@@ -39,7 +39,123 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 ## OPEN
 
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
-**severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics**
+**severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
+
+**2026-08-25: reproduced, measured, and split in two.** Everything below the
+original entry is the 2026-08-22 filing and stands as the report. What the
+measurement found is that there were two separate render loops behind it, one
+of which is now fixed and the other of which is a design cost the owner has to
+price. Method: desktop `simulator_x3`, `SDL_VIDEODRIVER=dummy` (software
+renderer, render scale 1), `CROSSPOINT_SIM_AS_SHIPPED=1`, `/usr/bin/time -l`
+for CPU and `CROSSPOINT_SIM_LOG_PRESENTS=1` for the present count. A software
+renderer at 1x overstates the per-present cost against the phone's Metal and
+understates its pixel count; the present COUNTS are the platform-independent
+half and they are what is quoted.
+
+**The shell does not idle-spin, and that lead is dead.** An idle as-shipped
+dark reader presents **once in 30 seconds** and sits at **0.1% of a core**.
+`sample` on the main thread puts 5922 of 6103 samples in `nanosleep`, under
+`loop() -> HalPowerManager::lightSleep -> delay(50)`: the FIRMWARE's own loop
+blocks for 50 ms at a time, so `simulator_main.cpp`'s `SDL_Delay(1)` never sets
+the pace when nothing is happening, and its "~1 kHz" comment describes a rate
+the loop only reaches when the firmware asks to spin. The simulator's
+`lightSleep()` (`src/HalPowerManager.h:41`) is unconditional -- always
+`delay(50)`, always true -- so it never takes the firmware's WiFi/USB decline
+branches and the idle cadence is IDENTICAL on desktop and iOS. Also ruled out:
+`EpubReaderActivity::skipLoopDelay()` was not spinning in any of these runs
+(present intervals were 15-16 ms, which is `delayWallClock(10)` plus a present,
+not the ~6 ms a 1 kHz spin gives), and the phosphor accumulator does terminate
+(`accumLive` is bounded, and an idle page logs `live=0`).
+
+**LOOP 1 -- THE PAGE FADE. Fixed 2026-08-25.** With a fade set (the owner's own
+`settings.json` carries `pageFadeSeconds: 300`, `pageFadeDepthPercent: 75`) an
+idle app presented **507 times in 30 seconds and burned 10.3% of a core**, on a
+page nobody was looking at, for the whole length of the fade. `HalDisplay.cpp`
+re-armed `pendingPresent` on every present while `pagefade::stillMoving`. But
+what reaches the glass is `round(alpha * 255)`, and over a 300 s fade that curve
+moves **0.008 of a code value per 60 Hz frame** -- so about 127 of every 128 of
+those frames were bit-identical to the one before. Fixed by scheduling the next
+present at the wall-clock instant the QUANTIZED alpha actually changes
+(`pagefade::nextStepAgeMs`, parked in `pageFadeStepDueMs` and woken by a new
+gate at the top of `presentIfNeeded`). A fade of any length now costs at most
+255 presents in total, which `tests/page_fade_test.cpp` asserts.
+
+| 30 idle seconds, fade at 300 s / depth 75 | presents | user CPU |
+|---|---|---|
+| before | 507 | 3.12 s (10.3% of a core) |
+| after | 23 | 1.12 s |
+| no fade at all, for scale | 1 | 0.96 s |
+
+The fade's own cost is 2.16 s per 30 s before and 0.16 s after: **13.5x**.
+Pixel proof, same script and same card, against the pre-fix binary: captures at
+8,000 ms and 30,000 ms are BYTE-IDENTICAL; the one at 15,000 ms differs by a
+maximum of **1** code value on 9.7% of bytes, which is one alpha step -- the
+schedule rounds up to whole milliseconds, so a capture between two steps can
+sit one step behind. The two `tools/capture_arm.sh` gate baselines
+(`53aaf43c38cc834f501525b5973d2566` dark, `3f4773ed9d77fac0da90d6d2fb4aba72`
+light) are unchanged, and 54/54 host tests pass.
+
+**This is the loop that fits build 107**, whose report is dated 2026-08-20 --
+inside the window where Page Fade was a row in Settings.app (it landed 1514fe0
+on 08-17 and was frozen OFF by bc74bd8 on 08-23). Commit f7a0b5f, 2026-08-20,
+records the symptom in passing without recognising it: *"presents run
+continuously at ~15 ms."* Note the phone CANNOT hit this today --
+`CrossPointPrefs_pageFadeSeconds()` returns 0 without consulting NSUserDefaults
+-- so for iOS this half was already fixed in passing by the freeze, and what is
+fixed here is the desktop, and the loop itself for whenever the row comes back.
+The four reports from 2026-08-15 (builds 76-79) predate the fade entirely and
+are NOT explained by it.
+
+**LOOP 2 -- THE PHOSPHOR TRAIL. Live on the phone, and an owner decision.**
+A dark page turn costs **84 presents spread over 2.63 seconds**. Present #2
+builds the scanline field (39 ms); #3 through #84 are all cache hits whose cost
+is the composite itself, 4-12 ms each on this renderer. The window is
+`accumLive`'s `trailMs * 2.4` -- 2628 ms at the shipped 1095 ms trail -- and
+during the first second the firmware polls at 100 Hz, so the app composites the
+whole surface about 62 times before dropping to the 20 Hz light-sleep cadence.
+Measured end to end: a page turn every 3 seconds for a minute is **38% of a
+core** (24.25 s of CPU over 64 s, ~1.2 s per page turn). That is the shape of
+the report, and it is untouched by the fade fix (1575 presents after, 1576
+before). Two levers, neither taken without a ruling:
+
+- **Cap the animation's frame rate.** The accumulator's decay is TIME-based
+  (`dt` since `accumLastFadeMs`), so a cap changes neither the trail's duration
+  nor its end state -- only how many intermediate frames are drawn. 30 Hz would
+  take 84 presents to about 53.
+- **Bound the live window by when the trail can no longer alter a pixel,**
+  instead of a flat 2.4 trails. The accumulator composites with MAXIMUM under a
+  colour mod of the ink, so its ceiling is `decay x ink`; once that is at or
+  below the paper tone it cannot change any pixel, because every pixel under it
+  is at least paper. For the shipped `E0E0DE` on `121212` that is 18/224, i.e.
+  **1.10 trails, not 2.4** -- a 54% shorter window, worth about 22 of the 84
+  presents. Provably bit-identical, but it needs a pixel A/B inside the tail
+  before it ships.
+
+**iOS DOES NOT DIFFER HERE, and that is measured rather than argued.** The same
+page-turn session was run on the iOS Simulator (iPhone 13 mini, Metal renderer,
+`simctl launch` with `SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT` driving one
+`QTAP:RIGHT` every 3 s for a minute) against a fresh `build-simsdk` build:
+
+| one page turn every 3 s, dark, 60 s | presents/turn | CPU |
+|---|---|---|
+| desktop, software renderer, render scale 1 | 83 | 24.25 s / 64 s = **38% of a core** |
+| iOS Simulator, Metal, render scale 3 | 65 | 20.8 s / 60 s = **35% of a core** |
+
+Nine times the pixels on a GPU lands within three points of the software
+renderer at 1x, which says the cost is carried by the NUMBER OF PRESENTS and
+not by what each one paints -- so the lever is the count, not the resolution.
+(That tree's CMake cache is stale at 3x where the app ships 2x, so the iOS
+figure if anything overstates the shipped cost; it was not reconfigured because
+a render-scale define is PUBLIC on `crosspoint_core` and would rebuild
+everything.) Idle on the same iOS build is **0.6% of a core** and effectively
+no presents, matching the desktop exactly -- as it must, because
+`HalPowerManager::lightSleep` is this repo's own header and is unconditional on
+both platforms.
+
+**Close by** taking one of those two rulings and re-verifying with a
+cpu_resource-free week on the phone. Do NOT close on the fade fix alone.
+
+**THE ORIGINAL FILING, 2026-08-22, unchanged:**
 
 King's crash-report store (pulled over pymobiledevice3, Developer Mode
 enabled 2026-08-22) holds five `CrossPointX3.cpu_resource` reports — builds
