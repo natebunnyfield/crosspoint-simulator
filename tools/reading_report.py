@@ -20,9 +20,14 @@ reading stopped is that pages stopped turning. The cap is a parameter and the
 report prints its answer at three of them, because a conclusion that survives
 only at one cap is a conclusion about the cap.
 
-A run's ACTIVE TIME is last-page-time minus first-page-time. The last page's
-dwell is unknown -- nothing says when he stopped looking at it -- so that page's
-text is NOT counted. Rate = characters over active minutes.
+A run's ACTIVE TIME is the sum of the dwells of the pages that are COUNTED,
+where a page's dwell is the gap to the next page. The last page's dwell is
+unknown -- nothing says when he stopped looking at it -- so that page's text is
+not counted and neither is any time for it. Rate = characters over active
+minutes, and the two sides of that ratio come from the same pages: a page the
+washout or the no-count filter drops takes its wall-clock with it. Anything
+else deflates a run in proportion to how much of it was dropped, and the
+washout drops pages exactly where the Phase 2 randomizer changes the arm.
 
 CHARACTERS, not words, are the denominator. A word split across two lines is
 two tokens, and which line breaker runs is one of the things being compared, so
@@ -141,34 +146,69 @@ def run_stats(run, washout):
     settings changed mid-run, which means the reader stopped to change them, and
     a rate measured across that is a rate for neither configuration. It is rare
     and dropping it is cheaper than reasoning about it.
+
+    THE NUMERATOR AND THE DENOMINATOR ARE ACCUMULATED BY THE SAME LOOP, and
+    that is the whole shape of this function. A page's dwell is the gap to the
+    NEXT page, so a page contributes (chars, dwell) or it contributes NEITHER --
+    never its time without its text.
+
+    This was wrong until 2026-08-25 and it was wrong in the worst possible
+    direction. `minutes` was one span, last timestamp minus first, computed
+    BEFORE the loop that skips pages; so every page the washout or the
+    no-count filter dropped left its wall-clock behind in the denominator and
+    deflated the run's rate in proportion to how much of the run was dropped.
+    Under the Phase 2 randomizer the arm changes AT chapter boundaries, which is
+    exactly where the washout bites, so the deflation lined up perfectly with
+    the treatment: on synthetic data with one true rate and no effect at all,
+    --washout 3 manufactured +477 chars/min at p=0.0002 where --washout 0
+    correctly found +0 at p=1.0000. A tool that invents a significant result out
+    of a parameter is worse than no tool.
     """
     if len(run) < 2:
         return None
     cfgs = {p.get("cfg") for p in run}
     if len(cfgs) != 1:
         return None
-    minutes = (run[-1].get("ts", 0) - run[0].get("ts", 0)) / 60.0
-    if minutes <= 0:
-        return None
+    minutes = 0.0
     chars = words = pages = 0
-    for p in run[:-1]:
+    for i in range(len(run) - 1):
+        p = run[i]
+        # The dwell is the gap to the next page. split_runs() has already
+        # guaranteed it is non-negative and at or under the idle cap; a zero
+        # gap (two page lines in the same second) carries text with no time to
+        # read it in, so it is dropped whole rather than divided by.
+        seconds = run[i + 1].get("ts", 0) - p.get("ts", 0)
+        if seconds <= 0:
+            continue
         if washout > 0 and p.get("pg", 0) < washout:
             continue
         c = p.get("c", 0)
         if not c:
             # 0/0/0 is the TXT/XTC reader saying it could not count. Excluded
             # from the rate rather than read as an empty page -- see the
-            # channel's note in the firmware's lib/hal/HalGPIO.h.
+            # channel's note in the firmware's lib/hal/HalGPIO.h. Its TIME goes
+            # with it: a page with a denominator and no numerator is not a slow
+            # page, it is an unmeasured one.
             continue
         chars += c
         words += p.get("w", 0)
         pages += 1
-    if pages == 0:
+        minutes += seconds / 60.0
+    if pages == 0 or minutes <= 0:
         return None
     return {
         "cfg": run[0].get("cfg"),
         "book": run[0].get("bk"),
         "minutes": minutes,
+        # Wall-clock span of the whole run, INCLUDING the pages that were not
+        # counted. Not the rate's denominator and must never become it -- that
+        # is the bug above. It is here because the "volume" outcome in
+        # docs/reading-experiments.md ("total active minutes per configuration")
+        # is a question about time spent rather than about text read, and that
+        # one does want the span. Nothing computes it yet; recorded so the next
+        # outcome does not reach for `minutes` and get a different number than
+        # it thinks.
+        "span_minutes": (run[-1].get("ts", 0) - run[0].get("ts", 0)) / 60.0,
         "chars": chars,
         "words": words,
         "pages": pages,
@@ -308,7 +348,10 @@ def report(records, idle_cap, washout, books_dir=None, iters=20000, out=sys.stdo
     for r in runs:
         by_cfg[r["cfg"]].append(r)
 
-    print("\n%-46s %6s %8s %9s %9s" % ("configuration", "runs", "minutes", "chars/min", "pages/min"), file=out)
+    # "counted min" and not "minutes": this column is the rate's denominator, so
+    # it holds only the dwells of the pages that were counted. It is NOT how long
+    # he had the book open under that configuration.
+    print("\n%-46s %6s %11s %9s %9s" % ("configuration", "runs", "counted min", "chars/min", "pages/min"), file=out)
     rows = []
     for cfg_id, rs in by_cfg.items():
         minutes = sum(r["minutes"] for r in rs)
@@ -318,7 +361,7 @@ def report(records, idle_cap, washout, books_dir=None, iters=20000, out=sys.stdo
     for minutes, cfg_id, rs, chars, pgs in sorted(rows, reverse=True):
         label = describe_config(cfgs.get(cfg_id))
         print(
-            "%-46s %6d %8.1f %9.0f %9.2f"
+            "%-46s %6d %11.1f %9.0f %9.2f"
             % (label[:46], len(rs), minutes, chars / minutes if minutes else 0, pgs / minutes if minutes else 0),
             file=out,
         )

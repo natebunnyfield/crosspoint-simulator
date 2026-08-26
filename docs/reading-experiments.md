@@ -228,11 +228,29 @@ gaps are all at or under `--idle-cap` seconds (default 120). Runs rather than
 sessions: a book left open on a table is not reading, and the only evidence the
 device has that reading stopped is that pages stopped turning.
 
-A run's **active time** is last-page-time minus first-page-time. The last page's
+A run's **active time** is the sum of the dwells of the pages that are
+**counted**, where a page's dwell is the gap to the next page. The last page's
 dwell is unknown — nothing says when he stopped looking at it — so **that page's
-text is not counted**. Counting it would inflate every rate, and inflate short
-runs most, which means it would favour whichever arm produced more
-interruptions.
+text is not counted** and no time is counted for it either. Counting its text
+would inflate every rate, and inflate short runs most, which means it would
+favor whichever arm produced more interruptions.
+
+**A page contributes its text and its dwell together, or it contributes
+neither.** Three things drop pages — the last-page rule above, the 0/0/0
+uncountable page, and the washout below — and each must take that page's
+wall-clock out of the denominator along with its characters. Until 2026-08-25
+the active time was one span, last timestamp minus first, computed *before* the
+filters ran; a dropped page therefore left its time behind and deflated the run
+in proportion to how much of it was dropped. Because the washout drops pages at
+chapter boundaries and the Phase 2 randomizer changes the arm at chapter
+boundaries, that deflation was confounded with the treatment by construction:
+on a synthetic log with one true rate and no effect whatsoever, `--washout 3`
+reported **+477 chars/min at p=0.0002** where `--washout 0` correctly reported
++0 at p=1.0000. Note that the naive repair — keeping the span and rescaling it
+by the fraction of pages kept — is the *same* bias pointing the other way, and
+is also wrong. Pinned by
+`tests/reading_report_test.py::test_chapter_length_alone_does_not_manufacture_an_arm_effect`,
+which fails against the pre-fix code at both washouts.
 
 From that, four outcomes, all derivable from the same stream:
 
@@ -373,7 +391,9 @@ better — and the switch happens at exactly the block boundary, so that transie
 is perfectly confounded with the arm. `readingarm::countsTowardOutcome` drops
 the first N pages of a chapter. It is applied in the *report*, not on the
 device, so N can be varied afterwards and the answer checked for sensitivity to
-it.
+it — and because a washed-out page's time leaves the denominator with its text
+(active time, above), varying N does not move the measured rate of a run read at
+a constant rate.
 
 ### Decision 1 — the gate
 
