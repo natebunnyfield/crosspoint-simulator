@@ -13,6 +13,7 @@
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
 #include "PageFade.h"
+#include "TrailLifetime.h"
 #include "PanelPalette.h"
 #include "PhosphorGrain.h"
 #include "Srgb.h"
@@ -127,6 +128,15 @@ static Uint64 ghostStartedAt = 0;
 // overwrites `texture` in place, so the old picture has to be copied BEFORE the
 // new one lands, and a pixel copy is cheaper and simpler than a render target.
 static std::vector<uint32_t> ghostPixels;
+// WHAT `texture` ALREADY HOLDS. See the upload in presentIfNeeded: a trail
+// present re-uploaded an unchanged framebuffer 60-80 times per page turn, and
+// this triple is the "already there" test. Main thread only, like the upload.
+// The texture POINTER is part of the key because applyWindowGeometryIfNeeded
+// recreates the texture and a fresh STREAMING texture holds nothing.
+static SDL_Texture *uploadedTexture = nullptr;
+static uint64_t uploadedSeq = 0;
+static size_t uploadedLive = 0;
+
 // The pixelBufSeq the ghost copy was taken at.
 static uint64_t ghostSeq = 0;
 // Render the simulator at full panel size. The previous 0.5x window was too
@@ -216,6 +226,27 @@ static bool powerLogWanted() {
 // instrument that adds a getenv and a clock read to every pass it measures
 // cannot report the cost of those passes honestly. Unset, every station below
 // is a branch on a bool that is false and no clock is read at all.
+// CROSSPOINT_SIM_LOG_PRESENTS / _LOG_SCREEN: LATCHED, for the reason spelled out
+// at timingLogWanted() below and for one more that is specific to these two.
+// Between them they were read SIX times per present -- five in presentIfNeeded
+// alone -- and getenv on this platform takes a lock and walks `environ`. Unset,
+// each is now a branch on a bool. It also makes them behave like every other
+// instrument here: read once, at the first present, so a run cannot change
+// instrument mid-flight and report two different things under one name.
+static bool presentLogWanted() {
+  static const bool wanted = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS");
+    return e && e[0] == '1';
+  }();
+  return wanted;
+}
+static bool screenLogWanted() {
+  static const bool wanted = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_LOG_SCREEN");
+    return e && e[0] == '1';
+  }();
+  return wanted;
+}
 static bool timingLogWanted() {
   static const bool wanted = [] {
     const char *e = std::getenv("CROSSPOINT_SIM_LOG_TIMING");
@@ -395,6 +426,15 @@ const simreset::Registrar gDisplayRebootReset{[] {
   // than that woke up already dimmed until the first touch. A boot is an
   // interaction: the owner just pressed POWER.
   lastInteractionMs.store(SDL_GetTicks());
+  // The panel upload's "already there" key. On iOS the reboot is a longjmp and
+  // the window, the renderer and `texture` all survive it, so the key would
+  // still be true and the skip would still be correct -- but the whole point of
+  // this registry is that a static which outlives a reboot is a trap, and one
+  // redundant upload on the first post-reboot present is not worth reasoning
+  // about a second time.
+  uploadedTexture = nullptr;
+  uploadedSeq = 0;
+  uploadedLive = 0;
 }};
 
 void initializeScreenshotEvents() {
@@ -878,8 +918,7 @@ void composeGrayscalePreview() {
         if (lv[i]) SDL_Log("[aa]   level %3d: %d px", i, lv[i]);
     }
   }
-  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
-    if (e[0] == '1')
+  if (presentLogWanted())
       SDL_Log("[compose] %llu ms for %dx%d",
               (unsigned long long)(SDL_GetTicks() - composeStart),
               HalDisplay::activeWidth(), HalDisplay::activeHeight());
@@ -1941,6 +1980,55 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
 static SDL_Texture *accumTexture = nullptr;
 static uint64_t accumLastFadeMs = 0;
 static uint64_t accumLastAddMs = 0;
+// An UPPER BOUND on the accumulator's brightest channel, carried on the CPU so
+// the trail can be stopped the moment it cannot change a pixel without reading
+// the texture back. Set to full scale by every deposit, stepped by every fade
+// with the same alpha the fade used. See src/TrailLifetime.h.
+static float accumPeakBound = 0.0f;
+// It is only meaningful beside the texture it tracks, and an iOS reboot is a
+// longjmp that keeps the static and destroys nothing. Registered here rather
+// than in the display's own reset above because that block runs before this
+// declaration.
+const simreset::Registrar gAccumPeakReset{[] { accumPeakBound = 0.0f; }};
+
+// The accumulator value at or below which the composite is a no-op, for the
+// palette and the phosphor that are live RIGHT NOW.
+//
+// The mod CEILING is per channel against the cascade tail, because the draw
+// ramps the mod between the ink and the tail over the trail and either end may
+// be the brighter one in a given channel -- a green ink handing over to an
+// orange tail is brighter in red at the end and in green at the start.
+//
+// The destination FLOOR is the panel's own per-channel minimum, since every
+// tone it can show is a LERP between the ink and the paper. The page fade is
+// the one thing that can put something else under the trail: it blends the
+// panel toward the cleared field, so while it is live the field's tones join
+// the minimum. Off (the shipped state, and the desktop default) that term is
+// not consulted at all.
+static float trailInvisibleAtOrBelow() {
+  const PanelPalette live = livePanelPalette(display.isInverted());
+  uint8_t modCeiling[3];
+  uint8_t dstFloor[3];
+  const uint32_t tail = glowTailTint.load();
+  const bool fading = pageFadeMs.load() > 0.0f;
+  const uint32_t fieldColor = SimulatorOverlay::clearColor.load();
+  for (int c = 0; c < 3; c++) {
+    const uint8_t ink = live.ink[c];
+    const uint8_t paper = live.paper[c];
+    modCeiling[c] = ink;
+    if (tail != kNoGlowTail) {
+      const uint8_t t = static_cast<uint8_t>((tail >> (16 - 8 * c)) & 0xFF);
+      if (t > modCeiling[c]) modCeiling[c] = t;
+    }
+    uint8_t floorC = ink < paper ? ink : paper;
+    if (fading) {
+      const uint8_t f = static_cast<uint8_t>((fieldColor >> (16 - 8 * c)) & 0xFF);
+      if (f < floorC) floorC = f;
+    }
+    dstFloor[c] = floorC;
+  }
+  return trail::invisibleAtOrBelow(modCeiling, dstFloor);
+}
 
 // The [power] boundary station. Runs immediately before the in-process reboot's
 // longjmp (desktop execvp resets everything for free and never gets here). It
@@ -2529,8 +2617,43 @@ void HalDisplay::presentIfNeeded() {
     // Pitch is the ACTIVE row stride. pixelBuf is allocated for the ceiling,
     // so at a lower scale the live picture occupies a prefix of it and the
     // ceiling's pitch would stride past every row.
-    SDL_UpdateTexture(texture, nullptr, pixelBuf,
-                      activeWidth() * sizeof(uint32_t));
+    //
+    // ONLY WHEN THE PICTURE MOVED. A phosphor trail presents 60-80 times per
+    // page turn and the panel framebuffer is IDENTICAL on all but the first of
+    // them -- only the accumulator's brightness moves -- yet this re-uploaded
+    // the whole thing every time: 1.7 MB at 1x, 6.7 MB at 2x, 15 MB at the
+    // phone's 3x, on the main thread, per present. It is the largest per-frame
+    // cost in the whole trail and it draws nothing. Measured on a dark page
+    // turn at 2x, dummy driver: 15.94 ms per trail present before, 11.75 ms
+    // after, all of it out of the non-draw half (5.24 -> 1.05 ms).
+    //
+    // BIT-IDENTICAL BY CONSTRUCTION, in the strict sense: the skip is taken
+    // only when the same texture OBJECT was last written from the same seq of
+    // the same-sized buffer, so the bytes being skipped are the bytes already
+    // in it. Keying on the texture pointer rather than on the seq alone is what
+    // makes a window resize safe -- applyWindowGeometryIfNeeded destroys and
+    // recreates `texture`, and a fresh STREAMING texture's contents are
+    // undefined until written.
+    //
+    // The seq is bumped by both pixel writers (renderBwPixels and the
+    // grayscale compose) and by nothing else, so a polarity reconvert -- which
+    // goes through renderBwPixels -- is a change like any other.
+    if (texture != uploadedTexture || pixelBufSeq != uploadedSeq ||
+        live != uploadedLive) {
+      const uint64_t upT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
+      SDL_UpdateTexture(texture, nullptr, pixelBuf,
+                        activeWidth() * sizeof(uint32_t));
+      uploadedTexture = texture;
+      uploadedSeq = pixelBufSeq;
+      uploadedLive = live;
+      if (timingLogWanted()) {
+        timingFrame.upload.built = true;
+        timingFrame.upload.ms =
+            static_cast<double>(SDL_GetTicksNS() - upT0) / 1.0e6;
+      }
+    } else if (timingLogWanted()) {
+      timingFrame.upload.served = true;
+    }
   }
 
   // FADE THE ACCUMULATOR BY ELAPSED TIME, THEN DEPOSIT THE PAGE JUST REPLACED.
@@ -2544,8 +2667,8 @@ void HalDisplay::presentIfNeeded() {
     ensureAccumTexture();
     if (accumTexture) {
       const uint64_t now = SDL_GetTicks();
+      const uint64_t accumT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
       const float dt = static_cast<float>(now - accumLastFadeMs);
-      accumLastFadeMs = now;
       SDL_Texture *restore = SDL_GetRenderTarget(sdl_renderer);
       SDL_SetRenderTarget(sdl_renderer, accumTexture);
       // dst *= 10^(-dt/trail), expressed as a blend against black. This is the
@@ -2559,6 +2682,29 @@ void HalDisplay::presentIfNeeded() {
           SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
                                  static_cast<Uint8>(SDL_min(255, drop)));
           SDL_RenderFillRect(sdl_renderer, nullptr);
+          // The scalar shadow of that fill: see src/TrailLifetime.h. It is
+          // stepped with the SAME `drop` the texture just took, so it stays a
+          // valid upper bound however the present cadence wanders.
+          accumPeakBound = trail::fadePeakBound(accumPeakBound, drop);
+          // THE CLOCK ADVANCES ONLY WHEN THE FADE ACTUALLY APPLIED, and this
+          // used to be an unconditional `accumLastFadeMs = now` above the drop
+          // computation. `drop` is a ROUNDED 8-bit alpha, so a present that
+          // lands less than about 1 ms after the last one rounds it to zero --
+          // and the old placement then threw that millisecond away. Nothing
+          // decayed and the elapsed time could never be recovered, so a trail
+          // driven by a fast enough present loop simply stops fading.
+          //
+          // It cannot happen at 60 Hz (dt 16 ms gives drop 8 on the shipped
+          // 1095 ms trail) which is why it has never been seen, and it is
+          // precisely what raising the refresh rate walks toward: at 120 Hz
+          // drop is 4-5, and every further doubling halves it again. Leaving
+          // the clock alone lets dt accumulate until the fade is representable,
+          // which is both correct and MORE accurate -- one larger multiply
+          // rounds once where several small ones round several times.
+          //
+          // Bit-identical at every cadence this repo has ever measured, because
+          // at all of them the first attempt already has drop > 0.
+          accumLastFadeMs = now;
         }
       }
       // ONLY IF THE GHOST ACTUALLY HOLDS A PICTURE. The upload above is
@@ -2609,6 +2755,12 @@ void HalDisplay::presentIfNeeded() {
         SDL_SetTextureColorMod(deposit, 255, 255, 255);
         SDL_RenderTexture(sdl_renderer, deposit, nullptr, nullptr);
         accumLastAddMs = now;
+        // FULL SCALE, unconditionally, and not the panel's brightest tone. The
+        // deposit is MAXIMUM of an 8-bit texture so 255 is the true ceiling,
+        // and the ADD fallback a line above can saturate there outright. Using
+        // the ink instead would buy about 60 ms of one trail and would have to
+        // be re-argued every time a deposit path changed.
+        accumPeakBound = 255.0f;
       }
       SDL_SetRenderTarget(sdl_renderer, restore);
       // Still emitting? A deposit is spent once it has decayed below one 8-bit
@@ -2619,8 +2771,28 @@ void HalDisplay::presentIfNeeded() {
       // ~30 presents per redraw -- a full clear, a 15 MB texture upload and a
       // render-target pass each, for a picture identical to the last one.
       // Measured by the audit; it is pure waste and it is also battery.
+      //
+      // ...AND ONLY WHILE IT CAN STILL CHANGE A PIXEL. src/TrailLifetime.h has
+      // the argument; the short version is that 2.4 trails is the decay to one
+      // 8-bit step against BLACK, and the accumulator is composited MAXIMUM
+      // over a page whose darkest tone is the PAPER. On the shipped dark pair
+      // the paper is 8% of the ink, so the last 1.4 of those trails were
+      // presents that could not move a pixel -- measured, 15 consecutive
+      // byte-identical frames, 64% of the trail's wall time.
+      //
+      // The 2.4 stays as a backstop so this can only ever shorten the loop,
+      // never lengthen it: a palette whose paper is pure black makes
+      // invisibleAtOrBelow() zero, and without the backstop that is a render
+      // loop with no end.
       accumLive = panelIsDarkGround() && accumLastAddMs != 0 &&
+                  accumPeakBound > trailInvisibleAtOrBelow() &&
                   static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
+      if (timingLogWanted()) {
+        timingFrame.accum.built = contentChanged && ghostHasPicture;
+        timingFrame.accum.served = !timingFrame.accum.built;
+        timingFrame.accum.ms =
+            static_cast<double>(SDL_GetTicksNS() - accumT0) / 1.0e6;
+      }
     }
   } else if (accumTexture) {
     // Glow turned off: drop the buffer rather than keep paying for it.
@@ -2912,8 +3084,7 @@ void HalDisplay::presentIfNeeded() {
   } else {
     pageFadeStepDueMs.store(0);
   }
-  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
-    if (e[0] == '1' && fadeMs > 0.0f)
+  if (presentLogWanted() && fadeMs > 0.0f)
       SDL_Log("[fade] age %u ms -> alpha %.3f", 
               (unsigned)(SDL_GetTicks() - lastInteractionMs.load()), pageAlpha);
   SDL_SetTextureBlendMode(texture, pageAlpha < 1.0f ? SDL_BLENDMODE_BLEND
@@ -3038,8 +3209,7 @@ void HalDisplay::presentIfNeeded() {
   // This draws the SUM of every recent page, not the last one. Flipping ten
   // pages in a second leaves ten deposits in there, each already faded by its
   // own age.
-  if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
-    if (e[0] == '1')
+  if (presentLogWanted())
       SDL_Log("[accum] trail %.0f live=%d tex=%d changed=%d lastAdd=%llu",
               trailMs, (int)accumLive, accumTexture ? 1 : 0,
               (int)contentChanged, (unsigned long long)accumLastAddMs);
@@ -3152,8 +3322,7 @@ void HalDisplay::presentIfNeeded() {
       }
     }
     SDL_SetTextureColorMod(accumTexture, mod[0], mod[1], mod[2]);
-    if (const char *e = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
-      if (e[0] == '1')
+    if (presentLogWanted())
         SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,
                 (int)accumLive,
                 (unsigned)(SDL_GetTicks() - accumLastAddMs));
@@ -3383,8 +3552,8 @@ void HalDisplay::presentIfNeeded() {
   // Opt-in present counter: the flash is a present that should not exist, and
   // counting presents is the only way to see it headlessly (a screenshot
   // deliberately overrides the hold, so it cannot photograph its own absence).
-  if (const char *env = std::getenv("CROSSPOINT_SIM_LOG_PRESENTS")) {
-    if (env[0] == '1') {
+  if (presentLogWanted()) {
+    {
       static int n = 0;
       // Sampled mean luminance of what is being presented, so a frame that is
       // mostly PAPER (a clear, a base pass) is distinguishable from a frame
@@ -3416,8 +3585,8 @@ void HalDisplay::presentIfNeeded() {
   // lives in any of those is invisible to it. This reads back what is actually
   // about to be shown, immediately before the present, and reports the mean
   // luminance of the whole output and of a band inside the page.
-  if (const char *env = std::getenv("CROSSPOINT_SIM_LOG_SCREEN")) {
-    if (env[0] == '1') {
+  if (screenLogWanted()) {
+    {
       const uint64_t t0 = SDL_GetTicks();
       SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                        SDL_LOGICAL_PRESENTATION_DISABLED);
@@ -3491,10 +3660,13 @@ void HalDisplay::presentIfNeeded() {
       return p.built ? "BUILD" : (p.served ? "cache" : "off");
     };
     static int n = 0;
-    SDL_Log("[timing] #%d total %.2f ms | panel %s %.2f | sheet %s %.2f | "
+    SDL_Log("[timing] #%d total %.2f ms | upload %s %.2f | accum %s %.2f | "
+            "panel %s %.2f | sheet %s %.2f | "
             "scanlines %s %.2f | grain %s %.2f | readback %s %.2f | "
             "flip %.2f",
-            ++n, total, tag(timingFrame.letterpress),
+            ++n, total, tag(timingFrame.upload), timingFrame.upload.ms,
+            tag(timingFrame.accum), timingFrame.accum.ms,
+            tag(timingFrame.letterpress),
             timingFrame.letterpress.ms, tag(timingFrame.sheet),
             timingFrame.sheet.ms, tag(timingFrame.scanlines),
             timingFrame.scanlines.ms, tag(timingFrame.grain),

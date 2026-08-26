@@ -36,6 +36,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
 | "No speakable content could be found on the screen" | [docs/speak-screen-chain.md](docs/speak-screen-chain.md) — read it FIRST; the message has cost two investigations |
 | How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
+| What does a present cost, and what is a phosphor trail spending it on? | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) — including why the scanline readback is NOT the answer, why an instant-by-instant md5 gate over a trail is invalid, and the ranked list of what is left |
 | Which font/size/spacing actually got the most reading done? | [docs/reading-experiments.md](docs/reading-experiments.md) — the ledger, the outcome definitions, and the power estimate that says which questions it can and cannot answer |
 
 | ARCHIVE — a dated record, do not cite for current behavior | What it is |

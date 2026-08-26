@@ -242,6 +242,44 @@
   <array>
     <string>arm64</string>
   </array>
+  <!-- PROMOTION. Owner directive 2026-08-26: "keep refresh as high possible,
+       120hz is best", then "enable 120hz if possible on iphone air".
+
+       iOS clamps every app to 60 Hz unless this key is present, whatever the
+       panel is capable of, so without it the first ruling was not being
+       honoured on any device. It is a CEILING LIFT and not a request: on a
+       60 Hz panel it changes nothing, and on a ProMotion one the system still
+       decides the rate frame by frame. What the app actually gets is logged at
+       boot -- see the [BUILD] display line in ios/CrossPointIOSShim.cpp, which
+       reads UIScreen.maximumFramesPerSecond and reads THIS KEY back out of the
+       bundle, because a declaration the panel cannot honour and a panel whose
+       capability is not declared look identical from the outside.
+
+       SEQUENCED DELIBERATELY BEHIND THE COST WORK, and this is the part that
+       matters: doubling the refresh rate doubles the presents a phosphor trail
+       asks for, so lifting the cap before making a present cheap would have
+       doubled the battery draw and called it an improvement. Measured on the
+       same dark page turn at 2x through Metal, before this key existed: a trail
+       present cost 1.62 ms and the trail ran 2628 ms, 92 ms of CPU per page
+       turn. It now costs 0.35 ms and runs 1106 ms, 6.5 ms per turn. At twice
+       the frame rate that is still about 13 ms -- a seventh of what 60 Hz cost
+       yesterday. -->
+  <key>CADisableMinimumFrameDuration</key>
+  <true/>
+
+  <!-- BOTH SPELLINGS, DELIBERATELY, and this is not belt-and-braces. Apple's
+       ProMotion note documents CADisableMinimumFrameDuration; SDL3's own UIKit
+       view controller (SDL_uikitviewcontroller.m, the block that builds the
+       high-rate CADisplayLink) tells you in a comment to add
+       CADisableMinimumFrameDurationOnPhone instead. Exactly one of them is the
+       key the running system reads, an unrecognised Info.plist key is inert,
+       and the cost of guessing wrong is a silent 60 Hz cap that looks like a
+       working feature. The boot log resolves which is live: if the display
+       reports 120 Hz and the app still presents at 60, this pair is the first
+       thing to bisect. -->
+  <key>CADisableMinimumFrameDurationOnPhone</key>
+  <true/>
+
   <key>UIStatusBarHidden</key>
   <true/>
   <key>UIViewControllerBasedStatusBarAppearance</key>

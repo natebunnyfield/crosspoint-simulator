@@ -25,6 +25,16 @@ struct PassTiming {
 };
 struct PresentTiming {
   PassTiming letterpress, sheet, grain, scanlines;
+  // THE TWO PER-PRESENT COSTS THE LINE USED TO HIDE, and they are the two that
+  // dominate a phosphor trail -- where every field above is cache-served and
+  // the readback never runs. `upload` is the panel framebuffer's trip to the
+  // GPU (skipped now when the picture has not moved, so `built` is the
+  // interesting bit); `accum` is the glow accumulator's own render-target pass,
+  // which SDL_SetRenderTarget flushes, so its cost lands here rather than in
+  // the flip. Adding them was the 2026-08-26 trail-cost work: 4 of the 5 ms of
+  // non-draw time in a trail present had no station and was being attributed to
+  // "the rest of the present".
+  PassTiming upload, accum;
   bool readback = false;  // SDL_RenderReadPixels of the whole output
   double readbackMs = 0.0;
   uint64_t startNs = 0;
