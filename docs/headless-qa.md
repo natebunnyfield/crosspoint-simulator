@@ -184,6 +184,27 @@ stop guessing:
 CROSSPOINT_SIM_SCREENSHOTS="3000:/tmp/a.png;5000:/tmp/b.png;6500:/tmp/c.png"
 ```
 
+## Disk, and the ruling on build/ leftovers
+
+**The disk hit 100% twice on 2026-08-25 and blocked a session outright** — Bash
+could not create its own output file, so there was no way to free space or even
+diagnose it from inside; it took a command run from a terminal outside the
+session. The cause was a test recipe copying the 522 MB simulated SD card once
+per arm. `tools/capture_arm.sh` exists so that cannot happen again.
+
+**Standing ruling, owner 2026-08-25: build output under `build/` is
+regenerable and may be pruned**, including dirs whose names look deliberate.
+The `*archive-2026-08-22-build126-baseline` pair (428 MB) was kept in case a
+signed IPA was wanted for comparison; asked directly, he ruled delete — any
+archive is reproducible from its `build-NNN` tag. Same for the older
+`export.*-dsym` variants.
+
+**What must NOT be pruned:** `build/seedfonts` (316 MB) is the tree that SHIPS —
+`ios/testflight.sh` refuses to archive without it, and it is not checked in.
+`build/ios-dev` is the deploy's own build tree; removing it costs a full
+reconfigure and an SDL3 refetch, so leave it alone unless disk is actually
+short.
+
 ## The gate harness — use it instead of hand-rolling a recipe
 
 `tools/capture_arm.sh <program> <dark 0|1> <out.bmp> [input-script] [shot-ms]`
