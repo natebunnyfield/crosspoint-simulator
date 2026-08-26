@@ -20,9 +20,10 @@
 // WHAT THIS FILE IS. A pure, clock-free model that turns a page seed and a
 // 0..100 dial into a deterministic list of MARKS, plus the per-channel
 // multiplier each mark paints. It is folded into the SHEET field
-// (HalDisplay::ensureSheetToothTexture) as a second rasterizing pass over each
-// mark's own bounding box, so one texture, one upload, one draw, and the cost
-// is proportional to the marks' area rather than the sheet's.
+// (ensureSheetToothTexture, in src/SurfaceSheet.cpp) as a second rasterizing
+// pass over each mark's own bounding box, so one texture, one upload, one
+// draw, and the cost is proportional to the marks' area rather than the
+// sheet's.
 //
 // PER-CHANNEL, and that is new here. Every other field in this repo is
 // achromatic because a coverage deficit in a phosphor emits less of its OWN

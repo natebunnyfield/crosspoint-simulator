@@ -6,7 +6,7 @@
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
 # pinned at  : 2a83c1f158d994709f67514c63bcaf9bd293f197
-# TU counts  : 143 firmware, 25 simulator (6 C, 162 C++)
+# TU counts  : 143 firmware, 26 simulator (6 C, 163 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
@@ -34,6 +34,7 @@ set(CROSSPOINT_SIM_SOURCES
   src/SimulatorLifecycle.cpp
   src/SimulatorSettingsWatch.cpp
   src/SurfacePower.cpp
+  src/SurfaceSheet.cpp
   src/WebServer.cpp
   src/WebSocketsServer.cpp
   src/firmware_link_stubs.cpp

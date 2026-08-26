@@ -4,7 +4,9 @@
 [surface-roadmap.md](surface-roadmap.md) §6. Model:
 [src/ShowThrough.h](../src/ShowThrough.h). Test:
 [tests/show_through_test.cpp](../tests/show_through_test.cpp). Composited into
-the sheet field in `HalDisplay::ensureSheetToothTexture`.
+the sheet field in `ensureSheetToothTexture`, which moved from
+`HalDisplay.cpp` to [src/SurfaceSheet.cpp](../src/SurfaceSheet.cpp) on
+2026-08-25.
 
 **Light mode only** — it is the paper half of the 2026-08-22 doctrine, and it
 rides the letterpress sheet pass, so it draws exactly where that pass draws and
