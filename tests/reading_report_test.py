@@ -7,7 +7,7 @@ is acted on. The device deliberately computes nothing (src/ReadingLog.h), so
 this file is where the whole definition of "got the most reading done" lives and
 where it has to be pinned.
 
-Six things, each of which was a real decision rather than an implementation
+Seven things, each of which was a real decision rather than an implementation
 detail:
 
   1. RUN SEGMENTATION. A book left open on a table is not reading. If the idle
@@ -28,6 +28,16 @@ detail:
      do, which is not the question.
   6. WEIGHTED BY MINUTES. An unweighted mean of run rates lets a two-minute
      noisy run outvote a forty-minute steady one.
+  7. A DROPPED PAGE TAKES ITS TIME WITH IT. Decisions 2, 4 and the washout all
+     remove PAGES; every one of them must remove that page's dwell from the
+     denominator too. Until 2026-08-25 the duration was one span computed
+     before the filters ran, so a filtered page left its wall-clock behind and
+     deflated the run. The washout drops pages at chapter boundaries and the
+     Phase 2 randomizer changes the arm at chapter boundaries, so the deflation
+     was confounded with the treatment by construction -- on a log with one
+     true rate and no effect, --washout 3 reported +477 chars/min at p=0.0002.
+     This is the failure mode this whole file is named after: a wrong
+     conclusion from a correct log.
 
 The synthetic logs below are built so the right answer is known by construction.
 """
@@ -181,24 +191,63 @@ class RunStats(unittest.TestCase):
         # uncountable one is excluded because it has no denominator. Two remain.
         self.assertEqual(s["chars"], 1000)
         self.assertEqual(s["pages"], 2)
-        # The uncountable page's TIME is still in the run -- he read it. Rescaling
-        # the duration instead would inflate the rate of whichever format cannot
-        # count, which is the opposite of the intent.
-        self.assertAlmostEqual(s["minutes"], 1.5)
+        # And the uncountable page's TIME goes with its text. This assertion was
+        # 1.5 minutes until 2026-08-25, on the reasoning that "he read it" -- but
+        # a page with a denominator and no numerator is not a slow page, it is an
+        # UNMEASURED one, and keeping its thirty seconds pushed a true 1000
+        # chars/min run down to 667. Two known pages read in sixty seconds is
+        # 1000 chars/min whatever happened in the gap between them.
+        self.assertAlmostEqual(s["minutes"], 1.0)
+        self.assertAlmostEqual(s["chars"] / s["minutes"], 1000.0)
 
     def test_a_run_of_only_uncountable_pages_contributes_nothing(self):
         run = [page(0, 1, chars=0, words=0), page(30, 1, chars=0, words=0)]
         self.assertIsNone(rr.run_stats(run, 0))
 
-    def test_washout_drops_the_first_pages_of_a_chapter(self):
+    def test_washout_takes_a_dropped_page_s_time_with_its_text(self):
+        # FOUR pages 30 s apart at one true rate of 1000 chars/min. Whatever the
+        # washout does to the numerator it must do to the denominator, or the
+        # rate stops being the rate.
         run = [page(0, 1, pg=0, chars=500), page(30, 1, pg=1, chars=500),
                page(60, 1, pg=2, chars=500), page(90, 1, pg=3, chars=500)]
-        self.assertEqual(rr.run_stats(run, 0)["chars"], 1500)
-        self.assertEqual(rr.run_stats(run, 2)["chars"], 500)
-        # The washout must not change the DURATION -- the time was still spent,
-        # and rescaling it would inflate the rate of whichever arm sits behind
-        # more chapter boundaries.
-        self.assertAlmostEqual(rr.run_stats(run, 2)["minutes"], 1.5)
+        s0 = rr.run_stats(run, 0)
+        self.assertEqual(s0["chars"], 1500)
+        self.assertAlmostEqual(s0["minutes"], 1.5)
+        self.assertAlmostEqual(s0["chars"] / s0["minutes"], 1000.0)
+
+        s2 = rr.run_stats(run, 2)
+        self.assertEqual(s2["chars"], 500)   # only pg=2; pg=3 is the last page
+        self.assertAlmostEqual(s2["minutes"], 0.5)
+        self.assertAlmostEqual(s2["chars"] / s2["minutes"], 1000.0,
+                               msg="the washout must not change the measured rate of a run read at one rate")
+
+        # THIS ASSERTION FAILS AGAINST THE CODE AS IT STOOD BEFORE 2026-08-25,
+        # and the test it replaces PINNED that code. The old one asserted
+        # minutes == 1.5 at washout 2 -- the full span -- with a comment saying
+        # the washout "must not change the DURATION" because "rescaling it would
+        # inflate the rate of whichever arm sits behind more chapter
+        # boundaries."
+        #
+        # The first half of that reasoning is right and the conclusion inverts
+        # it. A global RESCALE of the duration -- keeping the span and inflating
+        # it back up by pages_kept/pages_total -- is indeed wrong, and that is
+        # what the comment was arguing against. But the code it was defending
+        # did not rescale either: it kept the whole span against a fraction of
+        # the text, which is the SAME bias in the other direction and larger.
+        # A run whose chapter boundary eats 3 of its 5 pages was reported at 40%
+        # of its true rate; one whose chapters are 12 pages long lost 25%. The
+        # Phase 2 randomizer changes the arm AT chapter boundaries, so that
+        # deflation is perfectly confounded with the treatment: on synthetic
+        # data with one true rate and no effect whatsoever, --washout 3 produced
+        # +477 chars/min at p=0.0002 (--washout 0 correctly gave +0, p=1.0000).
+        # The tool manufactured its own significant result out of a parameter.
+        #
+        # Neither keeping the span nor rescaling it is the answer. The answer is
+        # that a page contributes its text and its dwell together or contributes
+        # neither, which is what run_stats does now and what
+        # test_chapter_length_alone_does_not_manufacture_an_arm_effect proves at
+        # the level of the report.
+        self.assertLess(s2["minutes"], 1.5)
 
 
 class Comparison(unittest.TestCase):
@@ -250,6 +299,43 @@ class Comparison(unittest.TestCase):
         result, _ = run_report(records, iters=2000)
         self.assertGreater(result["comparison"]["p"], 0.05,
                            "a pure book effect must not read as an arm effect")
+
+    def test_chapter_length_alone_does_not_manufacture_an_arm_effect(self):
+        # THE SECOND TEST THIS FILE EXISTS FOR, and the same shape as the book
+        # effect above: one true rate, zero real difference, and the arms made
+        # to differ in a nuisance variable that the washout is sensitive to.
+        #
+        # Here the nuisance is CHAPTER LENGTH -- A's chapters are 5 pages, B's
+        # are 12 -- and the washout drops the first pages of each chapter. A
+        # loses 3 of 5, B loses 3 of 12. Under the pre-2026-08-25 run_stats the
+        # dropped pages left their wall-clock in the denominator, so A was
+        # reported at ~40% of its true rate and B at ~75%, and the test below
+        # found p=0.0002 on data containing no effect at all. Because the Phase
+        # 2 randomizer switches arms AT chapter boundaries, that is not a
+        # far-fetched confound: it is the design.
+        #
+        # Run at BOTH washouts. Passing only at 0 would mean the parameter still
+        # decides the answer, which is the failure being pinned.
+        records = [cfg(1, exp="e", arm="A", armseed=7), cfg(2, exp="e", arm="B", armseed=7)]
+        ts = 0
+        for b in range(6):
+            bk = "%016x" % (b + 1)
+            for i in range(6):
+                for cfg_id, chapter_pages in ((1, 5), (2, 12)):
+                    # 500 chars every 30 s is 1000 chars/min, in both arms.
+                    for k in range(chapter_pages):
+                        records.append(page(ts + k * 30, cfg_id, bk=bk, sp=i, pg=k, chars=500))
+                    ts += chapter_pages * 30 + 100000
+        for washout in (0, 3):
+            result, _ = run_report(records, washout=washout, iters=2000)
+            rates = [r["chars"] / r["minutes"] for r in result["runs"]]
+            for rate in rates:
+                self.assertAlmostEqual(rate, 1000.0, places=6,
+                                       msg="washout %d moved a run's measured rate off its true one" % washout)
+            self.assertAlmostEqual(result["comparison"]["observed"], 0.0, places=6,
+                                   msg="washout %d invented an arm difference" % washout)
+            self.assertGreater(result["comparison"]["p"], 0.05,
+                               "chapter length alone must not read as an arm effect (washout %d)" % washout)
 
     def test_books_with_only_one_arm_are_dropped(self):
         # An unpaired book carries no information about the contrast, and
