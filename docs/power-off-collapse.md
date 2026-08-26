@@ -15,8 +15,9 @@ then do the 'bzzt thonk' screen warmup animation."*
 ([surface-roadmap.md](surface-roadmap.md) §3). Model:
 [src/PowerOffCollapse.h](../src/PowerOffCollapse.h). Test:
 [tests/power_off_collapse_test.cpp](../tests/power_off_collapse_test.cpp).
-Drawn by `SimulatorOverlay::stepPowerOffCollapse()` in `HalDisplay.cpp`, stepped
-from `HalGPIO::startDeepSleep`.
+Drawn by `SimulatorOverlay::stepPowerOffCollapse()` in
+[src/SurfacePower.cpp](../src/SurfacePower.cpp) (it moved out of
+`HalDisplay.cpp` on 2026-08-25), stepped from `HalGPIO::startDeepSleep`.
 
 **Dark mode only. Off by default. The one surface dial that is an iOS Settings
 row rather than a frozen value.**
@@ -393,8 +394,10 @@ seen on a phone — where the sleep path is an in-process `longjmp` rather than 
 2026-08-23, the same day and the same switch. Model:
 [src/PowerOnWarmUp.h](../src/PowerOnWarmUp.h). Test:
 [tests/power_on_warm_up_test.cpp](../tests/power_on_warm_up_test.cpp).
-Composited inside `HalDisplay::presentIfNeeded`, stepped by
-`powerOnWarmUpFrame()` in the same file.
+Composited inside `HalDisplay::presentIfNeeded`, which calls
+`simpower::compositeWarmUp()` in
+[src/SurfacePower.cpp](../src/SurfacePower.cpp); `powerOnWarmUpFrame()` steps it
+there. Both halves moved out of `HalDisplay.cpp` on 2026-08-25.
 
 **Dark mode only. The same `Sleep > Power-Off Collapse` row, read through the
 same atomic. No second row.**
