@@ -298,6 +298,126 @@ either those two accessors re-point at the tube unit or the two texture
 pointers stay in `HalDisplay.cpp` the way `sheetPanelX…` did. Decide that
 before slicing, not after.
 
+### Unit 3 landed, 2026-08-25 — `SurfaceTube.cpp`
+
+`src/HalDisplay.cpp` 3,953 → 3,609 lines. New: `src/SurfaceTube.cpp` 469,
+`src/SurfaceTube.h` 108. Four blocks moved: the grain field's block comment; its
+seven cache-key statics and `destroyGrainTexture`; `ensureGrainTexture`; and the
+whole scanline section — its comment, its eight cache-key statics, the corner
+defocus map with `ensureDefocusMap` and `kDefocusAnchors`, `destroyScanTexture`
+and `ensureScanlinesTexture`.
+
+**Unit 2's prediction for this unit was RIGHT, and it was re-measured rather
+than inherited.** `ensureGrainTexture(w, h)` and `ensureScanlinesTexture(w, h,
+pitchPx)` were already parameterised with exactly the `presentIfNeeded` locals
+they need, so no parameter object was invented and all four blocks moved
+**verbatim** — sliced by line range, and re-checked by containment against
+`aa16f90`: each block appears exactly once in `SurfaceTube.cpp` and zero times
+in `HalDisplay.cpp`. Of 64 added lines in `HalDisplay.cpp`, 30 are the accessor
+block, 20 are the four notes left where code used to be, 9 are call sites, 2 are
+the forwarders and 1 is an include.
+
+**What crosses the boundary, in unit 1's units: 10 pieces of state and 4
+functions, plus 8 entry points back.** Against unit 1's 13 and unit 2's 19, so
+the tube is the LEAST entangled of the three, not the most. State: the renderer,
+`pixelBufSeq`, the timing frame, and seven `SimulatorOverlay` dial atomics (four
+grain, two scanline, one corner defocus) which are read-only and mechanical.
+Functions: `timingLogWanted`, `grainSeed`, `livePanelPalette`, `srgbLumOf`.
+Nothing here needed the panel rect, the pixel buffer or its mutex — both fields
+are built in OUTPUT space over the whole app surface, and the raster's only view
+of the page is a `SDL_RenderReadPixels` of the composed frame.
+
+**THE TWO PRE-SLICE DECISIONS.**
+
+*`simpower::scanFieldRef()` / `grainFieldRef()`.* Unit 2 offered two options and
+recommended the conservative one (leave the two texture pointers in
+`HalDisplay.cpp` the way `sheetPanelX…` stayed). **A third was taken instead**,
+and it is strictly better than both: the pointers move to `SurfaceTube.cpp`
+where the code that writes them now lives, and `HalDisplay.cpp`'s two `simpower`
+accessors become one-line forwarders to `simtube::scanFieldRef()` /
+`grainFieldRef()`. `SurfacePower.cpp` is not touched — it still binds
+`simpower::scanFieldRef()` under the name `scanTexture` and reads it exactly as
+before — so unit 1 gains no dependency on unit 3, which was the whole objection.
+Leaving the pointers behind would have split one field's ownership across two
+files: `SurfaceTube.cpp` would allocate and free a texture whose pointer lived
+somewhere else, and the `else if (scanField())` branch in `presentIfNeeded`
+would be reading a variable neither file owned.
+
+*`fieldselect::kRasterBudgetShare`, checked by containment the way unit 2
+checked the paper split.* Before the split the constant appeared **once** in the
+tree, at `HalDisplay.cpp:2427`, inside `ensureScanlinesTexture`. After it: zero
+times in `HalDisplay.cpp`, once in `SurfaceTube.cpp`, and the four-line
+expression it sits in
+(`params.budgetMeanDarkening = kRasterBudgetShare * darkeningBudget(...)`) is
+present there byte-for-byte inside a block already proved to be a verbatim move.
+`fieldselect::select` is still called exactly **once**, in
+`presentIfNeeded`, unmoved. So the raster's share of the budget cannot have been
+re-scaled, re-ordered or double-applied by this diff; there is no second site
+that could disagree with it. `FieldSelection.h` remains the single authority,
+and `SurfaceTube.cpp` reads only the constant, exactly as `SurfaceSheet.cpp`
+reads only `kSheetShareStep`.
+
+**NINE GATE ARMS, byte-identical, reproducible run-to-run** (the whole set was
+run twice against the unmodified binary before anything was touched, and again
+after each of the two increments). Unit 2's seven, plus two the tube needed:
+
+| Arm | md5 | What it is there for |
+|---|---|---|
+| `dark` | `53aaf43c…` | the reader page in the shipped dark dials — scanlines Subtle/Fine/Extreme |
+| `light` | `3f4773ed…` | the collateral-damage check |
+| `pg1`, `pg2` | `92c66c64…`, `8196abba…` | two consecutive page turns — per-page drift and verso promotion |
+| `press200` | `d97fd80e…` | the light page at letterpress 200%, unit 2's canary |
+| `homedark` | `93b62ac8…` | a SYSTEM screen in dark — the glass field is not gated on the activity |
+| `tube-cd0` | `8d67d856…` | scanlines at 300% / Chunky pitch / Extreme bloom, **corner defocus 0** |
+| `tube-cd200` | `ebd5bc3f…` | the same with **corner defocus 200** |
+| `grain1000` | `6542a7da…` | scanlines OFF, grain at 1000% — the only arm where the grain pass runs |
+
+**Why the last three exist, and it is the same argument unit 2 made for
+`press200`: a gate that cannot see the pass is not a gate.** Measured against
+the plain `dark` arm: the exaggerated raster moves **56.96%** of pixels (max 12
+levels), and the grain arm — which needs scanlines OFF, because the doctrine
+SKIPS grain whenever the raster is live, and the app ships the raster ON — moves
+**100.00%** (max 202). At the shipped dials the raster moves the page too, but
+the two exaggerated arms are what make a subtle arithmetic slip in either
+field's cache key or blend loud instead of quiet.
+
+**CORNER DEFOCUS IS FROZEN OFF AND ITS FIELD IS 5/255 DEEP AT THE SHIPPED
+PITCH, so no shipped-dial arm can see it.** It was not argued into correctness —
+it was made visible and then gated. `tube-cd0` and `tube-cd200` differ only in
+that dial, and against each other they differ on **68.28%** of pixels (max 5,
+mean 1.49 over the changed pixels), which is a perfectly adequate byte gate even
+though it is invisible on glass. That pair also exercises the branch that
+matters most: `ensureScanlinesTexture` builds the raster from **one of two
+different transmission tables** depending on whether the dial is on, and the OFF
+branch is deliberately the pre-defocus code untouched. `tube-cd0` pins the OFF
+table and `tube-cd200` pins the ON table, the `ensureDefocusMap` cache and the
+three-anchor interpolation, so both halves of that fork are covered by bytes
+rather than by reading. The exaggeration is only in the pitch and intensity —
+the defocus code path is the shipped one.
+
+**Verified:** `tests/run_all.sh` 54/54, `pio run -e simulator_x3`,
+`pio run -e simulator`, iOS `CrossPointX3` Debug (22 `simtube` symbols in the
+linked app). The `-Wformat` warning noted in the file was left alone.
+
+**Tier 2's remaining candidate is `ios/CrossPointIOSShim.cpp` (3,005 lines), and
+it is a DIFFERENT problem — take the contention argument seriously before
+starting it.** Tier 2's stated goal is to stop tasks serialising on one file.
+`HalDisplay.cpp` earned that on 2026-08-24 by having three tasks queue behind
+it; the shim has no such record, and the three units that just landed were all
+`src/`-side, so the shim never blocked them. It is also 54% comment — the
+highest density in the repo — so its line count overstates its code by more than
+any other file here. Against that: its four concerns (pad layout, hit tests, tap
+synthesis, harness hooks) genuinely are separable, and it is Objective-C++ that
+only a Mac can compile, so a mistake in it is invisible to the desktop canary
+and to `tests/run_all.sh` — which is exactly the shape of change that most wants
+a byte gate, and exactly the one where a byte gate is most expensive to build
+(it needs a simulator run per arm, not a headless binary). **Recommendation: do
+not do it as a fourth unit now.** Do it when a task actually blocks on the shim,
+and when it is done, build the gate out of `CROSSPOINT_SIM_TAP_PAD` /
+`CROSSPOINT_SIM_OPEN_MIXER` captures before touching a line — the pad's geometry
+and its hit tests are precisely the thing a "verbatim" move can shift by a pixel
+without any test noticing.
+
 ## Tier 3 — resolve the frozen surface
 
 13 getters return constants. 22 dial rows exist. 2,273 lines of picker UI cannot
