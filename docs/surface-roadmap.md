@@ -78,7 +78,8 @@ each rated on what it *is*, whether it *matters*, cost, and risk.
 [show-through.md](show-through.md).** What changed against the design below:
 
 1. **`ghostPixels` is the wrong source, and it was checked rather than
-   assumed.** It still exists, but it is maintained only while the phosphor
+   assumed.** *(It has since been deleted outright — 2026-08-26,
+   `whole-glass-crt.md`.)* It was maintained only while the phosphor
    trail or the beam is on (both dark-mode ideas, both off on a paper page), it
    is ARGB that would need re-projecting onto the ink/paper axis, and it holds
    the previous FRAME rather than the previous PAGE — and an antialiased page
@@ -121,13 +122,16 @@ screen does it.
 **Cost — and the surprise.** Lower than it looks, because half the machinery is
 already there. `HalDisplay.cpp` already keeps `ghostPixels`, a full copy of the
 previous frame's framebuffer, maintained whenever the trail or the beam is on
-(`src/HalDisplay.cpp:110`, `:2578`). A show-through pass is: mirror it
+(`src/HalDisplay.cpp:110`, `:2578`). *(2026-08-26: `ghostPixels` no longer
+exists — the previous picture is captured from the composed GLASS at output
+resolution now. The correction in item 1 above stands and gets stronger; see
+`whole-glass-crt.md`.)* A show-through pass is: mirror it
 horizontally, blur it hard, attenuate it to a few percent, and fold it into the
 sheet field as another darken-only multiplier — the same slot the defects use.
 Call it 150 lines plus a test.
 
 **The honesty problem, stated plainly.** What shows through page N is page
-**N+1**, and `ghostPixels` is page **N−1**. A book read forwards means the
+**N+1**, and the previous-frame copy is page **N−1**. A book read forwards means the
 ghost is the page you just left, not the page behind the leaf. Three options,
 in order of my preference:
 
@@ -973,7 +977,7 @@ existing machinery:
 | Four (or sixteen) gray levels, hard-quantized | Already true — the framebuffer is 1bpp + AA planes; the *dither* is already there |
 | A slightly warm, slightly gray-green paper-white with low reflectance — never `#FFFFFF` | A paper row (a cool, low-luminance one) |
 | Bayer dither visible as texture at 1:1 | Already visible; CLAUDE.md's ST-008 note documents it in detail |
-| **Ghosting** — the previous image faintly retained until a full refresh | `ghostPixels` already holds it, and the trail machinery already composites a decaying previous frame. This is the *same code path as the phosphor trail*, with a different decay: e-ink ghosting does not decay, it persists until a full refresh. |
+| **Ghosting** — the previous image faintly retained until a full refresh | the trail machinery already captures the previous picture and composites it decaying (`glassPrevTexture` since 2026-08-26). This is the *same code path as the phosphor trail*, with a different decay: e-ink ghosting does not decay, it persists until a full refresh. |
 | **The refresh flash** — a full inversion before settling | `CROSSPOINT_SIM_PRESENT_FLASH` is the seed of it |
 | No emission at all; ambient-lit | `setPanelEmissive(false)` already exists (`src/SimulatorOverlay.h:161`) |
 
@@ -1233,8 +1237,9 @@ and when it became clear the effect is exactly zero on a static page.
 the measurements. The biggest single
 thing a printed page does that this one does not, and the only paper phenomenon
 that carries *information* rather than texture. `ghostPixels` already holds a
-whole previous framebuffer, the sheet field already takes darken-only
-multipliers, and the per-stock opacity it needs is a natural sibling of the
+whole previous framebuffer *(it does not any more — deleted 2026-08-26; the
+correction in §1a is the one that was right)*, the sheet field already takes
+darken-only multipliers, and the per-stock opacity it needs is a natural sibling of the
 `tooth` field that exists. Ship it with the previous page and be honest in the
 doc; nobody can read a show-through. It also gives India paper — the new row
 whose entire identity is thinness — something to be.

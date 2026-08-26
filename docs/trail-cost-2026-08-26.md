@@ -237,6 +237,14 @@ started — but it is the reason item 1 below is ranked first.
 
 ## 8. Ranked list of further enhancements
 
+**Item 3 has shipped**, and on the way it turned up something this document
+should have said and could not: SDL's software renderer -- the canary and all
+three Mac apps -- has no `SDL_BLENDOPERATION_MAXIMUM` and takes the ADD fallback
+for both the deposit and the composite, while the phone takes MAXIMUM. Every
+trail-brightness figure in this file is therefore the fallback path. See
+`docs/whole-glass-crt.md` section 6.
+
+
 Costs are measured where a number is given and marked as estimates otherwise.
 
 **1. Probe the renderer's blend rounding once at startup, instead of assuming
@@ -261,14 +269,21 @@ mod is 8-bit, so the rounding path differs from the current one and the rendered
 trail will move by a code value or two. It changes how the fade looks in the
 smallest possible way, and the owner tuned that effect by eye.
 
-**3. Size the accumulator to the OUTPUT, not to the panel.** It is allocated at
-framebuffer size (2376x1584 at the phone's 3x) and then minified to the screen
-on every draw. Every pixel of it above the output's resolution is thrown away
-twice per present. Estimated ~2.2x fewer pixels through the fade and the draw at
-3x. **PROPOSAL**: resampling the accumulator at a different resolution changes
-the trail's own antialiasing.
+**3. Size the accumulator to the OUTPUT, not to the panel.** ~~PROPOSAL~~ **DONE
+2026-08-26, and it went further than this item did** -- the owner ruled that
+persistence must cover the paper as well as the panel, so the accumulator is not
+merely output-SIZED, it is fed by the composed glass and composited over
+everything. Full record and measurements: `docs/whole-glass-crt.md`. Measured on
+the canary at 2x rather than the 3x this item estimated: four times fewer pixels,
+12.46 -> 8.30 ms per trail present, 544 -> 434 ms of CPU per dark page turn. The
+caveat this item raised was real and was characterised rather than waved at: the
+trail's decay envelope is unchanged within the run-to-run spread of a single
+binary, and the settled frame is byte-identical.
 
-**4. Give the software renderer a straight blit.** The panel and the accumulator
+**4. Give the software renderer a straight blit.** *(Partly collected by item 3:
+the ACCUMULATOR'S draw is now an axis-aligned 1:1 blit and the flip fell from
+8.5 ms to 1.7 ms on a trail present. The PANEL's own draw is still rotated, so
+the rest of this item stands.)* The panel and the accumulator
 are both drawn through `SDL_RenderTextureRotated`, which on the software backend
 is the slow transform path; the `flip` is 7.9 ms of an 11.2 ms present at 2x and
 this is where it goes. Pre-rotating the framebuffer during the 1bpp→ARGB

@@ -3,6 +3,9 @@
 #include <unistd.h>
 
 #include <cstdlib>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "Arduino.h"
 #include "CrossPointSettings.h"
@@ -11,6 +14,8 @@
 #include "SimulatorDocumentOpen.h"
 #include "ReadingLog.h"
 #include "SimulatorLifecycle.h"
+#include "SimulatorOverlay.h"
+#include "SimulatorRebootResets.h"
 #include "SimulatorSettingsWatch.h"
 
 #if defined(__APPLE__)
@@ -128,6 +133,79 @@ static void latchRenderScale() {
           cp::kRenderScaleMax);
 }
 
+// A DESKTOP WINDOW WITH BANDS, for QA only. Nothing here is on by default.
+//
+// The phone reserves a top band for the status bar and a bottom band for the
+// button pad (SimulatorOverlay::setTopInset / setBottomInset) and the panel is
+// then FITTED between them; the desktop has always taken the plain letterbox
+// path, where the window is exactly panel-sized and there is no surround at
+// all. That makes the canary the platform on which anything about the SURROUND
+// cannot be reproduced -- and the whole-glass phosphor and beam (2026-08-26)
+// live out there. See docs/whole-glass-crt.md section 8.
+//
+// One env var per band, each a SCHEDULE. "120" reserves 120 device pixels from
+// boot; "120;5200:360" reserves 120 and grows it to 360 at 5200 ms on the
+// SDL_GetTicks clock, which is the only way this machine can photograph what a
+// live trail does when the PAGE MOVES under it -- zen mode placing the panel
+// within the sheet, or a keyboard coming up. Unset (the default) is a no-op and
+// the desktop keeps the letterbox path byte for byte. Both setters clamp a
+// negative to 0, so a malformed step can only ever mean "no band".
+namespace {
+struct BandSchedule {
+  std::vector<std::pair<uint64_t, int>> steps;
+  size_t next = 0;
+  void parse(const char *env) {
+    steps.clear();
+    next = 0;
+    if (!env || !*env) return;
+    const std::string s(env);
+    size_t i = 0;
+    while (i <= s.size()) {
+      const size_t semi = s.find(';', i);
+      const std::string part =
+          s.substr(i, semi == std::string::npos ? semi : semi - i);
+      if (!part.empty()) {
+        const size_t colon = part.find(':');
+        if (colon == std::string::npos)
+          steps.emplace_back(0, std::atoi(part.c_str()));
+        else
+          steps.emplace_back(std::strtoull(part.c_str(), nullptr, 10),
+                             std::atoi(part.c_str() + colon + 1));
+      }
+      if (semi == std::string::npos) break;
+      i = semi + 1;
+    }
+  }
+  // The value to apply now, or -1 when nothing is due. Steps are consumed in
+  // WRITTEN order and only the last one consumed is returned, so a schedule
+  // whose timestamps are out of order SWALLOWS the earlier entries:
+  // "5000:100;1000:200" applies 200 at t=5000 and never applies 100. Write them
+  // in time order.
+  //
+  // The clock is SDL_GetTicks, which the reboot does NOT rebase (simclock
+  // rebases the Arduino millis() epoch, not this one). After an iOS wake every
+  // step is already due and the whole schedule collapses to its last entry on
+  // the first loop iteration -- so a band schedule cannot photograph anything
+  // across a sleep/wake.
+  int due(uint64_t nowMs) {
+    int v = -1;
+    while (next < steps.size() && steps[next].first <= nowMs)
+      v = steps[next++].second;
+    return v;
+  }
+};
+BandSchedule g_topBand, g_bottomBand;
+bool g_bandsParsed = false;
+
+// THE REASON THIS IS NOT A FUNCTION-LOCAL STATIC IN main(). The desktop reboot
+// is execvp and re-initialises everything for free; iOS longjmps back into
+// setup() in the SAME process, where `g_bandsParsed` would still be set and a
+// consumed schedule would never replay -- the exact shape
+// src/SimulatorRebootResets.h exists for. Re-parsed rather than merely rewound,
+// so a reboot that promoted a different environment picks it up.
+const simreset::Registrar gBandScheduleReset{[] { g_bandsParsed = false; }};
+}  // namespace
+
 int main(int argc, char **argv) {
   SimulatorLifecycle::initProcessArgs(argv);
   latchRenderScale();
@@ -213,7 +291,25 @@ int main(int argc, char **argv) {
   // longjmp, which re-runs setup() and lands back here.
   applyKeepScreenAwake();
 
+  // Parsed once per BOOT -- see gBandScheduleReset for why that is not "once
+  // per process".
+  if (!g_bandsParsed) {
+    g_bandsParsed = true;
+    g_topBand.parse(SDL_getenv("CROSSPOINT_SIM_TOP_INSET"));
+    g_bottomBand.parse(SDL_getenv("CROSSPOINT_SIM_BOTTOM_INSET"));
+    if (!g_topBand.steps.empty() || !g_bottomBand.steps.empty())
+      SDL_Log("[panel] QA bands: %zu top step(s), %zu bottom step(s)",
+              g_topBand.steps.size(), g_bottomBand.steps.size());
+  }
+
   while (!display.shouldQuit()) {
+    {
+      const uint64_t nowMs = SDL_GetTicks();
+      const int t = g_topBand.due(nowMs);
+      if (t >= 0) SimulatorOverlay::setTopInset(t);
+      const int b = g_bottomBand.due(nowMs);
+      if (b >= 0) SimulatorOverlay::setBottomInset(b);
+    }
     // Clear input edge latches once per frame. update() may be called many
     // times within loop(); edges must survive across those calls and only
     // reset here at the frame boundary.

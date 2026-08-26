@@ -83,10 +83,14 @@ static std::atomic<bool> &powerOffCollapse = simpower::powerOffCollapseRef();
 // reading page whichever way that race went.
 //
 // Kept only while the dial is on, and re-copied only when the picture actually
-// changes: one copy per page turn, not one per present. Same shape and same
-// cost as ghostPixels, which is next to it in presentIfNeeded for the same
-// reason -- SDL_UpdateTexture overwrites `texture` in place, so a frame worth
-// keeping has to be copied before the next one lands.
+// changes: one copy per page turn, not one per present. It used to sit beside
+// `ghostPixels` in presentIfNeeded and share its shape and its cost; that copy
+// went on 2026-08-26 when the phosphor moved to the whole glass
+// (docs/whole-glass-crt.md), and this one stayed, because what the collapse
+// wants is the PANEL FRAMEBUFFER of the reading page and not the composed
+// screen. The reason for its placement is unchanged -- SDL_UpdateTexture
+// overwrites `texture` in place, so a frame worth keeping has to be copied
+// before the next one lands.
 static std::vector<uint32_t> sleepSourcePixels;
 static uint64_t sleepSourceSeq = 0;
 

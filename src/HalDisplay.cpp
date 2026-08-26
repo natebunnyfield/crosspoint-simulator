@@ -44,9 +44,30 @@
 static SDL_Window *window = nullptr;
 static SDL_Renderer *sdl_renderer = nullptr;
 static SDL_Texture *texture = nullptr;
-// The PREVIOUS panel image, held so it can be faded out on top of the new one.
-// Null whenever the glow is off, which is the desktop default and costs nothing.
-static SDL_Texture *ghostTexture = nullptr;
+// THE GLASS AS IT LAST STOOD -- the whole composed frame at OUTPUT resolution:
+// the page, the letterpress over it, the surround the page sits on and the
+// button pad, everything a viewer could see, and NOT the trail already drawn
+// over them (see captureGlass for why that exclusion is the whole ballgame).
+//
+// It replaced a PANEL-sized copy of the previous framebuffer -- the "ghost" --
+// on 2026-08-26, and the reason is the owner's ruling that day: "apply
+// persistence and other crt effects equally to paper and panel." A panel-sized
+// previous frame can only ever feed a panel-sized effect. Two consumers:
+//
+//   glassPrevTexture       the beam's old picture, in COLOUR, drawn 1:1
+//   glassIntensityTexture  max(r,g,b) of the same frame -- the phosphor
+//                          deposit, so the composite's colour mod can paint the
+//                          trail toward a cascade's surviving layer (a multiply
+//                          can only REMOVE channels, so a coloured deposit's
+//                          trail could never change hue -- owner 2026-08-21)
+//
+// Null whenever neither effect is on, which is the desktop default.
+static SDL_Texture *glassPrevTexture = nullptr;
+static SDL_Texture *glassIntensityTexture = nullptr;
+static int glassW = 0, glassH = 0;
+// The pixelBufSeq the capture belongs to, and whether one has ever landed.
+static uint64_t glassSeq = 0;
+static bool glassHasPicture = false;
 // How long a ghost lives, in ms. 0 = the effect is off entirely.
 static std::atomic<float> glowTrailMs{0.0f};
 
@@ -110,10 +131,6 @@ static std::atomic<int> pageFadeDepth{pagefade::kDepthFull};
 static constexpr float kPageFadeFloor = 0.75f;
 static uint64_t beamStartedAt = 0;
 
-// Whether ghostTexture has been written since the glow was last turned on. The
-// texture outlives ghostPixels, so "we have a texture" is not the same question
-// as "it holds a picture" -- see where this is read.
-static bool ghostHasPicture = false;
 // The tint a two-layer phosphor's trail decays toward, packed 0x00RRGGBB, or
 // kNoGlowTail when the trail simply dims. See setPanelGlowTail.
 static constexpr uint32_t kNoGlowTail = 0xFFFFFFFFu;
@@ -122,12 +139,6 @@ static std::atomic<uint32_t> glowTailTint{kNoGlowTail};
 // everything faster than the surviving phosphor has died. 0 = unknown, and the
 // recolor ramps across the whole trail as it always did.
 static std::atomic<float> glowTailOnsetMs{0.0f};
-// When the ghost was captured, on the SDL_GetTicks clock. 0 = no ghost.
-static Uint64 ghostStartedAt = 0;
-// The pixels the ghost was captured from -- kept because SDL_UpdateTexture
-// overwrites `texture` in place, so the old picture has to be copied BEFORE the
-// new one lands, and a pixel copy is cheaper and simpler than a render target.
-static std::vector<uint32_t> ghostPixels;
 // WHAT `texture` ALREADY HOLDS. See the upload in presentIfNeeded: a trail
 // present re-uploaded an unchanged framebuffer 60-80 times per page turn, and
 // this triple is the "already there" test. Main thread only, like the upload.
@@ -137,8 +148,10 @@ static SDL_Texture *uploadedTexture = nullptr;
 static uint64_t uploadedSeq = 0;
 static size_t uploadedLive = 0;
 
-// The pixelBufSeq the ghost copy was taken at.
-static uint64_t ghostSeq = 0;
+// The pixelBufSeq the last PRESENTED frame was drawn from. A seq this has not
+// seen means the firmware (or a polarity reconvert) wrote a new picture, which
+// is what starts a beam sweep and what lands a phosphor deposit.
+static uint64_t presentedSeq = 0;
 // Render the simulator at full panel size. The previous 0.5x window was too
 // small. With 1:1 pixel mapping, the simulator can be used for testing fine
 // details.
@@ -1977,7 +1990,23 @@ void HalDisplay::setBackgrounded(const bool backgrounded) {
 // contributions in it, each already faded by its own age -- which falls out of
 // the arithmetic for free, because a uniform multiply applied over time is
 // exactly what per-contribution exponential decay is.
+//
+// IT IS SIZED TO THE OUTPUT, NOT TO THE PANEL (2026-08-26, owner: "apply
+// persistence and other crt effects equally to paper and panel"). It held the
+// panel framebuffer until then, so the afterglow stopped dead at the page's
+// edge and the surround and the button pad -- two thirds of a phone's glass --
+// never glowed at all. That is the arrangement the grain ruling already
+// rejected for texture on 2026-08-18: it is ONE SHEET OF GLASS, and a tube's
+// whole face is phosphor.
+//
+// Being output-space is also what makes the trail stay WHERE THE LIGHT WAS
+// EMITTED. The panel rect moves -- zen mode places the page within the sheet,
+// a keyboard coming up relayouts it -- and a panel-space accumulator was drawn
+// through the CURRENT rect, so the ghost of the old page teleported to the new
+// position with it. In output space the deposit keeps the coordinates it was
+// laid down at, which is the only thing a phosphor can do.
 static SDL_Texture *accumTexture = nullptr;
+static int accumW = 0, accumH = 0;
 static uint64_t accumLastFadeMs = 0;
 static uint64_t accumLastAddMs = 0;
 // An UPPER BOUND on the accumulator's brightest channel, carried on the CPU so
@@ -1990,6 +2019,18 @@ static float accumPeakBound = 0.0f;
 // than in the display's own reset above because that block runs before this
 // declaration.
 const simreset::Registrar gAccumPeakReset{[] { accumPeakBound = 0.0f; }};
+
+static void destroyGlassTextures();
+// THE GLASS CAPTURE AND THE SEQ IT BELONGS TO, for the same reason. The desktop
+// reboot is execvp and re-initialises every static for free; iOS longjmps back
+// into setup() in the SAME process, so a texture pointer and a sequence number
+// from the previous boot would both survive it -- and the sequence would then
+// make the first new picture look like one already captured. The textures are
+// dropped rather than kept because the renderer they belong to may not.
+const simreset::Registrar gGlassCaptureReset{[] {
+  destroyGlassTextures();
+  presentedSeq = 0;
+}};
 
 // The accumulator value at or below which the composite is a no-op, for the
 // palette and the phosphor that are live RIGHT NOW.
@@ -2043,23 +2084,35 @@ const simreset::Registrar gPowerLogBoundary{[] {
   // The boot on the other side of the jump is awake, whatever it renders.
   displaySleeping.store(false);
   if (!powerLogWanted()) return;
-  SDL_Log("[power] reboot boundary: beamStartedAt=%llu ghostStartedAt=%llu "
+  SDL_Log("[power] reboot boundary: beamStartedAt=%llu glassSeq=%llu "
           "accumLastAddMs=%llu pendingPresent=%d holdUntil=%llu flashUntil=%llu",
-          (unsigned long long)beamStartedAt, (unsigned long long)ghostStartedAt,
+          (unsigned long long)beamStartedAt, (unsigned long long)glassSeq,
           (unsigned long long)accumLastAddMs, (int)pendingPresent.load(),
           (unsigned long long)presentHoldUntil.load(),
           (unsigned long long)presentFlashUntil.load());
 }};
 
-static void ensureAccumTexture() {
-  if (accumTexture) return;
+static void ensureAccumTexture(int outW, int outH) {
+  if (accumTexture && accumW == outW && accumH == outH) return;
+  if (accumTexture) {
+    // The glass changed shape (a rotation, a window resize). There is no honest
+    // way to carry emitted light across that, so the buffer is dropped and the
+    // bound with it -- keeping a stale bound would hold the present loop open
+    // for a trail that no longer exists.
+    SDL_DestroyTexture(accumTexture);
+    accumTexture = nullptr;
+    accumW = accumH = 0;
+    accumPeakBound = 0.0f;
+  }
+  if (outW <= 0 || outH <= 0 || !sdl_renderer) return;
   accumTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                                   SDL_TEXTUREACCESS_TARGET, HalDisplay::activeWidth(),
-                                   HalDisplay::activeHeight());
+                                   SDL_TEXTUREACCESS_TARGET, outW, outH);
   if (!accumTexture) {
     LOG_ERR("DISP", "glow: no accumulator texture (%s)", SDL_GetError());
     return;
   }
+  accumW = outW;
+  accumH = outH;
   // Additive on the way to the screen: the accumulator holds EMITTED LIGHT, and
   // light adds. Cleared once here so the first page does not inherit garbage.
   SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
@@ -2071,41 +2124,117 @@ static void ensureAccumTexture() {
   accumLastFadeMs = SDL_GetTicks();
 }
 
-static void ensureGhostTexture() {
-  if (ghostTexture || !sdl_renderer)
-    return;
-  ghostTexture = SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
-                                   SDL_TEXTUREACCESS_STREAMING,
-                                   HalDisplay::activeWidth(),
-                                   HalDisplay::activeHeight());
-  if (!ghostTexture) {
-    LOG_ERR("DISP", "glow: could not create the ghost texture (%s)",
+// CAPTURE THE GLASS -- one readback per new picture, and the three rules that
+// make it safe.
+//
+// WHAT: the composed frame at OUTPUT resolution, read back immediately after
+// the button pad is painted and BEFORE the accumulator is drawn over it. That
+// exclusion is not an optimisation, it is the whole thing: a capture taken
+// after the trail would deposit the trail back into itself next time, and a
+// buffer that re-deposits its own contents at full strength never decays.
+//
+// WHEN: once per pixelBufSeq, and NOT WHILE THE BEAM IS SWEEPING. During a
+// sweep the glass is old below the beam line and new above it, so a capture
+// taken on the content-change present itself would record most of the OLD page
+// and hand it back as "the picture that was on screen" -- the previous frame,
+// twice, and the one before it lost. Waiting for the first present after the
+// sweep completes costs nothing (the trail is driving presents anyway) and the
+// picture it records is the finished one.
+//
+// WHY A READBACK AT ALL, when the panel's own pixels are already in RAM: the
+// pad and the surround have no framebuffer. They are painted by the overlay
+// hook straight onto the output, and the composed glass is the only place they
+// exist as pixels. See docs/crt-beam-and-flash.md for the alternative that was
+// priced and rejected -- re-rendering the composition into the accumulator,
+// which cannot reach the pad because the overlay draws colour, not intensity.
+//
+// COST: one full-output readback, one CPU pass over it and two uploads, per
+// NEW PICTURE -- never per present, so a trail pays it once and then touches no
+// pixel data at all. Measured on the desktop canary at 2x, 528x792 output:
+// 2.6 ms of the 60-odd ms a dark page turn already spends. It replaced a
+// framebuffer-sized copy, intensity pass and two framebuffer-sized uploads
+// (1584x1056, four times the pixels), so on the canary it is cheaper than what
+// it removed.
+static bool ensureGlassTextures(int outW, int outH) {
+  if (glassPrevTexture && glassW == outW && glassH == outH) return true;
+  if (glassPrevTexture) SDL_DestroyTexture(glassPrevTexture);
+  if (glassIntensityTexture) SDL_DestroyTexture(glassIntensityTexture);
+  glassPrevTexture = glassIntensityTexture = nullptr;
+  glassW = glassH = 0;
+  glassHasPicture = false;
+  if (outW <= 0 || outH <= 0 || !sdl_renderer) return false;
+  glassPrevTexture =
+      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                        SDL_TEXTUREACCESS_STREAMING, outW, outH);
+  glassIntensityTexture =
+      SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_ARGB8888,
+                        SDL_TEXTUREACCESS_STREAMING, outW, outH);
+  if (!glassPrevTexture || !glassIntensityTexture) {
+    LOG_ERR("DISP", "glass: could not create the capture textures (%s)",
             SDL_GetError());
-    return;
+    if (glassPrevTexture) SDL_DestroyTexture(glassPrevTexture);
+    if (glassIntensityTexture) SDL_DestroyTexture(glassIntensityTexture);
+    glassPrevTexture = glassIntensityTexture = nullptr;
+    return false;
   }
-  SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_BLEND);
+  // The beam's copy is the picture itself and is drawn opaque; the deposit's is
+  // light and is composed MAXIMUM, which ignores both blend factors.
+  SDL_SetTextureBlendMode(glassPrevTexture, SDL_BLENDMODE_NONE);
+  SDL_SetTextureScaleMode(glassPrevTexture, SDL_SCALEMODE_NEAREST);
+  SDL_SetTextureScaleMode(glassIntensityTexture, SDL_SCALEMODE_NEAREST);
+  glassW = outW;
+  glassH = outH;
+  return true;
 }
 
-// The INTENSITY copy of the ghost, for the accumulator's deposit. The deposit
-// used to be the page's own pixels -- green ink on black -- and the tail
-// recolor is a color MULTIPLY, which can only remove channels: green times an
-// orange tail is olive, never orange, so a mixed page's fade could never
-// change hue toward the surviving phosphor (owner report 2026-08-21, P46+P33).
-// Depositing intensity (max(r,g,b), white-on-black) lets the present-time mod
-// paint the trail ANY color: ink at first, the tail by the handover. The
-// accumulator is only ever composed on a DARK ground (see the `!darkGround ->
-// accumLive = false` gate in presentIfNeeded), where every level is the ink
-// scaled toward black, so intensity x ink reconstructs the old picture.
-static SDL_Texture *ghostIntensityTexture = nullptr;
-static void ensureGhostIntensityTexture() {
-  if (ghostIntensityTexture || !sdl_renderer)
-    return;
-  ghostIntensityTexture = SDL_CreateTexture(
-      sdl_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-      HalDisplay::activeWidth(), HalDisplay::activeHeight());
-  if (!ghostIntensityTexture)
-    LOG_ERR("DISP", "glow: could not create the intensity ghost (%s)",
-            SDL_GetError());
+static void destroyGlassTextures() {
+  if (glassPrevTexture) SDL_DestroyTexture(glassPrevTexture);
+  if (glassIntensityTexture) SDL_DestroyTexture(glassIntensityTexture);
+  glassPrevTexture = glassIntensityTexture = nullptr;
+  glassW = glassH = 0;
+  glassSeq = 0;
+  glassHasPicture = false;
+}
+
+// Read the output back and fill both copies. Assumes logical presentation is
+// already DISABLED by the caller, so the readback is the real output rect.
+static bool captureGlass(int outW, int outH) {
+  if (!ensureGlassTextures(outW, outH)) return false;
+  SDL_Surface *shot = SDL_RenderReadPixels(sdl_renderer, nullptr);
+  SDL_Surface *conv =
+      shot ? SDL_ConvertSurface(shot, SDL_PIXELFORMAT_ARGB8888) : nullptr;
+  if (shot) SDL_DestroySurface(shot);
+  if (!conv) return false;
+  if (conv->w != outW || conv->h != outH) {
+    SDL_DestroySurface(conv);
+    return false;
+  }
+  SDL_UpdateTexture(glassPrevTexture, nullptr, conv->pixels, conv->pitch);
+  // max(r,g,b), white on black. The deposit has to be INTENSITY so that the
+  // composite's colour mod can paint the trail any colour it likes -- see the
+  // glassIntensityTexture comment where it is declared.
+  static std::vector<uint32_t> intensityBuf;
+  intensityBuf.resize(static_cast<size_t>(outW) * outH);
+  for (int y = 0; y < outH; y++) {
+    const uint32_t *src = reinterpret_cast<const uint32_t *>(
+        static_cast<uint8_t *>(conv->pixels) +
+        static_cast<size_t>(y) * conv->pitch);
+    uint32_t *dst = intensityBuf.data() + static_cast<size_t>(y) * outW;
+    for (int x = 0; x < outW; x++) {
+      const uint32_t px = src[x];
+      uint32_t m = (px >> 16) & 0xFFu;
+      const uint32_t g = (px >> 8) & 0xFFu;
+      const uint32_t b = px & 0xFFu;
+      if (g > m) m = g;
+      if (b > m) m = b;
+      dst[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+    }
+  }
+  SDL_UpdateTexture(glassIntensityTexture, nullptr, intensityBuf.data(),
+                    outW * static_cast<int>(sizeof(uint32_t)));
+  SDL_DestroySurface(conv);
+  glassHasPicture = true;
+  return true;
 }
 
 // A FRESH SCREEN EVERY LAUNCH. Owner ruling 2026-08-18: "generate new grain
@@ -2538,16 +2667,23 @@ void HalDisplay::presentIfNeeded() {
   const GfxRenderer::Orientation orientation = renderer.getOrientation();
   applyWindowGeometryIfNeeded(orientation);
 
-  // PHOSPHOR GLOW. The old picture has to be copied before SDL_UpdateTexture
-  // overwrites `texture` in place, so this sits above the upload rather than
-  // below it. Only when the content actually CHANGED: a re-present of the same
-  // frame (a window resize, a screenshot) must not restart a trail, or the page
-  // would ghost while nothing happened.
+  // IS THIS A NEW PICTURE? Both CRT transients hang off that one question: a
+  // beam sweep starts when the firmware writes a page, and a phosphor deposit
+  // lands at the same instant. A re-present of the SAME frame (a window resize,
+  // a screenshot, a trail's own self-requested frame) must do neither, or the
+  // page would ghost while nothing happened.
+  //
+  // One integer, not 15 MB. The previous PICTURE is no longer kept here at all
+  // -- it is captured from the composed glass at the foot of this function (see
+  // captureGlass), because the surround and the pad have no framebuffer and a
+  // panel-sized copy could never carry them.
+  //
   // Entering deep sleep: whatever presents from here on is the frame the glass
   // holds for the whole sleep, so the beam and the trail are treated as OFF and
-  // the existing off-paths below settle everything (ghost dropped, accumulator
-  // destroyed, no self-requested next frame). See displaySleeping's comment for
-  // the owner report this closes and why deepSleep() cannot settle it alone.
+  // the existing off-paths below settle everything (capture dropped,
+  // accumulator destroyed, no self-requested next frame). See displaySleeping's
+  // comment for the owner report this closes and why deepSleep() cannot settle
+  // it alone.
   const bool sleepSettled = displaySleeping.load();
   const float trailMs = sleepSettled ? 0.0f : glowTrailMs.load();
   const float beamMs = sleepSettled ? 0.0f : beamPaintMs.load();
@@ -2560,52 +2696,15 @@ void HalDisplay::presentIfNeeded() {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
     if (wantPrevFrame) {
-      // One integer, not 15 MB. A seq the ghost has not seen means the firmware
-      // (or a polarity reconvert) wrote a new picture since the last capture.
-      contentChanged = pixelBufSeq != ghostSeq || ghostPixels.size() != live;
-      ghostSeq = pixelBufSeq;
-      if (contentChanged) {
-        ensureGhostTexture();
-        if (ghostTexture && !ghostPixels.empty() &&
-            ghostPixels.size() == live) {
-          // Upload the PREVIOUS pixels; `texture` is about to become the new
-          // ones on the very next line.
-          SDL_UpdateTexture(ghostTexture, nullptr, ghostPixels.data(),
-                            activeWidth() * sizeof(uint32_t));
-          // The deposit's copy is INTENSITY, not color -- see
-          // ensureGhostIntensityTexture. Only the glow deposits, so only the
-          // glow pays for the conversion; the beam keeps the colored ghost.
-          if (trailMs > 0.0f) {
-            ensureGhostIntensityTexture();
-            if (ghostIntensityTexture) {
-              static std::vector<uint32_t> intensityBuf;
-              intensityBuf.resize(live);
-              for (size_t i = 0; i < live; i++) {
-                const uint32_t px = ghostPixels[i];
-                uint32_t m = (px >> 16) & 0xFFu;
-                const uint32_t g = (px >> 8) & 0xFFu;
-                const uint32_t b = px & 0xFFu;
-                if (g > m) m = g;
-                if (b > m) m = b;
-                intensityBuf[i] = 0xFF000000u | (m << 16) | (m << 8) | m;
-              }
-              SDL_UpdateTexture(ghostIntensityTexture, nullptr,
-                                intensityBuf.data(),
-                                activeWidth() * sizeof(uint32_t));
-            }
-          }
-          ghostStartedAt = SDL_GetTicks();
-          beamStartedAt = ghostStartedAt;
-          ghostHasPicture = true;
-        }
-        ghostPixels.assign(pixelBuf, pixelBuf + live);
-      }
-    } else if (!ghostPixels.empty()) {
-      // Turned off: drop the copy rather than keep paying for it.
-      ghostPixels.clear();
-      ghostStartedAt = 0;
+      contentChanged = pixelBufSeq != presentedSeq;
+      presentedSeq = pixelBufSeq;
+      // A sweep can only start from a picture there is something to sweep OVER.
+      if (contentChanged && glassHasPicture) beamStartedAt = SDL_GetTicks();
+    } else if (glassPrevTexture) {
+      // Both effects turned off: drop the capture rather than keep paying for
+      // it, and stop any sweep in flight.
+      destroyGlassTextures();
       beamStartedAt = 0;
-      ghostHasPicture = false;
     }
     // KEEP THIS PAGE FOR THE COLLAPSE. Same guard as the polarity latch above
     // and for the same reason: what the fiction wants is the tube the reader
@@ -2656,150 +2755,6 @@ void HalDisplay::presentIfNeeded() {
     }
   }
 
-  // FADE THE ACCUMULATOR BY ELAPSED TIME, THEN DEPOSIT THE PAGE JUST REPLACED.
-  //
-  // Order matters and is physical: what is already in there has been decaying
-  // since the last present, and the frame being replaced starts decaying only
-  // from now. Fading first and adding second is what makes a contribution's
-  // age its own.
-  bool accumLive = false;
-  if (trailMs > 0.0f && ghostTexture) {
-    ensureAccumTexture();
-    if (accumTexture) {
-      const uint64_t now = SDL_GetTicks();
-      const uint64_t accumT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
-      const float dt = static_cast<float>(now - accumLastFadeMs);
-      SDL_Texture *restore = SDL_GetRenderTarget(sdl_renderer);
-      SDL_SetRenderTarget(sdl_renderer, accumTexture);
-      // dst *= 10^(-dt/trail), expressed as a blend against black. This is the
-      // SAME curve the single-ghost version used; it is just applied to a
-      // running sum instead of to one frame.
-      if (dt > 0.0f) {
-        const float keep = SDL_powf(10.0f, -dt / trailMs);
-        const int drop = static_cast<int>((1.0f - keep) * 255.0f + 0.5f);
-        if (drop > 0) {
-          SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
-          SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
-                                 static_cast<Uint8>(SDL_min(255, drop)));
-          SDL_RenderFillRect(sdl_renderer, nullptr);
-          // The scalar shadow of that fill: see src/TrailLifetime.h. It is
-          // stepped with the SAME `drop` the texture just took, so it stays a
-          // valid upper bound however the present cadence wanders.
-          accumPeakBound = trail::fadePeakBound(accumPeakBound, drop);
-          // THE CLOCK ADVANCES ONLY WHEN THE FADE ACTUALLY APPLIED, and this
-          // used to be an unconditional `accumLastFadeMs = now` above the drop
-          // computation. `drop` is a ROUNDED 8-bit alpha, so a present that
-          // lands less than about 1 ms after the last one rounds it to zero --
-          // and the old placement then threw that millisecond away. Nothing
-          // decayed and the elapsed time could never be recovered, so a trail
-          // driven by a fast enough present loop simply stops fading.
-          //
-          // It cannot happen at 60 Hz (dt 16 ms gives drop 8 on the shipped
-          // 1095 ms trail) which is why it has never been seen, and it is
-          // precisely what raising the refresh rate walks toward: at 120 Hz
-          // drop is 4-5, and every further doubling halves it again. Leaving
-          // the clock alone lets dt accumulate until the fade is representable,
-          // which is both correct and MORE accurate -- one larger multiply
-          // rounds once where several small ones round several times.
-          //
-          // Bit-identical at every cadence this repo has ever measured, because
-          // at all of them the first attempt already has drop > 0.
-          accumLastFadeMs = now;
-        }
-      }
-      // ONLY IF THE GHOST ACTUALLY HOLDS A PICTURE. The upload above is
-      // skipped when ghostPixels is empty -- the first content change after the
-      // glow turns on -- and a STREAMING texture's contents are undefined until
-      // written. Depositing it anyway put garbage into the accumulator at the
-      // exact moment the owner picked a phosphor, and on a re-entry it
-      // deposited the last page of the PREVIOUS phosphor session, because
-      // ghostTexture outlives ghostPixels.
-      if (contentChanged && ghostHasPicture) {
-        // The page that was just replaced is what glows. Deposited at full
-        // strength, 1:1 -- both textures are the panel's own size.
-        //
-        // MAXIMUM, NOT ADD -- and this is S-016. The COMPOSITE to screen was
-        // changed to MAXIMUM for a reason that applies word for word here and
-        // was never carried across: a pixel lit in two frames is one phosphor
-        // being re-excited, not two emitters stacked, so it cannot exceed full
-        // emission. The deposit kept summing.
-        //
-        // Unbounded, and the bound that mattered was the decay. A short trail
-        // drains the buffer to near black before the next deposit lands, so the
-        // sum never builds; a long one does not. At P7's 2828 ms with content
-        // changing every 100 ms, `keep` is 10^(-100/2828) = 0.92 per frame and
-        // the running sum tends toward roughly 12x a single page. At P45's
-        // 283 ms it settles near 1.8x. That is precisely the report -- "it seems
-        // to be the long persistence ones" -- and it is why the short-trail
-        // palettes looked fine.
-        //
-        // Same fallback shape as the composite: if the renderer cannot compose
-        // MAXIMUM, take ADD at reduced strength rather than nothing, because
-        // half a trail beats no trail.
-        static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
-            SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
-            SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
-        // The INTENSITY copy, so the composite's color mod can recolor the
-        // trail toward the tail (see ensureGhostIntensityTexture). Falling
-        // back to the colored ghost only if the intensity texture could not be
-        // created: a wrongly-tinted trail beats no trail.
-        SDL_Texture *deposit =
-            ghostIntensityTexture ? ghostIntensityTexture : ghostTexture;
-        if (depositMax == SDL_BLENDMODE_INVALID ||
-            !SDL_SetTextureBlendMode(deposit, depositMax)) {
-          SDL_SetTextureBlendMode(deposit, SDL_BLENDMODE_ADD);
-          SDL_SetTextureAlphaMod(deposit, 96);
-        } else {
-          SDL_SetTextureAlphaMod(deposit, 255);
-        }
-        SDL_SetTextureColorMod(deposit, 255, 255, 255);
-        SDL_RenderTexture(sdl_renderer, deposit, nullptr, nullptr);
-        accumLastAddMs = now;
-        // FULL SCALE, unconditionally, and not the panel's brightest tone. The
-        // deposit is MAXIMUM of an 8-bit texture so 255 is the true ceiling,
-        // and the ADD fallback a line above can saturate there outright. Using
-        // the ink instead would buy about 60 ms of one trail and would have to
-        // be re-argued every time a deposit path changed.
-        accumPeakBound = 255.0f;
-      }
-      SDL_SetRenderTarget(sdl_renderer, restore);
-      // Still emitting? A deposit is spent once it has decayed below one 8-bit
-      // step, which is 10^-2.4 trails. Past that the accumulator is black and
-      // asking for more frames would be a permanent render loop.
-      // AND ONLY ON A GROUND THAT SHOWS IT. A pale page draws no trail at all
-      // (see the draw below), so keeping the accumulator "live" there bought
-      // ~30 presents per redraw -- a full clear, a 15 MB texture upload and a
-      // render-target pass each, for a picture identical to the last one.
-      // Measured by the audit; it is pure waste and it is also battery.
-      //
-      // ...AND ONLY WHILE IT CAN STILL CHANGE A PIXEL. src/TrailLifetime.h has
-      // the argument; the short version is that 2.4 trails is the decay to one
-      // 8-bit step against BLACK, and the accumulator is composited MAXIMUM
-      // over a page whose darkest tone is the PAPER. On the shipped dark pair
-      // the paper is 8% of the ink, so the last 1.4 of those trails were
-      // presents that could not move a pixel -- measured, 15 consecutive
-      // byte-identical frames, 64% of the trail's wall time.
-      //
-      // The 2.4 stays as a backstop so this can only ever shorten the loop,
-      // never lengthen it: a palette whose paper is pure black makes
-      // invisibleAtOrBelow() zero, and without the backstop that is a render
-      // loop with no end.
-      accumLive = panelIsDarkGround() && accumLastAddMs != 0 &&
-                  accumPeakBound > trailInvisibleAtOrBelow() &&
-                  static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
-      if (timingLogWanted()) {
-        timingFrame.accum.built = contentChanged && ghostHasPicture;
-        timingFrame.accum.served = !timingFrame.accum.built;
-        timingFrame.accum.ms =
-            static_cast<double>(SDL_GetTicksNS() - accumT0) / 1.0e6;
-      }
-    }
-  } else if (accumTexture) {
-    // Glow turned off: drop the buffer rather than keep paying for it.
-    SDL_DestroyTexture(accumTexture);
-    accumTexture = nullptr;
-    accumLastAddMs = 0;
-  }
 
   // How much of the ghost is still emitting, 0 once it has decayed away.
   //
@@ -3115,18 +3070,67 @@ void HalDisplay::presentIfNeeded() {
     }
   };
 
-  // THE BEAM. How far down the visible page the sweep has got, 0..1.
+  // WHICH FIELD COMPOSITES THIS PRESENT -- decided ONCE, here, before the first
+  // of the three draw sites. src/FieldSelection.h holds the rule and the
+  // argument; the short version is that each field's darkening budget assumes
+  // it is the only pass, so "at most one" is what makes those budgets true.
   //
-  // The clip rect is in the CURRENT render coordinate space, which is the same
-  // space the panel rect was computed in -- output pixels on the manual path,
-  // logical units under SDL's letterbox -- so the same rect serves both. It is
-  // also why the clip is expressed against the VISIBLE page rather than against
-  // the texture: in portrait the texture is rotated, so a band of texture rows
-  // is a band of screen COLUMNS, and clipping in texture space would sweep
-  // sideways.
+  // COMPUTED ONCE ON PURPOSE. The letterpress predicate below and the grain
+  // suppression sixty lines further down used to be two independent reads of
+  // the same two mutable values -- `display.isInverted()` and an atomic, either
+  // of which another thread can move mid-present. Agreeing by construction
+  // costs nothing; disagreeing draws letterpress AND grain over one page, which
+  // is the exact budget breach the exclusion exists to prevent, and it would
+  // show up as a page a few percent too dark on no particular frame.
+  const fieldselect::Active fields = fieldselect::select(
+      {display.isInverted(), SimulatorOverlay::scanlinesIntensity.load(),
+       SimulatorOverlay::letterpressStrength.load(),
+       SimulatorOverlay::grainStrength.load()});
+
+  // ENTER AND LEAVE THE GLASS -- device pixels, the whole app surface, no
+  // logical presentation. Every whole-sheet pass below goes through this pair.
+  //
+  // LEAVING IS NOT SYMMETRIC, and that asymmetry is the one trap here. On the
+  // MANUAL placement path (the phone) logical presentation is already disabled
+  // when this function reaches the panel draw, and the panel's dst rects are in
+  // output pixels -- so "restoring" SDL's letterbox there would move the page
+  // off its integer scale. Only the letterbox path has anything to restore.
+  auto enterGlassSpace = [&](int *w, int *h) -> bool {
+    SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
+                                     SDL_LOGICAL_PRESENTATION_DISABLED);
+    *w = 0;
+    *h = 0;
+    return SDL_GetCurrentRenderOutputSize(sdl_renderer, w, h) && *w > 0 &&
+           *h > 0;
+  };
+  auto leaveGlassSpace = [&]() {
+    if (manualPlacement) return;
+    int logW = 0, logH = 0;
+    getLogicalPresentationSize(orientation, &logW, &logH);
+    SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
+                                     kLogicalPresentation);
+  };
+
+  // THE BEAM. How far down the GLASS the sweep has got, 0..1.
+  //
+  // IT SWEEPS THE WHOLE FACE, not the page's rectangle (2026-08-26, the same
+  // owner ruling that moved the phosphor: "apply persistence and other crt
+  // effects equally to paper and panel"). A tube has one gun and one raster;
+  // there is no arrangement in which the picture arrives progressively and the
+  // surround around it arrives all at once. So the old picture underneath is
+  // the whole composed glass, and the band the new frame is clipped to spans
+  // the output rather than the panel rect.
+  //
+  // The clip rect is in the CURRENT render coordinate space. On the manual path
+  // that is output pixels and the band is the glass outright; under SDL's
+  // letterbox it is logical units, where the page IS the whole window and the
+  // two statements coincide. It is also why the clip is expressed against the
+  // VISIBLE page rather than against the texture: in portrait the texture is
+  // rotated, so a band of texture rows is a band of screen COLUMNS, and
+  // clipping in texture space would sweep sideways.
   float beamProgress = 1.0f;
-  const bool beamActive =
-      beamMs > 0.0f && beamStartedAt != 0 && ghostTexture && !ghostPixels.empty();
+  const bool beamActive = beamMs > 0.0f && beamStartedAt != 0 &&
+                          glassPrevTexture && glassHasPicture;
   if (beamActive) {
     beamProgress =
         static_cast<float>(SDL_GetTicks() - beamStartedAt) / beamMs;
@@ -3167,15 +3171,25 @@ void HalDisplay::presentIfNeeded() {
 
   if (beamSweeping) {
     // Below the beam the OLD picture is still up -- opaque, not blended: it has
-    // not been repainted yet, so it is not a ghost of anything.
-    SDL_SetTextureBlendMode(ghostTexture, SDL_BLENDMODE_NONE);
-    SDL_SetTextureAlphaMod(ghostTexture, 255);
-    SDL_SetTextureColorMod(ghostTexture, 255, 255, 255);
-    drawPanel(ghostTexture);
+    // not been repainted yet, so it is not a ghost of anything. Drawn 1:1 in
+    // device pixels, because that is the space it was captured in.
+    int gw = 0, gh = 0;
+    const bool gotGlass = enterGlassSpace(&gw, &gh);
+    if (gotGlass) {
+      const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(gw),
+                              static_cast<float>(gh)};
+      SDL_SetTextureBlendMode(glassPrevTexture, SDL_BLENDMODE_NONE);
+      SDL_SetTextureAlphaMod(glassPrevTexture, 255);
+      SDL_SetTextureColorMod(glassPrevTexture, 255, 255, 255);
+      SDL_RenderTexture(sdl_renderer, glassPrevTexture, nullptr, &full);
+    }
+    leaveGlassSpace();
     // ...and above it, only as much of the new frame as the beam has written.
+    SDL_Rect sweep = visible;
+    if (manualPlacement && gotGlass) sweep = {0, 0, gw, gh};
     const int swept =
-        static_cast<int>(static_cast<float>(visible.h) * beamProgress);
-    const SDL_Rect clip = {visible.x, visible.y, visible.w, swept};
+        static_cast<int>(static_cast<float>(sweep.h) * beamProgress);
+    const SDL_Rect clip = {sweep.x, sweep.y, sweep.w, swept};
     SDL_SetRenderClipRect(sdl_renderer, &clip);
   }
 
@@ -3197,170 +3211,6 @@ void HalDisplay::presentIfNeeded() {
     SDL_RenderTexture(sdl_renderer, texture, nullptr, &landscapeDst);
   }
 
-  // The ghost goes ON TOP of the new page and fades out, which is what a
-  // phosphor does: the old picture is still emitting while the new one is
-  // written over it. Same rects and the same rotation as the panel above, so it
-  // lands exactly on the panel however the panel was placed.
-  // THE ACCUMULATOR GOES ON TOP of the new page, which is what a phosphor does:
-  // everything written recently is still emitting while the new page is drawn
-  // over it. Same rects and rotation as the panel, so it lands exactly on the
-  // panel however the panel was placed.
-  //
-  // This draws the SUM of every recent page, not the last one. Flipping ten
-  // pages in a second leaves ten deposits in there, each already faded by its
-  // own age.
-  if (presentLogWanted())
-      SDL_Log("[accum] trail %.0f live=%d tex=%d changed=%d lastAdd=%llu",
-              trailMs, (int)accumLive, accumTexture ? 1 : 0,
-              (int)contentChanged, (unsigned long long)accumLastAddMs);
-  if (accumLive && accumTexture) {
-    // Whatever filter the panel ended up with, the trail must match: they are
-    // the same picture moments apart, and a different resample would make the
-    // trail shimmer against the page it is fading off.
-    SDL_ScaleMode panelMode = kPanelScaleMode;
-    SDL_GetTextureScaleMode(texture, &panelMode);
-    SDL_SetTextureScaleMode(accumTexture, panelMode);
-
-    const bool darkGround = panelIsDarkGround();
-
-    // A PHOSPHOR ADDS LIGHT, and the accumulator is a buffer OF LIGHT: black
-    // wherever nothing has been emitted. That composites one way and one way
-    // only -- additively, onto a dark ground.
-    //
-    // IT USED TO CROSS-DISSOLVE ON A PALE GROUND, and that was wrong from the
-    // moment this became an accumulator (build 90). The single-ghost version it
-    // replaced held a real PICTURE -- the previous frame, paper and all -- so
-    // blending it over a pale page was a sensible dissolve. The accumulator
-    // holds light on black, so blending it at alpha 128 over a pale page draws
-    // 50% BLACK across the whole sheet: the page turns gray and the previous
-    // page's text hangs there inside it. Reported from the phone with a
-    // screenshot, on the CRT schemes in light mode.
-    //
-    // So on a pale ground there is no trail at all. That is not a regression
-    // against the pre-accumulator behaviour so much as an admission of what the
-    // comment here already said: a glowing page is a dark-ground idea, and
-    // adding light to white paper cannot express it.
-    if (!darkGround) {
-      accumLive = false;
-    } else {
-      // MAXIMUM, NOT ADD -- and this is the difference between a trail and a
-      // flash.
-      //
-      // Measured on screen: with ADD, the frame at a page turn is the
-      // arithmetic SUM of the old page and the new one. 99.77% of the page is
-      // brighter than either, and |frame - (old+new)| averages 0.11 of a level.
-      // Mean page luminance jumped 38.6 -> 71.8, +86%, decaying over a second.
-      // That is the flash the owner reported, and it survived the double-draw
-      // fix because ADD was doing it honestly all along.
-      //
-      // The physics were wrong, not the arithmetic. A pixel lit in BOTH frames
-      // is one phosphor being re-excited, not two emitters stacked -- it cannot
-      // exceed full emission. Summing says otherwise and doubles the page.
-      // Taking the MAXIMUM is the saturating model: a pixel the new page lights
-      // stays exactly as bright as the new page draws it, and a pixel only the
-      // OLD page lit still shows, decaying, which is the whole point of the
-      // trail.
-      //
-      // SDL_BLENDOPERATION_MAXIMUM ignores the blend factors, so the accumulator
-      // is composited unscaled. If a renderer cannot compose it (the call
-      // fails), fall back to ADD at reduced strength rather than to nothing:
-      // half a trail beats a flash.
-      static SDL_BlendMode maxBlend = SDL_ComposeCustomBlendMode(
-          SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
-          SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
-      if (maxBlend == SDL_BLENDMODE_INVALID ||
-          !SDL_SetTextureBlendMode(accumTexture, maxBlend)) {
-        SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
-        SDL_SetTextureAlphaMod(accumTexture, 96);
-      } else {
-        SDL_SetTextureAlphaMod(accumTexture, 255);
-      }
-    }
-
-    // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
-    // that is an APPROXIMATION and is marked as one: the buffer holds deposits
-    // of many ages mixed together, and one colour multiply cannot give each its
-    // own point on the ramp. It is driven by the age of the NEWEST deposit,
-    // which is the one carrying most of the brightness. Getting this exact
-    // needs two accumulators running at the two layers' decay rates -- the
-    // honest model of what a cascade physically is -- and that is worth doing
-    // if this ever looks wrong.
-    //
-    // ONLY ON THE ADDITIVE PATH: on pale paper the same multiply hits the paper
-    // too and the whole decaying frame washes green, which is a stain, not a
-    // longer-lived layer.
-    // THE ACCUMULATOR HOLDS INTENSITY, so the color mod is what paints the
-    // trail -- and its ramp starts at the live INK, not white. The old deposit
-    // held the page's own pixels and the mod ramped white -> tail, and a
-    // multiply can only remove channels: green ink times an orange tail is
-    // olive, never orange, so the tail mathematically could not win (owner
-    // report 2026-08-21: a P46 green + P33 orange mix fades green for the
-    // whole 2.8 s). No tail = a constant ink mod, which with intensity
-    // deposits reproduces the single-phosphor look exactly.
-    const uint32_t tail = glowTailTint.load();
-    const PanelPalette livePal = livePanelPalette(display.isInverted());
-    Uint8 mod[3] = {255, 255, 255};
-    if (darkGround) {
-      for (int c = 0; c < 3; c++) mod[c] = livePal.ink[c];
-      if (tail != kNoGlowTail) {
-        const float age = static_cast<float>(SDL_GetTicks() - accumLastAddMs);
-        // The handover happens when the FAST phosphors die, not at the end of
-        // the whole fade: for the reported mix that is ~17 ms into 2828, so
-        // the ramp runs over the published ONSET when one exists. Presets
-        // that never set one (onset 0) keep the old whole-trail timing.
-        const float onset = glowTailOnsetMs.load();
-        float t = onset > 0.0f
-                      ? age / onset
-                      : (trailMs > 0.0f ? age / trailMs : 1.0f);
-        if (t < 0.0f) t = 0.0f;
-        if (t > 1.0f) t = 1.0f;
-        for (int c = 0; c < 3; c++) {
-          const float target = static_cast<float>((tail >> (16 - 8 * c)) & 0xFF);
-          mod[c] = static_cast<Uint8>(
-              (1.0f - t) * static_cast<float>(mod[c]) + t * target + 0.5f);
-        }
-      }
-    }
-    SDL_SetTextureColorMod(accumTexture, mod[0], mod[1], mod[2]);
-    if (presentLogWanted())
-        SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,
-                (int)accumLive,
-                (unsigned)(SDL_GetTicks() - accumLastAddMs));
-    if (accumLive) drawPanel(accumTexture);
-
-    // A fade only animates if something presents while it fades, and the
-    // firmware will not: an e-ink reader draws a page and stops. So the trail
-    // asks for its own next frame, and stops asking the moment it is done --
-    // which is what keeps this from becoming a permanent render loop.
-    pendingPresent.store(true);
-  }
-
-
-  if (beamSweeping) {
-    SDL_SetRenderClipRect(sdl_renderer, nullptr);
-    // A sweep only sweeps if something presents while it does, and an e-ink
-    // firmware presents once per page. Same self-driving arrangement as the
-    // glow's trail, and it stops asking the moment the beam reaches the bottom.
-    pendingPresent.store(true);
-  }
-
-  // WHICH FIELD COMPOSITES THIS PRESENT -- decided ONCE, here, before the first
-  // of the three draw sites. src/FieldSelection.h holds the rule and the
-  // argument; the short version is that each field's darkening budget assumes
-  // it is the only pass, so "at most one" is what makes those budgets true.
-  //
-  // COMPUTED ONCE ON PURPOSE. The letterpress predicate below and the grain
-  // suppression sixty lines further down used to be two independent reads of
-  // the same two mutable values -- `display.isInverted()` and an atomic, either
-  // of which another thread can move mid-present. Agreeing by construction
-  // costs nothing; disagreeing draws letterpress AND grain over one page, which
-  // is the exact budget breach the exclusion exists to prevent, and it would
-  // show up as a page a few percent too dark on no particular frame.
-  const fieldselect::Active fields = fieldselect::select(
-      {display.isInverted(), SimulatorOverlay::scanlinesIntensity.load(),
-       SimulatorOverlay::letterpressStrength.load(),
-       SimulatorOverlay::grainStrength.load()});
-
   // LETTERPRESS -- the LIGHT page's surface treatment (doctrine 2026-08-22:
   // light is paper and ink, dark is CRT). Drawn over the PANEL only, through
   // the same drawPanel rotation and dst as the page itself, because ink
@@ -3370,6 +3220,13 @@ void HalDisplay::presentIfNeeded() {
   // beat against the presentation. MOD blend: it can only darken. Its filter
   // copies the panel texture's live one, so the ring gets whatever treatment
   // the glyph edges themselves get at this scale.
+  //
+  // IT MOVED INSIDE THE BEAM'S CLIP on 2026-08-26. The old picture under a
+  // sweep used to be the raw previous FRAMEBUFFER, which carries no surface
+  // treatment, so drawing the letterpress over the whole panel was the only way
+  // the un-swept half got any. The old picture is now the composed GLASS and
+  // already has its letterpress in it, so an unclipped pass would print the
+  // squeeze twice below the beam line.
   if (fields.letterpress) {
     if (simsheet::ensureLetterpressField()) {
       SDL_ScaleMode panelMode = kPanelScaleMode;
@@ -3381,19 +3238,449 @@ void HalDisplay::presentIfNeeded() {
     simsheet::destroyLetterpressField();
   }
 
+  if (beamSweeping) {
+    // CLEARED BEFORE THE OVERLAY, not after it. SDL keeps the clip in the
+    // coordinate space it was set in, and the overlay changes that space; the
+    // overlay re-states its own band in device pixels below.
+    SDL_SetRenderClipRect(sdl_renderer, nullptr);
+    // A sweep only sweeps if something presents while it does, and an e-ink
+    // firmware presents once per page. Same self-driving arrangement as the
+    // glow's trail, and it stops asking the moment the beam reaches the bottom.
+    pendingPresent.store(true);
+  }
+
   // Overlay chrome lives in the letterboxed margins, which the panel's logical
   // coordinate space cannot address -- so drop logical presentation, hand the
   // painter real pixels, then restore it for the next frame.
+  //
+  // THE SWEEP COVERS IT TOO. The pad is on the same sheet of glass as the page
+  // and the raster reaches it last, so while the beam is running the pad is
+  // only drawn as far down as the beam has got; everything below is the pad as
+  // the previous frame left it, already on screen from the glass draw above.
   if (SimulatorOverlay::overlayDraw) {
     SDL_SetRenderLogicalPresentation(sdl_renderer, 0, 0,
                                      SDL_LOGICAL_PRESENTATION_DISABLED);
     int outW = 0, outH = 0;
-    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) && outW > 0)
+    if (SDL_GetCurrentRenderOutputSize(sdl_renderer, &outW, &outH) && outW > 0) {
+      // ONLY ON THE MANUAL PATH, and the reason is that this band and the
+      // panel's are stated in two coordinate systems. The panel's clip is set
+      // in the CURRENT render space; on the manual path that is output pixels
+      // and the two bands are the same screen rows, but under SDL's letterbox
+      // it is LOGICAL units covering only the letterboxed sub-rect, so a band
+      // at the same FRACTION lands on different rows and the page's beam line
+      // and the pad's would disagree by the margin. Unreachable today (the
+      // desktop registers no overlay painter and iOS always places manually),
+      // and left as a guard rather than as arithmetic because a host that
+      // letterboxes AND paints chrome does not exist to test against.
+      const bool sweepChrome = beamSweeping && manualPlacement;
+      SDL_Rect clip = {0, 0, outW,
+                       static_cast<int>(static_cast<float>(outH) * beamProgress)};
+      if (sweepChrome) SDL_SetRenderClipRect(sdl_renderer, &clip);
       SimulatorOverlay::overlayDraw(sdl_renderer, outW, outH);
+      if (sweepChrome) SDL_SetRenderClipRect(sdl_renderer, nullptr);
+    }
     int logW = 0, logH = 0;
     getLogicalPresentationSize(orientation, &logW, &logH);
     SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
                                      kLogicalPresentation);
+  }
+
+  // ------------------------------------------------------------------------
+  // THE PHOSPHOR, OVER THE WHOLE GLASS.
+  //
+  // Four things happen here, in this order, and the order is the physics and
+  // not a convenience:
+  //
+  //   FADE     what is already in the buffer has been decaying since the last
+  //            present.
+  //   DEPOSIT  the picture that was on the glass until this present starts
+  //            decaying only from NOW, so it is added after the fade. That is
+  //            what makes each contribution's age its own.
+  //   CAPTURE  the glass as it now stands, ready to be the next deposit --
+  //            and taken here, BEFORE the accumulator is drawn, because a
+  //            capture that included the trail would deposit the trail back
+  //            into itself and nothing would ever decay.
+  //   DRAW     the sum, MAXIMUM, over everything.
+  //
+  // WHY IT SITS HERE. Before 2026-08-26 this ran immediately after the page was
+  // drawn, above the letterpress and above the overlay, and the buffer was the
+  // panel's own size: the afterglow stopped at the page's edge and the pad and
+  // the surround never glowed at all. The owner's ruling that day -- "apply
+  // persistence and other crt effects equally to paper and panel" -- is the
+  // 2026-08-18 grain ruling restated (it is one sheet of glass, and a grainy
+  // rectangle on a clean ground is an arrangement no physical screen has).
+  // So the pass moved down past the overlay, exactly where the grain sits, and
+  // stayed ABOVE the scanlines, the sheet and the grain, because those are
+  // COVERAGE and everything under them is light the coverage gates.
+  bool accumLive = false;
+  {
+    int gw = 0, gh = 0;
+    const bool inGlass = wantPrevFrame && enterGlassSpace(&gw, &gh);
+    if (inGlass) {
+      if (trailMs > 0.0f) {
+        ensureAccumTexture(gw, gh);
+        if (accumTexture) {
+          const uint64_t now = SDL_GetTicks();
+          const uint64_t accumT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
+          const float dt = static_cast<float>(now - accumLastFadeMs);
+          SDL_Texture *restore = SDL_GetRenderTarget(sdl_renderer);
+          SDL_SetRenderTarget(sdl_renderer, accumTexture);
+          // dst *= 10^(-dt/trail), expressed as a blend against black. This is
+          // the SAME curve the single-ghost version used; it is just applied to
+          // a running sum instead of to one frame.
+          if (dt > 0.0f) {
+            const float keep = SDL_powf(10.0f, -dt / trailMs);
+            const int drop = static_cast<int>((1.0f - keep) * 255.0f + 0.5f);
+            if (drop > 0) {
+              SDL_SetRenderDrawBlendMode(sdl_renderer, SDL_BLENDMODE_BLEND);
+              SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0,
+                                     static_cast<Uint8>(SDL_min(255, drop)));
+              SDL_RenderFillRect(sdl_renderer, nullptr);
+              // The scalar shadow of that fill: see src/TrailLifetime.h. It is
+              // stepped with the SAME `drop` the texture just took, so it stays
+              // a valid upper bound however the present cadence wanders.
+              accumPeakBound = trail::fadePeakBound(accumPeakBound, drop);
+              // THE CLOCK ADVANCES ONLY WHEN THE FADE ACTUALLY APPLIED, and
+              // this used to be an unconditional `accumLastFadeMs = now` above
+              // the drop computation. `drop` is a ROUNDED 8-bit alpha, so a
+              // present that lands less than about 1 ms after the last one
+              // rounds it to zero -- and the old placement then threw that
+              // millisecond away. Nothing decayed and the elapsed time could
+              // never be recovered, so a trail driven by a fast enough present
+              // loop simply stops fading.
+              //
+              // It cannot happen at 60 Hz (dt 16 ms gives drop 8 on the shipped
+              // 1095 ms trail) which is why it has never been seen, and it is
+              // precisely what raising the refresh rate walks toward: at 120 Hz
+              // drop is 4-5, and every further doubling halves it again.
+              // Leaving the clock alone lets dt accumulate until the fade is
+              // representable, which is both correct and MORE accurate -- one
+              // larger multiply rounds once where several small ones round
+              // several times.
+              accumLastFadeMs = now;
+            }
+          }
+          // THE DEPOSIT IS THE GLASS THAT WAS THERE, as intensity. Only if a
+          // capture has actually landed and is the size of the buffer it is
+          // going into: a STREAMING texture's contents are undefined until
+          // written, and depositing one anyway put garbage into the accumulator
+          // at the exact moment the owner picked a phosphor.
+          //
+          // MAXIMUM, NOT ADD -- and this is S-016. A pixel lit in two frames is
+          // one phosphor being re-excited, not two emitters stacked, so it
+          // cannot exceed full emission. The deposit kept summing, and with a
+          // long trail (P7 at 2828 ms, content changing every 100 ms) the
+          // running sum tends toward roughly 12x a single page -- precisely the
+          // owner's report that it was "the long persistence ones".
+          //
+          // Same fallback shape as the composite: if the renderer cannot
+          // compose MAXIMUM, take ADD at reduced strength rather than nothing,
+          // because half a trail beats no trail.
+          // ONCE PER CAPTURED GLASS, not once per content change. An
+          // ANTIALIASED PAGE IS WRITTEN TWICE -- a 1-bit base pass, then the
+          // composed one 13-22 ms later -- so the seq moves twice per page
+          // turn, and the second of those arrives while the beam is still
+          // sweeping and therefore before a new capture has been taken. Without
+          // this the same picture is deposited twice, which on a renderer
+          // without MAXIMUM (see the blend report below) DOUBLES it: measured,
+          // the integrated trail energy of two runs of the same binary differed
+          // by 4x depending on whether the second write landed inside the
+          // sweep.
+          //
+          // It is also the more honest model. The 1-bit pass is never presented
+          // at all -- the present hold coalesces it, which is what the page-turn
+          // flash work bought -- and a frame that never reached the glass
+          // cannot have left phosphor on it.
+          static uint64_t depositedGlassSeq = 0;
+          static bool everDeposited = false;
+          const bool freshGlass = !everDeposited || depositedGlassSeq != glassSeq;
+          const bool canDeposit = contentChanged && glassHasPicture &&
+                                  freshGlass && glassIntensityTexture &&
+                                  glassW == gw && glassH == gh;
+          if (canDeposit) {
+            static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
+                SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
+                SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE,
+                SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+            SDL_Texture *deposit = glassIntensityTexture;
+            const bool gotMax =
+                depositMax != SDL_BLENDMODE_INVALID &&
+                SDL_SetTextureBlendMode(deposit, depositMax);
+            if (!gotMax) {
+              SDL_SetTextureBlendMode(deposit, SDL_BLENDMODE_ADD);
+              SDL_SetTextureAlphaMod(deposit, 96);
+            } else {
+              SDL_SetTextureAlphaMod(deposit, 255);
+            }
+            // SAID ONCE, AND WORTH THE LINE. Measured 2026-08-26: SDL's
+            // SOFTWARE renderer -- the desktop canary and the Mac apps -- does
+            // not compose SDL_BLENDOPERATION_MAXIMUM, so it takes the ADD
+            // fallback here and at the composite, while the phone's Metal
+            // backend takes MAXIMUM. That is not a cosmetic difference: ADD
+            // BRIGHTENS a pixel the old frame and the new one both lit, and
+            // MAXIMUM leaves it alone. Every trail-brightness figure ever
+            // measured on this machine is therefore the fallback path, and a
+            // page that brightens under a trail on the desktop is expected
+            // rather than a bug. Without this line the two platforms look like
+            // the same code disagreeing about arithmetic.
+            static bool saidDeposit = false;
+            if (!saidDeposit) {
+              saidDeposit = true;
+              SDL_Log("[accum] deposit blend: %s",
+                      gotMax ? "MAXIMUM" : "ADD fallback (no MAXIMUM here)");
+            }
+            SDL_SetTextureColorMod(deposit, 255, 255, 255);
+            SDL_RenderTexture(sdl_renderer, deposit, nullptr, nullptr);
+            accumLastAddMs = now;
+            depositedGlassSeq = glassSeq;
+            everDeposited = true;
+            // FULL SCALE, unconditionally, and not the panel's brightest tone.
+            // The deposit is MAXIMUM of an 8-bit texture so 255 is the true
+            // ceiling, and the ADD fallback a line above can saturate there
+            // outright.
+            accumPeakBound = 255.0f;
+          }
+          SDL_SetRenderTarget(sdl_renderer, restore);
+          // Still emitting? A deposit is spent once it has decayed below one
+          // 8-bit step, which is 10^-2.4 trails. Past that the accumulator is
+          // black and asking for more frames would be a permanent render loop.
+          // AND ONLY ON A GROUND THAT SHOWS IT. A pale page draws no trail at
+          // all (see the draw below), so keeping the accumulator "live" there
+          // bought ~30 presents per redraw for a picture identical to the last
+          // one. Measured by the audit; it is pure waste and it is also
+          // battery.
+          //
+          // ...AND ONLY WHILE IT CAN STILL CHANGE A PIXEL. src/TrailLifetime.h
+          // has the argument; the short version is that 2.4 trails is the decay
+          // to one 8-bit step against BLACK, and the accumulator is composited
+          // MAXIMUM over a page whose darkest tone is the PAPER. On the shipped
+          // dark pair the paper is 8% of the ink, so the last 1.4 of those
+          // trails were presents that could not move a pixel -- measured, 15
+          // consecutive byte-identical frames, 64% of the trail's wall time.
+          //
+          // The 2.4 stays as a backstop so this can only ever shorten the loop,
+          // never lengthen it: a palette whose paper is pure black makes
+          // invisibleAtOrBelow() zero, and without the backstop that is a
+          // render loop with no end.
+          accumLive = panelIsDarkGround() && accumLastAddMs != 0 &&
+                      accumPeakBound > trailInvisibleAtOrBelow() &&
+                      static_cast<float>(now - accumLastAddMs) < trailMs * 2.4f;
+          if (timingLogWanted()) {
+            timingFrame.accum.built = canDeposit;
+            timingFrame.accum.served = !canDeposit;
+            timingFrame.accum.ms =
+                static_cast<double>(SDL_GetTicksNS() - accumT0) / 1.0e6;
+          }
+        }
+      } else if (accumTexture) {
+        // Glow turned off: drop the buffer rather than keep paying for it.
+        SDL_DestroyTexture(accumTexture);
+        accumTexture = nullptr;
+        accumW = accumH = 0;
+        accumLastAddMs = 0;
+      }
+
+      // CAPTURE, once per new picture and never during a sweep. See
+      // captureGlass for the three rules; the one that is easy to lose is that
+      // a capture taken on the content-change present itself, with the beam
+      // running, records mostly the OLD page and hands it back as if it were
+      // the new one.
+      // A SIZE CHANGE OVERRIDES THE SWEEP GATE. Rule 2 holds the capture back
+      // while the beam runs, and on a rotation or a window resize mid-sweep
+      // that starved it: the beam went on stretching an old-sized
+      // glassPrevTexture NEAREST across the new output, and because the deposit
+      // requires glassW == gw that page's phosphor was skipped outright. So a
+      // mismatched size captures immediately and ABANDONS the sweep with it --
+      // there is no coherent old picture to sweep from once the glass has
+      // changed shape, and a half-swept capture is the lesser evil only while
+      // the two agree.
+      const bool glassSizeStale = glassW != gw || glassH != gh;
+      if ((!beamSweeping || glassSizeStale) &&
+          (!glassHasPicture || glassSeq != presentedSeq || glassSizeStale)) {
+        const uint64_t capT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
+        if (glassSizeStale) beamStartedAt = 0;
+        if (captureGlass(gw, gh)) glassSeq = presentedSeq;
+        if (timingLogWanted()) {
+          timingFrame.glass.built = true;
+          timingFrame.glass.ms =
+              static_cast<double>(SDL_GetTicksNS() - capT0) / 1.0e6;
+        }
+      } else if (timingLogWanted()) {
+        timingFrame.glass.served = glassHasPicture;
+      }
+
+      // THE ACCUMULATOR GOES ON TOP, which is what a phosphor does: everything
+      // written recently is still emitting while the new frame is drawn over
+      // it. 1:1 in device pixels -- it was captured in this space, so it lands
+      // where the light was actually emitted, which is what lets a ghost stay
+      // put when the page itself moves (zen, a keyboard coming up).
+      //
+      // This draws the SUM of every recent frame, not the last one. Flipping
+      // ten pages in a second leaves ten deposits in there, each already faded
+      // by its own age.
+      if (presentLogWanted())
+        SDL_Log("[accum] trail %.0f live=%d tex=%d changed=%d lastAdd=%llu",
+                trailMs, (int)accumLive, accumTexture ? 1 : 0,
+                (int)contentChanged, (unsigned long long)accumLastAddMs);
+      if (accumLive && accumTexture) {
+        const bool darkGround = panelIsDarkGround();
+
+        // A PHOSPHOR ADDS LIGHT, and the accumulator is a buffer OF LIGHT:
+        // black wherever nothing has been emitted. That composites one way and
+        // one way only -- additively, onto a dark ground.
+        //
+        // IT USED TO CROSS-DISSOLVE ON A PALE GROUND, and that was wrong from
+        // the moment this became an accumulator (build 90). The single-ghost
+        // version it replaced held a real PICTURE -- the previous frame, paper
+        // and all -- so blending it over a pale page was a sensible dissolve.
+        // The accumulator holds light on black, so blending it at alpha 128
+        // over a pale page draws 50% BLACK across the whole sheet: the page
+        // turns gray and the previous page's text hangs there inside it.
+        // Reported from the phone with a screenshot, on the CRT schemes in
+        // light mode.
+        //
+        // So on a pale ground there is no trail at all. That is not a
+        // regression against the pre-accumulator behaviour so much as an
+        // admission of what the comment here already said: a glowing page is a
+        // dark-ground idea, and adding light to white paper cannot express it.
+        if (!darkGround) {
+          accumLive = false;
+        } else {
+          // MAXIMUM, NOT ADD -- and this is the difference between a trail and
+          // a flash.
+          //
+          // Measured on screen: with ADD, the frame at a page turn is the
+          // arithmetic SUM of the old page and the new one. 99.77% of the page
+          // is brighter than either, and |frame - (old+new)| averages 0.11 of a
+          // level. Mean page luminance jumped 38.6 -> 71.8, +86%, decaying over
+          // a second. That is the flash the owner reported, and it survived the
+          // double-draw fix because ADD was doing it honestly all along.
+          //
+          // The physics were wrong, not the arithmetic. A pixel lit in BOTH
+          // frames is one phosphor being re-excited, not two emitters stacked
+          // -- it cannot exceed full emission. Summing says otherwise and
+          // doubles the page. Taking the MAXIMUM is the saturating model.
+          //
+          // SDL_BLENDOPERATION_MAXIMUM ignores the blend factors, so the
+          // accumulator is composited unscaled. If a renderer cannot compose it
+          // (the call fails), fall back to ADD at reduced strength rather than
+          // to nothing: half a trail beats a flash.
+          static SDL_BlendMode maxBlend = SDL_ComposeCustomBlendMode(
+              SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM);
+          const bool gotMax =
+              maxBlend != SDL_BLENDMODE_INVALID &&
+              SDL_SetTextureBlendMode(accumTexture, maxBlend);
+          if (!gotMax) {
+            SDL_SetTextureBlendMode(accumTexture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(accumTexture, 96);
+          } else {
+            SDL_SetTextureAlphaMod(accumTexture, 255);
+          }
+          static bool saidComposite = false;
+          if (!saidComposite) {
+            saidComposite = true;
+            SDL_Log("[accum] composite blend: %s",
+                    gotMax ? "MAXIMUM" : "ADD fallback (no MAXIMUM here)");
+          }
+        }
+
+        // A CASCADE PHOSPHOR CHANGES COLOUR AS IT DIES, and with an accumulator
+        // that is an APPROXIMATION and is marked as one: the buffer holds
+        // deposits of many ages mixed together, and one colour multiply cannot
+        // give each its own point on the ramp. It is driven by the age of the
+        // NEWEST deposit, which is the one carrying most of the brightness.
+        // Getting this exact needs two accumulators running at the two layers'
+        // decay rates -- the honest model of what a cascade physically is --
+        // and that is worth doing if this ever looks wrong.
+        //
+        // ONLY ON THE ADDITIVE PATH: on pale paper the same multiply hits the
+        // paper too and the whole decaying frame washes green, which is a
+        // stain, not a longer-lived layer.
+        //
+        // THE ACCUMULATOR HOLDS INTENSITY, so the colour mod is what paints the
+        // trail -- and its ramp starts at the live INK, not white. A coloured
+        // deposit could not work: the recolour is a multiply and a multiply can
+        // only remove channels, so green ink times an orange tail is olive,
+        // never orange, and a mixed page's fade could never change hue toward
+        // the surviving phosphor (owner report 2026-08-21, P46+P33).
+        const uint32_t tail = glowTailTint.load();
+        const PanelPalette livePal = livePanelPalette(display.isInverted());
+        Uint8 mod[3] = {255, 255, 255};
+        if (darkGround) {
+          for (int c = 0; c < 3; c++) mod[c] = livePal.ink[c];
+          if (tail != kNoGlowTail) {
+            const float age =
+                static_cast<float>(SDL_GetTicks() - accumLastAddMs);
+            // The handover happens when the FAST phosphors die, not at the end
+            // of the whole fade: for the reported mix that is ~17 ms into 2828,
+            // so the ramp runs over the published ONSET when one exists.
+            // Presets that never set one (onset 0) keep the old whole-trail
+            // timing.
+            const float onset = glowTailOnsetMs.load();
+            float t = onset > 0.0f
+                          ? age / onset
+                          : (trailMs > 0.0f ? age / trailMs : 1.0f);
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+            for (int c = 0; c < 3; c++) {
+              const float target =
+                  static_cast<float>((tail >> (16 - 8 * c)) & 0xFF);
+              mod[c] = static_cast<Uint8>(
+                  (1.0f - t) * static_cast<float>(mod[c]) + t * target + 0.5f);
+            }
+          }
+        }
+        SDL_SetTextureColorMod(accumTexture, mod[0], mod[1], mod[2]);
+        if (presentLogWanted())
+          SDL_Log("[accum2] darkGround=%d drawn=%d age=%u", (int)darkGround,
+                  (int)accumLive,
+                  (unsigned)(SDL_GetTicks() - accumLastAddMs));
+        if (accumLive) {
+          const SDL_FRect full = {0.0f, 0.0f, static_cast<float>(gw),
+                                  static_cast<float>(gh)};
+          // CLIPPED TO THE SWEPT BAND WHILE THE BEAM RUNS, and this is not a
+          // detail. Below the beam line the glass still holds the PREVIOUS
+          // frame -- the raster has not repainted it yet -- and that frame
+          // already showed whatever trail it showed at the time. Compositing
+          // this present's accumulator over it would light the old picture a
+          // second time, and on a renderer without MAXIMUM (the desktop, see
+          // the blend report above) the ADD fallback then BRIGHTENS the whole
+          // un-swept region by up to 18% for the length of the sweep.
+          // Measured: the un-swept band came back as the previous page's exact
+          // pixel histogram with every level scaled by 1.175.
+          SDL_Rect band = {0, 0, gw,
+                           static_cast<int>(static_cast<float>(gh) *
+                                            beamProgress)};
+          if (beamSweeping) SDL_SetRenderClipRect(sdl_renderer, &band);
+          SDL_RenderTexture(sdl_renderer, accumTexture, nullptr, &full);
+          if (beamSweeping) SDL_SetRenderClipRect(sdl_renderer, nullptr);
+          // A fade only animates if something presents while it fades, and the
+          // firmware will not: an e-ink reader draws a page and stops. So the
+          // trail asks for its own next frame, and stops asking the moment it
+          // is done -- which is what keeps this from becoming a permanent
+          // render loop.
+          pendingPresent.store(true);
+        }
+      }
+      leaveGlassSpace();
+    } else {
+      if (accumTexture) {
+        // Neither effect is on any more (or the glass has no size): drop the
+        // buffer rather than keep paying for it.
+        SDL_DestroyTexture(accumTexture);
+        accumTexture = nullptr;
+        accumW = accumH = 0;
+        accumLastAddMs = 0;
+        accumPeakBound = 0.0f;
+      }
+      // enterGlassSpace() DISABLES logical presentation before it can fail, so
+      // a zero-sized output would otherwise leave the letterbox path off for
+      // the rest of this present. The passes below each restore it anyway; this
+      // is the belt, and it costs one call on a path that never runs.
+      if (wantPrevFrame) leaveGlassSpace();
+    }
   }
 
   // THE GRAIN GOES ON LAST -- and "last" now means after the OVERLAY too, over
@@ -3661,11 +3948,12 @@ void HalDisplay::presentIfNeeded() {
     };
     static int n = 0;
     SDL_Log("[timing] #%d total %.2f ms | upload %s %.2f | accum %s %.2f | "
-            "panel %s %.2f | sheet %s %.2f | "
+            "glass %s %.2f | panel %s %.2f | sheet %s %.2f | "
             "scanlines %s %.2f | grain %s %.2f | readback %s %.2f | "
             "flip %.2f",
             ++n, total, tag(timingFrame.upload), timingFrame.upload.ms,
             tag(timingFrame.accum), timingFrame.accum.ms,
+            tag(timingFrame.glass), timingFrame.glass.ms,
             tag(timingFrame.letterpress),
             timingFrame.letterpress.ms, tag(timingFrame.sheet),
             timingFrame.sheet.ms, tag(timingFrame.scanlines),

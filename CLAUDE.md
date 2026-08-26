@@ -29,6 +29,8 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | What is missing from the surface model, and what did the owner rule? | [docs/surface-roadmap.md](docs/surface-roadmap.md) — including its **Standing rulings, 2026-08-23** section |
 | The light page: inks, papers, density, the frozen sheet | [docs/light-ink-picker.md](docs/light-ink-picker.md) · marks: [docs/paper-defects.md](docs/paper-defects.md) · stock colorimetry: [docs/paper-colorimetry-sources.md](docs/paper-colorimetry-sources.md) · ink sources: [docs/ink-colorimetry-sources.md](docs/ink-colorimetry-sources.md), [docs/ink-palette-research.md](docs/ink-palette-research.md) |
 | The dark page: phosphors, glow, the tube | [docs/crt-phosphor-presets.md](docs/crt-phosphor-presets.md) · [docs/phosphor-mixer.md](docs/phosphor-mixer.md) · [docs/crt-beam-and-flash.md](docs/crt-beam-and-flash.md) · [docs/power-off-collapse.md](docs/power-off-collapse.md) · which phosphors ship and why: [docs/phosphor-shortlist-2026-08-18.md](docs/phosphor-shortlist-2026-08-18.md) |
+| Which CRT effect covers the PANEL and which covers the whole SCREEN | [docs/whole-glass-crt.md](docs/whole-glass-crt.md) — the enumeration, and why persistence and the beam moved out past the page's edge |
+| What a phosphor trail costs, and what it was spending it on | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) |
 | One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
 | Zen mode's geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
@@ -233,6 +235,35 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   ruling 2026-08-18 rules out the alternatives: no bloom or halation (costs
   legibility), no scanlines (a raster artifact, not a phosphor one). Full
   writeup: [docs/phosphor-grain.md](docs/phosphor-grain.md).
+- **PERSISTENCE AND THE BEAM ARE PRESENT-TIME PASSES TOO, in device pixels, over
+  the whole app surface** -- since 2026-08-26, owner: *"apply persistence and
+  other crt effects equally to paper and panel."* That is the grain ruling
+  applied to the light the coverage gates. The accumulator is sized to the
+  OUTPUT and fed by the **composed glass** (page, letterpress, pad, surround),
+  captured once per new picture by a readback taken after the overlay and BEFORE
+  the accumulator is drawn -- a capture that included the trail would deposit the
+  trail into itself and nothing would ever decay. Three rules make the capture
+  honest and each cost a wrong reading first: not while the beam is sweeping (a
+  half-swept frame records mostly the OLD page and hands it back as the new one),
+  once per `pixelBufSeq`, and **deposited once per captured glass** -- an
+  antialiased page is written twice and the second write lands inside the sweep,
+  which double-deposited the same picture and moved the trail's energy by 4x run
+  to run. The pass sits where the grain sits, past the overlay and above the
+  scanlines, the sheet and the grain. It costs LESS than the panel-space version
+  it replaced (544 -> 434 ms of CPU per dark page turn) because the draw is an
+  axis-aligned 1:1 blit rather than a rotated one, and because the whole
+  `ghostPixels` / `ghostTexture` apparatus is gone. The enumeration of which
+  effect is panel-space and which is output-space, and the road not taken:
+  [docs/whole-glass-crt.md](docs/whole-glass-crt.md).
+- **The desktop composites the trail with ADD, not MAXIMUM, and the phone does
+  not.** Measured 2026-08-26: SDL's software renderer -- the canary and all three
+  packaged Mac apps -- cannot compose `SDL_BLENDOPERATION_MAXIMUM`, so the
+  deposit and the composite both take the documented ADD-at-alpha-96 fallback,
+  while Metal takes MAXIMUM. ADD BRIGHTENS a pixel two frames both lit; MAXIMUM
+  leaves it alone. So every trail-brightness figure ever measured on this machine
+  is the fallback path, a page that brightens under a trail here is expected
+  rather than a bug, and S-016's saturating model only actually takes effect on
+  the phone. Two one-shot `[accum] ... blend:` lines now say which is live.
 - **Inversion changes re-present from a cached frame.** `setInverted` posts an atomic reconvert request that `presentIfNeeded` (main thread) services from the cached BW base and grayscale AA planes — inversion applies at 1bpp→ARGB conversion time, and e-ink firmware refreshes rarely, so without this a dark-mode flip would wait for the next page turn. `SimulatorOverlay::setPanelDark` is the single polarity entry point: the iOS harness follows the system appearance through it, and `CROSSPOINT_SIM_DARK=1/0` forces either state for headless runs. Book covers/images render as negatives in dark mode; accepted for now.
 - **POSIX fds, not std::fstream, in [src/HalStorage.cpp](src/HalStorage.cpp).** This was a deliberate rewrite. fstream's separate get/put pointers, eofbit-blocks-seek behavior, and write-only seek restrictions caused several silent-corruption bugs. Do not reintroduce fstream here. All paths are prefixed with `./fs_` so the simulated filesystem stays sandboxed under the binary's working directory; `/books/` on the SD card maps to `./fs_/books/`. Directory iteration skips only `.` and `..` — dotfiles ARE returned, matching SdFat on device (an earlier version of this file claimed all dot-entries were skipped; the firmware does its own hidden-file filtering, and the Manage Files screen deliberately lists them).
 - **Seed fonts are block-compressed, and `HalFile` is where that is hidden.**
@@ -617,8 +648,8 @@ the desktop. The rightmost column says which each one is.
 | Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). **FROZEN OFF (0) since 2026-08-23** — a Settings row was shipped so the owner could judge it on glass and he correctly reported "nothing is being rendered in any corners": at the shipped 2 px scanline pitch the field it modulates is 5/255 deep at the centre and 0 at the corner, so there was nothing there to defocus. The model, its test and its doc all stand; re-enabling is this one number, and returning 0 gave back ~42 ms per dark page turn | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture` in `src/SurfaceTube.cpp`; `CROSSPOINT_SIM_CORNER_DEFOCUS`; `CrossPointPrefs_cornerDefocusPercent()` returns 0 | `docs/corner-defocus.md` |
 | Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. The picture is the PAGE that was on the glass, not the sleep screen (owner 2026-08-24) — the sleep screen's present is dropped and a copy of the reading page is kept for the source. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` in `src/SurfacePower.cpp` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
 | BZZT THONK power-on warm-up — the OTHER HALF of that same row, no second control. Fires only where the collapse actually switched the tube off (a recorded state, not a wake event): dot relit → flicker + crackle with the line punching out in steps → raster slams open, overshoots into overscan, bounces, lands → 6% sag and back to exactly nominal. 395 ms, DARK only, skippable on any press DOWN | `src/PowerOnWarmUp.h`, composited by `simpower::compositeWarmUp()` in `src/SurfacePower.cpp`, called from `HalDisplay::presentIfNeeded`; armed by `CROSSPOINT_SIM_TUBE_OFF` (set by the collapse), QA hatch `CROSSPOINT_SIM_POWERON_WARMUP` | `docs/power-off-collapse.md` |
-| Beam paint (0/17/33/67/150/300 ms) | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md` |
-| Phosphor trail + cascade afterglow | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md` |
+| Beam paint (0/17/33/67/150/300 ms) — sweeps the WHOLE GLASS, page then pad, since 2026-08-26 | `src/HalDisplay.cpp`, set via `SimulatorOverlay::setBeamPaint` | `docs/crt-beam-and-flash.md`, `docs/whole-glass-crt.md` |
+| Phosphor trail + cascade afterglow — an OUTPUT-space accumulator fed by the composed glass since 2026-08-26, so the surround and the pad glow too and a ghost stays where the light was emitted when the page moves | `panelpalette::trailMsForPreset`, `setPanelGlow`/`setPanelGlowTail` | `docs/crt-phosphor-presets.md`, `docs/crt-beam-and-flash.md`, `docs/whole-glass-crt.md` |
 
 **Two of the three 2026-08-23 items are frozen and one is a row, and that split
 is the ruling in miniature.** Show-through and corner defocus each have one
