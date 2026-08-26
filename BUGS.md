@@ -262,6 +262,107 @@ different pieces of code and the report as it stands fits all three.
 
 ## FIXED
 
+### [S-023] Speak Screen goes permanently deaf at the first reboot of a session — FIXED 2026-08-26
+**severity: high · scope: ios read-aloud / accessibility · owner report from the phone 2026-08-26**
+
+Owner, verbatim: *"'no speakable content could be found on the screen' error is
+happening again"*, then the correction that dated it: *"it was broken before
+today."* He sent his device's `a11y.log`, which is decisive and rules out the
+2026-08-09 shape (iOS never asking) outright:
+
+```
+[    87.0] 69 word rects -> 14 line elements; first "summer and never got home."
+[   112.2] 43 word rects -> 9 line elements; first "Chapter 1 — Port Talon"
+[  1401.9] page cleared (reader left)
+[  3738.5] CHAIN wants=1 page=0B rects=0 fb=0B geo=1 view=1 inWindow=1 elements=0
+[  3746.0] TEXTINPUT scroll next -> page turn
+[  3748.5] CHAIN wants=1 page=0B rects=0 fb=0B ... elements=0
+```
+
+iOS **is** asking (`scroll next` fired and turned the page), the view is
+installed and in the window — the app simply has nothing, on both sources, from
+t=3738 to the end of the session, on a book that was healthy at t=112.
+
+**What broke.** One flag with two writers that had drifted apart, across a
+boundary that resets one of them and not the other.
+
+`ios/CrossPointReadAloud.mm` seeded the firmware's capture flag in **two**
+places. `CrossPointReadAloud_begin()` seeded it from
+`CrossPointPrefs_readAloudEnabled()`, which was right until capture became
+unconditional on the phone (build 42, the fix for the *previous* incarnation of
+this same message) and was never updated with it — a Speak Screen user leaves
+the Read Aloud (Experimental) toggle OFF, so begin() seeded **false** on every
+boot. `CrossPointReadAloud_perFrame()` then corrected it to true, but only on
+the edge `g_lastCaptureWanted != 1`.
+
+On the first boot that edge fires and the chain is healthy. The iOS reboot is a
+`longjmp` back into `setup()` in the same process:
+
+| | what happens |
+|---|---|
+| boot 1 | begin() seeds `false`; perFrame's edge fires and sets it TRUE. Healthy. |
+| REBOOT | `simreset::runAll()` → `ReadAloudChannel::resetForReboot()`, which deliberately leaves `wanted_` alone ("the consumer re-seeds it"). Every static in the adapter survives — `g_lastCaptureWanted` at 1. |
+| boot 2 | `CrossPointHarness_begin()` → `CrossPointReadAloud_begin()` seeds `false` **again**. perFrame's edge is already satisfied, so nothing ever sets it back. |
+
+`HalGPIO::readAloudCaptureWanted()` is then false for the life of the process,
+`EpubReaderActivity::captureReadAloudPage` returns at its first line, and
+nothing is ever published — which is also why `fb=0B`: the textless-page
+fallback (`g_fallbackUtf8`) is only computed inside the drain's `if (got)`
+block, so a channel that never delivers starves the substitute as well. One
+root, both halves of his log.
+
+Every file transfer, every font download and every sleep/wake crosses that
+boundary, so the phone reaches boot 2 in the course of ordinary use. His gap was
+39 minutes.
+
+**Reproduced and fixed, both arms measured on an iPhone Air simulator
+(`crosspoint-x3-air`), 2026-08-26**, same script both times — open the book,
+turn pages, POWER-hold to sleep, POWER-tap to wake (the longjmp), turn pages
+again:
+
+| | before the reboot | `[power] longjmp reboot` | after |
+|---|---|---|---|
+| pre-fix build | `page=746B rects=151`, `790B/165`, `780B/156` | crossed | `page=0B rects=0 fb=0B` at +0.0 s, +5 s, +10 s, +15 s, across two page turns |
+| fixed build | `page=812B rects=158 elements=22` | crossed | `page=812B rects=158 elements=22`, then `746B/151` after a turn |
+
+The `[READALOUD] page capture wanted (always, on iOS)` line is its own
+discriminator: it prints **once** in the pre-fix run and **twice** — once per
+boot — in the fixed one.
+
+**The fix, and why it is two changes rather than one.** Registering the static
+would have fixed the instance; both were taken because the class is what keeps
+coming back.
+
+* `CrossPointReadAloud_begin()` seeds `true` unconditionally, joining the
+  `g_last*` re-arm list that `g_lastEnabled` and `g_lastRatePercent` were
+  already in. It must stay in begin() rather than moving to a reset registrar:
+  begin() runs *before the first `loop()`*, and a book resumed at boot renders
+  its first page inside that iteration.
+* `perFrame` pushes the flag **every frame** instead of behind the edge. The
+  setter is one atomic store (`ReadAloudChannel::setWanted`), so the guard was
+  buying nothing measurable and cost this; the static now throttles only the
+  log.
+
+**Held by `tests/readaloud_reboot_seed_test.py`**, which fails on all three of
+its properties against the pre-fix file. Its third assertion is the general one:
+every `int g_last* = -1;` edge cache declared in the adapter must be re-armed in
+`begin()`. Source-level because the live check needs UIKit, a booted phone and a
+reboot mid-run — see `docs/speak-screen-chain.md` for that run.
+
+**Audited for siblings and found clean.** Nine other edge-cached statics cross
+the same boundary (`g_appliedDark`/`Outline`/`Fill`, `pollBeamPaint`,
+`pollPageFade`, `pollPanelGlow`, `pollLetterpress`, `pollPaperTooth`,
+`pollScanlines`). None has this bug, and the reason is precise rather than
+lucky: the read-aloud flag is the only one whose *mirrored state is actively
+re-written on the far side of the boundary*. `gDisplayRebootReset` does not
+touch the surface dials — they are atomics in `HalDisplay` that survive the
+longjmp — so a stale poll edge is suppressing a push of a value that is already
+applied. `applyTheme()` writes `g_appliedDark` unconditionally on every
+`CrossPointHarness_begin()`, so the appearance edge is re-armed by construction.
+`fontFamilyStepChannel` has no wanted flag and no consumer-side edge at all.
+**A stale edge is only a bug where something else resets what it mirrors** — that
+is the shape to look for, not the static by itself.
+
 ### [S-020] A gun moved in dark mode throws away the light page's chosen ink — FIXED 2026-08-23
 **severity: high · scope: ios palette sourcing · owner P1 from the phone 2026-08-23**
 

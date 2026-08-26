@@ -198,6 +198,17 @@ run font_family_step \
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 
+# S-023, and the one link of the Speak Screen chain no C++ test here can reach:
+# the iOS adapter's own boot path. Its reboot is a longjmp, so every static in
+# ios/CrossPointReadAloud.mm survives while the channel flag they mirror is
+# re-seeded -- and the pref-derived seed in begin() plus a surviving edge cache
+# in perFrame left capture OFF for the rest of the process. The owner's
+# a11y.log, 2026-08-26: healthy at t=112, `page=0B rects=0 fb=0B` from t=3738.
+# Source-level because the live check needs UIKit, a booted phone and a reboot
+# mid-run; it fails on all three of its properties against the pre-fix file.
+run_direct readaloud_reboot_seed \
+  python3 tests/readaloud_reboot_seed_test.py
+
 # SimulatorLifecycle.cpp is compiled in so the millis-rebase registrar it
 # registers is the REAL one the test's runAll() exercises (same trick as
 # restart_semantics below).
