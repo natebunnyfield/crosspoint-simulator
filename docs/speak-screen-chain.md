@@ -515,3 +515,168 @@ Style** — not our geometry. The path from there to the enum values is in §7
 above.
 
 No code changed for this, and none should.
+
+---
+
+## 8. "It is happening again" — 2026-08-26, and the report is NOT about today
+
+Owner, 2026-08-26: *"'no speakable content could be found on the screen' error
+is happening again"*, and then, correcting the framing: **"it was broken before
+today."** Build 132 (2026-08-23) is where he reported the opposite —
+*"reading works. though it seems to have an underlining"* (§7) — so the window
+is builds 133–143 and the report is a RECURRENCE, not a first failure.
+
+**It was not reproduced.** Everything below is either a measurement or a defect
+found by reading, and the two are labelled apart, because the standing rule
+after 2026-08-09 is that a second failure gets instrumentation rather than
+another plausible patch.
+
+### Measured healthy on HEAD (`a8def02`), and none of it explains the report
+
+| Checked | Result |
+|---|---|
+| `tests/run_all.sh` | 55/55 before the change, 56/56 after |
+| `tests/test_read_aloud_capture.sh` against firmware `57bb08721` | PASS — links 1–2 end to end, 14 rects containing their word's ink |
+| CHAIN on body pages, iPhone Air sim, iOS 26.5, real `SpeakThisEnabled` | healthy and identical in shape to §4: `page=520B rects=94 fb=0B geo=1(34,85 x0.667) view=1 frame=(34,85 352x528) inWindow=1 elements=16` |
+| CHAIN on front matter and on the cover | `page=0B rects=0 fb=43B view=1` — the cover fallback still fires |
+| `tools/axprobe`, all four tests | PASS, including the SHIPPED branch: 520 characters served to Apple's own out-of-process channel |
+| A sleep entry from inside the reader | chain unchanged across it (`view=1 inWindow=1`) up to the deep-sleep loop |
+
+**Today's commits are ruled out as the cause and the bisect was abandoned on the
+owner's correction, not on evidence** — worth saying plainly so nobody reads the
+list below as cleared. What WAS read and found unrelated to the chain:
+`a8def02` (the trail upload skip and the two `CADisableMinimumFrameDuration`
+keys), `e21e078` + firmware `b959132a4` (the reading ledger, which publishes
+from `renderContents` beside `captureReadAloudPage` and does not disturb it),
+the three Tier 2 refactors, and firmware `01fbab3e4`'s screen identity. The
+a11y sources themselves have not changed since 2026-08-23.
+
+Also checked and CLEAN, so it is not re-derived: `readaloud::buildCapture`
+appends a rect on every append to `text`, so "text with no rects" — which
+`setPage` would turn into a `clear()` with no fallback, because
+`g_pageTextless` keys on empty TEXT — is unreachable. `readAloudEnabled`,
+`readAloudRatePercent` and `diagnosticsEnabled` all still read `NSUserDefaults`
+after the 2026-08-23 freeze pass (`2cace19` rewrote `CrossPointPrefs.mm` and
+left all three live) and all three rows are still in `Root.plist`. There is no
+`TARGET_OS_SIMULATOR` anywhere in `ios/` or `src/`, so device and simulator
+compile the same code.
+
+### Found by reading: THREE holes in the level-triggered self-heal
+
+The self-heal is the thing that makes this chain survive at all. The firmware
+publishes a page ONCE, when it renders it, and an e-ink reader can go minutes
+without rendering another — so anything lost between two page turns is invisible
+until the next one, and what the owner gets meanwhile is exactly the reported
+sentence over a page that is on the glass. That is why the 2026-08-09 fix made
+the check LEVEL-triggered. **It did not finish the job**, and all three
+remainders are silent, are unreachable from a healthy launch, and therefore
+passed every measurement in §4 and every one in the table above.
+
+1. **A page published before the container existed is dropped and never
+   retried.** Both push paths return early on `g_overlay == nil`, leaving
+   `g_builtMode` at `-1`, and `modeChanged()` read `-1` as "nothing built,
+   nothing stale" and returned false. The TEXT page survived it by accident,
+   because its caller also retried on an empty container. The **cover** could
+   not: a textless page publishes no line elements by design, so an empty
+   container is its correct steady state and cannot be its retry condition.
+   `modeChanged()` was its only retry. A cover whose first push was dropped
+   vended nothing for the rest of the session — which is the precise symptom
+   the cover fallback was written to end.
+2. **`keepFront()` could not recover the one loss that is reachable.**
+   `g_overlay` is `__weak` and its only strong reference is its superview, so
+   "removed from the window" and "the pointer reads nil" are the same instant —
+   which makes the `!overlay.superview` recovery branch **dead code** and made
+   the `if (!overlay) return;` early exit the live path. Nothing else recreates
+   the container; both push paths return early on a missing one. So a container
+   lost once, or never installed because `resolveWindow()` was not answerable at
+   `CrossPointHarness_begin()` time, stayed lost for the whole session.
+3. **"Does a page view object exist" is not "can anything reach it."** A page
+   view retained by a host that has itself been detached answers yes to the
+   first and no to the second; assistive technology traversing from the window
+   finds nothing while every log line says the view is there.
+
+### The fix, and where the decision now lives
+
+`src/ReadAloudExposure.h` — pure, host-tested by
+`tests/readaloud_exposure_test.cpp`, for the same reason `SpokenPageText.h` and
+`ReadAloudGeometry.h` beside it are: `ios/CrossPointAccessibility.mm` compiles
+only on a Mac, cannot be single-stepped on a phone, and every way this
+predicate can be wrong is a sentence spoken by iOS on somebody else's device.
+`modeChanged()` is retired for `CrossPointAccessibility_exposureOutOfStep()`
+and `_textPageOutOfStep()`, the second of which folds in the `hasElements()`
+term its caller used to have to remember — a caller that had to OR it in is
+exactly how the textless page ended up with a weaker heal than the text page.
+`keepFront()` reinstalls when the container is nil.
+
+Mutation-checked rather than trusted green: six of the test's assertions fail
+against the boolean it replaces, and the three marked `REGRESSION` are the three
+holes above.
+
+**Evidence it still works** — the same run that proves the fix changes nothing
+about the healthy path, through Apple's real out-of-process channel:
+
+```
+AXPROBE cover page-textinput value: "English Fairy Tales. This page has no text."
+AXPROBE staticTexts count: 16
+AXPROBE real-flag page-textinput value: 520 chars
+AXPROBE page-textinput frame=(34.0, 85.3, 352.0, 528.0) screen=(0.0, 0.0, 420.0, 912.0)
+** TEST SUCCEEDED **
+```
+
+and the live chain, with no rebuild storm (41 `[A11Y-FILE]` lines in a 40 s run,
+ten of them CHAIN):
+
+```
+CHAIN wants=1 page=26B rects=4 fb=0B geo=1(34,85 x0.667) view=1 frame=(34,85 352x528) inWindow=1 elements=2
+```
+
+The storm was worth checking and is the risk this predicate carries: it is asked
+every frame, and a rebuild re-adds a subview and posts
+`UIAccessibilityScreenChangedNotification`. A false positive here is not a
+wasted branch, it is a notification storm at the display rate aimed at the
+assistive technology the chain exists to serve. The first assertion in the test
+is that a healthy exposure is left alone.
+
+### A TRAP THAT COST A RUN, and it is in axprobe's own README
+
+The suite FAILED once mid-session with `staticTexts count: 0` and
+`cover page-textinput exists: false` — a perfect picture of the reported bug,
+produced entirely by **reading position**. Earlier scripted runs had walked the
+book past the point the cover test's ten `QTAP:LEFT` can recover, so it was
+measuring pages that legitimately have nothing on them. Reset before
+concluding anything:
+
+```bash
+D=<udid>; C=$(xcrun simctl get_app_container $D com.natebunnyfield.crosspoint.x3 data)
+rm -rf "$C/Documents/.crosspoint/epub_"*
+```
+
+This is the same class of mistake as §5's trap 4 and it now has a second entry
+in this document because it fooled a session that had already read the first.
+
+### WHAT TO ASK FOR FROM THE PHONE, and what each answer means
+
+The instrument for this is already shipped and needs no new build: **Settings.app
+→ CrossPoint X3 → Diagnostics Log**, then reproduce, then Files → On My iPhone →
+CrossPoint X3 → diagnostics → `a11y.log`. Read the CHAIN line at the moment of
+the failure; its shape names the link, and each of the three holes above has its
+own signature:
+
+| CHAIN at the moment of failure | What it means |
+|---|---|
+| `page=NNNB rects=NN ... view=0 ... elements=0` | hole 1 or 2 — the container was never installed or was lost, and nothing recreated it |
+| `page=0B rects=0 fb=0B` on a book page | the firmware captured nothing, i.e. links 1–3, not the exposure |
+| `page=0B rects=0 fb=0B` on a cover | the book could not be NAMED (`spokenpage::forPage` returned empty), so iOS reporting nothing is the truth; check `openEpubPath` against `recent.json` |
+| `view=1 ... inWindow=0` | hole 3 — the page view exists and nothing can reach it |
+| `wants=0` | Speak Screen is off as far as the app can tell; `UIAccessibilityIsSpeakScreenEnabled()` is the only input |
+| every link populated, `inWindow=1`, and NO `TEXTINPUT` line after the failed invocation | iOS never asked. That is the 2026-08-09 signature and nothing in this app can fix it |
+
+That last row is the one worth the trip: `CPPageTextInputView` logs
+`TEXTINPUT ... the UITextInput protocol is being consumed` on the first queries
+after each page change, so the log distinguishes "iOS asked and got nothing"
+from "iOS never asked" — which is still the one difference between this
+measurement and his phone that no simulator can settle (§3, §7).
+
+**Device-unconfirmed.** Nothing here was seen on a phone. Three defects were
+found and repaired; whether any of them is the one he hit is unknown, and the
+honest status is SHIPPED — UNCONFIRMED on device.

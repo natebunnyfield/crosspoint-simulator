@@ -56,17 +56,29 @@ void CrossPointAccessibility_setPage(const char *utf8, unsigned len,
 // publish(nullptr)), and a page still on screen keeps its element.
 void CrossPointAccessibility_setFallbackPage(const char *utf8, unsigned len);
 
-// True when the element set was built for a different Speak Screen state than
-// the current one -- the page-protocol element is included only while Speak
-// Screen is on, and toggling it mid-page must rebuild. The adapter re-pushes
-// the held page when this reports true.
-bool CrossPointAccessibility_modeChanged(void);
+// True when what assistive technology can reach is no longer what it should be,
+// so the adapter must re-push the page it is already holding. LEVEL-triggered
+// and asked every frame: the firmware publishes a page once, when it renders
+// one, and an e-ink reader can go minutes without rendering another -- so
+// anything lost in between is invisible until the next page turn, and what the
+// owner gets meanwhile is "No speakable content could be found on the screen"
+// over a page that is on the glass.
+//
+// The decision is src/ReadAloudExposure.h, pure and host-tested
+// (tests/readaloud_exposure_test.cpp), because every way it can be wrong is
+// silent. Use the _textPage_ form for a page the adapter holds TEXT for: it
+// additionally requires the per-line elements VoiceOver reads, which a textless
+// page correctly does not have.
+bool CrossPointAccessibility_exposureOutOfStep(void);
+bool CrossPointAccessibility_textPageOutOfStep(void);
 
-// True when elements are currently published. The adapter uses this to notice
-// an EMPTY container while it still holds a page -- which is what happens when
-// assistive tech is switched on after the page was drawn, or when a wake
-// rebuilds the container. Without it the owner gets "no speakable content could
-// be found on the screen" while a perfectly good page is on the panel.
+// True when elements are currently published. This used to be half the text
+// page's self-heal condition; it is now one term inside
+// CrossPointAccessibility_textPageOutOfStep() above, which is where it belongs
+// -- a caller that had to remember to OR it in is exactly how the textless page
+// ended up with a weaker heal than the text page. Kept exported because it
+// answers "is the container vending anything" without deciding anything, which
+// is what a probe wants.
 bool CrossPointAccessibility_hasElements(void);
 
 // Re-raise the container if SDL has added a view over it, or reinstall it if a
