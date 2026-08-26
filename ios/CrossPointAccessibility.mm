@@ -13,6 +13,7 @@
 #include "HalGPIO.h"
 #include "CrossPointDiagLog.h"
 #import "CrossPointPageTextInput.h"
+#include "ReadAloudExposure.h"
 #include "ReadAloudGeometry.h"
 #include "ReadAloudLines.h"
 #include "SimulatorOverlay.h"
@@ -585,10 +586,32 @@ void CrossPointAccessibility_logChain(unsigned pageBytes, unsigned rectCount,
 // subview, and a re-order only when it has actually moved.
 void CrossPointAccessibility_keepFront(void) {
   CPAccessibilityOverlay *overlay = g_overlay;
-  if (!overlay) return;
+  if (!overlay) {
+    // THE ONLY REACHABLE WAY TO LOSE THE CONTAINER, and it used to be the one
+    // case this function returned on.
+    //
+    // g_overlay is __weak and its ONLY strong reference is its superview, so
+    // "removed from the window" and "the pointer reads nil" are the same
+    // instant -- which makes the `!overlay.superview` branch below dead and
+    // made this early return the live path. Nothing else recreates it: both
+    // push paths (setPage, setFallbackPage) return early on a missing
+    // container rather than installing one, so a container lost once, or never
+    // installed because resolveWindow() was not answerable at CrossPointHarness
+    // _begin() time, stayed lost for the whole session. Every page after that
+    // vended nothing, and the CHAIN line printed the result as
+    // `view=0 ... elements=0` beside a perfectly good `page=NNNB rects=NN`.
+    //
+    // begin() is idempotent and cheap when the container is healthy; here it is
+    // the recovery. It logs its own launch header, so a session that took this
+    // path says so.
+    CrossPointAccessibility_begin();
+    return;
+  }
   UIView *parent = overlay.superview;
   if (!parent) {
-    // Lost its window entirely (a wake rebuilt the hierarchy). Reinstall.
+    // Kept for a future in which something takes a strong reference to the
+    // container: with the __weak pointer above, an overlay that is alive is by
+    // construction still in its window, so this is unreachable today.
     CrossPointDiag_log("container lost its window; reinstalling");
     CrossPointAccessibility_begin();
     return;
@@ -739,23 +762,41 @@ void CrossPointAccessibility_installFocusObserver(void) {
               }];
 }
 
-bool CrossPointAccessibility_modeChanged(void) {
-  // LEVEL-triggered, not edge-triggered, and that is the fix for "Speak Screen
-  // sometimes needs a page turn before it works" (owner, 2026-08-09).
-  //
-  // This used to compare the current mode against the mode the elements were
-  // BUILT in -- an edge. One rebuild that did not produce a page view (the
-  // classic case: panelGeometryPts is not answerable before the first present,
-  // so a rebuild racing the first frame builds nothing) cleared the edge
-  // anyway, and nothing retried until the next publish. A page turn republished
-  // and it worked, which is exactly the reported shape.
-  //
-  // Asking "does the world match what it should be" instead means any failed
-  // or half-finished rebuild self-heals on the very next frame.
-  if (g_builtMode < 0) return false;
-  const bool wants = wantsReadingPage();
-  if (wants != (g_pageInput != nil)) return true;
-  return wants != (g_builtMode == 1);
+// What the UIKit side can see about the exposure, gathered for the pure
+// predicate that decides on it (src/ReadAloudExposure.h). Everything here is a
+// pointer compare; the DECISION lives in the header, where a host test can
+// enumerate every state -- see that file for why, and for what each term of it
+// costs when it is wrong.
+static readaloud::ExposureState currentExposure(void) {
+  readaloud::ExposureState s;
+  s.wantsPage = wantsReadingPage();
+  CPAccessibilityOverlay *overlay = g_overlay;
+  // The container is __weak and its only strong owner is its superview, so a
+  // live pointer already means "in the window". Ask anyway: the predicate is
+  // written against the fact, not against the ownership trick that implies it.
+  s.containerInstalled = overlay != nil && overlay.window != nil;
+  CPPageTextInputView *page = g_pageInput;
+  s.pageViewExists = page != nil;
+  // NOT implied by the above. The page view's strong owner is the SDL host
+  // view, which can itself be detached (a wake that rebuilds SDL's hierarchy)
+  // while going on retaining this -- at which point the pointer is live, every
+  // log line says the view is there, and nothing traversing from the window can
+  // reach it. Compared against the SAME host expression the installer uses, so
+  // a rebuild always converges in one frame.
+  UIWindow *window = overlay.window;
+  UIView *host = window.rootViewController.view ?: (UIView *)window;
+  s.pageViewInWindow = page != nil && page.window != nil && page.superview == host;
+  s.builtMode = g_builtMode;
+  s.containerHasElements = overlay != nil && overlay.cpElements.count > 0;
+  return s;
+}
+
+bool CrossPointAccessibility_exposureOutOfStep(void) {
+  return readaloud::exposureOutOfStep(currentExposure());
+}
+
+bool CrossPointAccessibility_textPageOutOfStep(void) {
+  return readaloud::textPageOutOfStep(currentExposure());
 }
 
 void CrossPointAccessibility_notePageTurnRequested(void) { g_pageTurnRequested = true; }

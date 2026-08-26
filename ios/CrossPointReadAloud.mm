@@ -675,14 +675,18 @@ void CrossPointReadAloud_perFrame(void) {
   // switched on after the last render, or a wake rebuilt the container. Push
   // what we have rather than waiting for a page turn that may never come.
   if (!g_pageUtf8.empty() && !g_rects.empty() &&
-      (!CrossPointAccessibility_hasElements() || CrossPointAccessibility_modeChanged())) {
+      CrossPointAccessibility_textPageOutOfStep()) {
     CrossPointAccessibility_setPage(g_pageUtf8.data(), (unsigned)g_pageUtf8.size(),
                                     g_rects.data(), (unsigned)g_rects.size());
   } else if (g_pageTextless && !g_fallbackUtf8.empty() &&
-             CrossPointAccessibility_modeChanged()) {
-    // The same self-heal for a textless page. It cannot key on
-    // hasElements() -- such a page publishes no line elements by design, so
-    // "empty container" is its normal state and would re-push every frame.
+             CrossPointAccessibility_exposureOutOfStep()) {
+    // The same self-heal for a textless page, and it is the WEAKER of the two
+    // -- which is why the predicate had to be repaired rather than this call.
+    // It cannot key on an empty container: such a page publishes no line
+    // elements by design, so "empty" is its normal state and would re-push
+    // every frame. That left it with one term the text page did not need, and
+    // for a cover whose first push was dropped that term answered "nothing to
+    // do" forever. See src/ReadAloudExposure.h.
     CrossPointAccessibility_setFallbackPage(g_fallbackUtf8.data(),
                                             (unsigned)g_fallbackUtf8.size());
   }

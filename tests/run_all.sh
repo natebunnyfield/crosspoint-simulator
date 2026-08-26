@@ -173,6 +173,20 @@ run readaloud_geometry \
 run spoken_page_text \
   c++ -std=c++20 -Isrc -o "$OUT/spoken_page_text" tests/spoken_page_text_test.cpp
 
+# Whether the Speak Screen exposure has to be rebuilt (src/ReadAloudExposure.h).
+# The level check that runs every frame and re-pushes the held page whenever
+# what assistive technology can reach stops matching what it should be. It is a
+# pure header for the same reason the two above are: ios/CrossPointAccessibility
+# .mm compiles only on a Mac, cannot be single-stepped on a phone, and every way
+# this predicate can be wrong is SILENT -- the page is captured, the text is
+# right, nothing logs, and the symptom is iOS saying "No speakable content could
+# be found on the screen" over a page that is on the glass. Three of its terms
+# were missing (a page published before the container existed, a container lost
+# after a good build, a page view retained by a detached host); each is marked
+# REGRESSION in the test and each fails against the boolean this replaced.
+run readaloud_exposure \
+  c++ -std=c++20 -Isrc -o "$OUT/readaloud_exposure" tests/readaloud_exposure_test.cpp
+
 run read_aloud_channel \
   c++ -std=c++20 -Isrc -o "$OUT/read_aloud_channel" tests/read_aloud_channel_test.cpp
 
