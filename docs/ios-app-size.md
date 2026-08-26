@@ -367,9 +367,17 @@ No link map exists and none was generated (that needs a link, and this pass was 
 Recorded 2026-08-23 after it nearly shipped a family invisibly. The two trees
 are NOT the same thing and both are real:
 
-- **`ios/seedfonts/`** is the reference set — full, unsubsetted, and what
+- **`ios/seedfonts/`** WAS the reference set — full, unsubsetted, and what
   `sd-fonts.yaml` means when its comment says nothing in the firmware repo can
-  reach the iOS seed directory.
+  reach the iOS seed directory. **DELETED 2026-08-26.** It had stopped being a
+  reference: it was pre-XS/XXS for every family and two point sizes behind on
+  Almendra, so a build made against it looked plausible and was a fortnight out
+  of date — a picker offering six slots whose lower two resolve to nothing.
+  `ios/README.md`'s local-build recipe pointed at it, which is how it would have
+  caught someone. Nothing unique was lost: both trees come from
+  `build-sd-fonts.py`, so regenerating a reference set is one command. A stale
+  reference is worse than no reference, and 428 MB worse than that on a machine
+  whose disk hit 100% twice that day.
 - **`build/seedfonts/`** is what actually reaches the app. `ios/CMakeLists.txt`
   copies it into `Resources/SeedFonts/`, and its files are ~10% smaller because
   they carry the subsetted charsets from the A-series cuts above.
