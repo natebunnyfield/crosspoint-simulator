@@ -182,6 +182,122 @@ object, and do NOT expect a verbatim move: those bodies will need their local
 reads rewritten, which means the byte-identity gate stops being a formality and
 becomes the only thing standing between the split and a silent pixel change.
 
+### Unit 2 landed, 2026-08-25 — `SurfaceSheet.cpp`
+
+`src/HalDisplay.cpp` 4,623 → 3,953 lines. New: `src/SurfaceSheet.cpp` 813,
+`src/SurfaceSheet.h` 122, `src/SurfaceTiming.h` 34. Three blocks moved: the
+sheet field's block comment and its eleven cache-key statics; the sheet's four
+functions (`destroySheetToothTexture`, `outputToPanel`, `sheetInknessAt`,
+`ensureSheetToothTexture`); and the letterpress plate with the inkness plane it
+publishes, the two show-through maps it promotes, `updateVersoMaps` and the
+verso reboot Registrar.
+
+**The plan's own prediction for this unit was wrong, and that is the most
+useful thing it produced.** Unit 1's write-up said the sheet and the tube "sit
+INSIDE `presentIfNeeded`, mid-function, reading locals it computes" and would
+therefore "need a real parameter object" and "will NOT be verbatim moves".
+Checked rather than assumed: `ensureLetterpressTexture()` takes **no arguments
+at all**, and `ensureSheetToothTexture(w, h, outPxPerSourcePx)` already took
+exactly the two locals it needs — hoisted there on 2026-08-22, when the laid
+wires and the scanlines both had to derive lattices from one scale. So **no
+parameter object was invented**; what crosses this boundary is file-scope
+state, exactly as in unit 1, and every one of the three blocks moved
+**verbatim**, sliced by line range and re-checked by containment against the
+pre-split file. Anyone sizing unit 3 should re-measure it the same way instead
+of inheriting the warning.
+
+**What had to cross the boundary, in unit 1's own units: 19 pieces of state
+and 4 functions, plus 6 entry points back.** Against unit 1's 13 and 6, so the
+entanglement is comparable and did not explode — but note where the growth is:
+9 of the 19 are `SimulatorOverlay`-scoped dial atomics (letterpress, tooth,
+formation, defects, laid, show-through, and the three press parts), which are
+read-only and mechanical. The other 10 are the renderer, the presented panel's
+five geometry fields, `pixelBuf` + its seq + its mutex, and the present's
+timing frame. The functions are `timingLogWanted`, `pageSheetSeed`,
+`livePanelPalette` and `srgbLumOf`.
+
+**Two things deliberately did NOT move, and the reason is the same for both.**
+The sheet-to-sheet DRIFT is applied inside `livePanelPalette()`, which is the
+one palette read every consumer of the page's colour goes through — the grain
+and the scanlines included. Pulling it, and `pageSheetSeed()` under it, into
+`SurfaceSheet.cpp` would make both DARK passes depend on the light unit. The
+presented panel's rect (`sheetPanelX…Orientation`) stayed for the same reason
+in the other direction: it describes the presentation, and the power path
+already reads it. Both are exported instead.
+
+**`PassTiming` / `PresentTiming` moved to `src/SurfaceTiming.h`.** Not tidying
+— a plumbing consequence of the split: each surface pass writes its own station
+and the type now has to be visible from more than one translation unit. The env
+read, the single `timingFrame` and the `[timing]` line are still
+`HalDisplay.cpp`'s.
+
+**THE GATE, and why unit 1's two captures were not enough.** A reader page in
+two polarities cannot show a per-PAGE bug, and since 2026-08-24 the system
+screens carry their own sheet identity with show-through gated OFF, which one
+book page cannot exercise either. So the gate is **twelve** captures,
+reproducible run-to-run (checked by running the whole set twice against the
+same binary before touching anything) and re-run after **each** increment:
+
+| Arm | What it is there for |
+|---|---|
+| `dark`, `light` | unit 1's reader page, both polarities — the two md5s carried forward unchanged |
+| `p1`–`p4` | four CONSECUTIVE pages of a long book, one run — sheet drift and the verso promotion are per-page |
+| `home`, `homedark` | a SYSTEM screen in both polarities — proves the show-through gating survived |
+| `menu` | a screen ENTERED from Home, so a fresh screen identity is published mid-run |
+| `h1`–`h3` | the light page with letterpress at 200%, defects, laid wires, show-through and drift ALL at full — the only arm where every pass is doing something, and the canary for the shared paper budget |
+
+**CORRECTION, 2026-08-25.** All twelve were byte-identical when that session
+ran them, but that session was killed by a full disk before committing, and the
+twelve-arm set is **not reproducible with the harness that survived**: those
+arms need `ai-engineering-from-zero.epub` and a pristine-card restore, and the
+current harness restores only `fs_/.crosspoint` — deliberately, because copying
+the 522 MB card per arm is what filled the disk.
+
+**What was actually re-proved on the committed tree is SEVEN arms**, twice by
+different parties: reader dark and light, two consecutive page turns, the
+letterpress-200 full-budget canary, and Home in both polarities. That covers
+per-page drift, verso promotion and the system-screen gating — the three things
+the twelve were chosen for — but it is seven, not twelve, and the number above
+should be read as history rather than as a standing claim.
+
+The system-screen arm needed the OPPOSITE lever from the obvious one:
+`capture.sh` writes `readerActivityLoadCount=0`, which FORCES the book, so
+holding Back fights the harness and `main.cpp:957`'s `counter != 0 || backHeld`
+resolves to the reader regardless. Setting the counter to **1** routes to Home
+first try. Confirm by the `[ACT] Entering activity: Home` line and never by the
+picture: under Lyra Six the Home screen renders the current book's page, so a
+capture cannot tell you which screen you photographed. `glyphs.epub`, the card's
+resumed book, is two pages long and falls out to Home on the second turn — the
+first version of the page arm was silently photographing the Home screen twice,
+so the page arms open `ai-engineering-from-zero.epub` instead. Every arm
+restores `fs_` from a pristine card first; without that a run leaves its
+reading position behind and the next arm measures a different page.
+
+**The budget order is unchanged, and here is how that was checked rather than
+asserted.** `FieldSelection.h` stays the single authority: `fieldselect::select`
+is still called exactly once, in `presentIfNeeded`, and `SurfaceSheet.cpp` reads
+only the constant `kSheetShareStep`. The four-way split of the paper budget
+(tooth → wires take half of what is left → show-through takes half of the
+remainder → the marks take the rest) lives entirely inside
+`ensureSheetToothTexture`, which moved as one byte-identical block, so no
+reordering is even expressible in this diff. And the `h1`–`h3` arm is the
+measurement: it runs the wires, the show-through and the marks all at full
+against the same page, where any change to the order they consume the budget
+moves every mark's depth. Byte-identical.
+
+**Verified:** `tests/run_all.sh` 54/54, `pio run -e simulator_x3`,
+`pio run -e simulator`, iOS `CrossPointX3` Debug.
+
+**Unit 3 (the tube) should follow this same shape.** Its three passes are
+parameterised the way the sheet's were (`ensureGrainTexture(w, h)`,
+`ensureScanlinesTexture(w, h, pitchPx)`), so expect a verbatim move again and
+do not budget a parameter object for it either. The one new wrinkle, which the
+sheet did not have: `scanTexture` and `grainTexture` are read by
+`SurfacePower.cpp` through `simpower::scanFieldRef()` / `grainFieldRef()`, so
+either those two accessors re-point at the tube unit or the two texture
+pointers stay in `HalDisplay.cpp` the way `sheetPanelX…` did. Decide that
+before slicing, not after.
+
 ## Tier 3 — resolve the frozen surface
 
 13 getters return constants. 22 dial rows exist. 2,273 lines of picker UI cannot

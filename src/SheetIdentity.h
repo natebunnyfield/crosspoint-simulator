@@ -17,7 +17,7 @@
 //      changes between runs, so nothing about its paper should.
 //   2. Show-through was DEAD on those screens, and this is the one a reader of
 //      the code would never guess. The verso map promotes when the seed
-//      CHANGES (see updateVersoMaps in HalDisplay.cpp); a seed that never
+//      CHANGES (see updateVersoMaps in src/SurfaceSheet.cpp); a seed that never
 //      changes never promotes, so the leaf behind a menu stayed the all-zero
 //      map it was allocated with. Measured on the Settings screen: the
 //      show-through dial moved 0.000 code values at any strength, against
