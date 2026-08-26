@@ -184,6 +184,32 @@ stop guessing:
 CROSSPOINT_SIM_SCREENSHOTS="3000:/tmp/a.png;5000:/tmp/b.png;6500:/tmp/c.png"
 ```
 
+## The gate harness — use it instead of hand-rolling a recipe
+
+`tools/capture_arm.sh <program> <dark 0|1> <out.bmp> [input-script] [shot-ms]`
+takes one capture and prints its md5. It exists because three separate traps
+each cost a wrong reading or a dead session on 2026-08-25, and it handles all
+three:
+
+- **It does not copy the card.** An earlier hand-rolled recipe copied the whole
+  522 MB simulated SD card per arm. It filled the disk and blocked a session
+  outright — Bash could not run at all, because it could not create its own
+  output file. Only `fs_/.crosspoint` is mutable, so only that is restored.
+- **It parks the desktop `settings.json`** for the duration, on an EXIT trap so
+  a failed run still restores it. That file sits beside the binary and its
+  watcher re-asserts the palette about once a second, over
+  `CROSSPOINT_SIM_AS_SHIPPED`.
+- **It fails loudly when no capture appears**, rather than printing the md5 of a
+  stale file from a previous arm.
+
+Set `CROSSPOINT_CARD_BACKUP` to a pristine `.crosspoint` copy first.
+
+**Two arms coming back with the same md5 is the signature of a trap, not a
+result.** If dark and light agree, something is overriding you.
+
+It is deliberately not wired into `tests/run_all.sh`: a capture needs a built
+firmware and a card, which that runner does not assume.
+
 ## Getting a DARK page headlessly — and why `CROSSPOINT_SIM_DARK` is not it
 
 **`CROSSPOINT_SIM_DARK=1` does not give you a dark reader page.** It sets the
