@@ -2215,6 +2215,26 @@ static bool captureGlass(int outW, int outH) {
   // glassIntensityTexture comment where it is declared.
   static std::vector<uint32_t> intensityBuf;
   intensityBuf.resize(static_cast<size_t>(outW) * outH);
+  // --- MEASUREMENT HARNESS, NOT A SHIPPED CHANGE (2026-08-26) --------------
+  // CROSSPOINT_SIM_TRAIL_EXCITATION=1 deposits the EXCITATION rather than the
+  // absolute intensity: unexcited phosphor emits nothing, so a paper pixel is
+  // the tube's dark state and depositing it as light lifts the ground on 42 of
+  // the 52 presets. Default OFF, so an unset build is byte-identical.
+  // The ship form of this is the unconditional excitation line; see
+  // docs/data/trail-excitation.patch.
+  static const int kExcite = [] {
+    const char *e = std::getenv("CROSSPOINT_SIM_TRAIL_EXCITATION");
+    return e ? std::atoi(e) : 0;
+  }();
+  int paperMax = 0, inkMax = 0;
+  if (kExcite) {
+    const PanelPalette gp = livePanelPalette(display.isInverted());
+    for (int c = 0; c < 3; c++) {
+      if (gp.paper[c] > paperMax) paperMax = gp.paper[c];
+      if (gp.ink[c] > inkMax) inkMax = gp.ink[c];
+    }
+  }
+  const int exciteSpan = inkMax - paperMax;
   for (int y = 0; y < outH; y++) {
     const uint32_t *src = reinterpret_cast<const uint32_t *>(
         static_cast<uint8_t *>(conv->pixels) +
@@ -2227,6 +2247,12 @@ static bool captureGlass(int outW, int outH) {
       const uint32_t b = px & 0xFFu;
       if (g > m) m = g;
       if (b > m) m = b;
+      if (kExcite && exciteSpan > 0) {
+        int e = (static_cast<int>(m) - paperMax) * 255 / exciteSpan;
+        if (e < 0) e = 0;
+        if (e > 255) e = 255;
+        m = static_cast<uint32_t>(e);
+      }
       dst[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
     }
   }

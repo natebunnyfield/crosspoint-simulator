@@ -1,0 +1,45 @@
+--- a/src/HalDisplay.cpp
++++ b/src/HalDisplay.cpp
+@@ -2213,6 +2213,29 @@
+   // max(r,g,b), white on black. The deposit has to be INTENSITY so that the
+   // composite's colour mod can paint the trail any colour it likes -- see the
+   // glassIntensityTexture comment where it is declared.
++  //
++  // ...AND IT IS THE EXCITATION, NOT THE ABSOLUTE LEVEL. Unexcited phosphor
++  // emits nothing, so the PAPER tone is the tube's dark state and not light:
++  // depositing it as light made a paper pixel come back as
++  // max(paper) * ink[c]/255, which is <= paper[c] only where the paper lies on
++  // the ink's hue ray. On 42 of the 52 presets it does not, and the trail LIFTS
++  // the whole ground -- measured 2026-08-26 on the Metal path, +19 R on Blue
++  // TV and +21 R / +25 G on Cascade, over the entire face. Rescaling the
++  // captured level into the paper..ink span makes a paper pixel deposit 0 (the
++  // ground is left exactly where it was) and an ink pixel deposit 255 (the
++  // composite's mod then returns the ink itself, rather than today's
++  // max(ink) * ink/255).
++  //
++  // span <= 0 is the LIGHT polarity, where the ink is darker than the paper.
++  // No trail is composited on a pale ground at all, so the old absolute
++  // intensity is kept there rather than inventing a meaning for it.
++  const PanelPalette gpal = livePanelPalette(display.isInverted());
++  int paperMax = 0, inkMax = 0;
++  for (int c = 0; c < 3; c++) {
++    if (gpal.paper[c] > paperMax) paperMax = gpal.paper[c];
++    if (gpal.ink[c] > inkMax) inkMax = gpal.ink[c];
++  }
++  const int exciteSpan = inkMax - paperMax;
+   static std::vector<uint32_t> intensityBuf;
+   intensityBuf.resize(static_cast<size_t>(outW) * outH);
+   for (int y = 0; y < outH; y++) {
+@@ -2227,6 +2250,12 @@
+       const uint32_t b = px & 0xFFu;
+       if (g > m) m = g;
+       if (b > m) m = b;
++      if (exciteSpan > 0) {
++        int e = (static_cast<int>(m) - paperMax) * 255 / exciteSpan;
++        if (e < 0) e = 0;
++        if (e > 255) e = 255;
++        m = static_cast<uint32_t>(e);
++      }
+       dst[x] = 0xFF000000u | (m << 16) | (m << 8) | m;
+     }
+   }
