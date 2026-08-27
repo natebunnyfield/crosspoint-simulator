@@ -65,6 +65,24 @@ when it was presented. The superseded note is kept beside its replacement in
 (2026-08-22: *"long tap select is too fast. make at least 1.5x longer"*). Only
 *when* it fires changed.
 
+## Where the hold is live: everywhere, pad included (2026-08-27)
+
+The hold is not hit-tested. It fires wherever the finger lands — the page, the
+surround, and the **button pad**.
+
+Out of zen the pad carries holds of its own: hold-to-sleep on POWER, page-turn
+autorepeat on the rocker. So a pad hold that runs past five seconds now does its
+pad job *and* toggles zen. This was put to the owner as a choice — a page-only
+gate, hit-testing the landing point against the already-published `g_zenPanel` /
+`g_zenPaper` rects, would have left both pad holds exactly as they were. He was
+asked, and asked again on the same day, and chose the ungated rule both times.
+
+So the overlap is **ruled, not overlooked**, and it should not be re-filed as a
+defect. The ask was *"holding down one finger"* with no location named, and the
+gesture is live with no location. Should a pad hold ever need protecting, the
+whole fix is one hit-test in `ios/ZenHoldRouting.h`; nothing else moves, because
+the routing rule already takes the landing point.
+
 **Cancelled and multi-finger holds fire neither.** A touch iOS takes for its own
 gesture, or a second finger landing mid-hold, poisons the whole hold — the same
 discipline `ZenVerbs.h` applies to a hand rolling across the glass.
