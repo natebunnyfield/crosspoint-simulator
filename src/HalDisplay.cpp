@@ -2215,24 +2215,36 @@ static bool captureGlass(int outW, int outH) {
   // glassIntensityTexture comment where it is declared.
   static std::vector<uint32_t> intensityBuf;
   intensityBuf.resize(static_cast<size_t>(outW) * outH);
-  // --- MEASUREMENT HARNESS, NOT A SHIPPED CHANGE (2026-08-26) --------------
-  // CROSSPOINT_SIM_TRAIL_EXCITATION=1 deposits the EXCITATION rather than the
-  // absolute intensity: unexcited phosphor emits nothing, so a paper pixel is
-  // the tube's dark state and depositing it as light lifts the ground on 42 of
-  // the 52 presets. Default OFF, so an unset build is byte-identical.
-  // The ship form of this is the unconditional excitation line; see
-  // docs/data/trail-excitation.patch.
-  static const int kExcite = [] {
-    const char *e = std::getenv("CROSSPOINT_SIM_TRAIL_EXCITATION");
-    return e ? std::atoi(e) : 0;
-  }();
+  // THE DEPOSIT IS THE EXCITATION, NOT THE ABSOLUTE LEVEL (owner ruling
+  // 2026-08-27, adopting the fix measured on 2026-08-26).
+  //
+  // Unexcited phosphor emits nothing, so the PAPER tone is the tube's dark
+  // state and not light. Depositing it as light made a paper pixel come back
+  // as max(paper) * ink[c]/255, which is <= paper[c] only where the paper
+  // happens to lie on the ink's hue ray. On 42 of the 52 presets it does not,
+  // and the trail LIFTED the whole ground -- measured on Metal, +29 R / +27 G
+  // worst (Cascade), over the entire face. Rescaling into the paper..ink span
+  // makes a paper pixel deposit 0, so the ground is left exactly where it was.
+  //
+  // THE SCALE FACTOR IS inkMax, NOT 255, AND THAT IS THE COMPENSATION.
+  // Excitation scaled to 255 would make an ink pixel deposit 255 where it
+  // deposits inkMax today -- 1.203x for the shipped pair (212 -> 255), which
+  // is the "0.83x compensation" the ruling was held on. Scaling to inkMax
+  // instead applies that compensation EXACTLY and per preset, rather than as
+  // one constant fitted to one pair: an ink pixel deposits what it always
+  // deposited, for every preset, while a paper pixel stops lifting the ground.
+  // The brightest ghost pixel is therefore unchanged everywhere -- including
+  // on the ten presets whose ink peaks below 255, which a fixed 0.83 would
+  // have DARKENED.
+  //
+  // span <= 0 is the LIGHT polarity, where the ink is darker than the paper.
+  // No trail is composited on a pale ground at all, so the old absolute
+  // intensity is kept there rather than inventing a meaning for it.
+  const PanelPalette gpal = livePanelPalette(display.isInverted());
   int paperMax = 0, inkMax = 0;
-  if (kExcite) {
-    const PanelPalette gp = livePanelPalette(display.isInverted());
-    for (int c = 0; c < 3; c++) {
-      if (gp.paper[c] > paperMax) paperMax = gp.paper[c];
-      if (gp.ink[c] > inkMax) inkMax = gp.ink[c];
-    }
+  for (int c = 0; c < 3; c++) {
+    if (gpal.paper[c] > paperMax) paperMax = gpal.paper[c];
+    if (gpal.ink[c] > inkMax) inkMax = gpal.ink[c];
   }
   const int exciteSpan = inkMax - paperMax;
   for (int y = 0; y < outH; y++) {
@@ -2247,8 +2259,8 @@ static bool captureGlass(int outW, int outH) {
       const uint32_t b = px & 0xFFu;
       if (g > m) m = g;
       if (b > m) m = b;
-      if (kExcite && exciteSpan > 0) {
-        int e = (static_cast<int>(m) - paperMax) * 255 / exciteSpan;
+      if (exciteSpan > 0) {
+        int e = (static_cast<int>(m) - paperMax) * inkMax / exciteSpan;
         if (e < 0) e = 0;
         if (e > 255) e = 255;
         m = static_cast<uint32_t>(e);
