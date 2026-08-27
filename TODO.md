@@ -150,6 +150,17 @@ beside its replacement in `CrossPointZenRecognizers.mm`. Rule pure in
 is: UIKit recognizers live above SDL where no script and no `simctl` reaches.
 Full account and the log lines to watch: `docs/zen-mode.md`.
 
+**The gesture is live ANYWHERE on the glass, pad included — owner ruling
+2026-08-27, asked and re-asked, same answer both times.** Out of zen the pad
+carries real holds of its own (hold-to-sleep on POWER, page-turn autorepeat on
+the rocker), so a hold that runs past five seconds there now does its pad job
+AND toggles zen. That was put to him as a choice against a page-only hit-test
+against the published `g_zenPanel`/`g_zenPaper` rects, which would have left
+both pad holds untouched; he took the simple rule. So this is a KNOWN overlap
+and not a defect to re-file: the ask said "holding down one finger" with no
+location, and it is live with no location. If a pad hold ever needs protecting,
+the fix is one hit-test in `ios/ZenHoldRouting.h` and nothing else moves.
+
 
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
 **scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
