@@ -485,10 +485,23 @@ phone applies to the panel. Specifically, on device:
 
 ## 8. The ground lift, measured across all 52 presets — 2026-08-26
 
-The whole-glass work above surfaced this and deliberately did not fix it. It has
-now been characterised end to end. **Nothing here is shipped**; the fix sits as
-`scratchpad/patches/trail-excitation.patch` and behind
-`CROSSPOINT_SIM_TRAIL_EXCITATION`, default off, pending an owner ruling.
+The whole-glass work above surfaced this and deliberately did not fix it. It was
+characterised end to end on 2026-08-26 and **SHIPPED on 2026-08-27** on the
+owner's ruling. The env gate `CROSSPOINT_SIM_TRAIL_EXCITATION` and the parked
+patch are both gone; the excitation is now unconditional in `captureGlass()`.
+
+**The compensation shipped as `inkMax`, not as the 0.83 constant the ruling was
+held on.** Scaling the excitation to 255 makes an ink pixel deposit 255 where it
+deposits `inkMax` today — 212 → 255 for the shipped pair, the 1.203x this
+section measured, whose reciprocal is 0.831. Scaling to `inkMax` instead applies
+that compensation **exactly and per preset**: an ink pixel deposits what it
+always deposited, for all 52, while a paper pixel deposits 0 and stops lifting
+the ground. A fixed 0.83 would have been right for the shipped pair and would
+have **darkened** the ten presets whose ink peaks below 255 — the same ten this
+section already flagged as the only ones that see a peak change at all. So the
+cost this section describes under "What the fix COSTS" is now **zero**: there is
+no peak change on any preset, and the section below is kept as the measurement
+that produced the factor, not as a description of what shipped.
 
 Artifact with the pictures: https://claude.ai/code/artifact/12faff6a-6905-4e4f-a6e2-b149de56250a
 
