@@ -87,6 +87,20 @@ run pad_core \
 run zen_verbs \
   c++ -std=c++17 -Iios -o "$OUT/zen_verbs" tests/zen_verbs_test.cpp
 
+# The ONE-FINGER HOLD: two thresholds (0.75 s select, 5 s zen toggle) and three
+# outcomes on a single gesture, after the owner's 2026-08-27 ruling that the
+# select fires on the LIFT so one hold can never fire both. Exists for exactly
+# the reason text_entry_enter below does -- both inversions of a two-way
+# routing rule are SILENT. A select that stops firing reads as a gesture the
+# phone did not deliver; a select that fires alongside the toggle reads as the
+# toggle misfiring; and neither can be driven off-device, since UIKit
+# recognizers live above SDL where no script and no simctl can reach. Sweeps
+# both boundaries from either side, a cancelled touch, a second finger, and
+# that the tracker comes back clean for the next hold (a sticky poison would
+# mean select never fires again, with nothing to say why).
+run zen_hold \
+  c++ -std=c++17 -Iios -o "$OUT/zen_hold" tests/zen_hold_test.cpp
+
 # The page-tap candidate's arm/spoil lifecycle (2026-08-21 audit findings #1
 # and #3): no exit path may leave it latched, and a second concurrent finger
 # spoils it. Pure because the SDL event watch it was extracted from cannot be

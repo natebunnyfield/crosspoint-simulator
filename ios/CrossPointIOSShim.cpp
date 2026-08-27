@@ -202,7 +202,12 @@ SDL_FRect g_kbChip{};
 bool g_padLaidOut = false;
 
 // ZEN READING MODE (owner ruling 2026-08-19). A three-finger tap on the page
-// toggles it. In zen the pad stops drawing and stops hit-testing entirely, the
+// toggles it -- or, since 2026-08-27, a ONE-FINGER HOLD OF FIVE SECONDS
+// (owner: "holding down one finger longer than five seconds toggles zen and
+// single finger modes"; "single finger mode" is his term for not-zen). Both
+// gestures are always-enabled recognizers in CrossPointZenRecognizers.mm and
+// both land here through CrossPointZen_toggleFromRecognizer, which names which
+// one fired. In zen the pad stops drawing and stops hit-testing entirely, the
 // paper extends down toward where the top rocker row would begin, and input
 // becomes the GESTURE LANGUAGE of 2026-08-22 (which replaced the original
 // screen-thirds tap zones). Every gesture that MOVES — one- and two-finger
@@ -210,7 +215,7 @@ bool g_padLaidOut = false;
 // recognizers now (CrossPointZenRecognizers.mm; owner: "let's use apple for
 // swiping instead"); the one-finger deliberate TAP stays on ZenVerbs.h and
 // this file's SDL finger path. Everything comes back on the next three-finger
-// tap.
+// tap or five-second hold.
 // CROSSPOINT_SIM_ZEN=1 starts in zen. The three-finger gesture cannot be driven
 // from CROSSPOINT_SIM_INPUT_SCRIPT -- its TAP feeds the FIRMWARE's touch state
 // (HalGPIO::beginTouch), not SDL finger events, so it never reaches this file --
@@ -2652,10 +2657,15 @@ extern "C" void CrossPointMixer_glowChanged(void) { g_glowDirty.store(true); }
 // not depend on event ordering between UIKit's recognition and SDL's lifts.
 // Runs on the main thread (recognizer action), the same thread the SDL pump
 // and the overlay run on.
-extern "C" void CrossPointZen_toggleFromRecognizer(void) {
+extern "C" void CrossPointZen_toggleFromRecognizer(const char *source) {
   g_zen = !g_zen;
   g_padLaidOut = false;  // the band changes, so the page must be refitted
-  SDL_Log("[zen] %s (3-finger tap)", g_zen ? "on" : "off");
+  // ONE line per toggle, naming the DIRECTION and the gesture that did it.
+  // Two gestures reach here since 2026-08-27 (the 3-finger tap and the 5 s
+  // one-finger hold) and neither can be seen in a screenshot, so this line is
+  // the whole of the device confirmation for both.
+  SDL_Log("[zen] toggle -> %s (%s)", g_zen ? "on" : "off",
+          source ? source : "unknown");
   g_tapCand.spoil();
   g_zenVerbs = zenverbs::Classifier{};
   // Audit #2's honest hammer: release anything PadCore still holds, so no
@@ -2666,13 +2676,16 @@ extern "C" void CrossPointZen_toggleFromRecognizer(void) {
   SimulatorOverlay::requestPresent();
 }
 
-// Belt-and-suspenders for the zen long-press select (native recognizer,
+// Belt-and-suspenders for the zen one-finger hold (native recognizers,
 // CrossPointZenRecognizers.mm): the tap classifier's 400 ms ceiling already
-// answers None for a finger held to the ~500 ms recognition point, but the
+// answers None for a finger held to the 0.75 s recognition point, but the
 // same finger streams into SDL, so the candidate is spoiled the way the
 // 3-finger toggle spoils it rather than depending on event ordering between
-// UIKit's recognition and SDL's lift. Main thread (recognizer action), same
-// as the toggle above.
+// UIKit's recognition and SDL's lift. Called at RECOGNITION (0.75 s), which is
+// still where it belongs even though the select itself now fires on the lift
+// (owner 2026-08-27) -- the earlier the candidate dies, the fewer orderings
+// there are to reason about. Main thread (recognizer action), same as the
+// toggle above.
 extern "C" void CrossPointZen_spoilTapCandidate(void) {
   g_tapCand.spoil();
   g_zenVerbs = zenverbs::Classifier{};

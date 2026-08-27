@@ -1,7 +1,121 @@
 # Zen mode
 
-Three-finger tap on the page toggles it. The pad's chrome goes away and what is
-left is a sheet of paper on black.
+Three-finger tap on the page toggles it — or a **one-finger hold of five
+seconds**, either way in or out (owner 2026-08-27, verbatim: *"holding down one
+finger longer than five seconds toggles zen and single finger modes."* "Single
+finger mode" is his own term for NOT-zen; he disambiguated it on 2026-08-22,
+*"remove the color button from single finger (not zen) mode ui"*). The pad's
+chrome goes away and what is left is a sheet of paper on black.
+
+## The gestures
+
+Every one of these is a native UIKit recognizer
+([ios/CrossPointZenRecognizers.mm](../ios/CrossPointZenRecognizers.mm)) except
+the one-finger deliberate tap, which is the SDL classifier
+([ios/ZenVerbs.h](../ios/ZenVerbs.h)) — owner 2026-08-22, *"let's use apple for
+swiping instead"* / *"please use apple for this so everything works as
+expected."*
+
+| Gesture | Live in | Does |
+|---|---|---|
+| **1-finger hold, 5 s** | **zen AND not-zen** | **toggles zen, at the 5 s mark, under the finger** |
+| 3-finger tap | zen and not-zen | toggles zen |
+| 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward |
+| 1-finger hold, 0.75 s ≤ hold < 5 s | zen only | Select (`BTN_CONFIRM`) **on the lift** |
+| 1-finger swipe left / right | zen only | page forward / back |
+| 2-finger swipe left / right | zen only | font +1 / −1 |
+| 2-finger swipe down / up | zen only | Select / Back |
+| pinch / spread (on the lift) | zen only | font −1 / +1 |
+| 2-finger tap | zen only | Select |
+| 4-finger tap | zen only | Power |
+| shake | zen only | font family step |
+
+The two always-on rows are always on for the same reason: they toggle **both
+ways**, so they have to fire while zen is off. Everything else is enabled only
+while zen is on (`CrossPointZenRecognizers_setEnabled`).
+
+The 3-finger tap **stays**. Two ways in is deliberate — removing it would be
+removing capability nobody asked to lose.
+
+## The collision on one hold, and how it was ruled (2026-08-27)
+
+The five-second hold and the zen long-press select are the **same physical
+gesture** with two thresholds. A hold on its way to five seconds crosses 0.75 s,
+so in zen one hold wanted to fire two things: a Select and then a toggle.
+
+**Owner ruling, 2026-08-27: the select fires on the LIFT, not while held.**
+
+| Total hold | Fires |
+|---|---|
+| < 0.75 s | nothing here (that is the deliberate tap's window, ≤400 ms) |
+| 0.75 s .. < 5 s | **Select**, on the lift |
+| ≥ 5 s | **zen toggle**, at the 5 s mark under the finger; the lift is silent |
+
+Exactly one action per hold, never both. What a reader feels: hold past five
+seconds and zen flips under the finger, and letting go does nothing more.
+
+**This reverses a device-feel ruling knowingly.** On 2026-08-22 the select was
+put on `.began` precisely because that is the stock iOS long-press feel
+(*"please use apple for this so everything works as expected"*). It cannot
+survive beside a longer hold on the same finger, and the owner accepted the cost
+when it was presented. The superseded note is kept beside its replacement in
+`CrossPointZenRecognizers.mm` rather than deleted.
+
+**The 0.75 s threshold did not move.** It was itself set from the device
+(2026-08-22: *"long tap select is too fast. make at least 1.5x longer"*). Only
+*when* it fires changed.
+
+**Cancelled and multi-finger holds fire neither.** A touch iOS takes for its own
+gesture, or a second finger landing mid-hold, poisons the whole hold — the same
+discipline `ZenVerbs.h` applies to a hand rolling across the glass.
+
+The rule is pure and lives in
+[ios/ZenHoldRouting.h](../ios/ZenHoldRouting.h), truth-tabled in
+`tests/zen_hold_test.cpp` (in `run_all.sh`). It is a header rather than an `if`
+in the recognizer action because **both inversions are silent**: a select that
+stops firing reads as a gesture the phone did not deliver, and a select that
+fires alongside the toggle reads as the toggle misfiring. Same precedent as
+`src/TextEntryKeyRouting.h`, which exists because both inversions of the
+Return-key rule shipped as bugs.
+
+**Two recognizers, and they must be allowed to recognize together.**
+`UIGestureRecognizer`'s default `-canPreventGestureRecognizer:` is `YES`, so the
+0.75 s recognizer reaching `.began` would otherwise prevent the 5 s one from
+ever recognizing — in zen the toggle would simply be dead. A delegate grants
+simultaneity to **that pair only**, named explicitly so no other pair's
+exclusivity changes by accident.
+
+**Movement allowance is Apple's default (10 pt) on both**, and that is the first
+thing to suspect if a device report says the five-second hold does not fire:
+`allowableMovement` applies only *until* a long press is recognized, so a finger
+that drifts past 10 pt inside the five seconds fails the recognizer. It was left
+at the default because 10 pt on the phone's 3x display scale is 30 device px, which
+is the 28 px slop `ZenVerbs.h` already calls a deliberate touch — the repo's own
+answer to the same question — and because inventing a number here would be
+inventing device feel.
+
+### Status: SHIPPED — UNCONFIRMED on device
+
+UIKit recognizers live above SDL, so no `CROSSPOINT_SIM_INPUT_SCRIPT` run and no
+`simctl` can drive them. What is proven off-device is the routing (the truth
+table) and that the wiring compiles and attaches. **What to watch in the log:**
+
+```
+[zen] recognizers attached (zen-only: 6 swipes, pinch, 2-tap, 4-tap, 1-finger
+      hold 0.75 s -> select ON LIFT; always on: 3-tap toggle, 1-finger hold
+      5.0 s -> toggle; shake catcher installed)
+[zen] toggle -> on (5 s one-finger hold)      <- the five-second hold worked
+[zen] toggle -> off (3-finger tap)            <- the old gesture still works
+[zen] one-finger hold 1240 ms -> select       <- a short hold selects on lift
+[zen] one-finger hold 6100 ms -> none         <- and a long one does not
+[zen] one-finger hold cancelled -> nothing
+```
+
+A five-second hold that produces **no** `[zen]` line at all means the recognizer
+never recognized — drift past `allowableMovement` is the leading suspect. A
+`[zen] toggle` line with a `[zen] one-finger hold ... -> select` beside it for
+the same hold would mean the routing broke, which is what the truth table exists
+to prevent.
 
 ## The layout, and why each edge is where it is
 

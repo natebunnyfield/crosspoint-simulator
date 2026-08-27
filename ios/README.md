@@ -366,6 +366,54 @@ above on both frames, and a scripted `injectButton` press navigated Home —
 touch hit-testing itself is PadCore + the rects, covered by
 `tests/pad_core_test.cpp`. Not yet exercised with a real finger.
 
+### Zen gestures
+
+Zen mode replaces the pad with a sheet of paper and moves every control onto a
+gesture. The full table, the geometry and the rulings behind each one are in
+[docs/zen-mode.md](../docs/zen-mode.md); this is the part that matters for
+anyone touching the input code.
+
+| Gesture | Live in | Does |
+|---|---|---|
+| **1-finger hold, 5 s** | **zen and not-zen** | **toggles zen**, at the 5 s mark, under the finger |
+| 3-finger tap | zen and not-zen | toggles zen |
+| 1-finger deliberate tap (<=28 px, <=400 ms) | zen only | page forward |
+| 1-finger hold, 0.75 s to under 5 s | zen only | Select (`BTN_CONFIRM`) **on the lift** |
+| 1-finger swipe left / right | zen only | page forward / back |
+| 2-finger swipe left / right | zen only | font +1 / -1 |
+| 2-finger swipe down / up | zen only | Select / Back |
+| pinch / spread (on the lift) | zen only | font -1 / +1 |
+| 2-finger tap | zen only | Select |
+| 4-finger tap | zen only | Power |
+| shake | zen only | font family step |
+
+Everything but the deliberate tap is a native UIKit recognizer in
+[ios/CrossPointZenRecognizers.mm](CrossPointZenRecognizers.mm) (owner
+2026-08-22, *"let's use apple for swiping instead"*); the tap is the SDL
+classifier in [ios/ZenVerbs.h](ZenVerbs.h). The two always-on rows are the two
+ways to toggle, and they are always on because they have to fire while zen is
+OFF. Two ways in is deliberate -- the 3-finger tap stays.
+
+**The 5 s hold arrived 2026-08-27** (owner: *"holding down one finger longer
+than five seconds toggles zen and single finger modes"* -- "single finger mode"
+is his own term for not-zen). It shares one physical gesture with the 0.75 s
+select, so the select moved to the **lift**: 0.75 s to under 5 s selects on
+release, 5 s or more toggles under the finger and the release is silent, exactly
+one action per hold. That knowingly reverses the `.began` feel of the 2026-08-22
+long-press ruling; the trade and the superseded note are recorded in
+`docs/zen-mode.md` and beside the code. The rule is pure in
+[ios/ZenHoldRouting.h](ZenHoldRouting.h) and truth-tabled in
+`tests/zen_hold_test.cpp`, because both of its inversions are silent -- a select
+that stops firing reads as a gesture the phone did not deliver, and a select
+that fires alongside the toggle reads as the toggle misfiring.
+
+**SHIPPED -- UNCONFIRMED on device.** UIKit recognizers cannot be driven off
+device (they live above SDL; neither `SDL_PushEvent` nor `simctl` reaches them),
+so what to watch in the log is `[zen] toggle -> on (5 s one-finger hold)` and
+`[zen] one-finger hold <ms> -> select|none`. No `[zen]` line at all for a
+five-second hold means the recognizer never recognized -- drift past
+`allowableMovement` (Apple's default 10 pt) is the leading suspect.
+
 ### The page's ink and paper
 
 **The two tones the page is drawn in are owner-settable, IN THE APP** -- not in
