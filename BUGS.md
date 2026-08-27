@@ -96,24 +96,38 @@ Owner: *"there's a stutter lag hold on redraw for crt fade (the fade does not
 account for time spent redrawing and it pauses and resumes in a visibly awkward
 way)."*
 
-This is a MODEL-CLOCK bug and the repo already has the rule it breaks. From
-`CLAUDE.md`: *"A model finer than one frame is a lie, not detail"* — the
-warm-up's bursts had to gain a frame-length floor because a pure model is
-correct at every instant it is asked about, and wrong about the instants it is
-never asked about. The fade is the same class from the other end: if its
-progress is stepped PER PRESENT rather than read from wall-clock, then a present
-that costs 130 ms of sheet rebuild (the measured cost of a page turn with the
-as-shipped dials) advances the fade by one step instead of by 130 ms, and the
-animation holds still exactly when the machine is busiest — then jumps.
+**FIRST HYPOTHESIS CHECKED AND WRONG, 2026-08-27 — recorded so it is not
+re-derived.** The obvious guess is that the fade is an accumulator advanced once
+per frame, which a slow present would starve. It is not. `HalDisplay.cpp:3039`
+computes `age = SDL_GetTicks() - lastInteractionMs` and derives alpha from that
+age, so the fade is ALREADY a pure function of wall time, evaluated at present.
+A late present therefore lands on the correct alpha for the wall clock, not a
+stale one, and the fix "make it wall-clock" has nothing to do.
 
-The fix is to make the fade a pure function of elapsed WALL time, evaluated at
-present, rather than an accumulator advanced once per frame. That also makes it
-frame-rate independent, which matters given the 120 Hz work.
+**The surviving lead is COST PER FADE STEP, not the clock.** The fade wakes once
+per QUANTIZED alpha step (`pagefade::nextStepAgeMs`, `pageFadeStepDueMs`) and
+each wake sets `pendingPresent` — so every visible step of the fade pays a full
+present. With the as-shipped dials a present is not cheap: measured 51–53 ms of
+panel field even with the sheet served from cache, and ~130 ms when the seed
+moves and the sheet rebuilds. A fade whose every step costs 50 ms cannot look
+smooth, and a step that coincides with a real redraw costs both.
 
-Check `livePageFade` / the fade's step site against `steady_clock` before
-assuming; the surrounding code deliberately uses `steady_clock` everywhere else
-(`src/Arduino.h`), so this may be a single missing subtraction rather than a
-redesign.
+That also explains the shape of the complaint precisely — "pauses and resumes"
+rather than "runs at the wrong speed". The VALUES are right (wall clock); the
+DELIVERY of them is lumpy.
+
+Two directions, neither measured yet:
+- make a fade-only present skip the surface passes it cannot have changed. The
+  fade changes `SDL_SetTextureAlphaMod` on the panel texture; the sheet, the
+  scanlines and the grain are all functions of the seed and the dials, none of
+  which moved. If they can be reused rather than rebuilt, a fade step becomes
+  nearly free.
+- or coarsen the step schedule deliberately, trading fewer, larger alpha steps
+  for even spacing. Cheaper to do and worse-looking; only if the first fails.
+
+Related: S-019, which is the same present cost seen as battery rather than as
+stutter, and whose fix (waking once per quantized step instead of every frame)
+is what makes each remaining wake expensive.
 
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
