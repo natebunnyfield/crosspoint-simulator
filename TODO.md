@@ -134,6 +134,22 @@ layout can still be captured.
 **Done looks like:** a three-finger tap on the page toggles zen on a real phone,
 and each of the five zones does what it says.
 
+**2026-08-27 — a SECOND way to toggle, and the collision it caused.** Owner:
+*"holding down one finger longer than five seconds toggles zen and single finger
+modes"* ("single finger mode" is his own term for not-zen, disambiguated
+2026-08-22). Built as a second always-enabled `UILongPressGestureRecognizer`
+beside the 3-finger tap, which STAYS. It collided with the zen long-press select
+(0.75 s), because a five-second hold crosses 0.75 s on its way and one hold
+wanted to fire two things. **Owner ruling the same day: select fires on the
+LIFT** — 0.75 s to under 5 s selects on release, 5 s or more toggles under the
+finger and the release is silent, exactly one action per hold. That knowingly
+reverses the 2026-08-22 `.began` stock-feel ruling; the superseded note is kept
+beside its replacement in `CrossPointZenRecognizers.mm`. Rule pure in
+`ios/ZenHoldRouting.h`, truth-tabled in `tests/zen_hold_test.cpp` (in
+`run_all.sh`). Still device-confirm only, for the same reason the rest of ST-011
+is: UIKit recognizers live above SDL where no script and no `simctl` reaches.
+Full account and the log lines to watch: `docs/zen-mode.md`.
+
 
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
 **scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
