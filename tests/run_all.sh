@@ -408,6 +408,21 @@ fi
 run_direct gen_cmake_sources \
   python3 tests/gen_cmake_sources_test.py
 
+# THE SEED-FONT GATE'S OWN INSTRUMENT. tools/validate_seed_fonts.py is what
+# refuses a .cpfont tree whose files do not render the size their filenames
+# claim (B-039: InknutJunicode's L slot shipped at half size on 2026-08-26 and
+# loaded with no error anywhere -- crosspoint-reader/docs/inknut-l-slot-2026-08-26.md).
+# It runs at iOS configure time and again in ios/testflight.sh, on
+# build/seedfonts, which is GITIGNORED and different on every machine -- so a
+# test over the real tree would prove nothing about anyone else's. This one
+# synthesises header-only fixtures in a temp directory and asserts, for each of
+# the eight checks, that the planted fault is rejected AND that the same tree
+# without it passes. A gate that has quietly become a no-op prints OK and
+# everyone downstream believes it; that is not hypothetical here, the deploy's
+# device-profile guard passed the broken build it was written for.
+run_direct validate_seed_fonts \
+  python3 tests/validate_seed_fonts_test.py
+
 # The two keyboard chips must take their colours from one definition. Source
 # level on purpose -- the real check needs UIKit and a booted simulator, and a
 # hardcoded colour is invisible to every other test here.

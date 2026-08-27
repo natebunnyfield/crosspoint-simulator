@@ -383,8 +383,10 @@ are NOT the same thing and both are real:
   they carry the subsetted charsets from the A-series cuts above.
 
 Adding a family to the S tier therefore means building it into
-`build/seedfonts` as well, at **every tier the app can render** — 1x, 2x and 3x,
-since `renderScale` defaults to 3. TeX Gyre Heros was installed to
+`build/seedfonts` as well, at **every tier the app can render** — 1x and 2x
+today, since the ceiling in `ios/CMakeLists.txt` dropped to 2 on 2026-08-23; it
+was 1x/2x/3x while `renderScale` defaulted to 3, and would be again if the
+ceiling went back up. TeX Gyre Heros was installed to
 `ios/seedfonts` and to the card, passed every check, and would have shipped in
 build 129 with the firmware believing in seven families and the bundle carrying
 six. Nothing failed; the family simply would not have been there.
@@ -403,6 +405,14 @@ overflows `EpdGlyph`'s uint8 width at a hi-res ppem would abort, and
 fontconvert's raw ppem names survived in the tree. `InknutJunicode` shipped an L
 slot that was the 7 pt slot's 2x cut, because `2 x 7 = 14` collided with a real
 slot name and loaded with no error (B-039 in the firmware repo).
+
+**And the tree this loop writes is now gated.** `tools/validate_seed_fonts.py`
+runs at iOS configure time and again as a named section in `ios/testflight.sh`,
+and refuses a `.cpfont` whose own header says it renders at a different size
+from the one its filename claims — the exact B-039 shape — along with a missing
+companion, an orphan name, a stale charset and a ramp that disagrees with
+`sd-fonts.yaml`. There is no override.
+[docs/seed-font-integrity-gate.md](seed-font-integrity-gate.md).
 
 The drop tables now live in `sd-fonts.yaml` as `tier_drops:` / `hires_drops:`
 and the builder applies them, so the recipe carries its own knowledge and this

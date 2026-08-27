@@ -36,6 +36,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | Zen mode's geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
 | The screen's safe areas on an iPhone | [docs/ios-dynamic-island.md](docs/ios-dynamic-island.md) |
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
+| Why a build is refused for its FONTS | [docs/seed-font-integrity-gate.md](docs/seed-font-integrity-gate.md) — a `.cpfont` whose rendered size does not match its filename loads with no error and draws wrong; B-039 shipped exactly that |
 | "No speakable content could be found on the screen" | [docs/speak-screen-chain.md](docs/speak-screen-chain.md) — read it FIRST; the message has cost two investigations |
 | How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
 | What does a present cost, and what is a phosphor trail spending it on? | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) — including why the scanline readback is NOT the answer, why an instant-by-instant md5 gate over a trail is invalid, and the ranked list of what is left |
@@ -83,8 +84,8 @@ There is no linter and no per-file build commands; most changes are "tested" by
 running the simulator and exercising the affected feature. Host tests live in
 `tests/` — run them when touching input, text entry, sleep, network, restart,
 task lifetime, read-aloud, palettes, the dial table, the sheet identity,
-device-fidelity flags, the compressed-font container, or build-configuration
-paths.
+device-fidelity flags, the compressed-font container, the seed-font tree, or
+build-configuration paths.
 
 ```bash
 tests/run_all.sh            # build and run every host test; non-zero on the first failure
@@ -616,6 +617,7 @@ a card layout is well-formed.
 - Adding a new Arduino/ESP-IDF symbol? Add the minimum stub to the corresponding header in [src/](src/) (e.g. [src/WiFi.h](src/WiFi.h), [src/Arduino.h](src/Arduino.h)). Match the upstream signature, return a sensible default.
 - Touching storage or caching code? After the change, `rm -rf ./fs_/.crosspoint/` in the firmware project before re-running, otherwise stale caches built by the old code will mask the fix.
 - Touching display, threading, or shutdown? Re-read the "Why the simulator's design has the shape it does" section above first. Several of those decisions undo subtle bugs that will resurface if reverted.
+- Adding a family, rebuilding a hi-res tier, or touching `build/seedfonts` at all? `tools/validate_seed_fonts.py` runs at iOS configure time and again in `ios/testflight.sh`, with no override — it refuses a `.cpfont` whose header says it renders at a different size from the one its filename claims, plus a missing companion, an orphan name, a stale charset and a ramp that disagrees with `sd-fonts.yaml`. Run it by hand before you spend a deploy on it. [docs/seed-font-integrity-gate.md](docs/seed-font-integrity-gate.md).
 - Adding, removing, or renaming a firmware translation unit? The iOS source set is generated, not hand-written — regenerate it, or the CMake configure step fails with the exact command:
   ```bash
   cd <firmware> && pio run -e simulator -t compiledb
