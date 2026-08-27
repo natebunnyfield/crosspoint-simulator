@@ -529,3 +529,43 @@ A2 (the SDL Vulkan/GPU options) and A3 (`DEAD_CODE_STRIPPING`) are untouched by
 this pass and still worth their ~250 KB. A4 landed before build 129 — the Noto
 Sans hi-res companions are gone from `all.h`, which is why the build-129 Mach-O
 measures 15,946,912 against this document's original 20,562,800.
+
+---
+
+## Build 147, 2026-08-27 — the ramp doubled the tree, and that was the ask
+
+**80.2 MB IPA against build 141's 47 MB.** Not a compression regression:
+the shipped `.cpfont` files still carry the `CPZ1` magic (verified by extracting
+the archive and reading the header), and compression is still on.
+
+The growth is content the owner asked for.
+
+| | build 141 | build 147 |
+|---|---:|---:|
+| families | 7 | **8** (Almendra added) |
+| size slots | 4 | **6** (XXS and XS cut for every family) |
+| `.cpfont` files | 56 | **96** |
+| `SeedFonts/` installed | ~34.8 MB | **67.4 MB** |
+
+96 files is 8 families x 6 slots x 2 tiers, and the tree is even across
+families — 7.1 MB (Libre Franklin, TeX Gyre Heros) to 11 MB (Coelacanth),
+nothing anomalous.
+
+So the two decisions that drove it were both deliberate: *"cut XS and XXS
+versions of every s tier shipping font"* and adding Almendra to the shipping
+set. The per-family cost of a size slot is now roughly **1.2 MB installed**, and
+that is the number to price any future ramp change against — including the
+Almendra-anchored resize proposed in the firmware repo's
+`docs/almendra-anchored-sizing-2026-08-27.md`, which changes point sizes and
+multipliers but **not** the slot count, so it is size-neutral here.
+
+**Correction to "What did not change" above:** that section says the families
+are still the seven in `installed_families`. That was true when written and is
+now wrong — there are eight. Left in place rather than edited, because the
+paragraph is dated evidence about build 129.
+
+A2 (SDL Vulkan/GPU) and A3 (`DEAD_CODE_STRIPPING`) are still open and still
+worth ~250 KB — which is now 0.3% of the app rather than 0.5%, so the case for
+spending time on them has weakened, not strengthened. If the install ever needs
+to come down, the lever is the **2x tier** (half of those 96 files), not the
+Mach-O.
