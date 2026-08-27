@@ -144,6 +144,73 @@ set(CROSSPOINT_IOS_COMPRESS_SEED_FONTS ON CACHE BOOL
 # or removed.
 set(_seed_source_dir "${CROSSPOINT_IOS_SEED_FONTS_DIR}")
 
+# --- Seed-font integrity gate --------------------------------------------
+#
+# A .cpfont whose actual rendered size does not match the size its FILENAME
+# claims loads with no error anywhere and draws at the wrong size. That is
+# B-039: InknutJunicode shipped to TestFlight on 2026-08-26 with its L slot
+# drawing at half size, every letter separated by a gap, because a hi-res build
+# aborted and left the 2x cut of the 7 pt slot under the 14 pt slot's name
+# (2 x 7 = 14, and 14 pt is itself a slot in that ramp). The host suites, the
+# ESP32 build, the deploy's own checks and the app's launch all passed it. A
+# human looking at a page was the only thing that caught it.
+#
+# tools/validate_seed_fonts.py reads each file's own 32-byte header and style
+# TOC -- advanceY, ascender, descender, glyph count, style set -- and refuses a
+# tier whose numbers are not the tier's multiple of its 1x base, plus the
+# adjacent ways a tier goes wrong silently: a missing companion, an orphan
+# name, a non-ascending ramp, a stale charset, a ramp that disagrees with
+# sd-fonts.yaml. No rasterizer, no rendering, ~0.1 s for the whole eight-family
+# tree.
+#
+# HERE, at configure time, because this is the only place that knows which tree
+# is actually being bundled, and because every iOS build configures -- the
+# deploy, CI, a local device build. ios/testflight.sh runs it a second time as
+# a named section, since it pipes this configure's stdout to /dev/null and a
+# gate whose result nobody sees is the thing this repo keeps re-learning.
+#
+# BEFORE the compression step below on purpose: it fails in a tenth of a second
+# rather than after ~40 s spent packing files that must not ship.
+#
+# --max-tier is the bundling ceiling, so tiers this build excludes are reported
+# as skipped rather than judged. At ceiling 2 that is every 3x/ tree, and those
+# are known to carry the pre-`reading` charset -- excluded rather than deleted,
+# since rebuilding one is a ~40 minute rasterisation run.
+if(CROSSPOINT_IOS_SEED_FONTS_DIR)
+  set(_seed_recipe "")
+  if(CROSSPOINT_FIRMWARE_DIR AND
+     EXISTS "${CROSSPOINT_FIRMWARE_DIR}/lib/EpdFont/scripts/sd-fonts.yaml")
+    set(_seed_recipe --recipe
+        "${CROSSPOINT_FIRMWARE_DIR}/lib/EpdFont/scripts/sd-fonts.yaml")
+  endif()
+  execute_process(
+    COMMAND python3
+            "${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_seed_fonts.py"
+            "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
+            ${_seed_recipe}
+            --max-tier ${CROSSPOINT_IOS_RENDER_SCALE}
+            --quiet
+    RESULT_VARIABLE _seed_ok_rc
+    OUTPUT_VARIABLE _seed_ok_out
+    ERROR_VARIABLE _seed_ok_err)
+  if(NOT _seed_ok_rc EQUAL 0)
+    message(FATAL_ERROR
+      "\n${_seed_ok_err}${_seed_ok_out}\n"
+      "Seed fonts: ${CROSSPOINT_IOS_SEED_FONTS_DIR} did not pass "
+      "tools/validate_seed_fonts.py, so this build is NOT archived.\n"
+      "Rebuild the family named above:\n"
+      "  cd ${CROSSPOINT_FIRMWARE_DIR}/lib/EpdFont/scripts\n"
+      "  python3 build-sd-fonts.py --only <Family> "
+      "--scale ${CROSSPOINT_IOS_RENDER_SCALE} "
+      "--output-dir ${_seed_source_dir}\n"
+      "There is no override. A wrong-size .cpfont produces a page that renders "
+      "successfully and looks broken, which is the one failure no other gate "
+      "here can see.")
+  endif()
+  string(STRIP "${_seed_ok_out}" _seed_ok_out)
+  message(STATUS "Seed fonts: ${_seed_ok_out}")
+endif()
+
 if(CROSSPOINT_IOS_SEED_FONTS_DIR AND CROSSPOINT_IOS_COMPRESS_SEED_FONTS)
   set(_seed_cpz_dir "${CMAKE_BINARY_DIR}/seedfonts-cpz")
   message(STATUS "Seed fonts: compressing ${CROSSPOINT_IOS_SEED_FONTS_DIR} "

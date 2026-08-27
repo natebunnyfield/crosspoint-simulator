@@ -225,6 +225,60 @@ CONFIGURE_SCALE=$(sed -n 's/^set(CROSSPOINT_IOS_RENDER_SCALE \([0-9][0-9]*\).*/\
   "$REPO/ios/CMakeLists.txt" | head -1)
 [[ -n "$CONFIGURE_SCALE" ]] || { echo "ERROR: cannot read CROSSPOINT_IOS_RENDER_SCALE from ios/CMakeLists.txt"; exit 1; }
 
+# THE FIFTH GATE, and the first one that looks at the DATA rather than the code.
+#
+# A TestFlight build on 2026-08-26 shipped InknutJunicode with its L slot
+# drawing at half size -- every letter separated by a gap, obvious to the owner
+# in one glance.
+# `.../InknutJunicode/2x/InknutJunicode_14.cpfont` was a 14 ppem render where a
+# 28 ppem one belonged: the 2x cut of the 7 pt slot, left under the wrong name
+# by a build that aborted before it could rename its outputs. 2 x 7 = 14, and
+# 14 pt is itself a slot in that ramp, so the orphan landed on exactly the path
+# SdCardFontManager::hiResCompanionPath looks for and LOADED WITH NO ERROR.
+# The advance grid comes from the 1x file and the ink from the companion, so
+# the spacing was right and the ink filled half of it.
+#
+# Every gate above passed that build. The host suites passed, the ESP32 build
+# passed, this script's own checks passed, the app launched and rendered.
+# crosspoint-reader/docs/inknut-l-slot-2026-08-26.md is the account.
+#
+# tools/validate_seed_fonts.py judges the tree off each file's own 32-byte
+# header and style TOC: a hi-res tier's advanceY, ascender and descender must
+# be its tier's multiple of the 1x base within 3 px (the worst rounding a real
+# build produces is 1), every slot the recipe names must exist at every shipped
+# tier and nothing else may, the ramp must ascend, and the charset must not
+# have gone stale. ~0.1 s for the whole eight-family tree.
+#
+# ios/CMakeLists.txt runs the same script at configure time, which is the
+# un-skippable copy -- every iOS build configures. It runs HERE as well for two
+# reasons: the Configure step below sends cmake's stdout to /dev/null, so that
+# copy's verdict would be invisible on a deploy; and this fails in a tenth of a
+# second at the top rather than a minute in, before the ~40 s compression pass.
+# Placed after CONFIGURE_SCALE resolves, because --max-tier must be the SAME
+# ceiling the bundler uses: validating tiers the build excludes would fail on
+# the known-stale 3x trees, and skipping a tier the build DOES bundle is the
+# hole this gate exists to close. Skipped entirely for a deliberate
+# CROSSPOINT_ALLOW_NO_FONTS=1 build, which has no tree to judge.
+if [[ -n "${CROSSPOINT_SEED_FONTS_DIR:-}" ]]; then
+  say "Verify seed fonts"
+  python3 "$REPO/tools/validate_seed_fonts.py" \
+    "$CROSSPOINT_SEED_FONTS_DIR" \
+    --recipe "$FIRMWARE_DIR/lib/EpdFont/scripts/sd-fonts.yaml" \
+    --max-tier "$CONFIGURE_SCALE" \
+    --quiet || {
+    echo
+    echo "  The tree above is what CROSSPOINT_SEED_FONTS_DIR points at, and it is"
+    echo "  what the archive would bundle. Rebuild the family it names:"
+    echo "    cd $FIRMWARE_DIR/lib/EpdFont/scripts"
+    echo "    python3 build-sd-fonts.py --only <Family> --scale $CONFIGURE_SCALE \\"
+    echo "      --output-dir $CROSSPOINT_SEED_FONTS_DIR"
+    echo "  then re-run this deploy. There is no override: a wrong-size .cpfont"
+    echo "  renders successfully and looks broken, and no other gate here sees it."
+    exit 1
+  }
+fi
+
+
 cmake -S "$REPO" -B "$BUILD_DIR" -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCROSSPOINT_IOS_RENDER_SCALE="$CONFIGURE_SCALE" \
