@@ -139,9 +139,9 @@ and each of the five zones does what it says.
 modes"* ("single finger mode" is his own term for not-zen, disambiguated
 2026-08-22). Built as a second always-enabled `UILongPressGestureRecognizer`
 beside the 3-finger tap, which STAYS. It collided with the zen long-press select
-(0.75 s), because a five-second hold crosses 0.75 s on its way and one hold
+(0.75 s), because a three-second hold crosses 0.75 s on its way and one hold
 wanted to fire two things. **Owner ruling the same day: select fires on the
-LIFT** — 0.75 s to under 5 s selects on release, 5 s or more toggles under the
+LIFT** — 0.75 s to under 3 s selects on release, 3 s or more toggles under the
 finger and the release is silent, exactly one action per hold. That knowingly
 reverses the 2026-08-22 `.began` stock-feel ruling; the superseded note is kept
 beside its replacement in `CrossPointZenRecognizers.mm`. Rule pure in
@@ -153,7 +153,7 @@ Full account and the log lines to watch: `docs/zen-mode.md`.
 **The gesture is live ANYWHERE on the glass, pad included — owner ruling
 2026-08-27, asked and re-asked, same answer both times.** Out of zen the pad
 carries real holds of its own (hold-to-sleep on POWER, page-turn autorepeat on
-the rocker), so a hold that runs past five seconds there now does its pad job
+the rocker), so a hold that runs past three seconds there now does its pad job
 AND toggles zen. That was put to him as a choice against a page-only hit-test
 against the published `g_zenPanel`/`g_zenPaper` rects, which would have left
 both pad holds untouched; he took the simple rule. So this is a KNOWN overlap

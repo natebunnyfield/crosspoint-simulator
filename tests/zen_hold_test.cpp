@@ -68,16 +68,16 @@ int main() {
   checkAction(cleanHold(749), Action::None, "just under 0.75 s: nothing");
   checkAction(cleanHold(750), Action::Select, "exactly 0.75 s: select");
   checkAction(cleanHold(751), Action::Select, "just over 0.75 s: select");
-  checkAction(cleanHold(2500), Action::Select, "mid-window: select");
-  checkAction(cleanHold(4999), Action::Select, "just under 5 s: select");
-  checkAction(cleanHold(5000), Action::Toggle, "exactly 5 s: toggle, not select");
-  checkAction(cleanHold(5001), Action::Toggle, "just over 5 s: toggle, not select");
+  checkAction(cleanHold(1500), Action::Select, "mid-window: select");
+  checkAction(cleanHold(2999), Action::Select, "just under 3 s: select");
+  checkAction(cleanHold(3000), Action::Toggle, "exactly 3 s: toggle, not select");
+  checkAction(cleanHold(3001), Action::Toggle, "just over 3 s: toggle, not select");
   checkAction(cleanHold(30'000), Action::Toggle, "a very long hold: toggle");
 
   // ---- The lift after a toggle is SILENT, and says so through both gates. ----
   //
   // The latch and the elapsed-time check are deliberately redundant: the lift
-  // and the 5 s deadline can arrive in either order at the boundary, and a
+  // and the toggle deadline can arrive in either order at the boundary, and a
   // recognizer's .ended can be delivered before the paired recognizer's .began
   // on the same run loop turn.
   {
@@ -200,8 +200,8 @@ int main() {
   // ---- The pure predicates, addressed directly. ----
   checkAction(zenhold::onRelease(749, false, false), Action::None, "pure: 749 ms");
   checkAction(zenhold::onRelease(750, false, false), Action::Select, "pure: 750 ms");
-  checkAction(zenhold::onRelease(4999, false, false), Action::Select, "pure: 4999 ms");
-  checkAction(zenhold::onRelease(5000, false, false), Action::None, "pure: 5000 ms");
+  checkAction(zenhold::onRelease(2999, false, false), Action::Select, "pure: 2999 ms");
+  checkAction(zenhold::onRelease(3000, false, false), Action::None, "pure: 3000 ms");
   checkAction(zenhold::onRelease(2000, true, false), Action::None, "pure: poisoned");
   checkAction(zenhold::onRelease(2000, false, true), Action::None, "pure: toggled");
   checkAction(zenhold::onToggleDeadline(false, false), Action::Toggle,
@@ -211,8 +211,46 @@ int main() {
   checkAction(zenhold::onToggleDeadline(false, true), Action::None,
               "pure deadline: already toggled");
 
+
+  // ---- REGRESSION: begin() must scrub a stale hold. ----
+  //
+  // Owner 2026-08-27, from the device: "currently it does not work in single
+  // finger mode." Out of zen the SELECT recognizer is disabled, so for a long
+  // time nothing called begin() OR release() and this tracker carried the last
+  // zen hold's state indefinitely. One poisoned hold, or one exit from zen by
+  // the 3-finger tap (which never lifts a finger through the select
+  // recognizer), latched poisoned_ or toggled_ and the deadline answered None
+  // from then on — dead in ONE MODE while the other kept working.
+  //
+  // The recognizer fix is that the toggle now owns the whole lifecycle when zen
+  // is off. What is provable HERE is the property that fix leans on: a begin()
+  // wipes any inherited poison and any inherited toggle latch, so a hold that
+  // starts clean behaves clean no matter what the previous one did.
+  {
+    zenhold::Hold h;
+    h.begin(0);
+    h.noteTouches(2);            // poisoned
+    checkAction(h.deadline(), Action::None, "stale: poisoned hold does nothing");
+    h.begin(0);                  // a NEW hold, no release() in between
+    h.noteTouches(1);
+    checkAction(h.deadline(), Action::Toggle,
+                "regression: begin() scrubs an inherited poison");
+  }
+  {
+    zenhold::Hold h;
+    h.begin(0);
+    h.noteTouches(1);
+    checkAction(h.deadline(), Action::Toggle, "stale: first toggle fires");
+    checkAction(h.deadline(), Action::None, "stale: the latch holds within one hold");
+    h.begin(0);                  // a NEW hold, no release() in between
+    h.noteTouches(1);
+    checkAction(h.deadline(), Action::Toggle,
+                "regression: begin() scrubs an inherited toggle latch");
+  }
+
   check(zenhold::kSelectMs == 750, "the select threshold is still the owner's 0.75 s");
-  check(zenhold::kToggleMs == 5000, "the toggle threshold is the owner's 5 s");
+  check(zenhold::kToggleMs == 3000,
+        "the toggle threshold is the owner's 3 s (retuned from 5 on 2026-08-27)");
   check(zenhold::kSelectMs < zenhold::kToggleMs,
         "the select window opens before the toggle deadline");
 

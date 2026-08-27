@@ -2,7 +2,7 @@
 
 Three-finger tap on the page toggles it — or a **one-finger hold of five
 seconds**, either way in or out (owner 2026-08-27, verbatim: *"holding down one
-finger longer than five seconds toggles zen and single finger modes."* "Single
+finger longer than three seconds toggles zen and single finger modes."* "Single
 finger mode" is his own term for NOT-zen; he disambiguated it on 2026-08-22,
 *"remove the color button from single finger (not zen) mode ui"*). The pad's
 chrome goes away and what is left is a sheet of paper on black.
@@ -18,10 +18,10 @@ expected."*
 
 | Gesture | Live in | Does |
 |---|---|---|
-| **1-finger hold, 5 s** | **zen AND not-zen** | **toggles zen, at the 5 s mark, under the finger** |
+| **1-finger hold, 3 s** | **zen AND not-zen** | **toggles zen, at the 3 s mark, under the finger** |
 | 3-finger tap | zen and not-zen | toggles zen |
 | 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward |
-| 1-finger hold, 0.75 s ≤ hold < 5 s | zen only | Select (`BTN_CONFIRM`) **on the lift** |
+| 1-finger hold, 0.75 s ≤ hold < 3 s | zen only | Select (`BTN_CONFIRM`) **on the lift** |
 | 1-finger swipe left / right | zen only | page forward / back |
 | 2-finger swipe left / right | zen only | font +1 / −1 |
 | 2-finger swipe down / up | zen only | Select / Back |
@@ -39,8 +39,8 @@ removing capability nobody asked to lose.
 
 ## The collision on one hold, and how it was ruled (2026-08-27)
 
-The five-second hold and the zen long-press select are the **same physical
-gesture** with two thresholds. A hold on its way to five seconds crosses 0.75 s,
+The three-second hold and the zen long-press select are the **same physical
+gesture** with two thresholds. A hold on its way to three seconds crosses 0.75 s,
 so in zen one hold wanted to fire two things: a Select and then a toggle.
 
 **Owner ruling, 2026-08-27: the select fires on the LIFT, not while held.**
@@ -48,8 +48,8 @@ so in zen one hold wanted to fire two things: a Select and then a toggle.
 | Total hold | Fires |
 |---|---|
 | < 0.75 s | nothing here (that is the deliberate tap's window, ≤400 ms) |
-| 0.75 s .. < 5 s | **Select**, on the lift |
-| ≥ 5 s | **zen toggle**, at the 5 s mark under the finger; the lift is silent |
+| 0.75 s .. < 3 s | **Select**, on the lift |
+| ≥ 3 s | **zen toggle**, at the 3 s mark under the finger; the lift is silent |
 
 Exactly one action per hold, never both. What a reader feels: hold past five
 seconds and zen flips under the finger, and letting go does nothing more.
@@ -65,13 +65,55 @@ when it was presented. The superseded note is kept beside its replacement in
 (2026-08-22: *"long tap select is too fast. make at least 1.5x longer"*). Only
 *when* it fires changed.
 
+## The hold was dead in single-finger mode, and why (2026-08-27)
+
+Owner, from the device: *"currently it does not work in single finger mode."*
+Reported hours after it shipped in build 147, and correct.
+
+**The mechanism.** `zenhold::Hold` is one tracker shared by both hold
+recognizers, but only `holdSelect:` ever drove its lifecycle — and that
+recognizer is **zen-only**. Out of zen nothing called `begin()` and nothing
+called `release()`, so the tracker kept whatever the last zen hold left in it.
+`onToggleDeadline()` answers `None` when either `poisoned_` or `toggled_` is
+set, and out of zen neither could ever be cleared. Two ordinary sequences latch
+it permanently:
+
+- exit zen with the **3-finger tap** — no finger ever lifts through the select
+  recognizer, so `release()` never runs and `toggled_` stays true;
+- let any zen hold get a **second finger** on it — `poisoned_` stays true.
+
+From that moment the hold worked in zen and did nothing at all out of it, which
+is exactly the shape of the report.
+
+**What makes it interesting** is that the code had already reasoned about this
+and stopped one step short. `release()` carries a comment saying an idle tracker
+must never carry a previous hold's poison, *because the toggle deadline is asked
+on holds this tracker never saw begin*. That is the right analysis. What it
+missed is that out of zen `release()` is never reached either, so the cleaning
+it describes never runs. The adversarial pass also cleared this specific claim —
+its clean-item 2 asserted the toggle still fires out of zen — so two independent
+readers accepted a false statement about the one mode neither could exercise.
+
+**The fix.** When zen is off, `holdToggle:` owns the whole lifecycle: `begin()`
+on `.began`, `release()` on the lift. `g_holdSelfManaged` latches that ownership
+**at `.began` and is not re-read**, because toggling flips `g_zenOn` under the
+gesture and the `.ended` that follows must go to whoever took the `.began`. In
+zen the branch does nothing and `holdSelect:` keeps the tracker as before.
+
+**What is provable off-device** is the property the fix leans on — that
+`begin()` scrubs an inherited poison and an inherited toggle latch — and
+`tests/zen_hold_test.cpp` pins both, verified by mutation: deleting either
+scrub from `begin()` fails exactly one named check. The recognizer wiring itself
+is UIKit and reaches no host test, so the fix is device-confirm only. Watch for
+`[zen] hold-toggle fired (tracker self-managed, zen off)`.
+
 ## Where the hold is live: everywhere, pad included (2026-08-27)
 
 The hold is not hit-tested. It fires wherever the finger lands — the page, the
 surround, and the **button pad**.
 
 Out of zen the pad carries holds of its own: hold-to-sleep on POWER, page-turn
-autorepeat on the rocker. So a pad hold that runs past five seconds now does its
+autorepeat on the rocker. So a pad hold that runs past three seconds now does its
 pad job *and* toggles zen. This was put to the owner as a choice — a page-only
 gate, hit-testing the landing point against the already-published `g_zenPanel` /
 `g_zenPaper` rects, would have left both pad holds exactly as they were. He was
@@ -98,15 +140,15 @@ Return-key rule shipped as bugs.
 
 **Two recognizers, and they must be allowed to recognize together.**
 `UIGestureRecognizer`'s default `-canPreventGestureRecognizer:` is `YES`, so the
-0.75 s recognizer reaching `.began` would otherwise prevent the 5 s one from
+0.75 s recognizer reaching `.began` would otherwise prevent the 3 s one from
 ever recognizing — in zen the toggle would simply be dead. A delegate grants
 simultaneity to **that pair only**, named explicitly so no other pair's
 exclusivity changes by accident.
 
 **Movement allowance is Apple's default (10 pt) on both**, and that is the first
-thing to suspect if a device report says the five-second hold does not fire:
+thing to suspect if a device report says the three-second hold does not fire:
 `allowableMovement` applies only *until* a long press is recognized, so a finger
-that drifts past 10 pt inside the five seconds fails the recognizer. It was left
+that drifts past 10 pt inside the three seconds fails the recognizer. It was left
 at the default because 10 pt on the phone's 3x display scale is 30 device px, which
 is the 28 px slop `ZenVerbs.h` already calls a deliberate touch — the repo's own
 answer to the same question — and because inventing a number here would be
@@ -121,15 +163,15 @@ table) and that the wiring compiles and attaches. **What to watch in the log:**
 ```
 [zen] recognizers attached (zen-only: 6 swipes, pinch, 2-tap, 4-tap, 1-finger
       hold 0.75 s -> select ON LIFT; always on: 3-tap toggle, 1-finger hold
-      5.0 s -> toggle; shake catcher installed)
-[zen] toggle -> on (5 s one-finger hold)      <- the five-second hold worked
+      3.0 s -> toggle; shake catcher installed)
+[zen] toggle -> on (3 s one-finger hold)      <- the three-second hold worked
 [zen] toggle -> off (3-finger tap)            <- the old gesture still works
 [zen] one-finger hold 1240 ms -> select       <- a short hold selects on lift
 [zen] one-finger hold 6100 ms -> none         <- and a long one does not
 [zen] one-finger hold cancelled -> nothing
 ```
 
-A five-second hold that produces **no** `[zen]` line at all means the recognizer
+A three-second hold that produces **no** `[zen]` line at all means the recognizer
 never recognized — drift past `allowableMovement` is the leading suspect. A
 `[zen] toggle` line with a `[zen] one-finger hold ... -> select` beside it for
 the same hold would mean the routing broke, which is what the truth table exists
