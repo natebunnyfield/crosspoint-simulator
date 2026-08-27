@@ -38,6 +38,83 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-027] Returning from a video call leaves the screen blank for a long time
+**severity: high (looks like a hang) · scope: iOS foreground/present · filed 2026-08-27 from the device · NOT YET REPRODUCED**
+
+Owner: *"while on a video call, returning to app takes a while to get out of
+blank screen."*
+
+Unverified mechanism, written down so the next session starts from a hypothesis
+rather than from zero. An e-ink firmware presents RARELY — that is the whole
+shape of this codebase — so anything that loses the drawable and then waits for
+the firmware's next natural render will show blank for as long as the reader
+happens to sit still, which on a page of text is unbounded. A video call is the
+strong case for it: iOS resizes for the call banner, and the app is a
+`SDL_uikitmetalview` whose layer is re-created.
+
+Where to look first, in order:
+- whether `UIApplicationDidBecomeActiveNotification` (or SDL's
+  `SDL_EVENT_WILL_ENTER_FOREGROUND` / `SDL_EVENT_DID_ENTER_FOREGROUND`) reaches
+  anything that calls `SimulatorOverlay::requestPresent()`. This repo has been
+  bitten by exactly this three times already — the keyboard height, the palette
+  change, and the appearance flip all stored new state and presented nothing.
+- whether the panel texture survives the layer re-creation, or whether it needs
+  re-uploading from `pixelBuf` rather than re-presenting a dead texture.
+- the call banner changes the safe-area insets, so the zen/pad layout recomputes;
+  if that path early-returns on an unchanged inset it may also skip the present.
+
+**Do not fix this by polling.** The fix is a present on the foreground edge, not
+a timer.
+
+### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed
+**severity: medium (visible, wrong) · scope: iOS pad overlay · filed 2026-08-27 from the device · NOT YET REPRODUCED**
+
+Owner: *"bottom right rocker switch is flashing on a subsequent press of another
+button."*
+
+So pressing button A repaints button B's pressed state. Two candidates, both
+cheap to distinguish once reproduced:
+
+1. **A stale pressed-index.** The pad draws a highlight for whichever index it
+   believes is down; if the release path clears the *drawn* state later than it
+   clears the *logical* state (or not at all), the next press repaints the
+   previous button for one frame. The bottom-right cell being the one that shows
+   it is a hint: it may simply be the last cell in the draw order.
+2. **The synthetic-tap path.** `queueButtonTap` schedules a press/release pair
+   inside `update()`; a tap whose release lands in a later frame than the next
+   press begins would overlap two highlights.
+
+Note this is a PAD-OVERLAY bug, not a firmware one — the device has physical
+buttons and nothing to repaint. Reproduce with `CROSSPOINT_SIM_TAP_PAD` and
+`CROSSPOINT_SIM_LOG_PRESENTS=1`, looking for a present whose pad state does not
+match the button that caused it.
+
+### [S-025] The CRT page fade stalls and resumes when a redraw runs
+**severity: medium (the effect reads as broken) · scope: page fade / present loop · filed 2026-08-27 from the device · NOT YET REPRODUCED**
+
+Owner: *"there's a stutter lag hold on redraw for crt fade (the fade does not
+account for time spent redrawing and it pauses and resumes in a visibly awkward
+way)."*
+
+This is a MODEL-CLOCK bug and the repo already has the rule it breaks. From
+`CLAUDE.md`: *"A model finer than one frame is a lie, not detail"* — the
+warm-up's bursts had to gain a frame-length floor because a pure model is
+correct at every instant it is asked about, and wrong about the instants it is
+never asked about. The fade is the same class from the other end: if its
+progress is stepped PER PRESENT rather than read from wall-clock, then a present
+that costs 130 ms of sheet rebuild (the measured cost of a page turn with the
+as-shipped dials) advances the fade by one step instead of by 130 ms, and the
+animation holds still exactly when the machine is busiest — then jumps.
+
+The fix is to make the fade a pure function of elapsed WALL time, evaluated at
+present, rather than an accumulator advanced once per frame. That also makes it
+frame-rate independent, which matters given the 120 Hz work.
+
+Check `livePageFade` / the fade's step site against `steady_clock` before
+assuming; the surrounding code deliberately uses `steady_clock` everywhere else
+(`src/Arduino.h`), so this may be a single missing subtraction rather than a
+redesign.
+
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
 
