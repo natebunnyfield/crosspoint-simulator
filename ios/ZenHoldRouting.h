@@ -64,7 +64,7 @@ namespace zenhold {
 // is NOT re-tuned here — only WHEN it fires changed. `kToggle` is his five
 // seconds.
 constexpr uint32_t kSelectMs = 750;
-constexpr uint32_t kToggleMs = 5000;
+constexpr uint32_t kToggleMs = 3000;
 
 // The ordering IS the rule. Inverted, a hold would toggle before it could
 // select and the select window would be empty — invisible at runtime, so it is
@@ -75,7 +75,7 @@ static_assert(kSelectMs < kToggleMs,
 enum class Action {
   None,
   Select,  // BTN_CONFIRM, on the lift
-  Toggle,  // zen <-> not-zen, at the 5 s mark under the finger
+  Toggle,  // zen <-> not-zen, at the kToggleMs mark under the finger
 };
 
 inline const char *actionName(Action a) {
@@ -98,7 +98,7 @@ constexpr Action onRelease(uint32_t holdMs, bool poisoned, bool alreadyToggled) 
   return Action::None;
 }
 
-// What the 5 s deadline does when it is reached with the finger still down.
+// What the toggle deadline does when it is reached with the finger still down.
 // Fires once per hold: a recognizer can be asked twice (UIKit re-delivers
 // .began after a .changed on some paths) and two toggles would cancel out,
 // which reads on device as the gesture doing nothing at all.
@@ -143,7 +143,7 @@ class Hold {
   bool poisoned() const { return poisoned_; }
   bool toggled() const { return toggled_; }
 
-  // The 5 s deadline arrived under the finger. Latches, so the lift is silent.
+  // The toggle deadline arrived under the finger. Latches, so the lift is silent.
   Action deadline() {
     const Action a = onToggleDeadline(poisoned_, toggled_);
     if (a == Action::Toggle) toggled_ = true;

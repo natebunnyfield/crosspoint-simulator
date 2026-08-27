@@ -33,7 +33,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | What a phosphor trail costs, and what it was spending it on | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) |
 | One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
-| Zen mode's GESTURES (the whole table, and the 5 s hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
+| Zen mode's GESTURES (the whole table, and the 3 s hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
 | The screen's safe areas on an iPhone | [docs/ios-dynamic-island.md](docs/ios-dynamic-island.md) |
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
 | Why a build is refused for its FONTS | [docs/seed-font-integrity-gate.md](docs/seed-font-integrity-gate.md) — a `.cpfont` whose rendered size does not match its filename loads with no error and draws wrong; B-039 shipped exactly that |
@@ -1013,10 +1013,10 @@ Grown in one day; each is documented at its definition, this is the map:
   ≤400 ms, zone judged from the LANDING point. Swipes, drags, holds, and
   multi-finger do nothing.
 - **A ONE-FINGER HOLD carries two verbs, and the split is by DURATION**
-  (owner 2026-08-27: *"holding down one finger longer than five seconds toggles
+  (owner 2026-08-27: *"holding down one finger longer than three seconds toggles
   zen and single finger modes"* -- "single finger mode" is his term for
-  not-zen). 0.75 s to under 5 s is the zen Select and it fires **on the LIFT**;
-  5 s or more toggles zen **at the 5 s mark under the finger**, in BOTH modes,
+  not-zen). 0.75 s to under 3 s is the zen Select and it fires **on the LIFT**;
+  3 s or more toggles zen **at the 3 s mark under the finger**, in BOTH modes,
   and then the lift is silent. Exactly one action per hold. The lift-not-began
   half knowingly reverses the 2026-08-22 stock-long-press ruling, which could
   not survive a longer hold on the same finger. The rule is pure in
