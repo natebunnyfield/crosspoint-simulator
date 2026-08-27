@@ -396,6 +396,22 @@ for sc in 1 2 3; do
 done
 ```
 
+**That loop is correct again as of 2026-08-26, and was NOT before.** It used to
+need per-family codepoint drops passed by hand — a family with a glyph that
+overflows `EpdGlyph`'s uint8 width at a hi-res ppem would abort, and
+`build-sd-fonts.py` renamed its output to slot names only on SUCCESS, so
+fontconvert's raw ppem names survived in the tree. `InknutJunicode` shipped an L
+slot that was the 7 pt slot's 2x cut, because `2 x 7 = 14` collided with a real
+slot name and loaded with no error (B-039 in the firmware repo).
+
+The drop tables now live in `sd-fonts.yaml` as `tier_drops:` / `hires_drops:`
+and the builder applies them, so the recipe carries its own knowledge and this
+loop cannot forget it. A failed build also deletes exactly what it created.
+**Do not reintroduce a caller-side drop list** — that is where the knowledge was
+when it failed: `scripts/install-sim-fonts.py` had held the right drop for that
+family since 2026-08-20, but it writes the CARD, and nothing routed this loop
+through it.
+
 Hi-res tiers can fail on a single glyph: at 3x the 16 pt slot rasterises as
 48 pt, and a glyph over 255 px in either dimension cannot be expressed by
 `EpdGlyph`'s uint8 fields, so the SIZE raises a ValueError rather than
