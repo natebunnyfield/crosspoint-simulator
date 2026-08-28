@@ -470,10 +470,10 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       // the attach happened at all, and a stale enumeration is worse than
       // none.
       SDL_Log("[zen] recognizers attached "
-              "(zen-only: 6 swipes, pinch, 2-tap, 4-tap, 1-finger hold "
-              "%.2f s -> select ON LIFT; always on: 3-tap toggle, 1-finger "
-              "hold %.1f s -> toggle; shake catcher installed)",
-              zenhold::kSelectMs / 1000.0, zenhold::kToggleMs / 1000.0);
+              "(zen-only: 6 swipes, pinch, 2-tap, 4-tap; always on: 3-tap "
+              "toggle, 1-finger hold %.2f s -> toggle above the paper / "
+              "select on it; shake catcher installed)",
+              zenhold::kHoldMs / 1000.0);
     }
     g_zenOn = on;
     for (UIGestureRecognizer *r in g_recognizers)
