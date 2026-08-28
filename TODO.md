@@ -683,7 +683,10 @@ pre-device gate the project has.
 `T-025` there — "configurable gestures in the iOS app" — was raised on the
 firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
 closed in that file's Finished section, with what shipped and what was
-deliberately left out. The code is `ios/GestureBindings.h`,
+deliberately left out. The model is LAYERED — a global
+`Gestures` group that every gesture falls back to, and two zone groups (above the
+paper, below it) that override it for the four single-finger gestures and ship
+blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
 `ios/Settings.bundle/Root.plist` and the three call sites
 (`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
 `ios/CrossPointIOSShim.cpp`, and the shake catcher);

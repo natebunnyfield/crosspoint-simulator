@@ -2583,11 +2583,13 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           // swipe can never fire both a recognizer and this branch.
           //
           // WHAT IT DOES is ios/GestureBindings.h's answer since T-025 (owner
-          // 2026-08-28): above the paper and below it are Settings.app rows,
-          // and ON the paper is fixed at page-forward -- the front RIGHT
-          // button, per the swap ruling ("reading on one finger",
-          // 2026-08-22), which is also what all three zones did before the
-          // rows existed and is therefore what all three defaults are.
+          // 2026-08-28). The model is LAYERED: a global Tap binding, which the
+          // strip above the paper and the band below it may override. There is
+          // no "on the paper" case -- a landing point between those boundaries
+          // is simply one nothing overrides, so the global binding applies.
+          // Its default is the front RIGHT button, per the swap ruling
+          // ("reading on one finger", 2026-08-22), which is what the tap did
+          // everywhere before any of this existed.
           //
           // THE SAME ZONE RULE THE RECOGNIZERS USE, off the same two published
           // boundaries. It is called here rather than in the recognizer file
@@ -2596,15 +2598,20 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           const gesturebind::Zone zone =
               gesturebind::zoneFor(g_zenTapDownY, g_cardTopPx,
                                    zenPaperBottomPx());
-          const gesturebind::Gesture which = gesturebind::oneFingerGesture(
-              gesturebind::OneFinger::Tap, zone);
-          const int storedBinding =
-              which == gesturebind::Gesture::Count
+          const gesturebind::Gesture zoneRow =
+              gesturebind::zoneGesture(gesturebind::OneFinger::Tap, zone);
+          const gesturebind::Gesture globalRow =
+              gesturebind::globalGesture(gesturebind::OneFinger::Tap);
+          const int zoneStored =
+              zoneRow == gesturebind::Gesture::Count
                   ? 0
-                  : CrossPointPrefs_gestureBinding(static_cast<int>(which));
+                  : CrossPointPrefs_gestureBinding(static_cast<int>(zoneRow));
+          const int globalStored =
+              CrossPointPrefs_gestureBinding(static_cast<int>(globalRow));
           const gesturebind::Action action = gesturebind::oneFingerAction(
-              gesturebind::OneFinger::Tap, zone, /*zenOn=*/true, storedBinding);
-          SDL_Log("[zen] verb -> %s, tap landed %s the paper (y=%.0f) -> %s",
+              gesturebind::OneFinger::Tap, zone, /*zenOn=*/true, zoneStored,
+              globalStored);
+          SDL_Log("[zen] verb -> %s, tap landed %s (y=%.0f) -> %s",
                   zenverbs::verbName(verb), gesturebind::zoneName(zone),
                   g_zenTapDownY, gesturebind::actionName(action));
           if (action == gesturebind::Action::ToggleZen) {
@@ -2624,7 +2631,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
               // A HOST ACTION THIS SITE DOES NOT KNOW. The recognizers'
               // performGestureAction is the fuller dispatcher; this branch is a
               // second, smaller copy because the deliberate tap is SDL's verb
-              // and lives below UIKit. If an eleventh Action is ever appended,
+              // and lives below UIKit. If a twelfth Action is ever appended,
               // that is the other place to teach -- and this says so out loud
               // rather than swallowing the gesture in silence, which is how a
               // new action would look exactly like a phone that stopped
