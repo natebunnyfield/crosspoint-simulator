@@ -38,8 +38,8 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-027] Returning from a video call leaves the screen blank for a long time
-**severity: high (looks like a hang) · scope: iOS foreground/present · filed 2026-08-27 from the device · NOT YET REPRODUCED**
+### [S-027] Returning from a video call leaves the screen blank for a long time — FIXED 2026-08-28, unconfirmed on device
+**severity: high (looks like a hang) · scope: iOS present · filed 2026-08-27 from the device · fixed 2026-08-28**
 
 Owner: *"while on a video call, returning to app takes a while to get out of
 blank screen."*
@@ -65,6 +65,32 @@ Where to look first, in order:
 
 **Do not fix this by polling.** The fix is a present on the foreground edge, not
 a timer.
+
+## The filed hypothesis was WRONG, and the right answer was next door
+
+The guess above — that nothing calls `requestPresent()` on the foreground edge —
+is false. `SDL_EVENT_DID_ENTER_FOREGROUND` has both a present AND a
+**settle window**: `repaintAfterForeground()` re-asks every 200 ms for 2 s,
+with constants measured against timed screenshots, because a present issued
+while the surface is still settling returns success and is then DISCARDED on
+Metal. That reasoning was already written down; what was missing is who else
+needs it.
+
+**A video call never backgrounds the app.** The call banner RESIZES the window —
+once when it appears, once when it goes — and `SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED`
+asked for exactly ONE present each time. One present is the thing the
+foreground path already knew was not enough. An app that draws only when the
+panel changes has no second frame coming, so the discarded frame is the only
+frame there was, and the stale or blank image stood until something else forced
+a redraw.
+
+So: same failure, same fix, previously reachable from only one of its two
+causes. Both now call `armSettleRepaint()`. The budget is reused rather than
+re-derived — it was measured for the foreground case and the size case has no
+measurements of its own, so inventing a second number would be inventing device
+feel.
+
+Device-confirm only: no host reproduces a Metal surface discarding a present.
 
 ### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed
 **severity: medium (visible, wrong) · scope: iOS pad overlay · filed 2026-08-27 from the device · NOT YET REPRODUCED**

@@ -1304,7 +1304,15 @@ void applyTheme() {
 
 // When the app last returned to the foreground, on the SDL_GetTicks clock, or 0
 // once the settle window below has elapsed. See presentationWatch.
+// When the drawing surface last changed under us, and therefore when the
+// settle-repaint window opened. Foregrounding is one cause; a WINDOW SIZE
+// change is the other, and it was missed until 2026-08-28 (S-027).
 Uint64 g_foregroundAt = 0;
+
+// Open the settle window. Both callers have the same problem -- a present
+// issued in the moment after the surface changes can be accepted and then
+// discarded -- so both need the same answer, and a single present is not it.
+inline void armSettleRepaint() { g_foregroundAt = SDL_GetTicks(); }
 
 // A watch of its own, deliberately not a case inside padWatch: everything here
 // is a painting concern and none of it reads input. Both cases only write a
@@ -1321,7 +1329,7 @@ bool SDLCALL presentationWatch(void * /*userdata*/, SDL_Event *e) {
     break;
   case SDL_EVENT_DID_ENTER_FOREGROUND:
     HalDisplay::setBackgrounded(false);
-    g_foregroundAt = SDL_GetTicks();
+    armSettleRepaint();
     SimulatorOverlay::requestPresent();
     break;
   default:
@@ -1791,6 +1799,9 @@ void pollPanelPalette() {
 // Do not tighten these to the measured minimum -- the failure mode is silent and
 // only visible to the user.
 constexpr Uint64 kForegroundSettleMs = 2000;
+// Named for the foreground case it was measured against; it now also covers a
+// window SIZE change, which has the identical failure and no measurements of
+// its own. Reusing the measured budget beats inventing a second one.
 constexpr Uint64 kForegroundRepaintMs = 200;
 
 void repaintAfterForeground() {
@@ -2626,8 +2637,23 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       break;
 
     // The pad is laid out from the output size, so a size change invalidates it.
+    //
+    // AND IT ARMS THE SETTLE WINDOW, which it did not until 2026-08-28 (S-027,
+    // owner: "while on a video call, returning to app takes a while to get out
+    // of blank screen"). This asked for exactly ONE present, and the comment
+    // above repaintAfterForeground() already records why one is not enough: a
+    // present issued while the surface is still settling returns success and is
+    // then discarded, and an app that only draws when the panel changes has no
+    // second frame coming.
+    //
+    // A call banner is precisely that case and it never backgrounds the app, so
+    // the foreground path -- which HAS had the settle window since it was
+    // measured -- never ran. The window resizes when the banner appears and
+    // again when it goes, and each resize left the one present it asked for to
+    // be thrown away. Same failure, same fix, now reached from both causes.
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: {
       g_padLaidOut = false;
+      armSettleRepaint();
       SimulatorOverlay::requestPresent();
       break;
     }
