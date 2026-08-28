@@ -376,6 +376,20 @@ public:
     return currentBssid.data();
   }
   int32_t channel() { return currentStatus == WL_CONNECTED ? 1 : 0; }
+
+  // DNS. The firmware's OTA pre-flight resolves the release host before it
+  // starts a check, because an association that is up before DHCP and DNS are
+  // ready reads as WL_CONNECTED and the fetch then fails with the host name in
+  // the message ("github.com not found"). On the host there is a real resolver
+  // behind the SDL process, but nothing here needs the answer -- only whether
+  // one exists -- so this reports success whenever the simulated link is up and
+  // failure when it is not, which is the distinction the pre-flight turns on.
+  int hostByName(const char *host, IPAddress &result) {
+    (void)host;
+    if (status() != WL_CONNECTED) return 0;
+    result = IPAddress(127, 0, 0, 1);
+    return 1;
+  }
   String getHostname() { return String("crosspoint-simulator"); }
   int softAPgetStationNum() { return 0; }
 };
