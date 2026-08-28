@@ -2320,6 +2320,25 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     const SDL_FRect &b = g_pad[pr[1]].rect;
     inPair[pr[0]] = inPair[pr[1]] = true;
 
+    // A RETIRED OR NOT-YET-LAID-OUT PAIR DRAWS NOTHING -- the same guard the
+    // single-button loop below has always had, which this loop did not.
+    //
+    // A retired slot has a zero rect (the side-rocker ruling: hasEdgeSideButtons
+    // is false on X4, and g_padLaidOut is cleared on every size change, so the
+    // rects are momentarily zero after a resize as well). The single loop skips
+    // those. This one went on to compute a union and two inner halves from
+    // them, and `a.w - hairline` on a zero rect is NEGATIVE -- as is
+    // `a.h - 2 * hairline` -- so what reached SDL_RenderFillRect was a
+    // negative-extent rect, while fillHalf's `patch` kept a POSITIVE width
+    // beside a negative height. That is a fill whose result is the renderer's
+    // business rather than ours, at the origin corner of the pad.
+    //
+    // Not confirmed as the cause of S-026 (a stray flash on the bottom-right
+    // rocker) -- that is still unreproduced -- but it is a defect on its own
+    // terms, it is in the exact code that has already produced one phantom
+    // capsule (see the pairs-table note above), and the guard costs a compare.
+    if (a.w <= 0.0f || a.h <= 0.0f || b.w <= 0.0f || b.h <= 0.0f) continue;
+
     const SDL_FRect uni{a.x, a.y, (b.x + b.w) - a.x, a.h};
     setRGB(r, p.hairline);
     fillRoundRect(r, uni, radius);

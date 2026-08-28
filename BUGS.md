@@ -146,9 +146,40 @@ over the Back half of the left rocker. The bottom-right cell being the one that
 shows it is consistent with an index or bounds slip of the same kind, and that
 is where the next pass should look.
 
+## A real defect found in the painter, 2026-08-28 -- not confirmed as the cause
+
+The narrowing above pointed at the fused-pair painter, and there is something
+wrong there: **the pair loop had no retired-slot guard, and the single-button
+loop always has.**
+
+```c
+if (b.rect.w <= 0.0f || b.rect.h <= 0.0f) continue;   // single loop, always present
+```
+
+A retired slot has a ZERO rect -- the side-rocker ruling retires the pair on
+X4 (`hasEdgeSideButtons()` is false there), and `g_padLaidOut` is cleared on
+every window size change, so the rects are momentarily zero after a resize too.
+The single loop skipped those. The pair loop went on to compute a union and two
+inner halves from them, and on a zero rect `a.w - hairline` is NEGATIVE, as is
+`a.h - 2 * hairline`. So what reached `SDL_RenderFillRect` was a negative-extent
+rect -- and `fillHalf`'s `patch` carried a POSITIVE width beside a negative
+height, at the origin corner of the pad.
+
+Guarded now, with the same compare the other loop uses.
+
+**Whether this is S-026 is UNPROVEN and the entry should not be closed on it.**
+The report is a flash on the bottom-right rocker following a press elsewhere,
+and this is a degenerate-geometry fill, so the shapes are not obviously the
+same. What makes it worth fixing anyway: it is a defect on its own terms, it
+sits in the exact code that has already shipped one phantom capsule (the
+pairs-table row that declared three while listing two), and the fix costs a
+compare.
+
 Still not reproduced: no headless path produces the report, since
 `CROSSPOINT_SIM_TAP_PAD` synthesises one tap at a time and the report is about
-a press that follows another.
+a press that follows another. If it survives this build, the next suspects are
+the hit test's slot mapping and whether a resize can leave `g_padLaidOut` false
+across a present.
 
 ### [S-025] The CRT page fade stalls and resumes when a redraw runs
 **severity: medium (the effect reads as broken) · scope: page fade / present loop · filed 2026-08-27 from the device · NOT YET REPRODUCED**
