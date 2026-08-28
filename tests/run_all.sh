@@ -87,19 +87,46 @@ run pad_core \
 run zen_verbs \
   c++ -std=c++17 -Iios -o "$OUT/zen_verbs" tests/zen_verbs_test.cpp
 
-# The ONE-FINGER HOLD: two thresholds (0.75 s select, 5 s zen toggle) and three
-# outcomes on a single gesture, after the owner's 2026-08-27 ruling that the
-# select fires on the LIFT so one hold can never fire both. Exists for exactly
-# the reason text_entry_enter below does -- both inversions of a two-way
-# routing rule are SILENT. A select that stops firing reads as a gesture the
-# phone did not deliver; a select that fires alongside the toggle reads as the
-# toggle misfiring; and neither can be driven off-device, since UIKit
-# recognizers live above SDL where no script and no simctl can reach. Sweeps
-# both boundaries from either side, a cancelled touch, a second finger, and
-# that the tracker comes back clean for the next hold (a sticky poison would
-# mean select never fires again, with nothing to say why).
+# The ONE-FINGER HOLD'S BOOKKEEPING -- the tracker for one hold in flight, and
+# nothing else since T-025 moved WHAT the hold does into GestureBindings.h
+# below. Three silent failure modes, none reproducible off-device because UIKit
+# recognizers live above SDL where no script and no simctl can reach: a stale
+# poison (this shipped on 2026-08-27 -- the hold died in one mode with nothing
+# in the log to say why), a stale latch (fires once, then never again for the
+# life of the app), and a MISSING latch, which lets UIKit's re-delivered .began
+# fire twice -- and two zen toggles in one gesture cancel out, which reads on
+# device as the gesture doing nothing at all.
 run zen_hold \
   c++ -std=c++17 -Iios -o "$OUT/zen_hold" tests/zen_hold_test.cpp
+
+# WHAT EVERY GESTURE DOES (ios/GestureBindings.h), after the owner made the
+# bindings configurable from Settings.app on 2026-08-28 (T-025): three groups --
+# above the paper, below the paper, multi-finger -- with the paper itself fixed.
+#
+# The property this exists for is that EVERY DEFAULT REPRODUCES BUILD 156. An
+# install that never opens the setting must behave identically to the build
+# before the setting existed, and there is no way to see that it does not except
+# by using the app for a while and noticing a gesture feels wrong. So every
+# default is asserted against the live mapping it replaced, by name and by
+# button, and an unwritten key (0), a junk value and a value from a future build
+# all resolve to it.
+#
+# The owner's four rulings are pinned as rulings, so that removing one is a
+# conscious act: an unbound gesture fires nothing (and must NOT fall back to its
+# default, the obvious way to write this wrong); two gestures may share one
+# action, with no conflict detection; clearing EVERY zen-toggle binding is
+# PERMITTED, with no guard -- the config is in Settings.app, outside the reader,
+# so zen is always recoverable; and zen scope is a property of the GESTURE, not
+# of the action bound to it, which is a regression guard against the plausible
+# implementation that promotes any gesture holding the toggle to always-on.
+#
+# It also reads the shipped Root.plist (hence the `cd` above): every row's key,
+# its DefaultValue against defaultAction() -- a disagreement there is a switch
+# that DISPLAYS one action and PERFORMS another, since CrossPointPrefs.mm builds
+# its registration domain from those same DefaultValues -- the ten actions each
+# row offers, and that no row configures a gesture ON the paper.
+run gesture_bindings \
+  c++ -std=c++17 -Iios -o "$OUT/gesture_bindings" tests/gesture_bindings_test.cpp
 
 # The page-tap candidate's arm/spoil lifecycle (2026-08-21 audit findings #1
 # and #3): no exit path may leave it latched, and a second concurrent finger

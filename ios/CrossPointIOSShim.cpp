@@ -51,6 +51,7 @@
 // timestamp together, so a hold expressed by a finger survives all the way down.
 
 #include "CrossPointHarness.h"
+#include "GestureBindings.h"
 #include "TapCandidate.h"
 #include "ZenVerbs.h"
 
@@ -112,6 +113,10 @@ extern "C" uint32_t CrossPointInkPicker_paperDialSignature(void);
 // Zen's motion gestures are native UIKit recognizers now
 // (CrossPointZenRecognizers.mm); enabled only while zen is on.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
+// Defined at the foot of this file; declared here because the SDL finger path
+// above it can now reach the zen toggle too -- a deliberate tap may be bound to
+// it (T-025).
+extern "C" void CrossPointZen_toggleFromRecognizer(const char *source);
 extern "C" void CrossPointMixer_applyGunsForTest(int r, int g, int b, int w);
 extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
                                               unsigned char tail[3],
@@ -234,6 +239,21 @@ float g_zenRowTopPx = 0.0f;
 // zen zones are measured against this rather than the page, so the thirds line
 // up with what the reader can actually see.
 SDL_FRect g_zenPaper{};
+// THE PAPER'S BOTTOM EDGE in device px -- the boundary the gesture zones split
+// on below, as the card top is the one above. It is the old top-rocker line
+// (g_zenRowTopPx), which is the same `line` the zen painter cuts the sheet at
+// and therefore the same edge the eye sees; the fallback is the panel's own
+// bottom, exactly as the painter's is.
+//
+// ONE DEFINITION, TWO CALLERS: the SDL finger path in this file, and the UIKit
+// recognizers through CrossPointZen_paperBottomPx() at the foot of the file.
+// Writing it twice is how the finger and the picture start disagreeing about
+// where the paper ends.
+inline float zenPaperBottomPx() {
+  if (g_zenRowTopPx > 0.0f) return g_zenRowTopPx;
+  return g_zenPanel.y + g_zenPanel.h;
+}
+
 // The zen GESTURE LANGUAGE replaced the zen tap zones on 2026-08-22 (owner:
 // The classifier -- pure, host-tested -- lives in ZenVerbs.h with the full
 // succession note (zones -> hand-rolled verbs -> native recognizers for all
@@ -242,6 +262,13 @@ SDL_FRect g_zenPaper{};
 // events and forwards that verb to gpio.queueButtonTap on the last lift.
 // Multi-finger and moving gestures are CrossPointZenRecognizers.mm's.
 zenverbs::Classifier g_zenVerbs;
+// WHERE THE DELIBERATE TAP LANDED, in device px. The classifier resets itself
+// on the last lift, so the landing point has to be kept beside it -- and it is
+// the LANDING point rather than the lift that decides the zone, which is the
+// same rule the zen zones have used since 2026-08-22. (The two are within the
+// classifier's 28 px slop of each other by construction, so this is a matter of
+// stating which one is meant, not of a measurable difference.)
+float g_zenTapDownY = 0.0f;
 // The visible paper card's top edge in device px, published by the layout
 // pass; the zen band math reads it as the TOP BAND the eye actually sees.
 float g_cardTopPx = 0.0f;
@@ -2459,7 +2486,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // Fed in EVERY mode, acted on only in zen: a gesture in flight when the
       // three-finger toggle flips g_zen must not arrive at a half-seen
       // classifier.
+      const bool firstFinger = g_zenVerbs.activeFingers() == 0;
       g_zenVerbs.fingerDown(e->tfinger.fingerID, fx, fy, SDL_GetTicks());
+      // The first finger of the gesture is the one the classifier can answer
+      // Verb::Down for; a later one only ever spoils it.
+      if (firstFinger) g_zenTapDownY = fy;
       g_zenLastX = fx;
       g_zenLastY = fy;
 
@@ -2545,16 +2576,63 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
           g_tapCand.spoil();
         } else if (zenBefore && verb == zenverbs::Verb::Down) {
-          // THE DELIBERATE TAP, the one verb left on this path — page
-          // forward, mapped to the front Right button per the swap ruling
-          // (owner 2026-08-22: "reading on one finger"). Every gesture that
-          // moves, and every multi-finger tap, is a native recognizer in
+          // THE DELIBERATE TAP, the one verb left on this path. Every gesture
+          // that moves, and every multi-finger tap, is a native recognizer in
           // CrossPointZenRecognizers.mm now ("let's use apple for swiping
           // instead"); the classifier answers None for all of them, so a
           // swipe can never fire both a recognizer and this branch.
-          SDL_Log("[zen] verb -> %s (button %d)", zenverbs::verbName(verb),
-                  (int)HalGPIO::BTN_RIGHT);
-          gpio.queueButtonTap(HalGPIO::BTN_RIGHT, 60);
+          //
+          // WHAT IT DOES is ios/GestureBindings.h's answer since T-025 (owner
+          // 2026-08-28): above the paper and below it are Settings.app rows,
+          // and ON the paper is fixed at page-forward -- the front RIGHT
+          // button, per the swap ruling ("reading on one finger",
+          // 2026-08-22), which is also what all three zones did before the
+          // rows existed and is therefore what all three defaults are.
+          //
+          // THE SAME ZONE RULE THE RECOGNIZERS USE, off the same two published
+          // boundaries. It is called here rather than in the recognizer file
+          // because this verb is SDL's, not UIKit's -- one hit test, two
+          // callers.
+          const gesturebind::Zone zone =
+              gesturebind::zoneFor(g_zenTapDownY, g_cardTopPx,
+                                   zenPaperBottomPx());
+          const gesturebind::Gesture which = gesturebind::oneFingerGesture(
+              gesturebind::OneFinger::Tap, zone);
+          const int storedBinding =
+              which == gesturebind::Gesture::Count
+                  ? 0
+                  : CrossPointPrefs_gestureBinding(static_cast<int>(which));
+          const gesturebind::Action action = gesturebind::oneFingerAction(
+              gesturebind::OneFinger::Tap, zone, /*zenOn=*/true, storedBinding);
+          SDL_Log("[zen] verb -> %s, tap landed %s the paper (y=%.0f) -> %s",
+                  zenverbs::verbName(verb), gesturebind::zoneName(zone),
+                  g_zenTapDownY, gesturebind::actionName(action));
+          if (action == gesturebind::Action::ToggleZen) {
+            // Reached only if the owner points the tap at the toggle. The
+            // shim's own toggle, not the recognizer entry point, because this
+            // finger is already inside padWatch: spoiling the candidate is
+            // still wanted and re-entering through the recognizer path would
+            // be the same call by a longer road.
+            CrossPointZen_toggleFromRecognizer("deliberate tap");
+          } else if (action == gesturebind::Action::FontFamilyStep) {
+            gpio.injectFontFamilyStep();
+          } else {
+            const int btn = gesturebind::buttonFor(action);
+            if (btn != gesturebind::kNoButton) {
+              gpio.queueButtonTap(static_cast<uint8_t>(btn), 60);
+            } else if (action != gesturebind::Action::Nothing) {
+              // A HOST ACTION THIS SITE DOES NOT KNOW. The recognizers'
+              // performGestureAction is the fuller dispatcher; this branch is a
+              // second, smaller copy because the deliberate tap is SDL's verb
+              // and lives below UIKit. If an eleventh Action is ever appended,
+              // that is the other place to teach -- and this says so out loud
+              // rather than swallowing the gesture in silence, which is how a
+              // new action would look exactly like a phone that stopped
+              // delivering taps.
+              SDL_Log("[zen] tap -> %s is not handled on the SDL tap path",
+                      gesturebind::actionName(action));
+            }
+          }
           applyActions(g_core.fingerUp(e->tfinger.fingerID));
           break;
         }
@@ -2770,6 +2848,29 @@ extern "C" void CrossPointZen_spoilTapCandidate(void) {
 // before the first layout, and a zero answers "everything is on the paper" --
 // the conservative direction, since a stray toggle is worse than a missed one.
 extern "C" float CrossPointZen_cardTopPx(void) { return g_cardTopPx; }
+
+// ...and the PAPER'S BOTTOM EDGE, the other boundary the zones split on. This
+// is g_zenPaper's bottom, which is the old top-rocker line (g_zenRowTopPx) --
+// the same `line` the zen painter cuts the sheet at, read from the same place
+// rather than recomputed, so the boundary the finger is judged against is the
+// edge the eye can see.
+//
+// Published by layoutPad on every pass in BOTH modes, like the card top -- on
+// the PHONE path. `layoutPadTablet` publishes neither it nor `g_cardTopPx`, and
+// the fallback below then answers with the panel's own bottom (exactly as the
+// painter's does), so a tablet gets a below-the-paper zone measured against the
+// page's bottom edge rather than a rocker row. That is deliberate rather than
+// accidental -- it is the painter's own definition of where the sheet ends -- and
+// with the shipped defaults nothing follows from it, since every Below binding
+// resolves to what OnPaper does.
+//
+// Before the FIRST present of all, both boundaries are 0, and a bottom that is
+// not below the top makes zoneFor() collapse to the two-zone rule this feature
+// extended -- the conservative direction, since a geometry that has not been
+// measured must not invent a third zone out of a zero.
+extern "C" float CrossPointZen_paperBottomPx(void) {
+  return zenPaperBottomPx();
+}
 
 // --- Public entry points ---------------------------------------------------
 //

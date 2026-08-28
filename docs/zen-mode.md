@@ -1,11 +1,23 @@
 # Zen mode
 
-Three-finger tap on the page toggles it — or a **one-finger hold of five
-seconds**, either way in or out (owner 2026-08-27, verbatim: *"holding down one
-finger longer than three seconds toggles zen and single finger modes."* "Single
-finger mode" is his own term for NOT-zen; he disambiguated it on 2026-08-22,
-*"remove the color button from single finger (not zen) mode ui"*). The pad's
-chrome goes away and what is left is a sheet of paper on black.
+Three-finger tap on the page toggles it — or a **one-finger hold of 0.75 s above
+the paper**, either way in or out. The pad's chrome goes away and what is left is
+a sheet of paper on black.
+
+(The hold's history is worth a line: the owner asked for it on 2026-08-27 as
+*"holding down one finger longer than three seconds toggles zen and single finger
+modes"* — "single finger mode" is his own term for NOT-zen, disambiguated on
+2026-08-22, *"remove the color button from single finger (not zen) mode ui"* —
+and then replaced the duration split with a POSITION split the same day.)
+
+**The two sections marked SUPERSEDED are a DATED RECORD of shapes that are gone,
+not a description of the code.** They name `holdSelect:`, `holdToggle:`,
+`release()`, `onToggleDeadline()`, `toggled_` and `g_holdSelfManaged`, and none
+of those exists any more; the log lines they quote cannot be emitted. They are
+kept because each records a real cost that was paid to learn something. The live
+rule is "The gestures", "The bindings are Settings.app rows" and "The hold splits
+by POSITION" above them, plus
+[ios/GestureBindings.h](../ios/GestureBindings.h).
 
 ## The gestures
 
@@ -16,26 +28,102 @@ the one-finger deliberate tap, which is the SDL classifier
 swiping instead"* / *"please use apple for this so everything works as
 expected."*
 
-| Gesture | Live in | Does |
+**WHAT EACH ONE DOES IS CONFIGURABLE from Settings.app** since T-025 (owner
+2026-08-28) — see the next section. The table is the **shipped defaults**, which
+are exactly what build 156 did.
+
+| Gesture | Live in | Default action |
 |---|---|---|
-| **1-finger hold, 3 s** | **zen AND not-zen** | **toggles zen, at the 3 s mark, under the finger** |
-| 3-finger tap | zen and not-zen | toggles zen |
-| 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward |
-| 1-finger hold, 0.75 s ≤ hold < 3 s | zen only | Select (`BTN_CONFIRM`) **on the lift** |
+| **1-finger hold, 0.75 s, ABOVE the paper** | **zen AND not-zen** | **toggles zen, under the finger** |
+| **3-finger tap** | **zen and not-zen** | **toggles zen** |
+| 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward (`BTN_RIGHT`) |
+| 1-finger hold, 0.75 s, ON or BELOW the paper | zen only | Select (`BTN_CONFIRM`) |
 | 1-finger swipe left / right | zen only | page forward / back |
-| 2-finger swipe left / right | zen only | font +1 / −1 |
+| 2-finger swipe left / right | zen only | `BTN_DOWN` / `BTN_UP` |
 | 2-finger swipe down / up | zen only | Select / Back |
-| pinch / spread (on the lift) | zen only | font −1 / +1 |
+| pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
 | 2-finger tap | zen only | Select |
 | 4-finger tap | zen only | Power |
 | shake | zen only | font family step |
 
 The two always-on rows are always on for the same reason: they toggle **both
 ways**, so they have to fire while zen is off. Everything else is enabled only
-while zen is on (`CrossPointZenRecognizers_setEnabled`).
+while zen is on (`CrossPointZenRecognizers_setEnabled`), or gated on the zen flag
+where the gesture has no recognizer of its own (the shake catcher, the SDL tap,
+and the hold's on- and below-the-paper zones).
 
 The 3-finger tap **stays**. Two ways in is deliberate — removing it would be
 removing capability nobody asked to lose.
+
+**On `BTN_UP` / `BTN_DOWN` in that table:** this fork sets
+`longPressButtonBehavior = FONT_SIZE_STEP`
+(`../crosspoint-reader/src/CrossPointSettings.h:477`), which makes the side pair
+the FONT controls inside a book —
+`EpubReaderActivity.cpp:604` steps font SIZE on the release of a side button
+that never crossed the hold threshold, and returns before `detectPageTurn` is
+ever reached. So a gesture bound to Down makes text bigger in a book and scrolls
+a screenful everywhere else; it turns pages only where the reader's long-press
+setting is Off. That is what the Settings.app labels say, and it is why they do
+not say "page forward".
+
+## The bindings are Settings.app rows (T-025, owner 2026-08-28)
+
+Owner: *"make gestures configureable in ios app settings. list all possible
+gestures and give a well ordered, logically list of what they can be assigned
+to."*
+
+**Three groups, 18 rows.** The rule is
+[ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of
+SDL and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the
+usual reason: every way it can be wrong is silent on a device and none of it can
+be driven off-device, because UIKit's recognizers live above SDL where no input
+script and no `simctl` can synthesize a touch.
+
+| Group | Rows |
+|---|---|
+| **Above the Paper** | Tap · Swipe Left · Swipe Right · Hold |
+| **Below the Paper** | Tap · Swipe Left · Swipe Right · Hold |
+| **Multi-Finger** | Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
+
+**ON the paper is FIXED and is not in the settings at all** (owner ruling).
+Reading gestures on the page stay reading gestures on the page: tap or swipe
+left pages forward, swipe right pages back, hold selects. There is no row, no
+key, and no prepared hook for it.
+
+**What a row can be assigned to** is the firmware's button vocabulary, annotated
+in the row label with what each does in a book and elsewhere: Back, Confirm,
+Left, Right, Up, Down, Power — plus **Nothing**, plus the two host actions that
+have no button and that a gesture already performed before this existed,
+**Toggle Zen Mode** and **Next Reading Font**. Without those two the shipped
+defaults could not have stated what the app already did.
+
+**The owner's four rulings, implemented exactly:**
+
+- **Zen may be left unbound.** No guard, no refusal, no warning. Clear every
+  Toggle Zen Mode binding and zen is unreachable BY GESTURE, which is allowed —
+  the configuration lives in iOS Settings.app, outside the reader, next to the
+  Zen Mode switch itself, so it is always recoverable. The missing guard is a
+  decision; `tests/gesture_bindings_test.cpp` pins it so nobody adds one back.
+- **Two gestures may share one action.** No conflict detection, no moving, no UI
+  refusal. Each gesture resolves independently and nothing knows what the others
+  hold.
+- **A gesture may be bound to Nothing.**
+- **Zen scope is unchanged**, and it is a property of the GESTURE rather than of
+  the action bound to it: you configure WHAT a gesture does, never WHEN. The two
+  always-on gestures stay always-on whatever they hold, and binding a zen-only
+  gesture to the toggle gets you only OUT of zen.
+
+**The defaults reproduce build 156 gesture by gesture** — the property that
+matters most, since there is no way to notice it has broken except by using the
+app and feeling that something is wrong. A stored 0 (an unwritten key, or a
+registration domain that never loaded because `Settings.bundle/Root.plist` was
+unreadable) resolves to the default rather than to Nothing, so the worst a lost
+store can do is render the app as it shipped rather than kill every gesture
+including both ways into zen.
+
+**A binding persists as an INTEGER**, so the action list APPENDS and never
+inserts or re-points — the same discipline the palette presets follow, for the
+same reason.
 
 ## The hold splits by POSITION, not duration (2026-08-27, final shape)
 
@@ -50,12 +138,32 @@ after .75 before lift."*
 
 Both fire at 0.75 s **with the finger still down**. Nothing happens on the lift.
 
+**T-025 (2026-08-28) split the lower half in two and made two of the three zones
+assignable**; the table above is what the shipped defaults still produce, since
+Hold-above defaults to the toggle and Hold-below to Select. It did NOT add a
+second threshold, and must not.
+
 "Above the paper" is the card's top edge — where black ends and paper begins
-(`g_cardTopPx`), not the top of the text. It is published by the layout pass in
-BOTH modes, which is what makes the question answerable on a launch where zen has
-never been entered. Before the first layout it reads 0, and a 0 answers
-"everything is on the paper" — the conservative direction, since a stray toggle
-is worse than a missed one.
+(`g_cardTopPx`), not the top of the text. "Below the paper" is past the sheet's
+bottom edge (`g_zenRowTopPx`, the old top-rocker line — the same `line` the zen
+painter cuts the sheet at, so the boundary the finger is judged against is the
+edge the eye sees). Both are published by the layout pass in BOTH modes, which
+is what makes the question answerable on a launch where zen has never been
+entered.
+
+Before the first layout the card top reads 0, and a 0 answers "everything is on
+the paper" — the conservative direction, since a stray toggle is worse than a
+missed one. The bottom edge has the same property before the first pass: a
+bottom that is not BELOW the top makes `gesturebind::zoneFor` collapse to the
+two-zone rule this section describes, so an unmeasured geometry cannot invent a
+third zone out of a zero.
+
+**The tablet is NOT that case, and an earlier draft of this paragraph said it
+was.** `layoutPadTablet` publishes neither boundary, but `zenPaperBottomPx()`
+falls back to the PANEL's bottom edge — the same fallback the zen painter uses —
+so an iPad does get a below-the-paper zone from its first present, measured
+against the page rather than a rocker row. Nothing follows from it at the shipped
+defaults, since every Below binding resolves to what On the paper does.
 
 ### Why this shape, after two others in one day
 
@@ -88,7 +196,10 @@ tracker's lifecycle, so out of zen the tracker went stale and the toggle died in
 one mode. Gating the ACTION rather than the RECOGNIZER makes that class of bug
 unavailable.
 
-## The collision on one hold, and how it was ruled (2026-08-27)
+## SUPERSEDED — the collision on one hold, and how it was ruled (2026-08-27)
+
+**Nothing below this line describes the current code.** The symbols it names are
+gone; see the banner at the top of this file.
 
 The three-second hold and the zen long-press select are the **same physical
 gesture** with two thresholds. A hold on its way to three seconds crosses 0.75 s,
@@ -116,7 +227,7 @@ when it was presented. The superseded note is kept beside its replacement in
 (2026-08-22: *"long tap select is too fast. make at least 1.5x longer"*). Only
 *when* it fires changed.
 
-## The hold was dead in single-finger mode, and why (2026-08-27)
+## SUPERSEDED — the hold was dead in single-finger mode, and why (2026-08-27)
 
 Owner, from the device: *"currently it does not work in single finger mode."*
 Reported hours after it shipped in build 147, and correct.
@@ -164,17 +275,22 @@ The hold is not hit-tested. It fires wherever the finger lands — the page, the
 surround, and the **button pad**.
 
 Out of zen the pad carries holds of its own: hold-to-sleep on POWER, page-turn
-autorepeat on the rocker. So a pad hold that runs past three seconds now does its
-pad job *and* toggles zen. This was put to the owner as a choice — a page-only
+autorepeat on the rocker. So a pad hold that lands above the paper and runs past
+0.75 s does its pad job *and* toggles zen. (The threshold was three seconds when
+this was ruled; the ruling is about the absence of a gate, and it survived the
+retune and the position split unchanged.) This was put to the owner as a choice — a page-only
 gate, hit-testing the landing point against the already-published `g_zenPanel` /
 `g_zenPaper` rects, would have left both pad holds exactly as they were. He was
 asked, and asked again on the same day, and chose the ungated rule both times.
 
 So the overlap is **ruled, not overlooked**, and it should not be re-filed as a
 defect. The ask was *"holding down one finger"* with no location named, and the
-gesture is live with no location. Should a pad hold ever need protecting, the
-whole fix is one hit-test in `ios/ZenHoldRouting.h`; nothing else moves, because
-the routing rule already takes the landing point.
+recognizer is live with no location — what the landing point decides is WHICH
+BINDING answers, not whether the gesture exists. Should a pad hold ever need
+protecting, the whole fix is one hit-test in `ios/GestureBindings.h`; nothing
+else moves, because the rule already takes the landing point. (Since T-025 there
+is also a milder answer that needs no code: point the Above-the-Paper Hold row at
+Nothing.)
 
 **Cancelled and multi-finger holds fire neither.** A touch iOS takes for its own
 gesture, or a second finger landing mid-hold, poisons the whole hold — the same

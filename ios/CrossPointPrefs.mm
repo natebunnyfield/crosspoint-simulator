@@ -1,5 +1,6 @@
 #include "CrossPointPrefs.h"
 
+#include "GestureBindings.h"
 #include "GunStore.h"
 #include "PanelPalette.h"
 #include "PanelPrefs.h"
@@ -730,4 +731,50 @@ int CrossPointPrefs_padContrastPreset(void) {
   // Current. Deciding that twice, in two files, is how the two answers drift.
   return static_cast<int>(
       [[NSUserDefaults standardUserDefaults] integerForKey:kPadContrastPreset]);
+}
+
+// WHAT ONE GESTURE IS BOUND TO. A FETCH, NOT A DECISION -- every fallback lives
+// in ios/GestureBindings.h, which is pure and host-tested, so there is exactly
+// one place a binding can be decided and it is not this file (owner ruling
+// 2026-08-28, T-025).
+//
+// checkKnown() is NOT called. It logs a key that is missing from the
+// registration domain, and these keys are in Root.plist like any other row, so
+// a real absence here means an unreadable Settings.bundle -- which already logs
+// once, loudly, in ensureDefaults(). Eighteen more lines saying the same thing
+// per gesture would bury it.
+//
+// Read live, same as everything else here: a binding changed in Settings.app
+// while the app was backgrounded lands on the first gesture after it returns.
+// No observer, nothing to unregister.
+int CrossPointPrefs_gestureBinding(int gesture) {
+  ensureDefaults();
+  if (gesture < 0 || gesture >= gesturebind::kGestureCount)
+    return static_cast<int>(gesturebind::Action::Unset);
+  NSString *key = [NSString
+      stringWithUTF8String:gesturebind::key(
+                               static_cast<gesturebind::Gesture>(gesture))];
+  return static_cast<int>(
+      [[NSUserDefaults standardUserDefaults] integerForKey:key]);
+}
+
+// HAS THE OWNER ACTUALLY WRITTEN THIS BINDING? See the header for why
+// -integerForKey: cannot answer it.
+//
+// -persistentDomainForName:, NOT -objectForKey:, for exactly the reason spelled
+// out above migratePadPresetForExistingCustomisation: -objectForKey: searches
+// the registration domain as well, so once ensureDefaults() has run -- which is
+// always, by the time anything asks -- it answers for every key in Root.plist
+// whether or not a human ever touched it. The persistent domain is only what has
+// been written to disk, which is the question.
+int CrossPointPrefs_gestureBindingIsExplicit(int gesture) {
+  ensureDefaults();
+  if (gesture < 0 || gesture >= gesturebind::kGestureCount) return 0;
+  NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+  NSString *suite = [[NSBundle mainBundle] bundleIdentifier];
+  NSDictionary *written = suite ? [ud persistentDomainForName:suite] : nil;
+  NSString *key = [NSString
+      stringWithUTF8String:gesturebind::key(
+                               static_cast<gesturebind::Gesture>(gesture))];
+  return written[key] != nil ? 1 : 0;
 }

@@ -24,6 +24,684 @@
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>The strip of screen above the sheet — the bezel and the notch. These apply in zen mode; Hold also works with the button pad on screen, which is how you get back into zen.
+
+Gestures ON the page are fixed and are not listed here: tap or swipe left to page forward, swipe right to page back, hold to select.</string>
+			<key>Title</key>
+			<string>Above the Paper</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>5</integer>
+			<key>Key</key>
+			<string>gestureTapAbove</string>
+			<key>Title</key>
+			<string>Tap</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>5</integer>
+			<key>Key</key>
+			<string>gestureSwipeLeftAbove</string>
+			<key>Title</key>
+			<string>Swipe Left</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>4</integer>
+			<key>Key</key>
+			<string>gestureSwipeRightAbove</string>
+			<key>Title</key>
+			<string>Swipe Right</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>9</integer>
+			<key>Key</key>
+			<string>gestureHoldAbove</string>
+			<key>Title</key>
+			<string>Hold</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>The band below the sheet, down to the bottom of the screen. Zen mode only.</string>
+			<key>Title</key>
+			<string>Below the Paper</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>5</integer>
+			<key>Key</key>
+			<string>gestureTapBelow</string>
+			<key>Title</key>
+			<string>Tap</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>5</integer>
+			<key>Key</key>
+			<string>gestureSwipeLeftBelow</string>
+			<key>Title</key>
+			<string>Swipe Left</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>4</integer>
+			<key>Key</key>
+			<string>gestureSwipeRightBelow</string>
+			<key>Title</key>
+			<string>Swipe Right</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>3</integer>
+			<key>Key</key>
+			<string>gestureHoldBelow</string>
+			<key>Title</key>
+			<string>Hold</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Anywhere on the screen — these have no top-and-bottom split. Zen mode only, except Three-Finger Tap, which also works with the button pad on screen.
+
+Two gestures may hold the same action; set one to Nothing to switch it off. If you clear every Toggle Zen Mode binding, zen can still be turned off with the Zen Mode switch at the top of this screen.
+
+The side rocker (Up / Down) steps text size inside a book on this build — holding a side button changes the reading font — and scrolls a screenful elsewhere.</string>
+			<key>Title</key>
+			<string>Multi-Finger</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>3</integer>
+			<key>Key</key>
+			<string>gestureTwoFingerTap</string>
+			<key>Title</key>
+			<string>Two-Finger Tap</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>7</integer>
+			<key>Key</key>
+			<string>gestureTwoFingerSwipeLeft</string>
+			<key>Title</key>
+			<string>Two-Finger Swipe Left</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>6</integer>
+			<key>Key</key>
+			<string>gestureTwoFingerSwipeRight</string>
+			<key>Title</key>
+			<string>Two-Finger Swipe Right</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>2</integer>
+			<key>Key</key>
+			<string>gestureTwoFingerSwipeUp</string>
+			<key>Title</key>
+			<string>Two-Finger Swipe Up</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>3</integer>
+			<key>Key</key>
+			<string>gestureTwoFingerSwipeDown</string>
+			<key>Title</key>
+			<string>Two-Finger Swipe Down</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>9</integer>
+			<key>Key</key>
+			<string>gestureThreeFingerTap</string>
+			<key>Title</key>
+			<string>Three-Finger Tap</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>8</integer>
+			<key>Key</key>
+			<string>gestureFourFingerTap</string>
+			<key>Title</key>
+			<string>Four-Finger Tap</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>6</integer>
+			<key>Key</key>
+			<string>gesturePinch</string>
+			<key>Title</key>
+			<string>Pinch</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>7</integer>
+			<key>Key</key>
+			<string>gestureSpread</string>
+			<key>Title</key>
+			<string>Spread</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<integer>10</integer>
+			<key>Key</key>
+			<string>gestureShake</string>
+			<key>Title</key>
+			<string>Shake</string>
+			<key>Titles</key>
+			<array>
+				<string>Nothing</string>
+				<string>Back — leave the book · close the screen</string>
+				<string>Confirm — select · activate the row</string>
+				<string>Left — page back · previous item</string>
+				<string>Right — page forward · next item</string>
+				<string>Up — smaller text in a book · scroll up</string>
+				<string>Down — bigger text in a book · scroll down</string>
+				<string>Power — sleep, or the reader's short-press setting</string>
+				<string>Toggle Zen Mode</string>
+				<string>Next Reading Font</string>
+			</array>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Values</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>CrossPoint holds the screen on while you read. Turn these off to keep it awake instead — useful propped on a stand, where the screen dimming mid-page is the interruption.</string>
 			<key>Title</key>
 			<string>Screen</string>
