@@ -1,258 +1,138 @@
-// The ONE-FINGER HOLD's two thresholds and three outcomes (ios/ZenHoldRouting.h).
+// What a one-finger hold does, decided by WHERE IT LANDS.
 //
-// Owner ruling 2026-08-27: a hold of 0.75 s .. 5 s fires SELECT on the lift; a
-// hold that reaches 5 s fires the zen TOGGLE at the 5 s mark under the finger
-// and the lift is then silent. Exactly one action per hold, never both.
+// Owner, 2026-08-27: "change long tap to only swap zen/singlefinger modes if
+// tap held for .75 sec above paper, if held below top of paper in zen mode,
+// make it a select after .75 before lift."
 //
-// This test exists for the same reason tests/text_entry_enter_test.cpp does:
-// both inversions of a two-way routing rule are invisible at runtime. A select
-// that stops firing reads as "the phone did not deliver the gesture"; a select
-// that fires alongside the toggle reads as "the toggle misfired". Neither shows
-// up in a screenshot and neither can be driven off-device — UIKit recognizers
-// live above SDL, so no scripted run and no simctl can reach them. So the
-// recognizer is reduced to reporting events, and the whole decision is here.
+// One threshold, two zones:
 //
-// The sweep is the boundaries the owner named plus the two poisons: just under
-// and just over each threshold, a cancelled touch, a second finger mid-hold,
-// and that the tracker comes back clean for the next hold.
-#include "ZenHoldRouting.h"
-
+//   above the paper -> Toggle, in EITHER mode
+//   on the paper    -> Select, in ZEN ONLY
+//
+// Three inversions, all silent on a device, which is why this is a truth table
+// and not a comment:
+//
+//  * a toggle that stops firing in ONE mode. This already shipped once, on
+//    2026-08-27 (the tracker's lifecycle was owned by a zen-only recognizer, so
+//    it went stale out of zen). It is the reason the mode is an ARGUMENT to the
+//    rule rather than a property of which recognizer is enabled.
+//  * a select fired OUTSIDE zen, where there is no selection to make and the
+//    press reaches the reader as a stray CONFIRM.
+//  * one hold firing BOTH, which is what the previous two-threshold shape had
+//    to work to avoid and this shape cannot express.
+#include <cassert>
 #include <cstdio>
 
-#include "TestCheck.h"
-using testcheck::check;
-
-namespace {
+#include "../ios/ZenHoldRouting.h"
 
 using zenhold::Action;
-using zenhold::Hold;
+using zenhold::Zone;
 
-int &failures = testcheck::g_failures;
+static int failures = 0;
 
-void checkAction(Action got, Action want, const char *what) {
+static void check(bool ok, const char* what) {
+  if (!ok) {
+    std::printf("  FAIL: %s\n", what);
+    failures++;
+  }
+}
+
+static void checkAction(Action got, Action want, const char* what) {
   if (got != want) {
-    std::printf("FAIL: %s (got '%s', want '%s')\n", what,
+    std::printf("  FAIL: %s (got '%s', want '%s')\n", what,
                 zenhold::actionName(got), zenhold::actionName(want));
     failures++;
   }
 }
 
-// One clean hold of `holdMs`, with the 5 s deadline delivered if it is reached
-// — which is exactly what the pair of recognizers does on the phone.
-Action cleanHold(uint32_t holdMs) {
-  Hold h;
-  const uint32_t t0 = 10'000;
-  h.begin(t0);
-  Action deadline = Action::None;
-  if (holdMs >= zenhold::kToggleMs) deadline = h.deadline();
-  const Action lift = h.release(t0 + holdMs);
-  // Never two actions from one hold.
-  if (deadline != Action::None && lift != Action::None) {
-    std::printf("FAIL: hold of %u ms fired BOTH '%s' and '%s'\n", holdMs,
-                zenhold::actionName(deadline), zenhold::actionName(lift));
-    failures++;
-  }
-  return deadline != Action::None ? deadline : lift;
-}
-
-}  // namespace
-
 int main() {
-  // ---- The truth table, at the boundaries the owner named. ----
-  //
-  // 0.75 s is the select threshold and it did NOT move (owner 2026-08-22, from
-  // device: "long tap select is too fast. make at least 1.5x longer"). Only
-  // when it fires changed.
-  checkAction(cleanHold(0), Action::None, "instant lift: nothing");
-  checkAction(cleanHold(399), Action::None, "a tap: nothing (that is ZenVerbs')");
-  checkAction(cleanHold(749), Action::None, "just under 0.75 s: nothing");
-  checkAction(cleanHold(750), Action::Select, "exactly 0.75 s: select");
-  checkAction(cleanHold(751), Action::Select, "just over 0.75 s: select");
-  checkAction(cleanHold(1500), Action::Select, "mid-window: select");
-  checkAction(cleanHold(2999), Action::Select, "just under 3 s: select");
-  checkAction(cleanHold(3000), Action::Toggle, "exactly 3 s: toggle, not select");
-  checkAction(cleanHold(3001), Action::Toggle, "just over 3 s: toggle, not select");
-  checkAction(cleanHold(30'000), Action::Toggle, "a very long hold: toggle");
+  // ---- The rule, all four combinations of zone and mode. ----
+  checkAction(zenhold::onHold(Zone::AbovePaper, false, false), Action::Toggle,
+              "above the paper, zen OFF -> toggle (the way IN)");
+  checkAction(zenhold::onHold(Zone::AbovePaper, true, false), Action::Toggle,
+              "above the paper, zen ON -> toggle (the way OUT)");
+  checkAction(zenhold::onHold(Zone::OnPaper, true, false), Action::Select,
+              "on the paper, zen ON -> select");
+  checkAction(zenhold::onHold(Zone::OnPaper, false, false), Action::None,
+              "on the paper, zen OFF -> NOTHING (no stray CONFIRM)");
 
-  // ---- The lift after a toggle is SILENT, and says so through both gates. ----
-  //
-  // The latch and the elapsed-time check are deliberately redundant: the lift
-  // and the toggle deadline can arrive in either order at the boundary, and a
-  // recognizer's .ended can be delivered before the paired recognizer's .began
-  // on the same run loop turn.
-  {
-    Hold h;
-    h.begin(1000);
-    checkAction(h.deadline(), Action::Toggle, "deadline under the finger toggles");
-    checkAction(h.release(6100), Action::None, "the lift after a toggle is silent");
-  }
-  {
-    // Latch alone, with a short elapsed time: if the deadline somehow fires
-    // early, the lift still must not select.
-    Hold h;
-    h.begin(1000);
-    checkAction(h.deadline(), Action::Toggle, "early deadline toggles");
-    checkAction(h.release(2000), Action::None,
-                "a 1 s lift after a toggle still selects nothing");
-  }
-  {
-    // Elapsed alone, with no deadline delivered (the recognizer failed for
-    // movement, say): a >= 5 s hold must not fall back to select.
-    Hold h;
-    h.begin(1000);
-    checkAction(h.release(7000), Action::None,
-                "6 s with no deadline delivered: still no select");
-  }
+  // ---- The toggle works in BOTH modes. This is the shipped-once bug. ----
+  check(zenhold::onHold(Zone::AbovePaper, false, false) ==
+            zenhold::onHold(Zone::AbovePaper, true, false),
+        "the toggle does not depend on the mode it is toggling");
 
-  // ---- The deadline fires at most once per hold. ----
-  //
-  // Two toggles cancel out, which on device reads as the gesture doing nothing.
-  {
-    Hold h;
-    h.begin(1000);
-    checkAction(h.deadline(), Action::Toggle, "first deadline toggles");
-    checkAction(h.deadline(), Action::None, "second deadline is a no-op");
-  }
+  // ---- Poison kills everything, in every zone and mode. ----
+  const Zone kZones[] = {Zone::AbovePaper, Zone::OnPaper};
+  const bool kModes[] = {false, true};
+  for (Zone z : kZones)
+    for (bool zen : kModes)
+      checkAction(zenhold::onHold(z, zen, true), Action::None,
+                  "a poisoned hold fires nothing, whatever the zone");
 
-  // ---- Poisons: neither action fires. ----
-  //
-  // Same discipline as ZenVerbs.h — a touch iOS takes for its own gesture, or
-  // a hand that lands a second finger, is not a deliberate hold.
-  {
-    Hold h;
-    h.begin(1000);
-    h.cancel();
-    checkAction(h.deadline(), Action::None, "cancelled: the deadline is silent");
-    checkAction(h.release(6000), Action::None, "cancelled: the lift is silent");
-  }
-  {
-    Hold h;
-    h.begin(1000);
-    h.cancel();
-    checkAction(h.release(2000), Action::None,
-                "cancelled inside the select window: no select");
-  }
-  {
-    Hold h;
-    h.begin(1000);
-    h.noteTouches(2);
-    checkAction(h.release(2000), Action::None, "a second finger kills the select");
-  }
-  {
-    Hold h;
-    h.begin(1000);
-    h.noteTouches(2);
-    checkAction(h.deadline(), Action::None, "a second finger kills the toggle");
-  }
-  {
-    Hold h;
-    h.begin(1000);
-    h.noteTouches(1);
-    checkAction(h.release(2000), Action::Select, "one finger throughout: select");
-  }
-
-  // ---- The tracker recovers. A sticky poison would mean select never fires
-  // again, with nothing on screen or in the log to say why. ----
-  {
-    Hold h;
-    h.begin(1000);
-    h.cancel();
-    checkAction(h.release(2000), Action::None, "poisoned hold: nothing");
-    h.begin(10'000);
-    checkAction(h.release(11'000), Action::Select, "the next hold selects again");
-  }
-  {
-    Hold h;
-    h.begin(1000);
-    checkAction(h.deadline(), Action::Toggle, "hold one toggles");
-    checkAction(h.release(6000), Action::None, "hold one's lift is silent");
-    h.begin(20'000);
-    checkAction(h.release(21'000), Action::Select,
-                "the hold after a toggle selects again");
-  }
-
-  // ---- An IDLE tracker answers the deadline. ----
-  //
-  // Out of zen the select recognizer is DISABLED, so nothing calls begin() —
-  // but the 5 s toggle is always enabled and must still fire. This is the case
-  // a tracker that gated the deadline on active() would silently break in one
-  // mode only.
-  {
-    Hold h;
-    checkAction(h.deadline(), Action::Toggle, "idle tracker: the toggle still fires");
-  }
-  {
-    // ...and it must not be poisoned by a hold that ended long ago.
-    Hold h;
-    h.begin(1000);
-    h.cancel();
-    (void)h.release(2000);
-    checkAction(h.deadline(), Action::Toggle,
-                "a previous hold's poison does not survive into the next toggle");
-  }
-
-  // ---- A lift with no begin() fires nothing. ----
-  {
-    Hold h;
-    checkAction(h.release(9000), Action::None, "a lift with no hold: nothing");
-  }
-
-  // ---- The pure predicates, addressed directly. ----
-  checkAction(zenhold::onRelease(749, false, false), Action::None, "pure: 749 ms");
-  checkAction(zenhold::onRelease(750, false, false), Action::Select, "pure: 750 ms");
-  checkAction(zenhold::onRelease(2999, false, false), Action::Select, "pure: 2999 ms");
-  checkAction(zenhold::onRelease(3000, false, false), Action::None, "pure: 3000 ms");
-  checkAction(zenhold::onRelease(2000, true, false), Action::None, "pure: poisoned");
-  checkAction(zenhold::onRelease(2000, false, true), Action::None, "pure: toggled");
-  checkAction(zenhold::onToggleDeadline(false, false), Action::Toggle,
-              "pure deadline: clean");
-  checkAction(zenhold::onToggleDeadline(true, false), Action::None,
-              "pure deadline: poisoned");
-  checkAction(zenhold::onToggleDeadline(false, true), Action::None,
-              "pure deadline: already toggled");
-
-
-  // ---- REGRESSION: begin() must scrub a stale hold. ----
-  //
-  // Owner 2026-08-27, from the device: "currently it does not work in single
-  // finger mode." Out of zen the SELECT recognizer is disabled, so for a long
-  // time nothing called begin() OR release() and this tracker carried the last
-  // zen hold's state indefinitely. One poisoned hold, or one exit from zen by
-  // the 3-finger tap (which never lifts a finger through the select
-  // recognizer), latched poisoned_ or toggled_ and the deadline answered None
-  // from then on — dead in ONE MODE while the other kept working.
-  //
-  // The recognizer fix is that the toggle now owns the whole lifecycle when zen
-  // is off. What is provable HERE is the property that fix leans on: a begin()
-  // wipes any inherited poison and any inherited toggle latch, so a hold that
-  // starts clean behaves clean no matter what the previous one did.
+  // ---- The latch: one action per hold, however often .began is delivered. ----
   {
     zenhold::Hold h;
-    h.begin(0);
-    h.noteTouches(2);            // poisoned
-    checkAction(h.deadline(), Action::None, "stale: poisoned hold does nothing");
-    h.begin(0);                  // a NEW hold, no release() in between
+    h.begin();
     h.noteTouches(1);
-    checkAction(h.deadline(), Action::Toggle,
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
+                "first .began toggles");
+    checkAction(h.resolve(Zone::AbovePaper, true), Action::None,
+                "a re-delivered .began does NOT toggle back");
+    checkAction(h.resolve(Zone::OnPaper, true), Action::None,
+                "nor select afterwards -- one action per hold");
+  }
+
+  // ---- A NEW hold is clean, with no release in between. ----
+  //
+  // The 2026-08-27 defect in one line: out of zen nothing called the tracker's
+  // lifecycle, so a stale flag killed every later hold. begin() must scrub.
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(2);  // poisoned
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::None,
+                "stale: a poisoned hold does nothing");
+    h.begin();  // a NEW hold, nothing else called
+    h.noteTouches(1);
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
                 "regression: begin() scrubs an inherited poison");
   }
   {
     zenhold::Hold h;
-    h.begin(0);
+    h.begin();
     h.noteTouches(1);
-    checkAction(h.deadline(), Action::Toggle, "stale: first toggle fires");
-    checkAction(h.deadline(), Action::None, "stale: the latch holds within one hold");
-    h.begin(0);                  // a NEW hold, no release() in between
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle, "fires once");
+    h.begin();  // a NEW hold, nothing else called
     h.noteTouches(1);
-    checkAction(h.deadline(), Action::Toggle,
-                "regression: begin() scrubs an inherited toggle latch");
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
+                "regression: begin() scrubs an inherited fired-latch");
   }
 
-  check(zenhold::kSelectMs == 750, "the select threshold is still the owner's 0.75 s");
-  check(zenhold::kToggleMs == 3000,
-        "the toggle threshold is the owner's 3 s (retuned from 5 on 2026-08-27)");
-  check(zenhold::kSelectMs < zenhold::kToggleMs,
-        "the select window opens before the toggle deadline");
+  // ---- A second finger mid-hold poisons, but cannot un-fire. ----
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(1);
+    checkAction(h.resolve(Zone::OnPaper, true), Action::Select, "select fires");
+    h.noteTouches(2);  // a second finger arrives after the action
+    check(h.poisoned(), "the late second finger still poisons");
+    checkAction(h.resolve(Zone::OnPaper, true), Action::None,
+                "and cannot produce a second action");
+  }
+
+  // ---- A cancelled hold fires nothing. ----
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(1);
+    h.cancel();
+    checkAction(h.resolve(Zone::AbovePaper, false), Action::None,
+                "iOS took the touch -> nothing");
+  }
+
+  // ---- The threshold is the owner's, and there is only ONE now. ----
+  check(zenhold::kHoldMs == 750,
+        "the hold threshold is the owner's 0.75 s, shared by both actions");
 
   if (failures == 0) {
     std::printf("zen_hold_test: all checks passed\n");
