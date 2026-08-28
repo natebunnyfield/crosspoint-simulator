@@ -2672,6 +2672,30 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // be thrown away. Same failure, same fix, now reached from both causes.
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: {
       g_padLaidOut = false;
+      // AND THE RECTS GO WITH THE FLAG, on a SIZE change specifically.
+      //
+      // Clearing the flag alone schedules a relayout, but the relayout happens
+      // in the PAINT path (see the layout gate in the overlay painter) while
+      // finger events arrive through HalGPIO::update on a different cadence. So
+      // between this event and the next present, padHitTest() was still walking
+      // the OLD rects -- and it returns the first slot whose rect contains the
+      // point, with no check that the geometry is current. A touch in that
+      // window pressed whichever button used to be there, and the painter then
+      // shaded that button rather than the one under the finger.
+      //
+      // That is a candidate mechanism for S-026, the bottom-right rocker
+      // flashing on a press elsewhere, and it links it to S-027: a video call
+      // resizes the window twice, so the reports may be one event seen twice.
+      // Unproven -- neither is reproduced here -- but the behaviour is wrong on
+      // its own terms.
+      //
+      // Zeroed rather than left stale, so padHitTest answers kNoSlot: during a
+      // resize a tap does NOTHING, which is the right failure. Pressing the
+      // wrong button is worse than dropping one tap in a window that lasts a
+      // frame. Only THIS site invalidates geometry -- the zen toggle and the
+      // band change also clear g_padLaidOut, but they do not move the output,
+      // so their rects stay valid and their taps must keep working.
+      for (auto &b : g_pad) b.rect = SDL_FRect{0, 0, 0, 0};
       armSettleRepaint();
       SimulatorOverlay::requestPresent();
       break;

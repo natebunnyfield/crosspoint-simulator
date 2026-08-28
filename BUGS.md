@@ -177,9 +177,39 @@ compare.
 
 Still not reproduced: no headless path produces the report, since
 `CROSSPOINT_SIM_TAP_PAD` synthesises one tap at a time and the report is about
-a press that follows another. If it survives this build, the next suspects are
-the hit test's slot mapping and whether a resize can leave `g_padLaidOut` false
-across a present.
+a press that follows another.
+
+## The hit test WAS the next suspect, and it had a real defect, 2026-08-28
+
+Checked the suspect named above rather than leaving it, and found a mechanism
+that fits the report:
+
+**`padHitTest()` walked stale geometry after a resize.** It returns the first
+slot whose rect contains the point, with no check that the geometry is current
+-- and `SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED` cleared `g_padLaidOut` **without
+touching the rects**. The relayout that flag schedules happens in the PAINT
+path, while finger events arrive through `HalGPIO::update` on a different
+cadence. So between the resize and the next present, a touch hit-tested against
+the OLD rects: it pressed whichever button used to be at that point, and the
+painter then shaded THAT button rather than the one under the finger.
+
+A press appearing on a control the finger is not on is exactly the report.
+
+**It also links this entry to S-027.** A video call resizes the window twice --
+banner in, banner out -- so "the screen went blank coming back from a call" and
+"a rocker flashes when I press something else" may be one event observed twice.
+
+**Fixed by zeroing the rects with the flag**, so `padHitTest` answers `kNoSlot`
+and a tap during the resize window does NOTHING. That is the right failure:
+pressing the wrong button is worse than dropping one tap in a window that lasts
+a frame. Only the SIZE-change site invalidates geometry -- the zen toggle and
+the band change also clear `g_padLaidOut` but do not move the output, so their
+rects stay valid and their taps must keep working.
+
+**Still unproven as the cause.** Nothing here reproduces it: the synthetic tap
+path lays the pad out first, so it never sees the stale window. What is certain
+is that the old behaviour was wrong, and that this is the second defect found in
+this code path today -- the painter's missing retired-slot guard was the first.
 
 ### [S-025] The CRT page fade stalls and resumes when a redraw runs
 **severity: medium (the effect reads as broken) · scope: page fade / present loop · filed 2026-08-27 from the device · NOT YET REPRODUCED**
