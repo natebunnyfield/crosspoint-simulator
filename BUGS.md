@@ -142,18 +142,42 @@ That also explains the shape of the complaint precisely — "pauses and resumes"
 rather than "runs at the wrong speed". The VALUES are right (wall clock); the
 DELIVERY of them is lumpy.
 
-Two directions, neither measured yet:
-- make a fade-only present skip the surface passes it cannot have changed. The
-  fade changes `SDL_SetTextureAlphaMod` on the panel texture; the sheet, the
-  scanlines and the grain are all functions of the seed and the dials, none of
-  which moved. If they can be reused rather than rebuilt, a fade step becomes
-  nearly free.
-- or coarsen the step schedule deliberately, trading fewer, larger alpha steps
-  for even spacing. Cheaper to do and worse-looking; only if the first fails.
+**SECOND HYPOTHESIS ALSO WRONG - MEASURED 2026-08-28.** The cost theory above
+is disproved by the instrument this repo already has.
+`CROSSPOINT_SIM_LOG_TIMING=1`, as-shipped dials, dark ground, a 3 s fade:
 
-Related: S-019, which is the same present cost seen as battery rather than as
-stutter, and whose fix (waking once per quantized step instead of every frame)
-is what makes each remaining wake expensive.
+```
+[timing] #51 total 14.25 ms | accum cache 11.43 | panel off | sheet off | scanlines off | grain cache 0.00
+[timing] #57 total  2.64 ms | accum cache  1.99 | panel off | sheet off | scanlines off | grain cache 0.00
+```
+
+**Every field reads `cache` or `off` on every fade present - nothing rebuilds**
+- and a present costs **2.6-14.7 ms**, not the ~50 the cost theory needed. The
+sheet is not rebuilt per fade step, so there is nothing there to make cheaper.
+The dominant line is the trail accumulator, and it is a cached draw.
+
+**What the data DOES show is the step SCHEDULE.** Present-to-present intervals
+across one fade, in ms:
+
+```
+64  194  133  192  191  188  301  344  474  772  2083
+```
+
+They lengthen, and they must: alpha follows 10^(-age/fade), so the time to the
+next QUANTIZED step grows as the curve flattens. `nextStepAgeMs` is correct and
+doing exactly its job - but late in a fade the picture changes once every two
+seconds, and each change is one code value.
+
+The remaining question is PERCEPTUAL rather than mechanical, and reading the
+code again will not answer it: whether the awkwardness is those late sparse
+steps, the unevenness of the early ones (194/133/192 is not a smooth cadence),
+or something that appears only on Metal at 120 Hz. Recorded as measured rather
+than guessed a third time.
+
+**Two hypotheses are now disproved and must not be re-proposed**: it is not a
+per-frame accumulator (the age is wall-clock), and it is not field rebuild cost
+(everything is cached). Related: S-019, whose fix - waking once per quantized
+step instead of every frame - is what produced this schedule.
 
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
