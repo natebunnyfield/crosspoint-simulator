@@ -744,27 +744,30 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now seven groups and 25 rows** — count them out of
+**Settings.app is now seven groups and 29 rows** — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong twice:
 
 | Group | Rows |
 |---|---|
 | Zen | Zen Mode |
+| Gestures | Tap · Swipe Left · Swipe Right · Hold · Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
 | Above the Paper | Tap · Swipe Left · Swipe Right · Hold |
 | Below the Paper | Tap · Swipe Left · Swipe Right · Hold |
-| Multi-Finger | Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Sleep | Power-Off Collapse · Diagnostics Log |
 
-The three gesture groups arrived 2026-08-28 (T-025, owner: *"make gestures
-configureable in ios app settings"*) and are the only rows here that are not
-appearance or behavior toggles — see the gesture block near the foot of this
-file, and `docs/zen-mode.md` for the rulings. **ON the paper is fixed and has no
-row, by ruling**; only the strip above the sheet and the band below it are
-assignable. They are INPUT rather than appearance, which is what lets them past
-the 2026-08-23 ruling that removed every surface dial from this screen.
+The three gesture groups arrived 2026-08-28 (T-025) and are the only rows here
+that are not appearance or behavior toggles — see the gesture block near the foot
+of this file, and `docs/zen-mode.md` for the rulings. **THE MODEL IS LAYERED, not
+three parallel zones**: `Gestures` is the base and applies anywhere on screen,
+and the two zone groups override it for the four single-finger gestures only.
+Every zone row ships BLANK, which falls through. **There is no "on the paper"
+concept at all** (owner, verbatim: *"there is no 'on the paper', it's just normal
+configuration"*) — the paper is simply where nothing overrides. They are INPUT
+rather than appearance, which is what lets them past the 2026-08-23 ruling that
+removed every surface dial from this screen.
 
 Owner ruling 2026-08-23, from a screenshot of his own chosen values: *"make
 these settings the default and remove them from ios app settings as options."*
@@ -1023,38 +1026,46 @@ Grown in one day; each is documented at its definition, this is the map:
 - **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,
   ≤400 ms, zone judged from the LANDING point. Swipes, drags, holds, and
   multi-finger do nothing.
-- **A ONE-FINGER GESTURE IS ROUTED BY WHERE IT LANDED, into three zones**, and
-  two of the three are Settings.app rows. **Above the paper** is above
-  `g_cardTopPx` (where black ends and paper begins); **below the paper** is past
-  `g_zenRowTopPx`, the sheet's bottom edge and the same `line` the zen painter
-  cuts it at; everything between is **on the paper** and is FIXED by ruling --
-  no row, no key, no prepared hook. The hold split by POSITION on 2026-08-27
-  (owner: *"change long tap to only swap zen/singlefinger modes if tap held for
-  .75 sec above paper, if held below top of paper in zen mode, make it a select
-  after .75 before lift"*), replacing a two-threshold shape in which one hold
-  wanted to fire two things; T-025 added the third zone and made the outer two
-  assignable, and did NOT add a second threshold. A bottom edge that is not
-  below the top edge collapses the rule to the two-zone one, so an unmeasured
-  geometry cannot invent a third zone out of a zero.
-- **WHAT EVERY GESTURE DOES IS ONE DECISION, in one pure header**
-  ([ios/GestureBindings.h](ios/GestureBindings.h), truth-tabled in
-  `tests/gesture_bindings_test.cpp`) -- 18 bindings, ten actions, driving the
-  UIKit recognizers, the SDL deliberate tap and the shake catcher alike. Every
-  failure mode is silent AND undrivable off-device: UIKit recognizers live above
-  SDL, where neither `SDL_PushEvent` nor `simctl` can synthesize a touch, so a
-  gesture that fires the wrong button reads as the reader misbehaving. Four
-  owner rulings 2026-08-28, implemented exactly and pinned as rulings: **zen may
-  be left unbound** (no guard -- the config is in Settings.app, outside the
-  reader, so it is always recoverable), **two gestures may share one action**
-  (no conflict detection), **a gesture may be bound to Nothing**, and **zen
-  scope is a property of the GESTURE and never of the action bound to it** --
-  you configure WHAT a gesture does, never WHEN. The same two gestures fire
-  outside zen as always (the 3-finger tap and the hold above the paper), because
-  they are the two ways in. **Every default reproduces build 156 gesture by
-  gesture**, and a stored 0 -- an unwritten key, or a `Root.plist` that would not
-  load -- resolves to the default rather than to Nothing, so a lost store cannot
-  kill every gesture in the app. Bindings persist as INTEGERS, so the action list
-  APPENDS. Full account: [docs/zen-mode.md](docs/zen-mode.md).
+- **WHAT EVERY GESTURE DOES IS ONE DECISION, in one pure header, and the model
+  is LAYERED** ([ios/GestureBindings.h](ios/GestureBindings.h), truth-tabled in
+  `tests/gesture_bindings_test.cpp`). Owner 2026-08-28, verbatim: *"if above and
+  below the paper is blank, it should pass through to global configuration. if
+  they are defined, they take precedence. there is no 'on the paper', it's just
+  normal configuration."* So: a GLOBAL layer holding all 14 gestures, plus 8
+  zone-override rows for the four single-finger gestures. Multi-finger has no
+  zone override, by ruling -- a 3-finger tap is the same gesture wherever it
+  lands. **BLANK AND "NOTHING" ARE DIFFERENT VALUES in a zone**, and that is the
+  part most likely to be got wrong: blank (`Inherit`, the default for every zone
+  row) falls through to global, while `Nothing` is an EXPLICIT override meaning
+  "not in this region" -- which is how a gesture is switched off in the margins
+  while it keeps working on the page. **There is no "on the paper"**: a landing
+  point between the boundaries has no override row, so the global binding
+  applies, and adding one back is adding a concept the owner removed.
+- **THE LANDING POINT PICKS THE LAYER, and the two boundaries are already
+  published.** Above `g_cardTopPx` (where black ends and paper begins) and at or
+  past `g_zenRowTopPx` (the sheet's bottom edge, the same `line` the zen painter
+  cuts it at) are the two override zones; a bottom edge that is not below the top
+  edge leaves only the top boundary, so an unmeasured geometry cannot invent a
+  zone out of a zero. The hold split by POSITION on 2026-08-27 (owner: *"change
+  long tap to only swap zen/singlefinger modes if tap held for .75 sec above
+  paper..."*), replacing a two-threshold shape in which one hold wanted to fire
+  two things; T-025 made the zones configurable and did NOT add a second
+  threshold. **`HoldAbove` is the one zone row that does not ship blank** -- it
+  holds the zen toggle, because the hold does two different things by position
+  and no single global binding can state both.
+- **Four owner rulings, implemented exactly and pinned as rulings**: **zen may be
+  left unbound** (no guard -- the config is in Settings.app, outside the reader,
+  so it is always recoverable), **two gestures may share one action** (no
+  conflict detection), **a gesture may be bound to Nothing**, and **zen scope is
+  a property of the GESTURE AND ITS ZONE, never of the action bound to it** --
+  you configure WHAT a gesture does, never WHEN. Note the subtle half: an
+  inherited action still takes the ZONE's gate, so a hold above the paper set to
+  blank still fires while zen is off. **Every default reproduces build 156
+  gesture by gesture**, and a stored 0 -- an unwritten key, or a `Root.plist`
+  that would not load -- resolves to the row's default rather than to Nothing, so
+  a lost store cannot kill every gesture in the app. Bindings persist as
+  INTEGERS, so the action list APPENDS. Full account:
+  [docs/zen-mode.md](docs/zen-mode.md).
 
 ## Driving it headlessly
 

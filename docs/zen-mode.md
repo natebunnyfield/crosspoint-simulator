@@ -29,15 +29,16 @@ swiping instead"* / *"please use apple for this so everything works as
 expected."*
 
 **WHAT EACH ONE DOES IS CONFIGURABLE from Settings.app** since T-025 (owner
-2026-08-28) — see the next section. The table is the **shipped defaults**, which
-are exactly what build 156 did.
+2026-08-28) — see the next section for the layered model. The table is the
+shipped GLOBAL layer with every zone override blank, which together are exactly
+what build 156 did.
 
 | Gesture | Live in | Default action |
 |---|---|---|
-| **1-finger hold, 0.75 s, ABOVE the paper** | **zen AND not-zen** | **toggles zen, under the finger** |
+| **1-finger hold, 0.75 s, ABOVE the paper** | **zen AND not-zen** | **toggles zen, under the finger** (the one non-blank zone row) |
 | **3-finger tap** | **zen and not-zen** | **toggles zen** |
 | 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward (`BTN_RIGHT`) |
-| 1-finger hold, 0.75 s, ON or BELOW the paper | zen only | Select (`BTN_CONFIRM`) |
+| 1-finger hold, 0.75 s, anywhere else | zen only | Select (`BTN_CONFIRM`) |
 | 1-finger swipe left / right | zen only | page forward / back |
 | 2-finger swipe left / right | zen only | `BTN_DOWN` / `BTN_UP` |
 | 2-finger swipe down / up | zen only | Select / Back |
@@ -50,7 +51,7 @@ The two always-on rows are always on for the same reason: they toggle **both
 ways**, so they have to fire while zen is off. Everything else is enabled only
 while zen is on (`CrossPointZenRecognizers_setEnabled`), or gated on the zen flag
 where the gesture has no recognizer of its own (the shake catcher, the SDL tap,
-and the hold's on- and below-the-paper zones).
+and every hold that did not land above the paper).
 
 The 3-finger tap **stays**. Two ways in is deliberate — removing it would be
 removing capability nobody asked to lose.
@@ -66,29 +67,67 @@ a screenful everywhere else; it turns pages only where the reader's long-press
 setting is Off. That is what the Settings.app labels say, and it is why they do
 not say "page forward".
 
-## The bindings are Settings.app rows (T-025, owner 2026-08-28)
+## The bindings are Settings.app rows, and the model is LAYERED (T-025, 2026-08-28)
 
 Owner: *"make gestures configureable in ios app settings. list all possible
 gestures and give a well ordered, logically list of what they can be assigned
-to."*
+to."* Then, correcting a first attempt that had built three parallel zones with a
+hardcoded paper:
 
-**Three groups, 18 rows.** The rule is
-[ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of
-SDL and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the
-usual reason: every way it can be wrong is silent on a device and none of it can
-be driven off-device, because UIKit's recognizers live above SDL where no input
+> *"if above and below the paper is blank, it should pass through to global
+> configuration. if they are defined, they take precedence. there is no 'on the
+> paper', it's just normal configuration."*
+
+**Three groups, 22 rows, in two layers.** The rule is
+[ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of SDL
+and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the usual
+reason: every way it can be wrong is silent on a device and none of it can be
+driven off-device, because UIKit's recognizers live above SDL where no input
 script and no `simctl` can synthesize a touch.
 
-| Group | Rows |
-|---|---|
-| **Above the Paper** | Tap · Swipe Left · Swipe Right · Hold |
-| **Below the Paper** | Tap · Swipe Left · Swipe Right · Hold |
-| **Multi-Finger** | Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
+| Group | Layer | Rows | Ships |
+|---|---|---|---|
+| **Gestures** | base | Tap · Swipe Left · Swipe Right · Hold · Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake | today's mapping |
+| **Above the Paper** | override | Tap · Swipe Left · Swipe Right · Hold | blank, except Hold |
+| **Below the Paper** | override | Tap · Swipe Left · Swipe Right · Hold | blank |
 
-**ON the paper is FIXED and is not in the settings at all** (owner ruling).
-Reading gestures on the page stay reading gestures on the page: tap or swipe
-left pages forward, swipe right pages back, hold selects. There is no row, no
-key, and no prepared hook for it.
+```
+action(gesture, landingY):
+    if gesture is multi-finger:               return global[gesture]
+    zone = zoneFor(landingY)                  # above / below / neither
+    if zone has a row and it is not blank:    return zoneBinding[zone][gesture]
+    return global[gesture]
+```
+
+**THERE IS NO "ON THE PAPER."** It is not a zone with a fixed behavior, it is not
+a row, and it is not a key. A landing point between the two boundaries simply has
+no override, so the global binding applies — the same as a multi-finger gesture
+anywhere, and the same as any gesture whose zone row is blank. The first shape of
+this feature hardcoded the paper's behavior as a third case; that was wrong, and
+the branch is gone rather than disabled.
+
+**MULTI-FINGER HAS NO ZONE OVERRIDE**, by ruling: a three-finger tap is the same
+gesture wherever it lands.
+
+**BLANK AND "NOTHING" ARE DIFFERENT VALUES, and this is the part most likely to
+be got wrong.**
+
+| Zone row holds | Means |
+|---|---|
+| *Use the Gestures setting* (blank, `Inherit`) | fall through to the global binding. **The default for every zone row.** |
+| **Nothing** | an EXPLICIT override: do nothing **in this region**, while the gesture keeps working everywhere else. |
+
+The second is a real use, not a theoretical one: the owner has twice reported
+gestures firing accidentally, and the margins are where that happens. An
+implementation that collapses the two — treating "no action" as "no override" —
+compiles, passes a casual read, and silently makes that row do the global thing
+instead of nothing at all. `tests/gesture_bindings_test.cpp` fails it.
+
+The global group has no blank. There is nothing above it to inherit from, so its
+rows offer the ten actions and that is all; `Inherit` stored against a global row
+(a hand-edited plist, a restored backup) falls back to that row's default rather
+than escaping into the recognizers, where it would be dispatched as an unknown
+action and swallow the gesture.
 
 **What a row can be assigned to** is the firmware's button vocabulary, annotated
 in the row label with what each does in a book and elsewhere: Back, Confirm,
@@ -108,22 +147,38 @@ defaults could not have stated what the app already did.
   refusal. Each gesture resolves independently and nothing knows what the others
   hold.
 - **A gesture may be bound to Nothing.**
-- **Zen scope is unchanged**, and it is a property of the GESTURE rather than of
-  the action bound to it: you configure WHAT a gesture does, never WHEN. The two
-  always-on gestures stay always-on whatever they hold, and binding a zen-only
-  gesture to the toggle gets you only OUT of zen.
+- **Zen scope is unchanged**, and it is a property of the GESTURE AND ITS ZONE
+  rather than of the action bound to it: you configure WHAT a gesture does, never
+  WHEN. The two always-on cases stay always-on whatever they hold, and binding a
+  zen-only gesture to the toggle gets you only OUT of zen. **The subtle half: the
+  gate travels with the landing point, not with the binding.** A hold above the
+  paper left blank takes its ACTION from the global row — whose own row is not
+  always-on — and its GATE from the zone, so it still fires while zen is off.
+  Getting that backwards would lose a way into zen for anyone who blanked the
+  row, silently.
+
+**`HoldAbove` is the one zone row that does not ship blank, and it has to be.**
+Before T-025 a one-finger hold ABOVE the paper toggled zen while the same hold
+anywhere else selected — the 2026-08-27 position split, below. Those are two
+different actions for one gesture, so no single global binding can state both:
+with HoldAbove blank the hold above the paper would inherit Confirm and the zen
+toggle would silently disappear from the gesture that carries it, leaving only
+the three-finger tap as a way in. Build-156 parity is the overriding property, so
+the override ships pre-filled. Pointing it at blank is a perfectly good thing for
+the owner to do; it is just not the default.
 
 **The defaults reproduce build 156 gesture by gesture** — the property that
 matters most, since there is no way to notice it has broken except by using the
 app and feeling that something is wrong. A stored 0 (an unwritten key, or a
 registration domain that never loaded because `Settings.bundle/Root.plist` was
-unreadable) resolves to the default rather than to Nothing, so the worst a lost
-store can do is render the app as it shipped rather than kill every gesture
+unreadable) resolves to the row's default rather than to Nothing, so the worst a
+lost store can do is render the app as it shipped rather than kill every gesture
 including both ways into zen.
 
 **A binding persists as an INTEGER**, so the action list APPENDS and never
 inserts or re-points — the same discipline the palette presets follow, for the
-same reason.
+same reason. `Inherit` is 11 rather than 0 because it arrived after the other
+ten.
 
 ## The hold splits by POSITION, not duration (2026-08-27, final shape)
 
@@ -134,14 +189,14 @@ after .75 before lift."*
 | a 0.75 s one-finger hold landing... | zen off | zen on |
 |---|---|---|
 | **above the paper** (bezel / safe-area strip) | toggle INTO zen | toggle OUT of zen |
-| **on or below the paper's top** | nothing | Select (`BTN_CONFIRM`) |
+| **anywhere else** | nothing | Select (`BTN_CONFIRM`) |
 
 Both fire at 0.75 s **with the finger still down**. Nothing happens on the lift.
 
-**T-025 (2026-08-28) split the lower half in two and made two of the three zones
-assignable**; the table above is what the shipped defaults still produce, since
-Hold-above defaults to the toggle and Hold-below to Select. It did NOT add a
-second threshold, and must not.
+**T-025 (2026-08-28) made this configurable rather than fixed**, and the table
+above is what the shipped values still produce: the Above-the-Paper Hold row
+carries Toggle Zen Mode, and everything else falls through to the global Hold,
+which is Select. It did NOT add a second threshold, and must not.
 
 "Above the paper" is the card's top edge — where black ends and paper begins
 (`g_cardTopPx`), not the top of the text. "Below the paper" is past the sheet's
@@ -163,7 +218,7 @@ was.** `layoutPadTablet` publishes neither boundary, but `zenPaperBottomPx()`
 falls back to the PANEL's bottom edge — the same fallback the zen painter uses —
 so an iPad does get a below-the-paper zone from its first present, measured
 against the page rather than a rocker row. Nothing follows from it at the shipped
-defaults, since every Below binding resolves to what On the paper does.
+defaults, since every Below row is blank and inherits.
 
 ### Why this shape, after two others in one day
 
@@ -289,8 +344,9 @@ recognizer is live with no location — what the landing point decides is WHICH
 BINDING answers, not whether the gesture exists. Should a pad hold ever need
 protecting, the whole fix is one hit-test in `ios/GestureBindings.h`; nothing
 else moves, because the rule already takes the landing point. (Since T-025 there
-is also a milder answer that needs no code: point the Above-the-Paper Hold row at
-Nothing.)
+is also a milder answer that needs no code: set the Above-the-Paper Hold row to
+Nothing — the explicit override, not blank, which would inherit the global Hold
+instead.)
 
 **Cancelled and multi-finger holds fire neither.** A touch iOS takes for its own
 gesture, or a second finger landing mid-hold, poisons the whole hold — the same

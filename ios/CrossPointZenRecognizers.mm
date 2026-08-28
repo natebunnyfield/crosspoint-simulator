@@ -225,27 +225,44 @@ void performGestureAction(gesturebind::Action a, const char *what) {
 
 @implementation CPXZenGestureHandler
 
-// A ONE-FINGER GESTURE, resolved by WHERE IT LANDED and performed. The zone is
-// the only thing this adds over the multi-finger path: above and below the
-// paper are Settings.app rows, and the paper itself is fixed by ruling.
+// A ONE-FINGER GESTURE, resolved through the LAYERS and performed.
+//
+// Two rows are read, never one: the zone's override (if the landing point is in
+// a zone that has one) and the global row. ios/GestureBindings.h decides which
+// wins -- a blank override falls through, a set one takes precedence, and an
+// explicit Nothing in a zone is an override that means "not here", not a blank.
+// This method only fetches and reports.
 - (void)oneFinger:(gesturebind::OneFinger)kind at:(UIGestureRecognizer *)g {
   float yPx = 0.0f;
   const gesturebind::Zone z = zoneOf(g, &yPx);
-  const gesturebind::Gesture which = gesturebind::oneFingerGesture(kind, z);
-  // Nothing is stored for the paper itself -- oneFingerAction ignores this
-  // argument there, and reading a key that does not exist would be the first
-  // step toward one existing.
-  const int stored =
-      which == gesturebind::Gesture::Count
+  const gesturebind::Gesture zoneRow = gesturebind::zoneGesture(kind, z);
+  const gesturebind::Gesture globalRow = gesturebind::globalGesture(kind);
+  // A landing point between the boundaries has no override row at all -- the
+  // paper is simply where nothing overrides (owner 2026-08-28: "there is no 'on
+  // the paper', it's just normal configuration"). Nothing is read for it,
+  // because reading a key that does not exist would be the first step toward
+  // one existing.
+  const int zoneStored =
+      zoneRow == gesturebind::Gesture::Count
           ? 0
-          : CrossPointPrefs_gestureBinding(static_cast<int>(which));
+          : CrossPointPrefs_gestureBinding(static_cast<int>(zoneRow));
+  const int globalStored =
+      CrossPointPrefs_gestureBinding(static_cast<int>(globalRow));
   const gesturebind::Action a =
-      gesturebind::oneFingerAction(kind, z, g_zenOn, stored);
-  char what[128];
-  SDL_snprintf(what, sizeof(what), "%s %s the paper (y=%.0f, top %.0f, bottom %.0f, zen %s)",
+      gesturebind::oneFingerAction(kind, z, g_zenOn, zoneStored, globalStored);
+  // The log says which LAYER answered, because "the override did not take" and
+  // "the phone did not deliver the gesture" look identical on a device and this
+  // is the only line that can tell them apart.
+  const bool overridden =
+      zoneRow != gesturebind::Gesture::Count &&
+      gesturebind::resolve(zoneRow, zoneStored) != gesturebind::Action::Inherit;
+  char what[160];
+  SDL_snprintf(what, sizeof(what),
+               "%s %s (y=%.0f, paper %.0f..%.0f, zen %s, %s)",
                gesturebind::oneFingerName(kind), gesturebind::zoneName(z), yPx,
                CrossPointZen_cardTopPx(), CrossPointZen_paperBottomPx(),
-               g_zenOn ? "on" : "off");
+               g_zenOn ? "on" : "off",
+               overridden ? "zone override" : "global layer");
   performGestureAction(a, what);
 }
 
@@ -367,33 +384,36 @@ void performGestureAction(gesturebind::Action a, const char *what) {
       // second finger on the glass is not a deliberate press.
       float yPx = 0.0f;
       const gesturebind::Zone z = zoneOf(g, &yPx);
-      const gesturebind::Gesture which =
-          gesturebind::oneFingerGesture(gesturebind::OneFinger::Hold, z);
-      const int stored =
-          which == gesturebind::Gesture::Count
+      const gesturebind::Gesture zoneRow =
+          gesturebind::zoneGesture(gesturebind::OneFinger::Hold, z);
+      const gesturebind::Gesture globalRow =
+          gesturebind::globalGesture(gesturebind::OneFinger::Hold);
+      const int zoneStored =
+          zoneRow == gesturebind::Gesture::Count
               ? 0
-              : CrossPointPrefs_gestureBinding(static_cast<int>(which));
+              : CrossPointPrefs_gestureBinding(static_cast<int>(zoneRow));
+      const int globalStored =
+          CrossPointPrefs_gestureBinding(static_cast<int>(globalRow));
       const gesturebind::Action a =
           g_hold.poisoned()
               ? gesturebind::Action::Nothing
               : gesturebind::oneFingerAction(gesturebind::OneFinger::Hold, z,
-                                             g_zenOn, stored);
+                                             g_zenOn, zoneStored, globalStored);
       SDL_Log("[zen] hold at y=%.0f px (paper %.0f..%.0f) %s, zen %s -> %s", yPx,
               CrossPointZen_cardTopPx(), CrossPointZen_paperBottomPx(),
               gesturebind::zoneName(z), g_zenOn ? "on" : "off",
               gesturebind::actionName(a));
-      // claim() is the latch that survives UIKit re-delivering .began (it does
-      // on some paths, and two toggles in one gesture cancel out -- which reads
-      // on device as the gesture doing nothing at all). It is asked only when
-      // something is actually going to happen, so an unbound hold leaves the
-      // tracker unlatched exactly as a poisoned one does.
       // The gesture string carries the ZONE, because it is also what the
       // `[zen] toggle` line reports as the toggle's source -- and a toggle log
       // that cannot say which gesture and which zone produced it is a log that
       // cannot confirm the binding on device.
       char what[96];
-      SDL_snprintf(what, sizeof(what), "hold %s the paper",
-                   gesturebind::zoneName(z));
+      SDL_snprintf(what, sizeof(what), "hold %s", gesturebind::zoneName(z));
+      // claim() is the latch that survives UIKit re-delivering .began (it does
+      // on some paths, and two toggles in one gesture cancel out -- which reads
+      // on device as the gesture doing nothing at all). It is asked only when
+      // something is actually going to happen, so an unbound hold leaves the
+      // tracker unlatched exactly as a poisoned one does.
       if (a != gesturebind::Action::Nothing && g_hold.claim())
         performGestureAction(a, what);
       break;
@@ -615,8 +635,8 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       // none.
       SDL_Log("[zen] recognizers attached "
               "(zen-only: 6 swipes, pinch, 2-tap, 4-tap; always on: 3-tap, "
-              "1-finger hold %.2f s; shake catcher installed; %d bindings "
-              "configurable in Settings.app)",
+              "1-finger hold %.2f s; shake catcher installed; %d rows "
+              "configurable in Settings.app -- 14 global, 8 zone overrides)",
               zenhold::kHoldMs / 1000.0, gesturebind::kGestureCount);
       // WHAT EVERY GESTURE IS ACTUALLY BOUND TO, once, at attach. On a device
       // this is the only way to see that a Settings.app change reached the app
@@ -628,6 +648,8 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
         const gesturebind::Gesture which = static_cast<gesturebind::Gesture>(i);
         const int stored =
             CrossPointPrefs_gestureBinding(static_cast<int>(which));
+        // A zone row printing `inherit` is the SHIPPED state, not a fault: it
+        // means the global row above answers for that zone.
         // "set" MUST come from the PERSISTENT domain, not from the value.
         // -integerForKey: searches the registration domain too, and
         // ensureDefaults() registers every DefaultValue in Root.plist -- so an
