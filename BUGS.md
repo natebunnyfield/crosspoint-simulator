@@ -110,10 +110,45 @@ cheap to distinguish once reproduced:
    inside `update()`; a tap whose release lands in a later frame than the next
    press begins would overlap two highlights.
 
-Note this is a PAD-OVERLAY bug, not a firmware one — the device has physical
+Note this is a PAD-OVERLAY bug, not a firmware one -- the device has physical
 buttons and nothing to repaint. Reproduce with `CROSSPOINT_SIM_TAP_PAD` and
 `CROSSPOINT_SIM_LOG_PRESENTS=1`, looking for a present whose pad state does not
 match the button that caused it.
+
+## Checked and CLEAN, 2026-08-28 -- the state model is not the cause
+
+Read rather than reproduced, so this narrows the search rather than closing it.
+Recorded because the next pass would otherwise start here too.
+
+**`PadCore` (ios/PadCore.h, ios/PadCore.cpp) does not carry a stale press.**
+Candidate 1 above was a pressed-index cleared later than the logical state, and
+it is not what this model does:
+
+* `isDown(slot)` reads `down_[slot]` directly -- there is no separate "drawn"
+  state that could lag it, so the painter cannot show a press the model has
+  released;
+* `slotHeldBy()` requires `down_[i] && finger_[i] == fingerId`, so a slot is
+  never attributed to a finger that is not holding it. This also neutralises the
+  one thing that looked dangerous: `finger_` initialises to 0, and if SDL ever
+  delivered fingerID 0 a match on the id alone would have found the first
+  UNPRESSED slot. The `down_[i]` conjunct makes that unreachable;
+* `fingerUp()` releases exactly the slot that finger held and returns no action
+  when it held none, so a lift cannot release someone else's press;
+* `fingerLeftSlot()` and `reset()` both clear unconditionally, and `reset()` is
+  documented idempotent.
+
+So a press cannot outlive its finger in the model. **What is NOT yet checked**
+is the adapter above it -- which slot the hit test returns, and whether the
+fused-pair painter can shade a half that is not down. That painter has had
+exactly this class of defect before: the `pairs` table once declared three rows
+while listing two, and the zero-initialised third row painted a phantom capsule
+over the Back half of the left rocker. The bottom-right cell being the one that
+shows it is consistent with an index or bounds slip of the same kind, and that
+is where the next pass should look.
+
+Still not reproduced: no headless path produces the report, since
+`CROSSPOINT_SIM_TAP_PAD` synthesises one tap at a time and the report is about
+a press that follows another.
 
 ### [S-025] The CRT page fade stalls and resumes when a redraw runs
 **severity: medium (the effect reads as broken) · scope: page fade / present loop · filed 2026-08-27 from the device · NOT YET REPRODUCED**
