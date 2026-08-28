@@ -245,6 +245,38 @@ per-frame accumulator (the age is wall-clock), and it is not field rebuild cost
 (everything is cached). Related: S-019, whose fix - waking once per quantized
 step instead of every frame - is what produced this schedule.
 
+### The step SIZES, measured 2026-08-28 -- and they are minimal
+
+The interval data above says when steps land, not how big they are, so a jump
+of several code values every two seconds was still a live theory. It is not
+what happens. `CROSSPOINT_SIM_LOG_PRESENTS=1`, same run:
+
+```
+age 3033 ms -> alpha 0.774      age 4362 ms -> alpha 0.759
+age 3281 ms -> alpha 0.770      age 5144 ms -> alpha 0.755
+age 3581 ms -> alpha 0.766      age 7271 ms -> alpha 0.751
+age 3929 ms -> alpha 0.762
+```
+
+Every delta is **0.003-0.007 of alpha -- about ONE code value** -- for the whole
+fade. So the late steps are not jumps. They are the smallest change the panel
+can express, arriving up to two seconds apart, and a single code value is not
+individually visible.
+
+**What is left in the data is JITTER, not size or cost.** Identically-sized
+steps land 194, 133, 192, 191, 188 ms apart early on: the due time is computed
+exactly by `nextStepAgeMs`, but it is serviced when the main loop next looks, so
+delivery varies by up to a loop period while the change per step is constant.
+
+**And this is where it stops without the owner.** Reducing that jitter means
+waking more often, which is precisely what S-019's fix stopped doing and what
+cost 10.3% of a core continuously. Trading a measured battery regression for an
+unreproduced visual one, on a symptom no capture here shows, is the wrong side
+of that trade to take unasked. The question put to the owner is whether the
+awkwardness is early in a fade (jitter, fixable at a known battery cost) or late
+(sparse single-code-value steps, which the measurements say should be
+invisible and would mean the model is not the cause at all).
+
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
 
