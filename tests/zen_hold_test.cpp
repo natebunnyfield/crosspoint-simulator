@@ -1,32 +1,29 @@
-// What a one-finger hold does, decided by WHERE IT LANDS.
+// THE ONE-FINGER HOLD'S BOOKKEEPING -- ios/ZenHoldRouting.h.
 //
-// Owner, 2026-08-27: "change long tap to only swap zen/singlefinger modes if
-// tap held for .75 sec above paper, if held below top of paper in zen mode,
-// make it a select after .75 before lift."
+// WHAT THE HOLD DOES is no longer decided here. Owner ruling 2026-08-28
+// (T-025): every gesture is configurable, so the hold's action comes from
+// ios/GestureBindings.h with all the others and its truth table is
+// tests/gesture_bindings_test.cpp -- including the three-zone split, the
+// defaults that reproduce the two-zone rule this file used to pin, and the zen
+// gate. What is left here is the part that is not a mapping: the tracker for
+// one hold in flight.
 //
-// One threshold, two zones:
+// It is still worth its own test, because all three of its failure modes are
+// silent on a device and none can be driven off-device -- UIKit's recognizers
+// live above SDL, where no input script and no simctl can synthesize a touch:
 //
-//   above the paper -> Toggle, in EITHER mode
-//   on the paper    -> Select, in ZEN ONLY
-//
-// Three inversions, all silent on a device, which is why this is a truth table
-// and not a comment:
-//
-//  * a toggle that stops firing in ONE mode. This already shipped once, on
-//    2026-08-27 (the tracker's lifecycle was owned by a zen-only recognizer, so
-//    it went stale out of zen). It is the reason the mode is an ARGUMENT to the
-//    rule rather than a property of which recognizer is enabled.
-//  * a select fired OUTSIDE zen, where there is no selection to make and the
-//    press reaches the reader as a stray CONFIRM.
-//  * one hold firing BOTH, which is what the previous two-threshold shape had
-//    to work to avoid and this shape cannot express.
+//  * a STALE poison. This shipped, on 2026-08-27: out of zen nothing called the
+//    tracker's lifecycle, a flag went stale, and the hold died in one mode with
+//    nothing in the log to say why. begin() must scrub.
+//  * a STALE latch, the same bug wearing the other flag: the hold fires once
+//    and then never again for the life of the app.
+//  * a MISSING latch, which lets UIKit's re-delivered .began fire twice -- and
+//    two zen toggles in one gesture cancel out, which reads on device as the
+//    gesture doing nothing at all.
 #include <cassert>
 #include <cstdio>
 
 #include "../ios/ZenHoldRouting.h"
-
-using zenhold::Action;
-using zenhold::Zone;
 
 static int failures = 0;
 
@@ -37,49 +34,38 @@ static void check(bool ok, const char* what) {
   }
 }
 
-static void checkAction(Action got, Action want, const char* what) {
-  if (got != want) {
-    std::printf("  FAIL: %s (got '%s', want '%s')\n", what,
-                zenhold::actionName(got), zenhold::actionName(want));
-    failures++;
-  }
-}
-
 int main() {
-  // ---- The rule, all four combinations of zone and mode. ----
-  checkAction(zenhold::onHold(Zone::AbovePaper, false, false), Action::Toggle,
-              "above the paper, zen OFF -> toggle (the way IN)");
-  checkAction(zenhold::onHold(Zone::AbovePaper, true, false), Action::Toggle,
-              "above the paper, zen ON -> toggle (the way OUT)");
-  checkAction(zenhold::onHold(Zone::OnPaper, true, false), Action::Select,
-              "on the paper, zen ON -> select");
-  checkAction(zenhold::onHold(Zone::OnPaper, false, false), Action::None,
-              "on the paper, zen OFF -> NOTHING (no stray CONFIRM)");
-
-  // ---- The toggle works in BOTH modes. This is the shipped-once bug. ----
-  check(zenhold::onHold(Zone::AbovePaper, false, false) ==
-            zenhold::onHold(Zone::AbovePaper, true, false),
-        "the toggle does not depend on the mode it is toggling");
-
-  // ---- Poison kills everything, in every zone and mode. ----
-  const Zone kZones[] = {Zone::AbovePaper, Zone::OnPaper};
-  const bool kModes[] = {false, true};
-  for (Zone z : kZones)
-    for (bool zen : kModes)
-      checkAction(zenhold::onHold(z, zen, true), Action::None,
-                  "a poisoned hold fires nothing, whatever the zone");
-
   // ---- The latch: one action per hold, however often .began is delivered. ----
   {
     zenhold::Hold h;
     h.begin();
     h.noteTouches(1);
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
-                "first .began toggles");
-    checkAction(h.resolve(Zone::AbovePaper, true), Action::None,
-                "a re-delivered .began does NOT toggle back");
-    checkAction(h.resolve(Zone::OnPaper, true), Action::None,
-                "nor select afterwards -- one action per hold");
+    check(h.claim(), "the first .began may act");
+    check(!h.claim(), "a re-delivered .began may NOT act again");
+    check(h.fired(), "and the hold reports itself fired");
+  }
+
+  // ---- A poisoned hold may never act, however it was poisoned. ----
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(2);  // a second finger: a hand on the glass, not a press
+    check(h.poisoned(), "two touches poison the hold");
+    check(!h.claim(), "a poisoned hold may not act");
+  }
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(0);
+    check(h.poisoned(), "zero touches poison the hold too");
+    check(!h.claim(), "...and it still may not act");
+  }
+  {
+    zenhold::Hold h;
+    h.begin();
+    h.noteTouches(1);
+    h.cancel();  // iOS took the touch for its own gesture (.cancelled/.failed)
+    check(!h.claim(), "a cancelled hold may not act");
   }
 
   // ---- A NEW hold is clean, with no release in between. ----
@@ -90,22 +76,19 @@ int main() {
     zenhold::Hold h;
     h.begin();
     h.noteTouches(2);  // poisoned
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::None,
-                "stale: a poisoned hold does nothing");
-    h.begin();  // a NEW hold, nothing else called
+    check(!h.claim(), "stale: a poisoned hold does nothing");
+    h.begin();         // a NEW hold, nothing else called
     h.noteTouches(1);
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
-                "regression: begin() scrubs an inherited poison");
+    check(h.claim(), "regression: begin() scrubs an inherited poison");
   }
   {
     zenhold::Hold h;
     h.begin();
     h.noteTouches(1);
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle, "fires once");
+    check(h.claim(), "fires once");
     h.begin();  // a NEW hold, nothing else called
     h.noteTouches(1);
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::Toggle,
-                "regression: begin() scrubs an inherited fired-latch");
+    check(h.claim(), "regression: begin() scrubs an inherited fired-latch");
   }
 
   // ---- A second finger mid-hold poisons, but cannot un-fire. ----
@@ -113,26 +96,32 @@ int main() {
     zenhold::Hold h;
     h.begin();
     h.noteTouches(1);
-    checkAction(h.resolve(Zone::OnPaper, true), Action::Select, "select fires");
+    check(h.claim(), "the action fires");
     h.noteTouches(2);  // a second finger arrives after the action
     check(h.poisoned(), "the late second finger still poisons");
-    checkAction(h.resolve(Zone::OnPaper, true), Action::None,
-                "and cannot produce a second action");
+    check(h.fired(), "...and cannot un-fire what already happened");
+    check(!h.claim(), "...nor produce a second action");
   }
 
-  // ---- A cancelled hold fires nothing. ----
+  // ---- A HOLD THAT DOES NOTHING LEAVES THE TRACKER UNLATCHED. ----
+  //
+  // The caller asks claim() only when it has an action to perform, so a hold
+  // bound to Nothing never latches -- there is nothing for the latch to
+  // protect. Stated as a test because the plausible alternative (latch at
+  // .began, unconditionally) would make an unbound hold poison the re-delivery
+  // path for a hold that IS bound, which is exactly the kind of coupling
+  // between two settings this feature is not allowed to have.
   {
     zenhold::Hold h;
     h.begin();
     h.noteTouches(1);
-    h.cancel();
-    checkAction(h.resolve(Zone::AbovePaper, false), Action::None,
-                "iOS took the touch -> nothing");
+    check(!h.fired(), "a hold that never claims has not fired");
+    check(h.claim(), "...so it is still free to act");
   }
 
-  // ---- The threshold is the owner's, and there is only ONE now. ----
+  // ---- The threshold is the owner's, and there is only ONE. ----
   check(zenhold::kHoldMs == 750,
-        "the hold threshold is the owner's 0.75 s, shared by both actions");
+        "the hold threshold is the owner's 0.75 s, shared by every zone");
 
   if (failures == 0) {
     std::printf("zen_hold_test: all checks passed\n");

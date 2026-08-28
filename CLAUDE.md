@@ -744,16 +744,27 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now four groups and six rows** — count them out of
+**Settings.app is now seven groups and 25 rows** — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
 is how this paragraph was wrong twice:
 
 | Group | Rows |
 |---|---|
 | Zen | Zen Mode |
+| Above the Paper | Tap · Swipe Left · Swipe Right · Hold |
+| Below the Paper | Tap · Swipe Left · Swipe Right · Hold |
+| Multi-Finger | Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Sleep | Power-Off Collapse · Diagnostics Log |
+
+The three gesture groups arrived 2026-08-28 (T-025, owner: *"make gestures
+configureable in ios app settings"*) and are the only rows here that are not
+appearance or behavior toggles — see the gesture block near the foot of this
+file, and `docs/zen-mode.md` for the rulings. **ON the paper is fixed and has no
+row, by ruling**; only the strip above the sheet and the band below it are
+assignable. They are INPUT rather than appearance, which is what lets them past
+the 2026-08-23 ruling that removed every surface dial from this screen.
 
 Owner ruling 2026-08-23, from a screenshot of his own chosen values: *"make
 these settings the default and remove them from ios app settings as options."*
@@ -1012,21 +1023,38 @@ Grown in one day; each is documented at its definition, this is the map:
 - **Zen zones fire only for deliberate taps**: single finger, ≤28 px travel,
   ≤400 ms, zone judged from the LANDING point. Swipes, drags, holds, and
   multi-finger do nothing.
-- **A ONE-FINGER HOLD carries two verbs, and the split is by DURATION**
-  (owner 2026-08-27: *"holding down one finger longer than three seconds toggles
-  zen and single finger modes"* -- "single finger mode" is his term for
-  not-zen). 0.75 s to under 3 s is the zen Select and it fires **on the LIFT**;
-  3 s or more toggles zen **at the 3 s mark under the finger**, in BOTH modes,
-  and then the lift is silent. Exactly one action per hold. The lift-not-began
-  half knowingly reverses the 2026-08-22 stock-long-press ruling, which could
-  not survive a longer hold on the same finger. The rule is pure in
-  [ios/ZenHoldRouting.h](ios/ZenHoldRouting.h) with a truth-table test
-  (`tests/zen_hold_test.cpp`) for the same reason `src/TextEntryKeyRouting.h`
-  has one: both inversions are invisible at runtime. Two recognizers, and the
-  delegate that lets exactly that pair recognize SIMULTANEOUSLY is load-bearing
-  -- UIKit's default is that the first to recognize prevents the rest, which
-  would leave the toggle dead in zen and say nothing. The 3-finger tap stays;
-  two ways in is deliberate. Full account: [docs/zen-mode.md](docs/zen-mode.md).
+- **A ONE-FINGER GESTURE IS ROUTED BY WHERE IT LANDED, into three zones**, and
+  two of the three are Settings.app rows. **Above the paper** is above
+  `g_cardTopPx` (where black ends and paper begins); **below the paper** is past
+  `g_zenRowTopPx`, the sheet's bottom edge and the same `line` the zen painter
+  cuts it at; everything between is **on the paper** and is FIXED by ruling --
+  no row, no key, no prepared hook. The hold split by POSITION on 2026-08-27
+  (owner: *"change long tap to only swap zen/singlefinger modes if tap held for
+  .75 sec above paper, if held below top of paper in zen mode, make it a select
+  after .75 before lift"*), replacing a two-threshold shape in which one hold
+  wanted to fire two things; T-025 added the third zone and made the outer two
+  assignable, and did NOT add a second threshold. A bottom edge that is not
+  below the top edge collapses the rule to the two-zone one, so an unmeasured
+  geometry cannot invent a third zone out of a zero.
+- **WHAT EVERY GESTURE DOES IS ONE DECISION, in one pure header**
+  ([ios/GestureBindings.h](ios/GestureBindings.h), truth-tabled in
+  `tests/gesture_bindings_test.cpp`) -- 18 bindings, ten actions, driving the
+  UIKit recognizers, the SDL deliberate tap and the shake catcher alike. Every
+  failure mode is silent AND undrivable off-device: UIKit recognizers live above
+  SDL, where neither `SDL_PushEvent` nor `simctl` can synthesize a touch, so a
+  gesture that fires the wrong button reads as the reader misbehaving. Four
+  owner rulings 2026-08-28, implemented exactly and pinned as rulings: **zen may
+  be left unbound** (no guard -- the config is in Settings.app, outside the
+  reader, so it is always recoverable), **two gestures may share one action**
+  (no conflict detection), **a gesture may be bound to Nothing**, and **zen
+  scope is a property of the GESTURE and never of the action bound to it** --
+  you configure WHAT a gesture does, never WHEN. The same two gestures fire
+  outside zen as always (the 3-finger tap and the hold above the paper), because
+  they are the two ways in. **Every default reproduces build 156 gesture by
+  gesture**, and a stored 0 -- an unwritten key, or a `Root.plist` that would not
+  load -- resolves to the default rather than to Nothing, so a lost store cannot
+  kill every gesture in the app. Bindings persist as INTEGERS, so the action list
+  APPENDS. Full account: [docs/zen-mode.md](docs/zen-mode.md).
 
 ## Driving it headlessly
 

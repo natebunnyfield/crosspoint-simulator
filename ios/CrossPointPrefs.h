@@ -305,6 +305,37 @@ void CrossPointPrefs_selectPanelPreset(int preset);
 // Main thread only.
 int CrossPointPrefs_renderScale(void);
 
+// WHAT ONE GESTURE IS BOUND TO, as the RAW STORED INTEGER -- never resolved
+// here. `gesture` is a gesturebind::Gesture, and the answer is fed straight to
+// gesturebind::resolve() / actionFor() in ios/GestureBindings.h, which owns
+// every fallback: an unwritten key, a value from a restored backup, a row a
+// later build removed. Splitting it this way is deliberate -- the RULE is pure
+// and host-tested, and this function does nothing but fetch, so there is no
+// second place where a binding can be decided.
+//
+// Out-of-range gestures answer 0 (gesturebind::Action::Unset), which resolves
+// to that gesture's default, i.e. the behavior the app shipped with.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_gestureBinding(int gesture);
+
+// HAS THE OWNER ACTUALLY WRITTEN THIS BINDING, or is it still the shipped
+// default? 1 = written, 0 = never touched.
+//
+// It exists because CrossPointPrefs_gestureBinding above CANNOT answer it, and
+// the difference is the whole value of the boot log: `-integerForKey:` searches
+// the REGISTRATION domain too, and ensureDefaults() registers every DefaultValue
+// in Root.plist -- so an untouched gesture answers with its shipped action, not
+// with 0, and "did a Settings.app change reach the app" cannot be read off the
+// value. Asking the PERSISTENT domain is the only way, and it is the same trap
+// migratePadPresetForExistingCustomisation() documents at length; the first
+// version of the gesture log fell into it and printed `set` for all 18 rows on a
+// clean install.
+//
+// Diagnostic only. Nothing about what a gesture DOES may depend on this: both
+// roads lead to the same action, which is the point.
+int CrossPointPrefs_gestureBindingIsExplicit(int gesture);
+
 #ifdef __cplusplus
 }
 #endif

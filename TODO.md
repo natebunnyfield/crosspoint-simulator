@@ -680,6 +680,17 @@ hardware, of which the 1 MB free-heap constant is the one that matters, because
 every graceful-degradation path on a 380 KB device is unreachable in the only
 pre-device gate the project has.
 
+`T-025` there — "configurable gestures in the iOS app" — was raised on the
+firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
+closed in that file's Finished section, with what shipped and what was
+deliberately left out. The code is `ios/GestureBindings.h`,
+`ios/Settings.bundle/Root.plist` and the three call sites
+(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
+`ios/CrossPointIOSShim.cpp`, and the shake catcher);
+`tests/gesture_bindings_test.cpp` is the truth table and
+[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
+UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
+
 ---
 
 ## DONE
