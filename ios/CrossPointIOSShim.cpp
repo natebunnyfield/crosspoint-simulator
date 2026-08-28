@@ -2691,6 +2691,17 @@ extern "C" void CrossPointZen_spoilTapCandidate(void) {
   g_zenVerbs = zenverbs::Classifier{};
 }
 
+// THE TOP EDGE OF THE PAPER, in device pixels, for the hold's zone test
+// (ios/ZenHoldRouting.h). This is where black ends and paper begins -- the card
+// top, not the page top: above it is the bezel and the safe-area cut-out, and
+// the owner's rule is "above paper", not "above the text".
+//
+// Published by the LAYOUT pass on every pass in BOTH modes, which is what makes
+// the question answerable on the launch before zen has ever been entered. Zero
+// before the first layout, and a zero answers "everything is on the paper" --
+// the conservative direction, since a stray toggle is worse than a missed one.
+extern "C" float CrossPointZen_cardTopPx(void) { return g_cardTopPx; }
+
 // --- Public entry points ---------------------------------------------------
 //
 // CrossPointHarness_prepareFilesystem lives in CrossPointFsPrep.cpp: it is

@@ -37,6 +37,57 @@ while zen is on (`CrossPointZenRecognizers_setEnabled`).
 The 3-finger tap **stays**. Two ways in is deliberate — removing it would be
 removing capability nobody asked to lose.
 
+## The hold splits by POSITION, not duration (2026-08-27, final shape)
+
+Owner: *"change long tap to only swap zen/singlefinger modes if tap held for
+.75 sec above paper, if held below top of paper in zen mode, make it a select
+after .75 before lift."*
+
+| a 0.75 s one-finger hold landing... | zen off | zen on |
+|---|---|---|
+| **above the paper** (bezel / safe-area strip) | toggle INTO zen | toggle OUT of zen |
+| **on or below the paper's top** | nothing | Select (`BTN_CONFIRM`) |
+
+Both fire at 0.75 s **with the finger still down**. Nothing happens on the lift.
+
+"Above the paper" is the card's top edge — where black ends and paper begins
+(`g_cardTopPx`), not the top of the text. It is published by the layout pass in
+BOTH modes, which is what makes the question answerable on a launch where zen has
+never been entered. Before the first layout it reads 0, and a 0 answers
+"everything is on the paper" — the conservative direction, since a stray toggle
+is worse than a missed one.
+
+### Why this shape, after two others in one day
+
+1. A **5 s** hold toggled anywhere; a **0.75 s** hold selected in zen. A hold on
+   its way to 5 s crosses 0.75 s, so one gesture wanted to fire two things.
+2. The select moved to the **lift** so a long hold could suppress it. Correct,
+   but it cost the stock iOS long-press feel the owner had asked for on
+   2026-08-22 — the action no longer happened under the finger.
+3. **Splitting by position removes the collision at its root.** The two actions
+   can share a threshold because they can never both apply: a touch is either
+   above the paper or it is not. So the select goes back to firing while held,
+   and the 5 s wait is gone as well.
+
+### What that deleted
+
+- **One recognizer instead of two.** `g_lpHold`, always enabled.
+- **The simultaneity delegate.** It existed only because UIKit's
+  `-canPreventGestureRecognizer:` defaults to YES, so the shorter press stopped
+  the longer one ever recognizing. With one hold recognizer there is no pair to
+  exempt.
+- **All the lift bookkeeping** — no release action, no elapsed-time arithmetic,
+  no boot-tick underflow to fail closed against.
+
+### The one thing carried forward deliberately
+
+The select is gated on `g_zenOn` **in the action**, not by disabling the
+recognizer. That is the fix for the defect shipped earlier the same day: the
+select used to live on a zen-only recognizer which also owned the shared
+tracker's lifecycle, so out of zen the tracker went stale and the toggle died in
+one mode. Gating the ACTION rather than the RECOGNIZER makes that class of bug
+unavailable.
+
 ## The collision on one hold, and how it was ruled (2026-08-27)
 
 The three-second hold and the zen long-press select are the **same physical

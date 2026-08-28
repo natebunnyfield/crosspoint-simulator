@@ -79,6 +79,7 @@ extern "C" void CrossPointZen_toggleFromRecognizer(const char *source);
 // candidate/classifier reset the toggle performs, for the same finger-also-
 // streams-into-SDL reason.
 extern "C" void CrossPointZen_spoilTapCandidate(void);
+extern "C" float CrossPointZen_cardTopPx(void);
 
 namespace {
 // Tracks the flag CrossPointZenRecognizers_setEnabled was last given, so the
@@ -90,16 +91,15 @@ bool g_zenOn = false;
 // them recognize SIMULTANEOUSLY has to name them, and the delegate is a method
 // on the handler below.
 //
-//   g_lpSelect  0.75 s, ZEN-ONLY  (rides in the verb set)
-//   g_lpToggle  3.00 s, ALWAYS ON (rides beside the 3-finger tap)
+//   g_lpHold    0.75 s, ALWAYS ON (rides beside the 3-finger tap)
+//               above the paper -> toggle; on it -> select, zen only
 //
 // Without the delegate the pair does not work at all: UIGestureRecognizer's
 // default -canPreventGestureRecognizer: is YES, so the 0.75 s recognizer
 // reaching .began would prevent the longer one from ever recognizing — in zen the
 // toggle would simply never fire, silently, which is precisely the failure the
 // routing header exists to make impossible.
-UILongPressGestureRecognizer *g_lpSelect = nil;
-UILongPressGestureRecognizer *g_lpToggle = nil;
+UILongPressGestureRecognizer *g_lpHold = nil;
 
 // The routing state for the hold in flight (ios/ZenHoldRouting.h). One hold at
 // a time by construction: a second finger poisons it.
@@ -213,113 +213,56 @@ bool g_holdSelfManaged = false;
 // anything held to 0.75 s), but the same finger streams into SDL, so spoiling
 // at recognition keeps that from depending on event ordering — the same
 // belt-and-suspenders as the 3-finger toggle.
-- (void)holdSelect:(UILongPressGestureRecognizer *)g {
-  const uint32_t now = static_cast<uint32_t>(SDL_GetTicks());
+- (void)hold:(UILongPressGestureRecognizer *)g {
   switch (g.state) {
-    case UIGestureRecognizerStateBegan:
-      // UIKit recognizes a long press exactly minimumPressDuration after
-      // touch-down, so that is when the finger landed. The rule is expressed
-      // against TOTAL hold time, which is the only form in which the two
-      // thresholds can be read side by side.
-      g_hold.begin(now - static_cast<uint32_t>(zenhold::kSelectMs));
+    case UIGestureRecognizerStateBegan: {
+      g_hold.begin();
       g_hold.noteTouches(static_cast<int>(g.numberOfTouches));
       CrossPointZen_spoilTapCandidate();
-      break;
-    case UIGestureRecognizerStateChanged:
-      g_hold.noteTouches(static_cast<int>(g.numberOfTouches));
-      break;
-    case UIGestureRecognizerStateEnded: {
-      const uint32_t held = g_hold.heldMs(now);
-      const zenhold::Action a = g_hold.release(now);
-      SDL_Log("[zen] one-finger hold %u ms -> %s", (unsigned)held,
-              zenhold::actionName(a));
-      if (a == zenhold::Action::Select)
-        [self queueButton:HalGPIO::BTN_CONFIRM as:"hold, select on lift"];
+      if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
+        SDL_Log("[zen] hold swallowed (palette sheet presented)");
+        g_hold.cancel();
+        break;
+      }
+      // WHERE IT LANDED decides what it does. locationInView is in POINTS and
+      // g_cardTopPx is in DEVICE pixels, so one of them has to be converted;
+      // the view's own contentScaleFactor is the conversion the rest of the
+      // layout already uses.
+      //
+      // Read at .began rather than remembered from touch-down: UIKit's
+      // allowableMovement (10 pt, left at the default) bounds how far the
+      // finger can have drifted and still be recognized, so the two points are
+      // within a fingertip of each other. A touch that drifts further than that
+      // never reaches .began at all.
+      const CGPoint loc = [g locationInView:g.view];
+      const CGFloat scale = g.view ? g.view.contentScaleFactor : 1.0;
+      const float yPx = static_cast<float>(loc.y * scale);
+      const float paperTopPx = CrossPointZen_cardTopPx();
+      const zenhold::Zone zone = yPx < paperTopPx ? zenhold::Zone::AbovePaper
+                                                  : zenhold::Zone::OnPaper;
+      const zenhold::Action a = g_hold.resolve(zone, g_zenOn);
+      SDL_Log("[zen] hold at y=%.0f px (paper top %.0f) %s, zen %s -> %s", yPx,
+              paperTopPx, zone == zenhold::Zone::AbovePaper ? "ABOVE" : "on",
+              g_zenOn ? "on" : "off", zenhold::actionName(a));
+      if (a == zenhold::Action::Toggle)
+        CrossPointZen_toggleFromRecognizer("one-finger hold above the paper");
+      else if (a == zenhold::Action::Select)
+        [self queueButton:HalGPIO::BTN_CONFIRM as:"hold on the paper (select)"];
       break;
     }
+    case UIGestureRecognizerStateChanged:
+      // Poison only. The action already fired at .began and is latched, so a
+      // second finger arriving now cannot un-fire it -- it can only stop a
+      // re-delivered .began from firing again.
+      g_hold.noteTouches(static_cast<int>(g.numberOfTouches));
+      break;
     case UIGestureRecognizerStateCancelled:
     case UIGestureRecognizerStateFailed:
-      // iOS took the touch for its own gesture, or zen went off under the
-      // finger (disabling a recognizer mid-recognition cancels it). Either way
-      // the hold is poisoned and fires nothing — ZenVerbs.h's discipline.
       g_hold.cancel();
-      (void)g_hold.release(now);
-      SDL_Log("[zen] one-finger hold cancelled -> nothing");
       break;
     default:
       break;
   }
-}
-
-// THE ONE-FINGER HOLD -> ZEN TOGGLE (owner 2026-08-27, verbatim: "holding
-// down one finger longer than five seconds toggles zen and single finger
-// modes"; "single finger mode" is his own term for NOT-zen, disambiguated
-// 2026-08-22, "remove the color button from single finger (not zen) mode ui").
-//
-// Fires at .began — that is, AT the toggle mark, with the finger still down,
-// so the page refits under it and the gesture confirms itself. Only the SELECT
-// moved to the lift; this did not.
-//
-// Always enabled, like the 3-finger tap, because it toggles both ways.
-//
-// IT ALSO OWNS THE TRACKER WHEN ZEN IS OFF, and that is a bug fix, not a
-// flourish (owner 2026-08-27, from the device: "currently it does not work in
-// single finger mode").
-//
-// `g_hold`'s bookkeeping was maintained ONLY by holdSelect:, and that
-// recognizer is ZEN-ONLY. Out of zen nothing called begin() and nothing called
-// release(), so the tracker carried whatever the last zen hold left in it. One
-// poisoned hold, or one exit from zen by the 3-finger tap (which never lifts a
-// finger through holdSelect:), latched `poisoned_` or `toggled_` true, and from
-// that moment onToggleDeadline() answered None forever — dead in ONE MODE ONLY,
-// with the other mode still working, which is exactly how it was reported.
-//
-// release()'s own comment already said an idle tracker must never carry a
-// previous hold's poison. That reasoning was right; what was missing is that
-// out of zen release() is never reached, so the cleaning never ran.
-//
-// So when the select is disabled, this recognizer runs the whole lifecycle:
-// begin() on .began, release() on the lift. `g_holdSelfManaged` latches the
-// ownership AT .began and is not re-read afterwards, because toggling flips
-// g_zenOn under us and the .ended that follows must be handled by whoever took
-// the .began. In zen this branch does nothing at all and holdSelect: keeps the
-// tracker exactly as before.
-- (void)holdToggle:(UILongPressGestureRecognizer *)g {
-  const uint32_t now = static_cast<uint32_t>(SDL_GetTicks());
-
-  if (g.state != UIGestureRecognizerStateBegan) {
-    if (g_holdSelfManaged &&
-        (g.state == UIGestureRecognizerStateEnded ||
-         g.state == UIGestureRecognizerStateCancelled)) {
-      if (g.state == UIGestureRecognizerStateCancelled) g_hold.cancel();
-      (void)g_hold.release(now);
-      g_holdSelfManaged = false;
-    }
-    return;
-  }
-
-  g_holdSelfManaged = !g_zenOn;
-  if (g_holdSelfManaged) {
-    // The finger went down kToggleMs ago by definition: UIKit recognizes a
-    // long press exactly minimumPressDuration after touch-down. Same
-    // subtraction holdSelect: makes with its own threshold.
-    g_hold.begin(now - zenhold::kToggleMs);
-  }
-
-  if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
-    SDL_Log("[zen] recognizer hold-toggle swallowed (palette sheet presented)");
-    return;
-  }
-  g_hold.noteTouches(static_cast<int>(g.numberOfTouches));
-  const zenhold::Action a = g_hold.deadline();
-  if (a != zenhold::Action::Toggle) {
-    SDL_Log("[zen] %.1f s hold reached but the hold was poisoned -> nothing",
-            zenhold::kToggleMs / 1000.0);
-    return;
-  }
-  SDL_Log("[zen] hold-toggle fired (tracker %s)",
-          g_holdSelfManaged ? "self-managed, zen off" : "shared, zen on");
-  CrossPointZen_toggleFromRecognizer("one-finger hold");
 }
 
 - (void)threeTap:(UITapGestureRecognizer *)g {
@@ -330,19 +273,14 @@ bool g_holdSelfManaged = false;
   CrossPointZen_toggleFromRecognizer("3-finger tap");
 }
 
-// THE ONLY SIMULTANEITY THIS FILE GRANTS, and it is granted to one pair.
+// NO SIMULTANEITY DELEGATE, and its absence is the point.
 //
-// UIGestureRecognizer's default -canPreventGestureRecognizer: is YES: the
-// first recognizer to recognize prevents the others. The 0.75 s select would
-// therefore prevent the longer toggle from ever recognizing, and in zen the
-// toggle would be dead with nothing in the log to say so. Named explicitly
-// rather than returning YES for everything, so no other pair's exclusivity
-// changes by accident.
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)a
-    shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)b {
-  return (a == g_lpSelect && b == g_lpToggle) ||
-         (a == g_lpToggle && b == g_lpSelect);
-}
+// Two hold recognizers used to need one. UIGestureRecognizer's default
+// -canPreventGestureRecognizer: is YES, so the shorter press reaching .began
+// stopped the longer one ever recognizing, and the toggle would have been
+// silently dead in zen with nothing in the log to say so. Splitting the rule by
+// POSITION instead of by DURATION leaves ONE hold recognizer, so there is no
+// pair left to exempt and no delegate to get wrong.
 
 @end
 
@@ -472,26 +410,6 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       t4.numberOfTouchesRequired = 4;
       [rs addObject:t4];
 
-      // Long-press select (owner 2026-08-22, quoted at the action above).
-      // UIKit defaults on purpose — default movement allowance — because
-      // "please use apple for this" is exactly a request for the stock feel.
-      // Zen-only, so it rides in the verb set. It fires on the LIFT since
-      // 2026-08-27; see holdSelect: for the ruling that moved it.
-      UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(holdSelect:)];
-      lp.numberOfTouchesRequired = 1;
-      // 0.75 s, not UIKit's 0.5 (owner 2026-08-22, from device: "long tap
-      // select is too fast. make at least 1.5x longer"). The stock feel is
-      // still the recognizer's; only the threshold is ours, because a reader
-      // rests a thumb on the page far more than a springboard does. The number
-      // lives in ios/ZenHoldRouting.h with the toggle one, so the two thresholds
-      // cannot drift apart or invert (there is a static_assert on the order).
-      lp.minimumPressDuration = zenhold::kSelectMs / 1000.0;
-      lp.delegate = g_handler;
-      g_lpSelect = lp;
-      [rs addObject:lp];
-
       for (UIGestureRecognizer *r in rs) {
         tameRecognizer(r);
         [view addGestureRecognizer:r];
@@ -507,26 +425,37 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       tameRecognizer(g_toggle);
       [view addGestureRecognizer:g_toggle];
 
-      // The ONE-FINGER HOLD, the second way to toggle (owner 2026-08-27).
-      // Always enabled for the same reason the 3-finger tap is: it toggles
-      // both ways, so it has to fire while zen is off. Not in the verb set.
+      // THE ONE-FINGER HOLD. One recognizer, one threshold, two zones.
+      //
+      // ALWAYS ENABLED, like the 3-finger tap and unlike everything in the verb
+      // set: above the paper it toggles, so it has to fire while zen is OFF or
+      // there is no way back in. Below the paper it selects, and `hold:` gates
+      // that on g_zenOn rather than on the recognizer being disabled -- which
+      // is deliberate. The previous shape kept the select on a zen-only
+      // recognizer, and because that recognizer owned the shared tracker's
+      // lifecycle, the tracker went stale out of zen and the toggle died in one
+      // mode. Gating the ACTION rather than the RECOGNIZER is what makes that
+      // class of bug impossible here.
+      //
+      // There is no second hold recognizer now, so no simultaneity delegate:
+      // the pair used to need one because UIKit's -canPreventGestureRecognizer:
+      // defaults to YES and the shorter press would stop the longer one ever
+      // recognizing.
       //
       // MOVEMENT ALLOWANCE IS APPLE'S DEFAULT (10 pt), deliberately, and it is
       // the first thing to suspect if a device report says the hold does not
-      // fire: allowableMovement applies only until a long press is recognized,
-      // so a finger that drifts past 10 pt inside the hold fails this
-      // recognizer. Left at the default because 10 pt on the phone's 3x
-      // display scale is 30 device px, which is the 28 px slop ZenVerbs.h uses for a
-      // deliberate touch — the repo's own answer to the same question — and
+      // fire: a finger that drifts past 10 pt inside the 0.75 s fails this
+      // recognizer. Left at the default because 10 pt at the phone's display
+      // scale is 30 device px, which is the 28 px slop ZenVerbs.h uses for a
+      // deliberate touch -- the repo's own answer to the same question -- and
       // because inventing a number here would be inventing device feel.
-      g_lpToggle = [[UILongPressGestureRecognizer alloc]
+      g_lpHold = [[UILongPressGestureRecognizer alloc]
           initWithTarget:g_handler
-                  action:@selector(holdToggle:)];
-      g_lpToggle.numberOfTouchesRequired = 1;
-      g_lpToggle.minimumPressDuration = zenhold::kToggleMs / 1000.0;
-      g_lpToggle.delegate = g_handler;
-      tameRecognizer(g_lpToggle);
-      [view addGestureRecognizer:g_lpToggle];
+                  action:@selector(hold:)];
+      g_lpHold.numberOfTouchesRequired = 1;
+      g_lpHold.minimumPressDuration = zenhold::kHoldMs / 1000.0;
+      tameRecognizer(g_lpHold);
+      [view addGestureRecognizer:g_lpHold];
 
       // The shake catcher: invisible (zero frame, no drawing, no touches —
       // shake arrives as a motion event, not a touch, so disabling user
