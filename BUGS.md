@@ -298,14 +298,36 @@ steps land 194, 133, 192, 191, 188 ms apart early on: the due time is computed
 exactly by `nextStepAgeMs`, but it is serviced when the main loop next looks, so
 delivery varies by up to a loop period while the change per step is constant.
 
-**And this is where it stops without the owner.** Reducing that jitter means
-waking more often, which is precisely what S-019's fix stopped doing and what
-cost 10.3% of a core continuously. Trading a measured battery regression for an
-unreproduced visual one, on a symptom no capture here shows, is the wrong side
-of that trade to take unasked. The question put to the owner is whether the
-awkwardness is early in a fade (jitter, fixable at a known battery cost) or late
-(sparse single-code-value steps, which the measurements say should be
-invisible and would mean the model is not the cause at all).
+### ...and it is not jitter either. THIRD hypothesis disproved, same day.
+
+The uneven intervals looked like late delivery: a due time computed exactly and
+serviced whenever the loop next looked. That was worth one more check, because
+if true it could be fixed by ending the loop's sleep AT the due time -- the same
+number of wakes, better timed -- which would have dissolved the battery trade
+this entry had just handed to the owner.
+
+**The loop polls at ~1 kHz.** `simulator_main.cpp` ends each pass with
+`SDL_Delay(1)`, so a due time is serviced within about a millisecond. A 194 ms
+gap next to a 133 ms gap is not delivery slipping by 60 ms; it is where the next
+code-value boundary actually falls on the decay curve. The schedule IS the
+curve.
+
+## Nothing mechanical is wrong. Four measurements say so.
+
+1. The age is **wall-clock**, so a late present lands on the right alpha.
+2. Every field is **cached** during a fade; presents cost 2.6-14.7 ms.
+3. Every step is **one code value**; there are no jumps.
+4. Steps are **delivered within ~1 ms** of when they are due.
+
+A model that is correct, cheap, minimal and punctual has no defect left to find
+by reading it. So either the awkwardness is something this instrument cannot
+see, or it is not the fade.
+
+**The one difference this measurement cannot cover** is the platform: it ran on
+the SOFTWARE renderer at scale 1, and the phone is Metal at 2x with a 120 Hz
+display. If the report survives, that gap is the only place left to look -- and
+the useful next capture is a video of the glass, not another log, because every
+number the log can produce is now in this entry.
 
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
