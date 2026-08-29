@@ -151,6 +151,69 @@ int main() {
   // A full drop clears the buffer outright.
   CHECKM(fadePeakBound(255.0f, 255) == 0.0f, "drop 255 left light behind");
 
+  // --- roundBias: a case per branch (2026-08-29) ----------------------------
+  //
+  // HalDisplay.cpp now MEASURES which arithmetic the live renderer takes,
+  // with a one-shot 1x1 readback right after the renderer is created, instead
+  // of assuming 0.5f (round) always -- see the probe beside the
+  // "[panel] renderer:" log and src/TrailLifetime.h's header comment. Every
+  // check above this block calls the two-argument form, which must keep
+  // meaning exactly the old unconditional 0.5f: every caller written before
+  // the parameter existed, this file's own coverage included, has to stay
+  // provably unchanged.
+  for (int drop = 1; drop <= 64; drop += 7)
+    for (float start : {255.0f, 128.0f, 32.0f, 1.0f})
+      CHECKM(fadePeakBound(start, drop) == fadePeakBound(start, drop, 0.5f),
+             "drop %d start %.1f: the default roundBias silently stopped "
+             "meaning 0.5f",
+             drop, start);
+
+  // roundBias=0.0f (a TRUNCATING backend, e.g. SDL's software renderer): the
+  // upper-bound contract still holds against the truncating reference, and
+  // the bound must decay AT LEAST AS FAST as the old unconditional 0.5f
+  // bound run from the same start -- that gap is the entire reason to thread
+  // the measured answer through. A truncating backend's trail is genuinely
+  // shorter, and a bound that does not know that overstates how long it can
+  // still move a pixel by exactly the 0.5-per-step this test pins.
+  for (int drop = 1; drop <= 64; drop++) {
+    float boundTrunc = 255.0f, boundRound = 255.0f;
+    int trunc = 255;
+    for (int n = 0; n < 400; n++) {
+      boundTrunc = fadePeakBound(boundTrunc, drop, 0.0f);
+      boundRound = fadePeakBound(boundRound, drop, 0.5f);
+      trunc = stepTrunc(trunc, drop);
+      CHECKM(boundTrunc >= static_cast<float>(trunc) - 1e-3f,
+             "roundBias 0.0: drop %d step %d: bound %.2f below the "
+             "truncating value %d",
+             drop, n, boundTrunc, trunc);
+      CHECKM(boundTrunc <= boundRound + 1e-3f,
+             "roundBias 0.0: drop %d step %d: the truncate-tuned bound "
+             "(%.2f) did not decay at least as fast as the round-tuned one "
+             "(%.2f)",
+             drop, n, boundTrunc, boundRound);
+    }
+  }
+
+  // roundBias=0.0f still never GROWS and never goes negative -- the same
+  // non-increasing contract proved above for the default, re-proven at the
+  // other branch rather than assumed to carry over unchanged.
+  for (int drop = 1; drop <= 254; drop++)
+    for (float start : {255.0f, 128.0f, 32.0f, 8.0f, 1.0f, 0.0f}) {
+      const float next = fadePeakBound(start, drop, 0.0f);
+      CHECKM(next <= start,
+             "roundBias 0.0: drop %d grew the bound from %.2f to %.2f", drop,
+             start, next);
+      CHECKM(next >= 0.0f, "roundBias 0.0: drop %d drove the bound negative",
+             drop);
+    }
+
+  // roundBias=0.0f: drop 0 is still a no-op and drop 255 still clears the
+  // buffer outright.
+  CHECKM(fadePeakBound(200.0f, 0, 0.0f) == 200.0f,
+         "roundBias 0.0: drop 0 moved the bound");
+  CHECKM(fadePeakBound(255.0f, 255, 0.0f) == 0.0f,
+         "roundBias 0.0: drop 255 left light behind");
+
   // --- the two together: the trail is SHORTER than the backstop, and not by so
   // little that the change was not worth making, nor so much that it undercuts
   // the measured death of a real trail.

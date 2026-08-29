@@ -410,7 +410,13 @@ struct GrayscalePreviewState {
 
 GrayscalePreviewState grayscalePreviewState;
 std::array<uint8_t, HalDisplay::BUFFER_SIZE> frameBufferStorage{};
-bool frameBufferLent = false;
+// ATOMIC rather than a plain bool (2026-08-29, the last unfulfilled sub-item
+// of S-004): getFrameBuffer()/lendFrameBufferStorage()/
+// returnFrameBufferStorage() are reached from firmware code with no
+// pixelBufMutex of their own in the loop -- unlike frameBufferStorage's other
+// readers/writers a few lines below, which do hold it. Hardening, not a fix
+// for an observed bug: nothing has shown these three racing in practice.
+std::atomic<bool> frameBufferLent{false};
 
 struct ScreenshotEvent {
   unsigned long atMs;
@@ -1632,6 +1638,73 @@ static constexpr const char *WINDOW_TITLE =
 
 #undef SIMULATOR_CONTROLLER_TITLE
 
+// WHETHER THIS RENDERER'S ALPHA BLEND ROUNDS TO NEAREST OR TRUNCATES --
+// measured, not assumed. trail::fadePeakBound's `roundBias` term exists
+// SPECIFICALLY because SDL's software blitter (the desktop canary, all three
+// packaged Mac apps) truncates while a GPU rasteriser rounds, and the wrong
+// guess in either direction is a real bug: assume truncate on a rounding
+// backend and the bound calls a trail dead while a Metal ghost is still on
+// the glass; assume round on a truncating one and the bound overstates how
+// long the trail can still move a pixel by ~16 of 255, every step (see
+// src/TrailLifetime.h). Probed ONCE per process, immediately after the
+// renderer exists: render a known value into a throwaway 1x1 target, apply
+// exactly the fade's own operation (SDL_BLENDMODE_BLEND, a black fill at one
+// alpha) at a `drop` chosen so truncate and round-to-nearest predict two
+// DIFFERENT 8-bit results, and read the pixel back. Never per frame -- this
+// is a one-shot answer about the backend, not a per-present measurement.
+static float measureTrailFadeRoundBias(SDL_Renderer *renderer) {
+  if (!renderer) return 0.5f;  // can't measure: keep the conservative guess
+  SDL_Texture *probe = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                         SDL_TEXTUREACCESS_TARGET, 1, 1);
+  if (!probe) return 0.5f;
+
+  SDL_Texture *restore = SDL_GetRenderTarget(renderer);
+  SDL_SetRenderTarget(renderer, probe);
+
+  const int startValue = 200;
+  const int drop = 128;  // truncate((255-128)/255 * 200) = 99; round() = 100
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+  SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(startValue),
+                         static_cast<Uint8>(startValue),
+                         static_cast<Uint8>(startValue), 255);
+  SDL_RenderFillRect(renderer, nullptr);
+
+  // THE EXACT OPERATION the real fade performs -- see the accumulator's own
+  // fade beside its trail::fadePeakBound call, further down this file.
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, static_cast<Uint8>(drop));
+  SDL_RenderFillRect(renderer, nullptr);
+
+  SDL_Surface *shot = SDL_RenderReadPixels(renderer, nullptr);
+  SDL_SetRenderTarget(renderer, restore);
+  SDL_DestroyTexture(probe);
+
+  float bias = 0.5f;
+  if (shot) {
+    SDL_Surface *conv = SDL_ConvertSurface(shot, SDL_PIXELFORMAT_ARGB8888);
+    SDL_DestroySurface(shot);
+    if (conv && conv->w >= 1 && conv->h >= 1) {
+      const uint32_t px = *reinterpret_cast<const uint32_t *>(conv->pixels);
+      const int measured = static_cast<int>((px >> 16) & 0xFFu);  // R
+      const int truncated = static_cast<int>(static_cast<float>(startValue) *
+                                             static_cast<float>(255 - drop) /
+                                             255.0f);
+      bias = (measured > truncated) ? 0.5f : 0.0f;
+      SDL_Log("[trail] fade rounding measured: %s (start=%d drop=%d -> "
+              "measured %d, truncate predicts %d)",
+              bias > 0.0f ? "ROUNDS to nearest" : "TRUNCATES", startValue,
+              drop, measured, truncated);
+    }
+    if (conv) SDL_DestroySurface(conv);
+  }
+  return bias;
+}
+
+// The measured answer, read by every trail::fadePeakBound call site in this
+// file. Defaults to the old conservative 0.5f (assume rounding) so a build
+// that somehow reaches a fade before begin() has run is unchanged.
+static float trailFadeRoundBias = 0.5f;
+
 void HalDisplay::begin() {
   // THE WARM-UP'S ARMING, and it is ABOVE the idempotent return below on
   // purpose: iOS wakes by re-entering setup() with the window already built, so
@@ -1686,6 +1759,7 @@ void HalDisplay::begin() {
   if (sdl_renderer) {
     const char* rendererName = SDL_GetRendererName(sdl_renderer);
     SDL_Log("[panel] renderer: %s", rendererName ? rendererName : "(unknown)");
+    trailFadeRoundBias = measureTrailFadeRoundBias(sdl_renderer);
   }
 
   // Rendering logic runs in FRAMEBUFFER coordinates (see
@@ -2411,7 +2485,14 @@ PanelPalette livePanelPalette(bool dark) {
   const int driftPct = SimulatorOverlay::paperDriftPct.load();
   if (dark || driftPct <= lightink::kPaperDriftOff) return pal;
   PanelPalette out = pal;
-  lightink::paperDrifted(pal.paper, pageSheetSeed(), driftPct, out.paper);
+  // paperDriftedForPair, not paperDrifted: a page reached through this
+  // resolver can be a NAMED PRESET's raw bytes (panelpalette::resolve),
+  // which never passed through LightInkPalette.h's density/strength floor
+  // clamps -- so the drift applied here must carry its own budget clamp
+  // rather than assume one was already applied upstream.
+  // docs/composition-test-2026-08-29.md.
+  lightink::paperDriftedForPair(pal.ink, pal.paper, pageSheetSeed(), driftPct,
+                                out.paper);
   return out;
 }
 }  // namespace
@@ -3377,7 +3458,8 @@ void HalDisplay::presentIfNeeded() {
               // The scalar shadow of that fill: see src/TrailLifetime.h. It is
               // stepped with the SAME `drop` the texture just took, so it stays
               // a valid upper bound however the present cadence wanders.
-              accumPeakBound = trail::fadePeakBound(accumPeakBound, drop);
+              accumPeakBound = trail::fadePeakBound(accumPeakBound, drop,
+                                                    trailFadeRoundBias);
               // THE CLOCK ADVANCES ONLY WHEN THE FADE ACTUALLY APPLIED, and
               // this used to be an unconditional `accumLastFadeMs = now` above
               // the drop computation. `drop` is a ROUNDED 8-bit alpha, so a
