@@ -392,6 +392,43 @@ xcodebuild archive \
   -archivePath "$ARCHIVE" \
   "${AUTH[@]}" | tail -5
 
+say "Verify bundled fonts match the seed tree"
+# WHAT SHIPS MUST BE WHAT WAS BUILT, FILE FOR FILE.
+#
+# The seed fonts reach the app through file(GLOB) in ios/CMakeLists.txt, and a
+# glob is evaluated when CMake CONFIGURES -- its result is then baked into the
+# generated project. Build 159 shipped NINE Inknut files (7/8/9/10/11/12/14/16/
+# 18) from a tree that held only the six of the re-fitted ramp: the glob had not
+# re-run since the ramp moved. The app then copied the three orphans back onto
+# the owner's card on every launch, so deleting them by hand could never win,
+# and the family had nine installed sizes against six slot names.
+#
+# CONFIGURE_DEPENDS now makes the glob re-check itself, and this gate proves it
+# did rather than trusting that it did. It is a set comparison, not a count: a
+# count matches when one file is swapped for another.
+if [[ -n "${CROSSPOINT_SEED_FONTS_DIR:-}" ]]; then
+  _app="$ARCHIVE/Products/Applications/CrossPointX3.app"
+  _shipped=$(cd "$_app/SeedFonts" 2>/dev/null && find . -name '*.cpfont' | sed 's|^\./||' | sort)
+  # 3x is built into the tree but deliberately not bundled (render scale is
+  # frozen at 2), so it is excluded from the expectation rather than from the
+  # comparison -- an unexpected 3x file in the app would still fail.
+  _expect=$(cd "$CROSSPOINT_SEED_FONTS_DIR" && find . -name '*.cpfont' \
+              | sed 's|^\./||' | grep -v '/3x/' | sort)
+  if [[ "$_shipped" != "$_expect" ]]; then
+    echo "ERROR: the archived app's fonts do not match the seed tree."
+    echo "  tree: $CROSSPOINT_SEED_FONTS_DIR"
+    echo "  app:  $_app/SeedFonts"
+    echo "  Files in the APP that the tree does not have (these would be copied"
+    echo "  onto every card and could not be deleted):"
+    comm -23 <(echo "$_shipped") <(echo "$_expect") | sed 's/^/    /'
+    echo "  Files in the TREE the app is missing:"
+    comm -13 <(echo "$_shipped") <(echo "$_expect") | sed 's/^/    /'
+    echo "  Fix: rm -rf $BUILD_DIR and re-run, so CMake re-globs from scratch."
+    exit 1
+  fi
+  echo "  $(echo "$_shipped" | wc -l | tr -d ' ') .cpfont files, set matches the tree"
+fi
+
 say "Collect dSYM"
 # The archive's dSYMs/ comes out EMPTY on its own, and that is a CMake artifact
 # rather than a missing setting: CMake pins CONFIGURATION_BUILD_DIR to its own

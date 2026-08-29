@@ -90,6 +90,24 @@ set_source_files_properties(
 
 # Optional bundled font families. Point this at a build-sd-fonts.py output
 # directory (one subdirectory per family, .cpfont files inside) and each family
+# CONFIGURE_DEPENDS ON EVERY GLOB BELOW, and it is not optional.
+#
+# file(GLOB) is evaluated when CMake CONFIGURES and its result is baked into the
+# generated project. A rebuilt seed tree does not re-run it, so the app went on
+# bundling whatever files existed the last time configure happened to run.
+#
+# That shipped: on 2026-08-28 Inknut's ramp moved from 7/9/11/12/14/16 to
+# 8/10/12/14/16/18, the tree was rebuilt correctly and validated, and the
+# generated project still listed NINE files -- both ramps. The app then copied
+# the three orphans back onto the card every launch, so the owner deleting them
+# could never win, and a family with nine installed sizes has more sizes than
+# the six slot names, which is its own defect (docs/seed-font-integrity-gate.md).
+#
+# CONFIGURE_DEPENDS makes the build system re-check the glob and re-configure
+# when the set changes. It costs a directory stat per build and removes an
+# entire class of "the build shipped yesterday's assets" that nothing else here
+# would catch.
+#
 # ships inside the app under Resources/SeedFonts/<Family>/. At launch,
 # CrossPointFsPrep copies them into the emulated SD card's visible "fonts/"
 # root, so the phone gets font updates with the app instead of by hand through
@@ -243,14 +261,14 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR AND CROSSPOINT_IOS_COMPRESS_SEED_FONTS)
 endif()
 
 if(CROSSPOINT_IOS_SEED_FONTS_DIR)
-  file(GLOB _seed_families RELATIVE "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
+  file(GLOB _seed_families CONFIGURE_DEPENDS RELATIVE "${CROSSPOINT_IOS_SEED_FONTS_DIR}"
     "${CROSSPOINT_IOS_SEED_FONTS_DIR}/*")
   set(_seed_count 0)
   set(_seed_bundled_families "")
   foreach(_family IN LISTS _seed_families)
     set(_family_dir "${CROSSPOINT_IOS_SEED_FONTS_DIR}/${_family}")
     if(IS_DIRECTORY "${_family_dir}")
-      file(GLOB _family_fonts "${_family_dir}/*.cpfont")
+      file(GLOB _family_fonts CONFIGURE_DEPENDS "${_family_dir}/*.cpfont")
       if(_family_fonts)
         set_source_files_properties(${_family_fonts} PROPERTIES
           MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}")
@@ -293,7 +311,7 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
       # companions.
       if(CROSSPOINT_IOS_RENDER_SCALE GREATER_EQUAL 2)
       foreach(_tier RANGE 2 ${CROSSPOINT_IOS_RENDER_SCALE})
-        file(GLOB _family_fonts_hr "${_family_dir}/${_tier}x/*.cpfont")
+        file(GLOB _family_fonts_hr CONFIGURE_DEPENDS "${_family_dir}/${_tier}x/*.cpfont")
         if(_family_fonts_hr)
           set_source_files_properties(${_family_fonts_hr} PROPERTIES
             MACOSX_PACKAGE_LOCATION "Resources/SeedFonts/${_family}/${_tier}x")

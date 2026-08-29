@@ -155,3 +155,86 @@ python3 tools/validate_seed_fonts.py build/seedfonts \
 Works on any tree of this shape — the card at `crosspoint-reader/fs_/fonts/` is
 the other one. It reads CPZ1 containers transparently (inflating block 0 only),
 so a bundled or installed tree can be audited without unpacking it.
+
+## A second gate: what the app BUNDLES, not just what a file claims (2026-08-28)
+
+The gate above validates the CONTENT of a `.cpfont` — that its header renders at
+the size its filename claims. It says nothing about **which files reach the
+app**, and that turned out to be a separate, shipped defect.
+
+### What happened
+
+Inknut's ramp was re-fitted from `7 9 11 12 14 16` to `8 10 12 14 16 18` and the
+seed tree was rebuilt correctly: `build/seedfonts/InknutJunicode/` held exactly
+six files at 1x and six at 2x, and `validate_seed_fonts.py` passed.
+
+Build 159 shipped **nine**: `7 8 9 10 11 12 14 16 18`, at both tiers. Verified
+in the archive itself —
+
+```
+$ find build/CrossPointX3.xcarchive/Products/Applications/CrossPointX3.app/SeedFonts/InknutJunicode -name '*.cpfont' | wc -l
+      18      # 9 at 1x + 9 at 2x
+```
+
+The owner deleted the three orphans from the app's fonts folder and reported
+they came back: *"7 9 11 are being regenerated after i delete them"*. They were.
+`seedOneFontDirectory()` copies the bundle onto the card at every launch, so a
+file in the bundle cannot be deleted by hand — the app is doing its job, and the
+bundle was wrong.
+
+### Cause
+
+`file(GLOB)` in `ios/CMakeLists.txt`. A glob is evaluated when CMake
+**configures**, and its result is baked into the generated Xcode project. The
+seed tree changing on disk does not re-run it. So the project went on listing the
+file set from whenever configure last happened to run, and a rebuilt ramp shipped
+alongside the ramp it replaced.
+
+This is worse than it sounds because both ramps are *valid* files. Every
+content-level check passes: the headers are right, the companions are present,
+the charsets are current. The integrity gate had nothing to object to. The defect
+is only visible as a SET — nine installed sizes against six slot names, so size
+stepping walks files the slot table cannot name.
+
+### Fix, in two parts
+
+1. **`CONFIGURE_DEPENDS` on all three seed-font globs.** The build system
+   re-checks the glob and re-configures when the set changes. Costs a directory
+   stat per build.
+2. **A set comparison in `ios/testflight.sh`**, after Archive and before upload:
+   the archived app's `.cpfont` set must equal the seed tree's, minus `3x`
+   (built but deliberately not bundled — render scale is frozen at 2). It is a
+   set comparison and not a count, because a count matches when one file is
+   swapped for another. On mismatch it prints both directions of the diff and
+   names the fix (`rm -rf` the build dir).
+
+Part 2 exists because part 1 is invisible when it fails. `CONFIGURE_DEPENDS`
+working is indistinguishable from `CONFIGURE_DEPENDS` not working until someone
+lists a bundle by hand, which is the shape of every defect this repo has had to
+put a gate in front of.
+
+**The gate was mutation-tested against the build 159 archive**, which it refuses,
+naming all six orphans. A gate that has never rejected a real bad input is a
+guess.
+
+### Blast radius, checked rather than assumed
+
+The shipped bundle was diffed against the whole seed tree, all families:
+
+```
+shipped=102  tree=123 (123 includes 21 3x files that are not bundled)
+in SHIPPED but not in tree:  the 6 Inknut orphans, and nothing else
+in TREE but not shipped:     nothing
+```
+
+So Inknut was the only family affected, because it was the only family whose
+ramp moved. Every other family's set was already correct and stays correct.
+
+### What this does NOT fix
+
+An install that already has the nine files. It self-heals on the next launch:
+`seedOneFontDirectory()`'s prune pass deletes any file in a bundled family's
+directory that the bundle does not carry, so build 160 removes 7/9/11 from the
+card without the owner touching anything. That prune only runs when
+`cloneFontDirectory()` declines — which it does whenever the destination is a
+real directory, i.e. on every upgrade.
