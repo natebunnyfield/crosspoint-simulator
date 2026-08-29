@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <string>
+#include <sys/clonefile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
@@ -227,55 +228,45 @@ void seedOneFontDirectory(const std::string &from, const std::string &to) {
   ::closedir(have);
 }
 
-// Attempt to symlink `to` -> `from` (an absolute bundle path).
+// CLONE the bundled family rather than symlinking it (owner 2026-08-28:
+// "don't use symlinks in ios app. i am unable to modify fonts folder").
 //
-// Returns true and creates the symlink when:
-//   - `to` does not exist yet (new install)
-//   - `to` is already a symlink but points somewhere else (bundle moved after
-//     an update); the stale link is removed first.
+// The symlink pointed `fonts/<Family>` straight at the app bundle, which is
+// READ-ONLY. That is why the folder could not be modified: deleting a face,
+// dropping a replacement in over Files, or anything WebDAV wrote there got
+// EROFS from iOS. The removed code called that "the correct behavior for a
+// bundled resource" -- it is not. It is a font folder the owner cannot manage.
 //
-// Returns false without touching `to` when it is a REAL directory: that means
-// a previous install left a genuine copy (from an older build that did not
-// symlink) or the user manually populated the family. In either case we fall
-// back to seedOneFontDirectory() so the copy+prune path still runs and keeps
-// the files up to date.
+// A plain copy fixes it and costs ~67 MB of Documents on top of the identical
+// bytes already in the bundle. `clonefile` gets both: on APFS it produces a
+// REAL, writable directory that SHARES storage with the source until a file is
+// changed. So the folder is fully modifiable and nothing is duplicated until
+// something is actually modified. iOS is APFS everywhere.
 //
-// Correctness constraints satisfied:
-//  - Prune logic never runs through a live symlink (we skip seedOneFontDirectory
-//    entirely on success).
-//  - The 2x companion is automatically reachable through the symlinked
-//    directory; no separate seedOneFontDirectory call is needed.
-//  - A user who drops a replacement family folder via Files would write into
-//    the read-only bundle directory and get an EROFS error from iOS, which is
-//    the correct behavior for a bundled resource. They can install a DIFFERENT
-//    family name alongside; that will be a real directory and is never touched.
-bool symlinkFontDirectory(const std::string &from, const std::string &to) {
+// Returns false to fall through to seedOneFontDirectory()'s ordinary
+// copy+prune -- a non-APFS volume, a cross-device path, or an existing real
+// directory. Correctness is identical either way; only the disk cost differs.
+bool cloneFontDirectory(const std::string &from, const std::string &to) {
   struct stat st{};
   if (::lstat(to.c_str(), &st) == 0) {
+    // A LEFTOVER SYMLINK FROM AN EARLIER BUILD MUST GO, or the upgrade
+    // silently keeps the read-only indirection this change exists to remove
+    // and the folder stays unmodifiable for everyone who had the old app.
     if (S_ISLNK(st.st_mode)) {
-      // Already a symlink: check if it targets the right bundle path.
-      char linkbuf[PATH_MAX];
-      const ssize_t len = ::readlink(to.c_str(), linkbuf, sizeof(linkbuf) - 1);
-      if (len > 0) {
-        linkbuf[len] = '\0';
-        if (std::string(linkbuf) == from) {
-          return true;  // already correct, nothing to do
-        }
-      }
-      // Stale symlink (bundle UUID changed after update). Remove and recreate.
       ::unlink(to.c_str());
+      SDL_Log("[harness] removed legacy fonts symlink: %s", to.c_str());
     } else {
-      // Real directory: user-populated or old copy. Let caller fall back to
-      // the copy+prune path.
+      // A real directory: an existing install, or one the owner populated
+      // himself. Never clobbered -- the caller's copy+prune keeps it current.
       return false;
     }
   }
-  if (::symlink(from.c_str(), to.c_str()) == 0) {
-    SDL_Log("[harness] symlinked fonts/%s -> bundle SeedFonts",
-            to.c_str() + (to.rfind('/') != std::string::npos ? to.rfind('/') + 1 : 0));
+  if (::clonefile(from.c_str(), to.c_str(), 0) == 0) {
+    SDL_Log("[harness] cloned fonts -> %s (writable, storage shared)", to.c_str());
     return true;
   }
-  SDL_Log("[harness] symlink %s FAILED: %s", to.c_str(), ::strerror(errno));
+  SDL_Log("[harness] clonefile %s failed (%s); falling back to copy", to.c_str(),
+          ::strerror(errno));
   return false;
 }
 
@@ -302,11 +293,12 @@ void seedBundledFontFamilies() {
     ::mkdir("fonts", 0777);
     const std::string to = std::string("fonts/") + family;
 
-    // Prefer a symlink: the bundle copy stays in the app and Documents gets a
-    // zero-byte directory entry. ~54 MB that used to exist twice now exists
-    // once. 2x companion files are reachable through the symlinked directory
-    // with no extra work.
-    if (symlinkFontDirectory(from, to)) continue;
+    // CLONE, never symlink (owner 2026-08-28). A symlink pointed this at the
+    // read-only bundle, which is exactly why the fonts folder could not be
+    // modified. A clone is a real writable directory that shares storage until
+    // something is changed, so the saving the symlink existed for is kept and
+    // the folder works. See cloneFontDirectory for the fallback.
+    if (cloneFontDirectory(from, to)) continue;
 
     // Fall back to copy+prune when `to` is already a real directory (existing
     // install or user-populated family). Keeps updates landing correctly.
