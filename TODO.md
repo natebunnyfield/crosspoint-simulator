@@ -131,8 +131,20 @@ it (its `TAP` feeds the FIRMWARE's touch state, not SDL finger events) and
 `simctl` cannot inject multitouch. `CROSSPOINT_SIM_ZEN=1` starts in zen so the
 layout can still be captured.
 
-**Done looks like:** a three-finger tap on the page toggles zen on a real phone,
-and each of the five zones does what it says.
+**Done looks like:** the one-finger hold above the paper toggles zen on a real
+phone, in both directions, and each configured gesture does what its Settings.app
+row says.
+
+**REWRITTEN 2026-08-28**, because the original "done" was written against two
+shapes that are both gone. The five TAP ZONES went on 2026-08-22 when every
+gesture became a native recognizer; the THREE-FINGER TAP went on 2026-08-28 when
+the owner trimmed the gesture set to 1- and 2-finger shapes (T-025 in the
+firmware repo's `TODO.md`) — he was shown that the trim costs the three-finger
+zen toggle and the four-finger power tap and chose it. `ios/ZenGesture.h` and
+`tests/zen_gesture_test.cpp`, still cited above, were retired with the zones;
+`tests/run_all.sh` says so where they used to run. The paragraphs below are kept
+as a dated record of what each shape cost to learn, not as a description of the
+code.
 
 **2026-08-27 — a SECOND way to toggle, and the collision it caused.** Owner:
 *"holding down one finger longer than five seconds toggles zen and single finger
@@ -149,6 +161,15 @@ beside its replacement in `CrossPointZenRecognizers.mm`. Rule pure in
 `run_all.sh`). Still device-confirm only, for the same reason the rest of ST-011
 is: UIKit recognizers live above SDL where no script and no `simctl` reaches.
 Full account and the log lines to watch: `docs/zen-mode.md`.
+
+**2026-08-28 — the gesture set was re-cut, and the 3-finger tap went with it.**
+Seventeen configurable gestures now (single taps on 1 and 2 fingers, swipes on 1
+and 2 fingers x four directions, long presses on 1 and 2 fingers, pinch,
+rotation, shake), 29 Settings.app rows in two layers, generated from one table in
+`ios/GestureBindings.h`. **The hold above the paper is the only gesture that
+fires while zen is off**, where it was one of two. Everything in this entry that
+names the three-finger tap describes a shape that no longer exists. Full account:
+`docs/zen-mode.md` and the firmware repo's T-025.
 
 **The gesture is live ANYWHERE on the glass, pad included — owner ruling
 2026-08-27, asked and re-asked, same answer both times.** Out of zen the pad

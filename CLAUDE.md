@@ -33,7 +33,8 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | What a phosphor trail costs, and what it was spending it on | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) |
 | One surface effect | [letterpress-and-scanlines](docs/letterpress-and-scanlines.md) · [phosphor-grain](docs/phosphor-grain.md) · [show-through](docs/show-through.md) · [corner-defocus](docs/corner-defocus.md) |
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
-| Zen mode's GESTURES (the whole table, and the 3 s hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
+| Zen mode's GESTURES (the 17-gesture set, what the 2026-08-28 trim removed and why, the hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
+| What a gesture is BOUND to, and the one table it all comes from | [ios/GestureBindings.h](ios/GestureBindings.h) — pure, host-tested; `Root.plist`'s gesture rows are generated from it by [tools/gen_gesture_plist.py](tools/gen_gesture_plist.py) |
 | The screen's safe areas on an iPhone | [docs/ios-dynamic-island.md](docs/ios-dynamic-island.md) |
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
 | Why a build is refused for its FONTS | [docs/seed-font-integrity-gate.md](docs/seed-font-integrity-gate.md) — a `.cpfont` whose rendered size does not match its filename loads with no error and draws wrong; B-039 shipped exactly that |
@@ -751,23 +752,31 @@ is how this paragraph was wrong twice:
 | Group | Rows |
 |---|---|
 | Zen | Zen Mode |
-| Gestures | Tap · Swipe Left · Swipe Right · Hold · Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake |
-| Above the Paper | Tap · Swipe Left · Swipe Right · Hold |
-| Below the Paper | Tap · Swipe Left · Swipe Right · Hold |
+| Gestures — One Finger | Tap · Swipe Left / Right / Up / Down · Hold |
+| Gestures — Two Fingers | Tap · Swipe Left / Right / Up / Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise |
+| Gestures — The Device | Shake |
+| Above the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
+| Below the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Sleep | Power-Off Collapse · Diagnostics Log |
 
-The three gesture groups arrived 2026-08-28 (T-025) and are the only rows here
+The five gesture groups arrived 2026-08-28 (T-025) and are the only rows here
 that are not appearance or behavior toggles — see the gesture block near the foot
 of this file, and `docs/zen-mode.md` for the rulings. **THE MODEL IS LAYERED, not
-three parallel zones**: `Gestures` is the base and applies anywhere on screen,
-and the two zone groups override it for the four single-finger gestures only.
-Every zone row ships BLANK, which falls through. **There is no "on the paper"
-concept at all** (owner, verbatim: *"there is no 'on the paper', it's just normal
-configuration"*) — the paper is simply where nothing overrides. They are INPUT
-rather than appearance, which is what lets them past the 2026-08-23 ruling that
-removed every surface dial from this screen.
+three parallel zones**: the three `Gestures` groups are the base and apply
+anywhere on screen, and the two zone groups override them for the six
+single-finger gestures only. Every zone row ships BLANK, which falls through.
+**There is no "on the paper" concept at all** (owner, verbatim: *"there is no 'on
+the paper', it's just normal configuration"*) — the paper is simply where nothing
+overrides. They are INPUT rather than appearance, which is what lets them past
+the 2026-08-23 ruling that removed every surface dial from this screen.
+
+**The global layer is sub-grouped BY FINGER COUNT, and the gesture half of this
+plist is GENERATED** — 29 rows of `PSMultiValueSpecifier` from one table in
+`ios/GestureBindings.h`, by `tools/gen_gesture_plist.py`, with `run_all.sh`'s
+`gesture_plist` case running it `--check` so a stale projection fails the suite.
+Edit the header, re-run the generator; never hand-edit a gesture row.
 
 Owner ruling 2026-08-23, from a screenshot of his own chosen values: *"make
 these settings the default and remove them from ios app settings as options."*
@@ -1031,16 +1040,44 @@ Grown in one day; each is documented at its definition, this is the map:
   `tests/gesture_bindings_test.cpp`). Owner 2026-08-28, verbatim: *"if above and
   below the paper is blank, it should pass through to global configuration. if
   they are defined, they take precedence. there is no 'on the paper', it's just
-  normal configuration."* So: a GLOBAL layer holding all 14 gestures, plus 8
-  zone-override rows for the four single-finger gestures. Multi-finger has no
-  zone override, by ruling -- a 3-finger tap is the same gesture wherever it
-  lands. **BLANK AND "NOTHING" ARE DIFFERENT VALUES in a zone**, and that is the
+  normal configuration."* So: a GLOBAL layer holding all 17 gestures, plus 12
+  zone-override rows for the six single-finger ones. Two-finger gestures have no
+  zone override, by ruling -- a 2-finger tap is the same gesture wherever it
+  lands -- and neither does the shake, which has no landing point.
+  **BLANK AND "NOTHING" ARE DIFFERENT VALUES in a zone**, and that is the
   part most likely to be got wrong: blank (`Inherit`, the default for every zone
   row) falls through to global, while `Nothing` is an EXPLICIT override meaning
   "not in this region" -- which is how a gesture is switched off in the margins
   while it keeps working on the page. **There is no "on the paper"**: a landing
   point between the boundaries has no override row, so the global binding
   applies, and adding one back is adding a concept the owner removed.
+- **THE SET IS 17 GESTURES, AND THE TRIM IS AS LOAD-BEARING AS THE SET.** Owner
+  2026-08-28, after a first pass shipped only what happened to be wired (*"you
+  did a subset of gestures, when I say all possible do all possible"*) and then
+  cutting the expressible set back to what is worth having on a phone: single
+  taps on 1 and 2 fingers, swipes on 1 and 2 fingers x four directions, long
+  presses on 1 and 2 fingers, pinch in/out, rotation both ways, shake. **NO
+  double or triple taps** -- and that one has a mechanical consequence: a
+  double-tap recognizer makes every SINGLE tap wait ~300 ms for it to fail, and
+  the single tap is the page turn, so the absence of multi-taps is what lets the
+  recognizer set be static with no `requireGestureRecognizerToFail:` anywhere.
+  **NO 3-, 4- or 5-finger gestures** and **NO screen-edge pans** (iOS owns the
+  left, bottom and top edges; one usable edge is not a family). **The 3-finger
+  tap (zen) and the 4-finger tap (power) are GONE**, recognizers removed rather
+  than left installed-but-unbound -- an installed recognizer still consumes
+  touches and can still fail a competing gesture. Power is pad-only now and is
+  nobody's default, though it stays OFFERED. Both keys are asserted absent from
+  `Root.plist`, so a re-add is a conscious act. Rotation follows pinch's
+  precedent and fires once on `.ended`. **A gesture that ships INERT may never
+  prevent one that ships BOUND** -- the one rule in the recognizer file's
+  simultaneity delegate, keyed on `gesturebind::shipsInert` (the five rows whose
+  DEFAULT is Nothing) rather than on the live binding, so nothing needs
+  rebuilding when a binding moves. Without it an installed-but-unbound rotation
+  is arbitrated a slightly-twisted pinch and does nothing with it, silently
+  costing a binding the owner has today; between two rows that both ship bound
+  the delegate answers NO, which is what UIKit does with no delegate at all, so
+  the older gestures' arbitration is untouched. Found by adversarial review, not
+  by a test, and now pinned by one.
 - **THE LANDING POINT PICKS THE LAYER, and the two boundaries are already
   published.** Above `g_cardTopPx` (where black ends and paper begins) and at or
   past `g_zenRowTopPx` (the sheet's bottom edge, the same `line` the zen painter
@@ -1052,20 +1089,26 @@ Grown in one day; each is documented at its definition, this is the map:
   two things; T-025 made the zones configurable and did NOT add a second
   threshold. **`HoldAbove` is the one zone row that does not ship blank** -- it
   holds the zen toggle, because the hold does two different things by position
-  and no single global binding can state both.
-- **Four owner rulings, implemented exactly and pinned as rulings**: **zen may be
-  left unbound** (no guard -- the config is in Settings.app, outside the reader,
-  so it is always recoverable), **two gestures may share one action** (no
-  conflict detection), **a gesture may be bound to Nothing**, and **zen scope is
-  a property of the GESTURE AND ITS ZONE, never of the action bound to it** --
-  you configure WHAT a gesture does, never WHEN. Note the subtle half: an
-  inherited action still takes the ZONE's gate, so a hold above the paper set to
-  blank still fires while zen is off. **Every default reproduces build 156
-  gesture by gesture**, and a stored 0 -- an unwritten key, or a `Root.plist`
-  that would not load -- resolves to the row's default rather than to Nothing, so
-  a lost store cannot kill every gesture in the app. Bindings persist as
-  INTEGERS, so the action list APPENDS. Full account:
-  [docs/zen-mode.md](docs/zen-mode.md).
+  and no single global binding can state both -- an ordinary default, not a
+  protected row.
+- **The owner's rulings, implemented exactly and pinned as rulings**: **any
+  binding may be cleared, the zen ones included and with no guard** -- there is
+  nothing special about the zen actions (*"zen is toggleable in settings. drop
+  this concern."*), since zen has its own switch on that same screen; **two
+  gestures may share one action** (no conflict detection); **a gesture may be
+  bound to Nothing** (5 of the 17 ship that way); and **zen scope is a property
+  of the GESTURE AND ITS ZONE, never of the action bound to it** -- you configure
+  WHAT a gesture does, never WHEN. Note the subtle half: an inherited action
+  still takes the ZONE's gate, so a hold above the paper set to blank still fires
+  while zen is off. Exactly ONE row fires outside zen now (the hold above the
+  paper); it was two until the trim took the 3-finger tap. **Every surviving
+  default reproduces the previous build gesture by gesture**, the 3- and
+  4-finger taps being the only intended differences, and a stored 0 -- an
+  unwritten key, or a `Root.plist` that would not load -- resolves to the row's
+  default rather than to Nothing, so a lost store cannot kill every gesture in
+  the app. Bindings persist as INTEGERS keyed by the row's STRING key, so the
+  action list APPENDS while the `Gesture` enum may be re-sorted freely (and was,
+  when the set was re-cut). Full account: [docs/zen-mode.md](docs/zen-mode.md).
 
 ## Driving it headlessly
 

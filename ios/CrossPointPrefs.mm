@@ -741,7 +741,7 @@ int CrossPointPrefs_padContrastPreset(void) {
 // checkKnown() is NOT called. It logs a key that is missing from the
 // registration domain, and these keys are in Root.plist like any other row, so
 // a real absence here means an unreadable Settings.bundle -- which already logs
-// once, loudly, in ensureDefaults(). Eighteen more lines saying the same thing
+// once, loudly, in ensureDefaults(). Twenty-eight more lines saying the same thing
 // per gesture would bury it.
 //
 // Read live, same as everything else here: a binding changed in Settings.app
