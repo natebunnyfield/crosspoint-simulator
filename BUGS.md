@@ -443,6 +443,23 @@ number the log can produce is now in this entry.
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
 
+**STATUS, re-confirmed 2026-08-29 -- OPEN, half fixed, half not.** Two separate
+render loops were behind the original report. **Loop 1 (the page fade re-arm)
+is FIXED** (2026-08-25): `presentIfNeeded` now schedules the next present at
+the wall-clock instant the quantized fade alpha actually changes
+(`pagefade::nextStepAgeMs`, `src/PageFade.h:148`, consumed via
+`pageFadeStepDueMs` in `src/HalDisplay.cpp:108,2652-2654,3059-3078`), instead of
+re-arming `pendingPresent` on every present regardless of whether the visible
+alpha moved. **Loop 2 (the phosphor-trail live window) is OPEN.**
+`accumLive`'s window is a flat `trailMs * 2.4f` (`src/HalDisplay.cpp:3505`),
+unchanged since the filing, and it is what a dark page turn's ~84 presents /
+2.63 s actually cost. Closing it needs an owner ruling between the two levers
+below — cap the present loop's frame rate (fewer intermediate frames, same
+trail duration and end state), or shrink the live window to the measured
+~1.10 trails the MAXIMUM-blend accumulator can still alter a pixel within
+(a 54% shorter window, provably bit-identical, but wants a pixel A/B in the
+tail before it ships). Do not close this entry on the fade fix alone.
+
 **2026-08-25: reproduced, measured, and split in two.** Everything below the
 original entry is the 2026-08-22 filing and stands as the report. What the
 measurement found is that there were two separate render loops behind it, one
@@ -512,7 +529,8 @@ are NOT explained by it.
 A dark page turn costs **84 presents spread over 2.63 seconds**. Present #2
 builds the scanline field (39 ms); #3 through #84 are all cache hits whose cost
 is the composite itself, 4-12 ms each on this renderer. The window is
-`accumLive`'s `trailMs * 2.4` -- 2628 ms at the shipped 1095 ms trail -- and
+`accumLive`'s `trailMs * 2.4` (`src/HalDisplay.cpp:3505`) -- 2628 ms at the
+shipped 1095 ms trail -- and
 during the first second the firmware polls at 100 Hz, so the app composites the
 whole surface about 62 times before dropping to the 20 Hz light-sleep cadence.
 Measured end to end: a page turn every 3 seconds for a minute is **38% of a
@@ -1094,7 +1112,7 @@ check, and that would have been the next wrong diagnosis.
 
 ---
 
-### [S-001] The simulator reports the opposite of the device in six places
+### [S-001] The simulator reports the opposite of the device in six places — FIXED 2026-08-16
 **severity: medium · scope: fidelity · found 2026-08-07** · heap + battery FIXED 2026-08-08 · **remaining four FIXED 2026-08-16**
 
 Not crashes — false confidence. Each makes a firmware path look exercised when
@@ -1151,9 +1169,13 @@ and for the same reason: turning device-truth on is a thing a test asks for.
 **Where the SD update path stops now:** at `validateImageFile()`, which is a
 different stub and a different bug — filed as **S-014**.
 
+**Closing note, 2026-08-29:** re-confirmed clean — `src/SimulatorDeviceTruth.h`
+exists and `tests/device_truth_test.cpp` is wired into `tests/run_all.sh:479`.
+No further action.
+
 ---
 
-### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps
+### [S-011] `test_sleep_wake.sh` fails against current firmware `main` — the scripted POWER hold no longer sleeps — FIXED 2026-08-17
 **severity: medium · scope: tests / firmware drift · found 2026-08-08** · FIXED 2026-08-08
 
 **ROOT CAUSE FOUND 2026-08-17, and it was never firmware drift: the test was the
@@ -1219,7 +1241,11 @@ version trapped `rm -rf "$WORK"` BEFORE the restore, and the backup lives inside
 `$WORK`, so cleanup ate the file the restore needed and silently left the seeded
 state on the working card. Restore first, clean up second.
 
-### [S-013] The in-process reboot orphans the parked accept worker
+**Closing note, 2026-08-29:** re-confirmed clean — `tests/test_sleep_wake.sh:48-67`
+seeds `readerActivityLoadCount=1` before the run and restores `state.json` from
+the backup before the `$WORK` cleanup. No further action.
+
+### [S-013] The in-process reboot orphans the parked accept worker — FIXED 2026-08-08
 **severity: low · scope: iOS lifecycle · found 2026-08-08** · FIXED 2026-08-08
 
 
@@ -1253,6 +1279,10 @@ arrangement the worker WAS the handler and this could not have worked.
 
 Verified: 12/12 simulator tests, and 10/10 requests still served after the
 change — the registry does not disturb the normal path.
+
+**Closing note, 2026-08-29:** re-confirmed clean — `src/WebServer.cpp:453-461`
+holds `gServerReboot` (the `simreset::Registrar` that stops every live server
+before the jump). No further action.
 
 ### [S-012] A throwing route handler hung the file-transfer server forever
 **severity: high · scope: web server / threading · found + FIXED 2026-08-08**
@@ -1319,7 +1349,7 @@ values the firmware reads definitely change, and the thresholds are now
 crossable, but I did not get a book open under a low pin to watch one trigger.
 The five remaining reversals in this entry are untouched.
 
-### [S-002] Sleep/restart statics survive the iOS in-process reboot
+### [S-002] Sleep/restart statics survive the iOS in-process reboot — FIXED 2026-08-08
 **severity: medium · scope: iOS lifecycle · found 2026-08-07** · PARTIALLY FIXED 2026-08-07
 
 
@@ -1389,7 +1419,13 @@ Ownership is now a per-thread token from a counter that only goes up. A give
 from a non-holder is a no-op rather than a decrement, so a stale unwind after
 the release cannot free somebody else's lock.
 
-### [S-003] Route handlers run on the accept worker, not the firmware task
+**Closing note, 2026-08-29:** re-confirmed clean — `src/SimulatorRebootResets.h`
+plus `simsemphr::forceReleaseAllForReboot()` are called at three sites in
+`src/SimulatorLifecycle.cpp:115,185,220`; `tests/reboot_resets_test.cpp` and
+`tests/semphr_reboot_test.cpp` are wired into `tests/run_all.sh:302,305`. No
+further action.
+
+### [S-003] Route handlers run on the accept worker, not the firmware task — FIXED 2026-08-08
 **severity: high · scope: web server / threading · found 2026-08-07** · FIXED 2026-08-08
 
 
@@ -1429,7 +1465,12 @@ WebDAV PUT all succeed (the PUT's bytes land on the card), and the process exits
 thread evidence — `handleClient()` is now the only thing that dispatches, so if
 it were not running they would hang.
 
-### [S-004] `getFrameBuffer()` can return null and five callers dereference it
+**Closing note, 2026-08-29:** re-confirmed clean — `src/WebServer.cpp:665-799`
+still has the accept worker parking on the `dispatchDone` condvar and
+`dispatchParkedRequest()`/`handleClient()` running the drain on the main
+thread. No further action.
+
+### [S-004] `getFrameBuffer()` can return null and five callers dereference it — FIXED 2026-08-07
 **severity: high · scope: display · found 2026-08-07** · FIXED 2026-08-07
 
 
@@ -1462,7 +1503,22 @@ failure because it looks like a rendering bug somewhere else entirely.
 `composeGrayscalePreview` keeps the last presented frame instead of compositing
 from null.
 
-### [S-010] `CROSSPOINT_NO_NETWORK` outlived the reason it existed
+**Closing note, 2026-08-29:** re-confirmed clean — all five call sites still
+null-check `getFrameBuffer()`: `src/HalDisplay.cpp:878, 1910, 1917, 1938, 2020`.
+**The one sub-item this note used to record as unfulfilled is now closed too:**
+`frameBufferLent` is an `std::atomic<bool>` (`src/HalDisplay.cpp:419`), which is
+the atomic the original entry's "Close by" asked for. Correcting the reasoning
+along with the fact: this was NOT pure hardening over an already-serialized
+flag. `getFrameBuffer()`, `lendFrameBufferStorage()` and
+`returnFrameBufferStorage()` (`src/HalDisplay.cpp:4132-4155`) read and write
+`frameBufferLent` with no `pixelBufMutex` of their own — verified by reading
+all three bodies, none takes the lock — unlike `frameBufferStorage`'s other
+readers/writers a few lines below, which do. So the earlier claim that "every
+access is serialized through `pixelBufMutex`" was wrong: those three functions
+were racing on a plain `bool` with no synchronization at all, and the change
+closed a narrow real gap rather than hardening an already-safe path.
+
+### [S-010] `CROSSPOINT_NO_NETWORK` outlived the reason it existed — FIXED 2026-08-07
 **severity: medium · scope: iOS features · FIXED 2026-08-07 · `d7e8b27`, firmware `f1459353`**
 
 The flag excluded 16 TUs and gated Wi-Fi, File Transfer, font downloads and
@@ -1500,6 +1556,12 @@ machine. Linking is not the same as working.
 
 **Depended on B-004.** Editing `platformio.ini` used to wipe every environment's
 build directory, which is why this kind of change was avoided.
+
+**Closing note, 2026-08-29:** re-confirmed clean — `CROSSPOINT_NO_NETWORK`
+appears nowhere outside historical doc prose (`ios/README.md:1614`,
+`ios/WIFI.md:138,141,320`, all describing that the macro is gone), and
+`CROSSPOINT_NO_DEVICE_FLASH` stays scoped to OTA/SD-flash only in
+`cmake/CrossPointIOSExclusions.cmake:36,46`. No further action.
 
 ### [S-009] The pad contrast dial had its resolution in the wrong place
 **severity: medium · scope: iOS settings · FIXED 2026-08-07 · `258bb14`**
