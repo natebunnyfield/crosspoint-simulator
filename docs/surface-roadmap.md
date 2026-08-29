@@ -818,7 +818,7 @@ hand-synced value lines, and one `case` in `applyDialGroup` — which has no
 `default:` label, so a row added without one is a `-Wswitch` warning rather
 than a dial that ships doing nothing.
 
-### 4b. Accessibility — one part is exemplary, one part is untouched
+### 4b. Accessibility — one part is exemplary, the other gap has moved — corrected 2026-08-29
 
 **The page is fine, and better than fine.** `ios/CrossPointAccessibility.h`
 installs a real `UIAccessibilityElement` container over the SDL view, and
@@ -831,27 +831,43 @@ from the *captured text*, not from pixels. **No surface dial can break
 VoiceOver.** That is a genuinely good architectural outcome and it should be
 stated so nobody worries about it.
 
-**The controls are not fine.** There is no `accessibilityLabel`,
-`accessibilityValue`, `accessibilityHint` or trait anywhere in the harness's
-UIKit code — a grep for `accessibilit` across `ios/` returns only the page
-container and the read-aloud plumbing. Concretely, in the page-color drawer:
+**The light-mode ink/paper drawer's earlier gap is CLOSED, not open.** This
+section previously reported no `accessibilityLabel`/`accessibilityValue` or
+`UIAccessibilityTraitSelected` anywhere in the harness's UIKit code. Re-grepped
+2026-08-29: `ios/CrossPointLightInkPicker.mm` now sets both, and the "eight
+anonymous percentages" this section named no longer exist as controls at all.
 
-- The **ink rows** are `UIButton`s whose visible text lives in two *child*
-  `UILabel`s (`_inkName`, `_inkEra`) rather than in the button's title
-  (`ios/CrossPointLightInkPicker.mm:441`, `:448`). A `UIButton` with no title
-  has no default accessibility label, so VoiceOver announces an unlabeled
-  button. With 8 inks that was 8 unlabeled buttons; with 17 it is 17.
-- The **paper cells** do set a title (`:505`), so they announce — but as a bare
-  name with no indication of which is selected.
-- **Every slider** — density, paper, tooth, formation, defects, and the three
-  press dials — announces as "N percent" with no name, because none sets a
-  label. Eight anonymous percentages.
-- Selection state is carried entirely by a border/checkmark, with no
-  `UIAccessibilityTraitSelected`.
+- **Ink rows** set `accessibilityLabel` and `UIAccessibilityTraitButton`
+  (`:426-427`).
+- **Paper cells** set the same pair (`:507-508`).
+- **Selection state** ORs in `UIAccessibilityTraitSelected` when a row is the
+  live choice — ink at `:694-696`, paper at `:709-711`.
+- **The Density slider** is labeled (`:490`, `accessibilityLabel = @"Density"`)
+  and sets `accessibilityValue` to the same readout text the sighted UI shows
+  (`:718`).
+- The other seven sliders this section counted — tooth, formation, defects,
+  drift, and the three press parts — are gone, not merely unlabeled: owner
+  ruling 2026-08-23 froze all seven to constants and removed their controls
+  from the drawer (`ios/CrossPointLightInkPicker.mm:128`, the frozen-getters
+  block at `:143-152`). Density is the only slider left in this drawer, and it
+  is labeled.
 
-Cost to fix: **very low** — a label, a value and a selected trait per control,
-perhaps 40 lines total, and it is the sort of thing that is embarrassing to
-leave once the row count doubles. Risk: none.
+**The one real remaining gap moved to the OTHER drawer.**
+`ios/CrossPointPaletteMixer.mm` (the dark-mode four-gun mixer) has four
+unlabeled gun-weight sliders — `_slider[g]`, declared `:312`, built
+`:382-400` — and a whole-file grep for `accessibilit` returns nothing. The
+gun-NAME buttons beside them are `UIButtonTypeSystem` with real titles
+(`:358`), so those get a VoiceOver label for free; the sliders do not. Cost to
+fix: **very low**, same shape as the fix already applied to the ink picker — a
+label and a value per slider, a handful of lines.
+
+**Both drawers are currently unreachable from the phone**, since the
+page-color chip that opened them was removed from the pad 2026-08-24
+(`ios/CrossPointLightInkPicker.mm:10`, `ios/CrossPointPaletteMixer.mm:3` — both
+say so verbatim, "NOTHING ON THE PHONE OPENS THIS DRAWER"). So neither the fix
+already shipped nor the mixer's remaining gap is a LIVE defect today; this is
+bookkeeping for the day the chip — or some other entry point — comes back, not
+an active accessibility bug.
 
 **Dynamic Type.** The harness uses fixed point sizes and manual frames
 throughout (`ios/CrossPointLightInkPicker.mm:667-758`), so the drawer does not
@@ -1328,4 +1344,38 @@ dial to its maximum simultaneously, for every palette, and asserts the final
 and "individually safe and jointly over" is the exact failure the defect layer
 had to be rescued from once already. That test costs an afternoon and it is the
 thing that makes items 1, 2 and 3 above safe to add.
+
+**Built 2026-08-29 (`tests/composition_test.cpp`, wired into `run_all.sh` as
+`composition`), and it found something on day one, with no code changed to
+produce the finding.** Sheet drift (`lightink::paperWorstDrift`) turned out to
+be the one surface pass in this list with no `paperBudget`-aware clamp of its
+own — it darkened the paper by a fixed ±2 code values at dial 100 regardless
+of how much headroom the live ink/paper pair had. Safe for the light picker's
+own density/paper-strength model, because `floorDensityPct` /
+`clampDensityPct` / `maxPaperStrengthPct` / `clampPaperStrengthPct` already
+re-derive those two dials against drift's raw worst case. Not safe for a
+NAMED PRESET applied directly (`panelpalette::resolve`'s fixed bytes never
+pass through those clamps): Latte, this repo's tightest shipped page at
+7.06:1 undrifted, measured 6.937:1 at drift 100 — under the floor, with every
+other pass correctly spending zero. Full account, the owner's ruling
+("clamp drift like every other pass"), and the fix that landed the same day:
+`docs/composition-test-2026-08-29.md`.
+
+**What this test does and does not cover, stated plainly so the next reader
+does not over-trust it.** It sweeps `testpalettes.h`'s shipped PAGES (ink +
+paper as `panelpalette::resolve()` actually resolves them) through the real
+budget-sharing chain `SurfaceSheet.cpp` calls, with `fieldselect::select`
+deciding what is live rather than the test hand-assembling a combination the
+code cannot produce — that is what caught the drift gap, since drift is
+applied upstream of `fieldselect::select` and every dial downstream of it
+correctly spent nothing further. It does NOT sweep the full ink × paper ×
+density × paper-strength grid the way `light_ink_test.cpp`'s frozen-sheet
+block does — that exhaustive sweep is that test's job, deliberately not
+duplicated here. It does NOT drive a full raster; every consumer past the
+tooth is an analytic upper bound proven by that pass's own test, and this
+file sums those same calls in production's own order rather than re-measuring
+pixels. And it is a SNAPSHOT of the shipped palette table and the shipped
+dial maxima: a future ink, paper, or preset row is only covered once it is
+added to `testpalettes.h`, the same caveat every other field sweep in this
+repo already carries.
 

@@ -31,30 +31,69 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-110**, uploaded 2026-08-21 at 02:53. Simulator `2572cfe`+link-fixes
-(`main` at the upload was the two-link-bug fix commit), firmware worktree at
-`f1dbdb325` (1.5.4-BD — the settings reduction). 85.8 MB.
+**build-160**, tag created 2026-08-28 23:34:57 -0500 at `b398d45` — HEAD of
+`main` as of this writing, and the highest `build-*` tag
+(`git tag --list 'build-*' | sort -t- -k2 -n | tail -5` shows build-156..160).
+`b398d45` fixes a seed-font bundling defect: build 159 shipped nine Inknut
+sizes from a stale `file(GLOB)` result against a six-size ramp, self-healing on
+upgrade via the existing prune pass; `ios/testflight.sh` now diffs the archived
+`.cpfont` set against the seed tree before every upload and refuses on any
+mismatch (`docs/seed-font-integrity-gate.md`). **A `build-*` tag proves a
+deploy RAN, not that Apple accepted it** — it is written by the deploy script
+before `altool` returns, not after App Store Connect processing finishes.
 
-On top of build-109 it carries the ENTIRE phosphor mixer arc, none of which any
-earlier build had: the page-color chip opening the mixer modal (tap or hold —
-cycling is gone, superseded 2026-08-20), Blend/Parts/Cascade with premixes as
-preset mixes, long-press loading fitted recipes, the persistence-banded shelf
-sorted trail-then-hue, the tab-switch fix (browsing a tab no longer blanks the
-page), and the desktop settings.json parity including the mix keys. Plus the
-firmware settings reduction.
+Build 159 (the prior tag) is separately confirmed working END TO END ON THE
+OWNER'S IPHONE, firmware 1.5.21-BD: a real GitHub token entered through
+Settings.app, a real 200 from GitHub, the manifest parsed, seventeen books
+written to the card, zero errors (`docs/library-sync-on-ios.md`, commit
+`3d2d63f`).
 
-It took four deploy attempts, recorded here so the pattern is known: #1 died
-because the shipping worktree was moved under the running archive; #2 died at
-LINK on two mixer bugs invisible to desktop builds (extern "C" inside an
-anonymous namespace; C-linkage declaration of the firmware's C++
-crosspointRequestRender) — misdiagnosed first as a stale source set; #3 was
-killed carrying the same code; #4 shipped with the fixes after arm64-ios
-symbol-resolution verification. Anything only the iOS target compiles must be
-verified by compiling AND resolving symbols for arm64-ios.
+**162 commits landed between build-110 (2026-08-21) and build-160**
+(`git log build-110..build-160 --oneline`). The arc, not the list:
 
-Firmware releases the same night: 1.5.3-BD (font work) and 1.5.4-BD (settings
-reduction), both Latest in sequence on GitHub. Mac apps at build 111, all
-three, at the reduction commit.
+- **The page is frozen, and its editors are gone from the pad.** Owner ruling
+  2026-08-23/24 pulled every page-color control out of Settings.app and the
+  light-page drawer (`bc74bd8`, `a7d256d`), then froze BOTH appearances —
+  Sanguine ink on India stock (light), the owner's own four-gun CRT mix
+  (dark) — in `src/FrozenPage.h`, and removed the page-color chip from the pad
+  entirely (`5aa1322`). The gun mixer and light-ink-picker source files still
+  compile and are still reachable from QA env hooks, but **nothing on the
+  phone opens either drawer** since 2026-08-24 — confirmed in their own header
+  comments, `ios/CrossPointLightInkPicker.mm:10` and
+  `ios/CrossPointPaletteMixer.mm:3`. This directly supersedes what build-110's
+  entry described as a shipping feature (the page-color chip opening the mixer
+  modal) — that chip is gone.
+- **Render scale frozen at 2, 3x dropped, seed fonts block-compressed.**
+  Install size fell 86% (`ecc08da`, `docs/seed-font-compression.md`).
+- **The gesture system became configurable: 17 gestures, layered with zone
+  overrides.** One/two-finger tap, four-way swipes on each, one/two-finger
+  holds, pinch, rotate both ways, shake — global bindings plus zone rows for
+  the six single-finger gestures, no "on the paper" concept, 3- and 4-finger
+  taps deliberately cut (`bfe4dc6`, `6514ac6`, `6e1c76e`,
+  `ios/GestureBindings.h`, `docs/zen-mode.md`).
+- **Update Library works on the phone, and the token never touches the SD
+  card.** A masked GitHub Token field landed in Settings.app > Library;
+  `LibraryUpdater` reads it from NSUserDefaults rather than
+  `SETTINGS.githubToken` (`8b5521c`, `docs/library-sync-on-ios.md`).
+- **The whole-glass CRT refactor.** Persistence and the beam moved to an
+  output-space pass over the whole composed glass (page, pad, surround) for
+  ~20% less CPU on a dark page turn (`e3e8e00`, `docs/whole-glass-crt.md`), and
+  `HalDisplay.cpp` split into four files by when they draw
+  (`docs/refactor-plan-2026-08-24.md`).
+- **Two defects worth flagging on their own:** Speak Screen going permanently
+  deaf at the first in-session reboot, fixed by finding capture had been
+  re-seeded off (`68c73fb`, S-023 in `BUGS.md`); and a crafted 24-byte file
+  that could crash the reader through an integer overflow, found by
+  adversarial review and reproduced under ASan (`539ea13`).
+- **S-019 (the 50%-CPU battery report) is half closed.** The page-fade loop is
+  fixed; the phosphor-trail live window is still open pending an owner ruling
+  — see `BUGS.md`.
+
+Mac app / firmware-release parity for this specific tag is not recorded in
+this repo and was not re-verified for this entry; the desktop canary (the
+`simulator`/`simulator_x3` PlatformIO envs) is unaffected by any of the above,
+since every item here is either iOS-only or gated behind
+`CROSSPOINT_SIM_AS_SHIPPED`.
 
 The build number comes from the highest `build-*` tag plus one, so tags are the
 record — `git tag --list 'build-*' | sort -t- -k2 -n | tail -5`.

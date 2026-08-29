@@ -10,10 +10,13 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The two shell tests (test_sleep_wake.sh, test_text_entry.sh) are NOT run here:
-# both need a desktop binary built from a firmware checkout and exit 2 to mean
-# SKIP, which a plain pass/fail runner would misreport. Run them by hand with a
-# firmware path, as CLAUDE.md describes.
+# The four shell tests (test_sleep_wake.sh, test_text_entry.sh,
+# test_read_aloud_capture.sh, test_note_editor_repaint.sh) run at the end via
+# run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
+# crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
+# needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
+# card, and each uses exit 2 to mean SKIP -- a missing precondition, not a
+# broken test -- which is why they get their own runner rather than run_direct.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,6 +42,37 @@ run_direct() {
   if "$@" >"$OUT/$name.log" 2>&1; then
     echo "PASS"
     pass=$((pass + 1))
+  else
+    echo "FAIL"
+    tail -16 "$OUT/$name.log" | sed 's/^/    /'
+    fail=$((fail + 1)); failed_names+=("$name")
+  fi
+}
+
+# run_shell_skip <name> <script> [args...] -- a shell test that is already
+# runnable (no compile step, like run_direct) but whose exit 2 means SKIP
+# rather than FAIL -- the test_sleep_wake.sh convention for "the precondition
+# (a built firmware binary, a seeded card) is missing", not a broken test.
+# run_direct/run both call every nonzero exit FAIL, which would misreport a
+# missing firmware checkout as red and train people to ignore it, exactly what
+# the build_identity/library_sync_plan/cpz_container guard near the foot of
+# this file already avoids for the pure-header tests that need one. The exit
+# code is captured explicitly into `code` -- `if "$@"` throws it away, which
+# is what made these four impossible to fold into `run` in the first place.
+run_shell_skip() {
+  local name="$1"; shift
+  if [[ -n "$FILTER" && "$name" != *"$FILTER"* ]]; then
+    return
+  fi
+  printf '%-22s ' "$name"
+  "$@" >"$OUT/$name.log" 2>&1
+  local code=$?
+  if [[ $code -eq 0 ]]; then
+    echo "PASS"
+    pass=$((pass + 1))
+  elif [[ $code -eq 2 ]]; then
+    echo "SKIP"
+    skipped=$((skipped + 1))
   else
     echo "FAIL"
     tail -16 "$OUT/$name.log" | sed 's/^/    /'
@@ -435,6 +469,26 @@ run laid_structure \
 run paper_defects \
   c++ -std=c++17 -O1 -Isrc -o "$OUT/paper_defects" tests/paper_defects_test.cpp
 
+# THE COMPOSITE (docs/surface-roadmap.md section 8, docs/composition-test-
+# 2026-08-29.md). field_selection and the seven passes above each prove ONE
+# field against the 7:1 floor, alone -- every one of them computes its
+# darkening budget on the assumption that it is the only pass spending it.
+# "Individually safe and jointly over" is the exact failure the defect layer
+# was rescued from once already; nothing before this file walked every dial
+# to its maximum AT ONCE, through fieldselect::select() and the real
+# budget-sharing chain SurfaceSheet.cpp actually calls, and asked whether the
+# composite still clears the floor. It found a real one on its first run: a
+# NAMED PRESET (Latte, 7.06:1, the tightest page this repo ships) selected
+# directly bypasses the ink-picker's drift-aware density clamp, so sheet-to-
+# sheet drift alone -- no other dial contributing anything -- drags it to
+# 6.937:1. Not reachable on iOS today (the shipped page is frozen to
+# Sanguine-on-India, which DOES go through that clamp); reachable on the
+# desktop, where preset choice and the drift dial are two QA levers with no
+# cross-check between them. See the doc for the full account and the
+# candidate fixes, none of them applied here.
+run composition \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/composition" tests/composition_test.cpp
+
 # WHICH sheet each of those pages is -- and, since 2026-08-24, each system
 # screen too. A seed that folds to 0 reads as "nothing published" and silently
 # restores the per-launch sheet; a screen seed that collides with a page seed
@@ -612,6 +666,19 @@ else
   printf '%-22s %s\n' "cpz_container" "SKIP (no firmware include set; run a pio build first)"
   skipped=$((skipped + 3))
 fi
+
+# The four end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# the include set the block above wants) with a desktop binary already built
+# and, for two of them, a card that has been run once so
+# fs_/.crosspoint/settings.json exists -- see each script's own header for
+# which binary path and which files it looks for. run_shell_skip reports
+# their own SKIP rather than turning a missing precondition into a FAIL.
+FW_CHECKOUT="${CROSSPOINT_FIRMWARE_DIR:-$HOME/src/crosspoint-reader}"
+
+run_shell_skip test_sleep_wake tests/test_sleep_wake.sh "$FW_CHECKOUT"
+run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
+run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
+run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_CHECKOUT"
 
 echo
 if [[ $fail -eq 0 ]]; then

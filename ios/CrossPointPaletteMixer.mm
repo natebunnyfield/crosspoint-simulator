@@ -384,6 +384,15 @@ extern "C" bool CrossPointMixer_isPresented(void) {
     _slider[g].maximumValue = kWeightMax;
     _slider[g].value = _w[g];
     _slider[g].tag = g;
+    // Same pattern as the light picker's Density slider
+    // (CrossPointLightInkPicker.mm): a label set once here, a value kept
+    // current in -refresh alongside the visible readout. UNVERIFIED -- this
+    // file is .mm and only compiles on the iOS target, which this host
+    // cannot build; the drawer has also been unreachable from the phone
+    // since 2026-08-24 (nothing on device opens it), so this is for the day
+    // it comes back.
+    _slider[g].accessibilityLabel =
+        [NSString stringWithFormat:@"Gun %s weight", kGunLabel[g]];
     // Transparent system track, both halves: the gradient underlay IS the
     // track. (This also supersedes the old per-gun minimumTrackTintColor.)
     static UIImage *clearTrack;
@@ -824,8 +833,14 @@ extern "C" bool CrossPointMixer_isPresented(void) {
                      @"ink/tail/paper",
                      hexOf(r.dark.ink), hexOf(r.dark.paper), hexOf(r.light.ink),
                      hexOf(r.light.paper), (double)r.trailMs];
-  for (int g = 0; g < kGunCount; g++)
+  for (int g = 0; g < kGunCount; g++) {
     _value[g].text = _w[g] > 0 ? [NSString stringWithFormat:@"%d", _w[g]] : @"off";
+    // Kept current here rather than only at creation, same as Density's
+    // accessibilityValue in CrossPointLightInkPicker.mm -- refresh runs on
+    // every drag tick and every reassignment, so this never lags what
+    // _value[g].text just showed. UNVERIFIED, see the label's note above.
+    _slider[g].accessibilityValue = _value[g].text;
+  }
 }
 @end
 
