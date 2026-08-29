@@ -296,6 +296,13 @@ run heap_budget \
 run_direct dispatch_signal \
   python3 tests/dispatch_signal_test.py
 
+# When the system appearance may overwrite the owner's Dark Mode choice
+# (ios/AppearanceSeed.h). Both of its failure modes have shipped: seeding every
+# launch killed the in-app toggle, and seeding only once meant a phone switched
+# to dark while the app was closed came up light. Pure, so it needs no UIKit.
+run appearance_seed \
+  c++ -std=c++20 -o "$OUT/appearance_seed" tests/appearance_seed_test.cpp
+
 # The desktop's settings file. Every failure mode is a dial that silently does
 # not apply -- a bad line reverting every OTHER dial, a missing key answering 0
 # where 0 is a real choice (grain off, fade off), or the shipped template not

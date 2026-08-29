@@ -35,6 +35,11 @@ static NSString *const kPadContrastPreset = @"padContrastPreset";
 // is the shipped default; the three-finger gesture and CROSSPOINT_SIM_ZEN can
 // still toggle the live state regardless.
 static NSString *const kZenModeEnabled = @"zenModeEnabled";
+// Host bookkeeping, not a Settings.app row: the system appearance this app last
+// acted on. Deliberately NOT registered as a default -- "never recorded" has to
+// be distinguishable from "recorded as light", and a registration domain value
+// would make -integerForKey: answer 0 for both.
+static NSString *const kLastSeenSystemDark = @"lastSeenSystemDark";
 
 // Read-aloud TTS. Here the missing-key failure mode is benign — NO means the
 // feature stays off, which is also the shipped default.
@@ -323,6 +328,20 @@ int CrossPointPrefs_zenModeEnabled(void) {
   // while the app was backgrounded lands on the first frame after returning.
   return [[NSUserDefaults standardUserDefaults] boolForKey:kZenModeEnabled] ? 1
                                                                             : 0;
+}
+
+int CrossPointPrefs_lastSeenSystemDark(void) {
+  // objectForKey, not integerForKey: absence is the answer that matters here
+  // and integerForKey collapses it into 0 (light). Not checkKnown'd and not
+  // in the defaults registration for the same reason.
+  NSNumber *v = [[NSUserDefaults standardUserDefaults] objectForKey:kLastSeenSystemDark];
+  if (![v isKindOfClass:[NSNumber class]]) return -1;
+  return [v intValue] != 0 ? 1 : 0;
+}
+
+void CrossPointPrefs_setLastSeenSystemDark(int dark) {
+  [[NSUserDefaults standardUserDefaults] setObject:@(dark ? 1 : 0)
+                                            forKey:kLastSeenSystemDark];
 }
 
 int CrossPointPrefs_readAloudEnabled(void) {

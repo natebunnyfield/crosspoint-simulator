@@ -38,6 +38,50 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-030] Booting while the phone is dark came up light — FIXED 2026-08-28, unconfirmed on device
+**severity: medium (visible every launch) · scope: iOS appearance · reported and fixed 2026-08-28**
+
+Owner: *"when booted into system dark mode, be in dark mode."*
+
+`g_seedDarkFromSystem = firstEverLaunch()` — the system appearance wrote into
+`SETTINGS.darkMode` only on the **first launch ever**, and after that only when
+the appearance changed **while the app was running**. `pollAppearance`
+initialises its `s_lastSystem` from the system itself, so on the first tick of
+any later launch nothing has changed and the stored setting wins.
+
+Install in light, switch the phone to dark with the app closed, reopen: light.
+
+**This is not a careless rule — it is the fix for the opposite bug**, and that
+is why the repair had to be more than deleting it. Seeding from the system on
+every launch used to overwrite the in-app Dark Mode toggle, so the control did
+not survive a relaunch; the comment above `applyTheme` records that report in
+the owner's words. Neither "always seed" nor "seed once" satisfies both, because
+both answer from the CURRENT system alone.
+
+The question they cannot answer is **did the system change since we last
+looked**, and that needs the previous answer remembered across launches,
+separately from the owner's setting. `CrossPointPrefs_lastSeenSystemDark` now
+persists it, `ios/AppearanceSeed.h` holds the rule, and the running-app poll
+keeps it in step so the next launch never compares against a stale answer.
+
+Two details that are easy to get wrong and are pinned:
+
+* **An install that predates this rule does NOT seed.** Nothing was recorded, so
+  a stored `darkMode` may be a deliberate choice, and seeding over it on the
+  upgrade launch would be the toggle-overwrite bug reintroduced one release
+  later. The value is recorded on that launch anyway, so the NEXT change is
+  caught.
+* **The remembered value is written on every launch, seeded or not.** Writing it
+  only when seeding leaves the case above stuck at "never recorded" for ever.
+
+`lastSeenSystemDark` is deliberately absent from the defaults registration:
+"never recorded" has to be distinguishable from "recorded as light", and a
+registration-domain value makes `-integerForKey:` answer 0 for both. Read with
+`objectForKey:` for the same reason.
+
+Mutation-verified: making the upgrade launch seed fails two named cases, and
+never following a change made while closed fails two more.
+
 ### [S-029] A textless page kills hands-free read-aloud — FIXED 2026-08-28, unconfirmed on device
 **severity: high (the feature does not start) · scope: read-aloud · found and fixed 2026-08-28**
 
