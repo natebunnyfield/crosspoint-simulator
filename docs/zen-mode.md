@@ -1,8 +1,10 @@
 # Zen mode
 
-Three-finger tap on the page toggles it — or a **one-finger hold of 0.75 s above
-the paper**, either way in or out. The pad's chrome goes away and what is left is
-a sheet of paper on black.
+A **one-finger hold of 0.75 s above the paper** toggles it, either way in or out.
+The pad's chrome goes away and what is left is a sheet of paper on black. (The
+three-finger tap did this too until the 2026-08-28 gesture re-cut removed every
+three-finger gesture; see "The set was re-cut" below. Zen also has its own switch
+at the top of the app's Settings.app screen.)
 
 (The hold's history is worth a line: the owner asked for it on 2026-08-27 as
 *"holding down one finger longer than three seconds toggles zen and single finger
@@ -30,31 +32,77 @@ expected."*
 
 **WHAT EACH ONE DOES IS CONFIGURABLE from Settings.app** since T-025 (owner
 2026-08-28) — see the next section for the layered model. The table is the
-shipped GLOBAL layer with every zone override blank, which together are exactly
-what build 156 did.
+shipped GLOBAL layer with every zone override blank.
 
 | Gesture | Live in | Default action |
 |---|---|---|
 | **1-finger hold, 0.75 s, ABOVE the paper** | **zen AND not-zen** | **toggles zen, under the finger** (the one non-blank zone row) |
-| **3-finger tap** | **zen and not-zen** | **toggles zen** |
 | 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward (`BTN_RIGHT`) |
 | 1-finger hold, 0.75 s, anywhere else | zen only | Select (`BTN_CONFIRM`) |
 | 1-finger swipe left / right | zen only | page forward / back |
+| 1-finger swipe up / down | zen only | Nothing (added 2026-08-28, ships inert) |
+| 2-finger tap | zen only | Select |
 | 2-finger swipe left / right | zen only | `BTN_DOWN` / `BTN_UP` |
 | 2-finger swipe down / up | zen only | Select / Back |
+| 2-finger hold, 0.75 s | zen only | Nothing (added 2026-08-28, ships inert) |
 | pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
-| 2-finger tap | zen only | Select |
-| 4-finger tap | zen only | Power |
+| rotate clockwise / counter-clockwise (on the lift) | zen only | Nothing (added 2026-08-28, ships inert) |
 | shake | zen only | font family step |
 
-The two always-on rows are always on for the same reason: they toggle **both
-ways**, so they have to fire while zen is off. Everything else is enabled only
-while zen is on (`CrossPointZenRecognizers_setEnabled`), or gated on the zen flag
-where the gesture has no recognizer of its own (the shake catcher, the SDL tap,
-and every hold that did not land above the paper).
+The one always-on row is always on because it toggles **both ways**, so it has to
+fire while zen is off. Everything else is enabled only while zen is on
+(`CrossPointZenRecognizers_setEnabled`), or gated on the zen flag where the
+gesture has no recognizer of its own (the shake catcher, the SDL tap, and every
+hold that did not land above the paper).
 
-The 3-finger tap **stays**. Two ways in is deliberate — removing it would be
-removing capability nobody asked to lose.
+**Rotation fires ONCE, on the lift**, exactly as pinch does and for the same
+reason: both are continuous recognizers, and a slow rotate reported continuously
+would queue a storm of font steps.
+
+**A gesture that ships INERT may never prevent one that ships BOUND.** Five of
+the seventeen default to Nothing, and three of them overlap gestures the app
+already had — rotation over pinch above all, since a real pinch carries a few
+degrees of twist and UIKit's default is that whichever recognizer fires first
+stops the others. An inert rotation would therefore have been arbitrated the
+gesture and done nothing, silently costing pinches the owner has today. The
+recognizer file's delegate grants simultaneity iff either side's DEFAULT is
+Nothing (`gesturebind::shipsInert`); between two rows that both ship bound the
+answer is NO, which is what UIKit does with no delegate at all, so nothing about
+the pre-re-cut arbitration moves. Bind rotation and a twist that also squeezes
+will do both things — the cost of having asked for both. **Found by adversarial
+review on 2026-08-28**, after the first cut of the re-cut shipped all five inert
+recognizers unconditionally.
+
+### The set was re-cut, 2026-08-28
+
+Owner, after the first shipping version configured only the fourteen gestures
+that happened to be wired: *"you did a subset of gestures, when I say all
+possible do all possible"*. He was then shown the full expressible set and
+trimmed it to seventeen: single taps on 1 and 2 fingers, swipes on 1 and 2
+fingers in four directions, long presses on 1 and 2 fingers, pinch in and out,
+rotation both ways, shake.
+
+**Out, by ruling, with the reasons:**
+
+- **No double or triple taps.** This is the omission with a mechanical
+  consequence. A double-tap recognizer makes every SINGLE tap wait ~300 ms for
+  it to fail, because until the double-tap window closes a tap cannot know it is
+  single — and the single tap is the page turn. With no multi-tap in the set,
+  nothing delays it, no recognizer needs `requireGestureRecognizerToFail:`, and
+  the recognizer set is static.
+- **No 3-, 4- or 5-finger gestures.**
+- **No screen-edge pans.** iOS owns the left edge (system back), the bottom (the
+  home indicator) and the top (Notification Center). Only the right is reliably
+  free, and one edge is not worth a family.
+
+**Two gestures that worked before are gone, and that is the ruling.** The
+**3-finger tap** (toggled zen) and the **4-finger tap** (Power) went with the
+finger counts; the owner was shown that consequence and chose it. Their
+recognizers are REMOVED, not left installed-but-unbound — an installed
+recognizer still consumes touches and can still fail a competing gesture. Power
+is now pad-only and is nobody's default, though it stays in the offered actions
+because it may still be bound. Both keys are asserted ABSENT from `Root.plist`
+by `tests/gesture_bindings_test.cpp`, so a re-add has to be deliberate.
 
 **On `BTN_UP` / `BTN_DOWN` in that table:** this fork sets
 `longPressButtonBehavior = FONT_SIZE_STEP`
@@ -78,7 +126,7 @@ hardcoded paper:
 > configuration. if they are defined, they take precedence. there is no 'on the
 > paper', it's just normal configuration."*
 
-**Three groups, 22 rows, in two layers.** The rule is
+**Five groups, 29 rows, in two layers.** The rule is
 [ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of SDL
 and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the usual
 reason: every way it can be wrong is silent on a device and none of it can be
@@ -87,13 +135,29 @@ script and no `simctl` can synthesize a touch.
 
 | Group | Layer | Rows | Ships |
 |---|---|---|---|
-| **Gestures** | base | Tap · Swipe Left · Swipe Right · Hold · Two-Finger Tap · Two-Finger Swipe Left / Right / Up / Down · Three-Finger Tap · Four-Finger Tap · Pinch · Spread · Shake | today's mapping |
-| **Above the Paper** | override | Tap · Swipe Left · Swipe Right · Hold | blank, except Hold |
-| **Below the Paper** | override | Tap · Swipe Left · Swipe Right · Hold | blank |
+| **Gestures — One Finger** | base | Tap · Swipe Left / Right / Up / Down · Hold | the mapping above |
+| **Gestures — Two Fingers** | base | Tap · Swipe Left / Right / Up / Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise | ditto |
+| **Gestures — The Device** | base | Shake | font family step |
+| **Above the Paper** | override | Tap · Swipe Left / Right / Up / Down · Hold | blank, except Hold |
+| **Below the Paper** | override | the same six | blank |
+
+29 rows in one flat list is a scroll with no landmarks, so the global layer is
+sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
+that lets every row inside a group drop its "Two-Finger" prefix and read as a
+short verb. Pinch and rotation sit in Two Fingers because that is what they are.
+
+**The gesture half of `Root.plist` is GENERATED** from the header's table by
+[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py) — 29 rows of
+`PSMultiValueSpecifier`, each carrying the same ten or eleven annotated action
+labels, is not a table to hand-maintain beside one that already states every
+value. Only the span between the Zen Mode switch and the Screen group is
+touched. `tests/run_all.sh` runs the generator with `--check`, so a header
+edited without re-running it fails the suite rather than shipping a stale
+screen.
 
 ```
 action(gesture, landingY):
-    if gesture is multi-finger:               return global[gesture]
+    if gesture is not single-finger:          return global[gesture]
     zone = zoneFor(landingY)                  # above / below / neither
     if zone has a row and it is not blank:    return zoneBinding[zone][gesture]
     return global[gesture]
@@ -106,8 +170,10 @@ anywhere, and the same as any gesture whose zone row is blank. The first shape o
 this feature hardcoded the paper's behavior as a third case; that was wrong, and
 the branch is gone rather than disabled.
 
-**MULTI-FINGER HAS NO ZONE OVERRIDE**, by ruling: a three-finger tap is the same
-gesture wherever it lands.
+**TWO-FINGER GESTURES HAVE NO ZONE OVERRIDE**, by ruling: a two-finger tap is
+the same gesture wherever it lands. Neither does the shake, which has no landing
+point to judge. The six overridable gestures are the one-finger tap, the four
+one-finger swipes and the one-finger hold.
 
 **BLANK AND "NOTHING" ARE DIFFERENT VALUES, and this is the part most likely to
 be got wrong.**
@@ -138,18 +204,20 @@ defaults could not have stated what the app already did.
 
 **The owner's four rulings, implemented exactly:**
 
-- **Zen may be left unbound.** No guard, no refusal, no warning. Clear every
-  Toggle Zen Mode binding and zen is unreachable BY GESTURE, which is allowed —
-  the configuration lives in iOS Settings.app, outside the reader, next to the
-  Zen Mode switch itself, so it is always recoverable. The missing guard is a
-  decision; `tests/gesture_bindings_test.cpp` pins it so nobody adds one back.
+- **Any binding may be cleared, the zen ones included.** No guard, no refusal,
+  no warning, and **nothing special about the zen actions** — owner 2026-08-28,
+  *"zen is toggleable in settings. drop this concern."* Zen has its own switch at
+  the top of the same Settings.app screen, so a cleared Toggle Zen Mode binding is
+  an ordinary cleared binding and no row is protected on its account. The missing
+  guard is a decision; `tests/gesture_bindings_test.cpp` pins it so nobody adds
+  one back.
 - **Two gestures may share one action.** No conflict detection, no moving, no UI
   refusal. Each gesture resolves independently and nothing knows what the others
   hold.
 - **A gesture may be bound to Nothing.**
 - **Zen scope is unchanged**, and it is a property of the GESTURE AND ITS ZONE
   rather than of the action bound to it: you configure WHAT a gesture does, never
-  WHEN. The two always-on cases stay always-on whatever they hold, and binding a
+  WHEN. The one always-on case stays always-on whatever it holds, and binding a
   zen-only gesture to the toggle gets you only OUT of zen. **The subtle half: the
   gate travels with the landing point, not with the binding.** A hold above the
   paper left blank takes its ACTION from the global row — whose own row is not
@@ -157,23 +225,22 @@ defaults could not have stated what the app already did.
   Getting that backwards would lose a way into zen for anyone who blanked the
   row, silently.
 
-**`HoldAbove` is the one zone row that does not ship blank, and it has to be.**
-Before T-025 a one-finger hold ABOVE the paper toggled zen while the same hold
-anywhere else selected — the 2026-08-27 position split, below. Those are two
-different actions for one gesture, so no single global binding can state both:
-with HoldAbove blank the hold above the paper would inherit Confirm and the zen
-toggle would silently disappear from the gesture that carries it, leaving only
-the three-finger tap as a way in. Build-156 parity is the overriding property, so
-the override ships pre-filled. Pointing it at blank is a perfectly good thing for
-the owner to do; it is just not the default.
+**`HoldAbove` is the one zone row that does not ship blank**, for the same
+reason every other default is what it is. Before T-025 a one-finger hold ABOVE
+the paper toggled zen while the same hold anywhere else selected — the
+2026-08-27 position split, below — and those are two different actions for one
+gesture, so no single global binding can state both. Left blank it would inherit
+Confirm and that hold would stop doing what it does now. It is an ordinary row:
+point it anywhere, or at Nothing, and nothing objects.
 
-**The defaults reproduce build 156 gesture by gesture** — the property that
-matters most, since there is no way to notice it has broken except by using the
-app and feeling that something is wrong. A stored 0 (an unwritten key, or a
-registration domain that never loaded because `Settings.bundle/Root.plist` was
-unreadable) resolves to the row's default rather than to Nothing, so the worst a
-lost store can do is render the app as it shipped rather than kill every gesture
-including both ways into zen.
+**The defaults reproduce the previous build gesture by gesture, with exactly two
+intended exceptions** (the 3- and 4-finger taps, which no longer exist) — the
+property that matters most, since there is no way to notice it has broken except
+by using the app and feeling that something is wrong. A stored 0 (an unwritten
+key, or a registration domain that never loaded because
+`Settings.bundle/Root.plist` was unreadable) resolves to the row's default rather
+than to Nothing, so the worst a lost store can do is render the app as it shipped
+rather than kill every gesture in it.
 
 **A binding persists as an INTEGER**, so the action list APPENDS and never
 inserts or re-points — the same discipline the palette presets follow, for the
@@ -361,21 +428,22 @@ fires alongside the toggle reads as the toggle misfiring. Same precedent as
 `src/TextEntryKeyRouting.h`, which exists because both inversions of the
 Return-key rule shipped as bugs.
 
-**Two recognizers, and they must be allowed to recognize together.**
+**There is NO simultaneity delegate, and its absence is the point.** Two hold
+recognizers of the same touch count used to need one:
 `UIGestureRecognizer`'s default `-canPreventGestureRecognizer:` is `YES`, so the
-0.75 s recognizer reaching `.began` would otherwise prevent the 3 s one from
-ever recognizing — in zen the toggle would simply be dead. A delegate grants
-simultaneity to **that pair only**, named explicitly so no other pair's
-exclusivity changes by accident.
+0.75 s recognizer reaching `.began` would have prevented the longer one from ever
+recognizing — in zen the toggle would simply have been dead, silently. Splitting
+the rule by POSITION instead of by DURATION removed the pair. The two long
+presses that exist now (one finger and two, since 2026-08-28) differ in TOUCH
+COUNT, which makes them mutually exclusive by construction.
 
-**Movement allowance is Apple's default (10 pt) on both**, and that is the first
-thing to suspect if a device report says the three-second hold does not fire:
-`allowableMovement` applies only *until* a long press is recognized, so a finger
-that drifts past 10 pt inside the three seconds fails the recognizer. It was left
-at the default because 10 pt on the phone's 3x display scale is 30 device px, which
-is the 28 px slop `ZenVerbs.h` already calls a deliberate touch — the repo's own
-answer to the same question — and because inventing a number here would be
-inventing device feel.
+**Movement allowance is Apple's default (10 pt)**, and that is the first thing to
+suspect if a device report says the hold does not fire: `allowableMovement`
+applies only *until* a long press is recognized, so a finger that drifts past
+10 pt inside the 0.75 s fails the recognizer. It was left at the default because
+10 pt on the phone's display scale is 30 device px, which is the 28 px slop
+`ZenVerbs.h` already calls a deliberate touch — the repo's own answer to the same
+question — and because inventing a number here would be inventing device feel.
 
 ### Status: SHIPPED — UNCONFIRMED on device
 
@@ -384,21 +452,22 @@ UIKit recognizers live above SDL, so no `CROSSPOINT_SIM_INPUT_SCRIPT` run and no
 table) and that the wiring compiles and attaches. **What to watch in the log:**
 
 ```
-[zen] recognizers attached (zen-only: 6 swipes, pinch, 2-tap, 4-tap, 1-finger
-      hold 0.75 s -> select ON LIFT; always on: 3-tap toggle, 1-finger hold
-      3.0 s -> toggle; shake catcher installed)
-[zen] toggle -> on (3 s one-finger hold)      <- the three-second hold worked
-[zen] toggle -> off (3-finger tap)            <- the old gesture still works
-[zen] one-finger hold 1240 ms -> select       <- a short hold selects on lift
-[zen] one-finger hold 6100 ms -> none         <- and a long one does not
-[zen] one-finger hold cancelled -> nothing
+[zen] recognizers attached: 13 objects for 29 configurable rows (17 gestures, 12
+      zone overrides); hold 0.75 s; * = fires outside zen; the 1-finger tap stays
+      on the SDL classifier [swipe left, ..., hold*, 2-finger tap, ..., pinch,
+      rotate clockwise]
+[zen] hold at y=118 px (paper 204..852) above the paper, zen off -> toggle zen
+[zen] toggle -> on (hold above the paper)     <- the way IN worked
+[zen] hold at y=560 px (paper 204..852) in no override zone, zen on -> confirm
+[zen] hold in no override zone -> confirm (button 1)   <- a hold on the page selects
 ```
 
-A three-second hold that produces **no** `[zen]` line at all means the recognizer
-never recognized — drift past `allowableMovement` is the leading suspect. A
-`[zen] toggle` line with a `[zen] one-finger hold ... -> select` beside it for
-the same hold would mean the routing broke, which is what the truth table exists
-to prevent.
+A hold that produces **no** `[zen]` line at all means the recognizer never
+recognized — drift past `allowableMovement` is the leading suspect. A `[zen]
+toggle` line and a `-> confirm` line for the SAME hold would mean the routing
+broke, which is what the truth table exists to prevent. The attach line is built
+from the installed array rather than written out by hand, so it cannot describe a
+set the code does not have.
 
 ## The layout, and why each edge is where it is
 

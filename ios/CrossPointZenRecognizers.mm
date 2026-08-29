@@ -1,4 +1,4 @@
-// Native UIKit gesture recognizers for every zen verb that MOVES.
+// Native UIKit gesture recognizers for every gesture in the configurable set.
 //
 // Owner rulings, 2026-08-22, verbatim. After the device report "two finger
 // left and right swap is not working most of the time, spread and pinch never
@@ -11,40 +11,62 @@
 //
 //   tap zones (2026-08-19..22)
 //     -> hand-rolled verb classifier (ZenVerbs.h, all gestures)
-//       -> NATIVE RECOGNIZERS for all motion, SDL for the deliberate tap only.
+//       -> NATIVE RECOGNIZERS for all motion, SDL for the deliberate tap only
+//         -> the set re-cut to 17 configurable gestures (2026-08-28)
 //
-// DIVISION OF LABOR (one owner per gesture): EVERY multi-finger gesture and
-// all swipes are Apple; SDL keeps the 1-finger deliberate tap alone.
-//   * everything that travels — 1- and 2-finger swipes, pinch/spread — and
-//     the multi-finger taps (2-finger select, 4-finger power) are THESE
-//     recognizers, active only while zen is on. Recognition is Apple's; this
-//     file only maps a recognized gesture to gpio.queueButtonTap.
-//   * the 3-FINGER ZEN TOGGLE is a recognizer too (owner 2026-08-22: "be
-//     sure to swap 3 finger tap to apple", retiring the SDL ZenGesture
-//     detector) — but unlike the verb recognizers it stays ENABLED IN BOTH
-//     MODES, because it must fire while zen is OFF to get in. It calls the
-//     shim's CrossPointZen_toggleFromRecognizer(), which also spoils the SDL
-//     tap candidate and classifier so a toggle cannot leak a page-forward
-//     tap — the one seam the native move creates.
-//   * the 1-finger deliberate TAP stays on the SDL classifier (ZenVerbs.h)
-//     with its pure-tested gates (28 px slop, 400 ms).
-//   * the ONE-FINGER HOLD TO TOGGLE (owner 2026-08-27, "holding down one
-//     finger longer than five seconds toggles zen and single finger modes",
-//     retuned to THREE seconds by him the same day) is a
-//     second always-enabled recognizer beside the 3-finger tap, for the same
-//     reason: it toggles BOTH ways, so it must fire while zen is off. Its
-//     collision with the zen long-press select is resolved in
-//     ios/ZenHoldRouting.h — see the note above holdSelect: below.
+// THE SET, and what it deliberately does NOT contain, is enumerated in
+// ios/GestureBindings.h. The short version, because it decides what this file
+// installs: single taps only (1 and 2 fingers), swipes on 1 and 2 fingers in
+// all four directions, long presses on 1 and 2 fingers, pinch, rotation, shake.
+// No double or triple taps, no three-, four- or five-finger gestures, no
+// screen-edge pans.
+//
+// **THE 3-FINGER TAP AND THE 4-FINGER TAP ARE GONE**, and their recognizers are
+// REMOVED rather than left installed-but-unbound: an installed recognizer still
+// consumes touches and can still fail a competing gesture, so leaving one for a
+// gesture nobody can bind is not a neutral act. The owner was shown that the
+// trim costs the three-finger zen toggle and the four-finger power tap, and
+// chose it.
+//
+// **NO CONDITIONAL INSTALLATION, AND NO FAILURE REQUIREMENTS.** With no
+// multi-tap in the set there is nothing to disambiguate: a single tap never has
+// to wait for a double tap that cannot exist, so every recognizer here is
+// installed once and left alone. (A double-tap recognizer would put roughly
+// 300 ms on every single tap, which is why the set does not have one; that is
+// recorded at the set's definition in GestureBindings.h rather than defended
+// with machinery here.)
+//
+// **BUT INSTALLING A RECOGNIZER IS STILL NOT FREE, and the delegate is what
+// pays for it.** Five of the seventeen gestures ship bound to Nothing, and three
+// of those five overlap gestures the app already had -- rotation over pinch
+// above all, since a real pinch always carries a few degrees of twist and
+// UIKit's default is that whichever recognizes first prevents the rest. An
+// inert rotation would therefore have cost the owner pinches he has today. The
+// one rule in the delegate below is: **a gesture that ships doing nothing may
+// never prevent one that ships doing something.** Between two rows that both
+// ship bound the answer is NO, which is what UIKit does with no delegate at
+// all, so nothing about the pre-2026-08-28 arbitration moves.
+//
+// DIVISION OF LABOR (one owner per gesture): every two-finger gesture, every
+// swipe, every long press, pinch and rotation are Apple's. SDL keeps the
+// 1-finger deliberate TAP alone, with its pure-tested gates (28 px slop,
+// 400 ms) in ZenVerbs.h.
+//   * the ONE-FINGER HOLD (owner 2026-08-27, "holding down one finger longer
+//     than five seconds toggles zen and single finger modes", retuned to THREE
+//     seconds by him the same day, and to 0.75 s where it now sits) is the one
+//     always-enabled recognizer: its ABOVE-the-paper row toggles zen, so it has
+//     to fire while zen is off as well as while zen is on. Its collision with
+//     the zen long-press select is resolved by POSITION (GestureBindings.h's
+//     zones), not by duration.
 //
 // NO DOUBLE FIRE, BY CONSTRUCTION. A touch that fires a swipe recognizer has
 // traveled far past the classifier's 28 px tap slop, so the classifier
 // answers None for it; a deliberate tap stays inside the slop, which no swipe
-// recognizer recognizes. The classifier no longer classifies motion at all —
-// its only verb is the tap.
+// recognizer recognizes.
 //
 // COEXISTENCE. cancelsTouchesInView=NO and delaysTouchesBegan/Ended=NO on
-// every recognizer, so SDL receives the finger stream untouched — the tap,
-// the 3-finger toggle and the pad all live on the SDL finger stream.
+// every recognizer, so SDL receives the finger stream untouched — the tap
+// and the pad both live on the SDL finger stream.
 //
 // VOICEOVER. VoiceOver intercepts touches system-side and delivers its own
 // gesture vocabulary before the app's recognizers see anything; with VO on,
@@ -52,34 +74,33 @@
 // other app-level recognizer. Attaching them steals nothing from VO — the
 // accessibility surface stays CrossPointAccessibility's.
 //
-// WHAT EACH GESTURE DOES IS NOT IN THIS FILE. Owner ruling 2026-08-28
-// (T-025): the bindings are Settings.app rows, in three groups -- above the
-// paper, below the paper, and multi-finger -- and the rule lives in
-// ios/GestureBindings.h, pure and truth-tabled in
+// WHAT EACH GESTURE DOES IS NOT IN THIS FILE. The bindings are Settings.app
+// rows and the rule lives in ios/GestureBindings.h, pure and truth-tabled in
 // tests/gesture_bindings_test.cpp. This file recognizes and reports; it decides
 // nothing. Three consequences worth knowing before editing here:
 //
 //   * THE SHIPPED DEFAULTS ARE WHAT THIS FILE USED TO HARDCODE, gesture by
-//     gesture, so an install that never opens the setting behaves exactly as
-//     build 156 did. They are written out beside gesturebind::defaultAction.
-//   * ON THE PAPER IS FIXED and has no row: the tap and the swipes page, the
-//     hold selects. Only the strip ABOVE the sheet and the band BELOW it are
-//     configurable, judged from the landing point against the two boundaries
-//     the layout already publishes (g_cardTopPx and the paper's bottom).
+//     gesture, so an install that never opens the setting behaves as build 157
+//     did apart from the two removals above. They are written out beside
+//     gesturebind::defaultAction.
+//   * ON THE PAPER IS FIXED and has no row: a landing point between the two
+//     boundaries is simply one nothing overrides. Only the strip ABOVE the
+//     sheet and the band BELOW it are configurable, judged from the landing
+//     point against the two boundaries the layout already publishes
+//     (g_cardTopPx and the paper's bottom), and only for SINGLE-FINGER
+//     gestures.
 //   * ZEN SCOPE IS UNCHANGED and is a property of the GESTURE, never of the
-//     action bound to it. The same two gestures fire outside zen as before --
-//     the 3-finger tap and the hold above the paper -- whatever they hold. Zen
-//     may be left unbound entirely, deliberately and with no guard: the
-//     configuration is in Settings.app, outside the reader, so it is always
-//     recoverable.
+//     action bound to it. One case fires outside zen — the hold above the
+//     paper — whatever it holds.
 //
 // VERIFICATION. UIKit recognizers cannot be driven by pushed SDL events (they
 // live above SDL, on the UIKit touch pipeline, which neither SDL_PushEvent
 // nor simctl can synthesize into) — so the recognizer paths are
 // device-confirm only, which is acceptable now that the recognition itself is
 // Apple's. What CAN be proven off-device: the wiring compiles, attaches (the
-// "[zen] recognizers attached" log at first zen enable), and the SDL tap path
-// still works with recognizers attached.
+// "[zen] recognizers attached" log at first zen enable, which ENUMERATES what
+// was actually installed), and the SDL tap path still works with recognizers
+// attached.
 
 #import <UIKit/UIKit.h>
 
@@ -94,9 +115,9 @@ extern "C" bool CrossPointMixer_isPresented(void);
 extern "C" bool CrossPointInkPicker_isPresented(void);
 // The shim's toggle: flip g_zen, refit, present, and spoil the SDL-side tap
 // candidate and classifier for the fingers that did it. The argument names the
-// gesture, and is what the one `[zen] toggle` line reports — two gestures reach
-// this now (the 3-finger tap and the one-finger hold) and a log that cannot
-// tell them apart is a log that cannot confirm either on device.
+// gesture, and is what the one `[zen] toggle` line reports — several gestures
+// can reach this (any binding may be pointed at it), and a log that cannot tell
+// them apart is a log that cannot confirm any of them on device.
 extern "C" void CrossPointZen_toggleFromRecognizer(const char *source);
 // The shim's spoil, without the toggle: the long-press select needs the same
 // candidate/classifier reset the toggle performs, for the same finger-also-
@@ -112,32 +133,12 @@ extern "C" float CrossPointZen_paperBottomPx(void);
 namespace {
 // Tracks the flag CrossPointZenRecognizers_setEnabled was last given, so the
 // shake catcher (a UIResponder, not a recognizer — .enabled does not exist for
-// it) can gate on zen the way the verb recognizers do.
+// it) can gate on zen the way the recognizers do.
 bool g_zenOn = false;
 
-// THE ONE-FINGER HOLD PAIR. Declared up here because the delegate that lets
-// them recognize SIMULTANEOUSLY has to name them, and the delegate is a method
-// on the handler below.
-//
-//   g_lpHold    0.75 s, ALWAYS ON (rides beside the 3-finger tap)
-//               above the paper -> toggle; on it -> select, zen only
-//
-// Without the delegate the pair does not work at all: UIGestureRecognizer's
-// default -canPreventGestureRecognizer: is YES, so the 0.75 s recognizer
-// reaching .began would prevent the longer one from ever recognizing — in zen the
-// toggle would simply never fire, silently, which is precisely the failure the
-// routing header exists to make impossible.
-UILongPressGestureRecognizer *g_lpHold = nil;
-
-// The routing state for the hold in flight (ios/ZenHoldRouting.h). One hold at
-// a time by construction: a second finger poisons it.
+// The routing state for the ONE-finger hold in flight (ios/ZenHoldRouting.h).
+// One hold at a time by construction: a second finger poisons it.
 zenhold::Hold g_hold;
-
-// Who owns g_hold for the hold currently in flight. Latched at .began of the
-// toggle recognizer and NOT re-read during the gesture: the toggle flips
-// g_zenOn under us, so re-asking would hand the .ended to the wrong owner and
-// leave the tracker dirty — the very failure this exists to fix.
-bool g_holdSelfManaged = false;
 
 // THE BUTTON INDICES AGREE ACROSS THE HEADER BOUNDARY. GestureBindings.h is
 // pure by design and cannot include the HAL, so it mirrors these seven numbers;
@@ -152,6 +153,18 @@ static_assert(gesturebind::kBtnUp == HalGPIO::BTN_UP, "BTN_UP");
 static_assert(gesturebind::kBtnDown == HalGPIO::BTN_DOWN, "BTN_DOWN");
 static_assert(gesturebind::kBtnPower == HalGPIO::BTN_POWER, "BTN_POWER");
 
+// THE INSTALLED SET. Two parallel arrays rather than a map: the only two
+// questions asked of it are "which row did this object come from" (once per
+// firing, over a set of thirteen) and "walk everything installed". Built once
+// -- see the header comment for why nothing here is conditional.
+NSMutableArray<UIGestureRecognizer *> *g_installed = nil;
+NSMutableArray<NSNumber *> *g_installedRow = nil;
+// Two-finger holds that have already fired for the gesture in flight. UIKit
+// re-delivers .began on some paths, and two toggles in one gesture cancel out
+// -- which reads on device as the gesture doing nothing at all. The ONE-finger
+// hold has its own richer latch in zenhold::Hold and is not in here.
+NSMutableSet<UIGestureRecognizer *> *g_holdFired = nil;
+
 // WHAT THIS GESTURE IS BOUND TO RIGHT NOW. Two fetches and one pure call: the
 // stored integer from Settings.app, and gesturebind::actionFor to resolve it
 // against the zen gate and this gesture's default. Nothing decides anything
@@ -161,16 +174,40 @@ gesturebind::Action liveAction(gesturebind::Gesture g) {
       g, g_zenOn, CrossPointPrefs_gestureBinding(static_cast<int>(g)));
 }
 
+// MUST THIS RECOGNIZER STAY ENABLED WHILE ZEN IS OFF? Derived from the rule
+// rather than listed here, so the always-on case lives in exactly one file: the
+// one-finger hold says so through its ABOVE-the-paper row, which is the row
+// that toggles zen today.
+bool rowIsAlwaysOn(gesturebind::Gesture g) {
+  return gesturebind::firesOutsideZen(g) ||
+         gesturebind::firesOutsideZen(
+             gesturebind::zoneRowFor(g, gesturebind::Zone::AbovePaper)) ||
+         gesturebind::firesOutsideZen(
+             gesturebind::zoneRowFor(g, gesturebind::Zone::BelowPaper));
+}
+
+// Which row an installed recognizer came from, or Count for an object this file
+// did not install (nothing else attaches to the SDL view today, but a nil-safe
+// answer costs one comparison and a wrong-row dispatch would press a button
+// nobody asked for).
+gesturebind::Gesture rowOf(UIGestureRecognizer *g) {
+  if (!g_installed) return gesturebind::Gesture::Count;
+  const NSUInteger i = [g_installed indexOfObjectIdenticalTo:g];
+  if (i == NSNotFound) return gesturebind::Gesture::Count;
+  return static_cast<gesturebind::Gesture>(g_installedRow[i].intValue);
+}
+
 // WHERE A ONE-FINGER GESTURE LANDED. locationInView is in POINTS and the
 // published boundaries are in DEVICE PIXELS, so one has to be converted; the
 // view's own contentScaleFactor is the conversion the rest of the layout
 // already uses.
 //
-// This is the SAME hit test the one-finger hold has used since 2026-08-27, with
-// one boundary added -- deliberately not a second one written beside it. The
-// horizontal swipes are the only travelling gestures that consult it, and a
-// horizontal swipe barely moves in y, so the recognition point and the landing
-// point sit in the same band.
+// This is the SAME hit test the one-finger hold has used since 2026-08-27. The
+// travelling gestures that consult it are the four one-finger swipes, and a
+// swipe's recognition point sits within a fingertip of its landing point in the
+// axis that matters: a horizontal swipe barely moves in y, and a VERTICAL swipe
+// is judged where UIKit recognized it, which is the honest answer to "where did
+// this gesture happen" for a gesture that crosses zones by definition.
 gesturebind::Zone zoneOf(UIGestureRecognizer *g, float *yPxOut) {
   const CGPoint loc = [g locationInView:g.view];
   const CGFloat scale = g.view ? g.view.contentScaleFactor : 1.0;
@@ -217,6 +254,17 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   if (btn == gesturebind::kNoButton) return;  // Unset never reaches here
   SDL_Log("[zen] %s -> %s (button %d)", what, gesturebind::actionName(a), btn);
   gpio.queueButtonTap(static_cast<uint8_t>(btn), 60);
+}
+
+UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
+  switch (d) {
+    case gesturebind::Dir::Left: return UISwipeGestureRecognizerDirectionLeft;
+    case gesturebind::Dir::Right: return UISwipeGestureRecognizerDirectionRight;
+    case gesturebind::Dir::Up: return UISwipeGestureRecognizerDirectionUp;
+    case gesturebind::Dir::Down: return UISwipeGestureRecognizerDirectionDown;
+    case gesturebind::Dir::None: break;
+  }
+  return UISwipeGestureRecognizerDirectionRight;
 }
 }  // namespace
 
@@ -266,51 +314,26 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   performGestureAction(a, what);
 }
 
-// One action for every swipe: each recognizer carries exactly one direction
-// and one touch count, so reading them back is unambiguous.
-//
-// THE MAPPING IS NO LONGER HERE. Since T-025 (owner 2026-08-28) every swipe is
-// a row in Settings.app and the answer comes from ios/GestureBindings.h; the
-// SHIPPED DEFAULTS are the mapping this switch used to hardcode, so an install
-// that never opens the setting swipes exactly as it did before. That mapping is
-// written out beside gesturebind::defaultAction, where the test can read it.
-//
-// One-finger swipes are LEFT and RIGHT only -- the app has never had a
-// one-finger vertical swipe and none was added, so the two vertical cases fall
-// through for one finger exactly as they always did.
-- (void)swipe:(UISwipeGestureRecognizer *)g {
-  const bool two = g.numberOfTouchesRequired >= 2;
-  if (two) {
-    gesturebind::Gesture which;
-    switch (g.direction) {
-      case UISwipeGestureRecognizerDirectionLeft:
-        which = gesturebind::Gesture::TwoFingerSwipeLeft;
-        break;
-      case UISwipeGestureRecognizerDirectionRight:
-        which = gesturebind::Gesture::TwoFingerSwipeRight;
-        break;
-      case UISwipeGestureRecognizerDirectionUp:
-        which = gesturebind::Gesture::TwoFingerSwipeUp;
-        break;
-      case UISwipeGestureRecognizerDirectionDown:
-        which = gesturebind::Gesture::TwoFingerSwipeDown;
-        break;
-      default:
-        return;
-    }
-    performGestureAction(liveAction(which), gesturebind::gestureName(which));
+// ONE ROW, ONE RECOGNIZER, so reading a firing back is unambiguous: the object
+// itself names its row. Single-finger rows go through the layered path; every
+// other row is one global binding.
+- (void)dispatch:(UIGestureRecognizer *)g {
+  const gesturebind::Gesture which = rowOf(g);
+  if (which == gesturebind::Gesture::Count) return;
+  const gesturebind::OneFinger kind = gesturebind::row(which).kind;
+  if (kind != gesturebind::OneFinger::Count) {
+    [self oneFinger:kind at:g];
     return;
   }
-  switch (g.direction) {
-    case UISwipeGestureRecognizerDirectionLeft:
-      [self oneFinger:gesturebind::OneFinger::SwipeLeft at:g];
-      break;
-    case UISwipeGestureRecognizerDirectionRight:
-      [self oneFinger:gesturebind::OneFinger::SwipeRight at:g];
-      break;
-    default:
-      break;
-  }
+  performGestureAction(liveAction(which), gesturebind::gestureName(which));
+}
+
+- (void)tap:(UITapGestureRecognizer *)g {
+  [self dispatch:g];
+}
+
+- (void)swipe:(UISwipeGestureRecognizer *)g {
+  [self dispatch:g];
 }
 
 // One step per gesture, on the lift — not continuous. The reader repaginates
@@ -327,22 +350,31 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   performGestureAction(liveAction(which), gesturebind::gestureName(which));
 }
 
-- (void)twoTap:(UITapGestureRecognizer *)g {
-  performGestureAction(liveAction(gesturebind::Gesture::TwoFingerTap),
-                       gesturebind::gestureName(gesturebind::Gesture::TwoFingerTap));
-}
-
-- (void)fourTap:(UITapGestureRecognizer *)g {
-  performGestureAction(liveAction(gesturebind::Gesture::FourFingerTap),
-                       gesturebind::gestureName(gesturebind::Gesture::FourFingerTap));
-}
-
-// THE ONE-FINGER HOLD, routed by WHERE IT LANDED.
+// ROTATION FOLLOWS PINCH'S PRECEDENT EXACTLY, and deliberately: it is the other
+// continuous two-finger recognizer, and a slow rotation reported continuously
+// would queue the same storm of font steps a continuous pinch would. One step,
+// on the lift. WHICH of the two rows fires is read from the measured angle and
+// from nowhere else — UIKit reports rotation in radians in VIEW space, where +y
+// is down, so a positive angle is clockwise on the glass. (The table used to
+// carry a `sign` field saying the same thing; nothing read it, so flipping it
+// changed nothing and failed nothing, and it is gone.)
 //
-// Three zones since T-025 (owner 2026-08-28) and two before it: above the paper
-// and below it are Settings.app rows, the paper itself is fixed at Select. The
-// rule is ios/GestureBindings.h; ios/ZenHoldRouting.h keeps only the 0.75 s
-// threshold and the tracker for the hold in flight.
+// Pinch and rotation DO recognize simultaneously while rotation ships inert —
+// see the delegate below, and note that it is what stops a twisty pinch being
+// arbitrated away from the font step the owner actually has bound. Bind rotation
+// and a twist that also squeezes will do both things; that is the cost of having
+// asked for both, and the Two Fingers group's footer says so.
+- (void)rotate:(UIRotationGestureRecognizer *)g {
+  if (g.state != UIGestureRecognizerStateEnded) return;
+  if (g.rotation == 0.0) return;
+  const gesturebind::Gesture which =
+      g.rotation > 0.0 ? gesturebind::Gesture::RotateClockwise
+                       : gesturebind::Gesture::RotateCounterClockwise;
+  performGestureAction(liveAction(which), gesturebind::gestureName(which));
+}
+
+// THE LONG PRESSES. Two of them: the ONE-finger one is routed by WHERE IT
+// LANDED, and the two-finger one is a plain global binding.
 //
 // SUPERSEDED, and kept because reversing a device-feel ruling deserves a record.
 // The 2026-08-22 ruling was *"in zen mode, long tap is select button (please use
@@ -356,12 +388,38 @@ void performGestureAction(gesturebind::Action a, const char *what) {
 // itself has never moved ("long tap select is too fast. make at least 1.5x
 // longer", 2026-08-22).
 //
-// The SPOIL stays at .began. No double fire with the SDL deliberate tap is
-// already true by construction (the tap's 400 ms ceiling answers None for
-// anything held to 0.75 s), but the same finger streams into SDL, so spoiling at
-// recognition keeps that from depending on event ordering -- the same
-// belt-and-suspenders as the 3-finger toggle.
+// The SPOIL stays at .began, and only for the one-finger hold: no double fire
+// with the SDL deliberate tap is already true by construction (the tap's 400 ms
+// ceiling answers None for anything held to 0.75 s), but the same finger streams
+// into SDL, so spoiling at recognition keeps that from depending on event
+// ordering. A two-finger hold never had a tap candidate to spoil -- the
+// candidate is spoiled by the second finger before it can arm.
 - (void)hold:(UILongPressGestureRecognizer *)g {
+  const gesturebind::Gesture which = rowOf(g);
+  if (which == gesturebind::Gesture::Count) return;
+
+  if (gesturebind::row(which).fingers > 1) {
+    switch (g.state) {
+      case UIGestureRecognizerStateBegan:
+        // The latch, for the same reason zenhold::Hold::claim() exists: UIKit
+        // re-delivers .began on some paths and two toggles in one gesture
+        // cancel out, which reads on device as the gesture doing nothing.
+        if ([g_holdFired containsObject:g]) break;
+        [g_holdFired addObject:g];
+        performGestureAction(liveAction(which),
+                             gesturebind::gestureName(which));
+        break;
+      case UIGestureRecognizerStateEnded:
+      case UIGestureRecognizerStateCancelled:
+      case UIGestureRecognizerStateFailed:
+        [g_holdFired removeObject:g];
+        break;
+      default:
+        break;
+    }
+    return;
+  }
+
   switch (g.state) {
     case UIGestureRecognizerStateBegan: {
       g_hold.begin();
@@ -373,7 +431,7 @@ void performGestureAction(gesturebind::Action a, const char *what) {
         break;
       }
       // WHERE IT LANDED decides which of the three zones it is in, and the
-      // zone decides which row (or the fixed paper) answers. Read at .began
+      // zone decides which row (or the global layer) answers. Read at .began
       // rather than remembered from touch-down: UIKit's allowableMovement
       // (10 pt, left at the default) bounds how far the finger can have
       // drifted and still be recognized, so the two points are within a
@@ -433,19 +491,47 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   }
 }
 
-- (void)threeTap:(UITapGestureRecognizer *)g {
-  performGestureAction(liveAction(gesturebind::Gesture::ThreeFingerTap),
-                       gesturebind::gestureName(gesturebind::Gesture::ThreeFingerTap));
-}
-
-// NO SIMULTANEITY DELEGATE, and its absence is the point.
+// A GESTURE THAT SHIPS INERT MAY NEVER PREVENT ONE THAT SHIPS BOUND.
 //
-// Two hold recognizers used to need one. UIGestureRecognizer's default
-// -canPreventGestureRecognizer: is YES, so the shorter press reaching .began
-// stopped the longer one ever recognizing, and the toggle would have been
-// silently dead in zen with nothing in the log to say so. Splitting the rule by
-// POSITION instead of by DURATION leaves ONE hold recognizer, so there is no
-// pair left to exempt and no delegate to get wrong.
+// This is the only thing the delegate does, and it exists because installing a
+// recognizer is not free. UIGestureRecognizer's -canPreventGestureRecognizer:
+// defaults to YES, so a recognizer that recognizes first stops the others --
+// and the 2026-08-28 re-cut ADDED three shapes that overlap gestures the app
+// already had:
+//
+//   * ROTATION vs PINCH. Both continuous, both two-finger. A real pinch always
+//     carries a few degrees of twist, so the arbitration can go to rotation --
+//     and rotation ships bound to Nothing while pinch ships bound to the font
+//     step. Without this the owner would lose pinches he has today, on a
+//     gesture he has already reported as not working once (2026-08-22).
+//   * THE 2-FINGER HOLD vs THE 2-FINGER SWIPES. A swipe that starts with a
+//     pause crosses 0.75 s and begins the hold, which then fails the swipe.
+//   * The one-finger VERTICAL swipes, which overlap nothing today but are new
+//     for the same reason.
+//
+// So: simultaneity is granted iff EITHER side ships inert
+// (gesturebind::shipsInert). Between two rows that both ship bound the answer is
+// NO, which is byte-for-byte what UIKit does with no delegate -- so arbitration
+// among the gestures that existed before the re-cut is untouched, and the
+// "defaults reproduce the previous build" property is true of the RECOGNIZERS
+// and not only of the bindings table.
+//
+// It is keyed on the DEFAULT rather than on the live binding deliberately: the
+// answer is then a constant of the build, so nothing has to be rebuilt when a
+// binding changes in Settings.app -- which the app cannot be told about anyway
+// while it is backgrounded. The alternative, installing only BOUND rows, was
+// priced and rejected for exactly that reason; see gesturebind::shipsInert.
+//
+// (Two hold recognizers of the same touch count used to need a delegate of a
+// different kind: the shorter press reaching .began stopped the longer one ever
+// recognizing, and the zen toggle would have been silently dead. Splitting that
+// rule by POSITION instead of by DURATION removed the pair; the two long
+// presses that exist now differ in TOUCH COUNT and are mutually exclusive by
+// construction.)
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)a
+    shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)b {
+  return gesturebind::shipsInert(rowOf(a)) || gesturebind::shipsInert(rowOf(b));
+}
 
 @end
 
@@ -492,11 +578,6 @@ void performGestureAction(gesturebind::Action a, const char *what) {
 namespace {
 
 CPXZenGestureHandler *g_handler = nil;
-// The zen-only VERB recognizers: enabled tracks the zen flag.
-NSArray<UIGestureRecognizer *> *g_recognizers = nil;
-// The 3-finger TOGGLE: attached with the rest but ALWAYS enabled — it is the
-// way INTO zen, so it must fire while the verb recognizers are off.
-UITapGestureRecognizer *g_toggle = nil;
 // The shake catcher: attached with the rest; first-responder status tracks
 // the zen flag (see the class comment above).
 CPXShakeCatcher *g_shake = nil;
@@ -514,112 +595,193 @@ UIView *sdlView(void) {
 }
 
 void tameRecognizer(UIGestureRecognizer *r) {
-  // SDL must keep seeing every touch: the deliberate tap, the 3-finger
-  // toggle and the pad all live on the SDL finger stream.
+  // SDL must keep seeing every touch: the deliberate tap and the pad both live
+  // on the SDL finger stream.
   r.cancelsTouchesInView = NO;
   r.delaysTouchesBegan = NO;
   r.delaysTouchesEnded = NO;
 }
 
+void install(UIView *view, UIGestureRecognizer *r, gesturebind::Gesture g) {
+  tameRecognizer(r);
+  // Without this the simultaneity rule above is never asked, and a
+  // ships-inert recognizer silently starts preventing a ships-bound one.
+  r.delegate = g_handler;
+  [view addGestureRecognizer:r];
+  [g_installed addObject:r];
+  [g_installedRow addObject:@(static_cast<int>(g))];
+}
+
+// Enabled tracks zen, except for the row that must fire on the way IN.
+void applyEnabled(void) {
+  for (NSUInteger i = 0; i < g_installed.count; ++i) {
+    const gesturebind::Gesture g =
+        static_cast<gesturebind::Gesture>(g_installedRow[i].intValue);
+    g_installed[i].enabled = (g_zenOn || rowIsAlwaysOn(g)) ? YES : NO;
+  }
+}
+
+// BUILD THE SET, ONCE, STRAIGHT FROM THE TABLE. Every global row that names a
+// recognizer family gets exactly one object; the shake is a responder rather
+// than a recognizer, and pinch/rotation each serve two rows off one object
+// (they are one gesture to UIKit and two to a reader).
+//
+// Walking the table rather than writing thirteen constructors out means a row
+// added to GestureBindings.h is installed by construction. A row whose family
+// this switch does not handle is skipped in SILENCE only because the table's
+// families are exhaustive here -- if that stops being true, the enumeration
+// logged at the foot is what says so.
+void buildRecognizers(UIView *view) {
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const gesturebind::Gesture g = static_cast<gesturebind::Gesture>(i);
+    if (gesturebind::isZoneRow(g)) continue;  // an override, not a gesture
+    const gesturebind::Row &r = gesturebind::row(g);
+    switch (r.family) {
+      case gesturebind::Family::Tap: {
+        // The 1-finger tap belongs to SDL's classifier (ZenVerbs.h), which has
+        // the deliberate-tap discipline the owner asked for; only the
+        // two-finger tap is UIKit's.
+        if (r.fingers < 2) continue;
+        UITapGestureRecognizer *t =
+            [[UITapGestureRecognizer alloc] initWithTarget:g_handler
+                                                    action:@selector(tap:)];
+        t.numberOfTapsRequired = 1;
+        t.numberOfTouchesRequired = static_cast<NSUInteger>(r.fingers);
+        install(view, t, g);
+        break;
+      }
+      case gesturebind::Family::Swipe: {
+        UISwipeGestureRecognizer *s =
+            [[UISwipeGestureRecognizer alloc] initWithTarget:g_handler
+                                                      action:@selector(swipe:)];
+        s.direction = uikitSwipeDir(r.dir);
+        s.numberOfTouchesRequired = static_cast<NSUInteger>(r.fingers);
+        install(view, s, g);
+        break;
+      }
+      case gesturebind::Family::LongPress: {
+        // MOVEMENT ALLOWANCE IS APPLE'S DEFAULT (10 pt), deliberately, and it
+        // is the first thing to suspect if a device report says a hold does not
+        // fire: a finger that drifts past 10 pt inside the 0.75 s fails the
+        // recognizer. Left at the default because 10 pt at the phone's display
+        // scale is 30 device px, which is the 28 px slop ZenVerbs.h uses for a
+        // deliberate touch -- the repo's own answer to the same question -- and
+        // because inventing a number here would be inventing device feel.
+        UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+            initWithTarget:g_handler
+                    action:@selector(hold:)];
+        lp.numberOfTouchesRequired = static_cast<NSUInteger>(r.fingers);
+        lp.minimumPressDuration = zenhold::kHoldMs / 1000.0;
+        install(view, lp, g);
+        break;
+      }
+      case gesturebind::Family::Pinch: {
+        // ONE UIPinchGestureRecognizer serves Pinch and Spread; it is
+        // registered under the `Pinch` row and picks in/out from the scale.
+        if (g != gesturebind::Gesture::Pinch) continue;
+        install(view,
+                [[UIPinchGestureRecognizer alloc] initWithTarget:g_handler
+                                                          action:@selector
+                                                          (pinch:)],
+                g);
+        break;
+      }
+      case gesturebind::Family::Rotate: {
+        if (g != gesturebind::Gesture::RotateClockwise) continue;
+        install(view,
+                [[UIRotationGestureRecognizer alloc] initWithTarget:g_handler
+                                                             action:@selector
+                                                             (rotate:)],
+                g);
+        break;
+      }
+      case gesturebind::Family::Shake:
+        break;  // the catcher below, not a recognizer
+    }
+  }
+
+  applyEnabled();
+
+  // WHAT IS ACTUALLY INSTALLED, enumerated from the array rather than described
+  // from memory. This line is the only off-device confirmation that the attach
+  // happened at all and that the set matches the table, and a stale
+  // enumeration is worse than none -- so it is built from the array and cannot
+  // go stale.
+  NSMutableString *names = [NSMutableString string];
+  for (NSUInteger i = 0; i < g_installed.count; ++i) {
+    const gesturebind::Gesture g =
+        static_cast<gesturebind::Gesture>(g_installedRow[i].intValue);
+    if (names.length) [names appendString:@", "];
+    [names appendFormat:@"%s%s", gesturebind::gestureName(g),
+                        rowIsAlwaysOn(g) ? "*" : ""];
+  }
+  // Counted from the table, not typed in: an earlier version of this line
+  // carried "(17 gestures, 12 zone overrides)" as a literal inside the very log
+  // whose comment promises it cannot go stale.
+  int globals = 0, zones = 0, inert = 0;
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const gesturebind::Gesture g = static_cast<gesturebind::Gesture>(i);
+    if (gesturebind::isZoneRow(g)) {
+      zones++;
+    } else {
+      globals++;
+      if (gesturebind::shipsInert(g)) inert++;
+    }
+  }
+  SDL_Log("[zen] recognizers attached: %lu objects for %d configurable rows "
+          "(%d gestures, %d zone overrides; %d gestures ship inert and may not "
+          "prevent a bound one); hold %.2f s; * = fires outside zen; the "
+          "1-finger tap stays on the SDL classifier [%s]",
+          (unsigned long)g_installed.count, gesturebind::kGestureCount, globals,
+          zones, inert, zenhold::kHoldMs / 1000.0,
+          names.length ? names.UTF8String : "none");
+}
+
+// WHAT EVERY GESTURE IS ACTUALLY BOUND TO, once, at attach. On a device this is
+// the only way to see that a Settings.app change reached the app at all -- a
+// binding that did not take looks exactly like a gesture the phone never
+// delivered. Printed for every row, defaults included, so a report of "gesture
+// X does nothing" can be answered from the log the owner already has.
+void logBindings(void) {
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const gesturebind::Gesture which = static_cast<gesturebind::Gesture>(i);
+    const int stored = CrossPointPrefs_gestureBinding(static_cast<int>(which));
+    // A zone row printing `inherit` is the SHIPPED state, not a fault: it
+    // means the global row above answers for that zone.
+    // "set" MUST come from the PERSISTENT domain, not from the value.
+    // -integerForKey: searches the registration domain too, and
+    // ensureDefaults() registers every DefaultValue in Root.plist -- so an
+    // untouched gesture answers with its shipped action and this line
+    // printed `set` for every row on a clean install until it asked the
+    // right question. That made the log say the opposite of the truth about
+    // the one thing it exists to answer.
+    SDL_Log("[zen]   %-28s -> %-16s (%s%s)", gesturebind::gestureName(which),
+            gesturebind::actionName(gesturebind::resolve(which, stored)),
+            CrossPointPrefs_gestureBindingIsExplicit(static_cast<int>(which))
+                ? "set"
+                : "default",
+            gesturebind::firesOutsideZen(which) ? ", always on" : "");
+  }
+}
+
 }  // namespace
 
-// Attach on the first call IN EITHER STATE (the toggle must be live from
-// boot, or there is no way into zen), then flip the verb recognizers'
-// .enabled with the zen flag; the toggle stays enabled. Main queue: UIKit,
-// and the callers sit on the SDL/firmware loop.
+// Attach on the first call IN EITHER STATE (the always-on row must be live from
+// boot), then flip the zen-only recognizers' .enabled with the zen flag. Main
+// queue: UIKit, and the callers sit on the SDL/firmware loop.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    if (!g_recognizers) {
+    if (!g_handler) {
       UIView *view = sdlView();
       if (!view) {
         SDL_Log("[zen] recognizers: no SDL view yet, will attach next call");
         return;
       }
       g_handler = [CPXZenGestureHandler new];
-      NSMutableArray<UIGestureRecognizer *> *rs = [NSMutableArray array];
-
-      const UISwipeGestureRecognizerDirection dirs[4] = {
-          UISwipeGestureRecognizerDirectionLeft,
-          UISwipeGestureRecognizerDirectionRight,
-          UISwipeGestureRecognizerDirectionUp,
-          UISwipeGestureRecognizerDirectionDown};
-      // 1-finger: left/right only (pages). 2-finger: all four directions.
-      for (int touches = 1; touches <= 2; ++touches) {
-        for (int i = 0; i < (touches == 1 ? 2 : 4); ++i) {
-          UISwipeGestureRecognizer *s = [[UISwipeGestureRecognizer alloc]
-              initWithTarget:g_handler
-                      action:@selector(swipe:)];
-          s.direction = dirs[i];
-          s.numberOfTouchesRequired = touches;
-          [rs addObject:s];
-        }
-      }
-
-      UIPinchGestureRecognizer *p = [[UIPinchGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(pinch:)];
-      [rs addObject:p];
-
-      UITapGestureRecognizer *t2 = [[UITapGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(twoTap:)];
-      t2.numberOfTapsRequired = 1;
-      t2.numberOfTouchesRequired = 2;
-      [rs addObject:t2];
-
-      UITapGestureRecognizer *t4 = [[UITapGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(fourTap:)];
-      t4.numberOfTapsRequired = 1;
-      t4.numberOfTouchesRequired = 4;
-      [rs addObject:t4];
-
-      for (UIGestureRecognizer *r in rs) {
-        tameRecognizer(r);
-        [view addGestureRecognizer:r];
-      }
-      g_recognizers = rs;
-
-      // The toggle, separate from the verb set: always enabled (see above).
-      g_toggle = [[UITapGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(threeTap:)];
-      g_toggle.numberOfTapsRequired = 1;
-      g_toggle.numberOfTouchesRequired = 3;
-      tameRecognizer(g_toggle);
-      [view addGestureRecognizer:g_toggle];
-
-      // THE ONE-FINGER HOLD. One recognizer, one threshold, two zones.
-      //
-      // ALWAYS ENABLED, like the 3-finger tap and unlike everything in the verb
-      // set: above the paper it toggles, so it has to fire while zen is OFF or
-      // there is no way back in. Below the paper it selects, and `hold:` gates
-      // that on g_zenOn rather than on the recognizer being disabled -- which
-      // is deliberate. The previous shape kept the select on a zen-only
-      // recognizer, and because that recognizer owned the shared tracker's
-      // lifecycle, the tracker went stale out of zen and the toggle died in one
-      // mode. Gating the ACTION rather than the RECOGNIZER is what makes that
-      // class of bug impossible here.
-      //
-      // There is no second hold recognizer now, so no simultaneity delegate:
-      // the pair used to need one because UIKit's -canPreventGestureRecognizer:
-      // defaults to YES and the shorter press would stop the longer one ever
-      // recognizing.
-      //
-      // MOVEMENT ALLOWANCE IS APPLE'S DEFAULT (10 pt), deliberately, and it is
-      // the first thing to suspect if a device report says the hold does not
-      // fire: a finger that drifts past 10 pt inside the 0.75 s fails this
-      // recognizer. Left at the default because 10 pt at the phone's display
-      // scale is 30 device px, which is the 28 px slop ZenVerbs.h uses for a
-      // deliberate touch -- the repo's own answer to the same question -- and
-      // because inventing a number here would be inventing device feel.
-      g_lpHold = [[UILongPressGestureRecognizer alloc]
-          initWithTarget:g_handler
-                  action:@selector(hold:)];
-      g_lpHold.numberOfTouchesRequired = 1;
-      g_lpHold.minimumPressDuration = zenhold::kHoldMs / 1000.0;
-      tameRecognizer(g_lpHold);
-      [view addGestureRecognizer:g_lpHold];
+      g_installed = [NSMutableArray array];
+      g_installedRow = [NSMutableArray array];
+      g_holdFired = [NSMutableSet set];
+      buildRecognizers(view);
 
       // The shake catcher: invisible (zero frame, no drawing, no touches —
       // shake arrives as a motion event, not a touch, so disabling user
@@ -629,45 +791,10 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
       g_shake.userInteractionEnabled = NO;
       [view addSubview:g_shake];
 
-      // This line enumerates what is actually installed, so it has to move
-      // whenever the set does — it is the only off-device confirmation that
-      // the attach happened at all, and a stale enumeration is worse than
-      // none.
-      SDL_Log("[zen] recognizers attached "
-              "(zen-only: 6 swipes, pinch, 2-tap, 4-tap; always on: 3-tap, "
-              "1-finger hold %.2f s; shake catcher installed; %d rows "
-              "configurable in Settings.app -- 14 global, 8 zone overrides)",
-              zenhold::kHoldMs / 1000.0, gesturebind::kGestureCount);
-      // WHAT EVERY GESTURE IS ACTUALLY BOUND TO, once, at attach. On a device
-      // this is the only way to see that a Settings.app change reached the app
-      // at all -- a binding that did not take looks exactly like a gesture the
-      // phone never delivered. Printed for every row, defaults included, so a
-      // report of "gesture X does nothing" can be answered from the log the
-      // owner already has.
-      for (int i = 0; i < gesturebind::kGestureCount; ++i) {
-        const gesturebind::Gesture which = static_cast<gesturebind::Gesture>(i);
-        const int stored =
-            CrossPointPrefs_gestureBinding(static_cast<int>(which));
-        // A zone row printing `inherit` is the SHIPPED state, not a fault: it
-        // means the global row above answers for that zone.
-        // "set" MUST come from the PERSISTENT domain, not from the value.
-        // -integerForKey: searches the registration domain too, and
-        // ensureDefaults() registers every DefaultValue in Root.plist -- so an
-        // untouched gesture answers with its shipped action and this line
-        // printed `set` for all 18 rows on a clean install until it asked the
-        // right question. That made the log say the opposite of the truth about
-        // the one thing it exists to answer.
-        SDL_Log("[zen]   %-26s -> %-16s (%s%s)", gesturebind::gestureName(which),
-                gesturebind::actionName(gesturebind::resolve(which, stored)),
-                CrossPointPrefs_gestureBindingIsExplicit(static_cast<int>(which))
-                    ? "set"
-                    : "default",
-                gesturebind::firesOutsideZen(which) ? ", always on" : "");
-      }
+      logBindings();
     }
     g_zenOn = on;
-    for (UIGestureRecognizer *r in g_recognizers)
-      r.enabled = on ? YES : NO;
+    applyEnabled();
     // First-responder status for the shake, asserted per enable rather than
     // once: SDL's text field takes the status whenever the keyboard rises,
     // and nothing gives it back.

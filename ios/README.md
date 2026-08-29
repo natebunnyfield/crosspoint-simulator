@@ -378,6 +378,40 @@ gestures configureable in ios app settings."* The rule is
 [ios/GestureBindings.h](GestureBindings.h), pure and truth-tabled in
 `tests/gesture_bindings_test.cpp`.
 
+**THE SET WAS RE-CUT TWICE ON 2026-08-28**, and the shape it landed in is 17
+gestures. The first shipping version configured only the fourteen that happened
+to be wired; the owner asked for every gesture the surface can express (*"you did
+a subset of gestures, when I say all possible do all possible"*); and he then
+trimmed that to what is worth having on a phone:
+
+| Family | Members |
+|---|---|
+| Tap (single only) | 1 finger, 2 fingers |
+| Swipe | 1 and 2 fingers × left / right / up / down (8) |
+| Long press | 1 finger, 2 fingers |
+| Pinch | in, out |
+| Rotation | clockwise, counter-clockwise |
+| Shake | — |
+
+**What the trim leaves out, and why it matters to the code.** No double or
+triple taps — and that omission is the one with a mechanical consequence:
+**a double-tap recognizer makes every single tap wait for it to fail, about
+300 ms**, because until the double-tap window closes a tap cannot know it is
+single. With no multi-tap in the set nothing delays the page turn, no recognizer
+needs `requireGestureRecognizerToFail:`, and the recognizer set is built once and
+left alone. No 3-, 4- or 5-finger gestures. No screen-edge pans: iOS owns the
+left edge (system back), the bottom (home indicator) and the top (Notification
+Center), so only the right is reliably free and one edge is not worth a family.
+
+**TWO GESTURES THAT WORKED BEFORE ARE GONE, and that is the ruling.** The
+**3-finger tap** (toggled zen) and the **4-finger tap** (power) went with the
+finger counts. The owner was shown that consequence and chose it. Their
+recognizers are REMOVED rather than left installed-but-unbound — an installed
+recognizer still consumes touches and can still fail a competing gesture. Power
+is now pad-only and is nobody's default; it stays in the offered ACTIONS, since
+it may still be bound. `tests/gesture_bindings_test.cpp` pins both keys absent
+from `Root.plist`, so a re-add has to be deliberate.
+
 **THE MODEL IS LAYERED, NOT THREE PARALLEL ZONES.** Owner, verbatim: *"if above
 and below the paper is blank, it should pass through to global configuration. if
 they are defined, they take precedence. there is no 'on the paper', it's just
@@ -385,13 +419,28 @@ normal configuration."*
 
 | Settings group | Rows | Default |
 |---|---|---|
-| **Gestures** | all 14 — the four single-finger ones and all ten multi-finger | today's mapping (the table below) |
-| **Above the Paper** | Tap · Swipe Left · Swipe Right · Hold | blank, except **Hold** |
-| **Below the Paper** | Tap · Swipe Left · Swipe Right · Hold | blank |
+| **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
+| **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise | ditto |
+| **Gestures — The Device** | Shake | font family step |
+| **Above the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank, except **Hold** |
+| **Below the Paper** | the same six | blank |
+
+29 rows in one flat list is a scroll with no landmarks, so the global layer is
+sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
+that lets every row inside a group drop its "Two-Finger" prefix and read as a
+short verb. Pinch and rotation sit in Two Fingers because that is what they are.
+
+**`Root.plist`'s gesture half is GENERATED**, by
+[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py), from the header's
+table — 29 rows × ~34 lines of `PSMultiValueSpecifier` is not a thing to
+hand-maintain beside a table that already states every value. Only the span
+between the Zen Mode switch and the Screen group is touched. Edit the header,
+re-run the generator; `tests/run_all.sh`'s `gesture_plist` case runs it with
+`--check` so a stale projection fails the suite.
 
 ```
 action(gesture, landingY):
-    if gesture is multi-finger:               return global[gesture]
+    if gesture is not single-finger:          return global[gesture]
     zone = zoneFor(landingY)                  # above / below / neither
     if zone has a row and it is not blank:    return zoneBinding[zone][gesture]
     return global[gesture]
@@ -399,8 +448,9 @@ action(gesture, landingY):
 
 **THERE IS NO "ON THE PAPER."** A landing point between the two boundaries has no
 override row — the global binding applies, the same as everywhere else nothing
-overrides. Multi-finger has no zone override at all, by ruling: a three-finger
-tap is the same gesture wherever it lands.
+overrides. Two-finger gestures have no zone override at all, by ruling: a
+two-finger tap is the same gesture wherever it lands, and the shake has no
+landing point to judge.
 
 **BLANK AND "NOTHING" ARE DIFFERENT VALUES in a zone row**, and this is the part
 most likely to be got wrong. Blank (the row reads *Use the Gestures setting*, and
@@ -410,50 +460,77 @@ off in the margins while it keeps working on the page — a real use, since the
 owner has twice reported gestures firing accidentally. The global group has no
 blank: there is nothing above it to inherit from.
 
-**`HoldAbove` is the one zone row that does not ship blank**, and it has to be.
-Before this existed, a hold above the paper toggled zen while the same hold
-anywhere else selected (the 2026-08-27 position split) — two actions for one
-gesture, which no single global binding can state. Left blank it would inherit
-Confirm and the zen toggle would silently vanish from the gesture that carries
-it, leaving only the three-finger tap as a way in. Pointing it at blank is a
-perfectly good thing for the owner to do; it is just not the default.
+**`HoldAbove` is the one zone row that does not ship blank**, for the same reason
+every other default is what it is: a hold above the paper toggles zen today while
+the same hold anywhere else selects (the 2026-08-27 position split), and those are
+two actions for one gesture that no single global binding can state. Left blank it
+would inherit Confirm and that hold would stop doing what it does now. It is an
+ordinary row — point it anywhere, or at Nothing, and nothing objects.
 
-The table below is the **shipped GLOBAL layer**, with every zone row blank —
-which together are exactly what build 156 did.
+The table below is the **shipped GLOBAL layer**, with every zone row blank.
 
-| Gesture | Live in | Default action || Gesture | Live in | Default action |
+| Gesture | Live in | Default action |
 |---|---|---|
 | **1-finger hold, 0.75 s, ABOVE the paper** | **zen and not-zen** | **toggles zen**, under the finger (the one non-blank zone row) |
-| **3-finger tap** | **zen and not-zen** | **toggles zen** |
-| 1-finger deliberate tap (<=28 px, <=400 ms) | zen only | page forward (`BTN_RIGHT`) |
+| 1-finger deliberate tap (≤28 px, ≤400 ms) | zen only | page forward (`BTN_RIGHT`) |
 | 1-finger hold, 0.75 s, anywhere else | zen only | Select (`BTN_CONFIRM`) |
 | 1-finger swipe left / right | zen only | page forward / back |
+| 1-finger swipe up / down | zen only | **Nothing** (new; ships inert) |
+| 2-finger tap | zen only | Select |
 | 2-finger swipe left / right | zen only | `BTN_DOWN` / `BTN_UP` (text bigger / smaller in a book) |
 | 2-finger swipe down / up | zen only | Select / Back |
+| 2-finger hold, 0.75 s | zen only | **Nothing** (new; ships inert) |
 | pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
-| 2-finger tap | zen only | Select |
-| 4-finger tap | zen only | Power |
+| rotate clockwise / counter-clockwise (on the lift) | zen only | **Nothing** (new; ships inert) |
 | shake | zen only | font family step |
 
-**ZEN SCOPE IS UNCHANGED, and it is a property of the GESTURE AND ITS ZONE
-rather than of the action bound to it** -- you configure WHAT a gesture does,
-never WHEN. The two bold rows fire outside zen because they are the two ways IN;
-binding a zen-only gesture to Toggle Zen Mode gets you only OUT, and nothing
-refuses that. The subtle half: **the gate travels with the landing point, not
-with the binding** -- a hold above the paper left blank takes its ACTION from the
-global row and its GATE from the zone, so it still fires while zen is off.
-**Zen may be left unbound entirely**, deliberately and with no guard: the
-configuration lives in Settings.app, outside the reader, so the Zen Mode switch
-at the top of that same screen is always there. Two gestures may hold the same
-action; there is no conflict detection.
+Twelve of the seventeen ship bound; the five marked *new* are the additions and
+they do nothing until the owner points them somewhere. **Rotation follows
+pinch's precedent exactly**: it is the other continuous two-finger recognizer, so
+it fires ONCE on `.ended` rather than continuously — a slow rotate reported
+continuously would queue a storm of font steps, which is the bug pinch was
+already written to avoid.
 
-Everything but the deliberate tap is a native UIKit recognizer in
+**A GESTURE THAT SHIPS INERT MAY NEVER PREVENT ONE THAT SHIPS BOUND**, and that
+rule is the only thing the file's `UIGestureRecognizerDelegate` does. Installing
+a recognizer is not free — `-canPreventGestureRecognizer:` defaults to YES, so
+whichever recognizes first stops the rest — and three of the five new gestures
+overlap gestures the app already had. Rotation over pinch is the sharp one: a
+real pinch always carries a few degrees of twist, so an inert rotation would have
+been arbitrated the gesture and done nothing, silently costing the owner pinches
+he has today on a gesture he has already reported once as not working. So
+simultaneity is granted iff either side's DEFAULT is Nothing
+(`gesturebind::shipsInert`); between two rows that both ship bound the answer is
+NO, which is byte-for-byte what UIKit does with no delegate, so arbitration among
+the pre-re-cut gestures is untouched. Keyed on the default rather than the live
+binding deliberately: the answer is then a constant of the build and nothing has
+to be rebuilt when a binding changes in Settings.app — which the app cannot be
+told about while it is backgrounded anyway. **Found by adversarial review, not by
+the tests**, which is why `shipsInert` is now pinned to exactly those five rows.
+The alternative — install only BOUND rows — was priced and rejected: it needs the
+rebuild machinery that left with the double-tap.
+
+**ZEN SCOPE IS UNCHANGED, and it is a property of the GESTURE AND ITS ZONE
+rather than of the action bound to it** — you configure WHAT a gesture does,
+never WHEN. **One** row fires outside zen now (it was two until the trim took the
+three-finger tap): the hold above the paper. The subtle half: **the gate travels
+with the landing point, not with the binding** — a hold above the paper left
+blank takes its ACTION from the global row and its GATE from the zone, so it
+still fires while zen is off. Any binding may be cleared, the zen ones included;
+they are ordinary bindings (owner: *"zen is toggleable in settings. drop this
+concern."*), and zen has its own switch at the top of that same Settings screen.
+Two gestures may hold the same action; there is no conflict detection.
+
+Everything but the 1-finger deliberate tap is a native UIKit recognizer in
 [ios/CrossPointZenRecognizers.mm](CrossPointZenRecognizers.mm) (owner
 2026-08-22, *"let's use apple for swiping instead"*); the tap is the SDL
 classifier in [ios/ZenVerbs.h](ZenVerbs.h) and is routed through the same
-bindings header from `padWatch`. Each single-finger call site reads TWO rows --
-the zone's override and the global -- and the header decides which wins. There is
-no one-finger vertical swipe in this app and T-025 did not add one.
+bindings header from `padWatch`. The recognizer set is built by WALKING the
+header's table, so a row added there is installed by construction — thirteen
+objects for the seventeen rows (pinch/spread and the two rotations each share
+one, the 1-finger tap is SDL's, the shake is a responder rather than a
+recognizer). Each single-finger call site reads TWO rows — the zone's override
+and the global — and the header decides which wins.
 
 **THE ZONE IS JUDGED FROM THE LANDING POINT, off two published boundaries**, and
 no new rect was invented: `g_cardTopPx` (where black ends and paper begins) and
@@ -471,6 +548,12 @@ a rocker row. Nothing follows from it at the shipped defaults, because every
 Below row is blank and inherits; it is written down because the opposite was
 assumed once.
 
+A VERTICAL one-finger swipe crosses zones by definition, so it is judged where
+UIKit RECOGNIZED it rather than where the finger first landed. That is the
+honest answer for a gesture with no single landing band, and it is the same hit
+test the horizontal swipes use — where the distinction does not arise, because a
+horizontal swipe barely moves in y.
+
 **The one-finger hold split by POSITION on 2026-08-27** (owner: *"change long
 tap to only swap zen/singlefinger modes if tap held for .75 sec above paper, if
 held below top of paper in zen mode, make it a select after .75 before lift"*),
@@ -478,22 +561,36 @@ replacing a two-threshold shape in which one hold wanted to fire two things.
 T-025 added the third zone below the paper and made two of the three assignable;
 it did not add a second threshold, and must not. The tracker for a hold in
 flight is still [ios/ZenHoldRouting.h](ZenHoldRouting.h) (`tests/zen_hold_test.cpp`).
+The 2-finger hold added by the re-cut is a plain global binding with its own
+small re-delivery latch; the two long presses differ in TOUCH COUNT, which makes
+them mutually exclusive by construction rather than by a simultaneity delegate.
 
-**SHIPPED -- UNCONFIRMED on device.** UIKit recognizers cannot be driven off
-device (they live above SDL; neither `SDL_PushEvent` nor `simctl` reaches them),
-so the `[zen]` log is the instrument. At the first zen enable the attach line is
-followed by **one line per binding**, defaults included:
+**SHIPPED -- UNCONFIRMED on device**, with one half now confirmed in the iOS
+Simulator. UIKit recognizers cannot be driven off device (they live above SDL;
+neither `SDL_PushEvent` nor `simctl` reaches them), so what a finger does is
+device-confirm only. What WAS confirmed on an iPhone Air simulator (2026-08-28,
+`CROSSPOINT_SIM_ZEN=1`): the attach happens, **13 recognizer objects** are
+installed for the 29 rows, and the binding ledger prints all 29 with the shipped
+defaults -- `hold above the paper -> toggle zen (default, always on)` as the one
+always-on row, the five new gestures as `nothing`, every zone row but that one as
+`inherit`. The `[zen]` log is the instrument. At the first zen enable the attach
+line ENUMERATES what was actually installed -- built from the array, so it cannot
+go stale -- and is followed by **one line per binding**, defaults included:
 
 ```
-[zen] recognizers attached (... 22 rows configurable in Settings.app -- 14 global, 8 zone overrides)
-[zen]   hold                       -> confirm         (default)
-[zen]   hold above the paper       -> toggle zen      (default, always on)
-[zen]   tap above the paper        -> inherit         (default)
-[zen]   2-finger tap               -> confirm         (default)
+[zen] recognizers attached: 13 objects for 29 configurable rows (17 gestures, 12 zone
+      overrides); hold 0.75 s; * = fires outside zen; the 1-finger tap stays on the SDL
+      classifier [swipe left, swipe right, ..., hold*, 2-finger tap, ..., pinch, rotate clockwise]
+[zen]   hold                         -> confirm         (default)
+[zen]   hold above the paper         -> toggle zen      (default, always on)
+[zen]   tap above the paper          -> inherit         (default)
+[zen]   2-finger tap                 -> confirm         (default)
+[zen]   rotate clockwise             -> nothing         (default)
 ```
 
 A zone row printing `inherit` is the SHIPPED state, not a fault: it means the
-global row above answers for that zone.
+global row above answers for that zone. A gesture printing `nothing` is one of
+the five that ship inert.
 
 `set` versus `default` is how to tell that a Settings.app change reached the app
 at all, and it is read from the PERSISTENT defaults domain rather than from the
