@@ -196,7 +196,14 @@ feel.
 
 Device-confirm only: no host reproduces a Metal surface discarding a present.
 
-### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed
+### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed — TWO CANDIDATE FIXES SHIPPED, chase dropped 2026-08-28
+
+> **Owner 2026-08-28: stop following this up.** Two candidate fixes shipped in
+> build 156 (the painter's missing retired-slot guard, and the hit test walking
+> stale geometry after a resize) and neither is proven to be the cause, because
+> nothing here reproduces the report. Rather than keep asking him to watch for
+> it, the entry stands as filed: if the flash recurs he will say so, and the two
+> remaining suspects are named at the foot. Not closed — unproven and unchased.
 **severity: medium (visible, wrong) · scope: iOS pad overlay · filed 2026-08-27 from the device · NOT YET REPRODUCED**
 
 Owner: *"bottom right rocker switch is flashing on a subsequent press of another
