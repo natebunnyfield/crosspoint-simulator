@@ -563,9 +563,13 @@ inline int maxDriftCodeValues(int driftPct) {
                   static_cast<double>(kPaperDriftMax)));
 }
 
-// This page's offsets, in code values, from its own seed.
-inline void paperDriftOffsets(uint32_t seed, int driftPct, int out[3]) {
-  const int bound = maxDriftCodeValues(driftPct);
+// This page's offsets, in code values, from its own seed and an EXPLICIT
+// bound -- the core paperDriftOffsets(seed, driftPct, out) below wraps with
+// maxDriftCodeValues(driftPct), and paperDriftedForPair further down wraps
+// with a budget-clamped bound instead. Splitting the bound out is what lets a
+// budget-aware caller reuse the exact same draw (the lightness/warmth split,
+// the two independent hashes) rather than re-deriving it.
+inline void paperDriftOffsetsWithBound(uint32_t seed, int bound, int out[3]) {
   if (bound <= 0) {
     out[0] = out[1] = out[2] = 0;
     return;
@@ -595,6 +599,20 @@ inline void paperDriftOffsets(uint32_t seed, int driftPct, int out[3]) {
     if (v > bound) v = bound;
     out[c] = v;
   }
+}
+
+// The dial's own raw draw -- bit-identical to what this function has always
+// returned, byte for byte, seed for seed (pinned by light_ink_test.cpp's
+// "seed 47" and "it is real, and it is small" blocks). This is the PICKER's
+// bound: contrastAtDensity below feeds it straight into floorDensityPct /
+// clampDensityPct / maxPaperStrengthPct / clampPaperStrengthPct, which
+// already re-derive density and paper strength AGAINST this exact raw
+// worst-case, so the picker path needs no further clamp here -- adding one
+// would corrupt the "darkest leaf is the all-negative one" property those
+// four functions and light_ink_test.cpp's box sweep both depend on being the
+// RAW reachable minimum, not a budget-clamped one.
+inline void paperDriftOffsets(uint32_t seed, int driftPct, int out[3]) {
+  paperDriftOffsetsWithBound(seed, maxDriftCodeValues(driftPct), out);
 }
 
 inline void applyPaperDrift(const uint8_t in[3], const int off[3],
@@ -634,6 +652,82 @@ inline void paperWorstDrift(const uint8_t in[3], int driftPct, uint8_t out[3]) {
   const int bound = maxDriftCodeValues(driftPct);
   const int off[3] = {-bound, -bound, -bound};
   applyPaperDrift(in, off, out);
+}
+
+// --- THE DRIFT'S OWN BUDGET, FOR A PAIR THE PICKER'S CLAMPS NEVER SAW ------
+//
+// docs/composition-test-2026-08-29.md: the picker's density/strength clamps
+// above are already drift-safe, because floorDensityPct / clampDensityPct /
+// maxPaperStrengthPct / clampPaperStrengthPct re-derive density and paper
+// strength AGAINST paperWorstDrift's raw, unclamped worst case -- that is
+// what makes the picker's OWN pages (the shipped frozen page included) safe
+// with no change needed above. A NAMED PRESET selected directly
+// (panelpalette::resolve's fixed ink/paper bytes) never passes through
+// those clamps, so paperWorstDrift's fixed +/-kPaperDriftCodeValuesAt100
+// bound was applied to it regardless of headroom -- the one surface pass
+// with no paperBudget-aware clamp of its own, unlike letterpress's tooth
+// (letterpress::paperBudget), the grain (phosphorgrain::darkeningBudget) and
+// the marks (paperdefects::remainingBudget). Latte at drift 100 measured
+// 6.937:1, under the floor, with every other pass correctly spending zero.
+//
+// SCAN, not a borrowed multiplier. letterpress::paperBudget and
+// phosphorgrain::darkeningBudget both express their budget as a MULTIPLIER
+// on luminance (m*paperLum), which is honest for THEM because both passes
+// darken by scaling a texel's intensity uniformly. Drift does not: it is a
+// fixed per-channel BYTE offset in sRGB space, so a byte's effect on
+// luminance depends on which channel and where the channel starts, not on a
+// single multiplier. Borrowing paperBudget's m and translating it into a
+// code-value count would be an approximation this file's own doctrine
+// already rejects for exactly this reason -- floorDensityPct and
+// maxPaperStrengthPct scan for their boundary rather than invert the
+// formula, "which makes the guarantee exact instead of approximate". This is
+// the same scan, in the same units the drift already ships in: since
+// contrast is monotone non-increasing in the bound (every channel more
+// negative can only lower luminance -- the same argument paperWorstDrift's
+// own comment makes for the all-negative corner being the minimum), the
+// first bound that fails the floor IS the ceiling.
+inline int driftBoundForPair(const uint8_t ink[3], const uint8_t paper[3],
+                             int rawBound) {
+  if (rawBound <= 0) return 0;
+  int last = 0;
+  for (int b = 0; b <= rawBound; b++) {
+    const int off[3] = {-b, -b, -b};
+    uint8_t drifted[3];
+    applyPaperDrift(paper, off, drifted);
+    if (contrastRatio(ink, drifted) < kContrastFloor) break;
+    last = b;
+  }
+  return last;
+}
+
+// paperWorstDrift's twin for a pair that never passed through the
+// density/strength clamps: the darkest sheet THIS ink/paper pair's drift
+// dial can survive, rather than the darkest sheet the dial can produce in
+// the abstract. `ink` is the wash actually printed (a preset's fixed ink
+// byte, or the picker's own published wash); `paper` is the NOMINAL
+// (undrifted) ground. Byte-identical to paperWorstDrift whenever the pair
+// has headroom to spare -- the shipped Sanguine/India page measures
+// 9.52:1 at the raw, unclamped bound, so this returns that same bound
+// unchanged (docs/composition-test-2026-08-29.md has the arithmetic).
+inline void paperWorstDriftForPair(const uint8_t ink[3], const uint8_t paper[3],
+                                   int driftPct, uint8_t out[3]) {
+  const int rawBound = maxDriftCodeValues(driftPct);
+  const int bound = driftBoundForPair(ink, paper, rawBound);
+  const int off[3] = {-bound, -bound, -bound};
+  applyPaperDrift(paper, off, out);
+}
+
+// paperDrifted's twin: the actual per-leaf RENDER, budget-clamped the same
+// way. Reuses paperDriftOffsetsWithBound so the draw itself (the
+// lightness/warmth split, the two independent hashes) is identical to the
+// unclamped path -- only the bound it is drawn within shrinks.
+inline void paperDriftedForPair(const uint8_t ink[3], const uint8_t paper[3],
+                                uint32_t seed, int driftPct, uint8_t out[3]) {
+  const int rawBound = maxDriftCodeValues(driftPct);
+  const int bound = driftBoundForPair(ink, paper, rawBound);
+  int off[3];
+  paperDriftOffsetsWithBound(seed, bound, off);
+  applyPaperDrift(paper, off, out);
 }
 
 // The wash: ink `inkIdx` at `densityPct` (0..100) on paper `paperIdx` held at
