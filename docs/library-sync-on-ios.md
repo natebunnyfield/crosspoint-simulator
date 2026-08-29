@@ -223,6 +223,28 @@ missing transport never gets a status at all.
 and the desktop canary in the same session, unchanged:
 `[WEBACT] Showing network mode popup...`.
 
+## CONFIRMED ON DEVICE, 2026-08-29
+
+Build 159 / firmware 1.5.21-BD, on the owner's iPhone: **"Update complete — 17
+updated, 0 unchanged, 0 errors."** Every off-device gap listed below was crossed
+in that one run — a real token entered through Settings.app, a real association,
+a 200 from GitHub, the manifest parsed, and seventeen books written to the card.
+
+Two things this proves that no host test could:
+
+* the token survives the whole path — Settings.app, NSUserDefaults, the host
+  channel, the bearer header, TLS — and it never touches `settings.json`;
+* NSURLSession is a working transport for this on a real device, which the
+  TestFlight curl restriction had made a live question.
+
+**It took two attempts, and the first one is the useful part.** The first run
+returned 404, which the code then reported as "No library published yet, or
+this token cannot see it" — accurate, and useless, because it named both causes
+without choosing. GitHub answers 404 for a private repo either way. The repo
+probe was added in response, so a 404 now asks about the repo and reports which
+of the two it is. The successful run above came from fixing the token's
+repository access, which is exactly what the new message tells you to do.
+
 ### Where it stops being testable off-device
 
 * **The last step — a 200 and an actual sync — needs a real token**, which is
