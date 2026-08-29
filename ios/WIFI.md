@@ -1,19 +1,31 @@
 # WiFi on iOS — plan
 
-Status: **everything in this repo is done** — Phases 0, 1, 3 and the simulator
-half of Phase 2. What remains is the firmware half, which needs write access to
-`crosspoint-reader`: the mapped port in the painted URL (Phase 2) and the gate
-split (Phase 4). Written 2026-08-06 against simulator `c66d39f` and firmware
-`4ef1a62`.
+Status: Phases 0, 1, 3, the simulator half of Phase 2, and **Phase 4 (done
+2026-08-28)** — the gate split and the skipped mode screen, which needed write
+access to `crosspoint-reader` and now has it. What remains is the other firmware
+half of Phase 2: the mapped port in the painted URL. Written 2026-08-06 against
+simulator `c66d39f` and firmware `4ef1a62`; the Phase 4 section below is dated
+where it was updated.
 
-**None of it has been built for iOS.** There is no Mac in the loop and no paired
-device, so every Apple-only path — `ios/*.mm` above all — has never been through
-a compiler. What does cover them is four host tests
-(`wifi_host_test`, `http_dispatch_test`, `restart_semantics_test`, plus the
-existing `pad_core_test`), which exercise the *logic* those paths run by forcing
-the platform macros on and substituting scripted backends. They cannot tell you
-whether iOS reports what the code expects. Everything under "device-only" in
-Known limits is still exactly that.
+**Two things in this document have been overtaken by the firmware and are
+corrected in place below**: `NetworkModeSelectionActivity` no longer exists as
+an activity (it is an `OptionPopup` inside `CrossPointWebServerActivity`), and
+the OTA gate is spelled `CROSSPOINT_NO_DEVICE_FLASH`, not `CROSSPOINT_NO_OTA`.
+
+~~**None of it has been built for iOS.**~~ **Overtaken.** There is a Mac in the
+loop now: `crosspoint_core` and the `CrossPointX3` app target both build for
+`arm64-apple-ios`, the app runs on an iPhone simulator, and the scripted runs
+quoted in Phase 4 below are from it. What is still true is the narrower claim:
+there is **no paired device**, and the iOS *Simulator* cannot answer the three
+things in Known limits — the real SSID, signal strength, and a genuine `en0`
+address. `NEHotspotNetwork.fetchCurrent` returns nil there whatever the
+entitlements say.
+
+The host tests still carry the logic those paths run, by forcing the platform
+macros on and substituting scripted backends: `wifi_host_test`,
+`http_dispatch_test`, `restart_semantics_test`, `host_settings_test` (both arms),
+plus the existing `pad_core_test`. They cannot tell you whether iOS reports what
+the code expects.
 
 ## Decisions (owner, 2026-08-06)
 
@@ -93,6 +105,24 @@ assumed.**
 cellular or offline. `WifiSelectionActivity` already handles it by falling back
 to a manual-SSID-entry list (`WifiSelectionActivity.cpp:132-142`), which is the
 correct thing to show someone whose phone isn't on WiFi.
+
+**There is a THIRD case this paragraph did not cover, and it was landing in the
+wrong one** (found and fixed 2026-08-28). `NWPathMonitor` answers "on WiFi" with
+no entitlement at all; the SSID comes from `NEHotspotNetwork.fetchCurrent`,
+which needs Access WiFi Information *plus* Location permission and returns nil
+on the iOS Simulator whatever the entitlements say. So "genuinely associated,
+name withheld" is common — every Simulator run, and any device where Location is
+denied — and requiring the name folded it into the same branch as *no network at
+all*: a one-row list offering "Add hidden network…", then an SSID keyboard and a
+password keyboard, **for a network the phone was already on and which `begin()`
+cannot change**. That is the scan-picker-password ritual the simplified path
+exists to remove. `hostScanCount()` now gates on `connected && isWifi` alone and
+`SSID()` labels the row `Wi-Fi` when iOS withholds the name — not a fabricated
+network, since the association is real and only its name is missing, and not an
+empty string either, because `WifiSelectionActivity` DROPS a row whose SSID is
+empty and the count would then disagree with the list. `tests/wifi_host_test.cpp`
+pinned the old behavior explicitly (`"a nameless association is not a listable
+network"`); that assertion is inverted, with the argument, rather than deleted.
 
 ## Findings in the simulator tree
 
@@ -270,18 +300,59 @@ This is the phase that delivers peer transfer.
 * Personal build, so ATS is a free choice: `NSAllowsLocalNetworking` for the
   local server; take a wider exception only when a real QA target demands it.
 
-### Phase 4 — re-enable the screens (firmware)
+### Phase 4 — re-enable the screens (firmware) ✅ done 2026-08-28
 
-Split the blunt gate into three:
+The gate is split, and it was already halfway there:
 
 | Gate | Covers | iOS |
 |---|---|---|
-| `CROSSPOINT_NO_SOFTAP` | the `CREATE_HOTSPOT` row in `NetworkModeSelectionActivity` | **on** |
-| `CROSSPOINT_NO_OTA` | `OtaUpdateActivity`, `SdFirmwareUpdateActivity`, `OtaUpdater`, `FirmwareFlasher`, `simulator_ota.cpp` | **on**, permanently |
+| `CROSSPOINT_NO_SOFTAP` | the `CREATE_HOTSPOT` choice, and with it the whole mode screen | **on** — added 2026-08-28 |
+| `CROSSPOINT_NO_DEVICE_FLASH` | `SdFirmwareUpdateActivity`, `OnlineFirmwareUpdateActivity`, their Home rows, the WebDAV firmware-PUT hand-off, `simulator_ota.cpp` | **on**, permanently — already existed |
 | *(none)* | web server, WebDAV, downloads, QR, diagnostics, `WifiSelectionActivity`, `WifiCredentialStore` | **off** — these ship |
 
-`MENU_ENTRIES` is already table-driven, so dropping the hotspot row is a
-one-entry `#ifdef`, not a rewrite.
+**The OTA half was NOT called `CROSSPOINT_NO_OTA` and never has been.** It is
+`CROSSPOINT_NO_DEVICE_FLASH`, and it landed with the network un-gating at
+4a98ba8 — the name says only what stays impossible, which is writing an ESP32
+partition. Nothing about that changed here; it is recorded because the plan's
+own table names a macro that does not exist and the next reader would go looking
+for it. The two gates are kept SEPARATE even though both are on for this target
+and always will be: they are different impossibilities, and collapsing them is
+exactly how `CROSSPOINT_NO_NETWORK` came to be suppressing features the app
+could run.
+
+**`NetworkModeSelectionActivity` is gone**, so the `MENU_ENTRIES` sentence below
+is stale: the firmware replaced that whole activity with an in-place
+`OptionPopup` (`CrossPointWebServerActivity::showNetworkModePopup`). The gate is
+therefore not a one-entry `#ifdef` in a table but four small ones in
+`CrossPointWebServerActivity.cpp`, which come to the same thing:
+
+* `onEnter()` calls `onNetworkModeSelected(JOIN_NETWORK)` directly instead of
+  showing the popup.
+* `onWifiSelectionComplete(false)` — the cancel branch — calls `onGoHome()`
+  instead of re-showing a popup that this build never showed.
+* `showNetworkModePopup()` and the `MODE_SELECTION` arm of `loop()` compile out
+  entirely, so no dead branch can be reached by a state that cannot occur.
+* The `networkModePopup` MEMBER and the `MODE_SELECTION` enumerator stay, so the
+  state machine has one shape across both builds.
+
+Measured 2026-08-28 on an iPhone Air simulator, from a scripted run:
+
+```
+[WEBACT] Single network mode on this build; joining directly
+[WEBACT] Network mode selected: Join Network
+[ACT] Entering activity: WifiSelection
+```
+
+and the desktop canary, unchanged in the same session, still prints
+`[WEBACT] Showing network mode popup...`.
+
+**One consequence worth naming: backing out now reboots.** `onExit()` calls
+`silentRestart()` whenever `WiFi.getMode() != WIFI_MODE_NULL`, and skipping the
+mode screen means entering File Transfer always sets `WIFI_STA` — so Back from
+the WiFi list goes Home *through a restart*, where before it could return to a
+popup having touched nothing. On iOS that is the in-process `longjmp` reboot and
+is exactly what finding 8 above asks for; on the desktop `ESP.restart()` is still
+opt-in behind `CROSSPOINT_SIM_FIRMWARE_RESTART`, so the canary is unmoved.
 
 **And with one mode left, the mode screen is skipped entirely** (owner ruling).
 `CrossPointWebServerActivity::onEnter` goes straight to
@@ -369,6 +440,13 @@ iOS, in order of what each proves:
 
 Nothing. Every design question this plan raised has a ruling; what is left is
 execution and the limits below.
+
+**Phase 2's remaining firmware half — the mapped port — is still open and is now
+the only thing between this and working peer transfer.** The three sites in
+`CrossPointWebServerActivity.cpp` still paint and QR-encode port 80 while the
+shim listens on 8080, so every address on the server screen is wrong on a phone.
+It was deliberately left alone in the 2026-08-28 pass, which was scoped to the
+gate split and to Update Library.
 
 ## Known limits, not open questions
 
