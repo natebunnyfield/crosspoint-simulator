@@ -71,6 +71,14 @@ int CrossPointPrefs_padContrastPreset(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_zenModeEnabled(void);
 
+// The system appearance this app last ACTED ON, remembered across launches so
+// a change made while the app was closed can be told apart from the owner's
+// own Dark Mode choice (ios/AppearanceSeed.h). -1 when never recorded.
+// Host-only bookkeeping, deliberately NOT a firmware setting: the device has
+// no system appearance to follow.
+int CrossPointPrefs_lastSeenSystemDark(void);
+void CrossPointPrefs_setLastSeenSystemDark(int dark);
+
 // Is read-aloud TTS enabled? 1 = read the open book aloud (see
 // CrossPointReadAloud.h), 0 = off, the default. A phone property like the
 // rest of this file: the device hardware has no speaker, so the setting

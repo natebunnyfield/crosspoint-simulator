@@ -61,6 +61,7 @@
 #include <limits>
 
 #include "CrossPointAppearance.h"
+#include "AppearanceSeed.h"
 #include "CrossPointPrefs.h"
 #include "CrossPointAccessibility.h"
 #include "ChevronCoverage.h"
@@ -1251,7 +1252,35 @@ bool firstEverLaunch() {
   return false;
 }
 
-bool g_seedDarkFromSystem = firstEverLaunch();
+// Whether this launch may write the system appearance into SETTINGS.darkMode.
+//
+// NOT simply firstEverLaunch() any more (owner 2026-08-28: "when booted into
+// system dark mode, be in dark mode"). That rule could not see a change made
+// while the app was CLOSED -- pollAppearance initialises its "last system" from
+// the system itself, so on the first tick nothing has changed and the stored
+// setting wins. Install in light, switch the phone to dark, reopen, and the app
+// came up light.
+//
+// The question neither "always seed" nor "seed once" can answer is *did the
+// system change since we last looked*, so the answer we last acted on is now
+// remembered across launches, separately from the owner's setting. The rule is
+// ios/AppearanceSeed.h; this is only where it is asked.
+bool decideSeedDarkFromSystem() {
+  const int stored = CrossPointPrefs_lastSeenSystemDark();
+  const int now = systemIsDark() ? 1 : 0;
+  const bool seed =
+      appearanceseed::shouldSeedFromSystem(firstEverLaunch(), stored, now);
+  // Recorded on EVERY launch, seeded or not: recording only when seeding would
+  // leave an install that predates this rule stuck at "never recorded" for
+  // ever, and a later system change invisible with it.
+  CrossPointPrefs_setLastSeenSystemDark(appearanceseed::valueToRemember(now));
+  SDL_Log("[harness] appearance seed: stored=%s system=%s -> %s", 
+          stored < 0 ? "none" : (stored ? "dark" : "light"),
+          now ? "dark" : "light", seed ? "SEED" : "keep setting");
+  return seed;
+}
+
+bool g_seedDarkFromSystem = decideSeedDarkFromSystem();
 
 void applyTheme() {
   // ONE SOURCE OF TRUTH, and it is the firmware's own setting.
@@ -1408,6 +1437,10 @@ void pollAppearance() {
   if (sys != s_lastSystem) {
     s_lastSystem = sys;
     g_seedDarkFromSystem = true;
+    // Keep the cross-launch memory in step with what we are about to act on,
+    // or the next launch compares against a stale answer and re-seeds over a
+    // choice the owner may have made since.
+    CrossPointPrefs_setLastSeenSystemDark(sys);
     applyTheme();
     SDL_Log("[harness] appearance -> %s (system)", g_dark ? "dark" : "light");
     return;
