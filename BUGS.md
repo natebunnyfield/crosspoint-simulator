@@ -38,6 +38,66 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-029] A textless page kills hands-free read-aloud — FIXED 2026-08-28, unconfirmed on device
+**severity: high (the feature does not start) · scope: read-aloud · found and fixed 2026-08-28**
+
+Owner: *"check that tts turns the page as expected, not repeat or stall."* This
+is the stall, and it fires on the FIRST page of every book.
+
+`ReadAloudCore.cpp` collapsed two different things into one branch:
+`if (page.cleared || page.utf8.empty())` set state `Off` and returned no
+`StartUtterance` and no `TurnPageForward`. But `cleared` means *the reader
+exited*, while an empty page means *there is nothing here to read* — and a book
+opens on a cover wrapper that captures no words. Measured on the book the iOS
+app itself seeds: the first publish of a fresh boot is `bytes=0 words=0`.
+
+**So with read-aloud enabled, opening a book left speech dead until a page was
+turned by hand.** Not a rare path — it is every book, every time.
+
+The same conflation had already been fixed one layer up and the core never got
+the repair: `CrossPointReadAloud.mm:745` computes a title-and-author fallback
+for exactly this case, with a comment citing the 2026-08-23 ruling, and routes
+it only to VoiceOver.
+
+**Owner ruled: skip it silently.** A textless page now emits
+`TurnPageForward`, so hands-free reading walks past covers and plates without a
+word. The bound (`kMaxConsecutiveSkips`) stops a run of illustrations turning
+for ever, and it **latches** — cleared only by a page with words, never at the
+limit. Resetting it at the limit made the counter oscillate, twelve turns then
+one stop then twelve more, which is the runaway it exists to prevent wearing a
+bound's clothes; the 40-blank-page test caught that.
+
+End of book cannot loop here: that screen returns before `renderContents` and
+publishes nothing at all rather than publishing an empty page.
+
+### [S-028] Read-aloud restarts the page from its first word on any re-render — FIXED 2026-08-28, unconfirmed on device
+**severity: high (audible, on an ordinary action) · scope: read-aloud · found and fixed 2026-08-28**
+
+The repeat half of the same owner report. `ReadAloudCore::pageArrived` never
+compared the incoming page to the one it held, so a byte-identical republish
+was treated as a new page: stop, clear the highlight, start again at offset 0.
+
+The reader republishes without moving. `ActivityManager.cpp:143` requests an
+update on EVERY subactivity pop — its comment says so — which re-renders and
+re-captures. Measured across one chapter-selection round trip: publishes #3 and
+#4 byte-identical.
+
+**So opening chapter selection and coming back re-spoke the page from its first
+word.** Also reachable with no button press at all: `applyTheme()` and
+`applyPanel()` both end in `crosspointRequestRender()`, so a system light/dark
+switch mid-page forces the same republish — that path is code-read, not run.
+
+Fixed by holding the page's text and returning NO actions when an identical
+page arrives while Speaking or Paused. Rects are replaced rather than kept: the
+text identifies the page, while the geometry can legitimately move under it (a
+palette change re-dithers the same layout). Different text is still a new page
+and still restarts.
+
+**`.claude/PLAN-tts-read-aloud.md` records "a same-page re-render restarts its
+speech" as an ACCEPTED NON-GOAL.** That decision was made without knowing it
+fires on an ordinary chapter-select round trip; the measurement is why it was
+relitigated.
+
 ### [S-027] Returning from a video call leaves the screen blank for a long time — FIXED 2026-08-28, unconfirmed on device
 **severity: high (looks like a hang) · scope: iOS present · filed 2026-08-27 from the device · fixed 2026-08-28**
 
