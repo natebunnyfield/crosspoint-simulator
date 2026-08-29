@@ -13,6 +13,7 @@
 #include "HalGPIO.h"
 #include "SimulatorDocumentOpen.h"
 #include "ReadingLog.h"
+#include "SimWiFiHost.h"
 #include "SimulatorLifecycle.h"
 #include "SimulatorOverlay.h"
 #include "SimulatorRebootResets.h"
@@ -256,6 +257,19 @@ int main(int argc, char **argv) {
   // latch is reset there rather than needing a SimulatorRebootResets entry.
   // See docs/reading-experiments.md.
   readinglog::publishBoot();
+
+  // Start the host radio's watcher BEFORE the firmware can ask it anything.
+  //
+  // sim_wifi_host::current() starts it lazily, which is correct but late: on
+  // iOS the first answer comes from an NWPathMonitor callback that has not run
+  // yet, so the FIRST caller reads "not connected". Update Library's very first
+  // question is WiFi.status() in its onEnter, and a lazy start meant the first
+  // open after launch painted "No Wi-Fi" on a phone that was on Wi-Fi -- then
+  // worked on the second try, which is the shape of a bug nobody can reproduce.
+  // Started here, the monitor has the whole of setup() and the first render to
+  // deliver its first update. A no-op on every platform but iOS.
+  sim_wifi_host::begin();
+
 #if !CROSSPOINT_SIM_IOS
   // Headless read-aloud capture audit (.claude/PLAN-tts-read-aloud.md): "1"
   // logs a preview per publish, "2" additionally dumps full text and rects.

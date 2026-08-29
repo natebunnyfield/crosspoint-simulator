@@ -45,6 +45,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostSettings.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
@@ -74,6 +75,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPrefs.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostSettings.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
@@ -643,6 +645,24 @@ target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_DEVICE_FLASH=1)
 # the one-device-macro rule: a define that reaches only the app target produces
 # halves that disagree.
 target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_PHYSICAL_SIDE_BUTTONS=1)
+
+# No soft AP, and therefore no network-mode choice at all (ios/WIFI.md Phase 4,
+# owner ruling 2026-08-06: "Show Create Hotspot on iOS? No. Hide the row, and
+# with one mode left skip the mode screen entirely").
+#
+# An app cannot bring up an access point on iOS at any entitlement tier and none
+# is coming; WiFiClass::softAP() already answers false, which is a failure
+# message rather than a hidden row. The other half of File Transfer -- Join
+# Network, the web server, WebDAV, downloads, QR, diagnostics, the WiFi list and
+# the credential store -- SHIPS, because peer transfer over a network the phone
+# is already on needs nothing iOS withholds.
+#
+# Kept SEPARATE from CROSSPOINT_NO_DEVICE_FLASH above even though both are on
+# for this target and always will be: they are different impossibilities. One is
+# an Apple policy about radios, the other is that there is no ESP32 partition to
+# write. Collapsing them is how CROSSPOINT_NO_NETWORK came to be suppressing
+# features the app could run.
+target_compile_definitions(crosspoint_core PUBLIC CROSSPOINT_NO_SOFTAP=1)
 
 # --- Define parity gate ----------------------------------------------------
 #

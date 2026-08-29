@@ -175,11 +175,37 @@ class WiFiClass {
   // honest answer -- WifiSelectionActivity already handles it by offering
   // manual SSID entry, which is the right screen for someone whose phone is not
   // on WiFi.
+  //
+  // ASSOCIATED BUT UNNAMED IS STILL ASSOCIATED, and it used to fail the scan.
+  // NWPathMonitor answers "on WiFi" with no entitlement at all, while the SSID
+  // comes from NEHotspotNetwork.fetchCurrent, which needs Access WiFi
+  // Information PLUS Location permission and returns nil on the iOS Simulator
+  // whatever the entitlements say. So there is a third case ios/WIFI.md's
+  // Phase 1 table does not cover -- genuinely on WiFi, name withheld -- and
+  // requiring the name here dropped it into the SAME branch as "no network at
+  // all": a one-row list offering "Add hidden network...", then an SSID
+  // keyboard and a password keyboard, for a network the phone was already on
+  // and which begin() cannot change. That is precisely the scan-picker-password
+  // ritual the simplified iOS path exists to remove.
+  //
+  // The row is reported, and SSID() labels it below. Cellular and offline still
+  // fail, because a web server on a cellular interface reaches no peer.
   static int hostScanCount() {
     const auto net = sim_wifi_host::current();
-    return (net.connected && net.isWifi && !net.ssid.empty())
-               ? 1
-               : WIFI_SCAN_FAILED;
+    return (net.connected && net.isWifi) ? 1 : WIFI_SCAN_FAILED;
+  }
+
+  // What to call the network when iOS will not say. Not a fabricated network:
+  // the association is real and was reported by NWPathMonitor; only its name is
+  // withheld. "Wi-Fi" is the Wi-Fi Alliance's own mark rather than a sentence,
+  // so it needs no translation -- which matters, because this string is chosen
+  // in the simulator and the firmware's tr() table cannot reach here.
+  //
+  // The firmware DROPS a network with an empty SSID from the list
+  // (WifiSelectionActivity.cpp, "Skip hidden networks"), so an empty string is
+  // not an option that leaves the row visible.
+  static const char *hostSsidOrLabel(const std::string &ssid) {
+    return ssid.empty() ? "Wi-Fi" : ssid.c_str();
   }
 
   bool ssidInConfiguredScan(const String &ssid) const {
@@ -201,7 +227,7 @@ public:
     // we are not on would be the one lie this whole backend exists to avoid.
     if (sim_wifi_host::available()) {
       const auto net = sim_wifi_host::current();
-      currentSsid = String(net.ssid.c_str());
+      currentSsid = String(hostSsidOrLabel(net.ssid));
       currentStatus = net.connected ? WL_CONNECTED : WL_DISCONNECTED;
       return currentStatus;
     }
@@ -317,14 +343,24 @@ public:
     return static_cast<int>(configuredNetworks().size());
   }
   String SSID() {
-    if (sim_wifi_host::available())
-      return String(sim_wifi_host::current().ssid.c_str());
+    if (sim_wifi_host::available()) {
+      const auto net = sim_wifi_host::current();
+      if (!net.connected || !net.isWifi) return String();
+      return String(hostSsidOrLabel(net.ssid));
+    }
     return currentSsid.isEmpty() ? String("Simulator WiFi (fake)")
                                  : currentSsid;
   }
   String SSID(int i) {
-    if (sim_wifi_host::available())
-      return i == 0 ? String(sim_wifi_host::current().ssid.c_str()) : String();
+    if (sim_wifi_host::available()) {
+      // ONE snapshot, not two. hostScanCount() would take its own, and a
+      // network that drops between the two calls would answer "one row" and
+      // then name nothing -- a count the list disagrees with, which is the
+      // failure this branch exists to avoid.
+      const auto net = sim_wifi_host::current();
+      if (i != 0 || !net.connected || !net.isWifi) return String();
+      return String(hostSsidOrLabel(net.ssid));
+    }
     const auto &networks = configuredNetworks();
     return i >= 0 && i < static_cast<int>(networks.size()) ? networks[i].ssid
                                                            : String();

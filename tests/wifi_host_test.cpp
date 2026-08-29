@@ -126,12 +126,51 @@ void testOffWifiFailsTheScanHonestly() {
   expect(std::string(WiFi.localIP().toString().c_str()) == "0.0.0.0",
          "no address when offline");
 
-  // Associated but SSID withheld (entitlement or Location denied) is not a
-  // network we can put in a list -- the row would have no name.
-  sim_wifi_host::Network nameless = onWifi("", -58);
-  sim_wifi_host::testSetNetwork(nameless);
+}
+
+// ASSOCIATED BUT UNNAMED IS STILL ASSOCIATED, and it used to fail the scan.
+//
+// This assertion is INVERTED from what it was, deliberately. It read "a
+// nameless association is not a listable network", on the argument that the row
+// would have no name -- true, and the wrong conclusion. NWPathMonitor answers
+// "on WiFi" with no entitlement at all, while the SSID needs Access WiFi
+// Information PLUS Location permission and is nil on the iOS Simulator whatever
+// the entitlements say. So the withheld-name case is common, and folding it
+// into the same branch as "no network at all" sent the owner to a one-row list
+// offering "Add hidden network...", then an SSID keyboard and a password
+// keyboard, FOR A NETWORK THE PHONE WAS ALREADY ON and which begin() cannot
+// change. That is the scan-picker-password ritual the owner's simplified iOS
+// path exists to remove ("no scan, no picker, no password entry -- the phone is
+// already on a network, the app uses it").
+//
+// The row is reported and labelled instead. Not a fabricated network: the
+// association is real and NWPathMonitor reported it; only its name is withheld.
+void testUnnamedAssociationIsStillListable() {
+  sim_wifi_host::testSetNetwork(onWifi("", -58));
+
+  expect(WiFi.scanNetworks() == 1, "an unnamed association is one real row");
+  expect(WiFi.scanComplete() == 1, "and scanComplete agrees");
+  // The label matters as much as the count: WifiSelectionActivity DROPS a
+  // network with an empty SSID ("Skip hidden networks"), so an empty string
+  // here leaves a row that is reported and then thrown away -- an empty list
+  // with a count of one, which is worse than either honest answer.
+  expect(std::string(WiFi.SSID(0).c_str()) == "Wi-Fi",
+         "an unnamed association is labelled rather than left blank");
+  expect(std::string(WiFi.SSID().c_str()) == "Wi-Fi",
+         "and the server screen paints the same label");
+  expect(WiFi.encryptionType(0) == WIFI_AUTH_OPEN,
+         "still no credential is needed for a join that already happened");
+
+  // Cellular and offline are unmoved: they still fail, because a web server on
+  // a cellular interface reaches no peer.
+  sim_wifi_host::Network cellular;
+  cellular.connected = true;
+  cellular.isWifi = false;
+  sim_wifi_host::testSetNetwork(cellular);
   expect(WiFi.scanNetworks() == WIFI_SCAN_FAILED,
-         "a nameless association is not a listable network");
+         "cellular still fails the scan");
+  expect(std::string(WiFi.SSID().c_str()).empty(),
+         "and names nothing while it does");
 }
 
 // An app cannot raise an access point on iOS. The firmware already handles a
@@ -164,6 +203,7 @@ int main() {
   testTheJoinNeverAsksForAPassword();
   testBeginDoesNotInventTheRequestedNetwork();
   testOffWifiFailsTheScanHonestly();
+  testUnnamedAssociationIsStillListable();
   testSoftApRefuses();
   testDesktopPathIsUntouched();
   std::printf("wifi_host_test: all checks passed\n");

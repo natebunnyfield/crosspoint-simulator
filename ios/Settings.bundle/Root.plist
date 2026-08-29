@@ -1218,6 +1218,36 @@ Speaking rate is a percentage of normal. The Spoken Content rate slider in Acces
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>Update Library syncs the books folder from a release on a private GitHub repository, so it needs a fine-grained personal access token with read access to that repository’s contents.
+
+The token is kept on this phone. It is never written to the simulated SD card, which File Transfer serves to anything on your network while that screen is open.
+
+On the reader hardware this value lives in settings.json on the card. A phone has no way to edit that file, which is why the field is here.</string>
+			<key>Title</key>
+			<string>Library</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string></string>
+			<key>IsSecure</key>
+			<true/>
+			<key>Key</key>
+			<string>githubToken</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>GitHub Token</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
 			<key>Title</key>
 			<string>Sleep</string>

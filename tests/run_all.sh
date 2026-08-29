@@ -218,6 +218,26 @@ run wifi_host \
 run http_dispatch \
   c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_HTTP=1 -o "$OUT/http_dispatch" tests/http_dispatch_test.cpp
 
+# The host SETTINGS channel -- the wire that carries a GitHub token from a
+# surface the owner can reach to Update Library's fetch. Update Library was
+# unconfigurable on iOS until this existed: the token lives in
+# SETTINGS.githubToken, set by hand-editing settings.json on the card, and a
+# phone cannot open that file. Two arms, because the switch is compile-time and
+# each arm is a different implementation. The host arm forces the phone's branch
+# on (same escape hatch as CROSSPOINT_SIM_HOST_WIFI above -- the real backend is
+# ios/CrossPointHostSettings.mm, which compiles nowhere else) and covers
+# truncation into the firmware's fixed char[104], which is the failure mode with
+# teeth. The desktop arm covers the env-var QA hatch AND two text gates no
+# compiler can do: that the NSUserDefaults key in the backend is the same string
+# as the Root.plist row's Key (a typo there is silent -- the owner types a token
+# and is told forever that there is none), and that nothing in that file logs
+# the value.
+run host_settings_host \
+  c++ -std=c++20 -Isrc -DCROSSPOINT_SIM_HOST_SETTINGS=1 -o "$OUT/host_settings_host" tests/host_settings_test.cpp
+
+run host_settings_desktop \
+  c++ -std=c++20 -Isrc -o "$OUT/host_settings_desktop" tests/host_settings_test.cpp
+
 run restart_semantics \
   c++ -std=c++20 -Isrc -o "$OUT/restart_semantics" tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp
 

@@ -644,9 +644,32 @@ SDL side and the UIKit side read, so the page, the pad and both chips cannot
 disagree about what was picked.
 
 What remains in Settings.app after the 2026-08-23 ruling is the Zen toggle, the
-two sleep toggles, the Read Aloud group, Diagnostics Log -- and, added later the
-same day, **Power-Off Collapse** (`powerOffCollapse`, default off), the CRT
-shutdown at sleep. It is the one surface item since the purge to earn a row, and
+gesture groups, the two sleep toggles, the Read Aloud group, Diagnostics Log --
+and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
+default off), the CRT shutdown at sleep.
+
+**One row has been added since, and it is not an appearance dial at all**
+(2026-08-28): **Library > GitHub Token** (`githubToken`, a
+`PSTextFieldSpecifier` marked `IsSecure`). Update Library syncs `/books/` from a
+release on a PRIVATE repo, so every request carries
+`Authorization: Bearer SETTINGS.githubToken` -- and that firmware field is set by
+hand-editing `/.crosspoint/settings.json` on the card, which A PHONE CANNOT
+OPEN. The feature was therefore unconfigurable here, and its own "no token"
+screen printed *"Set githubToken in settings.json, then try again"*, which is
+advice the owner could not follow. This is the second thing to earn a row since
+the purge and it earned it on a different ground from Power-Off Collapse's: not
+a trade, but configuration with no other route in existence.
+
+The token does NOT reach `SETTINGS.githubToken`. It stays in NSUserDefaults and
+`LibraryUpdater` asks for it at the moment it builds the header, because
+anything landing in that field is written out by the next settings save -- into
+the simulated card that File Transfer and WebDAV serve to the whole network
+while that screen is open. `ios/CrossPointHostSettings.mm` is the read path and
+is deliberately short enough to audit in one screen; `src/SimHostSettings.h`
+carries the contract. Nothing logs the value, and
+`tests/host_settings_test.cpp` fails the build if that file so much as names a
+logging function. Full account, with the measured proof that the credential
+reaches GitHub: `docs/library-sync-on-ios.md`. It is the one surface item since the purge to earn a row, and
 it earned it by having a TRADE rather than a right answer: turning it on means
 the glass stays dark for the whole sleep instead of holding the sleep screen.
 That one row owns BOTH halves of the tube's life. Owner ruling the same day:

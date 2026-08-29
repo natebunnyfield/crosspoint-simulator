@@ -42,6 +42,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
 | What does a present cost, and what is a phosphor trail spending it on? | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) — including why the scanline readback is NOT the answer, why an instant-by-instant md5 gate over a trail is invalid, and the ranked list of what is left |
 | Which font/size/spacing actually got the most reading done? | [docs/reading-experiments.md](docs/reading-experiments.md) — the ledger, the outcome definitions, and the power estimate that says which questions it can and cannot answer |
+| Why Update Library could not work on a phone, and where the token lives now | [docs/library-sync-on-ios.md](docs/library-sync-on-ios.md) — the two blockers, the measured 401 that proves the credential path end to end, why TestFlight's curl restriction does NOT apply on iOS, and the one thing found and deliberately not fixed |
 
 | ARCHIVE — a dated record, do not cite for current behavior | What it is |
 |---|---|
@@ -745,9 +746,19 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now seven groups and 29 rows** — count them out of
+**Settings.app is now ten groups and 37 rows** — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
-is how this paragraph was wrong twice:
+is how this paragraph was wrong three times. It said "seven groups and 29 rows"
+while the file held nine and 36, because the gesture groups were added to the
+TABLE below and not to the sentence above it; adversarial review caught the
+fourth miss (this one) on 2026-08-28. `plistlib` counts them in one line:
+
+```bash
+python3 -c "import plistlib;d=plistlib.load(open('ios/Settings.bundle/Root.plist','rb'));\
+s=d['PreferenceSpecifiers'];g=[x for x in s if x['Type']=='PSGroupSpecifier'];\
+print(len(g),'groups,',len(s)-len(g),'rows')"
+```
+
 
 | Group | Rows |
 |---|---|
@@ -759,7 +770,20 @@ is how this paragraph was wrong twice:
 | Below the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
+| Library | GitHub Token |
 | Sleep | Power-Off Collapse · Diagnostics Log |
+
+**Library > GitHub Token arrived 2026-08-28 and is a CREDENTIAL, the only one
+in this bundle.** `PSTextFieldSpecifier`, `IsSecure`. Update Library fetches
+from a PRIVATE repo, so it needs `Authorization: Bearer SETTINGS.githubToken` --
+and that firmware field is set by hand-editing `/.crosspoint/settings.json` on
+the card, which a phone cannot open, so the feature was unconfigurable here and
+its own error screen printed instructions nobody could follow. It does NOT reach
+`SETTINGS.githubToken`: the token stays in NSUserDefaults and `LibraryUpdater`
+asks for it when it builds the header, because anything landing in that field is
+serialized into the card that File Transfer and WebDAV serve to the whole
+network. `src/SimHostSettings.h` is the channel, `ios/CrossPointHostSettings.mm`
+the backend, `docs/library-sync-on-ios.md` the account. Nothing may log it.
 
 The five gesture groups arrived 2026-08-28 (T-025) and are the only rows here
 that are not appearance or behavior toggles — see the gesture block near the foot
@@ -1018,6 +1042,14 @@ Grown in one day; each is documented at its definition, this is the map:
   the chip was live and which way the keyboard went. A frame count would not do
   here — the app presents rarely and 150 frames is ~2 s on one device and ~10 s
   on another.
+- **`CROSSPOINT_SIM_GITHUB_TOKEN`** (added 2026-08-28): the DESKTOP's route to
+  Update Library's GitHub token, which on iOS comes from a Settings.app row and
+  on hardware from `settings.json` on the card. A QA hatch, not a settings
+  surface -- it exists so the authenticated fetch can be driven headlessly
+  without writing a credential into the simulated card, and it deliberately does
+  NOT change the sentence the "no token" screen prints. Unset (the default, and
+  the only state the canary ever sees) every call folds to 0.
+  `src/SimHostSettings.h`, `docs/library-sync-on-ios.md`.
 - **`CROSSPOINT_SIM_LOG_POWER=1`**: [power] stations across sleep entry / wake
   source / reboot boundary / first update-refresh-present.
 - **`CROSSPOINT_SIM_LOG_TIMING=1`**: one `[timing]` line per present --
