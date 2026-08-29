@@ -495,6 +495,81 @@ int main() {
     CHECK(same(core.restartAtCurrentWord(), {stop(), start(0)}));
   }
 
+  // ---- The same page again is not a page turn (repeat, 2026-08-28). ----
+  //
+  // Owner: "check that tts turns the page as expected, not repeat or stall."
+  // The reader re-renders without moving: ActivityManager requests an update
+  // on every subactivity pop, and an appearance change forces one too. Each
+  // republishes the current page byte for byte. Treating that as new restarted
+  // speech at word one, so leaving chapter selection re-spoke the page.
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    ReadAloudPage p = multibytePage();
+    CHECK(same(core.pageArrived(p), {start(0)}));
+    // The identical page again: nothing at all, and speech carries on.
+    CHECK(same(core.pageArrived(p), {}));
+    CHECK(core.state() == ReadAloudCore::State::Speaking);
+    // Geometry may legitimately move under the same text -- a palette change
+    // re-dithers the same layout -- and that is still not a new page.
+    ReadAloudPage moved = p;
+    for (auto &r : moved.rects) r.y += 3;
+    CHECK(same(core.pageArrived(moved), {}));
+    CHECK(core.state() == ReadAloudCore::State::Speaking);
+    // Different text IS a new page and still restarts.
+    ReadAloudPage next = multibytePage();
+    next.utf8 = "Something else entirely.";
+    next.generation = p.generation + 1;
+    CHECK(same(core.pageArrived(next), {stop(), start(0)}));
+  }
+
+  // ---- A textless page is walked past, not fatal (stall, 2026-08-28). ----
+  //
+  // A book opens on a cover wrapper that captures no words. This used to
+  // collapse "nothing to read" into "the reader exited": state Off, no start,
+  // no turn -- so with read-aloud on, opening a book meant speech never
+  // started until a page was turned by hand. Owner ruled: skip it silently.
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    ReadAloudPage cover = multibytePage();
+    cover.utf8.clear();
+    cover.rects.clear();
+    CHECK(same(core.pageArrived(cover), {turn()}));
+    CHECK(core.state() == ReadAloudCore::State::AwaitingNextPage);
+    // The page that follows speaks normally.
+    CHECK(same(core.pageArrived(multibytePage()), {start(0)}));
+  }
+
+  // A run of plates is bounded, or read-aloud turns pages for ever.
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    ReadAloudPage blank = multibytePage();
+    blank.utf8.clear();
+    blank.rects.clear();
+    int turns = 0;
+    for (int i = 0; i < 40; i++) {
+      const auto out = core.pageArrived(blank);
+      if (!out.empty()) turns++;
+    }
+    CHECK(turns > 0);
+    CHECK(turns < 40);
+    CHECK(core.state() == ReadAloudCore::State::Off);
+  }
+
+  // `cleared` still means the reader LEFT, and must not be confused with a
+  // textless page now that the two behave differently.
+  {
+    ReadAloudCore core;
+    core.setEnabled(true);
+    core.pageArrived(multibytePage());
+    const auto out = core.pageArrived(clearedPage());
+    for (const auto &a : out)
+      CHECK(a.type != ReadAloudCore::Action::TurnPageForward);
+    CHECK(core.state() == ReadAloudCore::State::Off);
+  }
+
   if (failures) {
     std::printf("%d failure(s)\n", failures);
     return 1;

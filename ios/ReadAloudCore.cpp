@@ -39,16 +39,73 @@ ReadAloudCore::pageArrived(const ReadAloudPage &page) {
   std::vector<Action> out;
   if (!enabled_)
     return out;
+
+  // THE SAME PAGE AGAIN IS NOT A PAGE TURN.
+  //
+  // The reader re-renders on things that do not move the position:
+  // ActivityManager requests an update on EVERY subactivity pop ("ensure the
+  // popped activity gets re-rendered"), and an appearance change reaches
+  // crosspointRequestRender() the same way. Each of those republishes the
+  // current page byte for byte. Without this branch pageArrived treated it as
+  // new -- stop, clear the highlight, start again at offset 0 -- so opening
+  // chapter selection and coming back re-spoke the page from its first word.
+  // Measured 2026-08-28 on a real book: publishes #3 and #4 byte-identical
+  // across one Confirm/Back round trip.
+  //
+  // Rects are REPLACED rather than kept: the text is what identifies the page,
+  // while the geometry can legitimately move under it (a palette change
+  // re-dithers the same layout). Speech and the highlight carry on untouched.
+  if (!page.cleared && !page.utf8.empty() && page.utf8 == pageText_ &&
+      (state_ == State::Speaking || state_ == State::Paused)) {
+    rects_ = page.rects;
+    return out;
+  }
+
   if (state_ == State::Speaking || state_ == State::Paused)
     out.push_back({Action::StopUtterance});
   appendClear(out, highlightActive_);
-  if (page.cleared || page.utf8.empty()) {
+
+  // "Nothing to read" and "the reader exited" are DIFFERENT, and collapsing
+  // them is what stalled hands-free reading. A book opens on a cover wrapper
+  // that captures no words, so with read-aloud on the first publish of every
+  // book was empty -- and this returned no start and no turn, leaving speech
+  // dead until a page was turned by hand. `cleared` means the reader left;
+  // that alone ends speech.
+  if (page.cleared) {
     rects_.clear();
     textBytes_ = 0;
     resumeOffset_ = 0;
+    pageText_.clear();
+    skippedTextless_ = 0;
     state_ = State::Off;
     return out;
   }
+
+  // A textless page is WALKED PAST, silently (owner 2026-08-28: "skip it
+  // silently"). The bound is what stops a run of full-page plates turning for
+  // ever; end of book cannot loop here, because that screen publishes nothing
+  // at all rather than publishing an empty page.
+  if (page.utf8.empty()) {
+    rects_.clear();
+    textBytes_ = 0;
+    resumeOffset_ = 0;
+    pageText_.clear();
+    if (skippedTextless_ < kMaxConsecutiveSkips) {
+      skippedTextless_++;
+      out.push_back({Action::TurnPageForward});
+      state_ = State::AwaitingNextPage;
+      return out;
+    }
+    // The bound LATCHES: it is cleared only when a page with words arrives,
+    // never here. Resetting it at the limit made the counter oscillate --
+    // twelve turns, one stop, twelve more -- which is the runaway it exists to
+    // prevent, wearing a bound's clothes. Caught by the 40-blank-page test.
+    state_ = State::Off;
+    return out;
+  }
+
+  skippedTextless_ = 0;
+  pageText_ = page.utf8;
   rects_ = page.rects;
   textBytes_ = static_cast<uint32_t>(page.utf8.size());
   scanCursor_ = 0;

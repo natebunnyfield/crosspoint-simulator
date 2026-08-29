@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "../src/ReadAloudChannel.h"
@@ -116,4 +117,15 @@ private:
   // highlight and the resume point has to outlive it — that is what lets a
   // magic tap after a tap-to-stop carry on from the same word.
   uint32_t resumeOffset_ = 0;
+  // The page currently held, kept so an IDENTICAL republish can be recognised
+  // and ignored. The reader re-renders on things that do not move the
+  // position -- ActivityManager requests an update on every subactivity pop,
+  // and an appearance change forces one too -- and without this the same page
+  // arrived twice and speech restarted from its first word.
+  std::string pageText_;
+  // Consecutive textless pages skipped. A page with no words is walked past
+  // rather than spoken (owner 2026-08-28), and a run of plates would
+  // otherwise turn forever; this bounds it.
+  int skippedTextless_ = 0;
+  static constexpr int kMaxConsecutiveSkips = 12;
 };
