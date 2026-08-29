@@ -65,24 +65,33 @@ inline float invisibleAtOrBelow(const uint8_t modCeiling[3],
 // used, so the bound tracks the same schedule the texture does however the
 // present cadence wanders.
 //
-// THE +0.5 IS THE WHOLE REASON THIS IS A FUNCTION AND NOT A MULTIPLY. The fade
-// is dst *= (255-drop)/255 evaluated in the renderer's own arithmetic. SDL's
-// software blitter truncates, so the real value falls FASTER than a float model
-// -- which is why the desktop canary measures the trail dead at 0.77 trails.
-// A GPU rasteriser rounds to nearest instead, and that error compounds: the
-// recurrence e <- e*k + 0.5 settles at 0.5*255/drop, about 16 of 255 at the
-// shipped cadence. A model without the term would call the trail dead while a
-// Metal backend still held a visible ghost, and the desktop is exactly the
-// platform on which that bug could not be reproduced.
+// THE +roundBias IS THE WHOLE REASON THIS IS A FUNCTION AND NOT A MULTIPLY.
+// The fade is dst *= (255-drop)/255 evaluated in the renderer's OWN
+// arithmetic, and that arithmetic either truncates or rounds to nearest --
+// which one used to be assumed rather than measured (SDL's software
+// blitter truncates, a GPU rasteriser rounds), so this took a `roundBias`
+// parameter on 2026-08-29 once HalDisplay.cpp started measuring it directly
+// with a one-shot 1x1 readback (see the renderer-name log site in
+// HalDisplay.cpp, beside "[trail] fade rounding measured"). Pass 0.0f for a
+// truncating backend and 0.5f for a rounding one; the default keeps every
+// caller that predates the measurement -- including this header's own test,
+// pinned to the old unconditional assumption -- unchanged.
 //
-// Clamped non-increasing: for a small `drop` the +0.5 exceeds the decay and the
-// naive expression would GROW. A bound that never rises is still a valid upper
-// bound on a quantity that never rises, and a bound that rises is a trail that
-// never ends.
-inline float fadePeakBound(float peak, int drop) {
+// At 0.5f: the recurrence e <- e*k + 0.5 settles at 0.5*255/drop, about 16 of
+// 255 at the shipped cadence. A model that assumed 0.0f there would call the
+// trail dead while a rounding backend still held a visible ghost. At 0.0f: no
+// bias is added at all, and the bound tracks a truncating backend exactly
+// instead of overstating how long its trail can still move a pixel.
+//
+// Clamped non-increasing: for a small `drop` a nonzero roundBias can exceed
+// the decay and the naive expression would GROW. A bound that never rises is
+// still a valid upper bound on a quantity that never rises, and a bound that
+// rises is a trail that never ends.
+inline float fadePeakBound(float peak, int drop, float roundBias = 0.5f) {
   if (drop <= 0) return peak;
   if (drop >= 255) return 0.0f;
-  const float next = peak * static_cast<float>(255 - drop) / 255.0f + 0.5f;
+  const float next =
+      peak * static_cast<float>(255 - drop) / 255.0f + roundBias;
   return next < peak ? next : peak;
 }
 
