@@ -978,7 +978,23 @@ void layoutPad(int outW, int outH) {
     const float paperTopPx = topBandPx;
     const float panelHPx =
         static_cast<float>(SimulatorOverlay::panelHeightPx());
-    if (panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
+    // GATED ON ZEN, added 2026-08-30. The condition here used to be purely
+    // geometric, and the shift it computes is consumed only in zen
+    // (`g_zenShiftThisPass = g_zen ? ... : 0.0f`, below) -- so with zen OFF
+    // this block ran, produced a `want` it then threw away, and on the way
+    // there set `g_padLaidOut = false` and called requestPresent().
+    //
+    // The inputs are the FIRMWARE'S PUBLISHED INK INSETS, which change on
+    // every page turn because every page's text block ends somewhere
+    // different. So each page turn outside zen forced a full relayout and an
+    // extra present for a value that could not be used: the panel re-fit for
+    // one frame and settled back. Owner, 2026-08-30: "there is still a flash
+    // on page change ... it's an odd quick resizing to the paper" -- with zen
+    // disabled, which is what made the zen-only pre-warm (pollReaderInsets,
+    // itself `if (!g_zen) return;`) unable to cover it.
+    //
+    // In zen nothing changes: same condition, same arithmetic, same shift.
+    if (g_zen && panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {
       const float slack = g_zenRowTopPx - paperTopPx - panelHPx;
       const float visTotal = slack + inkTopPx + inkBottomPx;
       const float aboveVis = visTotal / (1.0f + mult);
