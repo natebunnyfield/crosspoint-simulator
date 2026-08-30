@@ -2159,6 +2159,34 @@ float cornerRadiusDivisorFor(bool isPad) {
   return divisor;
 }
 
+// THE TABLET'S CORNER RADIUS: four cells of the 8 pt grid (owner, 2026-08-30,
+// "64 wins", picked by eye off a rendered sweep of every radius between 50 and
+// 100 px that is commensurate with the paper's own geometry).
+//
+// EXPRESSED IN GRID CELLS, NOT AS A DIVISOR OF THE MODULE, and that is the
+// substantive part. 64 px is what unit/6.09375 happens to produce on an iPad
+// Pro 13, where the module measures 390 px -- an arithmetic accident of one
+// device's layout. The property the owner actually chose is visible in the
+// sweep table: 64 is FOUR CELLS of the 16 px (8 pt) grid the pad aligns to.
+// Cells survive a different module; a fractional divisor does not.
+//
+// The 2026-08-29 "1/16 of unit" ruling is superseded for the tablet, not
+// contradicted: it asked for a smaller corner than the old half-module and
+// this is smaller still on the reference device (64 px against 195). The
+// divisor path stays live for the phone and for the QA hatch.
+//
+// Returns < 0 when this platform has no cell answer, so the caller keeps the
+// module/divisor path rather than being handed a sentinel it must decode.
+constexpr float kPadCornerCells = 4.0f;
+float padCornerRadiusPx(bool isPad) {
+  if (!isPad) return -1.0f;
+  float unused = 0.0f;
+  // The QA hatch still wins on the tablet: a sweep asks for module/n, and a
+  // build that answered 64 px to every divisor could not sweep at all.
+  if (tabletRadiusDivisorOverride(&unused)) return -1.0f;
+  return kPadCornerCells * kPaperCornerPt * g_ptScale;
+}
+
 // `paperX`/`paperW`: where the paper's own left/right edges are, for the
 // corner cut only -- NOT the band fill, which always covers the full output
 // width (above the paper it is black regardless of any horizontal margin).
@@ -2209,13 +2237,18 @@ void paintTopBezel(SDL_Renderer *r, int outW, float paperX, float paperW) {
   static float s_radiusPx = -1.0f;
   static float s_radiusFrom = -1.0f;
   const float module = g_paperGapPx > 0.0f ? g_paperGapPx : 0.0f;
+  const float padPx = padCornerRadiusPx(s_isPad);
   if (s_radiusPx < 0.0f || module != s_radiusFrom) {
     s_radiusFrom = module;
-    // module <= 0: pre-first-layout, the 8 pt fallback. module > 0 but
-    // kRadiusDivisor <= 0: the QA hatch's explicit "squared off" request --
-    // radius 0, a real answer, not a missing one. Otherwise the ordinary
+    // padPx >= 0: the tablet's four-cell answer (see padCornerRadiusPx), which
+    // is not derived from the module at all. Below that, the module paths:
+    // module <= 0 is pre-first-layout, the 8 pt fallback; module > 0 with
+    // kRadiusDivisor <= 0 is the QA hatch's explicit "squared off" request --
+    // radius 0, a real answer, not a missing one; otherwise the ordinary
     // module/divisor curve.
-    if (module <= 0.0f) {
+    if (padPx >= 0.0f) {
+      s_radiusPx = padPx;
+    } else if (module <= 0.0f) {
       s_radiusPx = kPaperCornerPt * g_ptScale;
     } else if (kRadiusDivisor <= 0.0f) {
       s_radiusPx = 0.0f;
@@ -2328,7 +2361,9 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
   // captures for unit/16, unit/4 and unit/2 -- the /16 one agreeing only
   // because 384/16 is also 24.
   const bool hasModule = g_paperGapPx > 0.0f;
-  const float moduleRad = !hasModule            ? kPaperCornerPt * g_ptScale
+  const float padPx = padCornerRadiusPx(s_isPad);
+  const float moduleRad = padPx >= 0.0f          ? padPx
+                          : !hasModule           ? kPaperCornerPt * g_ptScale
                           : kRadiusDivisor <= 0.0f ? 0.0f
                                                    : g_paperGapPx / kRadiusDivisor;
   const float rad = SDL_min(moduleRad, panel.w / 2.0f);
