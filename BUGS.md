@@ -38,6 +38,54 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-020] The paper resizes for a frame on a page turn, with zen OFF
+**severity: medium · scope: ios layout · reported 2026-08-30, fix landed UNPROVEN against the symptom**
+
+Owner, from the phone: *"there is still a flash on page change after disabling
+[zen] mode"*, clarified as *"it's an odd quick resizing to the paper"* — a
+GEOMETRY flicker, not the luminance flash of [S-016].
+
+**What was found by reading, and is certain.** In `layoutPad`, the block that
+computes the zen page shift was gated on geometry alone:
+
+```cpp
+if (panelHPx > 0 && g_zenRowTopPx > paperTopPx + panelHPx) {   // no g_zen
+```
+
+Its inputs are the firmware's published ink insets, which move on **every page
+turn** — each page's text block ends somewhere different. When the computed
+`want` moves more than 0.5 px it sets `g_padLaidOut = false` and calls
+`SimulatorOverlay::requestPresent()`, forcing a full relayout and an extra
+present. Sixty lines later the result is thrown away outside zen:
+
+```cpp
+g_zenShiftThisPass = g_zen ? g_zenPanelShiftPx : 0.0f;
+```
+
+So with zen off, every page turn paid for a relayout whose only product was
+discarded — and a relayout re-derives the pad band, which is the term the panel
+fit depends on. That is a mechanism for exactly the reported symptom, and it is
+dead work regardless.
+
+**Fixed** by adding `g_zen &&` to that condition (2026-08-30). In zen nothing
+changes: same condition, same arithmetic, same shift. The zen-only pre-warm
+that exists to stop unconverged frames reaching the glass — `pollReaderInsets`,
+itself `if (!g_zen) return;` — could never have covered the non-zen path, which
+is why the 2026-08-29 flicker fix did not reach this.
+
+**NOT PROVEN AGAINST THE OWNER'S SYMPTOM, and that is the honest status.** The
+attempted before/after on an iPad Pro 13 simulator did not produce a control:
+the pre-fix run landed in chapter selection rather than the reader, and the
+`[zen]` layout logs are suppressed once a layout settles, so "0 shift lines"
+after the fix is consistent with the fix working AND with the log never firing.
+What is proven: 70/70 sim tests, and the code path above, read end to end.
+
+**Close by** confirming on the phone. If the resize survives this, the cause is
+NOT this block and the search should move to the panel fit itself
+(`HalDisplay`'s scale selection) rather than to the pad layout — which is a
+useful elimination either way.
+
+
 ### [S-030] Booting while the phone is dark came up light — FIXED 2026-08-28, unconfirmed on device
 **severity: medium (visible every launch) · scope: iOS appearance · reported and fixed 2026-08-28**
 
@@ -331,8 +379,8 @@ way)."*
 
 **FIRST HYPOTHESIS CHECKED AND WRONG, 2026-08-27 — recorded so it is not
 re-derived.** The obvious guess is that the fade is an accumulator advanced once
-per frame, which a slow present would starve. It is not. `HalDisplay.cpp:3039`
-computes `age = SDL_GetTicks() - lastInteractionMs` and derives alpha from that
+per frame, which a slow present would starve. It is not. `HalDisplay.cpp:3120-3121`
+[was `:3039`, re-grepped 2026-08-29] computes `age = SDL_GetTicks() - lastInteractionMs` and derives alpha from that
 age, so the fade is ALREADY a pure function of wall time, evaluated at present.
 A late present therefore lands on the correct alpha for the wall clock, not a
 stale one, and the fix "make it wall-clock" has nothing to do.
@@ -448,11 +496,13 @@ render loops were behind the original report. **Loop 1 (the page fade re-arm)
 is FIXED** (2026-08-25): `presentIfNeeded` now schedules the next present at
 the wall-clock instant the quantized fade alpha actually changes
 (`pagefade::nextStepAgeMs`, `src/PageFade.h:148`, consumed via
-`pageFadeStepDueMs` in `src/HalDisplay.cpp:108,2652-2654,3059-3078`), instead of
+`pageFadeStepDueMs` in `src/HalDisplay.cpp:108,2733-2735,3154-3159`
+[re-grepped 2026-08-29 — this citation had drifted to 108,2652-2654,3059-3078,
+which is now unrelated composited-field code], instead of
 re-arming `pendingPresent` on every present regardless of whether the visible
 alpha moved. **Loop 2 (the phosphor-trail live window) is OPEN.**
-`accumLive`'s window is a flat `trailMs * 2.4f` (`src/HalDisplay.cpp:3505`),
-unchanged since the filing, and it is what a dark page turn's ~84 presents /
+`accumLive`'s window is a flat `trailMs * 2.4f` (`src/HalDisplay.cpp:3587`
+[was `:3505`, re-grepped 2026-08-29]), unchanged since the filing, and it is what a dark page turn's ~84 presents /
 2.63 s actually cost. Closing it needs an owner ruling between the two levers
 below — cap the present loop's frame rate (fewer intermediate frames, same
 trail duration and end state), or shrink the live window to the measured
@@ -478,7 +528,7 @@ dark reader presents **once in 30 seconds** and sits at **0.1% of a core**.
 blocks for 50 ms at a time, so `simulator_main.cpp`'s `SDL_Delay(1)` never sets
 the pace when nothing is happening, and its "~1 kHz" comment describes a rate
 the loop only reaches when the firmware asks to spin. The simulator's
-`lightSleep()` (`src/HalPowerManager.h:41`) is unconditional -- always
+`lightSleep()` (`src/HalPowerManager.h:42`) is unconditional -- always
 `delay(50)`, always true -- so it never takes the firmware's WiFi/USB decline
 branches and the idle cadence is IDENTICAL on desktop and iOS. Also ruled out:
 `EpubReaderActivity::skipLoopDelay()` was not spinning in any of these runs
@@ -529,7 +579,7 @@ are NOT explained by it.
 A dark page turn costs **84 presents spread over 2.63 seconds**. Present #2
 builds the scanline field (39 ms); #3 through #84 are all cache hits whose cost
 is the composite itself, 4-12 ms each on this renderer. The window is
-`accumLive`'s `trailMs * 2.4` (`src/HalDisplay.cpp:3505`) -- 2628 ms at the
+`accumLive`'s `trailMs * 2.4` (`src/HalDisplay.cpp:3587`) -- 2628 ms at the
 shipped 1095 ms trail -- and
 during the first second the firmware polls at 100 Hz, so the app composites the
 whole surface about 62 times before dropping to the 20 Hz light-sleep cadence.
@@ -792,7 +842,10 @@ sourcing for light and dark to be more accurate on load, switch etc."*
 **What broke.** The 2026-08-22 doctrine split gave each appearance its own
 editor — light is paper and ink (`ios/CrossPointLightInkPicker.mm`), dark is the
 CRT (`ios/CrossPointPaletteMixer.mm`), and the page-color chip branches on the
-live appearance (`ios/CrossPointIOSShim.cpp:2555`). They share ONE store: a
+live appearance — historical citation only, `ios/CrossPointIOSShim.cpp:2555`
+no longer shows this: the page-color chip itself was removed from the pad on
+2026-08-24 (the day after this entry was fixed), so there is no current line to
+re-point this at. They share ONE store: a
 preset integer plus four hex fields, two per appearance. The mixer was left
 `untouched` by that split — `docs/light-ink-picker.md` says so in as many words —
 and went on writing **all four** fields from the blend
@@ -801,7 +854,8 @@ move in dark mode replaced whatever ink had been chosen in light.
 
 Second half, same shared-slot cause: pointing the preset at Custom for the light
 page cost the DARK page its phosphor. The ink picker already froze the dark
-TONES, but `pollPanelGlow` (`CrossPointIOSShim.cpp:1483`) read the preset
+TONES, but `pollPanelGlow` (`CrossPointIOSShim.cpp:1644` [was `:1483`,
+re-grepped 2026-08-29]) read the preset
 integer raw, and Custom names no phosphor — so a light-mode ink pick turned
 White CRT's 283 ms emissive trail into 0 ms reflective, and kept it that way
 across relaunches.
@@ -954,7 +1008,9 @@ const int pairs[3][2] = {{kPadBack, kPadConfirm}, {kPadLeft, kPadRight}};
 ```
 
 — dimension **three**, two initialisers. The trailing row zero-initialises to
-`{0, 0}`, and `kPadBack` is 0 (`CrossPointIOSShim.cpp:121`). So the loop ran a
+`{0, 0}`, and `kPadBack` is 0 (`CrossPointIOSShim.cpp:173` [was `:121`,
+re-grepped 2026-08-29 — this file is under heavy concurrent edit, expect this
+citation to drift again]). So the loop ran a
 third time with `a == b ==` the Back cell, painting an entire extra capsule over
 the left rocker's Back half and a divider tick at *that half's* own edge. The
 result reads exactly as reported: the seam on the left rocker is at the quarter
@@ -1170,7 +1226,9 @@ and for the same reason: turning device-truth on is a thing a test asks for.
 different stub and a different bug — filed as **S-014**.
 
 **Closing note, 2026-08-29:** re-confirmed clean — `src/SimulatorDeviceTruth.h`
-exists and `tests/device_truth_test.cpp` is wired into `tests/run_all.sh:479`.
+exists and `tests/device_truth_test.cpp` is wired into `tests/run_all.sh:532`
+(was `:479` — the file has grown since this note was written earlier
+2026-08-29; re-grepped).
 No further action.
 
 ---
@@ -1354,9 +1412,10 @@ The five remaining reversals in this entry are untouched.
 
 
 `rebootAsPowerWake()` promotes the `*_AFTER_WAKE` schedules
-(`src/SimulatorLifecycle.cpp:79`), but the consumers read the environment once
-per *process* — `syntheticEventsInitialized` (`src/HalGPIO.cpp:186`) and
-`screenshotEventsInitialized` (`src/HalDisplay.cpp:123`). Desktop re-execs, so
+(`src/SimulatorLifecycle.cpp:93`), but the consumers read the environment once
+per *process* — `syntheticEventsInitialized` (`src/HalGPIO.cpp:280,598-600`) and
+`screenshotEventsInitialized` (`src/HalDisplay.cpp:428,460-462`) [all three
+re-grepped 2026-08-29; were `:79`, `:186`, `:123`]. Desktop re-execs, so
 it works there; iOS longjmps into the same process, so the promotion is dead
 code on the only platform that uses that path. `CLAUDE.md` states the promotion
 unconditionally.
@@ -1422,7 +1481,9 @@ the release cannot free somebody else's lock.
 **Closing note, 2026-08-29:** re-confirmed clean — `src/SimulatorRebootResets.h`
 plus `simsemphr::forceReleaseAllForReboot()` are called at three sites in
 `src/SimulatorLifecycle.cpp:115,185,220`; `tests/reboot_resets_test.cpp` and
-`tests/semphr_reboot_test.cpp` are wired into `tests/run_all.sh:302,305`. No
+`tests/semphr_reboot_test.cpp` are wired into `tests/run_all.sh:335,338` (was
+`:302,305`, re-grepped 2026-08-29 — the file has grown since this note was
+written). No
 further action.
 
 ### [S-003] Route handlers run on the accept worker, not the firmware task — FIXED 2026-08-08
