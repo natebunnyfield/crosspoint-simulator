@@ -352,6 +352,42 @@ int main(int argc, char **argv) {
              frozenReturn(prefs, "CrossPointPrefs_cornerDefocusPercent"),
              "CrossPointPrefs.mm");
 
+  // ------------------------------------------------- the render scale ---
+  // NOT a dial -- it has no row in simdials -- but it is frozen in exactly the
+  // same way and by the same ruling (2026-08-23, "drop 3x support for now"),
+  // and on 2026-08-29 it was the one frozen constant with no test on it.
+  //
+  // An agent building a 3x iPad comparison hardcoded this getter to 3 and left
+  // a comment saying it MUST be put back. The comment was correct and would
+  // not have stopped anything. The two guards that DO watch render scale both
+  // watch the COMPILE-TIME macro -- ios/testflight.sh greps the generated
+  // project for CROSSPOINT_RENDER_SCALE=2, and build_identity_test checks the
+  // compiled core reports 2 -- and the CMake ceiling was still 2, so both
+  // would have passed while the shipped app rendered every page at 3x.
+  //
+  // This is the repo's own doctrine applied to the gap that let it through:
+  // prefer a gate over a paragraph for anything that can go silent. Raising
+  // the tier for real means changing this number AND the ceiling in
+  // ios/CMakeLists.txt AND this test, which is the point -- see
+  // docs/ios-render-scale.md for the checklist.
+  {
+    const int scale = frozenReturn(prefs, "CrossPointPrefs_renderScale");
+    if (scale == kNotFound) {
+      std::printf("FAIL: renderScale -- could not find the app's value in "
+                  "CrossPointPrefs.mm (the scraper missed; the shape it looks "
+                  "for has changed)\n");
+      g_failures++;
+    } else if (scale != 2) {
+      std::printf("FAIL: renderScale -- CrossPointPrefs_renderScale() returns "
+                  "%d, not the frozen 2. If this is a deliberate tier change, "
+                  "move the ceiling in ios/CMakeLists.txt with it and update "
+                  "this test. If it is a leftover from a comparison build, put "
+                  "it back.\n",
+                  scale);
+      g_failures++;
+    }
+  }
+
   // THE ONE DIAL THAT IS STILL A SETTINGS ROW. Its shipped value is the
   // registered default, which is what an install that never touches the switch
   // renders -- and that is what as-shipped must reproduce.
