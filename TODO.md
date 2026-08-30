@@ -451,6 +451,30 @@ scaling multiplier stated, since the real figures are one to two frames long.
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
 **scope: iOS layout · asked 2026-08-08 · WAITING ON AN iPAD SCREENSHOT**
 
+**Status 2026-08-29: the iPad now has a paper card, and the status bar is
+gone.** Owner ask: "improving ipad pro layout, including needing an area
+above paper (currently goes to screen edge). remove clock, wifi and all
+system status. use the same 1 circle up top, 2-9 circles below for vertical
+spacing" (clarified: "1 circle unit up top and a multiple of how many are
+needed below, 2 is best"). Full account, arithmetic, measured before/after
+screenshots and five open questions the owner has not yet ruled on:
+[docs/ipad-layout-2026-08-29.md](docs/ipad-layout-2026-08-29.md).
+
+Three pieces landed: `layoutPadTablet` (`ios/CrossPointIOSShim.cpp`) now
+publishes `g_cardTopPx`/`g_topBezelPx`/`g_paperGapPx`, reusing the phone's
+existing "circle" construction and `paintTopBezel`'s existing paint code
+verbatim, rather than inventing new geometry; `CrossPointAppearance_hideStatusBarOnIPad()`
+(`ios/CrossPointAppearance.{h,mm}`) hides the status bar on iPad only, since
+the app-wide Info.plist declaration that already hides it on iPhone
+measurably does not on iPad; and a floor (`kPadEdgeMin`) was needed because
+hiding the status bar collapses the safe area the card top was reading,
+which would otherwise have quietly erased the card the first fix added.
+iPhone confirmed byte-position-unmoved (same top-band and bottom-content
+pixel rows, before vs. after). A real, unrequested side effect: the tablet's
+`AbovePaper` gesture zone (`ios/GestureBindings.h`) is reachable for the
+first time, so a five-second hold near an iPad's top edge now toggles zen —
+flagged to the owner, not decided.
+
 **Status 2026-08-19: no longer blocked on mockup approval.** Everything this
 entry's main complaint asked for has since been built, by rulings made after it
 was written:
@@ -487,10 +511,14 @@ than it looked:
 
 **The mechanism is now known, which was the open question.** The system keyboard
 is not raised by focus or by typing: it is toggled by tapping the **keyboard
-chip** — `hitKeyboardChip()` at `CrossPointIOSShim.cpp:1724`, reached from the
-finger-up handler at `:1845`, which flips `setHostKeyboardVisible`. The chip is a
+chip** — `hitKeyboardChip()` at `CrossPointIOSShim.cpp:2629`, reached from the
+finger-up handler at `:2888`, which flips `setHostKeyboardVisible`. The chip is a
 48 pt square, dead-centre horizontally, in the pad's bottom row
-(`g_kbChip`, `:629`), and it only exists while `gpio.isTextEntryActive()`.
+(`g_kbChip`, `:608,825` for its two orientation-specific placements), and it
+only exists while `gpio.isTextEntryActive()`. [Citations re-grepped 2026-08-29
+— were `:1724`, `:1845`, `:629`; this file is under heavy concurrent edit and
+had grown by roughly 900 lines since this note was written, so expect drift
+again.]
 
 So a scripted capture needs a `TAP` landing inside that 48 pt square, and
 guessing normalised coordinates did not hit it in four tries. The next attempt
@@ -800,8 +828,9 @@ repro is ever made to work.
 **scope: ios display · reported 2026-08-15 · cause found and ruled 2026-08-15 · MERGED and shipped in build-80**
 
 **Status, checked 2026-08-16:** the `ios-aa` mitigation is on `main` —
-`panelScaleModeFor()` is [src/HalDisplay.cpp:154](src/HalDisplay.cpp:154), called
-at `:978`, and the `[panel]` log line at `:1059` prints which filter is live. It
+`panelScaleModeFor()` is [src/HalDisplay.cpp:396](src/HalDisplay.cpp:396), called
+at `:3010`, and the `[panel]` log line at `:3099` prints which filter is live
+(re-grepped 2026-08-29 — were `:154`, `:978`, `:1059`). It
 was already in `build-80`, so build 81 is not what carries it. What is still
 owed is one look at an actual iPhone Air: the beat amplitude figures below are
 measured, but measured off the framebuffer, not off the handset. Confirm the dot
@@ -840,7 +869,8 @@ it is worse than "not integer" -- **2x and 3x are on opposite sides of 1.0**:
 | 3x | 1584 x 2376 | 1260/1584 = **0.795**, quantised to 315/396 | 3x3 nominal, lands on 2 **or** 3 px |
 
 Both numbers come from `presentIfNeeded`'s manual-placement branch
-(`src/HalDisplay.cpp:788-860`), which is the branch the phone always takes
+(`src/HalDisplay.cpp:2930` onward [was `:788-860`, re-grepped 2026-08-29 — the
+file has grown substantially since this note was written]), which is the branch the phone always takes
 because the pad reserves a bottom band. `scale >= 1` floors to a whole number,
 so 2x presents the panel **1:1 with no resampling at all** and the dither is
 untouched. Below 1 there is no integer to floor to; it quantises to

@@ -106,9 +106,11 @@ it, and the collapse squeezes that. With the dial off, or on a pale page, the
 sleep screen flushes exactly as it always did. `[power] sleep screen dropped` vs
 `[power] sleep screen flushed` says which happened.
 
-**2. A kept copy of that page** (`sleepSourcePixels` in `HalDisplay.cpp`), which
-the collapse re-uploads on the frame it starts. This is what makes (1) immune to
-timing. The sleep screen's own present is held for `kPresentHoldMs` and is
+**2. A kept copy of that page** (`sleepSourcePixels`, moved from `HalDisplay.cpp`
+to `src/SurfacePower.cpp:94` on 2026-08-25 with the rest of the collapse's
+drawing code), which the collapse re-uploads on the frame it starts. This is
+what makes (1) immune to timing. The sleep screen's own present is held for
+`kPresentHoldMs` and is
 normally *still held* when `deepSleep()` runs — measured 2026-08-24, 30 ms of
 hold with about 5 ms of it spent — but nothing guarantees the firmware reaches
 `deepSleep()` inside that window, and one slow sleep entry would arm the veto a
@@ -369,9 +371,11 @@ the untouched sleep screen **exactly**, and the last is exactly black.
 - a disabled animation that is not bit-exact identity changes what sleep looks
   like for every install that never turned it on.
 
-Two more live in `HalDisplay.cpp` rather than in the model, because they are
-about the SOURCE and the model has no opinion about where its picture comes from
-— both are silent, and both are checked by capture rather than by a unit test:
+Two more live outside the model, because they are about the SOURCE and the
+model has no opinion about where its picture comes from — both are silent, and
+both are checked by capture rather than by a unit test. (The veto is still in
+`HalDisplay.cpp:2698`; the kept copy it protects moved to `src/SurfacePower.cpp`
+on 2026-08-25, per the correction above.)
 
 - a veto that fires when the collapse will not run takes the sleep screen away
   from an install that wants it, and nothing in the app says so (the light-mode

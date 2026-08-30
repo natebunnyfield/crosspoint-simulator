@@ -483,7 +483,11 @@ phone applies to the panel. Specifically, on device:
 
 ---
 
-## 8. The ground lift, measured across all 52 presets — 2026-08-26
+## 11. The ground lift, measured across all 52 presets — 2026-08-26
+
+(Renumbered from a duplicate "## 8" heading during the 2026-08-29 doc audit —
+content unchanged; the original §8, "The bands the desktop never had," is the
+one §5 above still means by "see §8".)
 
 The whole-glass work above surfaced this and deliberately did not fix it. It was
 characterised end to end on 2026-08-26 and **SHIPPED on 2026-08-27** on the

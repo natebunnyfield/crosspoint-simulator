@@ -1,5 +1,22 @@
 # The CRT page-color presets, and where their colors came from
 
+**RETIRED 2026-08-17 — read before citing §7 or the Sepia CRT rows below as
+current.** Owner ruling *"remove sepia phosphor"*: `kPresetSepiaCrt = 14` in
+`src/PanelPalette.h:124` is now commented `// retired; do not reuse this
+number` — it is absent from `isKnownPreset()` (`src/PanelPalette.h:230-267`,
+confirmed by `tests/panel_palette_test.cpp:469` asserting
+`!isKnownPreset(kPresetSepiaCrt)`) and from the `resolve()` switch, and
+`migratePreset()` does NOT redirect it to a replacement — unlike Cool Gray (4)
+and Soft (13), which migrate forward to Reading Cool/Warm, a stored 14 now
+falls through to Default like any unrecognized integer
+(`tests/panel_palette_test.cpp:507`). The number 14 is never reused. **This is
+a deletion, not a migration** — §7's whole derivation, its ΔE2000 collision
+table and the "Open" items about it (§8.5, §8.6) below are kept for the
+research (the sepia-is-not-a-phosphor argument and the brown-perception
+argument are still correct and may matter again), but none of it describes a
+row that resolves to anything today. The six-row group this file was written
+about is five rows now: Green, Amber, Gray, Blue, Red.
+
 Written 2026-08-16, when **Red CRT (11)** and **Gray CRT (12)** were appended to
 `src/PanelPalette.h`. It records the phosphor research behind all four CRT rows,
 the arithmetic that turned published chromaticities into the shipped bytes, and
@@ -36,7 +53,7 @@ uncropped at 480x800 — are at
 | Red CRT (11) | **P22R** | Y₂O₂S:Eu | 0.647, 0.343 | Phosphor Technology Ltd, grade QKL63 |
 | Gray CRT (12) | **P4** | ZnS:Ag + (Zn,Cd)S:Cu and variants | *none published* — JEDEC white region used instead, see §3 | US 4512912 |
 | Blue CRT (15) | **P11** | ZnS:Ag,Cl or ZnS:Zn | 0.147, 0.076 | Phosphor Technology Ltd, grade BE |
-| Sepia CRT (14) | **none — not a phosphor** | Ag₂S, a print-toning product | n/a | see §8 |
+| Sepia CRT (14) — **RETIRED 2026-08-17, see notice above** | **none — not a phosphor** | Ag₂S, a print-toning product | n/a | see §8 |
 
 Verified directly (not via a summary) on 2026-08-16:
 
@@ -305,6 +322,9 @@ shares the coolest corner with. Nothing else in the list is blue.
 
 ## 7. Sepia is not a phosphor, and the dark half cannot be brown
 
+**RETIRED 2026-08-17 — this whole section describes a row that no longer
+resolves; see the notice at the top of this file.** Kept for the research.
+
 Two separate honest problems, and the row is built around both.
 
 ### 7a. There is no sepia phosphor. There was never going to be.
@@ -430,13 +450,17 @@ Added with Sepia CRT and Blue CRT (2026-08-16):
    black** — the hardest wall in the list. Making it authentic needs the same
    second low-contrast exemption. Default answer taken here: no, keep the floor,
    ship the lifted periwinkle.
-5. **Sepia CRT's light half is 7.59:1**, the second-lowest non-exempt figure
+5. **RESOLVED 2026-08-17 — moot: the row was removed, not tuned.** Owner ruling
+   "remove sepia phosphor" (`src/PanelPalette.h:124`) answered this by deleting
+   Sepia CRT rather than picking a trade; kept below for the record.
+   **Sepia CRT's light half is 7.59:1**, the second-lowest non-exempt figure
    after Latte's 7.06. That is deliberate: at the family's ink luminance the
    sepia axis is ΔE2000 4.2 from Amber CRT and the row would be a duplicate, so
    contrast was spent on distinctness (§7). If the owner would rather have the
    contrast than the separation, the trade is `#54300C` at 8.8:1 — and a row
    that reads as a slightly browner Amber CRT.
-6. **Sepia CRT's page is peach-pink, not the yellow-brown "sepia" most people
+6. **RESOLVED 2026-08-17 — moot, same ruling as (5).**
+   **Sepia CRT's page is peach-pink, not the yellow-brown "sepia" most people
    picture** — because the yellow-brown is already Amber CRT's and Paper ·
    Sepia's, and Wikipedia's own first line calls sepia "a reddish-brown color"
    (§7). Its nearest neighbour by eye is Red CRT, not Amber. If the owner

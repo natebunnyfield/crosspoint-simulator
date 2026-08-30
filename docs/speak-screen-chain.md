@@ -137,7 +137,7 @@ Also verified healthy, each of which had been proposed as a suspect:
 
 | Checked | Result |
 |---|---|
-| `CrossPointAccessibility.mm` / `CrossPointPageTextInput.mm` compiled into the app | yes — `ios/CMakeLists.txt` :49/:53 and :78/:80, and the AX runtime serves the view |
+| `CrossPointAccessibility.mm` / `CrossPointPageTextInput.mm` compiled into the app | yes — `ios/CMakeLists.txt` :51/:54 and :81/:82 (corrected 2026-08-29 — was :49/:53 and :78/:80, drifted as the file grew), and the AX runtime serves the view |
 | The render-scale change 3 → 2 (`f549b4c`) | **not implicated.** The scale is derived from the *presented* panel width, so it is render-scale independent by construction. Pinned by `tests/readaloud_geometry_test.cpp` |
 | Zen placement / panel moved (`79b4fc8`, zen default on) | **not implicated.** Zen moves the panel, `panelBottomPx`/`panelLeftPx` follow, geometry tracks: `[zen] panel 1056x1584 at 102,396` → `geo=1(34,132 x0.667)` |
 | The preset-list push (`525c768`) and the removed drawer sliders (`a7d256d`) | **not implicated.** Neither is in the hierarchy unless presented |

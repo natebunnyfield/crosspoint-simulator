@@ -104,7 +104,9 @@ Home. Note the two levers point OPPOSITE ways — the counter above is written t
 
 ### 5. Captures are BMP, whatever you name them
 
-`SDL_SaveBMP` writes the file (`src/HalDisplay.cpp:266`), so `shot.png` is a
+`SDL_SaveBMP` writes the file (`saveRendererBmp` in `src/HalDisplay.cpp:535`,
+corrected 2026-08-29 from `:266`, which the file's growth since this was
+written moved off that line entirely), so `shot.png` is a
 BMP. Anything that sniffs by content will refuse it. Convert first:
 
 ```bash

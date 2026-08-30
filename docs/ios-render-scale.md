@@ -90,10 +90,45 @@ correction: the 3x builtin font headers are NOT dead in every configuration,
 because `CROSSPOINT_RENDER_SCALE=3` remains a supported desktop opt-in
 (`src/main.cpp:93`) and every display in the lower half of that table fits it.
 
-**Panel (1x) is back in the picker**, having been trimmed on 2026-08-21 when the
-choice was 1x/2x/3x. It costs no bundle at all — the 1x tier is structural,
-since the hi-res companions carry bitmaps only and take their metrics from the
-1x tables — and without it the row would offer exactly one value.
+## The tablet question came back, 2026-08-29 — and is being MEASURED this time
+
+Owner, on seeing the new iPad band work: *"isnt 3x possible on ipad pro?"* The
+table above already said yes for the 13" (1.16) and barely for the 11" (1.02).
+Asked whether to build the iPad grid at 2x, go to 3x, or produce both, he ruled:
+**"Build both, render them side by side."**
+
+So the section above is about to stop being arithmetic. Two arms of the SAME
+page, same book, same content, captured at native pixels on an iPad Pro 13:
+
+| Arm | Panel (portrait) | Left for the 1+2 band construction |
+|---|---|---|
+| 2x — the shipped ceiling | 1056 x 1584 | roomy; the unit is large |
+| 3x — ceiling raised for the build only | 1584 x 2376 | ~376 px of height, ~480 px of width; unit ~125 px / 62 pt |
+
+**This is a comparison build, not a ship.** The working tree must come back with
+`CROSSPOINT_IOS_RENDER_SCALE` at 2 and `CrossPointPrefs_renderScale()` returning
+2. What shipping it would actually take is the part worth having on the record
+before anyone is tempted: per-idiom runtime selection (the machinery exists --
+`cp::setRenderScale()` already clamps to the compiled ceiling), and the 3x font
+tier landing on iPhone installs too, because it is one bundle.
+
+Two numbers this arm will produce that nothing here has: whether the panel truly
+presents at or above 1.00 on the device rather than on paper, and whether the
+recorded 115-271 ms compose cost holds. Until those come back, every 3x figure
+in this file is arithmetic and should be read as such.
+
+**~~Panel (1x) is back in the picker~~ — SUPERSEDED, and it was stale for six
+days.** That was true when written (2026-08-21, restoring the row after the
+1x/2x/3x trim), and false from 2026-08-23, when the whole Sharpness row went
+with 3x because a one-value control was judged worse than none. Verified
+2026-08-29: `renderScale` does not appear in `ios/Settings.bundle/Root.plist`
+(37 rows), and `tests/panel_palette_test.cpp:453` asserts it ABSENT, so a
+re-add is a conscious act.
+
+The half of it that is still TRUE and is the reason 1x stays in the codebase:
+**the 1x tier is structural and costs no bundle at all** — the hi-res
+companions carry bitmaps only and take their metrics from the 1x tables. 1x
+cannot be deleted without deleting the metrics every other tier reads.
 
 ### Putting 3x back
 
@@ -218,3 +253,34 @@ longer see or change. 1 was already retired on 2026-08-21.
 Putting the CHOICE back therefore means restoring the row, the registration,
 and the getter's read — not only rebuilding the tier. The checklist above still
 covers the tier half.
+
+## STANDING RULING, owner 2026-08-29: 1x and 3x both STAY
+
+Asked, while a render-scale guard was being added, whether removing all 1x and
+3x code would help: **"keep 1x and 3x."** This reaffirms and widens the
+2026-08-24 ruling above, which covered the 3x assets only.
+
+The reasons are on the record so this is not re-proposed a third time:
+
+- **1x is not a legacy tier.** `CROSSPOINT_RENDER_SCALE` defaults to 1 in
+  `src/HalDisplay.h` to MIRROR THE DEVICE, and consumers opt in to
+  supersampling -- a plain `pio run -e simulator_x3` is device-exact. Deleting
+  1x would delete the mode in which the simulator shows what the e-ink hardware
+  actually draws, which is the reason this repo exists.
+- **3x is dormant, not dead.** The table above says it fits every display in its
+  lower half, and on 2026-08-29 an arm-B build rendered a real iPad Pro 13 page
+  at 3x (`panelH=2376px`) to compare against 2x. The choice is open.
+- **Neither tier caused the incident that prompted the question.** An agent
+  hardcoded `CrossPointPrefs_renderScale()` to 3 for that comparison build and
+  left a comment saying it must be reverted. The comment was accurate and
+  stopped nothing. Both existing guards watch the COMPILE-TIME macro --
+  `ios/testflight.sh` greps the generated project, `build_identity_test` checks
+  the compiled core -- and the CMake ceiling was still 2, so both would have
+  passed while the app rendered every page at 3x.
+
+**The actual fix, and where it lives:** `tests/dial_table_test.cpp` now reads
+`ios/CrossPointPrefs.mm` as text and fails when `CrossPointPrefs_renderScale()`
+returns anything but 2, in the same shape it already pins the frozen surface
+dials. Proven both ways on 2026-08-29 -- PASS on the good tree, FAIL against the
+exact `return 3;` state, with a message naming both the ceiling and the test
+that must move together for a real tier change.

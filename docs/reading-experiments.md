@@ -276,7 +276,13 @@ Two rules the report enforces that are decisions rather than plumbing:
 - **The comparison is weighted by minutes.** An unweighted mean of run rates
   lets a two-minute noisy run outvote a forty-minute steady one.
 
-The report always prints its answer at three idle caps (60/120/300 s). A
+The report prints its answer at three idle caps (60/120/300 s) whenever
+`--idle-cap` is left at its default of 120 — the sensitivity check only fires
+in that branch (`tools/reading_report.py::main`, `if args.idle_cap == 120:
+for cap in (60, 300): ...`), so a run given an explicit `--idle-cap` prints
+that one cap alone, with no sensitivity comparison. Corrected 2026-08-29 — an
+earlier version of this sentence said "always," which overstates it: the
+three-cap sweep is the default's behavior, not an unconditional one. A
 conclusion that survives only at one cap is a conclusion about the cap.
 
 ---
@@ -399,9 +405,24 @@ a constant rate.
 
 Phase 2 must ship behind an explicit setting that defaults **off**. That is a
 new Settings.app row, and the standing ruling of 2026-08-23 is that a new row
-has to earn itself against the nine that were removed that day. This one plausibly
-does — it changes what the reader sees and he must be able to stop it — but it
-is his call, not mine. **Not built.**
+has to earn itself against the nine that were removed that day.
+
+**ANSWERED, owner 2026-08-29: yes — add the row, default off.** Asked directly,
+against the alternatives of a desktop/env-only switch and shelving Phase 2
+entirely, he chose the row. It earns itself on the ground the question named:
+the feature changes what he sees mid-book, so it is unshippable without a way
+for him to stop it, and a desktop-only switch would run the experiment only
+where he does not read — which makes the data close to worthless.
+
+**Still to build.** The row is approved, not written. What it needs: one toggle
+(a new group, since none of the ten existing groups is about experiments),
+defaulting off and registered so an unwritten key reads as off; the gate wired
+to `src/ReadingArm.h`, which is written and host-tested and still called by
+nothing; and `tests/panel_palette_test.cpp`'s Root.plist assertions extended to
+cover it, the way every other row in that bundle is pinned.
+
+Decision 2 below is unaffected and still open — a COLOUR arm remains blocked on
+the frozen page.
 
 ### Decision 2 — the page palette is frozen, and that is an owner question
 
@@ -418,10 +439,28 @@ precisely so that the day the freeze lifts, every line already says which side
 of that change it was on — a field that starts being recorded on the day it
 starts varying is a field whose "before" is missing.
 
-The question for him, when he wants it asked: *the page colour is currently
-frozen at Sanguine/India and the CRT blend. A colour experiment needs that
-freeze lifted for the two arms under test. Do you want it lifted, and for which
-pair?*
+**ANSWERED, owner 2026-08-29: keep the freeze; run the other arms first.**
+Asked directly, against a narrow two-ink unfreeze and a full restoration of the
+pickers, he kept `src/FrozenPage.h` as it stands. The reasoning the question
+carried and he chose: the freeze was a considered decision and reversing a
+shipped one costs far more than asking; the other three arms answer real
+questions and need no unfreezing; and colour can return once there is data
+showing the method works at all.
+
+So **colour is OUT of Phase 2**, and the order stands as ranked below: font
+size, then line spacing, then family. This is a RULING, not a deferral -- it
+stops appearing in triage. The `ink` and `paper` fields keep being written to
+every `cfg` line anyway, for the reason this section already gives: a field
+that starts being recorded on the day it starts varying is a field whose
+"before" is missing.
+
+One thing the freeze protects that is worth naming, because it was measured the
+same day: a NAMED PRESET selected directly bypasses the light picker's
+density/strength clamps, and those clamps are what keep sheet drift inside the
+7:1 floor. `tests/composition_test.cpp` caught exactly that -- preset Latte at
+drift 100 rendered 6.937:1 -- and it is now clamped in
+`lightink::driftBoundForPair`. A colour arm that varied presets directly would
+have been walking straight into it.
 
 ### What Phase 2 should be pointed at first
 

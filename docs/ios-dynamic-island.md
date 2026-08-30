@@ -463,3 +463,55 @@ pixels of moving the pad's top row a whole 8 pt step**. The boundary today is
 a presented panel height of 566.27 pt (1698.8 device px). Check it before
 changing `kPaperMargin`, `kCardTop` or `kTopReserve`; a screenshot diff of the
 rows below the page is the only honest way to know.
+
+---
+
+## Dated correction, 2026-08-29: the 55 pt fallback radius no longer exists
+
+**Everything in §3 and §4 about the corner PROBE (`CrossPointAppearance_displayCornerRadius`,
+its "returns 0" result, the mechanism, the lack of a public API) is still
+current — verified against `ios/CrossPointAppearance.mm`, function unchanged in
+shape.** What has changed is what the app DOES with that result.
+
+The **`kCornerFallback` = 55 pt** constant this document cites in §3 ("This
+repo takes the fallback: **55 pt**, `kCornerFallback` in
+`ios/CrossPointIOSShim.cpp`") and relies on again in the "Open, not taken"
+note under §3 and throughout the 2026-08-18 updates below **no longer exists
+in the code.** `grep -rn "kCornerFallback" ios/*.cpp ios/*.h ios/*.mm` finds
+only a comment that still uses the name descriptively
+(`ios/CrossPointIOSShim.cpp:2007`) — there is no constant by that name any
+more.
+
+**What replaced it**, per owner rulings dated after this document's last
+2026-08-18 update:
+
+- **2026-08-20**, verbatim per the code comment: *"use the bottom corner
+  radius on the top of the paper too."* The top band's fillet radius stopped
+  being asked from UIKit's display-corner probe (~55 pt) and became
+  `kPaperCornerPt = 8.0f` (`ios/CrossPointIOSShim.cpp:2013`) scaled by
+  `g_ptScale`, or half of `g_paperGapPx` (the same paper-to-ink gap module the
+  bottom pair already used) when that module has been published. The comment
+  at `paintTopBezel` (`ios/CrossPointIOSShim.cpp:2023`) explains why: "a 165 px
+  curve at the top against a 24 px curve at the bottom does not read as a
+  sheet of paper, it reads as two different objects. Matching them is what
+  makes it a card."
+- **2026-08-23**, verbatim: *"make top corners of not zen mode match top
+  corner radius of zen mode."* The radius is no longer gated on zen at all —
+  it is read from the module (`g_paperGapPx`) every frame regardless of mode,
+  cached in `static float s_radiusPx` and only recomputed when the module
+  value changes (`ios/CrossPointIOSShim.cpp:2051-2062`).
+- **2026-08-29**: the same module additionally covers the tablet's own top
+  band via `layoutPadTablet`, per an in-code comment ("one identity, two
+  different circles depending on which path published `g_paperGapPx` last").
+
+The `CrossPointAppearance_displayCornerRadius()` probe itself is unretired —
+the comment at `ios/CrossPointIOSShim.cpp:2035` says it "stays available for
+anything that genuinely needs the glass radius; nothing does today." So §3's
+research into why no public API reports the display's true corner radius is
+still the accurate account of *that* investigation; it is only the
+*consequence* drawn from it in §4 ("This repo takes the fallback: 55 pt") that
+has been overtaken by two later rulings. The rest of §4's mechanism
+description (a band plus two fillets, `paintTopBezel()` called from
+`paintPad()`, pure black not a palette tone, the dark-mode correction) is
+unaffected — verified those function names and roles are all still current in
+`ios/CrossPointIOSShim.cpp`.

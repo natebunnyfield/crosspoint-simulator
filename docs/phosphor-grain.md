@@ -281,6 +281,27 @@ always did.
 
 ## The settings
 
+> **SUPERSEDED 2026-08-23.** Both rows below left `ios/Settings.bundle/Root.plist`
+> in the wider Settings.app purge that day (confirmed absent by grep — neither
+> `phosphorGrainPercent` nor `phosphorGrainCoverage` appears there any more).
+> `CrossPointPrefs_phosphorGrainPercent(dark)` now returns a frozen **60
+> (light) / 160 (dark)** (`ios/CrossPointPrefs.mm:428`) and
+> `CrossPointPrefs_phosphorGrainCoverage()` a frozen **Vignette+Mottled**
+> (`ios/CrossPointPrefs.mm:430`), neither consulting
+> NSUserDefaults — an install that stored a different value before the row
+> went away must not keep rendering it. And since letterpress (light) /
+> scanlines (dark) are also frozen ON (see
+> [docs/letterpress-and-scanlines.md](letterpress-and-scanlines.md)), the grain
+> pass this section describes is **never actually composited on the phone
+> today** — the comment at `ios/CrossPointPrefs.mm:422` says so explicitly, and
+> says why it is frozen honestly anyway: turning a doctrine dial off then falls
+> back to the grain the app last shipped rather than to whatever a
+> pre-2026-08-22 install happens to hold. The table and
+> everything below it remain accurate as a description of the **model and the
+> desktop dial**, which stayed live and is still what `CROSSPOINT_SIM_GRAIN` /
+> `CROSSPOINT_SIM_GRAIN_COVERAGE` drive; "iOS Settings.app only" in the next
+> line is the specific claim that is no longer true.
+
 Two rows, iOS Settings.app only — none of this reaches device firmware.
 
 | Row | Key | Stored | Default |

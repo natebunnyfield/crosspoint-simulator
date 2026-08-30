@@ -29,10 +29,20 @@ a screen, because no screen does it.
 ## Settings: FROZEN, and why
 
 There is no Settings.app row and there is no in-app slider. The dial is frozen
-at 100 (`CrossPointPrefs_showThroughPercent`), and the quantity that genuinely
+(`CrossPointPrefs_showThroughPercent`), and the quantity that genuinely
 varies — **how thin the sheet is** — is already a choice the owner makes, in the
 paper picker. A second control beside it would be two authorities over one
 number, and the 2026-08-23 settings purge is the standing ruling on decoration.
+
+**The frozen value is 50, HALVED from 100 on 2026-08-24** — owner: *"half the
+verso bleed visibility."* The original 100 was the reference sheet's own
+show-through, and with India's 3.0x stock factor that landed on
+`showthrough::kStrengthMax` (300) *exactly*: the shipped page was carrying the
+most show-through the model can express, on the thinnest paper in the list. 50
+puts India at 150 — half the visibility and half the sheet's darkening-budget
+share — with the STOCK still doing all the varying. Every "at 100" figure below
+is therefore the model's own ladder, not what the app ships; the shipped page is
+half of it. The reasoning is kept in full at `ios/CrossPointPrefs.mm:505`.
 
 So the number that reaches the SDL side is the frozen dial times the STOCK's own
 factor, composed at the pusher exactly as tooth and formation are

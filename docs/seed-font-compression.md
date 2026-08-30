@@ -5,6 +5,19 @@ measurement taken on that date against the shipped seven-family seed tree
 (`build/seedfonts`, 1x + 2x, 56 files, 117,654,860 bytes) and the build-129
 IPA, unless it says otherwise.*
 
+**Family count is stale, dated correction 2026-08-29.** The S tier grew from
+seven families to **eight** on 2026-08-24, when Almendra was promoted
+(`docs/trial-fonts.md`'s "The ruling (2026-08-24)"). `build/seedfonts` in this
+working tree now holds Almendra, Coelacanth, Edgar, InknutJunicode,
+LibreFranklin, LibrisADF, TeXGyreHeros, TeXGyreSchola — eight families,
+confirmed with `find build/seedfonts -maxdepth 1 -mindepth 1 -type d`. The
+byte totals in this document (117,654,860 raw, 34,837,381 CPZ1) are the
+2026-08-23 seven-family measurement and have **not** been recomputed for the
+eighth family — do not cite them as the current shipped size without
+re-measuring against today's tree. `docs/seed-font-integrity-gate.md`
+(written 2026-08-26, after the promotion) already reports "8 families" and is
+the doc to check for current-state family counts.
+
 ## The gap this closes
 
 `.cpfont` stores its 2-bit glyph bitmaps raw — `fontconvert_sdcard.py`'s own

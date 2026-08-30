@@ -24,7 +24,7 @@ shipped model is:
 
 | Layer | Light | Dark |
 |---|---|---|
-| Tone | 17 inks x 12 papers, two Beer–Lambert dials, 7:1 clamped ([light-ink-picker.md](light-ink-picker.md), sources in [ink-colorimetry-sources.md](ink-colorimetry-sources.md) and [ink-palette-research.md](ink-palette-research.md)) | 56 phosphor presets + a 3-gun mixer ([crt-phosphor-presets.md](crt-phosphor-presets.md), [phosphor-mixer.md](phosphor-mixer.md)) |
+| Tone | 17 inks x 13 papers (corrected 2026-08-29 from "12 papers" — `kPaperCount` in `src/LightInkPalette.h:186` counts 13, `kPaperBrightWhite`..`kPaperBrightenedWhite`; Brightened White was appended 2026-08-22, after the "12" figure was written), two Beer–Lambert dials, 7:1 clamped ([light-ink-picker.md](light-ink-picker.md), sources in [ink-colorimetry-sources.md](ink-colorimetry-sources.md) and [ink-palette-research.md](ink-palette-research.md)) | 42 phosphor presets (corrected 2026-08-29 from "56"; counted via `src/PanelPalette.h`'s `kPresetInfo[]` table, 52 named presets total minus the 10 non-CRT "Neutral"/"Paper" rows — see [crt-phosphor-presets.md](crt-phosphor-presets.md) §10) + a 4-gun mixer (corrected 2026-08-29 from "3-gun"; `kGunCount = 4` in `ios/CrossPointPaletteMixer.mm:106`) ([crt-phosphor-presets.md](crt-phosphor-presets.md), [phosphor-mixer.md](phosphor-mixer.md)) |
 | Structure | letterpress: squeeze ring, deboss shadow, plate pressure, in-stroke irregularity (`src/Letterpress.h`) | scanlines: box-integrated Gaussian raster, content-dependent bloom, mottle folded in (`src/Scanlines.h`) |
 | Sheet / glass | paper tooth (per-stock, output-wide) + formation clouding | phosphor grain (fallback when scanlines are off, `src/PhosphorGrain.h`) |
 | Marks | 6 paper defects, per-page deterministic seed (`src/PaperDefects.h`) | — |
@@ -202,7 +202,7 @@ invisible on any one page and obvious across a reading session.
 
 **Cost.** Trivial — nearly free. The per-page seed already exists and is already
 deterministic across relaunches (`src/PaperDefects.h`, and `readerPageIdentity`
-at `src/SimulatorOverlay.h:97`). Drift is: hash the seed to a small signed
+at `src/SimulatorOverlay.h:99`, corrected 2026-08-29 from `:97`). Drift is: hash the seed to a small signed
 offset, apply it to the resolved paper tone before `panelForPrefs` publishes it,
 and clamp so the 7:1 floor holds at the extreme. Perhaps 40 lines.
 
@@ -681,7 +681,10 @@ The sweeps collapse before the cathode is cut off, so the beam concentrates at
 the centre and leaves a bright stationary spot that fades over about a second;
 there are patent families devoted to protecting the phosphor from it. It is
 bounded, one-shot, and this app has an exact place to put it — the **sleep
-transition**, which already has a beam-sweep-aware path (`HalDisplay.cpp:3519`).
+transition**, which already has a beam-sweep-aware path (`HalDisplay.cpp:3519`
+at the time this was written — since shipped as D8b above, and the file's
+growth has since moved unrelated code onto that line number; not re-traced
+because the proposal is superseded by the shipped feature).
 It never appears while reading and it cannot cost legibility, because there is
 nothing left to read.
 
@@ -691,8 +694,9 @@ nothing left to read.
   combine persistence as `max(new, decayed)` rather than `mix()`, and the reason
   matters: with `mix` every page turn looks like text fading *in* and every glyph
   edge is permanently soft. This repo already gets it right —
-  `src/HalDisplay.cpp:2696` uses `depositMax` with an additive fallback. Nothing
-  to do.
+  `src/HalDisplay.cpp:3521` (corrected 2026-08-29 from `:2696`, which now holds
+  unrelated sleep-screen-veto code) uses `depositMax` with an additive
+  fallback. Nothing to do.
 - **The scanline field cannot moire against the mask**, because there is no mask.
   The app's real moire exposure is the *resampling* beat, ST-008, and
   `panelScaleModeFor()` already treats it. Do not add a "CRT moire" pass on top.
@@ -715,7 +719,9 @@ phosphor trail, cascade afterglow, and page fade
 ([crt-beam-and-flash.md](crt-beam-and-flash.md)). Light mode has **zero**. A
 page turn in light mode is an instantaneous swap, held 30 ms by
 `kPresentHoldMs` purely to coalesce the two-pass compose
-(`src/HalDisplay.cpp:519`).
+(corrected 2026-08-29 from `:519`, which the file's growth moved off this
+content entirely — `kPresentHoldMs` is defined at `src/HalDisplay.cpp:709`
+and applied at `:832`).
 
 **What is authentic per world?** This is the question worth answering before
 any code:
@@ -852,7 +858,21 @@ anonymous percentages" this section named no longer exist as controls at all.
   block at `:143-152`). Density is the only slider left in this drawer, and it
   is labeled.
 
-**The one real remaining gap moved to the OTHER drawer.**
+**UPDATE, same day — the mixer gap above is CLOSED too, and the section below
+is now stale.** Re-grepped after this section was written: `ios/
+CrossPointPaletteMixer.mm`'s four gun-weight sliders now set
+`accessibilityLabel` at creation (`:394`, `"Gun %s weight"`) and
+`accessibilityValue` is kept current in `-refresh` (`:842`), the same
+label-once/value-live pattern as the ink picker's Density slider. **Both sites
+carry their own `UNVERIFIED` comment** (`:389`, `:841`): `.mm` only
+compiles on the iOS target, which cannot be built from this host, and the
+drawer has been unreachable from the phone since 2026-08-24 (nothing on
+device opens it) — so this is SHIPPED-in-source, not confirmed on device, per
+this repo's own "headless-green is not works" rule. The paragraph immediately
+below is kept as the record of what the gap looked like before this fix.
+
+**The one real remaining gap moved to the OTHER drawer — AS OF WHEN THIS WAS
+WRITTEN; see the update immediately above.**
 `ios/CrossPointPaletteMixer.mm` (the dark-mode four-gun mixer) has four
 unlabeled gun-weight sliders — `_slider[g]`, declared `:312`, built
 `:382-400` — and a whole-file grep for `accessibilit` returns nothing. The
@@ -892,8 +912,11 @@ worth being able to see:
 
 1. **`SDL_RenderReadPixels` of the whole output.** The scanline pass reads the
    composed backbuffer back to the CPU to compute its bloom level map
-   (`src/HalDisplay.cpp:2429`), and the screenshot path does the same
-   (`:3456`). A GPU→CPU readback stalls the pipeline; at ~1260x2736 that is
+   (moved to `src/SurfaceTube.cpp:326` in the 2026-08-25 file split — was
+   `src/HalDisplay.cpp:2429` when this was written; corrected 2026-08-29), and
+   the screenshot path does the same (`saveRendererBmp` at
+   `src/HalDisplay.cpp:523`, corrected from `:3456`). A GPU→CPU readback stalls
+   the pipeline; at ~1260x2736 that is
    ~13 MB per readback. It happens on **page turns**, not frames, which is what
    makes it affordable — a still page costs nothing.
 2. **Field regeneration.** The sheet field is output-sized (~3.4 Mpx) and, since
@@ -995,7 +1018,7 @@ existing machinery:
 | Bayer dither visible as texture at 1:1 | Already visible; CLAUDE.md's ST-008 note documents it in detail |
 | **Ghosting** — the previous image faintly retained until a full refresh | the trail machinery already captures the previous picture and composites it decaying (`glassPrevTexture` since 2026-08-26). This is the *same code path as the phosphor trail*, with a different decay: e-ink ghosting does not decay, it persists until a full refresh. |
 | **The refresh flash** — a full inversion before settling | `CROSSPOINT_SIM_PRESENT_FLASH` is the seed of it |
-| No emission at all; ambient-lit | `setPanelEmissive(false)` already exists (`src/SimulatorOverlay.h:161`) |
+| No emission at all; ambient-lit | `setPanelEmissive(false)` already exists (`src/SimulatorOverlay.h:187`, corrected 2026-08-29 from `:161`) |
 
 So an e-ink mode is mostly *re-wiring existing passes with different constants*,
 plus one genuinely new thing (the refresh waveform). It would also be the only
@@ -1216,7 +1239,7 @@ legibility, and mostly through resampling.
 | 3 | ~~Sheet-to-sheet color drift~~ **SHIPPED 2026-08-22** | 1c | med-high | **trivial** | low |
 | 4 | ~~Present-path timing instrumentation~~ **SHIPPED 2026-08-22** | 4c | (enabling) | **trivial** | none |
 | 5 | ~~Corner defocus as ellipticity, sigma(r)=sigma0(1+kr^2)~~ **SHIPPED 2026-08-23** | D3 | med | ~~trivial~~ med (a second table axis; +10-24 ms) | low |
-| 6 | Accessibility labels on the drawer | 4b | med | **trivial** | none |
+| 6 | ~~Accessibility labels on the drawer~~ **SHIPPED — both halves, see §4b** (corrected 2026-08-29: the ink picker's labels landed earlier the same day, and the mixer's four gun sliders were found labeled during this audit pass — `ios/CrossPointPaletteMixer.mm:394,842`, marked UNVERIFIED in-source since `.mm` cannot be compiled from this host) | 4b | med | **trivial** | none |
 | 7 | HV sag, 0.5-2%, **transient only** | D4 | med-high | low | med (see the condition) |
 | 8 | Ink spread / dot gain per stock | 1b | med | low | med |
 | 9 | Left-edge optical margins | T3 | med | low-med | low |
