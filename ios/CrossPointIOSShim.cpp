@@ -53,6 +53,7 @@
 #include "CrossPointHarness.h"
 #include "GestureBindings.h"
 #include "TapCandidate.h"
+#include "ZenPrefSync.h"
 #include "ZenVerbs.h"
 
 #include <SDL3/SDL.h>
@@ -134,6 +135,11 @@ extern "C" bool CrossPointMixer_glowForCustom(float *trailMs,
 #include "SimulatorOverlay.h"
 
 namespace {
+
+// Forward declaration: defined below (near windowPixelSize, which it calls).
+// Used by pollZenMode() and pollReaderInsets(), both defined earlier in this
+// file than the definition that needs windowPixelSize in scope.
+void zenPreWarmLayout();
 
 // --- The X3's seven buttons ------------------------------------------------
 //
@@ -284,8 +290,14 @@ float g_zenPanelShiftPx = 0.0f;
 // must agree; see the snapshot comment at the band).
 float g_zenShiftThisPass = 0.0f;
 // The paper->ink visual gap in device px, published by the zen placement pass.
-// It is the diameter of the construction's top-margin circle, and the paper
-// card's corner radius is that circle's radius (owner 2026-08-22).
+// It is the diameter of the construction's top-margin circle. THE PHONE's
+// corner radius is still that circle's radius (owner 2026-08-22, "use the
+// circle that determines the height gap between paper and text to make the
+// corner radius of the paper") -- unchanged. THE TABLET's is not, as of
+// 2026-08-29: the owner replaced the identity there with a flat unit/16
+// (see paintTopBezel and paintBottomFillets, which now fork the divisor on
+// CrossPointAppearance_isPad()). g_paperGapPx itself is still the same
+// module on both platforms -- only what each platform DOES with it changed.
 float g_paperGapPx = 0.0f;
 float g_ptScale = 3.0f;
 SDL_WindowID g_windowId = 0;
@@ -457,10 +469,88 @@ void layoutPadTablet(float W, float H, float S) {
   float scale = SDL_min(outWpx / logW, availPx / logH);
   if (scale >= 1.0f) scale = SDL_floorf(scale);
   const float panelWpx = logW * scale, panelHpx = logH * scale;
-  const float topPx = safeTop * S + (availPx - panelHpx) / 2.0f;
+
+  // AN AREA ABOVE THE PAPER (owner ruling 2026-08-29: "improving ipad pro
+  // layout, including needing an area above paper (currently goes to screen
+  // edge)"). Measured before this landed:
+  // ios/mockups/ipad-BEFORE-portrait-page-2026-08-29.png -- the paper's
+  // cream tone ran to the physical top edge, behind the status bar, with no
+  // card and no margin at all; this function used to center the panel with
+  // no card top published, so paintTopBezel below never had a band to draw.
+  //
+  // CORRECTED 2026-08-29, same day. The first pass here applied "1 up top,
+  // 2 below" to the WRONG gap: it reused the phone's zen circle verbatim,
+  // which splits the margin INSIDE the sheet (paper edge to ink -- the slack
+  // plus the firmware's ink insets, computed below g_zenRowTopPx in
+  // layoutPad), not the band the owner was pointing at. His words were "an
+  // area above paper (currently goes to screen edge)" -- the space OUTSIDE
+  // the sheet, between the physical top edge and the paper. Owner, from the
+  // render: "I said 1 up top and 2 below was best. that seems to be have
+  // been ignored." Measured off that build's own capture (luminance
+  // run-lengths down the centre column of
+  // ipad-AFTER-portrait-page-2026-08-29.png): 64 px above the card (0.17
+  // circle units of THAT build -- kPadEdgeMin, the floor, doing all the
+  // work; the 1-unit term never reached the outer placement at all) against
+  // 781 px below (2.04 units) -- a rendered ~1:12 split, not 1:2.
+  //
+  // THE CORRECTED CONSTRUCTION splits the OUTER space directly, in exactly
+  // the ratio asked, off the height actually left over once the panel's own
+  // (already scale-fit) height is set aside -- "the card takes what is
+  // left":
+  //
+  //   unit  = (outHpx - panelHpx) / 3
+  //   above = 1 * unit
+  //   below = 2 * unit
+  //
+  // No ink-inset term enters this at all: that term still belongs to the
+  // phone's zen placement (a different question -- the margin INSIDE the
+  // sheet) and is untouched there. The panel is top-aligned immediately
+  // below the 1-unit band.
+  //
+  // FLOORED, still: hiding the status bar (see
+  // CrossPointAppearance_hideStatusBarOnIPad, added the same day) makes
+  // SDL_GetWindowSafeArea report safeTop 0 on this iPad Pro from the SECOND
+  // layout pass onward -- there is no notch here, so the status bar was the
+  // only reason iOS reserved anything at the top, and once it is confirmed
+  // hidden the safe area collapses to nothing. In practice the derived unit
+  // (measured ~194 pt on an iPad Pro 13 M4 portrait) dwarfs both floor terms
+  // below; they exist for the degenerate case -- a very short available
+  // height, or a device with a genuine notch/Island -- where the derived
+  // unit alone would not be enough. kPadEdgeMin (16 pt) is reused rather
+  // than a new constant because it already plays this exact role sideways on
+  // this same function -- the floor for an iPad edge inset the system safe
+  // area legitimately reports as 0.
+  const float unit = SDL_max(0.0f, (outHpx - panelHpx) / 3.0f);
+  const float cardTopPx = SDL_max(unit, SDL_max(safeTop, kPadEdgeMin) * S);
+  // THE CORNER RADIUS is struck from THIS circle -- the outer 1-unit band
+  // above the card -- not the ink-inset one the first pass carried over from
+  // the phone's zen placement; a different circle from the one the 2026-08-22
+  // identity was coined for, on this path.
+  //
+  // THE DIVISOR CHANGED, 2026-08-29 -- TABLET ONLY. The 2026-08-22 identity
+  // (owner: "use the circle that determines the height gap between paper and
+  // text to make the corner radius of the paper", radius = half the circle's
+  // diameter) held for this circle too, until the owner overrode it here
+  // specifically: "change the corner radius rounding to be 1/16 of unit."
+  // `paintTopBezel` and `paintBottomFillets` now fork the divisor on
+  // `CrossPointAppearance_isPad()` -- 16 here, the original 2 unchanged on
+  // the phone's own circle (the ink-gap one, set in layoutPad's zen block,
+  // which this ruling does not touch).
+  g_paperGapPx = unit;
+  const float topPx = cardTopPx;
+  const float belowPx = SDL_max(0.0f, outHpx - cardTopPx - panelHpx);
+  SDL_Log("[pad] tablet top band: unit=%.1fpx (1:2 split) card=%.1fpx "
+          "panelTop=%.1fpx panelH=%.0fpx below=%.1fpx (%.2fx unit)",
+          unit, cardTopPx, topPx, panelHpx, belowPx,
+          unit > 0.0f ? belowPx / unit : 0.0f);
+  g_cardTopPx = cardTopPx;
+  // Unconditional on the tablet (unlike the phone's cut-out gate): paints the
+  // same black band + squircle corners paintTopBezel already draws for the
+  // phone, off the SAME g_topBezelPx/g_paperGapPx globals -- no new paint
+  // code, see paintTopBezel below.
+  g_topBezelPx = cardTopPx;
   SimulatorOverlay::setTopInset(static_cast<int>(topPx));
-  SimulatorOverlay::setBottomInset(
-      static_cast<int>(SDL_max(0.0f, outHpx - topPx - panelHpx)));
+  SimulatorOverlay::setBottomInset(static_cast<int>(belowPx));
 
   const float margin = (W - panelWpx / S) / 2.0f;
 
@@ -778,19 +868,17 @@ void layoutPad(int outW, int outH) {
   // What zen extends is the PAPER, painted below the page in paintPad. The
   // page's own geometry is byte-identical in both modes.
   const float band = panelGap + kCellH + kRowClear + kCellH + bottomInset;
-  // The zen placement shift: pixels move from this bottom reserve to the top
-  // inset below, in equal measure, so the panel's fit box never changes size.
-  // ONE shift value per layout pass. The band (here) and the top inset
-  // (below) must consume the SAME shift, or the fit box changes height inside
-  // a single pass and the panel re-fits at a NEW SCALE -- the no-resize
-  // ruling broken by the very code built to honor it. That shipped in build
-  // 123: the published-insets relayout updated the shift between the two
-  // consumers and the page silently resized 0.7197 -> 0.7096. The snapshot
-  // makes the pair atomic; a CHANGED shift schedules one more relayout below,
-  // so the placement still converges -- at a constant scale every step.
-  g_zenShiftThisPass = g_zen ? g_zenPanelShiftPx : 0.0f;
-  const float shiftPt = g_zenShiftThisPass / S;
-  SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
+  // The zen placement shift moves pixels from this bottom reserve to the top
+  // inset below, in equal measure, so the panel's fit box never changes size
+  // -- but consuming it here, BEFORE `want` below has had a chance to update
+  // it for THIS pass, is what cost a visible flicker (docs/zen-mode.md,
+  // "less flickering of layout when zen mode is enabled/disabled",
+  // 2026-08-29). `want`'s own computation is deliberately independent of
+  // `band`/this pass's shift (see its comment: "computed absolutely...
+  // reading it would feed the loop its own output"), so nothing between here
+  // and there needs the OLD value published first. Moved below, after `want`
+  // has updated g_zenPanelShiftPx, so THIS pass's own present already uses
+  // the converged shift instead of the previous pass's leftover.
 
   // How far the paper reaches in zen: the top rocker row's top edge, snapped
   // DOWN to the 8pt grid, PLUS four cells.
@@ -932,6 +1020,20 @@ void layoutPad(int outW, int outH) {
       g_zenPanelShiftPx = 0.0f;
     }
   }
+  // NOW consume the shift -- `want` above has already updated
+  // g_zenPanelShiftPx for THIS pass, not the previous one (see the comment
+  // where this used to sit, above `band`). Same pairing rule as before: the
+  // band (here) and the top inset (`topInset += g_zenShiftThisPass / S`,
+  // below) must consume the SAME shift, or the fit box changes height inside
+  // a single pass and the panel re-fits at a NEW SCALE -- the no-resize
+  // ruling broken by the very code built to honor it. That shipped in build
+  // 123, from the two consumers reading the shift at different times across
+  // a relayout; moving BOTH to read it here, together, after it is fresh,
+  // removes the earlier failure mode (a stale read at the FIRST consumer)
+  // without reopening it.
+  g_zenShiftThisPass = g_zen ? g_zenPanelShiftPx : 0.0f;
+  const float shiftPt = g_zenShiftThisPass / S;
+  SimulatorOverlay::setBottomInset(static_cast<int>((band - shiftPt) * S));
   SDL_Log("[zen] %s band=%.1fpt topRowY=%.1fpt paperTo=%.0fpx panelH=%dpx panelW=%dpx",
           g_zen ? "on " : "off", band, upperY, g_zenRowTopPx,
           SimulatorOverlay::panelHeightPx(), SimulatorOverlay::panelWidthPx());
@@ -1488,43 +1590,103 @@ void pollReaderInsets() {
   s_top = t;
   s_bottom = b;
   g_padLaidOut = false;  // force the relayout that re-places the zen sheet
+  // Pre-warm BEFORE requesting the present, same reason as the toggle sites
+  // (see zenPreWarmLayout()'s comment): otherwise the very first present
+  // after real ink insets replace the fallback ones repeats the flicker this
+  // fix targets, one step after entering zen instead of on it.
+  zenPreWarmLayout();
   SimulatorOverlay::requestPresent();
   SDL_Log("[zen] published ink insets %d/%d fb-px -> relayout", t, b);
 }
 
-// Zen mode from Settings.app, on this file's polling terms: edge-triggered on the
-// STORED value, so the setting is authoritative only when it changes — the
-// three-finger gesture and the CROSSPOINT_SIM_ZEN env var keep toggling the
-// live g_zen freely in between. The first pass SEEDS the launch state from the
-// pref (the env var, when set, wins that one and stays the headless hook)
-// without logging a change; a later flip does exactly what the gesture's
-// toggle branch does after flipping g_zen — invalidate the layout so the band
-// is refitted, and ask for a present.
+// Zen mode: keeps live g_zen and the STORED zenModeEnabled preference synced
+// in BOTH directions via zensync::decide (ios/ZenPrefSync.h) — see that
+// header for why a shared `synced` tracker is what stops a write in one
+// direction from being read back as a change in the other. Two real
+// triggers reach the sync protocol: Settings.app (an external edit reaches
+// this poll as `ApplyToLive`) and a gesture toggle that already changed
+// `g_zen` directly (CrossPointZen_toggleFromRecognizer, the one-finger hold
+// above the paper — reaches here as `WriteToStore` so the row stops lying
+// about it). The app's own launch seed (`first`) and CROSSPOINT_SIM_ZEN are
+// handled OUTSIDE that protocol, not as a third trigger of it — see the
+// `envForced` gate below for why the sync protocol must never run at all
+// while the env var is set.
+//
+// ADDED 2026-08-29 (owner: "keep zen mode ios app setting reflective of
+// active value"). Before this, CrossPointPrefs_zenModeEnabled() had no
+// setter at all (grep confirmed zero writers besides Settings.app itself),
+// so a gesture toggle left the row wrong from that moment on, and the next
+// visit to Settings.app could silently revert a toggle the reader had
+// already made.
 void pollZenMode() {
-  static int s_applied = -1;
-  const int on = CrossPointPrefs_zenModeEnabled();
-  if (on == s_applied) return;
-  const bool first = s_applied < 0;
-  s_applied = on;
+  static bool s_synced = false;
+  static bool s_first = true;
+  const bool first = s_first;
+  const bool envForced = std::getenv("CROSSPOINT_SIM_ZEN") != nullptr;
+  const bool storedPref = CrossPointPrefs_zenModeEnabled() != 0;
+
   if (first) {
+    s_first = false;
     // Logged because the seed is otherwise silent, and a wrong launch state
     // (zen defaults ON, owner 2026-08-22) has no other trace to debug from.
-    SDL_Log("[zen] seed: pref=%d env=%s -> %s", on,
-            std::getenv("CROSSPOINT_SIM_ZEN") ? "set" : "unset",
-            (std::getenv("CROSSPOINT_SIM_ZEN") ? g_zen : (on != 0)) ? "on"
-                                                                    : "off");
-    if (std::getenv("CROSSPOINT_SIM_ZEN") == nullptr && g_zen != (on != 0)) {
-      g_zen = on != 0;
+    SDL_Log("[zen] seed: pref=%d env=%s -> %s", storedPref ? 1 : 0,
+            envForced ? "set" : "unset",
+            (envForced ? g_zen : storedPref) ? "on" : "off");
+    if (!envForced && g_zen != storedPref) {
+      g_zen = storedPref;
       g_padLaidOut = false;  // in case a layout pass beat this first poll
     }
     CrossPointZenRecognizers_setEnabled(g_zen);
+    s_synced = g_zen;
     return;
   }
-  g_zen = on != 0;
-  g_padLaidOut = false;  // the band changes, so the page must be refitted
-  SDL_Log("[zen] %s (setting)", g_zen ? "on" : "off");
-  CrossPointZenRecognizers_setEnabled(g_zen);
-  SimulatorOverlay::requestPresent();
+
+  // CROSSPOINT_SIM_ZEN wins the boot seed above and STAYS THE HEADLESS HOOK
+  // for the rest of the process -- the store-sync protocol below must never
+  // run while it is set. Adversarial review 2026-08-29 caught the failure
+  // mode directly: without this gate, decide()'s very next poll sees the
+  // (unchanged) stored pref still disagreeing with the env-forced g_zen,
+  // sees live still equal to `synced` (both left at the value the seed set
+  // two lines above), concludes the STORE must be the side that moved, and
+  // silently reverts the env override back to the stale stored value one
+  // frame after boot -- exactly the class of bug this whole mechanism exists
+  // to prevent, just aimed at the wrong side. This restores the pre-existing
+  // guarantee ("the env var, when set, wins that one and stays the headless
+  // hook") that a naive port of the old edge-triggered poll would have kept
+  // by accident and this rewrite nearly lost on purpose.
+  if (envForced) return;
+
+  const zensync::Action action =
+      zensync::decide(storedPref, g_zen, s_synced, /*first=*/false);
+  if (action == zensync::Action::None) return;
+
+  switch (action) {
+    case zensync::Action::ApplyToLive:
+      // Settings.app changed the row; make live match it.
+      g_zen = storedPref;
+      g_padLaidOut = false;  // the band changes, so the page must be refitted
+      SDL_Log("[zen] %s (setting)", g_zen ? "on" : "off");
+      CrossPointZenRecognizers_setEnabled(g_zen);
+      // Publish the converged geometry BEFORE the present that will show
+      // it — see zenPreWarmLayout()'s own comment for why the ordinary
+      // draw-time pass (paintPad -> layoutPad) is one present too late to
+      // avoid a visibly mismatched intermediate frame.
+      zenPreWarmLayout();
+      SimulatorOverlay::requestPresent();
+      break;
+    case zensync::Action::WriteToStore:
+      // Live already changed (a gesture) and already asked for its own
+      // present; this call's only job is to stop Settings.app's row from
+      // lying about it. No relayout, no present — nothing on screen changes
+      // here. (Never reached while CROSSPOINT_SIM_ZEN is set — the gate
+      // above returns before this switch runs at all.)
+      CrossPointPrefs_setZenModeEnabled(g_zen ? 1 : 0);
+      SDL_Log("[zen] %s (gesture -> settings)", g_zen ? "on" : "off");
+      break;
+    case zensync::Action::None:
+      break;  // unreachable: the early return above already handled it
+  }
+  s_synced = g_zen;
 }
 
 void pollPadContrast() {
@@ -1941,9 +2103,73 @@ void fillRoundRect(SDL_Renderer *r, const SDL_FRect &b, float rad) {
 // rectangle, so any difference between them is visible precisely there.
 constexpr float kPaperCornerPt = 8.0f;
 
-void paintTopBezel(SDL_Renderer *r, int outW) {
+// CROSSPOINT_SIM_IPAD_CORNER_RADIUS_UNIT_DIV -- TEMPORARY QA hatch,
+// 2026-08-30, same shape as CROSSPOINT_SIM_IPAD_PAPER_GAP_UNIT_DIV in
+// paintPad (and CROSSPOINT_SIM_GRAIN_SEED elsewhere in this file): unset is a
+// strict no-op -- the shipped tablet divisor (16) or the phone's (2) applies
+// exactly as if this hatch did not exist. Tablet only; read once, cached for
+// the life of the process, so ONE build sweeps every variant across many
+// launches rather than a rebuild per divisor (owner, 2026-08-30: "the owner
+// has asked for an HTML page of different corner radii so he can pick one by
+// eye, rather than taking unit/16 on faith").
+//
+// The value names the DENOMINATOR n in radius = unit/n (unit is
+// g_paperGapPx on the tablet path). A value <= 0 (including the literal
+// "0") requests the degenerate "squared off" case -- radius 0 -- which is
+// worth seeing as the other end of the sweep, not an error: parsed as a
+// request rather than rejected, and handled by the caller as "no curve",
+// never as "no override".
+bool tabletRadiusDivisorOverride(float *outDivisor) {
+  static bool s_read = false;
+  static bool s_has = false;
+  static float s_div = 0.0f;
+  if (!s_read) {
+    s_read = true;
+    if (const char *e =
+            std::getenv("CROSSPOINT_SIM_IPAD_CORNER_RADIUS_UNIT_DIV")) {
+      double v = 0.0;
+      if (std::sscanf(e, "%lf", &v) == 1) {
+        s_has = true;
+        s_div = static_cast<float>(v);
+      }
+    }
+  }
+  if (s_has) *outDivisor = s_div;
+  return s_has;
+}
+
+// One shared answer for "what does THIS platform divide the circle module
+// by to get the corner radius" -- used by both paintTopBezel and
+// paintBottomFillets so the top and bottom pairs cannot answer differently
+// (same reasoning as kPaperCornerPt above: one rectangle, one radius). 16 on
+// tablet (owner, 2026-08-29: "change the corner radius rounding to be 1/16
+// of unit" -- REPLACING the 2026-08-22 identity, radius = half the module's
+// diameter, i.e. divisor 2, for the tablet path specifically), unchanged at
+// 2 on the phone, whose own circle (the paper-to-ink gap, set in layoutPad's
+// zen block) this ruling does not touch. The QA hatch above overrides the
+// tablet's 16 only; a hatch value <= 0 signals "squared off" (radius 0)
+// rather than "no override" -- see the two call sites for how that is told
+// apart from an unset hatch.
+float cornerRadiusDivisorFor(bool isPad) {
+  float divisor = isPad ? 16.0f : 2.0f;
+  if (isPad) {
+    float override_ = 0.0f;
+    if (tabletRadiusDivisorOverride(&override_)) divisor = override_;
+  }
+  return divisor;
+}
+
+// `paperX`/`paperW`: where the paper's own left/right edges are, for the
+// corner cut only -- NOT the band fill, which always covers the full output
+// width (above the paper it is black regardless of any horizontal margin).
+// Phone (and the pre-2026-08-29 tablet) pass 0/outW, the screen's own edges,
+// unchanged. The tablet's horizontal margin (added the same day as this
+// comment, see the "SQUARE MODULE, HORIZONTAL" block in paintPad) passes the
+// paper's actual inset edges instead, so the rounded corner lands where the
+// paper now really starts rather than where the glass does.
+void paintTopBezel(SDL_Renderer *r, int outW, float paperX, float paperW) {
   const float bandH = SDL_floorf(g_topBezelPx);
-  if (bandH <= 0.0f || outW <= 0) return;
+  if (bandH <= 0.0f || outW <= 0 || paperW <= 0.0f) return;
 
   // 8 pt -- THE SAME RADIUS THE BOTTOM PAIR USES (owner ruling 2026-08-20:
   // "use the bottom corner radius on the top of the paper too").
@@ -1969,14 +2195,42 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   // ruling), so the two modes read one number rather than agreeing by
   // coincidence. Reading it here changes no geometry -- the fit box, the band
   // and the shift are all decided before this paints.
+  // THE DIVISOR FORKS BY PLATFORM, 2026-08-29. The 2026-08-22 identity
+  // (radius = half the module's diameter) still holds on the PHONE -- its
+  // own circle, the paper-to-ink gap, untouched. On the TABLET the owner
+  // replaced it: "change the corner radius rounding to be 1/16 of unit."
+  // `cornerRadiusDivisorFor()` decides which divisor applies to whichever
+  // circle `g_paperGapPx` holds (see that global's own comment for which
+  // platform means which circle) -- kept as one shared lookup (including the
+  // 2026-08-30 QA sweep hatch) so this painter and paintBottomFillets cannot
+  // answer differently.
+  static const bool s_isPad = CrossPointAppearance_isPad() == 1;
+  const float kRadiusDivisor = cornerRadiusDivisorFor(s_isPad);
   static float s_radiusPx = -1.0f;
   static float s_radiusFrom = -1.0f;
   const float module = g_paperGapPx > 0.0f ? g_paperGapPx : 0.0f;
   if (s_radiusPx < 0.0f || module != s_radiusFrom) {
     s_radiusFrom = module;
-    s_radiusPx = module > 0.0f ? module / 2.0f : kPaperCornerPt * g_ptScale;
-    SDL_Log("[bezel] band %.0f px, corner %.1f px (%s)", bandH, s_radiusPx,
-            module > 0.0f ? "half the paper-to-ink gap" : "8 pt fallback");
+    // module <= 0: pre-first-layout, the 8 pt fallback. module > 0 but
+    // kRadiusDivisor <= 0: the QA hatch's explicit "squared off" request --
+    // radius 0, a real answer, not a missing one. Otherwise the ordinary
+    // module/divisor curve.
+    if (module <= 0.0f) {
+      s_radiusPx = kPaperCornerPt * g_ptScale;
+    } else if (kRadiusDivisor <= 0.0f) {
+      s_radiusPx = 0.0f;
+    } else {
+      s_radiusPx = module / kRadiusDivisor;
+    }
+    // "the circle module" rather than naming one gap: it is the paper-to-ink
+    // gap on the phone (layoutPad's zen block) and the outer 1-unit band
+    // above the card on the tablet (layoutPadTablet, corrected 2026-08-29) --
+    // one identity through 2026-08-22, forked by platform since 2026-08-29
+    // (see kRadiusDivisor above).
+    SDL_Log("[bezel] band %.0f px, corner %.1f px (%s, /%.1f)", bandH,
+            s_radiusPx,
+            module <= 0.0f ? "8 pt fallback" : "circle module",
+            kRadiusDivisor);
   }
 
   SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -2010,7 +2264,7 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
   // The EXTENT stays whatever s_radiusPx resolved to: this changes the shape of
   // the page's corner, not its size, which is what "shaped properly" asked for.
   constexpr float kCornerExponent = 2.8f;
-  const float rad = SDL_min(s_radiusPx, static_cast<float>(outW) / 2.0f);
+  const float rad = SDL_min(s_radiusPx, paperW / 2.0f);
   const int rows = static_cast<int>(rad);
   for (int i = 0; i < rows; i++) {
     const float y = static_cast<float>(i);
@@ -2021,8 +2275,8 @@ void paintTopBezel(SDL_Renderer *r, int outW) {
                              1.0f / kCornerExponent);
     const float inset = rad * (1.0f - u);
     if (inset <= 0.0f) continue;
-    fillRect(r, 0.0f, bandH + y, inset, 1.0f);
-    fillRect(r, static_cast<float>(outW) - inset, bandH + y, inset, 1.0f);
+    fillRect(r, paperX, bandH + y, inset, 1.0f);
+    fillRect(r, paperX + paperW - inset, bandH + y, inset, 1.0f);
   }
 }
 
@@ -2052,9 +2306,31 @@ void paintBottomFillets(SDL_Renderer *r, int outW, const SDL_FRect &panel,
   constexpr float kCornerExponent = 2.8f;
   // Same module as the top pair -- they are one rectangle (the 2026-08-20
   // ruling that matched them survives; only the number's SOURCE changed).
-  const float moduleRad = (g_zen && g_paperGapPx > 0.0f)
-                              ? g_paperGapPx / 2.0f
-                              : kPaperCornerPt * g_ptScale;
+  // Same platform-forked divisor as paintTopBezel too, as of 2026-08-29: /2
+  // on the phone (the 2026-08-22 identity, untouched), /16 on the tablet
+  // (owner: "change the corner radius rounding to be 1/16 of unit"), plus
+  // the 2026-08-30 QA sweep hatch -- shared through cornerRadiusDivisorFor()
+  // rather than kept as a second literal, so the top and bottom pairs cannot
+  // drift apart. See the divisor comment in paintTopBezel for the full
+  // account.
+  static const bool s_isPad = CrossPointAppearance_isPad() == 1;
+  const float kRadiusDivisor = cornerRadiusDivisorFor(s_isPad);
+  // NOT GATED ON ZEN, for the same reason paintTopBezel stopped being gated on
+  // 2026-08-23: the module is mode-independent by construction, and gating one
+  // pair and not the other strikes ONE rectangle with two different curves --
+  // exactly the complaint the 2026-08-20 ruling fixed between these two
+  // painters. The comment above has claimed "they cannot drift apart" since
+  // 2026-08-29 while this line still read `g_zen && ...`; they drifted.
+  //
+  // Measured 2026-08-30, which is how it was caught: outside zen this fell to
+  // kPaperCornerPt * scale = 24 px while the top pair drew module/divisor, and
+  // it made the QA divisor sweep silently produce three identical 24 px
+  // captures for unit/16, unit/4 and unit/2 -- the /16 one agreeing only
+  // because 384/16 is also 24.
+  const bool hasModule = g_paperGapPx > 0.0f;
+  const float moduleRad = !hasModule            ? kPaperCornerPt * g_ptScale
+                          : kRadiusDivisor <= 0.0f ? 0.0f
+                                                   : g_paperGapPx / kRadiusDivisor;
   const float rad = SDL_min(moduleRad, panel.w / 2.0f);
   // A fillet must be painted in whatever the corner is being cut OUT of: the
   // field normally, black in zen, where the surround below the paper is black by
@@ -2252,9 +2528,74 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     s_layoutKeyboardPt = keyboardPt;
   }
 
+  // SQUARE MODULE, HORIZONTAL -- superseded twice the same day. First ask
+  // (owner, from a render: "right now, it is unusually and incoherently wide
+  // (full screen width)... make fit a sensible grid horizontally spaced or
+  // based on a square grid with horizontal and vertical," choosing a square
+  // module over a screen-tiling grid or an independent 8 pt horizontal grid:
+  // "square module is best") shipped the card with a FULL unit's gap to the
+  // panel on each side -- measured 115 px card-to-panel gap on an iPad Pro 13
+  // portrait (unit=389.3px, card 1286px vs panel 1056px). Second ask, from
+  // THAT render, confirmed twice: "there should be less paper... needs to be
+  // skinnier. just to be clear." Taken to its limit rather than softened:
+  // **THE CARD IS NOW EXACTLY THE PANEL** -- card-to-panel gap 0 px on both
+  // axes (vertically it was already 0; the zen paper's own y/h have always
+  // equaled the panel's). The screen margin is whatever falls out of that,
+  // not something aimed at: (2064-1056)/2 = 504 px portrait on that device.
+  //
+  // g_paperGapPx (the vertical unit) is UNTOUCHED by this -- it still governs
+  // the outer top/bottom band split (layoutPadTablet) and, as of 2026-08-29,
+  // the corner radius at unit/16 (paintTopBezel, paintBottomFillets); the
+  // horizontal card size no longer reads it at all.
+  //
+  // Phone's zen paper still bleeds to the glass (tabletMarginPx collapses to
+  // 0), untouched -- that is the 2026-08-20 ruling this does NOT reverse; it
+  // was measured wrong for a screen this size, not wrong in general.
+  static const bool s_isPad = CrossPointAppearance_isPad() == 1;
+  float tabletMarginPx = 0.0f;
+  if (s_isPad) {
+    const float panelWpx =
+        static_cast<float>(SimulatorOverlay::panelWidthPx());
+    tabletMarginPx =
+        SDL_max(0.0f, (static_cast<float>(outW) - panelWpx) / 2.0f);
+  }
+
+  // CROSSPOINT_SIM_IPAD_PAPER_GAP_UNIT_DIV -- kept as a study hatch for a
+  // NONZERO card-to-panel gap now that zero is the shipped default (this is
+  // the mechanism that produced the eight-variant sweep in
+  // docs/ipad-layout-2026-08-29.md, all of which the owner's final ruling
+  // went past). gapPx = g_paperGapPx / divisor, re-deriving the screen margin
+  // from it exactly as before; unset leaves the zero-gap default above
+  // untouched. Tablet only; read once, cached.
+  if (s_isPad && g_paperGapPx > 0.0f) {
+    static float s_gapDiv = 0.0f;
+    static bool s_gapDivRead = false;
+    if (!s_gapDivRead) {
+      s_gapDivRead = true;
+      if (const char *e =
+              std::getenv("CROSSPOINT_SIM_IPAD_PAPER_GAP_UNIT_DIV")) {
+        double v = 0.0;
+        if (std::sscanf(e, "%lf", &v) == 1 && v > 0.0)
+          s_gapDiv = static_cast<float>(v);
+      }
+    }
+    if (s_gapDiv > 0.0f) {
+      const float gapPx = g_paperGapPx / s_gapDiv;
+      const float panelWpx =
+          static_cast<float>(SimulatorOverlay::panelWidthPx());
+      const float cardWpx = panelWpx + 2.0f * gapPx;
+      tabletMarginPx =
+          SDL_max(0.0f, (static_cast<float>(outW) - cardWpx) / 2.0f);
+      SDL_Log("[pad] tablet paper-gap hatch: div=%.2f gap=%.1fpx "
+              "panelW=%.0fpx cardW=%.1fpx margin=%.1fpx",
+              s_gapDiv, gapPx, panelWpx, cardWpx, tabletMarginPx);
+    }
+  }
+
   // After the layout block, because layoutPad is what publishes the band's
   // height, and before the pad, whose controls are all below the page.
-  paintTopBezel(r, outW);
+  paintTopBezel(r, outW, tabletMarginPx,
+                static_cast<float>(outW) - 2.0f * tabletMarginPx);
 
   // The page's presented rect, for the zen hit-test. Recorded every present,
   // zen or not, so entering zen never waits a frame for geometry.
@@ -2288,25 +2629,53 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // anywhere on the screen. Black is what gives the paper an edge to have
     // corners on, and on an OLED it is the darkest a night page can be.
     const SDL_FRect &q = g_zenPanel;
-    // THE PAPER IS THE FULL WIDTH OF THE SCREEN, not the page's rect. The page
-    // is 1056 px wide on a 1260 px screen, and the pad's field is the SAME tone
-    // as the page's paper by design (measured 215,233,211 against 215,233,211),
-    // so what the eye reads as one sheet runs edge to edge. Cutting the corners
-    // out of the page's rect put two notches at x=102 and x=1158, mid-field,
-    // eight pixels of nothing in the middle of the paper -- which is what the
-    // 2026-08-20 screenshot caught. The corners that exist are the SCREEN's.
+    // THE PAPER IS THE FULL WIDTH OF THE SCREEN ON THE PHONE, not the page's
+    // rect. The page is 1056 px wide on a 1260 px screen, and the pad's field
+    // is the SAME tone as the page's paper by design (measured 215,233,211
+    // against 215,233,211), so what the eye reads as one sheet runs edge to
+    // edge. Cutting the corners out of the page's rect put two notches at
+    // x=102 and x=1158, mid-field, eight pixels of nothing in the middle of
+    // the paper -- which is what the 2026-08-20 screenshot caught. The
+    // corners that exist are the SCREEN's.
     //
     // The sheet BLEEDS TO THE GLASS -- it is not a card floating on black
     // (owner ruling 2026-08-20, picked off a side-by-side of live renders).
     // The bounded version cost 204 px of width to margin and read as a smaller
-    // object on a screen, where this reads as the screen being paper.
-    g_zenPaper = {0.0f, q.y, static_cast<float>(outW), q.h};
+    // object on a screen, where this reads as the screen being paper. STILL
+    // TRUE ON THE PHONE (tabletMarginPx is 0 there, unchanged).
+    //
+    // THE TABLET IS THE OPPOSITE CALL, same day (owner, from a render): "it is
+    // unusually and incoherently wide (full screen width)... make fit a
+    // sensible grid." The 2026-08-20 reasoning was measured on an iPhone,
+    // where 204 px is nearly a fifth of the width; the identical full-bleed
+    // sheet on an iPad Pro reads as an unbounded slab rather than a page, per
+    // the owner's own screenshot. `tabletMarginPx` (computed above -- as of
+    // 2026-08-29, directly from the panel's own width, zero card-to-panel
+    // gap, no longer from `g_paperGapPx`) insets the paper on tablet only; it
+    // is 0 on phone, so this collapses to the line above exactly.
+    g_zenPaper = {tabletMarginPx, q.y,
+                 static_cast<float>(outW) - 2.0f * tabletMarginPx, q.h};
     const float line = g_zenRowTopPx > 0.0f ? g_zenRowTopPx : q.y + q.h;
 
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
     const SDL_FRect below{0.0f, line, static_cast<float>(outW),
                           static_cast<float>(outH) - line};
     if (below.h > 0.0f) SDL_RenderFillRect(r, &below);
+
+    // THE SIDE MARGINS THEMSELVES: with the paper now narrower than the
+    // screen on tablet, the strip left of paperX and right of paperX+paperW,
+    // for the paper's own row (q.y..line), is no longer covered by anything
+    // -- `below` only reaches downward, and the SDL_RenderClear at the top of
+    // this present already painted that strip the PAPER'S tone, not black.
+    // Zero cost on phone: tabletMarginPx == 0 collapses both rects to zero
+    // width and SDL_RenderFillRect is a no-op on them.
+    if (tabletMarginPx > 0.0f && line > q.y) {
+      const SDL_FRect leftMargin{0.0f, q.y, tabletMarginPx, line - q.y};
+      const SDL_FRect rightMargin{static_cast<float>(outW) - tabletMarginPx,
+                                  q.y, tabletMarginPx, line - q.y};
+      SDL_RenderFillRect(r, &leftMargin);
+      SDL_RenderFillRect(r, &rightMargin);
+    }
 
     // THE PAPER ENDS AT THE LINE, in both directions. This is the whole rect
     // the corners are cut out of, so it has to follow the line even when the
@@ -2499,6 +2868,53 @@ bool windowPixelSize(SDL_WindowID id, float *w, float *h) {
   *w = static_cast<float>(pw);
   *h = static_cast<float>(ph);
   return true;
+}
+
+// THE FLICKER FIX (owner bug report 2026-08-29, verbatim: "less flickering
+// of layout when zen mode is enabled/disabled").
+//
+// Diagnosed by reading the present pipeline (docs/zen-mode.md has the
+// mechanism and the device-log evidence): a `[zen] shift ...px` line and the
+// `[zen] on band=...` summary land inside the SAME draw callback that
+// HalDisplay had already fit the panel for, which is only possible if the
+// fit used the OLD bottomInset/topInset while the callback was busy
+// computing the NEW ones for the NEXT present. layoutPad()'s own
+// draw-time call (from paintPad, itself HalDisplay::presentIfNeeded's
+// overlay callback) runs AFTER that present's panel fit, so whatever it
+// publishes via SimulatorOverlay::setBottomInset/setTopInset cannot reach
+// the glass until the FOLLOWING present -- one full present too late. On
+// that first present the CHROME (rows, bezel, keyboard chip) is drawn from
+// THIS pass's freshly computed zen-target geometry while the PANEL (the
+// actual page image) is still sitting at last pass's fit: a visibly
+// mismatched frame, corrected a moment later by the present the callback
+// just requested. That is the flicker.
+//
+// The fix is not to make the two-pass convergence faster; it is to stop the
+// unconverged frame from reaching a present at all. Calling layoutPad()
+// HERE -- synchronously, from the toggle/settings/inset-publish sites,
+// BEFORE they ask for a present -- publishes the converged bottomInset and
+// topInset a step earlier than the draw callback ever could, so the very
+// next presentIfNeeded() call fits the panel from numbers that already
+// match what the chrome is about to draw. layoutPad() is safe to call this
+// way: it does no SDL drawing of its own (no SDL_Renderer* parameter at
+// all), only geometry math and state publishing, and its DERIVED inputs
+// (panelHeightPx(), g_cardTopPx, the published reader ink insets) are the
+// same read-only values available from any call site or thread the main
+// thread -- the shift target it computes does not depend on which present
+// asked for it.
+//
+// This also depends on layoutPad's own intra-call ordering: the shift
+// consumption (setBottomInset/setTopInset via g_zenShiftThisPass) now runs
+// AFTER `want` has updated g_zenPanelShiftPx for THIS SAME call, not before
+// it (see the comments at both ends of that move, in layoutPad). Without
+// that reorder, THIS pre-warm call would itself publish the STALE shift on
+// its first invocation and only correct it on a second call -- pre-warming
+// alone does not help if the thing being pre-warmed is still one call
+// behind its own answer.
+void zenPreWarmLayout() {
+  float outW = 0.0f, outH = 0.0f;
+  if (windowPixelSize(g_windowId, &outW, &outH))
+    layoutPad(static_cast<int>(outW), static_cast<int>(outH));
 }
 
 bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
@@ -2860,7 +3276,20 @@ extern "C" void CrossPointZen_toggleFromRecognizer(const char *source) {
   // pad does not exist. reset() releases held slots and fires nothing else.
   applyActions(g_core.reset());
   CrossPointZenRecognizers_setEnabled(g_zen);
+  // Publish the converged zen-target geometry BEFORE requesting the present
+  // that will show it -- see zenPreWarmLayout()'s comment (2026-08-29 flicker
+  // fix) for why the ordinary draw-time layout pass is one present too late
+  // to avoid a visibly mismatched intermediate frame on this exact toggle.
+  zenPreWarmLayout();
   SimulatorOverlay::requestPresent();
+  // The stored zenModeEnabled preference does not follow g_zen by itself --
+  // see ios/ZenPrefSync.h and pollZenMode() (2026-08-29, owner: "keep zen
+  // mode ios app setting reflective of active value"). Nothing is written to
+  // NSUserDefaults here directly: pollZenMode(), which already runs every
+  // frame, notices g_zen has moved away from what it last synced and writes
+  // the store on its own next call. Writing it here too would just be a
+  // second writer racing the first for no benefit -- the frame budget this
+  // needs to land in is a poll, not a present.
 }
 
 // Belt-and-suspenders for the zen one-finger hold (native recognizers,
@@ -2896,13 +3325,26 @@ extern "C" float CrossPointZen_cardTopPx(void) { return g_cardTopPx; }
 // edge the eye can see.
 //
 // Published by layoutPad on every pass in BOTH modes, like the card top -- on
-// the PHONE path. `layoutPadTablet` publishes neither it nor `g_cardTopPx`, and
-// the fallback below then answers with the panel's own bottom (exactly as the
-// painter's does), so a tablet gets a below-the-paper zone measured against the
-// page's bottom edge rather than a rocker row. That is deliberate rather than
-// accidental -- it is the painter's own definition of where the sheet ends -- and
-// with the shipped defaults nothing follows from it, since every Below binding
-// resolves to what OnPaper does.
+// the PHONE path. `layoutPadTablet` STILL publishes no bottom boundary of its
+// own (2026-08-29: it gained a published `g_cardTopPx`, the TOP boundary, when
+// the tablet grew its own paper card -- see the "AN AREA ABOVE THE PAPER"
+// comment in layoutPadTablet -- but nothing analogous exists below the panel,
+// since the tablet's pad rows sit in the side margins rather than a band under
+// the page, so there is no rocker row to target). The fallback below answers
+// with the panel's own bottom (exactly as the painter's does), so a tablet
+// gets a below-the-paper zone measured against the page's bottom edge rather
+// than a rocker row. That is deliberate rather than accidental -- it is the
+// painter's own definition of where the sheet ends -- and with the shipped
+// defaults nothing follows from it, since every Below binding resolves to
+// what OnPaper does.
+//
+// THE CONSEQUENCE OF THE 2026-08-29 CHANGE: the tablet's above-the-paper zone
+// was previously unreachable (yPx is never negative, and paperTopPx was
+// always 0), so `HoldAbove`'s "toggle zen" default -- the one row that fires
+// outside zen -- could never trigger from a hold at the top of an iPad
+// screen. It can now. Flagged, not silently accepted: this is a real
+// behavior change on a shipped default, reported to the owner rather than
+// decided here.
 //
 // Before the FIRST present of all, both boundaries are 0, and a bottom that is
 // not below the top makes zoneFor() collapse to the two-zone rule this feature
@@ -3008,6 +3450,13 @@ void CrossPointHarness_begin() {
   applyTheme();
   SDL_Log("[harness] appearance: %s, pad contrast outline %+d fill %+d",
           g_dark ? "dark" : "light", g_appliedOutline, g_appliedFill);
+
+  // Owner ruling 2026-08-29: "remove clock, wifi and all system status" on
+  // iPad. The static Info.plist declaration (UIStatusBarHidden,
+  // UIViewControllerBasedStatusBarAppearance) already hides it on iPhone;
+  // measured NOT to on iPad. See CrossPointAppearance.mm for the measurement
+  // and why the fix is scoped there instead. No-op on iPhone.
+  CrossPointAppearance_hideStatusBarOnIPad();
 
   // BEFORE _begin: on a wake the previous boot's speech is still running --
   // the longjmp abandoned the run mid-utterance -- and the old page must not
