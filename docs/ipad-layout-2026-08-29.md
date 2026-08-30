@@ -696,3 +696,181 @@ corner, which is a smaller and smaller fraction of the total change. If he
 wants "skinnier" to read as aggressively as possible, unit/16 or unit/24 does
 that; unit/8 is the one that reads as a deliberate redesign rather than either
 "unchanged" or "the margin nearly vanished."
+
+## RULING, owner 2026-08-29: the iPad keeps its gesture zones
+
+The band's side effect was put to him directly: publishing `g_cardTopPx` on the
+tablet path makes the `AbovePaper` zone reachable on iPad for the first time,
+because that boundary was always 0 there. The consequence is concrete -- the one
+shipped default that fires outside zen is `HoldAbove` -> toggle zen, so a long
+press near an iPad's top edge now toggles zen where yesterday it fell through to
+the global `Hold` binding.
+
+Offered a suppression (publish the boundary for layout, gate `zoneFor()` to the
+phone) and a middle path (zones on, `HoldAbove` unbound on tablet), he chose:
+**keep it -- iPad gets zones like the phone.**
+
+The reasoning the choice carried: the layered gesture model was designed to work
+this way, and the tablet lacked zones only because it had no measured boundary,
+never by ruling. With the band in place the two zone groups in Settings.app stop
+being silently inert on iPad, which is the state a suppression would have
+preserved. The middle path was rejected for the reason it usually is -- the same
+gesture doing different things on two devices is the split that gets mixed up
+later.
+
+**This is a RULING, not a deferral.** The behavior change on iPad top-edge holds
+is intended. It is also UNCONFIRMED on device: UIKit recognizers cannot be
+driven off a phone, so nothing here has watched a real hold land in that zone.
+
+## RULING, owner 2026-08-29: keep the 16 pt floor, and put a test on it
+
+Asked whether `kPadEdgeMin` (16 pt) is the right floor for the band now that the
+status bar is hidden, against raising it to a fraction of the unit or dropping
+it: **keep 16 pt, and add a test.**
+
+The value itself was never the issue -- it is the constant the rest of this
+layout already aligns to, and at 2x a full unit is ~195 pt, so the floor does
+not bind in practice. What was missing is a GUARD.
+
+**Why the floor is load-bearing, which is not obvious from reading it.** Hiding
+the status bar makes `SDL_GetWindowSafeArea` report `safeTop = 0` on the very
+next layout pass -- this iPad has no notch, so the status bar was the only
+reason for the reserve. Unfloored, the band would vanish at the exact moment the
+status-bar change took effect. That was found by measurement (a boot log reading
+`card=0.0px` and a screenshot with no band at all), not by reasoning about the
+code, and nothing currently proves it stays fixed.
+
+**Owed:** a host test pinning the band against `safeTop = 0`. Following this
+repo's doctrine, that means extracting the band computation into a pure header
+the way `src/HostKeyboardState.h` and `ios/ZenPrefSync.h` were extracted --
+those exist precisely because every failure mode in their area is silent, and
+"the band disappeared on some iPads" is exactly that kind of failure. Not built
+yet; `ios/` was owned by another agent when this was ruled.
+
+## RULING, owner 2026-08-29: prove the status-bar divergence, do not accept it
+
+The shipped fix hides the status bar on iPad with a deprecated imperative call
+gated on `UIUserInterfaceIdiomPad`. It works. **Why it is needed at all is not
+known**: the same binary, with the same `UIStatusBarHidden` /
+`UIViewControllerBasedStatusBarAppearance` keys -- unchanged since the app's
+first commit -- already hides the bar on iPhone.
+
+Offered "accept it and record the hypothesis honestly" or "set it on both idioms
+and drop the gate", he chose: **investigate until the cause is proven.**
+
+This is consistent with the standing lesson from the Speak Screen arc: probe the
+platform, do not reason about it. That arc cost seven instrumented builds and
+produced zero wrong fixes, and the meta-skill it established was designing the
+cheapest experiment that distinguishes the hypotheses.
+
+**What to investigate, when `ios/` is free:**
+
+- How SDL's UIKit backend creates its window and root view controller, and
+  whether that controller is the one UIKit consults for status-bar appearance.
+- Whether `UIViewControllerBasedStatusBarAppearance` is being honored, and if so
+  which controller answers `prefersStatusBarHidden` on each idiom.
+- Whether the divergence is idiom-specific at all, or actually a difference in
+  window/scene setup that happens to correlate with idiom on the devices tested.
+
+**Do NOT change the iPhone path while investigating.** It works today and was
+proven unmoved by pixel sampling; the third option was rejected for exactly that
+reason -- changing a working path to tidy an unexplained one is how regressions
+arrive.
+
+A proven cause may permit a cleaner fix that needs no deprecated call. If it
+does not, the imperative call stays -- but then it stays as a KNOWN workaround
+rather than a guess, which is the whole point of the ruling.
+
+## RULING, owner 2026-08-29 (confirmed twice): zero paper-to-panel gap, and the corner radius drops to unit/16 -- TABLET ONLY
+
+Superseding the sweep above. The owner did not pick a divisor off that table;
+he went further than any variant measured there ("there should be less
+paper... needs to be skinnier. just to be clear") and separately ordered the
+corner radius from `module/2` to `module/16` on the tablet. Two independent
+asks, landed together because both touch `layoutPadTablet`/`paintPad`.
+
+**Gap.** Before this change, the default (QA hatch env var unset) put
+`tabletMarginPx = g_paperGapPx` (the vertical unit, ~389.33 px on an iPad Pro
+13 portrait at 2x) -- which is the SCREEN margin, not the card-to-panel gap.
+The derived card-to-panel gap was `(cardW - panelW)/2 = 115px` on each side
+(card 1286 px vs panel 1056 px). Vertically the gap was already zero (the zen
+paper's own y/h equal the panel's y/h, by construction -- nothing to change
+there). The fix makes the card exactly the panel width, `tabletMarginPx =
+(outW - panelWpx) / 2`, independent of `g_paperGapPx` -- so the horizontal
+card-to-panel gap is now 0px, matching the vertical. The screen margin is
+whatever falls out: `(2064-1056)/2 = 504px` portrait.
+
+**Corner radius.** `g_paperGapPx` (the outer 1-unit band circle on tablet,
+the ink-gap circle on phone -- SAME GLOBAL, mutually exclusive writers,
+`layoutPadTablet` only runs when `CrossPointAppearance_isPad()`, the phone
+zen block only when it does not) feeds the corner radius at two sites:
+`paintTopBezel:2132-2140` (NOT gated on zen, runs on phone whenever there is
+a notch and on tablet always) and `paintBottomFillets:2217-2219` (only
+called from inside the `if (g_zen)` block, both platforms). Both used a
+hardcoded `/2.0f` divisor -- the 2026-08-22 identity, radius = half the
+module's diameter.
+
+**The divisor at both sites is SHARED CODE between phone and tablet** --
+confirmed by reading: `g_paperGapPx` differs by which circle wrote it, but
+the divisor applied to it did not differ by platform at all before this
+change. So `unit/16` cannot be a global divisor swap without also changing
+the phone's zen-mode bottom-corner radius and (on notched phones) the top
+one. Fixed by keying the divisor on `CrossPointAppearance_isPad()`: 16 on
+tablet, 2 (unchanged) on phone. Verification: phone path untouched by
+construction (same formula, same inputs, same divisor value it always had) --
+no phone device is attached to this session to screenshot, so this is
+argued from the code, not measured on a phone; flagging as UNCONFIRMED on
+phone hardware/simulator pending a render.
+
+Comments updated at the three sites the 2026-08-22 identity was recorded/
+restated/implemented (`g_paperGapPx`'s declaration ~:293, the tablet's
+band-circle comment ~:519-522, and the two corner painters) to say the
+identity now forks by platform.
+
+---
+
+## The corner radius, settled 2026-08-30: four grid cells (64 px)
+
+Owner ruling, verbatim: **"64 wins"** — picked by eye from a rendered sweep of
+every radius between 50 and 100 px commensurate with the paper's own geometry.
+
+The paper measures **1056 × 1584 px** (the panel at 2×), inset 504 px each
+side, 389 above, 779 below. 1056 = 2⁵·3·11 and 1584 = 2⁴·3²·11, so in that
+range: 66 and 88 divide both dimensions, 96 divides the width *and* lands on
+the 16 px (8 pt) grid, and 64/80 are whole cells only. All seven were rendered
+and measured; the artifact is the record of what the choice looked like.
+
+**It is stored as CELLS, not as a divisor of the module.** 64 px is what
+`unit/6.09375` yields on an iPad Pro 13 whose module measures 390 px — an
+arithmetic accident of one device's layout. The chosen property is that 64 is
+FOUR CELLS of the grid the pad aligns to, which survives a different module.
+`padCornerRadiusPx()` in `CrossPointIOSShim.cpp` is the single source; both
+corner painters read it.
+
+This **supersedes the 2026-08-29 "1/16 of unit" ruling for the tablet** rather
+than contradicting it: that ruling asked for a smaller corner than the old
+half-module, and 64 px is smaller still on the reference device (against 195).
+The divisor path stays live for the phone and for the QA sweep hatch.
+
+Measured after the change, off the delivered pixels rather than the request:
+
+| | radius |
+|---|---|
+| iPad Pro 13, no env set | **64 px** |
+| iPhone Air, no env set | 106 px — unchanged, the phone's own module/2 |
+
+### The bug this sweep uncovered first
+
+The initial sweep produced three captures that were not what they claimed:
+`unit/16`, `unit/4` and `unit/2` were byte-identical at 24 px, and `unit/8` was
+a blank frame. `paintTopBezel` stopped gating the module radius on zen on
+2026-08-23; `paintBottomFillets` never did, so outside zen it fell back to
+`kPaperCornerPt × scale` = exactly 24 px while the top pair drew
+`module / divisor` — one rectangle wearing two curves, the defect the
+2026-08-20 ruling had already fixed once between these same two painters.
+`unit/16` agreed only because 384/16 is also 24. Fixed in `2d22b0b`; the
+shared helper added in `e6df2f7` exists so the pair cannot drift a third time.
+
+**Lesson worth keeping:** the sweep was captioned from the requested divisors
+and looked complete. It was caught only by measuring the delivered pixels and
+hashing the files. Caption what rendered, never what was asked for.
