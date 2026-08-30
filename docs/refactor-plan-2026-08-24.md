@@ -399,6 +399,14 @@ the defocus code path is the shipped one.
 `pio run -e simulator`, iOS `CrossPointX3` Debug (22 `simtube` symbols in the
 linked app). The `-Wformat` warning noted in the file was left alone.
 
+**Line counts above are the 2026-08-25 snapshot, not current state** (checked
+2026-08-29): `src/HalDisplay.cpp` has since grown back to 4,231 lines — the
+trail-cost, whole-glass-CRT and composition-test work all landed feature code
+into it after this split — against `SurfaceSheet.cpp` 818, `SurfaceTube.cpp`
+469 (unchanged) and `SurfacePower.cpp` 767. The split itself held (four files,
+not one); it did not freeze `HalDisplay.cpp`'s size, which was never the goal
+stated at the top of Tier 2.
+
 **Tier 2's remaining candidate is `ios/CrossPointIOSShim.cpp` (3,005 lines), and
 it is a DIFFERENT problem — take the contention argument seriously before
 starting it.** Tier 2's stated goal is to stop tasks serialising on one file.

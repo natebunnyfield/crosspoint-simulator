@@ -3,10 +3,12 @@
 A simulator for [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)-based firmware. It compiles the **real firmware** for the host and renders the e-ink panel in an SDL3 window — no device required. Can be used with forks of CrossPoint, but any new methods added to the firmware will need to be stubbed. If your fork diverges from the CrossPoint HAL, see [FORKING.md](FORKING.md).
 
 **One source set, two toolchains.** The same firmware plus this HAL builds as a
-desktop binary through PlatformIO, and as a native iOS app through CMake — 129
-firmware translation units and 23 simulator ones for `arm64-apple-ios`, running
-on a real iPhone with an on-screen button pad. The desktop build stays the
-canary: it is the one that must be green first.
+desktop binary through PlatformIO, and as a native iOS app through CMake — the
+counts move every time a translation unit is added on either side, so check
+the generated header instead of trusting a number here (`head -9
+cmake/CrossPointSources.cmake`; 143 firmware / 27 simulator TUs as of
+2026-08-29) — running on a real iPhone with an on-screen button pad. The
+desktop build stays the canary: it is the one that must be green first.
 
 | | Desktop | iOS |
 |---|---|---|
@@ -22,9 +24,13 @@ built here; see [ios/README.md](ios/README.md) and
 **Beyond running the firmware, this fork adds:** a read-aloud page channel that
 hands the displayed page to a host text-to-speech engine, host-keyboard text
 entry into the firmware's own fields (with the software keyboard's show/hide
-contract), a 14-preset page palette and a button-pad contrast dial, dark-mode
+contract), a page palette (52 named presets as of 2026-08-23 — see
+[CLAUDE.md](CLAUDE.md)'s "The color dials" table for the current count and
+which of these are reachable from iOS today, since most froze there
+2026-08-23/24) and a button-pad contrast dial, dark-mode
 re-present from a cached frame, `SimulatorOverlay` for chrome outside the panel,
-1x/2x/3x render scale, and Mac App Store + TestFlight packaging. Each has its
+1x/2x render scale on the desktop (3x was dropped 2026-08-23; iOS is frozen at
+2x), and Mac App Store + TestFlight packaging. Each has its
 own section below or its own file in [docs/](docs/).
 
 > [!NOTE]
@@ -323,8 +329,15 @@ as covered. The rest of the table has the same shape.
 
 ## Running the tests
 
-Twenty-two host tests build and run in one command, and it exits non-zero on the
-first failure:
+`tests/run_all.sh` is the catalog as well as the runner — it builds and runs
+every host test in one command and exits non-zero on the first failure. The
+count moves often enough that a number here would drift (69 entries ran on
+macOS as of 2026-08-29, including the four shell tests below and with a
+firmware checkout present for the three that need one; a plain
+`grep -cE '^\s*(run|run_direct|run_shell_skip) '` over the script overcounts by
+one because `sha256` has a platform-conditional Linux/macOS branch, only one
+side of which ever runs). Read the runner rather than trust a figure in this
+file:
 
 ```bash
 tests/run_all.sh            # everything
@@ -336,31 +349,39 @@ network shims, restart semantics, task lifetime, read-aloud, SHA-256, the
 device-truth flags above, and the build-identity guard. Run them when touching
 any of those.
 
-Three shell tests are **not** in the runner, because each needs a firmware
-checkout and uses exit code 2 to mean SKIP, which a pass/fail runner would
-misreport as a failure:
+**All four shell tests are IN the runner** (since 2026-08-29), via a
+`run_shell_skip` helper rather than the ordinary pass/fail path, because each
+needs a firmware checkout and uses exit code 2 to mean SKIP, which a plain
+pass/fail runner would misreport as a failure. `CROSSPOINT_FIRMWARE_DIR` picks
+the checkout (default `~/src/crosspoint-reader`). They can still be run
+standalone:
 
 ```bash
-tests/test_sleep_wake.sh <firmware-checkout>          # deep-sleep wake edge latch
-tests/test_text_entry.sh <firmware-checkout>          # host keyboard into a firmware field
-tests/test_read_aloud_capture.sh <firmware-checkout>  # page capture + a scripted page turn
+tests/test_sleep_wake.sh <firmware-checkout>           # deep-sleep wake edge latch
+tests/test_text_entry.sh <firmware-checkout>           # host keyboard into a firmware field
+tests/test_read_aloud_capture.sh <firmware-checkout>   # page capture + a scripted page turn
+tests/test_note_editor_repaint.sh <firmware-checkout>  # a note repaints while a HOST keyboard types
 ```
 
 ## The color dials
 
-Three host-side settings decide what the page and the pad look like. **None of
-this reaches device firmware**, which has no Settings app to expose it.
-
-| Dial | Lives in | Documented in |
-|---|---|---|
-| Page palette — 15 named presets plus Custom | [src/PanelPalette.h](src/PanelPalette.h) | [ios/README.md](ios/README.md), [docs/crt-phosphor-presets.md](docs/crt-phosphor-presets.md) |
-| Button pad outline and fill | [ios/PadPalette.h](ios/PadPalette.h) | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
-| Render scale 1x / 2x (3x dropped 2026-08-23) | firmware `RenderScale.h`, latched in `simulator_main.cpp` | [docs/ios-render-scale.md](docs/ios-render-scale.md) |
+There are sixteen host-side dials that decide what the page and the pad look
+like as of 2026-08-29 — this table used to keep its own copy of that list and
+it drifted (three dials, fifteen presets, "1x/2x/3x"), which is exactly the
+failure mode `CLAUDE.md` warns about for these dials. **[CLAUDE.md](CLAUDE.md)'s
+"The color dials, and the one rule they all share" section is the one copy of
+this list now** — read it there, including which of these are still reachable
+from iOS Settings.app today (most froze as constants on 2026-08-23/24) and
+which are desktop-only. **None of this reaches device firmware**, which has no
+Settings app to expose it.
 
 On the desktop the page palette is set with the `CROSSPOINT_SIM_PANEL_*`
-variables above; on iOS it is a picker in Settings.app. Both polarities default
-to what this repo always hardcoded, so a build that never sets one is
-pixel-identical to before the dial existed.
+variables above; on iOS it was a picker in Settings.app before the 2026-08-24
+freeze, and the picker UI still exists (reachable via
+`CROSSPOINT_SIM_OPEN_INKPICKER=1` / `CROSSPOINT_SIM_OPEN_MIXER=1`) even though
+its sliders no longer move the shipped page. Both polarities default to what
+this repo always hardcoded, so a build that never sets one is pixel-identical
+to before the dial existed.
 
 **The iOS app's bundled fonts are block-compressed.** `.cpfont` stores its glyph
 bitmaps raw, so the bundle used to install 118 MB of what its own zip carried in

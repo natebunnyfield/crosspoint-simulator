@@ -116,18 +116,27 @@ Two tests take the shipped `ios/Settings.bundle/Root.plist` as an argument
 (defaulted to the repo-relative path), so run them from the repo root — which is
 what `run_all.sh` does.
 
-**The four shell tests are NOT in the runner**: all need a firmware checkout and
-use exit 2 for SKIP, which a pass/fail runner would misreport. They need a card
-too — with no `fs_/.crosspoint/settings.json` they SKIP with exit 2, which a
-casual run reads as "not failing" rather than "not run". All four PASS as of
-2026-08-18, verified against a clean firmware worktree at `f80b140b6` with a
-seeded `fs_`.
+**The four shell tests ARE now in the runner** (since a 2026-08-29 change to
+`tests/run_all.sh`; the sentence above stood wrong here for a while — this repo
+had the same "not in the runner" claim duplicated in `README.md` too). They run
+last, via a dedicated `run_shell_skip` helper (not `run`/`run_direct`), because
+each needs a firmware checkout and uses exit code 2 for SKIP, which the ordinary
+pass/fail runner would misreport as FAIL. They need a card too — with no
+`fs_/.crosspoint/settings.json` they SKIP with exit 2, which a casual run reads
+as "not failing" rather than "not run". `CROSSPOINT_FIRMWARE_DIR` picks the
+checkout (default `~/src/crosspoint-reader`). Verified 2026-08-29 against the
+current firmware checkout: 68 of 69 total entries PASS in a full clean run, one
+FAILED (`test_text_entry`, `ownerName is "", expected "CrossPoint QA"`) — but
+re-run with `-k text_entry` in isolation it PASSES, so this reads as an
+order-dependent flake in the full-suite run rather than a real regression; not
+yet root-caused, so treat a lone `test_text_entry` FAIL in a full run as
+suspect and re-run it alone before trusting it.
 
 ```bash
-tests/test_sleep_wake.sh <firmware-checkout>           # deep-sleep wake edge-latch
-tests/test_text_entry.sh <firmware-checkout>           # host keyboard into a firmware text field
-tests/test_read_aloud_capture.sh <firmware-checkout>   # capture + QTAP page turn, generated fixture book
-tests/test_note_editor_repaint.sh <firmware-checkout>  # a note repaints while a HOST keyboard types
+tests/run_all.sh -k sleep_wake            # deep-sleep wake edge-latch
+tests/run_all.sh -k test_text_entry       # host keyboard into a firmware text field (the shell one, not text_entry_enter)
+tests/run_all.sh -k read_aloud_capture    # capture + QTAP page turn, generated fixture book
+tests/run_all.sh -k note_editor_repaint   # a note repaints while a HOST keyboard types
 ```
 
 ## Architecture
@@ -418,7 +427,7 @@ remappable Back/Confirm/Left/Right pad, and the SIDE pair is the physical
 up/down rocker that page-turns in the reader (`Button::PageBack`/`PageForward`,
 swappable via `SETTINGS.sideButtonLayout`). Whether that side pair is actually
 on the device's EDGE differs per board — `HalGPIO::hasEdgeSideButtons()`
-(`src/HalGPIO.cpp:836` — grep the name, this citation has moved once) is
+(`src/HalGPIO.cpp:838` — grep the name, this citation has moved twice now) is
 the authority: TRUE for X3/X3-UC8279/X4 Pro, FALSE
 for X4. So an on-glass button pad must not draw an edge rocker for an X4
 profile, and "up/down" in a prompt usually means the page-turn side pair, not
@@ -645,10 +654,10 @@ the desktop. The rightmost column says which each one is.
 | Screen grain — strength 0/0.3/1/3x, four coverages, blotch size 8/16/32 and depth 0/0.03/0.1/0.3, amplitude scaled PER PALETTE — SKIPPED while letterpress (light) or scanlines (dark) is on, which the app ships BOTH of. **A desktop dial only**: its rows left `Root.plist` on 2026-08-22 and `tests/panel_palette_test.cpp` asserts them absent, so nothing on the phone reaches it. As of 2026-08-23 `CrossPointPrefs.mm` returns 60 light / 160 dark, Vignette+Mottled, depth 0.90 as constants — and because the app also freezes letterpress and scanlines ON, that field is never actually composited on a phone; it is frozen honestly so that turning a doctrine dial off falls back to the grain the app last shipped | `src/PhosphorGrain.h`, field built in `src/SurfaceTube.cpp` and composited over the whole app surface by `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_GRAIN*` | `docs/phosphor-grain.md` |
 | Sheet-to-sheet drift — LIGHT pages only, a per-page paper tone offset off the SAME page identity the tooth, wires and marks use (so a leaf is the same leaf across a relaunch); +/-2 code values at dial 100, paper only, never the ink. Bit-exact off at dial 0, which is still the MODEL's default (`kPaperDriftDefault`) and the desktop's — but the iOS app FREEZES it at 100 (2026-08-23), so on the phone every leaf differs. It rides `livePanelPalette` -- the one read every consumer of the page's color goes through -- and the drift dial is threaded through `floorDensityPct`/`maxPaperStrengthPct`, so the 7:1 floor is the DARKEST leaf's rather than the nominal sheet's | `src/LightInkPalette.h`, applied in `HalDisplay.cpp`; `CROSSPOINT_SIM_PAPER_DRIFT`, `paperDriftPercent` in settings.json | `docs/surface-roadmap.md` section 1c |
 | Letterpress — LIGHT pages only (doctrine 2026-08-22: light is paper and ink), Off/Subtle/Standard/Heavy, ink-squeeze rim + deboss shadow + pressure + tooth, panel-space, darken-only. The pressure part's mapped range is WIDENED above 100% (`pressAmpScale`, 200% = 8x standard) — the 2026-08-22 audit found the dial near-dead, eaten by both the pixel math and a cache key that omitted the part percents | `src/Letterpress.h`, field built in `src/SurfaceSheet.cpp` and composited over the panel by `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_LETTERPRESS` | `docs/letterpress-and-scanlines.md` |
-| The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it. The ink list, Density and the stock grid held out one more day and froze with the rest on 2026-08-24 (Sanguine on India), so the drawer now has no live control at all; it still opens from `CROSSPOINT_SIM_OPEN_INKPICKER=1` and its sliders move nothing, which is the freeze working. Note the four STOCK-DERIVED dials moved with the stock: tooth 336%, formation 56%, show-through 300%, wires 0 — India's 1.12x / 0.70x / 3.0x against the frozen 300 / 80 / 100 | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8; the marks themselves are `docs/paper-defects.md` |
+| The light page's SHEET — paper strength 100, tooth 300%, formation 80%, defects 0, drift 100, press 100/100/100 — FROZEN 2026-08-23, no control on the phone reaches any of it. The ink list, Density and the stock grid held out one more day and froze with the rest on 2026-08-24 (Sanguine on India), so the drawer now has no live control at all; it still opens from `CROSSPOINT_SIM_OPEN_INKPICKER=1` and its sliders move nothing, which is the freeze working. Note the four STOCK-DERIVED dials moved with the stock: tooth 336%, formation 56%, show-through 150%, wires 0 — India's 1.12x / 0.70x / 3.0x against the frozen 300 / 80 / 50 | frozen in `ios/CrossPointLightInkPicker.mm` and `ios/CrossPointPrefs.mm`, seeded by `CROSSPOINT_SIM_AS_SHIPPED` in `src/HalDisplay.cpp`; the desktop's `CROSSPOINT_SIM_PAPER_*` vars and settings.json keys are unchanged | `docs/light-ink-picker.md` §8; the marks themselves are `docs/paper-defects.md` |
 | Laid structure — chain + laid lines for a laid PAPER stock (`lightink::Paper::laid`; Laid Antique today), rides the paper slider, output-space box-integrated (the ~1.9 px laid pitch is ST-008 territory), darken-only, per-page seed | `src/LaidStructure.h`, folded into the sheet field in `src/SurfaceSheet.cpp`; `CROSSPOINT_SIM_LAIDLINES` | `docs/letterpress-and-scanlines.md`, `docs/paper-colorimetry-sources.md` §3c |
 | Scanlines — DARK pages only (doctrine 2026-08-22: dark is CRT; supersedes the 2026-08-18 no-scanlines ruling), Off/Subtle/Standard/Deep with the mottle depth folded in, one line per source row, bloom off the composed frame, output-space, darken-only | `src/Scanlines.h`, field built in `src/SurfaceTube.cpp` and composited over the whole app surface by `HalDisplay::presentIfNeeded`; `CROSSPOINT_SIM_SCANLINES` | `docs/letterpress-and-scanlines.md` |
-| Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 100; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x) | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
+| Show-through — the previous leaf, MIRRORED (in presented space; the framebuffer is landscape) and heavily blurred, faintly visible through this one. LIGHT only, folded into the sheet field, darken-only, fourth consumer of the paper budget. FROZEN at 50; the STOCK's ISO 2471 opacity is what varies it (India 3.0x, Kozo 3.7x, vellum 0.25x), so the shipped India page renders 150 | `src/ShowThrough.h`, per-stock factor `lightink::showThroughScaleFor`; `CROSSPOINT_SIM_SHOW_THROUGH` | `docs/show-through.md` |
 | Corner defocus — the beam spot grows and turns ELLIPTICAL off-axis, so the raster softens at the corners and not at the left/right edges. DARK only, modulates the scanline field rather than drawing one, mean-preserving (it cannot lift a corner). **FROZEN OFF (0) since 2026-08-23** — a Settings row was shipped so the owner could judge it on glass and he correctly reported "nothing is being rendered in any corners": at the shipped 2 px scanline pitch the field it modulates is 5/255 deep at the centre and 0 at the corner, so there was nothing there to defocus. The model, its test and its doc all stand; re-enabling is this one number, and returning 0 gave back ~42 ms per dark page turn | `src/CornerDefocus.h`, folded into `ensureScanlinesTexture` in `src/SurfaceTube.cpp`; `CROSSPOINT_SIM_CORNER_DEFOCUS`; `CrossPointPrefs_cornerDefocusPercent()` returns 0 | `docs/corner-defocus.md` |
 | Power-off collapsing dot — at sleep the picture squeezes to a bright line, the line closes to a dot, the dot fades. The picture is the PAGE that was on the glass, not the sleep screen (owner 2026-08-24) — the sleep screen's present is dropped and a copy of the reading page is kept for the source. DARK only, and the glass then stays dark for the whole sleep. **The one surface dial that is an iOS Settings row**, default OFF | `src/PowerOffCollapse.h`, drawn by `SimulatorOverlay::stepPowerOffCollapse` in `src/SurfacePower.cpp` from `HalGPIO::startDeepSleep`; `CROSSPOINT_SIM_POWEROFF_COLLAPSE` | `docs/power-off-collapse.md` |
 | BZZT THONK power-on warm-up — the OTHER HALF of that same row, no second control. Fires only where the collapse actually switched the tube off (a recorded state, not a wake event): dot relit → flicker + crackle with the line punching out in steps → raster slams open, overshoots into overscan, bounces, lands → 6% sag and back to exactly nominal. 395 ms, DARK only, skippable on any press DOWN | `src/PowerOnWarmUp.h`, composited by `simpower::compositeWarmUp()` in `src/SurfacePower.cpp`, called from `HalDisplay::presentIfNeeded`; armed by `CROSSPOINT_SIM_TUBE_OFF` (set by the collapse), QA hatch `CROSSPOINT_SIM_POWERON_WARMUP` | `docs/power-off-collapse.md` |
@@ -658,7 +667,7 @@ the desktop. The rightmost column says which each one is.
 **Two of the three 2026-08-23 items are frozen and one is a row, and that split
 is the ruling in miniature.** Show-through and corner defocus each have one
 answer that is simply right, so they are frozen constants with no control:
-show-through at 100, because the STOCK's ISO 2471 opacity is what varies it and
+show-through at 50, because the STOCK's ISO 2471 opacity is what varies it and
 the owner already picks the stock; corner defocus at **0**, because it was
 shipped as a row for him to judge and he could not see it — the scanline field
 it modulates is 5/255 deep at the shipped pitch. The collapsing dot has a

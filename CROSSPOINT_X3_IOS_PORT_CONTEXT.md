@@ -293,14 +293,17 @@ cost matters.
 
 1. **Does the custom X3 fork add HAL methods** beyond upstream? **No stub work was needed.** The
    fork's only HAL change vs the merge-base is `HalClock`, and its one new public method
-   (`getDateTime`) was already mirrored at `src/HalClock.h:19`. Diffing upstream `develop`'s HAL
+   (`getDateTime`) was already mirrored at `src/HalClock.h:18` (re-grepped 2026-08-29; was `:19`). Diffing upstream `develop`'s HAL
    against the simulator also showed zero public gaps, so a rebase costs nothing either. The
    remaining differences are private device-side helpers (`writeDateTimeToRTC`, `readGyro`,
    `readReg`, `writeReg`) the simulator never needs.
 2. **Does the fork change `BoardConfig`** — e.g. already flipped `hasTouch()`? **No.** Both
    capability tables report false for X3: the simulator's `isX4Pro()` form at
-   `src/BoardConfig.h:74`, and the firmware SDK's independent table-driven form at
-   `BoardConfig.h:987`, where the `XTEINK_X3` profile passes `NO_TOUCH`. §3's discriminator stands.
+   `src/BoardConfig.h:171` (re-grepped 2026-08-29; was `:74` — this file has grown
+   from 74 to 179 lines since this note was written), and the firmware SDK's
+   independent table-driven form at `BoardConfig.h:987` (a different file, in the
+   firmware repo — not re-verified here, per this pass's directory scope), where
+   the `XTEINK_X3` profile passes `NO_TOUCH`. §3's discriminator stands.
 3. **Where does curl actually get used?** **It dropped out entirely, as hoped.** The `simulator`
    env compiles zero third-party TUs — ArduinoJson is header-only, QRCode and WebSockets are
    shimmed by this library — so SDL is the only external dependency. No `curl.xcframework`.

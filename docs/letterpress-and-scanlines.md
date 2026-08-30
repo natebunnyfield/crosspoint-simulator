@@ -86,9 +86,17 @@ the paper, not the pressure, so it rides sub-linearly — a hard press does not
 make the paper toothier.
 
 Rungs (stored as the meaningful percent, house rule): **Off (0)** — bit-exact
-off — **Subtle (50)**, **Standard (100)**, **Heavy (200)**. Default **Subtle**
+off — **Subtle (50)**, **Standard (100)**, **Heavy (200)**. Only the ends are
+named constants (`letterpress::kStrengthOff` 0,
+`letterpress::kStrengthStandard` 100, `letterpress::kOfferedStrengthMax` 200,
+`src/Letterpress.h:74,75,107`); 50 was a Settings row value and never a
+constant. Default **Subtle**
 in light mode (the doctrine makes it the mode's identity; subtle because it is
-a reading page, not a poster). Precisely: ring, deboss, plate pressure and
+a reading page, not a poster) — **but the app has shipped Standard (100) since
+the 2026-08-23 freeze below**, and the model's own struct default is likewise
+`kStrengthStandard` (`src/Letterpress.h:204`). "Subtle" here is the Settings
+row's old default, kept as the record of what the ladder was tuned around.
+Precisely: ring, deboss, plate pressure and
 in-stroke irregularity scale linearly with the dial; the paper's tooth rides
 the square root of it, because a harder press does not make the paper toothier.
 Measured on the shipped page at Heavy (Default palette, 2x): edge band −32.5
@@ -191,8 +199,19 @@ you can barely see is noise, and a deep structure with no unevenness is a
 silkscreen. Folding keeps one integer round-tripping through Settings.app.
 
 Rungs: **Off (0)** — bit-exact — **Subtle (50)** depth 0.20 / mottle 0.15,
-**Standard (100)** depth 0.40 / mottle 0.30, **Deep (150)** depth 0.55 /
-mottle 0.40. Default **Subtle** in dark mode.
+**Standard (100)** depth 0.40 / mottle 0.30, **Deep (150)** depth **0.60** /
+mottle 0.40. Default **Subtle** in dark mode, which is also what the app froze
+at in 2026-08-23.
+
+*(Corrected 2026-08-29: this line read "Deep (150) depth 0.55" from the day it
+was written and was never right. `scanlines::depthFor` is
+`kDepthAt100 · percent/100` capped at `kDepthMax`, and `kDepthAt100 = 0.40f`,
+`kDepthMax = 0.60f` (`src/Scanlines.h:79,80,183`), so 150 gives 0.60 — the cap,
+exactly. Compiled and run against the current header to confirm. `kDepthAt100`
+has been 0.40 since the introducing commit, so this was a transcription error
+rather than code drift. The mottle figures are correct:
+`mottleDepthFor = 0.003 · percent` capped at `kMottleDepthMax = 0.40`
+(`src/Scanlines.h:168,191`).)*
 
 ### The inherited constraints, all honored
 
@@ -244,14 +263,36 @@ ios app settings as options."* The whole Page Colors group went with them.
 | Scanlines | `scanlinesPercent` | **50** (Subtle) |
 | Scanline Size | `scanlineSizePercent` | **100** (Fine, one line per page row) |
 | Scanline Bloom | `scanlineBloomPercent` | **400** (Extreme) |
-| never a row | `showThroughPercent` | **100** — the light page's verso showing through, gated by the STOCK's own opacity ([show-through.md](show-through.md)) |
-| never a row | `cornerDefocusPercent` | **100** — the dark raster softening off-axis, which MODULATES the scanline field above ([corner-defocus.md](corner-defocus.md)) |
+| never a row | `showThroughPercent` | **50** — the light page's verso showing through, gated by the STOCK's own opacity ([show-through.md](show-through.md)). Frozen at 100 on 2026-08-23, **HALVED to 50 on 2026-08-24** |
+| never a row | `cornerDefocusPercent` | **0** — the dark raster softening off-axis, which MODULATES the scanline field above ([corner-defocus.md](corner-defocus.md)). Frozen at 100 on 2026-08-23, **turned OFF later the same day** |
 
 The last two arrived on 2026-08-23 and were frozen at birth rather than
 demoted: each has one obviously right value, so under the ruling above neither
 earned a row. `powerOffCollapse` arrived with them and DID earn one, because it
 trades the sleep screen away and only the owner may make that trade
 ([power-off-collapse.md](power-off-collapse.md)).
+
+**Both of those two have since moved, and this table said 100 for each until
+2026-08-29.** The current values are in `ios/CrossPointPrefs.mm`, which is the
+authority — the getters return constants and consult NSUserDefaults for
+neither:
+
+- `CrossPointPrefs_showThroughPercent` returns **50**
+  (`ios/CrossPointPrefs.mm:513`). Owner 2026-08-24, *"half the verso bleed
+  visibility."* At 100, India's 3.0x stock factor landed on
+  `showthrough::kStrengthMax` (300) exactly, so the shipped page carried the
+  most show-through the model can express on the thinnest stock it offers; 50
+  puts India at 150. The stock still does all the varying.
+- `CrossPointPrefs_cornerDefocusPercent` returns **0**
+  (`ios/CrossPointPrefs.mm:544`), and `src/SimulatorDials.h:261` carries the
+  same 0 in its shipped column. A Settings row was shipped so the owner could
+  judge it on glass; he looked and reported *"nothing is being rendered in any
+  corners"*, which was the correct observation — at the shipped 2 px pitch the
+  scanline field it modulates is 5/255 deep at the centre and 0 at the corner,
+  so there was nothing there to defocus. The model, its test and its doc all
+  stand and re-enabling is this one number. Full account, including why the
+  41% figure quoted for it was a ratio of something already invisible:
+  [corner-defocus.md](corner-defocus.md).
 
 They are returned by `ios/CrossPointPrefs.mm` **without consulting
 NSUserDefaults**, which is the part that matters and is not the obvious
@@ -267,7 +308,17 @@ tenth dials to need that seed), plus the same keys in the desktop
 canary, proven by before/after capture md5.
 
 `CROSSPOINT_SIM_SCANLINE_PITCH` and `CROSSPOINT_SIM_SCANLINE_BLOOM` are the
-eleventh and twelfth dials to need an init seed. Both default to the value
+eleventh and twelfth dials to need an init seed. **Those ordinals — and the
+"ninth and tenth" above — are the count as it stood on 2026-08-22, before
+`src/SimulatorDials.h` existed, and there is no way to re-derive them from the
+tree today; read them as history, not as an index.** The table is the live
+count now, and nobody should re-type it:
+
+```bash
+grep -cE '^\s+\{[A-Z][A-Za-z]*,' src/SimulatorDials.h
+```
+
+Both default to the value
 build 126 shipped, so they change nothing on an untouched install; the desktop
 canary is byte-identical with either set to anything while scanlines are off
 (md5 `8cc692a6…` across pitch 100/150/300 and bloom 0/400, grain seed pinned).
@@ -393,15 +444,21 @@ control that barely exists: **the full 0..200% sweep moved 0.39% of rendered
 pixels by at most 8 code values, and any rung looked byte-identical to the
 default while dragging**. Traced from zero, the dial was being eaten twice:
 
-1. **The cache ate the slider live** (`src/HalDisplay.cpp`,
-   `ensureLetterpressTexture`). The letterpress panel-field cache keyed on
+1. **The cache ate the slider live** (`ensureLetterpressTexture` — then in
+   `src/HalDisplay.cpp`, moved to `src/SurfaceSheet.cpp:227` on 2026-08-25
+   with the rest of the sheet pass). The letterpress panel-field cache keyed on
    size, frame seq, master strength and palette -- but NOT on the three press
    part percents. A drawer slider stored its value and asked for a present;
    the present found seq/strength/palette unchanged and served the cached
    texture, so the new ratio first painted at some unrelated page turn. The
-   three percents are cache keys now (`letterTexRing/Deboss/Press`).
-2. **The pixel math had almost nothing to show** (`src/Letterpress.h:308`,
-   the line `kPressAt100 * ratio * s * heavy * t`). The term is gated by
+   three percents are cache keys now (`letterTexRing/Deboss/Press`,
+   `src/SurfaceSheet.cpp:214`).
+2. **The pixel math had almost nothing to show** — the press term, then at
+   `src/Letterpress.h:308` and reading `kPressAt100 * ratio * s * heavy * t`.
+   *(That expression no longer exists: the fix below replaced `ratio` with the
+   widened `pressAmpScale(clampScale(p.pressScale))`, and the line is now
+   `src/Letterpress.h:346`. The form above is kept because it is what the
+   measurement was taken against.)* The term is gated by
    `heavy` (the positive half of a smooth 4-cell noise field -- small on most
    of the page) and by `t` (inkness -- pressure darkens INK), and ink at the
    shipped `#2D2D2D` has only ~45 code values for a multiplier to act on.

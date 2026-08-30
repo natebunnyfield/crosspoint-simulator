@@ -40,7 +40,9 @@ Three details are load-bearing:
   have left the headline claim false while looking like it had been addressed:
   the hash would differ per page *and* per launch.
 - **FNV-1a, never `std::hash`.** `Epub`'s cache key uses
-  `std::hash<std::string>` (`lib/Epub/Epub.h:46`), which is
+  `std::hash<std::string>` (`lib/Epub/Epub.h:49`, in the `Epub` constructor's
+  `cachePath` line — grep `std::hash<std::string>` there, this citation has
+  moved once already), which is
   implementation-defined — libc++ and libstdc++ disagree, so a desktop build and
   an iOS build of the same book would print it on different paper. A 12-line
   constexpr FNV-1a in the firmware's `lib/hal/HalGPIO.h` makes determinism a

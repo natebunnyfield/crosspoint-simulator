@@ -1,8 +1,18 @@
 # Paper colorimetry: measured sources for the light-mode paper table
 
-Research pass 2026-08-22, for the twelve papers in
+Research pass 2026-08-22, for the twelve papers then shipped in
 [src/LightInkPalette.h](../src/LightInkPalette.h) (`lightink::kPapers`) and the
 tooth/formation fields they drive in [src/Letterpress.h](../src/Letterpress.h).
+
+**Dated correction, 2026-08-29.** `kPapers` now holds **thirteen** rows, not
+twelve — this same pass's own recommendation G1/I3 landed a "Brightened White"
+row (index 12, `{0xEF, 0xF0, 0xFC}`, tooth 1.05, formation 0.70) the same day,
+recorded correctly in the "Implementation status" note at the foot of this
+document but not reflected in this opening paragraph. Verified against
+`src/LightInkPalette.h`: `kPaperCount` is defined by the enum's sentinel and
+`kPapers[kPaperCount]` currently lists 13 named rows ending in `"Brightened
+White"`. The "shipped twelve, in Lab" table just below is the original twelve
+only and is unaffected; it simply no longer covers the whole array.
 Companion to [ink-colorimetry-sources.md](ink-colorimetry-sources.md) and
 [ink-palette-research.md](ink-palette-research.md), which this doc builds on
 and does not re-derive (the ISO 12647-2 paper types, the FOGRA39/47/51/52

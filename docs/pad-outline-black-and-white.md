@@ -15,7 +15,9 @@ with `PIL`, not inferred from the source. Everything inferred is labelled.
 ## 1. How to measure a pad color at all, and the trap in it
 
 `CROSSPOINT_SIM_SCREENSHOTS` captures the **panel**, not the pad — the pad is
-`paintPad` in `ios/CrossPointIOSShim.cpp:1063`, which only exists in the iOS
+`paintPad` in `ios/CrossPointIOSShim.cpp:2309` (this line number has moved
+since this doc was written — verify with `grep -n "^void paintPad" ios/CrossPointIOSShim.cpp`
+before citing it again), which only exists in the iOS
 target. So a pad color can only be measured by building the app, running it on
 an iOS Simulator, and screenshotting the device:
 
@@ -26,7 +28,8 @@ xcrun simctl io <udid> screenshot --type=png shot.png
 **Use a device whose render resolution equals its panel resolution.** The first
 run of this was done on the **iPhone 13 mini**, which renders at 1125×2436 and
 downsamples to a 1080×2340 panel. The pad's stroke is one device pixel
-(`CrossPointIOSShim.cpp:1091` — `const float hairline = 1.0f`), and the
+(`CrossPointIOSShim.cpp:2523` (moved from :1091; re-grep `const float hairline = 1.0f`
+before citing again) — `const float hairline = 1.0f`), and the
 downsample smears it across three rows so it never reaches its own tone
 anywhere. Measured on the 13 mini, the default light stroke:
 
@@ -64,12 +67,15 @@ reading the design correctly, not finding a fault.
 
 Mechanism, for the record:
 
-- `ios/PadPalette.h:105-112` — the shipped `hairline` tones, `#D9D9D7` / `#333333`.
+- `ios/PadPalette.h:107-114` (moved from :105-112) — the shipped `hairline` tones, `#D9D9D7` / `#333333`.
+  Verified current: `kLightPalette` starts at line 107, `kDarkPalette` at line 111.
 - `ios/PadPalette.h:195-206` — the four delta tables; index `−1 + kContrastOffset`
-  is `−34`, `+1 + kContrastOffset` is `+33`.
-- `ios/CrossPointIOSShim.cpp:702` and `:845` — the live palette, built with
+  is `−34`, `+1 + kContrastOffset` is `+33`. (Verified current — unchanged.)
+- `ios/CrossPointIOSShim.cpp:1294` (`applyPanel`) and `:1608` (`pollPadContrast`)
+  — moved from `:702`/`:845` — the live palette, built with
   `makePaletteOn(dark, outline, fill, panel.paper)`.
-- `ios/CrossPointIOSShim.cpp:1120` — `setRGB(r, p.hairline)` then a rounded fill,
+- `ios/CrossPointIOSShim.cpp:2615-2618` (moved from `:1120`, single-button loop
+  in `paintPad`) — `setRGB(r, p.hairline)` then a rounded fill,
   with the face laid back inside it one pixel in.
 
 ---
@@ -179,6 +185,37 @@ raw table entries, so the no-dead-zone guard covers the ends too.
 `padContrastPreset` `DefaultValue` 1 → 4, and the fallback in
 `ios/CrossPointPrefs.mm:160` with it (that branch only runs if Root.plist is
 unreadable, so a drift there is invisible until a packaging fault exposes it).
+[Line citation stale — see the 2026-08-29 correction directly below: the
+`registerDefaults` fallback (`kPadContrastPreset : @(4)`) is now at
+`ios/CrossPointPrefs.mm:213`, not `:160`, and the Root.plist row it was meant
+to shadow is gone.]
+
+**CORRECTION, 2026-08-29 (verified against this working tree).** `padContrastPreset`
+and all four fine-picker keys (`padOutlineContrastLight/Dark`,
+`padFillContrastLight/Dark`) have since been **removed from
+`ios/Settings.bundle/Root.plist` entirely** — confirmed by
+`python3 -c "import plistlib;d=plistlib.load(open('ios/Settings.bundle/Root.plist','rb'));print([x['Key'] for x in d['PreferenceSpecifiers'] if 'pad' in x.get('Key','').lower()])"`,
+which returns an empty list. `git log -p -S"padContrastPreset" -- ios/Settings.bundle/Root.plist`
+dates the removal to commit `4f68e3b` (2026-08-22, "the page places within the
+sheet; Settings.app reduced; Accessible pad"), consistent with that day's wider
+purge of appearance rows out of Settings.app (see this repo's `CLAUDE.md`, "The
+2026-08-23 items" and the Settings.app row table). The row this section
+describes as "the undo" therefore no longer exists as an owner-visible control —
+there is no Settings.app path back to `Current`'s gray outline any more.
+
+What still holds: the *default* is still baked in — `ios/CrossPointPrefs.mm`'s
+`registerDefaults` still registers `kPadContrastPreset : @(4)  // padpalette::kPresetBlackWhite`
+(confirmed present), so a genuinely untouched install still resolves to Black &
+White exactly as §5 describes. `CrossPointPrefs_padContrastPreset()`
+(`ios/CrossPointPrefs.mm:744`) still reads the key from `NSUserDefaults` and
+still calls `checkKnown(kPadContrastPreset)` — which, with the row gone from
+Root.plist, now logs `pref key 'padContrastPreset' is not in Settings.bundle/Root.plist`
+on every debug build, a live symptom of the drift this note records rather than
+something fixed here. `migratePadPresetForExistingCustomisation`
+(`ios/CrossPointPrefs.mm:155`, moved from `:113`) is unaffected and still runs.
+The mechanism in §3–§4 (the resolver, the preset table, `kPresetBlackWhite = 4`
+in `ios/PadPalette.h:322`) is all still current; only the Settings.app row is
+gone.
 
 **Why all three rather than just the preset.** The ask is that the outlines *be*
 black and white, not that a row exists which would make them so. A preset the

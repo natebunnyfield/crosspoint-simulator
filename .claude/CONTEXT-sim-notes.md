@@ -60,7 +60,9 @@ pio run -e simulator -t run_simulator
 
 This file used to carry a second architecture summary, and by 2026-08-23 it had
 drifted: it said directory iteration skips every entry starting with `.` (it
-skips only `.` and `..` — `src/HalStorage.cpp:453` and `:683`, and the firmware
+skips only `.` and `..` — three sites doing the identical check,
+`src/HalStorage.cpp:457,556,685` as of 2026-08-29 [was `:453` and `:683`; a
+third site at `:556` exists too], and the firmware
 does its own hidden-file filtering, which is why Manage Files lists dotfiles),
 and it gave a portrait dst rect of `{-80, 80, 400, 240}`, a geometry no shipped
 device profile has. Two required-reading files answering the same question

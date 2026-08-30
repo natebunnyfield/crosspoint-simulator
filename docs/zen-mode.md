@@ -47,13 +47,16 @@ shipped GLOBAL layer with every zone override blank.
 | 2-finger hold, 0.75 s | zen only | Nothing (added 2026-08-28, ships inert) |
 | pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
 | rotate clockwise / counter-clockwise (on the lift) | zen only | Nothing (added 2026-08-28, ships inert) |
-| shake | zen only | font family step |
+| shake | **zen AND not-zen** (since 2026-08-29) | font family step |
 
-The one always-on row is always on because it toggles **both ways**, so it has to
-fire while zen is off. Everything else is enabled only while zen is on
+Two rows are now always-on. The hold above the paper toggles **both ways**, so
+it has to fire while zen is off; the shake was made always-on the same way,
+2026-08-29 (owner: *"making shake gesture work in single-finger mode"* — his
+own term for not-zen, from the 2026-08-27 quote at the top of this doc).
+Everything else is enabled only while zen is on
 (`CrossPointZenRecognizers_setEnabled`), or gated on the zen flag where the
-gesture has no recognizer of its own (the shake catcher, the SDL tap, and every
-hold that did not land above the paper).
+gesture has no recognizer of its own (the SDL tap, and every hold that did not
+land above the paper).
 
 **Rotation fires ONCE, on the lift**, exactly as pinch does and for the same
 reason: both are continuous recognizers, and a slow rotate reported continuously
@@ -72,6 +75,111 @@ the pre-re-cut arbitration moves. Bind rotation and a twist that also squeezes
 will do both things — the cost of having asked for both. **Found by adversarial
 review on 2026-08-28**, after the first cut of the re-cut shipped all five inert
 recognizers unconditionally.
+
+### Shake fires outside zen, and "previous font" is now assignable (2026-08-29)
+
+**Owner asks: *"making shake gesture work in single-finger mode"* and *"allow
+previous font to be an assignable gesture action."***
+
+#### The shake was zen-only in TWO independent places, not one
+
+Tracing from the shake reaching UIKit to the action firing (per this repo's
+"repeated report → trace from zero" discipline — though this was a fresh ask,
+not a repeat, the same tracing standard applies before touching scope rules):
+
+1. **`gesturebind::firesOutsideZen(Gesture)`**
+   (`ios/GestureBindings.h`) answered `true` for exactly `Gesture::HoldAbove`.
+   `actionFor()` (the function every dispatch path funnels through, including
+   the shake catcher's `liveAction`) reads: `if (!zenOn &&
+   !firesOutsideZen(g)) return Action::Nothing;` — so with zen off and
+   `firesOutsideZen(Shake)` false, the shake resolved to `Nothing`
+   **regardless of what it was bound to**. This was documented as intentional
+   in the recognizer file's own comment at the time: *"Zen-only, and the gate
+   is the GESTURE's, not this method's."*
+2. **`CrossPointZenRecognizers_setEnabled`** (`ios/CrossPointZenRecognizers.mm`)
+   only called `[g_shake becomeFirstResponder]` inside `if (on)`; the `else`
+   branch called `[g_shake resignFirstResponder]`. Motion events reach the
+   FIRST RESPONDER only (`CPXShakeCatcher.canBecomeFirstResponder`; SDL's own
+   view controller never claims it — verified in `SDL_uikitviewcontroller.m`).
+   So even had gate 1 been open, a shake landing while zen was off had **no
+   first responder to deliver the motion event to at all** — this app is
+   called on every zen toggle AND at first boot poll
+   (`CrossPointIOSShim.cpp:1591`, with whatever `g_zen` seeds to), so an app
+   that launches into single-finger mode never gave the catcher first-responder
+   status in the first place.
+
+Both gates had to move together — fixing only #1 would have shipped a change
+that compiles, passes the header's own truth table, and still does nothing on
+a device, because the motion event never reaches the handler. Neither gate is
+observable off-device (UIKit motion events are not injectable by
+`CROSSPOINT_SIM_INPUT_SCRIPT` or `simctl`), which is exactly why this needed
+tracing rather than a single obvious diff.
+
+**The fix**: `firesOutsideZen(Gesture)` now also returns true for
+`Gesture::Shake`, and `CrossPointZenRecognizers_setEnabled` calls
+`becomeFirstResponder` unconditionally on every invocation rather than only
+when `on`. The shake's action still resolves through the SAME
+`gesturebind::actionFor` layered rule as every other gesture — this is a scope
+change (which gestures are always-on), not a rule change (zen scope is still a
+property of the gesture, never of the action bound to it, per the T-025
+ruling above).
+
+**No ruling in this file restricted the shake to zen-only** — the table above
+recorded the shipped default, not a standing prohibition. The original ask
+(2026-08-22, *"change reader font on shake in zen mode"*) named zen because
+that was the only mode the gesture set existed in at the time; nothing said it
+must never work outside it.
+
+Status: **SHIPPED — UNCONFIRMED on device.** Same reasoning as every other row
+in this table: UIKit recognizers and motion events live above SDL, so no
+headless script can drive or observe them. Watch for `[zen] shake catcher ...
+first responder` at every `CrossPointZenRecognizers_setEnabled` call (should
+now log on the very first boot poll, zen or not) and `[zen] shake -> font
+family step` on an actual device shake outside zen.
+
+#### "Previous font" is offered, but not wired end to end
+
+`Action::FontFamilyStepBack = 12` was appended to `gesturebind::Action` (after
+`Inherit = 11`, never inserted — the append-only rule cares about the integer
+being unused, not about declaration order) and to both `kGlobalActions` and
+`kZoneActions`, so any gesture can now be pointed at "Previous Reading Font" in
+Settings.app. Nothing ships bound to it (checked: `defaultAction(g) !=
+FontFamilyStepBack` for every row, pinned in `tests/gesture_bindings_test.cpp`).
+
+**It cannot be fully wired from this repo alone, and that is a finding, not a
+shortcut.** Traced (not assumed) via `grep` over both repos:
+
+- The firmware's `EpubReaderActivity::cycleReaderFontFamily(int delta)`
+  **already accepts a negative delta** — a held side button uses
+  `cycleReaderFontFamily(held.next ? +1 : -1)`
+  (`crosspoint-reader/src/activities/reader/EpubReaderActivity.cpp:601`), so
+  backward stepping is not a firmware capability gap.
+- What carries no direction is the HOST channel the shake already uses:
+  `src/FontFamilyStepChannel.h` (this repo) is a bare `std::atomic<bool>` —
+  consume-once, no payload — and its one firmware call site
+  (`EpubReaderActivity.cpp:412-414`) is hardcoded:
+  `if (gpio.consumeFontFamilyStep()) { cycleReaderFontFamily(+1); }`. The
+  device-side inline no-op (`crosspoint-reader/lib/hal/HalGPIO.h:276`,
+  `bool consumeFontFamilyStep() { return false; }`) likewise carries no
+  direction.
+
+Completing the wire needs a firmware-repo change (a directional channel or a
+second consume method, plus the `EpubReaderActivity.cpp` call site and the
+device's inline no-op) — out of reach this session (`crosspoint-reader` was
+explicitly off-limits). Per the standing instruction not to fake a missing
+capability with N-1 forward steps, `performGestureAction` in
+`ios/CrossPointZenRecognizers.mm` logs a distinct, explicit line
+(`"font family step BACK (offered, not wired -- no direction on the
+firmware's host channel)"`) and does nothing, rather than either silently
+no-op'ing (indistinguishable in the log from an unbound gesture) or stepping
+forward N-1 times (would corrupt the family index on any family list whose
+length changes, and lies about what the gesture does).
+
+**This is an architectural choice for the owner, not a default to guess at**:
+whether the channel becomes a signed delta, a second boolean channel, or a
+small enum, and whether a burst of opposite-direction gestures between polls
+should collapse (current same-direction bursts already do, by design) are all
+firmware-repo decisions nobody asked this session to make.
 
 ### The set was re-cut, 2026-08-28
 
@@ -585,6 +693,231 @@ Two ways to get this wrong, both shipped and both caught in a screenshot:
   not just when paper is added.
 
 Both are a superellipse, symmetric to the pixel on both sides.
+
+## Two owner bug reports, both fixed 2026-08-29: the toggle flickers, and Settings.app goes stale
+
+Owner, verbatim: *"less flickering of layout when zen mode is enabled/disabled"*
+and *"keep zen mode ios app setting reflective of active value."* Both taken
+at face value and traced from the present pipeline and `CrossPointPrefs.mm`
+respectively, not re-derived from guesswork.
+
+### The flicker: layoutPad computed the fix a present too late, twice over
+
+**Mechanism 1 — the shift consumer ran before the shift was fresh.**
+`layoutPad`'s phone path (`ios/CrossPointIOSShim.cpp`) used to read
+`g_zenPanelShiftPx` into `g_zenShiftThisPass` (which `setBottomInset` and the
+top-inset addition both consume) BEFORE the `want` block below it had a
+chance to recompute that same variable for THIS pass. `want`'s own
+computation is deliberately independent of the band/shift it feeds (its
+comment: *"computed absolutely... reading it would feed the loop its own
+output"*), so nothing stopped moving the consumer to run AFTER `want`
+updates `g_zenPanelShiftPx` — which is the whole fix for this half: the shift
+trio (`g_zenShiftThisPass`, `shiftPt`, `setBottomInset`) now sits right
+before the closing `[zen] %s band=...` log line, after the `want` block, not
+before it. This alone makes ONE call to `layoutPad` self-consistent: the
+band and top inset it publishes always match the shift it just computed, in
+the SAME call.
+
+**Mechanism 2 — the self-consistent call still ran too late to help the
+CURRENT present.** `layoutPad` runs from `paintPad`, which is
+`HalDisplay::presentIfNeeded`'s overlay draw callback — and that present has
+ALREADY fit the panel (`SimulatorOverlay::panelBottomPx/panelHeightPx`) from
+whatever `bottomInset`/`topInset` were published on the PREVIOUS call, before
+the draw callback ever runs. So even a perfectly self-consistent `layoutPad`
+call publishes its corrected geometry one present too late for the present
+it runs inside — that present's CHROME (rows, bezel, keyboard chip) is drawn
+from the just-computed zen-target numbers while the PANEL (the actual page
+image) is still sitting at the fit from before the toggle: a visibly
+mismatched frame, corrected a moment later by the present the call just
+requested. That mismatch, not the two-pass shift math by itself, is the
+flicker — "a two-pass convergence that PRESENTS between the passes is a
+flicker by construction."
+
+**The fix**: `zenPreWarmLayout()` (`ios/CrossPointIOSShim.cpp`, defined next
+to `windowPixelSize`, forward-declared at the top of the anonymous
+namespace) calls `layoutPad(outW, outH)` SYNCHRONOUSLY from the three sites
+that change zen state, BEFORE they call `SimulatorOverlay::requestPresent()`:
+the toggle handler (`CrossPointZen_toggleFromRecognizer`), `pollZenMode()`'s
+`ApplyToLive` branch (Settings.app changed the row), and `pollReaderInsets()`
+(the ink-inset refinement shortly after the first real page renders). Calling
+`layoutPad` outside a draw callback is safe — it does no SDL drawing of its
+own (no `SDL_Renderer*` parameter at all), only geometry math and state
+publishing — so publishing `bottomInset`/`topInset` a step earlier than the
+draw callback ever could means the VERY NEXT `presentIfNeeded()` call fits
+the panel from numbers that already match what the chrome is about to draw.
+Both fixes are needed together: pre-warming alone would just publish the
+STALE (mechanism-1) value one call earlier, and reordering alone leaves the
+correct value one present late (mechanism 2).
+
+**Evidence.** The currently-booted iPad Pro 13 simulator
+(`0E5288ED-A466-4750-9FDC-BEA83FE9531A`) does NOT exercise this code path at
+all — `layoutPad`'s phone branch returns immediately into `layoutPadTablet`
+for `s_isPad`, which has its own, separate placement math with no
+`g_zenPanelShiftPx` in it (grepped: zero matches). A `defaults write
+zenModeEnabled` toggle there produced no `[zen] shift` line, confirming the
+iPad path is unaffected by (and untested by) this fix, not that the fix does
+nothing. Switched to a booted iPhone simulator (`iPhone Air CP`,
+`3E367B66-99CC-476D-94D2-C73B4FA49A00`) instead, which exercises the phone
+branch and is closer to the shipped app besides.
+
+`log stream --predicate 'process == "CrossPointX3"'` captured only
+`CFPrefsSource` chatter on this device -- not a single app `SDL_Log` line in
+over 11,000 captured lines across ~15 s, despite the same predicate working
+cleanly on the iPad session minutes earlier. `xcrun simctl launch --console
+<udid> <bundle-id>` (stdout/stderr captured directly, bypassing the unified
+log subsystem) worked immediately and is the more reliable capture method for
+this repo's `SDL_Log` output; recorded here since the next investigation
+would otherwise re-lose the same half hour.
+
+Boot, fresh install, registered default `zenModeEnabled=1` (Settings.app's
+shipped "on by default," 2026-08-22):
+
+```
+[zen] seed: pref=1 env=unset -> on
+[zen] on  band=194.0pt topRowY=726.0pt paperTo=2328px panelH=0px panelW=0px
+[panel] out 1260x2736 px, scale 1.0000, panel 1056x1584 at 102,256, filter nearest
+[zen] shift 0.0 -> 115.7px (panelH=1584 slack=540 ink=60.0/35.0 fallback want=115.7)
+[zen] on  band=256.3pt topRowY=629.3pt paperTo=2328px panelH=1584px panelW=1056px
+[zen] on  band=256.3pt topRowY=667.7pt paperTo=2328px panelH=1584px panelW=1056px
+```
+
+The `panelH=0px` line is the very first-ever `layoutPad` call, before the
+panel has been fit even once -- inherent bootstrapping (there is nothing to
+converge FROM), not something this fix could remove. The line that matters is
+the one after `[panel] out...`: `[zen] shift 0.0 -> 115.7px` is immediately
+followed, IN THE SAME CALL, by `band=256.3pt` -- mechanism 1's fix working:
+the band already reflects the shift that was just computed, not the shift
+from a call two lines ago.
+
+Toggling OFF via `defaults write com.natebunnyfield.crosspoint.x3
+zenModeEnabled -bool false` (simulating a Settings.app edit) on the already-
+running, already-converged app:
+
+```
+[zen] off (setting)
+[zen] ink insets (fallback): top=60.0px bottom=35.0px
+[zen] off band=256.3pt topRowY=667.7pt paperTo=2328px panelH=1584px panelW=1056px
+[zen] ink insets (fallback): top=60.0px bottom=35.0px
+[zen] off band=256.3pt topRowY=629.3pt paperTo=2328px panelH=1584px panelW=1056px
+[zen] panel 1056x1584 at 102,256
+```
+
+Two `layoutPad` calls per toggle, as expected: the pre-warm call (before the
+present) and the ordinary in-present call (`paintPad`'s own gate still fires
+since nothing here sets `g_padLaidOut = true` after pre-warming). `band`
+matches exactly across both (256.3pt) -- no shift line at all, because
+turning OFF sets `g_zenShiftThisPass` to 0 unconditionally regardless of the
+stored `g_zenPanelShiftPx`, so there is nothing to converge. `topRowY`
+(`upperY`, the pad row Y) DOES differ between the two calls (667.7 then
+629.3) -- checked, not waved away: `upperY` is the one quantity in this
+function that legitimately depends on `panelBottomPx()`, the panel's
+CURRENT fit, which genuinely does lag the pre-warm call by one present (the
+fit for THIS present already ran, using last present's inset, before the
+pre-warm call's publish could reach it). The pre-warm call's `upperY` is
+therefore stale by construction -- but `paintPad` only draws `g_pad[]`
+AFTER calling `layoutPad` from ITS OWN gate, which runs a second time on the
+very next present (using the now-fresh `panelBottomPx()` the pre-warm call's
+publish produced) and overwrites `g_pad[]` before anything is drawn. Checked
+by reading `paintPad`: the stale `upperY` computed by `zenPreWarmLayout()`
+is never drawn to the glass. The one narrow, pre-existing-shaped residual
+this does NOT close: a real touch landing in the sub-frame window between the
+pre-warm call and the in-present redraw could hit-test against the stale pad
+rects. Not fixed here -- it is the same shape of risk the original
+`want`-block convergence already carried, is bounded to the instant of a zen
+toggle (a rare event, not a steady-state hazard), and fixing it would mean
+gating input processing on layout convergence, which is a larger change than
+either bug report asked for.
+
+Toggling back ON reproduced the pair symmetrically (`[zen] panel 1056x1584 at
+102,371` -- 371 - 256 = 115, matching the 115.7px shift to the pixel) and a
+screenshot bracketing each toggle shows the unlabelled 7-button `g_pad[]`
+grid present when off and absent when on, confirming the render followed the
+log. (The "Resume / Select / Up / Down" text-labelled bar visible in every
+capture is an always-on accessibility affordance, unrelated to `g_zen` --
+confirmed by it appearing identically in both states; it is not the pad this
+doc otherwise describes as unlabelled.)
+
+**Status: SHIPPED, verified on an iPhone simulator (device-CONFIRMED for the
+Settings.app-driven direction).** The gesture-driven toggle (the hold above
+the paper) exercises the identical `zenPreWarmLayout()` call but could not be
+independently re-verified this way -- UIKit recognizers live above SDL and
+no `simctl` API injects a real touch-and-hold, the same limitation every
+other gesture in this file already carries.
+
+### Settings.app never wrote back: `CrossPointPrefs_zenModeEnabled()` had no setter
+
+**Reproduced from the report, not assumed.** Grepped
+`CrossPointPrefs_setZenModeEnabled` across the repo before this fix: zero
+matches. `CrossPointPrefs_zenModeEnabled()` was READ-ONLY, and the only
+writer of the `zenModeEnabled` key was Settings.app itself (a system
+process, via the plist). `CrossPointZen_toggleFromRecognizer` (the hold
+above the paper) flips `g_zen` directly and always has; nothing told the
+store. So a gesture toggle left the row showing the WRONG value from that
+moment on, and the next visit to Settings.app could silently revert a
+toggle the reader had made minutes earlier -- exactly the report.
+
+**The fix, and why it is not a direct write from the gesture handler.**
+`ios/ZenPrefSync.h` is a pure, UIKit-free header (`zensync::decide`, in the
+`HostKeyboardState.h`/`GestureBindings.h` tradition, host-tested by
+`tests/zen_pref_sync_test.cpp`) answering one question every poll:
+given the stored pref, the live `g_zen`, and `synced` -- the value both
+sides were last made to agree on -- which one changed, and what should
+happen: `None`, `ApplyToLive` (the store moved; make live match), or
+`WriteToStore` (live moved; make the store match). `pollZenMode()`
+(`ios/CrossPointIOSShim.cpp`, already run every frame) is the ONLY caller,
+in both directions. `CrossPointZen_toggleFromRecognizer` writes nothing to
+NSUserDefaults itself -- it flips `g_zen` and lets the very next
+`pollZenMode()` poll (a frame later, not a present later) notice the
+divergence and call the new `CrossPointPrefs_setZenModeEnabled()`
+(`ios/CrossPointPrefs.h`/`.mm`).
+
+**Why a shared tracker rather than a direct write.** A direct
+`CrossPointPrefs_setZenModeEnabled(g_zen)` call from the toggle handler
+would change what `pollZenMode()`'s NEXT poll reads from the store --
+indistinguishable, with nothing else to go on, from an external
+Settings.app edit, and it would re-run `ApplyToLive` (harmless only because
+it would reapply the SAME value, which is luck: `ApplyToLive` already
+carries a relayout and a present request, so an echoed write would cost a
+wasted `zenPreWarmLayout()` + present on every single gesture toggle). Full
+reasoning, including why a boolean `synced` makes the answer total rather
+than a guess, is the comment above `zensync::decide` in the header.
+
+**Confirmed no feedback loop, on device**: toggling `zenModeEnabled` via
+`defaults write` (above) produced exactly ONE `[zen] off (setting)` /
+`[zen] on  (setting)` line per toggle, with nothing further logged before
+the next real change -- if `ApplyToLive` and `WriteToStore` were echoing
+each other, this would show as a SECOND, spurious "(setting)" or
+"(gesture -> settings)" line immediately after the first, or a `[zen]`
+line every frame thereafter. Neither appeared.
+
+**What happens if Settings.app is already open when the gesture writes the
+store.** NSUserDefaults is the SAME in-memory-then-flushed store either
+direction writes to, so a gesture's write is visible to Settings.app on
+the SAME schedule an external Settings.app edit is visible to THIS app:
+whenever Settings.app's own UI next re-reads it (typically on its next
+`viewWillAppear`), not synchronously while it sits in the background. This
+is standard `Settings.bundle` behavior for every app on the system, not
+something specific to this key, and there is no API for one app to push a
+live update into another app's already-drawn UI. Documented at the setter
+in `CrossPointPrefs.mm` rather than worked around, because there is nothing
+here to work around.
+
+**Verification split, honestly.** The READ direction (Settings.app -> live,
+`ApplyToLive`) is device-CONFIRMED above, by construction of the same
+`defaults write` experiment used for the flicker fix -- every `[zen] ...
+(setting)` line in this section's log excerpts IS that direction firing.
+The WRITE direction (a gesture -> the store, `WriteToStore`) is
+**SHIPPED -- UNCONFIRMED on device**: no `simctl` API injects the 0.75 s
+hold above the paper, the same limitation every other gesture in this file
+already carries, so it is verified only by the host truth table in
+`tests/zen_pref_sync_test.cpp`. What that table pins, beyond the individual
+cases: after a `WriteToStore` is acted on and `synced` updated, the very
+next poll -- even with the store now reading what was just written --
+answers `None`, not another `ApplyToLive` echoing the write back. Watch for
+`[zen] on  (gesture -> settings)` / `[zen] off (gesture -> settings)` on a
+real device to close this out; a repeated line on every frame after a
+gesture toggle would mean the loop guard failed where the host test could
+not see it.
 
 ## Checking it without a device
 

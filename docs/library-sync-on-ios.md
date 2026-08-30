@@ -47,18 +47,22 @@ Settings.app "githubToken"
 
 It is **not** copied into `SETTINGS.githubToken` at boot, and that is a decision
 rather than an omission. Anything landing in that field is written out by the
-next settings save (`CrossPointSettings.cpp:90`), and on iOS the directory it
-saves to is the simulated card — which File Transfer and WebDAV serve to
+next settings save (`CrossPointSettings.cpp:88-89`, corrected 2026-08-29 — was
+`:90`, drifted when other keys were added above it), and on iOS the directory
+it saves to is the simulated card — which File Transfer and WebDAV serve to
 anything on the network the moment that screen is open. Asking for the token at
 the moment the header is built keeps NSUserDefaults the single copy, for no loss
 of function.
 
 **The precise claim, corrected by adversarial review 2026-08-28.** An earlier
 draft said `LibraryUpdater` is the only reader of `SETTINGS.githubToken` in the
-whole firmware. It is not: `CrossPointSettings.cpp:90-91` reads it too, to
+whole firmware. It is not: `CrossPointSettings.cpp:88-89` reads it too, to
 serialize it back into `settings.json`. That is exactly the reader this design
 is avoiding, and it is why the substitution is complete anyway — the *consuming*
-sites are `LibraryUpdater.cpp:68` and `:80` and nothing else, and because
+sites are `LibraryUpdater.cpp:77` and `:90` and nothing else (corrected
+2026-08-29 — was `:68`/`:80`, both comment lines today; the code has since
+picked up the BAD_TOKEN/NO_REPO_ACCESS split, see the 2026-08-29 addendum at
+the foot of §7), and because
 nothing ever seeds the field on iOS, the serializer has nothing to write. The
 `if (githubToken[0] != '\0')` guard there means the key does not even appear in
 the file. But "no other reader exists" was the wrong sentence for the right
@@ -277,9 +281,10 @@ repository access, which is exactly what the new message tells you to do.
   for state, `getifaddrs()` past `en0` for the address, `fetchCurrent` for name
   and strength with the dBm mapping. No change needed for either blocker.
 * **`SETTINGS.githubToken` readers.** Two CONSUMERS, both in
-  `LibraryUpdater.cpp` (`:68`, `:80`) — no web-settings row, no WebDAV surface,
-  no other activity — plus the serializer at `CrossPointSettings.cpp:90-91`,
-  which is the one this design routes around. See the correction in §1.
+  `LibraryUpdater.cpp` (`:77`, `:90` as of 2026-08-29; was `:68`/`:80`) — no
+  web-settings row, no WebDAV surface, no other activity — plus the serializer
+  at `CrossPointSettings.cpp:88-89` (was `:90-91`), which is the one this
+  design routes around. See the correction in §1.
 * **The define-parity gate.** `CROSSPOINT_NO_SOFTAP` went on
   `crosspoint_core PUBLIC`, and the configure-time `FATAL_ERROR` that catches an
   app-target-only define did not fire.
@@ -289,6 +294,12 @@ repository access, which is exactly what the new message tells you to do.
   appearance-related was added.
 * **Firmware suite**: 594/594. **Simulator suite**: 64/64 (62 before, plus the
   two new `host_settings` arms). **Desktop canary**: builds and runs.
+  These were the 2026-08-28 counts; the suite keeps growing (`gesture_bindings`,
+  `wifi_host`, `library_sync_plan`, `cpz_container`, etc. all landed after this
+  doc), so re-run `tests/run_all.sh` for the current count rather than trusting
+  a number here — 65 non-shell tests + the 4 shell tests measured clean on
+  2026-08-29 (one flake seen on `test_text_entry` in an otherwise-green run;
+  re-ran green, unrelated to this feature).
 
 ---
 
@@ -344,3 +355,23 @@ already makes this exact argument for 404: add an `UNAUTHORIZED` code to
 `HttpDownloader`, a `LibraryUpdater::BAD_TOKEN`, and a sentence that says the
 token was rejected. It is not built here because it is outside the named ask,
 and the whole of it is a change to firmware error paths that reach hardware.
+
+**SHIPPED 2026-08-28, same evening, in firmware commits `6927eced8` and
+`c40474916` (both after this doc's `aeda1e234` base).** Verified 2026-08-29
+against the firmware repo's current tree. `HttpDownloader::DownloadError`
+gained `UNAUTHORIZED` for HTTP 401/403 (`src/network/HttpDownloader.h`,
+`src/network/HttpDownloader.cpp`, both the wolfSSL and `esp_http_client`
+transports); `LibraryUpdater::LibraryError` gained `BAD_TOKEN`
+(`src/network/LibraryUpdater.cpp`, in `fetchManifest()`), reported by
+`LibraryUpdateActivity.cpp` as `STR_LIBRARY_BAD_TOKEN` — *"GitHub rejected the
+token. Check it, then try again."* A follow-up commit the same evening
+(`c40474916`) also split the two causes of a 404 apart: on a 404 the updater
+now probes `/repos/natebunnyfield/claude-tools` with the same headers (200 =
+release genuinely absent, 404 = token cannot see the repo), giving
+`STR_LIBRARY_NO_RELEASE` ("No library published yet") and the new
+`STR_LIBRARY_NO_REPO_ACCESS` ("This token cannot see the library repository.
+Give it Contents: Read on claude-tools.") as two distinct messages instead of
+the one ambiguous sentence quoted in §4 above. This is exactly the "repo probe"
+the CONFIRMED-ON-DEVICE run in §4 describes fixing the first (404) attempt with
+— the two fixes shipped in the same session that produced that device
+confirmation.

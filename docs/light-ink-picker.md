@@ -125,8 +125,10 @@ the proven part, and it is enforced by test, not by advice.
 ## 4. The six papers — real stock, and every pair's contrast
 
 > **The paper table below is the ORIGINAL six, kept because §5 and §6 quote its
-> hex values. Six more were appended 2026-08-22 — see §9b for those. For contrast
-> figures go straight to §9e, which is the complete 17 x 12 grid recomputed by
+> hex values. Seven more were appended 2026-08-22 (corrected 2026-08-29 from
+> "Six more") — see §9b for those. For contrast
+> figures go straight to §9e, which is the complete 17 x 13 grid (corrected
+> 2026-08-29 from "17 x 12" — see §9e) recomputed by
 > the test on every run; the 8 x 6 grid that used to sit here was a subset of it
 > and is deleted (2026-08-23) so a top-down reader cannot mistake it for the
 > current one.**
@@ -147,16 +149,18 @@ keeps the default a row.
 
 Every pair clears 7:1 at full density, so no offered combination can be
 illegible — same posture as the preset list's floor. **The figures are in §9e**,
-for all 17 inks x 12 papers; the 8 x 6 subset that used to be printed here said
-the same thing about the same pairs and is deleted rather than kept in two
-places.
+for all 17 inks x 13 papers (corrected 2026-08-29 from "12" — Brightened White,
+appended 2026-08-22, was missing from §9e until this pass); the 8 x 6 subset
+that used to be printed here said the same thing about the same pairs and is
+deleted rather than kept in two places.
 
 **The density floor is the PhosphorGrain budget pattern:** the slider clamps
 exactly where 7:1 would break on the CURRENT paper, per ink. Computed floors
 (minimum density %, from `lightink::floorDensityPct`, pinned by test). This
 table is KEPT rather than deleted with the contrast grid above, because no later
 section reprints the floors — it is the original 8 x 6 corner of a surface that
-is now 17 x 12, and the test is the authority for the rest:
+is now 17 x 13 (corrected 2026-08-29 from "17 x 12"), and the test is the
+authority for the rest:
 
 | Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned |
 |---|---|---|---|---|---|---|
@@ -610,7 +614,12 @@ iOS-app ruling, not a model change.
 
 Design and citations for the marks themselves: [paper-defects.md](paper-defects.md).
 
-## 9. The 2026-08-22 expansion — nine more inks, six more papers, and families
+## 9. The 2026-08-22 expansion — nine more inks, seven more papers, and families
+
+(Corrected 2026-08-29 from "six more papers": §9b's own table lists seven new
+rows, 6–12, the seventh being Brightened White — both landed 2026-08-22, the
+first six in the original research pass and Brightened White in a same-day
+follow-up (G1/I3). `kPaperCount` is 13 today: 6 original + 7 new.)
 
 Owner order (verbatim): *"add more papers and inks and make suggestions on where
 there are gaps to be filled, enhancements to be made or anything else that I
@@ -721,7 +730,10 @@ that the Colour Index's numbers within a hue (PBk6, 7, 8, 9…) are
 filed under Browns because that is what it paints at reading density: the
 grouping is by what the row *looks like*, not what the mineral is called.
 
-### 9b. The six new papers
+### 9b. The seven new papers
+
+(Corrected 2026-08-29 from "The six new papers" — the table below has always
+had seven rows, 6 through 12; see the note under §9's heading.)
 
 | # | Paper | Tone | Tooth | Stock, and the claim |
 |---|-------|------|-------|----------------------|
@@ -832,31 +844,46 @@ Two layout changes, both forced by the row counts:
   stock now costs a row of sheet height rather than a millimetre off every
   existing cell.
 
-### 9e. Full-density contrast, all 17 x 12
+### 9e. Full-density contrast, all 17 x 13
+
+**Corrected 2026-08-29**: this table was still headed and sized "17 x 12" and
+was missing a whole column — Brightened White (paper index 12,
+`kPaperBrightenedWhite`, `src/LightInkPalette.h`) was appended 2026-08-22
+(see the row in §9d/the paper table above) and this table was never
+regenerated after that. Recomputed with a standalone harness against the
+live `contrastAtDensity(ink, paper, kDensityMax)` (`src/LightInkPalette.h`),
+in display order via `buildInkDisplayOrder`; the first twelve columns of every
+row reproduce the previous figures exactly (spot-checked), confirming the
+generation method matches what produced the original table and only the
+missing column was added.
 
 Recomputed by the test on every run, and printed in display (family) order.
 Minimum in bold; every pair clears 7:1, so no offered combination can be
 illegible.
 
-| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned | India | Vellum | Laid Antique | Kozo | Azzurrata | Newsprint |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Standard | 13.29 | 12.10 | 11.49 | 10.02 | 11.44 | 10.53 | 12.48 | 11.44 | 10.00 | 10.98 | 10.53 | 10.02 |
-| Carbon Black | 16.40 | 14.93 | 14.17 | 12.36 | 14.11 | 12.99 | 15.39 | 14.11 | 12.34 | 13.54 | 12.99 | 12.36 |
-| Bone Black | 11.90 | 10.84 | 10.28 | 8.97 | 10.24 | 9.43 | 11.17 | 10.24 | 8.96 | 9.83 | 9.43 | 8.97 |
-| Payne's Gray | 10.70 | 9.74 | 9.25 | 8.07 | 9.21 | 8.48 | 10.04 | 9.21 | 8.05 | 8.84 | 8.48 | 8.07 |
-| Davy's Gray | 10.61 | 9.66 | 9.17 | 8.00 | 9.13 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.00 |
-| Sepia | 13.08 | 11.91 | 11.31 | 9.86 | 11.26 | 10.37 | 12.28 | 11.26 | 9.84 | 10.81 | 10.36 | 9.87 |
-| Walnut & Bistre | 10.58 | 9.64 | 9.15 | 7.98 | 9.11 | 8.39 | 9.93 | 9.11 | 7.96 | 8.74 | 8.38 | 7.98 |
-| Van Dyke Brown | 10.21 | 9.30 | 8.82 | 7.70 | 8.79 | 8.09 | 9.58 | 8.78 | **7.68** | 8.43 | 8.09 | 7.70 |
-| Sanguine | 10.32 | 9.40 | 8.92 | 7.78 | 8.88 | 8.18 | 9.69 | 8.88 | 7.77 | 8.53 | 8.18 | 7.78 |
-| Iron Gall | 14.05 | 12.79 | 12.14 | 10.59 | 12.09 | 11.13 | 13.18 | 12.09 | 10.57 | 11.60 | 11.13 | 10.59 |
-| Indigo | 10.79 | 9.83 | 9.32 | 8.13 | 9.29 | 8.55 | 10.13 | 9.28 | 8.12 | 8.91 | 8.55 | 8.14 |
-| Prussian Blue | 13.05 | 11.89 | 11.28 | 9.84 | 11.23 | 10.34 | 12.25 | 11.23 | 9.82 | 10.78 | 10.34 | 9.84 |
-| Copying Violet | 10.62 | 9.67 | 9.17 | 8.00 | 9.14 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.01 |
-| Oxblood | 14.00 | 12.75 | 12.10 | 10.55 | 12.05 | 11.09 | 13.14 | 12.05 | 10.53 | 11.56 | 11.09 | 10.56 |
-| Vermilion | 10.33 | 9.41 | 8.93 | 7.79 | 8.89 | 8.18 | 9.69 | 8.89 | 7.77 | 8.53 | 8.18 | 7.79 |
-| Madder Lake | 10.63 | 9.68 | 9.19 | 8.02 | 9.15 | 8.43 | 9.98 | 9.15 | 8.00 | 8.78 | 8.42 | 8.02 |
-| Verdigris | 10.67 | 9.72 | 9.22 | 8.04 | 9.18 | 8.46 | 10.02 | 9.18 | 8.03 | 8.81 | 8.45 | 8.05 |
+| Ink \ Paper | Bright White | Cream | Bone | Chamois | Press Gray | Sepia Toned | India | Vellum | Laid Antique | Kozo | Azzurrata | Newsprint | Brightened White |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Standard | 13.29 | 12.10 | 11.49 | 10.02 | 11.44 | 10.53 | 12.48 | 11.44 | 10.00 | 10.98 | 10.53 | 10.02 | 12.16 |
+| Carbon Black | 16.40 | 14.93 | 14.17 | 12.36 | 14.11 | 12.99 | 15.39 | 14.11 | 12.34 | 13.54 | 12.99 | 12.36 | 15.00 |
+| Bone Black | 11.90 | 10.84 | 10.28 | 8.97 | 10.24 | 9.43 | 11.17 | 10.24 | 8.96 | 9.83 | 9.43 | 8.97 | 10.89 |
+| Payne's Gray | 10.70 | 9.74 | 9.25 | 8.07 | 9.21 | 8.48 | 10.04 | 9.21 | 8.05 | 8.84 | 8.48 | 8.07 | 9.79 |
+| Davy's Gray | 10.61 | 9.66 | 9.17 | 8.00 | 9.13 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.00 | 9.71 |
+| Sepia | 13.08 | 11.91 | 11.31 | 9.86 | 11.26 | 10.37 | 12.28 | 11.26 | 9.84 | 10.81 | 10.36 | 9.87 | 11.97 |
+| Walnut & Bistre | 10.58 | 9.64 | 9.15 | 7.98 | 9.11 | 8.39 | 9.93 | 9.11 | 7.96 | 8.74 | 8.38 | 7.98 | 9.68 |
+| Van Dyke Brown | 10.21 | 9.30 | 8.82 | 7.70 | 8.79 | 8.09 | 9.58 | 8.78 | **7.68** | 8.43 | 8.09 | 7.70 | 9.34 |
+| Sanguine | 10.32 | 9.40 | 8.92 | 7.78 | 8.88 | 8.18 | 9.69 | 8.88 | 7.77 | 8.53 | 8.18 | 7.78 | 9.44 |
+| Iron Gall | 14.05 | 12.79 | 12.14 | 10.59 | 12.09 | 11.13 | 13.18 | 12.09 | 10.57 | 11.60 | 11.13 | 10.59 | 12.85 |
+| Indigo | 10.79 | 9.83 | 9.32 | 8.13 | 9.29 | 8.55 | 10.13 | 9.28 | 8.12 | 8.91 | 8.55 | 8.14 | 9.87 |
+| Prussian Blue | 13.05 | 11.89 | 11.28 | 9.84 | 11.23 | 10.34 | 12.25 | 11.23 | 9.82 | 10.78 | 10.34 | 9.84 | 11.94 |
+| Copying Violet | 10.62 | 9.67 | 9.17 | 8.00 | 9.14 | 8.41 | 9.96 | 9.13 | 7.99 | 8.77 | 8.41 | 8.01 | 9.71 |
+| Oxblood | 14.00 | 12.75 | 12.10 | 10.55 | 12.05 | 11.09 | 13.14 | 12.05 | 10.53 | 11.56 | 11.09 | 10.56 | 12.81 |
+| Vermilion | 10.33 | 9.41 | 8.93 | 7.79 | 8.89 | 8.18 | 9.69 | 8.89 | 7.77 | 8.53 | 8.18 | 7.79 | 9.45 |
+| Madder Lake | 10.63 | 9.68 | 9.19 | 8.02 | 9.15 | 8.43 | 9.98 | 9.15 | 8.00 | 8.78 | 8.42 | 8.02 | 9.73 |
+| Verdigris | 10.67 | 9.72 | 9.22 | 8.04 | 9.18 | 8.46 | 10.02 | 9.18 | 8.03 | 8.81 | 8.45 | 8.05 | 9.76 |
+
+The Brightened White column's minimum is 9.34 (Van Dyke Brown), well clear of
+the floor and above the table-wide minimum of 7.68, so it does not move the
+bolded worst cell.
 
 The minimum is **Van Dyke Brown on Laid Antique at 7.68:1** — a measured pigment
 masstone on the sheet the GPO says carries no brighteners. That corner is where
@@ -864,7 +891,11 @@ the table was designed toward rather than an accident: Van Dyke's anchor is a
 measurement that was *not* darkened to buy margin, and Laid Antique is as dark as
 the floor allows. Every ink's density floor and every paper's strength ceiling
 are recomputed and printed by `tests/light_ink_test.cpp` on each run; the full
-17 x 12 x 101 x 101 grid — 2.1 million (density, strength) states — is swept for
+17 x 13 x 101 x 101 grid — corrected 2026-08-29 from "17 x 12 ... 2.1 million";
+`tests/light_ink_test.cpp` iterates `kInkCount` x `kPaperCount` throughout
+(confirmed by grep — every sweep loop uses the named constants, never a
+hardcoded 12), and `kPaperCount` is 13 today, giving **2,254,421** (density,
+strength) states — is swept for
 holes above a floor and states below a ceiling, as §5 describes.
 
 ### 9f. Renders

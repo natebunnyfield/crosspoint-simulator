@@ -81,7 +81,12 @@ every other check.
 
 No row. The corner spot's growth is set by a tube's geometry under a published
 bound, not by taste, and TG18's 1.5 limit leaves no interesting range to offer.
-`CrossPointPrefs_cornerDefocusPercent` returns 100.
+
+**This shipped at 100 on 2026-08-23 and was turned OFF later the same day** —
+see "ANSWERED 2026-08-23: off, because it cannot be seen" below.
+`CrossPointPrefs_cornerDefocusPercent` returns **0** today
+(`ios/CrossPointPrefs.mm:544`), and `src/SimulatorDials.h:261-264` carries the
+same 0 in its shipped column.
 
 `CROSSPOINT_SIM_CORNER_DEFOCUS=<percent>` is the desktop override and the
 desktop default is 0 (bit-exact off, canary unchanged);

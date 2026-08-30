@@ -258,6 +258,35 @@ saving at 120 Hz, ~40% of trail presents there. Provably invisible, so a commit
 rather than a proposal. **Do this before or with any device confirmation of
 120 Hz.**
 
+**SHIPPED 2026-08-29, commit `9a01abd`.** `measureTrailFadeRoundBias()`
+(`src/HalDisplay.cpp:1655`) does exactly the probe proposed above — a known
+value into a throwaway 1x1 render-target texture, one fade applied with the
+fade's own exact operation (`SDL_BLENDMODE_BLEND`, a black fill at the chosen
+alpha), one pixel read back — called once from `HalDisplay::begin()`
+(`:1762`), immediately after the renderer is created, never per frame.
+`trail::fadePeakBound` (`src/TrailLifetime.h:90`) now takes a `roundBias`
+parameter defaulting to the old conservative `0.5f`, so every two-argument
+call site is unchanged unless it's updated to pass the measured value.
+
+**What was measured, per the shipping commit's own log line, on the software
+renderer** (the desktop canary and all three packaged Mac apps):
+
+```
+[trail] fade rounding measured: TRUNCATES (start=200 drop=128 -> measured 99, truncate predicts 99)
+```
+
+TRUNCATES — which is what this document's section 4 already established
+independently ("SDL's software blitter TRUNCATES, so the real value falls
+faster than a float model") and what this item's own proposal predicted. The
+commit message states explicitly: *"which is what
+docs/trail-cost-2026-08-26.md predicted."* The Metal/GPU side of the
+prediction (rounds to nearest) is not verified here — this session did not run
+the simulator or a device to confirm it, per the no-launch constraint on this
+audit — but the mechanism is symmetric: `measureTrailFadeRoundBias` returns
+`0.5f` (round) whenever the read-back value exceeds the truncated prediction,
+`0.0f` (truncate) otherwise, so a Metal run would self-report which branch it
+took via the same log line rather than trust the untested guess.
+
 **2. Move the accumulator's fade off the render-target pass.** Measured, it is
 now the largest single item in a trail present: 3.19 ms of 10.98 at 2x on the
 software renderer, and `SDL_SetRenderTarget` flushes the command queue twice per
