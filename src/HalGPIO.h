@@ -250,8 +250,12 @@ public:
   //   injectFontFamilyStep() is simulator-only, like injectButton*: the
   //   host's side (the zen shake responder on iOS, SHAKE in
   //   CROSSPOINT_SIM_INPUT_SCRIPT on the desktop).
-  bool consumeFontFamilyStep();
-  void injectFontFamilyStep();
+  //   Returns the SIGNED step: 0 for none, +1 next family, -1 previous. It
+  //   was a bool until 2026-08-29, when "previous font" became an assignable
+  //   gesture action and the channel needed a direction to carry. Nonzero is
+  //   still truthy, so the reader's `if (...)` poll reads the same.
+  int consumeFontFamilyStep();
+  void injectFontFamilyStep(int delta = +1);
 
   // The reader's FINAL text-block insets — top after the paint-time cap-ink
   // trim, then right, bottom, left — in FRAMEBUFFER pixels. Firmware-facing
