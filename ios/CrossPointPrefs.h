@@ -62,14 +62,30 @@ int CrossPointPrefs_padFillContrast(int dark);
 int CrossPointPrefs_padContrastPreset(void);
 
 // Is zen mode on? 1 = just the page: the button pad disappears and the screen
-// becomes three big tap targets. Same state the three-finger gesture and the
-// CROSSPOINT_SIM_ZEN env var toggle; the setting is authoritative only when its
-// stored value CHANGES (compare-applied in the shim's pollZenMode), so the
-// gesture keeps working between edits. Missing-key failure mode is benign — NO
-// is the shipped default.
+// becomes three big tap targets. Same state the one-finger hold above the
+// paper and the CROSSPOINT_SIM_ZEN env var toggle; the setting is
+// authoritative only when its stored value CHANGES (compare-applied in the
+// shim's pollZenMode via ZenPrefSync.h), so the gesture keeps working between
+// edits. Missing-key failure mode: -boolForKey: on an unregistered key
+// returns NO, but Root.plist registers this one YES (owner 2026-08-22,
+// "default to zen mode on app launch" — confirmed at runtime, a fresh
+// install's very first read of this key is 1), so in practice the only way
+// to see NO here is a Root.plist that failed to load at all, or an install
+// where the owner explicitly turned it off.
 //
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_zenModeEnabled(void);
+
+// Writes the store to match a LIVE zen change that did not come from
+// Settings.app — the one-finger hold above the paper, or CROSSPOINT_SIM_ZEN.
+// Added 2026-08-29 (owner: "keep zen mode ios app setting reflective of
+// active value") — before this, the store had no writer but Settings.app
+// itself, so a gesture toggle left the row showing the wrong value and the
+// next visit to Settings.app could silently revert the gesture. Call only
+// from pollZenMode()'s zensync::Action::WriteToStore branch — a direct call
+// from the gesture handler would be read back by the next poll as an
+// external Settings.app edit; see ios/ZenPrefSync.h for why that matters.
+void CrossPointPrefs_setZenModeEnabled(int on);
 
 // The system appearance this app last ACTED ON, remembered across launches so
 // a change made while the app was closed can be told apart from the owner's
