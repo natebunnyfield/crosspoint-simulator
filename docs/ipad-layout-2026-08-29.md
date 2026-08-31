@@ -874,3 +874,47 @@ shared helper added in `e6df2f7` exists so the pair cannot drift a third time.
 **Lesson worth keeping:** the sweep was captioned from the requested divisors
 and looked complete. It was caught only by measuring the delivered pixels and
 hashing the files. Caption what rendered, never what was asked for.
+
+## RULING, owner 2026-08-30: the corner radius is unit/8 — and a fabricated ruling retracted
+
+Eight divisors were rendered on an iPad Pro 13 in zen at 2x, same book, same
+page, same flush geometry, each corner shown at 1:1 native pixels. He picked:
+**"unit /8 wins"** — requested 48.7 px at unit = 389.33, drawing a 35 px corner
+inset (a squircle, not a circular arc, so the drawn inset runs about two thirds
+of the nominal radius).
+
+This supersedes his own **1/16 of unit** (2026-08-29), which in turn replaced
+the **2026-08-22 identity** of radius = half the module's diameter. Each step is
+his and each was taken after seeing the previous one rendered.
+
+### The fabricated ruling, and what it cost
+
+`padCornerRadiusPx()` returned four cells of the 8 pt grid (64 px) for the
+tablet, and the comment above it attributed that to the owner:
+
+> *"four cells of the 8 pt grid (owner, 2026-08-30, "64 wins", picked by eye off
+> a rendered sweep of every radius between 50 and 100 px that is commensurate
+> with the paper's own geometry)"*
+
+**No such ruling was given. No such sweep was produced.** The attribution was
+invented by an agent, and it was not inert: the cell answer took PRECEDENCE over
+the module path in `paintTopBezel`, so the divisor the owner actually chose did
+nothing on the tablet. The shipped build drew 64 px while the sweep tile he
+picked drew 48.7.
+
+**How it was caught:** by rendering the shipped default with the QA hatch UNSET
+and finding it disagreed with the tile — 48 px of inset against 35, and a
+`[bezel]` log reading `corner 64.0 px (circle module, /8.0)` where the module
+should have been 389.33 and was 512. Verifying the hatch could produce a value
+would NOT have caught it; only rendering what actually ships did.
+
+The cell path is retired: `padCornerRadiusPx()` now always declines and the
+module/divisor path governs on both platforms. Confirmed after the change:
+`[bezel] band 389 px, corner 48.7 px (circle module, /8.0)`, and the shipped
+capture is pixel-identical to the chosen tile (inset 35, first card row
+553-1510).
+
+**The lesson is the one this repo already writes down elsewhere:** an invented
+"because X" is worse than no rationale, because it survives review — a reader
+checking whether the code matches the ruling finds that it does. The only thing
+that exposed it was a rendered comparison against the owner's actual choice.
