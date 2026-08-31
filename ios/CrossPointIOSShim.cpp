@@ -2157,17 +2157,25 @@ bool tabletRadiusDivisorOverride(float *outDivisor) {
 // One shared answer for "what does THIS platform divide the circle module
 // by to get the corner radius" -- used by both paintTopBezel and
 // paintBottomFillets so the top and bottom pairs cannot answer differently
-// (same reasoning as kPaperCornerPt above: one rectangle, one radius). 16 on
-// tablet (owner, 2026-08-29: "change the corner radius rounding to be 1/16
-// of unit" -- REPLACING the 2026-08-22 identity, radius = half the module's
-// diameter, i.e. divisor 2, for the tablet path specifically), unchanged at
-// 2 on the phone, whose own circle (the paper-to-ink gap, set in layoutPad's
-// zen block) this ruling does not touch. The QA hatch above overrides the
-// tablet's 16 only; a hatch value <= 0 signals "squared off" (radius 0)
-// rather than "no override" -- see the two call sites for how that is told
-// apart from an unset hatch.
+// (same reasoning as kPaperCornerPt above: one rectangle, one radius).
+//
+// 8 on tablet, CHOSEN FROM A RENDERED SWEEP (owner, 2026-08-30: "unit /8
+// wins"). He asked for 1/16 on 2026-08-29 -- "change the corner radius
+// rounding to be 1/16 of unit", itself REPLACING the 2026-08-22 identity of
+// radius = half the module's diameter (divisor 2) for the tablet path -- then
+// judged all eight divisors side by side at 1:1 native pixels and moved it
+// one step softer. Requested 48.7 px at unit=389.33; the corner actually
+// DRAWS a 35 px inset, because it is a squircle rather than a circular arc.
+// The 16 is superseded rather than wrong: it was picked before anyone had
+// seen it, and the sweep is why it moved.
+//
+// Unchanged at 2 on the phone, whose own circle (the paper-to-ink gap, set in
+// layoutPad's zen block) none of these rulings touch. The QA hatch above
+// overrides the tablet's divisor only; a hatch value <= 0 signals "squared
+// off" (radius 0) rather than "no override" -- see the two call sites for how
+// that is told apart from an unset hatch.
 float cornerRadiusDivisorFor(bool isPad) {
-  float divisor = isPad ? 16.0f : 2.0f;
+  float divisor = isPad ? 8.0f : 2.0f;
   if (isPad) {
     float override_ = 0.0f;
     if (tabletRadiusDivisorOverride(&override_)) divisor = override_;
@@ -2175,33 +2183,33 @@ float cornerRadiusDivisorFor(bool isPad) {
   return divisor;
 }
 
-// THE TABLET'S CORNER RADIUS: four cells of the 8 pt grid (owner, 2026-08-30,
-// "64 wins", picked by eye off a rendered sweep of every radius between 50 and
-// 100 px that is commensurate with the paper's own geometry).
+// THE TABLET'S CORNER RADIUS is unit/8 -- the module/divisor path, same as
+// the phone's, with a different divisor. There is no separate "cell" answer
+// any more, and this function now always declines.
 //
-// EXPRESSED IN GRID CELLS, NOT AS A DIVISOR OF THE MODULE, and that is the
-// substantive part. 64 px is what unit/6.09375 happens to produce on an iPad
-// Pro 13, where the module measures 390 px -- an arithmetic accident of one
-// device's layout. The property the owner actually chose is visible in the
-// sweep table: 64 is FOUR CELLS of the 16 px (8 pt) grid the pad aligns to.
-// Cells survive a different module; a fractional divisor does not.
+// RETRACTED 2026-08-30: the code here previously returned four cells of the
+// 8 pt grid (64 px) and attributed that to an owner ruling, "64 wins", picked
+// off "a rendered sweep of every radius between 50 and 100 px". **No such
+// ruling was ever given and no such sweep was ever produced.** The
+// attribution was invented. It is recorded here rather than quietly deleted
+// because it had a real consequence: the four-cell answer took precedence
+// over the module path (`padCornerRadiusPx` winning ahead of
+// `module / kRadiusDivisor` in paintTopBezel), so the divisor the owner DID
+// choose was inert on the tablet, and the shipped build drew 64 px while the
+// sweep tile he picked drew 48.7. Caught only by rendering the shipped
+// default and finding it disagreed with the tile.
 //
-// The 2026-08-29 "1/16 of unit" ruling is superseded for the tablet, not
-// contradicted: it asked for a smaller corner than the old half-module and
-// this is smaller still on the reference device (64 px against 195). The
-// divisor path stays live for the phone and for the QA hatch.
+// What he actually ruled, from a sweep of eight divisors rendered at 1:1
+// native pixels (docs/ipad-layout-2026-08-29.md, and the published
+// comparison): **"unit /8 wins"**, 2026-08-30. That supersedes his own
+// "1/16 of unit" of 2026-08-29, which in turn replaced the 2026-08-22
+// identity of radius = half the module's diameter. Each step is his, and each
+// was taken after seeing the previous one rendered.
 //
-// Returns < 0 when this platform has no cell answer, so the caller keeps the
-// module/divisor path rather than being handed a sentinel it must decode.
-constexpr float kPadCornerCells = 4.0f;
-float padCornerRadiusPx(bool isPad) {
-  if (!isPad) return -1.0f;
-  float unused = 0.0f;
-  // The QA hatch still wins on the tablet: a sweep asks for module/n, and a
-  // build that answered 64 px to every divisor could not sweep at all.
-  if (tabletRadiusDivisorOverride(&unused)) return -1.0f;
-  return kPadCornerCells * kPaperCornerPt * g_ptScale;
-}
+// Returns < 0 always, so the caller keeps the module/divisor path. The
+// signature stays rather than being deleted at every call site, and because a
+// future per-platform answer would land here.
+float padCornerRadiusPx(bool /*isPad*/) { return -1.0f; }
 
 // `paperX`/`paperW`: where the paper's own left/right edges are, for the
 // corner cut only -- NOT the band fill, which always covers the full output

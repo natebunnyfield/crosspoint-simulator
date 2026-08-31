@@ -70,6 +70,57 @@ int CrossPointAppearance_isPad(void) {
              : 0;
 }
 
+// THE STATUS BAR IS HIDDEN GLOBALLY IN Info.plist.in (UIStatusBarHidden=YES,
+// UIViewControllerBasedStatusBarAppearance=NO) AND THAT ALONE ALREADY HIDES IT
+// ON iPHONE -- measured 2026-08-29, a fresh Debug build on an iPhone Air
+// simulator (iOS 26.5) shows no clock/Wi-Fi/battery on Home or in a book.
+//
+// THE SAME BUILD, ON AN iPad Pro 13 (M4) SIMULATOR, SAME iOS, SHOWS THEM
+// ANYWAY. Measured, not assumed: ios/mockups/ipad-BEFORE-portrait-page-2026-08-29.png
+// is that exact screenshot. SDL's own view controller
+// (SDL_uikitviewcontroller.m) implements `prefersStatusBarHidden` correctly --
+// it returns YES whenever the window carries SDL_WINDOW_FULLSCREEN or
+// SDL_WINDOW_BORDERLESS -- but that method is never CONSULTED while
+// UIViewControllerBasedStatusBarAppearance is NO, which is the global default
+// here, on both devices. So the two devices are running the identical static
+// declaration, and only one of them honors it. The iPad's own multitasking
+// chrome (this app requests UIRequiresFullScreen, but that key has been
+// deprecated since iOS 26 -- see the build warning -- and iPadOS is a
+// documented candidate for showing a persistent status bar as system window
+// chrome regardless of app preference) is the leading candidate, not proven
+// further here.
+//
+// THE FIX IS THE IMPERATIVE, PER-WINDOW-SCENE CALL, iPad-only. It does not
+// touch the shared Info.plist keys or src/HalDisplay.cpp's SDL_CreateWindow
+// flags (both iPhone and desktop-shared), so iPhone's already-working path is
+// untouched. Deprecated since iOS 13 in favor of the view-controller-based
+// appearance system, but it remains the documented workaround for exactly a
+// static declaration that iOS is not honoring, and it still requires
+// UIViewControllerBasedStatusBarAppearance=NO to take effect -- which the
+// plist already sets, globally, so no plist change was needed either.
+//
+// PROVE IT, DO NOT ASSUME IT: this call's effect is verified by re-running the
+// exact screenshot above after this lands (ios/mockups/ipad-AFTER-*.png) --
+// see docs/ipad-layout-2026-08-29.md for whether it actually worked. If iOS
+// is truly withholding the status bar as system multitasking chrome, this call
+// will be silently ineffective and the doc says so.
+void CrossPointAppearance_hideStatusBarOnIPad(void) {
+  static bool applied = false;
+  if (applied) return;
+  if (UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad) return;
+  @autoreleasepool {
+    UIWindow *window = resolveWindow();
+    if (!window) return;  // no window yet: do not latch, ask again next call
+    applied = true;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [UIApplication.sharedApplication setStatusBarHidden:YES
+                                           withAnimation:UIStatusBarAnimationNone];
+#pragma clang diagnostic pop
+    NSLog(@"[statusbar] iPad: imperative hide applied");
+  }
+}
+
 // THE RADIUS IS ASKED FOR, NOT LOOKED UP.
 //
 // Every published way to get this number before iOS 26 was the private

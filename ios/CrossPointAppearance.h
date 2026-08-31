@@ -55,6 +55,13 @@ int CrossPointAppearance_isDark(void);
 // this for the family-2 layout (see ios/README.md, "iPad (family 2)").
 int CrossPointAppearance_isPad(void);
 
+// Forces the status bar (clock, Wi-Fi, battery) hidden on iPad (owner ruling
+// 2026-08-29: "remove clock, wifi and all system status"). No-op on iPhone --
+// see CrossPointAppearance.mm for why iPhone already hides it from the static
+// Info.plist keys alone and iPad measurably does not. Idempotent; call it once
+// from CrossPointHarness_begin(). MAIN THREAD ONLY.
+void CrossPointAppearance_hideStatusBarOnIPad(void);
+
 // The display's corner radius in POINTS, or 0 when it cannot be established.
 //
 // There is still no public property that hands back this number --
