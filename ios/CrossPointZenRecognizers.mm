@@ -54,10 +54,14 @@
 //   * the ONE-FINGER HOLD (owner 2026-08-27, "holding down one finger longer
 //     than five seconds toggles zen and single finger modes", retuned to THREE
 //     seconds by him the same day, and to 0.75 s where it now sits) is the one
-//     always-enabled recognizer: its ABOVE-the-paper row toggles zen, so it has
+//     always-enabled RECOGNIZER: its ABOVE-the-paper row toggles zen, so it has
 //     to fire while zen is off as well as while zen is on. Its collision with
 //     the zen long-press select is resolved by POSITION (GestureBindings.h's
 //     zones), not by duration.
+//   * the SHAKE (owner 2026-08-29, "making shake gesture work in single-finger
+//     mode") is always on too, but it is not a recognizer at all -- see the
+//     CPXShakeCatcher class comment below for its own mechanism (first-responder
+//     status, not .enabled).
 //
 // NO DOUBLE FIRE, BY CONSTRUCTION. A touch that fires a swipe recognizer has
 // traveled far past the classifier's 28 px tap slop, so the classifier
@@ -89,9 +93,9 @@
 //     point against the two boundaries the layout already publishes
 //     (g_cardTopPx and the paper's bottom), and only for SINGLE-FINGER
 //     gestures.
-//   * ZEN SCOPE IS UNCHANGED and is a property of the GESTURE, never of the
-//     action bound to it. One case fires outside zen — the hold above the
-//     paper — whatever it holds.
+//   * ZEN SCOPE is a property of the GESTURE, never of the action bound to it.
+//     Two cases fire outside zen — the hold above the paper, and the shake
+//     (added 2026-08-29) — whatever either holds.
 //
 // VERIFICATION. UIKit recognizers cannot be driven by pushed SDL events (they
 // live above SDL, on the UIKit touch pipeline, which neither SDL_PushEvent
@@ -250,6 +254,19 @@ void performGestureAction(gesturebind::Action a, const char *what) {
     gpio.injectFontFamilyStep();
     return;
   }
+  if (a == gesturebind::Action::FontFamilyStepBack) {
+    // WIRED 2026-08-29. The channel carries a signed delta and
+    // HalGPIO::consumeFontFamilyStep() returns it (0 none, +1 next, -1
+    // previous); the reader passes the sign straight to
+    // cycleReaderFontFamily(int delta), which has always taken one -- a held
+    // side button calls it with -1 (EpubReaderActivity.cpp:601). The device
+    // no-op in lib/hal/HalGPIO.h returns 0, so the poll still folds away on
+    // hardware.
+    SDL_Log("[zen] %s -> font family step BACK", what);
+    gpio.injectFontFamilyStep(-1);
+    return;
+  }
+
   const int btn = gesturebind::buttonFor(a);
   if (btn == gesturebind::kNoButton) return;  // Unset never reaches here
   SDL_Log("[zen] %s -> %s (button %d)", what, gesturebind::actionName(a), btn);
@@ -536,21 +553,34 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
 @end
 
 // THE SHAKE CATCHER (owner 2026-08-22: "change reader font on shake in zen
+// mode"; extended 2026-08-29: "making shake gesture work in single-finger
 // mode"). Shake is not a gesture recognizer: UIKit delivers it as a MOTION
 // event to the first responder, and SDL's view controller never overrides
 // canBecomeFirstResponder (UIResponder's default NO — verified in
 // SDL_uikitviewcontroller.m, whose only becomeFirstResponder is the hidden
 // text field that raises the keyboard). So the seam is a small invisible
 // responder view on the SDL view: zero frame, draws nothing, touches
-// disabled, made first responder while zen is on. It fires the HAL's
-// font-family step channel (HalGPIO::injectFontFamilyStep — consume-once, the
-// reader polls it and cycles the family); SHAKE in
-// CROSSPOINT_SIM_INPUT_SCRIPT drives the same channel headlessly.
+// disabled, made first responder from the moment it attaches — in EITHER zen
+// state, not only while zen is on. It fires the HAL's font-family step
+// channel (HalGPIO::injectFontFamilyStep — consume-once, the reader polls it
+// and cycles the family); SHAKE in CROSSPOINT_SIM_INPUT_SCRIPT drives the same
+// channel headlessly.
+//
+// **This was zen-only until 2026-08-29, gated in TWO independent places**, and
+// both had to move together or the fix would look complete and still not
+// work: gesturebind::firesOutsideZen(Shake) (the action-resolution gate, in
+// ios/GestureBindings.h) and this file's first-responder assignment, which
+// used to run only inside `if (on)` in CrossPointZenRecognizers_setEnabled —
+// so even with the action gate open, a shake landing while zen was off had no
+// first responder to deliver the motion event to at all. See docs/zen-mode.md
+// for the traced mechanism.
 //
 // Known ceiling, stated rather than hidden: motion events reach the FIRST
-// responder only, so if something else takes that status while zen is on (the
-// keyboard's text field is the one candidate), a shake during that span is
-// dropped. Zen has no text fields; each zen enable re-asserts the status.
+// responder only, so if something else takes that status (the keyboard's text
+// field is the one candidate), a shake during that span is dropped. Zen has no
+// text fields, but the reader outside zen can have one open; each
+// CrossPointZenRecognizers_setEnabled call re-asserts the status, in both zen
+// states now, which is the same recovery this always relied on.
 @interface CPXShakeCatcher : UIView
 @end
 
@@ -565,10 +595,15 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
     [super motionEnded:motion withEvent:event];
     return;
   }
-  // Zen-only, and the gate is the GESTURE's, not this method's:
-  // gesturebind::firesOutsideZen(Shake) is false, so actionFor answers Nothing
-  // while zen is off whatever the shake is bound to. The palette-sheet swallow
-  // is inside performGestureAction with every other gesture's.
+  // Fires in EITHER zen state (owner 2026-08-29: "making shake gesture work
+  // in single-finger mode" -- his own term for not-zen, docs/zen-mode.md).
+  // The gate is the GESTURE's, not this method's:
+  // gesturebind::firesOutsideZen(Shake) is now true, so actionFor resolves
+  // whatever the shake is bound to regardless of g_zenOn. (Before this it was
+  // false and actionFor always answered Nothing out of zen, whatever the
+  // shake was bound to -- see docs/zen-mode.md for the full trace.) The
+  // palette-sheet swallow is inside performGestureAction with every other
+  // gesture's.
   performGestureAction(liveAction(gesturebind::Gesture::Shake),
                        gesturebind::gestureName(gesturebind::Gesture::Shake));
 }
@@ -795,16 +830,20 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
     }
     g_zenOn = on;
     applyEnabled();
-    // First-responder status for the shake, asserted per enable rather than
-    // once: SDL's text field takes the status whenever the keyboard rises,
-    // and nothing gives it back.
-    if (on) {
-      const BOOL got = [g_shake becomeFirstResponder];
-      SDL_Log("[zen] shake catcher %s first responder",
-              got ? "is" : "FAILED to become");
-    } else {
-      [g_shake resignFirstResponder];
-    }
+    // First-responder status for the shake, asserted on EVERY call regardless
+    // of `on` — the shake fires in both zen and single-finger mode since
+    // 2026-08-29 (owner: "making shake gesture work in single-finger mode"),
+    // so it must hold the status in either state, not only while zen is on.
+    // Before this it resigned in the `else` branch, which was the second of
+    // the two independent gates keeping the shake zen-only (the first is
+    // gesturebind::firesOutsideZen(Shake) in GestureBindings.h) — resigning
+    // here left nothing to become first responder out of zen even after that
+    // gate opened. Still re-asserted on every call rather than once: SDL's
+    // text field takes the status whenever the keyboard rises, and nothing
+    // gives it back.
+    const BOOL got = [g_shake becomeFirstResponder];
+    SDL_Log("[zen] shake catcher %s first responder",
+            got ? "is" : "FAILED to become");
     SDL_Log("[zen] verb recognizers %s", on ? "enabled" : "disabled");
   });
 }

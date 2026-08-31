@@ -89,14 +89,17 @@
 //    toggleable in settings. drop this concern."*). Zen has its own switch in
 //    Settings.app, so nothing about it is special-cased, protected or warned
 //    about here.
-//  * ZEN SCOPE IS UNCHANGED. Whether a gesture fires while zen is off is a
-//    property of the GESTURE AND THE ZONE IT LANDED IN, and never of the action
-//    bound to it: you configure WHAT a gesture does, never WHEN it does it. One
-//    case fires outside zen -- the one-finger hold ABOVE the paper. (It was two
-//    until the trim took the three-finger tap with it.) Note the GATE is the
-//    zone's even when the ACTION came from the global layer: a hold above the
-//    paper set to Inherit still fires out of zen, doing whatever the global
-//    Hold says.
+//  * ZEN SCOPE IS A PROPERTY OF THE GESTURE (AND, for a single-finger one, ITS
+//    ZONE), and never of the action bound to it: you configure WHAT a gesture
+//    does, never WHEN it does it. TWO rows fire outside zen: the one-finger
+//    hold ABOVE the paper, and the SHAKE (added 2026-08-29, owner: "making
+//    shake gesture work in single-finger mode" -- his own term for not-zen).
+//    It was one case from 2026-08-28 (when the trim took the three-finger tap)
+//    until this. Note the GATE for the hold is the zone's even when the ACTION
+//    came from the global layer: a hold above the paper set to Inherit still
+//    fires out of zen, doing whatever the global Hold says. The shake has no
+//    zone -- it is always-on outright, in both `firesOutsideZen(Gesture)` and
+//    the recognizer file's first-responder assertion.
 //
 // WHY THIS IS A HEADER AND NOT AN IF-LADDER IN THE RECOGNIZERS. Every way it
 // can be wrong is SILENT on a device, and none of them can be driven off-device
@@ -112,13 +115,18 @@ namespace gesturebind {
 // WHAT A GESTURE CAN BE POINTED AT.
 //
 // The vocabulary is the FIRMWARE'S BUTTONS -- the owner was explicit that this
-// is the right vocabulary -- plus Nothing, plus the two host actions that have
-// no button at all and that a gesture already performs today. Those two are
-// here because the shipped defaults have to reproduce today's behavior exactly
-// and today's hold above the paper toggles zen while today's shake steps the
-// font family; neither is expressible as a button press, so without them no
-// default could state what the app already does. Inherit is the eleventh and
-// belongs only to a zone row.
+// is the right vocabulary -- plus Nothing, plus the host actions that have no
+// button at all. Two of those are here because the shipped defaults have to
+// reproduce today's behavior exactly: today's hold above the paper toggles zen
+// and today's shake steps the font family, neither expressible as a button
+// press, so without them no default could state what the app already does.
+// Inherit is the eleventh and belongs only to a zone row.
+//
+// FontFamilyStepBack (12th, appended 2026-08-29) is the odd one out: it is
+// OFFERED so a gesture CAN be pointed at "previous font", but nothing ships
+// bound to it and it is not fully wired -- see the case in
+// ios/CrossPointZenRecognizers.mm's performGestureAction for what is missing
+// and why (the firmware's own host channel has no direction to give it).
 //
 // STORED AS AN INTEGER in NSUserDefaults, so this list APPENDS and never
 // inserts or re-points: changing what a number means silently changes what a
@@ -154,6 +162,8 @@ enum class Action : int {
   ToggleZen = 9,
   FontFamilyStep = 10,
   Inherit = 11,  // zone rows only: fall through to the global binding
+  FontFamilyStepBack = 12,  // previous reading font family; appended, not
+                             // inserted -- see the comment above this enum
 };
 
 // The firmware button indices, mirrored from HalGPIO::BTN_* so this header can
@@ -197,6 +207,7 @@ constexpr const char* actionName(Action a) {
     case Action::ToggleZen: return "toggle zen";
     case Action::FontFamilyStep: return "font family step";
     case Action::Inherit: return "inherit";
+    case Action::FontFamilyStepBack: return "font family step back";
   }
   return "?";
 }
@@ -208,20 +219,28 @@ constexpr const char* actionName(Action a) {
 // POWER IS STILL OFFERED even though nothing defaults to it any more: the trim
 // took the four-finger tap that carried it, and removing the ACTION as well
 // would be removing a capability the owner never asked to lose.
+//
+// FontFamilyStepBack is offered LAST (appended 2026-08-29) for the same
+// reason Power stays offered with no default: a gesture may be pointed at it
+// even though nothing ships bound to it. Appended at the end of both lists
+// rather than beside FontFamilyStep, because the display ORDER here is
+// independent of the stored integer and putting a new row anywhere but the
+// end is how a hand-edited list drifts from "append only".
 constexpr Action kGlobalActions[] = {
     Action::Nothing,   Action::Back,  Action::Confirm, Action::Left,
     Action::Right,     Action::Up,    Action::Down,    Action::Power,
-    Action::ToggleZen, Action::FontFamilyStep,
+    Action::ToggleZen, Action::FontFamilyStep, Action::FontFamilyStepBack,
 };
 constexpr int kGlobalActionCount =
     static_cast<int>(sizeof(kGlobalActions) / sizeof(kGlobalActions[0]));
 
 // Every action a ZONE row offers: Inherit FIRST, because it is the default and
-// the row's resting state, then the same ten.
+// the row's resting state, then the same eleven.
 constexpr Action kZoneActions[] = {
     Action::Inherit,   Action::Nothing, Action::Back,  Action::Confirm,
     Action::Left,      Action::Right,   Action::Up,    Action::Down,
     Action::Power,     Action::ToggleZen, Action::FontFamilyStep,
+    Action::FontFamilyStepBack,
 };
 constexpr int kZoneActionCount =
     static_cast<int>(sizeof(kZoneActions) / sizeof(kZoneActions[0]));
@@ -267,15 +286,27 @@ constexpr const char* zoneName(Zone z) {
 // everything from the top boundary down is Neither. A geometry that has not
 // been measured yet must not invent a zone out of a zero.
 //
-// NOTE THIS IS THE PRE-FIRST-PASS CASE ONLY, and not the tablet. The shim's
-// `zenPaperBottomPx()` falls back to the PANEL's bottom edge when no rocker row
-// has been published -- the same fallback the zen painter itself uses -- so on
-// the tablet path, which publishes neither `g_cardTopPx` nor `g_zenRowTopPx`,
-// the first present leaves paperTop at 0 and paperBottom at the page's bottom:
-// a below-the-paper zone that is real and is measured against the page rather
+// NOTE THIS IS THE PRE-FIRST-PASS CASE ONLY, and not the tablet -- and, since
+// 2026-08-29, only half true of the tablet even before the first pass. The
+// shim's `zenPaperBottomPx()` falls back to the PANEL's bottom edge when no
+// rocker row has been published -- the same fallback the zen painter itself
+// uses -- so on the tablet path, which STILL publishes no `g_zenRowTopPx` (it
+// has no rocker row below the panel to target; the pad rows sit in the side
+// margins), the first present leaves paperBottom at the page's bottom: a
+// below-the-paper zone that is real and is measured against the page rather
 // than a rocker row. With the shipped defaults nothing follows from it, since
 // every Below row is blank and inherits, but it is not "no such zone" and an
 // editor relying on that would be wrong.
+//
+// `g_cardTopPx`, THE TOP BOUNDARY, IS DIFFERENT: `layoutPadTablet` now
+// publishes it too (the tablet's own paper-card top, added the same day this
+// paragraph was corrected -- see the "AN AREA ABOVE THE PAPER" comment in
+// CrossPointIOSShim.cpp), so paperTopPx is no longer pinned at 0 on a tablet
+// and the AbovePaper zone -- previously unreachable there, since yPx is never
+// negative -- is now real. `HoldAbove`'s "toggle zen" default is the one row
+// that fires outside zen, so a hold at the top of an iPad screen can now
+// toggle zen where it previously could not. Flagged as a behavior change,
+// not decided here.
 constexpr Zone zoneFor(float yPx, float paperTopPx, float paperBottomPx) {
   if (yPx < paperTopPx) return Zone::AbovePaper;
   if (paperBottomPx > paperTopPx && yPx >= paperBottomPx)
@@ -636,16 +667,23 @@ constexpr Gesture zoneRowFor(Gesture globalRow, Zone z) {
 // DOES THIS GESTURE FIRE WHILE ZEN IS OFF?
 //
 // Fixed at today's answer, and never a function of the action bound to it.
-// Exactly ONE row is true: the one-finger hold ABOVE the paper. It was two
-// until the 2026-08-28 trim removed the three-finger tap. Everything else lives
-// on the zen-only recognizer set, on the shake catcher's own g_zenOn check, or
-// on the SDL classifier's `zenBefore` gate.
+// TWO rows are true: the one-finger hold ABOVE the paper, and the SHAKE
+// (2026-08-29, owner: "making shake gesture work in single-finger mode" --
+// his term for not-zen, per docs/zen-mode.md). It was ONE from 2026-08-28
+// (when the trim removed the three-finger tap) until this. Everything else
+// lives on the zen-only recognizer set or on the SDL classifier's `zenBefore`
+// gate.
 //
-// It is keyed on the ZONE ROW rather than on the global one, which is the whole
-// subtlety: a hold above the paper set to Inherit takes its ACTION from the
-// global layer and its GATE from here, so it still fires out of zen. The gate
-// travels with the landing point, not with the binding.
-constexpr bool firesOutsideZen(Gesture g) { return g == Gesture::HoldAbove; }
+// For the hold this is keyed on the ZONE ROW rather than on the global one,
+// which is the whole subtlety there: a hold above the paper set to Inherit
+// takes its ACTION from the global layer and its GATE from here, so it still
+// fires out of zen. The gate travels with the landing point, not with the
+// binding. The shake has no landing point and no zone row at all -- it is
+// simply always on, unconditionally, in both this function and the recognizer
+// file's first-responder assertion (CrossPointZenRecognizers.mm).
+constexpr bool firesOutsideZen(Gesture g) {
+  return g == Gesture::HoldAbove || g == Gesture::Shake;
+}
 
 constexpr bool firesOutsideZen(OneFinger k, Zone z) {
   const Gesture zg = zoneGesture(k, z);

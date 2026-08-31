@@ -470,6 +470,9 @@ static void testUnbound() {
   check(gesturebind::buttonFor(Action::FontFamilyStep) ==
             gesturebind::kNoButton,
         "the font family step presses no button");
+  check(gesturebind::buttonFor(Action::FontFamilyStepBack) ==
+            gesturebind::kNoButton,
+        "the font family step back presses no button");
 
   // Inherit must never come back OUT of either dispatch entry point: it is an
   // answer to "does this zone override", not an action, and a recognizer handed
@@ -579,12 +582,14 @@ static void testZones() {
 
 // --- 7. ZEN SCOPE IS A PROPERTY OF THE GESTURE AND ITS ZONE ----------------
 static void testZenScope() {
-  // "You configure WHAT a gesture does, never WHEN." ONE row fires outside zen
-  // -- it was two until the trim removed the three-finger tap.
+  // "You configure WHAT a gesture does, never WHEN." TWO rows fire outside
+  // zen -- the hold above the paper, and the shake (added 2026-08-29, owner:
+  // "making shake gesture work in single-finger mode"). It was one from
+  // 2026-08-28 (when the trim removed the three-finger tap) until this.
   int outside = 0;
   for (int i = 0; i < gesturebind::kGestureCount; ++i)
     if (gesturebind::firesOutsideZen(static_cast<Gesture>(i))) outside++;
-  check(outside == 1, "exactly one row fires outside zen");
+  check(outside == 2, "exactly two rows fire outside zen");
   check(gesturebind::firesOutsideZen(Gesture::HoldAbove),
         "the hold above the paper fires outside zen");
   check(gesturebind::firesOutsideZen(OneFinger::Hold, Zone::AbovePaper),
@@ -595,6 +600,30 @@ static void testZenScope() {
         "nor one below the paper");
   check(!gesturebind::firesOutsideZen(OneFinger::Tap, Zone::AbovePaper),
         "nor a TAP above the paper -- only the hold gets in");
+
+  // THE SHAKE, the 2026-08-29 addition: fires outside zen with no zone at all
+  // (it has no landing point), and RESOLVES to its bound action in both zen
+  // states -- not just gates open, the actual dispatch must answer the same
+  // thing either way for a gesture with no zen-only recognizer to fall back
+  // on.
+  check(gesturebind::firesOutsideZen(Gesture::Shake),
+        "REGRESSION: the shake fires outside zen (single-finger mode)");
+  checkAction(gesturebind::actionFor(Gesture::Shake, /*zenOn=*/true,
+                                     shipped(Gesture::Shake)),
+              Action::FontFamilyStep, "shake resolves its binding in zen");
+  checkAction(gesturebind::actionFor(Gesture::Shake, /*zenOn=*/false,
+                                     shipped(Gesture::Shake)),
+              Action::FontFamilyStep,
+              "REGRESSION: shake resolves its binding out of zen too "
+              "(single-finger mode)");
+  // A cleared shake stays cleared in both states -- the always-on gate must
+  // never manufacture an action out of Nothing.
+  checkAction(gesturebind::actionFor(Gesture::Shake, true,
+                                     stored(Action::Nothing)),
+              Action::Nothing, "a cleared shake fires nothing, zen on");
+  checkAction(gesturebind::actionFor(Gesture::Shake, false,
+                                     stored(Action::Nothing)),
+              Action::Nothing, "...and zen off");
 
   // THE GATE TRAVELS WITH THE LANDING POINT, NOT WITH THE BINDING. This is the
   // half a layered model makes easy to get wrong: a hold above the paper set to
@@ -652,6 +681,11 @@ static void testStoredIntegers() {
   check(stored(Action::ToggleZen) == 9, "ToggleZen is 9");
   check(stored(Action::FontFamilyStep) == 10, "FontFamilyStep is 10");
   check(stored(Action::Inherit) == 11, "Inherit is 11");
+  // APPENDED 2026-08-29 (task: "allow previous font to be an assignable
+  // gesture action"), after Inherit rather than before it -- the append-only
+  // rule cares only that 12 was unused, not where it sits among the earlier
+  // eleven declarations.
+  check(stored(Action::FontFamilyStepBack) == 12, "FontFamilyStepBack is 12");
 
   // The button indices mirror HalGPIO::BTN_*. The recognizer static_asserts the
   // pair across the header boundary; this pins the values themselves.
@@ -673,9 +707,21 @@ static void testStoredIntegers() {
   }
   check(gesturebind::kGestureCount == 29,
         "29 rows: 17 gestures, 6 above the paper, 6 below it");
-  check(gesturebind::kGlobalActionCount == 10,
-        "10 global actions: 7 buttons, Nothing, the zen toggle, the font step");
-  check(gesturebind::kZoneActionCount == 11, "...and Inherit makes 11 in a zone");
+  check(gesturebind::kGlobalActionCount == 11,
+        "11 global actions: 7 buttons, Nothing, the zen toggle, the font "
+        "step, the font step back");
+  check(gesturebind::kZoneActionCount == 12, "...and Inherit makes 12 in a zone");
+  // FontFamilyStepBack is OFFERED (a gesture can be pointed at it) but ships
+  // on no default -- the same shape as Power after the 2026-08-28 trim.
+  bool fontBackOffered = false;
+  for (int i = 0; i < gesturebind::kGlobalActionCount; ++i)
+    if (gesturebind::kGlobalActions[i] == Action::FontFamilyStepBack)
+      fontBackOffered = true;
+  check(fontBackOffered, "font family step back is offered as a choice");
+  for (int i = 0; i < gesturebind::kGestureCount; ++i)
+    check(gesturebind::defaultAction(static_cast<Gesture>(i)) !=
+              Action::FontFamilyStepBack,
+          "nothing ships bound to font family step back");
   check(!gesturebind::isOffered(Gesture::TapGlobal, 0),
         "Unset is never offered as a choice -- it is a read-time fallback");
   check(!gesturebind::isOffered(Gesture::TapGlobal, stored(Action::Inherit)),

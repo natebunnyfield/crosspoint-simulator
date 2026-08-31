@@ -4,7 +4,7 @@
 WHY THIS IS GENERATED AND THE REST OF THE PLIST IS NOT.
 
 There are 29 gesture rows (17 global + 12 zone overrides) and each one is a
-~34-line ``PSMultiValueSpecifier`` carrying the same ten or eleven annotated
+~34-line ``PSMultiValueSpecifier`` carrying the same eleven or twelve annotated
 action labels.  That is close to a thousand lines of XML whose every value is
 already stated, exactly once, in ``ios/GestureBindings.h`` -- the key, the
 title, the group, the default.  A hand-maintained second copy of that table was
@@ -53,6 +53,11 @@ ACTION_TITLE = {
     "ToggleZen": "Toggle Zen Mode",
     "FontFamilyStep": "Next Reading Font",
     "Inherit": "Use the Gestures setting",
+    # Offered so a gesture CAN be pointed at it (appended 2026-08-29), but
+    # nothing ships bound to it and it is not fully wired -- see the
+    # FontFamilyStepBack case in CrossPointZenRecognizers.mm's
+    # performGestureAction for what is missing and why.
+    "FontFamilyStepBack": "Previous Reading Font",
 }
 
 FOOTER = {

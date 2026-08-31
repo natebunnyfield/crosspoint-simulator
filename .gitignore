@@ -12,6 +12,9 @@ compile_commands.json
 ios/seedfonts/
 __pycache__/
 build-simsdk/
+# 473 MB CMake tree from the 2026-08-30 corner-radius sweep. Same class as
+# build-simsdk/ above: a scratch configure dir, never part of the source.
+build-rad/
 
 # Generated: the packaged Mac bundles (deploy_mac_apps.sh) and the QA capture
 # scratch. Both are build products of scripts in this repo, both are tens of MB,
