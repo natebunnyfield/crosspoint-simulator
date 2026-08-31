@@ -330,6 +330,23 @@ int CrossPointPrefs_zenModeEnabled(void) {
                                                                             : 0;
 }
 
+// See the header for who may call this and why. A plain -setBool:forKey: --
+// NSUserDefaults is the same in-memory-then-flushed store either direction
+// writes, so a gesture's write here is visible to Settings.app the same way
+// a Settings.app edit is visible to CrossPointPrefs_zenModeEnabled() above:
+// on the system's own schedule, not synchronously. If the system Settings
+// app is already open in the background when this runs, its currently
+// displayed cell is not pushed a live update by this call -- that is
+// standard Settings.bundle behavior for every app, not something specific to
+// this key, and there is no API for an app to reach into another app's UI to
+// fix it. It re-reads the stored value (and so shows the gesture's change)
+// the next time IT is foregrounded, the same way this app re-reads an
+// external edit on ITS next foreground.
+void CrossPointPrefs_setZenModeEnabled(int on) {
+  ensureDefaults();
+  [[NSUserDefaults standardUserDefaults] setBool:(on != 0) forKey:kZenModeEnabled];
+}
+
 int CrossPointPrefs_lastSeenSystemDark(void) {
   // objectForKey, not integerForKey: absence is the answer that matters here
   // and integerForKey collapses it into 0 (light). Not checkKnown'd and not

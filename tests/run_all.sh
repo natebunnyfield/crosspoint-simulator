@@ -133,6 +133,19 @@ run zen_verbs \
 run zen_hold \
   c++ -std=c++17 -Iios -o "$OUT/zen_hold" tests/zen_hold_test.cpp
 
+# ZenPrefSync.h -- keeping Settings.app's Zen Mode row honest about the LIVE
+# zen state, in BOTH directions (owner bug report 2026-08-29: "keep zen mode
+# ios app setting reflective of active value"). Before this header only the
+# read direction existed (Settings.app -> live); a gesture toggle (the hold
+# above the paper) had no write-back path at all, so the row went stale the
+# moment a gesture changed zen and could silently revert it on the next
+# visit. Truth-tabled here because the hazard is a feedback loop -- a naive
+# direct write from the gesture handler would be read back by the NEXT poll
+# as if Settings.app had made the same edit -- and neither NSUserDefaults nor
+# a gesture recognizer exists on a host to prove the fix against directly.
+run zen_pref_sync \
+  c++ -std=c++17 -Iios -o "$OUT/zen_pref_sync" tests/zen_pref_sync_test.cpp
+
 # WHAT EVERY GESTURE DOES (ios/GestureBindings.h), after the owner made the
 # bindings configurable from Settings.app on 2026-08-28 (T-025) and then re-cut
 # the SET twice the same day. What ships is 17 gestures -- single taps on 1 and
