@@ -1293,9 +1293,14 @@ bool HalGPIO::consumeReadAloudPage(ReadAloudPage &out) {
 
 // --- Font-family step channel ------------------------------------------------
 
-bool HalGPIO::consumeFontFamilyStep() { return fontFamilyStepChannel.consume(); }
+// consume() first, then direction() -- the channel documents direction() as
+// "the direction consume() just reported", so the order is the contract, not a
+// convenience.
+int HalGPIO::consumeFontFamilyStep() {
+  return fontFamilyStepChannel.consume() ? fontFamilyStepChannel.direction() : 0;
+}
 
-void HalGPIO::injectFontFamilyStep() { fontFamilyStepChannel.inject(); }
+void HalGPIO::injectFontFamilyStep(int delta) { fontFamilyStepChannel.inject(delta); }
 
 // --- Reader text insets ------------------------------------------------------
 //
