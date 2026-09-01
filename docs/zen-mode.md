@@ -1198,12 +1198,17 @@ disabled to make the symptom disappear. The settled frame (no beam, and beam
 on with `[ACT]`-verified matching navigation) is byte-identical pre/post fix
 on the desktop canary, per the 2026-08-25 discipline.
 
-The half that was NOT found this session (why the un-swept region rendered
-black instead of the previous frame when the bug fired) is no longer
-reachable through this bug's reproduction, since the swept clip no longer
-lands short of the panel's top offset — but the two untraced candidates
-(`captureGlass`'s scoping, or a second pass re-deriving its own stale clip)
-remain open if a future symptom points back at that code.
+The other half — why the un-swept region rendered black instead of the
+previous frame — was found 2026-09-01, and it is a zen mechanism in its own
+right: the first present of a session runs the zen painter before the pad is
+laid out, `g_zenPanel` is `0x0 at 0,0` and `g_zenRowTopPx` is 0, so the
+"everything below the line is black" fill starts at `line = 0` and covers the
+whole glass; the glass capture read that frame back, and the real frame one
+present later carried the same page seq, so the seq-only capture gate kept the
+black one for the first sweep to reveal. The capture is gated on a request
+generation now (`src/GlassCapture.h`), so any overlay-driven present — the
+first layout, a keyboard, a zen toggle — re-reads the glass. The black first
+frame itself still paints; it is a launch-flash question, left as a proposal.
 
 Full account, including the reverted first attempt and the mechanics of the
 working fix: [BUGS.md `S-035`](../BUGS.md).

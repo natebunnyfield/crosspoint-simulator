@@ -549,6 +549,15 @@ run composition \
 run sheet_identity \
   c++ -std=c++17 -Isrc -o "$OUT/sheet_identity" tests/sheet_identity_test.cpp
 
+# WHEN THE GLASS IS RE-READ -- the decision behind every trail and sweep. It
+# was gated on the page's sequence number alone, so two presents of one page
+# with a different composition (the overlay laying the pad out, a keyboard, a
+# zen toggle) kept the FIRST -- and the first present of a session composes a
+# black glass, so the first page turn swept the new page in over black (S-035,
+# the untraced half). The seq-only gate fails the second case here.
+run glass_capture \
+  c++ -std=c++17 -Isrc -Itests -o "$OUT/glass_capture" tests/glass_capture_test.cpp
+
 # THE DIAL TABLE, and the divergence nothing could catch before it. Adding one
 # surface effect used to touch nine plumbing sites, three of which were parallel
 # lists of the same values kept in sync by hand -- and on 2026-08-23 two of them

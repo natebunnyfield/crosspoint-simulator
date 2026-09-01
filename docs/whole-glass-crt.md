@@ -151,11 +151,18 @@ deposit).
 
 1. **Taken before the accumulator is drawn.** A capture that included the trail
    would deposit the trail back into itself and nothing would ever decay.
-2. **Taken once per `pixelBufSeq`, and NOT while the beam is sweeping.** During
-   a sweep the glass is old below the beam line and new above it, so a capture
-   on the content-change present itself records mostly the OLD page and hands it
-   back as if it were the new one. Waiting for the first present after the sweep
-   costs nothing, because the trail is driving presents anyway.
+2. **Taken once per `pixelBufSeq` OR per present REQUEST, and NOT while the
+   beam is sweeping.** During a sweep the glass is old below the beam line and
+   new above it, so a capture on the content-change present itself records
+   mostly the OLD page and hands it back as if it were the new one. Waiting for
+   the first present after the sweep costs nothing, because the trail is driving
+   presents anyway. The "per request" half arrived 2026-09-01 (S-035's second
+   half): the overlay repaints the composition without the page moving — the
+   pad's first layout, a keyboard, a zen toggle — and a seq-only gate kept the
+   FIRST composition of a page, which on the session's first present is a black
+   glass. `src/GlassCapture.h` takes a request generation that every present
+   request bumps except the sweep's, the trail's and the fade's own re-arms, so
+   a trail-decay present still costs no readback.
 3. **Deposited once per captured glass, not once per content change.** An
    antialiased page is written TWICE — a 1-bit base pass, then the composed one
    13–22 ms later — so the seq moves twice per page turn and the second write

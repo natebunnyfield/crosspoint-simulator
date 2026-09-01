@@ -109,23 +109,54 @@ clip) falls inside the swept region, which is the horizontal cream-colored
 sliver visible in every repro screenshot, floating over an otherwise blank
 field.
 
-**The un-swept region is not what it should be, and this half is NOT yet
-found.** The "old" reference (`glassPrevTexture`) IS drawn full-screen,
-unclipped, immediately before the clip is set — instrumented directly:
-`SDL_RenderTexture` reports success, and its dimensions match the output
-(`gw=gh=texW=texH=2064x2752`). So the draw call that is supposed to fill the
-un-swept ~93% of the screen with the PREVIOUS, correct frame is not failing or
-mismatched by any check this session could run — yet the region renders black
-(most repro screenshots) or white (one), never the previous frame. Two
-candidates were named but NOT traced to a specific line: (a) `captureGlass`
-(`src/HalDisplay.cpp:2330`, the function that populates `glassPrevTexture`,
-"once per new picture") may itself be capturing an incomplete or
-wrongly-scoped readback on the session's first non-sweeping present, given how
-many render-target / logical-presentation state switches surround it; (b)
-some later pass (the chrome/overlay draw, or the sheet/paper field) may be
-painting over the "old" content within the un-swept region using its own,
-separately-derived and possibly ALSO-stale notion of the sweep's clip,
-overwriting what the first draw correctly left there.
+**The un-swept region: FOUND and fixed 2026-09-01 — the glass held a BLACK
+frame, captured on the session's first present, and nothing re-captured it.**
+Instrumented on the pre-fix tree with an 8-band luma profile read back after
+every stage of the present (5 runs, 5/5 identical): present #1 of a session
+reads `after-clear 244…`, `after-panel 228 206 204 234 245…` (panel drawn,
+letterboxed through logical presentation because the harness has not set the
+bottom inset yet), then `after-overlay 0 0 0 0 0 0 0 0`. The iOS overlay's zen
+painter fills BLACK from `line` to the bottom of the screen, and on that first
+present `g_zenPanel` is `0x0 at 0,0`, `panelBottomPx()` is 0 and
+`g_zenRowTopPx` is 0 (logged: `[s035] zen paint: q=0,0 0x0 rowTop=0 line=0
+… panelBottom=0`), so `line = 0` and the fill is the whole glass.
+`captureGlass` then reads that frame back — `capture … 0 0 0 0 0 0 0 0` —
+and it is the only capture the gate allows: the pad's own layout inside that
+present calls `setBottomInset` → `requestPresent`, present #2 lands ~100–180 ms
+later with the correct frame (`after-overlay 0 97 107 124 125 91 0 0`), but it
+carries the SAME `pixelBufSeq`, and the capture gate was `glassSeq !=
+presentedSeq`. So the first content change of every session drew
+`glassPrevTexture` full-screen exactly as instrumented (`ok=1`, dimensions
+matching) and it was black — `after-glass 0 0 0 0 0 0 0 0` on the sweep
+present, before any later pass ran, which rules candidate (b) out. The one
+white repro was the same hole with a different first frame. Candidate (a) was
+right in effect and wrong in mechanism: the readback was neither incomplete
+nor wrongly scoped; it was a correct readback of a frame that the harness
+composes black.
+
+The fix is the capture gate, not the harness: the glass has to be the LAST
+composed picture, and the overlay repaints the composition without the page
+moving (a keyboard, a zen toggle, a pad relayout — the first frame is only the
+case that made it visible). `src/GlassCapture.h` decides now, purely:
+capture on a new seq, a stale size, no picture, OR a **request generation**
+that moved — `glassDirtyGen`, bumped by every present request except the
+sweep's, the trail's and the page fade's self-driving re-arms, and sampled at
+the TOP of the present so a request made from inside the overlay's layout is
+consumed by the NEXT present, not this one. Verified on the same iPad recipe
+with `CROSSPOINT_SIM_LOG_TIMING=1` + `LOG_SCREEN=1`: present #2 now reports
+`glass BUILD 96 ms` (the re-capture), and the first sweep present reads back
+`whole 63.56 page 110.59` — the previous frame's exact figures — where the
+pre-fix tree read `whole 0.00`. Cost: one readback per overlay-driven present
+(96–125 ms at 2064×2752 on the iPad, measured 2–6% of a page turn on a
+phone); trail-decay presents are unaffected because they do not move the
+generation. `tests/glass_capture_test.cpp` pins the seq-only gate as wrong on
+exactly this two-present case.
+
+**Not changed, stated as a proposal:** the first present of a zen session is
+still composed entirely black (`[screen] #1 whole 0.00`), for the ~100–180 ms
+until the pad's layout requests the real frame. The zen painter could skip the
+band fill while the panel has no geometry; that is a launch-flash question, not
+this bug, and the fix above no longer depends on it.
 
 **A first fix was attempted and reverted — it did not help, and it introduced
 a worse bug of its own.** Re-deriving `beamProgress`/`beamSweeping` from a
@@ -238,15 +269,12 @@ only one read of `beamProgress` and no pairing to desync:
   by deleting `settings.json`; regenerated by one simulator run that reaches
   Settings and presses Back, which is the firmware's own save path — not a
   code issue, noted here so a future session doesn't chase it as one).
-- **Remaining, not re-investigated because the fix above resolves the
-  reported symptom without needing it:** the "un-swept region renders black
-  instead of `glassPrevTexture`'s content" half traced-but-not-verified
-  above. It cannot fire in the reproduction anymore (the swept clip no
-  longer lands short of the panel's top offset, so there is no long-lived
-  un-swept region for it to matter on THIS bug), but the two candidates
-  named above (`captureGlass`'s scoping, or a second pass re-deriving its
-  own stale clip) are still open questions if a future symptom points back
-  at that code.
+- **The second half (black un-swept region) was chased and fixed
+  2026-09-01** — see the paragraph above the reverted first attempt. It was
+  never unreachable: with the arming fix alone, the first sweep present of
+  every session still drew its un-swept region from a black glass for the
+  length of the sweep (55 ms shipped); the sliver made it visible, the
+  arming fix made it brief. `src/GlassCapture.h`, `tests/glass_capture_test.cpp`.
 
 ### [S-034] Reader text insets were four separate atomics, not one — a torn read across a font-size change or a page turn fed the zen layout a geometry that matches no real page
 **severity: high (matches a repeated owner report, mechanism proven and measured, NOT confirmed by render) · scope: cross-thread channel (`src/HalGPIO.cpp`), consumed by `ios/CrossPointIOSShim.cpp`'s zen layout · found and fixed 2026-08-31, render evidence UNOBTAINED this session (tooling failures, documented below)**
