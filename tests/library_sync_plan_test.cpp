@@ -60,6 +60,34 @@ int main() {
   expect(!isSafeFileName(""), "empty name is rejected");
   expect(!isSafeFileName(nullptr), "null name is rejected");
 
+  // --- overallPercent --------------------------------------------------------
+  // The bar used to show the CURRENT BOOK only, so a 17-book sync drew 17 fills
+  // from 0 to 100 and never said how far through the job it was. These pin the
+  // whole-job arithmetic, including the two ways it could lie: jumping to 100
+  // early, or sitting at 0 while real work happens.
+  expect(overallPercent(0, 4, 0) == 0, "start of a 4-book sync is 0");
+  expect(overallPercent(0, 4, 50) == 12, "halfway through book 1 of 4 is 12");
+  expect(overallPercent(1, 4, 50) == 37, "halfway through book 2 of 4 is 37");
+  expect(overallPercent(3, 4, 100) == 100, "end of the last book is 100");
+  expect(overallPercent(4, 4, 0) == 100, "all books done is 100");
+  expect(overallPercent(0, 0, 50) == 0, "an empty manifest cannot divide");
+  expect(overallPercent(9, 4, 0) == 100, "done past total clamps, never wraps");
+  expect(overallPercent(0, 4, 250) == 25, "a bogus book percent is clamped");
+  // Monotonic across a whole 3-book sync: the one property a progress bar must
+  // have, and the one an integer division can silently break.
+  {
+    unsigned int prev = 0;
+    bool monotonic = true;
+    for (size_t done = 0; done < 3; ++done) {
+      for (unsigned int bp = 0; bp <= 100; ++bp) {
+        const unsigned int now = overallPercent(done, 3, bp);
+        if (now < prev) monotonic = false;
+        prev = now;
+      }
+    }
+    expect(monotonic, "overall progress never goes backwards");
+  }
+
   if (failures == 0) {
     std::printf("library_sync_plan: all assertions passed\n");
     return 0;
