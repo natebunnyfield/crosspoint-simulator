@@ -31,7 +31,29 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-164**, tagged 2026-09-01 at `f0bdfaa` — HEAD of `main` at the upload,
+**build-165**, tagged 2026-09-01 at `958eea9` — HEAD of `main` at the upload.
+Over build-164 it carries the hold ruling and the menu's new door:
+
+- **Three holds are dead** (owner, verbatim: "kill ble pairing, kill back to
+  home, kill chapter skip, keep daisywheel uppercase and clear-all"): the
+  silent 1.5 s BLE-pairing hold (pairing lives in Settings, which already
+  served everyone), held-Back-to-Home, and chapter skip — which the re-survey
+  found was ALREADY dead code, constexpr'd off since 2026-08-21. Uppercase and
+  clear-all keep their holds, per the ruling.
+- **`OpenActionMenu` is bindable** (action 13, defaults to Nothing): bind it to
+  two-finger hold in Settings and the original T-027 ask works as first
+  phrased. Short Confirm in Manage Files was investigated and deliberately NOT
+  swapped — on a file it is one-press View, and menu-on-select would degrade
+  it; held Confirm stays as the button route.
+- The library progress work (whole-job bar; named kickoff steps) rides along
+  via the firmware dep, its first build since landing.
+
+On-glass checklist: the S-035 flash repro (shake-zen on Home, select next
+book — 164's fix, still unconfirmed), the three dead holds staying dead,
+uppercase/clear-all still holding, and the menu gesture once bound.
+
+**Superseded: build-164** at `f0bdfaa` (the S-035 beam-arming fix, repro'd
+6/10 pre / 20/20 clean post),
 carrying exactly one change over build-163: **the S-035 beam-arming fix**. The
 beam's clock now starts when the frame is ready to sweep, not at content-change
 detection — a 240–265 ms letterpress cache-miss rebuild used to eat ~5x the
