@@ -375,3 +375,30 @@ the one ambiguous sentence quoted in §4 above. This is exactly the "repo probe"
 the CONFIRMED-ON-DEVICE run in §4 describes fixing the first (404) attempt with
 — the two fixes shipped in the same session that produced that device
 confirmation.
+
+## Progress, 2026-08-31 — the whole job, and the kickoff
+
+Owner: *"update library needs a progress indicator"*, then *"so it doesn't just
+hang on kickoff anymore?"* — two distinct gaps, fixed in two firmware commits.
+
+**The bar showed the current book, not the sync.** `LibraryUpdater` resets
+`processedSize`/`totalSize` per book, so a seventeen-book sync drew seventeen
+fills from 0 to 100. `librarysync::overallPercent(done, total, bookPct)` in
+`LibrarySyncPlan.h` is the whole-job arithmetic — book count as the
+denominator, deliberately, because byte totals are unknowable up front (a book
+downloads only if the compare says it changed, so a manifest-bytes bar would
+crawl near zero on a current library). The simulator's
+`tests/library_sync_plan_test.cpp` pins it, including a sweep proving the bar
+never goes backwards across a book boundary.
+
+**The kickoff was a genuine hang-shaped wait.** The whole manifest check runs
+inside ONE `Activity::loop()` call: nothing repaints and no button is read
+until it returns. `fetchManifest` now reports its two network steps (CONTACTING
+the release API, READING manifest.json) through the same callback shape the
+per-book progress uses, and the screen names the step over a two-step bar.
+Named steps rather than a spinner because the panel is e-ink.
+
+**Still true, deliberately:** Back does not respond during the check — the
+input read is after the sync returns. `HttpDownloader` takes a `cancelFlag`, so
+it is wireable; cancelling a half-fetched manifest is a separate change nobody
+has asked for.

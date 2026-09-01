@@ -483,3 +483,18 @@ FLASH=0  no 1-bit frame ever presented at the page turn
 Still **UNCONFIRMED on the phone** — 73 ms is a headless measurement of when
 pixels are handed to SDL, and whether it reads as a page-turn blink is a
 device-feel question.
+
+## The beam does NOT sweep for a polarity reconvert — 2026-08-31
+
+S-031, reported by the owner as zen flashing off and back on a dark/light
+switch. A reconvert rewrites every pixel from the cached planes and bumps
+`pixelBufSeq` exactly like a new page, so the sweep trigger armed and revealed
+the NEW palette over the OLD one top-down across the sweep — frames with the
+top of the page in one palette and the rest in the other, the sheet's geometry
+never moving. `reconvertSeq` in `src/HalDisplay.cpp` marks a bump produced by a
+reconvert, and the trigger withholds the sweep for exactly that seq: the frame
+still uploads and presents, there is simply no new picture to sweep IN.
+
+Verified by reproduction through the RESUME trigger (S-033's path holds the
+split until the next present, which is what makes it capturable): present on a
+pre-fix binary, absent at HEAD, twice. A page turn still sweeps.
