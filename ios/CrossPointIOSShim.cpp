@@ -52,6 +52,7 @@
 
 #include "CrossPointHarness.h"
 #include "GestureBindings.h"
+#include "PadTopBand.h"
 #include "TapCandidate.h"
 #include "ZenPrefSync.h"
 #include "ZenVerbs.h"
@@ -520,8 +521,16 @@ void layoutPadTablet(float W, float H, float S) {
   // than a new constant because it already plays this exact role sideways on
   // this same function -- the floor for an iPad edge inset the system safe
   // area legitimately reports as 0.
-  const float unit = SDL_max(0.0f, (outHpx - panelHpx) / 3.0f);
-  const float cardTopPx = SDL_max(unit, SDL_max(safeTop, kPadEdgeMin) * S);
+  //
+  // EXTRACTED into ios/PadTopBand.h (2026-08-30/31, owner ruling "keep 16 pt,
+  // and add a test") so the floor above can be driven from a host test --
+  // SDL_GetWindowSafeArea cannot be, so nothing here could otherwise prove
+  // the floor still binds when safeTop collapses to 0. Behavior-preserving:
+  // same formula, same argument order, same units in and out.
+  const padtopband::Result topBand =
+      padtopband::compute(outHpx, panelHpx, safeTop, kPadEdgeMin, S);
+  const float unit = topBand.unit;
+  const float cardTopPx = topBand.cardTopPx;
   // THE CORNER RADIUS is struck from THIS circle -- the outer 1-unit band
   // above the card -- not the ink-inset one the first pass carried over from
   // the phone's zen placement; a different circle from the one the 2026-08-22
@@ -538,7 +547,7 @@ void layoutPadTablet(float W, float H, float S) {
   // which this ruling does not touch).
   g_paperGapPx = unit;
   const float topPx = cardTopPx;
-  const float belowPx = SDL_max(0.0f, outHpx - cardTopPx - panelHpx);
+  const float belowPx = topBand.belowPx;
   SDL_Log("[pad] tablet top band: unit=%.1fpx (1:2 split) card=%.1fpx "
           "panelTop=%.1fpx panelH=%.0fpx below=%.1fpx (%.2fx unit)",
           unit, cardTopPx, topPx, panelHpx, belowPx,

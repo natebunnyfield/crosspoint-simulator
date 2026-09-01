@@ -747,6 +747,42 @@ those exist precisely because every failure mode in their area is silent, and
 "the band disappeared on some iPads" is exactly that kind of failure. Not built
 yet; `ios/` was owned by another agent when this was ruled.
 
+**Built, 2026-08-31.** The formula moved unedited into `ios/PadTopBand.h`
+(`padtopband::compute`), pure and host-tested (`tests/pad_top_band_test.cpp`,
+run as `pad_top_band` in `tests/run_all.sh`). It pins the shipped iPad Pro 13
+numbers from this section (`unit=389.333px card=389.333px below=778.667px`)
+byte for byte, then proves the floor is load-bearing two ways: the degenerate
+case (`outHpx == panelHpx`, the zero-slack limit that a hidden status bar's
+`safeTop=0` reaches) asserts `cardTopPx == kPadEdgeMin * scale` rather than 0,
+and a copy of the pre-floor formula (`cardTopPx = unit`, the exact regression
+this ruling describes) is run against the same inputs inside the test file and
+asserted to reproduce `card=0.0px` -- the failure this ruling exists to
+prevent, demonstrated rather than only described. A second, informal run
+against a scratch copy of `PadTopBand.h` with the `max(unit, floor)` taken out
+confirmed the shipped test suite catches it: 4 of the file's assertions fail
+against that copy, 0 against the real header.
+
+**Behavior-preserving, confirmed by rendering, not only by reading the diff.**
+Built the `CrossPointX3` target both before and after the extraction (`git
+stash` isolated the two source files so nothing else moved), installed each on
+the booted iPad Pro 13 simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`),
+launched with the documented hold-Back-during-boot lever, and captured both the
+`[pad] tablet top band:` log line and a native-pixel screenshot for each --
+twice, once under the simulator's system Dark appearance (as found) and once
+forced to Light (`xcrun simctl ui ... appearance light`) so the modal-edge scan
+this document's own §0/§0b used could run against a light paper. The log line
+is byte-identical before and after in both appearances: `unit=389.3px
+card=389.3px panelTop=389.3px panelH=1584px below=778.7px (2.00x unit)`. The
+light-mode modal-edge scan is byte-identical too -- vertical (x=1032): `(DARK,
+0, 389) (light, 389, 1584) (DARK, 1973, 779)`; horizontal (y=700): DARK margin
+0-503 (504 px) both sides, paper 504-1559, identical text-glyph fragments in
+between -- matching this section's own recorded numbers exactly. The dark-mode
+pair (the simulator's actual system appearance) differs by at most 16 of 255
+per channel and 0.44% of pixels by more than 4 levels, consistent with this
+repo's documented per-launch grain-seed/sheet-drift noise, not a geometry
+shift.
+`ios/mockups/ipad-padtopband-{BEFORE,AFTER}-{portrait,light}-2026-08-31.png`.
+
 ## RULING, owner 2026-08-29: prove the status-bar divergence, do not accept it
 
 The shipped fix hides the status bar on iPad with a deprecated imperative call

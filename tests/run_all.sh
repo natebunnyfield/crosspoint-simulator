@@ -212,6 +212,19 @@ run tap_candidate \
 run pad_palette \
   c++ -std=c++17 -Iios -o "$OUT/pad_palette" tests/pad_palette_test.cpp
 
+# The iPad's black band above the paper (ios/PadTopBand.h), extracted from
+# layoutPadTablet 2026-08-30/31 specifically so its FLOOR can be host tested --
+# SDL_GetWindowSafeArea cannot be driven from here, so the arithmetic is the
+# only part of the real bug this suite can reach. Owner ruling
+# (docs/ipad-layout-2026-08-29.md, foot): "keep 16 pt, and add a test." Pins
+# the shipped iPad Pro 13 numbers byte for byte, then proves the floor binds
+# when the derived unit collapses to 0 (the exact case a hidden status bar
+# produces: safeTop reports 0 on the very next layout pass) by running the
+# pre-floor formula against the same inputs and showing it reproduces
+# card=0.0px -- the band silently disappearing.
+run pad_top_band \
+  c++ -std=c++17 -Iios -o "$OUT/pad_top_band" tests/pad_top_band_test.cpp
+
 # The keyboard chip's chevron: that it antialiases, and that it is still the
 # same shape it was when the owner approved it.
 run chevron_coverage \
