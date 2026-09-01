@@ -266,6 +266,19 @@ void performGestureAction(gesturebind::Action a, const char *what) {
     gpio.injectFontFamilyStep(-1);
     return;
   }
+  if (a == gesturebind::Action::OpenActionMenu) {
+    // SCREEN-SCOPED, unlike every other action this function dispatches: the
+    // channel is polled only in FileManagerActivity
+    // (crosspoint-reader's src/activities/home/FileManagerActivity.cpp), so
+    // firing this anywhere else is a no-op the firmware never looks at. Said
+    // explicitly here -- the FontFamilyStepBack precedent above logs what a
+    // binding resolves to even before it does anything, for the same reason:
+    // "I bound it and nothing happened" must be diagnosable from this one
+    // line rather than read as a broken gesture.
+    SDL_Log("[zen] %s -> open action menu (fires only in Manage Files)", what);
+    gpio.injectOpenActionMenu();
+    return;
+  }
 
   const int btn = gesturebind::buttonFor(a);
   if (btn == gesturebind::kNoButton) return;  // Unset never reaches here

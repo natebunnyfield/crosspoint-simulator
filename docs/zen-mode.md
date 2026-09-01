@@ -305,10 +305,36 @@ action and swallow the gesture.
 
 **What a row can be assigned to** is the firmware's button vocabulary, annotated
 in the row label with what each does in a book and elsewhere: Back, Confirm,
-Left, Right, Up, Down, Power — plus **Nothing**, plus the two host actions that
-have no button and that a gesture already performed before this existed,
-**Toggle Zen Mode** and **Next Reading Font**. Without those two the shipped
-defaults could not have stated what the app already did.
+Left, Right, Up, Down, Power — plus **Nothing**, plus the host actions that
+have no button. Twelve global actions total as of 2026-09-01 (pinned in
+`tests/gesture_bindings_test.cpp`), appended in this order and never
+re-pointed (a binding persists as the integer, so changing what a number means
+would silently change what a saved choice selects):
+
+- **Toggle Zen Mode** and **Next Reading Font** — a gesture already performed
+  both before this table existed; without them the shipped defaults could not
+  have stated what the app already did.
+- **Previous Reading Font** (`FontFamilyStepBack`, appended 2026-08-29) —
+  offered so a gesture CAN be pointed at it, but nothing ships bound to it and
+  it needed a firmware-repo change to finish wiring; see "'Previous font' is
+  offered, but not wired end to end" above for the state as of that date.
+- **Open Action Menu** (`OpenActionMenu`, appended 2026-09-01, T-027) — opens
+  Manage Files' per-item action menu, today reachable on a device only by held
+  Confirm (~1000 ms). Offered, no default binding (the owner picks the
+  gesture). Fully wired end to end: `performGestureAction` in
+  `ios/CrossPointZenRecognizers.mm` dispatches it to
+  `HalGPIO::injectOpenActionMenu()`, and `FileManagerActivity::loop()` in the
+  firmware repo polls the matching consume every frame and calls
+  `openActionMenu()`, exactly as held Confirm does — see
+  `crosspoint-simulator/src/OpenActionMenuChannel.h` for the channel contract.
+  **Screen-scoped, unlike every other action in this table**: the channel is
+  polled only in that one activity, so a gesture bound to it fires as a
+  logged, diagnosable no-op anywhere else (`[zen] ... -> open action menu
+  (fires only in Manage Files)`) rather than doing nothing silently.
+  `FileManagerActivity::onEnter()` also drains (consumes and discards) any
+  request still pending when the screen is entered, so a gesture fired
+  minutes earlier on a different screen cannot surface the menu the instant
+  Manage Files happens to open.
 
 **The owner's four rulings, implemented exactly:**
 
