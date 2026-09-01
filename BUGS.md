@@ -38,6 +38,199 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-034] Reader text insets were four separate atomics, not one — a torn read across a font-size change or a page turn fed the zen layout a geometry that matches no real page
+**severity: high (matches a repeated owner report, mechanism proven and measured, NOT confirmed by render) · scope: cross-thread channel (`src/HalGPIO.cpp`), consumed by `ios/CrossPointIOSShim.cpp`'s zen layout · found and fixed 2026-08-31, render evidence UNOBTAINED this session (tooling failures, documented below)**
+
+Owner, verbatim: *"there is a persistent issue after ios app reactivation then
+font size change and page turn, where the page updates at full height then
+immediately becomes single-finger mode. look into presentation logic and
+address what should be assumed are multiple complicated issues underlying why
+poorly laid out flashes happen at all."*
+
+**What was already known before this investigation, from three prior entries
+in this same family: [S-031], [S-032], [S-033].** All three describe the same
+general shape — a present reaching the glass before some piece of layout state
+has finished converging — and each was fixed at its own specific site
+(`d4c59bb` withholding the CRT beam for a reconvert-only bump; the `g_zen &&`
+guard on the shift block; the settle window covering resume). None of the
+three is a data race; each is a *timing* bug, fixed by doing the relayout
+before the present rather than after. This entry is a fourth, structurally
+different mechanism in the same neighborhood: **a genuine cross-thread data
+race**, not a timing race, and no amount of "pre-warm the layout call earlier"
+can fix it, because the thing that is unsound is the READ itself.
+
+**The mechanism, file:line.** `HalGPIO::publishReaderTextInsets`
+(`src/HalGPIO.cpp`, pre-fix) stored four independent `std::atomic<int>`
+fields — top, right, bottom, left — one `.store()` each, called from
+`EpubReaderActivity` on the firmware's render task on every page render.
+`SimulatorOverlay::readerTextInsetsPx()` read the same four fields back with
+four independent `.load()`s, called every frame from `pollReaderInsets()`
+(`ios/CrossPointIOSShim.cpp:1608`) on the **main thread** — a different
+thread, with nothing coupling the four stores to the four loads as one unit.
+The comment beside the old fields argued this was safe: *"a torn read across
+two publishes of the SAME layout is harmless."* True, and beside the point —
+the case that matters is a torn read across two publishes of **different**
+layouts, and that is exactly what a font-size change or a page turn produces:
+different top and bottom insets, because the reflowed text block ends
+somewhere else. A reader can observe the NEW top from one publish paired with
+the OLD bottom from the publish before it, a combination that corresponds to
+no real page.
+
+That combination is not inert. `ios/CrossPointIOSShim.cpp:1006-1024`'s
+zen-shift arithmetic reads top and bottom straight into
+`visTotal = slack + inkTopPx + inkBottomPx`, then
+`aboveVis = visTotal / (1 + mult)`, then
+`panelTopWant = paperTopPx + aboveVis - inkTopPx` — a torn pair feeds a `want`
+shift that can land larger OR smaller than either the old or the new page's
+correct target. `pollReaderInsets()`'s own edge trigger
+(`if (t == s_top && b == s_bottom) return;`) then treats the torn value as a
+real change, relayouts against it, and requests a present — one wrong-geometry
+frame, followed by a second, corrective relayout on the very next poll once
+the tear has passed (the next read is very likely to land on the fully
+up-to-date pair). **That is a mechanism for "the page updates at full height
+then immediately becomes single-finger mode":** one frame computed from an
+impossible top/bottom combination, self-corrected a frame later — which is
+exactly the two-frame shape a torn read produces and a timing race does not.
+
+**Why "reactivation" widens the window.** `CrossPointHarness_perFrame()`
+(hence `pollReaderInsets()`) runs every loop iteration with **no background
+gate of its own** ([S-033] already established this for `pollAppearance()`;
+the same is true here, same call site, same absent gate). Confirmed directly
+this session: launching with a scripted font-size step and page turn
+timed to land *while the app was still backgrounded* (an earlier, mistimed
+repro attempt — see below) produced two full page renders, complete with
+`[zen] published ink insets ... -> relayout` log lines, entirely inside the
+`[DISPLAY] backgrounded` / `[DISPLAY] foregrounded` window — i.e. the
+firmware's render task keeps running and keeps publishing while backgrounded,
+and the main thread keeps consuming while backgrounded too. Reactivation does
+not itself cause the tear; it is what puts the app in a state where several
+publishes can queue up in quick succession right as the reader resumes acting
+on the device, which is exactly when a font-size change and a page turn in
+short order give the writer thread the most opportunities to publish while a
+read is in flight.
+
+**Fixed** by replacing the four independent atomics with one packed
+`std::atomic<uint64_t>` (`src/ReaderInsetsChannel.h`, new file): 16 bits per
+field, one `.store()`, one `.load()`. A load can now only ever return a value
+this class actually stored, whole — never a mix of two stores.
+`src/HalGPIO.cpp` was reduced to owning one `ReaderInsetsChannel` instance;
+`publishReaderTextInsets` and `SimulatorOverlay::readerTextInsetsPx` are now
+thin forwards to it. No signature changed on either the firmware-facing or the
+host-facing side, so this is a drop-in.
+
+**Proven, not asserted.** `tests/reader_insets_channel_test.cpp` round-trips
+publish/read, checks the "never published" vs "published zero" distinction,
+and checks clamping on out-of-range fields — then runs a concurrency case
+built specifically to fail against the shape this replaces: a writer thread
+alternates between two layouts (every field different between them, so a torn
+mix is detectable in every field) as fast as it can for two million
+iterations, while a reader thread polls concurrently and asserts every
+successful read matches one whole layout. Checked BOTH ways, per the
+project's mutation-verification habit: run against a throwaway copy of the
+pre-fix four-atomic class, this exact test fails at **roughly a 50% torn-read
+rate** (three runs: 147915/163296, 91381/63459, 14404/107107 torn/good — the
+variance itself is what a genuine race looks like). Run against
+`ReaderInsetsChannel`, it cannot fail: a single atomic cannot return a value
+it never stored in full. `tests/run_all.sh` carries the new `run
+reader_insets_channel` entry with this same accounting inline.
+
+**A second, related site fixed for symmetry, lower confidence it is
+load-bearing for this report.** `ios/CrossPointIOSShim.cpp`'s
+`SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED` handler was the one geometry-invalidating
+site (of four: this one, the zen toggle, Settings.app's `ApplyToLive`, and
+`pollReaderInsets`) that cleared `g_padLaidOut` and requested a present
+**without** calling `zenPreWarmLayout()` first — the exact asymmetry the other
+three sites exist to avoid (see `zenPreWarmLayout()`'s own comment, and the
+2026-08-29 zen-toggle flicker fix it generalizes). Without the pre-warm, the
+very next panel fit reads the OLD topInset/bottomInset (published for the OLD
+window size) against the NEW window dimensions — a real mismatch mechanism,
+just not one this session observed firing from an ordinary
+background/foreground cycle (see "Checked and CLEAN" below). Fixed by adding
+the same `zenPreWarmLayout()` call the other three sites already have,
+immediately after the defensive rect-zeroing that already existed there.
+
+**Checked and CLEAN this session — the window-resize path specifically did
+NOT fire during an ordinary background/foreground cycle.** Two clean
+repro runs (`mobilesafari` launch to background CrossPoint, `simctl ui
+appearance` unchanged, then relaunch CrossPoint's own bundle id to resume —
+confirmed same PID both times, a real resume) showed no `[pad] tablet...`
+relayout log between the `[DISPLAY] backgrounded` and `[DISPLAY] foregrounded`
+lines, which is what a window-size-triggered relayout would have produced.
+So the window-resize fix above is a real, symmetry-motivated repair, but it is
+UNCONFIRMED to be the (or a) trigger for the owner's specific report; the
+reader-insets race is the mechanism with actual evidence behind it (the
+measured torn-read rate, and the confirmed sequence below).
+
+**What WAS confirmed by direct reproduction, and what was not.** Built HEAD
+(`c6ed882` at investigation start) for the iPad Pro 13 simulator
+(`0E5288ED-A466-4750-9FDC-BEA83FE9531A`), zen forced on
+(`CROSSPOINT_SIM_ZEN=1`), and drove the owner's exact recipe headlessly: enter
+`EpubReader` (`QTAP:CONFIRM` from Home), background via `simctl launch
+com.apple.mobilesafari`, foreground via `simctl launch
+com.natebunnyfield.crosspoint.x3` (same PID both times), then a font-size step
+(`QTAP:DOWN` — the side/rocker button, which this fork binds to
+`stepReaderFontSize` via `longPressButtonBehavior = FONT_SIZE_STEP`; see
+`docs/zen-mode.md`'s "On `BTN_UP`/`BTN_DOWN`" section) and a page turn
+(`QTAP:RIGHT`), scheduled generously after the observed foreground time. The
+log confirms the intended sequence landed in the intended order: `foregrounded`
+at 23:03:03.450, `[zen] published ink insets 10/16 fb-px -> relayout` (the
+font-size step's relayout) at 23:03:07.947, the page-turn's render completing
+around 23:03:10.7 — reactivation, then font-size change, then page turn, each
+producing a real relayout, exactly as reported. **What this session could NOT
+obtain is a pixel capture of the bad frame itself.** `xcrun simctl io
+recordVideo` entered a stuck "Host recording is already in progress" state
+after an earlier attempt was killed uncleanly (fixed by `killall
+CoreSimulatorService`, which also force-rebooted the simulator, costing the
+run); a follow-up burst of 40 concurrent `simctl io screenshot` calls
+congested the same daemon badly enough that all 40 came back byte-identical
+(same md5), meaning the daemon serialized and serviced every request long
+after the transition had already settled, and a `2m` background-command
+timeout was hit waiting on it. Per this project's own doctrine (`docs/
+headless-qa.md`, "a capture of the wrong screen looks a great deal like a
+capture of a screen that never changed") and this repo's device-feel rule: the
+mechanism is proven by code and by the concurrency test's measured torn-read
+rate, and the trigger recipe is confirmed to produce the reported sequence of
+real relayouts — but the specific claim "this produces the exact full-height-
+then-single-finger-mode frame the owner saw" is **UNCONFIRMED by render**, not
+proven. Closing that requires either a working `recordVideo` session on a
+future attempt, or a device confirmation from the owner.
+
+**Rejected: a generation/epoch gate across all layout inputs.** The task
+brief that opened this investigation asked for exactly that as a candidate
+architectural fix — tag layout inputs with a generation, compose a present
+only when drawn content and consumed layout agree, defer rather than drop a
+mismatched present. It was considered and set aside for this entry, because
+it does not address the mechanism actually found: an epoch counter attached
+to `pollReaderInsets()`'s edge-trigger would itself be read via the same kind
+of unsynchronized cross-thread access this entry fixes, and a torn read of a
+generation number is exactly as unsound as a torn read of the geometry it was
+meant to guard. The fault here is not "a present ran before layout finished
+converging" (every one of [S-031]/[S-032]/[S-033] is that shape, and each was
+correctly fixed by re-ordering); it is "the read of one piece of published
+state was not atomic." The fix that actually closes it is making that read
+atomic, which is narrower, smaller, and directly testable — not a framework
+the evidence here does not call for. If a FUTURE investigation finds a genuine
+present-vs-layout ordering bug that survives all four `zenPreWarmLayout()`
+call sites now in place, an epoch gate is worth revisiting then, against that
+evidence.
+
+**Checked and found CLEAN: the reader PAGE identity channel next to this one
+in `src/HalGPIO.cpp` (`readerBookKeyValue`/`readerSpineIndex`/
+`readerPageInSpine`) has the identical four(ish)-independent-atomics shape and
+was NOT changed.** Its own comment makes the same "torn read across two
+publishes of the SAME thing is harmless" argument the reader-insets comment
+made — but unlike the insets, nothing downstream feeds a torn page-identity
+read into arithmetic that produces a geometry: it seeds a paper-sheet random
+seed (`sheetid::sheetForPage`), and the documented failure mode of a torn read
+there is "one frame of the previous page's paper," a cosmetic, self-correcting
+degradation with no analog to a `want` shift landing out of range. Left as is;
+flagged here so a future investigation does not have to re-derive this
+distinction from scratch.
+
+Close by: obtaining a render (device, or a working `recordVideo` session) of
+the reported sequence and confirming absence of the full-height/single-finger
+frame post-fix.
+
 ### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced, NOT fixed**
 
