@@ -817,6 +817,155 @@ A proven cause may permit a cleaner fix that needs no deprecated call. If it
 does not, the imperative call stays -- but then it stays as a KNOWN workaround
 rather than a guess, which is the whole point of the ruling.
 
+## Follow-up, 2026-08-31: the status-bar cause -- time-boxed, not fully proven
+
+Per the ruling above. This machine has exactly one iOS runtime installed
+(`xcrun simctl list runtimes` -> iOS 26.5 only, confirmed 2026-08-31), so the
+single most direct experiment -- run the identical binary on an older iOS
+version and see whether the divergence still happens -- **cannot be run
+here**, and that is the one thing this section could not settle. Everything
+below stayed inside the "read + probe the already-installed app" boundary:
+no `xcodebuild`, no edit to `ios/`, `src/`, or `tests/`.
+
+### Ruled out: the "windowed multitasking chrome" mechanism named in the code comment
+
+`ios/CrossPointAppearance.mm:87-91`'s comment names iPadOS multitasking/window
+chrome as "the leading candidate," not proven. Measured against the
+already-running installed app (`CrossPointX3`, PID 45946, iPad Pro 13 CP
+simulator `0E5288ED-A466-4750-9FDC-BEA83FE9531A`) via `lldb -p 45946` and
+Objective-C expression evaluation -- attach, read, detach, no code changed:
+
+```
+(id)[[[UIApplication sharedApplication] keyWindow] frame]
+  -> {{0, 0}, {1032, 1376}}
+(id)[[UIScreen mainScreen] bounds]
+  -> {{0, 0}, {1032, 1376}}
+```
+
+The key window's frame is **exactly** the screen's full bounds, in both
+dimensions, to the point. A windowed/multitasking scene reserving a title-bar
+strip for system chrome would show a window frame smaller than (or offset
+within) the screen bounds -- there is no such gap here. This is a live
+measurement of the CURRENT scene while the app runs normally, not a
+retrospective inference: the app is genuinely full-screen right now, so
+"the OS is drawing window chrome above a resized app" is not the mechanism
+producing what was seen in `ipad-BEFORE-portrait-page-2026-08-29.png`. (That
+screenshot itself is corroborating, not just this probe: it shows a thin
+classic status bar -- clock left, Wi-Fi/battery right, ~55 px tall on a
+2752 px-tall capture -- with no drag handle, no traffic-light capsule, no
+title text; visually a status bar, not a title bar.)
+
+`sizeRestrictions` on that same window scene came back as a real
+`UISceneSizeRestrictions` object (not nil), but its `minimumSize` is `{0,0}`
+and `maximumSize` is `{DBL_MAX, DBL_MAX}` -- the unconfigured default every
+`UIWindowScene` on iPad carries whether or not an app opts into resizing,
+not a sign that iPadOS or this app went "windowed." No inference is drawn
+from that property either way; it is reported so the next person does not
+independently probe it and wonder the same thing. `UIRequiresFullScreen`
+read out of the bundle at runtime as `1` (true) via
+`[[NSBundle mainBundle] objectForInfoDictionaryKey:@"UIRequiresFullScreen"]`,
+confirming the plist's declared intent reached the installed binary
+unmodified.
+
+### Ruled out (mostly): the key is "ignored" on this OS version
+
+`ios/CrossPointAppearance.mm`'s comment also flags a build-log warning as
+part of the candidate mechanism. Read directly out of an existing, already-
+completed Xcode activity log rather than a fresh build (grepped, not
+re-triggered --
+`~/Library/Developer/Xcode/DerivedData/crosspoint_simulator-dtwlwwktbxogzcfbecikpnicrbdb/Logs/Build/47A6CCC5-566A-4172-B0EA-0A8000A9B5FA.xcactivitylog`,
+`gunzip -c | strings`, dated 2026-08-30, well before this section and not
+from the TestFlight build running concurrently with this investigation):
+
+```
+warning: 'UIRequiresFullScreen' has been deprecated starting in iOS 26.0
+and will be ignored in a future release. See the UIRequiresFullScreen
+documentation for more details.
+```
+
+The wording is "**will be** ignored in **a future release**" -- present tense
+deprecation, future-tense removal. Apple's own developer-forum threads on this
+key (`developer.apple.com/forums/thread/793406`, `/thread/802069`, checked
+2026-08-31) corroborate the same reading for the current cycle: one poster
+reports the key "seems to be completely ignored" only "when building with
+Xcode 27" (a later toolchain than what built this app), and Apple's TN3192
+migration note frames iOS 27 as where resizing becomes mandatory, not iOS 26.
+So on the SDK/runtime actually in use here (iOS 26.5), the balance of evidence
+is that `UIRequiresFullScreen` is still functionally honored -- consistent
+with the frame-equals-screen-bounds measurement just above -- which weakens
+(does not fully refute, since Apple gave no authoritative per-minor-version
+answer in either thread) the idea that ITS deprecation is what is letting
+iPadOS show the status bar over this app specifically. Marked "mostly" because
+the forum threads are other developers' reports, not this binary measured on
+a second OS version, which is the experiment this machine cannot run.
+
+### Plausible, corroborated externally, not proven on this binary: an iPadOS 26 regression in the static key itself, iPad-specific, independent of `UIRequiresFullScreen`
+
+A live Apple Community thread, `discussions.apple.com/thread/256152836`
+("iPadOS 26.0.1 Status Bar Overlay Issue," checked 2026-08-31), reports the
+identical symptom shape from an unrelated app and codebase: the system status
+bar stays visually and functionally on top of full-screen app content on
+iPadOS 26.0.1 despite the app's intent to hide it, and one participant in that
+thread traces it specifically to `INFOPLIST_KEY_UIStatusBarHidden` -- the
+Xcode build setting that becomes exactly the `UIStatusBarHidden` key this
+project sets in `ios/Info.plist.in`. The thread frames it as iPad-specific and
+does not mention `UIRequiresFullScreen` at all. This is an external,
+third-party report on a different app, so it corroborates a *pattern*
+("`UIStatusBarHidden` + `UIViewControllerBasedStatusBarAppearance=NO` failing
+to hide the bar, on iPad, on iPadOS 26.x") without proving THIS app hit the
+same root cause -- but it is the best-fitting account found: it names the
+exact key this project sets, on the exact idiom that diverges, on the exact
+OS cycle, with no window-chrome or multitasking mechanism required.
+
+### What is proven, in one sentence
+
+The divergence is real (measured screenshot-to-screenshot, §2, unchanged
+since 2026-08-29), the app is genuinely full-screen when it happens (measured
+via `lldb` on the live process, this section), and the fix works and is
+provably inert on iPhone (§2's byte-level pixel sampling) -- but the exact
+iPadOS mechanism inside `UIKit`/`SpringBoard` that paints a status bar over a
+provably full-screen scene, with no window chrome present, remains **not
+proven from this codebase's own instrumentation**, only corroborated by an
+external report naming the same key on the same idiom and OS cycle.
+
+### The single cheapest experiment left, and why it cannot run here
+
+**Run the unmodified `UIStatusBarHidden`/`UIViewControllerBasedStatusBarAppearance`
+build (i.e., today's tree with `CrossPointAppearance_hideStatusBarOnIPad()`'s
+call site commented out, or an older commit before it existed) on a
+second iOS/iPadOS runtime, and compare iPad's behavior on that runtime against
+iOS 26.5's.** If an older runtime hides the bar correctly with no imperative
+call, the cause is iOS-26-cycle-specific (consistent with the Apple Community
+report). If an older runtime shows the same divergence, the cause predates
+iOS 26 entirely and every comment in `CrossPointAppearance.mm` attributing it
+to iOS 26 needs correcting.
+
+This needs two things this task does not have: an `ios/` edit (temporarily
+removing or gating out the fix call, to observe the pre-fix state cleanly
+rather than inferring it) and a second installed iOS runtime
+(`xcodebuild -downloadPlatform iOS` for an older version, or an older Xcode),
+neither of which this investigation is permitted to do while a TestFlight
+`xcodebuild` is running against this same tree. It is the next step, not
+something ruled out by absence of evidence.
+
+### Does a proven cause permit dropping the deprecated call?
+
+Not established either way. If the Apple Community report's account is right
+-- a status-bar-specific iPadOS 26 regression around the static key,
+unrelated to `UIRequiresFullScreen` -- the imperative call
+(`-[UIApplication setStatusBarHidden:withAnimation:]`) is likely to remain
+the only lever: it is the one API confirmed, by this project's own
+2026-08-29 measurement (`isStatusBarHidden` reads `YES` and
+`statusBarFrame` reads zero-sized on the live process, both confirmed again
+in this section's `lldb` probe), to actually take effect on this idiom on
+this OS. A cleaner, non-deprecated fix would need either a different iPadOS
+API surface than what these two forum threads and TN3192 discuss (none
+found), or confirmation that a future iOS build stops requiring it -- neither
+of which changes what ships today. The imperative call should be read as a
+**known workaround for a corroborated, not project-specific, iPadOS 26
+platform behavior**, not a guess -- which is what the owner's ruling asked
+for.
+
 ## RULING, owner 2026-08-29 (confirmed twice): zero paper-to-panel gap, and the corner radius drops to unit/16 -- TABLET ONLY
 
 Superseding the sweep above. The owner did not pick a divisor off that table;
