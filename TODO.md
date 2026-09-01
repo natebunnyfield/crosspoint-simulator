@@ -31,7 +31,19 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-165**, tagged 2026-09-01 at `958eea9` — HEAD of `main` at the upload.
+**build-166**, deploy fired 2026-09-01 at `3bda355` — HEAD of `main` at the
+upload. Count the tag before trusting this line. Over build-165 it carries one
+change: **the S-035 glass re-capture fix** (`src/GlassCapture.h`). The glass
+that the beam's un-swept region shows was captured once per page and the
+session's first capture was a BLACK frame (zen band painted over zero pad
+geometry), never re-read when the real frame landed one present later at the
+same page seq; now every present request re-captures. Verified on the iPad
+simulator: first sweep present reads back the previous frame (`whole 63.56`)
+where it read `0.00`. **UNCONFIRMED on device** — on glass: fresh launch with
+zen on, first page turn or Home selection move; the un-swept part of the
+screen during the 55 ms sweep must be the previous frame, never black.
+
+**Superseded: build-165**, tagged 2026-09-01 at `958eea9`.
 Over build-164 it carries the hold ruling and the menu's new door:
 
 - **Three holds are dead** (owner, verbatim: "kill ble pairing, kill back to
