@@ -38,6 +38,216 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-035] A stale beam-sweep progress can collapse the zen panel and pad to a sliver on the FIRST content change of a session — root-caused, reproduced, FIXED
+**severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`'s `presentIfNeeded`) · reported 2026-09-01, root-caused and reproduced same session, a first fix attempt tried and reverted (made it worse), a second fix landed and proven the same session**
+
+Owner, verbatim: *"bug after shaking for going to zen mode then selecting next
+book on home screen does the buggy tall redraw flash still"* — corrected the
+same session to: *"not opening a book on home, selecting the next one"*. So the
+sequence is HOME → shake toggles zen ON (not entering a reader at any point) →
+press RIGHT to move the Home selection to the next item, staying on Home → a
+badly laid out frame reaches the glass. Asked whether [S-034]'s fix (below)
+covers this path.
+
+**It does not, and cannot — proven by reading, not assumed.** `HalGPIO::
+publishReaderTextInsets` has exactly one call site, inside `EpubReaderActivity`'s
+render (`../crosspoint-reader/src/activities/reader/EpubReaderActivity.cpp:1051`),
+and this sequence never enters a reader at all. `pollReaderInsets()`
+(`ios/CrossPointIOSShim.cpp:1608`) returns on its very first line every single
+time on Home (`if (!SimulatorOverlay::readerTextInsetsPx(...)) return;`), so
+S-034's packed-atomic fix has literally nothing to read a torn value FROM on
+this path. This is a different mechanism — the eighth in `docs/zen-mode.md`'s
+catalog — and it was found by reproducing the owner's corrected sequence rather
+than by re-patching S-034.
+
+**Checked and found CLEAN, so not re-investigated:**
+- `layoutPadTablet` (`ios/CrossPointIOSShim.cpp:429`) — the ONLY layout
+  function ever invoked for `s_isPad` (`layoutPad` returns into it before
+  reaching any of the phone's `g_zenRowTopPx`/shift code) — reads no
+  reader-insets channel at all; its placement is a pure function of the window
+  size and safe area. Confirmed by log: the panel rect (`1056x1584 at
+  504,389`) was byte-identical before and after a REAL zen OFF→ON toggle
+  (`defaults write ... zenModeEnabled -bool true`, picked up by
+  `pollZenMode()`'s `ApplyToLive` branch) in this session's own testing on the
+  iPad Pro 13 simulator.
+- A plain Home selection-repaint (the RIGHT press) does not re-invoke
+  `layoutPad`/`layoutPadTablet` at all: `paintPad`'s relayout gate
+  (`ios/CrossPointIOSShim.cpp` ~:2590, `if (!g_padLaidOut || panelBottom !=
+  s_layoutPanelBottom || ...)`) never re-opens across the press in any capture
+  taken this session — no new `[pad] tablet...` / `[zen] panel...` /
+  `[bezel]` log line follows it. So [S-020]'s phone-only shift block, and the
+  whole zen-band-placement system, is not implicated in this defect at all;
+  the bug is downstream of the pad/band layout, in the shared present
+  pipeline both platforms share.
+
+**The mechanism, proven by temporary instrumentation (added, used, then
+reverted — `git diff --stat src/HalDisplay.cpp` is clean at the time of
+filing).** `beamStartedAt`/`beamProgress`/`beamSweeping`
+(`src/HalDisplay.cpp` ~:3320, inside `presentIfNeeded`) are computed ONCE,
+early in the function, from `SDL_GetTicks() - beamStartedAt` against the
+shipped 55 ms beam duration. Between that computation and the point where
+`beamProgress` is actually used to build the sweep's clip rect, the function
+does an EXPENSIVE, SYNCHRONOUS field rebuild —
+`simsheet::ensureLetterpressField()` — which is a cache MISS (240-265 ms,
+measured by its own `"... in NNN.N ms"` self-log) on the first real content
+change of a session, because nothing has needed the letterpress field before
+that point. A diagnostic line placed immediately after `beamSweeping` is
+computed logged `beamProgress=0.073` (7.3%) on the SAME `presentIfNeeded()`
+call whose own terminal `[present]` log fired **305 ms later**, with a
+`[letterpress] field ... in 265.1 ms` line sitting between the two — five
+times the entire 55 ms beam budget elapses between sampling `beamProgress`
+and drawing with it.
+
+The clip built from that stale progress (`swept = sweep.h * beamProgress`,
+where on the manual-placement/iPad path `sweep = {0, 0, gw, gh}` — the WHOLE
+OUTPUT, not just the panel rect) comes out far shorter than the panel's own
+top offset: measured clip heights of 127-350 px against a panel that starts
+at device-pixel row 389. So the panel, and its letterpress pass, draw
+**nothing at all** for that present — only the zen top bezel band (drawn
+separately, in the reserved band above the panel, and NOT gated on this same
+clip) falls inside the swept region, which is the horizontal cream-colored
+sliver visible in every repro screenshot, floating over an otherwise blank
+field.
+
+**The un-swept region is not what it should be, and this half is NOT yet
+found.** The "old" reference (`glassPrevTexture`) IS drawn full-screen,
+unclipped, immediately before the clip is set — instrumented directly:
+`SDL_RenderTexture` reports success, and its dimensions match the output
+(`gw=gh=texW=texH=2064x2752`). So the draw call that is supposed to fill the
+un-swept ~93% of the screen with the PREVIOUS, correct frame is not failing or
+mismatched by any check this session could run — yet the region renders black
+(most repro screenshots) or white (one), never the previous frame. Two
+candidates were named but NOT traced to a specific line: (a) `captureGlass`
+(`src/HalDisplay.cpp:2330`, the function that populates `glassPrevTexture`,
+"once per new picture") may itself be capturing an incomplete or
+wrongly-scoped readback on the session's first non-sweeping present, given how
+many render-target / logical-presentation state switches surround it; (b)
+some later pass (the chrome/overlay draw, or the sheet/paper field) may be
+painting over the "old" content within the un-swept region using its own,
+separately-derived and possibly ALSO-stale notion of the sweep's clip,
+overwriting what the first draw correctly left there.
+
+**A first fix was attempted and reverted — it did not help, and it introduced
+a worse bug of its own.** Re-deriving `beamProgress`/`beamSweeping` from a
+fresh `SDL_GetTicks()` immediately after the letterpress rebuild, before its
+later uses (the chrome/pad sweep clip, the glass-capture gate), did not
+resolve the symptom across repeated testing. Worse: the panel's own clip,
+set earlier using the ORIGINAL `beamSweeping=true`, is only CLEARED later
+behind `if (beamSweeping)` (`src/HalDisplay.cpp` ~:3471); recomputing
+`beamSweeping` to `false` in between desyncs that set/clear pairing, so the
+stale clip rect is left permanently active for the rest of the frame instead
+of being cleared at all — a regression, not a fix. Reverted in full rather
+than shipped partially-working.
+
+**Reproduction — external, OS-level, independent of the app's own pixel
+readback (`xcrun simctl io screenshot`, not the in-app BMP capture, so the
+finding does not depend on trusting the code under investigation).** On the
+booted iPad Pro 13 simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`,
+`com.natebunnyfield.crosspoint.x3`, built from this session's HEAD):
+
+```bash
+xcrun simctl spawn "$UDID" defaults write "$BUNDLE" zenModeEnabled -bool true
+SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='200:QTAP:BACK:2500;3550:QTAP:RIGHT' \
+  xcrun simctl launch "$UDID" "$BUNDLE"
+sleep 5.5
+xcrun simctl io "$UDID" screenshot out.png
+```
+
+`QTAP:BACK:2500` lands on Home (no reader ever entered — confirmed by the
+`[ACT] Entering activity:` log, which shows only `Boot` then `Home`);
+`QTAP:RIGHT` moves the Home selection from the single recent-book cover to
+the "Recent Books" menu row, an ordinary content-only repaint. Across roughly
+a dozen raw attempts this session (some with diagnostics attached, which
+measurably changes the odds without reliably preventing it — the race still
+fired 3 of 8 attempts with `CROSSPOINT_SIM_LOG_PRESENTS=1` and `--console`
+attached), a majority showed the collapsed sliver; a matched zen-OFF control
+of the identical sequence, and a matched zen-ON control with NO `RIGHT` press,
+both rendered correctly every time — isolating the trigger to "zen on, a
+genuine Home content change, zen's letterpress field not yet built this
+session," not to zen or to Home individually. A proper controlled hit-rate
+was not established in the time available; this is reported as a real,
+reproduced, non-deterministic race, not a precisely quantified one.
+
+**FIXED, same day — by moving the arm point, not by re-sampling.** The
+reverted attempt above kept `beamStartedAt`'s write where it was (early,
+before `ensureLetterpressField()`'s rebuild) and added a SECOND read of
+`SDL_GetTicks()` after the rebuild, which is what desynced the clip's
+set/clear pairing. The fix instead moves the ONE write, so there is still
+only one read of `beamProgress` and no pairing to desync:
+
+- **What changed to earn "READY to sweep."** `src/HalDisplay.cpp:2875-2899`
+  (the `contentChanged` block, under `pixelBufMutex`) no longer writes
+  `beamStartedAt` — it now sets a local `beamShouldArm` bool under the exact
+  same `contentChanged && glassHasPicture && !reconvertOnly` condition
+  (S-031's reconvert exception untouched). `src/HalDisplay.cpp:3311-3331`
+  (immediately before `beamProgress` is first computed, and immediately
+  after `fields.letterpress` — `:3282` — is already known) now does two
+  things in order: `if (fields.letterpress) simsheet::ensureLetterpressField();`
+  as a prewarm, THEN `if (beamShouldArm) beamStartedAt = SDL_GetTicks();`.
+  The 240-265 ms cache-miss rebuild this entry is about now lands BEFORE the
+  arm, not after it — so `beamProgress`'s first (and only) read is fresh
+  against a clock that has already paid for the rebuild, and the later call
+  at the original draw site (`:3448` area, unchanged) is a cache hit that
+  costs nothing.
+- **Why this dodges the reverted attempt's trap.** There is exactly one
+  write site and one read site for `beamStartedAt`/`beamProgress` in the
+  frame that arms a sweep, same as before the whole investigation — the fix
+  is WHEN the one write happens, not an extra one. The panel's clip
+  set-then-clear (`:3382` / `:3434`, both still gated on the same
+  `beamSweeping` computed once at `:3331`) never sees two different values
+  of `beamSweeping` within one frame, so nothing to desync.
+- **Reproduced pre-fix, absent post-fix, same session, same recipe.**
+  Stashing only `src/HalDisplay.cpp` back to the pre-fix tree and rebuilding
+  reproduced the exact symptom this entry describes — black screen plus the
+  cream bezel sliver — in 6 of 10 runs of the BUGS.md recipe above
+  (`xcrun simctl io screenshot`, matched `zenModeEnabled -bool true`, same
+  UDID/bundle). With the fix restored and rebuilt, 20 consecutive runs of
+  the identical recipe (two batches, 8 then 12) all rendered the correct Home
+  menu — no sliver, no black field. `log stream` on one of the clean runs
+  caught the exact scenario this entry names: present #3 (the RIGHT press)
+  logged `panel BUILD 243.21` inside a 290 ms present, i.e. the letterpress
+  rebuild really did cost ~243 ms on this exact frame, and the frame still
+  rendered correctly — proving the fix works BECAUSE of the reordering, not
+  because the expensive rebuild happened not to fire that run.
+- **The sweep still sweeps.** The same log shows present #3 (243 ms rebuild,
+  arm) followed immediately by presents #4-#6 at 8.0/2.6/0.7 ms — fast,
+  cache-hit continuations of the same sweep — then present #7 does the
+  deferred glass capture (`glass BUILD 67.39`, correctly held back until
+  `beamSweeping` goes false). This is the sweep completing its 55 ms reveal
+  over several quick frames, not a sweep that got silently disabled to make
+  the symptom go away.
+- **Settled frame proven byte-identical pre/post fix, on the desktop
+  canary, per the 2026-08-25 discipline — twice, having caught and rejected
+  a false positive first.** A first attempt (scripted `QTAP:RIGHT` at a
+  fixed wall-clock offset) produced DIFFERENT md5s pre/post fix, but the
+  `[ACT]` log showed the two builds had landed on different activities
+  (`EpubReader` "End of book" vs. `Home` menu) — an artifact of the two
+  builds' different per-frame costs shifting where a wall-clock-scheduled
+  `QTAP` lands, not a rendering difference. Re-run with `[ACT]`-verified
+  matching navigation and a wider timing margin: no-beam settle
+  (`CROSSPOINT_SIM_BEAM_MS=0`) is byte-identical pre/post fix
+  (`777aaf3d40af4cb270f25fc85e48752e`); beam-on settle
+  (`CROSSPOINT_SIM_BEAM_MS=55`, same navigation, `[ACT]` chains matching) is
+  also byte-identical pre/post fix (`6cb8abad0dd0e4664a455bc37a3cc916`).
+  Lesson for the next person timing a cross-build comparison with
+  `CROSSPOINT_SIM_INPUT_SCRIPT`: verify `[ACT] Entering activity:` matches
+  before trusting an md5 diff between two builds of differing speed.
+- **`tests/run_all.sh`: 72 passed, 0 skipped**, matching baseline (touching
+  the firmware repo's `fs_/.crosspoint/` during the above A/B testing
+  transiently broke `test_text_entry` and `test_note_editor_repaint` to SKIP
+  by deleting `settings.json`; regenerated by one simulator run that reaches
+  Settings and presses Back, which is the firmware's own save path — not a
+  code issue, noted here so a future session doesn't chase it as one).
+- **Remaining, not re-investigated because the fix above resolves the
+  reported symptom without needing it:** the "un-swept region renders black
+  instead of `glassPrevTexture`'s content" half traced-but-not-verified
+  above. It cannot fire in the reproduction anymore (the swept clip no
+  longer lands short of the panel's top offset, so there is no long-lived
+  un-swept region for it to matter on THIS bug), but the two candidates
+  named above (`captureGlass`'s scoping, or a second pass re-deriving its
+  own stale clip) are still open questions if a future symptom points back
+  at that code.
+
 ### [S-034] Reader text insets were four separate atomics, not one — a torn read across a font-size change or a page turn fed the zen layout a geometry that matches no real page
 **severity: high (matches a repeated owner report, mechanism proven and measured, NOT confirmed by render) · scope: cross-thread channel (`src/HalGPIO.cpp`), consumed by `ios/CrossPointIOSShim.cpp`'s zen layout · found and fixed 2026-08-31, render evidence UNOBTAINED this session (tooling failures, documented below)**
 
