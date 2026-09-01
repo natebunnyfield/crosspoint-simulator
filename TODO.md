@@ -31,9 +31,41 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-160**, tag created 2026-08-28 23:34:57 -0500 at `b398d45` — HEAD of
-`main` as of this writing, and the highest `build-*` tag
-(`git tag --list 'build-*' | sort -t- -k2 -n | tail -5` shows build-156..160).
+**build-163**, tagged 2026-09-01 at `f73beab` — HEAD of `main` at the upload.
+Count the tags rather than trusting this sentence
+(`git tag --list 'build-*' | sort -t- -k2 -n | tail -5`), and remember **a
+`build-*` tag proves a deploy RAN, not that Apple accepted it**.
+
+On top of build-162 it carries exactly three things:
+
+- **S-034, the torn-insets fix** — the reader's four text insets travel in one
+  packed atomic (`src/ReaderInsetsChannel.h`); the old four-field shape let a
+  main-thread read pair a new top with the previous page's bottom, one relayout
+  pass at an impossible height, which is the owner's "full height then
+  single-finger" flash. Test proves the old shape tears at a 40–50% rate. Plus
+  the window-resize `zenPreWarmLayout()` the other three invalidation sites
+  already had. **UNCONFIRMED by render and on device.**
+- **The library progress work** (firmware, via the symlinked dep): the sync bar
+  reports the whole job instead of refilling per book, and the manifest check
+  names its two network steps instead of freezing on kickoff.
+  `docs/library-sync-on-ios.md` has the account.
+- The day's md corrections.
+
+Build-162 (2026-08-31) was the big one under it: the iPad band at 1:2 with the
+square-module grid and the owner's unit/8 corner, the RETRACTION of the
+fabricated "64 wins" four-cell radius that shipped in build-161, the S-031
+beam-on-reconvert fix (verified by reproduction through the resume trigger),
+the zen flicker pair, the Settings-row zen sync, shake outside zen,
+previous-font as a bindable action, and the reading-experiments row (wired,
+deliberately inert). **Build-161 should be considered superseded on sight — its
+tablet corner was built on an invented ruling** (`docs/ipad-layout-2026-08-29.md`
+carries the retraction).
+
+The history below is kept as the record of the build-110 → 160 arc.
+
+**Superseded header, kept for the record: build-160**, tag created 2026-08-28
+at `b398d45`
+(`git tag --list 'build-*' | sort -t- -k2 -n` then showed build-156..160).
 `b398d45` fixes a seed-font bundling defect: build 159 shipped nine Inknut
 sizes from a stale `file(GLOB)` result against a six-size ramp, self-healing on
 upgrade via the existing prune pass; `ios/testflight.sh` now diffs the archived
