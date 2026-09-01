@@ -31,7 +31,17 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-163**, tagged 2026-09-01 at `f73beab` — HEAD of `main` at the upload.
+**build-164**, tagged 2026-09-01 at `f0bdfaa` — HEAD of `main` at the upload,
+carrying exactly one change over build-163: **the S-035 beam-arming fix**. The
+beam's clock now starts when the frame is ready to sweep, not at content-change
+detection — a 240–265 ms letterpress cache-miss rebuild used to eat ~5x the
+55 ms sweep budget before the first sweep frame drew, and the stale clip threw
+the whole panel away: the owner's "tall redraw flash" on a Home selection move
+in zen. Reproduced 6/10 pre-fix, 20/20 clean post-fix, beam still sweeps,
+settled frame byte-identical. **UNCONFIRMED on device** — the repro on glass is
+shake-to-zen on Home, then select the next book.
+
+**Superseded: build-163**, tagged 2026-09-01 at `f73beab`.
 Count the tags rather than trusting this sentence
 (`git tag --list 'build-*' | sort -t- -k2 -n | tail -5`), and remember **a
 `build-*` tag proves a deploy RAN, not that Apple accepted it**.
