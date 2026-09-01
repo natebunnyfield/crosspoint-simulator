@@ -1030,6 +1030,13 @@ Grown in one day; each is documented at its definition, this is the map:
   (framebuffer px) through the HAL keyboard-channel pattern; the sim stores
   them (`SimulatorOverlay::readerTextInsetsPx`) and the zen placement consumes
   them, with 60/35 device px as the documented pre-first-render fallback.
+  **All four travel in ONE packed atomic** (`src/ReaderInsetsChannel.h`, since
+  2026-08-31, S-034): they were four independent atomics, and a main-thread
+  read racing the render task's publish could pair the new top with the old
+  bottom — geometry matching no real page, fed straight into the zen shift,
+  one relayout pass at an impossible height. Legal atomics, application-level
+  tear; TSan is clean on both shapes, and the test proves the old one tears at
+  a 40–50% rate under stress. Do not split them back into fields.
 - **Zen placement**: in zen the panel is PLACED within the sheet (band pixels
   trade bottom→top so the fit box, and therefore the page's scale, never
   changes). The shift is snapshotted per layout pass — band and top inset must
