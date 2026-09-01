@@ -461,6 +461,34 @@ static void testRootPlist(const char *path) {
   CHECKM(zenToggle < xml.find("<string>allowSleepOnBattery</string>"),
          "the Zen toggle belongs at the very top of Settings");
 
+  // Reading Experiments -- Phase 2's stop switch (docs/reading-experiments.md
+  // §7, Decision 1: owner ruling 2026-08-29, "yes -- add the row, default
+  // off"). Its own group, since none of the ten groups that predate it is
+  // about experiments; pinned the way every other row in this bundle is.
+  const size_t readingExpKey =
+      xml.find("<string>readingExperimentsEnabled</string>");
+  CHECKM(readingExpKey != std::string::npos,
+         "readingExperimentsEnabled (Phase 2's stop switch) must be in "
+         "Root.plist");
+  CHECKM(xml.find("<string>Reading Experiments</string>") != std::string::npos,
+         "the Reading Experiments group title must be in Root.plist");
+  // DEFAULTS OFF, and the DefaultValue must be the literal that makes an
+  // unwritten key read as off -- <false/>, not merely present somewhere in
+  // the row's dict. Root.plist always writes DefaultValue immediately before
+  // Key (every other row in this file does), so the immediate substring is
+  // the same check the rest of this file relies on rather than a new idiom.
+  CHECKM(xml.find("<false/>\n\t\t\t<key>Key</key>\n\t\t\t"
+                  "<string>readingExperimentsEnabled</string>") !=
+             std::string::npos,
+         "readingExperimentsEnabled must default OFF (<false/>), so an "
+         "unwritten key reads as off");
+  // APPEND, NOT INSERT: a new group has to land after every existing one, or
+  // an install's stored row indices (Settings.bundle is read by array
+  // position as well as by key) would silently repoint at the wrong row.
+  CHECKM(readingExpKey > xml.find("<string>diagnosticsEnabled</string>"),
+         "Reading Experiments must be appended after the Sleep group, not "
+         "inserted earlier in Root.plist");
+
   // A RETIRED preset must behave exactly like an unknown one, and must not come
   // back in the picker. 14 was Sepia CRT until 2026-08-17; the constant survives
   // only so the number is never handed to something else, because a preset

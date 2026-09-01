@@ -124,6 +124,24 @@ int CrossPointPrefs_readAloudRatePercent(void);
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);
 
+// PHASE 2's stop switch (docs/reading-experiments.md §7, Decision 1). The
+// randomizer in src/ReadingArm.h is written and host-tested and, before this
+// row existed, called by nothing — switching it on changes what the reader
+// sees mid-book, which is unshippable without a way to turn it back off from
+// here. Default OFF, and registered so an unwritten key reads as off.
+//
+// Reading this getter does not by itself vary anything: no arm-to-setting
+// mapping has been built (docs §7's ranking of font size / line spacing /
+// family is a recommendation for future work, not an implementation). The one
+// caller today (src/HalDisplay.cpp's readinglog::hostSnapshot()) calls
+// readingarm::armIndex() with armCount pinned at 1, which by that function's
+// own documented contract always answers 0 — "an experiment with one arm is
+// not an experiment ... leave the settings alone." So this switch exists
+// ahead of the real variation rather than arriving at the same time as one.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_readingExperimentsEnabled(void);
+
 // Which named panel palette is selected: one of panelpalette::Preset
 // (0 Custom, 1 Default, 2 High Contrast, 3 Sepia, 4 Cool Gray). Anything else
 // is returned unchanged and resolved as Default by panelpalette::resolve --

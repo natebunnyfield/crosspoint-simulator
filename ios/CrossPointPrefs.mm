@@ -50,6 +50,13 @@ static NSString *const kReadAloudEnabled = @"readAloudEnabled";
 static NSString *const kReadAloudRatePercent = @"readAloudRatePercent";
 static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 
+// PHASE 2's stop switch. Missing-key failure mode is benign -- NO means the
+// experiment stays off, which is also the shipped default -- so it needs no
+// entry in the Root.plist-unreadable fallback below (same reasoning as
+// kDiagnosticsEnabled and kPowerOffCollapse, neither of which is there
+// either).
+static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled";
+
 // The panel's own two tones. The missing-key failure mode for the preset is the
 // benign one again: -integerForKey: returns 0, which here is Custom, i.e. "read
 // the four hex fields" -- and those, missing, parse as invalid and fall back to
@@ -405,6 +412,17 @@ int CrossPointPrefs_diagnosticsEnabled(void) {
   // instrument back on without shipping a build -- which is the whole reason
   // the instrument exists.
   return [[NSUserDefaults standardUserDefaults] boolForKey:kDiagnosticsEnabled] ? 1 : 0;
+}
+
+// See the declaration in CrossPointPrefs.h for what flipping this row does
+// and does not do today.
+int CrossPointPrefs_readingExperimentsEnabled(void) {
+  ensureDefaults();
+  checkKnown(kReadingExperimentsEnabled);
+  return [[NSUserDefaults standardUserDefaults]
+             boolForKey:kReadingExperimentsEnabled]
+             ? 1
+             : 0;
 }
 
 int CrossPointPrefs_padFillContrast(int dark) {

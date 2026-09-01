@@ -53,9 +53,9 @@ the change it was on.
 
 | | Phase 1 — instrumentation | Phase 2 — the randomizer |
 |---|---|---|
-| Status | **shipped** | designed, host-tested, **not called by anything** |
-| Changes what the reader sees | no | yes — that is the point |
-| Needs an owner decision first | no | yes, two of them (§7) |
+| Status | **shipped** | the row and the gate **shipped 2026-08-31** (§7 Decision 1); the arm-to-setting mapping is still **not built** |
+| Changes what the reader sees | no | not yet — the gate is wired but pinned at `armCount=1`, which its own contract makes a no-op (§7) |
+| Needs an owner decision first | no | Decision 1 (the gate) is answered; Decision 2 (colour) stays open |
 | Files | `src/ReadingLog.h`, `src/ReadingChannel.h`, firmware `lib/hal/HalGPIO.h` + `src/activities/reader/PageTextMetrics.h`, `tools/reading_report.py` | `src/ReadingArm.h` |
 | Tests | `tests/reading_log_test.cpp`, `tests/reading_report_test.py`, firmware `test/page_text_metrics` | `tests/reading_arm_test.cpp` |
 
@@ -414,12 +414,42 @@ the feature changes what he sees mid-book, so it is unshippable without a way
 for him to stop it, and a desktop-only switch would run the experiment only
 where he does not read — which makes the data close to worthless.
 
-**Still to build.** The row is approved, not written. What it needs: one toggle
-(a new group, since none of the ten existing groups is about experiments),
-defaulting off and registered so an unwritten key reads as off; the gate wired
-to `src/ReadingArm.h`, which is written and host-tested and still called by
-nothing; and `tests/panel_palette_test.cpp`'s Root.plist assertions extended to
-cover it, the way every other row in that bundle is pinned.
+**Built, 2026-08-31.** `readingExperimentsEnabled` — its own new "Reading
+Experiments" group, since none of the ten groups that predated it is about
+experiments — defaults off in both `ios/Settings.bundle/Root.plist` and
+`ios/CrossPointPrefs.{h,mm}` (`CrossPointPrefs_readingExperimentsEnabled()`),
+so an unwritten key reads as off. `tests/panel_palette_test.cpp`'s Root.plist
+assertions pin the row, its default, and that it was appended (not inserted)
+after the Sleep group.
+
+**The gate now calls `src/ReadingArm.h`, and it is honestly still inert.**
+`src/HalDisplay.cpp`'s `readinglog::hostSnapshot()` — the exact spot this
+section used to point at — calls `readingarm::armIndex()` when the row is on,
+with `armCount` PINNED AT 1. No arm-to-setting mapping has been built or ruled
+on (the ranking two paragraphs below is a recommendation for future work, not
+an implementation), and `armIndex()`'s own documented contract makes
+`armCount<=1` always answer 0 — "an experiment with one arm is not an
+experiment ... leave the settings alone." So turning the row on today changes
+nothing the reader sees; it only starts naming `"phase2_gate"` in the log's
+`exp`/`arm` fields, which is what lets the stop switch exist ahead of the real
+variation rather than arrive at the same time as the behavior change it would
+gate. iOS-only, matching every other per-app-target preference this HAL reads
+(`CrossPointPrefs_renderScale()` in `src/simulator_main.cpp`): the getter
+lives in the `CrossPointX3` app target, not the `crosspoint_core` library
+`HalDisplay.cpp` compiles into, so the call is compiled out entirely on the
+desktop PlatformIO build via the same `TARGET_OS_IPHONE` detection
+`simulator_main.cpp` uses.
+
+Verified: `tests/run_all.sh` 71 passed / 0 skipped (up from 70 — no new host
+test was needed for this half, the existing `panel_palette` and `reading_log`/
+`reading_arm` suites cover it); the firmware repo's desktop canary
+(`pio run -e simulator`) green; and the iOS `CrossPointX3` target builds and
+links successfully with the gate compiled in (`CROSSPOINT_HAL_READING_EXPERIMENT_GATE=1`),
+proving the cross-target symbol resolution (`crosspoint_core` calling into the
+app target's `CrossPointPrefs.mm`) actually works rather than merely compiling
+in isolation. **The row's on-device round trip is NOT observable headlessly**
+(NSUserDefaults lives in the app's sandboxed container) — SHIPPED, UNCONFIRMED
+on device.
 
 Decision 2 below is unaffected and still open — a COLOUR arm remains blocked on
 the frozen page.

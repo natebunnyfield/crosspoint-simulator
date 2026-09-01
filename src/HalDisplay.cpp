@@ -23,10 +23,31 @@
 #include "Scanlines.h"
 #include "FrozenPage.h"
 #include "ShowThrough.h"
+#include "ReadingArm.h"
 #include "ReadingLog.h"
 #include "SimulatorBuildIdentity.h"
 #include "SimulatorDeviceTruth.h"
 #include "SimulatorOverlay.h"
+
+// PHASE 2's stop switch (docs/reading-experiments.md §7, Decision 1) lives in
+// Settings.app, which is iOS-only -- CrossPointPrefs.mm compiles into the
+// CrossPointX3 APP target (ios/CMakeLists.txt), not this file's
+// crosspoint_core static library, so a call to its getter has to be compiled
+// out entirely wherever that app target does not exist, the desktop
+// PlatformIO build first among them. Same local detection, same reasoning, as
+// CrossPointPrefs_renderScale()/CrossPointPrefs_wantsScreenAwake() in
+// src/simulator_main.cpp -- there is no shared macro for this because those
+// two calls are the only precedent, and this file is not compiled by the app
+// target either, so the detection has to be repeated here rather than reused.
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+#include "CrossPointPrefs.h"
+#define CROSSPOINT_HAL_READING_EXPERIMENT_GATE 1
+#else
+#define CROSSPOINT_HAL_READING_EXPERIMENT_GATE 0
+#endif
 
 #include <array>
 #include <cmath>
@@ -640,8 +661,29 @@ HostSnapshot hostSnapshot() {
           static_cast<uint32_t>(pal.ink[2]);
   h.paper = (static_cast<uint32_t>(pal.paper[0]) << 16) | (static_cast<uint32_t>(pal.paper[1]) << 8) |
             static_cast<uint32_t>(pal.paper[2]);
-  // experiment / arm / armSeed stay empty until the Phase 2 randomizer exists.
-  // See src/ReadingArm.h and docs/reading-experiments.md.
+  // experiment / arm / armSeed -- Phase 2's stop switch (docs/reading-
+  // experiments.md §7, Decision 1: owner ruling 2026-08-29, "yes -- add the
+  // row, default off"). See CROSSPOINT_HAL_READING_EXPERIMENT_GATE above for
+  // why this is guarded rather than an unconditional call.
+  //
+  // armCount is pinned at 1: no arm-to-setting mapping has been built or
+  // ruled on (docs §7's ranking of font size / line spacing / family is a
+  // recommendation for FUTURE work, not an implementation this repo has). By
+  // readingarm::armIndex()'s own documented contract, armCount<=1 always
+  // answers 0 -- "an experiment with one arm is not an experiment, and the
+  // safe reading of that is 'leave the settings alone'" -- so switching the
+  // row on changes nothing the reader sees today; it only starts naming a
+  // (still inert) experiment in the log, so the stop switch already exists
+  // for the day real variation lands, instead of arriving at the same time
+  // as a behavior change that would need one.
+#if CROSSPOINT_HAL_READING_EXPERIMENT_GATE
+  if (CrossPointPrefs_readingExperimentsEnabled()) {
+    (void)readingarm::armIndex(/*seed=*/0, /*bookKey=*/0, /*spineIndex=*/0,
+                               /*armCount=*/1);
+    h.experiment = "phase2_gate";
+    h.arm = "0";
+  }
+#endif
   return h;
 }
 } // namespace readinglog
