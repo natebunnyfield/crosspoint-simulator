@@ -257,7 +257,10 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   trail into itself and nothing would ever decay. Three rules make the capture
   honest and each cost a wrong reading first: not while the beam is sweeping (a
   half-swept frame records mostly the OLD page and hands it back as the new one),
-  once per `pixelBufSeq`, and **deposited once per captured glass** -- an
+  once per `pixelBufSeq` **or per present request** (`src/GlassCapture.h`,
+  since 2026-09-01 -- the overlay recomposes the glass without the page moving,
+  and the session's first composition is BLACK; S-035), and **deposited once
+  per captured glass** -- an
   antialiased page is written twice and the second write lands inside the sweep,
   which double-deposited the same picture and moved the trail's energy by 4x run
   to run. The pass sits where the grain sits, past the overlay and above the

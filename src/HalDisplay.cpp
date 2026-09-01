@@ -7,6 +7,7 @@
 
 #include "CornerDefocus.h"
 #include "FieldSelection.h"
+#include "GlassCapture.h"
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
 #include "Letterpress.h"
@@ -238,6 +239,22 @@ static uint64_t pixelBufSeq = 0;
 // is withheld, because there is no new picture to sweep IN.
 static uint64_t reconvertSeq = 0;
 static std::atomic<bool> pendingPresent{false};
+// THE GLASS'S SECOND INPUT (src/GlassCapture.h). Bumped by every present
+// request that is not one of the two self-driving loops (the sweep and the
+// trail re-arm pendingPresent directly, below, and change nothing the capture
+// should see). Sampled once at the TOP of each present and compared against
+// the generation the glass was captured at, so a present the overlay asked
+// for -- the pad laid out, a keyboard, a zen toggle -- re-reads the glass even
+// though the page did not move. S-035: the first present of a session composes
+// a BLACK glass (zen band over a zero geometry), the pad's own layout requests
+// the real frame one present later with the same page seq, and the seq-only
+// gate kept the black one for the first sweep to reveal.
+static std::atomic<uint64_t> glassDirtyGen{0};
+static uint64_t glassGen = 0;  // the generation glassPrevTexture was read at
+static inline void requestDirtyPresent() {
+  glassDirtyGen.fetch_add(1, std::memory_order_relaxed);
+  pendingPresent.store(true);
+}
 // Set when the inversion flag changes so presentIfNeeded (main thread) re-runs
 // the framebuffer-to-pixel conversion from the cached last frame. Without it a
 // polarity flip would wait for the next firmware refresh -- which on an e-ink
@@ -886,7 +903,7 @@ void renderBwPixels(const uint8_t *fb) {
   } else {
     presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
   }
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void clearGrayscalePlanes() {
@@ -942,7 +959,7 @@ void composeGrayscalePreview() {
     // duplicate of the current page into the accumulator and restarting the
     // beam. It now happens only on the path that actually writes pixels.
     presentHoldUntil.store(0);
-    pendingPresent.store(true);
+    requestDirtyPresent();
     return;
   }
   pixelBufSeq++;
@@ -1002,7 +1019,7 @@ void composeGrayscalePreview() {
   // re-presenting it, so suppressing this one is what gives the flash length.
   const uint64_t flashUntil = presentFlashUntil.load();
   if (flashUntil <= SDL_GetTicks()) presentHoldUntil.store(0);
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 // Re-run the last framebuffer-to-pixel conversion after an inversion change,
@@ -1133,7 +1150,7 @@ int panelBottomPx() { return panelBottom.load(); }
 int panelHeightPx() { return panelHeight.load(); }
 int panelLeftPx() { return panelLeft.load(); }
 int panelWidthPx() { return panelWidth.load(); }
-void requestPresent() { pendingPresent.store(true); }
+void requestPresent() { requestDirtyPresent(); }
 // The single entry point for panel polarity (see SimulatorOverlay.h). The env
 // override is applied here, on every call, so a forced polarity survives any
 // number of platform theme changes, and so the headless env path and the iOS
@@ -1189,7 +1206,7 @@ void setPageFade(float fadeMs) {
   if (fadeMs < 0.0f) fadeMs = 0.0f;
   pageFadeMs.store(fadeMs);
   lastInteractionMs.store(SDL_GetTicks());
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 // ONE ENV PARSER for every integer dial below.
@@ -1238,7 +1255,7 @@ void setPageFadeDepth(int depthPercent) {
   // Repaint rather than wait: a settled page is already sitting at the OLD
   // floor and the firmware may not render again for minutes, so without this
   // the new depth would first appear at some unrelated page turn.
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void notePageInteraction() {
@@ -1246,7 +1263,7 @@ void notePageInteraction() {
   lastInteractionMs.store(SDL_GetTicks());
   // Come back at once rather than at the next page: the whole point is that
   // touching the device re-energises what you were reading.
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setBeamPaint(float sweepMs) {
@@ -1329,7 +1346,7 @@ void setPresentFlash(bool wanted) {
   if (presentFlashFlag.exchange(wanted) == wanted) return;
   // Repaint rather than wait: the next page turn might be minutes away on an
   // e-ink firmware, and the owner just changed how one looks.
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
@@ -1367,14 +1384,14 @@ void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
   // Repaint rather than wait. The field is regenerated lazily by the present
   // path, but an e-ink firmware may not render for minutes, so without this the
   // new grain would first appear at some unrelated page turn.
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setLetterpress(int strengthPercent) {
   strengthPercent = envPercentOr("CROSSPOINT_SIM_LETTERPRESS", strengthPercent);
   const int s = letterpress::clampStrength(strengthPercent);
   if (letterpressStrength.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPaperTooth(int percentOfReference) {
@@ -1384,7 +1401,7 @@ void setPaperTooth(int percentOfReference) {
   if (pct < 0) pct = 0;
   if (pct > 400) pct = 400;
   if (paperToothPct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPaperFormation(int depthPercent) {
@@ -1393,14 +1410,14 @@ void setPaperFormation(int depthPercent) {
       letterpress::clampFormationDepth(static_cast<float>(depthPercent) /
                                        100.0f) * 100.0f + 0.5f);
   if (paperFormationPct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPaperDefects(int dialPercent) {
   dialPercent = envPercentOr("CROSSPOINT_SIM_PAPER_DEFECTS", dialPercent);
   const int pct = paperdefects::clampDial(dialPercent);
   if (paperDefectsPct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPaperDrift(int dialPercent) {
@@ -1412,14 +1429,14 @@ void setPaperDrift(int dialPercent) {
   // not render again for minutes and the page would otherwise keep the tone it
   // was converted in.
   pendingReconvert.store(true);
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setLaidLines(int strengthPercent) {
   strengthPercent = envPercentOr("CROSSPOINT_SIM_LAIDLINES", strengthPercent);
   const int pct = laidstructure::clampStrength(strengthPercent);
   if (laidLinesStrength.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 static int clampPartPercent(int pct) {
@@ -1434,7 +1451,7 @@ void setPressRing(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_PRESS_RING", percentOfStandard);
   const int pct = clampPartPercent(percentOfStandard);
   if (pressRingPct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPressDeboss(int percentOfStandard) {
@@ -1442,7 +1459,7 @@ void setPressDeboss(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_PRESS_DEBOSS", percentOfStandard);
   const int pct = clampPartPercent(percentOfStandard);
   if (pressDebossPct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPressPressure(int percentOfStandard) {
@@ -1450,14 +1467,14 @@ void setPressPressure(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_PRESS_PRESSURE", percentOfStandard);
   const int pct = clampPartPercent(percentOfStandard);
   if (pressPressurePct.exchange(pct) == pct) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setScanlines(int intensityPercent) {
   intensityPercent = envPercentOr("CROSSPOINT_SIM_SCANLINES", intensityPercent);
   const int s = scanlines::clampIntensity(intensityPercent);
   if (scanlinesIntensity.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setScanlineSize(int percentOfRowPitch) {
@@ -1469,7 +1486,7 @@ void setScanlineSize(int percentOfRowPitch) {
                    /*minAccepted=*/1);
   const int s = scanlines::clampSize(percentOfRowPitch);
   if (scanlineSize.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setScanlineBloom(int percentOfStandard) {
@@ -1477,7 +1494,7 @@ void setScanlineBloom(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_SCANLINE_BLOOM", percentOfStandard);
   const int s = scanlines::clampBloom(percentOfStandard);
   if (scanlineBloom.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setShowThrough(int percentOfStandard) {
@@ -1485,7 +1502,7 @@ void setShowThrough(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_SHOW_THROUGH", percentOfStandard);
   const int s = showthrough::clampStrength(percentOfStandard);
   if (showThroughStrength.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setCornerDefocus(int percentOfStandard) {
@@ -1493,7 +1510,7 @@ void setCornerDefocus(int percentOfStandard) {
       envPercentOr("CROSSPOINT_SIM_CORNER_DEFOCUS", percentOfStandard);
   const int s = cornerdefocus::clampStrength(percentOfStandard);
   if (cornerDefocusStrength.exchange(s) == s) return;
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPowerOffCollapse(bool enabled) {
@@ -1614,7 +1631,7 @@ void setPanelEmissive(bool emissive) {
   // the new curve wait for the next page turn. Same contract as a palette or a
   // polarity change.
   pendingReconvert.store(true);
-  pendingPresent.store(true);
+  requestDirtyPresent();
 }
 
 void setPanelGlowTail(const unsigned char tint[3], float onsetMs) {
@@ -2322,6 +2339,7 @@ static void destroyGlassTextures() {
   glassPrevTexture = glassIntensityTexture = nullptr;
   glassW = glassH = 0;
   glassSeq = 0;
+  glassGen = 0;
   glassHasPicture = false;
 }
 
@@ -2795,6 +2813,9 @@ void HalDisplay::presentIfNeeded() {
     const uint64_t fadeDue = pageFadeStepDueMs.load();
     if (fadeDue != 0 && SDL_GetTicks() >= fadeDue) {
       pageFadeStepDueMs.store(0);
+      // Direct, like the sweep's and the trail's re-arm: a fade step is the
+      // page dimming in place, and the glass (GlassCapture.h) is for what the
+      // NEXT page sweeps in over -- the dimmed step is not worth a readback.
       pendingPresent.store(true);
     }
   }
@@ -2872,6 +2893,10 @@ void HalDisplay::presentIfNeeded() {
   // is what is still on screen below the sweep -- so the capture is gated on
   // either wanting it, not on the glow alone.
   const bool wantPrevFrame = trailMs > 0.0f || beamMs > 0.0f;
+  // Sampled BEFORE anything draws: the overlay's layout may request the next
+  // present from inside this one, and that request must stay unconsumed.
+  const uint64_t dirtyGenAtStart =
+      glassDirtyGen.load(std::memory_order_relaxed);
   bool contentChanged = false;
   // WHETHER TO ARM, decided here (needs pixelBufSeq/reconvertSeq under the
   // lock); WHEN, deferred past every synchronous field rebuild this present
@@ -3715,11 +3740,15 @@ void HalDisplay::presentIfNeeded() {
       // changed shape, and a half-swept capture is the lesser evil only while
       // the two agree.
       const bool glassSizeStale = glassW != gw || glassH != gh;
-      if ((!beamSweeping || glassSizeStale) &&
-          (!glassHasPicture || glassSeq != presentedSeq || glassSizeStale)) {
+      if (glasscapture::shouldCapture({beamSweeping, glassSizeStale,
+                                       glassHasPicture, glassSeq, presentedSeq,
+                                       glassGen, dirtyGenAtStart})) {
         const uint64_t capT0 = timingLogWanted() ? SDL_GetTicksNS() : 0;
         if (glassSizeStale) beamStartedAt = 0;
-        if (captureGlass(gw, gh)) glassSeq = presentedSeq;
+        if (captureGlass(gw, gh)) {
+          glassSeq = presentedSeq;
+          glassGen = dirtyGenAtStart;
+        }
         if (timingLogWanted()) {
           timingFrame.glass.built = true;
           timingFrame.glass.ms =
