@@ -2873,6 +2873,14 @@ void HalDisplay::presentIfNeeded() {
   // either wanting it, not on the glow alone.
   const bool wantPrevFrame = trailMs > 0.0f || beamMs > 0.0f;
   bool contentChanged = false;
+  // WHETHER TO ARM, decided here (needs pixelBufSeq/reconvertSeq under the
+  // lock); WHEN, deferred past every synchronous field rebuild this present
+  // will do -- see the write site below, and S-035 / docs/zen-mode.md
+  // mechanism #8 for the frame this replaces: arming HERE, before
+  // ensureLetterpressField()'s up-to-265ms cache-miss rebuild, let the sweep's
+  // clock burn through the entire 55ms beam budget before the clip that reads
+  // it was ever built, landing a swept sliver nowhere near the panel.
+  bool beamShouldArm = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
@@ -2888,7 +2896,7 @@ void HalDisplay::presentIfNeeded() {
       const bool reconvertOnly =
           reconvertSeq != 0 && pixelBufSeq == reconvertSeq;
       if (contentChanged && glassHasPicture && !reconvertOnly)
-        beamStartedAt = SDL_GetTicks();
+        beamShouldArm = true;
     } else if (glassPrevTexture) {
       // Both effects turned off: drop the capture rather than keep paying for
       // it, and stop any sweep in flight.
@@ -3299,6 +3307,28 @@ void HalDisplay::presentIfNeeded() {
     SDL_SetRenderLogicalPresentation(sdl_renderer, logW, logH,
                                      kLogicalPresentation);
   };
+
+  // PREWARM, before the sweep's clock starts. ensureLetterpressField() is a
+  // cache-miss rebuild -- 240-265ms the first time this session needs it,
+  // which is exactly the session's first real content change -- and it used
+  // to run AFTER beamProgress was sampled, so the frame that finally reached
+  // the glass was clipped against a clock that had not yet paid for the 265ms
+  // spent building it (S-035, docs/zen-mode.md mechanism #8). Called here,
+  // its cost lands BEFORE the arm below and before beamProgress is read, so
+  // by the time either fires the field is already built -- the later call at
+  // the draw site (unchanged) is then a cache hit. Gated on fields.letterpress
+  // like that draw site; a degenerate palette or a zero strength makes this a
+  // cheap no-op (ensureLetterpressTexture's own early-outs).
+  if (fields.letterpress) simsheet::ensureLetterpressField();
+
+  // ARM HERE, not at content-change detection (beamShouldArm, set above under
+  // the pixel lock) -- this is the point past every synchronous rebuild the
+  // sweep's own clip depends on staying fresh against, so the clock starts
+  // against the frame that is actually about to be drawn and flipped rather
+  // than one that took up to ~265ms longer to build. One write site, one read
+  // site (beamProgress, immediately below) -- no second sample to desync the
+  // clip's set/clear pairing the way the reverted first attempt did.
+  if (beamShouldArm) beamStartedAt = SDL_GetTicks();
 
   // THE BEAM. How far down the GLASS the sweep has got, 0..1.
   //

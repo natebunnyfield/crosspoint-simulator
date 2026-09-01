@@ -1109,3 +1109,86 @@ byte-identical. The mechanism is proven by code and by a concurrency test
 measuring roughly a 50% torn-read rate against the pre-fix shape (BUGS.md has
 the numbers); it is not proven by render. Close that on a future session with
 a working `recordVideo`, or a device confirmation.
+
+## 2026-09-01: mechanism #8 — the beam sweep can go stale mid-`presentIfNeeded`, not mid-layout
+
+Owner, verbatim: *"bug after shaking for going to zen mode then selecting next
+book on home screen does the buggy tall redraw flash still"*, corrected the
+same session to *"not opening a book on home, selecting the next one"* — HOME
+stays HOME the whole time; the sequence is shake-to-zen-on, then an ordinary
+selection move, never a reader.
+
+**The other seven mechanisms in this file are all layout races: a present
+reaching the glass carrying a `layoutPad()`/`zenPreWarmLayout()` shift, band,
+or inset that had not finished converging.** This one is not — verified by
+grep before writing a line of speculation: `pollReaderInsets()`
+(`ios/CrossPointIOSShim.cpp:1608`) returns on its first line every time on
+Home, so it never even reaches the code the first seven mechanisms are about.
+No `[pad]`/`[zen] panel...`/`[bezel]` relayout log follows the reported
+trigger in any capture taken this session, and a real zen OFF→ON toggle
+leaves the panel rect byte-identical on the tablet path (`layoutPadTablet`,
+`ios/CrossPointIOSShim.cpp:429`, reads no reader-insets and no shift
+concept at all). The zen/pad layout system is provably not where this one
+lives.
+
+**Where it does live: the shared present pipeline, `src/HalDisplay.cpp`'s
+`presentIfNeeded`, one layer BELOW where every other mechanism in this file
+sits.** The CRT beam-sweep progress (`beamProgress`, computed once from
+`SDL_GetTicks() - beamStartedAt` against the shipped 55 ms beam) is sampled
+early in the function and then used, unchanged, to build a sweep clip AFTER an
+expensive synchronous field rebuild — `simsheet::ensureLetterpressField()`,
+240-265 ms on a cache miss, i.e. the FIRST time the letterpress field is
+needed this session, which a Home screen that has never shown a page reaches
+exactly on its first real content change. By the time the stale
+`beamProgress` (measured 7.3%) is drawn with, 305 ms have passed against a
+55 ms budget — the clip built from it (`sweep.h * beamProgress`, full OUTPUT
+height on the manual/iPad path) lands well above the panel's own top offset,
+so the panel and its letterpress pass draw NOTHING, and only the zen top
+bezel band (drawn separately, above the panel) falls inside it — the
+horizontal cream sliver every repro screenshot shows.
+
+**FIXED, same day.** The premise that held (arm the sweep's clock AFTER the
+expensive rebuild rather than before it) worked once the ARM POINT moved
+instead of adding a second sample: `beamStartedAt`'s write moved from the
+early `contentChanged` block (still decides WHETHER to arm, under the pixel
+lock, unchanged) to immediately after `ensureLetterpressField()`'s prewarm and
+immediately before `beamProgress` is first computed — one write, one read,
+same as before the investigation, just relocated past the rebuild. The
+reverted first attempt failed by adding a SECOND read of `SDL_GetTicks()`
+after the rebuild while leaving the panel's clip already set from the FIRST
+(stale) `beamSweeping=true`, which desynced the clip's set/clear pairing; this
+fix has no second read to desync anything with.
+
+Reproduced pre-fix and absent post-fix in the same session, same `simctl io
+screenshot` recipe: 6 of 10 pre-fix runs showed the sliver, 0 of 20 post-fix
+runs (two batches) did. A `log stream` capture on a clean post-fix run caught
+the RIGHT press paying the exact cost this mechanism is about (`panel BUILD
+243.21` inside a 290 ms present) and still rendering correctly — the fix works
+because of the reorder, not because the rebuild happened not to fire. The
+sweep still sweeps: that same present is followed by several fast (0.7-8 ms)
+cache-hit continuations before the deferred glass capture fires, i.e. the
+55 ms reveal completing over multiple frames as designed, not a sweep quietly
+disabled to make the symptom disappear. The settled frame (no beam, and beam
+on with `[ACT]`-verified matching navigation) is byte-identical pre/post fix
+on the desktop canary, per the 2026-08-25 discipline.
+
+The half that was NOT found this session (why the un-swept region rendered
+black instead of the previous frame when the bug fired) is no longer
+reachable through this bug's reproduction, since the swept clip no longer
+lands short of the panel's top offset — but the two untraced candidates
+(`captureGlass`'s scoping, or a second pass re-deriving its own stale clip)
+remain open if a future symptom points back at that code.
+
+Full account, including the reverted first attempt and the mechanics of the
+working fix: [BUGS.md `S-035`](../BUGS.md).
+
+**Status: root-caused, reproduced, and FIXED** (external `simctl io
+screenshot` for both the pre-fix reproduction and the post-fix absence, so
+neither depends on trusting the app's own capture path). A zen-off control and
+a zen-on-no-press control of the identical sequence both rendered correctly
+every time pre-fix testing was done, isolating the original trigger to zen
+plus a genuine Home content change plus an unbuilt letterpress field — not to
+zen or Home alone; the fix addresses the shared present-pipeline mechanism
+directly rather than anything zen-specific, since [S-035] proved zen was never
+implicated beyond the bezel band happening to be the only thing visible inside
+the too-small clip.
