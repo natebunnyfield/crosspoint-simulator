@@ -115,6 +115,210 @@ discipline the 2026-08-25 refactor used before landing, not a one-line
 patch. Full account, including the exact pixel samples and both capture
 recipes: `docs/zen-mode.md`, "2026-08-30: re-reported."
 
+**Addendum, 2026-08-31 -- the status line above is stale, kept as written
+rather than edited, because the fix it predates landed as its own commit.**
+`d4c59bb` ("fix(crt): don't sweep the beam for a polarity reconvert",
+2026-08-31 19:12:39) added the `reconvertOnly` guard this entry describes as
+the needed repair, and its own message says its detector (252 frames across
+an in-foreground appearance toggle) could not catch the bug either with or
+without the fix -- "a detector that cannot catch the bug says nothing about
+the fix." [S-033], filed the same day from an unrelated investigation into
+foreground-resume reliability, supplies that missing detector: a REAL
+`mobilesafari` background -> appearance flip while backgrounded -> resume,
+captured on video. It caught the split on the pre-fix binary on the first
+attempt (pixel-sampled, y-band cut matching this entry's own signature) and
+did NOT catch it after rebuilding against `d4c59bb` and repeating the exact
+recipe. Still device-unconfirmed, and still only one direction and one
+recipe -- see [S-033] for the caveats -- but this is the first evidence
+either way that the fix works, and it came from a stronger detector than the
+one the fix shipped with.
+
+### [S-033] Returning to the foreground is unreliable when the system appearance changed while backgrounded — the S-031 split-palette frame reproduces on a REAL resume; rebuilding against the `d4c59bb` fix stopped it in the one recipe tried
+**severity: high (visible, matches the owner's "make reactivate more reliable" ask) · scope: ios resume path (`ios/CrossPointIOSShim.cpp`, `src/HalDisplay.cpp`, `src/simulator_main.cpp`) · investigated 2026-08-31 on the booted iPad Pro 13 simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`) · pre-fix binary REPRODUCED AND CAPTURED, post-fix binary CLEAN on the same recipe, both UNCONFIRMED on device**
+
+Owner: *"making reactivate on ios app more reliable"* — clarified as the app
+returning to the foreground (background/lock/interrupt), not font
+reactivation or sleep/wake. A prior investigation of this exact ask was lost
+when its agent was killed before writing to this file; this entry redoes it
+from scratch, per instruction.
+
+**The trace, end to end, file:line, all read against the tree at commit
+`d4c59bb` (HEAD as of this entry):**
+
+1. `src/simulator_main.cpp:344` — `CrossPointHarness_perFrame()` runs inside
+   the render task's `while (!display.shouldQuit())` loop (:318), once per
+   `loop()` iteration, **with no `g_backgrounded` gate of its own.** It is
+   compiled out on non-iOS (`#if CROSSPOINT_SIM_IOS`) but nothing inside it
+   checks background state.
+2. `ios/CrossPointIOSShim.cpp:3553` `CrossPointHarness_perFrame()` calls
+   `pollAppearance()` first, every frame, backgrounded or not.
+3. `ios/CrossPointIOSShim.cpp:1542-1568` `pollAppearance()` is edge-triggered
+   on `systemIsDark()` vs. a function-local static, and separately on
+   `SETTINGS.darkMode` vs. `g_appliedDark`. **If the phone's system appearance
+   changed while the app was backgrounded, this edge fires on the very first
+   frame back — and that frame runs before the app is visually foregrounded,
+   because step 1 has no background gate.** It calls `applyTheme()`
+   (`ios/CrossPointIOSShim.cpp:1403`).
+4. `applyTheme()` → `SimulatorOverlay::setPanelDark(g_dark)` (:1455) →
+   `setPanelDark()` (`src/HalDisplay.cpp:1141`) → `display.setInverted(dark)`
+   (:1158) → `HalDisplay::setInverted()` (:2011) → `pendingReconvert.store(true)`
+   (:2017). This runs, and completes, **while `g_backgrounded` is still true.**
+5. `HalDisplay::presentIfNeeded()` (`src/HalDisplay.cpp:2679`) is the ONE place
+   that gates on background state: `if (g_backgrounded.load()) return;` at
+   :2679-2680, so nothing from step 4 reaches the glass yet — correct, by
+   design (comment at :2679: "the frame stays owed and lands on the way back
+   in").
+6. On the real `SDL_EVENT_DID_ENTER_FOREGROUND`, `presentationWatch()`
+   (`ios/CrossPointIOSShim.cpp:1504-1507`) calls `HalDisplay::setBackgrounded(false)`,
+   which itself calls `SimulatorOverlay::requestPresent()` (`src/HalDisplay.cpp:2049-2057`),
+   then `armSettleRepaint()` and a second `requestPresent()`
+   (`ios/CrossPointIOSShim.cpp:1505-1506`) — this is S-027's settle window,
+   confirmed present and wired for the ordinary case (see "Checked and CLEAN"
+   below).
+7. The FIRST `presentIfNeeded()` call after backgrounding clears services the
+   reconvert queued in step 4 (:2762 `pendingReconvert.exchange(false)` →
+   `reconvertLastFrame()`, which bumps `pixelBufSeq` and records
+   `reconvertSeq`, :2762-2769).
+8. The beam-arm check (:2846-2848) has a guard added by commit `d4c59bb`
+   ("fix(crt): don't sweep the beam for a polarity reconvert", authored
+   2026-08-31 19:12:39 -0500) that is supposed to withhold the sweep exactly
+   for this case: `reconvertOnly = reconvertSeq != 0 && pixelBufSeq ==
+   reconvertSeq`, and skip arming `beamStartedAt` when true.
+
+**What I actually captured is the pre-fix failure, on video, with a pixel
+trace — and it is the S-031 defect reached via resume, not via the
+in-foreground appearance toggle S-031 was filed against.**
+
+The device's installed binary
+(`.../Bundle/Application/0941EE5A-7A96-4235-BBB3-25B643978344/CrossPointX3.app/CrossPointX3`)
+is dated **2026-08-30 23:35**, roughly 20 hours before `d4c59bb` landed
+(2026-08-31 19:12:39). So step 8's guard was NOT in the binary under test —
+this reproduction is against the pre-fix build, and says nothing yet about
+whether the fix holds. It is still worth recording in full, because:
+
+- **This is a genuine background → foreground cycle**, not the appearance
+  toggle S-031 used (`xcrun simctl ui ... appearance` while the app stayed
+  foregrounded). Recipe: `xcrun simctl launch <udid> com.apple.mobilesafari`
+  (backgrounds CrossPoint — confirmed via `[DISPLAY] backgrounded -- GPU
+  presents suspended` in the log), then `xcrun simctl ui <udid> appearance
+  light` while backgrounded, then `xcrun simctl launch <udid>
+  com.natebunnyfield.crosspoint.x3` to resume (same PID, a real resume, not a
+  relaunch), captured with `xcrun simctl io <udid> recordVideo` running
+  throughout.
+- **`d4c59bb`'s own commit message says its detector could not catch the bug
+  at all**: *"252 frames across a dark/light switch found no split-palette
+  frame WITH the fix, and the control with the fix reverted found none
+  either. A detector that cannot catch the bug says nothing about the fix."*
+  My detector (a real background/foreground cycle) DID catch it, on the
+  pre-fix binary, on the first attempt — which is exactly the missing
+  detector that entry asked for.
+- The log confirms the mechanism fired exactly as traced: `[harness]
+  SETTINGS.darkMode -> 0 (system appearance)` and `[harness] appearance ->
+  light (system)` both timestamped 19:20:24.00x — **1.94 seconds BEFORE**
+  `[DISPLAY] foregrounded -- GPU presents resumed` at 19:20:25.947. The
+  theme flip is fully processed while the app is still backgrounded, exactly
+  as traced in steps 3-5 above.
+
+**Pixel evidence, extracted from the recorded video
+(`xcrun simctl io <udid> recordVideo`, frames pulled with `ffmpeg -vsync 0`,
+no scaling, no recompression before sampling).** Frame `t_0064` (video
+timestamp 5.178s) reads uniformly dark; frame `t_0066` (5.390s) reads
+uniformly light; the frame between them, `t_0065` (5.240s — a 62 ms window,
+consistent with the documented 55 ms beam), is split:
+
+| x | y=408-544 | y=612-1904 |
+|---|---|---|
+| 516 | (230,223,216) / (236,229,222) / (231,222,215) — new LIGHT | (19-22,24-27,25-28) — old DARK, matches frozen dark ground `171B1B` |
+| 619 | (218,212,205) / (223,216,209) — new LIGHT | (16-25,21-30,20-29) — old DARK |
+
+Top of the panel already reads the new light palette; everything below
+y≈580 is still the pre-switch dark ground — the same top-down cut S-031
+documented (their sample: y=390-495 new, y=500+ old). Same mechanism, new
+trigger.
+
+**Distinguishing what kind of "unreliable" this is.** It is not a hang and
+not a dead channel — the app recovers and lands on the correct (light)
+palette within about 2 seconds of the foreground event, matching
+`kForegroundSettleMs`. What is unreliable is the FRAME ITSELF during that
+recovery: for one ~60 ms window mid-transition, the glass shows two
+palettes in the same picture, which is a jarring, screen-wide visual defect
+right at the moment a returning reader is looking at the device — worse
+optically than a blank screen because it looks broken rather than merely
+slow. Whether an iPhone user would actually notice a 60 ms split frame the
+way this frame-by-frame capture did is UNCONFIRMED on device; it is not
+UNCONFIRMED as a mechanism — it is captured, sampled, and traced to file:line.
+
+**Ordinary resume (no appearance change while backgrounded), checked and
+found CLEAN.** A control run — background via the same `simctl launch
+mobilesafari` swap, no appearance change, foreground via `simctl launch
+com.natebunnyfield.crosspoint.x3` — showed no blank hang and no stale frame:
+the app-switcher zoom shows the pre-background snapshot (expected iOS
+behavior, not this app's concern) and by the time our own rendering resumes
+the content is already correct. This does not confirm S-027's fix works on
+a real device — the S-027 entry itself notes "no host reproduces a Metal
+surface discarding a present" — but it rules out a second, independent
+failure mode on THIS host for the plain case.
+
+**Done: rebuilt against `d4c59bb` and re-ran the exact resume recipe. The
+fix holds against this detector, on this host, this session — still
+UNCONFIRMED on device, but this is the first evidence for it at all.** No
+source in `ios/`, `src/`, or `tests/` was edited to do this — only
+`cmake --build build/ios-app --config Debug --target CrossPointX3` against
+the tree as the other agent left it, then `xcrun simctl install`. Binary
+timestamp 2026-08-31 19:27, after the fix commit (19:12:39).
+
+Two runs, both with a real `mobilesafari` background → `simctl ui appearance`
+flip while backgrounded → relaunch of `com.natebunnyfield.crosspoint.x3` to
+resume, `recordVideo` running throughout, log-confirmed theme-flip-while-
+backgrounded exactly as traced above (`[harness] SETTINGS.darkMode -> 1
+(system appearance)` / `appearance -> dark (system)` at 19:30:29.59x, 1.84 s
+BEFORE `[DISPLAY] foregrounded` at 19:30:31.434 — same 1-2 s lead as the
+pre-fix run). The first attempt raced its own setup (launched the app, then
+immediately backgrounded it before `CrossPointHarness_begin()` had finished
+— the app's global `decideSeedDarkFromSystem()` initializer ran AFTER the
+appearance flip had already landed, so it silently seeded correctly and
+proved nothing; caught by reading `[harness] appearance seed: stored=X
+system=X -> keep setting` in the boot log rather than assuming a `sleep 3`
+was enough). Waiting for `[harness] button pad installed` before
+backgrounding fixed the race.
+
+Pixel-sampled the two frames bracketing the flip
+(`frames_postfix2/p_0074.png`, video t=4.913s, and `p_0075.png`, t=5.078s —
+a 165 ms gap, comparable resolution to the 212 ms gap that caught the
+pre-fix split): `p_0074` reads uniformly light down the whole panel column
+(x=516,619, y=400-1900, all ~(222-246,213-240,207-233)); `p_0075` reads
+uniformly dark (~(22,26,28), matching `171B1B`) at every sampled y, no band,
+no partial row. Compare this to S-033's own pre-fix sample above, which was
+a clean split at identical sampling resolution. Consistent with the fix
+working, not merely with the sweep landing between frames — the pre-fix
+run's sweep did NOT hide between frames at similar spacing, so the absence
+here is evidence, not just a miss.
+
+**Caveat, stated plainly: this is one clean transition, not a proof.** A
+55 ms sweep can still fall inside a wider gap on a slower device, and only
+two directions (dark→light pre-fix, light→dark post-fix) and one resume
+recipe were tried. It is exactly the "device-confirm only" situation the
+project's own doctrine calls for — mark it SHIPPED, UNCONFIRMED on device,
+not "fixed."
+
+**Checked and CLEAN, this session — not the cause of anything reported
+here:**
+- `HalDisplay::presentIfNeeded()`'s background gate (`src/HalDisplay.cpp:2679-2680`)
+  is unconditional and correct: no GPU work is attempted while backgrounded,
+  and `pendingPresent` is left set so the frame is not lost, only deferred.
+- `HalDisplay::setBackgrounded()` (`src/HalDisplay.cpp:2049-2057`) only calls
+  `requestPresent()` on the false-going edge (`was == backgrounded` returns
+  early otherwise), so it cannot double-fire.
+- The text-entry / keyboard channel (`ios/CrossPointKeyboardBar.mm`,
+  `gpio.isTextEntryActive()`) has no background/foreground-specific code at
+  all — neither a bug nor a fix; it simply is not wired to either lifecycle
+  event, so a field left open across a backgrounding is unexamined by this
+  session and not confirmed either way.
+
+Full account of the appearance-only version of this defect: [S-031]. Full
+account of the blank-screen-on-resume defect this shares a settle-window fix
+with: [S-027].
+
 ### [S-032] The paper resizes for a frame on a page turn, with zen OFF
 **severity: medium · scope: ios layout · reported 2026-08-30, fix landed UNPROVEN against the symptom**
 
