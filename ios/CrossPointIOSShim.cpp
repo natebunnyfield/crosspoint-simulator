@@ -2264,12 +2264,20 @@ void paintTopBezel(SDL_Renderer *r, int outW, float paperX, float paperW) {
   const float padPx = padCornerRadiusPx(s_isPad);
   if (s_radiusPx < 0.0f || module != s_radiusFrom) {
     s_radiusFrom = module;
-    // padPx >= 0: the tablet's four-cell answer (see padCornerRadiusPx), which
-    // is not derived from the module at all. Below that, the module paths:
-    // module <= 0 is pre-first-layout, the 8 pt fallback; module > 0 with
-    // kRadiusDivisor <= 0 is the QA hatch's explicit "squared off" request --
-    // radius 0, a real answer, not a missing one; otherwise the ordinary
-    // module/divisor curve.
+    // padPx >= 0 is a PER-PLATFORM answer not derived from the module. No
+    // platform gives one today -- padCornerRadiusPx() declines unconditionally
+    // since the four-cell tablet radius was retracted on 2026-08-30 (see the
+    // account above it) -- so this branch is currently unreachable and is kept
+    // only as the seam a future per-platform answer would land in. It is
+    // spelled out because the comment that used to sit here described the
+    // four-cell path as live for a while after it was not, which is the same
+    // drift, one step smaller, as the invented ruling that path came from.
+    //
+    // Below it, the module paths: module <= 0 is pre-first-layout, the 8 pt
+    // fallback; module > 0 with kRadiusDivisor <= 0 is the QA hatch's explicit
+    // "squared off" request -- radius 0, a real answer, not a missing one;
+    // otherwise the ordinary module/divisor curve, which is what every build
+    // actually takes.
     if (padPx >= 0.0f) {
       s_radiusPx = padPx;
     } else if (module <= 0.0f) {
