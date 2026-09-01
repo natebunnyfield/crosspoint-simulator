@@ -38,8 +38,90 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
-### [S-020] The paper resizes for a frame on a page turn, with zen OFF
+### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame
+**severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced, NOT fixed**
+
+Owner, verbatim: *"Be sure not to flash from Zen mode to out of Zen mode for
+any reason, period. Right now, switching from dark mode to light mode,
+changing pages, things like that are causing, uh, Zen mode, disabled,
+reenabled jump."* Investigated against the two hypotheses given (a real
+`pollZenMode()` toggle; the `layoutPad` shift-guard race from [S-020]
+below) on the booted iPad Pro 13 simulator. Both are CLEAN on this device:
+zero `[zen] ... (setting)` / `(gesture -> settings)` log lines during
+either trigger, and 279 combined frames across two recorded runs never
+showed a non-black pixel in the bottom band or outer top margin (which
+would mean the on-screen pad chrome reappeared). `layoutPad`'s phone-only
+shift block (the code [S-020] patched) is dead code on iPad in the first
+place -- `layoutPad` returns into `layoutPadTablet` before reaching it.
+
+**What actually reproduces, twice, independently.** `applyTheme()`
+(`ios/CrossPointIOSShim.cpp:1403`) calls `SimulatorOverlay::setPanelDark`
+(:1455) -> `HalDisplay::setPanelDark` (`src/HalDisplay.cpp:1086`) ->
+`HalDisplay::setInverted` (:1956), which sets `pendingReconvert` and
+returns. `presentIfNeeded` services it (:2704-2708) via
+`reconvertLastFrame()` (:965), which rewrites the cached planes to the NEW
+palette and bumps `pixelBufSeq` -- already documented in place (:2856-2858)
+as "a polarity reconvert ... is a change like any other." Further down the
+SAME function, the beam-paint trigger (:2812-2821) reads that bump as
+`contentChanged` and does `beamStartedAt = SDL_GetTicks()`, arming a fresh
+CRT beam sweep with no exception for a reconvert that carries no new page
+content. The sweep (`beamProgress`, :3250-3261) then composites the OLD,
+fully-old-palette glass under the NEW, fully-new-palette one, revealed
+top-down over the sweep's 55 ms (the shipped `CROSSPOINT_SIM_AS_SHIPPED`
+beam value) -- so for a handful of frames mid-sweep the top of the panel is
+already the new palette while the rest is still the old one, in the same
+frame.
+
+**Captured, not inferred.** Two independent `xcrun simctl io <udid>
+recordVideo` runs (one appearance-only, one appearance + page turns) each
+caught it one present after `xcrun simctl ui <udid> appearance light`.
+Sampled down a column inside the panel: `y=390..495` reads the new light
+palette (`~229-247,`225-241,`217-233), `y=500` onward reads the old dark
+one (`~20-22,25-27,25-28`) -- a hard cut partway down the page. One capture
+caught it on real book text: the paragraph's first line renders dark-on-
+cream (new/light) while every line below it is still light-on-dark
+(old/dark), in one frame. The zen sheet's geometry (card bounds, corner
+radius, both black margins) is unchanged in this frame versus its
+neighbors -- this is a palette race, not a layout race.
+
+**Why it reads as "zen disabled, reenabled."** A screen-wide, self-
+correcting-a-moment-later split between two entirely different color
+schemes is a jarring discontinuity that does not require `g_zen` to move
+to be described that way by someone watching it happen, especially
+combined with the two flicker fixes shipped the same day ([S-020] below,
+and the 2026-08-29 zen-toggle flicker in `docs/zen-mode.md`) training the
+expectation that any zen-adjacent flash IS a zen toggle.
+
+**Page turns tested separately, found CLEAN of this mechanism.** A genuine
+page turn also bumps `pixelBufSeq` and also arms the sweep, by the same
+path -- but old and new page share one palette, so the sweep composites two
+frames of the same polarity and produces no visible split. Four
+`QTAP:RIGHT` page turns (a real firmware button edge via
+`HalGPIO::queueButtonTap`, which works under zen because page-forward is a
+firmware button, not iOS overlay chrome) produced no split-palette frame.
+**"Changing pages" as a standalone trigger was NOT reproduced this
+session** -- recorded as unreproduced, not ruled out; it may need a page
+turn landing inside an in-flight sweep from something else, or may
+describe the same appearance-triggered mechanism from a different moment
+of noticing it.
+
+**Not fixed.** The natural repair -- do not arm the beam for a
+reconvert-only `pixelBufSeq` bump -- touches `presentIfNeeded`, the file
+this repo's own history warns cost two build races in one day from
+concurrent edits, and every downstream CRT pass (`glassPrevTexture`, the
+accumulator capture, S-016's saturating blend) reads
+`beamStartedAt`/`beamProgress`. Needs the nine-render byte-identical-md5
+discipline the 2026-08-25 refactor used before landing, not a one-line
+patch. Full account, including the exact pixel samples and both capture
+recipes: `docs/zen-mode.md`, "2026-08-30: re-reported."
+
+### [S-032] The paper resizes for a frame on a page turn, with zen OFF
 **severity: medium · scope: ios layout · reported 2026-08-30, fix landed UNPROVEN against the symptom**
+
+**Filed as S-020 and renumbered to S-032 on 2026-08-30**, which is the id
+that entry has always meant: `[S-020]` was already taken by the dark-mode gun
+/ light-ink bug below, fixed 2026-08-23. Two live entries under one id made
+`scripts/tracker-check.sh` exit 1, so neither was counted honestly.
 
 Owner, from the phone: *"there is still a flash on page change after disabling
 [zen] mode"*, clarified as *"it's an odd quick resizing to the paper"* — a

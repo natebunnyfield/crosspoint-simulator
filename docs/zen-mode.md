@@ -919,6 +919,136 @@ real device to close this out; a repeated line on every frame after a
 gesture toggle would mean the loop guard failed where the host test could
 not see it.
 
+## 2026-08-30: re-reported ("disabled, reenabled jump") -- H1 and H2 both CLEAN on iPad, a THIRD mechanism found and reproduced
+
+Owner, verbatim: *"Be sure not to flash from Zen mode to out of Zen mode for
+any reason, period. Right now, switching from dark mode to light mode,
+changing pages, things like that are causing, uh, Zen mode, disabled,
+reenabled jump."* Taken at face value, tested on the booted iPad Pro 13
+simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`, `com.natebunnyfield.crosspoint.x3`,
+`build/ios-app/ios/Debug-iphonesimulator/CrossPointX3.app`, zen on in the
+store), against the two hypotheses named going in.
+
+**Method.** `xcrun simctl io <udid> recordVideo` bracketing the two named
+triggers (`xcrun simctl ui <udid> appearance dark|light`; page turns via
+`SIMCTL_CHILD_CROSSPOINT_SIM_INPUT_SCRIPT='...;QTAP:CONFIRM;...;QTAP:RIGHT'`
+-- `QTAP` schedules a real firmware button edge through
+`HalGPIO::queueButtonTap`, which works even though zen hides the on-screen
+pad, because page-forward is a firmware button (`Button::PageForward`, the
+RIGHT front button on this firmware) and has nothing to do with the iOS
+overlay chrome zen suppresses). Two independent runs, 80 and 279 frames,
+extracted with `ffmpeg -vsync 0` and inspected pixel-by-pixel with Pillow
+(`xcrun simctl io <udid> screenshot` alone is too coarse -- ~300 ms between
+shots -- to catch a sub-frame present). `xcrun simctl spawn <udid> log show
+--predicate 'processImagePath CONTAINS "CrossPointX3"'` ran throughout for
+the `[zen]` lines.
+
+**H1 (a real `pollZenMode()` toggle) -- CLEAN.** Across both runs (one
+appearance-only, one appearance + four page turns), the `[zen]` log shows
+exactly ONE line per process launch: `[zen] seed: pref=1 env=unset -> on`.
+Zero `[zen] on (setting)` / `[zen] off (setting)` / `[zen] ... (gesture ->
+settings)` lines ever appeared, including in the seconds bracketing both
+`appearance dark` and `appearance light` calls. `zensync::decide()` was
+never asked to reconcile a disagreement during either test -- `g_zen` never
+moved.
+
+**H2 (the `layoutPad` shift-guard race, `ios/CrossPointIOSShim.cpp:997`,
+fixed for phone in `c25448b`/[S-020]) -- CONFIRMED N/A ON IPAD, not just
+untested.** Read, not assumed: `layoutPad` (`ios/CrossPointIOSShim.cpp:646`)
+returns after calling `layoutPadTablet` at line 654 (`if (s_isPad) {
+layoutPadTablet(W, H, S); return; }`) -- every line after that, including
+the `g_zenRowTopPx` assignment (:938) and the entire `g_zen &&
+panelHPx > 0 && g_zenRowTopPx > ...` shift block (:997-1037) that [S-020]
+patched, is PHONE-ONLY dead code on this device. `layoutPadTablet`
+(:428-628) has no `g_zenPanelShiftPx`, no `g_zenRowTopPx` read, no shift
+concept at all -- it derives `cardTopPx` once from `(outHpx - panelHpx) /
+3` and the panel's own fit, values that do not move on a page turn (the
+"zen does not resize the page" ruling holds independent of ink insets on
+this path). Empirically: across 279 combined frames spanning four page
+turns and two appearance toggles, the sampled bottom band (`y=0.90h..0.97h`)
+and the outer top margin (`y=0.02h..0.10h`) -- both must be pure black
+`(0,0,0)` in zen, and would show non-black the instant the on-screen pad
+chrome reappeared -- stayed exactly `(0,0,0)` in every single frame once the
+app finished loading. No geometry flash, no pad reappearance, on this
+device, for either named trigger.
+
+**A third mechanism, not named in either hypothesis, DOES reproduce --
+twice, independently.** `applyTheme()` (`ios/CrossPointIOSShim.cpp:1403`)
+calls `SimulatorOverlay::setPanelDark(g_dark)` (:1455) on every appearance
+change, which reaches `HalDisplay::setPanelDark` (`src/HalDisplay.cpp:1086`)
+and `HalDisplay::setInverted` (:1956), which sets `pendingReconvert` and
+returns -- the actual repaint happens later, on the main thread, inside
+`presentIfNeeded`. There (:2704-2708) `reconvertLastFrame()` (:965) runs
+FIRST, rewriting the cached BW/grayscale planes to the NEW palette and
+bumping `pixelBufSeq` exactly as a genuine new firmware render would
+(documented in place at :2856-2858: "a polarity reconvert ... is a change
+like any other"). A few hundred lines later in the SAME function, the CRT
+beam-paint trigger (:2812-2821) reads that same `pixelBufSeq` bump as
+`contentChanged` and does `beamStartedAt = SDL_GetTicks()` -- **starting a
+fresh beam sweep**, with no exception for a reconvert that changed no page
+content at all. The sweep (`beamProgress`, :3250-3261) then composites the
+OLD, fully-old-palette composed glass (`glassPrevTexture`, captured before
+the flip) under the NEW, fully-new-palette one, revealed top-down over the
+sweep duration (55 ms, the app's shipped `CROSSPOINT_SIM_AS_SHIPPED` beam
+value) -- so for a handful of frames mid-sweep, the top portion of the
+panel renders in the NEW palette while everything below it is still the
+OLD palette, in the same frame.
+
+**This is not a description from reasoning -- it was captured.** Frame
+33/80 of the first (appearance-only) run and frame 275/279 of the second
+(appearance + page-turn) run both show it, at the SAME kind of moment (one
+present after `appearance light`), independently:
+
+```
+y=390   (229,225,217)   <- cardTop; NEW (light) palette starts here
+y=420   (232,226,219)
+y=495   (241,235,228)
+y=500   ( 22, 25, 26)   <- hard cut, still OLD (dark, 171B1B-ish) below
+y=600   ( 20, 25, 26)
+```
+
+Frame 275 shows it on real book text, not just background: the first
+rendered line of a paragraph ("Three properties of that function will")
+sits on a cream ground in dark serif-weight text, struck through by the
+antialiasing of what is now a light-mode glyph rendered where a dark-mode
+row used to be, and every line below it is light-on-dark -- one visible
+text block, two polarities, one frame. The zen sheet's own geometry (card
+bounds, corner radius, the black margins above and below) is IDENTICAL in
+this frame to the one before and after it -- confirmed by the same
+bottom-band/top-margin sampling above reading pure black throughout -- so
+this is not H2's geometry collapsing and not H1's `g_zen` moving. It is a
+legitimate CRT beam sweep, the one built for page turns, firing over a
+pure palette flip that carries no new page content, and it is exactly
+the kind of jarring, screen-wide, self-correcting-a-moment-later
+discontinuity a reader would describe as "disabled, reenabled" without
+meaning `g_zen` literally toggled.
+
+**Not yet fixed.** The natural repair is to stop a reconvert-only
+`pixelBufSeq` bump from arming the beam (skip straight to `beamProgress =
+1.0` / `beamStartedAt = 0` for that bump), but `presentIfNeeded` is the
+file this repo's own docs warn cost "two build races and one report that
+arrived truncated" from concurrent edits, and every CRT pass downstream of
+the beam (`glassPrevTexture`, the accumulator capture, S-016's saturating
+blend) reads `beamStartedAt`/`beamProgress` too -- changing when the sweep
+arms needs the same nine-render, byte-identical-md5 discipline the
+2026-08-25 refactor used, not a one-line patch under time pressure. Left
+as a NEXT-STEP finding rather than shipped: reproduced twice, root-caused
+to file:line, not yet patched.
+
+**Page turns, tested separately and found CLEAN of this specific
+mechanism**: a genuine page turn also bumps `pixelBufSeq` and also arms the
+beam sweep, by the same code path -- but old and new page share the SAME
+palette (no appearance change involved), so the sweep composites two
+frames of one polarity and does not produce the split-palette flash. Four
+`QTAP:RIGHT` page turns in the second recording produced no split-palette
+frame and no non-black bottom/top margin sample. The owner's "changing
+pages" trigger was not reproduced by a page turn ALONE on this device in
+this session; it may require a page turn landing inside an in-flight beam
+sweep from something else (untested), or it may describe the same
+mechanism above under a different name from having seen it during reading
+rather than during a deliberate appearance toggle. Recorded as unreproduced
+for this specific trigger, not as ruled out.
+
 ## Checking it without a device
 
 `CROSSPOINT_SIM_ZEN=1` forces zen at launch. It exists because the gesture

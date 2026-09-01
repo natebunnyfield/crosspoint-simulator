@@ -203,6 +203,19 @@ static std::mutex pixelBufMutex;
 // alive it presents every frame. The writers already know, so they say so, and
 // the comparison is one integer. Under pixelBufMutex like the buffer itself.
 static uint64_t pixelBufSeq = 0;
+// The pixelBufSeq produced by a POLARITY RECONVERT, or 0. A reconvert rewrites
+// every pixel from the cached planes, so it bumps the seq exactly like a new
+// page -- and until 2026-08-30 the CRT beam read that bump as new content and
+// armed a fresh sweep. The sweep then revealed the NEW palette over the OLD one
+// top-down across 55 ms, so a dark/light switch rendered frames with the top of
+// the page in one palette and the rest in the other. Captured on video: one
+// frame with a paragraph's first line dark-on-cream and every line below it
+// light-on-dark, the sheet's own geometry never moving. Owner, 2026-08-30:
+// "be sure not to flash from Zen mode to out of Zen mode for any reason,
+// period" -- reported AS a zen flash, because that is what it looks like.
+// S-031. The texture still uploads and the frame still presents; only the beam
+// is withheld, because there is no new picture to sweep IN.
+static uint64_t reconvertSeq = 0;
 static std::atomic<bool> pendingPresent{false};
 // Set when the inversion flag changes so presentIfNeeded (main thread) re-runs
 // the framebuffer-to-pixel conversion from the cached last frame. Without it a
@@ -2704,8 +2717,15 @@ void HalDisplay::presentIfNeeded() {
   // Service inversion changes first: reconverting sets pendingPresent, so the
   // repolarized pixels ride the present below instead of waiting for the
   // firmware to refresh.
-  if (pendingReconvert.exchange(false))
+  if (pendingReconvert.exchange(false)) {
     reconvertLastFrame();
+    // Mark the seq this produced so the beam trigger below can tell a
+    // repolarization from a page. Read under pixelBufMutex there; written here
+    // on the same (main) thread that services the present, immediately after
+    // the write that bumped it.
+    const std::lock_guard<std::mutex> lock(pixelBufMutex);
+    reconvertSeq = pixelBufSeq;
+  }
 
   const bool screenshotDue = hasDueScreenshot();
 
@@ -2817,8 +2837,16 @@ void HalDisplay::presentIfNeeded() {
     if (wantPrevFrame) {
       contentChanged = pixelBufSeq != presentedSeq;
       presentedSeq = pixelBufSeq;
-      // A sweep can only start from a picture there is something to sweep OVER.
-      if (contentChanged && glassHasPicture) beamStartedAt = SDL_GetTicks();
+      // A sweep can only start from a picture there is something to sweep OVER
+      // -- and it must be a NEW picture. A polarity reconvert bumps the seq
+      // without changing what the page says, and sweeping it paints the new
+      // palette over the old one in bands (S-031). presentedSeq is still
+      // advanced above, so the frame presents normally; only the sweep is
+      // withheld.
+      const bool reconvertOnly =
+          reconvertSeq != 0 && pixelBufSeq == reconvertSeq;
+      if (contentChanged && glassHasPicture && !reconvertOnly)
+        beamStartedAt = SDL_GetTicks();
     } else if (glassPrevTexture) {
       // Both effects turned off: drop the capture rather than keep paying for
       // it, and stop any sweep in flight.
