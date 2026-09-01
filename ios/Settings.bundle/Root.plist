@@ -1332,6 +1332,24 @@ On the reader hardware this value lives in settings.json on the card. A phone ha
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
 		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Chapter-level A/B comparisons of reading settings, recorded in the on-device reading log (never uploaded) so the app can tell which ones you get the most reading done under. This switch exists so the experiment can be stopped mid-book. Off by default — no reading setting varies by arm yet, so turning it on only starts naming the experiment in the log.</string>
+			<key>Title</key>
+			<string>Reading Experiments</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>readingExperimentsEnabled</string>
+			<key>Title</key>
+			<string>Reading Experiments (Experimental)</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
 	</array>
 	<key>StringsTable</key>
 	<string>Root</string>
