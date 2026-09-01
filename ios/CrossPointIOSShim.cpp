@@ -3306,6 +3306,19 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // band change also clear g_padLaidOut, but they do not move the output,
       // so their rects stay valid and their taps must keep working.
       for (auto &b : g_pad) b.rect = SDL_FRect{0, 0, 0, 0};
+      // PRE-WARMED, added 2026-08-31 (S-034 investigation) -- this was the
+      // one geometry-invalidating site with no zenPreWarmLayout() call, out
+      // of the four that clear g_padLaidOut (the others: the zen toggle,
+      // Settings.app's ApplyToLive, and pollReaderInsets). Without it,
+      // HalDisplay's very next panel fit still reads the OLD topInset/
+      // bottomInset (published for the OLD window size) against the NEW
+      // window dimensions -- the exact "layoutPad's own draw-time call is one
+      // present too late" mismatch zenPreWarmLayout()'s own comment
+      // documents, just reached from a window-size change instead of a zen
+      // toggle. Calling it here, synchronously, also means g_pad's rects
+      // (zeroed just above for safety) are correctly repopulated before this
+      // same present rather than left at kNoSlot until the next one.
+      zenPreWarmLayout();
       armSettleRepaint();
       SimulatorOverlay::requestPresent();
       break;

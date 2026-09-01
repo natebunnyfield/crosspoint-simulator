@@ -341,6 +341,24 @@ run read_aloud_channel \
 run font_family_step \
   c++ -std=c++17 -Isrc -o "$OUT/font_family_step" tests/font_family_step_channel_test.cpp
 
+# S-034: the reader's published text insets, packed into ONE atomic instead of
+# four independent ones, because the four-atomic shape let a main-thread
+# reader (ios/CrossPointIOSShim.cpp's pollReaderInsets(), every frame) observe
+# a TORN mix of two different publishes from the firmware's render task -- the
+# new top from a font-size change's reflow paired with the old bottom from the
+# page before it, say. That combination feeds the zen layout's shift
+# arithmetic directly and does not correspond to any real page, which is a
+# mechanism for "the page updates at full height then immediately becomes
+# single-finger mode" (owner report, 2026-08-31) that no amount of
+# pre-warming the LAYOUT CALL can fix, because the READ it warms from is what
+# was unsound. The concurrency case in this test is built to fail against the
+# four-atomic shape it replaced -- it does, at roughly a 50% torn rate under
+# contention, checked by hand against a throwaway copy of the old class -- and
+# cannot fail against a single atomic, which cannot return a value it never
+# stored whole.
+run reader_insets_channel \
+  c++ -std=c++20 -Isrc -o "$OUT/reader_insets_channel" tests/reader_insets_channel_test.cpp
+
 run read_aloud_core \
   c++ -std=c++17 -Iios -o "$OUT/read_aloud_core" tests/read_aloud_core_test.cpp ios/ReadAloudCore.cpp
 

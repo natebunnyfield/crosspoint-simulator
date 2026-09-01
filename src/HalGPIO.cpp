@@ -1,6 +1,7 @@
 #include "HalGPIO.h"
 
 #include "FontFamilyStepChannel.h"
+#include "ReaderInsetsChannel.h"
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
 #include "SheetIdentity.h"
@@ -1305,34 +1306,20 @@ void HalGPIO::injectFontFamilyStep(int delta) { fontFamilyStepChannel.inject(del
 // --- Reader text insets ------------------------------------------------------
 //
 // Published by EpubReaderActivity on every render, in FRAMEBUFFER pixels, top
-// already carrying the paint-time cap-ink trim. `readerInsetsValid` separates
-// "never published" (a boot that has not rendered a page yet) from a published
-// zero, so the consumer can keep its documented fallback until real numbers
-// exist. Plain atomics: the four are advisory placement hints read on the next
-// relayout, so a torn read across two publishes of the SAME layout is harmless
-// and publishes only change values when the margins or font actually change.
-static std::atomic<bool> readerInsetsValid{false};
-static std::atomic<int> readerInsetTop{0}, readerInsetRight{0},
-    readerInsetBottom{0}, readerInsetLeft{0};
+// already carrying the paint-time cap-ink trim. See ReaderInsetsChannel.h for
+// why this is ONE packed atomic rather than four independent ones (S-034: a
+// torn read across a font-size change or a page turn fed a wrong `want` shift
+// into the zen layout, "full height then immediately single-finger mode").
+static ReaderInsetsChannel readerInsetsChannel;
 
 void HalGPIO::publishReaderTextInsets(int topPx, int rightPx, int bottomPx,
                                       int leftPx) {
-  readerInsetTop.store(topPx);
-  readerInsetRight.store(rightPx);
-  readerInsetBottom.store(bottomPx);
-  readerInsetLeft.store(leftPx);
-  readerInsetsValid.store(true);
+  readerInsetsChannel.publish(topPx, rightPx, bottomPx, leftPx);
 }
 
 namespace SimulatorOverlay {
 bool readerTextInsetsPx(int &top, int &right, int &bottom, int &left) {
-  if (!readerInsetsValid.load())
-    return false;
-  top = readerInsetTop.load();
-  right = readerInsetRight.load();
-  bottom = readerInsetBottom.load();
-  left = readerInsetLeft.load();
-  return true;
+  return readerInsetsChannel.read(top, right, bottom, left);
 }
 } // namespace SimulatorOverlay
 

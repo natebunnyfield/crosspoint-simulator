@@ -1072,3 +1072,40 @@ xcrun simctl io "iPhone Air (zen)" screenshot zen.png
 
 The `[zen]` log line reports the geometry every layout:
 `[zen] on band=256.3pt topRowY=629.3pt paperTo=1968px panelH=1584px panelW=1056px`.
+
+## 2026-08-31: "full height then immediately single-finger mode" — a FOURTH mechanism, and it is a data race, not a timing race
+
+Owner: *"there is a persistent issue after ios app reactivation then font size
+change and page turn, where the page updates at full height then immediately
+becomes single-finger mode."* Full account, the fix, and the proof:
+[BUGS.md `S-034`](../BUGS.md). Short version, because the other three entries
+in this file (2026-08-29's flicker, and 2026-08-30's re-report above) are all
+*timing* bugs — a present reaching the glass one step ahead of a `layoutPad()`
+call that would have corrected it, fixed each time by moving the relayout
+earlier. This one is different in kind: `HalGPIO::publishReaderTextInsets`
+stored its four fields (top/right/bottom/left) as four independent atomics,
+written on the firmware's render task and read on the main thread with
+nothing coupling the four stores to the four loads as one unit. A font-size
+change or a page turn publishes a genuinely different top/bottom pair than
+the page before it, so a reader mid-tear can observe the NEW top paired with
+the OLD bottom — a combination `ios/CrossPointIOSShim.cpp`'s zen-shift
+arithmetic (`visTotal = slack + inkTopPx + inkBottomPx`, the same block
+this file's 2026-08-29 section already describes) turns into a `want` shift
+that matches no real page: one wrong-geometry frame, corrected a poll later
+once the tear has passed. No amount of pre-warming the *call* to `layoutPad()`
+fixes a torn *read* feeding it — the fix is `src/ReaderInsetsChannel.h`,
+packing the four fields into one atomic so a load can only ever return a
+value that was actually stored, whole.
+
+**Render status: UNCONFIRMED, honestly.** This session drove the owner's exact
+recipe (reactivate, font-size step, page turn) headlessly and confirmed via
+log timestamps that it produces the intended sequence of real relayouts in
+the intended order — but could not obtain a pixel capture of the reported bad
+frame itself, because `simctl io recordVideo` wedged into a stuck "Host
+recording is already in progress" state this session could not clear without
+a simulator reboot, and a screenshot-burst workaround was congested by the
+same daemon badly enough that forty consecutive captures came back
+byte-identical. The mechanism is proven by code and by a concurrency test
+measuring roughly a 50% torn-read rate against the pre-fix shape (BUGS.md has
+the numbers); it is not proven by render. Close that on a future session with
+a working `recordVideo`, or a device confirmation.
