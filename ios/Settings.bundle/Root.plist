@@ -54,6 +54,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -70,6 +71,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -92,6 +94,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -108,6 +111,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -130,6 +134,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -146,6 +151,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -168,6 +174,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -184,6 +191,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -206,6 +214,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -222,6 +231,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -244,6 +254,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -260,6 +271,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -292,6 +304,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -308,6 +321,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -330,6 +344,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -346,6 +361,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -368,6 +384,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -384,6 +401,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -406,6 +424,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -422,6 +441,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -444,6 +464,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -460,6 +481,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -482,6 +504,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -498,6 +521,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -520,6 +544,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -536,6 +561,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -558,6 +584,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -574,6 +601,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -596,6 +624,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -612,6 +641,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -634,6 +664,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -650,6 +681,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -680,6 +712,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -696,6 +729,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -729,6 +763,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -746,6 +781,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -769,6 +805,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -786,6 +823,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -809,6 +847,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -826,6 +865,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -849,6 +889,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -866,6 +907,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -889,6 +931,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -906,6 +949,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -929,6 +973,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -946,6 +991,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -977,6 +1023,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -994,6 +1041,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -1017,6 +1065,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -1034,6 +1083,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -1057,6 +1107,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -1074,6 +1125,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -1097,6 +1149,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -1114,6 +1167,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -1137,6 +1191,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -1154,6 +1209,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>
@@ -1177,6 +1233,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<string>Toggle Zen Mode</string>
 				<string>Next Reading Font</string>
 				<string>Previous Reading Font</string>
+				<string>Open Action Menu — Manage Files only</string>
 			</array>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
@@ -1194,6 +1251,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 				<integer>9</integer>
 				<integer>10</integer>
 				<integer>12</integer>
+				<integer>13</integer>
 			</array>
 		</dict>
 		<dict>

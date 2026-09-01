@@ -686,6 +686,11 @@ static void testStoredIntegers() {
   // rule cares only that 12 was unused, not where it sits among the earlier
   // eleven declarations.
   check(stored(Action::FontFamilyStepBack) == 12, "FontFamilyStepBack is 12");
+  // APPENDED 2026-09-01 (T-027: a bindable route into Manage Files' action
+  // menu). Same append-only rule -- 13 was unused, so it goes after
+  // FontFamilyStepBack rather than anywhere that would re-point an existing
+  // saved choice.
+  check(stored(Action::OpenActionMenu) == 13, "OpenActionMenu is 13");
 
   // The button indices mirror HalGPIO::BTN_*. The recognizer static_asserts the
   // pair across the header boundary; this pins the values themselves.
@@ -707,10 +712,10 @@ static void testStoredIntegers() {
   }
   check(gesturebind::kGestureCount == 29,
         "29 rows: 17 gestures, 6 above the paper, 6 below it");
-  check(gesturebind::kGlobalActionCount == 11,
-        "11 global actions: 7 buttons, Nothing, the zen toggle, the font "
-        "step, the font step back");
-  check(gesturebind::kZoneActionCount == 12, "...and Inherit makes 12 in a zone");
+  check(gesturebind::kGlobalActionCount == 12,
+        "12 global actions: 7 buttons, Nothing, the zen toggle, the font "
+        "step, the font step back, open action menu");
+  check(gesturebind::kZoneActionCount == 13, "...and Inherit makes 13 in a zone");
   // FontFamilyStepBack is OFFERED (a gesture can be pointed at it) but ships
   // on no default -- the same shape as Power after the 2026-08-28 trim.
   bool fontBackOffered = false;
@@ -722,6 +727,42 @@ static void testStoredIntegers() {
     check(gesturebind::defaultAction(static_cast<Gesture>(i)) !=
               Action::FontFamilyStepBack,
           "nothing ships bound to font family step back");
+  // OpenActionMenu (T-027): same shape again -- offered in BOTH lists (a
+  // gesture in either the global layer or a zone override may be pointed at
+  // it), ships on no row's default, and the channel it dispatches to is
+  // screen-scoped rather than global -- see ios/GestureBindings.h's comment
+  // on the enumerator for what that means off this table.
+  bool menuOfferedGlobal = false;
+  for (int i = 0; i < gesturebind::kGlobalActionCount; ++i)
+    if (gesturebind::kGlobalActions[i] == Action::OpenActionMenu)
+      menuOfferedGlobal = true;
+  check(menuOfferedGlobal, "open action menu is offered globally");
+  bool menuOfferedZone = false;
+  for (int i = 0; i < gesturebind::kZoneActionCount; ++i)
+    if (gesturebind::kZoneActions[i] == Action::OpenActionMenu)
+      menuOfferedZone = true;
+  check(menuOfferedZone, "open action menu is offered in a zone too");
+  for (int i = 0; i < gesturebind::kGestureCount; ++i)
+    check(gesturebind::defaultAction(static_cast<Gesture>(i)) !=
+              Action::OpenActionMenu,
+          "nothing ships bound to open action menu -- the owner picks it");
+  check(gesturebind::isOffered(Gesture::TwoFingerHold,
+                                stored(Action::OpenActionMenu)),
+        "a global row (e.g. the 2-finger hold T-027 named) accepts it");
+  check(gesturebind::isOffered(Gesture::TapAbove,
+                                stored(Action::OpenActionMenu)),
+        "a zone row accepts it too");
+  // A stored 0 (an unwritten key, or a Root.plist that would not load) never
+  // resolves to open action menu on any row -- it falls back to that row's
+  // own default, same as the general stored-0 sweep above proves for every
+  // action, restated here by name since this is the newest and the one most
+  // likely to be miscoded as a fallback.
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const Gesture g = static_cast<Gesture>(i);
+    check(gesturebind::resolve(g, 0) != Action::OpenActionMenu ||
+              gesturebind::defaultAction(g) == Action::OpenActionMenu,
+          "stored 0 resolves to the row's own default, not to open action menu");
+  }
   check(!gesturebind::isOffered(Gesture::TapGlobal, 0),
         "Unset is never offered as a choice -- it is a read-time fallback");
   check(!gesturebind::isOffered(Gesture::TapGlobal, stored(Action::Inherit)),

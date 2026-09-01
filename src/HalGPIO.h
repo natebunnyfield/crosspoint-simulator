@@ -257,6 +257,25 @@ public:
   int consumeFontFamilyStep();
   void injectFontFamilyStep(int delta = +1);
 
+  // --- Action-menu channel (a bindable gesture -> Manage Files' menu) -----
+  //
+  // Same two-halves split as the channels above: FileManagerActivity's
+  // per-item action menu was reachable only by held Confirm (~1000 ms), which
+  // a touchscreen host has no equivalent trigger for. Contract:
+  // src/OpenActionMenuChannel.h (consume-once, no direction, a burst of
+  // injects between polls collapses to one open).
+  //
+  //   consumeOpenActionMenu() is firmware-facing and mirrors the device HAL,
+  //   where it is an inline no-op returning false (lib/hal/HalGPIO.h), so
+  //   FileManagerActivity's poll folds away on device.
+  //
+  //   injectOpenActionMenu() is simulator-only, like injectButton*: the
+  //   host's side (ios/GestureBindings.h's Action::OpenActionMenu, dispatched
+  //   from CrossPointZenRecognizers.mm; OPENMENU in
+  //   CROSSPOINT_SIM_INPUT_SCRIPT on the desktop).
+  bool consumeOpenActionMenu();
+  void injectOpenActionMenu();
+
   // The reader's FINAL text-block insets — top after the paint-time cap-ink
   // trim, then right, bottom, left — in FRAMEBUFFER pixels. Firmware-facing
   // half of the same split as the read-aloud channel: an inline no-op on

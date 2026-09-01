@@ -341,6 +341,12 @@ run read_aloud_channel \
 run font_family_step \
   c++ -std=c++17 -Isrc -o "$OUT/font_family_step" tests/font_family_step_channel_test.cpp
 
+# The bindable-gesture -> Manage Files action-menu channel (T-027; same
+# consume-once, burst-collapses-to-one, reboot-drops-pending contract as
+# font_family_step above, minus the direction FontFamilyStepChannel carries).
+run open_action_menu_channel \
+  c++ -std=c++17 -Isrc -o "$OUT/open_action_menu_channel" tests/open_action_menu_channel_test.cpp
+
 # S-034: the reader's published text insets, packed into ONE atomic instead of
 # four independent ones, because the four-atomic shape let a main-thread
 # reader (ios/CrossPointIOSShim.cpp's pollReaderInsets(), every frame) observe

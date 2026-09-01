@@ -1,6 +1,7 @@
 #include "HalGPIO.h"
 
 #include "FontFamilyStepChannel.h"
+#include "OpenActionMenuChannel.h"
 #include "ReaderInsetsChannel.h"
 #include "HostKeyboardState.h"
 #include "ReadAloudLines.h"
@@ -118,6 +119,10 @@ static ReadAloudChannel readAloudChannel;
 // Shake -> next reading font family (contract: FontFamilyStepChannel.h).
 static FontFamilyStepChannel fontFamilyStepChannel;
 
+// A bindable gesture (or OPENMENU in a script) -> Manage Files' per-item
+// action menu (contract: OpenActionMenuChannel.h).
+static OpenActionMenuChannel openActionMenuChannel;
+
 // Pending synthetic taps (queueButtonTap). Queued from the harness's
 // per-frame hook and drained at the top of update() — both on the main
 // thread, so no lock.
@@ -221,6 +226,10 @@ enum class SyntheticAction {
   // responder steps fonts with — so a headless script pins that exact path,
   // the same argument as QueuedTap below.
   FontFamilyStep,
+  // OPENMENU fires HalGPIO::injectOpenActionMenu — the API a bound gesture
+  // uses to ask Manage Files for its action menu — same reasoning as
+  // FontFamilyStep above.
+  OpenActionMenu,
   // RawKey* push a REAL SDL key event instead of writing
   // syntheticButtonDown[], so a script can exercise the scancode->button map
   // and the text-entry gate that sits in front of it. Everything else here
@@ -310,6 +319,9 @@ const simreset::Registrar gGpioRebootReset{[] {
   // A shake injected in the abandoned run must not step the next boot's
   // reader font.
   fontFamilyStepChannel.resetForReboot();
+  // A menu request injected in the abandoned run must not surface on the
+  // next boot's Manage Files.
+  openActionMenuChannel.resetForReboot();
 }};
 
 // CROSSPOINT_SIM_LOG_POWER=1: the GPIO half of the [power] stations (see
@@ -628,6 +640,13 @@ void initializeSyntheticEvents() {
         // the iOS zen shake fires — so the firmware's family cycle is
         // provable without a phone.
         syntheticEvents.push_back({atMs, SyntheticAction::FontFamilyStep});
+      } else if (key == "OPENMENU") {
+        // OPENMENU routes through HalGPIO::injectOpenActionMenu — the
+        // channel a bound gesture fires — so Manage Files' action menu is
+        // provable without a phone. Fires only where FileManagerActivity
+        // polls for it; on any other screen it is a no-op until consumed or
+        // drained.
+        syntheticEvents.push_back({atMs, SyntheticAction::OpenActionMenu});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
       } else if (key == "HOME") {
@@ -765,6 +784,9 @@ void processSyntheticEvents() {
       break;
     case SyntheticAction::FontFamilyStep:
       gpio.injectFontFamilyStep();
+      break;
+    case SyntheticAction::OpenActionMenu:
+      gpio.injectOpenActionMenu();
       break;
     case SyntheticAction::RawKeyDown:
       pushRawKey(event.scancode, event.keymod, /*down=*/true);
@@ -1302,6 +1324,12 @@ int HalGPIO::consumeFontFamilyStep() {
 }
 
 void HalGPIO::injectFontFamilyStep(int delta) { fontFamilyStepChannel.inject(delta); }
+
+// --- Action-menu channel -----------------------------------------------------
+
+bool HalGPIO::consumeOpenActionMenu() { return openActionMenuChannel.consume(); }
+
+void HalGPIO::injectOpenActionMenu() { openActionMenuChannel.inject(); }
 
 // --- Reader text insets ------------------------------------------------------
 //

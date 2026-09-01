@@ -128,6 +128,21 @@ namespace gesturebind {
 // ios/CrossPointZenRecognizers.mm's performGestureAction for what is missing
 // and why (the firmware's own host channel has no direction to give it).
 //
+// OpenActionMenu (13th, appended 2026-09-01, T-027) opens Manage Files' per-
+// item action menu, today reachable on a device only by held Confirm (~1000
+// ms) -- FileManagerActivity.cpp's CONFIRM_HOLD_MS, untouched by the
+// 2026-09-01 hold-for-action ruling in docs/hold-gestures.md. Fully wired,
+// unlike FontFamilyStepBack above: performGestureAction() dispatches it to
+// HalGPIO::injectOpenActionMenu() and FileManagerActivity polls the matching
+// consume every loop() -- see crosspoint-reader's src/OpenActionMenuChannel.h
+// contract note there. OFFERED with NO DEFAULT BINDING (every row's default
+// is unchanged by this addition): the owner picks which gesture, if any, he
+// wants it on. It is also SCREEN-SCOPED where nothing else in this table is
+// -- the channel is polled only in FileManagerActivity, so a gesture bound to
+// it fires as a no-op everywhere else. That is not a bug in this file; see
+// the channel contract and CrossPointZenRecognizers.mm's dispatch log for how
+// that is made diagnosable rather than silent.
+//
 // STORED AS AN INTEGER in NSUserDefaults, so this list APPENDS and never
 // inserts or re-points: changing what a number means silently changes what a
 // saved choice selects. The display ORDER in Root.plist is independent of the
@@ -164,6 +179,8 @@ enum class Action : int {
   Inherit = 11,  // zone rows only: fall through to the global binding
   FontFamilyStepBack = 12,  // previous reading font family; appended, not
                              // inserted -- see the comment above this enum
+  OpenActionMenu = 13,  // Manage Files' per-item action menu; appended, not
+                         // inserted -- see the comment above this enum
 };
 
 // The firmware button indices, mirrored from HalGPIO::BTN_* so this header can
@@ -208,6 +225,7 @@ constexpr const char* actionName(Action a) {
     case Action::FontFamilyStep: return "font family step";
     case Action::Inherit: return "inherit";
     case Action::FontFamilyStepBack: return "font family step back";
+    case Action::OpenActionMenu: return "open action menu";
   }
   return "?";
 }
@@ -226,21 +244,26 @@ constexpr const char* actionName(Action a) {
 // rather than beside FontFamilyStep, because the display ORDER here is
 // independent of the stored integer and putting a new row anywhere but the
 // end is how a hand-edited list drifts from "append only".
+//
+// OpenActionMenu is offered LAST-of-all (appended 2026-09-01) by the same
+// rule: it may be pointed at, nothing defaults to it, and it goes at the end
+// of both lists rather than beside anything else.
 constexpr Action kGlobalActions[] = {
     Action::Nothing,   Action::Back,  Action::Confirm, Action::Left,
     Action::Right,     Action::Up,    Action::Down,    Action::Power,
     Action::ToggleZen, Action::FontFamilyStep, Action::FontFamilyStepBack,
+    Action::OpenActionMenu,
 };
 constexpr int kGlobalActionCount =
     static_cast<int>(sizeof(kGlobalActions) / sizeof(kGlobalActions[0]));
 
 // Every action a ZONE row offers: Inherit FIRST, because it is the default and
-// the row's resting state, then the same eleven.
+// the row's resting state, then the same twelve.
 constexpr Action kZoneActions[] = {
     Action::Inherit,   Action::Nothing, Action::Back,  Action::Confirm,
     Action::Left,      Action::Right,   Action::Up,    Action::Down,
     Action::Power,     Action::ToggleZen, Action::FontFamilyStep,
-    Action::FontFamilyStepBack,
+    Action::FontFamilyStepBack, Action::OpenActionMenu,
 };
 constexpr int kZoneActionCount =
     static_cast<int>(sizeof(kZoneActions) / sizeof(kZoneActions[0]));

@@ -58,6 +58,10 @@ ACTION_TITLE = {
     # FontFamilyStepBack case in CrossPointZenRecognizers.mm's
     # performGestureAction for what is missing and why.
     "FontFamilyStepBack": "Previous Reading Font",
+    # Appended 2026-09-01 (T-027). Fully wired, but SCREEN-SCOPED unlike every
+    # other action here: it only does anything in Manage Files, so it is
+    # labelled as such rather than left to read like a global action.
+    "OpenActionMenu": "Open Action Menu — Manage Files only",
 }
 
 FOOTER = {
