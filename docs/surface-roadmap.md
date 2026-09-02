@@ -1050,6 +1050,18 @@ change to typesetting. Cost is genuinely low: a vignette (exists), grain
 
 
 
+## Standing ruling, 2026-09-02: silence closes a shipped fix
+
+Owner, verbatim, while build-167 was being cut: *"presume issues are fixed if
+i don't raise them again."* So the confirmation ledger is **report-driven, not
+confirm-driven**: a fix ships as "SHIPPED — UNCONFIRMED on device" and stays
+so only until the NEXT report or the next build he uses without raising it —
+after that it is closed, and the trackers may say FIXED. Do not hand him a
+device-confirmation checklist and do not hold an item open waiting for a
+"confirmed". What does NOT change: the wording at ship time (headless-green is
+still not device-proof, so the first status is still UNCONFIRMED), and a
+RE-report still means trace from zero. Applies to both repos.
+
 ## Standing rulings, 2026-08-24
 
 **FOUR LEVELS, AND THAT IS THE POINT.** Owner ruling, asked whether the iOS
