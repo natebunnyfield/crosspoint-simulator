@@ -1208,7 +1208,8 @@ present later carried the same page seq, so the seq-only capture gate kept the
 black one for the first sweep to reveal. The capture is gated on a request
 generation now (`src/GlassCapture.h`), so any overlay-driven present — the
 first layout, a keyboard, a zen toggle — re-reads the glass. The black first
-frame itself still paints; it is a launch-flash question, left as a proposal.
+frame itself was ruled out the next day (owner 2026-09-02): the zen painter
+draws nothing while the panel has no geometry, so the first present is paper.
 
 Full account, including the reverted first attempt and the mechanics of the
 working fix: [BUGS.md `S-035`](../BUGS.md).

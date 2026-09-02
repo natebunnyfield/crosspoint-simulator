@@ -152,11 +152,15 @@ phone); trail-decay presents are unaffected because they do not move the
 generation. `tests/glass_capture_test.cpp` pins the seq-only gate as wrong on
 exactly this two-present case.
 
-**Not changed, stated as a proposal:** the first present of a zen session is
-still composed entirely black (`[screen] #1 whole 0.00`), for the ~100–180 ms
-until the pad's layout requests the real frame. The zen painter could skip the
-band fill while the panel has no geometry; that is a launch-flash question, not
-this bug, and the fix above no longer depends on it.
+**The black first frame itself, ruled out 2026-09-02** (owner picked the fix
+over leaving it). The zen painter now draws nothing while `g_zenPanel` has no
+geometry (`ios/CrossPointIOSShim.cpp`, the guard at the top of the zen block),
+so the session's first present is the paper-toned clear instead of black.
+Same iPad recipe: `[screen] #1 whole 227.15` where it read `0.00`; frames
+#2–#5 identical to the pre-guard run in both `[present]` (232.2 → 237.0) and
+`[screen]` (63.56/110.59 → 64.79/113.04) figures, so nothing past the first
+frame moved. The top bezel needed no guard — `paintTopBezel` already returns
+on an unpublished band height. UNCONFIRMED on device.
 
 **A first fix was attempted and reverted — it did not help, and it introduced
 a worse bug of its own.** Re-deriving `beamProgress`/`beamSweeping` from a
