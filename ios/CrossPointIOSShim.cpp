@@ -2705,6 +2705,19 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
     // anywhere on the screen. Black is what gives the paper an edge to have
     // corners on, and on an OLED it is the darkest a night page can be.
     const SDL_FRect &q = g_zenPanel;
+    // NO GEOMETRY, NO BAND. On the session's first present the pad has not
+    // been laid out yet: q is 0x0 at 0,0, panelBottomPx() is 0 and
+    // g_zenRowTopPx is 0, so `line` below would be 0 and the "everything
+    // below the line is black" fill would cover the whole glass. That frame
+    // was on screen for the ~100-180 ms until the pad's own layout requested
+    // the real one, and it is the frame S-035's glass capture latched (fixed
+    // on the capture side by src/GlassCapture.h; owner 2026-09-02 ruled the
+    // flash itself out too). Leave the paper-toned clear alone and draw
+    // nothing: the next present, with geometry, paints the band.
+    if (q.w <= 0.0f || q.h <= 0.0f) {
+      g_zenPaper = {0.0f, 0.0f, 0.0f, 0.0f};
+      return;
+    }
     // THE PAPER IS THE FULL WIDTH OF THE SCREEN ON THE PHONE, not the page's
     // rect. The page is 1056 px wide on a 1260 px screen, and the pad's field
     // is the SAME tone as the page's paper by design (measured 215,233,211
