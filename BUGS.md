@@ -1212,7 +1212,29 @@ number the log can produce is now in this entry.
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED and NARROWED 2026-08-25**
 
-**STATUS, re-confirmed 2026-08-29 -- OPEN, half fixed, half not.** Two separate
+**STATUS, corrected 2026-09-02 -- BOTH LOOPS BOUNDED; the 2026-08-29
+re-confirmation below was wrong.** Loop 2 was closed on 2026-08-26 by
+`a8def02` (refined by `9a01abd` on 08-29): `accumLive` is bounded by
+`accumPeakBound > trailInvisibleAtOrBelow()` (`src/TrailLifetime.h`,
+`src/HalDisplay.cpp` beside the `2.4f`), which ends the live window the
+moment the MAXIMUM-composited trail can no longer alter a pixel over the
+paper floor -- the "shrink to measured ~1.10 trails" lever, exactly. The
+flat `trailMs * 2.4f` the 08-29 note cited as "unchanged since the filing"
+is still there, as a BACKSTOP `&&`ed after the bound so the rule can only
+shorten the loop (a pure-black paper makes the bound zero and would
+otherwise never end). The re-confirmation grepped the backstop line and
+missed the bound on the line above it. The owner, asked on 2026-09-02
+between the two levers, chose this one -- which is the one already in the
+tree, so nothing moves. Measured at the fix: dark page turn 1788 -> 955 ms
+of CPU (the re-upload half of that commit) and the last 15 byte-identical
+presents of a 2628 ms trail no longer drawn. Frame-rate cap: NOT taken,
+by the owner's standing constraint ("keep refresh as high possible, 120hz
+is best. never shorten the window so that it drops frames").
+`tests/trail_lifetime_test.cpp` sweeps the bound. Still open and
+measurement-only: the ~35% of a core figure in the table below predates
+both fixes and has not been re-measured on a phone.
+
+The record as it stood: two separate
 render loops were behind the original report. **Loop 1 (the page fade re-arm)
 is FIXED** (2026-08-25): `presentIfNeeded` now schedules the next present at
 the wall-clock instant the quantized fade alpha actually changes
