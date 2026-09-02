@@ -112,6 +112,7 @@
 
 #include "CrossPointPrefs.h"
 #include "GestureBindings.h"
+#include "ShakeFirstResponder.h"
 #include "HalGPIO.h"
 #include "ZenHoldRouting.h"
 
@@ -281,7 +282,14 @@ void performGestureAction(gesturebind::Action a, const char *what) {
   }
 
   const int btn = gesturebind::buttonFor(a);
-  if (btn == gesturebind::kNoButton) return;  // Unset never reaches here
+  if (btn == gesturebind::kNoButton) {
+    // Unset and Inherit never resolve to here. Anything else that lands here
+    // is an Action appended without a case above -- say so, or it looks like
+    // a phone that stopped delivering gestures (audit 2026-09-02, finding 1
+    // was exactly this, silent).
+    SDL_Log("[zen] %s -> %s is not handled by any dispatcher case", what, gesturebind::actionName(a));
+    return;
+  }
   SDL_Log("[zen] %s -> %s (button %d)", what, gesturebind::actionName(a), btn);
   gpio.queueButtonTap(static_cast<uint8_t>(btn), 60);
 }
@@ -630,6 +638,22 @@ CPXZenGestureHandler *g_handler = nil;
 // the zen flag (see the class comment above).
 CPXShakeCatcher *g_shake = nil;
 
+// Takes first responder for the shake catcher unless the software keyboard
+// is up on an open field (ios/ShakeFirstResponder.h). Logged either way: on
+// device the `[zen] shake catcher` line is the only evidence of which of the
+// two holds the status.
+void claimShakeFirstResponder(const char *why) {
+  const bool fieldOpen = gpio.isTextEntryActive();
+  const bool keyboardUp = gpio.isHostKeyboardVisible();
+  if (!shakeresp::shouldClaim(fieldOpen, keyboardUp)) {
+    SDL_Log("[zen] shake catcher left first responder to the keyboard (%s)", why);
+    return;
+  }
+  const BOOL got = [g_shake becomeFirstResponder];
+  SDL_Log("[zen] shake catcher %s first responder (%s)",
+          got ? "is" : "FAILED to become", why);
+}
+
 UIView *sdlView(void) {
   int count = 0;
   SDL_Window **wins = SDL_GetWindows(&count);
@@ -854,9 +878,36 @@ extern "C" void CrossPointZenRecognizers_setEnabled(bool on) {
     // gate opened. Still re-asserted on every call rather than once: SDL's
     // text field takes the status whenever the keyboard rises, and nothing
     // gives it back.
-    const BOOL got = [g_shake becomeFirstResponder];
-    SDL_Log("[zen] shake catcher %s first responder",
-            got ? "is" : "FAILED to become");
+    //
+    // ...except while a firmware text field is open with its keyboard UP. The
+    // keyboard is up BECAUSE SDL's hidden text field is first responder, and
+    // one of the callers of this function is the zen toggle -- so every
+    // toggle mid-password dropped the keyboard, and once in zen nothing could
+    // raise it again (audit 2026-09-02, finding 2). ios/ShakeFirstResponder.h
+    // decides; the shake claims again from SDL_EVENT_SCREEN_KEYBOARD_HIDDEN
+    // through CrossPointZenRecognizers_reassertShake below.
+    claimShakeFirstResponder("setEnabled");
     SDL_Log("[zen] verb recognizers %s", on ? "enabled" : "disabled");
   });
+}
+
+// The keyboard went down (the chip, iPad's dismiss key, the field closing):
+// the text field has let go of first responder, so the shake takes it back.
+// Main-thread, like setEnabled; a no-op before the catcher exists.
+extern "C" void CrossPointZenRecognizers_reassertShake(void) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    if (!g_shake) return;
+    claimShakeFirstResponder("keyboard hidden");
+  });
+}
+
+// The SDL deliberate-tap dispatcher's road into performGestureAction. The
+// one-finger tap is SDL's verb, classified below UIKit in CrossPointIOSShim.cpp,
+// and it used to carry a second, smaller copy of the action switch -- which
+// missed both actions appended after it (FontFamilyStepBack 2026-08-29,
+// OpenActionMenu 2026-09-01), so binding the tap to either was a silent
+// no-op (audit 2026-09-02, finding 1). One dispatcher now; `what` is the log
+// name the shim prints.
+extern "C" void CrossPointZenRecognizers_performAction(int action, const char *what) {
+  performGestureAction(static_cast<gesturebind::Action>(action), what);
 }
