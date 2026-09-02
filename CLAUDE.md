@@ -35,6 +35,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | The button pad's tones | [docs/pad-outline-black-and-white.md](docs/pad-outline-black-and-white.md) |
 | Zen mode's GESTURES (the 17-gesture set, what the 2026-08-28 trim removed and why, the hold ruling), its geometry, and the page's margins | [docs/zen-mode.md](docs/zen-mode.md) · [docs/zen-page-margins.md](docs/zen-page-margins.md) |
 | What a gesture is BOUND to, and the one table it all comes from | [ios/GestureBindings.h](ios/GestureBindings.h) — pure, host-tested; `Root.plist`'s gesture rows are generated from it by [tools/gen_gesture_plist.py](tools/gen_gesture_plist.py) |
+| What is wrong with the iOS harness's navigation and gesture routing, as of 2026-09-02, and what was checked and found clean | [docs/ux-navigation-audit-2026-09-02.md](docs/ux-navigation-audit-2026-09-02.md) — read-only finding pass; the firmware half is `crosspoint-reader/docs/ux-navigation-audit-2026-09-02.md` |
 | The screen's safe areas on an iPhone | [docs/ios-dynamic-island.md](docs/ios-dynamic-island.md) |
 | Render scale, and the bundled fonts | [docs/ios-render-scale.md](docs/ios-render-scale.md) · [docs/seed-font-compression.md](docs/seed-font-compression.md) |
 | Why a build is refused for its FONTS | [docs/seed-font-integrity-gate.md](docs/seed-font-integrity-gate.md) — a `.cpfont` whose rendered size does not match its filename loads with no error and draws wrong; B-039 shipped exactly that |
