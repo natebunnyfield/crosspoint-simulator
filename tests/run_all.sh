@@ -146,6 +146,25 @@ run zen_hold \
 run zen_pref_sync \
   c++ -std=c++17 -Iios -o "$OUT/zen_pref_sync" tests/zen_pref_sync_test.cpp
 
+# ShakeFirstResponder.h -- whether the shake catcher may take first responder.
+# It re-asserts the status on every CrossPointZenRecognizers_setEnabled call,
+# and one of those calls is the zen toggle; one first responder per window,
+# and the software keyboard is up BECAUSE SDL's text field holds it -- so
+# every zen toggle mid-password dropped the keyboard, and in zen nothing
+# could raise it again (audit 2026-09-02, finding 2, P1). Four states, one
+# NO; a host cannot drive UIKit's responder chain, so the decision lives here.
+run shake_first_responder \
+  c++ -std=c++17 -Iios -o "$OUT/shake_first_responder" tests/shake_first_responder_test.cpp
+
+# ONE gesture-action dispatcher. The SDL deliberate tap carried its own smaller
+# switch and missed both actions appended after it (FontFamilyStepBack,
+# OpenActionMenu), so binding the tap to either was a silent no-op (audit
+# 2026-09-02, finding 1, P1). Source-level pin that the shim's tap branch calls
+# CrossPointZenRecognizers_performAction and holds no switch of its own --
+# a second switch compiles and is only wrong when the NEXT action is appended.
+run_direct tap_dispatch_source \
+  python3 tests/tap_dispatch_source_test.py
+
 # WHAT EVERY GESTURE DOES (ios/GestureBindings.h), after the owner made the
 # bindings configurable from Settings.app on 2026-08-28 (T-025) and then re-cut
 # the SET twice the same day. What ships is 17 gestures -- single taps on 1 and

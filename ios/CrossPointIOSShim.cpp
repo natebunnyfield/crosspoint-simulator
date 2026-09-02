@@ -116,6 +116,14 @@ extern "C" uint32_t CrossPointInkPicker_paperDialSignature(void);
 // Zen's motion gestures are native UIKit recognizers now
 // (CrossPointZenRecognizers.mm); enabled only while zen is on.
 extern "C" void CrossPointZenRecognizers_setEnabled(bool on);
+// The shake catcher takes first responder back once the keyboard is down
+// (ios/ShakeFirstResponder.h). Called from SDL_EVENT_SCREEN_KEYBOARD_HIDDEN.
+extern "C" void CrossPointZenRecognizers_reassertShake(void);
+// THE dispatcher for a resolved gesture action (performGestureAction in
+// CrossPointZenRecognizers.mm). The SDL deliberate tap goes through it too,
+// since 2026-09-02: it kept its own smaller switch and missed two appended
+// actions (audit 2026-09-02, finding 1).
+extern "C" void CrossPointZenRecognizers_performAction(int action, const char *what);
 // Defined at the foot of this file; declared here because the SDL finger path
 // above it can now reach the zen toggle too -- a deliberate tap may be bound to
 // it (T-025).
@@ -3152,32 +3160,19 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
           SDL_Log("[zen] verb -> %s, tap landed %s (y=%.0f) -> %s",
                   zenverbs::verbName(verb), gesturebind::zoneName(zone),
                   g_zenTapDownY, gesturebind::actionName(action));
-          if (action == gesturebind::Action::ToggleZen) {
-            // Reached only if the owner points the tap at the toggle. The
-            // shim's own toggle, not the recognizer entry point, because this
-            // finger is already inside padWatch: spoiling the candidate is
-            // still wanted and re-entering through the recognizer path would
-            // be the same call by a longer road.
-            CrossPointZen_toggleFromRecognizer("deliberate tap");
-          } else if (action == gesturebind::Action::FontFamilyStep) {
-            gpio.injectFontFamilyStep();
-          } else {
-            const int btn = gesturebind::buttonFor(action);
-            if (btn != gesturebind::kNoButton) {
-              gpio.queueButtonTap(static_cast<uint8_t>(btn), 60);
-            } else if (action != gesturebind::Action::Nothing) {
-              // A HOST ACTION THIS SITE DOES NOT KNOW. The recognizers'
-              // performGestureAction is the fuller dispatcher; this branch is a
-              // second, smaller copy because the deliberate tap is SDL's verb
-              // and lives below UIKit. If a twelfth Action is ever appended,
-              // that is the other place to teach -- and this says so out loud
-              // rather than swallowing the gesture in silence, which is how a
-              // new action would look exactly like a phone that stopped
-              // delivering taps.
-              SDL_Log("[zen] tap -> %s is not handled on the SDL tap path",
-                      gesturebind::actionName(action));
-            }
-          }
+          // ONE DISPATCHER. This branch used to carry its own smaller copy of
+          // the action switch (ToggleZen, FontFamilyStep, the button
+          // actions) with a comment saying an appended action would have to
+          // be taught here too -- and both actions appended after it
+          // (FontFamilyStepBack, OpenActionMenu) missed it, so binding the
+          // tap to either was a silent no-op on the gesture a reader uses
+          // most (audit 2026-09-02, finding 1). performGestureAction is the
+          // recognizers' dispatcher and now the tap's. ToggleZen through it
+          // is the same CrossPointZen_toggleFromRecognizer call this branch
+          // made directly, "deliberate tap" and all, so the candidate spoil
+          // it relies on is unchanged.
+          CrossPointZenRecognizers_performAction(static_cast<int>(action),
+                                                 "deliberate tap");
           applyActions(g_core.fingerUp(e->tfinger.fingerID));
           break;
         }
@@ -3253,6 +3248,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     case SDL_EVENT_SCREEN_KEYBOARD_HIDDEN:
       if (gpio.isTextEntryActive()) gpio.setHostKeyboardVisible(false);
       SimulatorOverlay::requestPresent(); // ...and here it has to appear
+      // The text field has let go of first responder with the keyboard; the
+      // shake catcher takes it back (ios/ShakeFirstResponder.h). Not gated on
+      // a field being open: the hide that follows a field CLOSING is exactly
+      // when the shake most needs the status back.
+      CrossPointZenRecognizers_reassertShake();
       break;
 
     // Backgrounding must not leave a key stuck down: the finger is gone, and a
