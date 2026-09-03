@@ -2703,7 +2703,8 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
   }
 
   if (g_zen) {
-    // Nothing below the page draws in zen -- no capsules, no chips.
+    // Nothing below the page draws in zen -- no capsules, and no chips except
+    // the keyboard chip while a field is open (see the foot of this branch).
     //
     // THE PAPER ENDS at the old top-rocker line, and everything below it is
     // BLACK (owner ruling 2026-08-19). That is a CONTRACTION of the paper, not
@@ -2795,6 +2796,23 @@ void paintPad(SDL_Renderer *r, int outW, int outH) {
 
     // Top corners belong to paintTopBezel; the bottom pair is cut out of black.
     paintBottomFillets(r, outW, g_zenPaper, /*intoBlack=*/true);
+
+    // THE ONE EXCEPTION TO "NOTHING BELOW THE PAGE DRAWS IN ZEN": the keyboard
+    // chip, while a firmware text field is open (owner 2026-09-02, audit
+    // finding 5). Every field opens with the host keyboard SUPPRESSED
+    // (src/HostKeyboardState.h) and the chip is the ONLY way to raise it, so
+    // with the whole pad gone in zen a Wi-Fi password or a rename could only
+    // be pecked out of the daisywheel -- in zen, where Confirm is a two-finger
+    // tap. The chip sits in the black band (lowerY is anchored to the bottom
+    // of the screen, below `line`), painted with the pad's own palette so it
+    // is the same control in both modes. paintKeyboardChip is itself gated on
+    // gpio.isTextEntryActive(), so with no field open zen draws exactly what
+    // it drew before.
+    {
+      const Palette &p = palette();
+      const float S = g_ptScale;
+      paintKeyboardChip(r, p, 8.0f * S, /*hairline=*/1.0f);  // one device px, as below
+    }
     return;
   }
 
@@ -3120,6 +3138,26 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
         // fires. (Fingers that went down after the sheet presented never
         // entered the trackers at all — see FINGER_DOWN.)
         if (CrossPointMixer_isPresented() || CrossPointInkPicker_isPresented()) {
+          g_tapCand.spoil();
+        } else if (zenBefore && verb == zenverbs::Verb::Down &&
+                   hitKeyboardChip(g_zenLastX, g_zenLastY)) {
+          // THE KEYBOARD CHIP, in zen. hitKeyboardChip is false unless a
+          // firmware text field is open, and the chip is only painted then
+          // (paintPad's zen branch), so outside a field this branch is dead
+          // and every deliberate tap is the gesture below. Judged from the
+          // LIFT point, like the non-zen chip: a deliberate tap moves at most
+          // 28 px, and the chip is 48 pt. Same toggle, same log line, so the
+          // `[kbchip]` grep reads the same in both modes.
+          const bool want = !gpio.isHostKeyboardVisible();
+          gpio.setHostKeyboardVisible(want);
+          SDL_Log("[kbchip] tap (zen) -> keyboard %s", want ? "up" : "down");
+          SimulatorOverlay::requestPresent();
+          // This finger went down in zen, where FINGER_DOWN breaks before the
+          // pad's tap candidate arms, so the non-zen chip branch below cannot
+          // fire a second toggle off the same lift (checked against the
+          // 2026-09-02 review, which read it as a double toggle; the run log
+          // shows one `[kbchip]` line). Spoil anyway: the guarantee belongs
+          // here, beside the toggle, not forty lines up in another case.
           g_tapCand.spoil();
         } else if (zenBefore && verb == zenverbs::Verb::Down) {
           // THE DELIBERATE TAP, the one verb left on this path. Every gesture

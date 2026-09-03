@@ -70,6 +70,17 @@ constexpr Action decide(const bool applied, const bool want,
   return Action::None;
 }
 
+// Whether the keyboard chip -- the one control that raises the keyboard -- is
+// on the glass and hit-testable. ONE INPUT, on purpose: the chip lives while
+// a firmware text field is open, and nothing else gates it. Zen is
+// deliberately NOT a parameter, because zen hides the whole pad and for a
+// while hid this chip with it (audit finding 5, 2026-09-02): every field opens
+// suppressed, the chip is the only way up, so a field opened in zen could
+// only be pecked out of the daisywheel. Owner ruling 2026-09-02: paint and
+// hit-test the chip in zen. A future caller that wants to gate it on zen has
+// to add the parameter here, where the test will see it.
+constexpr bool chipLive(const bool fieldOpen) { return fieldOpen; }
+
 // The live state. Atomic because the three inputs arrive on three threads: the
 // firmware task opens and closes fields, a UIKit callback asks to show or hide,
 // and only poll() runs on the main thread.
