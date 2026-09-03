@@ -667,6 +667,18 @@ run panel_source \
 run_direct panel_source_owners \
   python3 tests/panel_source_test.py
 
+# THE KEYBOARD CHIP IN ZEN (audit finding 5, owner ruling 2026-09-02). Zen hid
+# the whole pad and the keyboard chip with it, and the chip is the ONLY way to
+# raise a keyboard on an iPhone -- every field opens suppressed -- so a field
+# opened in zen was daisywheel-only. The fix is two sites in
+# ios/CrossPointIOSShim.cpp that cannot be host-compiled: paintPad's zen branch
+# must paint the chip before it returns, and the zen deliberate-tap path must
+# hit-test the chip BEFORE it resolves a gesture. Both regress silently, so this
+# pins them at the source level; hostkbd::chipLive (host_keyboard above) is the
+# one-input decision they implement.
+run_direct zen_keyboard_chip \
+  python3 tests/zen_keyboard_chip_test.py
+
 # THE READING LEDGER (docs/reading-experiments.md). Three tests for one feature,
 # because it has three independent silent failure modes and no visible ones --
 # nothing renders differently when any of this is wrong, and the cost of a

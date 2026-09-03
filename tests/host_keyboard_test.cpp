@@ -196,6 +196,8 @@ int main() {
     static_assert(decide(true, false, false) == Action::Stop, "");
     static_assert(decide(false, false, true) == Action::None,
                   "a stale force flag cannot raise a keyboard nobody wants");
+    static_assert(hostkbd::chipLive(true), "a field open means the chip");
+    static_assert(!hostkbd::chipLive(false), "no field, no chip");
     static_assert(hostkbd::wantsKeyboard(true, false), "");
     static_assert(!hostkbd::wantsKeyboard(true, true), "");
     static_assert(!hostkbd::wantsKeyboard(false, false), "");

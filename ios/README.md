@@ -1435,7 +1435,7 @@ Three controls, one state (`hostkbd::State`, host-tested in
 | Control | Does |
 |---|---|
 | Bar above the keyboard | Lowers it. Rides on the keyboard, so it leaves with it. |
-| Keyboard chip, one cell wide, centerd in the bottom row | Toggles it. Drawn whenever a field is open; the chevron points where the keyboard is about to go. |
+| Keyboard chip, one cell wide, centerd in the bottom row | Toggles it. Drawn whenever a field is open -- in zen too, since 2026-09-02, painted into the black band and hit-tested ahead of the deliberate-tap gesture (`docs/zen-mode.md`); the chevron points where the keyboard is about to go. |
 | Tap anywhere else | **Nothing.** Only the chip toggles the keyboard. |
 
 Off-chip taps used to raise it too, on the theory that a bigger target is

@@ -649,6 +649,25 @@ against 215,233,211 on an iPhone Air — so without the black there is no visibl
 edge anywhere on the screen and the sheet has nothing to have corners on. On an
 OLED it is also the darkest a night page can be.
 
+**One thing draws in the black: the keyboard chip, while a firmware text field
+is open** (owner ruling 2026-09-02, audit finding 5). Every field opens with
+the host keyboard SUPPRESSED (`src/HostKeyboardState.h`) and the 48 pt chip is
+the ONLY way to raise it on an iPhone, so with the pad gone a Wi-Fi password,
+a rename or Device Owner opened in zen was daisywheel-only -- in the mode where
+Confirm is a two-finger tap. `paintPad`'s zen branch now paints the chip after
+the black fill and the fillets, with the pad's own palette; the zen
+deliberate-tap path asks `hitKeyboardChip` BEFORE it resolves a gesture, so a
+tap on the chip toggles the keyboard and pages nothing. Both are gated on the
+field (`hitKeyboardChip` and `paintKeyboardChip` each return unless
+`gpio.isTextEntryActive()`), so with no field open zen draws and routes
+exactly what it did before. `hostkbd::chipLive` is the one-input decision --
+zen is deliberately not a parameter -- and `tests/zen_keyboard_chip_test.py`
+pins both sites at the source level. Measured on an iPhone Air simulator,
+`CROSSPOINT_SIM_ZEN=1` + Device Owner + `CROSSPOINT_SIM_TAP_CHIP`: the chip
+is on the glass at the field-open present (chip box mean 192 against 0 for
+the band), and the tap logs `[kbchip] tap (zen) -> keyboard up`.
+SHIPPED -- UNCONFIRMED on device.
+
 **The sheet BLEEDS TO THE GLASS.** It is not a card floating on black. Owner
 ruling 2026-08-20, picked off a side-by-side of two live renders rather than a
 description: the bounded version spent 204 px of the 1260 on margin and read as

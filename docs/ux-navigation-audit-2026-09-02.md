@@ -17,7 +17,7 @@ run on a phone, so each is SHIPPED — UNCONFIRMED on device:
 | 2 | **FIXED** | `ios/ShakeFirstResponder.h` — `shakeresp::shouldClaim(textEntryActive, hostKeyboardVisible)` gates the claim; `claimShakeFirstResponder()` in `CrossPointZenRecognizers.mm` reads the two HAL flags and logs which way it went; `CrossPointZenRecognizers_reassertShake()` runs on `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` (the chip, iPad's dismiss key, and the field closing all arrive there), so the shake takes the responder back the moment the keyboard is gone. Pinned by `tests/shake_first_responder_test.cpp` (four-state truth table). What to observe on device: open the Wi-Fi password field, toggle zen with a hold above the paper — the keyboard must stay up; dismiss it — a shake must then step the font. |
 | 3 | **CLOSED BY RULING** 2026-09-02 — owner: leave as ruled. "Above the paper" is the whole band on every device; the tablet's ~194 pt hold zone is intended. Not a defect, do not re-propose the cap. |
 | 4 | **CLOSED BY RULING** 2026-09-02 — owner: "drop the two Above/Below swipe rows that cannot fire." ONE dropped, on measurement: `Above the Paper → Swipe Down` (`gestureSwipeDownAbove`) is gone from `ios/GestureBindings.h` and the regenerated `Root.plist`, asserted absent in `tests/gesture_bindings_test.cpp`. `Below the Paper → Swipe Up` KEPT: the phone's bottom band is ≥ 136 pt (`g_zenRowTopPx = min(H·S − 2·topBand, …)`, `CrossPointIOSShim.cpp:947-955`), twice the 68 pt top band, so an upward swipe started in its lower half recognizes inside it — it can fire, so it is outside the ruling's condition. README `:537` corrected to say recognition point for the swipes. | 28 rows |
-| 5 | open | unchanged |
+| 5 | **FIXED** 2026-09-02 — owner chose "paint the chip in zen" over leaving zen on the text-entry edge. `paintPad`'s zen branch paints `paintKeyboardChip` after the fillets; the zen `Verb::Down` path checks `hitKeyboardChip(g_zenLastX, g_zenLastY)` before resolving a gesture and toggles the keyboard with the same `[kbchip]` line. `hostkbd::chipLive` (`src/HostKeyboardState.h`) is the decision; `tests/zen_keyboard_chip_test.py` pins both sites (5 checks, fail against the old shim). iPhone Air simulator: chip painted at the field-open present, `[kbchip] tap (zen) -> keyboard up`. UNCONFIRMED on device. | `src/HostKeyboardState.h`, `ios/CrossPointIOSShim.cpp`, `tests/zen_keyboard_chip_test.py`, `tests/host_keyboard_test.cpp` |
 | 6 | open | unchanged |
 | 7 | open — **proposal**, not a diff | the four README statements stand as written; correcting them was not in the chosen fix set, so they are not silently rewritten here. None of the four is about the tap path, so fixing 1 changes none of them. |
 
@@ -124,7 +124,7 @@ below the card top answers as `SwipeUpAbove`. NOT filed as a bug — the code
 chose it — but the README and the code must say the same thing, and the
 Swipe Down row is offered for a zone it cannot practically be performed in.
 
-### 5 — P2 — In zen a firmware text field can never raise the iOS keyboard. VERIFIED
+### 5 — P2 — In zen a firmware text field can never raise the iOS keyboard. VERIFIED — FIXED 2026-09-02 (owner: "paint the chip in zen")
 
 `paintPad` returns at `CrossPointIOSShim.cpp:2798` before `paintKeyboardChip`
 (`:2914`); `padWatch`'s `FINGER_DOWN` breaks at `:3046` (`if (g_zen) break;`)
