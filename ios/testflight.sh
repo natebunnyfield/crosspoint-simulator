@@ -638,7 +638,31 @@ notify 4 rocket "CrossPoint X3 $MARKETING_VERSION ($BUILD_NUMBER) uploaded" \
 say "TestFlight processing"
 UPLOAD_END=$(date +%s)
 set +e
-python3 - "$BUILD_NUMBER" "$UPLOAD_END" <<'PYWATCH'
+# The poll needs PyJWT, and `python3` here is NOT the one an interactive
+# shell gets: ~/.zshenv REPLACES PATH (homebrew first, no asdf shim) for every
+# zsh script, so this #!/bin/zsh chain resolves /opt/homebrew/bin/python3,
+# which has no jwt -- the interpreter the watcher was proved on (build 116)
+# was the asdf one, from an agent shell. Every deploy since then ended in
+# `ModuleNotFoundError: No module named 'jwt'` after the tag, non-fatal by
+# design, so nothing went red and the "installable" ping never fired (owner
+# pasted the build-169 tail, 2026-09-03). Probe for an interpreter that can
+# import it rather than pinning one path, since which of the three has the
+# module is an accident of pip history.
+WATCH_PY=""
+for candidate in python3 /usr/bin/python3 "$HOME/.asdf/shims/python3" \
+                 /opt/homebrew/bin/python3; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c 'import jwt' >/dev/null 2>&1; then
+    WATCH_PY="$candidate"; break
+  fi
+done
+if [ -z "$WATCH_PY" ]; then
+  echo "no python3 with PyJWT on this Mac -- skipping the processing watch" \
+       "(pip install pyjwt into one of: $(command -v python3), /usr/bin/python3)"
+  false
+else
+echo "processing watch via $WATCH_PY"
+"$WATCH_PY" - "$BUILD_NUMBER" "$UPLOAD_END" <<'PYWATCH'
 import jwt, time, json, sys, urllib.request
 build, t_up = sys.argv[1], int(sys.argv[2])
 KEY_ID, ISSUER = "92428LY4AJ", "69a6de73-c01e-47e3-e053-5b8c7c11a4d1"
@@ -670,6 +694,7 @@ while time.time() - t_up < 2400:  # 40 min ceiling, then give up loudly
 print("still not VALID after 40 min -- check TestFlight")
 sys.exit(1)
 PYWATCH
+fi
 WATCH_RC=$?
 set -e
 ELAPSED_MIN=$(( ($(date +%s) - UPLOAD_END) / 60 ))
