@@ -417,17 +417,42 @@ static void testLayering() {
 
   // Each override row is distinct: two (gesture, zone) pairs sharing one row
   // would be one setting wearing two labels.
+  // Every one-finger gesture has both overrides EXCEPT Swipe Down above the
+  // paper (owner 2026-09-02): a swipe is zoned where UIKit recognizes it, and
+  // the 68 pt band above the paper is crossed before a downward swipe is one.
+  // Its mirror below the paper stays -- that band is at least twice as tall --
+  // so eleven rows, not ten: dropped on measurement, not on symmetry.
   std::set<int> seen;
   for (int k = 0; k < kOneFingerCount; ++k) {
     for (Zone z : {Zone::AbovePaper, Zone::BelowPaper}) {
       const Gesture g =
           gesturebind::zoneGesture(static_cast<OneFinger>(k), z);
-      check(g != Gesture::Count, "every one-finger gesture has both overrides");
+      const bool dropped = static_cast<OneFinger>(k) == OneFinger::SwipeDown &&
+                           z == Zone::AbovePaper;
+      if (dropped) {
+        check(g == Gesture::Count,
+              "no Swipe Down row above the paper (owner 2026-09-02)");
+        continue;
+      }
+      check(g != Gesture::Count,
+            "every other one-finger gesture has both overrides");
       check(seen.insert(static_cast<int>(g)).second,
             "no two (gesture, zone) pairs share one row");
     }
   }
-  check(seen.size() == 12, "twelve override rows: six gestures, two zones");
+  check(seen.size() == 11, "eleven override rows: six gestures, two zones, "
+                           "minus the one that could not fire");
+  check(gesturebind::zoneGesture(OneFinger::SwipeUp, Zone::BelowPaper) !=
+            Gesture::Count,
+        "Swipe Up below the paper STAYS -- its band is tall enough to fire in");
+  // A missing override row is not a special case: the global binding applies,
+  // exactly as it does on the paper.
+  checkAction(gesturebind::oneFingerAction(OneFinger::SwipeDown,
+                                           Zone::AbovePaper, true,
+                                           stored(Action::Power), g_right),
+              Action::Right,
+              "a swipe down above the paper resolves to the global binding, "
+              "whatever a stale zone value says");
 
   // A TWO-FINGER GESTURE HAS NO ZONE OVERRIDE, by ruling: it is the same
   // gesture wherever it lands. Asked through zoneRowFor, which is the question
@@ -710,8 +735,8 @@ static void testStoredIntegers() {
     check(!k.empty(), "every row has a key");
     check(keys.insert(k).second, "no two rows share a key");
   }
-  check(gesturebind::kGestureCount == 29,
-        "29 rows: 17 gestures, 6 above the paper, 6 below it");
+  check(gesturebind::kGestureCount == 28,
+        "28 rows: 17 gestures, 5 above the paper, 6 below it");
   check(gesturebind::kGlobalActionCount == 12,
         "12 global actions: 7 buttons, Nothing, the zen toggle, the font "
         "step, the font step back, open action menu");
@@ -894,7 +919,7 @@ static void testRootPlist(const char* path) {
   }
 
   // THE GROUPS, in the order the header lists them. The global layer is
-  // sub-grouped by finger count because 29 rows in one flat list is a scroll
+  // sub-grouped by finger count because 28 rows in one flat list is a scroll
   // with no landmarks; the two override groups come last, after everything they
   // can override.
   size_t groupAt[gesturebind::kGroupCount];
@@ -932,7 +957,10 @@ static void testRootPlist(const char* path) {
       "gestureTapPaper",          "gestureHoldPaper",
       "gestureThreeFingerTap",    "gestureFourFingerTap",
       "gestureFiveFingerTap",     "gestureDoubleTap",
-      "gestureTripleTap",         "gestureEdgePanLeft"};
+      "gestureTripleTap",         "gestureEdgePanLeft",
+      // Dropped 2026-09-02: a downward swipe cannot be recognized inside the
+      // 68 pt band above the paper. Its mirror below the paper is NOT here.
+      "gestureSwipeDownAbove"};
   for (const char* k : absentKeys) {
     if (xml.find(std::string("<string>") + k + "</string>") !=
         std::string::npos) {

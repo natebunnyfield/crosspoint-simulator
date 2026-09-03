@@ -16,7 +16,7 @@ run on a phone, so each is SHIPPED — UNCONFIRMED on device:
 | 1 | **FIXED** | the SDL tap branch (`ios/CrossPointIOSShim.cpp`) now hands the action to `CrossPointZenRecognizers_performAction`, a C entry that forwards to `performGestureAction` — one dispatcher, no second switch to teach. Pinned by `tests/tap_dispatch_source_test.py` (fails seven ways against the pre-fix tree). |
 | 2 | **FIXED** | `ios/ShakeFirstResponder.h` — `shakeresp::shouldClaim(textEntryActive, hostKeyboardVisible)` gates the claim; `claimShakeFirstResponder()` in `CrossPointZenRecognizers.mm` reads the two HAL flags and logs which way it went; `CrossPointZenRecognizers_reassertShake()` runs on `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` (the chip, iPad's dismiss key, and the field closing all arrive there), so the shake takes the responder back the moment the keyboard is gone. Pinned by `tests/shake_first_responder_test.cpp` (four-state truth table). What to observe on device: open the Wi-Fi password field, toggle zen with a hold above the paper — the keyboard must stay up; dismiss it — a shake must then step the font. |
 | 3 | **CLOSED BY RULING** 2026-09-02 — owner: leave as ruled. "Above the paper" is the whole band on every device; the tablet's ~194 pt hold zone is intended. Not a defect, do not re-propose the cap. |
-| 4 | open — deliberate in code | unchanged |
+| 4 | **CLOSED BY RULING** 2026-09-02 — owner: "drop the two Above/Below swipe rows that cannot fire." ONE dropped, on measurement: `Above the Paper → Swipe Down` (`gestureSwipeDownAbove`) is gone from `ios/GestureBindings.h` and the regenerated `Root.plist`, asserted absent in `tests/gesture_bindings_test.cpp`. `Below the Paper → Swipe Up` KEPT: the phone's bottom band is ≥ 136 pt (`g_zenRowTopPx = min(H·S − 2·topBand, …)`, `CrossPointIOSShim.cpp:947-955`), twice the 68 pt top band, so an upward swipe started in its lower half recognizes inside it — it can fire, so it is outside the ruling's condition. README `:537` corrected to say recognition point for the swipes. | 28 rows |
 | 5 | open | unchanged |
 | 6 | open | unchanged |
 | 7 | open — **proposal**, not a diff | the four README statements stand as written; correcting them was not in the chosen fix set, so they are not silently rewritten here. None of the four is about the tap path, so fixing 1 changes none of them. |
@@ -108,7 +108,7 @@ fifth of the screen — the owner has twice reported margin gestures firing by
 accident (`GestureBindings.h:72-76`). Fix if wanted: cap the tablet's hold
 band at the phone's safe-area strip.
 
-### 4 — P2 — One-finger SWIPE zones are judged at the recognition point; the README says landing point. VERIFIED, and DELIBERATE in code
+### 4 — P2 — One-finger SWIPE zones are judged at the recognition point; the README says landing point. VERIFIED, and DELIBERATE in code — RULED 2026-09-02: Swipe Down above the paper dropped; Swipe Up below it kept (see status table)
 
 `CrossPointZenRecognizers.mm:216-223` `zoneOf()` reads `locationInView` when
 the recognizer fires (~50 pt of travel in). The comment directly above it
@@ -153,7 +153,7 @@ line: `shipsInert` answers false for `Count`.
 |---|---|
 | `:485` shake "zen only" | `GestureBindings.h:708` fires outside zen since 2026-08-29 |
 | `:515` "**One** row fires outside zen" | two: `HoldAbove` and `Shake` (`:707-709`) |
-| `:537` "judged from the landing point" | false for the four swipes (finding 4) |
+| `:537` "judged from the landing point" | false for the four swipes (finding 4) — CORRECTED 2026-09-02 with finding 4's ruling |
 | `:539-540` both boundaries "published by `layoutPad` … in BOTH modes" | `layoutPadTablet` (`CrossPointIOSShim.cpp:437-636`) never assigns `g_zenRowTopPx` (only `:955`, phone path); the tablet relies on `zenPaperBottomPx()`'s panel-bottom fallback (`:268-271`). `docs/zen-mode.md` was corrected, the README was not |
 
 Also `PadTopBand.h:25` / `CrossPointIOSShim.cpp:525` say "~194 pt" while the

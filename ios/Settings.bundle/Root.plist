@@ -912,48 +912,6 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>11</integer>
-			<key>Key</key>
-			<string>gestureSwipeDownAbove</string>
-			<key>Title</key>
-			<string>Swipe Down</string>
-			<key>Titles</key>
-			<array>
-				<string>Use the Gestures setting</string>
-				<string>Nothing</string>
-				<string>Back — leave the book · close the screen</string>
-				<string>Confirm — select · activate the row</string>
-				<string>Left — page back · previous item</string>
-				<string>Right — page forward · next item</string>
-				<string>Up — smaller text in a book · scroll up</string>
-				<string>Down — bigger text in a book · scroll down</string>
-				<string>Power — sleep, or the reader's short-press setting</string>
-				<string>Toggle Zen Mode</string>
-				<string>Next Reading Font</string>
-				<string>Previous Reading Font</string>
-				<string>Open Action Menu — Manage Files only</string>
-			</array>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Values</key>
-			<array>
-				<integer>11</integer>
-				<integer>1</integer>
-				<integer>2</integer>
-				<integer>3</integer>
-				<integer>4</integer>
-				<integer>5</integer>
-				<integer>6</integer>
-				<integer>7</integer>
-				<integer>8</integer>
-				<integer>9</integer>
-				<integer>10</integer>
-				<integer>12</integer>
-				<integer>13</integer>
-			</array>
-		</dict>
-		<dict>
-			<key>DefaultValue</key>
 			<integer>9</integer>
 			<key>Key</key>
 			<string>gestureHoldAbove</string>

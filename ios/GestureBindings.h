@@ -61,7 +61,21 @@
 //
 // MULTI-FINGER HAS NO ZONE OVERRIDE, by ruling: a two-finger tap is the same
 // gesture wherever it lands. Neither does the shake, which has no landing point
-// at all. 17 global rows + 12 zone rows = 29.
+// at all. 17 global rows + 11 zone rows = 28.
+//
+// ELEVEN, NOT TWELVE: there is no "Swipe Down above the paper" row (owner
+// ruling 2026-09-02, "drop the Above/Below swipe rows that cannot fire"). A
+// swipe is zoned where UIKit RECOGNIZES it, ~50 pt of travel past the landing
+// point, and the band above the paper is 68 pt tall on a phone with iOS
+// owning its top edge -- so a downward swipe that starts in it has crossed
+// into the paper before it is a swipe at all. The row offered a binding that
+// could not be performed. Its mirror, "Swipe Up below the paper", STAYS: the
+// band below the paper is at least twice the top band (136 pt on the phone,
+// the pad band when the pad is up), so an upward swipe started in its lower
+// half recognizes inside it. One row was dropped on measurement, not two on
+// symmetry. A missing override row is not a special case anywhere: zoneGesture
+// answers Count and the global binding applies, exactly as it does for the
+// paper itself.
 //
 // BLANK AND "NOTHING" ARE DIFFERENT VALUES, and this is the part most likely to
 // be got wrong:
@@ -396,7 +410,7 @@ constexpr const char* dirName(Dir d) {
 
 // WHICH SETTINGS.APP GROUP A ROW APPEARS IN.
 //
-// 29 rows in one flat list is a long scroll with no landmarks, so the global
+// 28 rows in one flat list is a long scroll with no landmarks, so the global
 // layer is sub-grouped BY FINGER COUNT -- the one partition a hand can feel,
 // and the one that lets every row inside a group drop its "Two-Finger" prefix
 // and read as a short verb. Pinch and rotation sit in Two Fingers because that
@@ -457,7 +471,7 @@ enum class Gesture : int {
   SwipeLeftAbove,
   SwipeRightAbove,
   SwipeUpAbove,
-  SwipeDownAbove,
+  // No SwipeDownAbove -- dropped 2026-09-02; "ELEVEN, NOT TWELVE" above.
   HoldAbove,
   // BELOW THE PAPER -- overrides, blank by default.
   TapBelow,
@@ -514,7 +528,6 @@ constexpr Row kRows[] = {
     {Gesture::SwipeLeftAbove, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::AbovePaper, "gestureSwipeLeftAbove", "swipe left above the paper", "Swipe Left", Action::Inherit},
     {Gesture::SwipeRightAbove, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::AbovePaper, "gestureSwipeRightAbove", "swipe right above the paper", "Swipe Right", Action::Inherit},
     {Gesture::SwipeUpAbove, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::AbovePaper, "gestureSwipeUpAbove", "swipe up above the paper", "Swipe Up", Action::Inherit},
-    {Gesture::SwipeDownAbove, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::AbovePaper, "gestureSwipeDownAbove", "swipe down above the paper", "Swipe Down", Action::Inherit},
     {Gesture::HoldAbove, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::AbovePaper, "gestureHoldAbove", "hold above the paper", "Hold", Action::ToggleZen},
   // BELOW THE PAPER -- overrides, blank by default.
     {Gesture::TapBelow, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::BelowPaper, "gestureTapBelow", "tap below the paper", "Tap", Action::Inherit},

@@ -3,7 +3,7 @@
 
 WHY THIS IS GENERATED AND THE REST OF THE PLIST IS NOT.
 
-There are 29 gesture rows (17 global + 12 zone overrides) and each one is a
+There are 28 gesture rows (17 global + 11 zone overrides) and each one is a
 ~34-line ``PSMultiValueSpecifier`` carrying the same eleven or twelve annotated
 action labels.  That is close to a thousand lines of XML whose every value is
 already stated, exactly once, in ``ios/GestureBindings.h`` -- the key, the
