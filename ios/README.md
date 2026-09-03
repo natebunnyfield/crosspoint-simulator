@@ -422,17 +422,33 @@ normal configuration."*
 | **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
 | **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise | ditto |
 | **Gestures — The Device** | Shake | font family step |
-| **Above the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank, except **Hold** |
-| **Below the Paper** | the same six | blank |
+| **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
+| **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
 
-29 rows in one flat list is a scroll with no landmarks, so the global layer is
+**One zone row is missing on purpose — 28 rows, not 29 (ruling 2026-09-02).**
+There is no *Above the Paper → Swipe Down*. A swipe is zoned where UIKit
+RECOGNIZES it (`zoneOf()` in `CrossPointZenRecognizers.mm`, deliberately — a
+vertical swipe crosses zones by definition), which is ~50 pt of travel past the
+landing point, and the band above the paper is 68 pt tall on a phone with iOS
+owning its top edge. A downward swipe started in it has crossed into the paper
+before it is a swipe at all, so the row offered a binding that could not be
+performed (`docs/ux-navigation-audit-2026-09-02.md`, finding 4). Owner: *"drop
+the Above/Below swipe rows that cannot fire."* Its mirror, *Below the Paper →
+Swipe Up*, was NOT dropped: the band below the paper is at least twice the top
+band (136 pt on the phone, more when the pad is up), so an upward swipe started
+in its lower half recognizes inside it. One row went on measurement, not two on
+symmetry, and `gestureSwipeDownAbove` is asserted absent from `Root.plist` so a
+re-add is a conscious act. A swipe down that lands in the top band simply takes
+the global binding, exactly as a swipe on the paper does.
+
+28 rows in one flat list is a scroll with no landmarks, so the global layer is
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
 short verb. Pinch and rotation sit in Two Fingers because that is what they are.
 
 **`Root.plist`'s gesture half is GENERATED**, by
 [tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py), from the header's
-table — 29 rows × ~34 lines of `PSMultiValueSpecifier` is not a thing to
+table — 28 rows × ~34 lines of `PSMultiValueSpecifier` is not a thing to
 hand-maintain beside a table that already states every value. Only the span
 between the Zen Mode switch and the Screen group is touched. Edit the header,
 re-run the generator; `tests/run_all.sh`'s `gesture_plist` case runs it with
@@ -532,7 +548,14 @@ one, the 1-finger tap is SDL's, the shake is a responder rather than a
 recognizer). Each single-finger call site reads TWO rows — the zone's override
 and the global — and the header decides which wins.
 
-**THE ZONE IS JUDGED FROM THE LANDING POINT, off two published boundaries**, and
+**THE ZONE IS JUDGED OFF TWO PUBLISHED BOUNDARIES** — from the finger-down
+point for the tap, from `.began` for the hold, and for the four swipes from
+where UIKit RECOGNIZED the swipe (~50 pt of travel in; `zoneOf()` in
+`CrossPointZenRecognizers.mm` says why: a vertical swipe crosses zones by
+definition, and where it became a swipe is the honest answer). An earlier
+version of this sentence said "landing point" for all six; the audit of
+2026-09-02 found it false for the swipes, and it is the reason there is no
+Swipe Down row above the paper. And
 no new rect was invented: `g_cardTopPx` (where black ends and paper begins) and
 the paper's bottom (`g_zenRowTopPx`, the old top-rocker line, which is the same
 `line` the zen painter cuts the sheet at). Both are published by `layoutPad` on
@@ -570,7 +593,7 @@ Simulator. UIKit recognizers cannot be driven off device (they live above SDL;
 neither `SDL_PushEvent` nor `simctl` reaches them), so what a finger does is
 device-confirm only. What WAS confirmed on an iPhone Air simulator (2026-08-28,
 `CROSSPOINT_SIM_ZEN=1`): the attach happens, **13 recognizer objects** are
-installed for the 29 rows, and the binding ledger prints all 29 with the shipped
+installed for the then-29 rows (28 since 2026-09-02, see above), and the binding ledger printed all 29 — a log from that date, quoted as it was — with the shipped
 defaults -- `hold above the paper -> toggle zen (default, always on)` as the one
 always-on row, the five new gestures as `nothing`, every zone row but that one as
 `inherit`. The `[zen]` log is the instrument. At the first zen enable the attach

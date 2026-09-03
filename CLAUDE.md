@@ -759,12 +759,14 @@ compose actually produces, which is the only thing that separates "the AA looks
 bad" from "the AA is not there". Note the firmware picks its masks from its OWN
 `darkMode` setting, not from `CROSSPOINT_SIM_DARK`.
 
-**Settings.app is now ten groups and 37 rows** — count them out of
+**Settings.app is now eleven groups and 37 rows** — count them out of
 `ios/Settings.bundle/Root.plist` rather than trusting a number in prose, which
-is how this paragraph was wrong three times. It said "seven groups and 29 rows"
+is how this paragraph was wrong four times. It said "seven groups and 29 rows"
 while the file held nine and 36, because the gesture groups were added to the
 TABLE below and not to the sentence above it; adversarial review caught the
-fourth miss (this one) on 2026-08-28. `plistlib` counts them in one line:
+fourth miss on 2026-08-28; and it said "ten groups" for the four days the
+Reading Experiments group existed before 2026-09-02 caught it while dropping a
+gesture row (38 → 37). `plistlib` counts them in one line:
 
 ```bash
 python3 -c "import plistlib;d=plistlib.load(open('ios/Settings.bundle/Root.plist','rb'));\
@@ -779,12 +781,13 @@ print(len(g),'groups,',len(s)-len(g),'rows')"
 | Gestures — One Finger | Tap · Swipe Left / Right / Up / Down · Hold |
 | Gestures — Two Fingers | Tap · Swipe Left / Right / Up / Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise |
 | Gestures — The Device | Shake |
-| Above the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
+| Above the Paper | Tap · Swipe Left / Right / Up · Hold — no Swipe Down (2026-09-02) |
 | Below the Paper | Tap · Swipe Left / Right / Up / Down · Hold |
 | Screen | Allow Device to Sleep on Battery · Allow Device to Sleep While Charging |
 | Read Aloud | Read Aloud (Experimental) · Speaking Rate |
 | Library | GitHub Token |
 | Sleep | Power-Off Collapse · Diagnostics Log |
+| Reading Experiments | Reading Experiments (Experimental) |
 
 **Library > GitHub Token arrived 2026-08-28 and is a CREDENTIAL, the only one
 in this bundle.** `PSTextFieldSpecifier`, `IsSecure`. Update Library fetches
@@ -810,7 +813,7 @@ overrides. They are INPUT rather than appearance, which is what lets them past
 the 2026-08-23 ruling that removed every surface dial from this screen.
 
 **The global layer is sub-grouped BY FINGER COUNT, and the gesture half of this
-plist is GENERATED** — 29 rows of `PSMultiValueSpecifier` from one table in
+plist is GENERATED** — 28 rows of `PSMultiValueSpecifier` from one table in
 `ios/GestureBindings.h`, by `tools/gen_gesture_plist.py`, with `run_all.sh`'s
 `gesture_plist` case running it `--check` so a stale projection fails the suite.
 Edit the header, re-run the generator; never hand-edit a gesture row.
@@ -1092,8 +1095,12 @@ Grown in one day; each is documented at its definition, this is the map:
   `tests/gesture_bindings_test.cpp`). Owner 2026-08-28, verbatim: *"if above and
   below the paper is blank, it should pass through to global configuration. if
   they are defined, they take precedence. there is no 'on the paper', it's just
-  normal configuration."* So: a GLOBAL layer holding all 17 gestures, plus 12
-  zone-override rows for the six single-finger ones. Two-finger gestures have no
+  normal configuration."* So: a GLOBAL layer holding all 17 gestures, plus 11
+  zone-override rows for the six single-finger ones (12 until 2026-09-02, when
+  *Above the Paper → Swipe Down* was dropped: a swipe is zoned where UIKit
+  recognizes it, and the 68 pt band above the paper is crossed before a downward
+  swipe is one; its mirror below the paper stays, that band being twice as tall
+  -- `docs/zen-mode.md`). Two-finger gestures have no
   zone override, by ruling -- a 2-finger tap is the same gesture wherever it
   lands -- and neither does the shake, which has no landing point.
   **BLANK AND "NOTHING" ARE DIFFERENT VALUES in a zone**, and that is the

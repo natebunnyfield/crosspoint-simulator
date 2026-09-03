@@ -240,7 +240,7 @@ hardcoded paper:
 > configuration. if they are defined, they take precedence. there is no 'on the
 > paper', it's just normal configuration."*
 
-**Five groups, 29 rows, in two layers.** The rule is
+**Five groups, 28 rows, in two layers.** The rule is
 [ios/GestureBindings.h](../ios/GestureBindings.h) — pure, clock-free, free of SDL
 and UIKit types, truth-tabled in `tests/gesture_bindings_test.cpp` for the usual
 reason: every way it can be wrong is silent on a device and none of it can be
@@ -252,16 +252,32 @@ script and no `simctl` can synthesize a touch.
 | **Gestures — One Finger** | base | Tap · Swipe Left / Right / Up / Down · Hold | the mapping above |
 | **Gestures — Two Fingers** | base | Tap · Swipe Left / Right / Up / Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise | ditto |
 | **Gestures — The Device** | base | Shake | font family step |
-| **Above the Paper** | override | Tap · Swipe Left / Right / Up / Down · Hold | blank, except Hold |
-| **Below the Paper** | override | the same six | blank |
+| **Above the Paper** | override | Tap · Swipe Left / Right / Up · Hold | blank, except Hold |
+| **Below the Paper** | override | Tap · Swipe Left / Right / Up / Down · Hold | blank |
 
-29 rows in one flat list is a scroll with no landmarks, so the global layer is
+**One zone row is missing on purpose — 28 rows, not 29 (ruling 2026-09-02).**
+There is no *Above the Paper → Swipe Down*. A swipe is zoned where UIKit
+RECOGNIZES it (`zoneOf()` in `CrossPointZenRecognizers.mm`, deliberately — a
+vertical swipe crosses zones by definition), which is ~50 pt of travel past the
+landing point, and the band above the paper is 68 pt tall on a phone with iOS
+owning its top edge. A downward swipe started in it has crossed into the paper
+before it is a swipe at all, so the row offered a binding that could not be
+performed (`docs/ux-navigation-audit-2026-09-02.md`, finding 4). Owner: *"drop
+the Above/Below swipe rows that cannot fire."* Its mirror, *Below the Paper →
+Swipe Up*, was NOT dropped: the band below the paper is at least twice the top
+band (136 pt on the phone, more when the pad is up), so an upward swipe started
+in its lower half recognizes inside it. One row went on measurement, not two on
+symmetry, and `gestureSwipeDownAbove` is asserted absent from `Root.plist` so a
+re-add is a conscious act. A swipe down that lands in the top band simply takes
+the global binding, exactly as a swipe on the paper does.
+
+28 rows in one flat list is a scroll with no landmarks, so the global layer is
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
 short verb. Pinch and rotation sit in Two Fingers because that is what they are.
 
 **The gesture half of `Root.plist` is GENERATED** from the header's table by
-[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py) — 29 rows of
+[tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py) — 28 rows of
 `PSMultiValueSpecifier`, each carrying the same ten or eleven annotated action
 labels, is not a table to hand-maintain beside one that already states every
 value. Only the span between the Zen Mode switch and the Screen group is
