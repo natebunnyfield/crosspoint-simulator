@@ -10,8 +10,9 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The four shell tests (test_sleep_wake.sh, test_text_entry.sh,
-# test_read_aloud_capture.sh, test_note_editor_repaint.sh) run at the end via
+# The five shell tests (test_sleep_wake.sh, test_text_entry.sh,
+# test_read_aloud_capture.sh, test_note_editor_repaint.sh,
+# test_manage_files_and_wifi_nav.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
 # needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
@@ -757,9 +758,9 @@ else
   skipped=$((skipped + 3))
 fi
 
-# The four end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# The five end-to-end shell tests. Each needs a firmware CHECKOUT (not just
 # the include set the block above wants) with a desktop binary already built
-# and, for two of them, a card that has been run once so
+# and, for three of them, a card that has been run once so
 # fs_/.crosspoint/settings.json exists -- see each script's own header for
 # which binary path and which files it looks for. run_shell_skip reports
 # their own SKIP rather than turning a missing precondition into a FAIL.
@@ -769,6 +770,12 @@ run_shell_skip test_sleep_wake tests/test_sleep_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
 run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
 run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_CHECKOUT"
+# Three firmware list-navigation fixes from the 2026-09-02 UX audit (F3 the
+# Wi-Fi side pair, F6 the eaten Confirm after View, F7 the lost row after
+# Edit), each a whole-activity behavior with no pure unit -- pinned by the
+# real firmware's `[ACT]` log under a scripted run on a scratch card. Three
+# launches, ~1 min; the F6 arm was measured to FAIL on the pre-fix tree.
+run_shell_skip test_manage_files_and_wifi_nav tests/test_manage_files_and_wifi_nav.sh "$FW_CHECKOUT"
 
 echo
 if [[ $fail -eq 0 ]]; then

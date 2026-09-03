@@ -332,8 +332,8 @@ as covered. The rest of the table has the same shape.
 `tests/run_all.sh` is the catalog as well as the runner — it builds and runs
 every host test in one command and exits non-zero on the first failure. The
 count moves often enough that a number here would drift (69 entries ran on
-macOS as of 2026-08-29, including the four shell tests below and with a
-firmware checkout present for the three that need one; a plain
+macOS as of 2026-08-29, including the shell tests below — four then, five since
+2026-09-02 — and with a firmware checkout present for those that need one; a plain
 `grep -cE '^\s*(run|run_direct|run_shell_skip) '` over the script overcounts by
 one because `sha256` has a platform-conditional Linux/macOS branch, only one
 side of which ever runs). Read the runner rather than trust a figure in this
@@ -349,7 +349,8 @@ network shims, restart semantics, task lifetime, read-aloud, SHA-256, the
 device-truth flags above, and the build-identity guard. Run them when touching
 any of those.
 
-**All four shell tests are IN the runner** (since 2026-08-29), via a
+**All five shell tests are IN the runner** (four since 2026-08-29, the fifth
+from 2026-09-02), via a
 `run_shell_skip` helper rather than the ordinary pass/fail path, because each
 needs a firmware checkout and uses exit code 2 to mean SKIP, which a plain
 pass/fail runner would misreport as a failure. `CROSSPOINT_FIRMWARE_DIR` picks
@@ -361,6 +362,7 @@ tests/test_sleep_wake.sh <firmware-checkout>           # deep-sleep wake edge la
 tests/test_text_entry.sh <firmware-checkout>           # host keyboard into a firmware field
 tests/test_read_aloud_capture.sh <firmware-checkout>   # page capture + a scripted page turn
 tests/test_note_editor_repaint.sh <firmware-checkout>  # a note repaints while a HOST keyboard types
+tests/test_manage_files_and_wifi_nav.sh <firmware-checkout>  # F3/F6/F7 list-nav fixes, 2026-09-02 audit
 ```
 
 ## The color dials

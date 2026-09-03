@@ -117,7 +117,7 @@ Two tests take the shipped `ios/Settings.bundle/Root.plist` as an argument
 (defaulted to the repo-relative path), so run them from the repo root — which is
 what `run_all.sh` does.
 
-**The four shell tests ARE now in the runner** (since a 2026-08-29 change to
+**The five shell tests ARE now in the runner** (four since a 2026-08-29 change to
 `tests/run_all.sh`; the sentence above stood wrong here for a while — this repo
 had the same "not in the runner" claim duplicated in `README.md` too). They run
 last, via a dedicated `run_shell_skip` helper (not `run`/`run_direct`), because
