@@ -498,7 +498,7 @@ The table below is the **shipped GLOBAL layer**, with every zone row blank.
 | 2-finger hold, 0.75 s | zen only | **Nothing** (new; ships inert) |
 | pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
 | rotate clockwise / counter-clockwise (on the lift) | zen only | **Nothing** (new; ships inert) |
-| shake | zen only | font family step |
+| shake | zen AND not-zen (2026-08-29) | font family step |
 
 Twelve of the seventeen ship bound; the five marked *new* are the additions and
 they do nothing until the owner points them somewhere. **Rotation follows
@@ -528,8 +528,9 @@ rebuild machinery that left with the double-tap.
 
 **ZEN SCOPE IS UNCHANGED, and it is a property of the GESTURE AND ITS ZONE
 rather than of the action bound to it** — you configure WHAT a gesture does,
-never WHEN. **One** row fires outside zen now (it was two until the trim took the
-three-finger tap): the hold above the paper. The subtle half: **the gate travels
+never WHEN. **Two** rows fire outside zen: the hold above the paper, and the
+shake (since 2026-08-29; it was one between the trim taking the three-finger
+tap and that). The subtle half: **the gate travels
 with the landing point, not with the binding** — a hold above the paper left
 blank takes its ACTION from the global row and its GATE from the zone, so it
 still fires while zen is off. Any binding may be cleared, the zen ones included;
@@ -558,8 +559,10 @@ version of this sentence said "landing point" for all six; the audit of
 Swipe Down row above the paper. And
 no new rect was invented: `g_cardTopPx` (where black ends and paper begins) and
 the paper's bottom (`g_zenRowTopPx`, the old top-rocker line, which is the same
-`line` the zen painter cuts the sheet at). Both are published by `layoutPad` on
-every pass in BOTH modes. Before the first pass both read 0, and a bottom edge
+`line` the zen painter cuts the sheet at). Both are published by the PHONE's
+`layoutPad` on every pass in both modes; `layoutPadTablet` publishes neither,
+and the tablet's bottom boundary comes from `zenPaperBottomPx()`'s panel-bottom
+fallback (`docs/zen-mode.md`). Before the first pass both read 0, and a bottom edge
 that is not below the top edge collapses the rule to the two-zone one that
 preceded it -- a geometry that has not been measured cannot invent a third zone
 out of a zero.

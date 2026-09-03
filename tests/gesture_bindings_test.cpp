@@ -176,6 +176,11 @@ static void testDefaultsMatchToday() {
   check(!gesturebind::shipsInert(Gesture::Spread), "nor spread");
   check(!gesturebind::shipsInert(Gesture::TwoFingerSwipeLeft),
         "nor the 2-finger swipes the new 2-finger hold overlaps");
+  // `Count` is the no-row answer for a recognizer the app did not install;
+  // it must not read as inert or the delegate grants a foreign recognizer
+  // simultaneity with everything (audit 2026-09-02, finding 6).
+  check(!gesturebind::shipsInert(Gesture::Count),
+        "a recognizer with no row is not a ships-inert one");
 
   // The guard globalGesture() was missing until the 2026-08-28 adversarial
   // pass: without it the scan matched the first row whose kind is Count — the
