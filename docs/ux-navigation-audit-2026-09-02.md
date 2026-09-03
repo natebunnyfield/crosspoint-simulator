@@ -6,7 +6,11 @@ around navigation"), then ruled the same day on which get fixed: **"Chord timer
 firmware half of the same pass is
 `crosspoint-reader/docs/ux-navigation-audit-2026-09-02.md` (16 findings, six of
 them one root cause: the SDK's `getHeldTime()` is one global chord timer, not a
-per-button hold).
+per-button hold). Its F3/F6/F7 (Wi-Fi side pair, the eaten Confirm after
+View, the lost row after Edit) were fixed 2026-09-02 at the owner's "All
+three" ruling and are pinned from THIS repo, by
+`tests/test_manage_files_and_wifi_nav.sh` in `run_all.sh` — the real firmware
+under a script on a scratch card, since none of the three has a pure unit.
 
 **Status, 2026-09-02** — both fixes are host-tested and build; neither has been
 run on a phone, so each is SHIPPED — UNCONFIRMED on device:
