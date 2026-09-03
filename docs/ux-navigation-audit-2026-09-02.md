@@ -15,7 +15,7 @@ run on a phone, so each is SHIPPED — UNCONFIRMED on device:
 |---|---|---|
 | 1 | **FIXED** | the SDL tap branch (`ios/CrossPointIOSShim.cpp`) now hands the action to `CrossPointZenRecognizers_performAction`, a C entry that forwards to `performGestureAction` — one dispatcher, no second switch to teach. Pinned by `tests/tap_dispatch_source_test.py` (fails seven ways against the pre-fix tree). |
 | 2 | **FIXED** | `ios/ShakeFirstResponder.h` — `shakeresp::shouldClaim(textEntryActive, hostKeyboardVisible)` gates the claim; `claimShakeFirstResponder()` in `CrossPointZenRecognizers.mm` reads the two HAL flags and logs which way it went; `CrossPointZenRecognizers_reassertShake()` runs on `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN` (the chip, iPad's dismiss key, and the field closing all arrive there), so the shake takes the responder back the moment the keyboard is gone. Pinned by `tests/shake_first_responder_test.cpp` (four-state truth table). What to observe on device: open the Wi-Fi password field, toggle zen with a hold above the paper — the keyboard must stay up; dismiss it — a shake must then step the font. |
-| 3 | open — owner call | unchanged |
+| 3 | **CLOSED BY RULING** 2026-09-02 — owner: leave as ruled. "Above the paper" is the whole band on every device; the tablet's ~194 pt hold zone is intended. Not a defect, do not re-propose the cap. |
 | 4 | open — deliberate in code | unchanged |
 | 5 | open | unchanged |
 | 6 | open | unchanged |
@@ -93,7 +93,7 @@ is a second blind hold to leave zen. Fix: skip the re-assert while
 `gpio.isTextEntryActive() && gpio.isHostKeyboardVisible()`, re-assert on
 `SDL_EVENT_SCREEN_KEYBOARD_HIDDEN`.
 
-### 3 — P2 — iPad portrait: the always-on zen-toggle band is the top ~194 pt. VERIFIED — an owner call, not a defect
+### 3 — P2 — iPad portrait: the always-on zen-toggle band is the top ~194 pt. VERIFIED — an owner call, not a defect — RULED 2026-09-02: leave as is
 
 `PadTopBand.h:60-68`: `unit = (outHpx - panelHpx)/3`, `cardTopPx = max(unit,
 max(safeTop, 16pt)*scale)`; `CrossPointIOSShim.cpp:563` publishes it as
