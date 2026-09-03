@@ -58,6 +58,12 @@ Everything else is enabled only while zen is on
 gesture has no recognizer of its own (the SDL tap, and every hold that did not
 land above the paper).
 
+**"Above the paper" is the whole band above the card top, on every device
+(ruling 2026-09-02).** On an iPad in portrait that band is ~194 pt, a fifth of
+the glass, and the hold toggles zen anywhere in it; the 2026-09-02 audit
+(finding 3) offered to cap the tablet's hold zone at the phone's ~68 pt strip
+and the owner ruled to leave it. Not a defect; do not re-propose the cap.
+
 **Rotation fires ONCE, on the lift**, exactly as pinch does and for the same
 reason: both are continuous recognizers, and a slow rotate reported continuously
 would queue a storm of font steps.
