@@ -642,6 +642,13 @@ constexpr Action defaultAction(Gesture g) { return row(g).def; }
 // whole apparatus was removed on 2026-08-28 once the double-tap it existed for
 // left the set. This is the version that needs no rebuild.
 constexpr bool shipsInert(Gesture g) {
+  // `Count` is what rowOf() answers for a recognizer this file did not
+  // install, and kNoRow's default is Nothing -- so without this guard the
+  // delegate would say YES to any foreign recognizer, granting it
+  // simultaneity with every shipped gesture. None exists today (SDL installs
+  // none on its view); the guard is so that stays a fact about SDL rather
+  // than about this function (docs/ux-navigation-audit-2026-09-02.md, 6).
+  if (g == Gesture::Count) return false;
   return !isZoneRow(g) && defaultAction(g) == Action::Nothing;
 }
 
