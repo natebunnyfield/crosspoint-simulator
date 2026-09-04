@@ -10,7 +10,7 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The five shell tests (test_sleep_wake.sh, test_text_entry.sh,
+# The six shell tests (test_sleep_wake.sh, test_text_entry.sh,
 # test_read_aloud_capture.sh, test_note_editor_repaint.sh,
 # test_manage_files_and_wifi_nav.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
@@ -776,6 +776,7 @@ run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_C
 # real firmware's `[ACT]` log under a scripted run on a scratch card. Three
 # launches, ~1 min; the F6 arm was measured to FAIL on the pre-fix tree.
 run_shell_skip test_manage_files_and_wifi_nav tests/test_manage_files_and_wifi_nav.sh "$FW_CHECKOUT"
+run_shell_skip test_web_server_hardening tests/test_web_server_hardening.sh "$FW_CHECKOUT"
 
 echo
 if [[ $fail -eq 0 ]]; then
