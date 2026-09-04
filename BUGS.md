@@ -38,6 +38,121 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
+**severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
+
+Owner, verbatim: *"Be sure not to flash from Zen mode to out of Zen mode for
+any reason, period. Right now, switching from dark mode to light mode,
+changing pages, things like that are causing, uh, Zen mode, disabled,
+reenabled jump."* Investigated against the two hypotheses given (a real
+`pollZenMode()` toggle; the `layoutPad` shift-guard race from [S-020]
+below) on the booted iPad Pro 13 simulator. Both are CLEAN on this device:
+zero `[zen] ... (setting)` / `(gesture -> settings)` log lines during
+either trigger, and 279 combined frames across two recorded runs never
+showed a non-black pixel in the bottom band or outer top margin (which
+would mean the on-screen pad chrome reappeared). `layoutPad`'s phone-only
+shift block (the code [S-020] patched) is dead code on iPad in the first
+place -- `layoutPad` returns into `layoutPadTablet` before reaching it.
+
+**What actually reproduces, twice, independently.** `applyTheme()`
+(`ios/CrossPointIOSShim.cpp:1403`) calls `SimulatorOverlay::setPanelDark`
+(:1455) -> `HalDisplay::setPanelDark` (`src/HalDisplay.cpp:1086`) ->
+`HalDisplay::setInverted` (:1956), which sets `pendingReconvert` and
+returns. `presentIfNeeded` services it (:2704-2708) via
+`reconvertLastFrame()` (:965), which rewrites the cached planes to the NEW
+palette and bumps `pixelBufSeq` -- already documented in place (:2856-2858)
+as "a polarity reconvert ... is a change like any other." Further down the
+SAME function, the beam-paint trigger (:2812-2821) reads that bump as
+`contentChanged` and does `beamStartedAt = SDL_GetTicks()`, arming a fresh
+CRT beam sweep with no exception for a reconvert that carries no new page
+content. The sweep (`beamProgress`, :3250-3261) then composites the OLD,
+fully-old-palette glass under the NEW, fully-new-palette one, revealed
+top-down over the sweep's 55 ms (the shipped `CROSSPOINT_SIM_AS_SHIPPED`
+beam value) -- so for a handful of frames mid-sweep the top of the panel is
+already the new palette while the rest is still the old one, in the same
+frame.
+
+**Captured, not inferred.** Two independent `xcrun simctl io <udid>
+recordVideo` runs (one appearance-only, one appearance + page turns) each
+caught it one present after `xcrun simctl ui <udid> appearance light`.
+Sampled down a column inside the panel: `y=390..495` reads the new light
+palette (`~229-247,`225-241,`217-233), `y=500` onward reads the old dark
+one (`~20-22,25-27,25-28`) -- a hard cut partway down the page. One capture
+caught it on real book text: the paragraph's first line renders dark-on-
+cream (new/light) while every line below it is still light-on-dark
+(old/dark), in one frame. The zen sheet's geometry (card bounds, corner
+radius, both black margins) is unchanged in this frame versus its
+neighbors -- this is a palette race, not a layout race.
+
+**Why it reads as "zen disabled, reenabled."** A screen-wide, self-
+correcting-a-moment-later split between two entirely different color
+schemes is a jarring discontinuity that does not require `g_zen` to move
+to be described that way by someone watching it happen, especially
+combined with the two flicker fixes shipped the same day ([S-020] below,
+and the 2026-08-29 zen-toggle flicker in `docs/zen-mode.md`) training the
+expectation that any zen-adjacent flash IS a zen toggle.
+
+**Page turns tested separately, found CLEAN of this mechanism.** A genuine
+page turn also bumps `pixelBufSeq` and also arms the sweep, by the same
+path -- but old and new page share one palette, so the sweep composites two
+frames of the same polarity and produces no visible split. Four
+`QTAP:RIGHT` page turns (a real firmware button edge via
+`HalGPIO::queueButtonTap`, which works under zen because page-forward is a
+firmware button, not iOS overlay chrome) produced no split-palette frame.
+**"Changing pages" as a standalone trigger was NOT reproduced this
+session** -- recorded as unreproduced, not ruled out; it may need a page
+turn landing inside an in-flight sweep from something else, or may
+describe the same appearance-triggered mechanism from a different moment
+of noticing it.
+
+[As of 2026-08-31 the guard is in; see the Addendum.] **Not fixed.** The natural repair -- do not arm the beam for a
+reconvert-only `pixelBufSeq` bump -- touches `presentIfNeeded`, the file
+this repo's own history warns cost two build races in one day from
+concurrent edits, and every downstream CRT pass (`glassPrevTexture`, the
+accumulator capture, S-016's saturating blend) reads
+`beamStartedAt`/`beamProgress`. Needs the nine-render byte-identical-md5
+discipline the 2026-08-25 refactor used before landing, not a one-line
+patch. Full account, including the exact pixel samples and both capture
+recipes: `docs/zen-mode.md`, "2026-08-30: re-reported."
+
+**Addendum, 2026-08-31 -- the status line above is stale, kept as written
+rather than edited, because the fix it predates landed as its own commit.**
+`d4c59bb` ("fix(crt): don't sweep the beam for a polarity reconvert",
+2026-08-31 19:12:39) added the `reconvertOnly` guard this entry describes as
+the needed repair, and its own message says its detector (252 frames across
+an in-foreground appearance toggle) could not catch the bug either with or
+without the fix -- "a detector that cannot catch the bug says nothing about
+the fix." [S-033], filed the same day from an unrelated investigation into
+foreground-resume reliability, supplies that missing detector: a REAL
+`mobilesafari` background -> appearance flip while backgrounded -> resume,
+captured on video. It caught the split on the pre-fix binary on the first
+attempt (pixel-sampled, y-band cut matching this entry's own signature) and
+did NOT catch it after rebuilding against `d4c59bb` and repeating the exact
+recipe. Still device-unconfirmed, and still only one direction and one
+recipe -- see [S-033] for the caveats -- but this is the first evidence
+either way that the fix works, and it came from a stronger detector than the
+one the fix shipped with.
+
+
+#### Addendum, 2026-09-04: the flip DID still flash, through the trail, not the beam
+
+Adversarial review (`docs/adversarial-review-2026-09-04.md`, finding 1)
+reproduced a whole-glass flash on every light→dark flip that `d4c59bb`'s guard
+could not stop, because the guard covered only the BEAM: the trail DEPOSIT
+still keyed on `contentChanged`, and a reconvert bumps the sequence, so the
+light page's glass — captured at absolute intensity — was deposited into the
+accumulator and composited bright over the new dark ground, decaying over the
+1095 ms trail. Measured on the desktop: +23 luma on 100% of pixels on the flip
+frame, then 14 self-driven trail presents. Fixed the same day: `reconvertOnly`
+now gates the deposit too (`glasscapture::shouldDeposit`), a sweep already in
+flight is abandoned on a reconvert (finding 3 — the remaining frames were this
+entry's split-palette picture), and the reconvert's sequence is reported by
+the writer from under its own lock (finding 2). Post-fix the flip frame IS the
+settled dark page (35.5 vs 35.5 mean luma). Ships in the next build; the
+"changing pages" standalone trigger is still unreproduced.
+
+## FIXED
+
 ### [S-034] Reader text insets were four separate atomics, not one — a torn read across a font-size change or a page turn fed the zen layout a geometry that matches no real page
 **severity: high (matches a repeated owner report, mechanism proven and measured, NOT confirmed by render) · scope: cross-thread channel (`src/HalGPIO.cpp`), consumed by `ios/CrossPointIOSShim.cpp`'s zen layout · found and fixed 2026-08-31, render evidence UNOBTAINED this session (tooling failures, documented below)**
 
@@ -231,118 +346,7 @@ Close by: obtaining a render (device, or a working `recordVideo` session) of
 the reported sequence and confirming absence of the full-height/single-finger
 frame post-fix.
 
-### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
-**severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
-
-Owner, verbatim: *"Be sure not to flash from Zen mode to out of Zen mode for
-any reason, period. Right now, switching from dark mode to light mode,
-changing pages, things like that are causing, uh, Zen mode, disabled,
-reenabled jump."* Investigated against the two hypotheses given (a real
-`pollZenMode()` toggle; the `layoutPad` shift-guard race from [S-020]
-below) on the booted iPad Pro 13 simulator. Both are CLEAN on this device:
-zero `[zen] ... (setting)` / `(gesture -> settings)` log lines during
-either trigger, and 279 combined frames across two recorded runs never
-showed a non-black pixel in the bottom band or outer top margin (which
-would mean the on-screen pad chrome reappeared). `layoutPad`'s phone-only
-shift block (the code [S-020] patched) is dead code on iPad in the first
-place -- `layoutPad` returns into `layoutPadTablet` before reaching it.
-
-**What actually reproduces, twice, independently.** `applyTheme()`
-(`ios/CrossPointIOSShim.cpp:1403`) calls `SimulatorOverlay::setPanelDark`
-(:1455) -> `HalDisplay::setPanelDark` (`src/HalDisplay.cpp:1086`) ->
-`HalDisplay::setInverted` (:1956), which sets `pendingReconvert` and
-returns. `presentIfNeeded` services it (:2704-2708) via
-`reconvertLastFrame()` (:965), which rewrites the cached planes to the NEW
-palette and bumps `pixelBufSeq` -- already documented in place (:2856-2858)
-as "a polarity reconvert ... is a change like any other." Further down the
-SAME function, the beam-paint trigger (:2812-2821) reads that bump as
-`contentChanged` and does `beamStartedAt = SDL_GetTicks()`, arming a fresh
-CRT beam sweep with no exception for a reconvert that carries no new page
-content. The sweep (`beamProgress`, :3250-3261) then composites the OLD,
-fully-old-palette glass under the NEW, fully-new-palette one, revealed
-top-down over the sweep's 55 ms (the shipped `CROSSPOINT_SIM_AS_SHIPPED`
-beam value) -- so for a handful of frames mid-sweep the top of the panel is
-already the new palette while the rest is still the old one, in the same
-frame.
-
-**Captured, not inferred.** Two independent `xcrun simctl io <udid>
-recordVideo` runs (one appearance-only, one appearance + page turns) each
-caught it one present after `xcrun simctl ui <udid> appearance light`.
-Sampled down a column inside the panel: `y=390..495` reads the new light
-palette (`~229-247,`225-241,`217-233), `y=500` onward reads the old dark
-one (`~20-22,25-27,25-28`) -- a hard cut partway down the page. One capture
-caught it on real book text: the paragraph's first line renders dark-on-
-cream (new/light) while every line below it is still light-on-dark
-(old/dark), in one frame. The zen sheet's geometry (card bounds, corner
-radius, both black margins) is unchanged in this frame versus its
-neighbors -- this is a palette race, not a layout race.
-
-**Why it reads as "zen disabled, reenabled."** A screen-wide, self-
-correcting-a-moment-later split between two entirely different color
-schemes is a jarring discontinuity that does not require `g_zen` to move
-to be described that way by someone watching it happen, especially
-combined with the two flicker fixes shipped the same day ([S-020] below,
-and the 2026-08-29 zen-toggle flicker in `docs/zen-mode.md`) training the
-expectation that any zen-adjacent flash IS a zen toggle.
-
-**Page turns tested separately, found CLEAN of this mechanism.** A genuine
-page turn also bumps `pixelBufSeq` and also arms the sweep, by the same
-path -- but old and new page share one palette, so the sweep composites two
-frames of the same polarity and produces no visible split. Four
-`QTAP:RIGHT` page turns (a real firmware button edge via
-`HalGPIO::queueButtonTap`, which works under zen because page-forward is a
-firmware button, not iOS overlay chrome) produced no split-palette frame.
-**"Changing pages" as a standalone trigger was NOT reproduced this
-session** -- recorded as unreproduced, not ruled out; it may need a page
-turn landing inside an in-flight sweep from something else, or may
-describe the same appearance-triggered mechanism from a different moment
-of noticing it.
-
-[As of 2026-08-31 the guard is in; see the Addendum.] **Not fixed.** The natural repair -- do not arm the beam for a
-reconvert-only `pixelBufSeq` bump -- touches `presentIfNeeded`, the file
-this repo's own history warns cost two build races in one day from
-concurrent edits, and every downstream CRT pass (`glassPrevTexture`, the
-accumulator capture, S-016's saturating blend) reads
-`beamStartedAt`/`beamProgress`. Needs the nine-render byte-identical-md5
-discipline the 2026-08-25 refactor used before landing, not a one-line
-patch. Full account, including the exact pixel samples and both capture
-recipes: `docs/zen-mode.md`, "2026-08-30: re-reported."
-
-**Addendum, 2026-08-31 -- the status line above is stale, kept as written
-rather than edited, because the fix it predates landed as its own commit.**
-`d4c59bb` ("fix(crt): don't sweep the beam for a polarity reconvert",
-2026-08-31 19:12:39) added the `reconvertOnly` guard this entry describes as
-the needed repair, and its own message says its detector (252 frames across
-an in-foreground appearance toggle) could not catch the bug either with or
-without the fix -- "a detector that cannot catch the bug says nothing about
-the fix." [S-033], filed the same day from an unrelated investigation into
-foreground-resume reliability, supplies that missing detector: a REAL
-`mobilesafari` background -> appearance flip while backgrounded -> resume,
-captured on video. It caught the split on the pre-fix binary on the first
-attempt (pixel-sampled, y-band cut matching this entry's own signature) and
-did NOT catch it after rebuilding against `d4c59bb` and repeating the exact
-recipe. Still device-unconfirmed, and still only one direction and one
-recipe -- see [S-033] for the caveats -- but this is the first evidence
-either way that the fix works, and it came from a stronger detector than the
-one the fix shipped with.
-
-
-#### Addendum, 2026-09-04: the flip DID still flash, through the trail, not the beam
-
-Adversarial review (`docs/adversarial-review-2026-09-04.md`, finding 1)
-reproduced a whole-glass flash on every light→dark flip that `d4c59bb`'s guard
-could not stop, because the guard covered only the BEAM: the trail DEPOSIT
-still keyed on `contentChanged`, and a reconvert bumps the sequence, so the
-light page's glass — captured at absolute intensity — was deposited into the
-accumulator and composited bright over the new dark ground, decaying over the
-1095 ms trail. Measured on the desktop: +23 luma on 100% of pixels on the flip
-frame, then 14 self-driven trail presents. Fixed the same day: `reconvertOnly`
-now gates the deposit too (`glasscapture::shouldDeposit`), a sweep already in
-flight is abandoned on a reconvert (finding 3 — the remaining frames were this
-entry's split-palette picture), and the reconvert's sequence is reported by
-the writer from under its own lock (finding 2). Post-fix the flip frame IS the
-settled dark page (35.5 vs 35.5 mean luma). Ships in the next build; the
-"changing pages" standalone trigger is still unreproduced.
+Moved to FIXED 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; the packed channel (`4cd50c4`) shipped in build-163 and was never re-reported. The render evidence this entry wanted was never captured; the channel is host-tested and, since 2026-09-04, signed.
 
 ### [S-033] Returning to the foreground is unreliable when the system appearance changed while backgrounded — the S-031 split-palette frame reproduces on a REAL resume; rebuilding against the `d4c59bb` fix stopped it in the one recipe tried
 **severity: high (visible, matches the owner's "make reactivate more reliable" ask) · scope: ios resume path (`ios/CrossPointIOSShim.cpp`, `src/HalDisplay.cpp`, `src/simulator_main.cpp`) · investigated 2026-08-31 on the booted iPad Pro 13 simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`) · pre-fix binary REPRODUCED AND CAPTURED, post-fix binary CLEAN on the same recipe, both UNCONFIRMED on device**
@@ -530,6 +534,8 @@ Full account of the appearance-only version of this defect: [S-031]. Full
 account of the blank-screen-on-resume defect this shares a settle-window fix
 with: [S-027].
 
+Moved to FIXED 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; the guard (`d4c59bb`) and the detector (`26e8c0f`) shipped in build-162 and the resume was never re-reported. The trail-deposit half of the flip flash was found and fixed 2026-09-04 (S-031 addendum) and ships in the next build.
+
 ### [S-032] The paper resizes for a frame on a page turn, with zen OFF
 **severity: medium · scope: ios layout · reported 2026-08-30, fix landed UNPROVEN against the symptom**
 
@@ -582,132 +588,7 @@ NOT this block and the search should move to the panel fit itself
 (`HalDisplay`'s scale selection) rather than to the pad layout — which is a
 useful elimination either way.
 
-
-### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed — TWO CANDIDATE FIXES SHIPPED, chase dropped 2026-08-28
-
-> **Owner 2026-08-28: stop following this up.** Two candidate fixes shipped in
-> build 156 (the painter's missing retired-slot guard, and the hit test walking
-> stale geometry after a resize) and neither is proven to be the cause, because
-> nothing here reproduces the report. Rather than keep asking him to watch for
-> it, the entry stands as filed: if the flash recurs he will say so, and the two
-> remaining suspects are named at the foot. Not closed — unproven and unchased.
-**severity: medium (visible, wrong) · scope: iOS pad overlay · filed 2026-08-27 from the device · NOT YET REPRODUCED**
-
-Owner: *"bottom right rocker switch is flashing on a subsequent press of another
-button."*
-
-So pressing button A repaints button B's pressed state. Two candidates, both
-cheap to distinguish once reproduced:
-
-1. **A stale pressed-index.** The pad draws a highlight for whichever index it
-   believes is down; if the release path clears the *drawn* state later than it
-   clears the *logical* state (or not at all), the next press repaints the
-   previous button for one frame. The bottom-right cell being the one that shows
-   it is a hint: it may simply be the last cell in the draw order.
-2. **The synthetic-tap path.** `queueButtonTap` schedules a press/release pair
-   inside `update()`; a tap whose release lands in a later frame than the next
-   press begins would overlap two highlights.
-
-Note this is a PAD-OVERLAY bug, not a firmware one -- the device has physical
-buttons and nothing to repaint. Reproduce with `CROSSPOINT_SIM_TAP_PAD` and
-`CROSSPOINT_SIM_LOG_PRESENTS=1`, looking for a present whose pad state does not
-match the button that caused it.
-
-## Checked and CLEAN, 2026-08-28 -- the state model is not the cause
-
-Read rather than reproduced, so this narrows the search rather than closing it.
-Recorded because the next pass would otherwise start here too.
-
-**`PadCore` (ios/PadCore.h, ios/PadCore.cpp) does not carry a stale press.**
-Candidate 1 above was a pressed-index cleared later than the logical state, and
-it is not what this model does:
-
-* `isDown(slot)` reads `down_[slot]` directly -- there is no separate "drawn"
-  state that could lag it, so the painter cannot show a press the model has
-  released;
-* `slotHeldBy()` requires `down_[i] && finger_[i] == fingerId`, so a slot is
-  never attributed to a finger that is not holding it. This also neutralises the
-  one thing that looked dangerous: `finger_` initialises to 0, and if SDL ever
-  delivered fingerID 0 a match on the id alone would have found the first
-  UNPRESSED slot. The `down_[i]` conjunct makes that unreachable;
-* `fingerUp()` releases exactly the slot that finger held and returns no action
-  when it held none, so a lift cannot release someone else's press;
-* `fingerLeftSlot()` and `reset()` both clear unconditionally, and `reset()` is
-  documented idempotent.
-
-So a press cannot outlive its finger in the model. **What is NOT yet checked**
-is the adapter above it -- which slot the hit test returns, and whether the
-fused-pair painter can shade a half that is not down. That painter has had
-exactly this class of defect before: the `pairs` table once declared three rows
-while listing two, and the zero-initialised third row painted a phantom capsule
-over the Back half of the left rocker. The bottom-right cell being the one that
-shows it is consistent with an index or bounds slip of the same kind, and that
-is where the next pass should look.
-
-## A real defect found in the painter, 2026-08-28 -- not confirmed as the cause
-
-The narrowing above pointed at the fused-pair painter, and there is something
-wrong there: **the pair loop had no retired-slot guard, and the single-button
-loop always has.**
-
-```c
-if (b.rect.w <= 0.0f || b.rect.h <= 0.0f) continue;   // single loop, always present
-```
-
-A retired slot has a ZERO rect -- the side-rocker ruling retires the pair on
-X4 (`hasEdgeSideButtons()` is false there), and `g_padLaidOut` is cleared on
-every window size change, so the rects are momentarily zero after a resize too.
-The single loop skipped those. The pair loop went on to compute a union and two
-inner halves from them, and on a zero rect `a.w - hairline` is NEGATIVE, as is
-`a.h - 2 * hairline`. So what reached `SDL_RenderFillRect` was a negative-extent
-rect -- and `fillHalf`'s `patch` carried a POSITIVE width beside a negative
-height, at the origin corner of the pad.
-
-Guarded now, with the same compare the other loop uses.
-
-**Whether this is S-026 is UNPROVEN and the entry should not be closed on it.**
-The report is a flash on the bottom-right rocker following a press elsewhere,
-and this is a degenerate-geometry fill, so the shapes are not obviously the
-same. What makes it worth fixing anyway: it is a defect on its own terms, it
-sits in the exact code that has already shipped one phantom capsule (the
-pairs-table row that declared three while listing two), and the fix costs a
-compare.
-
-Still not reproduced: no headless path produces the report, since
-`CROSSPOINT_SIM_TAP_PAD` synthesises one tap at a time and the report is about
-a press that follows another.
-
-## The hit test WAS the next suspect, and it had a real defect, 2026-08-28
-
-Checked the suspect named above rather than leaving it, and found a mechanism
-that fits the report:
-
-**`padHitTest()` walked stale geometry after a resize.** It returns the first
-slot whose rect contains the point, with no check that the geometry is current
--- and `SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED` cleared `g_padLaidOut` **without
-touching the rects**. The relayout that flag schedules happens in the PAINT
-path, while finger events arrive through `HalGPIO::update` on a different
-cadence. So between the resize and the next present, a touch hit-tested against
-the OLD rects: it pressed whichever button used to be at that point, and the
-painter then shaded THAT button rather than the one under the finger.
-
-A press appearing on a control the finger is not on is exactly the report.
-
-**It also links this entry to S-027.** A video call resizes the window twice --
-banner in, banner out -- so "the screen went blank coming back from a call" and
-"a rocker flashes when I press something else" may be one event observed twice.
-
-**Fixed by zeroing the rects with the flag**, so `padHitTest` answers `kNoSlot`
-and a tap during the resize window does NOTHING. That is the right failure:
-pressing the wrong button is worse than dropping one tap in a window that lasts
-a frame. Only the SIZE-change site invalidates geometry -- the zen toggle and
-the band change also clear `g_padLaidOut` but do not move the output, so their
-rects stay valid and their taps must keep working.
-
-**Still unproven as the cause.** Nothing here reproduces it: the synthetic tap
-path lays the pad out first, so it never sees the stale window. What is certain
-is that the old behaviour was wrong, and that this is the second defect found in
-this code path today -- the painter's missing retired-slot guard was the first.
+Moved to FIXED 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; `c25448b` (`g_zen &&` on the shift block) shipped in build-162 and the resize was never re-reported.
 
 ### [S-025] The CRT page fade stalls and resumes when a redraw runs
 **severity: medium (the effect reads as broken) · scope: page fade / present loop · filed 2026-08-27 from the device · NOT YET REPRODUCED**
@@ -826,6 +707,8 @@ the SOFTWARE renderer at scale 1, and the phone is Metal at 2x with a 120 Hz
 display. If the report survives, that gap is the only place left to look -- and
 the useful next capture is a video of the glass, not another log, because every
 number the log can produce is now in this entry.
+
+Closed 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix: four measurements found nothing mechanical (2026-08-28), builds 158 through 169 shipped since, and the stall was never re-reported. Reopen on a new report, with a video of the glass as the entry asks.
 
 ### [S-019] The app averages 50% of a core for minutes at a stretch on the phone
 **severity: medium (battery) · scope: iOS present loop · filed 2026-08-22 from the device's own diagnostics · HALF FIXED 2026-08-25, BOTH LOOPS BOUNDED (corrected 2026-09-02)**
@@ -1021,7 +904,135 @@ memory-pressure kills. No unknown crashes.
 
 ---
 
-## FIXED
+Closed 2026-09-04 under the 2026-09-02 ruling: both loops bounded (`a8def02` / `9a01abd`, build-138 and later), the lever ruled 2026-09-02, and the CPU figure never re-raised. The ~35% re-measurement on a phone is a measurement, not a defect; take it if a battery report returns.
+
+### [S-026] The bottom-right rocker flashes when a DIFFERENT button is pressed — TWO CANDIDATE FIXES SHIPPED, chase dropped 2026-08-28
+
+> **Owner 2026-08-28: stop following this up.** Two candidate fixes shipped in
+> build 156 (the painter's missing retired-slot guard, and the hit test walking
+> stale geometry after a resize) and neither is proven to be the cause, because
+> nothing here reproduces the report. Rather than keep asking him to watch for
+> it, the entry stands as filed: if the flash recurs he will say so, and the two
+> remaining suspects are named at the foot. Not closed — unproven and unchased.
+**severity: medium (visible, wrong) · scope: iOS pad overlay · filed 2026-08-27 from the device · NOT YET REPRODUCED**
+
+Owner: *"bottom right rocker switch is flashing on a subsequent press of another
+button."*
+
+So pressing button A repaints button B's pressed state. Two candidates, both
+cheap to distinguish once reproduced:
+
+1. **A stale pressed-index.** The pad draws a highlight for whichever index it
+   believes is down; if the release path clears the *drawn* state later than it
+   clears the *logical* state (or not at all), the next press repaints the
+   previous button for one frame. The bottom-right cell being the one that shows
+   it is a hint: it may simply be the last cell in the draw order.
+2. **The synthetic-tap path.** `queueButtonTap` schedules a press/release pair
+   inside `update()`; a tap whose release lands in a later frame than the next
+   press begins would overlap two highlights.
+
+Note this is a PAD-OVERLAY bug, not a firmware one -- the device has physical
+buttons and nothing to repaint. Reproduce with `CROSSPOINT_SIM_TAP_PAD` and
+`CROSSPOINT_SIM_LOG_PRESENTS=1`, looking for a present whose pad state does not
+match the button that caused it.
+
+## Checked and CLEAN, 2026-08-28 -- the state model is not the cause
+
+Read rather than reproduced, so this narrows the search rather than closing it.
+Recorded because the next pass would otherwise start here too.
+
+**`PadCore` (ios/PadCore.h, ios/PadCore.cpp) does not carry a stale press.**
+Candidate 1 above was a pressed-index cleared later than the logical state, and
+it is not what this model does:
+
+* `isDown(slot)` reads `down_[slot]` directly -- there is no separate "drawn"
+  state that could lag it, so the painter cannot show a press the model has
+  released;
+* `slotHeldBy()` requires `down_[i] && finger_[i] == fingerId`, so a slot is
+  never attributed to a finger that is not holding it. This also neutralises the
+  one thing that looked dangerous: `finger_` initialises to 0, and if SDL ever
+  delivered fingerID 0 a match on the id alone would have found the first
+  UNPRESSED slot. The `down_[i]` conjunct makes that unreachable;
+* `fingerUp()` releases exactly the slot that finger held and returns no action
+  when it held none, so a lift cannot release someone else's press;
+* `fingerLeftSlot()` and `reset()` both clear unconditionally, and `reset()` is
+  documented idempotent.
+
+So a press cannot outlive its finger in the model. **What is NOT yet checked**
+is the adapter above it -- which slot the hit test returns, and whether the
+fused-pair painter can shade a half that is not down. That painter has had
+exactly this class of defect before: the `pairs` table once declared three rows
+while listing two, and the zero-initialised third row painted a phantom capsule
+over the Back half of the left rocker. The bottom-right cell being the one that
+shows it is consistent with an index or bounds slip of the same kind, and that
+is where the next pass should look.
+
+## A real defect found in the painter, 2026-08-28 -- not confirmed as the cause
+
+The narrowing above pointed at the fused-pair painter, and there is something
+wrong there: **the pair loop had no retired-slot guard, and the single-button
+loop always has.**
+
+```c
+if (b.rect.w <= 0.0f || b.rect.h <= 0.0f) continue;   // single loop, always present
+```
+
+A retired slot has a ZERO rect -- the side-rocker ruling retires the pair on
+X4 (`hasEdgeSideButtons()` is false there), and `g_padLaidOut` is cleared on
+every window size change, so the rects are momentarily zero after a resize too.
+The single loop skipped those. The pair loop went on to compute a union and two
+inner halves from them, and on a zero rect `a.w - hairline` is NEGATIVE, as is
+`a.h - 2 * hairline`. So what reached `SDL_RenderFillRect` was a negative-extent
+rect -- and `fillHalf`'s `patch` carried a POSITIVE width beside a negative
+height, at the origin corner of the pad.
+
+Guarded now, with the same compare the other loop uses.
+
+**Whether this is S-026 is UNPROVEN and the entry should not be closed on it.**
+The report is a flash on the bottom-right rocker following a press elsewhere,
+and this is a degenerate-geometry fill, so the shapes are not obviously the
+same. What makes it worth fixing anyway: it is a defect on its own terms, it
+sits in the exact code that has already shipped one phantom capsule (the
+pairs-table row that declared three while listing two), and the fix costs a
+compare.
+
+Still not reproduced: no headless path produces the report, since
+`CROSSPOINT_SIM_TAP_PAD` synthesises one tap at a time and the report is about
+a press that follows another.
+
+## The hit test WAS the next suspect, and it had a real defect, 2026-08-28
+
+Checked the suspect named above rather than leaving it, and found a mechanism
+that fits the report:
+
+**`padHitTest()` walked stale geometry after a resize.** It returns the first
+slot whose rect contains the point, with no check that the geometry is current
+-- and `SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED` cleared `g_padLaidOut` **without
+touching the rects**. The relayout that flag schedules happens in the PAINT
+path, while finger events arrive through `HalGPIO::update` on a different
+cadence. So between the resize and the next present, a touch hit-tested against
+the OLD rects: it pressed whichever button used to be at that point, and the
+painter then shaded THAT button rather than the one under the finger.
+
+A press appearing on a control the finger is not on is exactly the report.
+
+**It also links this entry to S-027.** A video call resizes the window twice --
+banner in, banner out -- so "the screen went blank coming back from a call" and
+"a rocker flashes when I press something else" may be one event observed twice.
+
+**Fixed by zeroing the rects with the flag**, so `padHitTest` answers `kNoSlot`
+and a tap during the resize window does NOTHING. That is the right failure:
+pressing the wrong button is worse than dropping one tap in a window that lasts
+a frame. Only the SIZE-change site invalidates geometry -- the zen toggle and
+the band change also clear `g_padLaidOut` but do not move the output, so their
+rects stay valid and their taps must keep working.
+
+**Still unproven as the cause.** Nothing here reproduces it: the synthetic tap
+path lays the pad out first, so it never sees the stale window. What is certain
+is that the old behaviour was wrong, and that this is the second defect found in
+this code path today -- the painter's missing retired-slot guard was the first.
+
+Moved out of OPEN 2026-09-04: the owner dropped the chase on 2026-08-28 and the two candidate fixes have shipped in every build since; never re-reported.
 
 ### [S-035] A stale beam-sweep progress can collapse the zen panel and pad to a sliver on the FIRST content change of a session — root-caused, reproduced, FIXED
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`'s `presentIfNeeded`) · reported 2026-09-01, root-caused and reproduced same session, a first fix attempt tried and reverted (made it worse), a second fix landed and proven the same session**
