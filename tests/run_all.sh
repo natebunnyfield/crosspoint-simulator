@@ -12,7 +12,7 @@
 #
 # The six shell tests (test_sleep_wake.sh, test_text_entry.sh,
 # test_read_aloud_capture.sh, test_note_editor_repaint.sh,
-# test_manage_files_and_wifi_nav.sh) run at the end via
+# test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
 # needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
