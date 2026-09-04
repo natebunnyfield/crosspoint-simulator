@@ -53,6 +53,20 @@ int main() {
     CHECK(t == 0 && r == 0 && b == 0 && l == 0);
   }
 
+  // --- a NEGATIVE top inset round-trips (2026-09-04) ----------------------
+  // The firmware publishes margin minus the reading face's cap-ink trim; at
+  // screenMargin 0 with a large face that is a few pixels below zero, and the
+  // four-atomic channel this replaced passed it through. The first packed
+  // version clamped it to 0 and moved the zen shift by the difference.
+  {
+    ReaderInsetsChannel ch;
+    ch.publish(-7, 16, 35, 16);
+    int t = 0, r = 0, b = 0, l = 0;
+    CHECK(ch.read(t, r, b, l));
+    CHECK(t == -7);
+    CHECK(r == 16 && b == 35 && l == 16);
+  }
+
   // --- a later publish replaces the earlier one, in full ------------------
   {
     ReaderInsetsChannel ch;

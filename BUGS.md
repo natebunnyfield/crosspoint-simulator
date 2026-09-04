@@ -231,7 +231,7 @@ Close by: obtaining a render (device, or a working `recordVideo` session) of
 the reported sequence and confirming absence of the full-height/single-finger
 frame post-fix.
 
-### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame
+### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
 
 Owner, verbatim: *"Be sure not to flash from Zen mode to out of Zen mode for
@@ -325,6 +325,24 @@ recipe. Still device-unconfirmed, and still only one direction and one
 recipe -- see [S-033] for the caveats -- but this is the first evidence
 either way that the fix works, and it came from a stronger detector than the
 one the fix shipped with.
+
+
+#### Addendum, 2026-09-04: the flip DID still flash, through the trail, not the beam
+
+Adversarial review (`docs/adversarial-review-2026-09-04.md`, finding 1)
+reproduced a whole-glass flash on every light→dark flip that `d4c59bb`'s guard
+could not stop, because the guard covered only the BEAM: the trail DEPOSIT
+still keyed on `contentChanged`, and a reconvert bumps the sequence, so the
+light page's glass — captured at absolute intensity — was deposited into the
+accumulator and composited bright over the new dark ground, decaying over the
+1095 ms trail. Measured on the desktop: +23 luma on 100% of pixels on the flip
+frame, then 14 self-driven trail presents. Fixed the same day: `reconvertOnly`
+now gates the deposit too (`glasscapture::shouldDeposit`), a sweep already in
+flight is abandoned on a reconvert (finding 3 — the remaining frames were this
+entry's split-palette picture), and the reconvert's sequence is reported by
+the writer from under its own lock (finding 2). Post-fix the flip frame IS the
+settled dark page (35.5 vs 35.5 mean luma). Ships in the next build; the
+"changing pages" standalone trigger is still unreproduced.
 
 ### [S-033] Returning to the foreground is unreliable when the system appearance changed while backgrounded — the S-031 split-palette frame reproduces on a REAL resume; rebuilding against the `d4c59bb` fix stopped it in the one recipe tried
 **severity: high (visible, matches the owner's "make reactivate more reliable" ask) · scope: ios resume path (`ios/CrossPointIOSShim.cpp`, `src/HalDisplay.cpp`, `src/simulator_main.cpp`) · investigated 2026-08-31 on the booted iPad Pro 13 simulator (`0E5288ED-A466-4750-9FDC-BEA83FE9531A`) · pre-fix binary REPRODUCED AND CAPTURED, post-fix binary CLEAN on the same recipe, both UNCONFIRMED on device**
