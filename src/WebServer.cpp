@@ -4,10 +4,10 @@
 #include "SimulatorNetworkPorts.h"
 #include "SimulatorRebootResets.h"
 #include <Logging.h>
-#include <mutex>
-#include <condition_variable>
 #include <arpa/inet.h>
+#include <condition_variable>
 #include <fcntl.h>
+#include <mutex>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -255,7 +255,10 @@ std::vector<MultipartPart> parseMultipart(const std::string &contentType,
     if (next == std::string::npos)
       break;
     size_t dataEnd = next;
-    if (dataEnd >= 2 && body.compare(dataEnd - 2, 2, "\r\n") == 0)
+    // The CRLF before the boundary belongs to the framing, not the data --
+    // but only when there is room for it after the headers, or an empty
+    // part underflowed and swallowed the next part (network hunt 2026-09-04).
+    if (dataEnd >= dataStart + 2 && body.compare(dataEnd - 2, 2, "\r\n") == 0)
       dataEnd -= 2;
 
     MultipartPart part;
@@ -283,6 +286,13 @@ struct WebServer::Impl {
 
   int port;
   int fd = -1;
+  // The client the worker is serving, so stop() can cut a peer that keeps a
+  // request alive: shutting down only the LISTENING fd left join() waiting
+  // for a dripping PUT to finish -- measured 37.7 s of frozen Back on a
+  // 1 byte / 2 s body, bounded only by the 256 MB cap (network hunt
+  // 2026-09-04). Cleared by the worker before it closes the fd, so a reused
+  // descriptor is never shut down by mistake.
+  std::atomic<int> activeClient{-1};
   std::atomic<bool> active{false};
   std::thread worker;
   std::vector<Route> routes;
@@ -298,7 +308,7 @@ struct WebServer::Impl {
   std::condition_variable dispatchCv;
   bool dispatchPending = false;
   bool dispatchDone = false;
-  bool dispatchAbandoned = false;  // server stopping: release the worker
+  bool dispatchAbandoned = false; // server stopping: release the worker
 
   int currentClient = -1;
   // Parked with the request because the dispatch runs on another thread now and
@@ -459,10 +469,11 @@ const simreset::Registrar gServerReboot{[] {
   // stop() is idempotent and joins the worker; the handler that triggered the
   // restart runs on THIS thread (the S-003 dispatch handoff), so the worker is
   // only ever accepting or parked -- both of which stop() releases.
-  for (WebServer *s : snapshot) s->stop();
+  for (WebServer *s : snapshot)
+    s->stop();
 }};
 
-}  // namespace
+} // namespace
 
 WebServer::WebServer(int port) : impl_(std::make_unique<Impl>(port)) {
   std::lock_guard<std::mutex> lock(liveServersLock());
@@ -522,6 +533,7 @@ void WebServer::begin() {
         continue;
       }
       setSocketTimeouts(client);
+      impl_->activeClient = client;
 
       std::string raw;
       char buffer[8192];
@@ -536,6 +548,7 @@ void WebServer::begin() {
 
       const size_t headerEnd = raw.find("\r\n\r\n");
       if (headerEnd == std::string::npos) {
+        impl_->activeClient = -1;
         ::close(client);
         continue;
       }
@@ -562,14 +575,43 @@ void WebServer::begin() {
         headers[lower(line.substr(0, colon))] = trim(line.substr(colon + 1));
       }
 
+      // A body this server cannot frame is refused, not silently emptied: a
+      // chunked PUT or one with a non-numeric Content-Length used to create
+      // a 0-byte file and answer 201 (network hunt 2026-09-04).
+      auto teIt = headers.find("transfer-encoding");
+      if (teIt != headers.end() &&
+          lower(teIt->second).find("chunked") != std::string::npos) {
+        sendSimpleResponse(client, 501,
+                           "Chunked transfer encoding not supported");
+        impl_->activeClient = -1;
+        ::close(client);
+        continue;
+      }
       size_t bodyLength = 0;
       auto lengthIt = headers.find("content-length");
-      if (lengthIt != headers.end())
-        bodyLength = static_cast<size_t>(
-            std::strtoull(lengthIt->second.c_str(), nullptr, 10));
+      if (lengthIt != headers.end()) {
+        const std::string &value = lengthIt->second;
+        if (value.empty() ||
+            value.find_first_not_of("0123456789") != std::string::npos) {
+          sendSimpleResponse(client, 400, "Bad Content-Length");
+          impl_->activeClient = -1;
+          ::close(client);
+          continue;
+        }
+        bodyLength =
+            static_cast<size_t>(std::strtoull(value.c_str(), nullptr, 10));
+      }
 
       const size_t queryStart = target.find('?');
       const std::string path = urlDecodeStd(target.substr(0, queryStart));
+      if (path.find('\0') != std::string::npos) {
+        // Everything downstream is a C string; a %00 silently truncated the
+        // path and the request ran on the shorter one.
+        sendSimpleResponse(client, 400, "NUL in path");
+        impl_->activeClient = -1;
+        ::close(client);
+        continue;
+      }
 
       impl_->resetRequest();
       impl_->currentClient = client;
@@ -592,6 +634,7 @@ void WebServer::begin() {
           impl_->emitRawEvent(*this, rawHandlers, RAW_ABORTED, nullptr, 0);
         }
         sendSimpleResponse(client, 413, "Payload Too Large");
+        impl_->activeClient = -1;
         ::close(client);
         continue;
       }
@@ -638,6 +681,7 @@ void WebServer::begin() {
         if (contentType.find("multipart/form-data") != std::string::npos)
           impl_->emitMultipartAbort();
         sendSimpleResponse(client, 400, "Incomplete request body");
+        impl_->activeClient = -1;
         ::close(client);
         continue;
       }
@@ -674,6 +718,7 @@ void WebServer::begin() {
         });
       }
 
+      impl_->activeClient = -1;
       ::close(client);
       impl_->resetRequest();
     }
@@ -686,74 +731,83 @@ void WebServer::begin() {
 // whatever thread the firmware polls from -- the main thread, where loop()
 // runs and where setjmp() was taken.
 void WebServer::dispatchParkedRequest() {
-      bool handled = false;
-      for (const auto &route : impl_->routes) {
-        const bool headMatchesGet =
-            impl_->currentMethod == HTTP_HEAD && route.method == HTTP_GET;
-        if (route.uri == impl_->currentUri &&
-            (route.method == impl_->currentMethod || route.method == HTTP_ANY ||
-             headMatchesGet)) {
-          if (route.uploadHandler &&
-              impl_->currentContentType.find("multipart/form-data") !=
-                  std::string::npos) {
-            const auto parts =
-                parseMultipart(impl_->currentContentType, impl_->currentBody);
-            for (const auto &part : parts) {
-              if (part.filename.empty()) {
-                impl_->currentArgs.emplace_back(String(part.name),
-                                                String(part.data));
-              }
-            }
-            for (const auto &part : parts) {
-              if (part.filename.empty())
-                continue;
-              impl_->currentUpload.name = part.name.c_str();
-              impl_->currentUpload.filename = part.filename.c_str();
-              impl_->currentUpload.totalSize = part.data.size();
-              impl_->currentUpload.status = UPLOAD_FILE_START;
-              impl_->currentUpload.currentSize = 0;
-              impl_->currentUpload.buf = nullptr;
-              route.uploadHandler();
-              for (size_t offset = 0; offset < part.data.size();
-                   offset += UPLOAD_CHUNK_SIZE) {
-                impl_->currentUpload.status = UPLOAD_FILE_WRITE;
-                impl_->currentUpload.currentSize =
-                    std::min(UPLOAD_CHUNK_SIZE, part.data.size() - offset);
-                impl_->currentUpload.buf = reinterpret_cast<uint8_t *>(
-                    const_cast<char *>(part.data.data() + offset));
-                route.uploadHandler();
-              }
-              impl_->currentUpload.status = UPLOAD_FILE_END;
-              impl_->currentUpload.currentSize = 0;
-              impl_->currentUpload.buf = nullptr;
-              route.uploadHandler();
-            }
-          }
-          route.handler();
+  bool handled = false;
+  for (const auto &route : impl_->routes) {
+    const bool headMatchesGet =
+        impl_->currentMethod == HTTP_HEAD && route.method == HTTP_GET;
+    if (route.uri == impl_->currentUri &&
+        (route.method == impl_->currentMethod || route.method == HTTP_ANY ||
+         headMatchesGet)) {
+      if (route.uploadHandler &&
+          impl_->currentContentType.find("multipart/form-data") !=
+              std::string::npos) {
+        const auto parts =
+            parseMultipart(impl_->currentContentType, impl_->currentBody);
+        if (parts.empty()) {
+          // No boundary, no closing boundary, no name: the upload
+          // callback would never run and the route handler would report
+          // the PREVIOUS upload's state as this one's success (network
+          // hunt 2026-09-04).
+          send(400, "text/plain", "Malformed multipart body");
           handled = true;
           break;
         }
-      }
-
-      if (!handled) {
-        for (auto &requestHandler : impl_->requestHandlers) {
-          if (requestHandler->canHandle(*this, impl_->currentMethod,
-                                        impl_->currentUri) &&
-              requestHandler->handle(*this, impl_->currentMethod,
-                                     impl_->currentUri)) {
-            handled = true;
-            break;
+        for (const auto &part : parts) {
+          if (part.filename.empty()) {
+            impl_->currentArgs.emplace_back(String(part.name),
+                                            String(part.data));
           }
         }
-      }
-
-      if (!handled) {
-        if (impl_->notFoundHandler) {
-          impl_->notFoundHandler();
-        } else {
-          send(404, "text/plain", "Not Found");
+        for (const auto &part : parts) {
+          if (part.filename.empty())
+            continue;
+          impl_->currentUpload.name = part.name.c_str();
+          impl_->currentUpload.filename = part.filename.c_str();
+          impl_->currentUpload.totalSize = part.data.size();
+          impl_->currentUpload.status = UPLOAD_FILE_START;
+          impl_->currentUpload.currentSize = 0;
+          impl_->currentUpload.buf = nullptr;
+          route.uploadHandler();
+          for (size_t offset = 0; offset < part.data.size();
+               offset += UPLOAD_CHUNK_SIZE) {
+            impl_->currentUpload.status = UPLOAD_FILE_WRITE;
+            impl_->currentUpload.currentSize =
+                std::min(UPLOAD_CHUNK_SIZE, part.data.size() - offset);
+            impl_->currentUpload.buf = reinterpret_cast<uint8_t *>(
+                const_cast<char *>(part.data.data() + offset));
+            route.uploadHandler();
+          }
+          impl_->currentUpload.status = UPLOAD_FILE_END;
+          impl_->currentUpload.currentSize = 0;
+          impl_->currentUpload.buf = nullptr;
+          route.uploadHandler();
         }
       }
+      route.handler();
+      handled = true;
+      break;
+    }
+  }
+
+  if (!handled) {
+    for (auto &requestHandler : impl_->requestHandlers) {
+      if (requestHandler->canHandle(*this, impl_->currentMethod,
+                                    impl_->currentUri) &&
+          requestHandler->handle(*this, impl_->currentMethod,
+                                 impl_->currentUri)) {
+        handled = true;
+        break;
+      }
+    }
+  }
+
+  if (!handled) {
+    if (impl_->notFoundHandler) {
+      impl_->notFoundHandler();
+    } else {
+      send(404, "text/plain", "Not Found");
+    }
+  }
 }
 
 // The firmware's poll. It used to be empty, and every route handler ran on the
@@ -767,7 +821,8 @@ void WebServer::dispatchParkedRequest() {
 // caller's thread, which is where the device runs handlers too.
 void WebServer::handleClient() {
   std::unique_lock<std::mutex> lock(impl_->dispatchMutex);
-  if (!impl_->dispatchPending) return;
+  if (!impl_->dispatchPending)
+    return;
   impl_->dispatchPending = false;
   lock.unlock();
 
@@ -837,6 +892,12 @@ void WebServer::stop() {
     ::shutdown(impl_->fd, SHUT_RDWR);
     ::close(impl_->fd);
     impl_->fd = -1;
+  }
+  // And the peer the worker is parked on, or join() below waits for it.
+  {
+    const int client = impl_->activeClient.exchange(-1);
+    if (client >= 0)
+      ::shutdown(client, SHUT_RDWR);
   }
   if (impl_->worker.joinable())
     impl_->worker.join();
