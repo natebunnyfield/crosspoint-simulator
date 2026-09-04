@@ -31,8 +31,23 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-166**, deploy fired 2026-09-01 at `3bda355` — HEAD of `main` at the
-upload. Count the tag before trusting this line. Over build-165 it carries one
+**build-169**, deploy fired at `2726010` — HEAD of `main` at the upload;
+the tag is dated 2026-09-02 23:37 -0500 (2026-09-03 UTC). Count the tag before
+trusting this line. Over build-166 (`3bda355`) the three builds carry, docs
+commits excluded (`git log --oneline 3bda355..2726010`):
+
+- **build-167** (`88b5db6`): `a8dea75` draw no zen band while the pad has no
+  geometry (the S-035 third part) + `f841eaa` one gesture dispatcher for the
+  SDL tap, the shake yields to the keyboard.
+- **build-168** (`ba9de55`): `8423a4f` "Swipe Down above the paper" dropped —
+  the one zone row that could not fire.
+- **build-169** (`2726010`): `de8b2fa` keyboard chip painted in zen, so a text
+  field cannot trap a reader + `2726010` a recognizer with no row never reads
+  as ships-inert (the `shipsInert` guard); `4080da2` is test-only (pins the
+  firmware's F3/F6/F7 list-navigation fixes headlessly).
+
+**Superseded: build-166**, deploy fired 2026-09-01 at `3bda355`. Over build-165
+it carries one
 change: **the S-035 glass re-capture fix** (`src/GlassCapture.h`). The glass
 that the beam's un-swept region shows was captured once per page and the
 session's first capture was a BLACK frame (zen band painted over zero pad
@@ -230,7 +245,7 @@ without him:**
 **The gesture's RULE is now tested; its DELIVERY still is not.** The decision —
 what counts as a three-finger tap — is a pure state machine in
 `ios/ZenGesture.h`, covered by `tests/zen_gesture_test.cpp` (10 checks, in
-`run_all.sh`). The shim calls that same unit, so the tested path and the shipped
+`run_all.sh`) [retired 2026-08-22; the live rule is `ios/ZenHoldRouting.h` / `tests/zen_hold_test.cpp`]. The shim calls that same unit, so the tested path and the shipped
 path are one thing.
 
 **Extracting it immediately found a false positive that a code reading had
@@ -297,232 +312,6 @@ and not a defect to re-file: the ask said "holding down one finger" with no
 location, and it is live with no location. If a pad hold ever needs protecting,
 the fix is one hit-test in `ios/ZenHoldRouting.h` and nothing else moves.
 
-
-### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
-**scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
-
-**Shipped as `Page Fade`**: Off / 15 s / 30 s / 1 min / 2 min / 5 min, stored as
-the duration in seconds. **The default is 5 min as of 2026-08-19** — it shipped
-Off, and the owner's own setting became the shipped default in build 100. The three design questions this entry raised,
-answered:
-
-- **Where does it stop?** At a floor, and any input re-energises it
-  (`notePageInteraction`, hooked to both the SDL event path and the synthetic
-  `injectButtonDown` path so headless runs behave like fingers). *Superseded in
-  part 2026-08-18: the floor is still where it stops, but HOW FAR down that
-  floor sits is now the owner's, down to nothing — see the depth setting below.*
-- **Toward paper or toward grey?** **Paper** — a phosphor dying, which is what
-  was asked. It falls out for free: the field behind the panel is already
-  cleared to the paper tone, so alpha on the panel texture *is* a fade toward
-  paper, correct in both polarities.
-- **How long?** A setting rather than the phosphor's own figure. P7's minute is
-  the only published number in range and hanging the feature off one row would
-  have made it unreachable from every other palette.
-
-**The floor is PER-PALETTE, and that is the part worth keeping.** 0.75 is the
-deepest fade the phosphor rows tolerate (worst case Blue/P11 at 4.49:1, the AA
-body-text bar). Solarized is exempt from this repo's 7:1 rule by design and
-falls to **2.73:1** at that floor — the one page the fade would have made
-unreadable. `pagefade::floorFor()` computes the floor from the pair on screen,
-so a palette with no contrast to spend does not fade at all. Every fading row
-measures ≥ 4.50:1; the non-fading one is left byte-identical.
-
-**Measured** on a real page turn at 3x, dark Green CRT, fade 3 s: fresh ink
-`(40,205,40)`, settled `(38,197,38)` — exactly the predicted 197 — and back to
-`(46,235,46)` a tenth of a second after a button press.
-
-**HOW FAR it fades is a SECOND setting, added 2026-08-18.** Owner: "create
-another setting for Page Fade that includes current value and fully transparent
-and three steps in between." The first setting is how LONG; this one is how
-DEEP.
-
-**Shipped as `Page Fade Depth`**, stored as `pageFadeDepthPercent` — the
-percentage of the palette's legible floor that is KEPT, 100 (default) / 75 / 50
-/ 25 / 0. The stored number is the proportion itself, not a row index, following
-`pageFadeSeconds` and `beamPaintMs`, so the rows can be retuned without a
-migration. Storing a proportion rather than an absolute alpha is what keeps the
-per-palette adaptation alive at every step: `pagefade::floorFor()` is now
-`legibleFloorFor() * depth/100`, so a low-contrast page still fades less far
-than a high-contrast one at the same setting.
-
-**RULING: below 100 the legibility guard is bypassed, by owner election.** The
-whole reason `floorFor()` exists is that a flat 0.75 drops Solarized to 2.73:1;
-the depth setting hands that back deliberately, and it is not a bug to be
-clamped. The cost is measured rather than asserted — worst case across every
-preset in both polarities, printed by `tests/page_fade_test.cpp`:
-
-| Depth | Worst settled contrast | |
-|---|---|---|
-| 100 % | 4.50:1 (Red) | AA body text — **the default, unchanged** |
-| 75 % | 2.73:1 (Solarized) | below AA body text, still readable |
-| 50 % | 1.88:1 (Solarized) | a ghost of the page |
-| 25 % | 1.28:1 (Blue) | barely present |
-| 0 % | 1.00:1 | the page is gone; that is the option |
-
-The override is written out where someone would go to undo it — the comment
-above `pagefade::floorFor()` in [src/PageFade.h](src/PageFade.h), which names
-the ruling and carries that table.
-
-**Measured headlessly**, same rig as above (X3 desktop binary, 3x render, dark
-Green CRT `33FF33` on `001A00`, fade 3 s, settled at 12 s), ink pixel per depth:
-
-| Depth | Predicted ink | Measured | |
-|---|---|---|---|
-| 100 % | 197.8 | `(38,197,38)` | identical to the 2026-08-17 measurement |
-| 75 % | 154.8 | `(28,154,28)` | |
-| 50 % | 111.9 | `(19,112,19)` | |
-| 25 % | 68.9 | `(9,69,9)` | |
-| 0 % | 26 (= paper) | `(0,26,0)` | the ONLY color in the frame — 418 176 of 418 176 px |
-
-With `CROSSPOINT_SIM_PAGE_FADE_DEPTH` unset the capture is **byte-identical** to
-depth 100, which is the proof the default did not move.
-
-**Found while building it:** the panel had been drawn TWICE per present since
-the beam work (build 90). Invisible with opaque blending, which is why nothing
-caught it, but it doubled the panel fill cost and made the fade composite
-twice — 0.75 alpha rendering as 0.94. Removed.
-
-`tests/page_fade_test.cpp` pins the curve, the settle, the loop stopping, and
-the legibility of every palette's floor at the DEFAULT depth — plus, since
-2026-08-18, that depth 100 leaves every palette's floor bit-for-bit where it
-was, that each step down is strictly deeper, that Solarized (which does not fade
-at all at the default) does fade when a deeper step is chosen, and that 0 is
-alpha 0 rather than nearly-0.
-
-Owner: "make an option to fade away text naturally over time after page turn".
-
-DISTINCT FROM ST-009, and worth keeping apart. ST-009 fades the PREVIOUS page
-out as the next one arrives -- a transition, over in a fraction of a second.
-This is the CURRENT page fading while you read it: the text you are looking at
-decays over seconds or minutes after the turn that drew it, the way a real
-phosphor screen goes on dimming after the beam has moved on.
-
-That makes it the first effect here that changes a page nobody is interacting
-with, which is where the design questions are:
-
-- **Where does it stop?** A page that fades to nothing is a page you cannot
-  finish reading. Either it decays to a floor (still legible, just dimmer) or
-  something re-energises it -- a tap, a scroll, the next turn.
-- **Does it fade toward the paper or toward the ink?** Toward paper is a
-  phosphor dying. Toward a mid grey is what tired e-ink actually looks like.
-  They are different effects and only the first is what was asked for.
-- **How long?** ST-009's trails run 40-660 ms from the published persistence.
-  This is a different order of magnitude -- P7's yellow-green layer is over a
-  minute, which is the only published figure in the right range and is a good
-  argument for hanging this off P7 rather than off a global setting.
-
-**Mechanism is already mostly built.** ST-009 put a ghost texture and an alpha
-blend in `presentIfNeeded`; this needs the same blend applied to the LIVE
-texture against the paper tone, on a much longer clock, plus something to keep
-presenting while it decays.
-
-**Do the cost fix first — see ST-009's note below.** A slow fade means a present
-every frame for as long as the fade lasts, which is exactly the case where the
-full-framebuffer memcmp gets expensive.
-
-**Done looks like:** an option, off by default, where the page dims after a turn
-to a legible floor and comes back on interaction; the floor and the clock both
-stated; and a measurement of what it costs per frame on the phone.
-
-### [ST-009] A glow-and-fade option for the CRT palettes — SHIPPED, unverified on the phone
-**scope: ios display · asked 2026-08-17 · closed 2026-08-19**
-
-**Both halves shipped, and the "option" half was ruled away rather than built.**
-The GLOW is `SimulatorOverlay::setPanelGlow`, driven by `pollPanelGlow` straight
-from the palette preset — there is no switch, by owner ruling 2026-08-17
-("remove setting always have it on for crts"): a CRT palette is a claim that the
-page is a tube, and a tube glows, so the two were never separate choices. Every
-non-phosphor palette gets 0. The FADE shipped separately as ST-010's `Page Fade`.
-
-Trail lengths come from `panelpalette::trailMsForPreset`, which is where the
-crds reference below actually landed — one number per phosphor rather than one
-global alpha.
-
-Owner: "make an option for crts to have a pleasant glow and fade. (use crds web
-phase scope for reference)".
-
-**The reference, read rather than remembered.** `~/src/crds` already does this,
-and does it the cheap way: instead of clearing the canvas each frame it fills it
-with the palette background at a low alpha, so what was drawn before decays
-toward the ground rather than vanishing.
-
-| Where | What |
-|---|---|
-| `js/oldtime/crt-viz-helpers.js:221` | "of clearRect to produce phosphor afterglow" |
-| `js/oldtime/viz-worker.js:862` | "Per-frame canvas alpha — controls trail length / phosphor afterglow" |
-| `js/oldtime/viz-worker.js:968` | "Fade trail (CRT phosphor afterglow) — fade toward palette bg" |
-| `js/oldtime/i18n.js:1078` | `lissajousPersistence` — the PHASE SCOPE's control. "Lower values keep a longer phosphor trail; higher values clear faster. Applied via `vizCtx.fillRect` with `crtBgFade(alpha)`. Default 0.18. Range 0.05 to 0.60." |
-| `js/oldtime/i18n.js:1066` | `strobeArcsBgFade`, same mechanism, default 0.20 |
-
-So the parameter is ONE number — per-frame alpha toward the paper tone — and
-crds has already found the useful range (0.05–0.60) and the default (0.18) by
-use. Do not re-derive them.
-
-**CORRECTION, owner 2026-08-17: "this panel is eink on the eink device, but
-oled on my phone."** The first version of this entry argued the fade would cost
-continuous presents and therefore battery, treating the panel as e-ink
-everywhere. That is wrong on the device this ships to. The X3 is e-ink; the
-phone is an OLED running the harness's ~1 kHz loop already, and it is the phone
-this feature is for. Presenting per frame while a trail decays is not a new cost
-there -- it is what the harness does anyway.
-
-Where it lives is still `presentIfNeeded` (`src/HalDisplay.cpp`) rather than the
-framebuffer: the firmware renders a page and may not render again for minutes,
-so the decay has to be a presentation-layer blend from the cached frame, the
-same place the inversion re-convert already works from. That part of the first
-version stands; the battery argument does not.
-
-**SCOPE, owner: "glow is for entire ui/ux including page turns."** Not just a
-palette change. Every transition the panel makes -- page turn, menu move,
-selection, entering an activity -- decays into the next. On a phosphor screen
-that is simply what happens when the beam repaints, so applying it to page turns
-is the authentic case rather than the expensive edge case the first version
-treated it as.
-
-**THE SPEED IS PER PHOSPHOR, not one global number.** This is the part that
-makes it more than a fade effect: each CRT row now carries its own published
-persistence, so Green decays like P1 and Blue like P11, and two rows of the same
-hue become genuinely different experiences.
-
-Source, already encoded in `panelpalette::PresetInfo`: Patrick Jankowiak
-(KD5OEI), *Cathode Ray Tube Phosphors Of Interest To The Experimenter*, rev.
-20100226.1844, `labguysworld.com/crt_phosphor_research.pdf` — persistence there
-is defined as **time to decay to 10% of peak**.
-
-| Row | Phosphor | Published persistence | `decayMs` |
-|---|---|---|---|
-| CRT · Green | P1 | 20 ms | 20 |
-| CRT · Amber | P3 | 13 ms | 13 |
-| CRT · Gray | P4 | not over 7% of peak after 33 ms | 33 |
-| CRT · Blue | P11 | 2 ms | 2 |
-| CRT · Red | P22R | "Medium" (class only, no figure) | 0 |
-
-`decayMs` is 0 where the table gives only a CLASS rather than a number, so the
-glow has to fall back rather than have a figure invented for it. Do not fill
-that in from memory.
-
-**A real decay is 2–33 ms, which is one to two frames.** Taken literally the
-effect would be invisible: at 60 Hz a 2 ms P11 trail is gone before the next
-frame. So the honest design is a SCALED persistence -- the published figures set
-the RATIO between rows (P4 is 16x P11), and one global multiplier makes the
-family visible. crds's `lissajousPersistence` (default 0.18, range 0.05–0.60)
-is the shape of that multiplier, not the value to copy.
-
-**COST, found while building it and not yet fixed.** The "did the content
-change?" test is a `memcmp` over the whole active framebuffer on every present.
-At 3x that is 1584x2376x4 = ~15 MB compared per frame, plus a 15 MB copy on each
-change -- and while a trail is alive it asks for a present every frame, so the
-comparison runs at the loop rate. It is guarded behind the glow being ON, so it
-costs nothing today, but it is the most likely reason the effect would feel bad
-on a phone rather than not appear at all. The fix is to stop asking the pixels:
-`refreshDisplay` already knows a new frame arrived, so a counter bumped there is
-one integer compare instead of 15 MB. Do this before ST-010, which fades for far
-longer and would pay it for the whole fade.
-
-**Done looks like:** a setting, off by default, that on a CRT palette decays
-every panel transition including page turns; the decay speed derived from the
-row's own published persistence rather than one global constant; and the
-scaling multiplier stated, since the real figures are one to two frames long.
 
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
 **scope: iOS layout · asked 2026-08-08 · WAITING ON AN iPAD SCREENSHOT**
@@ -753,6 +542,266 @@ ends with "say seen", and the decision questions come in a LATER turn.
 **Close by:** approved mockups, then the portrait keyboard-clearance change;
 landscape only if the mockups earn it.
 
+---
+
+## Carried over from the firmware's tracker
+
+`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
+simulator stop lying about the device" — is simulator work tracked there because
+that is where it was raised. Its substance is `S-001` in this repo's
+[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
+hardware, of which the 1 MB free-heap constant is the one that matters, because
+every graceful-degradation path on a 380 KB device is unreachable in the only
+pre-device gate the project has.
+
+`T-025` there — "configurable gestures in the iOS app" — was raised on the
+firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
+closed in that file's Finished section, with what shipped and what was
+deliberately left out. The model is LAYERED — a global
+`Gestures` group that every gesture falls back to, and two zone groups (above the
+paper, below it) that override it for the four single-finger gestures and ship
+blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
+`ios/Settings.bundle/Root.plist` and the three call sites
+(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
+`ios/CrossPointIOSShim.cpp`, and the shake catcher);
+`tests/gesture_bindings_test.cpp` is the truth table and
+[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
+UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
+
+---
+
+## DONE
+
+### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
+**scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
+
+**Shipped as `Page Fade`**: Off / 15 s / 30 s / 1 min / 2 min / 5 min, stored as
+the duration in seconds. **The default is 5 min as of 2026-08-19** — it shipped
+Off, and the owner's own setting became the shipped default in build 100. The three design questions this entry raised,
+answered:
+
+- **Where does it stop?** At a floor, and any input re-energises it
+  (`notePageInteraction`, hooked to both the SDL event path and the synthetic
+  `injectButtonDown` path so headless runs behave like fingers). *Superseded in
+  part 2026-08-18: the floor is still where it stops, but HOW FAR down that
+  floor sits is now the owner's, down to nothing — see the depth setting below.*
+- **Toward paper or toward grey?** **Paper** — a phosphor dying, which is what
+  was asked. It falls out for free: the field behind the panel is already
+  cleared to the paper tone, so alpha on the panel texture *is* a fade toward
+  paper, correct in both polarities.
+- **How long?** A setting rather than the phosphor's own figure. P7's minute is
+  the only published number in range and hanging the feature off one row would
+  have made it unreachable from every other palette.
+
+**The floor is PER-PALETTE, and that is the part worth keeping.** 0.75 is the
+deepest fade the phosphor rows tolerate (worst case Blue/P11 at 4.49:1, the AA
+body-text bar). Solarized is exempt from this repo's 7:1 rule by design and
+falls to **2.73:1** at that floor — the one page the fade would have made
+unreadable. `pagefade::floorFor()` computes the floor from the pair on screen,
+so a palette with no contrast to spend does not fade at all. Every fading row
+measures ≥ 4.50:1; the non-fading one is left byte-identical.
+
+**Measured** on a real page turn at 3x, dark Green CRT, fade 3 s: fresh ink
+`(40,205,40)`, settled `(38,197,38)` — exactly the predicted 197 — and back to
+`(46,235,46)` a tenth of a second after a button press.
+
+**HOW FAR it fades is a SECOND setting, added 2026-08-18.** Owner: "create
+another setting for Page Fade that includes current value and fully transparent
+and three steps in between." The first setting is how LONG; this one is how
+DEEP.
+
+**Shipped as `Page Fade Depth`**, stored as `pageFadeDepthPercent` — the
+percentage of the palette's legible floor that is KEPT, 100 (default) / 75 / 50
+/ 25 / 0. The stored number is the proportion itself, not a row index, following
+`pageFadeSeconds` and `beamPaintMs`, so the rows can be retuned without a
+migration. Storing a proportion rather than an absolute alpha is what keeps the
+per-palette adaptation alive at every step: `pagefade::floorFor()` is now
+`legibleFloorFor() * depth/100`, so a low-contrast page still fades less far
+than a high-contrast one at the same setting.
+
+**RULING: below 100 the legibility guard is bypassed, by owner election.** The
+whole reason `floorFor()` exists is that a flat 0.75 drops Solarized to 2.73:1;
+the depth setting hands that back deliberately, and it is not a bug to be
+clamped. The cost is measured rather than asserted — worst case across every
+preset in both polarities, printed by `tests/page_fade_test.cpp`:
+
+| Depth | Worst settled contrast | |
+|---|---|---|
+| 100 % | 4.50:1 (Red) | AA body text — **the default, unchanged** |
+| 75 % | 2.73:1 (Solarized) | below AA body text, still readable |
+| 50 % | 1.88:1 (Solarized) | a ghost of the page |
+| 25 % | 1.28:1 (Blue) | barely present |
+| 0 % | 1.00:1 | the page is gone; that is the option |
+
+The override is written out where someone would go to undo it — the comment
+above `pagefade::floorFor()` in [src/PageFade.h](src/PageFade.h), which names
+the ruling and carries that table.
+
+**Measured headlessly**, same rig as above (X3 desktop binary, 3x render, dark
+Green CRT `33FF33` on `001A00`, fade 3 s, settled at 12 s), ink pixel per depth:
+
+| Depth | Predicted ink | Measured | |
+|---|---|---|---|
+| 100 % | 197.8 | `(38,197,38)` | identical to the 2026-08-17 measurement |
+| 75 % | 154.8 | `(28,154,28)` | |
+| 50 % | 111.9 | `(19,112,19)` | |
+| 25 % | 68.9 | `(9,69,9)` | |
+| 0 % | 26 (= paper) | `(0,26,0)` | the ONLY color in the frame — 418 176 of 418 176 px |
+
+With `CROSSPOINT_SIM_PAGE_FADE_DEPTH` unset the capture is **byte-identical** to
+depth 100, which is the proof the default did not move.
+
+**Found while building it:** the panel had been drawn TWICE per present since
+the beam work (build 90). Invisible with opaque blending, which is why nothing
+caught it, but it doubled the panel fill cost and made the fade composite
+twice — 0.75 alpha rendering as 0.94. Removed.
+
+`tests/page_fade_test.cpp` pins the curve, the settle, the loop stopping, and
+the legibility of every palette's floor at the DEFAULT depth — plus, since
+2026-08-18, that depth 100 leaves every palette's floor bit-for-bit where it
+was, that each step down is strictly deeper, that Solarized (which does not fade
+at all at the default) does fade when a deeper step is chosen, and that 0 is
+alpha 0 rather than nearly-0.
+
+Owner: "make an option to fade away text naturally over time after page turn".
+
+DISTINCT FROM ST-009, and worth keeping apart. ST-009 fades the PREVIOUS page
+out as the next one arrives -- a transition, over in a fraction of a second.
+This is the CURRENT page fading while you read it: the text you are looking at
+decays over seconds or minutes after the turn that drew it, the way a real
+phosphor screen goes on dimming after the beam has moved on.
+
+That makes it the first effect here that changes a page nobody is interacting
+with, which is where the design questions are:
+
+- **Where does it stop?** A page that fades to nothing is a page you cannot
+  finish reading. Either it decays to a floor (still legible, just dimmer) or
+  something re-energises it -- a tap, a scroll, the next turn.
+- **Does it fade toward the paper or toward the ink?** Toward paper is a
+  phosphor dying. Toward a mid grey is what tired e-ink actually looks like.
+  They are different effects and only the first is what was asked for.
+- **How long?** ST-009's trails run 40-660 ms from the published persistence.
+  This is a different order of magnitude -- P7's yellow-green layer is over a
+  minute, which is the only published figure in the right range and is a good
+  argument for hanging this off P7 rather than off a global setting.
+
+**Mechanism is already mostly built.** ST-009 put a ghost texture and an alpha
+blend in `presentIfNeeded`; this needs the same blend applied to the LIVE
+texture against the paper tone, on a much longer clock, plus something to keep
+presenting while it decays.
+
+**Do the cost fix first — see ST-009's note below.** [that cost is gone: pixelBufSeq] A slow fade means a present
+every frame for as long as the fade lasts, which is exactly the case where the
+full-framebuffer memcmp gets expensive.
+
+**Done looks like:** an option, off by default, where the page dims after a turn
+to a legible floor and comes back on interaction; the floor and the clock both
+stated; and a measurement of what it costs per frame on the phone.
+
+Moved to DONE 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; shipped in builds 90 and 100 (per the entry: the beam in build 90, the owner's setting as shipped default in build 100).
+
+### [ST-009] A glow-and-fade option for the CRT palettes — SHIPPED, unverified on the phone
+**scope: ios display · asked 2026-08-17 · closed 2026-08-19**
+
+**Both halves shipped, and the "option" half was ruled away rather than built.**
+The GLOW is `SimulatorOverlay::setPanelGlow`, driven by `pollPanelGlow` straight
+from the palette preset — there is no switch, by owner ruling 2026-08-17
+("remove setting always have it on for crts"): a CRT palette is a claim that the
+page is a tube, and a tube glows, so the two were never separate choices. Every
+non-phosphor palette gets 0. The FADE shipped separately as ST-010's `Page Fade`.
+
+Trail lengths come from `panelpalette::trailMsForPreset`, which is where the
+crds reference below actually landed — one number per phosphor rather than one
+global alpha.
+
+Owner: "make an option for crts to have a pleasant glow and fade. (use crds web
+phase scope for reference)".
+
+**The reference, read rather than remembered.** `~/src/crds` already does this,
+and does it the cheap way: instead of clearing the canvas each frame it fills it
+with the palette background at a low alpha, so what was drawn before decays
+toward the ground rather than vanishing.
+
+| Where | What |
+|---|---|
+| `js/oldtime/crt-viz-helpers.js:221` | "of clearRect to produce phosphor afterglow" |
+| `js/oldtime/viz-worker.js:862` | "Per-frame canvas alpha — controls trail length / phosphor afterglow" |
+| `js/oldtime/viz-worker.js:968` | "Fade trail (CRT phosphor afterglow) — fade toward palette bg" |
+| `js/oldtime/i18n.js:1078` | `lissajousPersistence` — the PHASE SCOPE's control. "Lower values keep a longer phosphor trail; higher values clear faster. Applied via `vizCtx.fillRect` with `crtBgFade(alpha)`. Default 0.18. Range 0.05 to 0.60." |
+| `js/oldtime/i18n.js:1066` | `strobeArcsBgFade`, same mechanism, default 0.20 |
+
+So the parameter is ONE number — per-frame alpha toward the paper tone — and
+crds has already found the useful range (0.05–0.60) and the default (0.18) by
+use. Do not re-derive them.
+
+**CORRECTION, owner 2026-08-17: "this panel is eink on the eink device, but
+oled on my phone."** The first version of this entry argued the fade would cost
+continuous presents and therefore battery, treating the panel as e-ink
+everywhere. That is wrong on the device this ships to. The X3 is e-ink; the
+phone is an OLED running the harness's ~1 kHz loop already, and it is the phone
+this feature is for. Presenting per frame while a trail decays is not a new cost
+there -- it is what the harness does anyway.
+
+Where it lives is still `presentIfNeeded` (`src/HalDisplay.cpp`) rather than the
+framebuffer: the firmware renders a page and may not render again for minutes,
+so the decay has to be a presentation-layer blend from the cached frame, the
+same place the inversion re-convert already works from. That part of the first
+version stands; the battery argument does not.
+
+**SCOPE, owner: "glow is for entire ui/ux including page turns."** Not just a
+palette change. Every transition the panel makes -- page turn, menu move,
+selection, entering an activity -- decays into the next. On a phosphor screen
+that is simply what happens when the beam repaints, so applying it to page turns
+is the authentic case rather than the expensive edge case the first version
+treated it as.
+
+**THE SPEED IS PER PHOSPHOR, not one global number.** This is the part that
+makes it more than a fade effect: each CRT row now carries its own published
+persistence, so Green decays like P1 and Blue like P11, and two rows of the same
+hue become genuinely different experiences.
+
+Source, already encoded in `panelpalette::PresetInfo`: Patrick Jankowiak
+(KD5OEI), *Cathode Ray Tube Phosphors Of Interest To The Experimenter*, rev.
+20100226.1844, `labguysworld.com/crt_phosphor_research.pdf` — persistence there
+is defined as **time to decay to 10% of peak**.
+
+| Row | Phosphor | Published persistence | `decayMs` |
+|---|---|---|---|
+| CRT · Green | P1 | 20 ms | 20 |
+| CRT · Amber | P3 | 13 ms | 13 |
+| CRT · Gray | P4 | not over 7% of peak after 33 ms | 33 |
+| CRT · Blue | P11 | 2 ms | 2 |
+| CRT · Red | P22R | "Medium" (class only, no figure) | 0 |
+
+`decayMs` is 0 where the table gives only a CLASS rather than a number, so the
+glow has to fall back rather than have a figure invented for it. Do not fill
+that in from memory.
+
+**A real decay is 2–33 ms, which is one to two frames.** Taken literally the
+effect would be invisible: at 60 Hz a 2 ms P11 trail is gone before the next
+frame. So the honest design is a SCALED persistence -- the published figures set
+the RATIO between rows (P4 is 16x P11), and one global multiplier makes the
+family visible. crds's `lissajousPersistence` (default 0.18, range 0.05–0.60)
+is the shape of that multiplier, not the value to copy.
+
+**COST, found while building it and not yet fixed.** [DONE: `pixelBufSeq`, `src/HalDisplay.cpp` ~:222-227 — grep `pixelBufSeq` to confirm] The "did the content
+change?" test is a `memcmp` over the whole active framebuffer on every present.
+At 3x that is 1584x2376x4 = ~15 MB compared per frame, plus a 15 MB copy on each
+change -- and while a trail is alive it asks for a present every frame, so the
+comparison runs at the loop rate. It is guarded behind the glow being ON, so it
+costs nothing today, but it is the most likely reason the effect would feel bad
+on a phone rather than not appear at all. The fix is to stop asking the pixels:
+`refreshDisplay` already knows a new frame arrived, so a counter bumped there is
+one integer compare instead of 15 MB. Do this before ST-010, which fades for far
+longer and would pay it for the whole fade.
+
+**Done looks like:** [superseded by the 2026-08-17 ruling above: no switch, always on for CRTs] a setting, off by default, that on a CRT palette decays
+every panel transition including page turns; the decay speed derived from the
+row's own published persistence rather than one global constant; and the
+scaling multiplier stated, since the real figures are one to two frames long.
+
+Moved to DONE 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; shipped in build-84 (`989182f`, from `git tag --contains`; the entry names no build).
+
 ### [ST-004] The page as UIAccessibility elements — SHIPPED, unverified on device
 **scope: accessibility · asked 2026-08-08 · in build-41**
 
@@ -832,35 +881,7 @@ Screen on, open a book, two-finger swipe down from the top. The log line
 time: whether per-line is the right granularity for VoiceOver's swipe-to-next,
 or whether it should be per-word there and per-line for Speak Screen.
 
----
-
-## Carried over from the firmware's tracker
-
-`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
-simulator stop lying about the device" — is simulator work tracked there because
-that is where it was raised. Its substance is `S-001` in this repo's
-[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
-hardware, of which the 1 MB free-heap constant is the one that matters, because
-every graceful-degradation path on a 380 KB device is unreachable in the only
-pre-device gate the project has.
-
-`T-025` there — "configurable gestures in the iOS app" — was raised on the
-firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
-closed in that file's Finished section, with what shipped and what was
-deliberately left out. The model is LAYERED — a global
-`Gestures` group that every gesture falls back to, and two zone groups (above the
-paper, below it) that override it for the four single-finger gestures and ship
-blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
-`ios/Settings.bundle/Root.plist` and the three call sites
-(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
-`ios/CrossPointIOSShim.cpp`, and the shake catcher);
-`tests/gesture_bindings_test.cpp` is the truth table and
-[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
-UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
-
----
-
-## DONE
+Moved to DONE 2026-09-04 under the 2026-09-02 ruling that silence closes a shipped fix; shipped in build-41 (per the entry).
 
 ### [ST-008] Moire in the selection dot pattern on iPhone Air — CLOSED 2026-08-19, confirmed gone on the phone
 
