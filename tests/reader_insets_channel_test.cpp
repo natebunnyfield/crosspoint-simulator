@@ -80,14 +80,16 @@ int main() {
     CHECK(l == 12);
   }
 
-  // --- negative and oversized fields clamp, and stay in their own field --
+  // --- out-of-range fields clamp, and stay in their own field -------------
+  // Signed since 2026-09-04: a small negative is a VALUE (the case above),
+  // and the clamp is at the signed field's ends, +-32767 / -32768.
   {
     ReaderInsetsChannel ch;
-    ch.publish(-5, 70000, 35, 16);
+    ch.publish(-70000, 70000, 35, 16);
     int t = -99, r = -99, b = -99, l = -99;
     CHECK(ch.read(t, r, b, l));
-    CHECK(t == 0);       // clamped up from negative
-    CHECK(r == 65535);   // clamped down to the 16-bit field's max
+    CHECK(t == -32768);  // clamped up to the signed field's min
+    CHECK(r == 32767);   // clamped down to the signed field's max
     CHECK(b == 35);      // neighbors untouched by the clamp
     CHECK(l == 16);
   }
