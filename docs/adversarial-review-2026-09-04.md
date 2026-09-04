@@ -116,3 +116,37 @@ rebuilt with `-fsanitize=address,undefined` and run with no arguments:
 shell tests and the plist-argument tests were not part of this sweep. A
 negative result, recorded so it is not paid for twice; the runner has no
 sanitizer switch, so this was a one-off script over its compile lines.
+
+## Second pass, same day — over the fixes above
+
+A second read-only reviewer over `a90b3d6`, `58de612`, `5e311f1`, `6d2ca67`.
+
+### 1. The light page's deposits made BEFORE the flip still composited — would-ship — FIXED
+
+`shouldDeposit` had no ground condition, so every LIGHT page turn deposited
+the previous light glass at absolute intensity. Invisible on a pale ground
+(`accumLive` is false there), but warm in the texture for 2.4 trails — and a
+light→dark flip inside that window composited it over the new dark page. The
+firmware's own Dark Mode row is exactly that sequence (arrow onto the row,
+which re-renders the list, then Confirm). Measured post-`a90b3d6`, five RIGHTs
+then the flip 272 ms after the last: flip frame **43.02** whole-glass luma
+against 25.38 settled, then 50 self-driven presents. `a90b3d6` had made the
+flash smaller, not gone. **Fix:** a light page is paper and deposits nothing —
+`darkGround` is an input to `shouldDeposit`. Same probe after: flip frame
+**25.36**, no trail present follows.
+
+### 2. `ios/testflight.sh` prints an empty first candidate when `python3` is absent — cosmetic, left
+
+The hint reads `into one of: , /usr/bin/python3`. Behavior is right.
+
+### CLEAN
+
+Return-type change (three callers, none depends on void); the compose's
+`return 0` is unreachable from the reconvert; `reconvertSeq` staleness cannot
+alias (monotonic 64-bit seq, never reset on the iOS longjmp); reconvert →
+page → reconvert between presents behaves as before (pre-existing shape, and
+the firmware's own toggle); the abandoned sweep presents the full reconverted
+frame and captures a glass with no trail baked in; the dark page's next-turn
+deposit fires exactly once; dark→light leaves a correctly aging dark deposit;
+the signed insets channel keeps zero distinct from never-published and every
+consumer goes through `read()`.

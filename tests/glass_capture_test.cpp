@@ -50,12 +50,15 @@ int main() {
   // other input reads exactly like a page turn, and the light page went into
   // the accumulator at full intensity on every dark-mode switch.
   using glasscapture::shouldDeposit;
-  CHECK(shouldDeposit({true, true, true, true, false}));
-  CHECK(!shouldDeposit({true, true, true, true, true}));
-  CHECK(!shouldDeposit({false, true, true, true, false}));  // nothing new
-  CHECK(!shouldDeposit({true, false, true, true, false}));  // no glass yet
-  CHECK(!shouldDeposit({true, true, false, true, false}));  // already deposited
-  CHECK(!shouldDeposit({true, true, true, false, false}));  // size stale
+  CHECK(shouldDeposit({true, true, true, true, false, true}));
+  CHECK(!shouldDeposit({true, true, true, true, true, true}));
+  CHECK(!shouldDeposit({false, true, true, true, false, true}));  // nothing new
+  CHECK(!shouldDeposit({true, false, true, true, false, true}));  // no glass yet
+  CHECK(!shouldDeposit({true, true, false, true, false, true}));  // already deposited
+  CHECK(!shouldDeposit({true, true, true, false, false, true}));  // size stale
+  // A LIGHT page turn is paper and deposits nothing -- or the warm light
+  // deposit rides into the next dark flip (review 2026-09-04, second pass).
+  CHECK(!shouldDeposit({true, true, true, true, false, false}));
   // And the beam agrees with it, so a reconvert neither sweeps nor glows.
   CHECK(glasscapture::shouldArmBeam(true, true, false));
   CHECK(!glasscapture::shouldArmBeam(true, true, true));

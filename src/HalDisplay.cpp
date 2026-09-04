@@ -3661,7 +3661,7 @@ void HalDisplay::presentIfNeeded() {
           const bool canDeposit = glasscapture::shouldDeposit(
               {contentChanged, glassHasPicture, freshGlass,
                glassIntensityTexture != nullptr && glassW == gw && glassH == gh,
-               reconvertOnly});
+               reconvertOnly, panelIsDarkGround()});
           if (canDeposit) {
             static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
                 SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
