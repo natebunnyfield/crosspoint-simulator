@@ -246,9 +246,20 @@ bool readWsFrame(int fd, WsFrame &frame) {
   if (masked && !recvAll(fd, mask, sizeof(mask)))
     return false;
 
-  frame.payload.assign(static_cast<size_t>(len), 0);
-  if (len > 0 && !recvAll(fd, frame.payload.data(), static_cast<size_t>(len)))
-    return false;
+  // Grown as the bytes ARRIVE, never sized from the header: fourteen bytes
+  // claiming a 256 MB payload used to zero-fill 256 MB per connection before
+  // a payload byte was read -- measured 271 MB RSS from one peer, 383 MB from
+  // four, on a server the phone binds to its whole Wi-Fi (network hunt
+  // 2026-09-04). A peer now has to send what it claims.
+  frame.payload.clear();
+  constexpr size_t kGrow = 64 * 1024;
+  while (frame.payload.size() < static_cast<size_t>(len)) {
+    const size_t before = frame.payload.size();
+    const size_t chunk = std::min(kGrow, static_cast<size_t>(len) - before);
+    frame.payload.resize(before + chunk);
+    if (!recvAll(fd, frame.payload.data() + before, chunk))
+      return false;
+  }
   if (masked) {
     for (size_t i = 0; i < frame.payload.size(); ++i)
       frame.payload[i] ^= mask[i % 4];

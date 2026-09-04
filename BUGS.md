@@ -38,6 +38,33 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## OPEN
 
+### [S-036] The host web server is one serialized worker holding three copies of every body
+**severity: low-medium (latent DoS / memory) · scope: `src/WebServer.cpp` · found 2026-09-04 by the network-surface hunt (`docs/network-surface-hunt-2026-09-04.md`, findings 7 and 8)**
+
+Two things the hunt measured and this session did not change, because each
+is a design choice rather than a slip:
+
+- **One accept worker, serialized, with 5 s socket timeouts.** One idle
+  connection delays the next client 4.7 s; a header dripped a byte per 0.5 s
+  holds the server for the whole drip; 30 idle connections put the 31st at a
+  64 s wait. Recovers the moment the peer stops. The phone binds all
+  interfaces, so any LAN peer can do this. The fix is a small accept pool or
+  a shorter header timeout; either changes the shim's threading model, which
+  the firmware's `handleClient()` contract (`dispatchDone` parking) was built
+  around.
+- **A PUT body is held in three copies** — the worker's `body`, the
+  `String(body)` handed to the handler as `plain`, and `currentBody` — though
+  the raw handler has already streamed it to disk. A 100 MB PUT peaked at
+  235 MB RSS over a 9 MB baseline; the 256 MB cap implies ~600 MB for the
+  largest accepted upload, which on a phone is a jetsam kill. The fix is to
+  stop materializing the body when a raw handler consumed it.
+
+Both are reachable from the network; neither is a crash by a crafted request
+(the three that were — the drip freezing Back, the 256 MB WebSocket
+allocation, the case-only MOVE losing a file — were fixed the same day, see
+the hunt doc). Filed so the next pass starts here rather than re-measuring.
+
+
 ### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
 
