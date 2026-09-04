@@ -235,6 +235,34 @@ is removing capability, which is keep-and-ask.
 
 ## OPEN
 
+## Carried over from the firmware's tracker
+
+`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
+simulator stop lying about the device" — is simulator work tracked there because
+that is where it was raised. Its substance is `S-001` in this repo's
+[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
+hardware, of which the 1 MB free-heap constant is the one that matters, because
+every graceful-degradation path on a 380 KB device is unreachable in the only
+pre-device gate the project has.
+
+`T-025` there — "configurable gestures in the iOS app" — was raised on the
+firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
+closed in that file's Finished section, with what shipped and what was
+deliberately left out. The model is LAYERED — a global
+`Gestures` group that every gesture falls back to, and two zone groups (above the
+paper, below it) that override it for the four single-finger gestures and ship
+blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
+`ios/Settings.bundle/Root.plist` and the three call sites
+(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
+`ios/CrossPointIOSShim.cpp`, and the shake catcher);
+`tests/gesture_bindings_test.cpp` is the truth table and
+[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
+UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
+
+---
+
+## DONE
+
 ### [ST-011] Zen reading mode — BUILT 2026-08-19, gesture unverified off-device
 **scope: ios display · asked 2026-08-19 · built the same day**
 
@@ -336,33 +364,8 @@ and not a defect to re-file: the ask said "holding down one finger" with no
 location, and it is live with no location. If a pad hold ever needs protecting,
 the fix is one hit-test in `ios/ZenHoldRouting.h` and nothing else moves.
 
-## Carried over from the firmware's tracker
+Shipped in build-170 (2026-09-04). Closed under the owner's silence-closes-a-shipped-fix ruling (2026-09-04: "presume fixed, close them"). The binding logic is host-tested; the UIKit recognizer-to-action wiring is presumed good on the phone unless re-raised.
 
-`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
-simulator stop lying about the device" — is simulator work tracked there because
-that is where it was raised. Its substance is `S-001` in this repo's
-[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
-hardware, of which the 1 MB free-heap constant is the one that matters, because
-every graceful-degradation path on a 380 KB device is unreachable in the only
-pre-device gate the project has.
-
-`T-025` there — "configurable gestures in the iOS app" — was raised on the
-firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
-closed in that file's Finished section, with what shipped and what was
-deliberately left out. The model is LAYERED — a global
-`Gestures` group that every gesture falls back to, and two zone groups (above the
-paper, below it) that override it for the four single-finger gestures and ship
-blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
-`ios/Settings.bundle/Root.plist` and the three call sites
-(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
-`ios/CrossPointIOSShim.cpp`, and the shake catcher);
-`tests/gesture_bindings_test.cpp` is the truth table and
-[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
-UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
-
----
-
-## DONE
 
 ### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices — CLOSED 2026-09-04 on the agreed capture
 **scope: iOS layout · asked 2026-08-08 · the agreed close-out capture taken 2026-09-04**

@@ -68,6 +68,7 @@ Both are reachable from the network; neither is a crash by a crafted request
 allocation, the case-only MOVE losing a file — were fixed the same day, see
 the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
+## FIXED
 
 ### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
@@ -188,7 +189,8 @@ deposits nothing now (`a239f46`): 25.36, no trail present after. Ships in
 the next build; the "changing pages" standalone trigger is still
 unreproduced.
 
-## FIXED
+Shipped in build-170 (2026-09-04, `1e2b193` over firmware `d6d3438`). Moved out of OPEN under the silence-closes-a-shipped-fix ruling (owner 2026-09-04: "presume fixed, close them"): the deposit-half and sweep-in-flight fixes are in the build, and the "changing pages" standalone trigger was never reproduced.
+
 
 ### [S-034] Reader text insets were four separate atomics, not one — a torn read across a font-size change or a page turn fed the zen layout a geometry that matches no real page
 **severity: high (matches a repeated owner report, mechanism proven and measured, NOT confirmed by render) · scope: cross-thread channel (`src/HalGPIO.cpp`), consumed by `ios/CrossPointIOSShim.cpp`'s zen layout · found and fixed 2026-08-31, render evidence UNOBTAINED this session (tooling failures, documented below)**
