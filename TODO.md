@@ -31,7 +31,31 @@ Each tracker holds only its own prefix. Some items are paired across repos —
 
 ## What is on TestFlight
 
-**build-169**, deploy fired at `2726010` — HEAD of `main` at the upload;
+**build-170**, deploy fired 2026-09-04 ~11:03 CDT at `1e2b193` (sim) over
+firmware `d6d3438` — HEAD of both `main`s at the upload; tag pushed, altool
+UPLOAD SUCCEEDED, and the processing watcher polled cleanly (the first real
+deploy since today's `6d2ca67` fixed its `No module named 'jwt'` failure).
+This is the big one: the whole 2026-09-04 session, ~31 commits across both
+repos. What it carries over build-169, by class:
+- **Security**: a remote-reachable heap overflow in the card-font glyph
+  decoder (B-045, `469c916b`, pinned by `test/malformed_font/`); the whole
+  WebDAV/WebSocket attack surface the phone publishes on all interfaces — a
+  dripping peer froze Back, a 14-byte WS header bought 256 MB, a case-only
+  MOVE deleted its source, chunked/bad-length PUTs wrote empty files, a
+  saturated upload size parked the channel, an image-dimension guard was
+  defeated by signed overflow (`a7a0b0e`, `095f2426`, `664abf29`, `81724ae`,
+  `aa9e6a3`, `6e7ec97`, pinned by `test_web_server_hardening.sh`).
+- **UI/behavior**: the CRT theme-flip whole-glass flash (S-031, `a90b3d6` +
+  `a239f46`), the sync bar running backwards, Book Notes losing lines, an
+  Update Library crash on an empty manifest, the image viewer paging
+  backward, plus audit F11/F13/F14/F15 and eight second-pass findings.
+- **CI**: four red jobs fixed; green on GitHub all day.
+
+The device-confirm items (B-040 foreground parse-path OOM, B-033 first-OTA
+stamp, T-017 light sleep, T-008 staged binary, ST-011 zen multitouch) can be
+checked on this build once TestFlight finishes processing.
+
+**Superseded: build-169**, deploy fired at `2726010` — HEAD of `main` at the upload;
 the tag is dated 2026-09-02 23:37 -0500 (2026-09-03 UTC). Count the tag before
 trusting this line. Over build-166 (`3bda355`) the three builds carry, docs
 commits excluded (`git log --oneline 3bda355..2726010`):
