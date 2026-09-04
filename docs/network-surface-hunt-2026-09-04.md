@@ -71,3 +71,31 @@ in this repo the same day, one in the firmware, four recorded.
 | MOVE `Case.txt → case.txt` | `500`, source gone | `201`, content intact |
 | 3 × WS header claiming 256 MB, no payload | 383 MB RSS (4 conns) | 22 MB |
 | drip PUT (1 byte / 2 s), Back at 32.0 s | `Entering activity: Home` 37.7 s later | `Incomplete request body: 9/1000` at 32.202 s, Home at 32.215 s — **38 ms** |
+
+## Static review of the fixes, 2026-09-04 — three low residuals, two closed
+
+A static (no-launch) refutation of the fix commits found the pushed fixes
+hold; three LOW residuals, none reopening the class the probes closed:
+
+1. **The `stop()` accept-window race** — if `stop()`'s `activeClient.exchange(-1)`
+   ran in the gap between `accept()` and the worker publishing the fd, it saw
+   -1 and could not cut the peer, and the body loop re-arms the 5 s recv
+   timeout per byte, so a dribbling peer could still hold `join()`. Narrow and
+   not attacker-timeable, but the "5 s bounded" claim was not strict.
+   **CLOSED**: the worker re-checks `active` immediately after publishing the
+   fd (`active` is set false first in `stop()`), and drops the connection if
+   the server is already stopping.
+2. **`dst + ".casemove"` collided with a real user file** and the old code
+   deleted it unconditionally. **CLOSED**: the temp name carries `millis()`,
+   an occupied temp path is refused rather than deleted, and a failed second
+   rename puts the source back instead of orphaning it at the temp path.
+3. **A case-only MOVE on a case-SENSITIVE volume** (iOS's data volume, Linux)
+   would bypass `Overwrite: F`. Left as is: every shipping target is
+   case-insensitive (device FAT, Mac/iOS APFS default), so `caseOnly` implies
+   same-file there; no reachable failure was constructible.
+
+CLEAN from that review: all seven `::close(client)` sites clear `activeClient`
+first, so `stop()` can never shut down a reused fd; the WS `resize` grow is
+amortized O(n), not O(n²); `parts.empty() -> 400` sends exactly one response
+and a normal browser multipart still yields non-empty parts; the CRLF-trim
+underflow guard holds.

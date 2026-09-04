@@ -534,6 +534,18 @@ void WebServer::begin() {
       }
       setSocketTimeouts(client);
       impl_->activeClient = client;
+      // Re-check AFTER publishing the fd: stop() shuts down whatever
+      // activeClient names, but if its exchange(-1) ran in the window between
+      // accept() and the store above it saw -1 and could not cut this peer,
+      // and the body loop below re-arms the 5 s recv timeout on every byte --
+      // a dribbling peer would hold join() for effectively unbounded time
+      // (static review 2026-09-04). If the server is already stopping, drop
+      // this connection now.
+      if (!impl_->active) {
+        impl_->activeClient = -1;
+        ::close(client);
+        break;
+      }
 
       std::string raw;
       char buffer[8192];
