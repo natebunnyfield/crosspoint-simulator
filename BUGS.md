@@ -52,12 +52,16 @@ is a design choice rather than a slip:
   a shorter header timeout; either changes the shim's threading model, which
   the firmware's `handleClient()` contract (`dispatchDone` parking) was built
   around.
-- **A PUT body is held in three copies** — the worker's `body`, the
+- **A PUT body was held in three copies** — the worker's `body`, the
   `String(body)` handed to the handler as `plain`, and `currentBody` — though
-  the raw handler has already streamed it to disk. A 100 MB PUT peaked at
-  235 MB RSS over a 9 MB baseline; the 256 MB cap implies ~600 MB for the
-  largest accepted upload, which on a phone is a jetsam kill. The fix is to
-  stop materializing the body when a raw handler consumed it.
+  the raw handler (WebDAV PUT) has already streamed it to disk and reads
+  neither. TWO of the three are gone since 2026-09-04: a raw handler skips the
+  `plain` arg and the `currentBody` copy and frees `body` after streaming, so
+  a 60 MB PUT now adds 116 MB RSS (the single buffer plus its growth
+  transient) rather than the ~180 MB the three copies cost. What remains is
+  that a raw upload still fully BUFFERS the body in `body` before the handler
+  runs, instead of recv->RAW_WRITE->free per chunk; removing that last copy is
+  the recv-loop rewrite this entry keeps.
 
 Both are reachable from the network; neither is a crash by a crafted request
 (the three that were — the drip freezing Back, the 256 MB WebSocket

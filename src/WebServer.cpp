@@ -703,20 +703,30 @@ void WebServer::begin() {
       auto contentTypeIt = headers.find("content-type");
       const std::string contentType =
           contentTypeIt == headers.end() ? "" : contentTypeIt->second;
-      if (contentType.find("application/x-www-form-urlencoded") !=
-          std::string::npos) {
-        parseArgs(body, impl_->currentArgs);
-      } else if (!body.empty() &&
-                 contentType.find("multipart/form-data") == std::string::npos) {
-        impl_->currentArgs.emplace_back(String("plain"), String(body));
+      impl_->currentContentType = contentType;
+
+      // A raw handler (WebDAV PUT) already consumed the body through RAW_WRITE
+      // and reads neither the `plain` arg nor `currentBody`, so those two
+      // copies were pure waste -- a 100 MB PUT peaked at ~2.3x the body in RAM
+      // on a device the phone runs this shim on (S-036). Make the copies only
+      // when a NON-raw handler will actually read them, and free `body` right
+      // after for a raw handler.
+      if (!hasRawHandlers) {
+        if (contentType.find("application/x-www-form-urlencoded") !=
+            std::string::npos) {
+          parseArgs(body, impl_->currentArgs);
+        } else if (!body.empty() && contentType.find("multipart/form-data") ==
+                                        std::string::npos) {
+          impl_->currentArgs.emplace_back(String("plain"), String(body));
+        }
+        // The dispatch runs on another thread, so what it needs from this parse
+        // travels with the request (a multipart POST's parser reads this).
+        impl_->currentBody = body;
+      } else {
+        std::string().swap(body);
       }
 
       LOG_DBG("WEB", "[SIM] %s %s", methodText.c_str(), target.c_str());
-
-      // The dispatch runs on another thread now, so anything it needs from this
-      // parse has to travel with the request rather than as a local.
-      impl_->currentContentType = contentType;
-      impl_->currentBody = body;
 
       // Park the request and let handleClient() run the handlers on the
       // firmware's thread, then resume to close the socket.
