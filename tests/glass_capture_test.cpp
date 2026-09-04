@@ -44,5 +44,23 @@ int main() {
   CHECK(shouldCapture({false, false, true, 2, 2, 1, 2}));
 
   std::printf("glass_capture_test: all checks passed\n");
+
+  // THE DEPOSIT GATE (2026-09-04). A page turn deposits the previous glass as
+  // afterglow; a polarity flip must not -- it bumps the sequence, so every
+  // other input reads exactly like a page turn, and the light page went into
+  // the accumulator at full intensity on every dark-mode switch.
+  using glasscapture::shouldDeposit;
+  CHECK(shouldDeposit({true, true, true, true, false}));
+  CHECK(!shouldDeposit({true, true, true, true, true}));
+  CHECK(!shouldDeposit({false, true, true, true, false}));  // nothing new
+  CHECK(!shouldDeposit({true, false, true, true, false}));  // no glass yet
+  CHECK(!shouldDeposit({true, true, false, true, false}));  // already deposited
+  CHECK(!shouldDeposit({true, true, true, false, false}));  // size stale
+  // And the beam agrees with it, so a reconvert neither sweeps nor glows.
+  CHECK(glasscapture::shouldArmBeam(true, true, false));
+  CHECK(!glasscapture::shouldArmBeam(true, true, true));
+  CHECK(!glasscapture::shouldArmBeam(false, true, false));
+  CHECK(!glasscapture::shouldArmBeam(true, false, false));
+
   return 0;
 }

@@ -52,4 +52,28 @@ inline bool shouldCapture(const Inputs &in) {
   return in.glassGen != in.presentGen;
 }
 
+// WHETHER A NEW PICTURE ARRIVED, for the two consumers of the previous glass.
+// `reconvertOnly` is a polarity flip: the panel's sequence moved but the page
+// did not, so there is nothing to sweep in and -- the half that was missing
+// until 2026-09-04 -- nothing that left the glass to deposit as afterglow.
+// A light->dark flip deposited the light page (captured at absolute
+// intensity) into the accumulator and the whole glass flashed and faded.
+inline bool shouldArmBeam(const bool contentChanged, const bool hasPicture,
+                          const bool reconvertOnly) {
+  return contentChanged && hasPicture && !reconvertOnly;
+}
+
+struct DepositInputs {
+  bool contentChanged;  // the panel sequence moved since the last present
+  bool hasPicture;      // a glass capture exists
+  bool freshGlass;      // this glass has not been deposited yet
+  bool sizeMatches;     // the intensity texture exists at the output size
+  bool reconvertOnly;   // the sequence moved for a polarity flip, not a page
+};
+
+inline bool shouldDeposit(const DepositInputs &in) {
+  return in.contentChanged && in.hasPicture && in.freshGlass && in.sizeMatches &&
+         !in.reconvertOnly;
+}
+
 }  // namespace glasscapture

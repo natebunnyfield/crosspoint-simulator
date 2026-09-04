@@ -58,19 +58,28 @@ class ReaderInsetsChannel {
   }
 
  private:
-  // 16 bits per field, clamped. The largest framebuffer dimension this repo
-  // publishes here is a tablet's landscape width in the low thousands of
-  // pixels (BoardConfig's biggest panel today, at the top render-scale tier,
-  // stays under 4000), so 65535 leaves headroom no real render reaches; a
-  // value that somehow did gets clamped rather than bleeding into the
-  // neighboring field the way a too-narrow pack would.
+  // 16 bits per field, SIGNED by an offset of 32768 and clamped. The largest
+  // framebuffer dimension this repo publishes here is a tablet's landscape
+  // width in the low thousands of pixels (BoardConfig's biggest panel today,
+  // at the top render-scale tier, stays under 4000), so +-32767 leaves headroom
+  // no real render reaches; a value that somehow did gets clamped rather than
+  // bleeding into the neighboring field the way a too-narrow pack would.
+  //
+  // Signed, since 2026-09-04: the firmware publishes its top inset as the
+  // margin MINUS the cap-ink trim of the reading face (the blank above 'H' in
+  // the line box), and at screenMargin 0 with a large face that goes a few
+  // pixels NEGATIVE. The four-atomic channel this replaced passed that
+  // through and the zen shift consumed it; the first packed version clamped
+  // it to 0 (adversarial review 2026-09-04, finding 4).
   static constexpr int kBits = 16;
   static constexpr uint64_t kMask = (1ull << kBits) - 1;
+  static constexpr int kOffset = 1 << (kBits - 1);
 
   static uint64_t clampField(int v) {
-    if (v < 0) return 0;
-    return static_cast<uint64_t>(v) > kMask ? kMask
-                                             : static_cast<uint64_t>(v);
+    const long long shifted = static_cast<long long>(v) + kOffset;
+    if (shifted < 0) return 0;
+    return shifted > static_cast<long long>(kMask) ? kMask
+                                                   : static_cast<uint64_t>(shifted);
   }
 
   static uint64_t pack(int t, int r, int b, int l) {
@@ -78,11 +87,15 @@ class ReaderInsetsChannel {
            (clampField(b) << kBits) | clampField(l);
   }
 
+  static int field(uint64_t packed, int shift) {
+    return static_cast<int>((packed >> shift) & kMask) - kOffset;
+  }
+
   static void unpack(uint64_t packed, int &t, int &r, int &b, int &l) {
-    t = static_cast<int>((packed >> (kBits * 3)) & kMask);
-    r = static_cast<int>((packed >> (kBits * 2)) & kMask);
-    b = static_cast<int>((packed >> kBits) & kMask);
-    l = static_cast<int>(packed & kMask);
+    t = field(packed, kBits * 3);
+    r = field(packed, kBits * 2);
+    b = field(packed, kBits);
+    l = field(packed, 0);
   }
 
   std::atomic<uint64_t> packed_{0};

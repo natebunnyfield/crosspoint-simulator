@@ -882,9 +882,14 @@ bool getBit(const uint8_t *buffer, int x, int y) {
   return (buffer[byteIdx] & (1 << bitIdx)) != 0;
 }
 
-void renderBwPixels(const uint8_t *fb) {
+// Both writers return the sequence number they produced, FROM UNDER THEIR OWN
+// LOCK: reconvertLastFrame() hands it to presentIfNeeded as reconvertSeq. It
+// used to be re-read under a second lock acquisition, and a render-task page
+// landing in the gap would have been mistaken for the reconvert -- its sweep
+// withheld, its trail still deposited (adversarial review 2026-09-04).
+uint64_t renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
-  pixelBufSeq++;
+  const uint64_t seq = ++pixelBufSeq;
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
   const uint32_t ink = ramp[0];
@@ -904,6 +909,7 @@ void renderBwPixels(const uint8_t *fb) {
     presentHoldUntil.store(SDL_GetTicks() + kPresentHoldMs);
   }
   requestDirtyPresent();
+  return seq;
 }
 
 void clearGrayscalePlanes() {
@@ -930,7 +936,7 @@ void copyPlane(std::array<uint8_t, HalDisplay::BUFFER_SIZE> &dst,
   valid = true;
 }
 
-void composeGrayscalePreview() {
+uint64_t composeGrayscalePreview() {
   const uint64_t composeStart = SDL_GetTicks();
   // ARM THE HOLD BEFORE ANY PIXEL IS WRITTEN. The compose overwrites pixelBuf
   // IN PLACE, so by the time the tail runs the flash frame is already gone and
@@ -960,9 +966,9 @@ void composeGrayscalePreview() {
     // beam. It now happens only on the path that actually writes pixels.
     presentHoldUntil.store(0);
     requestDirtyPresent();
-    return;
+    return 0;
   }
-  pixelBufSeq++;
+  const uint64_t seq = ++pixelBufSeq;
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool baseWhite = getBit(bwBase, x, y);
@@ -1020,6 +1026,7 @@ void composeGrayscalePreview() {
   const uint64_t flashUntil = presentFlashUntil.load();
   if (flashUntil <= SDL_GetTicks()) presentHoldUntil.store(0);
   requestDirtyPresent();
+  return seq;
 }
 
 // Re-run the last framebuffer-to-pixel conversion after an inversion change,
@@ -1034,13 +1041,13 @@ void composeGrayscalePreview() {
 // base. If the render task happens to be mid-way through writing new planes,
 // the recompose may briefly show them partially applied; the render task's own
 // compose lands right after and corrects it.
-void reconvertLastFrame() {
+// Returns the sequence the reconvert produced, 0 when nothing was written.
+uint64_t reconvertLastFrame() {
   if (!grayscalePreviewState.bwBaseValid)
-    return; // nothing presented yet; the first real render reads the new flag
+    return 0; // nothing presented yet; the first real render reads the new flag
   if (grayscalePreviewState.lsbValid || grayscalePreviewState.msbValid)
-    composeGrayscalePreview();
-  else
-    renderBwPixels(grayscalePreviewState.bwBase.data());
+    return composeGrayscalePreview();
+  return renderBwPixels(grayscalePreviewState.bwBase.data());
 }
 
 } // namespace
@@ -2778,13 +2785,15 @@ void HalDisplay::presentIfNeeded() {
   // repolarized pixels ride the present below instead of waiting for the
   // firmware to refresh.
   if (pendingReconvert.exchange(false)) {
-    reconvertLastFrame();
-    // Mark the seq this produced so the beam trigger below can tell a
-    // repolarization from a page. Read under pixelBufMutex there; written here
-    // on the same (main) thread that services the present, immediately after
-    // the write that bumped it.
-    const std::lock_guard<std::mutex> lock(pixelBufMutex);
-    reconvertSeq = pixelBufSeq;
+    // Mark the seq this produced so the beam trigger and the trail deposit
+    // below can tell a repolarization from a page. The writer reports it from
+    // under its own lock; a page written by the render task after that has a
+    // different number and is treated as the page it is.
+    const uint64_t produced = reconvertLastFrame();
+    if (produced != 0) {
+      const std::lock_guard<std::mutex> lock(pixelBufMutex);
+      reconvertSeq = produced;
+    }
   }
 
   const bool screenshotDue = hasDueScreenshot();
@@ -2906,6 +2915,16 @@ void HalDisplay::presentIfNeeded() {
   // clock burn through the entire 55ms beam budget before the clip that reads
   // it was ever built, landing a swept sliver nowhere near the panel.
   bool beamShouldArm = false;
+  // A polarity reconvert bumps the seq without changing what the page says.
+  // Decided under the lock, consumed by the beam arm here AND the trail
+  // deposit below (src/GlassCapture.h, glasscapture::shouldArmBeam /
+  // shouldDeposit). The deposit half was missing until 2026-09-04: a
+  // light->dark flip deposited the LIGHT page's glass -- captured at its
+  // absolute intensity -- into the phosphor accumulator, and the whole glass
+  // flashed bright and faded over the trail. Measured on the desktop: every
+  // pixel lifted 23 levels on the flip frame. No new picture came IN, so none
+  // left the glass either.
+  bool reconvertOnly = false;
   {
     const std::lock_guard<std::mutex> lock(pixelBufMutex);
     const size_t live = static_cast<size_t>(activeWidth()) * activeHeight();
@@ -2913,15 +2932,15 @@ void HalDisplay::presentIfNeeded() {
       contentChanged = pixelBufSeq != presentedSeq;
       presentedSeq = pixelBufSeq;
       // A sweep can only start from a picture there is something to sweep OVER
-      // -- and it must be a NEW picture. A polarity reconvert bumps the seq
-      // without changing what the page says, and sweeping it paints the new
+      // -- and it must be a NEW picture; sweeping a reconvert paints the new
       // palette over the old one in bands (S-031). presentedSeq is still
       // advanced above, so the frame presents normally; only the sweep is
-      // withheld.
-      const bool reconvertOnly =
-          reconvertSeq != 0 && pixelBufSeq == reconvertSeq;
-      if (contentChanged && glassHasPicture && !reconvertOnly)
-        beamShouldArm = true;
+      // withheld -- and a sweep already in flight is abandoned, or its
+      // remaining frames ARE that split-palette picture.
+      reconvertOnly = reconvertSeq != 0 && pixelBufSeq == reconvertSeq;
+      beamShouldArm = glasscapture::shouldArmBeam(contentChanged, glassHasPicture,
+                                                  reconvertOnly);
+      if (reconvertOnly) beamStartedAt = 0;
     } else if (glassPrevTexture) {
       // Both effects turned off: drop the capture rather than keep paying for
       // it, and stop any sweep in flight.
@@ -3639,9 +3658,10 @@ void HalDisplay::presentIfNeeded() {
           static uint64_t depositedGlassSeq = 0;
           static bool everDeposited = false;
           const bool freshGlass = !everDeposited || depositedGlassSeq != glassSeq;
-          const bool canDeposit = contentChanged && glassHasPicture &&
-                                  freshGlass && glassIntensityTexture &&
-                                  glassW == gw && glassH == gh;
+          const bool canDeposit = glasscapture::shouldDeposit(
+              {contentChanged, glassHasPicture, freshGlass,
+               glassIntensityTexture != nullptr && glassW == gw && glassH == gh,
+               reconvertOnly});
           if (canDeposit) {
             static SDL_BlendMode depositMax = SDL_ComposeCustomBlendMode(
                 SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
