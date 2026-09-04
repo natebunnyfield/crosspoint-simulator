@@ -107,3 +107,12 @@ viewer does not re-enter. Fixed in the firmware's result handlers.
 - `ca41866` / `958eea9` channels: a burst coalesces to the last direction by
   contract; the menu channel is drained on Manage Files entry.
 - `4951b62`: the reading-experiment gate writes nothing unless the pref is on.
+
+## Sanitizers, same day — CLEAN
+
+Every `c++`-compiled entry in `tests/run_all.sh` (59 pure host tests)
+rebuilt with `-fsanitize=address,undefined` and run with no arguments:
+59/59 passed, no AddressSanitizer report, no UBSan `runtime error`. The
+shell tests and the plist-argument tests were not part of this sweep. A
+negative result, recorded so it is not paid for twice; the runner has no
+sanitizer switch, so this was a one-off script over its compile lines.
