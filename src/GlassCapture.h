@@ -69,11 +69,20 @@ struct DepositInputs {
   bool freshGlass;      // this glass has not been deposited yet
   bool sizeMatches;     // the intensity texture exists at the output size
   bool reconvertOnly;   // the sequence moved for a polarity flip, not a page
+  bool darkGround;      // the page is a tube (dark polarity), not paper
 };
 
+// A LIGHT page is paper, and paper leaves no phosphor: the accumulator is
+// never composited on a pale ground, so a light deposit was invisible -- but
+// it sat in the texture, still warm, and a light->dark flip inside 2.4 trails
+// of the last light page turn composited it over the new dark page (the
+// firmware's own Dark Mode row is exactly that sequence: arrow onto the row,
+// which re-renders the list, then Confirm). Measured +17.6 luma on the flip
+// frame with the light deposit 272 ms old (adversarial review 2026-09-04,
+// second pass). So the ground gates the deposit itself.
 inline bool shouldDeposit(const DepositInputs &in) {
   return in.contentChanged && in.hasPicture && in.freshGlass && in.sizeMatches &&
-         !in.reconvertOnly;
+         !in.reconvertOnly && in.darkGround;
 }
 
 }  // namespace glasscapture
