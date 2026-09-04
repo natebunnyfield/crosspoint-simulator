@@ -595,14 +595,16 @@ void layoutPadTablet(float W, float H, float S) {
   const float leftX = edge + bandPad;
   const float rightX = W - margin + bandPad;
   const float midY = H - kThumbRowFromBottom - cell / 2.0f;
-  // The keyboard lifts the bottom row with it. Without this the row -- POWER
-  // and the page-turn rocker -- sits UNDER the keyboard and cannot be reached
-  // while typing (the keyboard is its own window and eats the touches).
-  //
-  // KEPT on the tablet, dropped on the phone, and the asymmetry is the same one
-  // kThumbRowFromBottom rests on: here the pad lives in the MARGINS BESIDE the
-  // page, so lifting it costs the page nothing. The phone's pad is a band below
-  // the page, and lifting that paints controls over the text.
+  // The bottom row -- POWER, the page rocker, the keyboard chip -- sits UNDER
+  // the system keyboard while one is up, on the tablet exactly as on the
+  // phone. It lifted with the keyboard until 62b1ae5 (owner ruling
+  // 2026-08-19: "when ios keyboard is up on ipad, use the iphone pattern for
+  // showing/hiding"), which dropped the `- g_keyboardHeightPt` term here along
+  // with the panel lift; the paragraph that stood here went on claiming the
+  // lift for sixteen days. Measured 2026-09-04 on an iPad Pro 13 simulator
+  // (ios/mockups/ipad-create-note-keyboard-{down,up}-dark-2026-09-04.png):
+  // the row is under the keys and the way back is the keyboard's own dismiss
+  // bar or the tablet's dismiss key, which is the iPhone pattern.
   const float lowerY =
       H - SDL_max(safeBottom, kHomeInsetMin) - half;
 

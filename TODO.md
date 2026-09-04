@@ -312,9 +312,74 @@ and not a defect to re-file: the ask said "holding down one finger" with no
 location, and it is live with no location. If a pad hold ever needs protecting,
 the fix is one hit-test in `ios/ZenHoldRouting.h` and nothing else moves.
 
+## Carried over from the firmware's tracker
 
-### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices
-**scope: iOS layout · asked 2026-08-08 · WAITING ON AN iPAD SCREENSHOT**
+`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
+simulator stop lying about the device" — is simulator work tracked there because
+that is where it was raised. Its substance is `S-001` in this repo's
+[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
+hardware, of which the 1 MB free-heap constant is the one that matters, because
+every graceful-degradation path on a 380 KB device is unreachable in the only
+pre-device gate the project has.
+
+`T-025` there — "configurable gestures in the iOS app" — was raised on the
+firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
+closed in that file's Finished section, with what shipped and what was
+deliberately left out. The model is LAYERED — a global
+`Gestures` group that every gesture falls back to, and two zone groups (above the
+paper, below it) that override it for the four single-finger gestures and ship
+blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
+`ios/Settings.bundle/Root.plist` and the three call sites
+(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
+`ios/CrossPointIOSShim.cpp`, and the shake catcher);
+`tests/gesture_bindings_test.cpp` is the truth table and
+[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
+UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
+
+---
+
+## DONE
+
+### [ST-005] Move the panel clear of the keyboard, and mock up the larger devices — CLOSED 2026-09-04 on the agreed capture
+**scope: iOS layout · asked 2026-08-08 · the agreed close-out capture taken 2026-09-04**
+
+**CLOSED 2026-09-04 — the agreed close-out (owner 2026-08-19: an iPad
+screenshot, portrait, Create Note, keyboard up, dark) exists.** Taken on an
+iPad Pro 13 simulator from the tree at `2726010` (= build-169) plus the
+2026-09-04 reconvert fix, `darkMode: 1` on the card, system appearance dark,
+driven by `CROSSPOINT_SIM_INPUT_SCRIPT` to Create Note and
+`CROSSPOINT_SIM_TAP_CHIP=13000` to raise the keyboard — the chip hatch that did
+not exist when the 2026-08-19 attempt guessed coordinates four times. Three
+captures, native 2064x2752 PNG:
+
+| file | shows |
+|---|---|
+| `ios/mockups/ipad-create-note-keyboard-down-dark-2026-09-04.png` | zen off, field open, keyboard down: pad capsules in the margins beside the page, bottom row (POWER, rocker, chip) at the screen's foot |
+| `ios/mockups/ipad-create-note-keyboard-up-dark-2026-09-04.png` | zen off, keyboard up |
+| `ios/mockups/ipad-create-note-keyboard-up-zen-dark-2026-09-04.png` | zen on, keyboard up (no pad, chip only) |
+
+Judged against the three overlap areas this entry was about:
+
+1. **Pads inside the panel's content area — GONE.** The capsules sit at
+   x≈150–385 px and x≈1680–1915 px on a 2064-wide screen; the panel spans
+   x≈510–1560. Margins, not page.
+2. **The panel's own margins — fine.** The page is 1:1 device pixels under
+   the 1-unit top band (`docs/ipad-layout-2026-08-29.md`), nothing clipped.
+3. **The pair under the system keyboard — STILL THERE, AND BY RULING.** With
+   the keyboard up (≈805 px on this device) the bottom row is under the keys
+   and the keyboard also covers the panel's last ~30 px (the firmware's
+   button-hint row is cut in half). That is `62b1ae5` (owner 2026-08-19: *"when
+   ios keyboard is up on ipad, use the iphone pattern for showing/hiding"*),
+   which dropped the tablet's row lift together with the panel lift. The way
+   back is the keyboard's dismiss bar or the iPad's own dismiss key. The
+   `lowerY` comment in `layoutPadTablet` still claimed the row lifted; corrected
+   the same day. If the row SHOULD lift on the tablet after all, that is a
+   reversal of the 08-19 ruling, not a bug.
+
+So nothing survived that a ruling does not already cover. The piece-1 table
+below ("Tablet panel rises to clear the keyboard — `CrossPointIOSShim.cpp:308`")
+was already wrong when written: that lift was removed on 2026-08-19, the day
+before the table was added. Read the ruling, not the table.
 
 **Status 2026-08-29: the iPad now has a paper card, and the status bar is
 gone.** Owner ask: "improving ipad pro layout, including needing an area
@@ -543,34 +608,6 @@ ends with "say seen", and the decision questions come in a LATER turn.
 landscape only if the mockups earn it.
 
 ---
-
-## Carried over from the firmware's tracker
-
-`T-004` in the firmware's [TODO.md](../crosspoint-reader/TODO.md) — "make the
-simulator stop lying about the device" — is simulator work tracked there because
-that is where it was raised. Its substance is `S-001` in this repo's
-[BUGS.md](BUGS.md): six places where the simulator reports the opposite of the
-hardware, of which the 1 MB free-heap constant is the one that matters, because
-every graceful-degradation path on a 380 KB device is unreachable in the only
-pre-device gate the project has.
-
-`T-025` there — "configurable gestures in the iOS app" — was raised on the
-firmware tracker for the same reason and **shipped here on 2026-08-28**; it is
-closed in that file's Finished section, with what shipped and what was
-deliberately left out. The model is LAYERED — a global
-`Gestures` group that every gesture falls back to, and two zone groups (above the
-paper, below it) that override it for the four single-finger gestures and ship
-blank. There is no "on the paper". The code is `ios/GestureBindings.h`,
-`ios/Settings.bundle/Root.plist` and the three call sites
-(`ios/CrossPointZenRecognizers.mm`, the deliberate tap in
-`ios/CrossPointIOSShim.cpp`, and the shake catcher);
-`tests/gesture_bindings_test.cpp` is the truth table and
-[docs/zen-mode.md](docs/zen-mode.md) carries the rulings. **SHIPPED —
-UNCONFIRMED on device**, because UIKit recognizers cannot be driven off device.
-
----
-
-## DONE
 
 ### [ST-010] Fade the text away naturally over time after a page turn — SHIPPED 2026-08-17, unverified on the phone
 **scope: ios display · asked 2026-08-17 · built 2026-08-17 · depth added 2026-08-18**
