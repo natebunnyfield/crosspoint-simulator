@@ -148,8 +148,14 @@ now gates the deposit too (`glasscapture::shouldDeposit`), a sweep already in
 flight is abandoned on a reconvert (finding 3 — the remaining frames were this
 entry's split-palette picture), and the reconvert's sequence is reported by
 the writer from under its own lock (finding 2). Post-fix the flip frame IS the
-settled dark page (35.5 vs 35.5 mean luma). Ships in the next build; the
-"changing pages" standalone trigger is still unreproduced.
+settled dark page (35.5 vs 35.5 mean luma). A second pass the same day found
+the residue: the light page's OWN deposits, made on every light page turn and
+invisible there, were still warm for 2.4 trails and composited over the dark
+page when the flip came inside that window (43.02 vs 25.38 with the flip
+272 ms after a page turn -- the Dark Mode row's own sequence). A light page
+deposits nothing now (`a239f46`): 25.36, no trail present after. Ships in
+the next build; the "changing pages" standalone trigger is still
+unreproduced.
 
 ## FIXED
 
