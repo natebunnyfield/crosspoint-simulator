@@ -349,8 +349,9 @@ network shims, restart semantics, task lifetime, read-aloud, SHA-256, the
 device-truth flags above, and the build-identity guard. Run them when touching
 any of those.
 
-**All five shell tests are IN the runner** (four since 2026-08-29, the fifth
-from 2026-09-02), via a
+**All six shell tests are IN the runner** (four since 2026-08-29, the fifth
+from 2026-09-02, the sixth -- `test_web_server_hardening.sh` -- from
+2026-09-04), via a
 `run_shell_skip` helper rather than the ordinary pass/fail path, because each
 needs a firmware checkout and uses exit code 2 to mean SKIP, which a plain
 pass/fail runner would misreport as a failure. `CROSSPOINT_FIRMWARE_DIR` picks
