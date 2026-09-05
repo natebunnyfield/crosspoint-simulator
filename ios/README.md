@@ -410,6 +410,13 @@ page is the owner setting the volume, not turning one. With the setting off
 nothing is installed at all -- no session, no observer, no `MPVolumeView`, so
 the volume bezel behaves exactly as it always did.
 
+A second row in the same group, **Flip Volume Buttons** (`volumeButtonsFlipped`,
+default off, and a no-op unless Volume Buttons Turn Pages is also on), reverses
+which physical button each direction presses -- volume-up becomes the front
+LEFT button (previous page) and volume-down the front RIGHT (next page) -- via
+`volumepage::buttonFor()`'s second argument, without touching how a press is
+detected.
+
 Two things follow from the mechanism. **The ends of the range are dead ends**:
 at 0.0 or 1.0 a press further that way changes nothing and produces no event,
 so a level at either end when the feature arms is moved to 0.5 and that
@@ -770,8 +777,10 @@ gesture groups, the two sleep toggles, the Read Aloud group, Diagnostics Log --
 and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
 default off), the CRT shutdown at sleep. Since 2026-09-05 there is also
 **Volume Buttons > Volume Buttons Turn Pages** (`volumeButtonsTurnPages`,
-default off), the phone's volume rocker as the front page rocker -- documented
-under Controls above, together with why it stays opt-in.
+default off) and, beside it, **Flip Volume Buttons** (`volumeButtonsFlipped`,
+default off) -- the phone's volume rocker as the front page rocker, and the
+toggle that swaps which side of it is which -- documented under Controls
+above, together with why both stay opt-in.
 
 **One row has been added since, and it is not an appearance dial at all**
 (2026-08-28): **Library > GitHub Token** (`githubToken`, a

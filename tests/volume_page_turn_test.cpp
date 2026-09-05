@@ -106,6 +106,39 @@ void testDirection() {
   check(volumepage::kBtnLeft == 2 && volumepage::kBtnRight == 3,
         "the button indices are HalGPIO's BTN_LEFT=2 / BTN_RIGHT=3 (the .mm "
         "static_asserts the same)");
+
+  // --- the default (unflipped) call shape must keep compiling unchanged ---
+  // buttonFor's second parameter defaults to false, so every call above --
+  // written before Flip Volume Buttons existed -- still means "unflipped".
+  check(buttonFor(Verdict::Next) == buttonFor(Verdict::Next, false),
+        "the one-argument call is the same as passing flipped=false");
+}
+
+// The Flip Volume Buttons truth table: flipping swaps which PHYSICAL button a
+// verdict fires, and nothing else -- judge() above never sees the flip, so a
+// direction is still read off the sign of the level change exactly as before.
+// Only the OUTPUT side of buttonFor() is under test here.
+void testFlipped() {
+  check(buttonFor(Verdict::Next, false) == volumepage::kBtnRight,
+        "unflipped: Next is still the front RIGHT button");
+  check(buttonFor(Verdict::Prev, false) == volumepage::kBtnLeft,
+        "unflipped: Prev is still the front LEFT button");
+  check(buttonFor(Verdict::Next, true) == volumepage::kBtnLeft,
+        "flipped: Next (volume up) becomes the front LEFT button (previous "
+        "page)");
+  check(buttonFor(Verdict::Prev, true) == volumepage::kBtnRight,
+        "flipped: Prev (volume down) becomes the front RIGHT button (next "
+        "page)");
+  check(buttonFor(Verdict::None, true) == volumepage::kNoButton,
+        "flipped: None still presses nothing");
+  check(buttonFor(Verdict::Echo, true) == volumepage::kNoButton,
+        "flipped: Echo still presses nothing");
+  // Flipping is never a no-op button-for-button -- the whole point is that it
+  // swaps the two real presses.
+  check(buttonFor(Verdict::Next, true) != buttonFor(Verdict::Next, false),
+        "flipping actually changes Next's button");
+  check(buttonFor(Verdict::Prev, true) != buttonFor(Verdict::Prev, false),
+        "flipping actually changes Prev's button");
 }
 
 void testRestingLevel() {
@@ -196,6 +229,46 @@ void testShippedSources(const std::string &iosDir) {
             std::string::npos,
         "the adapter reads the setting through CrossPointPrefs");
 
+  // Flip Volume Buttons: the same row, same group, same pinning as the toggle
+  // above, for tools/gen_gesture_plist.py's span and for the key match between
+  // the plist and the backend.
+  const std::string flipKey = volumepage::kFlippedPrefKey;
+  const std::string flipSpec = specifierFor(plist, flipKey);
+  check(!flipSpec.empty(), "Root.plist carries a row whose Key is " + flipKey);
+  if (!flipSpec.empty()) {
+    check(flipSpec.find("<string>PSToggleSwitchSpecifier</string>") !=
+              std::string::npos,
+          "the flip row is a toggle");
+    const char *flipWant = volumepage::kDefaultFlipped ? "<true/>" : "<false/>";
+    const size_t flipDv = flipSpec.find("<key>DefaultValue</key>");
+    check(flipDv != std::string::npos &&
+              flipSpec.find(flipWant, flipDv) != std::string::npos,
+          std::string("the flip row's DefaultValue is ") + flipWant +
+              " (volumepage::kDefaultFlipped)");
+  }
+  const size_t flipRowAt = plist.find("<string>" + flipKey + "</string>");
+  check(screenAt != std::string::npos && flipRowAt != std::string::npos &&
+            flipRowAt > screenAt,
+        "the flip row also sits after the Screen group, outside the "
+        "generated span");
+  // Same group as the enable toggle: no OTHER PSGroupSpecifier's Title sits
+  // between the two rows.
+  check(rowAt != std::string::npos && flipRowAt != std::string::npos &&
+            plist.find("PSGroupSpecifier", rowAt) > flipRowAt,
+        "the flip row sits in the same group as volumeButtonsTurnPages (no "
+        "group boundary between them)");
+
+  check(prefs.find("@\"" + flipKey + "\"") != std::string::npos,
+        "ios/CrossPointPrefs.mm names the key @\"" + flipKey + "\"");
+  check(prefsH.find("int CrossPointPrefs_volumeButtonsFlipped(void);") !=
+            std::string::npos,
+        "CrossPointPrefs.h declares CrossPointPrefs_volumeButtonsFlipped");
+  check(adapter.find("CrossPointPrefs_volumeButtonsFlipped()") !=
+            std::string::npos,
+        "the adapter reads the flip setting through CrossPointPrefs");
+  check(adapter.find("volumepage::buttonFor(v, flipped)") != std::string::npos,
+        "the adapter passes the live flip setting into buttonFor()");
+
   // The injection route. queueButtonTap is the ONE way an edge raised outside
   // HalGPIO::update() reaches the firmware (HalGPIO.h says why: beginFrame()
   // wipes the latches, and a per-frame hook runs after loop()). A direct
@@ -229,6 +302,7 @@ void testShippedSources(const std::string &iosDir) {
 
 int main(int argc, char **argv) {
   testDirection();
+  testFlipped();
   testRestingLevel();
   testShippedSources(argc > 1 ? argv[1] : "ios");
   if (testcheck::g_failures) {
