@@ -13,6 +13,16 @@
 #     .p8 (ASC_KEY_P8). Requires the API key to have App Manager or Admin
 #     role; a Developer-role key fails at archive with a signing error.
 #
+#   - Signing identity, optionally imported. Cloud signing mints a NEW Apple
+#     Development certificate on every hosted runner (the runner's keychain is
+#     empty and the last one's key died with its runner), and Apple caps
+#     certificates per account: run 17 (2026-09-05) hit "Choose a certificate
+#     to revoke. Your account has reached the maximum number of certificates",
+#     and therefore got no development profile either. With
+#     IOS_SIGNING_P12_B64 / IOS_SIGNING_P12_PASSWORD set (ios/setup-ci-signing.sh
+#     exports the Mac's identities into them), an existing identity is
+#     imported into a throwaway keychain and Xcode mints nothing. Without them
+#     the run behaves as before.
 #   - Licensed font sources come from a private repo. The firmware keeps
 #     Edgar's TTFs in its gitignored lib/EpdFont/local_fonts/, so a hosted
 #     runner has none; with LOCAL_FONTS_SSH_KEY (a read-only deploy key,
@@ -305,6 +315,39 @@ jobs:
           # altool ALSO searches ./private_keys relative to the working dir;
           # the home path above is the documented location.
 
+      - name: Signing identity
+        # `secrets` cannot be read in a step-level `if`, so presence is
+        # handled inside. The keychain is a throwaway under RUNNER_TEMP,
+        # added to the search list so codesign/xcodebuild see it; the p12 is
+        # deleted the moment it is imported.
+        id: signing
+        env:
+          IOS_SIGNING_P12_B64: ${{ secrets.IOS_SIGNING_P12_B64 }}
+          IOS_SIGNING_P12_PASSWORD: ${{ secrets.IOS_SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "$IOS_SIGNING_P12_B64" ]; then
+            echo "imported=false" >> "$GITHUB_OUTPUT"
+            echo "IOS_SIGNING_P12_B64 not set: cloud signing will mint a development certificate for this runner (Apple caps those; ios/setup-ci-signing.sh on the Mac stores an existing identity instead)"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          P12="$RUNNER_TEMP/signing.p12"
+          printf '%s' "$IOS_SIGNING_P12_B64" | base64 -d > "$P12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$P12" -k "$KEYCHAIN" -P "$IOS_SIGNING_P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/xcodebuild >/dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
+          rm -f "$P12"
+          echo "identities now visible to codesign:"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          echo "imported=true" >> "$GITHUB_OUTPUT"
+
       - name: Version
         id: version
         run: |
@@ -355,6 +398,9 @@ jobs:
           # failure, print the diagnostic context from the full log.
           if [ "$RC" -ne 0 ]; then
             grep -B 2 -A 8 "error:" archive.log | head -120 || true
+            if grep -q "maximum number of certificates" archive.log; then
+              echo "::error::Apple refused to mint another development certificate for this runner: the account's certificate cap (run 17, 2026-09-05). Either revoke the stale CI-minted Apple Development certificates at developer.apple.com > Certificates, or run ios/setup-ci-signing.sh on the Mac once so runs import an existing identity instead of minting one."
+            fi
           fi
           exit "$RC"
 
@@ -425,6 +471,10 @@ jobs:
             -H "Priority: 4" -H "Tags: rocket" \
             -d "Uploaded from CI. TestFlight processing takes ~5-10 min, then it appears in the TestFlight app." \
             "https://ntfy.sh/$NTFY_TOPIC" || true
+
+      - name: Remove the signing keychain
+        if: ${{ always() && steps.signing.outputs.imported == 'true' }}
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 
       - name: Notify failure
         if: ${{ failure() }}
