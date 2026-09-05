@@ -57,8 +57,13 @@ on:
           disables bundling. MUST be a subset of sd-fonts.yaml's
           installed_families — ios/CMakeLists.txt fails the configure
           otherwise, because nothing in the app can select a family that list
-          does not name (docs/ios-app-size.md A1).
-        default: Edgar,Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode,TeXGyreHeros
+          does not name (docs/ios-app-size.md A1). Families whose sources sit
+          in the firmware's gitignored lib/EpdFont/local_fonts/ (Edgar,
+          GTAlpinaCond, the licensed faces) cannot be built on a hosted
+          runner: run 15 (2026-09-05) died at Build seed fonts with
+          "Edgar-Regular.ttf not found". Only the Mac's ios/testflight.sh,
+          fed a prebuilt CROSSPOINT_SEED_FONTS_DIR, ships those.
+        default: Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode,TeXGyreHeros
         required: false
 
 env:
