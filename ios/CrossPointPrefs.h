@@ -131,6 +131,17 @@ int CrossPointPrefs_readAloudRatePercent(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_volumeButtonsTurnPages(void);
 
+// Reverse which side of the rocker is which: 1 = volume-up is the front LEFT
+// button (previous page) and volume-down the front RIGHT (next page), the
+// mirror of the default; 0 = the default mapping above. Only consulted while
+// CrossPointPrefs_volumeButtonsTurnPages() is on -- it has no effect by
+// itself. Ships OFF, like the toggle it modifies, and is read on the same
+// every-frame edge (ios/VolumePageTurn.h's buttonFor() takes it as a plain
+// bool, so a change in Settings.app is live on the very next press).
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_volumeButtonsFlipped(void);
+
 // Diagnostics file logging (diagnostics/a11y.log + tree dumps + probes).
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);
