@@ -63,6 +63,12 @@ static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled"
 // Root.plist-unreadable fallback. The key string is also pinned against the
 // plist row and the adapter by tests/volume_page_turn_test.cpp.
 static NSString *const kVolumeButtonsTurnPages = @"volumeButtonsTurnPages";
+// The flip, added the same day. Missing-key failure mode is benign for the
+// same reason -- NO means the default (unflipped) mapping, which is also the
+// shipped default -- so it needs no Root.plist-unreadable fallback entry
+// either. Pinned against the plist row by tests/volume_page_turn_test.cpp
+// alongside the toggle above.
+static NSString *const kVolumeButtonsFlipped = @"volumeButtonsFlipped";
 
 // The panel's own two tones. The missing-key failure mode for the preset is the
 // benign one again: -integerForKey: returns 0, which here is Custom, i.e. "read
@@ -407,6 +413,17 @@ int CrossPointPrefs_volumeButtonsTurnPages(void) {
   // Settings.app while the app was backgrounded lands on the first frame
   // after returning, and the adapter arms or disarms on that edge.
   return [[NSUserDefaults standardUserDefaults] boolForKey:kVolumeButtonsTurnPages]
+             ? 1
+             : 0;
+}
+
+int CrossPointPrefs_volumeButtonsFlipped(void) {
+  ensureDefaults();
+  checkKnown(kVolumeButtonsFlipped);
+  // Read live, same as volumeButtonsTurnPages above: a toggle flipped in
+  // Settings.app while the app was backgrounded lands on the first press
+  // after returning, since the adapter reads both every frame.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kVolumeButtonsFlipped]
              ? 1
              : 0;
 }

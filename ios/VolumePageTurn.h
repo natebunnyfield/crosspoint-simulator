@@ -6,7 +6,9 @@
 //
 // Owner, 2026-09-05, verbatim: *"add ios app setting for hardware volume
 // buttons and any volume changes to control back and forward pages (front
-// button rocker switch) default to off"*.
+// button rocker switch) default to off"*, followed the same day by *"add
+// ios app setting ... option to flip volume buttons (default to off)"* --
+// the second Settings.bundle row, kFlippedPrefKey below.
 //
 // iOS has no public volume-button API. The standard technique, and the one
 // ios/CrossPointVolumeButtons.mm implements: hold an audio session, observe
@@ -30,6 +32,14 @@ namespace volumepage {
 // switch and the app must not disagree.
 constexpr const char *kPrefKey = "volumeButtonsTurnPages";
 constexpr bool kDefaultEnabled = false;
+
+// The second row in the same group (2026-09-05): reverses which physical
+// button each direction presses, for an owner who finds the default backwards.
+// Also OFF by default and also pinned against Root.plist by the test -- and it
+// does nothing while kPrefKey above is off, since the adapter only calls
+// buttonFor() at all while armed.
+constexpr const char *kFlippedPrefKey = "volumeButtonsFlipped";
+constexpr bool kDefaultFlipped = false;
 
 // The FRONT pair, which is the firmware's page rocker: in the reader Left and
 // Right are previous and next page (ReaderUtils::detectPageTurn), in lists
@@ -107,13 +117,21 @@ constexpr Verdict judge(float previous, float current, bool restorePending,
   return Verdict::None;
 }
 
-// The button a verdict presses, or kNoButton.
-constexpr uint8_t buttonFor(Verdict v) {
+// The button a verdict presses, or kNoButton. `flipped` is the Flip Volume
+// Buttons setting (kFlippedPrefKey): OFF is the default mapping (up = Next =
+// front RIGHT), ON swaps which physical button each verdict fires. It has no
+// bearing on judge() above -- flipping changes which OUTPUT a direction
+// produces, never how a level change is read as a direction in the first
+// place, so Echo detection and the resting-level arithmetic are unaffected by
+// it. Defaulted to false so every existing call site (this header's own
+// tests included) keeps compiling unchanged; the adapter is the one caller
+// that passes the live setting.
+constexpr uint8_t buttonFor(Verdict v, bool flipped = false) {
   switch (v) {
     case Verdict::Next:
-      return kBtnRight;
+      return flipped ? kBtnLeft : kBtnRight;
     case Verdict::Prev:
-      return kBtnLeft;
+      return flipped ? kBtnRight : kBtnLeft;
     case Verdict::None:
     case Verdict::Echo:
       break;
