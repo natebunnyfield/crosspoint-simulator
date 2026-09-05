@@ -120,6 +120,17 @@ int CrossPointPrefs_readAloudEnabled(void);
 // Safe to call every frame. Main thread only.
 int CrossPointPrefs_readAloudRatePercent(void);
 
+// Do the hardware volume buttons turn pages? 1 = a volume-up press is the
+// front RIGHT button (next page) and volume-down the front LEFT (previous
+// page), with the level put straight back after each press; 0 = the rocker
+// is the phone's, the default. A phone property like the rest of this file:
+// the device has no volume rocker. Ships OFF because taking over the rocker
+// is opt-in by nature (ios/VolumePageTurn.h has the argument); the toggle is
+// CrossPointVolumeButtons.mm's, read on its edge every frame.
+//
+// Safe to call every frame. Main thread only.
+int CrossPointPrefs_volumeButtonsTurnPages(void);
+
 // Diagnostics file logging (diagnostics/a11y.log + tree dumps + probes).
 // Default OFF; Settings.app toggle re-arms it without a rebuild.
 int CrossPointPrefs_diagnosticsEnabled(void);

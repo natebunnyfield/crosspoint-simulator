@@ -16,6 +16,7 @@
 
 #include "CrossPointAccessibility.h"
 #include "CrossPointPrefs.h"
+#include "CrossPointVolumeButtons.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "HalStorage.h"
@@ -147,20 +148,23 @@ bool g_sessionActive = false;
 // screen locked, which is the whole point of listening to a book. Change
 // either half and the other stops meaning anything.
 void ensureAudioSession() {
-  static bool categorySet = false;
   AVAudioSession *session = [AVAudioSession sharedInstance];
   NSError *err = nil;
-  if (!categorySet) {
-    categorySet = true;
-    [session setCategory:AVAudioSessionCategoryPlayback
-                    mode:AVAudioSessionModeSpokenAudio
-                 options:0
-                   error:&err];
-    if (err) SDL_Log("[READALOUD] audio session category failed: %s",
-                     err.localizedDescription.UTF8String);
-    err = nil;
-  }
   if (g_sessionActive) return;
+  // ON EVERY ACTIVATION, not once at the first speak (which is what this did
+  // until 2026-09-05). The volume-rocker page turn (CrossPointVolumeButtons.mm)
+  // borrows this session under Ambient whenever this adapter is not holding
+  // it, so a category set once would be Ambient by the second activation --
+  // silenced by the ring switch and cut off at the lock. Re-asserting
+  // Playback here costs one call per activation, i.e. once per reading
+  // session.
+  [session setCategory:AVAudioSessionCategoryPlayback
+                  mode:AVAudioSessionModeSpokenAudio
+               options:0
+                 error:&err];
+  if (err) SDL_Log("[READALOUD] audio session category failed: %s",
+                   err.localizedDescription.UTF8String);
+  err = nil;
   [session setActive:YES error:&err];
   if (err) {
     SDL_Log("[READALOUD] audio session activate failed: %s",
@@ -209,6 +213,9 @@ void releaseAudioSessionWhenIdle() {
   }
   g_sessionActive = false;
   SDL_Log("[READALOUD] audio session released");
+  // The rocker takes it back if it is armed -- under Ambient, which mixes, so
+  // the others just told to resume are not interrupted again.
+  CrossPointVolumeButtons_audioSessionReleased();
 }
 
 // The owner's percentage-of-normal onto AVSpeech's own 0..1 scale.
@@ -546,6 +553,8 @@ void pumpQaScript() {
 }
 
 } // namespace
+
+int CrossPointReadAloud_holdsAudioSession(void) { return g_sessionActive ? 1 : 0; }
 
 void CrossPointReadAloud_resetForReboot(void) {
   // The in-process reboot boundary (called from CrossPointHarness_begin, so it

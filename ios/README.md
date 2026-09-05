@@ -364,6 +364,50 @@ broke level reads (see below). There is no HOME — `hasHomeKey()` is X4-Pro-onl
 There is no control for the simulator's own SLEEP (`S`) either: that is a harness
 command, not a button the hardware has.
 
+**The phone's volume rocker can be the page rocker, and it ships OFF
+(2026-09-05).** Owner: *"add ios app setting for hardware volume buttons and
+any volume changes to control back and forward pages (front button rocker
+switch) default to off."* Settings > CrossPoint X3 > **Volume Buttons > Volume
+Buttons Turn Pages** (`volumeButtonsTurnPages`, default off). While it is on
+and the app is in front, a volume-up press is a 60 ms tap of the FRONT RIGHT
+button and volume-down of the FRONT LEFT -- the reader's next and previous
+page, a list's next and previous item -- injected through
+`gpio.queueButtonTap`, the same route the read-aloud page turn and the
+accessibility scroll take (an edge raised outside `HalGPIO::update()` reaches
+the firmware no other way). iOS has no volume-button API, so this is the
+standard technique: an audio session is held (Ambient -- it mixes with
+whatever is playing and asks for no background time; while read-aloud holds
+its own Playback session that one is borrowed rather than replaced),
+`AVAudioSession.outputVolume` is observed by KVO, the direction is read off the
+change, and the level is put straight back through the slider inside an
+offscreen `MPVolumeView`, which is also what keeps the system's volume bezel
+off the page. The observer is torn down and the session released the moment
+the app resigns active (Control Center, the lock screen, a call) and re-armed
+once it is active again, so a volume change made anywhere but over this app's
+page is the owner setting the volume, not turning one. With the setting off
+nothing is installed at all -- no session, no observer, no `MPVolumeView`, so
+the volume bezel behaves exactly as it always did.
+
+Two things follow from the mechanism. **The ends of the range are dead ends**:
+at 0.0 or 1.0 a press further that way changes nothing and produces no event,
+so a level at either end when the feature arms is moved to 0.5 and that
+becomes the resting level; anywhere else it is left where the owner put it
+(`volumepage::restingLevel`, and the level is not put back when the feature is
+switched off). **It stays opt-in**: App Store review has rejected apps for
+repurposing the volume buttons, and a reader that silently changes what the
+phone's own buttons do is a surprise, so the default is off and the row says
+what it does. The decision half is [ios/VolumePageTurn.h](VolumePageTurn.h),
+pure and host-tested (`tests/volume_page_turn_test.cpp`, which also pins the
+plist row's default and the injection route); the platform half is
+[ios/CrossPointVolumeButtons.mm](CrossPointVolumeButtons.mm). **SHIPPED --
+UNVERIFIED on device and in the iOS Simulator**: written without a Mac in the
+loop, so neither the KVO delivery, the HUD suppression nor the slider restore
+has been observed running. The `[VOLUME]` log lines (`armed: level ...`,
+`... -> ...: page forward (button 3)`, `disarmed (...)`) are the instrument for
+the first run; a press that logs nothing means KVO never fired (the session
+did not activate), and a press that logs a turn and is followed by no `Echo`
+means the slider restore did not land.
+
 
 **iPad (family 2) — IMPLEMENTED 2026-08-04** (owner-approved spec 2026-08-03,
 computed mockups: the "device_mockups" artifact). `TARGETED_DEVICE_FAMILY` is
@@ -702,7 +746,10 @@ disagree about what was picked.
 What remains in Settings.app after the 2026-08-23 ruling is the Zen toggle, the
 gesture groups, the two sleep toggles, the Read Aloud group, Diagnostics Log --
 and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
-default off), the CRT shutdown at sleep.
+default off), the CRT shutdown at sleep. Since 2026-09-05 there is also
+**Volume Buttons > Volume Buttons Turn Pages** (`volumeButtonsTurnPages`,
+default off), the phone's volume rocker as the front page rocker -- documented
+under Controls above, together with why it stays opt-in.
 
 **One row has been added since, and it is not an appearance dial at all**
 (2026-08-28): **Library > GitHub Token** (`githubToken`, a

@@ -75,6 +75,7 @@
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
 #include "CrossPointReadAloud.h"
+#include "CrossPointVolumeButtons.h"
 
 // Ask the firmware to RE-RENDER the current activity. Declared rather than
 // included: ActivityManager.h holds unique_ptr<Activity> and would drag the
@@ -3298,6 +3299,11 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
     // Backgrounding must not leave a key stuck down: the finger is gone, and a
     // stuck POWER would read as a long press.
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
+      // The volume rocker stops being a page rocker here, now rather than on
+      // a next frame that may never run: a volume change made in Control
+      // Center or on the lock screen is the owner setting the volume.
+      // Re-arms itself from perFrame once the app is active again.
+      CrossPointVolumeButtons_appWillResignActive();
       // Read-aloud keeps the process alive with the screen locked, and it
       // turns pages while it reads -- so the firmware goes on rendering. Stop
       // presenting: Metal work submitted from the background is grounds for
@@ -3611,6 +3617,11 @@ void CrossPointHarness_begin() {
   // Same idempotent-across-wakes contract; installs the accessibility
   // container over the SDL view.
   CrossPointAccessibility_begin();
+  // The volume rocker as the page rocker (Settings.app, off by default).
+  // Reset BEFORE begin, same order as read-aloud above: a press made while
+  // the firmware slept must not turn a page in the boot that is waking.
+  CrossPointVolumeButtons_resetForReboot();
+  CrossPointVolumeButtons_begin();
 
   SimulatorOverlay::requestPresent();
 
@@ -3850,4 +3861,7 @@ void CrossPointHarness_perFrame() {
   pollPadContrast();
   repaintAfterForeground();
   CrossPointReadAloud_perFrame();
+  // After read-aloud: if read-aloud released the audio session this frame,
+  // the rocker's re-take has already happened by the time this drains.
+  CrossPointVolumeButtons_perFrame();
 }
