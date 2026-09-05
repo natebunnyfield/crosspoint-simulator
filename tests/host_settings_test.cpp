@@ -1,10 +1,13 @@
-// The host settings channel: the wire that carries a GitHub token from a
-// surface the owner can reach to the fetch that needs it.
+// The host settings channel: the wire that carries a GitHub token -- and,
+// since 2026-09-05, a Claude API key -- from a surface the owner can reach to
+// the fetch or exchange that needs it.
 //
 // It exists because Update Library was UNCONFIGURABLE on iOS. The token lives
 // in SETTINGS.githubToken, which is set by hand-editing /.crosspoint/
 // settings.json on the card, and a phone cannot open that file -- so the
 // feature's own "no token" screen printed instructions nobody could follow.
+// ClaudeChat's /claude-key.txt is the same shape of problem for the same
+// reason, and rides the same channel.
 //
 // Two arms, because CROSSPOINT_SIM_HOST_SETTINGS is a compile-time switch and
 // each arm is a different implementation:
@@ -32,6 +35,7 @@
 
 #include "SimHostSettings.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -48,6 +52,7 @@
 namespace sim_host_settings {
 namespace {
 std::string g_scripted;
+std::string g_scriptedClaude;
 }  // namespace
 
 size_t githubToken(char *out, size_t cap) {
@@ -59,9 +64,16 @@ size_t githubToken(char *out, size_t cap) {
   return copyToken(g_scripted.empty() ? nullptr : g_scripted.c_str(), out, cap);
 }
 
+// Same stand-in, same reasoning, for the Claude API key -- a separate scripted
+// value because the two are separate NSUserDefaults keys on the real backend.
+size_t claudeApiKey(char *out, size_t cap) {
+  return copyToken(g_scriptedClaude.empty() ? nullptr : g_scriptedClaude.c_str(), out, cap);
+}
+
 bool hasSettingsSurface() { return true; }
 
 void testSetToken(const std::string &value) { g_scripted = value; }
+void testSetClaudeKey(const std::string &value) { g_scriptedClaude = value; }
 }  // namespace sim_host_settings
 
 #endif
@@ -203,6 +215,65 @@ void testHostAdvertisesItsSurface() {
         "a host backend must advertise its settings surface");
 }
 
+// ------------------------------------------------------- the Claude key ---
+//
+// Same four cases as the GitHub token above, pinned separately because
+// claudeApiKey() is its own function over its own NSUserDefaults key -- a
+// passing token test proves nothing about whether the key's copy is wired up
+// at all.
+
+void testHostClaudeKeyArrives() {
+  sim_host_settings::testSetClaudeKey("sk-ant-EXAMPLE-NOT-A-REAL-KEY");
+  GuardedBuffer buf;
+  const size_t length =
+      sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize);
+  checkEq(static_cast<int>(length), 29, "host Claude key length");
+  checkEq(buf.value(), "sk-ant-EXAMPLE-NOT-A-REAL-KEY", "host Claude key bytes");
+  check(buf.guardsIntact(), "host Claude key did not write outside the field");
+}
+
+// An empty field is "not configured", not "a key that is the empty string" --
+// ClaudeChat.cpp's readApiKey() falls back to /claude-key.txt on exactly this
+// zero, the same branch shape as LibraryUpdater's NO_TOKEN.
+void testEmptyHostClaudeKeyReadsAsUnset() {
+  sim_host_settings::testSetClaudeKey("");
+  GuardedBuffer buf;
+  checkEq(static_cast<int>(
+              sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize)),
+          0, "empty host Claude key reports zero length");
+  checkEq(buf.value(), "", "empty host Claude key leaves the buffer empty");
+}
+
+void testOversizeClaudeKeyTruncatesAndReportsIt() {
+  const std::string oversize(kFirmwareFieldSize + 40, 'x');
+  sim_host_settings::testSetClaudeKey(oversize);
+  GuardedBuffer buf;
+  const size_t length =
+      sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize);
+  checkEq(static_cast<int>(length), static_cast<int>(oversize.size()),
+          "oversize Claude key reports its real length");
+  checkEq(static_cast<int>(buf.value().size()),
+          static_cast<int>(kFirmwareFieldSize - 1),
+          "oversize Claude key is cut to the field, less the terminator");
+  check(length > kFirmwareFieldSize - 1,
+        "the return value is what tells the caller it was truncated");
+  check(buf.guardsIntact(), "oversize Claude key did not write outside the field");
+}
+
+void testExactFitClaudeKeyIsNotTruncated() {
+  const std::string exact(kFirmwareFieldSize - 1, 'y');
+  sim_host_settings::testSetClaudeKey(exact);
+  GuardedBuffer buf;
+  const size_t length =
+      sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize);
+  checkEq(static_cast<int>(length), static_cast<int>(kFirmwareFieldSize - 1),
+          "exact-fit Claude key length");
+  checkEq(buf.value(), exact, "exact-fit Claude key is copied whole");
+  check(!(length > kFirmwareFieldSize - 1),
+        "an exact fit must not read as truncated");
+  check(buf.guardsIntact(), "exact-fit Claude key did not write outside the field");
+}
+
 #else
 
 // The desktop's inline arm. Unset -- which is the only state the canary and
@@ -261,6 +332,50 @@ void testDesktopEnvHatchTruncates() {
   unsetenv(sim_host_settings::kGithubTokenEnvVar);
 }
 
+// Same three desktop cases, for CROSSPOINT_SIM_CLAUDE_KEY.
+
+void testDesktopClaudeKeyIsUnsetByDefault() {
+  unsetenv(sim_host_settings::kClaudeApiKeyEnvVar);
+  GuardedBuffer buf;
+  checkEq(static_cast<int>(
+              sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize)),
+          0, "no env var means no Claude key");
+  checkEq(buf.value(), "", "no env var leaves the buffer empty");
+}
+
+void testDesktopClaudeKeyEnvHatchCarriesAValue() {
+  setenv(sim_host_settings::kClaudeApiKeyEnvVar, "fake-claude-key-for-the-test", 1);
+  GuardedBuffer buf;
+  checkEq(static_cast<int>(
+              sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize)),
+          28, "env Claude key length");
+  checkEq(buf.value(), "fake-claude-key-for-the-test", "env Claude key bytes");
+  check(buf.guardsIntact(), "env Claude key did not write outside the field");
+
+  setenv(sim_host_settings::kClaudeApiKeyEnvVar, "", 1);
+  checkEq(static_cast<int>(
+              sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize)),
+          0, "an empty env var is not a Claude key");
+
+  unsetenv(sim_host_settings::kClaudeApiKeyEnvVar);
+}
+
+void testDesktopClaudeKeyEnvHatchTruncates() {
+  const std::string oversize(kFirmwareFieldSize + 17, 'q');
+  setenv(sim_host_settings::kClaudeApiKeyEnvVar, oversize.c_str(), 1);
+  GuardedBuffer buf;
+  const size_t length =
+      sim_host_settings::claudeApiKey(buf.data(), kFirmwareFieldSize);
+  checkEq(static_cast<int>(length), static_cast<int>(oversize.size()),
+          "oversize env Claude key reports its real length");
+  checkEq(static_cast<int>(buf.value().size()),
+          static_cast<int>(kFirmwareFieldSize - 1),
+          "oversize env Claude key is cut to the field");
+  check(buf.guardsIntact(),
+        "oversize env Claude key did not write outside the field");
+  unsetenv(sim_host_settings::kClaudeApiKeyEnvVar);
+}
+
 // ----------------------------------------------------------- text gates ---
 //
 // The two halves that no compiler can see, and both failure modes are silent.
@@ -290,7 +405,8 @@ void testPlistKeyMatchesTheBackend(const std::string &iosDir) {
 
   // IsSecure, so iOS masks it while it is typed and keeps it out of QuickType.
   // Checked as a pair on the same row rather than anywhere in the file, since
-  // this is the only secure field in the bundle.
+  // this is the only secure field in the bundle -- update the comment above
+  // if that stops being true.
   const size_t keyAt = plist.find("<string>githubToken</string>");
   const size_t rowStart = plist.rfind("<dict>", keyAt);
   const size_t rowEnd = plist.find("</dict>", keyAt);
@@ -301,6 +417,58 @@ void testPlistKeyMatchesTheBackend(const std::string &iosDir) {
     const std::string row = plist.substr(rowStart, rowEnd - rowStart);
     check(row.find("<key>IsSecure</key>\n\t\t\t<true/>") != std::string::npos,
           "the token row is IsSecure, so iOS masks what is typed into it");
+  }
+}
+
+// Same gate, for the Claude API key row added 2026-09-05 next to the token's
+// -- same group, same attributes. A separate function rather than folding into
+// the one above: the two rows are independent, and a failure here should not
+// read as "the token row broke."
+void testPlistKeyMatchesTheBackendForClaudeKey(const std::string &iosDir) {
+  const std::string backend = slurp(iosDir + "/CrossPointHostSettings.mm");
+  const std::string plist = slurp(iosDir + "/Settings.bundle/Root.plist");
+  if (backend.empty() || plist.empty()) {
+    std::printf("FAIL: pass the ios/ directory as argv[1], or run from the "
+                "repo root\n");
+    testcheck::g_failures++;
+    return;
+  }
+
+  check(backend.find("@\"claudeApiKey\"") != std::string::npos,
+        "ios/CrossPointHostSettings.mm reads the key @\"claudeApiKey\"");
+  check(plist.find("<string>claudeApiKey</string>") != std::string::npos,
+        "Root.plist carries a row whose Key is claudeApiKey");
+
+  const size_t keyAt = plist.find("<string>claudeApiKey</string>");
+  const size_t rowStart = plist.rfind("<dict>", keyAt);
+  const size_t rowEnd = plist.find("</dict>", keyAt);
+  const bool bounded = rowStart != std::string::npos &&
+                       rowEnd != std::string::npos && rowStart < rowEnd;
+  check(bounded, "the Claude key row is a well-formed dict");
+  if (bounded) {
+    const std::string row = plist.substr(rowStart, rowEnd - rowStart);
+    check(row.find("<string>PSTextFieldSpecifier</string>") != std::string::npos,
+          "the Claude key row is a text field");
+    check(row.find("<key>IsSecure</key>\n\t\t\t<true/>") != std::string::npos,
+          "the Claude key row is IsSecure, same as the token's");
+    check(row.find("<key>AutocapitalizationType</key>\n\t\t\t<string>None</string>") !=
+              std::string::npos,
+          "the Claude key row disables autocapitalization, same as the token's");
+    check(row.find("<key>AutocorrectionType</key>\n\t\t\t<string>No</string>") !=
+              std::string::npos,
+          "the Claude key row disables autocorrection, same as the token's");
+  }
+
+  // SAME GROUP as the token: no PSGroupSpecifier boundary between the two
+  // rows' Key strings.
+  const size_t tokenAt = plist.find("<string>githubToken</string>");
+  check(tokenAt != std::string::npos && keyAt != std::string::npos,
+        "both the token and Claude key rows are present");
+  if (tokenAt != std::string::npos && keyAt != std::string::npos) {
+    const size_t lo = std::min(tokenAt, keyAt);
+    const size_t hi = std::max(tokenAt, keyAt);
+    check(plist.find("PSGroupSpecifier", lo) > hi,
+          "the Claude key row sits in the same group as githubToken");
   }
 }
 
@@ -333,12 +501,20 @@ int main(int argc, char **argv) {
   testExactFitIsNotTruncated();
   testDegenerateBufferIsSafe();
   testHostAdvertisesItsSurface();
+  testHostClaudeKeyArrives();
+  testEmptyHostClaudeKeyReadsAsUnset();
+  testOversizeClaudeKeyTruncatesAndReportsIt();
+  testExactFitClaudeKeyIsNotTruncated();
 #else
   const std::string iosDir = argc > 1 ? argv[1] : "ios";
   testDesktopIsUnsetByDefault();
   testDesktopEnvHatchCarriesAValue();
   testDesktopEnvHatchTruncates();
+  testDesktopClaudeKeyIsUnsetByDefault();
+  testDesktopClaudeKeyEnvHatchCarriesAValue();
+  testDesktopClaudeKeyEnvHatchTruncates();
   testPlistKeyMatchesTheBackend(iosDir);
+  testPlistKeyMatchesTheBackendForClaudeKey(iosDir);
   testNothingLogsTheToken(iosDir);
 #endif
 

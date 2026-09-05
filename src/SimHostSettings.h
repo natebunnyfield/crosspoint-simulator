@@ -10,7 +10,8 @@
 // travel with it; these do not. They are properties of THIS HOST running the
 // app, and on device hardware there is nothing to read.
 //
-// The contract is narrow on purpose, and there is exactly one value in it.
+// The contract is narrow on purpose, and there are two values in it, both
+// credentials with the same shape.
 //
 // THE GITHUB TOKEN. Update Library fetches a release from a PRIVATE repo, so
 // every request carries "Authorization: Bearer <token>", read from
@@ -20,6 +21,14 @@
 // ("Set githubToken in settings.json, then try again") was advice the owner
 // could not follow. iOS Settings > CrossPoint X3 > GitHub Token is the home it
 // gets, and this is the wire from there to the fetch.
+//
+// THE CLAUDE API KEY (2026-09-05). ClaudeChat reads its key from
+// /claude-key.txt on the card root (src/notes/ClaudeChat.cpp, readApiKey), the
+// same one-line-file convention as the GitHub token and for the same reason a
+// phone cannot use it: there is no way to edit a file on the card from
+// Settings.app. iOS Settings > CrossPoint X3 > Claude API Key is the home it
+// gets, next to the GitHub token, and claudeApiKey() below is the wire from
+// there to ClaudeChat's readApiKey().
 //
 // IT IS NEVER WRITTEN BACK TO THE CARD. The host store stays the only copy the
 // host build keeps: LibraryUpdater asks for the token at the moment it builds
@@ -61,6 +70,8 @@ namespace sim_host_settings {
 // Deliberately not consulted on the host path: a phone has no environment to
 // set, and a build that read both would have two answers to one question.
 inline constexpr char kGithubTokenEnvVar[] = "CROSSPOINT_SIM_GITHUB_TOKEN";
+// Same escape hatch, for the Claude API key.
+inline constexpr char kClaudeApiKeyEnvVar[] = "CROSSPOINT_SIM_CLAUDE_KEY";
 
 // THE COPY ITSELF, in ONE place, because it is the part with teeth and every
 // backend was re-typing it.
@@ -105,6 +116,13 @@ inline size_t copyToken(const char *value, char *out, size_t cap) {
 // SDL main thread.
 size_t githubToken(char *out, size_t cap);
 
+// Same contract as githubToken() above, for the Claude API key ClaudeChat
+// sends as the x-api-key header. A separate function rather than a second
+// parameter to githubToken(), because the two are unrelated credentials for
+// unrelated features that happen to share this one mechanism -- see
+// ClaudeChat.cpp's readApiKey().
+size_t claudeApiKey(char *out, size_t cap);
+
 // Does this host offer a settings surface the owner can actually reach?
 //
 // It decides WHICH SENTENCE the "no token" screen prints -- "settings.json" is
@@ -126,9 +144,15 @@ inline size_t githubToken(char *out, size_t cap) {
   return copyToken(std::getenv(kGithubTokenEnvVar), out, cap);
 }
 
-// FALSE even when the environment variable above is set. The variable is a QA
-// hatch, not a place the owner can be sent to; the sentence this picks has to
-// name somewhere he can go, and on the desktop that is settings.json.
+// Same reasoning as githubToken() above, for CROSSPOINT_SIM_CLAUDE_KEY.
+inline size_t claudeApiKey(char *out, size_t cap) {
+  return copyToken(std::getenv(kClaudeApiKeyEnvVar), out, cap);
+}
+
+// FALSE even when the environment variables above are set. The variables are a
+// QA hatch, not a place the owner can be sent to; the sentence this picks has
+// to name somewhere he can go, and on the desktop that is settings.json (or,
+// for the Claude key, /claude-key.txt).
 inline bool hasSettingsSurface() { return false; }
 
 #endif
