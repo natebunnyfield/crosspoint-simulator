@@ -172,11 +172,22 @@ jobs:
         # The generated source set references .pio/libdeps include paths that a
         # desktop `pio run` would normally populate. CI never runs PlatformIO,
         # and ArduinoJson is header-only, so a pinned clone is sufficient.
+        #
+        # The path is READ FROM THE SOURCE SET, not typed here: it carries the
+        # env the set was generated from (simulator_x3 until 2026-08, simulator
+        # since the 2026-08-26 regeneration), and a hard-coded simulator_x3
+        # left run 18 (2026-09-05) failing at Archive with
+        # "'ArduinoJson.h' file not found" -- the first run to get that far.
         run: |
-          DEST=firmware/.pio/libdeps/simulator_x3/ArduinoJson
-          mkdir -p "$(dirname "$DEST")"
-          git clone --depth 1 --branch v7.4.2 \
-            https://github.com/bblanchon/ArduinoJson "$DEST"
+          DIRS=$(grep -o '\.pio/libdeps/[^/ ]*/ArduinoJson' simulator/cmake/CrossPointSources.cmake | sort -u)
+          [ -n "$DIRS" ] || { echo "::error::no .pio/libdeps/<env>/ArduinoJson include path in cmake/CrossPointSources.cmake"; exit 1; }
+          for d in $DIRS; do
+            DEST="firmware/$d"
+            mkdir -p "$(dirname "$DEST")"
+            git clone --quiet --depth 1 --branch v7.4.2 \
+              https://github.com/bblanchon/ArduinoJson "$DEST"
+            echo "ArduinoJson v7.4.2 -> $DEST"
+          done
 
       - name: Licensed font sources
         # `secrets` cannot be read in a step-level `if`, so which credential
