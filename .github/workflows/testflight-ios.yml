@@ -13,6 +13,12 @@
 #     .p8 (ASC_KEY_P8). Requires the API key to have App Manager or Admin
 #     role; a Developer-role key fails at archive with a signing error.
 #
+#   - Licensed font sources come from a private repo. The firmware keeps
+#     Edgar's TTFs in its gitignored lib/EpdFont/local_fonts/, so a hosted
+#     runner has none; with LOCAL_FONTS_TOKEN set, local_fonts_repo is
+#     checked out into that folder first. Without it, a seed list that names
+#     a licensed family stops at Resolve seed families.
+#
 # Build number: max remote build-N tag + 1, floor 2 — build 1 was consumed by
 # the ITMS-90683 rejection. On success the workflow pushes build-N so the next
 # run (CI or ios/testflight.sh on the Mac) continues the sequence.
@@ -52,18 +58,29 @@ on:
         default: false
       seed_fonts:
         description: >-
-          Comma-separated sd-fonts.yaml family names to build and bundle into
-          the app; they seed the phone's fonts/ folder at launch. Blank
-          disables bundling. MUST be a subset of sd-fonts.yaml's
-          installed_families — ios/CMakeLists.txt fails the configure
-          otherwise, because nothing in the app can select a family that list
-          does not name (docs/ios-app-size.md A1). Families whose sources sit
-          in the firmware's gitignored lib/EpdFont/local_fonts/ (Edgar,
-          GTAlpinaCond, the licensed faces) cannot be built on a hosted
-          runner: run 15 (2026-09-05) died at Build seed fonts with
-          "Edgar-Regular.ttf not found". Only the Mac's ios/testflight.sh,
-          fed a prebuilt CROSSPOINT_SEED_FONTS_DIR, ships those.
-        default: Coelacanth,TeXGyreSchola,LibreFranklin,LibrisADF,InknutJunicode,TeXGyreHeros
+          Families to build and bundle into the app; they seed the phone's
+          fonts/ folder at launch. The default, `installed`, means every
+          family in the firmware's sd-fonts.yaml installed_families, which is
+          the only list ios/CMakeLists.txt accepts: it refuses a bundle
+          missing any installed family (the app would believe in a font it
+          does not carry) and one carrying a family the list does not name
+          (docs/ios-app-size.md A1). A comma-separated list is honoured as
+          typed; run 16 (2026-09-05), dispatched with six of the eight, died
+          at Configure that way. Blank disables bundling, which the Mac's
+          ios/testflight.sh refuses outright; it is kept for experiments.
+        default: installed
+        required: false
+      local_fonts_repo:
+        description: >-
+          Private repository (owner/name) holding what the firmware keeps in
+          its gitignored lib/EpdFont/local_fonts/ -- Edgar's four TTFs today.
+          Checked out into that folder when the LOCAL_FONTS_TOKEN secret (a
+          fine-grained PAT with contents:read on that repo) is set. Without
+          the secret, a licensed family in the seed list stops the run at
+          Resolve seed families, before any Mac minutes are spent. The Mac's
+          ios/testflight.sh never needs this; its tree is built from the
+          local folder.
+        default: natebunnyfield/crosspoint-local-fonts
         required: false
 
 env:
@@ -147,16 +164,101 @@ jobs:
           git clone --depth 1 --branch v7.4.2 \
             https://github.com/bblanchon/ArduinoJson "$DEST"
 
+      - name: Licensed font sources
+        # `secrets` cannot be read in a step-level `if`, so the presence of
+        # LOCAL_FONTS_TOKEN goes through an output that the checkout below
+        # and the resolver's error text both consult.
+        id: local_fonts
+        env:
+          LOCAL_FONTS_TOKEN: ${{ secrets.LOCAL_FONTS_TOKEN }}
+        run: |
+          if [ -n "$LOCAL_FONTS_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "LOCAL_FONTS_TOKEN set: ${{ inputs.local_fonts_repo }} will supply lib/EpdFont/local_fonts/"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "LOCAL_FONTS_TOKEN not set: licensed families cannot be built in this run"
+          fi
+
+      - name: Check out licensed font sources
+        if: ${{ inputs.seed_fonts != '' && steps.local_fonts.outputs.present == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.local_fonts_repo }}
+          token: ${{ secrets.LOCAL_FONTS_TOKEN }}
+          path: firmware/lib/EpdFont/local_fonts
+
+      - name: Resolve seed families
+        # `installed` becomes the firmware's installed_families, the one list
+        # Configure accepts. Then every family's sources are checked BEFORE a
+        # minute is spent rendering: a licensed source that is not on disk
+        # fails here, naming the family and the two ways out, rather than 60 s
+        # into build-sd-fonts.py (run 15) or eight minutes later at Configure
+        # (run 16). Downloaded sources (TeX Gyre, Noto fallbacks) are fetched
+        # by build-sd-fonts.py itself and are not checked here.
+        if: ${{ inputs.seed_fonts != '' }}
+        id: seed
+        env:
+          SEED_FONTS: ${{ inputs.seed_fonts }}
+          HAVE_LOCAL_FONTS: ${{ steps.local_fonts.outputs.present }}
+          LOCAL_FONTS_REPO: ${{ inputs.local_fonts_repo }}
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          import yaml
+          root = os.path.join("firmware", "lib", "EpdFont")
+          recipe = yaml.safe_load(open(os.path.join(root, "scripts", "sd-fonts.yaml"), encoding="utf-8"))
+          families = {f["name"]: f for f in recipe.get("families", [])}
+          asked = os.environ["SEED_FONTS"].strip()
+          if asked == "installed":
+              names = list(recipe.get("installed_families") or [])
+              if not names:
+                  print("::error::sd-fonts.yaml has no installed_families; nothing to bundle")
+                  sys.exit(1)
+          else:
+              names = [n.strip() for n in asked.split(",") if n.strip()]
+          unknown = [n for n in names if n not in families]
+          if unknown:
+              print("::error::not in sd-fonts.yaml families: " + ", ".join(unknown))
+              sys.exit(1)
+          missing = {}
+          for n in names:
+              for style, spec in (families[n].get("styles") or {}).items():
+                  path = spec.get("path", "")
+                  if path.startswith("local_fonts/") and not os.path.isfile(os.path.join(root, path)):
+                      missing.setdefault(n, []).append(path)
+          if missing:
+              have = os.environ.get("HAVE_LOCAL_FONTS") == "true"
+              repo = os.environ.get("LOCAL_FONTS_REPO", "")
+              for n, paths in missing.items():
+                  print(f"::error::{n}: licensed source(s) not on disk: " + ", ".join(paths))
+              if have:
+                  print(f"::error::{repo} was checked out into lib/EpdFont/local_fonts/ but does not carry the files above at those paths.")
+              else:
+                  print("::error::These live in the firmware's gitignored lib/EpdFont/local_fonts/. Either add the LOCAL_FONTS_TOKEN secret (a fine-grained PAT with contents:read on "
+                        + (repo or "the local_fonts_repo input") + ", which must hold that folder's files), or ship from the Mac: osascript ~/src/crosspoint-simulator/ios/deploy.applescript")
+              sys.exit(1)
+          joined = ",".join(names)
+          print("seed families: " + joined)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("families=" + joined + "\n")
+          PY
+
       - name: Build seed fonts
-        # Families named in seed_fonts are built from the firmware's
-        # sd-fonts.yaml and handed to CMake, which bundles them under
-        # Resources/SeedFonts/; ios/CrossPointFsPrep.cpp copies them into the
-        # phone's visible fonts/ root at launch. freetype-py ships macOS
-        # wheels with libfreetype embedded, so no brew dependency.
+        # The resolved families are built from the firmware's sd-fonts.yaml
+        # and handed to CMake, which bundles them under Resources/SeedFonts/;
+        # ios/CrossPointFsPrep.cpp copies them into the phone's visible fonts/
+        # root at launch. freetype-py ships macOS wheels with libfreetype
+        # embedded, so no brew dependency.
         #
-        # The list is hand-typed, so it is CHECKED: the Configure step below
-        # fails when a bundled family is missing from sd-fonts.yaml's
-        # installed_families. Build 126 shipped iA Writer Duo, Mono and
+        # Both tiers, because the app renders at CROSSPOINT_IOS_RENDER_SCALE 2
+        # (ios/CMakeLists.txt) and a family without its 2x set draws
+        # 1x-replicated glyphs on the phone. build-sd-fonts.py writes 1x into
+        # <Family>/ and 2x into <Family>/2x/, the layout validate_seed_fonts.py
+        # checks at Configure.
+        #
+        # Configure still refuses a bundle that names a family outside
+        # installed_families: build 126 shipped iA Writer Duo, Mono and
         # Quattro through this input — 16.2 MB compressed of bundle that no
         # reading or editor surface could reach (docs/ios-app-size.md A1).
         if: ${{ inputs.seed_fonts != '' }}
@@ -165,9 +267,12 @@ jobs:
             -r firmware/lib/EpdFont/scripts/requirements.txt || \
             python3 -m pip install --quiet \
               -r firmware/lib/EpdFont/scripts/requirements.txt
-          python3 firmware/lib/EpdFont/scripts/build-sd-fonts.py \
-            --only "${{ inputs.seed_fonts }}" \
-            --output-dir "$RUNNER_TEMP/seed-fonts"
+          for sc in 1 2; do
+            python3 firmware/lib/EpdFont/scripts/build-sd-fonts.py \
+              --only "${{ steps.seed.outputs.families }}" \
+              --scale "$sc" \
+              --output-dir "$RUNNER_TEMP/seed-fonts"
+          done
           ls -laR "$RUNNER_TEMP/seed-fonts"
 
       - name: Install the ASC API key
