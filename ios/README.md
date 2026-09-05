@@ -190,6 +190,28 @@ use private repo to clear commercial font issues", which reverses the
 2026-08-31 choice recorded at the top of the firmware's `release.yml` not to
 take on this machinery.
 
+### Signing on a hosted runner
+
+Cloud signing mints a new Apple Development certificate on every hosted run,
+because the runner's keychain starts empty and the previous run's private key
+died with its runner. Apple caps certificates per account, and run 17
+(2026-09-05, the first run past the font gate) hit it: "Choose a certificate
+to revoke. Your account has reached the maximum number of certificates", and
+therefore no development profile either. The fix is to give the runner an
+existing identity. On the Mac, from a GUI Terminal:
+
+```bash
+ios/setup-ci-signing.sh          # list what would be exported
+ios/setup-ci-signing.sh --yes    # export, and set the two secrets
+```
+
+It exports the login keychain's code-signing identities as one
+password-protected PKCS#12 and stores them as `IOS_SIGNING_P12_B64` and
+`IOS_SIGNING_P12_PASSWORD` on this repo. The workflow's *Signing identity*
+step imports them into a throwaway keychain before Archive, so Xcode finds
+an identity and mints nothing; without the secrets it behaves as before, and
+the cap error, if it returns, is named with both remedies after Archive.
+
 Signing needs the login keychain, which only a GUI Terminal session has — an
 SSH shell fails at codesign with `errSecInternalComponent`. The bridge, same as
 crds-ios: let AppleScript hand the command to Terminal.app, which runs it under
