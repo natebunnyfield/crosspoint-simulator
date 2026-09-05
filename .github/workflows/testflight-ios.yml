@@ -15,9 +15,11 @@
 #
 #   - Licensed font sources come from a private repo. The firmware keeps
 #     Edgar's TTFs in its gitignored lib/EpdFont/local_fonts/, so a hosted
-#     runner has none; with LOCAL_FONTS_TOKEN set, local_fonts_repo is
-#     checked out into that folder first. Without it, a seed list that names
-#     a licensed family stops at Resolve seed families.
+#     runner has none; with LOCAL_FONTS_SSH_KEY (a read-only deploy key,
+#     which ios/setup-local-fonts-repo.sh creates end to end) or
+#     LOCAL_FONTS_TOKEN (a fine-grained PAT) set, local_fonts_repo is checked
+#     out into that folder first. Without either, a seed list that names a
+#     licensed family stops at Resolve seed families.
 #
 # Build number: max remote build-N tag + 1, floor 2 — build 1 was consumed by
 # the ITMS-90683 rejection. On success the workflow pushes build-N so the next
@@ -74,12 +76,14 @@ on:
         description: >-
           Private repository (owner/name) holding what the firmware keeps in
           its gitignored lib/EpdFont/local_fonts/ -- Edgar's four TTFs today.
-          Checked out into that folder when the LOCAL_FONTS_TOKEN secret (a
-          fine-grained PAT with contents:read on that repo) is set. Without
-          the secret, a licensed family in the seed list stops the run at
-          Resolve seed families, before any Mac minutes are spent. The Mac's
-          ios/testflight.sh never needs this; its tree is built from the
-          local folder.
+          Checked out into that folder when one of two secrets is set:
+          LOCAL_FONTS_SSH_KEY, a read-only deploy key on that repo, which
+          ios/setup-local-fonts-repo.sh creates, installs and stores in one
+          run on the Mac; or LOCAL_FONTS_TOKEN, a fine-grained PAT with
+          contents:read. Without either, a licensed family in the seed list
+          stops the run at Resolve seed families, before any Mac minutes are
+          spent. The Mac's ios/testflight.sh never needs this; its tree is
+          built from the local folder.
         default: natebunnyfield/crosspoint-local-fonts
         required: false
 
@@ -165,23 +169,39 @@ jobs:
             https://github.com/bblanchon/ArduinoJson "$DEST"
 
       - name: Licensed font sources
-        # `secrets` cannot be read in a step-level `if`, so the presence of
-        # LOCAL_FONTS_TOKEN goes through an output that the checkout below
-        # and the resolver's error text both consult.
+        # `secrets` cannot be read in a step-level `if`, so which credential
+        # exists goes through an output that the two checkouts below and the
+        # resolver's error text consult. The deploy key wins when both are
+        # set: it is the one ios/setup-local-fonts-repo.sh maintains.
         id: local_fonts
         env:
+          LOCAL_FONTS_SSH_KEY: ${{ secrets.LOCAL_FONTS_SSH_KEY }}
           LOCAL_FONTS_TOKEN: ${{ secrets.LOCAL_FONTS_TOKEN }}
         run: |
-          if [ -n "$LOCAL_FONTS_TOKEN" ]; then
+          if [ -n "$LOCAL_FONTS_SSH_KEY" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "LOCAL_FONTS_TOKEN set: ${{ inputs.local_fonts_repo }} will supply lib/EpdFont/local_fonts/"
+            echo "mode=ssh" >> "$GITHUB_OUTPUT"
+            echo "LOCAL_FONTS_SSH_KEY set: ${{ inputs.local_fonts_repo }} will supply lib/EpdFont/local_fonts/ over the deploy key"
+          elif [ -n "$LOCAL_FONTS_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "LOCAL_FONTS_TOKEN set: ${{ inputs.local_fonts_repo }} will supply lib/EpdFont/local_fonts/ over the PAT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "LOCAL_FONTS_TOKEN not set: licensed families cannot be built in this run"
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+            echo "neither LOCAL_FONTS_SSH_KEY nor LOCAL_FONTS_TOKEN is set: licensed families cannot be built in this run"
           fi
 
-      - name: Check out licensed font sources
-        if: ${{ inputs.seed_fonts != '' && steps.local_fonts.outputs.present == 'true' }}
+      - name: Check out licensed font sources (deploy key)
+        if: ${{ inputs.seed_fonts != '' && steps.local_fonts.outputs.mode == 'ssh' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.local_fonts_repo }}
+          ssh-key: ${{ secrets.LOCAL_FONTS_SSH_KEY }}
+          path: firmware/lib/EpdFont/local_fonts
+
+      - name: Check out licensed font sources (token)
+        if: ${{ inputs.seed_fonts != '' && steps.local_fonts.outputs.mode == 'token' }}
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.local_fonts_repo }}
@@ -235,8 +255,9 @@ jobs:
               if have:
                   print(f"::error::{repo} was checked out into lib/EpdFont/local_fonts/ but does not carry the files above at those paths.")
               else:
-                  print("::error::These live in the firmware's gitignored lib/EpdFont/local_fonts/. Either add the LOCAL_FONTS_TOKEN secret (a fine-grained PAT with contents:read on "
-                        + (repo or "the local_fonts_repo input") + ", which must hold that folder's files), or ship from the Mac: osascript ~/src/crosspoint-simulator/ios/deploy.applescript")
+                  print("::error::These live in the firmware's gitignored lib/EpdFont/local_fonts/. On the Mac, run ios/setup-local-fonts-repo.sh once: it creates the private repo "
+                        + (repo or "named by local_fonts_repo") + ", mirrors that folder into it, and stores a read-only deploy key as the LOCAL_FONTS_SSH_KEY secret (a fine-grained PAT in LOCAL_FONTS_TOKEN also works). "
+                        + "Or ship from the Mac instead: osascript ~/src/crosspoint-simulator/ios/deploy.applescript")
               sys.exit(1)
           joined = ",".join(names)
           print("seed families: " + joined)
