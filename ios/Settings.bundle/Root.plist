@@ -1242,7 +1242,9 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Turns the phone’s volume rocker into the reader’s page rocker: volume up is the next page and volume down the previous one — the same presses as the Left and Right buttons on the pad. The volume itself is put straight back after every press, so the level you hear does not drift. If it is at the very top or bottom when this is switched on it is moved to the middle, because a press past the end has nothing to report. Off by default; while it is on, the rocker does not change the volume at all.</string>
+			<string>Turns the phone’s volume rocker into the reader’s page rocker: volume up is the next page and volume down the previous one — the same presses as the Left and Right buttons on the pad. The volume itself is put straight back after every press, so the level you hear does not drift. If it is at the very top or bottom when this is switched on it is moved to the middle, because a press past the end has nothing to report. Off by default; while it is on, the rocker does not change the volume at all.
+
+Flip Volume Buttons reverses which side does which — volume up becomes the previous page and volume down the next — for anyone who finds the default backwards. Off by default; it does nothing unless Volume Buttons Turn Pages is also on.</string>
 			<key>Title</key>
 			<string>Volume Buttons</string>
 			<key>Type</key>
@@ -1255,6 +1257,16 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 			<string>volumeButtonsTurnPages</string>
 			<key>Title</key>
 			<string>Volume Buttons Turn Pages</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>volumeButtonsFlipped</string>
+			<key>Title</key>
+			<string>Flip Volume Buttons</string>
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
 		</dict>

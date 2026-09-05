@@ -18,7 +18,10 @@
 
 // The volume-rocker adapter. Owner, 2026-09-05: "add ios app setting for
 // hardware volume buttons and any volume changes to control back and forward
-// pages (front button rocker switch) default to off".
+// pages (front button rocker switch) default to off", plus, the same day,
+// "option to flip volume buttons (default to off)" -- Settings.bundle's
+// second row in this group, read in drain() below alongside the enable
+// toggle and passed to volumepage::buttonFor() to swap which side is which.
 //
 // HOW, since iOS has no volume-button API: while the setting is on and the
 // app is active, an audio session is held and AVAudioSession.outputVolume is
@@ -272,14 +275,19 @@ void drain() {
         break;
       case volumepage::Verdict::Next:
       case volumepage::Verdict::Prev: {
-        const uint8_t button = volumepage::buttonFor(v);
+        // Read live, same as the enable toggle in perFrame: a change made in
+        // Settings.app while the app was backgrounded takes effect on the
+        // very next press after returning.
+        const bool flipped = CrossPointPrefs_volumeButtonsFlipped() != 0;
+        const uint8_t button = volumepage::buttonFor(v, flipped);
         // A REAL button press, fired inside HalGPIO::update() where its edges
         // are visible to the firmware; page-forward is the RIGHT front button
-        // (ReaderUtils::detectPageTurn), verified 2026-08-08 for read-aloud.
+        // (ReaderUtils::detectPageTurn), verified 2026-08-08 for read-aloud --
+        // unless flipped, in which case it is the LEFT.
         gpio.queueButtonTap(button, volumepage::kTapHoldMs);
-        SDL_Log("[VOLUME] %.4f -> %.4f: %s (button %u)", previous, level,
+        SDL_Log("[VOLUME] %.4f -> %.4f: %s (button %u%s)", previous, level,
                 v == volumepage::Verdict::Next ? "page forward" : "page back",
-                (unsigned)button);
+                (unsigned)button, flipped ? ", flipped" : "");
         restoreTo(g_resting);
         break;
       }
