@@ -57,6 +57,13 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // either).
 static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled";
 
+// The volume rocker as the page rocker (2026-09-05). Missing-key failure mode
+// is benign -- NO means the rocker stays the phone's, which is also the
+// shipped default -- so, like the three above, it needs no entry in the
+// Root.plist-unreadable fallback. The key string is also pinned against the
+// plist row and the adapter by tests/volume_page_turn_test.cpp.
+static NSString *const kVolumeButtonsTurnPages = @"volumeButtonsTurnPages";
+
 // The panel's own two tones. The missing-key failure mode for the preset is the
 // benign one again: -integerForKey: returns 0, which here is Custom, i.e. "read
 // the four hex fields" -- and those, missing, parse as invalid and fall back to
@@ -391,6 +398,17 @@ int CrossPointPrefs_readAloudRatePercent(void) {
   if (percent < 25) percent = 25;
   if (percent > 300) percent = 300;
   return static_cast<int>(percent);
+}
+
+int CrossPointPrefs_volumeButtonsTurnPages(void) {
+  ensureDefaults();
+  checkKnown(kVolumeButtonsTurnPages);
+  // Read live, same as readAloudEnabled above: a toggle flipped in
+  // Settings.app while the app was backgrounded lands on the first frame
+  // after returning, and the adapter arms or disarms on that edge.
+  return [[NSUserDefaults standardUserDefaults] boolForKey:kVolumeButtonsTurnPages]
+             ? 1
+             : 0;
 }
 
 int CrossPointPrefs_diagnosticsEnabled(void) {
