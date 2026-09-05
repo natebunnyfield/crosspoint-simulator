@@ -1310,11 +1310,11 @@ Speaking rate is a percentage of normal. The Spoken Content rate slider in Acces
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Update Library syncs the books folder from a release on a private GitHub repository, so it needs a fine-grained personal access token with read access to that repository’s contents.
+			<string>Update Library syncs the books folder from a release on a private GitHub repository, so it needs a fine-grained personal access token with read access to that repository’s contents. The Claude API Key below is unrelated to Update Library — it belongs to the Claude chat editor — but it is typed and kept the same way, so it lives in this same group rather than a second one-row group of its own.
 
-The token is kept on this phone. It is never written to the simulated SD card, which File Transfer serves to anything on your network while that screen is open.
+Both are kept on this phone. Neither is ever written to the simulated SD card, which File Transfer serves to anything on your network while that screen is open.
 
-On the reader hardware this value lives in settings.json on the card. A phone has no way to edit that file, which is why the field is here.</string>
+On the reader hardware these values live in settings.json and /claude-key.txt on the card. A phone has no way to edit either file, which is why the fields are here.</string>
 			<key>Title</key>
 			<string>Library</string>
 			<key>Type</key>
@@ -1335,6 +1335,24 @@ On the reader hardware this value lives in settings.json on the card. A phone ha
 			<string>Alphabet</string>
 			<key>Title</key>
 			<string>GitHub Token</string>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+		</dict>
+		<dict>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>DefaultValue</key>
+			<string></string>
+			<key>IsSecure</key>
+			<true/>
+			<key>Key</key>
+			<string>claudeApiKey</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+			<key>Title</key>
+			<string>Claude API Key</string>
 			<key>Type</key>
 			<string>PSTextFieldSpecifier</string>
 		</dict>
