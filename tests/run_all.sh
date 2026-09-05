@@ -220,6 +220,25 @@ run gesture_bindings \
 run_direct gesture_plist \
   python3 tools/gen_gesture_plist.py --check
 
+# VolumePageTurn.h -- the hardware volume rocker as the firmware's page rocker
+# (owner 2026-09-05, Settings.app toggle, OFF by default). The phone half is
+# AVAudioSession.outputVolume by KVO with the level written back through a
+# hidden MPVolumeView slider after every press; none of that exists on a host
+# and simctl cannot press a volume button, so what is pinned is the decision
+# each event feeds: which way the level moved (up = front RIGHT = next page,
+# down = front LEFT = previous), that the restore's own echo is not read as
+# the opposite press, and that a level at 0.0 or 1.0 -- where the next press
+# in that direction produces no event at all -- is moved to the middle when
+# the feature arms, swept across all 17 levels. Every one of those is silent on
+# a device. Reads Root.plist and the adapter as text too: DefaultValue equals
+# the header's default (the registration domain is built from that plist),
+# the key the backend reads is the key the row writes, the row sits outside
+# the generated gesture span, and the press goes through gpio.queueButtonTap
+# -- the one route an edge raised outside HalGPIO::update() reaches the
+# firmware -- with MediaPlayer linked by name.
+run volume_page_turn \
+  c++ -std=c++17 -Iios -o "$OUT/volume_page_turn" tests/volume_page_turn_test.cpp
+
 # The page-tap candidate's arm/spoil lifecycle (2026-08-21 audit findings #1
 # and #3): no exit path may leave it latched, and a second concurrent finger
 # spoils it. Pure because the SDL event watch it was extracted from cannot be

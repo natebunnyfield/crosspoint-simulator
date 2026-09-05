@@ -61,6 +61,14 @@ void CrossPointReadAloud_tapAtScreen(float xPx, float yPx);
 // Main thread only, like everything here.
 int CrossPointReadAloud_magicTap(void);
 
+// 1 while this adapter holds the audio session active (speaking, or paused
+// with an utterance held), 0 once it has been handed back. The volume-rocker
+// page turn (CrossPointVolumeButtons.mm) needs SOME session active to be told
+// about a press at all; it borrows the session under its own category only
+// while this answers 0, and never re-categorises or deactivates one this
+// adapter is holding. Main thread only.
+int CrossPointReadAloud_holdsAudioSession(void);
+
 #ifdef __cplusplus
 }
 #endif
