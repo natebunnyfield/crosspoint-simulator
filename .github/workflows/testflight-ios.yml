@@ -432,18 +432,14 @@ jobs:
           du -h "$IPA"
 
       - name: Verify purpose strings
-        run: |
-          # Build 1 bounced on ITMS-90683. Never upload a bundle that will again.
-          DIR=$(mktemp -d)
-          unzip -q "$IPA" 'Payload/*.app/Info.plist' -d "$DIR"
-          PLIST=$(find "$DIR" -name Info.plist | head -1)
-          MISSING=0
-          for key in NSCameraUsageDescription NSBluetoothAlwaysUsageDescription NSBluetoothPeripheralUsageDescription; do
-            VALUE=$(plutil -extract "$key" raw -o - "$PLIST" 2>/dev/null) && [ -n "$VALUE" ] \
-              && echo "  $key ok" \
-              || { echo "::error::$key missing from the IPA"; MISSING=1; }
-          done
-          [ "$MISSING" -eq 0 ]
+        # Build 1 bounced on ITMS-90683. Never upload a bundle that will again.
+        # The check is ios/verify-purpose-strings.sh, the SAME one
+        # ios/testflight.sh runs on the Mac: it derives which strings the
+        # binary actually needs at symbol level. The unconditional copy that
+        # lived here demanded NSCameraUsageDescription, a key Info.plist.in
+        # deliberately omits, and failed run 21 (2026-09-05) on a build the
+        # Mac had been shipping for weeks.
+        run: simulator/ios/verify-purpose-strings.sh "$IPA"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
