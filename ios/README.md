@@ -160,6 +160,36 @@ you which reader they ran. Worth stamping the firmware `git describe` into the
 build if that ever matters — see also `CROSSPOINT_RC_HASH` on the firmware side,
 which has the same "clean and dirty builds are indistinguishable" property.
 
+### Licensed fonts on a hosted runner
+
+`ios/CMakeLists.txt` refuses a bundle missing any family in the firmware's
+`installed_families`, and Edgar (Frere-Jones Type, licensed) is one of them.
+Its sources live only in the firmware's gitignored `lib/EpdFont/local_fonts/`,
+so a hosted **TestFlight iOS** run has nothing to build it from: runs 15 and 16
+(2026-09-05) died on exactly that, one at the font build and one at Configure.
+
+The fix is a private mirror of that folder, read through a deploy key. One
+command on the Mac sets the whole thing up and is safe to re-run:
+
+```bash
+ios/setup-local-fonts-repo.sh            # create/update repo, rotate key, set secret
+ios/setup-local-fonts-repo.sh --check    # report, change nothing
+```
+
+It creates the private repo `natebunnyfield/crosspoint-local-fonts` with `gh`
+if it is missing, mirrors `local_fonts/*.ttf|otf` into it (a file removed from
+the folder is removed from the repo), generates an ed25519 deploy key, adds the
+public half to the fonts repo read-only, stores the private half as the
+`LOCAL_FONTS_SSH_KEY` secret on this repo and on the firmware repo, and deletes
+both halves from disk. The workflow's *Licensed font sources* step checks that
+repo out into `firmware/lib/EpdFont/local_fonts/` before the seed fonts are
+built (a fine-grained PAT in `LOCAL_FONTS_TOKEN` is honoured too). Without
+either secret, *Resolve seed families* stops the run in seconds, naming the
+family and both ways out. Owner ruling 2026-09-05: "build and configure and
+use private repo to clear commercial font issues", which reverses the
+2026-08-31 choice recorded at the top of the firmware's `release.yml` not to
+take on this machinery.
+
 Signing needs the login keychain, which only a GUI Terminal session has — an
 SSH shell fails at codesign with `errSecInternalComponent`. The bridge, same as
 crds-ios: let AppleScript hand the command to Terminal.app, which runs it under
