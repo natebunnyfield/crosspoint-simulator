@@ -49,6 +49,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
@@ -79,6 +80,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPaletteMixer.mm
@@ -563,12 +565,16 @@ endif()
 # requirements and are named here rather than left to come in transitively.
 # AVFoundation carries AVSpeechSynthesizer and AVAudioSession — the read-aloud
 # adapter's (CrossPointReadAloud.mm) own link requirement, named for the same
-# reason the two above are.
+# reason the two above are. The volume-rocker page turn
+# (CrossPointVolumeButtons.mm) observes AVAudioSession through the same
+# framework and puts the level back through MPVolumeView, which is
+# MediaPlayer's; that one is its own link requirement, named likewise.
 target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
   "-framework UIKit"
   "-framework Network"
   "-framework NetworkExtension"
-  "-framework AVFoundation")
+  "-framework AVFoundation"
+  "-framework MediaPlayer")
 
 # The harness impersonates an X3. ON THE LIBRARY, PUBLIC -- the same trap
 # CROSSPOINT_RENDER_SCALE fell into below, and it bit harder: the device macro
