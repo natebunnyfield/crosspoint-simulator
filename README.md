@@ -231,6 +231,12 @@ tests possible without desktop-control permissions:
   `\n` commit, `\e` cancel; `;` cannot appear in the text).
 - `QTAP:<BUTTON>[:<holdMs>]` queues a press that fires inside `update()` rather
   than after `loop()`, which is what harness automation needs.
+- `FOREGROUND` (or `RESUME`) pushes the real `SDL_EVENT_DID_ENTER_FOREGROUND`,
+  the event iOS raises when the app returns to the foreground. A sleeping
+  device wakes on it (a phone's reactivation is the owner picking the device
+  up), and an awake one counts it as activity so the inactivity timer, which
+  kept running while iOS had the process suspended, does not sleep it on the
+  first loop after resume. Desktop SDL never sends it by itself.
 - The heap, battery, panic and OTA overrides live in their own table under
   [Forcing state the host does not have](#forcing-state-the-host-does-not-have).
 - A sleep/wake test starts a fresh simulator process, matching the existing

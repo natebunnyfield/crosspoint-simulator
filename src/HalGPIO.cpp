@@ -204,6 +204,11 @@ struct TouchState {
 };
 
 TouchState touchState;
+// Set by update() when the app returned to the foreground this frame, cleared
+// by beginFrame() with the other per-frame edges, read by wasTouchActivity().
+// See the SDL_EVENT_DID_ENTER_FOREGROUND branch in update() for why a
+// reactivation has to count as activity.
+bool hostResumeThisFrame = false;
 bool homeKeyDown = false;
 bool homeKeyPressedThisFrame = false;
 bool homeKeyTappedThisFrame = false;
@@ -236,7 +241,13 @@ enum class SyntheticAction {
   // enters below SDL and cannot see either. See rawKeyScancode() for why that
   // matters enough to justify a second key path.
   RawKeyDown,
-  RawKeyUp
+  RawKeyUp,
+  // FOREGROUND pushes a REAL SDL_EVENT_DID_ENTER_FOREGROUND, the event iOS
+  // raises when the app returns to the foreground (SDL sends it from
+  // applicationDidBecomeActive), so a headless desktop script can pin what
+  // the firmware does on a phone's reactivation: wake from deep sleep, and
+  // count the return as activity. Desktop SDL never sends it by itself.
+  Foreground
 };
 
 struct SyntheticEvent {
@@ -607,6 +618,16 @@ void pushRawKey(SDL_Scancode scancode, SDL_Keymod keymod, bool down) {
   SDL_PushEvent(&e);
 }
 
+// The event iOS delivers on reactivation, pushed the way SDL's own UIKit
+// delegate pushes it, so both consumers (update() and the deep-sleep loop) see
+// exactly what a phone would hand them.
+void pushForeground() {
+  SDL_Event e{};
+  e.type = SDL_EVENT_DID_ENTER_FOREGROUND;
+  e.common.timestamp = SDL_GetTicksNS();
+  SDL_PushEvent(&e);
+}
+
 void initializeSyntheticEvents() {
   if (syntheticEventsInitialized)
     return;
@@ -649,6 +670,8 @@ void initializeSyntheticEvents() {
         syntheticEvents.push_back({atMs, SyntheticAction::OpenActionMenu});
       } else if (key == "S" || key == "SLEEP") {
         syntheticEvents.push_back({atMs, SyntheticAction::Sleep});
+      } else if (key == "FOREGROUND" || key == "RESUME") {
+        syntheticEvents.push_back({atMs, SyntheticAction::Foreground});
       } else if (key == "HOME") {
         const unsigned long holdMs =
             secondColon == std::string::npos
@@ -794,6 +817,9 @@ void processSyntheticEvents() {
     case SyntheticAction::RawKeyUp:
       pushRawKey(event.scancode, event.keymod, /*down=*/false);
       break;
+    case SyntheticAction::Foreground:
+      pushForeground();
+      break;
     }
   }
 }
@@ -875,6 +901,7 @@ void HalGPIO::beginFrame() {
   touchState.releasedThisFrame = false;
   touchState.activityThisFrame = false;
   touchState.longPressThisFrame = false;
+  hostResumeThisFrame = false;
   homeKeyPressedThisFrame = false;
   homeKeyTappedThisFrame = false;
   homeKeyLongPressedThisFrame = false;
@@ -922,6 +949,27 @@ void HalGPIO::update() {
   while (SDL_PollEvent(&e) != 0) {
     if (e.type == SDL_EVENT_QUIT) {
       quitRequested.store(true);
+      continue;
+    }
+
+    // REACTIVATION IS ACTIVITY. iOS raises this when the app returns to the
+    // foreground. The firmware resets its inactivity timer when
+    // wasTouchActivity() reports true, on the line BEFORE it compares that
+    // timer against the sleep timeout (main.cpp, loop(): the
+    // wasAnyPressed/wasTouchActivity line, then the sleepTimeoutMs compare),
+    // and this simulator's millis() is steady_clock, which does not stop
+    // while iOS holds the process suspended. So an app put away for longer
+    // than the sleep timeout and brought back auto-slept on its very first
+    // loop() after resume, and nothing woke it: the phone showed the sleep
+    // screen and stayed there. Owner, 2026-09-06: "ios app needs to wake on
+    // reactivation. is staying power off." Latched here so the same loop()
+    // that would have slept sees activity instead; startDeepSleep handles
+    // the same event for the case where the device was already asleep.
+    // Desktop SDL never sends it, so the desktop is unchanged.
+    if (e.type == SDL_EVENT_DID_ENTER_FOREGROUND) {
+      hostResumeThisFrame = true;
+      if (powerLogWanted())
+        SDL_Log("[power] foreground return counts as activity");
       continue;
     }
 
@@ -1639,7 +1687,9 @@ bool HalGPIO::wasSwipe(float &nxStart, float &nyStart, float &nxEnd,
   return true;
 }
 
-bool HalGPIO::wasTouchActivity() const { return touchState.activityThisFrame; }
+bool HalGPIO::wasTouchActivity() const {
+  return touchState.activityThisFrame || hostResumeThisFrame;
+}
 void HalGPIO::setSharedConfirmPowerShortPressEmitsPower(bool /*enabled*/) {}
 
 bool HalGPIO::consumeSimulatorSleepRequest() {
@@ -1715,6 +1765,24 @@ void HalGPIO::startDeepSleep() {
       if (e.type == SDL_EVENT_QUIT) {
         quitRequested.store(true);
         return;
+      }
+
+      // The app came back to the foreground with the device asleep: wake it.
+      // On a phone the app becoming active IS the owner picking the device
+      // up -- there is no power button to reach for first -- and a sleep
+      // screen that waits for one reads as the app being stuck off (owner,
+      // 2026-09-06: "ios app needs to wake on reactivation. is staying
+      // power off"). Same reboot as a real key, and the same on both
+      // reactivation shapes: a return from the background, and a return
+      // from Control Center or the lock screen, which also send this event.
+      // Desktop SDL never sends it. update() handles the same event for the
+      // device that was AWAKE when it was put away.
+      if (e.type == SDL_EVENT_DID_ENTER_FOREGROUND) {
+        if (powerLogWanted())
+          SDL_Log("[power] waking: app returned to the foreground -> "
+                  "rebootAsPowerWake");
+        clearButtonState();
+        SimulatorLifecycle::rebootAsPowerWake();
       }
 
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
