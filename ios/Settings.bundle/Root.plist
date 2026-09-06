@@ -156,7 +156,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>2</integer>
 			<key>Key</key>
 			<string>gestureSwipeUp</string>
 			<key>Title</key>
@@ -196,7 +196,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>3</integer>
 			<key>Key</key>
 			<string>gestureSwipeDown</string>
 			<key>Title</key>
@@ -614,7 +614,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>10</integer>
+			<integer>9</integer>
 			<key>Key</key>
 			<string>gestureShake</string>
 			<key>Title</key>
@@ -666,7 +666,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>5</integer>
 			<key>Key</key>
 			<string>gestureVolumeUp</string>
 			<key>Title</key>
@@ -706,7 +706,7 @@ The side rocker (Up / Down) steps text size inside a book on this build — hold
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>4</integer>
 			<key>Key</key>
 			<string>gestureVolumeDown</string>
 			<key>Title</key>
@@ -1084,7 +1084,7 @@ Only one-finger gestures can be overridden by region. A two-finger gesture is th
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>9</integer>
+			<integer>8</integer>
 			<key>Key</key>
 			<string>gestureHoldAbove</string>
 			<key>Title</key>

@@ -138,17 +138,19 @@ static void testDefaultsMatchToday() {
   checkAction(gesturebind::defaultAction(Gesture::Spread), Action::Down,
               "spread defaults to the side DOWN button");
   checkAction(gesturebind::defaultAction(Gesture::Shake),
-              Action::FontFamilyStep, "shake defaults to the font family step");
+              Action::ToggleZen, "shake toggles zen (owner 2026-09-06)");
 
   // THE FIVE GESTURES THE RE-CUT ADDED SHIP INERT. A new gesture that arrived
   // doing something would be a behavior change nobody asked for.
+  // The two vertical one-finger swipes left this list on 2026-09-06 when the
+  // owner bound them (Back and Confirm); the two-finger hold stays inert.
   const Gesture kNewAndInert[] = {
-      Gesture::SwipeUpGlobal, Gesture::SwipeDownGlobal, Gesture::TwoFingerHold,
-      // The six DEVICE rows added 2026-09-06 ship inert for the same reason,
-      // and the volume pair additionally because arming the rocker unasked is
-      // what App Store review has rejected apps for.
-      Gesture::VolumeUp, Gesture::VolumeDown, Gesture::TiltLeft,
-      Gesture::TiltRight, Gesture::TiltForward, Gesture::TiltBack};
+      Gesture::TwoFingerHold,
+      // The four TILTS ship inert -- a motion stream nobody bound is battery
+      // spent on nothing. The volume pair does NOT: the owner bound it the
+      // same day to the page turn the retired switch performed.
+      Gesture::TiltLeft, Gesture::TiltRight, Gesture::TiltForward,
+      Gesture::TiltBack};
   for (Gesture g : kNewAndInert)
     checkAction(gesturebind::defaultAction(g), Action::Nothing,
                 gesturebind::gestureName(g));
@@ -168,8 +170,10 @@ static void testDefaultsMatchToday() {
                gesturebind::defaultAction(g) == Action::Nothing),
           gesturebind::gestureName(g));
   }
-  // 3 from the 2026-08-28 re-cut + the 6 device rows added 2026-09-06 = 9.
-  check(inert == 9, "exactly nine gestures ship inert");
+  // The 2-finger hold + the four tilts = 5. It was 9 on the morning of
+  // 2026-09-06 and fell twice that day: the two vertical one-finger swipes
+  // were bound, then the volume pair.
+  check(inert == 5, "exactly five gestures ship inert");
   for (Gesture g : kNewAndInert)
     check(gesturebind::shipsInert(g), gesturebind::gestureName(g));
   // No ZONE row is ever inert in this sense — zone rows have no recognizer of
@@ -197,13 +201,17 @@ static void testDefaultsMatchToday() {
                                            0, 0),
               Action::Nothing, "...and it resolves to nothing, not to confirm");
 
-  // EVERY ZONE ROW SHIPS BLANK -- except the one that reproduces what a hold
-  // above the paper does today. A hold above the paper toggles zen while the
-  // same hold anywhere else selects; those are two actions for one gesture, so
-  // no single global binding can state both, and a blank HoldAbove would
-  // inherit Confirm and change what that hold does.
-  checkAction(gesturebind::defaultAction(Gesture::HoldAbove), Action::ToggleZen,
-              "REGRESSION: the hold above the paper still toggles zen");
+  // EVERY ZONE ROW SHIPS BLANK -- except the one above the paper, which still
+  // states something the global hold cannot. A hold anywhere else selects, so
+  // a blank HoldAbove would inherit Confirm and lose what that hold does.
+  //
+  // WHAT IT STATES CHANGED 2026-09-06: it was ToggleZen, and the owner moved
+  // zen to the shake and gave this row POWER. Both halves matter -- the row
+  // fires outside zen (firesOutsideZen), which is what makes power reachable
+  // from a sleeping-looking screen, and zen is still reachable because the
+  // shake also fires outside zen.
+  checkAction(gesturebind::defaultAction(Gesture::HoldAbove), Action::Power,
+              "the hold above the paper is POWER (owner 2026-09-06)");
   for (int i = 0; i < gesturebind::kGestureCount; ++i) {
     const Gesture g = static_cast<Gesture>(i);
     if (!gesturebind::isZoneRow(g) || g == Gesture::HoldAbove) continue;
@@ -224,12 +232,14 @@ static void testDefaultsMatchToday() {
     check(k != "gestureFourFingerTap",
           "the 4-finger tap is GONE (owner 2026-08-28)");
   }
-  // POWER IS NO LONGER ANY GESTURE'S DEFAULT -- the four-finger tap was its
-  // only home, and it is pad-only now. The ACTION survives, because the owner
-  // may still bind it.
+  // POWER HAS EXACTLY ONE HOME AGAIN (owner 2026-09-06: "above paper hold to
+  // power toggle"). It lost its four-finger tap on 2026-08-28 and was pad-only
+  // for nine days; this pins it to the one row rather than letting it drift
+  // back onto a second.
+  int powerDefaults = 0;
   for (int i = 0; i < gesturebind::kGestureCount; ++i)
-    check(gesturebind::defaultAction(static_cast<Gesture>(i)) != Action::Power,
-          "nothing ships bound to POWER");
+    if (gesturebind::defaultAction(static_cast<Gesture>(i)) == Action::Power) powerDefaults++;
+  check(powerDefaults == 1, "POWER is the default of exactly one row");
   bool powerOffered = false;
   for (int i = 0; i < gesturebind::kGlobalActionCount; ++i)
     if (gesturebind::kGlobalActions[i] == Action::Power) powerOffered = true;
@@ -261,7 +271,7 @@ static void testDefaultsMatchToday() {
     if (gesturebind::isZoneRow(g)) continue;
     if (gesturebind::defaultAction(g) != Action::Nothing) liveGlobals++;
   }
-  check(liveGlobals == 12, "twelve global rows ship bound to something");
+  check(liveGlobals == 16, "sixteen global rows ship bound to something");
 
   // AN UNTOUCHED STORE IS AN UNTOUCHED APP. -integerForKey: answers 0 for a key
   // whose registration domain never loaded -- an unreadable Settings.bundle --
@@ -323,18 +333,21 @@ static void testDefaultsMatchToday() {
        "swipe right below"},
       {OneFinger::SwipeLeft, Zone::Neither, false, Action::Nothing,
        "swipe left, zen off"},
-      // The vertical swipes are new and do nothing anywhere.
-      {OneFinger::SwipeUp, Zone::Neither, true, Action::Nothing,
-       "swipe up on the paper does nothing"},
-      {OneFinger::SwipeUp, Zone::AbovePaper, true, Action::Nothing,
-       "...nor above it"},
-      {OneFinger::SwipeDown, Zone::BelowPaper, true, Action::Nothing,
-       "swipe down below the paper does nothing"},
+      // The vertical swipes shipped inert on 2026-08-28 and were bound on
+      // 2026-09-06 (owner: "one finger swipeup default to Back; one finger
+      // swipe down default to Confirm"). A zone row left blank INHERITS them,
+      // which is what the last two of these three pin.
+      {OneFinger::SwipeUp, Zone::Neither, true, Action::Back,
+       "swipe up on the paper goes Back"},
+      {OneFinger::SwipeUp, Zone::AbovePaper, true, Action::Back,
+       "...and above it, inherited"},
+      {OneFinger::SwipeDown, Zone::BelowPaper, true, Action::Confirm,
+       "swipe down below the paper is Confirm, inherited"},
       // The hold: the 2026-08-27 position split, reproduced by the layers.
-      {OneFinger::Hold, Zone::AbovePaper, false, Action::ToggleZen,
-       "hold above, zen OFF -> toggle"},
-      {OneFinger::Hold, Zone::AbovePaper, true, Action::ToggleZen,
-       "hold above, zen ON -> toggle"},
+      {OneFinger::Hold, Zone::AbovePaper, false, Action::Power,
+       "hold above, zen OFF -> power"},
+      {OneFinger::Hold, Zone::AbovePaper, true, Action::Power,
+       "hold above, zen ON -> power"},
       {OneFinger::Hold, Zone::Neither, true, Action::Confirm,
        "hold on the paper, zen ON -> select"},
       {OneFinger::Hold, Zone::Neither, false, Action::Nothing,
@@ -645,12 +658,13 @@ static void testZenScope() {
         "REGRESSION: the shake fires outside zen (single-finger mode)");
   checkAction(gesturebind::actionFor(Gesture::Shake, /*zenOn=*/true,
                                      shipped(Gesture::Shake)),
-              Action::FontFamilyStep, "shake resolves its binding in zen");
+              Action::ToggleZen, "shake resolves its binding in zen");
   checkAction(gesturebind::actionFor(Gesture::Shake, /*zenOn=*/false,
                                      shipped(Gesture::Shake)),
-              Action::FontFamilyStep,
+              Action::ToggleZen,
               "REGRESSION: shake resolves its binding out of zen too "
-              "(single-finger mode)");
+              "(single-finger mode) -- and this is now the ONLY way INTO zen, "
+              "since the hold above the paper became power on 2026-09-06");
   // A cleared shake stays cleared in both states -- the always-on gate must
   // never manufacture an action out of Nothing.
   checkAction(gesturebind::actionFor(Gesture::Shake, true,

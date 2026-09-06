@@ -36,11 +36,19 @@ namespace volumepage {
 //
 // NOTHING WAS LOST IN THE TRADE, which is the half worth stating because
 // removing two shipped switches looks like a regression:
-//   * "off"      is both rows bound to Nothing, which is their default, so an
-//                untouched install behaves exactly as it did before.
+//   * "off"      is both rows bound to Nothing. NOTE that this is no longer
+//                the DEFAULT: on 2026-09-06 the owner bound the pair to the
+//                page turn the retired switch performed, so the rocker turns
+//                pages out of the box and Nothing is the opt-OUT.
 //   * "flipped"  is assigning the two rows the other way round.
 //   * what is    the rocker can now reach any action the other gestures can,
 //     GAINED     not just a page turn.
+//
+// THE OPT-IN BECAME AN OPT-OUT, and the risk it was hedging is unchanged:
+// App Store review has rejected apps for taking the volume rocker over, and
+// the audio session is now held out of the box rather than on request. That is
+// the owner's call, made knowing it; setting both rows to Nothing restores the
+// old behaviour exactly.
 //
 // EVERYTHING BELOW THIS LINE IS UNCHANGED and is still the whole mechanism:
 // the KVO arithmetic, the echo suppression, the resting level and the ends of

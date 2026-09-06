@@ -386,8 +386,8 @@ broke level reads (see below). There is no HOME — `hasHomeKey()` is X4-Pro-onl
 There is no control for the simulator's own SLEEP (`S`) either: that is a harness
 command, not a button the hardware has.
 
-**The phone's volume rocker is two assignable gestures, and both ship bound to
-Nothing (2026-09-06).** It arrived 2026-09-05 as a pair of bespoke switches --
+**The phone's volume rocker is two assignable gestures, and both ship BOUND
+(2026-09-06).** It arrived 2026-09-05 as a pair of bespoke switches --
 Volume Buttons Turn Pages and Flip Volume Buttons -- wired straight to a front-
 rocker page turn. The owner then ruled: *"make volume up and down an assignable
 setting like all other gestures."* Both switches are gone and the rocker is two
@@ -395,12 +395,16 @@ ordinary rows, **Gestures — The Device > Volume Up / Volume Down**
 (`gestureVolumeUp`, `gestureVolumeDown`), offering the same actions every other
 gesture offers.
 
-Nothing was lost in the trade, which is worth stating because retiring two
-shipped switches looks like a regression: *off* is both rows bound to Nothing,
-which is their default, so an untouched install behaves exactly as it did
-before; *flipped* is assigning the two rows the other way round. What is gained
-is that the rocker can now reach any action -- zen, the font step, Back -- and
-not only a page turn.
+Volume Up is **Right** (next page) and Volume Down is **Left** (previous) --
+the mapping the retired switch performed when it was on. *Flipped* is assigning
+the two rows the other way round; *off* is binding both to Nothing. What is
+gained is that the rocker can reach any action -- zen, the font step, Back --
+and not only a page turn.
+
+**This reverses the opt-in**, and the reason for it has not gone away: App
+Store review has rejected apps for taking the volume rocker over, and the audio
+session is now held out of the box rather than on request. Binding both rows to
+Nothing restores the old shipped behaviour exactly.
 
 The mechanism is unchanged and still lives in `ios/VolumePageTurn.h`: iOS has
 no public volume-button API, so the app holds an audio session, observes
@@ -521,7 +525,7 @@ normal configuration."*
 |---|---|---|
 | **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
 | **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread | ditto |
-| **Gestures — The Device** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | font family step; the other six ship bound to Nothing |
+| **Gestures — The Device** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | zen toggle; page forward/back; the four tilts ship inert |
 | **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
 | **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
 
@@ -776,7 +780,7 @@ and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
 default off), the CRT shutdown at sleep. Since 2026-09-06 the phone's volume
 rocker and four tilt gestures are rows in **Gestures — The Device** rather than
 switches of their own (`gestureVolumeUp`, `gestureVolumeDown`,
-`gestureTiltLeft/Right/Forward/Back`, all bound to Nothing by default) --
+`gestureTiltLeft/Right/Forward/Back`; the rocker turns pages by default, the tilts are inert) --
 documented under Controls above, together with why the rocker stays opt-in.
 
 **One row has been added since, and it is not an appearance dial at all**
