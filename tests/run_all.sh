@@ -10,8 +10,8 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The six shell tests (test_sleep_wake.sh, test_text_entry.sh,
-# test_read_aloud_capture.sh, test_note_editor_repaint.sh,
+# The seven shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
+# test_text_entry.sh, test_read_aloud_capture.sh, test_note_editor_repaint.sh,
 # test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
@@ -777,7 +777,7 @@ else
   skipped=$((skipped + 3))
 fi
 
-# The five end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# The seven end-to-end shell tests. Each needs a firmware CHECKOUT (not just
 # the include set the block above wants) with a desktop binary already built
 # and, for three of them, a card that has been run once so
 # fs_/.crosspoint/settings.json exists -- see each script's own header for
@@ -786,6 +786,9 @@ fi
 FW_CHECKOUT="${CROSSPOINT_FIRMWARE_DIR:-$HOME/src/crosspoint-reader}"
 
 run_shell_skip test_sleep_wake tests/test_sleep_wake.sh "$FW_CHECKOUT"
+# Same shape as test_sleep_wake, with the app's return to the foreground as
+# the wake instead of a tap -- what a phone's reactivation is (S-037).
+run_shell_skip test_foreground_wake tests/test_foreground_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
 run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
 run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_CHECKOUT"
