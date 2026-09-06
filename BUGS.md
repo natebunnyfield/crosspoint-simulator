@@ -47,7 +47,10 @@ is a design choice rather than a slip:
 - **One accept worker, serialized, with 5 s socket timeouts.** One idle
   connection delays the next client 4.7 s; a header dripped a byte per 0.5 s
   holds the server for the whole drip; 30 idle connections put the 31st at a
-  64 s wait. Recovers the moment the peer stops. The phone binds all
+  64 s wait. Recovers the moment the peer stops. (Since 2026-09-06 the 5 s
+  covers the request line and headers only; a socket with headers in hand is
+  a transfer and gets 60 s -- S-038. The idle-connection arithmetic above is
+  unchanged; a dripped BODY now holds the worker longer.) The phone binds all
   interfaces, so any LAN peer can do this. The fix is a small accept pool or
   a shorter header timeout; either changes the shim's threading model, which
   the firmware's `handleClient()` contract (`dispatchDone` parking) was built
@@ -69,6 +72,57 @@ allocation, the case-only MOVE losing a file — were fixed the same day, see
 the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
 ## FIXED
+
+### [S-038] File Transfer on a phone cut uploads and downloads off mid-way: the WebSocket shim dropped continuation frames, and both host servers closed any transfer that paused five seconds — FIXED 2026-09-06
+**severity: high (the owner's "downloads and uploads fail with partial data transfers", the day File Transfer's address first worked on a phone, S-037's sibling) · scope: `src/WebSocketsServer.cpp`, `src/WebServer.cpp`, `src/NetworkClient.cpp` · found 2026-09-06 from the owner's report, by reading the socket paths; pinned by `tests/ws_fragment_test.cpp`**
+
+Two mechanisms, either of which ends a transfer short of its size.
+
+**1. A WebSocket MESSAGE was treated as one frame, and continuation frames
+were dropped.** `readWsFrame()` ignored FIN, and the client loop handed every
+frame with opcode text or binary to the firmware as a whole message; opcode 0
+(continuation) matched no branch and its payload was discarded. RFC 6455
+section 5.4 lets a peer split any message across frames, and some stacks do.
+For the upload path (`FilesPage.html` `uploadFileWebSocket`, 4 KB `ws.send()`
+per chunk into the firmware's `START`/`BIN`/`DONE` protocol) that meant the
+first slice of every fragmented chunk was written and the rest lost:
+`wsUploadReceived` never reached the announced size, `DONE` never came, and
+the browser sat at a partial percentage until it gave up. Fixed by assembling
+frames into messages in the client loop -- a data frame opens a message,
+continuations append, FIN delivers, control frames (close, ping, pong) are
+handled between fragments -- so the firmware sees exactly what the device's
+WebSocket library hands it.
+
+**2. One 5-second socket timeout on every recv and send, both servers.**
+`setSocketTimeouts()` armed `SO_RCVTIMEO` and `SO_SNDTIMEO` at 5 s on every
+accepted socket and never changed them. A browser feeding an upload pauses
+for as long as it takes to read the next slice of the file -- an iCloud-
+resident book on a phone, a throttled tab -- and a peer draining a download
+stalls while its own disk catches up; at 5 s of silence the recv or send
+returned and the shim closed the connection, mid-body. The device tolerates
+both: its WebSocket library has no idle timeout on an established connection,
+and its HTTP server's data wait only governs the request. Now the timeout is
+by phase: the request line and headers, or the WebSocket handshake, still get
+5 s (the single accept worker must not be held by a peer that connected and
+went quiet, network hunt 2026-09-04 finding 8), and once headers are in hand
+the socket is a transfer and gets 60 s (HTTP, both directions -- the firmware
+streams a download through `client.write()` on the same socket) or 120 s
+(WebSocket data). `recv`/`send` also retry on `EINTR` now, in all three
+files, instead of reading a signal as the peer hanging up.
+
+**Pinned by `tests/ws_fragment_test.cpp`**, which drives the real server over
+loopback with a hand-rolled masked-frame client: a whole TEXT frame arrives as
+one message; a BIN message cut into three frames with a ping between them
+arrives as ONE event carrying all 10000 bytes in order; a frame whose bytes
+arrive in two writes six seconds apart still arrives whole; a close frame
+ends in DISCONNECTED. Against the pre-fix shim the same test fails at the
+fragmented message (the event carries the first 4000 bytes only). Registered
+in `tests/run_all.sh` under the firmware-include guard, because the shim logs
+through the firmware's `Logging.h`.
+
+**Not observable here**: a phone. The check is File Transfer on the phone
+with a peer on the same Wi-Fi: upload a book of a few MB through the page and
+watch it reach 100% and `DONE`; download it back and compare sizes.
 
 ### [S-037] The iOS app came back from the background asleep and stayed asleep — a foreground return neither woke the sleep loop nor counted as activity — FIXED 2026-09-06
 **severity: high (owner report; the app reads as stuck off) · scope: `src/HalGPIO.cpp` (`update()`, `startDeepSleep()`) · found 2026-09-06 from the owner's report, fixed the same day, pinned headlessly by `tests/test_foreground_wake.sh`; device-unconfirmed until the next TestFlight build**
