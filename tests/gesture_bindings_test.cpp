@@ -145,7 +145,6 @@ static void testDefaultsMatchToday() {
   // The two vertical one-finger swipes left this list on 2026-09-06 when the
   // owner bound them (Back and Confirm); the two-finger hold stays inert.
   const Gesture kNewAndInert[] = {
-      Gesture::TwoFingerHold,
       // The four TILTS ship inert -- a motion stream nobody bound is battery
       // spent on nothing. The volume pair does NOT: the owner bound it the
       // same day to the page turn the retired switch performed.
@@ -170,10 +169,11 @@ static void testDefaultsMatchToday() {
                gesturebind::defaultAction(g) == Action::Nothing),
           gesturebind::gestureName(g));
   }
-  // The 2-finger hold + the four tilts = 5. It was 9 on the morning of
-  // 2026-09-06 and fell twice that day: the two vertical one-finger swipes
-  // were bound, then the volume pair.
-  check(inert == 5, "exactly five gestures ship inert");
+  // The four tilts, and only them: a motion stream nobody bound is battery
+  // spent on nothing. It was 9 on the morning of 2026-09-06 and fell three
+  // times that day -- the vertical one-finger swipes, the volume pair, then
+  // the two-finger hold when it took the font family step.
+  check(inert == 4, "exactly four gestures ship inert: the tilts");
   for (Gesture g : kNewAndInert)
     check(gesturebind::shipsInert(g), gesturebind::gestureName(g));
   // No ZONE row is ever inert in this sense — zone rows have no recognizer of
@@ -271,7 +271,7 @@ static void testDefaultsMatchToday() {
     if (gesturebind::isZoneRow(g)) continue;
     if (gesturebind::defaultAction(g) != Action::Nothing) liveGlobals++;
   }
-  check(liveGlobals == 16, "sixteen global rows ship bound to something");
+  check(liveGlobals == 17, "seventeen global rows ship bound to something");
 
   // AN UNTOUCHED STORE IS AN UNTOUCHED APP. -integerForKey: answers 0 for a key
   // whose registration domain never loaded -- an unreadable Settings.bundle --

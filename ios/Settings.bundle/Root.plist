@@ -486,7 +486,7 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<integer>1</integer>
+			<integer>10</integer>
 			<key>Key</key>
 			<string>gestureTwoFingerHold</string>
 			<key>Title</key>

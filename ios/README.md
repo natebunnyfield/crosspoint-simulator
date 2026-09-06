@@ -524,7 +524,7 @@ normal configuration."*
 | Settings group | Rows | Default |
 |---|---|---|
 | **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
-| **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread | ditto |
+| **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread | ditto; **Hold** is the font family step since 2026-09-06 |
 | **Gestures — The Device** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | zen toggle; page forward/back; the four tilts ship inert |
 | **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
 | **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
