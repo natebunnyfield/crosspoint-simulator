@@ -25,6 +25,15 @@ namespace {
 int g_answer = 0;
 int provider() { return g_answer; }
 
+// A provider that logs on its way to answering -- the shape that deadlocks a
+// sink whose gate is called under its own lock.
+int g_loggingProviderCalls = 0;
+int loggingProvider() {
+  g_loggingProviderCalls++;
+  firmwarelog::hostLine("provider talking");
+  return 1;
+}
+
 // Re-installing forces an immediate re-poll, so a test can flip the switch
 // without waiting out kProviderPollSeconds. This is the same call the harness
 // makes at launch, not a test-only back door.
@@ -126,6 +135,26 @@ int main() {
   firmwarelog::flush();
   check(slurp(path).find("after the owner cleared it") != std::string::npos,
         "a log deleted from under the app must come back on the next line");
+
+  // A gate that logs must not deadlock the app. The provider is arbitrary host
+  // code; if anything it reaches calls SDL_Log, the tee brings it straight back
+  // into hostLine() with the mutex already held. Simulated exactly: this
+  // provider logs on its way to answering. Before the re-entrancy guard this
+  // case did not fail -- it HUNG, which is the worst way for a diagnostics
+  // instrument to fail on a reader's phone.
+  {
+    setSwitch(1);
+    ::remove(path);
+    g_loggingProviderCalls = 0;
+    firmwarelog::setEnabledProvider(&loggingProvider);
+    firmwarelog::write("through a chatty gate\n", 22);
+    firmwarelog::flush();
+    check(g_loggingProviderCalls > 0, "the logging provider must actually have been consulted");
+    check(slurp(path).find("through a chatty gate") != std::string::npos,
+          "a provider that logs must not stop the line it was asked about");
+    check(slurp(path).find("provider talking") == std::string::npos,
+          "the provider's own nested line is dropped, not interleaved mid-write");
+  }
 
   // THE WIRING. Everything above proves the sink; this proves the firmware is
   // actually plugged into it. logPrintf() builds a whole line and hands it to

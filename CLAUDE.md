@@ -555,6 +555,14 @@ it and the iOS configure gate then refuses. And the SDL tee is installed
 `main()`, and capturing the "previous" handler a second time would capture the
 tee itself and recurse on the next `SDL_Log`.
 
+A third, found by the test rather than by reading: the gate the host installs
+is arbitrary code called under the sink's own lock, so a gate that logs
+re-enters through the tee and **deadlocks** -- the app hangs, which is the
+worst way for a diagnostics instrument to fail. A thread-local re-entrancy
+guard drops the nested call; `tests/firmware_log_file_test.cpp` reproduces it
+with a provider that logs, and that case does not fail without the guard, it
+hangs.
+
 **Read-aloud page channel.** The same host-capability split as the keyboard
 channel, pointed the other way: `readAloudCaptureWanted()` /
 `publishReadAloudPage()` are firmware-facing (inline no-ops on device — the
