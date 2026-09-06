@@ -419,17 +419,20 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # other candidate fonts", their .cpfont trees deleted and recipes kept —
   # docs/trial-fonts.md records each).
   #
-  # REOPENED 2026-09-06 for DTLRomulus, and it MUST COME BACK OUT. Van
-  # Krimpen's 1931 Enschede roman, digitised by Blokland for the Dutch Type
-  # Library, built as a four-style family for the owner to judge on the phone.
-  # It is commercial, it is not in installed_families:, and it costs 10.5 MB
-  # compressed in the bundle. When it is ruled on: promoted -> add it to
-  # installed_families: in the firmware's sd-fonts.yaml and take the name out
-  # of here; declined -> delete build/seedfonts/DTLRomulus and take the name
-  # out of here. Either way this list returns to empty.
+  # Reopened for DTLRomulus on 2026-09-06 and CLOSED THE SAME DAY: the owner
+  # promoted it, so it is in installed_families: in the firmware's
+  # sd-fonts.yaml and its name has come back out of here. Leaving it in both
+  # is a FATAL error a few lines down, and rightly -- the two lists mean
+  # opposite things, and an exemption left standing over a shipped family
+  # disarms the unclaimed-bundle gate for that name.
+  #
+  # Note for whoever reopens this next: the trial it was named for never
+  # actually happened. The build carrying it could not be archived (codesign
+  # errSecInternalComponent, no Apple Distribution certificate on the Mac), so
+  # the ruling came from rendered specimens rather than from the phone.
   # docs/dtl-trial-fonts-2026-09-06.md carries the build and its measurements.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    "DTLRomulus"
+    ""
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
