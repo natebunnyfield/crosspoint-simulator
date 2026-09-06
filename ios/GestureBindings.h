@@ -58,11 +58,11 @@
 // **TWO GESTURES THAT WORKED BEFORE THIS ARE GONE, and that is the ruling, not
 // a regression.** The 3-FINGER TAP (toggled zen) and the 4-FINGER TAP (power)
 // were removed with the finger counts that carried them; the owner was shown
-// that exact consequence and chose it. Power is therefore no longer any
-// gesture's default and lives on the pad alone -- it stays in the offered
-// ACTIONS, because he may bind it to something, but nothing ships pointing at
-// it. tests/gesture_bindings_test.cpp names both removals so the change stays
-// pinned rather than incidental.
+// that exact consequence and chose it. Power was pad-only for the nine days
+// that followed; on 2026-09-06 the owner gave it the HOLD ABOVE THE PAPER
+// ("above paper hold to power toggle"), which is now its single default home.
+// tests/gesture_bindings_test.cpp names both removals, and pins power to
+// exactly one row so it cannot drift back onto a second.
 //
 // SO THE MODEL IS LAYERED, NOT THREE PARALLEL ZONES.
 //
@@ -542,8 +542,8 @@ constexpr Row kRows[] = {
     {Gesture::TapGlobal, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::Neither, "gestureTap", "tap", "Tap", Action::Right},
     {Gesture::SwipeLeftGlobal, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::Neither, "gestureSwipeLeft", "swipe left", "Swipe Left", Action::Right},
     {Gesture::SwipeRightGlobal, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::Neither, "gestureSwipeRight", "swipe right", "Swipe Right", Action::Left},
-    {Gesture::SwipeUpGlobal, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::Neither, "gestureSwipeUp", "swipe up", "Swipe Up", Action::Nothing},
-    {Gesture::SwipeDownGlobal, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::Neither, "gestureSwipeDown", "swipe down", "Swipe Down", Action::Nothing},
+    {Gesture::SwipeUpGlobal, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::Neither, "gestureSwipeUp", "swipe up", "Swipe Up", Action::Back},
+    {Gesture::SwipeDownGlobal, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::Neither, "gestureSwipeDown", "swipe down", "Swipe Down", Action::Confirm},
     {Gesture::HoldGlobal, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::Neither, "gestureHold", "hold", "Hold", Action::Confirm},
   // TWO FINGERS -- pinch and rotation ride here; both are two-finger gestures.
     {Gesture::TwoFingerTap, Family::Tap, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerTap", "2-finger tap", "Tap", Action::Confirm},
@@ -555,15 +555,23 @@ constexpr Row kRows[] = {
     {Gesture::Pinch, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gesturePinch", "pinch", "Pinch", Action::Up},
     {Gesture::Spread, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureSpread", "spread", "Spread", Action::Down},
   // THE DEVICE ITSELF.
-    {Gesture::Shake, Family::Shake, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureShake", "shake", "Shake", Action::FontFamilyStep},
-    // The volume rocker. BOTH DEFAULT TO Nothing, which is the same shipped
-    // behaviour the two retired toggles had: volumeButtonsTurnPages was off by
-    // default because App Store review has rejected apps for taking the rocker
-    // over unasked, and a reader that changes what the phone's own buttons do
-    // without being asked is a surprise. Nothing here means the rocker is left
-    // alone AND the audio session is never held -- see needsVolumeSession().
-    {Gesture::VolumeUp, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeUp", "volume up", "Volume Up", Action::Nothing},
-    {Gesture::VolumeDown, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeDown", "volume down", "Volume Down", Action::Nothing},
+    {Gesture::Shake, Family::Shake, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureShake", "shake", "Shake", Action::ToggleZen},
+    // The volume rocker, BOUND BY DEFAULT to the page turn it replaced (owner
+    // 2026-09-06, "volume up and down needs to be included too. replacing
+    // existing settings section"): up is the next page, down the previous --
+    // the mapping the retired volumeButtonsTurnPages switch had when it was
+    // switched on.
+    //
+    // THIS REVERSES THE OPT-IN, and the reason for the opt-in has not gone
+    // away: App Store review has rejected apps for taking the volume rocker
+    // over, and holding the audio session is now the DEFAULT state rather than
+    // something the owner asked for (needsVolumeSession() is true out of the
+    // box). Setting both rows to Nothing restores the old shipped behaviour
+    // exactly -- the session is then never held and the volume bezel behaves
+    // as it always did -- so the escape hatch is a binding rather than a
+    // switch, which is the whole point of the move.
+    {Gesture::VolumeUp, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeUp", "volume up", "Volume Up", Action::Right},
+    {Gesture::VolumeDown, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeDown", "volume down", "Volume Down", Action::Left},
     // The four tilts, off CoreMotion's gravity vector. Also Nothing by
     // default: motion updates cost battery and a reader lying on their side is
     // already tilted, so nothing arms until a row is bound.
@@ -576,7 +584,7 @@ constexpr Row kRows[] = {
     {Gesture::SwipeLeftAbove, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::AbovePaper, "gestureSwipeLeftAbove", "swipe left above the paper", "Swipe Left", Action::Inherit},
     {Gesture::SwipeRightAbove, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::AbovePaper, "gestureSwipeRightAbove", "swipe right above the paper", "Swipe Right", Action::Inherit},
     {Gesture::SwipeUpAbove, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::AbovePaper, "gestureSwipeUpAbove", "swipe up above the paper", "Swipe Up", Action::Inherit},
-    {Gesture::HoldAbove, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::AbovePaper, "gestureHoldAbove", "hold above the paper", "Hold", Action::ToggleZen},
+    {Gesture::HoldAbove, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::AbovePaper, "gestureHoldAbove", "hold above the paper", "Hold", Action::Power},
   // BELOW THE PAPER -- overrides, blank by default.
     {Gesture::TapBelow, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::BelowPaper, "gestureTapBelow", "tap below the paper", "Tap", Action::Inherit},
     {Gesture::SwipeLeftBelow, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::BelowPaper, "gestureSwipeLeftBelow", "swipe left below the paper", "Swipe Left", Action::Inherit},
@@ -649,14 +657,21 @@ constexpr Group groupOf(Gesture g) {
 //   2-swipe up/down    -> Back/Confirm
 //   2-finger tap       -> Confirm    twoTap:
 //   pinch / spread     -> Up/Down    pinch:
-//   shake              -> FontFamilyStep   CPXShakeCatcher motionEnded:
+//   shake              -> ToggleZen        CPXShakeCatcher motionEnded:
 //
 // **HoldAbove IS THE ONE ZONE ROW THAT IS NOT BLANK.** The reason is only the
 // one that applies to every other default here: a one-finger hold ABOVE the
-// paper toggles zen today, while the same hold anywhere else selects, and those
-// are two actions for one gesture -- no single global binding can state both.
-// Left blank it would inherit Confirm, and the hold above the paper would stop
-// doing what it does now. It is an ordinary row: point it anywhere, or at
+// paper is POWER (2026-09-06), while the same hold anywhere else selects, and
+// those are two actions for one gesture -- no single global binding can state
+// both. Left blank it would inherit Confirm, and the hold above the paper
+// would stop doing what it does now.
+//
+// IT USED TO TOGGLE ZEN, and the swap is worth reading with the shake's:
+// 2026-09-06 moved zen onto the SHAKE and power onto this row. Both rows fire
+// outside zen (firesOutsideZen), which is what keeps each reachable from a
+// screen that shows nothing -- and it is why the shake had to take zen rather
+// than some ordinary row, since a row that only fires inside zen could never
+// get you in. It is an ordinary row: point it anywhere, or at
 // Nothing, and nothing here objects.
 constexpr Action defaultAction(Gesture g) { return row(g).def; }
 
