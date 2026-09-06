@@ -9,6 +9,7 @@
 
 #include "Arduino.h"
 #include "CrossPointSettings.h"
+#include "FirmwareLogFile.h"
 #include "HalDisplay.h"
 #include "HalGPIO.h"
 #include "SimulatorDocumentOpen.h"
@@ -205,6 +206,31 @@ bool g_bandsParsed = false;
 // src/SimulatorRebootResets.h exists for. Re-parsed rather than merely rewound,
 // so a reboot that promoted a different environment picks it up.
 const simreset::Registrar gBandScheduleReset{[] { g_bandsParsed = false; }};
+
+// SDL_Log's output, teed into the firmware log file. The harness half of a
+// story is often the half that answers it -- which button was injected, that a
+// foreground return counted as activity -- and on a TestFlight build it is as
+// invisible as the firmware's own lines. Forwards to SDL's own handler first,
+// so the desktop console is unchanged. See src/FirmwareLogFile.h.
+SDL_LogOutputFunction g_prevLogFn = nullptr;
+void *g_prevLogUserdata = nullptr;
+
+void SDLCALL teeSdlLogToFile(void *userdata, int category, SDL_LogPriority priority, const char *message) {
+  if (g_prevLogFn) g_prevLogFn(g_prevLogUserdata, category, priority, message);
+  firmwarelog::hostLine(message);
+}
+
+// ONCE per process, never per launch. The iOS reboot longjmps back into main()
+// and re-runs everything after the setjmp; capturing the "previous" handler a
+// second time would capture this tee itself and recurse forever on the next
+// SDL_Log. Deliberately NOT a simreset::Registrar for the same reason.
+void installLogTeeOnce() {
+  static bool installed = false;
+  if (installed) return;
+  installed = true;
+  SDL_GetLogOutputFunction(&g_prevLogFn, &g_prevLogUserdata);
+  SDL_SetLogOutputFunction(teeSdlLogToFile, nullptr);
+}
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -233,6 +259,14 @@ int main(int argc, char **argv) {
   // bundle. Must happen before setup() touches storage.
   CrossPointHarness_prepareFilesystem();
 
+  // The firmware's LOG_DBG lines are produced on this harness (LOG_LEVEL=2) and
+  // then thrown away: on iOS they go to stderr, which a TestFlight build
+  // discards. Armed from the Settings.app "Diagnostics Log" switch, they land
+  // in diagnostics/firmware.log instead -- inside the card root this call just
+  // established, which the Files app shows as On My iPhone > CrossPoint X3.
+  // AFTER prepareFilesystem for exactly that reason.
+  firmwarelog::setEnabledProvider(&CrossPointPrefs_diagnosticsEnabled);
+
   // Where a deep-sleep wake lands. On desktop the wake is a process relaunch;
   // iOS cannot exec, so rebootAsPowerWake() jumps back here and setup() runs
   // again against the still-live process. Everything setup() touches has to
@@ -241,6 +275,11 @@ int main(int argc, char **argv) {
   setjmp(SimulatorLifecycle::rebootJumpBuffer());
   SimulatorLifecycle::armRebootJump();
 #endif
+  // Above the setjmp on iOS would be tidier, but this is reached on desktop
+  // too, where CROSSPOINT_SIM_DIAGNOSTICS=1 arms the same file for a scripted
+  // run. installLogTeeOnce() is what makes it safe to sit below the reboot
+  // landing point.
+  installLogTeeOnce();
   // Before setup(), because a book handed to us by the OS (Finder on desktop,
   // Files/Mail/Share Sheet on iOS) has to be on the card and recorded in
   // APP_STATE before setup() reads that state and picks which activity to
