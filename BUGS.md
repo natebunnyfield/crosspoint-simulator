@@ -73,6 +73,121 @@ the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
 ## FIXED
 
+### [S-039] In zen, a sleeping sim could not be woken by the gesture that is its power button — no pad, so no POWER; the four-finger tap has no recognizer; a hold above the paper toggled zen on a dark glass — FIXED 2026-09-06
+**severity: high (owner: "can the ios app in zen mode wake up when x3 sim is powered down? that's what I keep trying to fix") · scope: `ios/CrossPointIOSShim.cpp` (`padWatch`), `ios/CrossPointZenRecognizers.mm` (`performGestureAction`, the reboot registrar), `src/HalGPIO.cpp` (the asleep flag) · found 2026-09-06 by reading the sleep loop and every gesture path into it; pinned by `tests/sleep_touch_test.cpp` and `tests/test_queued_tap_wake.sh`; device-unconfirmed until the next TestFlight build**
+
+Owner, verbatim, 2026-09-06: *"can the ios app in zen mode wake up when x3
+sim is powered down? that's what I keep trying to fix."* S-037's foreground
+wake is the same report's other half; this is the half where the app is in
+the foreground, the sim has slept (the inactivity timeout is the only way in
+from zen), and a hand on the dark glass does nothing.
+
+**What the code did, gesture by gesture.** `HalGPIO::startDeepSleep`
+(`src/HalGPIO.cpp`) is the firmware's terminal loop; it wakes on a real key,
+a queued or injected press, and (S-037) a foreground return. On the phone
+the only press it can see is one the harness raises:
+
+- **Out of zen** the pad's POWER capsule is a real press
+  (`padWatch` → `injectButtonDown`) and wakes the device. Fine.
+- **In zen the pad does not exist** — `padWatch` breaks out before any hit
+  test (`if (g_zen) break;`, `CrossPointIOSShim.cpp`), so nothing can press
+  POWER. A gesture bound to `Action::Power` could, but nothing ships bound
+  to it (`ios/GestureBindings.h`, "Power is nobody's default").
+- **The four-finger tap the owner reaches for as Power** was removed with the
+  2026-08-28 trim (`CrossPointZenRecognizers.mm` header, `docs/zen-mode.md`
+  "The set was re-cut"): no recognizer is installed for four fingers, and the
+  SDL classifier answers `None` for any peak but one (`ios/ZenVerbs.h`). Four
+  fingers on the glass reach no code path at all, and the log says nothing.
+- **What did wake it was an accident of the bindings.** A gesture whose
+  action resolves to a BUTTON — the one-finger tap's default Right, a swipe,
+  the hold on the paper, the two-finger tap — reaches `gpio.queueButtonTap`
+  (`performGestureAction`, `CrossPointZenRecognizers.mm:313`; the tap through
+  the same dispatcher), and the sleep loop turns any queued tap into a wake
+  edge (`HalGPIO.cpp`, "Queued taps ... A tap queued now is a press"). The
+  2026-09-02 audit recorded exactly this ("a gesture bound to Power is
+  recoverable") and stopped there: a wake that depends on what a swipe is
+  bound to is not a power button.
+- **Everything else did nothing, silently**: pinch/spread and shake step the
+  font-family channel, which nothing drains while asleep (and the reboot
+  registrar clears it); rotation ships bound to Nothing; a binding the owner
+  cleared; the volume rocker (its KVO queue is drained by `perFrame`, which
+  never runs in the sleep loop — `CrossPointVolumeButtons.mm`, unchanged
+  here).
+- **The hold above the paper did worse than nothing.** It fires outside zen
+  too (`firesOutsideZen(HoldAbove)`), and while asleep it toggled `g_zen`,
+  re-laid out a pad that could not be drawn and requested a present that
+  never happened — so the eventual wake (a foreground return, or a
+  button-bound gesture) came up in the OTHER mode, which reads as "zen
+  turned itself off".
+
+So the honest answer to the question was: yes, if you happen to swipe or
+tap once with one finger; no, if you do what a dark glass invites — press it
+with the gesture you remember as power, hold it, or touch it with more than
+one finger. Nothing in the app treated "asleep" as a state a gesture could
+ask about.
+
+**Fix — the whole glass is the power button while asleep in zen, and only a
+press can reach a sleeping firmware.**
+
+- `HalGPIO` publishes the state: `SimulatorOverlay::firmwareAsleep()`
+  (`src/SimulatorOverlay.h`, implemented in `src/HalGPIO.cpp`), set at the
+  top of `startDeepSleep()` after the pre-sleep consumption (so the press
+  that slept us cannot read back as a wake) and cleared by the reboot reset
+  registrar, since the wake reboot is the loop's only exit. Distinct from
+  `sleepScreenEntered()`, which is true from the sleep SCREEN's entry, tens
+  of ms earlier, while the firmware is still drawing.
+- The rule is pure and host-tested: `ios/SleepTouch.h`.
+  `fingerDownWakes(zen, asleep)` — asleep in zen, the first finger to land
+  presses POWER; `actionAllowedWhileAsleep(asleep, isButtonPress)` — while
+  asleep a resolved action that is not a press is swallowed.
+- `padWatch` (`ios/CrossPointIOSShim.cpp`, first thing in `FINGER_DOWN`,
+  above the sheet gate and the geometry check because a wake must depend on
+  neither): when the rule says so, `gpio.queueButtonTap(BTN_POWER, 60)` and
+  feed the touch to nothing else. The sleep loop consumes the queued tap as a
+  wake edge and reboots. Out of zen the branch is never taken, so the pad's
+  POWER capsule stays the wake, as on the device, and a touch on the page
+  while asleep is ignored as before.
+- `performGestureAction` (`ios/CrossPointZenRecognizers.mm`): after the
+  `Nothing` branch, a non-button action while asleep is logged
+  `swallowed (firmware asleep; only a press wakes it)` and dropped. In zen
+  this is belt and braces (the finger already woke the device); out of zen
+  it is the whole rule for the two gestures that fire there, the hold above
+  the paper and the shake.
+- **The waking touch does nothing else.** UIKit is still tracking the finger
+  that woke the device, and left alone it would finish as a swipe (a page
+  turned) or reach a hold's `.began` (zen toggled) in the boot it woke.
+  `CrossPointZenRecognizers_cancelInFlight()` disables and re-enables every
+  installed recognizer — UIKit's documented cancel — and resets the hold
+  tracker and the two-finger latch. It runs from a `simreset::Registrar` in
+  the recognizer file, i.e. BEFORE the longjmp and on all three in-process
+  reboots, rather than from `CrossPointHarness_begin`, which is after
+  `setup()` — and `setup()` pumps events (`waitForPowerRelease`), so a swipe
+  in flight could have recognized there. The SDL classifier was already reset
+  on the way up (`CrossPointHarness_begin`), so the lift finds no finger and
+  turns no page.
+
+**Pinned.** `tests/sleep_touch_test.cpp` (in `tests/run_all.sh`) truth-tables
+both rules. `tests/test_queued_tap_wake.sh` pins the HAL half on the desktop:
+POWER held at 2.5 s sleeps the device, `QTAP:POWER` at 6 s — the exact
+`queueButtonTap` call the zen finger now makes — must relaunch it through
+the `[power] wake edge: queued tap` station and then the synthetic-edge
+reboot, with an after-wake screenshot. That queued-tap wake rule had no test
+before this (the two existing wake tests use the injected edge and the
+foreground event). Not compilable here: the `.mm` (no Xcode); the shim
+passes a `clang++ -fsyntax-only` against the firmware include set.
+
+**Closing it on a phone** needs the next TestFlight build: in zen, let the
+sim time out (or bind a gesture to Power and use it); with the glass dark,
+touch it once, anywhere, with any number of fingers. Expect the wake (through
+the warm-up if the collapse dial is on) in the SAME zen mode, with no page
+turned by the touch. The log should show `[zen] finger on the sleeping glass
+-> POWER (wake)`, then `[power] wake edge: queued tap`, then
+`[zen] recognizers cancelled across the reboot`. Then out of zen: sleep, hold
+above the paper — expect `swallowed (firmware asleep ...)` and no zen toggle
+on the wake. **Deliberately not changed:** the volume rocker still cannot
+wake the device (its queue is drained only by `perFrame`); if the owner wants
+that, it is one drain call in the sleep loop's shape, not this fix.
+
 ### [S-038] File Transfer on a phone cut uploads and downloads off mid-way: the WebSocket shim dropped continuation frames, and both host servers closed any transfer that paused five seconds — FIXED 2026-09-06
 **severity: high (the owner's "downloads and uploads fail with partial data transfers", the day File Transfer's address first worked on a phone, S-037's sibling) · scope: `src/WebSocketsServer.cpp`, `src/WebServer.cpp`, `src/NetworkClient.cpp` · found 2026-09-06 from the owner's report, by reading the socket paths; pinned by `tests/ws_fragment_test.cpp`**
 

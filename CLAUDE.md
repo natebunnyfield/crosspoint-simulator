@@ -117,9 +117,11 @@ Two tests take the shipped `ios/Settings.bundle/Root.plist` as an argument
 (defaulted to the repo-relative path), so run them from the repo root — which is
 what `run_all.sh` does.
 
-**The six shell tests ARE now in the runner** (four since a 2026-08-29 change to
+**The eight shell tests ARE now in the runner** (four since a 2026-08-29 change to
 `tests/run_all.sh`, the fifth from 2026-09-02, the sixth
-`test_web_server_hardening.sh` from 2026-09-04; the sentence above stood wrong
+`test_web_server_hardening.sh` from 2026-09-04, the seventh and eighth --
+`test_foreground_wake.sh` and `test_queued_tap_wake.sh`, S-037 and S-039 --
+from 2026-09-06; the sentence above stood wrong
 here for a while — this repo had the same "not in the runner" claim duplicated
 in `README.md` too). They run
 last, via a dedicated `run_shell_skip` helper (not `run`/`run_direct`), because
@@ -600,6 +602,15 @@ counts that event as activity, because `millis()` keeps running while iOS has
 the process suspended and the firmware's inactivity timer would otherwise
 sleep the device on the first loop after a resume (S-037). The script verb
 `FOREGROUND` pushes the real event; `tests/test_foreground_wake.sh` pins both.
+While the loop runs, `SimulatorOverlay::firmwareAsleep()` is true, and the
+iOS harness reads it: in zen there is no pad and so no POWER capsule, so a
+finger landing on the sleeping glass IS the power button — `padWatch` queues
+a POWER tap for it and the loop's queued-tap check is the wake — while any
+gesture action that is not a press is swallowed until the wake (a hold above
+the paper used to toggle zen on a glass that could not show it). Rule in
+`ios/SleepTouch.h`, story in S-039; `tests/test_queued_tap_wake.sh` pins the
+queued-tap wake on the desktop. Out of zen nothing changed: the pad's POWER
+capsule is the wake, as on the device.
 
 That promotion used to be true only on the desktop. The desktop reboot is
 `execvp`, a fresh process, so every static re-initialises for free; iOS cannot

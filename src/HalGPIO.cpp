@@ -84,6 +84,15 @@ static bool syntheticButtonDown[NUM_BUTTONS] = {};
 // The latch survives until the sleep loop reads it. Regression test:
 // tests/test_sleep_wake.sh in the simulator repo.
 static std::atomic<bool> syntheticWakeEdge{false};
+// The firmware is in its terminal sleep loop (startDeepSleep). Set on entry,
+// cleared by the reboot reset registrar -- the loop's only exits are the wake
+// reboot and a quit. Read by the iOS harness (SimulatorOverlay::firmwareAsleep,
+// beside sleepScreenEntered below), which has to know that a finger landing
+// on a zen glass is the power button and not a page tap (ios/SleepTouch.h,
+// S-039). Distinct from sleepScreenEnteredValue, which is true from the sleep
+// SCREEN's entry -- tens of ms before the loop, while the firmware is still
+// drawing and a tap is still an ordinary tap.
+static std::atomic<bool> firmwareAsleepValue{false};
 static bool simulatorSleepRequested = false;
 
 // --- Host keyboard text entry (see the block comment in HalGPIO.h) ---------
@@ -323,6 +332,10 @@ const simreset::Registrar gGpioRebootReset{[] {
   pendingButtonTaps.clear();
   lastReleasedSpan = 0;
   syntheticWakeEdge.store(false);
+  // The sleep loop is the one place this is set, and the reboot is its exit:
+  // left true across the longjmp, every finger in the rebooted run would be a
+  // POWER press (ios/SleepTouch.h reads it).
+  firmwareAsleepValue.store(false);
   // A page published just before the reboot must not deliver into the next
   // boot's consumer (it would be spoken over whatever the rebooted firmware
   // shows). The wanted flag re-seeds on each consumer's own boot path.
@@ -1542,6 +1555,7 @@ bool sheetIsReaderPage() { return sheetIsReaderPageValue.load(); }
 bool textEntryOpen() { return textEntryActive.load(); }
 
 bool sleepScreenEntered() { return sleepScreenEnteredValue.load(); }
+bool firmwareAsleep() { return firmwareAsleepValue.load(); }
 } // namespace SimulatorOverlay
 
 void HalGPIO::queueButtonTap(uint8_t buttonIndex, unsigned long holdMs) {
@@ -1732,16 +1746,25 @@ void HalGPIO::startDeepSleep() {
   // pending here. That entry belongs to the press that slept us; left in the
   // queue it would read as a fresh press below and wake instantly.
   pendingButtonTaps.clear();
+  // From here the firmware is not running. Published for the iOS harness: in
+  // zen there is no pad and so no POWER capsule, and a finger landing on the
+  // glass now IS the power button (ios/SleepTouch.h, S-039) -- the harness
+  // queues a POWER tap for it, and the queued-tap check below is the wake.
+  // AFTER the consumption above, so the press that slept us cannot be read
+  // back as a wake; cleared by the reboot reset registrar on the way out.
+  firmwareAsleepValue.store(true);
 
   while (true) {
     processSyntheticEvents();
-    // Queued taps (queueButtonTap: zen's zones, accessibility taps, QTAP in a
-    // script) only ever fire inside update(), which never runs during sleep —
-    // so without this a zen POWER tap could never wake the device and the app
-    // sat on the sleep frame forever. A tap queued now is a press, and any
-    // press since sleep began is a wake. Consume rather than fire: the wake
-    // press has no release (same contract as requestSimulatorSleep above),
-    // and a fired DOWN would leave its UP to a run this reboot abandons.
+    // Queued taps (queueButtonTap: a finger on a sleeping zen glass -- the
+    // harness queues POWER for it, ios/SleepTouch.h -- a bound gesture,
+    // accessibility taps, QTAP in a script) only ever fire inside update(),
+    // which never runs during sleep — so without this nothing queued could
+    // wake the device and the app sat on the sleep frame forever. A tap
+    // queued now is a press, and any press since sleep began is a wake.
+    // Consume rather than fire: the wake press has no release (same contract
+    // as requestSimulatorSleep above), and a fired DOWN would leave its UP to
+    // a run this reboot abandons. tests/test_queued_tap_wake.sh pins it.
     if (!pendingButtonTaps.empty()) {
       pendingButtonTaps.clear();
       syntheticWakeEdge.store(true);

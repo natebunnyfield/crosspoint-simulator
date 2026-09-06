@@ -10,9 +10,10 @@
 #   tests/run_all.sh          # build and run everything
 #   tests/run_all.sh -k wifi  # only tests whose name matches
 #
-# The seven shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
-# test_text_entry.sh, test_read_aloud_capture.sh, test_note_editor_repaint.sh,
-# test_manage_files_and_wifi_nav.sh, test_web_server_hardening.sh) run at the end via
+# The eight shell tests (test_sleep_wake.sh, test_foreground_wake.sh,
+# test_queued_tap_wake.sh, test_text_entry.sh, test_read_aloud_capture.sh,
+# test_note_editor_repaint.sh, test_manage_files_and_wifi_nav.sh,
+# test_web_server_hardening.sh) run at the end via
 # run_shell_skip, against CROSSPOINT_FIRMWARE_DIR (default ~/src/
 # crosspoint-reader, the same default tools/fw_include_flags.py uses). Each
 # needs a desktop binary built from that checkout and a seeded fs_/.crosspoint/
@@ -156,6 +157,19 @@ run zen_pref_sync \
 # NO; a host cannot drive UIKit's responder chain, so the decision lives here.
 run shake_first_responder \
   c++ -std=c++17 -Iios -o "$OUT/shake_first_responder" tests/shake_first_responder_test.cpp
+
+# SleepTouch.h -- what a finger on the glass means while the firmware is
+# ASLEEP (S-039, owner 2026-09-06: "can the ios app in zen mode wake up when
+# x3 sim is powered down?"). In zen there is no pad and so no POWER capsule;
+# the only wakes were the accident of a binding resolving to a button, the
+# four-finger tap he reaches for has had no recognizer since the 2026-08-28
+# trim, and the hold above the paper toggled zen on a glass that could not
+# show it. Two truth tables: asleep in zen the first finger IS the power
+# button (out of zen the capsule keeps that job, as on the device), and while
+# asleep only a press may be performed. Neither the sleep loop nor a UIKit
+# touch can be driven from a host, so the decision lives in the header.
+run sleep_touch \
+  c++ -std=c++17 -Iios -o "$OUT/sleep_touch" tests/sleep_touch_test.cpp
 
 # ONE gesture-action dispatcher. The SDL deliberate tap carried its own smaller
 # switch and missed both actions appended after it (FontFamilyStepBack,
@@ -787,7 +801,7 @@ else
   skipped=$((skipped + 3))
 fi
 
-# The seven end-to-end shell tests. Each needs a firmware CHECKOUT (not just
+# The eight end-to-end shell tests. Each needs a firmware CHECKOUT (not just
 # the include set the block above wants) with a desktop binary already built
 # and, for three of them, a card that has been run once so
 # fs_/.crosspoint/settings.json exists -- see each script's own header for
@@ -799,6 +813,12 @@ run_shell_skip test_sleep_wake tests/test_sleep_wake.sh "$FW_CHECKOUT"
 # Same shape as test_sleep_wake, with the app's return to the foreground as
 # the wake instead of a tap -- what a phone's reactivation is (S-037).
 run_shell_skip test_foreground_wake tests/test_foreground_wake.sh "$FW_CHECKOUT"
+# Same shape again, with a QUEUED POWER tap as the wake: the HAL half of the
+# zen wake (S-039) -- a finger on a sleeping zen glass queues POWER through
+# HalGPIO::queueButtonTap, and the sleep loop's queued-tap wake edge, which no
+# test covered, is what turns it into a reboot. QTAP:POWER drives that exact
+# API from the desktop.
+run_shell_skip test_queued_tap_wake tests/test_queued_tap_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
 run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
 run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_CHECKOUT"

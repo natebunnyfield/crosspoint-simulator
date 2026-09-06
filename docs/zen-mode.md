@@ -1265,3 +1265,43 @@ zen or Home alone; the fix addresses the shared present-pipeline mechanism
 directly rather than anything zen-specific, since [S-035] proved zen was never
 implicated beyond the bezel band happening to be the only thing visible inside
 the too-small clip.
+
+## 2026-09-06: waking from sleep in zen — the whole glass is the power button (S-039)
+
+Owner: *"can the ios app in zen mode wake up when x3 sim is powered down?
+that's what I keep trying to fix."*
+
+In zen the pad does not exist, so nothing could press POWER, and the
+four-finger tap that used to be Power went with the 2026-08-28 trim (above).
+What woke a sleeping sim was an accident of the bindings: any gesture whose
+action resolves to a BUTTON reaches `gpio.queueButtonTap`, and
+`HalGPIO::startDeepSleep` takes a queued tap as a wake edge — so a one-finger
+tap (Right) or a swipe woke it, while four fingers, a pinch, a shake, a
+cleared binding or the volume rocker did nothing, and the hold above the
+paper toggled zen on a glass that could not show it and handed the wake the
+other mode.
+
+**The rule now** (`ios/SleepTouch.h`, pure, in `run_all.sh` as `sleep_touch`):
+
+- **Asleep, in zen: the first finger to land is the power button.** `padWatch`
+  queues a POWER tap for it before the sheet gate and the geometry check, and
+  feeds the touch to nothing else. Any number of fingers, anywhere on the
+  glass. Out of zen nothing changes — the pad's POWER capsule is the wake, as
+  on the device.
+- **Asleep, any mode: only a press reaches the firmware.** `performGestureAction`
+  swallows every other action with a `swallowed (firmware asleep ...)` log
+  line, so the hold above the paper and the shake — the two gestures that fire
+  outside zen — cannot change state on a device that is not running.
+- **The waking touch does nothing else.** A reboot registrar in
+  `CrossPointZenRecognizers.mm` cancels every recognizer (UIKit's
+  disable/re-enable) before the longjmp, so the finger that woke the device
+  cannot finish as a swipe or a hold in the boot it woke; the SDL classifier is
+  reset on the way up as before.
+
+"Asleep" is `SimulatorOverlay::firmwareAsleep()`, set on entry to the sleep
+loop and cleared by the reboot registrar — not `sleepScreenEntered()`, which is
+true tens of ms earlier while the firmware is still drawing.
+
+Device-confirm only for the recognizer half, as for everything in this file;
+the HAL half — a queued POWER tap wakes the sleeping loop — is pinned on the
+desktop by `tests/test_queued_tap_wake.sh`. Full account: `BUGS.md` S-039.
