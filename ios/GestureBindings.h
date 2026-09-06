@@ -551,7 +551,13 @@ constexpr Row kRows[] = {
     {Gesture::TwoFingerSwipeRight, Family::Swipe, 2, Dir::Right, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeRight", "2-finger swipe right", "Swipe Right", Action::Up},
     {Gesture::TwoFingerSwipeUp, Family::Swipe, 2, Dir::Up, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeUp", "2-finger swipe up", "Swipe Up", Action::Back},
     {Gesture::TwoFingerSwipeDown, Family::Swipe, 2, Dir::Down, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeDown", "2-finger swipe down", "Swipe Down", Action::Confirm},
-    {Gesture::TwoFingerHold, Family::LongPress, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerHold", "2-finger hold", "Hold", Action::Nothing},
+    // FONT FAMILY STEP LANDED HERE 2026-09-06, when the shake took the zen
+    // toggle and left the action with no default home. A two-finger hold is
+    // deliberate and hard to perform by accident, it costs no CoreMotion
+    // stream the way binding a tilt would, and binding it returns this row's
+    // arbitration to stock UIKit (shipsInert stops granting simultaneity),
+    // which is the well-understood case rather than the delegate's exception.
+    {Gesture::TwoFingerHold, Family::LongPress, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerHold", "2-finger hold", "Hold", Action::FontFamilyStep},
     {Gesture::Pinch, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gesturePinch", "pinch", "Pinch", Action::Up},
     {Gesture::Spread, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureSpread", "spread", "Spread", Action::Down},
   // THE DEVICE ITSELF.
