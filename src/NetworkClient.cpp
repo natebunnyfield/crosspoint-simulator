@@ -74,6 +74,8 @@ size_t NetworkClient::write(const uint8_t *buf, size_t size) {
   while (writtenTotal < size) {
     const ssize_t written =
         ::send(impl_->fd, buf + writtenTotal, size - writtenTotal, sendFlags);
+    if (written < 0 && errno == EINTR)
+      continue;  // a signal, not the peer
     if (written <= 0)
       break;
     writtenTotal += static_cast<size_t>(written);

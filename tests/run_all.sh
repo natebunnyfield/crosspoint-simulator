@@ -741,6 +741,16 @@ if FW_FLAGS=$(python3 tools/fw_include_flags.py 2>/dev/null) && [[ -n "$FW_FLAGS
     c++ -std=c++17 -DSIMULATOR -DSIMULATOR_DEVICE_X3 -DCROSSPOINT_RENDER_SCALE=2 -Isrc $FW_FLAGS \
         -o "$OUT/build_identity" tests/build_identity_test.cpp src/SimulatorBuildIdentity.cpp
 
+  # The host WebSocket server, driven over loopback: a message fragmented
+  # across frames arrives whole, and a frame that pauses 6 s mid-way is not
+  # cut off (S-038, the owner's "uploads fail with partial data transfers").
+  # Rides this guard because the shim logs through the firmware's Logging.h.
+  # Takes ~7 s: the pause is the point.
+  # shellcheck disable=SC2086
+  run ws_fragment \
+    c++ -std=c++20 -DSIMULATOR -Isrc $FW_FLAGS \
+        -o "$OUT/ws_fragment" tests/ws_fragment_test.cpp src/WebSocketsServer.cpp
+
   # Update Library's compare logic (firmware src/network/LibrarySyncPlan.h).
   # Pure header, but it lives in the firmware repo, so it rides the same
   # include-set guard as build_identity. Every wrong verdict is silent on
