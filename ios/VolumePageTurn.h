@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "GestureBindings.h"
+
 // THE VOLUME ROCKER AS A PAGE ROCKER -- the whole decision, in one pure header.
 //
 // Owner, 2026-09-05, verbatim: *"add ios app setting for hardware volume
@@ -23,23 +25,29 @@
 // GestureBindings.h and ZenPrefSync.h; tests/volume_page_turn_test.cpp.
 namespace volumepage {
 
-// The Settings.bundle row (ios/Settings.bundle/Root.plist) and what an
-// untouched install answers. OFF: taking over the volume rocker is something
-// App Store review has rejected apps for, and a reader that changes what the
-// phone's own buttons do without being asked is a surprise -- so it is opt-in.
-// The test pins the plist's DefaultValue to this constant, since
-// CrossPointPrefs.mm builds its registration domain from that plist and the
-// switch and the app must not disagree.
-constexpr const char *kPrefKey = "volumeButtonsTurnPages";
-constexpr bool kDefaultEnabled = false;
-
-// The second row in the same group (2026-09-05): reverses which physical
-// button each direction presses, for an owner who finds the default backwards.
-// Also OFF by default and also pinned against Root.plist by the test -- and it
-// does nothing while kPrefKey above is off, since the adapter only calls
-// buttonFor() at all while armed.
-constexpr const char *kFlippedPrefKey = "volumeButtonsFlipped";
-constexpr bool kDefaultFlipped = false;
+// SUPERSEDED 2026-09-06: THIS IS NO LONGER A FEATURE WITH ITS OWN SWITCHES.
+//
+// It shipped 2026-09-05 as two bespoke Settings rows -- volumeButtonsTurnPages
+// (arm it) and volumeButtonsFlipped (reverse it) -- wired straight to a front-
+// rocker page turn. The owner then ruled, 2026-09-06: *"make volume up and
+// down an assignable setting like all other gestures."* Both rows are gone and
+// the rocker is two ordinary bindings, gestureVolumeUp and gestureVolumeDown,
+// in ios/GestureBindings.h.
+//
+// NOTHING WAS LOST IN THE TRADE, which is the half worth stating because
+// removing two shipped switches looks like a regression:
+//   * "off"      is both rows bound to Nothing, which is their default, so an
+//                untouched install behaves exactly as it did before.
+//   * "flipped"  is assigning the two rows the other way round.
+//   * what is    the rocker can now reach any action the other gestures can,
+//     GAINED     not just a page turn.
+//
+// EVERYTHING BELOW THIS LINE IS UNCHANGED and is still the whole mechanism:
+// the KVO arithmetic, the echo suppression, the resting level and the ends of
+// the range. Only the last step -- what a press DOES -- moved out to the
+// bindings table. Same discipline as before: every way this can be wrong is
+// silent on a device, and none of AVAudioSession, KVO or MPVolumeView exists
+// on a host to prove it against.
 
 // The FRONT pair, which is the firmware's page rocker: in the reader Left and
 // Right are previous and next page (ReaderUtils::detectPageTurn), in lists
@@ -117,26 +125,40 @@ constexpr Verdict judge(float previous, float current, bool restorePending,
   return Verdict::None;
 }
 
-// The button a verdict presses, or kNoButton. `flipped` is the Flip Volume
-// Buttons setting (kFlippedPrefKey): OFF is the default mapping (up = Next =
-// front RIGHT), ON swaps which physical button each verdict fires. It has no
-// bearing on judge() above -- flipping changes which OUTPUT a direction
-// produces, never how a level change is read as a direction in the first
-// place, so Echo detection and the resting-level arithmetic are unaffected by
-// it. Defaulted to false so every existing call site (this header's own
-// tests included) keeps compiling unchanged; the adapter is the one caller
-// that passes the live setting.
-constexpr uint8_t buttonFor(Verdict v, bool flipped = false) {
+// WHICH GESTURE ROW A VERDICT IS. The direction is read off the sign of the
+// level change (judge() above) and nothing else; what that direction then DOES
+// is the binding's business, not this header's. That is the whole of the
+// 2026-09-06 change: `buttonFor(Verdict, flipped)` returned a hardcoded front-
+// rocker button and took the flip setting; this returns a row, and flipping is
+// now the owner assigning the two rows the other way round.
+//
+// Returns Gesture::Count for None and Echo -- there is no row for "nothing
+// happened", and an Echo is the restore being read back, which must never fire
+// anything or the page turns straight back.
+constexpr gesturebind::Gesture gestureFor(Verdict v) {
   switch (v) {
     case Verdict::Next:
-      return flipped ? kBtnLeft : kBtnRight;
+      return gesturebind::Gesture::VolumeUp;
     case Verdict::Prev:
-      return flipped ? kBtnRight : kBtnLeft;
+      return gesturebind::Gesture::VolumeDown;
     case Verdict::None:
     case Verdict::Echo:
       break;
   }
-  return kNoButton;
+  return gesturebind::Gesture::Count;
+}
+
+// WHETHER TO HOLD THE AUDIO SESSION AT ALL. Taking the rocker over means
+// holding an AVAudioSession and putting the level back after every press, and
+// doing that while both rows are bound to Nothing would change what the
+// phone's own buttons do for no gain -- which is the thing App Store review
+// has rejected apps for. So the adapter arms only when at least one row is
+// bound, and this is the predicate. `live` answers the CURRENT binding of a
+// row, so the caller can pass the same lookup the recognizers use.
+template <typename LiveAction>
+constexpr bool needsVolumeSession(LiveAction live) {
+  return live(gesturebind::Gesture::VolumeUp) != gesturebind::Action::Nothing ||
+         live(gesturebind::Gesture::VolumeDown) != gesturebind::Action::Nothing;
 }
 
 }  // namespace volumepage

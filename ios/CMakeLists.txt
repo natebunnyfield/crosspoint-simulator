@@ -50,6 +50,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointTiltGestures.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
@@ -81,6 +82,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointTiltGestures.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPaletteMixer.mm
@@ -585,7 +587,8 @@ target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
   "-framework Network"
   "-framework NetworkExtension"
   "-framework AVFoundation"
-  "-framework MediaPlayer")
+  "-framework MediaPlayer"
+  "-framework CoreMotion")
 
 # The harness impersonates an X3. ON THE LIBRARY, PUBLIC -- the same trap
 # CROSSPOINT_RENDER_SCALE fell into below, and it bit harder: the device macro

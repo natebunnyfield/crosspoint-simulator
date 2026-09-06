@@ -17,7 +17,7 @@
 // THE SET, and what it deliberately does NOT contain, is enumerated in
 // ios/GestureBindings.h. The short version, because it decides what this file
 // installs: single taps only (1 and 2 fingers), swipes on 1 and 2 fingers in
-// all four directions, long presses on 1 and 2 fingers, pinch, rotation, shake.
+// all four directions, long presses on 1 and 2 fingers, pinch, shake.
 // No double or triple taps, no three-, four- or five-finger gestures, no
 // screen-edge pans.
 //
@@ -38,17 +38,17 @@
 //
 // **BUT INSTALLING A RECOGNIZER IS STILL NOT FREE, and the delegate is what
 // pays for it.** Five of the seventeen gestures ship bound to Nothing, and three
-// of those five overlap gestures the app already had -- rotation over pinch
+// of those five overlap gestures the app already had -- pinch over a swipe
 // above all, since a real pinch always carries a few degrees of twist and
 // UIKit's default is that whichever recognizes first prevents the rest. An
-// inert rotation would therefore have cost the owner pinches he has today. The
+// an inert overlap would therefore have cost the owner gestures he has today. The
 // one rule in the delegate below is: **a gesture that ships doing nothing may
 // never prevent one that ships doing something.** Between two rows that both
 // ship bound the answer is NO, which is what UIKit does with no delegate at
 // all, so nothing about the pre-2026-08-28 arbitration moves.
 //
 // DIVISION OF LABOR (one owner per gesture): every two-finger gesture, every
-// swipe, every long press, pinch and rotation are Apple's. SDL keeps the
+// swipe, every long press and the pinch are Apple's. SDL keeps the
 // 1-finger deliberate TAP alone, with its pure-tested gates (28 px slop,
 // 400 ms) in ZenVerbs.h.
 //   * the ONE-FINGER HOLD (owner 2026-08-27, "holding down one finger longer
@@ -407,29 +407,6 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
   performGestureAction(liveAction(which), gesturebind::gestureName(which));
 }
 
-// ROTATION FOLLOWS PINCH'S PRECEDENT EXACTLY, and deliberately: it is the other
-// continuous two-finger recognizer, and a slow rotation reported continuously
-// would queue the same storm of font steps a continuous pinch would. One step,
-// on the lift. WHICH of the two rows fires is read from the measured angle and
-// from nowhere else — UIKit reports rotation in radians in VIEW space, where +y
-// is down, so a positive angle is clockwise on the glass. (The table used to
-// carry a `sign` field saying the same thing; nothing read it, so flipping it
-// changed nothing and failed nothing, and it is gone.)
-//
-// Pinch and rotation DO recognize simultaneously while rotation ships inert —
-// see the delegate below, and note that it is what stops a twisty pinch being
-// arbitrated away from the font step the owner actually has bound. Bind rotation
-// and a twist that also squeezes will do both things; that is the cost of having
-// asked for both, and the Two Fingers group's footer says so.
-- (void)rotate:(UIRotationGestureRecognizer *)g {
-  if (g.state != UIGestureRecognizerStateEnded) return;
-  if (g.rotation == 0.0) return;
-  const gesturebind::Gesture which =
-      g.rotation > 0.0 ? gesturebind::Gesture::RotateClockwise
-                       : gesturebind::Gesture::RotateCounterClockwise;
-  performGestureAction(liveAction(which), gesturebind::gestureName(which));
-}
-
 // THE LONG PRESSES. Two of them: the ONE-finger one is routed by WHERE IT
 // LANDED, and the two-finger one is a plain global binding.
 //
@@ -556,11 +533,9 @@ UISwipeGestureRecognizerDirection uikitSwipeDir(gesturebind::Dir d) {
 // and the 2026-08-28 re-cut ADDED three shapes that overlap gestures the app
 // already had:
 //
-//   * ROTATION vs PINCH. Both continuous, both two-finger. A real pinch always
-//     carries a few degrees of twist, so the arbitration can go to rotation --
-//     and rotation ships bound to Nothing while pinch ships bound to the font
-//     step. Without this the owner would lose pinches he has today, on a
-//     gesture he has already reported as not working once (2026-08-22).
+//   * The ROTATION vs PINCH arbitration is gone with the rotation rows
+//     (2026-09-06). Nothing now competes with the pinch for a two-finger
+//     twist, so a squeeze that also turns is unambiguously a pinch.
 //   * THE 2-FINGER HOLD vs THE 2-FINGER SWIPES. A swipe that starts with a
 //     pause crosses 0.75 s and begins the hold, which then fails the swipe.
 //   * The one-finger VERTICAL swipes, which overlap nothing today but are new
@@ -714,7 +689,8 @@ void applyEnabled(void) {
 
 // BUILD THE SET, ONCE, STRAIGHT FROM THE TABLE. Every global row that names a
 // recognizer family gets exactly one object; the shake is a responder rather
-// than a recognizer, and pinch/rotation each serve two rows off one object
+// than a recognizer, the pinch serves two rows off one object, and the four
+// tilts serve four off one CoreMotion stream
 // (they are one gesture to UIKit and two to a reader).
 //
 // Walking the table rather than writing thirteen constructors out means a row
@@ -777,17 +753,12 @@ void buildRecognizers(UIView *view) {
                 g);
         break;
       }
-      case gesturebind::Family::Rotate: {
-        if (g != gesturebind::Gesture::RotateClockwise) continue;
-        install(view,
-                [[UIRotationGestureRecognizer alloc] initWithTarget:g_handler
-                                                             action:@selector
-                                                             (rotate:)],
-                g);
-        break;
-      }
       case gesturebind::Family::Shake:
         break;  // the catcher below, not a recognizer
+      case gesturebind::Family::Button:
+        break;  // the volume rocker: CrossPointVolumeButtons.mm, not a recognizer
+      case gesturebind::Family::Tilt:
+        break;  // CoreMotion: CrossPointTiltGestures.mm, not a recognizer
     }
   }
 
@@ -973,6 +944,18 @@ const simreset::Registrar g_zenWakeCancel{[] {
 // OpenActionMenu 2026-09-01), so binding the tap to either was a silent
 // no-op (audit 2026-09-02, finding 1). One dispatcher now; `what` is the log
 // name the shim prints.
+// FIRE A ROW BY NAME, resolving its live binding first. The volume rocker and
+// the four tilts are not recognizers -- they arrive from KVO and CoreMotion --
+// but they must land in exactly the same place a recognizer's gesture does, or
+// they miss the zen gate, the palette-sheet swallow and everything else
+// performGestureAction does. So they call this rather than reaching for
+// CrossPointPrefs_gestureBinding themselves and re-deriving the rule.
+extern "C" void CrossPointZenRecognizers_fireGesture(int gesture) {
+  const auto g = static_cast<gesturebind::Gesture>(gesture);
+  if (g < gesturebind::Gesture::TapGlobal || g >= gesturebind::Gesture::Count) return;
+  performGestureAction(liveAction(g), gesturebind::gestureName(g));
+}
+
 extern "C" void CrossPointZenRecognizers_performAction(int action, const char *what) {
   performGestureAction(static_cast<gesturebind::Action>(action), what);
 }

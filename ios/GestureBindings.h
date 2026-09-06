@@ -18,10 +18,28 @@
 //   Swipe              1 and 2 fingers x up/down/left/right    8
 //   Long press         1 finger, 2 fingers                     2
 //   Pinch              in, out                                 2
-//   Rotation           clockwise, counter-clockwise            2
 //   Shake              --                                      1
+//   Volume rocker      up, down                                2
+//   Tilt               left, right, forward, back              4
 //                                                             ---
-//                                                              17
+//                                                              21
+//
+// REVISED 2026-09-06, owner ruling: *"make volume up and down an assignable
+// setting like all other gestures. drop two finger rotate gestures. add rotate
+// and tilt etc gestures."* Three changes, and the third was narrowed by a
+// follow-up question to the FOUR TILTS alone -- a device-level rotation and a
+// face-down gesture were both offered and declined, so do not read "add rotate"
+// as an outstanding item. Two-finger rotation is gone with its recognizer.
+//
+// THE VOLUME ROCKER STOPPED BEING A FEATURE AND BECAME TWO ROWS. It shipped
+// 2026-09-05 as a pair of bespoke Settings switches -- volumeButtonsTurnPages
+// (arm it) and volumeButtonsFlipped (reverse it) -- wired straight to a front-
+// rocker page turn. Both are retired, and NOTHING IS LOST: "off" is binding
+// both rows to Nothing, which is their default, and "flipped" is assigning
+// them the other way round. What is GAINED is that the rocker can now reach
+// any action the other gestures can, which is what the ruling asked for.
+// ios/VolumePageTurn.h still owns the mechanism -- the KVO, the direction, the
+// level restore -- and only the routing moved here.
 //
 // WHAT THE TRIM DELIBERATELY LEAVES OUT, so nobody re-adds it as an oversight:
 //
@@ -60,8 +78,9 @@
 // behavior as a fixed third case; that was wrong and is gone.
 //
 // MULTI-FINGER HAS NO ZONE OVERRIDE, by ruling: a two-finger tap is the same
-// gesture wherever it lands. Neither does the shake, which has no landing point
-// at all. 17 global rows + 11 zone rows = 28.
+// gesture wherever it lands. Neither do the six DEVICE rows -- the shake, the
+// two volume buttons and the four tilts -- none of which has a landing point at
+// all. 21 global rows + 11 zone rows = 32.
 //
 // ELEVEN, NOT TWELVE: there is no "Swipe Down above the paper" row (owner
 // ruling 2026-09-02, "drop the Above/Below swipe rows that cannot fire"). A
@@ -389,9 +408,16 @@ enum class Family : int {
               // WHICH of the two is decided from the measured scale at firing
               // time, not from a field here: the table would then hold a second
               // copy of a fact only UIKit can answer.
-  Rotate,     // UIRotationGestureRecognizer -- likewise, from the rotation's
-              // sign
   Shake,      // not a recognizer at all: a UIResponder motion event
+  Button,     // the hardware volume rocker. No recognizer either: an
+              // AVAudioSession.outputVolume KVO change, direction read off the
+              // sign, level restored through a hidden MPVolumeView. See
+              // ios/VolumePageTurn.h -- that header still owns the mechanism;
+              // what changed 2026-09-06 is only WHERE the press is routed.
+  Tilt,       // CoreMotion gravity vector. One object serves all four rows and
+              // WHICH fires is decided from the measured axis at firing time,
+              // the same way one UIPinchGestureRecognizer serves Pinch and
+              // Spread. See ios/TiltGestures.h for the arming rule.
 };
 
 // A swipe's direction.
@@ -462,10 +488,19 @@ enum class Gesture : int {
   TwoFingerHold,
   Pinch,
   Spread,
-  RotateClockwise,
-  RotateCounterClockwise,
-  // THE DEVICE ITSELF.
+  // No RotateClockwise / RotateCounterClockwise -- dropped 2026-09-06, owner
+  // ruling "drop two finger rotate gestures". The UIRotationGestureRecognizer
+  // went with them, and Family::Rotate with that. A device-level rotation was
+  // considered as a replacement in the same ruling and declined; the four
+  // tilts below are what was taken instead.
+  // THE DEVICE ITSELF -- no touch, no landing point, so no zone override.
   Shake,
+  VolumeUp,
+  VolumeDown,
+  TiltLeft,
+  TiltRight,
+  TiltForward,
+  TiltBack,
   // ABOVE THE PAPER -- overrides, blank by default.
   TapAbove,
   SwipeLeftAbove,
@@ -519,10 +554,23 @@ constexpr Row kRows[] = {
     {Gesture::TwoFingerHold, Family::LongPress, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerHold", "2-finger hold", "Hold", Action::Nothing},
     {Gesture::Pinch, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gesturePinch", "pinch", "Pinch", Action::Up},
     {Gesture::Spread, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureSpread", "spread", "Spread", Action::Down},
-    {Gesture::RotateClockwise, Family::Rotate, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureRotateClockwise", "rotate clockwise", "Rotate Clockwise", Action::Nothing},
-    {Gesture::RotateCounterClockwise, Family::Rotate, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureRotateCounterClockwise", "rotate counter-clockwise", "Rotate Counter-Clockwise", Action::Nothing},
   // THE DEVICE ITSELF.
     {Gesture::Shake, Family::Shake, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureShake", "shake", "Shake", Action::FontFamilyStep},
+    // The volume rocker. BOTH DEFAULT TO Nothing, which is the same shipped
+    // behaviour the two retired toggles had: volumeButtonsTurnPages was off by
+    // default because App Store review has rejected apps for taking the rocker
+    // over unasked, and a reader that changes what the phone's own buttons do
+    // without being asked is a surprise. Nothing here means the rocker is left
+    // alone AND the audio session is never held -- see needsVolumeSession().
+    {Gesture::VolumeUp, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeUp", "volume up", "Volume Up", Action::Nothing},
+    {Gesture::VolumeDown, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeDown", "volume down", "Volume Down", Action::Nothing},
+    // The four tilts, off CoreMotion's gravity vector. Also Nothing by
+    // default: motion updates cost battery and a reader lying on their side is
+    // already tilted, so nothing arms until a row is bound.
+    {Gesture::TiltLeft, Family::Tilt, 0, Dir::Left, OneFinger::Count, Zone::Neither, "gestureTiltLeft", "tilt left", "Tilt Left", Action::Nothing},
+    {Gesture::TiltRight, Family::Tilt, 0, Dir::Right, OneFinger::Count, Zone::Neither, "gestureTiltRight", "tilt right", "Tilt Right", Action::Nothing},
+    {Gesture::TiltForward, Family::Tilt, 0, Dir::Up, OneFinger::Count, Zone::Neither, "gestureTiltForward", "tilt forward", "Tilt Forward", Action::Nothing},
+    {Gesture::TiltBack, Family::Tilt, 0, Dir::Down, OneFinger::Count, Zone::Neither, "gestureTiltBack", "tilt back", "Tilt Back", Action::Nothing},
   // ABOVE THE PAPER -- overrides, blank by default.
     {Gesture::TapAbove, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::AbovePaper, "gestureTapAbove", "tap above the paper", "Tap", Action::Inherit},
     {Gesture::SwipeLeftAbove, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::AbovePaper, "gestureSwipeLeftAbove", "swipe left above the paper", "Swipe Left", Action::Inherit},
@@ -576,7 +624,9 @@ constexpr Group groupOf(Gesture g) {
   const Row& r = row(g);
   if (r.zone == Zone::AbovePaper) return Group::AbovePaper;
   if (r.zone == Zone::BelowPaper) return Group::BelowPaper;
-  if (r.family == Family::Shake) return Group::Device;
+  if (r.family == Family::Shake || r.family == Family::Button ||
+      r.family == Family::Tilt)
+    return Group::Device;
   return r.fingers <= 1 ? Group::OneFinger : Group::TwoFingers;
 }
 

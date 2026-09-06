@@ -35,7 +35,7 @@
 #include "TestCheck.h"
 
 using testcheck::check;
-using volumepage::buttonFor;
+using volumepage::gestureFor;
 using volumepage::judge;
 using volumepage::restingLevel;
 using volumepage::Verdict;
@@ -97,48 +97,29 @@ void testDirection() {
         "a step finer than 1/16 but above kEpsilon is still a press");
 
   // --- the mapping the owner asked for, against HalGPIO's numbering ---
-  check(buttonFor(Verdict::Next) == volumepage::kBtnRight,
-        "Next presses the front RIGHT button (3)");
-  check(buttonFor(Verdict::Prev) == volumepage::kBtnLeft,
-        "Prev presses the front LEFT button (2)");
-  check(buttonFor(Verdict::None) == volumepage::kNoButton, "None presses nothing");
-  check(buttonFor(Verdict::Echo) == volumepage::kNoButton, "Echo presses nothing");
-  check(volumepage::kBtnLeft == 2 && volumepage::kBtnRight == 3,
-        "the button indices are HalGPIO's BTN_LEFT=2 / BTN_RIGHT=3 (the .mm "
-        "static_asserts the same)");
+  // WHICH ROW, not which button. Since 2026-09-06 the rocker fires the
+  // gestureVolumeUp / gestureVolumeDown bindings; what those do is the
+  // owner's, and "flipped" is assigning them the other way round rather than
+  // a setting this header knows about.
+  check(gestureFor(Verdict::Next) == gesturebind::Gesture::VolumeUp,
+        "a Next verdict is the Volume Up row");
+  check(gestureFor(Verdict::Prev) == gesturebind::Gesture::VolumeDown,
+        "a Prev verdict is the Volume Down row");
+  check(gestureFor(Verdict::None) == gesturebind::Gesture::Count,
+        "None is no row at all");
+  check(gestureFor(Verdict::Echo) == gesturebind::Gesture::Count,
+        "an Echo is the restore being read back and must fire nothing");
 
-  // --- the default (unflipped) call shape must keep compiling unchanged ---
-  // buttonFor's second parameter defaults to false, so every call above --
-  // written before Flip Volume Buttons existed -- still means "unflipped".
-  check(buttonFor(Verdict::Next) == buttonFor(Verdict::Next, false),
-        "the one-argument call is the same as passing flipped=false");
-}
-
-// The Flip Volume Buttons truth table: flipping swaps which PHYSICAL button a
-// verdict fires, and nothing else -- judge() above never sees the flip, so a
-// direction is still read off the sign of the level change exactly as before.
-// Only the OUTPUT side of buttonFor() is under test here.
-void testFlipped() {
-  check(buttonFor(Verdict::Next, false) == volumepage::kBtnRight,
-        "unflipped: Next is still the front RIGHT button");
-  check(buttonFor(Verdict::Prev, false) == volumepage::kBtnLeft,
-        "unflipped: Prev is still the front LEFT button");
-  check(buttonFor(Verdict::Next, true) == volumepage::kBtnLeft,
-        "flipped: Next (volume up) becomes the front LEFT button (previous "
-        "page)");
-  check(buttonFor(Verdict::Prev, true) == volumepage::kBtnRight,
-        "flipped: Prev (volume down) becomes the front RIGHT button (next "
-        "page)");
-  check(buttonFor(Verdict::None, true) == volumepage::kNoButton,
-        "flipped: None still presses nothing");
-  check(buttonFor(Verdict::Echo, true) == volumepage::kNoButton,
-        "flipped: Echo still presses nothing");
-  // Flipping is never a no-op button-for-button -- the whole point is that it
-  // swaps the two real presses.
-  check(buttonFor(Verdict::Next, true) != buttonFor(Verdict::Next, false),
-        "flipping actually changes Next's button");
-  check(buttonFor(Verdict::Prev, true) != buttonFor(Verdict::Prev, false),
-        "flipping actually changes Prev's button");
+  // THE SESSION IS HELD ONLY WHILE A ROW IS BOUND. Taking the rocker over
+  // unasked is the thing App Store review has rejected apps for.
+  auto none = [](gesturebind::Gesture) { return gesturebind::Action::Nothing; };
+  check(!volumepage::needsVolumeSession(none),
+        "both rows Nothing: no audio session, rocker left alone");
+  auto up = [](gesturebind::Gesture g) {
+    return g == gesturebind::Gesture::VolumeUp ? gesturebind::Action::Right
+                                               : gesturebind::Action::Nothing;
+  };
+  check(volumepage::needsVolumeSession(up), "one bound row arms the session");
 }
 
 void testRestingLevel() {
@@ -195,114 +176,41 @@ void testShippedSources(const std::string &iosDir) {
     return;
   }
 
-  const std::string key = volumepage::kPrefKey;
-  const std::string spec = specifierFor(plist, key);
-  check(!spec.empty(), "Root.plist carries a row whose Key is " + key);
-  if (!spec.empty()) {
-    check(spec.find("<string>PSToggleSwitchSpecifier</string>") !=
-              std::string::npos,
-          "the row is a toggle");
-    // DefaultValue must BE kDefaultEnabled: Settings.app shows it for an
-    // untouched key and CrossPointPrefs.mm registers it as what the app reads.
-    const char *want = volumepage::kDefaultEnabled ? "<true/>" : "<false/>";
-    const size_t dv = spec.find("<key>DefaultValue</key>");
-    check(dv != std::string::npos && spec.find(want, dv) != std::string::npos,
-          std::string("the row's DefaultValue is ") + want +
-              " (volumepage::kDefaultEnabled)");
+  // THE TWO OLD ROWS MUST BE GONE. They were retired 2026-09-06 when the
+  // rocker became two ordinary gesture rows; a leftover row would offer a
+  // switch that no longer reaches anything, which is worse than no switch.
+  for (const char *dead : {"volumeButtonsTurnPages", "volumeButtonsFlipped"}) {
+    check(plist.find(std::string("<string>") + dead + "</string>") == std::string::npos,
+          std::string("Root.plist no longer carries ") + dead);
+    check(prefs.find(std::string("@\"") + dead + "\"") == std::string::npos,
+          std::string("CrossPointPrefs.mm no longer registers ") + dead);
   }
-  // OUTSIDE the generated gesture span: tools/gen_gesture_plist.py rewrites
-  // everything between the Zen Mode switch and the Screen group, so a row
-  // placed there would be deleted by its next run.
-  const size_t screenAt = plist.find("<string>Screen</string>");
-  const size_t rowAt = plist.find("<string>" + key + "</string>");
-  check(screenAt != std::string::npos && rowAt != std::string::npos &&
-            rowAt > screenAt,
-        "the row sits after the Screen group, outside the generated span");
+  check(prefsH.find("int CrossPointPrefs_volumeButtonsTurnPages(void);") == std::string::npos &&
+            prefsH.find("int CrossPointPrefs_volumeButtonsFlipped(void);") == std::string::npos,
+        "CrossPointPrefs.h no longer declares either retired accessor");
 
-  // The backend reads the same key the row writes.
-  check(prefs.find("@\"" + key + "\"") != std::string::npos,
-        "ios/CrossPointPrefs.mm names the key @\"" + key + "\"");
-  check(prefsH.find("int CrossPointPrefs_volumeButtonsTurnPages(void);") !=
-            std::string::npos,
-        "CrossPointPrefs.h declares CrossPointPrefs_volumeButtonsTurnPages");
-  check(adapter.find("CrossPointPrefs_volumeButtonsTurnPages()") !=
-            std::string::npos,
-        "the adapter reads the setting through CrossPointPrefs");
-
-  // Flip Volume Buttons: the same row, same group, same pinning as the toggle
-  // above, for tools/gen_gesture_plist.py's span and for the key match between
-  // the plist and the backend.
-  const std::string flipKey = volumepage::kFlippedPrefKey;
-  const std::string flipSpec = specifierFor(plist, flipKey);
-  check(!flipSpec.empty(), "Root.plist carries a row whose Key is " + flipKey);
-  if (!flipSpec.empty()) {
-    check(flipSpec.find("<string>PSToggleSwitchSpecifier</string>") !=
-              std::string::npos,
-          "the flip row is a toggle");
-    const char *flipWant = volumepage::kDefaultFlipped ? "<true/>" : "<false/>";
-    const size_t flipDv = flipSpec.find("<key>DefaultValue</key>");
-    check(flipDv != std::string::npos &&
-              flipSpec.find(flipWant, flipDv) != std::string::npos,
-          std::string("the flip row's DefaultValue is ") + flipWant +
-              " (volumepage::kDefaultFlipped)");
+  // AND THE TWO NEW ROWS MUST EXIST, generated from the header like every
+  // other gesture row.
+  for (const char *row : {"gestureVolumeUp", "gestureVolumeDown"}) {
+    check(plist.find(std::string("<string>") + row + "</string>") != std::string::npos,
+          std::string("Root.plist carries the ") + row + " row");
   }
-  const size_t flipRowAt = plist.find("<string>" + flipKey + "</string>");
-  check(screenAt != std::string::npos && flipRowAt != std::string::npos &&
-            flipRowAt > screenAt,
-        "the flip row also sits after the Screen group, outside the "
-        "generated span");
-  // Same group as the enable toggle: no OTHER PSGroupSpecifier's Title sits
-  // between the two rows.
-  check(rowAt != std::string::npos && flipRowAt != std::string::npos &&
-            plist.find("PSGroupSpecifier", rowAt) > flipRowAt,
-        "the flip row sits in the same group as volumeButtonsTurnPages (no "
-        "group boundary between them)");
 
-  check(prefs.find("@\"" + flipKey + "\"") != std::string::npos,
-        "ios/CrossPointPrefs.mm names the key @\"" + flipKey + "\"");
-  check(prefsH.find("int CrossPointPrefs_volumeButtonsFlipped(void);") !=
-            std::string::npos,
-        "CrossPointPrefs.h declares CrossPointPrefs_volumeButtonsFlipped");
-  check(adapter.find("CrossPointPrefs_volumeButtonsFlipped()") !=
-            std::string::npos,
-        "the adapter reads the flip setting through CrossPointPrefs");
-  check(adapter.find("volumepage::buttonFor(v, flipped)") != std::string::npos,
-        "the adapter passes the live flip setting into buttonFor()");
+  // The adapter routes a press through the gesture dispatch rather than
+  // injecting a hardcoded front-rocker button behind the zen gate.
+  check(adapter.find("CrossPointZenRecognizers_fireGesture") != std::string::npos,
+        "the adapter fires the bound row, not a button");
+  check(adapter.find("volumepage::gestureFor(v)") != std::string::npos,
+        "the adapter asks volumepage which row a verdict is");
+  check(adapter.find("CrossPointPrefs_volumeButtons") == std::string::npos,
+        "the adapter reads neither retired pref");
 
-  // The injection route. queueButtonTap is the ONE way an edge raised outside
-  // HalGPIO::update() reaches the firmware (HalGPIO.h says why: beginFrame()
-  // wipes the latches, and a per-frame hook runs after loop()). A direct
-  // injectButtonDown from the KVO path would compile, log a press, and turn
-  // no page.
-  check(adapter.find("gpio.queueButtonTap(") != std::string::npos,
-        "the adapter injects through gpio.queueButtonTap");
-  check(adapter.find("injectButtonDown") == std::string::npos,
-        "the adapter never calls injectButtonDown directly");
-  check(adapter.find("volumepage::kBtnLeft == HalGPIO::BTN_LEFT") !=
-                std::string::npos &&
-            adapter.find("volumepage::kBtnRight == HalGPIO::BTN_RIGHT") !=
-                std::string::npos,
-        "the adapter static_asserts the header's indices against HalGPIO");
-
-  // The two frameworks the adapter imports have to be linked by name, the
-  // same way AVFoundation is for read-aloud; a missing MediaPlayer is a link
-  // error nobody sees until the Mac builds it.
-  check(adapter.find("#import <MediaPlayer/MediaPlayer.h>") != std::string::npos,
-        "the adapter imports MediaPlayer (MPVolumeView)");
-  check(adapter.find("#import <AVFoundation/AVFoundation.h>") !=
-            std::string::npos,
-        "the adapter imports AVFoundation (AVAudioSession)");
-  check(cmake.find("\"-framework MediaPlayer\"") != std::string::npos,
-        "ios/CMakeLists.txt links MediaPlayer");
-  check(cmake.find("CrossPointVolumeButtons.mm") != std::string::npos,
-        "ios/CMakeLists.txt compiles the adapter");
 }
 
 }  // namespace
 
 int main(int argc, char **argv) {
   testDirection();
-  testFlipped();
   testRestingLevel();
   testShippedSources(argc > 1 ? argv[1] : "ios");
   if (testcheck::g_failures) {
