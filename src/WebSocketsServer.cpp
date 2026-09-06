@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <atomic>
 #include <cctype>
 #include <cstdint>
@@ -23,6 +24,19 @@
 
 namespace {
 constexpr size_t MAX_WS_PAYLOAD = 256UL * 1024UL * 1024UL;
+
+// Socket timeouts, by phase. The handshake is one request from a peer that
+// has just connected, and a peer that stalls there is holding a thread for
+// nothing. A DATA frame is a different matter: an upload from a browser can
+// pause for as long as the browser needs to hand it the next slice of the
+// file -- an iCloud-resident book on a phone, a tab the OS has throttled --
+// and the single 5 s timeout this server used to apply to EVERY recv cut
+// such an upload off mid-file, which reached the owner as "uploads fail with
+// partial data transfers" (2026-09-06). The device's WebSocket library has no
+// idle timeout on an established connection at all; two minutes is the
+// compromise between that and a thread parked forever on a vanished peer.
+constexpr int HANDSHAKE_TIMEOUT_S = 5;
+constexpr int DATA_TIMEOUT_S = 120;
 
 uint32_t rol32(uint32_t value, uint8_t shift) {
   return (value << shift) | (value >> (32 - shift));
@@ -49,6 +63,8 @@ bool recvAll(int fd, void *data, size_t len) {
   auto *ptr = static_cast<uint8_t *>(data);
   while (len > 0) {
     const ssize_t got = ::recv(fd, ptr, len, 0);
+    if (got < 0 && errno == EINTR)
+      continue;  // a signal, not the peer: the bytes are still coming
     if (got <= 0)
       return false;
     ptr += got;
@@ -66,6 +82,8 @@ bool sendAll(int fd, const void *data, size_t len) {
 #endif
   while (len > 0) {
     const ssize_t sent = ::send(fd, ptr, len, sendFlags);
+    if (sent < 0 && errno == EINTR)
+      continue;
     if (sent <= 0)
       return false;
     ptr += sent;
@@ -74,9 +92,9 @@ bool sendAll(int fd, const void *data, size_t len) {
   return true;
 }
 
-void setSocketTimeouts(int fd) {
+void setSocketTimeouts(int fd, int seconds) {
   timeval timeout{};
-  timeout.tv_sec = 5;
+  timeout.tv_sec = seconds;
   setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
   setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
@@ -216,6 +234,7 @@ bool sendWsPongFrame(int fd, const std::vector<uint8_t> &payload) {
 
 struct WsFrame {
   uint8_t opcode = 0;
+  bool fin = true;
   std::vector<uint8_t> payload;
 };
 
@@ -224,6 +243,7 @@ bool readWsFrame(int fd, WsFrame &frame) {
   if (!recvAll(fd, header, sizeof(header)))
     return false;
   frame.opcode = header[0] & 0x0f;
+  frame.fin = (header[0] & 0x80) != 0;
   const bool masked = (header[1] & 0x80) != 0;
   uint64_t len = header[1] & 0x7f;
   if (len == 126) {
@@ -384,7 +404,7 @@ void WebSocketsServer::begin() {
           LOG_ERR("WS", "[SIM] WebSocket accept failed: %s", strerror(errno));
         continue;
       }
-      setSocketTimeouts(client);
+      setSocketTimeouts(client, HANDSHAKE_TIMEOUT_S);
 
       std::lock_guard<std::mutex> lock(impl_->clientThreadsMutex);
       impl_->clientThreads.emplace_back([this, client] {
@@ -437,23 +457,59 @@ void WebSocketsServer::begin() {
 
         const uint8_t num = impl_->addClient(client);
         impl_->pushEvent({num, WStype_CONNECTED, {}, 0});
+        setSocketTimeouts(client, DATA_TIMEOUT_S);
 
+        // A MESSAGE is one or more frames: a data frame (text 0x1, binary
+        // 0x2) with FIN clear, then continuation frames (0x0) until one
+        // carries FIN (RFC 6455 section 5.4). Control frames (close, ping,
+        // pong) may arrive between the fragments. This loop used to hand
+        // every frame to the firmware as a whole message and drop
+        // continuation frames on the floor -- so a peer that fragments its
+        // sends delivered the first slice of each chunk and lost the rest,
+        // the byte count never reached the announced size, and the upload
+        // sat at "partial" until the peer gave up. Assembled here so the
+        // firmware sees exactly what the device's library hands it: one
+        // BIN event per message.
         WsFrame frame;
+        std::vector<uint8_t> message;
+        uint8_t messageOpcode = 0;
+        bool inMessage = false;
         while (impl_->active && readWsFrame(client, frame)) {
-          if (frame.opcode == 0x1) {
-            const size_t length = frame.payload.size();
-            frame.payload.push_back(0);
-            impl_->pushEvent(
-                {num, WStype_TEXT, std::move(frame.payload), length});
-          } else if (frame.opcode == 0x2) {
-            const size_t length = frame.payload.size();
-            impl_->pushEvent(
-                {num, WStype_BIN, std::move(frame.payload), length});
-          } else if (frame.opcode == 0x8) {
+          if (frame.opcode == 0x8)
             break;
-          } else if (frame.opcode == 0x9) {
+          if (frame.opcode == 0x9) {
             sendWsPongFrame(client, frame.payload);
+            continue;
           }
+          if (frame.opcode == 0xA)
+            continue;  // an unsolicited pong is allowed and means nothing
+          if (frame.opcode == 0x1 || frame.opcode == 0x2) {
+            if (inMessage)
+              break;  // a new message inside an unfinished one: protocol error
+            messageOpcode = frame.opcode;
+            message = std::move(frame.payload);
+            inMessage = true;
+          } else if (frame.opcode == 0x0) {
+            if (!inMessage)
+              break;  // nothing to continue
+            if (message.size() + frame.payload.size() > MAX_WS_PAYLOAD)
+              break;
+            message.insert(message.end(), frame.payload.begin(),
+                           frame.payload.end());
+          } else {
+            break;  // reserved opcode
+          }
+          if (!frame.fin)
+            continue;
+          const size_t length = message.size();
+          if (messageOpcode == 0x1) {
+            message.push_back(0);
+            impl_->pushEvent({num, WStype_TEXT, std::move(message), length});
+          } else {
+            impl_->pushEvent({num, WStype_BIN, std::move(message), length});
+          }
+          message.clear();
+          inMessage = false;
         }
 
         impl_->pushEvent({num, WStype_DISCONNECTED, {}, 0});

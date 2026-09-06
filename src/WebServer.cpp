@@ -170,6 +170,8 @@ bool sendAll(int client, const void *data, size_t len) {
 #endif
   while (len > 0) {
     const ssize_t written = ::send(client, ptr, len, sendFlags);
+    if (written < 0 && errno == EINTR)
+      continue;
     if (written <= 0)
       return false;
     ptr += written;
@@ -189,9 +191,24 @@ void sendSimpleResponse(int client, int code, const char *message) {
   sendAll(client, out.str().data(), out.str().size());
 }
 
-void setSocketTimeouts(int client) {
+// Socket timeouts, by phase. The request line and headers arrive in one
+// burst from a peer that just connected, and every second spent waiting for
+// them is a second the single accept worker cannot serve anyone else
+// (network hunt 2026-09-04, finding 8) -- so that phase stays short. A body
+// and a response are transfers: a browser feeding a multipart POST can
+// pause while it reads the next slice of a file it does not hold locally, and
+// a peer draining a 40 MB download can stall while its own disk catches up.
+// One 5 s timeout across both phases cut such transfers off mid-stream,
+// which reached the owner as "downloads and uploads fail with partial data
+// transfers" (2026-09-06). The response side matters as much as the body
+// side: the firmware streams a download through client.write() on this same
+// socket, and SO_SNDTIMEO governs that too.
+constexpr int HEADER_TIMEOUT_S = 5;
+constexpr int TRANSFER_TIMEOUT_S = 60;
+
+void setSocketTimeouts(int client, int seconds) {
   timeval timeout{};
-  timeout.tv_sec = 5;
+  timeout.tv_sec = seconds;
   setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
   setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
@@ -532,7 +549,7 @@ void WebServer::begin() {
           LOG_ERR("WEB", "[SIM] WebServer accept failed: %s", strerror(errno));
         continue;
       }
-      setSocketTimeouts(client);
+      setSocketTimeouts(client, HEADER_TIMEOUT_S);
       impl_->activeClient = client;
       // Re-check AFTER publishing the fd: stop() shuts down whatever
       // activeClient names, but if its exchange(-1) ran in the window between
@@ -551,6 +568,8 @@ void WebServer::begin() {
       char buffer[8192];
       while (raw.find("\r\n\r\n") == std::string::npos) {
         const ssize_t got = ::recv(client, buffer, sizeof(buffer), 0);
+        if (got < 0 && errno == EINTR)
+          continue;
         if (got <= 0)
           break;
         raw.append(buffer, static_cast<size_t>(got));
@@ -564,6 +583,8 @@ void WebServer::begin() {
         ::close(client);
         continue;
       }
+      // Headers in hand: from here on this socket carries a transfer.
+      setSocketTimeouts(client, TRANSFER_TIMEOUT_S);
 
       std::string body = raw.substr(headerEnd + 4);
       std::istringstream headerStream(raw.substr(0, headerEnd));
@@ -665,6 +686,8 @@ void WebServer::begin() {
       }
       while (body.size() < bodyLength) {
         const ssize_t got = ::recv(client, buffer, sizeof(buffer), 0);
+        if (got < 0 && errno == EINTR)
+          continue;
         if (got <= 0)
           break;
         const size_t offset = body.size();
