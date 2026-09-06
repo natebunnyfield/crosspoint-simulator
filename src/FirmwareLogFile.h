@@ -100,6 +100,31 @@ inline bool forcedOn() {
   return forced;
 }
 
+// A nested call must not reach the lock. The gate the host installs is
+// arbitrary code -- today it reads NSUserDefaults and logs with NSLog, which
+// is inert here, but anything reachable from it that calls SDL_Log would come
+// straight back through hostLine() with the mutex already held and deadlock
+// the app on a non-recursive std::mutex. An instrument must never be able to
+// take the reader down with it, so a re-entrant call is dropped instead.
+// Thread-local: two threads logging at once is the normal case and is what the
+// mutex is for; one thread logging FROM inside its own log call is not.
+inline bool &reentering() {
+  static thread_local bool r = false;
+  return r;
+}
+
+struct ReentryGuard {
+  const bool taken;
+  ReentryGuard() : taken(!reentering()) {
+    if (taken) reentering() = true;
+  }
+  ~ReentryGuard() {
+    if (taken) reentering() = false;
+  }
+  ReentryGuard(const ReentryGuard &) = delete;
+  ReentryGuard &operator=(const ReentryGuard &) = delete;
+};
+
 inline void closeFileLocked(State &s) {
   if (!s.file) return;
   ::fclose(s.file);
@@ -182,6 +207,8 @@ inline void setEnabledProvider(int (*provider)()) {
 // here beyond the bytes themselves.
 inline void write(const char *bytes, size_t count) {
   if (!bytes || count == 0) return;
+  detail::ReentryGuard guard;
+  if (!guard.taken) return;
   detail::State &s = detail::state();
   std::lock_guard<std::mutex> lock(s.mutex);
   if (!detail::armedLocked(s)) {
@@ -198,6 +225,8 @@ inline void write(const char *bytes, size_t count) {
 // from "the reader jumped right and then something turned the page".
 inline void hostLine(const char *text) {
   if (!text) return;
+  detail::ReentryGuard guard;
+  if (!guard.taken) return;
   detail::State &s = detail::state();
   std::lock_guard<std::mutex> lock(s.mutex);
   if (!detail::armedLocked(s)) {
@@ -213,6 +242,8 @@ inline void hostLine(const char *text) {
 // Pushes buffered bytes to disk. Writes are otherwise flushed a few times a
 // second, so call this before the app can be suspended or killed.
 inline void flush() {
+  detail::ReentryGuard guard;
+  if (!guard.taken) return;
   detail::State &s = detail::state();
   std::lock_guard<std::mutex> lock(s.mutex);
   if (s.file) ::fflush(s.file);
