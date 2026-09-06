@@ -70,6 +70,67 @@ the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
 ## FIXED
 
+### [S-037] The iOS app came back from the background asleep and stayed asleep — a foreground return neither woke the sleep loop nor counted as activity — FIXED 2026-09-06
+**severity: high (owner report; the app reads as stuck off) · scope: `src/HalGPIO.cpp` (`update()`, `startDeepSleep()`) · found 2026-09-06 from the owner's report, fixed the same day, pinned headlessly by `tests/test_foreground_wake.sh`; device-unconfirmed until the next TestFlight build**
+
+Owner, verbatim: *"ios app needs to wake on reactivation. is staying power
+off."*
+
+**Two mechanisms, both real, one symptom.**
+
+1. **An app put away ASLEEP came back asleep.** `HalGPIO::startDeepSleep`
+   (`src/HalGPIO.cpp`, the terminal sleep loop) woke on exactly two things: a
+   real key (`SDL_EVENT_KEY_DOWN` that maps to a button) and an injected or
+   queued press (`syntheticWakeEdge`, `pendingButtonTaps`). The app returning
+   to the foreground is neither. On a phone there is no power button to reach
+   for first — the app becoming active *is* the owner picking the device up —
+   so the sleep screen (or the power-off collapse's dark glass) simply stayed.
+2. **An app put away AWAKE came back asleep too.** `millis()` is
+   `steady_clock` (`src/SimulatorClock.h`), which does not stop while iOS
+   holds the process suspended. The firmware's inactivity check
+   (`crosspoint-reader/src/main.cpp:1138`, `millis() - lastActivityTime >=
+   sleepTimeoutMs`, default 10 min) therefore fired on the very first
+   `loop()` after a resume that followed a longer absence, and the device
+   slept on the spot — into the same loop as (1), with the foreground event
+   already consumed by that first `loop()`'s `update()`. What the owner saw
+   was the app opening straight onto the sleep screen and staying there.
+
+Neither is a timing race and neither needs the shim: both are in the input
+layer the firmware already polls, and desktop SDL never sends the event, so
+the desktop is unchanged.
+
+**Fix, both halves keyed on the one event iOS raises for reactivation,
+`SDL_EVENT_DID_ENTER_FOREGROUND` (SDL sends it from
+`applicationDidBecomeActive`, so a return from Control Center or the lock
+screen counts as well as a return from the background):**
+
+- `startDeepSleep()` (`src/HalGPIO.cpp:1780`): the event is a wake, the same
+  `rebootAsPowerWake()` a real key takes.
+- `update()` (`src/HalGPIO.cpp:969`): the event latches `hostResumeThisFrame`,
+  which `wasTouchActivity()` (`:1691`) reports and `beginFrame()` clears with
+  the other per-frame edges. The firmware resets `lastActivityTime` on that
+  report (`main.cpp:1132`) on the line before the sleep-timeout compare
+  (`:1138`), in the same `loop()` — so the resume that used to sleep the
+  device now reads as activity. It is a latch and not a clock re-base
+  deliberately: read-aloud keeps the process running in the background, and
+  every `millis()`-relative timer in flight would have jumped with the epoch.
+
+**Pinned by `tests/test_foreground_wake.sh`**, the shape of
+`test_sleep_wake.sh` with the wake replaced: POWER held at 2.5 s sleeps the
+device, a `FOREGROUND` script verb at 6 s (new; it pushes the real SDL event
+through `pushForeground()`, `src/HalGPIO.cpp:624`) must relaunch it, and a
+second `FOREGROUND` after the wake must log the activity station. Both
+`[power]` stations are asserted from the log. Run with a desktop binary:
+`tests/run_all.sh -k foreground_wake`.
+
+**Closing it on a phone** needs the next TestFlight build and two checks:
+put the app away for longer than the sleep timeout and bring it back (expect
+the page, not the sleep screen); sleep the device with a POWER hold, put the
+app away, bring it back (expect it awake, through the power-on warm-up).
+Not observable here: no phone in this session, and the host suite does not
+compile `HalGPIO.cpp`.
+
+
 ### [S-031] A theme flip re-arms the CRT beam sweep and splits the page's polarity for one frame — DEPOSIT HALF AND SWEEP-IN-FLIGHT FIXED 2026-09-04
 **severity: high (visible, screen-wide, matches a repeated owner report) · scope: ios present pipeline (`src/HalDisplay.cpp`) · reported 2026-08-30, root-caused and reproduced — GUARD LANDED 2026-08-31 (`d4c59bb`), the standalone page-turn trigger never reproduced**
 

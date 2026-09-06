@@ -594,7 +594,12 @@ Keep synthetic held-time timestamps on the `SDL_GetTicks()` clock used by real
 keyboard events; the firmware's `millis()` clock has a different origin. The
 deep-sleep loop must also process synthetic input. A reboot promotes the
 optional `*_AFTER_WAKE` schedules and clears the pre-sleep ones, so automation
-cannot enter an infinite sleep/relaunch cycle.
+cannot enter an infinite sleep/relaunch cycle. The sleep loop also wakes on
+`SDL_EVENT_DID_ENTER_FOREGROUND` — a phone's reactivation — and `update()`
+counts that event as activity, because `millis()` keeps running while iOS has
+the process suspended and the firmware's inactivity timer would otherwise
+sleep the device on the first loop after a resume (S-037). The script verb
+`FOREGROUND` pushes the real event; `tests/test_foreground_wake.sh` pins both.
 
 That promotion used to be true only on the desktop. The desktop reboot is
 `execvp`, a fresh process, so every static re-initialises for free; iOS cannot
