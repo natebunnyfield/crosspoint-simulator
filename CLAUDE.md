@@ -530,6 +530,31 @@ is corrected; and a book **opens on a blank cover wrapper**, so the first four
 runs of any investigation here are measuring a page that legitimately has no
 text.
 
+**The firmware's own log is readable ON THE PHONE, and that is the only place
+a TestFlight build's log exists.** `LOG_LEVEL=2` is set for every source in
+`cmake/CrossPointSources.cmake`, so every `LOG_DBG` the reader emits is already
+being produced -- and then thrown away, because on iOS `logSerial` is stderr
+and a build launched from the home screen has no stderr. That blind spot is why
+the a11y log was written, and it is why two "chapter selection lands a page
+early" fixes shipped on reasoning rather than on a reading of the state.
+`src/FirmwareLogFile.h` tees the same bytes into `diagnostics/firmware.log`
+under the card root, which the Files app shows as **On My iPhone > CrossPoint
+X3 > diagnostics**; the owner opens it, long-presses, shares. Armed by the same
+Settings.app **Diagnostics Log** switch as the a11y file (off by default) or by
+`CROSSPOINT_SIM_DIAGNOSTICS=1` for a scripted run. `SDL_Log` output is teed in
+too, tagged `[host] `, because the harness half of a story -- which button was
+injected, that a foreground return counted as activity -- is often the half
+that answers it. Separate file from `a11y.log` on purpose: that one asks not to
+become a general logger, and this is the general logger.
+
+Two things it is easy to get wrong when touching it. It is **header-only**
+because `cmake/CrossPointSources.cmake` is generated from the firmware's
+compile database -- a new `.cpp` here goes stale the moment anyone regenerates
+it and the iOS configure gate then refuses. And the SDL tee is installed
+**once per process, not per launch**: the iOS reboot longjmps back into
+`main()`, and capturing the "previous" handler a second time would capture the
+tee itself and recurse on the next `SDL_Log`.
+
 **Read-aloud page channel.** The same host-capability split as the keyboard
 channel, pointed the other way: `readAloudCaptureWanted()` /
 `publishReadAloudPage()` are firmware-facing (inline no-ops on device — the
