@@ -73,6 +73,49 @@ the hunt doc). Filed so the next pass starts here rather than re-measuring.
 
 ## FIXED
 
+### [S-040] The desktop killed any download that took over a minute, however healthy: `--max-time` is a cap on the whole transfer, not an idle timeout — FIXED 2026-09-06
+**severity: medium (every Update Library book, font and OTA image over ~60 s on the link failed on the desktop, and the failure read as the network) · scope: `src/SimHttpFetch.h`, comment in `ios/CrossPointHttp.mm` · found 2026-09-06 while auditing the transfer paths for the owner's "downloads and uploads fail with partial data transfers"; the same audit produced S-038**
+
+S-038 fixed the truncation on the side that **serves** (the WebSocket shim
+dropping continuation frames, both servers timing out a paused transfer).
+This is the side that **fetches**, and it went the other way: nothing was
+truncated, the transfer was simply killed on a stopwatch.
+
+`fetchWithCurl()` ran `curl --connect-timeout 10 --max-time 60`.
+`--max-time` bounds the ENTIRE operation: at sixty seconds curl aborts a
+download that is streaming perfectly, at whatever byte it has reached. So on
+the desktop any book big enough or link slow enough to need more than a
+minute could never be synced -- Update Library counted it an error, the log
+said the fetch failed, and every symptom pointed at the network.
+
+**The other two transports were already idle-based**, which is why this
+survived: the device's `esp_http_client` uses a per-socket-op timeout
+(`HTTP_TIMEOUT_MS`, and its comment says why 15 s was too short), and the
+phone's `NSURLSession` uses `timeoutInterval`, which UIKit restarts whenever
+data arrives. The desktop was the only one of the three that could fail a
+healthy transfer, and the comment in `ios/CrossPointHttp.mm` claiming the
+phone "matches the curl backend's `--max-time 60`" described neither side
+correctly. Both are corrected here.
+
+**Fix.** `--speed-limit 1 --speed-time 60`, curl's idle timeout: abort only
+when the transfer moves less than a byte per second averaged over a 60 s
+window. A stalled peer still dies in about a minute, the same as the other
+two; a slow but moving transfer runs as long as it needs.
+`--connect-timeout 10` still bounds the phase before any bytes flow.
+
+**Pinned by `tests/http_dispatch_test.cpp`.** The invocation moved into
+`curlCommand()` so a test can read it: two cases assert there is no
+total-transfer cap, that the idle pair is present, and that the rest of the
+request (method, headers, bearer, basic auth, body, and the quoting of paths
+and urls with spaces in them) survived the extraction. Against the old policy
+the first case fails on `--max-time`. Asserted on the command string rather
+than by running curl, because what was wrong was the policy: a test that
+downloaded something small would prove nothing about a 61-second transfer.
+
+**Not observable here**: no long-running download to time. On the desktop the
+check is an Update Library run over a link slow enough that a book takes more
+than a minute; it should now finish rather than fail at sixty seconds.
+
 ### [S-039] In zen, a sleeping sim could not be woken by the gesture that is its power button — no pad, so no POWER; the four-finger tap has no recognizer; a hold above the paper toggled zen on a dark glass — FIXED 2026-09-06
 **severity: high (owner: "can the ios app in zen mode wake up when x3 sim is powered down? that's what I keep trying to fix") · scope: `ios/CrossPointIOSShim.cpp` (`padWatch`), `ios/CrossPointZenRecognizers.mm` (`performGestureAction`, the reboot registrar), `src/HalGPIO.cpp` (the asleep flag) · found 2026-09-06 by reading the sleep loop and every gesture path into it; pinned by `tests/sleep_touch_test.cpp` and `tests/test_queued_tap_wake.sh`; device-unconfirmed until the next TestFlight build**
 

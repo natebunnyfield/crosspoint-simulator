@@ -19,9 +19,9 @@
 // Whether a host HTTP client stands in for the curl subprocess.
 //
 // The curl path shells out via popen(), which is fine on a developer's machine
-// and impossible in a sandbox: iOS has no curl binary and forbids exec outright.
-// Overridable so the host branch can be exercised off-device -- the real
-// backend is iOS-only, so without this it would ship with no test at all.
+// and impossible in a sandbox: iOS has no curl binary and forbids exec
+// outright. Overridable so the host branch can be exercised off-device -- the
+// real backend is iOS-only, so without this it would ship with no test at all.
 #ifndef CROSSPOINT_SIM_HOST_HTTP
 #if defined(__APPLE__) && TARGET_OS_IPHONE
 #define CROSSPOINT_SIM_HOST_HTTP 1
@@ -127,7 +127,7 @@ inline bool readFile(const std::string &path, std::string &out) {
 }
 
 inline bool isDirectory(const std::string &path) {
-  struct stat st {};
+  struct stat st{};
   return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 }
 
@@ -156,7 +156,8 @@ inline bool findFileByBasename(const std::string &dir, const std::string &name,
       return true;
     }
 
-    if (isDirectory(path) && findFileByBasename(path, name, outPath, depth + 1)) {
+    if (isDirectory(path) &&
+        findFileByBasename(path, name, outPath, depth + 1)) {
       closedir(handle);
       return true;
     }
@@ -190,7 +191,8 @@ inline bool fetchFromMockRoot(const std::string &url, Response &out) {
 
   std::string name = basenameFromUrl(url);
   if (name.empty() || name == "." || name == ".." ||
-      name.find('/') != std::string::npos || name.find('\\') != std::string::npos) {
+      name.find('/') != std::string::npos ||
+      name.find('\\') != std::string::npos) {
     return false;
   }
 
@@ -201,7 +203,8 @@ inline bool fetchFromMockRoot(const std::string &url, Response &out) {
 
   if (!readFile(path, out.body)) {
     std::string nestedPath;
-    if (!findFileByBasename(root, name, nestedPath) || !readFile(nestedPath, out.body))
+    if (!findFileByBasename(root, name, nestedPath) ||
+        !readFile(nestedPath, out.body))
       return false;
   }
 
@@ -210,6 +213,47 @@ inline bool fetchFromMockRoot(const std::string &url, Response &out) {
     return true;
   }
   return false;
+}
+
+// The curl invocation, built where a test can read it.
+//
+// TIMEOUTS ARE IDLE, NOT TOTAL. This carried `--max-time 60` until
+// 2026-09-06, a cap on the WHOLE transfer: a download that was moving
+// perfectly well was killed at sixty seconds, and Update Library reported the
+// book it was in the middle of as failed. Any book over about 60 s on the
+// link -- a large epub, a slow morning -- could never be synced on the
+// desktop, and the failure looked like the network. The other two transports
+// were already idle-based (the device's esp_http_client uses a per-socket-op
+// timeout, the phone's NSURLSession a `timeoutInterval` that resets on data),
+// so the desktop was the only one that could truncate a healthy transfer:
+// S-038 fixed the same class of bug on the serving side and did not reach
+// this, the fetching side.
+//
+// `--speed-limit 1 --speed-time 60` is curl's idle timeout: abort only if the
+// transfer moves less than one byte per second averaged over a 60 s window.
+// A stalled peer still dies in about a minute, matching the other two; a slow
+// but moving transfer runs to completion however long it takes.
+// `--connect-timeout` still bounds the phase before any bytes flow.
+inline std::string
+curlCommand(const std::string &outPath, const std::string &url,
+            const char *method,
+            const std::map<std::string, std::string> &headers,
+            const std::string &basicAuth, const char *body) {
+  std::string cmd =
+      "curl -L -sS --connect-timeout 10 --speed-limit 1 --speed-time 60 -o ";
+  cmd += shellQuote(outPath);
+  cmd += " -w '%{http_code}'";
+  if (method && std::string(method) != "GET")
+    cmd += " -X " + shellQuote(method);
+  for (const auto &header : headers) {
+    cmd += " -H " + shellQuote(header.first + ": " + header.second);
+  }
+  if (!basicAuth.empty())
+    cmd += " -u " + shellQuote(basicAuth);
+  if (body)
+    cmd += " --data-binary " + shellQuote(body);
+  cmd += " " + shellQuote(url);
+  return cmd;
 }
 
 inline bool fetchWithCurl(const std::string &url, const char *method,
@@ -222,19 +266,8 @@ inline bool fetchWithCurl(const std::string &url, const char *method,
     return false;
   close(fd);
 
-  std::string cmd = "curl -L -sS --connect-timeout 10 --max-time 60 -o ";
-  cmd += shellQuote(tmpTemplate);
-  cmd += " -w '%{http_code}'";
-  if (method && std::string(method) != "GET")
-    cmd += " -X " + shellQuote(method);
-  for (const auto &header : headers) {
-    cmd += " -H " + shellQuote(header.first + ": " + header.second);
-  }
-  if (!basicAuth.empty())
-    cmd += " -u " + shellQuote(basicAuth);
-  if (body)
-    cmd += " --data-binary " + shellQuote(body);
-  cmd += " " + shellQuote(url);
+  const std::string cmd =
+      curlCommand(tmpTemplate, url, method, headers, basicAuth, body);
 
   FILE *pipe = popen(cmd.c_str(), "r");
   if (!pipe) {
@@ -244,7 +277,8 @@ inline bool fetchWithCurl(const std::string &url, const char *method,
 
   std::string statusText;
   std::array<char, 64> statusBuffer{};
-  while (fgets(statusBuffer.data(), static_cast<int>(statusBuffer.size()), pipe)) {
+  while (
+      fgets(statusBuffer.data(), static_cast<int>(statusBuffer.size()), pipe)) {
     statusText += statusBuffer.data();
   }
   const int rc = pclose(pipe);
@@ -262,7 +296,8 @@ inline bool fetchWithCurl(const std::string &url, const char *method,
 
 inline bool fetch(const std::string &url, const char *method,
                   const std::map<std::string, std::string> &headers,
-                  const std::string &basicAuth, const char *body, Response &out) {
+                  const std::string &basicAuth, const char *body,
+                  Response &out) {
   out = Response{};
   // The mock-root and file:// paths are platform-independent and stay ahead of
   // any real transport: they are how scripted QA feeds fixtures in without a
