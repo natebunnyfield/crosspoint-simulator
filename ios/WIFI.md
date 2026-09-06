@@ -149,6 +149,9 @@ network"`); that assertion is inverted, with the argument, rather than deleted.
    `"http://" + connectedIP + "/"` (line 440), `http://crosspoint.local/`
    (line 415), both QR-encoded. `mapFirmwarePort` moves 80 → 8080 and the
    firmware never learns, so every address on that screen is wrong on a phone.
+   **Fixed 2026-09-06, firmware #24** (`src/network/PeerUrl.h`; the screen
+   asks `crosspoint_simulator::mapFirmwarePort()` under `SIMULATOR`), pinned
+   here from `b88197ae`.
 
 5. **`WiFi.localIP()` is hardcoded `127.0.0.1`** (`WiFi.h:196`), which feeds
    finding 4.
@@ -269,10 +272,13 @@ This is the phase that delivers peer transfer.
   The consequence is that **the IP URL is the only reachable address**, which
   promotes the mapped-port fix below from a polish item to the one that decides
   whether peer transfer works at all.
-* **Teach the firmware the mapped port** so the URL and both QR codes say
-  `:8080`: read `crosspoint_simulator::httpPort()` under `#ifdef SIMULATOR` at
-  the three sites in `CrossPointWebServerActivity.cpp`. **Needs write access to
-  the firmware repo.**
+* ✅ **Teach the firmware the mapped port** so the URL and both QR codes say
+  `:8080` — firmware #24, 2026-09-06: `src/network/PeerUrl.h` spells
+  `host:port` when the port is not 80, and the three sites in
+  `CrossPointWebServerActivity.cpp` ask `crosspoint_simulator::mapFirmwarePort()`
+  under `#ifdef SIMULATOR`. The STA screen's `crosspoint.local` line is
+  hardware-only now, for the reason finding 6 gives. Pinned here from
+  `b88197ae`.
 * ✅ **`ESP.restart()` routed into `SimulatorLifecycle`** as
   `rebootAsFirmwareRestart()`, deliberately NOT `rebootAsPowerWake()` — that
   sets a wake reason the firmware reads as "the user pressed POWER", and a
@@ -441,12 +447,11 @@ iOS, in order of what each proves:
 Nothing. Every design question this plan raised has a ruling; what is left is
 execution and the limits below.
 
-**Phase 2's remaining firmware half — the mapped port — is still open and is now
-the only thing between this and working peer transfer.** The three sites in
-`CrossPointWebServerActivity.cpp` still paint and QR-encode port 80 while the
-shim listens on 8080, so every address on the server screen is wrong on a phone.
-It was deliberately left alone in the 2026-08-28 pass, which was scoped to the
-gate split and to Update Library.
+**Phase 2's firmware half — the mapped port — landed on 2026-09-06 (firmware
+#24), so nothing in this plan is open.** What remains is the device
+observation the checklist above describes: the server screen reading
+`http://<phone ip>:8080/`, the QR code scanning to the same, and a Mac on the
+same Wi-Fi opening it, mounting WebDAV and completing a transfer.
 
 ## Known limits, not open questions
 
