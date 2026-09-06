@@ -144,7 +144,11 @@ static void testDefaultsMatchToday() {
   // doing something would be a behavior change nobody asked for.
   const Gesture kNewAndInert[] = {
       Gesture::SwipeUpGlobal, Gesture::SwipeDownGlobal, Gesture::TwoFingerHold,
-      Gesture::RotateClockwise, Gesture::RotateCounterClockwise};
+      // The six DEVICE rows added 2026-09-06 ship inert for the same reason,
+      // and the volume pair additionally because arming the rocker unasked is
+      // what App Store review has rejected apps for.
+      Gesture::VolumeUp, Gesture::VolumeDown, Gesture::TiltLeft,
+      Gesture::TiltRight, Gesture::TiltForward, Gesture::TiltBack};
   for (Gesture g : kNewAndInert)
     checkAction(gesturebind::defaultAction(g), Action::Nothing,
                 gesturebind::gestureName(g));
@@ -164,7 +168,8 @@ static void testDefaultsMatchToday() {
                gesturebind::defaultAction(g) == Action::Nothing),
           gesturebind::gestureName(g));
   }
-  check(inert == 5, "exactly five gestures ship inert");
+  // 3 from the 2026-08-28 re-cut + the 6 device rows added 2026-09-06 = 9.
+  check(inert == 9, "exactly nine gestures ship inert");
   for (Gesture g : kNewAndInert)
     check(gesturebind::shipsInert(g), gesturebind::gestureName(g));
   // No ZONE row is ever inert in this sense — zone rows have no recognizer of
@@ -534,9 +539,9 @@ static void testSharing() {
                                      stored(Action::Confirm)),
               Action::Confirm, "2-finger hold may hold CONFIRM too");
   // Including the zen toggle on several gestures at once, and across layers.
-  checkAction(gesturebind::actionFor(Gesture::RotateClockwise, true,
+  checkAction(gesturebind::actionFor(Gesture::TiltBack, true,
                                      stored(Action::ToggleZen)),
-              Action::ToggleZen, "a rotation may toggle zen");
+              Action::ToggleZen, "a tilt may toggle zen");
   checkAction(gesturebind::oneFingerAction(OneFinger::Hold, Zone::AbovePaper,
                                            true, stored(Action::ToggleZen), 0),
               Action::ToggleZen, "and so does the hold above the paper");
@@ -740,8 +745,8 @@ static void testStoredIntegers() {
     check(!k.empty(), "every row has a key");
     check(keys.insert(k).second, "no two rows share a key");
   }
-  check(gesturebind::kGestureCount == 28,
-        "28 rows: 17 gestures, 5 above the paper, 6 below it");
+  check(gesturebind::kGestureCount == 32,
+        "32 rows: 21 gestures, 5 above the paper, 6 below it");
   check(gesturebind::kGlobalActionCount == 12,
         "12 global actions: 7 buttons, Nothing, the zen toggle, the font "
         "step, the font step back, open action menu");
@@ -810,7 +815,8 @@ static void testStoredIntegers() {
   // THE SHAPE OF THE SET, counted from the table rather than trusted. These are
   // the numbers the owner named; a family that quietly grows or shrinks moves
   // one of them.
-  int taps = 0, swipes = 0, holds = 0, pinches = 0, rotates = 0, shakes = 0;
+  int taps = 0, swipes = 0, holds = 0, pinches = 0, shakes = 0;
+  int buttons = 0, tilts = 0;
   for (int i = 0; i < gesturebind::kGestureCount; ++i) {
     const gesturebind::Row& r = gesturebind::kRows[i];
     if (r.zone != Zone::Neither) continue;
@@ -819,18 +825,20 @@ static void testStoredIntegers() {
       case Family::Swipe: swipes++; break;
       case Family::LongPress: holds++; break;
       case Family::Pinch: pinches++; break;
-      case Family::Rotate: rotates++; break;
       case Family::Shake: shakes++; break;
+      case Family::Button: buttons++; break;
+      case Family::Tilt: tilts++; break;
     }
   }
+  check(buttons == 2, "two volume rows: up and down");
+  check(tilts == 4, "four tilts: left, right, forward, back");
   check(taps == 2, "two taps: one finger and two, single taps only");
   check(swipes == 8, "eight swipes: two finger counts by four directions");
   check(holds == 2, "two long presses: one finger and two");
   check(pinches == 2, "pinch in and out");
-  check(rotates == 2, "rotation both ways");
   check(shakes == 1, "one shake");
-  check(taps + swipes + holds + pinches + rotates + shakes == 17,
-        "17 global gestures");
+  check(taps + swipes + holds + pinches + shakes + buttons + tilts == 21,
+        "21 global gestures");
 
   // EVERY SINGLE-FINGER ROW IS OVERRIDABLE AND NOTHING ELSE IS. The `kind`
   // field is what makes a row zone-aware, and a two-finger row that acquired

@@ -16,6 +16,8 @@
 #include "HalGPIO.h"
 #include "VolumePageTurn.h"
 
+extern "C" void CrossPointZenRecognizers_fireGesture(int gesture);
+
 // The volume-rocker adapter. Owner, 2026-09-05: "add ios app setting for
 // hardware volume buttons and any volume changes to control back and forward
 // pages (front button rocker switch) default to off", plus, the same day,
@@ -278,16 +280,17 @@ void drain() {
         // Read live, same as the enable toggle in perFrame: a change made in
         // Settings.app while the app was backgrounded takes effect on the
         // very next press after returning.
-        const bool flipped = CrossPointPrefs_volumeButtonsFlipped() != 0;
-        const uint8_t button = volumepage::buttonFor(v, flipped);
-        // A REAL button press, fired inside HalGPIO::update() where its edges
-        // are visible to the firmware; page-forward is the RIGHT front button
-        // (ReaderUtils::detectPageTurn), verified 2026-08-08 for read-aloud --
-        // unless flipped, in which case it is the LEFT.
-        gpio.queueButtonTap(button, volumepage::kTapHoldMs);
-        SDL_Log("[VOLUME] %.4f -> %.4f: %s (button %u%s)", previous, level,
-                v == volumepage::Verdict::Next ? "page forward" : "page back",
-                (unsigned)button, flipped ? ", flipped" : "");
+        // 2026-09-06: the press no longer means "page turn". It fires the
+        // gestureVolumeUp / gestureVolumeDown ROW, and what that row does is
+        // the owner's binding -- resolved live, so a change made in
+        // Settings.app while the app was backgrounded takes effect on the very
+        // next press. Routed through the recognizers' own dispatch so it takes
+        // the zen gate and the palette-sheet swallow with every other gesture,
+        // rather than injecting a button behind them.
+        const gesturebind::Gesture row = volumepage::gestureFor(v);
+        CrossPointZenRecognizers_fireGesture(static_cast<int>(row));
+        SDL_Log("[VOLUME] %.4f -> %.4f: %s", previous, level,
+                gesturebind::gestureName(row));
         restoreTo(g_resting);
         break;
       }
@@ -314,12 +317,29 @@ void CrossPointVolumeButtons_resetForReboot(void) {
   SDL_Log("[VOLUME] reset for reboot");
 }
 
+// IS EITHER ROCKER ROW BOUND? Holding an audio session and putting the level
+// back after every press is the part App Store review has rejected apps for,
+// so it happens only while the owner has actually asked for it -- which, since
+// 2026-09-06, is a binding rather than a switch. Zen state is deliberately not
+// consulted: a row bound only outside zen still needs the session held, or the
+// first press after leaving zen has nothing to report.
+static bool volumeRowsBound(void) {
+  using gesturebind::Action;
+  using gesturebind::Gesture;
+  for (Gesture g : {Gesture::VolumeUp, Gesture::VolumeDown}) {
+    const int stored = CrossPointPrefs_gestureBinding(static_cast<int>(g));
+    if (gesturebind::actionFor(g, true, stored) != Action::Nothing) return true;
+    if (gesturebind::actionFor(g, false, stored) != Action::Nothing) return true;
+  }
+  return false;
+}
+
 void CrossPointVolumeButtons_begin(void) {
   static bool s_installed = false;
   if (!s_installed) {
     s_installed = true;
-    SDL_Log("[VOLUME] adapter installed (setting %s)",
-            CrossPointPrefs_volumeButtonsTurnPages() ? "on" : "off");
+    SDL_Log("[VOLUME] adapter installed (rows %s)",
+            volumeRowsBound() ? "bound" : "unbound");
   }
   // Re-log the setting on the next perFrame -- a wake is exactly when the
   // owner may have changed it in Settings. Arming itself is level-driven from
@@ -328,13 +348,13 @@ void CrossPointVolumeButtons_begin(void) {
 }
 
 void CrossPointVolumeButtons_perFrame(void) {
-  // The Settings toggle, read live: Settings.app is a separate process, so a
-  // change made there arrives with no event to hang it on (same as every
-  // other poll in the harness).
-  const int want = CrossPointPrefs_volumeButtonsTurnPages();
+  // The bindings, read live: Settings.app is a separate process, so a change
+  // made there arrives with no event to hang it on (same as every other poll
+  // in the harness).
+  const int want = volumeRowsBound() ? 1 : 0;
   if (want != g_lastEnabled) {
     g_lastEnabled = want;
-    SDL_Log("[VOLUME] %s", want ? "enabled" : "disabled");
+    SDL_Log("[VOLUME] %s", want ? "armed (a row is bound)" : "idle (both rows Nothing)");
   }
   // Armed only while the app is ACTIVE. Inactive covers Control Center and
   // the notification shade over the app as well as the background proper: a
