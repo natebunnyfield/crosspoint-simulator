@@ -53,6 +53,7 @@
 #include "CrossPointHarness.h"
 #include "GestureBindings.h"
 #include "PadTopBand.h"
+#include "SleepTouch.h"
 #include "TapCandidate.h"
 #include "ZenPrefSync.h"
 #include "ZenVerbs.h"
@@ -3040,6 +3041,25 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
 
   switch (e->type) {
     case SDL_EVENT_FINGER_DOWN: {
+      // ASLEEP, IN ZEN: THIS FINGER IS THE POWER BUTTON (owner 2026-09-06,
+      // "can the ios app in zen mode wake up when x3 sim is powered down?
+      // that's what I keep trying to fix" -- S-039). In zen the pad does not
+      // exist, so nothing below could ever reach POWER; the only wakes were
+      // the accident of a binding resolving to a button, and the four-finger
+      // tap he remembers as Power has had no recognizer since the 2026-08-28
+      // trim. The rule is ios/SleepTouch.h's: press POWER -- queued, because
+      // the sleep loop consumes a queued tap as a wake and never fires it --
+      // and feed this touch to nothing else. Its lift lands in the rebooted
+      // run, where the classifier has been reset (CrossPointHarness_begin)
+      // and the recognizers cancelled (the reboot registrar in
+      // CrossPointZenRecognizers.mm), so it turns no page. Above the sheet
+      // gate and the geometry check: a wake must not depend on either.
+      if (sleeptouch::fingerDownWakes(g_zen,
+                                      SimulatorOverlay::firmwareAsleep())) {
+        SDL_Log("[zen] finger on the sleeping glass -> POWER (wake)");
+        gpio.queueButtonTap(HalGPIO::BTN_POWER, 60);
+        break;
+      }
       // With the mixer sheet up, UIKit passes touches outside the sheet
       // through to this view (pageSheet, undimmed medium detent — audit #6).
       // The sheet is the only control surface then: feed NOTHING. Fingers
@@ -3584,7 +3604,10 @@ void CrossPointHarness_begin() {
   // A wake begins with no fingers on glass; drop any state a pre-sleep touch
   // left behind — the tap candidate and the gesture trackers included, since
   // this process longjmps through here with statics intact — and relayout
-  // against the (possibly rotated) window.
+  // against the (possibly rotated) window. (The UIKit recognizers get the
+  // same treatment EARLIER, from the reboot reset registrar in
+  // CrossPointZenRecognizers.mm, before the jump: the finger that woke a
+  // sleeping zen glass is still on it here, and setup() pumps events.)
   g_tapCand.spoil();
   g_zenVerbs = zenverbs::Classifier{};
   applyActions(g_core.reset());

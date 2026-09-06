@@ -121,6 +121,12 @@ bool textEntryOpen();
 // The firmware has entered its sleep screen. The page-polarity latch stops
 // sampling here -- see the note at sleepScreenEnteredValue in HalGPIO.cpp.
 bool sleepScreenEntered();
+// The firmware is in its terminal sleep loop (HalGPIO::startDeepSleep) and
+// nothing it owns is running. The iOS harness reads it so that a finger on a
+// zen glass -- which has no pad and so no POWER capsule -- is the power
+// button while this is true (ios/SleepTouch.h, S-039). Set on loop entry,
+// cleared by the wake reboot's reset registrar. Implemented in HalGPIO.cpp.
+bool firmwareAsleep();
 
 // Panel polarity driven by the host appearance: dark renders the panel
 // white-on-black through HalDisplay's inversion flag. A free hook rather than
