@@ -13,7 +13,24 @@
 #    Without it, altool fails with rc 19 "Cannot determine the Apple ID from
 #    Bundle ID", which is the same code it returns for an expired paid-developer
 #    agreement — check both before believing either.
-# 2. An Apple Distribution certificate in the login keychain.
+# 2. An Apple Distribution certificate AND ITS PRIVATE KEY in the login
+#    keychain. The key is the half that bites, because it never leaves the Mac
+#    that made the CSR: the certificate can be alive on the account and
+#    downloadable while this machine cannot sign with it at all.
+#    Symptom, seen 2026-09-06 on `soup` (the mini set up 2026-09-03): archive
+#    dies with
+#        CodeSign ... errSecInternalComponent
+#    against the *Apple Development* identity, because automatic signing found
+#    no distribution identity and fell back. `security find-identity -v -p
+#    codesigning` listed one Development cert issued 2026-09-04 -- the day
+#    Xcode first signed in here -- while the account held a DISTRIBUTION cert
+#    valid to 2027-05-16 whose key was still on the previous Mac.
+#    Two fixes: export that identity from the old Mac (Keychain Access ->
+#    My Certificates -> export .p12) and import it here, which keeps one cert
+#    for both machines; or make a second one in Xcode (Settings -> Accounts ->
+#    Manage Certificates -> + -> Apple Distribution), which needs a free slot.
+#    `-allowProvisioningUpdates` does NOT cover this: it creates development
+#    certs and profiles, not distribution certs.
 # 3. The App Store Connect API key at ASC_KEY_PATH.
 #
 # The bundle ID is already registered in the developer portal (id G42B2FV8A8).
