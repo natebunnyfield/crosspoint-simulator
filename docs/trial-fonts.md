@@ -1,6 +1,16 @@
 # Fonts on trial
 
-**REOPENED 2026-09-06 for one family: DTLRomulus.** DTL Romulus — van
+**REOPENED AND CLOSED 2026-09-06, same day — DTLRomulus was PROMOTED.**
+Owner ruling: *"add"*. It is in `installed_families:` in the firmware's
+`sd-fonts.yaml`, its name is out of `CROSSPOINT_IOS_TRIAL_FAMILIES`, and it now
+belongs on every surface. **The trial it was named for never happened**: the
+build carrying it could not be archived (codesign `errSecInternalComponent` —
+there is no Apple Distribution certificate on the Mac), so the ruling came from
+rendered specimens rather than from the phone. It is also the first COMMERCIAL
+family in `installed_families:`, so unlike the other eight it cannot be rebuilt
+from a clean clone. The original trial note follows.
+
+**Was: REOPENED 2026-09-06 for one family: DTLRomulus.** DTL Romulus — van
 Krimpen's 1931 Enschede roman, digitised by Frank E. Blokland for the Dutch
 Type Library — is bundled for the owner to judge on the phone and is named in
 `CROSSPOINT_IOS_TRIAL_FAMILIES` in `ios/CMakeLists.txt`. It is commercial, it
