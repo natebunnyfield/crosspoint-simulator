@@ -1,5 +1,23 @@
 # Fonts on trial
 
+**REOPENED 2026-09-06 for one family: DTLRomulus.** DTL Romulus — van
+Krimpen's 1931 Enschede roman, digitised by Frank E. Blokland for the Dutch
+Type Library — is bundled for the owner to judge on the phone and is named in
+`CROSSPOINT_IOS_TRIAL_FAMILIES` in `ios/CMakeLists.txt`. It is commercial, it
+is not in `installed_families:`, and it costs 10.5 MB compressed in the bundle
+(37.8 MB raw, 12 files at 1x + 2x). Its sibling DTL Fleischmann was built the
+same day and cut the same day, before it ever reached a build.
+
+When it is ruled on, the list returns to empty: **promoted** means adding it to
+`installed_families:` in the firmware's `sd-fonts.yaml` and removing the name
+here; **declined** means deleting `build/seedfonts/DTLRomulus` and removing the
+name here. The build and every measurement behind it are in the firmware repo's
+`docs/dtl-trial-fonts-2026-09-06.md`.
+
+The 2026-08 trial below is closed and unaffected.
+
+---
+
 Written 2026-08-23. **CLOSED 2026-08-24** — every face below has been ruled on,
 `CROSSPOINT_IOS_TRIAL_FAMILIES` is empty, and nothing in the build carries an
 exemption any more. This file is now the record of what happened rather than a
