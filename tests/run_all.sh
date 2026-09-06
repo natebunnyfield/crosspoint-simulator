@@ -441,6 +441,13 @@ run reboot_resets \
 run semphr_reboot \
   c++ -std=c++20 -Isrc -o "$OUT/semphr_reboot" tests/semphr_reboot_test.cpp
 
+# The phone-readable firmware log. A TestFlight build throws stderr away, so
+# this file is the only route a LOG_DBG line has to the owner; the test holds
+# it to the four things they cannot verify themselves -- silent until asked
+# for, byte-exact, actually silent again when switched off, and bounded.
+run firmware_log_file \
+  c++ -std=c++20 -Isrc -Itests -o "$OUT/firmware_log_file" tests/firmware_log_file_test.cpp
+
 run heap_budget \
   c++ -std=c++20 -Isrc -o "$OUT/heap_budget" tests/heap_budget_test.cpp src/SimulatorHeap.cpp
 

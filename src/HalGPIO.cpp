@@ -1,5 +1,7 @@
 #include "HalGPIO.h"
 
+#include "FirmwareLogFile.h"
+
 #include "FontFamilyStepChannel.h"
 #include "OpenActionMenuChannel.h"
 #include "ReaderInsetsChannel.h"
@@ -984,6 +986,14 @@ void HalGPIO::update() {
       if (powerLogWanted())
         SDL_Log("[power] foreground return counts as activity");
       continue;
+    }
+
+    // The diagnostics log's last buffered lines have to survive a suspend: the
+    // owner backgrounds the app to read the file in Files, and iOS is free to
+    // never resume this process. Falls through -- nothing else reads the event
+    // today, and a future branch on it should still get it.
+    if (e.type == SDL_EVENT_WILL_ENTER_BACKGROUND) {
+      firmwarelog::flush();
     }
 
     // ST-010: any real input re-energises a fading page. Keyed on the event
