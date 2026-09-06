@@ -414,14 +414,22 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # is about to archive from. Emptying the list means a fresh configure (or
   # -DCROSSPOINT_IOS_TRIAL_FAMILIES= on the command line); the ON TRIAL status
   # line below is how you check which one a given build directory believes.
-  # EMPTY since 2026-08-24, and that is the settled state — the trial it was
-  # built for is over. Almendra was promoted (installed_families in
-  # sd-fonts.yaml, and a real lineage row in src/FontDisplayNames.h); Arvo,
-  # Merriweather, IBM Plex Sans and Fira Sans Book were declined ("lose arvo
-  # and the other candidate fonts") and their .cpfont trees deleted from the
-  # seed set, recipes kept. docs/trial-fonts.md records what happened to each.
+  # Was empty from 2026-08-24 (that trial closed: Almendra promoted; Arvo,
+  # Merriweather, IBM Plex Sans and Fira Sans Book declined, "lose arvo and the
+  # other candidate fonts", their .cpfont trees deleted and recipes kept —
+  # docs/trial-fonts.md records each).
+  #
+  # REOPENED 2026-09-06 for DTLRomulus, and it MUST COME BACK OUT. Van
+  # Krimpen's 1931 Enschede roman, digitised by Blokland for the Dutch Type
+  # Library, built as a four-style family for the owner to judge on the phone.
+  # It is commercial, it is not in installed_families:, and it costs 10.5 MB
+  # compressed in the bundle. When it is ruled on: promoted -> add it to
+  # installed_families: in the firmware's sd-fonts.yaml and take the name out
+  # of here; declined -> delete build/seedfonts/DTLRomulus and take the name
+  # out of here. Either way this list returns to empty.
+  # docs/dtl-trial-fonts-2026-09-06.md carries the build and its measurements.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    ""
+    "DTLRomulus"
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
