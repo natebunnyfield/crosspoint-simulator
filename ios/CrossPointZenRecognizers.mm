@@ -114,6 +114,9 @@
 #include "GestureBindings.h"
 #include "ShakeFirstResponder.h"
 #include "HalGPIO.h"
+#include "SimulatorOverlay.h"
+#include "SimulatorRebootResets.h"
+#include "SleepTouch.h"
 #include "ZenHoldRouting.h"
 
 extern "C" bool CrossPointMixer_isPresented(void);
@@ -242,6 +245,22 @@ void performGestureAction(gesturebind::Action a, const char *what) {
     // phone never delivered the gesture" look identical on a device, and
     // telling them apart is what this line is for.
     SDL_Log("[zen] %s -> nothing", what);
+    return;
+  }
+  // ASLEEP: only a press can reach the firmware, and a press is a wake (the
+  // sleep loop takes a queued tap as one). Anything else -- the zen toggle
+  // above all, which used to flip g_zen on a glass that could not show it and
+  // hand the wake the other mode -- is swallowed, with the reason in the log
+  // (ios/SleepTouch.h, S-039). In zen this is belt and braces: the first
+  // finger on a sleeping glass already wakes the device from padWatch, and
+  // the recognizers are cancelled before the reboot. Out of zen it is the
+  // whole rule, for the two gestures that fire there: the hold above the
+  // paper and the shake.
+  if (!sleeptouch::actionAllowedWhileAsleep(
+          SimulatorOverlay::firmwareAsleep(),
+          gesturebind::buttonFor(a) != gesturebind::kNoButton)) {
+    SDL_Log("[zen] %s -> %s swallowed (firmware asleep; only a press wakes it)",
+            what, gesturebind::actionName(a));
     return;
   }
   if (a == gesturebind::Action::ToggleZen) {
@@ -900,6 +919,52 @@ extern "C" void CrossPointZenRecognizers_reassertShake(void) {
     claimShakeFirstResponder("keyboard hidden");
   });
 }
+
+// THE WAKING TOUCH IS THE POWER BUTTON AND NOTHING ELSE (ios/SleepTouch.h,
+// S-039). The finger that landed on a sleeping zen glass woke the device from
+// padWatch on its DOWN; UIKit is still tracking that same touch, and left
+// alone it would finish as a swipe, or reach a hold's .began, in the boot it
+// woke -- a page turned, or zen toggled, by the press that was meant as
+// power. Disabling a recognizer mid-gesture is UIKit's documented cancel (it
+// transitions to .cancelled and drops the touches it was tracking);
+// re-enabling it at once leaves it ready for the NEXT touch, and restoring
+// whatever applyEnabled last set keeps rowIsAlwaysOn's answer. The one-finger
+// hold's tracker and the two-finger latch are reset with them, for the same
+// reason zenhold::Hold::cancel exists.
+//
+// Runs from the reboot reset registrar below -- on the main thread, before
+// the longjmp, on all three in-process reboots -- rather than from
+// CrossPointHarness_begin, which is AFTER setup(): setup() pumps events
+// (waitForPowerRelease), so a swipe in flight could recognize there and turn
+// a page in the boot it woke. Synchronous on the main thread; only a caller
+// off it defers. A no-op before the set exists (the first boot).
+extern "C" void CrossPointZenRecognizers_cancelInFlight(void) {
+  void (^cancel)(void) = ^{
+    if (!g_installed) return;
+    for (UIGestureRecognizer *r in g_installed) {
+      const BOOL was = r.enabled;
+      r.enabled = NO;
+      r.enabled = was;
+    }
+    g_hold.cancel();
+    [g_holdFired removeAllObjects];
+    SDL_Log("[zen] recognizers cancelled across the reboot (%lu objects)",
+            (unsigned long)g_installed.count);
+  };
+  if ([NSThread isMainThread])
+    cancel();
+  else
+    dispatch_async(dispatch_get_main_queue(), cancel);
+}
+
+namespace {
+// Same shape as the read-aloud adapter's registrar (CrossPointReadAloud.mm):
+// the in-process reboot keeps every static in this file, the recognizers
+// included, and SimulatorLifecycle runs this immediately before the jump.
+const simreset::Registrar g_zenWakeCancel{[] {
+  CrossPointZenRecognizers_cancelInFlight();
+}};
+}  // namespace
 
 // The SDL deliberate-tap dispatcher's road into performGestureAction. The
 // one-finger tap is SDL's verb, classified below UIKit in CrossPointIOSShim.cpp,
