@@ -70,8 +70,13 @@ bool hostFetch(const std::string &url, const char *method,
   }
 
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:nsUrl];
-  // Matches the curl backend's --connect-timeout 10 --max-time 60, so a switch
-  // of transport is not also a silent switch of timeout behavior.
+  // Matches the curl backend's idle timeout (--speed-limit 1 --speed-time 60),
+  // so a switch of transport is not also a silent switch of timeout behavior.
+  // timeoutInterval is an IDLE timeout -- UIKit restarts it whenever data
+  // arrives -- so a long download completes and only a stalled one is
+  // dropped. The comment here used to say it matched `--max-time 60`, which
+  // described neither side correctly: that flag capped the whole transfer and
+  // this never has (S-040, the day the curl side was corrected to agree).
   request.timeoutInterval = 60.0;
   request.HTTPMethod = method && *method ? toNSString(method) : @"GET";
 
