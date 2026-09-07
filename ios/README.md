@@ -391,7 +391,7 @@ command, not a button the hardware has.
 Volume Buttons Turn Pages and Flip Volume Buttons -- wired straight to a front-
 rocker page turn. The owner then ruled: *"make volume up and down an assignable
 setting like all other gestures."* Both switches are gone and the rocker is two
-ordinary rows, **Gestures — The Device > Volume Up / Volume Down**
+ordinary rows, **Gestures — Motion > Volume Up / Volume Down**
 (`gestureVolumeUp`, `gestureVolumeDown`), offering the same actions every other
 gesture offers.
 
@@ -525,7 +525,7 @@ normal configuration."*
 |---|---|---|
 | **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
 | **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread | ditto; **Hold** is the font family step since 2026-09-06 |
-| **Gestures — The Device** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | zen toggle; page forward/back; the four tilts ship inert |
+| **Gestures — Motion** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | zen toggle; page forward/back; the four tilts ship inert |
 | **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
 | **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
 
@@ -549,7 +549,7 @@ the global binding, exactly as a swipe on the paper does.
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
 short verb. Pinch sits in Two Fingers because that is what it is; the
-rocker and the tilts sit in The Device because they are not touches at all.
+rocker and the tilts sit in Motion because they are not touches at all.
 
 **`Root.plist`'s gesture half is GENERATED**, by
 [tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py), from the header's
@@ -778,7 +778,7 @@ What remains in Settings.app after the 2026-08-23 ruling is the Zen toggle, the
 gesture groups, the two sleep toggles, the Read Aloud group, Diagnostics Log --
 and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
 default off), the CRT shutdown at sleep. Since 2026-09-06 the phone's volume
-rocker and four tilt gestures are rows in **Gestures — The Device** rather than
+rocker and four tilt gestures are rows in **Gestures — Motion** rather than
 switches of their own (`gestureVolumeUp`, `gestureVolumeDown`,
 `gestureTiltLeft/Right/Forward/Back`; the rocker turns pages by default, the tilts are inert) --
 documented under Controls above, together with why the rocker stays opt-in.
