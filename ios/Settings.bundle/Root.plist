@@ -606,9 +606,9 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 		</dict>
 		<dict>
 			<key>FooterText</key>
-			<string>Shake is not a touch: iOS delivers it as a motion event, so it works with the screen full of anything at all.</string>
+			<string>Gestures that are not touches. The shake arrives as a motion event, so it works with the screen full of anything at all — and it is the only way into Zen, which is why it is bound by default. The volume rocker turns pages out of the box; set both rows to Nothing and the app leaves the phone’s buttons alone entirely. The four tilts are measured from however you are holding the phone when they arm, not from flat, and each fires once per tilt — bind one and the accelerometer starts; leave them alone and it never runs.</string>
 			<key>Title</key>
-			<string>Gestures — The Device</string>
+			<string>Gestures — Motion</string>
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 		</dict>
@@ -651,18 +651,6 @@ Pinch and rotation can both fire from one two-finger gesture while rotation is s
 				<integer>12</integer>
 				<integer>13</integer>
 			</array>
-		</dict>
-		<dict>
-			<key>FooterText</key>
-			<string>What each gesture does, anywhere on the screen. The two groups at the bottom of this list can override the one-finger gestures for the strip above the sheet and the band below it; everywhere else — the page itself included — these apply.
-
-Two gestures may hold the same action, and any gesture may be set to Nothing.
-
-The side rocker (Up / Down) steps text size inside a book on this build — holding a side button changes the reading font — and scrolls a screenful elsewhere.</string>
-			<key>Title</key>
-			<string>Gestures — One Finger</string>
-			<key>Type</key>
-			<string>PSGroupSpecifier</string>
 		</dict>
 		<dict>
 			<key>DefaultValue</key>

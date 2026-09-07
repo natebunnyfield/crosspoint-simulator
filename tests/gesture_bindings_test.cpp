@@ -1070,6 +1070,42 @@ static void testRootPlist(const char* path) {
     previous = at;
   }
 
+  // WHICH HEADING THE ROW ACTUALLY APPEARS UNDER, read the way Settings.app
+  // reads it: the nearest PSGroupSpecifier ABOVE the row wins, because a
+  // Settings.bundle has no nesting.
+  //
+  // This is not the same check as the position one above, and the difference
+  // cost a shipped build. On 2026-09-06 the volume rocker and the four tilts
+  // went into the header's Device group while tools/gen_gesture_plist.py still
+  // decided the projection's groups from FINGER COUNT alone -- and those six
+  // rows have fingers = 0, like the shake, so they fell through to the
+  // one-finger branch and shipped under "Gestures — One Finger" in build 179.
+  // The position check passed anyway, so it was not the gate anyone thought it
+  // was. This one compares the plist's own answer against groupOf() directly.
+  for (int i = 0; i < gesturebind::kGestureCount; ++i) {
+    const Gesture g = static_cast<Gesture>(i);
+    const std::string k = gesturebind::key(g);
+    const size_t at = xml.find("<string>" + k + "</string>");
+    if (at == std::string::npos) continue;  // reported by the checks above
+    // The nearest group specifier above this row, and its Title.
+    const size_t grpTag = xml.rfind("PSGroupSpecifier", at);
+    std::string heading = "(none)";
+    if (grpTag != std::string::npos) {
+      const size_t tKey = xml.rfind("<key>Title</key>", grpTag);
+      if (tKey != std::string::npos) {
+        const size_t o = xml.find("<string>", tKey);
+        const size_t c = xml.find("</string>", o);
+        if (o != std::string::npos && c != std::string::npos)
+          heading = xml.substr(o + 8, c - o - 8);
+      }
+    }
+    const std::string want = gesturebind::groupTitle(gesturebind::groupOf(g));
+    const std::string msg = std::string(gesturebind::gestureName(g)) +
+                            " appears under \"" + heading +
+                            "\", header says \"" + want + "\"";
+    check(heading == want, msg.c_str());
+  }
+
   // The surviving sentinel from panel_palette_test.cpp: the Zen toggle stays at
   // the very top, ahead of everything added here.
   const size_t zenToggle = xml.find("<string>zenModeEnabled</string>");

@@ -66,7 +66,7 @@
 //
 // SO THE MODEL IS LAYERED, NOT THREE PARALLEL ZONES.
 //
-//   1. GESTURES (global)   the base. All 17, and this is what happens anywhere
+//   1. GESTURES (global)   the base. All 21, and this is what happens anywhere
 //                          on screen unless a zone overrides it.
 //   2. ABOVE THE PAPER     the six SINGLE-FINGER gestures (tap, four swipes,
 //                          the hold), defaulting to INHERIT (blank).
@@ -78,7 +78,7 @@
 // behavior as a fixed third case; that was wrong and is gone.
 //
 // MULTI-FINGER HAS NO ZONE OVERRIDE, by ruling: a two-finger tap is the same
-// gesture wherever it lands. Neither do the six DEVICE rows -- the shake, the
+// gesture wherever it lands. Neither do the seven MOTION rows -- the shake, the
 // two volume buttons and the four tilts -- none of which has a landing point at
 // all. 21 global rows + 11 zone rows = 32.
 //
@@ -456,7 +456,7 @@ constexpr const char* groupTitle(Group g) {
   switch (g) {
     case Group::OneFinger: return "Gestures — One Finger";
     case Group::TwoFingers: return "Gestures — Two Fingers";
-    case Group::Device: return "Gestures — The Device";
+    case Group::Device: return "Gestures — Motion";
     case Group::AbovePaper: return "Above the Paper";
     case Group::BelowPaper: return "Below the Paper";
     case Group::Count: break;
