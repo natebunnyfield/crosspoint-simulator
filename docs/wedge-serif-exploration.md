@@ -58,3 +58,9 @@ BASE: `{'xh': 480, 'asc': 720, 'desc': 220, 'stem': 110, 'contrast': 0.55, 'stre
 ## Open questions (asked one at a time from here)
 
 Answers land in this file as rulings.
+
+- **Purpose (2026-09-12): body text on the reader.** Asked body / both /
+  display: *body text on the reader*. So round 2 varies the kept text cuts
+  (3, 10, 11, 13, 14, 19) at reading proportions and renders each at the
+  real e-ink sizes as well (2x, four levels), with 5, 8 and 15 kept as
+  flavor sources for terminals and rhythm rather than as directions.
