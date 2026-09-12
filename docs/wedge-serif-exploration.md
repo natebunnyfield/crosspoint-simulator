@@ -199,3 +199,26 @@ Matched cut, this round: width 0.85 and fit 0.8 (the o back to ~415 wide;
 average advance runs a little over the S-tier 500 -- that is the trade still
 open). Page, regular and bold, with LibrisADF and Atkinson Next beside:
 https://claude.ai/code/artifact/c521c007-77c0-4083-a160-3f4777a81292
+
+## Round 7 (2026-09-12): diverge
+
+Owner, on round 6: *"make the word images more elegant and balanced ... by
+drawing inspiration from the S tier fonts, not revise the S tier fonts
+through the same pipeline, but make the wedge serif into variations that I
+can pick from. Right now everything's converging, and I need to diverge ...
+an evolutionary approach."* So the S-tier faces are BRIEFS, not renders, and
+the deliverable is a population.
+
+`tools/wedge_serif/round7.py`: 24 word images on the second drawing model,
+two per installed family (Coelacanth, Schola, LibreFranklin, LibrisADF,
+Inknut, Heros, Almendra, Atkinson Next, Doves, Van den Keere, Edgar) plus
+two wild cards, each hand-tuned on the family's character: proportions,
+weight, contrast, stress, pen sharpness (`power`), serif style (`wedge` |
+`flare`), wedge length/depth/drop, fillet strength, arch height, cut angle,
+bowl squareness. Four axes were added to `alphabet2.py` for this
+(`serif_style`, `arch_start`, `fillet`, `power`). Two defects fixed on the
+way, both visible in every tile of the first render: the o's 10° overlap
+self-crossed and filled even-odd (a white notch at the top; the o is now two
+overlapping arcs), and the j's tail set its left bearing (bearings are now
+measured in the x-height band only). Page:
+https://claude.ai/code/artifact/28347595-899c-41db-8ee1-9269e5e37b5c

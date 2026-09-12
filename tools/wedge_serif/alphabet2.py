@@ -116,7 +116,7 @@ def compose(*fs):
     return lambda t: math.prod(f(t) for f in fs)
 
 # ---------------------------------------------------------------- serifs
-def bracket_wedge(P, d, nrm, th, length, depth, side, drop=0.0, n=10):
+def bracket_wedge(P, d, nrm, th, length, depth, side, drop=0.0, n=10, fillet=0.55):
     """Bracketed wedge at a stem end P (d = outward unit direction, nrm = unit
     normal). The serif sticks out on `side` (+/-1 along nrm). The outer edge
     runs from the apex B (a little below the end, `drop`) back to the stem
@@ -126,7 +126,7 @@ def bracket_wedge(P, d, nrm, th, length, depth, side, drop=0.0, n=10):
     B = (A[0] + side*nrm[0]*length - d[0]*drop, A[1] + side*nrm[1]*length - d[1]*drop)  # apex
     C = (A[0] - d[0]*depth, A[1] - d[1]*depth)                        # down the stem edge
     # fillet from C to B, concave (control point pulled toward A)
-    ctrl = (A[0]*0.55 + C[0]*0.45 - d[0]*depth*0.05, A[1]*0.55 + C[1]*0.45)
+    ctrl = (A[0]*fillet + C[0]*(1-fillet) - d[0]*depth*0.05, A[1]*fillet + C[1]*(1-fillet))
     fil = [((1-t)**2*C[0] + 2*(1-t)*t*ctrl[0] + t*t*B[0], (1-t)**2*C[1] + 2*(1-t)*t*ctrl[1] + t*t*B[1]) for t in [i/n for i in range(n+1)]]
     inner = (C[0] - side*nrm[0]*th*0.5, C[1] - side*nrm[1]*th*0.5)
     innerA = (A[0] - side*nrm[0]*th*0.5, A[1] - side*nrm[1]*th*0.5)
@@ -139,11 +139,12 @@ def blob(P, r, n=32):
 def ctx(p):
     s = p["stem"]
     c = dict(xh=p["xh"], asc=p["asc"], desc=p["desc"], s=s, wf=p["width"],
-             pen=Pen(s, p["contrast"], p["stress"]),
+             pen=Pen(s, p["contrast"], p["stress"], p.get("power", 1.15)),
              ent=entasis(p["flare"]), wl=p["wedge_len"] * s, wd=p["wedge_depth"] * s,
              over=12, cut=math.radians(p.get("cut_deg", 12)), k=p["bowl_k"],
              fit=p.get("fit", 1.0), nw=p.get("n_width", 400) * p["width"] + (s - 110) * 0.9,
-             drop=p.get("serif_drop", 0.18) * s)
+             drop=p.get("serif_drop", 0.18) * s, serif=p.get("serif_style", "wedge"),
+             arch=p.get("arch_start", 0.58), fillet=p.get("fillet", 0.55))
     return c
 
 def stem(c, P, x, y0, y1, top="wedge", foot="both", top_side=1, flare=True):
@@ -151,16 +152,25 @@ def stem(c, P, x, y0, y1, top="wedge", foot="both", top_side=1, flare=True):
     foot: 'both' | 'left' | 'right' | None."""
     pts = line((x, y0), (x, y1), 36)
     prof = c["ent"] if flare else (lambda t: 1.0)
+    if c["serif"] == "flare" and flare:
+        # Albertus-style: the stem itself trumpets at the ends it would have
+        # seriffed, and no wedge polygon is drawn.
+        amt = c["wl"] / max(c["s"], 1) * 1.6
+        top_f = flare_end(amt, 0.3) if top == "wedge" else (lambda t: 1.0)
+        foot_f = (lambda t: flare_end(amt * 0.8, 0.3)(1 - t)) if foot else (lambda t: 1.0)
+        prof = compose(prof, top_f, foot_f)
     P.append(outline(pts, c["pen"], prof, cut1=(c["cut"] if top == "cut" else None)))
     th = c["pen"].th((0, 1))
+    if c["serif"] == "flare":
+        return
     # top serif: normal (-1,0) points LEFT, so side +1 is the left of the stem
     if top == "wedge" and c["wl"] > 0:
-        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * prof(1.0), c["wl"], c["wd"], top_side, drop=c["drop"]))
+        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * prof(1.0), c["wl"], c["wd"], top_side, drop=c["drop"], fillet=c["fillet"]))
     # foot: normal (1,0) points RIGHT, so side -1 is left, +1 right
     if foot and c["wl"] > 0:
         sides = {"both": (-1, 1), "left": (-1,), "right": (1,)}[foot]
         for sd in sides:
-            P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * prof(0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6))
+            P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * prof(0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
 
 def curve(c, P, pts, profile=None, cut1=None, cut0=None):
     P.append(outline(pts, c["pen"], profile, cut0=cut0, cut1=cut1))
@@ -174,10 +184,13 @@ def terminal(c, P, pts, kind):
 
 # ---------------------------------------------------------------- glyphs
 def _bowl(c, P, cx, rx, taper_at=None):
-    """A full bowl centered at cx, x-height tall with overshoot."""
+    """A full bowl centered at cx, x-height tall with overshoot. Two arcs that
+    overlap by 20 degrees at each end, each a simple polygon: one closed loop
+    self-crosses at its seam and an even-odd fill leaves a notch there."""
     ry = c["xh"] / 2 + c["over"]
-    pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(80), math.radians(80 + 370), 124, c["k"])
-    curve(c, P, pts)
+    for a0 in (80, 260):
+        pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(a0 - 10), math.radians(a0 + 200), 70, c["k"])
+        curve(c, P, pts)
 
 def g_o(c):
     P = []; rx = 226 * c["wf"]; cx = rx
@@ -244,7 +257,8 @@ def g_g(c):
     tail = bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
     curve(c, P, tail, compose(taper_in(0.7, 0.15), flare_end(0.3, 0.3)), cut1=c["cut"]); return P
 
-def _arch(c, P, x0, x1, xh, start=0.58):
+def _arch(c, P, x0, x1, xh, start=None):
+    start = c["arch"] if start is None else start
     pts = bez((x0, xh * start), (x0, xh * 1.05), (x1, xh * 1.04), (x1, xh * 0.60), 44)
     curve(c, P, pts, taper_in(0.42, 0.32))
 
@@ -411,7 +425,14 @@ def layout(p, text):
         fn = GLYPHS.get(ch)
         if not fn: continue
         gp = fn(c)
-        xs = [px for poly in gp for (px, _) in poly]; l, r = min(xs), max(xs)
+        # Fit on the x-height band: a j's tail or an f's hook must not set the
+        # bearing of the stem the eye actually spaces against.
+        band = [px for poly in gp for (px, py) in poly if -c["over"] <= py <= c["xh"] + c["over"]]
+        xs = band or [px for poly in gp for (px, _) in poly]
+        l, r = min(xs), max(xs)
+        allx = [px for poly in gp for (px, _) in poly]
+        # ...but the glyph's own ink still starts where it starts
+        ink_l = min(allx)
         lt, rt = SIDES[ch]
         if prev is not None: x += bearing(c, prev) + bearing(c, lt)
         polys.extend([[(px - l + x, py) for (px, py) in poly] for poly in gp])
