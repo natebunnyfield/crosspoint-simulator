@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 99e1ed628d84dc93a70583ce0f2d27c0a20ea00f
-# TU counts  : 143 firmware, 27 simulator (6 C, 164 C++)
+# pinned at  : b87d10fe76153030b8b60c9005e26db8aedc6a68
+# TU counts  : 145 firmware, 27 simulator (6 C, 164 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "99e1ed628d84dc93a70583ce0f2d27c0a20ea00f")
+set(CROSSPOINT_FIRMWARE_PIN "b87d10fe76153030b8b60c9005e26db8aedc6a68")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
@@ -149,6 +149,7 @@ set(CROSSPOINT_FW_SOURCES
   src/activities/settings/ColophonActivity.cpp
   src/activities/settings/EditorFontSelectionActivity.cpp
   src/activities/settings/FontSelectionActivity.cpp
+  src/activities/settings/FontUpdateActivity.cpp
   src/activities/settings/LibraryUpdateActivity.cpp
   src/activities/settings/OnlineFirmwareUpdateActivity.cpp
   src/activities/settings/SdFirmwareUpdateActivity.cpp
@@ -171,6 +172,7 @@ set(CROSSPOINT_FW_SOURCES
   src/main.cpp
   src/network/CrossPointWebServer.cpp
   src/network/FirmwareImageValidator.cpp
+  src/network/FontUpdater.cpp
   src/network/HttpDownloader.cpp
   src/network/LibraryUpdater.cpp
   src/network/OtaCommit.cpp
