@@ -133,6 +133,15 @@ cuts not taken).
 
 ## Standing rulings, 2026-09-12
 
+- **The phone reports the cost itself.** Asked whether each compose should
+  write its cost to the diagnostics log: *yes.* While the Settings.app
+  Diagnostics Log switch is on (or `CROSSPOINT_SIM_DIAGNOSTICS=1`), every
+  antialiased compose logs `[compose] N ms for WxH (ink rounding ran: M ms,
+  rounding R spread S)` through the SDL_Log tee into
+  `diagnostics/firmware.log`; off, the line costs nothing (`firmwarelog::armed()`
+  is polled, never cached). Proven headlessly on the desktop the same day:
+  compose 50 ms, rounding 25 ms at 45/55 on a 1584x1056 page, and the line
+  present in the teed file. Turn the switch on, turn a page, share the file.
 - **The Mac apps match the phone.** The desktop `settings.json` template
   (`src/SimulatorSettingsFile.h`) ships `inkRoundingPercent` 45 and
   `inkSpreadPercent` 55, so a first-run Finder-launched bundle draws what the

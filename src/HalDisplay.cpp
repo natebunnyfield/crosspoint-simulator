@@ -10,6 +10,7 @@
 #include "GlassCapture.h"
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
+#include "FirmwareLogFile.h"
 #include "InkRounding.h"
 #include "Letterpress.h"
 #include "LightInkPalette.h"
@@ -902,15 +903,25 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 static uint8_t levelBuf[HalDisplay::DISPLAY_WIDTH * HalDisplay::DISPLAY_HEIGHT];
 static std::vector<uint32_t> inkRoundingScratch;
 
+// The last rounding pass's wall time, for the [compose] readout below: the
+// one number that says what the pass costs on a PHONE, where nothing else
+// can measure it (owner ruling 2026-09-12; docs/ink-rounding.md).
+static std::atomic<uint32_t> lastInkRoundingMs{0};
+static std::atomic<bool> lastInkRoundingRan{false};
+
 static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage) {
   const int w = HalDisplay::activeWidth();
   const int h = HalDisplay::activeHeight();
+  bool ran = false;
+  const uint64_t t0 = SDL_GetTicks();
   if (!darkPage) {
-    inkrounding::roundLevels(levelBuf, w, h,
-                             inkRoundingPercent.load(),
-                             inkSpreadPercent.load(),
-                             inkRoundingScratch);
+    ran = inkrounding::roundLevels(levelBuf, w, h,
+                                   inkRoundingPercent.load(),
+                                   inkSpreadPercent.load(),
+                                   inkRoundingScratch);
   }
+  lastInkRoundingMs.store(static_cast<uint32_t>(SDL_GetTicks() - t0));
+  lastInkRoundingRan.store(ran);
   const size_t n = static_cast<size_t>(w) * static_cast<size_t>(h);
   for (size_t i = 0; i < n; i++) pixelBuf[i] = ramp[levelBuf[i]];
 }
@@ -1044,10 +1055,17 @@ uint64_t composeGrayscalePreview() {
         if (lv[i]) SDL_Log("[aa]   level %3d: %d px", i, lv[i]);
     }
   }
-  if (presentLogWanted())
-      SDL_Log("[compose] %llu ms for %dx%d",
+  // Also while the Diagnostics Log switch is on (owner 2026-09-12): the
+  // phone has no other way to say what a compose, and the rounding pass
+  // inside it, cost. The line reaches diagnostics/firmware.log through the
+  // SDL_Log tee, tagged [host].
+  if (presentLogWanted() || firmwarelog::armed())
+      SDL_Log("[compose] %llu ms for %dx%d (ink rounding %s: %u ms, rounding %d spread %d)",
               (unsigned long long)(SDL_GetTicks() - composeStart),
-              HalDisplay::activeWidth(), HalDisplay::activeHeight());
+              HalDisplay::activeWidth(), HalDisplay::activeHeight(),
+              lastInkRoundingRan.load() ? "ran" : "off",
+              (unsigned)lastInkRoundingMs.load(),
+              inkRoundingPercent.load(), inkSpreadPercent.load());
   lastPixelWriter.store('G');
   // The composed frame WAITS OUT the flash. Holding it here is the whole
   // mechanism: the 1-bit frame is already on screen and the idle repaints keep

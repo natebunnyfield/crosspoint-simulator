@@ -202,6 +202,16 @@ inline void setEnabledProvider(int (*provider)()) {
   s.lastPoll = 0.0;
 }
 
+// Is the diagnostics log armed right now? For callers that want to emit a
+// line ONLY while the owner has the switch on (a per-present cost readout,
+// say), so the instrument costs nothing when nobody is reading it. Polls the
+// provider on the same cadence as a write would.
+inline bool armed() {
+  detail::State &s = detail::state();
+  std::lock_guard<std::mutex> lock(s.mutex);
+  return detail::armedLocked(s);
+}
+
 // Appends raw serial bytes exactly as the firmware wrote them. They already
 // carry logPrintf's own "[millis] [LVL] [ORIGIN] " prefix, so nothing is added
 // here beyond the bytes themselves.
