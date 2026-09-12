@@ -191,8 +191,12 @@ inline constexpr Dial kDials[kDialCount] = {
    letterpress::kStrengthOff, 68, kPlain, LetterpressPercent},
   // The type's own corners and weight, not a surface over it: 2026-09-11,
   // "an ios settings for rounding sharp corners and other letterpress
-  // simulation effects". Shipped 45 / 55 (owner 2026-09-12, "default corner
-  // rounding to 45 and spread to 55"); the desktop canary keeps 0.
+  // simulation effects". Shipped 27 / 106 (owner 2026-09-12, from a
+  // screenshot of his own sliders, "set defaults to these"). The desktop
+  // DEFAULT below is 0, but a fresh desktop does not render 0: its first-run
+  // settings.json carries the phone's values and is applied a second after
+  // it is written (owner ruling 2026-09-12, "desktop matches the phone
+  // everywhere"); CROSSPOINT_SIM_INK_ROUNDING=0 is the bit-exact arm.
   {InkRoundingPercent, "ink rounding", "CROSSPOINT_SIM_INK_ROUNDING",
    "inkRoundingPercent", inkrounding::kOff, inkrounding::kMax, inkrounding::kOff,
    27, kPlain, InkRoundingPercent},

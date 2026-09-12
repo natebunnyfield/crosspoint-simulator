@@ -18,8 +18,12 @@ a screenshot of the six sliders: "default corner rounding to 45 and spread to
 55, add labels") they ship at **45 and 55**, and each slider sits in its own
 titled group -- `Ink: Corner Rounding`, `Ink: Spread`, ... -- because iOS draws
 a `PSSliderSpecifier` with no title at all, so the group header is its label.
-The desktop canary keeps both at 0 (bit-exact); `CROSSPOINT_SIM_AS_SHIPPED=1`
-seeds 45/55 from the dial table.
+The desktop's TABLE default is 0, but a fresh desktop does not render 0: its
+first-run `settings.json` carries the phone's values and the watcher applies
+the file a second after writing it (verified from a clean directory on
+2026-09-12, after this doc had claimed the opposite for a day). Bit-exact off
+on the desktop is `CROSSPOINT_SIM_INK_ROUNDING=0 CROSSPOINT_SIM_INK_SPREAD=0`,
+or a settings.json that names the keys at 0.
 
 **Standing ruling 2026-09-12: a stored 0 migrates once.** A phone that opened
 the Ink group on build 187 or 188 has 0 WRITTEN for both keys, and a written
@@ -156,8 +160,10 @@ cuts not taken).
 - **The Mac apps match the phone.** The desktop `settings.json` template
   (`src/SimulatorSettingsFile.h`) ships `inkRoundingPercent` 45 and
   `inkSpreadPercent` 55, so a first-run Finder-launched bundle draws what the
-  phone draws; an existing file keeps its values, and the command-line canary
-  (no file, dials at their table defaults) stays bit-exact at 0. The other
+  phone draws; an existing file keeps its values. **The command-line canary
+  does NOT stay at 0**: it too writes and applies that template on first run,
+  which this entry first claimed otherwise; asked about it, the owner ruled
+  *desktop matches the phone everywhere* (2026-09-12). The other
   Ink values in that template (letterpress and the press parts at 0) are the
   desktop's historical seeds and were NOT part of this ruling.
 - **Light only.** Asked whether Corner Rounding and Ink Spread should also

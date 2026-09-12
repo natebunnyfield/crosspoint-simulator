@@ -381,3 +381,16 @@ counted inside the band the keyboard grid occupies:
 
 The residual 60 is the character count, which moves down with the status band
 when the panel goes. That is the whole feature, measured rather than asserted.
+
+## The type is rounded by default, on the desktop too (2026-09-12)
+
+A fresh directory's first run writes `./settings.json` from the template and
+applies it a second later, and since 2026-09-12 that template carries the
+phone's Corner Rounding 27 and Ink Spread 106 (owner ruling: desktop matches
+the phone everywhere). So a headless capture from a clean directory renders
+rounded, slightly heavier type, and two captures differ if one directory has
+an older `settings.json` that never named the keys (the dev box's August file
+is exactly that, and stayed at 0). For a bit-exact-off arm, or for any A/B
+that is not about the type, pin both: `CROSSPOINT_SIM_INK_ROUNDING=0
+CROSSPOINT_SIM_INK_SPREAD=0`. The `[compose]` line under
+`CROSSPOINT_SIM_LOG_PRESENTS=1` prints which values were in force.
