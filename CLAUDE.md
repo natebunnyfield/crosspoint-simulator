@@ -43,6 +43,7 @@ cost real money to produce. **Never cite an archive doc for current behavior.**
 | How do I run an A/B that means anything? | [docs/perceptual-test-method.md](docs/perceptual-test-method.md) |
 | What does a present cost, and what is a phosphor trail spending it on? | [docs/trail-cost-2026-08-26.md](docs/trail-cost-2026-08-26.md) — including why the scanline readback is NOT the answer, why an instant-by-instant md5 gate over a trail is invalid, and the ranked list of what is left |
 | Which font/size/spacing actually got the most reading done? | [docs/reading-experiments.md](docs/reading-experiments.md) — the ledger, the outcome definitions, and the power estimate that says which questions it can and cannot answer |
+| Could this run on an Apple Watch, and what would it cost? | [docs/watchos-feasibility.md](docs/watchos-feasibility.md) — not at 1x (no watch fits 528x792), SDL3 has no watchOS backend, ranked limits and what to measure first |
 | Why Update Library could not work on a phone, and where the token lives now | [docs/library-sync-on-ios.md](docs/library-sync-on-ios.md) — the two blockers, the measured 401 that proves the credential path end to end, why TestFlight's curl restriction does NOT apply on iOS, and the one thing found and deliberately not fixed |
 
 | ARCHIVE — a dated record, do not cite for current behavior | What it is |
