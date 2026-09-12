@@ -1,6 +1,51 @@
 # Fonts on trial
 
-**REOPENED 2026-09-11 for TWO families: AtkinsonHyperlegibleSoft and
+**REOPENED 2026-09-11 for ONE family: AtkinsonHyperlegibleNext.** Owner ruling
+the same day the two-family trial below opened: *"drop lexica and atkinson
+soft, add atkinson hyperlegible next at 365 weight"*. It is the one name in
+`CROSSPOINT_IOS_TRIAL_FAMILIES` in `ios/CMakeLists.txt`, it is bundled for the
+owner to judge on the phone, and it is not in `installed_families:`. Firmware
+recipe: `lib/EpdFont/scripts/sd-fonts.yaml`, the `AtkinsonHyperlegibleNext`
+entry, REWRITTEN IN PLACE -- a static 400/700 recipe on an untuned 4-slot ramp
+already stood under that name, never built for a surface, and one name gets
+one recipe.
+
+| Family | What it is | License | Weight | Ramp and span |
+|---|---|---|---|---|
+| **AtkinsonHyperlegibleNext** | Braille Institute's own 2025 successor to Atkinson Hyperlegible -- `googlefonts/atkinson-hyperlegible-next`, the two VARIABLE TTFs in `fonts/variable/` (wght 200-800, one per posture), instanced by `build-sd-fonts.py` with fontTools. The repo has no tags and no releases, so the URLs pin commit `7925f50f` (2025-02-21, the tip of `main` that day). | SIL OFL 1.1, "Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors", no Reserved Font Name | **365 for regular and italic** (the owner's number, between the Light 300 and Regular 400 named instances). **He named no bold weight; 700 is taken** for bold and bolditalic, the Bold named instance and what every other four-style recipe uses. | `[7, 9, 11, 13, 15, 17]`, `{ascent: 1137, descent: -339}` -- Soft's, since Soft is these outlines rounded, and RE-PROBED at this weight rather than copied |
+
+**Probed, not copied** -- hinted `x` bitmap rows at 150 DPI under the native
+hinter, the grotesque bench's own probe, on the four instanced TTFs:
+x-height **8/10/12/14/16/18 EXACT in all four styles** (under
+`FT_LOAD_FORCE_AUTOHINT` the two 365 cuts drop slot 0 to 7 px, so the recipe
+does not force it). Leading with the span 1137/-339, `advy_probe`: **22/28/34/
+40/46/52** in all four styles against the tier's 23/28/34/40/46/51, drift 2 --
+the same reading Soft and Lexica gave, the source metrics being the same
+(x-height 496, cap 668 per 1000 em). Ascent clears the accented capitals at 862
+(wght 365) / 880 (700); descent clears the plain ink at -191 / -201. Coverage:
+362 codepoints, Latin-1 94/96, Latin Extended-A 93/128, 4 Greek, no Cyrillic,
+no `liga` and no fi/fl outlines. No `FontDisplayNames.h` row, per the 2026-08
+precedent: it sorts last in the picker under its directory name.
+
+When it is ruled on, the list returns to empty: **promoted** means adding the
+name to `installed_families:` in the firmware's `sd-fonts.yaml` and removing
+it here (and a `FontDisplayNames.h` row); **declined** means deleting
+`build/seedfonts/AtkinsonHyperlegibleNext` and removing the name here. The
+recipe stays either way.
+
+---
+
+**CLOSED 2026-09-11, same day it opened -- AtkinsonHyperlegibleSoft and
+LexicaUltralegible were both DECLINED.** Owner ruling: *"drop lexica and
+atkinson soft, add atkinson hyperlegible next at 365 weight"*. Both names are
+out of `CROSSPOINT_IOS_TRIAL_FAMILIES`, `build/seedfonts/AtkinsonHyperlegibleSoft`
+and `build/seedfonts/LexicaUltralegible` are deleted, and both recipes stay in
+the firmware's `sd-fonts.yaml` with their comment blocks saying declined. That
+is Lexica's second ruling against a surface (the 2026-08-04 cut was the
+first); Soft's first. Replaced by AtkinsonHyperlegibleNext above. The original
+trial note follows.
+
+**Was: REOPENED 2026-09-11 for TWO families: AtkinsonHyperlegibleSoft and
 LexicaUltralegible.** Both are named in `CROSSPOINT_IOS_TRIAL_FAMILIES` in
 `ios/CMakeLists.txt`, both are bundled for the owner to judge on the phone,
 and neither is in `installed_families:`. Firmware recipe commit `89306dfd2`
