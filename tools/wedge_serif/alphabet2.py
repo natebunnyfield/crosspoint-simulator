@@ -208,7 +208,7 @@ def g_d(c):
     P = []; rx = 214 * c["wf"]; cx = rx; x = cx + rx - c["s"] * 0.5
     # the bowl departs the stem thin at top and bottom: draw as an arc from the
     # stem's top junction around to its bottom junction with tapers both ends
-    a0, a1 = math.radians(38), math.radians(38 + 284)
+    a0, a1 = math.radians(24), math.radians(24 + 312)
     pts = ellipse(cx, c["xh"] / 2, rx, c["xh"] / 2 + c["over"], a0, a1, 110, c["k"])
     curve(c, P, pts, compose(taper_in(0.5, 0.18), taper_out(0.5, 0.18)))
     stem(c, P, x, 0, c["asc"], top="wedge", foot="right"); return P
@@ -216,20 +216,20 @@ def g_d(c):
 def g_b(c):
     P = []; x = c["s"] * 0.5; rx = 214 * c["wf"]; cx = x + rx - c["s"] * 0.5
     stem(c, P, x, 0, c["asc"], top="wedge", foot="left")
-    a0, a1 = math.radians(142), math.radians(142 - 284)
+    a0, a1 = math.radians(156), math.radians(156 - 312)
     pts = ellipse(cx, c["xh"] / 2, rx, c["xh"] / 2 + c["over"], a0, a1, 110, c["k"])
     curve(c, P, pts, compose(taper_in(0.5, 0.18), taper_out(0.5, 0.18))); return P
 
 def g_p(c):
     P = []; x = c["s"] * 0.5; rx = 214 * c["wf"]; cx = x + rx - c["s"] * 0.5
     stem(c, P, x, -c["desc"], c["xh"], top="wedge", foot="both")
-    a0, a1 = math.radians(142), math.radians(142 - 284)
+    a0, a1 = math.radians(156), math.radians(156 - 312)
     pts = ellipse(cx, c["xh"] / 2, rx, c["xh"] / 2 + c["over"], a0, a1, 110, c["k"])
     curve(c, P, pts, compose(taper_in(0.5, 0.18), taper_out(0.5, 0.18))); return P
 
 def g_q(c):
     P = []; rx = 214 * c["wf"]; cx = rx; x = cx + rx - c["s"] * 0.5
-    a0, a1 = math.radians(38), math.radians(38 + 284)
+    a0, a1 = math.radians(24), math.radians(24 + 312)
     pts = ellipse(cx, c["xh"] / 2, rx, c["xh"] / 2 + c["over"], a0, a1, 110, c["k"])
     curve(c, P, pts, compose(taper_in(0.5, 0.18), taper_out(0.5, 0.18)))
     stem(c, P, x, -c["desc"], c["xh"], top="wedge", foot="right"); return P
@@ -261,10 +261,16 @@ def g_a(c):
     curve(c, P, bowl, compose(taper_in(0.55, 0.15), taper_out(0.6, 0.12))); return P
 
 def g_g(c):
+    """Single-storey g. The stem starts at 0.42 of the x-height, where the
+    bowl's right side is already vertical, so the two do not double up over
+    the bowl's upper half (owner 2026-09-12: a less distracting overlap
+    area, counterpunch-inspired). A short ear instead of a top wedge."""
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]
     rx = 205 * wf; cx = rx; x = cx + rx - s * 0.5
     _bowl(c, P, cx, rx)
-    stem(c, P, x, -desc * 0.3, xh, top="wedge", foot=None, top_side=-1, flare=False)
+    stem(c, P, x, -desc * 0.3, xh * 0.42, top=None, foot=None, flare=False)
+    ear = line((x - s * 0.1, xh * 0.86), (x + 70 * wf, xh * 0.95), 8)
+    curve(c, P, ear, cut1=c["cut"])
     tail = bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
     curve(c, P, tail, compose(taper_in(0.7, 0.15), flare_end(0.3, 0.3)), cut1=c["cut"]); return P
 

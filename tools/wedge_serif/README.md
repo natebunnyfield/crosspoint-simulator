@@ -39,6 +39,7 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round12.py` | **The font builder.** `build(v, out_dir)` writes one TrueType per technique dict; `BANK` has the 26 of round 12; `quadify`, `Multi`, `orient`, `chaikin`, `decimate`, `jitter`, `stencil`, `offset_naive`. |
 | `round13.py` | Refinements of the three kept techniques (V23 Scissors, V15 Rotating nib, V19 Gravity), six each. |
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
+| `round15.py` | **Seed 73, clean**: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. The current front of the work. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -87,6 +88,7 @@ booleans; see "Limits".
   far more. Only a regular exists; the reader's recipe expects four styles.
 - **The e is 9% narrower than the o with the bar at 0.58**; do not draw it
   on the o's width again (round 9).
+- **Small polygons must never be decimated** (a 14-vertex wedge cut to three is a spike); `CleanCut` guards at 20 vertices.
 - **The n widens with the stem** (`n_width + 0.9·(stem − 110)`) or a bold
   closes its counters and, through the fitting rule, its letter space.
 

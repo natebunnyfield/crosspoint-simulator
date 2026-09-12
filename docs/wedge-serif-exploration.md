@@ -13,11 +13,13 @@
 - **Deliverables are TrueType files**, built by `round12.build`. 26 in
   round 12 (one per technique), 18 in round 13 (refinements of the three
   kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
-  cut six times, `round14.py`). Latest files in
+  cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
+  widths, `round15.py`). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **Awaiting**: the owner's marks on round 14, six independent cuts of
-  V23a (https://claude.ai/code/artifact/4f6b74f3-f8f0-4f66-89d6-e9706b5bc0be).
-  Round 13's other refinements (V15, V19) stand unmarked.
+- **The cut is seed 73** (round 14's V23a-6). **Awaiting**: the owner's
+  marks on round 15, seed 73 clean, six ways
+  (https://claude.ai/code/artifact/d0e4de7e-6239-40d2-8596-c5ac673c3452).
+  Round 13's V15 and V19 refinements stand unmarked.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
   (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
@@ -28,6 +30,10 @@
 - **Standing rulings**: body face; humanist rhythm only; defects are knobs,
   the owner decides what is fixed; evaluate on the sentence, never a word;
   vectors, not bitmaps; diverge when asked, never narrow on your own.
+- **Widths are Garamond's since round 15**: `width` 1.0, `n_width` 380 on
+  B5.9 (o ~450 wide on an x-height of 415, the n's ink ~437). Bowls of
+  b d p q end INSIDE their stems; the g's stem starts at 0.42 x-height with
+  a short ear (counterpunch-inspired quiet joins).
 - **Fitting rules**: the eight in "How letters fit together" below.
 
 Owner ask 2026-09-12: *"let's explore making a humanist wedge serif like
@@ -446,3 +452,31 @@ the jitter amplitude varies ±30% per glyph, and each glyph gets a hand's
 variation (±1.5% scale, ±0.6° tilt). Six TTFs; the glyf table proves six
 distinct outlines of the a. Page:
 https://claude.ai/code/artifact/4f6b74f3-f8f0-4f66-89d6-e9706b5bc0be
+
+
+## Round 15 (2026-09-12): seed 73, clean, Garamond widths, quiet joins
+
+Owner: *"seed 73 and let's make several versions that do not have any gaps
+or stray marks. let's resize o and other letters to match garamond better.
+adjust g and any other characters to have a less distracting overlap area
+(counterpunch inspired)."* Three changes, each with its mechanism:
+
+- **Gaps and strays.** Two causes found: a bracketed wedge has 14 vertices
+  and the scissors decimated it to three, which is a spike; and jitter moved
+  serifs off their stems, which is a gap. `round15.CleanCut`: polygons under
+  20 vertices are never decimated, get one rounding pass and a third of the
+  jitter; every polygon is grown a few units after the cut so joins
+  re-close; polygons under 350 units² of area are dropped as slivers. (The
+  threshold was first 12, which still decimated the wedges; the proof render
+  did not change until it was 20.)
+- **Garamond widths.** `width` 0.9 → 1.0 and `n_width` 340 → 380 on B5.9,
+  so the o is ~450 wide on the 415 x-height (Adobe Garamond's o is ~430 on
+  397) and the n's ink ~437.
+- **Quiet joins.** In `alphabet2.py`: the bowls of b d p q now sweep 312°
+  (was 284°) so their tapered ends land inside the stem instead of 40 units
+  short of it; the g's stem starts at 0.42 of the x-height, where the bowl's
+  right side is already vertical, so the two no longer double up over the
+  bowl's upper half, and its top wedge became a short ear.
+
+Six TTFs (c1 fine, c2 finer, c3 medium, c4 facets, c5 steady hand, c6
+heavier). Page: https://claude.ai/code/artifact/d0e4de7e-6239-40d2-8596-c5ac673c3452
