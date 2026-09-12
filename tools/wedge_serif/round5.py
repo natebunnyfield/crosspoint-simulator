@@ -13,8 +13,8 @@ from PIL import Image, ImageDraw, ImageFont
 # below were solved numerically so the cut's own average advance and n
 # advance land on 500 and 566 (first guess was 0.92 / 0.8 and ran wide).
 MATCHED = dict(wedge.option_params(2)[2])
-MATCHED.update(xh=495, asc=730, desc=200, stem=88, width=0.789, n_width=340, fit=0.907,
-               contrast=0.45, stress=20, flare=0.18)
+MATCHED.update(xh=495, asc=730, desc=200, stem=88, width=0.85, n_width=340, fit=0.8,
+               contrast=0.45, stress=20, flare=0.18, wedge_len=0.75, wedge_depth=1.5, serif_drop=0.22)
 
 SCRIPTS = os.path.expanduser("~/src/crosspoint-reader/lib/EpdFont/scripts/downloaded_fonts")
 REAL = [

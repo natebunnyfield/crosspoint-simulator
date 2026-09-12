@@ -170,3 +170,32 @@ Open question, put to the owner next.
 Page (matched regular and bold beside Coelacanth, LibrisADF and Atkinson
 Next 365 on the same four-level pipeline):
 https://claude.ai/code/artifact/90c27f0d-6bf3-4ff2-9dba-b9bfa83f6fc7
+
+## Round 6 (2026-09-12): "try harder. there is no elegance"
+
+Ruled on round 5, and correct: the first drawing model was stroked polygons
+with a thickness corner (max of |sin| and the hairline), butted joins,
+triangular serifs and kinked splines. `tools/wedge_serif/alphabet2.py` is a
+second model, and the difference is the drawing, not the parameters:
+
+- thickness is continuous: hair + (stem − hair)·|sin(φ − stress)|^1.15;
+- every arch and bowl TAPERS into its stem (the n's shoulder leaves at 0.42
+  of weight; bowls of b d p q leave and rejoin at 0.5 and end AT the stem,
+  not in the air -- the first cut had them ending 60 units short);
+- serifs are bracketed wedges: a concave fillet from the stem edge to an apex
+  a little below the end; top serifs point LEFT (the first pass had the side
+  sign flipped and drew a nub on the right);
+- unseriffed ends take the pen-angle cut (12°); terminals flare 0.15–0.18
+  into the cut and there are no ball terminals (tried, retired: a ball
+  belongs to a different face);
+- round letters overshoot 12; the o's loop overlaps itself by 10° so it has
+  no seam; the s is one Catmull-Rom spline through eight points;
+- the z's diagonal is forced to stem weight (a right-leaning nib makes that
+  stroke a hairline; the scribe turns the pen);
+- stems that continue into a curve (f j t u) carry no entasis, or the join
+  steps.
+
+Matched cut, this round: width 0.85 and fit 0.8 (the o back to ~415 wide;
+average advance runs a little over the S-tier 500 -- that is the trade still
+open). Page, regular and bold, with LibrisADF and Atkinson Next beside:
+https://claude.ai/code/artifact/c521c007-77c0-4083-a160-3f4777a81292
