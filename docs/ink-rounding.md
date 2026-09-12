@@ -133,6 +133,17 @@ cuts not taken).
 
 ## Standing rulings, 2026-09-12
 
+- **The defaults are the owner's slider positions.** Afternoon of the same
+  day, from a screenshot of the six sliders set by hand: *"set defaults to
+  these."* Read off the screenshot by pixel (knob center against the track,
+  +/-2): Corner Rounding **27**, Spread **106**, Impression **68**, Squeeze
+  **93**, Deboss Shadow **99**, Plate Pressure **125**. These replace the
+  morning's 45 / 55 / 100 / 100 / 100 / 100 in `Root.plist`, the dial table,
+  the getter fallbacks, the unreadable-plist registration, the migration's
+  targets and the Mac template's two rounding rows. No second migration: an
+  install that holds the morning's values keeps them, and the owner's own
+  phone already holds these.
+
 - **The phone reports the cost itself.** Asked whether each compose should
   write its cost to the diagnostics log: *yes.* While the Settings.app
   Diagnostics Log switch is on (or `CROSSPOINT_SIM_DIAGNOSTICS=1`), every

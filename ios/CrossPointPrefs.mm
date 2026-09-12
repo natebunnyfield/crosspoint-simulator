@@ -59,7 +59,8 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled";
 // THE INK GROUP, 2026-09-11: six 0..200 sliders. Missing-key failure mode is
 // NOT benign for any of them (a missing value would read 0 = off, and none
-// ships at 0 since 2026-09-12: rounding 45, spread 55, the rest 100), so each
+// ships at 0 since 2026-09-12: rounding 27, spread 106, impression 68, squeeze
+// 93, deboss 99, pressure 125 -- the owner's own slider positions), so each
 // getter carries its own shipped fallback and all six are in the
 // Root.plist-unreadable registration below.
 static NSString *const kInkRoundingPercent = @"inkRoundingPercent";
@@ -313,12 +314,12 @@ static void ensureDefaults(void) {
         kZenModeEnabled : @YES,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
-        kInkRoundingPercent : @(45),
-        kInkSpreadPercent : @(55),
-        kLetterpressPercent : @(100),
-        kPressRingPercent : @(100),
-        kPressDebossPercent : @(100),
-        kPressPressurePercent : @(100),
+        kInkRoundingPercent : @(27),
+        kInkSpreadPercent : @(106),
+        kLetterpressPercent : @(68),
+        kPressRingPercent : @(93),
+        kPressDebossPercent : @(99),
+        kPressPressurePercent : @(125),
       }];
     }
 
@@ -557,12 +558,12 @@ static int inkSliderPercent(NSString *key, int shipped) {
   if (p > 200) p = 200;
   return static_cast<int>(p);
 }
-int CrossPointPrefs_letterpressPercent(void) { return inkSliderPercent(kLetterpressPercent, 100); }
-int CrossPointPrefs_inkRoundingPercent(void) { return inkSliderPercent(kInkRoundingPercent, 45); }
-int CrossPointPrefs_inkSpreadPercent(void) { return inkSliderPercent(kInkSpreadPercent, 55); }
-int CrossPointPrefs_pressRingPercent(void) { return inkSliderPercent(kPressRingPercent, 100); }
-int CrossPointPrefs_pressDebossPercent(void) { return inkSliderPercent(kPressDebossPercent, 100); }
-int CrossPointPrefs_pressPressurePercent(void) { return inkSliderPercent(kPressPressurePercent, 100); }
+int CrossPointPrefs_letterpressPercent(void) { return inkSliderPercent(kLetterpressPercent, 68); }
+int CrossPointPrefs_inkRoundingPercent(void) { return inkSliderPercent(kInkRoundingPercent, 27); }
+int CrossPointPrefs_inkSpreadPercent(void) { return inkSliderPercent(kInkSpreadPercent, 106); }
+int CrossPointPrefs_pressRingPercent(void) { return inkSliderPercent(kPressRingPercent, 93); }
+int CrossPointPrefs_pressDebossPercent(void) { return inkSliderPercent(kPressDebossPercent, 99); }
+int CrossPointPrefs_pressPressurePercent(void) { return inkSliderPercent(kPressPressurePercent, 125); }
 
 // FROZEN 2026-08-23 by owner ruling: this was a Settings.bundle row, then for
 // part of one day the light drawer's Defects slider, and is now neither ("set

@@ -188,17 +188,17 @@ inline constexpr Dial kDials[kDialCount] = {
   // --- the light page's sheet (2026-08-22 doctrine) --------------------------
   {LetterpressPercent, "letterpress", "CROSSPOINT_SIM_LETTERPRESS",
    "letterpressPercent", letterpress::kStrengthOff, letterpress::kStrengthMax,
-   letterpress::kStrengthOff, 100, kPlain, LetterpressPercent},
+   letterpress::kStrengthOff, 68, kPlain, LetterpressPercent},
   // The type's own corners and weight, not a surface over it: 2026-09-11,
   // "an ios settings for rounding sharp corners and other letterpress
   // simulation effects". Shipped 45 / 55 (owner 2026-09-12, "default corner
   // rounding to 45 and spread to 55"); the desktop canary keeps 0.
   {InkRoundingPercent, "ink rounding", "CROSSPOINT_SIM_INK_ROUNDING",
    "inkRoundingPercent", inkrounding::kOff, inkrounding::kMax, inkrounding::kOff,
-   45, kPlain, InkRoundingPercent},
+   27, kPlain, InkRoundingPercent},
   {InkSpreadPercent, "ink spread", "CROSSPOINT_SIM_INK_SPREAD",
    "inkSpreadPercent", inkrounding::kSpreadOff, inkrounding::kSpreadMax,
-   inkrounding::kSpreadOff, 55, kPlain, InkSpreadPercent},
+   inkrounding::kSpreadOff, 106, kPlain, InkSpreadPercent},
   // The four stock-derived rows below carry the PRODUCT of the app's frozen
   // dial and the chosen paper's own factor. THE STOCK IS NO LONGER THE DEFAULT
   // ONE: owner ruling 2026-08-24 froze the light page at Sanguine ink on INDIA
@@ -230,15 +230,15 @@ inline constexpr Dial kDials[kDialCount] = {
    laidstructure::kStrengthOff, 0, kPlain, LaidLinesPercent},
   {PressRingPercent, "press ring", "CROSSPOINT_SIM_PRESS_RING",
    "pressRingPercent", 0,
-   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 100,
+   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 93,
    kPlain, PressRingPercent},
   {PressDebossPercent, "press deboss", "CROSSPOINT_SIM_PRESS_DEBOSS",
    "pressDebossPercent", 0,
-   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 100,
+   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 99,
    kPlain, PressDebossPercent},
   {PressPressurePercent, "press pressure", "CROSSPOINT_SIM_PRESS_PRESSURE",
    "pressPressurePercent", 0,
-   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 100,
+   static_cast<int>(letterpress::kPartScaleMax * 100.0f + 0.5f), 100, 125,
    kPlain, PressPressurePercent},
 
   // --- the dark page's tube (2026-08-22 doctrine, 2026-08-23 roadmap) --------
