@@ -390,3 +390,14 @@ Cyrillic as well.
   when the face was promoted; it now reports 2011 and sorts **first**.
 - Each face loads and renders a real book page: `[SDFS] Loaded SD card font
   family: <name>` with the matching `_14.cpfont`, five for five.
+
+## Closing a trial leaves a stale COMPRESSED copy behind (2026-09-11)
+
+Deleting a declined family from `build/seedfonts` is not enough: the iOS
+configure compresses the tree into `build/ios-dev/seedfonts-cpz/<Family>/`
+and the bundled-but-unclaimed gate lists what is THERE. After Soft and Lexica
+were deleted from the seed tree the configure still refused with both names,
+until their `seedfonts-cpz` directories were removed by hand. Do that as part
+of closing a trial, or `rm -rf build/ios-dev`. (The trial list itself is a
+CACHE variable and has the same staleness; `cmake -U CROSSPOINT_IOS_TRIAL_FAMILIES
+build/ios-dev` re-reads the default, never edit the cache file.)
