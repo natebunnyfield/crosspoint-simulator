@@ -6,6 +6,12 @@ for this simulating this? at 1x or not? what limits are a challenge?"* This is
 a reading of the repo plus platform facts; nothing here was built or measured
 on a watch. Each item says whether it was verified against source or inferred.
 
+## Standing ruling, 2026-09-12: SHELVED
+
+Asked "shelve it / take the three measurements / start the port", the owner
+chose *shelve it, doc stands*. Nothing is built or measured. Re-open only on a
+new ask; do not re-propose the measurements in triage.
+
 ## Verdict
 
 Possible. Not at 1x. The firmware core ports; the harness does not. The work is
