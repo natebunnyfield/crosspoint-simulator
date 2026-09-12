@@ -240,3 +240,58 @@ letters, 152 characters. (The runner-up, "we do not remember the years so much
 as the moments...", scored 31/14/25.) `tools/wedge_serif/round8.py` sets it in
 all twenty-four of round 7, vectors and 13 pt e-ink. Lowercase only still.
 Page: https://claude.ai/code/artifact/55871d98-a049-47c5-92ce-3b92d9f61cac
+
+## How letters fit together in words (guidance, 2026-09-12)
+
+Owner: *"we need to come up with some guidance on how characters fit
+together in words. some e's seem much too big."* The rules the model now
+follows, each one a knob in `alphabet2.py`:
+
+1. **One unit of air.** The n's counter (its two stems' inner distance) is
+   the unit. Two adjacent straight sides share one unit between them, scaled
+   by `fit` (the S-tier faces measure at 0.8; the owner's original rule was
+   1.0). Everything else is a fraction of that: a round side 0.72, an open
+   side (c e f r t) 0.6, a diagonal 0.45. So `nin` and `non` carry the same
+   air to the eye, and `nvn` does not fall apart.
+2. **Fit on the x-height band.** A bearing is measured from the ink between
+   the baseline and the x-height, never from a descender's tail or an
+   ascender's hook: the eye spaces stems, and a j's tail or an f's hook
+   overhangs its neighbors instead of pushing them away.
+3. **Aperture is air.** An open letter's inside counts toward the space on
+   its open side. The e was drawn on the o's full width and read too big:
+   it is now 9% narrower than the o with its bar at 0.58 of the x-height,
+   and the c follows. (Was: same width as o, bar at 0.54.)
+4. **Counters must survive weight.** The n's stem-to-stem distance grows by
+   0.9 of any stem growth, so a bolder cut keeps its counter and, through
+   rule 1, its letter space; the first bold closed both.
+5. **A word space is two units**, not one plus a bit: one plus a bit vanished
+   in the bold.
+6. **Round letters overshoot** the baseline and x-height by 12 (a knob; the
+   hard cuts set it to 0 on purpose).
+7. **Rhythm before shape.** Stems fall at close-to-even intervals along a
+   word; the arches of n m h u leave their stems at 0.48–0.6 of the x-height
+   (`arch_start`) and this is where a face's rhythm lives more than in the
+   serifs.
+8. **What fitting cannot fix:** a letter drawn too wide or too heavy for its
+   neighbors. That is a drawing correction, not a bearing.
+
+## Round 9 (2026-09-12): forty humanist cuts of "Hamburgers in a fjord."
+
+Rulings from the same message: *restrict the rhythm to the humanist end of
+the spectrums*; *there is a charm to naively putting shapes together and
+having defects (like the gap in the o). let me decide what needs fixing*;
+*forty variations with more intentionally designed letters that include
+defects but take risks but stay legible and would work for longform text.*
+
+So `tools/wedge_serif/round9.py`: eight humanist lineages (Venetian,
+Jenson-warm, Dutch-sturdy, Calligraphic, Albertus-flare, Book-quiet,
+Inscriptional, Open-large-x; stress 20–32, contrast 0.4–0.64, pen power
+0.86–1.05, x-height 450–510) x five mutations (clean; naive o with its seam
+and raw butted joins; no overshoot, square cuts, straight wedges; heavier
+with deeper brackets; lighter, wider, longer wedges). The naive o is a KNOB
+now (`naive_o`: the single self-crossing loop, filled even-odd, keeps the
+seam the owner liked), as are `raw_joins` and `overshoot`. The string needed
+a capital, so the model has an H (cap height 0.94 of the ascender, bracketed
+wedges both sides, bar at 0.52). Each tile: vectors plus the same line at
+13 pt on four-level e-ink. Page:
+https://claude.ai/code/artifact/c2ae4aac-323b-4f7a-b6ca-b882ceba9d2e

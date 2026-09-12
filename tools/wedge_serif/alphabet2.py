@@ -144,7 +144,9 @@ def ctx(p):
              over=12, cut=math.radians(p.get("cut_deg", 12)), k=p["bowl_k"],
              fit=p.get("fit", 1.0), nw=p.get("n_width", 400) * p["width"] + (s - 110) * 0.9,
              drop=p.get("serif_drop", 0.18) * s, serif=p.get("serif_style", "wedge"),
-             arch=p.get("arch_start", 0.58), fillet=p.get("fillet", 0.55))
+             arch=p.get("arch_start", 0.58), fillet=p.get("fillet", 0.55),
+             naive_o=p.get("naive_o", False), raw=p.get("raw_joins", False))
+    c["over"] = p.get("overshoot", 12)
     return c
 
 def stem(c, P, x, y0, y1, top="wedge", foot="both", top_side=1, flare=True):
@@ -188,6 +190,12 @@ def _bowl(c, P, cx, rx, taper_at=None):
     overlap by 20 degrees at each end, each a simple polygon: one closed loop
     self-crosses at its seam and an even-odd fill leaves a notch there."""
     ry = c["xh"] / 2 + c["over"]
+    if c["naive_o"]:
+        # the first model's o: one loop that crosses itself at the seam and,
+        # filled even-odd, leaves the small gap the owner liked. Kept as a
+        # choice, not a bug.
+        pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(80), math.radians(80 + 370), 124, c["k"])
+        curve(c, P, pts); return
     for a0 in (80, 260):
         pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(a0 - 10), math.radians(a0 + 200), 70, c["k"])
         curve(c, P, pts)
@@ -232,10 +240,13 @@ def g_c(c):
     curve(c, P, pts, compose(flare_end(0.25, 0.12), lambda t: flare_end(0.25, 0.12)(1 - t)), cut1=c["cut"], cut0=c["cut"]); return P
 
 def g_e(c):
-    P = []; rx = 214 * c["wf"]; cx = rx; ry = c["xh"] / 2 + c["over"]
-    pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(8), math.radians(318), 100, c["k"])
+    # narrower than the o by 9% and the bar at 0.58: an e drawn on the o's
+    # full width reads too big in a word, because its aperture is air that
+    # adds to the letter space on its right.
+    P = []; rx = 195 * c["wf"]; cx = rx; ry = c["xh"] / 2 + c["over"]
+    pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(12), math.radians(318), 100, c["k"])
     curve(c, P, pts, flare_end(0.25, 0.12), cut1=c["cut"])
-    bar = line((cx - rx + c["s"] * 0.35, c["xh"] * 0.54), (cx + rx * 0.98, c["xh"] * 0.54), 12)
+    bar = line((cx - rx + c["s"] * 0.35, c["xh"] * 0.58), (cx + rx * 0.99, c["xh"] * 0.58), 12)
     curve(c, P, bar); return P
 
 def g_a(c):
@@ -260,7 +271,7 @@ def g_g(c):
 def _arch(c, P, x0, x1, xh, start=None):
     start = c["arch"] if start is None else start
     pts = bez((x0, xh * start), (x0, xh * 1.05), (x1, xh * 1.04), (x1, xh * 0.60), 44)
-    curve(c, P, pts, taper_in(0.42, 0.32))
+    curve(c, P, pts, None if c["raw"] else taper_in(0.42, 0.32))
 
 def g_n(c):
     P = []; xh = c["xh"]; x0 = c["s"] / 2; x1 = x0 + c["nw"]
@@ -384,6 +395,22 @@ def g_s(c):
                      (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)], 16, 0.55)
     curve(c, P, spine, compose(flare_end(0.25, 0.12), lambda t: flare_end(0.25, 0.12)(1 - t)), cut1=c["cut"], cut0=c["cut"]); return P
 
+def g_H(c):
+    """The one capital the test string needs. Cap height 0.94 of the
+    ascender (humanist caps sit under the ascenders); bracketed wedges both
+    sides at top and foot; the bar a hair above center."""
+    P = []; s = c["s"]; capH = c["asc"] * 0.94; x0 = s / 2; x1 = x0 + c["nw"] * 1.25
+    for x in (x0, x1):
+        pts = line((x, 0), (x, capH), 36)
+        P.append(outline(pts, c["pen"], c["ent"]))
+        th = c["pen"].th((0, 1))
+        if c["wl"] > 0 and c["serif"] == "wedge":
+            for sd in (1, -1):
+                P.append(bracket_wedge((x, capH), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.8, c["wd"], sd, drop=c["drop"], fillet=c["fillet"]))
+                P.append(bracket_wedge((x, 0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.8, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
+    curve(c, P, line((x0, capH * 0.52), (x1, capH * 0.52), 12))
+    return P
+
 def g_period(c):
     return [blob((c["s"] * 0.55, c["s"] * 0.55), c["s"] * 0.55)]
 
@@ -396,13 +423,13 @@ def g_comma(c):
 def g_hyphen(c):
     return [outline(line((0, c["xh"] * 0.48), (240 * c["wf"], c["xh"] * 0.48), 8), c["pen"])]
 
-GLYPHS = {'a': g_a, 'b': g_b, 'c': g_c, 'd': g_d, 'e': g_e, 'f': g_f, 'g': g_g, 'h': g_h, 'i': g_i,
+GLYPHS = {'H': g_H, 'a': g_a, 'b': g_b, 'c': g_c, 'd': g_d, 'e': g_e, 'f': g_f, 'g': g_g, 'h': g_h, 'i': g_i,
           'j': g_j, 'k': g_k, 'l': g_l, 'm': g_m, 'n': g_n, 'o': g_o, 'p': g_p, 'q': g_q, 'r': g_r,
           's': g_s, 't': g_t, 'u': g_u, 'v': g_v, 'w': g_w, 'x': g_x, 'y': g_y, 'z': g_z,
           '.': g_period, ',': g_comma, '-': g_hyphen}
 
 SIDES = {
-    'a': ('round', 'straight'), 'b': ('straight', 'round'), 'c': ('round', 'open'),
+    'H': ('straight', 'straight'), 'a': ('round', 'straight'), 'b': ('straight', 'round'), 'c': ('round', 'open'),
     'd': ('round', 'straight'), 'e': ('round', 'open'), 'f': ('straight', 'open'),
     'g': ('round', 'straight'), 'h': ('straight', 'straight'), 'i': ('straight', 'straight'),
     'j': ('straight', 'straight'), 'k': ('straight', 'diag'), 'l': ('straight', 'straight'),
@@ -419,10 +446,10 @@ def bearing(c, side): return n_counter(c) / 2.0 * SIDE_FRACTION[side] * c["fit"]
 
 def layout(p, text):
     c = ctx(p); polys = []; x = 0.0; prev = None
-    for ch in text.lower():
+    for ch in text:
         if ch == ' ':
             x += n_counter(c) * 2.2; prev = None; continue
-        fn = GLYPHS.get(ch)
+        fn = GLYPHS.get(ch) or GLYPHS.get(ch.lower())
         if not fn: continue
         gp = fn(c)
         # Fit on the x-height band: a j's tail or an f's hook must not set the
@@ -433,7 +460,7 @@ def layout(p, text):
         allx = [px for poly in gp for (px, _) in poly]
         # ...but the glyph's own ink still starts where it starts
         ink_l = min(allx)
-        lt, rt = SIDES[ch]
+        lt, rt = SIDES.get(ch) or SIDES[ch.lower()]
         if prev is not None: x += bearing(c, prev) + bearing(c, lt)
         polys.extend([[(px - l + x, py) for (px, py) in poly] for poly in gp])
         x += r - l; prev = rt
