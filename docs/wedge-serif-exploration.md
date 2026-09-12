@@ -222,3 +222,21 @@ self-crossed and filled even-odd (a white notch at the top; the o is now two
 overlapping arcs), and the j's tail set its left bearing (bearings are now
 measured in the x-height band only). Page:
 https://claude.ai/code/artifact/28347595-899c-41db-8ee1-9269e5e37b5c
+
+## Round 8 (2026-09-12): the evaluation sentence
+
+Owner: *"I cannot judge this by a single word. It needs to be a sentence with
+meaning behind it. Look at the most common words and combinations of
+letters, digraphs, trigraphs, etcetera."* Six candidates were scored against
+Norvig's top-50 bigrams, top-50 trigrams and the 200 commonest words; the
+winner on all three:
+
+> what we make of the time we have is the only thing that was ever ours to
+> make, and the people we made it for are the ones who will remember how it
+> went.
+
+39/50 bigrams, 16/50 trigrams, 28 of its 34 words in the top 200, 21 distinct
+letters, 152 characters. (The runner-up, "we do not remember the years so much
+as the moments...", scored 31/14/25.) `tools/wedge_serif/round8.py` sets it in
+all twenty-four of round 7, vectors and 13 pt e-ink. Lowercase only still.
+Page: https://claude.ai/code/artifact/55871d98-a049-47c5-92ce-3b92d9f61cac
