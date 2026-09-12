@@ -49,6 +49,10 @@ int main() {
     // The 2026-08-22 doctrine dials ship OFF on the desktop -- that is the
     // byte-identical canary -- while the iOS app defaults both to Subtle.
     check(intOr(v, "letterpressPercent", -1) == 0, "template: letterpress off");
+    // Owner ruling 2026-09-12: the Mac apps' first-run file matches the
+    // phone's shipped rounding and spread (the desktop canary itself stays 0).
+    check(intOr(v, "inkRoundingPercent", -1) == 45, "template: rounding 45");
+    check(intOr(v, "inkSpreadPercent", -1) == 55, "template: spread 55");
     check(intOr(v, "scanlinesPercent", -1) == 0, "template: scanlines off");
     check(intOr(v, "scanlineSizePercent", -1) == 100,
           "template: scanline size is the shipped 1-line-per-row pitch");
