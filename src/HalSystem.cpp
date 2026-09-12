@@ -35,6 +35,8 @@ void HalSystem::checkPanic() {
 
 void HalSystem::clearPanic() { simtruth::clearPanicLatch(); }
 
+void HalSystem::recordHeapSample() {}
+
 std::string HalSystem::getPanicInfo(bool full) {
   if (!simtruth::panicPending()) return {};
   return simtruth::panicReport(simtruth::panicReason().c_str(), "dev-simulator", full);
