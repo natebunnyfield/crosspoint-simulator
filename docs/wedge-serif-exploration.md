@@ -137,3 +137,36 @@ plus a bit vanished in the bold. The fitting rule as ruled runs open in text
 (gap = the whole n counter); the fraction table in `alphabet.py` is the knob
 if that is to tighten. Page:
 https://claude.ai/code/artifact/d93988af-bbda-46cc-bb2b-5f7a04228517
+
+## Round 4 ruling (2026-09-12): "let's take 3 and match it other s tier fonts somewhat"
+
+Cut 3 is the direction. Measured the eight installed regulars on disk from
+their outlines at a 1000 px em (`round5.py` header; Edgar, VandenKeere and
+Doves are commercial and not on disk; Inknut's row was a broken read and is
+excluded):
+
+| | xh | asc | desc | stem | n-counter | o-width | avg adv | n adv |
+|---|---|---|---|---|---|---|---|---|
+| Coelacanth | 412 | 759 | 342 | 70 | 214 | 440 | 447 | 526 |
+| TeXGyreSchola | 465 | 736 | 202 | 94 | 220 | 431 | 521 | 611 |
+| LibreFranklin | 529 | 741 | 165 | 40 | 321 | 485 | 515 | 576 |
+| LibrisADF | 487 | 732 | 195 | 82 | 192 | 387 | 418 | 474 |
+| TeXGyreHeros | 523 | 728 | 218 | 83 | 251 | 473 | 489 | 556 |
+| Almendra | 519 | 725 | 198 | 152 | 127 | 463 | 511 | 594 |
+| AtkinsonHyperlegibleNext | 495 | 707 | 162 | 84 | 240 | 475 | 487 | 550 |
+| **median** | **491** | **730** | **196** | **84** | **217** | **452** | **500** | **566** |
+
+Two n's in those faces sit ~178 apart on a 220 counter: they fit at ~0.8 of
+the counter, not 1.0. `alphabet.py` grew `n_width` and `fit` knobs. The
+matched cut (`round5.MATCHED`): xh 495, asc 730, desc 200, stem 88, contrast
+0.45, stress 20, flare 0.18, n_width 340; width and fit solved numerically so
+the cut's own average advance and n advance land near 500 / 566 (got 517 /
+548 at width 0.789, fit 0.907). **The trade this exposed:** the solver
+narrowed the letters (o-width 387 against the S-tier 452) because the
+fitting rule keeps the gaps wide; matching both the o-width and the advance
+needs the fit to drop to ~0.6, which is further from "gap = the counter".
+Open question, put to the owner next.
+
+Page (matched regular and bold beside Coelacanth, LibrisADF and Atkinson
+Next 365 on the same four-level pipeline):
+https://claude.ai/code/artifact/90c27f0d-6bf3-4ff2-9dba-b9bfa83f6fc7

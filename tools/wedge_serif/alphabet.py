@@ -21,7 +21,8 @@ def ctx(p):
         st=math.radians(p["stress"]), flare=p["flare"])
     # The n's stem-to-stem distance grows with the stem so a bold keeps its
     # counter (found on the first bold: stems at 1.6x ate the air inside).
-    c["nw"] = 400 * c["wf"] + (s - 110) * 0.9
+    c["fit"] = p.get("fit", 1.0)
+    c["nw"] = p.get("n_width", 400) * c["wf"] + (s - 110) * 0.9
     return c
 
 def stem(c, polys, x0, y0, y1, top=True, top_side=-1, foot=True, foot_sides=(-1, 1), profile=None):
@@ -315,13 +316,16 @@ SIDES = {
     'z': ('straight', 'straight'), '.': ('punct', 'punct'), ',': ('punct', 'punct'),
     '-': ('punct', 'punct'),
 }
+# 'straight' at 1.0 is the ruling as stated (gap = the n's counter); the
+# installed S-tier faces measure at ~0.8 (two n's sit 178 apart on a 220
+# counter), and p["fit"] scales the whole table so a cut can match them.
 SIDE_FRACTION = {'straight': 1.0, 'round': 0.72, 'open': 0.6, 'diag': 0.45, 'punct': 0.5}
 
 def n_counter(c):
     return c["nw"] - c["s"]
 
 def bearing(c, side):
-    return n_counter(c) / 2.0 * SIDE_FRACTION[side]
+    return n_counter(c) / 2.0 * SIDE_FRACTION[side] * c.get("fit", 1.0)
 
 def layout(p, text):
     """Polygons for a line of text, plus its advance. Unknown chars are skipped."""
