@@ -105,3 +105,35 @@ vectors, then 13 pt at 2x on the X3's 936 px measure at four levels, native
 pixels, plus a 2x NEAREST magnification of the first two lines.
 No uppercase yet; the sentence is set lowercase. Page:
 https://claude.ai/code/artifact/879713d5-c572-458a-a526-531aa0ce0b41
+
+## Round 3 ruling (2026-09-12): "keep 3 5 19 13"
+
+Four lanes go on: **3 Text cut, 5 Calligraphic, 13 Light, 19 Sturdy text**.
+8, 10, 11, 14, 15 are out. Three more rulings in the same message:
+
+- **A regular and a bold.** Every lane gets a bold: stem about 1.6x the
+  regular's, contrast eased, letters 5% wider so the counters survive; the
+  wedges scale with the stem.
+- **"Some characters like z need serifs."** The bar and diagonal letters
+  (z, v, w, x, y, k) get wedge serifs at their free ends, on the same rule
+  as the stems.
+- **"The distance between characters should be the same as within their
+  characters."** Fitting by the n: the gap between two adjacent stems equals
+  the n's counter (400 x width minus one stem), so a straight side bears
+  half of that; a round side bears 0.72 of a straight one, an open side
+  0.6, a diagonal 0.45 (the classic optical reductions, so a round next to a
+  straight reads as the same air). Bearings are computed from the ink
+  extents in `alphabet.layout`, not typed per glyph.
+
+## Round 4 (2026-09-12): regular and bold
+
+`tools/wedge_serif/round4.py`. The four lanes as a regular and a bold each,
+pangram, vectors and 13 pt e-ink. `bold_of`: stem x1.6, contrast −0.12,
+width x1.05. Two things the first bold taught: the n's stem-to-stem distance
+must grow with the stem (`c["nw"] = 400·width + 0.9·(stem − 110)`) or a bold's
+counters close and, through the fitting rule, its letter gaps with them; and
+the word space is now two letter gaps (`2.2 × n-counter`) because one gap
+plus a bit vanished in the bold. The fitting rule as ruled runs open in text
+(gap = the whole n counter); the fraction table in `alphabet.py` is the knob
+if that is to tighten. Page:
+https://claude.ai/code/artifact/d93988af-bbda-46cc-bb2b-5f7a04228517

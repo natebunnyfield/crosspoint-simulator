@@ -19,6 +19,9 @@ def ctx(p):
         wl=p["wedge_len"] * s, wd=p["wedge_depth"] * s, tip=p["wedge_tip"] * s,
         term=p["terminal"], k=p["bowl_k"], foot=p["foot_scale"],
         st=math.radians(p["stress"]), flare=p["flare"])
+    # The n's stem-to-stem distance grows with the stem so a bold keeps its
+    # counter (found on the first bold: stems at 1.6x ate the air inside).
+    c["nw"] = 400 * c["wf"] + (s - 110) * 0.9
     return c
 
 def stem(c, polys, x0, y0, y1, top=True, top_side=-1, foot=True, foot_sides=(-1, 1), profile=None):
@@ -48,8 +51,30 @@ def end_terminal(c, polys, pts, scale=1.0):
 def arc(c, cx, cy, rx, ry, a0_deg, a1_deg, n=80):
     return superellipse(cx, cy, rx, ry, c["k"], n, math.radians(a0_deg), math.radians(a1_deg))
 
-def diag(c, polys, p0, p1, n=30):
-    polys.append(stroke(line(p0, p1, n), c["pen"], c["fl"]))
+def diag(c, polys, p0, p1, n=30, serif_start=False, serif_end=False, side=-1):
+    """A straight diagonal; serif_start/serif_end put a wedge at that free end
+    (owner 2026-09-12: "some characters like z need serifs")."""
+    pts = line(p0, p1, n)
+    polys.append(stroke(pts, c["pen"], c["fl"]))
+    if c["wl"] <= 0:
+        return
+    tn = tangents(pts)
+    th0 = c["pen"].thickness(tn[0]) * c["fl"](0.0)
+    th1 = c["pen"].thickness(tn[-1]) * c["fl"](1.0)
+    if serif_start:
+        d = (-tn[0][0], -tn[0][1]); nrm = (-d[1], d[0])
+        polys.append(wedge(pts[0], d, nrm, th0, c["wl"] * 0.9, c["wd"] * 0.9, side=side, tip=0))
+    if serif_end:
+        d = tn[-1]; nrm = (-d[1], d[0])
+        polys.append(wedge(pts[-1], d, nrm, th1, c["wl"] * 0.9, c["wd"] * 0.9, side=side, tip=0))
+
+def bar_serif(c, polys, P, direction, side):
+    """A wedge at the free end of a horizontal bar (the z)."""
+    if c["wl"] <= 0:
+        return
+    th = c["pen"].thickness((1, 0))
+    d = direction; nrm = (-d[1], d[0])
+    polys.append(wedge(P, d, nrm, max(th, c["s"] * 0.55), c["wl"] * 0.9, c["wd"] * 0.9, side=side, tip=0))
 
 # ---------------------------------------------------------------- glyphs
 def g_o(c):
@@ -123,28 +148,28 @@ def _arch(c, P, x0, x1, xh, drop=0.62):
     curve(c, P, pts)
 
 def g_n(c):
-    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + 400 * wf
+    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + c["nw"]
     stem(c, P, x0, 0, xh, top=True, foot=True)
     _arch(c, P, x0, x1, xh)
     stem(c, P, x1, 0, xh * 0.66, top=False, foot=True)
     return P, x1 + s / 2 + 40 * wf
 
 def g_h(c):
-    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + 400 * wf
+    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + c["nw"]
     stem(c, P, x0, 0, c["asc"], top=True, foot=True)
     _arch(c, P, x0, x1, xh)
     stem(c, P, x1, 0, xh * 0.66, top=False, foot=True)
     return P, x1 + s / 2 + 40 * wf
 
 def g_m(c):
-    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + 360 * wf; x2 = x1 + 360 * wf
+    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + c["nw"] * 0.9; x2 = x1 + c["nw"] * 0.9
     stem(c, P, x0, 0, xh, top=True, foot=True)
     _arch(c, P, x0, x1, xh); stem(c, P, x1, 0, xh * 0.66, top=False, foot=True, foot_sides=())
     _arch(c, P, x1, x2, xh); stem(c, P, x2, 0, xh * 0.66, top=False, foot=True)
     return P, x2 + s / 2 + 40 * wf
 
 def g_u(c):
-    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + 400 * wf
+    P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x0 = 40 * wf + s / 2; x1 = x0 + c["nw"]
     stem(c, P, x0, xh * 0.38, xh, top=True, foot=False)
     pts = bez((x0, xh * 0.38), (x0, -10), (x1, -10), (x1, xh * 0.38), 40)
     curve(c, P, pts)
@@ -174,33 +199,33 @@ def g_t(c):
 def g_k(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 40 * wf + s / 2
     stem(c, P, x, 0, c["asc"], top=True, foot=True)
-    diag(c, P, (x + 380 * wf, xh * 0.98), (x + s * 0.3, xh * 0.42))
-    diag(c, P, (x + 170 * wf, xh * 0.55), (x + 400 * wf, 0))
+    diag(c, P, (x + 380 * wf, xh * 0.98), (x + s * 0.3, xh * 0.42), serif_start=True, side=1)
+    diag(c, P, (x + 170 * wf, xh * 0.55), (x + 400 * wf, 0), serif_end=True, side=-1)
     return P, x + 400 * wf + 40 * wf
 
 def g_v(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 30 * wf; w = 470 * wf
-    diag(c, P, (x + s * 0.4, xh), (x + w / 2, 0))
-    diag(c, P, (x + w - s * 0.4, xh), (x + w / 2, 0))
+    diag(c, P, (x + s * 0.4, xh), (x + w / 2, 0), serif_start=True, side=1)
+    diag(c, P, (x + w - s * 0.4, xh), (x + w / 2, 0), serif_start=True, side=-1)
     return P, x + w + 30 * wf
 
 def g_w(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 30 * wf; w = 720 * wf
-    diag(c, P, (x + s * 0.4, xh), (x + w * 0.27, 0))
+    diag(c, P, (x + s * 0.4, xh), (x + w * 0.27, 0), serif_start=True, side=1)
     diag(c, P, (x + w * 0.5, xh * 0.95), (x + w * 0.27, 0))
     diag(c, P, (x + w * 0.5, xh * 0.95), (x + w * 0.73, 0))
-    diag(c, P, (x + w - s * 0.4, xh), (x + w * 0.73, 0))
+    diag(c, P, (x + w - s * 0.4, xh), (x + w * 0.73, 0), serif_start=True, side=-1)
     return P, x + w + 30 * wf
 
 def g_x(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 30 * wf; w = 460 * wf
-    diag(c, P, (x + s * 0.4, xh), (x + w - s * 0.4, 0))
-    diag(c, P, (x + w - s * 0.4, xh), (x + s * 0.4, 0))
+    diag(c, P, (x + s * 0.4, xh), (x + w - s * 0.4, 0), serif_start=True, serif_end=True, side=1)
+    diag(c, P, (x + w - s * 0.4, xh), (x + s * 0.4, 0), serif_start=True, serif_end=True, side=-1)
     return P, x + w + 30 * wf
 
 def g_y(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]; x = 30 * wf; w = 470 * wf
-    diag(c, P, (x + s * 0.4, xh), (x + w / 2, 0))
+    diag(c, P, (x + s * 0.4, xh), (x + w / 2, 0), serif_start=True, side=1)
     tail = bez((x + w - s * 0.4, xh), (x + w * 0.55, -desc * 0.6), (x + w * 0.45, -desc * 1.05), (x + w * 0.05, -desc * 0.9), 44)
     curve(c, P, tail, c["flare"] * 0.4); end_terminal(c, P, tail)
     return P, x + w + 30 * wf
@@ -210,6 +235,8 @@ def g_z(c):
     P.append(stroke(line((x, xh), (x + w, xh), 12), c["pen"]))
     diag(c, P, (x + w - s * 0.2, xh), (x + s * 0.2, 0))
     P.append(stroke(line((x, 0), (x + w, 0), 12), c["pen"]))
+    bar_serif(c, P, (x, xh), (-1, 0), side=-1)      # top left, hanging down
+    bar_serif(c, P, (x + w, 0), (1, 0), side=-1)    # bottom right, standing up
     return P, x + w + 40 * wf
 
 def g_s(c):
@@ -270,17 +297,55 @@ GLYPHS = {
     '.': g_period, ',': g_comma, '-': g_hyphen, ' ': g_space,
 }
 
+# FITTING BY THE N (owner 2026-09-12: "the distance between characters should
+# be the same as within their characters"). The n's counter -- the air between
+# its two stems -- is the unit; two adjacent straight sides share exactly one
+# of it, so each bears half. Round, open and diagonal sides bear the classic
+# optical fractions of that, so a round next to a straight reads as the same
+# air. Sides are typed per glyph; bearings are computed from ink extents.
+SIDES = {
+    'a': ('round', 'straight'), 'b': ('straight', 'round'), 'c': ('round', 'open'),
+    'd': ('round', 'straight'), 'e': ('round', 'open'), 'f': ('straight', 'open'),
+    'g': ('round', 'straight'), 'h': ('straight', 'straight'), 'i': ('straight', 'straight'),
+    'j': ('straight', 'straight'), 'k': ('straight', 'diag'), 'l': ('straight', 'straight'),
+    'm': ('straight', 'straight'), 'n': ('straight', 'straight'), 'o': ('round', 'round'),
+    'p': ('straight', 'round'), 'q': ('round', 'straight'), 'r': ('straight', 'open'),
+    's': ('round', 'round'), 't': ('straight', 'open'), 'u': ('straight', 'straight'),
+    'v': ('diag', 'diag'), 'w': ('diag', 'diag'), 'x': ('diag', 'diag'), 'y': ('diag', 'diag'),
+    'z': ('straight', 'straight'), '.': ('punct', 'punct'), ',': ('punct', 'punct'),
+    '-': ('punct', 'punct'),
+}
+SIDE_FRACTION = {'straight': 1.0, 'round': 0.72, 'open': 0.6, 'diag': 0.45, 'punct': 0.5}
+
+def n_counter(c):
+    return c["nw"] - c["s"]
+
+def bearing(c, side):
+    return n_counter(c) / 2.0 * SIDE_FRACTION[side]
+
 def layout(p, text):
     """Polygons for a line of text, plus its advance. Unknown chars are skipped."""
     c = ctx(p)
     polys = []; x = 0.0
+    prev_right = None
     for ch in text:
-        fn = GLYPHS.get(ch.lower())
+        ch = ch.lower()
+        fn = GLYPHS.get(ch)
         if not fn:
             continue
-        gp, adv = fn(c)
-        polys.extend([[(px + x, py) for (px, py) in poly] for poly in gp])
-        x += adv + (22 + c["s"] * 0.16) * c["wf"]  # tracking: the bearings alone ran tight
+        if ch == ' ':
+            x += n_counter(c) * 2.2  # a word space is two letter gaps
+            prev_right = None
+            continue
+        gp, _adv = fn(c)
+        xs = [px for poly in gp for (px, _py) in poly]
+        ink_l, ink_r = min(xs), max(xs)
+        lt, rt = SIDES.get(ch, ('straight', 'straight'))
+        if prev_right is not None:
+            x += bearing(c, prev_right) + bearing(c, lt)
+        polys.extend([[(px - ink_l + x, py) for (px, py) in poly] for poly in gp])
+        x += ink_r - ink_l
+        prev_right = rt
     if p["slant"]:
         sh = math.tan(math.radians(p["slant"]))
         polys = [[(px + py * sh, py) for (px, py) in poly] for poly in polys]
