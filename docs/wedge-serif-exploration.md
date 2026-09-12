@@ -308,3 +308,37 @@ pen power 0.95, width 0.9, wedges 0.85 long / 1.7 deep / drop 0.28 with a
 entasis 0.14, overshoot 14. `tools/wedge_serif/round10.py` interpolates
 every numeric knob linearly, t = 0..1 in ten (B5.0 is B5 exactly, B5.9 the
 target). Page: https://claude.ai/code/artifact/772404c3-3266-4977-9d33-1b055c1a8257
+
+## Round 10 ruling (2026-09-12): B5.9, and assembly by technique
+
+*"go with the last one. but now take a pass at different ways to assemble
+those characters ... do all possible historical techniques, multiple
+versions of one technique if it makes sense ... then come up with many more
+experimental ways to achieve letterforms that have not previously been
+done."* Design frozen at B5.9. `tools/wedge_serif/round11.py` separates
+the DRAWING from the MAKING: a technique is either a pen model (replaces
+`alphabet2.outline`, the centerline-to-ink step) or an impression model (a
+raster pass over the drawn mask, the ink-meets-surface step), and the two
+compose.
+
+Historical, H01–H18: naive assembly; broad nib as a true translation pen at
+26° and 40°; expert brush (pressure envelope, pointed entry/exit) at two
+pressures; pointed pen (hairlines, swelling downstrokes); counterpunch
+(counters found by flood fill, struck crisp and slightly large; outer form
+dilated and softened) at two files; letterpress ink spread; heavy
+impression with the crushed-paper halo (a gray the four levels can carry);
+wood type (edge noise, squarer counters); incised stone (walls and trough);
+constructed compass-and-rule (constant width, circular bowls); stencil
+(two bridges); typewriter (560-unit cell, ribbon halo); phototype (bloom,
+tight fit); the pixel era (18 px em, one bit); the panel's own Bayer dither.
+
+Experimental, X01–X20: rotating nib (50° and 110° along each stroke),
+ribbon (2.5 and 5 waves), gravity (sag toward the baseline), speed pen
+(thickness from curvature), low-poly (1 in 7, 1 in 11), weathered,
+halftone stroke, stitched, misregistered two-color, ghosted (the reader's
+own defect), wax cast, scissors, and five crosses (brush then letterpress,
+counterpunch then knife, pointed pen then pixels, naive then stencil,
+gravity then halftone).
+
+Every tile: lossless 150 px em plus the 13 pt four-level e-ink line. Page:
+https://claude.ai/code/artifact/9f86acd2-3433-40ac-b1af-5321963cb565
