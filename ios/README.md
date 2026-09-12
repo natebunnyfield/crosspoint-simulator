@@ -205,6 +205,26 @@ ios/setup-ci-signing.sh          # list what would be exported
 ios/setup-ci-signing.sh --yes    # export, and set the two secrets
 ```
 
+**`--yes` is the whole job; bare is a dry run.** Run 31 (2026-09-12) still
+logged `IOS_SIGNING_P12_B64 not set` after the script had reportedly been run,
+which is exactly what a bare listing leaves behind. To fire it the way a deploy
+is fired — from a Claude session on the Mac, or a phone SSH client — there is an
+AppleScript that defaults to `--yes`:
+
+```bash
+ssh <mac> 'osascript ~/src/crosspoint-simulator/ios/setup-ci-signing.applescript'
+ssh <mac> 'osascript ~/src/crosspoint-simulator/ios/setup-ci-signing.applescript --check'
+ssh <mac> 'osascript ~/src/crosspoint-simulator/ios/setup-ci-signing.applescript --and-build'
+```
+
+It calls `ios/setup-ci-signing-from-repo.sh`, which pulls `--ff-only` first —
+the same shape as `deploy.applescript` / `deploy-from-repo.sh`. `--and-build`
+also dispatches `testflight-ios.yml` once the secrets are stored, and is ignored
+on a `--check` run. **You still have to be at the Mac**: macOS asks, per private
+key, whether `security` may export it, and those panels cannot be answered over
+SSH. Terminal is activated so they come to the front; fire it and walk away and
+the export sits on an unanswered dialog with the secrets unset.
+
 It exports the login keychain's code-signing identities as one
 password-protected PKCS#12 and stores them as `IOS_SIGNING_P12_B64` and
 `IOS_SIGNING_P12_PASSWORD` on this repo. The workflow's *Signing identity*
