@@ -93,3 +93,15 @@ Rendering it needs the other 21 lowercase skeletons (and punctuation), which
 the synthesizer does not have yet: that is the round-3 job, after the round-2
 ruling, and it is where the exploration stops being five letters and starts
 being a face.
+
+## Round 3 (2026-09-12): "skip to 3"
+
+Round 2 was not judged; the owner skipped to the pangram. The whole
+lowercase plus `. , -` now exists on the same pen (`tools/wedge_serif/alphabet.py`:
+two-storey a, single-storey g, humanist arches, the s as three cubics,
+tracking of 22 + 0.16 stem units because the bearings alone ran tight), and
+`tools/wedge_serif/round3.py` sets the pangram in each of the nine kept cuts:
+vectors, then 13 pt at 2x on the X3's 936 px measure at four levels, native
+pixels, plus a 2x NEAREST magnification of the first two lines.
+No uppercase yet; the sentence is set lowercase. Page:
+https://claude.ai/code/artifact/879713d5-c572-458a-a526-531aa0ce0b41
