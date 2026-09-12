@@ -295,3 +295,16 @@ a capital, so the model has an H (cap height 0.94 of the ascender, bracketed
 wedges both sides, bar at 0.52). Each tile: vectors plus the same line at
 13 pt on four-level e-ink. Page:
 https://claude.ai/code/artifact/c2ae4aac-323b-4f7a-b6ca-b882ceba9d2e
+
+## Round 9 ruling (2026-09-12): B5, and ten steps toward the garalde
+
+*"let's take B5 and make ten iterations between that initial state to one
+that matches garamond, sabon and other similar standard text face."* B5 =
+Book-quiet lineage, lighter/wider/longer wedges (x-height 485, stem 79,
+contrast 0.45 at 22°). The target is a garalde brief, not a render:
+x-height 415, ascender 762, descender 250, stem 82, contrast 0.60 at 26°,
+pen power 0.95, width 0.9, wedges 0.85 long / 1.7 deep / drop 0.28 with a
+0.65 fillet, cut 20°, arches leaving the stem at 0.52, bowl exponent 2.1,
+entasis 0.14, overshoot 14. `tools/wedge_serif/round10.py` interpolates
+every numeric knob linearly, t = 0..1 in ten (B5.0 is B5 exactly, B5.9 the
+target). Page: https://claude.ai/code/artifact/772404c3-3266-4977-9d33-1b055c1a8257
