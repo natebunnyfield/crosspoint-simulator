@@ -140,15 +140,22 @@ cuts not taken).
   dark-page rounding pass; the polarity gate in `writePixelsFromLevels` is a
   ruling, not an omission.
 
-## Found on the way, not fixed
+## Found on the way, and what it turned out to be
 
-`tests/test_note_editor_repaint.sh` fails on the current firmware pin
-(`fb5f7f600`) with "the typed text did not reach the note buffer", and fails
-identically on the tree BEFORE this work (verified by stash on 2026-09-11), so
-it is the firmware's move and not this pass. The firmware's log line at the
-moment is `[NOTEEDIT] no bonded keyboard; on-screen keyboard only (pair from
-Settings)`, which reads as the note editor now gating host-typed text on a
-bonded keyboard. Not investigated further.
+`tests/test_note_editor_repaint.sh` failed on the current firmware pin with
+"the typed text did not reach the note buffer", and failed identically on the
+tree before this work. This section first blamed the firmware's `[NOTEEDIT]
+no bonded keyboard; on-screen keyboard only` line as a new gate on host-typed
+text. **That reading was wrong**, and it was wrong because it was inferred
+from a log line rather than read from the code. Traced 2026-09-12 on the
+owner's ruling: that line dates from 2026-08-06 (`c6faf1ace`) and only decides
+whether BLE starts; host typing still drains through `consumeTypedText`. What
+moved was the SAVE log, in firmware `fa7f0aaae` (2026-09-10, atomic note
+saves): `saved %u/%u bytes` became `saved %u bytes to %s`, and the test's
+grep for the old shape was what failed -- eleven bytes had plainly reached
+the buffer. The test now greps the new line and additionally fails on a
+`short write saving` line (simulator `e83cbed`). Lesson, again: a log line is
+a symptom, not a mechanism.
 
 ## Decisions, as ruled 2026-09-11
 

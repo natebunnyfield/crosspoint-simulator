@@ -852,6 +852,10 @@ run_shell_skip test_foreground_wake tests/test_foreground_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_queued_tap_wake tests/test_queued_tap_wake.sh "$FW_CHECKOUT"
 run_shell_skip test_text_entry tests/test_text_entry.sh "$FW_CHECKOUT"
 run_shell_skip test_read_aloud_capture tests/test_read_aloud_capture.sh "$FW_CHECKOUT"
+# A note repaints while a HOST keyboard types (the split-screen editor's
+# panel-hidden path drains consumeTypedText above its repaint guard). Also the
+# test that was blamed on a firmware keyboard gate on 2026-09-11 when what had
+# moved was the save log line it greps -- read the code, not the log.
 run_shell_skip test_note_editor_repaint tests/test_note_editor_repaint.sh "$FW_CHECKOUT"
 # Three firmware list-navigation fixes from the 2026-09-02 UX audit (F3 the
 # Wi-Fi side pair, F6 the eaten Confirm after View, F7 the lost row after
