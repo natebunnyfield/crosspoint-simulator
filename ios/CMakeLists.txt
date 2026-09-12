@@ -434,23 +434,27 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # the ruling came from rendered specimens rather than from the phone.
   # docs/dtl-trial-fonts-2026-09-06.md carries the build and its measurements.
   #
-  # REOPENED 2026-09-11 for TWO families, and both MUST COME BACK OUT:
-  #   AtkinsonHyperlegibleSoft -- Namesake's rounded cut of Braille Institute's
-  #     Atkinson Hyperlegible Next (namesakefyi/atkinson-hyperlegible-soft
-  #     v1.0.0, OFL 1.1). Not a Braille Institute release; the recipe's comment
-  #     in sd-fonts.yaml says what it is.
-  #   LexicaUltralegible -- the Atkinson extension that was S tier for one day
-  #     (2026-08-03 to 08-04) and buildable-only since. Bundling it here is
-  #     the fresh ruling its cut note asked for, and it is a ruling for a
-  #     TRIAL, not a promotion.
-  # Same ramp and span for both on purpose (one skeleton; the trial compares
-  # the faces, so the fit must not be a variable). Neither is in
-  # installed_families:. When the owner rules on each: promoted -> add it to
+  # Reopened 2026-09-11 for AtkinsonHyperlegibleSoft and LexicaUltralegible
+  # and CLOSED THE SAME DAY, both DECLINED (owner: "drop lexica and atkinson
+  # soft, add atkinson hyperlegible next at 365 weight"): both names are out
+  # of here, both build/seedfonts trees are deleted, both recipes stay in the
+  # firmware's sd-fonts.yaml with their comments saying so.
+  #
+  # REOPENED 2026-09-11 for ONE family, and it MUST COME BACK OUT:
+  #   AtkinsonHyperlegibleNext -- Braille Institute's own release
+  #     (googlefonts/atkinson-hyperlegible-next, OFL 1.1, URLs pinned to
+  #     commit 7925f50f since the repo has no tags), instanced from the
+  #     variable TTFs at the owner's wght 365 for regular and italic. He named
+  #     no bold weight, so bold and bolditalic are 700, the Bold named
+  #     instance -- the recipe's comment in sd-fonts.yaml says so too. Same
+  #     ramp and span as Soft had (same skeleton), re-probed at this weight.
+  # Not in installed_families:. When the owner rules: promoted -> add it to
   # installed_families: in the firmware's sd-fonts.yaml and take the name out
-  # of here; declined -> delete build/seedfonts/<Family> and take the name out
-  # of here. Either way this list returns to empty. docs/trial-fonts.md.
+  # of here; declined -> delete build/seedfonts/AtkinsonHyperlegibleNext and
+  # take the name out of here. Either way this list returns to empty.
+  # docs/trial-fonts.md.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    "AtkinsonHyperlegibleSoft;LexicaUltralegible"
+    "AtkinsonHyperlegibleNext"
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
