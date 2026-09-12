@@ -145,7 +145,9 @@ def ctx(p):
              fit=p.get("fit", 1.0), nw=p.get("n_width", 400) * p["width"] + (s - 110) * 0.9,
              drop=p.get("serif_drop", 0.18) * s, serif=p.get("serif_style", "wedge"),
              arch=p.get("arch_start", 0.58), fillet=p.get("fillet", 0.55),
-             naive_o=p.get("naive_o", False), raw=p.get("raw_joins", False))
+             naive_o=p.get("naive_o", False), raw=p.get("raw_joins", False),
+             s_spine=p.get("s_spine", 0.0), s_floor=p.get("s_floor", 0.0), s_two=p.get("s_two", False),
+             e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False))
     c["over"] = p.get("overshoot", 12)
     return c
 
@@ -242,12 +244,22 @@ def g_c(c):
 def g_e(c):
     # narrower than the o by 9% and the bar at 0.58: an e drawn on the o's
     # full width reads too big in a word, because its aperture is air that
-    # adds to the letter space on its right.
-    P = []; rx = 195 * c["wf"]; cx = rx; ry = c["xh"] / 2 + c["over"]
-    pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(12), math.radians(318), 100, c["k"])
+    # adds to the letter space on its right. The bar OVERLAPS both strokes
+    # (owner 2026-09-12: "the crossbar of the e needs to connect more"); the
+    # bowl starts at the bar's own height so the two meet in one join.
+    P = []; rx = 195 * c["wf"]; cx = rx; ry = c["xh"] / 2 + c["over"]; s = c["s"]
+    bar_y = c["xh"] * 0.58
+    a_start = math.degrees(math.asin(min(1.0, (bar_y - c["xh"] / 2) / ry)))
+    pts = ellipse(cx, c["xh"] / 2, rx, ry, math.radians(a_start), math.radians(318), 100, c["k"])
     curve(c, P, pts, flare_end(0.25, 0.12), cut1=c["cut"])
-    bar = line((cx - rx + c["s"] * 0.35, c["xh"] * 0.58), (cx + rx * 0.99, c["xh"] * 0.58), 12)
-    curve(c, P, bar); return P
+    ov = c.get("e_bar_overlap", 0.45) * s
+    bar = line((cx - rx + s * 0.1, bar_y), (cx + rx + ov, bar_y), 12)
+    curve(c, P, bar)
+    if c.get("e_join_fill", False):
+        # a small pool of ink in each join, the way a pen leaves it
+        for jx in (cx - rx + s * 0.35, cx + rx - s * 0.2):
+            P.append(blob((jx, bar_y), s * 0.42))
+    return P
 
 def g_a(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 360 * wf
@@ -396,10 +408,36 @@ def g_z(c):
     return P
 
 def g_s(c):
-    P = []; xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = c["over"]
-    spine = catmull([(w * 0.93, xh * 0.80), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
-                     (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)], 16, 0.55)
-    curve(c, P, spine, compose(flare_end(0.25, 0.12), lambda t: flare_end(0.25, 0.12)(1 - t)), cut1=c["cut"], cut0=c["cut"]); return P
+    """One smooth spine. The middle of it runs near the nib angle, so the
+    pen alone makes it the thinnest stroke of the letter and any cut breaks
+    it; a humanist s carries its weight IN the spine, so the middle is
+    forced toward stem weight (`s_spine`, 0 = the pen's own, 1 = full stem),
+    the way the z's diagonal is. `s_floor` keeps the whole letter above a
+    fraction of the stem. `s_two` draws it as two overlapping strokes."""
+    P = []; xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = c["over"]; st = c["s"]
+    spine_w = c.get("s_spine", 0.0); floor = c.get("s_floor", 0.0)
+    pts_ctrl = [(w * 0.93, xh * 0.80), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
+                (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)]
+    if c.get("s_two", False):
+        top = catmull(pts_ctrl[:5], 16, 0.55); bot = catmull(pts_ctrl[3:], 16, 0.55)
+        for seg, first in ((top, True), (bot, False)):
+            tn = tangents(seg); n = len(seg) - 1
+            def prof(t, tn=tn, n=n, first=first):
+                i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+                mid = 1.0 - min(1.0, abs((t if first else 1 - t) - 0.85) / 0.3)
+                want = th * (1 - mid) + st * spine_w * mid
+                return max(want, floor * st) / th
+            curve(c, P, seg, compose(prof, flare_end(0.25, 0.12) if first else (lambda t: 1.0)), cut1=c["cut"] if first else None, cut0=None if first else c["cut"])
+        return P
+    spine = catmull(pts_ctrl, 16, 0.55)
+    tn = tangents(spine); n = len(spine) - 1
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)      # 1 at the middle, 0 by the ends
+        want = th if spine_w <= 0 else th * (1 - mid) + st * spine_w * mid
+        want = max(want, floor * st)
+        return want / th * flare_end(0.25, 0.12)(t) * flare_end(0.25, 0.12)(1 - t)
+    curve(c, P, spine, prof, cut1=c["cut"], cut0=c["cut"]); return P
 
 def g_H(c):
     """The one capital the test string needs. Cap height 0.94 of the

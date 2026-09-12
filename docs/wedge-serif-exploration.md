@@ -14,12 +14,12 @@
   round 12 (one per technique), 18 in round 13 (refinements of the three
   kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
   cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
-  widths, `round15.py`). Latest files in
+  widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **The cut is seed 73** (round 14's V23a-6). **Awaiting**: the owner's
-  marks on round 15, seed 73 clean, six ways
-  (https://claude.ai/code/artifact/d0e4de7e-6239-40d2-8596-c5ac673c3452).
-  Round 13's V15 and V19 refinements stand unmarked.
+- **The cut is V23a-73c5** (seed 73, clean, steady hand). **Awaiting**:
+  the owner's marks on round 16, the hairline-throughs addressed six ways
+  (https://claude.ai/code/artifact/e30c4c30-4ff8-4c73-a250-ab9d8c28ad1f).
+  Kept from his notes: the ink traps at the H's crossbar.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
   (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
@@ -480,3 +480,37 @@ adjust g and any other characters to have a less distracting overlap area
 
 Six TTFs (c1 fine, c2 finer, c3 medium, c4 facets, c5 steady hand, c6
 heavier). Page: https://claude.ai/code/artifact/d0e4de7e-6239-40d2-8596-c5ac673c3452
+
+
+## Round 16 (2026-09-12): hairline-throughs, and the e's bar
+
+Owner, on round 15: *"V23a-73c5 but address the gaps and hairline-throughs.
+inktraps like the H crossbar are good but the crossbar of the e needs to
+connect more. make six versions of how to address this. we are making a
+text font here, not a display face."* (First read as "line through the s";
+he corrected it mid-turn: hairline-throughs.)
+
+**The mechanism.** A stroke is one polygon, left side out and right side
+back. At a tight curve, or where the scissors jitter a vertex, the two sides
+fold over each other and the polygon crosses itself; under the nonzero fill
+the folded part winds the other way and cancels: a white hairline through
+the stroke. It is the same failure the brush pens hit in round 12, now on
+the default pen after the cut.
+
+**The e.** Its bar stopped at the bowl's inner edge and the bowl's tapered
+start did not reach it. The bar now runs `e_bar_overlap` (0.45 stem) into
+both strokes and the bowl begins at the bar's own height.
+
+**Six cures** (`tools/wedge_serif/round16.py`, all on c5's cut, all keeping
+the H's traps): h1 quads with no cut on the ink, the cut moved to the serifs;
+h2 cut the DRAWING (decimate and jitter the centerline, then stroke and emit
+overlapping quads, which cannot cancel); h3 the same, gently; h4 stems only,
+curves left smooth; h5 as h2 with a pool of ink at each join of the e's bar;
+h6 as h2 with the s's spine forced toward stem weight, offered as a proposal
+because a humanist s carries its weight there and the pen alone makes it the
+thinnest stroke. That spine change is OFF by default (`s_spine` 0); it was
+briefly the default and was reverted as unasked.
+
+One self-inflicted defect on the way: replacing the s function by slicing
+to the next `def` swallowed the capital H, restored from git. Page:
+https://claude.ai/code/artifact/e30c4c30-4ff8-4c73-a250-ab9d8c28ad1f

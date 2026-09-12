@@ -39,7 +39,8 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round12.py` | **The font builder.** `build(v, out_dir)` writes one TrueType per technique dict; `BANK` has the 26 of round 12; `quadify`, `Multi`, `orient`, `chaikin`, `decimate`, `jitter`, `stencil`, `offset_naive`. |
 | `round13.py` | Refinements of the three kept techniques (V23 Scissors, V15 Rotating nib, V19 Gravity), six each. |
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
-| `round15.py` | **Seed 73, clean**: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. The current front of the work. |
+| `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
+| `round16.py` | **The current front.** Hairline-throughs cured six ways on c5: `pen_centerline_cut` (cut the drawing, stroke it, quad it) and `SerifsOnly`. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -81,8 +82,12 @@ booleans; see "Limits".
   clips (Sutherland–Hodgman), fine.
 - **Abutting contours seam in FreeType** even with exactly shared edges
   (antialiasing conflation). Overlap them. Checked in the glyf table.
-- **A self-crossing outline cancels under nonzero** and leaves slits.
-  Quadify.
+- **A self-crossing outline cancels under nonzero** and leaves slits, and
+  the default pen crosses itself too once a cut jitters a tight curve (the
+  "hairline-throughs" of round 16). Quadify, or cut the centerline instead of
+  the ink (`round16.pen_centerline_cut`).
+- **Never replace a function by slicing to the next `def`** without checking
+  what sits between; it ate the capital H once.
 - **Coverage is H, a–z, `. , -`, space.** No other capitals, digits,
   accents or punctuation yet; the epub pipeline's `reading` interval wants
   far more. Only a regular exists; the reader's recipe expects four styles.
