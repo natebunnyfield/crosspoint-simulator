@@ -50,6 +50,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointTiltGestures.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/PadCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/ReadAloudCore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
@@ -81,6 +82,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointVolumeButtons.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointTiltGestures.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPageTextInput.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointKeyboardBar.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointPaletteMixer.mm
@@ -414,14 +416,41 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # is about to archive from. Emptying the list means a fresh configure (or
   # -DCROSSPOINT_IOS_TRIAL_FAMILIES= on the command line); the ON TRIAL status
   # line below is how you check which one a given build directory believes.
-  # EMPTY since 2026-08-24, and that is the settled state — the trial it was
-  # built for is over. Almendra was promoted (installed_families in
-  # sd-fonts.yaml, and a real lineage row in src/FontDisplayNames.h); Arvo,
-  # Merriweather, IBM Plex Sans and Fira Sans Book were declined ("lose arvo
-  # and the other candidate fonts") and their .cpfont trees deleted from the
-  # seed set, recipes kept. docs/trial-fonts.md records what happened to each.
+  # Was empty from 2026-08-24 (that trial closed: Almendra promoted; Arvo,
+  # Merriweather, IBM Plex Sans and Fira Sans Book declined, "lose arvo and the
+  # other candidate fonts", their .cpfont trees deleted and recipes kept —
+  # docs/trial-fonts.md records each).
+  #
+  # Reopened for DTLRomulus on 2026-09-06 and CLOSED THE SAME DAY: the owner
+  # promoted it, so it is in installed_families: in the firmware's
+  # sd-fonts.yaml and its name has come back out of here. Leaving it in both
+  # is a FATAL error a few lines down, and rightly -- the two lists mean
+  # opposite things, and an exemption left standing over a shipped family
+  # disarms the unclaimed-bundle gate for that name.
+  #
+  # Note for whoever reopens this next: the trial it was named for never
+  # actually happened. The build carrying it could not be archived (codesign
+  # errSecInternalComponent, no Apple Distribution certificate on the Mac), so
+  # the ruling came from rendered specimens rather than from the phone.
+  # docs/dtl-trial-fonts-2026-09-06.md carries the build and its measurements.
+  #
+  # REOPENED 2026-09-11 for TWO families, and both MUST COME BACK OUT:
+  #   AtkinsonHyperlegibleSoft -- Namesake's rounded cut of Braille Institute's
+  #     Atkinson Hyperlegible Next (namesakefyi/atkinson-hyperlegible-soft
+  #     v1.0.0, OFL 1.1). Not a Braille Institute release; the recipe's comment
+  #     in sd-fonts.yaml says what it is.
+  #   LexicaUltralegible -- the Atkinson extension that was S tier for one day
+  #     (2026-08-03 to 08-04) and buildable-only since. Bundling it here is
+  #     the fresh ruling its cut note asked for, and it is a ruling for a
+  #     TRIAL, not a promotion.
+  # Same ramp and span for both on purpose (one skeleton; the trial compares
+  # the faces, so the fit must not be a variable). Neither is in
+  # installed_families:. When the owner rules on each: promoted -> add it to
+  # installed_families: in the firmware's sd-fonts.yaml and take the name out
+  # of here; declined -> delete build/seedfonts/<Family> and take the name out
+  # of here. Either way this list returns to empty. docs/trial-fonts.md.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    ""
+    "AtkinsonHyperlegibleSoft;LexicaUltralegible"
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")
@@ -574,7 +603,8 @@ target_link_libraries(CrossPointX3 PRIVATE crosspoint_core SDL3::SDL3
   "-framework Network"
   "-framework NetworkExtension"
   "-framework AVFoundation"
-  "-framework MediaPlayer")
+  "-framework MediaPlayer"
+  "-framework CoreMotion")
 
 # The harness impersonates an X3. ON THE LIBRARY, PUBLIC -- the same trap
 # CROSSPOINT_RENDER_SCALE fell into below, and it bit harder: the device macro

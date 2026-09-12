@@ -78,6 +78,10 @@
 #include "CrossPointReadAloud.h"
 #include "CrossPointVolumeButtons.h"
 
+extern "C" void CrossPointTiltGestures_begin(void);
+extern "C" void CrossPointTiltGestures_perFrame(void);
+extern "C" void CrossPointTiltGestures_appWillResignActive(void);
+
 // Ask the firmware to RE-RENDER the current activity. Declared rather than
 // included: ActivityManager.h holds unique_ptr<Activity> and would drag the
 // whole activity header set into the harness for one call. Defined in
@@ -3324,6 +3328,7 @@ bool SDLCALL padWatch(void * /*userdata*/, SDL_Event *e) {
       // Center or on the lock screen is the owner setting the volume.
       // Re-arms itself from perFrame once the app is active again.
       CrossPointVolumeButtons_appWillResignActive();
+      CrossPointTiltGestures_appWillResignActive();
       // Read-aloud keeps the process alive with the screen locked, and it
       // turns pages while it reads -- so the firmware goes on rendering. Stop
       // presenting: Metal work submitted from the background is grounds for
@@ -3645,6 +3650,7 @@ void CrossPointHarness_begin() {
   // the firmware slept must not turn a page in the boot that is waking.
   CrossPointVolumeButtons_resetForReboot();
   CrossPointVolumeButtons_begin();
+  CrossPointTiltGestures_begin();
 
   SimulatorOverlay::requestPresent();
 
@@ -3887,4 +3893,5 @@ void CrossPointHarness_perFrame() {
   // After read-aloud: if read-aloud released the audio session this frame,
   // the rocker's re-take has already happened by the time this drains.
   CrossPointVolumeButtons_perFrame();
+  CrossPointTiltGestures_perFrame();
 }

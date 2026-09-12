@@ -18,10 +18,28 @@
 //   Swipe              1 and 2 fingers x up/down/left/right    8
 //   Long press         1 finger, 2 fingers                     2
 //   Pinch              in, out                                 2
-//   Rotation           clockwise, counter-clockwise            2
 //   Shake              --                                      1
+//   Volume rocker      up, down                                2
+//   Tilt               left, right, forward, back              4
 //                                                             ---
-//                                                              17
+//                                                              21
+//
+// REVISED 2026-09-06, owner ruling: *"make volume up and down an assignable
+// setting like all other gestures. drop two finger rotate gestures. add rotate
+// and tilt etc gestures."* Three changes, and the third was narrowed by a
+// follow-up question to the FOUR TILTS alone -- a device-level rotation and a
+// face-down gesture were both offered and declined, so do not read "add rotate"
+// as an outstanding item. Two-finger rotation is gone with its recognizer.
+//
+// THE VOLUME ROCKER STOPPED BEING A FEATURE AND BECAME TWO ROWS. It shipped
+// 2026-09-05 as a pair of bespoke Settings switches -- volumeButtonsTurnPages
+// (arm it) and volumeButtonsFlipped (reverse it) -- wired straight to a front-
+// rocker page turn. Both are retired, and NOTHING IS LOST: "off" is binding
+// both rows to Nothing, which is their default, and "flipped" is assigning
+// them the other way round. What is GAINED is that the rocker can now reach
+// any action the other gestures can, which is what the ruling asked for.
+// ios/VolumePageTurn.h still owns the mechanism -- the KVO, the direction, the
+// level restore -- and only the routing moved here.
 //
 // WHAT THE TRIM DELIBERATELY LEAVES OUT, so nobody re-adds it as an oversight:
 //
@@ -40,15 +58,15 @@
 // **TWO GESTURES THAT WORKED BEFORE THIS ARE GONE, and that is the ruling, not
 // a regression.** The 3-FINGER TAP (toggled zen) and the 4-FINGER TAP (power)
 // were removed with the finger counts that carried them; the owner was shown
-// that exact consequence and chose it. Power is therefore no longer any
-// gesture's default and lives on the pad alone -- it stays in the offered
-// ACTIONS, because he may bind it to something, but nothing ships pointing at
-// it. tests/gesture_bindings_test.cpp names both removals so the change stays
-// pinned rather than incidental.
+// that exact consequence and chose it. Power was pad-only for the nine days
+// that followed; on 2026-09-06 the owner gave it the HOLD ABOVE THE PAPER
+// ("above paper hold to power toggle"), which is now its single default home.
+// tests/gesture_bindings_test.cpp names both removals, and pins power to
+// exactly one row so it cannot drift back onto a second.
 //
 // SO THE MODEL IS LAYERED, NOT THREE PARALLEL ZONES.
 //
-//   1. GESTURES (global)   the base. All 17, and this is what happens anywhere
+//   1. GESTURES (global)   the base. All 21, and this is what happens anywhere
 //                          on screen unless a zone overrides it.
 //   2. ABOVE THE PAPER     the six SINGLE-FINGER gestures (tap, four swipes,
 //                          the hold), defaulting to INHERIT (blank).
@@ -60,8 +78,9 @@
 // behavior as a fixed third case; that was wrong and is gone.
 //
 // MULTI-FINGER HAS NO ZONE OVERRIDE, by ruling: a two-finger tap is the same
-// gesture wherever it lands. Neither does the shake, which has no landing point
-// at all. 17 global rows + 11 zone rows = 28.
+// gesture wherever it lands. Neither do the seven MOTION rows -- the shake, the
+// two volume buttons and the four tilts -- none of which has a landing point at
+// all. 21 global rows + 11 zone rows = 32.
 //
 // ELEVEN, NOT TWELVE: there is no "Swipe Down above the paper" row (owner
 // ruling 2026-09-02, "drop the Above/Below swipe rows that cannot fire"). A
@@ -389,9 +408,16 @@ enum class Family : int {
               // WHICH of the two is decided from the measured scale at firing
               // time, not from a field here: the table would then hold a second
               // copy of a fact only UIKit can answer.
-  Rotate,     // UIRotationGestureRecognizer -- likewise, from the rotation's
-              // sign
   Shake,      // not a recognizer at all: a UIResponder motion event
+  Button,     // the hardware volume rocker. No recognizer either: an
+              // AVAudioSession.outputVolume KVO change, direction read off the
+              // sign, level restored through a hidden MPVolumeView. See
+              // ios/VolumePageTurn.h -- that header still owns the mechanism;
+              // what changed 2026-09-06 is only WHERE the press is routed.
+  Tilt,       // CoreMotion gravity vector. One object serves all four rows and
+              // WHICH fires is decided from the measured axis at firing time,
+              // the same way one UIPinchGestureRecognizer serves Pinch and
+              // Spread. See ios/TiltGestures.h for the arming rule.
 };
 
 // A swipe's direction.
@@ -430,7 +456,7 @@ constexpr const char* groupTitle(Group g) {
   switch (g) {
     case Group::OneFinger: return "Gestures — One Finger";
     case Group::TwoFingers: return "Gestures — Two Fingers";
-    case Group::Device: return "Gestures — The Device";
+    case Group::Device: return "Gestures — Motion";
     case Group::AbovePaper: return "Above the Paper";
     case Group::BelowPaper: return "Below the Paper";
     case Group::Count: break;
@@ -462,10 +488,19 @@ enum class Gesture : int {
   TwoFingerHold,
   Pinch,
   Spread,
-  RotateClockwise,
-  RotateCounterClockwise,
-  // THE DEVICE ITSELF.
+  // No RotateClockwise / RotateCounterClockwise -- dropped 2026-09-06, owner
+  // ruling "drop two finger rotate gestures". The UIRotationGestureRecognizer
+  // went with them, and Family::Rotate with that. A device-level rotation was
+  // considered as a replacement in the same ruling and declined; the four
+  // tilts below are what was taken instead.
+  // THE DEVICE ITSELF -- no touch, no landing point, so no zone override.
   Shake,
+  VolumeUp,
+  VolumeDown,
+  TiltLeft,
+  TiltRight,
+  TiltForward,
+  TiltBack,
   // ABOVE THE PAPER -- overrides, blank by default.
   TapAbove,
   SwipeLeftAbove,
@@ -507,8 +542,8 @@ constexpr Row kRows[] = {
     {Gesture::TapGlobal, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::Neither, "gestureTap", "tap", "Tap", Action::Right},
     {Gesture::SwipeLeftGlobal, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::Neither, "gestureSwipeLeft", "swipe left", "Swipe Left", Action::Right},
     {Gesture::SwipeRightGlobal, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::Neither, "gestureSwipeRight", "swipe right", "Swipe Right", Action::Left},
-    {Gesture::SwipeUpGlobal, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::Neither, "gestureSwipeUp", "swipe up", "Swipe Up", Action::Nothing},
-    {Gesture::SwipeDownGlobal, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::Neither, "gestureSwipeDown", "swipe down", "Swipe Down", Action::Nothing},
+    {Gesture::SwipeUpGlobal, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::Neither, "gestureSwipeUp", "swipe up", "Swipe Up", Action::Back},
+    {Gesture::SwipeDownGlobal, Family::Swipe, 1, Dir::Down, OneFinger::SwipeDown, Zone::Neither, "gestureSwipeDown", "swipe down", "Swipe Down", Action::Confirm},
     {Gesture::HoldGlobal, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::Neither, "gestureHold", "hold", "Hold", Action::Confirm},
   // TWO FINGERS -- pinch and rotation ride here; both are two-finger gestures.
     {Gesture::TwoFingerTap, Family::Tap, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerTap", "2-finger tap", "Tap", Action::Confirm},
@@ -516,19 +551,46 @@ constexpr Row kRows[] = {
     {Gesture::TwoFingerSwipeRight, Family::Swipe, 2, Dir::Right, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeRight", "2-finger swipe right", "Swipe Right", Action::Up},
     {Gesture::TwoFingerSwipeUp, Family::Swipe, 2, Dir::Up, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeUp", "2-finger swipe up", "Swipe Up", Action::Back},
     {Gesture::TwoFingerSwipeDown, Family::Swipe, 2, Dir::Down, OneFinger::Count, Zone::Neither, "gestureTwoFingerSwipeDown", "2-finger swipe down", "Swipe Down", Action::Confirm},
-    {Gesture::TwoFingerHold, Family::LongPress, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerHold", "2-finger hold", "Hold", Action::Nothing},
+    // FONT FAMILY STEP LANDED HERE 2026-09-06, when the shake took the zen
+    // toggle and left the action with no default home. A two-finger hold is
+    // deliberate and hard to perform by accident, it costs no CoreMotion
+    // stream the way binding a tilt would, and binding it returns this row's
+    // arbitration to stock UIKit (shipsInert stops granting simultaneity),
+    // which is the well-understood case rather than the delegate's exception.
+    {Gesture::TwoFingerHold, Family::LongPress, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureTwoFingerHold", "2-finger hold", "Hold", Action::FontFamilyStep},
     {Gesture::Pinch, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gesturePinch", "pinch", "Pinch", Action::Up},
     {Gesture::Spread, Family::Pinch, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureSpread", "spread", "Spread", Action::Down},
-    {Gesture::RotateClockwise, Family::Rotate, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureRotateClockwise", "rotate clockwise", "Rotate Clockwise", Action::Nothing},
-    {Gesture::RotateCounterClockwise, Family::Rotate, 2, Dir::None, OneFinger::Count, Zone::Neither, "gestureRotateCounterClockwise", "rotate counter-clockwise", "Rotate Counter-Clockwise", Action::Nothing},
   // THE DEVICE ITSELF.
-    {Gesture::Shake, Family::Shake, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureShake", "shake", "Shake", Action::FontFamilyStep},
+    {Gesture::Shake, Family::Shake, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureShake", "shake", "Shake", Action::ToggleZen},
+    // The volume rocker, BOUND BY DEFAULT to the page turn it replaced (owner
+    // 2026-09-06, "volume up and down needs to be included too. replacing
+    // existing settings section"): up is the next page, down the previous --
+    // the mapping the retired volumeButtonsTurnPages switch had when it was
+    // switched on.
+    //
+    // THIS REVERSES THE OPT-IN, and the reason for the opt-in has not gone
+    // away: App Store review has rejected apps for taking the volume rocker
+    // over, and holding the audio session is now the DEFAULT state rather than
+    // something the owner asked for (needsVolumeSession() is true out of the
+    // box). Setting both rows to Nothing restores the old shipped behaviour
+    // exactly -- the session is then never held and the volume bezel behaves
+    // as it always did -- so the escape hatch is a binding rather than a
+    // switch, which is the whole point of the move.
+    {Gesture::VolumeUp, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeUp", "volume up", "Volume Up", Action::Right},
+    {Gesture::VolumeDown, Family::Button, 0, Dir::None, OneFinger::Count, Zone::Neither, "gestureVolumeDown", "volume down", "Volume Down", Action::Left},
+    // The four tilts, off CoreMotion's gravity vector. Also Nothing by
+    // default: motion updates cost battery and a reader lying on their side is
+    // already tilted, so nothing arms until a row is bound.
+    {Gesture::TiltLeft, Family::Tilt, 0, Dir::Left, OneFinger::Count, Zone::Neither, "gestureTiltLeft", "tilt left", "Tilt Left", Action::Nothing},
+    {Gesture::TiltRight, Family::Tilt, 0, Dir::Right, OneFinger::Count, Zone::Neither, "gestureTiltRight", "tilt right", "Tilt Right", Action::Nothing},
+    {Gesture::TiltForward, Family::Tilt, 0, Dir::Up, OneFinger::Count, Zone::Neither, "gestureTiltForward", "tilt forward", "Tilt Forward", Action::Nothing},
+    {Gesture::TiltBack, Family::Tilt, 0, Dir::Down, OneFinger::Count, Zone::Neither, "gestureTiltBack", "tilt back", "Tilt Back", Action::Nothing},
   // ABOVE THE PAPER -- overrides, blank by default.
     {Gesture::TapAbove, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::AbovePaper, "gestureTapAbove", "tap above the paper", "Tap", Action::Inherit},
     {Gesture::SwipeLeftAbove, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::AbovePaper, "gestureSwipeLeftAbove", "swipe left above the paper", "Swipe Left", Action::Inherit},
     {Gesture::SwipeRightAbove, Family::Swipe, 1, Dir::Right, OneFinger::SwipeRight, Zone::AbovePaper, "gestureSwipeRightAbove", "swipe right above the paper", "Swipe Right", Action::Inherit},
     {Gesture::SwipeUpAbove, Family::Swipe, 1, Dir::Up, OneFinger::SwipeUp, Zone::AbovePaper, "gestureSwipeUpAbove", "swipe up above the paper", "Swipe Up", Action::Inherit},
-    {Gesture::HoldAbove, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::AbovePaper, "gestureHoldAbove", "hold above the paper", "Hold", Action::ToggleZen},
+    {Gesture::HoldAbove, Family::LongPress, 1, Dir::None, OneFinger::Hold, Zone::AbovePaper, "gestureHoldAbove", "hold above the paper", "Hold", Action::Power},
   // BELOW THE PAPER -- overrides, blank by default.
     {Gesture::TapBelow, Family::Tap, 1, Dir::None, OneFinger::Tap, Zone::BelowPaper, "gestureTapBelow", "tap below the paper", "Tap", Action::Inherit},
     {Gesture::SwipeLeftBelow, Family::Swipe, 1, Dir::Left, OneFinger::SwipeLeft, Zone::BelowPaper, "gestureSwipeLeftBelow", "swipe left below the paper", "Swipe Left", Action::Inherit},
@@ -576,7 +638,9 @@ constexpr Group groupOf(Gesture g) {
   const Row& r = row(g);
   if (r.zone == Zone::AbovePaper) return Group::AbovePaper;
   if (r.zone == Zone::BelowPaper) return Group::BelowPaper;
-  if (r.family == Family::Shake) return Group::Device;
+  if (r.family == Family::Shake || r.family == Family::Button ||
+      r.family == Family::Tilt)
+    return Group::Device;
   return r.fingers <= 1 ? Group::OneFinger : Group::TwoFingers;
 }
 
@@ -599,14 +663,21 @@ constexpr Group groupOf(Gesture g) {
 //   2-swipe up/down    -> Back/Confirm
 //   2-finger tap       -> Confirm    twoTap:
 //   pinch / spread     -> Up/Down    pinch:
-//   shake              -> FontFamilyStep   CPXShakeCatcher motionEnded:
+//   shake              -> ToggleZen        CPXShakeCatcher motionEnded:
 //
 // **HoldAbove IS THE ONE ZONE ROW THAT IS NOT BLANK.** The reason is only the
 // one that applies to every other default here: a one-finger hold ABOVE the
-// paper toggles zen today, while the same hold anywhere else selects, and those
-// are two actions for one gesture -- no single global binding can state both.
-// Left blank it would inherit Confirm, and the hold above the paper would stop
-// doing what it does now. It is an ordinary row: point it anywhere, or at
+// paper is POWER (2026-09-06), while the same hold anywhere else selects, and
+// those are two actions for one gesture -- no single global binding can state
+// both. Left blank it would inherit Confirm, and the hold above the paper
+// would stop doing what it does now.
+//
+// IT USED TO TOGGLE ZEN, and the swap is worth reading with the shake's:
+// 2026-09-06 moved zen onto the SHAKE and power onto this row. Both rows fire
+// outside zen (firesOutsideZen), which is what keeps each reachable from a
+// screen that shows nothing -- and it is why the shake had to take zen rather
+// than some ordinary row, since a row that only fires inside zen could never
+// get you in. It is an ordinary row: point it anywhere, or at
 // Nothing, and nothing here objects.
 constexpr Action defaultAction(Gesture g) { return row(g).def; }
 

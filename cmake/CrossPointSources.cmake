@@ -6,7 +6,7 @@
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
 # pinned at  : b87d10fe76153030b8b60c9005e26db8aedc6a68
-# TU counts  : 145 firmware, 27 simulator (6 C, 164 C++)
+# TU counts  : 145 firmware, 27 simulator (6 C, 166 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
