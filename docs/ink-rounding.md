@@ -131,6 +131,15 @@ the near fraction on a text page is the lever (a run list per row instead of a
 byte mask, and a smaller kernel reach -- 2.5 sigma instead of 3 -- are the two
 cuts not taken).
 
+## Standing rulings, 2026-09-12
+
+- **Light only.** Asked whether Corner Rounding and Ink Spread should also
+  apply on the dark page (a CRT's beam spot rounds corners too), or whether
+  the dark page should get its own Beam Spot slider: *light only, as
+  shipped.* Dark stays the tube -- scanlines, glow, beam. Do not re-propose a
+  dark-page rounding pass; the polarity gate in `writePixelsFromLevels` is a
+  ruling, not an omission.
+
 ## Found on the way, not fixed
 
 `tests/test_note_editor_repaint.sh` fails on the current firmware pin
