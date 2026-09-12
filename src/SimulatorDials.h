@@ -35,6 +35,7 @@
 
 #include "CornerDefocus.h"
 #include "LaidStructure.h"
+#include "InkRounding.h"
 #include "Letterpress.h"
 #include "LightInkPalette.h"
 #include "PageFade.h"
@@ -59,6 +60,8 @@ enum Id {
   GrainMottleCells,
   GrainMottleDepth,
   LetterpressPercent,
+  InkRoundingPercent,
+  InkSpreadPercent,
   PaperToothPercent,
   PaperFormationPercent,
   PaperDefectsPercent,
@@ -186,6 +189,15 @@ inline constexpr Dial kDials[kDialCount] = {
   {LetterpressPercent, "letterpress", "CROSSPOINT_SIM_LETTERPRESS",
    "letterpressPercent", letterpress::kStrengthOff, letterpress::kStrengthMax,
    letterpress::kStrengthOff, 100, kPlain, LetterpressPercent},
+  // The type's own corners and weight, not a surface over it: 2026-09-11,
+  // "an ios settings for rounding sharp corners and other letterpress
+  // simulation effects". Shipped 0 until the Settings.app rows land.
+  {InkRoundingPercent, "ink rounding", "CROSSPOINT_SIM_INK_ROUNDING",
+   "inkRoundingPercent", inkrounding::kOff, inkrounding::kMax, inkrounding::kOff,
+   0, kPlain, InkRoundingPercent},
+  {InkSpreadPercent, "ink spread", "CROSSPOINT_SIM_INK_SPREAD",
+   "inkSpreadPercent", inkrounding::kSpreadOff, inkrounding::kSpreadMax,
+   inkrounding::kSpreadOff, 0, kPlain, InkSpreadPercent},
   // The four stock-derived rows below carry the PRODUCT of the app's frozen
   // dial and the chosen paper's own factor. THE STOCK IS NO LONGER THE DEFAULT
   // ONE: owner ruling 2026-08-24 froze the light page at Sanguine ink on INDIA

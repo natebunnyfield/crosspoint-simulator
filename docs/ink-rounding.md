@@ -1,0 +1,114 @@
+# Ink rounding and ink spread: the press reshapes the type
+
+Status 2026-09-11: **PROTOTYPE, desktop-only, awaiting the owner's ruling on
+rungs and rows.** Model in `src/InkRounding.h`, host test
+`tests/ink_rounding_test.cpp`, wired into the level-to-pixel conversion in
+`src/HalDisplay.cpp`, two rows in `src/SimulatorDials.h`
+(`CROSSPOINT_SIM_INK_ROUNDING`, `CROSSPOINT_SIM_INK_SPREAD`;
+`inkRoundingPercent` / `inkSpreadPercent` in `settings.json`). Nothing on the
+phone reaches it yet; the iOS getters do not exist and the dial table ships 0.
+
+Proof page (native-pixel crops, one page at every rung):
+https://claude.ai/code/artifact/7454f4d1-41c8-475a-aa9a-287a6848af58
+
+## The ask
+
+Owner, 2026-09-11, after build 186 carried Atkinson Hyperlegible Soft on trial
+(Namesake's cut of Hyperlegible Next with every corner rounded in the
+outlines): *"instead of Soft version of one font, let's make an ios settings
+for rounding sharp corners and other letterpress simulation effects."* So the
+rounding moves out of one font's outlines and into the renderer, where every
+family gets it.
+
+## What it is, and where it had to go
+
+A morphological pass on the four-level page image: blur the ink coverage with
+a small Gaussian, re-threshold with a gain derived so that a straight edge
+lands exactly where it was (the pixel whose center is 0.5 px inside the ink
+sees Phi(0.5/sigma) and is mapped back to full ink; its mirror back to paper),
+requantize to exactly the four levels. A convex corner pixel sees
+Phi(0.5/sigma)^2 and stays below full ink: that is the rounding. Concave
+corners gain.
+
+It lives **inside the framebuffer-to-pixel conversion**, before the palette
+ramp, and NOT in the surface stack, because rounding a convex corner REMOVES
+ink and every surface pass is a darken-only modulate. It is the one place a
+pass lightens a pixel, and only because it reshapes ink rather than lighting
+paper. Light pages only, following the letterpress doctrine. Both `setInk*`
+setters raise `pendingReconvert`, the same mechanism as an inversion change,
+because a new value changes nothing until the cached frame is converted again.
+
+**Four levels in, four levels out** is a hard constraint (owner 2026-08-24,
+"keep 4 levels, fidelity is the point"); the test pins it at every rung.
+
+## Measured, 2026-09-11
+
+X3 desktop simulator at the shipped 2x render scale (1056x1584 page), light,
+as-shipped dials, `CROSSPOINT_SIM_GRAIN_SEED=7`, one prose page of
+`ai-engineering-from-zero.epub`, card restored between arms. Ink fraction is
+the whole page; the crop stats are a 200x65 px crop of "wrong." against the
+baseline capture.
+
+| Arm | sigma px | page ink | vs base | crop px moved >4 | compose ms |
+|---|---|---|---|---|---|
+| Off (baseline) | 0 | 7.64% | — | 0 | 24 |
+| Rounding 50 (Subtle) | 0.75 | 7.39% | −3% | 1.4% | 135 |
+| Rounding 100 (Standard) | 1.5 | 6.74% | −12% | 4.0% | 194 |
+| Rounding 150 (Heavy) | 2.25 | 5.56% | −27% | 7.5% | 194 |
+| Rounding 200 (ceiling, not a rung) | 3.0 | 4.64% | −39% | 10.0% | 200 |
+| Spread 100 alone | 0.75 (spread floor) | 8.19% | +7% | 5.8% | 136 |
+| Rounding 100 + Spread 100 | 1.5 | 8.48% | +11% | 7.8% | 197 |
+| Rounding 150 + Spread 100 | 2.25 | 8.55% | +12% | 8.6% | 195 |
+
+**What the eye said, from the 6x crops.** Standard rounding is visible and
+reads as rounder type. Heavy alone breaks hairlines (the w's thin strokes, the
+g's lower loop): a blur-and-threshold starves any feature thinner than about
+2 sigma, which is ink starvation, not rounding. The combined arm (Standard +
+Spread) is the one that looks like a press: corners rounded, hairlines intact,
+slightly heavier. Spread is what pays the ink back.
+
+## Negative results (do not re-derive)
+
+- **The first ladder was 0.6 px at 100 and moved nothing the eye could see.**
+  Subtle (0.3 px) changed zero pixels on a real page and Standard (0.6)
+  changed 0.4% of a text crop. The page is already antialiased, so a corner is
+  only visibly rounder once sigma is about one device pixel (the phone
+  presents 2x at ~0.8). Recalibrated to 1.5 px at 100.
+- **A fixed gain softened every edge into a 2 px ramp at heavy.** The gain has
+  to be derived from sigma (above); the test caught this as mid-side pixels
+  moving.
+- **Spread as a global bias turned the whole sheet light gray** (81% of a
+  text crop moved by 24 levels). It is now applied only where the blurred
+  coverage is above zero; the test pins paper far from ink bit-exact at
+  spread 200.
+- **The fixed-point vertical pass carried two weight sums and was divided by
+  one** — every near-ink pixel saturated black. Caught by the stem-width test.
+- **Per-pixel "spread never lightens" is false** once a blur is involved: a
+  faint 1 px fringe next to nothing can fall under the white threshold. The
+  invariant that holds is total ink and stem width.
+- **Skipping rows with no ink within the kernel radius does not pay** on a
+  text page at this size; the compose went from 120 to 130 ms at the same
+  sigma. Rows are not where the paper is.
+
+## Cost, and what is left to do on it
+
+130–200 ms per compose on the desktop against 24 ms today, five to eight
+times the compose itself, unmeasured on a phone. This is unoptimized: the
+vertical pass clamps and branches per tap, and the whole page is processed
+where roughly 8% of it is ink. The obvious cuts, in order: process only
+columns within the kernel radius of ink per row (a run list per row), drop
+the int64 accumulator (uint32 holds the product), and skip the vertical pass
+where the horizontal result is zero across the band. A page turn on the phone
+already costs ~130 ms of sheet rebuild; adding 200 is not acceptable, adding
+30 would be.
+
+## Open decisions for the owner
+
+1. Which rows reach Settings.app: rounding alone, rounding + spread as two
+   rows, or one coupled "Press" row where spread rises with rounding so the
+   page's ink is conserved.
+2. Which rung ships as default (0 today; the combined Standard arm is the
+   candidate).
+3. Whether the letterpress master (Off/Subtle/Standard/Heavy, frozen at
+   Standard since 2026-08-23) returns as a row alongside, since the ask names
+   "other letterpress simulation effects".

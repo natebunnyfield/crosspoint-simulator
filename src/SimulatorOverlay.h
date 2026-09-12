@@ -341,6 +341,19 @@ void setPhosphorGrain(int strengthPercent, int coverage, int mottleCells,
 // old grain. CROSSPOINT_SIM_LETTERPRESS overrides the argument.
 void setLetterpress(int strengthPercent);
 
+// INK ROUNDING: the press rounds every sharp corner of the type -- convex
+// corners fill out, concave ones fill in -- as a percent of standard: 0 off
+// (bit-exact), 50 subtle, 100 standard, 200 heavy. Applied to the four-level
+// page image before the palette ramp, so it reshapes the ink rather than
+// shading it; still four levels out. Light pages only. Model:
+// src/InkRounding.h. CROSSPOINT_SIM_INK_ROUNDING overrides the argument.
+void setInkRounding(int percent);
+
+// INK SPREAD (dot gain): the ink wicks into the sheet and every stroke gets
+// heavier by a per-page constant. Same pass, same polarity, percent of
+// standard, 0 off. CROSSPOINT_SIM_INK_SPREAD overrides the argument.
+void setInkSpread(int percent);
+
 // PAPER TOOTH: how rough the SHEET the letterpress is printed on is, as a
 // percent of the reference stock's (owner order 2026-08-22, with the paper
 // tint slider: "be sure to be adding the existing noise treatment to it").
