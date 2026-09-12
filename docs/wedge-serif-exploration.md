@@ -12,10 +12,12 @@
   `alphabet2.py` (the second drawing model). Coverage: H, a–z, `. , -`.
 - **Deliverables are TrueType files**, built by `round12.build`. 26 in
   round 12 (one per technique), 18 in round 13 (refinements of the three
-  kept: V23 Scissors, V15 Rotating nib, V19 Gravity). Latest files in
+  kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
+  cut six times, `round14.py`). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **Awaiting**: the owner's marks on round 13
-  (https://claude.ai/code/artifact/39342925-e32c-4626-9646-f07e6f7dc7d3).
+- **Awaiting**: the owner's marks on round 14, six independent cuts of
+  V23a (https://claude.ai/code/artifact/4f6b74f3-f8f0-4f66-89d6-e9706b5bc0be).
+  Round 13's other refinements (V15, V19) stand unmarked.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
   (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
@@ -430,3 +432,17 @@ continue from this work."* Done as: the STATE section at the top of this
 file; `tools/wedge_serif/README.md` (the code map, how a font is built, the
 limits and traps, the reader route); two rows in `CLAUDE.md`'s doc table; a
 project memory of the owner's working rules for this work.
+
+
+## Round 14 (2026-09-12): six cuts of V23a
+
+Owner: *"remake the characters from scratch in v23a six times so I can see
+what is possible. I need versions without identical defects."* The cause of
+the identical defects: round 12/13 seeded the jitter by polygon index, so a
+given glyph got the same snips in every file. `tools/wedge_serif/round14.py`:
+each FONT has its own seed, each GLYPH its own random stream (a counter the
+post op advances glyph by glyph), the decimation starts at a random phase,
+the jitter amplitude varies ±30% per glyph, and each glyph gets a hand's
+variation (±1.5% scale, ±0.6° tilt). Six TTFs; the glyf table proves six
+distinct outlines of the a. Page:
+https://claude.ai/code/artifact/4f6b74f3-f8f0-4f66-89d6-e9706b5bc0be
