@@ -1,5 +1,33 @@
 # Wedge-serif exploration ("fjord")
 
+## STATE, 2026-09-12 (read this first; the log below is dated history)
+
+- **What this is.** A humanist wedge serif for longform reading on the X3
+  and the iOS app, designed by evolution: populations rendered, owner marks
+  keepers, next round narrows or diverges on his ruling. Code and the map of
+  it: [`tools/wedge_serif/README.md`](../tools/wedge_serif/README.md).
+- **The design is B5.9**: `round10.steps()[-1][2]` -- Book-quiet lineage
+  taken to the garalde brief (x-height 415, ascender 762, descender 250,
+  stem 82, contrast 0.60 at 26°, wedges 0.85/1.7, arches at 0.52). Drawn by
+  `alphabet2.py` (the second drawing model). Coverage: H, a–z, `. , -`.
+- **Deliverables are TrueType files**, built by `round12.build`. 26 in
+  round 12 (one per technique), 18 in round 13 (refinements of the three
+  kept: V23 Scissors, V15 Rotating nib, V19 Gravity). Latest files in
+  `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
+- **Awaiting**: the owner's marks on round 13
+  (https://claude.ai/code/artifact/39342925-e32c-4626-9646-f07e6f7dc7d3).
+- **Next, once a technique is chosen**: (1) the rest of the character set
+  (capitals, digits, punctuation, accents -- the epub `reading` interval);
+  (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
+  do not exist; (3) the reader route in the README ("Taking a font to the
+  reader"); (4) an outline-boolean library if one can be built for this
+  Python, which would make counterpunch real and let the naive o keep its
+  seam in a font.
+- **Standing rulings**: body face; humanist rhythm only; defects are knobs,
+  the owner decides what is fixed; evaluate on the sentence, never a word;
+  vectors, not bitmaps; diverge when asked, never narrow on your own.
+- **Fitting rules**: the eight in "How letters fit together" below.
+
 Owner ask 2026-09-12: *"let's explore making a humanist wedge serif like
 Albertus and Icone. give me twenty diverse options with just the word 'fjord'
 then I'll give feedback. consider readability and enjoyment and character. do
@@ -382,3 +410,23 @@ phone, the chosen TTF goes into `lib/EpdFont/local_fonts/`, gets a
 `sd-fonts.yaml` recipe (four styles are expected; only a regular exists),
 and `build-sd-fonts.py` cuts the `.cpfont` tiers; the seed tree and the iOS
 bundle follow from there. That is the step after the pick.
+
+
+## Round 13 (2026-09-12): refinements of V23, V15, V19
+
+Owner: *"make multiple different refinements to v23 v15 v19."*
+`tools/wedge_serif/round13.py`: six each. Scissors: decimation 4/6/8/5 with
+jitter 4/6/3/9, a softened cut (one Chaikin pass after), and scissors on the
+brush pen. Rotating nib: sweeps 30° and 70°, the 50° sweep from 14° and
+from 34°, at contrast 0.45, and with letterpress spread. Gravity: sag 0.3
+and 0.9, at contrast 0.5, on a 76 stem, softened, and combined with the
+rotating nib (`pen_rot_grav`). Eighteen TTFs, all parse and render. Page:
+https://claude.ai/code/artifact/39342925-e32c-4626-9646-f07e6f7dc7d3
+
+## Round 13 ask (2026-09-12): the handoff
+
+*"update or create all md files needed for future agents to learn and
+continue from this work."* Done as: the STATE section at the top of this
+file; `tools/wedge_serif/README.md` (the code map, how a font is built, the
+limits and traps, the reader route); two rows in `CLAUDE.md`'s doc table; a
+project memory of the owner's working rules for this work.
