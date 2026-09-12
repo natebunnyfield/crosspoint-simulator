@@ -1,4 +1,5 @@
 #include "CrossPointPrefs.h"
+#include "InkDefaultsMigration.h"
 
 #include "GestureBindings.h"
 #include "GunStore.h"
@@ -67,6 +68,37 @@ static NSString *const kLetterpressPercent = @"letterpressPercent";
 static NSString *const kPressRingPercent = @"pressRingPercent";
 static NSString *const kPressDebossPercent = @"pressDebossPercent";
 static NSString *const kPressPressurePercent = @"pressPressurePercent";
+// Hidden marker for the one-shot Ink defaults migration (no Settings row).
+static NSString *const kInkDefaultsMigration = @"inkDefaultsMigration";
+
+// Owner ruling 2026-09-12: a phone that opened the Ink group on build 187 or
+// 188 has 0 WRITTEN for Corner Rounding and Ink Spread, and a written value
+// beats the new registered 45/55 forever. Rewrite a written 0 to the default
+// once, marker-gated. Decision in src/InkDefaultsMigration.h (host-tested);
+// this only reads what is written and writes what it is told to.
+static void migrateInkDefaultsOnce(void) {
+  NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+  NSString *suite = [[NSBundle mainBundle] bundleIdentifier];
+  NSDictionary *written = suite ? [ud persistentDomainForName:suite] : nil;
+  auto writtenInt = [&](NSString *key) -> int {
+    id v = written[key];
+    if (![v isKindOfClass:NSNumber.class]) return inkmigration::kUnwritten;
+    return static_cast<int>(lround([(NSNumber *)v doubleValue]));
+  };
+  const inkmigration::Result r = inkmigration::decide(
+      writtenInt(kInkRoundingPercent), writtenInt(kInkSpreadPercent),
+      writtenInt(kInkDefaultsMigration));
+  if (r.rounding != inkmigration::kUnwritten) {
+    [ud setDouble:r.rounding forKey:kInkRoundingPercent];
+    NSLog(@"[CrossPoint] ink: stored rounding 0 migrated to %d", r.rounding);
+  }
+  if (r.spread != inkmigration::kUnwritten) {
+    [ud setDouble:r.spread forKey:kInkSpreadPercent];
+    NSLog(@"[CrossPoint] ink: stored spread 0 migrated to %d", r.spread);
+  }
+  if (writtenInt(kInkDefaultsMigration) != r.marker)
+    [ud setInteger:r.marker forKey:kInkDefaultsMigration];
+}
 
 // The volume rocker as the page rocker (2026-09-05). Missing-key failure mode
 // is benign -- NO means the rocker stays the phone's, which is also the
@@ -291,6 +323,7 @@ static void ensureDefaults(void) {
     }
 
     migratePadPresetForExistingCustomisation();
+    migrateInkDefaultsOnce();
 
     // Off by default; without it batteryState is always UIDeviceBatteryStateUnknown.
     [UIDevice currentDevice].batteryMonitoringEnabled = YES;

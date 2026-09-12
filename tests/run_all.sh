@@ -545,6 +545,13 @@ run scanlines \
 run ink_rounding \
   c++ -std=c++17 -Isrc -o "$OUT/ink_rounding" tests/ink_rounding_test.cpp
 
+# The one-shot migration of a stored 0 to the 2026-09-12 Ink defaults (45 /
+# 55): a written value beats a registered default forever, so builds 187/188
+# would have kept a flat page. Pins that only a 0 moves, each key on its own,
+# and that a 0 chosen after the marker is set stays 0.
+run ink_defaults_migration \
+  c++ -std=c++17 -Isrc -o "$OUT/ink_defaults_migration" tests/ink_defaults_migration_test.cpp
+
 # The 2026-08-23 roadmap items, all three pure headers with the same property:
 # every failure mode is a wrong picture nobody is looking at when it happens.
 #
