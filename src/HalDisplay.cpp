@@ -900,7 +900,7 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 // letterpress effect (docs/letterpress-and-scanlines.md); 0/0 is bit-exact
 // off and the pass is not entered. Guarded by pixelBufMutex like pixelBuf.
 static uint8_t levelBuf[HalDisplay::DISPLAY_WIDTH * HalDisplay::DISPLAY_HEIGHT];
-static std::vector<int32_t> inkRoundingScratch;
+static std::vector<uint32_t> inkRoundingScratch;
 
 static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage) {
   const int w = HalDisplay::activeWidth();

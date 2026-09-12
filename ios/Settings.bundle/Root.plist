@@ -1500,6 +1500,98 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>FooterText</key>
+			<string>How the ink sits on a light page. Every slider runs 0 to 200: the left end switches that effect off, the middle is standard, the right end is twice standard. Corner Rounding rounds every sharp corner of the type the way a press does; Ink Spread lets the ink wick into the sheet so strokes grow heavier; Impression is the letterpress master (the ink-squeeze rim, the deboss shadow and the plate pressure all scale with it), and the three sliders after it adjust those parts on their own. None of this touches a dark page.</string>
+			<key>Title</key>
+			<string>Ink</string>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>0</real>
+			<key>Key</key>
+			<string>inkRoundingPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Corner Rounding</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>0</real>
+			<key>Key</key>
+			<string>inkSpreadPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Ink Spread</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>letterpressPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Impression</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>pressRingPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Ink Squeeze</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>pressDebossPercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Deboss Shadow</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<real>100</real>
+			<key>Key</key>
+			<string>pressPressurePercent</string>
+			<key>MaximumValue</key>
+			<real>200</real>
+			<key>MinimumValue</key>
+			<real>0</real>
+			<key>Title</key>
+			<string>Plate Pressure</string>
+			<key>Type</key>
+			<string>PSSliderSpecifier</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
 			<string>On a dark page, switching off looks like switching off a tube: the picture collapses to a bright line, the line closes to a dot, and the dot fades. The screen then stays dark until you wake it — you will not see the sleep screen.</string>
 			<key>Title</key>
 			<string>Sleep</string>

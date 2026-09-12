@@ -116,6 +116,22 @@ int registeredDefault(const std::string &src, const std::string &symbol) {
 }
 
 // The DefaultValue of a Root.plist toggle, as 0/1.
+// The DefaultValue of a Root.plist slider or multi-value row, as an int.
+// <real>N</real> or <integer>N</integer>; DefaultValue precedes Key here too.
+int plistNumberDefault(const std::string &src, const std::string &key) {
+  const std::string needle = "<string>" + key + "</string>";
+  const size_t at = src.find(needle);
+  if (at == std::string::npos) return kNotFound;
+  const size_t dv = src.rfind("<key>DefaultValue</key>", at);
+  if (dv == std::string::npos) return kNotFound;
+  for (const char *tag : {"<real>", "<integer>"}) {
+    const size_t v = src.find(tag, dv);
+    if (v != std::string::npos && v < at)
+      return static_cast<int>(std::atof(src.c_str() + v + std::strlen(tag)) + 0.5);
+  }
+  return kNotFound;
+}
+
 int plistToggleDefault(const std::string &src, const std::string &key) {
   const std::string needle = "<string>" + key + "</string>";
   const size_t at = src.find(needle);
@@ -331,9 +347,20 @@ int main(int argc, char **argv) {
   pinShipped(simdials::PageFadeDepthPercent,
              frozenReturn(prefs, "CrossPointPrefs_pageFadeDepthPercent"),
              "CrossPointPrefs.mm");
+  // The Ink group (2026-09-11): six LIVE sliders, so the shipped value is the
+  // row's DefaultValue in Root.plist, not a frozen return.
   pinShipped(simdials::LetterpressPercent,
-             frozenReturn(prefs, "CrossPointPrefs_letterpressPercent"),
-             "CrossPointPrefs.mm");
+             plistNumberDefault(plist, "letterpressPercent"), "Root.plist");
+  pinShipped(simdials::InkRoundingPercent,
+             plistNumberDefault(plist, "inkRoundingPercent"), "Root.plist");
+  pinShipped(simdials::InkSpreadPercent,
+             plistNumberDefault(plist, "inkSpreadPercent"), "Root.plist");
+  pinShipped(simdials::PressRingPercent,
+             plistNumberDefault(plist, "pressRingPercent"), "Root.plist");
+  pinShipped(simdials::PressDebossPercent,
+             plistNumberDefault(plist, "pressDebossPercent"), "Root.plist");
+  pinShipped(simdials::PressPressurePercent,
+             plistNumberDefault(plist, "pressPressurePercent"), "Root.plist");
   pinShipped(simdials::PaperDefectsPercent,
              frozenReturn(prefs, "CrossPointPrefs_paperDefectsPercent"),
              "CrossPointPrefs.mm");
@@ -456,15 +483,16 @@ int main(int argc, char **argv) {
     }
   }
 
-  // THE PAPER INSTRUMENT'S FROZEN SIX, from the ink picker.
-  pinShipped(simdials::PressRingPercent, frozenReturn(picker, "storedRingPct"),
-             "CrossPointLightInkPicker.mm");
-  pinShipped(simdials::PressDebossPercent,
-             frozenReturn(picker, "storedDebossPct"),
-             "CrossPointLightInkPicker.mm");
-  pinShipped(simdials::PressPressurePercent,
-             frozenReturn(picker, "storedPressurePct"),
-             "CrossPointLightInkPicker.mm");
+  // THE PAPER INSTRUMENT'S FROZEN SIX, from the ink picker -- three of which
+  // (the press parts) are Settings.app sliders since 2026-09-11. The picker's
+  // one apply must read the SAME getters the shim polls, or its 100s would
+  // overwrite what the owner set; pinned as a text match on the delegation.
+  for (const char *line :
+       {"int storedRingPct(void) { return CrossPointPrefs_pressRingPercent(); }",
+        "int storedDebossPct(void) { return CrossPointPrefs_pressDebossPercent(); }",
+        "int storedPressurePct(void) { return CrossPointPrefs_pressPressurePercent(); }"})
+    check(picker.find(line) != std::string::npos,
+          std::string("the light drawer's press part must delegate to the slider: ") + line);
   // Drift returns a SYMBOL, not a literal: text match plus value match.
   check(picker.find("int storedDriftPct(void) { return lightink::kPaperDriftMax; }") !=
             std::string::npos,

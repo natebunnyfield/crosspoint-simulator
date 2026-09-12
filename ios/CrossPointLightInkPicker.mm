@@ -143,9 +143,12 @@ constexpr int kFrozenPaperStrengthPct = 100;
 int storedToothPct(void) { return 300; }
 int storedFormationPct(void) { return 80; }
 int storedDriftPct(void) { return lightink::kPaperDriftMax; }
-int storedRingPct(void) { return 100; }
-int storedDebossPct(void) { return 100; }
-int storedPressurePct(void) { return 100; }
+// Since 2026-09-11 the three press parts are Settings.app sliders (the Ink
+// group); the drawer reads the same getters so its one apply cannot push a
+// stale 100 over what the owner set.
+int storedRingPct(void) { return CrossPointPrefs_pressRingPercent(); }
+int storedDebossPct(void) { return CrossPointPrefs_pressDebossPercent(); }
+int storedPressurePct(void) { return CrossPointPrefs_pressPressurePercent(); }
 // Defects is frozen in CrossPointPrefs.mm rather than here, because that file
 // already holds the day's other frozen getters; read through it so the two
 // surfaces cannot disagree about how marked the sheet is.

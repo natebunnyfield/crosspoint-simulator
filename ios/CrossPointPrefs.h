@@ -228,6 +228,25 @@ int CrossPointPrefs_presentFlash(void);
 int CrossPointPrefs_letterpressPercent(void);
 int CrossPointPrefs_scanlinesPercent(void);
 
+// THE INK GROUP (owner ruling 2026-09-11: "ios app settings for rounding,
+// spread and all other ink effects 0-200"). Six Settings.app sliders, each
+// 0..200 percent of standard, read live from NSUserDefaults on every poll:
+//   Corner Rounding  inkRoundingPercent   0 off, 100 sigma 1.5 px, 200 twice
+//   Ink Spread       inkSpreadPercent     0 off, 100 +0.12 coverage (dot gain)
+//   Impression       letterpressPercent   the letterpress MASTER (above)
+//   Ink Squeeze      pressRingPercent     the three press parts riding on it
+//   Deboss Shadow    pressDebossPercent
+//   Plate Pressure   pressPressurePercent
+// A key the store does not hold -- a Root.plist that would not load -- falls
+// to the row's shipped default, never to 0, so a lost store cannot flatten
+// the page. Paper effects (tooth, formation, drift, show-through, wires,
+// defects) are the SHEET, not ink, and stay frozen.
+int CrossPointPrefs_inkRoundingPercent(void);
+int CrossPointPrefs_inkSpreadPercent(void);
+int CrossPointPrefs_pressRingPercent(void);
+int CrossPointPrefs_pressDebossPercent(void);
+int CrossPointPrefs_pressPressurePercent(void);
+
 // PAPER DEFECTS: how marked the light page's sheet is, 0..100 (0 a fresh sheet
 // and bit-exact off, 30 the default, 100 a thoroughly used book). An INCIDENCE
 // dial. FROZEN at 0 on 2026-08-23 with no control anywhere that reaches it --
