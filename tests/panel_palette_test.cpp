@@ -424,7 +424,8 @@ static void testRootPlist(const char *path) {
       // rendering it -- with the row gone there would be no way back.
       "pageFadeSeconds",
       "pageFadeDepthPercent",
-      "letterpressPercent",
+      // letterpressPercent is NOT in this list: it came back as the Ink
+      // group's Impression slider on 2026-09-11 by owner ruling.
       "scanlinesPercent",
       "scanlineSizePercent",
       "scanlineBloomPercent",

@@ -1937,6 +1937,34 @@ void pollLetterpress() {
   SimulatorOverlay::setLetterpress(pct);
 }
 
+// THE REST OF THE INK GROUP (2026-09-11): five more 0..200 sliders, each
+// polled the same way and pushed only on change. The three press parts used
+// to be pushed once by the light drawer's apply from frozen 100s; that apply
+// now reads these same getters, so there is one source and the drawer (which
+// nothing on the phone opens) cannot disagree with the slider.
+void pollInkEffects() {
+  struct Row {
+    const char *tag;
+    int (*read)();
+    void (*push)(int);
+    int applied;
+  };
+  static Row rows[] = {
+      {"ink rounding", CrossPointPrefs_inkRoundingPercent, SimulatorOverlay::setInkRounding, -1},
+      {"ink spread", CrossPointPrefs_inkSpreadPercent, SimulatorOverlay::setInkSpread, -1},
+      {"press ring", CrossPointPrefs_pressRingPercent, SimulatorOverlay::setPressRing, -1},
+      {"press deboss", CrossPointPrefs_pressDebossPercent, SimulatorOverlay::setPressDeboss, -1},
+      {"press pressure", CrossPointPrefs_pressPressurePercent, SimulatorOverlay::setPressPressure, -1},
+  };
+  for (Row &row : rows) {
+    const int pct = row.read();
+    if (pct == row.applied) continue;
+    row.applied = pct;
+    SDL_Log("[ink] %s %d%% of standard%s", row.tag, pct, pct == 0 ? " (off)" : "");
+    row.push(pct);
+  }
+}
+
 // THE SHEET'S ROUGHNESS, from the stored paper selection (owner order
 // 2026-08-22: "be sure to be adding the existing noise treatment to it"). The
 // picker pushes this the moment a finger moves, so the poll is here for the
@@ -3882,6 +3910,7 @@ void CrossPointHarness_perFrame() {
   }
   pollPhosphorGrain();
   pollLetterpress();
+  pollInkEffects();
   pollPaperTooth();
   pollScanlines();
   pollDarkSurfaceItems();

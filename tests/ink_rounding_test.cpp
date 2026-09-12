@@ -50,7 +50,7 @@ int inkWidthOfRow(const std::vector<uint8_t> &img, int y) {
 }
 
 bool run(std::vector<uint8_t> &img, int rounding, int spread) {
-  std::vector<int32_t> scratch;
+  std::vector<uint32_t> scratch;
   return inkrounding::roundLevels(img.data(), W, H, rounding, spread, scratch);
 }
 

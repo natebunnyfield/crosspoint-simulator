@@ -56,6 +56,17 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // kDiagnosticsEnabled and kPowerOffCollapse, neither of which is there
 // either).
 static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled";
+// THE INK GROUP, 2026-09-11: six 0..200 sliders. Missing-key failure mode is
+// NOT benign for four of them (a missing letterpress or press part would read
+// 0 = flat ink, which is not the shipped page), so each getter carries its
+// own shipped fallback and the four non-zero ones are also in the
+// Root.plist-unreadable registration below.
+static NSString *const kInkRoundingPercent = @"inkRoundingPercent";
+static NSString *const kInkSpreadPercent = @"inkSpreadPercent";
+static NSString *const kLetterpressPercent = @"letterpressPercent";
+static NSString *const kPressRingPercent = @"pressRingPercent";
+static NSString *const kPressDebossPercent = @"pressDebossPercent";
+static NSString *const kPressPressurePercent = @"pressPressurePercent";
 
 // The volume rocker as the page rocker (2026-09-05). Missing-key failure mode
 // is benign -- NO means the rocker stays the phone's, which is also the
@@ -270,6 +281,10 @@ static void ensureDefaults(void) {
         kZenModeEnabled : @YES,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
+        kLetterpressPercent : @(100),
+        kPressRingPercent : @(100),
+        kPressDebossPercent : @(100),
+        kPressPressurePercent : @(100),
       }];
     }
 
@@ -490,7 +505,29 @@ int CrossPointPrefs_phosphorGrainMottleDepth(void) { return 90; }
 // rendering it, and with the row gone there would be no way to change it back.
 // 100 = Standard, a visible impression. Still the master the light
 // drawer's press sub-dials scale against.
-int CrossPointPrefs_letterpressPercent(void) { return 100; }
+//
+// ...and LIVE AGAIN since 2026-09-11 (owner: "ios app settings for rounding,
+// spread and all other ink effects 0-200"): a Settings.app slider in the Ink
+// group, read from NSUserDefaults with the shipped 100 as the fallback for a
+// store that holds nothing. The freeze paragraph above is kept as the record
+// of why the row was gone for nineteen days.
+static int inkSliderPercent(NSString *key, int shipped) {
+  ensureDefaults();
+  checkKnown(key);
+  id v = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+  if (![v isKindOfClass:NSNumber.class]) return shipped;
+  // PSSliderSpecifier stores a double; the model takes an integer percent.
+  long p = lround([(NSNumber *)v doubleValue]);
+  if (p < 0) p = 0;
+  if (p > 200) p = 200;
+  return static_cast<int>(p);
+}
+int CrossPointPrefs_letterpressPercent(void) { return inkSliderPercent(kLetterpressPercent, 100); }
+int CrossPointPrefs_inkRoundingPercent(void) { return inkSliderPercent(kInkRoundingPercent, 0); }
+int CrossPointPrefs_inkSpreadPercent(void) { return inkSliderPercent(kInkSpreadPercent, 0); }
+int CrossPointPrefs_pressRingPercent(void) { return inkSliderPercent(kPressRingPercent, 100); }
+int CrossPointPrefs_pressDebossPercent(void) { return inkSliderPercent(kPressDebossPercent, 100); }
+int CrossPointPrefs_pressPressurePercent(void) { return inkSliderPercent(kPressPressurePercent, 100); }
 
 // FROZEN 2026-08-23 by owner ruling: this was a Settings.bundle row, then for
 // part of one day the light drawer's Defects slider, and is now neither ("set

@@ -175,79 +175,120 @@ inline Kernel kernelFor(float sigma) {
 // place. `scratch` is resized as needed and may be reused across calls.
 // Returns false, and touches nothing, when the pass is off.
 //
-// COST. The page is mostly paper, and paper far from ink is unchanged by
-// construction, so rows whose (2r+1)-row band holds no ink are skipped whole
-// (interline space, margins, the blank half of a chapter's last page). The
-// two passes are integer, over zero-padded rows, so the inner loops carry no
-// clamp. Measured on a 1056x1584 text page before this: 120 ms per compose
-// at sigma 0.6 and 195 ms at 1.2 -- five to eight times the compose itself.
+// COST. Only pixels within the kernel's reach of ink can change, and on a
+// text page that is a minority of the sheet. A NEAR mask is built first -- the
+// ink mask dilated by r horizontally then vertically (two linear sweeps with a
+// countdown, no per-pixel window) -- and both blur passes run only where it is
+// set. A pixel outside it has no ink within r in any direction, so its
+// horizontal blur is zero and the zero-initialised plane already holds its
+// answer for the vertical taps of its neighbours. The passes are integer over
+// a padded plane, so the inner loops carry no clamp and no branch. Measured
+// before this (1056x1584 text page, desktop): 135-200 ms per compose against
+// the compose's own 24; the first cut, skipping blank ROWS, bought nothing
+// because rows are not where the paper is on a text page.
 inline bool roundLevels(uint8_t *levels, int w, int h, int roundingPercent,
-                        int spreadPercent, std::vector<int32_t> &scratch) {
+                        int spreadPercent, std::vector<uint32_t> &scratch) {
   const float sigma = sigmaForPass(roundingPercent, spreadPercent);
   const float spread = kSpreadAt100 * static_cast<float>(clampSpread(spreadPercent)) / 100.0f;
   if (sigma <= 0.0f) return false;
   if (w <= 0 || h <= 0) return false;
   const Kernel k = kernelFor(sigma);
   const int r = k.radius;
+  const int pw = w + 2 * r;   // padded width
+  const int ph = h + 2 * r;   // padded height
+  const size_t pn = static_cast<size_t>(pw) * static_cast<size_t>(ph);
   const size_t n = static_cast<size_t>(w) * static_cast<size_t>(h);
-  const int pw = w + 2 * r;  // padded row width
-  // scratch: [0, h) row flags, then h*pw horizontal results, then a padded row.
-  scratch.assign(static_cast<size_t>(h) + n + static_cast<size_t>(h) * pw + pw, 0);
-  int32_t *rowInk = scratch.data();
-  int32_t *hpass = rowInk + h;      // h * pw, zero-padded
-  int32_t *cov = hpass + static_cast<size_t>(h) * pw;  // n, final coverage*4096
-  // Which rows hold any ink at all.
+  // scratch: padded coverage plane, padded horizontal-pass plane, near mask.
+  scratch.assign(2 * pn + (n + 3) / 4, 0);
+  uint32_t *cov = scratch.data();
+  uint32_t *hp = cov + pn;
+  uint8_t *near = reinterpret_cast<uint8_t *>(hp + pn);
+  std::memset(near, 0, n);
+
+  // Coverage into the padded plane, and the ink mask dilated by r along x.
   for (int y = 0; y < h; y++) {
     const uint8_t *row = levels + static_cast<size_t>(y) * w;
-    int32_t any = 0;
-    for (int x = 0; x < w && !any; x++) any = row[x] != GrayscalePreview::kWhite;
-    rowInk[y] = any;
-  }
-  // Which rows need work: within r of an inked row.
-  std::vector<uint8_t> active(static_cast<size_t>(h), 0);
-  for (int y = 0; y < h; y++) {
-    if (!rowInk[y]) continue;
-    for (int yy = std::max(0, y - r); yy <= std::min(h - 1, y + r); yy++) active[yy] = 1;
-  }
-  // Horizontal pass on active rows, into the padded plane (pad = clamp: the
-  // page beyond the panel is the same tone as its border, so the pad column
-  // repeats the edge pixel).
-  for (int y = 0; y < h; y++) {
-    int32_t *out = hpass + static_cast<size_t>(y) * pw;
-    if (!active[y]) continue;
-    const uint8_t *row = levels + static_cast<size_t>(y) * w;
-    // padded copy of the row's coverage (0..255)
-    int32_t *pad = cov;  // reuse cov's first row as the padded staging row
-    for (int i = 0; i < r; i++) pad[i] = 255 - row[0];
-    for (int x = 0; x < w; x++) pad[r + x] = 255 - row[x];
-    for (int i = 0; i < r; i++) pad[r + w + i] = 255 - row[w - 1];
+    uint32_t *crow = cov + static_cast<size_t>(y + r) * pw + r;
+    uint8_t *nrow = near + static_cast<size_t>(y) * w;
+    int reach = 0;  // pixels still within r to the right of the last ink
+    // Pad columns repeat the edge pixel: the page beyond the panel is the
+    // same tone as its border (a solid field must come back solid).
+    for (int i = 1; i <= r; i++) {
+      crow[-i] = 255u - row[0];
+      crow[w - 1 + i] = 255u - row[w - 1];
+    }
     for (int x = 0; x < w; x++) {
-      int32_t acc = 0;
-      const int32_t *src = pad + x;
-      for (int i = 0; i <= 2 * r; i++) acc += src[i] * k.w[i];
-      out[r + x] = acc;  // coverage * 4096, 0..1044480
+      const uint8_t v = row[x];
+      crow[x] = 255u - v;
+      if (v != GrayscalePreview::kWhite) {
+        reach = 2 * r + 1;
+        const int from = std::max(0, x - r);
+        for (int xx = from; xx < x; xx++) nrow[xx] = 1;  // the r to the left
+      }
+      if (reach > 0) {
+        nrow[x] = 1;
+        reach--;
+      }
     }
   }
-  // Vertical pass, then gain, bias and requantize, on active rows only.
+  // Dilate the mask by r along y: a column sweep with the same countdown.
+  for (int x = 0; x < w; x++) {
+    int reach = 0;
+    for (int y = 0; y < h; y++) {
+      uint8_t &m = near[static_cast<size_t>(y) * w + x];
+      if (m) {
+        reach = r;
+        // the r above: walk back only as far as the last set one
+        for (int yy = y - 1; yy >= std::max(0, y - r); yy--) {
+          uint8_t &u = near[static_cast<size_t>(yy) * w + x];
+          if (u) break;
+          u = 1;
+        }
+      } else if (reach > 0) {
+        m = 1;
+        reach--;
+      }
+    }
+  }
+  // Horizontal pass where near.
+  for (int y = 0; y < h; y++) {
+    const uint8_t *nrow = near + static_cast<size_t>(y) * w;
+    const uint32_t *crow = cov + static_cast<size_t>(y + r) * pw;  // x offset 0 = pad
+    uint32_t *orow = hp + static_cast<size_t>(y + r) * pw + r;
+    for (int x = 0; x < w; x++) {
+      if (!nrow[x]) continue;
+      uint32_t acc = 0;
+      const uint32_t *src = crow + x;
+      for (int i = 0; i <= 2 * r; i++) acc += src[i] * static_cast<uint32_t>(k.w[i]);
+      orow[x] = acc;  // <= 255 * 4096
+    }
+  }
+  // Pad rows repeat the edge rows' horizontal results, for the same reason.
+  for (int i = 1; i <= r; i++) {
+    std::memcpy(hp + static_cast<size_t>(r - i) * pw, hp + static_cast<size_t>(r) * pw,
+                static_cast<size_t>(pw) * sizeof(uint32_t));
+    std::memcpy(hp + static_cast<size_t>(r + h - 1 + i) * pw,
+                hp + static_cast<size_t>(r + h - 1) * pw,
+                static_cast<size_t>(pw) * sizeof(uint32_t));
+  }
+  // Vertical pass where near, then bias, gain and requantize.
   const float gain = gainFor(sigma);
-  // Two passes, two weight sums: the accumulator is coverage * 4096 * 4096.
   const float inv = 1.0f / (255.0f * static_cast<float>(1 << kWeightShift) *
                             static_cast<float>(1 << kWeightShift));
   for (int y = 0; y < h; y++) {
-    if (!active[y]) continue;
+    const uint8_t *nrow = near + static_cast<size_t>(y) * w;
     uint8_t *row = levels + static_cast<size_t>(y) * w;
+    const uint32_t *col0 = hp + static_cast<size_t>(y) * pw + r;  // row y-r, x offset
     for (int x = 0; x < w; x++) {
-      int64_t acc = 0;
-      for (int i = -r; i <= r; i++) {
-        const int yy = std::max(0, std::min(h - 1, y + i));
-        const int32_t *src = active[yy] ? hpass + static_cast<size_t>(yy) * pw + r + x : nullptr;
-        // An inactive row is pure paper by construction: coverage 0.
-        if (src) acc += static_cast<int64_t>(*src) * k.w[i + r];
-      }
+      if (!nrow[x]) continue;
+      uint64_t acc = 0;
+      const uint32_t *src = col0 + x;
+      for (int i = 0; i <= 2 * r; i++)
+        acc += static_cast<uint64_t>(src[static_cast<size_t>(i) * pw]) *
+               static_cast<uint32_t>(k.w[i]);
       const float c = static_cast<float>(acc) * inv;
       if (c <= 0.0f) continue;  // clean paper stays clean paper, bit-exact
-      const float biased = c + spread;
-      row[x] = quantize4(0.5f + (biased - 0.5f) * gain);
+      row[x] = quantize4(0.5f + (c + spread - 0.5f) * gain);
     }
   }
   return true;

@@ -1,12 +1,25 @@
 # Ink rounding and ink spread: the press reshapes the type
 
-Status 2026-09-11: **PROTOTYPE, desktop-only, awaiting the owner's ruling on
-rungs and rows.** Model in `src/InkRounding.h`, host test
-`tests/ink_rounding_test.cpp`, wired into the level-to-pixel conversion in
-`src/HalDisplay.cpp`, two rows in `src/SimulatorDials.h`
-(`CROSSPOINT_SIM_INK_ROUNDING`, `CROSSPOINT_SIM_INK_SPREAD`;
-`inkRoundingPercent` / `inkSpreadPercent` in `settings.json`). Nothing on the
-phone reaches it yet; the iOS getters do not exist and the dial table ships 0.
+Status 2026-09-11, later the same day: **SHIPPED to TestFlight as six
+Settings.app sliders, UNCONFIRMED on device.** Owner ruling on the proof page
+below: *"ios app settings for rounding, spread and all other ink effects
+0-200."* Model in `src/InkRounding.h`, host test `tests/ink_rounding_test.cpp`,
+wired into the level-to-pixel conversion in `src/HalDisplay.cpp`, two rows in
+`src/SimulatorDials.h` (`CROSSPOINT_SIM_INK_ROUNDING`,
+`CROSSPOINT_SIM_INK_SPREAD`; `inkRoundingPercent` / `inkSpreadPercent` in
+`settings.json`). On the phone: the **Ink** group in `Root.plist`, six
+`PSSliderSpecifier` rows 0..200 -- Corner Rounding 0, Ink Spread 0, Impression
+(the letterpress master, frozen at 100 since 2026-08-23 and live again) 100,
+Ink Squeeze 100, Deboss Shadow 100, Plate Pressure 100. "All other ink
+effects" was read as the letterpress master and its three press parts; the
+paper effects (tooth, formation, drift, show-through, wires, defects) are the
+sheet, not ink, and stay frozen. Rounding and spread ship at 0 so a build with
+the rows untouched draws exactly what build 186 drew; the owner moves them.
+Getters in `ios/CrossPointPrefs.mm` (`inkSliderPercent`, shipped fallback per
+row so a lost store cannot flatten the page), poll in
+`ios/CrossPointIOSShim.cpp` (`pollInkEffects`), and the light drawer's press
+parts now delegate to the same getters so its one apply cannot fight the
+slider.
 
 Proof page (native-pixel crops, one page at every rung):
 https://claude.ai/code/artifact/7454f4d1-41c8-475a-aa9a-287a6848af58
@@ -90,19 +103,37 @@ slightly heavier. Spread is what pays the ink back.
   text page at this size; the compose went from 120 to 130 ms at the same
   sigma. Rows are not where the paper is.
 
-## Cost, and what is left to do on it
+## Cost
 
-130–200 ms per compose on the desktop against 24 ms today, five to eight
-times the compose itself, unmeasured on a phone. This is unoptimized: the
-vertical pass clamps and branches per tap, and the whole page is processed
-where roughly 8% of it is ink. The obvious cuts, in order: process only
-columns within the kernel radius of ink per row (a run list per row), drop
-the int64 accumulator (uint32 holds the product), and skip the vertical pass
-where the horizontal result is zero across the band. A page turn on the phone
-already costs ~130 ms of sheet rebuild; adding 200 is not acceptable, adding
-30 would be.
+First version: 130–200 ms per compose on the desktop against 24 ms without,
+processing the whole page. Second version, the one shipped: a NEAR mask (the
+ink mask dilated by the kernel radius, two linear sweeps) and both blur passes
+run only where it is set, integer over padded planes with no clamp in the
+inner loop. **42–70 ms per compose** at Standard on the same page, output
+pixel-identical to the first version (0 differing pixels on three arms). Still
+unmeasured on a phone. A page turn there already costs ~130 ms of sheet
+rebuild; this adds roughly a third of that. If it has to come down further:
+the near fraction on a text page is the lever (a run list per row instead of a
+byte mask, and a smaller kernel reach -- 2.5 sigma instead of 3 -- are the two
+cuts not taken).
 
-## Open decisions for the owner
+## Found on the way, not fixed
+
+`tests/test_note_editor_repaint.sh` fails on the current firmware pin
+(`fb5f7f600`) with "the typed text did not reach the note buffer", and fails
+identically on the tree BEFORE this work (verified by stash on 2026-09-11), so
+it is the firmware's move and not this pass. The firmware's log line at the
+moment is `[NOTEEDIT] no bonded keyboard; on-screen keyboard only (pair from
+Settings)`, which reads as the note editor now gating host-typed text on a
+bonded keyboard. Not investigated further.
+
+## Decisions, as ruled 2026-09-11
+
+All three below were answered by one ruling: every ink effect is its own
+0..200 row; rounding and spread default 0; the letterpress master returns as
+a row with its three parts. Kept for the record of what was asked.
+
+### The questions as put
 
 1. Which rows reach Settings.app: rounding alone, rounding + spread as two
    rows, or one coupled "Press" row where spread rises with rounding so the
