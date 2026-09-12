@@ -23,6 +23,19 @@
 # Both polarities of the host keyboard are run. The =0 arm is the control: it
 # was already working, and a change that fixes =1 by breaking =0 is not a fix.
 #
+# THE BUFFER CHECK READS THE FIRMWARE'S SAVE LOG, and that line has a contract.
+# Since firmware fa7f0aaae (2026-09-10, "atomic note saves") the note is written
+# to a .tmp and renamed into place, and a successful save logs
+# `saved <N> bytes to <path>` -- the byte count alone, because a short write no
+# longer reaches that line at all: it logs `short write saving <tmp>: <w>/<n>
+# bytes; the note on the card is untouched` and returns before the rename. The
+# earlier `saved <w>/<n> bytes` form is gone, and this test greps for the new
+# one plus the ABSENCE of the short-write line. Note the
+# `[NOTEEDIT] no bonded keyboard; on-screen keyboard only` line that appears
+# in every run here is NOT a gate on host typing: it dates from c6faf1ace
+# (2026-08-06) and only decides whether BLE is started. The host drain
+# (consumeTypedText) runs regardless, above the panelHidden guard.
+#
 # WHAT IT CANNOT COVER. TYPE injects at the queue (injectTypedText), the same
 # entry point the iOS harness uses, but not the real SDL key path -- see
 # test_text_entry.sh's note on that, and ios/README.md. It also cannot prove
@@ -160,7 +173,17 @@ run_arm() {
   # passed throughout the bug and is here to keep the frame assertion honest --
   # two identical frames because nothing was ever typed would be a different
   # failure with the same symptom.
-  if ! grep -q "saved 11/11 bytes" "$log"; then
+  #
+  # "saved 11 bytes to", not "saved 11/11 bytes": the firmware's save log
+  # changed shape with the atomic-save rewrite (see the header). A short write
+  # is now its own error line, so it is asserted absent as well -- the save
+  # line is only printed after the rename succeeds, but say so explicitly.
+  if grep -q "short write saving" "$log"; then
+    echo "FAIL[$label]: the note save was a short write"
+    grep "NOTEEDIT" "$log" | tail -5
+    exit 1
+  fi
+  if ! grep -q "saved 11 bytes to" "$log"; then
     echo "FAIL[$label]: the typed text did not reach the note buffer"
     grep "NOTEEDIT" "$log" | tail -5
     exit 1
@@ -169,7 +192,7 @@ run_arm() {
   if cmp -s "$before" "$after"; then
     echo "FAIL[$label]: the note did not repaint while typing -- the frame before"
     echo "  the keystrokes and the frame after them are byte-identical, though the"
-    echo "  characters did reach the buffer (see 'saved 11/11 bytes' above)."
+    echo "  characters did reach the buffer (see 'saved 11 bytes to' above)."
     echo "  This is the reported bug: with a host software keyboard up, the"
     echo "  editor's debounced relayout()/requestUpdate() is not reached."
     exit 1
