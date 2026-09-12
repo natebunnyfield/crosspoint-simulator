@@ -57,9 +57,9 @@ static NSString *const kDiagnosticsEnabled = @"diagnosticsEnabled";
 // either).
 static NSString *const kReadingExperimentsEnabled = @"readingExperimentsEnabled";
 // THE INK GROUP, 2026-09-11: six 0..200 sliders. Missing-key failure mode is
-// NOT benign for four of them (a missing letterpress or press part would read
-// 0 = flat ink, which is not the shipped page), so each getter carries its
-// own shipped fallback and the four non-zero ones are also in the
+// NOT benign for any of them (a missing value would read 0 = off, and none
+// ships at 0 since 2026-09-12: rounding 45, spread 55, the rest 100), so each
+// getter carries its own shipped fallback and all six are in the
 // Root.plist-unreadable registration below.
 static NSString *const kInkRoundingPercent = @"inkRoundingPercent";
 static NSString *const kInkSpreadPercent = @"inkSpreadPercent";
@@ -281,6 +281,8 @@ static void ensureDefaults(void) {
         kZenModeEnabled : @YES,
         kReadAloudEnabled : @NO,
         kReadAloudRatePercent : @(100),
+        kInkRoundingPercent : @(45),
+        kInkSpreadPercent : @(55),
         kLetterpressPercent : @(100),
         kPressRingPercent : @(100),
         kPressDebossPercent : @(100),
@@ -523,8 +525,8 @@ static int inkSliderPercent(NSString *key, int shipped) {
   return static_cast<int>(p);
 }
 int CrossPointPrefs_letterpressPercent(void) { return inkSliderPercent(kLetterpressPercent, 100); }
-int CrossPointPrefs_inkRoundingPercent(void) { return inkSliderPercent(kInkRoundingPercent, 0); }
-int CrossPointPrefs_inkSpreadPercent(void) { return inkSliderPercent(kInkSpreadPercent, 0); }
+int CrossPointPrefs_inkRoundingPercent(void) { return inkSliderPercent(kInkRoundingPercent, 45); }
+int CrossPointPrefs_inkSpreadPercent(void) { return inkSliderPercent(kInkSpreadPercent, 55); }
 int CrossPointPrefs_pressRingPercent(void) { return inkSliderPercent(kPressRingPercent, 100); }
 int CrossPointPrefs_pressDebossPercent(void) { return inkSliderPercent(kPressDebossPercent, 100); }
 int CrossPointPrefs_pressPressurePercent(void) { return inkSliderPercent(kPressPressurePercent, 100); }

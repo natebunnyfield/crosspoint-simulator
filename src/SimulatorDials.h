@@ -191,13 +191,14 @@ inline constexpr Dial kDials[kDialCount] = {
    letterpress::kStrengthOff, 100, kPlain, LetterpressPercent},
   // The type's own corners and weight, not a surface over it: 2026-09-11,
   // "an ios settings for rounding sharp corners and other letterpress
-  // simulation effects". Shipped 0 until the Settings.app rows land.
+  // simulation effects". Shipped 45 / 55 (owner 2026-09-12, "default corner
+  // rounding to 45 and spread to 55"); the desktop canary keeps 0.
   {InkRoundingPercent, "ink rounding", "CROSSPOINT_SIM_INK_ROUNDING",
    "inkRoundingPercent", inkrounding::kOff, inkrounding::kMax, inkrounding::kOff,
-   0, kPlain, InkRoundingPercent},
+   45, kPlain, InkRoundingPercent},
   {InkSpreadPercent, "ink spread", "CROSSPOINT_SIM_INK_SPREAD",
    "inkSpreadPercent", inkrounding::kSpreadOff, inkrounding::kSpreadMax,
-   inkrounding::kSpreadOff, 0, kPlain, InkSpreadPercent},
+   inkrounding::kSpreadOff, 55, kPlain, InkSpreadPercent},
   // The four stock-derived rows below carry the PRODUCT of the app's frozen
   // dial and the chosen paper's own factor. THE STOCK IS NO LONGER THE DEFAULT
   // ONE: owner ruling 2026-08-24 froze the light page at Sanguine ink on INDIA

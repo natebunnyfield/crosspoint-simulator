@@ -13,8 +13,13 @@ wired into the level-to-pixel conversion in `src/HalDisplay.cpp`, two rows in
 Ink Squeeze 100, Deboss Shadow 100, Plate Pressure 100. "All other ink
 effects" was read as the letterpress master and its three press parts; the
 paper effects (tooth, formation, drift, show-through, wires, defects) are the
-sheet, not ink, and stay frozen. Rounding and spread ship at 0 so a build with
-the rows untouched draws exactly what build 186 drew; the owner moves them.
+sheet, not ink, and stay frozen. Rounding and spread shipped at 0 in build 187; since 2026-09-12 (owner, from
+a screenshot of the six sliders: "default corner rounding to 45 and spread to
+55, add labels") they ship at **45 and 55**, and each slider sits in its own
+titled group -- `Ink: Corner Rounding`, `Ink: Spread`, ... -- because iOS draws
+a `PSSliderSpecifier` with no title at all, so the group header is its label.
+The desktop canary keeps both at 0 (bit-exact); `CROSSPOINT_SIM_AS_SHIPPED=1`
+seeds 45/55 from the dial table.
 Getters in `ios/CrossPointPrefs.mm` (`inkSliderPercent`, shipped fallback per
 row so a lost store cannot flatten the page), poll in
 `ios/CrossPointIOSShim.cpp` (`pollInkEffects`), and the light drawer's press
