@@ -20,6 +20,15 @@ titled group -- `Ink: Corner Rounding`, `Ink: Spread`, ... -- because iOS draws
 a `PSSliderSpecifier` with no title at all, so the group header is its label.
 The desktop canary keeps both at 0 (bit-exact); `CROSSPOINT_SIM_AS_SHIPPED=1`
 seeds 45/55 from the dial table.
+
+**Standing ruling 2026-09-12: a stored 0 migrates once.** A phone that opened
+the Ink group on build 187 or 188 has 0 WRITTEN for both keys, and a written
+value beats a registered default forever. Asked "migrate or slide by hand",
+the owner chose the one-shot migration. `src/InkDefaultsMigration.h` decides
+(pure, `tests/ink_defaults_migration_test.cpp`), `migrateInkDefaultsOnce` in
+`ios/CrossPointPrefs.mm` applies it from `ensureDefaults`, gated by the hidden
+`inkDefaultsMigration` marker at version 1. Only a written 0 moves, each key
+on its own; a 0 chosen after the marker is set stays 0.
 Getters in `ios/CrossPointPrefs.mm` (`inkSliderPercent`, shipped fallback per
 row so a lost store cannot flatten the page), poll in
 `ios/CrossPointIOSShim.cpp` (`pollInkEffects`), and the light drawer's press
