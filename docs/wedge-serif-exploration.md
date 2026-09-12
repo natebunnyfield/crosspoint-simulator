@@ -342,3 +342,43 @@ gravity then halftone).
 
 Every tile: lossless 150 px em plus the 13 pt four-level e-ink line. Page:
 https://claude.ai/code/artifact/9f86acd2-3433-40ac-b1af-5321963cb565
+
+## Round 11 ruling (2026-09-12): "what i need are vector font files"
+
+*"you have misunderstood. what i need are vector font files, not bitmap
+treatments. we are generating fonts for epub reading."* Round 11's raster
+impression models are withdrawn as deliverables. `tools/wedge_serif/round12.py`
+builds one TrueType file per technique from the B5.9 design with fontTools:
+26 files, `Fjord-V01.ttf` … `Fjord-V26.ttf`, coverage H, a–z, `. , -`,
+space, 1000 upm, advances from the fitting rule. Every technique is an
+outline operation: the pen models from round 11 (broad nib at two angles,
+brush at two pressures, pointed pen, constructed, rotating nib, ribbon,
+gravity, speed pen) and outline models (spread by vertex-normal offset,
+Chaikin rounding, decimation, jitter, Sutherland–Hodgman stencil bands,
+monospace cell), plus crosses.
+
+Three things learned building real files:
+- **No boolean library builds on this Python** (3.14 free-threaded; skia-pathops
+  fails to compile), so overlaps union by consistent winding under TrueType's
+  nonzero rule. Counterpunch is therefore an approximation (swell + round,
+  counters as the strokes leave them); the naive o's seam disappears in a
+  font, because nonzero fills a self-crossing loop solid.
+- **A pen whose outline crosses itself (brush, pointed, rotating, ribbon)
+  cancels under nonzero and leaves slits.** Fixed by emitting one quad per
+  centerline segment instead of one polygon per stroke, all wound the same
+  way.
+- **Abutting quads leave hairline seams in FreeType** even with exactly
+  shared edges (checked in the glyf table): antialiasing conflation. Each
+  quad now spans two segments so neighbors overlap by one; seams gone.
+- Word space set to 1.7 n-counters (2.2 read as a gap in a text line).
+
+Proof: every file parses in fontTools and renders through FreeType (PIL).
+The page sets the line and the sentence IN the files:
+https://claude.ai/code/artifact/95084fd1-960e-4b47-8fe0-e32fa35590a6
+Files: `build/fjord-fonts/` (gitignored) and the zip sent to the owner.
+
+Not yet: the reader route. To read an epub in one of these on the X3 or the
+phone, the chosen TTF goes into `lib/EpdFont/local_fonts/`, gets a
+`sd-fonts.yaml` recipe (four styles are expected; only a regular exists),
+and `build-sd-fonts.py` cuts the `.cpfont` tiers; the seed tree and the iOS
+bundle follow from there. That is the step after the pick.
