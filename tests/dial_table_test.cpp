@@ -666,8 +666,18 @@ int main(int argc, char **argv) {
       const auto it = tmpl.find(d.settingsKey);
       if (it == tmpl.end()) continue;  // not named: the seed owns it
       compared++;
-      checkEq(static_cast<int>(it->second), d.desktopDefault,
-              (std::string("template agrees with the desktop default for ") +
+      // Owner ruling 2026-09-12 ("match the phone"): the Mac apps' first-run
+      // file ships the PHONE's rounding and spread, not the desktop seed, so
+      // for exactly these two rows the template must equal the shipped value
+      // instead. Any other row that drifts from the desktop default is still
+      // the bug this block exists for.
+      const bool macMatchesPhone =
+          d.id == simdials::InkRoundingPercent || d.id == simdials::InkSpreadPercent;
+      checkEq(static_cast<int>(it->second),
+              macMatchesPhone ? d.shippedValue : d.desktopDefault,
+              (std::string(macMatchesPhone
+                               ? "template carries the phone's shipped value for "
+                               : "template agrees with the desktop default for ") +
                d.name).c_str());
     }
     check(compared > 0,
