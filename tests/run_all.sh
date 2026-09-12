@@ -253,6 +253,13 @@ run_direct gesture_plist \
 run volume_page_turn \
   c++ -std=c++17 -Iios -o "$OUT/volume_page_turn" tests/volume_page_turn_test.cpp
 
+# The four tilts' arming rule (2026-09-06): neutral is CAPTURED rather than
+# assumed flat, a held pose fires once, a diagonal fires nothing, and the
+# motion stream runs only while a row is bound. None of CMMotionManager exists
+# on a host, so the arithmetic is proved here and the adapter stays thin.
+run tilt_gestures \
+  c++ -std=c++17 -Iios -o "$OUT/tilt_gestures" tests/tilt_gestures_test.cpp
+
 # The page-tap candidate's arm/spoil lifecycle (2026-08-21 audit findings #1
 # and #3): no exit path may leave it latched, and a second concurrent finger
 # spoils it. Pure because the SDL event watch it was extracted from cannot be

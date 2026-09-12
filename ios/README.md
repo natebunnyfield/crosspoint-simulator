@@ -386,36 +386,38 @@ broke level reads (see below). There is no HOME — `hasHomeKey()` is X4-Pro-onl
 There is no control for the simulator's own SLEEP (`S`) either: that is a harness
 command, not a button the hardware has.
 
-**The phone's volume rocker can be the page rocker, and it ships OFF
-(2026-09-05).** Owner: *"add ios app setting for hardware volume buttons and
-any volume changes to control back and forward pages (front button rocker
-switch) default to off."* Settings > CrossPoint X3 > **Volume Buttons > Volume
-Buttons Turn Pages** (`volumeButtonsTurnPages`, default off). While it is on
-and the app is in front, a volume-up press is a 60 ms tap of the FRONT RIGHT
-button and volume-down of the FRONT LEFT -- the reader's next and previous
-page, a list's next and previous item -- injected through
-`gpio.queueButtonTap`, the same route the read-aloud page turn and the
-accessibility scroll take (an edge raised outside `HalGPIO::update()` reaches
-the firmware no other way). iOS has no volume-button API, so this is the
-standard technique: an audio session is held (Ambient -- it mixes with
-whatever is playing and asks for no background time; while read-aloud holds
-its own Playback session that one is borrowed rather than replaced),
-`AVAudioSession.outputVolume` is observed by KVO, the direction is read off the
-change, and the level is put straight back through the slider inside an
-offscreen `MPVolumeView`, which is also what keeps the system's volume bezel
-off the page. The observer is torn down and the session released the moment
-the app resigns active (Control Center, the lock screen, a call) and re-armed
-once it is active again, so a volume change made anywhere but over this app's
-page is the owner setting the volume, not turning one. With the setting off
-nothing is installed at all -- no session, no observer, no `MPVolumeView`, so
-the volume bezel behaves exactly as it always did.
+**The phone's volume rocker is two assignable gestures, and both ship BOUND
+(2026-09-06).** It arrived 2026-09-05 as a pair of bespoke switches --
+Volume Buttons Turn Pages and Flip Volume Buttons -- wired straight to a front-
+rocker page turn. The owner then ruled: *"make volume up and down an assignable
+setting like all other gestures."* Both switches are gone and the rocker is two
+ordinary rows, **Gestures — Motion > Volume Up / Volume Down**
+(`gestureVolumeUp`, `gestureVolumeDown`), offering the same actions every other
+gesture offers.
 
-A second row in the same group, **Flip Volume Buttons** (`volumeButtonsFlipped`,
-default off, and a no-op unless Volume Buttons Turn Pages is also on), reverses
-which physical button each direction presses -- volume-up becomes the front
-LEFT button (previous page) and volume-down the front RIGHT (next page) -- via
-`volumepage::buttonFor()`'s second argument, without touching how a press is
-detected.
+Volume Up is **Right** (next page) and Volume Down is **Left** (previous) --
+the mapping the retired switch performed when it was on. *Flipped* is assigning
+the two rows the other way round; *off* is binding both to Nothing. What is
+gained is that the rocker can reach any action -- zen, the font step, Back --
+and not only a page turn.
+
+**This reverses the opt-in**, and the reason for it has not gone away: App
+Store review has rejected apps for taking the volume rocker over, and the audio
+session is now held out of the box rather than on request. Binding both rows to
+Nothing restores the old shipped behaviour exactly.
+
+The mechanism is unchanged and still lives in `ios/VolumePageTurn.h`: iOS has
+no public volume-button API, so the app holds an audio session, observes
+`AVAudioSession.outputVolume` by KVO, reads the DIRECTION off the sign of the
+change, then puts the level back through a hidden `MPVolumeView` so the next
+press has somewhere to go. **The session is held only while at least one of the
+two rows is bound** -- taking the rocker over unasked is what App Store review
+has rejected apps for, so with both rows at Nothing no session is held, no
+observer is installed, and the volume bezel behaves exactly as it always did.
+A press is dispatched through the recognizers' own path
+(`CrossPointZenRecognizers_fireGesture`), so it takes the zen gate and the
+palette-sheet swallow with every other gesture rather than injecting a button
+behind them.
 
 Two things follow from the mechanism. **The ends of the range are dead ends**:
 at 0.0 or 1.0 a press further that way changes nothing and produces no event,
@@ -493,7 +495,6 @@ trimmed that to what is worth having on a phone:
 | Swipe | 1 and 2 fingers × left / right / up / down (8) |
 | Long press | 1 finger, 2 fingers |
 | Pinch | in, out |
-| Rotation | clockwise, counter-clockwise |
 | Shake | — |
 
 **What the trim leaves out, and why it matters to the code.** No double or
@@ -523,8 +524,8 @@ normal configuration."*
 | Settings group | Rows | Default |
 |---|---|---|
 | **Gestures — One Finger** | Tap · Swipe Left/Right/Up/Down · Hold | today's mapping (the table below) |
-| **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread · Rotate Clockwise · Rotate Counter-Clockwise | ditto |
-| **Gestures — The Device** | Shake | font family step |
+| **Gestures — Two Fingers** | Tap · Swipe Left/Right/Up/Down · Hold · Pinch · Spread | ditto; **Hold** is the font family step since 2026-09-06 |
+| **Gestures — Motion** | Shake · Volume Up · Volume Down · Tilt Left/Right/Forward/Back | zen toggle; page forward/back; the four tilts ship inert |
 | **Above the Paper** | Tap · Swipe Left/Right/Up · Hold | blank, except **Hold** |
 | **Below the Paper** | Tap · Swipe Left/Right/Up/Down · Hold | blank |
 
@@ -547,7 +548,8 @@ the global binding, exactly as a swipe on the paper does.
 28 rows in one flat list is a scroll with no landmarks, so the global layer is
 sub-grouped BY FINGER COUNT — the one partition a hand can feel, and the one
 that lets every row inside a group drop its "Two-Finger" prefix and read as a
-short verb. Pinch and rotation sit in Two Fingers because that is what they are.
+short verb. Pinch sits in Two Fingers because that is what it is; the
+rocker and the tilts sit in Motion because they are not touches at all.
 
 **`Root.plist`'s gesture half is GENERATED**, by
 [tools/gen_gesture_plist.py](../tools/gen_gesture_plist.py), from the header's
@@ -600,24 +602,24 @@ The table below is the **shipped GLOBAL layer**, with every zone row blank.
 | 2-finger swipe down / up | zen only | Select / Back |
 | 2-finger hold, 0.75 s | zen only | **Nothing** (new; ships inert) |
 | pinch / spread (on the lift) | zen only | `BTN_UP` / `BTN_DOWN` |
-| rotate clockwise / counter-clockwise (on the lift) | zen only | **Nothing** (new; ships inert) |
 | shake | zen AND not-zen (2026-08-29) | font family step |
 
 Twelve of the seventeen ship bound; the five marked *new* are the additions and
-they do nothing until the owner points them somewhere. **Rotation follows
-pinch's precedent exactly**: it is the other continuous two-finger recognizer, so
-it fires ONCE on `.ended` rather than continuously — a slow rotate reported
-continuously would queue a storm of font steps, which is the bug pinch was
-already written to avoid.
+they do nothing until the owner points them somewhere. **The two rotation
+rows were dropped 2026-09-06** (owner: *"drop two finger rotate gestures"*)
+together with their `UIRotationGestureRecognizer`, so nothing now competes
+with the pinch for a two-finger twist.
 
 **A GESTURE THAT SHIPS INERT MAY NEVER PREVENT ONE THAT SHIPS BOUND**, and that
 rule is the only thing the file's `UIGestureRecognizerDelegate` does. Installing
 a recognizer is not free — `-canPreventGestureRecognizer:` defaults to YES, so
 whichever recognizes first stops the rest — and three of the five new gestures
-overlap gestures the app already had. Rotation over pinch is the sharp one: a
-real pinch always carries a few degrees of twist, so an inert rotation would have
-been arbitrated the gesture and done nothing, silently costing the owner pinches
-he has today on a gesture he has already reported once as not working. So
+overlap gestures the app already had. The sharp case used to be rotation over
+pinch -- a real pinch always carries a few degrees of twist, so an inert
+rotation could be arbitrated the gesture and do nothing, silently costing the
+owner pinches he has today on a gesture he had already reported once as not
+working. The rotation rows are gone (2026-09-06) and that case with them, but
+the rule stands for the pairs that remain. So
 simultaneity is granted iff either side's DEFAULT is Nothing
 (`gesturebind::shipsInert`); between two rows that both ship bound the answer is
 NO, which is byte-for-byte what UIKit does with no delegate, so arbitration among
@@ -647,7 +649,7 @@ Everything but the 1-finger deliberate tap is a native UIKit recognizer in
 classifier in [ios/ZenVerbs.h](ZenVerbs.h) and is routed through the same
 bindings header from `padWatch`. The recognizer set is built by WALKING the
 header's table, so a row added there is installed by construction — thirteen
-objects for the seventeen rows (pinch/spread and the two rotations each share
+objects for the touch rows (pinch/spread share
 one, the 1-finger tap is SDL's, the shake is a responder rather than a
 recognizer). Each single-finger call site reads TWO rows — the zone's override
 and the global — and the header decides which wins.
@@ -707,9 +709,9 @@ line ENUMERATES what was actually installed -- built from the array, so it canno
 go stale -- and is followed by **one line per binding**, defaults included:
 
 ```
-[zen] recognizers attached: 13 objects for 29 configurable rows (17 gestures, 12 zone
+[zen] recognizers attached: 11 objects for 32 configurable rows (21 gestures, 11 zone
       overrides); hold 0.75 s; * = fires outside zen; the 1-finger tap stays on the SDL
-      classifier [swipe left, swipe right, ..., hold*, 2-finger tap, ..., pinch, rotate clockwise]
+      classifier [swipe left, swipe right, ..., hold*, 2-finger tap, ..., pinch]
 [zen]   hold                         -> confirm         (default)
 [zen]   hold above the paper         -> toggle zen      (default, always on)
 [zen]   tap above the paper          -> inherit         (default)
@@ -775,12 +777,11 @@ disagree about what was picked.
 What remains in Settings.app after the 2026-08-23 ruling is the Zen toggle, the
 gesture groups, the two sleep toggles, the Read Aloud group, Diagnostics Log --
 and, added later the same day, **Power-Off Collapse** (`powerOffCollapse`,
-default off), the CRT shutdown at sleep. Since 2026-09-05 there is also
-**Volume Buttons > Volume Buttons Turn Pages** (`volumeButtonsTurnPages`,
-default off) and, beside it, **Flip Volume Buttons** (`volumeButtonsFlipped`,
-default off) -- the phone's volume rocker as the front page rocker, and the
-toggle that swaps which side of it is which -- documented under Controls
-above, together with why both stay opt-in.
+default off), the CRT shutdown at sleep. Since 2026-09-06 the phone's volume
+rocker and four tilt gestures are rows in **Gestures — Motion** rather than
+switches of their own (`gestureVolumeUp`, `gestureVolumeDown`,
+`gestureTiltLeft/Right/Forward/Back`; the rocker turns pages by default, the tilts are inert) --
+documented under Controls above, together with why the rocker stays opt-in.
 
 **One row has been added since, and it is not an appearance dial at all**
 (2026-08-28): **Library > GitHub Token** (`githubToken`, a

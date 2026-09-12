@@ -1,5 +1,78 @@
 # Fonts on trial
 
+**REOPENED 2026-09-11 for TWO families: AtkinsonHyperlegibleSoft and
+LexicaUltralegible.** Both are named in `CROSSPOINT_IOS_TRIAL_FAMILIES` in
+`ios/CMakeLists.txt`, both are bundled for the owner to judge on the phone,
+and neither is in `installed_families:`. Firmware recipe commit `89306dfd2`
+(`lib/EpdFont/scripts/sd-fonts.yaml`), and the simulator's pin advanced to it.
+
+| Family | What it is | License | 1x + 2x, 12 files | in the bundle (CPZ1) |
+|---|---|---|---|---|
+| **AtkinsonHyperlegibleSoft** | Namesake's rounded cut of Braille Institute's Atkinson Hyperlegible Next -- `namesakefyi/atkinson-hyperlegible-soft` tag `v1.0.0`, four RIBBI cuts of the fourteen it ships. **Not a Braille Institute release**; the Institute ships Atkinson Hyperlegible, Next and Mono and no "Soft". | SIL OFL 1.1, copyright Namesake Collaborative, no Reserved Font Name | 24,028,212 bytes raw | **7,842,044** |
+| **LexicaUltralegible** | Jacob Perez's Atkinson extension, `jacobxperez/lexica-ultralegible` `v1.0.0`. S tier for one day (2026-08-03 to 08-04), buildable-only since; its cut note in the firmware's `docs/sd-card-fonts.md` asked for a fresh ruling before it goes back on any surface, and the owner's ask for this trial is that ruling -- for a TRIAL, not a promotion. | SIL OFL 1.1 | 23,689,987 bytes raw | **7,812,703** |
+
+Together **15,654,747 bytes** in the bundle, measured with
+`tools/compress_seed_fonts.py` over the two trees.
+
+**Same ramp and span for both, on purpose.** They are one skeleton (x-height
+496, cap 668, n 408 per 1000 em in both), so `sizes: [7, 9, 11, 13, 15, 17]`
+and `metrics: {ascent: 1137, descent: -339}` in both recipes: the trial
+compares the faces, and the fit must not be a variable in it. Measured, not
+copied -- hinted `x` bitmap rows at 150 DPI with the grotesque bench's own
+probe: Soft lands x-height 8/10/12/14/16/18 EXACT in all four styles; Lexica's
+bold pair is exact and its regular and italic read 7/10/12/14/16/18, slot 0
+one px small and unreachable under either hinter (7 pt reads 7, 8 pt reads 9).
+Leading read back off the built headers: advanceY 22/28/34/40/46/52 against
+the tier's 23/28/34/40/46/51, drift 2, and no span in a 1250..1558 sweep scores
+lower. Soft has no `FontDisplayNames.h` row, per the 2026-08 precedent, so it
+sorts last under its directory name; Lexica keeps the row it has.
+
+When each is ruled on, the list returns to empty: **promoted** means adding
+the name to `installed_families:` in the firmware's `sd-fonts.yaml` and
+removing it here (and, for Soft, a `FontDisplayNames.h` row); **declined**
+means deleting `build/seedfonts/<Family>` and removing the name here. The
+recipes stay either way.
+
+**Found on the way and NOT fixed here, because it is outside this ask:** the
+seed tree on this Mac carries no `Doves` and no `VandenKeere`, both of which
+are in `installed_families:`. The installed-but-not-bundled gate in
+`ios/CMakeLists.txt` FATALs on exactly that, so a configure from this tree
+refuses before it reaches either trial family. Both families' sources are in
+the firmware's `local_fonts/`, so the fix is two builds at 1x and 2x, not a
+ruling.
+
+The DTLRomulus trial below is closed and unaffected.
+
+---
+
+**REOPENED AND CLOSED 2026-09-06, same day — DTLRomulus was PROMOTED.**
+Owner ruling: *"add"*. It is in `installed_families:` in the firmware's
+`sd-fonts.yaml`, its name is out of `CROSSPOINT_IOS_TRIAL_FAMILIES`, and it now
+belongs on every surface. **The trial it was named for never happened**: the
+build carrying it could not be archived (codesign `errSecInternalComponent` —
+there is no Apple Distribution certificate on the Mac), so the ruling came from
+rendered specimens rather than from the phone. It is also the first COMMERCIAL
+family in `installed_families:`, so unlike the other eight it cannot be rebuilt
+from a clean clone. The original trial note follows.
+
+**Was: REOPENED 2026-09-06 for one family: DTLRomulus.** DTL Romulus — van
+Krimpen's 1931 Enschede roman, digitised by Frank E. Blokland for the Dutch
+Type Library — is bundled for the owner to judge on the phone and is named in
+`CROSSPOINT_IOS_TRIAL_FAMILIES` in `ios/CMakeLists.txt`. It is commercial, it
+is not in `installed_families:`, and it costs 10.5 MB compressed in the bundle
+(37.8 MB raw, 12 files at 1x + 2x). Its sibling DTL Fleischmann was built the
+same day and cut the same day, before it ever reached a build.
+
+When it is ruled on, the list returns to empty: **promoted** means adding it to
+`installed_families:` in the firmware's `sd-fonts.yaml` and removing the name
+here; **declined** means deleting `build/seedfonts/DTLRomulus` and removing the
+name here. The build and every measurement behind it are in the firmware repo's
+`docs/dtl-trial-fonts-2026-09-06.md`.
+
+The 2026-08 trial below is closed and unaffected.
+
+---
+
 Written 2026-08-23. **CLOSED 2026-08-24** — every face below has been ruled on,
 `CROSSPOINT_IOS_TRIAL_FAMILIES` is empty, and nothing in the build carries an
 exemption any more. This file is now the record of what happened rather than a

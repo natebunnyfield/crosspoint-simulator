@@ -85,9 +85,15 @@ FOOTER = {
         "a slightly twisted pinch from being read as a rotation and doing "
         "nothing. Bind rotation and a twist that also squeezes will do both."
     ),
-    "Gestures — The Device": (
-        "Shake is not a touch: iOS delivers it as a motion event, so it works "
-        "with the screen full of anything at all."
+    "Gestures — Motion": (
+        "Gestures that are not touches. The shake arrives as a motion event, "
+        "so it works with the screen full of anything at all — and it is the "
+        "only way into Zen, which is why it is bound by default. The volume "
+        "rocker turns pages out of the box; set both rows to Nothing and the "
+        "app leaves the phone’s buttons alone entirely. The four tilts are "
+        "measured from however you are holding the phone when they arm, not "
+        "from flat, and each fires once per tilt — bind one and the "
+        "accelerometer starts; leave them alone and it never runs."
     ),
     "Above the Paper": (
         "The strip of screen above the sheet — the bezel and the notch. "
@@ -149,8 +155,14 @@ def group_of(row):
         return "Above the Paper"
     if row["zone"] == "BelowPaper":
         return "Below the Paper"
-    if row["family"] == "Shake":
-        return "Gestures — The Device"
+    # MUST MATCH groupOf() IN THE HEADER. It did not between 2026-09-06's two
+    # commits: this asked only about Shake, so the volume rocker and the four
+    # tilts -- fingers = 0, like the shake -- fell through to the finger-count
+    # line below and shipped in "One Finger" in build 179. The header said
+    # Device, the projection said One Finger, and nothing compared them. The
+    # test now does; see the group check in tests/gesture_bindings_test.cpp.
+    if row["family"] in ("Shake", "Button", "Tilt"):
+        return "Gestures — Motion"
     return ("Gestures — One Finger" if row["fingers"] <= 1
             else "Gestures — Two Fingers")
 
