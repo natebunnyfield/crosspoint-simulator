@@ -194,6 +194,8 @@ inline std::string defaultsTemplate(const std::string &paletteComment) {
   // pressure, paper tooth.
   //   0 = off   50 = subtle   100 = standard   200 = heavy
   "letterpressPercent": 0,
+  "inkRoundingPercent": 0,
+  "inkSpreadPercent": 0,
 
   // THE PAPER INSTRUMENT. Everything the light page's sheet is made of, as
   // live dials (owner order 2026-08-22). Each default below is what this

@@ -10,6 +10,7 @@
 #include "GlassCapture.h"
 #include "GrayscalePreview.h"
 #include "LaidStructure.h"
+#include "InkRounding.h"
 #include "Letterpress.h"
 #include "LightInkPalette.h"
 #include "PaperDefects.h"
@@ -260,6 +261,11 @@ static inline void requestDirtyPresent() {
 // polarity flip would wait for the next firmware refresh -- which on an e-ink
 // device may never come.
 static std::atomic<bool> pendingReconvert{false};
+// INK ROUNDING and INK SPREAD -- the shape of the type itself, not a surface
+// over it: applied to the LEVEL image inside the framebuffer-to-pixel
+// conversion, light pages only. Model: src/InkRounding.h.
+static std::atomic<int> inkRoundingPercent{inkrounding::kOff};
+static std::atomic<int> inkSpreadPercent{inkrounding::kSpreadOff};
 // Written by HalGPIO::update() (which owns SDL event polling); read by
 // shouldQuit().
 std::atomic<bool> quitRequested{false};
@@ -887,19 +893,41 @@ bool getBit(const uint8_t *buffer, int x, int y) {
 // used to be re-read under a second lock acquisition, and a render-task page
 // landing in the gap would have been mistaken for the reconvert -- its sweep
 // withheld, its trail still deposited (adversarial review 2026-09-04).
+// THE LEVEL IMAGE, and the one step from it to pixels. Both writers fill
+// levelBuf with GrayscalePreview's four levels and come through here, which is
+// where the ink-rounding pass gets its one chance to reshape the type before
+// the palette ramp turns levels into tones. Light pages only, like every
+// letterpress effect (docs/letterpress-and-scanlines.md); 0/0 is bit-exact
+// off and the pass is not entered. Guarded by pixelBufMutex like pixelBuf.
+static uint8_t levelBuf[HalDisplay::DISPLAY_WIDTH * HalDisplay::DISPLAY_HEIGHT];
+static std::vector<int32_t> inkRoundingScratch;
+
+static void writePixelsFromLevels(const LevelRamp &ramp, bool darkPage) {
+  const int w = HalDisplay::activeWidth();
+  const int h = HalDisplay::activeHeight();
+  if (!darkPage) {
+    inkrounding::roundLevels(levelBuf, w, h,
+                             inkRoundingPercent.load(),
+                             inkSpreadPercent.load(),
+                             inkRoundingScratch);
+  }
+  const size_t n = static_cast<size_t>(w) * static_cast<size_t>(h);
+  for (size_t i = 0; i < n; i++) pixelBuf[i] = ramp[levelBuf[i]];
+}
+
 uint64_t renderBwPixels(const uint8_t *fb) {
   const std::lock_guard<std::mutex> lock(pixelBufMutex);
   const uint64_t seq = ++pixelBufSeq;
   const PanelPalette pal = livePanelPalette(display.isInverted());
   const LevelRamp ramp(pal);
-  const uint32_t ink = ramp[0];
-  const uint32_t paper = ramp[255];
   for (int y = 0; y < HalDisplay::activeHeight(); y++) {
     for (int x = 0; x < HalDisplay::activeWidth(); x++) {
       const bool white = getBit(fb, x, y);
-      pixelBuf[y * HalDisplay::activeWidth() + x] = white ? paper : ink;
+      levelBuf[y * HalDisplay::activeWidth() + x] =
+          white ? GrayscalePreview::kWhite : GrayscalePreview::kBlack;
     }
   }
+  writePixelsFromLevels(ramp, display.isInverted());
   lastPixelWriter.store('B');
   if (presentFlashWanted()) {
     // Show this pass, and set the deadline the compose below will wait for.
@@ -982,11 +1010,12 @@ uint64_t composeGrayscalePreview() {
       const uint8_t level =
           GrayscalePreview::previewLevel(baseWhite, msbActive, lsbActive);
 
-      // No 255-level flip for inversion: the dark palette's ink->paper
-      // direction already runs light-on-dark (see PanelPalette above).
-      pixelBuf[y * HalDisplay::activeWidth() + x] = ramp[level];
+      levelBuf[y * HalDisplay::activeWidth() + x] = level;
     }
   }
+  // No 255-level flip for inversion: the dark palette's ink->paper
+  // direction already runs light-on-dark (see PanelPalette above).
+  writePixelsFromLevels(ramp, display.isInverted());
   // The real page is ready, so whatever hold the base pass armed is over: this
   // frame presents at the first opportunity and the 1-bit one never does.
   // Env-gated AA audit. It exists because "the antialiasing looks bad" and "the
@@ -1401,6 +1430,25 @@ void setLetterpress(int strengthPercent) {
   requestDirtyPresent();
 }
 
+// Both ask for a RECONVERT rather than a plain present: the pass lives inside
+// the level-to-pixel conversion, so a new value changes nothing until the
+// cached frame is converted again (the same shape as setInverted).
+void setInkRounding(int percent) {
+  percent = envPercentOr("CROSSPOINT_SIM_INK_ROUNDING", percent);
+  const int s = inkrounding::clampRounding(percent);
+  if (inkRoundingPercent.exchange(s) == s) return;
+  pendingReconvert.store(true);
+  requestDirtyPresent();
+}
+
+void setInkSpread(int percent) {
+  percent = envPercentOr("CROSSPOINT_SIM_INK_SPREAD", percent);
+  const int s = inkrounding::clampSpread(percent);
+  if (inkSpreadPercent.exchange(s) == s) return;
+  pendingReconvert.store(true);
+  requestDirtyPresent();
+}
+
 void setPaperTooth(int percentOfReference) {
   percentOfReference =
       envPercentOr("CROSSPOINT_SIM_PAPER_TOOTH", percentOfReference);
@@ -1571,6 +1619,12 @@ void applyDialGroup(simdials::Id group, const simdials::Values &v) {
       break;
     case LetterpressPercent:
       setLetterpress(v[LetterpressPercent]);
+      break;
+    case InkRoundingPercent:
+      setInkRounding(v[InkRoundingPercent]);
+      break;
+    case InkSpreadPercent:
+      setInkSpread(v[InkSpreadPercent]);
       break;
     case PaperToothPercent:
       setPaperTooth(v[PaperToothPercent]);

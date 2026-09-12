@@ -535,6 +535,16 @@ run letterpress \
 run scanlines \
   c++ -std=c++17 -Isrc -o "$OUT/scanlines" tests/scanlines_test.cpp
 
+# Ink rounding: the press rounds the type's corners and spreads its ink, on
+# the four-level page image BEFORE the palette ramp (the one pass allowed to
+# remove ink, because it reshapes the type rather than shading it). Pins that
+# 0 is bit-exact off, that the output is still exactly four levels at every
+# rung (owner 2026-08-24, "keep 4 levels"), that a convex corner loses ink and
+# a concave one gains it, and that a 3 px stem and a 3 px counter survive
+# standard -- the legibility failure the contrast floor cannot see.
+run ink_rounding \
+  c++ -std=c++17 -Isrc -o "$OUT/ink_rounding" tests/ink_rounding_test.cpp
+
 # The 2026-08-23 roadmap items, all three pure headers with the same property:
 # every failure mode is a wrong picture nobody is looking at when it happens.
 #
