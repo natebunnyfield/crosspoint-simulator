@@ -133,6 +133,13 @@ cuts not taken).
 
 ## Standing rulings, 2026-09-12
 
+- **The Mac apps match the phone.** The desktop `settings.json` template
+  (`src/SimulatorSettingsFile.h`) ships `inkRoundingPercent` 45 and
+  `inkSpreadPercent` 55, so a first-run Finder-launched bundle draws what the
+  phone draws; an existing file keeps its values, and the command-line canary
+  (no file, dials at their table defaults) stays bit-exact at 0. The other
+  Ink values in that template (letterpress and the press parts at 0) are the
+  desktop's historical seeds and were NOT part of this ruling.
 - **Light only.** Asked whether Corner Rounding and Ink Spread should also
   apply on the dark page (a CRT's beam spot rounds corners too), or whether
   the dark page should get its own Beam Spot slider: *light only, as
