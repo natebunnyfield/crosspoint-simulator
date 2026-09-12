@@ -3,7 +3,8 @@
 // ONE-SHOT MIGRATION of the two Ink sliders that changed their shipped default.
 //
 // Builds 187 and 188 shipped Corner Rounding and Ink Spread at 0; build 189
-// ships them at 45 and 55. A phone that opened the Ink group on 187/188 has 0
+// shipped them at 45 and 55, and the same afternoon the owner set the six
+// sliders by hand and ruled "set defaults to these" (27 and 106 here). A phone that opened the Ink group on 187/188 has 0
 // WRITTEN for both, and a written value beats a registered default forever,
 // so it would keep the flat page. Owner ruling 2026-09-12: migrate a stored 0
 // to the new default ONCE, then never again -- a 0 chosen after this build
@@ -21,8 +22,8 @@ namespace inkmigration {
 constexpr int kVersion = 1;
 constexpr int kUnwritten = -1;
 
-constexpr int kRoundingDefault = 45;
-constexpr int kSpreadDefault = 55;
+constexpr int kRoundingDefault = 27;
+constexpr int kSpreadDefault = 106;
 
 struct Result {
   int rounding;   // value to write, or kUnwritten to leave the key alone

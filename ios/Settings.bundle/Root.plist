@@ -1508,7 +1508,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>45</real>
+			<real>27</real>
 			<key>Key</key>
 			<string>inkRoundingPercent</string>
 			<key>MaximumValue</key>
@@ -1528,7 +1528,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>55</real>
+			<real>106</real>
 			<key>Key</key>
 			<string>inkSpreadPercent</string>
 			<key>MaximumValue</key>
@@ -1548,7 +1548,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>100</real>
+			<real>68</real>
 			<key>Key</key>
 			<string>letterpressPercent</string>
 			<key>MaximumValue</key>
@@ -1568,7 +1568,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>100</real>
+			<real>93</real>
 			<key>Key</key>
 			<string>pressRingPercent</string>
 			<key>MaximumValue</key>
@@ -1588,7 +1588,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>100</real>
+			<real>99</real>
 			<key>Key</key>
 			<string>pressDebossPercent</string>
 			<key>MaximumValue</key>
@@ -1608,7 +1608,7 @@ On the reader hardware these values live in settings.json and /claude-key.txt on
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<real>100</real>
+			<real>125</real>
 			<key>Key</key>
 			<string>pressPressurePercent</string>
 			<key>MaximumValue</key>
