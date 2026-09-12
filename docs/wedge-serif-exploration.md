@@ -72,3 +72,24 @@ Answers land in this file as rulings.
   blends (3 with 5's terminals; 19 with a milder reverse stress from 15),
   twenty in all, each shown large and at 13 pt on the reader's four-level
   e-ink at the shipped 2x.
+
+## Round 2 (2026-09-12)
+
+`tools/wedge_serif/round2.py`: nine lanes x two variations + two blends,
+each rendered as vectors and at 13 pt on the reader's four-level e-ink at 2x
+(54 px em, 8x supersampled coverage quantized to 255/200/96/0 at the same
+thresholds the simulator's rounding pass uses). Page:
+https://claude.ai/code/artifact/48f2c7ae-5d73-46c0-bf82-78d2403e1df1
+
+## The test pangram (owner ask, 2026-09-12: "need long evocative pangram")
+
+Composed here, all 26 letters verified by script, 154 characters:
+
+> Beyond the quiet fjord, a jackdaw skims low over black water, while the
+> last light of dusk hazes the zinc-gray peaks and a vixen crosses the
+> frozen marsh.
+
+Rendering it needs the other 21 lowercase skeletons (and punctuation), which
+the synthesizer does not have yet: that is the round-3 job, after the round-2
+ruling, and it is where the exploration stops being five letters and starts
+being a face.
