@@ -67,3 +67,8 @@ Answers land in this file as rulings.
 - **Round 2 shape (2026-09-12): three lanes of six or seven.** Asked one
   lead / blends / three lanes: *three lanes*. Three of the kept text cuts
   each get six or seven variations; the lanes are named in the next ruling.
+- **Lanes (2026-09-12): "keep all."** Offered four trios; the answer was
+  to keep all nine. So round 2 is nine lanes of two variations each plus two
+  blends (3 with 5's terminals; 19 with a milder reverse stress from 15),
+  twenty in all, each shown large and at 13 pt on the reader's four-level
+  e-ink at the shipped 2x.
