@@ -440,21 +440,22 @@ if(CROSSPOINT_IOS_SEED_FONTS_DIR)
   # of here, both build/seedfonts trees are deleted, both recipes stay in the
   # firmware's sd-fonts.yaml with their comments saying so.
   #
-  # REOPENED 2026-09-11 for ONE family, and it MUST COME BACK OUT:
-  #   AtkinsonHyperlegibleNext -- Braille Institute's own release
-  #     (googlefonts/atkinson-hyperlegible-next, OFL 1.1, URLs pinned to
-  #     commit 7925f50f since the repo has no tags), instanced from the
-  #     variable TTFs at the owner's wght 365 for regular and italic. He named
-  #     no bold weight, so bold and bolditalic are 700, the Bold named
-  #     instance -- the recipe's comment in sd-fonts.yaml says so too. Same
-  #     ramp and span as Soft had (same skeleton), re-probed at this weight.
-  # Not in installed_families:. When the owner rules: promoted -> add it to
-  # installed_families: in the firmware's sd-fonts.yaml and take the name out
-  # of here; declined -> delete build/seedfonts/AtkinsonHyperlegibleNext and
-  # take the name out of here. Either way this list returns to empty.
+  # Reopened 2026-09-11 for AtkinsonHyperlegibleNext (Braille Institute's own
+  # release, googlefonts/atkinson-hyperlegible-next, OFL 1.1, URLs pinned to
+  # commit 7925f50f since the repo has no tags; instanced from the variable
+  # TTFs at the owner's wght 365 for regular and italic, 600 for the bolds
+  # since the same-day re-cut) and CLOSED 2026-09-12, PROMOTED: it went on
+  # trial at build 188, the owner ruled, and it is in installed_families: in
+  # the firmware's sd-fonts.yaml, so its name has come back out of here. As
+  # with DTLRomulus above, leaving it in both is the FATAL error a few lines
+  # down: the two lists mean opposite things, and an exemption left standing
+  # over a shipped family disarms the unclaimed-bundle gate for that name.
+  # Unlike the Romulus close, this one is a promotion the seed tree already
+  # carries -- build/seedfonts/AtkinsonHyperlegibleNext stays exactly where the
+  # trial put it, now claimed by installed_families: rather than exempted.
   # docs/trial-fonts.md.
   set(CROSSPOINT_IOS_TRIAL_FAMILIES
-    "AtkinsonHyperlegibleNext"
+    ""
     CACHE STRING
     "Families bundled for on-device evaluation only, exempt from the \
 installed_families check. Empty in a settled tree.")

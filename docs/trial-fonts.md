@@ -1,6 +1,25 @@
 # Fonts on trial
 
-**REOPENED 2026-09-11 for ONE family: AtkinsonHyperlegibleNext.** Owner ruling
+**CLOSED 2026-09-12 — AtkinsonHyperlegibleNext was PROMOTED.** Owner ruling
+2026-09-12, promoting it out of the trial that began at build 188. It is in
+`installed_families:` in the firmware's `sd-fonts.yaml` (the eleventh name,
+and the fourth sans), its name is out of `CROSSPOINT_IOS_TRIAL_FAMILIES`, and
+it now belongs on every surface — device SD cards, the simulator's
+`fs_/fonts/`, and the iOS seed set. Two things the trial note below no longer
+states correctly, recorded here rather than rewritten there: **bold and bold
+italic are wght 600, not 700**, since the same-day re-cut (firmware
+`6e3fd7899`, owner: *"for next cut, put bold at 600 instead"*); and it now HAS
+a `FontDisplayNames.h` row (display name "Atkinson Hyperlegible Next", origin
+1832 London on the Lexica precedent, so it sorts between Libre Franklin and
+Edgar rather than last under its directory name). The promotion is the one
+this file's own closing sentence describes, so the seed tree
+`build/seedfonts/AtkinsonHyperlegibleNext` stays exactly where the trial put
+it, now claimed by `installed_families:` rather than exempted. Unlike the
+Romulus close, this trial DID reach the phone — build 188 carried it. Still
+not run through the words-per-page measurement. The list is empty again. The
+original trial note follows.
+
+**Was: REOPENED 2026-09-11 for ONE family: AtkinsonHyperlegibleNext.** Owner ruling
 the same day the two-family trial below opened: *"drop lexica and atkinson
 soft, add atkinson hyperlegible next at 365 weight"*. It is the one name in
 `CROSSPOINT_IOS_TRIAL_FAMILIES` in `ios/CMakeLists.txt`, it is bundled for the
