@@ -64,3 +64,6 @@ Answers land in this file as rulings.
   (3, 10, 11, 13, 14, 19) at reading proportions and renders each at the
   real e-ink sizes as well (2x, four levels), with 5, 8 and 15 kept as
   flavor sources for terminals and rhythm rather than as directions.
+- **Round 2 shape (2026-09-12): three lanes of six or seven.** Asked one
+  lead / blends / three lanes: *three lanes*. Three of the kept text cuts
+  each get six or seven variations; the lanes are named in the next ruling.
