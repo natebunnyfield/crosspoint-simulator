@@ -5,13 +5,13 @@
 # adds, removes, or renames a translation unit.
 #
 # firmware   : /Users/natebunnyfield/src/crosspoint-reader
-# pinned at  : 791f2fcf6caf9e93cdef912aef457fe4d8d8d033
+# pinned at  : 23053e64359441e727263b8e99708f46eac1bdd0
 # TU counts  : 145 firmware, 27 simulator (6 C, 166 C++)
 
 # The firmware commit this source set was generated from. Upstream restructures
 # its tree frequently; a source list is only valid against the tree it was
 # derived from, so CI builds this commit by default rather than a moving branch.
-set(CROSSPOINT_FIRMWARE_PIN "791f2fcf6caf9e93cdef912aef457fe4d8d8d033")
+set(CROSSPOINT_FIRMWARE_PIN "23053e64359441e727263b8e99708f46eac1bdd0")
 
 
 # Simulator HAL + Arduino/ESP-IDF shims. Paths relative to this repo root.
