@@ -2397,3 +2397,11 @@ in the guide's rows. The z: read against Albertus and Berkeley, the
 diagonal is their heavy stroke and the bars light, the corners mitred --
 so it is the ruled Z at x-height. Page
 https://claude.ai/code/artifact/dbe678de-4184-46d7-aeb7-a4bda1e3456c.
+
+VF rebuilt after round 84 (2026-09-13), one worker (the Mac had 1.6 GB
+free with the local model loaded; six and three workers were killed):
+default = Medium, worst symmetric difference 0.5% (the L), metrics equal;
+the E and y still clamp at wght 50. Slider and proof pages republished, VF
+sent. **PAUSED here by the owner.** Pending his picks when he returns: the
+round-84 page (k z W a t), the o's counter width, the lighter weights'
+per-glyph fixes (a y 5 E), his future todo on the 4's top-left stroke.

@@ -188,3 +188,14 @@ edge; the 2 sits on the baseline; the 4 is closed. Ruled: the @
 his pick: the k's arm weight (1.15 / 1.30 / 1.45); the o's counter; the
 lighter weights; the naming. Owner's future todo: reduce the thickness of
 the 4's top-left stroke.
+
+### 9. Update, round 84 (paused here)
+
+Landed since §8: the k's arm wedge at 1.15; the z rebuilt as the Z at
+x-height (heavy diagonal, light bars, mitred corners); the W's crown lower
+and smaller; the a's top right a curve out of the stem; the t restored to
+round 51's. The VF is rebuilt through round 84 (build it with
+`FJORD_VF_JOBS=1` while a local model is loaded; more workers get killed
+for memory). The owner paused after round 84 without ruling on its page;
+that ruling is the first thing to ask for. Pending: the o's counter width,
+the lighter weights' a y 5 E fixes, the 4's top-left stroke thickness.
