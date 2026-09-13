@@ -1813,3 +1813,21 @@ pending.
 Round 64 RULED (2026-09-13): "5 at -24 is best." `FIVE_TOP_INSET = -24`;
 lands with the 8 of round 66 in one figures.py merge. The 8's round-64
 options are superseded by round 66.
+
+## Round 67 (2026-09-13): ten ampersands
+
+Owner: "make ten more florid and poetic ampersands." Agent in a worktree,
+two new files only: `outlines/glyphs/ampersands.py` (`VARIANTS`, ten drawing
+functions on the pen and bowl profile, every dimension off `pen.py` names)
+and `outlines/cmp/ampersands.py` (builds the reference, rebinds `&`, builds
+`only='&'`, splices into a copy, measures on the PRE-cut outline because the
+cut fools a width scan, writes the page). The ten: et_caslon (epsilon into a
+tall sheared stem), garamond (open top loop, thin diagonal, separate spur),
+ringed (full ring lower bowl), swash (spur to 0.8 desc sweeping left),
+cursive_et (cap E with a t-bar through a short t), teardrop, narrow (0.7
+width), wide_low (1.12 xh), flick (spur turns up into a stem wedge),
+aspiring (teardrop loop, arm to the ascender). All hairs >= the pen's hair
+(37.6 at the round-62 pen), every counter and aperture >= 0.6 stem. Fonts
+`build/fjord-fonts/amp/Albo-amp01..10.ttf`; the & in each is spliced into a
+round-62 Regular. Page https://claude.ai/code/artifact/PENDING67. Observed
+and not touched: the shipping &'s arm wedge shows a small notch at 600 px.
