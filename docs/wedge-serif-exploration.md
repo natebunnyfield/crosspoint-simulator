@@ -31,9 +31,10 @@
   them, old-style figures; `round19.py` is its base). Capitals redrawn in
   round 21 on the lowercase's primitives. **Standing spacing ruling** (his
   readout, 2026-09-12): capitals +34‰ letter-spacing, word-spacing −110‰,
-  in the file as +17 units per capital side and a 110-unit shorter space;
-  lowercase "needs much less", not yet given. **The J keeps its line across
-  always.** **Awaiting**: his lowercase spacing value from the page
+  in the file as +17 units per side and a 110-unit shorter space; since
+  round 22 the LOWERCASE is fitted on the same basis ("reduce lowercase
+  letter spacing to match uppercase's"). **The J keeps its line across
+  always; the j has no top flag; the g is a looptail.** **Awaiting**: his lowercase spacing value from the page
   (https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131)
   and his marks on the specimen
   (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd).
@@ -723,3 +724,29 @@ the wrong shape (U is weirdly high and short)."*
   can drop it; the J descends a little and hooks left, as the garalde J does.
 - **Spacing** applied as ruled: +17 units each side of every capital and
   figure, the space 110 units shorter. Lowercase untouched pending his value.
+
+
+## Round 22 (2026-09-12): one spacing basis, cap serifs as lowercase, D, j, looptail g
+
+Owner: *"reduce lowercase letter spacing to match uppercase's. and match the
+uppercase serifs to the lowercase's, D is a mess as is on the left side.
+remove black line across j stem. redo g to be looptail instead."*
+
+- **Spacing.** Both cases now bear from the references' H bearing plus the
+  owner's +17: `round20.build` uses one formula for every glyph (the
+  lowercase's own n-counter rule, `A.bearing`, is no longer used for
+  fitting; it remains the model's rule and the desktop pages' rule).
+- **Cap serifs.** `_cstem` now draws exactly what `alphabet2.stem` draws: one
+  wedge at the top pointing left, a foot both sides, the same lengths and
+  drops; a `top="both"` or `"right"` is mapped to left.
+- **D.** The first D closed its outer and counter at the stem's CENTER, so
+  the ring's top and bottom, which sit above and below the stem's ends by
+  half a stroke, poked out to the left. Now the bowl starts at the stem's
+  inner edge and its ellipse is trimmed so the outer contour lands ON the
+  cap height (`ry = C/2 − th_h/2`).
+- **j.** The "black line across the stem" was the top wedge at the x-height,
+  a heavy flag at text size; removed. (The i keeps its wedge.)
+- **g.** Looptail: an upper bowl on the x-height (rx 168, ry 0.33 xh), a
+  short ear out from the bowl's outer edge, a tapered link down the right,
+  and a wide lower loop below the baseline open at its upper right. Nothing
+  crosses the bowl.

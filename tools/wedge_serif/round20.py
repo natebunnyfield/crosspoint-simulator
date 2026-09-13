@@ -72,12 +72,10 @@ def build(out_dir, name="Fjord", style="Regular"):
             xs = [x for poly in polys for (x, y) in poly]
             l, r = (min(band), max(band)) if band else (min(xs), max(xs))
             lt, rt = round19.SIDES.get(ch, ('straight', 'straight'))
-            if isCap:
-                # owner 2026-09-12 from the spacing page: caps +34 per mille,
-                # i.e. +17 units each side (lowercase "needs much less": left at 0)
-                lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
-            else:
-                lsb = A.bearing(c, lt); rsb = A.bearing(c, rt)
+            # owner 2026-09-12: caps +34 per mille from the spacing page (+17
+            # each side), then "reduce lowercase letter spacing to match
+            # uppercase's": one basis for both cases, the references' H bearing
+            lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
             adv = lsb + (r - l) + rsb; dx = lsb - l
             pen = TTGlyphPen(None)
             for poly in polys:

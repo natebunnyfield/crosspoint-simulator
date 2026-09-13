@@ -91,17 +91,18 @@ def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
 # verticals on the N, the R's leg straight to the line, the U's bottom ON
 # the baseline (it floated), pointed V W, the Y's arms meeting at 0.45.
 
-def _cstem(c, P, x, y0, y1, top="both", foot="both", thin=1.0):
-    """A capital stem at cap weight with wedges: top 'both'|'left'|'right'|None, foot likewise."""
-    s = c["s"] * CAP_STEM * thin
+def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
+    """A capital stem at cap weight with the LOWERCASE's serifs exactly (owner
+    2026-09-12): one wedge at the top, pointing left, and a foot both sides,
+    at the sizes alphabet2.stem uses. top: 'left'|None (a 'both' or 'right'
+    is mapped to left); foot: 'both'|'left'|'right'|None."""
     pts = line((x, y0), (x, y1), 36)
     prof = lambda t: c["ent"](t) * CAP_STEM * thin
     P.append(A.outline(pts, c["pen"], prof))
     th = c["pen"].th((0, 1)) * CAP_STEM * thin
     if c["wl"] <= 0 or c["serif"] != "wedge": return
-    sides = {"both": (1, -1), "left": (1,), "right": (-1,), None: ()}
-    for sd in sides[top]:
-        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"], fillet=c["fillet"]))
+    if top:
+        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"], c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
     fsides = {"both": (-1, 1), "left": (-1,), "right": (1,), None: ()}
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
@@ -136,9 +137,19 @@ def g_C(c):
     return P
 
 def g_D(c):
+    """Stem plus a counterpunched bowl that starts at the stem's inner edge
+    and is trimmed to the cap height, so nothing of the ring shows past the
+    stem (the first D closed its contours at the stem's center and its ring
+    top and bottom poked out to the left: 'a mess on the left side')."""
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; rx = _w(c, "D", 330)
     _cstem(c, P, x, 0, C, top="left", foot="left")
-    cp_ring(c, P, x + rx - rx * 0.9, C / 2, rx, C / 2 + c["over"], -math.pi / 2, math.pi / 2, close_x=x); return P
+    edge = x + s * 0.5
+    th_h = c["pen"].th((1, 0)); ry = C / 2 - th_h / 2       # outer top lands ON the cap height
+    R = _round17()
+    outer, inner = R.ring(c, edge + rx * 0.05, C / 2, rx, ry, -math.pi / 2, math.pi / 2, 110, cut=c.get("_cut"))
+    outer = [(edge - s * 0.06, outer[0][1])] + outer + [(edge - s * 0.06, outer[-1][1])]
+    inner = [(edge + 1, inner[0][1])] + inner + [(edge + 1, inner[-1][1])]
+    P.append(outer); P.append(R.Hole(inner)); return P
 
 def g_E(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "E", 420)

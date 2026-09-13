@@ -274,17 +274,26 @@ def g_a(c):
     curve(c, P, bowl, compose(taper_in(0.55, 0.15), taper_out(0.6, 0.12))); return P
 
 def g_g(c):
-    """Single-storey g. The stem starts at 0.42 of the x-height, where the
-    bowl's right side is already vertical, so the two do not double up over
-    the bowl's upper half (owner 2026-09-12: a less distracting overlap
-    area, counterpunch-inspired). A short ear instead of a top wedge."""
+    """Looptail (binocular) g, owner 2026-09-12. An upper bowl on the
+    x-height, a short link down the right, a wide lower loop below the
+    baseline open at its upper right where the link enters, and a small ear
+    that starts at the bowl's outer edge and goes out, never over the bowl."""
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]
-    rx = 205 * wf; cx = rx; x = cx + rx - s * 0.5
-    _bowl(c, P, cx, rx)
-    stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.42, top=None, foot=None, flare=False)
-    # no ear: the bowl carries nothing over it (owner 2026-09-12)
-    tail = bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
-    curve(c, P, tail, compose(taper_in(0.7, 0.15), flare_end(0.3, 0.3)), cut1=c["cut"]); return P
+    rx = 168 * wf; ry = xh * 0.33; cx = rx + 10; cy = xh - ry
+    bowl = ellipse(cx, cy, rx, ry, math.radians(80), math.radians(80 + 370), 100, c["k"])
+    curve(c, P, bowl)
+    # the ear: from the bowl's outer edge at the top right, out and slightly up
+    ear_x = cx + rx * math.cos(math.radians(38)); ear_y = cy + ry * math.sin(math.radians(38))
+    curve(c, P, line((ear_x - s * 0.1, ear_y), (ear_x + 80 * wf, ear_y + 30), 8), lambda t: 0.8, cut1=c["cut"])
+    # the link: from the bowl's bottom right down and left into the loop
+    lx0, ly0 = cx + rx * 0.55, cy - ry * 0.85
+    loop_cx, loop_cy = cx - 10, -desc * 0.5; lrx, lry = 205 * wf, desc * 0.48
+    entry = (loop_cx + lrx * math.cos(math.radians(50)), loop_cy + lry * math.sin(math.radians(50)))
+    link = bez((lx0, ly0), (lx0 + 30, ly0 - 60), (entry[0] + 40, entry[1] + 60), entry, 30)
+    curve(c, P, link, compose(taper_in(0.6, 0.2), taper_out(0.7, 0.2)))
+    # the loop: open at the upper right, running counterclockwise from the entry round to the top left
+    loop = ellipse(loop_cx, loop_cy, lrx, lry, math.radians(50), math.radians(50 + 300), 90, c["k"])
+    curve(c, P, loop, compose(taper_in(0.7, 0.1), flare_end(0.15, 0.1)), cut1=c["cut"]); return P
 
 def _arch(c, P, x0, x1, xh, start=None):
     start = c["arch"] if start is None else start
@@ -325,7 +334,7 @@ def g_l(c):
 
 def g_j(c):
     P = []; xh = c["xh"]; s = c["s"]; desc = c["desc"]; wf = c["wf"]; r = 165 * wf; x = 120 * wf + s / 2
-    stem(c, P, x, -desc + r * 0.2 - s * 0.5, xh, top="wedge", foot=None, flare=False)
+    stem(c, P, x, -desc + r * 0.2 - s * 0.5, xh, top=None, foot=None, flare=False)  # no top flag (owner 2026-09-12)
     tail = bez((x, -desc + r * 0.2), (x, -desc - r * 0.5), (x - r * 0.55, -desc - r * 0.7), (x - r * 1.05, -desc - r * 0.25), 40)
     curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"])
     P.append(blob((x, xh + 118 + s * 0.3), s * 0.5)); return P
