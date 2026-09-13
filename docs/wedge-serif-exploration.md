@@ -2114,3 +2114,27 @@ options are an improvement. try one similar to other letters like 'I'." The
 L's stem top becomes the I's `left+` (the primitive's own two-sided top);
 `L_TOP_RIGHT` defaults to 0 and keeps the ladder's separate wedge for the
 record. Page (same URL) shows before / after / the I.
+
+Round 75, L with life (2026-09-13): "yes to that I, but make it not an
+exact match. adjust it slightly give it life." The L's right wedge 0.5 x
+0.72 at 0.5 drop against the I's 0.4 x 0.6 at 0.4; its left wedge 0.92 of
+the family's (`L_TOP_RIGHT`, `L_TOP_RIGHT_DEPTH`, `L_TOP_RIGHT_DROP`,
+`L_TOP_LEFT`). Page at the same URL.
+
+## Round 77, the variety audit (2026-09-13): landed
+
+`docs/albo-variety-audit-2026-09-13.md` + `outlines/cmp/variety.py`
+(re-runnable; census by wrapping the primitives during a build, because
+`stem(foot='both')` draws wedges the glyph file never names). Findings:
+129 of 144 serifs (90%) have an exact twin on the designed outline; 58
+foot wedges identical (both feet of one stem included), 28 stem tops, 16
+diagonal ends (which the 1-in-4 cut cannot split -- four phases against
+sixteen). Counters far better: O/Q, the %'s rings, b/p, d/q are the same
+call twice; the o is the O reduced. Ranked recommendations, not made: break
+the two feet of one stem apart (left 1.0x1.0, right 0.94x1.06); two
+stem-top families (ascenders 1.05 / fillet 0.60, x-height 0.95 / 0.70);
+stop b d p q sharing one ring; the o not the O reduced (k down 0.12); size
+the diagonal wedge off its own angle. Found varied: s t c carry no wedge;
+15 serifs have no twin; the e's eye is the most distinctive white; the 8's
+rings, B's bowls, g's bowl vs loop all differ. Page
+https://claude.ai/code/artifact/PENDINGVAR.

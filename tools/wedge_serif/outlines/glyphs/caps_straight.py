@@ -184,7 +184,10 @@ def g_K(c):
 # with the wedge on one side. In units of a full stem-top wedge's length (WL);
 # depth stays the family's WD, drop the family's DROP. The arm (there is
 # none), foot and bar-end wedge are untouched.
-L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.0))   # FJORD_L_TOP: ladder override
+L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.5))
+L_TOP_RIGHT_DEPTH = 0.72   # the I's small wedge is 0.4 x 0.6 x 0.4 drop; the L's 0.5 x 0.72 x 0.5 (owner: "give it life")
+L_TOP_RIGHT_DROP = 0.5
+L_TOP_LEFT = 0.92          # the left wedge a touch shorter than the family's 1.0   # FJORD_L_TOP: ladder override
 
 @glyph('L')
 def g_L(c):
@@ -194,11 +197,16 @@ def g_L(c):
     # So the L's top is the I's: the stem primitive's own two-sided top
     # ('left+'), the small right-pointing wedge at the primitive's factor.
     # L_TOP_RIGHT > 0 keeps the ladder's separate wedge for the record.
+    # Then, on that: "yes to that I, but make it not an exact match. adjust
+    # it slightly give it life." The I's small wedge is 0.4 x 0.6 of the
+    # family at 0.4 drop; the L's is a touch bigger (L_TOP_RIGHT x
+    # L_TOP_RIGHT_DEPTH at L_TOP_RIGHT_DROP) and its left wedge a touch
+    # shorter (L_TOP_LEFT), so the two crowns are kin, not twins.
     if L_TOP_RIGHT > 0:
-        st = cstem(x, 0, C, top='left', foot='left')
+        st = cstem(x, 0, C, top='left', foot='left', top_len=L_TOP_LEFT)
         cap_w = TH_V * CAP_STEM
         def _wid(y): return cap_w * (1.0 + ENT * (2 * y / C - 1) ** 4)
-        top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD, DROP,
+        top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD * L_TOP_RIGHT_DEPTH, DROP * L_TOP_RIGHT_DROP,
                            edge_at=lambda d: (x + _wid(C - d) / 2, C - d))
         parts = [st, top_right]
     else:
