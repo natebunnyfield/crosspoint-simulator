@@ -333,10 +333,23 @@ def g_l(c):
     P = []; x = c["s"] / 2; stem(c, P, x, 0, c["asc"], top="wedge", foot="both"); return P
 
 def g_j(c):
-    P = []; xh = c["xh"]; s = c["s"]; desc = c["desc"]; wf = c["wf"]; r = 165 * wf; x = 120 * wf + s / 2
-    stem(c, P, x, -desc + r * 0.2 - s * 0.5, xh, top=None, foot=None, flare=False)  # no top flag (owner 2026-09-12)
-    tail = bez((x, -desc + r * 0.2), (x, -desc - r * 0.5), (x - r * 0.55, -desc - r * 0.7), (x - r * 1.05, -desc - r * 0.25), 40)
-    curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"])
+    """Round 25: against Garamond the hook was 24% too wide, 0.15 xh too deep,
+    and ended in a flared blob. Now one round sweep: a quarter-arc from the
+    stem through the bottom and a little past, its weight held at stem
+    weight through the turn (the pen alone thins any down-left diagonal to
+    a flick) and thinning to a point only after the bottom, the garalde j."""
+    P = []; xh = c["xh"]; s = c["s"]; desc = c["desc"]; wf = c["wf"]; r = 125 * wf; x = 120 * wf + s / 2
+    B = -desc * 0.97                       # the hook's lowest point, a hair above the descender line
+    y0 = B + r                             # where the stem hands over to the arc
+    stem(c, P, x, y0 - s * 0.5, xh, top=None, foot=None, flare=False)  # no top flag (owner 2026-09-12)
+    n = 48; a0, a1 = 0.0, math.radians(-118)
+    tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / n), y0 + r * math.sin(a0 + (a1 - a0) * i / n)) for i in range(n + 1)]
+    tn = tangents(tail)
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        u = max(0.0, (t - 0.45) / 0.55); want = s * (1.0 - 0.9 * (3 * u * u - 2 * u * u * u))
+        return want / th
+    curve(c, P, tail, prof)
     P.append(blob((x, xh + 118 + s * 0.3), s * 0.5)); return P
 
 def g_f(c):
@@ -406,16 +419,21 @@ def g_y(c):
     return P
 
 def g_z(c):
+    """Round 25: the bars were centered ON the x-height and baseline, so the
+    letter overshot both by half a bar, and the top-left wedge pointed up;
+    against Garamond it was 21% too tall. Both bars now sit inside the band
+    and the top-left beak hangs down, the bottom-right one rises."""
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; w = 400 * wf
-    curve(c, P, line((0, xh), (w, xh), 12), cut1=c["cut"])
-    zd = line((w - s * 0.15, xh), (s * 0.15, 0), 30)
+    th = max(c["pen"].th((1, 0)), s * 0.55)
+    yt = xh - th / 2; yb = th / 2
+    curve(c, P, line((0, yt), (w, yt), 12), cut1=c["cut"])
+    zd = line((w - s * 0.15, yt), (s * 0.15, yb), 30)
     tz = tangents(zd)[0]
     curve(c, P, zd, lambda t: c["s"] / c["pen"].th(tz))  # thick, whatever the nib says
-    curve(c, P, line((0, 0), (w, 0), 12), cut1=c["cut"])
-    th = max(c["pen"].th((1, 0)), s * 0.55)
+    curve(c, P, line((0, yb), (w, yb), 12), cut1=c["cut"])
     if c["wl"] > 0:
-        P.append(bracket_wedge((0, xh), (-1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"] * 0.9, -1, drop=0))
-        P.append(bracket_wedge((w, 0), (1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"] * 0.9, -1, drop=0))
+        P.append(bracket_wedge((0, yt), (-1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"] * 0.9, 1, drop=0))   # beak DOWN
+        P.append(bracket_wedge((w, yb), (1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"] * 0.9, -1, drop=0))  # rises
     return P
 
 def g_s(c):

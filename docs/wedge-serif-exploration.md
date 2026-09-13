@@ -814,3 +814,33 @@ M N O P Q R S T V W X Y (the caps only carry the global cap-height offset), 1 4
 
 Nothing changed in the font this round; it is a measurement, for the owner to
 mark.
+
+## Round 25 (2026-09-12): j, z, T
+
+Owner, on the Garamond comparison: "stop making spacing page. i think it's
+best if I start with what works well, but for now fix j and z and T."
+
+**Rulings:** the interactive spacing page (`fjord-spacing.html`) is NOT
+refreshed or republished from here on. Fix order is the owner's, starting
+from what works.
+
+- **z** (`alphabet2.g_z`): both bars were centered ON the x-height and the
+  baseline, so the letter overshot each by half a bar (+21% tall against
+  Garamond), and the top-left wedge pointed up. Bars now sit inside the band
+  (`yt = xh − th/2`, `yb = th/2`), the diagonal joins their centers, the
+  top-left beak hangs down and the bottom-right one rises. No flags left.
+- **j** (`alphabet2.g_j`): hook was 24% too wide, 0.15 xh deeper than
+  Garamond's, and ended in a flared blob under a pen cut. Two attempts
+  failed first: a bezier with `taper_out(0.55)` still ended blunt, and a
+  longer bezier with `taper_out(0.88)` flicked -- the pen model thins any
+  down-left diagonal, so the hook lost its weight exactly where a garalde j
+  keeps it. Now a quarter-arc-and-a-bit (r 125, 0 to −118°) from the stem,
+  with an absolute profile: stem weight through the turn, thinning to 10%
+  only past the bottom. Lowest point at 0.97 of the descender. No flags left.
+- **T** (`latin.g_T`): the bar was the pen's full horizontal, centered on the
+  cap height (overshooting) and pen-cut at both ends under small wedges. Now
+  0.62 of the horizontal, its TOP on the cap height, square ends, and a wedge
+  the size of a stem's foot hanging from each arm; the stem stops inside the
+  bar.
+
+Nothing else moved. 53 of 93 glyphs still carry a Garamond flag, per round 24.

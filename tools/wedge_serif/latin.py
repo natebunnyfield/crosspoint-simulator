@@ -252,9 +252,18 @@ def g_S(c):
     A.curve(c, P, spine, prof, cut0=c["cut"], cut1=c["cut"]); return P
 
 def g_T(c):
+    """Round 25: the bar was stem-heavy, centered on the cap height (so it
+    overshot), and pen-cut at the ends under small wedges. Now a thin bar
+    whose top IS the cap height, square ends, and a wedge hanging down from
+    each arm the size of a stem's foot, the garalde T."""
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "T", 520); x = w / 2
-    bar(c, P, 0, w, C, serif_ends=[('left', -1), ('right', -1)])
-    _cstem(c, P, x, 0, C - s * 0.2, top=None, foot="both"); return P
+    th = max(c["pen"].th((1, 0)) * 0.62, c["s"] * 0.45); yb = C - th / 2
+    pts = line((0, yb), (w, yb), 12)
+    P.append(A.outline(pts, c["pen"], lambda t: th / c["pen"].th((1, 0))))
+    if c["wl"] > 0:
+        P.append(bracket_wedge((0, yb), (-1, 0), (0, -1), th, c["wl"] * 1.0, c["wd"] * 1.1, 1, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge((w, yb), (1, 0), (0, 1), th, c["wl"] * 1.0, c["wd"] * 1.1, -1, drop=0, fillet=c["fillet"]))
+    _cstem(c, P, x, 0, yb + th * 0.5 - s * 0.05, top=None, foot="both"); return P
 
 def g_U(c):
     """Two stems joined by a bowl that reaches the baseline. The right stem
