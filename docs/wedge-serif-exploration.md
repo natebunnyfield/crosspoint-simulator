@@ -2291,4 +2291,4 @@ consequence: the open 4 has one contour where the closed had two, and the
 cut's phase counter runs once per contour in glyph order, so twenty later
 glyphs re-facet (largest point move 9.4 units, 0.5 px at 13 pt) -- a facet
 re-roll, not a design change. Page
-https://claude.ai/code/artifact/PENDINGF3.
+https://claude.ai/code/artifact/3397885e-bd67-4b94-b0a4-e04216754365.
