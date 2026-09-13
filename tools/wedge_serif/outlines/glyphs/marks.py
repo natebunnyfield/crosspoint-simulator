@@ -15,7 +15,7 @@ def g_period(c): r = CAP(c) * 0.08; return dot(r, r, r)
 def comma_tail(x, y, up=True, w0=0.9, w1=0.3):
     if up: tail = cubic((x + S * 0.1, y - S * 0.35), (x + S * 0.1, y - S * 1.05), (x - S * 0.3, y - S * 1.45), (x - S * 0.6, y - S * 1.75))
     else:  tail = cubic((x - S * 0.1, y + S * 0.35), (x - S * 0.1, y + S * 1.05), (x + S * 0.3, y + S * 1.45), (x + S * 0.55, y + S * 1.75))
-    return stroke(tail, widths([(0.0, S * w0), (1.0, S * w1)]))
+    return stroke(tail, pen_widths(tail, lambda t: w0 - (w0 - w1) * t))   # round 51: the pen x (0.9 - 0.6 t)
 @glyph(',')
 def g_comma(c): x = S * 0.55; return geom.ink([dot(x, S * 0.55, S * 0.55), comma_tail(x, S * 0.55)])
 @glyph(':')
@@ -25,7 +25,7 @@ def g_semicolon(c): x = S * 0.55; return geom.ink([dot(x, S * 0.55, S * 0.55), c
 @glyph('!')
 def g_exclam(c):
     C = CAP(c); x = S * 0.55
-    return geom.ink([dot(x, S * 0.55, S * 0.55), stroke(line((x, S * 1.9), (x, C)), widths([(0.0, TH_V * 0.55), (1.0, TH_V * 1.05)]), cut1=CUT)])
+    return geom.ink([dot(x, S * 0.55, S * 0.55), stroke(line((x, S * 1.9), (x, C)), pen_widths(line((x, S * 1.9), (x, C)), lambda t: 0.55 + 0.5 * t), cut1=CUT)])
 @glyph('?')
 def g_question(c):
     C = CAP(c); w = 380
@@ -58,7 +58,7 @@ def paren(c, left):
     C = CAP(c); d = DESC; r = 150
     if left: pts = superellipse(r, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(105), math.radians(255), 2.2)
     else: pts = superellipse(0, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(75), math.radians(-75), 2.2)
-    return stroke(pts, lambda t: TH_V * (0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT)
+    return stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT)
 @glyph('(')
 def g_parenleft(c): return paren(c, True)
 @glyph(')')

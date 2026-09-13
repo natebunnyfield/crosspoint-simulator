@@ -78,8 +78,21 @@ def g_a(c):
     # horizontal along the bottom -- ramped, where the pen-by-tangent
     # offset stepped from 33 to 77 in a few samples and left a tooth in the
     # counter's lower left (seen at 700 px)
-    wfn = widths([(0.0, 30), (0.20, 33), (0.48, 76), (0.56, 78), (0.66, 62), (0.74, 52), (0.82, 44), (1.0, 40)])
-    solid, o, i = ring_from(outer, widths_fn=wfn, counter_smooth=3)
+    # the counter is the pen's offset at each tangent (a hairline along the
+    # diagonal, the stem's weight at the lower left, the horizontal along
+    # the bottom), the width sequence averaged over +-4 samples so the
+    # tight lower-left turn does not step it; the closing edge inside the
+    # stem is taken at 40 so the counter lands on the stem's edge
+    def wfn(t):
+        i = int(round(t * (len(outer) - 1)))
+        return 40.0 if i >= len(outer) - 4 else None
+    n_o = len(geom.resample(outer + [outer[0]])) - 1
+    tans_o = geom.tangents(geom.resample(outer + [outer[0]])[:-1], closed=True)
+    def wfn2(t):
+        i = min(n_o - 1, int(round(t * n_o))); p = geom.resample(outer + [outer[0]])[i]
+        if p[0] > xe + 30: return 40.0
+        return pen.PEN.th(tans_o[i])
+    solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=4)
     return geom.ink([st, hd, solid])
 
 @glyph('s')

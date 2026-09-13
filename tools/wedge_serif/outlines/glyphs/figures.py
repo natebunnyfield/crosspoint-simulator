@@ -8,7 +8,7 @@ from .. import geom, pen
 from ..geom import cubic, line, superellipse
 from ..primitives import stem, ring, stroke, pen_widths, widths, diagonal, bar, wedge, end_wedge
 from ..pen import S, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, WL, WD, DROP
-from .caps_straight import W_
+from .caps_straight import W_, pw
 
 def fig_ring(cx, cy, rx_c, ry_c):
     return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2)
@@ -30,7 +30,7 @@ def g_two(c):
     D = c["figH"]; w = W_(c, '2', 440); rx = w * 0.46
     top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(-25), BOWL_K)
     arc = stroke(top, pen_widths(top, widths([(0.0, 1.2), (0.15, 1.0)])), cut0=CUT)
-    d = diagonal(top[-1], (S * 0.2, TH_H * 0.5), widths([(0.0, TH_V), (1.0, TH_V)]))
+    d = diagonal(top[-1], (S * 0.2, TH_H * 0.5), pw(top[-1], (S * 0.2, TH_H * 0.5)))
     return geom.ink([arc, d, bar(0, w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
 
 @glyph('3')
@@ -45,7 +45,7 @@ def g_three(c):
 @glyph('4')
 def g_four(c):
     D = c["figH"]; w = W_(c, '4', 480); xs = w * 0.7
-    return geom.ink([diagonal((xs - S * 0.2, D), (S * 0.1, D * 0.3), TH_V * 0.75), bar(0, w, D * 0.3, max(TH_H, S * 0.5)),
+    return geom.ink([diagonal((xs - S * 0.2, D), (S * 0.1, D * 0.3), pw((xs - S * 0.2, D), (S * 0.1, D * 0.3), 0.75)), bar(0, w, D * 0.3, max(TH_H, S * 0.5)),
                      stem(xs, 0, D, top=None, foot='both')])
 
 @glyph('5')
@@ -69,7 +69,7 @@ def g_six(c):
 @glyph('7')
 def g_seven(c):
     D = c["figH"]; w = W_(c, '7', 440)
-    return geom.ink([bar(0, w, D, max(TH_H, S * 0.5), align='top', cut1=CUT, wedges=[('left', -1)]), diagonal((w - S * 0.2, D - 10), (w * 0.3, 0), TH_V)])
+    return geom.ink([bar(0, w, D, max(TH_H, S * 0.5), align='top', cut1=CUT, wedges=[('left', -1)]), diagonal((w - S * 0.2, D - 10), (w * 0.3, 0), pw((w - S * 0.2, D - 10), (w * 0.3, 0)))])
 
 @glyph('8')
 def g_eight(c):

@@ -1476,3 +1476,40 @@ After: o counter 1.036; flags Garamond 38 / VdK 35 / Dante 67 / Edgar 63
 −4%. The q's right foot 16 past its advance and the y's tail at −282 are the
 record's geometry. Recorded in `outlines/NOTES.md` ("Regression pass"). The
 specimen at the standing URL carries this build; his rounds by name follow.
+
+## Round 56 (2026-09-13): the brush-stroke revision -- D B P R, then every letter
+
+Owner: "D B P R all need a lot of brush stroke revision, after those do every
+other letter." Against Van den Keere at 230 px the rebuild's bowls were
+TUBES -- one thickness all round, the top and bottom as heavy as the side --
+and the P's and B's lower bowls left a slit at the stem; the R's leg was a
+straight uniform bar. Cause found by the agent: `half_bowl` looked up the
+pen's tangent by an index from the pre-resampled path, so every width was
+shifted and the top took the side's 77.
+
+**Phase 1, D B P R** (`fjord-phase1-DBPR.html`): the bowl is a pen stroke --
+the designed centerline (half superellipse, k × 1.12, outer edges on the
+lines, the fixed widths) offset by `pen.th(tangent)/2` both sides, both ends
+running 22 units into the stem and tapering to 0.42 of the pen over their
+last 10%; the opened bottom lifts the lower centerline by half the extra and
+adds the whole to the width so the outer edge holds. `pen.check` reads ~1.0
+around the bowl, 1.09–1.33 through the opened lower half, 0.4 at the ends.
+B upper bowl 0.86 of the lower, both ends meeting at 0.55 C as hairlines. R
+leg foot-first on a cubic bowed 9 units, 1.05 × pen at 60° at the foot
+thinning to 0.42 into the bowl, the A's foot wedge.
+
+**Phase 2, every other letter** (seven pages, `fjord-phase2-*.html`): the
+arches n m h u r on a designed centerline offset by the pen (hairline up the
+stress, 55 over the top, full stem down the shoulder), thinning 0.30 into the
+stem, trap notch kept; the a's counter as the pen's offset with the width
+sequence averaged over ±4 samples at the tight turn; the U on round 51's
+profile with entasis at the stems; 2 4 7 diagonals, the comma family, ! ( )
+on the pen. Already on the pen and left alone: o c e, b d p q, g, s, f t,
+the straight diagonals, C G S, O Q, J, the figures' arcs, & @ ? % *.
+
+After: o counter 1.036; flags Garamond 35 / VdK 37 / Dante 68 / Edgar 64;
+lowercase median darkness −2%, word median −4% against round 51. **For the
+owner:** the pen at 26° puts a bowl's maximum at 2 o'clock (tangent 116°),
+thins at 11 and 5; Van den Keere's D carries its weight at 4 o'clock. That is
+the pen's definition (`stress`), not a drawing; moving it moves every round.
+Recorded in `outlines/NOTES.md` ("Brush-stroke revision").

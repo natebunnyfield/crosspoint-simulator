@@ -48,8 +48,11 @@ def g_A(c):
 def g_B(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'B', 380); edge = x + CW / 2
     st = cstem(x, 0, C, top='left', foot='left')
-    up, *_ = half_bowl(edge, C, C * 0.55 - TH_H * 0.3, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
-    lo, *_ = half_bowl(edge, C * 0.55 + TH_H * 0.3, 0, w * 0.72 + TH_V / 2, open_bottom=0.3)
+    # upper bowl 0.86 of the lower's width (ruling); both bowls' thin ends
+    # taper into the stem at the waist (0.55 C), so the waist is the pen's
+    # horizontal thinning to a hairline at the stem
+    up, *_ = half_bowl(edge, C, C * 0.55, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
+    lo, *_ = half_bowl(edge, C * 0.55, 0, w * 0.72 + TH_V / 2, open_bottom=0.3)
     return geom.ink([st, up, lo])
 
 def cap_arc(c, rx_c, a0, a1, profile, cut0=None, cut1=None, k=BOWL_K, ry_c=None, cy=None):
@@ -214,10 +217,20 @@ def g_Q(c):
 @glyph('R')
 def g_R(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'R', 400); edge = x + CW / 2
-    bowl, cx, cy, rx, ry = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.3)
+    bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.3)
     ang = math.radians(-52); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
+    # the leg as the nib writes it: thin where it leaves the bowl, the
+    # pen's width at 60 degrees x 1.05 (64, round 42) by the foot, on a
+    # slight outward bow; drawn foot-first so the foot wedge is the A's
     foot = (J[0] + J[1] / math.tan(math.radians(60)), 0)
-    return geom.ink([cstem(x, 0, C), bowl, kick(J, 60, pw(foot, J, 1.05))])   # round 51: 1.05 x the pen at 60 degrees (64)
+    d = (J[0] - foot[0], J[1] - foot[1]); Ld = math.hypot(*d); d = (d[0] / Ld, d[1] / Ld); nrm = (-d[1], d[0])
+    end = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)
+    c1 = (foot[0] + d[0] * Ld * 0.35 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.35 - nrm[1] * 9)
+    c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
+    leg_c = cubic(foot, c1, c2, end)
+    w_foot = pw(foot, J, 1.05)
+    leg = stroke(leg_c, lambda t: w_foot * widths([(0.0, 1.0), (0.45, 1.0), (1.0, 0.42)])(t))
+    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, w_foot, True, 1)])
 
 @glyph('S')
 def g_S(c):
@@ -248,7 +261,12 @@ def g_U(c):
     right = cstem(x1, y0 - 30, C, top='right+', foot=None, w=CW * 0.78, ent_span=(0, C))
     yb = -OVER + TH_H / 2; cy = (8 * yb - 2 * y0) / 6
     pts = cubic((x0, y0), (x0, cy), (x1, cy), (x1, y0))
-    return geom.ink([left, right, stroke(pts, widths([(0.0, CW), (0.5, TH_H * 1.05), (1.0, CW * 0.78)]))])
+    # round 51: the pen's widths x CAP_STEM(1 - 0.22 t), swelling by the
+    # entasis over the first and last 15% to meet the stems' ends
+    amt = ENT; base = pen_widths(pts)
+    bump = lambda t: 1.0 + amt * (max(0.0, 1 - t / 0.15) + max(0.0, 1 - (1 - t) / 0.15))
+    wfn = lambda t: base(t) * CAP_STEM * (1 - 0.22 * t) * bump(t) * widths([(0.0, 0.9), (0.05, 1.0), (0.88, 1.0), (1.0, 0.8)])(t)
+    return geom.ink([left, right, stroke(pts, wfn)])
 
 @glyph('V')
 def g_V(c):

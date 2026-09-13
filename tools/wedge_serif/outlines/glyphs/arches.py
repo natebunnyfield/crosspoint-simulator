@@ -8,48 +8,40 @@ import math
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, join
-from ..primitives import stem, stem_edge_x, edge_stroke, widths, stroke, trap, wedge
+from ..primitives import stem, stem_edge_x, edge_stroke, widths, stroke, trap, wedge, pen_widths
 from ..pen import S, XH, ASC, TH_V, TH_H, HAIR, WL, WD, DROP, ENT, CUT
 
-def arch_geom(x0, x1, xh, ent_span=None, peak_frac=0.58, leave_y=0.52, outer_leave=0.80, top_w=None,
-              lean=50.0, lean_in=74.0, yr_frac=0.50, yri_frac=0.58, inner_peak_dx=-36.0, w=None):
-    """The arch between a left stem centered at x0 and a right stem at x1.
-    BOTH edges are designed: the outer (the silhouette) leaves the stem at
-    outer_leave x xh at `lean` degrees, peaks at xh + 12 (ruling) right of
-    centre, and comes down vertical into the right stem's right edge; the
-    inner peels off the stem at leave_y x xh (ruling: 0.52) at `lean_in`
-    degrees -- nearly along the stem, which is what makes the join a
-    hairline -- peaks top_w under the outer (the pen's horizontal, 55,
-    thinned to 50 as the garaldes' arch tops run under their o's), and comes
-    down vertical into the right stem's left edge. Returns (solid, cutouts,
-    outer, inner)."""
-    w = w or TH_V; lo, hi = ent_span or (0, xh)
-    xl = stem_edge_x(x0, w, ENT, outer_leave * xh, lo, hi, +1)
-    yr = yr_frac * xh; yri = yri_frac * xh
-    xr = stem_edge_x(x1, w, ENT, yr, lo, hi, +1); xri = stem_edge_x(x1, w, ENT, yri, lo, hi, -1)
-    top = xh + pen.ARCH_OVER; top_w = top_w or TH_H * 0.95
-    xp = xl + (xr - xl) * peak_frac; xpi = xp + inner_peak_dx
-    a = math.radians(lean); P0 = (xl - 8, outer_leave * xh); d0 = math.dist(P0, (xp, top))
-    outer = join(cubic(P0, (P0[0] + math.cos(a) * d0 * 0.40, P0[1] + math.sin(a) * d0 * 0.40), (xp - (xp - P0[0]) * 0.42, top), (xp, top)),
-                 cubic((xp, top), (xp + (xr - xp) * 0.60, top), (xr, top - (top - yr) * 0.42), (xr, yr)))
-    b = math.radians(lean_in); Q0 = (xl - 3, leave_y * xh); topi = top - top_w; d1 = math.dist(Q0, (xpi, topi))
-    inner = join(cubic(Q0, (Q0[0] + math.cos(b) * d1 * 0.36, Q0[1] + math.sin(b) * d1 * 0.36), (xpi - (xpi - Q0[0]) * 0.40, topi), (xpi, topi)),
-                 cubic((xpi, topi), (xpi + (xri - xpi) * 0.55, topi), (xri, topi - (topi - yri) * 0.52), (xri, yri)))
-    # close the solid through the stems: outer .. down the right stem's right edge .. across .. up the inner .. back inside the left stem
-    body = outer + [(xr, yr - 20), (xri, yri - 20)] + inner[::-1] + [(xl - 3, leave_y * xh - 20), (xl - 8, outer_leave * xh - 20)]
-    solid = geom.poly(body)
-    cut = trap((xl, leave_y * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
-    return solid, [cut], outer, inner
+def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32, end_y=0.60):
+    """The arch as the NIB writes it (owner 2026-09-13): a designed
+    CENTERLINE -- leaves the left stem's inner edge at `start` x xh
+    (ruling 0.52) climbing steeply, peaks so its outer edge lands at
+    xh + 12 (ruling), and comes down vertical into the right stem at
+    end_y -- offset by pen.th(tangent)/2 at every point: a hairline where
+    it runs up along the stress, the pen's horizontal (55) over the top,
+    the full stem where it turns down. It thins into the left stem
+    (taper_in 0.30 over 32%, round 51's), so its start face lies inside
+    the stem's ink. Returns (solid, cutouts, L, R)."""
+    w = TH_V; lo, hi = ent_span or (0, xh)
+    xl = stem_edge_x(x0, w, ENT, start * xh, lo, hi, +1)
+    over_c = pen.ARCH_OVER - TH_H / 2
+    yc = (8 * (xh + over_c) - xh * start - xh * end_y) / 6
+    center = cubic((xl - 6, xh * start), (xl + S * 0.2, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * end_y))
+    base = pen_widths(center)
+    def wfn(t):
+        u = min(1.0, t / taper_span); return base(t) * (taper + (1 - taper) * (3 * u * u - 2 * u ** 3))
+    solid, L, R = stroke(center, wfn, sides=True)
+    cut = trap((xl, start * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
+    return solid, [cut], L, R
 
 def arch(x0, x1, xh, **kw):
-    solid, cuts, outer, inner = arch_geom(x0, x1, xh, **kw)
+    solid, cuts, L, R = arch_geom(x0, x1, xh, **kw)
     return solid, cuts
 
 @glyph('n')
 def g_n(c):
     xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
     left = stem(x0, 0, xh, top='left', foot='both')
-    right = stem(x1, 0, 0.60 * xh, top=None, foot='both', ent_span=(0, xh))
+    right = stem(x1, 0, 0.66 * xh, top=None, foot='both', ent_span=(0, xh))
     a, cuts = arch(x0, x1, xh)
     return geom.ink([left, right, a], cuts)
 
@@ -57,7 +49,7 @@ def g_n(c):
 def g_h(c):
     xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
     left = stem(x0, 0, c["asc"], top='left', foot='both')
-    right = stem(x1, 0, 0.60 * xh, top=None, foot='both', ent_span=(0, xh))
+    right = stem(x1, 0, 0.66 * xh, top=None, foot='both', ent_span=(0, xh))
     a, cuts = arch(x0, x1, xh, ent_span=(0, xh))
     return geom.ink([left, right, a], cuts)
 
@@ -65,50 +57,42 @@ def g_h(c):
 def g_m(c):
     xh = c["xh"]; x0 = S / 2; d = pen.NW * 0.88; x1 = x0 + d; x2 = x1 + d
     left = stem(x0, 0, xh, top='left', foot='both')
-    mid = stem(x1, 0, 0.60 * xh, top=None, foot='both', ent_span=(0, xh))   # the references all foot the middle stem
-    right = stem(x2, 0, 0.60 * xh, top=None, foot='both', ent_span=(0, xh))
+    mid = stem(x1, 0, 0.66 * xh, top=None, foot='both', ent_span=(0, xh))   # the references all foot the middle stem
+    right = stem(x2, 0, 0.66 * xh, top=None, foot='both', ent_span=(0, xh))
     a1, c1 = arch(x0, x1, xh); a2, c2 = arch(x1, x2, xh)
     return geom.ink([left, mid, right, a1, a2], c1 + c2)
 
 @glyph('u')
 def g_u(c):
-    """The n turned over: the bowl is the arch's geometry mirrored through
-    the x-height's middle and through the letter's middle, so the u's bottom
-    is the n's shoulder. Left stem: top wedge, no foot (the bowl is its
-    foot); right stem: top wedge, right foot (round 46: three wedges)."""
+    """Round 51's u on the nib: the left stem runs into a bowl whose
+    centerline is a cubic solved to bottom out at the rounds' overshoot,
+    the pen's widths along it thinning (taper_out 0.42 over 30%) into the
+    right stem; left stem top wedge, right stem top wedge and right foot."""
     xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
-    import shapely.affinity as aff
-    solid, cuts, outer, inner = arch_geom(x0, x1, xh)
-    mid_x = (x0 + x1) / 2
-    flip = lambda g: aff.scale(g, xfact=-1, yfact=-1, origin=(mid_x, xh / 2))
-    bowl = flip(solid)
-    # the arch peaked at xh + 12 (arches); the u's bottom is a round and takes 14
-    bowl = aff.translate(bowl, 0, -(pen.OVER - pen.ARCH_OVER))
-    # the trap at the u's own crotch: where the bowl's inner curve meets the
-    # right stem's inner edge, the air is UP-left (a point-reflected n trap
-    # faced down-left, into the stroke -- a nick, seen at 500 px)
-    # (a trap at that crotch, either way round, reads as a nick in the stem's
-    # edge at 500 px; the u carries none)
-    cuts = []
-    left = stem(x0, 0.40 * xh, xh, top='left', foot=None, ent_span=(0, xh))
+    over_c = pen.OVER - TH_H / 2
+    left = stem(x0, 0.40 * xh - 30, xh, top='left', foot=None, ent_span=(0, xh))
+    cy = (8 * (-over_c) - xh * 0.4 - xh * 0.42) / 6
+    center = cubic((x0, xh * 0.4), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
+    base = pen_widths(center)
+    wfn = lambda t: base(t) * (1.0 if t < 0.7 else (0.58 + 0.42 * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3))))
+    bowl = stroke(center, wfn)
     right = stem(x1, 0, xh, top='left', foot='right')
-    return geom.ink([left, right, bowl], cuts)
+    return geom.ink([left, right, bowl])
 
 @glyph('r')
 def g_r(c):
-    """Stem plus an arm: leaves the stem as the arch does (a hairline at
-    0.52-0.72 xh), climbs to the arch overshoot and ends in the family's
-    flag -- the stroke swells and is cut on the pen's angle. The arm holds
-    0.78 stem through its length (round 36: the arm is the r's ink; the
-    nib alone would make a 33-unit hairline of a stroke at its angle)."""
+    """Round 51's r on the nib: the arm leaves the stem at 0.6 xh and
+    climbs to the arch overshoot, the pen's widths with a floor of 0.78
+    stem (round 36: the nib alone makes a 33-unit hairline of a stroke at
+    the arm's angle), thinning into the stem (taper 0.5 over 35%) and
+    flaring 0.5 into the family's pen cut."""
     xh = c["xh"]; x0 = S / 2; wf = c["wf"]
     st = stem(x0, 0, xh, top='left', foot='both')
-    xl = stem_edge_x(x0, TH_V, ENT, 0.66 * xh, 0, xh, +1)
-    top = xh + pen.ARCH_OVER; reach = 172 * wf
-    P0 = (xl - 12, 0.62 * xh); peak = (xl + reach * 0.50, top - S * 0.36); end = (xl + reach, xh * 0.84)
-    center = join(cubic(P0, (P0[0] + 40, P0[1] + 70), (peak[0] - 55, peak[1]), peak),
-                  cubic(peak, (peak[0] + 45, peak[1]), (end[0] - 10, end[1] + 45), end))
-    wfn = widths([(0.0, HAIR * 0.9), (0.10, HAIR), (0.42, S * 0.78), (0.78, S * 0.80), (1.0, S * 0.95)])
+    over_c = pen.ARCH_OVER - TH_H / 2
+    center = cubic((x0, xh * 0.6), (x0, xh * 1.0), (x0 + 120 * wf, xh + over_c + 6), (x0 + 205 * wf, xh * 0.9))
+    base = pen_widths(center, floor=S * 0.78)
+    wfn = lambda t: base(t) * widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.5)])(t)
     arm = stroke(center, wfn, cut1=CUT)
-    cut = trap((xl, 0.50 * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
+    xl = stem_edge_x(x0, TH_V, ENT, 0.52 * xh, 0, xh, +1)
+    cut = trap((xl, 0.52 * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
     return geom.ink([st, arm], [cut])

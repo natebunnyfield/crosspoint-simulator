@@ -152,6 +152,71 @@ error of the rebuild and not a drawing choice:
 - Word darkness after both passes: lowercase median 0.1334 → 0.1296, word
   median 0.1344 → 0.1290.
 
+## Brush-stroke revision (owner on the shipped rebuild, 2026-09-13)
+
+Owner: "D B P R all need a lot of brush stroke revision, after those do
+every other letter." The rule, from the coordinator: every point of every
+curved stroke at the thickness the pen gives its tangent; joins and
+terminals as strokes the nib could make. Stems, the wedge family and every
+§3 number unchanged. Before = `Fjord-Regular-ship1.ttf` (the first
+shipped rebuild), phase 1 = `Fjord-Regular-phase1.ttf`.
+
+**Phase 1, D B P R** (`fjord-phase1-DBPR.html`). Why the bowls were tubes:
+`half_bowl` looked the pen's tangent up by an index computed on the
+pre-resampled path, so after `ring_from` resampled it the widths were
+shifted by the closing segments' samples and the top took the right
+side's 77. `half_bowl` is now a PEN STROKE: the designed centerline (half
+superellipse, k x 1.12, outer edges on the cap line and baseline, the
+fixed widths) offset by pen.th(tangent)/2 both sides, both ends running
+22 units into the stem and tapering to 0.42 of the pen over 10% (no slit,
+no square end). The opened bottom (ruling) lifts the centerline's lower
+half by 0.15 of the horizontal and adds 0.3 to the width, so the outer
+edge holds. `pen.check` width/pen: D 0.43 at the start, 1.09-1.33
+through the opened lower half (the ruling's +30%), 0.98-1.00 over the
+upper half, 0.41 at the end; B upper 0.94-1.01 (0.79-0.81 at the
+shoulder, where the nearest-inner metric shortens across the turn), B
+lower / P / R as the D. B: upper bowl 0.86 of the lower (ruling), both
+bowls' thin ends meeting at the stem at 0.55 C -- the waist is the pen's
+horizontal thinning to a hairline at the stem. R: the leg is a stroke,
+foot-first on a cubic bowed 9 units outward, 1.05 x the pen at 60° (64)
+at the foot thinning to 0.42 of that where it enters the bowl's stroke at
+-52°; the A's foot wedge. **Pen stress note**: the ruled pen (26°) puts a
+bowl's maximum at the tangent 116°, i.e. 2 o'clock, and its thinnest at
+11 and 5; Van den Keere's D carries its weight at 4 o'clock. That is the
+pen's definition, not the drawing -- moving it is an owner's ruling and
+would move every round.
+
+**Phase 2, every other letter** (`fjord-phase2-{rounds,bowls,arches,
+diagonals,caps,figures,marks}.html`):
+- arches n m h u r: round 51's nib arch again -- a designed centerline
+  leaving the left stem's inner edge at 0.52 xh (ruling), solved to put the
+  outer edge at xh + 12 (ruling), vertical into the right stem at 0.60 xh
+  -- offset by the pen (hairline up along the stress, 55 over the top, the
+  full stem down the shoulder), thinning into the stem (taper 0.30 over
+  32%). The right stems rise to 0.66 xh so the arch's end face is inside.
+  The trap notch stays. `pen.check` on the n: 0.30 at the join (the
+  taper) rising to 1.0 by t 0.33, 1.0 thereafter (a 1.39 spike at t 0.46
+  is the nearest-point metric crossing the peak's inner curvature). u:
+  round 51's nib u (cubic bottoming at the rounds' overshoot, pen widths
+  thinning 0.42 into the right stem). r: round 51's arm (pen widths with
+  the 0.78-stem floor of round 36, taper 0.5 into the stem, flare 0.5 into
+  the pen cut).
+- a: the bowl's counter is the pen's offset at each tangent, the width
+  sequence averaged over +-4 samples (a tight turn steps it); the closing
+  edge inside the stem at 40 so the counter lands on the stem.
+- U: the bowl on round 51's profile -- the pen x CAP_STEM(1 - 0.22 t),
+  swelling by the entasis over the first and last 15% to meet the stems.
+- 2 4 7: their straight diagonals at the pen's width for their angle
+  (they were the vertical's 77 / 58).
+- , ; ‘ ’ “ ” ! ( ): tails, the bang and the parens on the pen x round
+  51's profiles ((0.9 - 0.6 t), (0.55 + 0.5 t), (0.6 + 0.4 sin)).
+- Already on the pen and left alone: o c e, b d p q, g, s, f t, j (its
+  tail holds stem weight through the turn by ruling), y's tail, the
+  straight diagonals (0.72 / 1.0 x the pen at their angle), C G S, O Q,
+  J, the figures' arcs, & @ ? % *.
+- Kept as ruled: stems (entasis, wedges), the e's bar, the K arm's 0.47
+  floor, the R leg's 1.05, the Q tail's belly floor, the 9's 0.9, the j.
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

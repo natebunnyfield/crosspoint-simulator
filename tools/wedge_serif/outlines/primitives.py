@@ -45,7 +45,7 @@ def _unfold(side, tans):
         if dx * tans[i][0] + dy * tans[i][1] >= -1e-9: out.append(side[i])
     return out
 
-def stroke(center, width, cut0=None, cut1=None, raw=False, pieces=False):
+def stroke(center, width, cut0=None, cut1=None, raw=False, pieces=False, sides=False):
     """A stroke along a centerline: `width` a number or f(t). Ends are
     square faces, or sheared by cut0/cut1 (radians; the family's pen cut is
     pen.CUT). Returns a shapely solid."""
@@ -70,7 +70,8 @@ def stroke(center, width, cut0=None, cut1=None, raw=False, pieces=False):
             q = L[i:j] + R[i:j][::-1]
             if len(q) >= 3: parts.append(geom.poly(q))
         return geom.union(parts)
-    return geom.poly(L + R[::-1])
+    solid = geom.poly(L + R[::-1])
+    return (solid, L, R) if sides else solid
 
 def edge_stroke(outer, width, side=1, cut0=None, cut1=None):
     """A stroke drawn from its OUTER edge (the silhouette the designer
@@ -231,14 +232,17 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     solid = geom.poly(outer, [inner[::-1]])
     return solid, outer, inner
 
-def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, post_inner=None):
+def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, post_inner=None, smooth_w=0):
     """A bowl from a DESIGNED closed outer path (ccw): the counter is the
     inward offset by the pen's width at each tangent (or widths_fn(t)),
     smoothed. Returns (solid, outer, inner)."""
     outer = resample(outer + [outer[0]])[:-1]
     tans = tangents(outer, closed=True); n = len(outer); inner = []
+    ws = [widths_fn(i / n) if widths_fn else max(pen.PEN.th(tn) * w_scale, floor) for i, tn in enumerate(tans)]
+    if smooth_w:   # the pen's width sequence, moving-averaged over +-smooth_w samples (a tight turn steps it)
+        ws = [sum(ws[(i + k) % n] for k in range(-smooth_w, smooth_w + 1)) / (2 * smooth_w + 1) for i in range(n)]
     for i, (p, tn) in enumerate(zip(outer, tans)):
-        w = widths_fn(i / n) if widths_fn else max(pen.PEN.th(tn) * w_scale, floor)
+        w = ws[i]
         inner.append((p[0] - tn[1] * w, p[1] + tn[0] * w))
     inner = _unfold(inner, tans)
     if post_inner: inner = [post_inner(p) for p in inner]
@@ -246,29 +250,40 @@ def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, p
     inner = resample(inner + [inner[0]])[:-1]
     return geom.poly(outer, [inner[::-1]]), outer, inner
 
-def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_scale=1.0, inset=60.0):
-    """The D's bowl (rulings, rounds 36/47): a half ring from a stem's inner
-    edge, its outer edges ON y_top and y_bot, squared shoulders (k x 1.12),
-    the counter's lower half lifted by open_bottom of the horizontal
-    stroke. The outer path closes `inset` inside the stem (hidden by the
-    union) and the counter closes on the stem's edge. Returns (solid, cx,
-    cy, rx_c, ry_c) with the CENTERLINE radii for a leg to spring from."""
-    cy = (y_top + y_bot) / 2; ry = (y_top - y_bot) / 2; cx = edge + rx * 0.05
-    arc = superellipse(cx, cy, rx, ry, -math.pi / 2, math.pi / 2, k)
-    outer = [(edge - inset, y_bot)] + arc + [(edge - inset, y_top)]
-    n_arc = len(arc); n_all = n_arc + 2
-    tans = tangents(arc)
+def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_scale=1.0, into=22.0, taper=0.42, taper_span=0.10):
+    """The D's bowl (rulings, rounds 36/47) as the NIB writes it (owner,
+    2026-09-13: "brush stroke revision"): the CENTERLINE is the designed
+    half superellipse from the stem's inner edge -- squared shoulders (k x
+    1.12), outer edges ON y_top and y_bot -- and the outer and inner
+    contours are its offsets by pen.th(tangent)/2 at every point: a thin
+    horizontal (55) leaving the stem at the top, the full stem on the
+    right with the maximum at the stress angle, thin again returning at
+    the bottom. Both ends run `into` the stem and TAPER there (to `taper`
+    of the pen over `taper_span`), so the end faces lie inside the stem's
+    ink: no slit, no square end. The opened bottom lifts the counter's
+    lower half by open_bottom x the horizontal stroke (centerline up by
+    half, width up by the whole, so the outer edge holds). Returns (solid,
+    cx, cy, rx_c, ry_c, L, R) with the centerline radii and the two edges."""
+    ry_c = (y_top - y_bot) / 2 - TH_H / 2; rx_c = rx - TH_V / 2
+    cy = (y_top + y_bot) / 2; cx = edge + rx * 0.05
+    arc = superellipse(cx, cy, rx_c, ry_c, -math.pi / 2, math.pi / 2, k)
+    center = [(edge - into, cy - ry_c)] + arc + [(edge - into, cy + ry_c)]
+    center = resample(center)
+    n = len(center) - 1
+    if open_bottom:
+        # the lower half is the FIRST half of this centerline (bottom -> right -> top)
+        def win(t): return max(0.0, math.sin(math.pi * (t - 0.04) / 0.46)) if 0.04 <= t <= 0.50 else 0.0
+        center = [(px, py + 0.5 * open_bottom * TH_H * win(i / n)) for i, (px, py) in enumerate(center)]
+    tans = tangents(center)
     def wfn(t):
-        i = int(round(t * (n_all - 1)))
-        if i == 0 or i >= n_arc + 1: return 1.0
-        return max(pen.PEN.th(tans[i - 1]) * w_scale, 1.0)
-    # the closing points must offset onto the stem's edge: shift them after
-    def post(p):
-        if p[0] < edge - inset + 2: return (edge + 1, p[1])
-        if open_bottom and p[1] < cy: return (p[0], p[1] + TH_H * open_bottom * max(0.0, (cy - p[1]) / ry) ** 1.5)
-        return p
-    solid, o, i = ring_from(outer, widths_fn=wfn, post_inner=post, counter_smooth=1)
-    return solid, cx, cy, rx - TH_V / 2, ry - TH_H / 2
+        i = min(n, int(round(t * n))); w = pen.PEN.th(tans[i]) * w_scale
+        if open_bottom: w += open_bottom * TH_H * win(t)
+        # taper into the stem at both ends
+        if t < taper_span: u = t / taper_span; w *= taper + (1 - taper) * (3 * u * u - 2 * u ** 3)
+        elif t > 1 - taper_span: u = (1 - t) / taper_span; w *= taper + (1 - taper) * (3 * u * u - 2 * u ** 3)
+        return w
+    solid, L, R = stroke(center, wfn, raw=True, sides=True)
+    return solid, cx, cy, rx_c, ry_c, L, R
 
 def beak(pts, w, at_start=True, cut_deg=-28.0, lip=(0.4, 0.7)):
     """The C/G/S beak (round 42, Van den Keere): the terminal's face is
