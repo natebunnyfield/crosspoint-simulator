@@ -374,3 +374,25 @@ percentages, though not the grouping, since the exact groups sit at 0.0–0.6%
 and the next-nearest non-member is far above 2%. The *interpretation* in §4
 (which repetitions matter at 13 pt) is judgment and has not been tested on a
 render; the owner judges pictures.
+
+---
+
+## Postscript, the same evening: the life
+
+Owner: "alter anything identical very slightly so they render the same at
+small scale, but are full of life at large scale." Done in
+`outlines/primitives.py` (`LIFE`, `life()`, `begin_glyph()`): every
+`wedge()` takes +-6% on length and depth and +-10% on drop and fillet,
+every `ring()` +-0.06 on its exponent and +-0.6 degrees of rotation,
+deterministic per (glyph, call index) so the variable font's masters stay
+compatible. This instrument was also corrected: it normalized the symmetric
+difference by a window that was mostly stem, so a 6% change in the wedge
+alone read as 1% and passed the 2% "exact" threshold; `clip_serif` now
+keeps only the part outside the stroke's edge. Re-run on the same build,
+life off: 128 of 145 serifs with an exact twin pre-cut, 116 post-cut. Life
+on: **40 of 149 pre-cut, 17 post-cut.** At 13 pt on the four-level
+pipeline the two builds are 96.5% pixel-identical over the 147 common
+words, the rest one gray step at edges, 0.09% black-white flips. The
+counters O/Q, b/p, d/q are separated by the ring's exponent and rotation
+jitter; the o is still the O's construction reduced (recommendation 4
+stands, not done).
