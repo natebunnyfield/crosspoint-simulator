@@ -1864,3 +1864,9 @@ factored into `zero_bowl` / `six_bowl` (byte-identical output). Page at 147
 px x-height, not 230: four figures at 230 do not fit a 750 px block. Page
 https://claude.ai/code/artifact/d44a4326-08ef-44eb-95c7-33e2c1f8e095. The 5 at -24 is in the same
 diff; the merge waits for the VF rebuild so no master mixes old and new.
+
+Round 66 RULED (2026-09-13): "for 8, C wins but the bottom counter needs to
+be slightly taller. possibly matching the top's." C = lower counter the 6's
+bowl width, upper 0.75, both 1.036. Round 69: a ladder on C's lower counter
+height x1.04 / x1.08 / x1.12 (w/h 0.996 / 0.959 / 0.925, width kept) for his
+pick; `EIGHT_LOWER_TALL`, 1.08 until ruled. Page pending.
