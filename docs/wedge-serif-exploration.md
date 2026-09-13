@@ -1909,7 +1909,7 @@ beak-short 490. Space inside and between: paper between tail and bowl at 13
 pt -- base-two 9 px, flag 3, foot-flat / foot-left / beak-down / beak-short 2,
 stub / foot-long 1, **curl-up and diag-straight 0** (they fill the pocket at
 reading size). Fonts `build/fjord-fonts/nines/Albo-nine01..10.ttf`. Page
-https://claude.ai/code/artifact/PENDING71. Two findings, not acted on: the
+https://claude.ai/code/artifact/49eeaf60-4138-4146-8de0-7f43df372f4f. Two findings, not acted on: the
 shipping `primitives.beak` on c C S uses 0.35-0.4 x 0.6-0.7 at 1.30, not the
 guide's 0.85 x 0.85 at 1.15; and `primitives.stroke` drops an end corner
 when `cut1` moves it back more than one sample spacing (11 units), so the
