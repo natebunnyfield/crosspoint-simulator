@@ -387,9 +387,11 @@ def g_r(c):
     arm = bez((x, xh * 0.6), (x, xh * 1.0), (x + 120 * wf, xh * 1.05), (x + 205 * wf, xh * 0.9), 36)
     curve(c, P, arm, compose(taper_in(0.42, 0.35), flare_end(0.18, 0.3)), cut1=c["cut"]); return P
 
-def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0):
+def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0, taper0=0.0):
+    """taper0: thin the START to (1 - taper0) over the first 22% -- a leg
+    springing from an arm keeps its end face inside the arm (round 30)."""
     pts = line(p0, p1, 30)
-    prof = lambda t: thin
+    prof = (lambda t: thin) if not taper0 else compose(lambda t: thin, taper_in(taper0, 0.22))
     curve(c, P, pts, prof)
     tn = tangents(pts)
     if c["wl"] <= 0: return
@@ -403,8 +405,14 @@ def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0):
 def g_k(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = s / 2
     stem(c, P, x, 0, c["asc"], top="wedge", foot="both")
-    _diag(c, P, (x + 360 * wf, xh * 0.97), (x + s * 0.2, xh * 0.42), serif0=1, thin=0.78)
-    _diag(c, P, (x + 150 * wf, xh * 0.56), (x + 380 * wf, 0), serif1=-1); return P
+    # round 30: the leg springs from the ARM (it started 0.07 xh under it and
+    # left a gap): its start is the arm's centerline point at that x, pushed
+    # a third of a stem back along the leg so the end face is buried.
+    A0, B0 = (x + 360 * wf, xh * 0.97), (x + s * 0.2, xh * 0.42)
+    _diag(c, P, A0, B0, serif0=1, thin=0.78)
+    u = (150 * wf - (B0[0] - x)) / (A0[0] - B0[0]); J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    E = (x + 380 * wf, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
+    _diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, serif1=-1, taper0=0.45); return P
 
 def g_v(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; w = 440 * wf

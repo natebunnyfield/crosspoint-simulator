@@ -16,7 +16,7 @@ from fontTools import agl
 
 SEED, EVERY, AMP = 73, 4, 0.0          # k6: pure decimation, no jitter
 import round10
-DESIGN = dict(round10.steps()[-1][2]); DESIGN.update(round17.G, e_bar_overlap=0.45, trap_depth=0.6)
+DESIGN = dict(round10.steps()[-1][2]); DESIGN.update(round17.G, e_bar_overlap=0.45, trap_depth=0.6, arch_over_edge=12)   # owner 2026-09-12: "arches, set to 12"
 
 CHARS = ([chr(k) for k in range(ord('A'), ord('Z') + 1)] + [chr(k) for k in range(ord('a'), ord('z') + 1)] +
          list("0123456789") + list(latin.PUNCT.keys()))

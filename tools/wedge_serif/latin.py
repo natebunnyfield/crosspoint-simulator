@@ -60,20 +60,21 @@ def bar(c, P, x0, x1, y, serif_ends=(), thick=1.0, align="center"):
         P_ = (x0, y) if end == 'left' else (x1, y)
         d = (-1, 0) if end == 'left' else (1, 0); nrm = (0, -1) if end == 'left' else (0, 1)
         sd = side if end == 'right' else -side
-        P.append(bracket_wedge(P_, d, nrm, th, c["wl"] * 0.7, c["wd"] * 0.8, sd, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge(P_, d, nrm, th, c["wl"] * 0.85, c["wd"] * 0.9, sd, drop=0, fillet=c["fillet"]))
 
-def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None):
+def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None, taper0=0.0):
     pts = line(p0, p1, 30)
     thin = thin * CAP_STEM
-    P.append(A.outline(pts, c["pen"], lambda t: thin))
+    prof = (lambda t: thin) if not taper0 else compose(lambda t: thin, taper_in(taper0, 0.22))   # round 30: a leg thins into its junction
+    P.append(A.outline(pts, c["pen"], prof))
     if c["wl"] <= 0: return
     tn = tangents(pts)
     if serif0:
         d = (-tn[0][0], -tn[0][1]); nrm = (-d[1], d[0]); th = c["pen"].th(tn[0]) * thin
-        P.append(bracket_wedge(pts[0], d, nrm, th, c["wl"] * 0.8, c["wd"] * 0.8, serif0, drop=c["drop"], fillet=c["fillet"]))
+        P.append(bracket_wedge(pts[0], d, nrm, th, c["wl"] * 0.9, c["wd"] * 0.9, serif0, drop=c["drop"], fillet=c["fillet"]))
     if serif1:
         d = tn[-1]; nrm = (-d[1], d[0]); th = c["pen"].th(tn[-1]) * thin
-        P.append(bracket_wedge(pts[-1], d, nrm, th, c["wl"] * 0.8, c["wd"] * 0.8, serif1, drop=c["drop"], fillet=c["fillet"]))
+        P.append(bracket_wedge(pts[-1], d, nrm, th, c["wl"] * 0.9, c["wd"] * 0.9, serif1, drop=c["drop"], fillet=c["fillet"]))
 
 def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
     """Counterpunched ring (outer cut, counter clean). close_x: for a D-like
@@ -112,6 +113,12 @@ def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
 
+def _bowl_point(x, y_top, y_bot, w, t):
+    """The point at t on the bowl bezier _bowl_stroke draws (round 30)."""
+    p0, p1, p2, p3 = (x, y_top), (x + w * 1.05, y_top), (x + w * 1.05, y_bot), (x, y_bot)
+    u = 1 - t
+    return (u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0], u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1])
+
 def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5):
     """A B/P/R bowl: leaves the stem tapered at the top, swings out to w and
     rejoins tapered at the bottom. Stroked (the counter is what the stroke
@@ -138,7 +145,7 @@ def g_C(c):
     # the beak: a wedge on the upper terminal, as the garalde C has
     if c["wl"] > 0:
         tn = tangents(pts)[-1]; d = tn; nrm = (-d[1], d[0])
-        P.append(bracket_wedge(pts[-1], d, nrm, c["pen"].th(tn) * 1.3, c["wl"] * 0.7, c["wd"] * 0.7, -1, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge(pts[-1], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, -1, drop=0, fillet=c["fillet"]))
     return P
 
 def g_D(c):
@@ -175,7 +182,7 @@ def g_G(c):
     A.curve(c, P, pts, flare_end(0.3, 0.14), cut0=c["cut"])
     if c["wl"] > 0:
         tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
-        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.3, c["wl"] * 0.7, c["wd"] * 0.7, 1, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
     # round 26: the spur's top wedge under the bar left a notch; the stem now
     # ends flush with the bar's top edge and carries no wedge of its own.
     xg = 2 * rx - s * 0.55; th_h = max(c["pen"].th((1, 0)), c["s"] * 0.5); yb = C * 0.46
@@ -195,8 +202,14 @@ def g_J(c):
     bar, not two serifs that a style could drop. Descends a little, as the
     garalde J does, and hooks left."""
     P = []; C = capH(c); s = c["s"] * CAP_STEM; r = _w(c, "J", 190); x = r * 1.05 + s / 2
-    _cstem(c, P, x, r * 0.25 - s * 0.5, C, top=None, foot=None)
-    bar(c, P, x - r * 0.75, x + r * 0.45, C, thick=0.95)
+    # round 30 ("J has an awful crossbar"): the bar is built like the T's --
+    # 0.62 of the pen's horizontal, its TOP on the cap line, square ends, a
+    # wedge hanging from the left end -- and the stem stops inside it.
+    th = max(c["pen"].th((1, 0)) * 0.62, c["s"] * 0.45); yb = C - th / 2
+    _cstem(c, P, x, r * 0.25 - s * 0.5, yb + th * 0.5 - s * 0.05, top=None, foot=None)
+    P.append(A.outline(line((x - r * 0.78, yb), (x + r * 0.42, yb), 12), c["pen"], lambda t: th / c["pen"].th((1, 0))))
+    if c["wl"] > 0:
+        P.append(bracket_wedge((x - r * 0.78, yb), (-1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"], 1, drop=0, fillet=c["fillet"]))
     tail = bez((x, r * 0.25), (x, -c["desc"] * 0.42), (x - r * 0.55, -c["desc"] * 0.55), (x - r * 1.1, -c["desc"] * 0.1), 40)
     A.curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"]); return P
 
@@ -206,8 +219,13 @@ def g_K(c):
     # round 26: the arm stopped short of the stem and its serif spiked 0.19 xh
     # above the cap line; it now runs to the stem's center and starts a
     # third of a stem under the cap line, so the wedge's tip lands on it.
-    diag(c, P, (x + w, C - s * 0.36), (x, C * 0.45), thin=0.72 / CAP_STEM, serif0=1)
-    diag(c, P, (x + w * 0.42, C * 0.56), (x + w * 1.06, 0), thin=1.0 / CAP_STEM, serif1=-1); return P
+    A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
+    diag(c, P, A0, B0, thin=0.72 / CAP_STEM, serif0=1)
+    # round 30: the leg springs from the arm's centerline, its start buried a
+    # third of a stem back along the leg (it started 0.1 C under the arm)
+    u = 0.42; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    E = (x + w * 1.06, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
+    diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, thin=1.0 / CAP_STEM, serif1=-1, taper0=0.45); return P
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
@@ -222,7 +240,7 @@ def g_M(c):
     diag(c, P, (x1 - s * 0.45, C), (x0 + w / 2, 0), thin=0.72 / CAP_STEM)
     diag(c, P, (x1 - s * 0.25, 0), (x1 - s * 0.45, C), thin=1.0 / CAP_STEM, serif0=1, serif1=-1)
     if c["wl"] > 0:
-        P.append(bracket_wedge((x0 + s * 0.45, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.85, c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
+        P.append(bracket_wedge((x0 + s * 0.45, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.9, c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
     return P
 
 def g_N(c):
@@ -248,7 +266,12 @@ def g_R(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
     _bowl_stroke(c, P, x, C, C * 0.46, w * 0.95)
-    diag(c, P, (x + w * 0.5, C * 0.47), (x + w * 1.15, 0), thin=1.0 / CAP_STEM, serif1=-1); return P
+    # round 30: the leg springs from the bowl's lower curve (it started under
+    # it): its start is the bowl bezier's point at t = 0.8, buried a third of
+    # a stem back along the leg.
+    J = _bowl_point(x, C, C * 0.46, w * 0.95, 0.8)
+    E = (x + w * 1.15, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
+    diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, thin=1.0 / CAP_STEM, serif1=-1, taper0=0.45); return P
 
 def g_S(c):
     P = []; C = capH(c); w = _w(c, "S", 440); o = c["over"]; st = c["s"] * CAP_STEM
@@ -271,8 +294,8 @@ def g_T(c):
     pts = line((0, yb), (w, yb), 12)
     P.append(A.outline(pts, c["pen"], lambda t: th / c["pen"].th((1, 0))))
     if c["wl"] > 0:
-        P.append(bracket_wedge((0, yb), (-1, 0), (0, -1), th, c["wl"] * 1.0, c["wd"] * 1.1, 1, drop=0, fillet=c["fillet"]))
-        P.append(bracket_wedge((w, yb), (1, 0), (0, 1), th, c["wl"] * 1.0, c["wd"] * 1.1, -1, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge((0, yb), (-1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"], 1, drop=0, fillet=c["fillet"]))
+        P.append(bracket_wedge((w, yb), (1, 0), (0, 1), th, c["wl"] * 0.9, c["wd"], -1, drop=0, fillet=c["fillet"]))
     _cstem(c, P, x, 0, yb + th * 0.5 - s * 0.05, top=None, foot="both"); return P
 
 def g_U(c):
@@ -300,7 +323,7 @@ def g_W(c):
     diag(c, P, (w * 0.5, C), (w * 0.74, 0), thin=1.0 / CAP_STEM)
     diag(c, P, (w - s * 0.3, C), (w * 0.74 + s * 0.2, 0), thin=0.72 / CAP_STEM, serif0=-1)
     if c["wl"] > 0:
-        P.append(bracket_wedge((w * 0.5, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.7, c["wd"] * 0.8, 1, drop=c["drop"], fillet=c["fillet"]))
+        P.append(bracket_wedge((w * 0.5, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.9, c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
     return P
 
 def g_X(c):

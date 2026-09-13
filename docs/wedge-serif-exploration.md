@@ -936,3 +936,34 @@ the o at 14 in all nine, embedded in `fjord-arch-overshoot.html` behind a
 slider with a large "hnmu o hnmu" under baseline and x-height rules and a
 reading-size paragraph. Awaiting the owner's number; the spacing page stays
 stopped, this is a different page.
+
+## Round 30 (2026-09-12): arches at 12; kicks; the J bar; one wedge
+
+**Ruling:** "arches, set to 12" -- `arch_over_edge=12` in `round19.DESIGN`
+(the rounds stay at 14). The arch-overshoot page stays as a record.
+
+Owner: "take multiple passes at making sure kicks of K k and R are not
+disconnected and making all characters have the best possible consistent
+wedge to them. J has an awful crossbar, as one of many examples."
+
+Three passes, each rendered and looked at before the next:
+
+1. **Legs.** K's leg started at 0.56 C where the arm passes at 0.67 C; k's
+   at 0.56 xh under an arm at 0.63 xh; R's at 0.47 C under the bowl's lower
+   curve. Each leg now starts ON the arm's centerline (`u` along the arm) or
+   the bowl bezier's point at t = 0.8 (`latin._bowl_point`), pushed back
+   along the leg so its end is buried. **J bar** rebuilt like the T's (0.62
+   horizontal, top on the cap line, square ends, wedge hanging from the left
+   end, stem stopping inside it); it had been centered on the cap line with
+   pen-cut ends and a full-weight bar. **Wedges** unified: stem tops 1.0 × 1.0
+   wl × wd, feet 0.85 × 1.0, diagonal ends 0.9 × 0.9 both cases (caps were
+   0.8), bar ends 0.85 × 0.9 (were 0.7 × 0.8), C/G beaks 0.85 × 0.85 at 1.15
+   of the pen (were 0.7 at 1.3, blobby), T arms 0.9 × 1.0 (were 1.0 × 1.1),
+   M/W apexes 0.9 × 1.0 (were 0.85 and 0.7).
+2. **Junction poke.** A leg thicker than its arm, buried a third of a stem,
+   pushed its square end out the arm's far side. `diag`/`_diag` gained
+   `taper0`: the leg thins to 55% over its first 22%, buried a fifth of a
+   stem. Clean at 560 px.
+3. **Reading size.** Legs still join at 13 pt (54 px em). Proof:
+   `fjord-kicks.html`, with every seriffed glyph at 230 px for the wedge
+   audit.
