@@ -1971,3 +1971,13 @@ round_bowl's dials; identical to Albo-amp2-10 in an only-& build (464
 coordinates), a facet-phase difference of <= 7 units in the full build;
 adv 797 (was 799), counters 197 x 238 and 349 x 313, white at 54 px 83 /
 182 (was 101 / 201). Page https://claude.ai/code/artifact/37b136de-e7d9-4df3-a00a-3ce3db6c2fe1.
+
+Round 72 CORRECTED (2026-09-13). Owner: "'flag-diag as built in round 71'
+wins but it needs to thin out on top of tail to give more space. my earlier
+instruction was increase that space above tail and it was misinterpreted."
+My misread: I took "more space to the left like foot-left" as the tail's
+reach; he meant the POCKET above the tail. So the 9 is round 71's flag-diag
+(reach 12.4, advance 487) with the tail thinned from its top edge under the
+bowl. Round 73: ladder of the tail's width under the bowl at 0.75 / 0.60 /
+0.45 of round 71's, all from the top edge, `NINE_TAIL_TOP`, 0.60 until ruled.
+The & ruling (round_bowl) stands.
