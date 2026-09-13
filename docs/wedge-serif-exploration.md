@@ -1349,3 +1349,27 @@ Libris ADF and Atkinson Next carry only lining figures and are left out. The
 Owner: "put a slight serif on the top right of 'I'." `_cstem` `top="left+"`,
 the mirror of `right+`: the full left wedge plus a small right one (0.4
 length, 0.6 depth, 0.4 drop). The I only. Proof `fjord-I.html`.
+
+**Round 46 results (the second weight pass, agent):** no lowercase letter
+changed. On the round-46 build, measured at 54 px against EB Garamond 400
+and Hoefler Text, plus outline area over the n's (spacing-independent), every
+letter more than ~8% off in BOTH references is off for a structural reason:
+g p q -- the descender (0.72 of the ascender over x-height; EB 0.93, HT
+0.88); u -- the construction (three wedges to the n's five; a two-sided right
+foot priced at +0.9% because the curve buries it; entasis on the left stem
++1.5%); t -- its bar is already heavier than both references (0.70 of the n's
+stem vs 0.47/0.39), what they have is a longer tail; o -- darkness opposite
+in the two references, area −6%, and its ring never exceeds the stem where a
+garalde's rounds run heavier, which is the pen's contrast (global, off
+limits); i -- dot already at Hoefler's proportion (a 0.70-stem dot would add
+4.3%, not shipped); f j -- the tucked advances; a s -- width, not weight;
+z y x -- ruled or not in the list. Darkest words: if all off did had life old
+by like still; lightest: over or very never our even too two to now. Proof
+`fjord-weight2.html`, tables in `scratchpad/wedge/wt2/`.
+
+**Trap (README):** `pen_linear`'s decimation phase is one running counter
+across every stroke in CHARS order, capitals first, so editing ANY capital
+re-cuts every lowercase glyph after it: a B/P/R edit moved 66 glyphs with no
+lowercase source touched and shifted 54 px darkness readings by up to ±3%.
+Compare weight only between builds of the same capitals, or compare outline
+areas, which do not move.
