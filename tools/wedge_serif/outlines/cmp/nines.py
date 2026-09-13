@@ -237,7 +237,7 @@ h2 small{{display:block;font-weight:normal;font-size:12px;line-height:1.4;color:
 def main(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     ref_ttf, W_ref, report, n_before = build_reference(os.path.join(out_dir, 'ref'))
-    cur_ttf = os.path.join(out_dir, 'Albo-Regular.ttf'); shutil.copy(ref_ttf, cur_ttf)
+    cur_ttf = os.path.join(out_dir, 'Albo-Medium.ttf'); shutil.copy(ref_ttf, cur_ttf)
     cur_adv, cur_lsb, cur_xmin, cur_xmax, cur_ymin = metrics(cur_ttf); cur_over = built_overhang(cur_ttf)
     c = build.ctx('9', W_ref); c["figH"] = fig_units()[0]
     cur_ap, _ = aperture_report(figures.g_nine, c)

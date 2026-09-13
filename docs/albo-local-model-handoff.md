@@ -69,7 +69,7 @@ draw.
   (variant sets).
 - Build: from `tools/wedge_serif/`,
   `PYTHON_GIL=0 python3 -W ignore -m outlines.build <out_dir>` writes
-  `Albo-Regular.ttf` and `albo-specimen.html` in about a minute. Always a
+  `Albo-Medium.ttf` (today's cut is the 500 since round 83) and `albo-specimen.html` in about a minute. Always a
   FULL build: the cut's facet phase runs across the glyph order, so a
   partial build cuts differently.
 - Variable font: `PYTHON_GIL=0 python3 -W ignore -m outlines.variable
@@ -158,8 +158,8 @@ Pending his pick: the Z's corner (`FJORD_Z_CORNER` blunt / mitre / wedge);
 the k's arm weight (1.15 / 1.30 / 1.45); the o's counter against the 1.036
 ruling (width 111 on the axis restores it -- his call); the lighter weights
 100-400 (built in `build/fjord-fonts/weights/`, the a / y / 5 need
-per-glyph work below stem 56); the naming of `Albo-Regular` vs
-`Albo-Medium`.
+per-glyph work below stem 56); the naming: RULED in round 83, today's cut is Albo-Medium (500), the
+calibrated 400 is Albo-Regular.
 
 Open, from the variety audit: the o is the O reduced; b d p q share one
 ring; two stem-top families (ascender vs x-height) would add variety

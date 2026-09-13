@@ -1,4 +1,4 @@
-"""Build Albo-Regular.ttf (Fjord until round 58) from the designed outlines: draw, extract the
+"""Build Albo-Medium.ttf (Albo-Regular until round 83; Fjord until round 58) from the designed outlines: draw, extract the
 contours (exteriors ccw, counters cw), apply the linear cut, fit with the
 round-20 rule, write the TrueType and the round-19 specimen.
 
@@ -72,7 +72,9 @@ def fit(ch, conts, c):
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 
-def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=None):
+WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700}
+
+def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=None):   # owner 2026-09-13, round 83: today's cut is the 500, "Rename to Medium"; the calibrated 400 is Albo-Regular
     os.makedirs(out_dir, exist_ok=True)
     W = solve_widths()
     cutter = cut.Cutter(73, 4)
@@ -113,7 +115,7 @@ def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=No
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=900, descent=-300)
     fb.setupNameTable(dict(familyName=name, styleName=style, fullName=f"{name} {style}", psName=f"{name}-{style}", uniqueFontIdentifier=f"{name};{style};2026-09-13"))
-    fb.setupOS2(sTypoAscender=900, sTypoDescender=-300, usWinAscent=900, usWinDescent=300, sxHeight=int(pen.XH), sCapHeight=int(C))
+    fb.setupOS2(sTypoAscender=900, sTypoDescender=-300, usWinAscent=900, usWinDescent=300, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
     fb.setupPost()
     path = os.path.join(out_dir, f"{name}-{style}.ttf"); fb.save(path); TTFont(path)
     if dump:
@@ -124,9 +126,9 @@ def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=No
 
 if __name__ == "__main__":
     out = sys.argv[1]; do_cut = "--nocut" not in sys.argv
-    style = sys.argv[sys.argv.index("--style") + 1] if "--style" in sys.argv else "Regular"
+    style = sys.argv[sys.argv.index("--style") + 1] if "--style" in sys.argv else "Medium"
     dump = sys.argv[sys.argv.index("--dump") + 1] if "--dump" in sys.argv else None
     path, W, rep = build(out, style=style, do_cut=do_cut, dump=dump)
-    if style != "Regular": print("ok", path); sys.exit(0)
-    open(os.path.join(out, "albo-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "Albo (named 2026-09-13, round 58; Fjord until then): all 93 glyphs as designed outlines under the standing rulings, the bowls on the Albertus-like firm profile he picked, the wedge family kept, the linear cut applied last. Design defaults: weight " + f"{pen.S:g}, contrast {pen.CONTRAST:g}, ascender {pen.ASC:g}, descender {pen.DESC:g}, width {pen.WIDTH * 100:g}, cut {pen.CUT_AMOUNT:g}, x-height {pen.XH:g}, serif {pen.SERIF * 100:g}.").replace("Fjord", "Albo"))
+    if style != "Medium": print("ok", path); sys.exit(0)
+    open(os.path.join(out, "albo-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "Albo (named 2026-09-13, round 58; Fjord until then): all 93 glyphs as designed outlines under the standing rulings, the bowls on the Albertus-like firm profile he picked, the wedge family kept, the linear cut applied last. Design defaults: weight " + f"{pen.S:g}, contrast {pen.CONTRAST:g}, ascender {pen.ASC:g}, descender {pen.DESC:g}, width {pen.WIDTH * 100:g}, cut {pen.CUT_AMOUNT:g}, x-height {pen.XH:g}, serif {pen.SERIF * 100:g}.").replace("Fjord-Regular.ttf", "Albo-Medium.ttf").replace("Fjord", "Albo"))
     print("ok", path, len(rep), "glyphs drawn of", len(CHARS), "; caps W:", {k: round(v, 2) for k, v in sorted(W.items())})

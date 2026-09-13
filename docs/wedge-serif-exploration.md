@@ -9,7 +9,8 @@
   "Albertus-like firm"** (hair 0.70 stem, max 1.00, exponent 1.6, joins taper
   to 0.85 of the hair, k 1.9), the ruled default in
   `tools/wedge_serif/outlines/primitives.py`. The shipping font is
-  `build/fjord-fonts/Albo-Regular.ttf`, built by `python3 -m outlines.build
+  `build/fjord-fonts/Albo-Medium.ttf` (the 500; `Albo-Regular.ttf` is the
+  calibrated 400 since round 83), built by `python3 -m outlines.build
   <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
   `albo-specimen.html`. The B's waist is one bar. Stem 94 (round 59) was
   superseded by 84 in round 62, below.
@@ -2375,3 +2376,12 @@ equal. New clamp at wght 50: the E (a 3,908-unit² sliver where its arm
 wedge and cut meet at the light end) -- a light-weight fault on the E to
 fix when the lighter weights are taken up. Slider, proof and specimen
 pages republished; VF sent.
+
+## Round 83 (2026-09-13): the name
+
+Asked, one question: does today's cut become Albo-Medium? Owner: "Rename to
+Medium." So the static builder's default style is Medium with
+usWeightClass 500 (`WEIGHT_CLASS` in `build.py`); the calibrated 400 from
+round 76 is Albo-Regular; the VF's default instance is Medium. Every
+`Albo-Regular.ttf` path in the instruments now reads Albo-Medium. Files in
+`build/fjord-fonts/` renamed.

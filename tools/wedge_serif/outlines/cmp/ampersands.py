@@ -284,7 +284,7 @@ def fmt_counters(c):
 def run(out_dir, gen=1):
     os.makedirs(out_dir, exist_ok=True)
     ref_dir = os.path.join(out_dir, 'ref'); ref_path, W, rep = build.build(ref_dir, only=None)
-    ref_ttf = os.path.join(out_dir, 'Albo-Regular.ttf'); shutil.copy(ref_path, ref_ttf)
+    ref_ttf = os.path.join(out_dir, 'Albo-Medium.ttf'); shutil.copy(ref_path, ref_ttf)
     r = rep['&']; conts0 = geom.contours(build.draw('&', W)); m = measure(conts0); m['adv'] = r['adv']
     def show(tag, name, adv, lsb, m):
         at = lambda p: f'({p[0]:.0f},{p[1]:.0f})' if p else '-'

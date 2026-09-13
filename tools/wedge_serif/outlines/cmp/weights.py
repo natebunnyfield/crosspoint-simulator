@@ -27,7 +27,7 @@ Four stages, each a subcommand (or `all`):
 4. `topology` + `page` -- contour counts per glyph against the 500 (the check
    the variable font uses), and a mobile proof page.
 
-Nothing here writes into fonts/rebuild/: today's `Albo-Regular.ttf` IS the 500
+Nothing here writes into fonts/rebuild/: today's `Albo-Medium.ttf` IS the 500 (renamed from Albo-Regular in round 83)
 and must not be overwritten by the 400 this module builds under that name.
 """
 import os, sys, io, json, math, base64, html, glob, shutil, statistics, subprocess, tempfile, collections

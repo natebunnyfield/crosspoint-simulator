@@ -502,7 +502,7 @@ body{{background:var(--paper);color:var(--ink);margin:0;padding:16px 12px 60px;f
 button{{margin-top:6px;font:13px -apple-system,Arial;padding:4px 12px;border:1px solid var(--rule);background:transparent;color:var(--ink);border-radius:4px}}
 .vf{{font-family:"AlboVF",serif}}h2{{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:22px 0 6px;border-top:1px solid var(--rule);padding-top:10px}}
 .big{{font-size:52px;line-height:1.15;margin:0;word-break:break-word}}.text{{font-size:22px;line-height:1.4;margin:0;max-width:34em}}.read{{font-size:26px;line-height:1.25;margin:0;max-width:22em}}</style>
-<main><h1>Albo Variable</h1><p class="lede">Eight axes on one file, set live by <code>font-variation-settings</code>. Defaults are the shipping Albo Regular. The "at reading size" block is 13 pt on a 2x reader pretended at 26 px.</p>
+<main><h1>Albo Variable</h1><p class="lede">Eight axes on one file, set live by <code>font-variation-settings</code>. Defaults are the shipping Albo Medium (the 500; the calibrated 400 is Albo Regular). The "at reading size" block is 13 pt on a 2x reader pretended at 26 px.</p>
 <div class="ctl">{rows}<button id="reset">Reset to the shipping defaults</button></div>
 <h2>52 px</h2><p class="vf big">Hamburgefonstiv quick fjord zephyrs &amp; 1234567890</p>
 <h2>22 px</h2><p class="vf text">{para}</p>
@@ -590,7 +590,7 @@ if __name__ == "__main__":
     out_dir = sys.argv[1]
     vf_path, report, masters = build_vf(out_dir)
     print("clamps:", report["clamps"] or "none")
-    static = os.path.join(os.path.dirname(os.path.abspath(out_dir.rstrip('/'))), "Albo-Regular.ttf")
+    static = os.path.join(os.path.dirname(os.path.abspath(out_dir.rstrip('/'))), "Albo-Medium.ttf")
     if os.path.exists(static): verify(vf_path, out_dir, static)
     open(os.path.join(out_dir, "albo-variable.html"), "w").write(slider_page(vf_path, None))
     print("pages:", proof_page(vf_path, out_dir), os.path.join(out_dir, "albo-variable.html"))
