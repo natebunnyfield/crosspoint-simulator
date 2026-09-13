@@ -1809,3 +1809,7 @@ counter (A, upper 0.85; C, upper 0.75) or the 0's (B, upper 0.85), one waist
 band, 14 overshoot both ends, the figure as tall as the stack makes it. The
 5/8 agent, rebased onto the round-62 pen with the round-65 overrides. Page
 pending.
+
+Round 64 RULED (2026-09-13): "5 at -24 is best." `FIVE_TOP_INSET = -24`;
+lands with the 8 of round 66 in one figures.py merge. The 8's round-64
+options are superseded by round 66.
