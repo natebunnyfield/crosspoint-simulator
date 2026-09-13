@@ -586,9 +586,13 @@ def g_three(c):
     left; the bottom terminal a drop at 0.17 w, 0.10 of the height."""
     P = []; D = figH(c); w = _w(c, "3", 330); r1 = D * 0.20; r2 = D * 0.30
     top = ellipse(w * 0.52, D - r1, w * 0.46, r1, math.radians(165), math.radians(-105), 50, c["k"])
-    bot = ellipse(w * 0.55, r2, w * 0.45, r2 + c["over"], math.radians(100), math.radians(-132), 60, c["k"])
+    # round 44 (owner: "without copying it exactly, match the bottom stroke of
+    # 3 to 5"): the lower bowl takes the 5's sweep -- wider, round to the lower
+    # left, ending in the 5's moderate flare under the pen cut -- at the 3's
+    # own radius and a stop a few degrees short of the 5's -160.
+    bot = ellipse(w * 0.52, r2, w * 0.52, r2 + c["over"], math.radians(100), math.radians(-156), 64, c["k"])
     A.curve(c, P, top, compose(flare_end(0.1, 0.1), taper_out(0.6, 0.12)), cut0=c["cut"])
-    A.curve(c, P, bot, compose(taper_in(0.6, 0.1), flare_end(0.35, 0.15)), cut1=c["cut"]); return P
+    A.curve(c, P, bot, compose(taper_in(0.6, 0.1), flare_end(0.25, 0.15)), cut1=c["cut"]); return P
 
 def g_four(c):
     P = []; D = figH(c); s = c["s"]; w = _w(c, "4", 480); xs = w * 0.7

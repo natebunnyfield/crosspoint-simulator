@@ -1266,3 +1266,12 @@ Van den Keere at a 1000 em: stem 82, cap 672, x 401. Per glyph:
 `cmp_vdk.py` flags on the 14: before 8 flagged, after 0; whole font 37 → 31
 (the rest are punctuation, dots, s, I -- out of scope). Solver widths after:
 C 0.92, G 0.88, K 0.99, R 1.33, S 0.97, 3 0.86, 6 0.73, 9 0.70.
+
+## Round 44 (2026-09-12): the 3's bottom after the 5's
+
+Owner: "without copying it exactly, match the bottom stroke of 3 to 5." The
+5's bowl: center 0.5 w, rx 0.55 w, sweeps to −160°, `flare_end(0.25)` + pen
+cut. The 3's was center 0.55 w, rx 0.45 w, stopped at −132° with
+`flare_end(0.35)`, so its bottom curled into a knob. Now center 0.52 w, rx
+0.52 w, to −156°, flare 0.25 + cut; the joint's `taper_in` stays. Solver
+width for 3: 0.76. Proof `fjord-35.html`.
