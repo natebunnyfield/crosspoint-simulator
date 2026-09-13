@@ -668,17 +668,21 @@ def g_seven(c):
     diag(c, P, (w - s * 0.2, D), (w * 0.3, 0)); return P
 
 def g_eight(c):
-    """Round 48 (owner: "make 8 use more optical circles, big on bottom if
-    needed"): two rings whose COUNTERS are optical circles (1.02 wide over
-    tall, the o's rule), the lower larger than the upper, overlapping at the
-    waist by 0.05 of the height so the strokes cross rather than touch. The
-    x radius follows from the y radius and the pen, so the width solver
-    cannot squash them (it had, to 0.76)."""
+    """Round 49 (owner: "reduce both circles in 8 (especially the top) to
+    match the circle in 6. use optical sense"). The 6's circle is its OUTER
+    bowl, 411 x 419 (0.98 wide over tall) with a counter taller than wide,
+    on a bowl 0.635 of the figure height. The 8's two rings now have outer
+    contours in that proportion: the lower 0.60 of the height (a shade under
+    the 6's bowl), the upper 0.50, crossing at the waist by 0.10 so both fit
+    the figure box. Round 48 had made the COUNTERS circles and the rings came
+    out wider than the 6's bowl (460 and 428 against 411)."""
     P = []; D = figH(c); th_h = c["pen"].th((1, 0)); th_v = c["pen"].th((0, 1))
-    def rx_for(ry): return (1.02 * (2 * ry - th_h) + th_v) / 2     # counter 1.02 wide over tall
-    r1 = D * 0.240; r2 = D * 0.285 + c["over"]
-    rx1, rx2 = rx_for(r1), rx_for(r2); cx = rx2
-    cp_ring(c, P, cx, D - r1, rx1, r1); cp_ring(c, P, cx, r2 - c["over"], rx2, r2); return P
+    def ring_for(h):                    # outer height h -> (rx, ry) with outer width 0.98 h
+        ry = (h - th_h) / 2; rx = (0.98 * h - th_v) / 2; return rx, ry
+    rx2, ry2 = ring_for(D * 0.60); rx1, ry1 = ring_for(D * 0.50)
+    cx = rx2 + th_v / 2 + 4
+    cp_ring(c, P, cx, D - ry1 - th_h / 2, rx1, ry1)               # upper, its top ON the figure height
+    cp_ring(c, P, cx, ry2 + th_h / 2 - c["over"], rx2, ry2 + c["over"]); return P   # lower, bottom at -overshoot
 
 def g_nine(c):
     """A six turned over: counterpunched bowl at the top, the tail runs down

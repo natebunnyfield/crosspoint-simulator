@@ -1318,3 +1318,16 @@ radius solved from its y radius and the pen so the COUNTER is 1.02 wide over
 tall (the o's rule): rx = (1.02·(2ry − th_h) + th_v)/2; measured after the
 cut 1.007 and 1.010. Rings overlap at the waist by 0.05 D. The solver's W['8']
 is now unused. Proof `fjord-8.html`.
+
+## Round 49 (2026-09-12): the 8's circles sized to the 6's
+
+Owner: "reduce both circles in 8 (especially the top) to match the circle in
+6. use optical sense." The 6's circle is its OUTER bowl (411 × 419, 0.98
+wide over tall, counter 258 × 312, on a bowl 0.635 of the figure height).
+`g_eight` now sizes each ring's outer contour in that proportion --
+`ring_for(h)`: ry = (h − th_h)/2, rx = (0.98 h − th_v)/2 -- lower h = 0.60 D,
+upper 0.50 D, crossing at the waist by 0.10 D; upper top ON the figure
+height, lower bottom at −overshoot. Measured: lower outer 394 × 377, counter
+243 × 271; upper 329 × 338, counter 178 × 232. Round 48's circular-counter
+rule is superseded (its rings were 460 and 428 wide against the 6's 411).
+Proof `fjord-8.html` (republished in place).
