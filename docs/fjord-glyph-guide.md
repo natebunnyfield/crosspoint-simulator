@@ -27,6 +27,15 @@ answers land in this section as they arrive.
   references), and the SERIFS AND TERMINALS (the bracket wedges and cut ends
   read mechanical). NOT the cut: the faceted one-in-four linear outline is
   not what he means and stays.
+- **How to draw the rebuild** (his answer): **designed outlines** -- each
+  glyph drawn as its own contours with tuned control points, the way a type
+  designer works; the pen model of §2 becomes the REFERENCE for weights and
+  stress, not the generator; real joins, no buried ends, no patched
+  junctions; the linear cut of §2 applied on top of the finished outline.
+  Counters remain explicit reverse-wound contours (a hole is a contour
+  wound the other way; nonzero fill). The stroke helpers of §2 are then the
+  measuring stick (what thickness a stroke should have at an angle), the
+  rulings of §3 stay the constraints, and §4's instruments still judge.
 
 ## 1. What you are making, and for whom
 
