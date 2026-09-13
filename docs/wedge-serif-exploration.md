@@ -1770,3 +1770,20 @@ black 69.2% against 72.9% at the round-61 defaults, about 10% less ink on the
 line; the 17-unit pen hair renders gray, not dropped. Specimen republished
 at the standing URL, slider and proof pages republished at theirs, both
 TTFs sent. The round-63 figures are in this Regular.
+
+## Round 64 (2026-09-13): the 5's top, a ladder; the 8's top loop
+
+Owner on round 63: "5 top was extended much too far, match the visual of
+2's bottom. make the top of the 8 more of an optical circle." Agent in a
+worktree, `glyphs/figures.py` only, on the round-63 base (stem 94 defaults;
+the constants are ratios, so they carry to the round-62 pen). The 5's bar
+end is now one constant, `FIVE_TOP_INSET`, relative to the bowl's rightmost
+ink: built at -36 / -24 / -12 / 0 for his pick (-12 until he does); the
+round-63 +11 last for reference. The 8: applying the o's counter rule (1.036
+wide over tall) at the kept loop height solves the upper loop to 1.042 x the
+lower's width -- the top overhangs the bottom by 8 a side and reads top-heavy
+again; the two dials are one family, so the page also carries the same 1.036
+counter with the WIDTH kept (0.80 x lower, height 0.379) and a middle
+(0.90, 0.433). Constants `EIGHT_UPPER_W`, `EIGHT_UPPER_H`. Page
+https://claude.ai/code/artifact/PENDING64. Not merged to main until he
+rules; the worktree holds the diff.
