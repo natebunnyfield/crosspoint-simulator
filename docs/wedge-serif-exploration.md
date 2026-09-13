@@ -2050,3 +2050,6 @@ one file each: `marks.py` (@ and the marks' vertical alignment), `stems.py`
 (a's blobs, g's serif +15% / +30%), `diagonals.py` (k's arm x1.15 / 1.30 /
 1.45, the leg's knot reduced). Their work is checked here before merging:
 changed-glyph lists against the brief, counters at 54 px, and the pages.
+Added the same hour: "add more top right serif to 'L'" -- a fourth Sonnet
+agent, `caps_straight.py` only, the L's stem top extended right at 0.6 /
+1.0 / 1.4 of a stem-top wedge (`L_TOP_RIGHT`, 1.0 default).
