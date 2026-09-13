@@ -81,9 +81,15 @@ def g_u(c):
     solid, cuts, outer, inner = arch_geom(x0, x1, xh)
     mid_x = (x0 + x1) / 2
     flip = lambda g: aff.scale(g, xfact=-1, yfact=-1, origin=(mid_x, xh / 2))
-    bowl = flip(solid); cuts = [flip(q) for q in cuts]
+    bowl = flip(solid)
     # the arch peaked at xh + 12 (arches); the u's bottom is a round and takes 14
     bowl = aff.translate(bowl, 0, -(pen.OVER - pen.ARCH_OVER))
+    # the trap at the u's own crotch: where the bowl's inner curve meets the
+    # right stem's inner edge, the air is UP-left (a point-reflected n trap
+    # faced down-left, into the stroke -- a nick, seen at 500 px)
+    # (a trap at that crotch, either way round, reads as a nick in the stem's
+    # edge at 500 px; the u carries none)
+    cuts = []
     left = stem(x0, 0.40 * xh, xh, top='left', foot=None, ent_span=(0, xh))
     right = stem(x1, 0, xh, top='left', foot='right')
     return geom.ink([left, right, bowl], cuts)

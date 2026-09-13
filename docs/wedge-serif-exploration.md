@@ -1438,3 +1438,41 @@ through FreeType but not each overlaid by eye. The TTF is 16 KB (one outline
 per solid) against 32 KB. Proof `fjord-rebuild.html` (27 PNG blocks at 750
 px), overlays `fjord-overlay4.html`; the specimen at the standing URL now
 carries the rebuild. His rounds by name follow.
+
+## Round 55 (2026-09-13): the rebuild's regressions, found and fixed
+
+Owner: "are you able to identify the regression issues where things look
+much worse than before?" Every glyph rendered before (round 51) / after
+(rebuild) at 150 px, the suspects at 500 px, plus a numeric diff (contour
+counts, ink width, top, advance). Seven regressions, all construction, none
+a ruled change; fixed by the rebuild agent in three passes, each re-rendered
+to the same images and looked at:
+
+1. **d q**: the bowl ran through the stem and out its far side, 18% wider --
+   the record's stem placement copied with a sign error. Kept to the stem
+   again; d ink 501 → 507, q 499 → 507.
+2. **a b p u**: white nicks at the joins -- trap cutouts pointing into the
+   strokes (b p, and the u's mirrored from the n's); removed. The a's hood
+   crotch and a tooth in its counter (the pen-by-tangent offset stepping
+   33 → 77 at the diagonal-to-round turn) redrawn.
+3. **& %**: the ampersand's crossings became holes (`make_valid` on a
+   self-crossing polygon); strokes are now unioned as overlapping pieces.
+   The %'s rings used the centerline radius as the outer; counters restored
+   (163 of 317).
+4. **x**, then **v w y k A M N V W X Y K U** and **R**: thin diagonals had
+   been 0.72 × the STEM; round 51's rule is 0.72 × the pen's width at the
+   stroke's own angle (and the capital diagonals never carried the cap
+   factor). Applied everywhere; every glyph within 8 units of round 51's ink
+   widths; the R's leg 1.05 × pen at 60° (64, not the constant 92).
+5. **5**: bar top-aligned instead of centered and its stem without the cap
+   factor; top 433 → 460.
+6. **s**: carried the capital S's spine boost and beak; round 51's lowercase
+   s restored (ink 366).
+7. **g**: the neck's square start face straddled the bowl's edge; it starts
+   22 units inside now, the ear likewise.
+
+After: o counter 1.036; flags Garamond 38 / VdK 35 / Dante 67 / Edgar 63
+(round 51: 35 / 32 / 67 / 65); lowercase median darkness −3%, word median
+−4%. The q's right foot 16 past its advance and the y's tail at −282 are the
+record's geometry. Recorded in `outlines/NOTES.md` ("Regression pass"). The
+specimen at the standing URL carries this build; his rounds by name follow.

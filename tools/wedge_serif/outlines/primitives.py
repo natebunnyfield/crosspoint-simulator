@@ -45,7 +45,7 @@ def _unfold(side, tans):
         if dx * tans[i][0] + dy * tans[i][1] >= -1e-9: out.append(side[i])
     return out
 
-def stroke(center, width, cut0=None, cut1=None, raw=False):
+def stroke(center, width, cut0=None, cut1=None, raw=False, pieces=False):
     """A stroke along a centerline: `width` a number or f(t). Ends are
     square faces, or sheared by cut0/cut1 (radians; the family's pen cut is
     pen.CUT). Returns a shapely solid."""
@@ -60,6 +60,16 @@ def stroke(center, width, cut0=None, cut1=None, raw=False):
         tn = tans[idx]; w = wf(0.0 if idx == 0 else 1.0); d = math.tan(cut) * w / 2 * sgn
         L[idx] = (L[idx][0] + tn[0] * d, L[idx][1] + tn[1] * d); R[idx] = (R[idx][0] - tn[0] * d, R[idx][1] - tn[1] * d)
     L = _unfold(L, tans); R = _unfold(R, tans)
+    if pieces:
+        # a centerline that CROSSES ITSELF (the &, the @'s ring): one polygon
+        # would make holes of its crossings, so the stroke is the union of
+        # short overlapping pieces, each a simple polygon
+        parts = []; step = 6; n2 = min(len(L), len(R))
+        for i in range(0, n2 - 1, step):
+            j = min(n2, i + step + 2)
+            q = L[i:j] + R[i:j][::-1]
+            if len(q) >= 3: parts.append(geom.poly(q))
+        return geom.union(parts)
     return geom.poly(L + R[::-1])
 
 def edge_stroke(outer, width, side=1, cut0=None, cut1=None):
@@ -215,6 +225,7 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     for p, tn in zip(outer, tans):
         w = max(pen.PEN.th(tn) * w_scale, floor)
         inner.append((p[0] - tn[1] * w, p[1] + tn[0] * w))   # inward: the LEFT normal of a ccw outer
+    inner = _unfold(inner, tans)
     inner = smooth(inner, counter_smooth, closed=True)
     inner = resample(inner + [inner[0]])[:-1]
     solid = geom.poly(outer, [inner[::-1]])
@@ -229,6 +240,7 @@ def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, p
     for i, (p, tn) in enumerate(zip(outer, tans)):
         w = widths_fn(i / n) if widths_fn else max(pen.PEN.th(tn) * w_scale, floor)
         inner.append((p[0] - tn[1] * w, p[1] + tn[0] * w))
+    inner = _unfold(inner, tans)
     if post_inner: inner = [post_inner(p) for p in inner]
     inner = smooth(inner, counter_smooth, closed=True)
     inner = resample(inner + [inner[0]])[:-1]

@@ -100,7 +100,7 @@ def g_ampersand(c):
            (0.15, 0.94), (0.31, 0.98), (0.48, 0.90), (0.52, 0.76), (0.44, 0.63), (0.28, 0.53), (0.14, 0.44), (0.06, 0.32),
            (0.06, 0.16), (0.19, 0.03), (0.38, 0.0), (0.53, 0.11), (0.60, 0.27), (0.70, 0.41), (0.78, 0.53), (0.85, 0.64)]
     spine = catmull([(w * a, C * b + (o if b > 0.9 else (-o if b < 0.01 else 0))) for a, b in pts], tension=0.5)
-    body = stroke(spine, pen_widths(spine, widths([(0.0, 0.3), (0.05, 1.0)])), cut0=CUT)
+    body = stroke(spine, pen_widths(spine, widths([(0.0, 0.3), (0.05, 1.0)])), cut0=CUT, pieces=True)   # the spine crosses itself twice
     arm = wedge(spine[-1], (0, 1), (1, 0), WL * 0.9, WD, 0.0)
     return geom.ink([body, arm])
 @glyph('%')
@@ -108,7 +108,7 @@ def g_percent(c):
     C = CAP(c); r = 120; p = line((60, 0), (440, C))
     parts = [stroke(p, pen_widths(p, lambda t: 0.75), cut0=CUT, cut1=CUT)]
     for cx, cy in ((r + 10, C - r), (620 - r, r)):
-        parts.append(ring(cx, cy, r, r, k=2.0)[0])
+        parts.append(ring(cx, cy, r + TH_V / 2, r + TH_H / 2, k=2.0)[0])   # r is the CENTERLINE radius (round 51): counter 163 of 317
     return geom.ink(parts)
 @glyph('#')
 def g_numbersign(c):
@@ -131,7 +131,7 @@ def g_at(c):
     ringc = superellipse(cx, cy, rx, ry, math.radians(-62), math.radians(-62 - 338), BOWL_K)
     link = cubic((ax, a_bot + S * 0.4), (ax, a_bot - C * 0.06), (ringc[0][0] - rx * 0.12, ringc[0][1] + ry * 0.12), ringc[0])
     lk = stroke(link, pen_widths(link, widths([(0.0, 0.15), (0.2, 0.62), (1.0, 0.62)])))
-    rg = stroke(ringc, pen_widths(ringc, widths([(0.0, 0.1), (0.08, 0.85), (0.86, 0.85), (1.0, 0.42)])), cut1=CUT)
+    rg = stroke(ringc, pen_widths(ringc, widths([(0.0, 0.1), (0.08, 0.85), (0.86, 0.85), (1.0, 0.42)])), cut1=CUT, pieces=True)
     return geom.ink([bowl, st, hd, lk, rg])
 @glyph('_')
 def g_underscore(c): return stroke(line((0, -DESC * 0.5), (500, -DESC * 0.5)), TH_H)

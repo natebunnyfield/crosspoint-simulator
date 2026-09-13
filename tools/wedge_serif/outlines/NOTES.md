@@ -83,13 +83,82 @@ untouched and still builds the round-51 font (the "before" here).
   the shipped l stem measured 81, not the pen's 77; without it the page was
   4% lighter. Kept so the weight the owner picked his dials on survives.
 
+## Regression pass (coordinator, after the first build): six defects, fixed
+
+Found by rendering every glyph before/after at 150 px and suspects at 500 px
+(`scratchpad/wedge/regress-z1..z4.png`, `regress-0..3.png`, re-rendered
+after the fixes). Each with the cause, since every one was a construction
+error of the rebuild and not a drawing choice:
+
+1. **d q ran through the stem, 18% wide** (ink 589, adv 671/610): the
+   record's stem placement `x = cx + rx_c − s/2` was copied with a `+`.
+   Now d 507 / adv 589, q 507 / 528 (round 51: 501 / 583, 499 / 541).
+2. **Nicks at the a b p u joins**: the b d p q trap cutouts pointed INTO
+   the strokes (the crotch's air is the counter, the V opened the other
+   way) -- removed, no ruling asks for them on the bowl letters; the u's
+   trap was the n's point-reflected, so it faced into the bowl -- removed
+   (the u carries none; n m h r keep theirs, 0.22 stem, facing the
+   counter). The a's crotch under the hood: the bowl's top now springs at
+   0.67 xh so the crotch is the shallow V round 51 has, not a 30-unit
+   wedge; its counter's lower-left tooth (the pen-by-tangent offset
+   stepping 33 → 77 over a few samples at the diagonal-to-round turn) is
+   gone with DECLARED widths ramped along the bowl and a gentler turn.
+   Contour counts after: a 2, b 2, p 2, u 1 (no join adds a hole).
+3. **& slits, % slits**: the & was one self-crossing polygon whose
+   crossings became holes; `stroke(pieces=True)` unions short overlapping
+   pieces (the @'s ring too). The % rings used the centerline radius as
+   the OUTER radius (counter 86 of 240); they take r + pen/2 now: 686 wide,
+   counter 163 of 317, as round 51 (687).
+4. **x heavy**: the thin stroke was 0.72 of the STEM (57); round 51 had
+   0.72 of the pen at its down-left angle (50 × 0.72 = 36). Only the x was
+   named; v w y still carry 57 -- for the coordinator to rule.
+5. **5**: the bar was top-aligned on D where the record centred it (top
+   433 → 460; round 51 461) and its stem lacked the cap factor (66 → 75).
+6. **s**: had the capital's 0.92-stem spine and beak; round 51's lowercase
+   s is the pen's own widths, flare 1.25 into a 20° cut both ends. Width
+   328 → 366 (round 51: 366).
+
+## Second regression pass: the thin-stroke rule everywhere, the g's joins
+
+- **Round 51's rule for every diagonal** (`alphabet2._diag`, `latin.diag`):
+  width = multiplier x the PEN's width at the stroke's own angle. A
+  down-right stroke is the pen's ~82, a down-left one its ~50, so the
+  "0.72" thins are 36-50 and the capital `diag`'s cap factor cancels (its
+  thick diagonals are the pen's 82, not 88). `pw(p0, p1, mult)` in
+  `diagonals.py` and `caps_straight.py` now gives exactly that. Applied to
+  v w x y (thin 0.72), k (arm 0.78, leg 1.0), A (left leg 0.72, right 1.0),
+  M (outer 0.72, inner 1.0), N (diagonal 1.0; its stems were already
+  0.72 x the cap stem = 63), V W X Y (thin 0.72), K (arm max(0.72 pen,
+  0.47 stem) = 38.5, leg 1.1 x pen at its angle = 47), U (right stem was
+  already 0.78 x the cap stem = 69), and the y's tail takes round 51's
+  profile (0.72 rising to 1.0 by the middle, flare 0.3 into the cut).
+  Measured as horizontal ink runs across each glyph at 1000 px (thin /
+  thick), round 51 → rebuild: v 54/90 → 53/91, w 54,55/87,89 → 55,55/88,90,
+  y 62/92 → 68/91, x 54/108 → 54/107, A 55/92 → 54/90, M 54,57/81,94 →
+  55,58/80,93, N 65,65/112 → 65,67/111, V 54/91 → 54/91, W 53,53/88,88 →
+  55,55/89,90, X 54/110 → 54/109, Y 53/104 → 53/104, K 73/92 → 72/91,
+  U 70/90 → 72/91. Ink widths within 8 of round 51 on every one.
+  R's leg: ruled the same way on the third pass -- 1.05 x the pen at its
+  60-degree angle (64), not the constant 92. Horizontal run across the leg
+  at 0.22 C, round 51 → rebuild: 101 → 103 (the stem beside it 94 → 91);
+  R ink 656 → 663, adv 731 → 738.
+- **g**: the neck's square start face straddled the bowl's centerline and
+  one corner broke the ring's edge (a nick at 500 px); it now starts 22
+  units inside the bowl's stroke, and its end thins to 0.25 over the last
+  10% so no corner reaches the loop's counter (round 51: taper_out 0.85 /
+  8%). The ear starts 24 inside the ring at 0.45 of its width, rising to
+  full by 28%. At 700 px (`rb/g700.png`) every join is one solid; g has 3
+  contours (outer, bowl counter, loop counter).
+- Word darkness after both passes: lowercase median 0.1334 → 0.1296, word
+  median 0.1344 → 0.1290.
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was
   226; the +1 lands the aspect exactly).
 - Bearings: no non-letter under 20 a side. Letters past the advance: f
   right −82 (hook), j left −85 (tail), J left … (hook), Q right −540 (tail)
-  -- the ruled tucks -- and **q right −14** (its right foot wedge, measured
+  -- the ruled tucks -- and **q right −16** (its right foot wedge, measured
   outside the band; the record's q had the same shape). Left as is.
 - The advances of stem letters grew ~10 units (l 292 → 304, n 636 → 646):
   the wedges are sharp now, so the band's ink is wider; a 13 pt line holds

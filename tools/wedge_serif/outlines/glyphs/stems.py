@@ -69,30 +69,30 @@ def g_a(c):
     hood = cubic((x, xh * 0.66), (x, yc), (x - 250 * wf, yc), (x - 300 * wf, xh * 0.78))
     hd = stroke(hood, pen_widths(hood, widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])), cut1=CUT)
     L = (x - 330 * wf, xh * 0.27); B = (x - 150 * wf, -OVER); xe = x - TH_V / 2
-    top = (xe + 82, xh * 0.62)   # closes 82 inside the stem, so the counter's offset lands ON the stem's edge
-    outer = join(cubic(top, (top[0] - 110 * wf, top[1] - 40), (L[0], L[1] + 70), L),
-                 cubic(L, (L[0], L[1] - 95), (B[0] - 95 * wf, B[1]), B),
+    top = (xe + 82, xh * 0.67)   # closes 82 inside the stem (the counter's offset lands ON the stem's edge); a shallow crotch under the hood, as round 51's
+    outer = join(cubic(top, (top[0] - 120 * wf, top[1] - 55), (L[0], L[1] + 105), L),
+                 cubic(L, (L[0], L[1] - 115), (B[0] - 100 * wf, B[1]), B),
                  cubic(B, (B[0] + 80 * wf, B[1]), (xe + 82, 20), (xe + 82, 60)))
-    solid, o, i = ring_from(outer, floor=HAIR * 0.85)
+    # widths DECLARED along the outer (t by arc length): a hairline along
+    # the diagonal, the stem's weight at the lower left, the pen's
+    # horizontal along the bottom -- ramped, where the pen-by-tangent
+    # offset stepped from 33 to 77 in a few samples and left a tooth in the
+    # counter's lower left (seen at 700 px)
+    wfn = widths([(0.0, 30), (0.20, 33), (0.48, 76), (0.56, 78), (0.66, 62), (0.74, 52), (0.82, 44), (1.0, 40)])
+    solid, o, i = ring_from(outer, widths_fn=wfn, counter_smooth=3)
     return geom.ink([st, hd, solid])
 
 @glyph('s')
 def g_s(c):
-    """One smooth spine; the middle runs near the nib's angle, so the
-    weight is DECLARED: 0.92 stem at the middle, the pen's own at the ends,
-    a flared face at the top (steep cut), a thinner pen-cut end below."""
+    """One smooth spine on the pen's own widths (round 51's s: no spine
+    boost -- that is the capital's rule), flaring 1.25 into a 20-degree pen
+    cut at both ends."""
     xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = OVER - TH_H / 2
     pts = [(w * 0.93, xh * 0.80), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
            (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)]
     spine = catmull(pts, tension=0.55)
-    base = pen_widths(spine)
-    def wfn(t):
-        mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)
-        want = base(t) * (1 - mid) + S * 0.92 * mid
-        return want * widths([(0.0, 1.15), (0.12, 1.0), (0.86, 1.0), (1.0, 0.72)])(t)
-    body = stroke(spine, wfn, cut0=math.radians(-22), cut1=CUT)
-    lip = beak(spine, wfn(0.0), True, -22.0, lip=(0.35, 0.6))
-    return geom.ink([body, lip])
+    wfn = pen_widths(spine, widths([(0.0, 1.25), (0.12, 1.0), (0.88, 1.0), (1.0, 1.25)]))
+    return geom.ink([stroke(spine, wfn, cut0=CUT, cut1=CUT)])
 
 def bowl_stem(c, side, top, bottom):
     """b d p q: the o's ring at the b's radius, KEPT TO THE STEM (ruling,
@@ -105,7 +105,7 @@ def bowl_stem(c, side, top, bottom):
     xh = c["xh"]; wf = c["wf"]
     rx_c = 214 * wf; rx = rx_c + TH_V / 2; ry = xh / 2 + OVER
     if side == 'right':   # d q: stem on the right
-        cx = rx; x = cx + rx_c + S * 0.5; into = -1
+        cx = rx; x = cx + rx_c - S * 0.5; into = -1   # the record: the stem's centre half a stem INSIDE the ring's far centerline
     else:                 # b p
         x = S / 2; cx = x - S * 0.5 + rx_c; into = 1
     solid, outer, inner = ring(cx, xh / 2, rx, ry)
@@ -114,10 +114,10 @@ def bowl_stem(c, side, top, bottom):
     solid = solid.intersection(clip)
     foot = ('right' if side == 'right' else 'left') if bottom == 0 else 'both'
     st = stem(x, bottom, top, top='left', foot=foot, ent_span=(bottom, top))
-    cuts = []
-    for y, sgn in ((xh * 0.80, 1), (xh * 0.20, -1)):
-        cuts.append(trap((edge, y), (into * 0.7, sgn * 0.7), 18, S * 0.18))
-    return geom.ink([solid, st], cuts)
+    # no trap cutouts here: the first version's pointed INTO the strokes
+    # (a nick on the outside at each crotch, seen at 500 px); no ruling asks
+    # for traps on the bowl letters
+    return geom.ink([solid, st])
 
 @glyph('b')
 def g_b(c): return bowl_stem(c, 'left', c["asc"], 0)
@@ -145,8 +145,12 @@ def g_g(c):
         a = math.radians(deg); return (cx_ + rx_ * math.cos(a), cy_ + ry_ * math.sin(a))
     p0 = on(cx, cy, crx, cry, 242); a1 = math.radians(150); p3 = on(lcx, lcy, clrx, clry, 150)
     tl = (-math.sin(a1), math.cos(a1)); gap = p0[1] - p3[1]
+    # the neck starts 22 units up INSIDE the bowl's stroke (its square face
+    # straddled the centerline and one corner broke the ring's edge -- a
+    # nick at 500 px); the ear the same, from the ring's centerline
+    p0 = (p0[0] + 4, p0[1] + 22)
     neck = cubic(p0, (p0[0] - gap * 0.02, p0[1] - gap * 0.60), (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
-    nk = stroke(neck, pen_widths(neck))
+    nk = stroke(neck, pen_widths(neck, widths([(0.90, 1.0), (1.0, 0.25)])))   # the end thins so its corners stay inside the loop's stroke (round 51: taper_out 0.85 over 8%)
     ex, ey = on(cx, cy, crx, cry, 48); L = 118 * wf
-    ear = stroke([(ex - S * 0.15, ey - 4), (ex + L, ey + L * math.tan(math.radians(5)))], pen_widths([(ex, ey), (ex + L, ey + 8)]), cut1=CUT)
+    ear = stroke([(ex - S * 0.30, ey - 24), (ex + L, ey + L * math.tan(math.radians(5)))], pen_widths([(ex, ey), (ex + L, ey + 8)], widths([(0.0, 0.45), (0.28, 1.0)])), cut1=CUT)   # starts inside the ring, thin, so no corner reaches the counter
     return geom.ink([bowl, loop, nk, ear])

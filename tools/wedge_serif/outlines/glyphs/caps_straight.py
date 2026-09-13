@@ -13,7 +13,12 @@ from ..pen import S, CS, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, BOW
 
 def W_(c, ch, default): return default * c["W"].get(ch, 1.0)
 CW = TH_V * CAP_STEM          # the drawn cap stem, 87.9
-THIN = CW * 0.72              # the capitals' thin diagonal
+THIN = CW * 0.72              # the capitals' thin STEM (N's stems: round 51's _cstem thin=0.72)
+def pw(p0, p1, mult=1.0):
+    """Round 51's `latin.diag`: a capital's diagonal is `mult` x the PEN's
+    width at its own angle (the cap factor cancelled out of it); the thin
+    strokes 0.72 x that."""
+    tn = tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
 BEAK_CUT = -28.0
 
 def cstem(x, y0, y1, top='left', foot='both', **kw):
@@ -28,12 +33,14 @@ def g_A(c):
     C = c["cap"]; w = W_(c, 'A', 600); s = CS
     p0, p1 = (s * 0.3, 0), (w / 2 - s * 0.06, C - s * 0.32)
     tn = geom.tangents(line(p0, p1))[0]
-    left = stroke(line(p0, p1), THIN, cut0=-math.atan2(tn[0], tn[1]))
+    lw = pw(p0, p1, 0.72)   # round 51: 0.72 x the pen at the leg's angle (47)
+    left = stroke(line(p0, p1), lw, cut0=-math.atan2(tn[0], tn[1]))
     # the flat foot: a bracket up the leg's left edge, tip ON the baseline
-    nrm = (-tn[1], tn[0]); Apt = (p0[0] - THIN / 2 / tn[1], 0.0)
+    nrm = (-tn[1], tn[0]); Apt = (p0[0] - lw / 2 / tn[1], 0.0)
     edge_at = lambda d: (Apt[0] + tn[0] * d, tn[1] * d)
     foot = wedge(Apt, (0, -1), (-1, 0), WL * 0.9, WD * 0.9, 0.0, edge_at=edge_at)
-    right = diagonal((w - s * 0.3, 0), (w / 2 - s * 0.18, C), CW, serif0=1)
+    r0, r1 = (w - s * 0.3, 0), (w / 2 - s * 0.18, C)
+    right = diagonal(r0, r1, pw(r0, r1), serif0=1)
     b = stroke(line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28)), TH_H)
     return geom.ink([left, foot, right, b])
 
@@ -145,12 +152,12 @@ def g_K(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'K', 500); s = CS
     st = cstem(x, 0, C)
     A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
-    tn = tangents(line(B0, A0))[0]
-    arm_w = max(THIN, 0.47 * S, pen.th_t(tn) * 0.72)
+    arm_w = max(pw(B0, A0, 0.72), 0.47 * S)   # round 51: the pen's hairline at the arm's angle, floored at 0.47 stem (38.5)
     arm = diagonal(A0, B0, arm_w, serif0=1)
     u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
-    return geom.ink([st, arm, kick(J, angle, CW * 1.1, bury=0.1)])
+    foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
+    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
 
 @glyph('L')
 def g_L(c):
@@ -162,17 +169,17 @@ def g_M(c):
     """Splayed: the outer strokes lean out a little, the apex on the
     baseline, a wedge crowning the left apex."""
     C = c["cap"]; s = CS; w = W_(c, 'M', 720); x0 = s / 2; x1 = x0 + w
-    a = diagonal((x0 + s * 0.25, 0), (x0 + s * 0.45, C), THIN, serif0=-1)
-    b = diagonal((x0 + s * 0.45, C), (x0 + w / 2, 0), CW)
-    d = diagonal((x1 - s * 0.45, C), (x0 + w / 2, 0), THIN)
-    e = diagonal((x1 - s * 0.25, 0), (x1 - s * 0.45, C), CW, serif0=1, serif1=-1)
-    apex = wedge((x0 + s * 0.45 - THIN * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    P = [((x0 + s * 0.25, 0), (x0 + s * 0.45, C), 0.72, -1, None), ((x0 + s * 0.45, C), (x0 + w / 2, 0), 1.0, None, None),
+         ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
+    apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
     return geom.ink([a, b, d, e, apex])
 
 @glyph('N')
 def g_N(c):
     C = c["cap"]; s = CS; w = W_(c, 'N', 560); x0 = s / 2; x1 = x0 + w
-    return geom.ink([cstem(x0, 0, C, top='left', foot='both', w=THIN), diagonal((x0 + s * 0.1, C - s * 0.3), (x1 - s * 0.1, s * 0.3), CW),
+    d0, d1 = (x0 + s * 0.1, C - s * 0.3), (x1 - s * 0.1, s * 0.3)
+    return geom.ink([cstem(x0, 0, C, top='left', foot='both', w=THIN), diagonal(d0, d1, pw(d0, d1)),
                      cstem(x1, 0, C, top='right', foot=None, w=THIN)])
 
 def cap_ring(c, rx_c):
@@ -209,7 +216,8 @@ def g_R(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'R', 400); edge = x + CW / 2
     bowl, cx, cy, rx, ry = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.3)
     ang = math.radians(-52); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
-    return geom.ink([cstem(x, 0, C), bowl, kick(J, 60, CW * 1.05)])
+    foot = (J[0] + J[1] / math.tan(math.radians(60)), 0)
+    return geom.ink([cstem(x, 0, C), bowl, kick(J, 60, pw(foot, J, 1.05))])   # round 51: 1.05 x the pen at 60 degrees (64)
 
 @glyph('S')
 def g_S(c):
@@ -245,28 +253,29 @@ def g_U(c):
 @glyph('V')
 def g_V(c):
     C = c["cap"]; s = CS; w = W_(c, 'V', 560)
-    return geom.ink([diagonal((s * 0.3, C), (w / 2, 0), CW, serif0=1), diagonal((w - s * 0.3, C), (w / 2 + s * 0.15, 0), THIN, serif0=-1)])
+    p0, p1 = (s * 0.3, C), (w / 2, 0); q0, q1 = (w - s * 0.3, C), (w / 2 + s * 0.15, 0)
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
 
 @glyph('W')
 def g_W(c):
     C = c["cap"]; s = CS; w = W_(c, 'W', 820)
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
-    a = diagonal((s * 0.3, C), f1, CW, serif0=1)
-    b = diagonal(apex, (f1[0] + s * 0.15, 0), THIN)
-    d = diagonal(apex, f2, CW)
-    e = diagonal((w - s * 0.3, C), (f2[0] + s * 0.15, 0), THIN, serif0=-1)
-    crown = wedge((apex[0] - THIN * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
+    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
     return geom.ink([a, b, d, e, crown])
 
 @glyph('X')
 def g_X(c):
     C = c["cap"]; s = CS; w = W_(c, 'X', 540)
-    return geom.ink([diagonal((s * 0.3, C), (w - s * 0.3, 0), CW, serif0=1, serif1=1), diagonal((w - s * 0.3, C), (s * 0.3, 0), THIN, serif0=-1, serif1=-1)])
+    p0, p1 = (s * 0.3, C), (w - s * 0.3, 0); q0, q1 = (w - s * 0.3, C), (s * 0.3, 0)
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1, serif1=-1)])
 
 @glyph('Y')
 def g_Y(c):
     C = c["cap"]; s = CS; w = W_(c, 'Y', 540)
-    return geom.ink([diagonal((s * 0.3, C), (w / 2 + 6, C * 0.45 - 10), CW, serif0=1), diagonal((w - s * 0.3, C), (w / 2 - 6, C * 0.45 - 10), THIN, serif0=-1),
+    p0, p1 = (s * 0.3, C), (w / 2 + 6, C * 0.45 - 10); q0, q1 = (w - s * 0.3, C), (w / 2 - 6, C * 0.45 - 10)
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1),
                      cstem(w / 2, 0, C * 0.45 + s * 0.3, top=None, foot='both', ent_span=(0, C))])
 
 @glyph('Z')

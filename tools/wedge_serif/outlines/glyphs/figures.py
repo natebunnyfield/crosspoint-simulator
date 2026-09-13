@@ -51,8 +51,8 @@ def g_four(c):
 @glyph('5')
 def g_five(c):
     D = c["figH"]; w = W_(c, '5', 400); r = D * 0.31
-    top = bar(S * 0.3, w * 0.95, D, max(TH_H, S * 0.5), align='top', cut0=CUT, wedges=[('right', -1)])
-    st = stem(S * 0.3 + S / 2, D * 0.5, D - 10, w=TH_V * 0.85, top=None, foot=None, ent=0.0)
+    top = bar(S * 0.3, w * 0.95, D, max(TH_H, S * 0.5), align='center', cut0=CUT, wedges=[('right', -1)])   # round 51: centred ON D, its top at D + 28
+    st = stem(S * 0.3 + S / 2, D * 0.5, D + 10, w=TH_V * 0.85 * pen.CAP_STEM, top=None, foot=None, ent=0.0)   # round 51: vstem at 0.85 x the cap stem
     bowl = superellipse(w * 0.5, r, w * 0.55, r + OVER - TH_H / 2, math.radians(125), math.radians(-160), BOWL_K)
     bw = stroke(bowl, pen_widths(bowl, widths([(0.0, 0.45), (0.12, 1.0), (0.85, 1.0), (1.0, 1.25)])), cut1=CUT)
     return geom.ink([top, st, bw])
