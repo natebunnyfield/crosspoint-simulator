@@ -878,3 +878,27 @@ O's width key), I −28% (Garamond's I has wide serifs), J bottom +0.21 xh
 (Garamond's J descends further; the bar across is the ruling), D stroke −24%
 (a long hairline in a big ring lowers the mean; the D reads fine).
 Proof page: `fjord-caps.html`.
+
+## Round 27 (2026-09-12): the arches were short
+
+Owner: "seems like some lowercase characters are low of what they should be
+(including h n m w) the seem short."
+
+Measured on the built font, tops over the x-height: o c e s +0.10 xh, n m u
++0.002, Garamond o +0.035 and n +0.075. Two errors in one: the design's
+14-unit overshoot was applied to the stroke's CENTERLINE, so every bowl added
+half a hairline outside it and overshot 41 units; and the arches peaked with
+their outer edge exactly on the x-height. Next to the rounds they were 0.1 xh
+short.
+
+Fix, in `alphabet2.ctx`: `over` is now the centerline's overshoot,
+`over_edge − pen.th((1,0))/2`, and `over_edge` (the design's number) exists
+for the two sites that mean the ink's edge (the layout band, the U's bottom).
+Every bowl, ring and cap curve that read `c["over"]` now lands its ink at the
+design's overshoot without a change at the site. The arches (`alphabet2._arch`
+and `round17.patch_arch`) solve their control height so the curve's centerline
+peaks at `xh + over`. The u's bottom and the a's hood and bowl are solved the
+same way (u sat 0.11 xh under the baseline; a overshot 0.07 both ways).
+
+After: o +0.034/−0.034, n +0.039, m +0.039, a +0.039/−0.031, u −0.039, caps
+O C G S ±0.035. Garamond flags 39 → 38. Proof: `fjord-arches.html`.

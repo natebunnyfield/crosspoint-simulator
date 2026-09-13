@@ -265,10 +265,13 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
     def g_a(c):
         P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 360 * wf
         A.stem(c, P, x, 0, xh * 0.95, top=None, foot="both")
-        hood = A.bez((x, xh * 0.66), (x, xh * 1.06), (x - 250 * wf, xh * 1.12), (x - 300 * wf, xh * 0.78), 40)
+        # round 27: hood peaks at the rounds' edge (was 0.07 xh over), bowl
+        # bottom at -over like the o (was 0.07 xh under)
+        yc = (8 * (xh + c["over"]) - xh * 0.66 - xh * 0.78) / 6
+        hood = A.bez((x, xh * 0.66), (x, yc), (x - 250 * wf, yc), (x - 300 * wf, xh * 0.78), 40)
         A.curve(c, P, hood, A.compose(A.taper_in(0.45, 0.3), A.flare_end(0.15, 0.3)), cut1=c["cut"])
         rx = 165 * wf; ry = xh * 0.29
-        outer, inner = ring(c, x - rx, ry, rx, ry + 4, 0, two, 90, cut=cut)
+        outer, inner = ring(c, x - rx, ry - c["over"], rx, ry, 0, two, 90, cut=cut)   # centerline bottom at -over, as the o
         P.append(outer); P.append(Hole(ccut(inner) if ccut else inner)); return P
 
     return {'o': g_o, 'd': g_d, 'b': g_b, 'p': g_p, 'q': g_q, 'g': g_g, 'e': g_e, 'a': g_a}
@@ -280,7 +283,8 @@ def patch_arch(trap):
     def _arch(c, P, x0, x1, xh, start=None):
         start = c["arch"] if start is None else start
         s = c["s"]
-        pts = A.bez((x0 + s * 0.5 * trap, xh * start), (x0 + s * 0.2, xh * 1.05), (x1, xh * 1.04), (x1, xh * 0.60), 44)
+        yc = (8 * (xh + c["over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the rounds' (round 27)
+        pts = A.bez((x0 + s * 0.5 * trap, xh * start), (x0 + s * 0.2, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * 0.60), 44)
         A.curve(c, P, pts, A.taper_in(0.42 - 0.12 * trap, 0.32))
     A._arch = _arch
 

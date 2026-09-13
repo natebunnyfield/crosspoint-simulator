@@ -149,7 +149,14 @@ def ctx(p):
              s_spine=p.get("s_spine", 0.0), s_floor=p.get("s_floor", 0.0), s_two=p.get("s_two", False),
              e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False),
              trap_depth=p.get("trap_depth", 0.55))
-    c["over"] = p.get("overshoot", 12)
+    # Round 27: the overshoot is the INK's edge past the x-height, not the
+    # stroke's centerline. Every bowl adds half a hairline outside its
+    # centerline, so a 14-unit design overshoot drew rounds 41 units past
+    # the x-height while the arches (which peaked with their outer edge ON
+    # it) looked short. `over` is what the centerline gets; `over_edge` is
+    # the design's number, for the few sites that want the edge itself.
+    c["over_edge"] = p.get("overshoot", 12)
+    c["over"] = c["over_edge"] - c["pen"].th((1, 0)) / 2
     return c
 
 def stem(c, P, x, y0, y1, top="wedge", foot="both", top_side=1, flare=True):
@@ -297,7 +304,8 @@ def g_g(c):
 
 def _arch(c, P, x0, x1, xh, start=None):
     start = c["arch"] if start is None else start
-    pts = bez((x0, xh * start), (x0, xh * 1.05), (x1, xh * 1.04), (x1, xh * 0.60), 44)
+    yc = (8 * (xh + c["over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the rounds' (round 27)
+    pts = bez((x0, xh * start), (x0, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * 0.60), 44)
     curve(c, P, pts, None if c["raw"] else taper_in(0.42, 0.32))
 
 def g_n(c):
@@ -321,7 +329,10 @@ def g_u(c):
     stem(c, P, x0, xh * 0.4 - c["s"] * 0.5, xh, top="wedge", foot=None, flare=False)
     # control points below the baseline by 0.55 of the start height, or a
     # cubic between two stems bottoms out a tenth of the way up (it floated 40 units)
-    pts = bez((x0, xh * 0.4), (x0, -xh * 0.4 * 0.55 - c["over"]), (x1, -xh * 0.42 * 0.55 - c["over"]), (x1, xh * 0.42), 44)
+    # round 27: solved so the centerline bottoms out at -over (it sat 0.11 xh
+    # under the baseline; the 0.55 rule overshot the other way)
+    cy = (8 * (-c["over"]) - xh * 0.4 - xh * 0.42) / 6
+    pts = bez((x0, xh * 0.4), (x0, cy), (x1, cy), (x1, xh * 0.42), 44)
     curve(c, P, pts, taper_out(0.42, 0.3))
     stem(c, P, x1, 0, xh, top="wedge", foot="right"); return P
 
@@ -527,7 +538,7 @@ def layout(p, text):
         gp = fn(c)
         # Fit on the x-height band: a j's tail or an f's hook must not set the
         # bearing of the stem the eye actually spaces against.
-        band = [px for poly in gp for (px, py) in poly if -c["over"] <= py <= c["xh"] + c["over"]]
+        band = [px for poly in gp for (px, py) in poly if -c["over_edge"] <= py <= c["xh"] + c["over_edge"]]
         xs = band or [px for poly in gp for (px, _) in poly]
         l, r = min(xs), max(xs)
         allx = [px for poly in gp for (px, _) in poly]

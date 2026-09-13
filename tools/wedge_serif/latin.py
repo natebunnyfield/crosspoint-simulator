@@ -283,7 +283,7 @@ def g_U(c):
     _cstem(c, P, x0, y0 - s * 0.5, C, top="both", foot=None)
     # round 26: the bowl sat 0.18 xh under the baseline; the controls are now
     # solved so the curve's centerline bottom is half a stroke above -overshoot.
-    th_h = c["pen"].th((1, 0)); yb = th_h / 2 - c["over"]; cy = (8 * yb - 2 * y0) / 6
+    yb = -c["over"]; cy = (8 * yb - 2 * y0) / 6   # centerline bottom; over is already the centerline's (round 27)
     pts = bez((x0, y0), (x0, cy), (x1, cy), (x1, y0), 48)
     A.curve(c, P, pts, compose(taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
     _cstem(c, P, x1, y0 - s * 0.5, C, top="both", foot=None, thin=0.78); return P
