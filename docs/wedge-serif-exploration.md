@@ -1883,3 +1883,11 @@ Round 69 RULED (2026-09-13): "1.08 wins." `EIGHT_LOWER_TALL = 1.08`. The
 figures.py diff (5 at -24, the round-69 8, `zero_bowl`/`six_bowl` factored)
 merges to main as soon as the round-65 VF rebuild lands, then one more
 Regular + VF rebuild carries it.
+
+## Round 70 (2026-09-13): the 6's tail, thicker
+
+Owner: "give me options for thickening 6 tail." Ladder of five floors on the
+tail's width above the bowl -- current (pen hair), 0.55 S, 0.70 S, 0.85 S,
+1.00 S -- `SIX_TAIL_FLOOR`, 0.70 until ruled; the figures agent, `g_six`
+only; page pending. The nines (round 68's sibling, ten serifed tails) are
+still building.
