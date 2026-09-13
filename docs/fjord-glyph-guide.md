@@ -11,6 +11,22 @@ traps are `tools/wedge_serif/README.md`. Read all three before touching a
 glyph. Where this guide and a later round entry disagree, the later entry
 wins; update this guide when that happens.
 
+## 00. The target, restated by the owner (2026-09-13, round 58)
+
+**"I am not interested in recreating Van den Keere, I am interested in
+making a wedge serif like Albertus, but more readable."** That is the
+identity, and it was the round-1 brief ("a humanist wedge serif like
+Albertus and Icone"). Everything below that says "match Van den Keere" or
+"match Garamond" is about PROPORTIONS and fitting only -- x-height, cap
+height, widths, bearings -- never about the strokes' character. The strokes
+are Albertus's kind: glyphic, chiselled, low contrast, stems that flare
+toward their ends, terminals that widen into wedges, bowls with modest
+contrast and no hairlines, open counters -- made more readable for a text
+face at 13 pt. The round-57 garalde bowl profile (hairline tops and
+bottoms, 2.7:1) is NOT the target; round 58 in the exploration doc records
+what replaced it. Neither Albertus nor Icone is on disk: their character is
+stated here and judged on the owner's picture, never fitted to a file.
+
 ## 0. The next job: a full rebuild (owner, 2026-09-12)
 
 Asked what the next agent will do first, the owner answered: **"full

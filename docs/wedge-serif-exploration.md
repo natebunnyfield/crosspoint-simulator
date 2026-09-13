@@ -1544,3 +1544,12 @@ top) and the R's rays that cross the leg's root. O C G Q and the lowercase
 bowls untouched: VdK's O measures the same profile (max at 0°, 32 at ±80°),
 ours the 26° nib's (max at +20°, 53–61 at ±80°) -- **for the owner's
 ruling.** Proof `fjord-phase3-DBPR.html`; the specimen carries the build.
+
+## Round 58 (2026-09-13): the target restated -- Albertus, more readable
+
+Owner: "I am not interested in recreating Van den Keere, I am interested in
+making a wedge serif like Albertus, but more readable." The garalde bowl
+profile of round 57 and the Van den Keere matching of round 42 were my
+drift; the references stay for proportions and fitting only. Neither
+Albertus nor Icone is on disk, so the character is stated and offered as
+pictures: three bowl treatments on D B P R O o and words, for his pick.
