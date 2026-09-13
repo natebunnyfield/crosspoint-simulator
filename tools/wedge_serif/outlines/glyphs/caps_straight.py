@@ -499,7 +499,10 @@ def g_W(c):
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
     P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
     a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
-    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    # owner 2026-09-13: "lower and reduce the protuberance of the top middle
+    # connector in W" -- the crown at W_CROWN of the family's wedge, seated
+    # W_CROWN_DROP x the family's drop lower
+    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C - DROP * (W_CROWN_DROP - 1.0)), (0, 1), (-1, 0), WL * W_CROWN, WD * W_CROWN, DROP)
     return geom.ink([a, b, d, e, crown])
 
 @glyph('X')
@@ -577,5 +580,7 @@ def g_Z(c):
     elif Z_CORNER == 'wedge':
         g = geom.ink(parts + [end_wedge([p_bot, p_top], CS, False, 1, scale=0.9), end_wedge([p_bot, p_top], CS, True, 1, scale=0.9)])
     return g
+W_CROWN = 0.6
+W_CROWN_DROP = 2.2
 Z_CORNER = __import__("os").environ.get("FJORD_Z_CORNER", "mitre")   # owner 2026-09-13: "Z mitre wins"
 Z_BEVEL = 0.45

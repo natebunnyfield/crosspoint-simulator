@@ -61,30 +61,21 @@ def g_f(c):
 
 @glyph('t')
 def g_t(c):
-    """Owner 2026-09-13: "make a version of 't' that is a triangle on the
-    right side, but keep it optically even to what is there now"; then, on
-    the first attempt (a filled triangle glued between the bar and the
-    stem's top): "take a fable pass improving a g and t. the ones you just
-    made suck". So the triangle is Albertus's: the stem rises above the bar
-    and its top is SHEARED up to the right -- the peak at the top right, a
-    triangle above the crossbar made by the stem itself, not a plate
-    added beside it. The bar is the plain crossbar, its right end in the
-    pen cut. Optical evenness: the stem's extra height is set so the
-    glyph's ink area matches the old t within 2% (measured below)."""
+    """Round 51's t, restored (owner 2026-09-13: "revert 't' before the
+    triangle"): the stem sheared at the top by the pen cut, a plain bar,
+    the hooked tail."""
     xh = c["xh"]; wf = c["wf"]; r = 135 * wf; x = 100 * wf + S / 2
-    top = xh + T_TOP_RISE
-    st = stem(x, r * 0.85 - 10, top, top=None, foot=None, ent_span=(0, top), cut_top=-math.radians(T_TOP_SHEAR_DEG))
+    st = stem(x, r * 0.85 - 10, xh + 95, top=None, foot=None, ent_span=(0, xh + 95), cut_top=CUT)
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
-    tl = stroke(tail, PR.bowl_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.15)]), floor=S * 0.5), cut1=CUT)
-    b = stroke([(x - 100 * wf, xh - TH_H / 2), (x + 150 * wf, xh - TH_H / 2)], max(TH_H, S * 0.5), cut1=CUT)
+    tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)])), cut1=CUT)
+    b = stroke([(x - 100 * wf, xh - TH_H / 2), (x + 150 * wf, xh - TH_H / 2)], TH_H)
     return geom.ink([st, tl, b])
 
-# the t's top: how far the stem rises above the x-height and the shear of
-# its peak (degrees, rising to the RIGHT -- Albertus's t). 118 / 38 gives
-# the old t's ink area within 2% (old bar-and-square-top t: measured in the
-# proof page's heading).
 T_TOP_RISE = 96
 T_TOP_SHEAR_DEG = 46
+
+A_STEM_TOP = 0.66   # the a's stem stops here (x xh); the hood's curve is the top right above it
+A_HOOD_LEAN = 22    # how far right (wf units) the hood leans as it climbs off the stem
 
 @glyph('a')
 def g_a(c):
@@ -100,12 +91,14 @@ def g_a(c):
     pen cut, a teardrop not a flag. Counter and aperture are the whites
     the standing rule watches: reported on the page."""
     xh = c["xh"]; wf = c["wf"]; x = 360 * wf
-    st = stem(x, 0, xh * 0.95, top=None, foot='both', ent_span=(0, xh))
-    # the hood: from the stem at 0.60 xh up over the top and down to a
-    # terminal at the left, its end tangent pointing down
+    # owner 2026-09-13: "the top right of 'a' needs to be more of a curve
+    # than a rectangular corner" -- the stem stops at A_STEM_TOP x xh and the
+    # hood takes over from lower on the stem, leaning out to the right as it
+    # climbs, so the outer contour at the top right is the hood's own curve
+    st = stem(x, 0, xh * A_STEM_TOP, top=None, foot='both', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
-    hood = cubic((x, xh * 0.60), (x + 10 * wf, peak + 40), (x - 240 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-    hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.45), (0.28, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
+    hood = cubic((x, xh * 0.54), (x + A_HOOD_LEAN * wf, xh * 0.93), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+    hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
     # into the stem near the foot

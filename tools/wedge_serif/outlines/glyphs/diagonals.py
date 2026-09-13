@@ -87,24 +87,39 @@ def g_y(c):
 
 @glyph('z')
 def g_z(c):
-    """Owner 2026-09-13, verbatim: "cleanup 'Z' and 'z' bottom left and top
-    right." The pen cut was on the wrong end of each bar: it sat on the end
-    the DIAGONAL crosses (top bar's right, bottom bar's left), a square
-    stroke end sheared against the diagonal's own square end, which is what
-    put a stray sliver spike at the top-right and bottom-left corners. The
-    capital Z (`g_Z`, caps_straight.py) puts the cut on the WEDGE end
-    instead, where the wedge polygon covers it -- the diagonal-facing end
-    stays square and the diagonal's own square end closes it cleanly. Same
-    fix here: cut0 on the top bar (under its left wedge), cut1 on the
-    bottom bar (under its right wedge), neither on the end the diagonal
-    meets."""
+    """Owner 2026-09-13, on the cleanup: "'z' is much worse, you are
+    half-assing it and I need better." Read against Albertus and Berkeley:
+    in both the z's DIAGONAL is the heavy stroke and the bars are light,
+    and the corners where the diagonal meets the bars are mitred on the
+    diagonal's own line -- the ruled Z construction (round 82: mitre, the
+    bottom bar run out to the top corner's x). So the z is the Z at
+    x-height: bars at Z_BAR of the stem with the top's hanging wedge at the
+    left and the bottom's rising wedge at the right, the diagonal at
+    Z_DIAG x S, each bar's end at the diagonal cut along the diagonal's
+    outer edge, the bottom bar run out so both right edges share one x."""
+    from shapely.geometry import Polygon, box as _box
     xh = c["xh"]; wf = c["wf"]; w = 400 * wf
-    th = max(TH_H, S * 0.55)
-    yt = xh - th / 2; yb = th / 2
-    t = bar(0, w, xh, th, align='top', cut0=CUT, wedges=[('left', -1)])
-    b = bar(0, w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])
-    d = diagonal((w - S * 0.15, yt), (S * 0.15, yb), S)
-    return geom.ink([t, b, d])
+    th = S * Z_BAR; dw = S * Z_DIAG
+    p_top, p_bot = (w - S * 0.12, xh - th / 2), (S * 0.12, th / 2)
+    dg = diagonal(p_top, p_bot, dw)
+    dx, dy = p_top[0] - p_bot[0], p_top[1] - p_bot[1]; L = math.hypot(dx, dy); dx, dy = dx / L, dy / L
+    nx, ny = dy, -dx
+    ox, oy = p_top[0] + nx * dw / 2, p_top[1] + ny * dw / 2
+    corner = (ox + dx * (xh - oy) / dy, xh)
+    ox2, oy2 = p_bot[0] - nx * dw / 2, p_bot[1] - ny * dw / 2
+    corner2 = (ox2 + dx * (0.0 - oy2) / dy, 0.0)
+    far = 4000.0
+    def half(cn, sign):
+        u = (dx * far, dy * far); n = (nx * far * sign, ny * far * sign)
+        return Polygon([(cn[0] + u[0], cn[1] + u[1]), (cn[0] - u[0], cn[1] - u[1]), (cn[0] - u[0] + n[0], cn[1] - u[1] + n[1]), (cn[0] + u[0] + n[0], cn[1] + u[1] + n[1])])
+    t = bar(0, max(w, corner[0] + 2), xh, th, align='top', cut0=CUT, wedges=[('left', -1)])
+    bt = bar(min(0, corner2[0] - 2), corner[0], 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])
+    g = geom.ink([t, bt, dg])
+    cut_tr = half(corner, +1).intersection(_box(corner[0] - S * 2, xh - th - 2, corner[0] + far, xh + far))
+    cut_bl = half(corner2, -1).intersection(_box(corner2[0] - far, -far, corner2[0] + S * 2, th + 2))
+    return g.difference(cut_tr).difference(cut_bl)
+Z_BAR = 0.62    # the z's bars, x the stem (light against the diagonal)
+Z_DIAG = 1.05   # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
 
 @glyph('k')
 def g_k(c):
@@ -121,6 +136,7 @@ def g_k(c):
     join-rule minimum) past that edge, thinning sooner (LEG_TAPER) so the
     join reads as one clean fork instead of an X."""
     ARM_WEIGHT = 1.30
+    K_ARM_WEDGE = 1.15
     LEG_EDGE = 1.0            # spring the leg from the arm's lower edge (1.0), not its centerline (0.0)
     LEG_BURY = 0.20           # x stem, past that edge (join rule: a fifth to a third of a stem)
     LEG_TAPER = (0.55, 0.35)  # thin from t=0.55 (was 0.78) to 0.35 x lw (was 0.55) at the buried tip
@@ -128,7 +144,10 @@ def g_k(c):
     st = stem(x, 0, c["asc"], top='left', foot='both')
     A0, B0 = (x + 360 * wf, xh * 0.97), (x + S * 0.2, xh * 0.42)
     arm_w = pw(A0, B0, 0.78 * ARM_WEIGHT)   # round 51's 0.78 x the pen at the arm's angle, x the ladder weight
-    arm = diagonal(A0, B0, arm_w, serif0=1)
+    # owner 2026-09-13: "the top right serif needs to be slightly larger so
+    # visually balances and reads well" -- the arm's end wedge at K_ARM_WEDGE
+    # of the family's diagonal end (0.9 is the family's own)
+    arm = geom.union([diagonal(A0, B0, arm_w), end_wedge([B0, A0], arm_w, False, 1, scale=K_ARM_WEDGE)])
     u = (150 * wf - (B0[0] - x)) / (A0[0] - B0[0]); J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     # the arm's own direction and its outward normal, to find the arm's
     # lower edge at J instead of J's centerline point

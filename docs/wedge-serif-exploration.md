@@ -2385,3 +2385,15 @@ usWeightClass 500 (`WEIGHT_CLASS` in `build.py`); the calibrated 400 from
 round 76 is Albo-Regular; the VF's default instance is Medium. Every
 `Albo-Regular.ttf` path in the instruments now reads Albo-Medium. Files in
 `build/fjord-fonts/` renamed.
+
+## Round 84 (2026-09-13): k z W a t
+
+Owner: "k is improved, but the top right serif needs to be slightly larger
+so visually balances and reads well. 'z' is much worse, you are half-assing
+it and I need better. lower and reduce the protuberance of the top middle
+connector in W. the top right of 'a' needs to be more of a curve than a
+rectangular corner. revert 't' before the triangle." Done by hand; rulings
+in the guide's rows. The z: read against Albertus and Berkeley, the
+diagonal is their heavy stroke and the bars light, the corners mitred --
+so it is the ruled Z at x-height. Page
+https://claude.ai/code/artifact/PENDING84.
