@@ -2,14 +2,14 @@
 B5.9 -- stem 82, contrast 0.60 (hair 33), stress 26 deg, power 0.95 -- and
 the fixed proportions. Every width written in the glyph code should be
 readable against pen.th(); check() reports a drawn stroke against it."""
-import math, os, sys
+import os, math, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from alphabet2 import Pen as _Pen
 import round19
 
 DESIGN = dict(round19.DESIGN)
 XH = DESIGN["xh"]; ASC = DESIGN["asc"]; DESC = DESIGN["desc"]
-S = DESIGN["stem"]; CAP_STEM = 1.137; CS = S * CAP_STEM
+S = float(os.environ.get("FJORD_STEM", DESIGN["stem"])); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c)
 CAP = XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]
 WF = DESIGN["lc_width"]

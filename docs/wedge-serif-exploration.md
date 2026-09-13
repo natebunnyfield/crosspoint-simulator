@@ -1601,3 +1601,23 @@ below the stem); the spread across the four is small (1.4 points). Albertus is
 6 points ahead of all of them, again the weight gap rather than the profile.
 Negative result recorded so it is not re-measured: the bowl profile alone
 cannot close that gap.
+
+Round 58c (2026-09-13), weight ladder -- evidence prepared, NOT asked yet (one
+ask per round; queued behind the bowl pick). `FJORD_STEM` env override in
+`outlines/pen.py`; fonts `build/fjord-fonts/Fjord-stem{82,88,94,100}.ttf`;
+page https://claude.ai/code/artifact/ (see the commit after this line for the
+URL). 147 common words at 13 pt through the four-level pipeline:
+
+| stem | page ink | ink at black |
+|---|---|---|
+| 82 (current) | 0.120 | 0.690 |
+| 88 | 0.127 | 0.703 |
+| 94 | 0.129 | 0.719 |
+| 100 | 0.131 | 0.729 |
+| Albertus Medium | 0.180 | 0.755 |
+
+A 22% heavier stem adds only 9% page ink because the n-width and the fitting
+re-solve with it; the rest of the gap to Albertus is its x-height (0.531 em
+against 0.415), which is a ruled proportion and not on the table without him.
+Ink-at-black does climb steadily with the stem, so weight is the lever for
+pipeline survival, x-height for darkness.
