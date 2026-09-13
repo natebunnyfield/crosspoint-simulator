@@ -6,7 +6,15 @@ had the rings in the 6's proportion, round 63 bottom-heavy at the 6's
 height), the 3's bottom after the 5's (round 44), the 6 and 9 with one
 thinning stroke (round 42), the 2's base running past its body by the 9's
 tail overhang (2026-09-13) and the 5's top ending FIVE_TOP_INSET from its
-bowl (round 64)."""
+bowl (round 64).
+
+Round 75 (2026-09-13), one owner instruction per figure: the 1's flag ends
+buried in the stem and takes the family's diagonal end wedge; the 2's neck
+tapers into its diagonal and its base's wedged end loses the pen cut; the 3's
+lower bowl opens halfway to the 5's; the 4 has an OPEN counter (FOUR_OPEN);
+the 7's top right is one mitred corner; the 9's tail leaves the ring tangent
+to it (NINE_JOIN_SINK). Each constant carries its measurement and its
+rejected alternatives above it."""
 import math
 from . import glyph
 from .. import geom, pen
@@ -23,6 +31,43 @@ import latin   # the figure boxes: the 8 sizes its counters to the 6's or the 0'
 # under the threshold). The 2's base ends that far past its body's rightmost
 # ink. The 5's top did too, for one round (63); see FIVE_TOP_INSET.
 NINE_OVERHANG = 11.0
+
+# Owner 2026-09-13 (round 75): "clean up stray marks and mismatch of '1' and
+# '2'." The 1's flag ends this far INSIDE the stem, in stem widths, so its
+# square face and both of that face's corners sit under the stem's own ink
+# and the top face is the stem's alone (it ran 2 units past the top and
+# printed a nub); and it takes the family's diagonal end wedge at its tip,
+# which is the treatment the 2's base already had and the 1 had not.
+ONE_FLAG_BURY = 0.35
+ONE_FLAG_WEDGE = True
+
+# Owner 2026-09-13 (round 75), the 2's half of the same ruling. Its base's
+# free (right) end was CUT and WEDGED at once, and `bar` plants the wedge at
+# the UNCUT corner: the pen cut pulls a bar's top-right corner back by
+# tan(20) x half the bar (7.6 units) and pushes the bottom-right corner
+# forward by the same, so the wedge's bracket stood past the real top corner
+# and the cut's lower corner spiked out under it -- a notch and a spur, both
+# visible at 600 px. The wedge IS the terminal there, so the cut goes.
+#
+# NOT changed, and checked rather than assumed: the base's LEFT end stays a
+# square face with no wedge. That is the Z's own construction
+# (`caps_straight.g_Z`: the bottom bar is `wedges=[('right', 1)]` and nothing
+# at the left, because the diagonal lands there), and a left wedge was built
+# and rejected on the render -- its rise met the diagonal's foot and opened a
+# fresh V-notch between them, trading one stray for another.
+TWO_BASE_CUT = False
+# How far the diagonal's start is buried back into the arc's end, x the stem
+# (the guide's join rule is a fifth to a third; the diagonal used to start ON
+# the arc's centerline end and covered only half its end face, leaving a
+# white nick in the outer corner of the join).
+TWO_NECK_BURY = 0.44
+# ...and the fraction of the arc's run over which it eases from full width to
+# the diagonal's, so the bowl hands over instead of stopping.
+TWO_NECK_TAPER = 0.18
+
+# The 7's diagonal starts this far below the bar's top edge, in bar depths,
+# so both corners of its square end face lie inside the bar's band (round 75).
+SEVEN_DIAG_BURY = 0.45
 
 # Owner 2026-09-13, on round 63: "5 top was extended much too far, match the
 # visual of 2's bottom." On the 2 the diagonal meets the base at its END, so
@@ -73,6 +118,35 @@ EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 
 # floor). Owner ruling 2026-09-13: "floor 0.55 S = 46.2 units wins."
 SIX_TAIL_FLOOR = 0.55
 
+# Owner 2026-09-13 (round 75): "give more of space at bottom curve of '3',
+# halfway to 5." Measured on the built outlines (the ENCLOSED white of the
+# lower bowl -- a white pixel with ink to its left and right on its row and
+# above and below in its column, which is what an opened bottom curve
+# changes) the 3's lower counter was 161 x 131 units and the 5's is
+# 215 x 143; the mouths' narrowest necks were 43.2 and 45.0. Halfway is
+# 188 x 137 with a 44-unit aperture, and these three numbers are the lower
+# bowl solved onto it: its x radius as a fraction of the figure's width, its
+# y radius as a fraction of the height, and where its sweep ends. The 3's
+# bottom keeps the 5's sweep and terminal (the round-44 ruling) -- the width
+# profile and the cut terminal are untouched, only the bowl they run on.
+# Was 0.52 / 0.30; the sweep's end is unchanged at -156, which is the round-44
+# ruling's terminal, and only the bowl it runs on grew. Solved: 187 x 137
+# units, area 19,328 against the halfway target 188 x 137 / 19,448.
+#
+# The MOUTH came with it and could not be held back: the width solver pins the
+# figure's total width, so the centre of the lower bowl is not an independent
+# knob (0.44 / 0.52 / 0.60 all render byte for byte) and the only lever on the
+# counter is the bowl's own radius, which opens the neck as it opens the
+# counter. The neck goes 46.4 -> 55.1 units against the 5's 45.6. That is
+# further than halfway, and it is the right direction anyway: 46.4 was BELOW
+# the standing 0.6 S floor (50.4) and 55.1 is above it, so the 3's aperture was
+# the one figure in breach and now is not.
+THREE_BOT_RX = 0.62
+THREE_BOT_R = 0.315
+THREE_BOT_END = -156.0
+THREE_BOT_CX = 0.52
+THREE_W = 330.0   # the 3's nominal drawn width, before the builder's solved multiplier
+
 def fig_ring(cx, cy, rx_c, ry_c):
     return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2)
 
@@ -112,37 +186,109 @@ def g_zero(c):
 
 @glyph('1')
 def g_one(c):
+    """Owner 2026-09-13: "clean up stray marks and mismatch of '1' and '2'."
+    Two strays and one mismatch, all at the flag. (a) The flag's centerline
+    ran to (x + 6, D + 2) -- 2 units ABOVE the stem's top face and 6 past
+    its centre -- and its end face is square across a stroke climbing at
+    ~40 degrees, so the face's upper corner rose ~25 units past the top and
+    printed a pointed NUB out of the top-right of the stem (visible at 600
+    px). The flag now ends BURIED inside the stem, on its axis at
+    D - ONE_FLAG_BURY x the stem's width, so the union closes flush with a
+    top face the stem alone draws. (b) The flag's tip was a bald sheared
+    face -- the only free terminal in the figures with no serif of any
+    kind, against the family's rule that a diagonal's end takes the
+    0.9 x 0.9 wedge (A V W X Y, and the 9's own flag-diag). It takes that
+    wedge now, on the UPPER side, which is (c) the mismatch with the 2: the
+    2's base carries the family's bar-end wedge and the 1 carried nothing."""
     D = c["figH"]; x = 200 * c["wf"] + S / 2
     st = stem(x, 0, D, top=None, foot='both')
-    flag = stroke(line((x - 150, D * 0.72), (x + 6, D + 2)), pen_widths(line((x - 150, D * 0.72), (x, D)), lambda t: 0.85), cut0=CUT)
-    return geom.ink([st, flag])
+    path = line((x - 150, D * 0.72), (x, D - TH_V * ONE_FLAG_BURY))
+    wf = pen_widths(path, lambda t: 0.85)
+    parts = [st, stroke(path, wf, cut0=None if ONE_FLAG_WEDGE else CUT)]
+    if ONE_FLAG_WEDGE:   # the 9's flag-diag construction: a square face across the stroke, the wedge off its UPPER corner
+        parts.append(end_wedge(path, wf(0.0), True, 1, scale=0.9))
+    return geom.ink(parts)
 
 @glyph('2')
 def g_two(c):
     D = c["figH"]; w = W_(c, '2', 440); rx = w * 0.46
     top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(-25), BOWL_K)
-    arc = stroke(top, pen_widths(top, widths([(0.0, 1.2), (0.15, 1.0)])), cut0=CUT)
-    d = diagonal(top[-1], (S * 0.2, TH_H * 0.5), pw(top[-1], (S * 0.2, TH_H * 0.5)))
+    # THE NECK. Measured on the owner's pen: the arc's stroke is 57.9 units
+    # where it ends and the diagonal that continues from it is 28.0 -- the
+    # bowl arrives at the join twice the width of the stroke it hands over
+    # to, with a square face across it. The guide's join rule is that a thick
+    # stroke entering a thinner one TAPERS into the junction, and it was not:
+    # the profile held 1.0 to the last sample. So the outer corner of that
+    # oversized face stood proud of the diagonal on one side (a spur) and the
+    # face fell short on the other (a white nick, plainly visible at 600 px).
+    # The arc now eases to the diagonal's own width over the last
+    # TWO_NECK_TAPER of its run, and the diagonal is buried TWO_NECK_BURY x
+    # the stem back along its axis so the two overlap rather than abut.
+    foot = (S * 0.2, TH_H * 0.5); tipd = top[-1]
+    at = tangents(top)[-1]
+    hand = pw(tipd, foot) / max(pen.th_t(at), 1e-6)      # the diagonal's width over the arc's, at the join
+    arc = stroke(top, pen_widths(top, widths([(0.0, 1.2), (0.15, 1.0),
+                                              (1.0 - TWO_NECK_TAPER, 1.0), (1.0, hand)])), cut0=CUT)
+    ux, uy = tipd[0] - foot[0], tipd[1] - foot[1]; L = math.hypot(ux, uy) or 1.0
+    start = (tipd[0] + ux / L * S * TWO_NECK_BURY, tipd[1] + uy / L * S * TWO_NECK_BURY)
+    d = diagonal(start, foot, pw(tipd, foot))
     barw = max(TH_H, S * 0.5)
-    # the base runs NINE_OVERHANG past the neck's rightmost ink; its rightmost
-    # ink is the pen cut's lower corner, tan(CUT) x half the bar past x1
-    x1 = max(geom.bbox(arc)[2], geom.bbox(d)[2]) + NINE_OVERHANG - math.tan(CUT) * barw / 2
-    return geom.ink([arc, d, bar(0, x1, 0, barw, align='bottom', cut1=CUT, wedges=[('right', 1)])])
+    # the base runs NINE_OVERHANG past the neck's rightmost ink; with the cut
+    # gone (see TWO_BASE_CUT) the bar's square end IS its rightmost ink
+    x1 = max(geom.bbox(arc)[2], geom.bbox(d)[2]) + NINE_OVERHANG
+    if TWO_BASE_CUT: x1 -= math.tan(CUT) * barw / 2
+    return geom.ink([arc, d, bar(0, x1, 0, barw, align='bottom',
+                                 cut1=CUT if TWO_BASE_CUT else None, wedges=[('right', 1)])])
 
 @glyph('3')
 def g_three(c):
-    D = c["figH"]; w = W_(c, '3', 330); r1 = D * 0.20; r2 = D * 0.30
+    D = c["figH"]; w = W_(c, '3', THREE_W); r1 = D * 0.20; r2 = D * THREE_BOT_R
     top = superellipse(w * 0.52, D - r1, w * 0.46, r1, math.radians(165), math.radians(-105), BOWL_K)
-    bot = superellipse(w * 0.52, r2, w * 0.52, r2 + OVER - TH_H / 2, math.radians(100), math.radians(-156), BOWL_K)
+    bot = superellipse(w * THREE_BOT_CX, r2, w * THREE_BOT_RX, r2 + OVER - TH_H / 2,
+                       math.radians(100), math.radians(THREE_BOT_END), BOWL_K)
     t = stroke(top, pen_widths(top, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (1.0, 0.4)])), cut0=CUT)
     b = stroke(bot, pen_widths(bot, widths([(0.0, 0.4), (0.1, 1.0), (0.85, 1.0), (1.0, 1.25)])), cut1=CUT)
     return geom.ink([t, b])
 
+# Owner 2026-09-13 (round 75): "make a slightly altered 'open' version of
+# '4'." The closed 4 runs its diagonal from the stem's own top corner, so the
+# bar and the two strokes shut the triangle at every corner. The OPEN 4 lifts
+# the diagonal's TOP END clear of the vertical: the counter's top-left corner
+# is left ajar by FOUR_OPEN_GAP x the stem, measured as the shortest distance
+# from the diagonal's end face to the stem's ink (0.6 S = 50.4 units, 2.7 px
+# at 13 pt -- an aperture, so it is held at or above the standing 0.6 S floor
+# and not below it). Nothing else moves: the diagonal keeps its angle, its
+# width and its foot on the bar, and the bar and the stem are untouched.
+# FOUR_OPEN = False restores the closed construction byte for byte.
+FOUR_OPEN = True
+FOUR_OPEN_GAP = 0.62       # x the stem, the gap at the top-left corner: 0.6 S is the standing aperture floor (50.4) and the cut's facets shave ~0.4 off the built gap, so the drawn number is a shade over
+
+
 @glyph('4')
 def g_four(c):
     D = c["figH"]; w = W_(c, '4', 480); xs = w * 0.7
-    return geom.ink([diagonal((xs - S * 0.2, D), (S * 0.1, D * 0.3), pw((xs - S * 0.2, D), (S * 0.1, D * 0.3), 0.75)), bar(0, w, D * 0.3, max(TH_H, S * 0.5)),
-                     stem(xs, 0, D, top=None, foot='both')])
+    p1 = (S * 0.1, D * 0.3); p0 = (xs - S * 0.2, D)
+    wd = pw(p0, p1, 0.75)
+    st = stem(xs, 0, D, top=None, foot='both')
+    dg = diagonal(p0, p1, wd)
+    if FOUR_OPEN:
+        # slide the diagonal's top end back down its own axis until its end
+        # face stands FOUR_OPEN_GAP x the stem clear of the stem's ink AS
+        # BUILT: the builder grows every glyph by INK_SPREAD, which eats
+        # 2 x 1.2 units out of any gap, so the drawn gap is the wanted one
+        # plus that. (Without the correction the built gap measured 48.0
+        # units, under the standing 0.6 S = 50.4 aperture floor by exactly
+        # the two spreads.)
+        from .. import build as _build     # lazy: build imports this module
+        ux, uy = p0[0] - p1[0], p0[1] - p1[1]; L = math.hypot(ux, uy) or 1.0
+        ux, uy = ux / L, uy / L
+        want = S * FOUR_OPEN_GAP + 2 * _build.INK_SPREAD; back = want
+        for _ in range(8):
+            q = (p0[0] - ux * back, p0[1] - uy * back)
+            dg = diagonal(q, p1, wd); got = dg.distance(st)
+            if abs(got - want) < 0.05: break
+            back += (want - got) / max(ux, 0.25)
+    return geom.ink([dg, bar(0, w, D * 0.3, max(TH_H, S * 0.5)), st])
 
 @glyph('5')
 def g_five(c):
@@ -170,8 +316,34 @@ def g_six(c):
 
 @glyph('7')
 def g_seven(c):
-    D = c["figH"]; w = W_(c, '7', 440)
-    return geom.ink([bar(0, w, D, max(TH_H, S * 0.5), align='top', cut1=CUT, wedges=[('left', -1)]), diagonal((w - S * 0.2, D - 10), (w * 0.3, 0), pw((w - S * 0.2, D - 10), (w * 0.3, 0)))])
+    """Owner 2026-09-13 (round 75): "clean up top right of '7'." The corner
+    was three separate faces fighting: the bar's right end sheared by the pen
+    cut (which, at the END of a stroke, pulls the TOP corner back and pushes
+    the BOTTOM one forward), the diagonal's square start face at its own
+    ~68-degree angle, and the diagonal's right edge, which is wider than the
+    bar is long and stood ~23 units past the bar's end. The silhouette went
+    out, in, out and in again -- a spur with two re-entrant notches, plainly
+    visible at 600 px and present before the cut, so it is construction and
+    not a facet.
+
+    The guide's wedge table gives the 7 a hanging wedge at the bar's LEFT end
+    and nothing at the right, so the right is a MITRE: the bar's end face is
+    cut parallel to the diagonal and laid exactly ON the diagonal's right
+    edge, and the bar's length is solved so the two coincide. One corner,
+    where the bar's top edge meets the diagonal's right edge. The diagonal
+    starts inside the bar's band (SEVEN_DIAG_BURY of the bar's depth below
+    its top edge) so both corners of its square face are buried."""
+    D = c["figH"]; w = W_(c, '7', 440); barw = max(TH_H, S * 0.5)
+    p1 = (w * 0.3, 0); p0 = (w - S * 0.2, D - barw * SEVEN_DIAG_BURY)
+    wd = pw(p0, p1)
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / L, dy / L; nx, ny = -uy, ux          # the up-right side of a stroke running down-left
+    ex, ey = p0[0] + nx * wd / 2, p0[1] + ny * wd / 2  # a point on the diagonal's right edge
+    yc = D - barw / 2                                  # the bar's centerline (align='top')
+    x1 = ex + ux * (yc - ey) / uy                      # where that edge crosses it: the bar's end
+    mitre = -math.atan2(abs(dx), abs(dy))              # the end face parallel to the diagonal
+    return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre, wedges=[('left', -1)]),
+                     diagonal(p0, p1, wd)])
 
 @glyph('8')
 def g_eight(c):
@@ -243,6 +415,20 @@ def g_eight(c):
 # toward the tip, still all off the top edge, bottom line and wedge kept.
 # 0 = the uniform 0.60 (a short ramp at the exit only). Round 72's ladder:
 # 0.35 / 0.55 / 0.75; 0.55 until he picks.
+# Owner 2026-09-13 (round 75): "attach '9' on the right better." Measured on
+# the built outline, scanning the right silhouette every 2 units of y: the
+# ring's outer edge falls monotonically to x 381.56 at y 162.6 and the tail's
+# outer edge then picks it up at 385.58 -- a 4.0-unit RE-ENTRANT NOTCH,
+# the tail leaving the loop 4 units OUTSIDE the ring's own silhouette instead
+# of tangent to it, with a nick in the corner where the two edges cross. The
+# tail's start (its centerline point on the ring, at -20 degrees) is sunk this
+# far along both of the ring's radii, which moves the whole departure inward
+# until the two edges leave as one. Nothing else about the tail moves: the
+# ruled constants below are untouched, `_fit_left_bottom` puts the tip back on
+# its ruled leftmost and lowest, and the width under the bowl is what round
+# 72-74 ruled. 0 = the round-71 attachment.
+NINE_JOIN_SINK = 8.0
+
 NINE_FLAG_REACH = 12.4    # the wedge apex past the bowl's left ink: round 71's, the tail-tip rule as this pen draws it
 NINE_TAIL_TOP = 0.60      # the tail's width at the wedge end, x round 71's, thinned from the top edge (1.0 = round 71); ruled
 NINE_TAIL_EASE = 0.70   # ruled 2026-09-13, round 74: "eased over ~70% wins"     # fraction of the run (ring exit -> wedge) over which the width eases from 1.0 to NINE_TAIL_TOP
@@ -296,7 +482,8 @@ def g_nine(c):
     sp = _build.INK_SPREAD
     D = c["figH"]; rx = W_(c, '9', 230); r = D * 0.29; cx = rx + TH_V / 2
     solid, o, i = fig_ring(cx, D - r, rx, r)
-    p0 = (cx + rx * math.cos(math.radians(-20)), D - r + r * math.sin(math.radians(-20)))
+    p0 = (cx + (rx - NINE_JOIN_SINK) * math.cos(math.radians(-20)),
+          D - r + (r - NINE_JOIN_SINK) * math.sin(math.radians(-20)))
     target_left = (cx - rx - TH_V / 2 - sp) - NINE_FLAG_REACH
     tap = widths(NINE_TAPER)
     floor = S * NINE_TAIL_MIN if NINE_TAIL_TOP >= 0.5 else 0.0

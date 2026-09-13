@@ -2284,3 +2284,11 @@ able to do what I need. leave 'e' as is, for now." `E_ARM_THIN` 1.0,
 dials for later). Standing consequence: glyph work is done here, by hand,
 not delegated; the caps and figures agents already running finish and each
 glyph is judged before it lands.
+
+Round 77, figures 1 2 3 4 7 9 (2026-09-13, landed after my check at 260 px
+against Berkeley and Albertus): the rulings are in the guide's rows. One
+consequence: the open 4 has one contour where the closed had two, and the
+cut's phase counter runs once per contour in glyph order, so twenty later
+glyphs re-facet (largest point move 9.4 units, 0.5 px at 13 pt) -- a facet
+re-roll, not a design change. Page
+https://claude.ai/code/artifact/PENDINGF3.
