@@ -241,10 +241,46 @@ For accents (not yet drawn: Latin-1 and Extended-A are the epub set), the
 plan is composite marks on the same pen at the lowercase wedge's weight,
 placed by a per-base anchor; nothing of that exists yet.
 
-## 6. Open items, in the owner's court
+## 6. The bold: the next job (owner, 2026-09-12: "the bold" comes first)
 
-- Bold (`round4.bold_of` is the sketch: stem × 1.6, contrast −0.12, width
-  × 1.05, the n widening with the stem) and italic (nothing exists).
+The bold is a second WEIGHT of the same hand, not a new drawing. It comes
+from the same code with different design parameters and the same rulings;
+where a construction breaks under the heavier pen, the fix goes into the
+shared code with a knob, never into a bold-only copy of a glyph.
+
+1. **Parameters** (`round20.build(out_dir, style="Bold", over={...})`; start
+   from `round4.bold_of` and measure): `stem` 82 → about 130 (×1.6), `contrast`
+   0.60 → about 0.48 (the thins grow less than the thicks), `width` and
+   `lc_width` × about 1.05 (a bold is a little wider), `n_width` unchanged --
+   the n's stem-to-stem distance already grows with the stem
+   (`nw = n_width·width + 0.9·(stem − 110)`), or its counter and, through the
+   fitting rule, every letter gap close up. `CAP_STEM` stays 1.137 ×. Wedge
+   sizes are in stem units and scale with it; check they do not read huge.
+2. **What breaks first under a heavy pen, from this history**: counters --
+   the o's counter aspect must stay 1.036 (solve `lc_width` for it, as round
+   35 did); the e's eye (bar at 0.62 xh, 0.72 of the pen: the eye may close
+   at 54 px -- measure it, and if it closes the bar's height or the eye's
+   size is the owner's call, not the bar's thickness); the g's loop and neck
+   (the neck is routed, not floored -- at a heavier stem it may need routing
+   again); the a's bowl; the B's waist; every junction buried "a fifth of a
+   stem" now buries more -- check the K arm, the R leg and the N for
+   poke-through at 600 px; the ink traps (0.6 stem deep) start to show.
+3. **Fitting**: the bearing rule is in cap-height units and does not change;
+   the word space is 1.7 n-counters − 110, so it shrinks with the counter --
+   measure a paragraph at 54 px against the regular's and expect to re-rule
+   the word space with the owner.
+4. **Judging**: the regular and the bold on the same line at 54 px (a bold
+   word inside regular text is how a reader meets it); the darkness pass
+   (`word_weight.py`) on the bold against the regular, not against Garamond;
+   the S-tier overlay against the bolds of the same faces where they exist
+   on disk (Dante, Van den Keere, Edgar have bolds in `local_fonts/`).
+5. **Ship** as `Fjord-Bold.ttf` beside the regular, the specimen showing
+   both, and the doc round recording every parameter and every construction
+   knob added.
+
+## 7. Open items, in the owner's court
+
+- The bold is §6; the italic does not exist.
 - Accents; kerning; hinting; vertical metrics for the reader's line.
 - The pen's contrast (thins 70% heavier than Garamond's) and the descender
   length -- the two levers the weight passes found and did not pull.
