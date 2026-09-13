@@ -1831,3 +1831,12 @@ aspiring (teardrop loop, arm to the ascender). All hairs >= the pen's hair
 `build/fjord-fonts/amp/Albo-amp01..10.ttf`; the & in each is spliced into a
 round-62 Regular. Page https://claude.ai/code/artifact/4c17c54d-2e4a-4888-a0ae-cc1f39d0203d. Observed
 and not touched: the shipping &'s arm wedge shows a small notch at 600 px.
+
+## Round 68 (2026-09-13): ampersands, second generation
+
+Owner on round 67: "make variants inspired by current and teardrop." Ten
+bred from those two parents (top loop open → half → closed teardrop; loop
+size and point; crossing angle; arm length and wedge; spur weight, angle,
+foot; lower bowl roundness; width 0.9–1.1), `VARIANTS2` in
+`glyphs/ampersands.py`, `cmp/ampersands.py --gen 2`, parents first on the
+page. Agent running; page pending.
