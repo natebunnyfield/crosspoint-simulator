@@ -1878,3 +1878,8 @@ white at 54 px upper 60-64 px in all (the smallest counter among the
 figures; the 6's bowl keeps 164), lower 117 / 121 / 125 / 130, advance
 486-487 = the 6's. x1.00 byte-identical to C. Page
 https://claude.ai/code/artifact/c83db061-dc27-4dc3-bc5e-323384a1c472.
+
+Round 69 RULED (2026-09-13): "1.08 wins." `EIGHT_LOWER_TALL = 1.08`. The
+figures.py diff (5 at -24, the round-69 8, `zero_bowl`/`six_bowl` factored)
+merges to main as soon as the round-65 VF rebuild lands, then one more
+Regular + VF rebuild carries it.
