@@ -184,10 +184,10 @@ def g_K(c):
 # with the wedge on one side. In units of a full stem-top wedge's length (WL);
 # depth stays the family's WD, drop the family's DROP. The arm (there is
 # none), foot and bar-end wedge are untouched.
-L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.5))
-L_TOP_RIGHT_DEPTH = 0.72   # the I's small wedge is 0.4 x 0.6 x 0.4 drop; the L's 0.5 x 0.72 x 0.5 (owner: "give it life")
-L_TOP_RIGHT_DROP = 0.5
-L_TOP_LEFT = 0.92          # the left wedge a touch shorter than the family's 1.0   # FJORD_L_TOP: ladder override
+L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.45))   # owner: "yes to with life, but halfway between the two" (I: 0.4, life: 0.5)
+L_TOP_RIGHT_DEPTH = 0.66   # the I's small wedge is 0.4 x 0.6 x 0.4 drop; the L's 0.5 x 0.72 x 0.5 (owner: "give it life")
+L_TOP_RIGHT_DROP = 0.45
+L_TOP_LEFT = 0.96          # the left wedge a touch shorter than the family's 1.0   # FJORD_L_TOP: ladder override
 
 @glyph('L')
 def g_L(c):

@@ -61,6 +61,8 @@ for what it did to the counters and the fit before it ships. This is the
 word-image goal (§00) made concrete: the word is its whites as much as its
 blacks.
 
+**Proof-page rule, hardened 2026-09-13 (owner: "fix image stretch issue with html previews"):** every `<img>` on a proof page is displayed with `width:100%;max-width:375px;height:auto;image-rendering:pixelated;display:block`. The `height:auto` is not optional -- an image that carries `width`/`height` attributes without it keeps the attribute's height while the width shrinks to the phone, and the block renders stretched (the weights page shipped that way). If the image is wider than 750 px, still `height:auto`.
+
 ## 000. Reference faces on disk, measured (2026-09-13)
 
 Owner, sending ITC Berkeley Oldstyle (Medium, Bold, both italics, plus a

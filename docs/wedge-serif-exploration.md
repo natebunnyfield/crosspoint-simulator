@@ -2226,3 +2226,11 @@ triangular wedge, scale 0.55 for +1.2% ink (the 2% budget), advance
 unchanged. Checked here at 330 px. Only a g t changed. Page
 https://claude.ai/code/artifact/1302d1a8-c78c-4d57-a4da-ce638d1634d4. This agent also lost its
 worktree after the rate-limit restart and edited main; disjoint files.
+
+Round 75, L RULED (2026-09-13): "yes to with life, but halfway between
+the two." Right wedge 0.45 x 0.66 at 0.45 drop, left 0.96 (`L_TOP_RIGHT`,
+`L_TOP_RIGHT_DEPTH`, `L_TOP_RIGHT_DROP`, `L_TOP_LEFT`). Also: "fix image
+stretch issue with html previews" -- four agent pages (weights, k, hmn,
+variety) carried `width`/`height` attributes without `height:auto`; patched
+and republished; the rule hardened in the guide and sent to the running
+agents.
