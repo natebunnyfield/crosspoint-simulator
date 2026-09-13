@@ -1207,3 +1207,15 @@ the construction held fixed. Results to follow.
 `round17.E_VARIANTS[0]` (the bar's thickness floor lowered from 0.42 to 0.35
 stem so 0.62 × the pen is not clipped by it). Applied by the round-40 agent,
 which holds `round17.py`.
+
+## Round 41 (2026-09-12): punctuation spacing
+
+Owner: "update spacing for punctuation to prevent overlapping." Measured on
+the build: ink past the advance box on ( ) [ ] / \ ? * % and the figures 3
+and 5 (worst: `/` −101, `?` −95, `\` −93, `]` −84 units), because
+`round20.build` measured every glyph's sides inside the x-height band and
+those are widest above or below it. Now `if ch == 'g' or not ch.isalpha()`
+fits on the full extent. After: no non-letter under 20 units a side. Letters
+keep the band rule (f −36 right, j −90 left, J 3 left are the hook and tails
+tucking under neighbours, as Garamond's do). Proof `fjord-punct.html`. The
+TTF ships with round 40 when the Van den Keere agent's glyphs land.

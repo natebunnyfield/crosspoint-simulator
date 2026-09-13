@@ -77,7 +77,8 @@ def build(out_dir, name="Fjord", style="Regular", over=None):
             band = [x for poly in polys for (x, y) in poly if -c["over_edge"] <= y <= top + c["over_edge"]]
             xs = [x for poly in polys for (x, y) in poly]
             l, r = (min(band), max(band)) if band else (min(xs), max(xs))
-            if ch == 'g': l, r = min(xs), max(xs)   # round 28: the loop is the g's widest part and sets its sides (two loops touched in "egg")
+            if ch == 'g' or not ch.isalpha():   # round 28: the g's loop is its widest part; round 41: punctuation and figures too
+                l, r = min(xs), max(xs)          # (owner: "update spacing for punctuation to prevent overlapping" -- ( ) [ ] / \ ? * % 3 5 ran past their advances)
             lt, rt = round19.SIDES.get(ch, ('straight', 'straight'))
             # owner 2026-09-12: caps +34 per mille from the spacing page (+17
             # each side), then "reduce lowercase letter spacing to match
