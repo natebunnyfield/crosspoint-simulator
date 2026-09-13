@@ -1403,3 +1403,38 @@ can be seen. The guide's formula corrected.
 **Ruling (contrast, 2026-09-13):** 0.60, as now. Both rebuild picks made:
 descender 250, contrast 0.60 -- the rebuild's pen is the current pen. Step 2
 begins: the whole set as designed outlines.
+
+## Round 54 (2026-09-13): the rebuild -- all 93 glyphs as designed outlines
+
+Owner: "go." Step 2 of the rebuild order, by one agent on the glyph guide:
+`tools/wedge_serif/outlines/` -- a new package beside the round-17/20
+generator (which still builds the round-51 font and is the "before").
+`geom.py` (curves sampled at 11 units; unions on **shapely 2.1.2**, installed
+this round -- `skia-pathops` still does not build on 3.14t), `pen.py` (the
+pen as the reference: `check(outer, inner)` reports a drawn stroke against
+it), `primitives.py` (stem as ONE solid with its wedges, the wedge family at
+the ruled sizes, stroke, ring/ring_from, half_bowl for D B P R, diagonal,
+bar, beak, trap, dot), `cut.py` (one-in-four, seed 73, every corner kept),
+`build.py` (draw → 1.2-unit grow → contours → cut → the round-20 fit → TTF +
+specimen), `glyphs/` by family, `cmp/` (dbg, look, checks, overlay4, the
+mobile-friendly proof), `NOTES.md` (every decision and number).
+Build: `cd tools/wedge_serif && PYTHON_GIL=0 python3 -m outlines.build
+<out_dir>`.
+
+Measured: o counter 353 × 340 = 1.036 (ruling held); no non-letter under 20
+a side; ink past the advance only on the ruled tucks (f, j, J, Q) and the
+q's right foot (−16, below the band). Word space 353. Weight at 54 px,
+round 51 → rebuild: lowercase median −1.3%, word median −3.6%; arches
+designed thinner over the shoulder (n −12, h −11, r −10), g +10, x +8, s +8.
+Reference flags (cmp_garamond thresholds) round 51 → rebuild: Garamond
+35 → 43, Van den Keere 32 → 41, Dante 67 → 69, Edgar 65 → 64 of 92; the
+rise is the mean-stroke figure being measured honestly on one outline
+(the old font's perimeter double-counted overlapping polygons), and every
+diagonal letter now shows the kept 0.60 contrast as a +29–47% stroke flag.
+Decisions stated in NOTES: entasis quartic (a straight waist); e radius 195
+→ 186, t top 120 → 95 over the x-height, r reach 200 → 172; counters as
+smoothed pen offsets of drawn outers; capitals, figures and marks looked at
+through FreeType but not each overlaid by eye. The TTF is 16 KB (one outline
+per solid) against 32 KB. Proof `fjord-rebuild.html` (27 PNG blocks at 750
+px), overlays `fjord-overlay4.html`; the specimen at the standing URL now
+carries the rebuild. His rounds by name follow.

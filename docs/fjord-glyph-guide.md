@@ -82,6 +82,12 @@ answers land in this section as they arrive.
   names what to fix, one ask per round, as rounds 25–51 ran. Not letter
   groups, not one glyph at a time, not competing candidates.
 
+**Status (2026-09-13, round 54): the rebuild is built** --
+`tools/wedge_serif/outlines/` is now the builder of the shipping font; its
+`NOTES.md` is the record of every decision. The round-17/20 generator stays
+as the reference construction. From here the owner's rounds by name apply to
+`outlines/glyphs/*.py`, and §4's loop unchanged.
+
 **The rebuild's order of work, then:** (1) the contrast and descender
 render, his two picks; (2) the whole set as designed outlines, the pen as
 the weight reference, the wedge family kept, the §3 rulings kept, every
