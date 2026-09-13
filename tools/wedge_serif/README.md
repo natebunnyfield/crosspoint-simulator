@@ -33,6 +33,7 @@ The full dated log of rounds, rulings, measurements and negative results is
    spacing readout of round 22 stands.
 9. **Rulings are reversible only by him** -- the J's bar was "kept always"
    in round 21 and removed in round 36 on his word.
+10. **Always pay attention to the space inside and between characters** (owner, 2026-09-13). Counters and apertures, and the fitting: every variant page reports both; every ruling on weight, contrast, width or x-height is checked for what it did to them.
 
 ## Files
 
@@ -92,7 +93,6 @@ booleans; see "Limits".
    height from the params, family name `Fjord <key> <title>`.
 5. Every file is re-opened with `TTFont` and rendered through FreeType (PIL)
    before it ships.
-6. **Always pay attention to the space inside and between characters** (owner, 2026-09-13). Counters and apertures, and the fitting: every variant page reports both; every ruling on weight, contrast, width or x-height is checked for what it did to them.
 
 ## Limits, and the traps already paid for
 
