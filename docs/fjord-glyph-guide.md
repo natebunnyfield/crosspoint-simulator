@@ -47,6 +47,20 @@ bottoms, 2.7:1) is NOT the target; round 58 in the exploration doc records
 what replaced it. Neither Albertus nor Icone is on disk: their character is
 stated here and judged on the owner's picture, never fitted to a file.
 
+## 0000. Standing rule: the space inside and between (owner, 2026-09-13)
+
+Owner, verbatim: **"always pay attention to the space inside and between
+characters."** Every glyph is judged, and every round reported, on its
+counters and apertures (the space inside -- open enough at 13 pt on the
+four-level pipeline, never a counter under 0.6 stem, the o's counter 1.036
+wide over tall as the optical circle) AND on its fitting (the space between
+-- sidebearings by the fitting rule, the rhythm of stems in a word, no
+collision and no hole in a common pair). A variant page states both for each
+variant; a ruling that moves weight, contrast, width or x-height is checked
+for what it did to the counters and the fit before it ships. This is the
+word-image goal (§00) made concrete: the word is its whites as much as its
+blacks.
+
 ## 000. Reference faces on disk, measured (2026-09-13)
 
 Owner, sending ITC Berkeley Oldstyle (Medium, Bold, both italics, plus a
