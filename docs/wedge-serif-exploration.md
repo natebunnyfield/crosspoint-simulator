@@ -2137,4 +2137,4 @@ stop b d p q sharing one ring; the o not the O reduced (k down 0.12); size
 the diagonal wedge off its own angle. Found varied: s t c carry no wedge;
 15 serifs have no twin; the e's eye is the most distinctive white; the 8's
 rings, B's bowls, g's bowl vs loop all differ. Page
-https://claude.ai/code/artifact/PENDINGVAR.
+https://claude.ai/code/artifact/b47f3dc7-f5f4-43bf-8392-5686dbda12f4.
