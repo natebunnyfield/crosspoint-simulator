@@ -9,18 +9,25 @@ import round19
 
 DESIGN = dict(round19.DESIGN)
 DESIGN["stem"] = 94                          # owner ruling, round 59 (2026-09-13): "94 wins" on the weight ladder; was 82
+# Round 62 (owner, from the slider page): "set to new defaults" -- weight 84,
+# contrast 0.80, ascender 770, descender 256, width 100, cut 115, x-height
+# 429, serif 100. The caps stay at 1.625 x 415 = 674 (the XHGT axis moved
+# the lowercase against fixed caps, and 429 was picked on that slider).
+DESIGN["stem"] = 84; DESIGN["contrast"] = 0.80; DESIGN["asc"] = 770; DESIGN["desc"] = 256; DESIGN["xh"] = 429
+DESIGN["cut"] = 115                          # the cut as an AMOUNT: 0 the dense outline, 100 the 1-in-4 projection, 200 the 1-in-8, linear between
 # Round 61 (owner: "a variable axis font"): every design parameter an axis
 # moves is read from an env override at import, so one master of the
 # variable font is one subprocess of outlines.build. Unset, each is the
 # shipping value; the static builder's defaults do not change.
 _env = lambda k, d: float(os.environ.get(k, d))
-BASE_XH = DESIGN["xh"]                       # 415: the capitals stay at 1.625 x THIS whatever XHGT does
+BASE_XH = 415                                # the capitals stay at 1.625 x THIS whatever the x-height is
 XH = _env("FJORD_XH", DESIGN["xh"]); ASC = _env("FJORD_ASC", DESIGN["asc"]); DESC = _env("FJORD_DESC", DESIGN["desc"])
 DESIGN["xh"], DESIGN["asc"], DESIGN["desc"] = XH, ASC, DESC
 S = _env("FJORD_STEM", DESIGN["stem"]); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c); the wght axis
 CONTRAST = _env("FJORD_CONTRAST", DESIGN["contrast"])                          # the CNTR axis: hair = stem x (1 - contrast)
 WIDTH = _env("FJORD_WIDTH", 100.0) / 100.0                                     # the wdth axis: lc_width, the capitals' solved widths, the fitting, all x this
 SERIF = _env("FJORD_SERIF", 100.0) / 100.0                                     # the SRIF axis: the wedge family's unit x this
+CUT_AMOUNT = _env("FJORD_CUT", DESIGN["cut"])                                   # the CUTS axis: 0..200 (see cut.blend)
 CAP = BASE_XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]
 WF = DESIGN["lc_width"] * WIDTH

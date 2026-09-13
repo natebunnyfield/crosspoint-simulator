@@ -108,14 +108,20 @@ def g_G(c):
     edge is the bowl's outermost (one outline), the weight ramping to the
     cap stem over the bend; a short bar at 0.42 C, half a stem thick."""
     C = c["cap"]; rx = W_(c, 'G', 340); ry = C / 2 + OVER - TH_H / 2; s = CS
-    th_h = max(TH_H, S * 0.5); yb = C * 0.42
+    # the bar is the record's (round 42): half the pen's horizontal, never
+    # under half a stem (41 at stem 82) -- the port had halved AFTER the floor
+    # and drawn it 24, and the spur's run ended 0.05 of a pen BELOW its
+    # underside, so the two touched only through the 1.2-unit ink spread:
+    # joined at 84/0.80, a hair apart at 94/0.60, apart at every heavier or
+    # lower-contrast weight (round 62). The run now ends 8 units inside it.
+    bar_th = max(TH_H * 0.5, S * 0.5); yb = C * 0.42
     cx = rx + TH_V / 2
     arc = superellipse(cx, C / 2, rx, ry, math.radians(43), math.radians(312), BOWL_K)
     xg = cx + rx + TH_V / 2 - CW / 2                   # the spur's centerline: its right edge = the bowl's
     p0 = arc[-1]; d = (arc[-1][0] - arc[-3][0], arc[-1][1] - arc[-3][1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
     ctrl = (xg, p0[1] + d[1] * (xg - p0[0]) / d[0]); p1 = (xg, ctrl[1] + (ctrl[1] - p0[1]) * 0.7)
     bend = cubic(p0, (p0[0] + (ctrl[0] - p0[0]) * 2 / 3, p0[1] + (ctrl[1] - p0[1]) * 2 / 3), (p1[0] + (ctrl[0] - p1[0]) * 2 / 3, p1[1] + (ctrl[1] - p1[1]) * 2 / 3), p1)[1:]
-    run = line(p1, (xg, yb - th_h * 0.3))[1:]
+    run = line(p1, (xg, yb - bar_th * 0.5 + 8))[1:]
     pts = arc + bend + run; N = len(pts) - 1; t0 = (len(arc) - 1) / N; t1 = (len(arc) + len(bend) - 1) / N
     base = bowl_widths(pts)
     def wfn(t):
@@ -125,7 +131,7 @@ def g_G(c):
         return w
     body = stroke(pts, wfn, cut0=math.radians(BEAK_CUT))
     lip = beak(pts, wfn(0.0), True, BEAK_CUT)
-    b = bar(xg - s * 1.1, xg + s * 0.6, yb, th_h * 0.5, cut0=CUT, cut1=CUT)
+    b = bar(xg - s * 1.1, xg + s * 0.6, yb, bar_th, cut0=CUT, cut1=CUT)
     return geom.ink([body, lip, b])
 
 @glyph('H')

@@ -46,3 +46,22 @@ def project(pts, keep):
         for j in range(a + 1, b):
             t = (j - a) / span; out[j % n] = (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
     return out
+
+
+def blend(pts, ph, amount, every=4):
+    """The cut as a continuous AMOUNT on the dense point set (round 62):
+    0 = the dense outline untouched, 100 = every point projected onto its
+    1-in-`every` chords (the shipping cut of rounds 17-61), 200 = the same
+    seed's 1-in-(2 every) chords (facets twice as long), and any value
+    between a linear blend of the two neighbouring projections point by
+    point. Corners are always kept. Same point count at every amount --
+    the form the static builder and the variable font now share."""
+    a = amount / 100.0
+    if a <= 0.0: return list(pts)
+    n = len(pts); c = corners(pts)
+    p4 = project(pts, sorted(set(i for i in range(n) if (i + ph) % every == 0) | c))
+    if a <= 1.0:
+        return [(p[0] + (q[0] - p[0]) * a, p[1] + (q[1] - p[1]) * a) for p, q in zip(pts, p4)]
+    p8 = project(pts, sorted(set(i for i in range(n) if (i + ph) % (2 * every) == 0) | c))
+    b = min(1.0, a - 1.0)
+    return [(p[0] + (q[0] - p[0]) * b, p[1] + (q[1] - p[1]) * b) for p, q in zip(p4, p8)]

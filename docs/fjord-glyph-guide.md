@@ -17,7 +17,7 @@ wins; update this guide when that happens.
 "Albertus-like firm" -- w = hair + (max - hair)·|sin φ|^1.6 with hair 0.70
 stem, max 1.00 stem, vertical stress, joins into stems tapering to 0.85 of the
 hair, round end k 1.9 -- the default in `outlines/primitives.py`
-(`DEFAULT_BOWL`). **Albo is a variable font too** (round 61): every design constant a new glyph reads from `pen.py` (S, XH, ASC, DESC, WF, WL, WD, the pen) is an axis master's parameter, so a glyph must be drawn FROM those names and never from a literal, or it will not move with the sliders; and its topology (contour count) must hold across the axis ranges in the STATE section of the exploration doc, or `variable.py` clamps that glyph. **Stem 94** (round 59, from the weight ladder; the pen's
+(`DEFAULT_BOWL`). **Round 62 defaults (owner, from the sliders): stem 84, contrast 0.80, asc 770, desc 256, xh 429, cut 115, width 100, serif 100** -- every number below that says 82 or 94 for the stem, 0.60 for the contrast, 415 for the x-height, 762/250 for the extenders is history; `outlines/pen.py` is the authority. **Albo is a variable font too** (round 61): every design constant a new glyph reads from `pen.py` (S, XH, ASC, DESC, WF, WL, WD, the pen) is an axis master's parameter, so a glyph must be drawn FROM those names and never from a literal, or it will not move with the sliders; and its topology (contour count) must hold across the axis ranges in the STATE section of the exploration doc, or `variable.py` clamps that glyph. **Stem 94** (round 59, from the weight ladder; the pen's
 `stem` was 82 from round 1 to 58, and every "82" below is that history). This supersedes the round-57 bowl paragraph in §2 below,
 which stays as the measured record of what was rejected.
 

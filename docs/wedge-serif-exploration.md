@@ -11,12 +11,22 @@
   `tools/wedge_serif/outlines/primitives.py`. The shipping font is
   `build/fjord-fonts/Albo-Regular.ttf`, built by `python3 -m outlines.build
   <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
-  `albo-specimen.html`. The B's waist is one bar. **Stem 94** (round 59,
-  owner: "94 wins"; was 82), set in `outlines/pen.py`.
+  `albo-specimen.html`. The B's waist is one bar. Stem 94 (round 59) was
+  superseded by 84 in round 62, below.
+- **DEFAULTS, 2026-09-13 (round 62, owner, from the sliders):** stem 84,
+  contrast 0.80, asc 770, desc 256, xh 429, cut 115 (continuous: 100 = the
+  1-in-4 projection, 200 = 1-in-8), width 100, serif 100 -- `pen.DESIGN` in
+  `outlines/pen.py`, and the VF's default instance, which IS the static
+  Regular (max vertex deviation 0, metrics identical). The Regular now carries
+  the dense point set (19,027 points, 41 KB). Supersedes stem 94, contrast
+  0.60, asc 762, desc 250, xh 415 below. Caps stay at 674. At xh 429 the o's
+  counter reads 0.988 wide over tall against the 1.036 ruling (not re-solved;
+  an open item).
 - **VARIABLE, 2026-09-13 (round 61, owner):** Albo is also `Albo-VF.ttf`
-  (`build/fjord-fonts/`), eight axes -- wght 70/94/120, CNTR 0.30/0.60/0.85,
-  ASCN 700/762/830, DESC 180/250/340, wdth 80/100/120, CUTS 0/100/200, XHGT
-  380/415/460, SRIF 60/100/140 -- whose default instance is Albo Regular.
+  (`build/fjord-fonts/`), eight axes -- wght 50/84/140, CNTR 0.05/0.80/0.95,
+  ASCN 700/770/830, DESC 180/256/340, wdth 80/100/120, CUTS 0/115/200, XHGT
+  380/429/460, SRIF 60/100/140 (round-62 defaults and ranges) -- whose
+  default instance is Albo Regular.
   Built by `python3 -m outlines.variable <out_dir>` (20 masters, each an
   env-parameterized `outlines.build`, compatibilized by arc-length sampling;
   `Albo.designspace` written beside it). Slider page
@@ -1745,3 +1755,18 @@ top (was 72 inside its bowl) now end 11 past their bodies; advances 468 → 480
 and 481 → 492. Two things beyond the literal ask, for his veto: the 8's
 vertical fix, and that the 5's bar moves 83 units right. Page
 https://claude.ai/code/artifact/6e3e3dab-da54-4857-8053-a84d426e1691; landed on main in 7209656.
+
+Round 62 LANDED (2026-09-13). Ranges tried and pulled in: wght 170 (many
+clamps), 160 (eleven), 150 (six), 140 (three: m % @ → 126) → **50/84/140**
+(50 clamps only the a → 58.5); CNTR **0.05/0.80/0.95** with no clamps once
+the G was fixed. The G was a port error: the bar had been halved after its
+floor (24 for a ruled 41) and the spur's run ended below the bar, so they met
+only through the ink spread -- restored to the ruling (bar 42), one contour at
+every weight; the shipping G's bar is thicker than round 61's. Sampling fix:
+masters are now sampled between corners paired in order (Needleman-Wunsch),
+which keeps the E T ] bar ends square where an axis redistributes arc
+length. Pipeline cost of the new defaults, 147 common words at 13 pt: ink at
+black 69.2% against 72.9% at the round-61 defaults, about 10% less ink on the
+line; the 17-unit pen hair renders gray, not dropped. Specimen republished
+at the standing URL, slider and proof pages republished at theirs, both
+TTFs sent. The round-63 figures are in this Regular.

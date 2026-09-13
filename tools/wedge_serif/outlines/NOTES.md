@@ -382,6 +382,72 @@ XHGT max + ASCN min 1 (the n); before the corner masters they were
 `Albo-Regular.ttf` and the static builder's defaults are unchanged (a
 fresh default build matches it glyph for glyph and metric for metric).
 
+## Round 62: new defaults, wider weight and contrast, one design in two files
+
+Owner, from the slider page: "set to new defaults and allow a greater range
+of weight and contrast: Weight 84, Contrast 0.80, Ascender 770, Descender
+256, Width 100, Cut 115, x-height 429, Serif 100."
+
+- **Defaults** (`pen.DESIGN`, same env names overriding): stem 84, contrast
+  0.80, asc 770, desc 256, xh 429, cut 115, width 100, serif 100. Caps stay
+  at 1.625 x 415 = 674 (`BASE_XH`). **The cut is a continuous amount in
+  the static builder too** (`cut.blend`): 0 the dense outline, 100 the
+  1-in-4 projection, 200 the 1-in-8, linear between -- so `Albo-Regular.ttf`
+  now carries the dense point set (19,027 points, 40 KB) like the VF's
+  default, and `build.py` dumps the dense contours WITH each contour's
+  phase, which is what makes the VF's default master the static's
+  construction to the point. Consequence to know: at xh 429 the o's counter
+  reads 0.988 wide over tall against the round-35 ruling's 1.036 (the
+  owner set the x-height and left the width at 100; not re-solved).
+- **The G was a port error, found by the topology check**: the record's bar
+  is `max(pen_h x 0.5, 0.5 stem)` = 41 at stem 82, the port had halved AFTER
+  the floor (bar 24) and ended the spur's run 0.05 of a pen BELOW the bar's
+  underside, so bar and spur met only through the 1.2-unit ink spread:
+  joined at 84/0.80, a hair apart at 94/0.60 (round 61's "second contour"
+  of the G, area 6280, was the floating bar), apart at every heavier or
+  lower-contrast weight. Restored: bar `max(TH_H x 0.5, S x 0.5)`, the run
+  ends 8 units inside it; one contour at 50 / 84 / 94 / 140, contrast
+  0.05 / 0.95. (This changes the shipping G's bar from 24 to 42 units.)
+- **Ranges** (RANGE_TRIALS: the widest end with <= 3 glyphs needing a
+  per-glyph clamp): **wght 50 / 84 / 140**, **CNTR 0.05 / 0.80 / 0.95**.
+  wght 170: many; 160: 11 glyphs (G H S c h m n w ? % @); 150: 6; 140: 3
+  (m % @) -> 140. wght 50: 1 (a). CNTR 0.05: 0 after the G fix; 0.95: 0
+  (the ruled floors hold the thin strokes: K arm 0.47, R leg 1.05 x pen,
+  j tail, e bar 0.35, r arm 0.78; the v w x y thins at 0.72 x a 4-unit
+  hair are slivers but present).
+- **Clamps (per glyph):** wght min 50: a -> 58.5 (its hood closes a third
+  counter). wght max 140: m -> 126 (counters close), % -> 126 (a ring's
+  counter fills), @ -> 126. Corner wght 140 + wdth 80: H c w % @ -> (126,
+  85), h n -> (115.5, 88.75), m -> (107.6, 91.6). Corner wght 140 + CNTR
+  0.95: c m -> (126, 0.9125). Corner wght 50 + CNTR 0.05: a -> (58.5,
+  0.2375). No glyph gave up.
+- **Corner-anchored sampling** (`sample_like`, `align_corners`): sampling a
+  master at the default's GLOBAL arc-length fractions chamfered the bar
+  ends of E T ] (and slanted the E's bars) wherever a glyph's arc length
+  redistributes with an axis -- a bar's end-face corners fell between
+  samples and the chord cut them. Now the two contours' corners (turns
+  over 30 degrees) are aligned in order by a Needleman-Wunsch alignment
+  with a gap cost (a greedy nearest-in-window pairing stole neighbours in
+  corner clusters and left the E's bottom bar slanted), and each stretch
+  between paired corners is sampled at the default's fractions within it,
+  so every paired corner lands exactly. Verified at 300 px on E ] T & H F
+  Z @ a at wght min/max, wdth max, CNTR min: square everywhere.
+- **Verified:** default instance vs `Albo-Regular.ttf`: max vertex
+  deviation 0.00, advances and side bearings identical (PIL 54-px ink
+  +0.12%, the auto-hinter). Extremes: 0 defects at all 16 but a single-point
+  rounding touch on the & at CUTS 0; corners (five now, wght max + CNTR max
+  and wght min + CNTR min added): 1 / 0 / 0 / 0 / 0 (one rounding touch at
+  the heavy-condensed corner). Sheets `vf/vf-extremes.png`, `vf/vf-corners.png`.
+- **Ink at black over the 147 common words** (`eink`, share of ink pixels
+  at level 0): new default 69.2% (static and VF instance alike; 171,924 ink
+  pixels) against the round-61 default 72.9% as a VF instance / 72.6% as
+  its own static (190,025 ink pixels): the new settings put ~10% less ink
+  on the line and a smaller share of it solid.
+- **Pages:** `albo-variable.html` sliders at the new defaults and ranges,
+  Reset to them; `albo-variable-proof.html` 18 blocks -- the new default,
+  the round-61 default for comparison, then each axis min/max (wght and
+  CNTR labelled with the ranges as landed).
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

@@ -80,10 +80,15 @@ def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=No
     for ch in CHARS:
         c = ctx(ch, W)
         if ch in GLYPHS and (only is None or ch in only):
-            g = draw(ch, W); conts = geom.contours(g)
-            if do_cut: conts = [(cutter(pts), hole) for pts, hole in conts]
+            g = draw(ch, W); dense = geom.contours(g)
+            # round 62: the cut is an amount on the DENSE point set (cut.blend):
+            # every point kept, the dropped ones moved onto their chords -- the
+            # same construction the variable font's masters use
+            phases = [cutter.phase() for _ in dense]
+            amount = pen.CUT_AMOUNT if do_cut else 0.0
+            conts = [(cut.blend(pts, ph, amount), hole) for (pts, hole), ph in zip(dense, phases)]
         else:
-            conts = []
+            conts = []; dense = []; phases = []
         pen_ = TTGlyphPen(None)
         if conts:
             adv, dx, lsb_ink = fit(ch, conts, c)
@@ -92,8 +97,8 @@ def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=No
                 pen_.moveTo(q[0])
                 for p in q[1:]: pen_.lineTo(p)
                 pen_.closePath()
-            report[ch] = dict(adv=adv, contours=len(conts), verts=sum(len(p) for p, _ in conts), lsb=lsb_ink,
-                              pts=[([(x + dx, y) for x, y in pts], hole) for pts, hole in conts])   # float, translated: the variable builder's master input
+            report[ch] = dict(adv=adv, contours=len(conts), verts=sum(len(p) for p, _ in conts), lsb=lsb_ink, phases=phases,
+                              pts=[([(x + dx, y) for x, y in pts], hole) for pts, hole in dense])   # the DENSE contours, translated by the cut's fit: the variable builder's master input
         else:
             adv, lsb_ink = 300, 0
         glyphs[gname(ch)] = pen_.glyph(); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
@@ -111,8 +116,8 @@ def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None, dump=No
     path = os.path.join(out_dir, f"{name}-{style}.ttf"); fb.save(path); TTFont(path)
     if dump:
         import json
-        json.dump(dict(space=metrics['space'][0], W=W, params=dict(stem=pen.S, xh=pen.XH, asc=pen.ASC, desc=pen.DESC, contrast=pen.CONTRAST, width=pen.WIDTH, serif=pen.SERIF),
-                       glyphs={ch: dict(adv=r['adv'], lsb=r['lsb'], contours=[(pts, hole) for pts, hole in r['pts']]) for ch, r in report.items()}), open(dump, 'w'))
+        json.dump(dict(space=metrics['space'][0], W=W, params=dict(stem=pen.S, xh=pen.XH, asc=pen.ASC, desc=pen.DESC, contrast=pen.CONTRAST, width=pen.WIDTH, serif=pen.SERIF, cut=pen.CUT_AMOUNT),
+                       glyphs={ch: dict(adv=r['adv'], lsb=r['lsb'], phases=r['phases'], contours=[(pts, hole) for pts, hole in r['pts']]) for ch, r in report.items()}), open(dump, 'w'))
     return path, W, report
 
 if __name__ == "__main__":

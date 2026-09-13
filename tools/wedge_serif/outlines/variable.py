@@ -33,17 +33,26 @@ from .cut import corners, project
 
 CHARS, GLYPH_ORDER, gname = round19.CHARS, round19.GLYPH_ORDER, round19.gname
 
-# tag, name, min, default, max, env var, (min value, max value) as the env var wants them
+from . import pen as _pen
+D_ = _pen.DESIGN
+# tag, name, min, default, max, env var, (min value, max value) as the env var wants them.
+# Defaults are the static builder's (pen.DESIGN, round 62). The wght and CNTR
+# ranges are FOUND by build_vf: the widest end at which no more than three
+# glyphs need a per-glyph clamp (round 62; the candidates are in RANGE_TRIALS).
 AXES = [
-    ("wght", "Weight",    70,   94,   120,  "FJORD_STEM",     (70, 120)),
-    ("CNTR", "Contrast",  0.30, 0.60, 0.85, "FJORD_CONTRAST", (0.30, 0.85)),
-    ("ASCN", "Ascender",  700,  762,  830,  "FJORD_ASC",      (700, 830)),
-    ("DESC", "Descender", 180,  250,  340,  "FJORD_DESC",     (180, 340)),
-    ("wdth", "Width",     80,   100,  120,  "FJORD_WIDTH",    (80, 120)),
-    ("CUTS", "Cut",       0,    100,  200,  None,             (0, 200)),
-    ("XHGT", "x-height",  380,  415,  460,  "FJORD_XH",       (380, 460)),
-    ("SRIF", "Serif",     60,   100,  140,  "FJORD_SERIF",    (60, 140)),
+    ["wght", "Weight",    70,   D_["stem"],     120,  "FJORD_STEM",     (70, 120)],
+    ["CNTR", "Contrast",  0.30, D_["contrast"], 0.85, "FJORD_CONTRAST", (0.30, 0.85)],
+    ["ASCN", "Ascender",  700,  D_["asc"],      830,  "FJORD_ASC",      (700, 830)],
+    ["DESC", "Descender", 180,  D_["desc"],     340,  "FJORD_DESC",     (180, 340)],
+    ["wdth", "Width",     80,   100,            120,  "FJORD_WIDTH",    (80, 120)],
+    ["CUTS", "Cut",       0,    D_["cut"],      200,  None,             (0, 200)],
+    ["XHGT", "x-height",  380,  D_["xh"],       460,  "FJORD_XH",       (380, 460)],
+    ["SRIF", "Serif",     60,   100,            140,  "FJORD_SERIF",    (60, 140)],
 ]
+RANGE_TRIALS = {("wght", "min"): [50, 55, 60, 65, 70, 75], ("wght", "max"): [170, 160, 150, 140, 130, 120],
+                ("CNTR", "min"): [0.05, 0.10, 0.15, 0.20, 0.25, 0.30], ("CNTR", "max"): [0.95, 0.93, 0.91, 0.89, 0.87, 0.85]}
+MAX_CLAMPED_GLYPHS = 3
+ROUND61 = {"wght": 94, "CNTR": 0.60, "ASCN": 762, "DESC": 250, "wdth": 100, "CUTS": 100, "XHGT": 415, "SRIF": 100}
 
 # ---------------------------------------------------------------- masters (subprocesses)
 def build_master(out_dir, name, env_over):
@@ -75,7 +84,7 @@ def build_masters_parallel(out_dir, specs, workers=5):
 def load(js):
     d = json.load(open(js)); g = {}
     for ch, r in d["glyphs"].items():
-        g[ch] = dict(adv=r["adv"], lsb=r["lsb"], contours=[([tuple(p) for p in pts], hole) for pts, hole in r["contours"]])
+        g[ch] = dict(adv=r["adv"], lsb=r["lsb"], phases=r.get("phases"), contours=[([tuple(p) for p in pts], hole) for pts, hole in r["contours"]])
     return dict(space=d["space"], params=d["params"], glyphs=g)
 
 # ---------------------------------------------------------------- compatibility
@@ -126,6 +135,53 @@ def align_start(mpts, d0_norm, bb_m):
     k = min(range(len(mpts)), key=lambda i: math.dist(norm(mpts[i], bb_m), d0_norm))
     return mpts[k:] + mpts[:k]
 
+def align_corners(fd_c, fm_c, gap=0.06):
+    """Order-preserving alignment of two corner sequences (fractions along
+    their contours): the monotone pairing minimizing the sum of |fd - fm|
+    over pairs plus `gap` per unpaired corner (Needleman-Wunsch). A corner
+    present on one side only costs a gap instead of stealing its neighbour's
+    partner, which is what a greedy nearest-in-window pairing did at the
+    E's bar ends."""
+    n, m = len(fd_c), len(fm_c)
+    INF = float("inf"); D = [[INF] * (m + 1) for _ in range(n + 1)]; B = [[None] * (m + 1) for _ in range(n + 1)]
+    D[0][0] = 0.0
+    for i in range(n + 1):
+        for j in range(m + 1):
+            if i == 0 and j == 0: continue
+            best = (INF, None)
+            if i > 0 and j > 0 and D[i - 1][j - 1] + abs(fd_c[i - 1] - fm_c[j - 1]) < best[0]: best = (D[i - 1][j - 1] + abs(fd_c[i - 1] - fm_c[j - 1]), "p")
+            if i > 0 and D[i - 1][j] + gap < best[0]: best = (D[i - 1][j] + gap, "d")
+            if j > 0 and D[i][j - 1] + gap < best[0]: best = (D[i][j - 1] + gap, "m")
+            D[i][j], B[i][j] = best
+    pairs = []; i, j = n, m
+    while i > 0 or j > 0:
+        b = B[i][j]
+        if b == "p": pairs.append((i - 1, j - 1)); i -= 1; j -= 1
+        elif b == "d": i -= 1
+        else: j -= 1
+    return pairs[::-1]
+
+def sample_like(dpts, mpts, deg=30.0):
+    """The master contour sampled at the default's arc-length fractions,
+    CORNER-ANCHORED: the two contours' corners (turns over `deg`) are
+    aligned in order (align_corners), and each stretch between paired
+    corners is sampled at the default's fractions within that stretch --
+    so every paired corner lands exactly, and a bar whose length changed
+    with an axis keeps its end faces square instead of having them cut to
+    a slant by a chord between two samples (the E, T and ] at the weight
+    and width ends)."""
+    fd, _ = cum_fractions(dpts); fm, _ = cum_fractions(mpts)
+    cd = [i for i in sorted(corners(dpts, deg)) if i > 0]; cm = [j for j in sorted(corners(mpts, deg)) if j > 0]
+    al = align_corners([fd[i] for i in cd], [fm[j] for j in cm])
+    pairs = [(0, 0)] + [(cd[a], cm[b]) for a, b in al if abs(fd[cd[a]] - fm[cm[b]]) <= 0.12] + [(len(dpts), len(mpts))]
+    fdx = fd + [1.0]; fmx = fm + [1.0]; fr = [0.0] * len(dpts)
+    for (a_d, a_m), (b_d, b_m) in zip(pairs, pairs[1:]):
+        span_d = fdx[b_d] - fdx[a_d]; span_m = fmx[b_m] - fmx[a_m]
+        for k in range(a_d, b_d):
+            u = (fdx[k] - fdx[a_d]) / span_d if span_d > 1e-12 else 0.0
+            fr[k] = fmx[a_m] + u * span_m
+    return sample_at(mpts, fr)
+
 def compatibilize(default, master, label):
     """Master glyphs re-expressed on the default's point structure. Returns
     (glyphs, problems): glyphs[ch] = (contours [(pts, hole)], adv, lsb);
@@ -147,36 +203,23 @@ def compatibilize(default, master, label):
         conts = []
         for (dpts, hole), (mpts, mhole) in zip(dconts, matched):
             mpts = align_start(mpts, norm(dpts[0], bb_d), bb_m)
-            fr, _ = cum_fractions(dpts)
-            conts.append((sample_at(mpts, fr), hole))
+            conts.append((sample_like(dpts, mpts), hole))
         out[ch] = (conts, mg["adv"], mg["lsb"])
     return out, problems
 
 # ---------------------------------------------------------------- the cut as a displacement
 def cut_plans(default):
-    """The shipping cut's phase per contour, in the builder's order (CHARS,
-    contours in order), from the same Cutter sequence: {ch: [phase, ...]}."""
-    cutter = cut.Cutter(73, 4); plans = {}
-    for ch in CHARS:
-        if ch not in default["glyphs"]: continue
-        plans[ch] = [cutter.phase() for _ in default["glyphs"][ch]["contours"]]
-    return plans
+    """The shipping cut's phase per contour: the static builder dumps them
+    (the same Cutter sequence it cut with), so the VF's default master is
+    the static's construction to the point."""
+    return {ch: g["phases"] for ch, g in default["glyphs"].items()}
 
-def apply_cut(conts, phases, every=4, amount=1.0):
-    """Project every contour onto its chords (its own corners kept):
-    amount 0 = untouched (CUTS 0), 1 = every 4th point kept (the shipping
-    cut, CUTS 100), 2 = every 8th kept with the same phases (facets twice
-    as long, CUTS 200). A first version moved each point twice its cut
-    displacement instead, which gouged past neighbouring edges at the
-    brackets and left 12 self-intersections; a coarser projection cannot
-    cross itself."""
-    out = []
-    for (pts, hole), ph in zip(conts, phases):
-        if amount == 0.0: out.append((list(pts), hole)); continue
-        ev = every if amount == 1.0 else every * 2
-        keep = set(i for i in range(len(pts)) if (i + ph) % ev == 0) | corners(pts)
-        out.append((project(pts, sorted(keep)), hole))
-    return out
+def apply_cut(conts, phases, amount=100.0):
+    """cut.blend on every contour: 0 the dense outline, 100 the 1-in-4
+    projection, 200 the 1-in-8 (facets twice as long), linear between. (A
+    first version moved each point twice its cut displacement for 200,
+    which gouged past neighbouring edges at the brackets.)"""
+    return [(cut.blend(pts, ph, amount), hole) for (pts, hole), ph in zip(conts, phases)]
 
 # ---------------------------------------------------------------- master TTFs
 def make_glyph(conts):
@@ -214,7 +257,7 @@ def write_master(path, glyphs, space, name="Albo", style="Master", xh=415, cap=6
     fb.setupPost(); fb.save(path); return path
 
 # ---------------------------------------------------------------- the build
-ENV_DEFAULT = {"FJORD_STEM": 94, "FJORD_CONTRAST": 0.60, "FJORD_ASC": 762, "FJORD_DESC": 250, "FJORD_WIDTH": 100, "FJORD_XH": 415, "FJORD_SERIF": 100}
+ENV_DEFAULT = {"FJORD_STEM": D_["stem"], "FJORD_CONTRAST": D_["contrast"], "FJORD_ASC": D_["asc"], "FJORD_DESC": D_["desc"], "FJORD_WIDTH": 100, "FJORD_XH": D_["xh"], "FJORD_SERIF": 100}
 CAP = 415 * 1.625; OVER = 14
 import alphabet2 as A
 import round20
@@ -236,9 +279,10 @@ def fit_master(ch, conts, params):
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx
 
-def finish(glyphs, params, phases, amount=1.0):
+def finish(glyphs, params, phases, amount=None):
     """Project the cut onto every glyph and re-fit it: {ch: (contours, adv, lsb)}."""
     out = {}
+    if amount is None: amount = D_["cut"]
     for ch, (conts, adv0, lsb0) in glyphs.items():
         cut_conts = apply_cut(conts, phases[ch], amount=amount)
         adv, dx = fit_master(ch, cut_conts, params)
@@ -269,36 +313,71 @@ def master_with_clamps(out_dir, default, mname, env_over, jsons, report, log):
         report["clamps"].append((mname, ch, msg + " -- GAVE UP, default contours", None))
     return glyphs, m
 
-CORNERS = [("wght_max_wdth_min", {"FJORD_STEM": 120, "FJORD_WIDTH": 80}, {"wght": 120, "wdth": 80}),
-           ("XHGT_max_ASCN_min", {"FJORD_XH": 460, "FJORD_ASC": 700}, {"XHGT": 460, "ASCN": 700})]
+def corners_spec():
+    r = {t: (mn, mx) for t, n, mn, d, mx, *_ in AXES}
+    return [("wght_max_wdth_min", {"FJORD_STEM": r["wght"][1], "FJORD_WIDTH": 80}, {"wght": r["wght"][1], "wdth": 80}),
+            ("XHGT_max_ASCN_min", {"FJORD_XH": 460, "FJORD_ASC": 700}, {"XHGT": 460, "ASCN": 700}),
+            ("wght_max_CNTR_max", {"FJORD_STEM": r["wght"][1], "FJORD_CONTRAST": r["CNTR"][1]}, {"wght": r["wght"][1], "CNTR": r["CNTR"][1]}),
+            ("wght_min_CNTR_min", {"FJORD_STEM": r["wght"][0], "FJORD_CONTRAST": r["CNTR"][0]}, {"wght": r["wght"][0], "CNTR": r["CNTR"][0]})]
+
+def find_ranges(out_dir, default, log):
+    """Round 62: try the wider ends (RANGE_TRIALS) and pull each in to the
+    widest value at which no more than MAX_CLAMPED_GLYPHS glyphs change
+    topology. Every trial is one subprocess; they run in parallel."""
+    specs = []
+    for (tag, side), vals in RANGE_TRIALS.items():
+        envk = next(a[5] for a in AXES if a[0] == tag)
+        for v in vals: specs.append((f"trial_{tag}_{side}_{v}", {envk: v}))
+    jsons = build_masters_parallel(out_dir, specs, workers=6)
+    found = {}; trials = {}
+    for (tag, side), vals in RANGE_TRIALS.items():
+        envk = next(a[5] for a in AXES if a[0] == tag)
+        for v in vals:
+            m = load(jsons[f"trial_{tag}_{side}_{v}"]); glyphs, problems = compatibilize(default, m, f"trial {tag} {side} {v}")
+            trials[(tag, side, v)] = [ch for ch, _ in problems]
+            log(f"  trial {tag} {side} = {v}: {len(problems)} glyphs change topology" + (f" ({', '.join(ch for ch, _ in problems)})" if problems else ""))
+            if len(problems) <= MAX_CLAMPED_GLYPHS: found[(tag, side)] = (v, jsons[f"trial_{tag}_{side}_{v}"]); break
+        else:
+            v = vals[-1]; found[(tag, side)] = (v, jsons[f"trial_{tag}_{side}_{v}"])
+    for i, a in enumerate(AXES):
+        if a[0] in ("wght", "CNTR"):
+            mn = found[(a[0], "min")][0]; mx = found[(a[0], "max")][0]
+            AXES[i] = [a[0], a[1], mn, a[3], mx, a[5], (mn, mx)]
+    return found, trials
 
 def build_vf(out_dir, log=print):
     os.makedirs(out_dir, exist_ok=True); mdir = os.path.join(out_dir, "masters")
-    specs = [("default", {})]
+    report = dict(clamps=[], masters={}, trials={})
+    default = load(build_master(out_dir, "default", {})); phases = cut_plans(default)
+    found, report["trials"] = find_ranges(out_dir, default, log)
+    log("ranges: " + ", ".join(f"{a[0]} {a[2]} / {a[3]} / {a[4]}" for a in AXES if a[0] in ("wght", "CNTR")))
+    jsons = {"default": os.path.join(mdir, "default.json")}
+    specs = []
     for tag, name, mn, df, mx, envk, (vmin, vmax) in AXES:
         if envk is None: continue
-        specs.append((f"{tag}_min", {envk: vmin})); specs.append((f"{tag}_max", {envk: vmax}))
-    for cname, env_over, loc in CORNERS: specs.append((cname, env_over))
-    log(f"building {len(specs)} masters in subprocesses ...")
-    jsons = build_masters_parallel(out_dir, specs)
-    default = load(jsons["default"]); phases = cut_plans(default)
-    report = dict(clamps=[], masters={})
+        for side, v in (("min", vmin), ("max", vmax)):
+            if (tag, side) in found: jsons[f"{tag}_{side}"] = found[(tag, side)][1]
+            else: specs.append((f"{tag}_{side}", {envk: v}))
+    for cname, env_over, loc in corners_spec(): specs.append((cname, env_over))
+    log(f"building {len(specs)} more masters in subprocesses ...")
+    jsons.update(build_masters_parallel(out_dir, specs))
     dense_default = {ch: (g["contours"], g["adv"], g["lsb"]) for ch, g in default["glyphs"].items()}
-    masters = {"default": (finish(dense_default, default["params"], phases, 1.0), default["space"], {}),
+    cut_default = D_["cut"]
+    masters = {"default": (finish(dense_default, default["params"], phases, cut_default), default["space"], {}),
                "CUTS_min": (finish(dense_default, default["params"], phases, 0.0), default["space"], {"CUTS": 0}),
-               "CUTS_max": (finish(dense_default, default["params"], phases, 2.0), default["space"], {"CUTS": 200})}
+               "CUTS_max": (finish(dense_default, default["params"], phases, 200.0), default["space"], {"CUTS": 200})}
     for tag, name, mn, df, mx, envk, (vmin, vmax) in AXES:
         if envk is None: continue
         for side, target in (("min", vmin), ("max", vmax)):
             mname = f"{tag}_{side}"
             glyphs, m = master_with_clamps(out_dir, default, mname, {envk: target}, jsons, report, log)
-            masters[mname] = (finish(glyphs, m["params"], phases, 1.0), m["space"], {tag: mn if side == "min" else mx})
+            masters[mname] = (finish(glyphs, m["params"], phases, cut_default), m["space"], {tag: mn if side == "min" else mx})
             report["masters"][mname] = dict(value=target, params=m["params"])
-            if mname == "CNTR_max":   # the derived corner: contrast max at CUTS 200 (a coarser projection of the same glyphs)
-                masters["CNTR_max_CUTS_max"] = (finish(glyphs, m["params"], phases, 2.0), m["space"], {"CNTR": mx, "CUTS": 200})
-    for cname, env_over, loc in CORNERS:
+            if mname == "CNTR_max":   # the derived corner: contrast max at CUTS 200
+                masters["CNTR_max_CUTS_max"] = (finish(glyphs, m["params"], phases, 200.0), m["space"], {"CNTR": mx, "CUTS": 200})
+    for cname, env_over, loc in corners_spec():
         glyphs, m = master_with_clamps(out_dir, default, cname, env_over, jsons, report, log)
-        masters[cname] = (finish(glyphs, m["params"], phases, 1.0), m["space"], loc)
+        masters[cname] = (finish(glyphs, m["params"], phases, cut_default), m["space"], loc)
         report["masters"][cname] = dict(value=env_over, params=m["params"])
     # write the master TTFs and the designspace
     ds = DesignSpaceDocument()
@@ -306,7 +385,7 @@ def build_vf(out_dir, log=print):
         a = AxisDescriptor(); a.tag = tag; a.name = name; a.minimum = mn; a.default = df; a.maximum = mx; ds.addAxis(a)
     default_loc = {name: df for tag, name, mn, df, mx, envk, _ in AXES}; tag2name = {t: n for t, n, *_ in AXES}
     for mname, (glyphs, space, loc) in masters.items():
-        xh = report["masters"].get(mname, {}).get("params", {}).get("xh", 415)
+        xh = report["masters"].get(mname, {}).get("params", {}).get("xh", D_["xh"])
         path = write_master(os.path.join(mdir, f"Albo-{mname}.ttf"), glyphs, space, style=mname, xh=xh)
         s_ = SourceDescriptor(); s_.path = path; s_.name = mname; s_.familyName = "Albo"; s_.styleName = mname
         location = dict(default_loc)
@@ -418,7 +497,8 @@ def proof_page(vf_path, out_dir):
     figs = []
     def img(im, cap): figs.append(f'<figure><img src="{b64(im)}" width="{im.size[0]}" height="{im.size[1]}"><figcaption>{html.escape(cap)}</figcaption></figure>')
     para = round19.PARAGRAPHS[1][:260]
-    p = instance(vf_path, dict(default_loc), os.path.join(tmp, "default.ttf")); img(eink(p, para), "default (the shipping Albo Regular)")
+    p = instance(vf_path, dict(default_loc), os.path.join(tmp, "default.ttf")); img(eink(p, para), "the new default (round 62): " + ", ".join(f"{t} {v}" for t, v in default_loc.items()))
+    p61 = instance(vf_path, dict(ROUND61), os.path.join(tmp, "round61.ttf")); img(eink(p61, para), "the round-61 default for comparison: " + ", ".join(f"{t} {v}" for t, v in ROUND61.items()))
     for tag, name, mn, df, mx, *_ in AXES:
         for side, v in (("min", mn), ("max", mx)):
             loc = dict(default_loc); loc[tag] = v
@@ -427,7 +507,7 @@ def proof_page(vf_path, out_dir):
 <style>:root{{--paper:#F9F3E9;--ink:#5C332B;--soft:#8A6A62;--rule:#E4D8C8}}@media (prefers-color-scheme: dark){{:root:not([data-theme="light"]){{--paper:#171B1B;--ink:#CFD4CC;--soft:#93A09B;--rule:#2B3331}}}}:root[data-theme="dark"]{{--paper:#171B1B;--ink:#CFD4CC;--soft:#93A09B;--rule:#2B3331}}
 body{{background:var(--paper);color:var(--ink);margin:0;padding:16px 10px 60px;font:15px/1.45 -apple-system,Arial,sans-serif}}main{{max-width:900px;margin:0 auto}}h1{{font-size:22px;margin:0 0 6px}}p{{max-width:64ch;color:var(--soft);font-size:13px}}
 figure{{margin:0 0 12px}}figure img{{width:100%;max-width:375px;height:auto;image-rendering:pixelated;display:block;background:#fff}}figcaption{{font-size:11px;color:var(--soft);margin-top:2px}}</style>
-<main><h1>Albo Variable, on the reader's pipeline</h1><p>13 pt on the 2x reader (54 px em), 8x supersampled, quantized to the panel's four levels: the default and each axis at its minimum and maximum. PNG at native pixels, 750 px blocks at 375 CSS px.</p>{''.join(figs)}</main>'''
+<main><h1>Albo Variable, on the reader's pipeline</h1><p>13 pt on the 2x reader (54 px em), 8x supersampled, quantized to the panel's four levels: the new default, the round-61 default it replaces, then each axis at its minimum and maximum (the wght and CNTR labels carry the ranges as landed). PNG at native pixels, 750 px blocks at 375 CSS px.</p>{''.join(figs)}</main>'''
     out = os.path.join(out_dir, "albo-variable-proof.html"); open(out, "w").write(doc); return out
 
 def verify(vf_path, out_dir, static_path, log=print):
@@ -439,8 +519,10 @@ def verify(vf_path, out_dir, static_path, log=print):
     res = {}
     d = instance(vf_path, dict(default_loc), os.path.join(tmp, "default.ttf"))
     dev, gn = compare_to_static(d, static_path); ink_d, ink_s = page_ink(d), page_ink(static_path)
-    res["default"] = dict(max_dev=dev, glyph=gn, ink_ratio=ink_d / ink_s)
-    log(f"(1) default instance vs {os.path.basename(static_path)}: max vertex deviation {dev:.2f} units (glyph {gn}); 147-word ink {ink_d:.0f} vs {ink_s:.0f} = {100 * (ink_d / ink_s - 1):+.2f}%")
+    fa, fb = TTFont(static_path), TTFont(d)
+    dadv = max(abs(fa['hmtx'][g][0] - fb['hmtx'][g][0]) for g in fa.getGlyphOrder()); dlsb = max(abs(fa['hmtx'][g][1] - fb['hmtx'][g][1]) for g in fa.getGlyphOrder())
+    res["default"] = dict(max_dev=dev, glyph=gn, ink_ratio=ink_d / ink_s, max_dadv=dadv, max_dlsb=dlsb)
+    log(f"(1) default instance vs {os.path.basename(static_path)}: max vertex deviation {dev:.2f} units (glyph {gn}); advances differ by at most {dadv}, side bearings {dlsb}; 147-word ink (PIL 54 px) {ink_d:.0f} vs {ink_s:.0f} = {100 * (ink_d / ink_s - 1):+.2f}%")
     text = "handgloves Rhythm 1234"; ims = [render_line(d, text, 150, "default")]
     res["extremes"] = {}
     mdir = os.path.join(out_dir, "masters")
@@ -453,7 +535,9 @@ def verify(vf_path, out_dir, static_path, log=print):
             ims.append(render_line(p, text, 150, f"{name} {side} = {v}   defects: instance {sum(di.values())}, master {sum(dm.values())}"))
     stack(ims).save(os.path.join(out_dir, "vf-extremes.png"))
     log("(2) extremes: " + ", ".join(f"{k} {a}/{b}" for k, (a, b, _) in res["extremes"].items()))
-    corners_ = [("wght max + wdth min", {"wght": 120, "wdth": 80}), ("CNTR max + CUTS 200", {"CNTR": 0.85, "CUTS": 200}), ("XHGT max + ASCN min", {"XHGT": 460, "ASCN": 700})]
+    r = {t: (mn, mx) for t, n, mn, d_, mx, *_ in AXES}
+    corners_ = [("wght max + wdth min", {"wght": r["wght"][1], "wdth": 80}), ("CNTR max + CUTS 200", {"CNTR": r["CNTR"][1], "CUTS": 200}), ("XHGT max + ASCN min", {"XHGT": 460, "ASCN": 700}),
+                ("wght max + CNTR max", {"wght": r["wght"][1], "CNTR": r["CNTR"][1]}), ("wght min + CNTR min", {"wght": r["wght"][0], "CNTR": r["CNTR"][0]})]
     ims = []; res["corners"] = {}
     for label, over in corners_:
         loc = dict(default_loc); loc.update(over)
