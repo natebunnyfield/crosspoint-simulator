@@ -1728,3 +1728,20 @@ hold topology, per glyph clamps recorded. Note for the pipeline: contrast
 0.80 makes the pen's hair 0.20 of an 84 stem = 17 units, under one pixel at
 54 px; the bowls (hair 1 - 0.5c = 0.60 stem) do not go that thin. His call;
 the 13 pt proof shows what it costs.
+
+## Round 63 (2026-09-13): figures 2, 5, 8
+
+Owner: "remaking the 8 to not be top heavy, extend the bottom of 2 and top
+of 5 to the right (visually the same overhang as 9's tail goes to the
+left)." Agent in a worktree, `glyphs/figures.py` only; exactly `two`, `five`,
+`eight` changed in the glyf table, 91 glyphs byte-identical. The 8: its old
+upper loop was 331 wide on the lower's 96-unit sides, a 135-unit counter that
+closed to a dot at 13 pt -- "top heavy" was density, not size; now upper 0.80
+of the lower's width, taller than wide, sides 0.9 of the pen, one waist band,
+ink below:above 1.405 (was 1.384), and it overshoots 14 at both ends like the
+0 and 6 (it sat 14 low before, an overshoot double-counted). The 9's tail
+overhang measured 11 units; the 2's base (was 8 inside its neck) and the 5's
+top (was 72 inside its bowl) now end 11 past their bodies; advances 468 → 480
+and 481 → 492. Two things beyond the literal ask, for his veto: the 8's
+vertical fix, and that the 5's bar moves 83 units right. Page
+https://claude.ai/code/artifact/PENDING; landed on main in the next commit.

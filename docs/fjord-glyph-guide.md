@@ -312,7 +312,8 @@ none without the owner's word, and record any change in the exploration doc.
 | g | G3: bowl rx 185 (the o is 226), 0.70 xh tall; loop rx 215 × 0.45 desc, 30 right of the bowl; neck from 242° dropping near-vertically into the loop at 150°, no floor; ear a pen stroke at 48° | rounds 40, 42 |
 | J | no bar; the I's top wedge; hook starts at the stem's weight | round 36 (reversed the earlier "keep the bar" ruling) |
 | D B P R | bowls are the D's ring: half-ring from the stem's inner edge, k × 1.12 (squared shoulders), counter's lower half lifted by 0.3 of the horizontal stroke | rounds 36, 47 |
-| 8 | two rings sized to the 6's outer bowl proportion, lower 0.60 of the height, upper 0.50 | round 49 |
+| 8 | bottom-heavy: the lower ring keeps round 49's width (0.588 of the figure height), the upper is 0.80 of that wide and 0.51 of the height tall with sides 0.9 of the pen; the two overlap by one bowl stroke so the waist is ONE band; both ends overshoot 14 like the 0 and 6 (owner: the round-49 8 read top heavy -- its upper counter closed to a dot at 13 pt) | round 63 |
+| 2, 5 | the 2's base and the 5's top run past their body's rightmost ink by the 9's tail overhang (11 units, measured on the outline: `NINE_OVERHANG` in `glyphs/figures.py`) | round 63 |
 | 3 | lower bowl takes the 5's sweep and terminal | round 44 |
 | figures | old-style, in the references' boxes (`latin.FIG_BOX`) | round 20 |
 | j | no top flag; tail one round arc holding stem weight through the turn, thinning to a point | rounds 22, 25 |
