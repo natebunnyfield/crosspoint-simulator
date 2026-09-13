@@ -1829,5 +1829,5 @@ width), wide_low (1.12 xh), flick (spur turns up into a stem wedge),
 aspiring (teardrop loop, arm to the ascender). All hairs >= the pen's hair
 (37.6 at the round-62 pen), every counter and aperture >= 0.6 stem. Fonts
 `build/fjord-fonts/amp/Albo-amp01..10.ttf`; the & in each is spliced into a
-round-62 Regular. Page https://claude.ai/code/artifact/PENDING67. Observed
+round-62 Regular. Page https://claude.ai/code/artifact/4c17c54d-2e4a-4888-a0ae-cc1f39d0203d. Observed
 and not touched: the shipping &'s arm wedge shows a small notch at 600 px.
