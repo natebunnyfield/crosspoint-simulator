@@ -130,9 +130,15 @@ def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
 
-def _bowl_point(x, y_top, y_bot, w, t):
+def _bowl_ctrl(x, y_top, y_bot, w, s=0.0):
+    """Control points of a B/P/R bowl: both ends a quarter of a cap stem INSIDE
+    the stem (round 33: the tapered ends used to land on the stem's center and
+    nick it top and bottom)."""
+    return (x - s * 0.25, y_top), (x + w * 1.05, y_top), (x + w * 1.05, y_bot), (x - s * 0.25, y_bot)
+
+def _bowl_point(x, y_top, y_bot, w, t, s=0.0):
     """The point at t on the bowl bezier _bowl_stroke draws (round 30)."""
-    p0, p1, p2, p3 = (x, y_top), (x + w * 1.05, y_top), (x + w * 1.05, y_bot), (x, y_bot)
+    p0, p1, p2, p3 = _bowl_ctrl(x, y_top, y_bot, w, s)
     u = 1 - t
     return (u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0], u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1])
 
@@ -140,29 +146,35 @@ def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5):
     """A B/P/R bowl: leaves the stem tapered at the top, swings out to w and
     rejoins tapered at the bottom. Stroked (the counter is what the stroke
     leaves), so its weight follows the pen like the lowercase b's."""
-    pts = bez((x, y_top), (x + w * 1.05, y_top), (x + w * 1.05, y_bot), (x, y_bot), 48)
-    A.curve(c, P, pts, compose(taper_in(taper, 0.14), taper_out(taper, 0.14)))
+    p0, p1, p2, p3 = _bowl_ctrl(x, y_top, y_bot, w, c["s"] * CAP_STEM)
+    pts = bez(p0, p1, p2, p3, 48)
+    A.curve(c, P, pts, compose(taper_in(taper * 0.6, 0.14), taper_out(taper, 0.14)))   # round 33: the top join keeps more weight
 
 def g_A(c):
     P = []; C = capH(c); w = _w(c, "A", 600); s = c["s"] * CAP_STEM
-    diag(c, P, (s * 0.3, 0), (w / 2, C), thin=0.72 / CAP_STEM, serif0=-1)
+    # round 33: the thin stroke ends INSIDE the thick one under the apex (its
+    # square end poked out past it)
+    diag(c, P, (s * 0.3, 0), (w / 2 - s * 0.06, C - s * 0.32), thin=0.72 / CAP_STEM, serif0=-1)
     diag(c, P, (w - s * 0.3, 0), (w / 2 - s * 0.18, C), thin=1.0 / CAP_STEM, serif0=1)
     A.curve(c, P, line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28), 10)); return P
 
 def g_B(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "B", 380)
     _cstem(c, P, x, 0, C, top="left", foot="left")
-    _bowl_stroke(c, P, x, C, C * 0.55, w * 0.86)
-    _bowl_stroke(c, P, x, C * 0.55, 0, w); return P
+    th = c["pen"].th((1, 0))   # round 33: bowls' outer edges ON the cap line and baseline (they were centered on them)
+    _bowl_stroke(c, P, x, C - th / 2, C * 0.55, w * 0.86)
+    _bowl_stroke(c, P, x, C * 0.55, th / 2, w); return P
 
 def g_C(c):
     P = []; C = capH(c); rx = _w(c, "C", 330); ry = C / 2 + c["over"]
     pts = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(322), 100, c["k"])
-    A.curve(c, P, pts, compose(flare_end(0.3, 0.14), lambda t: flare_end(0.22, 0.12)(1 - t)), cut0=c["cut"], cut1=c["cut"])
-    # the beak: a wedge on the upper terminal, as the garalde C has
+    A.curve(c, P, pts, compose(flare_end(0.3, 0.14), lambda t: flare_end(0.22, 0.12)(1 - t)))   # round 33: no pen cuts (the lower terminal was a thorn)
+    # the beak: a wedge on the UPPER terminal, as the garalde C has. The ellipse
+    # runs 38 -> 322 degrees, so the upper terminal is pts[0] (round 33: the
+    # beak had been on pts[-1], the lower one); same construction as the G's.
     if c["wl"] > 0:
-        tn = tangents(pts)[-1]; d = tn; nrm = (-d[1], d[0])
-        P.append(bracket_wedge(pts[-1], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, -1, drop=0, fillet=c["fillet"]))
+        tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
+        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
     return P
 
 def g_D(c):
@@ -204,7 +216,7 @@ def g_G(c):
     # ends flush with the bar's top edge and carries no wedge of its own.
     xg = 2 * rx - s * 0.55; th_h = max(c["pen"].th((1, 0)), c["s"] * 0.5); yb = C * 0.46
     _cstem(c, P, xg, C * 0.03, yb + th_h / 2, top=None, foot=None)
-    bar(c, P, xg - rx * 0.55, xg + s * 0.5, yb); return P
+    bar(c, P, xg - rx * 0.55, xg + s * 0.25, yb); return P   # round 33: ends inside the spur (its sheared end poked out)
 
 def g_H(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
@@ -265,7 +277,7 @@ def g_M(c):
 def g_N(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "N", 560); x0 = s / 2; x1 = x0 + w
     _cstem(c, P, x0, 0, C, top="left", foot="both", thin=0.72)
-    diag(c, P, (x0, C), (x1, 0), thin=1.0 / CAP_STEM)
+    diag(c, P, (x0 + s * 0.1, C - s * 0.3), (x1 - s * 0.1, s * 0.3), thin=1.0 / CAP_STEM)   # round 33: ends inside both stems
     _cstem(c, P, x1, 0, C, top="right", foot=None, thin=0.72); return P
 
 def g_O(c):
@@ -274,7 +286,7 @@ def g_O(c):
 def g_P(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "P", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C, C * 0.44, w); return P
+    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.44, w); return P   # round 33: top edge on the cap line
 
 def g_Q(c):
     P = g_O(c); C = capH(c); rx = _w(c, "O", 350)
@@ -284,11 +296,11 @@ def g_Q(c):
 def g_R(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C, C * 0.46, w * 0.95)
+    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95)   # round 33: top edge on the cap line
     # round 30: the leg springs from the bowl's lower curve (it started under
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.
-    J = _bowl_point(x, C, C * 0.46, w * 0.95, 0.8)
+    J = _bowl_point(x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95, 0.8, s)
     kick(c, P, J, s, angle=math.radians(60)); return P   # round 32: the A's leg, a little more upright than the K's (A 65, R 60, K 52)
 
 def g_S(c):
@@ -300,7 +312,11 @@ def g_S(c):
         i = min(n, int(round(t * n))); th = c["pen"].th(tn[i]); mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)
         want = th * (1 - mid) + st * 0.92 * mid   # the spine carries the weight
         return want / th * flare_end(0.25, 0.1)(t) * flare_end(0.25, 0.1)(1 - t)
-    A.curve(c, P, spine, prof, cut0=c["cut"], cut1=c["cut"]); return P
+    A.curve(c, P, spine, prof)   # round 33: no pen cuts (both terminals were thorns)
+    if c["wl"] > 0:   # the C's beak on the top terminal
+        d = (-tn[0][0], -tn[0][1]); nrm = (-d[1], d[0])
+        P.append(bracket_wedge(spine[0], d, nrm, c["pen"].th(tn[0]) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
+    return P
 
 def g_T(c):
     """Round 25: the bar was stem-heavy, centered on the cap height (so it
@@ -326,7 +342,11 @@ def g_U(c):
     # solved so the curve's centerline bottom is half a stroke above -overshoot.
     yb = -c["over"]; cy = (8 * yb - 2 * y0) / 6   # centerline bottom; over is already the centerline's (round 27)
     pts = bez((x0, y0), (x0, cy), (x1, cy), (x1, y0), 48)
-    A.curve(c, P, pts, compose(taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
+    # round 33: the bowl runs at the LEFT stem's weight and thins to the thin
+    # right stem's (0.78) by the time it meets it, so there is no jog
+    amt = c["ent"](0.0) - 1.0   # the stems swell at their ends (entasis); the bowl matches where they meet
+    bump = lambda t: 1.0 + amt * (max(0.0, 1 - t / 0.15) + max(0.0, 1 - (1 - t) / 0.15))
+    A.curve(c, P, pts, compose(lambda t: CAP_STEM * (1 - 0.22 * t), bump, taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
     _cstem(c, P, x1, y0 - s * 0.5, C, top="right", foot=None, thin=0.78); return P
 
 def g_V(c):

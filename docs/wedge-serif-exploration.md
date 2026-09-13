@@ -999,3 +999,45 @@ and K need to be at all different angles."
   (the reference, unchanged), R 60°, k 56° (`alphabet2.g_k`), K 52°.
   Garamond's order: K splayed widest, R more upright.
 Proof: `fjord-hnuk.html`.
+
+## Round 33 (2026-09-12): gaps and obvious issues in the capitals
+
+Owner: "take a pass at fixing the gaps and obvious issues with capitals."
+Audited at 330 px, then 600 px close-ups (ANPU, SCBR, EFGM), then 1400 px on
+U P C. Fixed in `latin.py`:
+
+- **A**: the thin stroke's square end poked past the thick one at the apex;
+  it now ends inside it (w/2 − 0.06 s, C − 0.32 s).
+- **N**: the diagonal's ends poked out of both stems; now (x0 + 0.1 s,
+  C − 0.3 s) → (x1 − 0.1 s, 0.3 s).
+- **B P R**: `_bowl_ctrl` puts both bowl ends a quarter cap stem INSIDE the
+  stem (their tapered ends landed on the stem's center and nicked it), the top
+  taper is 0.6 of the bottom's, and the bowls' outer edges sit ON the cap line
+  and baseline (they were centered on them). `_bowl_point` shares the controls
+  so R's leg still springs from the curve.
+- **U**: the bowl ran at the lowercase pen's weight between a 1.137 left stem
+  and a 0.78 right stem, and the stems' entasis swells their ends: a jog on
+  each side. The bowl now runs at CAP_STEM·(1 − 0.22 t) and swells by the
+  entasis amount over its first and last 15%.
+- **C**: no pen cuts (the lower terminal was a thorn); the beak had been on
+  `pts[-1]`, which is the LOWER terminal (the ellipse runs 38° → 322°), now on
+  `pts[0]` as the G's.
+- **S**: no pen cuts (both terminals were thorns); the C's beak on the top.
+- **G**: the bar ended at xg + 0.5 s and its sheared end poked out of the
+  spur; xg + 0.25 s.
+Proof: `fjord-caps33.html`.
+
+## Round 34 (2026-09-12): five condensed steps
+
+Owner: "make five versions of this font that horizontally condense until the
+o counter is an optical circle."
+
+Measured on the round-33 o: outer 528 × 443, counter 375 × 335 (aspect
+1.119). The counter's width is 2·226·wf − 77, so a 1.000 counter is wf 0.911
+and the conventional optical circle (2% wider than tall) is wf 0.929. Five
+equal steps, `width` = `condense` = 0.982 / 0.964 / 0.946 / 0.929 / 0.911 →
+counter aspects 1.096 / 1.072 / 1.048 / 1.024 / 1.000; n advance 653 → 626.
+`round20.solve_widths` multiplies the reference cap width by `condense`, or
+the solver would have widened the capitals back. Files
+`fonts/condensed/FjordC-C1..C5.ttf`, page `fjord-condensed.html` (all five
+embedded, large "no o bog" and a paragraph each). Awaiting the owner's pick.

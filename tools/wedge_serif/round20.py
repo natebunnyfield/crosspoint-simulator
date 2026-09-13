@@ -47,7 +47,7 @@ def solve_widths(p, glyphs_all, pen_fn):
             if not (ch.isupper() or ch.isdigit()) or ch == 'I' or ch == '1' or ch not in REF: continue
             polys, _c = draw(ch, p, glyphs_all, pen_fn, None)
             xs = [x for poly in polys for (x, y) in poly]; drawn = max(xs) - min(xs)
-            target = REF[ch]["w"] * C
+            target = REF[ch]["w"] * C * p.get("condense", 1.0)   # round 34: a condensed variant condenses its capitals too
             if drawn > 1: latin.W[ch] = max(0.7, min(1.45, latin.W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return dict(latin.W)
 
