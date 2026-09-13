@@ -1388,3 +1388,7 @@ on the 2x reader (54 px em), line 1.25 em, through the reader's four-level
 pipeline (8x supersampled coverage quantized at 0.108 / 0.42 / 0.812 to
 255 / 200 / 96 / 0). Page `fjord-rebuild-dials.html`; TTFs in
 `fonts/dials/`. Awaiting the two picks; the rebuild agent starts on them.
+Owner on the first page: "make it mobile friendly" -- the artifact viewer's
+`img{max-width:100%}` had squashed the 1700 px sheet to the phone's width.
+Rebuilt as six 750 px blocks wrapped to that width, shown at 375 CSS px
+(native on a 2x phone). Rule added to the guide §4.

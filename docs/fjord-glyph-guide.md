@@ -272,7 +272,12 @@ number and failed the picture.
      on non-letters ≥ 20 a side; no contour of a glyph may cross into its
      own counter.
 4. **Ship**: an Artifact page with the PNGs at native pixels (never JPEG,
-   never smooth-scaled), the specimen republished at the standing URL, the
+   never smooth-scaled) -- and MOBILE-FRIENDLY: he reads on a phone, and the
+   artifact viewer squashes any image wider than the screen to fit. Render
+   proof blocks 750 px wide, wrap the text to that width, and show them at
+   `width:100%; max-width:375px; image-rendering:pixelated`, which on a 2x
+   phone is one image pixel per screen pixel (round 53). A 1700 px sheet is
+   for the desk only, the specimen republished at the standing URL, the
    TTF sent, a dated round entry appended to the exploration doc with the
    numbers, what was tried and failed, and what was left alone and why; then
    commit. One glyph or one ask per round.
