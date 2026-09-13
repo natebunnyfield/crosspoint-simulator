@@ -2149,5 +2149,5 @@ advance, bearings, bbox identical in every variant; the eye's counter is
 geometrically outside the run and unchanged (248 x 144, 57 white px at 54
 px). Checked here: visible at 400 px, indistinguishable at 13 pt -- his
 condition ("keep word image legible") holds. Page
-https://claude.ai/code/artifact/PENDINGE. Landed at x0.90/+8 pending his
+https://claude.ai/code/artifact/e0a19a8c-784c-40ec-a425-3dc5d133fc71. Landed at x0.90/+8 pending his
 pick among the four.
