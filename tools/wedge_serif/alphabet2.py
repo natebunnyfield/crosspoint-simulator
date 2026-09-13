@@ -149,7 +149,8 @@ def ctx(p):
              s_spine=p.get("s_spine", 0.0), s_floor=p.get("s_floor", 0.0), s_two=p.get("s_two", False),
              e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False),
              trap_depth=p.get("trap_depth", 0.55),
-             g_variant=p.get("g_variant", 0))   # the g set (round17.G_VARIANTS); 0 = the round-28 g
+             g_variant=p.get("g_variant", 0),   # the g set (round17.G_VARIANTS); 0 = the round-28 g
+             e_variant=p.get("e_variant", 0))   # the e set (round17.E_VARIANTS); 0 = the round-36 e
     # Round 27: the overshoot is the INK's edge past the x-height, not the
     # stroke's centerline. Every bowl adds half a hairline outside its
     # centerline, so a 14-unit design overshoot drew rounds 41 units past

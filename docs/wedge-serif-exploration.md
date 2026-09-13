@@ -1156,3 +1156,19 @@ tail cut 60° short of the neck); G6 heavy loop (constant 82-unit ring).
 `fonts/g-variants/Fjord-G1..G6.ttf`, page `fjord-g-variants.html`. G2's long
 neck reads as a diagonal at 54 px (the pen thinning a down-left stroke at the
 0.6 floor); G4's loop reads small; G6's loop is the heaviest thing on its line.
+
+## Round 38 (2026-09-12): ten e variants
+
+Owner: "give me ten diverse options for 'e' in between before and after;
+have a stronger counter inside, different crossbar, different noses."
+
+`round17.E_VARIANTS`, selected by the design key `e_variant` (0 = the round
+36 e, glyph-identical to the shipped build, checked by coordinate compare).
+Knobs: `deg` bar tilt, `bar` height over xh (lower = bigger eye), `th` bar
+thickness over the pen's at that angle (floor 0.42 stem), `end` where the
+lower arm stops on the bowl, `nose` cut / flare / taper / beak / blunt.
+E1 level 0.55 0.8 cut; E2 2.5°; E3 5° 0.62 flare; E4 3° 0.55 0.75 taper;
+E5 level 1.2 beak; E6 5° 0.56 end 330 blunt; E7 8° end 305 cut; E8 3° 0.62
+0.6 flare; E9 level 0.85 end 330 beak; E10 4° 0.54 0.9 end 312 taper.
+`fonts/e-variants/FjordE-E1..E10.ttf`, page `fjord-e-variants.html`.
+Awaiting the pick (and the g pick from round 36).

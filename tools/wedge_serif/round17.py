@@ -156,6 +156,26 @@ def make_cut(seed, every, amp):
     return cut
 
 E_BAR_DEG = 5.0     # the e's bar rises left to right by this (owner 2026-09-12); 0 = level, as before
+# Round 38: ten e variants "in between before and after; stronger counter
+# inside, different crossbar, different noses". deg = bar tilt; bar = bar
+# height over xh (lower = bigger eye); th = bar thickness over the pen's at
+# that angle; end = where the lower arm stops (degrees on the bowl, 318 =
+# as now, less = shorter, more = closes further); nose = the terminal:
+# 'cut' (pen cut + flare, as now), 'flare' (big flare, square end), 'taper'
+# (thins to a point), 'beak' (the C's wedge), 'blunt' (square, no flare).
+E_VARIANTS = [
+ dict(deg=5.0, bar=0.58, th=1.0, end=318, nose='cut'),    # 0: round 36, as shipped
+ dict(deg=0.0, bar=0.55, th=0.8, end=318, nose='cut'),    # 1: level bar, thinner, bigger eye
+ dict(deg=2.5, bar=0.58, th=1.0, end=318, nose='cut'),    # 2: halfway tilt
+ dict(deg=5.0, bar=0.62, th=1.0, end=318, nose='flare'),  # 3: high bar, small eye, flared nose
+ dict(deg=3.0, bar=0.55, th=0.75, end=318, nose='taper'), # 4: low thin bar, pointed nose
+ dict(deg=0.0, bar=0.58, th=1.2, end=318, nose='beak'),   # 5: level heavy bar, beaked nose
+ dict(deg=5.0, bar=0.56, th=1.0, end=330, nose='blunt'),  # 6: long arm closing further, blunt nose
+ dict(deg=8.0, bar=0.58, th=1.0, end=305, nose='cut'),    # 7: steep Jenson tilt, short arm
+ dict(deg=3.0, bar=0.62, th=0.6, end=318, nose='flare'),  # 8: high hairline bar, big flare
+ dict(deg=0.0, bar=0.58, th=0.85, end=330, nose='beak'),  # 9: level, long arm, beak
+ dict(deg=4.0, bar=0.54, th=0.9, end=312, nose='taper'),  # 10: lowest bar (biggest eye), pointed
+]
 G_EAR_DEG = 35.0    # where on the g's bowl the ear wedge sits (deg from the bowl's right extreme)
 
 # The g set, owner 2026-09-12: "make multiple improved 'g's for me to choose
@@ -317,12 +337,13 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         # before; the eye's counter closes along the bar's TOP edge, which
         # now slopes with it, and the outer arc meets the bar at each end's
         # own height. Level bar = E_BAR_DEG 0, byte-identical to before.
-        bar_y = xh * 0.58
-        tilt = math.radians(E_BAR_DEG); slope = math.tan(tilt)
+        V = E_VARIANTS[c.get("e_variant", 0)]
+        bar_y = xh * V["bar"]
+        tilt = math.radians(V["deg"]); slope = math.tan(tilt)
         # the bar IS the strip between the eye's two closing edges (no separate
         # stroke): its ends are the eye contour's, cx - rx - 0.05 s to cx + rx + 0.08 s
         bar_at = lambda x: bar_y + (x - cx) * slope
-        bar_th = max(c["pen"].th((math.cos(tilt), math.sin(tilt))), s * 0.5)
+        bar_th = max(c["pen"].th((math.cos(tilt), math.sin(tilt))) * V["th"], s * 0.42)
         yR = bar_at(cx + rx); yL = bar_at(cx - rx)
         a_r = math.asin(max(-1.0, min(1.0, (yR - xh / 2) / ry)))            # where the arc meets the bar, right
         a_l = math.pi - math.asin(max(-1.0, min(1.0, (yL - xh / 2) / ry)))  # ...and left
@@ -335,8 +356,17 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         # lower arm: continues from the eye's own left end (a_l), round
         # the bottom, to the terminal. Its start overlaps the eye by a few
         # degrees; the trap is the notch the taper leaves under the bar.
-        arm = A.ellipse(cx, xh / 2, rx, ry, a_l - 0.06, math.radians(318), 70, c["k"])
-        A.curve(c, P, arm, A.compose(A.taper_in(0.55 - 0.15 * trap, 0.12), A.flare_end(0.25, 0.12)), cut1=c["cut"]); return P
+        arm = A.ellipse(cx, xh / 2, rx, ry, a_l - 0.06, math.radians(V["end"]), 70, c["k"])
+        tin = A.taper_in(0.55 - 0.15 * trap, 0.12); nose = V["nose"]
+        if nose == 'cut':     A.curve(c, P, arm, A.compose(tin, A.flare_end(0.25, 0.12)), cut1=c["cut"])
+        elif nose == 'flare': A.curve(c, P, arm, A.compose(tin, A.flare_end(0.5, 0.2)))
+        elif nose == 'taper': A.curve(c, P, arm, A.compose(tin, A.taper_out(0.7, 0.3)))
+        elif nose == 'blunt': A.curve(c, P, arm, tin)
+        elif nose == 'beak':
+            A.curve(c, P, arm, tin)
+            tn = A.tangents(arm)[-1]; d = tn; nrm = (-d[1], d[0])
+            P.append(A.bracket_wedge(arm[-1], d, nrm, c["pen"].th(tn) * 1.1, c["wl"] * 0.85, c["wd"] * 0.85, -1, drop=0, fillet=c["fillet"]))
+        return P
 
     def g_a(c):
         P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; x = 360 * wf
