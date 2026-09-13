@@ -2001,3 +2001,14 @@ H 45/45, O 37/37. Smallest enclosed counters at 54 px: # 36 white px, @ 53,
 % 54, e 55, a 88. Specimen, slider page, proof page republished; both TTFs
 sent. NOT in this build: the figure rulings of rounds 64-73 and the &, which
 wait on the 9's pick and merge in one figures.py + marks.py commit.
+
+Round 73 built (2026-09-13): `NINE_FLAG_REACH` back to 12.4 (round 71's
+apex), `NINE_TAIL_TOP` scales the tail under the bowl with the centerline
+dropped by half the thinning so all of it comes off the top edge;
+`NINE_TAIL_MIN` 0.55 (the 6's floor) binds at 0.60 and is released at 0.45.
+Tail under the bowl 78 / 59 / 49 / 36 units (4.2 / 3.2 / 2.6 / 2.0 px at 54
+px); paper between tail and bowl at 54 px 115 / 132 / 140 / 155 px (rises
+monotonically; the narrowest-column count is grid-sensitive); counter, lsb
+37, "19"/"99" gaps unchanged; advance 487-488 (rounding). Page
+https://claude.ai/code/artifact/PENDING73. All four fonts carry the ruled
+5, 8, 6 and the round_bowl &.
