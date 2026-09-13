@@ -114,7 +114,8 @@ def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
     """A capital stem at cap weight with the LOWERCASE's serifs exactly (owner
     2026-09-12): one wedge at the top, pointing left, and a foot both sides,
     at the sizes alphabet2.stem uses. top: 'left'|'right'|None ('both' is
-    mapped to left; 'right' points OUT on a right-hand stem, round 32);
+    mapped to left; 'right' points OUT on a right-hand stem, round 32;
+    'right+' is 'right' plus a small left wedge, round 34, the U only);
     foot: 'both'|'left'|'right'|None."""
     pts = line((x, y0), (x, y1), 36)
     prof = lambda t: c["ent"](t) * CAP_STEM * thin
@@ -124,8 +125,15 @@ def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
     if top:
         # round 32 (owner: "the top right serif of caps needs to flare out, not
         # inward"): a RIGHT stem's top wedge points right; 'left'/'both' point left.
-        side = -1 if top == "right" else 1
+        side = -1 if top in ("right", "right+") else 1
         P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"], c["wd"], side, drop=c["drop"], fillet=c["fillet"]))
+        if top == "right+":
+            # round 34 (owner: the U's top right serif should "go slightly to
+            # the left too"): a second, small wedge to the left beside the
+            # full right one -- 0.4 of its length, 0.6 of its depth, 0.4 of
+            # its drop. Only the U's right stem asks for it; 'left', 'right'
+            # and 'both' draw exactly what they did.
+            P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.4, c["wd"] * 0.6, 1, drop=c["drop"] * 0.4, fillet=c["fillet"]))
     fsides = {"both": (-1, 1), "left": (-1,), "right": (1,), None: ()}
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
@@ -154,7 +162,24 @@ def g_A(c):
     P = []; C = capH(c); w = _w(c, "A", 600); s = c["s"] * CAP_STEM
     # round 33: the thin stroke ends INSIDE the thick one under the apex (its
     # square end poked out past it)
-    diag(c, P, (s * 0.3, 0), (w / 2 - s * 0.06, C - s * 0.32), thin=0.72 / CAP_STEM, serif0=-1)
+    # round 34 (owner: "flatten the bottom left kick of A"): the thin leg's
+    # foot was diag()'s -- an end face square to the leg and a wedge square
+    # to that, so the serif rose off the baseline like a kick (its tip 45
+    # units up). Now the end face is pen-cut FLAT onto the baseline (cut0 =
+    # the leg's lean) and the wedge is built by hand: bracket up the leg's
+    # own left edge, tip ON the baseline, no drop -- the garalde A's flat
+    # left foot. The right foot is untouched.
+    p0, p1 = (s * 0.3, 0), (w / 2 - s * 0.06, C - s * 0.32)
+    pts = line(p0, p1, 30); tn = tangents(pts)[0]; th = c["pen"].th(tn) * 0.72
+    P.append(A.outline(pts, c["pen"], lambda t: 0.72, cut0=-math.atan2(tn[0], tn[1])))
+    if c["wl"] > 0:
+        nrm = (-tn[1], tn[0])                                     # the leg's left-hand normal
+        Apt = (p0[0] - th / 2 / tn[1], 0.0)                       # the flat face's left corner
+        Cpt = (Apt[0] + tn[0] * c["wd"] * 0.9, tn[1] * c["wd"] * 0.9)   # up the leg's left edge
+        B = (Apt[0] - c["wl"] * 0.9, 0.0); f = c["fillet"]
+        ctrl = (Apt[0] * f + Cpt[0] * (1 - f), Apt[1] * f + Cpt[1] * (1 - f))
+        fil = [((1-t)**2*Cpt[0] + 2*(1-t)*t*ctrl[0] + t*t*B[0], (1-t)**2*Cpt[1] + 2*(1-t)*t*ctrl[1] + t*t*B[1]) for t in [i / 10 for i in range(11)]]
+        P.append([(Cpt[0] - nrm[0] * th / 2, Cpt[1] - nrm[1] * th / 2)] + fil + [Apt, (p0[0], 0.0)])
     diag(c, P, (w - s * 0.3, 0), (w / 2 - s * 0.18, C), thin=1.0 / CAP_STEM, serif0=1)
     A.curve(c, P, line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28), 10)); return P
 
@@ -188,6 +213,14 @@ def g_D(c):
     th_h = c["pen"].th((1, 0)); ry = C / 2 - th_h / 2       # outer top lands ON the cap height
     R = _round17()
     outer, inner = R.ring(c, edge + rx * 0.05, C / 2, rx, ry, -math.pi / 2, math.pi / 2, 110, cut=c.get("_cut"))
+    # round 34 (owner: "make D slightly more weighted by opening the bottom"):
+    # the ring's pen is symmetric top to bottom, so the D's bottom stroke was
+    # as thin as its top (55). The counter's lower half is lifted toward the
+    # baseline -- by 0.3 of the pen's horizontal at the very bottom, nothing
+    # at the sides -- so the bottom stroke runs 72 into the stem and the
+    # counter's lower curve opens; the outer contour, width and height stay.
+    cy = C / 2
+    inner = [(px, py + th_h * 0.3 * max(0.0, (cy - py) / ry) ** 1.5) for px, py in inner]
     outer = [(edge - s * 0.06, outer[0][1])] + outer + [(edge - s * 0.06, outer[-1][1])]
     inner = [(edge + 1, inner[0][1])] + inner + [(edge + 1, inner[-1][1])]
     P.append(outer); P.append(R.Hole(inner)); return P
@@ -205,18 +238,48 @@ def g_F(c):
     bar(c, P, x, x + w, C, serif_ends=[('right', -1)], align="top")
     bar(c, P, x, x + w * 0.72, C * 0.54, thick=0.9); return P
 
+def _ramp(v0, v1, t0, t1):
+    """A profile that holds v0 up to t0, eases to v1 by t1 and holds it: the
+    weight hand-over where one stroke becomes another (G's bowl into its
+    spur, J's stem into its hook)."""
+    def f(t):
+        if t <= t0: return v0
+        if t >= t1: return v1
+        u = (t - t0) / (t1 - t0); return v0 + (v1 - v0) * (3*u*u - 2*u*u*u)
+    return f
+
 def g_G(c):
     P = []; C = capH(c); rx = _w(c, "G", 340); ry = C / 2 + c["over"]; s = c["s"] * CAP_STEM
-    pts = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(350), 110, c["k"])
-    A.curve(c, P, pts, flare_end(0.3, 0.14), cut0=c["cut"])
+    th_v = c["pen"].th((0, 1)); th_h = max(c["pen"].th((1, 0)), c["s"] * 0.5); yb = C * 0.46
+    # round 34 ("the multiple overlap issue"): the spur was three pieces --
+    # the bowl's flared lower terminal, a separate stem and the bar -- and
+    # every square end showed: the terminal's corner past the stem's right
+    # edge, the stem's foot below the bowl, the stem's top beside the bar.
+    # The spur is now the bowl's OWN stroke: the arc stops at 312 degrees,
+    # a quadratic bend carries it into a vertical run whose right edge is
+    # the bowl's rightmost outer edge (so the outer contour is one line),
+    # the weight ramps to the cap stem's over the bend, and the run ends
+    # buried at the bar's centerline. The bar then crosses OVER the spur
+    # and its pen-cut end hangs a little past it, as the garalde bar does.
+    xg = 2 * rx + th_v / 2 - s / 2
+    arc = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(312), 100, c["k"])
+    p0 = arc[-1]; d = (arc[-1][0] - arc[-3][0], arc[-1][1] - arc[-3][1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
+    ctrl = (xg, p0[1] + d[1] * (xg - p0[0]) / d[0])           # where the arc's end tangent meets the spur's line
+    p1 = (xg, ctrl[1] + (ctrl[1] - p0[1]) * 0.7)             # the vertical run begins here
+    q1 = (p0[0] + (ctrl[0] - p0[0]) * 2 / 3, p0[1] + (ctrl[1] - p0[1]) * 2 / 3)
+    q2 = (p1[0] + (ctrl[0] - p1[0]) * 2 / 3, p1[1] + (ctrl[1] - p1[1]) * 2 / 3)
+    bend = bez(p0, q1, q2, p1, 14)[1:]
+    run = line(p1, (xg, yb - th_h * 0.3), 6)[1:]                # buried in the bar, 10 units above its underside
+    pts = arc + bend + run; N = len(pts) - 1
+    t0 = (len(arc) - 1) / N; t1 = (len(arc) + len(bend) - 1) / N
+    A.curve(c, P, pts, _ramp(1.0, CAP_STEM, t0, t1), cut0=c["cut"])
     if c["wl"] > 0:
         tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
         P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
-    # round 26: the spur's top wedge under the bar left a notch; the stem now
-    # ends flush with the bar's top edge and carries no wedge of its own.
-    xg = 2 * rx - s * 0.55; th_h = max(c["pen"].th((1, 0)), c["s"] * 0.5); yb = C * 0.46
-    _cstem(c, P, xg, C * 0.03, yb + th_h / 2, top=None, foot=None)
-    bar(c, P, xg - rx * 0.55, xg + s * 0.25, yb); return P   # round 33: ends inside the spur (its sheared end poked out)
+    # the bar's cut end: its top corner 12 inside the spur's right edge, its
+    # bottom corner 8 past it -- the run's top corner stays 4 inside the
+    # sheared face under the pen's 3-unit jitter
+    bar(c, P, 2 * rx - s * 0.55 - rx * 0.55, xg + s * 0.45, yb); return P
 
 def g_H(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
@@ -227,20 +290,22 @@ def g_I(c):
     P = []; _cstem(c, P, c["s"] * CAP_STEM / 2, 0, capH(c)); return P
 
 def g_J(c):
-    """The line across the top is kept always (owner 2026-09-12): a real
-    bar, not two serifs that a style could drop. Descends a little, as the
-    garalde J does, and hooks left."""
+    """Round 34 (owner: "remove top bar of J"): the line across the top is
+    gone -- this reverses the 2026-09-12 ruling that kept it -- and the stem
+    ends in the I's top wedge. Descends a little, as the garalde J does, and
+    hooks left. Same round: the stem (cap weight, 1.14 x at its swollen
+    foot) used to run half a stem into a hook drawn at the bare pen weight
+    and poke 12 units out of it on both sides; the hook now STARTS at the
+    stem's foot weight and eases to the pen's by its turn, and the stem's
+    last 6% thins to 0.55 so its end face is buried in the hook."""
     P = []; C = capH(c); s = c["s"] * CAP_STEM; r = _w(c, "J", 190); x = r * 1.05 + s / 2
-    # round 30 ("J has an awful crossbar"): the bar is built like the T's --
-    # 0.62 of the pen's horizontal, its TOP on the cap line, square ends, a
-    # wedge hanging from the left end -- and the stem stops inside it.
-    th = max(c["pen"].th((1, 0)) * 0.62, c["s"] * 0.45); yb = C - th / 2
-    _cstem(c, P, x, r * 0.25 - s * 0.5, yb + th * 0.5 - s * 0.05, top=None, foot=None)
-    P.append(A.outline(line((x - r * 0.78, yb), (x + r * 0.42, yb), 12), c["pen"], lambda t: th / c["pen"].th((1, 0))))
-    if c["wl"] > 0:
-        P.append(bracket_wedge((x - r * 0.78, yb), (-1, 0), (0, -1), th, c["wl"] * 0.9, c["wd"], 1, drop=0, fillet=c["fillet"]))
+    pts = line((x, r * 0.25 - s * 0.5), (x, C), 36)
+    P.append(A.outline(pts, c["pen"], compose(lambda t: c["ent"](t) * CAP_STEM, taper_in(0.55, 0.06))))
+    if c["wl"] > 0 and c["serif"] == "wedge":
+        th = c["pen"].th((0, 1)) * CAP_STEM
+        P.append(bracket_wedge((x, C), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"], c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
     tail = bez((x, r * 0.25), (x, -c["desc"] * 0.42), (x - r * 0.55, -c["desc"] * 0.55), (x - r * 1.1, -c["desc"] * 0.1), 40)
-    A.curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"]); return P
+    A.curve(c, P, tail, compose(_ramp(CAP_STEM * c["ent"](0.0), 1.0, 0.1, 0.45), flare_end(0.3, 0.35)), cut1=c["cut"]); return P
 
 def g_K(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "K", 500)
@@ -255,8 +320,19 @@ def g_K(c):
     # round 32 ("extend kick of K to match to arm better"): the leg springs
     # from the arm a quarter of the way out from the stem (was 0.42) and is
     # buried a third of a stem into it, so it runs along the arm to the stem.
-    u = 0.25; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
-    kick(c, P, J, s, bury=0.35, angle=math.radians(52)); return P   # round 32: the A's leg, splayed wider (owner: "kicks of R A and K need to be at all different angles")
+    # round 34 (owner: "fix the arm vs kick unbalance of K"): the arm ran 30
+    # degrees to x + w while the leg fell at 52 degrees and stopped 130 units
+    # short of it, a long thin arm over a short thick leg. Now the junction
+    # is 0.18 of the way out (0.54 C, 60 units off the stem, Garamond's) and
+    # the leg's angle is SOLVED so its foot lands 0.1 stem past the arm's
+    # tip -- about 38 degrees, Garamond's leg, still apart from the A's 65
+    # and the R's 60. The burial is 0.1 stem: at 0.35 (and still at 0.2)
+    # the leg's tapered start face poked out ABOVE the arm, because a leg
+    # buried along its own line leaves the arm's band at 0.93 per unit and
+    # the arm at 30 degrees is only ~23 units to a side.
+    u = 0.18; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    angle = math.atan2(J[1], A0[0] + s * 0.1 - J[0])
+    kick(c, P, J, s, bury=0.1, angle=angle); return P
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
@@ -311,6 +387,9 @@ def g_S(c):
     def prof(t):
         i = min(n, int(round(t * n))); th = c["pen"].th(tn[i]); mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)
         want = th * (1 - mid) + st * 0.92 * mid   # the spine carries the weight
+        # round 34 (owner: "make the S bottom heavier"): the lower bowl, t in
+        # 0.52..0.96, gains up to 20% at t = 0.74; the top half is untouched
+        bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
         return want / th * flare_end(0.25, 0.1)(t) * flare_end(0.25, 0.1)(1 - t)
     A.curve(c, P, spine, prof)   # round 33: no pen cuts (both terminals were thorns)
     if c["wl"] > 0:   # the C's beak on the top terminal
@@ -347,7 +426,7 @@ def g_U(c):
     amt = c["ent"](0.0) - 1.0   # the stems swell at their ends (entasis); the bowl matches where they meet
     bump = lambda t: 1.0 + amt * (max(0.0, 1 - t / 0.15) + max(0.0, 1 - (1 - t) / 0.15))
     A.curve(c, P, pts, compose(lambda t: CAP_STEM * (1 - 0.22 * t), bump, taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
-    _cstem(c, P, x1, y0 - s * 0.5, C, top="right", foot=None, thin=0.78); return P
+    _cstem(c, P, x1, y0 - s * 0.5, C, top="right+", foot=None, thin=0.78); return P   # round 34: a small left wedge beside the right one
 
 def g_V(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "V", 560)
@@ -356,12 +435,41 @@ def g_V(c):
 
 def g_W(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "W", 820)
-    diag(c, P, (s * 0.3, C), (w * 0.26, 0), thin=1.0 / CAP_STEM, serif0=1)
-    diag(c, P, (w * 0.5, C), (w * 0.26 + s * 0.2, 0), thin=0.72 / CAP_STEM)
-    diag(c, P, (w * 0.5, C), (w * 0.74, 0), thin=1.0 / CAP_STEM)
-    diag(c, P, (w - s * 0.3, C), (w * 0.74 + s * 0.2, 0), thin=0.72 / CAP_STEM, serif0=-1)
-    if c["wl"] > 0:
-        P.append(bracket_wedge((w * 0.5, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.9, c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
+    f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
+    # round 34: the four strokes met at the feet and the middle apex with
+    # their square ends crossing -- a notch under each foot where the thin
+    # stroke's end face crossed the thick one's, and a bumpy top where both
+    # inner strokes' faces and a wedge built for a VERTICAL stem stacked at
+    # the apex. Now each thin stroke ends 0.35 stem INSIDE the thick stroke
+    # it meets (as the A's does under its apex), so the feet are the thick
+    # strokes' end faces alone; the middle apex is the inner thick stroke's
+    # top face, and the thin stroke's top-left corner sits ON that face's
+    # left corner (2.5 units down the edge) so the thin's own left wedge
+    # crowns the apex and its bracket flows into the thin's left edge, as
+    # the garalde W's does.
+    def into(p, q, k=0.35):   # the point k stems from q toward p, inside the stroke p -> q
+        dx, dy = p[0] - q[0], p[1] - q[1]; L = math.hypot(dx, dy)
+        return (q[0] + dx / L * k * s, q[1] + dy / L * k * s)
+    def unit(p, q): dx, dy = q[0] - p[0], q[1] - p[1]; L = math.hypot(dx, dy); return (dx / L, dy / L)
+    def stroke(p0, p1, thin, serif0=None):
+        # diag() with 40 samples instead of 30. The Cut post-op ROUNDS every
+        # polygon under 20 vertices (its serif rule), and a 30-sample line
+        # decimated one-in-four keeps 18 or 20 depending on the phase, so two
+        # of the four strokes had their end corners cut 25% and the joins
+        # built on those corners could not close. 40 samples keep 22-24.
+        pts = line(p0, p1, 40)
+        P.append(A.outline(pts, c["pen"], lambda t: thin))
+        if serif0 and c["wl"] > 0:
+            tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
+            P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * thin, c["wl"] * 0.9, c["wd"] * 0.9, serif0, drop=c["drop"], fillet=c["fillet"]))
+    stroke((s * 0.3, C), f1, 1.0, serif0=1)
+    d3 = unit(apex, f2); n3 = (-d3[1], d3[0]); th3 = c["pen"].th(d3)
+    corner = (apex[0] - n3[0] * th3 / 2 + d3[0] * 2.5, apex[1] - n3[1] * th3 / 2 + d3[1] * 2.5)
+    foot1 = into((s * 0.3, C), f1)
+    d2 = unit(apex, foot1); n2 = (-d2[1], d2[0]); th2 = c["pen"].th(d2) * 0.72
+    stroke((corner[0] + n2[0] * th2 / 2, corner[1] + n2[1] * th2 / 2), foot1, 0.72, serif0=1)
+    stroke(apex, f2, 1.0)
+    stroke((w - s * 0.3, C), into(apex, f2), 0.72, serif0=-1)
     return P
 
 def g_X(c):

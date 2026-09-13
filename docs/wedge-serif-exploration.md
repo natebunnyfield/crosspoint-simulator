@@ -1060,7 +1060,7 @@ width-dependent geometry). Note `round19.build`, the older builder, ignores
 the knob; the font ships from `round20`. Proof `lc-proof.png`. Done by a
 subagent scoped to `round20.py` and `round19.py`.
 
-## Round 36 (2026-09-12, in progress): G J W joins; A J K D; word weight
+## Round 36 (2026-09-12): G J W joins; A J K D S U; e and g; word weight
 
 Owner, three messages: "subagent for fixing the multiple overlap issue with
 G J W"; "flatten the bottom left kick of 'A'; remove top bar of 'J'; fix the
@@ -1093,3 +1093,66 @@ each face's x outline, not OS/2 -- Dante MT's `sxHeight` is 403 on a 2048 em
 (it rendered at twice size); Fjord keeps its design 415 because its x carries
 wedge tips 26 units above it. Fjord in the page is the round-33 build (the
 agents' rounds 35–36 were not yet merged).
+
+**Results, merged and rebuilt from one state of the sources (the proof page
+`fjord-round36.html`, the agents' PNGs in the scratchpad).**
+
+Capitals agent (`latin.py`): **G** -- the spur was three polygons (the bowl's
+flared terminal poking 40 units past the stem, a stem whose foot stood below
+the bowl's edge, a bar whose "flush" top differed from the stem's by the
+jitter); the spur is now the bowl's own stroke, the arc stopping at 312° and
+bending into a vertical run whose right edge is the bowl's outermost, its
+profile ramping to CAP_STEM (`_ramp`), ending buried in the bar. **J** -- bar
+removed (ruling reversed); the I's top wedge; the hook starts at the stem's
+foot weight and the stem's last 6% tapers into it (its 100-unit foot had poked
+12 units out both sides of a 77-unit hook). The J's hook now hangs ~160 units
+into the previous letter's space, unmasked by the bar; "Jade", "Jigsaw" tuck
+without collision, as Garamond's. **W** -- thin strokes end 0.35 s inside the
+thick ones at the feet; the apex is the thick stroke's face with the thin's
+wedge crowning it; 40-sample lines (see the trap). **A** -- the left leg's end
+face pen-cut flat on the baseline and its wedge built by hand, tip on the
+baseline (it rose 45 units). **K** -- junction u = 0.18 → 0.54 C, 59 units off
+the stem; the leg angle solved so the foot lands 0.1 s past the arm's tip:
+37.1° (arm 30.4°; A 65, R 60 stand); burial 0.1 s (0.2 and 0.35 poked above
+the thin arm). **D** -- the counter's lower half lifted by
+0.3·th_h·((cy − y)/ry)^1.5: bottom stroke 55 → 72 into the stem, sides and
+outer contour unchanged. **S** -- profile +20% over t 0.52–0.96, peak 0.74.
+**U** -- `_cstem` `top="right+"`: the full right wedge plus a left one at 0.4
+length / 0.6 depth; H and N byte-identical.
+
+**Trap (not fixed, shared code):** `round17.Cut` chaikin-rounds any polygon
+under 20 vertices. A `diag()` stroke is a 30-sample line decimated one in
+four, which keeps 18 or 20 vertices depending on the phase, so about three in
+four diagonal strokes get their end-face corners cut 25% (12–20 units) at
+random -- shared-corner constructions fail (the W apex moved 12 units). `g_W`
+uses 40-sample lines; changing `diag` itself to 40 would touch every
+diagonal capital and is left for a decision.
+
+Lowercase agent (`alphabet2.py`, `round17.py`): word darkness (antialiased
+ink over advance × asc..desc band at 54 px) is dominated by ascender count --
+every darkest word has one (all, if, did, had, off), every lightest is
+x-height-only with o r v w (or, over, our, very). So each letter's darkness
+relative to its lowercase median was compared with EB Garamond 400 and
+Hoefler Text; only letters off in the same direction in BOTH, for a stroke-
+weight reason, were touched. Word spread is structural (sd 0.0114 → 0.0115).
+A re-cut alone moves a 54 px reading ±3% (decimation phase), so outline-area
+deltas are the honest figure. Changes: **i j** dot radius 0.50 → 0.62 stem
+(+4%); **r** arm weight floor 0.78 stem (it climbed at the nib's thin angle
+as a 33-unit hairline), flare 0.50/0.45, join taper 0.50 (+5.6%; still ~10%
+under Garamond, whose r has a beaked arm -- a design change, stopped);
+**e** bar rises 5° (`E_BAR_DEG`), thickness the pen's at that angle 53 → 50,
+eye +2.7%, advance 502 → 493; **g** ear a `bracket_wedge` at 35° on the bowl
+(`G_EAR_DEG`), the counter untouched. Left alone with reasons: o (matches
+Garamond's o/n ratio), f (its ink is the wide bar and double foot), u, p, g,
+t, x. `tools/wedge_serif/word_weight.py` is the instrument. The list the
+owner pasted is 148 tokens ("their" twice), measured as 147.
+
+**Six g variants** for the owner's pick, `round17.cp_glyphs.g_g` parameterized
+by `G_VARIANTS[c["g_variant"]]` (default 0 = the round-28 g, byte-identical):
+G1 wedge ear; G2 garalde (bowl rx 136, long neck, low flat loop, flat ear); G3
+Jenson/Doves (bowl rx 200, round loop, short neck, tick ear); G4 narrow and
+tall (bowl rx 122, loop rx 112, straight neck); G5 open loop (300° stroke,
+tail cut 60° short of the neck); G6 heavy loop (constant 82-unit ring).
+`fonts/g-variants/Fjord-G1..G6.ttf`, page `fjord-g-variants.html`. G2's long
+neck reads as a diagonal at 54 px (the pen thinning a down-left stroke at the
+0.6 floor); G4's loop reads small; G6's loop is the heaviest thing on its line.

@@ -132,15 +132,16 @@ def bite(polys, apex, direction, half_angle, keep_hole=True, reach=None):
     return out
 
 # ---------------------------------------------------------------- counterpunched bowls
-def ring(c, cx, cy, rx, ry, a0, a1, n=96, k=None, cut=None):
+def ring(c, cx, cy, rx, ry, a0, a1, n=96, k=None, cut=None, th_fn=None):
     """Outer (cut) and counter (clean) of a bowl segment from a0 to a1 (rad).
     The pen's thickness is kept, so the ring has its stress; the counter is
-    the punch: the pen's inner edge, untouched."""
+    the punch: the pen's inner edge, untouched. `th_fn(tangent)` replaces
+    the pen's thickness (the g variant with a loop at full stem weight)."""
     k = k or c["k"]; pen = c["pen"]
     pts = A.ellipse(cx, cy, rx, ry, a0, a1, n, k); tans = A.tangents(pts)
     outer, inner = [], []
     for p, tn in zip(pts, tans):
-        th = pen.th(tn); ox, oy = p[0] - cx, p[1] - cy; L = math.hypot(ox, oy) or 1
+        th = th_fn(tn) if th_fn else pen.th(tn); ox, oy = p[0] - cx, p[1] - cy; L = math.hypot(ox, oy) or 1
         ox, oy = ox / L, oy / L
         outer.append((p[0] + ox * th / 2, p[1] + oy * th / 2)); inner.append((p[0] - ox * th / 2, p[1] - oy * th / 2))
     if cut: outer = cut(outer)
@@ -153,6 +154,26 @@ def make_cut(seed, every, amp):
         q = [p for i, p in enumerate(poly) if (i + ph) % every == 0 or i == len(poly) - 1]
         return [(x + rng.uniform(-amp, amp), y + rng.uniform(-amp, amp)) for x, y in q]
     return cut
+
+E_BAR_DEG = 5.0     # the e's bar rises left to right by this (owner 2026-09-12); 0 = level, as before
+G_EAR_DEG = 35.0    # where on the g's bowl the ear wedge sits (deg from the bowl's right extreme)
+
+# The g set, owner 2026-09-12: "make multiple improved 'g's for me to choose
+# from". Selected by the design key `g_variant` (round20.build(over=
+# {"g_variant": n}); 0 is the round-28 g, byte-for-byte). bowl_rx / loop_rx in
+# units x wf; bowl_h a fraction of the x-height; loop_ry and loop_cy fractions
+# of the descender; loop_cx the loop center's offset from the bowl's; angles
+# in degrees on the superellipse (neck_from on the bowl, loop_entry on the
+# loop, both measured as ellipse() does, 0 = right, 90 = up).
+G_VARIANTS = {
+    0: dict(name="round 28 g", bowl_rx=152, bowl_h=0.64, ear="flick", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118),
+    1: dict(name="G1 ear as a top-right wedge serif", bowl_rx=152, bowl_h=0.64, ear="wedge", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118),
+    2: dict(name="G2 garalde: smaller bowl, long neck, wide flat loop, flat ear", bowl_rx=136, bowl_h=0.56, ear="flat", loop_rx=205, loop_ry=0.37, loop_cx=42, loop_cy=0.54, neck_from=262, loop_entry=120),
+    3: dict(name="G3 Jenson/Doves: bowl near the o's width, round loop, short neck, tick ear", bowl_rx=200, bowl_h=0.72, ear="tick", loop_rx=205, loop_ry=0.46, loop_cx=8, loop_cy=0.44, neck_from=258, loop_entry=116),
+    4: dict(name="G4 narrow and tall: bowl narrower than the o, loop narrower than the bowl and deep, neck near vertical", bowl_rx=122, bowl_h=0.64, ear="flick", loop_rx=112, loop_ry=0.47, loop_cx=6, loop_cy=0.47, neck_from=268, loop_entry=100, neck_bend=0.0),
+    5: dict(name="G5 open loop: the tail returns toward the neck and stops short, hairline", bowl_rx=152, bowl_h=0.64, ear="flick", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118, loop="open", loop_sweep=300),
+    6: dict(name="G6 heavy loop: loop at full stem weight all round, wedge ear", bowl_rx=152, bowl_h=0.64, ear="wedge", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118, loop_w="stem"),
+}
 
 def cp_glyphs(seed, every, amp, trap, counter_cut=None):
     """Glyph overrides that build bowls as outer + counter."""
@@ -224,34 +245,58 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
     def g_g(c):
         """Double-storey g, round 28 (owner: "connector stem on the left side
         instead; make the two ovals better match the rest of the lowercase
-        strokes and visual rhythm"). Garamond's proportions: an upper bowl
-        narrower than the o, its top at the rounds' overshoot and its bottom
-        at 0.36 xh; the neck leaves the bowl's bottom-LEFT and swings left
-        and down into a lower loop that is wider and flatter than the bowl
-        and reaches the descender; the ear a short flick off the top right.
-        Both bowls are counterpunched rings on the pen, so they carry the
-        o's stress; the neck holds a set weight (the pen thins a down-left
-        diagonal to nothing, as the j's tail did)."""
+        strokes and visual rhythm"), and 2026-09-12 (owner: "make multiple
+        improved 'g's for me to choose from") a SET selected by the design
+        key `g_variant` (0 = the round-28 g, unchanged; see G_VARIANTS).
+        Every variant: an upper bowl and a lower loop as counterpunched rings
+        on the pen (so they carry the o's stress), the neck on the LEFT with
+        a weight floor of 0.6 stem, the ear off the bowl's upper right and
+        never over the bowl, the loop the g's widest part (it sets the
+        sides, round 28)."""
+        V = G_VARIANTS[c.get("g_variant", 0)]
         P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]; over = c["over"]
-        rx = 152 * wf; ry = (xh * 0.64 + over) / 2; cy = xh + over - ry; cx = rx + s * 0.35
+        rx = V["bowl_rx"] * wf; ry = (xh * V["bowl_h"] + over) / 2; cy = xh + over - ry; cx = rx + s * 0.35
         outer, inner = ring(c, cx, cy, rx, ry, 0, two, 100, cut=cut)
         P.append(outer); P.append(Hole(ccut(inner) if ccut else inner))
-        # ear: off the bowl's upper right, out and a little up, cut at the pen angle
-        a = math.radians(28); ex, ey = cx + rx * math.cos(a), cy + ry * math.sin(a)
-        A.curve(c, P, A.line((ex - s * 0.15, ey - 6), (ex + 92 * wf, ey + 22), 8), lambda t: 0.75, cut1=c["cut"])
-        # lower loop: wider and flatter, centered a little right of the bowl
-        lrx = 190 * wf; lry = desc * 0.42; lcx = cx + 30 * wf; lcy = -desc * 0.47
-        outer2, inner2 = ring(c, lcx, lcy, lrx, lry, 0, two, 110, cut=cut)
-        P.append(outer2); P.append(Hole(ccut(inner2) if ccut else inner2))
-        # the neck, on the LEFT: drops from the bowl's bottom (a little left of
-        # center) straight down, then swings left into the loop's upper left,
-        # so neck and loop's left side read as one stroke. Pen weight with a
-        # floor of 0.6 stem, so the down-left stretch does not thin away.
-        a0 = math.radians(262); a1 = math.radians(118)
-        p0 = (cx + rx * math.cos(a0), cy + ry * math.sin(a0))
+        def on_bowl(deg):   # plain-ellipse point, as round 28 placed the ear and the neck
+            a = math.radians(deg); return (cx + rx * math.cos(a), cy + ry * math.sin(a))
+        ear = V["ear"]
+        if ear == "flick":      # round 28: off the upper right, out and a little up, cut at the pen angle
+            ex, ey = on_bowl(28)
+            A.curve(c, P, A.line((ex - s * 0.15, ey - 6), (ex + 92 * wf, ey + 22), 8), lambda t: 0.75, cut1=c["cut"])
+        elif ear == "wedge":    # owner: "make the spur on 'g' a serif like other top right serifs" -- the stem-top
+            # bracket wedge (wl, wd, fillet, drop) set on the bowl's right side as if it were a stem ending at
+            # G_EAR_DEG, pointing RIGHT. Its inner edge is a vertical line at the ring's centerline x, wd down
+            # from the point; up to ~40 deg that x stays outside the counter (cx + rx - th/2) all the way down,
+            # so the counter is never crossed (measured: counter area unchanged to 3 sq units). Proof
+            # scratchpad wedge/g-e-proof.png, 2026-09-12.
+            ex, ey = on_bowl(G_EAR_DEG); a = math.radians(G_EAR_DEG)
+            ear_th = c["pen"].th((-math.sin(a), math.cos(a)))
+            P.append(A.bracket_wedge((ex, ey), (0, 1), (-1, 0), ear_th, c["wl"], c["wd"], -1, drop=c["drop"], fillet=c["fillet"]))
+        elif ear == "flat":     # Garamond: a level flick straight out to the right
+            ex, ey = on_bowl(22)
+            A.curve(c, P, A.line((ex - s * 0.2, ey), (ex + 115 * wf, ey + 6), 8), lambda t: 0.7, cut1=c["cut"])
+        elif ear == "tick":     # Jenson/Doves: a short near-vertical tick rising off the shoulder
+            ex, ey = on_bowl(48)
+            A.curve(c, P, A.line((ex - 4, ey - s * 0.25), (ex + 14, ey + 62), 8), lambda t: 0.8, cut1=c["cut"])
+        # lower loop
+        lrx = V["loop_rx"] * wf; lry = desc * V["loop_ry"]; lcx = cx + V["loop_cx"] * wf; lcy = -desc * V["loop_cy"]
+        th_fn = (lambda tn: s) if V.get("loop_w") == "stem" else None   # 6: full stem weight all round
+        a1 = math.radians(V["loop_entry"])          # where the neck enters the loop
+        if V.get("loop") == "open":
+            # 5: the loop is a STROKE from the neck's entry round the bottom and up the right, its tail
+            # returning across the top toward the neck and stopping short of it, thinned to a hairline.
+            arc = A.ellipse(lcx, lcy, lrx, lry, a1 - 0.14, a1 + math.radians(V["loop_sweep"]), 110, c["k"])
+            A.curve(c, P, arc, A.taper_out(0.45, 0.3), cut1=c["cut"])
+        else:
+            outer2, inner2 = ring(c, lcx, lcy, lrx, lry, 0, two, 110, cut=cut, th_fn=th_fn)
+            P.append(outer2); P.append(Hole(ccut(inner2) if ccut else inner2))
+        # the neck, on the LEFT: drops from the bowl's bottom, then swings into the loop's upper left,
+        # so neck and loop's left side read as one stroke. Pen weight with a floor of 0.6 stem.
+        p0 = on_bowl(V["neck_from"])
         p3 = (lcx + lrx * math.cos(a1), lcy + lry * math.sin(a1))
-        gap = p0[1] - p3[1]
-        link = A.bez(p0, (p0[0] + 2 * wf, p0[1] - gap * 0.62), (p3[0] + 6 * wf, p3[1] + gap * 0.42), p3, 32)
+        gap = p0[1] - p3[1]; bend = V.get("neck_bend", 1.0)
+        link = A.bez(p0, (p0[0] + 2 * wf * bend, p0[1] - gap * 0.62), (p3[0] + 6 * wf * bend, p3[1] + gap * 0.42), p3, 32)
         tn = A.tangents(link); n = len(link) - 1
         def prof(t):
             i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
@@ -264,19 +309,33 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         the bar again, counter as the punch; the lower arm is a stroke that
         starts under the bar with a trap notch."""
         P = []; rx = 195 * c["wf"]; cx = rx; ry = c["xh"] / 2 + c["over"]; s = c["s"]; xh = c["xh"]
+        # Owner 2026-09-12: "thin out the crossbar of 'e' by putting it at an
+        # angle". The bar RISES left to right by E_BAR_DEG about its own
+        # middle (still 0.58 xh there); the pen gives it its thickness at
+        # that angle (a rising bar runs nearer the nib's thin direction, 26
+        # deg), nothing is forced. Both ends stay buried in the bowl as
+        # before; the eye's counter closes along the bar's TOP edge, which
+        # now slopes with it, and the outer arc meets the bar at each end's
+        # own height. Level bar = E_BAR_DEG 0, byte-identical to before.
         bar_y = xh * 0.58
-        a_bar = math.asin(min(1.0, (bar_y - xh / 2) / ry))
+        tilt = math.radians(E_BAR_DEG); slope = math.tan(tilt)
+        # the bar IS the strip between the eye's two closing edges (no separate
+        # stroke): its ends are the eye contour's, cx - rx - 0.05 s to cx + rx + 0.08 s
+        bar_at = lambda x: bar_y + (x - cx) * slope
+        bar_th = max(c["pen"].th((math.cos(tilt), math.sin(tilt))), s * 0.5)
+        yR = bar_at(cx + rx); yL = bar_at(cx - rx)
+        a_r = math.asin(max(-1.0, min(1.0, (yR - xh / 2) / ry)))            # where the arc meets the bar, right
+        a_l = math.pi - math.asin(max(-1.0, min(1.0, (yL - xh / 2) / ry)))  # ...and left
         # eye: from the bar's right end over the top to the bar's left end
-        outer, inner = ring(c, cx, xh / 2, rx, ry, a_bar, math.pi - a_bar, 60, cut=cut)
-        bar_th = max(c["pen"].th((1, 0)), s * 0.5)
+        outer, inner = ring(c, cx, xh / 2, rx, ry, a_r, a_l, 60, cut=cut)
         # close the eye along the bar: outer runs back along the bar's underside, counter along its top
-        eye_outer = outer + [(cx - rx - s * 0.05, bar_y - bar_th / 2), (cx + rx + s * 0.08, bar_y - bar_th / 2)]
-        eye_inner = inner + [(cx - rx + s * 0.4, bar_y + bar_th / 2), (cx + rx - s * 0.35, bar_y + bar_th / 2)]
+        eye_outer = outer + [(cx - rx - s * 0.05, bar_at(cx - rx - s * 0.05) - bar_th / 2), (cx + rx + s * 0.08, bar_at(cx + rx + s * 0.08) - bar_th / 2)]
+        eye_inner = inner + [(cx - rx + s * 0.4, bar_at(cx - rx + s * 0.4) + bar_th / 2), (cx + rx - s * 0.35, bar_at(cx + rx - s * 0.35) + bar_th / 2)]
         P.append(eye_outer); P.append(Hole(eye_inner))
-        # lower arm: continues from the eye's own left end (pi - a_bar), round
+        # lower arm: continues from the eye's own left end (a_l), round
         # the bottom, to the terminal. Its start overlaps the eye by a few
         # degrees; the trap is the notch the taper leaves under the bar.
-        arm = A.ellipse(cx, xh / 2, rx, ry, math.pi - a_bar - 0.06, math.radians(318), 70, c["k"])
+        arm = A.ellipse(cx, xh / 2, rx, ry, a_l - 0.06, math.radians(318), 70, c["k"])
         A.curve(c, P, arm, A.compose(A.taper_in(0.55 - 0.15 * trap, 0.12), A.flare_end(0.25, 0.12)), cut1=c["cut"]); return P
 
     def g_a(c):

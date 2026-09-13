@@ -148,7 +148,8 @@ def ctx(p):
              naive_o=p.get("naive_o", False), raw=p.get("raw_joins", False),
              s_spine=p.get("s_spine", 0.0), s_floor=p.get("s_floor", 0.0), s_two=p.get("s_two", False),
              e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False),
-             trap_depth=p.get("trap_depth", 0.55))
+             trap_depth=p.get("trap_depth", 0.55),
+             g_variant=p.get("g_variant", 0))   # the g set (round17.G_VARIANTS); 0 = the round-28 g
     # Round 27: the overshoot is the INK's edge past the x-height, not the
     # stroke's centerline. Every bowl adds half a hairline outside its
     # centerline, so a 14-unit design overshoot drew rounds 41 units past
@@ -340,9 +341,20 @@ def g_u(c):
     curve(c, P, pts, taper_out(0.42, 0.3))
     stem(c, P, x1, 0, xh, top="wedge", foot="right"); return P
 
+def dot_radius(c):
+    """The i's and j's dot. Weight pass 2026-09-12 (owner: "balance out
+    visual weight of the 100 most common english words"): measured against
+    EB Garamond and Hoefler Text at 54 px, the i carried 16-20% less ink
+    relative to the n than either reference, the words i, it, its, in, is,
+    right, might, still, first all reading light. A round dot the width of
+    the stem (radius 0.5 s) looks smaller than the stem -- the classic
+    correction is a dot 1.2-1.3x the stem. Radius 0.62 s (diameter 1.24
+    stems). One definition so i and j cannot drift apart."""
+    return c["s"] * 0.62
+
 def g_i(c):
     P = []; x = c["s"] / 2; stem(c, P, x, 0, c["xh"], top="wedge", foot="both")
-    P.append(blob((x, c["xh"] + 118 + c["s"] * 0.3), c["s"] * 0.5)); return P
+    P.append(blob((x, c["xh"] + 118 + c["s"] * 0.3), dot_radius(c))); return P
 
 def g_l(c):
     P = []; x = c["s"] / 2; stem(c, P, x, 0, c["asc"], top="wedge", foot="both"); return P
@@ -365,7 +377,7 @@ def g_j(c):
         u = max(0.0, (t - 0.45) / 0.55); want = s * (1.0 - 0.9 * (3 * u * u - 2 * u * u * u))
         return want / th
     curve(c, P, tail, prof)
-    P.append(blob((x, xh + 118 + s * 0.3), s * 0.5)); return P
+    P.append(blob((x, xh + 118 + s * 0.3), dot_radius(c))); return P
 
 def g_f(c):
     P = []; xh = c["xh"]; s = c["s"]; asc = c["asc"]; wf = c["wf"]; r = 150 * wf; x = 110 * wf + s / 2
@@ -381,11 +393,27 @@ def g_t(c):
     curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"])
     curve(c, P, line((x - 100 * wf, xh), (x + 150 * wf, xh), 12)); return P
 
+R_TAPER, R_FLARE, R_FLARE_SPAN, R_FLOOR = 0.50, 0.50, 0.45, 0.78
+
 def g_r(c):
     P = []; xh = c["xh"]; wf = c["wf"]; x = c["s"] / 2
     stem(c, P, x, 0, xh, top="wedge", foot="both")
     arm = bez((x, xh * 0.6), (x, xh * 1.0), (x + 120 * wf, xh * 1.05), (x + 205 * wf, xh * 0.9), 36)
-    curve(c, P, arm, compose(taper_in(0.42, 0.35), flare_end(0.18, 0.3)), cut1=c["cut"]); return P
+    # Weight pass 2026-09-12: the r carried 15% less ink relative to the n
+    # than EB Garamond or Hoefler Text (or, our, over, very, your, never all
+    # read light). A garalde r holds its weight in the arm's terminal, so
+    # the terminal flares more (0.18 -> R_FLARE over a longer span) and the
+    # arm leaves the stem less thinned (0.42 -> R_TAPER). Arm path unchanged.
+    # The arm climbs at ~26 deg, the nib's thin direction, so the pen alone
+    # makes it a hairline (33 u) for most of its length: the arm is only 22%
+    # of the r's ink, the stem and wedges the rest. So the arm keeps a set
+    # weight, a floor of R_FLOOR stems (the s spine, j tail and g neck do the
+    # same), under the join taper and the terminal flare.
+    tn = tangents(arm); n = len(arm) - 1
+    def floor_prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        return max(th, c["s"] * R_FLOOR) / th
+    curve(c, P, arm, compose(floor_prof, taper_in(R_TAPER, 0.35), flare_end(R_FLARE, R_FLARE_SPAN)), cut1=c["cut"]); return P
 
 def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0, taper0=0.0, taper1=0.0):
     """taper0/taper1: thin the START/END to (1 - taper) over 22% -- a leg

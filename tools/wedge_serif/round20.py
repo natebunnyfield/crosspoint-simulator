@@ -23,7 +23,13 @@ SEED, EVERY, AMP = round19.SEED, round19.EVERY, round19.AMP
 CHARS, GLYPH_ORDER, gname = round19.CHARS, round19.GLYPH_ORDER, round19.gname
 
 def draw(ch, p, glyphs_all, pen_fn, post):
-    c = round19.ctx_with_cut(p)
+    # Owner ruling 2026-09-12: "keep capitals as is, only condense lowercase
+    # to 1.036 'wide over tall'." `lc_width` is the LOWERCASE's own width
+    # factor (it reaches every x radius and width through c["wf"], and the
+    # n's counter through c["nw"]); capitals, figures and punctuation keep
+    # `width`, so their outlines, the width solver's targets and the shared
+    # bearings do not move. Default = `width`, i.e. no effect.
+    c = round19.ctx_with_cut(dict(p, width=p.get("lc_width", p["width"])) if ch.islower() else p)
     if ch.isdigit():
         top, bot = latin.FIG_BOX[ch]; latin._FIG[0] = (top - bot) * latin.capH(c)
     else:
