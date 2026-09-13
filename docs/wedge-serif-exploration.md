@@ -1201,3 +1201,9 @@ forcing a floor), the ear a pen stroke, the loop-to-neck join continuous.
 Handed to the Van den Keere agent, which owns `round17.py` for this round;
 its brief also covers K C D Q R S f G 3 6 9 & @ against Van den Keere with
 the construction held fixed. Results to follow.
+
+**Ruling, the e (2026-09-12, from the dials page):** angle 5°, thickness
+0.62 of the pen, bar height 0.62 xh, arm length 330°, blunt nose. Set as
+`round17.E_VARIANTS[0]` (the bar's thickness floor lowered from 0.42 to 0.35
+stem so 0.62 × the pen is not clipped by it). Applied by the round-40 agent,
+which holds `round17.py`.
