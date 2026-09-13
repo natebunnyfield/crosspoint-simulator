@@ -2017,3 +2017,10 @@ Round 73 RULED (2026-09-13): ".6 wins but the stroke needs to be thicker
 towards the loop." `NINE_TAIL_TOP = 0.60`; round 74: the tail at full width
 at the ring exit easing down to 0.60 over the first 35 / 55 / 75% of the run
 (`NINE_TAIL_EASE`, 0.55 until ruled), all from the top edge. Page pending.
+
+Round 74 built (2026-09-13): `NINE_TAIL_EASE` -- the tail at round 71's
+full width (78) at the ring exit, smoothstep down to 0.60 (49, the floor)
+over the first 35 / 55 / 75% of the run; width at 25% of the run 54 / 65 /
+70; paper between tail and bowl at 54 px 138 / 132 / 130 px (uniform 0.60:
+140) -- the price of the heavier root; counter, lsb, gaps unchanged. Page
+https://claude.ai/code/artifact/PENDING74.
