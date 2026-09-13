@@ -668,8 +668,17 @@ def g_seven(c):
     diag(c, P, (w - s * 0.2, D), (w * 0.3, 0)); return P
 
 def g_eight(c):
-    P = []; D = figH(c); rx = _w(c, "8", 215); r1 = D * 0.235; r2 = D * 0.265
-    cp_ring(c, P, rx, D - r1, rx * 0.86, r1); cp_ring(c, P, rx, r2, rx, r2 + c["over"]); return P
+    """Round 48 (owner: "make 8 use more optical circles, big on bottom if
+    needed"): two rings whose COUNTERS are optical circles (1.02 wide over
+    tall, the o's rule), the lower larger than the upper, overlapping at the
+    waist by 0.05 of the height so the strokes cross rather than touch. The
+    x radius follows from the y radius and the pen, so the width solver
+    cannot squash them (it had, to 0.76)."""
+    P = []; D = figH(c); th_h = c["pen"].th((1, 0)); th_v = c["pen"].th((0, 1))
+    def rx_for(ry): return (1.02 * (2 * ry - th_h) + th_v) / 2     # counter 1.02 wide over tall
+    r1 = D * 0.240; r2 = D * 0.285 + c["over"]
+    rx1, rx2 = rx_for(r1), rx_for(r2); cx = rx2
+    cp_ring(c, P, cx, D - r1, rx1, r1); cp_ring(c, P, cx, r2 - c["over"], rx2, r2); return P
 
 def g_nine(c):
     """A six turned over: counterpunched bowl at the top, the tail runs down

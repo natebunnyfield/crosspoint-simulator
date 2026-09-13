@@ -1308,3 +1308,13 @@ one ring; R one ring with the leg springing from the ring's centerline at
 −52°. rx = 0.72 of the old bezier widths; the solver re-fit B 1.16, P 1.07,
 R 1.10. `_bowl_stroke` / `_bowl_point` remain for reference, unused by the
 capitals now. Proof `fjord-bpr.html`.
+
+## Round 48 (2026-09-12): the 8 on two optical circles
+
+Owner: "make 8 use more optical circles, big on bottom if needed." The 8 was
+two stacked ovals, taller than wide (the width solver had pinned it at
+0.76). Now `g_eight`: r1 = 0.240 D, r2 = 0.285 D + overshoot; each ring's x
+radius solved from its y radius and the pen so the COUNTER is 1.02 wide over
+tall (the o's rule): rx = (1.02·(2ry − th_h) + th_v)/2; measured after the
+cut 1.007 and 1.010. Rings overlap at the waist by 0.05 D. The solver's W['8']
+is now unused. Proof `fjord-8.html`.
