@@ -93,17 +93,15 @@ def g_equal(c):
     return geom.ink([stroke(line((0, y - g / 2), (w, y - g / 2)), TH_H), stroke(line((0, y + g / 2), (w, y + g / 2)), TH_H)])
 @glyph('&')
 def g_ampersand(c):
-    """Van den Keere's garalde ampersand (round 42): one stroke through 24
-    measured points on the pen, the foot's hook tapered, the arm ending in
-    the family's wedge pointing right."""
-    C = CAP(c); w = 736; o = OVER - TH_H / 2
-    pts = [(0.99, 0.10), (0.86, 0.02), (0.72, 0.07), (0.65, 0.17), (0.53, 0.37), (0.36, 0.56), (0.16, 0.68), (0.07, 0.80),
-           (0.15, 0.94), (0.31, 0.98), (0.48, 0.90), (0.52, 0.76), (0.44, 0.63), (0.28, 0.53), (0.14, 0.44), (0.06, 0.32),
-           (0.06, 0.16), (0.19, 0.03), (0.38, 0.0), (0.53, 0.11), (0.60, 0.27), (0.70, 0.41), (0.78, 0.53), (0.85, 0.64)]
-    spine = catmull([(w * a, C * b + (o if b > 0.9 else (-o if b < 0.01 else 0))) for a, b in pts], tension=0.5)
-    body = stroke(spine, pen_widths(spine, widths([(0.0, 0.3), (0.05, 1.0)])), cut0=CUT, pieces=True)   # the spine crosses itself twice
-    arm = wedge(spine[-1], (0, 1), (1, 0), WL * 0.9, WD, 0.0)
-    return geom.ink([body, arm])
+    """Round 68's #10 `round_bowl` (owner 2026-09-13, round 72: "round_bowl
+    wins"): the open spiral -- the spur running on as the loop's left side,
+    one stroke -- on the o's bowl, the loop 1.1 wide, the arm on a plain
+    cut, ending at 0.54 C. Drawn by ampersands.bred at that entry's dials,
+    read from the VARIANTS2 table itself so the shipping & and the variant
+    page cannot drift. (Round 42's Van den Keere garalde &, one stroke
+    through 24 measured points, was the shipping & until this round.)"""
+    from .ampersands import bred, VARIANTS2
+    return bred(c, **dict(VARIANTS2)['round_bowl'].dials)
 @glyph('%')
 def g_percent(c):
     C = CAP(c); r = 120; p = line((60, 0), (440, C))
