@@ -767,3 +767,50 @@ touched; narrowed and given height.
 **Trap for the next agent:** anything drawn in `alphabet2.py` for a letter
 that `cp_glyphs` also defines (o d b p q g e a) is NOT what the font gets;
 edit `round17.cp_glyphs`, or remove the letter from the override.
+
+## Round 24 (2026-09-12): every glyph against Garamond
+
+Owner: "compare all the characters you have made individually with garamond's
+and see what is wildly off." No Garamond on disk, so the twin is **EB Garamond
+at wght 400** (Google Fonts, OFL), instantiated from the variable file and
+compared with its `onum` old-style figures (`*.osf`), not its default lining
+set. `tools/wedge_serif/cmp_garamond.py` draws each glyph pair as SVG at matched
+x-height (Fjord 415, Garamond 400 units), overlays them, and flags width ±20%,
+height ±15%, mean stroke (2·area/perimeter) ±25%, top/bottom ±0.12 xh. Page:
+`fjord-vs-garamond.html`. The reference font is not committed; fetch with
+
+    curl -sSL -o EBGaramond.ttf "https://github.com/google/fonts/raw/main/ofl/ebgaramond/EBGaramond%5Bwght%5D.ttf"
+
+**Whole-font, measured:**
+
+| | Fjord | Garamond 400 |
+|---|---|---|
+| cap height / x-height | 1.73 | 1.63 |
+| l stem (xh) | 0.195 | 0.175 |
+| o hairline (xh) | 0.128 | 0.075 |
+| o side (xh) | 0.182 | 0.205 |
+| contrast (side/hairline) | 1.4 | 2.7 |
+| lowercase width, median | +12% | — |
+
+The mean stroke matches Garamond (−1%); it is the **thins that are 70% too
+heavy** and the thicks slightly light. Every capital tops out ~0.11 xh above
+Garamond's because the cap/xh ratio is higher, not because any one cap is
+wrong.
+
+**Wildly off, per glyph (55 of 93 flagged, worst first):** the four curly
+quotes (half Garamond's size, 0.2–0.5 xh too low, thin); comma (−42% wide,
+−31% tall); @ (+39% wide, +23% tall, +38% stroke); semicolon and colon (narrow,
+thin); figures 3 5 8 0 9 2 (old-style set 20–28% too tall, top up to +0.29 xh,
+3 and 5 also 28–44% wide); & (+25% tall, +30% stroke); = and - (hairline,
+−33% tall); \ (short, +33% stroke); # (too tall both ways); … (small dots);
+( ) (−33% wide, too straight); s (+46% wide), c (+33%), e (+31%), a (+25%),
+j (+24%); f (−23%), I (−28%); z and Z overshoot the x-height / cap height by
++0.17 xh; K spikes +0.19 above cap; U sits 0.18 xh below the baseline; D stroke
+−24%; t +0.14 too tall; [ ] descend 0.17 too far; ? +43% wide; ! narrow.
+
+Not flagged and visually near: b d h i l m n o p q r u v w x y, A B C E F G H L
+M N O P Q R S T V W X Y (the caps only carry the global cap-height offset), 1 4
+6 7, period, hyphen-length dashes, brackets' width.
+
+Nothing changed in the font this round; it is a measurement, for the owner to
+mark.
