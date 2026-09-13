@@ -1945,3 +1945,12 @@ where the tail's buried start pokes 2 units past the bowl and the width
 solver narrows the 6 (and so the 8) by 2 -- pin `W['6']` if he picks 1.00.
 Floor 0 byte-identical to the ruled-8 build. Page
 https://claude.ai/code/artifact/029adb86-f697-4108-be52-6ed425f41e95.
+
+## Round 72 (2026-09-13): rulings on the & and the 9
+
+Owner: "round_bowl wins, flag-diag wins but it needs to be have more space
+to the left like foot-left." The & becomes round 68's #10 (open spiral, the
+o's bowl, arm on a plain cut); the 9 becomes round 71's #3 (diagonal end
+wedge) with its tail reaching further left to foot-left's extent. Figures
+agent wiring both (`g_nine` in figures.py, `g_ampersand` in marks.py calling
+`bred` with round_bowl's dials); page pending.
