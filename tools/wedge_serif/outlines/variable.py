@@ -68,7 +68,8 @@ def build_master(out_dir, name, env_over):
     if r.returncode != 0 or not os.path.exists(js): raise RuntimeError(f"master {name} failed:\n{r.stderr[-2000:]}")
     return js
 
-def build_masters_parallel(out_dir, specs, workers=5):
+def build_masters_parallel(out_dir, specs, workers=None):
+    workers = workers or int(os.environ.get('FJORD_VF_JOBS', 3))   # 2026-09-13: six parallel builds ran the Mac out of memory and the run was killed; three is safe
     """specs: [(name, env_over)]; returns {name: json_path}."""
     mdir = os.path.join(out_dir, "masters"); os.makedirs(mdir, exist_ok=True)
     procs = {}; out = {}; pending = list(specs)
@@ -352,7 +353,7 @@ def find_ranges(out_dir, default, log):
     for (tag, side), vals in RANGE_TRIALS.items():
         envk = next(a[5] for a in AXES if a[0] == tag)
         for v in vals: specs.append((f"trial_{tag}_{side}_{v}", {envk: v}))
-    jsons = build_masters_parallel(out_dir, specs, workers=6)
+    jsons = build_masters_parallel(out_dir, specs)
     found = {}; trials = {}
     for (tag, side), vals in RANGE_TRIALS.items():
         envk = next(a[5] for a in AXES if a[0] == tag)
