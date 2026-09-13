@@ -1799,3 +1799,13 @@ Round 65, amended by the owner the same hour: the full default set is now
 wght 84, CNTR 0.95, ASCN 770, DESC 280, wdth 100, CUTS 87, XHGT 429, SRIF
 92 (cut 87 and serif 92 are the two new numbers). Sent to the agent; the
 rebuild lands on these.
+
+## Round 66 (2026-09-13): the 8 shorter, both counters optical circles
+
+Owner: "remake 8 again but make it shorter so counters can match other
+numerals or optical circles." The 8 leaves the ascending figures' height:
+both counters 1.036 wide over tall, the lower the size of the 6's bowl
+counter (A, upper 0.85; C, upper 0.75) or the 0's (B, upper 0.85), one waist
+band, 14 overshoot both ends, the figure as tall as the stack makes it. The
+5/8 agent, rebased onto the round-62 pen with the round-65 overrides. Page
+pending.
