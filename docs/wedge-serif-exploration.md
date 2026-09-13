@@ -1605,8 +1605,7 @@ cannot close that gap.
 Round 58c (2026-09-13), weight ladder -- evidence prepared, NOT asked yet (one
 ask per round; queued behind the bowl pick). `FJORD_STEM` env override in
 `outlines/pen.py`; fonts `build/fjord-fonts/Fjord-stem{82,88,94,100}.ttf`;
-page https://claude.ai/code/artifact/ (see the commit after this line for the
-URL). 147 common words at 13 pt through the four-level pipeline:
+page https://claude.ai/code/artifact/256db54b-c95b-4124-8795-559b10d93c43. 147 common words at 13 pt through the four-level pipeline:
 
 | stem | page ink | ink at black |
 |---|---|---|
