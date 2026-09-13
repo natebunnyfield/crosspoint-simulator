@@ -1944,4 +1944,4 @@ at 54 px); floors 0.55 / 0.70 / 0.85 / 1.00 S give 49 / 61 / 74 / 86 units
 where the tail's buried start pokes 2 units past the bowl and the width
 solver narrows the 6 (and so the 8) by 2 -- pin `W['6']` if he picks 1.00.
 Floor 0 byte-identical to the ruled-8 build. Page
-https://claude.ai/code/artifact/PENDING70.
+https://claude.ai/code/artifact/029adb86-f697-4108-be52-6ed425f41e95.
