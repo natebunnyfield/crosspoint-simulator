@@ -150,13 +150,28 @@ def _bowl_point(x, y_top, y_bot, w, t, s=0.0):
     u = 1 - t
     return (u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0], u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1])
 
-def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5):
+def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5, open_bottom=0.0):
     """A B/P/R bowl: leaves the stem tapered at the top, swings out to w and
     rejoins tapered at the bottom. Stroked (the counter is what the stroke
-    leaves), so its weight follows the pen like the lowercase b's."""
+    leaves), so its weight follows the pen like the lowercase b's.
+    open_bottom (round 45, owner: "open R and P counters the same way D was
+    opened up"): the D's counter was lifted by up to 0.3 of the horizontal
+    stroke at its bottom. Here the lower half of the stroke thickens by that
+    much and its centerline shifts UP by half the gain, so the outer edge
+    stays and only the counter's edge moves, as the D's did."""
     p0, p1, p2, p3 = _bowl_ctrl(x, y_top, y_bot, w, c["s"] * CAP_STEM)
     pts = bez(p0, p1, p2, p3, 48)
-    A.curve(c, P, pts, compose(taper_in(taper * 0.6, 0.14), taper_out(taper, 0.14)))   # round 33: the top join keeps more weight
+    prof = compose(taper_in(taper * 0.6, 0.14), taper_out(taper, 0.14))   # round 33: the top join keeps more weight
+    if open_bottom:
+        th_h = c["pen"].th((1, 0)); n = len(pts) - 1
+        win = lambda t: max(0.0, math.sin(math.pi * (t - 0.5) / 0.46)) if 0.5 <= t <= 0.96 else 0.0
+        pts = [(px, py + 0.5 * open_bottom * th_h * win(i / n)) for i, (px, py) in enumerate(pts)]
+        tn = tangents(pts)
+        def prof2(t, base=prof):
+            i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+            return base(t) * (th + open_bottom * th_h * win(t)) / th
+        prof = prof2
+    A.curve(c, P, pts, prof)
 
 def g_A(c):
     P = []; C = capH(c); w = _w(c, "A", 600); s = c["s"] * CAP_STEM
@@ -405,7 +420,7 @@ def g_O(c):
 def g_P(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "P", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.44, w); return P   # round 33: top edge on the cap line
+    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.44, w, open_bottom=0.3); return P   # round 33: top edge on the cap line; round 45: bottom opened as the D's
 
 def g_Q(c):
     """VdK pass: Van den Keere's Q tail is a calligraphic swash. Measured at
@@ -434,7 +449,7 @@ def g_Q(c):
 def g_R(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95)   # round 33: top edge on the cap line
+    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95, open_bottom=0.3)   # round 33: top edge on the cap line; round 45: bottom opened as the D's
     # round 30: the leg springs from the bowl's lower curve (it started under
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.

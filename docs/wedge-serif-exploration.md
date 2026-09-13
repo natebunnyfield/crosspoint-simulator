@@ -1275,3 +1275,12 @@ cut. The 3's was center 0.55 w, rx 0.45 w, stopped at −132° with
 `flare_end(0.35)`, so its bottom curled into a knob. Now center 0.52 w, rx
 0.52 w, to −156°, flare 0.25 + cut; the joint's `taper_in` stays. Solver
 width for 3: 0.76. Proof `fjord-35.html`.
+
+## Round 45 (2026-09-12): P and R bowls opened at the bottom
+
+Owner: "open R and P counters the same way D was opened up recently." The
+D (round 36) lifted its counter's lower edge by 0.3·th_h·((cy−y)/ry)^1.5.
+`_bowl_stroke` gained `open_bottom`: over t 0.5–0.96 (a half-sine window)
+the stroke thickens by open_bottom × th_h and its centerline shifts up by
+half that, so the outer edge holds and only the counter's edge lifts. P and R
+pass 0.3; B does not. Proof `fjord-pr.html`.
