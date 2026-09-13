@@ -1637,3 +1637,16 @@ Round 58 LANDED (2026-09-13): owner: "rename this version of the font to
 'Albo'. go with B: Albertus-like firm." `DEFAULT_BOWL = 'B'`, family name
 Albo, `Albo-Regular.ttf` built (glyf byte-identical to `Fjord-bowlB.ttf`),
 specimen republished at the standing URL, TTF sent.
+
+Round 59 ask (2026-09-13): the weight ladder REBUILT on Albo's ruled B bowls
+(the round-58c table above was on the old bowls). `Albo-stem{82,88,94,100}.ttf`
+in `build/fjord-fonts/`, stem82 glyf-identical to `Albo-Regular.ttf`; page at
+the same URL, https://claude.ai/code/artifact/256db54b-c95b-4124-8795-559b10d93c43.
+
+| stem | page ink | ink at black |
+|---|---|---|
+| 82 (current) | 0.122 | 0.696 |
+| 88 | 0.129 | 0.712 |
+| 94 | 0.132 | 0.726 |
+| 100 | 0.133 | 0.736 |
+| Albertus Medium | 0.180 | 0.755 |
