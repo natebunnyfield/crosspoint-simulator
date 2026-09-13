@@ -13,6 +13,18 @@ wins; update this guide when that happens.
 
 ## 00. The target, restated by the owner (2026-09-13, round 58)
 
+**The goal, in his words (2026-09-13):** "make a wedge serif long text
+font for eink reading. build off of english word image, not individual
+character. preserve any defects that help." Three consequences: every
+judgment is made on words and sentences at 13 pt on the four-level e-ink
+pipeline, never on a letter alone; a letter is right when the word image is
+right; and an irregularity is not removed because it is irregular -- if it
+helps the word read (a firmer join, an uneven stem, a heavier bottom) it stays,
+and only he rules it a defect. Albertus Medium is on disk since round 58
+(`scratchpad wedge/ref/Albertus-Medium.ttf`) as the STROKE reference:
+measured O 1.40:1, D 1.18:1, arches never thinner than the stem, stems
+flaring 5-8% toward their ends.
+
 **"I am not interested in recreating Van den Keere, I am interested in
 making a wedge serif like Albertus, but more readable."** That is the
 identity, and it was the round-1 brief ("a humanist wedge serif like

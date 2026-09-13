@@ -1553,3 +1553,10 @@ profile of round 57 and the Van den Keere matching of round 42 were my
 drift; the references stay for proportions and fitting only. Neither
 Albertus nor Icone is on disk, so the character is stated and offered as
 pictures: three bowl treatments on D B P R O o and words, for his pick.
+
+Goal, owner 2026-09-13 (standing): "make a wedge serif long text font for eink
+reading. build off of english word image, not individual character. preserve
+any defects that help." Albertus Medium arrived the same day and is measured
+in the guide §00 (O 1.40:1, D 1.18:1, arches at stem weight). Also ruled: the
+B's waist is ONE bar, as the P's and R's bowl returns to the stem, not the two
+bowls' horizontals stacked.
