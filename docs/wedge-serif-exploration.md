@@ -2365,6 +2365,6 @@ to last closed version." Done: K R Q M W are the round-51 constructions
 which came later); Z mitre default, the bottom bar run out to the top
 corner's x; the 2 lifted 8 (it bottomed at -7, now 1); the 4 closed; the @
 (counterclockwise) and the ? (original, Albertus heavy) ruled. Page
-https://claude.ai/code/artifact/PENDING82. VF rebuild follows.
+https://claude.ai/code/artifact/1f30b2e3-484c-4659-82aa-a38d0da5fb35. VF rebuild follows.
 
 **Future todo (owner):** reduce the thickness of the 4's top-left stroke.
