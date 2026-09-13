@@ -2138,3 +2138,16 @@ the diagonal wedge off its own angle. Found varied: s t c carry no wedge;
 15 serifs have no twin; the e's eye is the most distinctive white; the 8's
 rings, B's bowls, g's bowl vs loop all differ. Page
 https://claude.ai/code/artifact/b47f3dc7-f5f4-43bf-8392-5686dbda12f4.
+
+Round 77, the e (2026-09-13): `_e_ring` scales the arm's width and shifts
+its path outward over the 270-330 deg run (`E_ARM_THIN` 0.90, `E_ARM_OUT`
+8; env `FJORD_E_ARM_THIN` / `FJORD_E_ARM_OUT`), the thinning returning to
+the bowl's profile at the bottom, the shift zero at both ends; nose and
+bottom join unmoved; `_e_ring(1.0, 0)` reproduces `o_ring` byte for byte.
+Arm mid-run 58 → 52 (x0.90) / 46 (x0.80), at the terminal 77 → 69 / 62;
+advance, bearings, bbox identical in every variant; the eye's counter is
+geometrically outside the run and unchanged (248 x 144, 57 white px at 54
+px). Checked here: visible at 400 px, indistinguishable at 13 pt -- his
+condition ("keep word image legible") holds. Page
+https://claude.ai/code/artifact/PENDINGE. Landed at x0.90/+8 pending his
+pick among the four.

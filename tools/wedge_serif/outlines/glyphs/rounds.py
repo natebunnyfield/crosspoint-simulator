@@ -3,7 +3,7 @@ with its counter the pen's inward offset -- the o's stress -- sized so the
 counter is 1.036 wide over tall (ruling). The c and the e's eye are the
 o's ring opened; their terminals are the family's: a flared face at the
 top, a thinner pen-cut end below (c), a blunt end (e, ruling)."""
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import superellipse, line, join, cubic
@@ -51,14 +51,65 @@ def g_c(c):
 
 E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rounds 39 + 46)
 
+# The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
+# sweeping up to the 330-degree terminal, ARM_END_DEG = E_END): owner
+# instruction, verbatim, "thin out the bottom right stroke of 'e' slightly
+# and give it more interior space by moving the stroke to the right
+# slightly (keep word image legible)." E_ARM_THIN multiplies the arm's
+# ordinary (bowl-profile) width along that run, tapering back to 1.0 (the
+# bowl's own profile) over the first ARM_TAPER of the run off the bottom --
+# only at the bottom, so the thinning holds through the terminal, whose
+# blunt-cut shape is unchanged. E_ARM_OUT shifts the arm's path to the
+# right by up to this many units, a hump zero at the bottom and at the
+# terminal and peaking at the run's middle (the widest point) -- so the
+# eye above the bar and the lower aperture below both gain the interior
+# space, and neither the bottom join nor the terminal's cut moves.
+ARM_START_DEG, ARM_END_DEG = 270.0, E_END
+ARM_TAPER = 0.25
+E_ARM_THIN = float(os.environ.get("FJORD_E_ARM_THIN", 0.90))
+E_ARM_OUT = float(os.environ.get("FJORD_E_ARM_OUT", 8.0))
+
+def _e_ring(c, rx_center, thin=1.0, out_shift=0.0, k=BOWL_K, taper_frac=ARM_TAPER):
+    """`o_ring`'s construction (the outer superellipse, the counter the
+    pen/bowl's inward offset by tangent), with the arm (ARM_START_DEG to
+    ARM_END_DEG) thinned to `thin` x its ordinary width and its path
+    shifted right by up to `out_shift` units -- both eased to nothing at
+    the bottom (where the arm leaves the bowl) and held through the
+    terminal. Mirrors `primitives.ring`'s pipeline exactly (tangents off
+    the UNSHIFTED outer, then unfold/smooth/resample the counter) so a
+    thin=1.0, out_shift=0.0 call reproduces `o_ring` byte for byte."""
+    xh = c["xh"]; wf = c["wf"]
+    rx = rx_center * wf + TH_V / 2; ry = xh / 2 + OVER; cy = xh / 2; cx = rx
+    outer = superellipse(cx, cy, rx, ry, 0, 2 * math.pi, k)[:-1]
+    tans = geom.tangents(outer, closed=True)
+    span = ARM_END_DEG - ARM_START_DEG
+    outer2, inner = [], []
+    for p, tn in zip(outer, tans):
+        ang = math.degrees(math.atan2(p[1] - cy, p[0] - cx)) % 360
+        tf, shift = 1.0, 0.0
+        if ARM_START_DEG <= ang <= ARM_END_DEG:
+            t = (ang - ARM_START_DEG) / span
+            u = min(1.0, t / taper_frac); su = 3 * u * u - 2 * u ** 3
+            tf = 1.0 + (thin - 1.0) * su
+            shift = out_shift * math.sin(math.pi * t)
+        op = (p[0] + shift, p[1]); outer2.append(op)
+        w = PR.bowl_th(tn) * tf
+        inner.append((op[0] - tn[1] * w, op[1] + tn[0] * w))
+    inner = PR._unfold(inner, tans)
+    inner = geom.smooth(inner, 2, closed=True)
+    inner = geom.resample(inner + [inner[0]])[:-1]
+    return geom.poly(outer2, [inner[::-1]]), outer2, inner
+
 @glyph('e')
 def g_e(c):
     """Ring on the o's construction at the e's radius; the aperture is cut
     from the bar's underside down to the arm's blunt end at 330 degrees;
     the bar rises 5 degrees, 0.72 of the pen's width at that angle, its top
-    at 0.62 xh at the letter's middle (rulings)."""
+    at 0.62 xh at the letter's middle (rulings). The arm (the lower-right
+    stroke) is thinned and shifted right per E_ARM_THIN / E_ARM_OUT (owner
+    instruction, 2026-09-13)."""
     xh = c["xh"]; wf = c["wf"]
-    solid, outer, inner = o_ring(c, E_RX)
+    solid, outer, inner = _e_ring(c, E_RX, E_ARM_THIN, E_ARM_OUT)
     rx = E_RX * wf + TH_V / 2; cx = rx; cy = xh / 2
     tilt = math.radians(E_DEG); slope = math.tan(tilt)
     th = max(pen.th(E_DEG) * E_TH, S * 0.35)
