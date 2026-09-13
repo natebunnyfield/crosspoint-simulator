@@ -1560,3 +1560,24 @@ any defects that help." Albertus Medium arrived the same day and is measured
 in the guide §00 (O 1.40:1, D 1.18:1, arches at stem weight). Also ruled: the
 B's waist is ONE bar, as the P's and R's bowl returns to the stem, not the two
 bowls' horizontals stacked.
+
+Word-image measurement, round 58 (`word_weight.py`, 147 common words at 54 px
+em; darkness = ink fraction of the word's box; cv = evenness across words,
+lower is more even):
+
+| font | mean darkness | cv |
+|---|---|---|
+| A moderate | 0.137 | 0.089 |
+| D Albertus-measured | 0.144 | 0.087 |
+| B firm | 0.138 | 0.088 |
+| C near-monoline | 0.138 | 0.088 |
+| nib (round 56) | 0.131 | 0.083 |
+| Albertus Medium, same 13 pt | 0.206 | 0.077 |
+
+The bowl profile moves the page's color by at most 10% (nib → D) and the
+word-to-word evenness not at all (0.083–0.089); so the pick between A D B C is
+about the rounds' texture, not the word rhythm. Albertus at the same point size
+is 50% darker and the most even of the set -- its x-height is 0.531 em against
+our 0.415 and its stems 0.20–0.24 of the x-height -- which is the "more
+readable" gap to remember: if Fjord is to read like Albertus on the page it
+needs weight as well as the stroke character.
