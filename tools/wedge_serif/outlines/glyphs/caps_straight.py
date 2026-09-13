@@ -10,6 +10,8 @@ from ..geom import cubic, line, join, superellipse, catmull, tangents
 from ..primitives import (stem, stem_edge_x, ring, ring_from, half_bowl, stroke, pen_widths, widths, dot, wedge,
                           diag_wedge, end_wedge, diagonal, bar, beak, trap)
 from ..pen import S, CS, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, BOWL_K, CAP_STEM
+from .. import primitives as PR
+from ..primitives import bowl_widths, widen_terminal
 
 def W_(c, ch, default): return default * c["W"].get(ch, 1.0)
 CW = TH_V * CAP_STEM          # the drawn cap stem, 87.9
@@ -51,21 +53,29 @@ def g_B(c):
     # upper bowl 0.86 of the lower's width (ruling); both bowls' thin ends
     # taper into the stem at the waist (0.55 C), so the waist is the pen's
     # horizontal thinning to a hairline at the stem
-    up, *_ = half_bowl(edge, C, C * 0.55, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
-    lo, *_ = half_bowl(edge, C * 0.55, 0, w * 0.72 + TH_V / 2, open_bottom=0.06)
+    # owner (round 58): "the cross bar in B needs to be like R or P, not
+    # doubled" -- the two bowls SHARE one bar at the waist: the upper bowl's
+    # bottom stroke and the lower bowl's top stroke have the same centerline
+    # (waist 0.55 C), so the waist is one horizontal at the bowl's thin, the
+    # stroke the P's bowl makes where it returns to the stem
+    waist = C * 0.55; h = PR.bowl_hair()
+    up, *_ = half_bowl(edge, C, waist - h / 2, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
+    lo, *_ = half_bowl(edge, waist + h / 2, 0, w * 0.72 + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, up, lo])
 
 def cap_arc(c, rx_c, a0, a1, profile, cut0=None, cut1=None, k=BOWL_K, ry_c=None, cy=None):
     C = c["cap"]; ry = (C / 2 + OVER - TH_H / 2) if ry_c is None else ry_c; cy = C / 2 if cy is None else cy
     center = superellipse(rx_c + TH_V / 2, cy, rx_c, ry, math.radians(a0), math.radians(a1), k)
-    return stroke(center, pen_widths(center, profile), cut0=cut0, cut1=cut1), center
+    return stroke(center, bowl_widths(center, profile), cut0=cut0, cut1=cut1), center
 
 @glyph('C')
 def g_C(c):
     rx = W_(c, 'C', 330)
+    if PR.BOWL and PR.BOWL.get('widen'):   # variant C: both ends widen into the family's cut, no beak, no taper to a point
+        body, center = cap_arc(c, rx, 43, 334, widen_terminal(widen_terminal(None, True), False), cut0=CUT, cut1=CUT); return body
     prof = widths([(0.0, 1.3), (0.12, 1.0), (0.78, 1.0), (1.0, 0.3)])
     body, center = cap_arc(c, rx, 43, 334, prof, cut0=math.radians(BEAK_CUT))
-    lip = beak(center, pen.th_t(tangents(center)[0]) * 1.3, True, BEAK_CUT)
+    lip = beak(center, PR.bowl_th(tangents(center)[0]) * 1.3, True, BEAK_CUT)
     return geom.ink([body, lip])
 
 @glyph('D')
@@ -107,7 +117,7 @@ def g_G(c):
     bend = cubic(p0, (p0[0] + (ctrl[0] - p0[0]) * 2 / 3, p0[1] + (ctrl[1] - p0[1]) * 2 / 3), (p1[0] + (ctrl[0] - p1[0]) * 2 / 3, p1[1] + (ctrl[1] - p1[1]) * 2 / 3), p1)[1:]
     run = line(p1, (xg, yb - th_h * 0.3))[1:]
     pts = arc + bend + run; N = len(pts) - 1; t0 = (len(arc) - 1) / N; t1 = (len(arc) + len(bend) - 1) / N
-    base = pen_widths(pts)
+    base = bowl_widths(pts)
     def wfn(t):
         w = base(t) * widths([(0.0, 1.3), (0.12, 1.0)])(t)
         if t >= t1: return CW
@@ -242,6 +252,14 @@ def g_S(c):
         mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * 0.92 * mid
         bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
         return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, 0.3)])(t)
+    if PR.BOWL and PR.BOWL.get('widen'):
+        wid = widen_terminal(widen_terminal(None, True), False)
+        base2 = pen_widths(spine)
+        def wfn2(t):
+            mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base2(t) * (1 - mid) + st * 0.92 * mid
+            bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
+            return want * wid(t)
+        return geom.ink([stroke(spine, wfn2, cut0=CUT, cut1=CUT)])
     body = stroke(spine, wfn, cut0=math.radians(BEAK_CUT))
     return geom.ink([body, beak(spine, wfn(0.0), True, BEAK_CUT)])
 

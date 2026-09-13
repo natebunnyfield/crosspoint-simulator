@@ -224,7 +224,7 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     tans = tangents(outer, closed=True)
     inner = []
     for p, tn in zip(outer, tans):
-        w = max(pen.PEN.th(tn) * w_scale, floor)
+        w = max(bowl_th(tn) * w_scale, floor)
         inner.append((p[0] - tn[1] * w, p[1] + tn[0] * w))   # inward: the LEFT normal of a ccw outer
     inner = _unfold(inner, tans)
     inner = smooth(inner, counter_smooth, closed=True)
@@ -250,7 +250,58 @@ def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, p
     inner = resample(inner + [inner[0]])[:-1]
     return geom.poly(outer, [inner[::-1]]), outer, inner
 
-BOWL_HAIR, BOWL_MAX, BOWL_POW = 0.42, 1.18, 1.7    # the D-family bowl profile, fitted to Van den Keere's rays (2026-09-13); 1.7 measured from the instrument's centre (the brief's 1.28 was by angle, and read +15 at -60/-40)
+BOWL_HAIR, BOWL_MAX, BOWL_POW = 0.42, 1.18, 1.7    # round 57's D-family profile, fitted to Van den Keere's rays (kept for the record; the shipping font)
+# Round 58 (owner: "a wedge serif like Albertus, but more readable" -- not
+# Van den Keere): the bowl profile is a SWITCH. None = the pen (the 26-degree
+# nib, round 56's bowls); a dict = a vertically stressed profile applied to
+# EVERY bowl (D B P R, O Q C G, o c e b d p q g): hair and max over the stem,
+# the exponent, the taper of a bowl's ends into its stem (x the hair), the
+# round end's superellipse exponent, and for variant C the free terminals'
+# widening (fraction, span) into the family's cut.
+BOWL = None
+BOWL_OPTIONS = {
+    'A': dict(name='Albertus-like moderate', hair=0.62, max=1.02, pow=1.4, taper=0.75, k=2.0, widen=None),
+    'B': dict(name='Albertus-like firm', hair=0.70, max=1.00, pow=1.6, taper=0.85, k=1.9, widen=None),
+    'C': dict(name='Glyphic near-monoline', hair=0.78, max=0.98, pow=2.0, taper=0.90, k=2.0, widen=(0.15, 0.12)),
+    'D': dict(name='Albertus-measured', hair=0.75, max=1.05, pow=1.5, taper=0.85, k=2.0, widen=None, stress=20.0, arch_floor=1.0),
+    'VDK': dict(name='round 57, Van den Keere fit', hair=0.42, max=1.18, pow=1.7, taper=0.7, k=2.0, widen=None),
+}
+# 'stress': degrees the profile's maximum sits above 3 o'clock (Albertus's O
+# peaks at +20); 'arch_floor': the n m h u arches never thin below this x stem.
+
+def bowl_hair():
+    """The current bowl profile's thin, in units (the waist bar of the B)."""
+    return S * (BOWL['hair'] if BOWL else BOWL_HAIR)
+def set_bowl(key):
+    global BOWL
+    BOWL = None if key is None else dict(BOWL_OPTIONS[key])
+
+def bowl_th(tn):
+    """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""
+    if BOWL is None: return pen.PEN.th(tn)
+    phi = math.atan2(tn[1], tn[0]) - math.radians(BOWL.get('stress', 0.0))
+    return S * (BOWL['hair'] + (BOWL['max'] - BOWL['hair']) * abs(math.sin(phi)) ** BOWL['pow'])
+
+def bowl_widths(center, profile=None, floor=0.0):
+    """Like pen_widths, on the bowl profile (the pen when none is set)."""
+    tans = tangents(center); n = len(center) - 1
+    def f(t):
+        i = min(n, int(round(t * n))); w = bowl_th(tans[i])
+        if profile: w *= profile(t)
+        return max(w, floor)
+    return f
+
+def widen_terminal(profile_fn, at_start=False):
+    """Variant C: a free terminal widens 15% over its last 12% (first 12% if
+    at_start) into the family's cut. Returns the composed profile."""
+    if BOWL is None or not BOWL.get('widen'): return profile_fn
+    amt, span = BOWL['widen']
+    def f(t):
+        u = (t if not at_start else 1 - t)
+        w = profile_fn(t) if profile_fn else 1.0
+        if u > 1 - span: v = (u - (1 - span)) / span; w *= 1 + amt * (3 * v * v - 2 * v ** 3)
+        return w
+    return f
 BOWL_ARC = 1.0     # the round end's x radius over the bowl's half height (a semicircle); a 12-cell grid over 0.65-1.0 x exponent 1.28-2.2 against VdK's D P R rays put 1.0 / 1.7 best (sum |delta| 141 of 27 cells)
 BOWL_ARC_K = 2.0   # the end is a true round; the "squared shoulders" are the flat runs
 
@@ -266,6 +317,7 @@ def bowl_profile(tan):
     only falls to ~60. (A first version took the angle from the half
     superellipse's own centre, which sits at the stem, so the top stroke
     thickened from the stem outward and the rays read ~100 everywhere.)"""
+    if BOWL is not None: return bowl_th(tan)
     phi = math.atan2(tan[1], tan[0])
     return S * (BOWL_HAIR + (BOWL_MAX - BOWL_HAIR) * abs(math.sin(phi)) ** BOWL_POW)
 
@@ -282,7 +334,9 @@ def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_sc
     asymmetry now: the counter's lower half lifted by open_bottom x the
     horizontal stroke (Van den Keere's own bottom is 38 against a top of
     46). Returns (solid, cx, cy, rx_c, ry_c, L, R)."""
-    ry_c = (y_top - y_bot) / 2 - S * BOWL_HAIR / 2; rx_c = rx - S * BOWL_MAX / 2
+    hair = S * (BOWL['hair'] if BOWL else BOWL_HAIR); mx = S * (BOWL['max'] if BOWL else BOWL_MAX)
+    if BOWL: taper = BOWL['taper']
+    ry_c = (y_top - y_bot) / 2 - hair / 2; rx_c = rx - mx / 2
     cy = (y_top + y_bot) / 2; cx = edge + rx * 0.05
     # Van den Keere's bowl, measured (2026-09-13): a FLAT run from the stem
     # along the top, a round end, a flat run back along the bottom -- so the
@@ -290,7 +344,7 @@ def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_sc
     # belly. The arc's x radius is the bowl's half height (a round end),
     # the flat runs take up the rest of the fixed width.
     arc_rx = min(rx_c, ry_c * BOWL_ARC); flat = rx_c - arc_rx; ax = cx + flat
-    arc = superellipse(ax, cy, arc_rx, ry_c, -math.pi / 2, math.pi / 2, BOWL_ARC_K)
+    arc = superellipse(ax, cy, arc_rx, ry_c, -math.pi / 2, math.pi / 2, BOWL['k'] if BOWL else BOWL_ARC_K)
     center = [(edge - into, cy - ry_c)] + arc + [(edge - into, cy + ry_c)]
     center = resample(center)
     n = len(center) - 1

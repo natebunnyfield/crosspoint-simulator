@@ -9,6 +9,7 @@ from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, join
 from ..primitives import stem, stem_edge_x, edge_stroke, widths, stroke, trap, wedge, pen_widths
+from .. import primitives as PR
 from ..pen import S, XH, ASC, TH_V, TH_H, HAIR, WL, WD, DROP, ENT, CUT
 
 def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32, end_y=0.60):
@@ -27,8 +28,9 @@ def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32
     yc = (8 * (xh + over_c) - xh * start - xh * end_y) / 6
     center = cubic((xl - 6, xh * start), (xl + S * 0.2, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * end_y))
     base = pen_widths(center)
+    floor = S * PR.BOWL['arch_floor'] if (PR.BOWL and PR.BOWL.get('arch_floor')) else 0.0   # variant D: the arch never thins below the stem (Albertus, measured)
     def wfn(t):
-        u = min(1.0, t / taper_span); return base(t) * (taper + (1 - taper) * (3 * u * u - 2 * u ** 3))
+        u = min(1.0, t / taper_span); return max(base(t) * (taper + (1 - taper) * (3 * u * u - 2 * u ** 3)), floor)
     solid, L, R = stroke(center, wfn, sides=True)
     cut = trap((xl, start * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
     return solid, [cut], L, R
@@ -74,7 +76,8 @@ def g_u(c):
     cy = (8 * (-over_c) - xh * 0.4 - xh * 0.42) / 6
     center = cubic((x0, xh * 0.4), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
     base = pen_widths(center)
-    wfn = lambda t: base(t) * (1.0 if t < 0.7 else (0.58 + 0.42 * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3))))
+    floor = S * PR.BOWL['arch_floor'] if (PR.BOWL and PR.BOWL.get('arch_floor')) else 0.0
+    wfn = lambda t: max(base(t) * (1.0 if t < 0.7 else (0.58 + 0.42 * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3)))), floor)
     bowl = stroke(center, wfn)
     right = stem(x1, 0, xh, top='left', foot='right')
     return geom.ink([left, right, bowl])

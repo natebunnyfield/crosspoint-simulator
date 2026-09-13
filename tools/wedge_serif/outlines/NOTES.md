@@ -248,6 +248,66 @@ UNTOUCHED: VdK's O measures the same profile (32 45 67 86 97 94 79 53 32)
 and ours the 26-degree nib's (53 40 56 70 78 84 82 74 61, max at +20) --
 the owner's ruling to make.
 
+## Round 58: the bowl profile as three options (owner: "a wedge serif like Albertus, but more readable")
+
+Owner, verbatim: "I am not interested in recreating Van den Keere." Round
+57's Van den Keere fit stays only as the record (`BOWL_OPTIONS['VDK']`)
+and in the shipping font until he picks; Van den Keere and Garamond are
+PROPORTION references only from here. The bowl profile is a switch
+(`primitives.set_bowl`, `BOWL_OPTIONS`) applied to EVERY bowl -- D B P R
+(`half_bowl`), O Q C G (`ring`, `cap_arc`, the G's arc) and o c e b d p q
+g (`ring`, `open_arc`) -- as w = hair + (max - hair) |sin phi|^p, vertical
+stress; the joins into stems taper to `taper` x the hair (never a
+hairline); variant C's free terminals (C S c s and the a's hood) widen 15%
+over their last 12% into the family's cut instead of the beak. Every
+ruled proportion, width, wedge, kick, the e's bar and the G3 g unchanged.
+TTFs `fonts/rebuild/Fjord-bowl{A,B,C}.ttf`, page `fjord-bowl-options.html`
+(each variant: "DBPR Oo ce bdpq g" at 230 px x-height and a 13 pt e-ink
+paragraph; round 56's nib bowls as the fourth block). `bowl_rays.py`,
+D / o, -80..+80:
+
+    A moderate  (hair .62, max 1.02, p 1.4, taper .75, k 2.0)  D 61 71 79 85 86 84 78 67 57 / o 56 62 72 83 87 82 72 63 54
+    B firm      (hair .70, max 1.00, p 1.6, taper .85, k 1.9)  D 67 74 79 82 84 82 77 70 62 / o 62 66 73 83 85 82 73 67 61
+    C monoline  (hair .78, max .98,  p 2.0, taper .90, widen)  D 73 77 80 82 84 82 76 71 66 / o 69 70 74 82 83 80 76 70 67
+    nib (r56)   the 26-degree pen                               D 59 56 66 76 79 85 82 76 70 / o 54 40 48 69 80 84 81 74 62
+
+All three peak at 0 (vertical stress); contrast at the rays 1.5 / 1.35 /
+1.2 to 1 (A / B / C) against the nib's 1.5 with its maximum at +20 and
+its thin at -60.
+
+## Round 58b: the B's waist is ONE bar; variant D from Albertus Medium
+
+- Owner: "the cross bar in B needs to be like R or P, not doubled." The two
+  bowls' outer edges both sat ON 0.55 C, so their strokes stacked (two
+  runs, 55 + 53, at the waist in the phase-2 build). Now the upper bowl's
+  bottom stroke and the lower bowl's top stroke share one CENTERLINE at
+  0.55 C (`g_B`: y_bot = waist - hair/2, y_top = waist + hair/2), so the
+  waist is one horizontal at the profile's thin -- the stroke the P's bowl
+  makes returning to the stem. Vertical scan at 0.40 of the width: ONE run
+  in every build -- A 54, D 69, B 60, C 67, shipping (VdK profile) 36.
+  (`bowl_rays` at +60 on the B still reads ~217 in every font including
+  Albertus's 385 at +80: that ray runs ALONG the waist into the upper
+  bowl, so it is not a thickness there.)
+- Albertus Medium is on disk (`scratchpad/wedge/ref/Albertus-Medium.ttf`),
+  measured by the coordinator for stroke character ONLY (its proportions
+  are not ours): bowls 1.18-1.4:1 with the O's maximum at +20, hairs
+  0.72-0.85 of the stem, arches never below the stem. Variant **D
+  "Albertus-measured"**: hair 0.75, max 1.05, p 1.5, stress +20 (a
+  `stress` rotation in `bowl_th`), ends into stems 0.85 of the hair, and
+  `arch_floor` 1.0 -- the n m h arches and the u's bowl never thin below
+  the stem (the taper into the stem is floored away too). Page order A D
+  B C then the nib. `bowl_rays`, D / o / n, -80..+80:
+
+    A   D 60 71 81 85 85 83 78 68 58 | o 55 63 72 84 86 81 72 63 56 | n -- 39 156 85 80 84 86 74 60
+    D   D 67 70 76 84 87 89 87 82 75 | o 70 68 71 81 85 88 86 80 73 | n -- 37 155 85 80 85 85 83 88   (max at +20)
+    B   D 67 74 79 82 84 82 77 70 62 | o 62 66 73 83 85 82 73 67 61 | n -- 39 156 85 80 84 86 74 60
+    C   D 73 77 80 82 84 82 76 71 66 | o 69 70 74 82 83 80 76 70 67 | n -- 39 156 85 80 84 86 74 60
+    nib D 59 56 66 76 79 85 82 76 70 | o 54 40 48 69 80 84 81 74 62 | n -- 38 158 85 80 83 82 75 59
+    Albertus (531 xh, 106 stem): D 110 120 124 124 123 124 124 118 105 | o 69 77 93 105 111 117 117 110 92 | n -- 121 140 113 106 113 128 122 103
+
+  (The n's -40 cell is the ray running along the arch's shoulder; its +80
+  cell is the arch's top: D 88 against A/B/C's 60 -- the floor.)
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

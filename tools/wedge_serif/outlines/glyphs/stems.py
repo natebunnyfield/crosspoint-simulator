@@ -4,7 +4,8 @@ import shapely.affinity as aff
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, join, superellipse, catmull
-from ..primitives import stem, stem_edge_x, ring, ring_from, stroke, pen_widths, widths, dot, wedge, trap, diagonal, beak
+from ..primitives import stem, stem_edge_x, ring, ring_from, stroke, pen_widths, widths, dot, wedge, trap, diagonal, beak, widen_terminal
+from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT, WL, WD, DROP
 from .rounds import o_ring, open_arc
 
@@ -67,7 +68,7 @@ def g_a(c):
     st = stem(x, 0, xh * 0.95, top=None, foot='both', ent_span=(0, xh))
     yc = (8 * (xh + OVER - TH_H / 2) - xh * 0.66 - xh * 0.78) / 6
     hood = cubic((x, xh * 0.66), (x, yc), (x - 250 * wf, yc), (x - 300 * wf, xh * 0.78))
-    hd = stroke(hood, pen_widths(hood, widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])), cut1=CUT)
+    hd = stroke(hood, pen_widths(hood, widen_terminal(widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])) if (PR.BOWL and PR.BOWL.get('widen')) else widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])), cut1=CUT)
     L = (x - 330 * wf, xh * 0.27); B = (x - 150 * wf, -OVER); xe = x - TH_V / 2
     top = (xe + 82, xh * 0.67)   # closes 82 inside the stem (the counter's offset lands ON the stem's edge); a shallow crotch under the hood, as round 51's
     outer = join(cubic(top, (top[0] - 120 * wf, top[1] - 55), (L[0], L[1] + 105), L),
@@ -104,7 +105,9 @@ def g_s(c):
     pts = [(w * 0.93, xh * 0.80), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
            (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)]
     spine = catmull(pts, tension=0.55)
-    wfn = pen_widths(spine, widths([(0.0, 1.25), (0.12, 1.0), (0.88, 1.0), (1.0, 1.25)]))
+    prof = widths([(0.0, 1.25), (0.12, 1.0), (0.88, 1.0), (1.0, 1.25)])
+    if PR.BOWL and PR.BOWL.get('widen'): prof = widen_terminal(widen_terminal(None, True), False)
+    wfn = pen_widths(spine, prof)
     return geom.ink([stroke(spine, wfn, cut0=CUT, cut1=CUT)])
 
 def bowl_stem(c, side, top, bottom):
