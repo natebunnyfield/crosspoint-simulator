@@ -1934,4 +1934,4 @@ twelve (the & has fixed side fractions), only advances move (756-862).
 hairline on its loop's rising side (the pen at 29 deg, 3 deg off the
 stress) -- that is the current & as it will now render, not a variant
 defect. Fonts `build/fjord-fonts/amp2/`. Page
-https://claude.ai/code/artifact/PENDING68.
+https://claude.ai/code/artifact/07e96d82-60a9-4757-91f4-3e74223636dc.
