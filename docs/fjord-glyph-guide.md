@@ -57,8 +57,10 @@ answers land in this section as they arrive.
   those faces); where they disagree, the garalde median is the target and
   the owner's picture decides.
 - **Contrast** (his answer): **move toward the references** -- the pen's
-  `contrast` from 0.60 to about 0.45 (thins 20–25% lighter; the o's hairline
-  from 0.128 xh toward 0.10; Garamond is 0.075), still above Garamond's,
+  `contrast` UP from 0.60 (hair = stem × (1 − contrast); round 53's first
+  page had this backwards and its three blocks differed 3% the wrong way),
+  to about 0.70–0.78 (the o's hairline from 0.130 xh to 0.113 / 0.105;
+  Garamond is 0.075), still above Garamond's,
   and CHECKED ON THE READER'S FOUR-LEVEL PIPELINE (13 pt at 2x, 8x
   supersampled, quantized to 255/200/96/0) before it is ruled -- a true
   hairline breaks up on e-ink. This amends the §3 proportions row; the
@@ -109,7 +111,7 @@ centerline:
 
     thickness(φ) = hair + (stem − hair) · |sin(φ − stress)| ^ power
 
-with the shipping design `stem` 82, `contrast` 0.60 (so `hair` = 49),
+with the shipping design `stem` 82, `contrast` 0.60 -- `hair` = `stem` × (1 − `contrast`) = 33, so a HIGHER contrast number means THINNER thins --,
 `stress` 26° and `power` 0.95. In practice: a vertical runs 77 units, a
 horizontal 55, a 45° down-right diagonal 79, a down-LEFT diagonal thins
 toward the hairline. That last fact shapes several letters: a neck or a leg
@@ -207,7 +209,7 @@ none without the owner's word, and record any change in the exploration doc.
 | overshoot of arches (n m h u) | 12 units at the ink's edge | round 30 ruling, from the arches page |
 | lowercase width | 0.938 of the drawn widths; the o's counter 1.036 wide over tall | round 35 ruling; capitals untouched |
 | stem | 82; capital stem 1.137 × | design; references' median |
-| pen contrast | 0.60 today; the rebuild moves it toward the references, about 0.45, value to be picked from a render on the reader's pipeline (§0) | design; owner 2026-09-12 |
+| pen contrast | 0.60 today (hair = 0.40 stem); the rebuild moves it UP toward the references, 0.70 or 0.78, picked from the round-53 render (§0) | design; owner 2026-09-12 |
 | wedge family | table in §2 | round 30 |
 | kick angles | A 65°, R 60°, k 56°, K 37° -- all different, by ruling | rounds 31, 32, 36 |
 | arches | peak with their outer edge at xh + 12; leave the stem at 0.52 of the x-height with a trap notch | rounds 27, 30 |

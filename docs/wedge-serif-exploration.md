@@ -1394,3 +1394,9 @@ Rebuilt as six 750 px blocks wrapped to that width, shown at 375 CSS px
 (native on a 2x phone). Rule added to the guide §4.
 **Ruling (descender):** 250, as now. The g p q j y stay at their depth; the
 weight-pass lever is closed.
+**Correction (2026-09-13):** the first contrast blocks were built the wrong
+way -- `Pen.hair = stem × (1 − contrast)`, so lowering the number THICKENS
+the thins; 0.42 gave a hairline 12% heavier, and the owner rightly saw no
+difference. Rebuilt at 0.60 / 0.70 / 0.78: o hairline 0.130 / 0.113 / 0.105
+xh (2.9 / 2.5 / 2.4 px at 13 pt); large "oeca no" blocks added so the dial
+can be seen. The guide's formula corrected.
