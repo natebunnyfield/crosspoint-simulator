@@ -10,20 +10,23 @@
 # while every palette, the grain and the shortlist landed, and the owner was
 # judging the Mac against them without either of us noticing.
 #
-# THE FOUR BUNDLES, and which of them actually supersamples:
+# THE FOUR BUNDLES, and what each renders at:
 #
-#   CrossPointX3      X3 panel, render scale 1 — device-exact
-#   CrossPointX3-2x   X3 panel, render scale 1, WINDOW doubled
-#   CrossPointX3-3x   X3 panel, RENDER SCALE 3 — supersampled glyphs
-#   CrossPointX4      X4 panel, render scale 1 — device-exact
+#   CrossPointX3      X3 panel, render 1, window 1 — DEVICE-EXACT reference
+#   CrossPointX3-2x   X3 panel, render 2, window 2 — supersampled glyphs
+#   CrossPointX3-3x   X3 panel, render 3, window 3 — supersampled glyphs
+#   CrossPointX4      X4 panel, render 1, window 1 — DEVICE-EXACT reference
 #
-# The -2x name has always described the WINDOW, not the rasterisation: it is
-# the same binary as CrossPointX3 with CROSSPOINT_SIM_WINDOW_SCALE=2, so its
-# glyphs are the 1x glyphs magnified. -3x is the different thing — a separate
-# binary compiled at CROSSPOINT_RENDER_SCALE=3, so the hi-res paths are compiled
-# in and it reads the <Family>/3x/ .cpfont companions. Layout is unaffected
-# either way: advances, kerning and pagination keep reading the 1x tables
-# (docs/render-scale.md).
+# Until 2026-09-13 the -2x name described the WINDOW and not the rasterisation:
+# it was the same 1x binary with CROSSPOINT_SIM_WINDOW_SCALE=2, so its glyphs
+# were 1x glyphs magnified. It now really renders at 2 (owner ruling: rebuild
+# the 2x and all versions to use high fidelity), which means what you have been
+# judging in it has changed — that is the point, not a side effect.
+#
+# CrossPointX3 and CrossPointX4 stay at 1 deliberately. They are the only
+# bundles that show what the hardware shows, and a comparison needs something to
+# compare against. Layout never varies with any of this: advances, kerning and
+# pagination keep reading the 1x tables (docs/render-scale.md).
 #
 #   BUILD=<n>   CFBundleVersion to stamp (default: the build-N tag + 1)
 set -euo pipefail
@@ -39,36 +42,47 @@ echo "== building from $FW, stamping build $BUILD"
 rm -rf "$DIST"; mkdir -p "$DIST"
 pkg() { python3 "$PACKAGER" build --version 0.1.0 --build "$BUILD" --output-dir "$DIST" "$@" >/dev/null; }
 
-# THE 3x CUT FIRST, AND PACKAGED BEFORE THE NEXT BUILD RUNS. CROSSPOINT_RENDER_SCALE
-# changes the compiler command line but NOT the output path, so both cuts of
-# simulator_x3 land on the same .pio/build/simulator_x3/program and the second
-# build overwrites the first. Doing 3x first also leaves the tree at the 1x
-# default, which is what a later bare `pio run -e simulator_x3` expects.
-echo "== simulator_x3 at render scale 3"
+# ONE X3 BUILD, AT THE CEILING. CROSSPOINT_RENDER_SCALE is a CEILING, not the
+# factor rendered at: a binary compiled at 3 renders at 1, 2 or 3, latched once
+# at startup from CROSSPOINT_SIM_RENDER_SCALE (docs/render-scale.md,
+# simulator_main.cpp latchRenderScale). So all three X3 bundles share this one
+# binary and differ only in LSEnvironment. It was briefly built twice, once per
+# scale; that was unnecessary, and it had a trap, because both cuts write the
+# same .pio/build/simulator_x3/program and the second silently overwrote the
+# first.
+echo "== simulator_x3 at render-scale ceiling 3 (serves all three X3 bundles)"
 ( cd "$FW" && CROSSPOINT_RENDER_SCALE=3 pio run -e simulator_x3 >/dev/null )
-# WINDOW_SCALE=3 alongside it so one framebuffer pixel lands on one device
-# pixel. The window is sized in LOGICAL panel pixels, so without it the 3x
-# framebuffer is presented downsampled into a panel-sized surface and the extra
-# rasterisation detail — the whole point of this bundle — is thrown away before
-# it reaches the glass (HalDisplay.cpp, simulatorWindowScale). RENDER_SCALE=3 is
-# redundant while the ceiling is 3 (unset means the ceiling) and is passed
-# anyway, so the bundle still renders at 3 if the ceiling ever rises.
+echo "== simulator (X4)"
+( cd "$FW" && pio run -e simulator >/dev/null )
+
+# CROSSPOINT_SIM_RENDER_SCALE=1 ON THE PLAIN BUNDLE IS LOAD-BEARING, NOT NOISE:
+# unset means "the ceiling", so leaving it off would render CrossPointX3 at 3
+# and cost the only bundle that shows what the hardware shows. At scale 1 the
+# hi-res companions are deliberately not registered at all (the switch's
+# default: case), so this is device-exact, not 3x-downsampled.
+pkg --binary "$FW/.pio/build/simulator_x3/program" --device x3 \
+    --env CROSSPOINT_SIM_DEVICE_PIXELS=1 \
+    --env CROSSPOINT_SIM_RENDER_SCALE=1
+# WINDOW_SCALE matches RENDER_SCALE on the supersampled pair so one framebuffer
+# pixel lands on one device pixel. The window is sized in LOGICAL panel pixels,
+# so without it the bigger framebuffer is presented downsampled into a
+# panel-sized surface and the extra rasterisation detail — the whole point —
+# is thrown away before it reaches the glass (HalDisplay.cpp,
+# simulatorWindowScale).
+pkg --binary "$FW/.pio/build/simulator_x3/program" --device x3 \
+    --product-name CrossPointX3-2x --executable-name CrossPointX3-2x \
+    --bundle-id com.crosspoint.CrossPointX3-2x \
+    --env CROSSPOINT_SIM_DEVICE_PIXELS=1 \
+    --env CROSSPOINT_SIM_WINDOW_SCALE=2 \
+    --env CROSSPOINT_SIM_RENDER_SCALE=2
 pkg --binary "$FW/.pio/build/simulator_x3/program" --device x3 \
     --product-name CrossPointX3-3x --executable-name CrossPointX3-3x \
     --bundle-id com.crosspoint.CrossPointX3-3x \
     --env CROSSPOINT_SIM_DEVICE_PIXELS=1 \
     --env CROSSPOINT_SIM_WINDOW_SCALE=3 \
     --env CROSSPOINT_SIM_RENDER_SCALE=3
-
-echo "== simulator_x3 and simulator at render scale 1"
-( cd "$FW" && pio run -e simulator_x3 >/dev/null && pio run -e simulator >/dev/null )
-
-pkg --binary "$FW/.pio/build/simulator_x3/program" --device x3 \
-    --env CROSSPOINT_SIM_DEVICE_PIXELS=1
-pkg --binary "$FW/.pio/build/simulator_x3/program" --device x3 \
-    --product-name CrossPointX3-2x --executable-name CrossPointX3-2x \
-    --bundle-id com.crosspoint.CrossPointX3-2x \
-    --env CROSSPOINT_SIM_DEVICE_PIXELS=1 --env CROSSPOINT_SIM_WINDOW_SCALE=2
+# X4 stays device-exact and is built at the default ceiling 1, so it has no
+# scale to set. An X4-2x/-3x would need this env built at a ceiling too.
 pkg --binary "$FW/.pio/build/simulator/program" --device x4 \
     --env CROSSPOINT_SIM_DEVICE_PIXELS=1
 
@@ -92,24 +106,51 @@ for n in "${APPS[@]}"; do
   echo "installed /Applications/$n.app (build $BUILD)"
 done
 
-# A bundle's simulated card is keyed by its NAME
-# ($HOME/Library/Application Support/<app>/fs_, HalStorage.cpp:66), so a newly
-# added bundle starts with an EMPTY one -- no books and, more to the point for
-# this one, no fonts. With no <Family>/3x/ companions on the card every glyph
-# falls back to 1x-replicated ("No hi-res companion", SdCardFontManager.cpp) and
-# the 3x build shows nothing a 2x window would not. So seed the fonts from the
-# firmware's fs_, where install-sim-fonts.py puts all three tiers (1x + 2x/ +
-# 3x/). FIRST RUN ONLY: an existing card is never touched, so a card the owner
-# has arranged survives every later deploy. Books are deliberately not copied --
+# THE HI-RES COMPANIONS EACH SUPERSAMPLED BUNDLE NEEDS ON ITS OWN CARD.
+#
+# A bundle's simulated card is keyed by its NAME ($HOME/Library/Application
+# Support/<app>/fs_, HalStorage.cpp:66), so every bundle has a SEPARATE card and
+# a new one starts empty. A card without <Family>/<N>x/ companions is not an
+# error anyone sees: every glyph quietly falls back to 1x-replicated ("No hi-res
+# companion", SdCardFontManager.cpp) and the bundle looks like a plain zoom.
+#
+# That bites hardest on CrossPointX3-2x, which is NOT new: it has a card in use,
+# with fonts, that has never needed a 2x/ tier because until today it rendered
+# at 1. Seeding "first run only" would leave exactly that card stale.
+#
+# So: copy the whole tree when there is no card yet, and otherwise ADD only the
+# missing <Family>/<N>x/ directories. Additive — nothing existing is replaced or
+# removed, so a card the owner has arranged survives. Books are never copied;
 # they can be large, and a drag into the folder is the normal way in.
-CARD_3X="$HOME/Library/Application Support/CrossPointX3-3x/fs_"
-if [ -d "$CARD_3X/fonts" ]; then
-  echo "CrossPointX3-3x card already has fonts; left alone"
-elif [ -d "$FW/fs_/fonts" ]; then
-  mkdir -p "$CARD_3X"
-  cp -R "$FW/fs_/fonts" "$CARD_3X/fonts"
-  echo "seeded $CARD_3X/fonts from $FW/fs_/fonts (first run; books not copied)"
-else
-  echo "NOTE: $FW/fs_/fonts does not exist, so CrossPointX3-3x has no fonts yet."
-  echo "      Run: (cd $FW && python3 scripts/install-sim-fonts.py) then re-run this."
-fi
+ensure_tier() {  # $1 = bundle name, $2 = tier
+  local card="$HOME/Library/Application Support/$1/fs_/fonts"
+  local src="$FW/fs_/fonts"
+  if [ ! -d "$src" ]; then
+    echo "NOTE: $src does not exist, so $1 has no ${2}x companions."
+    echo "      Run: (cd $FW && python3 scripts/install-sim-fonts.py) then re-run this."
+    return 0
+  fi
+  if [ ! -d "$card" ]; then
+    mkdir -p "$(dirname "$card")"
+    cp -R "$src" "$card"
+    echo "$1: seeded fonts from $src (new card; books not copied)"
+    return 0
+  fi
+  local added=0 fam name
+  for fam in "$card"/*/; do
+    [ -d "$fam" ] || continue
+    name="$(basename "$fam")"
+    if [ ! -d "$fam/${2}x" ] && [ -d "$src/$name/${2}x" ]; then
+      cp -R "$src/$name/${2}x" "$fam/${2}x"
+      added=$((added + 1))
+    fi
+  done
+  if [ "$added" -gt 0 ]; then
+    echo "$1: added ${2}x companions for $added existing famil$([ "$added" -eq 1 ] && echo y || echo ies)"
+  else
+    echo "$1: ${2}x companions already present"
+  fi
+}
+
+ensure_tier CrossPointX3-2x 2
+ensure_tier CrossPointX3-3x 3
