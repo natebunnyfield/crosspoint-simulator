@@ -30,6 +30,41 @@
 #endif
 #endif
 
+// Whether libcurl THE LIBRARY stands in for the curl SUBPROCESS.
+//
+// The same problem as the iOS branch above, one platform over: popen() spawns a
+// binary outside the bundle, which the macOS App Sandbox forbids. Every
+// OPDS/catalog download, KOReader sync and SD-font fetch therefore fails in a
+// sandboxed Mac build no matter which network entitlement is granted --
+// packaging/macos/CrossPoint.entitlements says exactly that in its own header.
+// A library call has no subprocess to forbid. It is the same curl either way,
+// and notably the same CURLcode numbers, which ARE the CLI's exit codes, so
+// simCurlExitCodeToHttpError() keeps working untouched.
+//
+// DECIDED HERE, IN THE HEADER, NOT BY A BUILD FLAG. Every TU that includes this
+// must agree -- simulator and firmware alike, since firmware code includes the
+// HTTPClient.h shim -- or these inline functions differ between TUs, which is an
+// ODR violation rather than an error anything reports. A flag is easy to set on
+// one env and miss on another; a platform test cannot be. All the build has to
+// do is LINK -lcurl, and forgetting that is a loud undefined-symbol error
+// naming curl_easy_init, which diagnoses itself.
+//
+// Linux keeps the subprocess: no sandbox forbids it there, and switching would
+// put a libcurl-dev requirement on every Linux/WSL checkout for no gain.
+// Overridable, which is how the test below compiles this branch off-Mac.
+#ifndef CROSSPOINT_SIM_LIBCURL
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
+#define CROSSPOINT_SIM_LIBCURL 1
+#else
+#define CROSSPOINT_SIM_LIBCURL 0
+#endif
+#endif
+
+#if CROSSPOINT_SIM_LIBCURL
+#include <curl/curl.h>
+#include <mutex>
+#endif
+
 namespace sim_http_fetch {
 
 struct Response {
@@ -294,6 +329,85 @@ inline bool fetchWithCurl(const std::string &url, const char *method,
   return rc == 0 || out.statusCode > 0 || !out.body.empty();
 }
 
+#if CROSSPOINT_SIM_LIBCURL
+inline size_t libcurlAppendBody(char *ptr, size_t size, size_t nmemb,
+                                void *userdata) {
+  const size_t bytes = size * nmemb;
+  static_cast<std::string *>(userdata)->append(ptr, bytes);
+  return bytes;
+}
+
+// curl_global_init is NOT thread-safe and libcurl's implicit init inherits
+// that. fetch() runs on firmware task threads, several of which can start a
+// transfer at once, so force it exactly once before any easy handle exists.
+// A function-local static is the guarantee: C++11 onwards the initialiser runs
+// once and other threads block until it has.
+inline void libcurlInitOnce() {
+  static const bool ready = [] {
+    return curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK;
+  }();
+  (void)ready;
+}
+
+// The same request the curl CLI above builds, option for option. Kept in that
+// order so the two can be read side by side.
+inline bool fetchWithLibcurl(const std::string &url, const char *method,
+                             const std::map<std::string, std::string> &headers,
+                             const std::string &basicAuth, const char *body,
+                             Response &out) {
+  libcurlInitOnce();
+  CURL *handle = curl_easy_init();
+  if (!handle)
+    return false;
+
+  struct curl_slist *headerList = nullptr;
+  for (const auto &header : headers) {
+    headerList =
+        curl_slist_append(headerList, (header.first + ": " + header.second).c_str());
+  }
+
+  curl_easy_setopt(handle, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);   // -L
+  curl_easy_setopt(handle, CURLOPT_CONNECTTIMEOUT, 10L);  // --connect-timeout 10
+  // The idle timeout, not a total one -- see curlCommand's note above for why
+  // that distinction cost a release. --speed-limit 1 --speed-time 60.
+  curl_easy_setopt(handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
+  curl_easy_setopt(handle, CURLOPT_LOW_SPEED_TIME, 60L);
+  // Without this libcurl uses SIGALRM for DNS timeouts, which is unsafe off the
+  // main thread and every caller here is off it.
+  curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, libcurlAppendBody);
+  curl_easy_setopt(handle, CURLOPT_WRITEDATA, &out.body);
+  if (method && std::strcmp(method, "GET") != 0)
+    curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, method);
+  if (headerList)
+    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, headerList);
+  if (!basicAuth.empty()) {
+    curl_easy_setopt(handle, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
+    curl_easy_setopt(handle, CURLOPT_USERPWD, basicAuth.c_str());
+  }
+  if (body) {
+    // COPYPOSTFIELDS, not POSTFIELDS: the latter does not copy, and would then
+    // be a dangling read if a caller's buffer outlived nothing. Length is left
+    // implicit (strlen) exactly as --data-binary with a C string was.
+    curl_easy_setopt(handle, CURLOPT_COPYPOSTFIELDS, body);
+  }
+
+  const CURLcode rc = curl_easy_perform(handle);
+  long status = 0;
+  curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status);
+
+  curl_slist_free_all(headerList);
+  curl_easy_cleanup(handle);
+
+  out.curlExitCode = static_cast<int>(rc);
+  out.statusCode = static_cast<int>(status);
+  // Same acceptance rule as the subprocess path: a transport failure that still
+  // produced a status line or a body is worth handing back.
+  return rc == CURLE_OK || out.statusCode > 0 || !out.body.empty();
+}
+#endif // CROSSPOINT_SIM_LIBCURL
+
 inline bool fetch(const std::string &url, const char *method,
                   const std::map<std::string, std::string> &headers,
                   const std::string &basicAuth, const char *body,
@@ -308,6 +422,8 @@ inline bool fetch(const std::string &url, const char *method,
     return true;
 #if CROSSPOINT_SIM_HOST_HTTP
   return hostFetch(url, method, headers, basicAuth, body, out);
+#elif CROSSPOINT_SIM_LIBCURL
+  return fetchWithLibcurl(url, method, headers, basicAuth, body, out);
 #else
   return fetchWithCurl(url, method, headers, basicAuth, body, out);
 #endif
