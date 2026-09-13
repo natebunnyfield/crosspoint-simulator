@@ -1712,3 +1712,19 @@ self-intersected at the brackets (12 crossings). Slider page, proof page, TTF
 sent. Env overrides now in the builder: `FJORD_STEM`, `FJORD_CONTRAST`,
 `FJORD_ASC`, `FJORD_DESC`, `FJORD_WIDTH`, `FJORD_XH`, `FJORD_SERIF`,
 `FJORD_ARCH_FLOOR`.
+
+## Round 62 (2026-09-13): the owner sets the defaults from the sliders
+
+Owner, from the slider page: "set to new defaults and allow a greater range
+of weight and contrast: Weight 84, Contrast 0.80, Ascender 770, Descender
+256, Width 100, Cut 115, x-height 429, Serif 100." These become the VF's
+default instance AND the static `Albo-Regular.ttf` (the two must stay one
+design: Regular is the default instance). Supersedes stem 94 (round 59),
+contrast 0.60 (round 53), asc 762, desc 250 (round 53), xh 415 (round 1) and
+the plain 1-in-4 cut; the cut becomes a continuous amount (100 = the 1-in-4
+projection, 200 = 1-in-8, values between blend the two projections on the
+dense point set). Weight and contrast ranges widen as far as the outlines
+hold topology, per glyph clamps recorded. Note for the pipeline: contrast
+0.80 makes the pen's hair 0.20 of an 84 stem = 17 units, under one pixel at
+54 px; the bowls (hair 1 - 0.5c = 0.60 stem) do not go that thin. His call;
+the 13 pt proof shows what it costs.
