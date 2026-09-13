@@ -147,7 +147,8 @@ def ctx(p):
              arch=p.get("arch_start", 0.58), fillet=p.get("fillet", 0.55),
              naive_o=p.get("naive_o", False), raw=p.get("raw_joins", False),
              s_spine=p.get("s_spine", 0.0), s_floor=p.get("s_floor", 0.0), s_two=p.get("s_two", False),
-             e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False))
+             e_bar_overlap=p.get("e_bar_overlap", 0.45), e_join_fill=p.get("e_join_fill", False),
+             trap_depth=p.get("trap_depth", 0.55))
     c["over"] = p.get("overshoot", 12)
     return c
 
@@ -280,7 +281,7 @@ def g_g(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]
     rx = 205 * wf; cx = rx; x = cx + rx - s * 0.5
     _bowl(c, P, cx, rx)
-    stem(c, P, x, -desc * 0.3, xh * 0.42, top=None, foot=None, flare=False)
+    stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.42, top=None, foot=None, flare=False)
     ear = line((x - s * 0.1, xh * 0.86), (x + 70 * wf, xh * 0.95), 8)
     curve(c, P, ear, cut1=c["cut"])
     tail = bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
@@ -309,7 +310,7 @@ def g_m(c):
 
 def g_u(c):
     P = []; xh = c["xh"]; x0 = c["s"] / 2; x1 = x0 + c["nw"]
-    stem(c, P, x0, xh * 0.4, xh, top="wedge", foot=None, flare=False)
+    stem(c, P, x0, xh * 0.4 - c["s"] * 0.5, xh, top="wedge", foot=None, flare=False)
     pts = bez((x0, xh * 0.4), (x0, -c["over"] * 0.6), (x1, -c["over"] * 0.6), (x1, xh * 0.42), 44)
     curve(c, P, pts, taper_out(0.42, 0.3))
     stem(c, P, x1, 0, xh, top="wedge", foot="right"); return P
@@ -323,21 +324,21 @@ def g_l(c):
 
 def g_j(c):
     P = []; xh = c["xh"]; s = c["s"]; desc = c["desc"]; wf = c["wf"]; r = 165 * wf; x = 120 * wf + s / 2
-    stem(c, P, x, -desc + r * 0.2, xh, top="wedge", foot=None, flare=False)
+    stem(c, P, x, -desc + r * 0.2 - s * 0.5, xh, top="wedge", foot=None, flare=False)
     tail = bez((x, -desc + r * 0.2), (x, -desc - r * 0.5), (x - r * 0.55, -desc - r * 0.7), (x - r * 1.05, -desc - r * 0.25), 40)
     curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"])
     P.append(blob((x, xh + 118 + s * 0.3), s * 0.5)); return P
 
 def g_f(c):
     P = []; xh = c["xh"]; s = c["s"]; asc = c["asc"]; wf = c["wf"]; r = 150 * wf; x = 110 * wf + s / 2
-    stem(c, P, x, 0, asc - r, top=None, foot="both", flare=False)
+    stem(c, P, x, 0, asc - r + s * 0.5, top=None, foot="both", flare=False)
     hook = bez((x, asc - r), (x, asc + 10), (x + r * 0.9, asc + 10), (x + r * 1.25, asc - r * 0.5), 40)
     curve(c, P, hook, flare_end(0.15, 0.3), cut1=c["cut"])
     curve(c, P, line((x - 105 * wf, xh), (x + 150 * wf, xh), 12)); return P
 
 def g_t(c):
     P = []; xh = c["xh"]; s = c["s"]; wf = c["wf"]; r = 135 * wf; x = 100 * wf + s / 2
-    stem(c, P, x, r * 0.85, xh + 120, top="cut", foot=None, flare=False)
+    stem(c, P, x, r * 0.85 - s * 0.5, xh + 120, top="cut", foot=None, flare=False)
     tail = bez((x, r * 0.85), (x, -c["over"] * 0.5), (x + r * 0.8, -c["over"] * 0.5), (x + r * 1.45, r * 0.6), 36)
     curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"])
     curve(c, P, line((x - 100 * wf, xh), (x + 150 * wf, xh), 12)); return P

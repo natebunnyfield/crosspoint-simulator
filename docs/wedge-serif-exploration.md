@@ -15,14 +15,16 @@
   kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
   cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
   widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`), 6 in
-  round 17 (counterpunch, `round17.py`). Latest files in
+  round 17 (counterpunch, `round17.py`), 3 in round 18 (k6 fixed, three
+  trap depths, same script). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
 - **The cut is V23a-73c5** (seed 73, clean, steady hand), and the
   construction since round 17 is **ink traps + counterpunches on the
   hand-cut linear outline** (`round17.py`: `pen_linear`, `cp_glyphs`,
-  `Hole`). Round 16's quad cures are superseded: the owner wanted the
-  straight-cut look back. **Awaiting**: his marks on round 17
-  (https://claude.ai/code/artifact/ebe2a2f8-7afd-4d23-b8bb-583e59a4eb8d).
+  `Hole`), on **k6** (pure decimation, no jitter). Round 18 fixed three bugs
+  on it (seams across j and f, bowls bulging past stems, traps) and offers
+  three trap depths. **Awaiting**: his marks on round 18
+  (https://claude.ai/code/artifact/24c8643e-f48b-4883-bb93-73f8064699f0).
   Kept from his notes: the ink traps at the H's crossbar.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
@@ -554,3 +556,39 @@ stem top met the ring where it had already curved inward, a visible step
 Six TTFs: k1 cut 4/3 traps 1.0; k2 traps 1.6; k3 cut 3/2 (straighter); k4
 cut 5/4 (rougher); k5 chiselled counters; k6 pure decimation, no jitter.
 Page: https://claude.ai/code/artifact/ebe2a2f8-7afd-4d23-b8bb-583e59a4eb8d
+
+
+## Round 18 (2026-09-12): k6, three bugs
+
+Owner: *"V23a-73c5-k6. bugs: get rid of fractured lines across letters
+like j and f. when an o shape extends past a vertical line (like pqbd),
+keep it to the stem (lose the o part that goes beyond the stem). use
+inktraps (research if you don't know how to chisel out when there is too
+much intersection)."*
+
+- **Fractures across j and f.** A stem ended exactly where its tail or hook
+  began: two contours sharing an edge, and FreeType's antialiasing leaves a
+  hairline on a shared edge (the conflation of round 12). Every stem that
+  continues into a curve now runs half a stem into it (`alphabet2`: j f t
+  u, and the g's stem into its tail).
+- **Bowls kept to the stem.** The counterpunched ring's outer contour is
+  clipped 0.06 stem inside the stem's inner edge (a hair of overlap, so no
+  shared edge), its counter at the inner edge (`clip_line`).
+- **Ink traps.** Three constructions were tried; the first two failed under
+  the nonzero fill and are recorded so nobody tries them again. (1) A V
+  wedge bitten out by two half-plane clips: the two pieces overlap, wind
+  twice, and the counter cancels only one layer, so the bowls filled
+  solid. (2) The same as a partition (clip, then clip the remainder): the
+  pieces abut along the clip lines and every one of those lines seams, the
+  j/f fracture again, radiating from the bites. (3) **What works, and is
+  how a punchcutter does it:** a tooth on the counterpunch contour at each
+  crotch (the counter's corner vertex pulled into the ink along the
+  crotch's bisector) plus a matching notch on the stem polygon's own inner
+  edge. Two simple polygons, no clipping. `trap_depth` scales it: t1 0.4,
+  t2 0.6, t3 0.85 of the stem (Bell Centennial's order).
+- Also the direction of the first bites was wrong (up into the wall, not
+  down into the crotch) and an uncapped wedge ran across the counter and
+  chewed the far wall. Both are in the log because both looked plausible
+  in code.
+
+Page: https://claude.ai/code/artifact/24c8643e-f48b-4883-bb93-73f8064699f0

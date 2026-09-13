@@ -41,7 +41,7 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
 | `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
 | `round16.py` | Hairline-throughs cured six ways on c5 with quads (`pen_centerline_cut`, `SerifsOnly`). Superseded by round 17: the owner wanted the straight-cut look back. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
-| `round17.py` | **The current front.** Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter), `patch_arch` (traps at the crotches), `orient_with_holes`. |
+| `round17.py` | **The current front** (rounds 17 and 18). Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter, clipped to the stem, with a tooth on the counter and a notch on the stem as the trap), `patch_arch`, `orient_with_holes`, `clip_line`. `bite` remains as the record of what does not work. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -87,6 +87,8 @@ booleans; see "Limits".
   the default pen crosses itself too once a cut jitters a tight curve (the
   "hairline-throughs" of round 16). Quadify, or cut the centerline instead of
   the ink (`round16.pen_centerline_cut`).
+- **Booleans by clipping do not work under nonzero + holes.** Overlapping clip pieces wind twice and defeat a counter; partitioned pieces abut and seam. Cut traps into the counter contour and the stem polygon instead (`round17.bowl_stem`).
+- **A stem that ends exactly where its curve begins seams** (the j/f fractures). Overlap by half a stem.
 - **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
 - **Never replace a function by slicing to the next `def`** without checking
   what sits between; it ate the capital H once.

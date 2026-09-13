@@ -78,6 +78,56 @@ def pen_linear(seed, every=4, amp=3.0):
         return L + R[::-1]
     return outline
 
+# ---------------------------------------------------------------- clips and bites
+def clip_line(poly, p0, nrm):
+    """Sutherland-Hodgman: keep the side where dot(p - p0, nrm) >= 0."""
+    def inside(p): return (p[0] - p0[0]) * nrm[0] + (p[1] - p0[1]) * nrm[1] >= 0
+    out = []
+    for cur, nxt in zip(poly, poly[1:] + poly[:1]):
+        ci, ni = inside(cur), inside(nxt)
+        if ci: out.append(cur)
+        if ci != ni:
+            dc = (cur[0] - p0[0]) * nrm[0] + (cur[1] - p0[1]) * nrm[1]
+            dn = (nxt[0] - p0[0]) * nrm[0] + (nxt[1] - p0[1]) * nrm[1]
+            t = dc / (dc - dn) if dc != dn else 0
+            out.append((cur[0] + (nxt[0] - cur[0]) * t, cur[1] + (nxt[1] - cur[1]) * t))
+    return out if len(out) >= 3 else None
+
+def bite(polys, apex, direction, half_angle, keep_hole=True, reach=None):
+    """An INK TRAP: a V-shaped wedge with its apex at `apex`, opening along
+    `direction` (unit), removed from every contour that covers it. Without
+    booleans, polygon minus a convex wedge is the union of the polygon
+    clipped to each of the wedge's two outer half-planes -- two polygons
+    whose union is exactly the polygon with the notch."""
+    dx, dy = direction; ca, sa = math.cos(half_angle), math.sin(half_angle)
+    # the wedge's two edges, as outward normals of the half-planes to KEEP
+    e1 = (dx * ca - dy * sa, dx * sa + dy * ca); e2 = (dx * ca + dy * sa, -dx * sa + dy * ca)
+    n1 = (-e1[1], e1[0]); n2 = (e2[1], -e2[0])
+    out = []
+    for poly in polys:
+        if isinstance(poly, Hole) and keep_hole: out.append(poly); continue
+        # PARTITION, never union: pieces that overlap wind twice, and a
+        # counter cancels only one layer (the bowls filled solid, 2026-09-12).
+        # piece1 = poly & H1; rest = poly & ~H1; piece2 = rest & H2;
+        # rest2 = rest & ~H2; piece3 = rest2 & beyond-the-cap.
+        pieces = []
+        p1 = clip_line(list(poly), apex, n1); rest = clip_line(list(poly), apex, (-n1[0], -n1[1]))
+        if p1: pieces.append(p1)
+        if rest:
+            p2 = clip_line(rest, apex, n2); rest2 = clip_line(rest, apex, (-n2[0], -n2[1]))
+            if p2: pieces.append(p2)
+            if rest2 and reach is not None:
+                cap = (apex[0] + dx * reach, apex[1] + dy * reach)
+                p3 = clip_line(rest2, cap, (dx, dy))
+                if p3: pieces.append(p3)
+        if not pieces: continue
+        total = sum(abs(signed_area(q)) for q in pieces)
+        if abs(total - abs(signed_area(poly))) < 1e-3:
+            out.append(poly)   # the wedge missed this polygon
+        else:
+            out.extend(pieces)
+    return out
+
 # ---------------------------------------------------------------- counterpunched bowls
 def ring(c, cx, cy, rx, ry, a0, a1, n=96, k=None, cut=None):
     """Outer (cut) and counter (clean) of a bowl segment from a0 to a1 (rad).
@@ -116,21 +166,51 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         P = []; rx = 226 * c["wf"]; full_bowl(c, rx, rx, P); return P
 
     def bowl_stem(c, side, top, bottom):
-        """b d p q: a full ring plus a stem; the ring's end near the stem is
-        the ring itself (no taper needed: the counter is the punch), the
-        trap is a notch cut where the ring meets the stem."""
-        P = []; rx = 214 * c["wf"]; s = c["s"]
+        """b d p q: a full ring plus a stem, the ring KEPT TO THE STEM (owner
+        2026-09-12): its outer contour is clipped a hair inside the stem's
+        inner edge (0.06 stem of overlap, so no shared edge seams), its
+        counter at the stem's inner edge. The INK TRAPS are cut the way a
+        punchcutter cuts them: a tooth on the counterpunch at each crotch,
+        and a matching notch on the stem's own edge. Two simple polygons,
+        no clipping, no partition seams (both were tried and both failed
+        under FreeType's nonzero fill)."""
+        P = []; rx = 214 * c["wf"]; s = c["s"]; xh = c["xh"]
         if side == "right":   # d q
-            cx = rx; x = cx + rx - s * 0.5
+            cx = rx; x = cx + rx - s * 0.5; into = -1
         else:                 # b p
-            x = s * 0.5; cx = x + rx - s * 0.5
-        full_bowl(c, cx, rx, P)
-        A.stem(c, P, x, bottom, top, top=("wedge" if top > c["xh"] * 1.2 else "wedge"), foot=("right" if side == "right" else "left") if bottom == 0 else "both", top_side=1)
-        # ink traps: two small notch polygons of PAPER cannot exist in a
-        # font, so the trap is made by the stem: a stem drawn with a small
-        # bite at the join heights would need booleans. Instead the ring's
-        # outer is already cut; the trap comes from the counter contour,
-        # which we nick toward the stem at the join heights.
+            x = s * 0.5; cx = x + rx - s * 0.5; into = 1
+        ry = xh / 2 + c["over"]
+        outer, inner = ring(c, cx, xh / 2, rx, ry, 0, two, 120, cut=cut)
+        edge = x - into * s * 0.5           # the stem's inner edge, toward the bowl
+        outer = clip_line(outer, (edge - into * s * 0.06, 0), (into, 0))
+        inner = clip_line(inner, (edge, 0), (into, 0))
+        depth = c.get("trap_depth", 0.55) * s; half = s * 0.55
+        # crotch heights: where the counter meets the stem's inner edge
+        ys = [y for (xx, y) in inner if abs(xx - edge) < 0.5]
+        y_top, y_bot = (max(ys), min(ys)) if ys else (xh * 0.82, xh * 0.18)
+        # the tooth: the counter's corner vertex is pulled INTO the ink along
+        # the crotch's bisector (up-and-into at the top, down-and-into below)
+        tooth = []
+        for i, (xx, y) in enumerate(inner):
+            if abs(xx - edge) < 0.5 and (abs(y - y_top) < 1 or abs(y - y_bot) < 1):
+                sgn = 1 if abs(y - y_top) < 1 else -1
+                tooth.append((i, (xx - into * depth * 0.7, y + sgn * depth * 0.7)))
+        for i, pt in sorted(tooth, reverse=True):
+            inner.insert(i + (0 if pt[1] > xh / 2 else 1), pt)
+        P.append(outer); P.append(Hole(ccut(inner) if ccut else inner))
+        A.stem(c, P, x, bottom, top, top="wedge", foot=("right" if side == "right" else "left") if bottom == 0 else "both", top_side=1)
+        # the notch on the stem's inner edge, matching the tooth
+        stem_poly = P[2]
+        notched = []
+        for (xx, y) in stem_poly:
+            if abs(xx - edge) < 0.5:
+                for yc in (y_top, y_bot):
+                    d = abs(y - yc)
+                    if d < half:
+                        xx = xx - into * 0.0 + (-into) * depth * 0.6 * (1 - d / half)
+                        break
+            notched.append((xx, y))
+        P[2] = notched
         return P
 
     def g_d(c): return bowl_stem(c, "right", c["asc"], 0)
@@ -144,7 +224,7 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         full_bowl(c, cx, rx, P)
         # the stem tucks in low, where the ring's right side is still
         # vertical, so no step shows where a square top meets the curve
-        A.stem(c, P, x, -desc * 0.3, xh * 0.3, top=None, foot=None, flare=False)
+        A.stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.3, top=None, foot=None, flare=False)
         ear = A.line((x - s * 0.1, xh * 0.86), (x + 70 * wf, xh * 0.95), 8)
         A.curve(c, P, ear, cut1=c["cut"])
         tail = A.bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
@@ -216,27 +296,24 @@ def build_variant(v, out_dir, seed, every, amp, trap, counter_cut=None):
         A.GLYPHS.clear(); A.GLYPHS.update(saved); A._arch = saved_arch
 
 SPEC = [
- ("V23a-73c5-k1", "Counterpunch, traps, linear cut 4/3", "outer contours cut one in four with jitter 3, counters struck clean, traps 1.0", 73, 4, 3.0, 1.0, None),
- ("V23a-73c5-k2", "Counterpunch, larger traps", "as k1 with traps 1.6", 73, 4, 3.0, 1.6, None),
- ("V23a-73c5-k3", "Counterpunch, finer cut", "one in three, jitter 2: more facets, straighter", 73, 3, 2.0, 1.0, None),
- ("V23a-73c5-k4", "Counterpunch, rougher cut", "one in five, jitter 4", 73, 5, 4.0, 1.0, None),
- ("V23a-73c5-k5", "Counterpunch, chiselled counters", "the counters faceted too (one in six, no jitter): a punch cut with a graver", 73, 4, 3.0, 1.0, 6),
- ("V23a-73c5-k6", "Counterpunch, pure linear", "one in four, no jitter: decimation only, the straightest cut", 73, 4, 0.0, 1.0, None),
+ ("V23a-73c5-k6-t1", "k6, traps 0.4 stem", "pure decimation one in four, no jitter; bowls kept to their stems; ink traps bitten 0.4 stem deep at the crotches", 73, 4, 0.0, 1.0, None, 0.4),
+ ("V23a-73c5-k6-t2", "k6, traps 0.6 stem", "as t1 with the bite 0.6 stem deep", 73, 4, 0.0, 1.0, None, 0.6),
+ ("V23a-73c5-k6-t3", "k6, traps 0.85 stem", "as t1 with the bite 0.85 stem deep, the Bell Centennial depth", 73, 4, 0.0, 1.0, None, 0.85),
 ]
 
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
     os.makedirs(out, exist_ok=True)
     bank, paths = [], []
-    for key, title, blurb, seed, every, amp, trap, cc in SPEC:
-        v = V(key, title, blurb, pen=pen_linear(seed, every, amp), post=Cut(seed, 4, 3.0, 2.0, hand=False), over=dict(G, e_bar_overlap=0.45))
+    for key, title, blurb, seed, every, amp, trap, cc, tdepth in SPEC:
+        v = V(key, title, blurb, pen=pen_linear(seed, every, amp), post=Cut(seed, 4, 3.0, 2.0, hand=False), over=dict(G, e_bar_overlap=0.45, trap_depth=tdepth))
         bank.append(v); paths.append(build_variant(v, out, seed, every, amp, trap, cc))
     for pth in paths: TTFont(pth)
     round12.BANK = bank
-    html = round12.page(paths).replace("<title>Fjord Font Files</title>", "<title>Seed 73, Counterpunched</title>").replace("<h1>Fjord Font Files</h1>", "<h1>Seed 73, Counterpunched</h1>")
+    html = round12.page(paths).replace("<title>Fjord Font Files</title>", "<title>k6, Traps</title>").replace("<h1>Fjord Font Files</h1>", "<h1>k6, Traps</h1>")
     html = html.replace("Round 12. Twenty-six TrueType files from the B5.9 design, one per technique, all vector: pen models and outline operations, no raster.",
-                        "Round 17. Ink traps and counterpunches on the hand-cut linear outline: a linear pen that removes the folds that made hairlines and then facets the outline with straight cuts; bowls built as a cut outer contour around a clean counter struck the other way; a notch at every crotch where a curve meets a stem. Six TrueType files.")
-    open(os.path.join(out, "fjord-counterpunch.html"), "w").write(html)
-    with zipfile.ZipFile(os.path.join(out, "fjord-counterpunch.zip"), "w", zipfile.ZIP_DEFLATED) as z:
+                        "Round 18. k6 with three bugs fixed: the fractures across j and f (a stem ending exactly where its curve begins seams in FreeType; stems now run into their curves), bowls kept to their stems (clipped at the stem's edges), and ink traps bitten into the crotches where bowl meets stem, at three depths. Three TrueType files.")
+    open(os.path.join(out, "fjord-k6.html"), "w").write(html)
+    with zipfile.ZipFile(os.path.join(out, "fjord-k6.zip"), "w", zipfile.ZIP_DEFLATED) as z:
         for pth in paths: z.write(pth, os.path.basename(pth))
     print("ok", len(paths))
