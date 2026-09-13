@@ -1794,3 +1794,8 @@ Owner: "set default to .95 contrast, update contrast range to full 0-100;
 set DESC default to 280." Contrast 0 = monoline (hair = stem), 1.0 = a
 zero-width hair, which the ruled floors and a small absolute floor must
 carry. Sent to the rebuild agent; supersedes round 62's 0.80 and 256.
+
+Round 65, amended by the owner the same hour: the full default set is now
+wght 84, CNTR 0.95, ASCN 770, DESC 280, wdth 100, CUTS 87, XHGT 429, SRIF
+92 (cut 87 and serif 92 are the two new numbers). Sent to the agent; the
+rebuild lands on these.
