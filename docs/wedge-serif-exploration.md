@@ -1,6 +1,18 @@
-# Wedge-serif exploration ("fjord")
+# Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
 ## STATE, 2026-09-12 (read this first; the log below is dated history)
+
+- **NAME AND BOWLS, 2026-09-13 (round 58, owner):** the family is **Albo**
+  (Fjord until this round; every `Fjord-*` name below is history), the target
+  is "a wedge serif like Albertus, but more readable" (Van den Keere and
+  Garamond for proportions only), and the bowls are on profile **B,
+  "Albertus-like firm"** (hair 0.70 stem, max 1.00, exponent 1.6, joins taper
+  to 0.85 of the hair, k 1.9), the ruled default in
+  `tools/wedge_serif/outlines/primitives.py`. The shipping font is
+  `build/fjord-fonts/Albo-Regular.ttf`, built by `python3 -m outlines.build
+  <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
+  `albo-specimen.html`. The B's waist is one bar. Next ask, queued: the weight
+  ladder (round 58c below).
 
 - **What this is.** A humanist wedge serif for longform reading on the X3
   and the iOS app, designed by evolution: populations rendered, the owner
@@ -1620,3 +1632,8 @@ re-solve with it; the rest of the gap to Albertus is its x-height (0.531 em
 against 0.415), which is a ruled proportion and not on the table without him.
 Ink-at-black does climb steadily with the stem, so weight is the lever for
 pipeline survival, x-height for darkness.
+
+Round 58 LANDED (2026-09-13): owner: "rename this version of the font to
+'Albo'. go with B: Albertus-like firm." `DEFAULT_BOWL = 'B'`, family name
+Albo, `Albo-Regular.ttf` built (glyf byte-identical to `Fjord-bowlB.ttf`),
+specimen republished at the standing URL, TTF sent.

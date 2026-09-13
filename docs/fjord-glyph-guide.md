@@ -1,4 +1,4 @@
-# Drawing glyphs for Fjord: the guide for the next agent
+# Drawing glyphs for Albo (Fjord until round 58): the guide for the next agent
 
 Fjord is a humanist wedge-serif text face for the CrossPoint reader, built
 by code, not by hand: every glyph is Python that draws strokes with a
@@ -12,6 +12,13 @@ glyph. Where this guide and a later round entry disagree, the later entry
 wins; update this guide when that happens.
 
 ## 00. The target, restated by the owner (2026-09-13, round 58)
+
+**Ruled the same day:** the family is **Albo**, and the bowls are profile B,
+"Albertus-like firm" -- w = hair + (max - hair)·|sin φ|^1.6 with hair 0.70
+stem, max 1.00 stem, vertical stress, joins into stems tapering to 0.85 of the
+hair, round end k 1.9 -- the default in `outlines/primitives.py`
+(`DEFAULT_BOWL`). This supersedes the round-57 bowl paragraph in §2 below,
+which stays as the measured record of what was rejected.
 
 **The goal, in his words (2026-09-13):** "make a wedge serif long text
 font for eink reading. build off of english word image, not individual

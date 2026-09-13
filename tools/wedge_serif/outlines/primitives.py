@@ -258,7 +258,7 @@ BOWL_HAIR, BOWL_MAX, BOWL_POW = 0.42, 1.18, 1.7    # round 57's D-family profile
 # the exponent, the taper of a bowl's ends into its stem (x the hair), the
 # round end's superellipse exponent, and for variant C the free terminals'
 # widening (fraction, span) into the family's cut.
-BOWL = None
+DEFAULT_BOWL = 'B'   # owner's pick, round 58 (2026-09-13): 'Albertus-like firm'; the family is Albo from this round
 BOWL_OPTIONS = {
     'A': dict(name='Albertus-like moderate', hair=0.62, max=1.02, pow=1.4, taper=0.75, k=2.0, widen=None),
     'B': dict(name='Albertus-like firm', hair=0.70, max=1.00, pow=1.6, taper=0.85, k=1.9, widen=None),
@@ -273,8 +273,10 @@ def bowl_hair():
     """The current bowl profile's thin, in units (the waist bar of the B)."""
     return S * (BOWL['hair'] if BOWL else BOWL_HAIR)
 def set_bowl(key):
+    """None = the ruled default (B); 'pen' = the 26-degree nib at each tangent (round 56)."""
     global BOWL
-    BOWL = None if key is None else dict(BOWL_OPTIONS[key])
+    BOWL = None if key == 'pen' else dict(BOWL_OPTIONS[DEFAULT_BOWL if key is None else key])
+BOWL = dict(BOWL_OPTIONS[DEFAULT_BOWL])
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""

@@ -1,4 +1,4 @@
-# wedge_serif — the Fjord type exploration toolchain
+# wedge_serif — the Albo type exploration toolchain (Fjord until round 58, 2026-09-13)
 
 A parametric humanist wedge-serif being designed for longform reading on the
 CrossPoint X3 and its iOS port, by evolution: the owner is shown populations
@@ -54,7 +54,7 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `word_weight.py` | Ink darkness per word and per letter at 54 px against two references, plus outline area. |
 | `e_dials_page.py` | The e drawn through the builder for a grid of bar angle / thickness / height / arm length, as an interactive page. |
 | `round19.py` | The first full-set builder (glyph order, cmap, specimen page). |
-| `outlines/` | **The builder in use since round 54 (2026-09-13)**: the rebuild as designed outlines -- `geom.py` (shapely unions), `pen.py` (the pen as reference), `primitives.py`, `cut.py`, `build.py` (`python3 -m outlines.build <out_dir>` from this directory), `glyphs/` by family, `cmp/`, and `NOTES.md` with every decision. |
+| `outlines/` | **The builder in use since round 54 (2026-09-13)**: the rebuild as designed outlines -- `geom.py` (shapely unions), `pen.py` (the pen as reference), `primitives.py`, `cut.py`, `build.py` (`python3 -m outlines.build <out_dir>` from this directory), `glyphs/` by family, `cmp/`, and `NOTES.md` with every decision. Since round 58 (2026-09-13) it writes `Albo-Regular.ttf` + `albo-specimen.html` (family renamed Albo); bowl profile switch `primitives.set_bowl` (`DEFAULT_BOWL = 'B'`, the ruling; `'pen'` = the nib); `FJORD_STEM=<units>` env overrides the stem for weight ladders. |
 | `round20.py` | The generator-based builder (rounds 20–53), kept as the reference construction: `build(out_dir, over=)` writes `Fjord-Regular.ttf` with capitals and figures solved to `garalde_caps.json`, lowercase drawn at `lc_width`, bearings by the fitting rule (non-letters and the g on their full extent). Start here for any change to the shipping font. |
 | `garalde_caps.json` | Medians of Dante, Van den Keere, Hoefler Text, Doves: cap height, cap stem, figure height, H counter and bearings, per-glyph widths and vertical extents, all over cap height. |
 | `round17.py` | The construction the full font uses. `pen_linear` (unfold, then facet, both end faces kept), `ring` (outer cut, counter clean), `cp_glyphs` (o d b p q g e a as the font draws them; `G_VARIANTS` with the G3 g as 0, `E_VARIANTS` with the ruled e as 0), `patch_arch`, `Cut` (the post-op; rounds polygons under 20 vertices), `orient_with_holes`. `bite` remains as the record of what does not work. |

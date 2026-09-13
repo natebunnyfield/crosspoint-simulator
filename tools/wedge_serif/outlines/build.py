@@ -1,4 +1,4 @@
-"""Build Fjord-Regular.ttf from the designed outlines: draw, extract the
+"""Build Albo-Regular.ttf (Fjord until round 58) from the designed outlines: draw, extract the
 contours (exteriors ccw, counters cw), apply the linear cut, fit with the
 round-20 rule, write the TrueType and the round-19 specimen.
 
@@ -70,7 +70,7 @@ def fit(ch, conts, c):
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 
-def build(out_dir, name="Fjord", style="Regular", do_cut=True, only=None):
+def build(out_dir, name="Albo", style="Regular", do_cut=True, only=None):
     os.makedirs(out_dir, exist_ok=True)
     W = solve_widths()
     cutter = cut.Cutter(73, 4)
@@ -114,5 +114,5 @@ def build(out_dir, name="Fjord", style="Regular", do_cut=True, only=None):
 if __name__ == "__main__":
     out = sys.argv[1]; do_cut = "--nocut" not in sys.argv
     path, W, rep = build(out, do_cut=do_cut)
-    open(os.path.join(out, "fjord-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "The rebuild (2026-09-13): all 93 glyphs redrawn as designed outlines under the standing rulings, the pen as the weight reference, the wedge family kept, the linear cut applied last."))
+    open(os.path.join(out, "albo-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "Albo (named 2026-09-13, round 58; Fjord until then): all 93 glyphs as designed outlines under the standing rulings, the bowls on the Albertus-like firm profile he picked, the wedge family kept, the linear cut applied last.").replace("Fjord", "Albo"))
     print("ok", path, len(rep), "glyphs drawn of", len(CHARS), "; caps W:", {k: round(v, 2) for k, v in sorted(W.items())})
