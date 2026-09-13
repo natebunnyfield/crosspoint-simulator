@@ -2224,5 +2224,5 @@ only 22 into the ring -- now tapered over its first 14%. The t:
 `T_RIGHT_TRIANGLE` True, the bar's right half and the stem top one
 triangular wedge, scale 0.55 for +1.2% ink (the 2% budget), advance
 unchanged. Checked here at 330 px. Only a g t changed. Page
-https://claude.ai/code/artifact/PENDINGAG. This agent also lost its
+https://claude.ai/code/artifact/1302d1a8-c78c-4d57-a4da-ce638d1634d4. This agent also lost its
 worktree after the rate-limit restart and edited main; disjoint files.
