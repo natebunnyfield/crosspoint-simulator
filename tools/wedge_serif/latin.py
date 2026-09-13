@@ -192,15 +192,37 @@ def g_B(c):
 
 def g_C(c):
     P = []; C = capH(c); rx = _w(c, "C", 330); ry = C / 2 + c["over"]
-    pts = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(322), 100, c["k"])
-    A.curve(c, P, pts, compose(flare_end(0.3, 0.14), lambda t: flare_end(0.22, 0.12)(1 - t)))   # round 33: no pen cuts (the lower terminal was a thorn)
-    # the beak: a wedge on the UPPER terminal, as the garalde C has. The ellipse
-    # runs 38 -> 322 degrees, so the upper terminal is pts[0] (round 33: the
-    # beak had been on pts[-1], the lower one); same construction as the G's.
-    if c["wl"] > 0:
-        tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
-        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
+    # Van den Keere pass (owner 2026-09-12, "better match the strokes of van
+    # den keere"): measured on VdK at a 1000 em, the C's upper terminal is a
+    # BEAK -- the stroke swells into a near-vertical face at 0.85 C and its
+    # lower lip hangs into the aperture to 0.77 C -- and the lower terminal
+    # THINS to a point that rises to 0.34 C (Fjord's flared to a blunt 61-unit
+    # end at 0.25 C). The arc now starts at 43 deg (was 38: the beak sat too
+    # high) and runs to 334 deg (was 322), the upper end flares 0.3 and the
+    # lower end tapers to 0.3 of the pen over its last 22%.
+    pts = ellipse(rx, C / 2, rx, ry, math.radians(43), math.radians(334), 100, c["k"])
+    A.curve(c, P, pts, compose(lambda t: flare_end(0.3, 0.12)(1 - t), taper_out(0.3, 0.22)), cut0=BEAK_CUT)   # round 33: no pen cut on the LOWER terminal (it was a thorn)
+    _beak(c, P, pts)
     return P
+
+BEAK_CUT = math.radians(-28)   # the beak's face, sheared toward the vertical (VdK's is ~15 deg off vertical)
+def _beak(c, P, pts):
+    """The C/G/S beak on the UPPER terminal, Van den Keere's way: the end
+    face is sheared toward the vertical (`BEAK_CUT`, applied by the caller as
+    cut0) and a SHORT lip hangs from the face's inner corner into the
+    aperture -- a bracket_wedge at 0.4 x 0.7 of the family's wedge, side -1.
+    Until the VdK pass every beak was the full 0.85 x 0.85 wedge spiking OUT
+    from the outer corner (side +1); at 0.85 on side -1 it was a thorn. The
+    wedge is anchored at the corner the cut actually leaves: outline() moves
+    the inner corner by tan(cut) x th/2 along the tangent, so the anchor P
+    is moved the same way (a wedge built on the uncut corner sat 19 units
+    off the face)."""
+    if c["wl"] <= 0: return
+    tn = tangents(pts)[0]; th = c["pen"].th(tn) * 1.3
+    dd = math.tan(BEAK_CUT) * th / 2
+    P0 = (pts[0][0] + tn[0] * dd, pts[0][1] + tn[1] * dd)
+    d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
+    P.append(bracket_wedge(P0, d, nrm, th, c["wl"] * 0.4, c["wd"] * 0.7, -1, drop=0, fillet=c["fillet"]))
 
 def g_D(c):
     """Stem plus a counterpunched bowl that starts at the stem's inner edge
@@ -212,7 +234,13 @@ def g_D(c):
     edge = x + s * 0.5
     th_h = c["pen"].th((1, 0)); ry = C / 2 - th_h / 2       # outer top lands ON the cap height
     R = _round17()
-    outer, inner = R.ring(c, edge + rx * 0.05, C / 2, rx, ry, -math.pi / 2, math.pi / 2, 110, cut=c.get("_cut"))
+    # VdK pass: VdK's bowl leaves the stem nearly level and holds its top
+    # and bottom flatter before the turn -- squarer shoulders, a rounder
+    # belly -- so the superellipse exponent is 1.12 x the family's for the D
+    # alone. Its bottom stays the round-34 heavier one (owner ruling), which
+    # VdK does not have; its stroke and width matched already (97-107 across
+    # the belly against VdK's 89-107).
+    outer, inner = R.ring(c, edge + rx * 0.05, C / 2, rx, ry, -math.pi / 2, math.pi / 2, 110, k=c["k"] * 1.12, cut=c.get("_cut"))
     # round 34 (owner: "make D slightly more weighted by opening the bottom"):
     # the ring's pen is symmetric top to bottom, so the D's bottom stroke was
     # as thin as its top (55). The counter's lower half is lifted toward the
@@ -262,7 +290,14 @@ def g_G(c):
     # buried at the bar's centerline. The bar then crosses OVER the spur
     # and its pen-cut end hangs a little past it, as the garalde bar does.
     xg = 2 * rx + th_v / 2 - s / 2
-    arc = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(312), 100, c["k"])
+    # VdK pass: the arc starts at 43 deg with the C's flared beak (was 38),
+    # the bar sits with its TOP at 0.45 C (centerline 0.42, was 0.46), is
+    # 0.5 stem thick (VdK 35/82 = 0.43; Fjord's was the pen's 50) and SHORT:
+    # VdK's bar reaches only 25 units left of the spur and 20 past it, so it
+    # runs from 1.1 cap stems left of the spur's centerline to 0.6 right of
+    # it (it reached 0.55 rx toward the C's middle).
+    yb = C * 0.42
+    arc = ellipse(rx, C / 2, rx, ry, math.radians(43), math.radians(312), 100, c["k"])
     p0 = arc[-1]; d = (arc[-1][0] - arc[-3][0], arc[-1][1] - arc[-3][1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
     ctrl = (xg, p0[1] + d[1] * (xg - p0[0]) / d[0])           # where the arc's end tangent meets the spur's line
     p1 = (xg, ctrl[1] + (ctrl[1] - p0[1]) * 0.7)             # the vertical run begins here
@@ -272,14 +307,12 @@ def g_G(c):
     run = line(p1, (xg, yb - th_h * 0.3), 6)[1:]                # buried in the bar, 10 units above its underside
     pts = arc + bend + run; N = len(pts) - 1
     t0 = (len(arc) - 1) / N; t1 = (len(arc) + len(bend) - 1) / N
-    A.curve(c, P, pts, _ramp(1.0, CAP_STEM, t0, t1), cut0=c["cut"])
-    if c["wl"] > 0:
-        tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
-        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
+    A.curve(c, P, pts, compose(_ramp(1.0, CAP_STEM, t0, t1), lambda t: flare_end(0.3, 0.05)(1 - t)), cut0=BEAK_CUT)
+    _beak(c, P, pts)
     # the bar's cut end: its top corner 12 inside the spur's right edge, its
     # bottom corner 8 past it -- the run's top corner stays 4 inside the
     # sheared face under the pen's 3-unit jitter
-    bar(c, P, 2 * rx - s * 0.55 - rx * 0.55, xg + s * 0.45, yb); return P
+    bar(c, P, xg - s * 1.1, xg + s * 0.6, yb, thick=0.5); return P
 
 def g_H(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
@@ -314,7 +347,13 @@ def g_K(c):
     # above the cap line; it now runs to the stem's center and starts a
     # third of a stem under the cap line, so the wedge's tip lands on it.
     A0, B0 = (x + w, C - s * 0.36), (x, C * 0.45)
-    diag(c, P, A0, B0, thin=0.72 / CAP_STEM, serif0=1)
+    # VdK pass: VdK's arm is 0.47 stem thick (a 48-degree diagonal, 52 wide
+    # across); Fjord's ran at the pen's hairline for a 32-degree stroke, 31
+    # across. The arm keeps a floor of 0.47 stems (the r's arm, the s spine
+    # and the j tail take floors the same way). Its angle cannot be VdK's
+    # 48: at the reference width, with the family's wedge instead of VdK's
+    # 155-unit flat serif, the arm must reach further to fill the K.
+    diag(c, P, A0, B0, thin=max(0.72, 0.47 * c["s"] / c["pen"].th(tangents(line(B0, A0, 4))[0])) / CAP_STEM, serif0=1)
     # round 30: the leg springs from the arm's centerline, its start buried a
     # third of a stem back along the leg (it started 0.1 C under the arm)
     # round 32 ("extend kick of K to match to arm better"): the leg springs
@@ -330,9 +369,13 @@ def g_K(c):
     # the leg's tapered start face poked out ABOVE the arm, because a leg
     # buried along its own line leaves the arm's band at 0.93 per unit and
     # the arm at 30 degrees is only ~23 units to a side.
-    u = 0.18; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
-    angle = math.atan2(J[1], A0[0] + s * 0.1 - J[0])
-    kick(c, P, J, s, bury=0.1, angle=angle); return P
+    # VdK pass: the junction 0.44 stems off the stem's edge at 0.52 C (VdK,
+    # measured; it was 0.64 off), the leg 1.1 x the cap stem (VdK's leg is
+    # 93 against an 82 stem) and its foot landing half a stem past the arm's
+    # tip (was 0.1), which steepens the solved angle a little.
+    u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    angle = math.atan2(J[1], A0[0] + s * 0.5 - J[0])
+    kick(c, P, J, s, bury=0.1, angle=angle, thin=1.1 / CAP_STEM); return P
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
@@ -365,9 +408,28 @@ def g_P(c):
     _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.44, w); return P   # round 33: top edge on the cap line
 
 def g_Q(c):
-    P = g_O(c); C = capH(c); rx = _w(c, "O", 350)
-    tail = bez((rx * 0.95, C * 0.12), (rx * 1.3, -C * 0.05), (rx * 1.7, -C * 0.28), (rx * 2.1, -C * 0.24), 30)
-    A.curve(c, P, tail, compose(taper_in(0.6, 0.2), flare_end(0.25, 0.4)), cut1=c["cut"]); return P
+    """VdK pass: Van den Keere's Q tail is a calligraphic swash. Measured at
+    a 1000 em: it starts INSIDE the bowl's bottom stroke 0.35 of the way
+    across, runs down-right at ~30 degrees, is heaviest at its belly (96, a
+    stem and a sixth, at 1.07 O-widths from the bowl's left edge, 0.28 C
+    down), bottoms at 0.42 C below the baseline, then rises to a thin tip at
+    1.83 O-widths, 0.20 C down. Fjord's tail was a short flick that began at
+    the bowl's lower right and ended 0.1 O-widths past it. The tail now
+    leaves the bowl's centerline at 250 degrees, buried in the bottom stroke
+    (its start tapered to 0.4 so it stays inside that stroke and off the
+    counter), carries a weight floor through the belly, thins to a hairline
+    and takes the pen cut. The tail lies wholly below the baseline band, so
+    the fitting (which reads the cap band) and the advance are the O's, as
+    VdK's are; it hangs under the next letter, as VdK's does."""
+    P = g_O(c); C = capH(c); rx = _w(c, "O", 350); ry = C / 2 + c["over"]; s = c["s"] * CAP_STEM; W = 2 * rx
+    p0 = ellipse(rx, C / 2, rx, ry, math.radians(250), math.radians(250), 1, c["k"])[0]
+    tail = bez(p0, (W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20), 56)
+    tn = tangents(tail); n = len(tail) - 1
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        belly = max(0.0, 1 - abs(t - 0.45) / 0.4)                    # the floor peaks at the belly, 0 at both ends
+        return max(th, s * 1.05 * (3 * belly * belly - 2 * belly ** 3)) / th
+    A.curve(c, P, tail, compose(prof, taper_in(0.4, 0.12), taper_out(0.3, 0.2)), cut1=c["cut"]); return P
 
 def g_R(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
@@ -376,13 +438,23 @@ def g_R(c):
     # round 30: the leg springs from the bowl's lower curve (it started under
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.
+    # VdK pass, measured and then mostly left alone: VdK's bowl bottoms at
+    # 0.49 C (Fjord 0.46), its leg springs from 0.58 of the bowl's width
+    # (t = 0.8 here is 0.50), falls at 58 degrees (the ruled 60 stands) and
+    # is 1.04 stems (Fjord 0.98). A junction at t = 0.9 (0.28 of the bowl)
+    # was tried: the foot then lands so far left that the width solver
+    # pins the bowl at its 1.45 clamp. Only the leg's weight moves.
     J = _bowl_point(x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95, 0.8, s)
-    kick(c, P, J, s, angle=math.radians(60)); return P   # round 32: the A's leg, a little more upright than the K's (A 65, R 60, K 52)
+    kick(c, P, J, s, angle=math.radians(60), thin=1.05 / CAP_STEM); return P   # round 32: the A's leg, a little more upright than the K's (A 65, R 60, K 52)
 
 def g_S(c):
     P = []; C = capH(c); w = _w(c, "S", 440); o = c["over"]; st = c["s"] * CAP_STEM
+    # VdK pass: the lower terminal rises to 0.22 C and THINS to a point (VdK:
+    # 31 wide at 0.18 C, a hairline tip; Fjord's was a blunt 87), the upper
+    # terminal is the C's hanging beak with a face at 0.75-0.88 C. The spine
+    # matches already (VdK 110 across at 32 degrees, Fjord 109 at 34).
     spine = catmull([(w * 0.93, C * 0.80), (w * 0.62, C + o * 0.9), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
-                     (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9), (w * 0.05, C * 0.2)], 16, 0.55)
+                     (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9), (w * 0.04, C * 0.22)], 16, 0.55)
     tn = tangents(spine); n = len(spine) - 1
     def prof(t):
         i = min(n, int(round(t * n))); th = c["pen"].th(tn[i]); mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)
@@ -390,11 +462,9 @@ def g_S(c):
         # round 34 (owner: "make the S bottom heavier"): the lower bowl, t in
         # 0.52..0.96, gains up to 20% at t = 0.74; the top half is untouched
         bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
-        return want / th * flare_end(0.25, 0.1)(t) * flare_end(0.25, 0.1)(1 - t)
-    A.curve(c, P, spine, prof)   # round 33: no pen cuts (both terminals were thorns)
-    if c["wl"] > 0:   # the C's beak on the top terminal
-        d = (-tn[0][0], -tn[0][1]); nrm = (-d[1], d[0])
-        P.append(bracket_wedge(spine[0], d, nrm, c["pen"].th(tn[0]) * 1.15, c["wl"] * 0.85, c["wd"] * 0.85, 1, drop=0, fillet=c["fillet"]))
+        return want / th * flare_end(0.3, 0.1)(1 - t) * taper_out(0.3, 0.14)(t)
+    A.curve(c, P, spine, prof, cut0=BEAK_CUT)   # round 33: no pen cut on the lower terminal (it was a thorn)
+    _beak(c, P, spine)
     return P
 
 def g_T(c):
@@ -508,11 +578,17 @@ def g_two(c):
     bar(c, P, 0, w, 0, serif_ends=[('right', 1)]); return P
 
 def g_three(c):
-    P = []; D = figH(c); w = _w(c, "3", 400); r1 = D * 0.24; r2 = D * 0.28
-    top = ellipse(w * 0.5, D - r1, w * 0.48, r1, math.radians(175), math.radians(-60), 50, c["k"])
-    bot = ellipse(w * 0.5, r2, w * 0.54, r2 + c["over"], math.radians(60), math.radians(-175), 60, c["k"])
-    A.curve(c, P, top, flare_end(0.2, 0.15), cut0=c["cut"])
-    A.curve(c, P, bot, compose(taper_in(0.6, 0.1), flare_end(0.25, 0.15)), cut1=c["cut"]); return P
+    """VdK pass. Van den Keere's 3, measured: 0.72 x-heights wide (Fjord's
+    was 0.94, the width solver pinned at its 0.7 floor by a 400 default that
+    is now 330); the upper bowl 0.62 of the lower's width with its center
+    right of the lower's; the joint a 24-unit pinch at 0.60 of the height;
+    the top terminal a thin pen-cut hanging at 0.90 of the height on the far
+    left; the bottom terminal a drop at 0.17 w, 0.10 of the height."""
+    P = []; D = figH(c); w = _w(c, "3", 330); r1 = D * 0.20; r2 = D * 0.30
+    top = ellipse(w * 0.52, D - r1, w * 0.46, r1, math.radians(165), math.radians(-105), 50, c["k"])
+    bot = ellipse(w * 0.55, r2, w * 0.45, r2 + c["over"], math.radians(100), math.radians(-132), 60, c["k"])
+    A.curve(c, P, top, compose(flare_end(0.1, 0.1), taper_out(0.6, 0.12)), cut0=c["cut"])
+    A.curve(c, P, bot, compose(taper_in(0.6, 0.1), flare_end(0.35, 0.15)), cut1=c["cut"]); return P
 
 def g_four(c):
     P = []; D = figH(c); s = c["s"]; w = _w(c, "4", 480); xs = w * 0.7
@@ -528,11 +604,26 @@ def g_five(c):
     A.curve(c, P, bowl, compose(taper_in(0.55, 0.12), flare_end(0.25, 0.15)), cut1=c["cut"]); return P
 
 def g_six(c):
-    P = []; D = figH(c); rx = _w(c, "6", 230); r = D * 0.29
-    top = ellipse(rx, D - rx * 1.0, rx * 0.95, rx * 1.0, math.radians(70), math.radians(180), 40, c["k"])
-    A.curve(c, P, top, flare_end(0.25, 0.2), cut0=c["cut"])
-    left = line(top[-1], (rx * 0.05, r), 16); A.curve(c, P, left)
-    cp_ring(c, P, rx, r, rx, r + c["over"]); return P
+    """VdK pass. Van den Keere's 6 is ONE stroke above the bowl: it leaves
+    the bowl's left side going up, bulges up and left, and curves over to
+    the right, THINNING all the way to a point at the top right (measured
+    81 -> 75 -> 67 -> 58 -> 2 across its height, the tip at 0.85 rx right of
+    the bowl's center). Fjord's was an ellipse segment plus a straight line
+    down to the bowl, ending blunt and cut, with a jog where they met. Now a
+    cubic from the ring's centerline at 165 degrees (buried, tapered in),
+    the pen's own weight, tapering to a point over its last 35%."""
+    P = []; D = figH(c); rx = _w(c, "6", 230); r = D * 0.29; ry = r + c["over"]
+    cp_ring(c, P, rx, r, rx, ry)
+    p0 = ellipse(rx, r, rx, ry, math.radians(180), math.radians(180), 1, c["k"])[0]
+    tip = (rx * 1.85, D - 10)
+    # it leaves at the ring's LEFTMOST point, where the ring's tangent is
+    # vertical, and the first control is straight above it: the stroke's
+    # left edge continues the bowl's and bulges past it as the bowl turns
+    # in (VdK's does the same); a start at 165 with a leaning control left a
+    # notch where the two outlines diverged. The stroke's right edge never
+    # enters the counter: the counter's edge moves inward above 180.
+    top = bez(p0, (p0[0], p0[1] + ry * 1.5), (tip[0] - rx * 0.55, tip[1] - rx * 0.75), tip, 48)
+    A.curve(c, P, top, compose(taper_in(0.85, 0.06), taper_out(0.12, 0.35))); return P
 
 def g_seven(c):
     P = []; D = figH(c); s = c["s"]; w = _w(c, "7", 440)
@@ -546,12 +637,23 @@ def g_eight(c):
 def g_nine(c):
     """A six turned over: counterpunched bowl at the top, the tail runs down
     the right side and curls to the bottom-left (the first draft ran the
-    curl the other way and read as a mirrored e)."""
+    curl the other way and read as a mirrored e). VdK pass: the tail is ONE
+    sweep from the bowl's right side (buried in the ring at -20 degrees)
+    down and round to the left, held at stem weight through the turn as the
+    j's tail is (VdK: 74-82 all the way; the pen alone thins a down-left
+    stroke to 46), ending 0.15 rx left of the bowl's left edge in a pen-cut
+    face (VdK's is a flat shear). Fjord's was a straight run into a flared
+    arc that ended in a blob."""
     P = []; D = figH(c); rx = _w(c, "9", 230); r = D * 0.29; s = c["s"]
     cp_ring(c, P, rx, D - r, rx, r)
-    bot = ellipse(rx, rx * 1.0, rx * 0.95, rx * 1.0, math.radians(0), math.radians(-110), 40, c["k"])
-    right = line((rx * 2 - s * 0.5, D - r), bot[0], 16); A.curve(c, P, right)
-    A.curve(c, P, bot, flare_end(0.25, 0.2), cut1=c["cut"]); return P
+    p0 = ellipse(rx, D - r, rx, r, math.radians(-20), math.radians(-20), 1, c["k"])[0]
+    tip = (-rx * 0.12, 22)
+    tail = bez(p0, (p0[0] - rx * 0.15, p0[1] - r * 1.5), (tip[0] + rx * 1.15, tip[1] + r * 0.55), tip, 48)
+    tn = tangents(tail); n = len(tail) - 1
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        return max(th, s * 0.9) / th
+    A.curve(c, P, tail, compose(prof, taper_in(0.85, 0.06)), cut1=c["cut"]); return P
 
 # ---------------------------------------------------------------- punctuation
 def dot(c, x, y, r=0.55): return blob((x, c["s"] * r + 0 if False else y), c["s"] * r)
@@ -618,10 +720,36 @@ def g_equal(c):
     y = c["xh"] * 0.55; w = 420 * c["wf"]; g = c["s"] * 1.1
     return [A.outline(line((0, y - g / 2), (w, y - g / 2), 8), c["pen"]), A.outline(line((0, y + g / 2), (w, y + g / 2), 8), c["pen"])]
 def g_ampersand(c):
-    C = capH(c); w = 760 * c["wf"]; o = c["over"]
-    spine = catmull([(w * 0.95, C * 0.36), (w * 0.62, 0.0 - o * 0.4), (w * 0.15, C * 0.18), (w * 0.3, C * 0.5), (w * 0.62, C * 0.8),
-                     (w * 0.6, C + o * 0.5), (w * 0.35, C * 0.92), (w * 0.34, C * 0.62), (w * 0.62, C * 0.32), (w * 0.98, C * 0.02)], 14, 0.5)
-    return [A.outline(spine, c["pen"], compose(flare_end(0.2, 0.1), lambda t: flare_end(0.2, 0.12)(1 - t)), cut0=c["cut"], cut1=c["cut"])]
+    """VdK pass: a real garalde ampersand on the construction. Van den
+    Keere's, measured at a 1000 em (736 wide, 646 tall on a 672 cap): ONE
+    stroke -- from a hooked foot at the lower right, up-left at 44 degrees
+    (thick, the pen's broad direction) into the LEFT side of a small top
+    loop (0.42 C wide, 0.6-0.96 C), over its hairline top, down its right
+    side, then down-left as a thin diagonal into the lower bowl's left side
+    (thick), round the bottom, up the right, through the crossing and out
+    up-right as a hairline arm to a flat serif at 0.67 C. The pen gives the
+    thick-thin by direction alone, as it does everywhere else; the foot's
+    hook takes a floor of 0.8 stem (the j tail's precedent) and the pen cut,
+    the arm ends in a bar-end wedge. The placeholder spline is gone."""
+    C = capH(c); w = 736 * c["wf"]; o = c["over"]; s = c["s"]
+    # measured on VdK: the thick stroke leaves the foot at 54 degrees and
+    # flattens to 33 as it becomes the loop's left side; the top loop spans
+    # 0.08-0.52 w and 0.62-0.98 C; the arm climbs at 55 degrees and ends in
+    # a flat serif at 0.67 C; the crossing is at (0.60 w, 0.27 C)
+    pts = [(0.99, 0.10), (0.86, 0.02), (0.72, 0.07), (0.65, 0.17), (0.53, 0.37), (0.36, 0.56), (0.16, 0.68), (0.07, 0.80),
+           (0.15, 0.94), (0.31, 0.98), (0.48, 0.90), (0.52, 0.76), (0.44, 0.63), (0.28, 0.53), (0.14, 0.44), (0.06, 0.32),
+           (0.06, 0.16), (0.19, 0.03), (0.38, 0.0), (0.53, 0.11), (0.60, 0.27), (0.70, 0.41), (0.78, 0.53), (0.85, 0.64)]
+    spine = catmull([(w * a, C * b + (o if b > 0.9 else (-o if b < 0.01 else 0))) for a, b in pts], 12, 0.5)
+    tn = tangents(spine); n = len(spine) - 1
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+        return th / th
+    P = [A.outline(spine, c["pen"], compose(prof, taper_in(0.7, 0.05)), cut0=c["cut"])]   # the hook's tip thins (VdK 38)
+    if c["wl"] > 0:   # the arm's serif: VdK's is a flat bar on top of the arm reaching right; here the stem-top wedge pointing RIGHT, as the U's right stem wears it
+        th = c["pen"].th((0, 1)) * 0.6
+        P.append(bracket_wedge(spine[-1], (0, 1), (-1, 0), th, c["wl"] * 0.9, c["wd"], -1, drop=0, fillet=c["fillet"]))
+    return P
+
 def g_percent(c):
     C = capH(c); P = []; r = 120 * c["wf"]
     P.extend(g_slash_at(c, 60 * c["wf"], 0, 60 * c["wf"] + 380 * c["wf"], C))
@@ -636,12 +764,34 @@ def g_numbersign(c):
     for y in (C * 0.35, C * 0.65): P.append(A.outline(line((0, y), (w, y), 8), c["pen"]))
     return P
 def g_at(c):
-    xh = c["xh"]; C = capH(c); w = 860 * c["wf"]; cx, cy = w * 0.5, xh * 0.5; P = []
+    """VdK pass: Van den Keere's @ sits ON THE BASELINE and is cap height
+    (708 x 681 on a 672 cap), not the x-height mark Fjord had. Inside, an
+    x-height single-storey a (a tall narrow bowl 0.3 x 0.38 C, a 0.9-stem
+    stem at 0.62 of the width from 0.19 to 0.78 C, a thin hood from the
+    stem's top curving left over the bowl); the stem's foot curls down-right
+    and BECOMES the ring, which runs clockwise -- bottom, left side, top,
+    right side -- and ends thinned at the lower right, 0.22 C up, above where
+    it began. The ring is one pen stroke (right side thick, top a hairline,
+    as the pen gives a vertical and a horizontal), the a's bowl a
+    counterpunched ring, the hood tapered and cut like the a's own."""
+    C = capH(c); s = c["s"]; wf = c["wf"]; P = []
+    rx = C * 0.52; ry = C / 2 + c["over"]; cx = rx + s / 2; cy = C / 2
     R = _round17()
-    outer, inner = R.ring(c, cx + 20, cy, 170 * c["wf"], xh * 0.5, 0, 2 * math.pi, 70); P.append(outer); P.append(R.Hole(inner))
-    P.append(A.outline(line((cx + 190 * c["wf"], xh * 0.95), (cx + 190 * c["wf"], 0.0), 16), c["pen"], lambda t: 0.8))
-    big = ellipse(cx, cy, w * 0.5, xh * 0.55 + c["desc"] * 0.6, math.radians(-20), math.radians(300), 90, 2.2)
-    P.append(A.outline(big, c["pen"], compose(flare_end(0.2, 0.1), lambda t: flare_end(0.2, 0.1)(1 - t)), cut0=c["cut"], cut1=c["cut"])); return P
+    # the a: bowl (counterpunched), stem, hood
+    ax = cx + rx * 0.24; a_bot = C * 0.19; a_top = C * 0.78
+    brx = rx * 0.31; bry = C * 0.20; bcx = ax - brx - s * 0.28; bcy = C * 0.41   # the bowl's right edge overlaps the stem's left edge by ~0.2 stem
+    outer, inner = R.ring(c, bcx, bcy, brx, bry, 0, 2 * math.pi, 90, cut=c.get("_cut"))
+    P.append(outer); P.append(R.Hole(inner))
+    P.append(A.outline(line((ax, a_bot), (ax, a_top), 30), c["pen"], lambda t: 0.9))
+    hood = bez((ax, a_top - s * 0.3), (ax, a_top + C * 0.08), (ax - brx * 1.2, a_top + C * 0.1), (ax - brx * 2.2, a_top - C * 0.08), 36)
+    A.curve(c, P, hood, compose(taper_in(0.55, 0.3), flare_end(0.15, 0.3)), cut1=c["cut"])
+    # the ring, clockwise from the a's foot: -62 deg down through the bottom and round to -40 deg
+    ring = ellipse(cx, cy, rx, ry, math.radians(-62), math.radians(-62 - 338), 120, c["k"])
+    link = bez((ax, a_bot + s * 0.4), (ax, a_bot - C * 0.06), (ring[0][0] - rx * 0.12, ring[0][1] + ry * 0.12), ring[0], 20)
+    A.curve(c, P, link, compose(taper_in(0.85, 0.2), lambda t: 0.62))   # VdK's foot link is 41-57 wide against an 82 stem
+    # the ring at 0.85 of the pen: VdK's runs 66 on the left and 75-85 on the right against an 82 stem, and at the full pen the mark went black at 13 pt
+    A.curve(c, P, ring, compose(lambda t: 0.85, taper_in(0.9, 0.08), taper_out(0.5, 0.14)), cut1=c["cut"]); return P
+
 def g_underscore(c): return [A.outline(line((0, -c["desc"] * 0.5), (500 * c["wf"], -c["desc"] * 0.5), 8), c["pen"])]
 def g_ellipsis(c):
     s = c["s"]; return [blob((s * 0.55 + i * s * 2.4, s * 0.55), s * 0.55) for i in range(3)]

@@ -381,11 +381,24 @@ def g_j(c):
     P.append(blob((x, xh + 118 + s * 0.3), dot_radius(c))); return P
 
 def g_f(c):
-    P = []; xh = c["xh"]; s = c["s"]; asc = c["asc"]; wf = c["wf"]; r = 150 * wf; x = 110 * wf + s / 2
+    """VdK pass (owner 2026-09-12, "better match the strokes of van den
+    keere"). Measured on Van den Keere at a 1000 em: the hook reaches 0.65
+    x-heights past the stem's right edge (Fjord's reached 0.41) and ends in a
+    drop hanging down; the stem thins as it turns into the hook (72 -> 49 ->
+    30 across), which the pen does on its own once the hook's curve starts
+    lower; the bar is 0.49 stems thick (Fjord's was the pen's 0.62) with its
+    TOP on the x-height (it was centered there and overshot by half a bar),
+    reaching 45 left of the stem and 149 right. The hook's radius grows 150
+    -> 200, its end flares 0.35 (a ball terminal is retired in this face --
+    the flare and the pen cut are its stand-in), the bar's right reach is
+    held at 120 past the stem rather than VdK's 149 because the x-height
+    band sets the advance and "ff" / "off" would loosen."""
+    P = []; xh = c["xh"]; s = c["s"]; asc = c["asc"]; wf = c["wf"]; r = 200 * wf; x = 110 * wf + s / 2
     stem(c, P, x, 0, asc - r + s * 0.5, top=None, foot="both", flare=False)
-    hook = bez((x, asc - r), (x, asc + 10), (x + r * 0.9, asc + 10), (x + r * 1.25, asc - r * 0.5), 40)
-    curve(c, P, hook, flare_end(0.15, 0.3), cut1=c["cut"])
-    curve(c, P, line((x - 105 * wf, xh), (x + 150 * wf, xh), 12)); return P
+    hook = bez((x, asc - r), (x, asc + 10), (x + r * 0.9, asc + 10), (x + r * 1.25, asc - r * 0.55), 40)
+    curve(c, P, hook, flare_end(0.35, 0.3), cut1=c["cut"])
+    th_bar = c["pen"].th((1, 0)) * 0.8
+    curve(c, P, line((x - s * 0.5 - 45 * wf, xh - th_bar / 2), (x + s * 0.5 + 120 * wf, xh - th_bar / 2), 12), lambda t: 0.8); return P
 
 def g_t(c):
     P = []; xh = c["xh"]; s = c["s"]; wf = c["wf"]; r = 135 * wf; x = 100 * wf + s / 2

@@ -1219,3 +1219,50 @@ fits on the full extent. After: no non-letter under 20 units a side. Letters
 keep the band rule (f −36 right, j −90 left, J 3 left are the hook and tails
 tucking under neighbours, as Garamond's do). Proof `fjord-punct.html`. The
 TTF ships with round 40 when the Van den Keere agent's glyphs land.
+
+## Round 42 (2026-09-12): the Van den Keere pass landed
+
+Rounds 40 and 41's agent work, merged and rebuilt from one state of the
+sources; proof `fjord-round42.html` (the agent's `vdk-proof.png`, 14 rows of
+Van den Keere / before / after, and `vdk-overlay.html` from `cmp_vdk.py`, a
+copy of `cmp_garamond.py` pointed at Van den Keere on its measured x top 401).
+Owner: "better match the strokes of van den keere for: g K C D Q R S f G 3 6
+9 & @. BE SURE TO RETAIN THE SAME APPROACH AS BEFORE FOR CONSISTENCY."
+
+Van den Keere at a 1000 em: stem 82, cap 672, x 401. Per glyph:
+- **C S G**: `_beak` -- the stroke swells into a near-vertical face (a −28°
+  pen cut) with a short lip (`bracket_wedge` 0.4 × 0.7); lower terminals
+  taper to a point (C to 0.34 C, S to 0.22 C); C's arc 43° → 334°. G's bar at
+  0.42 C, 0.5 stem thick, short (1.1 cap stems left of the spur to 0.6 right).
+- **K**: arm floor 0.47 stem (was the pen's 31-unit hairline), leg 1.1 cap
+  stems, junction u 0.16, foot 0.5 s past the arm's tip. Kept: the arm cannot
+  be VdK's 48° at the reference width with the family's wedge.
+- **Q**: a swash tail from the ring's centerline at 250°, weight floor 1.05
+  stems peaking at the belly, tip at 1.80 O-widths, 0.4 C down; advance stays
+  the O's, the tail hangs under the next letter (rsb −432; "QU", "Qu" clear).
+- **R**: leg 1.05 stems; a junction at t 0.9 tried and reverted (the solver
+  pinned the bowl at 1.45).
+- **D**: ring k × 1.12 (squarer shoulders, rounder belly); the round-36 heavier
+  bottom kept by ruling.
+- **f**: hook radius 150 → 200, flare 0.35 + cut, bar 0.8 × pen with its top on
+  the x-height, 45 left / 120 right (VdK 149; the band sets the advance).
+- **3**: default width 400 → 330 (it had pinned the solver at its 0.7 floor);
+  two superellipse arcs, upper bowl smaller and right, pinch at 0.60 h.
+  **6**: one stroke from the ring's leftmost point (vertical tangent, so the
+  outline continues the bowl's) thinning to a point. **9**: the mirror, held
+  at 0.9 stem through the turn.
+- **&**: a garalde ampersand, one catmull stroke on the pen through 24 measured
+  points; the arm ends in the family's wedge (VdK's is a flat serif).
+  **@**: on the baseline at cap height (was at the x-height), ring at 0.85 pen
+  (full pen went black at 13 pt), an a on the a's own construction inside.
+- **g (G3 on the nib)**: bowl rx 185, 0.70 xh; loop rx 215 × 0.45 desc, centre
+  +30; neck from 242° into the loop at 150° -- a near-vertical drop (8° lean)
+  with NO floor, the nib giving 58–66 on its own; at 140° the loop's top
+  hairline kinked into the neck. Ear a pen stroke off the shoulder at 48°
+  rising 5°. Kept: depth (VdK's g descends 0.74 xh; the descender is 0.60).
+  The old default g is `G_VARIANTS[7]`.
+- **e**: `E_VARIANTS[0]` = 5°, bar 0.62, th 0.62, end 330, blunt; floor 0.35.
+
+`cmp_vdk.py` flags on the 14: before 8 flagged, after 0; whole font 37 → 31
+(the rest are punctuation, dots, s, I -- out of scope). Solver widths after:
+C 0.92, G 0.88, K 0.99, R 1.33, S 0.97, 3 0.86, 6 0.73, 9 0.70.

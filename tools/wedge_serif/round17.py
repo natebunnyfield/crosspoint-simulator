@@ -164,7 +164,7 @@ E_BAR_DEG = 5.0     # the e's bar rises left to right by this (owner 2026-09-12)
 # 'cut' (pen cut + flare, as now), 'flare' (big flare, square end), 'taper'
 # (thins to a point), 'beak' (the C's wedge), 'blunt' (square, no flare).
 E_VARIANTS = [
- dict(deg=5.0, bar=0.58, th=1.0, end=318, nose='cut'),    # 0: round 36, as shipped
+ dict(deg=5.0, bar=0.62, th=0.62, end=330, nose='blunt'),  # 0: owner 2026-09-12, from the e dials page (was the round-36 e: 5.0 / 0.58 / 1.0 / 318 / cut)
  dict(deg=0.0, bar=0.55, th=0.8, end=318, nose='cut'),    # 1: level bar, thinner, bigger eye
  dict(deg=2.5, bar=0.58, th=1.0, end=318, nose='cut'),    # 2: halfway tilt
  dict(deg=5.0, bar=0.62, th=1.0, end=318, nose='flare'),  # 3: high bar, small eye, flared nose
@@ -185,14 +185,40 @@ G_EAR_DEG = 35.0    # where on the g's bowl the ear wedge sits (deg from the bow
 # of the descender; loop_cx the loop center's offset from the bowl's; angles
 # in degrees on the superellipse (neck_from on the bowl, loop_entry on the
 # loop, both measured as ellipse() does, 0 = right, 90 = up).
+# Owner 2026-09-12: "g3 wins but it needs to match the underlying
+# calligraphic brush strokes." Variant 0 is G3 (bowl near the o's width,
+# round loop, short neck) re-cut on the nib, with Van den Keere as the shape
+# reference (owner, same day: "better match the strokes of van den keere"):
+#   - bowl and loop are rings on the pen (they carry the o's stress: thick
+#     at the lower left and upper right, thin at the top and bottom -- the
+#     same ring() the o uses);
+#   - the neck takes NO weight floor. VdK's leaves the bowl's bottom-left
+#     and falls down-left at ~65 degrees into the loop's far upper left; at
+#     that angle the nib is broad on its own (58-66 units; the old floor
+#     forced a 0.6 stem). Its path drops near-vertically first (an 8-degree
+#     lean), then turns (ear="pen", neck="nib");
+#   - the loop's join into the neck is one stroke: the neck ends ON the
+#     loop's centerline with the loop's own tangent (loop_entry 140), so the
+#     two widths are the pen's at the same angle and the join is continuous
+#     (150: VdK's neck enters the loop's far upper left; at 140 the loop's
+#     top hairline turned the corner into the neck and read as a kink);
+#   - the ear is a pen stroke: it leaves the bowl's shoulder (48 degrees on
+#     the ring) nearly level (a 5-degree rise), which the nib makes 50 wide
+#     (a 15-degree rise would be a 40 hairline), pen-cut at the end. VdK's
+#     is a level flick, 50 wide.
+#   - loop 1.16 x the bowl's width (VdK 1.58; G3 was 1.03), its center 30
+#     units right of the bowl's (VdK +33), 0.47 desc down.
+# The other variants stand as they were; G3 itself (entry 3) is unchanged
+# for reference.
 G_VARIANTS = {
-    0: dict(name="round 28 g", bowl_rx=152, bowl_h=0.64, ear="flick", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118),
+    0: dict(name="G3 on the nib, after Van den Keere", bowl_rx=185, bowl_h=0.70, ear="pen", loop_rx=215, loop_ry=0.45, loop_cx=30, loop_cy=0.47, neck_from=242, loop_entry=150, neck="nib"),
     1: dict(name="G1 ear as a top-right wedge serif", bowl_rx=152, bowl_h=0.64, ear="wedge", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118),
     2: dict(name="G2 garalde: smaller bowl, long neck, wide flat loop, flat ear", bowl_rx=136, bowl_h=0.56, ear="flat", loop_rx=205, loop_ry=0.37, loop_cx=42, loop_cy=0.54, neck_from=262, loop_entry=120),
     3: dict(name="G3 Jenson/Doves: bowl near the o's width, round loop, short neck, tick ear", bowl_rx=200, bowl_h=0.72, ear="tick", loop_rx=205, loop_ry=0.46, loop_cx=8, loop_cy=0.44, neck_from=258, loop_entry=116),
     4: dict(name="G4 narrow and tall: bowl narrower than the o, loop narrower than the bowl and deep, neck near vertical", bowl_rx=122, bowl_h=0.64, ear="flick", loop_rx=112, loop_ry=0.47, loop_cx=6, loop_cy=0.47, neck_from=268, loop_entry=100, neck_bend=0.0),
     5: dict(name="G5 open loop: the tail returns toward the neck and stops short, hairline", bowl_rx=152, bowl_h=0.64, ear="flick", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118, loop="open", loop_sweep=300),
     6: dict(name="G6 heavy loop: loop at full stem weight all round, wedge ear", bowl_rx=152, bowl_h=0.64, ear="wedge", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118, loop_w="stem"),
+    7: dict(name="round 28 g (the old default)", bowl_rx=152, bowl_h=0.64, ear="flick", loop_rx=190, loop_ry=0.42, loop_cx=30, loop_cy=0.47, neck_from=262, loop_entry=118),
 }
 
 def cp_glyphs(seed, every, amp, trap, counter_cut=None):
@@ -299,6 +325,10 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         elif ear == "tick":     # Jenson/Doves: a short near-vertical tick rising off the shoulder
             ex, ey = on_bowl(48)
             A.curve(c, P, A.line((ex - 4, ey - s * 0.25), (ex + 14, ey + 62), 8), lambda t: 0.8, cut1=c["cut"])
+        elif ear == "pen":      # the nib's own stroke: out of the bowl's shoulder, rising 15 degrees, no profile, pen cut
+            # level, as VdK's: a horizontal is 52 under this nib, a 15-degree rise only 40
+            ex, ey = on_bowl(48); L = 92 * wf
+            A.curve(c, P, A.line((ex - s * 0.15, ey - 4), (ex + L, ey + L * math.tan(math.radians(5))), 12), None, cut1=c["cut"])
         # lower loop
         lrx = V["loop_rx"] * wf; lry = desc * V["loop_ry"]; lcx = cx + V["loop_cx"] * wf; lcy = -desc * V["loop_cy"]
         th_fn = (lambda tn: s) if V.get("loop_w") == "stem" else None   # 6: full stem weight all round
@@ -316,6 +346,16 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         p0 = on_bowl(V["neck_from"])
         p3 = (lcx + lrx * math.cos(a1), lcy + lry * math.sin(a1))
         gap = p0[1] - p3[1]; bend = V.get("neck_bend", 1.0)
+        if V.get("neck") == "nib":
+            # the nib's neck: a vertical drop out of the bowl, then a turn that
+            # arrives on the loop's centerline ALONG the loop's tangent there
+            # (the ring runs counterclockwise, so at a1 it heads (-sin, cos)),
+            # ending buried a hair inside the loop's stroke. No weight floor:
+            # the pen's own thickness along this path stays broad.
+            tl = (-math.sin(a1), math.cos(a1))
+            link = A.bez(p0, (p0[0] - gap * 0.12, p0[1] - gap * 0.45), (p3[0] - tl[0] * gap * 0.38, p3[1] - tl[1] * gap * 0.38), p3, 40)
+            A.curve(c, P, link, A.taper_out(0.85, 0.08))
+            return P
         link = A.bez(p0, (p0[0] + 2 * wf * bend, p0[1] - gap * 0.62), (p3[0] + 6 * wf * bend, p3[1] + gap * 0.42), p3, 32)
         tn = A.tangents(link); n = len(link) - 1
         def prof(t):
@@ -343,7 +383,9 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         # the bar IS the strip between the eye's two closing edges (no separate
         # stroke): its ends are the eye contour's, cx - rx - 0.05 s to cx + rx + 0.08 s
         bar_at = lambda x: bar_y + (x - cx) * slope
-        bar_th = max(c["pen"].th((math.cos(tilt), math.sin(tilt))) * V["th"], s * 0.42)
+        # floor 0.35 stem (was 0.42, which at 5 degrees is ~34 and would have
+        # swallowed the chosen 0.62 x ~50 = ~31; the chosen value is the value)
+        bar_th = max(c["pen"].th((math.cos(tilt), math.sin(tilt))) * V["th"], s * 0.35)
         yR = bar_at(cx + rx); yL = bar_at(cx - rx)
         a_r = math.asin(max(-1.0, min(1.0, (yR - xh / 2) / ry)))            # where the arc meets the bar, right
         a_l = math.pi - math.asin(max(-1.0, min(1.0, (yL - xh / 2) / ry)))  # ...and left
