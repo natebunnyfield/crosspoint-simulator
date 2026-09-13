@@ -9,6 +9,7 @@ import round19
 
 DESIGN = dict(round19.DESIGN)
 XH = DESIGN["xh"]; ASC = DESIGN["asc"]; DESC = DESIGN["desc"]
+DESIGN["stem"] = 94                          # owner ruling, round 59 (2026-09-13): "94 wins" on the weight ladder; was 82
 S = float(os.environ.get("FJORD_STEM", DESIGN["stem"])); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c)
 CAP = XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]

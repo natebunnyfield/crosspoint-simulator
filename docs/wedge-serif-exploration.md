@@ -11,8 +11,8 @@
   `tools/wedge_serif/outlines/primitives.py`. The shipping font is
   `build/fjord-fonts/Albo-Regular.ttf`, built by `python3 -m outlines.build
   <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
-  `albo-specimen.html`. The B's waist is one bar. Next ask, queued: the weight
-  ladder (round 58c below).
+  `albo-specimen.html`. The B's waist is one bar. **Stem 94** (round 59,
+  owner: "94 wins"; was 82), set in `outlines/pen.py`.
 
 - **What this is.** A humanist wedge serif for longform reading on the X3
   and the iOS app, designed by evolution: populations rendered, the owner
@@ -1658,3 +1658,7 @@ against Albertus and Albo in the guide, §000. Headline: the Goudy faces share
 our x-height (0.42-0.43 em), carry their text weight in stem/xh 0.23-0.25 and
 arches no thinner than half the stem, and their 2-3.5:1 bowls cost them ink at
 black on the four-level pipeline (Berkeley Medium 0.639 vs Albo 0.696).
+
+Round 59 LANDED (2026-09-13): owner "94 wins, next". `DESIGN["stem"] = 94` in
+`outlines/pen.py`; Albo-Regular rebuilt, glyf and metrics identical to
+`Albo-stem94.ttf`; specimen republished, TTF sent.

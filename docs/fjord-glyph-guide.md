@@ -17,7 +17,8 @@ wins; update this guide when that happens.
 "Albertus-like firm" -- w = hair + (max - hair)·|sin φ|^1.6 with hair 0.70
 stem, max 1.00 stem, vertical stress, joins into stems tapering to 0.85 of the
 hair, round end k 1.9 -- the default in `outlines/primitives.py`
-(`DEFAULT_BOWL`). This supersedes the round-57 bowl paragraph in §2 below,
+(`DEFAULT_BOWL`). **Stem 94** (round 59, from the weight ladder; the pen's
+`stem` was 82 from round 1 to 58, and every "82" below is that history). This supersedes the round-57 bowl paragraph in §2 below,
 which stays as the measured record of what was rejected.
 
 **The goal, in his words (2026-09-13):** "make a wedge serif long text
