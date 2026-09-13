@@ -2012,3 +2012,8 @@ monotonically; the narrowest-column count is grid-sensitive); counter, lsb
 37, "19"/"99" gaps unchanged; advance 487-488 (rounding). Page
 https://claude.ai/code/artifact/1bb9e2d4-ce9d-4532-aa92-e88bac6281d4. All four fonts carry the ruled
 5, 8, 6 and the round_bowl &.
+
+Round 73 RULED (2026-09-13): ".6 wins but the stroke needs to be thicker
+towards the loop." `NINE_TAIL_TOP = 0.60`; round 74: the tail at full width
+at the ring exit easing down to 0.60 over the first 35 / 55 / 75% of the run
+(`NINE_TAIL_EASE`, 0.55 until ruled), all from the top edge. Page pending.
