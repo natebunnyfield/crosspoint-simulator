@@ -2030,3 +2030,9 @@ Round 74 RULED and rounds 64-74 LANDED (2026-09-13): "eased over ~70% wins."
 5 at -24, the 8 C x1.08 (tops at 534 against the 6's 654), the 6's tail
 0.55 S, the 9 flag-diag thinned 0.60 from the top and eased 0.70, the &
 round_bowl. Static Regular rebuilt; the VF rebuild follows.
+
+Rebuild after the merge (2026-09-13, 13:24): `Albo-VF.ttf` from 23 masters
+with every ruling through round 74; default instance identical to the
+Regular (symmetric difference 0 on every glyph, metrics equal). Specimen,
+slider page and proof page republished at their URLs; Regular and VF sent.
+Clamps unchanged from round 65.
