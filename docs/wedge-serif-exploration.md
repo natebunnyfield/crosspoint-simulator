@@ -1662,3 +1662,27 @@ black on the four-level pipeline (Berkeley Medium 0.639 vs Albo 0.696).
 Round 59 LANDED (2026-09-13): owner "94 wins, next". `DESIGN["stem"] = 94` in
 `outlines/pen.py`; Albo-Regular rebuilt, glyf and metrics identical to
 `Albo-stem94.ttf`; specimen republished, TTF sent.
+
+Round 60 evidence, built and NOT asked (2026-09-13): the arch floor -- the
+least width the n m h arches and the u's bowl may thin to, as a fraction of
+the stem: 0 (current, about 0.48 in practice), 0.6, 0.8, 1.0 (Albertus). Fonts
+`build/fjord-fonts/Albo-arch{0,0.6,0.8,1.0}.ttf`, `FJORD_ARCH_FLOOR` env in
+`outlines/primitives.py`; page (the ask is queued behind the variable font
+below). Page ink 0.1315 → 0.1343, ink at black 0.726 → 0.730 across the
+ladder: the floor barely moves the page's measures; it is a texture question
+for the pictures. The ray-cast "thinnest" numbers were dropped from the page:
+a ray from the counter's center runs along the joint, not across the arch,
+and read 46 / 46 / 58 / 49 -- not a measurement.
+
+## Round 61 (2026-09-13): the owner asks for a variable font
+
+Owner, verbatim: "this needs to a variable axis font that allows adjustment
+of contrast, ascender length, descender length, line width, condensed to
+expanded, handcut to smooth and anything else that makes good sense to
+include." So the deliverable becomes `Albo-VF.ttf`, one file with axes, the
+rulings so far (bowl B, stem 94, xh 415, asc 762, desc 250, contrast 0.60,
+lc_width 0.938, the 1-in-4 cut) as its DEFAULT instance, and an interactive
+specimen with a slider per axis. The outlines are all-on-curve polygons
+(5,610 points, no off-curve, 1-5 contours per glyph), so masters are made
+compatible by re-sampling every contour to a fixed point count by arc length
+-- the plan handed to the rebuild agent, which owns `outlines/`.

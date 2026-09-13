@@ -6,7 +6,7 @@ join -- one outline per solid, counters as holes, nothing buried.
 Widths are DECLARED here and in the glyph code, read against pen.th()
 (the reference), not generated from it: `widths(keys)` interpolates the
 designer's keypoints along a stroke."""
-import math
+import os, math
 from . import geom, pen
 from .geom import cubic, quad, line, superellipse, join, resample, tangents, smooth
 from .pen import S, CS, XH, WL, WD, DROP, FILLET, FOOT, ENT, TH_V, TH_H, HAIR, CUT
@@ -277,6 +277,7 @@ def set_bowl(key):
     global BOWL
     BOWL = None if key == 'pen' else dict(BOWL_OPTIONS[DEFAULT_BOWL if key is None else key])
 BOWL = dict(BOWL_OPTIONS[DEFAULT_BOWL])
+if os.environ.get('FJORD_ARCH_FLOOR'): BOWL['arch_floor'] = float(os.environ['FJORD_ARCH_FLOOR'])   # round 60 ladder override: the n m h u arches never thin below this x stem
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""
