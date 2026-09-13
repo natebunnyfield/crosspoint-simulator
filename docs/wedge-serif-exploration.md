@@ -2178,3 +2178,36 @@ https://claude.ai/code/artifact/24e95a42-8dde-4f4f-a62b-818711e17ef4.
 Note: this agent lost its worktree after the rate-limit restart and edited
 the main checkout; the files stayed disjoint and only diagonals.py is in
 this commit.
+
+## Round 76 landed (2026-09-13): the lighter weights, measured
+
+`outlines/cmp/weights.py`. 145 instances across 38 families on this
+machine measured at 1200 px (the l's stem waist over the x's height; the
+o's thin/thick); 23 families / 74 instances usable, 16 dropped with reasons
+(one shared Latin across a script family's ladder; no o bowl). Median stem
+ratio to each family's 500: **400 0.797 (n 23), 300 0.650 (16), 200 0.521
+(8), 100 0.344 (7)** -- the 100/200 ends rest on sans families only (no
+serif on this machine has a Thin), but at 400 the seven serifs give 0.799
+against the pool's 0.797, so the ends are trusted. Contrast falls as
+weight falls in every family, modestly (o thin/thick x1.05 at 400 to x1.10
+at 100); derived through `hair = 1 − 0.5c`:
+
+| | stem | contrast | pen hair px at 54 | ink at black |
+|---|---|---|---|---|
+| 500 Medium (today's) | 84 | 0.950 | 0.32 | 67.1% |
+| 400 Regular | 66.9 | 0.892 | 0.39 | 61.8% |
+| 300 Light | 54.6 | 0.878 | 0.36 | 56.9% |
+| 200 ExtraLight | 43.8 | 0.866 | 0.32 | 49.4% |
+| 100 Thin | 28.9 | 0.846 | 0.32 | 36.7% |
+
+Width stays 100 (the references narrow their lights under 3%); serif stays
+92 so the wedge shrinks with the stem (23 x 45 at 100 -- reads near sans;
+raising the serif dial at the light end is an open architectural choice).
+Topology: 400 clean; the a breaks below stem 56.2 (300 is 1.6 short -- fix
+the a's hood, the same fix wght 50 needs), the y below 51.6, the 5 below
+53.9, the e's eye below 34.3 -- 200 and 100 are previews, not finished
+cuts. **Naming:** the agent recommends renaming today's file
+`Albo-Medium.ttf` and giving the 400 `Albo-Regular.ttf`; the owner's call.
+Fonts `build/fjord-fonts/weights/`; page
+https://claude.ai/code/artifact/PENDINGW. Built from a snapshot that
+included the stems agent's in-flight a/g/t work.
