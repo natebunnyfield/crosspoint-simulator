@@ -2272,5 +2272,5 @@ by a window that was mostly stem, so a 6% wedge change read as 1% and
 passed as "exact"; it now compares the wedge outside the stroke's edge.
 Re-run pending. Marks agent's file merged the same build (@ with the
 family's a inside, marks aligned to one dot size and one quote top, ? and
-& flowing). Page https://claude.ai/code/artifact/PENDING78; marks page
-https://claude.ai/code/artifact/PENDINGM; specimen republished.
+& flowing). Page https://claude.ai/code/artifact/7050f613-acf6-4c0a-ba3d-dcd9a2605f54; marks page
+https://claude.ai/code/artifact/22f49b59-7638-434a-8b33-13ebd06cb4de; specimen republished.
