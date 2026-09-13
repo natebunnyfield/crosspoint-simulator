@@ -2316,4 +2316,22 @@ terminal takes the top beak's 1.30 swell (24 → 104 units); the W's apex one
 vertex; the Z's diagonal kept to the bars' box. Found and left, one line
 each: the E's bottom-right, the L's bottom bar, the Z's other two bar ends
 carry the same wedge-plus-cut ledge the bar() fix of round 78 addresses at
-the primitive. Page https://claude.ai/code/artifact/PENDINGCAPS.
+the primitive. Page https://claude.ai/code/artifact/b5c4c767-7e59-4f49-b7a8-13b2e599f6a4.
+
+## Round 80 (2026-09-13): 1 2 4 reflected; the @; seven ?s
+
+Owner on round 79's 1 2 4: "whatever worked on 1 2 4 is lacking the
+understanding of what we're doing with this font. reflect and try again."
+The reflection: this is a chiselled wedge serif in Albertus's idiom -- one
+weight, straight where it can be, crisp corners, curves modest -- and I had
+drawn a swash slash on the 2 and a hooked hairline-started stroke on the 4.
+Redrawn: the 1's flag solid on the bowl profile with the small tip wedge;
+the 2's slash straight on the arc's own tangent at the arc's weight; the
+4's bow cut to 0.10 S at one weight. Also: "for at symbol, use an italic
+'a' and connect the bottom right to the loop to its right like a
+conventional. make more variations of '?' for me to choose from. '&' after
+wins." The @ took six builds: the spiral's start must sit LEFT of the a's
+stem foot (its travel there is down-left; a start to the right forces a
+cusp), the a stands in the spiral's open side, the end at one o'clock.
+Seven ?s built (`FJORD_Q_VARIANT`), 0 landed until he picks. The & from
+round 77 is ruled. Page https://claude.ai/code/artifact/PENDING80.
