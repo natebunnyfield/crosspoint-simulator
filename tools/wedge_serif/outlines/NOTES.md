@@ -217,6 +217,37 @@ diagonals,caps,figures,marks}.html`):
 - Kept as ruled: stems (entasis, wedges), the e's bar, the K arm's 0.47
   floor, the R leg's 1.05, the Q tail's belly floor, the 9's 0.9, the j.
 
+## Phase 3: D B P R on the MEASURED bowl profile (owner: "your understanding is wrong")
+
+The brief's 26-degree nib was wrong for these bowls. `bowl_rays.py`
+(ray-cast thickness from the glyph's 0.55-width centre, 1000 px, 0 = 3
+o'clock, + = up) on Van den Keere: the bowl is VERTICALLY stressed --
+maximum at 3 o'clock, symmetric above and below, heavier than the stem
+(97 against 82), a true thin (32-46, ~0.42 stem) at the top and bottom.
+`half_bowl` now: the centerline is a FLAT run from the stem, a ROUND end
+(a semicircle of the bowl's half height, k 2.0), a flat run back --
+Van den Keere's construction, the "squared shoulders" being the flats;
+the width at every point is `bowl_profile(tangent)` = 34 + 63 |sin phi|^1.7
+(hair 0.42 stem, max 1.18 stem). The exponent is 1.7, not the brief's
+1.28: a 12-cell grid (round end 0.65-1.0 x exponent 1.28-2.2) against
+VdK's D P R rays put 1.0 / 1.7 best (sum |delta| 141 over 27 cells;
+1.28 read +15 at -60/-40). The opened-bottom ruling is a modest
+asymmetry now (0.06 of the horizontal, ~+3). Rays, VdK / Fjord:
+
+    D  38 54 75 90 97 97 85 66 46  /  50 66 84 95 99 96 84 66 45
+    P  34 52 74 90 95 89 72 52 37  /  39 55 75 92 97 91 71 51 39
+    B  32 44 64 87 98 90 71 (waist) 62  /  38 50 71 90 99 92 73 (waist) 62
+    R  -- 40 84 91 95 95 94 88 72  /  -- 64 87 96 99 97 90 78 57
+
+Within 8 at every cell except the D's lower half (-80..-40: +12 +12
++9), which is VdK's D being 12 THINNER at the bottom than at its top
+(38/46, 54/66) while the ruling keeps ours slightly heavier; and the R's
+-60 (+24) and +80 (-15), where the ray crosses the leg's root and the
+bowl's junction with the stem. O C G Q and the lowercase bowls are
+UNTOUCHED: VdK's O measures the same profile (32 45 67 86 97 94 79 53 32)
+and ours the 26-degree nib's (53 40 56 70 78 84 82 74 61, max at +20) --
+the owner's ruling to make.
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

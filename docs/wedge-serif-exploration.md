@@ -1514,7 +1514,7 @@ thins at 11 and 5; Van den Keere's D carries its weight at 4 o'clock. That is
 the pen's definition (`stress`), not a drawing; moving it moves every round.
 Recorded in `outlines/NOTES.md` ("Brush-stroke revision").
 
-## Round 57 (2026-09-13, in progress): B and related -- the bowls' measured profile
+## Round 57 (2026-09-13): B and related -- the bowls' measured profile
 
 Owner: "take another pass at B and related characters because your
 understanding is wrong." Measured with `bowl_rays.py` (ray-cast thickness by
@@ -1525,3 +1525,22 @@ for the bowls: their stress is vertical, their contrast ~2.7, and they run
 heavier than the straights. Fitted `w = 34 + 63·|cos θ|^1.28`; handed to the
 rebuild agent for D B P R; O C G Q and the lowercase bowls left for a ruling
 (the reference's O has the same profile).
+
+**Landed.** `outlines/primitives.half_bowl` is now Van den Keere's
+construction, measured: a flat run from the stem along the top, a round end
+(a semicircle of the bowl's half height, k 2.0), a flat run back; the width
+at every point `bowl_profile(tangent) = 34 + 63·|sin φ|^1.7` (hair 0.42
+stem, max 1.18 stem, vertical stress). The exponent is 1.7, not my fitted
+1.28: the agent ran a 12-cell grid (round-end 0.65–1.0 × exponent 1.28–2.2)
+against the D P R rays and 1.0 / 1.7 minimized the error (sum |Δ| 141 over
+27 cells). The opened bottom is now a 0.06 asymmetry; the ends run 22 into
+the stem easing to 0.7 of the hairline. Rays, VdK / Fjord (−80 … +80):
+D 38 54 75 90 97 97 85 66 46 / 50 66 84 95 99 96 84 66 45; P 34 52 74 90 95
+89 72 52 37 / 39 55 75 92 97 91 71 51 39; B (lower) 32 44 64 87 98 90 71 /
+38 50 71 90 99 92 73; R 40 84 91 95 95 94 88 72 / 64 87 96 99 97 90 78 57.
+Within 8 everywhere except the D's lower half (the opened-bottom ruling
+keeps it ~10 heavier than VdK's, which is thinner at the bottom than the
+top) and the R's rays that cross the leg's root. O C G Q and the lowercase
+bowls untouched: VdK's O measures the same profile (max at 0°, 32 at ±80°),
+ours the 26° nib's (max at +20°, 53–61 at ±80°) -- **for the owner's
+ruling.** Proof `fjord-phase3-DBPR.html`; the specimen carries the build.

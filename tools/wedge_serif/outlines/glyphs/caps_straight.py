@@ -52,7 +52,7 @@ def g_B(c):
     # taper into the stem at the waist (0.55 C), so the waist is the pen's
     # horizontal thinning to a hairline at the stem
     up, *_ = half_bowl(edge, C, C * 0.55, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
-    lo, *_ = half_bowl(edge, C * 0.55, 0, w * 0.72 + TH_V / 2, open_bottom=0.3)
+    lo, *_ = half_bowl(edge, C * 0.55, 0, w * 0.72 + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, up, lo])
 
 def cap_arc(c, rx_c, a0, a1, profile, cut0=None, cut1=None, k=BOWL_K, ry_c=None, cy=None):
@@ -72,7 +72,7 @@ def g_C(c):
 def g_D(c):
     C = c["cap"]; x = CS / 2; rx = W_(c, 'D', 330); edge = x + CW / 2
     st = cstem(x, 0, C, top='left', foot='left')
-    bowl, *_ = half_bowl(edge, C, 0, rx + TH_V / 2, open_bottom=0.3)
+    bowl, *_ = half_bowl(edge, C, 0, rx + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, bowl])
 
 @glyph('E')
@@ -196,7 +196,7 @@ def g_O(c):
 @glyph('P')
 def g_P(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'P', 400); edge = x + CW / 2
-    bowl, *_ = half_bowl(edge, C, C * 0.44, w * 0.72 + TH_V / 2, open_bottom=0.3)
+    bowl, *_ = half_bowl(edge, C, C * 0.44, w * 0.72 + TH_V / 2, open_bottom=0.06)
     return geom.ink([cstem(x, 0, C), bowl])
 
 @glyph('Q')
@@ -217,7 +217,7 @@ def g_Q(c):
 @glyph('R')
 def g_R(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'R', 400); edge = x + CW / 2
-    bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.3)
+    bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.06)
     ang = math.radians(-52); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
     # the leg as the nib writes it: thin where it leaves the bowl, the
     # pen's width at 60 degrees x 1.05 (64, round 42) by the foot, on a

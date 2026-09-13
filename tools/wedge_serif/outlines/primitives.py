@@ -250,35 +250,58 @@ def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, p
     inner = resample(inner + [inner[0]])[:-1]
     return geom.poly(outer, [inner[::-1]]), outer, inner
 
-def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_scale=1.0, into=22.0, taper=0.42, taper_span=0.10):
-    """The D's bowl (rulings, rounds 36/47) as the NIB writes it (owner,
-    2026-09-13: "brush stroke revision"): the CENTERLINE is the designed
-    half superellipse from the stem's inner edge -- squared shoulders (k x
-    1.12), outer edges ON y_top and y_bot -- and the outer and inner
-    contours are its offsets by pen.th(tangent)/2 at every point: a thin
-    horizontal (55) leaving the stem at the top, the full stem on the
-    right with the maximum at the stress angle, thin again returning at
-    the bottom. Both ends run `into` the stem and TAPER there (to `taper`
-    of the pen over `taper_span`), so the end faces lie inside the stem's
-    ink: no slit, no square end. The opened bottom lifts the counter's
-    lower half by open_bottom x the horizontal stroke (centerline up by
-    half, width up by the whole, so the outer edge holds). Returns (solid,
-    cx, cy, rx_c, ry_c, L, R) with the centerline radii and the two edges."""
-    ry_c = (y_top - y_bot) / 2 - TH_H / 2; rx_c = rx - TH_V / 2
+BOWL_HAIR, BOWL_MAX, BOWL_POW = 0.42, 1.18, 1.7    # the D-family bowl profile, fitted to Van den Keere's rays (2026-09-13); 1.7 measured from the instrument's centre (the brief's 1.28 was by angle, and read +15 at -60/-40)
+BOWL_ARC = 1.0     # the round end's x radius over the bowl's half height (a semicircle); a 12-cell grid over 0.65-1.0 x exponent 1.28-2.2 against VdK's D P R rays put 1.0 / 1.7 best (sum |delta| 141 of 27 cells)
+BOWL_ARC_K = 2.0   # the end is a true round; the "squared shoulders" are the flat runs
+
+def bowl_profile(tan):
+    """Stroke width of a D-family bowl by its TANGENT: measured on Van den
+    Keere's D P B (ray-cast at 1000 px from the bowl's centre), the bowl is
+    VERTICALLY stressed -- the maximum where the stroke runs vertical (3
+    o'clock), symmetric above and below, heavier than the stem (97 against
+    82), falling steeply to a true thin wherever it runs horizontal (34,
+    0.42 of the stem -- the whole top and bottom, from the stem to the
+    shoulder): w = hair + (max - hair) |sin phi|^1.28, phi the tangent's
+    angle. Not the 26-degree nib's profile, which peaks at 2 o'clock and
+    only falls to ~60. (A first version took the angle from the half
+    superellipse's own centre, which sits at the stem, so the top stroke
+    thickened from the stem outward and the rays read ~100 everywhere.)"""
+    phi = math.atan2(tan[1], tan[0])
+    return S * (BOWL_HAIR + (BOWL_MAX - BOWL_HAIR) * abs(math.sin(phi)) ** BOWL_POW)
+
+def half_bowl(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_scale=1.0, into=22.0, taper=0.7, taper_span=0.08):
+    """The D's bowl (rulings, rounds 36/47) on the measured profile (owner,
+    2026-09-13, "take another pass at B and related characters"): the
+    CENTERLINE is the designed half superellipse from the stem's inner
+    edge -- squared shoulders (k x 1.12), outer edges ON y_top and y_bot --
+    and the width at every point is bowl_profile(angle from the bowl's
+    centre): a hairline leaving the stem at the top, the maximum at 3
+    o'clock, a hairline returning at the bottom. Both ends run `into` the
+    stem and ease to `taper` of the hairline there, so the end faces lie
+    inside the stem's ink. The opened bottom (ruling) is a modest
+    asymmetry now: the counter's lower half lifted by open_bottom x the
+    horizontal stroke (Van den Keere's own bottom is 38 against a top of
+    46). Returns (solid, cx, cy, rx_c, ry_c, L, R)."""
+    ry_c = (y_top - y_bot) / 2 - S * BOWL_HAIR / 2; rx_c = rx - S * BOWL_MAX / 2
     cy = (y_top + y_bot) / 2; cx = edge + rx * 0.05
-    arc = superellipse(cx, cy, rx_c, ry_c, -math.pi / 2, math.pi / 2, k)
+    # Van den Keere's bowl, measured (2026-09-13): a FLAT run from the stem
+    # along the top, a round end, a flat run back along the bottom -- so the
+    # thin holds all the way to the shoulder and the weight sits on the
+    # belly. The arc's x radius is the bowl's half height (a round end),
+    # the flat runs take up the rest of the fixed width.
+    arc_rx = min(rx_c, ry_c * BOWL_ARC); flat = rx_c - arc_rx; ax = cx + flat
+    arc = superellipse(ax, cy, arc_rx, ry_c, -math.pi / 2, math.pi / 2, BOWL_ARC_K)
     center = [(edge - into, cy - ry_c)] + arc + [(edge - into, cy + ry_c)]
     center = resample(center)
     n = len(center) - 1
     if open_bottom:
-        # the lower half is the FIRST half of this centerline (bottom -> right -> top)
         def win(t): return max(0.0, math.sin(math.pi * (t - 0.04) / 0.46)) if 0.04 <= t <= 0.50 else 0.0
         center = [(px, py + 0.5 * open_bottom * TH_H * win(i / n)) for i, (px, py) in enumerate(center)]
     tans = tangents(center)
     def wfn(t):
-        i = min(n, int(round(t * n))); w = pen.PEN.th(tans[i]) * w_scale
+        i = min(n, int(round(t * n)))
+        w = bowl_profile(tans[i]) * w_scale
         if open_bottom: w += open_bottom * TH_H * win(t)
-        # taper into the stem at both ends
         if t < taper_span: u = t / taper_span; w *= taper + (1 - taper) * (3 * u * u - 2 * u ** 3)
         elif t > 1 - taper_span: u = (1 - t) / taper_span; w *= taper + (1 - taper) * (3 * u * u - 2 * u ** 3)
         return w
