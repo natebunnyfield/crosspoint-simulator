@@ -2334,7 +2334,7 @@ wins." The @ took six builds: the spiral's start must sit LEFT of the a's
 stem foot (its travel there is down-left; a start to the right forces a
 cusp), the a stands in the spiral's open side, the end at one o'clock.
 Seven ?s built (`FJORD_Q_VARIANT`), 0 landed until he picks. The & from
-round 77 is ruled. Page https://claude.ai/code/artifact/PENDING80.
+round 77 is ruled. Page https://claude.ai/code/artifact/f29b2f30-67df-4d23-bb09-2b2f5685d8a8.
 
 ## Round 81 (2026-09-13): the caps rulings, 1 2 @ ? again
 
@@ -2351,5 +2351,5 @@ heavy, larger to read correctly in a sentence." All done by hand; the
 rulings are the guide's rows. The @: I had the sweep backwards -- a typical
 @ runs counterclockwise from the a's foot up the right side and ends at the
 lower right. Z: three connectors built, blunt default, his pick pending.
-Page https://claude.ai/code/artifact/PENDING81. Fonts
+Page https://claude.ai/code/artifact/f34cd1b8-2a7f-4b2f-a5ec-33a39f1a63de. Fonts
 `build/fjord-fonts/Z/Albo-Z-{blunt,mitre,wedge}.ttf`.
