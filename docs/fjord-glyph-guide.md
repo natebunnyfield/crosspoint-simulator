@@ -56,6 +56,13 @@ answers land in this section as they arrive.
   (`cmp_garamond.py`, `cmp_vdk.py`, and `overlay_stier.py` restricted to
   those faces); where they disagree, the garalde median is the target and
   the owner's picture decides.
+- **Contrast** (his answer): **move toward the references** -- the pen's
+  `contrast` from 0.60 to about 0.45 (thins 20–25% lighter; the o's hairline
+  from 0.128 xh toward 0.10; Garamond is 0.075), still above Garamond's,
+  and CHECKED ON THE READER'S FOUR-LEVEL PIPELINE (13 pt at 2x, 8x
+  supersampled, quantized to 255/200/96/0) before it is ruled -- a true
+  hairline breaks up on e-ink. This amends the §3 proportions row; the
+  exact value is his call from a render of three contrasts.
 
 ## 1. What you are making, and for whom
 
@@ -179,7 +186,7 @@ none without the owner's word, and record any change in the exploration doc.
 | overshoot of arches (n m h u) | 12 units at the ink's edge | round 30 ruling, from the arches page |
 | lowercase width | 0.938 of the drawn widths; the o's counter 1.036 wide over tall | round 35 ruling; capitals untouched |
 | stem | 82; capital stem 1.137 × | design; references' median |
-| pen contrast | 0.60, stress 26°, power 0.95; o hairline 0.128 xh (Garamond 0.075) | design; the 70%-heavier thins are known and not yet ruled on |
+| pen contrast | 0.60 today; the rebuild moves it toward the references, about 0.45, value to be picked from a render on the reader's pipeline (§0) | design; owner 2026-09-12 |
 | wedge family | table in §2 | round 30 |
 | kick angles | A 65°, R 60°, k 56°, K 37° -- all different, by ruling | rounds 31, 32, 36 |
 | arches | peak with their outer edge at xh + 12; leave the stem at 0.52 of the x-height with a trap notch | rounds 27, 30 |
