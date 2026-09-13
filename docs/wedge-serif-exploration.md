@@ -2010,5 +2010,5 @@ Tail under the bowl 78 / 59 / 49 / 36 units (4.2 / 3.2 / 2.6 / 2.0 px at 54
 px); paper between tail and bowl at 54 px 115 / 132 / 140 / 155 px (rises
 monotonically; the narrowest-column count is grid-sensitive); counter, lsb
 37, "19"/"99" gaps unchanged; advance 487-488 (rounding). Page
-https://claude.ai/code/artifact/PENDING73. All four fonts carry the ruled
+https://claude.ai/code/artifact/1bb9e2d4-ce9d-4532-aa92-e88bac6281d4. All four fonts carry the ruled
 5, 8, 6 and the round_bowl &.
