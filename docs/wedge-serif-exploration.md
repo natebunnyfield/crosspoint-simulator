@@ -1353,3 +1353,28 @@ re-cuts every lowercase glyph after it: a B/P/R edit moved 66 glyphs with no
 lowercase source touched and shifted 54 px darkness readings by up to ±3%.
 Compare weight only between builds of the same capitals, or compare outline
 areas, which do not move.
+
+## Round 52 (2026-09-12): the docs, and eight rulings for the rebuild
+
+Owner: "update all md files, including a detailed write up for how a sonnet
+agent could generate characters for this font in the future ... ask me many
+questions as needed." Written: `docs/fjord-glyph-guide.md` (the pen, the
+serif family, the proportions with each ruling's round, the fitting rule,
+the judging loop, a recipe, the bold, the open items); this doc's STATE
+section, the README, the CLAUDE.md row and the memory brought to round 51.
+
+Eight questions, one per turn, his answers (all in the guide's §0):
+1. **The next job is a full rebuild** -- "full rebuild as the current
+   characters are crude."
+2. **Crude means** the stroke construction, the letter shapes, the serifs
+   and terminals; NOT the cut.
+3. **Drawn as designed outlines**, the pen a reference for weights, real
+   joins, the linear cut on top.
+4. **Kept fixed**: the proportions, the rulings on specific letters, the
+   wedge serif family.
+5. **Shape references**: "garamond, garalde, edgar" -- EB Garamond, Van den
+   Keere and Dante, Edgar.
+6. **Contrast moves toward the references** (about 0.45), checked on the
+   reader's pipeline before ruling.
+7. **Descender picked from a render** of 250 / 290 / 330 at reading size.
+8. **Delivered as the whole set first**, one specimen, then rounds by name.

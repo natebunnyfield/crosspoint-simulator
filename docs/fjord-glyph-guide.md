@@ -69,6 +69,19 @@ answers land in this section as they arrive.
   0.78 of the ascender), the g p q j y and the line spacing both visible,
   and put the three on one Artifact page; his pick becomes the §3 row. The
   same page can carry the three contrasts of the previous point.
+- **Delivery** (his answer): **the whole set first, then rounds** -- the
+  agent redraws all 93 glyphs as designed outlines under the constraints
+  above, ships ONE specimen (the standing URL, the running-text paragraphs,
+  the overlays on the three references, the TTF), and from there the owner
+  names what to fix, one ask per round, as rounds 25–51 ran. Not letter
+  groups, not one glyph at a time, not competing candidates.
+
+**The rebuild's order of work, then:** (1) the contrast and descender
+render, his two picks; (2) the whole set as designed outlines, the pen as
+the weight reference, the wedge family kept, the §3 rulings kept, every
+glyph overlaid on Garamond, Van den Keere, Dante and Edgar as it is drawn;
+(3) the linear cut applied; (4) the fitting rule and the o-counter check;
+(5) one specimen, the TTF, a doc round with every number; (6) his rounds.
 
 ## 1. What you are making, and for whom
 
