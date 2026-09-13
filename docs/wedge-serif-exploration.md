@@ -1172,3 +1172,20 @@ E5 level 1.2 beak; E6 5° 0.56 end 330 blunt; E7 8° end 305 cut; E8 3° 0.62
 0.6 flare; E9 level 0.85 end 330 beak; E10 4° 0.54 0.9 end 312 taper.
 `fonts/e-variants/FjordE-E1..E10.ttf`, page `fjord-e-variants.html`.
 Awaiting the pick (and the g pick from round 36).
+
+## Round 39 (2026-09-12): the e dials page
+
+Owner: "for 'e': make an interactive page to adjust angle 0-8 degrees and
+thickness (.62-1.2). keep with blunt nose. and any other options I missed."
+
+`tools/wedge_serif/e_dials_page.py` → `fjord-e-dials.html`. Not fonts: the
+e is drawn through the builder (`round20.draw` with `round17.E_VARIANTS[0]`
+swapped per combination, blunt nose) for every point of a 9 × 10 × 5 × 3
+grid -- angle 0..8° by 1, thickness 0.62..1.20 in ten steps, bar height
+0.54/0.56/0.58/0.60/0.62 xh, arm end 305/318/330° -- 1,350 e outlines as
+x-height-unit SVG paths with their advances (the builder's own bearing rule,
+lc_width applied), and the page sets them into words with the current build's
+other glyphs. The two dials the owner did not name, bar height and arm
+length, are the e's remaining knobs. Each e is cut fresh (its decimation
+phase differs from the shipped font's), so the outline is the shape, not the
+byte-exact cut. Awaiting the four numbers.
