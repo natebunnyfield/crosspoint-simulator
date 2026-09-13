@@ -21,6 +21,13 @@ instruments that judge it. What "crude" points at, and what a rebuild keeps
 versus redraws, is being asked of the owner one question at a time; the
 answers land in this section as they arrive.
 
+- **What is crude** (his answer, three of four offered): the STROKE
+  CONSTRUCTION (strokes as offset polygons with buried ends and patched
+  joins), the LETTER SHAPES (proportions and forms still off the
+  references), and the SERIFS AND TERMINALS (the bracket wedges and cut ends
+  read mechanical). NOT the cut: the faceted one-in-four linear outline is
+  not what he means and stays.
+
 ## 1. What you are making, and for whom
 
 - A **text face for longform reading** on an e-ink panel at 13 pt on a 2x
