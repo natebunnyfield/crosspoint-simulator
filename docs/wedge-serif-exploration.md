@@ -1970,4 +1970,4 @@ fitting rule is what changes. The &: `g_ampersand` = `bred` with
 round_bowl's dials; identical to Albo-amp2-10 in an only-& build (464
 coordinates), a facet-phase difference of <= 7 units in the full build;
 adv 797 (was 799), counters 197 x 238 and 349 x 313, white at 54 px 83 /
-182 (was 101 / 201). Page https://claude.ai/code/artifact/PENDING72.
+182 (was 101 / 201). Page https://claude.ai/code/artifact/37b136de-e7d9-4df3-a00a-3ce3db6c2fe1.
