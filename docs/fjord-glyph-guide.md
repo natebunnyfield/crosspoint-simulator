@@ -11,6 +11,16 @@ traps are `tools/wedge_serif/README.md`. Read all three before touching a
 glyph. Where this guide and a later round entry disagree, the later entry
 wins; update this guide when that happens.
 
+## 0. The next job: a full rebuild (owner, 2026-09-12)
+
+Asked what the next agent will do first, the owner answered: **"full
+rebuild as the current characters are crude."** So this guide is not a
+manual for patching the round-51 glyphs; it is the record of the hand, the
+proportions and the rulings that a rebuilt set must still obey, plus the
+instruments that judge it. What "crude" points at, and what a rebuild keeps
+versus redraws, is being asked of the owner one question at a time; the
+answers land in this section as they arrive.
+
 ## 1. What you are making, and for whom
 
 - A **text face for longform reading** on an e-ink panel at 13 pt on a 2x
