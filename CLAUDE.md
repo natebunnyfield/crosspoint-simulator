@@ -354,15 +354,29 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   or `iconutil`) so a Linux CI box builds the same icon a Mac does. `verify`
   now fails on a bundle with no icon, for the same reason it fails on a missing
   purpose string: App Store review rejects both.
-- **"deploy mac apps"** means all THREE local bundles, rebuilt and installed
+- **"deploy mac apps"** means all FOUR local bundles, rebuilt and installed
   into `/Applications`: `CrossPointX3`, `CrossPointX3-2x` (the same X3 binary
-  with `CROSSPOINT_SIM_WINDOW_SCALE=2` in `LSEnvironment`) and `CrossPointX4`
-  (the `simulator` env). Owner's phrase, 2026-08-19.
+  with `CROSSPOINT_SIM_WINDOW_SCALE=2` in `LSEnvironment`), `CrossPointX3-3x`
+  (added 2026-09-13) and `CrossPointX4` (the `simulator` env). Owner's phrase,
+  2026-08-19.
   [packaging/macos/deploy_mac_apps.sh](packaging/macos/deploy_mac_apps.sh) does
   it, and refuses to install a bundle that builds but does not boot. This is NOT
   the App Store path -- these are unsigned, for this Mac. The reason it exists:
   those three sat at build 1 from 2026-08-07 for twelve days while every palette,
   the grain and the shortlist landed, and the Mac was being judged against them.
+- **`-2x` IS A WINDOW, `-3x` IS THE RASTERISATION.** `CrossPointX3-2x` is the
+  same 1x binary magnified, so its glyphs are 1x glyphs scaled up.
+  `CrossPointX3-3x` is a SEPARATE binary compiled with
+  `CROSSPOINT_RENDER_SCALE=3`, so the hi-res paths are compiled in and it reads
+  the `<Family>/3x/` `.cpfont` companions. Two consequences for the deploy
+  script: both cuts of `simulator_x3` write the SAME
+  `.pio/build/simulator_x3/program`, so the 3x one is built and packaged FIRST
+  and the 1x builds follow (which also leaves the tree at the 1x default); and
+  because a bundle's card is keyed by its NAME
+  (`~/Library/Application Support/<app>/fs_`, `HalStorage.cpp:66`), the new
+  bundle starts empty, so the script seeds its `fonts/` from the firmware's
+  `fs_/fonts` on the first run only. Without those companions every glyph falls
+  back to 1x-replicated and the 3x build shows nothing a 2x window would not.
 - TestFlight deploys: [packaging/macos/deploy.sh](packaging/macos/deploy.sh)
   runs build → bundle → verify → embed dylibs → sign → `productbuild` →
   `altool` → tag, and must run on macOS from a GUI Terminal session.
