@@ -42,7 +42,9 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
 | `round16.py` | Hairline-throughs cured six ways on c5 with quads (`pen_centerline_cut`, `SerifsOnly`). Superseded by round 17: the owner wanted the straight-cut look back. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
 | `latin.py` | A–Z, 0–9, punctuation on the same pen; `capH`, `figH`, `vstem`, `bar`, `diag`, `cp_ring`; `SIDES` for fitting. |
-| `round19.py` | **The builder of the complete font**: `build()` writes `Fjord-Regular.ttf` (93 glyphs) on the k6 construction and a specimen page. Start here for any change to the shipping font. |
+| `round19.py` | The first full-set builder (glyph order, cmap, specimen page). |
+| `round20.py` | **The builder in use**: `build()` writes `Fjord-Regular.ttf` with capitals and figures solved to `garalde_caps.json` (widths, cap stem, cap bearings, old-style figure boxes). Start here for any change to the shipping font. |
+| `garalde_caps.json` | Medians of Dante, Van den Keere, Hoefler Text, Doves: cap height, cap stem, figure height, H counter and bearings, per-glyph widths and vertical extents, all over cap height. |
 | `round17.py` | The construction the full font uses (rounds 17 and 18). Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter, clipped to the stem, with a tooth on the counter and a notch on the stem as the trap), `patch_arch`, `orient_with_holes`, `clip_line`. `bite` remains as the record of what does not work. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by

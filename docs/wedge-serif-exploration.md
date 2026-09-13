@@ -26,10 +26,13 @@
   they are invisible at text size, measured 1–4 px on a line, and the owner
   saw no difference -- an open item). **Since round 19 the font is the
   COMPLETE LATIN SET in one file, `Fjord-Regular.ttf`, 93 glyphs**:
-  `tools/wedge_serif/latin.py` (A–Z, 0–9, punctuation) + `round19.py` (the
-  builder and specimen). **Awaiting**: his marks on the specimen
-  (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd)
-  against the issues list in the round 19 entry.
+  `tools/wedge_serif/latin.py` (A–Z, 0–9, punctuation) + `round20.py` (the
+  builder in use: widths solved to the garalde references, cap fitting from
+  them, old-style figures; `round19.py` is its base). **Awaiting**: his
+  spacing value from the interactive page
+  (https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131),
+  which he asked for "before we proceed", and his marks on the specimen
+  (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd).
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
   (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
@@ -651,3 +654,42 @@ on the x-height band, under the bar).
     at large sizes.
 
 Page: https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd
+
+
+## Round 20 (2026-09-12): capitals, figures and marks matched to the garalde
+
+Owner: *"match uppercase to garamond sabon etc. do every step that
+lowercase went through for the non-lowercase characters and punctuation."*
+Then, mid-turn: *"make an html page lets me interactively adjust the
+letter spacing so I can find a better starting value before we proceed."*
+
+No Garamond or Sabon is on disk. References measured (a 1000 px em, medians
+in `tools/wedge_serif/garalde_caps.json`): DanteMT-Regular, VandenKeere-
+Regular, Hoefler Text, DovesType-Text.
+
+| | median | applied |
+|---|---|---|
+| cap height / ascender | 0.941 | `capH = 0.941 asc` (was 0.94) |
+| cap stem / lowercase stem | 1.137 | `CAP_STEM` on every capital stem and diagonal |
+| figure height / cap height | 0.648 (old-style in 3 of 4) | old-style figures: 0 1 2 on the x-height, 6 8 rise, 3 4 5 7 9 descend, each drawn into its measured box (`FIG_BOX`) |
+| H counter / cap height | 0.616 | (recorded; not applied) |
+| H sidebearings / cap height | 0.084 total | cap and figure bearings = 0.042 capH per straight side, by side fraction (was 1.15x the lowercase rule, about four times too loose) |
+| per-glyph ink widths / capH | A 1.03 B 0.81 C 0.93 D 1.08 E 0.85 F 0.75 G 1.03 H 1.16 … M 1.32 O 1.04 S 0.62 W 1.61 | `latin.W` multipliers solved in three passes at build time (`round20.solve_widths`), clamped 0.7–1.45 |
+| marks | period 0.16 capH wide, hyphen 0.37 at 0.34 up, en 0.72, em 1.41, & 1.08, @ 1.21 | applied |
+
+Then the same construction as the lowercase: linear pen, counterpunched
+bowls (O Q D and the figures), stems into curves, no overhangs.
+
+Two mistakes caught in the FreeType render: shifting the old-style figures
+into their boxes rebuilt each contour as a plain list, so every
+counterpunched figure lost its Hole and filled solid (`type(poly)(...)`
+keeps it); and the 3 and 5 took their width from their box height, so the
+width solver drove their multiplier to 0.3 and they collapsed (their radii
+are width-driven now, and the solver is clamped).
+
+The spacing page embeds the font with sliders for letter-spacing and
+word-spacing in thousandths of an em, size and leading, and a readout; a
+value of N‰ goes back into the file as N/2 units on each side of every
+glyph. Page: https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131
+Specimen (same URL as round 19, updated):
+https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd
