@@ -63,6 +63,12 @@ answers land in this section as they arrive.
   supersampled, quantized to 255/200/96/0) before it is ruled -- a true
   hairline breaks up on e-ink. This amends the §3 proportions row; the
   exact value is his call from a render of three contrasts.
+- **Descender** (his answer): **pick from a render** -- before the glyphs
+  are redrawn, set a paragraph at 13 pt on the 2x reader with the reader's
+  line spacing in three builds, descender 250 / 290 / 330 (0.60 / 0.70 /
+  0.78 of the ascender), the g p q j y and the line spacing both visible,
+  and put the three on one Artifact page; his pick becomes the §3 row. The
+  same page can carry the three contrasts of the previous point.
 
 ## 1. What you are making, and for whom
 
@@ -181,7 +187,7 @@ none without the owner's word, and record any change in the exploration doc.
 | x-height | 415 | B5.9 design |
 | capital height | 1.625 × x-height = 674 | Garamond's ratio, round 26 (was 0.941 of the ascender = 1.73 xh; every cap read tall) |
 | ascender | 762 (b d h k l); the f and t lower | design |
-| descender | 250; the j's hook to 0.97 of it, the g's loop to −255 | design; noted short against the references' 0.9 of the ascender (round 46) |
+| descender | 250 today; the rebuild picks 250 / 290 / 330 from a render at reading size (§0) | design; owner 2026-09-12 |
 | overshoot of rounds | 14 units, measured at the INK'S EDGE | round 27 (it had been applied to the centerline and the rounds overshot 41) |
 | overshoot of arches (n m h u) | 12 units at the ink's edge | round 30 ruling, from the arches page |
 | lowercase width | 0.938 of the drawn widths; the o's counter 1.036 wide over tall | round 35 ruling; capitals untouched |
