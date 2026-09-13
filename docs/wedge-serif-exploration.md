@@ -1862,5 +1862,5 @@ Constants `EIGHT_COUNTER_OF`, `EIGHT_LOWER`, `EIGHT_UPPER`,
 `EIGHT_COUNTER_WH`; A default until he rules. The 0's and 6's rings are
 factored into `zero_bowl` / `six_bowl` (byte-identical output). Page at 147
 px x-height, not 230: four figures at 230 do not fit a 750 px block. Page
-https://claude.ai/code/artifact/PENDING66. The 5 at -24 is in the same
+https://claude.ai/code/artifact/d44a4326-08ef-44eb-95c7-33e2c1f8e095. The 5 at -24 is in the same
 diff; the merge waits for the VF rebuild so no master mixes old and new.
