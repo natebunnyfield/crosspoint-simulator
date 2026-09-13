@@ -1378,3 +1378,13 @@ Eight questions, one per turn, his answers (all in the guide's §0):
    reader's pipeline before ruling.
 7. **Descender picked from a render** of 250 / 290 / 330 at reading size.
 8. **Delivered as the whole set first**, one specimen, then rounds by name.
+
+## Round 53 (2026-09-12): the rebuild's two picks, rendered
+
+Owner: "go." Step 1 of the rebuild order: six builds of the current glyphs
+(`round20.build(over=)`): descender 250 / 290 / 330 at contrast 0.60, and
+contrast 0.60 / 0.50 / 0.42 at descender 250. Each set as five lines at 13 pt
+on the 2x reader (54 px em), line 1.25 em, through the reader's four-level
+pipeline (8x supersampled coverage quantized at 0.108 / 0.42 / 0.812 to
+255 / 200 / 96 / 0). Page `fjord-rebuild-dials.html`; TTFs in
+`fonts/dials/`. Awaiting the two picks; the rebuild agent starts on them.
