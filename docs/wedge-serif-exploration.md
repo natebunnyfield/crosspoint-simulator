@@ -1041,3 +1041,55 @@ counter aspects 1.096 / 1.072 / 1.048 / 1.024 / 1.000; n advance 653 → 626.
 the solver would have widened the capitals back. Files
 `fonts/condensed/FjordC-C1..C5.ttf`, page `fjord-condensed.html` (all five
 embedded, large "no o bog" and a paragraph each). Awaiting the owner's pick.
+
+## Round 35 (2026-09-12): lowercase condensed to a 1.036 counter, capitals as is
+
+**Ruling:** from the five condensed steps, "keep capitals as is, only
+condense lowercase to 1.036 'wide over tall'."
+
+`lc_width` is a design knob (`round19.DESIGN`, 0.938); `round20.draw` builds
+a lowercase letter's context from `dict(p, width=p["lc_width"])` and
+everything else from `p`. Not `condense` (that re-targets the capitals).
+Measured on the build: o counter 375 × 335 (1.119) → 347 × 335 (1.036);
+outer o 528 → 500 wide. Advances n 659 → 636, o 603 → 575, h 646 → 623;
+H 868 and the space 353 unchanged. Proven by building knob-off and knob-on
+from one state of the sources and comparing `glyf` coordinates and `hmtx`
+for every glyph: 68 non-lowercase glyphs identical (A–Z, 0–9, 30 marks,
+space, .notdef); 24 of 26 lowercase differ (i and l have no
+width-dependent geometry). Note `round19.build`, the older builder, ignores
+the knob; the font ships from `round20`. Proof `lc-proof.png`. Done by a
+subagent scoped to `round20.py` and `round19.py`.
+
+## Round 36 (2026-09-12, in progress): G J W joins; A J K D; word weight
+
+Owner, three messages: "subagent for fixing the multiple overlap issue with
+G J W"; "flatten the bottom left kick of 'A'; remove top bar of 'J'; fix the
+arm vs kick unbalance of 'K'; make 'D' slightly more weighted by opening the
+bottom; balance out visual weight of the 100 most common english words."
+
+**Ruling reversed:** the J's bar across the top (kept "always" since round
+21) is REMOVED; the J takes a plain top wedge like the I's.
+
+Two subagents, partitioned by file: one in `latin.py` (G J W joins, then A J
+K D), one in `alphabet2.py` and `round17.py` (measure ink darkness per word
+and per letter at 54 px over the 100 most common words, adjust only outlier
+lowercase letters). Results recorded below when they land.
+
+## Round 37 (2026-09-12): Fjord over the humanist S tier
+
+Owner: "make a transparent overlay comparison with all humanist s tier
+fonts." `tools/wedge_serif/overlay_stier.py` → `fjord-stier-overlay.html`:
+every Fjord glyph (black, 70%) over the same glyph from the nine humanist
+faces of the S tier that are on disk, each at 28% in its own color, scaled to
+one x-height, aligned on baseline and left ink edge, each face toggleable;
+then one rhythm line per face. The faces: Coelacanth, Libris ADF, Almendra
+Regular (the four Google files have hashed names; picked by the name table --
+the glob had grabbed Bold Italic), Atkinson Hyperlegible Next 365, Inknut
+Antiqua, Doves Type, Van den Keere, Dante MT, Edgar. Left out as not
+humanist: TeX Gyre Schola, Libre Franklin, TeX Gyre Heros. Paths: the reader
+repo's `lib/EpdFont/scripts/downloaded_fonts`, `instanced_fonts`, and
+`local_fonts` (the commercial ones). **Trap:** x-heights are measured from
+each face's x outline, not OS/2 -- Dante MT's `sxHeight` is 403 on a 2048 em
+(it rendered at twice size); Fjord keeps its design 415 because its x carries
+wedge tips 26 units above it. Fjord in the page is the round-33 build (the
+agents' rounds 35–36 were not yet merged).
