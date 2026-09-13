@@ -27,6 +27,7 @@ when multiple registration paths exist.
 Import("env")
 import os
 import builtins
+import sys
 import re
 
 RUN_SIMULATOR_TARGET_KEY = "_crosspoint_run_simulator_target_registered"
@@ -164,3 +165,26 @@ if not getattr(builtins, PACKAGE_MACOS_APP_TARGET_KEY, False):
         description="Wrap the built simulator binary in a .app bundle for the Mac App Store",
         always_build=True,
     )
+
+
+# --- libcurl on macOS ---
+#
+# src/SimHttpFetch.h switches itself to libcurl-the-library on macOS desktop
+# (CROSSPOINT_SIM_LIBCURL), because the App Sandbox forbids the popen(curl)
+# subprocess the other desktops use. The header decides that on its own, from a
+# platform test, so every TU agrees without a flag; the only thing the BUILD has
+# to contribute is the library to link against.
+#
+# Deliberately not a -D: a define applied to one env and missed in another gives
+# inline functions that differ between translation units, which is an ODR
+# violation nothing reports. A missing -lcurl is an undefined-symbol error
+# naming curl_easy_init, which says what it wants.
+#
+# libcurl ships with macOS (/usr/lib/libcurl.dylib) and its headers come with
+# the Command Line Tools, so there is nothing to install. Linux and Windows are
+# untouched and keep the subprocess.
+LIBCURL_KEY = "_crosspoint_libcurl_linked"
+
+if sys.platform == "darwin" and not getattr(builtins, LIBCURL_KEY, False):
+    setattr(builtins, LIBCURL_KEY, True)
+    env.Append(LIBS=["curl"])
