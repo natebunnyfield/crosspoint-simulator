@@ -1581,3 +1581,23 @@ is 50% darker and the most even of the set -- its x-height is 0.531 em against
 our 0.415 and its stems 0.20–0.24 of the x-height -- which is the "more
 readable" gap to remember: if Fjord is to read like Albertus on the page it
 needs weight as well as the stroke character.
+
+Four-level pipeline survival, round 58 (147 common words at 13 pt on the 2x
+reader; share of the ink's pixels landing at black / dark gray / light gray --
+more black = fewer strokes dropping to gray):
+
+| font | black | dark gray | light gray |
+|---|---|---|---|
+| A moderate | 0.693 | 0.163 | 0.144 |
+| D Albertus-measured | 0.707 | 0.157 | 0.137 |
+| B firm | 0.696 | 0.163 | 0.141 |
+| C near-monoline | 0.699 | 0.160 | 0.141 |
+| nib (round 56) | 0.689 | 0.163 | 0.149 |
+| shipping (round 57, VdK bowls) | 0.690 | 0.166 | 0.144 |
+| Albertus Medium | 0.755 | 0.134 | 0.112 |
+
+D holds the most ink at black of the Fjord builds (its arches never thin
+below the stem); the spread across the four is small (1.4 points). Albertus is
+6 points ahead of all of them, again the weight gap rather than the profile.
+Negative result recorded so it is not re-measured: the bowl profile alone
+cannot close that gap.
