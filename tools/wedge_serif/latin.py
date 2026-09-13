@@ -79,14 +79,14 @@ def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None, taper0=0.0, taper1=0.
         P.append(bracket_wedge(pts[-1], d, nrm, th, c["wl"] * 0.9, c["wd"] * 0.9, serif1, drop=c["drop"], fillet=c["fillet"]))
 
 KICK_ANGLE = math.radians(65)   # the A's right leg: (w - 0.3 s, 0) -> (w/2 - 0.18 s, C), about 65 degrees
-def kick(c, P, J, s, thin=1.0 / CAP_STEM, angle=KICK_ANGLE):
+def kick(c, P, J, s, thin=1.0 / CAP_STEM, angle=KICK_ANGLE, bury=0.2):
     """A K/R leg drawn exactly as the A's right leg (owner 2026-09-12: 'match
     the flow of the lower right of A'): foot-first from the baseline, full
     weight, the wedge foot on the outer side as the A's, straight, at the
     A's angle; it thins into the junction J (round 31)."""
     foot = (J[0] + J[1] / math.tan(angle), 0)
     d = ((J[0] - foot[0]), (J[1] - foot[1])); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
-    top = (J[0] + d[0] * s * 0.2, J[1] + d[1] * s * 0.2)   # buried a fifth of a stem past the junction
+    top = (J[0] + d[0] * s * bury, J[1] + d[1] * s * bury)   # buried past the junction
     diag(c, P, foot, top, thin=thin, serif0=1, taper1=0.45)
 
 def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
@@ -113,15 +113,19 @@ def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
 def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
     """A capital stem at cap weight with the LOWERCASE's serifs exactly (owner
     2026-09-12): one wedge at the top, pointing left, and a foot both sides,
-    at the sizes alphabet2.stem uses. top: 'left'|None (a 'both' or 'right'
-    is mapped to left); foot: 'both'|'left'|'right'|None."""
+    at the sizes alphabet2.stem uses. top: 'left'|'right'|None ('both' is
+    mapped to left; 'right' points OUT on a right-hand stem, round 32);
+    foot: 'both'|'left'|'right'|None."""
     pts = line((x, y0), (x, y1), 36)
     prof = lambda t: c["ent"](t) * CAP_STEM * thin
     P.append(A.outline(pts, c["pen"], prof))
     th = c["pen"].th((0, 1)) * CAP_STEM * thin
     if c["wl"] <= 0 or c["serif"] != "wedge": return
     if top:
-        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"], c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
+        # round 32 (owner: "the top right serif of caps needs to flare out, not
+        # inward"): a RIGHT stem's top wedge points right; 'left'/'both' point left.
+        side = -1 if top == "right" else 1
+        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"], c["wd"], side, drop=c["drop"], fillet=c["fillet"]))
     fsides = {"both": (-1, 1), "left": (-1,), "right": (1,), None: ()}
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
@@ -204,7 +208,7 @@ def g_G(c):
 
 def g_H(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
-    _cstem(c, P, x0, 0, C); _cstem(c, P, x1, 0, C)
+    _cstem(c, P, x0, 0, C); _cstem(c, P, x1, 0, C, top="right")
     bar(c, P, x0, x1, C * 0.52, thick=0.95); return P
 
 def g_I(c):
@@ -236,8 +240,11 @@ def g_K(c):
     diag(c, P, A0, B0, thin=0.72 / CAP_STEM, serif0=1)
     # round 30: the leg springs from the arm's centerline, its start buried a
     # third of a stem back along the leg (it started 0.1 C under the arm)
-    u = 0.42; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
-    kick(c, P, J, s); return P   # round 31: the A's leg
+    # round 32 ("extend kick of K to match to arm better"): the leg springs
+    # from the arm a quarter of the way out from the stem (was 0.42) and is
+    # buried a third of a stem into it, so it runs along the arm to the stem.
+    u = 0.25; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
+    kick(c, P, J, s, bury=0.35, angle=math.radians(52)); return P   # round 32: the A's leg, splayed wider (owner: "kicks of R A and K need to be at all different angles")
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
@@ -259,7 +266,7 @@ def g_N(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "N", 560); x0 = s / 2; x1 = x0 + w
     _cstem(c, P, x0, 0, C, top="left", foot="both", thin=0.72)
     diag(c, P, (x0, C), (x1, 0), thin=1.0 / CAP_STEM)
-    _cstem(c, P, x1, 0, C, top="both", foot=None, thin=0.72); return P
+    _cstem(c, P, x1, 0, C, top="right", foot=None, thin=0.72); return P
 
 def g_O(c):
     P = []; C = capH(c); rx = _w(c, "O", 350); cp_ring(c, P, rx, C / 2, rx, C / 2 + c["over"]); return P
@@ -282,7 +289,7 @@ def g_R(c):
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.
     J = _bowl_point(x, C, C * 0.46, w * 0.95, 0.8)
-    kick(c, P, J, s); return P   # round 31: the A's leg
+    kick(c, P, J, s, angle=math.radians(60)); return P   # round 32: the A's leg, a little more upright than the K's (A 65, R 60, K 52)
 
 def g_S(c):
     P = []; C = capH(c); w = _w(c, "S", 440); o = c["over"]; st = c["s"] * CAP_STEM
@@ -320,7 +327,7 @@ def g_U(c):
     yb = -c["over"]; cy = (8 * yb - 2 * y0) / 6   # centerline bottom; over is already the centerline's (round 27)
     pts = bez((x0, y0), (x0, cy), (x1, cy), (x1, y0), 48)
     A.curve(c, P, pts, compose(taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
-    _cstem(c, P, x1, y0 - s * 0.5, C, top="both", foot=None, thin=0.78); return P
+    _cstem(c, P, x1, y0 - s * 0.5, C, top="right", foot=None, thin=0.78); return P
 
 def g_V(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "V", 560)

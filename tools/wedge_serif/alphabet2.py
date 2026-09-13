@@ -415,7 +415,7 @@ def g_k(c):
     u = (150 * wf - (B0[0] - x)) / (A0[0] - B0[0]); J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     # round 31: the leg is the A's right leg -- foot-first from the baseline at
     # the A's angle, full weight, wedge foot on the outer side, thinning into J
-    foot = (J[0] + J[1] / math.tan(math.radians(65)), 0)
+    foot = (J[0] + J[1] / math.tan(math.radians(56)), 0)   # round 32: its own angle (A 65, R 60, k 56, K 52)
     d = (J[0] - foot[0], J[1] - foot[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
     _diag(c, P, foot, (J[0] + d[0] * s * 0.2, J[1] + d[1] * s * 0.2), serif0=1, taper1=0.45); return P
 

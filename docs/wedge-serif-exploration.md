@@ -982,3 +982,20 @@ it with their round-30 junctions; k does the same in `alphabet2.g_k`. The
 foot's x follows from J and the angle, so all three narrowed; the width
 solver re-fit K (1.15) and R (1.41). Round 30's tapered 49° legs with the
 inward foot are gone. Proof: `fjord-kicks.html` (republished in place).
+
+## Round 32 (2026-09-12): outward top wedges; K's leg; three kick angles
+
+Owner: "the top right serif of caps needs to flare out, not inward. talking
+about U N H. extend kick of K to match to arm better." Then: "kicks of R A
+and K need to be at all different angles."
+
+- `latin._cstem` `top="right"` now draws the top wedge pointing RIGHT
+  (side −1); it used to map 'right' and 'both' to a left-pointing wedge. The
+  right-hand stems of H, N and U use it. Other caps with a right stem: M's
+  is a `diag` with its own serifs, unchanged.
+- K's leg springs from the arm at u = 0.25 (was 0.42), buried 0.35 stem
+  (`kick(..., bury=)`), so it runs along the arm to the stem.
+- **Ruling: the kicks are at different angles.** `kick(angle=)`: A 65°
+  (the reference, unchanged), R 60°, k 56° (`alphabet2.g_k`), K 52°.
+  Garamond's order: K splayed widest, R more upright.
+Proof: `fjord-hnuk.html`.
