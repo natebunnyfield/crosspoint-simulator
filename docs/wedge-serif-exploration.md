@@ -1744,4 +1744,4 @@ overhang measured 11 units; the 2's base (was 8 inside its neck) and the 5's
 top (was 72 inside its bowl) now end 11 past their bodies; advances 468 → 480
 and 481 → 492. Two things beyond the literal ask, for his veto: the 8's
 vertical fix, and that the 5's bar moves 83 units right. Page
-https://claude.ai/code/artifact/PENDING; landed on main in the next commit.
+https://claude.ai/code/artifact/6e3e3dab-da54-4857-8053-a84d426e1691; landed on main in 7209656.
