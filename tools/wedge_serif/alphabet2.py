@@ -157,6 +157,10 @@ def ctx(p):
     # the design's number, for the few sites that want the edge itself.
     c["over_edge"] = p.get("overshoot", 12)
     c["over"] = c["over_edge"] - c["pen"].th((1, 0)) / 2
+    # Round 29: the arches' overshoot is its own knob (owner: "determine the
+    # right overshoot for arches instead of making them exactly the same as
+    # loops"); `arch_over_edge` in units past the x-height, default = rounds'.
+    c["arch_over"] = p.get("arch_over_edge", c["over_edge"]) - c["pen"].th((1, 0)) / 2
     return c
 
 def stem(c, P, x, y0, y1, top="wedge", foot="both", top_side=1, flare=True):
@@ -304,7 +308,7 @@ def g_g(c):
 
 def _arch(c, P, x0, x1, xh, start=None):
     start = c["arch"] if start is None else start
-    yc = (8 * (xh + c["over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the rounds' (round 27)
+    yc = (8 * (xh + c["arch_over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the arch overshoot (rounds 27, 29)
     pts = bez((x0, xh * start), (x0, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * 0.60), 44)
     curve(c, P, pts, None if c["raw"] else taper_in(0.42, 0.32))
 

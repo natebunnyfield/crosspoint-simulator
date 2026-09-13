@@ -51,8 +51,8 @@ def solve_widths(p, glyphs_all, pen_fn):
             if drawn > 1: latin.W[ch] = max(0.7, min(1.45, latin.W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return dict(latin.W)
 
-def build(out_dir, name="Fjord", style="Regular"):
-    p = dict(round19.DESIGN)
+def build(out_dir, name="Fjord", style="Regular", over=None):
+    p = dict(round19.DESIGN); p.update(over or {})   # `over`: design overrides for a variant (round 29)
     saved_glyphs = dict(A.GLYPHS); saved_arch = A._arch
     A.GLYPHS.update(round17.cp_glyphs(SEED, EVERY, AMP, 1.0, None)); round17.patch_arch(1.0)
     glyphs_all = round19.all_glyphs()
@@ -68,9 +68,10 @@ def build(out_dir, name="Fjord", style="Regular"):
             polys, cc = draw(ch, p, glyphs_all, pen_fn, post)
             isCap = ch.isupper() or ch.isdigit()
             top = C if isCap else c["xh"]
-            band = [x for poly in polys for (x, y) in poly if -c["over"] <= y <= top + c["over"]]
+            band = [x for poly in polys for (x, y) in poly if -c["over_edge"] <= y <= top + c["over_edge"]]
             xs = [x for poly in polys for (x, y) in poly]
             l, r = (min(band), max(band)) if band else (min(xs), max(xs))
+            if ch == 'g': l, r = min(xs), max(xs)   # round 28: the loop is the g's widest part and sets its sides (two loops touched in "egg")
             lt, rt = round19.SIDES.get(ch, ('straight', 'straight'))
             # owner 2026-09-12: caps +34 per mille from the spacing page (+17
             # each side), then "reduce lowercase letter spacing to match

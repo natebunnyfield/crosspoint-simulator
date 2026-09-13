@@ -222,24 +222,41 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
     def g_q(c): return bowl_stem(c, "right", c["xh"], -c["desc"])
 
     def g_g(c):
-        """Looptail (double-storey) g, owner 2026-09-12, in the counterpunched
-        construction the font uses: upper bowl and lower loop are each an
-        outer contour around a struck counter; the link is a tapered stroke;
-        the ear starts at the bowl's outer edge and never crosses it."""
-        P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]
-        rx = 160 * wf; ry = xh * 0.31; cx = rx + 10; cy = xh - ry
+        """Double-storey g, round 28 (owner: "connector stem on the left side
+        instead; make the two ovals better match the rest of the lowercase
+        strokes and visual rhythm"). Garamond's proportions: an upper bowl
+        narrower than the o, its top at the rounds' overshoot and its bottom
+        at 0.36 xh; the neck leaves the bowl's bottom-LEFT and swings left
+        and down into a lower loop that is wider and flatter than the bowl
+        and reaches the descender; the ear a short flick off the top right.
+        Both bowls are counterpunched rings on the pen, so they carry the
+        o's stress; the neck holds a set weight (the pen thins a down-left
+        diagonal to nothing, as the j's tail did)."""
+        P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]; over = c["over"]
+        rx = 152 * wf; ry = (xh * 0.64 + over) / 2; cy = xh + over - ry; cx = rx + s * 0.35
         outer, inner = ring(c, cx, cy, rx, ry, 0, two, 100, cut=cut)
         P.append(outer); P.append(Hole(ccut(inner) if ccut else inner))
-        ex = cx + rx * 0.92; ey = cy + ry * 0.55
-        A.curve(c, P, A.line((ex, ey), (ex + 85 * wf, ey + 28), 8), lambda t: 0.8, cut1=c["cut"])
-        lcx, lcy = cx + 4, -desc * 0.55; lrx, lry = 200 * wf, desc * 0.56
+        # ear: off the bowl's upper right, out and a little up, cut at the pen angle
+        a = math.radians(28); ex, ey = cx + rx * math.cos(a), cy + ry * math.sin(a)
+        A.curve(c, P, A.line((ex - s * 0.15, ey - 6), (ex + 92 * wf, ey + 22), 8), lambda t: 0.75, cut1=c["cut"])
+        # lower loop: wider and flatter, centered a little right of the bowl
+        lrx = 190 * wf; lry = desc * 0.42; lcx = cx + 30 * wf; lcy = -desc * 0.47
         outer2, inner2 = ring(c, lcx, lcy, lrx, lry, 0, two, 110, cut=cut)
         P.append(outer2); P.append(Hole(ccut(inner2) if ccut else inner2))
-        # the link: from the bowl's lower right down into the loop's upper right
-        p0 = (cx + rx * 0.62, cy - ry * 0.82)
-        p3 = (lcx + lrx * 0.66, lcy + lry * 0.78)
-        link = A.bez(p0, (p0[0] + 26, p0[1] - 70), (p3[0] + 60, p3[1] + 70), p3, 30)
-        A.curve(c, P, link, A.compose(A.taper_in(0.65, 0.2), A.taper_out(0.75, 0.2)))
+        # the neck, on the LEFT: drops from the bowl's bottom (a little left of
+        # center) straight down, then swings left into the loop's upper left,
+        # so neck and loop's left side read as one stroke. Pen weight with a
+        # floor of 0.6 stem, so the down-left stretch does not thin away.
+        a0 = math.radians(262); a1 = math.radians(118)
+        p0 = (cx + rx * math.cos(a0), cy + ry * math.sin(a0))
+        p3 = (lcx + lrx * math.cos(a1), lcy + lry * math.sin(a1))
+        gap = p0[1] - p3[1]
+        link = A.bez(p0, (p0[0] + 2 * wf, p0[1] - gap * 0.62), (p3[0] + 6 * wf, p3[1] + gap * 0.42), p3, 32)
+        tn = A.tangents(link); n = len(link) - 1
+        def prof(t):
+            i = min(n, int(round(t * n))); th = c["pen"].th(tn[i])
+            return max(th, s * 0.6) / th
+        A.curve(c, P, link, prof)
         return P
 
     def g_e(c):
@@ -283,7 +300,7 @@ def patch_arch(trap):
     def _arch(c, P, x0, x1, xh, start=None):
         start = c["arch"] if start is None else start
         s = c["s"]
-        yc = (8 * (xh + c["over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the rounds' (round 27)
+        yc = (8 * (xh + c["arch_over"]) - xh * start - xh * 0.60) / 6   # peak's centerline at the arch overshoot (rounds 27, 29)
         pts = A.bez((x0 + s * 0.5 * trap, xh * start), (x0 + s * 0.2, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * 0.60), 44)
         A.curve(c, P, pts, A.taper_in(0.42 - 0.12 * trap, 0.32))
     A._arch = _arch

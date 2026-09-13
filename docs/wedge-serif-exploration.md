@@ -902,3 +902,37 @@ same way (u sat 0.11 xh under the baseline; a overshot 0.07 both ways).
 
 After: o +0.034/−0.034, n +0.039, m +0.039, a +0.039/−0.031, u −0.039, caps
 O C G S ±0.035. Garamond flags 39 → 38. Proof: `fjord-arches.html`.
+
+## Round 28 (2026-09-12): the g, neck on the left
+
+Owner: "take another pass at 'g' to make the connector stem be on the left
+side instead and make the two ovals better match the rest of the lowercase
+strokes and visual rhythm when in a word."
+
+`round17.cp_glyphs.g_g` redrawn on Garamond's proportions: upper bowl rx 152
+(narrower than the o), top at the rounds' overshoot, bottom at 0.36 xh; ear a
+short flick off the bowl's upper right; lower loop rx 190, ry 0.42 desc,
+centered 30 right of the bowl and its top at −0.05 desc so it closes under
+the bowl; the neck leaves the bowl at 262° (a little left of bottom center),
+drops, and swings left into the loop at 118°, pen weight with a floor of 0.6
+stem. Two drafts failed first: a straight down-left link read as a stick (the
+first from the bowl's left at 250°, the second with the loop 0.58 desc down),
+so the neck now drops vertically before turning. The g is fitted on its FULL
+extent in `round20.build` (`if ch == 'g'`): the band rule ignored the loop,
+which is the g's widest part, and two loops touched in "egg". Proof:
+`fjord-g.html`.
+
+## Round 29 (2026-09-12): the arch-overshoot page
+
+Owner: "make an arches interactive page so i can determine the right
+overshoot for arches instead of making them exactly the same as loops."
+
+`arch_over_edge` is a design knob (`alphabet2.ctx` → `c["arch_over"]`,
+default = the rounds' overshoot; used by `alphabet2._arch` and
+`round17.patch_arch`). `round20.build(over={...})` takes design overrides.
+Nine builds at 0, 6, 12, 14, 18, 24, 30, 36, 42 units past the x-height
+(measured n tops land 2 higher: the bezier's peak is not exactly at t=0.5),
+the o at 14 in all nine, embedded in `fjord-arch-overshoot.html` behind a
+slider with a large "hnmu o hnmu" under baseline and x-height rules and a
+reading-size paragraph. Awaiting the owner's number; the spacing page stays
+stopped, this is a different page.

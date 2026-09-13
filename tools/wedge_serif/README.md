@@ -95,6 +95,7 @@ booleans; see "Limits".
 - **A cubic between two stems with its controls on the baseline never reaches the baseline** (the U and u floated 63 and 40 units). Put the controls below by ~0.55 of the start height.
 - **A stem that ends exactly where its curve begins seams** (the j/f fractures). Overlap by half a stem.
 - **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
+- **`round20.build(over=...)`** takes design overrides; `arch_over_edge` (units past the x-height) is the arches' own overshoot knob, default the rounds'.
 - **`cmp_garamond.py`** — every Fjord glyph beside and over EB Garamond 400 at matched x-height, flags width/height/stroke/position deltas; needs the reference TTF at `ref/` (fetch line in `docs/wedge-serif-exploration.md`, round 24).
 - **`round17.cp_glyphs` overrides o d b p q g e a in the font.** A change to one of those in `alphabet2.py` never reaches `Fjord-Regular.ttf` (the looptail g was drawn twice for this reason). Edit the override.
 - **Never replace a function by slicing to the next `def`** without checking
