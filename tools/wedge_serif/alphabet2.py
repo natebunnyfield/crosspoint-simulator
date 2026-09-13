@@ -282,8 +282,7 @@ def g_g(c):
     rx = 205 * wf; cx = rx; x = cx + rx - s * 0.5
     _bowl(c, P, cx, rx)
     stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.42, top=None, foot=None, flare=False)
-    ear = line((x - s * 0.1, xh * 0.86), (x + 70 * wf, xh * 0.95), 8)
-    curve(c, P, ear, cut1=c["cut"])
+    # no ear: the bowl carries nothing over it (owner 2026-09-12)
     tail = bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
     curve(c, P, tail, compose(taper_in(0.7, 0.15), flare_end(0.3, 0.3)), cut1=c["cut"]); return P
 

@@ -16,16 +16,20 @@
   cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
   widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`), 6 in
   round 17 (counterpunch, `round17.py`), 3 in round 18 (k6 fixed, three
-  trap depths, same script). Latest files in
+  trap depths, same script), and `Fjord-Regular.ttf` from round 19 (the
+  complete set). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **The cut is V23a-73c5** (seed 73, clean, steady hand), and the
-  construction since round 17 is **ink traps + counterpunches on the
-  hand-cut linear outline** (`round17.py`: `pen_linear`, `cp_glyphs`,
-  `Hole`), on **k6** (pure decimation, no jitter). Round 18 fixed three bugs
-  on it (seams across j and f, bowls bulging past stems, traps) and offers
-  three trap depths. **Awaiting**: his marks on round 18
-  (https://claude.ai/code/artifact/24c8643e-f48b-4883-bb93-73f8064699f0).
-  Kept from his notes: the ink traps at the H's crossbar.
+- **The cut is V23a-73c5-k6** (seed 73, pure decimation, no jitter) on the
+  round 17/18 construction: linear pen (folds removed, then faceted),
+  counterpunched bowls kept to their stems, stems running into their curves,
+  punchcut traps (a tooth on the counter, a notch on the stem; at 0.6 stem
+  they are invisible at text size, measured 1–4 px on a line, and the owner
+  saw no difference -- an open item). **Since round 19 the font is the
+  COMPLETE LATIN SET in one file, `Fjord-Regular.ttf`, 93 glyphs**:
+  `tools/wedge_serif/latin.py` (A–Z, 0–9, punctuation) + `round19.py` (the
+  builder and specimen). **Awaiting**: his marks on the specimen
+  (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd)
+  against the issues list in the round 19 entry.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
   (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
@@ -592,3 +596,58 @@ much intersection)."*
   in code.
 
 Page: https://claude.ai/code/artifact/24c8643e-f48b-4883-bb93-73f8064699f0
+
+
+## Round 19 (2026-09-12): the complete Latin set
+
+Owner: *"i don't see a difference. let's make a complete latin alphabet
+with punctuation and address the many issues that need addressing"*, and
+mid-turn *"be sure that the bowl like g is clear of overhanging shapes
+from outside."* On the trap depths: measured 1–4 differing pixels on a 13
+pt line among t1/t2/t3 (6,288 ink px), so the three were the same font;
+recorded as a miss and the trap question left open.
+
+`tools/wedge_serif/latin.py`: A–Z (bracketed wedges both sides on the
+capitals' stems, counterpunched O Q D and the figures' bowls, thin strokes
+at 0.72–0.78 on the diagonals and the N M U's secondary stems), lining
+figures at 0.92 cap height, and 30 punctuation marks including curly
+quotes, en and em dashes, parentheses, brackets, ampersand, percent, at,
+ellipsis. `round19.py` builds `Fjord-Regular.ttf` (93 glyphs, 30 KB) on
+the k6 construction, fits capitals and figures on the cap band with
+bearings x1.15, and writes the specimen page. The g lost its ear (the
+bowl carries nothing over it).
+
+Fixed from my own review of the FreeType render before publishing: the 9
+was drawn backward (its curl ran the wrong way and read as a mirrored e);
+the question mark was a lump; the parentheses were 260 units wide; the T's
+bar and the W ran into their neighbors (the T because capitals were fitted
+on the x-height band, under the bar).
+
+**Issues that still need addressing, in the order I would take them:**
+1. Only a regular. A bold (`round4.bold_of` on the design) and italics
+   (none exist) are needed for the reader's four-style recipe.
+2. No kerning. Pairs like Ta, Te, Vo, Wa, LT, "f." need it; the fitting rule
+   alone leaves them open.
+3. No accents (no diacritics, no composites): the epub `reading` interval
+   needs Latin-1 and Latin Extended-A at least.
+4. Old-style figures would suit a garalde text face; these are lining.
+5. Ink traps at the bowl-stem crotches are too small to act; either widen
+   the tooth to ~half a stem across the crotch or drop them.
+6. The g without its ear can read as a q at small sizes; a hairline ear
+   that sits OUTSIDE the bowl's outer contour is the classical answer.
+7. The s (both cases) is the weakest letter; its spine wants weight and its
+   terminals a firmer cut. The optional `s_spine` knob exists, off.
+8. The ampersand and the at-sign are placeholders drawn to be legible, not
+   designed.
+9. Capitals are drawn to one width logic; C G O Q are wide against E F L,
+   as in the classical model, but B P R S are a touch narrow.
+10. No hinting and no gasp table: the reader rasterizes at 8–17 pt through
+    its own pipeline, which is what the `.cpfont` tiers exist for, so this
+    may not matter there; on the Mac it will.
+11. Vertical metrics are a guess (hhea 900/−300); the reader's `metrics:`
+    recipe will set the line.
+12. The counters of b d p q are clipped at the stem with a straight
+    vertical, which is right for a punch but shows as a flat inside edge
+    at large sizes.
+
+Page: https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd

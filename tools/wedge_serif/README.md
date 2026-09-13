@@ -41,7 +41,9 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
 | `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
 | `round16.py` | Hairline-throughs cured six ways on c5 with quads (`pen_centerline_cut`, `SerifsOnly`). Superseded by round 17: the owner wanted the straight-cut look back. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
-| `round17.py` | **The current front** (rounds 17 and 18). Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter, clipped to the stem, with a tooth on the counter and a notch on the stem as the trap), `patch_arch`, `orient_with_holes`, `clip_line`. `bite` remains as the record of what does not work. |
+| `latin.py` | A–Z, 0–9, punctuation on the same pen; `capH`, `figH`, `vstem`, `bar`, `diag`, `cp_ring`; `SIDES` for fitting. |
+| `round19.py` | **The builder of the complete font**: `build()` writes `Fjord-Regular.ttf` (93 glyphs) on the k6 construction and a specimen page. Start here for any change to the shipping font. |
+| `round17.py` | The construction the full font uses (rounds 17 and 18). Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter, clipped to the stem, with a tooth on the counter and a notch on the stem as the trap), `patch_arch`, `orient_with_holes`, `clip_line`. `bite` remains as the record of what does not work. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -92,9 +94,7 @@ booleans; see "Limits".
 - **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
 - **Never replace a function by slicing to the next `def`** without checking
   what sits between; it ate the capital H once.
-- **Coverage is H, a–z, `. , -`, space.** No other capitals, digits,
-  accents or punctuation yet; the epub pipeline's `reading` interval wants
-  far more. Only a regular exists; the reader's recipe expects four styles.
+- **Coverage is A–Z a–z 0–9 and 30 punctuation marks** (round 19). No accents; the epub pipeline's `reading` interval wants Latin-1 and Extended-A. Only a regular exists; the reader's recipe expects four styles. No kerning.
 - **The e is 9% narrower than the o with the bar at 0.58**; do not draw it
   on the o's width again (round 9).
 - **Small polygons must never be decimated** (a 14-vertex wedge cut to three is a spike); `CleanCut` guards at 20 vertices.

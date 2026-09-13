@@ -225,8 +225,7 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
         # the stem tucks in low, where the ring's right side is still
         # vertical, so no step shows where a square top meets the curve
         A.stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.3, top=None, foot=None, flare=False)
-        ear = A.line((x - s * 0.1, xh * 0.86), (x + 70 * wf, xh * 0.95), 8)
-        A.curve(c, P, ear, cut1=c["cut"])
+        # no ear: the bowl carries nothing over it (owner 2026-09-12)
         tail = A.bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
         A.curve(c, P, tail, A.compose(A.taper_in(0.7, 0.15), A.flare_end(0.3, 0.3)), cut1=c["cut"]); return P
 
