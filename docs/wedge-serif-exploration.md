@@ -2036,3 +2036,17 @@ with every ruling through round 74; default instance identical to the
 Regular (symmetric difference 0 on every glyph, metrics equal). Specimen,
 slider page and proof page republished at their URLs; Regular and VF sent.
 Clamps unchanged from round 65.
+
+## Round 75 (2026-09-13): @, punctuation alignment, a, g, k -- Sonnet agents
+
+Owner: "sonnet subagents to redo @ to not have a top stroke over, just
+simple a within the usual at symbol spiral. slightly extend the top right
+serif of g. add some weight to the top right kick of 'k' to balance it out
+visually and reduce overlap of bottom right stroke. line up punctuation
+vertically (including the quotes being misaligned). remove the distracting
+blobs of 'a' (top right and within counter), make them cleaner, though
+still handcut. check their work after." Three Sonnet agents in worktrees,
+one file each: `marks.py` (@ and the marks' vertical alignment), `stems.py`
+(a's blobs, g's serif +15% / +30%), `diagonals.py` (k's arm x1.15 / 1.30 /
+1.45, the leg's knot reduced). Their work is checked here before merging:
+changed-glyph lists against the brief, counters at 54 px, and the pages.
