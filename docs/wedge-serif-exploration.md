@@ -2396,4 +2396,4 @@ rectangular corner. revert 't' before the triangle." Done by hand; rulings
 in the guide's rows. The z: read against Albertus and Berkeley, the
 diagonal is their heavy stroke and the bars light, the corners mitred --
 so it is the ruled Z at x-height. Page
-https://claude.ai/code/artifact/PENDING84.
+https://claude.ai/code/artifact/dbe678de-4184-46d7-aeb7-a4bda1e3456c.
