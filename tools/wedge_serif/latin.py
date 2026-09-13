@@ -19,7 +19,7 @@ W = {}
 def _w(c, key, default):
     return default * W.get(key, 1.0) * c["wf"]
 
-def capH(c): return c["asc"] * 0.941   # median of Dante, Van den Keere, Hoefler, Doves
+def capH(c): return c["xh"] * 1.625    # Garamond's cap over x-height (round 26; was 0.941 asc = 1.73 xh, every capital 0.11 xh tall)
 CAP_STEM = 1.137                        # cap stem over lowercase stem, same references
 # Old-style figures (three of the four references): 0 1 2 sit on the
 # x-height, 6 and 8 rise, 3 4 5 7 9 descend. The boxes are the references'
@@ -46,10 +46,15 @@ def vstem(c, P, x, y0, y1, top_sides=(1, -1), foot_sides=(-1, 1), thin=1.0, flar
     for sd in foot_sides:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * prof(0.0), c["wl"] * 0.8, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
 
-def bar(c, P, x0, x1, y, serif_ends=(), thick=1.0):
+def bar(c, P, x0, x1, y, serif_ends=(), thick=1.0, align="center"):
+    """align: 'center' puts the bar's centerline on y; 'top' puts its top
+    edge there (a bar on the cap line), 'bottom' its bottom edge (a bar on
+    the baseline). Round 26: E F L Z bars were centered on the cap line and
+    the baseline and overshot both by half a bar."""
+    th = max(c["pen"].th((1, 0)) * thick, c["s"] * 0.5)
+    y = y - th / 2 if align == "top" else (y + th / 2 if align == "bottom" else y)
     pts = line((x0, y), (x1, y), 12)
     P.append(A.outline(pts, c["pen"], lambda t: thick, cut0=c["cut"], cut1=c["cut"]))
-    th = max(c["pen"].th((1, 0)) * thick, c["s"] * 0.5)
     for end, side in serif_ends:   # ('left'|'right', +1 up | -1 down)
         if c["wl"] <= 0: continue
         P_ = (x0, y) if end == 'left' else (x1, y)
@@ -154,14 +159,14 @@ def g_D(c):
 def g_E(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "E", 420)
     _cstem(c, P, x, 0, C, top="left", foot="left")
-    bar(c, P, x, x + w * 0.96, C, serif_ends=[('right', -1)])
+    bar(c, P, x, x + w * 0.96, C, serif_ends=[('right', -1)], align="top")
     bar(c, P, x, x + w * 0.74, C * 0.54, thick=0.9)
-    bar(c, P, x, x + w, 0, serif_ends=[('right', 1)]); return P
+    bar(c, P, x, x + w, 0, serif_ends=[('right', 1)], align="bottom"); return P
 
 def g_F(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "F", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    bar(c, P, x, x + w, C, serif_ends=[('right', -1)])
+    bar(c, P, x, x + w, C, serif_ends=[('right', -1)], align="top")
     bar(c, P, x, x + w * 0.72, C * 0.54, thick=0.9); return P
 
 def g_G(c):
@@ -171,9 +176,11 @@ def g_G(c):
     if c["wl"] > 0:
         tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
         P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.3, c["wl"] * 0.7, c["wd"] * 0.7, 1, drop=0, fillet=c["fillet"]))
-    xg = 2 * rx - s * 0.55
-    _cstem(c, P, xg, C * 0.03, C * 0.46, top="left", foot=None)
-    bar(c, P, xg - rx * 0.55, xg + s * 0.4, C * 0.46); return P
+    # round 26: the spur's top wedge under the bar left a notch; the stem now
+    # ends flush with the bar's top edge and carries no wedge of its own.
+    xg = 2 * rx - s * 0.55; th_h = max(c["pen"].th((1, 0)), c["s"] * 0.5); yb = C * 0.46
+    _cstem(c, P, xg, C * 0.03, yb + th_h / 2, top=None, foot=None)
+    bar(c, P, xg - rx * 0.55, xg + s * 0.5, yb); return P
 
 def g_H(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
@@ -196,13 +203,16 @@ def g_J(c):
 def g_K(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "K", 500)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    diag(c, P, (x + w, C), (x + s * 0.15, C * 0.45), thin=0.72 / CAP_STEM, serif0=1)
+    # round 26: the arm stopped short of the stem and its serif spiked 0.19 xh
+    # above the cap line; it now runs to the stem's center and starts a
+    # third of a stem under the cap line, so the wedge's tip lands on it.
+    diag(c, P, (x + w, C - s * 0.36), (x, C * 0.45), thin=0.72 / CAP_STEM, serif0=1)
     diag(c, P, (x + w * 0.42, C * 0.56), (x + w * 1.06, 0), thin=1.0 / CAP_STEM, serif1=-1); return P
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
     _cstem(c, P, x, 0, C, top="both", foot="left")
-    bar(c, P, x, x + w, 0, serif_ends=[('right', 1)]); return P
+    bar(c, P, x, x + w, 0, serif_ends=[('right', 1)], align="bottom"); return P
 
 def g_M(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "M", 720); x0 = s / 2; x1 = x0 + w
@@ -271,7 +281,10 @@ def g_U(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "U", 520); x0 = s / 2; x1 = x0 + w
     y0 = C * 0.42
     _cstem(c, P, x0, y0 - s * 0.5, C, top="both", foot=None)
-    pts = bez((x0, y0), (x0, -y0 * 0.55 - c["over"]), (x1, -y0 * 0.55 - c["over"]), (x1, y0), 48)
+    # round 26: the bowl sat 0.18 xh under the baseline; the controls are now
+    # solved so the curve's centerline bottom is half a stroke above -overshoot.
+    th_h = c["pen"].th((1, 0)); yb = th_h / 2 - c["over"]; cy = (8 * yb - 2 * y0) / 6
+    pts = bez((x0, y0), (x0, cy), (x1, cy), (x1, y0), 48)
     A.curve(c, P, pts, compose(taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
     _cstem(c, P, x1, y0 - s * 0.5, C, top="both", foot=None, thin=0.78); return P
 
@@ -303,10 +316,11 @@ def g_Y(c):
 
 def g_Z(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "Z", 500)
-    bar(c, P, 0, w, C, serif_ends=[('left', -1)])
-    zd = line((w - s * 0.15, C), (s * 0.15, 0), 30); tz = tangents(zd)[0]
+    th = max(c["pen"].th((1, 0)), c["s"] * 0.5)
+    bar(c, P, 0, w, C, serif_ends=[('left', -1)], align="top")
+    zd = line((w - s * 0.15, C - th / 2), (s * 0.15, th / 2), 30); tz = tangents(zd)[0]
     A.curve(c, P, zd, lambda t: s / c["pen"].th(tz))
-    bar(c, P, 0, w, 0, serif_ends=[('right', 1)]); return P
+    bar(c, P, 0, w, 0, serif_ends=[('right', 1)], align="bottom"); return P
 
 # ---------------------------------------------------------------- figures (lining)
 def g_zero(c):

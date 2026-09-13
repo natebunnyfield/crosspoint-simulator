@@ -844,3 +844,37 @@ from what works.
   bar.
 
 Nothing else moved. 53 of 93 glyphs still carry a Garamond flag, per round 24.
+
+## Round 26 (2026-09-12): the j break, and the capitals' breaks and sizing
+
+Owner: "there is a break on the j tail. fix it. then take on all the breaks
+and bad sizing of the uppercase."
+
+**The break had one cause, and it was the construction, not the j.**
+`round17.pen_linear` decimates each side of a stroke's outline to one sample
+in four and kept the LAST sample (`i == len - 1`) but not the first, so up to
+four steps of every stroke's START face were dropped. The j's stem is drawn
+bottom-up, so its bottom -- the half-stem overlap into the tail -- was eaten
+(stem ended at −111 where the tail began at −128; traced through
+`round20.draw` at each stage: original pen −158, linear pen −111). Both end
+faces are kept now (`or i == 0`). This also closed the K arm, the N's top join
+and the P/R bowl feet, which were the same loss at the other end of a stroke.
+
+**Sizing.** `latin.capH` was 0.941 of the ascender = 1.73 x-heights; Garamond
+is 1.625. It is now `xh * 1.625`. Round 24's per-cap "top" flags (every cap
++0.11 xh) are gone; the width solver re-fit every cap to the new height.
+
+**Per letter** (`latin.py`): `bar()` gained `align` ('top' puts the bar's top
+edge on y, 'bottom' its bottom edge); E F L Z bars use it, so none overshoots
+the cap line or the baseline. K's arm now runs to the stem's center and starts
+a third of a stem under the cap line (it stopped short and its serif spiked
++0.19 xh). U's bowl controls are solved so the centerline bottom is half a
+stroke above −overshoot (it sat 0.18 xh under the baseline). Z's diagonal
+joins the bars' centers. G's spur stem ends flush with its bar's top edge with
+no wedge (the wedge under the bar left a notch).
+
+Garamond flags: 53 → 39. Left on capitals, deliberately: Q width −19% (shares
+O's width key), I −28% (Garamond's I has wide serifs), J bottom +0.21 xh
+(Garamond's J descends further; the bar across is the ruling), D stroke −24%
+(a long hairline in a big ring lowers the mean; the D reads fine).
+Proof page: `fjord-caps.html`.

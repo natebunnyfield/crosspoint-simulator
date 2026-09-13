@@ -71,8 +71,11 @@ def pen_linear(seed, every=4, amp=3.0):
         L = unfold(L, tans); R = unfold(R, tans)
         if len(pts) >= 12:
             ph = rng.randrange(every)
-            L = [p for i, p in enumerate(L) if (i + ph) % every == 0 or i == len(L) - 1]
-            R = [p for i, p in enumerate(R) if (i + ph) % every == 0 or i == len(R) - 1]
+            # keep BOTH end faces (round 26): dropping the first sample ate up
+            # to four steps of every stroke's start, which is where a stem
+            # hands over to its curve -- the j's tail broke there.
+            L = [p for i, p in enumerate(L) if (i + ph) % every == 0 or i == len(L) - 1 or i == 0]
+            R = [p for i, p in enumerate(R) if (i + ph) % every == 0 or i == len(R) - 1 or i == 0]
             L = [(x + rng.uniform(-amp, amp), y + rng.uniform(-amp, amp)) for x, y in L]
             R = [(x + rng.uniform(-amp, amp), y + rng.uniform(-amp, amp)) for x, y in R]
         return L + R[::-1]
