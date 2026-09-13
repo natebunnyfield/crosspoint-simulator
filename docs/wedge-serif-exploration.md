@@ -1870,3 +1870,11 @@ be slightly taller. possibly matching the top's." C = lower counter the 6's
 bowl width, upper 0.75, both 1.036. Round 69: a ladder on C's lower counter
 height x1.04 / x1.08 / x1.12 (w/h 0.996 / 0.959 / 0.925, width kept) for his
 pick; `EIGHT_LOWER_TALL`, 1.08 until ruled. Page pending.
+
+Round 69 built (2026-09-13): C with `EIGHT_LOWER_TALL` 1.00 / 1.04 / 1.08 /
+1.12 -- lower counter 239 x 231 / 240 / 247 / 257 (w/h 1.035 / 0.996 / 0.968
+/ 0.930), heights 544 / 554 / 563 / 572 against the 0's 488 and the 6's 682,
+white at 54 px upper 60-64 px in all (the smallest counter among the
+figures; the 6's bowl keeps 164), lower 117 / 121 / 125 / 130, advance
+486-487 = the 6's. x1.00 byte-identical to C. Page
+https://claude.ai/code/artifact/PENDING69.
