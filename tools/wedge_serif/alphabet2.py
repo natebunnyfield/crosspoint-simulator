@@ -387,11 +387,13 @@ def g_r(c):
     arm = bez((x, xh * 0.6), (x, xh * 1.0), (x + 120 * wf, xh * 1.05), (x + 205 * wf, xh * 0.9), 36)
     curve(c, P, arm, compose(taper_in(0.42, 0.35), flare_end(0.18, 0.3)), cut1=c["cut"]); return P
 
-def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0, taper0=0.0):
-    """taper0: thin the START to (1 - taper0) over the first 22% -- a leg
-    springing from an arm keeps its end face inside the arm (round 30)."""
+def _diag(c, P, p0, p1, serif0=None, serif1=None, thin=1.0, taper0=0.0, taper1=0.0):
+    """taper0/taper1: thin the START/END to (1 - taper) over 22% -- a leg
+    springing from an arm keeps its end face inside the arm (rounds 30, 31)."""
     pts = line(p0, p1, 30)
-    prof = (lambda t: thin) if not taper0 else compose(lambda t: thin, taper_in(taper0, 0.22))
+    prof = lambda t: thin
+    if taper0: prof = compose(prof, taper_in(taper0, 0.22))
+    if taper1: prof = compose(prof, taper_out(taper1, 0.22))
     curve(c, P, pts, prof)
     tn = tangents(pts)
     if c["wl"] <= 0: return
@@ -411,8 +413,11 @@ def g_k(c):
     A0, B0 = (x + 360 * wf, xh * 0.97), (x + s * 0.2, xh * 0.42)
     _diag(c, P, A0, B0, serif0=1, thin=0.78)
     u = (150 * wf - (B0[0] - x)) / (A0[0] - B0[0]); J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
-    E = (x + 380 * wf, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
-    _diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, serif1=-1, taper0=0.45); return P
+    # round 31: the leg is the A's right leg -- foot-first from the baseline at
+    # the A's angle, full weight, wedge foot on the outer side, thinning into J
+    foot = (J[0] + J[1] / math.tan(math.radians(65)), 0)
+    d = (J[0] - foot[0], J[1] - foot[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
+    _diag(c, P, foot, (J[0] + d[0] * s * 0.2, J[1] + d[1] * s * 0.2), serif0=1, taper1=0.45); return P
 
 def g_v(c):
     P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; w = 440 * wf

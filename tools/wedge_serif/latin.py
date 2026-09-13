@@ -62,10 +62,12 @@ def bar(c, P, x0, x1, y, serif_ends=(), thick=1.0, align="center"):
         sd = side if end == 'right' else -side
         P.append(bracket_wedge(P_, d, nrm, th, c["wl"] * 0.85, c["wd"] * 0.9, sd, drop=0, fillet=c["fillet"]))
 
-def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None, taper0=0.0):
+def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None, taper0=0.0, taper1=0.0):
     pts = line(p0, p1, 30)
     thin = thin * CAP_STEM
-    prof = (lambda t: thin) if not taper0 else compose(lambda t: thin, taper_in(taper0, 0.22))   # round 30: a leg thins into its junction
+    prof = lambda t: thin
+    if taper0: prof = compose(prof, taper_in(taper0, 0.22))    # round 30: a leg thins into its junction
+    if taper1: prof = compose(prof, taper_out(taper1, 0.22))   # round 31: same, for a leg drawn foot-first
     P.append(A.outline(pts, c["pen"], prof))
     if c["wl"] <= 0: return
     tn = tangents(pts)
@@ -75,6 +77,17 @@ def diag(c, P, p0, p1, thin=1.0, serif0=None, serif1=None, taper0=0.0):
     if serif1:
         d = tn[-1]; nrm = (-d[1], d[0]); th = c["pen"].th(tn[-1]) * thin
         P.append(bracket_wedge(pts[-1], d, nrm, th, c["wl"] * 0.9, c["wd"] * 0.9, serif1, drop=c["drop"], fillet=c["fillet"]))
+
+KICK_ANGLE = math.radians(65)   # the A's right leg: (w - 0.3 s, 0) -> (w/2 - 0.18 s, C), about 65 degrees
+def kick(c, P, J, s, thin=1.0 / CAP_STEM, angle=KICK_ANGLE):
+    """A K/R leg drawn exactly as the A's right leg (owner 2026-09-12: 'match
+    the flow of the lower right of A'): foot-first from the baseline, full
+    weight, the wedge foot on the outer side as the A's, straight, at the
+    A's angle; it thins into the junction J (round 31)."""
+    foot = (J[0] + J[1] / math.tan(angle), 0)
+    d = ((J[0] - foot[0]), (J[1] - foot[1])); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
+    top = (J[0] + d[0] * s * 0.2, J[1] + d[1] * s * 0.2)   # buried a fifth of a stem past the junction
+    diag(c, P, foot, top, thin=thin, serif0=1, taper1=0.45)
 
 def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
     """Counterpunched ring (outer cut, counter clean). close_x: for a D-like
@@ -224,8 +237,7 @@ def g_K(c):
     # round 30: the leg springs from the arm's centerline, its start buried a
     # third of a stem back along the leg (it started 0.1 C under the arm)
     u = 0.42; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
-    E = (x + w * 1.06, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
-    diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, thin=1.0 / CAP_STEM, serif1=-1, taper0=0.45); return P
+    kick(c, P, J, s); return P   # round 31: the A's leg
 
 def g_L(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
@@ -270,8 +282,7 @@ def g_R(c):
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.
     J = _bowl_point(x, C, C * 0.46, w * 0.95, 0.8)
-    E = (x + w * 1.15, 0); L = math.hypot(E[0] - J[0], E[1] - J[1]); d = ((E[0] - J[0]) / L, (E[1] - J[1]) / L)
-    diag(c, P, (J[0] - d[0] * s * 0.2, J[1] - d[1] * s * 0.2), E, thin=1.0 / CAP_STEM, serif1=-1, taper0=0.45); return P
+    kick(c, P, J, s); return P   # round 31: the A's leg
 
 def g_S(c):
     P = []; C = capH(c); w = _w(c, "S", 440); o = c["over"]; st = c["s"] * CAP_STEM

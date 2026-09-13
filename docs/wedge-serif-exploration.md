@@ -967,3 +967,18 @@ Three passes, each rendered and looked at before the next:
 3. **Reading size.** Legs still join at 13 pt (54 px em). Proof:
    `fjord-kicks.html`, with every seriffed glyph at 230 px for the wedge
    audit.
+
+## Round 31 (2026-09-12): the kicks are the A's leg
+
+Owner: "redo the kicks on K and R and k to match the flow of the lowerright
+of A instead."
+
+`latin.kick(c, P, J, s)`: a leg drawn exactly as the A's right leg -- foot-
+first from the baseline at the A's angle (`KICK_ANGLE` 65°, the A's
+(w − 0.3 s, 0) → (w/2 − 0.18 s, C)), full weight, `serif0=1` so the wedge
+foot sits on the outer side as the A's does, straight, thinning into the
+junction J over its last 22% (`diag`/`_diag` gained `taper1`). K and R call
+it with their round-30 junctions; k does the same in `alphabet2.g_k`. The
+foot's x follows from J and the angle, so all three narrowed; the width
+solver re-fit K (1.15) and R (1.41). Round 30's tapered 49° legs with the
+inward foot are gone. Proof: `fjord-kicks.html` (republished in place).
