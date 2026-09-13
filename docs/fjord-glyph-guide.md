@@ -46,6 +46,43 @@ bottoms, 2.7:1) is NOT the target; round 58 in the exploration doc records
 what replaced it. Neither Albertus nor Icone is on disk: their character is
 stated here and judged on the owner's picture, never fitted to a file.
 
+## 000. Reference faces on disk, measured (2026-09-13)
+
+Owner, sending ITC Berkeley Oldstyle (Medium, Bold, both italics, plus a
+Berkeley Oldstyle Bold TTF), Miju Goudy (Goudy Oldstyle by way of Sorts Mill
+Goudy and Sukhumala) and Cheltenham Classic: "these for reference as well for
+what a goudy text face can be." So the references are now three kinds:
+Albertus for the STROKE character; the Goudy faces for what a warm, wide,
+low-x-height humanist TEXT face does on a page (rhythm, fitting, the softness
+of joins, the ball-less terminals); Van den Keere and Garamond for
+proportions. All in the scratchpad `wedge/ref/` (`Albertus-Medium.ttf`,
+`ITCBerkeley-*.otf`, `Berkeley-Oldstyle-Bold.ttf`, `miju-goudy/`,
+`cheltenham-classic/`). Measured the same way as Albertus (bowl_rays at 1000
+px, 147 common words at 13 pt through the four-level pipeline); Albo's x reads
+0.442 because its wedge tips sit above the 0.415 design x-height:
+
+| face | xh / em | cap/xh | stem / xh | O thick:thin | D | o | n arch min (of stem) | page ink 13 pt | ink at black |
+|---|---|---|---|---|---|---|---|---|---|
+| ITC Berkeley Medium | 0.426 | 1.49 | 0.17 | 2.9 | 2.4 | 3.0 | 0.39 | 0.126 | 0.639 |
+| ITC Berkeley Bold | 0.426 | 1.49 | 0.24 | 3.5 | 2.5 | 3.3 | 0.44 | 0.148 | 0.702 |
+| Miju Goudy Regular | 0.425 | 1.67 | 0.17 | 2.2 | 2.3 | 2.7 | 0.53 | 0.120 | 0.640 |
+| Cheltenham Classic | 0.421 | 1.73 | 0.23 | 2.4 | 2.0 | 2.2 | 0.54 | 0.151 | 0.705 |
+| Cheltenham Classic Medium | 0.420 | 1.74 | 0.24 | 2.0 | 1.7 | 1.9 | 0.67 | 0.159 | 0.721 |
+| Albertus Medium | 0.531 | 1.44 | 0.20 | 1.4 | 1.2 | 1.7 | 0.97 | 0.180 | 0.755 |
+| Albo (B, stem 82) | 0.415 | 1.63 | 0.20 | 1.4 | 1.35 | 1.4 | 0.48 | 0.122 | 0.696 |
+| Albo stem 94 | 0.415 | 1.63 | 0.23 | 1.4 | 1.35 | 1.4 | 0.48 | 0.132 | 0.726 |
+
+What the Goudy faces say for Albo: their x-heights are ours (0.42-0.43), so
+Albertus's 0.531 is the outlier and not a proportion to chase; their weight at
+text size comes from stem/xh 0.23-0.25 in the Bold and Medium cuts (Albo's
+stem-94 ladder step is exactly that band) and from arches that never thin
+past half the stem (Albo's arches go to 0.48, Berkeley Medium's to 0.39 --
+the one place a Goudy is thinner than we are); their bowl contrast (2-3.5:1)
+is what the Albertus ruling rejects, so it is not copied. ITC Berkeley Medium
+at 13 pt keeps the least ink at black of everything measured (0.639) -- the
+readability cost of a 3:1 bowl on this pipeline, recorded so the garalde
+profile is not re-proposed.
+
 ## 0. The next job: a full rebuild (owner, 2026-09-12)
 
 Asked what the next agent will do first, the owner answered: **"full

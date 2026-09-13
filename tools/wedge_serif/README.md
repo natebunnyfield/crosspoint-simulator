@@ -130,3 +130,7 @@ Fjord` at 1x and `--scale 2`, validate with `tools/validate_seed_fonts.py`,
 then bundle as a trial family (`docs/trial-fonts.md`). Four styles are
 expected; the bold can come from `round4.bold_of` on the design params, the
 italics do not exist.
+
+## Reference faces (scratchpad `wedge/ref/`, measured in `docs/fjord-glyph-guide.md` §000)
+
+`Albertus-Medium.ttf` (the stroke target; `-sxh.ttf` is the same file with `OS/2.sxHeight` added so `outlines/cmp/proof.block` can rule it), `ITCBerkeley-{Medium,Bold,MediumItalic,BoldItalic}.otf`, `Berkeley-Oldstyle-Bold.ttf`, `miju-goudy/` (clone of aperezdc/miju-goudy: `font/MijuGoudy-*.ttf`, `sukhumala/`), `cheltenham-classic/` (clone of vetrivelcsamy/cheltenham-classic: `docs/font-files/CheltenhamClassic*.ttf`), `EBGaramond-400.ttf`. Van den Keere, Dante, Doves, Edgar live in the firmware repo's `lib/EpdFont/local_fonts/`. The scratchpad is session-local: re-copy from `~/.claude/uploads/` or re-clone if it is gone.

@@ -1650,3 +1650,11 @@ the same URL, https://claude.ai/code/artifact/256db54b-c95b-4124-8795-559b10d93c
 | 94 | 0.132 | 0.726 |
 | 100 | 0.133 | 0.736 |
 | Albertus Medium | 0.180 | 0.755 |
+
+References added by the owner (2026-09-13): ITC Berkeley Oldstyle (Medium,
+Bold, italics), Berkeley Oldstyle Bold TTF, Miju Goudy (Goudy Oldstyle
+lineage), Cheltenham Classic -- "for what a goudy text face can be". Measured
+against Albertus and Albo in the guide, §000. Headline: the Goudy faces share
+our x-height (0.42-0.43 em), carry their text weight in stem/xh 0.23-0.25 and
+arches no thinner than half the stem, and their 2-3.5:1 bowls cost them ink at
+black on the four-level pipeline (Berkeley Medium 0.639 vs Albo 0.696).
