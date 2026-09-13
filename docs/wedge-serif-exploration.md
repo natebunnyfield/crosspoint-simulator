@@ -1956,3 +1956,18 @@ agent wiring both (`g_nine` in figures.py, `g_ampersand` in marks.py calling
 `bred` with round_bowl's dials); page pending.
 
 Round 70 RULED (2026-09-13): "floor 0.55 S = 46.2 units wins." `SIX_TAIL_FLOOR = 0.55`.
+
+Round 72 built (2026-09-13). What he saw: on the same pen foot-left and
+flag-diag both reach 12.4 past the bowl by the tail-tip rule, but foot-left
+reaches it ON THE BOTTOM LINE while flag-diag's leftmost is the wedge apex
+100-150 up, its bottom-line ink 36 RIGHT of the bowl -- 48 short. New 9:
+flag-diag with the apex `NINE_FLAG_REACH` = 60 past the bowl (bottom corner
+then at 12.5, foot-left's), pocket 3 px at 54 px kept, counter unchanged.
+**Consequence:** non-letters fit on their full extent (round 41), so the
+reach pushes the 9's origin 47 right -- advance 488 → 535, "19"/"99" wider
+by ~2.6 px at 54 px; if he wants the reach without the wider set, the 9's
+fitting rule is what changes. The &: `g_ampersand` = `bred` with
+round_bowl's dials; identical to Albo-amp2-10 in an only-& build (464
+coordinates), a facet-phase difference of <= 7 units in the full build;
+adv 797 (was 799), counters 197 x 238 and 349 x 313, white at 54 px 83 /
+182 (was 101 / 201). Page https://claude.ai/code/artifact/PENDING72.
