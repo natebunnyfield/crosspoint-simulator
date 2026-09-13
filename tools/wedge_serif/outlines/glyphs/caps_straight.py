@@ -241,8 +241,8 @@ def g_J(c):
 #   B  (1.00, 0.70)  taper toward the junction: the classic "leg thin
 #                    where it springs"
 #   C  (0.85, 0.85)  a spindle: 0.85 at both ends, full in the middle
-K_KICK_TAPER = (0.92, 0.92)   # owner 2026-09-13: "K before is best for inktraps, but adopt some of C kick thickness" -- C was the 0.85/0.85 spindle; a little of it
-R_KICK_TAPER = (1.00, 1.00)   # owner 2026-09-13: "the kick looks worse" -- the round-51 leg, no taper
+K_KICK_TAPER = (1.00, 1.00)   # owner 2026-09-13, on round 81: "leave K R Q M W as is, before agent was better" -- unused now; the round-51 K is the K   # owner 2026-09-13: "K before is best for inktraps, but adopt some of C kick thickness" -- C was the 0.85/0.85 spindle; a little of it
+R_KICK_TAPER = (1.00, 1.00)   # unused now (owner: "leave K R Q M W as is, before agent was better")
 
 def kick_widths(w, pair, t_join, buried):
     """The leg's width keypoints: `pair` x the ruled width w over the
@@ -279,7 +279,7 @@ def g_K(c):
     u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
-    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1, pair=K_KICK_TAPER)])   # round 51: 1.1 x the pen at the leg's angle
+    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
 
 # owner, verbatim: "add more top right serif to 'L'" -- the stem top's wedge
 # (today `top='left'` only) extended to the right as the H/N/U right-stem tops
@@ -287,6 +287,7 @@ def g_K(c):
 # with the wedge on one side. In units of a full stem-top wedge's length (WL);
 # depth stays the family's WD, drop the family's DROP. The arm (there is
 # none), foot and bar-end wedge are untouched.
+
 L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.45))   # owner: "yes to with life, but halfway between the two" (I: 0.4, life: 0.5)
 L_TOP_RIGHT_DEPTH = 0.66   # the I's small wedge is 0.4 x 0.6 x 0.4 drop; the L's 0.5 x 0.72 x 0.5 (owner: "give it life")
 L_TOP_RIGHT_DROP = 0.45
@@ -342,12 +343,7 @@ def g_M(c):
          ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
     a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
     apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    # owner 2026-09-13: "M after is worse ... try again" -- the round-51 M,
-    # its overshooting square faces (19 above the cap line at the left
-    # apex, 10 at the right, the vertex's prongs under the baseline) simply
-    # clipped to the cap band; the strokes themselves untouched
-    from shapely.geometry import box
-    return geom.ink([a, b, d, e, apex]).intersection(box(-1e4, 0.0, 1e4, C))
+    return geom.ink([a, b, d, e, apex])
 
 @glyph('N')
 def g_N(c):
@@ -394,11 +390,9 @@ def g_Q(c):
     base = pen_widths(tail)
     def wfn(t):
         belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
-        # owner 2026-09-13: "leave Q as is, just reduce the bulge by 85%" --
-        # the belly's excess over the pen kept at Q_BELLY of what it was
-        full = max(base(t), s * 1.05 * (3 * belly * belly - 2 * belly ** 3))
-        return (base(t) + Q_BELLY * (full - base(t))) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+        return max(base(t), s * 1.05 * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
+
 Q_BELLY = 0.15
 
 @glyph('R')
@@ -411,33 +405,14 @@ def g_R(c):
     # slight outward bow; drawn foot-first so the foot wedge is the A's
     foot = (J[0] + J[1] / math.tan(math.radians(60)), 0)
     d = (J[0] - foot[0], J[1] - foot[1]); Ld = math.hypot(*d); d = (d[0] / Ld, d[1] / Ld); nrm = (-d[1], d[0])
-    # owner 2026-09-13: "R counter is missing cleanup" -- the leg's start put
-    # its square face into the counter's bottom edge as a notch; buried
-    # R_LEG_BURY of the cap stem and thinned to 0.28, the face lies inside
-    # the bowl's stroke
-    end = (J[0] + d[0] * CS * R_LEG_BURY, J[1] + d[1] * CS * R_LEG_BURY)
+    end = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)
     c1 = (foot[0] + d[0] * Ld * 0.35 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.35 - nrm[1] * 9)
     c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
     leg_c = cubic(foot, c1, c2, end)
     w_foot = pw(foot, J, 1.05)
-    # the taper the owner asked for, on the leg's visible run; the junction
-    # is at Ld of the leg's Ld + 0.15 CS, and the last 0.42 is the bury
-    prof = kick_widths(w_foot, R_KICK_TAPER, Ld / (Ld + CS * R_LEG_BURY), 0.28)
-    leg = stroke(leg_c, prof)
-    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, prof(0.0), True, 1)])
+    leg = stroke(leg_c, lambda t: w_foot * widths([(0.0, 1.0), (0.45, 1.0), (1.0, 0.42)])(t))
+    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, w_foot, True, 1)])
 
-# owner, verbatim: "'S' needs some weight on the end of its bottom left."
-# The spine's last keypoint was 0.3 of the pen, so the lower terminal came
-# out 23.7 units wide against the top-right beak's 104.9 -- a thorn beside
-# a beak, on the end an S conventionally makes the heavier of the two. The
-# last keypoint is now the SAME swell the top beak takes, 1.30 of the pen
-# at the terminal's own tangent, so the two ends are one recipe mirrored:
-# 1.3 over the first 10% at the top, 1.3 over the last 14% at the bottom.
-# Measured: bottom end 23.7 -> 103.8 against the top's 105.7.
-# The weight is on the END, not added to the sweep -- round 32's heavier
-# BOTTOM (the `bot` swell at t 0.74) is untouched. No LIP was added at the
-# bottom: the top's beak lip is a separate part and the owner asked for
-# weight, not for a second beak.
 R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30
 
@@ -525,12 +500,7 @@ def g_W(c):
     P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
     a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
     crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    # owner 2026-09-13: "W cleanup was only half right, just remove the tiny
-    # above triangle on top middle" -- the inner diagonals' square top
-    # corners poke above the cap line beside the crown; clipped at C, the
-    # crotch left as it was
-    from shapely.geometry import box
-    return geom.ink([a, b, d, e, crown]).intersection(box(-1e4, -1e4, 1e4, C))
+    return geom.ink([a, b, d, e, crown])
 
 @glyph('X')
 def g_X(c):
@@ -595,8 +565,11 @@ def g_Z(c):
         corner = (ox + dx * (C - oy) / dy, C)
         ox2, oy2 = p_bot[0] - nx * CS / 2, p_bot[1] - ny * CS / 2
         corner2 = (ox2 + dx * (0.0 - oy2) / dy, 0.0)
+        # owner 2026-09-13: "Z mitre wins but extend the bottom right out to
+        # optically match the top's right edge" -- the bottom bar runs out to
+        # the top corner's x, so both right edges share one line
         parts = [bar(0, max(w, corner[0] + 2), C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg,
-                 bar(min(0, corner2[0] - 2), w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])]
+                 bar(min(0, corner2[0] - 2), corner[0], 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])]
         from shapely.geometry import box as _box
         cut_tr = half(corner, +1).intersection(_box(corner[0] - CS * 2, C - th - 2, corner[0] + far, C + far))   # beyond the edge, within the top bar's band
         cut_bl = half(corner2, -1).intersection(_box(corner2[0] - far, -far, corner2[0] + CS * 2, th + 2))    # beyond the edge, within the bottom bar's band
@@ -604,5 +577,5 @@ def g_Z(c):
     elif Z_CORNER == 'wedge':
         g = geom.ink(parts + [end_wedge([p_bot, p_top], CS, False, 1, scale=0.9), end_wedge([p_bot, p_top], CS, True, 1, scale=0.9)])
     return g
-Z_CORNER = __import__("os").environ.get("FJORD_Z_CORNER", "blunt")
+Z_CORNER = __import__("os").environ.get("FJORD_Z_CORNER", "mitre")   # owner 2026-09-13: "Z mitre wins"
 Z_BEVEL = 0.45

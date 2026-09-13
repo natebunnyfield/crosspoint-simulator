@@ -246,12 +246,18 @@ def g_two(c):
     prof = widths([(0.0, TWO_TOP_W * 1.1), (0.15, TWO_TOP_W), (f_arc, TWO_TOP_W), (1.0, 1.0)])
     body = stroke(center, PR.bowl_widths(center, prof, floor=S * TWO_SLASH_W * TWO_TOP_W), cut0=CUT)
     x1 = geom.bbox(body)[2] + NINE_OVERHANG
-    return geom.ink([body, bar(0, x1, 0, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
+    g = geom.ink([body, bar(0, x1, 0, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
+    # owner 2026-09-13: "push 2 back up to optical baseline" -- the built 2
+    # bottomed at -7 (the cut's facets and the ink spread under a flat base);
+    # lifted so the base sits on the line like the 1's feet
+    import shapely.affinity as _aff
+    return _aff.translate(g, 0, TWO_LIFT)
 
 # the 2 as one stroke (2026-09-13): the slash's weight floor (x S; 0.8 = the
 # arc's side, one weight). The arc's end angle is solved per build.
 TWO_SLASH_W = 0.80
 TWO_TOP_W = 0.82      # the arc's weight, x the profile (lighter on top)
+TWO_LIFT = 8.0        # units up, so the base's ink bottoms at the baseline
 TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
@@ -275,7 +281,7 @@ def g_three(c):
 # and not below it). Nothing else moves: the diagonal keeps its angle, its
 # width and its foot on the bar, and the bar and the stem are untouched.
 # FOUR_OPEN = False restores the closed construction byte for byte.
-FOUR_OPEN = True
+FOUR_OPEN = False          # owner 2026-09-13: "revert 4 to last closed version" (the curved-open construction stays behind the flag; future todo: reduce the thickness of the 4's top-left stroke)
 FOUR_OPEN_GAP = 0.62       # x the stem, the gap at the top-left corner: 0.6 S is the standing aperture floor (50.4) and the cut's facets shave ~0.4 off the built gap, so the drawn number is a shade over
 
 

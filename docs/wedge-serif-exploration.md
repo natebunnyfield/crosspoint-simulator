@@ -2353,3 +2353,18 @@ rulings are the guide's rows. The @: I had the sweep backwards -- a typical
 lower right. Z: three connectors built, blunt default, his pick pending.
 Page https://claude.ai/code/artifact/f34cd1b8-2a7f-4b2f-a5ec-33a39f1a63de. Fonts
 `build/fjord-fonts/Z/Albo-Z-{blunt,mitre,wedge}.ttf`.
+
+## Round 82 (2026-09-13): rulings on round 81
+
+Owner: "leave K R Q M W as is, before agent was better. Z mitre wins but
+extend the bottom right out to optically match the top's right edge. push
+2 back up to optical baseline, (future todo reduce thickness of topleft
+stroke of 4). 'now: 13 pt' wins for at symbol and question mark. revert 4
+to last closed version." Done: K R Q M W are the round-51 constructions
+(bytes differ from the pre-agent build only by the life and the bar fix,
+which came later); Z mitre default, the bottom bar run out to the top
+corner's x; the 2 lifted 8 (it bottomed at -7, now 1); the 4 closed; the @
+(counterclockwise) and the ? (original, Albertus heavy) ruled. Page
+https://claude.ai/code/artifact/PENDING82. VF rebuild follows.
+
+**Future todo (owner):** reduce the thickness of the 4's top-left stroke.

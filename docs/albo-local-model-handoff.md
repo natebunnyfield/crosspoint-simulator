@@ -178,3 +178,13 @@ Then the change, as the diff of the glyph file. Then the numbers table
 Then the doc entry you appended. Then stop, with: "Say 'seen' (or 'decide
 blind')." No summaries of the rules back to him; no questions unless one
 is needed.
+
+### 8. Update, round 82
+
+K R Q M W are the round-51 constructions again (the owner preferred them to
+the agent's); Z is the mitre with its bottom right run out to the top's
+edge; the 2 sits on the baseline; the 4 is closed. Ruled: the @
+(counterclockwise) and the ? (original shape, Albertus weight). Pending
+his pick: the k's arm weight (1.15 / 1.30 / 1.45); the o's counter; the
+lighter weights; the naming. Owner's future todo: reduce the thickness of
+the 4's top-left stroke.
