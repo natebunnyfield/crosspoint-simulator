@@ -1392,3 +1392,5 @@ Owner on the first page: "make it mobile friendly" -- the artifact viewer's
 `img{max-width:100%}` had squashed the 1700 px sheet to the phone's width.
 Rebuilt as six 750 px blocks wrapped to that width, shown at 375 CSS px
 (native on a 2x phone). Rule added to the guide §4.
+**Ruling (descender):** 250, as now. The g p q j y stay at their depth; the
+weight-pass lever is closed.

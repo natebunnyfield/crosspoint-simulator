@@ -68,7 +68,9 @@ answers land in this section as they arrive.
   line spacing in three builds, descender 250 / 290 / 330 (0.60 / 0.70 /
   0.78 of the ascender), the g p q j y and the line spacing both visible,
   and put the three on one Artifact page; his pick becomes the §3 row. The
-  same page can carry the three contrasts of the previous point.
+  same page can carry the three contrasts of the previous point. **Picked:
+  250** (round 53). The g p q j y stay short by design; the weight passes'
+  "descender lever" is closed.
 - **Delivery** (his answer): **the whole set first, then rounds** -- the
   agent redraws all 93 glyphs as designed outlines under the constraints
   above, ships ONE specimen (the standing URL, the running-text paragraphs,
@@ -200,7 +202,7 @@ none without the owner's word, and record any change in the exploration doc.
 | x-height | 415 | B5.9 design |
 | capital height | 1.625 × x-height = 674 | Garamond's ratio, round 26 (was 0.941 of the ascender = 1.73 xh; every cap read tall) |
 | ascender | 762 (b d h k l); the f and t lower | design |
-| descender | 250 today; the rebuild picks 250 / 290 / 330 from a render at reading size (§0) | design; owner 2026-09-12 |
+| descender | 250, picked from the round-53 render against 290 and 330 | owner 2026-09-12 |
 | overshoot of rounds | 14 units, measured at the INK'S EDGE | round 27 (it had been applied to the centerline and the rounds overshot 41) |
 | overshoot of arches (n m h u) | 12 units at the ink's edge | round 30 ruling, from the arches page |
 | lowercase width | 0.938 of the drawn widths; the o's counter 1.036 wide over tall | round 35 ruling; capitals untouched |
