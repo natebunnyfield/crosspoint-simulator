@@ -40,7 +40,8 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round13.py` | Refinements of the three kept techniques (V23 Scissors, V15 Rotating nib, V19 Gravity), six each. |
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
 | `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
-| `round16.py` | **The current front.** Hairline-throughs cured six ways on c5: `pen_centerline_cut` (cut the drawing, stroke it, quad it) and `SerifsOnly`. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
+| `round16.py` | Hairline-throughs cured six ways on c5 with quads (`pen_centerline_cut`, `SerifsOnly`). Superseded by round 17: the owner wanted the straight-cut look back. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
+| `round17.py` | **The current front.** Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter), `patch_arch` (traps at the crotches), `orient_with_holes`. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -86,6 +87,7 @@ booleans; see "Limits".
   the default pen crosses itself too once a cut jitters a tight curve (the
   "hairline-throughs" of round 16). Quadify, or cut the centerline instead of
   the ink (`round16.pen_centerline_cut`).
+- **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
 - **Never replace a function by slicing to the next `def`** without checking
   what sits between; it ate the capital H once.
 - **Coverage is H, a–z, `. , -`, space.** No other capitals, digits,

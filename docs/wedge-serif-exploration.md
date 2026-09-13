@@ -14,11 +14,15 @@
   round 12 (one per technique), 18 in round 13 (refinements of the three
   kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
   cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
-  widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`). Latest files in
+  widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`), 6 in
+  round 17 (counterpunch, `round17.py`). Latest files in
   `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **The cut is V23a-73c5** (seed 73, clean, steady hand). **Awaiting**:
-  the owner's marks on round 16, the hairline-throughs addressed six ways
-  (https://claude.ai/code/artifact/e30c4c30-4ff8-4c73-a250-ab9d8c28ad1f).
+- **The cut is V23a-73c5** (seed 73, clean, steady hand), and the
+  construction since round 17 is **ink traps + counterpunches on the
+  hand-cut linear outline** (`round17.py`: `pen_linear`, `cp_glyphs`,
+  `Hole`). Round 16's quad cures are superseded: the owner wanted the
+  straight-cut look back. **Awaiting**: his marks on round 17
+  (https://claude.ai/code/artifact/ebe2a2f8-7afd-4d23-b8bb-583e59a4eb8d).
   Kept from his notes: the ink traps at the H's crossbar.
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
@@ -514,3 +518,39 @@ briefly the default and was reverted as unasked.
 One self-inflicted defect on the way: replacing the s function by slicing
 to the next `def` swallowed the capital H, restored from git. Page:
 https://claude.ai/code/artifact/e30c4c30-4ff8-4c73-a250-ab9d8c28ad1f
+
+
+## Round 17 (2026-09-12): ink traps and counterpunches, hand-cut linear
+
+Owner, on round 16: *"try using inktraps and counterpunches instead. we
+want more handcut linear like scissors originally gave us. this is
+optically effective wedge serif text font."* So the quad cures of round 16
+are out (they smoothed the cut away) and the straight-cut, faceted outline
+of the first scissors is back, with the joins and counters handled the way
+a punchcutter would. `tools/wedge_serif/round17.py`, three constructions:
+
+- **Linear pen.** `pen_linear` strokes the centerline, REMOVES THE FOLDS on
+  each side (`unfold`: a side point that moves backward against the
+  centerline's tangent is a fold and is dropped -- the folds were the
+  hairline-throughs), then facets both sides with the same phase and a
+  small jitter. One polygon per stroke, straight segments, no self-crossing.
+- **Counterpunch.** A bowl is an OUTER contour (cut, faceted) around a
+  COUNTER contour wound the other way (`Hole`), a hole under TrueType's
+  nonzero rule: the counter is the punch, clean, keeping the pen's stress.
+  `round12.orient` is replaced by `orient_with_holes` so a Hole keeps its
+  winding. Done for o b d p q g, the eye of the e, the bowl of the a. k5
+  facets the counters too (a punch cut with a graver).
+- **Ink traps.** The arches of n m h u leave the stem at its inner edge and
+  taper (`patch_arch`), so a notch opens at the crotch; the e's lower arm
+  starts under the bar with a taper for the same notch. `trap` scales them
+  (k2 has them at 1.6).
+
+Two mistakes on the way, both mine and both found in the proof render:
+the e's eye ended at 171° and its arm began at 203°, so 32° of the bowl were
+missing (the arm now continues from the eye's own end); and the g's square
+stem top met the ring where it had already curved inward, a visible step
+(the stem tucks in at 0.3 x-height now).
+
+Six TTFs: k1 cut 4/3 traps 1.0; k2 traps 1.6; k3 cut 3/2 (straighter); k4
+cut 5/4 (rougher); k5 chiselled counters; k6 pure decimation, no jitter.
+Page: https://claude.ai/code/artifact/ebe2a2f8-7afd-4d23-b8bb-583e59a4eb8d
