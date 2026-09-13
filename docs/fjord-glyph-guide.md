@@ -36,6 +36,18 @@ answers land in this section as they arrive.
   wound the other way; nonzero fill). The stroke helpers of §2 are then the
   measuring stick (what thickness a stroke should have at an angle), the
   rulings of §3 stay the constraints, and §4's instruments still judge.
+- **What stays fixed** (his answer, three of four offered): the
+  PROPORTIONS (x-height 415, capitals 1.625 xh, ascender 762, descender 250,
+  stem 82 and cap stem 1.137, contrast 0.60 at 26°, overshoots 14 and 12 at
+  the ink's edge, lowercase width 0.938 / o counter 1.036); the RULINGS ON
+  SPECIFIC LETTERS (the §3 table: G3 g, the e's dials, no J bar, the kick
+  angles, the D-family bowls with the bottom opened, the 8 to the 6, the 3 to
+  the 5, the two-sided I and U tops, the fitting rule and the spacing
+  readout); and the WEDGE SERIF FAMILY (bracketed wedges at the round-30
+  sizes, pointing where they point -- their curves may be redrawn, the
+  family may not). Everything else -- the strokes' actual outlines, the
+  joins, the terminals' curves, the bowls' shapes within their boxes -- is
+  drawn again.
 
 ## 1. What you are making, and for whom
 
