@@ -15,6 +15,13 @@ DESIGN["stem"] = 94                          # owner ruling, round 59 (2026-09-1
 # the lowercase against fixed caps, and 429 was picked on that slider).
 DESIGN["stem"] = 84; DESIGN["contrast"] = 0.80; DESIGN["asc"] = 770; DESIGN["desc"] = 256; DESIGN["xh"] = 429
 DESIGN["cut"] = 115                          # the cut as an AMOUNT: 0 the dense outline, 100 the 1-in-4 projection, 200 the 1-in-8, linear between
+# Round 65 (owner): "set default to .95 contrast, update contrast range to
+# full 0-100; set DESC default to 280." Then, same round: "new defaults:
+# Weight 84, Contrast 0.95, Ascender 770, Descender 280, Width 100, Cut 87,
+# x-height 429, Serif 92."
+DESIGN["contrast"] = 0.95; DESIGN["desc"] = 280
+DESIGN["cut"] = 87; DESIGN["serif"] = 92    # serif: the wedge family's unit (WL, WD, DROP) x 0.92
+HAIR_FLOOR = 6.0   # the pen's hair never under this (0.32 px at 54 px em): at contrast 1.00 th() would be 0 on the stress angle
 # Round 61 (owner: "a variable axis font"): every design parameter an axis
 # moves is read from an env override at import, so one master of the
 # variable font is one subprocess of outlines.build. Unset, each is the
@@ -26,7 +33,7 @@ DESIGN["xh"], DESIGN["asc"], DESIGN["desc"] = XH, ASC, DESC
 S = _env("FJORD_STEM", DESIGN["stem"]); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c); the wght axis
 CONTRAST = _env("FJORD_CONTRAST", DESIGN["contrast"])                          # the CNTR axis: hair = stem x (1 - contrast)
 WIDTH = _env("FJORD_WIDTH", 100.0) / 100.0                                     # the wdth axis: lc_width, the capitals' solved widths, the fitting, all x this
-SERIF = _env("FJORD_SERIF", 100.0) / 100.0                                     # the SRIF axis: the wedge family's unit x this
+SERIF = _env("FJORD_SERIF", DESIGN["serif"]) / 100.0                                     # the SRIF axis: the wedge family's unit x this
 CUT_AMOUNT = _env("FJORD_CUT", DESIGN["cut"])                                   # the CUTS axis: 0..200 (see cut.blend)
 CAP = BASE_XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]
@@ -40,7 +47,17 @@ BOWL_K = DESIGN["bowl_k"]                    # 2.1: the family's superellipse
 NW = DESIGN["n_width"] * WF + (S - 110) * 0.9   # the n's stem-to-stem distance
 N_COUNTER = NW - S
 N_COUNTER_FULL = DESIGN["n_width"] * WIDTH + (S - 110) * 0.9 - S   # the UNCONDENSED n counter the word space is 1.7 x of (round 20)
-PEN = _Pen(S, CONTRAST, DESIGN["stress"], DESIGN["power"])
+class FlooredPen:
+    """alphabet2.Pen with an absolute floor on its width: every consumer
+    (th, th_t, pen_widths, bowl_th, check, the rings) reads PEN.th(), so
+    the floor lives here and nowhere else. The ruled floors on particular
+    strokes (K arm 0.47 stem, R leg 1.05 x pen, j tail, e bar 0.35 stem,
+    r arm 0.78) sit above it and are untouched."""
+    def __init__(self, inner, floor):
+        self.inner = inner; self.floor = floor; self.stem = inner.stem; self.hair = max(inner.hair, floor)
+        self.stress = inner.stress; self.power = inner.power
+    def th(self, tan): return max(self.inner.th(tan), self.floor)
+PEN = FlooredPen(_Pen(S, CONTRAST, DESIGN["stress"], DESIGN["power"]), HAIR_FLOOR)
 HAIR = PEN.hair
 
 def th(deg):

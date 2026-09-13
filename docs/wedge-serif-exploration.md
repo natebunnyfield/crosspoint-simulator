@@ -13,19 +13,22 @@
   <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
   `albo-specimen.html`. The B's waist is one bar. Stem 94 (round 59) was
   superseded by 84 in round 62, below.
-- **DEFAULTS, 2026-09-13 (round 62, owner, from the sliders):** stem 84,
-  contrast 0.80, asc 770, desc 256, xh 429, cut 115 (continuous: 100 = the
-  1-in-4 projection, 200 = 1-in-8), width 100, serif 100 -- `pen.DESIGN` in
+- **DEFAULTS, 2026-09-13 (round 65, owner, from the sliders; round 62's
+  0.80 / 256 / 115 / 100 superseded the same day):** stem 84, contrast
+  0.95, asc 770, desc 280, xh 429, cut 87 (continuous: 100 = the 1-in-4
+  projection, 200 = 1-in-8), width 100, serif 92 -- `pen.DESIGN` in
   `outlines/pen.py`, and the VF's default instance, which IS the static
-  Regular (max vertex deviation 0, metrics identical). The Regular now carries
+  Regular (max vertex deviation 0, metrics identical). The pen's hair has an
+  absolute floor of 6 units (`pen.HAIR_FLOOR`) so contrast 1.00 still draws;
+  at 0.95 it lifts one sample on 16 glyphs by at most 1.8 units. The Regular now carries
   the dense point set (19,027 points, 41 KB). Supersedes stem 94, contrast
   0.60, asc 762, desc 250, xh 415 below. Caps stay at 674. At xh 429 the o's
   counter reads 0.988 wide over tall against the 1.036 ruling (not re-solved;
   an open item).
 - **VARIABLE, 2026-09-13 (round 61, owner):** Albo is also `Albo-VF.ttf`
-  (`build/fjord-fonts/`), eight axes -- wght 50/84/140, CNTR 0.05/0.80/0.95,
-  ASCN 700/770/830, DESC 180/256/340, wdth 80/100/120, CUTS 0/115/200, XHGT
-  380/429/460, SRIF 60/100/140 (round-62 defaults and ranges) -- whose
+  (`build/fjord-fonts/`), eight axes -- wght 50/84/140, CNTR 0.00/0.95/1.00,
+  ASCN 700/770/830, DESC 180/280/340, wdth 80/100/120, CUTS 0/87/200, XHGT
+  380/429/460, SRIF 60/92/140 (round-65 defaults and ranges) -- whose
   default instance is Albo Regular.
   Built by `python3 -m outlines.variable <out_dir>` (20 masters, each an
   env-parameterized `outlines.build`, compatibilized by arc-length sampling;
@@ -1981,3 +1984,20 @@ reach; he meant the POCKET above the tail. So the 9 is round 71's flag-diag
 bowl. Round 73: ladder of the tail's width under the bowl at 0.75 / 0.60 /
 0.45 of round 71's, all from the top edge, `NINE_TAIL_TOP`, 0.60 until ruled.
 The & ruling (round_bowl) stands.
+
+Round 65 LANDED (2026-09-13). Clamps: wght 50 a h y → 58.5; wght 140 c →
+126; corners as recorded in NOTES.md; a new sliver check clamps a master
+whose resampled contour crosses itself (the h at wght 50 by 28 units²).
+Default = Regular (max deviation 0, metrics identical; the q carries one
+duplicate point, same shape). Ink at black, 147 common words: **67.0%** at
+0.95 vs 69.2% at 0.80 -- 4.4% less ink on the line, no dropouts, joins and
+the o's thin sides read gray. **Space inside and between** (`cmp/space.py`,
+now on the proof page): the o's counter 331 x 365 = 0.907 against the 1.036
+ruling (0.988 at contrast 0.80 -- the contrast step made it 30 taller at
+the same width); +47 units of counter width, or wdth 111 on the axis,
+restores it -- NOT applied, his call. n counter 255, word space 353,
+bearings n 45/45 (adv 639, was 651: serif 92 shortens the wedges), o 37/38,
+H 45/45, O 37/37. Smallest enclosed counters at 54 px: # 36 white px, @ 53,
+% 54, e 55, a 88. Specimen, slider page, proof page republished; both TTFs
+sent. NOT in this build: the figure rulings of rounds 64-73 and the &, which
+wait on the 9's pick and merge in one figures.py + marks.py commit.

@@ -278,8 +278,11 @@ def set_bowl(key):
     BOWL = None if key == 'pen' else dict(BOWL_OPTIONS[DEFAULT_BOWL if key is None else key])
 BOWL = dict(BOWL_OPTIONS[DEFAULT_BOWL])
 if os.environ.get('FJORD_ARCH_FLOOR'): BOWL['arch_floor'] = float(os.environ['FJORD_ARCH_FLOOR'])   # round 60 ladder override: the n m h u arches never thin below this x stem
-if os.environ.get('FJORD_CONTRAST'):   # the CNTR axis (round 61): the bowls stay on B's hand -- hair fraction 1 - 0.5 c (0.70 at 0.60), the max unchanged
-    BOWL['hair'] = 1.0 - 0.5 * float(os.environ['FJORD_CONTRAST'])
+# The bowl hair follows the contrast (round 61's rule, applied at the
+# default too since round 63): hair fraction 1 - 0.5 c -- B's own 0.70 at
+# the 0.60 it was picked at, 0.60 at 0.80, 0.525 at 0.95, 0.50 at 1.00; the
+# max unchanged.
+BOWL['hair'] = 1.0 - 0.5 * pen.CONTRAST
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""

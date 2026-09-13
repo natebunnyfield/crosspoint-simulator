@@ -448,6 +448,86 @@ of weight and contrast: Weight 84, Contrast 0.80, Ascender 770, Descender
   the round-61 default for comparison, then each axis min/max (wght and
   CNTR labelled with the ranges as landed).
 
+## Round 65: contrast 0.95 with a hair floor, DESC 280, cut 87, serif 92, the space inside and between
+
+Owner: "set default to .95 contrast, update contrast range to full 0-100;
+set DESC default to 280." Then, same round: "new defaults: Weight wght 84,
+Contrast CNTR 0.95, Ascender ASCN 770, Descender DESC 280, Width wdth 100,
+Cut CUTS 87, x-height XHGT 429, Serif SRIF 92." And the standing rule:
+"always pay attention to the space inside and between characters."
+
+- **Defaults** (`pen.DESIGN`): stem 84, contrast 0.95, asc 770, desc 280,
+  xh 429, width 100, cut 87, serif 92 (`DESIGN["serif"]`, new key; WL, WD,
+  DROP x 0.92 = 65.7, 131.4, 21.6). The specimen's lede prints them. Axes:
+  wght 50/84/140, CNTR 0.00/0.95/1.00, ASCN 700/770/830, DESC 180/280/340,
+  wdth 80/100/120, CUTS 0/87/200, XHGT 380/429/460, SRIF 60/92/140; sliders
+  and Reset carry them.
+- **The hair floor** (`pen.HAIR_FLOOR = 6.0`, inside `FlooredPen.th()`, so
+  every consumer gets it): at 0.95 the raw pen's hair is 84 x 0.05 = 4.2 and
+  at 1.00 it is 0 on the 26 deg stress angle. The floor lifts the pen only
+  in a band of stroke directions around the stress angle: 25..27 deg at
+  0.95 (3 deg wide), 24..28 at 0.9875, 23..29 at 1.00; at 0.80 the raw hair
+  is 16.8 and the floor never acts. Instrumented at the default (every
+  `th()` call the floor lifted, by glyph): 16 of 92 glyphs, all through
+  `pen_widths` -- the n h m u arch shoulders (one sample each, raw 5.6 /
+  5.6 / 4.5 / 5.8), the f's hook (4.5), the s and S spines (4.6 / 4.3),
+  the y's tail (5.4), the J's tail (6.0, at the line), the Q's tail (4.4),
+  the U's bowl (5.1), the 2 (5.1), the 5 (5.3), the 9's tail (4.4), the &
+  (4.2, five samples), the @ (5.1). The lift is at most 1.8 units. Bowls
+  never touch it: they draw on the bowl profile, whose hair is 1 - 0.5c =
+  0.525 x 84 = 44 at 0.95 (0.50 at 1.00). The ruled floors (K arm, R leg,
+  j tail, e bar, r arm) sit far above it and are untouched.
+- **Sliver clamp** (`variable.compatibilize`, `crossing_sliver`,
+  `SLIVER_MIN = 4` units^2): a resampled contour that crosses itself by a
+  real sliver now counts as a clamp case like a topology change (the h at
+  wght 50 crossed itself by 28 units^2 at the arch join, 95 at wght 50 +
+  CNTR 1.00). Zero-area pinches from integer rounding in `make_glyph` are
+  not clamped: N at CNTR 0 (194,676), W in the dense CUTS-0 master
+  (570,567), m at wght 140 (737,21), and M U Y at wght 140 + wdth 80 --
+  each a contour touching itself at one integer point, no area.
+- **Clamps (per glyph, 25% steps toward the default):** wght_min a h y ->
+  58.5; wght_max c -> 126; wght_max_wdth_min h n w -> (126, 85), c m ->
+  (115.5, 88.75); wght_max_CNTR_max c -> (126, 0.9875); wght_min_CNTR_min a
+  -> (58.5, 0.2375); wght_min_CNTR_max a h y -> (58.5, 0.9875). No GAVE UP.
+- **Verification:** default instance vs `Albo-Regular.ttf`: max vertex
+  deviation 0.00, advances and side bearings identical, 147-word ink (PIL
+  54 px) +0.13% (FreeType's auto-hinting of the two files). Extremes: 0
+  defects at 13 of 16; the pinches above at wght_max, CNTR_min, CUTS_min.
+  Corners: wght max + wdth min 3 (M U Y pinches), the other five 0.
+- **Ink at black over the 147 common words** (`eink`, share of ink pixels
+  at level 0): new default 67.0% (static and VF instance; 164,323 ink
+  pixels) against round 62's 69.2% (171,924) as its own static and 68.6% at
+  the round-62 location instanced from this VF; before the cut/serif
+  amendment (0.95, cut 115, serif 100) it was 67.3%. About 4.4% less ink on
+  the line and a slightly smaller share of it solid; at 13 pt nothing drops
+  out (the n/m/h joins and the o's thin sides read gray, not white).
+- **The space inside and between** (`cmp/space.py`; the numbers also sit
+  at the foot of `albo-variable-proof.html`): the o's counter 331 x 365 =
+  0.907 wide over tall against the round-35 ruling 1.036 (round 62 read
+  331 x 335 = 0.988; the contrast step to 0.95 made the counter 30 taller
+  at the same width). +47 units of counter width would restore it (+8.2% of
+  the o's 577 advance); on the wdth axis the counter reads 1.142 at 120, so
+  wdth 111 lands on the ruling. NOT applied -- the width is his call. The n
+  counter at mid x-height 255 (round 62: 254; design 249), word space 353
+  (unchanged: the rule is on the unscaled n counter), sidebearings n 45/45
+  (adv 639, was 651: serif 92 shortens the wedges and the band rule keeps
+  the bearings), o 37/38 (577, was 578), H 45/45 (874, was 875), O 37/37
+  (776, was 776 at 37/38). At 54 px on the four-level render the smallest
+  enclosed counters by white pixels surviving: # 36 of 53 paper, @ 53/60,
+  % 54/62 and 55/63, e 55/67 (round 62: 50/58), a 88/97 (74/85), 8 91/98,
+  4 95/119; largest O 718/746. Narrowest apertures (square dilation radius
+  at which an open counter seals, gap about 2r px): @ r1 (the spiral), the
+  double quote r1 (between its two marks), s r2, 2 S a e m r3, 5 h r4 --
+  the same order as round 62. The proof page's first block is now the 147
+  common words at the new default (then the paragraph), the round-62
+  default the same way, then the 16 extremes.
+- **Pages:** `albo-variable.html` sliders at the new defaults, Reset to
+  them, CNTR 0..1; `albo-variable-proof.html` 20 blocks plus the space
+  section. Deliverables copied from `vf/` to the rebuild root: `Albo-VF.ttf`,
+  `albo-variable.html`, `albo-variable-proof.html`, `Albo.designspace`.
+- Not touched: `glyphs/figures.py` (another agent's), the width. Nothing
+  committed.
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

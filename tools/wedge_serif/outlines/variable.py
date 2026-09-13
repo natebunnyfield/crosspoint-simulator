@@ -36,23 +36,27 @@ CHARS, GLYPH_ORDER, gname = round19.CHARS, round19.GLYPH_ORDER, round19.gname
 from . import pen as _pen
 D_ = _pen.DESIGN
 # tag, name, min, default, max, env var, (min value, max value) as the env var wants them.
-# Defaults are the static builder's (pen.DESIGN, round 62). The wght and CNTR
+# Defaults are the static builder's (pen.DESIGN; round 65: wght 84, CNTR 0.95,
+# ASCN 770, DESC 280, wdth 100, CUTS 87, XHGT 429, SRIF 92). The wght and CNTR
 # ranges are FOUND by build_vf: the widest end at which no more than three
 # glyphs need a per-glyph clamp (round 62; the candidates are in RANGE_TRIALS).
 AXES = [
-    ["wght", "Weight",    70,   D_["stem"],     120,  "FJORD_STEM",     (70, 120)],
-    ["CNTR", "Contrast",  0.30, D_["contrast"], 0.85, "FJORD_CONTRAST", (0.30, 0.85)],
+    ["wght", "Weight",    50,   D_["stem"],     140,  "FJORD_STEM",     (50, 140)],
+    ["CNTR", "Contrast",  0.00, D_["contrast"], 1.00, "FJORD_CONTRAST", (0.00, 1.00)],
     ["ASCN", "Ascender",  700,  D_["asc"],      830,  "FJORD_ASC",      (700, 830)],
     ["DESC", "Descender", 180,  D_["desc"],     340,  "FJORD_DESC",     (180, 340)],
     ["wdth", "Width",     80,   100,            120,  "FJORD_WIDTH",    (80, 120)],
     ["CUTS", "Cut",       0,    D_["cut"],      200,  None,             (0, 200)],
     ["XHGT", "x-height",  380,  D_["xh"],       460,  "FJORD_XH",       (380, 460)],
-    ["SRIF", "Serif",     60,   100,            140,  "FJORD_SERIF",    (60, 140)],
+    ["SRIF", "Serif",     60,   D_["serif"],    140,  "FJORD_SERIF",    (60, 140)],
 ]
-RANGE_TRIALS = {("wght", "min"): [50, 55, 60, 65, 70, 75], ("wght", "max"): [170, 160, 150, 140, 130, 120],
-                ("CNTR", "min"): [0.05, 0.10, 0.15, 0.20, 0.25, 0.30], ("CNTR", "max"): [0.95, 0.93, 0.91, 0.89, 0.87, 0.85]}
+# Round 62 found wght 50/140 and CNTR 0.05/0.95 by trial (RANGE_TRIALS);
+# round 65 rules the contrast range 0.00 / 0.95 / 1.00 outright and keeps
+# wght 50/140, so no search runs -- glyphs that change topology at an end
+# are clamped per glyph as before.
+RANGE_TRIALS = {}
 MAX_CLAMPED_GLYPHS = 3
-ROUND61 = {"wght": 94, "CNTR": 0.60, "ASCN": 762, "DESC": 250, "wdth": 100, "CUTS": 100, "XHGT": 415, "SRIF": 100}
+PREVIOUS = ("round 62", {"wght": 84, "CNTR": 0.80, "ASCN": 770, "DESC": 256, "wdth": 100, "CUTS": 115, "XHGT": 429, "SRIF": 100})
 
 # ---------------------------------------------------------------- masters (subprocesses)
 def build_master(out_dir, name, env_over):
@@ -200,12 +204,31 @@ def compatibilize(default, master, label):
         bb_d = bbox_of(dconts); bb_m = bbox_of(mconts)
         matched = match_contours(dconts, mconts, bb_d, bb_m)
         if matched is None: problems.append((ch, "hole/outer counts differ")); continue
-        conts = []
+        conts = []; sliver = None
         for (dpts, hole), (mpts, mhole) in zip(dconts, matched):
             mpts = align_start(mpts, norm(dpts[0], bb_d), bb_m)
-            conts.append((sample_like(dpts, mpts), hole))
+            spts = sample_like(dpts, mpts); conts.append((spts, hole))
+            # round 65: a resampled contour that crosses itself by a real
+            # sliver (a join resampled across a tight junction) is a clamp
+            # case like a topology change; zero-area pinches from integer
+            # rounding are not (they appear only in make_glyph, after this)
+            a = crossing_sliver(spts)
+            if a >= SLIVER_MIN and (sliver is None or a > sliver[0]): sliver = (a, spts)
+        if sliver: problems.append((ch, f"resampled contour crosses itself, sliver {sliver[0]:.0f} units^2")); continue
         out[ch] = (conts, mg["adv"], mg["lsb"])
     return out, problems
+
+SLIVER_MIN = 4.0   # units^2: below this a self-crossing is a rounding pinch, not a drawing
+def crossing_sliver(pts):
+    """Area of the smallest piece a self-crossing contour splits into (0 when
+    it is valid or the crossing is a zero-area pinch)."""
+    from shapely.geometry import Polygon
+    from shapely.validation import make_valid
+    if len(pts) < 4: return 0.0
+    p = Polygon(pts)
+    if p.is_valid: return 0.0
+    mv = make_valid(p); pieces = [g.area for g in getattr(mv, "geoms", [mv]) if g.area > 0]
+    return min(pieces) if len(pieces) > 1 else 0.0
 
 # ---------------------------------------------------------------- the cut as a displacement
 def cut_plans(default):
@@ -257,7 +280,7 @@ def write_master(path, glyphs, space, name="Albo", style="Master", xh=415, cap=6
     fb.setupPost(); fb.save(path); return path
 
 # ---------------------------------------------------------------- the build
-ENV_DEFAULT = {"FJORD_STEM": D_["stem"], "FJORD_CONTRAST": D_["contrast"], "FJORD_ASC": D_["asc"], "FJORD_DESC": D_["desc"], "FJORD_WIDTH": 100, "FJORD_XH": D_["xh"], "FJORD_SERIF": 100}
+ENV_DEFAULT = {"FJORD_STEM": D_["stem"], "FJORD_CONTRAST": D_["contrast"], "FJORD_ASC": D_["asc"], "FJORD_DESC": D_["desc"], "FJORD_WIDTH": 100, "FJORD_XH": D_["xh"], "FJORD_SERIF": D_["serif"]}
 CAP = 415 * 1.625; OVER = 14
 import alphabet2 as A
 import round20
@@ -318,7 +341,8 @@ def corners_spec():
     return [("wght_max_wdth_min", {"FJORD_STEM": r["wght"][1], "FJORD_WIDTH": 80}, {"wght": r["wght"][1], "wdth": 80}),
             ("XHGT_max_ASCN_min", {"FJORD_XH": 460, "FJORD_ASC": 700}, {"XHGT": 460, "ASCN": 700}),
             ("wght_max_CNTR_max", {"FJORD_STEM": r["wght"][1], "FJORD_CONTRAST": r["CNTR"][1]}, {"wght": r["wght"][1], "CNTR": r["CNTR"][1]}),
-            ("wght_min_CNTR_min", {"FJORD_STEM": r["wght"][0], "FJORD_CONTRAST": r["CNTR"][0]}, {"wght": r["wght"][0], "CNTR": r["CNTR"][0]})]
+            ("wght_min_CNTR_min", {"FJORD_STEM": r["wght"][0], "FJORD_CONTRAST": r["CNTR"][0]}, {"wght": r["wght"][0], "CNTR": r["CNTR"][0]}),
+            ("wght_min_CNTR_max", {"FJORD_STEM": r["wght"][0], "FJORD_CONTRAST": r["CNTR"][1]}, {"wght": r["wght"][0], "CNTR": r["CNTR"][1]})]
 
 def find_ranges(out_dir, default, log):
     """Round 62: try the wider ends (RANGE_TRIALS) and pull each in to the
@@ -340,7 +364,7 @@ def find_ranges(out_dir, default, log):
         else:
             v = vals[-1]; found[(tag, side)] = (v, jsons[f"trial_{tag}_{side}_{v}"])
     for i, a in enumerate(AXES):
-        if a[0] in ("wght", "CNTR"):
+        if (a[0], "min") in found and (a[0], "max") in found:
             mn = found[(a[0], "min")][0]; mx = found[(a[0], "max")][0]
             AXES[i] = [a[0], a[1], mn, a[3], mx, a[5], (mn, mx)]
     return found, trials
@@ -349,7 +373,7 @@ def build_vf(out_dir, log=print):
     os.makedirs(out_dir, exist_ok=True); mdir = os.path.join(out_dir, "masters")
     report = dict(clamps=[], masters={}, trials={})
     default = load(build_master(out_dir, "default", {})); phases = cut_plans(default)
-    found, report["trials"] = find_ranges(out_dir, default, log)
+    found, report["trials"] = find_ranges(out_dir, default, log) if RANGE_TRIALS else ({}, {})
     log("ranges: " + ", ".join(f"{a[0]} {a[2]} / {a[3]} / {a[4]}" for a in AXES if a[0] in ("wght", "CNTR")))
     jsons = {"default": os.path.join(mdir, "default.json")}
     specs = []
@@ -497,8 +521,19 @@ def proof_page(vf_path, out_dir):
     figs = []
     def img(im, cap): figs.append(f'<figure><img src="{b64(im)}" width="{im.size[0]}" height="{im.size[1]}"><figcaption>{html.escape(cap)}</figcaption></figure>')
     para = round19.PARAGRAPHS[1][:260]
-    p = instance(vf_path, dict(default_loc), os.path.join(tmp, "default.ttf")); img(eink(p, para), "the new default (round 62): " + ", ".join(f"{t} {v}" for t, v in default_loc.items()))
-    p61 = instance(vf_path, dict(ROUND61), os.path.join(tmp, "round61.ttf")); img(eink(p61, para), "the round-61 default for comparison: " + ", ".join(f"{t} {v}" for t, v in ROUND61.items()))
+    import word_weight; words = " ".join(word_weight.WORDS)   # round 65 (owner: "always pay attention to the space inside and between characters"): the rhythm first
+    p = instance(vf_path, dict(default_loc), os.path.join(tmp, "default.ttf")); cap = "the new default: " + ", ".join(f"{t} {v}" for t, v in default_loc.items())
+    img(eink(p, words), cap + " -- the 147 common words"); img(eink(p, para), cap)
+    pprev = instance(vf_path, dict(PREVIOUS[1]), os.path.join(tmp, "previous.ttf")); cap = f"the {PREVIOUS[0]} default for comparison: " + ", ".join(f"{t} {v}" for t, v in PREVIOUS[1].items())
+    img(eink(pprev, words), cap + " -- the 147 common words"); img(eink(pprev, para), cap)
+    # the space inside and between: counters, apertures, fitting, on the default instance
+    from .cmp import space as SP
+    prev_static = os.environ.get("ALBO_PREVIOUS_STATIC"); prev_used = prev_static if prev_static and os.path.exists(prev_static) else pprev
+    lines, m, counters, apertures = SP.describe(p, prev_used)
+    wide = instance(vf_path, dict(default_loc, wdth=120), os.path.join(tmp, "wdth_120_probe.ttf")); r100 = m["o_counter"][2]; r120 = SP.metrics(wide)["o_counter"][2]
+    if abs(r120 - r100) > 1e-6: lines.append(f"on the wdth axis the o's counter reads {r100:.3f} at 100 and {r120:.3f} at 120, so wdth {100 + (SP.O_RULING - r100) / (r120 - r100) * 20:.0f} would put it on the {SP.O_RULING} ruling (not applied; the width is his call)")
+    lines[2] = lines[2].replace("against " + os.path.basename(prev_used), "against " + (f"the {PREVIOUS[0]} static build" if prev_used == prev_static else f"the {PREVIOUS[0]} location instanced from this VF"))
+    space_html = "<h2>The space inside and between</h2><ul>" + "".join(f"<li>{html.escape(l)}</li>" for l in lines) + "</ul>"
     for tag, name, mn, df, mx, *_ in AXES:
         for side, v in (("min", mn), ("max", mx)):
             loc = dict(default_loc); loc[tag] = v
@@ -506,8 +541,9 @@ def proof_page(vf_path, out_dir):
     doc = f'''<title>Albo Variable Proof</title>
 <style>:root{{--paper:#F9F3E9;--ink:#5C332B;--soft:#8A6A62;--rule:#E4D8C8}}@media (prefers-color-scheme: dark){{:root:not([data-theme="light"]){{--paper:#171B1B;--ink:#CFD4CC;--soft:#93A09B;--rule:#2B3331}}}}:root[data-theme="dark"]{{--paper:#171B1B;--ink:#CFD4CC;--soft:#93A09B;--rule:#2B3331}}
 body{{background:var(--paper);color:var(--ink);margin:0;padding:16px 10px 60px;font:15px/1.45 -apple-system,Arial,sans-serif}}main{{max-width:900px;margin:0 auto}}h1{{font-size:22px;margin:0 0 6px}}p{{max-width:64ch;color:var(--soft);font-size:13px}}
+h2{{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:22px 0 6px;border-top:1px solid var(--rule);padding-top:10px}}ul{{max-width:80ch;font-size:13px;color:var(--soft);padding-left:18px}}li{{margin:0 0 6px}}
 figure{{margin:0 0 12px}}figure img{{width:100%;max-width:375px;height:auto;image-rendering:pixelated;display:block;background:#fff}}figcaption{{font-size:11px;color:var(--soft);margin-top:2px}}</style>
-<main><h1>Albo Variable, on the reader's pipeline</h1><p>13 pt on the 2x reader (54 px em), 8x supersampled, quantized to the panel's four levels: the new default, the round-61 default it replaces, then each axis at its minimum and maximum (the wght and CNTR labels carry the ranges as landed). PNG at native pixels, 750 px blocks at 375 CSS px.</p>{''.join(figs)}</main>'''
+<main><h1>Albo Variable, on the reader's pipeline</h1><p>13 pt on the 2x reader (54 px em), 8x supersampled, quantized to the panel's four levels: the new default on the 147 common words and on the paragraph, the previous default it replaces the same way, then each axis at its minimum and maximum (the wght and CNTR labels carry the ranges as landed). PNG at native pixels, 750 px blocks at 375 CSS px.</p>{''.join(figs)}{space_html}</main>'''
     out = os.path.join(out_dir, "albo-variable-proof.html"); open(out, "w").write(doc); return out
 
 def verify(vf_path, out_dir, static_path, log=print):
@@ -537,7 +573,8 @@ def verify(vf_path, out_dir, static_path, log=print):
     log("(2) extremes: " + ", ".join(f"{k} {a}/{b}" for k, (a, b, _) in res["extremes"].items()))
     r = {t: (mn, mx) for t, n, mn, d_, mx, *_ in AXES}
     corners_ = [("wght max + wdth min", {"wght": r["wght"][1], "wdth": 80}), ("CNTR max + CUTS 200", {"CNTR": r["CNTR"][1], "CUTS": 200}), ("XHGT max + ASCN min", {"XHGT": 460, "ASCN": 700}),
-                ("wght max + CNTR max", {"wght": r["wght"][1], "CNTR": r["CNTR"][1]}), ("wght min + CNTR min", {"wght": r["wght"][0], "CNTR": r["CNTR"][0]})]
+                ("wght max + CNTR max", {"wght": r["wght"][1], "CNTR": r["CNTR"][1]}), ("wght min + CNTR min", {"wght": r["wght"][0], "CNTR": r["CNTR"][0]}),
+                ("wght min + CNTR max", {"wght": r["wght"][0], "CNTR": r["CNTR"][1]})]
     ims = []; res["corners"] = {}
     for label, over in corners_:
         loc = dict(default_loc); loc.update(over)
