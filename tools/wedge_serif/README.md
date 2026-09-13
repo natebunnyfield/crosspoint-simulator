@@ -5,9 +5,9 @@ CrossPoint X3 and its iOS port, by evolution: the owner is shown populations
 of variants and marks keepers; each round narrows or diverges on his ruling.
 The full dated log of rounds, rulings, measurements and negative results is
 [`docs/wedge-serif-exploration.md`](../../docs/wedge-serif-exploration.md).
-**Read its "State" section first.** This file is the map of the code.
+**Read its "State" section first.** This file is the map of the code. How to draw a glyph that belongs -- pen, serifs, proportions, rulings, the judging loop -- is [`docs/fjord-glyph-guide.md`](../../docs/fjord-glyph-guide.md).
 
-## The owner's working rules (from thirteen rounds, 2026-09-12)
+## The owner's working rules (fifty-one rounds, 2026-09-12)
 
 1. **He judges pictures, never prose.** Every round ends in an Artifact page
    of real renders; for fonts, the page embeds the TTFs and sets text in
@@ -26,6 +26,13 @@ The full dated log of rounds, rulings, measurements and negative results is
    defects as knobs, never auto-polish.
 6. **Elegance is in the drawing, not the dials.** *"try harder. there is no
    elegance"* was answered by a second drawing model, not new parameters.
+7. **He names the letters; one ask per round.** Since round 25 he starts
+   from what works and names what to fix; a round is that fix, rendered
+   before/after, the specimen republished, the TTF sent, the doc appended.
+8. **No spacing page** (round 25). Bearings come from the fitting rule; his
+   spacing readout of round 22 stands.
+9. **Rulings are reversible only by him** -- the J's bar was "kept always"
+   in round 21 and removed in round 36 on his word.
 
 ## Files
 
@@ -41,11 +48,15 @@ The full dated log of rounds, rulings, measurements and negative results is
 | `round14.py` | V23a cut six times with independent randomness per font and per glyph (`Cut`, `hand`). The pattern for any "no identical defects" ask. |
 | `round15.py` | Seed 73, clean: `CleanCut` (serifs never decimated, joins re-closed by growing, slivers dropped) and `GARAMOND` widths. |
 | `round16.py` | Hairline-throughs cured six ways on c5 with quads (`pen_centerline_cut`, `SerifsOnly`). Superseded by round 17: the owner wanted the straight-cut look back. The e's bar overlap and the optional s spine (`s_spine`, `s_two`, `e_join_fill`) live in `alphabet2.py`. |
-| `latin.py` | A–Z, 0–9, punctuation on the same pen; `capH`, `figH`, `vstem`, `bar`, `diag`, `cp_ring`; `SIDES` for fitting. |
+| `latin.py` | A–Z, 0–9, punctuation on the same pen: `capH` (1.625 xh), `_cstem` (cap stems with the wedge family; `top=` left/right/right+/left+), `bar(align=)`, `diag(taper0, taper1)`, `kick` (legs as the A's), `_bowl_ring` (the D's ring for D B P R), `_beak` (C G S), `_ramp`, `cp_ring`, `FIG_BOX`, `W` (solved widths); the & and @ are real glyphs. |
+| `cmp_garamond.py`, `cmp_vdk.py` | Every glyph beside and over EB Garamond 400 / Van den Keere at matched x-height, deltas flagged. |
+| `overlay_stier.py`, `fig_overlay.py` | Every glyph over the nine humanist S-tier faces; the figures over their old-style sets. |
+| `word_weight.py` | Ink darkness per word and per letter at 54 px against two references, plus outline area. |
+| `e_dials_page.py` | The e drawn through the builder for a grid of bar angle / thickness / height / arm length, as an interactive page. |
 | `round19.py` | The first full-set builder (glyph order, cmap, specimen page). |
-| `round20.py` | **The builder in use**: `build()` writes `Fjord-Regular.ttf` with capitals and figures solved to `garalde_caps.json` (widths, cap stem, cap bearings, old-style figure boxes). Start here for any change to the shipping font. |
+| `round20.py` | **The builder in use**: `build(out_dir, over=)` writes `Fjord-Regular.ttf` with capitals and figures solved to `garalde_caps.json`, lowercase drawn at `lc_width`, bearings by the fitting rule (non-letters and the g on their full extent). Start here for any change to the shipping font. |
 | `garalde_caps.json` | Medians of Dante, Van den Keere, Hoefler Text, Doves: cap height, cap stem, figure height, H counter and bearings, per-glyph widths and vertical extents, all over cap height. |
-| `round17.py` | The construction the full font uses (rounds 17 and 18). Ink traps and counterpunches on the hand-cut linear outline: `pen_linear` (unfold, then facet), `cp_glyphs` (bowls as a cut outer around a `Hole` counter, clipped to the stem, with a tooth on the counter and a notch on the stem as the trap), `patch_arch`, `orient_with_holes`, `clip_line`. `bite` remains as the record of what does not work. |
+| `round17.py` | The construction the full font uses. `pen_linear` (unfold, then facet, both end faces kept), `ring` (outer cut, counter clean), `cp_glyphs` (o d b p q g e a as the font draws them; `G_VARIANTS` with the G3 g as 0, `E_VARIANTS` with the ruled e as 0), `patch_arch`, `Cut` (the post-op; rounds polygons under 20 vertices), `orient_with_holes`. `bite` remains as the record of what does not work. |
 
 Outputs go to a directory you pass as argv[1] (the session scratchpad by
 convention); `build/fjord-fonts/` holds the latest TTFs and zips locally and
@@ -64,7 +75,7 @@ Needs Pillow, numpy, fontTools (all present on the dev box; Python 3.14t).
 `skia-pathops` does NOT build on this Python, so there are no outline
 booleans; see "Limits".
 
-## How a font is made (round12.build)
+## How a font is made (round20.build; round12.build is the older per-technique builder)
 
 1. `alphabet2` draws each glyph as stroked polygons from the design params
    (`p`), with the technique's pen swapped in for `A.outline` and its

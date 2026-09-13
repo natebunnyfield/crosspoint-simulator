@@ -3,61 +3,41 @@
 ## STATE, 2026-09-12 (read this first; the log below is dated history)
 
 - **What this is.** A humanist wedge serif for longform reading on the X3
-  and the iOS app, designed by evolution: populations rendered, owner marks
-  keepers, next round narrows or diverges on his ruling. Code and the map of
-  it: [`tools/wedge_serif/README.md`](../tools/wedge_serif/README.md).
-- **The design is B5.9**: `round10.steps()[-1][2]` -- Book-quiet lineage
-  taken to the garalde brief (x-height 415, ascender 762, descender 250,
-  stem 82, contrast 0.60 at 26°, wedges 0.85/1.7, arches at 0.52). Drawn by
-  `alphabet2.py` (the second drawing model). Coverage: H, a–z, `. , -`.
-- **Deliverables are TrueType files**, built by `round12.build`. 26 in
-  round 12 (one per technique), 18 in round 13 (refinements of the three
-  kept: V23 Scissors, V15 Rotating nib, V19 Gravity), 6 in round 14 (V23a
-  cut six times, `round14.py`), 6 in round 15 (seed 73 clean at Garamond
-  widths, `round15.py`), 6 in round 16 (hairlines, `round16.py`), 6 in
-  round 17 (counterpunch, `round17.py`), 3 in round 18 (k6 fixed, three
-  trap depths, same script), and `Fjord-Regular.ttf` from round 19 (the
-  complete set). Latest files in
-  `build/fjord-fonts/` (gitignored) and in the zips sent to the owner.
-- **The cut is V23a-73c5-k6** (seed 73, pure decimation, no jitter) on the
-  round 17/18 construction: linear pen (folds removed, then faceted),
-  counterpunched bowls kept to their stems, stems running into their curves,
-  punchcut traps (a tooth on the counter, a notch on the stem; at 0.6 stem
-  they are invisible at text size, measured 1–4 px on a line, and the owner
-  saw no difference -- an open item). **Since round 19 the font is the
-  COMPLETE LATIN SET in one file, `Fjord-Regular.ttf`, 93 glyphs**:
-  `tools/wedge_serif/latin.py` (A–Z, 0–9, punctuation) + `round20.py` (the
-  builder in use: widths solved to the garalde references, cap fitting from
-  them, old-style figures; `round19.py` is its base). Capitals redrawn in
-  round 21 on the lowercase's primitives. **Standing spacing ruling** (his
-  readout, 2026-09-12): capitals +34‰ letter-spacing, word-spacing −110‰,
-  in the file as +17 units per side and a 110-unit shorter space; since
-  round 22 the LOWERCASE is fitted on the same basis ("reduce lowercase
-  letter spacing to match uppercase's"). **The J keeps its line across
-  always; the j has no top flag; the g is a looptail.** **Awaiting**: his lowercase spacing value from the page
-  (https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131)
-  and his marks on the specimen
-  (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd).
-- **Next, once a technique is chosen**: (1) the rest of the character set
-  (capitals, digits, punctuation, accents -- the epub `reading` interval);
-  (2) a bold (`round4.bold_of` on the params) and, if wanted, italics, which
-  do not exist; (3) the reader route in the README ("Taking a font to the
-  reader"); (4) an outline-boolean library if one can be built for this
-  Python, which would make counterpunch real and let the naive o keep its
-  seam in a font.
-- **Standing rulings**: body face; humanist rhythm only; defects are knobs,
-  the owner decides what is fixed; evaluate on the sentence, never a word;
-  vectors, not bitmaps; diverge when asked, never narrow on your own.
-- **Widths are Garamond's since round 15**: `width` 1.0, `n_width` 380 on
-  B5.9 (o ~450 wide on an x-height of 415, the n's ink ~437). Bowls of
-  b d p q end INSIDE their stems; the g's stem starts at 0.42 x-height with
-  a short ear (counterpunch-inspired quiet joins).
-- **Fitting rules**: the eight in "How letters fit together" below.
-
-Owner ask 2026-09-12: *"let's explore making a humanist wedge serif like
-Albertus and Icone. give me twenty diverse options with just the word 'fjord'
-then I'll give feedback. consider readability and enjoyment and character. do
-it a variety of styles. ask questions."*
+  and the iOS app, designed by evolution: populations rendered, the owner
+  marks keepers, each round narrows or diverges on his ruling. Fifty-one
+  rounds so far, all on 2026-09-12. Code map and traps:
+  [`tools/wedge_serif/README.md`](../tools/wedge_serif/README.md). **How to
+  draw a glyph that belongs -- the pen, the serif family, the proportions,
+  the rulings, the judging loop:**
+  [`docs/fjord-glyph-guide.md`](fjord-glyph-guide.md).
+- **The font is `Fjord-Regular.ttf`, 93 glyphs** (A–Z a–z 0–9, 30 marks
+  including a real & and @), built by `tools/wedge_serif/round20.py` from
+  `alphabet2.py` (lowercase), `round17.py` (`cp_glyphs`: the counterpunched
+  o d b p q g e a the font actually uses, the linear cut pen, `E_VARIANTS`
+  and `G_VARIANTS`) and `latin.py` (capitals, figures, marks). Design B5.9
+  (`round19.DESIGN`: x-height 415, ascender 762, descender 250, stem 82,
+  contrast 0.60 at 26°, overshoot 14, arches 12, `lc_width` 0.938). Latest
+  files in `build/fjord-fonts/` (gitignored); specimen at
+  https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd.
+- **Standing rulings** (each with its round): pictures never prose; the
+  sentence never the word; vectors never bitmaps; diverge when asked,
+  converge on his ruling; defects are his call; body face, humanist rhythm;
+  he names the letters, one ask per round; **no spacing page** (25). Caps at
+  1.625 xh (26); overshoot is the ink's edge, 14 rounds / 12 arches (27,
+  30); lowercase width 0.938, o counter 1.036, capitals untouched (35); one
+  wedge family (30); kicks A 65 R 60 k 56 K 37, all different (31, 32, 36);
+  H N U right-stem wedges point out, the U's and the I's two-sided (32, 36,
+  51); J bar removed (36, reversing 21); the g is G3 on the nib (40, 42);
+  the e at 5° / 0.72 pen / 0.62 xh / 330° / blunt (39, 46); D B P R bowls
+  one ring construction with the bottom opened (36, 45, 47); the 3's bottom
+  after the 5's (44); the 8 to the 6's circle (49); punctuation and figures
+  fitted on their full extent (41); fourteen glyphs matched to Van den
+  Keere's strokes on the same construction (42).
+- **Measured and left alone**: word weight is ascender count and descender
+  length, not stroke weight (36, 46); the two levers are the descender and
+  the pen's contrast on the rounds, the owner's to pull.
+- **Next**: bold and italic; accents (Latin-1, Extended-A); kerning;
+  hinting and vertical metrics; the reader route (README).
 
 ## How the options are made
 
