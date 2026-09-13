@@ -178,10 +178,27 @@ def g_K(c):
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
     return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
 
+# owner, verbatim: "add more top right serif to 'L'" -- the stem top's wedge
+# (today `top='left'` only) extended to the right as the H/N/U right-stem tops
+# do, so the top reads as a proper two-sided serif rather than a bare stem
+# with the wedge on one side. In units of a full stem-top wedge's length (WL);
+# depth stays the family's WD, drop the family's DROP. The arm (there is
+# none), foot and bar-end wedge are untouched.
+L_TOP_RIGHT = 1.0
+
 @glyph('L')
 def g_L(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'L', 420)
-    return geom.ink([cstem(x, 0, C, top='left', foot='left'), bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
+    st = cstem(x, 0, C, top='left', foot='left')
+    # the real top-right stem edge, entasis and all, so the extra wedge's
+    # bracket lands tangent to the same edge cstem's own left wedge reads --
+    # cstem(cap=True) with no ent_span uses the full (0, C) span (stem()'s
+    # default), so reproduce that here rather than re-deriving it
+    cap_w = TH_V * CAP_STEM
+    def _wid(y): return cap_w * (1.0 + ENT * (2 * y / C - 1) ** 4)
+    top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD, DROP,
+                       edge_at=lambda d: (x + _wid(C - d) / 2, C - d))
+    return geom.ink([st, top_right, bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
 
 @glyph('M')
 def g_M(c):
