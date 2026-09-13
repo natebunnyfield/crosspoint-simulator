@@ -2108,3 +2108,9 @@ edge. Checked here: the ladder renders as briefed. Ladder 0.6 / 1.0 / 1.4,
 page https://claude.ai/code/artifact/c3ff4781-1b68-4975-ba66-6cf9f8bbec14,
 1.0 default until he picks. The caps batch (E F K R Q M S W Z) now runs on
 caps_straight.py as an Opus agent.
+
+Round 75, L again (2026-09-13). Owner on the 0.1-1.4 ladder: "none of the
+options are an improvement. try one similar to other letters like 'I'." The
+L's stem top becomes the I's `left+` (the primitive's own two-sided top);
+`L_TOP_RIGHT` defaults to 0 and keeps the ladder's separate wedge for the
+record. Page (same URL) shows before / after / the I.

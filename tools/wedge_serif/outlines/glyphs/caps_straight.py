@@ -184,21 +184,26 @@ def g_K(c):
 # with the wedge on one side. In units of a full stem-top wedge's length (WL);
 # depth stays the family's WD, drop the family's DROP. The arm (there is
 # none), foot and bar-end wedge are untouched.
-L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 1.0))   # FJORD_L_TOP: ladder override
+L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.0))   # FJORD_L_TOP: ladder override
 
 @glyph('L')
 def g_L(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'L', 420)
-    st = cstem(x, 0, C, top='left', foot='left')
-    # the real top-right stem edge, entasis and all, so the extra wedge's
-    # bracket lands tangent to the same edge cstem's own left wedge reads --
-    # cstem(cap=True) with no ent_span uses the full (0, C) span (stem()'s
-    # default), so reproduce that here rather than re-deriving it
-    cap_w = TH_V * CAP_STEM
-    def _wid(y): return cap_w * (1.0 + ENT * (2 * y / C - 1) ** 4)
-    top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD, DROP,
-                       edge_at=lambda d: (x + _wid(C - d) / 2, C - d))
-    return geom.ink([st, top_right, bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
+    # Owner 2026-09-13, on the L_TOP_RIGHT ladder 0.1-1.4: "none of the
+    # options are an improvement. try one similar to other letters like 'I'".
+    # So the L's top is the I's: the stem primitive's own two-sided top
+    # ('left+'), the small right-pointing wedge at the primitive's factor.
+    # L_TOP_RIGHT > 0 keeps the ladder's separate wedge for the record.
+    if L_TOP_RIGHT > 0:
+        st = cstem(x, 0, C, top='left', foot='left')
+        cap_w = TH_V * CAP_STEM
+        def _wid(y): return cap_w * (1.0 + ENT * (2 * y / C - 1) ** 4)
+        top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD, DROP,
+                           edge_at=lambda d: (x + _wid(C - d) / 2, C - d))
+        parts = [st, top_right]
+    else:
+        parts = [cstem(x, 0, C, top='left+', foot='left')]
+    return geom.ink(parts + [bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
 
 @glyph('M')
 def g_M(c):
