@@ -1935,3 +1935,13 @@ hairline on its loop's rising side (the pen at 29 deg, 3 deg off the
 stress) -- that is the current & as it will now render, not a variant
 defect. Fonts `build/fjord-fonts/amp2/`. Page
 https://claude.ai/code/artifact/07e96d82-60a9-4757-91f4-3e74223636dc.
+
+Round 70 built (2026-09-13): `SIX_TAIL_FLOOR` under the pen before the
+profile (the 9's tail construction). Today's tail thins to 27 units (1.5 px
+at 54 px); floors 0.55 / 0.70 / 0.85 / 1.00 S give 49 / 61 / 74 / 86 units
+(2.6 / 3.3 / 4.0 / 4.7 px). Aperture between tail and bowl at 54 px shrinks
+87 → 78 → 76 → 73 → 67 white px; counter and fit unchanged, except at 1.00
+where the tail's buried start pokes 2 units past the bowl and the width
+solver narrows the 6 (and so the 8) by 2 -- pin `W['6']` if he picks 1.00.
+Floor 0 byte-identical to the ruled-8 build. Page
+https://claude.ai/code/artifact/PENDING70.
