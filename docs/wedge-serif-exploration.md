@@ -2053,3 +2053,16 @@ changed-glyph lists against the brief, counters at 54 px, and the pages.
 Added the same hour: "add more top right serif to 'L'" -- a fourth Sonnet
 agent, `caps_straight.py` only, the L's stem top extended right at 0.6 /
 1.0 / 1.4 of a stem-top wedge (`L_TOP_RIGHT`, 1.0 default).
+
+## Round 76 (2026-09-13): the lighter weights, 100-400 against this as 500
+
+Owner: "make thinner versions (calibrate against industry norms (100 200 300
+400) if we consider this to be 500". Opus agent in a worktree, one new file
+`outlines/cmp/weights.py`: measures stem/x-height per named weight on the
+weight families on this machine and in `wedge/ref/`, derives Albo's stems
+(and contrasts, so the hair stays drawable at 54 px) at 400 / 300 / 200 /
+100 from the median ratios to each family's 500, builds Thin / ExtraLight /
+Light / Regular as static TTFs with name table and usWeightClass, runs the
+topology check per weight, and pages them at 52 px and 13 pt with the
+ink-at-black share. Naming collision to settle: today's `Albo-Regular.ttf`
+is the 500 and may become `Albo-Medium.ttf`. Page pending.
