@@ -2368,3 +2368,10 @@ corner's x; the 2 lifted 8 (it bottomed at -7, now 1); the 4 closed; the @
 https://claude.ai/code/artifact/1f30b2e3-484c-4659-82aa-a38d0da5fb35. VF rebuild follows.
 
 **Future todo (owner):** reduce the thickness of the 4's top-left stroke.
+
+VF rebuilt after round 82 (2026-09-13): 23 masters; default instance
+against the Regular, worst symmetric difference 0.5% (the L), metrics
+equal. New clamp at wght 50: the E (a 3,908-unit² sliver where its arm
+wedge and cut meet at the light end) -- a light-weight fault on the E to
+fix when the lighter weights are taken up. Slider, proof and specimen
+pages republished; VF sent.
