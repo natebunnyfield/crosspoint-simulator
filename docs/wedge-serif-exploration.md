@@ -750,3 +750,20 @@ remove black line across j stem. redo g to be looptail instead."*
   short ear out from the bowl's outer edge, a tapered link down the right,
   and a wide lower loop below the baseline open at its upper right. Nothing
   crosses the bowl.
+
+## Round 23 (2026-09-12): "looptail means double storey g"
+
+Round 22's looptail never reached the font: `round20.build` swaps in
+`round17.cp_glyphs` (the counterpunched set the k6 construction uses) and
+that set carried its own single-storey g, which overrode `alphabet2.g_g`.
+The proof render should have caught it and I did not look at the g alone.
+Now the double-storey g lives in `cp_glyphs` itself: an upper bowl on the
+x-height (rx 160, ry 0.31 xh) and a lower loop below the baseline (rx 200,
+ry 0.56 desc), each an outer contour around a struck counter; a tapered
+link from the bowl's lower right into the loop's upper right; an ear out
+from the bowl's outer edge. The first loop was 232 wide and two g's
+touched; narrowed and given height.
+
+**Trap for the next agent:** anything drawn in `alphabet2.py` for a letter
+that `cp_glyphs` also defines (o d b p q g e a) is NOT what the font gets;
+edit `round17.cp_glyphs`, or remove the letter from the override.

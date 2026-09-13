@@ -95,6 +95,7 @@ booleans; see "Limits".
 - **A cubic between two stems with its controls on the baseline never reaches the baseline** (the U and u floated 63 and 40 units). Put the controls below by ~0.55 of the start height.
 - **A stem that ends exactly where its curve begins seams** (the j/f fractures). Overlap by half a stem.
 - **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
+- **`round17.cp_glyphs` overrides o d b p q g e a in the font.** A change to one of those in `alphabet2.py` never reaches `Fjord-Regular.ttf` (the looptail g was drawn twice for this reason). Edit the override.
 - **Never replace a function by slicing to the next `def`** without checking
   what sits between; it ate the capital H once.
 - **Coverage is A–Z a–z 0–9 and 30 punctuation marks** (round 19). No accents; the epub pipeline's `reading` interval wants Latin-1 and Extended-A. Only a regular exists; the reader's recipe expects four styles. No kerning.

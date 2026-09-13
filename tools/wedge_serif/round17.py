@@ -219,15 +219,25 @@ def cp_glyphs(seed, every, amp, trap, counter_cut=None):
     def g_q(c): return bowl_stem(c, "right", c["xh"], -c["desc"])
 
     def g_g(c):
+        """Looptail (double-storey) g, owner 2026-09-12, in the counterpunched
+        construction the font uses: upper bowl and lower loop are each an
+        outer contour around a struck counter; the link is a tapered stroke;
+        the ear starts at the bowl's outer edge and never crosses it."""
         P = []; xh = c["xh"]; wf = c["wf"]; s = c["s"]; desc = c["desc"]
-        rx = 205 * wf; cx = rx; x = cx + rx - s * 0.5
-        full_bowl(c, cx, rx, P)
-        # the stem tucks in low, where the ring's right side is still
-        # vertical, so no step shows where a square top meets the curve
-        A.stem(c, P, x, -desc * 0.3 - s * 0.5, xh * 0.3, top=None, foot=None, flare=False)
-        # no ear: the bowl carries nothing over it (owner 2026-09-12)
-        tail = A.bez((x, -desc * 0.3), (x, -desc * 1.1), (cx - rx * 0.6, -desc * 1.15), (cx - rx * 1.05, -desc * 0.6), 44)
-        A.curve(c, P, tail, A.compose(A.taper_in(0.7, 0.15), A.flare_end(0.3, 0.3)), cut1=c["cut"]); return P
+        rx = 160 * wf; ry = xh * 0.31; cx = rx + 10; cy = xh - ry
+        outer, inner = ring(c, cx, cy, rx, ry, 0, two, 100, cut=cut)
+        P.append(outer); P.append(Hole(ccut(inner) if ccut else inner))
+        ex = cx + rx * 0.92; ey = cy + ry * 0.55
+        A.curve(c, P, A.line((ex, ey), (ex + 85 * wf, ey + 28), 8), lambda t: 0.8, cut1=c["cut"])
+        lcx, lcy = cx + 4, -desc * 0.55; lrx, lry = 200 * wf, desc * 0.56
+        outer2, inner2 = ring(c, lcx, lcy, lrx, lry, 0, two, 110, cut=cut)
+        P.append(outer2); P.append(Hole(ccut(inner2) if ccut else inner2))
+        # the link: from the bowl's lower right down into the loop's upper right
+        p0 = (cx + rx * 0.62, cy - ry * 0.82)
+        p3 = (lcx + lrx * 0.66, lcy + lry * 0.78)
+        link = A.bez(p0, (p0[0] + 26, p0[1] - 70), (p3[0] + 60, p3[1] + 70), p3, 30)
+        A.curve(c, P, link, A.compose(A.taper_in(0.65, 0.2), A.taper_out(0.75, 0.2)))
+        return P
 
     def g_e(c):
         """The eye is a counterpunch: outer arc from the bar round the top to
