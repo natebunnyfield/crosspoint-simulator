@@ -48,6 +48,14 @@ answers land in this section as they arrive.
   family may not). Everything else -- the strokes' actual outlines, the
   joins, the terminals' curves, the bowls' shapes within their boxes -- is
   drawn again.
+- **The shape references** (his answer, verbatim "garamond, garalde,
+  edgar"): EB Garamond 400 (`scratchpad wedge/ref/EBGaramond-400.ttf`, fetch
+  line in the exploration doc, round 24), the garaldes on disk -- Van den
+  Keere and Dante MT in the reader repo's `lib/EpdFont/local_fonts/` -- and
+  Edgar (same directory). Overlay every rebuilt glyph on all of them
+  (`cmp_garamond.py`, `cmp_vdk.py`, and `overlay_stier.py` restricted to
+  those faces); where they disagree, the garalde median is the target and
+  the owner's picture decides.
 
 ## 1. What you are making, and for whom
 
