@@ -357,28 +357,43 @@ It runs the other way too, and that direction costs a firmware change: a capabil
   now fails on a bundle with no icon, for the same reason it fails on a missing
   purpose string: App Store review rejects both.
 - **"deploy mac apps"** means all FOUR local bundles, rebuilt and installed
-  into `/Applications`: `CrossPointX3`, `CrossPointX3-2x` (the same X3 binary
-  with `CROSSPOINT_SIM_WINDOW_SCALE=2` in `LSEnvironment`), `CrossPointX3-3x`
-  (added 2026-09-13) and `CrossPointX4` (the `simulator` env). Owner's phrase,
-  2026-08-19.
+  into `/Applications`, at the scale each one names. Owner's phrase, 2026-08-19;
+  the scales are an owner ruling of 2026-09-13 ("rebuild 2x and all versions to
+  use high fidelity").
+
+  | Bundle | Render | Window | |
+  |---|---|---|---|
+  | `CrossPointX3` | 1 | 1 | device-exact reference |
+  | `CrossPointX3-2x` | 2 | 2 | supersampled |
+  | `CrossPointX3-3x` | 3 | 3 | supersampled |
+  | `CrossPointX4` | 1 | 1 | device-exact reference |
+
   [packaging/macos/deploy_mac_apps.sh](packaging/macos/deploy_mac_apps.sh) does
   it, and refuses to install a bundle that builds but does not boot. This is NOT
   the App Store path -- these are unsigned, for this Mac. The reason it exists:
   those three sat at build 1 from 2026-08-07 for twelve days while every palette,
   the grain and the shortlist landed, and the Mac was being judged against them.
-- **`-2x` IS A WINDOW, `-3x` IS THE RASTERISATION.** `CrossPointX3-2x` is the
-  same 1x binary magnified, so its glyphs are 1x glyphs scaled up.
-  `CrossPointX3-3x` is a SEPARATE binary compiled with
-  `CROSSPOINT_RENDER_SCALE=3`, so the hi-res paths are compiled in and it reads
-  the `<Family>/3x/` `.cpfont` companions. Two consequences for the deploy
-  script: both cuts of `simulator_x3` write the SAME
-  `.pio/build/simulator_x3/program`, so the 3x one is built and packaged FIRST
-  and the 1x builds follow (which also leaves the tree at the 1x default); and
-  because a bundle's card is keyed by its NAME
-  (`~/Library/Application Support/<app>/fs_`, `HalStorage.cpp:66`), the new
-  bundle starts empty, so the script seeds its `fonts/` from the firmware's
-  `fs_/fonts` on the first run only. Without those companions every glyph falls
-  back to 1x-replicated and the 3x build shows nothing a 2x window would not.
+- **ONE X3 BINARY SERVES ALL THREE X3 BUNDLES.** `CROSSPOINT_RENDER_SCALE` is a
+  CEILING; the factor actually rendered at is latched at startup from
+  `CROSSPOINT_SIM_RENDER_SCALE` (`docs/render-scale.md`,
+  `simulator_main.cpp latchRenderScale`), so one build at 3 covers 1, 2 and 3
+  and the bundles differ only in `LSEnvironment`. **`CROSSPOINT_SIM_RENDER_SCALE=1`
+  on the plain `CrossPointX3` is load-bearing**: unset means the ceiling, so
+  omitting it would render the device-exact reference at 3. Until 2026-09-13
+  `-2x` named the WINDOW and not the rasterisation -- it was the 1x binary
+  magnified -- and the 3x bundle was briefly a second build of `simulator_x3`,
+  which is a trap worth remembering if that ever returns: both cuts write the
+  same `.pio/build/simulator_x3/program`, so the second silently overwrites the
+  first.
+- **A SUPERSAMPLED BUNDLE NEEDS ITS OWN `<Family>/<N>x/` COMPANIONS.** A card is
+  keyed by BUNDLE NAME (`~/Library/Application Support/<app>/fs_`,
+  `HalStorage.cpp:66`), so every bundle has a separate one. Without the matching
+  tier every glyph quietly falls back to 1x-replicated ("No hi-res companion",
+  `SdCardFontManager.cpp`) and the bundle looks like a plain zoom. The deploy
+  script's `ensure_tier` copies the whole tree when there is no card and
+  otherwise ADDS only missing tier directories -- additive, never replacing, so
+  an arranged card survives. It matters most for `-2x`, whose card is NOT new
+  and has never needed a `2x/` tier before.
 - TestFlight deploys: [packaging/macos/deploy.sh](packaging/macos/deploy.sh)
   runs build → bundle → verify → embed dylibs → sign → `productbuild` →
   `altool` → tag, and must run on macOS from a GUI Terminal session.
