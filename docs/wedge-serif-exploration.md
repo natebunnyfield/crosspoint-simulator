@@ -1915,3 +1915,23 @@ guide's 0.85 x 0.85 at 1.15; and `primitives.stroke` drops an end corner
 when `cut1` moves it back more than one sample spacing (11 units), so the
 current 9's 20 deg end cut is really ~17 deg -- a latent bug in the builder,
 the VF agent's file.
+
+Round 68 built (2026-09-13): `VARIANTS2` in `glyphs/ampersands.py` is one
+parametric drawing `bred(c, **dials)` spanning the parents, ten settings of
+it: 1 teardrop_top (current with the teardrop's top), 2 current_arm (the
+teardrop with the current's arm), 3 midpoint, 4 mid_light (spur 0.8), 5
+mid_heavy (spur 1.2, the A's foot wedge), 6 mid_narrow (0.9), 7 mid_wide
+(1.1), 8 beak (arm in the C's beak, cross 47 deg), 9 upturn (closed loop,
+arm up into the stem wedge), 10 round_bowl (open spiral, the o's bowl).
+Lesson kept in the file: the spur and the loop's left side are collinear in
+both parents, so a half-closed top is a HOOK from the top, not a loop that
+stops. `cmp/ampersands.py --gen 2`; measures include white at 54 px in loop
+and bowl, sidebearings, and an aperture by morphological closing. On the
+owner's pen (contrast 0.95): all hairs >= 25 (the thin diagonal's floor
+0.30 S), every counter/aperture >= 0.6 S; bearings identical across all
+twelve (the & has fixed side fractions), only advances move (756-862).
+**Finding:** the shipping & itself at contrast 0.95 carries a 10-unit
+hairline on its loop's rising side (the pen at 29 deg, 3 deg off the
+stress) -- that is the current & as it will now render, not a variant
+defect. Fonts `build/fjord-fonts/amp2/`. Page
+https://claude.ai/code/artifact/PENDING68.

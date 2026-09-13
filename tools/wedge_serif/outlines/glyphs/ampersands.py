@@ -353,3 +353,179 @@ VARIANTS = [
     ('flick', amp_flick),
     ('aspiring', amp_aspiring),
 ]
+
+# ================================================================ generation II
+# Owner, on round 67's ten (2026-09-13): "make variants inspired by current
+# and teardrop." So one parametric drawing, `bred`, whose dials span the two
+# parents -- the shipping & (`marks.g_ampersand`: the spur running on as the
+# loop's thin left side, the arm's right-pointing flag, the hooked foot) and
+# round 67's `amp_teardrop` (a designed closed loop, round at the top,
+# pointed at the crossing, a straight spur with the A's foot wedge) -- and
+# ten settings of it. The midpoint of every dial is the default; each
+# variant names only the dials it moved off it.
+#
+# Two rules of this drawing, kept because they are silent. The spur and the
+# loop's left side are COLLINEAR in both parents (the ring's left side runs
+# at 42 degrees from the point, the spur at 45), so "the loop stops short"
+# cannot open the loop -- it breaks the spur's line -- and the half-closed
+# top is instead a HOOK: the loop's left side, coming down from the top,
+# curls inward and stops above the crossing, the aperture between its end
+# and the spur. And the thin diagonal is the pen at its own angle (0.31 S at
+# 41 degrees) with `THIN` as its floor: at a crossing steeper than 35
+# degrees the pen runs into its stress angle and would vanish (4 units at
+# the owner's 0.95 contrast).
+
+CUR_W = 8.76 * S * pen.WIDTH   # the shipping &'s 736, in the pen's units, on the width axis
+THIN = 0.30 * S                # the thin diagonal's floor: what the pen gives at 41 degrees
+
+def t_of(sp, P):
+    """The t (0..1) of the resampled spine's sample nearest P: how the width
+    plan's keys are placed on a spine whose lengths move with the dials."""
+    n = len(sp) - 1; i = min(range(len(sp)), key=lambda k: math.dist(sp[k], P)); return i / n
+
+def loop_path(cx, cy, rx, ry, Pt, flare=0.06):
+    """The loop's CENTERLINE as an open path from the point, ccw: up the
+    left side, over the top, down the right side, back to the point --
+    `teardrop_outer` rotated to start at Pt and reversed."""
+    o = teardrop_outer(cx, cy, rx, ry, Pt, flare)
+    i = min(range(len(o)), key=lambda k: math.dist(o[k], Pt))
+    rot = o[i:] + o[:i] + [o[i]]
+    return rot[::-1]
+
+def lerp_pts(a, b, t):
+    return [(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t) for p, q in zip(a, b)]
+
+def arm_beak(center, w_end):
+    """The C's beak transposed to a RISING arm: the end face sheared to the
+    vertical (stroke's cut1 = minus the arm's angle: the upper-left corner
+    advances, the lower-right retreats) and a short lip, 0.35 x 0.6 of the
+    family, hanging from the face's lower corner into the air under the
+    arm. `primitives.beak` assumes the C's end convention (its lip sits on
+    the corner stroke() ADVANCES at a start), which on an arm's end leaves
+    the lip floating off the face -- so the corner is computed here from
+    the same shear stroke() applies. Returns (cut1, lip)."""
+    d = geom.tangents(center)[-1]; P = center[-1]; alpha = math.atan2(d[1], d[0])
+    cut1 = -alpha; nr = (d[1], -d[0])                       # the arm's lower (right-of-travel) normal
+    shift = math.tan(cut1) * w_end / 2                      # stroke() moves R[-1] by +tn * shift at the end
+    A = (P[0] + nr[0] * w_end / 2 + d[0] * shift, P[1] + nr[1] * w_end / 2 + d[1] * shift)
+    return cut1, wedge(A, d, nr, WL * 0.35, WD * 0.6, 0.0)
+
+# the lower bowl between the two constructions: the current's (a straight
+# left side, a flat bottom, the right side rising steeply into the arm) and
+# the o's (round, wider, its right side a real curve the arm leaves from)
+BOWL_CUR = [(0.06, 0.17), (0.18, 0.03), (0.38, 0.0), (0.53, 0.10), (0.60, 0.26)]
+BOWL_O = [(0.05, 0.12), (0.15, 0.01), (0.35, 0.0), (0.55, 0.04), (0.65, 0.17)]
+
+def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm_end='flag',
+         spur_w=1.0, spur_x=0.97, spur_foot='hook', bowl=0.5, width=1.0, opening=0.58, hook_end='cut'):
+    """One & from the dials.
+    top: 'open' = the current's spiral (the spur runs on as the loop's left
+         side, one stroke, the pen's width there); 'half' = the loop's left
+         side comes down from the top as its own stroke and stops above the
+         crossing, curling in (a hook, `opening` of the side removed, its
+         end a diagonal wedge or a pen cut); 'closed' = the teardrop's ring.
+    loop: the loop's width, x the parents' 0.22 w.  point: the crossing, in
+         (w, C) fractions.  cross: the thin diagonal's angle below horizontal.
+    arm: the arm's end height in C; arm_end: 'flag' (the current's
+         right-pointing wedge), 'beak' (the C's), 'cut' (the pen cut), 'up'
+         (a small upturn into the right stem wedge).
+    spur_w: x the pen; spur_x: the foot's x in w (its angle); spur_foot:
+         'hook' (the current's curled foot, tapered in), 'wedge' (the
+         teardrop's straight spur with the A's foot wedge), 'plain' (straight,
+         the pen cut).  bowl: 0 = the current's lower bowl, 1 = the o's.
+    width: x the current's advance-width proportion."""
+    C = CAP(c); w = CUR_W * width; o = ob(); hb = PR.bowl_hair()
+    X = (point[0] * w, point[1] * C)
+    # ---- the loop: outer top on C + OVER, widest rx, centre a little left of the point
+    rx = 0.22 * w * loop; ry = 0.20 * C + OVER; cy = C + OVER - ry; cx = X[0] - 0.06 * w
+    # ---- the thin diagonal and the lower bowl, then the arm
+    xD = 0.065 * w; yD = X[1] - (X[0] - xD) * math.tan(math.radians(cross))
+    D = (xD, yD); M = ((X[0] + xD) / 2, (X[1] + yD) / 2)
+    bp = [(a * w, (b * C if b > 0.001 else -o)) for a, b in lerp_pts(BOWL_CUR, BOWL_O, bowl)]
+    B5 = bp[-1]; ang = math.radians(53.0)
+    yE = arm * C; xE = B5[0] + (yE - B5[1]) / math.tan(ang); E = (xE, yE)
+    tail = 0.9 * WD if arm_end in ('flag', 'beak') else 0.35 * WD   # the flag's and the beak's brackets run down a STRAIGHT edge
+    A1 = (E[0] - tail * math.cos(ang), E[1] - tail * math.sin(ang))
+    body_pts = [X, M, D] + bp + [A1]
+    body = geom.resample(catmull(body_pts, tension=0.5) + line(A1, E)[1:])
+    if arm_end == 'up': body = stand_up(body, WD * 1.2)   # a SMALL upturn: the last WD x 1.2 bent up (0.6 of it straight, past the 0.7 wedge's depth) under the stem wedge
+    tD, tB5 = t_of(body, D), t_of(body, B5)
+    beak_cut, beak_lip = arm_beak(body, 0.0)[0], None       # the shear alone here; the lip needs the arm's final width
+    # ---- the spur: from the foot up-left through the crossing, buried past it
+    if spur_foot == 'hook':
+        sp_pts = [((spur_x - d) * w, b * C) for d, b in ((0.0, 0.10), (0.13, 0.02), (0.27, 0.07), (0.34, 0.17))]
+    else:
+        sp_pts = [(spur_x * w, 0.0)]
+    parts = []; spur_end = (X[0] - 0.02 * w, X[1] + 0.03 * C)    # buried in the loop's point / the diagonal's start
+    if top == 'open':
+        # ONE spine: spur -> X -> up the loop's left -> top -> down its right -> X -> diagonal -> bowl -> arm
+        lp = loop_path(cx, cy, rx - 0.45 * S, ry - hb / 2, X)
+        spur_sp = catmull(sp_pts + [X], tension=0.5) if spur_foot == 'hook' else line(sp_pts[0], X)
+        sp = geom.resample(spur_sp[:-1] + lp + body[1:])
+        tX1 = t_of(sp, X); tL = t_of(sp, lp[len(lp) // 4]); tR = t_of(sp, lp[3 * len(lp) // 4]); tX2 = t_of(sp, lp[-1])
+        tD2 = t_of(sp, D); tB = t_of(sp, B5)
+        blend = widths([(0.0, 1.0), (tX1 - 0.02, 1.0), (tL, 0.0), (tR, 0.0), (tX2 + 0.02, 1.0), (tD2 - 0.02, 1.0), (tD2 + 0.03, 0.0),
+                        (tB - 0.02, 0.0), (tB + 0.04, 1.0)])
+        prof = widths([(0.0, 0.3 if spur_foot == 'hook' else 1.0), (0.05, 1.0)])
+        sw = widths([(0.0, spur_w), (tX1 - 0.03, spur_w), (tX1 + 0.02, 1.0)])
+        # the loop's left side (spiral): the pen at its angle, floored at THIN -- the current's thin
+        wf = mixw(sp, blend, lambda t: prof(t) * sw(t), floor=THIN)
+        parts.append(stroke(sp, wf, pieces=True, cut0=CUT if spur_foot == 'plain' else None,
+                            cut1=beak_cut if arm_end == 'beak' else None))
+        if spur_foot == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, +1, 0.9))
+        arm_sp, arm_w = sp, wf(1.0)
+    else:
+        # the spur, its own stroke, thinning into the crossing
+        spur_sp = geom.resample(catmull(sp_pts + [spur_end], tension=0.5) if spur_foot == 'hook' else line(sp_pts[0], spur_end))
+        prof = widths([(0.0, 0.3 if spur_foot == 'hook' else 1.0), (0.05, 1.0), (0.72, 1.0), (1.0, 0.65)])
+        sw = pen_widths(spur_sp, prof, floor=THIN, scale=spur_w)
+        parts.append(stroke(spur_sp, sw, cut0=CUT if spur_foot == 'plain' else None))
+        if spur_foot == 'wedge': parts.append(end_wedge(spur_sp, sw(0.0), True, +1, 0.9))
+        if top == 'closed':
+            outer = teardrop_outer(cx, cy, rx, ry, X)
+            lo, _, _ = teardrop_loop(outer); parts.append(lo)
+            sp = body
+            blend = widths([(0.0, 1.0), (tD - 0.02, 1.0), (tD + 0.03, 0.0), (tB5 - 0.02, 0.0), (tB5 + 0.04, 1.0)])
+            wf = mixw(sp, blend, floor=THIN)
+            parts.append(stroke(sp, wf, cut1=beak_cut if arm_end == 'beak' else None))
+        else:   # 'half': the hook + the body as one spine
+            # the loop's sides bow out a little more than the ring's, so the
+            # hook's free end sits LEFT of the spur's line rather than on it
+            lp = loop_path(cx, cy, rx - 0.45 * S, ry - hb / 2, X, flare=0.14)
+            # the left side is lp[0 .. iL] (Pt up to L); drop `opening` of it from the point; the free
+            # end runs straight for the wedge's bracket (the garamond's foot) or takes the pen cut
+            iL = min(range(len(lp)), key=lambda k: lp[k][0]); k = int(round(iL * opening))
+            hook = lp[k:]; H = hook[0]
+            if hook_end == 'wedge': hook = straight_head(hook, 0.3 * WD)
+            sp = geom.resample(hook + body[1:])
+            tH = t_of(sp, H); tX2 = t_of(sp, lp[-1]); tD2 = t_of(sp, D); tB = t_of(sp, B5)
+            blend = widths([(0.0, 0.0), (tX2 + 0.02, 0.0), (tD2 - 0.02, 1.0), (tD2 + 0.03, 0.0), (tB - 0.02, 0.0), (tB + 0.04, 1.0)])
+            wf = mixw(sp, blend, widths([(0.0, 0.92), (tH + 0.03, 1.0)]), floor=THIN)
+            parts.append(stroke(sp, wf, pieces=True, cut0=CUT if hook_end == 'cut' else None,
+                                cut1=beak_cut if arm_end == 'beak' else None))
+            if hook_end == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, -1, 0.6))
+        arm_sp, arm_w = sp, wf(1.0)
+    # ---- the arm's end
+    if arm_end == 'flag': parts.append(arm_flag(arm_sp, arm_w, 0.9))
+    elif arm_end == 'up': parts.append(top_wedge(arm_sp, arm_w, +1, 0.7))
+    elif arm_end == 'beak': parts.append(arm_beak(arm_sp, arm_w)[1])
+    return geom.ink(parts)
+
+def _v(**d):
+    """A VARIANTS2 entry: `bred` at these dials, the dials kept on the
+    function (`fn.dials`) so the proof page prints what moved rather than a
+    hand-written list that drifts."""
+    fn = lambda c: bred(c, **d); fn.dials = dict(d); return fn
+
+VARIANTS2 = [
+    ('teardrop_top', _v(top='closed', point=(0.35, 0.56), cross=39.0, arm=0.64, spur_foot='hook', bowl=0.0)),
+    ('current_arm', _v(top='closed', point=(0.38, 0.54), cross=40.0, arm=0.64, spur_x=0.95, spur_foot='wedge', bowl=0.35)),
+    ('midpoint', _v()),
+    ('mid_light', _v(spur_w=0.8)),
+    ('mid_heavy', _v(spur_w=1.2, spur_foot='wedge')),
+    ('mid_narrow', _v(width=0.9)),
+    ('mid_wide', _v(width=1.1)),
+    ('beak', _v(arm=0.50, arm_end='beak', cross=47.0)),
+    ('upturn', _v(top='closed', loop=0.88, point=(0.37, 0.60), arm=0.56, arm_end='up', spur_x=0.93, spur_foot='plain')),
+    ('round_bowl', _v(top='open', loop=1.1, bowl=1.0, arm_end='cut', arm=0.54)),
+]
