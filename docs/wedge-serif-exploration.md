@@ -1513,3 +1513,15 @@ owner:** the pen at 26° puts a bowl's maximum at 2 o'clock (tangent 116°),
 thins at 11 and 5; Van den Keere's D carries its weight at 4 o'clock. That is
 the pen's definition (`stress`), not a drawing; moving it moves every round.
 Recorded in `outlines/NOTES.md` ("Brush-stroke revision").
+
+## Round 57 (2026-09-13, in progress): B and related -- the bowls' measured profile
+
+Owner: "take another pass at B and related characters because your
+understanding is wrong." Measured with `bowl_rays.py` (ray-cast thickness by
+angle from the bowl's center, 0 = 3 o'clock): Van den Keere's D P B O peak
+at 0° at 95–98 (the stem is 82), symmetric, falling to 32–46 at ±80°; Fjord's
+peaked at +20° at 85 and fell only to 56–70. The 26° nib was the wrong model
+for the bowls: their stress is vertical, their contrast ~2.7, and they run
+heavier than the straights. Fitted `w = 34 + 63·|cos θ|^1.28`; handed to the
+rebuild agent for D B P R; O C G Q and the lowercase bowls left for a ruling
+(the reference's O has the same profile).

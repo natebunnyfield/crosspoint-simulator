@@ -157,6 +157,20 @@ first sample ate the start of every stroke and broke the j). A post-op
 (`round17.Cut`) grows polygons a few units so joins re-close, and rounds any
 polygon under 20 vertices -- see the traps.
 
+**The bowls do NOT follow the 26° nib -- measured, 2026-09-13.** The owner:
+"take another pass at B and related characters because your understanding
+is wrong." `tools/wedge_serif/bowl_rays.py` ray-casts a bowl's stroke
+thickness by angle from its center. Van den Keere's D, P, B and O all peak
+at 3 o'clock (vertical stress for the bowl strokes), symmetric above and
+below, HEAVIER than the stem (97 against 82), and fall steeply to a true thin
+at the top and bottom (32–46). The 26° pen gave a peak at 2 o'clock of 85
+falling only to 60: a tube. Fitted bowl profile, θ from 3 o'clock:
+`w = hair + (max − hair)·|cos θ|^1.28`, hair 0.42 stem, max 1.18 stem;
+applied to D B P R in round 57; O C G Q and the lowercase bowls measure the
+same in the reference and await the owner's ruling. The pen model of this
+section is the reference for STEMS, DIAGONALS and ARCHES; the bowls have
+their own measured profile.
+
 **Counters are punched, not stroked.** A bowl (o b d p q, the g's bowl and
 loop, the e's eye, the D B P R bowls, the figures' bowls, the @'s ring) is
 `round17.ring(c, cx, cy, rx, ry, a0, a1, n, k, cut)`: it returns the OUTER
