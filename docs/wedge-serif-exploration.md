@@ -2162,3 +2162,19 @@ S x 0.05, same apex and angles. Only h n m changed; r and u byte-identical
 scope, noted for the next pass); advances unchanged; at 54 px 43 / 19 / 8
 pixels differ. Checked here at 800 px: the nick is gone. Page
 https://claude.ai/code/artifact/c6765f1b-2455-4a14-b565-fc41c8f83e9b.
+
+Round 75/77, k z w (2026-09-13, landed): the k's arm 13.4 → 17.4 units
+(`ARM_WEIGHT` 1.30; ladder 1.15 / 1.30 / 1.45 built), the leg now springs
+from the arm's LOWER EDGE burying 0.20 S instead of from its centerline
+burying 0.25 S -- knot 711 → 502 units², crotch white up 15%; advance and
+bearings unchanged; K v x y byte-identical. The z's pen cut was on the
+wrong end of each bar (the end the diagonal crosses), a sliver spike at
+both corners -- moved under the wedge end as the Z does. The w's apex: the
+two inner diagonals share a start but are not collinear (a double-peak
+notch, hull-patched at the vertex) and a thin spike stabbed into the
+counter (a local opening); apex wedge depth corrected to the family's
+0.9 x 1.0. Checked here at 330 px. Page
+https://claude.ai/code/artifact/24e95a42-8dde-4f4f-a62b-818711e17ef4.
+Note: this agent lost its worktree after the rate-limit restart and edited
+the main checkout; the files stayed disjoint and only diagonals.py is in
+this commit.
