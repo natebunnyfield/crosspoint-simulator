@@ -2234,3 +2234,43 @@ stretch issue with html previews" -- four agent pages (weights, k, hmn,
 variety) carried `width`/`height` attributes without `height:auto`; patched
 and republished; the rule hardened in the guide and sent to the running
 agents.
+
+## Round 78 (2026-09-13): a g t by hand; the bar-end glitch; the life
+
+Owner, on the agents' a g t: "take a fable pass improving a g and t. the
+ones you just made suck." Then, with the variety audit's bar-end blocks:
+"fix these weird glitches, then alter anything identical very slightly so
+they render the same at small scale, but are full of life at large scale."
+
+**a g t.** The cause: at contrast 0.95 the pen's thin is the 6-unit floor,
+so every PEN-drawn stroke -- the a's hood and its bowl's upper edge, the
+g's neck and ear -- collapsed to a stick, while ring-based bowls kept the
+bowl profile's 44-unit hair. All three now draw on the bowl profile
+(`PR.bowl_widths`, floors 0.5-0.72 S). The a: bowl leaves the stem at 0.60
+xh with a round shoulder (a straight diagonal before), the hood climbs
+over the overshoot and comes down to a teardrop in the pen cut. The g:
+bowl 172 wf x 0.66 xh, loop 190 wf x 0.50 desc closer under it, neck and
+ear on the profile, the ear a short heavy stroke. The t: no plate -- the
+stem rises 96 above the x-height and its top is sheared 46 deg UP TO THE
+RIGHT (`T_TOP_RISE`, `T_TOP_SHEAR_DEG`; `stem(cut_top=-angle)`), the peak
+at the right as Albertus's; ink +8% on the old t at 620 px, the tail
+floored at 0.5 S.
+
+**The glitch.** `bar()` placed its end wedge at the plain corner while the
+bar's end face is sheared by the pen cut (the top corner sits tan(CUT) x
+w/2 back), so the wedge's flat top overran the face: a notch on every
+bar-end wedge (E F L Z 2). The wedge now starts at the sheared corner.
+
+**The life.** `primitives.LIFE` (0.06; `FJORD_LIFE`): `wedge()` perturbs
+length and depth +-6%, drop and fillet +-10%; `ring()` its exponent +-0.06
+and rotation +-0.6 deg -- deterministic per (glyph, call index), never on
+geometry, so the VF's masters stay compatible (`build.draw` calls
+`PR.begin_glyph`). Measured on the 147 common words at 13 pt: 96.5% of
+pixels identical, 2.8% one gray step, 0.09% black-white flips; ink -0.5%.
+At 600 px every foot differs. The audit instrument corrected: it normalized
+by a window that was mostly stem, so a 6% wedge change read as 1% and
+passed as "exact"; it now compares the wedge outside the stroke's edge.
+Re-run pending. Marks agent's file merged the same build (@ with the
+family's a inside, marks aligned to one dot size and one quote top, ? and
+& flowing). Page https://claude.ai/code/artifact/PENDING78; marks page
+https://claude.ai/code/artifact/PENDINGM; specimen republished.

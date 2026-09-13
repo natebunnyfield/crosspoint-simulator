@@ -68,6 +68,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
 
 import shapely
+import shapely.geometry
 from shapely.geometry import Polygon, MultiPolygon
 from shapely import affinity
 from PIL import Image, ImageDraw
@@ -183,7 +184,18 @@ def clip_serif(ink, A, d, sd):
     if g.is_empty or g.area < 1.0: return None
     # the affine above maps design -> local via  x' = sd.x*X + sd.y*Y, y' = d.x*X + d.y*Y
     # (an orthonormal basis, so it is exactly the projection onto (sd, d))
-    return to_local(g)
+    loc = to_local(g)
+    # 2026-09-13: compare the WEDGE, not the stem it hangs on. The window
+    # is mostly stem (u < 0 is inside the stroke), and the stem is identical
+    # by construction, so a 6% change in the wedge read as ~1% of the clip
+    # and passed as "exact". Keep only the part outside the stroke's edge
+    # (u >= -2, two units of tolerance for entasis).
+    try:
+        loc = loc.intersection(shapely.geometry.box(-2.0, -1e6, 1e6, 1e6))
+    except Exception:
+        return None
+    if loc.is_empty or loc.area < 1.0: return None
+    return loc
 
 
 def sym_diff_pct(a, b):

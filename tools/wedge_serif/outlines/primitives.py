@@ -11,6 +11,36 @@ from . import geom, pen
 from .geom import cubic, quad, line, superellipse, join, resample, tangents, smooth
 from .pen import S, CS, XH, WL, WD, DROP, FILLET, FOOT, ENT, TH_V, TH_H, HAIR, CUT
 
+# ---------------------------------------------------------------- life
+# Owner 2026-09-13, on the variety audit (129 of 144 serifs byte-identical
+# twins): "alter anything identical very slightly so they render the same
+# at small scale, but are full of life at large scale." Every wedge and
+# every ring takes a small deterministic perturbation keyed on the glyph
+# being drawn and the order of the call within it -- never on geometry, so
+# the variable font's masters get the same perturbation and stay
+# compatible. LIFE is the amplitude: 0.06 = +-6% on a wedge's length and
+# depth, +-10% on its drop and fillet, +-0.06 on a ring's superellipse
+# exponent and +-0.6 deg of rotation. At 54 px a wedge is 3.5 x 7 px, so
+# 6% is a fifth of a pixel: the four-level render does not move; at 400 px
+# it is 4 units, a visible difference of hand. FJORD_LIFE=0 switches it off.
+LIFE = float(os.environ.get("FJORD_LIFE", 0.06))
+_life = {"glyph": None, "n": 0}
+def begin_glyph(name):
+    """build.draw calls this before drawing a glyph; resets the call count."""
+    _life["glyph"] = name; _life["n"] = 0
+def life(k=3):
+    """k deterministic values in [-1, 1] for the next serif/counter of the
+    current glyph (a small LCG over a hash of (glyph, index))."""
+    if not LIFE or _life["glyph"] is None: return [0.0] * k
+    _life["n"] += 1
+    x = 0
+    for ch in "%s#%d" % (_life["glyph"], _life["n"]): x = (x * 131 + ord(ch)) & 0xFFFFFFFF
+    out = []
+    for _ in range(k):
+        x = (x * 1103515245 + 12345) & 0x7FFFFFFF
+        out.append((x >> 8) / float(1 << 23) * 2 - 1)
+    return out
+
 # ---------------------------------------------------------------- widths
 def widths(keys):
     """keys: [(t, width), ...] with t in 0..1 ascending. Smoothstep between
@@ -104,6 +134,8 @@ def wedge(A, d, sd, length, depth, drop, edge_at=None, into=None, fillet=FILLET)
     the edge). edge_at(dist) gives the stem edge's real point `dist` back
     from A (entasis); default straight."""
     if edge_at is None: edge_at = lambda t: (A[0] - d[0] * t, A[1] - d[1] * t)
+    u1, u2, u3, u4 = life(4)
+    length *= 1 + LIFE * u1; depth *= 1 + LIFE * u2; drop *= 1 + 1.7 * LIFE * u3; fillet *= 1 + 1.7 * LIFE * u4
     B = (A[0] + sd[0] * length - d[0] * drop, A[1] + sd[1] * length - d[1] * drop)
     C = edge_at(depth)
     ctrl = (A[0] * fillet + C[0] * (1 - fillet), A[1] * fillet + C[1] * (1 - fillet))
@@ -207,8 +239,18 @@ def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=()):
     yc = y - w / 2 if align == "top" else (y + w / 2 if align == "bottom" else y)
     pts = line((x0, yc), (x1, yc)); parts = [stroke(pts, w, cut0=cut0, cut1=cut1)]
     for end, side in wedges:
-        if end == 'left': A = (x0, yc + side * w / 2); d = (-1, 0)
-        else: A = (x1, yc + side * w / 2); d = (1, 0)
+        # the bar's end face is sheared by cut0/cut1 (stroke() moves the
+        # top corner back and the bottom corner forward by tan(cut) x w/2),
+        # so the wedge must start at the SHEARED corner -- at the plain
+        # corner its flat top overran the face and left a notch (owner,
+        # 2026-09-13, "fix these weird glitches", on the variety audit's
+        # bar-end blocks of E F L Z 2).
+        if end == 'left':
+            sh = math.tan(cut0) * w / 2 if cut0 is not None else 0.0
+            A = (x0 + side * sh, yc + side * w / 2); d = (-1, 0)
+        else:
+            sh = math.tan(cut1) * w / 2 if cut1 is not None else 0.0
+            A = (x1 - side * sh, yc + side * w / 2); d = (1, 0)
         parts.append(wedge(A, d, (0, side), WL * 0.85, WD * 0.9, 0.0))
     return geom.union(parts)
 
@@ -220,6 +262,8 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     curve. Carries the pen's stress: sides at the vertical width, top and
     bottom at the horizontal, thinnest at 11 and 5 o'clock. Returns
     (solid, outer_pts, inner_pts)."""
+    u1, u2 = life(2)
+    k = k * (1 + LIFE * u1); rot = rot + math.radians(10 * LIFE * u2)
     outer = superellipse(cx, cy, rx, ry, a0, a1, k, rot=rot)[:-1]
     tans = tangents(outer, closed=True)
     inner = []

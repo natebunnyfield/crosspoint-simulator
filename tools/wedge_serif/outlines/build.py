@@ -11,6 +11,7 @@ from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 from . import geom, pen, cut
+from . import primitives as PR
 from .glyphs import GLYPHS
 
 CHARS, GLYPH_ORDER, gname = round19.CHARS, round19.GLYPH_ORDER, round19.gname
@@ -32,6 +33,7 @@ def draw(ch, W=None):
     c = ctx(ch, W)
     if ch.isdigit():
         top, bot = latin.FIG_BOX[ch]; c["figH"] = (top - bot) * C
+    PR.begin_glyph(ch)   # the life: deterministic per-glyph perturbation of wedges and rings
     g = GLYPHS[ch](c)
     # the record's Cut post-op grew every polygon 1.2 units (offset_naive,
     # grow 3.0 x 0.4) to re-close the joins it had opened; the joins are

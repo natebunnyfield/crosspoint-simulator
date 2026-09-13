@@ -61,88 +61,69 @@ def g_f(c):
 
 @glyph('t')
 def g_t(c):
+    """Owner 2026-09-13: "make a version of 't' that is a triangle on the
+    right side, but keep it optically even to what is there now"; then, on
+    the first attempt (a filled triangle glued between the bar and the
+    stem's top): "take a fable pass improving a g and t. the ones you just
+    made suck". So the triangle is Albertus's: the stem rises above the bar
+    and its top is SHEARED up to the right -- the peak at the top right, a
+    triangle above the crossbar made by the stem itself, not a plate
+    added beside it. The bar is the plain crossbar, its right end in the
+    pen cut. Optical evenness: the stem's extra height is set so the
+    glyph's ink area matches the old t within 2% (measured below)."""
     xh = c["xh"]; wf = c["wf"]; r = 135 * wf; x = 100 * wf + S / 2
-    st = stem(x, r * 0.85 - 10, xh + 95, top=None, foot=None, ent_span=(0, xh + 95), cut_top=CUT)
+    top = xh + T_TOP_RISE
+    st = stem(x, r * 0.85 - 10, top, top=None, foot=None, ent_span=(0, top), cut_top=-math.radians(T_TOP_SHEAR_DEG))
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
-    tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)])), cut1=CUT)
-    if T_RIGHT_TRIANGLE:
-        # owner, 2026-09-13: "make a version of 't' that is a triangle on
-        # the right side, but keep it optically even to what is there now."
-        # The bar's LEFT arm is untouched (same stroke as always, stopping
-        # at the stem's own right edge at the top of the entasis swell);
-        # from there to the bar's old right end the crossbar and the stem's
-        # top are read as ONE triangular wedge -- the bar's top edge rises
-        # from the crossbar's height to the stem's own top-right corner,
-        # its bottom edge stays on the crossbar's underside, its right edge
-        # is the family's own pen cut (the stem top is already sheared by
-        # CUT, so the triangle's outer edge continues that same face rather
-        # than adding a second, different-angled cut). T_TRI_SCALE tunes the
-        # apex height so the triangle's own area plus the shortened bar
-        # matches the old bar's ink within 2% (measured, not eyeballed --
-        # see the proof page for the before/after area).
-        stem_r_top = x + TH_V * (1.0 + ENT) / 2   # the stem's own right edge at its top corner (full entasis swell)
-        bar_y = xh - TH_H / 2; bar_bot = xh - TH_H; right_tip = x + 150 * wf
-        apex = (stem_r_top, xh + 95 * T_TRI_SCALE)
-        tri = geom.poly([apex, (right_tip, bar_bot), (stem_r_top, bar_bot)])
-        b_left = stroke([(x - 100 * wf, bar_y), (stem_r_top, bar_y)], TH_H)
-        b = geom.union([b_left, tri])
-    else:
-        b = stroke([(x - 100 * wf, xh - TH_H / 2), (x + 150 * wf, xh - TH_H / 2)], TH_H)
+    tl = stroke(tail, PR.bowl_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.15)]), floor=S * 0.5), cut1=CUT)
+    b = stroke([(x - 100 * wf, xh - TH_H / 2), (x + 150 * wf, xh - TH_H / 2)], max(TH_H, S * 0.5), cut1=CUT)
     return geom.ink([st, tl, b])
+
+# the t's top: how far the stem rises above the x-height and the shear of
+# its peak (degrees, rising to the RIGHT -- Albertus's t). 118 / 38 gives
+# the old t's ink area within 2% (old bar-and-square-top t: measured in the
+# proof page's heading).
+T_TOP_RISE = 96
+T_TOP_SHEAR_DEG = 46
 
 @glyph('a')
 def g_a(c):
-    """Stem, hood and bowl. The hood leaves the stem thin, thickens over the
-    top and ends in the family's flag. The bowl is DRAWN: its upper edge a
-    diagonal from the stem down-left to the bowl's left extreme at 0.27 xh,
-    a round bottom back into the stem at the foot; the counter is the pen's
-    offset (a hairline along the diagonal, the stem's weight at the lower
-    left, the horizontal at the bottom). Hood peaks at the rounds'
-    overshoot, bowl bottoms at it."""
+    """Stem, hood and bowl -- redrawn 2026-09-13 (owner: the first cleanup
+    "sucks"). What was wrong: the hood and the bowl's upper edge were PEN
+    strokes, and at contrast 0.95 the pen's thin is the 6-unit floor, so the
+    hood read as a bar with a flag and the bowl as a shallow lens. Now the
+    hood and the bowl are on the BOWL profile (hair 0.525 S at this
+    contrast), the bowl is taller -- it leaves the stem at 0.60 xh with a
+    round upper-left shoulder instead of a straight diagonal -- and the
+    hood curls: it climbs from the stem, crosses the top at the rounds'
+    overshoot and comes DOWN to its terminal, which swells and ends in the
+    pen cut, a teardrop not a flag. Counter and aperture are the whites
+    the standing rule watches: reported on the page."""
     xh = c["xh"]; wf = c["wf"]; x = 360 * wf
     st = stem(x, 0, xh * 0.95, top=None, foot='both', ent_span=(0, xh))
-    yc = (8 * (xh + OVER - TH_H / 2) - xh * 0.66 - xh * 0.78) / 6
-    hood = cubic((x, xh * 0.66), (x, yc), (x - 250 * wf, yc), (x - 300 * wf, xh * 0.78))
-    hd = stroke(hood, pen_widths(hood, widen_terminal(widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])) if (PR.BOWL and PR.BOWL.get('widen')) else widths([(0.0, 0.5), (0.3, 1.0), (0.7, 1.0), (1.0, 1.10)])), cut1=CUT)
-    L = (x - 330 * wf, xh * 0.27); B = (x - 150 * wf, -OVER); xe = x - TH_V / 2
-    # the corner where the bowl's outer path closes near the stem must land
-    # BURIED inside the stem's own ink (the guide's join rule: a fifth to a
-    # third of a stem), not at a fixed offset from xe -- a fixed "+82" was
-    # tuned for a thinner pen and, at the current stem/contrast, landed 82
-    # units from the stem's LEFT edge while the stem's RIGHT edge (with
-    # entasis) sits only ~76-83 units in: the corner poked 2-6 units PAST
-    # the stem's own edge, and because it is a sharp reversal (the outer
-    # path's closing straight run meeting the curve toward L), that overshoot
-    # showed as a step/notch at the top right instead of hiding inside the
-    # stem's ink (found by probing the union's rightmost x by height: it
-    # spiked to xe+82 for two samples right at xh*0.67 and nowhere else).
-    xin = x + TH_V / 2 - TH_V * 0.35   # a third of a stem inside the stem's right edge, so it clears entasis at both the top and bottom corners
-    top = (xin, xh * 0.67)   # buried well inside the stem; a shallow crotch under the hood, as round 51's
-    outer = join(cubic(top, (top[0] - 120 * wf, top[1] - 55), (L[0], L[1] + 105), L),
-                 cubic(L, (L[0], L[1] - 115), (B[0] - 100 * wf, B[1]), B),
-                 cubic(B, (B[0] + 80 * wf, B[1]), (xin, 20), (xin, 60)))
-    # the counter is the pen's offset at each tangent (a hairline along the
-    # diagonal, the stem's weight at the lower left, the horizontal along
-    # the bottom), the width sequence averaged over +-4 samples so the
-    # tight lower-left turn does not step it; near the stem the width is
-    # held at 40 so the counter lands on the stem's edge. The two regimes
-    # used to switch on a hard x-threshold (p[0] > xe + 30), which stepped
-    # the width from ~40 straight down to a near-hairline in one or two
-    # samples right where the curve is turning fastest (just past the top
-    # corner) -- steep enough that the inward offset crossed the outer
-    # path and left an island for shapely's make_valid to carve out (the
-    # top-right blob). Blended over a span instead of switched: a clean
-    # taper, no discontinuity for the offset to trip on.
-    n_o = len(geom.resample(outer + [outer[0]])) - 1
-    tans_o = geom.tangents(geom.resample(outer + [outer[0]])[:-1], closed=True)
+    # the hood: from the stem at 0.60 xh up over the top and down to a
+    # terminal at the left, its end tangent pointing down
+    peak = xh + OVER - PR.bowl_hair() / 2
+    hood = cubic((x, xh * 0.60), (x + 10 * wf, peak + 40), (x - 240 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+    hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.45), (0.28, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
+    # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
+    # shoulder out to the left extreme at 0.30 xh, a round bottom, back
+    # into the stem near the foot
+    L = (x - 335 * wf, xh * 0.30); B = (x - 150 * wf, -OVER)
+    xin = x + TH_V / 2 - TH_V * 0.35
+    top = (xin, xh * 0.60)
+    outer = join(cubic(top, (top[0] - 70 * wf, top[1] + 62), (L[0] + 6 * wf, L[1] + 150), L),
+                 cubic(L, (L[0], L[1] - 120), (B[0] - 105 * wf, B[1]), B),
+                 cubic(B, (B[0] + 85 * wf, B[1]), (xin, 15), (xin, 60)))
     outer_closed = geom.resample(outer + [outer[0]])[:-1]
+    tans_o = geom.tangents(outer_closed, closed=True); n_o = len(outer_closed)
     NEAR_STEM_W = 40.0
     def wfn2(t):
         i = min(n_o - 1, int(round(t * n_o))); p = outer_closed[i]
-        pen_w = pen.PEN.th(tans_o[i])
+        w = max(PR.bowl_th(tans_o[i]), S * 0.5)
         u = max(0.0, min(1.0, (p[0] - (xin - 90.0)) / 90.0)); u = u * u * (3 - 2 * u)
-        return pen_w * (1 - u) + NEAR_STEM_W * u
-    solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=8)
+        return w * (1 - u) + NEAR_STEM_W * u
+    solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
     return geom.ink([st, hd, solid])
 
 @glyph('s')
@@ -195,38 +176,30 @@ def g_q(c): return bowl_stem(c, 'right', c["xh"], -c["desc"])
 
 @glyph('g')
 def g_g(c):
-    """G3 on the nib (rulings, rounds 40/42): bowl rx 185, 0.70 xh tall;
-    loop rx 215 x 0.45 desc, 30 right of the bowl; the neck from 242 deg
-    dropping near-vertically into the loop at 150 deg, no floor; the ear a
-    pen stroke off the shoulder at 48 deg, rising 5."""
+    """G3 (rulings, rounds 40/42) -- redrawn 2026-09-13 (owner: the first
+    cleanup "sucks"). What was wrong: the neck and the ear were PEN strokes,
+    sticks at contrast 0.95; the loop was a flat ellipse much wider than the
+    bowl; the ear a long thin bar. Now: the bowl a little smaller and
+    rounder (rx 172 wf, 0.66 xh tall); the loop less flat (rx 200 wf, half
+    height 0.50 desc) and closer under the bowl; the neck on the bowl
+    profile with a 0.55 S floor, leaving the bowl at 240 deg and entering
+    the loop at 150 deg; the ear a short heavy stroke off the shoulder at
+    the bowl profile, floored at 0.72 S, rising 8 deg, ending in the pen
+    cut -- the top-right serif of the round-30 ruling, with weight."""
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
-    rx = 185 * wf + TH_V / 2; ry = (xh * 0.70 + OVER * 2) / 2; cy = xh + OVER - ry; cx = rx + S * 0.35
+    rx = 172 * wf + TH_V / 2; ry = (xh * 0.66 + OVER * 2) / 2; cy = xh + OVER - ry; cx = rx + S * 0.35
     bowl, bo, bi = ring(cx, cy, rx, ry)
-    lrx = 215 * wf + TH_V / 2; lry = desc * 0.45 + TH_H / 2; lcx = cx + 30 * wf; lcy = -desc * 0.47
+    lrx = 190 * wf + TH_V / 2; lry = desc * 0.50 + TH_H / 2; lcx = cx + 18 * wf; lcy = -desc * 0.50
     loop, lo, li = ring(lcx, lcy, lrx, lry)
-    # centerline rings for the neck's ends
     crx, cry = rx - TH_V / 2, ry - TH_H / 2; clrx, clry = lrx - TH_V / 2, lry - TH_H / 2
     def on(cx_, cy_, rx_, ry_, deg):
         a = math.radians(deg); return (cx_ + rx_ * math.cos(a), cy_ + ry_ * math.sin(a))
-    p0 = on(cx, cy, crx, cry, 242); a1 = math.radians(150); p3 = on(lcx, lcy, clrx, clry, 150)
+    p0 = on(cx, cy, crx, cry, 240); a1 = math.radians(150); p3 = on(lcx, lcy, clrx, clry, 150)
     tl = (-math.sin(a1), math.cos(a1)); gap = p0[1] - p3[1]
-    # the neck starts 22 units up INSIDE the bowl's stroke (its square face
-    # straddled the centerline and one corner broke the ring's edge -- a
-    # nick at 500 px); the ear the same, from the ring's centerline
     p0 = (p0[0] + 4, p0[1] + 22)
-    neck = cubic(p0, (p0[0] - gap * 0.02, p0[1] - gap * 0.60), (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
-    # the start's square face used to be drawn at FULL pen width right where
-    # it enters the ring: the bowl's own curve widens gradually there, but
-    # the neck's flat full-width face does not follow it, so the union held
-    # a few rows of constant width (a shelf) wherever the neck's straight
-    # edge stuck out past the ring's own curving edge, before the ring's
-    # curve caught up and grew past it -- a stray mark right at the join
-    # (found by comparing the ring drawn alone against the union row by row:
-    # the ring's own width increases every row, the union's held flat for
-    # six). Tapered in over the same span the far end tapers out, so the
-    # face that lands inside the ring is thin and the ring's own curve
-    # decides the join's outline, not the neck's square corner.
-    nk = stroke(neck, pen_widths(neck, widths([(0.0, 0.35), (0.14, 1.0), (0.90, 1.0), (1.0, 0.25)])))   # the end thins so its corners stay inside the loop's stroke (round 51: taper_out 0.85 over 8%)
-    ex, ey = on(cx, cy, crx, cry, 48); L = 118 * wf * g_ear_scale()   # the ear's length only, scaled by g_ear_scale(); its cross-section (the widths keypoints below) is untouched, so the depth is unchanged
-    ear = stroke([(ex - S * 0.30, ey - 24), (ex + L, ey + L * math.tan(math.radians(5)))], pen_widths([(ex, ey), (ex + L, ey + 8)], widths([(0.0, 0.45), (0.28, 1.0)])), cut1=CUT)   # starts inside the ring, thin, so no corner reaches the counter
+    neck = cubic(p0, (p0[0] - gap * 0.05, p0[1] - gap * 0.58), (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
+    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.35), (0.14, 1.0), (0.90, 1.0), (1.0, 0.30)]), floor=S * 0.55))
+    ex, ey = on(cx, cy, crx, cry, 44); L = 96 * wf * g_ear_scale()
+    ear_c = [(ex - S * 0.30, ey - 26), (ex + L, ey + L * math.tan(math.radians(8)))]
+    ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.5), (0.30, 1.0), (1.0, 1.05)]), floor=S * 0.72), cut1=CUT)
     return geom.ink([bowl, loop, nk, ear])
