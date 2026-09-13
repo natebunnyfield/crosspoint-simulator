@@ -13,6 +13,16 @@
   <dir>` from `tools/wedge_serif/`; the specimen at its standing URL is
   `albo-specimen.html`. The B's waist is one bar. **Stem 94** (round 59,
   owner: "94 wins"; was 82), set in `outlines/pen.py`.
+- **VARIABLE, 2026-09-13 (round 61, owner):** Albo is also `Albo-VF.ttf`
+  (`build/fjord-fonts/`), eight axes -- wght 70/94/120, CNTR 0.30/0.60/0.85,
+  ASCN 700/762/830, DESC 180/250/340, wdth 80/100/120, CUTS 0/100/200, XHGT
+  380/415/460, SRIF 60/100/140 -- whose default instance is Albo Regular.
+  Built by `python3 -m outlines.variable <out_dir>` (20 masters, each an
+  env-parameterized `outlines.build`, compatibilized by arc-length sampling;
+  `Albo.designspace` written beside it). Slider page
+  https://claude.ai/code/artifact/d5a080f8-a07f-4553-a6f8-1ff47f656a8e, e-ink
+  proof of every extreme
+  https://claude.ai/code/artifact/dee6fcc1-9be1-471d-b4f3-cb24819391d5.
 
 - **What this is.** A humanist wedge serif for longform reading on the X3
   and the iOS app, designed by evolution: populations rendered, the owner
@@ -1686,3 +1696,19 @@ specimen with a slider per axis. The outlines are all-on-curve polygons
 (5,610 points, no off-curve, 1-5 contours per glyph), so masters are made
 compatible by re-sampling every contour to a fixed point count by arc length
 -- the plan handed to the rebuild agent, which owns `outlines/`.
+
+Round 61 LANDED (2026-09-13): `Albo-VF.ttf`, 8 axes, by
+`outlines/variable.py`. Checked here: `fvar` as briefed; the default instance
+against Albo-Regular by polygon symmetric difference, median 0.4% of glyph
+area, worst 0.9% (the dots and quotes), advances identical -- the VF keeps
+the dense 1-in-1 point set with the cut projected onto its chords, so point
+counts differ from the static file (A: 237 vs 73) while the shapes match.
+Agent's clamps (a master parameter pulled in for one glyph where its topology
+changed): G at wght 70 → 76, @ at wght 120 → 113.5, m at wdth 80 → 85, and
+at the wght-max/wdth-min corner h n @ → (113.5, 85), m → (105, 91.6); the ?
+was redrawn so its hook clears the dot at 120 (identical at 94). CUTS 200 is
+the same seed at 1-in-8 rather than a doubled displacement, which
+self-intersected at the brackets (12 crossings). Slider page, proof page, TTF
+sent. Env overrides now in the builder: `FJORD_STEM`, `FJORD_CONTRAST`,
+`FJORD_ASC`, `FJORD_DESC`, `FJORD_WIDTH`, `FJORD_XH`, `FJORD_SERIF`,
+`FJORD_ARCH_FLOOR`.

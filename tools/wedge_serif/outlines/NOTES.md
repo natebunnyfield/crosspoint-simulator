@@ -308,6 +308,80 @@ its thin at -60.
   (The n's -40 cell is the ray running along the arch's shoulder; its +80
   cell is the arch's top: D 88 against A/B/C's 60 -- the floor.)
 
+## Round 61: Albo-VF, the variable font (`outlines/variable.py`)
+
+Owner: "this needs to a variable axis font that allows adjustment of
+contrast, ascender length, descender length, line width, condensed to
+expanded, handcut to smooth and anything else that makes good sense".
+`PYTHON_GIL=0 python3 -m outlines.variable <out_dir>`; deliverables copied
+to `fonts/rebuild/Albo-VF.ttf`, `albo-variable.html` (sliders, the VF
+embedded), `albo-variable-proof.html` (17 e-ink blocks), `Albo.designspace`;
+masters, instances and the two look-sheets under `fonts/rebuild/vf/`.
+
+| tag | name | min / default / max | drives |
+|---|---|---|---|
+| wght | Weight | 70 / 94 / 120 | the stem (`FJORD_STEM`); caps 1.137x, wedge units with S |
+| CNTR | Contrast | 0.30 / 0.60 / 0.85 | the pen (`FJORD_CONTRAST`) and the bowl hair 1 - 0.5c (0.70 at 0.60) |
+| ASCN | Ascender | 700 / 762 / 830 | `FJORD_ASC`; caps fixed at 674 |
+| DESC | Descender | 180 / 250 / 340 | `FJORD_DESC` |
+| wdth | Width | 80 / 100 / 120 | `FJORD_WIDTH`: lc_width, the capitals' solved widths, the fitting, the word space |
+| CUTS | Cut | 0 / 100 / 200 | 0 the dense outline, 100 the shipping 1-in-4 cut, 200 the same seed at 1-in-8 (facets twice as long) |
+| XHGT | x-height | 380 / 415 / 460 | `FJORD_XH`; overshoots in units unchanged, caps fixed |
+| SRIF | Serif | 60 / 100 / 140 | `FJORD_SERIF`: WL, WD, DROP x this |
+
+**Construction.** Every parameter is an env override read at import
+(`pen.py`, `primitives.py`), so one master is one `outlines.build`
+subprocess, `--nocut`, dumped as float contours (`--dump`). The default
+master KEEPS ITS DENSE POINT SET (11-unit samples plus the union's
+junctions) and the shipping cut is re-expressed on it as a displacement:
+`cut.Cutter.plan` gives the kept indices per contour (same seed 73, same
+phase sequence, corners kept), `cut.project` moves every other point onto
+the chord between its kept neighbours -- the polygon renders exactly as
+the decimated one. Other masters: contours matched by (hole flag, nearest
+bbox-normalized centroid), start rotated to the point nearest the
+default's, then SAMPLED AT THE DEFAULT'S ARC-LENGTH FRACTIONS (not
+uniformly: the default's own spacing is kept so point i is the same place
+on every master), the projection applied with the master's OWN corners.
+CUTS 0 / 200 are derived from the default (unprojected / every 8th).
+Fitting is recomputed on the projected contours with the master's own
+x-height and width (the dense outline reaches ~2 units past the cut
+polygon; fitting on it shifted every default glyph by 2). Glyphs are
+built straight into `glyf` (TTGlyphPen drops a last point that rounds onto
+the first, which it did in one master each for the n and u). 20 masters:
+default, 14 axis extremes, CUTS 0/200, and three corners (wght max + wdth
+min, XHGT max + ASCN min built; CNTR max + CUTS 200 derived) because
+sparse masters add linearly and the first build had 17 self-crossings at
+the heavy-condensed corner.
+
+**Clamps (per glyph, never a whole master):** a glyph whose topology
+changes at a location takes its contours from a rebuild with the set
+parameters pulled 25% toward the default, again until it matches.
+G at wght 70 (its spur no longer reaches the bar) -> 76; @ at wght 120 (a
+third counter between the inner a and the ring) -> 113.5; m at wdth 80
+(its counters close) -> 85; at the wght-max/wdth-min corner h, n, @ ->
+(113.5, 85) and m -> (105, 91.6). The ? at 120 ran into its dot and was
+fixed in the drawing instead (`g_question`: the hook stops higher above
+the shipping weight, identical at 94).
+
+**Verified.** (1) Default instance vs Albo-Regular: max vertex deviation
+0.00 units; areas within 0.2% (integer rounding of the collinear points).
+The 147-word ink at 54 px through PIL reads +0.89% -- FreeType
+auto-hints an instruction-free TrueType and its auto-hinter reacts to the
+dense point set (per-glyph +-2% at 54 px, ~0 at 500 px). On the READER'S
+pipeline (54 px em, 8x, four levels) the whole round-19 text is -0.36%
+weighted ink, 0.59% of pixels differing. (2) Every axis extreme instanced,
+defect-counted against its master and drawn at 150 px
+(`vf/vf-extremes.png`): no spikes, no flipped contours; the counts are
+0 except single sub-unit self-touches from rounding at the n's crotch
+(CNTR min, CUTS 0, XHGT max), the T's bar (wdth min) and the 4 (CUTS 0),
+present identically in the masters. (3) Corners (`vf/vf-corners.png`):
+wght max + wdth min 2 (the same n and T touches), CNTR max + CUTS 200 0,
+XHGT max + ASCN min 1 (the n); before the corner masters they were
+17 / 7 / 2 with visible slits at the serifs.
+
+`Albo-Regular.ttf` and the static builder's defaults are unchanged (a
+fresh default build matches it glyph for glyph and metric for metric).
+
 ## Numbers (all measured on the built TTF)
 
 - o: outer 501 × 443, **counter 353 × 340 = 1.036** (ruling). O_RX 227 (was

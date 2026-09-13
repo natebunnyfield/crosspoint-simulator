@@ -19,8 +19,30 @@ def corners(pts, deg=CORNER_DEG):
 class Cutter:
     def __init__(self, seed=73, every=4):
         self.seed = seed; self.every = every; self.n = 0
-    def __call__(self, pts):
+    def phase(self):
+        """The next contour's decimation phase (consumes the running counter)."""
         rng = random.Random(self.seed * 7919 + self.n); self.n += 1
-        ph = rng.randrange(self.every); keep = corners(pts)
-        out = [p for i, p in enumerate(pts) if (i + ph) % self.every == 0 or i in keep]
+        return rng.randrange(self.every)
+    def plan(self, pts, ph=None):
+        """The kept indices for a contour: every `every`-th from the phase, plus its corners."""
+        if ph is None: ph = self.phase()
+        keep = corners(pts)
+        return sorted(i for i in range(len(pts)) if (i + ph) % self.every == 0 or i in keep)
+    def __call__(self, pts):
+        keep = self.plan(pts)
+        out = [pts[i] for i in keep]
         return out if len(out) >= 3 else list(pts)
+
+def project(pts, keep):
+    """The cut as a DISPLACEMENT: every point not kept is moved onto the
+    chord between its neighbouring kept points, so the polygon renders as
+    the decimated one while keeping every point -- the form a variable
+    font's masters need (same point count at every cut)."""
+    n = len(pts)
+    if len(keep) < 3: return list(pts)
+    out = list(pts); ks = sorted(keep)
+    for a, b in zip(ks, ks[1:] + [ks[0] + n]):
+        pa = pts[a % n]; pb = pts[b % n]; span = b - a
+        for j in range(a + 1, b):
+            t = (j - a) / span; out[j % n] = (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
+    return out

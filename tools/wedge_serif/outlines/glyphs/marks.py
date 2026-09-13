@@ -29,7 +29,8 @@ def g_exclam(c):
 @glyph('?')
 def g_question(c):
     C = CAP(c); w = 380
-    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, C * 0.38), (w * 0.5, C * 0.2)], tension=0.5)
+    end_y = C * 0.2 + max(0.0, (S - 94) * 2.2)   # above the shipping weight the hook stops higher, clear of the dot (identical at 94)
+    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, C * 0.38 + max(0.0, (S - 94) * 1.2)), (w * 0.5, end_y)], tension=0.5)
     return geom.ink([dot(w * 0.5, S * 0.55, S * 0.55), stroke(hook, pen_widths(hook, widths([(0.0, 0.45), (0.15, 1.0), (0.8, 1.0), (1.0, 1.1)])), cut0=CUT, cut1=CUT)])
 @glyph("'")
 def g_quotesingle(c): C = CAP(c); return stroke(line((S * 0.5, C * 0.72), (S * 0.5, C)), TH_V * 0.8, cut0=CUT)

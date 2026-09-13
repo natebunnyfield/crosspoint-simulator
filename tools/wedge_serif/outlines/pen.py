@@ -8,21 +8,32 @@ from alphabet2 import Pen as _Pen
 import round19
 
 DESIGN = dict(round19.DESIGN)
-XH = DESIGN["xh"]; ASC = DESIGN["asc"]; DESC = DESIGN["desc"]
 DESIGN["stem"] = 94                          # owner ruling, round 59 (2026-09-13): "94 wins" on the weight ladder; was 82
-S = float(os.environ.get("FJORD_STEM", DESIGN["stem"])); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c)
-CAP = XH * 1.625
+# Round 61 (owner: "a variable axis font"): every design parameter an axis
+# moves is read from an env override at import, so one master of the
+# variable font is one subprocess of outlines.build. Unset, each is the
+# shipping value; the static builder's defaults do not change.
+_env = lambda k, d: float(os.environ.get(k, d))
+BASE_XH = DESIGN["xh"]                       # 415: the capitals stay at 1.625 x THIS whatever XHGT does
+XH = _env("FJORD_XH", DESIGN["xh"]); ASC = _env("FJORD_ASC", DESIGN["asc"]); DESC = _env("FJORD_DESC", DESIGN["desc"])
+DESIGN["xh"], DESIGN["asc"], DESIGN["desc"] = XH, ASC, DESC
+S = _env("FJORD_STEM", DESIGN["stem"]); CAP_STEM = 1.137; CS = S * CAP_STEM   # FJORD_STEM: weight ladder override (round 58c); the wght axis
+CONTRAST = _env("FJORD_CONTRAST", DESIGN["contrast"])                          # the CNTR axis: hair = stem x (1 - contrast)
+WIDTH = _env("FJORD_WIDTH", 100.0) / 100.0                                     # the wdth axis: lc_width, the capitals' solved widths, the fitting, all x this
+SERIF = _env("FJORD_SERIF", 100.0) / 100.0                                     # the SRIF axis: the wedge family's unit x this
+CAP = BASE_XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]
-WF = DESIGN["lc_width"]
+WF = DESIGN["lc_width"] * WIDTH
 ENT = DESIGN["flare"]                       # entasis: stems swell 14% at their ends
-WL = DESIGN["wedge_len"] * S; WD = DESIGN["wedge_depth"] * S   # 69.7 x 139.4: the wedge family's unit
-DROP = DESIGN["serif_drop"] * S; FILLET = DESIGN["fillet"]     # 23, 0.65
+WL = DESIGN["wedge_len"] * S * SERIF; WD = DESIGN["wedge_depth"] * S * SERIF   # 69.7 x 139.4 at stem 82: the wedge family's unit
+DROP = DESIGN["serif_drop"] * S * SERIF; FILLET = DESIGN["fillet"]             # 23, 0.65
 FOOT = DESIGN["foot_scale"]                  # feet are 0.85 of a top wedge's length
 CUT = math.radians(DESIGN["cut_deg"])        # 20 deg pen cut
 BOWL_K = DESIGN["bowl_k"]                    # 2.1: the family's superellipse
-NW = DESIGN["n_width"] * WF + (S - 110) * 0.9   # the n's stem-to-stem distance, 331
+NW = DESIGN["n_width"] * WF + (S - 110) * 0.9   # the n's stem-to-stem distance
 N_COUNTER = NW - S
-PEN = _Pen(S, DESIGN["contrast"], DESIGN["stress"], DESIGN["power"])
+N_COUNTER_FULL = DESIGN["n_width"] * WIDTH + (S - 110) * 0.9 - S   # the UNCONDENSED n counter the word space is 1.7 x of (round 20)
+PEN = _Pen(S, CONTRAST, DESIGN["stress"], DESIGN["power"])
 HAIR = PEN.hair
 
 def th(deg):
