@@ -1954,3 +1954,5 @@ o's bowl, arm on a plain cut); the 9 becomes round 71's #3 (diagonal end
 wedge) with its tail reaching further left to foot-left's extent. Figures
 agent wiring both (`g_nine` in figures.py, `g_ampersand` in marks.py calling
 `bred` with round_bowl's dials); page pending.
+
+Round 70 RULED (2026-09-13): "floor 0.55 S = 46.2 units wins." `SIX_TAIL_FLOOR = 0.55`.
