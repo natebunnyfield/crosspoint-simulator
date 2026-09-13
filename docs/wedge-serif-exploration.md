@@ -1331,3 +1331,15 @@ height, lower bottom at −overshoot. Measured: lower outer 394 × 377, counter
 243 × 271; upper 329 × 338, counter 178 × 232. Round 48's circular-counter
 rule is superseded (its rings were 460 and 428 wide against the 6's 411).
 Proof `fjord-8.html` (republished in place).
+
+## Round 50 (2026-09-12): the figures over the humanist old style
+
+Owner: "compare 8 and all numbers with humanist old style figures."
+`tools/wedge_serif/fig_overlay.py` → `fjord-figures-overlay.html`: Fjord's
+0–9 over the OLD-STYLE figures of the humanist faces on disk, each face's
+`onum` set where it has one (the proportional `.osf` preferred over the
+tabular `.tosf`), its default set where that is already old-style (the 3
+descends, or the 8 rises well above the 0). Eight faces qualify: EB Garamond,
+Coelacanth, Almendra, Inknut Antiqua, Doves, Van den Keere, Dante MT, Edgar.
+Libris ADF and Atkinson Next carry only lining figures and are left out. The
+8's cell is boxed; a figure row per face follows.
