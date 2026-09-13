@@ -26,6 +26,62 @@ BEAK_CUT = -28.0
 def cstem(x, y0, y1, top='left', foot='both', **kw):
     return stem(x, y0, y1, cap=True, top=top, foot=foot, **kw)
 
+def flat_face(p0, p1, at_end=True):
+    """The shear (`stroke`'s cut0/cut1) that makes a diagonal's end face
+    HORIZONTAL instead of perpendicular to its own axis.
+
+    Two strokes that meet at ONE point -- the M's and the W's apexes, the
+    M's middle vertex -- each cut their end square to their own axis, and
+    the two faces tilt opposite ways: their union is a pair of prongs with
+    a notch between, not a vertex. Cut both to the same horizontal line and
+    the union is one flat face on the cap line (or the baseline).
+    Derivation: `stroke` shifts the L edge by tn x d and the R edge by
+    -tn x d with d = -tan(cut) w/2 at the end and +tan(cut) w/2 at the
+    start; setting L's y equal to the centre's gives tan(cut) = tnx/tny at
+    the end and -tnx/tny at the start."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    return math.atan2(dx if at_end else -dx, dy)
+
+def _stroke_edge(p0, p1, w, toward):
+    """The straight edge of a straight stroke, on the side facing `toward`."""
+    tn = tangents(line(p0, p1))[0]; n = (-tn[1], tn[0])
+    s = 1.0 if ((toward[0] - p1[0]) * n[0] + (toward[1] - p1[1]) * n[1]) > 0 else -1.0
+    ox, oy = n[0] * s * w / 2, n[1] * s * w / 2
+    return (p0[0] + ox, p0[1] + oy), (p1[0] + ox, p1[1] + oy)
+
+def _cross(a0, a1, b0, b1):
+    (x1, y1), (x2, y2), (x3, y3), (x4, y4) = a0, a1, b0, b1
+    den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den
+    return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+
+def _at_y(a0, a1, y):
+    t = (y - a0[1]) / (a1[1] - a0[1]); return (a0[0] + t * (a1[0] - a0[0]), y)
+
+def crotch_blunt(pa0, pa1, wa, pb0, pb1, wb, lift, drop):
+    """The cutout that blunts the crotch where two STRAIGHT strokes leave a
+    common point (the W's middle apex). Their facing edges close at only
+    ~18 degrees a side, so the wedge between them runs on as a hair and the
+    union's last dozen units of it come out as a zigzag. Returns a triangle:
+    apex `lift` above the two edges' crossing, base ON those edges `drop`
+    below it -- so the cut meets each edge at a ~9-degree kink, takes at
+    most a couple of units out of either stroke, and leaves a mouth of
+    drop x (tan18 + tan19) that the ink spread cannot seal."""
+    ea = _stroke_edge(pa0, pa1, wa, pb1); eb = _stroke_edge(pb0, pb1, wb, pa1)
+    X = _cross(ea[0], ea[1], eb[0], eb[1])
+    return geom.poly([(X[0], X[1] + lift), _at_y(ea[0], ea[1], X[1] - drop), _at_y(eb[0], eb[1], X[1] - drop)])
+
+def flat_corner(p0, p1, w, side, at_end=True):
+    """The corner of that horizontal face: the stroke's real edge where the
+    face lies (side -1 the left corner, +1 the right). Falls straight out
+    of the same algebra -- the face's half width is w / 2 sin(inclination).
+    A wedge crowning such an apex is seated HERE and nowhere else; seated a
+    fraction of the stroke's width in from it, as the M's and the W's
+    crowns were, it leaves a step where its bracket misses the edge."""
+    tn = tangents(line(p0, p1))[0]
+    P = p1 if at_end else p0
+    return (P[0] + side * w / (2 * abs(tn[1])), P[1])
+
 @glyph('A')
 def g_A(c):
     """Thin left leg with a FLAT foot (round 36: the wedge's tip on the
@@ -85,12 +141,29 @@ def g_D(c):
     bowl, *_ = half_bowl(edge, C, 0, rx + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, bowl])
 
+# owner, verbatim: "the top right serif of E and F need cleanup." The top
+# arm carried BOTH the family's bar-end wedge (0.85 x 0.9, hanging) and the
+# 20-degree pen cut, and the two do not meet. `bar` seats the wedge at the
+# UNSHEARED corner (x1, yc - th/2) with drop 0, so its outer face is the
+# vertical x = x1; `cut1` then shears the bar's own end face so its
+# UNDERSIDE runs tan(20) x th/2 = 7.6 units PAST that -- measured on the E's
+# designed outline, the end went ... (444.2, 675.6) -> (460.3, 631.2) ->
+# (452.2, 631.2) -> (452.2, 573.1): a double facet with an 8-unit
+# horizontal ledge between two right edges, the wedge hanging from the
+# inner one. The wedge's face IS the terminal -- the T's arms carry the
+# same wedge and have never taken a cut -- so the cut goes from the wedged
+# end and the arm ends in one clean vertical face from the cap line down to
+# the wedge's apex. The middle bar keeps its pen cut (it carries no wedge),
+# and E and F now draw the same end.
+# NOT changed, and not asked for: E's BOTTOM-right and L's bottom bar carry
+# the identical pair and have the same ledge, mirrored; the Z's bars, whose
+# cut ends are at the corners the owner did not name.
 @glyph('E')
 def g_E(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'E', 420)
     st = cstem(x, 0, C, top='left', foot='left')
     th = max(TH_H, S * 0.5)
-    return geom.ink([st, bar(x, x + w * 0.96, C, th, align='top', cut1=CUT, wedges=[('right', -1)]),
+    return geom.ink([st, bar(x, x + w * 0.96, C, th, align='top', wedges=[('right', -1)]),
                      bar(x, x + w * 0.74, C * 0.54, th * 0.9, cut1=CUT),
                      bar(x, x + w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])])
 
@@ -99,7 +172,7 @@ def g_F(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'F', 400)
     st = cstem(x, 0, C, top='left', foot='both')
     th = max(TH_H, S * 0.5)
-    return geom.ink([st, bar(x, x + w, C, th, align='top', cut1=CUT, wedges=[('right', -1)]),
+    return geom.ink([st, bar(x, x + w, C, th, align='top', wedges=[('right', -1)]),
                      bar(x, x + w * 0.72, C * 0.54, th * 0.9, cut1=CUT)])
 
 @glyph('G')
@@ -154,13 +227,43 @@ def g_J(c):
     wfn = lambda t: (CW if t < 0.1 else (base(t) if t > 0.45 else CW + (base(t) - CW) * (3 * ((t - 0.1) / 0.35) ** 2 - 2 * ((t - 0.1) / 0.35) ** 3))) * widths([(0.65, 1.0), (1.0, 1.3)])(t)
     return geom.ink([st, stroke(tail, wfn, cut1=CUT)])
 
-def kick(J, angle_deg, w, bury=0.2, serif=1, taper=0.45):
+# owner, verbatim: "the kick on K and R needs to taper (give me options to
+# choose from)." Both kicks are drawn FOOT-FIRST, so the pair reads
+# (fraction at the FOOT, fraction at the JUNCTION) of the leg's ruled
+# width. Everything ruled is untouched: the angles (K 37, R 60), the base
+# width the fractions are taken OF (K 1.1 x the pen at the leg's angle,
+# R 1.05 x it -- round 51 / round 42), the K arm's 0.47-stem floor, the
+# end wedge at the foot (which follows the tapered width, so it stays
+# seated) and where each leg springs. Only the profile between the two
+# ends moves.
+#   A  (0.70, 1.00)  taper toward the foot: full width at the junction,
+#                    0.7 of it at the end before the end wedge  -- DEFAULT
+#   B  (1.00, 0.70)  taper toward the junction: the classic "leg thin
+#                    where it springs"
+#   C  (0.85, 0.85)  a spindle: 0.85 at both ends, full in the middle
+K_KICK_TAPER = (0.70, 1.00)
+R_KICK_TAPER = (0.70, 1.00)
+
+def kick_widths(w, pair, t_join, buried):
+    """The leg's width keypoints: `pair` x the ruled width w over the
+    VISIBLE run (foot .. junction at t_join), the middle held full when
+    both ends are thinned (option C's spindle), then the family's bury
+    taper to `buried` x the junction's width at the end inside the arm or
+    the bowl. t_join is the junction's own t, so the whole of the taper the
+    owner asked for is the part that can be seen and the bury stays buried."""
+    f0, f1 = pair
+    keys = [(0.0, w * f0)]
+    if f0 < 1.0 and f1 < 1.0: keys.append((t_join / 2, w))
+    keys += [(t_join, w * f1), (1.0, w * f1 * buried)]
+    return widths(keys)
+
+def kick(J, angle_deg, w, bury=0.2, serif=1, taper=0.45, pair=(1.0, 1.0)):
     """A K/R leg drawn as the A's right leg: foot-first from the baseline
     at `angle`, the wedge foot on the outer side, thinning into J."""
     a = math.radians(angle_deg); foot = (J[0] + J[1] / math.tan(a), 0)
     d = (J[0] - foot[0], J[1] - foot[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
     top = (J[0] + d[0] * CS * bury, J[1] + d[1] * CS * bury)
-    return diagonal(foot, top, widths([(0.0, w), (0.78, w), (1.0, w * (1 - taper))]), serif0=serif)
+    return diagonal(foot, top, kick_widths(w, pair, L / (L + CS * bury), 1 - taper), serif0=serif)
 
 @glyph('K')
 def g_K(c):
@@ -176,7 +279,7 @@ def g_K(c):
     u = 0.16; J = (B0[0] + (A0[0] - B0[0]) * u, B0[1] + (A0[1] - B0[1]) * u)
     angle = math.degrees(math.atan2(J[1], A0[0] + s * 0.5 - J[0]))
     foot = (J[0] + J[1] / math.tan(math.radians(angle)), 0)
-    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1)])   # round 51: 1.1 x the pen at the leg's angle
+    return geom.ink([st, arm, kick(J, angle, pw(foot, J, 1.1), bury=0.1, pair=K_KICK_TAPER)])   # round 51: 1.1 x the pen at the leg's angle
 
 # owner, verbatim: "add more top right serif to 'L'" -- the stem top's wedge
 # (today `top='left'` only) extended to the right as the H/N/U right-stem tops
@@ -213,6 +316,23 @@ def g_L(c):
         parts = [cstem(x, 0, C, top='left+', foot='left')]
     return geom.ink(parts + [bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
 
+# owner, verbatim: "slightly cleanup the top and middle serifs of 'M'."
+# Three faults, all one cause -- two strokes meeting at one point, each cut
+# square to its OWN axis, so the faces tilt opposite ways:
+#  * the left apex went (62.3, 672.2) -> (62.5, 676.4) -> (90.5, 675.6) ->
+#    (129.3, 693.8): a 4-unit sliver, a short flat, then a spike 19 units
+#    ABOVE the cap line -- and the M was the only flat-topped capital that
+#    overshot at all (H N I B D P E F L T all stop at the line);
+#  * the right apex the same, a 10-unit spike at (706.1, 684.5);
+#  * the middle vertex two prongs (-19.5 and -10.1) with a notch between
+#    them, plus a 10-unit ledge poking right of the thick stroke where the
+#    thin one's end face came out at (447.4, 17.3).
+# Every one is cured by cutting the meeting faces HORIZONTAL (`flat_face`)
+# so each apex is one face on the cap line and the vertex one face on the
+# baseline. The crown was also seated 0.35 of the thin stroke's width in
+# from the apex instead of ON its edge, which is where the 4-unit sliver
+# came from; it is seated by `flat_corner` now. Widths, angles, the wedge
+# family's sizes, the splay and the advance are untouched.
 @glyph('M')
 def g_M(c):
     """Splayed: the outer strokes lean out a little, the apex on the
@@ -220,8 +340,15 @@ def g_M(c):
     C = c["cap"]; s = CS; w = W_(c, 'M', 720); x0 = s / 2; x1 = x0 + w
     P = [((x0 + s * 0.25, 0), (x0 + s * 0.45, C), 0.72, -1, None), ((x0 + s * 0.45, C), (x0 + w / 2, 0), 1.0, None, None),
          ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
-    apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    # the four meeting faces: a and e END at the apexes, b and d START there
+    # and END at the vertex; the two feet keep their square ends and wedges
+    CUTS = [(None, flat_face(P[0][0], P[0][1], True)),
+            (flat_face(P[1][0], P[1][1], False), flat_face(P[1][0], P[1][1], True)),
+            (flat_face(P[2][0], P[2][1], False), flat_face(P[2][0], P[2][1], True)),
+            (None, flat_face(P[3][0], P[3][1], True))]
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1, cut0=c0, cut1=c1)
+                  for (p0, p1, m, s0, s1), (c0, c1) in zip(P, CUTS)]
+    apex = wedge(flat_corner(P[0][0], P[0][1], pw(P[0][0], P[0][1], 0.72), -1, True), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
     return geom.ink([a, b, d, e, apex])
 
 @glyph('N')
@@ -245,20 +372,35 @@ def g_P(c):
     bowl, *_ = half_bowl(edge, C, C * 0.44, w * 0.72 + TH_V / 2, open_bottom=0.06)
     return geom.ink([cstem(x, 0, C), bowl])
 
+# owner, verbatim: "the tail on Q needs to lose its bulge." The bulge was
+# DECLARED, not an accident of the union: round 42's profile forced
+# `max(pen, 1.05 stems)` over a smoothstep belly centred at t 0.45, so the
+# tail ran 100 units wide -- wider than the cap stem (95.5) and wider than
+# the ring's own heaviest stroke (84) -- exactly where it crosses out from
+# under the ring, and the 1.05 stems is an ABSOLUTE that does not scale
+# with the letter, so the solved Q (width x 0.70) got the bulge at full
+# size on a smaller ring. The tail is now the pen at its own angle, with
+# the family's tail floor, so it leaves the ring at the ring's weight and
+# thins along its sweep; the ring is untouched and unbroken.
+Q_TAIL_FLOOR = 0.55   # x the stem: the family's tail floor, the 6's and the 9's (rounds 70, 71)
+
 @glyph('Q')
 def g_Q(c):
     """The O with Van den Keere's swash tail (round 42): from the ring's
-    centerline at 250 degrees, heaviest at its belly (1.05 stems), thinning
-    to a pen-cut tip at 1.8 O-widths, 0.2 C down."""
+    centerline at 250 degrees, the pen's own width along its sweep (floored
+    at Q_TAIL_FLOOR), to the family's diagonal end wedge at 1.8 O-widths,
+    0.2 C down."""
     C = c["cap"]; rx_c = W_(c, 'O', 350); solid, o, i = cap_ring(c, rx_c); s = CS
     rx = rx_c + TH_V / 2; ry_c = C / 2 + OVER - TH_H / 2; W = 2 * rx
     p0 = superellipse(rx, C / 2, rx_c, ry_c, math.radians(250), math.radians(250.5), BOWL_K)[0]
     tail = cubic(p0, (W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20))
-    base = pen_widths(tail)
-    def wfn(t):
-        belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
-        return max(base(t), s * 1.05 * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
-    return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
+    base = pen_widths(tail, floor=S * Q_TAIL_FLOOR)
+    # the start eases in under the ring so the crossing is a stroke and not
+    # a lump; the tip holds its weight into the end wedge, which rises from
+    # the tail's UPPER corner as the 9's does (round 71's ruling for the one
+    # other tail in the face that ends in this wedge rather than a pen cut)
+    wfn = lambda t: base(t) * widths([(0.0, 0.62), (0.14, 1.0), (0.88, 1.0), (1.0, 0.86)])(t)
+    return geom.ink([solid, stroke(tail, wfn), end_wedge(tail, wfn(1.0), False, 1)])
 
 @glyph('R')
 def g_R(c):
@@ -275,8 +417,25 @@ def g_R(c):
     c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
     leg_c = cubic(foot, c1, c2, end)
     w_foot = pw(foot, J, 1.05)
-    leg = stroke(leg_c, lambda t: w_foot * widths([(0.0, 1.0), (0.45, 1.0), (1.0, 0.42)])(t))
-    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, w_foot, True, 1)])
+    # the taper the owner asked for, on the leg's visible run; the junction
+    # is at Ld of the leg's Ld + 0.15 CS, and the last 0.42 is the bury
+    prof = kick_widths(w_foot, R_KICK_TAPER, Ld / (Ld + CS * 0.15), 0.42)
+    leg = stroke(leg_c, prof)
+    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, prof(0.0), True, 1)])
+
+# owner, verbatim: "'S' needs some weight on the end of its bottom left."
+# The spine's last keypoint was 0.3 of the pen, so the lower terminal came
+# out 23.7 units wide against the top-right beak's 104.9 -- a thorn beside
+# a beak, on the end an S conventionally makes the heavier of the two. The
+# last keypoint is now the SAME swell the top beak takes, 1.30 of the pen
+# at the terminal's own tangent, so the two ends are one recipe mirrored:
+# 1.3 over the first 10% at the top, 1.3 over the last 14% at the bottom.
+# Measured: bottom end 23.7 -> 103.8 against the top's 105.7.
+# The weight is on the END, not added to the sweep -- round 32's heavier
+# BOTTOM (the `bot` swell at t 0.74) is untouched. No LIP was added at the
+# bottom: the top's beak lip is a separate part and the owner asked for
+# weight, not for a second beak.
+S_BOTTOM_END = 1.30
 
 @glyph('S')
 def g_S(c):
@@ -287,7 +446,7 @@ def g_S(c):
     def wfn(t):
         mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * 0.92 * mid
         bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
-        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, 0.3)])(t)
+        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, S_BOTTOM_END)])(t)
     if PR.BOWL and PR.BOWL.get('widen'):
         wid = widen_terminal(widen_terminal(None, True), False)
         base2 = pen_widths(spine)
@@ -328,14 +487,45 @@ def g_V(c):
     p0, p1 = (s * 0.3, C), (w / 2, 0); q0, q1 = (w - s * 0.3, C), (w / 2 + s * 0.15, 0)
     return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
 
+# owner, verbatim: "clean up the top middle of W (stray marks below and
+# some overlap above)." Both halves of that sentence are one construction:
+# the two inner strokes START at the same point and each was cut square to
+# its own axis.
+#  * ABOVE -- the two faces tilt opposite ways and cross past the apex
+#    wedge: the designed outline peaked at (386.5, 682.0) and (450.6,
+#    687.5) with a notch down to (410.0, 675.6) between them. `flat_face`
+#    cuts both on the cap line, so the apex is one face; and the crown,
+#    seated 0.35 of the thin stroke's width in from the apex, is seated on
+#    the real edge by `flat_corner`, which is what left a step beside it.
+#  * BELOW -- the strokes' inner edges converge at only ~18 degrees each,
+#    so the crotch closes over 136 units and its last dozen came out as a
+#    zigzag hanging into the counter (399.4, 540.8) -> (400.8, 538.2) ->
+#    (400.8, 545.9) -> (401.9, 550.0) -> (402.9, 546.5): the stray marks.
+#    `crotch_blunt` lifts the crotch onto two straight edges.
+#    Two shapes were built for that cut and looked at before this one, and
+#    both fail at this half-angle. Subtracting the two strokes' OVERLAP
+#    leaves a slot between them closing to a point at the old crotch, which
+#    build.py's 1.2-unit ink spread seals into a 13 x 20 COUNTER (the W
+#    came back with two contours). A `trap`, the arches' primitive, needs a
+#    half-angle wider than the edges' own or it seals the same way -- and
+#    wider means its rays leave the crotch's air and shear a ~12-unit ledge
+#    off the inside of both strokes, which is a new stray mark for an old
+#    one.
+W_CROTCH_LIFT = 0.22   # x the stem: how far the crotch's point rises
+W_CROTCH_DROP = 0.22   # x the stem: where the cut rejoins the two edges
+
 @glyph('W')
 def g_W(c):
     C = c["cap"]; s = CS; w = W_(c, 'W', 820)
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
     P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
-    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    return geom.ink([a, b, d, e, crown])
+    CUTS = [None, flat_face(P[1][0], P[1][1], False), flat_face(P[2][0], P[2][1], False), None]
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf, cut0=c0) for (p0, p1, m, sf), c0 in zip(P, CUTS)]
+    crown = wedge(flat_corner(P[1][0], P[1][1], pw(P[1][0], P[1][1], 0.72), -1, False), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    blunt = crotch_blunt(P[1][0], P[1][1], pw(P[1][0], P[1][1], 0.72),
+                         P[2][0], P[2][1], pw(P[2][0], P[2][1], 1.0),
+                         S * W_CROTCH_LIFT, S * W_CROTCH_DROP)
+    return geom.ink([a, b, d, e, crown], [blunt])
 
 @glyph('X')
 def g_X(c):
@@ -350,8 +540,24 @@ def g_Y(c):
     return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1),
                      cstem(w / 2, 0, C * 0.45 + s * 0.3, top=None, foot='both', ent_span=(0, C))])
 
+# owner, verbatim: "cleanup 'Z' ... bottom left and top right." Those are
+# the two corners where a bar meets the diagonal, and the diagonal was
+# drawn straight past both of them. Its square end faces are 95.5 units
+# long across a 51-degree axis, so each one reached well outside the bars'
+# own box: at the top right the outline went (441.2, 675.6) -> a spur to
+# (447.1, 683.6) 8 units above the cap line -> (501.2, 675.6) -> down the
+# bar's end -> (525.6, 625.1), the diagonal's corner 24 units RIGHT of the
+# bar; at the bottom left the mirror, a corner at (-25.6, 49.3) 24 units
+# left of the bar's end and a spur to (52.9, -9.2) under the baseline.
+# The bars ARE the Z's box, so the diagonal is kept to it: each corner is
+# now one flush face, the bar's end above and the diagonal's edge below.
+# The bars themselves -- their pen cuts and their two bar-end wedges, at
+# the top LEFT and the bottom RIGHT -- are untouched, those being the two
+# corners the owner did not name.
 @glyph('Z')
 def g_Z(c):
     C = c["cap"]; s = CS; w = W_(c, 'Z', 500); th = max(TH_H, S * 0.5)
-    return geom.ink([bar(0, w, C, th, align='top', cut0=CUT, wedges=[('left', -1)]), diagonal((w - s * 0.15, C - th / 2), (s * 0.15, th / 2), CS),
+    dg = diagonal((w - s * 0.15, C - th / 2), (s * 0.15, th / 2), CS)
+    dg = dg.intersection(geom.poly([(0, 0), (w, 0), (w, C), (0, C)]))
+    return geom.ink([bar(0, w, C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg,
                      bar(0, w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])])

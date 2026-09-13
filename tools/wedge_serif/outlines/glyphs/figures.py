@@ -18,7 +18,8 @@ rejected alternatives above it."""
 import math
 from . import glyph
 from .. import geom, pen
-from ..geom import cubic, line, superellipse, tangents, resample
+from .. import primitives as PR
+from ..geom import cubic, line, superellipse, tangents, resample, join
 from ..primitives import stem, ring, stroke, pen_widths, widths, diagonal, bar, wedge, end_wedge, bowl_hair, bowl_th
 from ..pen import S, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, WL, WD, DROP
 from .caps_straight import W_, pw
@@ -40,6 +41,7 @@ NINE_OVERHANG = 11.0
 # which is the treatment the 2's base already had and the 1 had not.
 ONE_FLAG_BURY = 0.35
 ONE_FLAG_WEDGE = True
+ONE_FLAG_WEDGE_SCALE = 0.32   # owner 2026-09-13: "1 needs a much smaller tip serif at top" -- a third of the family's 0.9 diagonal end
 
 # Owner 2026-09-13 (round 75), the 2's half of the same ruling. Its base's
 # free (right) end was CUT and WEDGED at once, and `bar` plants the wedge at
@@ -206,39 +208,50 @@ def g_one(c):
     wf = pen_widths(path, lambda t: 0.85)
     parts = [st, stroke(path, wf, cut0=None if ONE_FLAG_WEDGE else CUT)]
     if ONE_FLAG_WEDGE:   # the 9's flag-diag construction: a square face across the stroke, the wedge off its UPPER corner
-        parts.append(end_wedge(path, wf(0.0), True, 1, scale=0.9))
+        parts.append(end_wedge(path, wf(0.0), True, 1, scale=ONE_FLAG_WEDGE_SCALE))
     return geom.ink(parts)
 
 @glyph('2')
 def g_two(c):
+    """Owner 2026-09-13: "2 needs another pass to tidy up stray marks and
+    flow the top right into the slash into the bottom." So the 2 is ONE
+    stroke from the arc's start, round the top, down the slash and into
+    the base's left end -- no separate diagonal, no neck join, nothing to
+    leave a stray mark. The centerline: the round-49 superellipse arc,
+    continued by a cubic that leaves the arc on its own tangent, bows down
+    to the left and arrives at the base's left end running horizontally
+    into it. Widths on the bowl profile (the pen's thin is the 6-unit
+    floor at this contrast): heavy on the arc's right, easing to the
+    slash's weight, easing back up into the base. The base is the family's
+    bar with its right-end wedge (round 77: wedge alone, no cut), the
+    stroke's end buried in it."""
     D = c["figH"]; w = W_(c, '2', 440); rx = w * 0.46
-    top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(-25), BOWL_K)
-    # THE NECK. Measured on the owner's pen: the arc's stroke is 57.9 units
-    # where it ends and the diagonal that continues from it is 28.0 -- the
-    # bowl arrives at the join twice the width of the stroke it hands over
-    # to, with a square face across it. The guide's join rule is that a thick
-    # stroke entering a thinner one TAPERS into the junction, and it was not:
-    # the profile held 1.0 to the last sample. So the outer corner of that
-    # oversized face stood proud of the diagonal on one side (a spur) and the
-    # face fell short on the other (a white nick, plainly visible at 600 px).
-    # The arc now eases to the diagonal's own width over the last
-    # TWO_NECK_TAPER of its run, and the diagonal is buried TWO_NECK_BURY x
-    # the stem back along its axis so the two overlap rather than abut.
-    foot = (S * 0.2, TH_H * 0.5); tipd = top[-1]
-    at = tangents(top)[-1]
-    hand = pw(tipd, foot) / max(pen.th_t(at), 1e-6)      # the diagonal's width over the arc's, at the join
-    arc = stroke(top, pen_widths(top, widths([(0.0, 1.2), (0.15, 1.0),
-                                              (1.0 - TWO_NECK_TAPER, 1.0), (1.0, hand)])), cut0=CUT)
-    ux, uy = tipd[0] - foot[0], tipd[1] - foot[1]; L = math.hypot(ux, uy) or 1.0
-    start = (tipd[0] + ux / L * S * TWO_NECK_BURY, tipd[1] + uy / L * S * TWO_NECK_BURY)
-    d = diagonal(start, foot, pw(tipd, foot))
+    top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(TWO_ARC_END_DEG), BOWL_K)
     barw = max(TH_H, S * 0.5)
-    # the base runs NINE_OVERHANG past the neck's rightmost ink; with the cut
-    # gone (see TWO_BASE_CUT) the bar's square end IS its rightmost ink
-    x1 = max(geom.bbox(arc)[2], geom.bbox(d)[2]) + NINE_OVERHANG
-    if TWO_BASE_CUT: x1 -= math.tan(CUT) * barw / 2
-    return geom.ink([arc, d, bar(0, x1, 0, barw, align='bottom',
-                                 cut1=CUT if TWO_BASE_CUT else None, wedges=[('right', 1)])])
+    tipd = top[-1]; at = tangents(top)[-1]
+    foot = (S * 0.55, barw * 0.5)                       # the base's centerline, a little in from its left end
+    seg = math.hypot(tipd[0] - foot[0], tipd[1] - foot[1])
+    c1 = (tipd[0] + at[0] * seg * TWO_SLASH_LEAVE, tipd[1] + at[1] * seg * TWO_SLASH_LEAVE)
+    c2 = (foot[0] - seg * TWO_SLASH_LAND, foot[1] + barw * 0.1)   # arrive running right along the base
+    slash = cubic(tipd, c1, c2, foot)
+    center = join(top, slash)
+    # where along the whole stroke the arc ends (by arc length), for the widths
+    def _len(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
+    f_arc = _len(top) / max(_len(center), 1e-6)
+    prof = widths([(0.0, 1.15), (0.15, 1.0), (max(0.0, f_arc - 0.08), 1.0), (min(1.0, f_arc + 0.12), TWO_SLASH_W),
+                   (0.90, TWO_SLASH_W), (1.0, 1.0)])
+    body = stroke(center, PR.bowl_widths(center, prof, floor=S * 0.5), cut0=CUT)
+    x1 = geom.bbox(body)[2] + NINE_OVERHANG
+    return geom.ink([body, bar(0, x1, 0, barw, align='bottom', wedges=[('right', 1)])])
+
+# the 2 as one stroke (2026-09-13): where the arc hands over to the slash
+# (degrees on the superellipse, -25 was round 49's), how far the slash
+# keeps the arc's tangent (x the slash's chord) and how far before the foot
+# it is already horizontal, and the slash's weight (x the bowl profile).
+TWO_ARC_END_DEG = -20
+TWO_SLASH_LEAVE = 0.30
+TWO_SLASH_LAND = 0.42
+TWO_SLASH_W = 0.72
 
 @glyph('3')
 def g_three(c):
@@ -266,19 +279,37 @@ FOUR_OPEN_GAP = 0.62       # x the stem, the gap at the top-left corner: 0.6 S i
 
 @glyph('4')
 def g_four(c):
+    """Owner 2026-09-13: "research how open 4 numerals can be done with
+    curved top left stroke." Measured on the references on disk: Berkeley
+    Oldstyle, Miju Goudy (Goudy Oldstyle) and Cheltenham draw the open 4's
+    top-left as ONE stroke that leaves the top thin, bows down and to the
+    left, and rounds into the bar with no corner, standing clear of the
+    stem; Dante, EB Garamond, Doves and Van den Keere keep a straight thin
+    diagonal, also clear of the stem. This is the Goudy way
+    (`FOUR_CURVED`): a cubic from a start clear of the stem's left edge by
+    FOUR_OPEN_GAP x S, bowing left (FOUR_BOW), arriving at the bar's left
+    end running right along it; widths on the bowl profile, thin at the
+    start (a pen cut), full by a quarter of the run, merging into the bar.
+    FOUR_CURVED False keeps round 77's straight open diagonal; FOUR_OPEN
+    False the closed 4."""
     D = c["figH"]; w = W_(c, '4', 480); xs = w * 0.7
-    p1 = (S * 0.1, D * 0.3); p0 = (xs - S * 0.2, D)
-    wd = pw(p0, p1, 0.75)
+    barw = max(TH_H, S * 0.5); bar_y = D * 0.3
     st = stem(xs, 0, D, top=None, foot='both')
+    b = bar(0, w, bar_y, barw)
+    if FOUR_OPEN and FOUR_CURVED:
+        x_edge = xs - TH_V / 2
+        p0 = (x_edge - S * FOUR_OPEN_GAP - S * 0.28, D - 4)     # the start's centre, its half width past the gap
+        p3 = (S * 0.45, bar_y)                                  # the bar's left end, on its centerline
+        c1 = (p0[0] - S * FOUR_BOW, D * 0.66)
+        c2 = (p3[0] - S * 0.35, bar_y + barw * 0.1)
+        curve = cubic(p0, c1, c2, p3)
+        prof = widths([(0.0, 0.5), (0.25, 1.0), (0.88, 1.0), (1.0, 0.95)])
+        dg = stroke(curve, PR.bowl_widths(curve, prof, floor=S * 0.5), cut0=CUT)
+        return geom.ink([dg, b, st])
+    p1 = (S * 0.1, bar_y); p0 = (xs - S * 0.2, D)
+    wd = pw(p0, p1, 0.75)
     dg = diagonal(p0, p1, wd)
     if FOUR_OPEN:
-        # slide the diagonal's top end back down its own axis until its end
-        # face stands FOUR_OPEN_GAP x the stem clear of the stem's ink AS
-        # BUILT: the builder grows every glyph by INK_SPREAD, which eats
-        # 2 x 1.2 units out of any gap, so the drawn gap is the wanted one
-        # plus that. (Without the correction the built gap measured 48.0
-        # units, under the standing 0.6 S = 50.4 aperture floor by exactly
-        # the two spreads.)
         from .. import build as _build     # lazy: build imports this module
         ux, uy = p0[0] - p1[0], p0[1] - p1[1]; L = math.hypot(ux, uy) or 1.0
         ux, uy = ux / L, uy / L
@@ -288,7 +319,10 @@ def g_four(c):
             dg = diagonal(q, p1, wd); got = dg.distance(st)
             if abs(got - want) < 0.05: break
             back += (want - got) / max(ux, 0.25)
-    return geom.ink([dg, bar(0, w, D * 0.3, max(TH_H, S * 0.5)), st])
+    return geom.ink([dg, b, st])
+
+FOUR_CURVED = True      # the Goudy open 4: a bowed stroke rounding into the bar (owner 2026-09-13)
+FOUR_BOW = 0.22         # how far left of the start the bow's upper control sits, x S
 
 @glyph('5')
 def g_five(c):

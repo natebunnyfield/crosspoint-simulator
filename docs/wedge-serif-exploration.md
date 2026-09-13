@@ -2292,3 +2292,28 @@ cut's phase counter runs once per contour in glyph order, so twenty later
 glyphs re-facet (largest point move 9.4 units, 0.5 px at 13 pt) -- a facet
 re-roll, not a design change. Page
 https://claude.ai/code/artifact/3397885e-bd67-4b94-b0a4-e04216754365.
+
+## Round 79 (2026-09-13): 1 2 4 by hand; the caps batch checked and landed
+
+Owner on round 77's figures: "keep 3 7 and 9 changes. 1 needs a much
+smaller tip serif at top. 2 needs another pass to tidy up stray marks and
+flow the top right into the slash into the bottom. research how open 4
+numerals can be done with curved top left stroke." Done here, not
+delegated; the rulings are in the guide's rows. Page
+https://claude.ai/code/artifact/PENDING124.
+
+The caps agent (Opus) reported the same hour and its nine capitals were
+checked here at 190 px against Albertus before merging (a three-way merge
+onto my L edits): E and F's top-right wedge no longer fights a pen cut (the
+wedge's face is the terminal, as the T's arms); K and R kicks taper --
+options A (0.70 at the foot), B (0.70 at the junction), C (spindle 0.85
+both ends), A default, `K_KICK_TAPER` / `R_KICK_TAPER`, his pick pending;
+the Q's tail loses its declared 1.05-stem belly (96 units on a 0.70 Q) for
+the pen with the 0.55 S floor and the 9's end wedge; the M's apexes and
+vertex get flat faces seated on the strokes' real edges (it overshot the
+cap line by 19, the only flat-topped capital that did); the S's bottom
+terminal takes the top beak's 1.30 swell (24 → 104 units); the W's apex one
+vertex; the Z's diagonal kept to the bars' box. Found and left, one line
+each: the E's bottom-right, the L's bottom bar, the Z's other two bar ends
+carry the same wedge-plus-cut ledge the bar() fix of round 78 addresses at
+the primitive. Page https://claude.ai/code/artifact/PENDINGCAPS.
