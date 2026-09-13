@@ -150,6 +150,22 @@ def _bowl_point(x, y_top, y_bot, w, t, s=0.0):
     u = 1 - t
     return (u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0], u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1])
 
+def _bowl_ring(c, P, x, y_top, y_bot, rx, open_bottom=0.3, k_mult=1.12):
+    """Round 47 (owner: "the shape of the interior for B and P and R needs to
+    resemble D much more"): a B/P/R bowl built exactly as the D's -- a
+    counterpunched half-ring on the pen from the stem's inner edge, its outer
+    edges ON y_top and y_bot, squared shoulders (k x 1.12), the counter's
+    lower half lifted by open_bottom of the horizontal stroke, both contours
+    closed inside the stem. Returns (cx, cy, rx, ry) for a leg to spring from."""
+    s = c["s"] * CAP_STEM; edge = x + s * 0.5; th_h = c["pen"].th((1, 0))
+    cy = (y_top + y_bot) / 2; ry = (y_top - y_bot) / 2 - th_h / 2; cx = edge + rx * 0.05
+    R = _round17()
+    outer, inner = R.ring(c, cx, cy, rx, ry, -math.pi / 2, math.pi / 2, 110, k=c["k"] * k_mult, cut=c.get("_cut"))
+    if open_bottom: inner = [(px, py + th_h * open_bottom * max(0.0, (cy - py) / ry) ** 1.5) for px, py in inner]
+    outer = [(edge - s * 0.06, outer[0][1])] + outer + [(edge - s * 0.06, outer[-1][1])]
+    inner = [(edge + 1, inner[0][1])] + inner + [(edge + 1, inner[-1][1])]
+    P.append(outer); P.append(R.Hole(inner)); return cx, cy, rx, ry
+
 def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5, open_bottom=0.0):
     """A B/P/R bowl: leaves the stem tapered at the top, swings out to w and
     rejoins tapered at the bottom. Stroked (the counter is what the stroke
@@ -201,9 +217,11 @@ def g_A(c):
 def g_B(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "B", 380)
     _cstem(c, P, x, 0, C, top="left", foot="left")
-    th = c["pen"].th((1, 0))   # round 33: bowls' outer edges ON the cap line and baseline (they were centered on them)
-    _bowl_stroke(c, P, x, C - th / 2, C * 0.55, w * 0.86)
-    _bowl_stroke(c, P, x, C * 0.55, th / 2, w); return P
+    th = c["pen"].th((1, 0))
+    # round 47: both bowls on the D's ring; they overlap at the waist by 0.3 of
+    # a horizontal stroke each way so no shared edge seams
+    _bowl_ring(c, P, x, C, C * 0.55 - th * 0.3, w * 0.86 * 0.72, open_bottom=0.0)
+    _bowl_ring(c, P, x, C * 0.55 + th * 0.3, 0, w * 0.72, open_bottom=0.3); return P
 
 def g_C(c):
     P = []; C = capH(c); rx = _w(c, "C", 330); ry = C / 2 + c["over"]
@@ -420,7 +438,7 @@ def g_O(c):
 def g_P(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "P", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.44, w, open_bottom=0.3); return P   # round 33: top edge on the cap line; round 45: bottom opened as the D's
+    _bowl_ring(c, P, x, C, C * 0.44, w * 0.72); return P   # round 47: the D's ring
 
 def g_Q(c):
     """VdK pass: Van den Keere's Q tail is a calligraphic swash. Measured at
@@ -449,7 +467,7 @@ def g_Q(c):
 def g_R(c):
     P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
     _cstem(c, P, x, 0, C, top="left", foot="both")
-    _bowl_stroke(c, P, x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95, open_bottom=0.3)   # round 33: top edge on the cap line; round 45: bottom opened as the D's
+    cx, cy, rx, ry = _bowl_ring(c, P, x, C, C * 0.46, w * 0.95 * 0.72)   # round 47: the D's ring
     # round 30: the leg springs from the bowl's lower curve (it started under
     # it): its start is the bowl bezier's point at t = 0.8, buried a third of
     # a stem back along the leg.
@@ -459,7 +477,7 @@ def g_R(c):
     # is 1.04 stems (Fjord 0.98). A junction at t = 0.9 (0.28 of the bowl)
     # was tried: the foot then lands so far left that the width solver
     # pins the bowl at its 1.45 clamp. Only the leg's weight moves.
-    J = _bowl_point(x, C - c["pen"].th((1, 0)) / 2, C * 0.46, w * 0.95, 0.8, s)
+    ang = math.radians(-52); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))   # round 47: on the ring's centerline, lower right
     kick(c, P, J, s, angle=math.radians(60), thin=1.05 / CAP_STEM); return P   # round 32: the A's leg, a little more upright than the K's (A 65, R 60, K 52)
 
 def g_S(c):

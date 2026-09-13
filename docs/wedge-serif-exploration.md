@@ -1294,3 +1294,17 @@ weight pass is re-run on this build by an agent scoped to `alphabet2.py` and
 `round17.py`, same instrument and rule as round 36 (only letters off in the
 same direction in both Garamond and Hoefler, for a stroke-weight reason).
 Results below when they land.
+
+## Round 47 (2026-09-12): B P R bowls on the D's ring
+
+Owner: "the shape of the interior for B and P and R needs to resemble D much
+more." `latin._bowl_ring(c, P, x, y_top, y_bot, rx, open_bottom, k_mult)`:
+the D's construction generalized -- `round17.ring` half-ring from the stem's
+inner edge, cy at the middle of y_top..y_bot, ry so the outer edges land ON
+them, k × 1.12, the counter's lower half lifted by open_bottom × th_h,
+both contours closed inside the stem. Returns (cx, cy, rx, ry). B: two rings
+(upper without the lift), overlapping at the waist by 0.3 th_h each way; P
+one ring; R one ring with the leg springing from the ring's centerline at
+−52°. rx = 0.72 of the old bezier widths; the solver re-fit B 1.16, P 1.07,
+R 1.10. `_bowl_stroke` / `_bowl_point` remain for reference, unused by the
+capitals now. Proof `fjord-bpr.html`.
