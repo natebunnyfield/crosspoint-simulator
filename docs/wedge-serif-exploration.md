@@ -2151,3 +2151,14 @@ px). Checked here: visible at 400 px, indistinguishable at 13 pt -- his
 condition ("keep word image legible") holds. Page
 https://claude.ai/code/artifact/e0a19a8c-784c-40ec-a425-3dc5d133fc71. Landed at x0.90/+8 pending his
 pick among the four.
+
+Round 77, h m n (2026-09-13, landed): the join's ink trap in `arch_geom`
+was placed at the stem edge but its 65 deg direction sent the tip S x 0.22
+(18 units) down-left, 17 units BELOW the join into solid stem -- a
+lightning-bolt nick through the crotch's silhouette; without the trap the
+stem-arch union is already clean (a 5-unit natural step). Depth rescaled to
+S x 0.05, same apex and angles. Only h n m changed; r and u byte-identical
+(the r's arm carries the same trap formula and the same nick -- not in
+scope, noted for the next pass); advances unchanged; at 54 px 43 / 19 / 8
+pixels differ. Checked here at 800 px: the nick is gone. Page
+https://claude.ai/code/artifact/c6765f1b-2455-4a14-b565-fc41c8f83e9b.

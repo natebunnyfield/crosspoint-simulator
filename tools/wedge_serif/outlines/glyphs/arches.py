@@ -32,7 +32,18 @@ def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32
     def wfn(t):
         u = min(1.0, t / taper_span); return max(base(t) * (taper + (1 - taper) * (3 * u * u - 2 * u ** 3)), floor)
     solid, L, R = stroke(center, wfn, sides=True)
-    cut = trap((xl, start * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
+    # The join trap (ruling: arches leave the stem with a trap notch,
+    # 0.22 stem deep) was cutting from the RAW stem-edge point down into
+    # plain stem ink -- at 65 deg its tip lands 0.20 xh below the join, well
+    # under the actual (buried, tapered) corner where the arch's near edge
+    # departs the stem, so it sliced a deep gouge through the thin taper
+    # region instead of nicking the crotch (visible as a lightning-bolt nick
+    # at 600 px in n m h, found 2026-09-13). The real corner the union forms
+    # here is a ~5-unit step, so the trap is re-scaled to match it: same
+    # apex and 65 deg direction (still the crotch's ruled corner), depth cut
+    # to 0.05 stem so its tip stays inside the join's own solid overlap
+    # rather than reaching into the stem below it.
+    cut = trap((xl, start * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.05)
     return solid, [cut], L, R
 
 def arch(x0, x1, xh, **kw):
