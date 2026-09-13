@@ -2066,3 +2066,34 @@ Light / Regular as static TTFs with name table and usWeightClass, runs the
 topology check per weight, and pages them at 52 px and 13 pt with the
 ink-at-black share. Naming collision to settle: today's `Albo-Regular.ttf`
 is the 500 and may become `Albo-Medium.ttf`. Page pending.
+
+## Round 77 (2026-09-13): twenty cleanups and a variety audit
+
+Owner: "opus and sonnet subagents for: thin out the bottom right stroke of
+'e' slightly and give it more interior space by moving the stroke to the
+right slightly (keep word image legible). make a version of 't' that is a
+triangle on the right side, but keep it optically even to what is there
+now. the top right serif of E and F need cleanup. the kick on K and R needs
+to taper (give me options to choose from). the tail on Q needs to lose its
+bulge. slightly cleanup the top and middle serifs of 'M'. 'S' needs some
+weight on the end of its bottom left. clean up the top middle of W (stray
+marks below and some overlap above). cleanup 'Z' and 'z' bottom left and
+top right. cleanup strap marks inside 'g'. cleanup connectors of 'h m n'.
+clean up top middle of 'w'. clean up stray marks and mismatch of '1' and
+'2'. attach '9' on the right better. clean up top right of '7'. make a
+slightly altered 'open' version of '4'. both '?' and '&' need to be made
+flowing and elegant while still clean counterspace. give more of space at
+bottom curve of '3', halfway to 5. check all subagent work. run an audit
+that evaluates which serifs and counters are exactly the same as others, we
+need variety throughout this font for it to work."
+
+Partition by file (agents in worktrees, one file each): marks.py agent
+(round 75's) takes ? and &; stems.py agent takes the t triangle and the
+g's strap; diagonals.py agent takes z and w; new: figures.py (Opus: 1 2 3
+4 7 9), arches.py (Sonnet: h m n connectors), rounds.py (Sonnet: the e's
+arm, four variants), and an Opus audit writing
+`docs/albo-variety-audit-2026-09-13.md` + `cmp/variety.py`. The
+caps_straight.py batch (E F top-right serifs, K R kick taper options, Q's
+tail bulge, M's serifs, S's bottom-left weight, W's top middle, Z's
+corners) waits for the L agent's file to merge, then goes to an Opus agent.
+All checked here before merging.
