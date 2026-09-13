@@ -1785,5 +1785,12 @@ lower's width -- the top overhangs the bottom by 8 a side and reads top-heavy
 again; the two dials are one family, so the page also carries the same 1.036
 counter with the WIDTH kept (0.80 x lower, height 0.379) and a middle
 (0.90, 0.433). Constants `EIGHT_UPPER_W`, `EIGHT_UPPER_H`. Page
-https://claude.ai/code/artifact/PENDING64. Not merged to main until he
+https://claude.ai/code/artifact/8da037e7-eb55-439f-a677-696a395915ff. Not merged to main until he
 rules; the worktree holds the diff.
+
+## Round 65 (2026-09-13): contrast 0.95 default, full 0-1 range, desc 280
+
+Owner: "set default to .95 contrast, update contrast range to full 0-100;
+set DESC default to 280." Contrast 0 = monoline (hair = stem), 1.0 = a
+zero-width hair, which the ruled floors and a small absolute floor must
+carry. Sent to the rebuild agent; supersedes round 62's 0.80 and 256.
