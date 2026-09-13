@@ -134,6 +134,11 @@ def _cstem(c, P, x, y0, y1, top="left", foot="both", thin=1.0):
             # its drop. Only the U's right stem asks for it; 'left', 'right'
             # and 'both' draw exactly what they did.
             P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.4, c["wd"] * 0.6, 1, drop=c["drop"] * 0.4, fillet=c["fillet"]))
+        if top == "left+":
+            # round 51 (owner: "put a slight serif on the top right of 'I'"):
+            # the mirror of right+ -- the full left wedge plus a small one to
+            # the right. The I only.
+            P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.4, c["wd"] * 0.6, -1, drop=c["drop"] * 0.4, fillet=c["fillet"]))
     fsides = {"both": (-1, 1), "left": (-1,), "right": (1,), None: ()}
     for sd in fsides[foot]:
         P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
@@ -353,7 +358,7 @@ def g_H(c):
     bar(c, P, x0, x1, C * 0.52, thick=0.95); return P
 
 def g_I(c):
-    P = []; _cstem(c, P, c["s"] * CAP_STEM / 2, 0, capH(c)); return P
+    P = []; _cstem(c, P, c["s"] * CAP_STEM / 2, 0, capH(c), top="left+"); return P   # round 51: a slight serif top right too
 
 def g_J(c):
     """Round 34 (owner: "remove top bar of J"): the line across the top is

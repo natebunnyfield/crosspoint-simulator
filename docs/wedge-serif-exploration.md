@@ -1343,3 +1343,9 @@ descends, or the 8 rises well above the 0). Eight faces qualify: EB Garamond,
 Coelacanth, Almendra, Inknut Antiqua, Doves, Van den Keere, Dante MT, Edgar.
 Libris ADF and Atkinson Next carry only lining figures and are left out. The
 8's cell is boxed; a figure row per face follows.
+
+## Round 51 (2026-09-12): a slight serif on the top right of the I
+
+Owner: "put a slight serif on the top right of 'I'." `_cstem` `top="left+"`,
+the mirror of `right+`: the full left wedge plus a small right one (0.4
+length, 0.6 depth, 0.4 drop). The I only. Proof `fjord-I.html`.
