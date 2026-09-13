@@ -1840,3 +1840,27 @@ size and point; crossing angle; arm length and wedge; spur weight, angle,
 foot; lower bowl roundness; width 0.9–1.1), `VARIANTS2` in
 `glyphs/ampersands.py`, `cmp/ampersands.py --gen 2`, parents first on the
 page. Agent running; page pending.
+
+Round 66 built (2026-09-13), on the round-65 pen (84 / 0.95 / 429 / 770 /
+280 / cut 87 / serif 92): three 8s with both counters solved to 1.036
+exactly (`ring_for_counter`, six half-error iterations on the built counter),
+one waist band, bottom on the 0's and 6's line (-28). The neighbours'
+counters: 0 257 x 395, 6's bowl 239 x 327, 9's bowl 228 x 328. "Size of"
+taken as WIDTH (equal area would give a 654-tall 8, the 6 again).
+
+| | lower counter | upper | height | white at 54 px upper / lower | adv |
+|---|---|---|---|---|---|
+| round-64 ref | 226 x 297 | 260 x 273 | 705 | 151 / 140 | 490 |
+| A: 6's width, upper 0.85 | 240 x 231 | 202 x 196 | 567 | 81 / 116 | 485 |
+| B: 0's width, upper 0.85 | 256 x 246 | 218 x 208 | 598 | 96 / 134 | 504 |
+| C: 6's width, upper 0.75 | 239 x 231 | 176 x 171 | 544 | 64 / 117 | 486 |
+
+The 0 keeps 214 white pixels at 54 px, the 6's bowl 164; C's upper counter
+keeps 9 x 8. That is the trade. Sidebearings 37 on every round figure, so
+evenness rides on the advance: B has the 0's (504), A and C the 6's.
+Constants `EIGHT_COUNTER_OF`, `EIGHT_LOWER`, `EIGHT_UPPER`,
+`EIGHT_COUNTER_WH`; A default until he rules. The 0's and 6's rings are
+factored into `zero_bowl` / `six_bowl` (byte-identical output). Page at 147
+px x-height, not 230: four figures at 230 do not fit a 750 px block. Page
+https://claude.ai/code/artifact/PENDING66. The 5 at -24 is in the same
+diff; the merge waits for the VF rebuild so no master mixes old and new.
