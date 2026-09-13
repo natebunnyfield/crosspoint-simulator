@@ -2097,3 +2097,14 @@ caps_straight.py batch (E F top-right serifs, K R kick taper options, Q's
 tail bulge, M's serifs, S's bottom-left weight, W's top middle, Z's
 corners) waits for the L agent's file to merge, then goes to an Opus agent.
 All checked here before merging.
+
+Round 75, L landed (2026-09-13, 9f6f70b): the L's stem top gets a
+right-pointing wedge built in `g_L` (`L_TOP_RIGHT` x WL, depth WD, the
+family's drop, tangent to the swelled stem edge), the stem's own
+`right+` factors left alone so I and U stay byte-identical; every other
+glyph byte-identical. Advance, bearings and the "La Lo Le" gaps (4 px at 54
+px) unchanged at every step because the foot's bar still sets the right ink
+edge. Checked here: the ladder renders as briefed. Ladder 0.6 / 1.0 / 1.4,
+page https://claude.ai/code/artifact/c3ff4781-1b68-4975-ba66-6cf9f8bbec14,
+1.0 default until he picks. The caps batch (E F K R Q M S W Z) now runs on
+caps_straight.py as an Opus agent.
