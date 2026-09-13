@@ -241,8 +241,8 @@ def g_J(c):
 #   B  (1.00, 0.70)  taper toward the junction: the classic "leg thin
 #                    where it springs"
 #   C  (0.85, 0.85)  a spindle: 0.85 at both ends, full in the middle
-K_KICK_TAPER = (0.70, 1.00)
-R_KICK_TAPER = (0.70, 1.00)
+K_KICK_TAPER = (0.92, 0.92)   # owner 2026-09-13: "K before is best for inktraps, but adopt some of C kick thickness" -- C was the 0.85/0.85 spindle; a little of it
+R_KICK_TAPER = (1.00, 1.00)   # owner 2026-09-13: "the kick looks worse" -- the round-51 leg, no taper
 
 def kick_widths(w, pair, t_join, buried):
     """The leg's width keypoints: `pair` x the ruled width w over the
@@ -340,16 +340,14 @@ def g_M(c):
     C = c["cap"]; s = CS; w = W_(c, 'M', 720); x0 = s / 2; x1 = x0 + w
     P = [((x0 + s * 0.25, 0), (x0 + s * 0.45, C), 0.72, -1, None), ((x0 + s * 0.45, C), (x0 + w / 2, 0), 1.0, None, None),
          ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
-    # the four meeting faces: a and e END at the apexes, b and d START there
-    # and END at the vertex; the two feet keep their square ends and wedges
-    CUTS = [(None, flat_face(P[0][0], P[0][1], True)),
-            (flat_face(P[1][0], P[1][1], False), flat_face(P[1][0], P[1][1], True)),
-            (flat_face(P[2][0], P[2][1], False), flat_face(P[2][0], P[2][1], True)),
-            (None, flat_face(P[3][0], P[3][1], True))]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1, cut0=c0, cut1=c1)
-                  for (p0, p1, m, s0, s1), (c0, c1) in zip(P, CUTS)]
-    apex = wedge(flat_corner(P[0][0], P[0][1], pw(P[0][0], P[0][1], 0.72), -1, True), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    return geom.ink([a, b, d, e, apex])
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
+    apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    # owner 2026-09-13: "M after is worse ... try again" -- the round-51 M,
+    # its overshooting square faces (19 above the cap line at the left
+    # apex, 10 at the right, the vertex's prongs under the baseline) simply
+    # clipped to the cap band; the strokes themselves untouched
+    from shapely.geometry import box
+    return geom.ink([a, b, d, e, apex]).intersection(box(-1e4, 0.0, 1e4, C))
 
 @glyph('N')
 def g_N(c):
@@ -387,20 +385,21 @@ Q_TAIL_FLOOR = 0.55   # x the stem: the family's tail floor, the 6's and the 9's
 @glyph('Q')
 def g_Q(c):
     """The O with Van den Keere's swash tail (round 42): from the ring's
-    centerline at 250 degrees, the pen's own width along its sweep (floored
-    at Q_TAIL_FLOOR), to the family's diagonal end wedge at 1.8 O-widths,
-    0.2 C down."""
+    centerline at 250 degrees, heaviest at its belly (1.05 stems), thinning
+    to a pen-cut tip at 1.8 O-widths, 0.2 C down."""
     C = c["cap"]; rx_c = W_(c, 'O', 350); solid, o, i = cap_ring(c, rx_c); s = CS
     rx = rx_c + TH_V / 2; ry_c = C / 2 + OVER - TH_H / 2; W = 2 * rx
     p0 = superellipse(rx, C / 2, rx_c, ry_c, math.radians(250), math.radians(250.5), BOWL_K)[0]
     tail = cubic(p0, (W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20))
-    base = pen_widths(tail, floor=S * Q_TAIL_FLOOR)
-    # the start eases in under the ring so the crossing is a stroke and not
-    # a lump; the tip holds its weight into the end wedge, which rises from
-    # the tail's UPPER corner as the 9's does (round 71's ruling for the one
-    # other tail in the face that ends in this wedge rather than a pen cut)
-    wfn = lambda t: base(t) * widths([(0.0, 0.62), (0.14, 1.0), (0.88, 1.0), (1.0, 0.86)])(t)
-    return geom.ink([solid, stroke(tail, wfn), end_wedge(tail, wfn(1.0), False, 1)])
+    base = pen_widths(tail)
+    def wfn(t):
+        belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
+        # owner 2026-09-13: "leave Q as is, just reduce the bulge by 85%" --
+        # the belly's excess over the pen kept at Q_BELLY of what it was
+        full = max(base(t), s * 1.05 * (3 * belly * belly - 2 * belly ** 3))
+        return (base(t) + Q_BELLY * (full - base(t))) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+    return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
+Q_BELLY = 0.15
 
 @glyph('R')
 def g_R(c):
@@ -412,14 +411,18 @@ def g_R(c):
     # slight outward bow; drawn foot-first so the foot wedge is the A's
     foot = (J[0] + J[1] / math.tan(math.radians(60)), 0)
     d = (J[0] - foot[0], J[1] - foot[1]); Ld = math.hypot(*d); d = (d[0] / Ld, d[1] / Ld); nrm = (-d[1], d[0])
-    end = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)
+    # owner 2026-09-13: "R counter is missing cleanup" -- the leg's start put
+    # its square face into the counter's bottom edge as a notch; buried
+    # R_LEG_BURY of the cap stem and thinned to 0.28, the face lies inside
+    # the bowl's stroke
+    end = (J[0] + d[0] * CS * R_LEG_BURY, J[1] + d[1] * CS * R_LEG_BURY)
     c1 = (foot[0] + d[0] * Ld * 0.35 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.35 - nrm[1] * 9)
     c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
     leg_c = cubic(foot, c1, c2, end)
     w_foot = pw(foot, J, 1.05)
     # the taper the owner asked for, on the leg's visible run; the junction
     # is at Ld of the leg's Ld + 0.15 CS, and the last 0.42 is the bury
-    prof = kick_widths(w_foot, R_KICK_TAPER, Ld / (Ld + CS * 0.15), 0.42)
+    prof = kick_widths(w_foot, R_KICK_TAPER, Ld / (Ld + CS * R_LEG_BURY), 0.28)
     leg = stroke(leg_c, prof)
     return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, prof(0.0), True, 1)])
 
@@ -435,6 +438,7 @@ def g_R(c):
 # BOTTOM (the `bot` swell at t 0.74) is untouched. No LIP was added at the
 # bottom: the top's beak lip is a separate part and the owner asked for
 # weight, not for a second beak.
+R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30
 
 @glyph('S')
@@ -519,13 +523,14 @@ def g_W(c):
     C = c["cap"]; s = CS; w = W_(c, 'W', 820)
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
     P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
-    CUTS = [None, flat_face(P[1][0], P[1][1], False), flat_face(P[2][0], P[2][1], False), None]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf, cut0=c0) for (p0, p1, m, sf), c0 in zip(P, CUTS)]
-    crown = wedge(flat_corner(P[1][0], P[1][1], pw(P[1][0], P[1][1], 0.72), -1, False), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    blunt = crotch_blunt(P[1][0], P[1][1], pw(P[1][0], P[1][1], 0.72),
-                         P[2][0], P[2][1], pw(P[2][0], P[2][1], 1.0),
-                         S * W_CROTCH_LIFT, S * W_CROTCH_DROP)
-    return geom.ink([a, b, d, e, crown], [blunt])
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
+    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    # owner 2026-09-13: "W cleanup was only half right, just remove the tiny
+    # above triangle on top middle" -- the inner diagonals' square top
+    # corners poke above the cap line beside the crown; clipped at C, the
+    # crotch left as it was
+    from shapely.geometry import box
+    return geom.ink([a, b, d, e, crown]).intersection(box(-1e4, -1e4, 1e4, C))
 
 @glyph('X')
 def g_X(c):
@@ -556,8 +561,48 @@ def g_Y(c):
 # corners the owner did not name.
 @glyph('Z')
 def g_Z(c):
+    """Owner 2026-09-13: "give Z a blunt edge and other similar more fitting
+    connectors than a right angle." The corners where the diagonal meets
+    the bars (top right, bottom left) were right angles. Z_CORNER picks:
+    'blunt' -- the corner bevelled parallel to the diagonal by Z_BEVEL x S;
+    'mitre' -- the bar's end cut along the diagonal's outer edge, a sharp
+    corner on the diagonal's line; 'wedge' -- the diagonal's ends carry
+    the family's 0.9 x 0.9 diagonal end wedge past the bars. The other two
+    corners keep their pen cut and their bar-end wedge."""
+    from shapely.geometry import Polygon
     C = c["cap"]; s = CS; w = W_(c, 'Z', 500); th = max(TH_H, S * 0.5)
-    dg = diagonal((w - s * 0.15, C - th / 2), (s * 0.15, th / 2), CS)
-    dg = dg.intersection(geom.poly([(0, 0), (w, 0), (w, C), (0, C)]))
-    return geom.ink([bar(0, w, C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg,
-                     bar(0, w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])])
+    p_top, p_bot = (w - s * 0.15, C - th / 2), (s * 0.15, th / 2)
+    dg = diagonal(p_top, p_bot, CS)
+    parts = [bar(0, w, C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg, bar(0, w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])]
+    g = geom.ink(parts)
+    dx, dy = p_top[0] - p_bot[0], p_top[1] - p_bot[1]; L = math.hypot(dx, dy); dx, dy = dx / L, dy / L
+    far = 4000.0
+    if Z_CORNER == 'blunt':
+        b = S * Z_BEVEL
+        tr = Polygon([(w - b, C + 2), (w + 2, C + 2), (w + 2, C + 2 - (b + 2) * dy / dx)])
+        bl = Polygon([(b, -2), (-2, -2), (-2, -2 + (b + 2) * dy / dx)])
+        g = g.difference(tr).difference(bl)
+    elif Z_CORNER == 'mitre':
+        # the diagonal's outer edge, extended to the bar's outer face: the
+        # bar runs out to that corner and everything beyond the edge's line
+        # is cut away -- a sharp corner on the diagonal's own line
+        nx, ny = dy, -dx                                     # the diagonal's right/lower normal
+        def half(corner, sign):
+            u = (dx * far, dy * far); n = (nx * far * sign, ny * far * sign)
+            return Polygon([(corner[0] + u[0], corner[1] + u[1]), (corner[0] - u[0], corner[1] - u[1]),
+                            (corner[0] - u[0] + n[0], corner[1] - u[1] + n[1]), (corner[0] + u[0] + n[0], corner[1] + u[1] + n[1])])
+        ox, oy = p_top[0] + nx * CS / 2, p_top[1] + ny * CS / 2
+        corner = (ox + dx * (C - oy) / dy, C)
+        ox2, oy2 = p_bot[0] - nx * CS / 2, p_bot[1] - ny * CS / 2
+        corner2 = (ox2 + dx * (0.0 - oy2) / dy, 0.0)
+        parts = [bar(0, max(w, corner[0] + 2), C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg,
+                 bar(min(0, corner2[0] - 2), w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])]
+        from shapely.geometry import box as _box
+        cut_tr = half(corner, +1).intersection(_box(corner[0] - CS * 2, C - th - 2, corner[0] + far, C + far))   # beyond the edge, within the top bar's band
+        cut_bl = half(corner2, -1).intersection(_box(corner2[0] - far, -far, corner2[0] + CS * 2, th + 2))    # beyond the edge, within the bottom bar's band
+        g = geom.ink(parts).difference(cut_tr).difference(cut_bl)
+    elif Z_CORNER == 'wedge':
+        g = geom.ink(parts + [end_wedge([p_bot, p_top], CS, False, 1, scale=0.9), end_wedge([p_bot, p_top], CS, True, 1, scale=0.9)])
+    return g
+Z_CORNER = __import__("os").environ.get("FJORD_Z_CORNER", "blunt")
+Z_BEVEL = 0.45

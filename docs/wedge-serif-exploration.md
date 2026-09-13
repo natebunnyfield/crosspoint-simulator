@@ -2300,7 +2300,7 @@ smaller tip serif at top. 2 needs another pass to tidy up stray marks and
 flow the top right into the slash into the bottom. research how open 4
 numerals can be done with curved top left stroke." Done here, not
 delegated; the rulings are in the guide's rows. Page
-https://claude.ai/code/artifact/PENDING124.
+https://claude.ai/code/artifact/0aa1f23e-d105-4e8a-abcc-468db252fe92.
 
 The caps agent (Opus) reported the same hour and its nine capitals were
 checked here at 190 px against Albertus before merging (a three-way merge
@@ -2335,3 +2335,21 @@ stem foot (its travel there is down-left; a start to the right forces a
 cusp), the a stands in the spiral's open side, the end at one o'clock.
 Seven ?s built (`FJORD_Q_VARIANT`), 0 landed until he picks. The & from
 round 77 is ruled. Page https://claude.ai/code/artifact/PENDING80.
+
+## Round 81 (2026-09-13): the caps rulings, 1 2 @ ? again
+
+Owner: "K before is best for inktraps, but adopt some of C kick thickness.
+R counter is missing cleanup and the kick looks worse. leave Q as is, just
+reduce the bulge by 85%. M after is worse. try again on the failures. keep
+S after. W cleanup was only half right, just remove the tiny above triangle
+on top middle. give Z a blunt edge and other similar more fitting
+connectors than a right angle." And: "FIGURE OUT WHAT A TYPICAL AT SYMBOL
+LOOKS LIKE AND TRY AGAIN. reduce the top spur on 1 into a microserif.
+rebalance 2 to be heavier on the bottom and lighter on the top. make the
+question mark back into its original question mark shape and albertus
+heavy, larger to read correctly in a sentence." All done by hand; the
+rulings are the guide's rows. The @: I had the sweep backwards -- a typical
+@ runs counterclockwise from the a's foot up the right side and ends at the
+lower right. Z: three connectors built, blunt default, his pick pending.
+Page https://claude.ai/code/artifact/PENDING81. Fonts
+`build/fjord-fonts/Z/Albo-Z-{blunt,mitre,wedge}.ttf`.

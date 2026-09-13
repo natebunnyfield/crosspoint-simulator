@@ -102,7 +102,14 @@ def _q6(c):   # the descent as a vertical stem with a wedge foot above the dot, 
 def _q7(c):   # curled: the terminal turns in toward the counter, a teardrop
     C = CAP(c); w = 380; e = C * 0.22
     return _q_common(c, [(w * 0.24, C * 0.72), (w * 0.10, C * 0.66), (w * 0.02, C * 0.82), (w * 0.34, C * 1.00), (w * 0.74, C * 0.92), (w * 0.62, C * 0.54), (w * 0.50, e)], [(0.0, 0.95), (0.12, 0.6), (0.34, 1.0), (0.62, 0.95), (1.0, 0.7)], tension=0.6)
-QUESTION_VARIANTS = [('round 77 (landed)', _q0), ('bowl profile', _q1), ('garalde wide', _q2), ('tall narrow', _q3), ('beak terminal', _q4), ('Albertus heavy', _q5), ('curled terminal', _q7)]   # a stem-foot variant was built and dropped: its foot wedges read as a claw
+def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and larger
+    C = CAP(c); w = 380 * Q8_SCALE
+    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, C * 0.36), (w * 0.5, C * 0.22)], tension=0.5)
+    wf = PR.bowl_widths(hook, widths([(0.0, 0.7), (0.15, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR)
+    return geom.ink([dot(w * 0.5, DOT_R * 1.1, DOT_R * 1.1), stroke(hook, wf, cut0=CUT, cut1=CUT)])
+Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
+Q8_FLOOR = 0.78   # the hook never under 0.78 S: Albertus weight
+QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bowl profile', _q1), ('garalde wide', _q2), ('tall narrow', _q3), ('beak terminal', _q4), ('Albertus heavy', _q5), ('curled terminal', _q7)]   # a stem-foot variant was built and dropped: its foot wedges read as a claw
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 
 QUOTE_BODY = 2 * DOT_R   # straight and curly quotes share this body height, top-aligned to CAP
@@ -222,51 +229,47 @@ AT_A_SCALE = 0.80   # owner 2026-09-13: "simple a within the usual at symbol spi
 @glyph('@')
 def g_at(c):
     """Owner 2026-09-13: "for at symbol, use an italic 'a' and connect the
-    bottom right to the loop to its right like a conventional." The
-    conventional @: a single-storey a (the italic form, slanted AT_SLANT)
-    filling the ring's interior with its stem on the right; the stem runs
-    down past the bowl and its tail drops down-right into the spiral, which
-    sweeps clockwise round the bottom, up the left, over the top and ends
-    open on the right above the start, in the pen cut. One stroke from the
-    a's stem bottom to the spiral's end; everything on the bowl profile."""
+    bottom right to the loop to its right like a conventional"; then,
+    after six builds with the sweep the wrong way round: "FIGURE OUT WHAT A
+    TYPICAL AT SYMBOL LOOKS LIKE AND TRY AGAIN." Measured on Berkeley,
+    Albertus and the system faces: the stroke leaves the a's stem foot,
+    hooks RIGHT and UP into the ring at about 4 o'clock, climbs the right
+    side, goes over the top, down the left, along the bottom, and ENDS at
+    the lower right just under where it began -- counterclockwise, the
+    open end at 5 o'clock. The a is a single-storey a (the italic form,
+    slanted AT_SLANT) with its stem right of centre; everything on the
+    bowl profile."""
     C = CAP(c); rx = C * 0.52; ry = C / 2 + OVER - TH_H / 2; cx = rx + S / 2; cy = C / 2
-    ring_w = S * 0.85
-    ri = rx - ring_w                                   # the interior's half width
-    # the inner a: a bowl left of centre and a stem on its right edge
+    ring_w = S * 0.85; ri = rx - ring_w
     brx = ri * AT_A_BOWL; bry = brx * (ry / rx)
-    # the a stands to the RIGHT of the interior: its stem in the spiral's
-    # open side, as Berkeley's, so the tail drops straight into the start
     sx_want = cx + rx * AT_STEM_X
-    bx, by = sx_want - brx, cy - ri * 0.02
+    bx, by = sx_want - brx, cy + ri * 0.02
     bowl, bo, bi = ring(bx, by, brx + TH_V * 0.42, bry + TH_H * 0.42, w_scale=0.85)
-    sx = bx + brx + TH_V * 0.42 * 0.15                 # the stem's centre on the bowl's right stroke
-    s_top, s_bot = by + bry + TH_H * 0.35, by - bry - TH_H * 0.35
+    sx = bx + brx + TH_V * 0.42 * 0.15
+    s_top, s_bot = by + bry + TH_H * 0.35, by - bry - TH_H * 0.25
     stem_c = [(sx, s_top), (sx, s_bot)]
     stm = stroke(stem_c, PR.bowl_widths(stem_c, widths([(0.0, 0.75), (0.3, 1.0), (1.0, 1.0)]), floor=S * 0.62), cut0=CUT)
     tan_s = math.tan(math.radians(AT_SLANT))
     inner = aff.skew(geom.union([bowl, stm]), xs=AT_SLANT, origin=(bx, by))
-    p0 = (sx + tan_s * (s_bot - by), s_bot)            # the slanted stem's bottom
-    # the spiral: from AT_START_DEG (5 o'clock, down-right of the stem's
-    # foot), AT_SWEEP degrees clockwise
-    start_deg = -math.degrees(math.acos(max(-1.0, min(1.0, (p0[0] - cx) / rx + AT_TAIL_OUT))))   # a little left of the stem's foot, so the tail hooks left into it
-    a0 = math.radians(start_deg)
-    ringc = superellipse(cx, cy, rx, ry, a0, math.radians(start_deg - AT_SWEEP), BOWL_K)
+    p0 = (sx + tan_s * (s_bot - by), s_bot)
+    # the ring, COUNTERCLOCKWISE from 4 o'clock (angles increasing), AT_SWEEP
+    # degrees, ending at the lower right under the start
+    a0 = math.radians(AT_START_DEG)
+    ringc = superellipse(cx, cy, rx, ry, a0, math.radians(AT_START_DEG + AT_SWEEP), BOWL_K)
     P = ringc[0]; Q = ringc[3]
     tq = (Q[0] - P[0], Q[1] - P[1]); L = math.hypot(*tq) or 1.0; tq = (tq[0] / L, tq[1] / L)
     gap = math.hypot(P[0] - p0[0], P[1] - p0[1])
-    # the tail makes the turn itself: straight down from the foot, hooking
-    # left into the spiral's start (which sits a little LEFT of the stem so
-    # the hook never has to swing out and back -- that made a cusp)
-    tail = cubic(p0, (p0[0], p0[1] - gap * 0.55), (P[0] - tq[0] * gap * 0.5, P[1] - tq[1] * gap * 0.5), P)
+    # the hook: down from the foot, round to the right, up into the ring
+    tail = cubic(p0, (p0[0], p0[1] - gap * 0.6), (P[0] - tq[0] * gap * 0.55, P[1] - tq[1] * gap * 0.55), P)
     center = geom.join(tail, ringc)
     f_tail = gap / (gap + sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(ringc, ringc[1:])))
-    prof = widths([(0.0, 0.9), (f_tail, 0.85), (0.86, 0.85), (1.0, 0.45)])
+    prof = widths([(0.0, 0.95), (f_tail, 0.85), (0.86, 0.85), (1.0, 0.5)])
     rg = stroke(center, PR.bowl_widths(center, prof, floor=S * 0.45), cut1=CUT, pieces=True)
     return geom.ink([inner, rg])
 AT_A_BOWL = 0.50       # the inner a's bowl half width, x the interior's half width
-AT_STEM_X = 0.63       # the a's stem centre, x rx right of the ring's centre (its right edge clears the ring's inside by ~0.6 S)
-AT_TAIL_OUT = -0.08    # the spiral's start sits this much (x rx) LEFT of the stem's foot (negative = left)
-AT_SWEEP = 262.0       # degrees of sweep, clockwise from under the stem; the open end lands at about 1 o'clock
+AT_STEM_X = 0.40       # the a's stem centre, x rx right of the ring's centre
+AT_START_DEG = -38.0   # the ring begins at 4 o'clock, where the a's hook enters it
+AT_SWEEP = 296.0       # counterclockwise; the open end lands at about 5 o'clock, under the start
 AT_SLANT = 6.0   # degrees, the inner a's italic slant
 
 @glyph('_')

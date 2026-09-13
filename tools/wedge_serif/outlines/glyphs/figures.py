@@ -41,7 +41,7 @@ NINE_OVERHANG = 11.0
 # which is the treatment the 2's base already had and the 1 had not.
 ONE_FLAG_BURY = 0.35
 ONE_FLAG_WEDGE = True
-ONE_FLAG_WEDGE_SCALE = 0.32   # owner 2026-09-13: "1 needs a much smaller tip serif at top" -- a third of the family's 0.9 diagonal end
+ONE_FLAG_WEDGE_SCALE = 0.15   # owner 2026-09-13: "1 needs a much smaller tip serif at top", then "reduce the top spur on 1 into a microserif" -- a sixth of the family's 0.9 diagonal end
 
 # Owner 2026-09-13 (round 75), the 2's half of the same ruling. Its base's
 # free (right) end was CUT and WEDGED at once, and `bar` plants the wedge at
@@ -239,14 +239,21 @@ def g_two(c):
         if best is None or err < best[0]: best = (err, deg, top, tipd)
     _, deg, top, tipd = best
     center = join(top, line(tipd, foot))
-    prof = widths([(0.0, 1.1), (0.15, 1.0), (1.0, 1.0)])
-    body = stroke(center, PR.bowl_widths(center, prof, floor=S * TWO_SLASH_W), cut0=CUT)
+    # owner 2026-09-13: "rebalance 2 to be heavier on the bottom and lighter
+    # on the top": the arc at TWO_TOP_W of the profile, the slash growing to
+    # full by the base, the base bar TWO_BASE_W heavier
+    f_arc = _plen(top) / max(_plen(center), 1e-6)
+    prof = widths([(0.0, TWO_TOP_W * 1.1), (0.15, TWO_TOP_W), (f_arc, TWO_TOP_W), (1.0, 1.0)])
+    body = stroke(center, PR.bowl_widths(center, prof, floor=S * TWO_SLASH_W * TWO_TOP_W), cut0=CUT)
     x1 = geom.bbox(body)[2] + NINE_OVERHANG
-    return geom.ink([body, bar(0, x1, 0, barw, align='bottom', wedges=[('right', 1)])])
+    return geom.ink([body, bar(0, x1, 0, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
 
 # the 2 as one stroke (2026-09-13): the slash's weight floor (x S; 0.8 = the
 # arc's side, one weight). The arc's end angle is solved per build.
 TWO_SLASH_W = 0.80
+TWO_TOP_W = 0.82      # the arc's weight, x the profile (lighter on top)
+TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
+def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 @glyph('3')
 def g_three(c):
