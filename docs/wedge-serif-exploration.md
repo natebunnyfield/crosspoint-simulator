@@ -2277,3 +2277,10 @@ cut) -- the remaining twins are pairs whose draws happened to land within
 family's a inside, marks aligned to one dot size and one quote top, ? and
 & flowing). Page https://claude.ai/code/artifact/7050f613-acf6-4c0a-ba3d-dcd9a2605f54; marks page
 https://claude.ai/code/artifact/22f49b59-7638-434a-8b33-13ebd06cb4de; specimen republished.
+
+Round 77, the e RULED (2026-09-13): "it seems like the subagents are not
+able to do what I need. leave 'e' as is, for now." `E_ARM_THIN` 1.0,
+`E_ARM_OUT` 0 -- the e is the pre-round-77 e (the construction keeps the
+dials for later). Standing consequence: glyph work is done here, by hand,
+not delegated; the caps and figures agents already running finish and each
+glyph is judged before it lands.
