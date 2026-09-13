@@ -2023,4 +2023,4 @@ full width (78) at the ring exit, smoothstep down to 0.60 (49, the floor)
 over the first 35 / 55 / 75% of the run; width at 25% of the run 54 / 65 /
 70; paper between tail and bowl at 54 px 138 / 132 / 130 px (uniform 0.60:
 140) -- the price of the heavier root; counter, lsb, gaps unchanged. Page
-https://claude.ai/code/artifact/PENDING74.
+https://claude.ai/code/artifact/f5808a9a-2dc0-4918-b935-144850d1897a.
