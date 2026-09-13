@@ -1284,3 +1284,13 @@ D (round 36) lifted its counter's lower edge by 0.3·th_h·((cy−y)/ry)^1.5.
 the stroke thickens by open_bottom × th_h and its centerline shifts up by
 half that, so the outer edge holds and only the counter's edge lifts. P and R
 pass 0.3; B does not. Proof `fjord-pr.html`.
+
+## Round 46 (2026-09-12): the e bar a little heavier; second weight pass
+
+Owner: "increase the e crossbar thickness slightly; make sure the visual
+weight of all lowercase letters is even in common words." `E_VARIANTS[0].th`
+0.62 → 0.72 (at 5° the pen gives 51, so the bar goes 32 → 37 units). The
+weight pass is re-run on this build by an agent scoped to `alphabet2.py` and
+`round17.py`, same instrument and rule as round 36 (only letters off in the
+same direction in both Garamond and Hoefler, for a stroke-weight reason).
+Results below when they land.

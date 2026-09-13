@@ -164,7 +164,7 @@ E_BAR_DEG = 5.0     # the e's bar rises left to right by this (owner 2026-09-12)
 # 'cut' (pen cut + flare, as now), 'flare' (big flare, square end), 'taper'
 # (thins to a point), 'beak' (the C's wedge), 'blunt' (square, no flare).
 E_VARIANTS = [
- dict(deg=5.0, bar=0.62, th=0.62, end=330, nose='blunt'),  # 0: owner 2026-09-12, from the e dials page (was the round-36 e: 5.0 / 0.58 / 1.0 / 318 / cut)
+ dict(deg=5.0, bar=0.62, th=0.72, end=330, nose='blunt'),  # 0: owner 2026-09-12, from the e dials page (was the round-36 e: 5.0 / 0.58 / 1.0 / 318 / cut)
  dict(deg=0.0, bar=0.55, th=0.8, end=318, nose='cut'),    # 1: level bar, thinner, bigger eye
  dict(deg=2.5, bar=0.58, th=1.0, end=318, nose='cut'),    # 2: halfway tilt
  dict(deg=5.0, bar=0.62, th=1.0, end=318, nose='flare'),  # 3: high bar, small eye, flared nose
