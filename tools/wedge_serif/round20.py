@@ -73,7 +73,9 @@ def build(out_dir, name="Fjord", style="Regular"):
             l, r = (min(band), max(band)) if band else (min(xs), max(xs))
             lt, rt = round19.SIDES.get(ch, ('straight', 'straight'))
             if isCap:
-                lsb = capbear * A.SIDE_FRACTION[lt]; rsb = capbear * A.SIDE_FRACTION[rt]
+                # owner 2026-09-12 from the spacing page: caps +34 per mille,
+                # i.e. +17 units each side (lowercase "needs much less": left at 0)
+                lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
             else:
                 lsb = A.bearing(c, lt); rsb = A.bearing(c, rt)
             adv = lsb + (r - l) + rsb; dx = lsb - l
@@ -86,7 +88,8 @@ def build(out_dir, name="Fjord", style="Regular"):
             glyphs[gname(ch)] = pen.glyph(); metrics[gname(ch)] = (int(round(adv)), int(round(min(xs) + dx)))
         pen = TTGlyphPen(None); pen.moveTo((50, 0)); pen.lineTo((50, 700)); pen.lineTo((450, 700)); pen.lineTo((450, 0)); pen.closePath()
         glyphs['.notdef'] = pen.glyph(); metrics['.notdef'] = (500, 50)
-        glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(A.n_counter(c) * 1.7), 0)
+        # owner 2026-09-12: word-spacing -110 per mille (for capitals; applied to the one space)
+        glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(A.n_counter(c) * 1.7) - 110, 0)
         fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
         fb.setupHorizontalHeader(ascent=900, descent=-300)
         fb.setupNameTable(dict(familyName=name, styleName=style, fullName=f"{name} {style}", psName=f"{name}-{style}", uniqueFontIdentifier=f"{name};{style};2026-09-12"))

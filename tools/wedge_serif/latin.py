@@ -82,148 +82,210 @@ def cp_ring(c, P, cx, cy, rx, ry, a0=0.0, a1=2 * math.pi, close_x=None):
     P.append(outer); P.append(R.Hole(inner))
 
 # ---------------------------------------------------------------- capitals
+# Redrawn (round 21) on the lowercase's own primitives so the two cases are
+# one hand: A.stem for every stem (entasis, bracketed wedges, the same
+# fillet), counterpunched bowls (B D O P Q R and the figures), diagonals
+# thin at 0.72, joins tapered, the J's line across always. Skeletons follow
+# the garalde model: low bar on the A, small upper bowl on the B, the E's
+# middle arm short and high, splayed M with its apex on the baseline, thin
+# verticals on the N, the R's leg straight to the line, the U's bottom ON
+# the baseline (it floated), pointed V W, the Y's arms meeting at 0.45.
+
+def _cstem(c, P, x, y0, y1, top="both", foot="both", thin=1.0):
+    """A capital stem at cap weight with wedges: top 'both'|'left'|'right'|None, foot likewise."""
+    s = c["s"] * CAP_STEM * thin
+    pts = line((x, y0), (x, y1), 36)
+    prof = lambda t: c["ent"](t) * CAP_STEM * thin
+    P.append(A.outline(pts, c["pen"], prof))
+    th = c["pen"].th((0, 1)) * CAP_STEM * thin
+    if c["wl"] <= 0 or c["serif"] != "wedge": return
+    sides = {"both": (1, -1), "left": (1,), "right": (-1,), None: ()}
+    for sd in sides[top]:
+        P.append(bracket_wedge((x, y1), (0, 1), (-1, 0), th * c["ent"](1.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"], fillet=c["fillet"]))
+    fsides = {"both": (-1, 1), "left": (-1,), "right": (1,), None: ()}
+    for sd in fsides[foot]:
+        P.append(bracket_wedge((x, y0), (0, -1), (1, 0), th * c["ent"](0.0), c["wl"] * 0.85, c["wd"], sd, drop=c["drop"] * 0.6, fillet=c["fillet"]))
+
+def _bowl_stroke(c, P, x, y_top, y_bot, w, taper=0.5):
+    """A B/P/R bowl: leaves the stem tapered at the top, swings out to w and
+    rejoins tapered at the bottom. Stroked (the counter is what the stroke
+    leaves), so its weight follows the pen like the lowercase b's."""
+    pts = bez((x, y_top), (x + w * 1.05, y_top), (x + w * 1.05, y_bot), (x, y_bot), 48)
+    A.curve(c, P, pts, compose(taper_in(taper, 0.14), taper_out(taper, 0.14)))
+
 def g_A(c):
-    P = []; C = capH(c); w = _w(c, "A", 560); s = c["s"]
-    diag(c, P, (s * 0.35, 0), (w / 2, C), thin=0.72, serif0=-1)
-    diag(c, P, (w - s * 0.35, 0), (w / 2, C), serif0=1)
-    A.curve(c, P, line((w * 0.2, C * 0.34), (w * 0.8, C * 0.34), 10)); return P
+    P = []; C = capH(c); w = _w(c, "A", 600); s = c["s"] * CAP_STEM
+    diag(c, P, (s * 0.3, 0), (w / 2, C), thin=0.72 / CAP_STEM, serif0=-1)
+    diag(c, P, (w - s * 0.3, 0), (w / 2 - s * 0.18, C), thin=1.0 / CAP_STEM, serif0=1)
+    A.curve(c, P, line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28), 10)); return P
 
 def g_B(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "B", 470)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1,))
-    up = bez((x, C), (x + w * 0.85, C), (x + w * 0.85, C * 0.54), (x, C * 0.54), 40)
-    lo = bez((x, C * 0.54), (x + w * 1.05, C * 0.54), (x + w * 1.05, 0), (x, 0), 40)
-    A.curve(c, P, up, compose(taper_in(0.5, 0.15), taper_out(0.5, 0.15)))
-    A.curve(c, P, lo, compose(taper_in(0.5, 0.15), taper_out(0.5, 0.15))); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "B", 380)
+    _cstem(c, P, x, 0, C, top="left", foot="left")
+    _bowl_stroke(c, P, x, C, C * 0.55, w * 0.86)
+    _bowl_stroke(c, P, x, C * 0.55, 0, w); return P
 
 def g_C(c):
-    P = []; C = capH(c); rx = _w(c, "C", 300); ry = C / 2 + c["over"]
-    pts = ellipse(rx, C / 2, rx, ry, math.radians(40), math.radians(318), 100, c["k"])
-    A.curve(c, P, pts, compose(flare_end(0.25, 0.12), lambda t: flare_end(0.25, 0.12)(1 - t)), cut0=c["cut"], cut1=c["cut"]); return P
-
-def g_D(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; rx = _w(c, "D", 330)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1,))
-    cp_ring(c, P, x + rx - 300 * c["wf"], C / 2, rx, C / 2 + c["over"], -math.pi / 2, math.pi / 2, close_x=x)
+    P = []; C = capH(c); rx = _w(c, "C", 330); ry = C / 2 + c["over"]
+    pts = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(322), 100, c["k"])
+    A.curve(c, P, pts, compose(flare_end(0.3, 0.14), lambda t: flare_end(0.22, 0.12)(1 - t)), cut0=c["cut"], cut1=c["cut"])
+    # the beak: a wedge on the upper terminal, as the garalde C has
+    if c["wl"] > 0:
+        tn = tangents(pts)[-1]; d = tn; nrm = (-d[1], d[0])
+        P.append(bracket_wedge(pts[-1], d, nrm, c["pen"].th(tn) * 1.3, c["wl"] * 0.7, c["wd"] * 0.7, -1, drop=0, fillet=c["fillet"]))
     return P
 
+def g_D(c):
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; rx = _w(c, "D", 330)
+    _cstem(c, P, x, 0, C, top="left", foot="left")
+    cp_ring(c, P, x + rx - rx * 0.9, C / 2, rx, C / 2 + c["over"], -math.pi / 2, math.pi / 2, close_x=x); return P
+
 def g_E(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "E", 440)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1,))
-    bar(c, P, x, x + w, C, serif_ends=[('right', -1)]); bar(c, P, x, x + w * 0.82, C * 0.52, thick=0.9)
-    bar(c, P, x, x + w * 1.04, 0, serif_ends=[('right', 1)]); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "E", 420)
+    _cstem(c, P, x, 0, C, top="left", foot="left")
+    bar(c, P, x, x + w * 0.96, C, serif_ends=[('right', -1)])
+    bar(c, P, x, x + w * 0.74, C * 0.54, thick=0.9)
+    bar(c, P, x, x + w, 0, serif_ends=[('right', 1)]); return P
 
 def g_F(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "F", 420)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1, 1))
-    bar(c, P, x, x + w, C, serif_ends=[('right', -1)]); bar(c, P, x, x + w * 0.8, C * 0.52, thick=0.9); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "F", 400)
+    _cstem(c, P, x, 0, C, top="left", foot="both")
+    bar(c, P, x, x + w, C, serif_ends=[('right', -1)])
+    bar(c, P, x, x + w * 0.72, C * 0.54, thick=0.9); return P
 
 def g_G(c):
-    P = []; C = capH(c); rx = _w(c, "G", 310); ry = C / 2 + c["over"]; s = c["s"]
-    pts = ellipse(rx, C / 2, rx, ry, math.radians(40), math.radians(345), 110, c["k"])
-    A.curve(c, P, pts, flare_end(0.25, 0.12), cut0=c["cut"])
-    xg = rx + rx * 0.98
-    vstem(c, P, xg - s * 0.5, C * 0.06, C * 0.46, top_sides=(), foot_sides=(), flare=False)
-    bar(c, P, rx + rx * 0.35, xg, C * 0.46, serif_ends=[]); return P
+    P = []; C = capH(c); rx = _w(c, "G", 340); ry = C / 2 + c["over"]; s = c["s"] * CAP_STEM
+    pts = ellipse(rx, C / 2, rx, ry, math.radians(38), math.radians(350), 110, c["k"])
+    A.curve(c, P, pts, flare_end(0.3, 0.14), cut0=c["cut"])
+    if c["wl"] > 0:
+        tn = tangents(pts)[0]; d = (-tn[0], -tn[1]); nrm = (-d[1], d[0])
+        P.append(bracket_wedge(pts[0], d, nrm, c["pen"].th(tn) * 1.3, c["wl"] * 0.7, c["wd"] * 0.7, 1, drop=0, fillet=c["fillet"]))
+    xg = 2 * rx - s * 0.55
+    _cstem(c, P, xg, C * 0.03, C * 0.46, top="left", foot=None)
+    bar(c, P, xg - rx * 0.55, xg + s * 0.4, C * 0.46); return P
 
-def g_H(c): return A.g_H(c)
+def g_H(c):
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x0 = s / 2; x1 = x0 + _w(c, "H", 520)
+    _cstem(c, P, x0, 0, C); _cstem(c, P, x1, 0, C)
+    bar(c, P, x0, x1, C * 0.52, thick=0.95); return P
 
 def g_I(c):
-    P = []; vstem(c, P, c["s"] / 2, 0, capH(c)); return P
+    P = []; _cstem(c, P, c["s"] * CAP_STEM / 2, 0, capH(c)); return P
 
 def g_J(c):
-    P = []; C = capH(c); s = c["s"]; r = 190 * c["wf"]; x = 200 * c["wf"] + s / 2
-    vstem(c, P, x, r * 0.2 - s * 0.5, C, foot_sides=())
-    tail = bez((x, r * 0.2), (x, -c["over"] * 0.6), (x - r * 0.6, -c["over"] * 0.8), (x - r * 1.15, r * 0.35), 40)
+    """The line across the top is kept always (owner 2026-09-12): a real
+    bar, not two serifs that a style could drop. Descends a little, as the
+    garalde J does, and hooks left."""
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; r = _w(c, "J", 190); x = r * 1.05 + s / 2
+    _cstem(c, P, x, r * 0.25 - s * 0.5, C, top=None, foot=None)
+    bar(c, P, x - r * 0.75, x + r * 0.45, C, thick=0.95)
+    tail = bez((x, r * 0.25), (x, -c["desc"] * 0.42), (x - r * 0.55, -c["desc"] * 0.55), (x - r * 1.1, -c["desc"] * 0.1), 40)
     A.curve(c, P, tail, flare_end(0.3, 0.35), cut1=c["cut"]); return P
 
 def g_K(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "K", 520)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1, 1))
-    diag(c, P, (x + w, C), (x + s * 0.2, C * 0.42), thin=0.74, serif0=1)
-    diag(c, P, (x + w * 0.4, C * 0.55), (x + w * 1.05, 0), serif1=-1); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "K", 500)
+    _cstem(c, P, x, 0, C, top="left", foot="both")
+    diag(c, P, (x + w, C), (x + s * 0.15, C * 0.45), thin=0.72 / CAP_STEM, serif0=1)
+    diag(c, P, (x + w * 0.42, C * 0.56), (x + w * 1.06, 0), thin=1.0 / CAP_STEM, serif1=-1); return P
 
 def g_L(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "L", 430)
-    vstem(c, P, x, 0, C, top_sides=(1, -1), foot_sides=(-1,))
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "L", 420)
+    _cstem(c, P, x, 0, C, top="both", foot="left")
     bar(c, P, x, x + w, 0, serif_ends=[('right', 1)]); return P
 
 def g_M(c):
-    P = []; C = capH(c); s = c["s"]; x0 = s / 2; w = _w(c, "M", 700); x1 = x0 + w
-    vstem(c, P, x0, 0, C, top_sides=(1,), foot_sides=(-1, 1), thin=0.78)
-    diag(c, P, (x0, C), (x0 + w / 2, C * 0.08))
-    diag(c, P, (x1, C), (x0 + w / 2, C * 0.08), thin=0.72)
-    vstem(c, P, x1, 0, C, top_sides=(-1,), foot_sides=(-1, 1), thin=0.78); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "M", 720); x0 = s / 2; x1 = x0 + w
+    # splayed: the outer strokes lean out a little; apex on the baseline
+    diag(c, P, (x0 + s * 0.25, 0), (x0 + s * 0.45, C), thin=0.72 / CAP_STEM, serif0=-1)
+    diag(c, P, (x0 + s * 0.45, C), (x0 + w / 2, 0), thin=1.0 / CAP_STEM)
+    diag(c, P, (x1 - s * 0.45, C), (x0 + w / 2, 0), thin=0.72 / CAP_STEM)
+    diag(c, P, (x1 - s * 0.25, 0), (x1 - s * 0.45, C), thin=1.0 / CAP_STEM, serif0=1, serif1=-1)
+    if c["wl"] > 0:
+        P.append(bracket_wedge((x0 + s * 0.45, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.85, c["wd"], 1, drop=c["drop"], fillet=c["fillet"]))
+    return P
 
 def g_N(c):
-    P = []; C = capH(c); s = c["s"]; x0 = s / 2; w = _w(c, "N", 560); x1 = x0 + w
-    vstem(c, P, x0, 0, C, top_sides=(1,), foot_sides=(-1, 1), thin=0.72)
-    diag(c, P, (x0, C), (x1, 0))
-    vstem(c, P, x1, 0, C, top_sides=(-1, 1), foot_sides=(), thin=0.72); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "N", 560); x0 = s / 2; x1 = x0 + w
+    _cstem(c, P, x0, 0, C, top="left", foot="both", thin=0.72)
+    diag(c, P, (x0, C), (x1, 0), thin=1.0 / CAP_STEM)
+    _cstem(c, P, x1, 0, C, top="both", foot=None, thin=0.72); return P
 
 def g_O(c):
-    P = []; C = capH(c); rx = _w(c, "O", 330); cp_ring(c, P, rx, C / 2, rx, C / 2 + c["over"]); return P
+    P = []; C = capH(c); rx = _w(c, "O", 350); cp_ring(c, P, rx, C / 2, rx, C / 2 + c["over"]); return P
 
 def g_P(c):
-    P = []; C = capH(c); s = c["s"]; x = s / 2; w = _w(c, "P", 450)
-    vstem(c, P, x, 0, C, top_sides=(1,), foot_sides=(-1, 1))
-    bowl = bez((x, C), (x + w * 1.0, C), (x + w * 1.0, C * 0.46), (x, C * 0.46), 44)
-    A.curve(c, P, bowl, compose(taper_in(0.5, 0.15), taper_out(0.5, 0.15))); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "P", 400)
+    _cstem(c, P, x, 0, C, top="left", foot="both")
+    _bowl_stroke(c, P, x, C, C * 0.44, w); return P
 
 def g_Q(c):
-    P = g_O(c); C = capH(c); rx = 330 * c["wf"]
-    tail = line((rx * 1.05, C * 0.16), (rx * 1.9, -C * 0.22), 20)
-    A.curve(c, P, tail, flare_end(0.3, 0.4), cut1=c["cut"]); return P
+    P = g_O(c); C = capH(c); rx = _w(c, "O", 350)
+    tail = bez((rx * 0.95, C * 0.12), (rx * 1.3, -C * 0.05), (rx * 1.7, -C * 0.28), (rx * 2.1, -C * 0.24), 30)
+    A.curve(c, P, tail, compose(taper_in(0.6, 0.2), flare_end(0.25, 0.4)), cut1=c["cut"]); return P
 
 def g_R(c):
-    P = g_P(c); C = capH(c); s = c["s"]; x = s / 2; w = 450 * c["wf"]
-    diag(c, P, (x + w * 0.45, C * 0.47), (x + w * 1.12, 0), serif1=-1); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; x = s / 2; w = _w(c, "R", 400)
+    _cstem(c, P, x, 0, C, top="left", foot="both")
+    _bowl_stroke(c, P, x, C, C * 0.46, w * 0.95)
+    diag(c, P, (x + w * 0.5, C * 0.47), (x + w * 1.15, 0), thin=1.0 / CAP_STEM, serif1=-1); return P
 
 def g_S(c):
-    P = []; C = capH(c); w = _w(c, "S", 480); o = c["over"]
-    spine = catmull([(w * 0.94, C * 0.80), (w * 0.62, C + o * 0.9), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
+    P = []; C = capH(c); w = _w(c, "S", 440); o = c["over"]; st = c["s"] * CAP_STEM
+    spine = catmull([(w * 0.93, C * 0.80), (w * 0.62, C + o * 0.9), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
                      (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9), (w * 0.05, C * 0.2)], 16, 0.55)
-    A.curve(c, P, spine, compose(flare_end(0.25, 0.1), lambda t: flare_end(0.25, 0.1)(1 - t)), cut0=c["cut"], cut1=c["cut"]); return P
+    tn = tangents(spine); n = len(spine) - 1
+    def prof(t):
+        i = min(n, int(round(t * n))); th = c["pen"].th(tn[i]); mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28)
+        want = th * (1 - mid) + st * 0.92 * mid   # the spine carries the weight
+        return want / th * flare_end(0.25, 0.1)(t) * flare_end(0.25, 0.1)(1 - t)
+    A.curve(c, P, spine, prof, cut0=c["cut"], cut1=c["cut"]); return P
 
 def g_T(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "T", 500); x = w / 2
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "T", 520); x = w / 2
     bar(c, P, 0, w, C, serif_ends=[('left', -1), ('right', -1)])
-    vstem(c, P, x, 0, C - s * 0.2, top_sides=(), foot_sides=(-1, 1)); return P
+    _cstem(c, P, x, 0, C - s * 0.2, top=None, foot="both"); return P
 
 def g_U(c):
-    P = []; C = capH(c); s = c["s"]; x0 = s / 2; w = _w(c, "U", 540); x1 = x0 + w
-    vstem(c, P, x0, C * 0.38 - s * 0.5, C, top_sides=(1, -1), foot_sides=())
-    A.curve(c, P, bez((x0, C * 0.38), (x0, -c["over"] * 0.6), (x1, -c["over"] * 0.6), (x1, C * 0.38), 44))
-    vstem(c, P, x1, C * 0.38 - s * 0.5, C, top_sides=(1, -1), foot_sides=(), thin=0.78); return P
+    """Two stems joined by a bowl that reaches the baseline. The right stem
+    is the thin one (the pen's second stroke) and has no foot."""
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "U", 520); x0 = s / 2; x1 = x0 + w
+    y0 = C * 0.42
+    _cstem(c, P, x0, y0 - s * 0.5, C, top="both", foot=None)
+    pts = bez((x0, y0), (x0, -y0 * 0.55 - c["over"]), (x1, -y0 * 0.55 - c["over"]), (x1, y0), 48)
+    A.curve(c, P, pts, compose(taper_in(0.9, 0.05), taper_out(0.8, 0.12)))
+    _cstem(c, P, x1, y0 - s * 0.5, C, top="both", foot=None, thin=0.78); return P
 
 def g_V(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "V", 560)
-    diag(c, P, (s * 0.35, C), (w / 2, 0), serif0=1)
-    diag(c, P, (w - s * 0.35, C), (w / 2, 0), thin=0.72, serif0=-1); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "V", 560)
+    diag(c, P, (s * 0.3, C), (w / 2, 0), thin=1.0 / CAP_STEM, serif0=1)
+    diag(c, P, (w - s * 0.3, C), (w / 2 + s * 0.2, 0), thin=0.72 / CAP_STEM, serif0=-1); return P
 
 def g_W(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "W", 790)
-    diag(c, P, (s * 0.35, C), (w * 0.27, 0), serif0=1)
-    diag(c, P, (w * 0.5, C * 0.96), (w * 0.27, 0), thin=0.72)
-    diag(c, P, (w * 0.5, C * 0.96), (w * 0.73, 0))
-    diag(c, P, (w - s * 0.35, C), (w * 0.73, 0), thin=0.72, serif0=-1); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "W", 820)
+    diag(c, P, (s * 0.3, C), (w * 0.26, 0), thin=1.0 / CAP_STEM, serif0=1)
+    diag(c, P, (w * 0.5, C), (w * 0.26 + s * 0.2, 0), thin=0.72 / CAP_STEM)
+    diag(c, P, (w * 0.5, C), (w * 0.74, 0), thin=1.0 / CAP_STEM)
+    diag(c, P, (w - s * 0.3, C), (w * 0.74 + s * 0.2, 0), thin=0.72 / CAP_STEM, serif0=-1)
+    if c["wl"] > 0:
+        P.append(bracket_wedge((w * 0.5, C), (0, 1), (-1, 0), c["pen"].th((0, 1)) * 0.72, c["wl"] * 0.7, c["wd"] * 0.8, 1, drop=c["drop"], fillet=c["fillet"]))
+    return P
 
 def g_X(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "X", 540)
-    diag(c, P, (s * 0.35, C), (w - s * 0.35, 0), serif0=1, serif1=1)
-    diag(c, P, (w - s * 0.35, C), (s * 0.35, 0), thin=0.72, serif0=-1, serif1=-1); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "X", 540)
+    diag(c, P, (s * 0.3, C), (w - s * 0.3, 0), thin=1.0 / CAP_STEM, serif0=1, serif1=1)
+    diag(c, P, (w - s * 0.3, C), (s * 0.3, 0), thin=0.72 / CAP_STEM, serif0=-1, serif1=-1); return P
 
 def g_Y(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "Y", 540)
-    diag(c, P, (s * 0.35, C), (w / 2, C * 0.45), serif0=1)
-    diag(c, P, (w - s * 0.35, C), (w / 2, C * 0.45), thin=0.72, serif0=-1)
-    vstem(c, P, w / 2, 0, C * 0.45 + s * 0.3, top_sides=(), foot_sides=(-1, 1)); return P
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "Y", 540)
+    diag(c, P, (s * 0.3, C), (w / 2, C * 0.45), thin=1.0 / CAP_STEM, serif0=1)
+    diag(c, P, (w - s * 0.3, C), (w / 2, C * 0.45), thin=0.72 / CAP_STEM, serif0=-1)
+    _cstem(c, P, w / 2, 0, C * 0.45 + s * 0.35, top=None, foot="both"); return P
 
 def g_Z(c):
-    P = []; C = capH(c); s = c["s"]; w = _w(c, "Z", 500)
+    P = []; C = capH(c); s = c["s"] * CAP_STEM; w = _w(c, "Z", 500)
     bar(c, P, 0, w, C, serif_ends=[('left', -1)])
     zd = line((w - s * 0.15, C), (s * 0.15, 0), 30); tz = tangents(zd)[0]
-    A.curve(c, P, zd, lambda t: c["s"] / c["pen"].th(tz))
+    A.curve(c, P, zd, lambda t: s / c["pen"].th(tz))
     bar(c, P, 0, w, 0, serif_ends=[('right', 1)]); return P
 
 # ---------------------------------------------------------------- figures (lining)

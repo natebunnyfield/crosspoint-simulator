@@ -28,10 +28,14 @@
   COMPLETE LATIN SET in one file, `Fjord-Regular.ttf`, 93 glyphs**:
   `tools/wedge_serif/latin.py` (A–Z, 0–9, punctuation) + `round20.py` (the
   builder in use: widths solved to the garalde references, cap fitting from
-  them, old-style figures; `round19.py` is its base). **Awaiting**: his
-  spacing value from the interactive page
-  (https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131),
-  which he asked for "before we proceed", and his marks on the specimen
+  them, old-style figures; `round19.py` is its base). Capitals redrawn in
+  round 21 on the lowercase's primitives. **Standing spacing ruling** (his
+  readout, 2026-09-12): capitals +34‰ letter-spacing, word-spacing −110‰,
+  in the file as +17 units per capital side and a 110-unit shorter space;
+  lowercase "needs much less", not yet given. **The J keeps its line across
+  always.** **Awaiting**: his lowercase spacing value from the page
+  (https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131)
+  and his marks on the specimen
   (https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd).
 - **Next, once a technique is chosen**: (1) the rest of the character set
   (capitals, digits, punctuation, accents -- the epub `reading` interval);
@@ -693,3 +697,29 @@ value of N‰ goes back into the file as N/2 units on each side of every
 glyph. Page: https://claude.ai/code/artifact/a395c37d-54dd-4a48-8353-257baf7e2131
 Specimen (same URL as round 19, updated):
 https://claude.ai/code/artifact/98ccf1e8-527d-4571-9138-4286e0d398fd
+
+
+## Round 21 (2026-09-12): the capitals redrawn, and the spacing readout
+
+Owner: *"letter-spacing 34‰ word-spacing −110‰ (this was for CAPS spacing,
+lowercase needs much less). keep the line across the J always. redo most
+capitals because they are not down in the same style as lowercase and have
+the wrong shape (U is weirdly high and short)."*
+
+- **The U floated.** Its bottom curve was a cubic between two stems whose
+  control points sat at the baseline, and a cubic bottoms out a tenth of the
+  way up: 63 units above the line. The lowercase u had the same bug at 40
+  units. Controls now go below the baseline by 0.55 of the start height.
+  That is the "weirdly high and short".
+- **Capitals redrawn** (`latin.py`, the capitals block): every stem through
+  one `_cstem` that uses the lowercase's entasis, wedge and fillet at the cap
+  weight; bowls of B P R as tapered strokes like the lowercase b's; diagonals
+  thin at 0.72; garalde skeletons (low bar on the A, small upper bowl on the
+  B, the E's middle arm short and high, splayed M with its apex on the
+  baseline, thin verticals on the N, the R's leg straight to the line,
+  pointed V W, the Y's arms at 0.45, beaks on C and G, a weighted spine on
+  the S). Widths still solved to the references.
+- **The J's line across** is a real bar at cap height now, so no serif style
+  can drop it; the J descends a little and hooks left, as the garalde J does.
+- **Spacing** applied as ruled: +17 units each side of every capital and
+  figure, the space 110 units shorter. Lowercase untouched pending his value.

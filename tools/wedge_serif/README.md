@@ -92,6 +92,7 @@ booleans; see "Limits".
   "hairline-throughs" of round 16). Quadify, or cut the centerline instead of
   the ink (`round16.pen_centerline_cut`).
 - **Booleans by clipping do not work under nonzero + holes.** Overlapping clip pieces wind twice and defeat a counter; partitioned pieces abut and seam. Cut traps into the counter contour and the stem polygon instead (`round17.bowl_stem`).
+- **A cubic between two stems with its controls on the baseline never reaches the baseline** (the U and u floated 63 and 40 units). Put the controls below by ~0.55 of the start height.
 - **A stem that ends exactly where its curve begins seams** (the j/f fractures). Overlap by half a stem.
 - **A hole in TrueType is a contour wound the other way**, and it must lie entirely inside ink: a reverse-wound shape that pokes into paper renders FILLED (winding −1), so ink traps cannot be cut with paper polygons; they are made by the strokes' own geometry (`patch_arch`).
 - **Never replace a function by slicing to the next `def`** without checking

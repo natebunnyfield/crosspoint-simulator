@@ -310,7 +310,9 @@ def g_m(c):
 def g_u(c):
     P = []; xh = c["xh"]; x0 = c["s"] / 2; x1 = x0 + c["nw"]
     stem(c, P, x0, xh * 0.4 - c["s"] * 0.5, xh, top="wedge", foot=None, flare=False)
-    pts = bez((x0, xh * 0.4), (x0, -c["over"] * 0.6), (x1, -c["over"] * 0.6), (x1, xh * 0.42), 44)
+    # control points below the baseline by 0.55 of the start height, or a
+    # cubic between two stems bottoms out a tenth of the way up (it floated 40 units)
+    pts = bez((x0, xh * 0.4), (x0, -xh * 0.4 * 0.55 - c["over"]), (x1, -xh * 0.42 * 0.55 - c["over"]), (x1, xh * 0.42), 44)
     curve(c, P, pts, taper_out(0.42, 0.3))
     stem(c, P, x1, 0, xh, top="wedge", foot="right"); return P
 
