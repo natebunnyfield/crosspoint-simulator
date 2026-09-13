@@ -2209,5 +2209,20 @@ the a's hood, the same fix wght 50 needs), the y below 51.6, the 5 below
 cuts. **Naming:** the agent recommends renaming today's file
 `Albo-Medium.ttf` and giving the 400 `Albo-Regular.ttf`; the owner's call.
 Fonts `build/fjord-fonts/weights/`; page
-https://claude.ai/code/artifact/PENDINGW. Built from a snapshot that
+https://claude.ai/code/artifact/565ef7ca-ef1c-48fe-b27f-78e1b1ff7ed0. Built from a snapshot that
 included the stems agent's in-flight a/g/t work.
+
+Round 75/77, a g t (2026-09-13, landed): the a's top-right blob was a
+hardcoded corner (`xe + 82`) from the old pen sitting 2-6 units past the
+stem's ink -- now derived from the live stem edge; the counter blob was a
+hard switch in the counter's width function where the curve turns fastest,
+an inward offset crossing the outer path and `make_valid` leaving an island
+-- now a smoothstep blend over 90 units; counter +2.5% area, facets kept.
+The g's ear +15% (`G_EAR_EXTEND`, +30% on the page), advance unchanged at
++15; the strap's shelf was the neck's square full-width start face buried
+only 22 into the ring -- now tapered over its first 14%. The t:
+`T_RIGHT_TRIANGLE` True, the bar's right half and the stem top one
+triangular wedge, scale 0.55 for +1.2% ink (the 2% budget), advance
+unchanged. Checked here at 330 px. Only a g t changed. Page
+https://claude.ai/code/artifact/PENDINGAG. This agent also lost its
+worktree after the rate-limit restart and edited main; disjoint files.
