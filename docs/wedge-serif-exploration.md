@@ -1891,3 +1891,27 @@ tail's width above the bowl -- current (pen hair), 0.55 S, 0.70 S, 0.85 S,
 1.00 S -- `SIX_TAIL_FLOOR`, 0.70 until ruled; the figures agent, `g_six`
 only; page pending. The nines (round 68's sibling, ten serifed tails) are
 still building.
+
+## Round 71 (2026-09-13): ten serifed tails for the 9
+
+Owner: "give me ten variants on a 9 serifed tail to choose from." Agent in a
+worktree, two new files: `outlines/glyphs/nines.py` (`VARIANTS`, every
+serif grown from the stroke's own side polyline by union, faces by half-plane
+clipping) and `outlines/cmp/nines.py` (reference once, rebind `9`, `only='9'`
+with the reference's W pinned and the cutter phase primed, splice, measure,
+page). The ten: foot-flat (55 deg leg, the 1's two-sided foot), foot-left,
+flag-diag (diagonal end wedge), beak-down (the C's terminal turned down),
+curl-up, diag-straight (the 7 reversed), stub-foot (vertical stub with the
+stem foot), foot-long (overhang 19), beak-short (overhang 3, tail floored at
+1.0 S), base-two (the 2's base mirrored). Counter identical to the current
+9 in every one; lsb 37 in all; advance 498 except foot-long 506 and
+beak-short 490. Space inside and between: paper between tail and bowl at 13
+pt -- base-two 9 px, flag 3, foot-flat / foot-left / beak-down / beak-short 2,
+stub / foot-long 1, **curl-up and diag-straight 0** (they fill the pocket at
+reading size). Fonts `build/fjord-fonts/nines/Albo-nine01..10.ttf`. Page
+https://claude.ai/code/artifact/PENDING71. Two findings, not acted on: the
+shipping `primitives.beak` on c C S uses 0.35-0.4 x 0.6-0.7 at 1.30, not the
+guide's 0.85 x 0.85 at 1.15; and `primitives.stroke` drops an end corner
+when `cut1` moves it back more than one sample spacing (11 units), so the
+current 9's 20 deg end cut is really ~17 deg -- a latent bug in the builder,
+the VF agent's file.
