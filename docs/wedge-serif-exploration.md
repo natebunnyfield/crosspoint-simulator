@@ -1189,3 +1189,15 @@ other glyphs. The two dials the owner did not name, bar height and arm
 length, are the e's remaining knobs. Each e is cut fresh (its decimation
 phase differs from the shipped font's), so the outline is the shape, not the
 byte-exact cut. Awaiting the four numbers.
+
+## Round 40 (2026-09-12, in progress): the g is G3; Van den Keere strokes
+
+**Ruling:** "g3 wins but it needs to match the underlying calligraphic
+brush strokes." G3 (Jenson/Doves: bowl rx ~200, round loop, short neck, tick
+ear) becomes the default `g_variant`; its parts must read as written by the
+lowercase's nib -- rings with the o's stress, the neck's weight from the pen
+at its angle (shape the path so the nib is broad along it rather than
+forcing a floor), the ear a pen stroke, the loop-to-neck join continuous.
+Handed to the Van den Keere agent, which owns `round17.py` for this round;
+its brief also covers K C D Q R S f G 3 6 9 & @ against Van den Keere with
+the construction held fixed. Results to follow.
