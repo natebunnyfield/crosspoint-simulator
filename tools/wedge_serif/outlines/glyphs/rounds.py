@@ -66,8 +66,8 @@ E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rou
 # space, and neither the bottom join nor the terminal's cut moves.
 ARM_START_DEG, ARM_END_DEG = 270.0, E_END
 ARM_TAPER = 0.25
-E_ARM_THIN = float(os.environ.get("FJORD_E_ARM_THIN", 0.90))
-E_ARM_OUT = float(os.environ.get("FJORD_E_ARM_OUT", 8.0))
+E_ARM_THIN = float(os.environ.get("FJORD_E_ARM_THIN", 1.0))   # owner 2026-09-13: "leave e as is, for now" -- the round-77 x0.90 thinning is off
+E_ARM_OUT = float(os.environ.get("FJORD_E_ARM_OUT", 0.0))    # and the +8 outward shift is off; _e_ring(1.0, 0) reproduces o_ring byte for byte
 
 def _e_ring(c, rx_center, thin=1.0, out_shift=0.0, k=BOWL_K, taper_frac=ARM_TAPER):
     """`o_ring`'s construction (the outer superellipse, the counter the
