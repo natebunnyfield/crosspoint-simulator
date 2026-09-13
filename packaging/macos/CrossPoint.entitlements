@@ -7,11 +7,14 @@
   bundle is rejected at upload. The other three keys are the minimum the
   simulator needs to function once sandboxed.
 
-  Known sandbox limitation: SimHttpFetch.h shells out to /usr/bin/curl via
-  popen(). The sandbox blocks spawning binaries outside the bundle, so
-  OPDS/catalog downloads, KOReader sync, and SD-font fetches fail in a
-  sandboxed build no matter which network entitlement is granted. Those flows
-  need to move to an in-process HTTP client before they work on TestFlight.
+  FIXED 2026-09-13. The note is kept because its reasoning still explains why
+  network.client below was never enough on its own. SimHttpFetch.h used to
+  shell out to curl via popen(); the sandbox blocks spawning binaries outside
+  the bundle, so OPDS/catalog downloads, KOReader sync and SD-font fetches
+  failed in a sandboxed build no matter which network entitlement was granted.
+  On macOS it now calls libcurl IN PROCESS (CROSSPOINT_SIM_LIBCURL, decided by
+  a platform test in the header itself), so there is no subprocess left to
+  forbid. Anything added later that shells out will hit the same wall again.
 -->
 <plist version="1.0">
 <dict>

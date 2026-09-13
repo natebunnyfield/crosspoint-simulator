@@ -481,6 +481,18 @@ run appearance_seed \
 run sim_settings_file \
   c++ -std=c++17 -Isrc -o "$OUT/sim_settings_file" tests/sim_settings_file_test.cpp
 
+# SimHttpFetch's libcurl branch, which replaces the popen(curl) subprocess on
+# macOS because the App Sandbox forbids spawning one. It compiles only there,
+# and this suite usually runs on Linux, so tests/mock_curl/ supplies a
+# <curl/curl.h> that records the options set and replays a scripted outcome --
+# the branch is then exercised wherever the suite runs. The request assertions
+# are the point: that -L, the IDLE timeout pair (a TOTAL timeout shipped once
+# and killed healthy downloads at 60 s), NOSIGNAL and the auth/method/header
+# plumbing are all actually set. Six deliberate mutations of the implementation
+# were each caught before this line was added.
+run sim_libcurl \
+  c++ -std=c++17 -Itests/mock_curl -o "$OUT/sim_libcurl" tests/sim_libcurl_test.cpp
+
 # The phosphor mixer's math. Every failure mode is a wrong color or a wrong
 # decay: a blend averaged in sRGB bytes instead of linear light darkens every
 # mixture, a premix accepted as an ingredient mixes a mixture, and a tail that
