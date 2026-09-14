@@ -96,10 +96,12 @@ A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
             (0.92, 0.60, 8, 1.04),    # 5: round 83's corner with the least rounding
             (0.88, 0.60, 10, 1.02),   # 6
             (0.84, 0.60, 12, 1.00),   # 7
-            (0.80, 0.60, 14, 0.98),   # 8
+            (0.80, 0.60, 0, 0.98),    # 8: RULED (owner 2026-09-14: "A curve 8 wins, but can you smooth
+                                      # off the top right so there is no corner protuberance?") -- lean
+                                      # 14 -> 0, so the hood leaves the stem vertical, no kink
             (0.76, 0.58, 16, 0.95)]   # 9: the roundest of the tight ladder
 A_HOOD_FLUSH = True
-A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 0))
+A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 
 @glyph('a')
 def g_a(c):
@@ -122,9 +124,27 @@ def g_a(c):
     top_f, start_f, lean, up = A_CURVES[A_CURVE]
     st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
-    hx = x + (S - S * 0.5) / 2 if A_HOOD_FLUSH else x   # the hood's outer edge on the stem's right edge
-    hood = cubic((hx, xh * start_f), (hx + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-    hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
+    if A_HOOD_FLUSH:
+        # owner 2026-09-14, "smooth off the top right so there is no corner
+        # protuberance": the hood is a straight run up the stem's centerline
+        # at EXACTLY the stem's width (the stem flares 14% at its ends, ENT,
+        # so that width is stem_width at top_f), and the curve begins at the
+        # stem's top with a vertical tangent. Below top_f the hood's two
+        # edges are the stem's two edges; the stem's flat top lies inside
+        # the hood; nothing steps. (Measured before this: the cubic from
+        # start_f bent left at once, and at the stem's top its outer edge was
+        # 21 units inside the stem's -- the stem's corner was the bump.)
+        w_st = PR.stem_width(TH_V, PR.ENT, top_f); f0 = w_st / S
+        run = line((x, xh * start_f), (x, xh * top_f))
+        arc = cubic((x, xh * top_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+        hood = join(run, arc)
+        tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
+        tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
+        prof = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn (a 3-unit inner ledge otherwise)
+    else:
+        hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+        prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
+    hd = stroke(hood, PR.bowl_widths(hood, prof, floor=S * 0.5), cut1=CUT)
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
     # into the stem near the foot

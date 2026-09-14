@@ -2442,3 +2442,20 @@ the first build of 6-9 had the stem's flat top poking 0.25 S past the
 thinner hood, a step. Page: https://claude.ai/artifact/C8MPeSCY5GrYS4NM1piHTM.
 Static Medium rebuilt with dot style 1 (a curve still 0 until his pick).
 
+## Round 87 (2026-09-14): a curve 8 ruled and smoothed
+
+Owner: "A curve 8 wins, but can you smooth off the top right so there is no
+corner proturbrence?" Measured on the outline (`scratchpad a_corner.py`, a
+window rasterized straight from `build.draw`): the hood on the bowl
+profile is S wide where its tangent is vertical, its cubic bent left from
+its first point, and at the stem's top (0.80 xh) its outer edge sat 21
+units inside the stem's flared edge -- the stem's flat top WAS the bump;
+lean 14 only delayed it. Now (`A_HOOD_FLUSH`): the hood is a straight run
+up the stem's centerline at `stem_width(TH_V, ENT, top_f)` (the stem's
+own width there), held through the turn, then the cubic from the stem's
+top with a vertical tangent (lean 0); the stem's top lies inside the hood.
+One-unit inner ledge remains at the stem's top, invisible at 13 pt.
+`A_CURVE` default 8, `DOT_STYLE` default 1. Page (before = round 86's
+curve 8, now):
+https://claude.ai/artifact/CReTVjwRg4eeps3tfWQ5Ve. VF rebuilt with both rulings.
+
