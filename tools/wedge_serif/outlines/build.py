@@ -163,7 +163,9 @@ if __name__ == "__main__":
     out = sys.argv[1]; do_cut = "--nocut" not in sys.argv
     style = sys.argv[sys.argv.index("--style") + 1] if "--style" in sys.argv else "Medium"
     dump = sys.argv[sys.argv.index("--dump") + 1] if "--dump" in sys.argv else None
-    path, W, rep = build(out, style=style, do_cut=do_cut, dump=dump)
+    only = set(sys.argv[sys.argv.index("--only") + 1]) if "--only" in sys.argv else None   # round 98: build these chars only (the rest empty), for a variant ladder
+    path, W, rep = build(out, style=style, do_cut=do_cut, dump=dump, only=only)
+    if only: print("ok", path); sys.exit(0)
     if style != "Medium": print("ok", path); sys.exit(0)
     open(os.path.join(out, "albo-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "Albo (named 2026-09-13, round 58; Fjord until then): all 93 glyphs as designed outlines under the standing rulings, the bowls on the Albertus-like firm profile he picked, the wedge family kept, the linear cut applied last. Design defaults: weight " + f"{pen.S:g}, contrast {pen.CONTRAST:g}, ascender {pen.ASC:g}, descender {pen.DESC:g}, width {pen.WIDTH * 100:g}, cut {pen.CUT_AMOUNT:g}, x-height {pen.XH:g}, serif {pen.SERIF * 100:g}.").replace("Fjord-Regular.ttf", "Albo-Medium.ttf").replace("Fjord", "Albo"))
     print("ok", path, len(rep), "glyphs drawn of", len(CHARS), "; caps W:", {k: round(v, 2) for k, v in sorted(W.items())})

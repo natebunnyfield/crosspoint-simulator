@@ -141,11 +141,18 @@ def g_hyphen(c): return dash(c, 0.37)
 def g_endash(c): return dash(c, 0.72)
 @glyph('—')
 def g_emdash(c): return dash(c, 1.41)
+# Round 98 (owner 2026-09-14: "raise parens and brackets and others to be
+# optically vertically centered with words"): ( ) [ ] spanned -301..684, centre
+# 192-200, against the lowercase body's -280..770, centre 245. Raised 50 on a
+# ladder of 0 / +35 / +50 / +70 / stretched-to-the-body: +50 puts the tops on
+# the ascender line and the feet a little under the descenders; +70 overshot
+# the ascender; the stretched one read heavy. The slash pair sit at 274 already.
+FENCE_RAISE = 50
 def paren(c, left):
     C = CAP(c); d = DESC; r = 150
     if left: pts = superellipse(r, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(105), math.radians(255), 2.2)
     else: pts = superellipse(0, (C - d) / 2, r, (C + d) / 2 + 16, math.radians(75), math.radians(-75), 2.2)
-    return stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT)
+    return aff.translate(stroke(pts, pen_widths(pts, lambda t: 0.6 + 0.4 * math.sin(math.pi * t)), cut0=CUT, cut1=CUT), 0, FENCE_RAISE)
 @glyph('(')
 def g_parenleft(c): return paren(c, True)
 @glyph(')')
@@ -153,7 +160,7 @@ def g_parenright(c): return paren(c, False)
 def bracket(c, left):
     C = CAP(c); d = DESC; w = 180; x = S * 0.4 if left else w - S * 0.4
     x0, x1 = (x, w) if left else (0, x)
-    return geom.ink([stroke(line((x, -d), (x, C)), TH_V * 0.85), stroke(line((x0, C - TH_H / 2), (x1, C - TH_H / 2)), TH_H), stroke(line((x0, -d + TH_H / 2), (x1, -d + TH_H / 2)), TH_H)])
+    return aff.translate(geom.ink([stroke(line((x, -d), (x, C)), TH_V * 0.85), stroke(line((x0, C - TH_H / 2), (x1, C - TH_H / 2)), TH_H), stroke(line((x0, -d + TH_H / 2), (x1, -d + TH_H / 2)), TH_H)]), 0, FENCE_RAISE)
 @glyph('[')
 def g_bracketleft(c): return bracket(c, True)
 @glyph(']')

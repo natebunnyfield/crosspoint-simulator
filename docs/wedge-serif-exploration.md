@@ -3058,3 +3058,29 @@ halved) at 96 px: the category solve read evenest; "crosses" back to
 2.25), fences and dashes 45 -> 60 (1.55); the period cells after T V W Y F P
 r f v w y back one step (-144 -> -126, -90 -> -72, -54 -> -36). Page
 (round 97's URL, repaired in place): https://claude.ai/artifact/StAKgVJ8p4bPXn4ta28cY6
+
+## Round 98 (2026-09-14): the fences raised; twelve 8s with the counters untouched -- "go" on the queue
+
+**Parens and brackets, SHIPPED.** ( ) [ ] spanned -301..684 (centre
+192-200) against the lowercase body -280..770 (centre 245). `marks.FENCE_RAISE`
+= 50, picked on a ladder of 0 / +35 / +50 / +70 / stretched-to-the-body at
+96 px and 13 pt: +50 puts the tops on the ascender line and the feet a
+little under the descenders; +70 overshoots the ascender; the stretched one
+reads heavy. Now -251..734, centre 241. The slash pair already sat at 274
+and was left; there are no braces or bar in the set.
+
+**The 8: options only, nothing chosen.** Twelve variants, both counter
+boxes exactly the shipping ones under every one (the counters are
+re-solved to the same boxes, `figures.ring_for_counter` now taking k /
+floor / rot), the OUTER moved by env levers in `g_eight` (`ALBO_8_W_UP`,
+`_W_LO`, `_WAIST`, `_LEAN`, `_FLOOR`, `_K`, `_ROT`): 1 current; 2 both rings
+x1.12; 3 x0.90; 4 top x1.12; 5 bottom x1.12 / top x0.94; 6 waist overlap
+x1.6 (shorter); 7 upper ring 14 right (a spine); 8 hair floor 0.55 S (the
+6's tail rule); 9 outer k 2.5; 10 top tilted 6 deg; 11 waist overlap x0.4
+(taller, toward the 6's height); 12 lean + floor. Built one glyph at a time
+through the new `outlines.build --only 8` (seconds each; the rest of the
+font is the shipping Regular, spliced) -- `scratchpad/eight/variants.py`
+is the recipe. Observation from the sheet: the 8 sits shorter than the 6 in
+every option but 11, which is the one lever that reaches height without
+touching a counter. Page:
+https://claude.ai/artifact/NC3fm1XgQkremoHPLjX7h6

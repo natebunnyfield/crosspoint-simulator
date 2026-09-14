@@ -15,7 +15,7 @@ lower bowl opens halfway to the 5's; the 4 has an OPEN counter (FOUR_OPEN);
 the 7's top right is one mitred corner; the 9's tail leaves the ring tangent
 to it (NINE_JOIN_SINK). Each constant carries its measurement and its
 rejected alternatives above it."""
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from .. import primitives as PR
@@ -169,14 +169,15 @@ def counter_box(solid):
     p = solid if solid.geom_type == 'Polygon' else max(solid.geoms, key=lambda q: q.area)
     return list(p.interiors)[0].bounds
 
-def ring_for_counter(cx, cy, cw, ch, w_scale=1.0):
+def ring_for_counter(cx, cy, cw, ch, w_scale=1.0, k=None, floor=0.0, rot=0.0):
     """The outer radii (rx, ry) of a ring whose COUNTER measures cw x ch,
     found by iteration: the counter is the pen's inward offset, unfolded and
     smoothed, and has no closed form. Six half-error steps; the response is
     near 1:1, so it settles in two."""
     rx = cw / 2 + bowl_th((0, 1)) * w_scale; ry = ch / 2 + bowl_th((1, 0)) * w_scale
+    kw = dict(w_scale=w_scale, floor=floor, rot=rot); kw.update({'k': k} if k else {})
     for _ in range(6):
-        solid, o, i = ring(cx, cy, rx, ry, w_scale=w_scale)
+        solid, o, i = ring(cx, cy, rx, ry, **kw)
         x0, y0, x1, y1 = counter_box(solid)
         rx += (cw - (x1 - x0)) / 2; ry += (ch - (y1 - y0)) / 2
     return rx, ry
@@ -423,12 +424,24 @@ def g_eight(c):
     bw1 = bw2 * EIGHT_UPPER
     cw2, ch2 = bw2 + 2 * sp, bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL + 2 * sp     # drawn (pre-spread) targets
     cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH + 2 * sp
-    rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2)
-    rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1)
+    # Round 98 (owner 2026-09-14: "without reshaping the two counterspaces,
+    # give me options for making an 8 that visually fits the rest of the
+    # numbers"): the OUTER's levers, each an env override for the options
+    # page, the counters re-solved to the same boxes under every one of them.
+    E = lambda k, d: float(os.environ.get(k, d))
+    w_up, w_lo = E('ALBO_8_W_UP', 1.0), E('ALBO_8_W_LO', 1.0)   # stroke weight x, upper / lower ring
+    waist = E('ALBO_8_WAIST', 1.0)                                 # the rings' overlap, x one bowl stroke
+    lean = E('ALBO_8_LEAN', 0.0)                                   # the upper ring's centre, units right of the lower's
+    floor_ = E('ALBO_8_FLOOR', 0.0) * S                            # the hair floor, x the stem (the 6's tail is 0.55)
+    kk = E('ALBO_8_K', 0.0) or None                                # the outer's squareness (BOWL_K 2.1 when unset)
+    rot_up = math.radians(E('ALBO_8_ROT', 0.0))                    # the upper ring's tilt
+    rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
+    rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
     cx = rx2
     y2 = -OVER + ry2                                     # the lower ring's bottom at -OVER
-    y1 = -OVER + 2 * ry2 - bowl_hair() + ry1             # over the lower by one bowl stroke
-    lo, *_ = ring(cx, y2, rx2, ry2); up, *_ = ring(cx, y1, rx1, ry1)
+    y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1     # over the lower by one bowl stroke (x waist)
+    lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_)
+    up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up)
     return geom.ink([up, lo])
 
 # Owner 2026-09-13 (round 72), on round 71's ten serifed tails: "flag-diag
