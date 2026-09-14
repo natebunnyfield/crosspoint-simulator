@@ -83,11 +83,27 @@ def g_x(c):
     bl = end_wedge([q0, q1], pw(q0, q1) * X_BL_WIDTH, False, -1, scale=X_BL_WEDGE)
     return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), thin, bl])
 
+# owner 2026-09-14 ("Beyond", "Tuesday"): "the 'y' is too dark in a word
+# currently. thin out the left stroke of 'y' by decreasing its width, but
+# leave the left side of the character as is." Y_LEFT_W x the pen's width
+# for the left diagonal; the stroke's centerline moves toward its inner
+# (upper-right) edge by half the width lost, so the outer (lower-left) edge
+# and the serif on it stay where they were. Chosen on the in-word
+# measurement (outlines/cmp/balance.py) and the eye, round 88.
+Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.80))   # round 88: the knot on the lowercase mean (Albertus -1.8%, Garamond +1.3%)
+
 @glyph('y')
 def g_y(c):
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; w = 440 * wf
     p0, p1 = (S * 0.4, xh), (w / 2 + S * 0.1, -S * 0.4)
-    a = diagonal(p0, p1, pw(p0, p1), serif0=1)
+    w_full = pw(p0, p1); w_left = w_full * Y_LEFT_W
+    if Y_LEFT_W != 1.0:
+        dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy)
+        nx, ny = -dy / L, dx / L            # the left normal of a down-right stroke points up-right: the inner edge
+        sh = (w_full - w_left) / 2
+        # the centerline moves TOWARD the edge that stays (outer = center - n w/2 is fixed when center moves by -n sh)
+        p0 = (p0[0] - nx * sh, p0[1] - ny * sh); p1 = (p1[0] - nx * sh, p1[1] - ny * sh)
+    a = diagonal(p0, p1, w_left, serif0=1)
     tail = cubic((w - S * 0.4, xh), (w * 0.52, -desc * 0.55), (w * 0.44, -desc * 1.08), (w * 0.02, -desc * 0.95))
     # round 51: the pen's width along the tail x (0.72 rising to 1.0 by the middle), flaring 0.3 into the cut
     wfn = pen_widths(tail, lambda t: (0.72 + 0.28 * min(1.0, t * 2)) * widths([(0.7, 1.0), (1.0, 1.3)])(t))

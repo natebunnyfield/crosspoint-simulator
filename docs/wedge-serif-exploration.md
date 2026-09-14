@@ -2461,3 +2461,93 @@ https://claude.ai/artifact/CReTVjwRg4eeps3tfWQ5Ve. VF rebuilt with both rulings 
 masters, one worker, the same 15 clamps as round 85 -- the a is clean on
 every master); sliders and proof republished at their standing URLs.
 
+## Round 88 (2026-09-14): the y in a word, and the in-word balance of every letter
+
+Owner, with "Beyond" and "Tuesday" from the phone: "the 'y' is too dark in a
+word currently. thin out the left stroke of 'y' by decreasing its width, but
+leave the left side of the character as is. we need to find the balance for
+this letter and all letters within a word image. use vision and math and a
+small corpus of english words for this task."
+
+**The old instrument could not see it.** `word_weight.py` (round 28) averages a
+letter's ink over its whole box, ascender to descender, in isolation: the y
+came out at -2.4% of the lowercase median and +1.6% against Albertus --
+ordinary. The eye reads the line, not the box.
+
+**The new one: `outlines/cmp/balance.py`.** The 147 common words rendered at
+13 pt (54 px em) through the reader's four-level pipeline, each letter's
+columns attributed by pen position, two figures per occurrence: `band`, the
+mean darkness over the x-height band (the color the letter gives the line),
+and `peak`, the darkest 6 px window (0.11 em) centered in its columns (the
+knot). Averaged per letter, relative to the frequency-weighted lowercase
+mean, then divided by the same relative figure in Albertus Medium and EB
+Garamond rendered the same way -- so `vs ref` is what this design adds, not
+what a descender costs every face.
+
+Before, the whole lowercase (n = occurrences in the corpus; x has none):
+
+| letter | n | band (rel) | peak (rel) | vs Albertus band / peak | vs Garamond band / peak |
+|---|---|---|---|---|---|
+| j | 1 | 0.416 (1.33) | 0.803 (0.92) | +26.7% / -8.7% | +26.5% / -8.1% |
+| a | 40 | 0.377 (1.20) | 0.905 (1.04) | +19.1% / +3.6% | +10.9% / +7.1% |
+| d | 16 | 0.346 (1.11) | 0.908 (1.04) | +7.2% / +3.7% | +3.6% / -4.6% |
+| p | 3 | 0.344 (1.10) | 0.913 (1.05) | +2.2% / +4.2% | +3.4% / -7.4% |
+| b | 11 | 0.344 (1.10) | 0.947 (1.08) | +3.7% / +8.9% | +12.2% / +3.4% |
+| e | 76 | 0.343 (1.10) | 0.832 (0.95) | +7.8% / -6.1% | +6.7% / -0.7% |
+| g | 10 | 0.337 (1.08) | 0.870 (1.00) | -5.9% / +1.3% | -0.1% / -1.2% |
+| m | 21 | 0.329 (1.05) | 0.924 (1.06) | +4.4% / +6.4% | +1.1% / +5.5% |
+| o | 50 | 0.324 (1.04) | 0.776 (0.89) | +5.1% / -11.4% | +10.2% / -10.1% |
+| s | 30 | 0.311 (0.99) | 0.794 (0.91) | -6.2% / -7.8% | -3.1% / -5.9% |
+| w | 24 | 0.310 (0.99) | 0.947 (1.08) | +0.2% / +6.6% | +5.3% / +4.4% |
+| h | 40 | 0.306 (0.98) | 0.918 (1.05) | -4.4% / +6.4% | -3.9% / +5.4% |
+| n | 32 | 0.304 (0.97) | 0.915 (1.05) | -3.8% / +6.2% | -1.3% / +6.2% |
+| l | 23 | 0.289 (0.92) | 0.907 (1.04) | -12.8% / +5.3% | -6.7% / +4.2% |
+| c | 11 | 0.286 (0.92) | 0.794 (0.91) | +15.3% / -8.3% | +9.4% / -7.1% |
+| f | 10 | 0.286 (0.92) | 0.887 (1.02) | -2.2% / +2.2% | -9.3% / -0.1% |
+| i | 26 | 0.286 (0.91) | 0.911 (1.04) | -11.2% / +3.6% | -12.3% / +4.8% |
+| r | 31 | 0.285 (0.91) | 0.909 (1.04) | +8.6% / +5.3% | -4.6% / -0.3% |
+| u | 18 | 0.283 (0.91) | 0.871 (1.00) | -10.6% / -1.4% | -10.4% / -1.4% |
+| k | 6 | 0.283 (0.91) | 0.892 (1.02) | -14.2% / +3.7% | -11.8% / -3.4% |
+| y | 14 | 0.270 (0.86) | 0.946 (1.08) | +1.7% / +6.5% | +6.2% / +9.8% |
+| t | 48 | 0.269 (0.86) | 0.838 (0.96) | -16.5% / -4.2% | -15.2% / -7.2% |
+| v | 5 | 0.245 (0.78) | 0.902 (1.03) | -0.2% / +2.2% | -0.8% / +5.3% |
+
+The y's band is LIGHT (0.86) -- the two diagonals leave air -- but its knot
+is the darkest of any common letter (0.946, with b and w), +6.5% over
+Albertus and +9.8% over Garamond: at 13 pt the full-pen left diagonal (84
+units, 4.5 px) meets the tail and the descender starts right under the
+join. That knot is what the owner sees.
+
+**The fix.** `Y_LEFT_W` in `glyphs/diagonals.g_y`: the left diagonal at that
+fraction of the pen's width for its angle, the centerline moved toward the
+outer edge by half the width lost so the outer edge and its serif stay put
+(the first build moved the wrong way -- checked on the outline at y = 200:
+outer 77.0 -> 77.0, inner 169.5 -> 151.6 at 0.80). The tail untouched. Five
+rungs built and measured:
+
+| left stroke x pen | y band (rel) | y peak (rel) | vs Albertus band / peak | vs Garamond band / peak |
+|---|---|---|---|---|
+| 1.0 | 0.270 (0.86) | 0.946 (1.08) | +1.7% / +6.5% | +6.2% / +9.8% |
+| 0.90 | 0.256 (0.82) | 0.912 (1.05) | -3.6% / +2.8% | +0.7% / +6.0% |
+| 0.80 | 0.241 (0.77) | 0.871 (1.00) | -9.0% / -1.8% | -5.0% / +1.3% |
+| 0.72 | 0.229 (0.73) | 0.832 (0.96) | -13.5% / -6.1% | -9.6% / -3.2% |
+| 0.64 | 0.217 (0.70) | 0.783 (0.90) | -18.0% / -11.4% | -14.3% / -8.7% |
+
+The knot crosses the references between 0.90 and 0.80; at 0.80 it sits on
+the lowercase mean exactly (1.00) and the band at 0.77 beside the v's 0.78 --
+a diagonal letter's band is light in every face. By eye at 13 pt (the
+ladder page): at 1.0 the y's left stroke outweighs the B's stem; at 0.80 it
+matches the n's and d's stems; at 0.72 and 0.64 the y reads as light as a v.
+**0.80 is the default.** Page: https://claude.ai/artifact/7cqrP59V1UDHt3TovN88JS.
+
+**The rest of the alphabet, from the same table -- recorded, NOT changed (he
+named the y).** Over the references in the band: a (+19% Albertus, +11%
+Garamond -- the bowl-profile a of round 78 is the heaviest common letter on
+the line), c (+15% / +9%), j (+27%, n = 1), e (+8% / +7%), o (+5% / +10%);
+under: t (-16% / -15%), k (-14% / -12%), l (-13% / -7%), i (-11% / -12%),
+u (-11% / -10%). Peaks: o's knot -11% under both (the bowl's hair drops to
+gray at 13 pt), b and w +7-9% over. Candidates for later rounds, in the
+order the drive would suggest: a, t, o.
+
+Static Medium is the 0.80 build (a curve 8, dot style 1); VF rebuilt.
+
