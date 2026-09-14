@@ -111,9 +111,7 @@ CLASS_PAIRS = {
     ('quote', 'A'): -126, ('quote', 'J'): -36, ('quote', 'T'): -54, ('quote', 'VWY'): -36,   # an opening quote before a T: the bar is at the quote's height, so only a little
     ('T', 'quote'): -36, ('VW', 'quote'): -18, ('Y', 'quote'): -36,
     ('quote', 'round'): -18, ('quote', 'a'): -18,
-    # round 96b, the a's left by neighbour (outlines/cmp/rhythm.py, bridged metric): bowls tight, opens loose
-    ('oround', 'a'): 36, ('e', 'a'): 36, ('cg', 'a'): -18, ('t', 'a'): -36, ('s', 'a'): 18, ('r', 'a'): -36, ('f', 'a'): -18, ('vwy', 'a'): -18,
-    ('a', 'diag'): -36,
+    # round 96b's a-by-neighbour cells were retired in round 97: the lowercase solve (rhythm.solve) put every common bigram within +-9 of the rhythm on bearings alone
     # round 96b: the f's hook stood 5-10 units off the ascender wedges (fl fb fh fk), connected at 13 pt
     ('f', 'ascwedge'): 54,
     ('period', 'quote'): -36,
@@ -128,8 +126,6 @@ PAIRS = {
     ('f', 'quotedblright'): 36,
     ('f', 'question'): -18,
     ('r', 'quoteright'): -36, # 'r' before an apostrophe: "Mr's"
-    ('j', 'a'): 18,
-    ('k', 'a'): 0,            # round 96b: the k rides the K class for rounds; against the a it measured -23 with that -36, on rhythm without           # round 96b: the owner's 'ja'; -12 on the bridged metric after the j's own fix
     ('quotesingle', 'quotesingle'): 0, ('quotedbl', 'quotedbl'): 0,
 }
 

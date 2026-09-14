@@ -61,6 +61,16 @@ def solve_widths(passes=3):
 
 PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
 PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
+# Round 97 (owner: "go" on the whole-lowercase refit): per-letter (lsb, rsb)
+# deltas from `outlines.cmp.rhythm.solve` on the round-96b file -- least
+# squares over ~150 frequency-weighted common English bigrams on the bridged
+# white metric, target the font's own rhythm (159, so the density is
+# unchanged). Mean |deviation| 24 -> 0.6 units, extremes -60..+87 -> -9..+8.
+# Re-solve after any letter's outline changes; the numbers are the record.
+BEARING_ADJ = {'a': (7, 4), 'b': (-14, 37), 'c': (22, -22), 'd': (23, 2), 'e': (23, 36), 'f': (-4, -28), 'g': (10, -18),
+               'h': (-9, -1), 'i': (-9, 0), 'j': (0, 15), 'k': (-9, -10), 'l': (-13, 3), 'm': (-9, -1), 'n': (-6, 1),
+               'o': (20, 35), 'p': (-20, 36), 'q': (0, 37), 'r': (-7, -39), 's': (21, 22), 't': (-21, -37), 'u': (-18, 4),
+               'v': (-48, -33), 'w': (-41, -24), 'x': (-6, 0), 'y': (-47, -16), 'z': (0, -22)}
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
@@ -88,6 +98,7 @@ def fit(ch, conts, c):
     elif ch in PUNCT_FENCES: lsb = capbear * 1.0 + 17; rsb = capbear * 1.0 + 17
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
+    if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]   # round 97: the lowercase solve
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 

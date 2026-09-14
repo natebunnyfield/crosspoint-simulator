@@ -130,3 +130,66 @@ def analyse(font_path, letter='a', verbose=True):
 
 if __name__ == '__main__':
     analyse(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else 'a')
+
+# ---------------------------------------------------------------- round 97: the solve
+
+def bridged_profiles(g, w):
+    """Outer left/right profiles with concavities shorter than w bridged (a
+    vertical rolling window over the per-row extremes -- what the eye does
+    with the notch under the a's hood or a c's aperture)."""
+    ys = sorted(g['rows']); left = {}; right = {}
+    for y in ys:
+        win = [yy for yy in ys if abs(yy - y) <= w / 2]
+        left[y] = min(g['rows'][yy][0][0] for yy in win); right[y] = max(g['rows'][yy][-1][1] for yy in win)
+    return left, right
+
+def white_table(G, band, depth, w, chars):
+    """{(a, b): white} for every ordered pair of chars, bridged at w, unkerned."""
+    prof = {c: bridged_profiles(G[c], w) for c in chars}
+    T = {}
+    for a in chars:
+        la, ra = prof[a]
+        for b in chars:
+            lb, rb = prof[b]; vals = []
+            for y in band:
+                if y not in ra or y not in lb: vals.append(depth); continue
+                vals.append(min(max((G[a]['adv'] - ra[y] - 1) + lb[y], 0.0), depth))
+            T[(a, b)] = statistics.mean(vals)
+    return T
+
+def solve(font_path, iters=12, clamp=60, bridge=0.5, rhythm=None):
+    """Per-letter bearing deltas (lsb, rsb) that put the frequency-weighted
+    common bigrams on the rhythm. Gauss-Seidel on
+    sum_w (r_a + l_b + white_ab - R)^2. Returns (deltas, R, residuals)."""
+    chars = sorted(set(''.join(BIGRAMS)))
+    G, xh = profile(font_path, chars); band = list(range(1, xh + 1))
+    n_runs = [max(r[i + 1][0] - r[i][1] - 1 for i in range(len(r) - 1)) for y in band if (r := G['n']['rows'].get(y)) and len(r) > 1]
+    nc = statistics.median(n_runs); depth = REACH * nc; w = bridge * nc
+    T = white_table(G, band, depth, w, chars)
+    pairs = [((a, b), wt) for (a, b), wt in ((tuple(k), v) for k, v in BIGRAMS.items()) if a in G and b in G]
+    R = rhythm if rhythm is not None else wmedian([(T[p], wt) for p, wt in pairs])
+    l = {c: 0.0 for c in chars}; r = {c: 0.0 for c in chars}
+    for _ in range(iters):
+        for c in chars:
+            ps = [(p, wt) for p, wt in pairs if p[1] == c]
+            if ps: l[c] = max(-clamp, min(clamp, -sum(wt * (r[p[0]] + T[p] - R) for p, wt in ps) / sum(wt for _, wt in ps)))
+            ps = [(p, wt) for p, wt in pairs if p[0] == c]
+            if ps: r[c] = max(-clamp, min(clamp, -sum(wt * (l[p[1]] + T[p] - R) for p, wt in ps) / sum(wt for _, wt in ps)))
+    res = {p: r[p[0]] + l[p[1]] + T[p] - R for p, _ in pairs}
+    before = {p: T[p] - R for p, _ in pairs}
+    return {c: (round(l[c]), round(r[c])) for c in chars}, R, res, before, pairs
+
+def spread(dev, pairs):
+    """Weighted mean |deviation| and the extremes."""
+    tot = sum(wt for _, wt in pairs)
+    return sum(wt * abs(dev[p]) for p, wt in pairs) / tot, min(dev.values()), max(dev.values())
+
+def patch(font_path, deltas, out):
+    """Apply bearing deltas to a built TTF (translate outlines, widen advances)."""
+    f = TTFont(font_path); hm = f['hmtx']; cm = f.getBestCmap(); g = f['glyf']
+    for ch, (dl, dr) in deltas.items():
+        n = cm.get(ord(ch))
+        if not n or (dl == 0 and dr == 0): continue
+        adv, lsb = hm[n]; hm[n] = (adv + dl + dr, lsb + dl)
+        if dl and g[n].numberOfContours > 0: g[n].coordinates.translate((dl, 0))
+    f.save(out); return out

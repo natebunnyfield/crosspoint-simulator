@@ -3006,3 +3006,26 @@ Page (round 96's URL, repaired in place): https://claude.ai/artifact/HRgSSYaKkzF
   the ask is to centre them on the lowercase word image. Braces and the
   slash likely with them. Not built.
 - The 8 without reshaping its counters (round 95's queue).
+
+## Round 97 (2026-09-14): the whole lowercase refit to the rhythm -- "go"
+
+Owner: "go", on the round-96b finding that the open-right letters ran loose
+and the bowl-right letters tight against every neighbour. Done as a SOLVE
+(`outlines.cmp.rhythm.solve`): per-letter left and right bearing deltas, 52
+unknowns, least squares over the ~150 frequency-weighted common bigrams on
+the bridged white metric, target the font's own rhythm (159 units) so the
+density is unchanged. **Mean |deviation| 24.3 -> 0.7 units, extremes
+-60..+87 -> -2..+9**, verified by re-solving the rebuilt file (residual
+moves <= 5). No lowercase pair is left past +-9, so the ten round-96b
+a-by-neighbour kern cells are RETIRED (bearings do it); the f-before-wedge
++54, the j's right and the capital cells stay. The deltas are
+`build.BEARING_ADJ`, applied after the fitting rule, and are the record --
+re-solve after any outline change. What moved: v w y left -48/-41/-47 (the
+diagonals were the loose ones, not the a), b p q right +37/+36/+37 and o
++35, e right +36 (bowls and the e's arm were tight), t and r right -37/-39,
+c left +22 / right -22, s +21/+22, u left -18. Word space unchanged (356).
+Judged at 96 px and 13 pt: "people" and "over" read a shade airier at the
+bowls, which is the rule (the o's within-white is 279 against the n's 208).
+The capital cells were judged at the old bearings: T+o is 20 looser, T+y 47
+tighter; left for the owner's eye. Page:
+https://claude.ai/artifact/PENDING
