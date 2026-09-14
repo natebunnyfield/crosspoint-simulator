@@ -2425,3 +2425,6 @@ https://claude.ai/artifact/V99uonxouiPeFuu3wcjj29; the five a's
 https://claude.ai/artifact/1p2PqhY4Eo6fwKsmWQHinH; the ten dots
 https://claude.ai/artifact/GZmUL9BmJHbYRjkwnTvPPa. Awaiting the owner's picks
 (a curve 0-4, dot style 0-9); the static TTF sent is a curve 0, dot style 0.
+VF rebuilt through round 85 (23 masters, one worker, 15 clamps as before:
+E and y at wght 50, c H h n m ? at the heavy condensed corner, x at CNTR 0,
+w at SRIF max); sliders, proof and specimen republished at their standing URLs.
