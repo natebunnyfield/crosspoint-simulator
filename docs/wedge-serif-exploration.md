@@ -2684,6 +2684,6 @@ back on its line after the projection; same point count, VF-compatible.
 Checked on every glyph a-z A-Z 0-9: no flat between 2 and 14 units; every
 flat-footed lowercase black to the baseline row at 13 pt. Page (round 92's
 lifted build over now for n m h; round 90 over now for f r l, a, p, k, and
-the paragraph): https://claude.ai/artifact/PENDING93. Medium sent, VF
+the paragraph): https://claude.ai/artifact/3CUF1YSoP94aN9x4jD77ag. Medium sent, VF
 rebuilt, specimen / sliders / proof republished.
 
