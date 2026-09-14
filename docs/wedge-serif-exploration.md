@@ -3184,5 +3184,7 @@ the **section** is two S's interlocked at 0.62 of their height and still
 reads a little as two letters rather than one mark. Corpus uses: ¶ 0, ð 0,
 § 59. Not shipped as finished.
 
+Page: https://claude.ai/artifact/YC1r2eYBRmqBs43VqZDzzP
+
 Not done in the hour: the italic, the bold, the 1x proof on the X3's own em,
 and the vertical metrics -- all still on the ranked list at round 95.
