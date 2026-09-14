@@ -17,6 +17,8 @@ def dot_y(xh): return xh + 118 + S * 0.3
 # cross-section) unchanged. Built at +15% and +30% for the page; +15% ships
 # here by default. ALBO_G_EAR_EXTEND overrides for the page's other variant.
 G_EAR_EXTEND = 0.15
+G_NECK = 0.42        # the neck's floor, x the stem (0.55 before; owner: thin the connector)
+G_NECK_MID = 0.72    # the neck's middle, x its profile
 def g_ear_scale(): return 1.0 + float(os.environ.get('ALBO_G_EAR_EXTEND', G_EAR_EXTEND))
 
 # owner, 2026-09-13: "make a version of 't' that is a triangle on the right
@@ -74,8 +76,15 @@ def g_t(c):
 T_TOP_RISE = 96
 T_TOP_SHEAR_DEG = 46
 
-A_STEM_TOP = 0.66   # the a's stem stops here (x xh); the hood's curve is the top right above it
-A_HOOD_LEAN = 22    # how far right (wf units) the hood leans as it climbs off the stem
+# owner 2026-09-14: "make five versions for me to pick from that gives a curve
+# instead of a corner in the upper right of 'a'": (stem top x xh, hood
+# start x xh, lean right in wf units, the lean's height x xh)
+A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
+            (0.62, 0.50, 34, 0.94),   # 1: a little rounder
+            (0.58, 0.46, 46, 0.95),   # 2: rounder still
+            (0.54, 0.42, 60, 0.96),   # 3: a full shoulder
+            (0.70, 0.58, 14, 0.90)]   # 4: barely a curve, the stem nearly to the top
+A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 0))
 
 @glyph('a')
 def g_a(c):
@@ -95,9 +104,10 @@ def g_a(c):
     # than a rectangular corner" -- the stem stops at A_STEM_TOP x xh and the
     # hood takes over from lower on the stem, leaning out to the right as it
     # climbs, so the outer contour at the top right is the hood's own curve
-    st = stem(x, 0, xh * A_STEM_TOP, top=None, foot='both', ent_span=(0, xh))
+    top_f, start_f, lean, up = A_CURVES[A_CURVE]
+    st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
-    hood = cubic((x, xh * 0.54), (x + A_HOOD_LEAN * wf, xh * 0.93), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+    hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
     hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
@@ -189,10 +199,16 @@ def g_g(c):
         a = math.radians(deg); return (cx_ + rx_ * math.cos(a), cy_ + ry_ * math.sin(a))
     p0 = on(cx, cy, crx, cry, 240); a1 = math.radians(150); p3 = on(lcx, lcy, clrx, clry, 150)
     tl = (-math.sin(a1), math.cos(a1)); gap = p0[1] - p3[1]
-    p0 = (p0[0] + 4, p0[1] + 22)
+    # owner 2026-09-14: "clear out the inside counter of 'g' so it is an
+    # uninterrupted oval" -- the neck and the ear used to START inside the
+    # ring's centerline (22 up, 25 in), and their square start faces landed
+    # in the counter. Both now begin ON the ring's centerline and taper in,
+    # so nothing reaches the counter. And: "thin out the connector stroke
+    # between ovals in g to match the calligraphic style" -- the neck on the
+    # bowl profile with a G_NECK floor and a light middle.
     neck = cubic(p0, (p0[0] - gap * 0.05, p0[1] - gap * 0.58), (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
-    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.35), (0.14, 1.0), (0.90, 1.0), (1.0, 0.30)]), floor=S * 0.55))
+    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.30), (0.16, 0.9), (0.45, G_NECK_MID), (0.85, 0.9), (1.0, 0.30)]), floor=S * G_NECK))
     ex, ey = on(cx, cy, crx, cry, 44); L = 96 * wf * g_ear_scale()
-    ear_c = [(ex - S * 0.30, ey - 26), (ex + L, ey + L * math.tan(math.radians(8)))]
-    ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.5), (0.30, 1.0), (1.0, 1.05)]), floor=S * 0.72), cut1=CUT)
+    ear_c = [(ex, ey), (ex + L, ey + L * math.tan(math.radians(8)))]
+    ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]), floor=S * 0.72), cut1=CUT)
     return geom.ink([bowl, loop, nk, ear])

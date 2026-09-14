@@ -428,8 +428,30 @@ def beak(pts, w, at_start=True, cut_deg=-28.0, lip=(0.4, 0.7)):
     A = (P0[0] - nrm[0] * w / 2, P0[1] - nrm[1] * w / 2)
     return wedge(A, d, (-nrm[0], -nrm[1]), WL * lip[0], WD * lip[1], 0.0)
 
+DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 0))
 def dot(cx, cy, r, k=2.0):
-    return geom.poly(superellipse(cx, cy, r, r, 0, 2 * math.pi, k)[:-1])
+    """The dot of i j and the marks. DOT_STYLE 0-9 (owner 2026-09-14: "make
+    ten increasingly handcut versions of dots"): 0 the round superellipse;
+    the exponent falls toward a squarer form, the outline becomes a polygon
+    of fewer sides, and each vertex takes a deterministic radial jitter
+    from life() -- 9 is a rough-cut five-sided lump."""
+    st = DOT_STYLE
+    if st <= 0:
+        return geom.poly(superellipse(cx, cy, r, r, 0, 2 * math.pi, k)[:-1])
+    n = max(5, 12 - st)
+    jit = 0.035 * st
+    ks = k - 0.06 * st
+    js = life(n + 1)
+    rot = js[0] * math.pi / n
+    pts = []
+    for i in range(n):
+        a = rot + 2 * math.pi * i / n
+        rr = r * (1 + jit * js[i + 1])
+        # a superellipse radius at this angle, so the squaring shows in the polygon too
+        ca, sa = math.cos(a), math.sin(a)
+        se = 1.0 / ((abs(ca) ** ks + abs(sa) ** ks) ** (1.0 / ks)) if ks > 0.5 else 1.0
+        pts.append((cx + rr * se * ca, cy + rr * se * sa))
+    return geom.poly(pts)
 
 # ---------------------------------------------------------------- traps
 def trap(apex, direction, half_deg, depth):

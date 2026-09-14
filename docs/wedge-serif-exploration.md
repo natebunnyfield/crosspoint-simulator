@@ -2405,3 +2405,20 @@ the E and y still clamp at wght 50. Slider and proof pages republished, VF
 sent. **PAUSED here by the owner.** Pending his picks when he returns: the
 round-84 page (k z W a t), the o's counter width, the lighter weights'
 per-glyph fixes (a y 5 E), his future todo on the 4's top-left stroke.
+
+## Round 85 (2026-09-14): x e g z, five a's, ten dots
+
+Owner: "increase the visual weight of the bottom left serif in 'x'; slightly
+reduce the visual weight of the bottom right tail stroke of 'e'; clear out
+the inside counter of 'g' so it is an uninterrupted oval; thin out the
+connector stroke between ovals in g to match the calligraphic style;
+slightly reduce the line thickness (while respecting the vertical grid) of
+the horizontal strokes in 'z'; make five versions for me to pick from that
+gives a curve instead of a corner in the upper right of 'a'; make ten
+increasingly handcut versions of dots for me to pick for 'i' 'j' and
+punctuation marks." The first four landed (guide rows). The a: `A_CURVES`
+(stem top, hood start, lean, lean height) x5, `FJORD_A_CURVE`. The dots:
+`DOT_STYLE` 0-9 in `primitives.dot` -- exponent falling, a polygon of
+12-s sides, radial jitter 0.035 s from `life()`, `FJORD_DOT_STYLE`; every
+dot in the font (i j . , : ; ! ?) takes it. Pages: x e g z
+https://claude.ai/code/artifact/PENDING85; the a's and the dots follow.

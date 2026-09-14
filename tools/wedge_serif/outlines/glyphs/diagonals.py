@@ -68,11 +68,20 @@ def g_w(c):
     mid = _clean_apex_notch(b, d, apex, apex_x, apex_y)
     return geom.ink([a, e, mid])
 
+X_BL_WEDGE = 1.15   # the x's bottom-left wedge, x the family's diagonal end (0.9 is the family's own)
+X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0), not the thin's
+
 @glyph('x')
 def g_x(c):
     xh = c["xh"]; wf = c["wf"]; w = 430 * wf
     p0, p1 = (S * 0.4, xh), (w - S * 0.4, 0); q0, q1 = (w - S * 0.4, xh), (S * 0.4, 0)
-    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1, serif1=-1)])
+    # owner 2026-09-14: "increase the visual weight of the bottom left serif
+    # in 'x'" -- that serif ends the THIN diagonal, so the family's wedge
+    # scaled on the thin stroke's width is small; it is drawn on the thick
+    # diagonal's width instead, at X_BL_WEDGE of the family's diagonal end
+    thin = diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)
+    bl = end_wedge([q0, q1], pw(q0, q1) * X_BL_WIDTH, False, -1, scale=X_BL_WEDGE)
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), thin, bl])
 
 @glyph('y')
 def g_y(c):
@@ -118,7 +127,7 @@ def g_z(c):
     cut_tr = half(corner, +1).intersection(_box(corner[0] - S * 2, xh - th - 2, corner[0] + far, xh + far))
     cut_bl = half(corner2, -1).intersection(_box(corner2[0] - far, -far, corner2[0] + S * 2, th + 2))
     return g.difference(cut_tr).difference(cut_bl)
-Z_BAR = 0.62    # the z's bars, x the stem (light against the diagonal)
+Z_BAR = 0.52    # the z's bars, x the stem (owner 2026-09-14: "slightly reduce the line thickness ... of the horizontal strokes in 'z'"; 0.62 before). The bars stay ON the x-height and the baseline (align top / bottom), so the vertical grid holds
 Z_DIAG = 1.05   # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
 
 @glyph('k')
