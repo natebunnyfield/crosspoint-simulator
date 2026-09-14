@@ -3188,3 +3188,133 @@ Page: https://claude.ai/artifact/YC1r2eYBRmqBs43VqZDzzP
 
 Not done in the hour: the italic, the bold, the 1x proof on the X3's own em,
 and the vertical metrics -- all still on the ranked list at round 95.
+
+## Round 100 (2026-09-14): the word space, the five styles, the vertical metrics -- "complete remaining all work, all of it"
+
+Owner: "complete remaining all work, all of it", then, mid-round: "be sure
+to fix the space being way too wide currently."
+
+Page: https://claude.ai/artifact/G2ELcVf62hdoTtHRewNf9J
+
+### The word space, measured against the references (his ask)
+
+It was 356 units -- 0.356 em, 0.61 of the n's advance -- from a 2026-09-12
+rule (`1.7 n-counters - 110`) with no measurement behind it. Measured the
+same way the LETTER fitting is measured, mean white across the x-height band,
+word against letter:
+
+| face | letter white | word white | ratio | space |
+|---|---|---|---|---|
+| Albertus Medium | 178 | 446 | 2.51 | 313 |
+| EB Garamond 400 | 194 | 370 | 1.91 | 200 |
+| ITC Berkeley Medium | 191 | 427 | 2.24 | 259 |
+| **Albo, before** | **232** | **554** | **2.39** | **356** |
+| **Albo, now** | 232 | 485 | 2.09 | **285** |
+
+The RATIO was never far off. The trouble is that Albo's letters are the
+loosest of the four (232 against 178-194), so the same ratio puts its word
+gap 25-50% past every reference in ABSOLUTE white -- which is what the eye
+sees. Set to the mean ratio of the two TEXT faces (2.07; Albertus is a
+display cut and its 2.51 is not a reading target): **285**. Confirmed on a
+five-rung paragraph ladder at 13 pt, where 225 begins to close "low over"
+and 320 still reads as holes. Kept proportional to the n counter
+(`build.SPACE_COUNTERS` = 1.039) so it tracks any later move in weight or
+width, as the old rule did.
+
+### Five styles
+
+`Albo-{Regular,Italic,SemiBold,Bold,BoldItalic}.ttf`, all 470 glyphs.
+
+| style | stem | contrast | width | slant | space | ink at black, 13 pt |
+|---|---|---|---|---|---|---|
+| Regular 400 | 66.9 | 0.892 | 100 | 0 | 285 | 61.2% |
+| Italic 400 | 66.9 | 0.892 | 95 | 11 deg | 265 | 62.3% |
+| SemiBold 600 | 88 | 0.85 | 102 | 0 | 291 | 68.6% |
+| Bold 700 | 107 | 0.80 | 105 | 0 | 301 | 73.8% |
+| Bold Italic 700 | 107 | 0.80 | 100 | 11 deg | 281 | 73.9% |
+
+**The italic is not a slope.** `pen.SLANT` shears the finished ink about the
+BASELINE (so every y is untouched and the cut's pinned lines -- baseline,
+x-height, cap -- still land where they did), and `pen.ITALIC` additionally
+switches the two letters a real italic redraws: the **a becomes
+single-storey** and the **f descends**. A sloped two-storey a is the
+commonest tell of a sloped roman pretending to be an italic. The first cut
+of that a sized its bowl by its own width and came out 0.6 of the x-height
+-- a small-cap a inside the word; the bowl fills the x-height band now, as
+the o does.
+
+### The vertical metrics, measured
+
+They were 900/-300 with nothing behind them. Measured across every style the
+ink reaches **971** on the Regular and **996** on the Bold (h-circumflex, an
+accented ascender) and -298 to -317 (g, y) -- so `usWinAscent` at 900 sat
+BELOW the ink and clipped in any rasteriser that honours it. Now hhea and
+typo 1000/-300 with no line gap (a 1.30 em line, EB Garamond's; the
+references run Berkeley 1.17, Albertus 1.24, Garamond 1.31) and win
+1000/320. 1.30 em is the only one of the three that clears an accented
+capital over a descender: 1300 against an ink span of 1269. The italic and
+bold flags are set properly too -- `fsSelection`, `macStyle` and
+`post.italicAngle` -- because a Bold Italic whose weight class read 400 is a
+face the reader will treat as a regular.
+
+### Three defects the cross-weight check found, which no render of the Regular could
+
+Contour counts per glyph against the Regular, at every other weight. A glyph
+that LOSES a contour at a heavier weight has closed a counter:
+
+- **the dieresis merged into one blob at the Bold** -- every German and
+  Swedish umlaut. Its two dots were separated by a fixed fraction of the
+  accent box while the dots themselves scale with the stem. The separation
+  is 1.05 of a dot's diameter now, so it scales with what it separates.
+- **the question mark lost its dot at the Bold** (and the inverted one with
+  it): the descent stopped at a fraction of the CAP HEIGHT, which does not
+  move with the weight, so at stem 107 the hook's own half-width plus the
+  dot's radius closed the gap. It stops at the family's dot-clearance rule
+  now -- the same one the exclamation has used since round 51.
+- **the white chess pieces lost counters** at the SemiBold and Bold: the
+  hollow outline's width came from the pen, so it thickened with the text
+  weight while the piece stayed the same size. A pictograph's outline is a
+  property of the picture; it is 0.042 of the cap height now.
+
+All three were a fixed proportion where a weight-scaling one was needed.
+Topology is CLEAN at every weight after them (the ligatures, which are
+opt-in and not in the shipped file, and the long s, whose bar touches its
+stem by design, are the only exclusions).
+
+### The rough three of round 99, finished
+
+The **section** is the font's own S at 0.60 with the same S turned 180
+degrees under it, interlocked at half its height -- two hand-drawn attempts
+came out an epsilon and then two stacked letters. The **pilcrow** is the
+font's own P with its counter FILLED plus a second stem at the bowl's right
+edge: a pilcrow's bowl is solid, and a solid bowl drawn from scratch has no
+counter to give it a shape, which is why two hand-drawn versions were
+blocks. The **eth**'s back now leaves the bowl's top-left and rises to the
+ascender as one stroke. All three are built FROM the letters they are made
+of, which is the same rule the copyright, the dollar and the superscripts
+follow.
+
+### The a's right side: closed, with a measurement
+
+Open since round 96b, where the raw and bridged metrics disagreed by ~28
+units and neither called it wrong. Round 97b's per-category solve settled it
+without anyone noticing: every a-pair now sits within **2 units** of its
+category's target on both sides (worst `ca` +2, `ap` -1). Nothing to do.
+
+### Detwinning: measured, and the dial does NOT do it
+
+`outlines/cmp/variety.py` on the Regular: **171 of 304 serifs now have no
+twin**, against the round-77 audit's 129-of-144-twinned -- but that is mostly
+the font having grown, so the honest figure is the RATE, 90% twinned then
+against 44% now. Built the Regular at `FJORD_LIFE` 0.06, 0.10 and 0.16: **the
+twin count does not move at all** (171 of 304 at every amplitude), so
+whatever makes the remaining 133 twins is not the perturbation's amplitude.
+`primitives.wedge` does call `life()`, so the next step is inside
+`variety.py`'s own comparison rather than the dial. Recorded rather than
+guessed at.
+
+### Still open
+
+The kern values have never been ruled on -- they were set by eye in round 95,
+page https://claude.ai/artifact/NUv37wR5v6jKiMiHVvHsMi. A true chancery
+italic, as opposed to this corrected slope. The detwinning cause above.
