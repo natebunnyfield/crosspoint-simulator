@@ -79,11 +79,26 @@ T_TOP_SHEAR_DEG = 46
 # owner 2026-09-14: "make five versions for me to pick from that gives a curve
 # instead of a corner in the upper right of 'a'": (stem top x xh, hood
 # start x xh, lean right in wf units, the lean's height x xh)
+# owner 2026-09-14 on 0-4: "the 'a' curve needs to be closer to the vertical
+# corner that was there before, you maximize gap space under the stroke":
+# 5-9 keep the stem high (round 83's went to 0.95 xh with the hood bending
+# over the top) and start the hood low and at the floor width, so the hollow
+# under it stays open; the curve is only at the corner. The hood's path
+# starts FLUSH with the stem's right edge (A_HOOD_FLUSH), or the stem's flat
+# top pokes 0.25 S past the thinner hood -- a step, seen in the first build
+# of 6-9. (The hood's start width is the 0.5 S floor at this contrast
+# whatever the profile asks, so no width column.)
 A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
             (0.62, 0.50, 34, 0.94),   # 1: a little rounder
             (0.58, 0.46, 46, 0.95),   # 2: rounder still
             (0.54, 0.42, 60, 0.96),   # 3: a full shoulder
-            (0.70, 0.58, 14, 0.90)]   # 4: barely a curve, the stem nearly to the top
+            (0.70, 0.58, 14, 0.90),   # 4: barely a curve, the stem nearly to the top
+            (0.92, 0.60, 8, 1.04),    # 5: round 83's corner with the least rounding
+            (0.88, 0.60, 10, 1.02),   # 6
+            (0.84, 0.60, 12, 1.00),   # 7
+            (0.80, 0.60, 14, 0.98),   # 8
+            (0.76, 0.58, 16, 0.95)]   # 9: the roundest of the tight ladder
+A_HOOD_FLUSH = True
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 0))
 
 @glyph('a')
@@ -107,7 +122,8 @@ def g_a(c):
     top_f, start_f, lean, up = A_CURVES[A_CURVE]
     st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
-    hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+    hx = x + (S - S * 0.5) / 2 if A_HOOD_FLUSH else x   # the hood's outer edge on the stem's right edge
+    hood = cubic((hx, xh * start_f), (hx + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
     hd = stroke(hood, PR.bowl_widths(hood, widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)]), floor=S * 0.5), cut1=CUT)
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back

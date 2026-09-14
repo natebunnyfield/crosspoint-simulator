@@ -428,7 +428,7 @@ def beak(pts, w, at_start=True, cut_deg=-28.0, lip=(0.4, 0.7)):
     A = (P0[0] - nrm[0] * w / 2, P0[1] - nrm[1] * w / 2)
     return wedge(A, d, (-nrm[0], -nrm[1]), WL * lip[0], WD * lip[1], 0.0)
 
-DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 0))
+DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 1))   # owner 2026-09-14: "dot style 1 wins"
 def dot(cx, cy, r, k=2.0):
     """The dot of i j and the marks. DOT_STYLE 0-9 (owner 2026-09-14: "make
     ten increasingly handcut versions of dots"): 0 the round superellipse;

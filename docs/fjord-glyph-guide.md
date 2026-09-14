@@ -361,6 +361,7 @@ none without the owner's word, and record any change in the exploration doc.
 | 3 | lower bowl takes the 5's sweep and terminal | round 44 |
 | figures | old-style, in the references' boxes (`latin.FIG_BOX`) | round 20 |
 | j | no top flag; tail one round arc holding stem weight through the turn, thinning to a point | rounds 22, 25 |
+| the dots (i j . , : ; ! ?) | `DOT_STYLE` 1 (owner: "dot style 1 wins" from the ten of round 85): an eleven-sided polygon on the superellipse at k 1.94, each vertex 3.5% radial jitter from `life()`, so no two dots in the font are the same | round 86 |
 | bowls of b d p q | kept to the stem | round 18 |
 | the g's bowl | clear of overhanging shapes | round 19 |
 

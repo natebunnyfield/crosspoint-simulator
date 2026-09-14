@@ -2428,3 +2428,17 @@ https://claude.ai/artifact/GZmUL9BmJHbYRjkwnTvPPa. Awaiting the owner's picks
 VF rebuilt through round 85 (23 masters, one worker, 15 clamps as before:
 E and y at wght 50, c H h n m ? at the heavy condensed corner, x at CNTR 0,
 w at SRIF max); sliders, proof and specimen republished at their standing URLs.
+
+## Round 86 (2026-09-14): the dots ruled, the a's corner again
+
+Owner: "dot style 1 wins" -- `DOT_STYLE` default 1 (guide row). And on the
+five a curves: "the 'a' curve needs to be closer to the vertical corner that
+was there before, you maximize gap space under the stroke." Round 84's
+five all dropped the stem (0.54-0.70 xh) and started the hood thick, which
+filled the hollow. `A_CURVES` 5-9: the stem to 0.92 / 0.88 / 0.84 / 0.80 /
+0.76 xh, the hood from 0.60 xh at the floor width, lean 8-16, and the
+hood's path starting flush with the stem's right edge (`A_HOOD_FLUSH`) --
+the first build of 6-9 had the stem's flat top poking 0.25 S past the
+thinner hood, a step. Page: https://claude.ai/artifact/C8MPeSCY5GrYS4NM1piHTM.
+Static Medium rebuilt with dot style 1 (a curve still 0 until his pick).
+
