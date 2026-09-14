@@ -3091,3 +3091,16 @@ Option 8 -- the hair floor at 0.55 S, the 6's tail rule, both counters
 untouched -- ships as `figures.EIGHT_FLOOR`. The rebuilt 8 is
 coordinate-identical to the option's glyph. The other levers stay as env
 switches at their neutral values.
+
+**Correction, same hour (round 98b):** option 8 was a NO-OP, and so was
+its half of option 12. At contrast 0.892 the bowl profile's hair is
+`1 - 0.5c` = 0.554 of the stem (`primitives.BOWL['hair']`, set in
+`pen.py`), so a floor of 0.55 S never binds; options 1 and 8 were the same
+glyph (bounds, area 93908 and point count identical), the owner picked one
+of two identical rows, and `EIGHT_FLOOR = 0.55` changes nothing. The
+"6's tail rule" is 0.55 because the tail is a STROKE on the pen's hair
+(0.108 S at this contrast), not a bowl. Reported rather than quietly
+re-pitched; a ladder of floors that do bind (0.60 / 0.65 / 0.70 / 0.80)
+went out for the pick the option had promised. Lesson for the option
+sheets: assert every variant differs from the base (area or coordinates)
+before it is shown.
