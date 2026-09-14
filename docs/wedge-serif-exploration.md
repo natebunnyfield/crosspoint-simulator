@@ -2641,7 +2641,7 @@ letters or `all`, `ADJ_DEFAULT` empty until he rules -- so each was built
 ALONE on the round 90 font and shown as one change: a sentence rich in the
 letter at 13 pt through the four-level pipeline, before and after, the
 left half of both at 2x nearest; then all seventeen together on a
-paragraph. Page: https://claude.ai/artifact/PENDING92.
+paragraph. Page: https://claude.ai/artifact/47QNbhhzykrZuS86EsGcL8.
 
 What each switch does (the dials are named in the code beside the letter):
 z `Z_DIAG_ADJ` 0.90 / `Z_BAR_ADJ` 0.58; r arm profile end 1.05 (was 1.5),
