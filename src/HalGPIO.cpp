@@ -1,5 +1,7 @@
 #include "HalGPIO.h"
 
+#include "SimHostBattery.h"
+
 #include "FirmwareLogFile.h"
 
 #include "FontFamilyStepChannel.h"
@@ -1731,14 +1733,24 @@ HalGPIO::WakeupReason HalGPIO::getWakeupReason() const {
 }
 // Always-connected hid the unplug repaint and drew the charging bolt forever
 // (S-001). CROSSPOINT_SIM_USB=0 reports unplugged; unset keeps the old true.
+//
+// This is what draws the bolt (LyraTheme::fillBatteryIcon asks it, not the
+// percentage), so on a phone it takes the HOST's charging state when one has
+// been published -- see src/SimHostBattery.h. No longer latched into a static:
+// a cable can be pulled out of a phone mid-session, and the latch would have
+// left the bolt on until relaunch.
 bool HalGPIO::isUsbConnected() const {
-  static const bool connected = [] {
-    const char *v = std::getenv("CROSSPOINT_SIM_USB");
-    return !(v && v[0] == '0' && v[1] == '\0');
-  }();
-  return connected;
+  return sim_host_battery::resolvedUsbConnected();
 }
-bool HalGPIO::wasUsbStateChanged() const { return false; }
+// True once per plug/unplug edge. main.cpp:1177 turns this into
+// activityManager.requestUpdate(), which is the only thing that repaints the
+// header between page turns -- without it a phone would show the bolt from
+// whenever the page last drew. Only a host reading ever raises an edge; on the
+// desktop the env var cannot change mid-run, so this stays false exactly as
+// before.
+bool HalGPIO::wasUsbStateChanged() const {
+  return sim_host_battery::consumeUsbEdge();
+}
 void HalGPIO::startDeepSleep() {
   if (powerLogWanted())
     SDL_Log("[power] deep sleep loop entered (pre-sleep taps and wake edge "

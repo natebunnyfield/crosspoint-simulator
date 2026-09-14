@@ -46,6 +46,7 @@ add_executable(CrossPointX3 MACOSX_BUNDLE
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostSettings.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostBattery.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
@@ -78,6 +79,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointWiFi.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHttp.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostSettings.mm
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointHostBattery.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointScreen.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointReadAloud.mm
   ${CMAKE_CURRENT_SOURCE_DIR}/CrossPointAccessibility.mm
