@@ -2685,5 +2685,8 @@ Checked on every glyph a-z A-Z 0-9: no flat between 2 and 14 units; every
 flat-footed lowercase black to the baseline row at 13 pt. Page (round 92's
 lifted build over now for n m h; round 90 over now for f r l, a, p, k, and
 the paragraph): https://claude.ai/artifact/3CUF1YSoP94aN9x4jD77ag. Medium sent, VF
-rebuilt, specimen / sliders / proof republished.
+rebuilt (23 masters; 17 clamps, was 15: the z now clamps at wght 50 and at
+wght 50 / CNTR 0 and 1 -- its 0.58 S bars change topology at stem 58 -- and
+the w at wdth max; the c's heavy-end clamps are gone), specimen / sliders /
+proof republished.
 
