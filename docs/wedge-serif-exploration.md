@@ -3028,4 +3028,4 @@ Judged at 96 px and 13 pt: "people" and "over" read a shade airier at the
 bowls, which is the rule (the o's within-white is 279 against the n's 208).
 The capital cells were judged at the old bearings: T+o is 20 looser, T+y 47
 tighter; left for the owner's eye. Page:
-https://claude.ai/artifact/PENDING
+https://claude.ai/artifact/StAKgVJ8p4bPXn4ta28cY6
