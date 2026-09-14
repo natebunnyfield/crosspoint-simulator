@@ -2457,5 +2457,7 @@ top with a vertical tangent (lean 0); the stem's top lies inside the hood.
 One-unit inner ledge remains at the stem's top, invisible at 13 pt.
 `A_CURVE` default 8, `DOT_STYLE` default 1. Page (before = round 86's
 curve 8, now):
-https://claude.ai/artifact/CReTVjwRg4eeps3tfWQ5Ve. VF rebuilt with both rulings.
+https://claude.ai/artifact/CReTVjwRg4eeps3tfWQ5Ve. VF rebuilt with both rulings (23
+masters, one worker, the same 15 clamps as round 85 -- the a is clean on
+every master); sliders and proof republished at their standing URLs.
 
