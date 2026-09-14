@@ -2631,3 +2631,29 @@ The order after his four is the eye's, with the numbers as the check: a c o
 t are where the balance table and the paragraph agree loudest. Each row is
 one round's ask; none is made here.
 
+## Round 92 (2026-09-14): the seventeen lowercase adjustments, built one at a time
+
+Owner: "make all adjustments and present each individually in context of 4
+bit epub reader sentences for my approval and feedback." Every row of the
+round-91 table (z r p n a c o t e k l i u b/d w j f; g none) is now code
+behind its letter's switch -- `pen.adj(ch)`, `FJORD_ADJ` a string of
+letters or `all`, `ADJ_DEFAULT` empty until he rules -- so each was built
+ALONE on the round 90 font and shown as one change: a sentence rich in the
+letter at 13 pt through the four-level pipeline, before and after, the
+left half of both at 2x nearest; then all seventeen together on a
+paragraph. Page: https://claude.ai/artifact/PENDING92.
+
+What each switch does (the dials are named in the code beside the letter):
+z `Z_DIAG_ADJ` 0.90 / `Z_BAR_ADJ` 0.58; r arm profile end 1.05 (was 1.5),
+start 0.56 xh, trap 0.05, feet `FOOT_R` 0.85 (a family end wedge on the
+arm's tip was tried and stood up like a horn -- dropped); p descender foot
+left only, the ring's stroke easing to 40 units within 90 of the stem
+(the a's construction, via `ring_from`); n `N_START_ADJ` 0.46,
+`N_SHOULDER_IN` 0.35 S, `N_TAPER_ADJ` 0.26 (h m follow); a `A_BOWL_ADJ`
+0.85 and the underside profile held at 0.85 to t 0.5; c top swell 1.10;
+o `O_FLOOR_ADJ` 0.55 S; t top +20, bar 1.15 TH_H; e `E_BAR_ADJ` 0.58 /
+`E_TH_ADJ` 0.66; k arm 1.40, leg 1.10; l top wedge 1.05, feet 0.92; i
+`DOT_R_ADJ` 0.58 S; u bowl end 0.70, right top wedge 0.85; b d ring
+w_scale 0.92; w thins 0.68; j dot 0.58 S and tail 0.9; f left foot only.
+No VF, no specimen, no TTF this round (rule 11) -- they follow the ruling.
+

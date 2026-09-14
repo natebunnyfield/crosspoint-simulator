@@ -10,9 +10,19 @@ from .. import geom, pen
 from ..geom import cubic, line, join
 from ..primitives import stem, stem_edge_x, edge_stroke, widths, stroke, trap, wedge, pen_widths
 from .. import primitives as PR
-from ..pen import S, XH, ASC, TH_V, TH_H, HAIR, WL, WD, DROP, ENT, CUT
+from ..pen import S, XH, ASC, TH_V, TH_H, HAIR, WL, WD, DROP, ENT, CUT, adj
+from ..primitives import end_wedge
 
+# round 92 (adj 'n'): the shoulder was square -- the arch left the stem high
+# (0.52 xh) and its second control point sat ON the right stem, so the
+# curve reached full height and dropped vertically; and the join was a
+# knot (+6% Albertus). Now it leaves lower, the shoulder's control point
+# is pulled in by N_SHOULDER_IN x S so the turn is round, the taper in is a
+# little thinner. n h m share this by construction.
+N_START_ADJ, N_SHOULDER_IN, N_TAPER_ADJ = 0.46, 0.35, 0.26
 def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32, end_y=0.60):
+    if adj('n'): start, taper = N_START_ADJ, N_TAPER_ADJ
+    sh_in = S * N_SHOULDER_IN if adj('n') else 0.0
     """The arch as the NIB writes it (owner 2026-09-13): a designed
     CENTERLINE -- leaves the left stem's inner edge at `start` x xh
     (ruling 0.52) climbing steeply, peaks so its outer edge lands at
@@ -26,7 +36,7 @@ def arch_geom(x0, x1, xh, ent_span=None, start=0.52, taper=0.30, taper_span=0.32
     xl = stem_edge_x(x0, w, ENT, start * xh, lo, hi, +1)
     over_c = pen.ARCH_OVER - TH_H / 2
     yc = (8 * (xh + over_c) - xh * start - xh * end_y) / 6
-    center = cubic((xl - 6, xh * start), (xl + S * 0.2, yc + xh * 0.005), (x1, yc - xh * 0.005), (x1, xh * end_y))
+    center = cubic((xl - 6, xh * start), (xl + S * 0.2, yc + xh * 0.005), (x1 - sh_in, yc - xh * 0.005), (x1, xh * end_y))
     base = pen_widths(center)
     floor = S * PR.BOWL['arch_floor'] if (PR.BOWL and PR.BOWL.get('arch_floor')) else 0.0   # variant D: the arch never thins below the stem (Albertus, measured)
     def wfn(t):
@@ -88,9 +98,10 @@ def g_u(c):
     center = cubic((x0, xh * 0.4), (x0, cy), (x1, cy), (x1 + 4, xh * 0.42))
     base = pen_widths(center)
     floor = S * PR.BOWL['arch_floor'] if (PR.BOWL and PR.BOWL.get('arch_floor')) else 0.0
-    wfn = lambda t: max(base(t) * (1.0 if t < 0.7 else (0.58 + 0.42 * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3)))), floor)
+    u_end = 0.70 if adj('u') else 0.58   # round 92 (adj 'u'): light (band -11%) -- the bowl holds more weight into the right stem, the right top wedge a little shorter
+    wfn = lambda t: max(base(t) * (1.0 if t < 0.7 else (u_end + (1 - u_end) * (1 - (3 * ((t - 0.7) / 0.3) ** 2 - 2 * ((t - 0.7) / 0.3) ** 3)))), floor)
     bowl = stroke(center, wfn)
-    right = stem(x1, 0, xh, top='left', foot='right')
+    right = stem(x1, 0, xh, top='left', foot='right', top_len=(0.85 if adj('u') else 1.0))
     return geom.ink([left, right, bowl])
 
 @glyph('r')
@@ -101,12 +112,21 @@ def g_r(c):
     the arm's angle), thinning into the stem (taper 0.5 over 35%) and
     flaring 0.5 into the family's pen cut."""
     xh = c["xh"]; x0 = S / 2; wf = c["wf"]
-    st = stem(x0, 0, xh, top='left', foot='both')
+    # round 92 (adj 'r'): the arm was a knob on a short stem -- it flared 1.5
+    # into the cut (a swell, not a serif) and sat high; the join trap still
+    # carried the old 0.22 depth that nicks the crotch (the arches went to
+    # 0.05 in round 78). Now: the arm leaves a hair lower, ends at 1.05 with
+    # a plain pen cut (no wedge: tried, a horn), trap 0.05, feet 0.85.
+    r_on = adj('r')
+    st = stem(x0, 0, xh, top='left', foot='both', foot_len=(FOOT_R if r_on else 1.0))
     over_c = pen.ARCH_OVER - TH_H / 2
-    center = cubic((x0, xh * 0.6), (x0, xh * 1.0), (x0 + 120 * wf, xh + over_c + 6), (x0 + 205 * wf, xh * 0.9))
+    center = cubic((x0, xh * (0.56 if r_on else 0.6)), (x0, xh * 1.0), (x0 + 120 * wf, xh + over_c + 6), (x0 + 205 * wf, xh * 0.9))
     base = pen_widths(center, floor=S * 0.78)
-    wfn = lambda t: base(t) * widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.5)])(t)
+    prof = widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.05)]) if r_on else widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.5)])
+    wfn = lambda t: base(t) * prof(t)
     arm = stroke(center, wfn, cut1=CUT)
+    # (a family end wedge was tried on the arm's tip and stood up like a horn -- the plain cut it is)
     xl = stem_edge_x(x0, TH_V, ENT, 0.52 * xh, 0, xh, +1)
-    cut = trap((xl, 0.52 * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * 0.22)
+    cut = trap((xl, 0.52 * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * (0.05 if r_on else 0.22))
     return geom.ink([st, arm], [cut])
+FOOT_R = 0.85   # round 92: the r's feet, x the family's foot length

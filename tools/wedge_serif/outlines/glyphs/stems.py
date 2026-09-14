@@ -6,10 +6,11 @@ from .. import geom, pen
 from ..geom import cubic, line, join, superellipse, catmull
 from ..primitives import stem, stem_edge_x, ring, ring_from, stroke, pen_widths, widths, dot, wedge, trap, diagonal, beak, widen_terminal
 from .. import primitives as PR
-from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT, WL, WD, DROP
+from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT, WL, WD, DROP, adj
 from .rounds import o_ring, open_arc
 
 DOT_R = 0.62 * S   # round 36: a dot 1.24 stems across reads as the stem's weight
+DOT_R_ADJ = 0.58 * S   # round 92 (adj 'i', 'j'): the i a dot with a stalk (band -11%), the j's dot +27%
 def dot_y(xh): return xh + 118 + S * 0.3
 
 # owner, 2026-09-13: "slightly extend the top right serif of g" -- the ear's
@@ -30,10 +31,12 @@ T_TRI_SCALE = 0.55   # tunes the triangle's apex height so its ink area matches 
 @glyph('i')
 def g_i(c):
     xh = c["xh"]; x = S / 2
-    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), DOT_R)])
+    return geom.ink([stem(x, 0, xh, top='left', foot='both'), dot(x, dot_y(xh), DOT_R_ADJ if adj('i') else DOT_R)])
 
 @glyph('l')
 def g_l(c):
+    # round 92 (adj 'l'): reads a size smaller than b d h -- the ascender family's top wedge (audit R2, 1.05), feet 0.92
+    if adj('l'): return geom.ink([stem(S / 2, 0, c["asc"], top='left', foot='both', top_len=1.05, foot_len=0.92)])
     return geom.ink([stem(S / 2, 0, c["asc"], top='left', foot='both')])
 
 @glyph('j')
@@ -45,8 +48,9 @@ def g_j(c):
     st = stem(x, y0 - 30, xh, top=None, foot=None, ent_span=(y0 - 260, xh))
     a0, a1 = 0.0, math.radians(-118)
     tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
-    wfn = widths([(0.0, TH_V), (0.45, S), (1.0, S * 0.10)])
-    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R)])
+    jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
+    wfn = widths([(0.0, TH_V * jt), (0.45, S * jt), (1.0, S * 0.10)])
+    return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R_ADJ if adj('j') else DOT_R)])
 
 @glyph('f')
 def g_f(c):
@@ -54,7 +58,7 @@ def g_f(c):
     flaring into the pen cut; the bar 0.8 of the pen with its top on the
     x-height, 45 left / 120 right."""
     xh = c["xh"]; asc = c["asc"]; wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
-    st = stem(x, 0, asc - r + 30, top=None, foot='both', ent_span=(0, asc))
+    st = stem(x, 0, asc - r + 30, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
     hook = cubic((x, asc - r), (x, asc + 8), (x + r * 0.9, asc + 8), (x + r * 1.25, asc - r * 0.55))
     hk = stroke(hook, pen_widths(hook, widths([(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)])), cut1=CUT)
     th = TH_H * 0.8
@@ -67,10 +71,12 @@ def g_t(c):
     triangle"): the stem sheared at the top by the pen cut, a plain bar,
     the hooked tail."""
     xh = c["xh"]; wf = c["wf"]; r = 135 * wf; x = 100 * wf + S / 2
-    st = stem(x, r * 0.85 - 10, xh + 95, top=None, foot=None, ent_span=(0, xh + 95), cut_top=CUT)
+    # round 92 (adj 't'): the lightest letter in a word (band -16% Albertus) -- the top +20, the bar 1.15 of the pen's horizontal
+    t_top = xh + (115 if adj('t') else 95); t_bar = TH_H * (1.15 if adj('t') else 1.0)
+    st = stem(x, r * 0.85 - 10, t_top, top=None, foot=None, ent_span=(0, t_top), cut_top=CUT)
     tail = cubic((x, r * 0.85), (x, -OVER * 0.5), (x + r * 0.8, -OVER * 0.5), (x + r * 1.45, r * 0.6))
     tl = stroke(tail, pen_widths(tail, widths([(0.0, 1.0), (0.65, 1.0), (1.0, 1.3)])), cut1=CUT)
-    b = stroke([(x - 100 * wf, xh - TH_H / 2), (x + 150 * wf, xh - TH_H / 2)], TH_H)
+    b = stroke([(x - 100 * wf, xh - t_bar / 2), (x + 150 * wf, xh - t_bar / 2)], t_bar)
     return geom.ink([st, tl, b])
 
 T_TOP_RISE = 96
@@ -151,7 +157,7 @@ def g_a(c):
         # is the UNION of the two: the run-then-arc owns the outer edge (it
         # is the wider one outside), the round-86 cubic owns the underside.
         under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-        under_prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
+        under_prof = widths([(0.0, 0.85), (0.5, 0.85), (0.8, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
@@ -170,9 +176,10 @@ def g_a(c):
     outer_closed = geom.resample(outer + [outer[0]])[:-1]
     tans_o = geom.tangents(outer_closed, closed=True); n_o = len(outer_closed)
     NEAR_STEM_W = 40.0
+    A_BOWL_ADJ = 0.85   # round 92 (adj 'a'): the bowl's stroke x this
     def wfn2(t):
         i = min(n_o - 1, int(round(t * n_o))); p = outer_closed[i]
-        w = max(PR.bowl_th(tans_o[i]), S * 0.5)
+        w = max(PR.bowl_th(tans_o[i]) * (A_BOWL_ADJ if adj('a') else 1.0), S * 0.5)
         u = max(0.0, min(1.0, (p[0] - (xin - 90.0)) / 90.0)); u = u * u * (3 - 2 * u)
         return w * (1 - u) + NEAR_STEM_W * u
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
@@ -206,11 +213,25 @@ def bowl_stem(c, side, top, bottom):
         cx = rx; x = cx + rx_c - S * 0.5; into = -1   # the record: the stem's centre half a stem INSIDE the ring's far centerline
     else:                 # b p
         x = S / 2; cx = x - S * 0.5 + rx_c; into = 1
-    solid, outer, inner = ring(cx, xh / 2, rx, ry)
+    ch = c.get('ch', '')
+    if ch == 'p' and adj('p'):
+        # round 92 (adj 'p'): the bowl/stem join read as a dark corner at 13
+        # pt -- the ring's stroke eases to NEAR_STEM_W within 90 units of the
+        # stem's edge (the a's construction), so the crotches clear
+        outer0 = superellipse(cx, xh / 2, rx, ry, 0, 2 * math.pi, BOWL_K)[:-1]
+        edge0 = x + into * TH_V / 2
+        def wfn(t):
+            i = min(len(outer0) - 1, int(round(t * len(outer0)))); p = outer0[i]
+            w = max(PR.bowl_th(geom.tangents(outer0, closed=True)[i]), S * 0.5)
+            u = max(0.0, min(1.0, (90.0 - abs(p[0] - edge0)) / 90.0)); u = u * u * (3 - 2 * u)
+            return w * (1 - u) + 40.0 * u
+        solid, outer, inner = ring_from(outer0, widths_fn=wfn, counter_smooth=3, smooth_w=6)
+    else:
+        solid, outer, inner = ring(cx, xh / 2, rx, ry, w_scale=(0.92 if ch in 'bd' and adj('b') else 1.0))   # round 92 (adj 'b'): b d bowls a shade heavy (b +12% Garamond), 0.92
     edge = x + into * TH_V / 2
     clip = box(edge - 5, -1000, 3000, 2000) if into == 1 else box(-2000, -1000, edge + 5, 2000)
     solid = solid.intersection(clip)
-    foot = ('right' if side == 'right' else 'left') if bottom == 0 else 'both'
+    foot = ('right' if side == 'right' else 'left') if bottom == 0 else ('left' if (ch == 'p' and adj('p')) else 'both')   # round 92 (adj 'p'): the descender's two-sided foot was a dark spot low-left
     st = stem(x, bottom, top, top='left', foot=foot, ent_span=(bottom, top))
     # no trap cutouts here: the first version's pointed INTO the strokes
     # (a nick on the outside at each crotch, seen at 500 px); no ruling asks

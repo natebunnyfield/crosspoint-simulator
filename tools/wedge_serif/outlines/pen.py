@@ -66,6 +66,18 @@ def th(deg):
 def th_t(tan): return PEN.th(tan)
 TH_V = th(90); TH_H = th(0)                  # 77.3 and 55.4
 
+# Round 92 (owner 2026-09-14: "make all adjustments and present each
+# individually"): the lowercase adjustment list of round 91, each behind
+# its letter so it can be built ALONE on the round-90 base and judged as one
+# change. FJORD_ADJ is a string of letters, or "all". ADJ_DEFAULT is the set
+# that ships once he rules; empty until then.
+ADJ_DEFAULT = ""
+ADJ = os.environ.get("FJORD_ADJ", ADJ_DEFAULT)
+def adj(ch):
+    """Is this letter's round-92 adjustment on? 'b' covers b and d; 'n'
+    covers the arch of n h m; 'i' the dot of i (j has its own)."""
+    return ADJ == "all" or ch in ADJ
+
 def check(outer, inner, label=""):
     """Width of a drawn stroke (two edge curves, same direction) at each
     outer sample, against the pen's width at that tangent. Returns rows

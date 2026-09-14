@@ -5,7 +5,7 @@ from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line
 from ..primitives import stem, diagonal, stroke, pen_widths, widths, wedge, diag_wedge, end_wedge, bar
-from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT
+from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, adj
 
 def pw(p0, p1, mult=1.0):
     """Round 51's rule for every diagonal (`_diag`): the width is `mult` x
@@ -56,14 +56,15 @@ def _clean_apex_notch(b, d, apex, apex_x, apex_y, band=110):
 @glyph('w')
 def g_w(c):
     xh = c["xh"]; wf = c["wf"]; w = 680 * wf
-    P = [((S * 0.4, xh), (w * 0.27, 0), 1.0, 1), ((w * 0.5, xh * 0.96), (w * 0.27 + S * 0.12, 0), 0.72, None),
-         ((w * 0.5, xh * 0.96), (w * 0.73, 0), 1.0, None), ((w - S * 0.4, xh), (w * 0.73 + S * 0.12, 0), 0.72, -1)]
+    tm = 0.68 if adj('w') else 0.72   # round 92 (adj 'w'): the darkest wide letter, its thins 0.72 -> 0.68 of the pen
+    P = [((S * 0.4, xh), (w * 0.27, 0), 1.0, 1), ((w * 0.5, xh * 0.96), (w * 0.27 + S * 0.12, 0), tm, None),
+         ((w * 0.5, xh * 0.96), (w * 0.73, 0), 1.0, None), ((w - S * 0.4, xh), (w * 0.73 + S * 0.12, 0), tm, -1)]
     a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
     apex_y = xh * 0.96
     # the depth was 0.9 x WD (only this glyph); the family's apex wedge
     # (M, W) is 0.9 x 1.0 -- matched here too, so the bracket reaches as
     # far into the strokes as it does everywhere else it's used
-    apex_x = w * 0.5 - pw(P[1][0], P[1][1], 0.72) * 0.36
+    apex_x = w * 0.5 - pw(P[1][0], P[1][1], tm) * 0.36
     apex = wedge((apex_x, apex_y), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
     mid = _clean_apex_notch(b, d, apex, apex_x, apex_y)
     return geom.ink([a, e, mid])
@@ -124,7 +125,7 @@ def g_z(c):
     outer edge, the bottom bar run out so both right edges share one x."""
     from shapely.geometry import Polygon, box as _box
     xh = c["xh"]; wf = c["wf"]; w = 400 * wf
-    th = S * Z_BAR; dw = S * Z_DIAG
+    th = S * (Z_BAR_ADJ if adj('z') else Z_BAR); dw = S * (Z_DIAG_ADJ if adj('z') else Z_DIAG)
     p_top, p_bot = (w - S * 0.12, xh - th / 2), (S * 0.12, th / 2)
     dg = diagonal(p_top, p_bot, dw)
     dx, dy = p_top[0] - p_bot[0], p_top[1] - p_bot[1]; L = math.hypot(dx, dy); dx, dy = dx / L, dy / L
@@ -145,6 +146,7 @@ def g_z(c):
     return g.difference(cut_tr).difference(cut_bl)
 Z_BAR = 0.52    # the z's bars, x the stem (owner 2026-09-14: "slightly reduce the line thickness ... of the horizontal strokes in 'z'"; 0.62 before). The bars stay ON the x-height and the baseline (align top / bottom), so the vertical grid holds
 Z_DIAG = 1.05   # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
+Z_BAR_ADJ, Z_DIAG_ADJ = 0.58, 0.90   # round 92 (adj 'z'): the darkest thing on any line it was in -- diagonal down, bars up, one color
 
 @glyph('k')
 def g_k(c):
@@ -160,7 +162,7 @@ def g_k(c):
     edge (LEG_EDGE) and buries only LEG_BURY (a fifth of a stem, the
     join-rule minimum) past that edge, thinning sooner (LEG_TAPER) so the
     join reads as one clean fork instead of an X."""
-    ARM_WEIGHT = 1.30
+    ARM_WEIGHT = 1.40 if adj('k') else 1.30   # round 92 (adj 'k'): light beside the stem, band -14% Albertus
     K_ARM_WEDGE = 1.15
     LEG_EDGE = 1.0            # spring the leg from the arm's lower edge (1.0), not its centerline (0.0)
     LEG_BURY = 0.20           # x stem, past that edge (join rule: a fifth to a third of a stem)
@@ -182,7 +184,7 @@ def g_k(c):
     J_edge = (J[0] + an[0] * arm_w / 2 * LEG_EDGE, J[1] + an[1] * arm_w / 2 * LEG_EDGE)
     foot = (J[0] + J[1] / math.tan(math.radians(56)), 0)
     d = (J[0] - foot[0], J[1] - foot[1]); L = math.hypot(*d); d = (d[0] / L, d[1] / L)
-    lw = pw(foot, J)   # round 51: the pen at the leg's angle (58 at 56 degrees)
+    lw = pw(foot, J) * (1.10 if adj('k') else 1.0)   # round 51: the pen at the leg's angle (58 at 56 degrees); round 92 leg x1.10
     tip = (J_edge[0] + d[0] * S * LEG_BURY, J_edge[1] + d[1] * S * LEG_BURY)
     leg = diagonal(foot, tip, widths([(0.0, lw), (LEG_TAPER[0], lw), (1.0, lw * LEG_TAPER[1])]), serif0=1)
     return geom.ink([st, arm, leg])
