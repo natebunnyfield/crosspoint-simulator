@@ -2872,3 +2872,25 @@ figure's height in `FIG_BOX` (old-style 8 sits on the baseline at x-height
 today), the terminal where the spine crosses, and the fit (bearings). A
 round of eight to ten 8s on the pen with those levers, each beside 3 6 9 0
 at 13 pt and 100 px. Not built.
+
+### Round 95 ruling and the kerning (2026-09-14): "A. Hand class kerning"
+
+Asked which of the three; ruled **A**. `tools/wedge_serif/outlines/kern.py`:
+14 LEFT classes (T · VW · Y · A · L · FP · Kk · R · r · f · vwy · b o p ·
+quotes · period comma) x 13 RIGHT classes (rounds · flats · v w y ·
+ascenders · A · T · VWY · J · CGOQ · period comma ellipsis · hyphens · quotes
+· colon semicolon), 60 class pairs and 7 glyph exceptions, every value a
+multiple of 18 (the phone's quantum), the deepest -144 (L+quote, F/P+period),
+T+rounds -126, T+flats -90, Y+rounds -108, V/W+rounds -90, A+T/V/W/Y -90,
+L+T/V/W/Y -108, quote+A -108, r/v/w/y+period -72, T+i -36 (exception),
+f+quoteright +36 (the arm already reaches). Set by eye on two 100 px sheets
+and their 13 pt e-ink strips, two passes, one addition after the first
+(quote before T V W Y). `outlines.build` applies it to every build;
+`python3 -m outlines.kern <ttf>` re-applies in seconds without rebuilding
+outlines. The firmware's extractor at 54 px reads back 452 pairs (T+o -6.8
+px, A+V -4.9, P+period -7.75). **Known and left:** the int8 4.4 floor is -8
+px, so at 18-20 pt on the 2x app any value past -96 units clamps -- the T/V/
+W/Y/F/P-before-period and T-before-round cells at those two sizes only.
+`build/fjord-fonts/Albo-Regular.ttf` (42 KB) carries it. Page:
+https://claude.ai/artifact/NUv37wR5v6jKiMiHVvHsMi. Ligatures are the next
+round; nothing else moved.

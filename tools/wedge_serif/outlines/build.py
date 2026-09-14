@@ -119,6 +119,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     fb.setupOS2(sTypoAscender=900, sTypoDescender=-300, usWinAscent=900, usWinDescent=300, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
     fb.setupPost()
     path = os.path.join(out_dir, f"{name}-{style}.ttf"); fb.save(path); TTFont(path)
+    from . import kern as K; K.apply(path)   # round 95: the GPOS kern feature rides every build (outlines/kern.py)
     if dump:
         import json
         json.dump(dict(space=metrics['space'][0], W=W, params=dict(stem=pen.S, xh=pen.XH, asc=pen.ASC, desc=pen.DESC, contrast=pen.CONTRAST, width=pen.WIDTH, serif=pen.SERIF, cut=pen.CUT_AMOUNT),

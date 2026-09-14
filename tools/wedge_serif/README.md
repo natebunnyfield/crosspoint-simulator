@@ -41,6 +41,7 @@ The full dated log of rounds, rulings, measurements and negative results is
 
 | File | What |
 |---|---|
+| `outlines/kern.py` | **Albo's kerning** (round 95, ruled "hand class kerning"): LEFT/RIGHT classes, `CLASS_PAIRS` and `PAIRS` in 18-unit steps, written as a GPOS `kern` feature by feaLib; `outlines.build` applies it to every build, `python3 -m outlines.kern <ttf> [<out>]` re-applies to an existing file in seconds. `reader_view()` runs the firmware's own extractor at 54 px. The lowercase is deliberately unkerned (measured: the fitting rule is right there). |
 | `wedge.py` | Round 1 model: five skeletons (f j o r d), the first pen, the first 20 options (`OPTIONS`). Historical; `alphabet2.py` supersedes its drawing. |
 | `alphabet.py` | Round 3/4: the first full lowercase, fitting by the n, serifs on diagonals. Superseded by `alphabet2.py`. |
 | `alphabet2.py` | **The drawing model in use.** Continuous thick-thin pen, tapered joins, bracketed wedges, pen-angle cuts, overshoot, one spline for the s, capital H, fitting rules, knobs (`serif_style`, `arch_start`, `fillet`, `power`, `naive_o`, `raw_joins`, `overshoot`, `n_width`, `fit`). `layout(p, text)` → polygons + advance; `wrap(p, text, units)`. |
