@@ -130,6 +130,9 @@ def draw(ch, W=None):
     # real now, but the 1.2 units were part of the shipped weight (the l's
     # stem measured 81, not the pen's 77), so the same ink spread is kept.
     g = g.buffer(INK_SPREAD, join_style=2)
+    if pen.SHEAR:   # round 100: the italic's slope, about the baseline
+        import shapely.affinity as _aff
+        g = _aff.affine_transform(g, (1, pen.SHEAR, 0, 1, 0, 0))
     if isfig(ch):
         import shapely.affinity
         g = shapely.affinity.translate(g, 0, latin.FIG_BOX[ch][1] * C)
@@ -193,7 +196,21 @@ def fit(ch, conts, c):
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 
-WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700}
+WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700,
+                "Italic": 400, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
+
+# Round 100, the vertical metrics (they were 900/-300 with no measurement
+# behind them). Measured across every style: the ink reaches 971 on the
+# Regular and 996 on the Bold (h-circumflex, an accented ascender) and -298
+# to -317 (g, y). usWinAscent at 900 was therefore BELOW the ink and clipped
+# in any rasteriser that honours it. The line is set to 1.30 em, which is EB
+# Garamond's (the references run 1.17 Berkeley, 1.24 Albertus, 1.31
+# Garamond) and the only one of the three that clears an accented capital
+# over a descender without collision: 1000 + 300 = 1300 against an ink span
+# of 1269. The reader can still override per family through `metrics:` in
+# sd-fonts.yaml, which is where a per-size reading line belongs.
+VM_ASCENT, VM_DESCENT = 1000, -300
+VM_WIN_ASCENT, VM_WIN_DESCENT = 1000, 320
 
 def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=None):   # owner 2026-09-13, round 83: today's cut is the 500, "Rename to Medium"; the calibrated 400 is Albo-Regular
     os.makedirs(out_dir, exist_ok=True)
@@ -274,15 +291,45 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         glyphs[gname(ch)] = cp.glyph(); metrics[gname(ch)] = (0, 0)
     p = TTGlyphPen(None); p.moveTo((50, 0)); p.lineTo((50, 700)); p.lineTo((450, 700)); p.lineTo((450, 0)); p.closePath()
     glyphs['.notdef'] = p.glyph(); metrics['.notdef'] = (500, 50)
-    # the word space: 1.7 n-counters minus 110 (the owner's readout), on the
-    # UNCONDENSED n counter as round 20 computed it (the space's context was
-    # never the lowercase one), so it stays the record's 353
-    glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(pen.N_COUNTER_FULL * 1.7) - 110, 0)
+    # THE WORD SPACE (round 100, owner: "fix the space being way too wide").
+    # It was 1.7 n-counters minus 110 = 356 units, 0.356 em and 0.61 of the n's
+    # advance. Measured against the references the same way the LETTER fitting
+    # is measured -- mean white across the x-height band, word against letter:
+    #
+    #   face                 letter   word   ratio   space
+    #   Albertus               178     446    2.51     313
+    #   EB Garamond            194     370    1.91     200
+    #   ITC Berkeley           191     427    2.24     259
+    #   Albo, before           232     554    2.39     356
+    #
+    # The RATIO was never far off; the trouble is that Albo's letters are
+    # already the loosest of the four (232 against 178-194), so the same ratio
+    # puts its word gap 25-50% past every reference in absolute white. Set to
+    # the mean ratio of the two TEXT faces (2.07; Albertus is a display cut and
+    # its 2.51 is not a reading target), which lands on 285 -- and confirmed on
+    # a five-rung paragraph ladder at 13 pt, where 225 begins to crowd "low
+    # over" and 320 still reads as holes.
+    #
+    # Kept proportional to the n counter so it tracks any later move in weight
+    # or width, as the old rule did.
+    SPACE_COUNTERS = 1.039
+    glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(pen.N_COUNTER_FULL * SPACE_COUNTERS)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
-    fb.setupHorizontalHeader(ascent=900, descent=-300)
+    fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)
+    if "Italic" in style:   # round 100: the fsSelection ITALIC bit and the post table's angle
+        _ital = True
+    else:
+        _ital = False
     fb.setupNameTable(dict(familyName=name, styleName=style, fullName=f"{name} {style}", psName=f"{name}-{style}", uniqueFontIdentifier=f"{name};{style};2026-09-13"))
-    fb.setupOS2(sTypoAscender=900, sTypoDescender=-300, usWinAscent=900, usWinDescent=300, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
-    fb.setupPost()
+    fb.setupOS2(sTypoAscender=VM_ASCENT, sTypoDescender=VM_DESCENT, sTypoLineGap=0, usWinAscent=VM_WIN_ASCENT, usWinDescent=VM_WIN_DESCENT, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
+    fb.setupPost(italicAngle=-pen.SLANT)
+    fb.font['OS/2'].fsSelection = 0x40   # REGULAR, cleared below by an italic or a bold
+    if _ital:
+        fb.font['OS/2'].fsSelection = (fb.font['OS/2'].fsSelection & ~0x40) | 0x01
+        fb.font['head'].macStyle |= 0x02
+    if 'Bold' in style:
+        fb.font['OS/2'].fsSelection = (fb.font['OS/2'].fsSelection & ~0x40) | 0x20
+        fb.font['head'].macStyle |= 0x01
     path = os.path.join(out_dir, f"{name}-{style}.ttf"); fb.save(path); TTFont(path)
     from . import kern as K; K.apply(path)   # round 95: the GPOS kern feature rides every build (outlines/kern.py)
     if dump:

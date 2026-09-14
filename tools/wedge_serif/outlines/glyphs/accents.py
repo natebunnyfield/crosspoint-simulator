@@ -72,10 +72,16 @@ def g_breve(c):
     p = cubic((0, ACC_H), (ACC_W * 0.12, -ACC_H * 0.16), (ACC_W * 0.88, -ACC_H * 0.16), (ACC_W, ACC_H))
     return _stroke(p, widths([(0.0, 0.70), (0.5, 1.12), (1.0, 0.70)]))
 
-@glyph('¨')      # dieresis
+@glyph('\u00a8')      # dieresis
 def g_dieresis(c):
-    r = DOT_R * 0.92
-    return geom.ink([dot(r, r, r), dot(ACC_W - r, r, r)])
+    """Two dots, separated by 1.05 of a dot's DIAMETER. The separation scales
+    with the DOT and not with the accent box: ACC_W is a fixed proportion of
+    the x-height, so at the Bold's stem the two dots grew into each other and
+    the mark merged into a single blob -- every German and Swedish umlaut, in
+    the bold. Found by the cross-weight contour count, which is what that
+    check exists for."""
+    r = DOT_R * 0.92; gap = r * 2.1
+    return geom.ink([dot(r, r, r), dot(r + gap, r, r)])
 
 @glyph('˙')      # dot above
 def g_dotaccent(c):
@@ -118,8 +124,8 @@ def g_ogonek(c):
 @glyph('ʹ')      # (spacing modifier prime, borrowed as the caron.alt slot)
 def g_caronalt(c):
     w = S * 0.34
-    p = line((w / 2, 0), (w / 2 - S * 0.10, ACC_H * 1.22))
-    return _stroke(p, widths([(0.0, 0.60), (1.0, 1.05)]), cut0=CUT)
+    p = line((w / 2, 0), (w / 2 - S * 0.12, ACC_H * 1.85))   # round 100: tall enough to read as an apostrophe at 13 pt; at 1.22 it was a tick
+    return _stroke(p, widths([(0.0, 0.55), (1.0, 1.10)]), cut0=CUT)
 
 # Dotless bases: í ì î ï and every accented i are the i WITHOUT its dot.
 @glyph('ı')      # dotless i

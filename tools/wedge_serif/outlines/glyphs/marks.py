@@ -65,11 +65,27 @@ def g_question(c):
     beak."""
     return QUESTION_VARIANTS[QUESTION_VARIANT][1](c)
 
+def Q_DOT_CLEAR(r=None, half=None):
+    """Where the question mark's descent STOPS, so its dot stays a dot.
+
+    Round 100: it was a fraction of the cap height (C * 0.22), which does not
+    move with the weight -- at the Bold's stem the descent's own half-width
+    plus the dot's radius closed the gap and the ? merged into one contour,
+    losing its dot. The exclamation has always used the family's rule for a
+    stroke standing over a dot (`2 * DOT_R + 0.8 * S`, round 51); the
+    question mark uses it now too, so the two marks clear identically at
+    every weight."""
+    r = DOT_R if r is None else r
+    return 2 * r + (half or 0) + 0.55 * S
+
 def _q_common(c, pts, prof, tension=0.62, cut0=CUT, beak_start=False, floor=0.5, w=380):
     C = CAP(c)
     hook = catmull(pts, tension=tension)
     wf = PR.bowl_widths(hook, widths(prof), floor=S * floor)
     body = stroke(hook, wf, cut0=None if beak_start else cut0, cut1=CUT)
+    # round 100: the dot's gap under the hook's terminal must clear at the
+    # BOLD too -- at stem 107 the two merged and the ? lost its dot. The
+    # hook's own floor is S * `floor`, so the clearance is taken from there.
     parts = [dot(w * 0.5, DOT_R, DOT_R), body]
     if beak_start: parts.append(beak(hook, wf(0.0), at_start=True))
     return geom.ink(parts)
@@ -80,31 +96,37 @@ def _q0(c):   # round 77's, the marks agent's hook
     hook = catmull([(w * 0.14, C * 0.60), (w * 0.00, C * 0.86), (w * 0.32, C * 1.00), (w * 0.70, C * 0.92), (w * 0.60, C * 0.52), (w * 0.5, end_y)], tension=0.62)
     return geom.ink([dot(w * 0.5, DOT_R, DOT_R), stroke(hook, pen_widths(hook, widths([(0.0, 0.40), (0.30, 1.0), (0.58, 0.95), (1.0, 0.55)])), cut0=CUT, cut1=CUT)])
 def _q1(c):   # the same gesture on the bowl profile: no hairline anywhere
-    C = CAP(c); w = 380; e = C * 0.22
+    C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.14, C * 0.60), (w * 0.00, C * 0.86), (w * 0.32, C * 1.00), (w * 0.70, C * 0.92), (w * 0.60, C * 0.52), (w * 0.5, e)], [(0.0, 0.55), (0.30, 1.0), (0.60, 0.95), (1.0, 0.7)])
 def _q2(c):   # garalde: a wide open hook, the terminal low at the left, a short straight stem to the dot
-    C = CAP(c); w = 400; e = C * 0.22
+    C = CAP(c); w = 400; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.08, C * 0.66), (w * 0.02, C * 0.84), (w * 0.34, C * 1.00), (w * 0.74, C * 0.90), (w * 0.62, C * 0.58), (w * 0.50, C * 0.40), (w * 0.50, e)], [(0.0, 0.5), (0.28, 1.0), (0.55, 1.0), (0.80, 0.75), (1.0, 0.75)], tension=0.55)
 def _q3(c):   # tall and narrow: the hook higher, the descent longer
-    C = CAP(c); w = 330; e = C * 0.24
+    C = CAP(c); w = 330; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.12, C * 0.62), (w * 0.02, C * 0.86), (w * 0.36, C * 1.00), (w * 0.78, C * 0.90), (w * 0.62, C * 0.56), (w * 0.52, e)], [(0.0, 0.5), (0.30, 1.0), (0.62, 0.95), (1.0, 0.7)])
 def _q4(c):   # the beak: the terminal is the C's beak, the hook squarer at the shoulder
-    C = CAP(c); w = 380; e = C * 0.22
+    C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.16, C * 0.60), (w * 0.02, C * 0.84), (w * 0.34, C * 1.00), (w * 0.76, C * 0.94), (w * 0.66, C * 0.54), (w * 0.52, e)], [(0.0, 0.7), (0.30, 1.0), (0.62, 0.95), (1.0, 0.7)], beak_start=True)
 def _q5(c):   # Albertus-like: heavier, the shoulder angular, the descent nearly straight, the terminal a heavy cut
-    C = CAP(c); w = 380; e = C * 0.22
+    C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.12, C * 0.64), (w * 0.02, C * 0.88), (w * 0.38, C * 1.00), (w * 0.78, C * 0.90), (w * 0.60, C * 0.50), (w * 0.52, e)], [(0.0, 0.85), (0.25, 1.0), (0.60, 1.0), (1.0, 0.85)], tension=0.45, floor=0.65)
 def _q6(c):   # the descent as a vertical stem with a wedge foot above the dot, the hook lighter
-    C = CAP(c); w = 380; e = C * 0.30
+    C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     g = _q_common(c, [(w * 0.14, C * 0.62), (w * 0.02, C * 0.86), (w * 0.34, C * 1.00), (w * 0.72, C * 0.92), (w * 0.56, C * 0.58), (w * 0.52, e + 20)], [(0.0, 0.5), (0.30, 1.0), (0.58, 0.9), (1.0, 0.6)])
     st = stem(w * 0.52, e, C * 0.45, top=None, foot='both', ent_span=(e, C * 0.45), foot_len=0.55)
     return geom.ink([g, st])
 def _q7(c):   # curled: the terminal turns in toward the counter, a teardrop
-    C = CAP(c); w = 380; e = C * 0.22
+    C = CAP(c); w = 380; e = Q_DOT_CLEAR()
     return _q_common(c, [(w * 0.24, C * 0.72), (w * 0.10, C * 0.66), (w * 0.02, C * 0.82), (w * 0.34, C * 1.00), (w * 0.74, C * 0.92), (w * 0.62, C * 0.54), (w * 0.50, e)], [(0.0, 0.95), (0.12, 0.6), (0.34, 1.0), (0.62, 0.95), (1.0, 0.7)], tension=0.6)
 def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and larger
     C = CAP(c); w = 380 * Q8_SCALE
-    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, C * 0.36), (w * 0.5, C * 0.22)], tension=0.5)
+    # round 100: the descent STOPS at the family's dot-clearance rule rather
+    # than at a fraction of the cap height. This hook's floor is a heavy
+    # 0.78 S, so at the Bold its own half-width plus the dot's radius closed
+    # the gap and the ? merged into one contour -- it lost its dot, in the
+    # bold only, which no render of the Regular could show.
+    end_y = max(C * 0.22, Q_DOT_CLEAR(r=DOT_R * 1.1, half=S * Q8_FLOOR / 2))
+    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, (C * 0.36 + end_y) / 2), (w * 0.5, end_y)], tension=0.5)
     wf = PR.bowl_widths(hook, widths([(0.0, 0.7), (0.15, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR)
     return geom.ink([dot(w * 0.5, DOT_R * 1.1, DOT_R * 1.1), stroke(hook, wf, cut0=CUT, cut1=CUT)])
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"

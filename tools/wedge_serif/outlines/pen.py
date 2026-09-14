@@ -60,6 +60,16 @@ class FlooredPen:
 PEN = FlooredPen(_Pen(S, CONTRAST, DESIGN["stress"], DESIGN["power"]), HAIR_FLOOR)
 HAIR = PEN.hair
 
+# Round 100 (2026-09-14, owner: "complete remaining all work"): the italic.
+# SLANT is degrees of shear applied to the finished ink about the BASELINE
+# (build.draw), so every y is untouched and the cut's pinned lines -- the
+# baseline, the x-height and the cap line -- still land where they did.
+# ITALIC additionally switches the letters that a real italic does not merely
+# slope: the single-storey a and the descending f (glyphs/stems.py).
+SLANT = _env("FJORD_SLANT", 0.0)
+ITALIC = SLANT != 0.0 or os.environ.get("FJORD_ITALIC") == "1"
+SHEAR = math.tan(math.radians(SLANT))
+
 def th(deg):
     """Stroke width for a centerline running at `deg` (0 = right, 90 = up)."""
     a = math.radians(deg); return PEN.th((math.cos(a), math.sin(a)))

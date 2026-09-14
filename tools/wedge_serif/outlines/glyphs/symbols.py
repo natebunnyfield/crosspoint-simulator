@@ -203,19 +203,25 @@ def g_section(c):
     g = GLYPHS['S'](c); x0, y0, x1, y1 = g.bounds
     k = 0.60; g = aff.scale(g, k, k, origin=(x0, y0)); x0, y0, x1, y1 = g.bounds
     up = aff.translate(g, -x0, CAP * 1.02 - y1)
-    lo = aff.translate(aff.rotate(g, 180, origin='center'), -x0, CAP * 1.02 - y1 - (y1 - y0) * 0.62)   # the two S's INTERLOCK: at 0.84 they read as two letters stacked
+    lo = aff.translate(aff.rotate(g, 180, origin='center'), -x0, CAP * 1.02 - y1 - (y1 - y0) * 0.50)   # the two S's INTERLOCK and share a spine: at 0.84 they read as two letters stacked, at 0.62 still two
     return geom.ink([up, lo])
 
 @glyph('\u00b6')      # pilcrow
 def g_paragraph(c):
-    """A reversed P: a SOLID bowl, as a text face sets it, closed against
-    two stems. The first cut clipped a ring with a box and left a blob."""
+    """The font's own P with its counter FILLED, plus a second stem at the
+    bowl's right edge: that is what a pilcrow is, and building it from the
+    letter means it cannot drift from the capitals. Two hand-drawn versions
+    came out as a block -- a ring clipped by a box, then a solid
+    superellipse -- because a pilcrow's bowl is solid and a solid bowl
+    drawn from scratch has no counter to give it a shape."""
     import shapely.geometry as sg
     from ..pen import CS
-    r = CAP * 0.21; x0 = CS * 0.6
-    bowl = sg.Polygon(superellipse(x0 + r, CAP - r, r, r, 0, 2 * math.pi, 2.15)[:-1])
-    bowl = bowl.difference(sg.box(-CAP, CAP - 2 * r - 8, x0, CAP + 8))
-    return geom.ink([bowl, stem(x0, 0, CAP, w=CS * 0.92), stem(x0 + 2 * r - CS * 0.5, 0, CAP, w=CS * 0.92)])
+    from . import GLYPHS
+    g = GLYPHS['P'](c)
+    parts = list(g.geoms) if hasattr(g, 'geoms') else [g]
+    filled = geom.ink([sg.Polygon(pp.exterior) for pp in parts])
+    x0, y0, x1, y1 = filled.bounds
+    return geom.ink([filled, stem(x1 - CS * 0.5, 0, CAP, w=CS * 0.92, foot='both')])
 
 @glyph('†')      # dagger
 def g_dagger(c):

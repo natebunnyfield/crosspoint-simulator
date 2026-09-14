@@ -227,11 +227,18 @@ glyph('ŧ')(lambda c: _barred(c, 't', y=XH * 0.22, x_pad=0.16))
 glyph('Ŧ')(lambda c: _barred(c, 'T', y=CAP * 0.40, x_pad=-0.18))
 
 def _crossed_eth(c):
-    """The eth: the o with an ascending back, crossed."""
+    """The eth: the o, with a back that LEAVES the bowl's top-left and rises
+    to the ascender as one stroke, crossed near its top. The first cut
+    started the back inside the bowl and read as an o with a curl."""
     g = GLYPHS['o'](c); x0, y0, x1, y1 = g.bounds
-    back = cubic((x0 + (x1 - x0) * 0.34, y1 - (y1 - y0) * 0.10), ((x0 + x1) / 2, ASC * 0.86), (x1 * 0.86, ASC * 0.92), (x1, ASC * 0.82))
-    return geom.ink([g, _s(back, widths([(0.0, 0.86), (1.0, 0.56)]), cut0=None),
-                     bar(x0 + (x1 - x0) * 0.30, x1 + (x1 - x0) * 0.12, ASC * 0.74, MATH * 0.92)])
+    top = ASC * 0.82
+    back = cubic((x0 + (x1 - x0) * 0.16, y1 - (y1 - y0) * 0.30),
+                 (x0 + (x1 - x0) * 0.30, y1 + (top - y1) * 0.46),
+                 (x0 + (x1 - x0) * 0.66, y1 + (top - y1) * 0.72),
+                 (x1 * 0.96, top))
+    bar_y = y1 + (top - y1) * 0.58
+    return geom.ink([g, _s(back, widths([(0.0, 0.92), (1.0, 0.58)]), cut0=None),
+                     bar(x0 + (x1 - x0) * 0.20, x1 * 1.02, bar_y, MATH * 0.95)])
 
 def _sloped_bar(c, ch, frac=0.42):
     """The Polish l: a bar across the stem at a slope."""
@@ -301,8 +308,14 @@ def _piece_body(top_h, neck_w, base_w, shoulder=0.30):
 
 def _hollow(g, w=None):
     """The white piece: the black one's outline. Same silhouette, so the
-    pair can never disagree about what a rook is."""
-    return g.difference(g.buffer(-(w or max(MATH * 0.95, HAIR))))
+    pair can never disagree about what a rook is.
+
+    The outline's width is a fraction of the CAP HEIGHT, not of the pen:
+    round 100 found the white queen, bishop and spade losing counters at the
+    SemiBold and Bold, because a pen-derived width thickens with the text
+    weight while the piece stays the same size. A pictograph's outline is a
+    property of the picture, not of the typeface's weight."""
+    return g.difference(g.buffer(-(w or CAP * 0.042)))
 
 def _chess(kind):
     B = CAP * 0.46          # half the base

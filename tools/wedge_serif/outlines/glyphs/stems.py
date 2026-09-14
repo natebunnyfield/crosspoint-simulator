@@ -72,11 +72,45 @@ def f_geometry(c):
     wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
     return x, r, x + S * 0.5 + 120 * wf
 
+ITALIC_A_BOWL = 0.36      # the single-storey a's bowl HALF-WIDTH, x the x-height (its height is the x-height band)
+def g_a_italic(c):
+    """The italic a: ONE storey -- a bowl and a stem, the o's own ring with
+    the stem on its right. A sloped two-storey a is the commonest tell of a
+    sloped roman pretending to be an italic, so this is the first form the
+    italic switches (guide: an italic is not a slope)."""
+    from ..primitives import ring
+    xh = c["xh"]; wf = c["wf"]
+    # The bowl fills the x-height BAND, exactly as the o does: a first cut
+    # sized it by its own width (0.34 xh radius) and the letter came out
+    # 0.6 of the x-height, reading as a small-cap a inside the word.
+    ry = xh / 2 + OVER
+    rx = xh * ITALIC_A_BOWL * wf
+    bowl, *_ = ring(rx, xh / 2, rx, ry, w_scale=1.0)
+    st = stem(rx * 2 - S * 0.5 + S * 0.08, 0, xh, top=None, foot='right', ent_span=(0, xh))
+    return geom.ink([bowl, st])
+
+def g_f_italic(c):
+    """The italic f: it DESCENDS, the one letter whose italic form changes
+    its own vertical extent. The hook above is the roman's; below the
+    baseline the stem turns left and thins to a point, as the j's tail does."""
+    xh = c["xh"]; asc = c["asc"]; desc = c["desc"]; wf = c["wf"]
+    r = 200 * wf; x = 110 * wf + S / 2
+    st = stem(x, -desc * 0.30, asc - r + 30, top=None, foot=None, ent_span=(0, asc))
+    hook = cubic((x, asc - r), (x, asc + 8), (x + r * 0.9, asc + 8), (x + r * 1.25, asc - r * 0.55))
+    hk = stroke(hook, pen_widths(hook, widths([(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)])), cut1=CUT)
+    tail = cubic((x, -desc * 0.24), (x, -desc * 0.78), (x - r * 0.46, -desc * 0.96), (x - r * 0.86, -desc * 0.72))
+    tl = stroke(tail, widths([(0.0, TH_V * 0.95), (0.55, S * 0.72), (1.0, S * 0.10)]), cut0=None)
+    th_ = TH_H * 0.8
+    b = stroke([(x - S * 0.5 - 45 * wf, xh - th_ / 2), (x + S * 0.5 + 120 * wf, xh - th_ / 2)], th_)
+    return geom.ink([st, hk, b, tl])
+
 @glyph('f')
 def g_f(c):
     """VdK's f (round 42): hook radius 200, reaching 0.65 xh past the stem,
     flaring into the pen cut; the bar 0.8 of the pen with its top on the
     x-height, 45 left / 120 right."""
+    if pen.ITALIC: return g_f_italic(c)   # round 100: an italic f descends
+    if pen.ITALIC: return g_f_italic(c)
     return f_ink(c)
 
 @glyph('t')
@@ -138,6 +172,7 @@ def g_a(c):
     overshoot and comes DOWN to its terminal, which swells and ends in the
     pen cut, a teardrop not a flag. Counter and aperture are the whites
     the standing rule watches: reported on the page."""
+    if pen.ITALIC: return g_a_italic(c)   # round 100: an italic a is one storey
     xh = c["xh"]; wf = c["wf"]; x = 360 * wf
     # owner 2026-09-13: "the top right of 'a' needs to be more of a curve
     # than a rectangular corner" -- the stem stops at A_STEM_TOP x xh and the
