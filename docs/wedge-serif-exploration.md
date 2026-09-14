@@ -2584,5 +2584,7 @@ about +6% over Albertus -- recorded, not argued: the ruling is his. (A
 lesson for `balance.py`: the knot is the right thing to measure, but the
 lowercase mean is not the target; the target is the eye's, and the
 instrument's job is to say how far from the references a ruling sits.)
-Medium rebuilt, VF rebuilt, specimen / sliders / proof republished.
+Medium rebuilt (the y's knot measured at 0.97: 1.08 of the lowercase mean,
++5.8% Albertus, +9.0% Garamond), VF rebuilt (23 masters, the same 15
+clamps), specimen / sliders / proof republished.
 
