@@ -396,3 +396,46 @@ words, the rest one gray step at edges, 0.09% black-white flips. The
 counters O/Q, b/p, d/q are separated by the ring's exponent and rotation
 jitter; the o is still the O's construction reduced (recommendation 4
 stands, not done).
+
+## Status, 2026-09-14 (round 90 font, life on) -- owner asked
+
+Re-run of `outlines/cmp/variety.py` on the round 90 Albo-Medium (a curve 8
+with the hollow's curve, dot style 1, y at 0.97). The headline then and now:
+
+| | 2026-09-13, life off | 2026-09-13, life on | 2026-09-14, round 90 |
+|---|---|---|---|
+| serifs with an exact twin, pre-cut | 128 of 145 | 40 of 149 | **42 of 153** (19 groups) |
+| serifs with an exact twin, post-cut | 116 | 17 | **17 of 153** (8 groups) |
+| counters exact, unscaled | O/Q b/p d/q | -- | **O/Q (0.7%), b/p (0.4%)**; d/q at 2.0-2.7% |
+| 13 pt, 147 words, pixels identical to the life-off build | -- | 96.5% | not re-measured |
+
+So the "same at small size" half holds (96.5% of pixels, the rest one gray
+step at edges) and the "full of life at large size" half is about three
+quarters done. Three faults in the life itself, found today by spying on
+`life()` while drawing 4 Z 9 O Q:
+
+1. **The hash is nearly linear in the call index.** `life()` seeds on the
+   string `"<glyph>#<n>"` with `x = x * 131 + ord(ch)`; consecutive n give
+   consecutive values, so the 9's eight draws step 0.088, 0.096, 0.103,
+   0.111, 0.119, 0.126, 0.134 on one channel -- a glyph's own serifs move
+   TOGETHER, which is why 9#4/9#6 differ by 0.06% and 9#3/9#5/9#7 are a
+   post-cut group. A real mix (splitmix64, or hashlib over the seed) is a
+   one-line fix; it moves every serif's jitter, so Medium and VF rebuild.
+2. **Z#1/Z#3 and 4#1/4#2 are byte-identical (0.0%)** even though the Z's four
+   and the 4's two `life()` draws differ. Either those serifs come through a
+   path that does not take the draw, or the audit's serif finder is
+   labelling a non-wedge feature (the 4's crossbar corners?) as feet. Not
+   traced yet.
+3. **The ring jitter is under the audit's own threshold.** +-0.06 on the
+   exponent and +-0.6 degrees move O/Q by 0.7% and b/p by 0.4% of the
+   counter's area; the postscript above said "separated" -- it was not,
+   by the 2% rule this document uses. The o is still the O's construction
+   reduced (R4). A larger rotation (+-2 degrees) or an rx/ry breath of
+   +-1% would clear 2%; the o wants its own construction regardless.
+
+Cross-glyph pre-cut groups still standing (life on): bar ends E/T/Z and
+F/T/z, feet F/Y/i, F/h, H/b, I/k, K/m, R/1, h/u, h/n, l/m, diagonal ends
+K/X (x2), k/x, and L/R's top wedges. The recommendations R1-R5 above are
+all still open; the life was the owner's chosen route instead of R1/R2/R5,
+and with faults 1-2 fixed it should take most of these groups with it.
+
