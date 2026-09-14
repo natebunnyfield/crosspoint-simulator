@@ -14,13 +14,101 @@ from . import geom, pen, cut
 from . import primitives as PR
 from .glyphs import GLYPHS
 
+# ---------------------------------------------------------------- round 99
+# The diacritics and the accented letters. Every codepoint Albo does not draw
+# is supplied by NOTO at .cpfont build time (the fallback chain), so an
+# un-drawn accent is not a missing glyph on the page -- it is one letter of a
+# different typeface inside a word. `reading` asks for U+0020-024F, so the
+# whole of Latin-1 and Latin Extended-A is in scope.
+#
+# The marks are drawn once (`glyphs/accents.py`) and the accented letters are
+# TrueType COMPOSITES of a base and a mark: an accented letter then IS its
+# letter, and a later round that redraws the e redraws every e-acute for free.
+MARKS = list("\u00b4\u0060\u02c6\u02c7\u02dc\u00af\u02d8\u00a8\u02d9\u02da\u02dd\u00b8\u02db\u02b9\u0131\u0237")
+
+# char -> (base, mark, placement). 'above' centres on the base's ink and
+# lifts to the x-height or the cap line; 'below' hangs from the baseline;
+# 'right' is the Czech apostrophe-caron of d t l.
+ACCENTED = {}
+_A = {   # mark -> [(accented char, base char), ...]
+ "\u00b4": [('\u00c1','A'),('\u00c9','E'),('\u00cd','I'),('\u00d3','O'),('\u00da','U'),('\u00dd','Y'),
+             ('\u00e1','a'),('\u00e9','e'),('\u00ed','\u0131'),('\u00f3','o'),('\u00fa','u'),('\u00fd','y'),
+             ('\u0106','C'),('\u0107','c'),('\u0139','L'),('\u013a','l'),('\u0143','N'),('\u0144','n'),
+             ('\u0154','R'),('\u0155','r'),('\u015a','S'),('\u015b','s'),('\u0179','Z'),('\u017a','z')],
+ "\u0060": [('\u00c0','A'),('\u00c8','E'),('\u00cc','I'),('\u00d2','O'),('\u00d9','U'),
+             ('\u00e0','a'),('\u00e8','e'),('\u00ec','\u0131'),('\u00f2','o'),('\u00f9','u')],
+ "\u02c6": [('\u00c2','A'),('\u00ca','E'),('\u00ce','I'),('\u00d4','O'),('\u00db','U'),
+             ('\u00e2','a'),('\u00ea','e'),('\u00ee','\u0131'),('\u00f4','o'),('\u00fb','u'),
+             ('\u0108','C'),('\u0109','c'),('\u011c','G'),('\u011d','g'),('\u0124','H'),('\u0125','h'),
+             ('\u0134','J'),('\u0135','\u0237'),('\u015c','S'),('\u015d','s'),('\u0174','W'),('\u0175','w'),
+             ('\u0176','Y'),('\u0177','y')],
+ "\u02dc": [('\u00c3','A'),('\u00d1','N'),('\u00d5','O'),('\u00e3','a'),('\u00f1','n'),('\u00f5','o'),
+             ('\u0128','I'),('\u0129','\u0131'),('\u0168','U'),('\u0169','u')],
+ "\u00a8": [('\u00c4','A'),('\u00cb','E'),('\u00cf','I'),('\u00d6','O'),('\u00dc','U'),
+             ('\u00e4','a'),('\u00eb','e'),('\u00ef','\u0131'),('\u00f6','o'),('\u00fc','u'),
+             ('\u00ff','y'),('\u0178','Y')],
+ "\u02da": [('\u00c5','A'),('\u00e5','a'),('\u016e','U'),('\u016f','u')],
+ "\u02c7": [('\u010c','C'),('\u010d','c'),('\u010e','D'),('\u011a','E'),('\u011b','e'),
+             ('\u0147','N'),('\u0148','n'),('\u0158','R'),('\u0159','r'),('\u0160','S'),('\u0161','s'),
+             ('\u0164','T'),('\u017d','Z'),('\u017e','z'),('\u013d','L')],
+ "\u00af": [('\u0100','A'),('\u0101','a'),('\u0112','E'),('\u0113','e'),('\u012a','I'),('\u012b','\u0131'),
+             ('\u014c','O'),('\u014d','o'),('\u016a','U'),('\u016b','u')],
+ "\u02d8": [('\u0102','A'),('\u0103','a'),('\u0114','E'),('\u0115','e'),('\u012c','I'),('\u012d','\u0131'),
+             ('\u011e','G'),('\u011f','g'),('\u014e','O'),('\u014f','o'),('\u016c','U'),('\u016d','u')],
+ "\u02d9": [('\u010a','C'),('\u010b','c'),('\u0116','E'),('\u0117','e'),('\u0120','G'),('\u0121','g'),
+             ('\u0130','I'),('\u017b','Z'),('\u017c','z')],
+ "\u02dd": [('\u0150','O'),('\u0151','o'),('\u0170','U'),('\u0171','u')],
+}
+for _m, _rows in _A.items():
+    for _ch, _b in _rows: ACCENTED[_ch] = (_b, _m, 'above')
+for _ch, _b in [('\u00c7','C'),('\u00e7','c'),('\u0122','G'),('\u0123','g'),('\u0136','K'),('\u0137','k'),
+                ('\u013b','L'),('\u013c','l'),('\u0145','N'),('\u0146','n'),('\u0156','R'),('\u0157','r'),
+                ('\u015e','S'),('\u015f','s'),('\u0162','T'),('\u0163','t')]:
+    ACCENTED[_ch] = (_b, "\u00b8", 'below')
+for _ch, _b in [('\u0104','A'),('\u0105','a'),('\u0118','E'),('\u0119','e'),('\u012e','I'),('\u012f','i'),
+                ('\u0172','U'),('\u0173','u')]:
+    ACCENTED[_ch] = (_b, "\u02db", 'below')
+for _ch, _b in [('\u010f','d'),('\u0165','t'),('\u013e','l')]:
+    ACCENTED[_ch] = (_b, "\u02b9", 'right')
+# Romanian and Latvian set a COMMA below, not a cedilla (the corpus has one
+# t-comma; Unicode separates them and a reader that renders s-cedilla for
+# s-comma is setting the wrong language's letter).
+for _ch, _b in [('\u0219','s'),('\u021b','t'),('\u0218','S'),('\u021a','T')]:
+    ACCENTED[_ch] = (_b, "\u0326", 'below')
+
+# The COMBINING marks (U+0300-0328): the same drawings at ZERO advance, so a
+# decomposed string -- which is what a badly-made epub hands the reader --
+# still sets in Albo rather than falling to Noto one mark at a time.
+COMBINING = {'\u0300': '\u0060', '\u0301': '\u00b4', '\u0302': '\u02c6', '\u0303': '\u02dc',
+             '\u0304': '\u00af', '\u0306': '\u02d8', '\u0307': '\u02d9', '\u0308': '\u00a8',
+             '\u030a': '\u02da', '\u030b': '\u02dd', '\u030c': '\u02c7',
+             '\u0327': '\u00b8', '\u0328': '\u02db'}
+# U+0326 is itself a combining mark and is DRAWN (glyphs/symbols2.py), so it
+# is not in this table: a row mapping it to itself makes a glyph whose one
+# component is the glyph, which fontTools rejects as recursive.
+
+ACC_GAP_LC = 0.10 * pen.XH      # the mark's foot over the x-height
+ACC_GAP_CAP = 0.055 * pen.XH
+S_GAP_RIGHT = 0.10 * pen.S     # the apostrophe-caron's gap off the letter's right ink    # tighter over a capital: the eye reads the cap line as the ceiling
+
 LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04") if os.environ.get("ALBO_LIGS") == "1" else []   # round 96: drawn; round 96b (owner): "no to ligatures for now" -- opt-in only
-CHARS = round19.CHARS + LIGS; gname = round19.gname
-GLYPH_ORDER = ['.notdef', 'space'] + [gname(ch) for ch in CHARS]
+# Every character any glyph module registers and the record does not already
+# name -- so a new module (round 99's symbols, the next round's chess) is in
+# the font by existing, with no second list to keep in step.
+EXTRA = sorted(set(GLYPHS) - set(round19.CHARS) - set(LIGS) - set(MARKS), key=ord)
+CHARS = round19.CHARS + LIGS + MARKS + EXTRA; gname = round19.gname
+ACC_CHARS = sorted(ACCENTED, key=ord)
+COMB_CHARS = sorted(COMBINING, key=ord)
+GLYPH_ORDER = ['.notdef', 'space'] + [gname(ch) for ch in CHARS] + [gname(ch) for ch in ACC_CHARS] + [gname(ch) for ch in COMB_CHARS]
 SIDES = dict(round19.SIDES); SIDES.update({"\ufb00": ('straight', 'open'), "\ufb01": ('straight', 'straight'), "\ufb02": ('straight', 'straight'), "\ufb03": ('straight', 'straight'), "\ufb04": ('straight', 'straight')})
 REF = round20.REF
 C = pen.CAP
 INK_SPREAD = 1.2
+
+def isfig(ch):
+    """An ASCII figure. NOT `str.isdigit()`: round 99 added the superscripts,
+    and Python calls U+00B2 a digit, which sent it looking for a figure box."""
+    return ch in '0123456789'
 
 def ctx(ch, W=None):
     """Per-glyph context: the fixed proportions, the lowercase width factor
@@ -33,7 +121,7 @@ def draw(ch, W=None):
     """The glyph's ink as one shapely geometry (figures shifted into their
     old-style box)."""
     c = ctx(ch, W)
-    if ch.isdigit():
+    if isfig(ch):
         top, bot = latin.FIG_BOX[ch]; c["figH"] = (top - bot) * C
     PR.begin_glyph(ch)   # the life: deterministic per-glyph perturbation of wedges and rings
     g = GLYPHS[ch](c)
@@ -42,7 +130,7 @@ def draw(ch, W=None):
     # real now, but the 1.2 units were part of the shipped weight (the l's
     # stem measured 81, not the pen's 77), so the same ink spread is kept.
     g = g.buffer(INK_SPREAD, join_style=2)
-    if ch.isdigit():
+    if isfig(ch):
         import shapely.affinity
         g = shapely.affinity.translate(g, 0, latin.FIG_BOX[ch][1] * C)
     return g
@@ -53,7 +141,7 @@ def solve_widths(passes=3):
     W = {}
     for _ in range(passes):
         for ch in CHARS:
-            if not (ch.isupper() or ch.isdigit()) or ch in ('I', '1') or ch not in REF or ch not in GLYPHS: continue
+            if not (ch.isupper() or isfig(ch)) or ch in ('I', '1') or ch not in REF or ch not in GLYPHS: continue
             g = draw(ch, W); x0, y0, x1, y1 = geom.bbox(g); drawn = x1 - x0
             target = REF[ch]["w"] * C * pen.WIDTH   # the wdth axis scales the references' widths
             if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
@@ -80,12 +168,12 @@ def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
     for capitals and figures); the g and every non-letter on their full
     extent; bearing per side = capbear x SIDE_FRACTION + 17."""
-    isCap = ch.isupper() or ch.isdigit(); top = C if isCap else pen.XH
+    isCap = ch.isupper() or isfig(ch); top = C if isCap else pen.XH
     xs_all = [x for pts, _ in conts for x, y in pts]
     band = [x for pts, _ in conts for x, y in pts if -pen.OVER <= y <= top + pen.OVER]
     l, r = (min(band), max(band)) if band else (min(xs_all), max(xs_all))
     if ch == 'g' or not ch.isalpha(): l, r = min(xs_all), max(xs_all)
-    lt, rt = SIDES.get(ch, ('straight', 'straight'))
+    lt, rt = SIDES.get(ch, ('straight', 'straight') if ch.isalnum() else ('punct', 'punct'))
     capbear = REF["Hbear"] / 2 * C * pen.WIDTH   # the fitting follows the width axis
     lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
     # Round 96 (owner 2026-09-14): "give punctuation more space, similar to the
@@ -98,7 +186,7 @@ def fit(ch, conts, c):
     # the a's left 2.0 (73).
     # Round 97b (owner: "punctuation is still too close. it needs to breathe"): marks 60 -> 80 (Berkeley 82, Albertus 74), fences 45 -> 60
     if ch in PUNCT_MARKS: lsb = capbear * 2.25 + 17; rsb = capbear * 2.25 + 17
-    elif ch in PUNCT_FENCES: lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17
+    elif ch in PUNCT_FENCES or (not ch.isalnum() and ch not in SIDES): lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17   # round 99: every new symbol takes the fences' bearing rather than the tighter default
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]   # round 97: the lowercase solve
@@ -112,8 +200,9 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     W = solve_widths()
     cutter = cut.Cutter(73, 4)
     fb = FontBuilder(1000, isTTF=True); fb.setupGlyphOrder(GLYPH_ORDER)
-    fb.setupCharacterMap({ord(ch): gname(ch) for ch in CHARS} | {32: 'space'})
+    fb.setupCharacterMap({ord(ch): gname(ch) for ch in CHARS} | {ord(ch): gname(ch) for ch in ACC_CHARS} | {ord(ch): gname(ch) for ch in COMB_CHARS} | {32: 'space'})
     glyphs, metrics, report = {}, {}, {}
+    ink, advances = {}, {}      # round 99: per-char ink bbox and advance, for the accent composites
     for ch in CHARS:
         c = ctx(ch, W)
         if ch in GLYPHS and (only is None or ch in only):
@@ -123,7 +212,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # same construction the variable font's masters use
             phases = [cutter.phase() for _ in dense]
             amount = pen.CUT_AMOUNT if do_cut else 0.0
-            lines = (0.0, pen.XH, pen.CAP) if not ch.isdigit() else (0.0, pen.XH, pen.CAP, (latin.FIG_BOX[ch][0] - latin.FIG_BOX[ch][1]) * C)   # round 93: the baseline, x-height and cap line are pinned through the cut
+            lines = (0.0, pen.XH, pen.CAP) if not isfig(ch) else (0.0, pen.XH, pen.CAP, (latin.FIG_BOX[ch][0] - latin.FIG_BOX[ch][1]) * C)   # round 93: the baseline, x-height and cap line are pinned through the cut
             conts = [(cut.blend(pts, ph, amount, lines=lines), hole) for (pts, hole), ph in zip(dense, phases)]
         else:
             conts = []; dense = []; phases = []
@@ -139,7 +228,50 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                               pts=[([(x + dx, y) for x, y in pts], hole) for pts, hole in dense])   # the DENSE contours, translated by the cut's fit: the variable builder's master input
         else:
             adv, lsb_ink = 300, 0
+        if conts:
+            xs = [x for pts, _ in conts for x, y in pts]; ys = [y for pts, _ in conts for x, y in pts]
+            ink[ch] = (min(xs) + dx, min(ys), max(xs) + dx, max(ys))
+        advances[ch] = adv
         glyphs[gname(ch)] = pen_.glyph(); metrics[gname(ch)] = (int(round(adv)), int(round(lsb_ink)))
+    # ------------------------------------------------ round 99: the composites
+    # An accented letter is its base plus its mark, both as components: the
+    # letter is never redrawn, so a later round that changes the e changes
+    # every e-acute with it, and the file pays for one outline instead of 161.
+    for ch in ACC_CHARS:
+        if only is not None and ch not in only: continue
+        base, mark, kind = ACCENTED[ch]
+        if base not in ink or mark not in ink: continue
+        bx0, by0, bx1, by1 = ink[base]; mx0, my0, mx1, my1 = ink[mark]
+        isCap = base.isupper()
+        if kind == 'above':
+            dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
+            top = max(by1, C if isCap else pen.XH)
+            dy = top + (ACC_GAP_CAP if isCap else ACC_GAP_LC) - my0
+        elif kind == 'below':
+            dx = (bx0 + bx1) / 2 - (mx0 + mx1) / 2
+            dy = -my1            # the mark's own top to the baseline (it is drawn hanging from 0)
+        else:                    # 'right': the Czech apostrophe-caron at the shoulder
+            dx = bx1 + S_GAP_RIGHT - mx0; dy = pen.XH * 0.52 - my0
+        cp = TTGlyphPen(glyphs)   # a composite pen needs the glyph set it references
+        cp.addComponent(gname(base), (1, 0, 0, 1, 0, 0))
+        cp.addComponent(gname(mark), (1, 0, 0, 1, int(round(dx)), int(round(dy))))
+        glyphs[gname(ch)] = cp.glyph()
+        adv = advances[base]
+        if kind == 'right': adv = max(adv, bx1 + S_GAP_RIGHT + (mx1 - mx0) + 20)
+        metrics[gname(ch)] = (int(round(adv)), int(round(bx0)))
+    # The combining marks: the spacing mark's outline at ZERO advance, placed
+    # where it would sit over a lowercase letter. A composite, so it is the
+    # same drawing.
+    for ch in COMB_CHARS:
+        src = COMBINING[ch]
+        if src not in ink: continue
+        mx0, my0, mx1, my1 = ink[src]
+        below = src in ("\u00b8", "\u02db", "\u0326")
+        dy = (-my1 if below else pen.XH + ACC_GAP_LC - my0)
+        dx = -(mx0 + mx1) / 2
+        cp = TTGlyphPen(glyphs)
+        cp.addComponent(gname(src), (1, 0, 0, 1, int(round(dx)), int(round(dy))))
+        glyphs[gname(ch)] = cp.glyph(); metrics[gname(ch)] = (0, 0)
     p = TTGlyphPen(None); p.moveTo((50, 0)); p.lineTo((50, 700)); p.lineTo((450, 700)); p.lineTo((450, 0)); p.closePath()
     glyphs['.notdef'] = p.glyph(); metrics['.notdef'] = (500, 50)
     # the word space: 1.7 n-counters minus 110 (the owner's readout), on the

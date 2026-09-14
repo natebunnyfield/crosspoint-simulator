@@ -7,7 +7,7 @@ def glyph(*chars):
         return fn
     return deco
 from . import arches  # noqa: E402,F401
-for _m in ("rounds", "stems", "diagonals", "caps_straight", "caps_round", "caps_diag", "figures", "marks", "ligatures"):
+for _m in ("rounds", "stems", "diagonals", "caps_straight", "caps_round", "caps_diag", "figures", "marks", "ligatures", "accents", "symbols", "symbols2"):
     try:
         __import__(f"{__name__}.{_m}")
     except ImportError as e:

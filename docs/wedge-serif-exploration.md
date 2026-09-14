@@ -3111,3 +3111,78 @@ The 8's hair floor ships at **0.65 S** (`figures.EIGHT_FLOOR`), ink +5.6%
 over the round-97 8, counters untouched. Built area 99,1xx against the
 option's 99,130 -- the residual is the full build's cut phase, as with every
 one-glyph option.
+
+## Round 99 (2026-09-14): the accents, and every character an epub actually asks for
+
+Owner: "proceed for the next hour", then, mid-round: "create all letters
+needed for my epub reading (unicode arrows, chess pieces, etc)."
+
+**The demand list is MEASURED.** `outlines/cmp/corpus.py` unzips all 34
+epubs in `~/src/claude-tools/*/epub/` -- the reader's real-world corpus by
+the global CLAUDE.md's own ruling -- strips the markup and counts:
+**2,460,491 characters, 158 distinct codepoints, 38 of them missing from
+Albo.** The order they were drawn in is the frequency order, and it is not
+the order anyone would have guessed: the rightwards arrow **2,583** uses,
+the middle dot **1,879**, each guillemet **1,623**, the ballot X **812**,
+the braces **785**, the inverted question mark **662**, the check **443**,
+then a tail down to one. Running the module IS the gate -- it exits
+non-zero while any corpus codepoint is missing, and it now exits 0.
+
+**Why it matters, stated precisely:** the `.cpfont` converter falls back to
+Noto per codepoint, so an un-drawn character was never a hole on the page.
+It was one character of a different typeface inside a word -- invisible to
+any test that asks only "did it render", and the reason every "café" and
+every "→" in his library has been mixed-face until today.
+
+**94 glyphs -> 470.** Three new modules and one new mechanism:
+
+- `glyphs/accents.py` -- thirteen diacritics drawn on the pen (acute, grave,
+  circumflex, caron, tilde, macron, breve, dieresis, dot, ring, double
+  acute, cedilla, ogonek), plus the Czech apostrophe-caron of d t l and the
+  dotless i and j. Each is drawn with its ink at x = 0 and its foot on
+  y = 0, knowing nothing about a base.
+- **The accented letters are TrueType COMPOSITES**, 161 of them, placed by
+  `build.ACCENTED` / the composite pass: centred on the base's ink, lifted
+  to the x-height (gap 0.10 xh) or the cap line (0.055 xh, tighter because
+  the eye reads the cap line as the ceiling). So an accented letter IS its
+  letter -- a later round that redraws the e redraws every e-acute for free,
+  and the file pays for one outline instead of 161. Fourteen COMBINING marks
+  (U+0300-0328) are the same drawings at zero advance, so a decomposed
+  string -- what a badly made epub hands the reader -- still sets in Albo.
+- `glyphs/symbols.py` -- the measured 38 and their families: arrows in ten
+  directions plus the three double arrows, guillemets, braces, the ASCII
+  gaps (`{ } | ~ ^ $ < >`), the marks (§ ¶ † ‡ • · ‰ ′ ″), the mathematics
+  (− × ÷ ± ≈ ≠ ≤ ≥ ∞ √ ¬), the currency (¢ £ ¥ € ¤ ©®™), the dingbats
+  (✓ ✔ ✗ ✘) and fourteen geometric shapes.
+- `glyphs/symbols2.py` -- the superscripts, subscripts and fractions, which
+  are **the FIGURES scaled and moved**, never redrawn (so round 98's ruling
+  on the 8 reaches the squared and the one-half); nineteen Greek letters a
+  technical book sets in running text; the non-composite Latin (æ Æ œ Œ ø Ø
+  ß þ Þ ð Ð ł Ł đ Đ ħ Ħ ŧ Ŧ ŋ Ŋ ſ ĳ Ĳ); the twelve **chess pieces**, the
+  card suits and the music signs. The chess pieces are silhouettes and the
+  WHITE piece is the black one's outline (`_hollow`), which is how the pair
+  is related in every face that carries them and means a change to a piece
+  changes both.
+
+**One mechanism worth keeping:** `build.EXTRA` collects every character any
+glyph module registers that the record does not already name, so a new
+module is in the font by existing. There is no second list to keep in step,
+which is the failure this file has recorded four times in other places.
+
+**Two traps paid for.** `str.isdigit()` is TRUE for U+00B2, so the moment
+the superscripts existed the builder went looking for a figure box for the
+squared and crashed; `build.isfig()` is ASCII-only now and every figure
+branch reads it. And a combining-mark table row that maps a mark to ITSELF
+makes a composite whose one component is the glyph -- fontTools rejects it
+as recursive; U+0326 is drawn, so it is not in that table.
+
+**Known rough, named rather than hidden** (each rare in the corpus): the
+**pilcrow** reads heavy -- its bowl is solid, which is correct for a text
+face, but mine is too large a block; the **eth** (ð) does not yet read as an
+eth, its ascending back needing a drawn stroke rather than the cubic it has;
+the **section** is two S's interlocked at 0.62 of their height and still
+reads a little as two letters rather than one mark. Corpus uses: ¶ 0, ð 0,
+§ 59. Not shipped as finished.
+
+Not done in the hour: the italic, the bold, the 1x proof on the X3's own em,
+and the vertical metrics -- all still on the ranked list at round 95.
