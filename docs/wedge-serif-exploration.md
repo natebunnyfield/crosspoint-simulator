@@ -2565,3 +2565,12 @@ outline window: outer edge one curve from the stem's edge, the hollow's
 boundary round 86's. Page (round 87 / now): https://claude.ai/artifact/7MYcGt5iJMWThmidt2W2cH.
 VF rebuilt (the round-88 VF build was stopped as superseded).
 
+## Round 88b (2026-09-14): the y between 0.92 and 0.98
+
+Owner: "for 'y', show me several choices between .92 and .98 inclusive."
+Four more rungs built and measured (the knot against Albertus / Garamond):
+0.92 +3.5% / +6.7%, 0.94 +4.4% / +7.7%, 0.96 +5.7% / +8.9%, 0.98 +6.2% /
++9.5% (1.0 was +6.5% / +9.8%, 0.80 -1.8% / +1.3%). Page:
+https://claude.ai/artifact/WmSVgQzcX1ECbqAkoFdRXG. The default stays 0.80 until his
+pick.
+
