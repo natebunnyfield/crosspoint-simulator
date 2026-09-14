@@ -3084,3 +3084,10 @@ is the recipe. Observation from the sheet: the 8 sits shorter than the 6 in
 every option but 11, which is the one lever that reaches height without
 touching a counter. Page:
 https://claude.ai/artifact/NC3fm1XgQkremoHPLjX7h6
+
+### Round 98 ruling (2026-09-14): "8 wins, go"
+
+Option 8 -- the hair floor at 0.55 S, the 6's tail rule, both counters
+untouched -- ships as `figures.EIGHT_FLOOR`. The rebuilt 8 is
+coordinate-identical to the option's glyph. The other levers stay as env
+switches at their neutral values.

@@ -106,6 +106,7 @@ EIGHT_COUNTER_OF = '6'     # whose bowl counter the lower counter is sized to: '
 EIGHT_LOWER = 1.0          # the lower counter's width, x that counter's width
 EIGHT_UPPER = 0.75         # the upper counter, x the lower's WIDTH, linearly (width and height alike); ruled: C
 EIGHT_LOWER_TALL = 1.08    # the lower counter's height, x the circle's (1.0 = 1.036 wide over tall)
+EIGHT_FLOOR = 0.55         # round 98 (owner 2026-09-14: "8 wins"): the hairs at 11 and 5 o'clock never under 0.55 S, the 6's tail rule -- option 8 of twelve, counters untouched
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The
@@ -432,7 +433,7 @@ def g_eight(c):
     w_up, w_lo = E('ALBO_8_W_UP', 1.0), E('ALBO_8_W_LO', 1.0)   # stroke weight x, upper / lower ring
     waist = E('ALBO_8_WAIST', 1.0)                                 # the rings' overlap, x one bowl stroke
     lean = E('ALBO_8_LEAN', 0.0)                                   # the upper ring's centre, units right of the lower's
-    floor_ = E('ALBO_8_FLOOR', 0.0) * S                            # the hair floor, x the stem (the 6's tail is 0.55)
+    floor_ = E('ALBO_8_FLOOR', EIGHT_FLOOR) * S                    # the hair floor, x the stem (the 6's tail is 0.55)
     kk = E('ALBO_8_K', 0.0) or None                                # the outer's squareness (BOWL_K 2.1 when unset)
     rot_up = math.radians(E('ALBO_8_ROT', 0.0))                    # the upper ring's tilt
     rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
