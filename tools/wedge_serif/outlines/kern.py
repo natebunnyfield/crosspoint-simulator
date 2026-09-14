@@ -46,12 +46,19 @@ LEFT = {
     'oround':  ['b', 'o', 'p'],                 # a round right side into a quote or a period tucks a little
     'quote':   ['quoteleft', 'quotedblleft', 'quoteright', 'quotedblright', 'quotesingle', 'quotedbl'],
     'period':  ['period', 'comma'],
+    'e':       ['e'],
+    'a':       ['a'],
+    'cg':      ['c', 'g'],
+    't':       ['t'],
+    's':       ['s'],
 }
 RIGHT = {
     'round':   ['a', 'c', 'd', 'e', 'g', 'o', 'q', 's'],
     'flat':    ['n', 'm', 'r', 'u', 'p', 'i', 'j', 'z', 'x'],   # x: its left arm is low, so it takes the flat value
     'diag':    ['v', 'w', 'y'],
-    'asc':     ['b', 'h', 'k', 'l', 'i', 'j', 'f', 't'],       # tall on the left: a T's bar clears them less
+    'asc':     ['i', 'j', 'f', 't'],                            # tall on the left: a T's bar clears them less
+    'ascwedge':['b', 'h', 'k', 'l'],                            # tall with a top-left wedge: the f's hook lands on it (round 96b)
+    'a':       ['a'],
     'A':       ['A'],
     'T':       ['T'],
     'VWY':     ['V', 'W', 'Y'],
@@ -64,7 +71,8 @@ RIGHT = {
 }
 # The `asc` and `flat` right classes overlap on i j; feaLib refuses a glyph in
 # two classes of one PairPos, so asc is the class and i j leave flat:
-RIGHT['flat'] = [g for g in RIGHT['flat'] if g not in RIGHT['asc']]
+RIGHT['flat'] = [g for g in RIGHT['flat'] if g not in RIGHT['asc'] + RIGHT['ascwedge'] + RIGHT['a']]
+RIGHT['round'] = [g for g in RIGHT['round'] if g != 'a']
 
 # ---------------------------------------------------------------- values
 # (left class, right class) -> units. Multiples of STEP. Negative tightens.
@@ -72,15 +80,15 @@ RIGHT['flat'] = [g for g in RIGHT['flat'] if g not in RIGHT['asc']]
 # judged in round 95 moved one step deeper to keep the same tuck.
 CLASS_PAIRS = {
     # T: the bar overhangs; every lowercase tucks under it, rounds most
-    ('T', 'round'): -126, ('T', 'flat'): -90, ('T', 'diag'): -90, ('T', 'asc'): -18,
+    ('T', 'round'): -126, ('T', 'a'): -126, ('T', 'flat'): -90, ('T', 'diag'): -90, ('T', 'asc'): -18, ('T', 'ascwedge'): -18,
     ('T', 'A'): -90, ('T', 'O'): -36, ('T', 'J'): -72,
     ('T', 'period'): -144, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
     # V W: a diagonal right side; the rounds and the a tuck, the flats less
-    ('VW', 'round'): -90, ('VW', 'flat'): -54, ('VW', 'diag'): -36, ('VW', 'asc'): -18,
+    ('VW', 'round'): -90, ('VW', 'a'): -90, ('VW', 'flat'): -54, ('VW', 'diag'): -36, ('VW', 'asc'): -18, ('VW', 'ascwedge'): -18,
     ('VW', 'A'): -90, ('VW', 'O'): -36, ('VW', 'J'): -54,
     ('VW', 'period'): -144, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
-    ('Y', 'round'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18,
+    ('Y', 'round'): -108, ('Y', 'a'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18, ('Y', 'ascwedge'): -18,
     ('Y', 'A'): -108, ('Y', 'O'): -54, ('Y', 'J'): -72,
     ('Y', 'period'): -144, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
@@ -90,10 +98,10 @@ CLASS_PAIRS = {
     ('L', 'T'): -108, ('L', 'VWY'): -108, ('L', 'quote'): -144, ('L', 'O'): -18,
     ('L', 'diag'): -36, ('L', 'hyphen'): -54,
     # F P: open below the bowl / the bar, so a period or comma tucks in
-    ('FP', 'period'): -144, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'colon'): -36,
+    ('FP', 'period'): -144, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
     # K k, R: an open top-right corner takes a round or a diagonal a little
-    ('K', 'round'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
-    ('R', 'T'): -36, ('R', 'VWY'): -54, ('R', 'round'): -18,
+    ('K', 'round'): -36, ('K', 'a'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
+    ('R', 'T'): -36, ('R', 'VWY'): -54, ('R', 'round'): -18, ('R', 'a'): -18,
     # lowercase overhangs before punctuation
     ('r', 'period'): -90, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
     ('f', 'period'): -54, ('f', 'hyphen'): -18,
@@ -102,7 +110,12 @@ CLASS_PAIRS = {
     # quotes and periods
     ('quote', 'A'): -126, ('quote', 'J'): -36, ('quote', 'T'): -54, ('quote', 'VWY'): -36,   # an opening quote before a T: the bar is at the quote's height, so only a little
     ('T', 'quote'): -36, ('VW', 'quote'): -18, ('Y', 'quote'): -36,
-    ('quote', 'round'): -18,
+    ('quote', 'round'): -18, ('quote', 'a'): -18,
+    # round 96b, the a's left by neighbour (outlines/cmp/rhythm.py, bridged metric): bowls tight, opens loose
+    ('oround', 'a'): 36, ('e', 'a'): 36, ('cg', 'a'): -18, ('t', 'a'): -36, ('s', 'a'): 18, ('r', 'a'): -36, ('f', 'a'): -18, ('vwy', 'a'): -18,
+    ('a', 'diag'): -36,
+    # round 96b: the f's hook stood 5-10 units off the ascender wedges (fl fb fh fk), connected at 13 pt
+    ('f', 'ascwedge'): 54,
     ('period', 'quote'): -36,
     ('period', 'T'): -72, ('period', 'VWY'): -72,
 }
@@ -115,6 +128,8 @@ PAIRS = {
     ('f', 'quotedblright'): 36,
     ('f', 'question'): -18,
     ('r', 'quoteright'): -36, # 'r' before an apostrophe: "Mr's"
+    ('j', 'a'): 18,
+    ('k', 'a'): 0,            # round 96b: the k rides the K class for rounds; against the a it measured -23 with that -36, on rhythm without           # round 96b: the owner's 'ja'; -12 on the bridged metric after the j's own fix
     ('quotesingle', 'quotesingle'): 0, ('quotedbl', 'quotedbl'): 0,
 }
 

@@ -14,7 +14,7 @@ from . import geom, pen, cut
 from . import primitives as PR
 from .glyphs import GLYPHS
 
-LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04")   # round 96: ff fi fl ffi ffl, cmap-encoded so the reader's extractor can reach them
+LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04") if os.environ.get("ALBO_LIGS") == "1" else []   # round 96: drawn; round 96b (owner): "no to ligatures for now" -- opt-in only
 CHARS = round19.CHARS + LIGS; gname = round19.gname
 GLYPH_ORDER = ['.notdef', 'space'] + [gname(ch) for ch in CHARS]
 SIDES = dict(round19.SIDES); SIDES.update({"\ufb00": ('straight', 'open'), "\ufb01": ('straight', 'straight'), "\ufb02": ('straight', 'straight'), "\ufb03": ('straight', 'straight'), "\ufb04": ('straight', 'straight')})
@@ -61,7 +61,8 @@ def solve_widths(passes=3):
 
 PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
 PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
-A_LEFT = 2.0
+A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
+J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
 def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
@@ -86,6 +87,7 @@ def fit(ch, conts, c):
     if ch in PUNCT_MARKS: lsb = capbear * 1.5 + 17; rsb = capbear * 1.5 + 17
     elif ch in PUNCT_FENCES: lsb = capbear * 1.0 + 17; rsb = capbear * 1.0 + 17
     if ch == 'a': lsb = capbear * A_LEFT + 17
+    if ch == 'j': rsb = capbear * J_RIGHT + 17
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 

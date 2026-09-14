@@ -2940,3 +2940,69 @@ Advances fi 477 / fl 489 / ff 503 / ffi 667 / ffl 679 against pairs of 623 /
 advance, the ligature fits on its ink, so a word with one sets shorter.
 Judged at 300 and 100 px and 13 pt. Page:
 https://claude.ai/artifact/HRgSSYaKkzFbaPGBozQP15. 99 glyphs now.
+
+## Round 96b (2026-09-14): the a measured, the j's right, f before the wedges; ligatures OFF
+
+Owner: "for spacing with 'a', examine 'jam' and other common english letter
+combinations and see how the space between letters can be the same as
+within letters. Try again." Then: "no to ligatures for now, just give
+enough space between 'fl' so that they are not connected." And two queued
+asks (see the foot).
+
+**The instrument** (`outlines/cmp/rhythm.py`): the firmware autokerner's
+white metric -- per row of the x-height band, the white between two glyphs
+clamped at 1.6 n-counters, a row with ink on one side only counting the
+full reach -- plus a BRIDGED variant in which each silhouette's outer
+profile is closed over a half-counter window, because the eye bridges a
+notch (the a's, under its hood) that the raw metric counts as open. Both
+are reported; the bridged one decided. The font's RHYTHM is the
+frequency-weighted median white over ~150 common English bigrams not
+involving the letter under study (Norvig's table, in the module); the
+letter is then measured against every common neighbour on each side.
+
+**What it found, on the 74-unit a of round 96** (bridged, deviation from
+the rhythm of 149): after a stem +19..+22 (n m h l i d u) -- LOOSE; after a
+bowl -16 (b p o e) -- tight; after an open letter +30..+60 (c r t g f v w)
+-- loose; ja -19. On the round-95 a (37) the stems read -18, the bowls -34,
+the opens +20..+40: so the eye's "ja is tight" was the stems and the bowls,
+and my ladder pick of 74 fixed those by over-shooting and left the opens.
+One bearing cannot be on rhythm against three neighbour classes; that is
+what a kern class is for. **Separately, the j:** its right bearing is
+measured to a bare stem while the n's is measured to a foot tip 27 units
+further out, so every j-pair sat ~27 tighter than the same pair on an n
+(ja -66 on the raw metric, the tightest common pair in the font).
+
+**Set:** a's left **56** (`build.A_LEFT` 1.40); j's right **41 -> 68**
+(`build.J_RIGHT` 1.83); kern class cells (`outlines/kern.py`): bowls b o p
+e before a **+36**, c g before a -18, t -36, r -36, f -18, v w y -18, s
++18, j +18 (pair), k 0 (pair, exempting it from the K class's -36), a before
+v w y -36. Result on the bridged metric: **a-left weighted median +4,
+spread -23..+25** (was +19 median, -19..+60), every stem, bowl and open
+neighbour within +-18 except k (-23, ka is 0.05%); ja +6. The a's RIGHT was
+left at 45: the two metrics disagree on it by ~28 (raw -15, bridged +12;
+the foot) and no reading called it wrong.
+
+**Left alone and recorded, because it is the whole lowercase and not the
+a:** by the raw metric the open-right letters run loose against EVERY
+neighbour (c +67, t +55, r +38, g +38 mean deviation) and the bowl-right
+letters tight (q -48, p -45, b -41, o -28); on the right side y +60, h +49,
+v +39 loose and f -26, c -25, b -23 tight. The fitting rule's side
+fractions (round 0.72, open 0.6, diag 0.45; round 3) are what set those.
+The owner's ask was the a; changing the fractions re-fits 52 letters and is
+his call. `outlines.cmp.rhythm <ttf> <letter>` measures any letter.
+
+**f before l b h k:** minimum ink distance 5-10 units (the hook's tip to
+the ascender's top-left wedge) -- connected at 13 pt. Kern **+54** on a new
+right class `ascwedge` (b h k l); f+i 81, f+t 80, f+f 48, f+j 46 were
+clear and are unchanged. **Ligatures are OFF** (owner): `build.LIGS` is
+empty unless `ALBO_LIGS=1`, the liga feature is written only when the
+glyphs exist, the drawing in `glyphs/ligatures.py` stays. 94 glyphs.
+Page (round 96's URL, repaired in place): https://claude.ai/artifact/HRgSSYaKkzFbaPGBozQP15
+
+### Queued (owner, 2026-09-14)
+
+- "raise parens and brackets and others to be optically vertically
+  centered with words" -- ( ) [ ] sit -301..684 today (descender to cap);
+  the ask is to centre them on the lowercase word image. Braces and the
+  slash likely with them. Not built.
+- The 8 without reshaping its counters (round 95's queue).
