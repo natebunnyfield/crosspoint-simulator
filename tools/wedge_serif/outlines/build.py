@@ -61,16 +61,18 @@ def solve_widths(passes=3):
 
 PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
 PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
-# Round 97 (owner: "go" on the whole-lowercase refit): per-letter (lsb, rsb)
-# deltas from `outlines.cmp.rhythm.solve` on the round-96b file -- least
-# squares over ~150 frequency-weighted common English bigrams on the bridged
-# white metric, target the font's own rhythm (159, so the density is
-# unchanged). Mean |deviation| 24 -> 0.6 units, extremes -60..+87 -> -9..+8.
-# Re-solve after any letter's outline changes; the numbers are the record.
-BEARING_ADJ = {'a': (7, 4), 'b': (-14, 37), 'c': (22, -22), 'd': (23, 2), 'e': (23, 36), 'f': (-4, -28), 'g': (10, -18),
-               'h': (-9, -1), 'i': (-9, 0), 'j': (0, 15), 'k': (-9, -10), 'l': (-13, 3), 'm': (-9, -1), 'n': (-6, 1),
-               'o': (20, 35), 'p': (-20, 36), 'q': (0, 37), 'r': (-7, -39), 's': (21, 22), 't': (-21, -37), 'u': (-18, 4),
-               'v': (-48, -33), 'w': (-41, -24), 'x': (-6, 0), 'y': (-47, -16), 'z': (0, -22)}
+# Round 97 (owner: "go" on the whole-lowercase refit) / 97b (owner: "crosses
+# seems way too spaced out", "same for frozen"): per-letter (lsb, rsb) deltas
+# from `outlines.cmp.rhythm.solve_cat` on the round-96b file. The first solve
+# (round 97) aimed every pair at ONE rhythm and so made a round beside a round
+# as open as a stem beside a stem -- 'crosses', 'frozen' -- which is the
+# autokerner docstring's own warning. solve_cat aims each pair at the median
+# of its SIDE CATEGORY (the fitting rule's straight/round/open/diag, with the
+# e's right read as round), so the category ratios the owner had accepted
+# stand and only the scatter within a category is solved away: mean
+# |deviation| 5.5 -> 0.8, extremes -41..+36 -> -10..+9. Re-solve after any
+# outline change; these numbers are the record.
+BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 9), 'g': (-11, -19), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, -2), 's': (1, -15), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23)}
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
@@ -94,8 +96,9 @@ def fit(ch, conts, c):
     # 0.72 though its hood hangs over open space (Garamond 37 / n 24, Berkeley
     # 33 / 16). Picked on a ladder: marks 1.5 (59), fences and dashes 1.0 (45),
     # the a's left 2.0 (73).
-    if ch in PUNCT_MARKS: lsb = capbear * 1.5 + 17; rsb = capbear * 1.5 + 17
-    elif ch in PUNCT_FENCES: lsb = capbear * 1.0 + 17; rsb = capbear * 1.0 + 17
+    # Round 97b (owner: "punctuation is still too close. it needs to breathe"): marks 60 -> 80 (Berkeley 82, Albertus 74), fences 45 -> 60
+    if ch in PUNCT_MARKS: lsb = capbear * 2.25 + 17; rsb = capbear * 2.25 + 17
+    elif ch in PUNCT_FENCES: lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]   # round 97: the lowercase solve

@@ -3029,3 +3029,32 @@ bowls, which is the rule (the o's within-white is 279 against the n's 208).
 The capital cells were judged at the old bearings: T+o is 20 looser, T+y 47
 tighter; left for the owner's eye. Page:
 https://claude.ai/artifact/StAKgVJ8p4bPXn4ta28cY6
+
+## Round 97b (2026-09-14): "crosses seems way too spaced out", "same for frozen", punctuation "needs to breathe"
+
+Owner: "yes to this, but 'crosses' seems way too spaced out"; "same for
+'frozen'"; "and punctuation is still too close. it needs to breathe and not
+be cramped and jammed in."
+
+**The round-97 error, named:** one rhythm for every pair made a round
+beside a round as open as a stem beside a stem -- o+o went from 0.8 of n+n
+(raw metric) to 1.0 -- and the s, whose two apertures the bridged profile
+closes into a box, was read as tight and given +21/+22. The firmware
+autokerner's docstring warns of exactly this and uses per-category targets.
+**Repair:** `rhythm.solve_cat` -- each pair aimed at the weighted median of
+its own SIDE CATEGORY (the fitting rule's straight/round/open/diag from
+`round19.SIDES`, with the e's right side read as round: as 'open' beside r
+and t it solved to +60), so the category ratios the owner had been reading
+for ninety rounds stand and only the within-category scatter goes: mean
+|deviation| 5.5 -> 0.7, extremes -41..+36 -> -14..+5. The deltas are small
+(most under 15; q right +37, x left +42, z right -23, g right -19, k right
++18) -- so round 97's finding that the lowercase was off-rhythm was mostly
+the single-target artefact, and the honest statement is: the fitting rule
+was nearly right within each category. `build.BEARING_ADJ` replaced; the
+v w y left tightening of round 97 is gone with it (the diagonals sit where
+the rule put them). Judged on a four-line page (96b / 97 / category solve /
+halved) at 96 px: the category solve read evenest; "crosses" back to
+96b's tightness, "frozen" whole. **Punctuation:** marks 60 -> 80 (fraction
+2.25), fences and dashes 45 -> 60 (1.55); the period cells after T V W Y F P
+r f v w y back one step (-144 -> -126, -90 -> -72, -54 -> -36). Page
+(round 97's URL, repaired in place): https://claude.ai/artifact/StAKgVJ8p4bPXn4ta28cY6

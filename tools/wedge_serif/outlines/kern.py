@@ -77,20 +77,22 @@ RIGHT['round'] = [g for g in RIGHT['round'] if g != 'a']
 # ---------------------------------------------------------------- values
 # (left class, right class) -> units. Multiples of STEP. Negative tightens.
 # Round 96: the marks' bearings grew 31 -> 59, so the period and quote cells
-# judged in round 95 moved one step deeper to keep the same tuck.
+# judged in round 95 moved one step deeper to keep the same tuck. Round 97b
+# (owner: punctuation "needs to breathe"): marks 60 -> 80 and the period
+# cells back that step.
 CLASS_PAIRS = {
     # T: the bar overhangs; every lowercase tucks under it, rounds most
     ('T', 'round'): -126, ('T', 'a'): -126, ('T', 'flat'): -90, ('T', 'diag'): -90, ('T', 'asc'): -18, ('T', 'ascwedge'): -18,
     ('T', 'A'): -90, ('T', 'O'): -36, ('T', 'J'): -72,
-    ('T', 'period'): -144, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
+    ('T', 'period'): -126, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
     # V W: a diagonal right side; the rounds and the a tuck, the flats less
     ('VW', 'round'): -90, ('VW', 'a'): -90, ('VW', 'flat'): -54, ('VW', 'diag'): -36, ('VW', 'asc'): -18, ('VW', 'ascwedge'): -18,
     ('VW', 'A'): -90, ('VW', 'O'): -36, ('VW', 'J'): -54,
-    ('VW', 'period'): -144, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
+    ('VW', 'period'): -126, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
     ('Y', 'round'): -108, ('Y', 'a'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18, ('Y', 'ascwedge'): -18,
     ('Y', 'A'): -108, ('Y', 'O'): -54, ('Y', 'J'): -72,
-    ('Y', 'period'): -144, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
+    ('Y', 'period'): -126, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
     ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -126,
     ('A', 'diag'): -36,
@@ -98,14 +100,14 @@ CLASS_PAIRS = {
     ('L', 'T'): -108, ('L', 'VWY'): -108, ('L', 'quote'): -144, ('L', 'O'): -18,
     ('L', 'diag'): -36, ('L', 'hyphen'): -54,
     # F P: open below the bowl / the bar, so a period or comma tucks in
-    ('FP', 'period'): -144, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
+    ('FP', 'period'): -126, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
     # K k, R: an open top-right corner takes a round or a diagonal a little
     ('K', 'round'): -36, ('K', 'a'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
     ('R', 'T'): -36, ('R', 'VWY'): -54, ('R', 'round'): -18, ('R', 'a'): -18,
     # lowercase overhangs before punctuation
-    ('r', 'period'): -90, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
-    ('f', 'period'): -54, ('f', 'hyphen'): -18,
-    ('vwy', 'period'): -90, ('vwy', 'hyphen'): -18,
+    ('r', 'period'): -72, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
+    ('f', 'period'): -36, ('f', 'hyphen'): -18,
+    ('vwy', 'period'): -72, ('vwy', 'hyphen'): -18,
     ('oround', 'quote'): -18,
     # quotes and periods
     ('quote', 'A'): -126, ('quote', 'J'): -36, ('quote', 'T'): -54, ('quote', 'VWY'): -36,   # an opening quote before a T: the bar is at the quote's height, so only a little

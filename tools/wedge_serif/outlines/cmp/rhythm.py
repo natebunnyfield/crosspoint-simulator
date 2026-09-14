@@ -193,3 +193,32 @@ def patch(font_path, deltas, out):
         adv, lsb = hm[n]; hm[n] = (adv + dl + dr, lsb + dl)
         if dl and g[n].numberOfContours > 0: g[n].coordinates.translate((dl, 0))
     f.save(out); return out
+
+def solve_cat(font_path, sides, iters=12, clamp=60, bridge=0.5):
+    """Round 97b: like solve(), but the target for a pair is the weighted
+    median white of ITS SIDE CATEGORY (left glyph's right side x right
+    glyph's left side, from round19.SIDES) in the font as given -- so a
+    round next to a round stays tighter than a stem next to a stem, the
+    ratio the fitting rule set and the owner had accepted, and only the
+    scatter WITHIN a category is solved away."""
+    chars = sorted(set(''.join(BIGRAMS)))
+    G, xh = profile(font_path, chars); band = list(range(1, xh + 1))
+    n_runs = [max(r[i + 1][0] - r[i][1] - 1 for i in range(len(r) - 1)) for y in band if (r := G['n']['rows'].get(y)) and len(r) > 1]
+    nc = statistics.median(n_runs); depth = REACH * nc; w = bridge * nc
+    T = white_table(G, band, depth, w, chars)
+    pairs = [((a, b), wt) for (a, b), wt in ((tuple(k), v) for k, v in BIGRAMS.items()) if a in G and b in G]
+    cat = lambda a, b: (sides.get(a, ('straight', 'straight'))[1], sides.get(b, ('straight', 'straight'))[0])
+    cells = {}
+    for p, wt in pairs: cells.setdefault(cat(*p), []).append((T[p], wt))
+    target = {c: wmedian(v) for c, v in cells.items()}
+    Rp = {p: target[cat(*p)] for p, _ in pairs}
+    l = {c: 0.0 for c in chars}; r = {c: 0.0 for c in chars}
+    for _ in range(iters):
+        for c in chars:
+            ps = [(p, wt) for p, wt in pairs if p[1] == c]
+            if ps: l[c] = max(-clamp, min(clamp, -sum(wt * (r[p[0]] + T[p] - Rp[p]) for p, wt in ps) / sum(wt for _, wt in ps)))
+            ps = [(p, wt) for p, wt in pairs if p[0] == c]
+            if ps: r[c] = max(-clamp, min(clamp, -sum(wt * (l[p[1]] + T[p] - Rp[p]) for p, wt in ps) / sum(wt for _, wt in ps)))
+    res = {p: r[p[0]] + l[p[1]] + T[p] - Rp[p] for p, _ in pairs}
+    before = {p: T[p] - Rp[p] for p, _ in pairs}
+    return {c: (round(l[c]), round(r[c])) for c in chars}, target, res, before, pairs
