@@ -2551,3 +2551,17 @@ order the drive would suggest: a, t, o.
 
 Static Medium is the 0.80 build (a curve 8, dot style 1); VF rebuilt.
 
+## Round 89 (2026-09-14): the a's underside back
+
+Owner, on round 87's smoothed corner: "for 'a', there is now a corner
+sticking out under the top stroke, on the other side of where corner was
+fixed. keep the original underneath, white space curve." The run-then-arc
+hood leaves the stem's inner edge at 0.80 xh with a turn, so the hollow
+gained a corner where round 86's curve 8 had a curve from 0.60 xh. The hood
+is now the UNION of the two strokes: the run-then-arc (round 87) owns the
+outer edge, being the wider one outside; round 86's cubic from 0.60 xh
+(`A_UNDER_LEAN` 14, its original lean) owns the underside. Checked on the
+outline window: outer edge one curve from the stem's edge, the hollow's
+boundary round 86's. Page (round 87 / now): https://claude.ai/artifact/7MYcGt5iJMWThmidt2W2cH.
+VF rebuilt (the round-88 VF build was stopped as superseded).
+

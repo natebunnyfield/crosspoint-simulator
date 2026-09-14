@@ -101,6 +101,7 @@ A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
                                       # 14 -> 0, so the hood leaves the stem vertical, no kink
             (0.76, 0.58, 16, 0.95)]   # 9: the roundest of the tight ladder
 A_HOOD_FLUSH = True
+A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 
 @glyph('a')
@@ -141,10 +142,22 @@ def g_a(c):
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
         prof = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn (a 3-unit inner ledge otherwise)
+        # owner 2026-09-14, on the smoothed corner: "there is now a corner
+        # sticking out under the top stroke, on the other side of where the
+        # corner was fixed. keep the original underneath, white space curve."
+        # The run-then-arc hood leaves the stem's inner edge at top_f with a
+        # turn; round 86's hood (the cubic from start_f, bending left at
+        # once) gave the hollow a curve from lower on the stem. So the hood
+        # is the UNION of the two: the run-then-arc owns the outer edge (it
+        # is the wider one outside), the round-86 cubic owns the underside.
+        under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
+        under_prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
     hd = stroke(hood, PR.bowl_widths(hood, prof, floor=S * 0.5), cut1=CUT)
+    if A_HOOD_FLUSH:
+        hd = geom.union([hd, stroke(under, PR.bowl_widths(under, under_prof, floor=S * 0.5), cut1=CUT)])
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
     # into the stem near the foot
