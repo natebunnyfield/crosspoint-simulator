@@ -3318,3 +3318,59 @@ guessed at.
 The kern values have never been ruled on -- they were set by eye in round 95,
 page https://claude.ai/artifact/NUv37wR5v6jKiMiHVvHsMi. A true chancery
 italic, as opposed to this corrected slope. The detwinning cause above.
+
+### Round 100b (2026-09-14): Albo is on the card
+
+The reader route (README, "Taking a font to the reader"), done and MEASURED
+rather than assumed. Firmware commit `6e8b667d4`; the five TTFs sit in the
+gitignored `lib/EpdFont/local_fonts/Albo/` as the other fourteen
+local-source families' do.
+
+**The recipe.** `intervals: reading`; `sizes: [8, 10, 12, 14, 16, 18]`, the
+tier's canonical ramp, picked on the probe rather than copied -- the +1 the
+probe reads on the regular is the **x glyph**, whose flare runs 22 units
+below the baseline (Edgar -2, VandenKeere -3), not the face: the same probe
+on the **n** is exact at five of six slots, and a 6-24 pt sweep of every
+strictly increasing six-tuple returns this ramp first. `metrics: {ascent:
+1023, descent: -343}` -- advanceY 23/28/34/40/46/51, **exact at all six slots
+in all four styles, drift 0**, the exact window being 1365..1367; it clears
+the tallest ink (996) by 27 and the deepest (-317) by 26. No `scale:`
+(neither sanctioned use applies) and no `synth_ligatures:` (Albo ships a real
+GSUB `liga` and a GPOS `kern` of its own). Not added to
+`installed_families:`, which is an owner ruling and not a tidy-up.
+
+**The coverage survived the pipeline, proved rather than assumed.** All 12
+`.cpfont` files parsed per `docs/cpfont-format.md`, and every one of Albo's
+in-interval codepoints compared against a direct FreeType render of the
+patched source at the same ppem: **468 of 468 matched BIT FOR BIT** -- width,
+height, advanceX, left, top and the packed bitmap -- across 4 styles x 6
+sizes x 2 tiers. **None fell back to Noto**, which was the whole point of
+round 99. Each file carries 2,676 codepoints in 61 intervals; the accounting
+reconciles exactly (`reading` asks for 3,175, 500 are pruned because no face
+in the chain draws them, +1 for the U+FFFD the converter adds). Albo's own
+tables survived too: 5 ligature pairs and a 252-cell kern matrix per style.
+`validate_seed_fonts.py` exits 0. Cross-checked that `2x/Albo_8.cpfont` is
+byte-identical to `1x/Albo_16.cpfont` -- the same 16 ppem render -- which is
+the exact tier mixup B-039 shipped.
+
+**Size.** 6,072,099 bytes at 1x and 20,343,513 at 2x, 26.4 MB raw before
+CPZ1.
+
+**The one codepoint that did NOT make it, and why it stays that way.**
+U+2122 TRADE MARK is the single Albo glyph outside `reading` (it sits in
+Letterlike Symbols), so it is dropped from the build entirely -- a codepoint
+outside every interval is not built AND not fallen back. Edgar buys that
+block with `reading,(0x2100-0x214F)` at a cost of ~80 Noto glyphs. Settled by
+measurement rather than referred upward: **the trade mark appears zero times
+in the 34-book corpus** (so do the copyright, the registered sign and both
+daggers), so the interval stays as it is and Albo's ™ is built-but-unreachable
+on the card. If a book ever wants it the fix is one interval.
+
+**Not done, deliberately.** No `src/FontDisplayNames.h` row: that table's
+fields are a designer credit and a dated lineage, both of which are the
+owner's to state about his own typeface, and a family with no entry falls
+back to its directory name -- which for "Albo" reads correctly in the picker
+anyway, unlike a `GTAlpinaCond`. Also noted, pre-existing rather than new:
+`.github/workflows/release-fonts.yml` builds with no `--only`, so Albo joins
+the fourteen families there whose sources are gitignored and unavailable to a
+runner. That workflow is `workflow_dispatch`-only.
