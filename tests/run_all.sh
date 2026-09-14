@@ -358,6 +358,17 @@ run host_settings_host \
 run host_settings_desktop \
   c++ -std=c++20 -Isrc -o "$OUT/host_settings_desktop" tests/host_settings_test.cpp
 
+# THE HOST BATTERY'S RESOLUTION ORDER. Every failure mode here is a wrong
+# picture that still renders and still passes a build: a phone showing 100 %
+# beside iOS's own status bar, a charging bolt that never goes out, or a
+# headless capture whose battery quietly stops matching the one it was taken
+# with. The iOS backend needs a real device to answer, so what is pinned is the
+# decision -- which reading wins, that 0 % is a level and -1 is not, and that
+# the plug edge fires once per edge and not on the first reading (which would
+# repaint on every cold boot).
+run host_battery \
+  c++ -std=c++20 -Isrc -o "$OUT/host_battery" tests/host_battery_test.cpp
+
 run restart_semantics \
   c++ -std=c++20 -Isrc -o "$OUT/restart_semantics" tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp
 
