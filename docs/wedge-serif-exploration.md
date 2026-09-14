@@ -2699,6 +2699,6 @@ touch." Guide rows for each. The capitals measured first (1000 px rasters,
 bar thickness over cap stem): Albo 0.47, Albertus 0.75, Berkeley 0.39; the
 pass puts one unit on every capital bar, `pen.CAP_BAR` at 0.68 of the cap
 stem, riding the pen so the CNTR axis moves it. Page (round 93 over now):
-https://claude.ai/artifact/PENDING94. Medium sent; VF rebuilt; specimen /
+https://claude.ai/artifact/RWGpBJhTTRoki58ZtiwiAC. Medium sent; VF rebuilt; specimen /
 sliders / proof republished.
 
