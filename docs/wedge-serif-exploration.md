@@ -2574,3 +2574,15 @@ Four more rungs built and measured (the knot against Albertus / Garamond):
 https://claude.ai/artifact/WmSVgQzcX1ECbqAkoFdRXG. The default stays 0.80 until his
 pick.
 
+## Round 90 (2026-09-14): the y ruled at 0.97
+
+Owner, on the ladders: "0.9 is slightly too thin for 500", then, asked
+which rung of 0.92-0.98, ".97". `Y_LEFT_W` default 0.97. The instrument's
+pick was 0.80 (the knot on the lowercase mean); the eye at the 500 weight
+wants the y's left stroke near the pen's full width, which puts the knot
+about +6% over Albertus -- recorded, not argued: the ruling is his. (A
+lesson for `balance.py`: the knot is the right thing to measure, but the
+lowercase mean is not the target; the target is the eye's, and the
+instrument's job is to say how far from the references a ruling sits.)
+Medium rebuilt, VF rebuilt, specimen / sliders / proof republished.
+

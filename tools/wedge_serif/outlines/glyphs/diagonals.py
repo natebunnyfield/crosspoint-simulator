@@ -90,7 +90,7 @@ def g_x(c):
 # (upper-right) edge by half the width lost, so the outer (lower-left) edge
 # and the serif on it stay where they were. Chosen on the in-word
 # measurement (outlines/cmp/balance.py) and the eye, round 88.
-Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.80))   # round 88: the knot on the lowercase mean (Albertus -1.8%, Garamond +1.3%)
+Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.97))   # owner 2026-09-14, round 90: "0.9 is slightly too thin for 500", then ".97" from the 0.92-0.98 ladder
 
 @glyph('y')
 def g_y(c):
