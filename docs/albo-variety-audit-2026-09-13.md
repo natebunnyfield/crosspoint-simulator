@@ -1,5 +1,7 @@
 # Albo: which serifs and which counters are the same as each other
 
+**This process is called "detwinning"** (owner, 2026-09-14): the audit below, plus the life in `primitives.py`, plus whatever it takes to make every serif and counter its own.
+
 2026-09-13. Owner, verbatim: *"run an audit that evaluates which serifs and
 counters are exactly the same as others, we need variety throughout this font
 for it to work."*

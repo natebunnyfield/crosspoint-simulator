@@ -34,6 +34,8 @@ The full dated log of rounds, rulings, measurements and negative results is
 9. **Rulings are reversible only by him** -- the J's bar was "kept always"
    in round 21 and removed in round 36 on his word.
 10. **Always pay attention to the space inside and between characters** (owner, 2026-09-13). Counters and apertures, and the fitting: every variant page reports both; every ruling on weight, contrast, width or x-height is checked for what it did to them.
+11. **Build only what the task needs** (owner, 2026-09-14: "stop regenerating fonts and assets unnecessarily, only if a task needs it"). A ladder of static Mediums and one page is a round; the VF rebuild, the specimen / sliders / proof republish and the TTF resend are batched until a ruling lands or he asks. A status question gets a doc update, not a build.
+12. **"Detwinning"** is the owner's name (2026-09-14) for the variety work: the audit (`outlines/cmp/variety.py`, `docs/albo-variety-audit-2026-09-13.md`) plus the life (`primitives.life`), making every serif and counter very slightly its own so they render the same at reading size and differ at display size.
 
 ## Files
 

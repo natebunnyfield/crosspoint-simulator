@@ -2588,3 +2588,46 @@ Medium rebuilt (the y's knot measured at 0.97: 1.08 of the lowercase mean,
 +5.8% Albertus, +9.0% Garamond), VF rebuilt (23 masters, the same 15
 clamps), specimen / sliders / proof republished.
 
+## Round 91 (2026-09-14): the lowercase adjustment list, for the word image
+
+Owner: "give me a table of all the lowercase letters that need adjustment to
+improve the word image (z and r and p and n should be at the top of the list
+for being distracting)." Also: "call that process 'detwinning'" (the variety
+work), and "stop regenerating fonts and assets unnecessarily, only if a task
+needs it" (README rule 11). No build this round.
+
+Sources: his four named letters; the eye on a 13 pt paragraph through the
+four-level pipeline and the same words at 100 px (round 90 font); the
+in-word balance table of round 88 (band = x-height-band ink, knot = darkest
+6 px window, each relative to the lowercase mean and against Albertus /
+Garamond); the standing faults list. Priority 1 = his four, in his order;
+then by how far the eye and the numbers agree the letter is off.
+
+| # | letter | what distracts in a word (eye, 13 pt and 100 px) | measured (round 88) | proposed adjustment | dial / place |
+|---|---|---|---|---|---|
+| 1 | **z** | the darkest thing on any line it is in ("lazy", "zebra"): a 1.05 S diagonal between two 0.52 S bars, more contrast than any other letter has | not in the corpus (0 of 147 words); isolated: dev -8%, so the box average misses it, as it missed the y | diagonal 1.05 -> ~0.90 S; bars 0.52 -> ~0.58 so the letter is one color; keep the mitres | `Z_DIAG`, `Z_BAR` in `glyphs/diagonals.py` |
+| 2 | **r** | the arm is a knob on a short stem: the terminal swells to a blob and the arm sits high, so "river", "brown", "person" get a dot over the r; the old join trap still nicks the crotch | band +8.6% Albertus / -4.6% Garamond; knot +5.3% / -0.3% -- the ink is right, the SHAPE is wrong (the knob) | arm terminal a plain pen cut at the family's 0.9 x 0.9 wedge, not a swell; arm leaves the stem a hair lower; join trap 0.22 -> 0.05 like h m n; lighten the right foot | `g_r` in `glyphs/arches.py` (arm profile, trap depth) |
+| 3 | **p** | the bowl/stem join at the top reads as a dark corner and the descender wears a two-sided foot, so "jumps", "prowl", "pace", "party", "plan" each carry a dark spot low-left | band 1.10 rel, +2.2% Albertus / +3.4% Garamond; knot +4.2% / -7.4% | descender foot one-sided (left, like the q's is right) or 0.8 length; the bowl's top join thinned to the bowl hair over the first 15% as the g's neck was | `bowl_stem` in `glyphs/stems.py` (foot arg, join taper) |
+| 4 | **n** | the shoulder is square: the arch leaves the stem high and turns hard, and the join is a dark knot, so "running", "person", "plan" read as fence posts with lids | band -3.8% / -1.3%; knot +6.2% / +6.2% (the join) | arch leaves the stem lower (0.52 -> ~0.46 xh) with a rounder shoulder (the ring exponent, not a hard corner); join tapered to 0.85 of the hair; same for h m u by construction | `arch` in `glyphs/arches.py` (join height, shoulder k) |
+| 5 | a | the heaviest common letter on the line: bowl and hood both at the bowl profile's full weight; in "party", "pace", "plan" the a is a dark oval | band 1.20 rel, **+19% Albertus / +11% Garamond** -- the largest excess in the alphabet | bowl hair 0.85 of the profile's; hood underside profile 0.85 held longer | `g_a` widths in `glyphs/stems.py` |
+| 6 | c | both terminals heavy, the letter reads as a dark C-clamp in "pace", "quick" | band +15% / +9%; knot -8% / -7% | terminals 1.25 -> 1.1 flare; top terminal a pen cut | `g_c` in `glyphs/rounds.py` |
+| 7 | o | reads hollow: the top and bottom hairs drop to gray at 13 pt while every stem beside it is black ("brown", "dog", "person") | knot **-11% / -10%**, the lowest of any letter; band +5% / +10% | the o's own construction (audit R4), hair floor 0.55 S like the 6's tail so the ring holds black at 54 px; counter 0.907 vs 1.036 ruling still open | `o_ring` floor in `glyphs/rounds.py` |
+| 8 | t | light and short: the bar is a hairline and the top is low, so "the", "with", "party" thin out at the t | band **-16% / -15%**, the lightest | bar to the pen's horizontal (TH_H) not the hair; top +20 units; the tail's flare kept | `g_t` in `glyphs/stems.py` |
+| 9 | e | the eye small and the bar heavy for it; the arm's end (0.92) now fine | band +8% / +7%; knot -6% / -1% | bar rises to 0.52 xh, eye +5% | `E_BAR` in `glyphs/rounds.py` |
+| 10 | k | light: the arm and leg are thin beside the stem ("quick", "knew", "keeping") | band **-14% / -12%** | arm weight 1.30 -> 1.40 of the thin; leg 1.0 -> 1.1 | `ARM_WEIGHT` in `glyphs/diagonals.py` |
+| 11 | l | light for an ascender: one stem, two small feet; beside b d h it looks a size smaller | band -13% / -7% | top wedge to the ascender family's 1.05 (audit R2); foot 1.0 | `g_l` |
+| 12 | i | the dot heavy after style 1, the stem light: the i is a dot with a stalk | band -11% / -12%; the j's dot +27% | dot radius 0.62 -> 0.58 S; stem foot 1.0 | `DOT_R`, `g_i` |
+| 13 | u | light and its two feet make it wide ("jumps", "running", "jaguar") | band -11% / -10% | right foot one-sided; the arch join as the n's | `g_u` |
+| 14 | b, d | bowls a shade heavy; the b's knot the highest after the y | band +4% / +12% (b), +7% / +4% (d); b knot +9% | bowl hair 0.90 of the profile's; stop b/d/p/q sharing one ring (audit R3) | `bowl_stem` |
+| 15 | w | crown fixed; the letter still the darkest wide one ("brown", "knew") | knot +7% / +4% | thin diagonals 0.72 -> 0.68 of the pen | `g_w` |
+| 16 | j | dot + hook: the heaviest letter by band, though rare | band +27% (n = 1) | dot as the i's; tail 0.9 | `g_j` |
+| 17 | f | the arm long and the double foot wide; fine in "fox", loud in "of" | band -2% / -9% | foot one-sided | `g_f` |
+| 18 | g | ear now clean; loop a shade heavy at 54 px | band -6% / 0%; knot +1% | none until the o is settled (same ring) | -- |
+| 19 | y | done rounds 88-90 (left stroke 0.97) | knot +5.8% / +9.0% at his ruling | none | -- |
+| 20 | x | bottom-left wedge done round 85; not in the corpus | -- | none | -- |
+| -- | h m s v q | nothing found by eye or number (h -4%, m +4%, s -6%, v 0%) | -- | leave | -- |
+
+The order after his four is the eye's, with the numbers as the check: a c o
+t are where the balance table and the paragraph agree loudest. Each row is
+one round's ask; none is made here.
+
