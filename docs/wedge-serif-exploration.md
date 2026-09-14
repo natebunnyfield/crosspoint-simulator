@@ -2,6 +2,19 @@
 
 ## STATE, 2026-09-12 (read this first; the log below is dated history)
 
+- **STATIC REGULAR 400, 2026-09-14 (round 95, owner):** "switch to making a
+  non-variable 400 regular weight font with improved kerning and ligatures."
+  The deliverable is now `Albo-Regular.ttf` alone -- stem 66.9, contrast 0.892
+  (the round-76 calibration, named in round 83), built with `FJORD_STEM=66.9
+  FJORD_CONTRAST=0.892 python3 -m outlines.build <dir> --style Regular` on the
+  round-94 letters. **The VF is no longer rebuilt or shipped.** Kerning goes
+  in as a GPOS class `kern` feature and ligatures as `liga`, because those two
+  are exactly what the reader's `.cpfont` can carry (class matrix in 4.4 px,
+  quantum 18.5 units on the phone / 37 on the X3; pair table <= 255,
+  cmap-encoded at FB00-FB06 or PUA); nothing else in GSUB/GPOS reaches the
+  device. Measurements, the three kerning options, the ligature set and the
+  ranked feature list: round 95 at the foot. Queued there too: the 8 without
+  reshaping its counters.
 - **NAME AND BOWLS, 2026-09-13 (round 58, owner):** the family is **Albo**
   (Fjord until this round; every `Fjord-*` name below is history), the target
   is "a wedge serif like Albertus, but more readable" (Van den Keere and
@@ -2702,3 +2715,160 @@ stem, riding the pen so the CNTR axis moves it. Page (round 93 over now):
 https://claude.ai/artifact/RWGpBJhTTRoki58ZtiwiAC. Medium sent; VF rebuilt; specimen /
 sliders / proof republished.
 
+
+## Round 95 (2026-09-14): the switch to a static Regular 400, with kerning and ligatures -- the plan and the measurements
+
+Owner: "using prior research from memory and md files, let's switch to
+making a non-variable 400 regular weight font with improved kerning and
+ligatures and suggest other features." Same message, later: "future todo:
+without reshaping the two counterspaces, give me options for making an 8 that
+visually fits the rest of the numbers" -- queued below, not done.
+
+**What changes.** The deliverable is `Albo-Regular.ttf`, one static file at
+usWeightClass 400. The VF (`Albo-VF.ttf`, eight axes, round 61) is no longer
+rebuilt or shipped; its builder stays in the tree. The 400 is the round-76
+calibration the round-83 naming ruled on: **stem 66.9, contrast 0.892**
+(`FJORD_STEM=66.9 FJORD_CONTRAST=0.892 python3 -m outlines.build <dir>
+--style Regular`), every other dial at the round-65 defaults and every
+letter at its round-94 state. The Medium (stem 84) stays as the 500 he has
+been judging; nothing about the letters moves in this round.
+
+**Built today on the round-94 outlines** (the `Albo-Regular.ttf` on disk was
+round 76's, eighteen letter rounds stale): 94 glyphs, contour count
+identical to the Medium on every glyph (the round-76 topology check, re-run;
+the a's hood holds at 66.9 -- it broke below 56.2 then), 27 advances move
+by more than 20 units because the fitting rule follows the stem (D 786 ->
+746, m 896 -> 826, l 296 -> 256), word space 353 -> 356. Not yet judged on
+a page; no letter was touched.
+
+### What the reader can consume (verified in the firmware, 2026-09-14)
+
+Read against `lib/EpdFont/scripts/fontconvert_sdcard.py`,
+`lib/EpdFont/EpdFontData.h`, `docs/cpfont-format.md`,
+`docs/ligature-control.md`, `docs/kerning-subtable-precedence-2026-09-07.md`
+in the firmware repo. This bounds what "kerning and ligatures" can mean on
+the device:
+
+- **Kerning is a CLASS MATRIX**: two sorted codepoint -> class tables (<= 255
+  classes a side, <= 4096 entries a side) and an `int8` matrix in **4.4
+  fixed-point pixels** (range -8.0 .. +7.9 px, quantum 1/16 px). The
+  extractor reads the GPOS `kern` feature (PairPos format 1 AND 2, Extension
+  unwrapped, subtables overlaid first-wins since 2026-09-07) and the legacy
+  `kern` table, GPOS winning per pair. The quantum in design units: **18.5 at
+  13 pt on the 2x app (54 px em), 37 at 13 pt on the X3 (27 px em)**. A kern
+  under ~18 units does nothing on the phone and under ~37 nothing on the
+  device; the useful range is 40..150 units. Applied at draw and at every
+  measure path, including the SD advance-table fast path (`getMeasureKern`,
+  2026-08-22 fix).
+- **Ligatures are a flat PAIR table**, <= 255 per style, from GSUB `liga` /
+  `rlig` LigatureSubst (type 4, Extension unwrapped); a 3-glyph ligature is
+  stored as a chain (ff + i -> ffi). **The output glyph must be cmap-encoded
+  at U+FB00-FB06 or in the PUA U+E000-F8FF**, and the family's interval must
+  cover it (`reading` and `latin-ext` do). Substitution is a runtime walk,
+  and Typography Settings gives **each input pair its own switch** for free.
+- **Nothing else.** No `smcp`, `onum`/`lnum`, `calt`, `case`, `frac`, no
+  mark anchors, no contextual anything. A feature that is not kern or liga
+  has to be baked into the default glyph.
+- **Anything Albo lacks is baked in from Noto at build time** (the fallback
+  chain; the converter falls back per codepoint when `get_char_index()` is
+  0). So a page of Albo with no accents sets "café" with a Noto Serif é.
+
+### Measured: nothing collides, and the lowercase fitting is already right
+
+Per-row raster gap at 400 px (both glyphs drawn at their advances, min gap
+over rows where both have ink, design units), Regular: fi 162, fl 150, ff
+152, fb 148, fh 152, fk 150, fj 152, ft 250, st 178, ct 150 -- against n+n
+102 and o+o 80. The f's arm overhangs its advance by 82 units but sits
+above the i's dot, not on it. **So Albo's ligatures would be stylistic, not
+collision fixes**, exactly as Albertus (which ships none). The capitals are
+the opposite story: T+o 378, T+a 375, Y+o 370, A+V 370, L+T 328, V+a 325,
+W+a 288, P+period 430, F+period 408 -- three to four times the n gap.
+
+The firmware's own optical autokerner (`optical_kern.py`, calibrated to the
+n and o counters -- the round-3 principle, "the distance between characters
+should be the same as within") run on the Regular with its cap lifted:
+
+| | pairs emitted | median demand |
+|---|---|---|
+| lowercase + lowercase | 69 | -24 units (n+n, o+o, n+o, o+n: zero) |
+| capital + lowercase | 355 | -62 |
+| T + anything | ~40 | -137 .. -169 |
+| all | 3,249 | -70 |
+
+Two readings. **The lowercase verdict is the validation of the fitting rule
+as ruled**: 69 pairs of 676 want anything, the median is one quantum on the
+phone and nothing on the device. The capital half is the job. And the T
+column is the tool's known artifact -- H+T, N+T, M+T all -169, the "void
+under the crossbar" its own docstring warns about -- so its numbers are a
+map of WHICH pairs, not the values to ship. At the default 60-unit cap 1,929
+of 3,249 pairs saturated, which the tool reports as its own FAIL; that is
+the capitals pulling the whole distribution, not a loose lowercase.
+
+### The kerning: three ways to get it, put to the owner
+
+| | how | pairs | cost | risk |
+|---|---|---|---|---|
+| **A. Hand class kerning (recommended)** | ~14 left / ~14 right classes on the letters' SIDES (`round19.SIDES` already names straight / round / open / diag per glyph) plus the overhanging capitals T V W Y A L P F and the punctuation, values set by eye on a rendered page in 18-unit steps, written as a GPOS format-2 `kern` feature by feaLib -- the cpfont's native shape | ~150 class pairs, ~60 exceptions | one round: page, ruling, file | the values are mine to draw and his to judge; no artifact from a metric |
+| B. Autokern | `optical_kern.py` output, legacy `kern` table, T-column hand-corrected | 3,249 | an afternoon | the metric kerns H+T like T+o; a 3,249-pair table is 3,249 things to judge, and the lowercase half is below the device's quantum |
+| C. Hybrid | A's classes, B's magnitudes as the starting values | ~200 | one round | inherits B's T artifact into A's classes unless every T value is re-set by eye, which is A |
+
+### The ligatures: which set
+
+Standard five -- **fi fl ff ffi ffl** at U+FB01 FB02 FB00 FB03 FB04 -- drawn
+as fused glyphs (the arm into the dot, the arm into the l's serif), reached
+by a `liga` feature, shipped ON, each switchable in Typography Settings.
+Discretionary **st / ct** (U+FB06; ct would need a PUA code) are not a
+wedge-serif's habit and are proposed OFF unless he wants them; Edgar's
+**fb fh fj fk** are the same arm-over-ascender case as fl and could follow
+its drawing for free. Note the reader spells a pair from the INPUT side, so
+"fi" is the same switch in every family.
+
+### Other features, ranked by what the reader needs first
+
+1. **Accents (Latin-1, then Extended-A)** -- twelve marks (acute grave
+   circumflex dieresis tilde ring cedilla caron macron ogonek dotaccent
+   hungarumlaut) drawn on the pen, ~120 composites assembled by script;
+   without them every "café", "naïve", "façade" carries a Noto letter.
+   Coverage as the `reading` interval asks (U+0020-024F).
+2. **Vertical metrics for the reader's line** -- `metrics:` in
+   `sd-fonts.yaml` (hhea 900/-300 today, arbitrary); the s-tier smart-leading
+   recipe (`~/Downloads/crosspoint_fonts_s_tier_sources/rebuild_s_tier.py`)
+   and the Almendra-anchored words-per-page `scale:` both apply.
+3. **A 1x proof on the X3's own em** -- 13 pt is 27 px there: the Regular's
+   stem is 1.8 px and its hair 0.2 px; whether the pen's hair floor (6 units
+   = 0.16 px) survives FreeType's autohinter at build time decides whether
+   the 400 or the 500 is the device weight. Cheap: one `build-sd-fonts.py
+   --only Albo` at 1x and a contact sheet.
+4. **Bold** (guide §6, round-4 rule: stem x1.6, contrast -0.12, width x1.05)
+   -- or, first, the pipeline's synthetic embolden (`synthetic:` in the yaml,
+   `docs/synthetic-font-styles.md`) so `<b>` stops rendering roman.
+5. **Italic** -- none exists; the pipeline's synthetic shear covers `<i>`
+   until one is drawn.
+6. **Figures: one style only.** Old-style today (`latin.FIG_BOX`); `onum` /
+   `lnum` cannot be offered, so the choice is which one the page numbers
+   and chapter heads get. Includes the queued 8, below.
+7. **Punctuation kerning for hanging punctuation** -- the 2026-08-22 audit's
+   consumer; quotes, periods and commas after r f y v w T P F, the hyphen
+   pairs the autokerner flagged.
+8. **Missing marks the `reading` interval will otherwise fill from Noto**:
+   « » ‹ › ¿ ¡ § ¶ † ‡ • ° © ® ´ ` ¨ ¹ ² ³ ½ ¼ ¾ × ÷ ± ′ ″ and the
+   currency signs. Each one Albo does not draw is a Noto glyph on the page.
+9. **Detwinning** -- the variety audit's 129 twinned serifs of 144, on the
+   Regular's outlines once the letters stop moving.
+10. **The reader route** (README, "Taking a font to the reader"): copy the
+    TTF into `lib/EpdFont/local_fonts/Albo/`, a family block in
+    `sd-fonts.yaml`, `build-sd-fonts.py --only Albo` at 1x and `--scale 2`,
+    `validate_seed_fonts.py`, trial-family bundle.
+
+### Queued (owner, 2026-09-14): the 8, counters untouched
+
+"Without reshaping the two counterspaces, give me options for making an 8
+that visually fits the rest of the numbers." With both counters fixed the
+levers left are the outer only: the stroke weight around each counter (the
+top loop can be lighter or heavier than the bottom without the hole
+moving), the waist's thickness and angle, the outer's superellipse exponent
+against the 6's circle (round 49), the overshoots top and bottom, the
+figure's height in `FIG_BOX` (old-style 8 sits on the baseline at x-height
+today), the terminal where the spine crosses, and the fit (bearings). A
+round of eight to ten 8s on the pen with those levers, each beside 3 6 9 0
+at 13 pt and 100 px. Not built.
