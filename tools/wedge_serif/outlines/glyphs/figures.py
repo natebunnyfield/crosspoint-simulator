@@ -106,7 +106,7 @@ EIGHT_COUNTER_OF = '6'     # whose bowl counter the lower counter is sized to: '
 EIGHT_LOWER = 1.0          # the lower counter's width, x that counter's width
 EIGHT_UPPER = 0.75         # the upper counter, x the lower's WIDTH, linearly (width and height alike); ruled: C
 EIGHT_LOWER_TALL = 1.08    # the lower counter's height, x the circle's (1.0 = 1.036 wide over tall)
-EIGHT_FLOOR = 0.55         # round 98 (owner 2026-09-14: "8 wins"): the hairs at 11 and 5 o'clock never under 0.55 S, the 6's tail rule -- option 8 of twelve, counters untouched
+EIGHT_FLOOR = 0.65         # round 98b (owner 2026-09-14: "yes to c"): the hairs at 11 and 5 o'clock never under 0.65 S, counters untouched, ink +5.6%. (0.55, his first pick, sat under the bowl hair's 0.554 and bound nothing.)
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The

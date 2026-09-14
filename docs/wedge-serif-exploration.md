@@ -3104,3 +3104,10 @@ re-pitched; a ladder of floors that do bind (0.60 / 0.65 / 0.70 / 0.80)
 went out for the pick the option had promised. Lesson for the option
 sheets: assert every variant differs from the base (area or coordinates)
 before it is shown.
+
+### Round 98b ruling (2026-09-14): "yes to c"
+
+The 8's hair floor ships at **0.65 S** (`figures.EIGHT_FLOOR`), ink +5.6%
+over the round-97 8, counters untouched. Built area 99,1xx against the
+option's 99,130 -- the residual is the full build's cut phase, as with every
+one-glyph option.
