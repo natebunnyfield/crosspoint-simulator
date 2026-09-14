@@ -2657,3 +2657,33 @@ o `O_FLOOR_ADJ` 0.55 S; t top +20, bar 1.15 TH_H; e `E_BAR_ADJ` 0.58 /
 w_scale 0.92; w thins 0.68; j dot 0.58 S and tail 0.9; f left foot only.
 No VF, no specimen, no TTF this round (rule 11) -- they follow the ruling.
 
+## Round 93 (2026-09-14): the rulings on round 92, and the baseline pinned
+
+Owner: "yes to z, don't thin out 'a' as much, leave r as is for now, yes to
+p but keep the serif as it was, yes to 'n m h' but it looks like they are
+above the baseline at 13 pt (check all characters for this optical vertical
+misalignment), yes to everything else; the top right serif of 'k' needs
+more visual weight; no to 'l' top serif; keep bottom serifs for 'f' and all
+other characters, do not make half serif."
+
+`ADJ_DEFAULT = "zpnacotekiubwj"`; a's bowl 0.92 (was 0.85 on the page), p
+with both feet, k's wedge 1.35; r l f off. Guide rows for each.
+
+**The baseline finding was real, and older than the n.** Measured on the
+built fonts (lowest point of every glyph, and the 13 pt four-level raster's
+last black row): the hand-cut facet pass lifts a flat foot 10-12 units when
+its two flat points are not corners -- the wedge tips sit 14 units up on
+either side and the turn onto the flat is 13 degrees, under the cut's
+20-degree rule -- so both points are projected onto the chord between the
+tips. Which letters it hits depends on the running phase: f r P 1 in round
+90's font, n l P 1 in round 92's build. At 54 px em that is 0.6 px: the last
+row above the baseline goes gray while the o and a beside it hold black, and
+the letter floats. `cut.pin_lines` (called by `blend` with the baseline,
+x-height and cap line; the figures' box top too) puts any flat-run point
+back on its line after the projection; same point count, VF-compatible.
+Checked on every glyph a-z A-Z 0-9: no flat between 2 and 14 units; every
+flat-footed lowercase black to the baseline row at 13 pt. Page (round 92's
+lifted build over now for n m h; round 90 over now for f r l, a, p, k, and
+the paragraph): https://claude.ai/artifact/PENDING93. Medium sent, VF
+rebuilt, specimen / sliders / proof republished.
+

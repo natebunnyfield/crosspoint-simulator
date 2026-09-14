@@ -163,7 +163,7 @@ def g_k(c):
     join-rule minimum) past that edge, thinning sooner (LEG_TAPER) so the
     join reads as one clean fork instead of an X."""
     ARM_WEIGHT = 1.40 if adj('k') else 1.30   # round 92 (adj 'k'): light beside the stem, band -14% Albertus
-    K_ARM_WEDGE = 1.15
+    K_ARM_WEDGE = 1.35 if adj('k') else 1.15   # round 93 (owner): "the top right serif of 'k' needs more visual weight"
     LEG_EDGE = 1.0            # spring the leg from the arm's lower edge (1.0), not its centerline (0.0)
     LEG_BURY = 0.20           # x stem, past that edge (join rule: a fifth to a third of a stem)
     LEG_TAPER = (0.55, 0.35)  # thin from t=0.55 (was 0.78) to 0.35 x lw (was 0.55) at the buried tip

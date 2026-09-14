@@ -362,6 +362,22 @@ none without the owner's word, and record any change in the exploration doc.
 | 3 | lower bowl takes the 5's sweep and terminal | round 44 |
 | figures | old-style, in the references' boxes (`latin.FIG_BOX`) | round 20 |
 | j | no top flag; tail one round arc holding stem weight through the turn, thinning to a point | rounds 22, 25 |
+| the baseline, x-height and cap line through the cut | `cut.pin_lines`: any point of the designed outline on one of those lines, in a flat run of two or more, goes back onto it after the facet projection. A foot's flat bottom is two points at -1 with the wedge tips 14 up on either side; the 13-degree turn onto it is under the cut's 20-degree corner rule, so the projection lifted whole feet 10-12 units (0.6 px at 13 pt) -- which letters depended on the running phase (f r in round 90; n l in round 92's build; P and 1 in both). Owner: n m h "look like they are above the baseline at 13 pt (check all characters for this optical vertical misalignment)" -- checked: none lifted now, every flat-footed letter black to the baseline row | round 93 |
+| z | `Z_DIAG_ADJ` 0.90 S, `Z_BAR_ADJ` 0.58 S (adj 'z'; owner: yes) -- the darkest thing on any line it was in | round 93 |
+| p | the ring's stroke eases to 40 units within 90 of the stem's edge (`ring_from`, the a's construction) so the crotches clear; BOTH feet kept (owner: "yes to p but keep the serif as it was"; "keep bottom serifs ... do not make half serif") | round 93 |
+| n h m | `N_START_ADJ` 0.46 xh, `N_SHOULDER_IN` 0.35 S, `N_TAPER_ADJ` 0.26 (adj 'n'; owner: yes) | round 93 |
+| a (weight) | `A_BOWL_ADJ` 0.92 on the bowl's stroke, the hood's underside 0.85 -> 0.92 -> 1.0 over its run (owner: "don't thin out 'a' as much" than round 92's 0.85) | round 93 |
+| c | top terminal swell 1.30 -> 1.10 (adj 'c'; yes) | round 93 |
+| o | hair floored at `O_FLOOR_ADJ` 0.55 S (adj 'o'; yes) -- the knot was -11% under both references, the hairs dropping to gray | round 93 |
+| t | top +20, bar 1.15 TH_H (adj 't'; yes) | round 93 |
+| e | `E_BAR_ADJ` 0.58 xh, `E_TH_ADJ` 0.66 (adj 'e'; yes) | round 93 |
+| k (weight) | arm 1.40, leg 1.10, top-right wedge `K_ARM_WEDGE` 1.35 (owner: "the top right serif of 'k' needs more visual weight") | round 93 |
+| i | `DOT_R_ADJ` 0.58 S (adj 'i'; yes) | round 93 |
+| u | the bowl holds 0.70 into the right stem, right top wedge 0.85 (adj 'u'; yes) | round 93 |
+| b d | ring w_scale 0.92 (adj 'b'; yes) | round 93 |
+| w | thins 0.68 of the pen (adj 'w'; yes) | round 93 |
+| j | dot 0.58 S, tail 0.9 (adj 'j'; yes) | round 93 |
+| r, l, f | unchanged (owner: "leave r as is for now", "no to 'l' top serif", "keep bottom serifs for 'f'"); their round-92 code stays behind switches that are not in `ADJ_DEFAULT` | round 93 |
 | the dots (i j . , : ; ! ?) | `DOT_STYLE` 1 (owner: "dot style 1 wins" from the ten of round 85): an eleven-sided polygon on the superellipse at k 1.94, each vertex 3.5% radial jitter from `life()`, so no two dots in the font are the same | round 86 |
 | a (top right) | `A_CURVE` 8 (owner: "A curve 8 wins" from the tight ladder of round 86, after round 84's five were "closer to the vertical corner that was there before, you maximize gap space under the stroke"): the stem to 0.80 xh, the hood a straight run up the stem's centerline at exactly the stem's flared width and then a cubic from the stem's top with a vertical tangent, no lean ("smooth off the top right so there is no corner protuberance" -- the stem's flat top had poked 21 units past a hood that bent left at once); the underside is round 86's cubic from 0.60 xh (lean 14), unioned in, so the hollow keeps its curve (owner: "keep the original underneath, white space curve"; ruled 2026-09-14, "yes to new 'a'") | rounds 86-89 |
 | bowls of b d p q | kept to the stem | round 18 |

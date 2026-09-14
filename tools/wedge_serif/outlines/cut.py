@@ -6,6 +6,30 @@ facets curves and never chamfers a corner. Contours are cut in glyph order
 with one running phase counter, as pen_linear did."""
 import math, random
 CORNER_DEG = 20.0
+PIN_TOL = 2.5   # a point within this of a guide line is ON it
+
+def pin_lines(orig, out, lines, tol=PIN_TOL):
+    """Round 93 (owner 2026-09-14: n m h "look like they are above the
+    baseline at 13 pt"): the projection onto chords can lift a flat run
+    that lies on a guide line -- the n's feet went from -1 to +11 in one
+    build and the f's and r's in another, which glyph depending on the
+    running phase -- and at 54 px em that is 0.6 px: the last row above the
+    baseline turns gray while the rounds beside it hold black. Any point
+    that sat on a guide line in the designed outline, with both neighbours
+    on it too (a flat run, not a curve's grazing point), goes back onto
+    that line. Same point count; the variable font's masters stay
+    compatible."""
+    n = len(orig); res = list(out)
+    for i in range(n):
+        y = orig[i][1]; ya = orig[i - 1][1]; yb = orig[(i + 1) % n][1]
+        # a flat run: this point and at least one neighbour at the SAME y (a
+        # foot's flat bottom is exactly two points, the stem's width, with
+        # the wedge tips 14 units up on either side -- the 13-degree turn
+        # onto it is under the corner rule, which is how it got lifted)
+        flat = abs(ya - y) < 0.5 or abs(yb - y) < 0.5
+        if flat and any(abs(y - L) <= tol for L in lines):
+            res[i] = (res[i][0], y)
+    return res
 
 def corners(pts, deg=CORNER_DEG):
     n = len(pts); out = set(); c = math.cos(math.radians(deg))
@@ -48,7 +72,7 @@ def project(pts, keep):
     return out
 
 
-def blend(pts, ph, amount, every=4):
+def blend(pts, ph, amount, every=4, lines=()):
     """The cut as a continuous AMOUNT on the dense point set (round 62):
     0 = the dense outline untouched, 100 = every point projected onto its
     1-in-`every` chords (the shipping cut of rounds 17-61), 200 = the same
@@ -61,7 +85,9 @@ def blend(pts, ph, amount, every=4):
     n = len(pts); c = corners(pts)
     p4 = project(pts, sorted(set(i for i in range(n) if (i + ph) % every == 0) | c))
     if a <= 1.0:
-        return [(p[0] + (q[0] - p[0]) * a, p[1] + (q[1] - p[1]) * a) for p, q in zip(pts, p4)]
-    p8 = project(pts, sorted(set(i for i in range(n) if (i + ph) % (2 * every) == 0) | c))
-    b = min(1.0, a - 1.0)
-    return [(p[0] + (q[0] - p[0]) * b, p[1] + (q[1] - p[1]) * b) for p, q in zip(p4, p8)]
+        out = [(p[0] + (q[0] - p[0]) * a, p[1] + (q[1] - p[1]) * a) for p, q in zip(pts, p4)]
+    else:
+        p8 = project(pts, sorted(set(i for i in range(n) if (i + ph) % (2 * every) == 0) | c))
+        b = min(1.0, a - 1.0)
+        out = [(p[0] + (q[0] - p[0]) * b, p[1] + (q[1] - p[1]) * b) for p, q in zip(p4, p8)]
+    return pin_lines(pts, out, lines) if lines else out

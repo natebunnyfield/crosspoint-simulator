@@ -157,7 +157,7 @@ def g_a(c):
         # is the UNION of the two: the run-then-arc owns the outer edge (it
         # is the wider one outside), the round-86 cubic owns the underside.
         under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-        under_prof = widths([(0.0, 0.85), (0.5, 0.85), (0.8, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
+        under_prof = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
@@ -176,7 +176,7 @@ def g_a(c):
     outer_closed = geom.resample(outer + [outer[0]])[:-1]
     tans_o = geom.tangents(outer_closed, closed=True); n_o = len(outer_closed)
     NEAR_STEM_W = 40.0
-    A_BOWL_ADJ = 0.85   # round 92 (adj 'a'): the bowl's stroke x this
+    A_BOWL_ADJ = 0.92   # round 92 (adj 'a'): the bowl's stroke x this; 0.85 -> 0.92 (owner, round 93: "don't thin out 'a' as much")
     def wfn2(t):
         i = min(n_o - 1, int(round(t * n_o))); p = outer_closed[i]
         w = max(PR.bowl_th(tans_o[i]) * (A_BOWL_ADJ if adj('a') else 1.0), S * 0.5)
@@ -231,7 +231,7 @@ def bowl_stem(c, side, top, bottom):
     edge = x + into * TH_V / 2
     clip = box(edge - 5, -1000, 3000, 2000) if into == 1 else box(-2000, -1000, edge + 5, 2000)
     solid = solid.intersection(clip)
-    foot = ('right' if side == 'right' else 'left') if bottom == 0 else ('left' if (ch == 'p' and adj('p')) else 'both')   # round 92 (adj 'p'): the descender's two-sided foot was a dark spot low-left
+    foot = ('right' if side == 'right' else 'left') if bottom == 0 else 'both'   # round 92 tried a one-sided foot on the p; owner, round 93: "keep the serif as it was" -- and "do not make half serif" on any letter
     st = stem(x, bottom, top, top='left', foot=foot, ent_span=(bottom, top))
     # no trap cutouts here: the first version's pointed INTO the strokes
     # (a nick on the outside at each crotch, seen at 500 px); no ruling asks

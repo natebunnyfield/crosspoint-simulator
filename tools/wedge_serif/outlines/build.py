@@ -90,7 +90,8 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
             # same construction the variable font's masters use
             phases = [cutter.phase() for _ in dense]
             amount = pen.CUT_AMOUNT if do_cut else 0.0
-            conts = [(cut.blend(pts, ph, amount), hole) for (pts, hole), ph in zip(dense, phases)]
+            lines = (0.0, pen.XH, pen.CAP) if not ch.isdigit() else (0.0, pen.XH, pen.CAP, (latin.FIG_BOX[ch][0] - latin.FIG_BOX[ch][1]) * C)   # round 93: the baseline, x-height and cap line are pinned through the cut
+            conts = [(cut.blend(pts, ph, amount, lines=lines), hole) for (pts, hole), ph in zip(dense, phases)]
         else:
             conts = []; dense = []; phases = []
         pen_ = TTGlyphPen(None)

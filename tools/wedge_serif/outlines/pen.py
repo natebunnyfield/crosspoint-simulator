@@ -71,7 +71,7 @@ TH_V = th(90); TH_H = th(0)                  # 77.3 and 55.4
 # its letter so it can be built ALONE on the round-90 base and judged as one
 # change. FJORD_ADJ is a string of letters, or "all". ADJ_DEFAULT is the set
 # that ships once he rules; empty until then.
-ADJ_DEFAULT = ""
+ADJ_DEFAULT = "zpnacotekiubwj"   # round 93, the owner's ruling on the round-92 page: yes to these; r l f stay as they were
 ADJ = os.environ.get("FJORD_ADJ", ADJ_DEFAULT)
 def adj(ch):
     """Is this letter's round-92 adjustment on? 'b' covers b and d; 'n'
