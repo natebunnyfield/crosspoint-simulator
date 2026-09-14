@@ -2421,4 +2421,7 @@ punctuation marks." The first four landed (guide rows). The a: `A_CURVES`
 `DOT_STYLE` 0-9 in `primitives.dot` -- exponent falling, a polygon of
 12-s sides, radial jitter 0.035 s from `life()`, `FJORD_DOT_STYLE`; every
 dot in the font (i j . , : ; ! ?) takes it. Pages: x e g z
-https://claude.ai/code/artifact/PENDING85; the a's and the dots follow.
+https://claude.ai/artifact/V99uonxouiPeFuu3wcjj29; the five a's
+https://claude.ai/artifact/1p2PqhY4Eo6fwKsmWQHinH; the ten dots
+https://claude.ai/artifact/GZmUL9BmJHbYRjkwnTvPPa. Awaiting the owner's picks
+(a curve 0-4, dot style 0-9); the static TTF sent is a curve 0, dot style 0.
