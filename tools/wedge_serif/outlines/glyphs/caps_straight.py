@@ -9,7 +9,7 @@ from .. import geom, pen
 from ..geom import cubic, line, join, superellipse, catmull, tangents
 from ..primitives import (stem, stem_edge_x, ring, ring_from, half_bowl, stroke, pen_widths, widths, dot, wedge,
                           diag_wedge, end_wedge, diagonal, bar, beak, trap)
-from ..pen import S, CS, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, BOWL_K, CAP_STEM
+from ..pen import S, CS, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, BOWL_K, CAP_STEM, CAP_BAR
 from .. import primitives as PR
 from ..primitives import bowl_widths, widen_terminal
 
@@ -99,7 +99,7 @@ def g_A(c):
     foot = wedge(Apt, (0, -1), (-1, 0), WL * 0.9, WD * 0.9, 0.0, edge_at=edge_at)
     r0, r1 = (w - s * 0.3, 0), (w / 2 - s * 0.18, C)
     right = diagonal(r0, r1, pw(r0, r1), serif0=1)
-    b = stroke(line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28)), TH_H)
+    b = stroke(line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28)), CAP_BAR * 0.9)   # round 94: the capitals' bar unit
     return geom.ink([left, foot, right, b])
 
 @glyph('B')
@@ -162,7 +162,7 @@ def g_D(c):
 def g_E(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'E', 420)
     st = cstem(x, 0, C, top='left', foot='left')
-    th = max(TH_H, S * 0.5)
+    th = CAP_BAR   # round 94
     return geom.ink([st, bar(x, x + w * 0.96, C, th, align='top', wedges=[('right', -1)]),
                      bar(x, x + w * 0.74, C * 0.54, th * 0.9, cut1=CUT),
                      bar(x, x + w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])])
@@ -171,7 +171,7 @@ def g_E(c):
 def g_F(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'F', 400)
     st = cstem(x, 0, C, top='left', foot='both')
-    th = max(TH_H, S * 0.5)
+    th = CAP_BAR   # round 94
     return geom.ink([st, bar(x, x + w, C, th, align='top', wedges=[('right', -1)]),
                      bar(x, x + w * 0.72, C * 0.54, th * 0.9, cut1=CUT)])
 
@@ -187,7 +187,7 @@ def g_G(c):
     # underside, so the two touched only through the 1.2-unit ink spread:
     # joined at 84/0.80, a hair apart at 94/0.60, apart at every heavier or
     # lower-contrast weight (round 62). The run now ends 8 units inside it.
-    bar_th = max(TH_H * 0.5, S * 0.5); yb = C * 0.42
+    bar_th = CAP_BAR * 0.8; yb = C * 0.42   # round 94
     cx = rx + TH_V / 2
     arc = superellipse(cx, C / 2, rx, ry, math.radians(43), math.radians(312), BOWL_K)
     xg = cx + rx + TH_V / 2 - CW / 2                   # the spur's centerline: its right edge = the bowl's
@@ -210,7 +210,7 @@ def g_G(c):
 @glyph('H')
 def g_H(c):
     C = c["cap"]; x0 = CS / 2; x1 = x0 + W_(c, 'H', 520)
-    return geom.ink([cstem(x0, 0, C), cstem(x1, 0, C, top='right'), bar(x0, x1, C * 0.52, max(TH_H, S * 0.5) * 0.95)])
+    return geom.ink([cstem(x0, 0, C), cstem(x1, 0, C, top='right'), bar(x0, x1, C * 0.52, CAP_BAR * 0.95)])   # round 94
 
 @glyph('I')
 def g_I(c):
@@ -315,7 +315,7 @@ def g_L(c):
         parts = [st, top_right]
     else:
         parts = [cstem(x, 0, C, top='left+', foot='left')]
-    return geom.ink(parts + [bar(x, x + w, 0, max(TH_H, S * 0.5), align='bottom', cut1=CUT, wedges=[('right', 1)])])
+    return geom.ink(parts + [bar(x, x + w, 0, CAP_BAR, align='bottom', cut1=CUT, wedges=[('right', 1)])])   # round 94
 
 # owner, verbatim: "slightly cleanup the top and middle serifs of 'M'."
 # Three faults, all one cause -- two strokes meeting at one point, each cut
@@ -440,7 +440,7 @@ def g_S(c):
 @glyph('T')
 def g_T(c):
     C = c["cap"]; w = W_(c, 'T', 520); x = w / 2
-    th = max(TH_H * 0.62, S * 0.45); yb = C - th / 2
+    th = CAP_BAR * 0.85; yb = C - th / 2   # round 94: was 0.62 of the pen's horizontal, a light line at 13 pt
     b = bar(0, w, C, th, align='top', wedges=[('left', -1), ('right', -1)])
     return geom.ink([b, cstem(x, 0, yb + th * 0.5 - 4, top=None, foot='both', ent_span=(0, C))])
 
@@ -543,7 +543,7 @@ def g_Z(c):
     the family's 0.9 x 0.9 diagonal end wedge past the bars. The other two
     corners keep their pen cut and their bar-end wedge."""
     from shapely.geometry import Polygon
-    C = c["cap"]; s = CS; w = W_(c, 'Z', 500); th = max(TH_H, S * 0.5)
+    C = c["cap"]; s = CS; w = W_(c, 'Z', 500); th = CAP_BAR   # round 94
     p_top, p_bot = (w - s * 0.15, C - th / 2), (s * 0.15, th / 2)
     dg = diagonal(p_top, p_bot, CS)
     parts = [bar(0, w, C, th, align='top', cut0=CUT, wedges=[('left', -1)]), dg, bar(0, w, 0, th, align='bottom', cut1=CUT, wedges=[('right', 1)])]

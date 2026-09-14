@@ -2690,3 +2690,15 @@ wght 50 / CNTR 0 and 1 -- its 0.58 S bars change topology at stem 58 -- and
 the w at wdth max; the c's heavy-end clamps are gone), specimen / sliders /
 proof republished.
 
+## Round 94 (2026-09-14): a's hood, the r, the capitals' bars, the double quotes
+
+Owner: "slightly reduce the top stroke of 'a' and reduce 'r' slightly so it
+fits with the rest of the chars; the crossbar for 'F' is too thin, take a
+pass at all capitals; give more space for double quotes so they don't
+touch." Guide rows for each. The capitals measured first (1000 px rasters,
+bar thickness over cap stem): Albo 0.47, Albertus 0.75, Berkeley 0.39; the
+pass puts one unit on every capital bar, `pen.CAP_BAR` at 0.68 of the cap
+stem, riding the pen so the CNTR axis moves it. Page (round 93 over now):
+https://claude.ai/artifact/PENDING94. Medium sent; VF rebuilt; specimen /
+sliders / proof republished.
+

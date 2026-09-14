@@ -65,6 +65,13 @@ def th(deg):
     a = math.radians(deg); return PEN.th((math.cos(a), math.sin(a)))
 def th_t(tan): return PEN.th(tan)
 TH_V = th(90); TH_H = th(0)                  # 77.3 and 55.4
+# Round 94 (owner 2026-09-14: "the crossbar for 'F' is too thin, take a pass
+# at all capitals"): the capitals' bars were the pen's horizontal (55), 0.47
+# of the cap stem after the cut, and dropped to gray at 13 pt while the stems
+# held black; Albertus's bars measure 0.75 of its cap stem, Berkeley's 0.39.
+# One unit for every capital bar, on the pen (so the CNTR axis moves it):
+CAP_BAR_F = 1.18
+CAP_BAR = TH_H * CAP_BAR_F                   # 65 at the default: 0.68 of the cap stem
 
 # Round 92 (owner 2026-09-14: "make all adjustments and present each
 # individually"): the lowercase adjustment list of round 91, each behind

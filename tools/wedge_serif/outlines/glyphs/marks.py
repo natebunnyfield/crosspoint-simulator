@@ -113,11 +113,12 @@ QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bow
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 
 QUOTE_BODY = 2 * DOT_R   # straight and curly quotes share this body height, top-aligned to CAP
+DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don't touch"): the two marks' centers, x S (1.3 before: a 48-unit gap, 2.6 px at 13 pt, gray between them)
 @glyph("'")
 def g_quotesingle(c): C = CAP(c); return stroke(line((S * 0.5, C - QUOTE_BODY), (S * 0.5, C)), TH_V * 0.8, cut0=CUT)
 @glyph('"')
 def g_quotedbl(c):
-    C = CAP(c); return geom.ink([stroke(line((S * 0.5 + i * S * 1.3, C - QUOTE_BODY), (S * 0.5 + i * S * 1.3, C)), TH_V * 0.8, cut0=CUT) for i in (0, 1)])
+    C = CAP(c); return geom.ink([stroke(line((S * 0.5 + i * S * DQ_GAP, C - QUOTE_BODY), (S * 0.5 + i * S * DQ_GAP, C)), TH_V * 0.8, cut0=CUT) for i in (0, 1)])
 def quote(c, x, up):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
@@ -130,9 +131,9 @@ def g_quoteright(c): return quote(c, S * 0.7, True)
 @glyph('‘')
 def g_quoteleft(c): return quote(c, S * 0.7, False)
 @glyph('”')
-def g_quotedblright(c): return geom.ink([quote(c, S * 0.7, True), quote(c, S * 2.0, True)])
+def g_quotedblright(c): return geom.ink([quote(c, S * 0.7, True), quote(c, S * (0.7 + DQ_GAP), True)])
 @glyph('“')
-def g_quotedblleft(c): return geom.ink([quote(c, S * 0.7, False), quote(c, S * 2.0, False)])
+def g_quotedblleft(c): return geom.ink([quote(c, S * 0.7, False), quote(c, S * (0.7 + DQ_GAP), False)])
 def dash(c, length): C = CAP(c); return stroke(line((0, C * 0.34), (length * C, C * 0.34)), TH_H)
 @glyph('-')
 def g_hyphen(c): return dash(c, 0.37)

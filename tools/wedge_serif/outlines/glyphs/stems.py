@@ -107,6 +107,7 @@ A_CURVES = [(0.66, 0.54, 22, 0.93),   # 0: round 84's
                                       # 14 -> 0, so the hood leaves the stem vertical, no kink
             (0.76, 0.58, 16, 0.95)]   # 9: the roundest of the tight ladder
 A_HOOD_FLUSH = True
+A_HOOD_W = 0.92   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic)
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 
@@ -147,7 +148,8 @@ def g_a(c):
         hood = join(run, arc)
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
-        prof = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn (a 3-unit inner ledge otherwise)
+        prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn (a 3-unit inner ledge otherwise)
+        prof = lambda t: prof0(t) * A_HOOD_W   # round 94 (owner: "slightly reduce the top stroke of 'a'")
         # owner 2026-09-14, on the smoothed corner: "there is now a corner
         # sticking out under the top stroke, on the other side of where the
         # corner was fixed. keep the original underneath, white space curve."
@@ -157,7 +159,8 @@ def g_a(c):
         # is the UNION of the two: the run-then-arc owns the outer edge (it
         # is the wider one outside), the round-86 cubic owns the underside.
         under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-        under_prof = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
+        under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
+        under_prof = lambda t: under0(t) * A_HOOD_W   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])

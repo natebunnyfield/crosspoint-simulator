@@ -120,9 +120,10 @@ def g_r(c):
     r_on = adj('r')
     st = stem(x0, 0, xh, top='left', foot='both', foot_len=(FOOT_R if r_on else 1.0))
     over_c = pen.ARCH_OVER - TH_H / 2
-    center = cubic((x0, xh * (0.56 if r_on else 0.6)), (x0, xh * 1.0), (x0 + 120 * wf, xh + over_c + 6), (x0 + 205 * wf, xh * 0.9))
-    base = pen_widths(center, floor=S * 0.78)
-    prof = widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.05)]) if r_on else widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.5)])
+    # round 94 (owner: "reduce 'r' slightly so it fits with the rest of the chars"): the arm's reach 205 -> R_REACH wf, its floor 0.78 -> R_FLOOR S, its flare 1.5 -> R_FLARE
+    center = cubic((x0, xh * (0.56 if r_on else 0.6)), (x0, xh * 1.0), (x0 + 120 * wf * R_REACH / 205, xh + over_c + 6), (x0 + R_REACH * wf, xh * 0.9))
+    base = pen_widths(center, floor=S * R_FLOOR)
+    prof = widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.05)]) if r_on else widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, R_FLARE)])
     wfn = lambda t: base(t) * prof(t)
     arm = stroke(center, wfn, cut1=CUT)
     # (a family end wedge was tried on the arm's tip and stood up like a horn -- the plain cut it is)
@@ -130,3 +131,4 @@ def g_r(c):
     cut = trap((xl, 0.52 * xh), (math.cos(math.radians(65)), math.sin(math.radians(65))), 18, S * (0.05 if r_on else 0.22))
     return geom.ink([st, arm], [cut])
 FOOT_R = 0.85   # round 92: the r's feet, x the family's foot length
+R_REACH, R_FLOOR, R_FLARE = 190, 0.72, 1.35   # round 94: was 205, 0.78, 1.5
