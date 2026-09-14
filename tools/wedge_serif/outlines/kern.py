@@ -68,21 +68,23 @@ RIGHT['flat'] = [g for g in RIGHT['flat'] if g not in RIGHT['asc']]
 
 # ---------------------------------------------------------------- values
 # (left class, right class) -> units. Multiples of STEP. Negative tightens.
+# Round 96: the marks' bearings grew 31 -> 59, so the period and quote cells
+# judged in round 95 moved one step deeper to keep the same tuck.
 CLASS_PAIRS = {
     # T: the bar overhangs; every lowercase tucks under it, rounds most
     ('T', 'round'): -126, ('T', 'flat'): -90, ('T', 'diag'): -90, ('T', 'asc'): -18,
     ('T', 'A'): -90, ('T', 'O'): -36, ('T', 'J'): -72,
-    ('T', 'period'): -126, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
+    ('T', 'period'): -144, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
     # V W: a diagonal right side; the rounds and the a tuck, the flats less
     ('VW', 'round'): -90, ('VW', 'flat'): -54, ('VW', 'diag'): -36, ('VW', 'asc'): -18,
     ('VW', 'A'): -90, ('VW', 'O'): -36, ('VW', 'J'): -54,
-    ('VW', 'period'): -126, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
+    ('VW', 'period'): -144, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
     ('Y', 'round'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18,
     ('Y', 'A'): -108, ('Y', 'O'): -54, ('Y', 'J'): -72,
-    ('Y', 'period'): -126, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
+    ('Y', 'period'): -144, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
-    ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -108,
+    ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -126,
     ('A', 'diag'): -36,
     # L: open above its arm
     ('L', 'T'): -108, ('L', 'VWY'): -108, ('L', 'quote'): -144, ('L', 'O'): -18,
@@ -93,12 +95,12 @@ CLASS_PAIRS = {
     ('K', 'round'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
     ('R', 'T'): -36, ('R', 'VWY'): -54, ('R', 'round'): -18,
     # lowercase overhangs before punctuation
-    ('r', 'period'): -72, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
-    ('f', 'period'): -36, ('f', 'hyphen'): -18,
-    ('vwy', 'period'): -72, ('vwy', 'hyphen'): -18,
+    ('r', 'period'): -90, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
+    ('f', 'period'): -54, ('f', 'hyphen'): -18,
+    ('vwy', 'period'): -90, ('vwy', 'hyphen'): -18,
     ('oround', 'quote'): -18,
     # quotes and periods
-    ('quote', 'A'): -108, ('quote', 'J'): -36, ('quote', 'T'): -54, ('quote', 'VWY'): -36,   # an opening quote before a T: the bar is at the quote's height, so only a little
+    ('quote', 'A'): -126, ('quote', 'J'): -36, ('quote', 'T'): -54, ('quote', 'VWY'): -36,   # an opening quote before a T: the bar is at the quote's height, so only a little
     ('T', 'quote'): -36, ('VW', 'quote'): -18, ('Y', 'quote'): -36,
     ('quote', 'round'): -18,
     ('period', 'quote'): -36,
@@ -126,18 +128,22 @@ def feature_text():
         assert v % STEP == 0, (l, r, v)
         lines.append(f'    pos @L_{l} @R_{r} {v};')
     lines.append('} kern;')
+    # round 96: the five standard ligatures; feaLib orders the longer sequences first
+    lines.append('feature liga {\n    sub f f i by uniFB03;\n    sub f f l by uniFB04;\n    sub f f by uniFB00;\n    sub f i by uniFB01;\n    sub f l by uniFB02;\n} liga;')
     return '\n'.join(lines) + '\n'
 
 def apply(path, out=None):
     """Write the kern feature into the TTF at `path` (a fresh GPOS; any
     previous one is replaced). Returns the output path."""
     font = TTFont(path)
-    for t in ('GPOS', 'GDEF'):
+    for t in ('GPOS', 'GDEF', 'GSUB'):
         if t in font: del font[t]
     names = set(font.getGlyphOrder())
     for cls in list(LEFT.values()) + list(RIGHT.values()):
         missing = [g for g in cls if g not in names]
         assert not missing, f"kern classes name glyphs the font lacks: {missing}"
+    if 'uniFB01' not in names:   # a file built before round 96: kern only
+        addOpenTypeFeaturesFromString(font, feature_text().split('feature liga')[0]); out = out or path; font.save(out); return out
     addOpenTypeFeaturesFromString(font, feature_text())
     out = out or path; font.save(out); return out
 

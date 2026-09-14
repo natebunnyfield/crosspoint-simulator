@@ -14,8 +14,10 @@ from . import geom, pen, cut
 from . import primitives as PR
 from .glyphs import GLYPHS
 
-CHARS, GLYPH_ORDER, gname = round19.CHARS, round19.GLYPH_ORDER, round19.gname
-SIDES = round19.SIDES
+LIGS = list("\ufb00\ufb01\ufb02\ufb03\ufb04")   # round 96: ff fi fl ffi ffl, cmap-encoded so the reader's extractor can reach them
+CHARS = round19.CHARS + LIGS; gname = round19.gname
+GLYPH_ORDER = ['.notdef', 'space'] + [gname(ch) for ch in CHARS]
+SIDES = dict(round19.SIDES); SIDES.update({"\ufb00": ('straight', 'open'), "\ufb01": ('straight', 'straight'), "\ufb02": ('straight', 'straight'), "\ufb03": ('straight', 'straight'), "\ufb04": ('straight', 'straight')})
 REF = round20.REF
 C = pen.CAP
 INK_SPREAD = 1.2
@@ -57,6 +59,10 @@ def solve_widths(passes=3):
             if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 
+PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
+PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
+A_LEFT = 2.0
+
 def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
     for capitals and figures); the g and every non-letter on their full
@@ -69,6 +75,17 @@ def fit(ch, conts, c):
     lt, rt = SIDES.get(ch, ('straight', 'straight'))
     capbear = REF["Hbear"] / 2 * C * pen.WIDTH   # the fitting follows the width axis
     lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
+    # Round 96 (owner 2026-09-14): "give punctuation more space, similar to the
+    # spacing work that double quotes recently received" and "'a' does not have
+    # enough space to its left ... 'ja' should have much more space". The marks
+    # were fitted at 0.5 of a straight side (31 units against the n's 45; Albertus
+    # 74 / n 49, Garamond 60 / 24, Berkeley 82 / 16), the a's left at the round
+    # 0.72 though its hood hangs over open space (Garamond 37 / n 24, Berkeley
+    # 33 / 16). Picked on a ladder: marks 1.5 (59), fences and dashes 1.0 (45),
+    # the a's left 2.0 (73).
+    if ch in PUNCT_MARKS: lsb = capbear * 1.5 + 17; rsb = capbear * 1.5 + 17
+    elif ch in PUNCT_FENCES: lsb = capbear * 1.0 + 17; rsb = capbear * 1.0 + 17
+    if ch == 'a': lsb = capbear * A_LEFT + 17
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 

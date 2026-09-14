@@ -2894,3 +2894,49 @@ W/Y/F/P-before-period and T-before-round cells at those two sizes only.
 `build/fjord-fonts/Albo-Regular.ttf` (42 KB) carries it. Page:
 https://claude.ai/artifact/NUv37wR5v6jKiMiHVvHsMi. Ligatures are the next
 round; nothing else moved.
+
+## Round 96 (2026-09-14): punctuation space, the a's left, the five ligatures
+
+Owner: "give punctuation more space, similar to the spacing work that
+double quotes recently received. seem like 'a' does not have enough space
+to its left and needs attention for an intentional rhythm in words ('ja'
+should have much more space, for example). after those changes, proceed
+with ligatures."
+
+**Measured first** (bearings, units; the references from
+`docs/fjord-glyph-guide.md` §000's files): Albo's marks sat at 31 a side,
+0.7 of the n's 45 -- Albertus's period is 74 against an n of 49, Garamond's
+60 / 24, Berkeley's 82 / 16. The a's left was 37, the round-side fraction,
+though the hood hangs over open space; Garamond gives its a 37 against an n
+of 24, Berkeley 33 against 16. Ladders were rendered by patching `hmtx` on
+the built file rather than rebuilding outlines (four rungs each, 100 px and
+13 pt); picked by eye:
+
+- **a's left: 37 -> 74** (`build.A_LEFT` = 2.0 of the H bearing; 91 loosened
+  "oat" and "pace").
+- **Marks . , : ; ! ? ' " quotes … *: 31 -> 60** (fraction 1.5); **fences
+  and dashes ( ) [ ] / \ - – — + = # @ _ % &: 31 -> 45** (1.0) -- at 73 the
+  parens and dashes floated. `build.PUNCT_MARKS` / `PUNCT_FENCES`.
+- The period and quote kern cells of round 95 moved one step deeper (T/V/W/Y
+  + period -144, r/v/w/y + period -90, f + period -54, quote <-> A -126) so
+  the tucks judged there hold under the wider bearings.
+
+**Ligatures fi fl ff ffi ffl** (`outlines/glyphs/ligatures.py`, on the f's
+parts via `stems.f_ink(hook_end=, hook_c2=, hook_profile=)`, which `g_f`
+now calls). Stylistic, not collision fixes (no f-pair collides, round 95).
+The f's hook flows INTO the i's dot, arriving on a diagonal at the dot's
+upper-left shoulder -- the first cut ended vertically at dot height and the
+pen's full stem weight on a vertical tangent made it read as the stem
+climbing into a knot; the second cut, with the dot itself back under the
+hook, reads as fi. The hook rises into the l's top-left wedge (`FL_PUSH`
+0.40). The first f of ff is buried in the second's stem (`FF_STEP` 1.38
+radii; 1.02 was cramped -- the first cut placed every following stem ~50
+units closer than the natural pair and the hooks piled into the stem tops)
+under one continuous bar. cmap at U+FB00-FB04 (`build.LIGS`), `liga` in
+`outlines/kern.py` (which now resets GSUB too and skips liga on a pre-round-96
+file); the firmware's extractor reads all five back (ffi and ffl as chains).
+Advances fi 477 / fl 489 / ff 503 / ffi 667 / ffl 679 against pairs of 623 /
+606 / 620 / 933 / 916 -- the pair counts the f's arm overhang in the f's own
+advance, the ligature fits on its ink, so a word with one sets shorter.
+Judged at 300 and 100 px and 13 pt. Page:
+https://claude.ai/artifact/HRgSSYaKkzFbaPGBozQP15. 99 glyphs now.

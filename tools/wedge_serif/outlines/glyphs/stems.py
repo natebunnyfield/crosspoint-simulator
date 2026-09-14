@@ -52,18 +52,32 @@ def g_j(c):
     wfn = widths([(0.0, TH_V * jt), (0.45, S * jt), (1.0, S * 0.10)])
     return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R_ADJ if adj('j') else DOT_R)])
 
+def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True):
+    """The f's three solids (round 42 construction). The ligatures (round 96,
+    `glyphs/ligatures.py`) re-aim the hook: `hook_end` replaces the cubic's
+    end point, `hook_c2` its second control, `hook_profile` the width keys;
+    `parts=True` returns [stem, hook, bar] unfused."""
+    xh = c["xh"]; asc = c["asc"]; wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
+    st = stem(x, 0, asc - r + 30, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
+    end = hook_end or (x + r * 1.25, asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9, asc + 8)
+    hook = cubic((x, asc - r), (x, asc + 8), c2, end)
+    prof = hook_profile or [(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)]
+    hk = stroke(hook, pen_widths(hook, widths(prof)), cut1=(CUT if hook_cut else None))
+    th = TH_H * 0.8
+    b = stroke([(x - S * 0.5 - 45 * wf, xh - th / 2), (x + S * 0.5 + 120 * wf, xh - th / 2)], th)
+    return [st, hk, b] if parts else geom.ink([st, hk, b])
+
+def f_geometry(c):
+    """The f's stem centre x, hook radius r, and the bar's right end."""
+    wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
+    return x, r, x + S * 0.5 + 120 * wf
+
 @glyph('f')
 def g_f(c):
     """VdK's f (round 42): hook radius 200, reaching 0.65 xh past the stem,
     flaring into the pen cut; the bar 0.8 of the pen with its top on the
     x-height, 45 left / 120 right."""
-    xh = c["xh"]; asc = c["asc"]; wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
-    st = stem(x, 0, asc - r + 30, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
-    hook = cubic((x, asc - r), (x, asc + 8), (x + r * 0.9, asc + 8), (x + r * 1.25, asc - r * 0.55))
-    hk = stroke(hook, pen_widths(hook, widths([(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)])), cut1=CUT)
-    th = TH_H * 0.8
-    b = stroke([(x - S * 0.5 - 45 * wf, xh - th / 2), (x + S * 0.5 + 120 * wf, xh - th / 2)], th)
-    return geom.ink([st, hk, b])
+    return f_ink(c)
 
 @glyph('t')
 def g_t(c):
