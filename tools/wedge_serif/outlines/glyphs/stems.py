@@ -72,21 +72,28 @@ def f_geometry(c):
     wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
     return x, r, x + S * 0.5 + 120 * wf
 
-ITALIC_A_BOWL = 0.36      # the single-storey a's bowl HALF-WIDTH, x the x-height (its height is the x-height band)
+# Round 103 (owner: "fix a being squished"). The italic a's bowl is now a
+# factor on the O's OWN centerline radius, not an independent fraction of the
+# x-height: at 0.36 xh it came out 0.68 wide over tall against the o's 0.842 --
+# 20% narrower than the letter it is supposed to be a sibling of, which is
+# exactly what "squished" looks like. Derived from the o, it tracks IT_OVAL and
+# every later ruling on the o for free. 0.96 because an a's bowl sits a touch
+# narrower than an o, not a fifth narrower.
+ITALIC_A_BOWL = 0.96      # the single-storey a's bowl, x the o's centerline radius
 def g_a_italic(c):
     """The italic a: ONE storey -- a bowl and a stem, the o's own ring with
     the stem on its right. A sloped two-storey a is the commonest tell of a
     sloped roman pretending to be an italic, so this is the first form the
     italic switches (guide: an italic is not a slope)."""
-    from ..primitives import ring
-    xh = c["xh"]; wf = c["wf"]
-    # The bowl fills the x-height BAND, exactly as the o does: a first cut
-    # sized it by its own width (0.34 xh radius) and the letter came out
-    # 0.6 of the x-height, reading as a small-cap a inside the word.
-    ry = xh / 2 + OVER
-    rx = xh * ITALIC_A_BOWL * wf
-    bowl, *_ = ring(rx, xh / 2, rx, ry, w_scale=1.0)
-    st = stem(rx * 2 - S * 0.5 + S * 0.08, 0, xh, top=None, foot='right', ent_span=(0, xh))
+    from .rounds import o_ring, O_RX
+    xh = c["xh"]
+    # THE O'S OWN RING, at 0.96 of its radius -- so the a cannot drift from the
+    # o, and IT_OVAL reaches it. (Two earlier cuts sized this bowl by hand: the
+    # first at 0.34 xh came out 0.6 of the x-height and read as a small cap,
+    # the second at 0.36 xh was the right height and a fifth too narrow.)
+    bowl, outer, inner = o_ring(c, O_RX * ITALIC_A_BOWL)
+    x0, y0, x1, y1 = bowl.bounds
+    st = stem(x1 - S * 0.5 + S * 0.08, 0, xh, top=None, foot='right', ent_span=(0, xh))
     return geom.ink([bowl, st])
 
 def g_f_italic(c):

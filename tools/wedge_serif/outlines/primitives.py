@@ -157,7 +157,7 @@ def stem_width(w0, ent, t):
     record's quadratic waisted the whole stem, visibly at 300 px.)"""
     return w0 * (1.0 + ent * (2 * t - 1) ** 4)
 
-def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=False,
+def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=False,   # round 103: `cap` also gates the italic entry/exit
          top_len=1.0, top_depth=1.0, foot_len=FOOT, foot_depth=1.0, top_drop=1.0, foot_drop=0.6,
          top_scale=1.0, cut_top=None):
     """A vertical stem from y0 to y1 with entasis, its wedges as part of the
@@ -189,6 +189,8 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
     if top:
         main = -1 if top in ("left", "left+", "both") else +1
         sides = [main] + ([-main] if top in ("both", "left+", "right+") else [])
+        if pen.ITALIC and pen.IT_ENTRY and not cap and y1 > 0 and abs(y0) < 1.0:
+            sides = [sd for sd in sides if sd > 0]   # the entry replaces the LEFT top wedge, as the exit replaces the right foot
         for i, sd in enumerate(sides):
             small = (top in ("left+", "right+")) and i == 1
             L_ = wl * (0.4 if small else top_len) * top_scale; D_ = wd * (0.6 if small else top_depth); dr = DROP * (0.4 if small else top_drop)
@@ -196,9 +198,36 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
             parts.append(wedge(A, (0, 1), (sd, 0), L_, D_, dr, edge_at=edge_fn(sd, True)))
     if foot:
         sides = {"both": (-1, 1), "left": (-1,), "right": (1,)}[foot]
+        # round 103: a calligraphic exit REPLACES the right foot, it does not
+        # stand beside it. The first cut kept both and the feet grew barbs --
+        # a spur down-right off every m, n, i and u, which reads as thorns and
+        # is the opposite of flowing.
+        if pen.ITALIC and pen.IT_EXIT and not cap and abs(y0) < 1.0:
+            sides = tuple(sd for sd in sides if sd < 0)
         for sd in sides:
             A = (x + sd * wid(y0) / 2, y0)
             parts.append(wedge(A, (0, -1), (sd, 0), wl * foot_len, wd * foot_depth, DROP * foot_drop, edge_at=edge_fn(sd, False)))
+    # ---------------------------------------------------------------- round 103
+    # THE CALLIGRAPHIC ENTRY AND EXIT (owner: "much more calligraphic flowing
+    # strokes"). A written italic does not start and stop: the pen arrives into
+    # a stem from the previous letter and leaves it toward the next, and those
+    # two flicks are most of what makes a page of italic look written rather
+    # than sheared. They are added HERE, on the stem, rather than per letter,
+    # so every lowercase stem that stands on the baseline gets them and none
+    # of the capitals or figures do (`cap` gates that).
+    if pen.ITALIC and not cap and abs(y0) < 1.0:
+        if pen.IT_EXIT:
+            L = S * pen.IT_EXIT
+            xe = x + wid(y0) / 2
+            path = cubic((xe - wid(y0) * 0.34, y0 + S * 0.16), (xe + L * 0.22, y0 + S * 0.02),
+                         (xe + L * 0.66, y0 + L * 0.26), (xe + L * 1.02, y0 + L * 0.82))
+            parts.append(stroke(path, widths([(0.0, wid(y0) * 0.92), (0.45, S * 0.34), (1.0, S * 0.10)]), cut0=None))
+        if pen.IT_ENTRY and (top or y1 > 0):
+            L = S * pen.IT_ENTRY
+            xs_ = x - wid(y1) / 2
+            path = cubic((xs_ - L * 1.00, y1 - L * 0.74), (xs_ - L * 0.68, y1 - L * 0.30),
+                              (xs_ - L * 0.30, y1 + S * 0.02), (xs_ + wid(y1) * 0.30, y1 - S * 0.10))
+            parts.append(stroke(path, widths([(0.0, S * 0.10), (0.55, S * 0.34), (1.0, wid(y1) * 0.92)]), cut1=None))
     return geom.union(parts)
 
 def stem_edge_x(x, w, ent, y, lo, hi, side):

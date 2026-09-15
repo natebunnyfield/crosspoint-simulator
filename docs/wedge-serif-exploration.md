@@ -3518,3 +3518,38 @@ Every reference could have justified dropping them further, but the wedge is
 what Albo is, and an italic that loses it stops being this family's italic.
 That is the harmonizing decision and the only one in the table without a
 measurement behind it.
+
+## Round 103 (2026-09-14): 13 degrees, the a unsquished, and the calligraphic flick
+
+Owner: **"put at 13 degrees; fix a being squished"**, then, mid-round: **"and
+let's do much more calligraphic flowing strokes in these."**
+
+Page: https://claude.ai/artifact/QsRpWEzEsCrwDLzi8dFxwo
+
+**The slant is 13** (was the round-102 ruling of 10).
+
+**The a, measured before and after.** It was sized by its own constant,
+`ITALIC_A_BOWL` as a fraction of the x-height, and came out **0.68 wide over
+tall against the o's 0.842** -- a fifth narrower than the letter it is a
+sibling of, which is exactly what "squished" looks like. It is **the o's own
+ring at 0.96 of its radius** now (`rounds.o_ring(c, O_RX * 0.96)`), so it
+tracks the o, `IT_OVAL` reaches it, and every later ruling on the o reaches it
+for free. Now 0.930 wide over tall. This is the THIRD sizing of that bowl:
+the first (0.34 xh) came out 0.6 of the x-height and read as a small cap, the
+second (0.36 xh) had the right height and the wrong width. Deriving it from
+the o is what should have been done at the first.
+
+**The flick.** `IT_EXIT` and `IT_ENTRY` are drawn in `primitives.stem` rather
+than per letter, so every lowercase stem standing on the baseline gets them
+and no capital or figure does (`cap` gates it). A written italic does not
+start and stop: the pen arrives into a stem from the previous letter and
+leaves toward the next.
+
+**The one thing that had to be got right:** the exit **REPLACES** the right
+foot wedge and the entry replaces the left top wedge. The first cut kept both
+and every m, n, i and u grew a spur down-right -- barbs, which is the
+opposite of flowing, and visible immediately at 250 px. A written exit IS the
+foot; it does not stand beside one.
+
+Seven options from no flick to a full chancery hand with the wedge gone
+altogether; nothing chosen.
