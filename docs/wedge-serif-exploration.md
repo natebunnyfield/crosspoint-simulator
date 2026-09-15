@@ -4708,3 +4708,41 @@ Shipped at `E_WT` **1.25**, between the honest read and the scan's appearance �
 the measured 2–3 px is inflated by ~1 px per edge by ink spread, which would put
 Griffo's true stroke *lighter* than Albo's stem, and 1.00 looks wiry beside
 Pagella. 1.00 and 1.55 are on the page as G and I.
+
+### Round 117b — the `e` corrected, and a better scan
+
+Owner, mid-round: *"you've missed that the e crossbar is angled and the whole
+character is one loop."* Both correct, and a new reference proves it — the
+**Stagnino Dante of 1502**, the same cutter at THREE TIMES the linear
+resolution of `aldine.png`: a **35 px x-height against 13**. Page:
+<https://www.griffoggl.com/en/corsivi/>, image
+`stagnino-dante-griffo-italic-corsivo2.jpg`, kept locally as
+`~/Downloads/griffo-dante-1502.jpg`. It is a JPEG, so the edges are lossy —
+fine at this size, but the weights below are read off runs, not off single
+pixels.
+
+The `e` in *Che* runs x191–212, y965–999. Two of round 117's findings are
+wrong:
+
+| round 117 said | the Dante shows |
+|---|---|
+| the bar is **flat** — "one row of ink, no measurable rise" | the bar runs (191,985) → (209,977): **a rise of 8 over a run of 14, about 30°** |
+| the lower right is **open** | **closed** — rows 987–991 carry a second run at x205–210, so the letter has TWO counters: the eye (x200–204, rows 973–976) and a larger one below the bar (x198–204, rows 987–991) |
+
+**The method failed the same way twice, and it is worth naming.** At a 13 px
+x-height a bar is one row of ink and CANNOT show a slant; a 1 px flank falls
+under any threshold. Round 117 read both absences as measurements and wrote
+"no measurable rise" as though it were a finding. *Unresolvable* and *absent*
+are not the same, and a scan has a floor below which it can only be quoted for
+what it does show.
+
+**And it is ONE STROKE.** The pen starts at the bar's left, rises right along
+the bar, carries up and over the crown, comes down the left — passing its own
+start — rounds the bottom, and climbs the right to stop under the bar's right
+end. The bar is where the loop closes on itself. The `arc + bar laid across it`
+of round 117 is gone.
+
+Weights off the same rows: left flank 6 px (0.17 × xh, ≈0.87 × the stem), crown
+8 px (≈1.15 ×), the bar 5 px vertical at 30°, so ≈4.3 px perpendicular
+(≈0.63 ×) — the pen's thin. Shipped at `E_WT` 1.00, which is now a measurement
+rather than the judgment call round 117 had to make.

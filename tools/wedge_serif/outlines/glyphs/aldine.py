@@ -149,157 +149,56 @@ if ON:
         wf = pen_widths(p, floor=S * FLOOR)
         return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT)])
 
-    # MEASURED off two e's in aldine.png, by ink runs per row: the one in
-    # "resona" (x278-287, rows 31-45) and the first e of "Meliboee"
-    # (x185-192, rows 69-83). They agree, and they overturn what round 115
-    # assumed:
+    # RE-MEASURED off griffo-dante-1502.jpg -- the Stagnino Dante, the same
+    # cutter at THREE TIMES the linear resolution of aldine.png (a 35 px
+    # x-height against 13). The e in "Che" runs x191-212, y965-999.
     #
-    #   width          0.57-0.67 x the x-height -- a NARROW letter
-    #   the bar        at 0.60 of the x-height, HIGH, and FLAT. One row of ink
-    #                  in both, with no measurable rise; the "slants up hard"
-    #                  in the old docstring was never measured.
-    #   the eye        2-3 px by 3 px in a 14 px band -- tiny, and sitting
-    #                  right of centre, where the slant puts the crown.
-    #   the lower right OPEN. Below the bar there is left flank only; the
-    #                  bottom sweeps right and the terminal STOPS about 3 px
-    #                  short of the letter's right edge without curling up.
+    # It corrects round 117 on two counts, and the owner called both before
+    # the measurement did:
     #
-    # So it is not a ring with a bar across it. It is ONE arc running from the
-    # eye's top right, over, down the left, round the bottom, out to a short
-    # terminal -- plus the bar closing the eye.
-    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.70))       # letter width, x xh
-    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.60))   # the bar's height, x xh
-    E_BAR_W = float(os.environ.get("ALBO_ALD_E_BAR_W", 0.62))  # its weight, x TH_H
-    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.60))   # where the terminal stops, x the width
-    # Its own pen floor. The scan's e runs 2-3 px of ink on a 14 px band --
-    # 0.14-0.21 x the x-height, against Albo's stem at 0.196 -- so the letter
-    # is as heavy as a stem all the way round, and the module's FLOOR of 0.30
-    # drew it as wire.
-    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.46))
-    # A FLOOR could not fix it: the pen's own width down the left flank is
-    # already well above it, so raising the floor changed nothing visible.
-    # The letter needs the whole arc scaled.
-    E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.25))
+    #   THE BAR IS ANGLED, not flat -- from (191,985) up to (209,977), a rise
+    #   of 8 over a run of 14, about 30 degrees. At a 13 px x-height the bar
+    #   is one row of ink and CANNOT show a slant; round 117 read that
+    #   absence as evidence and wrote "no measurable rise". It was the
+    #   resolution, not the letter.
+    #
+    #   THE LOWER RIGHT IS CLOSED. Rows 987-991 carry a second run at
+    #   x205-210 -- the lower bowl's right flank -- so the letter has TWO
+    #   counters, the small eye above the bar (x200-204, rows 973-976) and a
+    #   larger one below it (x198-204, rows 987-991). On the 13 px scan that
+    #   flank is a pixel wide and fell under the threshold.
+    #
+    # And it is ONE STROKE, not an arc with a bar laid across it: the pen
+    # starts at the bar's left, rises right along the bar, carries up over the
+    # crown, comes down the left -- passing its own start -- rounds the
+    # bottom, and climbs the right to stop under the bar's right end. The bar
+    # is where the loop closes on itself.
+    #
+    # Weights, off the same rows: left flank 6 px (0.17 x xh, ~0.87 x the
+    # stem), crown 8 px (~1.15 x), the bar 5 px vertical at 30 degrees, so
+    # ~4.3 px perpendicular (~0.63 x) -- the pen's thin.
+    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.63))       # letter width, x xh (22/35 measured)
+    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.40))   # the bar's LEFT end, x xh
+    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.63))  # its RIGHT end -- the rise
+    E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
 
     @glyph('e')
     def a_e(c):
         xh = c["xh"]; W = E_W * xh
         X = lambda f: S * 0.55 + f * W
         Y = lambda f: f * xh
-        # The arc STARTS at the bar's height on the right, climbs the eye's
-        # right flank, over the crown, down the left, round the bottom, out.
-        # Starting it above the bar (the first cut) leaves the eye open on the
-        # right and the letter reads as an f.
-        p = catmull([(X(0.78), Y(E_BAR + 0.06)), (X(0.80), Y(0.80)), (X(0.62), Y(0.98)),
-                     (X(0.34), Y(0.90)), (X(0.18), Y(0.72)), (X(0.10), Y(0.50)),
-                     (X(0.10), Y(0.30)), (X(0.22), Y(0.12)), (X(0.42), Y(0.06)),
-                     (X(E_END), Y(0.14))], tension=0.5)
-        # The terminal ends RISING and stops. In the scan the rightmost ink is
-        # at 0.14 of the band, with rows 44-45 merely the stroke's own
-        # thickness below it -- so an end pinned at the baseline drew a hook
-        # curling back under the bowl, which is not on the page.
-        wf = pen_widths(p, floor=S * E_FLOOR)
-        # thin where it leaves the eye, full down the left flank, tapering out
-        # of the terminal -- which is a stop, not a hook.
-        arc = stroke(p, lambda t: wf(t) * E_WT * (0.62 + 0.38 * min(1.0, t / 0.22)
-                                           - 0.30 * max(0.0, (t - 0.86) / 0.14)),
-                     cut0=CUT, cut1=CUT)
-        bar = stroke([(X(0.08), Y(E_BAR)), (X(0.78), Y(E_BAR))], TH_H * E_BAR_W)
-        return geom.ink([arc, bar])
-
-    # MEASURED off the a of "Formoſam" in aldine.png -- the blob flood-filled
-    # away from its neighbours, upscaled 24x, and read ROW BY ROW. The numbers
-    # are what killed three earlier attempts:
-    #
-    #   row   ink runs, x as a fraction of the letter's width
-    #   0.05  one run, 0.81..0.97      -- the stem alone: the short ascender
-    #   0.30  one run, 0.43..0.88      -- the ARM, crossing to the stem
-    #   0.45  0.18..0.30 | 0.58..0.83  -- two runs: the counter has opened
-    #   0.75  0.01..0.79 | 0.84..1.00  -- the bowl's bottom sweeping across
-    #   0.98  0.12..0.23 | 0.64..0.77  -- two feet, separate
-    #
-    # So the bowl is NOT a ring and its widest point is NOT at mid-height: the
-    # counter is a rounded TRIANGLE with its point up at the arm, and the bowl
-    # reaches furthest left at about three quarters of the way DOWN. Every
-    # earlier cut here drew an ellipse centred at half the x-height, which is a
-    # different letter however its radius is dialled -- and that is why the
-    # ladder only ever chose between an 'a' and a 'd'.
-    # MEASURED off aldine.png, row by row, on two separate a's -- the one in
-    # "resonaram" at x223-234 and the one at x326-338. Both give the same
-    # letter and it is not the one drawn before this: the bowl's top joins the
-    # stem AT the x-line in a tight arc (not a long diagonal arm reaching down
-    # from a tall stem), the counter is a SMALL rounded triangle pointing up,
-    # and -- the part that makes it an a rather than a d -- the bowl's bottom
-    # rejoins the stem about a fifth of the way UP, leaving a notch above the
-    # foot. Every earlier cut ran it into the stem at the baseline, which is a
-    # d, which is what the ladders kept rendering.
-    A_W = float(os.environ.get("ALBO_ALD_A_W", 1.00))       # letter width, x xh (12/12 measured)
-    A_STEM = float(os.environ.get("ALBO_ALD_A_STEM", 0.67)) # the stem's center, x the width
-    # The rise is the whole a/d question. The scan puts 2-3 px of ink above a
-    # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
-    # thin spike at the same height reads as a d however right the bowl is.
-    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.12)) # the head above the x-line, x xh
-    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
-    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
-    A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 0.90))  # the bowl's left flank, x the stem
-    # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
-    # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
-    # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
-    # bowl and kicks it right along the baseline; the scan does the same. The
-    # ordinary FOOT_LEN is the arch letters' blunt outstroke and is too short
-    # to read as that exit.
-    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 3.30))  # the exit's length, x the stem
-    A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
-
-    @glyph('a')
-    def a_a(c):
-        """One stem with an angled head, and one bowl stroke that leaves the
-        stem at the x-line, swings left and down, round the bottom, and comes
-        back UP to the stem a fifth of the way above the baseline."""
-        xh = c["xh"]; W = A_W * xh
-        X = lambda f: S * 0.55 + f * W
-        Y = lambda f: f * xh
-        xs_ = X(A_STEM)
-        top = xh + A_RISE * xh
-        parts = list(st(xs_, 0, top, head=False, foot=True, foot_len=A_TAIL, foot_w=A_TAIL_W))
-        if A_HEAD:
-            L = S * A_HEAD; a = math.radians(HEAD_DEG)
-            dx, dy = math.cos(a) * L, math.sin(a) * L
-            parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
-                                 (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
-        p_ = catmull([(X(A_STEM - 0.01), Y(1.00)), (X(0.44), Y(0.88)), (X(0.25), Y(0.70)),
-                      (X(0.13), Y(0.48)), (X(0.11), Y(0.26)), (X(0.24), Y(0.06)),
-                      (X(0.44), Y(0.09)), (X(A_STEM - 0.09), Y(A_JOIN))], tension=0.5)
-        # Weight read off the same rows: thin where the arc leaves the stem,
-        # the flank at three quarters of the stem, the bottom heaviest.
-        parts.append(stroke(p_, widths([(0.0, S * 0.60), (0.22, S * 0.54),
-                                        (0.45, S * A_FLANK), (0.74, S * (A_FLANK + 0.10)),
-                                        (1.0, S * 0.66)]), cut0=CUT))
-        return geom.ink(parts)
-
-    @glyph('b')
-    def a_b(c):
-        xh = c["xh"]; x0 = S * 1.0; rx = 142 * _w(c)
-        return geom.ink(st(x0, 0, c["asc"], head=True, foot=False)
-                        + [bowl(c, x0 + rx * 0.86, rx, top=BOWL_TOP)])
-
-    @glyph('d')
-    def a_d(c):
-        xh = c["xh"]; rx = 142 * _w(c); x1 = S * 0.6 + rx * 1.78
-        return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)] + st(x1, 0, c["asc"], head=True))
-
-    @glyph('p')
-    def a_p(c):
-        x0 = S * 1.0; rx = 142 * _w(c)
-        return geom.ink(st(x0, -c["desc"], c["xh"], head=False, foot=False)
-                        + [bowl(c, x0 + rx * 0.86, rx, top=BOWL_TOP)])
-
-    @glyph('q')
-    def a_q(c):
-        rx = 142 * _w(c); x1 = S * 0.6 + rx * 1.78
-        return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)]
-                        + st(x1, -c["desc"], c["xh"], head=False))
+        p = catmull([(X(0.00), Y(E_BAR)),   (X(0.82), Y(E_BAR_R)),  # the bar, rising
+                     (X(0.91), Y(0.80)),    (X(0.55), Y(0.94)),     # up and over the crown
+                     (X(0.18), Y(0.86)),    (X(0.09), Y(0.69)),     # down the left
+                     (X(0.00), Y(0.31)),    (X(0.05), Y(0.14)),     # past its own start
+                     (X(0.36), Y(0.03)),    (X(0.64), Y(0.11)),     # round the bottom
+                     (X(0.82), Y(0.26)),    (X(0.82), Y(0.34))],    # up the right, stop
+                    tension=0.5)
+        wf = widths([(0.00, S * 0.55), (0.09, S * 0.63), (0.18, S * 0.62),
+                     (0.27, S * 1.15), (0.36, S * 0.95), (0.45, S * 0.88),
+                     (0.55, S * 0.90), (0.64, S * 0.92), (0.73, S * 0.95),
+                     (0.82, S * 0.80), (0.91, S * 0.62), (1.00, S * 0.45)])
+        return geom.ink([stroke(p, lambda t: wf(t) * E_WT, cut0=CUT, cut1=CUT)])
 
     @glyph('f')
     def a_f(c):
