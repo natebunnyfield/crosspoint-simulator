@@ -190,12 +190,79 @@ print(f"source set is current ({len(compiled)} firmware TUs compiled, "
 PYGATE
 
 say "Version"
-# Build number = highest existing build-N tag + 1, so re-uploads never collide.
-# CFBundleVersion must be unique for a marketing version; Apple rejects a repeat
-# outright.
+# Build number = one past the highest number ANYONE has used, so re-uploads
+# never collide. CFBundleVersion must be unique for a marketing version and
+# Apple rejects a repeat outright.
+#
+# ASKING APP STORE CONNECT IS THE POINT, and local tags alone are not enough.
+# This script tags build-N on success, but the GitHub Actions workflow computes
+# its own numbers and does not push tags back, so on 2026-09-14 local tags
+# reached 194 while ASC already held 195-200 from CI. This script chose 195,
+# which had been taken since 2026-09-12, and Apple silently assigned 201 --
+# leaving tag build-195 pointing at the commit that actually shipped as 201.
+# Uploads kept succeeding, so nothing went red; the tags just stopped answering
+# "which commit is on my phone", which is the only reason they exist.
+#
+# So: take the max of the local tags and ASC's own latest build. Self-correcting
+# whoever uploaded last and by whatever route. The key is the same .p8 the
+# upload authenticates with, and the interpreter probe is the same one the
+# processing watch needs -- ~/.zshenv replaces PATH for zsh scripts, so plain
+# `python3` here is often a homebrew one with no PyJWT (see the watch below).
+#
+# NON-FATAL BY DESIGN. If the query cannot run -- no PyJWT anywhere, network
+# down, credentials rotated -- fall back to the tags and say so. A deploy must
+# not be blocked by a number it can usually guess correctly; the worst case is
+# the behaviour we had before this block existed.
 LAST_BUILD=$(git -C "$REPO" tag --list 'build-*' \
              | sed 's/^build-//' | sort -n | tail -1)
-BUILD_NUMBER=$(( ${LAST_BUILD:-0} + 1 ))
+LAST_BUILD=${LAST_BUILD:-0}
+
+ASC_PY=""
+for candidate in python3 /usr/bin/python3 "$HOME/.asdf/shims/python3" \
+                 /opt/homebrew/bin/python3; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c 'import jwt' >/dev/null 2>&1; then
+    ASC_PY="$candidate"; break
+  fi
+done
+
+ASC_LAST=""
+if [ -n "$ASC_PY" ]; then
+  ASC_LAST=$("$ASC_PY" - "$ASC_KEY_ID" "$ASC_ISSUER" "$ASC_KEY_PATH" "$BUNDLE_ID" <<'PYASC' 2>/dev/null
+import jwt, time, json, sys, urllib.request
+key_id, issuer, key_path, bundle = sys.argv[1:5]
+try:
+    key = open(key_path).read()
+    def get(path):
+        tok = jwt.encode({"iss": issuer, "exp": int(time.time()) + 1200,
+                          "aud": "appstoreconnect-v1"}, key,
+                         algorithm="ES256", headers={"kid": key_id})
+        req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path,
+                                     headers={"Authorization": f"Bearer {tok}"})
+        return json.load(urllib.request.urlopen(req, timeout=30))
+    app_id = get(f"/v1/apps?filter[bundleId]={bundle}")["data"][0]["id"]
+    # Sorted by -version, which ASC sorts NUMERICALLY for CFBundleVersion, but
+    # take the max over the page rather than trusting the first row: the sort is
+    # not documented as numeric and a lexicographic one would put 99 above 201.
+    builds = get(f"/v1/builds?filter[app]={app_id}&limit=20&sort=-version")["data"]
+    nums = [int(b["attributes"]["version"]) for b in builds
+            if b["attributes"]["version"].isdigit()]
+    print(max(nums) if nums else "")
+except Exception:
+    print("")
+PYASC
+)
+fi
+
+if [ -n "$ASC_LAST" ] && [ "$ASC_LAST" -gt "$LAST_BUILD" ] 2>/dev/null; then
+  echo "App Store Connect's latest build is $ASC_LAST; local tags stop at $LAST_BUILD" \
+       "(CI uploads do not push tags back) -- numbering from ASC"
+  LAST_BUILD=$ASC_LAST
+elif [ -z "$ASC_LAST" ]; then
+  echo "could not ask App Store Connect for the latest build -- numbering from" \
+       "local tags only ($LAST_BUILD). If Apple renumbers this upload, that is why."
+fi
+BUILD_NUMBER=$(( LAST_BUILD + 1 ))
 
 # Marketing version is bumped only on demand. TestFlight's daily upload cap
 # (error 90382) is per marketing version, so that is the lever when it trips —
