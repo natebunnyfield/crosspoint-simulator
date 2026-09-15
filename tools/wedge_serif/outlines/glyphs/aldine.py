@@ -51,9 +51,10 @@ def _w(c):
     return c["wf"]
 
 
-def st(x, y0, y1, head=False, foot=True, w=1.0):
+def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
     """A stem. `head` puts the Aldine angled head across its top; `foot` the
-    blunt outstroke to the right at the baseline."""
+    blunt outstroke to the right at the baseline. `foot_len` overrides the
+    outstroke's length (x the stem) for a letter whose exit runs longer."""
     parts = [stroke([(x, y0), (x, y1)], S * w)]
     if head:
         a = math.radians(HEAD_DEG); L = S * HEAD_LEN
@@ -62,12 +63,13 @@ def st(x, y0, y1, head=False, foot=True, w=1.0):
         p1 = (x + dx * 0.36, y1 + dy * 0.36 - S * 0.02)
         parts.append(stroke([p0, p1], S * HEAD_W, cut0=CUT))
     if foot:
-        L = S * FOOT_LEN
+        L = S * (FOOT_LEN if foot_len is None else foot_len)
         parts.append(stroke(cubic((x - S * w * 0.42, y0 + S * 0.30),
                                   (x - S * w * 0.10, y0 + S * 0.02),
                                   (x + L * 0.42, y0 + S * 0.02),
                                   (x + L, y0 + L * 0.46)),
-                            widths([(0.0, S * w * 0.92), (0.5, S * 0.42), (1.0, S * 0.30)])))
+                            widths([(0.0, S * w * 0.92), (0.5, S * (0.42 if foot_w is None else foot_w * 1.40)),
+                                    (1.0, S * (0.30 if foot_w is None else foot_w))])))
     return parts
 
 
@@ -190,11 +192,19 @@ if ON:
     # The rise is the whole a/d question. The scan puts 2-3 px of ink above a
     # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
     # thin spike at the same height reads as a d however right the bowl is.
-    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.05)) # the head above the x-line, x xh
-    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 0.70))
-    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 0.92))  # its weight, x HEAD_W
+    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.12)) # the head above the x-line, x xh
+    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
+    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
     A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 0.90))  # the bowl's left flank, x the stem
+    # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
+    # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
+    # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
+    # bowl and kicks it right along the baseline; the scan does the same. The
+    # ordinary FOOT_LEN is the arch letters' blunt outstroke and is too short
+    # to read as that exit.
+    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 3.30))  # the exit's length, x the stem
+    A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
 
     @glyph('a')
     def a_a(c):
@@ -206,7 +216,7 @@ if ON:
         Y = lambda f: f * xh
         xs_ = X(A_STEM)
         top = xh + A_RISE * xh
-        parts = list(st(xs_, 0, top, head=False, foot=True))
+        parts = list(st(xs_, 0, top, head=False, foot=True, foot_len=A_TAIL, foot_w=A_TAIL_W))
         if A_HEAD:
             L = S * A_HEAD; a = math.radians(HEAD_DEG)
             dx, dy = math.cos(a) * L, math.sin(a) * L

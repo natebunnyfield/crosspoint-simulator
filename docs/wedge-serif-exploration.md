@@ -4609,3 +4609,22 @@ Negative result worth keeping: the measured stroke weights off the scan are
 inflated by ~1 px per edge by ink spread at 13 px x-height, so the raw
 stem/x-height of 0.31 is not a weight target — it is Albo's own weight that
 decides that, and only the SKELETON comes off the page.
+
+### Round 116c — arm C taken, and the exit extended
+
+Owner, on the 116b ladder: *"yes to C · rise 0.12, head 1.55× — reads d, but it
+needs more of an extended tail to match the scan"*, with **TeX Gyre Pagella
+Italic** supplied as the Palatino reference. It is banked at
+`tools/wedge_serif/refs/texgyrepagella-italic.otf`.
+
+So the `a` ships at what 116b measured as the *rejected* arm — rise **0.12**,
+head **1.15** at **1.55×** weight — and the thing that stops it reading as a `d`
+is the EXIT, not the rise. Pagella runs the stem past the bowl and kicks it
+right along the baseline; the scan does the same; Albo's ordinary `FOOT_LEN`
+(0.80) is the arch letters' blunt outstroke and is far too short to read as
+that. `st()` took `foot_len` and `foot_w` overrides, and the `a` ships at
+**3.30 × the stem, ending at 0.48 × the stem**.
+
+The weight half mattered as much as the length: at the default taper (ending at
+0.30) a 2.70 tail still read as a hairline rather than a stroke, which is arm D
+on the page.
