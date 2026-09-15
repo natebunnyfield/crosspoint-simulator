@@ -3860,3 +3860,75 @@ ear is also what inflates the g's advance, which is the hole after the g in
 "gorge". Four changes at once is what round 108 did; they wait for his eye.
 
 Page: https://claude.ai/artifact/8roi46zVqUsbcMkTnsC48E
+
+### Round 109d (2026-09-14): the g started over, and the corner
+
+Owner: **"start over with g, do not leave out any gaps strokes and fuck it up
+further"**, then, mid-round, **"there is a corner, two stroke to the left that
+you need to be including"**.
+
+**The structure was the problem, not the parts, and measuring the parts is why
+that took four rounds to see.** Walking Coelacanth's whole outer contour rather
+than boxing its pieces says the g is not a bowl plus a loop plus a connector.
+It is a bowl, and then ONE continuous stroke that leaves the bowl's bottom-left,
+turns a corner out to the left, comes round the loop counter-clockwise through
+343 degrees, and rises along the loop's top back to the same place on the bowl.
+The two ends land at 259.0 and 258.5 degrees -- the ring is in effect cut by a
+single radial face, the stroke leaving from its inner corner and returning to
+its outer. A wire strung between two closed rings is not what the pen does, and
+no amount of work on the connector's tangency could rescue it.
+
+**THE SLANT WAS COUNTED TWICE**, and that inverted the two facts that matter
+most. The first pass read Coelacanth's boxes off its shipped outlines, which
+carry its own slant, and used them as DESIGN offsets in Albo, where `build.py`
+shears again at the end. Sheared, its loop appears to sit 0.19 bowl-widths LEFT
+of the bowl and its neck appears to bulge past the bowl's left edge; unsheared,
+the loop sits 0.17 to the RIGHT and the neck stays 0.098 xh INSIDE that edge.
+Note its `post.italicAngle` reads **0.0**, which is simply false -- the 13.57
+degrees is measured off its l, two scanlines through the stem. Round 102's
+lesson again with the slant in it: a wrong measurement carries the authority of
+a number.
+
+**The corner he named is real and it is two strokes.** In the outline it is two
+nearly straight edges: one from the bowl's bottom-left running down-left to a
+point, one from that point running down-right into the loop. The contour runs
+counter-clockwise with the ink on its left, so the centreline is half a pen-
+width down-right of that edge, which puts the corner at **0.845 of the bowl's
+centreline half-width left of the bowl's centre, 0.036 xh below the baseline**.
+An earlier cut this same round measured only the neck's two ENDPOINTS, found
+them 16 units apart in x, and concluded the neck was near-vertical. The
+endpoints are near-vertical; the path between them is not.
+
+**The depth is Albo's, and that is a measurement too.** Coelacanth's g bottoms
+at 0.812 xh -- and so do its p (0.810), q (0.839) and j (0.800). A deep g is
+that family's descender, not a property of the letter. Albo's p and q bottom at
+0.643 and 0.655, so the g takes 0.655 and the loop is fitted into it. That
+shallower descender under a taller bowl is also why the loop runs flatter here,
+1.50 against Coelacanth's 1.34, and the limit is MECHANICAL: an ellipse's
+radius of curvature at its ends is its half-height squared over its half-width,
+and as that approaches the pen's half-width the stroke's inner edge folds
+through itself. At 1.62 the ratio was 1.96 and the loop's far left came to a
+pinched corner; at 1.50 it is 2.36.
+
+**Three contours, which is the reference's topology.** The region between the
+neck going down and the return coming up is SOLID in Coelacanth -- its g has
+exactly the outline and two counters. Albo's two strokes run close and near-
+parallel out of the bowl and left slivers where they almost touched, arriving in
+the built font as extra contours of 31x12 and 13x13 units. Three things were
+tried and measured before the right one: separating the two ends along the ring
+(opened a 41x16 crack), separating them across it (made it wider), and a blot at
+the junction (could not reach them, because they are strung along the pair
+rather than gathered at one point). Filling **the area the two strokes enclose**
+-- out, the short way round the loop between the two attachment angles, and back
+-- closes them exactly.
+
+Also fixed in the same rebuild: the ear was a hairline stick rising above the
+x-height, and is now a short nearly-horizontal stroke 0.82 to 1.03 of the bowl's
+own wall, reaching 0.145 xh past it at 0.819 xh. The g's advance is **595**
+units, down from 760, and its width 1.263 xh against Coelacanth's 1.228.
+
+Sampling: the descending stroke is handed to `stroke()` RAW at ~64 points per
+cubic and 300 round the loop. `geom.SPACING` is 11 units, which is smooth enough
+for the gentle curves everywhere else in the face and was visibly faceted here.
+
+Page: https://claude.ai/artifact/YE7kRefrnmj7PQHk5L4W3W

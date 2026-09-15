@@ -315,71 +315,251 @@ if pen.ITALIC:
         return geom.ink([stroke(top, lambda t: max(tw_(t) * (0.5 + 0.5 * min(1.0, t / 0.3)), S * 0.16), cut0=None, cut1=None),
                          st, stroke(bot, lambda t: max(bw(t) * (1.0 - 0.6 * max(0.0, (t - 0.6) / 0.4)), S * 0.14), cut0=None, cut1=None), bar])
 
+    # ------------------------------------------------------------- the g
+    # Round 109d. Written from a COMPLETE trace of Coelacanth's italic g
+    # rather than from separate measurements of its parts, because the parts
+    # were never the problem -- the structure was. Walking that letter's outer
+    # contour all the way round says it is not a bowl plus a loop plus a
+    # connector. It is a bowl, and then ONE continuous descending stroke that
+    # leaves the bowl's bottom-left heading down and LEFT, swings out past the
+    # bowl's own left edge, comes round the loop counter-clockwise through 343
+    # degrees, and rises along the loop's top back to the SAME place on the
+    # bowl's bottom. Both ends land within 17 degrees of each other there --
+    # the ring is effectively cut by one radial face at 250 degrees, the
+    # stroke leaving from that cut's inner corner and returning to its outer
+    # corner. That is why every earlier cut of this letter read as two rings
+    # with a wire between them, however the wire was drawn: a wire between two
+    # closed rings is not what the pen does, and no amount of tangency fixes a
+    # structure that is wrong.
+    #
+    # EVERY NUMBER BELOW IS UNSHEARED, and that correction is the round's
+    # second lesson. The first pass read Coelacanth's boxes straight off the
+    # shipped outlines -- which carry its own 13.57-degree slant, measured off
+    # its l rather than taken from post.italicAngle, which is 0.0 and a lie --
+    # and then used them as DESIGN offsets in Albo, where build.py shears
+    # again at the end. The slant got counted twice. It inverted the two facts
+    # that matter most here: sheared, the loop appears to sit 0.19 bowl-widths
+    # LEFT of the bowl and the neck appears to bulge past the bowl's left
+    # edge; unsheared, the loop sits 0.17 bowl-widths to the RIGHT and the
+    # neck stays a tenth of an x-height INSIDE that edge. Round 102 recorded
+    # that a wrong measurement is worse than no measurement because it carries
+    # the authority of a number; this is the same trap with the slant in it.
+    #
+    # Coelacanth's g with its slant removed, at its 415 x-height:
+    #
+    #   bowl outer      308.4 x 411.0   centre (147.2,  210.5)
+    #   bowl counter    175.2 x 293.0   side wall 66.6 = 0.160 xh
+    #   loop outer      372.0 x 308.0   centre (199.5, -183.0)
+    #   loop counter    283.1 x 180.0
+    #   neck outer      x 33.6..126.2, y -80..53 -- leftmost 0.098 xh INSIDE
+    #                   the bowl's own left edge, so there is no bulge at all
+    #   ear             x 251.8..365.7, y 306..380, tip 0.145 xh past the
+    #                   bowl's right edge at 0.819 xh, 0.81 -> 1.03 of the
+    #                   bowl's own side wall in thickness
+    #
+    #   loop half-width / bowl half-width   1.206
+    #   loop centre                         +0.170 bowl-widths (RIGHT)
+    #   the stroke leaves and rejoins the bowl at 259 and 258.5 degrees
+    #   it meets the loop at 124 and leaves it at 100
+    #
+    # THE DEPTH IS ALBO'S, NOT COELACANTH'S, and that is a measurement too.
+    # Coelacanth's g bottoms at 0.812 of its x-height -- and so do its p
+    # (0.810), q (0.839) and j (0.800). A deep g is that family's descender,
+    # not a property of the letter. Albo's own p and q bottom at 0.643 and
+    # 0.655, so the g takes 0.655 and the loop is fitted into that depth by
+    # Coelacanth's own two proportions (centre at 0.543 of the depth, half-
+    # height 0.457 of it). Copying 0.812 would have hung one letter a third of
+    # a descender below every other.
+    # ALBO'S DESCENDER CANNOT HOLD COELACANTH'S LOOP, and the letter is laid
+    # out from that fact rather than against it. Coelacanth's bowl has a
+    # bottom wall of 0.193 xh, so its ring's CENTRELINE bottom sits 0.108 xh
+    # ABOVE the baseline and its loop's centreline top 0.147 xh below it --
+    # 0.255 xh of neck between them, inside a 0.812 xh descender. Albo's
+    # bottom wall is 0.093 xh (a higher-contrast pen), so its centreline
+    # bottom is at 0.016 xh, and its descender is 0.655. Ask for Coelacanth's
+    # loop proportions in that space and the loop's top lands ABOVE the
+    # baseline, inside the bowl: the first cut of this drew the loop from the
+    # depth down, the neck came out 0.11 xh long, and the two stub strokes'
+    # square caps collided at the join and stood out as a barb.
+    #
+    # So the NECK is the fixed quantity and the loop is fitted under it: the
+    # loop's centreline top is one neck-length below where the stroke leaves
+    # the bowl, its centreline bottom is the descender less half the pen, and
+    # its width follows from an aspect ratio rather than from the bowl. The
+    # neck is shortened to 0.155 xh, which is what the space allows, and the
+    # loop then runs flatter than Coelacanth's (1.50 against its 1.34) -- an
+    # honest consequence of a shallower descender under a taller bowl, not a
+    # taste decision. It cannot go flatter than that, and the limit is
+    # mechanical rather than aesthetic: an ellipse's radius of curvature at its
+    # ends is (half-height squared) over (half-width), and when that approaches
+    # the pen's half-width the stroke's inner edge folds through itself. At
+    # 1.62 the ratio was 1.96 and the loop's far left came to a pinched corner;
+    # at 1.50 it is 2.36. Coelacanth can afford 1.34 at a ratio of 4.1 because
+    # its loop is bigger relative to its pen, which is the same shallow-
+    # descender constraint seen from the other side.
+    G_DEPTH    = 0.655    # of the x-height -- Albo's own p/q descender
+    G_NECK     = 0.155    # x the x-height: centreline distance from the bowl to the loop
+    G_LOOP_ASP = 1.50     # the loop's centreline width over its height
+    G_LOOP_DX  = 0.060    # loop centre, this many bowl-widths right of the bowl's
+    G_OUT_DEG  = 258.0    # where the stroke leaves the bowl
+    G_IN_DEG   = 258.0    # and where it rejoins it -- the SAME point, which is
+                          # what Coelacanth does (259.0 and 258.5). Separating
+                          # them was an attempt to stop the two square end caps
+                          # meeting point-to-point and standing out as a barb;
+                          # that barb was really a symptom of the neck being a
+                          # stub, and once the neck had its corner and its full
+                          # length the separation only bought a white crack
+                          # between the departure and the return -- 53 x 20
+                          # units of it, its own contour in the built font.
+    G_LOOP_OUT = 124.0    # where it meets the loop going out
+    G_LOOP_IN  = 100.0    # and leaves the loop coming back
+    G_NECK_CX  = 0.845    # THE CORNER. The neck is not one smooth curve: it is
+    G_NECK_CY  = 0.036    # two strokes meeting at a sharp corner out to the
+                          # LEFT, and leaving it out is what made Albo's neck
+                          # read as a plain vertical connector. Owner, round
+                          # 109d: "there is a corner, two stroke to the left
+                          # that you need to be including." It is in
+                          # Coelacanth's outline as two nearly straight edges:
+                          # one from the bowl's bottom-left running down-left
+                          # to a point, and one from that point running
+                          # down-right into the loop. Reading the centreline
+                          # back off it -- the contour runs counter-clockwise
+                          # with the ink on its left, so the centreline is half
+                          # a pen-width down-right of that edge -- puts the
+                          # corner at 0.845 of the bowl's centreline half-width
+                          # left of the bowl's centre, and 0.036 of the
+                          # x-height BELOW the baseline. An earlier cut of this
+                          # round measured only the neck's two ENDPOINTS, found
+                          # them 16 units apart in x, and concluded the neck
+                          # was near-vertical; the endpoints are near-vertical
+                          # and the path between them is not.
+    G_JOIN     = 0.55     # how far the return overshoots the bowl's ring
+                          # centreline, x the flat pen -- see the junction note
+    G_EAR_DEG  = 33.0     # where the ear leaves the bowl
+    G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
+    G_EAR_Y    = 0.819    # the height of that tip (x xh)
+
     @glyph('g')
     def g_g_it(c):
-        """Rebuilt on the O, and on a MEASUREMENT of Coelacanth's g
-        (`docs/italic-g-strokes.md`). Its skeleton, coloured by stroke width,
-        says three things that decide this letter:
-
-        1. the pen's edge lies at 22 degrees -- thin when the stroke runs
-           along that, thick at 112, which is Albo's own 26-degree stress
-           within four degrees. So the widths do NOT need declaring: the pen
-           gives them, IF the strokes actually run in those directions.
-        2. the loop is a big ROUND tilted oval, not a flat sweep. That is why
-           its left and bottom come out thick and its right thin -- a flat
-           loop runs horizontal the whole way and a horizontal run is the
-           pen's thin, which is why three previous cuts of this loop came out
-           as wire whatever floor or width table they were given.
-        3. the bowl is the o; the neck between them is a hairline; the ear is
-           one short thick stroke off the shoulder.
-
-        So: the o's own ring, a ring for the loop, a hairline neck, an ear."""
-        xh = c["xh"]; desc = c["desc"]
+        """The bowl is Albo's own o. Everything below it is ONE stroke."""
+        xh = c["xh"]
         bowl, bo, bi = o_ring(c, O_RX)
         bx0, by0, bx1, by1 = bowl.bounds
-        w = bx1 - bx0
-        # THE LOOP AS A RING -- round and deep enough to have descending and
-        # ascending runs, which is where the pen's thick and thin come from.
-        # Measured off Coelacanth (docs/italic-g-strokes.md): its loop is the
-        # SAME WIDTH as its bowl (both span 0.66 of the glyph), shifted left by
-        # 0.19, and as TALL as the bowl -- it fills the whole descender from
-        # the baseline down. The first ring was 0.40 of the descender in half-
-        # height and sat at -0.54, so it hung low and flat and read as a
-        # separate little oval under the letter.
-        lrx = w * 0.52; lry = desc * 0.50
-        lcx = bx0 + w * 0.30; lcy = -desc * 0.50
-        loop, lo, li = ring(lcx, lcy, lrx, lry, w_scale=1.0, floor=S * 0.30)
-        # THE CONNECTOR FOLLOWS THE PATH. It is not a line drawn between two
-        # shapes: it is the pen carrying on. So its two ends are TANGENT to
-        # the curves it leaves and joins -- the start point and its direction
-        # are read off the bowl's own outline, the end point and its direction
-        # off the loop's, and the cubic's controls run along those tangents.
-        # Every previous version picked two coordinates and interpolated, and
-        # the stroke arrived at each end pointing the wrong way, which is what
-        # made it read as a stick bolted across the gap.
-        def _at(contour, target, prefer_low=True):
-            """The contour point nearest `target`, and its unit tangent."""
-            P = list(contour); n = len(P)
-            best = min(range(n), key=lambda i2: (P[i2][0] - target[0]) ** 2 + (P[i2][1] - target[1]) ** 2)
-            a1 = P[(best - 3) % n]; b1 = P[(best + 3) % n]
-            dx, dy = b1[0] - a1[0], b1[1] - a1[1]
+        bw = bx1 - bx0
+        bcx = (bx0 + bx1) / 2; bcy = (by0 + by1) / 2
+        # the bowl's CENTRELINE ellipse: the outer box less half the pen, which
+        # is thick where the ring runs vertically and thin where it runs flat.
+        # A stroke that leaves or rejoins the bowl has to start and finish HERE
+        # to be the same pen rather than a thing stuck onto the outside.
+        crx = bw / 2 - TH_V / 2
+        cry = (by1 - by0) / 2 - TH_H / 2
+
+        depth = xh * G_DEPTH
+        # Both ends sit on the SAME point of the bowl's ring centreline, and
+        # the return then OVERSHOOTS it. Two square end caps meeting there make
+        # a V that opens downward, and that V sealed a white crack into the
+        # junction -- its own contour in the built font, 41 x 16 units. Moving
+        # the two ends apart, along the ring or across it, only ever made the V
+        # wider; carrying the return a little PAST the meeting point makes the
+        # two stroke bodies overlap instead, and the V has nowhere to open.
+        t_out = math.radians(G_OUT_DEG); t_in = math.radians(G_IN_DEG)
+        P0 = (bcx + crx * math.cos(t_out), bcy + cry * math.sin(t_out))
+        P9 = (bcx + crx * math.cos(t_in), bcy + cry * math.sin(t_in))
+        top = min(P0[1], P9[1]) - xh * G_NECK      # the loop's centreline top
+        bot = -(depth - TH_H / 2)                  # and its centreline bottom
+        mry = (top - bot) / 2
+        mrx = mry * G_LOOP_ASP
+        lcy = (top + bot) / 2
+        lcx = bcx + bw * G_LOOP_DX
+
+        def bez(p0, c1, c2, p3, n=64):
+            # sampled DENSELY and handed to stroke() raw. geom.SPACING is 11
+            # units, which is smooth enough for the gentle curves everywhere
+            # else in the face and is visibly faceted on a loop this tight.
+            out_ = []
+            for i in range(n + 1):
+                t = i / n; u = 1 - t
+                out_.append((u*u*u*p0[0] + 3*u*u*t*c1[0] + 3*u*t*t*c2[0] + t*t*t*p3[0],
+                             u*u*u*p0[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*p3[1]))
+            return out_
+
+        def L(phi):
+            return (lcx + mrx * math.cos(phi), lcy + mry * math.sin(phi))
+
+        def LT(phi):
+            dx, dy = -mrx * math.sin(phi), mry * math.cos(phi)
             m = math.hypot(dx, dy) or 1.0
-            return P[best], (dx / m, dy / m)
-        # leaves the bowl at its BOTTOM, x 0.41 of the glyph (measured)
-        p0, t0 = _at(bo, (bx0 + w * 0.41, by0))
-        if t0[1] > 0: t0 = (-t0[0], -t0[1])          # travelling DOWNWARD out of the bowl
-        # joins the loop at its top-left, where the measured connector lands
-        p1, t1 = _at(lo, (lcx - lrx * 0.34, lcy + lry))
-        if t1[1] > 0: t1 = (-t1[0], -t1[1])          # arriving DOWNWARD into the loop
-        span = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
-        neck = cubic(p0,
-                     (p0[0] + t0[0] * span * 0.45, p0[1] + t0[1] * span * 0.45),
-                     (p1[0] - t1[0] * span * 0.45, p1[1] - t1[1] * span * 0.45),
-                     p1)
-        nw_ = pen_widths(neck)
-        ear = catmull([(bx1 - TH_V * 0.8, xh * 0.80), (bx1 + S * 0.25, xh * 0.98),
-                       (bx1 + S * 0.85, xh * 1.02), (bx1 + S * 1.05, xh * 0.90)], tension=0.5)
-        ew = pen_widths(ear)
-        return geom.ink([bowl, loop,
-                         stroke(neck, lambda t: max(nw_(t) * 0.72, S * 0.34), cut0=None, cut1=None),
-                         stroke(ear, lambda t: max(ew(t) * (0.9 - 0.45 * t), S * 0.14), cut0=None)])
+            return (dx / m, dy / m)
+
+        phi_out = math.radians(G_LOOP_OUT); phi_in = math.radians(G_LOOP_IN)
+
+        # OUT -- down and LEFT out of the bowl's bottom, swinging toward (but
+        # never past) the bowl's own left edge, arriving tangent to the loop.
+        # This swing is the neck, and it is the one part of the descending
+        # stroke with a free outer edge; the rest of it is bounded by the
+        # loop's counter on one side and the letter's silhouette on the other.
+        # It leaves at a CORNER, not a tangent: at 253 degrees the bowl's own
+        # tangent is nearly horizontal while the neck has to set off downward,
+        # and Coelacanth's outline has exactly that corner in it. Then it runs
+        # STRAIGHT down-left to a second corner, and turns from there into the
+        # loop -- the two strokes, and the corner between them.
+        Pa = L(phi_out); Ta = LT(phi_out)
+        C = (bcx - crx * G_NECK_CX, -xh * G_NECK_CY)
+        seg1 = [(P0[0] + (C[0] - P0[0]) * i / 44.0,
+                 P0[1] + (C[1] - P0[1]) * i / 44.0) for i in range(45)]
+        seg2 = bez(C,
+                   (C[0] + (Pa[0] - C[0]) * 0.34, C[1] - (C[1] - Pa[1]) * 0.30),
+                   (Pa[0] - Ta[0] * mrx * 0.45, Pa[1] - Ta[1] * mrx * 0.45),
+                   Pa)
+        out = seg1 + seg2[1:]
+        # ROUND -- counter-clockwise, all the way to where the return starts
+        span = 2 * math.pi - (phi_out - phi_in)
+        steps = 300
+        rnd = [L(phi_out + span * i / steps) for i in range(steps + 1)]
+        # BACK -- up along the loop's top into the bowl's bottom
+        Pb = L(phi_in); Tb = LT(phi_in)
+        back = bez(Pb,
+                   (Pb[0] + Tb[0] * mrx * 0.45, Pb[1] + Tb[1] * mrx * 0.45),
+                   (P9[0] + TH_V * 0.10, P9[1] - (P9[1] - Pb[1]) * 0.34),
+                   P9)
+        # the overshoot: carry the return on past the bowl's centreline
+        ex, ey = back[-1][0] - back[-4][0], back[-1][1] - back[-4][1]
+        em = math.hypot(ex, ey) or 1.0
+        over = TH_H * G_JOIN
+        back = back + [(back[-1][0] + ex / em * over * i / 8.0,
+                        back[-1][1] + ey / em * over * i / 8.0) for i in range(1, 9)]
+        path = out + rnd[1:] + back[1:]
+        # The pen's own width by direction, floored so the loop's flat runs do
+        # not go to wire -- the round-109 finding, kept: a horizontal run IS
+        # the pen's thin, and a loop this flat is horizontal for most of itself.
+        wfn = pen_widths(path, floor=S * 0.34)
+        # `pieces` because the path crosses itself where the return passes the
+        # departure; one polygon would make a hole of that crossing.
+        tail = stroke(path, wfn, raw=True, pieces=True)
+        # THE WEB. Coelacanth's g has exactly three contours -- the outline
+        # and the two counters -- so the region between the neck going down and
+        # the return coming up is SOLID there, not a slot. Albo's two strokes
+        # run close and near-parallel out of the bowl's bottom, and where they
+        # very nearly touch they left slivers of white: four contours in the
+        # built font instead of three, two of them 31 x 12 and 13 x 13 units.
+        # A blot at the junction could not reach them, because they are strung
+        # out along the pair rather than gathered at one point. So the area the
+        # two strokes ENCLOSE is filled directly: out, the short way round the
+        # loop between where one meets it and the other leaves it, and back.
+        short = [L(phi_out - (phi_out - phi_in) * i / 48.0) for i in range(49)]
+        web = geom.poly(out + short[1:] + back[1:])
+
+        # THE EAR -- a short, nearly horizontal stroke off the shoulder, as
+        # thick as the bowl's own wall and THICKENING to a blunt end. It was a
+        # hairline stick rising above the x-height, which is what blew the
+        # letter's advance out and left the holes around it in a word.
+        ea = math.radians(G_EAR_DEG)
+        E0 = (bcx + crx * math.cos(ea), bcy + cry * math.sin(ea))
+        E1 = (bx1 + xh * G_EAR_OUT, xh * G_EAR_Y)
+        run = E1[0] - E0[0]
+        earc = cubic(E0,
+                     (E0[0] + run * 0.45, E0[1] + (E1[1] - E0[1]) * 0.60),
+                     (E1[0] - run * 0.38, E1[1]),
+                     E1)
+        ear = stroke(earc, lambda t: TH_V * (0.82 + 0.22 * t), cut0=None)
+        return geom.ink([bowl, tail, web, ear])
