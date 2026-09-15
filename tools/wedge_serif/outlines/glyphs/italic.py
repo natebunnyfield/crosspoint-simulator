@@ -349,17 +349,33 @@ if pen.ITALIC:
         lrx = w * 0.52; lry = desc * 0.50
         lcx = bx0 + w * 0.30; lcy = -desc * 0.50
         loop, lo, li = ring(lcx, lcy, lrx, lry, w_scale=1.0, floor=S * 0.30)
-        # THE CONNECTOR, measured off Coelacanth rather than guessed
-        # (docs/italic-g-strokes.md): it leaves the bowl's BOTTOM -- x 0.41 of
-        # the glyph's width, not its right side -- and runs DOWN AND LEFT at
-        # about -108 degrees to x 0.29, where the loop's top begins. Its width
-        # there is 41 against the letter's median 57, so it is thinned but not
-        # a hairline. The previous neck left the bowl's lower RIGHT and ran
-        # down-right: the wrong side of the letter, and the reason the join
-        # read as a stick rather than a turn.
-        nx0 = bx0 + w * 0.45
-        neck = cubic((nx0 + TH_V * 0.20, xh * 0.26), (nx0, xh * 0.02),
-                     (bx0 + w * 0.32, -desc * 0.06), (lcx - lrx * 0.42, -desc * 0.26))
+        # THE CONNECTOR FOLLOWS THE PATH. It is not a line drawn between two
+        # shapes: it is the pen carrying on. So its two ends are TANGENT to
+        # the curves it leaves and joins -- the start point and its direction
+        # are read off the bowl's own outline, the end point and its direction
+        # off the loop's, and the cubic's controls run along those tangents.
+        # Every previous version picked two coordinates and interpolated, and
+        # the stroke arrived at each end pointing the wrong way, which is what
+        # made it read as a stick bolted across the gap.
+        def _at(contour, target, prefer_low=True):
+            """The contour point nearest `target`, and its unit tangent."""
+            P = list(contour); n = len(P)
+            best = min(range(n), key=lambda i2: (P[i2][0] - target[0]) ** 2 + (P[i2][1] - target[1]) ** 2)
+            a1 = P[(best - 3) % n]; b1 = P[(best + 3) % n]
+            dx, dy = b1[0] - a1[0], b1[1] - a1[1]
+            m = math.hypot(dx, dy) or 1.0
+            return P[best], (dx / m, dy / m)
+        # leaves the bowl at its BOTTOM, x 0.41 of the glyph (measured)
+        p0, t0 = _at(bo, (bx0 + w * 0.41, by0))
+        if t0[1] > 0: t0 = (-t0[0], -t0[1])          # travelling DOWNWARD out of the bowl
+        # joins the loop at its top-left, where the measured connector lands
+        p1, t1 = _at(lo, (lcx - lrx * 0.34, lcy + lry))
+        if t1[1] > 0: t1 = (-t1[0], -t1[1])          # arriving DOWNWARD into the loop
+        span = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        neck = cubic(p0,
+                     (p0[0] + t0[0] * span * 0.45, p0[1] + t0[1] * span * 0.45),
+                     (p1[0] - t1[0] * span * 0.45, p1[1] - t1[1] * span * 0.45),
+                     p1)
         nw_ = pen_widths(neck)
         ear = catmull([(bx1 - TH_V * 0.8, xh * 0.80), (bx1 + S * 0.25, xh * 0.98),
                        (bx1 + S * 0.85, xh * 1.02), (bx1 + S * 1.05, xh * 0.90)], tension=0.5)

@@ -63,8 +63,20 @@ E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rou
 # long lower-right tail. E_DEG_IT is the bar's rise in degrees, E_END_IT the
 # radial where the arm's end face is cut (smaller = shorter tail).
 E_DEG_IT = float(os.environ.get("ALBO_E_DEG", 16.0))   # rung C of the round-109 ladder
-E_END_IT = float(os.environ.get("ALBO_E_END", 318.0))
-E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.55))   # round 109b (owner: "an ordinary tapered tail"): 0.30 came to a wisp; 0.55 is a normal taper   # the arm's width at its very end, x its ordinary width: the taper
+# Round 109c. E_END_IT is now where the ring STOPS and the tail stroke below
+# takes over. It is at the BOWL'S BOTTOM, and that position is not a taste
+# call: the aperture cuts the ring along a ray from the centre, while the tail
+# is built perpendicular to its own travel, so the two faces coincide EXACTLY
+# only where the ray and the stroke's normal are parallel -- which is at the
+# bottom, where the stroke runs flat. Cut anywhere up the right shoulder and
+# the two disagree by the angle between them, which showed as a tooth of ring
+# standing proud of the tail. So the tail draws the whole lower-right sweep,
+# which is also how Coelacanth's e is built.
+E_END_IT = float(os.environ.get("ALBO_E_END", 276.0))
+E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.40))   # the tail stroke's width where it ends, x its width where it leaves the bowl
+E_TIP_X = float(os.environ.get("ALBO_E_TIPX", 0.72))     # the tail's tip, x: this many bowl radii right of the bowl's centre
+E_TIP_Y = float(os.environ.get("ALBO_E_TIPY", 0.16))     # and this fraction of the x-height above the baseline
+E_TIP_DEG = float(os.environ.get("ALBO_E_TIPDEG", 52.0)) # the direction the tail is travelling when it ends (before the italic shear)
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
 
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
@@ -130,7 +142,7 @@ def g_e(c):
     stroke) is thinned and shifted right per E_ARM_THIN / E_ARM_OUT (owner
     instruction, 2026-09-13)."""
     xh = c["xh"]; wf = c["wf"]
-    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT, tail_end=(E_TAIL_IT if pen.ITALIC else 1.0))
+    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT)
     rx = E_RX * _IO * wf + TH_V / 2; cx = rx; cy = xh / 2
     tilt = math.radians(E_DEG_IT if pen.ITALIC else E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
@@ -142,4 +154,70 @@ def g_e(c):
     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
     a = math.radians(E_END_IT if pen.ITALIC else E_END); far = 3 * rx
     aperture = geom.poly([(cx, cy), (cx + far * math.cos(a), cy + far * math.sin(a)), (cx + far, under(cx + far)), (cx, under(cx))])
-    return geom.ink([solid.difference(aperture), b])
+    parts = [solid.difference(aperture), b]
+    if pen.ITALIC:
+        parts.append(_e_tail(outer, inner, cx, cy, rx, xh, a))
+    return geom.ink(parts)
+
+
+def _ray_hit(poly, cx, cy, R):
+    """Where a closed contour crosses the ray from (cx, cy) in direction R,
+    and the contour's own direction there. The centre is inside both the ring
+    and its counter, so each is crossed exactly once."""
+    for p, q in zip(poly, poly[1:] + poly[:1]):
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        den = dx * R[1] - dy * R[0]
+        if abs(den) < 1e-9:
+            continue
+        ex, ey = p[0] - cx, p[1] - cy
+        u = (ey * R[0] - ex * R[1]) / den
+        if not (0.0 <= u <= 1.0):
+            continue
+        if (ex + u * dx) * R[0] + (ey + u * dy) * R[1] <= 0.0:
+            continue
+        m = math.hypot(dx, dy) or 1.0
+        return (p[0] + u * dx, p[1] + u * dy), (dx / m, dy / m)
+    return None, None
+
+
+def _e_tail(outer, inner, cx, cy, rx, xh, a_cut):
+    """THE TAIL IS ITS OWN STROKE, not the ring carried on round.
+
+    Measured on Coelacanth's italic e: the tail's outer edge leaves the bowl's
+    bottom at 1 degree and reaches 45 at the terminal, and the RATE of that
+    rise FALLS the whole way -- 2.7 degrees per sample at the start, 0.8 at the
+    end. The stroke unwinds OUT of the bowl. A ring cannot do that. Ours left
+    the bottom already at 24 degrees and reached 58 with its turn still
+    ACCELERATING, so the last of it curled back over the counter and read as a
+    tick. Owner, round 109c: "e needs be a simple taper without a change in
+    loop direction", then "remove the flick at the e tail end".
+
+    So the ring is cut low (E_END_IT), where it is still running flat, and the
+    tail continues from that cut: it starts along the ring's own tangent, turns
+    early and then runs almost straight (the short first control arm, the long
+    second, which is what makes the turn decelerate), and its width tapers from
+    the bowl's to E_TAIL_IT of it.
+
+    It is drawn from its OUTER EDGE rather than from a centerline, and that is
+    load-bearing: the aperture cuts the ring with a radial face, so the ring's
+    outer corner sits exactly where the tail starts, and a centerline tail
+    starting at the chord's midpoint left that corner standing proud as a
+    tooth. Built from the edge, the tail's silhouette IS the bowl's carried
+    on."""
+    R = (math.cos(a_cut), math.sin(a_cut))
+    Po, To = _ray_hit(outer, cx, cy, R)
+    Pi, _ = _ray_hit(inner, cx, cy, R)
+    if Po is None or Pi is None:
+        return geom.poly([(0, 0), (0, 0), (0, 0)])
+    w0 = math.hypot(Po[0] - Pi[0], Po[1] - Pi[1])   # the ring's width on the cut
+    if To[0] < 0:            # travel counterclockwise, up the bowl's right
+        To = (-To[0], -To[1])
+    tip = (cx + E_TIP_X * rx, E_TIP_Y * xh)
+    L = math.hypot(tip[0] - Po[0], tip[1] - Po[1])
+    d2 = math.radians(E_TIP_DEG); D2 = (math.cos(d2), math.sin(d2))
+    edge = cubic(Po,
+                 (Po[0] + To[0] * L * 0.30, Po[1] + To[1] * L * 0.30),
+                 (tip[0] - D2[0] * L * 0.55, tip[1] - D2[1] * L * 0.55),
+                 tip)
+    wf = lambda t: w0 * (1.0 - (1.0 - E_TAIL_IT) * (3 * t * t - 2 * t ** 3))
+    return PR.edge_stroke(edge, wf, side=1)[0]

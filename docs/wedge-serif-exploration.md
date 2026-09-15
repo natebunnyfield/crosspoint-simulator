@@ -3799,3 +3799,64 @@ The e's taper went 0.30 -> **0.55**: at 0.30 the tail came to a wisp, and he
 asked for an ordinary one.
 
 Page: https://claude.ai/artifact/SkBFkT8sD8CLAGnKKzGhed
+
+### Round 109c (2026-09-14): the e's tail stops being the ring
+
+Owner, twice: **"e needs be a simple taper without a change in loop
+direction"**, then **"remove the flick at the e tail end"**.
+
+The flick was structural and no dial reached it. Three things were tried and
+each was measured to be beside the point: thinning the taper (0.55 -> 0.30
+left the tick untouched), holding the tapered width across the cut so the
+counter had no step in it, and ending the arm earlier. The arm was the RING
+carried on past the bowl, and a ring turns at a constant rate, so the stroke
+kept steepening -- it left the bottom already at 24 degrees and reached 58,
+its turn still accelerating, and the last of it curled back over the counter.
+
+Coelacanth's does the opposite, and this is the measurement that decided the
+round. Walking its e's outer contour along the tail, the direction rises
+**1 degree -> 45**, and the RATE of that rise FALLS the whole way: 2.7 degrees
+per sample at the start, 0.8 at the end. The stroke unwinds OUT of the bowl
+rather than closing back into it. No arc of a ring can do that.
+
+So the tail is now its own stroke: it starts on the ring's own tangent, turns
+early and then runs nearly straight (a short first control arm and a long
+second, which is what makes the turn decelerate), and its width tapers to 0.40
+of the bowl's. Albo now measures 5 -> 45 degrees with a falling rate, and the
+end face is 0.052 of the x-height against Coelacanth's 0.055 and the old
+0.147.
+
+**Where the ring is cut is not a taste call, and two wrong cuts proved it.**
+The aperture cuts the ring along a ray from the bowl's centre, while a stroke
+is built square to its own travel; those two faces coincide EXACTLY only where
+the ray and the stroke's normal are parallel, which is at the bottom. Cut at
+288 degrees, up the right shoulder, and they disagreed by the angle between
+them -- first as a step where a centreline tail started at the chord's
+midpoint, then, after the tail was rebuilt from its OUTER EDGE so its
+silhouette is the bowl's carried on, as a tooth of ring standing proud of it.
+Cutting at the bottom (276) removes the disagreement instead of papering over
+it, and it also matches how Coelacanth's e is built: its tail begins at 0.385
+of the glyph's width, which is the bowl's bottom.
+
+The roman is untouched -- every one of these is behind `pen.ITALIC`, and the
+ring's own arm taper (the `tail_end` parameter of round 109) is gone, since
+the tail stroke now does the tapering.
+
+**The g's connector** was made tangent to both curves it joins in the same
+round: its start point and direction are read off the bowl's outline and its
+end point and direction off the loop's, with the cubic's controls along those
+tangents. Every earlier version picked two coordinates and interpolated, so
+the stroke arrived at each end pointing the wrong way.
+
+**What is still wrong with the g is proportion, measured and NOT changed**, as
+a share of the x-height (Coelacanth, then Albo): bowl counter width 0.427 /
+0.592, loop counter width 0.708 / 0.613, loop counter height 0.434 / 0.478,
+loop centre left of the bowl's centre 0.115 / 0.363, depth below the baseline
+0.812 / 0.655. So Albo's loop is too narrow, too round, sits far too far left
+and is not deep enough, and the ear is a thin stick where Coelacanth's is a
+stubby horizontal stroke about as thick as the bowl's own wall (0.14 of the
+x-height, sitting between 0.74 and 0.92 of it, never rising above it). The
+ear is also what inflates the g's advance, which is the hole after the g in
+"gorge". Four changes at once is what round 108 did; they wait for his eye.
+
+Page: https://claude.ai/artifact/8roi46zVqUsbcMkTnsC48E
