@@ -474,6 +474,15 @@ if pen.ITALIC:
     # to 1.0, which reproduces the o-derived bowl exactly.
     G_BOWL_W = float(os.environ.get("ALBO_G_BOWL_W", 1.0))
     G_BOWL_H = float(os.environ.get("ALBO_G_BOWL_H", 1.0))
+    # Owner again, 2026-09-15: "A is close but you've continued to ignore my ask
+    # that you REDUCE the loops so that you can match the provided example." I
+    # had been growing the lower one -- rung A's loop counter was 393 x 288
+    # against the 244 x 171 it started at. Reducing BOTH ovals only opens their
+    # counters if the WALLS come in with them, otherwise a smaller oval at the
+    # same pen is just a thicker ring round a smaller hole. That is what these
+    # two do, and it is the same "lightening and contrast" he asked for twice.
+    G_BOWL_WALL = float(os.environ.get("ALBO_G_BOWL_WALL", 1.0))   # the bowl ring's pen, x normal
+    G_LOOP_WALL = float(os.environ.get("ALBO_G_LOOP_WALL", 1.0))   # the descending stroke's pen, x normal
     G_EAR_DEG  = 33.0     # where the ear leaves the bowl
     G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
     G_EAR_Y    = 0.819    # the height of that tip (x xh)
@@ -482,13 +491,13 @@ if pen.ITALIC:
     def g_g_it(c):
         """The bowl is Albo's own o. Everything below it is ONE stroke."""
         xh = c["xh"]
-        if G_BOWL_W == 1.0 and G_BOWL_H == 1.0:
+        if G_BOWL_W == 1.0 and G_BOWL_H == 1.0 and G_BOWL_WALL == 1.0:
             bowl, bo, bi = o_ring(c, O_RX)
         else:
             _wf = c["wf"] * pen.IT_OVAL
             _brx = (O_RX * _wf + TH_V / 2) * G_BOWL_W
             _bry = (xh / 2 + OVER) * G_BOWL_H
-            bowl, bo, bi = ring(_brx, (xh + OVER) - _bry, _brx, _bry)
+            bowl, bo, bi = ring(_brx, (xh + OVER) - _bry, _brx, _bry, w_scale=G_BOWL_WALL)
         bx0, by0, bx1, by1 = bowl.bounds
         bw = bx1 - bx0
         bcx = (bx0 + bx1) / 2; bcy = (by0 + by1) / 2
@@ -602,7 +611,7 @@ if pen.ITALIC:
             elif t <= t_join + G_NECK_BACK:
                 u = (t - t_join) / G_NECK_BACK
                 w *= G_NECK_THIN + (1.0 - G_NECK_THIN) * (3 * u * u - 2 * u ** 3)
-            return w
+            return w * G_LOOP_WALL
         # `pieces` because the path crosses itself where the return passes the
         # departure; one polygon would make a hole of that crossing.
         tail = stroke(path, wfn, raw=True, pieces=True)

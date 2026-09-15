@@ -4273,3 +4273,39 @@ The junction wants rebuilding rather than dialling, and that waits on the size
 being named.
 
 Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
+### Round 112b (2026-09-15): reduced, which is what he had been asking for
+
+Owner: **"A is close but you've continued to ignore my ask that you reduce the
+loops so that you can match the provided example italic g."** He is right about
+the direction: round 112 grew the lower oval, taking its counter from 244 x 171
+to 393 x 288. "Resize" had been read as "re-proportion" when it meant SMALLER.
+
+**Reducing an oval only opens its counter if the WALL comes in with it** --
+otherwise a smaller oval at the same pen is a thicker ring round a smaller
+hole, which is the opposite of the reference. Two more dials:
+`G_BOWL_WALL` (the ring's `w_scale`) and `G_LOOP_WALL` (a factor on the
+descending stroke's width function). This is the "lightening and contrast" he
+asked for in the very first message about this letter, arriving where it was
+always needed.
+
+| | bowl counter | w/h | loop counter | ink width | advance |
+|---|---|---|---|---|---|
+| where it started | 237 x 379 | 0.63 | 244 x 171 | 537 | 587 |
+| A (round 112) | 260 x 310 | 0.84 | 393 x 288 | 611 | 661 |
+| R1 | 257 x 299 | 0.86 | 408 x 301 | 598 | 648 |
+| R2 | 222 x 271 | 0.82 | 382 x 286 | 561 | 611 |
+| R3 | 202 x 239 | 0.85 | 364 x 282 | **534** | **584** |
+
+**R3 is smaller than the g this started from** on both measures, where A was
+14% wider. All four build clean -- 3 contours, no junction sliver, which the
+thinner walls fixed as a side effect.
+
+**One number moves the wrong way and it is arithmetic, not a slip.** As the
+bowl shrinks the lower counter grows RELATIVE to it, so round 112's
+lower/upper area ratio runs 1.60 (R1) to 2.13 (R3), past the reference's 1.42.
+Shrinking the upper counter while the lower holds its size raises that ratio by
+definition. The two asks -- match the reference's counter RELATION, and make
+the letter SMALLER -- pull against each other inside Albo's descender, and the
+page says so rather than picking for him.
+
+Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
