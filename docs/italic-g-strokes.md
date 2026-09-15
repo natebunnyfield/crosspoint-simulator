@@ -1,5 +1,7 @@
 # The calligraphic strokes of Coelacanth's italic g — measured, 2026-09-14
 
+Page: https://claude.ai/artifact/SkBFkT8sD8CLAGnKKzGhed
+
 Owner: *"show me that understand the underlying calligraphic brush strokes of
 g based on coelacanth's g."*
 
@@ -75,3 +77,25 @@ to. `outlines/glyphs/italic.py`, `g_g_it`.
 width.** In a pen model the width is a function of where the stroke is
 going. Three rounds were spent raising floors and declaring width tables on a
 stroke whose only real fault was that it ran the wrong way.
+
+## The connector, measured (added the same day, on his report "your has the
+wrong connector stroke")
+
+The skeleton band around the letter's waist -- the narrowest ink between the
+bowl and the loop, at 0.48 of the glyph's height -- holds 201 samples. They
+say:
+
+- the connector **leaves the bowl's BOTTOM**, at x 0.41 of the glyph's width,
+  not its right side;
+- it runs **down and LEFT**, at about -108 degrees, to x 0.29;
+- its width there is **41** against the letter's median 57 -- thinned, but not
+  a hairline.
+
+Albo's neck had left the bowl's lower RIGHT and run down-right: the wrong side
+of the letter, which is why the join read as a stick rather than a turn.
+
+And the loop's proportions from the same data: **the loop is the same width as
+the bowl** (each spans 0.66 of the glyph) shifted left by 0.19, and **as tall
+as the bowl** -- it fills the descender from the baseline down. Albo's first
+ring was 0.40 of the descender in half-height and centred at -0.54, so it hung
+low and flat and read as a separate small oval under the letter.

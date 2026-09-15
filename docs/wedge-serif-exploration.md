@@ -3779,3 +3779,23 @@ it without being told to. The bowl is `o_ring(c, O_RX)`, the o's own call.
 
 Rule kept: **when a stroke comes out the wrong weight, check its DIRECTION
 before its width.**
+
+### Round 109b (2026-09-14): the connector, and an ordinary taper
+
+Owner: **"your has the wrong connector stroke"**, and **"e needs to have an
+ordinary tapered tail."**
+
+The connector was measured rather than adjusted: the 201 skeleton samples in
+Coelacanth's waist band say it **leaves the bowl's BOTTOM** (x 0.41 of the
+glyph) and runs **down and LEFT** at -108 degrees to x 0.29, at 41 units
+against the letter's median 57. Albo's had left the bowl's lower RIGHT and run
+down-right -- the wrong side of the letter, which is why the join read as a
+stick rather than a turn. The same data gave the loop's proportions: the same
+width as the bowl, shifted left by a fifth, and as TALL as the bowl, filling
+the descender from the baseline down; Albo's had been 0.40 of the descender
+and centred low, so it read as a separate small oval.
+
+The e's taper went 0.30 -> **0.55**: at 0.30 the tail came to a wisp, and he
+asked for an ordinary one.
+
+Page: https://claude.ai/artifact/SkBFkT8sD8CLAGnKKzGhed

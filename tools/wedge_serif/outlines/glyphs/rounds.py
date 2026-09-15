@@ -64,7 +64,7 @@ E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rou
 # radial where the arm's end face is cut (smaller = shorter tail).
 E_DEG_IT = float(os.environ.get("ALBO_E_DEG", 16.0))   # rung C of the round-109 ladder
 E_END_IT = float(os.environ.get("ALBO_E_END", 318.0))
-E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.30))   # the arm's width at its very end, x its ordinary width: the taper
+E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.55))   # round 109b (owner: "an ordinary tapered tail"): 0.30 came to a wisp; 0.55 is a normal taper   # the arm's width at its very end, x its ordinary width: the taper
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
 
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --

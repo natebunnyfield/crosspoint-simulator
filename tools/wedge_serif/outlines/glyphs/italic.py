@@ -340,16 +340,30 @@ if pen.ITALIC:
         w = bx1 - bx0
         # THE LOOP AS A RING -- round and deep enough to have descending and
         # ascending runs, which is where the pen's thick and thin come from.
-        lrx = w * 0.62; lry = desc * 0.40
-        lcx = bx0 + w * 0.42; lcy = -desc * 0.54
+        # Measured off Coelacanth (docs/italic-g-strokes.md): its loop is the
+        # SAME WIDTH as its bowl (both span 0.66 of the glyph), shifted left by
+        # 0.19, and as TALL as the bowl -- it fills the whole descender from
+        # the baseline down. The first ring was 0.40 of the descender in half-
+        # height and sat at -0.54, so it hung low and flat and read as a
+        # separate little oval under the letter.
+        lrx = w * 0.52; lry = desc * 0.50
+        lcx = bx0 + w * 0.30; lcy = -desc * 0.50
         loop, lo, li = ring(lcx, lcy, lrx, lry, w_scale=1.0, floor=S * 0.30)
-        # the neck: a hairline from the bowl's lower right into the loop's top
-        neck = cubic((bx1 - TH_V * 0.75, xh * 0.30), (bx1 - TH_V * 0.45, xh * 0.02),
-                     (lcx + lrx * 0.72, -desc * 0.10), (lcx + lrx * 0.86, -desc * 0.30))
+        # THE CONNECTOR, measured off Coelacanth rather than guessed
+        # (docs/italic-g-strokes.md): it leaves the bowl's BOTTOM -- x 0.41 of
+        # the glyph's width, not its right side -- and runs DOWN AND LEFT at
+        # about -108 degrees to x 0.29, where the loop's top begins. Its width
+        # there is 41 against the letter's median 57, so it is thinned but not
+        # a hairline. The previous neck left the bowl's lower RIGHT and ran
+        # down-right: the wrong side of the letter, and the reason the join
+        # read as a stick rather than a turn.
+        nx0 = bx0 + w * 0.45
+        neck = cubic((nx0 + TH_V * 0.20, xh * 0.26), (nx0, xh * 0.02),
+                     (bx0 + w * 0.32, -desc * 0.06), (lcx - lrx * 0.42, -desc * 0.26))
         nw_ = pen_widths(neck)
         ear = catmull([(bx1 - TH_V * 0.8, xh * 0.80), (bx1 + S * 0.25, xh * 0.98),
                        (bx1 + S * 0.85, xh * 1.02), (bx1 + S * 1.05, xh * 0.90)], tension=0.5)
         ew = pen_widths(ear)
         return geom.ink([bowl, loop,
-                         stroke(neck, lambda t: max(nw_(t) * 0.78, S * 0.30), cut0=None, cut1=None),
+                         stroke(neck, lambda t: max(nw_(t) * 0.72, S * 0.34), cut0=None, cut1=None),
                          stroke(ear, lambda t: max(ew(t) * (0.9 - 0.45 * t), S * 0.14), cut0=None)])
