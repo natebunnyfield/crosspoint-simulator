@@ -18,8 +18,19 @@ def dot_y(xh): return xh + 118 + S * 0.3
 # cross-section) unchanged. Built at +15% and +30% for the page; +15% ships
 # here by default. ALBO_G_EAR_EXTEND overrides for the page's other variant.
 G_EAR_EXTEND = 0.15
-G_NECK = 0.42        # the neck's floor, x the stem (0.55 before; owner: thin the connector)
-G_NECK_MID = 0.72    # the neck's middle, x its profile
+# Owner 2026-09-15: "the line connecting the two ovals needs to be thinner at
+# the connection with the lower oval in 'g'. and generally there needs to be
+# some lightening and/or contrast." Three dials, all on the neck:
+#   G_NECK      its FLOOR, x the stem -- the lightening
+#   G_NECK_MID  its middle, x the bowl profile -- the contrast, since the ends
+#               are already pinched and it is the middle that reads heavy
+#   G_NECK_END  its width where it MEETS THE LOOP, x the profile. The bowl end
+#               stays at 0.30: he named the lower oval specifically, and the two
+#               ends are not symmetrical in a g -- the pen arrives at the loop
+#               and leaves at the bowl.
+G_NECK = float(os.environ.get("ALBO_G_NECK", 0.42))          # the neck's floor, x the stem (0.55 before; owner: thin the connector)
+G_NECK_MID = float(os.environ.get("ALBO_G_NECK_MID", 0.72))  # the neck's middle, x its profile
+G_NECK_END = float(os.environ.get("ALBO_G_NECK_END", 0.30))  # and where it meets the LOWER oval
 def g_ear_scale(): return 1.0 + float(os.environ.get('ALBO_G_EAR_EXTEND', G_EAR_EXTEND))
 
 # owner, 2026-09-13: "make a version of 't' that is a triangle on the right
@@ -342,7 +353,7 @@ def g_g(c):
     # between ovals in g to match the calligraphic style" -- the neck on the
     # bowl profile with a G_NECK floor and a light middle.
     neck = cubic(p0, (p0[0] - gap * 0.05, p0[1] - gap * 0.58), (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
-    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.30), (0.16, 0.9), (0.45, G_NECK_MID), (0.85, 0.9), (1.0, 0.30)]), floor=S * G_NECK))
+    nk = stroke(neck, PR.bowl_widths(neck, widths([(0.0, 0.30), (0.16, 0.9), (0.45, G_NECK_MID), (0.85, 0.9 * min(1.0, G_NECK_END / 0.30)), (1.0, G_NECK_END)]), floor=S * G_NECK))
     ex, ey = on(cx, cy, crx, cry, 44); L = 96 * wf * g_ear_scale()
     ear_c = [(ex, ey), (ex + L, ey + L * math.tan(math.radians(8)))]
     ear = stroke(ear_c, PR.bowl_widths(ear_c, widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)]), floor=S * 0.72), cut1=CUT)

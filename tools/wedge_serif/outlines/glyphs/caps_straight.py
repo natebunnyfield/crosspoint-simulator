@@ -216,7 +216,7 @@ def g_H(c):
 def g_I(c):
     return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+')])
 
-J_DROP = float(os.environ.get("ALBO_J_DROP", 1.0))
+J_DROP = float(os.environ.get("ALBO_J_DROP", 120.0))
 
 
 @glyph('J')

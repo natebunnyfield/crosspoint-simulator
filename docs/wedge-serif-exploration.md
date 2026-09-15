@@ -4077,14 +4077,28 @@ is built** except where it says OPTIONS READY.
 
 1. **"the line connecting the two ovals needs to be thinner at the connection
    with the lower oval in 'g'. and generally there needs to be some lightening
-   and/or contrast. make slight and medium variations."** OPTIONS READY. Two
-   dials, both in `glyphs/italic.py`: `G_NECK_THIN` is the descending stroke's
-   width where it meets the loop (x its width leaving the bowl, easing back
-   over `G_NECK_BACK`), and `G_FLOOR` is the width floor under the pen, which
-   is what was holding the stroke near-monoline -- lowering it is the contrast
-   half. slight = 0.80 / 0.29, medium = 0.62 / 0.24, current = 1.00 / 0.34.
+   and/or contrast. make slight and medium variations."** OPTIONS READY --
+   **and the first pass built the ITALIC g, which was my misreading.** Owner,
+   2026-09-15: *"the g prompt was regular roman g."* Redone on the roman, whose
+   link is a different construction entirely: a cubic from the bowl's
+   centreline at 240 degrees to the loop's at 150, on the bowl's width profile
+   (`glyphs/stems.py`). Three dials, because the ask is two separate things --
+   `G_NECK` the floor (the lightening), `G_NECK_MID` the middle (the contrast,
+   since both ends are already pinched and it is the middle that reads heavy),
+   and `G_NECK_END` the width where it MEETS THE LOOP. The bowl end stays at
+   0.30 deliberately: he named the lower oval, and a g's two link ends are not
+   symmetrical -- the pen leaves the bowl and arrives at the loop. Measured
+   across the band that holds only the link, at a 900 px em: narrowest 46 ->
+   38 -> 29 px, link ink 12,469 -> 11,593 -> 10,414. current 0.42/0.72/0.30,
+   slight 0.34/0.60/0.21, medium 0.26/0.48/0.13.
+   The italic dials added in the first pass (`G_NECK_THIN`, `G_NECK_BACK`,
+   `G_FLOOR` in `glyphs/italic.py`) are left in place at their no-op defaults,
+   since the italic g may want the same treatment later.
 2. **"lower the descender on 'J'. give me options to choose from, include J in
-   common words in meaningful sentences."** OPTIONS READY at -179, -239 and
+   common words in meaningful sentences."** **SETTLED: owner picked B**
+   (2026-09-15, "yes to B on J"), so `J_DROP` ships at 120 and the hook now
+   reaches **-239** against the -119 it had -- just above Q at -273 and inside
+   the company of p -281, j -289, y and g -298. Was offered at -179, -239 and
    -289 against the shipped -119 (Q -273, p -281, j -289, y and g -298). Two
    things had to be fixed for the ladder to exist:
    - **Deepening the tail by SCALING it does not work.** The two control
