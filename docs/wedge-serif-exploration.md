@@ -3932,3 +3932,49 @@ cubic and 300 round the loop. `geom.SPACING` is 11 units, which is smooth enough
 for the gentle curves everywhere else in the face and was visibly faceted here.
 
 Page: https://claude.ai/artifact/YE7kRefrnmj7PQHk5L4W3W
+
+### Specimen, all characters and all styles (2026-09-14)
+
+Owner: **"rerender specimen with all characters and styles."** The builder's
+own `albo-specimen.html` is single-style (it only writes on a `--style Medium`
+run) and its text still claims 93 glyphs, which has been wrong since the epub
+coverage work took the face to 470. This is the replacement: every one of the
+**469 cmapped codepoints in all five shipping cuts**, plus alphabets,
+paragraphs at reading size and the symbol set.
+
+Built from the five-cut table above, except that **the italics are built at 13
+degrees**, which is the standing ruling from round 101, not the 11 in that
+table. Commands, for the next rebuild:
+
+```
+FJORD_STEM=66.9 FJORD_CONTRAST=0.892 FJORD_WIDTH=100                python3 -m outlines.build <dir> --style Regular
+FJORD_STEM=66.9 FJORD_CONTRAST=0.892 FJORD_WIDTH=95  FJORD_SLANT=13 python3 -m outlines.build <dir> --style Italic
+FJORD_STEM=88   FJORD_CONTRAST=0.85  FJORD_WIDTH=102                python3 -m outlines.build <dir> --style SemiBold
+FJORD_STEM=107  FJORD_CONTRAST=0.80  FJORD_WIDTH=105                python3 -m outlines.build <dir> --style Bold
+FJORD_STEM=107  FJORD_CONTRAST=0.80  FJORD_WIDTH=100 FJORD_SLANT=13 python3 -m outlines.build <dir> --style BoldItalic
+```
+
+Verified rather than assumed: all five carry the **same 469 codepoints and 470
+glyphs** at 1000 upem, so no cut is missing a character another one has.
+Coverage by block: Basic Latin 95, Latin-1 Supplement 94, Latin Extended-A 125,
+Latin Extended-B 5, Spacing Modifier Letters 9, Combining Diacritical Marks 14,
+Greek 19, General Punctuation 16, Super/Subscripts 18, Currency 1, Letterlike 1,
+Arrows 13, Mathematical Operators 10, Geometric Shapes 14, Miscellaneous Symbols
+26, Dingbats 4, Alphabetic Presentation Forms 5.
+
+**THREE THINGS THE RENDERING TURNED UP, none of them fixed** (the ask was the
+specimen, and each is his ruling):
+
+1. **Every comma-below and cedilla composite sits RIGHT of the stem** rather
+   than centred under the letter -- Çç Ģģ Ķķ Ļļ Ņņ Ŗŗ Şş Ţţ Șș Țț, about twenty
+   glyphs. It is consistent across all of them, so it is ONE wrong anchor in
+   the composite table and not twenty bad drawings. `ģ` is doubly wrong: that
+   mark belongs ABOVE the letter.
+2. **The italics are spaced as romans.** The bearings were solved on the
+   upright (round 97's `solve_cat`) and carried over; it reads as holes inside
+   words at display size and settles at reading size.
+3. **The firmware recipe's Albo block still says the italics are slanted 11
+   degrees** (`lib/EpdFont/scripts/sd-fonts.yaml`). They have been 13 since
+   round 101. The comment is stale; the build is right.
+
+Page: https://claude.ai/artifact/Ng3FQV3AGphAM1TouPjb7w
