@@ -458,6 +458,22 @@ if pen.ITALIC:
     # its own centre, and G_FLOOR above is the contrast.
     G_LOOP_ROT   = float(os.environ.get("ALBO_G_LOOP_ROT", 0.0))
     G_LOOP_SWELL = float(os.environ.get("ALBO_G_LOOP_SWELL", 1.0))
+    # Owner 2026-09-15, after the first swoop ladder: "you need to resize the
+    # top loop and resize the bottom loop and try all over again. pay as much
+    # attention to space between as stroke placement and angle. you have missed
+    # most of the criteria so far." He is right and it is measurable. The
+    # criterion I had not been measuring is the RELATION OF THE TWO COUNTERS:
+    # on his reference the lower counter is 1.42x the upper one in AREA, and
+    # Albo's is 0.46x -- the lower counter is a third of the size it should be
+    # relative to the upper. The reference's bowl counter is also round (0.87
+    # wide over tall) where Albo's is tall and narrow (0.63).
+    #
+    # So the bowl is no longer simply the o. G_BOWL_H shortens it with its TOP
+    # PINNED at the x-height (a g's bowl still has to sit on that line, so the
+    # room can only come off the bottom) and G_BOWL_W widens it. Both default
+    # to 1.0, which reproduces the o-derived bowl exactly.
+    G_BOWL_W = float(os.environ.get("ALBO_G_BOWL_W", 1.0))
+    G_BOWL_H = float(os.environ.get("ALBO_G_BOWL_H", 1.0))
     G_EAR_DEG  = 33.0     # where the ear leaves the bowl
     G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
     G_EAR_Y    = 0.819    # the height of that tip (x xh)
@@ -466,7 +482,13 @@ if pen.ITALIC:
     def g_g_it(c):
         """The bowl is Albo's own o. Everything below it is ONE stroke."""
         xh = c["xh"]
-        bowl, bo, bi = o_ring(c, O_RX)
+        if G_BOWL_W == 1.0 and G_BOWL_H == 1.0:
+            bowl, bo, bi = o_ring(c, O_RX)
+        else:
+            _wf = c["wf"] * pen.IT_OVAL
+            _brx = (O_RX * _wf + TH_V / 2) * G_BOWL_W
+            _bry = (xh / 2 + OVER) * G_BOWL_H
+            bowl, bo, bi = ring(_brx, (xh + OVER) - _bry, _brx, _bry)
         bx0, by0, bx1, by1 = bowl.bounds
         bw = bx1 - bx0
         bcx = (bx0 + bx1) / 2; bcy = (by0 + by1) / 2

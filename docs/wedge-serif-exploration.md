@@ -4218,3 +4218,58 @@ to climb. A and C still build a small extra contour there (36x17 and 80x28
 units) and seating the web's apex inside the bowl did not close it. Waiting on
 his ruling on which tilt, and on whether the loop should terminate rather than
 close, before rebuilding the junction around the answer.
+
+### Round 112 (2026-09-15): the g's two counters, measured at last
+
+Owner, after the first swoop ladder: **"you need to resize the top loop and
+resize the bottom loop and try all over again. pay as much attention to space
+between as stroke placement and angle. you have missed most of the criteria so
+far."** He was right, and the miss is a number.
+
+**THE CRITERION I WAS NOT MEASURING IS THE RELATION OF THE TWO COUNTERS.** On
+his reference the LOWER counter is **1.42x the upper one in AREA**. Albo's was
+**0.46x** -- the space inside the descender was a THIRD of the size it should
+be relative to the space inside the bowl. No amount of tilting fixes that,
+because tilt is not size, and the first ladder moved only tilt, swell and
+contrast. His bowl counter is also round (0.87 wide over tall) where Albo's was
+tall and narrow (0.63).
+
+This is round 3's standing rule -- the space between letters equals the space
+within them -- turned inward on ONE letter, and it is the rule the whole
+project is built on. I had been measuring stroke placement and angle and not
+the white, which is exactly what he said.
+
+So the bowl is no longer simply the o: `G_BOWL_W` and `G_BOWL_H` size it, with
+its **TOP PINNED at the x-height** (a g's bowl has to sit on that line, so the
+room can only come off the bottom -- which is also what frees the space the
+loop needs). Both default to 1.0 and reproduce the o-derived bowl exactly.
+
+Measured ladder, counters in units at a 1000 em:
+
+| | bowl counter | w/h | loop counter | w/h | lower/upper AREA | advance |
+|---|---|---|---|---|---|---|
+| current | 237 x 379 | 0.63 | 244 x 171 | 1.43 | **0.46** | 587 |
+| A | 260 x 310 | 0.84 | 393 x 288 | 1.36 | **1.40** | 661 |
+| B | 261 x 311 | 0.84 | 423 x 322 | 1.31 | 1.68 | 672 |
+| C | 272 x 280 | 0.97 | 485 x 379 | 1.28 | 2.41 | 700 |
+| **his reference** | | **0.87** | | **1.48** | **1.42** | |
+
+**A lands on the reference**: 1.40 against 1.42 on the counter relation, 0.84
+against 0.87 on the bowl's roundness.
+
+**Three costs, all his to rule on and all stated on the page:**
+- the g's advance grows 587 -> 661, about 13%, so the fitting wants re-solving
+  around it;
+- the bowl no longer matches the o, which **departs from round 108's ruling**
+  that the italic bowls are sized to the o -- either the g is the exception or
+  that ruling moves;
+- **his reference's descender is about 1.15 of its x-height where Albo's is
+  0.655.** That extra room is how it affords a large loop under a full-height
+  bowl. Inside Albo's descender the only route to the same counter relation is
+  the trade above: shorten the bowl to make room.
+
+A still leaves a 29 x 13 unit sliver at the junction (~1.5 px at reading size).
+The junction wants rebuilding rather than dialling, and that waits on the size
+being named.
+
+Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
