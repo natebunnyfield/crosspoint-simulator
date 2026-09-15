@@ -4640,3 +4640,33 @@ g y z, and capitals whose bowls are drawn as open spirals. That is the same
 family of exit this round's `a` just grew, drawn much further. It is the
 reference for the queued italic ampersand, the k and r loops, and the swash g --
 not for the text lowercase, which stays the 1501 Virgil.
+
+### The italic reference shelf, 2026-09-15
+
+Three faces are banked in `tools/wedge_serif/refs/`, each answering a different
+question. They are references, not sources — the text lowercase still comes off
+the 1501 Virgil scan.
+
+| file | what it is | what it answers |
+|---|---|---|
+| `texgyrepagella-italic.otf` | Palatino's metric clone, 1621 glyphs, italicAngle −10° | the exit: the stem runs past the bowl and kicks right along the baseline |
+| `poetica-std-regular.otf` | Slimbach's chancery, **1416 glyphs**, italicAngle −11° | how far an alternate may go, and in a measurable form |
+| `cancelleresca-bastarda-beta12.otf` | van Krimpen, **lowercase a–z only**, 28 glyphs, italicAngle 0 | the chancery skeleton, unflourished |
+
+**Poetica is the useful one, because its flourishes are NAMED.** Every letter
+carries `.begin1`–`.begin4` and `.end1`–`.end4` — an entry or exit alternate of
+increasing extravagance — beside `.sc`, `.scalt1` and `.superior`. So "a longer
+exit" is not a matter of taste here; it is `a.end1` through `a.end4`, and they
+can be measured the same way the scan was. `a.end1` and `a.end2` are exactly the
+baseline exit round 116c gave the Aldine `a`, drawn two and three times further.
+
+**And that is also where the format wall is.** Those alternates are word-final
+and word-initial forms, which need CONTEXTUAL substitution. `.cpfont` has a flat
+ligature pair table capped at 255 entries and no contextual anything, so a
+`begin`/`end` set cannot be selected by position on the device. Anything from
+this shelf has to land as the letter's ONE drawn form, or as a pair entry — a
+constraint worth knowing before the swash work starts, not after.
+
+The beta Cancelleresca is lowercase-only and carries no alternates at all, so
+the specimen sheet he sent remains the reference for its capitals and its
+flourish range; the font gives the letter bodies.
