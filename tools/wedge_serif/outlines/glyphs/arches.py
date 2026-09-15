@@ -125,7 +125,10 @@ def g_r(c):
     # instead of turning off a roman shoulder near the top. IT_BRANCH slides
     # between the two; at 1 the arm starts at 0.22 xh, which is what the
     # reference italics do and what a sheared roman cannot.
-    _b = pen.IT_BRANCH
+    # GATED at round 111 with the o's IT_OVAL, and for the same reason: written
+    # ungated at round 101, it slid the ROMAN r's arm from 0.56 of the x-height
+    # down to 0.509 and moved its control point with it.
+    _b = pen.IT_BRANCH if pen.ITALIC else 0.0
     _start = xh * ((0.56 if r_on else 0.6) * (1 - _b) + 0.22 * _b)
     center = cubic((x0, _start), (x0, xh * (1.0 - 0.10 * _b)), (x0 + 120 * wf * R_REACH / 205, xh + over_c + 6), (x0 + R_REACH * wf, xh * 0.9))
     base = pen_widths(center, floor=S * R_FLOOR)

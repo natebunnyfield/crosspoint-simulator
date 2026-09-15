@@ -12,13 +12,21 @@ from .. import primitives as PR
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
+# ROUND 111. _IO is the ONE place IT_OVAL may be read from, and both the o's
+# constructions now go through it. Round 101 wrote `pen.IT_OVAL` straight into
+# `o_ring` and into the adjusted o with NO `pen.ITALIC` gate, so the ROMAN o
+# was narrowed by 0.729 too -- silently, for ten rounds, because every round
+# after it was judged on italic pages. Owner 2026-09-15: "the o looks squished
+# when it shouldn't have been." It was: the shipping Regular's o measured 374
+# wide over 459 tall against the 490 x 459 it was drawn at, its counter 0.621
+# wide over tall against 0.918, and its advance 447 against 562.
 _IO = pen.IT_OVAL if pen.ITALIC else 1.0   # round 108: in the italic the c and the e narrow with the o (they were 25% wider than it)
 
 def o_ring(c, rx_center, ry_center=None, cy=None, k=BOWL_K, w_scale=1.0):
     """A full round on the o's construction: outer superellipse whose x
     radius is the centerline's plus half the vertical pen, y radius the
     x-height half plus the overshoot at the INK's edge (ruling: 14)."""
-    xh = c["xh"]; wf = c["wf"] * pen.IT_OVAL   # round 101: the italic narrows the o (measured on five real italics)
+    xh = c["xh"]; wf = c["wf"] * _IO   # round 101: the italic narrows the o (measured on five real italics). GATED -- see below.
     rx = rx_center * wf + TH_V / 2 * w_scale; ry = (xh / 2 + OVER) if ry_center is None else ry_center
     cy = xh / 2 if cy is None else cy
     return ring(rx, cy, rx, ry, k=k, w_scale=w_scale)
@@ -27,7 +35,7 @@ O_FLOOR_ADJ = 0.55   # round 92 (adj 'o'): the o read hollow -- its knot the low
 @glyph('o')
 def g_o(c):
     if adj('o'):
-        xh = c["xh"]; wf = c["wf"] * pen.IT_OVAL; rx = O_RX * wf + TH_V / 2
+        xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * wf + TH_V / 2
         solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, floor=S * O_FLOOR_ADJ); return solid
     solid, outer, inner = o_ring(c, O_RX)
     return solid
