@@ -30,7 +30,7 @@ the cap height, the wedge family where a serif survives at all, and the
 figures, capitals and marks (real italics change those far less, and Albo's
 capitals are its most settled work).
 """
-import math
+import math, os
 from . import glyph, GLYPHS
 from .. import geom, pen
 from ..geom import cubic, line, catmull
@@ -435,6 +435,16 @@ if pen.ITALIC:
                           # and the path between them is not.
     G_JOIN     = 0.55     # how far the return overshoots the bowl's ring
                           # centreline, x the flat pen -- see the junction note
+    # Owner 2026-09-15: "the line connecting the two ovals needs to be thinner
+    # at the connection with the lower oval in g. and generally there needs to
+    # be some lightening and/or contrast." G_NECK_THIN is the descending
+    # stroke's width where it MEETS THE LOOP, x its width leaving the bowl; it
+    # eases back to full over G_NECK_BACK of the path once on the loop.
+    # G_FLOOR is the width floor under the pen, which is what was holding the
+    # whole stroke near-monoline -- lowering it is the "contrast" half.
+    G_NECK_THIN = float(os.environ.get("ALBO_G_NECK_THIN", 1.00))
+    G_NECK_BACK = float(os.environ.get("ALBO_G_NECK_BACK", 0.10))
+    G_FLOOR     = float(os.environ.get("ALBO_G_FLOOR", 0.34))
     G_EAR_DEG  = 33.0     # where the ear leaves the bowl
     G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
     G_EAR_Y    = 0.819    # the height of that tip (x xh)
@@ -532,7 +542,18 @@ if pen.ITALIC:
         # The pen's own width by direction, floored so the loop's flat runs do
         # not go to wire -- the round-109 finding, kept: a horizontal run IS
         # the pen's thin, and a loop this flat is horizontal for most of itself.
-        wfn = pen_widths(path, floor=S * 0.34)
+        t_join = len(out) / max(1, len(path) - 1)   # where the neck meets the loop
+        _base = pen_widths(path, floor=S * G_FLOOR)
+
+        def wfn(t):
+            w = _base(t)
+            if t <= t_join and t_join > 0:
+                u = t / t_join
+                w *= 1.0 - (1.0 - G_NECK_THIN) * (3 * u * u - 2 * u ** 3)
+            elif t <= t_join + G_NECK_BACK:
+                u = (t - t_join) / G_NECK_BACK
+                w *= G_NECK_THIN + (1.0 - G_NECK_THIN) * (3 * u * u - 2 * u ** 3)
+            return w
         # `pieces` because the path crosses itself where the return passes the
         # departure; one polygon would make a hole of that crossing.
         tail = stroke(path, wfn, raw=True, pieces=True)

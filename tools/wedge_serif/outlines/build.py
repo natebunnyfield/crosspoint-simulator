@@ -175,7 +175,14 @@ def fit(ch, conts, c):
     xs_all = [x for pts, _ in conts for x, y in pts]
     band = [x for pts, _ in conts for x, y in pts if -pen.OVER <= y <= top + pen.OVER]
     l, r = (min(band), max(band)) if band else (min(xs_all), max(xs_all))
-    if ch == 'g' or not ch.isalpha(): l, r = min(xs_all), max(xs_all)
+    # The g is fitted on its FULL extent because its descender IS the letter.
+    # The J joins it (2026-09-15) for the same reason and because the band rule
+    # fails outright once its hook clears the cap band: with the hook below
+    # -OVER the band holds only the stem, so the glyph is fitted as a bare
+    # vertical and the hook lands 190 units left of the origin with the advance
+    # collapsed from 410 to 217. That is what every rung of the J_DROP ladder
+    # hit before this line changed.
+    if ch in ('g', 'J') or not ch.isalpha(): l, r = min(xs_all), max(xs_all)
     lt, rt = SIDES.get(ch, ('straight', 'straight') if ch.isalnum() else ('punct', 'punct'))
     capbear = REF["Hbear"] / 2 * C * pen.WIDTH   # the fitting follows the width axis
     lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17

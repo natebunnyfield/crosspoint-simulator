@@ -4067,3 +4067,90 @@ Specimen republished in place: https://claude.ai/artifact/Ng3FQV3AGphAM1TouPjb7w
 
 The blunt end being a ruling is flagged on that page. If he meant something
 narrower than "give the roman the italic's tail", it reverts to one constant.
+
+### Queued (owner, 2026-09-15) -- the second, third, fourth and fifth lists
+
+Verbatim, with the mechanism located where I could locate it. **Nothing here
+is built** except where it says OPTIONS READY.
+
+**Options rendered, awaiting his pick** -- https://claude.ai/artifact/BbaLSRdfSW9YDK1n9vWqRN
+
+1. **"the line connecting the two ovals needs to be thinner at the connection
+   with the lower oval in 'g'. and generally there needs to be some lightening
+   and/or contrast. make slight and medium variations."** OPTIONS READY. Two
+   dials, both in `glyphs/italic.py`: `G_NECK_THIN` is the descending stroke's
+   width where it meets the loop (x its width leaving the bowl, easing back
+   over `G_NECK_BACK`), and `G_FLOOR` is the width floor under the pen, which
+   is what was holding the stroke near-monoline -- lowering it is the contrast
+   half. slight = 0.80 / 0.29, medium = 0.62 / 0.24, current = 1.00 / 0.34.
+2. **"lower the descender on 'J'. give me options to choose from, include J in
+   common words in meaningful sentences."** OPTIONS READY at -179, -239 and
+   -289 against the shipped -119 (Q -273, p -281, j -289, y and g -298). Two
+   things had to be fixed for the ladder to exist:
+   - **Deepening the tail by SCALING it does not work.** The two control
+     points move down while their x stays, which turns a shallow swing left
+     into a hook that plunges and doubles back; a wide stroke round a 180
+     degree turn balloons, and the ink ran to x -206. `J_DROP` TRANSLATES the
+     hook and grows the stem to meet it: the same hook, lower.
+   - **`build.fit` measures a capital in the CAP BAND**, so the moment the
+     hook cleared -OVER the band held only the stem and the J was fitted as a
+     bare vertical -- advance 410 -> 217, ink 190 units left of the origin.
+     The g has a full-extent exception for exactly this reason and **the J now
+     shares it**. That moves the shipped J's advance from 410 to **441** even
+     at the current depth, which is a real metric change and is flagged on the
+     page.
+
+**Queued, mechanism located**
+
+3. **"the diagonal on 'Z' is too thick compared to other letters in regular and
+   elsewhere."** Confirmed and the cause is one call. Measured perpendicular
+   thickness over the stem, correcting each stroke for its own angle from
+   vertical: **Z 1.11, V 0.97, W 0.96, Y 0.99**. Every other capital diagonal
+   is drawn `pw(p0, p1[, mult])` -- the PEN's width at that diagonal's own
+   angle -- and **the Z alone passes the flat `CS`**, the cap stem constant
+   (`caps_straight.py`, the `diagonal(p_top, p_bot, CS)` call). So it is drawn
+   at stem weight regardless of direction while its neighbours breathe with
+   the pen. The fix is `pw(p_top, p_bot)`; it wants his eye because it lightens
+   a shipping capital.
+4. **"looks like semibold has improved kerning and letterspacing than
+   regular."** Measured with the project's own rhythm instrument, and it is
+   NOT kerning -- the class matrix and the bearing rules are identical code
+   across the cuts. It is the RATIO of between-letter white to within-letter
+   white: Regular 204 against an n counter of 208 (**0.98**), SemiBold 217
+   against 202 (**1.07**), Bold 219 against 198 (**1.11**). Round 3's standing
+   rule is that the two should be equal, so the Regular is the one obeying it
+   and his eye prefers the looser setting. Two causes, both structural: the
+   heavier cuts are built at `FJORD_WIDTH` 102 and 105 against the Regular's
+   100, and their thicker stems shrink the counters. **Opening the Regular's
+   rhythm toward 1.07 is a real, measurable change** and it belongs with the
+   kerning item from the first list.
+
+**Queued, not yet investigated**
+
+5. **"use a flowing and adorned curved E ampersand for italics."** The italic
+   currently shears the roman ampersand. The "curved E" is the *et* ligature's
+   chancery form.
+6. **"make a version of 2 that puts the bottom stroke on the same line as the
+   4 crossbar."**
+7. **"use line contrast when making 8 9 6 and any other similar shaped
+   characters bold."** Relates to the round-95 queue item on the 8 whose
+   counters must not be reshaped.
+8. **"the 'f' at regular 27px is too light on the right compared to other
+   letter in the word"**, and **"'t' might also need some crossbar
+   extension."** He sent a 27 px crop with it. 27 px is the phone tier's 13 pt.
+9. **"use standard stanton or ascii or unicode shapes for chess symbols"** --
+   Staunton, the standard chess piece silhouettes.
+10. **"use albo style for all symbols (arrows should match their words better,
+    not be distractingly anachronistic)."** The arrows, geometric shapes and
+    dingbats were drawn for epub coverage in round 99 and were not drawn on
+    the pen. This is the general form of item 9.
+
+**Delegated**
+
+11. **"subagent to make historically accurate (use other italic fonts for
+    reference) albo italic capitals. do not touch regular roman."** Running.
+    Brief: measure real italic capitals, implement italic-only behind
+    `pen.ITALIC`, PROVE the roman is byte-identical by diffing a before/after
+    Regular build, write the research to `docs/albo-italic-capitals.md`, do not
+    commit, do not invent rulings. Round 111's leak is why that proof is
+    demanded rather than asked for.

@@ -3,7 +3,7 @@ family at ONE size, round 22), the D's ring for D B P R (rulings), beaks
 on C G S, the kicks at their ruled angles (A 65, R 60, K 37), the two-sided
 tops on the I and the U's right stem, no bar on the J. Widths are solved
 by the builder against the garalde references' medians (c['W'])."""
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line, join, superellipse, catmull, tangents
@@ -216,13 +216,30 @@ def g_H(c):
 def g_I(c):
     return geom.ink([cstem(CS / 2, 0, c["cap"], top='left+')])
 
+J_DROP = float(os.environ.get("ALBO_J_DROP", 1.0))
+
+
 @glyph('J')
 def g_J(c):
     """No bar (round 36); the I's top wedge; the hook starts at the stem's
     weight and eases to the pen's by its turn, flaring into the pen cut."""
     C = c["cap"]; r = W_(c, 'J', 190); x = r * 1.05 + CS / 2; desc = c["desc"]
-    st = cstem(x, r * 0.25 - 20, C, top='left', foot=None, ent_span=(r * 0.25 - 60, C))
-    tail = cubic((x, r * 0.25), (x, -desc * 0.42), (x - r * 0.55, -desc * 0.55), (x - r * 1.1, -desc * 0.1))
+    st = cstem(x, r * 0.25 - 20 - J_DROP, C, top='left', foot=None, ent_span=(r * 0.25 - 60 - J_DROP, C))
+    # Owner 2026-09-15: "lower the descender on J." J_DROP is how far FURTHER
+    # below the baseline the hook sits, in units; 0 is the shipped cut, whose
+    # ink stops at -119 where p, y, g and j all reach -281 to -298.
+    #
+    # It TRANSLATES the hook and grows the stem down to meet it, and that is
+    # the whole trick. Scaling the tail's descent instead -- which is the
+    # obvious thing and what I tried first -- turns a shallow swing left into a
+    # hook that plunges and doubles back on itself, because the two control
+    # points move down while their x stays put. A wide stroke round a 180
+    # degree turn balloons: at twice the depth the ink ran to x -115 and the
+    # fitting rule collapsed the advance from 410 to 217. A deeper J is the
+    # same hook, lower.
+    _j = J_DROP
+    tail = cubic((x, r * 0.25 - _j), (x, -desc * 0.42 - _j),
+                 (x - r * 0.55, -desc * 0.55 - _j), (x - r * 1.1, -desc * 0.1 - _j))
     base = pen_widths(tail)
     wfn = lambda t: (CW if t < 0.1 else (base(t) if t > 0.45 else CW + (base(t) - CW) * (3 * ((t - 0.1) / 0.35) ** 2 - 2 * ((t - 0.1) / 0.35) ** 3))) * widths([(0.65, 1.0), (1.0, 1.3)])(t)
     return geom.ink([st, stroke(tail, wfn, cut1=CUT)])
