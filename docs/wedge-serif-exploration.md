@@ -51,6 +51,33 @@
   proof of every extreme
   https://claude.ai/code/artifact/dee6fcc1-9be1-471d-b4f3-cb24819391d5.
 
+- **WHAT ALBO IS FOR, 2026-09-15, the owner in his own words.** Albo comes out
+  of a lifelong obsession with PRINTED type. The goal is **word images that
+  sound like they should** -- a legible, character-filled TEXT face, inspired by
+  **metal letterpress**, which was itself derived from historical handwriting.
+  And it **explores how wedge serifs can be used in a book face**.
+
+  Three things follow, and they are the reason this sits at the top rather than
+  in the log:
+
+  1. **The chain is handwriting -> metal -> Albo, and the TARGET is the metal.**
+     The Aldine scans are evidence about printed type whose ancestry is a pen;
+     they are not an invitation to draw a calligraphy face. The chancery
+     references on the shelf (Cancelleresca, Poetica) describe what a flourish
+     may do; they do not move the text lowercase. When a measurement off a
+     written hand and a measurement off a printed page disagree, the printed
+     page wins.
+  2. **"Sound like they should" is the acceptance test, and it is about WORDS.**
+     Not letters, not proportions -- the image a whole English word makes at
+     reading size. That is why every round is judged on sentences and why a
+     letter is never optimized alone.
+  3. **"Character filled" and "legible" are both required.** Neither is the
+     tiebreaker over the other. A defect that gives the page character stays
+     unless he calls it a defect; a flourish that costs legibility in running
+     text does not belong in the text face, however well it is drawn.
+
+  This does not overturn a single ruling below. It says what they were all for.
+
 - **What this is.** A humanist wedge serif for longform reading on the X3
   and the iOS app, designed by evolution: populations rendered, the owner
   marks keepers, each round narrows or diverges on his ruling. Fifty-one
