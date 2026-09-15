@@ -3374,3 +3374,32 @@ anyway, unlike a `GTAlpinaCond`. Also noted, pre-existing rather than new:
 `.github/workflows/release-fonts.yml` builds with no `--only`, so Albo joins
 the fourteen families there whose sources are gitignored and unavailable to a
 runner. That workflow is `workflow_dispatch`-only.
+
+### Round 100c (2026-09-14): installed, and credited
+
+Two rulings, asked one at a time and answered:
+
+**"Install it everywhere."** Albo is in `installed_families:` -- the twelfth
+installed family and the first drawn IN-HOUSE rather than sourced. It
+displaces nothing: it is the sixth serif, and its cell is "the one cut for
+this device", which no sourced face can fill.
+`scripts/install-sim-fonts.py --families Albo` exited 0 and put all three
+tiers into `fs_/fonts/Albo` (18 files, 67 MB raw -- the installer does 1x, 2x
+AND 3x; the iOS bundle takes only 1x and 2x since the render scale froze at 2
+on 2026-08-23).
+
+**The size, measured rather than estimated** as promised when the question
+was asked: `tools/compress_seed_fonts.py --max-tier 2` turns Albo's
+26,415,612 bytes into **8,250,654 -- 7.9 MB, 31% of raw**, in line with the
+whole seed tree's own 118 MB -> 35 MB. That is what installing Albo costs the
+iOS bundle.
+
+**The credit is the owner's own statement**, asked because that table's two
+fields are a designer and a dated lineage and both are his to state about his
+own typeface: **"Nate Bunnyfield • Omaha"**. Recorded in the firmware's
+`docs/font-dates.md` (the source of truth) and mirrored into
+`src/FontDisplayNames.h` -- compile-checked, the entry resolves. Albo is the
+only row in either table with ONE stage, so `origin` repeats the lineage
+rather than naming an earlier type: there is no earlier type, which is what
+makes it different from all 41 other rows. Firmware commits `6e8b667d4` and
+`2bcb4d1f6`.
