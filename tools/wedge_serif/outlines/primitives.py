@@ -221,7 +221,7 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
             xe = x + wid(y0) / 2
             path = cubic((xe - wid(y0) * 0.34, y0 + S * 0.16), (xe + L * 0.22, y0 + S * 0.02),
                          (xe + L * 0.66, y0 + L * 0.26), (xe + L * 1.02, y0 + L * 0.82))
-            parts.append(stroke(path, widths([(0.0, wid(y0) * 0.92), (0.45, S * 0.34), (1.0, S * 0.10)]), cut0=None))
+            parts.append(stroke(path, widths([(0.0, wid(y0) * 0.92), (0.45, max(S * 0.34, S * pen.IT_TIP)), (1.0, S * pen.IT_TIP)]), cut0=None))
         if pen.IT_ENTRY and it_entry is not False and (top or y1 > 0):
             L = S * pen.IT_ENTRY
             xs_ = x - wid(y1) / 2
@@ -231,7 +231,7 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
             # the other end of the letter.
             path = cubic((xs_ - L * 0.95, y1 - L * 0.40), (xs_ - L * 0.55, y1 - L * 0.14),
                          (xs_ - L * 0.18, y1 - S * 0.02), (xs_ + wid(y1) * 0.26, y1 - S * 0.18))
-            parts.append(stroke(path, widths([(0.0, S * 0.07), (0.62, S * 0.28), (1.0, wid(y1) * 0.88)]), cut1=None))
+            parts.append(stroke(path, widths([(0.0, S * pen.IT_TIP), (0.62, max(S * 0.28, S * pen.IT_TIP)), (1.0, wid(y1) * 0.88)]), cut1=None))
     return geom.union(parts)
 
 def stem_edge_x(x, w, ent, y, lo, hi, side):

@@ -90,6 +90,14 @@ IT_ENTRY = _env("ALBO_IT_ENTRY", 0.30)    # ... and the entry arriving at its to
                                          # makes a page of italic look WRITTEN rather than sheared: a written hand
                                          # arrives into a stem from the previous letter and leaves toward the next.
 IT_SERIF = _env("ALBO_IT_SERIF", 0.50)    # the wedge family's unit in the italic (a real italic reduces or drops them)
+# Owner 2026-09-15, twice: "fix all the italic flick serifs to be normal and
+# not poorly overlapping shapes", and then, on Griffo's 1501 Virgil, "change
+# the shapes of the letters completely". Both land here. The entry and exit
+# taper to S * 0.07 and S * 0.10 -- SEVEN PER CENT of the stem, which is a
+# needle, and at text size it reads as a spike hanging off every ascender top
+# and every foot. The Aldine's are short blunt angled marks with real weight
+# in them. IT_TIP is that weight, as a share of the stem, for both ends.
+IT_TIP = _env("ALBO_IT_TIP", 0.07)
 IT_FTAIL = _env("ALBO_IT_FTAIL", 0.55)   # the f's and j's descent, x the descender
 ITALIC = SLANT != 0.0 or os.environ.get("FJORD_ITALIC") == "1"
 SHEAR = math.tan(math.radians(SLANT))

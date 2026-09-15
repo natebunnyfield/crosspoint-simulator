@@ -4455,3 +4455,44 @@ Page: https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
 The swash g of rounds 113/113b is PARKED, not reverted -- its dials are set to a
 restrained value in these builds so the experiment does not distract, and the
 two-stroke construction stays in the tree.
+
+
+### Round 114b (2026-09-15): the needle, and the branch
+
+Owner: **"keep slope. change the shapes of the letters completely. just focus
+on getting an improved italic. ignore everything that isn't getting the letters
+to match the shape of the letters in the scan."** So round 114's width,
+contrast and serif-size cuts are set aside; slope stays at 13; only what the
+STROKES DO is in scope.
+
+**THE ENTRY AND EXIT TAPERED TO SEVEN PER CENT OF THE STEM.** `S * 0.07` at
+the entry's tip and `S * 0.10` at the exit's -- a needle. At text size that
+hangs a spike off every ascender top and every foot, and it is most of why
+Albo's italic reads as a sheared roman with hooks rather than as something
+written. Griffo's are short BLUNT angled marks with weight in them. New dial
+`pen.IT_TIP` sets both tips as a share of the stem; the ladder runs 0.07 (as
+shipped), 0.28, 0.45, 0.62.
+
+**This is also the answer to the flick-serif todo** from earlier the same day
+("fix all the italic flick serifs to be normal and not poorly overlapping
+shapes") -- the two reports are one fault, and it was a number rather than a
+shape all along.
+
+**The arches branch low.** `IT_BRANCH` 0.15 -> 0.70, with `IT_ENTRY` 0.30 ->
+0.65 and `IT_EXIT` 0.55 -> 0.85. An italic's arm leaves the stem low and
+climbs; a roman's turns off a shoulder near the top, and shearing cannot
+change which one it is.
+
+**What the existing construction cannot reach**, named rather than guessed at,
+from the scan:
+- **the a** -- Griffo's bowl is smaller and sits lower against a straighter
+  stem;
+- **the e** -- its bar slants up hard and its eye is small, where Albo's is
+  nearly level;
+- **the ascender tops** -- even blunt, Albo's flag is a flick off the stem
+  where the scan's is a flat angled head sitting across it;
+- **the k** -- its arm and leg meet in a way Albo's does not attempt.
+
+Those four are per-letter drawing and wait on his word for which comes first.
+
+Page (republished in place): https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
