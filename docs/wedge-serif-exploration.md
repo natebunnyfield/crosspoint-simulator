@@ -4309,3 +4309,70 @@ the letter SMALLER -- pull against each other inside Albo's descender, and the
 page says so rather than picking for him.
 
 Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
+
+### Round 113 (2026-09-15): the g is TWO STROKES, which was the whole problem
+
+Owner: **"look at there are two strokes for the example. match those. one on
+top left, the other from top right, down to bottom left and looping to form
+bottom loop."**
+
+That is the ductus and it retires every previous cut of this letter. Rounds
+109-112 all built a **CLOSED bowl** (the o's ring) with a descender hung off
+it, and a closed ring has nowhere for a second stroke to arrive -- so the place
+the loop met it was always a JOIN TO BE PATCHED, and four rounds were spent
+patching it: a tangent connector, a measured connector, a corner, an overshoot,
+a blot, a web, an apex seated in the bowl. **The bowl is where two strokes
+OVERLAP, not a thing either of them draws alone.**
+
+    STROKE ONE   lands to the right, sweeps LEFT over the bowl's top and down
+                 its left flank. THE EAR IS THIS STROKE'S ENTRY, not a separate
+                 flick -- which is what keeps it to two strokes and not three.
+    STROKE TWO   starts at the bowl's top-right, comes DOWN the right side,
+                 round the bottom, out to the bottom-left and on into the loop
+                 without lifting.
+
+They overlap TWICE -- at the top-right where the two beginnings sit together,
+and at the bottom-left where one ends while the other is still passing through
+-- so there is no junction left to patch. The loop now TERMINATES rather than
+closing back into the bowl, which is what the reference does and what round
+112's page had flagged as the open question.
+
+New dials: `G_A0`/`G_A1` (stroke one's arc, 16 -> 236 degrees) and
+`G_B0`/`G_B1` (stroke two's, 40 -> 196). The old `bowl`/`tail`/`web`/`ear`
+construction is gone.
+
+**Two bugs found in the rebuild, both worth keeping:**
+- **The loop must be sized off the DESCENDER, not off the bowl's bottom.** It
+  was the other way for one build and the loop ballooned the moment the bowl
+  was shortened: a shorter bowl raises its own bottom, which enlarges the gap
+  it was measured from, which enlarges the loop. Backwards.
+- **Stroke one must run PAST where stroke two leaves the bowl, and stay near
+  full width to its end.** Both tapering into the same place is what left the
+  counter leaking at the bottom-left. `G_A1` went 214 -> 236 and the end of its
+  profile 0.55 -> 0.86.
+
+All three published rungs are **narrower than the g this started from** (ink
+518-522 against 537, advance 568-572 against 587), which is what he asked for
+two rounds earlier.
+
+Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
+
+### Queued (owner, 2026-09-15): the italic lowercase loops, the r, the flicks
+
+1. **"add loops to italic lowercase where possible (k r)."** Round 107 put a
+   loop on the italic k and round 108's ruling took it back off ("these are all
+   much worse including extra loops on k") -- so this REOPENS that, and the k's
+   loop should be read as re-permitted rather than re-proposed. r is new.
+2. **"redo r to match this example."** He sent **Clair d'Or Italic's r**: a
+   hairline entry curving up from the left, a thick stem that tapers as it
+   descends, and the arm ending in a heavy TEARDROP at the top right -- no
+   wedge serif anywhere on it, the terminal is a ball. Very high contrast.
+   This is a different letter from Albo's italic r (round 107/108), which keeps
+   the roman's arm and the family's wedge.
+3. **"fix all the italic flick serifs to be normal and not poorly overlapping
+   shapes."** The italic's entry and exit strokes (`pen.IT_ENTRY` 0.30,
+   `pen.IT_EXIT` 0.55, applied in `primitives.stem`) REPLACE the wedge at that
+   end rather than sitting beside it -- that replacement was itself the round
+   103/106 fix for barbs. He is reporting that the result still reads as
+   overlapping shapes rather than as one stroke, so this is the third pass on
+   that seam and wants the rendered seam measured, not the code re-read.

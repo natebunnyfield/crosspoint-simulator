@@ -399,6 +399,7 @@ if pen.ITALIC:
     # descender constraint seen from the other side.
     G_DEPTH    = 0.655    # of the x-height -- Albo's own p/q descender
     G_NECK     = 0.155    # x the x-height: centreline distance from the bowl to the loop
+    G_LOOP_RY  = 0.40     # the loop's half-height, x the descender depth
     G_LOOP_ASP = 1.50     # the loop's centreline width over its height
     G_LOOP_DX  = 0.060    # loop centre, this many bowl-widths right of the bowl's
     G_OUT_DEG  = 258.0    # where the stroke leaves the bowl
@@ -487,49 +488,73 @@ if pen.ITALIC:
     G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
     G_EAR_Y    = 0.819    # the height of that tip (x xh)
 
+    # THE DUCTUS, owner 2026-09-15: "look at there are two strokes for the
+    # example. match those. one on top left, the other from top right, down to
+    # bottom left and looping to form bottom loop."
+    #
+    # That is the whole letter and it is not what was here. Every previous cut
+    # built a CLOSED bowl (the o's ring) with a descender hung off it, which is
+    # why the junction never came right however it was drawn: a closed ring has
+    # no place for a second stroke to arrive. The reference is two pen
+    # movements and the bowl is where they OVERLAP, not a thing either of them
+    # draws alone.
+    #
+    #   STROKE ONE   lands to the right, sweeps LEFT over the bowl's top and
+    #                down its left side to the bottom-left. The ear is this
+    #                stroke's entry, not a separate flick -- which is what
+    #                makes it two strokes and not three.
+    #   STROKE TWO   starts at the bowl's top-right, comes DOWN the right side,
+    #                round the bottom, out to the bottom-left, and on into the
+    #                loop without lifting.
+    #
+    # The counter is enclosed by the pair. They overlap twice, at the top-right
+    # where two starts sit together and at the bottom-left where one ends and
+    # the other passes through, so there is no junction to patch.
+    G_A0 = float(os.environ.get("ALBO_G_A0", 16.0))    # stroke one: where it meets the bowl, degrees
+    G_A1 = float(os.environ.get("ALBO_G_A1", 236.0))   # ... and where it ends, sweeping left and down
+    G_B0 = float(os.environ.get("ALBO_G_B0", 40.0))    # stroke two: where it starts, top-right
+    G_B1 = float(os.environ.get("ALBO_G_B1", 196.0))   # ... and where it leaves the bowl for the loop
+
     @glyph('g')
     def g_g_it(c):
-        """The bowl is Albo's own o. Everything below it is ONE stroke."""
+        """Two strokes. The bowl is where they overlap."""
         xh = c["xh"]
-        if G_BOWL_W == 1.0 and G_BOWL_H == 1.0 and G_BOWL_WALL == 1.0:
-            bowl, bo, bi = o_ring(c, O_RX)
-        else:
-            _wf = c["wf"] * pen.IT_OVAL
-            _brx = (O_RX * _wf + TH_V / 2) * G_BOWL_W
-            _bry = (xh / 2 + OVER) * G_BOWL_H
-            bowl, bo, bi = ring(_brx, (xh + OVER) - _bry, _brx, _bry, w_scale=G_BOWL_WALL)
-        bx0, by0, bx1, by1 = bowl.bounds
-        bw = bx1 - bx0
-        bcx = (bx0 + bx1) / 2; bcy = (by0 + by1) / 2
-        # the bowl's CENTRELINE ellipse: the outer box less half the pen, which
-        # is thick where the ring runs vertically and thin where it runs flat.
-        # A stroke that leaves or rejoins the bowl has to start and finish HERE
-        # to be the same pen rather than a thing stuck onto the outside.
-        crx = bw / 2 - TH_V / 2
-        cry = (by1 - by0) / 2 - TH_H / 2
+        _wf = c["wf"] * pen.IT_OVAL
+        brx = (O_RX * _wf + TH_V / 2) * G_BOWL_W
+        bry = (xh / 2 + OVER) * G_BOWL_H
+        bcx = brx; bcy = (xh + OVER) - bry
+        crx = brx - TH_V / 2 * G_BOWL_WALL
+        cry = bry - TH_H / 2 * G_BOWL_WALL
 
+        def Bp(deg):
+            a = math.radians(deg)
+            return (bcx + crx * math.cos(a), bcy + cry * math.sin(a))
+
+        def arc(d0, d1, n=150):
+            return [Bp(d0 + (d1 - d0) * i / n) for i in range(n + 1)]
+
+        # ---- the loop, sized and tilted as before -------------------------
         depth = xh * G_DEPTH
-        # Both ends sit on the SAME point of the bowl's ring centreline, and
-        # the return then OVERSHOOTS it. Two square end caps meeting there make
-        # a V that opens downward, and that V sealed a white crack into the
-        # junction -- its own contour in the built font, 41 x 16 units. Moving
-        # the two ends apart, along the ring or across it, only ever made the V
-        # wider; carrying the return a little PAST the meeting point makes the
-        # two stroke bodies overlap instead, and the V has nowhere to open.
-        t_out = math.radians(G_OUT_DEG); t_in = math.radians(G_IN_DEG)
-        P0 = (bcx + crx * math.cos(t_out), bcy + cry * math.sin(t_out))
-        P9 = (bcx + crx * math.cos(t_in), bcy + cry * math.sin(t_in))
-        top = min(P0[1], P9[1]) - xh * G_NECK      # the loop's centreline top
-        bot = -(depth - TH_H / 2)                  # and its centreline bottom
-        mry = (top - bot) / 2
+        # The loop is sized off the DESCENDER, not off the bowl's bottom. It was
+        # the other way round for one build and the loop ballooned the moment
+        # the bowl was shortened -- a shorter bowl raises its own bottom, which
+        # made the gap it was measured from larger, which made the loop bigger,
+        # which is backwards.
+        bot = -(depth - TH_H / 2)
+        mry = depth * G_LOOP_RY * G_LOOP_SWELL
         mrx = mry * G_LOOP_ASP
-        lcy = (top + bot) / 2
-        lcx = bcx + bw * G_LOOP_DX
+        lcy = bot + mry
+        lcx = bcx + (brx * 2) * G_LOOP_DX
+        _rot = math.radians(G_LOOP_ROT); _cr, _sr = math.cos(_rot), math.sin(_rot)
 
-        def bez(p0, c1, c2, p3, n=64):
-            # sampled DENSELY and handed to stroke() raw. geom.SPACING is 11
-            # units, which is smooth enough for the gentle curves everywhere
-            # else in the face and is visibly faceted on a loop this tight.
+        def L(phi):
+            x, y = mrx * math.cos(phi), mry * math.sin(phi)
+            return (lcx + x * _cr - y * _sr, lcy + x * _sr + y * _cr)
+
+        _low = min(L(i * math.pi / 180.0)[1] for i in range(360))
+        lcy += bot - _low
+
+        def bez(p0, c1, c2, p3, n=70):
             out_ = []
             for i in range(n + 1):
                 t = i / n; u = 1 - t
@@ -537,119 +562,47 @@ if pen.ITALIC:
                              u*u*u*p0[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*p3[1]))
             return out_
 
-        mrx *= G_LOOP_SWELL; mry *= G_LOOP_SWELL
-        _rot = math.radians(G_LOOP_ROT); _cr, _sr = math.cos(_rot), math.sin(_rot)
+        # ---- STROKE ONE: the ear, the top, and down the left --------------
+        E1 = (bcx + brx + xh * G_EAR_OUT, xh * G_EAR_Y)
+        A_on = Bp(G_A0)
+        lead = bez(E1,
+                   (E1[0] - (E1[0] - A_on[0]) * 0.45, E1[1]),
+                   (A_on[0] + (E1[0] - A_on[0]) * 0.30, A_on[1] + (E1[1] - A_on[1]) * 0.55),
+                   A_on, n=40)
+        one = lead + arc(G_A0, G_A1)[1:]
+        w1 = pen_widths(one, floor=S * G_FLOOR * G_BOWL_WALL)
+        # thin at the ear's landing, full through the top and the left flank,
+        # tapering again as it runs out at the bottom-left
+        # stroke one runs PAST where stroke two leaves the bowl and stays near
+        # full width to its end, because the two have to OVERLAP there or the
+        # counter leaks out at the bottom-left -- both of them tapering into the
+        # same place is what opened it.
+        prof1 = widths([(0.0, 0.30), (0.10, 0.70), (0.20, 1.0), (0.86, 1.0), (1.0, 0.86)])
+        s_one = stroke(one, lambda t: w1(t) * prof1(t) * G_BOWL_WALL, raw=True, pieces=True)
 
-        def L(phi):
-            x, y = mrx * math.cos(phi), mry * math.sin(phi)
-            return (lcx + x * _cr - y * _sr, lcy + x * _sr + y * _cr)
-
-        def LT(phi):
-            dx, dy = -mrx * math.sin(phi), mry * math.cos(phi)
-            x, y = dx * _cr - dy * _sr, dx * _sr + dy * _cr
-            m = math.hypot(x, y) or 1.0
-            return (x / m, y / m)
-
-        # Tilting and swelling both drive the loop's lowest point DOWN, so the
-        # descender would deepen with every rung of the ladder and the options
-        # would not be comparable -- at 34 degrees the ink reached -331 against
-        # the -283 that p and q sit at. The loop is re-seated so its bottom
-        # lands on the descender whatever the tilt: the shape is the variable,
-        # the depth is not.
-        _low = min(L(i * math.pi / 180.0)[1] for i in range(360))
-        lcy += bot - _low
-
-        phi_out = math.radians(G_LOOP_OUT); phi_in = math.radians(G_LOOP_IN)
-
-        # OUT -- down and LEFT out of the bowl's bottom, swinging toward (but
-        # never past) the bowl's own left edge, arriving tangent to the loop.
-        # This swing is the neck, and it is the one part of the descending
-        # stroke with a free outer edge; the rest of it is bounded by the
-        # loop's counter on one side and the letter's silhouette on the other.
-        # It leaves at a CORNER, not a tangent: at 253 degrees the bowl's own
-        # tangent is nearly horizontal while the neck has to set off downward,
-        # and Coelacanth's outline has exactly that corner in it. Then it runs
-        # STRAIGHT down-left to a second corner, and turns from there into the
-        # loop -- the two strokes, and the corner between them.
-        Pa = L(phi_out); Ta = LT(phi_out)
-        C = (bcx - crx * G_NECK_CX, -xh * G_NECK_CY)
-        seg1 = [(P0[0] + (C[0] - P0[0]) * i / 44.0,
-                 P0[1] + (C[1] - P0[1]) * i / 44.0) for i in range(45)]
-        seg2 = bez(C,
-                   (C[0] + (Pa[0] - C[0]) * 0.34, C[1] - (C[1] - Pa[1]) * 0.30),
-                   (Pa[0] - Ta[0] * mrx * 0.45, Pa[1] - Ta[1] * mrx * 0.45),
-                   Pa)
-        out = seg1 + seg2[1:]
-        # ROUND -- counter-clockwise, all the way to where the return starts
-        span = 2 * math.pi - (phi_out - phi_in)
-        steps = 300
-        rnd = [L(phi_out + span * i / steps) for i in range(steps + 1)]
-        # BACK -- up along the loop's top into the bowl's bottom
-        Pb = L(phi_in); Tb = LT(phi_in)
-        back = bez(Pb,
-                   (Pb[0] + Tb[0] * mrx * 0.45, Pb[1] + Tb[1] * mrx * 0.45),
-                   (P9[0] + TH_V * 0.10, P9[1] - (P9[1] - Pb[1]) * 0.34),
-                   P9)
-        # the overshoot: carry the return on past the bowl's centreline
-        ex, ey = back[-1][0] - back[-4][0], back[-1][1] - back[-4][1]
-        em = math.hypot(ex, ey) or 1.0
-        over = TH_H * G_JOIN
-        back = back + [(back[-1][0] + ex / em * over * i / 8.0,
-                        back[-1][1] + ey / em * over * i / 8.0) for i in range(1, 9)]
-        path = out + rnd[1:] + back[1:]
-        # The pen's own width by direction, floored so the loop's flat runs do
-        # not go to wire -- the round-109 finding, kept: a horizontal run IS
-        # the pen's thin, and a loop this flat is horizontal for most of itself.
-        t_join = len(out) / max(1, len(path) - 1)   # where the neck meets the loop
-        _base = pen_widths(path, floor=S * G_FLOOR)
-
-        def wfn(t):
-            w = _base(t)
-            if t <= t_join and t_join > 0:
-                u = t / t_join
-                w *= 1.0 - (1.0 - G_NECK_THIN) * (3 * u * u - 2 * u ** 3)
-            elif t <= t_join + G_NECK_BACK:
-                u = (t - t_join) / G_NECK_BACK
-                w *= G_NECK_THIN + (1.0 - G_NECK_THIN) * (3 * u * u - 2 * u ** 3)
-            return w * G_LOOP_WALL
-        # `pieces` because the path crosses itself where the return passes the
-        # departure; one polygon would make a hole of that crossing.
-        tail = stroke(path, wfn, raw=True, pieces=True)
-        # THE WEB. Coelacanth's g has exactly three contours -- the outline
-        # and the two counters -- so the region between the neck going down and
-        # the return coming up is SOLID there, not a slot. Albo's two strokes
-        # run close and near-parallel out of the bowl's bottom, and where they
-        # very nearly touch they left slivers of white: four contours in the
-        # built font instead of three, two of them 31 x 12 and 13 x 13 units.
-        # A blot at the junction could not reach them, because they are strung
-        # out along the pair rather than gathered at one point. So the area the
-        # two strokes ENCLOSE is filled directly: out, the short way round the
-        # loop between where one meets it and the other leaves it, and back.
-        short = [L(phi_out - (phi_out - phi_in) * i / 48.0) for i in range(49)]
-        # The web's apex is pushed INTO the bowl rather than left on its ring
-        # centreline. Both strokes start there, so the web is a point at the
-        # top, and the ink just above it is supplied by the strokes' own width
-        # -- which a low G_FLOOR turns to a hairline exactly where the path
-        # runs flat and the pen is thinnest. At floor 0.08 that opened an 80 x
-        # 28 unit hole between the bowl's bottom and the loop. Seated inside
-        # the ring, the apex is covered by the bowl's own ink whatever the
-        # floor does.
-        _ix, _iy = bcx - P0[0], bcy - P0[1]
-        _im = math.hypot(_ix, _iy) or 1.0
-        _apex = (P0[0] + _ix / _im * TH_H, P0[1] + _iy / _im * TH_H)
-        web = geom.poly([_apex] + out + short[1:] + back[1:])
-
-        # THE EAR -- a short, nearly horizontal stroke off the shoulder, as
-        # thick as the bowl's own wall and THICKENING to a blunt end. It was a
-        # hairline stick rising above the x-height, which is what blew the
-        # letter's advance out and left the holes around it in a word.
-        ea = math.radians(G_EAR_DEG)
-        E0 = (bcx + crx * math.cos(ea), bcy + cry * math.sin(ea))
-        E1 = (bx1 + xh * G_EAR_OUT, xh * G_EAR_Y)
-        run = E1[0] - E0[0]
-        earc = cubic(E0,
-                     (E0[0] + run * 0.45, E0[1] + (E1[1] - E0[1]) * 0.60),
-                     (E1[0] - run * 0.38, E1[1]),
-                     E1)
-        ear = stroke(earc, lambda t: TH_V * (0.82 + 0.22 * t), cut0=None)
-        return geom.ink([bowl, tail, web, ear])
+        # ---- STROKE TWO: top-right, down the right, out and round the loop --
+        b_out = arc(G_B0, G_B1 - 360.0, n=170)      # clockwise: 40 -> -164
+        Pa = L(math.radians(G_LOOP_OUT)); Ta = None
+        dxp, dyp = -mrx * math.sin(math.radians(G_LOOP_OUT)), mry * math.cos(math.radians(G_LOOP_OUT))
+        tx, ty = dxp * _cr - dyp * _sr, dxp * _sr + dyp * _cr
+        tm = math.hypot(tx, ty) or 1.0; Ta = (tx / tm, ty / tm)
+        P0 = b_out[-1]
+        span_ = math.hypot(Pa[0] - P0[0], Pa[1] - P0[1])
+        neck = bez(P0,
+                   (P0[0] - span_ * 0.10, P0[1] - span_ * 0.52),
+                   (Pa[0] - Ta[0] * span_ * 0.40, Pa[1] - Ta[1] * span_ * 0.40),
+                   Pa, n=60)
+        sweep = 2 * math.pi - (math.radians(G_LOOP_OUT) - math.radians(G_LOOP_IN))
+        rnd = [L(math.radians(G_LOOP_OUT) + sweep * i / 300.0) for i in range(301)]
+        two = b_out + neck[1:] + rnd[1:]
+        w2 = pen_widths(two, floor=S * G_FLOOR * G_LOOP_WALL)
+        nb = len(b_out) / len(two)
+        def prof2(t):
+            if t < nb * 0.12: return 0.42 + (t / (nb * 0.12)) * 0.58     # the entry at the top right
+            if t < nb: return 1.0
+            u = (t - nb) / max(1e-6, 1 - nb)
+            if u < 0.22: return 1.0 - (1.0 - G_NECK_THIN) * (u / 0.22)   # thinning into the loop
+            if u < 0.34: return G_NECK_THIN + (1.0 - G_NECK_THIN) * ((u - 0.22) / 0.12)
+            return 1.0 - 0.30 * max(0.0, (u - 0.86) / 0.14)              # the loop runs out
+        s_two = stroke(two, lambda t: w2(t) * prof2(t) * G_LOOP_WALL, raw=True, pieces=True)
+        return geom.ink([s_one, s_two])
