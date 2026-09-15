@@ -95,10 +95,16 @@ def g_f_italic(c):
     baseline the stem turns left and thins to a point, as the j's tail does."""
     xh = c["xh"]; asc = c["asc"]; desc = c["desc"]; wf = c["wf"]
     r = 200 * wf; x = 110 * wf + S / 2
-    st = stem(x, -desc * 0.30, asc - r + 30, top=None, foot=None, ent_span=(0, asc))
+    st = stem(x, -desc * pen.IT_FTAIL, asc - r + 30, top=None, foot=None, ent_span=(0, asc))
     hook = cubic((x, asc - r), (x, asc + 8), (x + r * 0.9, asc + 8), (x + r * 1.25, asc - r * 0.55))
     hk = stroke(hook, pen_widths(hook, widths([(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)])), cut1=CUT)
-    tail = cubic((x, -desc * 0.24), (x, -desc * 0.78), (x - r * 0.46, -desc * 0.96), (x - r * 0.86, -desc * 0.72))
+    # The tail follows IT_FTAIL by SCALING the original coefficients, not by
+    # being rewritten around a new depth: the first cut put the tail's start
+    # at -desc*0.80 while the stem stopped at -desc*0.30, so the tail floated
+    # free of the letter in every option. k is 1.0 at the shipped 0.30.
+    _k = pen.IT_FTAIL / 0.30
+    tail = cubic((x, -desc * 0.24 * _k), (x, -desc * 0.78 * _k),
+                 (x - r * 0.46, -desc * 0.96 * _k), (x - r * 0.86, -desc * 0.72 * _k))
     tl = stroke(tail, widths([(0.0, TH_V * 0.95), (0.55, S * 0.72), (1.0, S * 0.10)]), cut0=None)
     th_ = TH_H * 0.8
     b = stroke([(x - S * 0.5 - 45 * wf, xh - th_ / 2), (x + S * 0.5 + 120 * wf, xh - th_ / 2)], th_)

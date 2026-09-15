@@ -3419,3 +3419,52 @@ word 'fjords' to choose from."** So the corrected slope of round 100 is a
 stepping stone, not the italic, and the next round is a POPULATION rendered
 in one word of his choosing -- f j o r d s, which is the right word for it:
 every letter in it is one an italic redraws.
+
+## Round 101 (2026-09-14): ten true-italic options in "fjords"
+
+Page: https://claude.ai/artifact/A3w37b8TDve7Am5DchiqWc
+
+**Measured five real text italics first** (his instruction, "use other
+italics"), rather than inventing the parameters -- ITC Berkeley Medium
+Italic, Coelacanth Italic, Libre Baskerville Italic, Junicode Italic,
+Georgia Italic:
+
+| face | slant | o width/height | n width / o width | f descent |
+|---|---|---|---|---|
+| ITC Berkeley | 7.0 | 0.85 | 1.17 | -254 |
+| Coelacanth | 0.0* | 0.85 | 1.18 | -326 |
+| Libre Baskerville | 15.0 | 0.82 | 1.27 | -260 |
+| Junicode | 11.0 | 0.82 | 1.19 | -269 |
+| Georgia | 13.0 | 0.93 | 1.11 | -217 |
+| **Albo roman** | -- | **1.036** | -- | -- |
+
+(* Coelacanth's italic carries no `italicAngle`; its slope is in the
+outlines.) **Two of those columns are the italic and not the slope, and they
+are the finding of the round: EVERY reference narrows the o** -- 0.82 to 0.93
+wide over tall against Albo's roman ruling of 1.036, which is WIDER than tall
+-- and every one makes the n wider than the o. **A sheared roman can do
+neither, because shearing preserves width.** That is precisely what separates
+round 100's corrected slope from an italic.
+
+**Five levers, all in `pen.py`** (`ALBO_IT_*`), each one a thing a reference
+italic actually does: `IT_OVAL` (the o and the bowls), `IT_NARROW`
+(everything else, so the n can stay wide while the o narrows), `IT_BRANCH`
+(how far down the stem an arch branches -- at 1 the r's arm leaves at 0.22 xh
+and climbs, which no shear can produce), `IT_SERIF` (a real italic reduces
+them) and `IT_FTAIL` (the f's descent). The ten options walk from the round-100
+shear to a full chancery cut, plus two tuned to named references (Berkeley's
+7 degrees, Baskerville's 15).
+
+**One bug caught before it shipped to the page**: the first `IT_FTAIL`
+rewrote the f's tail around a new depth instead of SCALING the original
+coefficients, so the tail started at -0.80 of the descender while the stem
+stopped at -0.30 -- the f's tail floated free of the letter in all ten
+options. It scales now (`_k = IT_FTAIL / 0.30`, 1.0 at the shipped value).
+
+**Also fixed to make this round possible**: `outlines.build --only` used to
+die with a `KeyError` on the first accented capital, because a skipped
+composite left no row in `hmtx`. Skipped composites emit an empty glyph now,
+which is what makes a ten-variant ladder cost seconds instead of ten full
+builds.
+
+Nothing is chosen; the options are his.

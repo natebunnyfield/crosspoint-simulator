@@ -121,7 +121,13 @@ def g_r(c):
     st = stem(x0, 0, xh, top='left', foot='both', foot_len=(FOOT_R if r_on else 1.0))
     over_c = pen.ARCH_OVER - TH_H / 2
     # round 94 (owner: "reduce 'r' slightly so it fits with the rest of the chars"): the arm's reach 205 -> R_REACH wf, its floor 0.78 -> R_FLOOR S, its flare 1.5 -> R_FLARE
-    center = cubic((x0, xh * (0.56 if r_on else 0.6)), (x0, xh * 1.0), (x0 + 120 * wf * R_REACH / 205, xh + over_c + 6), (x0 + R_REACH * wf, xh * 0.9))
+    # round 101: an italic BRANCHES -- the arm leaves the stem low and climbs,
+    # instead of turning off a roman shoulder near the top. IT_BRANCH slides
+    # between the two; at 1 the arm starts at 0.22 xh, which is what the
+    # reference italics do and what a sheared roman cannot.
+    _b = pen.IT_BRANCH
+    _start = xh * ((0.56 if r_on else 0.6) * (1 - _b) + 0.22 * _b)
+    center = cubic((x0, _start), (x0, xh * (1.0 - 0.10 * _b)), (x0 + 120 * wf * R_REACH / 205, xh + over_c + 6), (x0 + R_REACH * wf, xh * 0.9))
     base = pen_widths(center, floor=S * R_FLOOR)
     prof = widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.05)]) if r_on else widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, R_FLARE)])
     wfn = lambda t: base(t) * prof(t)

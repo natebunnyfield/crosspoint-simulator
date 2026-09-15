@@ -17,7 +17,7 @@ def o_ring(c, rx_center, ry_center=None, cy=None, k=BOWL_K, w_scale=1.0):
     """A full round on the o's construction: outer superellipse whose x
     radius is the centerline's plus half the vertical pen, y radius the
     x-height half plus the overshoot at the INK's edge (ruling: 14)."""
-    xh = c["xh"]; wf = c["wf"]
+    xh = c["xh"]; wf = c["wf"] * pen.IT_OVAL   # round 101: the italic narrows the o (measured on five real italics)
     rx = rx_center * wf + TH_V / 2 * w_scale; ry = (xh / 2 + OVER) if ry_center is None else ry_center
     cy = xh / 2 if cy is None else cy
     return ring(rx, cy, rx, ry, k=k, w_scale=w_scale)
@@ -26,7 +26,7 @@ O_FLOOR_ADJ = 0.55   # round 92 (adj 'o'): the o read hollow -- its knot the low
 @glyph('o')
 def g_o(c):
     if adj('o'):
-        xh = c["xh"]; wf = c["wf"]; rx = O_RX * wf + TH_V / 2
+        xh = c["xh"]; wf = c["wf"] * pen.IT_OVAL; rx = O_RX * wf + TH_V / 2
         solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, floor=S * O_FLOOR_ADJ); return solid
     solid, outer, inner = o_ring(c, O_RX)
     return solid

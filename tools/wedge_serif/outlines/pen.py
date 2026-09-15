@@ -37,10 +37,43 @@ SERIF = _env("FJORD_SERIF", DESIGN["serif"]) / 100.0                            
 CUT_AMOUNT = _env("FJORD_CUT", DESIGN["cut"])                                   # the CUTS axis: 0..200 (see cut.blend)
 CAP = BASE_XH * 1.625
 OVER = DESIGN["overshoot"]; ARCH_OVER = DESIGN["arch_over_edge"]
-WF = DESIGN["lc_width"] * WIDTH
+# Round 100 (2026-09-14, owner: "complete remaining all work"): the italic.
+# SLANT is degrees of shear applied to the finished ink about the BASELINE
+# (build.draw), so every y is untouched and the cut's pinned lines -- the
+# baseline, the x-height and the cap line -- still land where they did.
+# ITALIC additionally switches the letters that a real italic does not merely
+# slope: the single-storey a and the descending f (glyphs/stems.py).
+SLANT = _env("FJORD_SLANT", 0.0)
+# Round 101 (owner: "use other italics for making true italic"). MEASURED on
+# five real text italics -- ITC Berkeley, Coelacanth, Libre Baskerville,
+# Junicode, Georgia -- rather than invented:
+#
+#   face                slant   o width/height   n width / o width   f descent
+#   ITC Berkeley         7.0         0.85              1.17            -254
+#   Coelacanth           0.0*        0.85              1.18            -326
+#   Libre Baskerville   15.0         0.82              1.27            -260
+#   Junicode            11.0         0.82              1.19            -269
+#   Georgia             13.0         0.93              1.11            -217
+#   (* Coelacanth's italic carries no italicAngle; its slope is in the outlines)
+#
+# Two of those columns are the italic and not the slope. EVERY ONE narrows the
+# o -- 0.82 to 0.93 wide over tall, against Albo's ROMAN ruling of 1.036 -- and
+# every one makes the n WIDER than the o, which a sheared roman cannot do
+# because shearing preserves width. IT_OVAL and IT_NARROW are those two.
+IT_OVAL = _env("ALBO_IT_OVAL", 1.0)      # the o and the bowls, x their roman width (1.0 = sheared roman, 0.84 = the references' median)
+IT_NARROW = _env("ALBO_IT_NARROW", 1.0)  # everything else's width, so the n can stay wide while the o narrows
+IT_BRANCH = _env("ALBO_IT_BRANCH", 0.0)  # how far DOWN the stem an arch branches: 0 the roman's shoulder, 1 a cursive branch from the foot
+IT_EXIT = _env("ALBO_IT_EXIT", 0.0)      # the exit stroke leaving a letter's foot, x the stem
+IT_SERIF = _env("ALBO_IT_SERIF", 1.0)    # the wedge family's unit in the italic (a real italic reduces or drops them)
+IT_FTAIL = _env("ALBO_IT_FTAIL", 0.30)   # the f's and j's descent, x the descender
+ITALIC = SLANT != 0.0 or os.environ.get("FJORD_ITALIC") == "1"
+SHEAR = math.tan(math.radians(SLANT))
+
+WF = DESIGN["lc_width"] * WIDTH * (IT_NARROW if ITALIC else 1.0)
 ENT = DESIGN["flare"]                       # entasis: stems swell 14% at their ends
-WL = DESIGN["wedge_len"] * S * SERIF; WD = DESIGN["wedge_depth"] * S * SERIF   # 69.7 x 139.4 at stem 82: the wedge family's unit
-DROP = DESIGN["serif_drop"] * S * SERIF; FILLET = DESIGN["fillet"]             # 23, 0.65
+_ITS = IT_SERIF if ITALIC else 1.0   # round 101: a real italic reduces or drops its serifs
+WL = DESIGN["wedge_len"] * S * SERIF * _ITS; WD = DESIGN["wedge_depth"] * S * SERIF * _ITS   # 69.7 x 139.4 at stem 82: the wedge family's unit
+DROP = DESIGN["serif_drop"] * S * SERIF * _ITS; FILLET = DESIGN["fillet"]             # 23, 0.65
 FOOT = DESIGN["foot_scale"]                  # feet are 0.85 of a top wedge's length
 CUT = math.radians(DESIGN["cut_deg"])        # 20 deg pen cut
 BOWL_K = DESIGN["bowl_k"]                    # 2.1: the family's superellipse
@@ -60,15 +93,6 @@ class FlooredPen:
 PEN = FlooredPen(_Pen(S, CONTRAST, DESIGN["stress"], DESIGN["power"]), HAIR_FLOOR)
 HAIR = PEN.hair
 
-# Round 100 (2026-09-14, owner: "complete remaining all work"): the italic.
-# SLANT is degrees of shear applied to the finished ink about the BASELINE
-# (build.draw), so every y is untouched and the cut's pinned lines -- the
-# baseline, the x-height and the cap line -- still land where they did.
-# ITALIC additionally switches the letters that a real italic does not merely
-# slope: the single-storey a and the descending f (glyphs/stems.py).
-SLANT = _env("FJORD_SLANT", 0.0)
-ITALIC = SLANT != 0.0 or os.environ.get("FJORD_ITALIC") == "1"
-SHEAR = math.tan(math.radians(SLANT))
 
 def th(deg):
     """Stroke width for a centerline running at `deg` (0 = right, 90 = up)."""

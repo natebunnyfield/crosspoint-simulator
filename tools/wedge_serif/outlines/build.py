@@ -255,9 +255,13 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # letter is never redrawn, so a later round that changes the e changes
     # every e-acute with it, and the file pays for one outline instead of 161.
     for ch in ACC_CHARS:
-        if only is not None and ch not in only: continue
         base, mark, kind = ACCENTED[ch]
-        if base not in ink or mark not in ink: continue
+        if (only is not None and ch not in only) or base not in ink or mark not in ink:
+            # round 101: still EMIT the glyph, empty. setupHorizontalMetrics
+            # needs a row for every name in the glyph order, so a skipped
+            # composite under --only used to fail the whole build with a
+            # KeyError on the first accented capital.
+            glyphs[gname(ch)] = TTGlyphPen(None).glyph(); metrics[gname(ch)] = (300, 0); continue
         bx0, by0, bx1, by1 = ink[base]; mx0, my0, mx1, my1 = ink[mark]
         isCap = base.isupper()
         if kind == 'above':
@@ -281,7 +285,8 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # same drawing.
     for ch in COMB_CHARS:
         src = COMBINING[ch]
-        if src not in ink: continue
+        if src not in ink:
+            glyphs[gname(ch)] = TTGlyphPen(None).glyph(); metrics[gname(ch)] = (0, 0); continue
         mx0, my0, mx1, my1 = ink[src]
         below = src in ("\u00b8", "\u02db", "\u0326")
         dy = (-my1 if below else pen.XH + ACC_GAP_LC - my0)
