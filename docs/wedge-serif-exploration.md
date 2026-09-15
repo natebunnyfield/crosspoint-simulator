@@ -3468,3 +3468,53 @@ which is what makes a ten-variant ladder cost seconds instead of ten full
 builds.
 
 Nothing is chosen; the options are his.
+
+## Round 102 (2026-09-14): the italic is cut
+
+Owner, on the round-101 options: **"yes to 10 deg emulate coelacanth and
+junicode but develop your own style that harmonizes with albo roman."** So
+the slant is ruled at 10 degrees, the models are those two faces and not the
+other three, and the cut is mine to make.
+
+Page: https://claude.ai/artifact/QKf1aUuaAWnt3ZBGkQHdPU
+
+**Measured Coelacanth's italic against its own ROMAN**, which is the cleanest
+A/B available because both are on disk:
+
+| | Coelacanth roman | Coelacanth italic | Junicode italic |
+|---|---|---|---|
+| o width/height | 1.03 | 0.85 | 0.82 |
+| n width / o width | 1.13 | 1.18 | 1.19 |
+| l foot / l stem (serif spread) | 3.39 | **1.67** | 1.49 |
+| arch joins the stem at | 0.97 xh | **0.96 xh** | 0.97 xh |
+
+**Two of those rows overturned the round-101 options**, and both were worth
+the measurement:
+
+- **Neither model branches low.** Their arches join at 0.96-0.97 of the
+  x-height, the SAME as their own roman. Whatever a chancery italic does,
+  these two do not, so the options that branched at 0.22 xh were wrong about
+  the faces he named. `IT_BRANCH` ships at 0.15 -- a hint and no more.
+- **The italic HALVES its serif spread** (3.39 -> 1.67 on the same face).
+  Albo's roman is 2.52, so half is the same move: `IT_SERIF` 0.50.
+
+**The levers, and none of them is a preference except where it says so:**
+
+| lever | value | how |
+|---|---|---|
+| `IT_OVAL` / `IT_NARROW` | 0.729 / 1.007 | SOLVED by bisection until the o measures 0.842 wide over tall and the n 1.190 of the o -- the models' mean. Two levers because narrowing everything narrows the o with it, so one carries the o's share of the product and the other everything else's; solved independently they converge in nine steps each. |
+| `IT_SERIF` | 0.50 | the halving above |
+| `IT_BRANCH` | 0.15 | the refutation above |
+| `IT_FTAIL` | 0.55 | their italic f's descend to -0.79 and -0.64 xh |
+| slant | 10 deg | his ruling |
+| stem | **65** | chosen so the italic's ink at 13 pt is **61.8% against the roman's 61.9%** -- the two set at the same color, which is what "harmonizes" has to mean on a page |
+
+These are `pen.py`'s DEFAULTS now, so an italic build needs only
+`FJORD_SLANT=10`. Bold Italic takes the same levers at the bold's weight
+(stem 104, ink 73.2% against the Bold's 73.7%).
+
+**What is mine rather than measured**: the serifs are halved and NOT dropped.
+Every reference could have justified dropping them further, but the wedge is
+what Albo is, and an italic that loses it stops being this family's italic.
+That is the harmonizing decision and the only one in the table without a
+measurement behind it.

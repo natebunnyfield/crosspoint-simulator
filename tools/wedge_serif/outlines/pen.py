@@ -60,12 +60,34 @@ SLANT = _env("FJORD_SLANT", 0.0)
 # o -- 0.82 to 0.93 wide over tall, against Albo's ROMAN ruling of 1.036 -- and
 # every one makes the n WIDER than the o, which a sheared roman cannot do
 # because shearing preserves width. IT_OVAL and IT_NARROW are those two.
-IT_OVAL = _env("ALBO_IT_OVAL", 1.0)      # the o and the bowls, x their roman width (1.0 = sheared roman, 0.84 = the references' median)
-IT_NARROW = _env("ALBO_IT_NARROW", 1.0)  # everything else's width, so the n can stay wide while the o narrows
-IT_BRANCH = _env("ALBO_IT_BRANCH", 0.0)  # how far DOWN the stem an arch branches: 0 the roman's shoulder, 1 a cursive branch from the foot
+# ROUND 102, THE RULED CUT (owner 2026-09-14: "yes to 10 deg emulate
+# coelacanth and junicode but develop your own style that harmonizes with albo
+# roman"). The defaults below ARE that cut; an italic build needs only
+# FJORD_SLANT=10. How each number was arrived at:
+#
+#   IT_OVAL / IT_NARROW   SOLVED, not chosen: bisected until the o measures
+#     0.838 wide over tall and the n 1.185 of the o -- the mean of Coelacanth
+#     (0.85 / 1.18) and Junicode (0.82 / 1.19). They are two levers because
+#     narrowing everything narrows the o with it; IT_OVAL is the o's share of
+#     the product and IT_NARROW everything else's, so they solve independently.
+#   IT_SERIF 0.50         Coelacanth's italic HALVES its roman's serif spread
+#     (the l's foot over its stem: 3.39 roman, 1.67 italic); Junicode's italic
+#     is 1.49. Albo's roman is 2.52, so half is the same move. Halved and not
+#     dropped is the harmonising choice: the wedge IS Albo, and an italic that
+#     loses it stops being this family's italic.
+#   IT_BRANCH 0.15        MEASURED AND NEARLY REFUTED. Both models' arches
+#     join at 0.96-0.97 of the x-height, against their romans' 0.97 -- they do
+#     NOT branch low, whatever a chancery italic does. The round-101 options
+#     that branched at 0.22 were wrong about these two faces. 0.15 is a hint
+#     of it and no more.
+#   IT_FTAIL 0.55         their italic f's descend to -0.79 and -0.64 of the
+#     x-height where Albo's roman g reaches -0.65.
+IT_OVAL = _env("ALBO_IT_OVAL", 0.729)      # the o and the bowls, x their roman width (1.0 = sheared roman, 0.84 = the references' median)
+IT_NARROW = _env("ALBO_IT_NARROW", 1.007)  # everything else's width, so the n can stay wide while the o narrows
+IT_BRANCH = _env("ALBO_IT_BRANCH", 0.15)  # how far DOWN the stem an arch branches: 0 the roman's shoulder, 1 a cursive branch from the foot
 IT_EXIT = _env("ALBO_IT_EXIT", 0.0)      # the exit stroke leaving a letter's foot, x the stem
-IT_SERIF = _env("ALBO_IT_SERIF", 1.0)    # the wedge family's unit in the italic (a real italic reduces or drops them)
-IT_FTAIL = _env("ALBO_IT_FTAIL", 0.30)   # the f's and j's descent, x the descender
+IT_SERIF = _env("ALBO_IT_SERIF", 0.50)    # the wedge family's unit in the italic (a real italic reduces or drops them)
+IT_FTAIL = _env("ALBO_IT_FTAIL", 0.55)   # the f's and j's descent, x the descender
 ITALIC = SLANT != 0.0 or os.environ.get("FJORD_ITALIC") == "1"
 SHEAR = math.tan(math.radians(SLANT))
 
