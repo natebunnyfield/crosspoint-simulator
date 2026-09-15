@@ -4535,3 +4535,42 @@ would only be fitting the wrong letters, so the question back to him is whether
 the SHAPES are going the right way.
 
 Page: https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
+
+### Round 116 (2026-09-15): the a, pulled off the page
+
+Owner: **"let's just focus on the vowels to start with, one at a time"**, then
+**"find the examples from the scan and synthesize a hires 'a' for reference"**,
+and when three attempts pulled the wrong letter, **"look for characters that
+are like 'd' with a short ascender"**.
+
+**The scan has to be ON DISK.** An image sent in conversation reaches me to
+look at and never lands in the filesystem, so nothing can crop or average it.
+He saved it: `~/Downloads/aldine.png` (the Virgil page, 911x381) and
+`~/Downloads/Aldus-type-2-GfT1341.11.webp` (the full Aldus type-2 specimen
+sheet, 3118x831). **The specimen sheet is NOT the subject** -- he said so when
+I reached for it; the Virgil page is.
+
+**Finding the letter took three wrong crops and his description settled it.**
+Template correlation kept matching every round-bowl-beside-a-stem on the page --
+ci, ti, at -- because that describes half the lowercase. Segmenting the line
+and counting letters put the x coordinates out by 40-60 units. What worked was
+a FILMSTRIP: 34-unit windows stepping 28 across one line, rendered at 7x, read
+by eye. The a of *Formoſam* is at **x 222-238, y 28-47**, with the long s on
+its left and the m on its right. With a correct template the correlation then
+found 8 more.
+
+**THE SHAPE, and it is not what this module had drawn.** Griffo's a is a **d
+with a short ascender**: a SMALL bowl sitting LOW in the x-height rather than
+filling it, and the stem CARRYING ON ABOVE the bowl by a little. Round 115's a
+filled the whole x-height with its bowl and stopped the stem level with it,
+which is a different letter. Dials, measured off the crop: bowl 0.66 of the
+x-height wide and 0.90 tall, stem rising above it by `A_RISE`.
+
+**The rise is the whole letter and its window is narrow**: at **0.05 it reads
+as an a, and by 0.11 it is a d.** Worth recording precisely because it is a
+six-hundredths-of-an-x-height difference between two letters.
+
+Page: https://claude.ai/artifact/XxTZMdq2bf3toACZSAvC7x
+
+Method for the remaining vowels, which is the thing to reuse: pull the letter
+off the page first at 20x, look at it, THEN draw. Not the other way round.
