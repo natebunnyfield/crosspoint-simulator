@@ -3745,3 +3745,37 @@ diagonal between two detached ovals, which the contour count caught.
 **Rule for the italic from here: one change, then his eye.** The oblique score
 is not a substitute for it -- it fell from 0.616 to 0.439 across exactly the
 rounds he judged worse.
+
+## Round 109 (2026-09-14): the e, and the g measured rather than guessed
+
+Three asks in one exchange.
+
+**The e: a steeper crossbar and less tail**, then **"e is a loop with a
+tapered tail."** Italic only (the roman's 5 degrees and 330 are rulings of
+rounds 39 and 46): `E_DEG_IT` 16, `E_END_IT` 318, and a new `tail_end`
+argument to `_e_ring` that thins the arm to 0.30 of its width over its last
+half, so the stroke comes to a point instead of stopping at the blunt radial
+face the aperture cuts. Laddered at bar 5/12/16/20 against Coelacanth first;
+16 read closest.
+
+**The g: scrapped and rebuilt on the o**, then **"show me that understand the
+underlying calligraphic brush strokes of g."** That second ask produced the
+round's real work and its own document:
+[docs/italic-g-strokes.md](italic-g-strokes.md).
+
+Coelacanth's g was rasterised at a 900 px em, distance-transformed, and its
+ridge taken as the stroke centerline -- 2,303 samples with a thickness and a
+direction each. **The pen's edge lies at 22 degrees** (thinnest runs 15-30,
+thickest 105-120, exactly 90 apart as a broad nib must be), ratio 2.3:1, and
+**Albo's own pen is at 26** -- within four degrees. So the widths never
+needed declaring; the pen already gives them.
+
+**The failure was geometric, not a weight.** The loop is a big ROUND tilted
+oval, and a flat loop runs horizontal the whole way round, which is the pen's
+THIN -- which is why three cuts of it came out as wire whatever floor or
+width table they were given. Albo's loop is a **ring** now, not a stroke: a
+ring has ascending and descending runs by construction, so the pen modulates
+it without being told to. The bowl is `o_ring(c, O_RX)`, the o's own call.
+
+Rule kept: **when a stroke comes out the wrong weight, check its DIRECTION
+before its width.**

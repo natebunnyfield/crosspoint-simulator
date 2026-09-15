@@ -56,6 +56,15 @@ def g_c(c):
     return geom.ink([solid, lip])
 
 E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rounds 39 + 46)
+# Round 109 (owner: "redo e for a steeper crossbar and less of a tail
+# stroke"). ITALIC ONLY -- the roman's 5 degrees and 330 are rulings of rounds
+# 39 and 46 and are untouched. Both models' italic e tilts its bar hard and
+# stops its arm early; Albo's italic inherited the roman's near-flat bar and
+# long lower-right tail. E_DEG_IT is the bar's rise in degrees, E_END_IT the
+# radial where the arm's end face is cut (smaller = shorter tail).
+E_DEG_IT = float(os.environ.get("ALBO_E_DEG", 16.0))   # rung C of the round-109 ladder
+E_END_IT = float(os.environ.get("ALBO_E_END", 318.0))
+E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.30))   # the arm's width at its very end, x its ordinary width: the taper
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
 
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
@@ -71,12 +80,12 @@ E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its b
 # terminal and peaking at the run's middle (the widest point) -- so the
 # eye above the bar and the lower aperture below both gain the interior
 # space, and neither the bottom join nor the terminal's cut moves.
-ARM_START_DEG, ARM_END_DEG = 270.0, E_END
+ARM_START_DEG, ARM_END_DEG = 270.0, (E_END_IT if pen.ITALIC else E_END)
 ARM_TAPER = 0.25
 E_ARM_THIN = float(os.environ.get("FJORD_E_ARM_THIN", 0.92))   # owner 2026-09-14: "slightly reduce the visual weight of the bottom right tail stroke of e" (1.0 = as it was; the round-77 0.90 was refused)
 E_ARM_OUT = float(os.environ.get("FJORD_E_ARM_OUT", 0.0))    # and the +8 outward shift is off; _e_ring(1.0, 0) reproduces o_ring byte for byte
 
-def _e_ring(c, rx_center, thin=1.0, out_shift=0.0, k=BOWL_K, taper_frac=ARM_TAPER):
+def _e_ring(c, rx_center, thin=1.0, out_shift=0.0, k=BOWL_K, taper_frac=ARM_TAPER, tail_end=1.0):
     """`o_ring`'s construction (the outer superellipse, the counter the
     pen/bowl's inward offset by tangent), with the arm (ARM_START_DEG to
     ARM_END_DEG) thinned to `thin` x its ordinary width and its path
@@ -98,6 +107,11 @@ def _e_ring(c, rx_center, thin=1.0, out_shift=0.0, k=BOWL_K, taper_frac=ARM_TAPE
             t = (ang - ARM_START_DEG) / span
             u = min(1.0, t / taper_frac); su = 3 * u * u - 2 * u ** 3
             tf = 1.0 + (thin - 1.0) * su
+            # round 109 (owner: "e is a loop with a tapered tail"): the arm
+            # thins toward its end, so the stroke comes to a point rather than
+            # stopping at the blunt radial face the aperture cuts.
+            if tail_end != 1.0:
+                v = max(0.0, (t - 0.45) / 0.55); tf *= 1.0 + (tail_end - 1.0) * (3 * v * v - 2 * v ** 3)
             shift = out_shift * math.sin(math.pi * t)
         op = (p[0] + shift, p[1]); outer2.append(op)
         w = PR.bowl_th(tn) * tf
@@ -116,16 +130,16 @@ def g_e(c):
     stroke) is thinned and shifted right per E_ARM_THIN / E_ARM_OUT (owner
     instruction, 2026-09-13)."""
     xh = c["xh"]; wf = c["wf"]
-    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT)
+    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT, tail_end=(E_TAIL_IT if pen.ITALIC else 1.0))
     rx = E_RX * _IO * wf + TH_V / 2; cx = rx; cy = xh / 2
-    tilt = math.radians(E_DEG); slope = math.tan(tilt)
+    tilt = math.radians(E_DEG_IT if pen.ITALIC else E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
-    th = max(pen.th(E_DEG) * e_th, S * 0.35)
+    th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * 0.35)
     bar_top = lambda x: xh * e_bar + (x - cx) * slope
     under = lambda x: bar_top(x) - th
     # the bar: from inside the left stroke to inside the right stroke
     b = stroke([(cx - rx + 8, bar_top(cx - rx + 8) - th / 2), (cx + rx - 42, bar_top(cx + rx - 42) - th / 2)], th)
     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
-    a = math.radians(E_END); far = 3 * rx
+    a = math.radians(E_END_IT if pen.ITALIC else E_END); far = 3 * rx
     aperture = geom.poly([(cx, cy), (cx + far * math.cos(a), cy + far * math.sin(a)), (cx + far, under(cx + far)), (cx, under(cx))])
     return geom.ink([solid.difference(aperture), b])

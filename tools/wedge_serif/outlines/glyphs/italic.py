@@ -317,22 +317,39 @@ if pen.ITALIC:
 
     @glyph('g')
     def g_g_it(c):
-        """From the models: the upper bowl the o's oval, the lower loop WIDER
-        and more open, the neck a thin diagonal between them, and the ear a
-        sweep to the right off the bowl's shoulder rather than a stub."""
-        xh = c["xh"]; desc = c["desc"]
-        bowl, bo, bi = o_ring(c, O_RX * 0.88, ry_center=xh * 0.34, cy=xh * 0.66)
-        bx0, by0, bx1, by1 = bowl.bounds
-        lcx = (bx0 + bx1) / 2 - S * 0.25; lcy = -desc * 0.52
-        loop, lo, li = ring(lcx, lcy, (bx1 - bx0) * 0.62, desc * 0.44, w_scale=0.92)
-        # the neck STARTS INSIDE the bowl's ink and ENDS INSIDE the loop's, or
-        # the three pieces do not union and the g comes apart (round 108's
-        # first cut: bowl, loop and a floating diagonal between them)
-        neck = cubic((bx1 - TH_V * 0.9, xh * 0.52), (bx1 - TH_V * 0.5, xh * 0.14),
-                     (lcx + (bx1 - bx0) * 0.44, -desc * 0.04), (lcx + (bx1 - bx0) * 0.50, -desc * 0.30))
-        nw_ = pen_widths(neck)
-        ear = catmull([(bx1 - TH_V * 1.1, xh * 0.84), (bx1 + S * 0.30, xh * 1.00), (bx1 + S * 0.95, xh * 1.02), (bx1 + S * 1.20, xh * 0.92)], tension=0.5)
-        ew = pen_widths(ear)
-        return geom.ink([bowl, loop, stroke(neck, lambda t: max(nw_(t) * 0.75, S * 0.32), cut0=None, cut1=None),
-                         stroke(ear, lambda t: max(ew(t) * (0.9 - 0.4 * t), S * 0.14), cut0=None)])
+        """Rebuilt on the O, and on a MEASUREMENT of Coelacanth's g
+        (`docs/italic-g-strokes.md`). Its skeleton, coloured by stroke width,
+        says three things that decide this letter:
 
+        1. the pen's edge lies at 22 degrees -- thin when the stroke runs
+           along that, thick at 112, which is Albo's own 26-degree stress
+           within four degrees. So the widths do NOT need declaring: the pen
+           gives them, IF the strokes actually run in those directions.
+        2. the loop is a big ROUND tilted oval, not a flat sweep. That is why
+           its left and bottom come out thick and its right thin -- a flat
+           loop runs horizontal the whole way and a horizontal run is the
+           pen's thin, which is why three previous cuts of this loop came out
+           as wire whatever floor or width table they were given.
+        3. the bowl is the o; the neck between them is a hairline; the ear is
+           one short thick stroke off the shoulder.
+
+        So: the o's own ring, a ring for the loop, a hairline neck, an ear."""
+        xh = c["xh"]; desc = c["desc"]
+        bowl, bo, bi = o_ring(c, O_RX)
+        bx0, by0, bx1, by1 = bowl.bounds
+        w = bx1 - bx0
+        # THE LOOP AS A RING -- round and deep enough to have descending and
+        # ascending runs, which is where the pen's thick and thin come from.
+        lrx = w * 0.62; lry = desc * 0.40
+        lcx = bx0 + w * 0.42; lcy = -desc * 0.54
+        loop, lo, li = ring(lcx, lcy, lrx, lry, w_scale=1.0, floor=S * 0.30)
+        # the neck: a hairline from the bowl's lower right into the loop's top
+        neck = cubic((bx1 - TH_V * 0.75, xh * 0.30), (bx1 - TH_V * 0.45, xh * 0.02),
+                     (lcx + lrx * 0.72, -desc * 0.10), (lcx + lrx * 0.86, -desc * 0.30))
+        nw_ = pen_widths(neck)
+        ear = catmull([(bx1 - TH_V * 0.8, xh * 0.80), (bx1 + S * 0.25, xh * 0.98),
+                       (bx1 + S * 0.85, xh * 1.02), (bx1 + S * 1.05, xh * 0.90)], tension=0.5)
+        ew = pen_widths(ear)
+        return geom.ink([bowl, loop,
+                         stroke(neck, lambda t: max(nw_(t) * 0.78, S * 0.30), cut0=None, cut1=None),
+                         stroke(ear, lambda t: max(ew(t) * (0.9 - 0.45 * t), S * 0.14), cut0=None)])
