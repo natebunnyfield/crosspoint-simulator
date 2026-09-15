@@ -159,11 +159,51 @@ if ON:
         bar = stroke([(cx - rx * 0.92, y - rx * 0.92 * sl), (cx + rx * 0.86, y + rx * 0.86 * sl)], TH_H * 0.92)
         return geom.ink([ring_, bar])
 
+    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 132.0))   # the bowl's reach left of the stem
+    A_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))  # where the bowl leaves the stem, x xh
+    A_BOT = float(os.environ.get("ALBO_ALD_A_BOT", 0.07))  # and where it returns, x xh
+    A_ENT = float(os.environ.get("ALBO_ALD_A_ENT", 0.0))
+    A_DEG = float(os.environ.get("ALBO_ALD_A_DEG", 86.0))  # where the bowl meets the stem, degrees off centre  # the entry flag at the stem's top, x the stem
+
     @glyph('a')
     def a_a(c):
-        """Single-storey: a small bowl LOW against a nearly straight stem."""
-        xh = c["xh"]; rx = 138 * _w(c); x1 = S * 0.6 + rx * 2 + S * 0.10
-        return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)] + st(x1, 0, xh, head=False))
+        """Single-storey, and NOT a ring parked beside a stem -- which is what
+        the first cut of this module drew, and why its counter came out a full
+        oval instead of the a's own D.
+
+        The bowl is ONE arc that leaves the stem near its top, sweeps left and
+        down round the outside, and returns to the stem near its foot. The
+        counter is then bounded by that arc and by the stem itself, which is
+        what makes it a D lying on its back. The pen does the contrast: the
+        arc's left flank is a downstroke and comes out thick, its top and
+        bottom are flat runs and come out thin, with no width declared at all.
+        """
+        xh = c["xh"]; rx = A_RX * _w(c)
+        x1 = S * 0.62 + rx + S * 0.30            # the stem
+        # The arc's two ends must land ON the stem, so the centre is placed
+        # from the end ANGLE rather than guessed: at 74 and 286 degrees the
+        # ellipse's x is cx + rx*cos(74), so cx = x1 - rx*cos(74) puts both
+        # ends on the stem's centreline. Guessing it (0.86 rx) left the arc
+        # finishing well to the left of the stem with white between them.
+        cx = x1 - rx * math.cos(math.radians(A_DEG)); cy = xh * 0.50
+        # 74 degrees round to 286, COUNTER-clockwise: up at the stem, left,
+        # down round the outside, back to the stem at the foot. The first cut
+        # wrote the end angle as -74 and subtracted a turn, which asks for 508
+        # degrees of sweep -- the arc wrapped past itself and left a crescent.
+        a0 = math.radians(A_DEG); a1 = math.radians(360.0 - A_DEG)
+        p = superellipse(cx, cy, rx, xh / 2 + OVER * 0.5, a0, a1, BOWL_K)
+        wf = pen_widths(p, floor=S * FLOOR)
+        arc_ = stroke(p, lambda t: wf(t) * (0.70 + 0.30 * min(1.0, t / 0.18)), cut0=CUT, cut1=CUT)
+        parts = [arc_] + st(x1, 0, xh * A_TOP, head=False, foot=True)
+        # the small entry flag the scan puts on the stem's top right
+        if A_ENT:
+            L = S * A_ENT
+            parts.append(stroke(cubic((x1 - S * 0.16, xh * A_TOP + L * 0.30),
+                                      (x1 + L * 0.28, xh * A_TOP + L * 0.34),
+                                      (x1 + L * 0.72, xh * A_TOP + L * 0.10),
+                                      (x1 + L * 0.96, xh * A_TOP - L * 0.34)),
+                                widths([(0.0, S * 0.52), (1.0, S * 0.22)]), cut1=CUT))
+        return geom.ink(parts)
 
     @glyph('b')
     def a_b(c):
