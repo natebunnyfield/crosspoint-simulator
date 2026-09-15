@@ -4441,6 +4441,13 @@ void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
   }
 }
 bool HalDisplay::supportsStripGrayscale() const { return true; }
+bool HalDisplay::supportsAbsoluteGrayscale() const {
+#if FREEINK_DEVICE_X3
+  return false;
+#else
+  return true;
+#endif
+}
 
 uint16_t HalDisplay::getDisplayWidth() const { return activeWidth(); }
 uint16_t HalDisplay::getDisplayHeight() const { return activeHeight(); }

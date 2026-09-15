@@ -155,6 +155,17 @@ public:
                                 uint16_t yStart, uint16_t numRows);
   bool supportsStripGrayscale() const;
 
+  // Mirrors the firmware HAL (lib/hal/HalDisplay.h): does this panel have an
+  // absolute 4-level grayscale bank behind displayGrayBuffer(..., true)?
+  //
+  // FALSE ON X3, and that is the fidelity point rather than a stub's
+  // convenience: Uc8253X3Driver accepts the flag and has no absolute bank
+  // behind it, so a caller that assumes the capability from the flag's
+  // existence gets the bilevel fallback on the owner's own device. Answering
+  // true everywhere would hide exactly that
+  // (docs/grayscale-fast-refresh-spec-2026-09-14.md in the firmware repo).
+  bool supportsAbsoluteGrayscale() const;
+
   // Simulator only: call from main thread to push rendered pixels to SDL.
   // Suspend GPU work while the app is backgrounded.
   //
