@@ -4824,3 +4824,51 @@ reading where the bar's own right end and the bottom's return are four rows
 apart and cannot be told apart. **Round 117 was right by luck at 13 px; this is
 right by resolution.** Three readings of one letter, at 13, 35 and 54 px, and
 the ranking of them is simply the ranking of their resolutions.
+
+## Round 118 — the Aldine `i`, and BOTH italics kept
+
+Measured off the `i` of *rodigium* in `griffo-macro.png` — dot x192–203 rows
+471–479, stem and head x187–205 rows 497–553, x-height 56 px.
+
+| part | measured | what it means |
+|---|---|---|
+| the stem | 6–8 px, call it 7 | 0.125 × xh = **0.64 × Albo's stem** |
+| the head | a diagonal rising ~22°, (188,507)→(205,500), 17 px long | **2.5 stems**, and it reaches much further RIGHT of the stem than left |
+| the head's mass | 13 rows beside the stem, 6 at its right tip | a WEDGE, thick at the stem and tapering out |
+| the exit | sweeps right to x203 from a stem at x187–194 | ~1.4 stem widths |
+| the dot | 12 × 9 px, **wider than tall**, centre 0.39 of the band above the x-line | one touch of a broad nib, not a circle; the old code had it at 0.265 |
+
+**The Aldine lowercase is LIGHTER than this family.** The `i`'s stem is 0.64 ×
+Albo's and the `e`'s flanks 0.79 ×. Only the `i` is changed here — `l m n u`
+still carry the module's 1.0 and should follow, but that is its own pass.
+
+**Two mistakes, and the second is the useful one.** The head first went in at a
+constant 0.55 × S, a number taken from its thickness at its right END, which is
+its thinnest point — it rendered as a sliver. Rebuilt as a tapered wedge. Then
+it still *looked* too light beside the macro, and the instinct was to add more
+weight; measuring instead says **it already matches**: 2.45 stems wide and 1.95
+tall against Griffo's 2.57 and 1.86. What the eye was reading is the scan's own
+INK SPREAD filling the head solid — which the simulator models at render time
+anyway. A letter can be right and still not look like a 500-year-old impression
+of itself.
+
+### Both italics are kept, and the switch is one word
+
+Owner: *"be sure to make an alternative of the prior italic, then we can make
+this griffo scans one the new, default Albo Italic."*
+
+`ALBO_ITALIC` now names the lowercase:
+
+| value | module | what it is |
+|---|---|---|
+| `classic` (today's default) | `glyphs/italic.py` | the branching-arch italic built off the roman, rounds 101–114b |
+| `aldine` | `glyphs/aldine.py` | drawn from the Griffo scans, rounds 114–118 |
+
+`ALBO_ALDINE=1` still works as an alias. Flipping the default is the one word
+in `_DEFAULT`; **nothing is deleted either way and the loser stays reachable by
+name.** The Aldine module defines only the lowercase, so the capitals, figures
+and marks come from `italic.py` under both settings — which is what makes the
+flip safe to make before the lowercase is finished.
+
+Verified both arms build and differ: the `e`'s bounds are `[38,-15,297,437]`
+under `aldine` and `[38,-15,432,444]` under `classic`.

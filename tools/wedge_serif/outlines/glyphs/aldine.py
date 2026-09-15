@@ -36,7 +36,21 @@ from ..primitives import stroke, pen_widths, widths, ring
 from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, CUT, BOWL_K
 
-ON = os.environ.get("ALBO_ALDINE") == "1"
+# WHICH ITALIC. Two complete italic lowercases now exist and BOTH are kept
+# (owner 2026-09-15: "be sure to make an alternative of the prior italic, then
+# we can make this griffo scans one the new, default Albo Italic"):
+#
+#   classic  glyphs/italic.py -- the branching-arch italic built off the roman,
+#            rounds 101-114b. Today's default.
+#   aldine   this module -- drawn from the Griffo scans, rounds 114-117c.
+#
+# Flipping the default is the one word in _DEFAULT below; nothing is deleted
+# either way, and the loser stays reachable by name. This module only defines
+# the lowercase, so the capitals, figures and marks come from italic.py under
+# both settings.
+_DEFAULT = "classic"
+_WHICH = os.environ.get("ALBO_ITALIC", _DEFAULT).lower()
+ON = _WHICH == "aldine" or os.environ.get("ALBO_ALDINE") == "1"
 
 HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
@@ -93,10 +107,68 @@ def bowl(c, cx, rx, top=None, ry=None):
 
 
 if ON:
+    # MEASURED off the i of "rodigium" in griffo-macro.png (the 54 px macro):
+    # dot x192-203 rows 471-479, stem and head x187-205 rows 497-553.
+    # x-height 56 px, baseline row 553.
+    #
+    #   THE STEM   6-8 px, call it 7 = 0.125 x xh = **0.64 x Albo's stem**.
+    #              The Aldine lowercase is LIGHTER than this family, which is
+    #              the same thing the e said (its flanks 0.79 x). Only the i is
+    #              changed here -- l m n u carry the module's old 1.0 and
+    #              should follow, but that is a separate pass.
+    #   THE HEAD   a straight diagonal rising ~22 deg to the right, from
+    #              (188,507) to (205,500): 17 px long = 2.5 stems = 1.6 x S,
+    #              about 6 px thick away from the stem = 0.55 x S. It crosses
+    #              the stem at 0.875 of the band, and reaches FURTHER RIGHT of
+    #              the stem than left. The module's generic head has the angle
+    #              and the weight about right and is too SHORT (1.15).
+    #   THE EXIT   sweeps right to x203 from a stem at x187-194 -- about 1.4
+    #              stem widths, so the module's 0.80 x S foot is close.
+    #   THE DOT    x192-203 by rows 471-479: 12 x 9 px, WIDER THAN TALL, and
+    #              its centre sits 0.39 of the band above the x-line (the old
+    #              code had 0.265). A round dot is the wrong shape -- it is a
+    #              single touch of a broad nib, so it is drawn as a short
+    #              stroke on the pen's own angle.
+    I_STEM = float(os.environ.get("ALBO_ALD_I_STEM", 0.64))   # x S
+    I_HEAD_LEN = float(os.environ.get("ALBO_ALD_I_HEAD", 1.60))  # x S
+    I_FOOT = float(os.environ.get("ALBO_ALD_I_FOOT", 1.30))      # the exit, x S
+    I_DOT_Y = float(os.environ.get("ALBO_ALD_I_DOT_Y", 0.39))    # x xh, above the x-line
+    I_DOT_W = float(os.environ.get("ALBO_ALD_I_DOT_W", 1.09))    # its long axis, x S
+    I_DOT_T = float(os.environ.get("ALBO_ALD_I_DOT_T", 0.83))    # its thickness, x S
+
+    def wedge_head(x, y, length=None, w=None, deg=None):
+        """The Aldine head: a diagonal rising to the right ACROSS the stem,
+        THICK where it meets the stem and tapering to its right tip, reaching
+        much further right than left.
+
+        The first cut drew it at a constant 0.55 x S, taken from the head's
+        thickness at its right END (6 px at x204). That is its thinnest point.
+        Beside the stem it is 13 rows -- 0.23 x xh, about 1.2 x S -- so the
+        letter's top is a WEDGE with real mass in it, and a constant-width
+        diagonal rendered as a sliver. Measured on the i of "rodigium"; the
+        a, l, m, n and u wear the same shape."""
+        a = math.radians(HEAD_DEG if deg is None else deg)
+        L = S * (I_HEAD_LEN if length is None else length)
+        dx, dy = math.cos(a) * L, math.sin(a) * L
+        hw = (HEAD_W if w is None else w)
+        return stroke([(x - dx * 0.30, y - dy * 0.30), (x + dx * 0.70, y + dy * 0.70)],
+                      widths([(0.0, S * hw * 0.80), (0.30, S * hw * 2.05),
+                              (0.62, S * hw * 1.35), (1.0, S * hw * 0.82)]),
+                      cut0=CUT, cut1=CUT)
+
     @glyph('i')
     def a_i(c):
-        x = S * 1.0
-        return geom.ink(st(x, 0, c["xh"], head=True) + [PR.dot(x + S * 0.30, c["xh"] + S * 1.35, S * 0.52)])
+        xh = c["xh"]; x = S * 1.0
+        parts = list(st(x, 0, xh, head=False, foot=True, w=I_STEM,
+                        foot_len=I_FOOT, foot_w=0.46))
+        parts.append(wedge_head(x, xh * 0.875))
+        # the dot: one touch of the nib, so an oval lying on the pen's angle
+        a = math.radians(HEAD_DEG); L = S * I_DOT_W
+        dx, dy = math.cos(a) * L, math.sin(a) * L
+        cy = xh + I_DOT_Y * xh
+        parts.append(stroke([(x - dx * 0.5, cy - dy * 0.5), (x + dx * 0.5, cy + dy * 0.5)],
+                            S * I_DOT_T, cut0=CUT, cut1=CUT))
+        return geom.ink(parts)
 
     @glyph('l')
     def a_l(c):
