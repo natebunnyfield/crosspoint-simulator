@@ -190,29 +190,58 @@ if ON:
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + 268 * _w(c)
         return geom.ink(st(x0, 0, c["asc"], head=True) + [arch(c, x0, x1)] + st(x1, 0, xh * 0.74))
 
+    # THE STEM PITCH, measured three ways on griffo-macro.png and agreeing:
+    # the m of "tumulum" puts its stems near x505/532/560, and the l and the
+    # following u sit at 680 and 709 -- about 28 px on a 54 px x-height, so
+    # **0.52 x xh between stem centres**. Everything else in the u is already
+    # measured on the i: the stem at 0.64 x S, the wedge head, the exit.
+    U_PITCH = float(os.environ.get("ALBO_ALD_U_PITCH", 0.52))   # stem centres, x xh
+    U_JOIN = float(os.environ.get("ALBO_ALD_U_JOIN", 0.30))     # where the bottom curve meets, x xh
+
     @glyph('u')
     def a_u(c):
-        """The arch inverted: it branches low off the RIGHT stem going back."""
-        xh = c["xh"]; ov = pen.ARCH_OVER; x0 = S * 1.0; x1 = x0 + 268 * _w(c)
-        p = cubic((x1, xh * (1 - BRANCH)), (x1 - (x1 - x0) * 0.06, xh * 0.12),
-                  (x0 + (x1 - x0) * 0.48, -ov), (x0, xh * 0.26))
+        """Two stems on the measured pitch, each with the i's wedge head at the
+        x-line, joined by a bottom curve off the LEFT one -- the arch inverted.
+        The right stem runs to the baseline and takes the exit."""
+        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + U_PITCH * xh
+        parts = list(st(x1, 0, xh, head=False, foot=True, w=I_STEM,
+                        foot_len=I_FOOT, foot_w=0.46))
+        parts += list(st(x0, xh * U_JOIN, xh, head=False, foot=False, w=I_STEM))
+        parts.append(wedge_head(x0, xh * 0.875))
+        parts.append(wedge_head(x1, xh * 0.875))
+        p = catmull([(x0, xh * U_JOIN), (x0 + (x1 - x0) * 0.10, xh * 0.08),
+                     (x0 + (x1 - x0) * 0.50, -OVER * 0.5),
+                     (x1 - (x1 - x0) * 0.10, xh * 0.14), (x1, xh * U_JOIN)], tension=0.5)
         wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink(st(x0, xh * 0.26, xh, head=False, foot=False)
-                        + [stroke(p, lambda t: wf(t) * (0.66 + 0.34 * min(1.0, t / 0.3)))]
-                        + st(x1, 0, xh, head=False))
+        parts.append(stroke(p, lambda t: wf(t) * I_STEM * 1.30))
+        return geom.ink(parts)
 
-    @glyph('r')
-    def a_r(c):
-        xh = c["xh"]; x0 = S * 1.0
-        p = cubic((x0, xh * BRANCH), (x0 + 26 * _w(c), xh * 0.90),
-                  (x0 + 96 * _w(c), xh + pen.ARCH_OVER), (x0 + 182 * _w(c), xh * 0.86))
-        wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink(st(x0, 0, xh, head=False)
-                        + [stroke(p, lambda t: wf(t) * (0.60 + 0.40 * min(1.0, t / 0.35)), cut1=CUT)])
+    # MEASURED off the o of "udos" in griffo-macro.png: x145-185, y61-114 --
+    # 41 wide by 54 tall, w/h 0.759, counter/ink 0.617.
+    #
+    # THE STRESS was read properly rather than guessed: walking a ray out from
+    # the letter's centre every 10 degrees and taking the FIRST contiguous band
+    # of ink. The naive "last ink out" walks into the neighbouring s and
+    # reports 30 px of stroke, which is how a stress measurement goes wrong
+    # without anyone noticing. Thickness peaks at 50 deg (13.8 px) and bottoms
+    # near 110 and 290 (about 5) -- so the PEN ANGLE is ~50 deg, a conventional
+    # steep italic nib, and the contrast is ~2.8:1. Mean 8.7 px = 0.161 x xh =
+    # 0.82 x the stem, which sits with the e's flanks at 0.79.
+    O_W = float(os.environ.get("ALBO_ALD_O_W", 0.76))          # width, x xh
+    O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 50.0))      # the nib's angle, degrees
+    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.36))  # x S, at the pen's fullest
+    O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.492))    # x S, across the nib
 
     @glyph('o')
     def a_o(c):
-        return geom.ink([bowl(c, S * 0.6 + 145 * _w(c), 145 * _w(c), top=1.0)])
+        xh = c["xh"]; rx = O_W * xh / 2; ry = xh / 2 + OVER * 0.5
+        cx = S * 0.6 + rx
+        outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, BOWL_K)[:-1]
+        phi = math.radians(O_PEN)
+        def wf(t):
+            th = t * 2 * math.pi
+            return S * (O_THIN + (O_THICK - O_THIN) * abs(math.cos(th - phi)))
+        return geom.ink([PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]])
 
     @glyph('c')
     def a_c(c):
@@ -394,14 +423,37 @@ if ON:
         return geom.ink([_diag((x, xh), (x + w, 0), 0.92, 0.40),
                          _diag((x, 0), (x + w, xh), 0.40, 0.40)])
 
+    # THE y IS DERIVED, NOT MEASURED, and that is worth saying plainly: there
+    # is no y anywhere in griffo-macro.png, in the Dante, or in the Virgil page
+    # -- Latin and Italian barely use it. So it is built from parts that ARE
+    # measured elsewhere in this module (the 0.64 stem, the wedge head, the
+    # 50-degree pen, the u's pitch) rather than read off a page, and it should
+    # be the first letter re-cut if a specimen carrying one ever turns up.
+    Y_PITCH = float(os.environ.get("ALBO_ALD_Y_PITCH", 0.52))   # as the u
+    Y_TAIL = float(os.environ.get("ALBO_ALD_Y_TAIL", 0.88))     # how far left the tail reaches, x desc
+
     @glyph('y')
     def a_y(c):
-        xh = c["xh"]; x = S * 0.7; w = 190 * _w(c)
-        tail = cubic((x + w, xh), (x + w * 0.52, -c["desc"] * 0.42),
-                     (x + w * 0.10, -c["desc"] * 0.86), (x - S * 0.70, -c["desc"] * 0.62))
-        wf = pen_widths(tail, floor=S * FLOOR)
-        return geom.ink([_diag((x, xh), (x + w * 0.54, 0), 0.94, 0.36),
-                         stroke(tail, lambda t: wf(t) * (0.9 - 0.45 * max(0.0, (t - 0.55) / 0.45)), cut1=CUT)])
+        """DERIVED. The u's left half, then a right stroke carrying on past the
+        baseline into a tail that sweeps left -- the descender drawn on the same
+        pen as the o."""
+        xh = c["xh"]; dsc = c["desc"]; x0 = S * 1.0; x1 = x0 + Y_PITCH * xh
+        parts = list(st(x0, xh * U_JOIN, xh, head=False, foot=False, w=I_STEM))
+        parts.append(wedge_head(x0, xh * 0.875))
+        parts.append(wedge_head(x1, xh * 0.875))
+        p = catmull([(x0, xh * U_JOIN), (x0 + (x1 - x0) * 0.12, xh * 0.10),
+                     (x0 + (x1 - x0) * 0.52, -OVER * 0.4),
+                     (x1 - (x1 - x0) * 0.08, xh * 0.16), (x1, xh * 0.88)], tension=0.5)
+        wf = pen_widths(p, floor=S * FLOOR)
+        parts.append(stroke(p, lambda t: wf(t) * I_STEM * 1.30))
+        tail = catmull([(x1, xh * 0.88), (x1 - S * 0.10, xh * 0.10),
+                        (x1 - S * 0.55, -dsc * 0.46),
+                        (x1 - S * 1.60, -dsc * 0.86),
+                        (x0 - Y_TAIL * S, -dsc * 0.66)], tension=0.5)
+        wt = pen_widths(tail, floor=S * FLOOR)
+        parts.append(stroke(tail, lambda t: wt(t) * I_STEM
+                            * (1.30 - 0.85 * max(0.0, (t - 0.50) / 0.50)), cut1=CUT))
+        return geom.ink(parts)
 
     @glyph('z')
     def a_z(c):

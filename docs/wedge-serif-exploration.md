@@ -4872,3 +4872,53 @@ flip safe to make before the lowercase is finished.
 
 Verified both arms build and differ: the `e`'s bounds are `[38,-15,297,437]`
 under `aldine` and `[38,-15,432,444]` under `classic`.
+
+## Round 119 — `o`, `u`, `y`, and a metric that was measuring the canvas
+
+### The `o` — measured, and tuned against two numbers
+
+Off the `o` of *udos* in `griffo-macro.png` (x145–185, y61–114): **41 × 54,
+w/h 0.759, counter/ink 0.617.**
+
+**The stress was read rather than guessed**, by walking a ray out from the
+letter's centre every 10° and taking the **first contiguous band of ink**.
+The naive "last ink out" walks into the neighbouring `s` and reports a 30 px
+stroke — which is how a stress measurement goes wrong without anyone noticing.
+Thickness peaks at **50°** (13.8 px) and bottoms near 110° and 290° (~5), so
+the **pen angle is ~50°** — a conventional steep italic nib, not the reversed
+stress a first reading of the raw run-widths suggested — and the contrast is
+**~2.8:1**. Mean 8.7 px = 0.161 × xh = **0.82 × the stem**, sitting with the
+`e`'s flanks at 0.79.
+
+Shipped at `O_W` 0.76, thick 1.36, thin 0.492: **counter/ink 0.624 against
+0.617, w/h 0.757 against 0.759.**
+
+### The `u` — one new number, everything else already measured
+
+The only thing the `u` needed was the **stem pitch**, and three independent
+pairs on the macro agree: the `m` of *tumulum* puts its stems near x505/532/560,
+and the `l` and the `u` after it at 680 and 709 — about 28 px on a 54 px
+x-height, so **0.52 × xh between stem centres**. The stem (0.64 × S), the wedge
+head and the exit all come from the `i`.
+
+### The `y` is DERIVED, and that is stated in the code
+
+**There is no `y` anywhere in the macro, the Dante, or the Virgil page** —
+Latin and Italian barely use it. So it is built from parts measured elsewhere
+in this module (the 0.64 stem, the wedge head, the 50° pen, the `u`'s pitch)
+rather than read off a page. It should be the first letter re-cut if a specimen
+carrying one ever turns up.
+
+### The trap: a metric that was measuring the canvas
+
+Every width-to-height figure taken this round was wrong at first, and the
+renders looked fine. `Image.getbbox()` returns the bounding box of the
+**non-zero** region, and these rasters are ink-0 on paper-255 — so it returned
+the whole canvas every time. The `o` read as w/h 0.612 when its outline was
+0.874, and widening `O_W` from 0.76 to 1.00 appeared to move it barely at all,
+which is what finally gave it away: **a dial that does nothing is usually a
+broken instrument, not a dead dial.**
+
+Width and height now come from the OUTLINE via `ControlBoundsPen`. The counter
+ratios were never affected — those are flood-fill pixel counts, which is why
+the `e`'s numbers in round 117c stand.
