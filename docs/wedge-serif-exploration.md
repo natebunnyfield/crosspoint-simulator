@@ -4628,3 +4628,15 @@ that. `st()` took `foot_len` and `foot_w` overrides, and the `a` ships at
 The weight half mattered as much as the length: at the default taper (ending at
 0.30) a 2.70 tail still read as a hairline rather than a stroke, which is arm D
 on the page.
+
+**A second reference, banked for the swash work:** Jan van Krimpen's
+**Cancelleresca Bastarda** (the chancery italic cut as Romanee's companion),
+sent 2026-09-15 as *"another reference for what is possible with letter
+flourishes."* Its specimen sheet is the standing answer to "how far may an
+alternate go": two to four cut alternates for most letters, entry strokes that
+reach LEFT into the preceding letter's space, exits that run long and flat
+along the baseline (a, l, t, u, v, w) rather than curling up, descender loops on
+g y z, and capitals whose bowls are drawn as open spirals. That is the same
+family of exit this round's `a` just grew, drawn much further. It is the
+reference for the queued italic ampersand, the k and r loops, and the swash g --
+not for the text lowercase, which stays the 1501 Virgil.
