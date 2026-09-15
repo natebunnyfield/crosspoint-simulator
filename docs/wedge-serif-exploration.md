@@ -3641,3 +3641,37 @@ new construction bolted beside an old one instead of replacing it:
 
 Ink 61.6% against the roman's 61.9%; Bold Italic 72.6% against the Bold's
 73.7%. Four styles, 470 glyphs each.
+
+## Round 106 (2026-09-14): "take another pass at italic forms. you have multiple errors."
+
+Taken at face value: every lowercase letter rendered at 300 px and looked at
+one by one. Six errors, each with its cause:
+
+1. **The arches never reached their second stem.** `italic_arch` ended at
+   the stem's CENTRE at 0.56 xh -- it plunged into the stem from above and
+   left the stem's top standing exposed above it, wearing an entry thorn.
+   An italic arch comes over and BECOMES the second stem: the curve now
+   ends at (x1, 0.94 xh) with a vertical tangent, and that stem takes no
+   entry of its own (`stem(..., it_entry=False)`, a new kwarg; `it_exit`
+   with it, so only the last stem of an m carries the exit). h n m r.
+2. **The u knotted at the bottom right** -- its arch landed on the second
+   stem's foot. A written u turns along the baseline and CLIMBS, so it ends
+   rising into the stem's left side at 0.40 xh. Still the weakest letter on
+   the page ("quick", "jumps"); named, not hidden.
+3. **The k's leg floated**: it started to the right of the stem. It leaves
+   from inside the stem's ink now.
+4. **x and y were the roman's diagonals sheared, wedges and all.** Redrawn
+   as curved strokes -- the x a thick falling stroke crossed by a thin rising
+   one, the y the v's strokes with the right one continuing into a tail.
+5. **The j's tail** was heavy and curled too far: shorter, lighter.
+6. **The entries were thorns**: they arrived steeply. Tangential now.
+
+Oblique score 0.616 -> **0.586** (references 0.306 / 0.431). Ink 61.3%
+against the roman's 62.1%. The remainder is unchanged and still named: b d p
+q, c, e, s and a keep roman constructions.
+
+One process note worth keeping: **an error report is a reason to render
+every glyph large and look**, not to reason about which glyphs might be
+wrong. Four of the six were visible only that way, and two of them (the
+arch, the k) had been in every page since round 105 without my seeing them
+in a sentence at 250 px.

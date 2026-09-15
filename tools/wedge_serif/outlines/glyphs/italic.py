@@ -60,10 +60,17 @@ def italic_arch(x0, x1, xh, branch=BRANCH_Y, top=ARCH_TOP, end_y=0.56, taper=BRA
     over_c = pen.ARCH_OVER - TH_H / 2
     xl = stem_edge_x(x0, TH_V, ENT, branch * xh, 0, xh, +1)
     peak = (xh + over_c) * top
+    # Round 106 (owner: "you have multiple errors"): the arch used to END at the
+    # second stem's CENTRE at 0.56 xh -- it plunged into the stem from above and
+    # left the stem's top standing exposed above it, wearing an entry thorn. An
+    # italic arch comes over and BECOMES the second stem: it arrives at the
+    # stem's top-left, vertical, and the stem continues it down. So the curve
+    # ends at (x1, xh) with a vertical tangent, and the stem it lands on takes
+    # no entry of its own (`it_entry=False` in _arch_letter).
     center = cubic((xl - S * 0.10, branch * xh),
-                   (xl + (x1 - xl) * 0.10, peak * 0.86),
-                   (x0 + (x1 - x0) * 0.62, peak),
-                   (x1, end_y * xh))
+                   (xl + (x1 - xl) * 0.12, peak * 0.90),
+                   (x1 - S * 0.02, peak * 1.02),
+                   (x1, xh * 0.94))
     base = pen_widths(center)
     floor = S * 0.30
     def w(t):
@@ -78,10 +85,14 @@ def italic_arch_down(x0, x1, xh, branch=0.62, bot=0.06, end_y=0.50):
     bottom-left turn and the stroke ends climbing. Drawn as its own curve for
     that reason."""
     xl = stem_edge_x(x0, TH_V, ENT, branch * xh, 0, xh, +1)
+    # ends CLIMBING into the second stem's left side at 0.40 xh: a written u
+    # turns along the baseline and rises. Landing at the foot (the previous
+    # cut) tied a knot at the bottom-right.
+    xr = stem_edge_x(x1, TH_V, ENT, 0.40 * xh, 0, xh, -1)
     center = cubic((xl - S * 0.06, branch * xh),
-                   (xl + (x1 - xl) * 0.06, bot * xh - OVER * 0.5),
-                   (x0 + (x1 - x0) * 0.60, bot * xh - OVER),
-                   (x1, end_y * xh))
+                   (xl + (x1 - xl) * 0.08, bot * xh - OVER * 0.6),
+                   (xr - (x1 - x0) * 0.10, bot * xh - OVER * 0.4),
+                   (xr + S * 0.12, 0.40 * xh))
     base = pen_widths(center)
     def w(t):
         u = min(1.0, t / 0.30)
@@ -112,7 +123,9 @@ def _arch_letter(c, n_arches=1, first_top=None, tail=False):
     for i in range(n_arches):
         x1 = x + nw
         parts.append(italic_arch(x, x1, xh))
-        parts.append(stem(x1, 0, xh, top=None, foot=None))
+        last = (i == n_arches - 1)
+        # the arch IS this stem's entry; only the LAST stem carries the exit
+        parts.append(stem(x1, 0, xh, top=None, foot=None, it_entry=False, it_exit=(None if last else False)))
         x = x1
     return geom.ink(parts)
 
@@ -130,9 +143,9 @@ if pen.ITALIC:
     @glyph('u')
     def g_u_it(c):
         xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
-        return geom.ink([stem(x0, 0, xh, top=None, foot=None),
+        return geom.ink([stem(x0, 0, xh, top=None, foot=None, it_exit=False),
                          italic_arch_down(x0, x1, xh),
-                         stem(x1, 0, xh, top=None, foot=None)])
+                         stem(x1, 0, xh, top=None, foot=None, it_entry=False)])
 
     @glyph('r')
     def g_r_it(c):
@@ -162,12 +175,12 @@ if pen.ITALIC:
 
     @glyph('j')
     def g_j_it(c):
-        xh = c["xh"]; desc = c["desc"]; x = S * 0.62; r = 118 * c["wf"]
-        B = -desc * 0.92; y0 = B + r
+        xh = c["xh"]; desc = c["desc"]; x = S * 0.62; r = 96 * c["wf"]
+        B = -desc * 0.80; y0 = B + r
         st = stem(x, y0 - 24, xh, top=None, foot=None, ent_span=(y0 - 240, xh))
-        a0, a1 = 0.0, math.radians(-124)
+        a0, a1 = 0.0, math.radians(-108)
         tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
-        wfn = widths([(0.0, TH_V * 0.92), (0.45, S * 0.86), (1.0, S * 0.09)])
+        wfn = widths([(0.0, TH_V * 0.92), (0.45, S * 0.70), (1.0, S * 0.09)])
         return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R * 0.92)])
 
     # ------------------------------------------------------------ the bowls
@@ -193,8 +206,10 @@ if pen.ITALIC:
                     (xl + S * 2.2, xh * 0.96), (xl + S * 3.05, xh * 1.02))
         aw = pen_widths(arm)
         arm_w = lambda t: max(aw(t) * (0.34 + 0.66 * min(1.0, t / 0.36)), S * 0.30)
-        leg = cubic((xl + S * 0.34, xh * 0.60), (xl + S * 1.55, xh * 0.34),
-                    (xl + S * 2.05, xh * 0.10), (xl + S * 3.30, -OVER * 0.4))
+        # the leg leaves the STEM (its start is inside the stem's ink at the
+        # arm's root), not a point floating to the right of it
+        leg = cubic((xl - S * 0.20, xh * 0.50), (xl + S * 1.30, xh * 0.36),
+                    (xl + S * 2.05, xh * 0.12), (xl + S * 3.30, -OVER * 0.4))
         lw = pen_widths(leg)
         leg_w = lambda t: max(lw(t) * (0.42 + 0.58 * min(1.0, t / 0.30)), S * 0.32)
         return geom.ink([st, stroke(arm, arm_w, cut1=CUT), stroke(leg, leg_w, cut1=CUT)])
@@ -235,3 +250,28 @@ if pen.ITALIC:
             parts.append(stroke(left, lambda t, f=lw: max(f(t), S * 0.34), cut0=CUT, cut1=None))
             parts.append(stroke(right, lambda t, f=rw: max(f(t) * (1.0 - 0.22 * t), S * 0.20), cut0=None, cut1=CUT))
         return geom.ink(parts)
+
+    @glyph('x')
+    def g_x_it(c):
+        """Two curved strokes crossing, the pen's thick one falling left to
+        right and the thin one rising -- not the roman's two straight
+        diagonals with a wedge on each of four ends."""
+        xh = c["xh"]; w = XH * 0.86 * c["wf"]
+        thick = cubic((0, xh), (w * 0.28, xh * 0.62), (w * 0.72, xh * 0.38), (w, 0))
+        thin = cubic((w * 0.96, xh), (w * 0.60, xh * 0.60), (w * 0.34, xh * 0.34), (0, -OVER * 0.3))
+        tw = pen_widths(thick); nw_ = pen_widths(thin)
+        return geom.ink([stroke(thick, lambda t: max(tw(t), S * 0.40), cut0=CUT, cut1=CUT),
+                         stroke(thin, lambda t: max(nw_(t) * 0.55, S * 0.22), cut0=CUT, cut1=CUT)])
+
+    @glyph('y')
+    def g_y_it(c):
+        """The v's two strokes, the right one continuing down into a tail
+        that curves back under the letter -- one movement, as a written y is."""
+        xh = c["xh"]; desc = c["desc"]; w = XH * 0.84 * c["wf"]
+        left = cubic((0, xh), (w * 0.16, xh * 0.52), (w * 0.34, xh * 0.20), (w * 0.52, 0))
+        right = cubic((w * 0.98, xh), (w * 0.86, xh * 0.50), (w * 0.72, xh * 0.02), (w * 0.60, -desc * 0.36))
+        tail = cubic((w * 0.60, -desc * 0.36), (w * 0.50, -desc * 0.78), (w * 0.24, -desc * 0.92), (w * 0.02, -desc * 0.72))
+        lw = pen_widths(left); rw = pen_widths(right); tw = pen_widths(tail)
+        return geom.ink([stroke(left, lambda t: max(lw(t), S * 0.36), cut0=CUT, cut1=None),
+                         stroke(right, lambda t: max(rw(t) * (1.0 - 0.16 * t), S * 0.30), cut0=CUT, cut1=None),
+                         stroke(tail, lambda t: max(tw(t) * (0.9 - 0.62 * t), S * 0.10), cut0=None)])

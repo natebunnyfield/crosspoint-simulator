@@ -159,7 +159,7 @@ def stem_width(w0, ent, t):
 
 def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=False,   # round 103: `cap` also gates the italic entry/exit
          top_len=1.0, top_depth=1.0, foot_len=FOOT, foot_depth=1.0, top_drop=1.0, foot_drop=0.6,
-         top_scale=1.0, cut_top=None):
+         top_scale=1.0, cut_top=None, it_entry=None, it_exit=None):   # round 106: None = the italic's default, False = never (an arch IS its second stem's entry)
     """A vertical stem from y0 to y1 with entasis, its wedges as part of the
     same solid. w: mid width (default the pen's vertical, x1.137 for cap).
     top: None | 'left' | 'right' | 'both' | 'left+' | 'right+' ('+' adds the
@@ -189,7 +189,7 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
     if top:
         main = -1 if top in ("left", "left+", "both") else +1
         sides = [main] + ([-main] if top in ("both", "left+", "right+") else [])
-        if pen.ITALIC and pen.IT_ENTRY and not cap and y1 > 0 and abs(y0) < 1.0:
+        if pen.ITALIC and pen.IT_ENTRY and it_entry is not False and not cap and y1 > 0 and abs(y0) < 1.0:
             sides = [sd for sd in sides if sd > 0]   # the entry replaces the LEFT top wedge, as the exit replaces the right foot
         for i, sd in enumerate(sides):
             small = (top in ("left+", "right+")) and i == 1
@@ -202,7 +202,7 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
         # stand beside it. The first cut kept both and the feet grew barbs --
         # a spur down-right off every m, n, i and u, which reads as thorns and
         # is the opposite of flowing.
-        if pen.ITALIC and pen.IT_EXIT and not cap and abs(y0) < 1.0:
+        if pen.ITALIC and pen.IT_EXIT and it_exit is not False and not cap and abs(y0) < 1.0:
             sides = tuple(sd for sd in sides if sd < 0)
         for sd in sides:
             A = (x + sd * wid(y0) / 2, y0)
@@ -216,13 +216,13 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
     # so every lowercase stem that stands on the baseline gets them and none
     # of the capitals or figures do (`cap` gates that).
     if pen.ITALIC and not cap and abs(y0) < 1.0:
-        if pen.IT_EXIT:
+        if pen.IT_EXIT and it_exit is not False:
             L = S * pen.IT_EXIT
             xe = x + wid(y0) / 2
             path = cubic((xe - wid(y0) * 0.34, y0 + S * 0.16), (xe + L * 0.22, y0 + S * 0.02),
                          (xe + L * 0.66, y0 + L * 0.26), (xe + L * 1.02, y0 + L * 0.82))
             parts.append(stroke(path, widths([(0.0, wid(y0) * 0.92), (0.45, S * 0.34), (1.0, S * 0.10)]), cut0=None))
-        if pen.IT_ENTRY and (top or y1 > 0):
+        if pen.IT_ENTRY and it_entry is not False and (top or y1 > 0):
             L = S * pen.IT_ENTRY
             xs_ = x - wid(y1) / 2
             # The entry arrives TANGENTIALLY, running nearly along the stem's
