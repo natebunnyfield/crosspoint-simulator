@@ -147,6 +147,33 @@ bug has nothing to show itself against. Add
 a Bayer 4×4 ramp, and per-corner glyphs that identify rotation. It is a build
 flag, not on-screen UI.
 
+### Build numbers come from App Store Connect, not from our tags (2026-09-14)
+
+`testflight.sh` used to number a build as `max(local build-N tag) + 1`. That was
+wrong the moment a second uploader existed, and it had been wrong for weeks: the
+GitHub Actions workflow computes its own numbers and **does not push `build-N`
+tags back**, so local tags reached 194 while ASC already held 195–200 from CI.
+The Mac deploy then chose 195 — taken since 2026-09-12 — and **Apple silently
+assigned 201 instead**.
+
+Nothing went red, which is why it survived: the upload succeeds either way. What
+broke is the only thing the tags are for — `build-N` stopped answering "which
+commit is on my phone". Tag `build-195` pointed at the commit that shipped as
+201, and was corrected to `build-201` by hand.
+
+The script now takes `max(local tags, ASC's own latest build)` before choosing,
+using the same `.p8` it already authenticates the upload with and the same
+PyJWT-interpreter probe the processing watch needs (`~/.zshenv` replaces `PATH`
+for zsh scripts, so plain `python3` is often a homebrew one with no `jwt`).
+Self-correcting whoever uploaded last and by whatever route.
+
+**Non-fatal by design.** No PyJWT, no network, rotated credentials — it falls
+back to the tags and prints why. A deploy must not be blocked by a number it can
+usually guess right; the worst case is exactly the behaviour we had before.
+
+Verified against the live API on 2026-09-14: local tags 195, ASC 201, next build
+number 202.
+
 ## Deploying without touching the Mac
 
 **A `build-N` tag does not identify the firmware inside the build.** The tag is
