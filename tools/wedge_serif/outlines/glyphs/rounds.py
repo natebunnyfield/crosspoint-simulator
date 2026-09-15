@@ -12,6 +12,7 @@ from .. import primitives as PR
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
+_IO = pen.IT_OVAL if pen.ITALIC else 1.0   # round 108: in the italic the c and the e narrow with the o (they were 25% wider than it)
 
 def o_ring(c, rx_center, ry_center=None, cy=None, k=BOWL_K, w_scale=1.0):
     """A full round on the o's construction: outer superellipse whose x
@@ -47,10 +48,10 @@ def g_c(c):
     lower terminal: thins to 0.7 of the pen and takes the pen cut."""
     if PR.BOWL and PR.BOWL.get('widen'):   # variant C: both free ends widen into the family's cut, no beak
         prof = widen_terminal(widen_terminal(None, True), False)
-        solid, center = open_arc(c, C_RX, 40, 318, prof, cut0=CUT, cut1=CUT); return solid
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=CUT, cut1=CUT); return solid
     top = 1.10 if adj('c') else 1.30   # round 92 (adj 'c'): both terminals heavy (band +15% Albertus) -- the top's swell 1.30 -> 1.10
     prof = widths([(0.0, top), (0.13, 1.0), (0.82, 1.0), (1.0, 0.70)])
-    solid, center = open_arc(c, C_RX, 40, 318, prof, cut0=math.radians(-28), cut1=CUT)
+    solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT)
     lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
     return geom.ink([solid, lip])
 
@@ -115,8 +116,8 @@ def g_e(c):
     stroke) is thinned and shifted right per E_ARM_THIN / E_ARM_OUT (owner
     instruction, 2026-09-13)."""
     xh = c["xh"]; wf = c["wf"]
-    solid, outer, inner = _e_ring(c, E_RX, E_ARM_THIN, E_ARM_OUT)
-    rx = E_RX * wf + TH_V / 2; cx = rx; cy = xh / 2
+    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT)
+    rx = E_RX * _IO * wf + TH_V / 2; cx = rx; cy = xh / 2
     tilt = math.radians(E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
     th = max(pen.th(E_DEG) * e_th, S * 0.35)

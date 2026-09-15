@@ -3699,3 +3699,49 @@ Three reports, each checked against the two models at 300 px before drawing:
 Rendered beside Coelacanth's k u x v w z on the page. Mine are smaller
 flourishes than his -- the loop tighter, the curls shorter -- which is the
 Albo pen's economy and was left so rather than inflated to match.
+
+## Round 108 (2026-09-14): the widths matched, six forms redrawn, and a correction
+
+Owner: "resize b p q d and others to match o and a width. need redo based on
+reference forms: k x f g r z." Then, mid-round, on the first attempt:
+**"these are all much worse including extra loops on k."**
+
+Page: https://claude.ai/artifact/CEAfwmrULMt1w4a52fuFPg
+
+**The widths.** The italic's `IT_OVAL` narrowed the o but had never reached
+the BOWLS or the open rounds, so they stood 20-45% wider than the letter they
+belong with. Measured against the models:
+
+| | before | now | Coelacanth |
+|---|---|---|---|
+| b | 1.32 | **1.05** | 1.12 |
+| d | 1.47 | **1.19** | 1.32 |
+| p | 1.48 | **1.21** | 1.33 |
+| q | 1.26 | **0.99** | 1.13 |
+| c | 1.14 | **0.92** | 0.94 |
+| e | 1.09 | **0.86** | 0.84 |
+
+(all as a fraction of the o's ink width). One line in `stems.bowl_stem` and
+one in `rounds.py`: the lever now multiplies `rx_c` and `C_RX`/`E_RX` in the
+italic. The a was already at 1.09 against Coelacanth's 1.15.
+
+**The correction, and it is the round's real lesson.** The first pass at the
+six forms drew a k with a closed bowl AND a hooked arm AND a leg -- three
+gestures, which read as two loops -- plus hooks at every end of the x, a ball
+on the r and a back-curl on the z. He called the whole set worse, and he was
+right: **I had gone three rounds adding flourishes without his eye on any of
+them**, each one further from the models than the last while I was checking
+them only against my own intent.
+
+Redrawn conservatively: the k has **one** loop (the arm swings right and
+curves back toward the stem; the leg leaves that junction); the x is two
+curved strokes crossing at the centre with one light turn each; the r is a
+short branch ending in a pen cut, its ball gone; the z keeps a hooked entry
+and a plain swept tail. The f (a tall S, hook high, stem through the baseline
+into a mirrored tail) and the g (neck starting inside the bowl and ending
+inside the loop) survived from the first pass -- the g's had been a floating
+diagonal between two detached ovals, which the contour count caught.
+
+**Rule for the italic from here: one change, then his eye.** The oblique score
+is not a substitute for it -- it fell from 0.616 to 0.439 across exactly the
+rounds he judged worse.

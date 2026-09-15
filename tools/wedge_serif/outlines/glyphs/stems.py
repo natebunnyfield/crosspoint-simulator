@@ -273,7 +273,7 @@ def bowl_stem(c, side, top, bottom):
     stem. A trap notch at each crotch."""
     from shapely.geometry import box
     xh = c["xh"]; wf = c["wf"]
-    rx_c = 214 * wf; rx = rx_c + TH_V / 2; ry = xh / 2 + OVER
+    rx_c = 214 * wf * (pen.IT_OVAL if pen.ITALIC else 1.0); rx = rx_c + TH_V / 2; ry = xh / 2 + OVER   # round 108: the italic's bowls narrow with its o (they were 20% wider than it)
     if side == 'right':   # d q: stem on the right
         cx = rx; x = cx + rx_c - S * 0.5; into = -1   # the record: the stem's centre half a stem INSIDE the ring's far centerline
     else:                 # b p

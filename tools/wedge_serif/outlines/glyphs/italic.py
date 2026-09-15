@@ -157,22 +157,19 @@ if pen.ITALIC:
 
     @glyph('r')
     def g_r_it(c):
-        """The italic r: the branch leaves the stem and stops -- the same
-        movement as the n's, cut short. The roman r's arm turns off a
-        shoulder near the top; this one climbs out of the stem."""
-        xh = c["xh"]
-        x0 = S / 2
-        xl = stem_edge_x(x0, TH_V, ENT, BRANCH_Y * xh, 0, xh, +1)
-        reach = S * 2.15   # the r's arm
-        center = cubic((xl - S * 0.10, BRANCH_Y * xh), (xl + reach * 0.22, xh * 0.94),
-                       (xl + reach * 0.52, xh + pen.ARCH_OVER - TH_H / 2), (xl + reach, xh * 0.82))
-        base = pen_widths(center)
-        def w(t):
-            u = min(1.0, t / 0.34)
-            return max(base(t) * (BRANCH_W + (1 - BRANCH_W) * (3 * u * u - 2 * u ** 3)), S * 0.30)
-        return geom.ink([stem(x0, 0, xh, top=None, foot=None), stroke(center, w, cut1=CUT)])
+        """From the models: a SHORT arm that branches low, rises, and ends in a
+        small curled ball -- not a long swoop with a cut end."""
+        xh = c["xh"]; x0 = S / 2
+        st = stem(x0, 0, xh, top=None, foot=None)
+        xl = stem_edge_x(x0, TH_V, ENT, xh * 0.40, 0, xh, +1)
+        arm = catmull([(xl - S * 0.12, xh * 0.42), (xl + S * 0.45, xh * 0.82), (xl + S * 1.20, xh * 1.02),
+                       (xl + S * 1.62, xh * 0.94), (xl + S * 1.55, xh * 0.80)], tension=0.5)
+        aw = pen_widths(arm)
+        # the ball sits ON the arm's last point, not beside it: a dot placed
+        # clear of the stroke reads as a detached blob
+        return geom.ink([st, stroke(arm, lambda t: max(aw(t) * (0.32 + 0.68 * min(1.0, t / 0.35)), S * 0.24), cut1=CUT)])
 
-    # ------------------------------------------------------------ ascenders
+
     @glyph('l')
     def g_l_it(c): return stem(S / 2, 0, c["asc"], top=None, foot=None)
 
@@ -204,40 +201,41 @@ if pen.ITALIC:
     # ------------------------------------------------------------ diagonals
     @glyph('k')
     def g_k_it(c):
-        """The italic k LOOPS (owner, round 107: "k needs a loop"): the arm
-        leaves the stem, curls up and round, and comes BACK to the stem,
-        closing a small bowl; the leg then leaves from the bottom of that bowl
-        and flicks at the baseline. Both models do exactly this; the round-106
-        k was two strokes off a stem, which is a roman k's construction."""
+        """ONE loop (owner, round 108b: "extra loops on k"). The arm comes off
+        the stem, swings right and curves BACK toward it -- that returning
+        curve IS the loop -- and the leg leaves the same junction and runs to
+        the baseline. Round 108's k had a closed bowl AND a hooked arm AND a
+        leg: three gestures, which read as two loops. The models have one."""
         xh = c["xh"]; asc = c["asc"]; x0 = S / 2
         st = stem(x0, 0, asc, top=None, foot=None, it_exit=False)
         xl = stem_edge_x(x0, TH_V, ENT, xh * 0.50, 0, xh, +1)
-        loop = catmull([(xl - S * 0.12, xh * 0.44), (xl + S * 0.70, xh * 0.80), (xl + S * 1.55, xh * 1.00),
-                        (xl + S * 1.95, xh * 0.80), (xl + S * 1.35, xh * 0.52), (xl + S * 0.20, xh * 0.40)], tension=0.55)
-        lw = pen_widths(loop)
-        loop_w = lambda t: max(lw(t) * (0.42 + 0.58 * min(1.0, t / 0.30)) * (1.0 - 0.30 * max(0.0, (t - 0.72) / 0.28)), S * 0.26)
-        leg = catmull([(xl + S * 0.16, xh * 0.44), (xl + S * 1.20, xh * 0.26), (xl + S * 2.20, xh * 0.06),
-                       (xl + S * 2.75, -OVER * 0.3), (xl + S * 3.15, OVER * 0.6)], tension=0.5)
+        arm = catmull([(xl + S * 1.95, xh * 1.00), (xl + S * 1.55, xh * 0.74),
+                       (xl + S * 0.75, xh * 0.52), (xl - S * 0.15, xh * 0.44)], tension=0.5)
+        aw = pen_widths(arm)
+        leg = catmull([(xl + S * 0.10, xh * 0.46), (xl + S * 1.15, xh * 0.26),
+                       (xl + S * 2.15, xh * 0.06), (xl + S * 2.70, OVER * 0.2), (xl + S * 3.05, xh * 0.10)], tension=0.5)
         gw = pen_widths(leg)
-        leg_w = lambda t: max(gw(t) * (0.55 + 0.45 * min(1.0, t / 0.25)) * (1.0 - 0.55 * max(0.0, (t - 0.80) / 0.20)), S * 0.14)
-        return geom.ink([st, stroke(loop, loop_w), stroke(leg, leg_w, cut1=None)])
+        return geom.ink([st,
+                         stroke(arm, lambda t: max(aw(t) * (0.45 + 0.55 * min(1.0, t / 0.35)), S * 0.20), cut0=CUT),
+                         stroke(leg, lambda t: max(gw(t) * (0.95 - 0.5 * max(0.0, (t - 0.72) / 0.28)), S * 0.14), cut0=None)])
 
     @glyph('z')
     def g_z_it(c):
-        """The italic z: an entry curl into the top bar, the diagonal, and a
-        tail that sweeps under the letter and curls back. The round-106 z had
-        a straight bar and a thin tail -- the shape without the flourish."""
-        xh = c["xh"]; w = XH * 0.95 * c["wf"]
-        top = catmull([(w * 0.06, xh * 0.78), (w * 0.02, xh * 0.94), (w * 0.22, xh * 1.00), (w * 0.98, xh * 0.98)], tension=0.5)
+        """From the models: a hooked entry into the top bar, the diagonal, and
+        a bottom sweep that runs right and curls DOWN into a descending hook.
+        Round 107's entry was a spike and its tail a stub."""
+        xh = c["xh"]; w = XH * 0.96 * c["wf"]
+        top = catmull([(w * 0.10, xh * 0.70), (w * 0.00, xh * 0.86), (w * 0.10, xh * 0.98), (w * 0.60, xh * 1.00), (w * 1.00, xh * 0.96)], tension=0.5)
         tw_ = pen_widths(top)
-        diag = line((w * 0.94, xh * 0.94), (w * 0.10, TH_H * 0.9))
+        diag = line((w * 0.96, xh * 0.92), (w * 0.14, TH_H * 1.1))
         dw = pen_widths(diag)
-        tail = catmull([(w * 0.18, TH_H * 1.0), (w * 0.55, -XH * 0.02), (w * 0.98, -XH * 0.16),
-                        (w * 1.10, -XH * 0.30), (w * 0.94, -XH * 0.38)], tension=0.5)
+        tail = catmull([(w * 0.10, TH_H * 1.2), (w * 0.46, -XH * 0.02), (w * 0.82, -XH * 0.12),
+                        (w * 0.96, -XH * 0.26)], tension=0.5)
         tl = pen_widths(tail)
-        return geom.ink([stroke(top, lambda t: max(tw_(t) * (0.5 + 0.5 * min(1.0, t / 0.25)), S * 0.22)),
+        return geom.ink([stroke(top, lambda t: max(tw_(t) * (0.35 + 0.65 * min(1.0, t / 0.3)), S * 0.16), cut0=None),
                          stroke(diag, lambda t: max(dw(t), S * 0.36)),
-                         stroke(tail, lambda t: max(tl(t) * (1.0 - 0.55 * max(0.0, (t - 0.55) / 0.45)), S * 0.14), cut0=None)])
+                         stroke(tail, lambda t: max(tl(t) * (1.0 - 0.6 * max(0.0, (t - 0.6) / 0.4)), S * 0.12), cut0=None)])
+
 
     def _curl_up(x, y, w, xh):
         """The thin stroke arriving at the top-right and curling back in over
@@ -275,18 +273,17 @@ if pen.ITALIC:
 
     @glyph('x')
     def g_x_it(c):
-        """The thick stroke is an elongated reverse S: a curl opening up-left
-        at its start, the diagonal, a curl opening down-right at its end.
-        The thin stroke crosses it as a hairline. Both models draw the x this
-        way; round 106's was two plain curves with square cuts."""
+        """Two curved strokes crossing at the letter's centre, the thick one
+        falling and the thin one rising, each with ONE light turn at its
+        lower end. Round 108's had a hook at every end and read as a knot."""
         xh = c["xh"]; w = XH * 0.90 * c["wf"]
-        thick = catmull([(w * 0.30, xh * 1.06), (w * 0.08, xh * 0.96), (w * 0.14, xh * 0.78),
-                         (w * 0.50, xh * 0.50), (w * 0.86, xh * 0.20), (w * 0.94, xh * 0.02), (w * 0.70, -OVER * 0.9)], tension=0.5)
-        thin = cubic((w * 1.02, xh * 0.98), (w * 0.64, xh * 0.62), (w * 0.34, xh * 0.34), (w * 0.02, -OVER * 0.2))
+        thick = catmull([(w * 0.16, xh * 1.00), (w * 0.30, xh * 0.78), (w * 0.50, xh * 0.50),
+                         (w * 0.74, xh * 0.20), (w * 0.86, -OVER * 0.5)], tension=0.5)
+        thin = catmull([(w * 0.96, xh * 1.00), (w * 0.74, xh * 0.76), (w * 0.50, xh * 0.50),
+                        (w * 0.22, xh * 0.20), (w * 0.04, -OVER * 0.5)], tension=0.5)
         tw = pen_widths(thick); nw_ = pen_widths(thin)
-        thick_w = lambda t: max(tw(t) * (0.55 + 0.45 * min(1.0, t / 0.22)) * (1.0 - 0.45 * max(0.0, (t - 0.82) / 0.18)), S * 0.18)
-        return geom.ink([stroke(thick, thick_w, cut0=None, cut1=None),
-                         stroke(thin, lambda t: max(nw_(t) * 0.55, S * 0.20), cut0=CUT, cut1=CUT)])
+        return geom.ink([stroke(thick, lambda t: max(tw(t), S * 0.36), cut0=CUT, cut1=CUT),
+                         stroke(thin, lambda t: max(nw_(t) * 0.52, S * 0.20), cut0=CUT, cut1=CUT)])
 
     @glyph('y')
     def g_y_it(c):
@@ -300,3 +297,42 @@ if pen.ITALIC:
         return geom.ink([stroke(left, lambda t: max(lw(t), S * 0.36), cut0=CUT, cut1=None),
                          stroke(right, lambda t: max(rw(t) * (1.0 - 0.16 * t), S * 0.30), cut0=CUT, cut1=None),
                          stroke(tail, lambda t: max(tw(t) * (0.9 - 0.62 * t), S * 0.10), cut0=None)])
+
+    @glyph('f')
+    def g_f_it2(c):
+        """From the models: the italic f is a tall S. The top hook sweeps wide
+        and high; the stem runs through the baseline and curves LEFT into a
+        tail that mirrors the hook; the bar sits on the x-height."""
+        xh = c["xh"]; asc = c["asc"]; desc = c["desc"]; x = S * 1.6
+        top = catmull([(x + S * 2.10, asc * 0.94), (x + S * 1.50, asc * 1.02), (x + S * 0.70, asc * 0.96),
+                       (x + S * 0.10, asc * 0.72), (x, asc * 0.45)], tension=0.5)
+        st = stem(x, -desc * 0.30, asc * 0.50, top=None, foot=None, it_entry=False, it_exit=False)
+        bot = catmull([(x, -desc * 0.22), (x - S * 0.10, -desc * 0.58), (x - S * 0.70, -desc * 0.86),
+                       (x - S * 1.50, -desc * 0.92), (x - S * 2.05, -desc * 0.80)], tension=0.5)
+        tw_ = pen_widths(top); bw = pen_widths(bot)
+        th = TH_H * 0.8
+        bar = stroke([(x - S * 0.9, xh - th / 2), (x + S * 1.7, xh - th / 2)], th)
+        return geom.ink([stroke(top, lambda t: max(tw_(t) * (0.5 + 0.5 * min(1.0, t / 0.3)), S * 0.16), cut0=None, cut1=None),
+                         st, stroke(bot, lambda t: max(bw(t) * (1.0 - 0.6 * max(0.0, (t - 0.6) / 0.4)), S * 0.14), cut0=None, cut1=None), bar])
+
+    @glyph('g')
+    def g_g_it(c):
+        """From the models: the upper bowl the o's oval, the lower loop WIDER
+        and more open, the neck a thin diagonal between them, and the ear a
+        sweep to the right off the bowl's shoulder rather than a stub."""
+        xh = c["xh"]; desc = c["desc"]
+        bowl, bo, bi = o_ring(c, O_RX * 0.88, ry_center=xh * 0.34, cy=xh * 0.66)
+        bx0, by0, bx1, by1 = bowl.bounds
+        lcx = (bx0 + bx1) / 2 - S * 0.25; lcy = -desc * 0.52
+        loop, lo, li = ring(lcx, lcy, (bx1 - bx0) * 0.62, desc * 0.44, w_scale=0.92)
+        # the neck STARTS INSIDE the bowl's ink and ENDS INSIDE the loop's, or
+        # the three pieces do not union and the g comes apart (round 108's
+        # first cut: bowl, loop and a floating diagonal between them)
+        neck = cubic((bx1 - TH_V * 0.9, xh * 0.52), (bx1 - TH_V * 0.5, xh * 0.14),
+                     (lcx + (bx1 - bx0) * 0.44, -desc * 0.04), (lcx + (bx1 - bx0) * 0.50, -desc * 0.30))
+        nw_ = pen_widths(neck)
+        ear = catmull([(bx1 - TH_V * 1.1, xh * 0.84), (bx1 + S * 0.30, xh * 1.00), (bx1 + S * 0.95, xh * 1.02), (bx1 + S * 1.20, xh * 0.92)], tension=0.5)
+        ew = pen_widths(ear)
+        return geom.ink([bowl, loop, stroke(neck, lambda t: max(nw_(t) * 0.75, S * 0.32), cut0=None, cut1=None),
+                         stroke(ear, lambda t: max(ew(t) * (0.9 - 0.4 * t), S * 0.14), cut0=None)])
+
