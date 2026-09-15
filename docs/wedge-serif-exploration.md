@@ -4148,7 +4148,19 @@ is built** except where it says OPTIONS READY.
 **Delegated**
 
 11. **"subagent to make historically accurate (use other italic fonts for
-    reference) albo italic capitals. do not touch regular roman."** Running.
+    reference) albo italic capitals. do not touch regular roman."** The agent
+    STOPPED when its session ended, having done the research and none of the
+    drawing. Its measurement survives and is written up in
+    [`docs/albo-italic-capitals.md`](albo-italic-capitals.md); nothing in
+    `outlines/` was touched. Three negative results worth having before anyone
+    draws: across 17 roman/italic pairs the capitals are **not uprighter** than
+    the lowercase (median 12.94 vs 12.97 degrees), **not shorter** (cap ratio
+    1.000) and their **serifs are not reduced** (1.005) -- that last one matters
+    because the LOWERCASE does reduce its serifs and the generalisation is
+    wrong. What does change is width, about 5% narrower, and shape: median IoU
+    0.690 against the lowercase's 0.31-0.43, so the capitals are mostly a
+    narrowed roman with **N H Q G V A S U** genuinely re-cut and I L J B Y
+    wanting nothing but the width. Still to do: the drawing. Was running.
     Brief: measure real italic capitals, implement italic-only behind
     `pen.ITALIC`, PROVE the roman is byte-identical by diffing a before/after
     Regular build, write the research to `docs/albo-italic-capitals.md`, do not
