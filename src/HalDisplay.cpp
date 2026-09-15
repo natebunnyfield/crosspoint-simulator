@@ -4448,9 +4448,10 @@ void HalDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w,
   // refresh, because "did my windowed path actually run" is exactly the
   // question a headless run should be able to answer.
   if (std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
-    SDL_Log("[window] displayWindow y=%u h=%u (presented whole)", y, h);
-  (void)x;
-  (void)w;
+    SDL_Log("[window] displayWindow x=%u y=%u w=%u h=%u -> %u%% of panel "
+            "(presented whole)",
+            x, y, w, h,
+            static_cast<unsigned>(100.0 * w * h / (activeWidth() * activeHeight())));
   displayBuffer(FAST_REFRESH, turnOffScreen);
 }
 
