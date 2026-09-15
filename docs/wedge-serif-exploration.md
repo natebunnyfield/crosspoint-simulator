@@ -3403,3 +3403,19 @@ only row in either table with ONE stage, so `origin` repeats the lineage
 rather than naming an earlier type: there is no earlier type, which is what
 makes it different from all 41 other rows. Firmware commits `6e8b667d4` and
 `2bcb4d1f6`.
+
+### Round 101 (2026-09-14): the kerning is ruled, and the italic is to be a TRUE italic
+
+Owner, on the evidence page: **"yes kerning"** -- the table set by eye in
+round 95 and never judged is approved as it stands. It is capitals only (the
+lowercase is deliberately unkerned; the fitting rule already puts every
+common pair on the rhythm), 14 left classes x 13 right classes, 60 class
+pairs and 7 glyph exceptions, every value a multiple of 18. No further
+question on it: `outlines/kern.py` is settled unless a letter's outline moves
+under it.
+
+Same message: **"use other italics for making true italic. give me options in
+word 'fjords' to choose from."** So the corrected slope of round 100 is a
+stepping stone, not the italic, and the next round is a POPULATION rendered
+in one word of his choosing -- f j o r d s, which is the right word for it:
+every letter in it is one an italic redraws.
