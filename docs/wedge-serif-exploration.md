@@ -4670,3 +4670,41 @@ constraint worth knowing before the swash work starts, not after.
 The beta Cancelleresca is lowercase-only and carries no alternates at all, so
 the specimen sheet he sent remains the reference for its capitals and its
 flourish range; the font gives the letter bodies.
+
+## Round 117 — the Aldine `e`, off the page
+
+Same method as the `a`: two `e`s read out of `aldine.png` as ink runs per row —
+the one in *resona* (x278–287, rows 31–45) and the first of *Meliboee*
+(x185–192, rows 69–83). They agree, and they overturn what round 115 assumed.
+
+| | measured | round 115 had |
+|---|---|---|
+| width | 0.57–0.67 × the x-height — a NARROW letter | a ring at 0.66 |
+| the bar | at **0.60** of the x-height, and **FLAT** — one row of ink in both, no measurable rise | at 0.56, slanting **17°**, docstring: *"a bar that slants up hard"* |
+| the eye | 2–3 px × 3 px in a 14 px band — tiny, sitting right of centre where the slant puts the crown | implied by the ring |
+| the lower right | **OPEN.** Below the bar there is left flank only; the bottom sweeps right and the terminal stops ~3 px short of the letter's right edge | a closed superellipse ring, 30°→318° |
+
+**The bar's slant was never measured.** It is one row of ink in both letters and
+there is no rise in either; the old docstring asserted it.
+
+So the `e` is not a ring with a bar across it. It is ONE arc — from the eye's
+right flank at bar height, up over the crown, down the left, round the bottom,
+out to a short terminal — plus the bar closing the eye.
+
+Three things cost a render each:
+
+1. **Starting the arc ABOVE the bar leaves the eye open on the right** and the
+   letter reads as an `f`. It has to start at bar height.
+2. **A FLOOR could not fix the weight.** The pen's own width down the left
+   flank is already well above any sane floor, so raising `E_FLOOR` from 0.30
+   to 0.60 changed nothing visible. The arc needed a scale (`E_WT`), not a
+   clamp.
+3. **A terminal pinned at the baseline drew a hook** curling back under the
+   bowl. On the page the rightmost ink is at 0.14 of the band and rows 44–45
+   are merely the stroke's own thickness below it, so the stroke ends
+   *rising*.
+
+Shipped at `E_WT` **1.25**, between the honest read and the scan's appearance —
+the measured 2–3 px is inflated by ~1 px per edge by ink spread, which would put
+Griffo's true stroke *lighter* than Albo's stem, and 1.00 looks wiry beside
+Pagella. 1.00 and 1.55 are on the page as G and I.

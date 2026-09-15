@@ -149,17 +149,63 @@ if ON:
         wf = pen_widths(p, floor=S * FLOOR)
         return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT)])
 
+    # MEASURED off two e's in aldine.png, by ink runs per row: the one in
+    # "resona" (x278-287, rows 31-45) and the first e of "Meliboee"
+    # (x185-192, rows 69-83). They agree, and they overturn what round 115
+    # assumed:
+    #
+    #   width          0.57-0.67 x the x-height -- a NARROW letter
+    #   the bar        at 0.60 of the x-height, HIGH, and FLAT. One row of ink
+    #                  in both, with no measurable rise; the "slants up hard"
+    #                  in the old docstring was never measured.
+    #   the eye        2-3 px by 3 px in a 14 px band -- tiny, and sitting
+    #                  right of centre, where the slant puts the crown.
+    #   the lower right OPEN. Below the bar there is left flank only; the
+    #                  bottom sweeps right and the terminal STOPS about 3 px
+    #                  short of the letter's right edge without curling up.
+    #
+    # So it is not a ring with a bar across it. It is ONE arc running from the
+    # eye's top right, over, down the left, round the bottom, out to a short
+    # terminal -- plus the bar closing the eye.
+    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.70))       # letter width, x xh
+    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.60))   # the bar's height, x xh
+    E_BAR_W = float(os.environ.get("ALBO_ALD_E_BAR_W", 0.62))  # its weight, x TH_H
+    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.60))   # where the terminal stops, x the width
+    # Its own pen floor. The scan's e runs 2-3 px of ink on a 14 px band --
+    # 0.14-0.21 x the x-height, against Albo's stem at 0.196 -- so the letter
+    # is as heavy as a stem all the way round, and the module's FLOOR of 0.30
+    # drew it as wire.
+    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.46))
+    # A FLOOR could not fix it: the pen's own width down the left flank is
+    # already well above it, so raising the floor changed nothing visible.
+    # The letter needs the whole arc scaled.
+    E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.25))
+
     @glyph('e')
     def a_e(c):
-        """A small eye under a bar that slants up hard."""
-        xh = c["xh"]; rx = 142 * _w(c); cx = S * 0.6 + rx
-        p = superellipse(cx, xh / 2, rx, xh / 2 + OVER * 0.5, math.radians(30), math.radians(318), BOWL_K)
-        wf = pen_widths(p, floor=S * FLOOR)
-        ring_ = stroke(p, wf, cut0=CUT, cut1=CUT)
-        sl = math.tan(math.radians(17.0))
-        y = xh * 0.56
-        bar = stroke([(cx - rx * 0.92, y - rx * 0.92 * sl), (cx + rx * 0.86, y + rx * 0.86 * sl)], TH_H * 0.92)
-        return geom.ink([ring_, bar])
+        xh = c["xh"]; W = E_W * xh
+        X = lambda f: S * 0.55 + f * W
+        Y = lambda f: f * xh
+        # The arc STARTS at the bar's height on the right, climbs the eye's
+        # right flank, over the crown, down the left, round the bottom, out.
+        # Starting it above the bar (the first cut) leaves the eye open on the
+        # right and the letter reads as an f.
+        p = catmull([(X(0.78), Y(E_BAR + 0.06)), (X(0.80), Y(0.80)), (X(0.62), Y(0.98)),
+                     (X(0.34), Y(0.90)), (X(0.18), Y(0.72)), (X(0.10), Y(0.50)),
+                     (X(0.10), Y(0.30)), (X(0.22), Y(0.12)), (X(0.42), Y(0.06)),
+                     (X(E_END), Y(0.14))], tension=0.5)
+        # The terminal ends RISING and stops. In the scan the rightmost ink is
+        # at 0.14 of the band, with rows 44-45 merely the stroke's own
+        # thickness below it -- so an end pinned at the baseline drew a hook
+        # curling back under the bowl, which is not on the page.
+        wf = pen_widths(p, floor=S * E_FLOOR)
+        # thin where it leaves the eye, full down the left flank, tapering out
+        # of the terminal -- which is a stop, not a hook.
+        arc = stroke(p, lambda t: wf(t) * E_WT * (0.62 + 0.38 * min(1.0, t / 0.22)
+                                           - 0.30 * max(0.0, (t - 0.86) / 0.14)),
+                     cut0=CUT, cut1=CUT)
+        bar = stroke([(X(0.08), Y(E_BAR)), (X(0.78), Y(E_BAR))], TH_H * E_BAR_W)
+        return geom.ink([arc, bar])
 
     # MEASURED off the a of "Formoſam" in aldine.png -- the blob flood-filled
     # away from its neighbours, upscaled 24x, and read ROW BY ROW. The numbers
