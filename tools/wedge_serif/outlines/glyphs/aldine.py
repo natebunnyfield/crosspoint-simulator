@@ -177,28 +177,80 @@ if ON:
     # Weights, off the same rows: left flank 6 px (0.17 x xh, ~0.87 x the
     # stem), crown 8 px (~1.15 x), the bar 5 px vertical at 30 degrees, so
     # ~4.3 px perpendicular (~0.63 x) -- the pen's thin.
-    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.63))       # letter width, x xh (22/35 measured)
-    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.40))   # the bar's LEFT end, x xh
-    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.63))  # its RIGHT end -- the rise
+    # RE-MEASURED a third time, off griffo-macro.png -- the macro detail of the
+    # 1501 Virgil, a **54 px x-height**, four times aldine.png and half again
+    # the Dante. The e of "naues" runs x594-631, y345-402. This is the best
+    # evidence available and it settles all three readings:
+    #
+    #   THE BAR IS ANGLED, ~30 deg -- confirmed. Its TOP edge (the eye's
+    #     floor) runs (610,370) -> (615,368) -> (620,364): 6 rows of rise over
+    #     10 of run. Rows 370-372 look flat only because that is BELOW the
+    #     slope, where the bar has merged with the left flank.
+    #   THE LOWER RIGHT IS OPEN -- rows 373-391 carry ONE run. The bottom
+    #     sweeps right to x619 and stops; nothing climbs the right side. Round
+    #     117b closed it on a 35 px Dante reading where the bar's own right end
+    #     and the bottom's return are four rows apart and cannot be told
+    #     apart. The 13 px reading was right by luck; this one is right by
+    #     resolution.
+    #   CONTRAST IS ~3.4:1, much higher than drawn. Thick (left flank, right
+    #     flank, crown) 8-9 px = 0.155 x xh = 0.79 x the stem; the bar 3 rows
+    #     vertical at 30 deg, so 2.6 px perpendicular = 0.23 x the stem.
+    #
+    # So the letter has ONE enclosed counter, the eye, and it measures
+    # 191 px against 941 px of ink -- a counter/ink ratio of 0.203, which is
+    # what E_CTR is tuned against rather than a guess at a percentage.
+    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.65))       # 38/58 measured
+    # The bar's ends, off the macro: its TOP edge (the eye's floor) is at row
+    # 371 where it leaves the left flank and row 364 at x620 -- 0.54 and 0.67
+    # of the band. The eye itself is x608-622 by rows 353-369: 0.37 of the
+    # letter's width and 0.28 of the x-height. The first cut had the bar's left
+    # end at 0.40 and the upper loop's flanks at 0.18/0.92, which made an eye
+    # 0.55 W wide -- half again Griffo's -- and THAT, not the stroke weight,
+    # was the counterspace. The macro's stroke is 0.79 x the stem: a LIGHT
+    # letter with a small eye, not a heavy one.
+    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.54))   # the bar's LEFT end, x xh
+    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.67))  # its RIGHT end -- the rise
+    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.62))   # scales the upper loop's flanks
     E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
+    E_CON = float(os.environ.get("ALBO_ALD_E_CON", 1.00))   # contrast, x the measured 3.4:1
+    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.00))   # >1 eats counterspace
+    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.66))   # where the bottom stops. It STOPS.
+
+    # THE PAGE'S OWN SLANT. Whole-stem fits scatter badly -- chancery stems
+    # curve, so one stroke gives 13 deg and its neighbour 4.7 -- but 52 sliding
+    # windows across the macro's first line have a median of 8.2, and the
+    # Dante's l fits 8.8 over 41 clean rows. Call it 8.8. Glyph code here is
+    # UNSHEARED design space (build.py shears at the end), so the slant has to
+    # be taken OUT of points read off the page or the letter is slanted twice.
+    # NOTE: the shipping italic builds at 13, which this says is 4-5 deg
+    # steeper than Griffo. Not changed here -- that is a family ruling.
+    E_PAGE_SLANT = float(os.environ.get("ALBO_ALD_PAGE_SLANT", 8.8))
 
     @glyph('e')
     def a_e(c):
         xh = c["xh"]; W = E_W * xh
-        X = lambda f: S * 0.55 + f * W
+        unshear = math.tan(math.radians(E_PAGE_SLANT)) * xh
+        X = lambda f, fy: S * 0.55 + f * W - unshear * fy
         Y = lambda f: f * xh
-        p = catmull([(X(0.00), Y(E_BAR)),   (X(0.82), Y(E_BAR_R)),  # the bar, rising
-                     (X(0.91), Y(0.80)),    (X(0.55), Y(0.94)),     # up and over the crown
-                     (X(0.18), Y(0.86)),    (X(0.09), Y(0.69)),     # down the left
-                     (X(0.00), Y(0.31)),    (X(0.05), Y(0.14)),     # past its own start
-                     (X(0.36), Y(0.03)),    (X(0.64), Y(0.11)),     # round the bottom
-                     (X(0.82), Y(0.26)),    (X(0.82), Y(0.34))],    # up the right, stop
-                    tension=0.5)
-        wf = widths([(0.00, S * 0.55), (0.09, S * 0.63), (0.18, S * 0.62),
-                     (0.27, S * 1.15), (0.36, S * 0.95), (0.45, S * 0.88),
-                     (0.55, S * 0.90), (0.64, S * 0.92), (0.73, S * 0.95),
-                     (0.82, S * 0.80), (0.91, S * 0.62), (1.00, S * 0.45)])
-        return geom.ink([stroke(p, lambda t: wf(t) * E_WT, cut0=CUT, cut1=CUT)])
+        mid = 0.50
+        E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its centre
+        P = [(0.00, E_BAR),  (E(0.78), E_BAR_R),  # the bar, rising ~30 degrees
+             (E(0.84), 0.82), (E(0.52), 0.96),   # up the eye's right, over the crown
+             (E(0.22), 0.86), (0.10, 0.66),      # down the left
+             (0.02, 0.34),   (0.08, 0.14),      # past its own start
+             (0.34, 0.02),   (E_END, 0.12)]     # round the bottom, and STOP
+        p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
+        # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
+        base = [0.23, 0.30, 0.79, 0.78, 0.70, 0.80, 0.80, 0.76, 0.70, 0.34]
+        mean = sum(base) / len(base)
+        wf = widths([(i / (len(base) - 1),
+                      S * (mean + (w - mean) * E_CON) * E_WT * E_CTR)
+                     for i, w in enumerate(base)])
+        # pieces=True: the centerline CROSSES ITSELF where the loop closes on
+        # the bar. As one polygon that crossing becomes a HOLE -- the outline
+        # self-intersects and the fill cancels -- which was the bite in the
+        # letter's left side.
+        return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT, pieces=True)])
 
     @glyph('f')
     def a_f(c):

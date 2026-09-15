@@ -4773,3 +4773,54 @@ Weights off the same rows: left flank 6 px (0.17 × xh, ≈0.87 × the stem), cr
 8 px (≈1.15 ×), the bar 5 px vertical at 30°, so ≈4.3 px perpendicular
 (≈0.63 ×) — the pen's thin. Shipped at `E_WT` 1.00, which is now a measurement
 rather than the judgment call round 117 had to make.
+
+### Round 117c — the `e` fixed on a macro scan, and a self-intersection bug
+
+Owner: *"fix the XOR overlap issue of italic e. fix and up the line contrast and
+reduce the counterspace by about 80% and fix the slant."* Plus a third
+reference, the **macro detail of the 1501 Virgil** (griffoggl.com,
+`dettaglio-corsivo-griffo.jpg`, kept as `~/Downloads/griffo-macro.png`) — a
+**54 px x-height**, four times `aldine.png` and half again the Dante. The `e`
+of *naues* runs x594–631, y345–402.
+
+**1. The XOR overlap was a real bug, not a rendering artifact.** The centerline
+crosses itself where the loop closes on the bar, and as ONE polygon that
+crossing becomes a HOLE — the outline self-intersects and the fill cancels
+there. `primitives.stroke` has carried a `pieces=True` mode for exactly this
+since the `&` and the `@` ("one polygon would make holes of its crossings");
+the `e` simply was not using it.
+
+**2. The slant bug was worse than the angle.** Glyph code here is UNSHEARED
+design space — `build.py` shears at the end — and the `e`'s points were read
+off a page that is *already sheared* and used as design coordinates, so the
+letter was slanted twice. Fixed by taking the page's own slant back out.
+Whole-stem fits scatter badly (one stroke gives 13.0°, its neighbour 4.7°,
+because chancery stems curve), but 52 sliding windows across the macro's first
+line have a median of **8.2°** and the Dante's `l` fits **8.8°** over 41 clean
+rows. **The shipping italic builds at 13°, which this says is 4–5° steeper than
+Griffo.** Flagged, not changed — that is a family ruling, not a letter's.
+
+**3. Contrast is measured now, not guessed: ~3.4:1.** Thick (both flanks and
+the crown) 8–9 px = 0.155 × xh = **0.79 × the stem**; the bar 3 rows vertical
+at 30°, so 2.6 px perpendicular = **0.23 × the stem**. Note what that means:
+Griffo's `e` is LIGHTER than Albo's stem, not heavier.
+
+**4. And that settles the counterspace, which was not a weight problem.**
+Measured on the macro, the letter has ONE enclosed counter — the eye — at
+191 px against 941 px of ink: **counter/ink = 0.203**. Albo's was **0.455**,
+more than twice. The first instinct was to eat it by thickening the strokes,
+and that was wrong on the evidence: the source's stroke is lighter than ours,
+so fattening would have moved the color of the page away from Griffo to fix a
+ratio. The eye's GEOMETRY was the lever — the bar's left end sat at 0.40 of the
+band where the macro puts it at **0.54**, and the upper loop's flanks ran
+0.18/0.92 where the eye measures **0.37 of the letter's width**. Shipped at
+`E_EYE` 0.62: **ratio 0.200** against the source's 0.203, and the eye still
+reads at 27 px.
+
+**And the macro overturns round 117b's other correction.** The lower right is
+**OPEN** — rows 373–391 carry one run, the bottom sweeps right to x619 and
+stops, and nothing climbs the right side. 117b closed it on a 35 px Dante
+reading where the bar's own right end and the bottom's return are four rows
+apart and cannot be told apart. **Round 117 was right by luck at 13 px; this is
+right by resolution.** Three readings of one letter, at 13, 35 and 54 px, and
+the ranking of them is simply the ranking of their resolutions.
