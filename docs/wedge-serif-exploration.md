@@ -4411,3 +4411,47 @@ contours -- the outer and the bowl's counter -- the loop's interior being open
 where the stroke terminates, which is the reference's own topology.
 
 Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
+
+### Round 114 (2026-09-15): an experimental Aldine lowercase italic
+
+Owner: **"drop for now, switch to examining the letters in this The Aldine
+italic in Aldus's Virgil of 1501 example. make an experimental lowercase albo
+italic to match it."** Then, when I started measuring digital revivals on disk:
+**"I need you to just work from the scan."** So the revivals (Venetian 301,
+Lutetia, Golden Cockerel, Van den Keere) were measured and then SET ASIDE --
+recorded here only so nobody re-measures them thinking it was the missing step.
+
+**Four traits read off the 1501 page itself:**
+
+1. **The slope is gentle.** Griffo's lean is nothing like a modern italic's;
+   the scan reads nearer 5 degrees where Albo's italic has been at 13.
+2. **The colour is even** -- very little thick-to-thin across the page, against
+   Albo's 0.892 contrast.
+3. **It is narrow and closely fitted.** The dense texture is most of why the
+   page looks the way it does.
+4. **The serifs are small and blunt**, entry and exit marks rather than the
+   wedges Albo's italic reduces (`IT_SERIF` 0.50).
+
+Five cuts, all four parameters moving together:
+
+| cut | slope | contrast | width | serif | line width |
+|---|---|---|---|---|---|
+| Albo italic today | 13 | 0.89 | 95 | 0.50 | 832 |
+| E2 | 6 | 0.62 | 88 | 0.80 | 737 |
+| E3 | 5 | 0.55 | 85 | 0.90 | 716 |
+| E4 | 5 | 0.50 | 80 | 0.95 | 687 |
+| E5 | 4 | 0.45 | 76 | 1.00 | 660 |
+
+E5 sets the Virgil's first line **21% shorter** than today's italic.
+
+**What four global parameters cannot do**, and the page says so: the scan also
+has things that are LETTERS rather than parameters -- Griffo's ligature set, the
+long s, the tied ae, and the **upright roman capitals against a sloped
+lowercase**, which is the Aldine page's most recognisable habit and a separate
+job from the lowercase. None of that is in these cuts.
+
+Page: https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
+
+The swash g of rounds 113/113b is PARKED, not reverted -- its dials are set to a
+restrained value in these builds so the experiment does not distract, and the
+two-stroke construction stays in the tree.
