@@ -93,7 +93,7 @@ running the simulator and exercising the affected feature. Host tests live in
 `tests/` — run them when touching input, text entry, sleep, network, restart,
 task lifetime, read-aloud, palettes, the dial table, the sheet identity,
 device-fidelity flags, the compressed-font container, the seed-font tree, or
-build-configuration paths.
+build-configuration paths, or the host battery.
 
 ```bash
 tests/run_all.sh            # build and run every host test; non-zero on the first failure
@@ -1119,6 +1119,28 @@ pages by their links.
 ## The 2026-08-22 channels and hooks (quick index)
 
 Grown in one day; each is documented at its definition, this is the map:
+
+- **The host's battery** (`src/SimHostBattery.h`, 2026-09-14): the firmware's
+  header draws a battery icon and a percentage a few millimetres below iOS's
+  status bar, which draws the real one, and the two disagreed on every device
+  — both HAL stubs answered from an env var **latched into a function-local
+  `static`** (100 % and always-charging; a phone has no environment to set).
+  The host PUBLISHES and the HAL reads: `getBatteryPercentage()` is called from
+  the render task and `UIDevice` is main-thread-only, so
+  `ios/CrossPointHostBattery.mm` observes the two battery notifications on the
+  main thread and pushes, exactly as the appearance path does. Resolution is
+  **host reading → env var → historical default**, so a build that never
+  publishes is byte-identical to before — every desktop run and every headless
+  capture. Three things that each cost a wrong picture and no build error:
+  **the bolt is `isUsbConnected()`, not the percentage** (`LyraTheme::fillBatteryIcon`),
+  so the charging state has to travel too; **`wasUsbStateChanged()` was a flat
+  `false`**, and it is what `main.cpp:1177` turns into the repaint that puts the
+  bolt on screen between page turns — but the FIRST reading must not raise an
+  edge or every cold boot queues one; and **−1 is unknown, 0 is a real and
+  alarming level** — an iOS Simulator reports `batteryLevel` −1, which read as
+  0 would flat-line every capture and trip the low-battery paths. Nothing is
+  latched any more: a cable can be pulled out of a phone mid-session.
+  `tests/host_battery_test.cpp` pins the order, the −1/0 split and the edge.
 
 - **Reader text-block insets**: the firmware publishes its final insets
   (framebuffer px) through the HAL keyboard-channel pattern; the sim stores

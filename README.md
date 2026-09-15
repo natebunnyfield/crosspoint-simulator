@@ -307,8 +307,8 @@ run is never changed by their presence.
 |---|---|
 | `CROSSPOINT_SIM_HEAP=380000` | a heap budget that counts down as the firmware allocates |
 | `CROSSPOINT_SIM_HEAP_FREE=40000` | a pinned free-heap figure (wins over the budget) |
-| `CROSSPOINT_SIM_BATTERY=<0-100>` | battery percentage; unset reports 100 |
-| `CROSSPOINT_SIM_USB=0` | USB unplugged; unset reports always-connected |
+| `CROSSPOINT_SIM_BATTERY=<0-100>` | battery percentage; unset reports 100. **On iOS the phone's own battery wins over both this and the default** — [src/SimHostBattery.h](src/SimHostBattery.h) |
+| `CROSSPOINT_SIM_USB=0` | USB unplugged; unset reports always-connected. Draws the charging bolt (`LyraTheme::fillBatteryIcon` asks `isUsbConnected()`, not the percentage); the phone's charging state wins on iOS |
 | `CROSSPOINT_SIM_ASYNC_REFRESH=1` | the panel advertises async refresh, so the reader's overlapped page turn runs |
 | `CROSSPOINT_SIM_PANIC=<reason>` | this boot is the boot after a panic — enters `CrashActivity` and writes `/crash_report.txt` |
 | `CROSSPOINT_SIM_OTA_PARTITION=1` | a real next-update partition exists, so SD firmware update gets past "Invalid firmware" |
