@@ -3553,3 +3553,41 @@ foot; it does not stand beside one.
 
 Seven options from no flick to a full chancery hand with the wedge gone
 altogether; nothing chosen.
+
+
+## Round 104 (2026-09-14): it was an oblique, and here is the number
+
+Owner: **"research what italic is because you're just doing an oblique."**
+Correct, and the research is `docs/italic-vs-oblique.md`; page
+https://claude.ai/artifact/ASURG4g4NyfZ82u3PebFHF.
+
+**The test that settles it** (`outlines/cmp/oblique.py`): shear a family's own
+roman by its italic's angle and see how much of its italic that accounts for
+-- per letter, normalized to one height, registered horizontally,
+intersection over union. 1.00 would be a pure oblique.
+
+| family | slant | overlap with its OWN sheared roman |
+|---|---|---|
+| ITC Berkeley | 7 deg | **0.306** |
+| Coelacanth | 14 deg | **0.431** |
+| **Albo, round 103** | 13 deg | **0.852** |
+
+And the per-letter column names exactly what happened: Albo's least-similar
+letters are **o 0.35, f 0.46, a 0.61** -- the only three ever redrawn -- and
+then r, x, k, m, n, q, h all at 0.84-0.90, which is the roman with a shear on
+it. Rounds 101 and 102 changed PROPORTIONS, and proportions are not what makes
+an italic.
+
+**And round 102's branch measurement was wrong**, which is the part worth
+keeping. It reported that neither model branches low and set `IT_BRANCH` to a
+token 0.15 on the strength of it. It had measured where the arch MEETS THE
+RIGHT STEM -- near the x-height in every face, roman or italic, because that
+is where an arch lands -- instead of where it LEAVES THE LEFT one, which is
+the italic question. The detector looked for the lowest row with two ink runs,
+which in any n is the baseline, because the two feet are two runs. A real
+difference was measured, found absent, and reported as a finding that shut
+down the one lever that mattered.
+
+Full account, including the seven things a true italic actually changes and
+the rule that would have caught this on day one:
+[docs/italic-vs-oblique.md](italic-vs-oblique.md).
