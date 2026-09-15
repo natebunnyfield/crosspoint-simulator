@@ -1653,6 +1653,56 @@ pressed state would otherwise not appear until the next page render.
 `chdir()`, the harness install, and a normal `return 0` in place of `_exit(0)`
 (iOS reports a self-terminating process as a crash).
 
+### The battery in the header is the phone's (2026-09-14)
+
+The firmware draws a battery icon and a percentage in its header, a few
+millimetres below iOS's status bar, which draws the real one. Until this landed
+the two disagreed on every device: both HAL stubs answered from an environment
+variable **latched into a function-local `static` on first call**, so a phone —
+which has no environment to set — showed a flat 100 % and a charging bolt that
+never went out.
+
+**The host publishes; the HAL reads.** `getBatteryPercentage()` is called from
+the firmware's render task and `UIDevice` is main-thread-only, so
+[CrossPointHostBattery.mm](CrossPointHostBattery.mm) enables battery monitoring,
+observes `UIDeviceBatteryLevelDidChange` and `…StateDidChange` on the main
+thread, and pushes into the atomics in
+[src/SimHostBattery.h](../src/SimHostBattery.h). Same split, and the same
+reason, as the appearance path. `CrossPointHostBattery_start()` is called from
+`CrossPointHarness_begin()`, is idempotent, and is never torn down.
+
+Resolution is **host reading → `CROSSPOINT_SIM_BATTERY` / `CROSSPOINT_SIM_USB`
+→ the historical default**, so a build that never publishes is byte-identical
+to before — every desktop run, every headless capture, every screenshot in this
+repo.
+
+Four things about it that each cost a wrong picture and no build error:
+
+* **The bolt is not the percentage.** `LyraTheme::fillBatteryIcon` asks
+  `gpio.isUsbConnected()`, so the charging state is a second value that has to
+  travel. Feeding only the level would leave the bolt on forever.
+* **`wasUsbStateChanged()` was a flat `false`**, and it is what `main.cpp:1177`
+  turns into `activityManager.requestUpdate()` — the only thing that repaints
+  the header between page turns. Without it a correct reading would still sit
+  unseen until the next page. It consumes a real edge now.
+* **The first reading must NOT raise that edge.** −1 → 1 at launch is the
+  adapter starting up, not a cable going in; raising it there queues a repaint
+  on every cold boot.
+* **−1 is unknown; 0 is a real and alarming level.** An iOS *Simulator* reports
+  `batteryLevel` −1 and state Unknown unless the device menu has been used, so
+  conflating them would flat-line every simulator capture at empty and trip the
+  firmware's low-battery paths. Unknown falls back instead.
+
+`UIDeviceBatteryStateFull` counts as charging, because the bolt means *cable*:
+a phone at 100 % on the charger drawing no bolt would be the same disagreement
+this exists to end. The level is rounded, not truncated — truncation would show
+87 % against the status bar's 88 % for most of every percent.
+
+`tests/host_battery_test.cpp` pins the resolution order, the −1/0 split and the
+edge semantics. The iOS half needs a real battery to answer and is **SHIPPED —
+UNCONFIRMED**: look at the header on a phone, and at the one-shot
+`[battery] host battery monitoring on: N%, charging N` line in the log.
+
 ## Closed: level reads do not see injected keys
 
 **Resolved.** Option 1 below was taken. The pad no longer pushes SDL key events;
