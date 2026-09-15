@@ -4496,3 +4496,42 @@ from the scan:
 Those four are per-letter drawing and wait on his word for which comes first.
 
 Page (republished in place): https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
+### Round 115 (2026-09-15): the lowercase DRAWN AGAIN
+
+Owner, the third time and plainly: **"remake lowercase italic from scratch to
+match the scan. I cannot be clearer, stop ignoring this instruction."**
+
+He asked in round 114 ("make an experimental lowercase albo italic to match
+it"), again in 114b ("change the shapes of the letters completely"), and both
+times I answered with DIALS -- width, contrast, serif size, the flick's tip,
+where the arch branches. Those were real findings (`IT_TIP` in particular) but
+they were not the ask, and a dial cannot change what a letter IS. Recorded
+because the failure is the point: **when an instruction is repeated, the
+previous answer was wrong, and answering it a third way from the same
+construction is the same refusal.**
+
+`outlines/glyphs/aldine.py`, 26 letters, registered ONLY under `ALBO_ALDINE=1`
+so the shipping italic is untouched while it is judged and both can be built
+for one page. Four shapes every letter is made from, each read off the 1501
+page:
+
+- **THE HEAD** -- an ascender ends in a flat angled head sitting ACROSS the
+  stem, entered from the left, not in a flick. That one shape is most of the
+  page's texture, b d h k l being everywhere in Latin.
+- **THE ARCH** -- branches about a third of the way up the stem, climbs, and
+  arches over in ONE movement, rather than turning off a shoulder near the top.
+- **THE FOOT** -- a short blunt outstroke with weight in it.
+- **THE BOWLS** -- small, round, sitting LOW in the x-height band; the a is
+  single-storey with its bowl low against a nearly straight stem.
+
+Dials: `ALBO_ALD_HEAD_DEG/LEN/W`, `ALBO_ALD_FOOT`, `ALBO_ALD_BRANCH`,
+`ALBO_ALD_BOWL_TOP`, `ALBO_ALD_FLOOR`.
+
+**Known wrong, and said on the page rather than hidden:** the fitting is
+unsolved, so the rhythm is uneven -- the bearings are still the roman rule's
+and were never meant for these shapes. The colour runs light against the
+roman. The s and the g are the weakest of the twenty-six. Fitting them first
+would only be fitting the wrong letters, so the question back to him is whether
+the SHAPES are going the right way.
+
+Page: https://claude.ai/artifact/8EMuwbZ8hgumizUWkyGZUB
