@@ -4376,3 +4376,38 @@ Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
    103/106 fix for barbs. He is reporting that the result still reads as
    overlapping shapes rather than as one stroke, so this is the third pass on
    that seam and wants the rendered seam measured, not the code re-read.
+
+### Round 113b (2026-09-15): the connector CROSSES, and the ring came down
+
+Two corrections, and the second settled the letter.
+
+**"you're getting connector stroke direction wrong, it crosses right to
+left."** Stroke two was leaving the bowl at its bottom-LEFT (`G_B1` 196
+degrees) and dropping straight into the loop -- which makes the bowl a
+near-complete ring and the connector a short link between two objects. It
+leaves at the bottom-RIGHT now (`G_B1` 298) and **crosses the letter
+diagonally, passing under the bowl.** That diagonal is what closes the bowl's
+bottom, not the arc, which is why the reference has a long stroke running
+through the middle of the letter. Stroke one's end moved with it, 236 -> 262,
+so the two still overlap where the crossing begins, and the neck's first
+control now pulls LEFT (0.62 of the span) rather than DOWN (0.52).
+
+**"reduce the top ring and it should work out."** It did. With the bowl smaller
+the crossing has room to be a real diagonal instead of a squeezed corner --
+the two asks were one ask. Ladder on `G_BOWL_W`/`G_BOWL_H`, both multiples of
+the o's with the top pinned to the x-height so every unit of reduction comes
+off the bottom:
+
+| | bowl W | bowl H | ink width | advance |
+|---|---|---|---|---|
+| where it started | | | 537 | 587 |
+| as now | 0.94 | 0.80 | 521 | 571 |
+| P | 0.86 | 0.72 | 508 | 558 |
+| Q | 0.78 | 0.64 | 496 | 546 |
+| R | 0.70 | 0.58 | 483 | 533 |
+
+Every rung is narrower than the g this started from. All build clean at two
+contours -- the outer and the bowl's counter -- the loop's interior being open
+where the stroke terminates, which is the reference's own topology.
+
+Page (republished in place): https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ

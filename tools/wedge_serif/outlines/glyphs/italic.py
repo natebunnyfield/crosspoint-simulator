@@ -511,9 +511,16 @@ if pen.ITALIC:
     # where two starts sit together and at the bottom-left where one ends and
     # the other passes through, so there is no junction to patch.
     G_A0 = float(os.environ.get("ALBO_G_A0", 16.0))    # stroke one: where it meets the bowl, degrees
-    G_A1 = float(os.environ.get("ALBO_G_A1", 236.0))   # ... and where it ends, sweeping left and down
+    G_A1 = float(os.environ.get("ALBO_G_A1", 262.0))   # ... and where it ends, sweeping left and down
     G_B0 = float(os.environ.get("ALBO_G_B0", 40.0))    # stroke two: where it starts, top-right
-    G_B1 = float(os.environ.get("ALBO_G_B1", 196.0))   # ... and where it leaves the bowl for the loop
+    # Owner 2026-09-15: "you're getting connector stroke direction wrong, it
+    # crosses RIGHT TO LEFT." Stroke two was leaving the bowl at its bottom-LEFT
+    # (196 degrees) and dropping straight into the loop, which makes the bowl a
+    # near-complete ring and the connector a short link. It leaves at the
+    # bottom-RIGHT and CROSSES the letter diagonally down-left, passing under
+    # the bowl -- which is why the reference has a long diagonal through it, and
+    # why that diagonal is what closes the bowl's bottom rather than the arc.
+    G_B1 = float(os.environ.get("ALBO_G_B1", 298.0))   # ... and where it leaves the bowl to cross
 
     @glyph('g')
     def g_g_it(c):
@@ -589,7 +596,7 @@ if pen.ITALIC:
         P0 = b_out[-1]
         span_ = math.hypot(Pa[0] - P0[0], Pa[1] - P0[1])
         neck = bez(P0,
-                   (P0[0] - span_ * 0.10, P0[1] - span_ * 0.52),
+                   (P0[0] - span_ * 0.62, P0[1] - span_ * 0.16),
                    (Pa[0] - Ta[0] * span_ * 0.40, Pa[1] - Ta[1] * span_ * 0.40),
                    Pa, n=60)
         sweep = 2 * math.pi - (math.radians(G_LOOP_OUT) - math.radians(G_LOOP_IN))
