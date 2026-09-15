@@ -3007,6 +3007,45 @@ Page (round 96's URL, repaired in place): https://claude.ai/artifact/HRgSSYaKkzF
   slash likely with them. Not built.
 - The 8 without reshaping its counters (round 95's queue).
 
+### Queued (owner, 2026-09-15) -- four, given as future todos
+
+Verbatim, with what each one will need. **None of these is built.**
+
+1. **"top right serif of 'k' needs to be visually heavier."** The k's arm
+   meets its leg at the top right and that junction's serif reads light.
+   VISUALLY heavier is the ask, so this is an optical fix and not a units
+   one: the wedge family's unit is shared, so the k's own serif has to be
+   thickened against it rather than the family's unit moved. `glyphs/` k,
+   and note the italic k is a separate construction (round 107/108) that
+   may or may not want the same.
+2. **"the spacing around 's' is too tight currently."** The s's bearings
+   come from the round-97 `solve_cat` refit, which targeted a per-side
+   CATEGORY rhythm rather than a per-letter one -- the s is the letter whose
+   two sides disagree most about which category it belongs to. Re-run
+   `outlines.cmp.rhythm` on the s's own neighbours before moving anything,
+   because the round-97 solve is what every other letter is fitted to.
+3. **"make a version of capitals that matches 'trajan', 'humanist' and
+   'helvetica' widths (needs research in md files)."** The research is DONE
+   and lives in [`docs/albo-capital-widths.md`](albo-capital-widths.md);
+   `tools/wedge_serif/cmp_capwidths.py` re-runs it. Short version: what
+   separates the three is not overall width but the ROUND-to-SQUARE ratio --
+   Trajan 1.522, humanist 1.306, Albo 1.264, Helvetica 1.166 -- and Albo is
+   already sitting with the humanist group. He supplied Trajan Pro; it is
+   Adobe-licensed and now in `lib/EpdFont/local_fonts/` in the firmware repo,
+   which is gitignored.
+4. **"we need to perfect the kerning for top bigraphs and trigraphs and
+   common english words and spacing between words."** The existing kerning is
+   round 95's hand class matrix (`outlines/kern.py`, 14 left x 13 right
+   classes, 60 class pairs, lowercase deliberately UNKERNED because round 97
+   put the lowercase rhythm in the bearings instead). Trigraphs are the new
+   ask and the reader cannot carry contextual kerning -- the `.cpfont` takes
+   a class matrix and a flat pair table of at most 255 entries -- so a
+   trigraph can only be served by the two pairs inside it, which is a real
+   constraint to design against rather than around. The frequency data is
+   already here: `outlines/cmp/rhythm.py` carries Norvig bigram frequencies
+   and the ~150 common-word set. Word space is 285 (round 100b, measured on
+   a paragraph ladder) and is in scope again.
+
 ## Round 97 (2026-09-14): the whole lowercase refit to the rhythm -- "go"
 
 Owner: "go", on the round-96b finding that the open-right letters ran loose
