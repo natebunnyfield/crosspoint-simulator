@@ -159,36 +159,67 @@ if ON:
         bar = stroke([(cx - rx * 0.92, y - rx * 0.92 * sl), (cx + rx * 0.86, y + rx * 0.86 * sl)], TH_H * 0.92)
         return geom.ink([ring_, bar])
 
-    # MEASURED off aldine.png, the 'a' of "Formoſam" at x 222-238, y 28-47,
-    # after the owner named the shape: "look for characters that are like 'd'
-    # with a short ascender". That is exactly what it is, and it is NOT what
-    # this module drew first. Griffo's a is a SMALL bowl sitting LOW in the
-    # x-height with the stem CARRYING ON ABOVE IT -- a d whose ascender has
-    # been cut short. The first cut here filled the whole x-height with the
-    # bowl and stopped the stem at the x-height line, which is a different
-    # letter.
-    A_BW = float(os.environ.get("ALBO_ALD_A_BW", 0.62))    # the bowl's width, x xh
-    A_BH = float(os.environ.get("ALBO_ALD_A_BH", 0.84))    # its height, x xh -- it sits LOW
-    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.22))# how far the stem rises above the bowl, x xh
-    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 0.72))# the little head on that short ascender
+    # MEASURED off the a of "Formoſam" in aldine.png -- the blob flood-filled
+    # away from its neighbours, upscaled 24x, and read ROW BY ROW. The numbers
+    # are what killed three earlier attempts:
+    #
+    #   row   ink runs, x as a fraction of the letter's width
+    #   0.05  one run, 0.81..0.97      -- the stem alone: the short ascender
+    #   0.30  one run, 0.43..0.88      -- the ARM, crossing to the stem
+    #   0.45  0.18..0.30 | 0.58..0.83  -- two runs: the counter has opened
+    #   0.75  0.01..0.79 | 0.84..1.00  -- the bowl's bottom sweeping across
+    #   0.98  0.12..0.23 | 0.64..0.77  -- two feet, separate
+    #
+    # So the bowl is NOT a ring and its widest point is NOT at mid-height: the
+    # counter is a rounded TRIANGLE with its point up at the arm, and the bowl
+    # reaches furthest left at about three quarters of the way DOWN. Every
+    # earlier cut here drew an ellipse centred at half the x-height, which is a
+    # different letter however its radius is dialled -- and that is why the
+    # ladder only ever chose between an 'a' and a 'd'.
+    # MEASURED off aldine.png, row by row, on two separate a's -- the one in
+    # "resonaram" at x223-234 and the one at x326-338. Both give the same
+    # letter and it is not the one drawn before this: the bowl's top joins the
+    # stem AT the x-line in a tight arc (not a long diagonal arm reaching down
+    # from a tall stem), the counter is a SMALL rounded triangle pointing up,
+    # and -- the part that makes it an a rather than a d -- the bowl's bottom
+    # rejoins the stem about a fifth of the way UP, leaving a notch above the
+    # foot. Every earlier cut ran it into the stem at the baseline, which is a
+    # d, which is what the ladders kept rendering.
+    A_W = float(os.environ.get("ALBO_ALD_A_W", 1.00))       # letter width, x xh (12/12 measured)
+    A_STEM = float(os.environ.get("ALBO_ALD_A_STEM", 0.67)) # the stem's center, x the width
+    # The rise is the whole a/d question. The scan puts 2-3 px of ink above a
+    # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
+    # thin spike at the same height reads as a d however right the bowl is.
+    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.05)) # the head above the x-line, x xh
+    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 0.70))
+    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 0.92))  # its weight, x HEAD_W
+    A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 0.90))  # the bowl's left flank, x the stem
 
     @glyph('a')
     def a_a(c):
-        """A d with a short ascender: a small low bowl, and a stem that carries
-        on above it."""
-        xh = c["xh"]
-        bw = A_BW * xh; bh = A_BH * xh
-        rx = bw / 2; ry = bh / 2
-        cx = S * 0.60 + rx; cy = ry - OVER * 0.3       # the bowl sits on the baseline
-        x1 = cx + rx - TH_V * 0.10                      # the stem, on the bowl's right
-        top = bh + A_RISE * xh                          # and it rises ABOVE the bowl
-        bowl_ = ring(cx, cy, rx, ry + OVER * 0.4, floor=S * FLOOR)[0]
-        parts = [bowl_] + st(x1, 0, top, head=False, foot=True)
+        """One stem with an angled head, and one bowl stroke that leaves the
+        stem at the x-line, swings left and down, round the bottom, and comes
+        back UP to the stem a fifth of the way above the baseline."""
+        xh = c["xh"]; W = A_W * xh
+        X = lambda f: S * 0.55 + f * W
+        Y = lambda f: f * xh
+        xs_ = X(A_STEM)
+        top = xh + A_RISE * xh
+        parts = list(st(xs_, 0, top, head=False, foot=True))
         if A_HEAD:
             L = S * A_HEAD; a = math.radians(HEAD_DEG)
             dx, dy = math.cos(a) * L, math.sin(a) * L
-            parts.append(stroke([(x1 - dx * 0.70, top - dy * 0.70 - S * 0.05),
-                                 (x1 + dx * 0.34, top + dy * 0.34)], S * HEAD_W * 0.92, cut0=CUT))
+            parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
+                                 (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
+        p_ = catmull([(X(A_STEM - 0.01), Y(1.00)), (X(0.44), Y(0.88)), (X(0.25), Y(0.70)),
+                      (X(0.13), Y(0.48)), (X(0.11), Y(0.26)), (X(0.24), Y(0.06)),
+                      (X(0.44), Y(0.09)), (X(A_STEM - 0.09), Y(A_JOIN))], tension=0.5)
+        # Weight read off the same rows: thin where the arc leaves the stem,
+        # the flank at three quarters of the stem, the bottom heaviest.
+        parts.append(stroke(p_, widths([(0.0, S * 0.60), (0.22, S * 0.54),
+                                        (0.45, S * A_FLANK), (0.74, S * (A_FLANK + 0.10)),
+                                        (1.0, S * 0.66)]), cut0=CUT))
         return geom.ink(parts)
 
     @glyph('b')

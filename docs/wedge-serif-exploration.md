@@ -4574,3 +4574,38 @@ Page: https://claude.ai/artifact/XxTZMdq2bf3toACZSAvC7x
 
 Method for the remaining vowels, which is the thing to reuse: pull the letter
 off the page first at 20x, look at it, THEN draw. Not the other way round.
+
+## Round 116b — the Aldine `a`, measured off the page row by row
+
+Owner: *"you are drawing the wrong shape entirely. redo this to match the
+scan. again, get it together."* Three previous cuts of this letter all rendered
+as a `d`, and two of them were ladders over dials on a shape that was already
+wrong.
+
+What finally worked was reading the letter out of `aldine.png` as an ASCII map
+of dark/mid/light per pixel, over TWO separate `a`s (in `resonaram` at
+x223–234, and at x326–338), and constructing from the runs rather than from an
+impression of the crop. Both give the same letter:
+
+| | measured |
+|---|---|
+| letter box | 12 × 13 px — as wide as the x-height |
+| stem | 4 px, centred at 0.67 of the width, near-vertical (≈9° over the band) |
+| head | 2–3 px above the x-line, a blunt wedge jutting RIGHT — not an ascender |
+| bowl top | joins the stem AT the x-line, tight arc |
+| bowl left extreme | at **0.67 down**, not at mid-height |
+| bowl bottom | rejoins the stem at ≈0.22 up, leaving a notch above the foot |
+| counter | a small rounded triangle, point UP |
+
+**Two of those are why every earlier cut was a `d`.** The bottom rejoining the
+stem at the BASELINE is a `d`'s bowl; and the stem's rise above the bowl reads
+as an ascender at anything above ~0.08 of the x-height, however right the bowl
+is. The scan's own 2–3 px of rise survives there only because it is a blunt
+right-jutting wedge; reproducing that height with Albo's thinner head stroke
+(arms B and C, rise 0.08/0.12 with the head weight up to 1.55×) still read as
+`d`. Shipped: rise **0.05**, flank **0.90 × stem**, join **0.22**.
+
+Negative result worth keeping: the measured stroke weights off the scan are
+inflated by ~1 px per edge by ink spread at 13 px x-height, so the raw
+stem/x-height of 0.31 is not a weight target — it is Albo's own weight that
+decides that, and only the SKELETON comes off the page.
