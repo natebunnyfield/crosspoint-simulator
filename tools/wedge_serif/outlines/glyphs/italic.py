@@ -33,7 +33,7 @@ capitals are its most settled work).
 import math
 from . import glyph, GLYPHS
 from .. import geom, pen
-from ..geom import cubic, line
+from ..geom import cubic, line, catmull
 from ..primitives import stem, stroke, pen_widths, widths, ring, dot, stem_edge_x, bar
 from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT
@@ -142,9 +142,17 @@ if pen.ITALIC:
 
     @glyph('u')
     def g_u_it(c):
+        """Two strokes and nothing else (owner, round 107: "u has extra strokes
+        on its left"). The first comes down, turns along the baseline and
+        climbs into the second; the second comes down and flicks out. No entry
+        at the top-left -- the round-106 u carried one AND a separate arch
+        start, which read as two spurs."""
         xh = c["xh"]; x0 = S / 2; x1 = x0 + pen.NW
-        return geom.ink([stem(x0, 0, xh, top=None, foot=None, it_exit=False),
-                         italic_arch_down(x0, x1, xh),
+        xr = stem_edge_x(x1, TH_V, ENT, 0.42 * xh, 0, xh, -1)
+        first = catmull([(x0, xh), (x0, xh * 0.30), (x0 + (x1 - x0) * 0.16, -OVER * 0.6),
+                         (x0 + (x1 - x0) * 0.62, -OVER * 0.8), (xr + S * 0.10, xh * 0.42)], tension=0.5)
+        fw = pen_widths(first)
+        return geom.ink([stroke(first, lambda t: max(fw(t) * (1.0 - 0.34 * max(0.0, (t - 0.55) / 0.45)), S * 0.30), cut0=CUT, cut1=None),
                          stem(x1, 0, xh, top=None, foot=None, it_entry=False)])
 
     @glyph('r')
@@ -196,72 +204,89 @@ if pen.ITALIC:
     # ------------------------------------------------------------ diagonals
     @glyph('k')
     def g_k_it(c):
-        """The italic k's leg CURVES -- both references change the k more than
-        almost any other letter. The arm comes off the stem as a branch and the
-        leg swings out of the join and curls to the baseline."""
+        """The italic k LOOPS (owner, round 107: "k needs a loop"): the arm
+        leaves the stem, curls up and round, and comes BACK to the stem,
+        closing a small bowl; the leg then leaves from the bottom of that bowl
+        and flicks at the baseline. Both models do exactly this; the round-106
+        k was two strokes off a stem, which is a roman k's construction."""
         xh = c["xh"]; asc = c["asc"]; x0 = S / 2
-        st = stem(x0, 0, asc, top=None, foot=None)
-        xl = stem_edge_x(x0, TH_V, ENT, xh * 0.46, 0, xh, +1)
-        arm = cubic((xl - S * 0.08, xh * 0.46), (xl + S * 0.9, xh * 0.72),
-                    (xl + S * 2.2, xh * 0.96), (xl + S * 3.05, xh * 1.02))
-        aw = pen_widths(arm)
-        arm_w = lambda t: max(aw(t) * (0.34 + 0.66 * min(1.0, t / 0.36)), S * 0.30)
-        # the leg leaves the STEM (its start is inside the stem's ink at the
-        # arm's root), not a point floating to the right of it
-        leg = cubic((xl - S * 0.20, xh * 0.50), (xl + S * 1.30, xh * 0.36),
-                    (xl + S * 2.05, xh * 0.12), (xl + S * 3.30, -OVER * 0.4))
-        lw = pen_widths(leg)
-        leg_w = lambda t: max(lw(t) * (0.42 + 0.58 * min(1.0, t / 0.30)), S * 0.32)
-        return geom.ink([st, stroke(arm, arm_w, cut1=CUT), stroke(leg, leg_w, cut1=CUT)])
+        st = stem(x0, 0, asc, top=None, foot=None, it_exit=False)
+        xl = stem_edge_x(x0, TH_V, ENT, xh * 0.50, 0, xh, +1)
+        loop = catmull([(xl - S * 0.12, xh * 0.44), (xl + S * 0.70, xh * 0.80), (xl + S * 1.55, xh * 1.00),
+                        (xl + S * 1.95, xh * 0.80), (xl + S * 1.35, xh * 0.52), (xl + S * 0.20, xh * 0.40)], tension=0.55)
+        lw = pen_widths(loop)
+        loop_w = lambda t: max(lw(t) * (0.42 + 0.58 * min(1.0, t / 0.30)) * (1.0 - 0.30 * max(0.0, (t - 0.72) / 0.28)), S * 0.26)
+        leg = catmull([(xl + S * 0.16, xh * 0.44), (xl + S * 1.20, xh * 0.26), (xl + S * 2.20, xh * 0.06),
+                       (xl + S * 2.75, -OVER * 0.3), (xl + S * 3.15, OVER * 0.6)], tension=0.5)
+        gw = pen_widths(leg)
+        leg_w = lambda t: max(gw(t) * (0.55 + 0.45 * min(1.0, t / 0.25)) * (1.0 - 0.55 * max(0.0, (t - 0.80) / 0.20)), S * 0.14)
+        return geom.ink([st, stroke(loop, loop_w), stroke(leg, leg_w, cut1=None)])
 
     @glyph('z')
     def g_z_it(c):
-        """The italic z: the bottom bar leaves the diagonal and CURVES below
-        the baseline into a tail. The roman z is three straight strokes; both
-        references redraw this letter more than they redraw the o."""
+        """The italic z: an entry curl into the top bar, the diagonal, and a
+        tail that sweeps under the letter and curls back. The round-106 z had
+        a straight bar and a thin tail -- the shape without the flourish."""
         xh = c["xh"]; w = XH * 0.95 * c["wf"]
-        top = bar(0, w, xh, TH_H * 0.95, align='top')
-        diag = line((w - TH_H * 0.3, xh - TH_H * 0.7), (TH_H * 0.5, TH_H * 0.8))
+        top = catmull([(w * 0.06, xh * 0.78), (w * 0.02, xh * 0.94), (w * 0.22, xh * 1.00), (w * 0.98, xh * 0.98)], tension=0.5)
+        tw_ = pen_widths(top)
+        diag = line((w * 0.94, xh * 0.94), (w * 0.10, TH_H * 0.9))
         dw = pen_widths(diag)
-        tail = cubic((0, TH_H * 0.9), (w * 0.52, TH_H * 0.2),
-                     (w * 0.92, -XH * 0.10), (w * 1.12, -XH * 0.22))
-        tw = pen_widths(tail)
-        return geom.ink([top, stroke(diag, lambda t: max(dw(t), S * 0.34)),
-                         stroke(tail, lambda t: max(tw(t) * (1.0 - 0.45 * t), S * 0.16), cut1=CUT)])
+        tail = catmull([(w * 0.18, TH_H * 1.0), (w * 0.55, -XH * 0.02), (w * 0.98, -XH * 0.16),
+                        (w * 1.10, -XH * 0.30), (w * 0.94, -XH * 0.38)], tension=0.5)
+        tl = pen_widths(tail)
+        return geom.ink([stroke(top, lambda t: max(tw_(t) * (0.5 + 0.5 * min(1.0, t / 0.25)), S * 0.22)),
+                         stroke(diag, lambda t: max(dw(t), S * 0.36)),
+                         stroke(tail, lambda t: max(tl(t) * (1.0 - 0.55 * max(0.0, (t - 0.55) / 0.45)), S * 0.14), cut0=None)])
+
+    def _curl_up(x, y, w, xh):
+        """The thin stroke arriving at the top-right and curling back in over
+        itself: the terminal both models put on the v, the w and the x."""
+        return catmull([(x - w * 0.02, y - xh * 0.30), (x + w * 0.05, y - xh * 0.06), (x + w * 0.02, y + xh * 0.05),
+                        (x - w * 0.10, y + xh * 0.04), (x - w * 0.14, y - xh * 0.04)], tension=0.5)
 
     @glyph('v')
     def g_v_it(c):
         xh = c["xh"]; w = XH * 0.86 * c["wf"]
         left = cubic((0, xh), (w * 0.16, xh * 0.52), (w * 0.34, xh * 0.20), (w * 0.52, 0))
-        right = cubic((w * 0.52, 0), (w * 0.70, xh * 0.34), (w * 0.86, xh * 0.72), (w, xh))
-        lw = pen_widths(left); rw = pen_widths(right)
+        right = cubic((w * 0.52, 0), (w * 0.70, xh * 0.34), (w * 0.86, xh * 0.62), (w * 0.94, xh * 0.72))
+        curl = _curl_up(w * 0.94, xh * 0.98, w * 0.5, xh)
+        lw = pen_widths(left); rw = pen_widths(right); cw = pen_widths(curl)
         return geom.ink([stroke(left, lambda t: max(lw(t), S * 0.36), cut0=CUT, cut1=None),
-                         stroke(right, lambda t: max(rw(t) * (1.0 - 0.28 * t), S * 0.20), cut0=None, cut1=CUT)])
+                         stroke(right, lambda t: max(rw(t) * (1.0 - 0.28 * t), S * 0.20), cut0=None, cut1=None),
+                         stroke(curl, lambda t: max(cw(t) * (0.9 - 0.5 * t), S * 0.12), cut0=None)])
 
     @glyph('w')
     def g_w_it(c):
         xh = c["xh"]; w = XH * 1.30 * c["wf"]
         parts = []
         for k in (0, 1):
-            ox = k * w * 0.50
+            ox = k * w * 0.50; last = (k == 1)
             left = cubic((ox, xh), (ox + w * 0.08, xh * 0.52), (ox + w * 0.17, xh * 0.20), (ox + w * 0.26, 0))
-            right = cubic((ox + w * 0.26, 0), (ox + w * 0.35, xh * 0.34), (ox + w * 0.43, xh * 0.72), (ox + w * 0.50, xh))
+            rt = (ox + w * 0.47, xh * 0.72) if last else (ox + w * 0.50, xh)
+            right = cubic((ox + w * 0.26, 0), (ox + w * 0.35, xh * 0.34), (ox + w * 0.43, xh * 0.62), rt)
             lw = pen_widths(left); rw = pen_widths(right)
             parts.append(stroke(left, lambda t, f=lw: max(f(t), S * 0.34), cut0=CUT, cut1=None))
-            parts.append(stroke(right, lambda t, f=rw: max(f(t) * (1.0 - 0.22 * t), S * 0.20), cut0=None, cut1=CUT))
+            parts.append(stroke(right, lambda t, f=rw: max(f(t) * (1.0 - 0.22 * t), S * 0.20), cut0=None, cut1=(None if last else CUT)))
+            if last:
+                curl = _curl_up(ox + w * 0.47, xh * 0.98, w * 0.30, xh); cw = pen_widths(curl)
+                parts.append(stroke(curl, lambda t, f=cw: max(f(t) * (0.9 - 0.5 * t), S * 0.12), cut0=None))
         return geom.ink(parts)
 
     @glyph('x')
     def g_x_it(c):
-        """Two curved strokes crossing, the pen's thick one falling left to
-        right and the thin one rising -- not the roman's two straight
-        diagonals with a wedge on each of four ends."""
-        xh = c["xh"]; w = XH * 0.86 * c["wf"]
-        thick = cubic((0, xh), (w * 0.28, xh * 0.62), (w * 0.72, xh * 0.38), (w, 0))
-        thin = cubic((w * 0.96, xh), (w * 0.60, xh * 0.60), (w * 0.34, xh * 0.34), (0, -OVER * 0.3))
+        """The thick stroke is an elongated reverse S: a curl opening up-left
+        at its start, the diagonal, a curl opening down-right at its end.
+        The thin stroke crosses it as a hairline. Both models draw the x this
+        way; round 106's was two plain curves with square cuts."""
+        xh = c["xh"]; w = XH * 0.90 * c["wf"]
+        thick = catmull([(w * 0.30, xh * 1.06), (w * 0.08, xh * 0.96), (w * 0.14, xh * 0.78),
+                         (w * 0.50, xh * 0.50), (w * 0.86, xh * 0.20), (w * 0.94, xh * 0.02), (w * 0.70, -OVER * 0.9)], tension=0.5)
+        thin = cubic((w * 1.02, xh * 0.98), (w * 0.64, xh * 0.62), (w * 0.34, xh * 0.34), (w * 0.02, -OVER * 0.2))
         tw = pen_widths(thick); nw_ = pen_widths(thin)
-        return geom.ink([stroke(thick, lambda t: max(tw(t), S * 0.40), cut0=CUT, cut1=CUT),
-                         stroke(thin, lambda t: max(nw_(t) * 0.55, S * 0.22), cut0=CUT, cut1=CUT)])
+        thick_w = lambda t: max(tw(t) * (0.55 + 0.45 * min(1.0, t / 0.22)) * (1.0 - 0.45 * max(0.0, (t - 0.82) / 0.18)), S * 0.18)
+        return geom.ink([stroke(thick, thick_w, cut0=None, cut1=None),
+                         stroke(thin, lambda t: max(nw_(t) * 0.55, S * 0.20), cut0=CUT, cut1=CUT)])
 
     @glyph('y')
     def g_y_it(c):

@@ -3675,3 +3675,27 @@ every glyph large and look**, not to reason about which glyphs might be
 wrong. Four of the six were visible only that way, and two of them (the
 arch, the k) had been in every page since round 105 without my seeing them
 in a sentence at 250 px.
+
+## Round 107 (2026-09-14): "k needs a loop, u has extra strokes on its left, x and other letters are missing many of the poetic flourishes"
+
+Three reports, each checked against the two models at 300 px before drawing:
+
+- **The k loops.** Both models' arms leave the stem, curl up and round, and
+  come BACK to the stem, closing a small bowl; the leg leaves from the bottom
+  of that bowl and flicks at the baseline. Round 106's k was two strokes off
+  a stem -- a roman k's construction. `g_k_it`, a catmull loop and a leg.
+- **The u is two strokes and nothing else.** The first comes down, turns
+  along the baseline and climbs into the second; the second comes down and
+  flicks out. The round-106 u had an entry at its top-left AND a separate
+  arch start, which read as two spurs -- his "extra strokes on its left".
+- **The flourishes**, which are what both models' thin strokes END in and
+  what none of mine did: the **x**'s thick stroke is an elongated reverse S,
+  a curl opening up-left at its start and one opening down-right at its end,
+  with the thin stroke crossing as a hairline; the **v** and **w**'s last
+  stroke ends in an inward curl at the top (`_curl_up`); the **z** has an
+  entry curl into its bar and a tail that sweeps under the letter and curls
+  back.
+
+Rendered beside Coelacanth's k u x v w z on the page. Mine are smaller
+flourishes than his -- the loop tighter, the curls shorter -- which is the
+Albo pen's economy and was left so rather than inflated to match.
