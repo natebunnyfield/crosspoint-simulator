@@ -77,6 +77,23 @@ E_TAIL_IT = float(os.environ.get("ALBO_E_TAIL", 0.40))   # the tail stroke's wid
 E_TIP_X = float(os.environ.get("ALBO_E_TIPX", 0.72))     # the tail's tip, x: this many bowl radii right of the bowl's centre
 E_TIP_Y = float(os.environ.get("ALBO_E_TIPY", 0.16))     # and this fraction of the x-height above the baseline
 E_TIP_DEG = float(os.environ.get("ALBO_E_TIPDEG", 52.0)) # the direction the tail is travelling when it ends (before the italic shear)
+# ROUND 110. The same tail, for the UPRIGHT cuts. Owner: "there was an
+# improved e that should have made it in this cut." Round 109c rebuilt the
+# italic's tail as its own tapering stroke and deliberately left the roman
+# byte-identical, because the roman's 330-degree arm end is a ruling of rounds
+# 39 and 46. Measured on the specimen's five cuts, the roman carries exactly
+# the defect the italic was cured of: its arm's outer edge arrives at the
+# terminal at 61.9 degrees in the Regular, 57.5 in the SemiBold and 55.2 in the
+# Bold, with an end face of 0.154, 0.200 and 0.232 of the x-height -- against
+# the fixed italic's 45.0 degrees and 0.038. A ring turns at a constant rate,
+# so the arm steepens all the way and the blunt cut across it reads as a tick;
+# the Bold is the worst of the five because its pen is the widest.
+E_END_R = float(os.environ.get("ALBO_E_END_R", 276.0))     # the ring stops at the bowl's bottom, as in the italic and for the same reason
+E_TAIL_R = float(os.environ.get("ALBO_E_TAIL_R", 0.40))    # the tail's width where it ends, x its width where it leaves the bowl
+E_TIPX_R = float(os.environ.get("ALBO_E_TIPX_R", 0.92))    # the tip, this many bowl radii right of the bowl's centre
+E_TIPY_R = float(os.environ.get("ALBO_E_TIPY_R", 0.19))    # and this fraction of the x-height above the baseline
+E_TIPDEG_R = float(os.environ.get("ALBO_E_TIPDEG_R", 50.0))# the direction the tail is travelling when it ends
+
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
 
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
@@ -92,7 +109,7 @@ E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its b
 # terminal and peaking at the run's middle (the widest point) -- so the
 # eye above the bar and the lower aperture below both gain the interior
 # space, and neither the bottom join nor the terminal's cut moves.
-ARM_START_DEG, ARM_END_DEG = 270.0, (E_END_IT if pen.ITALIC else E_END)
+ARM_START_DEG, ARM_END_DEG = 270.0, (E_END_IT if pen.ITALIC else E_END_R)
 ARM_TAPER = 0.25
 E_ARM_THIN = float(os.environ.get("FJORD_E_ARM_THIN", 0.92))   # owner 2026-09-14: "slightly reduce the visual weight of the bottom right tail stroke of e" (1.0 = as it was; the round-77 0.90 was refused)
 E_ARM_OUT = float(os.environ.get("FJORD_E_ARM_OUT", 0.0))    # and the +8 outward shift is off; _e_ring(1.0, 0) reproduces o_ring byte for byte
@@ -152,11 +169,9 @@ def g_e(c):
     # the bar: from inside the left stroke to inside the right stroke
     b = stroke([(cx - rx + 8, bar_top(cx - rx + 8) - th / 2), (cx + rx - 42, bar_top(cx + rx - 42) - th / 2)], th)
     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
-    a = math.radians(E_END_IT if pen.ITALIC else E_END); far = 3 * rx
+    a = math.radians(E_END_IT if pen.ITALIC else E_END_R); far = 3 * rx
     aperture = geom.poly([(cx, cy), (cx + far * math.cos(a), cy + far * math.sin(a)), (cx + far, under(cx + far)), (cx, under(cx))])
-    parts = [solid.difference(aperture), b]
-    if pen.ITALIC:
-        parts.append(_e_tail(outer, inner, cx, cy, rx, xh, a))
+    parts = [solid.difference(aperture), b, _e_tail(outer, inner, cx, cy, rx, xh, a)]
     return geom.ink(parts)
 
 
@@ -209,15 +224,17 @@ def _e_tail(outer, inner, cx, cy, rx, xh, a_cut):
     Pi, _ = _ray_hit(inner, cx, cy, R)
     if Po is None or Pi is None:
         return geom.poly([(0, 0), (0, 0), (0, 0)])
+    tail_end, tipx, tipy, tipdeg = ((E_TAIL_IT, E_TIP_X, E_TIP_Y, E_TIP_DEG) if pen.ITALIC
+                                    else (E_TAIL_R, E_TIPX_R, E_TIPY_R, E_TIPDEG_R))
     w0 = math.hypot(Po[0] - Pi[0], Po[1] - Pi[1])   # the ring's width on the cut
     if To[0] < 0:            # travel counterclockwise, up the bowl's right
         To = (-To[0], -To[1])
-    tip = (cx + E_TIP_X * rx, E_TIP_Y * xh)
+    tip = (cx + tipx * rx, tipy * xh)
     L = math.hypot(tip[0] - Po[0], tip[1] - Po[1])
-    d2 = math.radians(E_TIP_DEG); D2 = (math.cos(d2), math.sin(d2))
+    d2 = math.radians(tipdeg); D2 = (math.cos(d2), math.sin(d2))
     edge = cubic(Po,
                  (Po[0] + To[0] * L * 0.30, Po[1] + To[1] * L * 0.30),
                  (tip[0] - D2[0] * L * 0.55, tip[1] - D2[1] * L * 0.55),
                  tip)
-    wf = lambda t: w0 * (1.0 - (1.0 - E_TAIL_IT) * (3 * t * t - 2 * t ** 3))
+    wf = lambda t: w0 * (1.0 - (1.0 - tail_end) * (3 * t * t - 2 * t ** 3))
     return PR.edge_stroke(edge, wf, side=1)[0]

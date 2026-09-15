@@ -3978,3 +3978,53 @@ specimen, and each is his ruling):
    round 101. The comment is stale; the build is right.
 
 Page: https://claude.ai/artifact/Ng3FQV3AGphAM1TouPjb7w
+
+### Round 110 (2026-09-15): the improved e reaches the upright cuts
+
+Owner, on the all-styles specimen: **"there was an improved 'e' that should
+have made it in this cut."** He is right, and the measurement says so before
+any judgement does. Round 109c rebuilt the italic's tail as its own tapering
+stroke and left the roman **byte-identical on purpose** -- the roman's
+330-degree arm end is a ruling of rounds 39 and 46, and I verified the
+non-change across all five weights and reported it as a feature. What that
+missed is that the roman was carrying *exactly the defect the italic was cured
+of*. Measured on the five shipped cuts, the arm's outer edge where it reaches
+the terminal, and the end face it is cut with:
+
+| cut | approach, before | approach, now | end face, before | end face, now |
+|---|---|---|---|---|
+| Regular | 61.9 deg | 48.6 deg | 0.154 xh | 0.040 xh |
+| SemiBold | 57.5 deg | 46.8 deg | 0.200 xh | 0.051 xh |
+| Bold | 55.2 deg | 46.8 deg | 0.232 xh | 0.064 xh |
+| Italic | 45.0 | unchanged | 0.038 | unchanged |
+| Bold Italic | 42.5 | unchanged | 0.061 | unchanged |
+
+Same cause as round 109c: the arm is part of the RING, a ring turns at a
+constant rate, so the stroke steepens the whole way and the blunt cut across it
+reads as a tick. **The Bold is the worst of the five because its pen is the
+widest** -- an end face of 0.232 xh is a blob, and it is the one a reader meets
+in every bold word.
+
+So `_e_tail` is no longer gated on `pen.ITALIC`; the ring is cut at the bowl's
+bottom in the roman too (`E_END_R` = 276, replacing the 330 ruling), and the
+roman has its own tail dials: `E_TAIL_R` 0.40, `E_TIPX_R` 0.92, `E_TIPY_R`
+0.19, `E_TIPDEG_R` 50.
+
+**0.92 / 50 was picked on metrics, not taste.** A six-rung ladder (tip at 0.80
+/ 0.92 / 1.02 bowl radii, exit at 40 / 50 degrees) says 0.80 and 0.92 leave the
+Regular's advance at 484 and its bounding box at 39..451 EXACTLY where they
+were, while 1.02 widens the letter by 6 units; of the two that cost nothing,
+0.92 puts the tip at x 436 against the old 431, and its 46.8-degree approach
+lands within two degrees of the italic's 45.0. So the change is the terminal
+and nothing else -- no refit, no respacing, and the e is the commonest letter
+in English.
+
+Blast radius checked glyph by glyph rather than assumed: **12 glyphs move in
+each upright cut** -- e, ae, oe and the ten accented e composites -- and
+**ZERO in either italic**, which are byte-identical to the previous build. Two
+advances move by one unit (SemiBold's e family, Bold's oe).
+
+Specimen republished in place: https://claude.ai/artifact/Ng3FQV3AGphAM1TouPjb7w
+
+The blunt end being a ruling is flagged on that page. If he meant something
+narrower than "give the roman the italic's tail", it reverts to one constant.
