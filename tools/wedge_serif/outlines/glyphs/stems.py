@@ -18,6 +18,8 @@ def dot_y(xh): return xh + 118 + S * 0.3
 # cross-section) unchanged. Built at +15% and +30% for the page; +15% ships
 # here by default. ALBO_G_EAR_EXTEND overrides for the page's other variant.
 G_EAR_EXTEND = 0.15
+# Owner 2026-09-15, and SETTLED the same day at 'slight' (0.34/0.60/0.21,
+# against the previous 0.42/0.72/0.30).
 # Owner 2026-09-15: "the line connecting the two ovals needs to be thinner at
 # the connection with the lower oval in 'g'. and generally there needs to be
 # some lightening and/or contrast." Three dials, all on the neck:
@@ -28,9 +30,9 @@ G_EAR_EXTEND = 0.15
 #               stays at 0.30: he named the lower oval specifically, and the two
 #               ends are not symmetrical in a g -- the pen arrives at the loop
 #               and leaves at the bowl.
-G_NECK = float(os.environ.get("ALBO_G_NECK", 0.42))          # the neck's floor, x the stem (0.55 before; owner: thin the connector)
-G_NECK_MID = float(os.environ.get("ALBO_G_NECK_MID", 0.72))  # the neck's middle, x its profile
-G_NECK_END = float(os.environ.get("ALBO_G_NECK_END", 0.30))  # and where it meets the LOWER oval
+G_NECK = float(os.environ.get("ALBO_G_NECK", 0.34))          # the neck's floor, x the stem (0.55 before; owner: thin the connector)
+G_NECK_MID = float(os.environ.get("ALBO_G_NECK_MID", 0.60))  # the neck's middle, x its profile
+G_NECK_END = float(os.environ.get("ALBO_G_NECK_END", 0.21))  # and where it meets the LOWER oval
 def g_ear_scale(): return 1.0 + float(os.environ.get('ALBO_G_EAR_EXTEND', G_EAR_EXTEND))
 
 # owner, 2026-09-13: "make a version of 't' that is a triangle on the right

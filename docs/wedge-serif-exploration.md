@@ -4091,6 +4091,9 @@ is built** except where it says OPTIONS READY.
    across the band that holds only the link, at a 900 px em: narrowest 46 ->
    38 -> 29 px, link ink 12,469 -> 11,593 -> 10,414. current 0.42/0.72/0.30,
    slight 0.34/0.60/0.21, medium 0.26/0.48/0.13.
+   **SETTLED: owner picked SLIGHT** (2026-09-15, "yes to slight on g"), so
+   `G_NECK`/`G_NECK_MID`/`G_NECK_END` ship at 0.34/0.60/0.21. Five glyphs move
+   -- g and its four composites -- and the advance is unchanged at 480.
    The italic dials added in the first pass (`G_NECK_THIN`, `G_NECK_BACK`,
    `G_FLOOR` in `glyphs/italic.py`) are left in place at their no-op defaults,
    since the italic g may want the same treatment later.
@@ -4180,3 +4183,38 @@ is built** except where it says OPTIONS READY.
     Regular build, write the research to `docs/albo-italic-capitals.md`, do not
     commit, do not invent rulings. Round 111's leak is why that proof is
     demanded rather than asked for.
+
+
+### Queued (owner, 2026-09-15): the italic g's swoopy loop
+
+Owner, with a reference image of a high-contrast baroque italic g: **"for
+italic g, let's do an italic swoopy loop like shown, but in albo style. make
+variations for me to choose from. FOLLOW THE BRUSH STROKES AND CONTRAST OF THE
+EXAMPLE."** A DIRECTION CHECK is published, not a finished letter:
+https://claude.ai/artifact/LPnuc1vxxi7vS4WYzA9GmJ
+
+The reference's descender is not a flat oval under the bowl. It is a big TILTED
+loop swinging out and down, heavy along its lower left where the pen pulls and
+a hairline coming back up to the right. Three things make that shape and none
+of them existed in Albo's italic g: **the loop had no tilt at all**, it was too
+small to swing, and `G_FLOOR` was high enough to hold the whole stroke at
+nearly one weight. Three new dials in `glyphs/italic.py`: `G_LOOP_ROT` tilts
+the loop's axis, `G_LOOP_SWELL` scales it about its own centre, and `G_FLOOR`
+(already there) is the contrast. Ladder: A 20 deg / 1.12 / 0.18, B 30 / 1.22 /
+0.12, C 40 / 1.32 / 0.08, against current 0 / 1.00 / 0.34.
+
+**The loop is re-seated so its bottom lands on the descender whatever the tilt**
+(`_low`, measured over the tilted ellipse). Tilting and swelling both drive the
+lowest point down -- at 40 degrees the ink reached -331 against the -283 p and
+q sit at -- so without that the ladder would be comparing depths instead of
+shapes.
+
+**The junction is NOT solved and that is the open question, not a dial.** In
+the reference the loop's upper right TERMINATES -- the stroke sweeps round and
+stops. Albo's turns and climbs back into the bowl to close (round 109d's
+one-continuous-stroke construction), and closing it is what piles ink up at the
+join; the harder the tilt the worse, because the returning stroke has further
+to climb. A and C still build a small extra contour there (36x17 and 80x28
+units) and seating the web's apex inside the bowl did not close it. Waiting on
+his ruling on which tilt, and on whether the loop should terminate rather than
+close, before rebuilding the junction around the answer.

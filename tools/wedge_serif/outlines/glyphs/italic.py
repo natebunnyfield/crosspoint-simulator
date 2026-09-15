@@ -445,6 +445,19 @@ if pen.ITALIC:
     G_NECK_THIN = float(os.environ.get("ALBO_G_NECK_THIN", 1.00))
     G_NECK_BACK = float(os.environ.get("ALBO_G_NECK_BACK", 0.10))
     G_FLOOR     = float(os.environ.get("ALBO_G_FLOOR", 0.34))
+    # Owner 2026-09-15, with a reference image: "for italic g, let's do an
+    # italic swoopy loop like shown, but in albo style. FOLLOW THE BRUSH
+    # STROKES AND CONTRAST OF THE EXAMPLE." The reference is a high-contrast
+    # baroque italic g: its descender is not a flat oval sitting under the
+    # bowl, it is a big TILTED loop that swings out and down, thick along its
+    # lower-left where the pen pulls down, and a hairline where it comes back
+    # up to the right. Three things make that shape and none of them existed
+    # here: the loop had no tilt at all, it was too small to swing, and the
+    # floor under the pen was high enough to keep the whole stroke near one
+    # weight. G_LOOP_ROT tilts the loop's axis, G_LOOP_SWELL scales it about
+    # its own centre, and G_FLOOR above is the contrast.
+    G_LOOP_ROT   = float(os.environ.get("ALBO_G_LOOP_ROT", 0.0))
+    G_LOOP_SWELL = float(os.environ.get("ALBO_G_LOOP_SWELL", 1.0))
     G_EAR_DEG  = 33.0     # where the ear leaves the bowl
     G_EAR_OUT  = 0.145    # how far past the bowl's right edge its tip reaches (x xh)
     G_EAR_Y    = 0.819    # the height of that tip (x xh)
@@ -493,13 +506,27 @@ if pen.ITALIC:
                              u*u*u*p0[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*p3[1]))
             return out_
 
+        mrx *= G_LOOP_SWELL; mry *= G_LOOP_SWELL
+        _rot = math.radians(G_LOOP_ROT); _cr, _sr = math.cos(_rot), math.sin(_rot)
+
         def L(phi):
-            return (lcx + mrx * math.cos(phi), lcy + mry * math.sin(phi))
+            x, y = mrx * math.cos(phi), mry * math.sin(phi)
+            return (lcx + x * _cr - y * _sr, lcy + x * _sr + y * _cr)
 
         def LT(phi):
             dx, dy = -mrx * math.sin(phi), mry * math.cos(phi)
-            m = math.hypot(dx, dy) or 1.0
-            return (dx / m, dy / m)
+            x, y = dx * _cr - dy * _sr, dx * _sr + dy * _cr
+            m = math.hypot(x, y) or 1.0
+            return (x / m, y / m)
+
+        # Tilting and swelling both drive the loop's lowest point DOWN, so the
+        # descender would deepen with every rung of the ladder and the options
+        # would not be comparable -- at 34 degrees the ink reached -331 against
+        # the -283 that p and q sit at. The loop is re-seated so its bottom
+        # lands on the descender whatever the tilt: the shape is the variable,
+        # the depth is not.
+        _low = min(L(i * math.pi / 180.0)[1] for i in range(360))
+        lcy += bot - _low
 
         phi_out = math.radians(G_LOOP_OUT); phi_in = math.radians(G_LOOP_IN)
 
@@ -568,7 +595,18 @@ if pen.ITALIC:
         # two strokes ENCLOSE is filled directly: out, the short way round the
         # loop between where one meets it and the other leaves it, and back.
         short = [L(phi_out - (phi_out - phi_in) * i / 48.0) for i in range(49)]
-        web = geom.poly(out + short[1:] + back[1:])
+        # The web's apex is pushed INTO the bowl rather than left on its ring
+        # centreline. Both strokes start there, so the web is a point at the
+        # top, and the ink just above it is supplied by the strokes' own width
+        # -- which a low G_FLOOR turns to a hairline exactly where the path
+        # runs flat and the pen is thinnest. At floor 0.08 that opened an 80 x
+        # 28 unit hole between the bowl's bottom and the loop. Seated inside
+        # the ring, the apex is covered by the bowl's own ink whatever the
+        # floor does.
+        _ix, _iy = bcx - P0[0], bcy - P0[1]
+        _im = math.hypot(_ix, _iy) or 1.0
+        _apex = (P0[0] + _ix / _im * TH_H, P0[1] + _iy / _im * TH_H)
+        web = geom.poly([_apex] + out + short[1:] + back[1:])
 
         # THE EAR -- a short, nearly horizontal stroke off the shoulder, as
         # thick as the bowl's own wall and THICKENING to a blunt end. It was a
