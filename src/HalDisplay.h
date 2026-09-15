@@ -166,6 +166,19 @@ public:
   // (docs/grayscale-fast-refresh-spec-2026-09-14.md in the firmware repo).
   bool supportsAbsoluteGrayscale() const;
 
+  // Mirrors the firmware HAL. The band is full width on every panel; x and w
+  // are accepted and ignored, exactly as the device does.
+  //
+  // The simulator PRESENTS the whole panel either way -- there is no partial
+  // path in SDL and inventing one would model the wrong thing. What this stub
+  // is for is the CALLER's logic: a firmware path that windows must still be
+  // reachable, and its fallback conditions (no previous frame, a band taller
+  // than two thirds) must still be taken off-device, because those are where
+  // the bugs are. The pixels are identical; the branch is not.
+  void displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                     bool turnOffScreen = false);
+  bool supportsWindowedRefresh() const;
+
   // Simulator only: call from main thread to push rendered pixels to SDL.
   // Suspend GPU work while the app is backgrounded.
   //
