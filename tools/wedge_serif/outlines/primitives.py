@@ -225,9 +225,13 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
         if pen.IT_ENTRY and (top or y1 > 0):
             L = S * pen.IT_ENTRY
             xs_ = x - wid(y1) / 2
-            path = cubic((xs_ - L * 1.00, y1 - L * 0.74), (xs_ - L * 0.68, y1 - L * 0.30),
-                              (xs_ - L * 0.30, y1 + S * 0.02), (xs_ + wid(y1) * 0.30, y1 - S * 0.10))
-            parts.append(stroke(path, widths([(0.0, S * 0.10), (0.55, S * 0.34), (1.0, wid(y1) * 0.92)]), cut1=None))
+            # The entry arrives TANGENTIALLY, running nearly along the stem's
+            # own direction as it lands. The first cut came in steeply and every
+            # stem top in "minimum" grew a thorn -- the exit's own mistake, at
+            # the other end of the letter.
+            path = cubic((xs_ - L * 0.95, y1 - L * 0.40), (xs_ - L * 0.55, y1 - L * 0.14),
+                         (xs_ - L * 0.18, y1 - S * 0.02), (xs_ + wid(y1) * 0.26, y1 - S * 0.18))
+            parts.append(stroke(path, widths([(0.0, S * 0.07), (0.62, S * 0.28), (1.0, wid(y1) * 0.88)]), cut1=None))
     return geom.union(parts)
 
 def stem_edge_x(x, w, ent, y, lo, hi, side):

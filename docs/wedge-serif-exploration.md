@@ -3591,3 +3591,53 @@ down the one lever that mattered.
 Full account, including the seven things a true italic actually changes and
 the rule that would have caught this on day one:
 [docs/italic-vs-oblique.md](italic-vs-oblique.md).
+
+## Round 105 (2026-09-14): the italic redrawn, with actual italic characters
+
+Owner: **"do a redraw at 13 degree tilt but with actual italic characters."**
+
+Page: https://claude.ai/artifact/8zW9eCNiQ4XCwHUHCgAgLw
+
+`outlines/glyphs/italic.py` -- new skeletons, registered ONLY when
+`pen.ITALIC`, so the roman is untouched and one source tree still builds
+both. The module is built on one idea: a roman arch springs off a shoulder
+near the TOP of its stem and lands on the next (two stems and a bridge); an
+italic arch **branches out of the stem low**, at two fifths of the x-height,
+climbs, arcs over and comes down into the next stem, which is one movement of
+a pen that never lifts. n, m, h and r all follow from `italic_arch`.
+
+Also redrawn: the **u**, which is NOT the n turned over (the pen comes down,
+turns along the baseline and climbs, so the thin part is the bottom-left
+turn); the **k**, whose leg curves out of the join; the **z**, which grew a
+tail below the baseline; **v** and **w** as curved strokes rather than
+straight diagonals; and the feet and top serifs replaced by a curved exit and
+a tangential entry.
+
+**The score, run again** (`outlines/cmp/oblique.py`):
+
+| | overlap with its own sheared roman |
+|---|---|
+| ITC Berkeley | 0.306 |
+| Coelacanth | 0.431 |
+| **Albo, now** | **0.616** |
+| Albo, round 103 | 0.852 |
+
+**Better than halfway from where it was to where they are, and not all the
+way.** The honest remainder: b d p q still use the ROMAN's `bowl_stem`, and
+so do c, e, s and a. That is the distance left, and it is named rather than
+papered over.
+
+**Two mistakes made and caught inside the round**, both the same shape -- a
+new construction bolted beside an old one instead of replacing it:
+
+- the first italic bowls were drawn from scratch and came out at **two thirds
+  the size** (advances 372 and 376 against the roman's 564 and 570). Replaced
+  by the roman's own proven `bowl_stem`, which is why b d p q are on the
+  remainder list rather than in the redraw.
+- the entry stroke arrived at a steep angle and **every stem top in
+  "minimum" grew a thorn**. It arrives tangentially now, running nearly along
+  the stem's own direction as it lands -- the exact mistake the exit made in
+  round 103, at the other end of the letter.
+
+Ink 61.6% against the roman's 61.9%; Bold Italic 72.6% against the Bold's
+73.7%. Four styles, 470 glyphs each.

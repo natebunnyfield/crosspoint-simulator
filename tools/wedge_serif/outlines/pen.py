@@ -85,8 +85,8 @@ SLANT = _env("FJORD_SLANT", 0.0)
 IT_OVAL = _env("ALBO_IT_OVAL", 0.729)      # the o and the bowls, x their roman width (1.0 = sheared roman, 0.84 = the references' median)
 IT_NARROW = _env("ALBO_IT_NARROW", 1.007)  # everything else's width, so the n can stay wide while the o narrows
 IT_BRANCH = _env("ALBO_IT_BRANCH", 0.15)  # how far DOWN the stem an arch branches: 0 the roman's shoulder, 1 a cursive branch from the foot
-IT_EXIT = _env("ALBO_IT_EXIT", 0.0)      # round 103: the exit stroke leaving a lowercase stem's foot, x the stem
-IT_ENTRY = _env("ALBO_IT_ENTRY", 0.0)    # ... and the entry arriving at its top. Together these are most of what
+IT_EXIT = _env("ALBO_IT_EXIT", 0.55)      # round 103: the exit stroke leaving a lowercase stem's foot, x the stem
+IT_ENTRY = _env("ALBO_IT_ENTRY", 0.30)    # ... and the entry arriving at its top. Together these are most of what
                                          # makes a page of italic look WRITTEN rather than sheared: a written hand
                                          # arrives into a stem from the previous letter and leaves toward the next.
 IT_SERIF = _env("ALBO_IT_SERIF", 0.50)    # the wedge family's unit in the italic (a real italic reduces or drops them)
