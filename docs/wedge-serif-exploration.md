@@ -4922,3 +4922,54 @@ broken instrument, not a dead dial.**
 Width and height now come from the OUTLINE via `ControlBoundsPen`. The counter
 ratios were never affected — those are flood-fill pixel counts, which is why
 the `e`'s numbers in round 117c stand.
+
+## Round 119b — six letters had been silently gone since round 117b
+
+Owner, looking at the round-119 page: *"why am I seeing the wrong a?"* He was
+right, and the cause is mine.
+
+**Round 117b deleted `a`, `b`, `d`, `p` and `q` from `aldine.py`, and round 119
+took `r` as well.** The edits sliced the file between `@glyph(...)` markers;
+one slice ran from the `e`'s comment block to `@glyph('f')` and took everything
+in between with it. Counted per commit:
+
+| commit | round | letters | missing |
+|---|---|---|---|
+| `6c1152f` | 117 | 26 | — |
+| `82776cf` | 117b | 21 | a b d p q |
+| `afaf4f9` | 117c | 21 | a b d p q |
+| `575d991` | 118 | 21 | a b d p q |
+| `1a5917d` | 119 | 20 | a b d p q r |
+
+**Nothing said so for four rounds, and that is the part worth understanding.**
+The Aldine module defines only the lowercase and is imported after
+`glyphs/italic.py`, so a missing letter FALLS THROUGH to the classic italic
+rather than failing. The builds succeeded, the specimens rendered, and three
+published pages showed the classic `a b d p q r` under an "aldine" label —
+including the 27 px word-image strips, which are exactly what he judges on.
+The fall-through that makes the `ALBO_ITALIC` switch safe is the same
+mechanism that hid this.
+
+Restored from `6c1152f` (and `r` from `575d991`), so the round-116c `a` — arm C
+with the extended exit — is back.
+
+### The gate, and why the first version of it was worthless
+
+A comment asking the next editor to be careful would not have caught this. The
+module now declares what it is FOR and refuses to load quietly without it.
+
+**The first gate passed with the `a` deleted.** It asked whether `GLYPHS` held
+each lowercase letter — and it always does, because `italic.py` registers the
+whole alphabet before this module is imported. It was checking presence when
+the question is OWNERSHIP:
+
+```python
+_MINE = {ch for ch, fn in GLYPHS.items()
+         if getattr(fn, "__module__", None) == __name__}
+```
+
+Proven by deleting the `a` and watching the build fail with
+`ALBO_ITALIC=aldine is missing a`, and then proven not to fire on a healthy
+tree. **A gate has to be shown failing before it is worth anything** — the same
+lesson as the dial that appeared to do nothing in round 119, arriving from the
+other direction.

@@ -29,7 +29,7 @@ Everything is drawn on the pen, so the contrast is the pen's own; no widths
 are declared except where a stroke has to thin against its neighbour.
 """
 import math, os
-from . import glyph
+from . import glyph, GLYPHS
 from .. import geom, pen
 from ..geom import cubic, line, catmull, superellipse
 from ..primitives import stroke, pen_widths, widths, ring
@@ -353,6 +353,92 @@ if ON:
         # letter's left side.
         return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT, pieces=True)])
 
+    # MEASURED off aldine.png, row by row, on two separate a's -- the one in
+    # "resonaram" at x223-234 and the one at x326-338. Both give the same
+    # letter and it is not the one drawn before this: the bowl's top joins the
+    # stem AT the x-line in a tight arc (not a long diagonal arm reaching down
+    # from a tall stem), the counter is a SMALL rounded triangle pointing up,
+    # and -- the part that makes it an a rather than a d -- the bowl's bottom
+    # rejoins the stem about a fifth of the way UP, leaving a notch above the
+    # foot. Every earlier cut ran it into the stem at the baseline, which is a
+    # d, which is what the ladders kept rendering.
+    A_W = float(os.environ.get("ALBO_ALD_A_W", 1.00))       # letter width, x xh (12/12 measured)
+    A_STEM = float(os.environ.get("ALBO_ALD_A_STEM", 0.67)) # the stem's center, x the width
+    # The rise is the whole a/d question. The scan puts 2-3 px of ink above a
+    # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
+    # thin spike at the same height reads as a d however right the bowl is.
+    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.12)) # the head above the x-line, x xh
+    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
+    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
+    A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 0.90))  # the bowl's left flank, x the stem
+    # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
+    # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
+    # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
+    # bowl and kicks it right along the baseline; the scan does the same. The
+    # ordinary FOOT_LEN is the arch letters' blunt outstroke and is too short
+    # to read as that exit.
+    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 3.30))  # the exit's length, x the stem
+    A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
+
+    @glyph('a')
+    def a_a(c):
+        """One stem with an angled head, and one bowl stroke that leaves the
+        stem at the x-line, swings left and down, round the bottom, and comes
+        back UP to the stem a fifth of the way above the baseline."""
+        xh = c["xh"]; W = A_W * xh
+        X = lambda f: S * 0.55 + f * W
+        Y = lambda f: f * xh
+        xs_ = X(A_STEM)
+        top = xh + A_RISE * xh
+        parts = list(st(xs_, 0, top, head=False, foot=True, foot_len=A_TAIL, foot_w=A_TAIL_W))
+        if A_HEAD:
+            L = S * A_HEAD; a = math.radians(HEAD_DEG)
+            dx, dy = math.cos(a) * L, math.sin(a) * L
+            parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
+                                 (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
+        p_ = catmull([(X(A_STEM - 0.01), Y(1.00)), (X(0.44), Y(0.88)), (X(0.25), Y(0.70)),
+                      (X(0.13), Y(0.48)), (X(0.11), Y(0.26)), (X(0.24), Y(0.06)),
+                      (X(0.44), Y(0.09)), (X(A_STEM - 0.09), Y(A_JOIN))], tension=0.5)
+        # Weight read off the same rows: thin where the arc leaves the stem,
+        # the flank at three quarters of the stem, the bottom heaviest.
+        parts.append(stroke(p_, widths([(0.0, S * 0.60), (0.22, S * 0.54),
+                                        (0.45, S * A_FLANK), (0.74, S * (A_FLANK + 0.10)),
+                                        (1.0, S * 0.66)]), cut0=CUT))
+        return geom.ink(parts)
+
+    @glyph('b')
+    def a_b(c):
+        xh = c["xh"]; x0 = S * 1.0; rx = 142 * _w(c)
+        return geom.ink(st(x0, 0, c["asc"], head=True, foot=False)
+                        + [bowl(c, x0 + rx * 0.86, rx, top=BOWL_TOP)])
+
+    @glyph('d')
+    def a_d(c):
+        xh = c["xh"]; rx = 142 * _w(c); x1 = S * 0.6 + rx * 1.78
+        return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)] + st(x1, 0, c["asc"], head=True))
+
+    @glyph('p')
+    def a_p(c):
+        x0 = S * 1.0; rx = 142 * _w(c)
+        return geom.ink(st(x0, -c["desc"], c["xh"], head=False, foot=False)
+                        + [bowl(c, x0 + rx * 0.86, rx, top=BOWL_TOP)])
+
+    @glyph('q')
+    def a_q(c):
+        rx = 142 * _w(c); x1 = S * 0.6 + rx * 1.78
+        return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)]
+                        + st(x1, -c["desc"], c["xh"], head=False))
+
+    @glyph('r')
+    def a_r(c):
+        xh = c["xh"]; x0 = S * 1.0
+        p = cubic((x0, xh * BRANCH), (x0 + 26 * _w(c), xh * 0.90),
+                  (x0 + 96 * _w(c), xh + pen.ARCH_OVER), (x0 + 182 * _w(c), xh * 0.86))
+        wf = pen_widths(p, floor=S * FLOOR)
+        return geom.ink(st(x0, 0, xh, head=False)
+                        + [stroke(p, lambda t: wf(t) * (0.60 + 0.40 * min(1.0, t / 0.35)), cut1=CUT)])
+
     @glyph('f')
     def a_f(c):
         """Tall, hooked head, and it descends -- as it does on the page."""
@@ -468,3 +554,33 @@ if ON:
         arm = _diag((x0 + r, xh), (x0 + S * 0.16, xh * 0.42), 0.40, 0.64)
         leg = _diag((x0 + S * 0.22, xh * 0.46), (x0 + r * 0.98, 0), 0.62, 0.86)
         return geom.ink(st(x0, 0, c["asc"], head=True) + [arm, leg])
+
+
+# ---------------------------------------------------------------- THE GATE
+# Round 117b deleted a, b, d, p and q from this module and round 119 took r,
+# and NOTHING SAID SO for four rounds. The edits sliced the file between
+# `@glyph(...)` markers, one slice ran from the e's comment block to
+# `@glyph('f')`, and everything in between went with it. The letters then fell
+# through to glyphs/italic.py -- so the builds still worked, the specimens
+# still rendered, and the pages published for three rounds showed the CLASSIC
+# a, b, d, p, q and r under an "aldine" label. The owner caught it by eye:
+# "why am I seeing the wrong a?"
+#
+# A comment asking the next editor to be careful would not have caught it.
+# This does: the module declares what it is FOR -- the complete lowercase --
+# and refuses to load quietly without it.
+# NOTE the check is on OWNERSHIP, not on presence. A first version asked
+# whether GLYPHS held each letter -- and it always does, because italic.py
+# registers the whole lowercase before this module is imported. It passed
+# happily with the a deleted, which is the very bug it was written for. A gate
+# has to be shown FAILING before it is worth anything.
+if ON:
+    _MINE = {ch for ch, fn in GLYPHS.items()
+             if getattr(fn, "__module__", None) == __name__}
+    _MISSING = sorted(set("abcdefghijklmnopqrstuvwxyz") - _MINE)
+    if _MISSING:
+        raise RuntimeError(
+            "ALBO_ITALIC=aldine is missing " + "".join(_MISSING) +
+            " -- the Aldine module must define the whole lowercase. Without "
+            "this check those letters silently fall through to the classic "
+            "italic and the build still succeeds.")
