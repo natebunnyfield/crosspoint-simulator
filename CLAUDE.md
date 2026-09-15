@@ -155,6 +155,20 @@ The simulator is a collection of host-side reimplementations of the firmware's h
 
 **The HAL stub rule.** When the firmware adds a new method to a HAL class and calls it, the simulator fails to link until a matching stub is added to the corresponding `Hal*.cpp` here. Most additions are one-line no-ops. This is the single most common reason a simulator build breaks after pulling firmware updates.
 
+**A stub is allowed to say NO, and sometimes must.** Three surfaces arrived on
+2026-09-14 and two of them are answered honestly rather than optimistically:
+`supportsAbsoluteGrayscale()` returns **false when the build is X3**, because
+`Uc8253X3Driver` accepts the absolute-grayscale flag and has no bank behind it —
+a stub that said true everywhere would hide the silent bilevel fallback on the
+device the owner actually reads on. `displayWindow()` presents the whole panel
+(SDL has no partial present and modelling one would model the wrong thing) but
+`supportsWindowedRefresh()` is still a question rather than a constant, because
+`PanelDriver`'s default is a whole-panel fallback and a future board may land
+without an override. The rule this is an instance of: **a capability predicate
+is part of the fidelity surface, not part of the plumbing.** Answering it `true`
+to make a link error go away converts a compile failure into a wrong picture on
+the owner's device, which is the trade S-001 was filed about.
+
 It runs the other way too, and that direction costs a firmware change: a capability the *host* has and the device does not (the keyboard channel — `setTextEntryActive` / `consumeTypedText`) has to exist on both sides, as a real implementation here and an inline no-op in the firmware's `lib/hal/HalGPIO.h`. Simulator-only methods the firmware never calls (`injectButtonDown/Up`, `injectTypedText`, `pumpHostTextInput`) need no counterpart and must not gain one.
 
 **Why the simulator's design has the shape it does** (the non-obvious parts):
