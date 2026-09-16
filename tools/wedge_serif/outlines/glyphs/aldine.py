@@ -3860,20 +3860,34 @@ if ON:
     #         over-correction that follows a lift.
     #   150   a FLAT on the upper left, -6: the longest straight the cutter
     #         took, and the one deviation big enough to read at text size.
-    #   225   the lower left flank is the heaviest press, +4 radial and +5 on
-    #         the stroke; this is the quarter the nib's own thick already
-    #         falls in, so the two agree rather than fight.
+    #   225   ROUND 153 REVERSED THIS ONE, and it is the most useful thing the
+    #         table has taught. It was cut as the heaviest press -- +4 radial
+    #         and +5 on the stroke -- on the reasoning that the nib's own thick
+    #         already falls in this quarter, so the two would agree. They did
+    #         agree, and that was the fault: the hand cut stacked on the pen and
+    #         on the tail's join, and the lower left became the heaviest thing
+    #         in the letter by a margin no other quarter could answer.
+    #         Measured on the built font, radial ink at 15-degree steps:
+    #         195/210/225 read 100/101/97 against the opposing 15/30/45 at
+    #         84/90/92 -- thirteen units, on a stroke of ninety. Owner
+    #         2026-09-16: *"thin out bottom left of Q to keep visual balance"*.
+    #         It is now +2 radial and **-6** on the stroke, which brings those
+    #         three to 89/89/86: a little UNDER the top right rather than level
+    #         with it, deliberately, because the tail joins here and pays the
+    #         difference back in ink the ring's own profile cannot see.
+    #         Swept: -6 balances, -10 (with a second key at 195) takes the
+    #         flank wiry and costs the letter weight it needs.
     #   285   the bottom pulls in 3, which is what keeps the ring from
     #         reading as a circle once 225 has been pushed out.
     #   340   a second, shorter flat at the lower right, -4, where the tail
     #         will leave -- the cutter squaring the ground for the join.
     #
-    # Everything is 3 to 6 units on a ring whose stroke runs 62 to 115, so the
+    # Everything is 2 to 6 units on a ring whose stroke runs 62 to 115, so the
     # biggest is a twentieth of the letter's own width. At 13 pt none of it is
     # a feature; what it does is stop the four quadrants being the same
     # quadrant, which is the whole complaint.
     Q_HAND = [(60, -5.0, -4.0), (105, 4.0, 0.0), (150, -6.0, 2.0),
-              (225, 4.0, 5.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
+              (225, 2.0, -6.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
     if os.environ.get("ALBO_ALD_Q_HAND") == "0":
         Q_HAND = None
 
