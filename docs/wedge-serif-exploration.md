@@ -6055,3 +6055,31 @@ The A reaches 0.179 C left of its own origin at the baseline
 precedes it: HA +0.005, LA −0.041, EA −0.003, MA +0.059 against Poetica's
 +0.080, +0.107, +0.133, +0.061. No tip height clears it; the A's left profile
 only turns positive at 0.20 C.
+
+### Round 139 — the a reaches the x-line, and its outline is thinned
+
+*"it needs to be tall enough to slightly overlap x height. keep lean and
+counter shape and lack of fractures and weird glitches the same."*
+
+His a topped at 376 — **53 units BELOW the x-line** — where every other
+lowercase reaches above it: n +4, o +7, c +8, x +10, e and s +13, u +16. The
+one short letter in the line.
+
+**Scaled uniformly, not stretched.** The counter and its bowl grow together
+(`A_CTR_H` 278 → 339, the width following through `A_CTR_WH`), which is a
+similar figure, so the counter's shape is untouched: **fill 0.65 against his
+0.66**, where stretching the height alone reads 0.63. The head rides up with
+it (`A_ASC` −54 → +7) so the two still meet, and the bowl's weight comes back
+to ×0.86 because a bigger bowl at the same stroke reads lighter — a/n 0.89 at
+0.70, **1.01** at 0.86.
+
+*"simplify a to much fewer polygons."* It carried **217 outline points**
+against the n's 116 — the densest glyph in the font. The curve is built FINE
+and thinned ONCE at the end, because smoothing an already-coarse polygon
+corner-cuts it into a different letter. **167 points**, in family with the o's
+190 and the b's 201.
+
+**The trade is real and it is measured**, so the next rung is a decision and
+not a discovery: at 420 px the ladder reads smooth at 217, visibly flat-sided
+at 137 (spacing 22) and a polygon at 115 (spacing 30). At reading size none of
+it shows. 16 is the rung that keeps the curve.
