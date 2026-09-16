@@ -46,7 +46,41 @@ TARGETS = {
     # reached 76, so the ink box grows with it. Fourth retarget of this row,
     # same rule as the other three: a target describes a drawing.
     'a': (0.330, 0.839, 'ref',    0.83, 'round 146: the drop points down-left, so the bottom left is thick'),
-    'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
+    # ROUND 151 RETARGET, and it is the o's 2026-09-16 ruling applied to the
+    # second letter it was always going to apply to. 0.203 is the PRINTED
+    # page's number -- 191 px of counter against 941 px of ink on the macro
+    # scan -- which is the exact target class the owner rejected for the o:
+    # "0.617 is what the PRINTED page measures -- ink spread closing the
+    # counter -- and holding it made the o's ring 104 units against the
+    # reference's 66-71." Holding 0.203 on the e did the same thing and worse.
+    #
+    # MEASURED WITH THIS FILE'S OWN `measure()`, on the reference faces:
+    #
+    #   Flanker Griffo It   0.441      Pagella It      0.401
+    #   Cancelleresca       0.348      Poetica Std     0.253
+    #   the macro scan      0.203      Albo, round 151 0.268
+    #
+    # Every reference vector is ABOVE the scan, three of the four well above
+    # the drawing. The instrument is the same one and it checks out against
+    # this file's own record: it reads Flanker's o at 1.321 where the o's
+    # comment below records 1.322.
+    #
+    # THE DRAWING IS CONFIRMED AGAINST THE SCAN BY A SECOND INSTRUMENT, at
+    # the SHIPPING stem rather than this file's 66.9 -- `cmp_aldine_counter.py`,
+    # which reads a scan photograph and a render with the same code: area/ink
+    # **0.18 against the scan's 0.18**, h/ink **0.28 against 0.28**, floor 0.58
+    # against 0.57, fill 0.61 against 0.63. The eye is the scan's eye.
+    #
+    # AND THE OLD TARGET CANNOT BE MET BY A GOOD LETTER. Reaching 0.203 needs
+    # E_THICK back at ~1.25, which is the letter round 150 shipped: flank 100
+    # units against Flanker's 69 and Albo's own o at 79, a crown four times the
+    # reference's thickness, a counter `cmp_aldine_counter` calls a TRIANGLE
+    # (fill 0.51), and **+6.7% on the lowercase colour median** by
+    # `word_weight.py` -- on the letter that appears in 76 of the 147 commonest
+    # English words and carries 13-15% of a page's ink. At 0.268 it is -0.1%.
+    # A target only a broken letter can pass is a wrong target.
+    'e': (0.268, None,  'C 5.00', 1.12,
+          'round 151: the DRAWING (scan 0.203 is the page ink spread; Flanker 0.441, Poetica 0.253)'),
     'i': (None,  None,  'B 5.00', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the
     # reference (owner 2026-09-16). 0.617 is what the PRINTED page measures --
