@@ -157,3 +157,51 @@ Every glyph in `aldine.py` is wrapped to record which letter is being drawn, and
 the shared width paths multiply by `ALBO_ALD_LW_<ch>`. One hook rather than
 twenty-six dials, and it is what lets the fitter reach a letter nobody has
 hand-tuned — `dials_for()` falls back to it.
+
+
+## Page colour: the target, and where it is blocked
+
+`tools/wedge_serif/aldine_colour.py`. **Calibrated before being trusted** --
+the same metric, run on real faces:
+
+| face | spread |
+|---|---|
+| Pagella Italic | 0.84 – 1.17 |
+| Poetica Std (chancery) | 0.81 – 1.10 |
+| **Albo's own classic italic** | **0.77 – 1.20** |
+| the Aldine | **0.62 – 1.57** |
+
+A text face sits inside about 1.4 to 1. The Aldine is twice as uneven as any of
+them, **including the italic this family already ships** -- so the finding is
+real and the target is measured rather than invented. Had the references come
+back at 0.65-1.63 too, the whole exercise would have been chasing a property of
+the metric.
+
+### Why the pass cannot close it, which is the useful part
+
+Two letters set the spread and NEITHER is reachable by a dial:
+
+- **`d` is the darkest (1.63) and every move on it is rejected**, because `d`
+  carries four scan-measured targets (counter 0.267, w/h 0.567, flank 0.773,
+  stem 0.850) and any change breaks one. The measured target and an even page
+  are in direct conflict for this letter, and the target wins by design.
+- **`x` is the lightest (0.65) and the weight dial cannot reach it.** Its
+  strokes are two thin diagonals; the buffer's range moves it about 15%.
+
+So the remaining unevenness is **geometric, per letter** -- `d`'s bowl is
+cramped and `x`'s diagonals are too light for their advance -- and it is not
+something a weight or a width multiplier can fix. That is the honest boundary
+of what the fitting machinery reaches.
+
+### Three bugs this tool had, all of the same family
+
+1. **The weight hook reached only half the alphabet.** It multiplied widths
+   inside `nib_widths` and `st`; letters built from `ring`, `pen_widths` or
+   `_diag` (`c f j v x z g o q`) ignored it. The fitter moved the dial, saw
+   nothing, and recorded sixteen weights that did nothing -- the spread came
+   back *identical* on three passes, which should have been the tell. Weight is
+   now a buffer on the finished outline, at one choke point.
+2. **The loop banked every trial** whether or not it helped. Each move must now
+   be shown to bring that letter closer to the median.
+3. **A two-glyph build has no median**, so the per-letter check measures
+   against the median from the last full build.
