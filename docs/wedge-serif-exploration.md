@@ -5616,3 +5616,12 @@ capitals**. So the 13° shear stays on all 26, the eight re-cut capitals
 capitals are NOT adopted — a deliberate departure from the scans, on a face
 whose lowercase is drawn from them. Do not re-propose it; `capsarm.png` in the
 proof page is the figure this was decided on.
+
+##### RULING 2026-09-16 — the y takes Poetica's full swash
+
+Owner, shown the arms: **the full swash**. `Y_TAIL_X` ships at 8 (the letter's
+own left edge) rather than 118, so the y's tail passes under whatever precedes
+it. This is the one place a chancery reference is allowed to move the text
+lowercase, by his call; the f and j descenders keep the metal's extent.
+Checked for collisions at 27 and 54 px on *many quickly by day yes gravity
+company yellow* — none, against Flanker and Poetica set the same.

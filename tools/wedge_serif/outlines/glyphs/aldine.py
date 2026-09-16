@@ -2213,7 +2213,12 @@ if ON:
     # wanted.
     Y_W = d_dial("Y_W", 1.00)
     Y_TW = d_dial("Y_TW", 1.02)
-    Y_TAIL_X = d_dial("Y_TAIL_X", 118.0)   # the tail's leftmost, units
+    # RULED 2026-09-16: the owner took **Poetica's full swash**, shown both
+    # arms in running text. So the tail runs out to 8 -- the letter's own left
+    # edge -- and passes under whatever precedes it. This is the one place the
+    # chancery reference is allowed to move the text lowercase, by his call;
+    # the f and j descenders keep the metal's extent.
+    Y_TAIL_X = d_dial("Y_TAIL_X", 8.0)     # the tail's leftmost, units
     Y_TAIL_Y = d_dial("Y_TAIL_Y", -0.62)   # its floor, x xh
 
     @glyph('y')
