@@ -5998,3 +5998,60 @@ The a's ledger row moved a fifth time, and the reason is the same every time.
 **Open, his list of 2026-09-16:** the R and K kicks against a typical English
 word image; the P's top serif unified with the family's; the Z's fractures at
 the top-right and bottom-left connections.
+
+### Round 138 — the R and K kicks, the P's serif, the Z's fractures
+
+His list of 2026-09-16, four items; the f's bearing went in with round 137.
+
+**The R's kick — and a measurement that could not be moved by drawing.** The
+first number said ours was the only one of four ending OUTSIDE its own box
+(Albo +0.038 C of overhang, Poetica −0.054, Pagella −0.041, Flanker −0.103).
+That number is unmovable: `build.fit` measures a capital over the cap band, so
+the overhang is identically `−rsb`, and R's rsb is his own −56. The fix was
+built anyway and recorded as a no-op — shortening the leg 0.78 → 0.70 moved
+the advance and left the overhang at +0.039.
+
+**The real lever is the HEIGHT the overhang sits at**, because the next
+letter's left profile decides what it is worth: a, o and e are all most
+generous ON THE LINE (+0.067 / +0.115 / +0.126 C) and close as they rise.
+Ours stopped 0.032 C up — exactly where those bowls are widest — and *Rather*
+measured a **0.000** minimum gap, the leg touching the a. Tip to the baseline:
+**Ra 0.000 → +0.026, Ro +0.059 → +0.085, Re +0.074 → +0.097** (Pagella 0.054 /
+0.121 / 0.104).
+
+**The K's kick** was never about reach (−0.067 inside its advance against
+Poetica's −0.053) — it stopped early and HIGH, its tip 0.079 C up against
+Poetica's 0.010. And **the rightmost ink of a swash is the outer corner of its
+end cut**, so a thick tip hangs half a stroke above where it is drawn: the
+taper's end 0.55 → 0.35 of the body took the tip to 0.042. Ka +0.089, Ke
++0.161, Ki −0.010 (an i is a bare stem with nothing to gain).
+
+**The P's serif was never the odd one.** Unsheared it reaches 0.0394 cap out
+of the stem against L 0.0394, D 0.0443, F I H N 0.0460, B J E 0.0476 — inside
+the hand cut's own wobble. What differed was **the bowl landing on top of it**:
+the arc's crown sat exactly on the cap line, so the stroke put half its width
+above it and the top read as three levels. yMax: B D E F I J L N Z all 676, O
+689, **P 707**. The arc drops by that half width with its lower terminal held;
+**P 707 → 676**, one continuous edge as B and D.
+
+**The Z's fractures were two strokes BUTTING, not a fold and not a zero
+width.** The diagonal ran from the top bar's inner edge to the bottom bar's
+inner edge, so each cut end face lay on the joint with nothing behind it and
+its own half width carried the outer corner past the bar's end. Buried in both
+bars now — and the bury has a ceiling, swept rather than reasoned and
+deliberately unequal: 0.50 top, **0.62** bottom, where the nick measured 12
+units at 0.36, 5 at 0.50, under 1 at 0.62, and a 14-unit ledge the other way
+at 0.74. Filling the notches gained ink and failed the weight gate at +0.05,
+so `CAP_Z_DIAG` 1.14 → 1.09.
+
+Scope proved rather than asserted: both trees built with `FJORD_CUT=0` and all
+470 drawn outlines diffed — **12 changed**, K P R Z, their accented composites
+and `paragraph`/`registered` (which reuse the P and R). Both gates green.
+
+**Open, and it needs a ruling:** `RA` measures **−0.213 C of overlap** and
+`KA` −0.095 against Poetica's +0.057 / +0.052 — but **no kick is involved**.
+The A reaches 0.179 C left of its own origin at the baseline
+(`CAP_BEARING_ADJ['A'] = −151`, his own number), so it collides with whatever
+precedes it: HA +0.005, LA −0.041, EA −0.003, MA +0.059 against Poetica's
++0.080, +0.107, +0.133, +0.061. No tip height clears it; the A's left profile
+only turns positive at 0.20 C.
