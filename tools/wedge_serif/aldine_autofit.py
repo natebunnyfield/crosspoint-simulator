@@ -48,6 +48,12 @@ SOURCES = {
     'e': (MACRO, (592, 342, 634, 406), 57, 'macro, "naues"'),
     'i': (MACRO, (183, 465, 213, 560), 56, 'macro, "rodigium"'),
     'o': (MACRO, (142, 57, 190, 118), 54, 'macro, "udos"'),
+    # Located with --segment on the "naues / subitus" line (y 330-420), whose
+    # x-height is 57 px off the e at box [8] -- the box the segmenter proposed
+    # matches the hand crop that was found the slow way in round 117c, which is
+    # what made the rest of this line trustworthy.
+    'u': (MACRO, (526, 340, 584, 411), 57, 'macro, "naues"'),
+    's': (MACRO, (640, 346, 679, 409), 57, 'macro, "naues,"'),
 }
 FALLBACK_REF = os.path.join(REFS, 'texgyrepagella-italic.otf')
 
@@ -195,12 +201,51 @@ def solve(ch, target, rounds=3, samples=5, verbose=True):
     return cur, best
 
 
+def segment(path, y0, y1, thr=120, gap=2, minw=8):
+    """Candidate letter boxes on one text line, by column ink profile.
+
+    This exists because hand-hunting crops is what made the scans expensive to
+    use: rounds 115-116 spent several passes locating a single `a` and got it
+    wrong three times. It does NOT identify letters -- it proposes boxes in
+    reading order for a human to label, which is the half a machine can do
+    safely. Touching letters come back as one box; that is visible in the
+    width and is the signal to split by hand rather than a failure to hide.
+    """
+    im = Image.open(path).convert('L')
+    px = im.load(); W, H = im.size
+    cols = [sum(1 for y in range(y0, y1) if px[x, y] < thr) for x in range(W)]
+    boxes = []; s_ = None; run = 0
+    for x, c in enumerate(cols):
+        if c > 0:
+            if s_ is None: s_ = x
+            run = 0
+        elif s_ is not None:
+            run += 1
+            if run >= gap:
+                if x - run - s_ >= minw: boxes.append((s_, x - run))
+                s_ = None; run = 0
+    if s_ is not None and W - s_ >= minw: boxes.append((s_, W - 1))
+    out = []
+    for bx0, bx1 in boxes:
+        ys = [y for y in range(y0, y1)
+              if any(px[x, y] < thr for x in range(bx0, bx1 + 1))]
+        if ys: out.append((bx0, min(ys), bx1 + 1, max(ys) + 1))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--letters', default='aeo')
     ap.add_argument('--dry', action='store_true', help='report targets, solve nothing')
     ap.add_argument('--rounds', type=int, default=3)
+    ap.add_argument('--segment', help='IMAGE:Y0:Y1 -- propose letter boxes on one line')
     args = ap.parse_args()
+    if args.segment:
+        path, y0, y1 = args.segment.rsplit(':', 2)
+        path = {'macro': MACRO, 'virgil': VIRGIL}.get(path, path)
+        for i, b in enumerate(segment(path, int(y0), int(y1))):
+            print(f"  [{i:2d}] {b}   w={b[2]-b[0]:3d} h={b[3]-b[1]:3d}")
+        return 0
     for ch in args.letters:
         t = measure_source(ch)
         if not t:

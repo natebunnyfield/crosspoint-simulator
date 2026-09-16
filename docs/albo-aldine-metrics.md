@@ -95,3 +95,29 @@ the `a` at flank 1.36, stem 2.81, bowl 1.20 over eight rounds; autofit reached
   margin apart. Targets from the two routes are therefore NOT interchangeable,
   and the ledger keeps its own hand-measured numbers rather than adopting
   autofit's.
+
+
+### Locating letters: `--segment`
+
+```bash
+python3 aldine_autofit.py --segment macro:330:420
+```
+
+Proposes letter boxes on one text line from the column ink profile, in reading
+order, for a human to label. It deliberately does NOT identify letters —
+naming them is the half a machine cannot do safely here, and rounds 115–116
+proved it by getting the `a` wrong three times with template matching.
+
+**Trustworthy because it reproduces a known answer:** box [8] on the
+*naues* line comes back as (594,345,632,403), against the (592,342,634,406)
+that round 117c found the slow way.
+
+Touching letters return as one wide box — `na` at 114 px against the `e`'s 38 —
+and that is visible in the width rather than hidden, which is the signal to
+split by hand. `u` and `s` were added from this line and now carry SCAN targets
+instead of Pagella fallbacks.
+
+**One reading to distrust:** the `s` reports counter/ink 0.930, which is far too
+high for an `s`. Either the crop admits white that is not a counter or the fill
+leaks through a thin place. Recorded rather than used; do not fit the `s` to it
+without re-cropping.
