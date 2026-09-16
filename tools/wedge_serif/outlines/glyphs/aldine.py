@@ -3547,8 +3547,69 @@ if ON:
     # 0.72, and the tip's last 15% rises rather than falls.
     CAP_R_BOWL_Y = float(os.environ.get("ALBO_ALD_CAP_R_BY", 0.46))   # where the bowl meets the stem, x C
     CAP_R_BOWL_W = float(os.environ.get("ALBO_ALD_CAP_R_BW", 0.41))   # the bowl's reach right of the stem centre, x C
+    # ROUND 138 -- THE KICK MUST FIT A WORD. Owner 2026-09-16: *"the kicks on R
+    # and K needs to fit a typical english word image better."* The letter was
+    # cut against Poetica's DRAWING and never against Poetica's FITTING. First
+    # measurement, on 600 px renders, every figure x the face's own cap height,
+    # as (leg's rightmost ink) minus (the letter's advance) -- negative is ink
+    # that stays inside its own box:
+    #
+    #             Albo 137   Poetica   Pagella   Flanker Griffo
+    #   R            +0.038    -0.054    -0.041    -0.103
+    #   R tip y       0.032     0.000     0.034     0.011
+    #
+    # Ours was the only one of the four whose leg ended OUTSIDE its own advance.
+    #
+    # THAT NUMBER CANNOT BE MOVED BY DRAWING, and finding out why is the round.
+    # `build.fit` measures a capital's ink over the CAP BAND and sets
+    # `adv = lsb + (r - l) + rsb`, so for any capital whose rightmost ink is in
+    # that band -- which a leg at 0.03 C is -- (rightmost ink) minus (advance) is
+    # identically `-rsb`. It is the right sidebearing restated, and nothing about
+    # the outline enters it. R's is `capbear x SIDE_FRACTION + 17` plus the
+    # owner's own -56 from the round-137 bench, which lands at -26 units: the leg
+    # is 26 units past the advance by arithmetic. Shortening it was BUILT AND
+    # MEASURED rather than assumed -- CAP_R_LEG_X 0.78 -> 0.70 took the advance
+    # from 0.901 C to 0.825 C and left the overhang at +0.039, moving nothing,
+    # because the fitter simply re-tightened the box around the shorter leg. So
+    # the reach is put back to where round 135 drew it and this paragraph is the
+    # record that the obvious fix is a no-op. The bearings are not available:
+    # the owner set every capital's by hand.
+    #
+    # WHAT IS AVAILABLE IS THE HEIGHT THE OVERHANG SITS AT. Writing the white in
+    # a pair as gap(y) = rsb_A + lsb_B + pL_B(y) + (rightmost_A - pR_A(y)), the
+    # one term a drawing owns is WHERE its rightmost ink lands, and the pairing
+    # letter's own left profile decides what that is worth. Measured off this
+    # tree, the left edge of the letters that actually follow an R, x cap, from
+    # each one's own origin, by height above the baseline:
+    #
+    #     y       0.02    0.04    0.06    0.08    0.14    0.22
+    #     a      +0.067  +0.030  +0.013  -0.002  -0.015  +0.000
+    #     o      +0.115  +0.092  +0.076  +0.062  +0.034  +0.020
+    #     e      +0.126  +0.105  +0.084  +0.072  +0.041  +0.033
+    #
+    # Every one of them is at its most generous ON THE LINE and closes as it
+    # rises, because a round letter's bottom-left curves away and an a's bowl
+    # hangs left of its origin through the whole x-height band. So a kick that
+    # finishes ON THE BASELINE is spending its unavoidable 26 units of overhang
+    # in the one row the next letter leaves empty, and a kick that stops 0.03 C
+    # up spends it in the row the next letter's bowl is widest -- which is what
+    # ours did, and it is why `Rather` measured a **0.000** minimum gap: the leg
+    # and the a were touching. All three references end their leg on the line.
+    # So the tip goes to the baseline, and the last control moves in and up
+    # (0.62, 0.10 -> 0.58, 0.12) so the leg arrives rather than slides: it ran
+    # 27 degrees below horizontal over its last third, at exactly the height a
+    # following lowercase letter's bottom-left occupies.
+    #
+    # WHAT THIS DOES NOT FIX, and it is not the R's to fix: `RA` measures -0.199
+    # C of overlap and `KA` -0.071 against Poetica's +0.057 and +0.052. The A
+    # reaches 0.179 C LEFT of its own origin at the baseline (CAP_BEARING_ADJ
+    # 'A' is -151), so it collides with everything before it -- HA +0.005,
+    # LA -0.041, EA -0.003, MA +0.059, against Poetica's +0.080, +0.107, +0.133,
+    # +0.061. No height clears it: the A's left profile only turns positive at
+    # 0.20 C, by which point a swash leg is not a swash leg. That is the A's
+    # left bearing and it is an owner number.
     CAP_R_LEG_X = float(os.environ.get("ALBO_ALD_CAP_R_LX", 0.78))    # where the leg's tip lands, x C right of the stem
-    CAP_R_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_R_LY", 0.02))    # and how high above the baseline -- Poetica's tip RISES
+    CAP_R_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_R_LY", 0.00))    # and how high above the baseline -- on the line, as all three references end it
     CAP_R_W = float(os.environ.get("ALBO_ALD_CAP_R_W", 1.00))         # the bowl's weight, x CAP_W_ROUND
 
     @glyph('R')
@@ -3579,8 +3640,8 @@ if ON:
         # junction.
         jx = x0 + rx * 0.08
         leg_p = catmull([(jx, jy + C * 0.07),
-                         (x0 + C * 0.34, C * 0.32),
-                         (x0 + C * 0.62, C * 0.10),
+                         (x0 + C * 0.34, C * 0.30),
+                         (x0 + C * 0.58, C * 0.12),
                          (x0 + C * CAP_R_LEG_X, C * CAP_R_LEG_Y)], tension=0.5)
         lw = nib_widths(leg_p, CS * CAP_W / S, CS * CAP_W * 0.30 / S, CAP_CON,
                         smooth=7, taper=False)
@@ -3607,22 +3668,60 @@ if ON:
     # at 260 px and looked at.
     CAP_P_BOWL_END = float(os.environ.get("ALBO_ALD_CAP_P_END", -88.0))
     CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.15))   # the bowl's weight, x CAP_W_ROUND
+    # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
+    # of P."* The wedge itself was never the odd one: this letter's stem is
+    # `cstem_i(top='left')`, the same call B D E F I J L H N reach, and measured
+    # in UNSHEARED space on a 900 px render its blade reaches 0.0394 of the cap
+    # out of the stem against 0.0394 (L), 0.0443 (D), 0.0460 (F I H N) and
+    # 0.0476 (B J E) -- inside the hand-cut's own one-to-two-unit wobble.
+    #
+    # WHAT MADE IT LOOK DIFFERENT WAS THE BOWL LANDING ON TOP OF IT. The arc
+    # started at 90 degrees of a superellipse whose crown sits exactly on the
+    # cap line, so the STROKE around it put half its own width ABOVE the cap
+    # line, and the letter's top read as three levels: the wedge's tip, the
+    # stem's flat top, then a step UP into the bowl. In font units off the
+    # shipped tree, yMax: B D E F I J L N Z all 676 (the cap line exactly),
+    # O 689 (a round letter's honest overshoot), and P **707** -- 31 units, more
+    # than twice the O's, on a letter whose crown nobody would call round.
+    # Every other capital's top is one continuous edge out of the wedge; this
+    # one had a riser in it.
+    #
+    # So the arc is lowered by exactly the half-width it was hanging above the
+    # line, and its LOWER terminal is held: cy and ry each drop by half the
+    # overshoot, which moves the crown down by `over` and leaves cy - ry where
+    # it was, so CAP_P_BOWL_Y still means what it says. The measurement has to
+    # be taken from the drawn stroke rather than declared, because the crown's
+    # width is `nib_widths` output and moves with CAP_P_W, CAP_CON and the nib
+    # -- a number typed in here would be right today and silently wrong after
+    # the next weight change. Set ALBO_ALD_CAP_P_FLUSH=0 for the old top.
+    CAP_P_TOP_FLUSH = float(os.environ.get("ALBO_ALD_CAP_P_FLUSH", 1.0))
 
     @glyph('P')
     def a_P(c):
         """Stem plus one deep arc. The arc stops at CAP_P_BOWL_END rather than -90,
         which is what leaves the lower terminal hanging free of the stem the way
-        the reference's does."""
+        the reference's does. Its crown is seated ON the cap line rather than
+        half a stroke above it, so the top edge leaving the stem's wedge is the
+        one continuous line every other capital's is."""
         C = c["cap"]; x0 = CS * 0.6
         rx = CAP_P_BOWL_W * C
         jy = C * CAP_P_BOWL_Y
         ry = (C - jy) / 2 + OVER * 0.2
         cy = C - ry
-        p_ = superellipse(x0, cy, rx, ry, math.radians(90),
-                          math.radians(CAP_P_BOWL_END), BOWL_K)
-        ws = nib_widths(p_, CS * CAP_W_ROUND * CAP_P_W / S,
-                        CS * CAP_W_ROUND * CAP_P_W * 0.30 / S,
-                        CAP_CON, smooth=7, taper=False)
+
+        def _arc(cy_, ry_):
+            p = superellipse(x0, cy_, rx, ry_, math.radians(90),
+                             math.radians(CAP_P_BOWL_END), BOWL_K)
+            w = nib_widths(p, CS * CAP_W_ROUND * CAP_P_W / S,
+                           CS * CAP_W_ROUND * CAP_P_W * 0.30 / S,
+                           CAP_CON, smooth=7, taper=False)
+            return p, w
+
+        p_, ws = _arc(cy, ry)
+        # the crown's own half width is what was standing above the cap line
+        over = S * ws[0] / 2 * CAP_P_TOP_FLUSH
+        if over:
+            p_, ws = _arc(cy - over / 2, ry - over / 2)
         bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
                          stroke(p_, bf, cut0=CUT, cut1=CUT)])
@@ -3652,8 +3751,57 @@ if ON:
     # say the model is wrong. `g_Z` already says it plainly by declaring CS, and
     # Poetica's own Z has its diagonal as the heaviest stroke in the letter.
     # So it is `primitives.diagonal` at a declared width, as the roman's is.
-    CAP_Z_DIAG = float(os.environ.get("ALBO_ALD_CAP_Z_D", 1.14))     # x CS; the roman declares 1.00 and this letter's bars are lighter, so it carries a touch more
+    # ROUND 138: 1.14 -> 1.09, and the reason is the join below, not the stroke.
+    # Burying the diagonal in both bars fills two notches that were paper, so the
+    # letter honestly gained ink: `cmp_cap_weight.py` (2 x area / outline length)
+    # took the Z from +0.02 against its roman to +0.05, which is the gate's whole
+    # tolerance and it FAILED. The junction is not negotiable, so the weight
+    # comes back out of the stroke that put it there. At 1.09 the Z reads +0.02
+    # again -- the round-137 number exactly -- and every other re-cut capital is
+    # unmoved.
+    CAP_Z_DIAG = float(os.environ.get("ALBO_ALD_CAP_Z_D", 1.09))     # x CS; the roman declares 1.00 and this letter's bars are lighter, so it carries a touch more
     CAP_Z_BAR = float(os.environ.get("ALBO_ALD_CAP_Z_BAR", 1.28))     # the bars' thickness, x TH_H
+    # ROUND 138 -- THE TWO FRACTURES. Owner 2026-09-16: *"correct the fractures
+    # of Z in top right and bottom left connections."* Rendered at 900 px and
+    # cropped 8x NEAREST at both junctions, each one is a WEDGE OF PAPER driven
+    # into the letter -- at the top right it reaches about a third of the way
+    # back along the bar's underside, at the bottom left about a quarter of the
+    # way in above the bar. They are not a fold and not a width falling to zero:
+    # the cause is the third of the three, TWO STROKES BUTTING INSTEAD OF
+    # OVERLAPPING, and it is visible in the old call line without rendering
+    # anything. The diagonal ran from (.., C - th) to (.., th) -- that is, from
+    # the top bar's INNER edge to the bottom bar's INNER edge -- so each of its
+    # cut end faces lay exactly ON the joint rather than inside the bar, and its
+    # own half width then carried the outer corner of that face PAST the bar's
+    # end. Two end faces meeting at an angle with nothing behind either one is a
+    # notch, every time; the union has no material there to swallow.
+    #
+    # The fix is `a_R`'s and `a_G`'s, applied at both ends: bury the end. The
+    # diagonal now runs the FULL cap height, from y = C to y = 0, so each end
+    # face sits a whole bar's thickness inside its bar and the joint is solid
+    # material. Burying it also swings each end outward along the diagonal's own
+    # slope -- up-right at the top, down-left at the bottom, which is the exact
+    # direction that would push the corner past the bar's end again -- so the
+    # horizontal inset is re-solved with it rather than left at the old 0.14.
+    # Both were then rendered and re-cropped at 8x; the numbers below are what
+    # closed the paper at both junctions without the diagonal's corner breaking
+    # the line of the bar's end.
+    # THE BURY HAS A CEILING, and it is the cap line. At JOIN 1.0 each end face
+    # sits on its bar's OUTER edge, and the end cap's own corner then stands
+    # about 20 units proud of it: the Z measured yMax 695 against the cap's 676
+    # and yMin -21, a spur above the cap line and another below the baseline,
+    # where every other flat capital here reads 676 / -1. 0.60 of the bar
+    # (about 31 of its 52 units) is the most that can be spent: measured
+    # yMax 677, yMin -3, against the round-137 Z's 676 / -1.
+    CAP_Z_JOIN = float(os.environ.get("ALBO_ALD_CAP_Z_JOIN", 0.60))   # how far each end of the diagonal runs INTO its bar, x the bar's thickness
+    # The two insets are NOT the same number, and they were swept rather than
+    # reasoned. At the TOP the bar's own end is at x 628 and the diagonal's
+    # corner reaches 631 at 0.36 and is inside the bar by 0.50, so 0.50 is where
+    # the letter's right side becomes one line. At the BOTTOM the diagonal's end
+    # face crosses the bar's end cut, and the nick that leaves shrank 12 units
+    # (0.36) -> 5 units (0.50) as the inset grew, so it is carried on to 0.62.
+    CAP_Z_IN_T = float(os.environ.get("ALBO_ALD_CAP_Z_IN_T", 0.50))   # the top end's inset from the bar's right end, x CS
+    CAP_Z_IN_B = float(os.environ.get("ALBO_ALD_CAP_Z_IN_B", 0.62))   # the bottom end's inset from the bar's left end, x CS
 
     @glyph('Z')
     def a_Z(c):
@@ -3676,7 +3824,10 @@ if ON:
                           (x0 + w + CS * 0.30, C * CAP_Z_TAIL)], tension=0.5)
         tail = stroke(tail_p, widths([(0.0, th), (0.55, th * 1.00),
                                       (1.0, th * 1.00)]), cut1=CUT)
-        dg = PR.diagonal((x0 + w - CS * 0.14, C - th), (x0 + CS * 0.14, th),
+        # the diagonal is BURIED in both bars -- see the note above the dials
+        bury = th * CAP_Z_JOIN
+        dg = PR.diagonal((x0 + w - CS * CAP_Z_IN_T, C - th + bury),
+                         (x0 + CS * CAP_Z_IN_B, th - bury),
                          CS * CAP_Z_DIAG)
         return geom.ink([top, bot, hook, tail, dg])
 
@@ -3719,8 +3870,28 @@ if ON:
     # in the pen's cut.
     CAP_K_JOIN = float(os.environ.get("ALBO_ALD_CAP_K_J", 0.40))   # where arm and leg meet the stem, x C
     CAP_K_ARM_X = float(os.environ.get("ALBO_ALD_CAP_K_AX", 0.56))  # the arm's top, x C right of the stem
+    # ROUND 138 -- THE K'S KICK, AND WHY ITS NUMBER IS THE OTHER ONE. Same owner
+    # instruction as the R's, same 600 px measurement, and the K fails a
+    # different half of it. Its REACH was never the problem:
+    #
+    #             Albo 137   Poetica   Pagella   Flanker Griffo
+    #   leg past its own advance   -0.067   -0.053   -0.032   -0.076
+    #   leg tip's height, x C       0.079    0.010    0.038    0.027
+    #
+    # -- ours already stopped further inside its advance than Poetica's or
+    # Pagella's, and by the R's note above that column is `-rsb` and no outline
+    # can move it anyway. What it did wrong was stop EARLY AND HIGH: the tip hung
+    # 0.079 of the cap above the line, two to eight times the references, with
+    # the last stretch nearly level, so it crossed the following letter's bowl at
+    # the bowl's widest. In `Kate` and `Kentish` at 180 px it reads as a rule
+    # ruled under the a and the e rather than as a stroke that has finished.
+    # By the a's left profile in the R's note (+0.067 C on the line, -0.002 by
+    # 0.08 C), moving the tip from 0.079 C to the baseline is worth about 0.07 C
+    # of white in `Ka` for no change in reach at all. All three references end
+    # the leg on the line. The last control moves in and up (0.56, 0.11 ->
+    # 0.54, 0.14) so it arrives steeply instead of sliding.
     CAP_K_LEG_X = float(os.environ.get("ALBO_ALD_CAP_K_LX", 0.72))  # the leg's tip, x C right of the stem
-    CAP_K_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_K_LY", 0.05))  # and how high above the baseline
+    CAP_K_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_K_LY", 0.00))  # and how high above the baseline -- on the line
     # THE LEG IS HEAVIER THAN THE ARM, and the split is Poetica's rather than a
     # convenience: at a 300 px cap its arm measures about two thirds of its leg
     # at the junction. Both were solved together against the roman K by
@@ -3728,7 +3899,13 @@ if ON:
     # arm 0.95 / leg 1.25, so the tolerance does NOT choose between them and the
     # reference does.
     CAP_K_ARM_W = float(os.environ.get("ALBO_ALD_CAP_K_AW", 1.30))   # the arm's nib thick, x CS
-    CAP_K_LEG_W = float(os.environ.get("ALBO_ALD_CAP_K_LW", 1.45))   # the leg's, x CAP_W
+    # ROUND 138: 1.45 -> 1.62, paying back exactly what thinning the leg's TIP
+    # cost. `cmp_cap_weight.py` read the K at +0.01 against its roman before the
+    # taper changed and -0.04 after -- passing, but a 0.05 swing that spends the
+    # whole tolerance and leaves the next round none. The body carries it back
+    # to -0.00 without touching the tip, which is the shape of a swash anyway:
+    # heavy where the pen is down, gone by the time it lifts.
+    CAP_K_LEG_W = float(os.environ.get("ALBO_ALD_CAP_K_LW", 1.62))   # the leg's, x CAP_W
 
     @glyph('K')
     def a_K(c):
@@ -3740,13 +3917,25 @@ if ON:
         arm = cdiag((x0 + C * CAP_K_ARM_X, C), J, CAP_K_ARM_W, serif0=1)
         leg_p = catmull([J,
                          (x0 + C * 0.28, C * 0.30),
-                         (x0 + C * 0.56, C * 0.11),
+                         (x0 + C * 0.54, C * 0.14),
                          (x0 + C * CAP_K_LEG_X, C * CAP_K_LEG_Y)], tension=0.5)
         lw = nib_widths(leg_p, CS * CAP_W * CAP_K_LEG_W / S,
                         CS * CAP_W * CAP_K_LEG_W * 0.30 / S, CAP_CON,
                         smooth=7, taper=False)
         lf = widths([(i / (len(lw) - 1), S * v) for i, v in enumerate(lw)])
-        leg = stroke(leg_p, lambda t: lf(t) * (1.05 - 0.50 * t), cut1=CUT)
+        # ROUND 138: the taper's end 0.55 -> 0.35 of the leg's body, which is the
+        # R's 0.32 and not a new idea. It is here for the TIP'S HEIGHT and not
+        # for colour: the rightmost ink of a swash is the outer corner of its end
+        # cut, so a thick tip sits half a stroke above the point it is drawn at,
+        # and with CAP_K_LEG_Y already on the baseline the leg's rightmost ink
+        # still measured 0.052 C up -- five times Poetica's 0.010. Thinned (and
+        # with the body put back to 1.62, below), it lands at 0.042, and the
+        # minimum white in the pairs that follow a K goes `Ka` 0.066 -> 0.089 C,
+        # `Ke` 0.140 -> 0.161, `Ki` 0.123 -> 0.113 -- the last one the only
+        # regression in the set, 0.010 C, and reported rather than hidden: an i
+        # is a bare stem whose left edge barely moves with height, so it is the
+        # one following letter that had nothing to gain from the drop.
+        leg = stroke(leg_p, lambda t: lf(t) * (1.05 - 0.70 * t), cut1=CUT)
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
 
     # ---------------------------------------------------------------- M
