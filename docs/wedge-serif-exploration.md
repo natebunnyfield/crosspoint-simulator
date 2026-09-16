@@ -5073,3 +5073,43 @@ claimed as done.**
   bowl's points are fractions of the letter's width: the two dials fight. The
   bowl's WEIGHT is the independent lever, and the target's `a` is heavy enough
   to take it (`A_FLANK` 0.90 → 1.65).
+
+## Round 123 — the `a`'s counter made a curve
+
+Owner: *"'The top-right thick is not a taste call' was the winner but needs a
+smooth graceful curve in the counter."* The thick top-right stays; the lens
+counter had to go.
+
+**Three dials failed before the right one, and the failures locate the cause.**
+
+1. **Smoothing the width profile did nothing.** The five-stop list was replaced
+   by widths sampled from the nib at every point (`nib_widths`, continuous by
+   construction, moving-averaged). Correct in itself — a stepped profile offsets
+   into a faceted counter — but the counter stayed a sliver.
+2. **Un-squeezing the bowl helped, and told us why.** `A_BOWL` had been
+   narrowing the bowl toward the stem, which ran its inner edge PARALLEL to the
+   stem for most of the letter. **Two near-parallel sides are a sliver whatever
+   the widths do.** Back to 1.00, the area taken from weight instead: the same
+   counter/ink at 26% more inscribed radius.
+3. **Steepening the arm's dive moved nothing** — 0.222 → 0.230 across a wide
+   sweep.
+
+**What actually fixed it was where the arm STARTS.** It sprang from the stem's
+top corner, so the counter's ceiling and the stem's left edge met at an acute
+angle, and that sharp apex is what reads as ungraceful however round the rest
+is. Starting the arm to the RIGHT of the stem's centre and below its top
+(`A_CROSS` 0.08, `A_TOP_Y` 0.92) makes it CROSS the stem, so the junction is
+blunt:
+
+| | apex width | fatness |
+|---|---|---|
+| springing from the corner | 37 px | 0.219 |
+| crossing the stem | **68 px** | **0.258** |
+
+"Apex width" is the counter's width across its top 12% — a sharp point is a
+couple of pixels there, a rounded top is many. It is the metric that finally
+described what he was pointing at, after roundness and inscribed-radius both
+said mine was *rounder than the target* and neither matched what the eye saw.
+
+`A_FLANK` re-solved to 2.03 to hold counter/ink at 0.347 against 0.344. All
+three measured letters pass the ledger.

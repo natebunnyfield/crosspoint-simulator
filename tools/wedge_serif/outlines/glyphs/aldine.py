@@ -107,6 +107,31 @@ def nib(direction_deg, thick, thin, phi=50.0):
     return thin + (thick - thin) * abs(_m.sin(_m.radians(direction_deg - phi)))
 
 
+def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None):
+    """Widths along a path FROM THE NIB, sampled at every point.
+
+    A five-stop list makes a five-sided counter: the inner offset of a stroke
+    whose width changes in steps develops flats and corners, and a narrow
+    counter shows every one of them. The nib varies continuously, so the
+    counter's edge is a curve. `boost` is an optional smooth multiplier
+    f(t) -> x, for a letter that wants extra weight somewhere without a step.
+    """
+    import math as _m
+    n = len(pts)
+    ws = []
+    for i in range(n):
+        a_ = pts[max(0, i - 1)]; b_ = pts[min(n - 1, i + 1)]
+        d = _m.degrees(_m.atan2(b_[1] - a_[1], b_[0] - a_[0]))
+        w = nib(d, thick, thin)
+        if boost: w *= boost(i / max(1, n - 1))
+        ws.append(w)
+    ws = con(ws, target)
+    if smooth:                      # a moving average: no step survives it
+        ws = [sum(ws[max(0, i - smooth):i + smooth + 1]) /
+              len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
+    return ws
+
+
 def con(ws, target=None):
     """Re-spread a letter's declared widths to ITS OWN target contrast."""
     target = ALD_CON if target is None else target
@@ -468,7 +493,7 @@ if ON:
     A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.65))  # the bowl's left flank, x the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 2.03))  # the bowl's left flank, x the stem
     # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
     # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
     # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
@@ -484,13 +509,29 @@ if ON:
     # target. As with the e, the lever is the bowl's GEOMETRY and not its
     # weight: thickening to close a counter moves the page's colour to fix a
     # ratio. A_BOWL scales the bowl's path about its own centroid.
-    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 0.85))
+    # A_BOWL back to 1.00. Squeezing the bowl toward the stem was the wrong way
+    # to close the counter: it ran the bowl's inner edge PARALLEL to the stem
+    # for most of its length, which is a sliver, and no amount of smoothing the
+    # width profile fixes a counter whose two sides are parallel. The area
+    # comes from the bowl's WEIGHT instead, and the counter stays round --
+    # measured, the same counter/ink at 26% more inscribed radius.
+    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 1.00))
     # THE TOP RIGHT CARRIES A THICK TOO (owner 2026-09-15). It is not a taste
     # call -- it is what the measured 50 degree pen MUST do. A nib at 50 is
     # fullest on the 50/230 axis, so the upper-right and the lower-left are
     # both thick and the upper-left and lower-right are both thin. The bowl
     # had its thick only at the bottom left, which is half a pen.
     A_TOPR = float(os.environ.get("ALBO_ALD_A_TOPR", 1.55))   # the bowl where it leaves the stem
+    # Where the arm STARTS. Springing it from the stem's top corner
+    # (A_STEM-0.01, 1.00) makes the counter's ceiling and the stem's left edge
+    # meet at an acute angle, and that sharp apex is what reads as ungraceful
+    # however round the rest of the counter is. Starting it to the RIGHT of the
+    # stem's centre and a little below the top makes the arm CROSS the stem, so
+    # the junction is blunt and the counter's top is a curve.
+    A_CROSS = float(os.environ.get("ALBO_ALD_A_CROSS", 0.08))   # x past the stem's centre
+    A_TOP_Y = float(os.environ.get("ALBO_ALD_A_TOP_Y", 0.92))   # and how far below the top
+    A_ARM_X = float(os.environ.get("ALBO_ALD_A_ARM_X", 0.34))  # how far left the arm dives
+    A_ARM_Y = float(os.environ.get("ALBO_ALD_A_ARM_Y", 0.78))  # and how steeply
 
     @glyph('a')
     def a_a(c):
@@ -508,9 +549,13 @@ if ON:
             dx, dy = math.cos(a) * L, math.sin(a) * L
             parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
                                  (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
-        BP = [(A_STEM - 0.01, 1.00), (0.44, 0.88), (0.25, 0.70),
-              (0.13, 0.48), (0.11, 0.26), (0.24, 0.06),
-              (0.44, 0.09), (A_STEM - 0.09, A_JOIN)]
+        # THE ARM DIVES. The counter is bounded above by this entry and on the
+        # right by the stem, so a shallow entry leaves the two running parallel
+        # for most of the letter -- a sliver, whatever the widths do. A steep
+        # dive gives the counter a diagonal ceiling and compacts it.
+        BP = [(A_STEM + A_CROSS, A_TOP_Y), (A_ARM_X, A_ARM_Y), (0.20, 0.66),
+              (0.11, 0.44), (0.12, 0.24), (0.26, 0.06),
+              (0.46, 0.09), (A_STEM - 0.09, A_JOIN)]
         # Narrow the bowl TOWARD THE STEM, leaving its two ends where they
         # are: they sit ON the stem, and a first version scaled every point
         # about the bowl's centroid, which walked those ends inward and SEALED
@@ -519,12 +564,16 @@ if ON:
         p_ = catmull([(X(fx), Y(fy)) for fx, fy in BP], tension=0.5)
         # Weight read off the same rows: thin where the arc leaves the stem,
         # the flank at three quarters of the stem, the bottom heaviest.
-        # around the bowl: top-right, upper-left, left, bottom, lower-right
-        # -- thick, thin, thick, medium, thin, which is one 50 degree pen.
-        ap = con([A_TOPR, 0.55, A_FLANK, A_FLANK * 0.73, 0.60], CON_A)
-        parts.append(stroke(p_, widths([(0.0, S * ap[0]), (0.22, S * ap[1]),
-                                        (0.45, S * ap[2]), (0.74, S * ap[3]),
-                                        (1.0, S * ap[4])]), cut0=CUT))
+        # The bowl's width comes from the nib at every sample, not from five
+        # stops -- a stepped profile offsets into a five-sided counter, and
+        # this counter is narrow enough to show every flat. The top-right
+        # boost the owner approved rides on top as a smooth cosine ramp, so it
+        # adds weight without adding a corner.
+        def _boost(t):
+            return 1.0 + (A_TOPR - 1.0) * (0.5 + 0.5 * math.cos(math.pi * min(1.0, t / 0.34)))
+        aw = nib_widths(p_, A_FLANK, A_FLANK * 0.33, CON_A, smooth=11, boost=_boost)
+        parts.append(stroke(p_, widths([(i / (len(aw) - 1), S * w_)
+                                        for i, w_ in enumerate(aw)]), cut0=CUT))
         return geom.ink(parts)
 
     @glyph('b')
