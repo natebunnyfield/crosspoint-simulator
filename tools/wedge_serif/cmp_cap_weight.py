@@ -22,7 +22,26 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.basePen import BasePen
 
-RECUT = "AGHKLMNOPQRSUVYZ"   # the re-cut capitals, both round-135 passes
+RECUT = "AGHKLMNOPQRSUVWXYZ"   # both round-135 passes, plus round 145's X and W
+# ADDING A LETTER HERE ALSO TAKES IT OUT OF THE CONTROLS, and that is not the
+# harmless bookkeeping it looks like. `widths()` divides every ratio by the
+# median of the capitals NOT in this string, so round 145 shrank the controls
+# from B C D E F I J T W X to B C D E F I J T -- and X is the LIGHTEST capital
+# in the alphabet (0.834 of the old median in the roman), so dropping it and
+# the W lifts the median hard. Measured on the round-144 tree, changing nothing
+# but this string: roman median 55.95 -> 59.31 (+6.0%), italic 56.44 -> 59.19
+# (+4.9%).
+#
+# The two builds do NOT move by the same factor, so the DIFF -- the only number
+# this script decides on -- moves too, by about +0.01 on the stemmed capitals:
+#
+#     H +0.036 -> +0.046    M +0.037 -> +0.045    N +0.033 -> +0.042
+#     O -0.048 -> -0.035    G -0.039 -> -0.028    V -0.028 -> -0.017
+#
+# Nothing crossed 0.05 in either direction, but H M N now sit within 0.005 of
+# the rail where they had 0.014, and that is the margin a future round has to
+# work in. Recorded rather than tuned away: a letter this module redraws cannot
+# honestly stay in the control set, which is what the set is for.
 CAPS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 HERE = os.path.dirname(os.path.abspath(__file__))
 COMMON = dict(FJORD_STEM="66.9", FJORD_CONTRAST="0.80", FJORD_WIDTH="95", PYTHON_GIL="0")
