@@ -1507,153 +1507,145 @@ if ON:
         # letter's left side.
         return geom.ink([stroke(p, wf, cut0=None, cut1=CUT, pieces=True)])
 
-    # ------------------------------------------------------------ THE a, round 132
-    # DRAWN AGAINST THE REFERENCE, NOT TUNED. Owner 2026-09-15: "examine a
-    # then each subsequent letter, take multiple passes at each until the
-    # shape and strokes and serifs match what they should based on a
-    # referenced vector or bitmap." The reference is Flanker Griffo Italic
-    # (refs/, his 2026-09-15 upload; the closest digital face to the 1501
-    # scans) measured UNSHEARED in Albo's design units by aldine_targets.py --
-    # docs/albo-aldine-targets.md, section 1 -- and the owner's scan crop of
-    # the a, which agrees on every point below. Every earlier a-dial (rise,
-    # head, bow, teardrop counter, arm dive) is retired by this: they were
-    # tuning a construction the reference does not have.
+    # ------------------------------------------------------------ THE a, round 151
+    # THE a IS THE d's BOWL UNDER THE i's STEM. Owner 2026-09-16, the brief
+    # for this round: *"clean up a and e to be elegant and presentable and
+    # legible letters that fit the rest of font and make quality common
+    # english word images"*.
     #
-    # WHAT THE NUMBERS SAY (x from the letter's left ink edge, xh = 429):
-    #   the letter is SQUARE: 437 x 438, the bowl filling the x-height (-9..429)
-    #   the stem is 70 wide (0.83 S) at x 282-352, straight, top at ~0.95 xh
-    #   the bowl is a RING: left extreme x=0 at ~0.45 xh, top at x~205, bottom
-    #     at x~140 -- an egg skewed right; it merges into the stem at the top
-    #     and rises into it at ~0.25 xh (a 14-unit gap at .25, merged by .50)
-    #   the ring's width by position: left flank 70, lower-left 78, bottom 58,
-    #     the rise into the stem 34, top 28, upper-left 52
-    #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
-    # Everything is written as a fraction of xh or S, so it rides the axes.
+    # Seven cuts of this letter have been rejected in two days, and every one
+    # of them drew the a as its own construction -- its own counter table, its
+    # own head, its own flank table, and in round 147 its own traced
+    # silhouette. THIS ONE DRAWS NOTHING OF ITS OWN. Its bowl is `keyed_ring`
+    # on the d's fitted geometry and the shared A_RING; its stem, its head and
+    # its outstroke are `hm_stem` and `hm_exit`, the helpers
+    # that already draw i l h m n r u. The a is the i with the d's bowl hung
+    # on its left -- which is what "fit the rest of the font" means when it is
+    # said about a letter rather than about a number.
+    #
+    # THE REFERENCE SAYS THE SAME THING IN NUMBERS. Flanker Griffo Italic,
+    # unsheared in Albo's units (docs/albo-aldine-targets.md section 1), every
+    # x shifted +25 so the bowl's left extreme is 0:
+    #
+    #   row    left flank        bowl's right wall    stem
+    #   .25    14-93   (79)      238-269 (32)         283-353 (70)
+    #   .50    1-69    (68)      ---- merged ----     281-352 (71)
+    #   .75    31-85   (54)      ---- merged ----     281-352 (70)
+    #   .90    81-133  (52)      -------- 257-351 (95) --------
+    #   .97    ---------------- 131-291 (160) ----------------
+    #
+    # -- and section 2 states it outright: *"The d is the a's bowl on that
+    # ascender: same 437 wide, same 70 stem at x 250-321."* The d's dials were
+    # fitted against that same reference to IoU 0.846, the best in this
+    # module, so they are taken UNCHANGED rather than re-fitted: RX 159, CY
+    # 211, SKEW 0.06, stem 70 at 312. Checked against the rows above before
+    # adopting them -- a superellipse at k=1.90 on those numbers crosses
+    # y=.90 xh at x 79.3 and 261.7, where Flanker reads 81 and ~257.
+    #
+    # WHY THERE IS NO COUNTER IN THIS CODE, which is the bug that ate three of
+    # the seven cuts. `PR.ring_from()` -- what `keyed_ring` returns -- IS a
+    # ring: it already carries its own hole. Round 144 subtracted a second
+    # drawn counter from that result and got two overlapping holes, which is
+    # the "dog shit mess" the owner reported. The counter here is the ring's
+    # own inner edge, closed on the right by the stem that overlaps it,
+    # exactly as the b d p q counters are. Predicted before building and
+    # measured after: at .50 the ring's inner left edge lands at 66 and the
+    # stem's left edge at 277, so the counter is 211 units across where
+    # Flanker's is 212.
+    #
+    # NEGATIVE RESULTS, so the next pass does not spend them again:
+    #
+    #   THE MACRO SCAN'S a CANNOT BE TRACED, and this repo's own targets doc
+    #     said so before round 147 traced it anyway -- section 6, verbatim:
+    #     *"`a` ... do not use. 26 components before despeckle; the crop is a
+    #     160x181 px photograph holding more than the letter."* The a is 54 px
+    #     tall in griffo-macro.png and it TOUCHES the d beside it. Round 147's
+    #     65-point outer and 42-point counter (commit 491bafc, deleted here)
+    #     rendered at 96 px with a notch bitten out of the left flank and a
+    #     wobbly blob for a counter, and measured counter/ink 0.529 against a
+    #     0.330 target and w/h 0.591 against 0.839 -- the two worst numbers in
+    #     the ledger, and the only failing row in it. A 54 px source has no
+    #     outline in it. Do not trace this letter.
+    #   THE TEARDROP COUNTER IS WITHDRAWN by the owner (*"forget about the
+    #     tear drop counter"*), and A_CTR_PROFILE goes with it. It was a real
+    #     measurement -- the scan's white by height, on two a's that agreed --
+    #     and it could not be reconciled with ANY outer contour: the scan's
+    #     left edge runs dead straight from 0.10 to 0.40 of the ink's height
+    #     while a drawn counter's lower left curves away from it, so the wall
+    #     between them swelled to 2-3x the flank and put a spur on the bowl.
+    #     A page's a and a drawn counter are not one letter's two edges.
+    #   A_FLANK / _a_flank WAS ALREADY DEAD before this round -- a second
+    #     width table for the same bowl, called from nowhere since round 144.
+    #     Deleted rather than left, because a shadowed dial that moves no ink
+    #     is exactly how the old A_HEAD_R was lost.
+    #
+    # A_RING, A_K and `keyed_ring` are NOT the a's alone -- the d, the q and
+    # the g read them too -- so this round changes none of them.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 302))   # stem center, units
-    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 77))     # units
-    A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
-    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
-    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl center height, units
-    A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))         # the egg's lean, dx per dy
-    A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))               # squareness
-    A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 424))    # tip, units from the left edge
-    A_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TAIL_Y", 0.15))     # x xh
-    # (the old right-reaching nib mark's dial lived here and was shadowed by
-    # the A_HEAD_R below from round 137 on -- the same name twice, the second
-    # winning silently. Removed; the head reaches LEFT and its dial is there.)
-    # THE a IS A d WITH A SHORT ASCENDER (owner 2026-09-16, from the scan).
-    # The Petrarch page and the owner's crop both carry the a's stem past the
-    # x-line and finish it with the SAME head the b d p wear -- the wedge
-    # reaching left -- not the little right-hand nib mark the first cut gave
-    # it. A_ASC is how far above the x-line that stem goes, in units; the d's
-    # own ascender clears the x-line by 341, so this is a short one.
-    # 8, not 96 (owner 2026-09-16, after seeing 96 on the page): the stem
-    # clears the x-line by a hair -- enough that the a is the same gesture as
-    # the d and not enough to read as an ascender. The 150 that made the a and
-    # the d one letter, and the 96 this replaces, are both in the round 133 log.
-    # ROUND 137: THE OWNER DREW THIS ONE. He set the a in the editor
-    # (https://claude.ai/artifact/81j24wds45Lfp31aCPatDB) and pasted its state
-    # back, which is a different letter from the one round 135 shipped: the
-    # stem's top stops 54 units BELOW the x-line and a long head -- 210 units
-    # of reach against the b's 58 -- sweeps left across it and becomes the
-    # letter's top. So the a's arch is the HEAD, not the bowl's crown, and the
-    # bowl hangs under it. The a carries its own head dials for that reason;
-    # the b d p head stays where he put it two rounds ago ("reduce visual
-    # weight of top serif on b and d").
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -27))             # units, NEGATIVE = below the x-line
-    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 220))       # the head's reach left
-    A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 109))       # its tip below the stem's top
-    A_TAIL_W1 = float(os.environ.get("ALBO_ALD_A_TAIL_W1", 21.0))  # the tail's tip width, units
-    A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 120))       # where its underside rejoins the stem
-    # THE COUNTER IS DRAWN, NOT OFFSET, AND ITS SHAPE IS THE SCAN'S.
-    # Owner 2026-09-16: "a needs a smaller counterspace that is rounded
-    # teardrop and 24 units above", then "match the counterspace for a to the
-    # griffo scans".
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 312.0))  # stem center, units -- the d's
+    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 168.0))          # bowl outer half-width, units -- the d's 159 + 9, see THE ONE DIAL below
+    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 211.0))          # bowl center height, units -- the d's
+    A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))       # the egg's lean, dx per dy -- the d's
+    A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))             # squareness -- SHARED with d q g, do not move
+    # THE STEM'S WIDTH IS NOT A DIAL HERE, deliberately. `hm_exit` reads
+    # HM_STEMW directly and takes no width argument, so an A_STEMW that
+    # disagreed with it would part the outstroke from the stem it leaves --
+    # a silent dial with a broken letter behind it. The a takes the family's
+    # 70, which is also what Flanker's a measures.
     #
-    # Until round 133 the counter was whatever `ring_from` left after
-    # offsetting the bowl's outer edge inward by eight width keys, so it could
-    # not be asked for a shape at all. The bowl is a filled superellipse now
-    # and the counter is its own closed curve, subtracted.
+    # AND THE a WEARS NO HEAD, which is the one thing it does not take from
+    # the i, and it is a NEGATIVE RESULT rather than an omission. `hm_head`
+    # sets its tip 0.157 xh below the x-line (HM_HEAD_D) because on an i, an
+    # n or an l there is nothing under it. On the a there is a COUNTER under
+    # it: the ring's inner edge tops out at about 0.954 xh and the head's tip
+    # is 0.034 xh half-thick, so no tip that clears the counter fits below
+    # the x-line at all. Five arms were built and cropped at a 560 px ink
+    # height. NINE arms were built and cropped at a 560 px ink height, in two
+    # ladders (`hm_head` was given temporary `reach`/`drop` overrides to run
+    # them, and the overrides were then TAKEN BACK OUT -- see the foot of this
+    # block):
     #
-    # MEASURED, on two a's that agree: the macro's "ad" (griffo-macro.png,
-    # 54 px x-height) and the owner's own crop, both binarized with Otsu on an
-    # 8x upscale and flooded from the border, so the counter is whatever white
-    # survives inside the ink (tools/wedge_serif, the round 133 log):
+    #   the i's head unchanged      a horn hanging into the counter, with a
+    #                               V of paper open beside it -- a fracture
+    #   drop 0.06 (flatter)         a smaller horn, same fault
+    #   drop 0.06, reach 130        worse: the tip crosses the whole crown
+    #   drop 0.10, reach 110        a spike on the crown's right shoulder
+    #   reach 91 drop 0.04          an ENCLOSED white triangle at the top --
+    #   reach 110 drop 0.04         the head's underside is BOWED (HM_HEAD_BOW
+    #   reach 91 drop 0.02          is the hollow Flanker's i shows), so laying
+    #   reach 130 drop 0.06         it over a convex crown traps paper between
+    #                               the two. All four, at every reach tried
+    #   NO HEAD                     clean: no fracture, no horn, no trapped
+    #                               paper, and the closest silhouette to
+    #                               Flanker of the nine
     #
-    #                        macro "ad"    owner crop      the d, for scale
-    #   counter / ink            0.42          0.32              0.25
-    #   counter w/h              0.84          0.83              0.60
-    #   counter h / ink h        0.51          0.47              0.35
-    #   widest at                0.45          0.45              0.45
-    #   area / (w x h)           0.60          0.59              0.70
+    # The ring's crown already tops at the x-line, so it IS the a's top edge,
+    # and `hm_stem`'s 45-degree top cut leaves the small flag at the top right
+    # that Flanker's a also has. An enclosed hole is disqualifying under the
+    # owner's standing ruling for this letter (*"keep ... lack of fractures
+    # and weird glitches the same"*); a shallow shoulder is not.
     #
-    # An ellipse fills 0.79 of its box and a triangle 0.50, so at 0.60 this is
-    # neither: it is narrow at BOTH ends -- 0.15 of its width at the floor,
-    # 0.25 at the tip -- and widest across the middle. And it LEANS: its left
-    # edge starts 0.20 in at the floor, reaches the far left at 0.35 of the
-    # height, and has walked to 0.71 by the tip. That lean is the letter's own
-    # stress seen from the inside, and it is what a symmetric teardrop (the
-    # first cut of this) could not show.
-    # ROUND 139: FEWER POINTS (owner: "simplify a to much fewer polygons").
-    # The a carried 217 outline points against the n's 116 and the o's 190 --
-    # the counter's twelve rows were interpolated six ways each, then
-    # catmulled, smoothed four times and resampled twice at the module's
-    # default spacing, and the bowl was offset from that dense curve. The
-    # The curve is built FINE (eight points per row gap, five smoothing
-    # passes) and thinned ONCE at the end -- smoothing a coarse polygon
-    # corner-cuts it, which is a different and worse letter.
+    # THE ONE DIAL THAT IS NOT THE d's: A_RX, 168 against the d's 159. Flanker
+    # draws ONE bowl for both letters, and so did the first cut of this -- but
+    # the d's bowl hangs off an ASCENDER, whose stem is full width all the way
+    # past the x-line, while the a's has to meet a stem that STOPS at the
+    # x-line. At rx 159 the ring's outer edge does not reach the stem's left
+    # edge until y = 0.853 xh (solved on the superellipse and confirmed on the
+    # render), so 0.147 xh of valley stood open between the crown and the
+    # stem's tip -- which is exactly the gap Flanker fills with the head this
+    # letter cannot wear. Laddered 159 / 168 / 176, and 168 / 176 with the
+    # stem pulled in to 300 / 296: 159 leaves the valley, 176 widens the
+    # letter and flattens the counter into a lozenge, and pulling the stem in
+    # narrows the counter for no gain. 168 closes the valley into one
+    # continuous shoulder and costs NO SPACING AT ALL -- the centre is
+    # `x0 + rx`, so the ring's left extreme stays on x0, and its right side is
+    # inside the stem either way, so neither ink edge moves.
     #
-    # THE TRADE IS REAL AND IT IS MEASURED. 217 points -> 167 at spacing 16,
-    # in family with the o's 190 and the b's 201 where it used to be the
-    # densest glyph in the font. Below that the outline FACETS at display
-    # size: at 420 px the ladder reads smooth at 217, visibly flat-sided at
-    # 137 (spacing 22) and a polygon at 115 (spacing 30). At reading size
-    # none of it is visible. 16 is the rung that keeps the curve.
-    A_CTR_FINE = int(os.environ.get("ALBO_ALD_A_FINE", 8))
-    A_SPACING = float(os.environ.get("ALBO_ALD_A_SPACING", 16.0))
-    A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor, units above the baseline
-    # ROUND 142 -- FITTED TO THE REST OF THE LOWERCASE (owner: "reshape and
-    # resize a to fit the rest of the lowercase letters and make a legible
-    # word image"). Measured against its own alphabet, the a was the outlier
-    # three ways: 468 units of ink where the n is 392 and the o 336, its top
-    # +26 over the x-line where n o e sit at +4 +7 +13, and a mean ink width
-    # of 66 against 46-57 for everything else -- a fifth heavier than the
-    # heaviest of its neighbours.
-    #
-    # THE TARGETS ARE THE REFERENCES' OWN RATIOS, not a taste: all three make
-    # the a 0.82-0.92 of the n's ink (mean 0.88 -> 345 here), and all three
-    # put its top EXACTLY on the x-line -- +0.000 xh, because an a's top is a
-    # flat head and takes no overshoot where a round letter does. Solved by
-    # coordinate descent over the eight dials that move width, height and
-    # weight: 386 wide (0.98 of the n), +1 over the line, mean ink 54.1
-    # against the lowercase's 46-57, counter fill 0.65 -- his shape.
-    #
-    # ROUND 139: TALL ENOUGH TO OVERLAP THE X-LINE (owner 2026-09-16: "it
-    # needs to be tall enough to slightly overlap x height. keep lean and
-    # counter shape and lack of fractures ... the same"). His a topped at 376
-    # -- 53 units BELOW the x-line, where every other lowercase reaches +4 to
-    # +16 above it (n +4, o +7, c +8, x +10, e and s +13, u +16). It was the
-    # one short letter in the line.
-    # The counter and its bowl are scaled UNIFORMLY (278 -> 339, and the width
-    # follows through A_CTR_WH), not stretched: a uniform scale is a similar
-    # figure, so the counter's shape is untouched -- measured, its fill is
-    # 0.65 against his 0.66, where stretching the height alone reads 0.63. The
-    # head rides up with it (A_ASC -54 -> +7) so the two still meet, and the
-    # bowl's weight comes back to 0.86 because a bigger bowl at the same
-    # stroke reads lighter: a/n 0.89 at 0.70, 1.01 at 0.86.
-    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 332))      # its height, units -- 0.51 x the ink, as the macro
-    A_CTR_WH = float(os.environ.get("ALBO_ALD_A_CTR_WH", 0.84))     # its width over its height, as both scans
-    A_CTR_X = float(os.environ.get("ALBO_ALD_A_CTR_X", 77))       # its left extreme, units from the letter's left
-    # height fraction (0 = floor) -> (left edge, right edge), both x the
-    # counter's width. The mean of the two a's, which differ by under 0.03
-    # everywhere except the floor.
-    A_CTR_PROFILE = [
-        (0.117, 0.357, 0.472), (0.143, 0.247, 0.579), (0.187, 0.140, 0.683),
-        (0.257, 0.064, 0.778), (0.370, 0.019, 0.870), (0.453, 0.024, 0.917),
-        (0.533, 0.040, 0.966), (0.661, 0.103, 0.995), (0.762, 0.178, 1.006),
-        (0.865, 0.313, 1.010), (0.958, 0.530, 0.936), (0.995, 0.736, 0.870),
-    ]
+    # AND `hm_head` KEEPS ITS OLD SIGNATURE. The two overrides that ran the
+    # ladder were reverted with it: a parameter added to a shared helper for
+    # a letter that turns out not to want it is a dial that moves no ink, and
+    # that is how the old A_HEAD_R was lost. Nothing outside this letter's
+    # own dials is changed by round 151.
     # ring widths keyed by angle (degrees ccw from the right), in units
     A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
     if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
@@ -1727,163 +1719,30 @@ if ON:
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)
 
-    # The bowl's width round the counter, keyed by angle (degrees ccw from
-    # the right, 180 = the left flank), in units. Flanker's a, measured
-    # unsheared (docs/albo-aldine-targets.md): the left flank 68-73, the
-    # lower left 80, the bottom 58, the rise into the stem 34, the top 28.
-    # Scaled 1.12 from Flanker's numbers after the first build measured the
-    # counter at 0.49 of the ink against the scan's 0.42: the print is heavier
-    # than the revival, and the scan is the target.
-    # 0.70 -- ROUND 137'S IMPROVING PASS, and it moves his drawing's WEIGHT
-    # and not its shape. Measured against the n, the way the o was in round
-    # 134: his a's mean ink width was 1.22 of the n's where Flanker's a is
-    # 0.98 of its own n, so the a was 24% heavier than everything beside it
-    # and read as the dark blob in every word it appears in. His long head
-    # adds ink at the top that the old bowl's weight was never carrying. At
-    # 0.70 the ratio is 1.00 and the counter opens from 0.48 to 0.57 -- the
-    # shape, the counter's profile and the head are all exactly as he drew
-    # them.
-    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.66))   # scales every bowl width
-    A_FLANK = [(0, 38), (45, 29), (90, 33), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
-
-    def _a_flank(deg):
-        """Periodic cosine interpolation of A_FLANK."""
-        ks = sorted((d % 360, w) for d, w in A_FLANK); deg %= 360
-        for (a0, w0), (a1, w1) in zip(ks, ks[1:] + [(ks[0][0] + 360, ks[0][1])]):
-            if a0 <= deg <= a1 or (a1 > 360 and deg < a1 - 360):
-                if a1 > 360 and deg < a0: deg += 360
-                t = (deg - a0) / (a1 - a0) if a1 > a0 else 0.0
-                t = 0.5 - 0.5 * math.cos(math.pi * t)
-                return w0 + (w1 - w0) * t
-        return ks[0][1]
-
-    def a_counter(u, x0):
-        """The a's counter, drawn from the SCAN'S OWN PROFILE.
-
-        `A_CTR_PROFILE` is a measured table of left and right edges by height,
-        so the curve is the scan's silhouette rather than an idea of a
-        teardrop: narrow at the floor, widest across the middle, narrowing to
-        a small tip, and leaning right the whole way up. Closed with a catmull
-        so the corners the sampling leaves become curves again."""
-        bot = A_CTR_BOT * u; h = A_CTR_H * u; w = A_CTR_H * A_CTR_WH * u
-        x = x0 + A_CTR_X * u
-        # The table is twelve rows; a catmull through twelve points at this
-        # size leaves visible facets on the counter's left flank, where the
-        # curve is flattest. Interpolate it to three points per gap first --
-        # the measurement cannot see a facet and the eye finds it immediately.
-        rows = []
-        for (f0, l0, r0), (f1, l1, r1) in zip(A_CTR_PROFILE, A_CTR_PROFILE[1:]):
-            for i in range(A_CTR_FINE):
-                t = i / float(A_CTR_FINE)
-                rows.append((f0 + (f1 - f0) * t, l0 + (l1 - l0) * t, r0 + (r1 - r0) * t))
-        rows.append(A_CTR_PROFILE[-1])
-        left = [(x + l * w, bot + f * h) for f, l, r in rows]
-        right = [(x + r * w, bot + f * h) for f, l, r in rows]
-        pts = catmull(left + right[::-1], tension=0.5, closed=True)
-        pts = geom.smooth(pts, 5, closed=True)
-        return geom.poly(geom.resample(pts + [pts[0]], A_SPACING)[:-1])
-
-    # ------------------------------------------------------------ THE a's SILHOUETTE, TRACED
-    # Owner 2026-09-16: "make a brand new a tracing the scans and using the
-    # counter of the existing a." So the letter's OUTSIDE is the 1501 page's
-    # and its INSIDE is his.
-    #
-    # Traced off griffo-macro.png, the a of "ad" (crop 263,42..308,112 at a
-    # 54 px x-height), binarized with Otsu on an 8x upscale, largest ink blob
-    # only, then the LEFT edge read at 41 heights and converted to design
-    # units. The left edge is the half of that print that is clean: the a's
-    # right side touches the d, which is why round 132's crop measured the
-    # pair and why this traces one edge rather than a silhouette.
-    #
-    # height above the ink's bottom (units)  ->  left edge (units)
-    #     0 214 | 49 0 | 99 0 | 148 0 | 198 0 | 247 35 | 297 52
-    #   346 139 | 396 210 | 445 258 | 495 309
-    # The whole ink is 495 units tall = 1.15 xh: the bowl's left extreme is a
-    # FLAT RUN from 0.10 to 0.40 of that height -- the pen's own side, not a
-    # curve -- and above it the silhouette walks right at a near-constant
-    # rate into the head.
-    A_TRACE = [(0.000, 214), (0.099, 0), (0.200, 0), (0.299, 0), (0.400, 0),
-               (0.499, 35), (0.600, 52), (0.699, 139), (0.800, 210),
-               (0.899, 258), (1.000, 309)]
-    A_TRACE_H = float(os.environ.get("ALBO_ALD_A_TRACE_H", 495.0))   # the traced ink's height, units
-    A_TRACE_BOT = float(os.environ.get("ALBO_ALD_A_TRACE_BOT", -24.0))  # where it sits, units off the baseline
-    # SHIPPED AT 0, AND THE REASON IS THE FINDING. Driving the left flank
-    # onto this trace puts a SPUR on the bowl's lower left, at every band and
-    # every clamp tried, because the two halves of the instruction fight:
-    # the scan's left edge runs dead straight from 0.10 to 0.40 of the ink's
-    # height, while the owner's counter is an egg whose lower left curves
-    # away from it -- so the width between them swells to 2-3x the flank as
-    # the counter turns. A page's a and his counter are not the same letter's
-    # inside and outside. The trace is kept because it is measured and
-    # correct; `ALBO_ALD_A_TRACE_S=1` renders it.
-    A_TRACE_S = float(os.environ.get("ALBO_ALD_A_TRACE_S", 0.0))     # 1 = drive the left flank from the scan
-
-    def a_traced_left(u, x0):
-        """The scan's left edge as a list of (x, y) in design units."""
-        h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
-        return [(x0 + lx * A_TRACE_S * u, bot + f * h) for f, lx in A_TRACE]
-
-    # ------------------------------------------------------------ THE a, round 147
-    # TRACED. Owner 2026-09-16: "forget about the tear drop counter. just
-    # match the shape of the letter 'a' from the scans." So both contours are
-    # the page's -- outer AND counter -- and no part of this letter is a
-    # construction any more.
-    #
-    # Off griffo-macro.png, the a of "ad" (crop 263,42..302,112 at a 54 px
-    # x-height), upscaled 10x, Otsu, largest ink blob, and the d cut away at
-    # 0.78 of the crop's width -- the two letters touch in this print, which
-    # is what defeated every earlier attempt to measure this a. The outer and
-    # the counter are then walked with a Moore-neighbour boundary trace,
-    # converted to design units at xh = 429, and UNSHEARED by 13 degrees,
-    # because build.draw() shears the finished ink and a traced italic is
-    # already sheared -- tracing without that step doubles the slant.
-    #
-    # 65 outer points and 42 counter points, resampled off 1751 and 780.
-    A_TRACE_OUTER = [
-        (144.1, 418.7), (149, 397.2), (154, 375.8), (158.9, 354.3),
-        (163.9, 332.9), (168.8, 311.4), (173.8, 290), (178.7, 268.5),
-        (183.7, 247.1), (188.6, 225.6), (193.6, 204.2), (198.5, 182.7),
-        (203.5, 161.3), (208.4, 139.8), (213.4, 118.4), (218.3, 96.9),
-        (223.3, 75.5), (228.2, 54), (233.2, 32.6), (238.1, 11.1),
-        (224.1, 3.2), (202.3, 4.8), (179.8, 12.7), (163.7, 34.2),
-        (159.6, 55.6), (156.2, 77.1), (157.6, 98.5), (144.3, 118.4),
-        (130.5, 102.5), (123.9, 82.6), (130.8, 66.7), (151.2, 46.9),
-        (143, 31), (122.9, 49.3), (110.1, 66.7), (92.2, 51.6),
-        (73.8, 38.1), (55.9, 26.2), (35.6, 21.4), (15.8, 17.5),
-        (-4, 17.5), (-9, 38.9), (-13.9, 60.4), (-18.9, 81.8),
-        (-23.8, 103.3), (-28.8, 124.7), (-33.7, 146.2), (-38.7, 167.6),
-        (-43.7, 189.1), (-48.6, 210.5), (-39.7, 227.2), (-27.1, 244.7),
-        (-17.8, 263), (-10.8, 277.3), (-15.7, 298.7), (6.6, 294.7),
-        (23.4, 311.4), (37.9, 328.1), (56.1, 335.3), (63.4, 355.1),
-        (83.4, 361.5), (98.8, 377.4), (118.8, 383.7), (124.4, 400.4),
-        (145.5, 402),
-    ]
-    A_TRACE_COUNTER = [
-        (91.1, 307.4), (107.5, 301.9), (122.7, 301.1), (139.4, 287.6),
-        (142.1, 272.5), (140, 257.4), (130.1, 248.7), (135.2, 233.6),
-        (148, 219.3), (143.6, 207.4), (146.3, 192.3), (135.6, 183.5),
-        (122.4, 178.8), (125.9, 163.7), (122.2, 148.6), (117, 133.5),
-        (105.6, 120.8), (91.8, 115.2), (78.7, 106.5), (69.2, 96.1),
-        (57.9, 86.6), (46.1, 85.8), (29.2, 93.7), (14.2, 107.2),
-        (-2.8, 122.3), (-11.9, 137.4), (-20.1, 152.5), (-25.2, 167.6),
-        (-19.9, 182.7), (-18.7, 197.8), (-12.6, 212.9), (-13.7, 228),
-        (-2.3, 233.6), (8.4, 242.3), (16.8, 257.4), (25.4, 268.5),
-        (30, 279.6), (44.5, 282), (57.2, 292.4), (72, 293.9),
-        (82, 298.7), (91.1, 307.4),
-    ]
-    A_TRACE_SMOOTH = int(os.environ.get("ALBO_ALD_A_TSMOOTH", 2))
-    A_TRACE_SCALE = float(os.environ.get("ALBO_ALD_A_TSCALE", 1.0))
-
+    # (A_FLANK's prose stood here -- the round 134/137 account of a SECOND
+    # width table for this same bowl, and of the 0.70 scale that answered the
+    # a being 24% heavier than the n. The table it described was already dead
+    # code in round 150 and is deleted in 151; its one surviving finding, that
+    # the a must carry the n's ink weight and not more, is now met by the a
+    # simply BEING the n's stem and the d's ring rather than by a scale
+    # factor. Measured on the shipped letter: bulge 0.98 against Flanker's
+    # 1.00, IoU against Flanker 0.711 where the traced a scored 0.142.)
     @glyph('a')
     def a_a(c):
-        """The scan's own a: its outer contour and its counter, traced,
-        unsheared and set on Albo's x-height. See the block above."""
-        xh = c["xh"]; u = xh / 429.0 * A_TRACE_SCALE; x0 = S * 0.6
-        def path(tbl):
-            pts = [(x0 + px * u, py * u) for px, py in tbl]
-            pts = geom.smooth(pts, A_TRACE_SMOOTH, closed=True)
-            return geom.poly(geom.resample(pts + [pts[0]], 14.0)[:-1])
-        return geom.ink([path(A_TRACE_OUTER)], [path(A_TRACE_COUNTER)])
+        """The i's stem and outstroke, with the d's bowl on its left.
+
+        THREE contours, and not one of them is this letter's own drawing:
+        `keyed_ring` on A_RING (the d's, the q's and the g's table) and the
+        two hm_* helpers that draw the stem and the exit of i l h m n r u.
+        No head -- see the block above for the nine-arm ladder that says why.
+        No drawn counter either: the ring carries its own, closed on the
+        right by the stem that overlaps it."""
+        xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
+        xs = x0 + A_STEM_X * u
+        ry = (xh + OVER * 0.6) / 2.0
+        bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
+                           k=A_K, skew=A_SKEW, unit=u)
+        return geom.ink([bowl_, hm_stem(c, xs, 0, xh), hm_exit(c, xs)])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
@@ -4777,8 +4636,27 @@ if ON:
 # white between any pair is what he saw. His deltas, for the record:
 #   a -13/-6 c +0/+17 e +4/-7 f +32/-1 i +15/+16 l +6/-2 n +10/+0 p +6/+0 r +9/+8 s -3/+0 t +0/-9 u +3/-6 v -7/+24 w -4/+12 x -23/+0 y -17/+42
 # Letters he did not reach (b d g h j k m o q z) carry the tracking only.
+# THE a's ROW MOVED IN ROUND 151, and it is the only row this round touches.
+# -36/44 fitted the traced a, a 293-unit glyph; the letter is 451 units now.
+# Measured white between letters, as a fraction of the x-height, on a 300 px
+# raster (the same quantity `outlines/cmp/aldine_space.py` fits on, and the
+# one a shear leaves alone):
+#
+#            na     aa     ad     la  |  the o's own, unchanged: no .109 oo .109
+#   -36/44  .080   .066   .080   .095  <- the a was the TIGHTEST letter in the
+#                                         alphabet, tighter than its own o
+#   -28/44  .095   .088   .088   .109
+#   -28/50  .095   .102   .102   .109  <- shipped: every a-pair now sits within
+#                                         .01 of the o's 0.109
+#   -20/52  .095   .102   .102   .109     no further movement; the rung is spent
+#
+# `aldine_space.py` re-solves the WHOLE table and wants to move all 26 rows by
+# 15-53 units -- it has been stale since round 133 for every letter. The a's
+# residual against it is the SMALLEST of the 26 (advance -8, bearings -2/-6),
+# so this row is not re-solved from it; re-solving the alphabet is its own
+# round and would move every glyph in the font.
 BEARINGS = {
-    'a': ( -36,   44), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
+    'a': ( -28,   50), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
     'e': ( -19,   72), 'f': ( -32,   81), 'g': ( -13,   72), 'h': (   4,   58),
     'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   14), 'l': (  14,   58),
     'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),

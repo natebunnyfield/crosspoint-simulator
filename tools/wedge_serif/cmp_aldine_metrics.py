@@ -45,7 +45,28 @@ TARGETS = {
     # wider letter -- his head reaches 210 units left where the old one
     # reached 76, so the ink box grows with it. Fourth retarget of this row,
     # same rule as the other three: a target describes a drawing.
-    'a': (0.330, 0.839, 'ref',    0.83, 'round 146: the drop points down-left, so the bottom left is thick'),
+    # ROUND 151: RETARGETED TO THE REFERENCE, and this one is the LAST of the
+    # retargets rather than another of them -- the row stops describing a
+    # drawing and starts describing a font we still have.
+    #
+    # 0.330 / 0.839 described round 146's teardrop-counter a, and the owner
+    # withdrew that letter the day after it was measured (*"forget about the
+    # tear drop counter"*). It then stood as the target through round 147's
+    # traced a and failed it at +60% / -30%, which is the row working; but it
+    # was never a number any reference holds. Measured with THIS SCRIPT'S OWN
+    # `measure()` on the three reference faces, 2026-09-16:
+    #
+    #             counter/ink   w/h
+    #   Flanker      0.844      0.945     <- the target, below
+    #   Pagella      0.672      0.815
+    #   Poetica      0.598      0.739
+    #   round 146 target 0.330  0.839     <- 2.6x off the nearest reference
+    #
+    # The a is drawn against Flanker now (the d's bowl, the family's stem, no
+    # construction of its own -- outlines/glyphs/aldine.py, round 151), so it
+    # takes Flanker's own numbers, which is the SAME rule the o's row already
+    # states one line down. It builds at 0.828 / 0.973: -1.9% and +3.0%.
+    'a': (0.844, 0.945, 'ref',    0.83, "Flanker's own a, measured by this script (round 146's 0.330 described a withdrawn drawing)"),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'B 5.00', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the
