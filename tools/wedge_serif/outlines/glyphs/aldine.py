@@ -1652,7 +1652,8 @@ if ON:
         A_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
 
-    def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4):
+    def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
+                   hand=None):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -1662,6 +1663,20 @@ if ON:
         outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
         if skew:
             outer = [(x + (y - cy) * skew, y) for x, y in outer]
+        if hand:
+            # the same (degrees, dr, dw) table `nib_ring` carries, on the
+            # OUTER only: dr pushes a point along its own radius, dw is added
+            # to the width read off `keys`. The angle is taken with the skew
+            # removed, so a table written for the round ring still lands where
+            # it was written once the ring is an egg.
+            warped = []
+            for x, y in outer:
+                ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
+                dr = _hand_at(hand, ang, 1) * unit
+                nx, ny = (x - cx), (y - cy)
+                L = math.hypot(nx, ny) or 1.0
+                warped.append((x + nx / L * dr, y + ny / L * dr))
+            outer = geom.smooth(warped, 2, closed=True)
         # replicate ring_from's resampling so the widths line up with its points
         pts = geom.resample(outer + [outer[0]])[:-1]; n = len(pts)
         ks = sorted((math.radians(d) % (2 * math.pi), w) for d, w in keys)
@@ -1677,7 +1692,10 @@ if ON:
         ws = []
         for x, y in pts:
             ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
-            ws.append(wat(ang) * unit)
+            w = wat(ang) * unit
+            if hand:
+                w += _hand_at(hand, ang, 2) * unit
+            ws.append(w)
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)[0]
 
@@ -1766,6 +1784,37 @@ if ON:
     # simply BEING the n's stem and the d's ring rather than by a scale
     # factor. Measured on the shipped letter: bulge 0.98 against Flanker's
     # 1.00, IoU against Flanker 0.711 where the traced a scored 0.142.)
+    # ROUND 155 -- THE DROOPY TOP. Owner 2026-09-16, with two earlier cuts of
+    # this letter side by side: *"make the a have a droopy top like earlier
+    # versions"*. Both of those drawings share one thing the round-151 letter
+    # lost when it became the d's ring: their top does not arch evenly. It
+    # PEAKS at the right, where the stem is, and falls away to the left, so the
+    # upper left reads as a shoulder that has sagged under the pen rather than
+    # as the top of a circle.
+    #
+    # The d's ring cannot have that -- a d's bowl hangs off an ascender and its
+    # crown is the letter's own top -- so this is the one place the a departs
+    # from the shared table, and it does it on the OUTER CONTOUR rather than on
+    # A_RING's widths, because a width change moves ink and not the silhouette.
+    # `keyed_ring` now takes the same (degrees, dr, dw) HAND table `nib_ring`
+    # carries; d, q and g pass none and are byte-identical.
+    #
+    # THREE KEYS, in units at the a's own x-height (they scale with `unit`):
+    #   75    0    the peak stays where the stem is -- the droop must not
+    #              flatten the join, which is what carries the letter's top
+    #              line in a word.
+    #  115  -17    the crown, pulled in along its own radius. Inward at 115
+    #              degrees is down-and-right, which is the direction a pen
+    #              sags in, not straight down.
+    #  155   -9    the upper left shoulder follows it part of the way, or the
+    #              droop reads as a dent rather than as a slope.
+    #
+    # ALBO_ALD_A_DROOP scales all three; 0 is the round-151 letter exactly.
+    A_DROOP = float(os.environ.get("ALBO_ALD_A_DROOP", 1.0))
+    A_DROOP_HAND = [(75, 0.0, 0.0), (115, -17.0 * A_DROOP, 0.0),
+                    (155, -9.0 * A_DROOP, 0.0), (200, 0.0, 0.0),
+                    (300, 0.0, 0.0), (20, 0.0, 0.0)] if A_DROOP else None
+
     @glyph('a')
     def a_a(c):
         """The i's stem and outstroke, with the d's bowl on its left.
@@ -1780,7 +1829,7 @@ if ON:
         xs = x0 + A_STEM_X * u
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
-                           k=A_K, skew=A_SKEW, unit=u)
+                           k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh), hm_exit(c, xs)])
 
     # ------------------------------------------------------------ THE b, round 132
