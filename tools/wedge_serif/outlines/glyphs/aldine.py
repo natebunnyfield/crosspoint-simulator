@@ -3565,118 +3565,302 @@ if ON:
     # `cdiag`'s, exactly as the round-134 eight do.
 
     # ---------------------------------------------------------------- R
-    # POETICA'S R DOES THREE THINGS OURS DID NOT. Its bowl is SMALL and closes
-    # on the stem HIGH -- at 0.50 of the cap against the roman's 0.46 measured
-    # off a 300 px cap render -- so the letter's white sits in the upper half
-    # and the leg gets room. Its LEG is a swash: it leaves the junction, bends
-    # through a long shallow curve and runs out past the bowl's own right edge,
-    # thinning to a fine upturned tip. The roman's leg is a near-straight
-    # bracketed strut that lands on the baseline under the bowl's edge; at 300
-    # px Poetica's tip is 0.94 of the cap right of the stem and the roman's
-    # 0.72, and the tip's last 15% rises rather than falls.
-    CAP_R_BOWL_Y = float(os.environ.get("ALBO_ALD_CAP_R_BY", 0.46))   # where the bowl meets the stem, x C
-    CAP_R_BOWL_W = float(os.environ.get("ALBO_ALD_CAP_R_BW", 0.41))   # the bowl's reach right of the stem centre, x C
-    # ROUND 138 -- THE KICK MUST FIT A WORD. Owner 2026-09-16: *"the kicks on R
-    # and K needs to fit a typical english word image better."* The letter was
-    # cut against Poetica's DRAWING and never against Poetica's FITTING. First
-    # measurement, on 600 px renders, every figure x the face's own cap height,
-    # as (leg's rightmost ink) minus (the letter's advance) -- negative is ink
-    # that stays inside its own box:
+    # ROUND 140 -- TRACED FROM POETICA, NOT FITTED TOWARD IT. Owner 2026-09-16,
+    # the whole instruction: *"copy 'R' from poetica"*. Round 135 cut this
+    # letter against Poetica BY EYE and round 138 moved its kick's tip; this
+    # round throws both drawings away and rebuilds the letter from Poetica's
+    # own outline, sampled.
     #
-    #             Albo 137   Poetica   Pagella   Flanker Griffo
-    #   R            +0.038    -0.054    -0.041    -0.103
-    #   R tip y       0.032     0.000     0.034     0.011
+    # HOW THE TRACE WAS TAKEN, because the scale is the one decision that is
+    # not mechanical. `aldine_targets.py` flattens a reference glyph, scales it
+    # so its X-HEIGHT lands on Albo's 429, and unshears it -- and for a COPY
+    # that scale is wrong. Poetica's cap is 509 on a 1000 em against an x-height
+    # of 394 (xh/cap 0.774); Albo's is 674 against 429 (0.636). Scaled by the
+    # x-height the letter comes out 553 tall in a 674 alphabet, which is not an
+    # R, it is a small capital. So the trace is scaled by CAP HEIGHT instead --
+    # uniformly, k = 674/509.2 = 1.3236 -- which reproduces Poetica's
+    # proportions exactly at Albo's height, and the width follows from them.
+    # It also unshears by 7.88 degrees and NOT by the declared 11: measured on
+    # this letter's own stem over 0.55-0.90 cap, Poetica's R leans 7.88, and
+    # unshearing by the `post.italicAngle` would have left the "upright" trace
+    # leaning 3 degrees the other way before Albo's 13-degree build shear ever
+    # touched it. (Its l measures 8.44, so the gap is the font's, not the R's.)
     #
-    # Ours was the only one of the four whose leg ended OUTSIDE its own advance.
+    # WHAT THE TRACE SAYS THE LETTER IS. Three strokes, and the middle one was
+    # NOT what round 135's comment claimed: Poetica's bowl is a CLOSED ring that
+    # comes back to the stem along a thin bottom arm at 0.454 cap, and the leg
+    # springs from the bowl's lower RIGHT, not from the stem. The old drawing
+    # sprang the leg out of the stem at 0.46 and closed the bowl on the stem
+    # with a superellipse centered ON the stem's midline; the reference's bowl is
+    # centered 0.07 cap to the RIGHT of it and its counter's floor is a separate
+    # arm. That is why the two letters' whites never agreed.
     #
-    # THAT NUMBER CANNOT BE MOVED BY DRAWING, and finding out why is the round.
-    # `build.fit` measures a capital's ink over the CAP BAND and sets
-    # `adv = lsb + (r - l) + rsb`, so for any capital whose rightmost ink is in
-    # that band -- which a leg at 0.03 C is -- (rightmost ink) minus (advance) is
-    # identically `-rsb`. It is the right sidebearing restated, and nothing about
-    # the outline enters it. R's is `capbear x SIDE_FRACTION + 17` plus the
-    # owner's own -56 from the round-137 bench, which lands at -26 units: the leg
-    # is 26 units past the advance by arithmetic. Shortening it was BUILT AND
-    # MEASURED rather than assumed -- CAP_R_LEG_X 0.78 -> 0.70 took the advance
-    # from 0.901 C to 0.825 C and left the overhang at +0.039, moving nothing,
-    # because the fitter simply re-tightened the box around the shorter leg. So
-    # the reach is put back to where round 135 drew it and this paragraph is the
-    # record that the obvious fix is a no-op. The bearings are not available:
-    # the owner set every capital's by hand.
+    # THE LETTER, cut by horizontal lines. Edges in design units from the STEM'S
+    # MIDLINE at a cap of 674, unsheared -- this is the table to check a future
+    # R against without re-tracing, and the numbers the tables below were taken
+    # from:
     #
-    # WHAT IS AVAILABLE IS THE HEIGHT THE OVERHANG SITS AT. Writing the white in
-    # a pair as gap(y) = rsb_A + lsb_B + pL_B(y) + (rightmost_A - pR_A(y)), the
-    # one term a drawing owns is WHERE its rightmost ink lands, and the pairing
-    # letter's own left profile decides what that is worth. Measured off this
-    # tree, the left edge of the letters that actually follow an R, x cap, from
-    # each one's own origin, by height above the baseline:
+    #   y/cap    stem l  stem r    bowl/leg l  r
+    #   0.00     -145  +128   +365  +500      <- foot serif, and the kick's tip
+    #   0.05      -82   +68   +304  +430
+    #   0.10      -54   +45   +271  +387
+    #   0.15      -47   +39   +245  +355
+    #   0.20      -43   +37   +223  +327
+    #   0.25      -41   +37   +204  +302
+    #   0.30      -40   +37   +186  +279
+    #   0.35      -39   +37   +169  +258
+    #   0.40      -39   +39   +151  +239
+    #   0.45      -39  +221                   <- the bowl's bottom arm, merged
+    #   0.50      -38   +39   +157  +223
+    #   0.55      -38   +38   +202  +267
+    #   0.60      -38   +39   +218  +292
+    #   0.65      -38   +39   +223  +306
+    #   0.70      -38   +39   +221  +310      <- the bowl's widest, +310
+    #   0.75      -39   +40   +215  +308
+    #   0.80      -40   +41   +203  +300
+    #   0.85      -41   +42   +182  +286
+    #   0.90      -43   +45   +144  +262
+    #   0.95     -130  +219                   <- crown and top serif, merged
+    #   0.99      -14  +139
     #
-    #     y       0.02    0.04    0.06    0.08    0.14    0.22
-    #     a      +0.067  +0.030  +0.013  -0.002  -0.015  +0.000
-    #     o      +0.115  +0.092  +0.076  +0.062  +0.034  +0.020
-    #     e      +0.126  +0.105  +0.084  +0.072  +0.041  +0.033
+    # THE STEM IS LEFT EXACTLY AS IT WAS, and that is a finding rather than a
+    # convenience. Traced width by height: 79.5 at 0.22, 77.7 at 0.26, 76.8 at
+    # 0.30-0.34, 76.4 at 0.58-0.66, 78.2 at 0.74, 81.5 at 0.82, 88.2 at 0.90.
+    # The waist moves by ONE UNIT across the middle two thirds -- Poetica's R
+    # stem has no entasis worth drawing -- and everything above 0.74 and below
+    # 0.22 is its serif brackets, which are Poetica's serifs and not ours. Its
+    # midline drifts right by 4.5 units from 0.14 to 0.50 and is then flat: a
+    # 0.7% lean, under the hand-cut wobble. `cstem_i` at CAP_BOW 0 is already
+    # that stem, so it is untouched and keeps the family's bracketed wedges.
     #
-    # Every one of them is at its most generous ON THE LINE and closes as it
-    # rises, because a round letter's bottom-left curves away and an a's bowl
-    # hangs left of its origin through the whole x-height band. So a kick that
-    # finishes ON THE BASELINE is spending its unavoidable 26 units of overhang
-    # in the one row the next letter leaves empty, and a kick that stops 0.03 C
-    # up spends it in the row the next letter's bowl is widest -- which is what
-    # ours did, and it is why `Rather` measured a **0.000** minimum gap: the leg
-    # and the a were touching. All three references end their leg on the line.
-    # So the tip goes to the baseline, and the last control moves in and up
-    # (0.62, 0.10 -> 0.58, 0.12) so the leg arrives rather than slides: it ran
-    # 27 degrees below horizontal over its last third, at exactly the height a
-    # following lowercase letter's bottom-left occupies.
+    # WHAT STAYS ALBO'S, deliberately, and none of it is negotiable here:
+    #   THE SERIFS   `cstem_i(top='left', foot='both')` -- the CAP_SERIF_* wedge
+    #                family. Poetica finishes on a chancery hairline; this R
+    #                stands beside B D E F I J L and takes their terminal, which
+    #                is the standing rule for all the re-cut capitals.
+    #   THE WEIGHT   CAP_R_W scales every traced width to Albo's color, and the
+    #                value it lands on is a finding rather than a conversion.
+    #                The obvious number is the stem ratio -- the trace's own
+    #                stem is 76.4 units (0.113 cap) against Albo's cap stem of
+    #                68 (0.101), so 0.89 -- and at 0.89 the letter FAILS
+    #                cmp_cap_weight at +0.06 against the roman R's 1.07. It
+    #                solves at **0.81**, because Poetica's R carries more of its
+    #                weight in the bowl and the leg than Albo's roman R does:
+    #                its bowl's thickest is 1.19x its own stem, and 0.81 puts
+    #                ours at 1.08x of Albo's. So the copy is 19% lighter than
+    #                the reference and NOT 11%, and where that shows is the
+    #                kick, which is why the kick needed its own placement rule.
+    #                Swept and built: 0.84 +0.02, 0.82 +0.01, 0.81 -0.00,
+    #                0.80 -0.01; the gate is --tol 0.05.
+    #   THE SLANT    13 degrees, applied by the build to an upright drawing.
+    #                Poetica's R leans 7.88, so 4.1 degrees of the residual in
+    #                any overlay is this and cannot be taken out.
+    #   THE ADVANCE  CAP_BEARING_ADJ['R'] = (0, -56) is the owner's own number
+    #                from the round-137 bench and is not touched, and neither is
+    #                BEARINGS.
     #
-    # WHAT THIS DOES NOT FIX, and it is not the R's to fix: `RA` measures -0.199
-    # C of overlap and `KA` -0.071 against Poetica's +0.057 and +0.052. The A
-    # reaches 0.179 C LEFT of its own origin at the baseline (CAP_BEARING_ADJ
-    # 'A' is -151), so it collides with everything before it -- HA +0.005,
-    # LA -0.041, EA -0.003, MA +0.059, against Poetica's +0.080, +0.107, +0.133,
-    # +0.061. No height clears it: the A's left profile only turns positive at
-    # 0.20 C, by which point a swash leg is not a swash leg. That is the A's
-    # left bearing and it is an owner number.
-    CAP_R_LEG_X = float(os.environ.get("ALBO_ALD_CAP_R_LX", 0.78))    # where the leg's tip lands, x C right of the stem
-    CAP_R_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_R_LY", 0.00))    # and how high above the baseline -- on the line, as all three references end it
-    CAP_R_W = float(os.environ.get("ALBO_ALD_CAP_R_W", 1.00))         # the bowl's weight, x CAP_W_ROUND
+    # AND THE ADVANCE DID NOT BALLOON, which is worth recording because it is
+    # the opposite of what a wider-looking reference predicts. Poetica's R is
+    # 1.015 cap of ink to Albo's 0.855 before this round, so a copy "should"
+    # have widened the letter by 19%. It did not: ink 0.855 -> 0.828 cap and
+    # advance 0.895 -> 0.846, i.e. the letter got NARROWER. Cut by horizontal
+    # lines at the baseline, from each letter's own stem midline, Poetica reads
+    # -146/+127 and +365/+500 and ours -38/+34 and +386/+493 -- the kick's right
+    # extreme agrees to 7 units and the ENTIRE width difference is on the left,
+    # where Poetica's foot serif reaches 147 units out of the stem and Albo's
+    # wedge reaches 61. The extra width was never the letter; it was the serif,
+    # and the serif is the part that stays ours. Against the family, Albo's
+    # capitals are 0.75-0.91 of Poetica's ink width at a given cap height
+    # (B 0.79, D 0.85, E 0.75, H 0.79, K 0.77, L 0.90, N 0.83, P 0.78, U 0.91)
+    # and this R moves from 0.86 to 0.82 -- into the middle of that band rather
+    # than out of it. An earlier draft of this comment predicted the reverse and
+    # was wrong; the measurement is why it says this instead.
+    #
+    # WHAT IT DID TO THE SPACING, minimum white between the R's ink and the next
+    # letter's, in em, measured on 600 px renders (Poetica's own in brackets):
+    #
+    #            round 139   round 140   [poetica]
+    #   Rather     +0.008      +0.042      +0.062
+    #   Robert     +0.038      +0.057      +0.062
+    #   REMARK     -0.057      +0.002      +0.025
+    #   Re         +0.052      +0.063      +0.065
+    #   RA         -0.142      -0.145      +0.027
+    #
+    # REMARK was OVERLAPPING before this round and is not now, and Rather's gap
+    # is five times what it was; both come from the kick ending shorter and
+    # lower rather than from any bearing. RA is unchanged and is not the R's:
+    # the A reaches 0.179 cap LEFT of its own origin at the baseline
+    # (CAP_BEARING_ADJ['A'] is -151), so it collides with everything before it,
+    # and that is an owner number too.
+    #
+    # WHAT COULD NOT BE REPRODUCED, measured rather than guessed:
+    #   1. THE SERIFS and the slant and the weight, by the rulings above. The
+    #      weight is the one that shows: the reference's kick and bowl are
+    #      visibly fuller at a 400 px cap, and they are meant to be.
+    #   2. THE BOWL'S WEIGHT DISTRIBUTION, as a consequence. Holding the gate
+    #      means the bowl's thick lands at 1.08x our stem where the reference's
+    #      is 1.19x of its own, so the flank reads a little lighter against the
+    #      stem than Poetica's does. Trading it the other way would have to come
+    #      out of the roman R.
+    #   3. THE IoU AGAINST POETICA CANNOT SEE ANY OF THIS, and must not be used
+    #      to judge the round. `cmp_aldine_shape.py --ref poetica` scales both
+    #      faces to one X-HEIGHT, and Poetica's cap is 0.774 of its x-height
+    #      where Albo's is 0.636 -- so a letter drawn at Albo's cap stands 22%
+    #      taller than the reference it is scored against. An EXACT copy of
+    #      Poetica's R, scaled to Albo's cap, scores **0.214** in that
+    #      instrument -- lower than the drawing this round replaces. Measured by
+    #      scaling Poetica's own mask about its baseline: k=1.00 1.000,
+    #      k=1.05 0.657, k=1.10 0.440, k=1.15 0.320, k=1.219 0.214, k=1.25
+    #      0.190. So that number is reported for the record only. The one that
+    #      means something scales both to the same CAP height and aligns on the
+    #      baseline and the STEM'S LEFT EDGE AT MID-CAP -- not on the ink bbox,
+    #      because our wedge serif reaches further left than Poetica's chancery
+    #      one and a bbox alignment slides the whole letter sideways by the
+    #      overhang (it cost 0.05 of IoU and scored the traced letter WORSE than
+    #      the one it replaced, which is how the bad alignment was caught).
+    #      On that measure: round 139 0.526, round 140 0.694.
+    CAP_R_W = float(os.environ.get("ALBO_ALD_CAP_R_W", 0.81))   # every traced width x this: see THE WEIGHT below
+    # THE BOWL, traced: (x from the stem's midline, height, width), all x cap.
+    # One stroke, from the bottom arm's end buried in the stem, right, up the
+    # flank and over the crown, back into the stem. The first and last rows are
+    # the burial (0.020 cap inside the stem, where the union swallows the join);
+    # every other row is a sample of the reference's own centerline, taken as
+    # the midpoint between its counter and its outer contour along the counter's
+    # outward normal. Thickest 0.1347 cap on the flank at 0.76, thinnest 0.0537
+    # at the lower terminal -- a 2.51:1 pen, which is CAP_CON's 2.20 measured
+    # rather than assumed.
+    CAP_R_BOWL = [
+        (0.0200, 0.4540, 0.0695), (0.0814, 0.4548, 0.0695), (0.1044, 0.4547, 0.0661),
+        (0.1473, 0.4563, 0.0616), (0.1866, 0.4585, 0.0610), (0.2049, 0.4543, 0.0746),
+        (0.2963, 0.5037, 0.0579), (0.3285, 0.5342, 0.0649), (0.3550, 0.5638, 0.0837),
+        (0.3756, 0.5980, 0.1028), (0.3900, 0.6414, 0.1200), (0.3946, 0.6786, 0.1288),
+        (0.3931, 0.7204, 0.1337), (0.3856, 0.7630, 0.1347), (0.3719, 0.8050, 0.1336),
+        (0.3547, 0.8394, 0.1303), (0.3277, 0.8760, 0.1228), (0.2993, 0.9025, 0.1129),
+        (0.2611, 0.9269, 0.0983), (0.2265, 0.9427, 0.0871), (0.1855, 0.9552, 0.0762),
+        (0.1443, 0.9624, 0.0686), (0.1034, 0.9651, 0.0650), (0.0914, 0.9652, 0.0648),
+        (0.0200, 0.9659, 0.0648),
+    ]
+    # THE LEG, traced the same way: true perpendicular thickness from the paired
+    # horizontal and vertical cuts (t = w*h/sqrt(w^2+h^2)), so a diagonal is not
+    # reported as the width of the row it crosses. It leaves the bowl's lower
+    # right -- the first row is buried inside the bowl, as `a_G`'s spur is at
+    # its own junction -- swells to 0.1264 cap at 0.16, which is THICKER than
+    # the stem, and runs out to 0.736 cap in a long fine taper whose last three
+    # rows sit on and just under the baseline. The tip's final rise is real: the
+    # reference's lower edge bottoms at -13 units at 0.65 cap and comes back to
+    # -10 by 0.72. Its rightmost ink is 0.745 cap from the stem's midline.
+    CAP_R_LEG = [
+        (0.2470, 0.4640, 0.1152), (0.2759, 0.4200, 0.1152), (0.3003, 0.3800, 0.1191),
+        (0.3112, 0.3600, 0.1224), (0.3337, 0.3200, 0.1184), (0.3453, 0.3000, 0.1196),
+        (0.3693, 0.2600, 0.1223), (0.3949, 0.2200, 0.1247), (0.4084, 0.2000, 0.1256),
+        (0.4373, 0.1600, 0.1264), (0.4531, 0.1400, 0.1261), (0.4883, 0.1000, 0.1221),
+        (0.5089, 0.0800, 0.1180), (0.5349, 0.0716, 0.1113), (0.5705, 0.0478, 0.0965),
+        (0.6061, 0.0288, 0.0805), (0.6417, 0.0138, 0.0624), (0.6773, 0.0031, 0.0433),
+        (0.7129, -0.0033, 0.0261), (0.7360, -0.0062, 0.0090),
+    ]
+
+    # THE KICK IS PLACED BY ITS UNDERSIDE, NOT BY ITS CENTERLINE. Owner
+    # 2026-09-16, added to the brief after the first cut: *"the kick off the R
+    # needs go below the baseline and copy Poetica."* Measured on the trace:
+    # Poetica's kick bottoms at -13.24 units, **-0.0196 cap**, at 0.634 cap
+    # right of its own stem midline -- and it IS the kick, not the foot serif,
+    # which reaches only -2 before it stops. Round 138 had deliberately put this
+    # tip ON the baseline (to spend its overhang in the row a following a or o
+    # leaves empty); that ruling is superseded by this one.
+    #
+    # WHY A TRACED CENTERLINE DOES NOT CARRY A DEPTH THROUGH A WEIGHT CHANGE,
+    # which is the whole reason this helper exists. CAP_R_W thins every traced
+    # stroke to Albo's color, and a stroke thinned on a fixed centerline lifts
+    # its own underside by half of what it lost: the traced centerline built at
+    # 0.81 bottomed at -0.0148 cap, three units shy of the reference, with the
+    # tip's position and the kick's length both already correct. So the tail's
+    # control points are lowered by exactly the half-width the gate took away,
+    # along each row's own direction -- which is the same statement as "the tail
+    # is placed by the reference's UNDERSIDE and the centerline is what moves".
+    #
+    # IT RAMPS OFF FAST, AND THAT IS NOT TIDINESS. Sinking the whole leg would
+    # drop its TOP edge by w*(1 - CAP_R_W) -- 16 units at the leg's thickest --
+    # and the leg's top edge is what the bowl's lower terminal lands on. The
+    # ramp is full below CAP_R_KICK_FULL and gone by CAP_R_KICK_FADE, so the
+    # junction does not move at all and only the last sixth of the stroke is
+    # placed by its underside.
+    #
+    # SHIPPED: **-0.0192 cap**, lowest at 0.644 cap right of our stem's midline,
+    # against the reference's -0.0196 at 0.634 -- a quarter of a unit of depth
+    # and seven of position. Round 139's R bottomed at -0.0133. Nothing collides:
+    # the minimum white in Rather / Robert / REMARK / Re all GREW (table above),
+    # and REMARK stopped overlapping.
+    _R_WSAMP = 240      # width samples along a traced stroke (see _R_traced)
+    _R_WSMOOTH = 7      # and the moving-average half-window over them
+    CAP_R_KICK_FULL = float(os.environ.get("ALBO_ALD_CAP_R_KFULL", 0.030))  # x cap: fully placed by the underside below this
+    CAP_R_KICK_FADE = float(os.environ.get("ALBO_ALD_CAP_R_KFADE", 0.120))  # and not at all above it
+
+    def _R_kick_sunk(tab):
+        """The leg's traced table with its tail lowered onto the reference's
+        underside. Returns a new table; the trace above is left as traced."""
+        out = []; n = len(tab)
+        for i, (dx, y, w) in enumerate(tab):
+            a_ = tab[max(0, i - 1)]; b_ = tab[min(n - 1, i + 1)]
+            th = math.atan2(b_[1] - a_[1], b_[0] - a_[0])
+            if y <= CAP_R_KICK_FULL: m = 1.0
+            elif y >= CAP_R_KICK_FADE: m = 0.0
+            else:
+                u = (CAP_R_KICK_FADE - y) / (CAP_R_KICK_FADE - CAP_R_KICK_FULL)
+                m = 3 * u * u - 2 * u * u * u
+            out.append((dx, y - m * (1.0 - CAP_R_W) * w / 2 * abs(math.cos(th)), w))
+        return out
+
+    def _R_traced(tab, x0, C):
+        """A stroke from a traced table of (dx, y, width), all x cap and dx from
+        the stem's midline: the centerline through EVERY traced point, and the
+        widths keyed at those points' own arc-length fractions along the drawn
+        curve.
+
+        The keying is the part that is easy to get wrong. `stroke` resamples its
+        centerline to uniform arc length and asks the width function for
+        `i / n`, so a width declared at the index of its control point lands
+        wherever the spacing happens to put it -- and this trace is deliberately
+        NOT evenly spaced (the flank's samples crowd where the curvature is).
+        Measuring each control point's own arc-length position along the catmull
+        puts every measured width back where it was measured."""
+        pts = [(x0 + dx * C, y * C) for dx, y, _ in tab]
+        p_ = catmull(pts, tension=0.5)
+        d = [0.0]
+        for a_, b_ in zip(p_, p_[1:]):
+            d.append(d[-1] + math.hypot(b_[0] - a_[0], b_[1] - a_[1]))
+        keys = []
+        for (px, py), row in zip(pts, tab):
+            j = min(range(len(p_)), key=lambda i: (p_[i][0] - px) ** 2 + (p_[i][1] - py) ** 2)
+            keys.append((d[j] / d[-1], row[2] * C * CAP_R_W))
+        # AND THEN DENSIFIED AND SMOOTHED, which is not tidying. `widths`
+        # smoothsteps between its keys and a smoothstep is C1: its curvature
+        # JUMPS at every key, and a stroke's edge is centerline + w/2, so one
+        # key per control point put a curvature break every 4% of the bowl.
+        # Rendered at a 400 px cap it read as a faceted outer edge with a
+        # visible flat at 1 o'clock, against the reference's continuous curve.
+        # A moving average of a C1 function is C2, which is the same device
+        # `nib_widths` uses (`smooth=9`) and for the same reason. The window
+        # shrinks at the ends so the terminal widths are not blunted.
+        base = widths(keys); n = _R_WSAMP; k = _R_WSMOOTH
+        v = [base(i / n) for i in range(n + 1)]
+        v = [sum(v[max(0, i - k):i + k + 1]) / len(v[max(0, i - k):i + k + 1])
+             for i in range(len(v))]
+        return p_, widths([(i / n, v[i]) for i in range(n + 1)])
 
     @glyph('R')
     def a_R(c):
-        """Stem, small high bowl, swash leg. The leg is ONE stroke from the
-        junction to the tip rather than a strut plus a foot wedge, because what
-        separates Poetica's R from a roman one is that the leg never stops: it
+        """Stem, a closed ring bowl whose bottom arm returns to the stem, and a
+        swash leg out of the bowl's lower right -- Poetica's R, traced. The leg
+        is ONE stroke to the tip rather than a strut plus a foot wedge, because
+        what separates this R from a roman one is that the leg never stops: it
         thins all the way out and finishes in the pen's own cut, which is what
-        `g_Q`'s tail and this module's own tails do. A foot wedge out there
+        `g_Q`'s tail and this module's other tails do. A foot wedge out there
         would be a serif on a swash."""
         C = c["cap"]; x0 = CS * 0.6
-        rx = CAP_R_BOWL_W * C
-        jy = C * CAP_R_BOWL_Y
-        ry = (C - jy) / 2 + OVER * 0.2
-        cy = C - ry
-        p_ = superellipse(x0, cy, rx, ry, math.radians(90), math.radians(-90), BOWL_K)
-        ws = nib_widths(p_, CS * CAP_W_ROUND * CAP_R_W / S,
-                        CS * CAP_W_ROUND * CAP_R_W * 0.30 / S,
-                        CAP_CON, smooth=7, taper=False)
-        bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
-        bowl = stroke(p_, bf, cut0=CUT, cut1=CUT)
-        # the leg: out of the junction, bending flat, thinning to a rising tip
-        # THE LEG STARTS INSIDE THE BOWL, not beside it. Springing it from the
-        # bowl's outer edge left a concave nick at the junction -- the two
-        # strokes met at an angle and the union kept the corner between them,
-        # visible at 260 px. Burying the first point back under the bowl lets
-        # the union swallow it, which is what `a_G`'s spur does at its own
-        # junction.
-        jx = x0 + rx * 0.08
-        leg_p = catmull([(jx, jy + C * 0.07),
-                         (x0 + C * 0.34, C * 0.30),
-                         (x0 + C * 0.58, C * 0.12),
-                         (x0 + C * CAP_R_LEG_X, C * CAP_R_LEG_Y)], tension=0.5)
-        lw = nib_widths(leg_p, CS * CAP_W / S, CS * CAP_W * 0.30 / S, CAP_CON,
-                        smooth=7, taper=False)
-        lf = widths([(i / (len(lw) - 1), S * v) for i, v in enumerate(lw)])
-        leg = stroke(leg_p, lambda t: lf(t) * (1.10 - 0.78 * t), cut1=CUT)
-        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), bowl, leg])
+        bp, bw = _R_traced(CAP_R_BOWL, x0, C)
+        lp, lw = _R_traced(_R_kick_sunk(CAP_R_LEG), x0, C)
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
+                         stroke(bp, bw), stroke(lp, lw, cut1=CUT)])
 
     # ---------------------------------------------------------------- P
     # POETICA'S P HAS A DEEP BOWL THAT DOES NOT CLOSE. Measured at a 300 px cap:
