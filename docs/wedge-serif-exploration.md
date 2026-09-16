@@ -5854,3 +5854,49 @@ a round capital, one ring and one stress. `ALBO_ALD_Q_REF` defaults to
 Three opus agents in three worktrees carry the rest: `i j e b y z` · the
 capital serifs and `R P S Z L K M A Q` · `Y O` (placed at the end of the file
 so the two capital passes merge clean). Judged and merged in the next entry.
+
+##### Round 135, merged — three branches, three gates green
+
+**Lowercase** (`024b640`): the **i j dot** doubled to Cancelleresca's disc
+(0.125 → 0.187 xh; the two letters had NOT been wearing the same dot despite
+the comment saying so — one `ij_dot` now). The **e** was not sunk, it was
+*oversize*: 1.10 xh of ink where every reference tops at 1.02–1.03; drawn in a
+band now, bottom at −0.015 like the o's; its angular terminal was an OFFSET
+FOLD (the inner offset folds twice at (w/2)/R 1.29 and 1.21), fixed by drawing
+the movement terminal-first so the unhealed end is buried in the crossing —
+scan IoU 0.66 → 0.70. The **b**'s middle stroke to Pagella (Pagella and
+Poetica agree within 5 units on every row; Flanker, which round 132 fitted
+it to, is the outlier by 119 units at .85). The **y** swoop to Cancelleresca:
+94% of the descent on 53% of the leftward travel, hairline held at 26. The
+**z** ribboned to Poetica, IoU 0.71 → **0.83**, the round's largest gain.
+
+**Capitals** (`c40b20a` + `368b072`): R P S Z L K M A to Poetica, Y O Q to
+Pagella. **The serif premise was half true**, measured before the dial moved:
+the re-cut stem blades were already the roman's reach (47 vs 46 at depth 12);
+what read unfinished is the *stem under them* — a roman cap stem has 14%
+entasis so its crown widens into the wedge, and `cstem_i`'s parallel stem
+makes the same blade a flap on a post. The genuinely micro pieces — the S's
+and G's beak lips, the U's small wedge — were 0.4 of the family unit and are
+0.8 now. The everything-doubled arm was built and looked at: 1.75× the roman's
+bracket, a heavier family; one env var away (`ALBO_ALD_CAP_SFULL=2`). The O
+carries a **15° inclined axis** and 2.24:1 where the sheared roman had an
+upright axis; Pagella's O and Albo's own roman O share w/h 0.943 to three
+places. The Y's left arm IS the stem, as Pagella's.
+
+**Three findings that outlive the round:**
+- **`cmp_aldine_shape.py` is not a valid instrument for a capital**: it scales
+  to one x-height, so a face's cap/x ratio arrives first (Poetica 1.29, Albo
+  1.54). Cap-aligned, the S reads 0.68 where the tool says 0.13. Both agents
+  found it independently.
+- **A capital dial shadowed a lowercase dial and silently redrew the s** to
+  137 units wide — a stem with two blobs. Build green, gates green; only
+  *Verso* reading *Verio* said so. Capital dials carry `CAP_` now and the
+  block asserts it rebound no earlier name; the same trap bit the Y agent
+  (`Y_W`), caught in its audit.
+- **`cut.Cutter`'s single phase counter** means a contour-count change in one
+  glyph re-phases every glyph after it; 247 of 469 differ per merge. Proven
+  cosmetic with `FJORD_CUT=0`, but no md5 gate is possible here.
+
+**Left, named:** K and M w/h gaps stay (Poetica's foot serifs, not Albo's to
+take); the capitals' spacing is the round-20 fitter still; the Y's foot serif
+is 22 units against Pagella's 67 and rides the shared dial.

@@ -34,7 +34,8 @@ PAGELLA = os.path.join(HERE, 'refs', 'texgyrepagella-italic.otf')
 # Owner 2026-09-16: "poetica is my preferred fallback" -- where no scan crop
 # exists, the shape to match is Poetica's. Flanker stays as the weight/colour
 # comparator (it is the face that matches the 1501 page's darkness).
-REF_FONTS = {'poetica': POETICA, 'flanker': FLANKER, 'pagella': PAGELLA}
+CANCELL = os.path.join(HERE, 'refs', 'cancelleresca-bastarda-beta12.otf')
+REF_FONTS = {'poetica': POETICA, 'flanker': FLANKER, 'pagella': PAGELLA, 'cancell': CANCELL}
 H = 360          # every mask is scaled so its ink is this tall
 PAD = 24
 
