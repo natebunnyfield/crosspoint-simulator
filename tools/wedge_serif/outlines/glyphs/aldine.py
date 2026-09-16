@@ -3750,6 +3750,15 @@ if ON:
     Q_AXIS = os.environ.get("ALBO_ALD_Q_AXIS", "nib").lower()   # 'bowl' = the pre-150 family profile
     Q_INK = float(os.environ.get("ALBO_ALD_Q_INK", 1.13))       # x the nib's widths
     Q_DROP = float(os.environ.get("ALBO_ALD_Q_DROP", 0.045))    # how far the ring bottoms BELOW the baseline, x C
+    # ROUND 156 -- THE TAIL IS SLIGHTLY THICK. Owner 2026-09-16, reported as a
+    # defect rather than a dial: *"slightly thick tail of Q"*. It reads that way
+    # for a reason the ring's own profile cannot see: the tail leaves the bowl
+    # in the SAME quarter round 154 had just balanced, so every unit on the tail
+    # is a unit in the heaviest part of the letter. Its peak sits at t 0.488
+    # where `prof` reaches 0.815 of the pen -- a swash that is four fifths of a
+    # full stroke at its middle, against Flanker's and Poetica's, which are both
+    # a clear hairline by their own midpoints.
+    Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 0.88))  # x the tail's whole profile
     # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
     # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
     # every quadrant is the same quadrant and the only thing that varies round
@@ -3869,7 +3878,8 @@ if ON:
                             (cx + rx * 1.08, -C * 0.03 + dy)], tension=0.5)
             prof = lambda t: 0.62 + 0.80 * t - 0.82 * t * t
         wt = pen_widths(tail, floor=S * FLOOR)
-        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t), cut1=CUT)])
+        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W,
+                                       cut1=CUT)])
 
     # ================================================ ROUND 135: NINE TO POETICA
     # Owner 2026-09-16: *"match R P S Z Q L K M A to poetica."* R P Z L K M came
