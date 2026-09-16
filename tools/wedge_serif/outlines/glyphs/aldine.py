@@ -490,7 +490,7 @@ if ON:
     # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
     # thin spike at the same height reads as a d however right the bowl is.
     A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.12)) # the head above the x-line, x xh
-    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
+    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.45))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
     A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 2.23))  # the bowl's left flank, x the stem
@@ -561,10 +561,15 @@ if ON:
                       (xs_ + lean * 0.5, top)], tension=0.5)
         parts[0] = stroke(sp, S)
         if A_HEAD:
-            L = S * A_HEAD; a = math.radians(HEAD_DEG)
-            dx, dy = math.cos(a) * L, math.sin(a) * L
-            parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
-                                 (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
+            # THE HEAD REACHES RIGHT (owner 2026-09-15: "the top right of a
+            # needs to go over to the right, not the left"). It had been
+            # hand-rolled here at 0.70 of its length LEFT of the stem and 0.34
+            # right -- the exact reverse of what the i was measured at on the
+            # macro, and the reverse of the shared `wedge_head` every other
+            # letter has used since round 118. The a simply never got moved
+            # over to the helper.
+            parts.append(wedge_head(xs_, top - S * 0.05,
+                                    length=A_HEAD, w=HEAD_W * A_HEAD_W))
         # THE ARM DIVES. The counter is bounded above by this entry and on the
         # right by the stem, so a shallow entry leaves the two running parallel
         # for most of the letter -- a sliver, whatever the widths do. A steep

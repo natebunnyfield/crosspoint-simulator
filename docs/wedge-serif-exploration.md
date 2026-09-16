@@ -5202,3 +5202,25 @@ things is not owned by one of them.**
 
 `A_FLANK` re-solved 2.03 → 2.23 for the bow's extra ink; counter/ink lands on
 **0.344 exactly**. The ledger passes on all three measured letters.
+
+### Round 126 — the `a`'s head reaches RIGHT
+
+Owner: *"the top right of 'a' needs to go over to the right, not the left."*
+
+It was hand-rolled in `a_a` at **0.70 of its length LEFT of the stem and 0.34
+right** — the exact reverse of what the `i` was measured at on the macro
+(x188–205 about a stem centred at 193: much further right than left), and the
+reverse of the shared `wedge_head` that every other letter has used since round
+118.
+
+**The `a` simply never got moved over to the helper.** `wedge_head` was written
+in round 118 while measuring the `i`, and the `a`'s head — written two rounds
+earlier — was left as its own copy with its own proportions, where it quietly
+contradicted the measurement for eight rounds. The `a` now calls the helper like
+everything else, and `A_HEAD` is 1.45.
+
+The lesson is the ordinary one about a second copy: the head exists in one place
+now, so the next correction to it lands on every letter that wears it rather
+than on whichever copy was noticed.
+
+Ledger unchanged and passing: `a` −1%, `e` +0%, `o` −3%.
