@@ -54,3 +54,44 @@ on a crop with a full-length exit; the owner then halved the tail, which
 legitimately narrows the letter to ~0.69. That target is marked retired with
 its reason rather than left to print a permanent false failure — which is how
 a ledger stops being read.
+
+
+## Autofit — measuring and solving a letter without hand-tuning
+
+`tools/wedge_serif/aldine_autofit.py`. Owner 2026-09-15: *"be automated for the
+remaining letters based on the scans and recent reference italics."*
+
+```bash
+cd tools/wedge_serif
+python3 aldine_autofit.py --letters aeiou --dry   # just report the targets
+python3 aldine_autofit.py --letters a             # measure, then solve its dials
+```
+
+Rounds 116–128 fitted five letters by hand and every one went the same way:
+measure the source, sweep a dial, re-measure, find a second dial had moved,
+sweep again. That loop is mechanical. Autofit runs it by coordinate descent —
+one dial at a time, repeatedly, **because the dials interact**, which is the
+single thing every hand-fitted letter proved.
+
+**Where a target comes from, in order.** A hand-located SCAN CROP if one is
+listed (automatic letter-finding was tried and failed repeatedly — template
+correlation matches every round bowl beside a stem — and a wrong crop silently
+poisons every number under it). Otherwise a REFERENCE ITALIC, and the letter is
+reported `[DERIVED]` so it cannot be mistaken for measured.
+
+**Validated against the one letter whose answer was already known.** Hand-fitted
+the `a` at flank 1.36, stem 2.81, bowl 1.20 over eight rounds; autofit reached
+**1.50 / 2.75 / 1.20 in two passes**, from the scan alone.
+
+### Two limits found while building it, both worth knowing
+
+- **The flank/stem pair is meaningless on a loop letter.** On `e o c s` the left
+  and right runs are two sides of the same curve, not two strokes, and fitting
+  to them drags the letter toward a shape it is not: the `e` solved at an error
+  of **0.277** against a "stem" that does not exist. `HAS_STEM` gates the
+  metric; the `e` then solves at **0.019**.
+- **Counter/ink is sensitive to the crop box.** Autofit reads the `o` at 0.591
+  where this ledger's hand crop gave 0.617 — the same letter, a few pixels of
+  margin apart. Targets from the two routes are therefore NOT interchangeable,
+  and the ledger keeps its own hand-measured numbers rather than adopting
+  autofit's.

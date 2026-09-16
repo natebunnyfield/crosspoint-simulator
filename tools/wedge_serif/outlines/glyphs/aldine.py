@@ -107,7 +107,36 @@ def nib(direction_deg, thick, thin, phi=50.0):
     return thin + (thick - thin) * abs(_m.sin(_m.radians(direction_deg - phi)))
 
 
-def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None):
+# A BRUSH LEAVES AND ARRIVES. Every stroke in the scans starts and ends
+# narrower than its body: the nib is not at full width the instant it touches
+# the paper, and it lifts before it stops. Albo's strokes were full width to a
+# flat cut at both ends, which is what makes a drawn letter look assembled
+# rather than written. TIP is the fraction of the body's width a stroke has at
+# its very ends, and TIP_RUN how much of the stroke's length it takes to get
+# there -- both small, because this is the pen's entry, not a taper.
+ALD_TIP = float(os.environ.get("ALBO_ALD_TIP", 0.62))
+ALD_TIP_RUN = float(os.environ.get("ALBO_ALD_TIP_RUN", 0.12))
+
+
+def _taper(n, tip=None, run=None, ends=(True, True)):
+    """A multiplier per sample: `tip` at the ends, 1.0 across the body."""
+    tip = ALD_TIP if tip is None else tip
+    run = ALD_TIP_RUN if run is None else run
+    if tip >= 1.0 or run <= 0: return [1.0] * n
+    out = []
+    for i in range(n):
+        t = i / max(1, n - 1)
+        m = 1.0
+        if ends[0] and t < run:
+            m = min(m, tip + (1 - tip) * (0.5 - 0.5 * math.cos(math.pi * t / run)))
+        if ends[1] and t > 1 - run:
+            u = (1 - t) / run
+            m = min(m, tip + (1 - tip) * (0.5 - 0.5 * math.cos(math.pi * u)))
+        out.append(m)
+    return out
+
+
+def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None, taper=True):
     """Widths along a path FROM THE NIB, sampled at every point.
 
     A five-stop list makes a five-sided counter: the inner offset of a stroke
@@ -129,6 +158,8 @@ def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None):
     if smooth:                      # a moving average: no step survives it
         ws = [sum(ws[max(0, i - smooth):i + smooth + 1]) /
               len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
+    if taper:
+        ws = [w * m for w, m in zip(ws, _taper(n))]
     return ws
 
 

@@ -5294,3 +5294,33 @@ ratio can be satisfied by infinitely many pairs. Measuring the STROKES
 separately is what turned "the letter looks wrong" into a number that moved.
 The ledger tracks line width per letter for exactly this reason, and this is
 the first round where it earned that column.
+
+## Round 129 — the brush's entry and exit, and autofit
+
+### Every stroke now leaves and arrives
+
+Owner: *"take another pass to match the brush strokes of the scan."* Every
+stroke in the scans starts and ends narrower than its body — the nib is not at
+full width the instant it touches the paper, and it lifts before it stops.
+Albo's Aldine strokes ran full width into a flat cut at both ends, **which is
+what makes a drawn letter look assembled rather than written.**
+
+`ALD_TIP` (0.62) is the fraction of the body's width a stroke carries at its
+ends and `ALD_TIP_RUN` (0.12) how much of its length it takes to get there —
+both small, because this is the pen's entry, not a taper. It applies to every
+letter through `nib_widths`, so it is one change to the module rather than
+twenty to the letters.
+
+### Autofit
+
+`aldine_autofit.py` — the full account is in `docs/albo-aldine-metrics.md`.
+Short version: it measures a letter's target from a scan crop (or a reference
+italic, marked DERIVED) and solves its dials by coordinate descent. **Validated
+by giving it the `a`, whose answer eight rounds of hand-fitting already knew:
+hand 1.36 / 2.81 / 1.20, autofit 1.50 / 2.75 / 1.20 in two passes.**
+
+Two limits found in the building, both recorded there: the flank/stem pair is
+meaningless on a loop letter (`e` solved at 0.277 error against a stem that
+does not exist; 0.019 once gated), and counter/ink is sensitive to the crop box
+by more than the tolerance, so autofit's targets and this ledger's hand-measured
+ones are not interchangeable.
