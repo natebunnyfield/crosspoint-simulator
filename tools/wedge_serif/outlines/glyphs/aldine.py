@@ -1308,7 +1308,9 @@ if ON:
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))               # squareness
     A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 434.0))    # tip, units from the left edge
     A_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TAIL_Y", 0.15))     # x xh
-    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 22.0))     # the head's reach right of the stem, units
+    # (the old right-reaching nib mark's dial lived here and was shadowed by
+    # the A_HEAD_R below from round 137 on -- the same name twice, the second
+    # winning silently. Removed; the head reaches LEFT and its dial is there.)
     # THE a IS A d WITH A SHORT ASCENDER (owner 2026-09-16, from the scan).
     # The Petrarch page and the owner's crop both carry the a's stem past the
     # x-line and finish it with the SAME head the b d p wear -- the wedge
