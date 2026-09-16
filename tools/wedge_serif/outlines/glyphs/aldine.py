@@ -597,11 +597,22 @@ if ON:
         drop = math.tan(math.radians(HM_TOPCUT)) * sw / 2
         return stroke([(xc, y0), (xc, y1 - drop)], sw, cut1=-math.radians(HM_TOPCUT))
 
-    def hm_head(c, xc, ytop):
+    def hm_head(c, xc, ytop, cap=0.0):
         """The entry stroke: up from the lower left, across the stem's top.
         Tapered at the tip -- Flanker's detached tip reads 34 units across a
         stroke running at 53 degrees, so 34*sin53 = 27 perpendicular -- and
-        bowed, so its underside is hollow the way the reference's is."""
+        bowed, so its underside is hollow the way the reference's is.
+
+        `cap` ROUNDS THE END the head stops on, x its own half width -- round
+        143, the m only (0.0 is the cut face h l b d k and the m drew before,
+        so those letters are byte-identical with the parameter absent). The
+        end face is where the m's FIRST top peaks: on the dense outline that
+        corner turns 71.5 degrees, the same knife-stop the two arch crowns
+        have, and it is the only one of the m's three tops that is not an
+        arch. It is rounded HERE rather than by laying a bead over the corner,
+        which was tried first and is the wrong tool: the corner is CONVEX and
+        its right flank falls at about 70 degrees, so every dome wide enough
+        to round the apex jutted out past the stem as a slab."""
         u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
         # the END is the CENTERLINE's end: a stroke this thick running at ~53
         # degrees puts its upper edge 0.30 of its width above the centerline,
@@ -611,8 +622,22 @@ if ON:
         end = (xc + HM_HEAD_R * sw, ytop - 0.30 * HM_HEAD_W * u)
         mid = ((tip[0] + end[0]) / 2, (tip[1] + end[1]) / 2 + HM_HEAD_BOW * xh)
         p = catmull([tip, mid, end], tension=0.5)
-        return stroke(p, widths([(0.0, HM_HEAD_T * u), (0.55, HM_HEAD_W * u),
+        body = stroke(p, widths([(0.0, HM_HEAD_T * u), (0.55, HM_HEAD_W * u),
                                  (1.0, HM_HEAD_W * 0.86 * u)]), cut0=CUT, cut1=CUT)
+        if cap <= 0.0:
+            return body
+        # AN ELLIPSE ON THE END FACE, not a disc. The face is `hw` half-wide,
+        # so a disc of any radius under hw pokes out of the middle of it as a
+        # LUMP instead of rounding it -- measured at cap 0.5, which drew a bead
+        # on the shoulder. Matching the ellipse's minor axis to hw and scaling
+        # only its major axis along the direction of travel makes the dial
+        # continuous: 0 is the cut face, 1 a true half-round.
+        hw = HM_HEAD_W * 0.86 * u / 2
+        ang = math.atan2(end[1] - mid[1], end[0] - mid[0])
+        return geom.union([body, geom.poly(superellipse(end[0], end[1],
+                                                        cap * hw, hw,
+                                                        0.0, 2 * math.pi, 2.0,
+                                                        rot=ang))])
 
     def hm_exit(c, xc):
         """The outstroke: down the stem, round the baseline, out RIGHT and UP
@@ -655,18 +680,95 @@ if ON:
     HM_ARCH_K = [(0.234, 0.575), (0.374, 0.694), (0.514, 0.796),
                  (0.654, 0.875), (0.800, 0.925)]
 
-    def hm_arch(c, x0, x1):
+    def hm_arch(c, x0, x1, drop=0.0, crown=0.0):
         """ONE movement: out of the stem low, up as a hairline, over the top,
-        down into the next stem. Not a shoulder turned near the top."""
+        down into the next stem. Not a shoulder turned near the top.
+
+        `drop`  LOWERS THE WHOLE SHOULDER by this much, x xh -- round 143, the
+                m only, and 0.0 is what h n r and both of the m's arches drew
+                to round 142. It is weighted in from 0.45 P and taken back to
+                0.45 of itself at the landing, so the climb and the junction
+                are left where they were and only the top of the arch moves.
+
+                IT IS NOT A DIAL ON HM_ARCH_TOP, and that is measured rather
+                than assumed: HM_ARCH_TOP is the CENTERLINE's height at 0.930
+                P, but the ink's top there is centerline + half the width, and
+                the width is ramping 2t -> sw across exactly that span -- so
+                the outline's crest sits at a different t and moving the
+                centerline knot alone transmits only about a SIXTH of itself.
+                Measured: a 0.020 xh cut to HM_ARCH_TOP for the right arch
+                moved its rendered apex 0.0034 xh, and reaching 0.020 that way
+                would need a knot below HM_ARCH_K's own last point (0.925),
+                which inverts the crest and makes the letter worse.
+        `crown` HAND-CUT ROUNDING on the crown, x xh -- round 143, the m only
+                (owner 2026-09-16, *"make all three slightly rounded by
+                handcuts"*). 0.0 is the turn every other letter in the family
+                draws, so h n r are byte-identical with the parameter absent.
+
+        WHY THE CROWN IS ANGULAR AT crown=0, measured on the dense outline
+        (`FJORD_CUT=0`, m, contour 0): the apex is TWO corners 26 units apart
+        -- (360.1, 412.8) turning 37.4 degrees and (339.5, 428.3) turning 49.6
+        -- with one flat facet between them. That is a knife stopping, not a
+        pen turning. It comes from the tail of the centerline, which crests at
+        0.930 P and then falls 0.155 xh in the remaining 0.070 P (a slope of
+        -4.7) while the width ramps 2t -> sw over the same run: the outer edge
+        folds, `_unfold` drops the folded points, and the crease is what is
+        left. Rounding it therefore means easing the TAIL, not adding a fillet
+        to the finished polygon -- crest a little earlier, come off the crest
+        in two steps rather than one, and start the width's climb to the stem
+        sooner so it is not doing all its growing inside the turn."""
         u = hm_u(c); xh = c["xh"]; P = x1 - x0; sw = HM_STEMW * u
+        tp = HM_ARCH_TOP
+
+        def lower(fx, fy):
+            """`drop`, weighted: nothing below 0.45 P, smoothstepped in to its
+            full value by 0.90, and held at 0.45 of itself at the landing so
+            the arch still finishes inside the next stem's top."""
+            if drop <= 0.0 or fx <= 0.45: return fy
+            if fx >= 1.0: return fy - drop * 0.45
+            t = min(1.0, (fx - 0.45) / 0.45)
+            return fy - drop * (t * t * (3 - 2 * t))
+
         # the landing runs BELOW the stem's own top (0.86 xh) so the arch's
         # blunt end face is buried inside it; ending them level left a hairline
         # white slit across the junction on the m's second and third stems.
-        K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.930, HM_ARCH_TOP), (1.0, 0.780)]
-        p = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
         t = HM_ARCH_T * u
-        return stroke(p, widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t),
-                                 (0.60, t * 1.30), (0.80, t * 2.00), (1.00, sw)]))
+        prof = [(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t),
+                (0.60, t * 1.30), (0.80, t * 2.00), (1.00, sw)]
+        if crown <= 0.0:
+            K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.930, tp), (1.0, 0.780)]
+        else:
+            # THE CREST, AS AN ARC RATHER THAN A VERTEX. Measured on the
+            # centerline itself: it runs (0.800 P, 0.925 xh) -> (0.930, tp) ->
+            # (1.000, 0.780), which in units at this pitch is a turn from +9.3
+            # degrees to -78.0 -- an 87-degree corner taken in 14 units. The
+            # width profile is NOT touched here; moving it was tried first
+            # (four arms, `prof` reaching sw by 0.86-0.92) and every one of
+            # them stepped the landing: the stroke arrived at the next stem
+            # already stem-wide and left a nick above the junction.
+            #
+            # Instead two knots are added, one each side of the apex, each
+            # pushed OUTWARD off the straight line it would otherwise sit on
+            # -- which is what turns a vertex into an arc. `crown` is the
+            # outward push in xh, so 0 is the vertex and larger is rounder.
+            # the crest's own geometry, swept once (five arms at crown 0,
+            # .015, .030, .050, .080 rendered at a 600 px x-height) and then
+            # fixed: the apex stays at 0.930 P, a knot goes 0.055 P before it
+            # and 0.040 P after, and the two are pushed out by 0.55 and 0.85 of
+            # `crown`. The asymmetry is the descent's -- the tail falls nearly
+            # five times as fast as the climb rises, so the knot on that side
+            # has to come further off its chord to turn the same amount.
+            fa, ga, gb = 0.930, 0.055, 0.040
+            wa, wb = 0.55, 0.85
+            fb = fa - ga; fc = fa + gb
+            # where each inserted knot would sit on the straight chords
+            yb = 0.925 + (fb - 0.800) / (fa - 0.800) * (tp - 0.925)
+            yc = tp + (fc - fa) / (1.0 - fa) * (0.780 - tp)
+            K = ([(0.0, HM_SPRING)] + HM_ARCH_K
+                 + [(fb, yb + crown * wa), (fa, tp), (fc, yc + crown * wb),
+                    (1.0, 0.780)])
+        p = catmull([(x0 + fx * P, lower(fx, fy) * xh) for fx, fy in K], tension=0.5)
+        return stroke(p, widths(prof))
 
     def ij_dot(c, xc):
         """THE DOT OF THE i AND THE j, drawn ONCE and called by both.
@@ -712,14 +814,143 @@ if ON:
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh), hm_arch(c, x0, x1),
                          hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1)])
 
+    # ------------------------------------------------ ROUND 143, THE m ALONE
+    # Owner 2026-09-16, verbatim: *"the arches of 'm' need to be slightly
+    # different. the right one can be slightly wider and shorter. and the
+    # middle brush stroke should be rounded and not reach the baseline. make
+    # all three slightly rounded by handcuts"*.
+    #
+    # WHICH THREE. An m has TWO arch SPANS and THREE tops along the x-line --
+    # the left stem under its head, then the two arches. "The right one" is
+    # the right span; "all three" is read as the three TOPS, so the first one
+    # is rounded too, at the head's end face (`hm_head(cap=)`) rather than at
+    # a crown. The sentence can also be read as the three BRUSH STROKES, in
+    # which case "all three slightly rounded" would mean the other two FEET as
+    # well; that reading is not taken, because the first foot is the letter's
+    # baseline junction and the third is already the outstroke's turn, and
+    # because rounding either was not asked for in the sentence that names the
+    # arches. It is worth a ruling if he meant the feet.
+    #
+    # EVERY DIAL HERE IS THE m's OWN. h n r u i l b d k are drawn by the same
+    # hm_* helpers and must not move: the three parameters added (`hm_arch`'s
+    # `drop` and `crown`, `hm_head`'s `cap`) all default to 0.0, which is
+    # exactly what those letters drew to round 142, and `m_midstem` is new and
+    # called from nowhere else. PROVEN, NOT ASSERTED -- two FJORD_CUT=0 builds
+    # diffed outline by outline (289 designed glyphs, 288 identical) and the
+    # two shipped TTFs diffed by glyf coordinates, hmtx and components (470
+    # glyphs, 469 identical). The m is the only thing in the font that moves.
+    #
+    # WHAT THE REFERENCES DO WITH AN m's TWO ARCHES, measured 2026-09-16 by
+    # rendering each face's m at a 600 px x-height, de-shearing on the stems'
+    # own fitted slant, and reading the stems off least-squares lines in the
+    # band 0.27-0.40 xh -- the only band where all three stems stand alone. A
+    # band reaching the baseline reads the outstroke as part of the third stem
+    # and reports the right arch 20% wider than it is, which is the first
+    # wrong answer this measurement gave.
+    #
+    #   face                    pitch R/L   apex R-L    crown R-L   counter R/L
+    #   Flanker Griffo Italic     1.0125    +0.0000     +0.0050       0.9991
+    #   Poetica Std               1.0085    +0.0000     -0.0033       1.0043
+    #   TeX Gyre Pagella Italic   1.0248    +0.0000     -0.0317       1.0141
+    #   Cancelleresca Bastarda    0.9850    +0.0000     +0.0000       0.9850
+    #   Albo, round 142           0.9998    +0.0000     +0.0017       1.0296
+    #
+    # APEX is the arch's own top; CROWN is how high the arch stands over the
+    # CENTRE of its counter. They are different questions and they give
+    # different answers, which is why both are here:
+    #
+    #   * ON HEIGHT, NOT ONE REFERENCE DIFFERENTIATES. All four top BOTH
+    #     arches at 0.9997-0.9999 xh -- dead on the x-line, zero difference to
+    #     the pixel. "Shorter" therefore has no period precedent at all and is
+    #     purely the owner's drawing decision.
+    #   * ON WIDTH AND ON THE SHOULDER OVER THE COUNTER, PAGELLA ALONE DOES:
+    #     right arch 2.5% wider, shoulder 0.032 xh lower. The other three are
+    #     within 1.5% and 0.005 xh, which is this measurement's own floor.
+    #     Albo was the flattest twin of the lot -- 0.02% and 1 px -- because
+    #     a_m called one `hm_arch` twice with the same numbers.
+    #
+    # So Pagella sets the CEILING on the width and "slightly" sets the value.
+    # Drawn: +2.000% on the pitch (exact, off the designed outline: the stem
+    # centres go 86.26 / 287.89 / 493.55, pitches 201.630 and 205.663) and a
+    # rendered apex 0.0183 xh lower on the right, against 0.0000 for every
+    # reference.
+    #
+    # AND NO REFERENCE LIFTS THE MIDDLE FOOT EITHER. Measured the same way,
+    # the m's three feet in all four sit level within 2 px at a 600 px
+    # x-height (mid-vs-left +0.000, +0.000, -0.003, +0.000 xh). The lift below
+    # is the owner's drawing decision too, so it was laddered on the PAGE at
+    # 27 px rather than fitted to anything: see M_MID_LIFT.
+    def _m(name, default):
+        return float(os.environ.get("ALBO_ALD_M_" + name, default))
+
+    # the RIGHT arch's pitch, x the left's. 1.020 = +2.0%, under Pagella's
+    # +2.5% and above the 1.5% floor the other three references sit inside.
+    # It widens the m's advance by 4 units of 634, which is +0.64%.
+    M_A2_W = _m("A2_W", 1.020)
+    # the RIGHT arch's shoulder, LOWERED by this much x xh. It transmits at
+    # about 0.63 to the rendered apex (laddered 0.020 / 0.025 / 0.029 / 0.031 /
+    # 0.035 / 0.045, giving -0.0117 / -0.0167 / -0.0183 / -0.0233 / -0.0283 /
+    # -0.0383 xh), so 0.029 is the value nearest a 0.020 xh drop that the
+    # raster can actually resolve -- it renders -0.0183, and its neighbour
+    # 0.030 jumps to -0.0233.
+    M_A2_DROP = _m("A2_DROP", 0.029)
+    # the hand cut on a crown, x xh. Laddered 0 / .015 / .030 / .050 / .080 at
+    # a 600 px x-height: .015 is still a vertex, .080 flattens the crest into
+    # a wide table, and .035 turns the corner over three facets, which is a
+    # knife rounding a corner in two or three cuts. It moves the apex 1 px in
+    # 600, so "slightly rounded" costs the arch no height.
+    M_CROWN = _m("CROWN", 0.035)
+    # the middle stem's foot, x xh above the baseline. NOT fitted -- no
+    # reference lifts it -- so it was laddered on the page: at 27 px the
+    # x-height is 11.6 px, so 0.030 xh is 0.35 px and invisible, 0.120 xh is
+    # 1.39 px and reads as a broken stem, and 0.060 xh is 0.70 px, which
+    # renders as a lightened foot rather than a gap. Rendered lift 0.0617 xh.
+    M_MID_LIFT = _m("MID_LIFT", 0.060)
+    # its rounding, x the stem's width (0.5 = a full half-round)
+    M_MID_FOOT = _m("MID_FOOT", 0.50)
+    # the FIRST top's round, x the head's half width. 0.30 is WORSE than 0
+    # (the hand cut decimates a shallow ellipse into a horn on the shoulder)
+    # and 1.00 is a bulb; 0.60 rounds the 71.5-degree corner and nothing else.
+    M_HEAD_CAP = _m("HEAD_CAP", 0.60)
+
+    def m_midstem(c, xc, lift, top):
+        """THE m's MIDDLE BRUSH STROKE -- owner 2026-09-16: *"the middle brush
+        stroke should be rounded and not reach the baseline"*. It is the only
+        one of the m's three verticals that is neither entered (the first
+        carries the head) nor left (the third carries the outstroke), so it is
+        the one a written hand lifts off early, and the only one whose foot is
+        a free end rather than a junction.
+
+        Two changes from `hm_stem`, and they belong together: the stroke stops
+        `lift` x xh ABOVE the baseline, and the foot it stops on is ROUND
+        instead of the square face a `stroke` ends in. A square face floating
+        clear of the line reads as a broken stem; the round one reads as a pen
+        lifting. The cap is a half-superellipse on the stem's own width, so
+        the foot is exactly as wide as the stroke and the build's shear turns
+        it into the leaning oval a slanted pen actually leaves."""
+        u = hm_u(c); sw = HM_STEMW * u
+        r = M_MID_FOOT * sw                  # the cap's depth below the shaft
+        y0 = lift + r
+        cap = geom.poly(superellipse(xc, y0, sw / 2, r, math.pi, 2 * math.pi, 2.0))
+        return [stroke([(xc, y0), (xc, top)], sw), cap]
+
     @glyph('m')
     def a_m(c):
-        """Three stems at one pitch -- the doc's "three stems at 70/70/70".
-        One head, on the first; one exit, on the last."""
-        xh = c["xh"]; x0 = S * 1.0; d = HM_PITCH * xh; x1 = x0 + d; x2 = x1 + d
-        return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh),
-                         hm_arch(c, x0, x1), hm_arch(c, x1, x2),
-                         hm_stem(c, x1, 0, xh * 0.86, cut=False),
+        """Three stems -- the doc's "three stems at 70/70/70" -- but since
+        round 143 NOT at one pitch and NOT under one arch drawn twice. The
+        right arch spans M_A2_W of the left's and its shoulder is M_A2_DROP
+        lower; all three tops are hand-cut, the two crowns by M_CROWN and the
+        first by the round on the head's end; and the middle brush stroke
+        lifts M_MID_LIFT clear of the baseline onto a round foot. The dial
+        block above says what each number was measured against -- including
+        that three of the four references draw the two arches as one arch, and
+        that none of the four lifts the middle foot at all."""
+        xh = c["xh"]; x0 = S * 1.0; d = HM_PITCH * xh
+        x1 = x0 + d; x2 = x1 + d * M_A2_W
+        return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh, cap=M_HEAD_CAP),
+                         hm_arch(c, x0, x1, crown=M_CROWN),
+                         hm_arch(c, x1, x2, drop=M_A2_DROP, crown=M_CROWN),
+                         *m_midstem(c, x1, M_MID_LIFT * xh, xh * 0.86),
                          hm_stem(c, x2, 0, xh * 0.86, cut=False),
                          hm_exit(c, x2)])
 
