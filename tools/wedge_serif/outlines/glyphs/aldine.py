@@ -1999,14 +1999,14 @@ if ON:
     # each control point on the resampled path rather than by guessing a t for
     # it: the six segments are nothing like equal in length, and a hand-written
     # t puts the spine's weight somewhere the spine is not.
-    S_W = float(os.environ.get("ALBO_ALD_S_W", 176.0))      # the letter's width, units
-    S_WT = float(os.environ.get("ALBO_ALD_S_WT", 0.90))     # scales every key
+    S_W = float(os.environ.get("ALBO_ALD_S_W", 183.0))      # the letter's width, units
+    S_WT = float(os.environ.get("ALBO_ALD_S_WT", 0.95))     # scales every key
     S_APEX = float(os.environ.get("ALBO_ALD_S_APEX", 0.46))   # the top arc's apex, x w
     S_TAIL_X = float(os.environ.get("ALBO_ALD_S_TAILX", 0.03))  # the bottom terminal, x w
     S_TAIL_Y = float(os.environ.get("ALBO_ALD_S_TAILY", 0.06))  # x xh
     S_HEAD_Y = float(os.environ.get("ALBO_ALD_S_HEADY", 0.86))  # the top terminal, x xh
     S_UL = float(os.environ.get("ALBO_ALD_S_UL", 0.22))       # the upper-left flank, x w
-    S_LR = float(os.environ.get("ALBO_ALD_S_LR", 0.91))       # the lower-right turn, x w
+    S_LR = float(os.environ.get("ALBO_ALD_S_LR", 0.87))       # the lower-right turn, x w
     # ROUNDED, like the c's -- both references end this stroke in a ball and a
     # `stroke` can only end in a flat or sheared face, which on a 60-unit
     # terminal reads as a cut corner.
@@ -2022,9 +2022,17 @@ if ON:
     # width has already fallen to the arc's hairline by the time the cap is
     # placed, and both terminals read as discs stuck on -- visible in the
     # overlay long before the number moved.
-    S_KEYS = [(0, 0.00, 62.0), (0, 0.32, 56.0), (0, 0.70, 26.0), (1, 0.00, 34.0),
-              (2, 0.00, 52.0), (2, 0.50, 75.0), (3, 0.00, 55.0), (3, 0.60, 30.0),
-              (4, 0.00, 34.0), (4, 0.60, 24.0), (4, 0.88, 50.0), (5, 0.00, 60.0)]
+    # ROUND 133, owner: "match the s to poetica so the word image reads
+    # better". Fitted key by key against the Poetica overlay -- IoU 0.724 ->
+    # 0.806, which is well past the ceiling two references reach against each
+    # other (0.22-0.46). What moved: the SPINE came down (75 -> 51 at its
+    # middle) and the LOWER ARC came up (24 -> 42, and 50 -> 74 into the
+    # bottom terminal), so the letter's weight sits lower and its diagonal is
+    # no longer the heaviest thing in it. That is the difference the word
+    # image was showing: a top-heavy s pulls the eye up out of the line.
+    S_KEYS = [(0, 0.00, 56.0), (0, 0.32, 56.0), (0, 0.70, 44.0), (1, 0.00, 22.0),
+              (2, 0.00, 52.0), (2, 0.50, 51.0), (3, 0.00, 61.0), (3, 0.60, 30.0),
+              (4, 0.00, 16.0), (4, 0.60, 42.0), (4, 0.88, 74.0), (5, 0.00, 60.0)]
     if os.environ.get("ALBO_ALD_S_KEYS"):   # "0:0:62|0:0.5:26|..." -- for the fitter
         S_KEYS = [tuple(float(v) for v in kv.split(":"))
                   for kv in os.environ["ALBO_ALD_S_KEYS"].split("|")]

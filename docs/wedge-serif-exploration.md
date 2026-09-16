@@ -5732,3 +5732,46 @@ across it* — and its bottom is flat and wide. Both are fixed. **Still off: the
 eye is an angular wedge where the scan's is round** (fill 0.55 against 0.63,
 widest at 0.45 against 0.55), and the whole letter is lighter than the print.
 That is drawing, not dials, and it is the next pass.
+
+##### The re-cut capitals get the family's serifs, and the s matches Poetica
+
+**The capitals.** Owner: *"some capitals need serifs as they are missing
+them."* The eight re-cut ones (A H N U V G S Q) ended in bare cut strokes
+beside eighteen roman-derived capitals wearing the family's bracketed wedge,
+and in *NAVE* or *Hugh* the two kinds sat side by side. Every serif is now
+matched to its roman counterpart, letter by letter; `cmp_cap_weight.py` stays
+green with no `FIT` re-solve.
+
+Three findings from that pass, each measured rather than assumed:
+
+- **The slant does not lengthen a serif.** Measured on Flanker at 1200 px,
+  column by column: the reach is ~113 px each side to within a few per cent,
+  and the same on a 117 px stem as on a 43 px one. What the slant costs is the
+  **bracket** — at the foot the left horn climbs 1.7× further up the stem than
+  the right, at the top 1.15×. That, and nothing else, is what the italic
+  serif carries.
+- **A served end does not also taper.** With the brush taper kept, the V's top
+  wedges are slivers on two points beside the untouched X's slabs.
+- **Two references were followed and then overruled.** Flanker and Poetica
+  give the H, N and U *two-sided* tops (four horns on an H) and the A
+  two-sided feet; following them would make the re-cut eight the odd ones out
+  in the other direction, beside the B D E I J L M T of this same font whose
+  tops are one-sided. Roman wins. And Flanker's G *looks* as if it finishes
+  its bar with a slab — cropped 3× it is nothing of the kind, the bar is an
+  even slab bracketed into the spur and simply blunt. The wedge was built,
+  looked at, and thrown away: it came out a trumpet.
+
+**Still open, and it is a real proposal:** the A's advance moved to 1.118 of
+its roman where the untouched eighteen sit at 0.96–0.99, because its own `FIT`
+width dial of 1.350 multiplies the new wedges along with everything else. H
+and N moved to 0.99–1.00 and that is the change earning itself; the A is the
+one letter visibly wider than its roman.
+
+**The s.** Owner: *"match the s to poetica so the word image reads better."*
+Fitted key by key against the overlay, **IoU 0.724 → 0.806** — past the
+ceiling two real references reach against each other (0.22–0.46). What moved
+is one thing said twice: the **spine came down** (75 → 51 at its middle) and
+the **lower arc came up** (24 → 42, and 50 → 74 into the bottom terminal). The
+letter's weight now sits low and its diagonal is no longer the heaviest thing
+in it — which is exactly what the word image was showing, because a top-heavy
+s pulls the eye up out of the line.
