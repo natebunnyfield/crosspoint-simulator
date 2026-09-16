@@ -13,7 +13,12 @@ The reference is the SCAN CROP where one exists (aldine_autofit.SOURCES; the
 1501 metal is the target) and Flanker Griffo Italic otherwise -- the closest
 digital face to the scans, supplied by the owner 2026-09-15.
 
-    python3 cmp_aldine_shape.py <Albo-Italic.ttf> a [b c ...] [--out DIR] [--ref flanker|scan]
+    python3 cmp_aldine_shape.py <Albo-Italic.ttf> a [b c ...] [--out DIR] [--ref scan|poetica|flanker|pagella]
+
+Font-against-font comparisons scale both faces to one X-HEIGHT and align on
+the BASELINE (so an ascender that is longer stays longer and counts against
+the match); a scan crop has no known baseline, so it is compared on the ink
+box instead.
 """
 import os, sys
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -24,8 +29,22 @@ sys.path.insert(0, HERE)
 import aldine_autofit as AF
 
 FLANKER = os.path.join(HERE, 'refs', 'flanker-griffo-italic.otf')
+POETICA = os.path.join(HERE, 'refs', 'poetica-std-regular.otf')
+PAGELLA = os.path.join(HERE, 'refs', 'texgyrepagella-italic.otf')
+# Owner 2026-09-16: "poetica is my preferred fallback" -- where no scan crop
+# exists, the shape to match is Poetica's. Flanker stays as the weight/colour
+# comparator (it is the face that matches the 1501 page's darkness).
+REF_FONTS = {'poetica': POETICA, 'flanker': FLANKER, 'pagella': PAGELLA}
 H = 360          # every mask is scaled so its ink is this tall
 PAD = 24
+
+
+def _xh_units(path):
+    from fontTools.ttLib import TTFont
+    from fontTools.pens.boundsPen import BoundsPen
+    f = TTFont(path); gs = f.getGlyphSet(); n = f.getBestCmap()[ord('x')]
+    bp = BoundsPen(gs); gs[n].draw(bp)
+    return bp.bounds[3] / f['head'].unitsPerEm
 
 
 def font_mask(path, ch, px=600):
@@ -34,6 +53,46 @@ def font_mask(path, ch, px=600):
     ImageDraw.Draw(im).text((px * 0.5, px * 0.6), ch, font=f, fill=0)
     a = np.asarray(im) < 128
     return a
+
+
+XH_PX = 240      # in x-height mode every font is scaled so its x-height is this
+
+
+def font_mask_xh(path, ch):
+    """Ink mask with the font scaled so its x-height is XH_PX and the
+    BASELINE at a known row -- so two fonts compare on the letter's own
+    proportion (an ascender that is longer stays longer) instead of on the
+    bounding box. Returns (mask, baseline_row)."""
+    px = int(round(XH_PX / _xh_units(path)))
+    f = ImageFont.truetype(path, px)
+    W = px * 4; Hh = px * 4; base = int(px * 2.4)
+    im = Image.new('L', (W, Hh), 255)
+    ImageDraw.Draw(im).text((px, base), ch, font=f, fill=0, anchor='ls')
+    return np.asarray(im) < 128, base
+
+
+def compare_xh(ref, rb, cand, cb):
+    """IoU of two baseline-aligned, x-height-scaled masks, aligned on their
+    left ink edge; canvas cropped to the union's bbox for the overlay."""
+    def shift(a, b):
+        ys, xs = np.where(a)
+        return a, xs.min(), b
+    ra, rl, _ = shift(ref, rb); ca, cl, _ = shift(cand, cb)
+    # translate candidate so its left edge and baseline meet the reference's
+    dx = rl - cl; dy = rb - cb
+    c = np.zeros_like(ra)
+    ys, xs = np.where(ca)
+    ys2 = ys + dy; xs2 = xs + dx
+    ok = (ys2 >= 0) & (ys2 < c.shape[0]) & (xs2 >= 0) & (xs2 < c.shape[1])
+    c[ys2[ok], xs2[ok]] = True
+    inter = (ra & c).sum(); union = (ra | c).sum()
+    iou = inter / union if union else 0.0
+    ys, xs = np.where(ra | c)
+    y0, y1, x0, x1 = ys.min() - PAD, ys.max() + PAD, xs.min() - PAD, xs.max() + PAD
+    r2, c2 = ra[y0:y1, x0:x1], c[y0:y1, x0:x1]
+    img = np.full(r2.shape, 255, np.uint8)
+    img[r2 & ~c2] = 200; img[c2 & ~r2] = 110; img[r2 & c2] = 0
+    return iou, Image.fromarray(img), r2, c2
 
 
 def scan_mask(ch):
@@ -88,19 +147,26 @@ def sheet(ch, albo_ttf, ref_kind):
         rm = scan_mask(ch)
         if rm is None: return None
         label = 'scan ' + AF.SOURCES[ch][3]
+        ref = norm(rm); cand = norm(font_mask(albo_ttf, ch))
+        iou, ov, rwh, cwh = compare(ref, cand)
     else:
-        rm = font_mask(FLANKER, ch); label = 'Flanker Griffo'
-    ref = norm(rm); cand = norm(font_mask(albo_ttf, ch))
-    iou, ov, rwh, cwh = compare(ref, cand)
+        rmask, rb = font_mask_xh(REF_FONTS[ref_kind], ch)
+        cmask, cb = font_mask_xh(albo_ttf, ch)
+        label = ref_kind
+        iou, ov, ref, cand = compare_xh(rmask, rb, cmask, cb)
+        def _wh(a):
+            ys, xs = np.where(a); return (xs.max() - xs.min() + 1) / max(1, ys.max() - ys.min() + 1)
+        rwh, cwh = _wh(ref), _wh(cand)
     # side-by-side: ref | albo | overlay
     cells = [Image.fromarray(((~ref) * 255).astype(np.uint8)),
              Image.fromarray(((~cand) * 255).astype(np.uint8)), ov]
     names = [label, 'Albo', 'overlay  IoU %.3f' % iou]
     W = sum(c.width for c in cells) + PAD * (len(cells) + 1)
-    out = Image.new('L', (W, H + PAD * 2 + 30), 255); d = ImageDraw.Draw(out)
+    Hc = max(c.height for c in cells)
+    out = Image.new('L', (W, Hc + PAD * 2 + 30), 255); d = ImageDraw.Draw(out)
     lab = ImageFont.load_default(16); x = PAD
     for c, n in zip(cells, names):
-        out.paste(c, (x, PAD)); d.text((x, H + PAD + 6), n, font=lab, fill=110)
+        out.paste(c, (x, PAD)); d.text((x, Hc + PAD + 6), n, font=lab, fill=110)
         x += c.width + PAD
     d.text((W - 200, 4), '%s   w/h ref %.2f  albo %.2f' % (ch, rwh, cwh), font=lab, fill=60)
     return iou, out, rwh, cwh
@@ -117,7 +183,7 @@ def main():
     ref_kind = sys.argv[sys.argv.index('--ref') + 1] if '--ref' in sys.argv else 'auto'
     os.makedirs(out, exist_ok=True)
     for ch in letters:
-        kinds = ['scan', 'flanker'] if ref_kind == 'auto' else [ref_kind]
+        kinds = ['scan', 'poetica', 'flanker'] if ref_kind == 'auto' else [ref_kind]
         for k in kinds:
             r = sheet(ch, ttf, k)
             if r is None: continue

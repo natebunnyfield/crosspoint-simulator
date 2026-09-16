@@ -627,146 +627,102 @@ if ON:
         # letter's left side.
         return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT, pieces=True)])
 
-    # MEASURED off aldine.png, row by row, on two separate a's -- the one in
-    # "resonaram" at x223-234 and the one at x326-338. Both give the same
-    # letter and it is not the one drawn before this: the bowl's top joins the
-    # stem AT the x-line in a tight arc (not a long diagonal arm reaching down
-    # from a tall stem), the counter is a SMALL rounded triangle pointing up,
-    # and -- the part that makes it an a rather than a d -- the bowl's bottom
-    # rejoins the stem about a fifth of the way UP, leaving a notch above the
-    # foot. Every earlier cut ran it into the stem at the baseline, which is a
-    # d, which is what the ladders kept rendering.
-    A_W = float(os.environ.get("ALBO_ALD_A_W", 1.00))       # letter width, x xh (12/12 measured)
-    A_STEM = float(os.environ.get("ALBO_ALD_A_STEM", 0.67)) # the stem's center, x the width
-    # The rise is the whole a/d question. The scan puts 2-3 px of ink above a
-    # 13 px x-line -- but as a BLUNT wedge jutting right, not a spike, and a
-    # thin spike at the same height reads as a d however right the bowl is.
-    A_RISE = float(os.environ.get("ALBO_ALD_A_RISE", 0.12)) # the head above the x-line, x xh
-    A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.45))
-    A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
-    A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.36))  # the bowl's left flank, x the stem
-    # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
-    # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
-    # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
-    # bowl and kicks it right along the baseline; the scan does the same. The
-    # ordinary FOOT_LEN is the arch letters' blunt outstroke and is too short
-    # to read as that exit.
-    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 1.65))  # the exit's length, x the stem
-    A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
-    # THE BOWL'S SIZE, against the owner's target crop (2026-09-15). Measured
-    # on it: lean 13.7 deg over 16 clean stem rows, pen angle 50 deg (the same
-    # axis the o gave), w/h 0.891 and **counter/ink 0.344**. The proportion was
-    # already right at 0.920; the counter was not, at 0.652 -- nearly twice the
-    # target. As with the e, the lever is the bowl's GEOMETRY and not its
-    # weight: thickening to close a counter moves the page's colour to fix a
-    # ratio. A_BOWL scales the bowl's path about its own centroid.
-    # A_BOWL back to 1.00. Squeezing the bowl toward the stem was the wrong way
-    # to close the counter: it ran the bowl's inner edge PARALLEL to the stem
-    # for most of its length, which is a sliver, and no amount of smoothing the
-    # width profile fixes a counter whose two sides are parallel. The area
-    # comes from the bowl's WEIGHT instead, and the counter stays round --
-    # measured, the same counter/ink at 26% more inscribed radius.
-    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 1.20))
-    # THE TOP RIGHT CARRIES A THICK TOO (owner 2026-09-15). It is not a taste
-    # call -- it is what the measured 50 degree pen MUST do. A nib at 50 is
-    # fullest on the 50/230 axis, so the upper-right and the lower-left are
-    # both thick and the upper-left and lower-right are both thin. The bowl
-    # had its thick only at the bottom left, which is half a pen.
-    A_TOPR = float(os.environ.get("ALBO_ALD_A_TOPR", 1.55))   # the bowl where it leaves the stem
-    # Where the arm STARTS. Springing it from the stem's top corner
-    # (A_STEM-0.01, 1.00) makes the counter's ceiling and the stem's left edge
-    # meet at an acute angle, and that sharp apex is what reads as ungraceful
-    # however round the rest of the counter is. Starting it to the RIGHT of the
-    # stem's centre and a little below the top makes the arm CROSS the stem, so
-    # the junction is blunt and the counter's top is a curve.
-    # THE RIGHT-SIDE STROKE IS CURVED, CONCAVE, AND LEANS RIGHT (owner
-    # 2026-09-15). It was a straight line, and a straight stem gives the
-    # counter a straight right edge -- which is half of why the counter has
-    # never looked like a curve however the bowl was tuned. Bowing the stem's
-    # middle to the RIGHT makes its left flank concave, so the counter's right
-    # boundary curves away from it instead of walling it off.
-    # THE BOW IS INWARD (owner 2026-09-15: "right side stroke needs to bow
-    # inward, not outward"). Round 125 pushed the stem's middle RIGHT, away
-    # from the letter -- concave on the counter's side. It is the other way:
-    # the middle pulls LEFT, into the letter, so the stem's OUTER edge is the
-    # concave one. Negative values bow inward.
-    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", -0.85))  # the mid bows INWARD, x S
-    A_STEM_LEAN = float(os.environ.get("ALBO_ALD_A_LEAN", 0.10)) # extra lean, x xh, on top of the shear
-    # The curved stem gets the NIB and arm C too. Round 125 drew it at a
-    # constant width -- which a straight stem can get away with, because a
-    # straight stroke has one direction and so one nib width all the way down.
-    # A CURVED one cannot: its direction changes, so a constant width is a
-    # monoline curve sitting in a letter whose every other stroke is on the
-    # pen. That is what "needs C level contrast" was pointing at.
-    # Thickness MEASURED off the owner's target, not judged: its stem runs a
-    # median 25 px on a 114 px x-height -- 0.219 x xh, or **1.12 x Albo's S**,
-    # with a thickest of 1.70 x. A_STEM_W is the nib's THICK, and the nib then
-    # takes most of it back on a near-vertical stroke, so the dial sits well
-    # above the width it produces: 2.81 here renders a median of 1.12.
-    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 2.81))   # the nib's thick, x S
-    A_CROSS = float(os.environ.get("ALBO_ALD_A_CROSS", 0.08))   # x past the stem's centre
-    A_TOP_Y = float(os.environ.get("ALBO_ALD_A_TOP_Y", 0.92))   # and how far below the top
-    A_ARM_X = float(os.environ.get("ALBO_ALD_A_ARM_X", 0.34))  # how far left the arm dives
-    A_ARM_Y = float(os.environ.get("ALBO_ALD_A_ARM_Y", 0.78))  # and how steeply
+    # ------------------------------------------------------------ THE a, round 132
+    # DRAWN AGAINST THE REFERENCE, NOT TUNED. Owner 2026-09-15: "examine a
+    # then each subsequent letter, take multiple passes at each until the
+    # shape and strokes and serifs match what they should based on a
+    # referenced vector or bitmap." The reference is Flanker Griffo Italic
+    # (refs/, his 2026-09-15 upload; the closest digital face to the 1501
+    # scans) measured UNSHEARED in Albo's design units by aldine_targets.py --
+    # docs/albo-aldine-targets.md, section 1 -- and the owner's scan crop of
+    # the a, which agrees on every point below. Every earlier a-dial (rise,
+    # head, bow, teardrop counter, arm dive) is retired by this: they were
+    # tuning a construction the reference does not have.
+    #
+    # WHAT THE NUMBERS SAY (x from the letter's left ink edge, xh = 429):
+    #   the letter is SQUARE: 437 x 438, the bowl filling the x-height (-9..429)
+    #   the stem is 70 wide (0.83 S) at x 282-352, straight, top at ~0.95 xh
+    #   the bowl is a RING: left extreme x=0 at ~0.45 xh, top at x~205, bottom
+    #     at x~140 -- an egg skewed right; it merges into the stem at the top
+    #     and rises into it at ~0.25 xh (a 14-unit gap at .25, merged by .50)
+    #   the ring's width by position: left flank 70, lower-left 78, bottom 58,
+    #     the rise into the stem 34, top 28, upper-left 52
+    #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
+    # Everything is written as a fraction of xh or S, so it rides the axes.
+    A_UNIT = 429.0
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 317.0))   # stem centre, units
+    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 70.0))     # units
+    A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
+    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
+    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl centre height, units
+    A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))         # the egg's lean, dx per dy
+    A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))               # squareness
+    A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 434.0))    # tip, units from the left edge
+    A_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TAIL_Y", 0.15))     # x xh
+    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 22.0))     # the head's reach right of the stem, units
+    # ring widths keyed by angle (degrees ccw from the right), in units
+    A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
+    if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
+        A_RING = [(float(a), float(w)) for a, w in
+                  (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
+
+    def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4):
+        """A bowl whose OUTER is the designed superellipse (optionally skewed
+        into an egg) and whose stroke width is read off a table keyed by the
+        angle round the ring -- the width the reference shows at each side,
+        not a pen model's guess. `keys` are (degrees, units); interpolation
+        is periodic and smooth."""
+        k = BOWL_K if k is None else k
+        outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
+        if skew:
+            outer = [(x + (y - cy) * skew, y) for x, y in outer]
+        # replicate ring_from's resampling so the widths line up with its points
+        pts = geom.resample(outer + [outer[0]])[:-1]; n = len(pts)
+        ks = sorted((math.radians(d) % (2 * math.pi), w) for d, w in keys)
+        def wat(ang):
+            ang %= 2 * math.pi
+            for (a0, w0), (a1, w1) in zip(ks, ks[1:] + [(ks[0][0] + 2 * math.pi, ks[0][1])]):
+                if a0 <= ang <= a1 or (a1 > 2 * math.pi and ang < a1 - 2 * math.pi):
+                    if a1 > 2 * math.pi and ang < a0: ang += 2 * math.pi
+                    u = (ang - a0) / (a1 - a0) if a1 > a0 else 0.0
+                    u = 0.5 - 0.5 * math.cos(math.pi * u)
+                    return w0 + (w1 - w0) * u
+            return ks[0][1]
+        ws = []
+        for x, y in pts:
+            ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
+            ws.append(wat(ang) * unit)
+        return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
+                            smooth_w=smooth_w)[0]
 
     @glyph('a')
     def a_a(c):
-        """One stem with an angled head, and one bowl stroke that leaves the
-        stem at the x-line, swings left and down, round the bottom, and comes
-        back UP to the stem a fifth of the way above the baseline."""
-        xh = c["xh"]; W = A_W * xh
-        X = lambda f: S * 0.55 + f * W
-        Y = lambda f: f * xh
-        xs_ = X(A_STEM)
-        top = xh + A_RISE * xh
-        parts = list(st(xs_, 0, top, head=False, foot=True, foot_len=A_TAIL, foot_w=A_TAIL_W))
-        # replace st()'s straight stem with a curved, concave, right-leaning one
-        lean = A_STEM_LEAN * xh
-        sp = catmull([(xs_ - lean * 0.5, 0),
-                      (xs_ - lean * 0.5 + S * A_STEM_BOW * 0.72, top * 0.30),
-                      (xs_ + S * A_STEM_BOW, top * 0.55),
-                      (xs_ + lean * 0.5 + S * A_STEM_BOW * 0.55, top * 0.82),
-                      (xs_ + lean * 0.5, top)], tension=0.5)
-        sw = nib_widths(sp, A_STEM_W, A_STEM_W * 0.30, CON_A, smooth=9)
-        parts[0] = stroke(sp, widths([(i / (len(sw) - 1), S * w_)
-                                      for i, w_ in enumerate(sw)]))
-        if A_HEAD:
-            # THE HEAD REACHES RIGHT (owner 2026-09-15: "the top right of a
-            # needs to go over to the right, not the left"). It had been
-            # hand-rolled here at 0.70 of its length LEFT of the stem and 0.34
-            # right -- the exact reverse of what the i was measured at on the
-            # macro, and the reverse of the shared `wedge_head` every other
-            # letter has used since round 118. The a simply never got moved
-            # over to the helper.
-            parts.append(wedge_head(xs_, top - S * 0.05,
-                                    length=A_HEAD, w=HEAD_W * A_HEAD_W))
-        # THE ARM DIVES. The counter is bounded above by this entry and on the
-        # right by the stem, so a shallow entry leaves the two running parallel
-        # for most of the letter -- a sliver, whatever the widths do. A steep
-        # dive gives the counter a diagonal ceiling and compacts it.
-        BP = [(A_STEM + A_CROSS, A_TOP_Y), (A_ARM_X, A_ARM_Y), (0.20, 0.66),
-              (0.11, 0.44), (0.12, 0.24), (0.26, 0.06),
-              (0.46, 0.09), (A_STEM - 0.09, A_JOIN)]
-        # Narrow the bowl TOWARD THE STEM, leaving its two ends where they
-        # are: they sit ON the stem, and a first version scaled every point
-        # about the bowl's centroid, which walked those ends inward and SEALED
-        # the counter -- counter/ink went to 0.000 at the first step down.
-        BP = [(A_STEM + (fx - A_STEM) * A_BOWL, fy) for fx, fy in BP]
-        p_ = catmull([(X(fx), Y(fy)) for fx, fy in BP], tension=0.5)
-        # Weight read off the same rows: thin where the arc leaves the stem,
-        # the flank at three quarters of the stem, the bottom heaviest.
-        # The bowl's width comes from the nib at every sample, not from five
-        # stops -- a stepped profile offsets into a five-sided counter, and
-        # this counter is narrow enough to show every flat. The top-right
-        # boost the owner approved rides on top as a smooth cosine ramp, so it
-        # adds weight without adding a corner.
-        def _boost(t):
-            return 1.0 + (A_TOPR - 1.0) * (0.5 + 0.5 * math.cos(math.pi * min(1.0, t / 0.34)))
-        aw = nib_widths(p_, A_FLANK, A_FLANK * 0.33, CON_A, smooth=11, boost=_boost)
-        parts.append(stroke(p_, widths([(i / (len(aw) - 1), S * w_)
-                                        for i, w_ in enumerate(aw)]), cut0=CUT))
-        return geom.ink(parts)
+        """The Aldine single-storey a: a ring filling the x-height, a straight
+        stem the height of the x-line, and a short thick tail along the
+        baseline. See the block above for where every number comes from."""
+        xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
+        xs = x0 + A_STEM_X * u; sw = A_STEM_W * u
+        # the stem: straight, its top cut on the pen's angle. The owner's scan
+        # crop and the Petrarch page both put a small blunt HEAD on the
+        # stem's top right -- the nib set down and pushed right before the
+        # downstroke -- so the top face reaches a little past the stem on
+        # that side and slopes down to the left. Flanker has the same corner,
+        # smaller; the scan is the target.
+        stem = stroke([(xs, S * 0.10), (xs, xh * A_STEM_TOP)], sw, cut1=CUT)
+        hr = A_HEAD_R * u
+        head = geom.poly([(xs - sw / 2, xh * A_STEM_TOP - 26 * u), (xs + sw / 2 + hr, xh * A_STEM_TOP + 4 * u),
+                          (xs + sw / 2 + hr * 0.7, xh * A_STEM_TOP + 12 * u), (xs - sw / 2 + 10 * u, xh * A_STEM_TOP - 8 * u)])
+        # the bowl
+        ry = (xh + OVER * 0.6) / 2.0 + 0.0
+        bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
+                           k=A_K, skew=A_SKEW, unit=u)
+        # the tail: down the stem, out along the baseline, lifting to a point
+        tip = (x0 + A_TAIL_X * u, xh * A_TAIL_Y)
+        tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
+                      (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
+        tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
+                      cut1=CUT)
+        return geom.ink([bowl_, stem, head, tail])
 
     @glyph('b')
     def a_b(c):
