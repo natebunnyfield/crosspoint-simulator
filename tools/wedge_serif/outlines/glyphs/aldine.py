@@ -493,7 +493,7 @@ if ON:
     A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 2.03))  # the bowl's left flank, x the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 2.23))  # the bowl's left flank, x the stem
     # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
     # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
     # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
@@ -528,6 +528,14 @@ if ON:
     # however round the rest of the counter is. Starting it to the RIGHT of the
     # stem's centre and a little below the top makes the arm CROSS the stem, so
     # the junction is blunt and the counter's top is a curve.
+    # THE RIGHT-SIDE STROKE IS CURVED, CONCAVE, AND LEANS RIGHT (owner
+    # 2026-09-15). It was a straight line, and a straight stem gives the
+    # counter a straight right edge -- which is half of why the counter has
+    # never looked like a curve however the bowl was tuned. Bowing the stem's
+    # middle to the RIGHT makes its left flank concave, so the counter's right
+    # boundary curves away from it instead of walling it off.
+    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", 0.70))   # the mid bows right, x S
+    A_STEM_LEAN = float(os.environ.get("ALBO_ALD_A_LEAN", 0.10)) # extra lean, x xh, on top of the shear
     A_CROSS = float(os.environ.get("ALBO_ALD_A_CROSS", 0.08))   # x past the stem's centre
     A_TOP_Y = float(os.environ.get("ALBO_ALD_A_TOP_Y", 0.92))   # and how far below the top
     A_ARM_X = float(os.environ.get("ALBO_ALD_A_ARM_X", 0.34))  # how far left the arm dives
@@ -544,6 +552,14 @@ if ON:
         xs_ = X(A_STEM)
         top = xh + A_RISE * xh
         parts = list(st(xs_, 0, top, head=False, foot=True, foot_len=A_TAIL, foot_w=A_TAIL_W))
+        # replace st()'s straight stem with a curved, concave, right-leaning one
+        lean = A_STEM_LEAN * xh
+        sp = catmull([(xs_ - lean * 0.5, 0),
+                      (xs_ - lean * 0.5 + S * A_STEM_BOW * 0.72, top * 0.30),
+                      (xs_ + S * A_STEM_BOW, top * 0.55),
+                      (xs_ + lean * 0.5 + S * A_STEM_BOW * 0.55, top * 0.82),
+                      (xs_ + lean * 0.5, top)], tension=0.5)
+        parts[0] = stroke(sp, S)
         if A_HEAD:
             L = S * A_HEAD; a = math.radians(HEAD_DEG)
             dx, dy = math.cos(a) * L, math.sin(a) * L

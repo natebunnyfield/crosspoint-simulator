@@ -5179,3 +5179,26 @@ Two things stand for next time:
   finding still applies to it: it cannot come from the width dials, because a
   derived counter has no curvature of its own. It would need the bowl's
   centreline reshaped, not its widths.
+
+### Round 125 — the `a`'s right-side stroke: curved, concave, leaning right
+
+Owner: *"the 'a' rightside stroke needs to be curved, concave and leaning to
+the right."*
+
+The stem was a straight line. It is now a catmull that bows its middle to the
+RIGHT by `A_STEM_BOW` 0.70 × S, with `A_STEM_LEAN` 0.10 × xh of lean on top of
+the build's shear.
+
+**And it did the counter work that four rounds of bowl dials could not.** A
+straight stem gives the counter a straight right edge — that is half of why the
+counter never read as a curve however the bowl was tuned. Bowing the stem's
+middle right makes its left flank concave, so the counter's right boundary
+curves AWAY from the counter instead of walling it off, and the counter reads
+as a teardrop with its tail at the top.
+
+Worth saying plainly: rounds 121–124 attacked the counter from the bowl, and
+the counter's other side was the stem the whole time. **A shape bounded by two
+things is not owned by one of them.**
+
+`A_FLANK` re-solved 2.03 → 2.23 for the bow's extra ink; counter/ink lands on
+**0.344 exactly**. The ledger passes on all three measured letters.
