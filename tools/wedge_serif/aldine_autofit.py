@@ -85,7 +85,25 @@ DIALS = {
     'e': [('ALBO_ALD_E_THICK', 0.6, 2.0), ('ALBO_ALD_E_W', 0.5, 0.9)],
     'o': [('ALBO_ALD_O_THICK', 1.0, 2.6), ('ALBO_ALD_O_W', 0.6, 0.95)],
 }
-def dials_for(ch):
+def dials_for(ch, target=None):
+    """A letter's dials -- and the WEIGHT one is offered only when something
+    in the target actually constrains ink.
+
+    w/h cannot constrain weight: a letter can double its stroke and barely move
+    its bounding box, so the solver walks the weight dial to a rail for free.
+    That is exactly what happened to G H N U, whose only reference target is
+    w/h -- all four solved at the 2.10 rail and rendered as black blobs. A dial
+    nothing pushes back on is not a dial, it is a leak.
+    """
+    if ch in DIALS: return DIALS[ch]
+    constrains_ink = bool(target and target.get('counter'))
+    d = [(f'ALBO_ALD_WD_{ch}', 0.60, 1.60)]
+    if constrains_ink:
+        d.insert(0, (f'ALBO_ALD_LW_{ch}', 0.55, 2.10))
+    return d
+
+
+def _dials_for_legacy(ch):
     """A letter's dials. Anything without hand-written ones gets the shared
     per-letter weight, which every glyph honours through `_lw()` -- so a letter
     nobody has tuned is still reachable by the fitter."""
@@ -214,7 +232,7 @@ def solve(ch, target, rounds=3, samples=5, verbose=True):
     """Coordinate descent over the letter's dials. Each pass walks one dial at
     a time, because the dials INTERACT -- every hand-fitted letter in rounds
     121-128 needed a second dial re-solved after the first moved."""
-    dials = dials_for(ch)
+    dials = dials_for(ch, target)
     cur = {}
     tmp = tempfile.mkdtemp(prefix=f'autofit-{ch}-')
     for name, lo, hi in dials: cur[name] = (lo + hi) / 2

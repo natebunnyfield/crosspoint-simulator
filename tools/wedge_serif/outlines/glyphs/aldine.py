@@ -51,6 +51,24 @@ FIT = {            # ch: (weight, width)
     'p': (0.550, 0.725),
     'r': (0.938, 1.100),
     's': (1.325, 1.100),
+    # the eight re-cut capitals, fitted against Pagella Italic -- DERIVED, not
+    # measured: the macro carries only an A and a B, and the Dante's lines
+    # would not segment. They are the reference half of the brief, and the
+    # ledger says so rather than letting them pass as scan-measured.
+    # WIDTHS are kept from the fit; WEIGHTS are not, except where the target
+    # actually constrained ink. G H N U all solved at the weight dial's 2.10
+    # rail and rendered as black blobs, because their only reference target is
+    # w/h and a letter can double its stroke without moving its bounding box.
+    # The fitter no longer offers a weight dial to a letter nothing holds it
+    # against; these four sit at the measured CAP_W instead.
+    'A': (1.325, 1.350),    # counter target: weight is real
+    'Q': (1.325, 1.225),    # counter target: weight is real
+    'V': (1.713, 1.350),
+    'S': (1.000, 0.975),
+    'N': (1.000, 1.100),
+    'H': (1.000, 1.100),
+    'G': (1.000, 1.100),
+    'U': (1.000, 1.225),
 }
 
 
@@ -96,7 +114,7 @@ from .. import geom, pen
 from ..geom import cubic, line, catmull, superellipse
 from ..primitives import stroke, pen_widths, widths, ring
 from .. import primitives as PR
-from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, CUT, BOWL_K
+from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, CUT, BOWL_K, CS
 
 # WHICH ITALIC. Two complete italic lowercases now exist and BOTH are kept
 # (owner 2026-09-15: "be sure to make an alternative of the prior italic, then
@@ -196,6 +214,20 @@ def _taper(n, tip=None, run=None, ends=(True, True)):
             m = min(m, tip + (1 - tip) * (0.5 - 0.5 * math.cos(math.pi * u)))
         out.append(m)
     return out
+
+
+def nib_widths_closed(pts, thick, thin, target=None, phi=50.0):
+    """Nib widths round a CLOSED contour -- the tangent wraps, so there is no
+    seam where the first and last samples meet, and no taper either: a closed
+    curve has no ends to leave from."""
+    n = len(pts); out = []
+    for i in range(n):
+        a_ = pts[(i - 1) % n]; b_ = pts[(i + 1) % n]
+        out.append(nib(math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0])),
+                       thick, thin, phi))
+    out = con(out, target)
+    lw = _lw()
+    return [w * lw for w in out]
 
 
 def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None, taper=True):
@@ -857,6 +889,142 @@ if ON:
         arm = _diag((x0 + r, xh), (x0 + S * 0.16, xh * 0.42), 0.40, 0.64)
         leg = _diag((x0 + S * 0.22, xh * 0.46), (x0 + r * 0.98, 0), 0.62, 0.86)
         return geom.ink(st(x0, 0, c["asc"], head=True) + [arm, leg])
+
+
+    # ------------------------------------------------------------------ CAPS
+    # THE EIGHT THAT A REAL ITALIC RE-CUTS.
+    #
+    # docs/albo-italic-capitals.md measured 17 roman/italic pairs and ranked
+    # every capital by how far its italic departs from a sheared roman
+    # (round 104's IoU test). Eighteen of the twenty-six want nothing but the
+    # 5% narrowing, which build.py now applies to all of them. These eight are
+    # the ones the measurement says are genuinely DRAWN AGAIN:
+    #
+    #     N 0.439   H 0.475   Q 0.552   G 0.577
+    #     V 0.590   A 0.591   S 0.597   U 0.618
+    #
+    # (For scale: a pure oblique scores 1.00 and real italic LOWERCASE scores
+    # 0.31-0.43. So these sit between -- re-cut, but nothing like as far as the
+    # lowercase goes.)
+    #
+    # They are built on the same nib, the same brush entry and the same bowed
+    # stem as the lowercase, because the point of re-cutting a capital for an
+    # italic is that it should look written by the hand beside it. Their widths
+    # are solved by aldine_autofit against the reference italics, the same way
+    # every lowercase letter was.
+    CAP_BOW = float(os.environ.get("ALBO_ALD_CAP_BOW", -0.45))   # inward, as the a's
+    # 2.00, MEASURED against the capitals this module does NOT redraw. CAP_W
+    # is the NIB's thick and the nib takes most of it back on a near-vertical
+    # stem, so the dial sits well above the width it produces: at 1.10 the H's
+    # stem rendered 11 px against the untouched I and L at 22 -- half the
+    # weight, and eight hairline capitals in an otherwise solid alphabet. The
+    # same trap as the a's stem in round 127, and the same cure: measure the
+    # rendered stroke, not the dial.
+    CAP_W = float(os.environ.get("ALBO_ALD_CAP_W", 2.00))        # the nib's thick, x CS
+    # A SEPARATE WEIGHT FOR THE ROUND CAPITALS. CAP_W was solved on a
+    # near-vertical STEM, where the nib gives back only a fraction of its thick
+    # -- 2.00 renders 22 px there. A curve turns through every direction, so it
+    # takes the nib's FULL thick somewhere, and 2.00 on the G's bowl is twice
+    # the cap stem: the letter filled solid. One dial cannot serve strokes of
+    # different directions, which is the same thing the a's stem taught in
+    # round 127 arriving from the other side.
+    CAP_W_ROUND = float(os.environ.get("ALBO_ALD_CAP_WR", 1.05))  # x CS, for G Q S U
+
+    def cstem_i(x, y0, y1, bow=None, w=None):
+        """A capital's stem, bowed inward and drawn on the nib -- the italic
+        stem of round 127 at cap height."""
+        bow = CAP_BOW if bow is None else bow
+        w = CAP_W if w is None else w
+        p_ = catmull([(x, y0), (x + S * bow * 0.72, y0 + (y1 - y0) * 0.30),
+                      (x + S * bow, y0 + (y1 - y0) * 0.55),
+                      (x + S * bow * 0.55, y0 + (y1 - y0) * 0.82), (x, y1)],
+                     tension=0.5)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CON_O)
+        return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]))
+
+    def cdiag(a, b, w=None):
+        """A capital's diagonal, on the nib: its width follows its direction,
+        so the two diagonals of an A or a V are NOT the same weight."""
+        w = CAP_W if w is None else w
+        p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CON_O)
+        return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
+                      cut0=CUT, cut1=CUT)
+
+    @glyph('H')
+    def a_H(c):
+        C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.62 * C
+        bar = stroke([(x0, C * 0.54), (x1, C * 0.58)], TH_H * 1.25)
+        return geom.ink([cstem_i(x0, 0, C), cstem_i(x1, 0, C), bar])
+
+    @glyph('N')
+    def a_N(c):
+        C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.66 * C
+        return geom.ink([cstem_i(x0, 0, C), cstem_i(x1, 0, C),
+                         cdiag((x0 + CS * 0.2, C * 0.96), (x1 - CS * 0.2, C * 0.06), 1.18)])
+
+    @glyph('U')
+    def a_U(c):
+        C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.62 * C
+        p_ = catmull([(x0, C), (x0 - S * 0.10, C * 0.42), (x0 + (x1 - x0) * 0.16, C * 0.10),
+                      (x0 + (x1 - x0) * 0.52, -OVER * 0.4),
+                      (x1 - (x1 - x0) * 0.12, C * 0.12), (x1, C * 0.46), (x1, C)],
+                     tension=0.5)
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.28 / S, CON_O)
+        return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
+                                            for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
+
+    @glyph('V')
+    def a_V(c):
+        C = c["cap"]; x0 = CS * 0.5; w = 0.66 * C
+        apex = (x0 + w * 0.52, -OVER * 0.3)
+        return geom.ink([cdiag((x0, C), apex, 1.22), cdiag(apex, (x0 + w, C), 0.58)])
+
+    @glyph('A')
+    def a_A(c):
+        C = c["cap"]; x0 = CS * 0.4; w = 0.68 * C
+        apex = (x0 + w * 0.56, C)
+        left = cdiag((x0, 0), apex, 0.62)
+        right = cdiag(apex, (x0 + w, 0), 1.22)
+        bar = stroke([(x0 + w * 0.16, C * 0.32), (x0 + w * 0.84, C * 0.35)], TH_H * 1.20)
+        # the apex flag: a real italic A carries an entry reaching LEFT
+        flag = stroke([(apex[0] - CS * 1.05, C * 1.02), (apex[0] + CS * 0.18, C)],
+                      widths([(0.0, S * 0.30), (0.55, S * 0.72), (1.0, S * 0.50)]), cut0=CUT)
+        return geom.ink([left, right, bar, flag])
+
+    @glyph('S')
+    def a_S(c):
+        C = c["cap"]; x0 = CS * 0.5; w = 0.50 * C
+        p_ = catmull([(x0 + w * 0.92, C * 0.86), (x0 + w * 0.46, C * 1.00),
+                      (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
+                      (x0 + w * 0.70, C * 0.44), (x0 + w * 0.94, C * 0.20),
+                      (x0 + w * 0.50, -OVER * 0.3), (x0, C * 0.16)], tension=0.5)
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CON_O)
+        return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
+                                            for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
+
+    @glyph('G')
+    def a_G(c):
+        C = c["cap"]; rx = 0.33 * C; cx = CS * 0.6 + rx
+        p_ = superellipse(cx, C / 2, rx, C / 2 + OVER * 0.4,
+                          math.radians(-34), math.radians(250), BOWL_K)[:-1]
+        ws = nib_widths_closed(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S, CON_O)
+        arc = stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
+                     cut0=CUT, cut1=CUT)
+        bar = stroke([(cx + rx * 0.52, C * 0.44), (cx + rx * 1.02, C * 0.46)], TH_H * 1.15)
+        spur = stroke([(cx + rx * 0.96, C * 0.44), (cx + rx * 0.92, C * 0.24)],
+                      widths([(0.0, CS * 0.62), (1.0, CS * 0.34)]), cut1=CUT)
+        return geom.ink([arc, bar, spur])
+
+    @glyph('Q')
+    def a_Q(c):
+        C = c["cap"]; rx = 0.35 * C; cx = CS * 0.6 + rx
+        ring_ = ring(cx, C / 2, rx, C / 2 + OVER * 0.4, floor=S * FLOOR)[0]
+        tail = catmull([(cx + rx * 0.12, C * 0.30), (cx + rx * 0.62, C * 0.10),
+                        (cx + rx * 1.12, -C * 0.10), (cx + rx * 1.46, -C * 0.22)],
+                       tension=0.5)
+        wt = pen_widths(tail, floor=S * FLOOR)
+        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * (1.15 - 0.80 * t), cut1=CUT)])
 
 
 # ---------------------------------------------------------------- THE GATE

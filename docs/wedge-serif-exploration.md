@@ -5376,3 +5376,46 @@ because two of them looked reasonable: ink over advance x em ranked every
 ascender as "dark" (it was measuring height), and ink over the letter's own
 bounding box ranked every narrow and dotted letter as "light" (the dot's gap is
 inside the box). Only the x-height band measures colour.
+
+## Round 131 — the eight re-cut capitals
+
+`docs/albo-italic-capitals.md` ranked all 26 by how far a real italic departs
+from a sheared roman. Eighteen want only the 5% narrowing, which build.py
+applies. **These eight are drawn again**, on the same nib, brush entry and
+bowed stem as the lowercase, because the point of re-cutting a capital for an
+italic is that it should look written by the hand beside it:
+
+    N 0.439   H 0.475   Q 0.552   G 0.577
+    V 0.590   A 0.591   S 0.597   U 0.618
+
+They are **DERIVED, not measured** — the macro carries only an `A` and a `B`,
+and the Dante's lines would not segment — so they are fitted against Pagella
+Italic and the ledger says so.
+
+### Four failures, and every one is the same shape of mistake
+
+1. **The weight dial was a leak.** G H N U all solved at its 2.10 rail and
+   rendered as black blobs, because their only reference target is w/h — and a
+   letter can double its stroke without moving its bounding box. **A dial
+   nothing pushes back on is not a dial.** `dials_for()` now offers weight only
+   when the target actually constrains ink.
+2. **CAP_W was solved on the wrong stroke.** At 1.10 the H's stem rendered
+   11 px against the untouched I and L at 22 — eight hairline capitals in a
+   solid alphabet. Measured, not guessed: 2.00.
+3. **And then 2.00 was wrong for the round ones.** It was solved on a
+   near-VERTICAL stem, where the nib returns a fraction of its thick. A curve
+   turns through every direction and takes the full thick somewhere, so 2.00 on
+   the G's bowl is twice the cap stem and the letter filled solid.
+   `CAP_W_ROUND` is 1.05. **One dial cannot serve strokes of different
+   directions** — the same thing the `a`'s stem taught in round 127, arriving
+   from the other side.
+4. **The G's bar crossed its own counter.** It ran from 0.20 of the radius —
+   straight across the bowl, walling it shut. A G's bar starts at the middle
+   and goes right.
+
+### And one process failure worth recording
+
+The colour pass was killed mid-run because **`aldine.py` was edited while a
+background job was reading it.** The job had two clean passes and then died on
+a NameError from a half-applied edit. Do not modify a file a background build
+is walking; commit first, then launch.
