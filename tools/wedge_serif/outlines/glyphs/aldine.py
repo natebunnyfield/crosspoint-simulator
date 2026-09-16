@@ -1785,113 +1785,93 @@ if ON:
         h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
         return [(x0 + lx * A_TRACE_S * u, bot + f * h) for f, lx in A_TRACE]
 
+    # ------------------------------------------------------------ THE a, round 144
+    # THREE PARTS, NAMED BY THE OWNER (2026-09-16): "there is an o shape with
+    # a teardrop counter and a brush stroke on the right. do it with
+    # precision."
+    #
+    #   1. THE O SHAPE -- literally the o's. Same superellipse, same k, same
+    #      50-degree nib at O_PEN, same thick and thin, same contrast arm, so
+    #      the a's bowl and the o are one letter's bowl seen twice. Only its
+    #      WIDTH differs: A_RX against the o's own half-width.
+    #   2. A TEARDROP COUNTER cut out of it -- round at the bottom left,
+    #      drawing to a blunt tip at the top right, on the pen's own axis.
+    #      One closed curve, five control points, no table.
+    #   3. A BRUSH STROKE ON THE RIGHT -- one movement down the letter's right
+    #      side and out along the baseline, entered on the nib's angle.
+    #
+    # Everything the last four rounds accumulated -- the traced silhouette,
+    # the keyed flank table, the counter profile table, the head polygon, the
+    # bridge -- is gone. Three parts, and every number below is a proportion
+    # of the o's own geometry or of the x-height.
+    A_O_W = float(os.environ.get("ALBO_ALD_A_O_W", 0.74))     # the bowl's width, x xh (the o is O_W)
+    # Sized against the o's OWN counter, measured with cmp_aldine_counter:
+    # the o reads area/ink 0.97 and fill 0.75, and at 0.64 x 0.80 with the
+    # drop's pinch at 0.40 the a reads 0.93 and 0.74 -- the same hole, drawn
+    # as a drop. (0.58/0.74 gives 0.86, 0.70/0.86 gives 1.01 and starts to
+    # thin the ring.)
+    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 0.64)) # the counter's width, x the bowl's
+    A_CTR_H2 = float(os.environ.get("ALBO_ALD_A_CTR_H2", 0.80))  # its height, x the bowl's
+    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 0.44))  # its centre, x the bowl's width
+    A_CTR_CY = float(os.environ.get("ALBO_ALD_A_CTR_CY", 0.46))  # x the bowl's height
+    A_TEAR = float(os.environ.get("ALBO_ALD_A_TEAR", 0.40))   # how far the tip draws in, 0 = an oval
+    A_TEAR_DEG = float(os.environ.get("ALBO_ALD_A_TEAR_DEG", 52.0))  # where the tip points
+    A_BRUSH_W = float(os.environ.get("ALBO_ALD_A_BRUSH_W", 1.06))   # the right stroke's body, x S
+    A_BRUSH_TOP = float(os.environ.get("ALBO_ALD_A_BRUSH_TOP", 1.00))  # where it starts, x xh
+    A_EXIT = float(os.environ.get("ALBO_ALD_A_EXIT", 0.24))   # how far its tail runs past the bowl, x xh
+
     @glyph('a')
     def a_a(c):
-        """The Aldine single-storey a, in TWO STROKES.
-
-        Owner 2026-09-16, with a pasted state: "THIS LETTER NEEDS TO BE
-        REDUCED AND SIMPLIFIED." It was five pieces -- a bowl offset from its
-        counter, a rectangular stem, a four-curve head polygon, a tail, and a
-        conditional bridge -- and every seam between them was a place to go
-        wrong (the notch round 136 bridged, the sliver round 137 removed, the
-        belly round 134 measured).
-
-        It is how the letter is actually written instead: ONE pen movement
-        from the head's tip, right across the top, down the stem and out into
-        the tail, and ONE ring for the bowl. No head polygon, no separate
-        stem, no bridge, and no join to patch -- the head IS the stroke's
-        entry and the tail IS its exit, so the widths carry through them.
-        """
-        xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
-        xs = x0 + A_STEM_X * u; sw = A_STEM_W * u
-        top = xh + A_ASC * u
-        # THE ONE STROKE. Its centerline: in at the head's tip (low and left,
-        # the nib set down), up and right across the stem's top, then down the
-        # stem and out along the baseline to the tail's tip. The head's mass
-        # is the entry's WIDTH, not a polygon: A_HEAD_F is how thick the nib
-        # is where it crosses the stem, A_HEAD_R how far left it starts.
-        tipx = xs - sw / 2 - A_HEAD_R * u
-        p_ = catmull([(tipx, top - A_HEAD_D * u),
-                      (tipx + A_HEAD_R * 0.55 * u, top - A_HEAD_D * 0.34 * u),
-                      (xs - sw * 0.15, top - A_HEAD_D * 0.06 * u),
-                      (xs + sw * 0.10, top - sw * 0.55),
-                      (xs + sw * 0.02, xh * 0.55),
-                      (xs, xh * 0.16),
-                      (xs + 30 * u, 26 * u), (xs + 70 * u, 30 * u),
-                      (x0 + A_TAIL_X * u - 30 * u, xh * A_TAIL_Y - 14 * u),
-                      (x0 + A_TAIL_X * u, xh * A_TAIL_Y)], tension=0.5)
-        # Thinned to the a's own spacing before the stroke is built, and
-        # built `raw` -- `stroke()` re-densifies its centerline otherwise, so
-        # thinning it first does nothing at all. Round 139's lesson, arriving
-        # from the other side: the letter should not be the densest glyph in
-        # the font.
-        p_ = geom.resample(p_, A_SPACING)
-        # width along it: the head's nib, thinning as it turns over the top,
-        # the stem's full weight down the shaft, then the tail's taper.
-        hw = A_HEAD_F * u
-        one = stroke(p_, widths([(0.00, hw * 0.34), (0.10, hw * 0.92), (0.22, hw),
-                                 (0.30, sw * 1.02), (0.42, sw), (0.66, sw),
-                                 (0.80, sw * 0.90), (0.90, sw * 0.62),
-                                 (1.00, A_TAIL_W1 * u)]), cut0=CUT, raw=True)
-        # THE BOWL, unchanged: the counter's edge pushed out by the reference's
-        # width at each angle (round 134's cure for the belly).
-        ctr = a_counter(u, x0)
-        cpts = geom.resample(list(ctr.exterior.coords))[:-1]
-        cpts = geom.smooth(cpts, 5, closed=True)
-        cx_ = sum(q[0] for q in cpts) / len(cpts); cy_ = sum(q[1] for q in cpts) / len(cpts)
-        area = sum(cpts[i][0] * cpts[(i + 1) % len(cpts)][1] - cpts[(i + 1) % len(cpts)][0] * cpts[i][1]
-                   for i in range(len(cpts)))
-        side = 1 if area < 0 else -1
-        ang = [math.degrees(math.atan2(q[1] - cy_, q[0] - cx_)) for q in cpts]
-        # THE LEFT FLANK'S WIDTH IS THE SCAN'S (round 143). On the left half
-        # the bowl's outer edge is not offset by a keyed width at all -- it is
-        # placed ON the traced silhouette, so the width at each point is
-        # whatever the distance from his counter to the page's own edge turns
-        # out to be. The right half keeps A_FLANK, because the print's right
-        # side touches the d and cannot be read.
-        tl = a_traced_left(u, x0)
-        def traced_x(y):
-            for (ax, ay), (bx, by) in zip(tl, tl[1:]):
-                if ay <= y <= by:
-                    t = (y - ay) / ((by - ay) or 1.0)
-                    return ax + (bx - ax) * t
-            return tl[0][0] if y < tl[0][1] else tl[-1][0]
-        ws = []
-        for q, a_ in zip(cpts, ang):
-            w = _a_flank(a_) * A_FLANK_S * u
-            if A_TRACE_S > 0 and 100.0 <= (a_ % 360) <= 260.0:   # the left half
-                # ...and only over the band where the trace is describing the
-                # BOWL. Its first row (214 units at height 0) is the tail's
-                # tip, and letting that drive a flank width put a spur on the
-                # bowl's lower left -- the first cut of this rendered one.
-                # The band is blended in and out with a cosine so no width
-                # step survives into the outline.
-                h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
-                f = (q[1] - bot) / (h or 1.0)
-                g = 0.0
-                if 0.05 < f < 0.70:
-                    g = 1.0 if 0.15 <= f <= 0.55 else (
-                        0.5 - 0.5 * math.cos(math.pi * ((f - 0.05) / 0.10 if f < 0.15
-                                                        else (0.70 - f) / 0.15)))
-                if g > 0:
-                    want = q[0] - traced_x(q[1])
-                    if 0.25 * w < want < 3.0 * w:
-                        w = w + (want - w) * g
-            ws.append(w)
-        n = len(cpts)
-        ws = [sum(ws[(i + k) % n] for k in range(-4, 5)) / 9.0 for i in range(n)]
-        tans = geom.tangents(cpts, closed=True)
-        outer = [(q[0] - tn[1] * side * w, q[1] + tn[0] * side * w)
-                 for q, tn, w in zip(cpts, tans, ws)]
-        outer = PR._unfold(outer, tans)
-        outer = geom.smooth(outer, 5, closed=True)
-        outer = geom.resample(outer + [outer[0]], A_SPACING)[:-1]
-        # The union of a traced SLAB was the first cut of this and it rendered
-        # as a chunky polygon with corners -- eleven trace points joined by
-        # straight segments, added as mass. Driving the WIDTH instead keeps
-        # the curve, because the outer edge is still an offset of his smooth
-        # counter; it just lands where the page says.
-        return geom.ink([geom.poly(outer).buffer(0), one], [ctr])
+        """The o's bowl, a teardrop cut out of it, and one brush stroke down
+        the right. See the block above."""
+        xh = c["xh"]
+        rx = A_O_W * xh / 2; ry = xh / 2 + OVER * 0.5
+        cx = S * 0.6 + rx; cy = ry - OVER * 0.5
+        # 1. the o's own ring, to the letter
+        outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
+        phi = math.radians(O_PEN)
+        _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
+        def wf(t):
+            th = t * 2 * math.pi
+            return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
+        bowl = PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]
+        # 2. the teardrop, cut where the ring's own counter is
+        tcx = S * 0.6 + A_CTR_CX * (2 * rx); tcy = A_CTR_CY * (2 * ry)
+        tw = A_CTR_W * (2 * rx) / 2.0; th_ = A_CTR_H2 * (2 * ry) / 2.0
+        a_ = math.radians(A_TEAR_DEG)
+        # THE DROP IS A CURVE, NOT AN ELLIPSE WITH A POINT STUCK ON IT. The
+        # first cut pinched an ellipse's radius toward the tip and then pushed
+        # one vertex back out past it -- which renders as a rounded
+        # quadrilateral with a corner, because the pinch never reaches zero
+        # and the pushed vertex is a kink. The teardrop curve does it in one
+        # expression: x = cos t, y = sin t * sin(t/2)^m, pointed at t = 0 and
+        # round at t = pi, with m setting how sharply it draws in.
+        m_ = 1.0 + 2.6 * A_TEAR
+        pts = []
+        for i in range(28):
+            t = 2 * math.pi * i / 28.0
+            ux = math.cos(t); uy = math.sin(t) * (math.sin(t / 2.0) ** m_)
+            # the drop is drawn pointing right, then turned onto its axis
+            px = ux * math.cos(a_) - uy * math.sin(a_)
+            py = ux * math.sin(a_) + uy * math.cos(a_)
+            pts.append((tcx + tw * px, tcy + th_ * py))
+        tp = geom.smooth(catmull(pts, tension=0.5, closed=True), 2, closed=True)
+        tear = geom.poly(geom.resample(tp + [tp[0]], 16.0)[:-1])
+        # 3. the brush stroke on the right: down the letter's right side, out
+        bx = cx + rx * 0.86
+        # it STARTS INSIDE the bowl's crown -- butting it against the ring
+        # left a V of paper at the top right, the same failure the a's old
+        # head/bridge join kept producing.
+        p_ = catmull([(bx - S * 0.34, xh * A_BRUSH_TOP + OVER * 0.4),
+                      (bx, xh * 0.72), (bx, xh * 0.34),
+                      (bx + S * 0.06, xh * 0.08),
+                      (bx + xh * A_EXIT * 0.45, S * 0.20),
+                      (bx + xh * A_EXIT, xh * 0.16)], tension=0.5)
+        p_ = geom.resample(p_, 16.0)
+        brush = stroke(p_, widths([(0.00, S * A_BRUSH_W * 0.62), (0.16, S * A_BRUSH_W),
+                                   (0.62, S * A_BRUSH_W), (0.82, S * A_BRUSH_W * 0.70),
+                                   (1.00, S * A_BRUSH_W * 0.30)]), cut0=CUT, cut1=CUT, raw=True)
+        return geom.ink([bowl, brush], [tear])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.

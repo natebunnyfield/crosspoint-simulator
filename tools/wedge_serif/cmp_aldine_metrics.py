@@ -45,7 +45,7 @@ TARGETS = {
     # wider letter -- his head reaches 210 units left where the old one
     # reached 76, so the ink box grows with it. Fourth retarget of this row,
     # same rule as the other three: a target describes a drawing.
-    'a': (0.832, 0.891, 'ref',    0.83, 'round 142: fitted to the rest of the lowercase'),
+    'a': (0.860, 0.839, 'ref',    0.83, "round 144: the o's bowl, a teardrop counter, one brush stroke"),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'B 5.00', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the
