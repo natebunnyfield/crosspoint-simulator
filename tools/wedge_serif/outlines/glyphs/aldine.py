@@ -1619,9 +1619,14 @@ if ON:
     FIT.pop('b', None); FIT.pop('p', None)
     B_STEM_X = float(os.environ.get("ALBO_ALD_B_STEM_X", 114.0))    # stem centre, units from the head's tip
     B_STEM_W = float(os.environ.get("ALBO_ALD_B_STEMW", 70.0))     # units
-    B_HEAD_R = float(os.environ.get("ALBO_ALD_B_HEAD_R", 74.0))    # the head's reach LEFT of the stem
-    B_HEAD_DROP = float(os.environ.get("ALBO_ALD_B_HEAD_D", 60.0))  # its tip, below the stem's top
-    B_HEAD_FOOT = float(os.environ.get("ALBO_ALD_B_HEAD_F", 143.0))  # where its underside rejoins the stem
+    # LIGHTER (owner 2026-09-16: "reduce visual weight of top serif on b and
+    # d"): reach 74 -> 58, drop 60 -> 44, and the underside rejoins the stem
+    # 96 below the top instead of 143 -- the wedge loses a third of its area
+    # and stops reading as a flag on the ascender. The a's head rides these
+    # same dials, so it follows.
+    B_HEAD_R = float(os.environ.get("ALBO_ALD_B_HEAD_R", 58.0))    # the head's reach LEFT of the stem
+    B_HEAD_DROP = float(os.environ.get("ALBO_ALD_B_HEAD_D", 44.0))  # its tip, below the stem's top
+    B_HEAD_FOOT = float(os.environ.get("ALBO_ALD_B_HEAD_F", 96.0))  # where its underside rejoins the stem
     B_CX = float(os.environ.get("ALBO_ALD_B_CX", 279.0))           # bowl centre, units
     B_RX = float(os.environ.get("ALBO_ALD_B_RX", 159.0))           # the a's A_RX
     B_CY = float(os.environ.get("ALBO_ALD_B_CY", 207.0))
@@ -2636,11 +2641,14 @@ if ON:
                       [(0.00, 22), (0.10, 48), (0.22, 66), (0.70, 62),
                        (0.90, 50), (1.00, 36)], u, tw=Y_TW)
         W = Y_TAIL_W
+        # ONE CURVE, NOT A SERPENTINE (owner 2026-09-16: "make both Y and y
+        # have a single curve on their strokes, not serpentine ones"). The
+        # round-135 path held x through the baseline and then whipped left
+        # -- an inflection at -0.05, which read as an S. The tail is now one
+        # arc of one sign of curvature from the ball to the drop.
         tail = d_pen([P(322, 0.885), P(336, 0.825), P(341, 0.74),
-                      P(334, 0.50), P(307, 0.25), P(274, 0.10), P(252, -0.05),
-                      # the swoop: x held, then whipped -- see the block above
-                      P(243, -0.16), P(233, -0.27), P(221, -0.36),
-                      P(204, -0.45), P(178, -0.53), P(140, -0.586),
+                      P(331, 0.50), P(306, 0.25), P(276, 0.05), P(244, -0.15),
+                      P(210, -0.32), P(172, -0.46), P(128, -0.55),
                       P(TX + 26, TY)],
                      [(0.00, 48), (0.05, 44), (0.13, 34), (0.35, 30),
                       (0.55, W), (0.76, W), (0.86, W * 1.40), (1.00, W * 2.1)],
@@ -4186,9 +4194,17 @@ if ON:
     # x of the main stroke's centerline at a height, both x cap height, foot
     # first -- read off the run table with the arm's half width added to the
     # left edge where the right arm's ink is in the way.
-    Y_SPINE = [(0.4816, 0.000), (0.4839, 0.200), (0.4821, 0.340), (0.4681, 0.400),
-               (0.4400, 0.460), (0.4213, 0.500), (0.3763, 0.600), (0.3268, 0.700),
-               (0.2704, 0.800), (0.2056, 0.880), (0.1300, 0.975)]
+    # ONE CURVE (owner 2026-09-16: "make both Y and y have a single curve on
+    # their strokes, not serpentine ones"). Pagella's centerline, keyed raw,
+    # carried a wobble where the stem turns into the arm (0.4839 -> 0.4821 ->
+    # 0.4681 across 0.20-0.40 of the cap: a lean right, then left, then the
+    # arc) and the right arm had a kink at its join. Both are one arc of one
+    # curvature now: the spine straight to 0.30 and then a power curve
+    # (exponent 1.6) into the top-left, the arm a power curve (0.85) from the
+    # join to the top-right. The end points are Pagella's; the wobble is not.
+    Y_SPINE = [(0.4816, 0.000), (0.4816, 0.200), (0.4816, 0.300)] + [
+        (round(0.4816 - 0.3516 * (((y - 0.30) / 0.675) ** 1.6), 4), y)
+        for y in (0.40, 0.50, 0.60, 0.70, 0.80, 0.88, 0.975)]
     # Widths are the MEASURED perpendicular thickness less INK_SPREAD's 2.4
     # units (0.00356 x cap), for the same reason the O's ring table has 2 taken
     # off each key: build.draw() grows the outline after this returns, and the
@@ -4198,9 +4214,8 @@ if ON:
     Y_SPINE_W = [(0.00, 0.1044), (0.31, 0.1044), (0.44, 0.0904), (0.58, 0.0934),
                  (0.68, 0.0964), (0.79, 0.1004), (1.00, 0.1014)]
     # the right arm, join first
-    Y_ARM = [(0.4850, 0.400), (0.5289, 0.460), (0.5399, 0.500), (0.5762, 0.600),
-             (0.6256, 0.700), (0.6860, 0.800), (0.7411, 0.860), (0.7940, 0.920),
-             (0.8527, 0.980)]
+    Y_ARM = [(round(0.4850 + 0.3677 * (((y - 0.40) / 0.58) ** 0.85), 4), y)
+             for y in (0.400, 0.460, 0.500, 0.600, 0.700, 0.800, 0.860, 0.920, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
     # THE WEIGHT IS ALBO'S, THE DISTRIBUTION IS PAGELLA'S -- round 131c's rule,

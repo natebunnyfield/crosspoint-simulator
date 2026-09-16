@@ -5900,3 +5900,24 @@ places. The Y's left arm IS the stem, as Pagella's.
 **Left, named:** K and M w/h gaps stay (Poetica's foot serifs, not Albo's to
 take); the capitals' spacing is the round-20 fitter still; the Y's foot serif
 is 22 units against Pagella's 67 and rides the shared dial.
+
+##### Three more, 2026-09-16 — the b/d head lighter, the y and Y one curve, and an editor
+
+*"reduce visual weight of top serif on b and d"*: `B_HEAD_R` 74 → 58, drop
+60 → 44, foot 143 → 96 — the wedge loses a third of its area and stops
+reading as a flag; the a's head rides the same dials and follows.
+
+*"make both Y and y have a single curve on their strokes, not serpentine
+ones"*: the y's tail held x through the baseline and then whipped left — an
+inflection at −0.05 xh that read as an S; one arc now, one sign of curvature
+from the ball to the drop. The Y's spine, keyed raw off Pagella, carried a
+wobble where the stem turns into the arm (0.4839 → 0.4821 → 0.4681 across
+0.20–0.40 of the cap) and its right arm a kink at the join; both are power
+curves now (1.6 and 0.85), end points Pagella's, wobble gone.
+
+**And an editor for the a**, because *"verbally describing has not worked
+out"*: https://claude.ai/artifact/81j24wds45Lfp31aCPatDB rebuilds the a from
+the same parts the font does — counter profile, brush widths by angle, stem,
+head, bridge, tail — with four modes of handles and every dial, a reference
+image loader, and a JSON state he copies back. Each pasted state is baked
+into `A_*` dials and `A_CTR_PROFILE` / `A_FLANK` and logged here.
