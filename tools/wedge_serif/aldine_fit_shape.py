@@ -14,7 +14,7 @@ import os, sys, json, subprocess, tempfile, shutil
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import cmp_aldine_shape as CS
 
-BASE = dict(os.environ, ALBO_ITALIC="aldine", FJORD_STEM="66.9", FJORD_CONTRAST="0.892",
+BASE = dict(os.environ, ALBO_ITALIC="aldine", FJORD_STEM="66.9", FJORD_CONTRAST="0.80",
             FJORD_WIDTH="95", FJORD_SLANT="13", PYTHON_GIL="0")
 
 

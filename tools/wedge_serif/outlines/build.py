@@ -429,7 +429,8 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # fine. At the three references' mean ratio of 2.58 the space is 182.
     from .glyphs import aldine as _ALD
     if _ALD.ON:
-        space_adv = 182.0 * (pen.XH / 429.0)
+        # 182 -> 166: the owner's own number off the spacing bench, 2026-09-16.
+        space_adv = 166.0 * (pen.XH / 429.0)
     glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)

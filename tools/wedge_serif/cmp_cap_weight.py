@@ -25,7 +25,7 @@ from fontTools.pens.basePen import BasePen
 RECUT = "AGHKLMNOPQRSUVYZ"   # the re-cut capitals, both round-135 passes
 CAPS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 HERE = os.path.dirname(os.path.abspath(__file__))
-COMMON = dict(FJORD_STEM="66.9", FJORD_CONTRAST="0.892", FJORD_WIDTH="95", PYTHON_GIL="0")
+COMMON = dict(FJORD_STEM="66.9", FJORD_CONTRAST="0.80", FJORD_WIDTH="95", PYTHON_GIL="0")
 
 
 class _Perim(BasePen):

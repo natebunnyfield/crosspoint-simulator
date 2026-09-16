@@ -18,7 +18,7 @@ import os, sys, json, subprocess, tempfile, shutil
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import cmp_aldine_counter as CC
 
-BASE = dict(os.environ, ALBO_ITALIC="aldine", FJORD_STEM="66.9", FJORD_CONTRAST="0.892",
+BASE = dict(os.environ, ALBO_ITALIC="aldine", FJORD_STEM="66.9", FJORD_CONTRAST="0.80",
             FJORD_WIDTH="95", FJORD_SLANT="13", PYTHON_GIL="0")
 W = dict(area_ink=3.0, wh=1.5, fill=4.0, widest=1.5, floor=2.0, h_ink=1.5,
          ink_wh=3.0, profile=5.0)

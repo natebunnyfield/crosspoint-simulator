@@ -214,10 +214,10 @@ ON = _WHICH == "aldine" or os.environ.get("ALBO_ALDINE") == "1"
 # *"o was set to D contrast. you are confusing things."* He is right -- "use C"
 # was said about the a, and "e needs C too" about the e, and neither was a
 # ruling on the o. The ledger of what is set where is docs/albo-aldine-metrics.md.
-ALD_CON = float(os.environ.get("ALBO_ALD_CON", 9.26))      # the module default: arm D
+ALD_CON = float(os.environ.get("ALBO_ALD_CON", 5.00))      # the module default: arm B (owner, spacing bench 2026-09-16)
 CON_A = float(os.environ.get("ALBO_ALD_CON_A", 5.00))      # the a: arm C
 CON_E = float(os.environ.get("ALBO_ALD_CON_E", 5.00))      # the e: arm C
-CON_O = float(os.environ.get("ALBO_ALD_CON_O", 9.26))      # the o: arm D
+CON_O = float(os.environ.get("ALBO_ALD_CON_O", 5.00))      # the o: arm B (the whole line moved to B, 2026-09-16)
 
 
 def nib(direction_deg, thick, thin, phi=50.0):
@@ -3893,14 +3893,21 @@ if ON:
 #     descender can meet it.
 #
 # ch -> (lsb, rsb), design units, UNSHEARED, measured over the x-height band.
+# ROUND 136 -- THE OWNER'S OWN FITTING, from the spacing bench (2026-09-16).
+# He set the italic live at 64 px on arm B and dialed tracking +26, word space
+# 166 and sixteen letters' bearings by hand; the table below is round 133's
+# solve plus his deltas, the tracking split 13 / 13 onto every letter so the
+# white between any pair is what he saw. His deltas, for the record:
+#   a -13/-6 c +0/+17 e +4/-7 f +32/-1 i +15/+16 l +6/-2 n +10/+0 p +6/+0 r +9/+8 s -3/+0 t +0/-9 u +3/-6 v -7/+24 w -4/+12 x -23/+0 y -17/+42
+# Letters he did not reach (b d g h j k m o q z) carry the tracking only.
 BEARINGS = {
-    'a': (-36,  37), 'b': (-22,  74), 'c': (-37,  57), 'd': (-40,  19),
-    'e': (-34,  65), 'f': (-77,  80), 'g': (-26,  59), 'h':  (-9,  45),
-    'i': (-72,  28), 'j': (-11,  71), 'k': (-24,   1), 'l':  (-5,  47),
-    'm': (-66,  31), 'n': (-68,  35), 'o': (-47,  68), 'p': (-81,  71),
-    'q': (-29, 115), 'r': (-75,  64), 's': (-28,  71), 't': (-49,  95),
-    'u': (-63,  43), 'v': (-67,  51), 'w': (-66,  49), 'x':  (-7,  24),
-    'y': (-48,  63), 'z': (-35,  -7),
+    'a': ( -36,   44), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
+    'e': ( -17,   71), 'f': ( -32,   92), 'g': ( -13,   72), 'h': (   4,   58),
+    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   14), 'l': (  14,   58),
+    'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
+    'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),
+    'u': ( -47,   50), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
+    'y': ( -52,  118), 'z': ( -22,    6),
 }
 
 # A comment asking the next editor to be careful would not have caught it.

@@ -111,7 +111,7 @@ def _dials_for_legacy(ch):
                           (f'ALBO_ALD_WD_{ch}', 0.60, 1.60)])
 
 
-BUILD_ENV = dict(ALBO_ITALIC='aldine', FJORD_STEM='66.9', FJORD_CONTRAST='0.892',
+BUILD_ENV = dict(ALBO_ITALIC='aldine', FJORD_STEM='66.9', FJORD_CONTRAST='0.80',
                  FJORD_WIDTH='95', FJORD_SLANT='13')
 S_OVER_XH = 0.196          # the family's stem as a fraction of the x-height
 

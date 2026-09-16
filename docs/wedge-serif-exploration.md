@@ -5921,3 +5921,24 @@ the same parts the font does — counter profile, brush widths by angle, stem,
 head, bridge, tail — with four modes of handles and every dial, a reference
 image loader, and a JSON state he copies back. Each pasted state is baked
 into `A_*` dials and `A_CTR_PROFILE` / `A_FLANK` and logged here.
+
+### Round 136 — the owner's own fitting and contrast, off the spacing bench
+
+A second editor, because the first worked: https://claude.ai/artifact/9RUVYkit1Vdk9foVUTFz46
+sets the italic live at reading size from four embedded builds (the family's
+approved contrast arms A–D) with tracking, word space, per-letter bearings and
+kern pairs, and copies its state back. He returned: **arm B (5.0:1), tracking
++26, word space 166, and sixteen letters' bearings by hand** — *"a good
+starting point for lowercase. I do need to do the same for capitals."*
+
+Baked: `BEARINGS` is round 133's solve plus his deltas with the tracking split
+13/13 onto every letter (so the white between any pair is what he saw); the
+word space 182 → 166; `ALD_CON` and `CON_O` to 5.00; **the italic now builds
+at `FJORD_CONTRAST=0.80`** — every tool's build env and the ledger's arm
+labels follow. Letters he did not reach (b d g h j k m o q z) carry the
+tracking only. Ledger and cap-weight gate green.
+
+##### RULING 2026-09-16 — the Aldine italic's line contrast is arm B
+
+Chosen live at 64 px against A, C and D. The o's earlier arm-D ruling is
+superseded by this whole-line one.
