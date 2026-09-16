@@ -5258,3 +5258,39 @@ but the counter is the stem's shape's dependent, not the other way round, and
 the owner's letter is the one that gets to be right.
 
 Counter/ink lands on 0.342 against 0.344; the ledger passes on all three.
+
+## Round 128 — the `a`'s stem thick to the scan, and what that exposed
+
+Owner: *"inward -0.85 wins but make it thick to match the scan."*
+
+**"Thick" was measured rather than judged.** The target's stem runs a median
+25 px on a 114 px x-height — **1.12 × Albo's S**, thickest 1.70 ×. `A_STEM_W`
+is the NIB's thick and the nib takes most of it back on a near-vertical stroke,
+so the dial sits well above the width it produces: **2.81 renders a median of
+1.05**.
+
+### The thick stem exposed a real geometric mismatch
+
+Holding counter/ink at 0.344 with the new stem forced `A_FLANK` down to 0.86 —
+a **hairline bowl against a thick stem**, which the target plainly does not
+have. So the bowl's flank was measured too: the target's is **0.67 × S**, its
+stem 1.12 × — a genuinely thin bowl, but not a hairline.
+
+Matching BOTH widths then put counter/ink at **0.247 against 0.344**, and that
+gap is the finding: **with Griffo's two stroke widths, my bowl enclosed too
+little area.** The bowl's path was simply smaller than his. Enlarging it
+(`A_BOWL` 1.00 → 1.20) satisfies all three at once:
+
+| | target | shipped |
+|---|---|---|
+| bowl flank | 0.67 × S | **0.66** |
+| stem | 1.12 × S | **1.05** |
+| counter/ink | 0.344 | **0.348** |
+
+**Two ratios agreeing is not two measurements agreeing.** Rounds 121–127 held
+counter/ink on target while the strokes underneath it were wrong in both
+directions at different times — thin bowl, thick bowl, thin stem — because one
+ratio can be satisfied by infinitely many pairs. Measuring the STROKES
+separately is what turned "the letter looks wrong" into a number that moved.
+The ledger tracks line width per letter for exactly this reason, and this is
+the first round where it earned that column.

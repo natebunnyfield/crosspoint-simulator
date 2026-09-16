@@ -493,7 +493,7 @@ if ON:
     A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.45))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.68))  # the bowl's left flank, x the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.36))  # the bowl's left flank, x the stem
     # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
     # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
     # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
@@ -515,7 +515,7 @@ if ON:
     # width profile fixes a counter whose two sides are parallel. The area
     # comes from the bowl's WEIGHT instead, and the counter stays round --
     # measured, the same counter/ink at 26% more inscribed radius.
-    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 1.00))
+    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 1.20))
     # THE TOP RIGHT CARRIES A THICK TOO (owner 2026-09-15). It is not a taste
     # call -- it is what the measured 50 degree pen MUST do. A nib at 50 is
     # fullest on the 50/230 axis, so the upper-right and the lower-left are
@@ -539,7 +539,7 @@ if ON:
     # from the letter -- concave on the counter's side. It is the other way:
     # the middle pulls LEFT, into the letter, so the stem's OUTER edge is the
     # concave one. Negative values bow inward.
-    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", -0.55))  # the mid bows INWARD, x S
+    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", -0.85))  # the mid bows INWARD, x S
     A_STEM_LEAN = float(os.environ.get("ALBO_ALD_A_LEAN", 0.10)) # extra lean, x xh, on top of the shear
     # The curved stem gets the NIB and arm C too. Round 125 drew it at a
     # constant width -- which a straight stem can get away with, because a
@@ -547,7 +547,12 @@ if ON:
     # A CURVED one cannot: its direction changes, so a constant width is a
     # monoline curve sitting in a letter whose every other stroke is on the
     # pen. That is what "needs C level contrast" was pointing at.
-    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 1.85))   # the stem's thick, x S
+    # Thickness MEASURED off the owner's target, not judged: its stem runs a
+    # median 25 px on a 114 px x-height -- 0.219 x xh, or **1.12 x Albo's S**,
+    # with a thickest of 1.70 x. A_STEM_W is the nib's THICK, and the nib then
+    # takes most of it back on a near-vertical stroke, so the dial sits well
+    # above the width it produces: 2.81 here renders a median of 1.12.
+    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 2.81))   # the nib's thick, x S
     A_CROSS = float(os.environ.get("ALBO_ALD_A_CROSS", 0.08))   # x past the stem's centre
     A_TOP_Y = float(os.environ.get("ALBO_ALD_A_TOP_Y", 0.92))   # and how far below the top
     A_ARM_X = float(os.environ.get("ALBO_ALD_A_ARM_X", 0.34))  # how far left the arm dives
