@@ -24,6 +24,23 @@ LC = 'abcdefghijklmnopqrstuvwxyz'
 TOL = 0.12          # how far a measured letter may drift from its own target
 
 
+def colour_of(ttf, ch, size=200):
+    """One letter's colour, absolute. Measured against the median from the
+    last FULL build -- a two-glyph build has no median worth the name."""
+    ft = ImageFont.truetype(ttf, size); a, d = ft.getmetrics()
+    def draw(c):
+        w = int(ft.getlength(c)) + size
+        im = Image.new('L', (w, a + d + size), 255)
+        ImageDraw.Draw(im).text((size // 2, a + size // 2), c, font=ft, fill=0, anchor='ls')
+        return im
+    ob = draw('o').point(lambda v: 255 - v).getbbox()
+    top, bot = ob[1], ob[3]
+    im = draw(ch); px = im.load(); W, H = im.size
+    ink = sum(1 for y in range(top, bot) for x in range(W) if px[x, y] < 128)
+    adv = ft.getlength(ch)
+    return ink / (adv * (bot - top)) if adv else 0
+
+
 def colours(ttf, size=200):
     """Ink inside the X-HEIGHT BAND over the advance, per letter.
 
@@ -95,6 +112,13 @@ def main():
             if t and not t.get('derived'):
                 tt = build(trial, os.path.join(tmp, f'p{p+1}{ch}'), ch + 'o')
                 if AF.err(AF.measure_build(tt, ch), t) > TOL: continue
+            # KEEP ONLY WHAT HELPS. The first version assigned every trial
+            # regardless, and recorded sixteen weights that changed nothing --
+            # the spread came back 0.64 to 1.62 on three passes running. A
+            # move has to be shown to improve this letter's colour.
+            tt2 = build(trial, os.path.join(tmp, f'p{p+1}{ch}c'), ch + 'o')
+            if abs(colour_of(tt2, ch) / med - 1.0) >= abs(r - 1.0):
+                continue
             lw = trial; moved += 1
         ttf = build(lw, os.path.join(tmp, f'e{p+1}'))
         c2 = colours(ttf); m2 = statistics.median(c2.values())

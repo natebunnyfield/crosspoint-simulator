@@ -100,6 +100,17 @@ def glyph(*chars):
             prev = _CUR[0]; _CUR[0] = _ch
             try:
                 g = _fn(c)
+                # WEIGHT AT THE ONE CHOKE POINT. Hooking `nib_widths` and
+                # `st` reached only the letters built that way -- c f j v x z
+                # g o q come from ring/pen_widths/_diag and ignored the dial
+                # completely, so the colour fitter moved it, saw nothing
+                # change, and recorded values that did nothing. A buffer on
+                # the finished outline reaches every letter however it was
+                # drawn: positive thickens, negative thins, and the shape is
+                # untouched. The nib-path multiplier is gone.
+                lw = _lw()
+                if abs(lw - 1.0) > 1e-6:
+                    g = g.buffer(S * 0.16 * (lw - 1.0), join_style=2)
                 wd = _wd()
                 if abs(wd - 1.0) > 1e-6:
                     from shapely import affinity
@@ -225,9 +236,7 @@ def nib_widths_closed(pts, thick, thin, target=None, phi=50.0):
         a_ = pts[(i - 1) % n]; b_ = pts[(i + 1) % n]
         out.append(nib(math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0])),
                        thick, thin, phi))
-    out = con(out, target)
-    lw = _lw()
-    return [w * lw for w in out]
+    return con(out, target)
 
 
 def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None, taper=True):
@@ -254,8 +263,7 @@ def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None, taper=True):
               len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
     if taper:
         ws = [w * m for w, m in zip(ws, _taper(n))]
-    lw = _lw()
-    return [w * lw for w in ws]
+    return ws
 
 
 def con(ws, target=None):
@@ -287,7 +295,7 @@ def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
     """A stem. `head` puts the Aldine angled head across its top; `foot` the
     blunt outstroke to the right at the baseline. `foot_len` overrides the
     outstroke's length (x the stem) for a letter whose exit runs longer."""
-    parts = [stroke([(x, y0), (x, y1)], S * w * _lw())]
+    parts = [stroke([(x, y0), (x, y1)], S * w)]
     if head:
         a = math.radians(HEAD_DEG); L = S * HEAD_LEN
         dx, dy = math.cos(a) * L, math.sin(a) * L
