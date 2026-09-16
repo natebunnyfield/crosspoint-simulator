@@ -1328,7 +1328,7 @@ if ON:
     # bowl hangs under it. The a carries its own head dials for that reason;
     # the b d p head stays where he put it two rounds ago ("reduce visual
     # weight of top serif on b and d").
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -54))             # units, NEGATIVE = below the x-line
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 7))             # units, NEGATIVE = below the x-line
     A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 210))       # the head's reach left
     A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 93))       # its tip below the stem's top
     A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 59))       # where its underside rejoins the stem
@@ -1361,8 +1361,38 @@ if ON:
     # height, and has walked to 0.71 by the tip. That lean is the letter's own
     # stress seen from the inside, and it is what a symmetric teardrop (the
     # first cut of this) could not show.
+    # ROUND 139: FEWER POINTS (owner: "simplify a to much fewer polygons").
+    # The a carried 217 outline points against the n's 116 and the o's 190 --
+    # the counter's twelve rows were interpolated six ways each, then
+    # catmulled, smoothed four times and resampled twice at the module's
+    # default spacing, and the bowl was offset from that dense curve. The
+    # The curve is built FINE (eight points per row gap, five smoothing
+    # passes) and thinned ONCE at the end -- smoothing a coarse polygon
+    # corner-cuts it, which is a different and worse letter.
+    #
+    # THE TRADE IS REAL AND IT IS MEASURED. 217 points -> 167 at spacing 16,
+    # in family with the o's 190 and the b's 201 where it used to be the
+    # densest glyph in the font. Below that the outline FACETS at display
+    # size: at 420 px the ladder reads smooth at 217, visibly flat-sided at
+    # 137 (spacing 22) and a polygon at 115 (spacing 30). At reading size
+    # none of it is visible. 16 is the rung that keeps the curve.
+    A_CTR_FINE = int(os.environ.get("ALBO_ALD_A_FINE", 8))
+    A_SPACING = float(os.environ.get("ALBO_ALD_A_SPACING", 16.0))
     A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor, units above the baseline
-    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 278.0))      # its height, units -- 0.51 x the ink, as the macro
+    # ROUND 139: TALL ENOUGH TO OVERLAP THE X-LINE (owner 2026-09-16: "it
+    # needs to be tall enough to slightly overlap x height. keep lean and
+    # counter shape and lack of fractures ... the same"). His a topped at 376
+    # -- 53 units BELOW the x-line, where every other lowercase reaches +4 to
+    # +16 above it (n +4, o +7, c +8, x +10, e and s +13, u +16). It was the
+    # one short letter in the line.
+    # The counter and its bowl are scaled UNIFORMLY (278 -> 339, and the width
+    # follows through A_CTR_WH), not stretched: a uniform scale is a similar
+    # figure, so the counter's shape is untouched -- measured, its fill is
+    # 0.65 against his 0.66, where stretching the height alone reads 0.63. The
+    # head rides up with it (A_ASC -54 -> +7) so the two still meet, and the
+    # bowl's weight comes back to 0.86 because a bigger bowl at the same
+    # stroke reads lighter: a/n 0.89 at 0.70, 1.01 at 0.86.
+    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 339.0))      # its height, units -- 0.51 x the ink, as the macro
     A_CTR_WH = float(os.environ.get("ALBO_ALD_A_CTR_WH", 0.84))     # its width over its height, as both scans
     A_CTR_X = float(os.environ.get("ALBO_ALD_A_CTR_X", 54.0))       # its left extreme, units from the letter's left
     # height fraction (0 = floor) -> (left edge, right edge), both x the
@@ -1425,7 +1455,7 @@ if ON:
     # 0.70 the ratio is 1.00 and the counter opens from 0.48 to 0.57 -- the
     # shape, the counter's profile and the head are all exactly as he drew
     # them.
-    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.70))   # scales every bowl width
+    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.86))   # scales every bowl width
     A_FLANK = [(0, 38), (45, 29), (90, 33), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
 
     def _a_flank(deg):
@@ -1455,15 +1485,15 @@ if ON:
         # the measurement cannot see a facet and the eye finds it immediately.
         rows = []
         for (f0, l0, r0), (f1, l1, r1) in zip(A_CTR_PROFILE, A_CTR_PROFILE[1:]):
-            for i in range(6):
-                t = i / 6.0
+            for i in range(A_CTR_FINE):
+                t = i / float(A_CTR_FINE)
                 rows.append((f0 + (f1 - f0) * t, l0 + (l1 - l0) * t, r0 + (r1 - r0) * t))
         rows.append(A_CTR_PROFILE[-1])
         left = [(x + l * w, bot + f * h) for f, l, r in rows]
         right = [(x + r * w, bot + f * h) for f, l, r in rows]
         pts = catmull(left + right[::-1], tension=0.5, closed=True)
-        pts = geom.smooth(geom.resample(pts + [pts[0]])[:-1], 4, closed=True)
-        return geom.poly(geom.resample(pts + [pts[0]])[:-1])
+        pts = geom.smooth(pts, 5, closed=True)
+        return geom.poly(geom.resample(pts + [pts[0]], A_SPACING)[:-1])
 
     @glyph('a')
     def a_a(c):
@@ -1498,7 +1528,6 @@ if ON:
         ctr = a_counter(u, x0)
         cpts = geom.resample(list(ctr.exterior.coords))[:-1]
         cpts = geom.smooth(cpts, 5, closed=True)
-        cpts = geom.resample(cpts + [cpts[0]])[:-1]
         cx_ = sum(q[0] for q in cpts) / len(cpts); cy_ = sum(q[1] for q in cpts) / len(cpts)
         # signed area: offset AWAY from the centroid whichever way it winds
         area = sum(cpts[i][0] * cpts[(i + 1) % len(cpts)][1] - cpts[(i + 1) % len(cpts)][0] * cpts[i][1]
@@ -1516,7 +1545,7 @@ if ON:
         outer = [(q[0] - tn[1] * side * w, q[1] + tn[0] * side * w) for q, tn, w in zip(cpts, tans, ws)]
         outer = PR._unfold(outer, tans)
         outer = geom.smooth(outer, 5, closed=True)
-        outer = geom.resample(outer + [outer[0]])[:-1]
+        outer = geom.resample(outer + [outer[0]], A_SPACING)[:-1]
         bowl_ = geom.poly(outer).buffer(0)
         # the tail: down the stem, out along the baseline, lifting to a point
         tip = (x0 + A_TAIL_X * u, xh * A_TAIL_Y)
