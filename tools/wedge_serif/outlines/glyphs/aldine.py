@@ -1689,6 +1689,44 @@ if ON:
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)[0]
 
+    # ---------------------------------------------------------------- nib_ring
+    # OWNER 2026-09-16: *"O and Q need match the line contrast and axis tilt of
+    # G"*. The G's arc is the only one of the three round capitals drawn ON THE
+    # PEN -- `nib_widths(p_, CS*CAP_W_ROUND, x0.30, CAP_CON)` -- and the other
+    # two were each on something else, which is exactly what the instruction
+    # says you can see:
+    #
+    #             axis (thick at)   axis (thin at)   contrast   drawn on
+    #   G           50 / 230 deg     140 / 320        2.20:1     the 50-deg nib
+    #   O (was)    180 / 195         105 / 285        2.25:1     Pagella's keyed table
+    #   Q (was)     15 /  30          90 / 270        1.43:1     bowl_th, the family profile
+    #
+    # -- measured on the built font, unsheared, as radial ink at 15-degree
+    # steps about each ring's own centre. So the O's stress axis sat about 40
+    # degrees off the G's and the Q's about 35 the other way, and the Q was
+    # barely modulated at all beside either. One pen for all three is the fix.
+    #
+    # The width goes as |sin(direction - 50)| round the closed contour, so a
+    # ring's thick lands where its TANGENT runs at 50 degrees -- geometric 50
+    # and 230 on a ccw superellipse -- and `con()` then re-spreads the whole
+    # sequence to CAP_CON exactly as the G's does. `nib_widths_closed` is used
+    # rather than `nib_widths` because a ring has no ends: the open version
+    # clamps its neighbour lookup at the first and last sample and leaves a
+    # seam in the width where the contour closes.
+    def nib_ring(cx, cy, rx, ry, k=None, unit=1.0, smooth_w=2, floor=0.0,
+                 thick=None, thin_f=0.30, target=None, phi=50.0):
+        """A closed bowl carrying the G's own pen. Returns (solid, outer, inner)."""
+        k = BOWL_K if k is None else k
+        thick = CS * CAP_W_ROUND if thick is None else thick
+        target = CAP_CON if target is None else target
+        outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
+        # replicate ring_from's resampling so the widths line up with its points
+        pts = geom.resample(outer + [outer[0]])[:-1]; n = len(pts)
+        ws = [max(w * unit, floor)
+              for w in nib_widths_closed(pts, thick, thick * thin_f, target, phi)]
+        return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
+                            smooth_w=smooth_w)
+
     # The bowl's width round the counter, keyed by angle (degrees ccw from
     # the right, 180 = the left flank), in units. Flanker's a, measured
     # unsheared (docs/albo-aldine-targets.md): the left flank 68-73, the
@@ -3762,6 +3800,8 @@ if ON:
     # this letter started the tail BELOW the ring and the glyph was two pieces.
     # Each of those three is worth more than the 0.05 tolerance on its own.
     CAP_Q_RX = float(os.environ.get("ALBO_ALD_CAP_Q_RX", 0.41))   # the ring's x radius, x C (was 0.35)
+    Q_AXIS = os.environ.get("ALBO_ALD_Q_AXIS", "nib").lower()   # 'bowl' = the pre-150 family profile
+    Q_INK = float(os.environ.get("ALBO_ALD_Q_INK", 1.13))       # x the nib's widths
 
     @glyph('Q')
     def a_Q(c):
@@ -3774,7 +3814,12 @@ if ON:
         it."""
         C = c["cap"]; rx = CAP_Q_RX * C; cx = CS * 0.6 + rx
         ry = C / 2 + OVER * 0.4
-        ring_ = ring(cx, C / 2, rx, ry, floor=S * FLOOR)[0]
+        # ROUND 150: the ring is on the G's pen too -- same owner instruction as
+        # the O's. `ring()` carried `bowl_th`, the family's vertically stressed
+        # bowl profile, which measured 1.43:1 with its thick at 15/195: beside
+        # a G at 2.20:1 on 50/230 the Q read as a different letter's O.
+        ring_ = (ring(cx, C / 2, rx, ry, floor=S * FLOOR)[0] if Q_AXIS == 'bowl'
+                 else nib_ring(cx, C / 2, rx, ry, unit=Q_INK, floor=S * FLOOR)[0])
         if CAP_Q_REF == 'poetica':
             # Poetica leaves the ring at five o'clock and runs out and down in
             # one shortening sweep.
@@ -4470,8 +4515,8 @@ if ON:
         (0.4445, 0.2600, 0.1245), (0.4282, 0.2800, 0.1245), (0.4114, 0.3000, 0.1247),
         (0.3940, 0.3200, 0.1248), (0.3761, 0.3400, 0.1249), (0.3576, 0.3600, 0.1247),
         (0.3383, 0.3800, 0.1243), (0.3181, 0.4000, 0.1231), (0.2966, 0.4200, 0.1197),
-        (0.2723, 0.4400, 0.1092), (0.2050, 0.4460, 0.1150), (0.1150, 0.4560, 0.1250),
-        (-0.0200, 0.4720, 0.1350),
+        (0.2723, 0.4400, 0.1092), (0.2050, 0.4460, 0.1010), (0.1150, 0.4560, 0.0880),
+        (-0.0200, 0.4720, 0.0700),
     ]
 
     @glyph('K')
@@ -4920,6 +4965,21 @@ if ON:
     # against the reference's 0.800, which is arithmetic and not a slip --
     # a lighter ring inside the same outer contour has a bigger hole.
     O_INK = float(os.environ.get("ALBO_ALD_O_INK", 0.89))    # x the measured ring widths
+    # ROUND 150 -- THE O GOES ON THE G'S PEN. Owner 2026-09-16: *"O and Q need
+    # match the line contrast and axis tilt of G"*. The Pagella table above is
+    # NOT deleted -- it is a measured reference and the round-136 ruling behind
+    # it was real -- it is one env var away at `ALBO_ALD_O_AXIS=pagella`, and
+    # everything the comment above says about the proportion, the counter and
+    # the 24 measured angles still holds for that arm. What changes on the
+    # shipping arm is only the width round the ring: the axis moves from
+    # Pagella's 15/195 to the nib's 50/230, and the contrast from the table's
+    # measured 2.25:1 to the G's CAP_CON of 2.20:1. The PROPORTION (O_WH) is
+    # untouched, because the instruction was about contrast and axis.
+    O_AXIS = os.environ.get("ALBO_ALD_O_AXIS", "nib").lower()
+    # And its own weight dial, because the distribution moved: the Pagella
+    # table's 0.89 is calibrated against that table's own peaks and means
+    # nothing to a nib. Solved on cmp_cap_weight against the roman O.
+    O_NIB_INK = float(os.environ.get("ALBO_ALD_O_NIB_INK", 1.13))
     O_RING = [(0, 79), (15, 82), (30, 79), (45, 70), (60, 58), (75, 48),
               (90, 39), (105, 35), (120, 39), (135, 52), (150, 67), (165, 77),
               (180, 82), (195, 81), (210, 78), (225, 72), (240, 60), (255, 48),
@@ -4945,8 +5005,11 @@ if ON:
         ry = C / 2 + OVER
         rx = O_WH * ry
         cx = CS * 0.6 + rx
-        return geom.ink([keyed_ring(cx, C / 2, rx, ry, O_RING,
-                                    k=BOWL_K, unit=O_INK, smooth_w=2)])
+        if O_AXIS == 'pagella':
+            return geom.ink([keyed_ring(cx, C / 2, rx, ry, O_RING,
+                                        k=BOWL_K, unit=O_INK, smooth_w=2)])
+        return geom.ink([nib_ring(cx, C / 2, rx, ry, k=BOWL_K, unit=O_NIB_INK,
+                                  smooth_w=2)[0]])
 
     # ------------------------------------------------------------------ THE Y
     #
