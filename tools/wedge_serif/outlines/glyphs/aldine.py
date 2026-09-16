@@ -4478,7 +4478,21 @@ if ON:
     # vertical at full tilt and rendered as a visible corner at 380 px on
     # every turn height tried. `1 - (1 - t) ** p` lands tangent to it.
     Y_ARM_P = float(os.environ.get("ALBO_ALD_Y_ARM_P", 2.0))
-    Y_ARM = [(round(0.4850 + 0.3677 * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
+    # 0.368 -> 0.28 (owner 2026-09-16: "shorten the right branch of Y until
+    # fits the horizontal rhythm of common english words"). Laddered in
+    # Yes / Yellow / Yorkshire / ONLY / SYZYGY at 54 and 27 px against both
+    # references: at 0.368 the arm hangs over whatever follows it, at 0.24 the
+    # letter reads narrow beside O N L, and 0.28 is where the word evens out.
+    #
+    # WHAT THE LADDER ALSO SHOWED, and it is not what the instruction assumed:
+    # shortening the arm cannot change the gap to the next letter. The fitter
+    # measures ink, so the advance shrinks with the arm and the right overhang
+    # stays +0.129 cap at every rung -- that number is his own -116 right
+    # bearing (CAP_BEARING_ADJ['Y']) and nothing in the drawing moves it. The
+    # Y's advance is 0.76 of the H's where Pagella sets 0.86 and Poetica 0.88,
+    # so the letter is narrow in its box before the arm is touched at all.
+    Y_ARM_DX = float(os.environ.get("ALBO_ALD_Y_ARM_DX", 0.28))  # the arm's horizontal travel, x cap
+    Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
              for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
