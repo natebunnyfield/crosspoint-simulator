@@ -6294,3 +6294,22 @@ polygon, the bridge.
 
 Against its neighbours: ink **381** (n 392, o 336), top **+10**, mean ink
 **51.1** (n 54.7, o 52.1), **211** points.
+
+##### The counter cleaned, 2026-09-16 — it was two holes, not one
+
+Owner: *"clean up the counter of the a to not be dog shit mess."* It was, and
+the cause was structural rather than a bad curve. The bowl was built with
+`ring_from`, **which carries a counter of its own** — so the letter had TWO
+overlapping holes and the visible counter was their union, with a corner
+wherever the two boundaries crossed. Every lump in it came from that, not from
+the teardrop's shape.
+
+The bowl is a **filled** superellipse now and the drop is its only hole. The
+outer edge is still exactly the o's, so "the o shape" holds; the ring's
+varying width now comes from the drop's own geometry, which is what a counter
+cut into a bowl actually does.
+
+Laddered afterward and recorded: the counter cannot simply be enlarged to the
+o's own 0.97 area/ink — at 0.82 × 0.92 of the bowl the ring **opens**, and
+turning the drop's axis past 52° narrows it into a leaf. It ships at 0.64 ×
+0.80, pinch 0.40, axis 52°.

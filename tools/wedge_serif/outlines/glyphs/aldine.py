@@ -1828,13 +1828,16 @@ if ON:
         rx = A_O_W * xh / 2; ry = xh / 2 + OVER * 0.5
         cx = S * 0.6 + rx; cy = ry - OVER * 0.5
         # 1. the o's own ring, to the letter
+        # THE BOWL IS FILLED, AND THE TEARDROP IS ITS ONLY HOLE. The first cut
+        # built it with `ring_from`, which carries a counter of its own -- so
+        # the letter had TWO overlapping holes and the visible counter was
+        # their union, with a corner wherever the two boundaries crossed. That
+        # is the lumpy counter; it was never the teardrop's own shape. The
+        # outer edge is still exactly the o's superellipse, so "the o shape"
+        # holds; the pen's varying width now comes from the drop's own
+        # geometry, which is what a counter cut into a bowl actually does.
         outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
-        phi = math.radians(O_PEN)
-        _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
-        def wf(t):
-            th = t * 2 * math.pi
-            return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
-        bowl = PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]
+        bowl = geom.poly(outer)
         # 2. the teardrop, cut where the ring's own counter is
         tcx = S * 0.6 + A_CTR_CX * (2 * rx); tcy = A_CTR_CY * (2 * ry)
         tw = A_CTR_W * (2 * rx) / 2.0; th_ = A_CTR_H2 * (2 * ry) / 2.0
