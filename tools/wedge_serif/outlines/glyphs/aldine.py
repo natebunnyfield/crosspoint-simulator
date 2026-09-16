@@ -85,18 +85,38 @@ ON = _WHICH == "aldine" or os.environ.get("ALBO_ALDINE") == "1"
 # the o was a black blob with a lens-shaped slit for a counter. More contrast
 # should not mean more ink -- it means less, in the thins only.
 # 0 leaves every letter exactly as measured off the page.
-ALD_CON = float(os.environ.get("ALBO_ALD_CON", 9.26))   # owner 2026-09-15: arm D
+# CONTRAST IS PER LETTER, not one number for the module. Owner 2026-09-15,
+# after a global switch to C moved the o off the arm he had already set it to:
+# *"o was set to D contrast. you are confusing things."* He is right -- "use C"
+# was said about the a, and "e needs C too" about the e, and neither was a
+# ruling on the o. The ledger of what is set where is docs/albo-aldine-metrics.md.
+ALD_CON = float(os.environ.get("ALBO_ALD_CON", 9.26))      # the module default: arm D
+CON_A = float(os.environ.get("ALBO_ALD_CON_A", 5.00))      # the a: arm C
+CON_E = float(os.environ.get("ALBO_ALD_CON_E", 5.00))      # the e: arm C
+CON_O = float(os.environ.get("ALBO_ALD_CON_O", 9.26))      # the o: arm D
 
 
-def con(ws):
-    """Re-spread a letter's declared widths to the module's target contrast."""
-    if not ALD_CON or len(ws) < 2:
+def nib(direction_deg, thick, thin, phi=50.0):
+    """The measured 50-degree nib, as a width for a stroke running in
+    `direction_deg`. A broad pen is fullest across its edge and thinnest along
+    it, so the width goes as |sin(direction - phi)|. The o was built on this
+    from the start; the e was carrying a HAND LIST instead, near-uniform all
+    the way round the loop, which is why it read flat beside the others even
+    once the contrast arm had stretched its ratio."""
+    import math as _m
+    return thin + (thick - thin) * abs(_m.sin(_m.radians(direction_deg - phi)))
+
+
+def con(ws, target=None):
+    """Re-spread a letter's declared widths to ITS OWN target contrast."""
+    target = ALD_CON if target is None else target
+    if not target or len(ws) < 2:
         return list(ws)
     lo, hi = min(ws), max(ws)
     if lo <= 0 or hi / lo <= 1.0001:
         return list(ws)
     import math as _m
-    gamma = _m.log(ALD_CON) / _m.log(hi / lo)
+    gamma = _m.log(target) / _m.log(hi / lo)
     return [hi * (w / hi) ** gamma for w in ws]
 
 HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
@@ -289,8 +309,8 @@ if ON:
     # 0.82 x the stem, which sits with the e's flanks at 0.79.
     O_W = float(os.environ.get("ALBO_ALD_O_W", 0.76))          # width, x xh
     O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 50.0))      # the nib's angle, degrees
-    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.36))  # x S, at the pen's fullest
-    O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.492))    # x S, across the nib
+    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.63))  # x S, at the pen's fullest
+    O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.590))    # x S, across the nib
 
     @glyph('o')
     def a_o(c):
@@ -298,7 +318,7 @@ if ON:
         cx = S * 0.6 + rx
         outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, BOWL_K)[:-1]
         phi = math.radians(O_PEN)
-        _thick, _thin = (con([O_THIN, O_THICK])[::-1] if ALD_CON else (O_THICK, O_THIN))
+        _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
         def wf(t):
             th = t * 2 * math.pi
             return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
@@ -375,6 +395,8 @@ if ON:
     E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.62))   # scales the upper loop's flanks
     E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
     E_CON = float(os.environ.get("ALBO_ALD_E_CON", 1.00))   # contrast, x the measured 3.4:1
+    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.12))  # x S, across the nib
+    E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.26))    # x S, along it
     E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.00))   # >1 eats counterspace
     E_END = float(os.environ.get("ALBO_ALD_E_END", 0.66))   # where the bottom stops. It STOPS.
 
@@ -410,7 +432,14 @@ if ON:
              (0.34, 0.02),   (E_END, 0.12)]     # round the bottom, and STOP
         p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
         # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
-        base = con([0.23, 0.30, 0.79, 0.78, 0.70, 0.80, 0.80, 0.76, 0.70, 0.34])
+        # The width at each point comes from the NIB and the direction the
+        # stroke is travelling there, not from a hand-tuned list.
+        dirs = []
+        for i in range(len(P)):
+            a_ = P[max(0, i - 1)]; b_ = P[min(len(P) - 1, i + 1)]
+            dirs.append(math.degrees(math.atan2((b_[1] - a_[1]) * xh,
+                                                (b_[0] - a_[0]) * W)))
+        base = con([nib(d, E_THICK, E_THIN) for d in dirs], CON_E)
         mean = sum(base) / len(base)
         wf = widths([(i / (len(base) - 1),
                       S * (mean + (w - mean) * E_CON) * E_WT * E_CTR)
@@ -446,7 +475,7 @@ if ON:
     # bowl and kicks it right along the baseline; the scan does the same. The
     # ordinary FOOT_LEN is the arch letters' blunt outstroke and is too short
     # to read as that exit.
-    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 3.30))  # the exit's length, x the stem
+    A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 1.65))  # the exit's length, x the stem
     A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
     # THE BOWL'S SIZE, against the owner's target crop (2026-09-15). Measured
     # on it: lean 13.7 deg over 16 clean stem rows, pen angle 50 deg (the same
@@ -456,6 +485,12 @@ if ON:
     # weight: thickening to close a counter moves the page's colour to fix a
     # ratio. A_BOWL scales the bowl's path about its own centroid.
     A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 0.85))
+    # THE TOP RIGHT CARRIES A THICK TOO (owner 2026-09-15). It is not a taste
+    # call -- it is what the measured 50 degree pen MUST do. A nib at 50 is
+    # fullest on the 50/230 axis, so the upper-right and the lower-left are
+    # both thick and the upper-left and lower-right are both thin. The bowl
+    # had its thick only at the bottom left, which is half a pen.
+    A_TOPR = float(os.environ.get("ALBO_ALD_A_TOPR", 1.55))   # the bowl where it leaves the stem
 
     @glyph('a')
     def a_a(c):
@@ -484,7 +519,9 @@ if ON:
         p_ = catmull([(X(fx), Y(fy)) for fx, fy in BP], tension=0.5)
         # Weight read off the same rows: thin where the arc leaves the stem,
         # the flank at three quarters of the stem, the bottom heaviest.
-        ap = con([0.60, 0.54, A_FLANK, A_FLANK + 0.10, 0.66])
+        # around the bowl: top-right, upper-left, left, bottom, lower-right
+        # -- thick, thin, thick, medium, thin, which is one 50 degree pen.
+        ap = con([A_TOPR, 0.55, A_FLANK, A_FLANK * 0.73, 0.60], CON_A)
         parts.append(stroke(p_, widths([(0.0, S * ap[0]), (0.22, S * ap[1]),
                                         (0.45, S * ap[2]), (0.74, S * ap[3]),
                                         (1.0, S * ap[4])]), cut0=CUT))
