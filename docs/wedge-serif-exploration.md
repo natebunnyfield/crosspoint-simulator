@@ -4973,3 +4973,52 @@ Proven by deleting the `a` and watching the build fail with
 tree. **A gate has to be shown failing before it is worth anything** — the same
 lesson as the dial that appeared to do nothing in round 119, arriving from the
 other direction.
+
+## Round 120 — contrast arm D shipped, and the `u` rewritten as a movement
+
+### Contrast: arm D (owner, 2026-09-15: *"yes to D"*)
+
+`ALBO_ALD_CON` now defaults to **9.26**, the ratio Albo's own
+`FJORD_CONTRAST` 0.892 produces — the contrast the shipping Regular and Italic
+already build at.
+
+**Why the module had less contrast than the family it belongs to:** every width
+in here is DECLARED from a scan measurement, so these letters bypassed
+`FJORD_CONTRAST` entirely. Griffo's page really is 2.8:1 at this size; Albo is
+not, and this is Albo.
+
+| arm | matches | target | achieved on the `o` | ink |
+|---|---|---|---|---|
+| A | as measured | — | 2.78:1 | 100% |
+| B | 0.60, round 53 | 2.50 | 2.48:1 | 102% |
+| C | 0.80, Bold | 5.00 | 4.05:1 | 93% |
+| **D** | **0.892, shipping** | 9.26 | **5.56:1** | **89%** |
+| E | 0.95, round 65 | 11.15 | 5.56:1 | 88% |
+
+D and E produce the same letter, and that is the family's own behaviour: the
+pen's `HAIR_FLOOR` clamps the thin, which is also why `FJORD_CONTRAST` 0.95 and
+1.00 are identical in the roman.
+
+**The transform anchors on the THICK** — `w' = hi · (w/hi)^γ` — because that is
+the family's model, `hair = stem × (1 − contrast)`: the stem is held and the
+hair thins. A first version anchored on the MEAN and fattened the thicks as
+much as it thinned the thins; by the 0.892 arm the `o` was a black blob with a
+lens-shaped slit for a counter. **Ink falling as contrast rises is the test
+that it is working** — 100% → 89% across the ladder.
+
+### The `u`: *"redo u to be more strokeful"*
+
+It was three butted pieces — two stems and a bottom curve, drawn separately.
+It measured correctly and read as construction, because the joins were SEAMS
+rather than the places a stroke changes direction.
+
+Rewritten as the letter is actually written: **ONE movement** makes the left
+stem, the bottom turn and the rise to the right stem — down, around, up — and a
+second stroke brings the right stem to the baseline and out. The width profile
+runs thick down the left, thinning through the turn, thin on the rise, which is
+what an upstroke is.
+
+One render-reading worth recording: the first proof strip showed letters
+dropping out of the words ("you d e uie"). That was not the letters — the font
+had been built with `--only "aeiouy"`. A missing glyph and a broken glyph look
+identical in a word image, so check the build flags before believing either.

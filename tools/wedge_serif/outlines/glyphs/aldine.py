@@ -52,6 +52,53 @@ _DEFAULT = "classic"
 _WHICH = os.environ.get("ALBO_ITALIC", _DEFAULT).lower()
 ON = _WHICH == "aldine" or os.environ.get("ALBO_ALDINE") == "1"
 
+# ---------------------------------------------------------------- CONTRAST
+# Owner 2026-09-15: *"needs to have more line contrast. give me options that
+# match prior approved contrasts."*
+#
+# WHY THIS MODULE HAD LESS CONTRAST THAN THE REST OF ALBO, which is the part
+# worth understanding: every width in here is DECLARED from a measurement off
+# the scan, so these letters bypass `FJORD_CONTRAST` -- the family's own dial --
+# completely. Albo's shipping Regular and Italic build at contrast 0.892, and
+# `hair = stem x (1 - contrast)` makes that a **9.26:1** pen. The Aldine letters
+# as measured are 2.8:1 (the o) and 3.4:1 (the e): a far flatter face sitting
+# inside a family that is not flat. Griffo's page really is that low-contrast
+# at this size -- but matching the source's contrast and matching Albo are two
+# different goals, and this is Albo.
+#
+# The prior APPROVED contrasts, from the family's own rulings, converted:
+#
+#   FJORD_CONTRAST 0.60  ->  2.50:1   round 53
+#   FJORD_CONTRAST 0.80  ->  5.00:1   round 62's sliders; Bold ships here
+#   FJORD_CONTRAST 0.892 ->  9.26:1   the SHIPPING Regular and Italic
+#   FJORD_CONTRAST 0.95  -> 11.15:1   round 65, "set default to .95 contrast"
+#
+# ALBO_ALD_CON names a target thick:thin ratio, and the transform ANCHORS ON
+# THE THICK -- the family's own model, `hair = stem x (1 - contrast)`: the stem
+# is held and the hair thins.
+#
+#     w' = hi * (w / hi) ** gamma,   gamma = ln(target) / ln(hi / lo)
+#
+# so w'=hi at the thick and hi/target at the thin, with the order of every
+# stroke between them preserved. A first version anchored on the MEAN instead,
+# which fattened the thicks as much as it thinned the thins: by the 0.892 arm
+# the o was a black blob with a lens-shaped slit for a counter. More contrast
+# should not mean more ink -- it means less, in the thins only.
+# 0 leaves every letter exactly as measured off the page.
+ALD_CON = float(os.environ.get("ALBO_ALD_CON", 9.26))   # owner 2026-09-15: arm D
+
+
+def con(ws):
+    """Re-spread a letter's declared widths to the module's target contrast."""
+    if not ALD_CON or len(ws) < 2:
+        return list(ws)
+    lo, hi = min(ws), max(ws)
+    if lo <= 0 or hi / lo <= 1.0001:
+        return list(ws)
+    import math as _m
+    gamma = _m.log(ALD_CON) / _m.log(hi / lo)
+    return [hi * (w / hi) ** gamma for w in ws]
+
 HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
 HEAD_W = float(os.environ.get("ALBO_ALD_HEAD_W", 0.58))       # its weight, x the stem
@@ -151,9 +198,10 @@ if ON:
         L = S * (I_HEAD_LEN if length is None else length)
         dx, dy = math.cos(a) * L, math.sin(a) * L
         hw = (HEAD_W if w is None else w)
+        hp = con([0.80, 2.05, 1.35, 0.82])
         return stroke([(x - dx * 0.30, y - dy * 0.30), (x + dx * 0.70, y + dy * 0.70)],
-                      widths([(0.0, S * hw * 0.80), (0.30, S * hw * 2.05),
-                              (0.62, S * hw * 1.35), (1.0, S * hw * 0.82)]),
+                      widths([(0.0, S * hw * hp[0]), (0.30, S * hw * hp[1]),
+                              (0.62, S * hw * hp[2]), (1.0, S * hw * hp[3])]),
                       cut0=CUT, cut1=CUT)
 
     @glyph('i')
@@ -200,20 +248,32 @@ if ON:
 
     @glyph('u')
     def a_u(c):
-        """Two stems on the measured pitch, each with the i's wedge head at the
-        x-line, joined by a bottom curve off the LEFT one -- the arch inverted.
-        The right stem runs to the baseline and takes the exit."""
+        """Written, not assembled. ONE movement makes the left stem, the bottom
+        turn and the rise to the right stem -- down, around, up -- and a second
+        stroke brings the right stem down to the baseline and out.
+
+        The first cut butted three pieces together: two stems and a bottom
+        curve drawn separately. It measured correctly and read as construction,
+        because the joins were seams rather than the places a stroke changes
+        direction. The pen's own widths along one path do the work instead:
+        thick down the left, thinning through the turn, thin on the rise --
+        which is what an upstroke is."""
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + U_PITCH * xh
-        parts = list(st(x1, 0, xh, head=False, foot=True, w=I_STEM,
-                        foot_len=I_FOOT, foot_w=0.46))
-        parts += list(st(x0, xh * U_JOIN, xh, head=False, foot=False, w=I_STEM))
+        w = x1 - x0
+        # down, around, up -- one path
+        p = catmull([(x0, xh * 0.94), (x0 - w * 0.02, xh * 0.52),
+                     (x0 + w * 0.06, xh * 0.16), (x0 + w * 0.34, -OVER * 0.5),
+                     (x0 + w * 0.72, xh * 0.14), (x1, xh * 0.52), (x1, xh * 0.94)],
+                    tension=0.5)
+        # thick down the left, thinning through the turn, thin on the rise
+        up = con([1.00, 0.98, 0.74, 0.52, 0.46, 0.60, 0.78])
+        prof = widths([(i / (len(up) - 1), S * I_STEM * 1.34 * v) for i, v in enumerate(up)])
+        parts = [stroke(p, prof, cut0=CUT)]
+        # the second stroke: the right stem down to the baseline, and out
+        parts += list(st(x1, 0, xh * 0.94, head=False, foot=True, w=I_STEM,
+                         foot_len=I_FOOT, foot_w=0.46))
         parts.append(wedge_head(x0, xh * 0.875))
         parts.append(wedge_head(x1, xh * 0.875))
-        p = catmull([(x0, xh * U_JOIN), (x0 + (x1 - x0) * 0.10, xh * 0.08),
-                     (x0 + (x1 - x0) * 0.50, -OVER * 0.5),
-                     (x1 - (x1 - x0) * 0.10, xh * 0.14), (x1, xh * U_JOIN)], tension=0.5)
-        wf = pen_widths(p, floor=S * FLOOR)
-        parts.append(stroke(p, lambda t: wf(t) * I_STEM * 1.30))
         return geom.ink(parts)
 
     # MEASURED off the o of "udos" in griffo-macro.png: x145-185, y61-114 --
@@ -238,9 +298,10 @@ if ON:
         cx = S * 0.6 + rx
         outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, BOWL_K)[:-1]
         phi = math.radians(O_PEN)
+        _thick, _thin = (con([O_THIN, O_THICK])[::-1] if ALD_CON else (O_THICK, O_THIN))
         def wf(t):
             th = t * 2 * math.pi
-            return S * (O_THIN + (O_THICK - O_THIN) * abs(math.cos(th - phi)))
+            return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
         return geom.ink([PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]])
 
     @glyph('c')
@@ -342,7 +403,7 @@ if ON:
              (0.34, 0.02),   (E_END, 0.12)]     # round the bottom, and STOP
         p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
         # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
-        base = [0.23, 0.30, 0.79, 0.78, 0.70, 0.80, 0.80, 0.76, 0.70, 0.34]
+        base = con([0.23, 0.30, 0.79, 0.78, 0.70, 0.80, 0.80, 0.76, 0.70, 0.34])
         mean = sum(base) / len(base)
         wf = widths([(i / (len(base) - 1),
                       S * (mean + (w - mean) * E_CON) * E_WT * E_CTR)
@@ -402,9 +463,10 @@ if ON:
                       (X(0.44), Y(0.09)), (X(A_STEM - 0.09), Y(A_JOIN))], tension=0.5)
         # Weight read off the same rows: thin where the arc leaves the stem,
         # the flank at three quarters of the stem, the bottom heaviest.
-        parts.append(stroke(p_, widths([(0.0, S * 0.60), (0.22, S * 0.54),
-                                        (0.45, S * A_FLANK), (0.74, S * (A_FLANK + 0.10)),
-                                        (1.0, S * 0.66)]), cut0=CUT))
+        ap = con([0.60, 0.54, A_FLANK, A_FLANK + 0.10, 0.66])
+        parts.append(stroke(p_, widths([(0.0, S * ap[0]), (0.22, S * ap[1]),
+                                        (0.45, S * ap[2]), (0.74, S * ap[3]),
+                                        (1.0, S * ap[4])]), cut0=CUT))
         return geom.ink(parts)
 
     @glyph('b')
