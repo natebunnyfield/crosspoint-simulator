@@ -2406,62 +2406,300 @@ if ON:
     G_BAR = float(os.environ.get("ALBO_ALD_G_BAR", 0.46))    # the bar's height, x C
     G_BAR_IN = float(os.environ.get("ALBO_ALD_G_IN", 0.16))  # how far in it reaches, x rx
 
-    def cstem_i(x, y0, y1, bow=None, w=None):
+    # ------------------------------------------------- THE SERIFS, round 134
+    # Owner 2026-09-16, looking at these eight: *"some capitals need serifs as
+    # they are missing them."* He is right, and the cause is structural rather
+    # than an oversight in any one letter. These eight are drawn on the nib and
+    # stopped with the pen's own cut; the EIGHTEEN capitals this module does
+    # not redraw come from glyphs/caps_straight.py and wear the family's
+    # bracketed wedge. In NAVE, Hugh or SUGAR the two kinds stand side by side
+    # and the re-cut ones read unfinished.
+    #
+    # WHICH CORNER GETS ONE IS THE ROMAN'S DECISION, letter by letter, and not
+    # a new one taken here. Read off caps_straight.py and confirmed on a 700 px
+    # render of Albo-Medium:
+    #
+    #   H  both stems: an OUTWARD top wedge only (left stem left, right stem
+    #      right) and a two-sided foot                     g_H
+    #   N  the left stem the same; the right stem keeps its outward top and
+    #      has NO foot, the diagonal landing there          g_N's foot=None
+    #   U  the left stem's top, the right stem's two-sided top ('right+');
+    #      the bowl's foot takes none                       g_U
+    #   V  a diagonal end wedge on each top terminal, outward; the baseline
+    #      vertex bare                                      g_V's serif0=1/-1
+    #   A  the left leg's FLAT foot (tip on the baseline, drop 0) and the
+    #      right leg's outward diagonal wedge; the apex bare g_A
+    #   S  the family's beak at the top terminal             g_S
+    #   G  the beak at the top terminal                      g_G
+    #   Q  the ring takes none and the tail ends in the pen's cut and nothing
+    #      else                                             g_Q
+    #
+    # SO THE Q IS UNTOUCHED, deliberately: its tail already ends in `cut1=CUT`,
+    # which is the whole of what the roman Q's tail does. Nothing was added to
+    # it and nothing should be.
+    #
+    # WHERE THE REFERENCE ITALICS DISAGREE WITH THE ROMAN, the roman wins and
+    # the disagreement is recorded rather than split. Rendered at 700 px and
+    # looked at: Flanker Griffo Italic gives the H, N and U TWO-SIDED tops --
+    # four horns on an H, not two -- and the A two-sided feet; Poetica the
+    # same, in a much finer chancery hairline. Following them would make these
+    # eight the odd ones out a second time, in the other direction, beside the
+    # B D E I J L M T of the same font whose tops are one-sided. The two places
+    # the reference IS followed are the S's lower terminal and the G's bar end,
+    # and both say so where they are drawn.
+    #
+    # AN ITALIC SERIF IS NOT THE ROMAN'S ROTATED -- and the asymmetry is in the
+    # BRACKET, not in the reach, which is the opposite of what I expected to
+    # find. Measured on Flanker Griffo Italic at 1200 px (cap height 878),
+    # column by column out of the slab, against the stem's own edges carried up
+    # the slope:
+    #
+    #                reach L   reach R   bracket depth 15-20 px outside the stem
+    #     H foot       113       144       LEFT 0.082 cap    RIGHT 0.047 cap
+    #     H top        113       144       LEFT 0.087        RIGHT 0.076
+    #     U top L      113       125       (its thin right stem: 113 / 116)
+    #
+    # The REACH is the same either side to within a few per cent, and the same
+    # 113 px on a 117 px stem as on a 43 px one: a slab serif is a fixed length,
+    # not a multiple of the stem, and the slant does not lengthen it. What the
+    # slant costs is the BRACKET. At the FOOT the left horn climbs 1.7x further
+    # up the stem than the right, because a right-leaning stem's left edge
+    # leans AWAY from the wedge's tip and the concave bracket has further to
+    # travel before it can lie along it; at the TOP the same effect is nearly
+    # spent (1.15x). That is what CAP_SERIF_TRAIL carries, and it is the only
+    # number here that is not the roman's.
+    #
+    # WHAT IT COST IN WIDTH, measured rather than assumed, as advance over the
+    # letter's OWN roman (the eighteen capitals the build only shears and
+    # narrows sit at 0.96-0.99 of theirs):
+    #
+    #        before  after        before  after
+    #     A   0.985  1.118     N   0.916  1.000
+    #     G   0.893  0.886     Q   0.901  0.901
+    #     H   0.910  0.992     S   1.106  1.104
+    #     U   0.973  1.030     V   0.941  1.043
+    #
+    # The H and N were the two NARROW ones and the serifs put them on their
+    # roman exactly, which is the change earning itself. The A at 1.118 is the
+    # one letter now visibly wider than its roman, and the cause is its own
+    # FIT width dial (1.350) multiplying the wedges with everything else -- so
+    # re-solving that dial is a real proposal and NOT something this round
+    # takes on its own: the weights it sits beside were solved against the
+    # roman capitals and hold (cmp_cap_weight, --tol 0.05, 0 off, before and
+    # after). Checked and ruled out as the cause: keeping the brush taper on
+    # the served ends only moves the A from 1.118 to 1.100 and the V from
+    # 1.043 to 1.016, so the width is the serifs and not the un-taper.
+    CAP_SERIF_TRAIL = float(os.environ.get("ALBO_ALD_CAP_TRAIL", 1.60))
+    CAP_SERIF_TRAIL_TOP = float(os.environ.get("ALBO_ALD_CAP_TRAIL_TOP", 1.15))
+
+    from ..primitives import wedge as _wedge, beak as _beak, end_wedge as _end_wedge
+    from ..pen import WL, WD, DROP, FOOT as SERIF_FOOT
+    from .caps_straight import BEAK_CUT as CAP_BEAK_CUT   # -28 deg: the C/G/S terminal, imported so it cannot drift from the roman's
+
+    def _edge_back(side):
+        """edge_at for wedge(): the point `dist` back along a stroke's REAL
+        side polyline from its LAST point.
+
+        wedge()'s default walks a STRAIGHT line back from the corner, which is
+        right for the roman's stems and wrong for every stroke in this module:
+        these stems are bowed (CAP_BOW) and the nib changes their width along
+        their length, so the drawn edge is neither straight nor parallel to the
+        centerline. With the default the bracket's foot lands beside the edge
+        instead of on it and each serif seats with a nick. Same helper the
+        figures reach for (glyphs/nines.py `_walk_back`)."""
+        pts = list(side)
+
+        def f(dist):
+            rem = dist; p = pts[-1]
+            for q in reversed(pts[:-1]):
+                seg = math.dist(p, q)
+                if seg >= rem:
+                    u = rem / seg if seg else 0.0
+                    return (p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u)
+                rem -= seg; p = q
+            return pts[0]
+        return f
+
+    def _stem_serifs(Lz, Rz, where, at_top):
+        """The family's wedges at one end of a drawn stem. `where` is the
+        ROMAN'S OWN vocabulary (primitives.stem): 'left' | 'right' | 'both' |
+        'left+' | 'right+', the '+' being the small 0.4 x 0.6 wedge the other
+        way that the I and the U's right stem carry -- so a call site here
+        reads against g_H, g_N and g_U word for word. Sizes are the roman's
+        too: a top is the family's full unit, a foot 0.85 of its length at 0.6
+        of its drop (primitives.stem's own defaults)."""
+        d = (0, 1) if at_top else (0, -1)
+        # the stems here are drawn UPWARD, so `stroke`'s left-of-travel edge is
+        # the left side; at the foot each polyline has to be walked from its
+        # other end.
+        edges = {-1: (Lz if at_top else Lz[::-1]), +1: (Rz if at_top else Rz[::-1])}
+        main = -1 if where in ("left", "left+", "both") else +1
+        sides = [main] + ([-main] if where in ("both", "left+", "right+") else [])
+        out = []
+        for i, sx in enumerate(sides):
+            small = (where in ("left+", "right+")) and i == 1
+            ln = WL * (0.4 if small else (1.0 if at_top else SERIF_FOOT))
+            dp = WD * (0.6 if small else 1.0)
+            dr = DROP * (0.4 if small else (1.0 if at_top else 0.6))
+            if sx < 0: dp *= CAP_SERIF_TRAIL_TOP if at_top else CAP_SERIF_TRAIL
+            e = edges[sx]
+            out.append(_wedge(e[-1], d, (sx, 0), ln, dp, dr, edge_at=_edge_back(e)))
+        return out
+
+    def cstem_i(x, y0, y1, bow=None, w=None, top=None, foot=None):
         """A capital's stem, bowed inward and drawn on the nib -- the italic
-        stem of round 127 at cap height."""
+        stem of round 127 at cap height -- with the family's bracketed wedges
+        at whichever ends carry them.
+
+        A SERVED END DOES NOT ALSO TAPER. `nib_widths`' brush entry (ALD_TIP,
+        0.62 of the body over its last 12%) is what a stroke the pen LIFTS off
+        does; a stroke the pen finishes with a serif is full width into its
+        bracket. Measured on Flanker Griffo Italic's H: the stem is 116 px wide
+        a fifth of the way up and still 116 px where the slab meets it. Seating
+        a wedge on a needle gives the bracket nothing to land on, and the
+        serif reads as a crossbar stuck on a point. Built both ways and looked
+        at, A V beside the untouched X at 420 px: with the taper kept the V's
+        top wedges are slivers hanging off two points and the X's beside them
+        are slabs; with it dropped the three terminals are the same terminal,
+        which is the whole object of the round."""
         bow = CAP_BOW if bow is None else bow
         w = CAP_W if w is None else w
         p_ = catmull([(x, y0), (x + S * bow * 0.72, y0 + (y1 - y0) * 0.30),
                       (x + S * bow, y0 + (y1 - y0) * 0.55),
                       (x + S * bow * 0.55, y0 + (y1 - y0) * 0.82), (x, y1)],
                      tension=0.5)
-        ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CAP_CON)
-        return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]))
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CAP_CON, taper=False)
+        ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(foot is None, top is None)))]
+        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        solid, Lz, Rz = stroke(p_, wf, sides=True)
+        parts = [solid]
+        if top: parts += _stem_serifs(Lz, Rz, top, True)
+        if foot: parts += _stem_serifs(Lz, Rz, foot, False)
+        return geom.union(parts)
 
-    def cdiag(a, b, w=None):
-        """A capital's diagonal, on the nib: its width follows its direction,
-        so the two diagonals of an A or a V are NOT the same weight."""
+    def _flat_foot_diag(a, b, w=None):
+        """The A's left leg: a nib diagonal from the baseline at `a` up to `b`,
+        its bottom face cut LEVEL and the family's wedge growing horizontally
+        out of the leg's left edge with its tip ON the baseline (drop 0).
+
+        This is g_A's foot, reproduced rather than invented -- `flat_face`'s
+        shear so the face lies on the baseline instead of square across a
+        47-degree axis, then `wedge(Apt, (0,-1), (-1,0), WL*0.9, WD*0.9, 0)`.
+        The one difference is the edge the bracket walks: the roman's leg is a
+        straight line and takes wedge()'s default, while this one is a bowed
+        catmull on a changing nib, so it walks the drawn edge (`_edge_back`)."""
         w = CAP_W if w is None else w
         p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
-        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON)
-        return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
-                      cut0=CUT, cut1=CUT)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
+        ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(False, True)))]
+        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        tn = geom.tangents(p_)[0]
+        solid, Lz, Rz = stroke(p_, wf, cut0=math.atan2(-tn[0], tn[1]), sides=True)
+        return geom.union([solid,
+                           _wedge(Lz[0], (0, -1), (-1, 0), WL * 0.9,
+                                  WD * 0.9 * CAP_SERIF_TRAIL, 0.0,
+                                  edge_at=_edge_back(Lz[::-1]))])
+
+    def cdiag(a, b, w=None, serif0=None, serif1=None):
+        """A capital's diagonal, on the nib: its width follows its direction,
+        so the two diagonals of an A or a V are NOT the same weight.
+
+        serif0/serif1 are the roman's (primitives.diagonal): +1/-1 names the
+        side taken on the normal of the direction OUT of that end. A SERVED END
+        DROPS ITS PEN CUT -- the wedge's face IS the terminal, and a cut behind
+        it leaves the double facet with a ledge between two faces that the
+        owner had cleaned off the roman E and F (caps_straight.py's note on
+        `bar`). It does not taper either, for the reason cstem_i gives."""
+        w = CAP_W if w is None else w
+        p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
+        ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
+        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        parts = [stroke(p_, wf, cut0=None if serif0 else CUT, cut1=None if serif1 else CUT)]
+        if serif0: parts.append(_end_wedge(p_, wf(0.0), True, serif0))
+        if serif1: parts.append(_end_wedge(p_, wf(1.0), False, serif1))
+        return geom.union(parts)
 
     @glyph('H')
     def a_H(c):
+        """Serifs as g_H's: each stem's top wedge points OUTWARD only (the
+        inner top corners are bare, which is the roman's cut and not Flanker's)
+        and each foot is two-sided. Six in all, where a roman H has six."""
         C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.62 * C
         bar = stroke([(x0, C * 0.54), (x1, C * 0.58)], TH_H * 1.25)
-        return geom.ink([cstem_i(x0, 0, C), cstem_i(x1, 0, C), bar])
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
+                         cstem_i(x1, 0, C, top='right', foot='both'), bar])
 
     @glyph('N')
     def a_N(c):
+        """Serifs as g_N's, which is the H's minus one: the RIGHT stem has no
+        foot, because the diagonal arrives there and a wedge under it would be
+        a serif on a junction. Flanker's italic N leaves the same corner bare,
+        so roman and reference agree here."""
         C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.66 * C
-        return geom.ink([cstem_i(x0, 0, C, w=CAP_W * N_SC), cstem_i(x1, 0, C, w=CAP_W * N_SC),
+        return geom.ink([cstem_i(x0, 0, C, w=CAP_W * N_SC, top='left', foot='both'),
+                         cstem_i(x1, 0, C, w=CAP_W * N_SC, top='right', foot=None),
                          cdiag((x0 + CS * 0.2, C * 0.96), (x1 - CS * 0.2, C * 0.06), N_SC)])
 
     @glyph('U')
     def a_U(c):
+        """Serifs as g_U's: the left stem's top wedge reaching LEFT, the right
+        stem's two-sided top ('right+' -- a full right wedge and the small
+        0.4 x 0.6 one back the other way), and NOTHING on the bowl, which is
+        one continuous stroke through the baseline and has no foot to serve.
+        Flanker's italic U agrees on all three.
+
+        This letter is drawn as ONE stroke rather than two stems and a bowl, so
+        its serifs are seated on the stroke's two ENDS off `stroke(sides=True)`
+        -- and the pen cuts that used to close those ends are gone, because the
+        wedge's face is the terminal."""
         C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.62 * C
         p_ = catmull([(x0, C), (x0 - S * 0.10, C * 0.42), (x0 + (x1 - x0) * 0.16, C * 0.10),
                       (x0 + (x1 - x0) * 0.52, -OVER * 0.4),
                       (x1 - (x1 - x0) * 0.12, C * 0.12), (x1, C * 0.46), (x1, C)],
                      tension=0.5)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.28 / S, CAP_CON)
-        return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
-                                            for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.28 / S, CAP_CON,
+                        taper=False)
+        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        solid, Lz, Rz = stroke(p_, wf, sides=True)
+        # the stroke starts DOWNWARD at the left stem, so `stroke`'s left-of-
+        # travel edge is the one facing INTO the letter there and the outer
+        # (left) edge is Rz; by the right stem it is travelling up and the two
+        # have swapped back.
+        return geom.ink([solid,
+                         _wedge(Rz[0], (0, 1), (-1, 0), WL, WD * CAP_SERIF_TRAIL_TOP, DROP,
+                                edge_at=_edge_back(Rz[::-1])),
+                         _wedge(Rz[-1], (0, 1), (1, 0), WL, WD, DROP,
+                                edge_at=_edge_back(Rz)),
+                         _wedge(Lz[-1], (0, 1), (-1, 0), WL * 0.4, WD * 0.6 * CAP_SERIF_TRAIL_TOP,
+                                DROP * 0.4, edge_at=_edge_back(Lz))])
 
     @glyph('V')
     def a_V(c):
+        """Serifs as g_V's: the family's diagonal end wedge (0.9 x 0.9, the
+        A's and the X's) on each top terminal, reaching OUTWARD, and nothing at
+        the baseline vertex -- where Flanker's and Poetica's italic V's are
+        also bare, the two strokes simply closing on each other. The left
+        stroke is drawn top-down so its serif is at t=0; the right is drawn UP
+        from the vertex, so its serif is at t=1 and the side flips."""
         C = c["cap"]; x0 = CS * 0.5; w = 0.66 * C
         apex = (x0 + w * 0.52, -OVER * 0.3)
-        return geom.ink([cdiag((x0, C), apex, V_DIAG), cdiag(apex, (x0 + w, C), V_DIAG)])
+        return geom.ink([cdiag((x0, C), apex, V_DIAG, serif0=1),
+                         cdiag(apex, (x0 + w, C), V_DIAG, serif1=-1)])
 
     @glyph('A')
     def a_A(c):
+        """Serifs as g_A's, which serves the two BASELINE feet and leaves the
+        apex to the flag. The left leg is the hairline and takes the roman's
+        FLAT foot -- a wedge growing horizontally out of the leg's left edge
+        with its tip ON the baseline (drop 0), off a level end face rather than
+        the pen's, so a thin diagonal does not finish in a spike. The right leg
+        is the stem and takes the ordinary outward diagonal wedge. Flanker
+        makes both feet two-sided; the roman does not, and the roman wins."""
         C = c["cap"]; x0 = CS * 0.4; w = 0.68 * C
         apex = (x0 + w * 0.56, C)
-        left = cdiag((x0, 0), apex, A_DIAG)
-        right = cdiag(apex, (x0 + w, 0), A_DIAG)
+        left = _flat_foot_diag((x0, 0), apex, A_DIAG)
+        right = cdiag(apex, (x0 + w, 0), A_DIAG, serif1=1)
         bar = stroke([(x0 + w * 0.16, C * 0.32), (x0 + w * 0.84, C * 0.35)], TH_H * 1.20)
         # the apex flag: a real italic A carries an entry reaching LEFT
         flag = stroke([(apex[0] - CS * 1.05, C * 1.02), (apex[0] + CS * 0.18, C)],
@@ -2470,14 +2708,43 @@ if ON:
 
     @glyph('S')
     def a_S(c):
+        """BOTH terminals take the family's beak -- the face sheared toward the
+        vertical at CAP_BEAK_CUT and a short lip hanging from its inner corner
+        into the aperture (primitives.beak, 0.4 x 0.7 of the family).
+
+        The top one is the roman's: g_S carries exactly this at its start. The
+        BOTTOM one is the one place this letter follows the reference over the
+        roman -- g_S finishes its lower terminal with a widening (S_BOTTOM_END
+        1.30) and no beak at all, while Flanker Griffo Italic's S and Poetica's
+        both hook the lower left terminal up into the mouth, and the owner's
+        report is that these letters are missing serifs rather than that they
+        carry the wrong ones. Rendered at 700 px beside the roman S before
+        choosing."""
         C = c["cap"]; x0 = CS * 0.5; w = 0.50 * C
         p_ = catmull([(x0 + w * 0.92, C * 0.86), (x0 + w * 0.46, C * 1.00),
                       (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
                       (x0 + w * 0.70, C * 0.44), (x0 + w * 0.94, C * 0.20),
                       (x0 + w * 0.50, -OVER * 0.3), (x0, C * 0.16)], tension=0.5)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON)
-        return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
-                                            for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON,
+                        taper=False)
+        wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        bc = math.radians(CAP_BEAK_CUT)
+        # The upper terminal is primitives.beak's own case and takes it.
+        # THE LOWER ONE CANNOT USE IT, and the reason is a sign: beak() seats
+        # its lip on the corner `stroke` would have made with cut = -cut_deg at
+        # the END (it moves P FORWARD along the tangent while stroke's cut1
+        # moves that same corner BACK), so the pair leave a V notch between the
+        # lip and the body -- visible at 3x on the first cut of this letter. The
+        # lip is therefore built here from the corner `stroke` actually drew,
+        # which is also what lets its bracket walk the real edge; the cut is
+        # -bc so the aperture side of the face runs forward and the outer
+        # corner is the one taken back, which is what a beak is.
+        solid, Lz, Rz = stroke(p_, wf, cut0=bc, cut1=-bc, sides=True)
+        tl = geom.tangents(p_)[-1]; nl = (-tl[1], tl[0])
+        return geom.ink([solid,
+                         _beak(p_, wf(0.0), True, CAP_BEAK_CUT),
+                         _wedge(Rz[-1], tl, (-nl[0], -nl[1]), WL * 0.4, WD * 0.7, 0.0,
+                                edge_at=_edge_back(Rz))])
 
     @glyph('G')
     def a_G(c):
@@ -2489,14 +2756,31 @@ if ON:
         broken O with a spur stuck on its flank. Compared against Pagella and
         Poetica: both open at the right, both turn their bar in toward the
         counter, and neither lets it project past the bowl.
+
+        SERIFS, round 134: the arc's upper terminal takes the family's beak,
+        which is g_G's own ending, and THE BAR'S INNER END TAKES NOTHING.
+
+        That second half was built first and thrown away, which is worth
+        recording so it is not re-proposed. At a glance Flanker Griffo Italic's
+        G looks as though it finishes its bar with a two-sided slab; cropped
+        and magnified 3x it is nothing of the kind -- the whole bar IS one flat
+        slab of even thickness, bracketed down into the spur on both sides,
+        and its ends are simply blunt. g_G's bar is the same idea with the
+        family's pen cut at each end and no wedge anywhere. Built with the
+        family's bar-end wedge (0.85 x 0.9, drop 0) both ways it came out a
+        trumpet: this bar tapers to TH_H x 0.70 at the inner end, so a
+        full-size wedge is 2.5x the thing it is finishing and its bracket eats
+        a third of the bar's visible length. Roman and reference agree, so the
+        pen cut stays.
         """
         C = c["cap"]; rx = 0.34 * C; ry = C / 2 + OVER * 0.4; cx = CS * 0.6 + rx
         A0, A1 = math.radians(G_OPEN0), math.radians(G_OPEN1)
         p_ = superellipse(cx, C / 2, rx, ry, A0, A1, BOWL_K)
         ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S,
                         CAP_CON, smooth=7)
-        arc = stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
-                     cut0=CUT, cut1=CUT)
+        af = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        arc = stroke(p_, af, cut0=math.radians(CAP_BEAK_CUT), cut1=CUT)
+        lip = _beak(p_, af(0.0), True, CAP_BEAK_CUT)
         # the terminal the arc ends on, and the bar turning in from it
         ex = cx + rx * math.cos(A1); ey = C / 2 + ry * math.sin(A1)
         by = C * G_BAR
@@ -2504,10 +2788,17 @@ if ON:
                        widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
         bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
                      widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
-        return geom.ink([arc, stem_, bar])
+        return geom.ink([arc, lip, stem_, bar])
 
     @glyph('Q')
     def a_Q(c):
+        """NO SERIF ANYWHERE, and that is the answer rather than an omission.
+        The ring is a closed curve with no terminal to serve, and g_Q's tail
+        ends in the pen's cut (`cut1=CUT`) and nothing else -- which is what
+        this tail already did, so round 134 changed the Q by not one unit.
+        Flanker Griffo Italic and Poetica both finish the tail the same way, a
+        swash thinning to a cut. Recorded so the next pass does not re-propose
+        it."""
         C = c["cap"]; rx = 0.35 * C; cx = CS * 0.6 + rx
         ring_ = ring(cx, C / 2, rx, C / 2 + OVER * 0.4, floor=S * FLOOR)[0]
         tail = catmull([(cx + rx * 0.12, C * 0.30), (cx + rx * 0.62, C * 0.10),
