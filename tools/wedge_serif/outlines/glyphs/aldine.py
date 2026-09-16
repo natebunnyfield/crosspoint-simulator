@@ -81,7 +81,13 @@ FIT = {            # ch: (weight, width)
     # horizontally IS heavier on the page, and the Q's 1.18 came from nowhere
     # else.
     'A': (1.000, 1.350),
-    'Q': (0.492, 1.225),
+    # ROUND 135 re-solved the Q's weight, 0.492 -> 1.000, because the letter
+    # changed under it: the ring widened by 17% to Pagella's and the tail left
+    # the counter, and both take ink out of a measure that is ink AREA over
+    # outline LENGTH. At the old 0.492 the re-cut Q measured 0.79 of its roman
+    # against a 0.05 tolerance. 1.000 means the buffer is off entirely and the
+    # drawn letter stands as drawn.
+    'Q': (0.880, 1.225),
     'V': (1.000, 1.350),
     'S': (1.218, 0.975),
     'N': (1.000, 1.100),
@@ -2523,6 +2529,22 @@ if ON:
 
 
     # ------------------------------------------------------------------ CAPS
+    # A CAPITAL'S DIAL MAY NOT SHARE A NAME WITH A LOWERCASE ONE, and there is
+    # a gate for it at the foot of this section rather than a rule in a comment.
+    # Round 135 shipped five collisions in one edit -- S_W, Z_W, Z_DIAG,
+    # K_JOIN and Q_RX were already the lowercase s, z, k and q's own dials, and
+    # every letter here is registered AFTER those, so the capital's assignment
+    # silently re-pointed the lowercase letter. The `s` went from 245 units wide
+    # to 137 and rendered as a stem with two blobs -- a different glyph, in a
+    # round whose brief said "no lowercase". Nothing failed: the build
+    # succeeded, the capitals were correct, `cmp_cap_weight.py` stayed green
+    # (it measures capitals), and the only thing that said so was a word
+    # rendered at 54 px where "Verso" read "Verio". A comment asking the next
+    # editor to check would not have caught it; this does. Capital dials
+    # therefore carry a CAP_ prefix, and the gate proves it rather than trusting
+    # it.
+    _PRE_CAPS = {k: v for k, v in list(globals().items()) if k[:1].isupper()}
+
     # THE EIGHT THAT A REAL ITALIC RE-CUTS.
     #
     # docs/albo-italic-capitals.md measured 17 roman/italic pairs and ranked
@@ -2688,6 +2710,58 @@ if ON:
     CAP_SERIF_TRAIL = float(os.environ.get("ALBO_ALD_CAP_TRAIL", 1.60))
     CAP_SERIF_TRAIL_TOP = float(os.environ.get("ALBO_ALD_CAP_TRAIL_TOP", 1.15))
 
+    # ------------------------------------------------ DOUBLED, round 135
+    # Owner 2026-09-16: *"for capitals, double the recently added serifs so
+    # they are visible and not microserifs."* One factor on all three of a
+    # wedge's dimensions -- length (its reach out of the stroke), depth (how
+    # far back down the stroke's own edge the concave bracket runs) and drop
+    # (how far back along the stroke the apex sits, which is the blade's
+    # THICKNESS). Scaling only the length gives a longer sliver, which is the
+    # fault rather than the fix.
+    #
+    # WHERE THE MICROSERIFS ACTUALLY WERE, measured before turning the dial
+    # rather than assumed -- and the answer is NOT the one the round-134 note
+    # would lead you to expect. Rendered at cap height 1000 px, the top-left
+    # blade's reach LEFT of the bare stem edge with the 13-degree shear taken
+    # out (a shear maps a horizontal run to a horizontal run of the same
+    # length, so nothing has to be unsheared but the x of one edge):
+    #
+    #     depth below cap line      2    6   12   20   30   45   65   90
+    #     H  re-cut                -7   15   47   31   25   13    3    1
+    #     N  re-cut                 2   19   45   35   25    9    3    1
+    #     I  roman-derived         -1   21   46   31   20   13    5    4
+    #     K  roman-derived         -6   12   39   41   31   16    6    4
+    #     L  roman-derived         -4   16   46   39   29   13    5    3
+    #
+    # The re-cut STEM tops were already the roman's blade to within the
+    # measurement -- 45-47 px of peak reach against 39-46. What made them read
+    # unfinished beside I K L is the stem they sit on: a roman cap stem carries
+    # 14% entasis, so its crown widens INTO the wedge and the two read as one
+    # flare, while `cstem_i` draws a parallel-sided nib stem and the same wedge
+    # is a blade stuck on a post. The genuinely micro ones are the 0.4-unit
+    # pieces: the S's and G's beak lips and the U's small right-stem wedge, all
+    # at WL x 0.4 x WD x 0.7-ish, which is a third of the family's blade.
+    #
+    # So this factor lands the 0.4-unit pieces at 0.8 -- still inside the
+    # family's own 1.0 unit, which is the "not bigger than the roman-derived
+    # capitals" half of the brief -- and it takes the full-unit stem blades
+    # past the roman's. That second half is the part the gate refuses, and the
+    # gate is the owner's own: the doubled ones must read as the same family at
+    # 27 px, NOT bigger. CAP_SERIF_FULL is therefore what the pieces already at
+    # the family's unit get, and it is 1.0: doubling a blade that already
+    # matches I K L exactly would make these eight the odd ones out a second
+    # time, in the other direction, which is the trap round 134's own serif
+    # note records itself falling into over Flanker's two-sided tops.
+    # Both are dials, so the whole-alphabet doubling is one env var away
+    # (ALBO_ALD_CAP_SFULL=2) and was built and looked at before this was set.
+    CAP_SERIF_LEN = float(os.environ.get("ALBO_ALD_CAP_SLEN", 2.0))
+    CAP_SERIF_FULL = float(os.environ.get("ALBO_ALD_CAP_SFULL", 1.0))
+
+    def _sk(small):
+        """The scale a round-134 serif takes: the doubling for the 0.4-unit
+        pieces, CAP_SERIF_FULL for the ones already at the family's unit."""
+        return CAP_SERIF_LEN if small else CAP_SERIF_FULL
+
     from ..primitives import wedge as _wedge, beak as _beak, end_wedge as _end_wedge
     from ..pen import WL, WD, DROP, FOOT as SERIF_FOOT
     from .caps_straight import BEAK_CUT as CAP_BEAK_CUT   # -28 deg: the C/G/S terminal, imported so it cannot drift from the roman's
@@ -2734,13 +2808,31 @@ if ON:
         out = []
         for i, sx in enumerate(sides):
             small = (where in ("left+", "right+")) and i == 1
-            ln = WL * (0.4 if small else (1.0 if at_top else SERIF_FOOT))
-            dp = WD * (0.6 if small else 1.0)
-            dr = DROP * (0.4 if small else (1.0 if at_top else 0.6))
+            k = _sk(small)
+            ln = WL * (0.4 if small else (1.0 if at_top else SERIF_FOOT)) * k
+            dp = WD * (0.6 if small else 1.0) * k
+            dr = DROP * (0.4 if small else (1.0 if at_top else 0.6)) * k
             if sx < 0: dp *= CAP_SERIF_TRAIL_TOP if at_top else CAP_SERIF_TRAIL
             e = edges[sx]
             out.append(_wedge(e[-1], d, (sx, 0), ln, dp, dr, edge_at=_edge_back(e)))
         return out
+
+    def _cap_end_wedge(pts, w, at_start, side, scale=0.9, k=None):
+        """primitives.end_wedge with round 135's factor on ALL THREE of the
+        wedge's dimensions.
+
+        It cannot go through `end_wedge`: that hands `diag_wedge` the family's
+        DROP as a fixed argument and offers no way to move it, so a scale
+        passed down it lengthens and deepens the blade while leaving its apex
+        at the old thickness -- a longer sliver. Same body otherwise, so the
+        +1/-1 side convention is the roman's unchanged."""
+        k = CAP_SERIF_FULL if k is None else k
+        tn = geom.tangents(pts)
+        d = (-tn[0][0], -tn[0][1]) if at_start else tn[-1]
+        nrm = (-d[1], d[0]); sd = (nrm[0] * side, nrm[1] * side)
+        P = pts[0] if at_start else pts[-1]
+        A = (P[0] + sd[0] * w / 2, P[1] + sd[1] * w / 2)
+        return _wedge(A, d, sd, WL * scale * k, WD * scale * k, DROP * k)
 
     def cstem_i(x, y0, y1, bow=None, w=None, top=None, foot=None):
         """A capital's stem, bowed inward and drawn on the nib -- the italic
@@ -2792,9 +2884,10 @@ if ON:
         tn = geom.tangents(p_)[0]
         solid, Lz, Rz = stroke(p_, wf, cut0=math.atan2(-tn[0], tn[1]), sides=True)
         return geom.union([solid,
-                           _wedge(Lz[0], (0, -1), (-1, 0), WL * 0.9,
-                                  WD * 0.9 * CAP_SERIF_TRAIL, 0.0,
-                                  edge_at=_edge_back(Lz[::-1]))])
+                           _wedge(Lz[0], (0, -1), (-1, 0),
+                                  WL * 0.9 * CAP_SERIF_FULL,
+                                  WD * 0.9 * CAP_SERIF_TRAIL * CAP_SERIF_FULL,
+                                  0.0, edge_at=_edge_back(Lz[::-1]))])
 
     def cdiag(a, b, w=None, serif0=None, serif1=None):
         """A capital's diagonal, on the nib: its width follows its direction,
@@ -2812,8 +2905,8 @@ if ON:
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
         parts = [stroke(p_, wf, cut0=None if serif0 else CUT, cut1=None if serif1 else CUT)]
-        if serif0: parts.append(_end_wedge(p_, wf(0.0), True, serif0))
-        if serif1: parts.append(_end_wedge(p_, wf(1.0), False, serif1))
+        if serif0: parts.append(_cap_end_wedge(p_, wf(0.0), True, serif0))
+        if serif1: parts.append(_cap_end_wedge(p_, wf(1.0), False, serif1))
         return geom.union(parts)
 
     @glyph('H')
@@ -2863,12 +2956,16 @@ if ON:
         # (left) edge is Rz; by the right stem it is travelling up and the two
         # have swapped back.
         return geom.ink([solid,
-                         _wedge(Rz[0], (0, 1), (-1, 0), WL, WD * CAP_SERIF_TRAIL_TOP, DROP,
+                         _wedge(Rz[0], (0, 1), (-1, 0), WL * CAP_SERIF_FULL,
+                                WD * CAP_SERIF_TRAIL_TOP * CAP_SERIF_FULL,
+                                DROP * CAP_SERIF_FULL,
                                 edge_at=_edge_back(Rz[::-1])),
-                         _wedge(Rz[-1], (0, 1), (1, 0), WL, WD, DROP,
+                         _wedge(Rz[-1], (0, 1), (1, 0), WL * CAP_SERIF_FULL,
+                                WD * CAP_SERIF_FULL, DROP * CAP_SERIF_FULL,
                                 edge_at=_edge_back(Rz)),
-                         _wedge(Lz[-1], (0, 1), (-1, 0), WL * 0.4, WD * 0.6 * CAP_SERIF_TRAIL_TOP,
-                                DROP * 0.4, edge_at=_edge_back(Lz))])
+                         _wedge(Lz[-1], (0, 1), (-1, 0), WL * 0.4 * CAP_SERIF_LEN,
+                                WD * 0.6 * CAP_SERIF_TRAIL_TOP * CAP_SERIF_LEN,
+                                DROP * 0.4 * CAP_SERIF_LEN, edge_at=_edge_back(Lz))])
 
     @glyph('V')
     def a_V(c):
@@ -2883,6 +2980,36 @@ if ON:
         return geom.ink([cdiag((x0, C), apex, V_DIAG, serif0=1),
                          cdiag(apex, (x0 + w, C), V_DIAG, serif1=-1)])
 
+    # ROUND 135, TO POETICA. Three measured differences, at a 300 px cap with
+    # the ink runs read at fixed heights and each letter shifted to its own
+    # 0.50-cap left edge (so the shear, which both faces have at about the same
+    # angle, cancels):
+    #
+    #                        0.75 cap                0.50 cap        0.08 cap
+    #     Poetica     0.130-0.196  0.229-0.348   0.000-0.062 0.281-0.395   span 0.766
+    #     Albo r134   0.185-0.253  0.394-0.503   0.000-0.067 0.439-0.545   span 0.933
+    #
+    # The A was 38% WIDER at mid-height and its legs opened faster: at 0.90 cap
+    # Poetica's two legs are still one run and Albo's had already parted. That
+    # is round 134's own open question -- it recorded the A at 1.118 of its
+    # roman's advance, "the one letter now visibly wider than its roman",
+    # named its FIT width dial of 1.350 as the cause, and left re-solving it as
+    # a proposal rather than taking it. This round takes it: the drawn width
+    # comes down instead, which is the same correction made where the letter is
+    # rather than on a scale applied over the top of it.
+    #
+    # The BAR drops from 0.32 to 0.29 of the cap (Poetica's sits just under
+    # three tenths) and the apex FLAG is cut to 0.45 of its reach. The flag is
+    # NOT removed: Poetica's A has no entry at all, but round 134 put it there
+    # because a written italic A carries one, and taking a stroke out of the
+    # letter is a bigger change than the owner asked for -- "match to poetica"
+    # is about what the letter DOES, and what this one does at its apex now is
+    # a short entry rather than a bar reaching a full cap-stem left.
+    CAP_A_W = float(os.environ.get("ALBO_ALD_CAP_A_W", 0.57))     # the letter's drawn width, x C (was 0.68)
+    CAP_A_APEX = float(os.environ.get("ALBO_ALD_CAP_A_AP", 0.56))  # where the apex sits, x w
+    CAP_A_BAR = float(os.environ.get("ALBO_ALD_CAP_A_BAR", 0.31))  # the crossbar's height, x C
+    CAP_A_FLAG = float(os.environ.get("ALBO_ALD_CAP_A_FLAG", 0.45))  # the apex entry's reach, x round 134's
+
     @glyph('A')
     def a_A(c):
         """Serifs as g_A's, which serves the two BASELINE feet and leaves the
@@ -2892,15 +3019,19 @@ if ON:
         the pen's, so a thin diagonal does not finish in a spike. The right leg
         is the stem and takes the ordinary outward diagonal wedge. Flanker
         makes both feet two-sided; the roman does not, and the roman wins."""
-        C = c["cap"]; x0 = CS * 0.4; w = 0.68 * C
-        apex = (x0 + w * 0.56, C)
+        C = c["cap"]; x0 = CS * 0.4; w = CAP_A_W * C
+        apex = (x0 + w * CAP_A_APEX, C)
         left = _flat_foot_diag((x0, 0), apex, A_DIAG)
         right = cdiag(apex, (x0 + w, 0), A_DIAG, serif1=1)
-        bar = stroke([(x0 + w * 0.16, C * 0.32), (x0 + w * 0.84, C * 0.35)], TH_H * 1.20)
+        bar = stroke([(x0 + w * 0.16, C * CAP_A_BAR), (x0 + w * 0.84, C * (CAP_A_BAR + 0.03))],
+                     TH_H * 1.20)
         # the apex flag: a real italic A carries an entry reaching LEFT
-        flag = stroke([(apex[0] - CS * 1.05, C * 1.02), (apex[0] + CS * 0.18, C)],
+        flag = stroke([(apex[0] - CS * 1.05 * CAP_A_FLAG, C * 1.02),
+                       (apex[0] + CS * 0.18, C)],
                       widths([(0.0, S * 0.30), (0.55, S * 0.72), (1.0, S * 0.50)]), cut0=CUT)
         return geom.ink([left, right, bar, flag])
+
+    CAP_S_W = float(os.environ.get("ALBO_ALD_CAP_S_W", 0.50))   # the letter's drawn width, x C
 
     @glyph('S')
     def a_S(c):
@@ -2916,11 +3047,18 @@ if ON:
         report is that these letters are missing serifs rather than that they
         carry the wrong ones. Rendered at 700 px beside the roman S before
         choosing."""
-        C = c["cap"]; x0 = CS * 0.5; w = 0.50 * C
+        C = c["cap"]; x0 = CS * 0.5; w = CAP_S_W * C
+        # ROUND 135: THE LOWER BOWL IS FULLER. Poetica's S reaches 0.199 of the
+        # cap left of its own 0.50-cap edge at a quarter height and round 134's
+        # reached nothing at all there -- the lower bowl simply stopped short
+        # and the letter finished on a flatter curve. The last three control
+        # points carry the whole of that: the bowl swings wider right before it
+        # turns, comes down further, and the terminal reaches back further left.
         p_ = catmull([(x0 + w * 0.92, C * 0.86), (x0 + w * 0.46, C * 1.00),
                       (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
-                      (x0 + w * 0.70, C * 0.44), (x0 + w * 0.94, C * 0.20),
-                      (x0 + w * 0.50, -OVER * 0.3), (x0, C * 0.16)], tension=0.5)
+                      (x0 + w * 0.72, C * 0.42), (x0 + w * 1.00, C * 0.18),
+                      (x0 + w * 0.46, -OVER * 0.5), (x0 - w * 0.10, C * 0.17)],
+                     tension=0.5)
         ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON,
                         taper=False)
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
@@ -2938,9 +3076,11 @@ if ON:
         solid, Lz, Rz = stroke(p_, wf, cut0=bc, cut1=-bc, sides=True)
         tl = geom.tangents(p_)[-1]; nl = (-tl[1], tl[0])
         return geom.ink([solid,
-                         _beak(p_, wf(0.0), True, CAP_BEAK_CUT),
-                         _wedge(Rz[-1], tl, (-nl[0], -nl[1]), WL * 0.4, WD * 0.7, 0.0,
-                                edge_at=_edge_back(Rz))])
+                         _beak(p_, wf(0.0), True, CAP_BEAK_CUT,
+                               lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN)),
+                         _wedge(Rz[-1], tl, (-nl[0], -nl[1]),
+                                WL * 0.4 * CAP_SERIF_LEN, WD * 0.7 * CAP_SERIF_LEN,
+                                0.0, edge_at=_edge_back(Rz))])
 
     @glyph('G')
     def a_G(c):
@@ -2976,7 +3116,8 @@ if ON:
                         CAP_CON, smooth=7)
         af = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
         arc = stroke(p_, af, cut0=math.radians(CAP_BEAK_CUT), cut1=CUT)
-        lip = _beak(p_, af(0.0), True, CAP_BEAK_CUT)
+        lip = _beak(p_, af(0.0), True, CAP_BEAK_CUT,
+                    lip=(0.4 * CAP_SERIF_LEN, 0.7 * CAP_SERIF_LEN))
         # the terminal the arc ends on, and the bar turning in from it
         ex = cx + rx * math.cos(A1); ey = C / 2 + ry * math.sin(A1)
         by = C * G_BAR
@@ -2985,6 +3126,22 @@ if ON:
         bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
                      widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
         return geom.ink([arc, lip, stem_, bar])
+
+    # ROUND 135: THE Q IS THE ONE THAT GOES TO PAGELLA. The owner's first list
+    # put it with the Poetica eight and his second message the same day
+    # (2026-09-16) moved it: the Q matches TeX Gyre Pagella Italic. Both arms
+    # are drawn and the dial ships `pagella`; the Poetica arm is kept because
+    # the first ruling was real and reversing this is one env var.
+    CAP_Q_REF = os.environ.get("ALBO_ALD_CAP_Q_REF", "pagella").lower()
+    # AND THE RING IS WIDER. Pagella's ring spans 0.986 of the cap against round
+    # 134's 0.839, measured the same way -- 17% -- so the letter read narrow
+    # beside its own reference whatever the tail did.
+    # The FIT weight moved with it, 0.492 -> 0.880: a wider ring and a tail that
+    # has left the counter both take ink out of area-over-length, and then the
+    # tail's join back onto the ring puts some of it back -- the first cut of
+    # this letter started the tail BELOW the ring and the glyph was two pieces.
+    # Each of those three is worth more than the 0.05 tolerance on its own.
+    CAP_Q_RX = float(os.environ.get("ALBO_ALD_CAP_Q_RX", 0.41))   # the ring's x radius, x C (was 0.35)
 
     @glyph('Q')
     def a_Q(c):
@@ -2995,13 +3152,346 @@ if ON:
         Flanker Griffo Italic and Poetica both finish the tail the same way, a
         swash thinning to a cut. Recorded so the next pass does not re-propose
         it."""
-        C = c["cap"]; rx = 0.35 * C; cx = CS * 0.6 + rx
-        ring_ = ring(cx, C / 2, rx, C / 2 + OVER * 0.4, floor=S * FLOOR)[0]
-        tail = catmull([(cx + rx * 0.12, C * 0.30), (cx + rx * 0.62, C * 0.10),
-                        (cx + rx * 1.12, -C * 0.10), (cx + rx * 1.46, -C * 0.22)],
-                       tension=0.5)
+        C = c["cap"]; rx = CAP_Q_RX * C; cx = CS * 0.6 + rx
+        ry = C / 2 + OVER * 0.4
+        ring_ = ring(cx, C / 2, rx, ry, floor=S * FLOOR)[0]
+        if CAP_Q_REF == 'poetica':
+            # Poetica leaves the ring at five o'clock and runs out and down in
+            # one shortening sweep.
+            tail = catmull([(cx + rx * 0.62, -C * 0.02), (cx + rx * 1.00, -C * 0.10),
+                            (cx + rx * 1.34, -C * 0.19)], tension=0.5)
+            prof = lambda t: 1.10 - 0.72 * t
+        else:
+            # PAGELLA runs the tail UNDER the letter: it leaves the ring near
+            # seven o'clock, dips below the baseline, crosses beneath the bowl
+            # almost level, and lifts at its right end. Measured at a 300 px cap
+            # with the ink runs read at fixed heights, Pagella's Q shows nothing
+            # at all inside the counter at 0.25 of the cap -- 0.008-0.137 and
+            # 0.790-0.891, the two sides of the ring and no third run -- while
+            # round 134's tail put 0.390-0.537 right through the middle of it.
+            # A tail that crosses its own bowl is the shape being changed.
+            # THE FIRST POINT SITS ON THE RING, not under it. At 250 degrees
+            # the ring's own outline is at about +0.03 C, so a tail that starts
+            # below the baseline starts in mid-air: the first cut left a visible
+            # gap between bowl and tail and the glyph was two pieces.
+            tail = catmull([(cx - rx * 0.30, C * 0.045),
+                            (cx + rx * 0.10, -C * 0.17),
+                            (cx + rx * 0.80, -C * 0.16),
+                            (cx + rx * 1.08, -C * 0.03)], tension=0.5)
+            prof = lambda t: 0.62 + 0.80 * t - 0.82 * t * t
         wt = pen_widths(tail, floor=S * FLOOR)
-        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * (1.15 - 0.80 * t), cut1=CUT)])
+        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t), cut1=CUT)])
+
+    # ================================================ ROUND 135: NINE TO POETICA
+    # Owner 2026-09-16: *"match R P S Z Q L K M A to poetica."* R P Z L K M came
+    # from the roman through italic.py (sheared and narrowed 5%); A S Q were
+    # already re-cut here. Each is drawn again below against what the reference
+    # letter DOES, not against its proportions -- a proportion is not a
+    # construction, and the w/h of the two R's already agreed to 0.09 while the
+    # legs were different animals.
+    #
+    # THE Q IS THE EXCEPTION AND IT IS PAGELLA. Owner's call the same day, in a
+    # second message: the Q matches TeX Gyre Pagella Italic rather than Poetica.
+    # `ALBO_ALD_Q_REF` keeps both arms reachable and ships `pagella`.
+    #
+    # HOW THE MATCH IS MEASURED, and the trap in the instrument. `cmp_aldine_shape.py`
+    # scales both faces to one X-HEIGHT, which is right for the lowercase it was
+    # written for and misleading for a capital: Poetica's cap/x is 1.29 and
+    # Albo's 1.54, so every Albo capital arrives 19% TALLER than its reference
+    # before a single stroke is compared, and the IoU is then mostly a report of
+    # that ratio. Measured on the round-134 tree, x-height-scaled against
+    # cap-scaled: A 0.141 / 0.126, M 0.361 / 0.090, S 0.275 / 0.630. The cap
+    # height is a family-wide proportion nobody asked to move, so what these
+    # letters were drawn against is the CONSTRUCTION -- the swash leg, the arm,
+    # the splay, the foot's turn, the ribbon, the bowl's depth, the spine, the
+    # tail, the apex -- and both numbers are reported rather than one being
+    # quietly preferred.
+    #
+    # WHAT A RE-CUT COSTS THE REST OF THE FONT, measured rather than assumed,
+    # because "no lowercase" is one of the round's own constraints and a naive
+    # check says it was broken. Comparing the shipped build against round 134's,
+    # 247 of 469 glyphs differ, 23 of them plain lowercase. NONE of that is a
+    # lowercase edit. `build.build` draws with ONE `cut.Cutter`, whose `phase()`
+    # consumes a running counter once PER CONTOUR in CHARS order, so changing
+    # any glyph's contour count re-phases the hand-cut decimation of every glyph
+    # drawn after it -- a deliberate one-to-two-unit wobble, landing on a
+    # different point of each later outline. Build both trees with FJORD_CUT=0
+    # and the count falls to zero plain lowercase: the only non-capital glyphs
+    # that then differ are the accented composites of the nine, plus $ § (R) (M)
+    # and the U and G that instruction 1's beak touched. Round 134 did the same
+    # thing on a smaller scale (26 glyphs, 2 lowercase). It is a property of the
+    # cut, not a change to a letter, and there is nothing to fix -- but the
+    # naive diff will say otherwise every time, so it is written down here.
+    #
+    # EVERY ONE OF THEM KEEPS ALBO'S WEDGE. The reference is the shape's
+    # authority and never the terminal's: Poetica finishes on a chancery
+    # hairline and these are Albo capitals standing beside B C D E F I J T W X Y,
+    # so the stems take `cstem_i`'s bracketed wedges and the diagonals take
+    # `cdiag`'s, exactly as the round-134 eight do.
+
+    # ---------------------------------------------------------------- R
+    # POETICA'S R DOES THREE THINGS OURS DID NOT. Its bowl is SMALL and closes
+    # on the stem HIGH -- at 0.50 of the cap against the roman's 0.46 measured
+    # off a 300 px cap render -- so the letter's white sits in the upper half
+    # and the leg gets room. Its LEG is a swash: it leaves the junction, bends
+    # through a long shallow curve and runs out past the bowl's own right edge,
+    # thinning to a fine upturned tip. The roman's leg is a near-straight
+    # bracketed strut that lands on the baseline under the bowl's edge; at 300
+    # px Poetica's tip is 0.94 of the cap right of the stem and the roman's
+    # 0.72, and the tip's last 15% rises rather than falls.
+    CAP_R_BOWL_Y = float(os.environ.get("ALBO_ALD_CAP_R_BY", 0.46))   # where the bowl meets the stem, x C
+    CAP_R_BOWL_W = float(os.environ.get("ALBO_ALD_CAP_R_BW", 0.41))   # the bowl's reach right of the stem centre, x C
+    CAP_R_LEG_X = float(os.environ.get("ALBO_ALD_CAP_R_LX", 0.78))    # where the leg's tip lands, x C right of the stem
+    CAP_R_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_R_LY", 0.02))    # and how high above the baseline -- Poetica's tip RISES
+    CAP_R_W = float(os.environ.get("ALBO_ALD_CAP_R_W", 1.00))         # the bowl's weight, x CAP_W_ROUND
+
+    @glyph('R')
+    def a_R(c):
+        """Stem, small high bowl, swash leg. The leg is ONE stroke from the
+        junction to the tip rather than a strut plus a foot wedge, because what
+        separates Poetica's R from a roman one is that the leg never stops: it
+        thins all the way out and finishes in the pen's own cut, which is what
+        `g_Q`'s tail and this module's own tails do. A foot wedge out there
+        would be a serif on a swash."""
+        C = c["cap"]; x0 = CS * 0.6
+        rx = CAP_R_BOWL_W * C
+        jy = C * CAP_R_BOWL_Y
+        ry = (C - jy) / 2 + OVER * 0.2
+        cy = C - ry
+        p_ = superellipse(x0, cy, rx, ry, math.radians(90), math.radians(-90), BOWL_K)
+        ws = nib_widths(p_, CS * CAP_W_ROUND * CAP_R_W / S,
+                        CS * CAP_W_ROUND * CAP_R_W * 0.30 / S,
+                        CAP_CON, smooth=7, taper=False)
+        bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        bowl = stroke(p_, bf, cut0=CUT, cut1=CUT)
+        # the leg: out of the junction, bending flat, thinning to a rising tip
+        # THE LEG STARTS INSIDE THE BOWL, not beside it. Springing it from the
+        # bowl's outer edge left a concave nick at the junction -- the two
+        # strokes met at an angle and the union kept the corner between them,
+        # visible at 260 px. Burying the first point back under the bowl lets
+        # the union swallow it, which is what `a_G`'s spur does at its own
+        # junction.
+        jx = x0 + rx * 0.08
+        leg_p = catmull([(jx, jy + C * 0.07),
+                         (x0 + C * 0.34, C * 0.32),
+                         (x0 + C * 0.62, C * 0.10),
+                         (x0 + C * CAP_R_LEG_X, C * CAP_R_LEG_Y)], tension=0.5)
+        lw = nib_widths(leg_p, CS * CAP_W / S, CS * CAP_W * 0.30 / S, CAP_CON,
+                        smooth=7, taper=False)
+        lf = widths([(i / (len(lw) - 1), S * v) for i, v in enumerate(lw)])
+        leg = stroke(leg_p, lambda t: lf(t) * (1.10 - 0.78 * t), cut1=CUT)
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), bowl, leg])
+
+    # ---------------------------------------------------------------- P
+    # POETICA'S P HAS A DEEP BOWL THAT DOES NOT CLOSE. Measured at a 300 px cap:
+    # its bowl's lower terminal reaches 0.38 of the cap and stops about a fifth
+    # of a stem short of the stem itself, while the roman's closes at 0.44 --
+    # so ours read as a small high loop and the reference as a full one. The
+    # terminal is left OPEN and cut with the pen, which is `half_bowl`'s
+    # `open_bottom` in the roman said in this module's vocabulary.
+    CAP_P_BOWL_Y = float(os.environ.get("ALBO_ALD_CAP_P_BY", 0.38))
+    CAP_P_BOWL_W = float(os.environ.get("ALBO_ALD_CAP_P_BW", 0.43))
+    # THE ARC MUST REACH THE STEM. The first cut stopped at -72 degrees on the
+    # reading that Poetica's P leaves its lower terminal free -- it does not,
+    # and the count says so before the eye does: a P has TWO contours, an outer
+    # and a counter, and the -72 cut built ONE. The counter was open at the
+    # bottom and the white ran out of the letter into the sidebearing. -88 is
+    # where the arc's own width carries it onto the stem; -99 closes the counter
+    # too, and pushes a spur out past the stem's left edge. Both were rendered
+    # at 260 px and looked at.
+    CAP_P_BOWL_END = float(os.environ.get("ALBO_ALD_CAP_P_END", -88.0))
+    CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.15))   # the bowl's weight, x CAP_W_ROUND
+
+    @glyph('P')
+    def a_P(c):
+        """Stem plus one deep arc. The arc stops at CAP_P_BOWL_END rather than -90,
+        which is what leaves the lower terminal hanging free of the stem the way
+        the reference's does."""
+        C = c["cap"]; x0 = CS * 0.6
+        rx = CAP_P_BOWL_W * C
+        jy = C * CAP_P_BOWL_Y
+        ry = (C - jy) / 2 + OVER * 0.2
+        cy = C - ry
+        p_ = superellipse(x0, cy, rx, ry, math.radians(90),
+                          math.radians(CAP_P_BOWL_END), BOWL_K)
+        ws = nib_widths(p_, CS * CAP_W_ROUND * CAP_P_W / S,
+                        CS * CAP_W_ROUND * CAP_P_W * 0.30 / S,
+                        CAP_CON, smooth=7, taper=False)
+        bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
+                         stroke(p_, bf, cut0=CUT, cut1=CUT)])
+
+    # ---------------------------------------------------------------- Z
+    # THE Z WAS ALREADY THE CLOSEST OF THE NINE (cap-aligned IoU 0.665 at round
+    # 134) and the whole difference is in its two TERMINALS, which is what the
+    # overlay shows: every pixel of disagreement is at the top-left and the
+    # bottom-right and none of it is on the diagonal. Poetica RIBBONS both bars
+    # -- the top bar's left end drops into a hook that descends about a sixth of
+    # the cap below the bar, and the bottom bar's right end lifts into a tail
+    # that rises about as far. The roman gives the first a bar-end wedge and the
+    # second a modest upturn, so ours read as cut where the reference reads as
+    # written.
+    CAP_Z_HOOK = float(os.environ.get("ALBO_ALD_CAP_Z_HOOK", 0.22))   # how far the top-left hook descends, x C
+    CAP_Z_TAIL = float(os.environ.get("ALBO_ALD_CAP_Z_TAIL", 0.20))   # how far the bottom-right tail rises, x C
+    CAP_Z_W = float(os.environ.get("ALBO_ALD_CAP_Z_W", 0.62))         # the letter's width, x C
+    # THE Z'S DIAGONAL IS A DECLARED THICK, not a nib stroke, and this is the
+    # one place in the nine where the nib had to be overruled. A Z's diagonal
+    # runs top-right to bottom-left, which for a right-handed pen at this
+    # module's 50-degree nib is very nearly the THIN direction -- so `cdiag`
+    # drew it as a hairline and the letter came out at 0.64 of its roman's mean
+    # ink width against a 0.05 tolerance, the worst miss of the nine. Sweeping
+    # the nib's thick does not rescue it: 1.16 -> 2.60 moved the letter only
+    # from -0.400 to -0.158, so reaching the roman would have taken a nib thick
+    # of about 3.5 cap stems to make one diagonal, which is a dial being used to
+    # say the model is wrong. `g_Z` already says it plainly by declaring CS, and
+    # Poetica's own Z has its diagonal as the heaviest stroke in the letter.
+    # So it is `primitives.diagonal` at a declared width, as the roman's is.
+    CAP_Z_DIAG = float(os.environ.get("ALBO_ALD_CAP_Z_D", 1.14))     # x CS; the roman declares 1.00 and this letter's bars are lighter, so it carries a touch more
+    CAP_Z_BAR = float(os.environ.get("ALBO_ALD_CAP_Z_BAR", 1.28))     # the bars' thickness, x TH_H
+
+    @glyph('Z')
+    def a_Z(c):
+        """Two bars, a diagonal, and the two ribbon terminals that are the
+        letter's whole argument with the roman. The hook and the tail are drawn
+        as continuations of their bars -- one stroke each, on the nib -- rather
+        than as wedges, because a ribbon is the pen turning and a wedge is a
+        cut."""
+        C = c["cap"]; x0 = CS * 0.5; w = CAP_Z_W * C
+        th = TH_H * CAP_Z_BAR
+        top = stroke([(x0, C - th / 2), (x0 + w, C - th / 2)], th, cut1=CUT)
+        bot = stroke([(x0, th / 2), (x0 + w, th / 2)], th, cut0=CUT)
+        hook_p = catmull([(x0 + w * 0.16, C - th / 2),
+                          (x0 + w * 0.01, C - th * 0.8),
+                          (x0 - CS * 0.30, C - C * CAP_Z_HOOK)], tension=0.5)
+        hook = stroke(hook_p, widths([(0.0, th), (0.55, th * 1.00),
+                                      (1.0, th * 1.00)]), cut1=CUT)
+        tail_p = catmull([(x0 + w * 0.84, th / 2),
+                          (x0 + w * 0.99, th * 0.8),
+                          (x0 + w + CS * 0.30, C * CAP_Z_TAIL)], tension=0.5)
+        tail = stroke(tail_p, widths([(0.0, th), (0.55, th * 1.00),
+                                      (1.0, th * 1.00)]), cut1=CUT)
+        dg = PR.diagonal((x0 + w - CS * 0.14, C - th), (x0 + CS * 0.14, th),
+                         CS * CAP_Z_DIAG)
+        return geom.ink([top, bot, hook, tail, dg])
+
+    # ---------------------------------------------------------------- L
+    # POETICA'S L TURNS ITS FOOT UP. The bar leaves the stem, runs right, and
+    # its last fifth lifts into a small rising tail -- 0.11 of the cap above the
+    # baseline at a 300 px render -- so the letter finishes with a flick rather
+    # than with the roman's bar-end wedge sitting flat on the line. Its stem
+    # also bows very slightly left, which this module cannot give it: round 134
+    # took the bow out of every capital stem on the owner's bulging report and
+    # CAP_BOW is 0. The bow is therefore NOT restored here; the turn is the
+    # change, and the straight stem is the standing ruling.
+    CAP_L_W = float(os.environ.get("ALBO_ALD_CAP_L_W", 0.54))     # the bar's reach, x C
+    CAP_L_TURN = float(os.environ.get("ALBO_ALD_CAP_L_TURN", 0.11))   # how far the tail rises, x C
+    CAP_L_BAR = float(os.environ.get("ALBO_ALD_CAP_L_BAR", 1.35))     # the bar's thickness, x TH_H
+
+    @glyph('L')
+    def a_L(c):
+        """Stem with the family's top wedge, and a bar whose right end turns
+        up. The stem takes NO foot wedge on the right, because the bar arrives
+        there -- the same rule `a_N` follows at its right stem, and the same one
+        `g_L` follows by drawing `foot='left'`."""
+        C = c["cap"]; x0 = CS * 0.6; w = CAP_L_W * C
+        th = TH_H * CAP_L_BAR
+        bar_p = catmull([(x0, th / 2), (x0 + w * 0.62, th / 2),
+                         (x0 + w * 0.92, th * 0.9), (x0 + w, C * CAP_L_TURN)],
+                        tension=0.5)
+        bar = stroke(bar_p, widths([(0.0, th), (0.62, th * 0.94),
+                                    (1.0, th * 0.62)]), cut1=CUT)
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='left'), bar])
+
+    # ---------------------------------------------------------------- K
+    # POETICA'S K IS A STEM, A THIN ARM AND A SWASH LEG, and the leg is the
+    # difference. The arm comes down from the cap line to the stem at 0.47 of
+    # the cap and is a hairline for most of its run; the LEG springs from that
+    # same junction and CURVES out -- concave upward, its tip 1.02 of the cap
+    # right of the stem at a 300 px render and rising in its last tenth -- where
+    # the roman's leg is a straight kick to a wedged foot on the baseline. Same
+    # animal as this letter's R: one stroke that thins all the way out and ends
+    # in the pen's cut.
+    CAP_K_JOIN = float(os.environ.get("ALBO_ALD_CAP_K_J", 0.40))   # where arm and leg meet the stem, x C
+    CAP_K_ARM_X = float(os.environ.get("ALBO_ALD_CAP_K_AX", 0.56))  # the arm's top, x C right of the stem
+    CAP_K_LEG_X = float(os.environ.get("ALBO_ALD_CAP_K_LX", 0.72))  # the leg's tip, x C right of the stem
+    CAP_K_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_K_LY", 0.05))  # and how high above the baseline
+    # THE LEG IS HEAVIER THAN THE ARM, and the split is Poetica's rather than a
+    # convenience: at a 300 px cap its arm measures about two thirds of its leg
+    # at the junction. Both were solved together against the roman K by
+    # cmp_cap_weight.py -- arm 0.85 / leg 1.30 lands at -0.019, and so does
+    # arm 0.95 / leg 1.25, so the tolerance does NOT choose between them and the
+    # reference does.
+    CAP_K_ARM_W = float(os.environ.get("ALBO_ALD_CAP_K_AW", 1.30))   # the arm's nib thick, x CS
+    CAP_K_LEG_W = float(os.environ.get("ALBO_ALD_CAP_K_LW", 1.45))   # the leg's, x CAP_W
+
+    @glyph('K')
+    def a_K(c):
+        """The arm keeps `cdiag`'s outward end wedge at the cap line -- that
+        terminal is a cut end in both faces and it is where Albo's family shows.
+        The leg does not: it is a swash and finishes on the pen."""
+        C = c["cap"]; x0 = CS * 0.6
+        J = (x0 + CS * 0.10, C * CAP_K_JOIN)
+        arm = cdiag((x0 + C * CAP_K_ARM_X, C), J, CAP_K_ARM_W, serif0=1)
+        leg_p = catmull([J,
+                         (x0 + C * 0.28, C * 0.30),
+                         (x0 + C * 0.56, C * 0.11),
+                         (x0 + C * CAP_K_LEG_X, C * CAP_K_LEG_Y)], tension=0.5)
+        lw = nib_widths(leg_p, CS * CAP_W * CAP_K_LEG_W / S,
+                        CS * CAP_W * CAP_K_LEG_W * 0.30 / S, CAP_CON,
+                        smooth=7, taper=False)
+        lf = widths([(i / (len(lw) - 1), S * v) for i, v in enumerate(lw)])
+        leg = stroke(leg_p, lambda t: lf(t) * (1.05 - 0.50 * t), cut1=CUT)
+        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
+
+    # ---------------------------------------------------------------- M
+    # POETICA'S M IS SPLAYED AND IT IS WIDE. Cap-aligned, its w/h is 1.39
+    # against the sheared roman's 1.15 -- the largest proportional gap of the
+    # nine by a factor of three, and the reason its cap-aligned IoU was 0.090,
+    # the lowest number in the set. The outer strokes LEAN OUT: the left one's
+    # foot sits further left than its apex and the right one's foot further
+    # right, so the letter stands like an A beside an inverted V rather than
+    # like two rules with a V between them. The middle vertex reaches the
+    # BASELINE (Poetica's does; some romans stop it short).
+    CAP_M_W = float(os.environ.get("ALBO_ALD_CAP_M_W", 0.83))      # the letter's width, x C
+    CAP_M_SPLAY = float(os.environ.get("ALBO_ALD_CAP_M_SP", 0.20))  # how far each outer foot leans out, x CS
+    CAP_M_DIAG = float(os.environ.get("ALBO_ALD_CAP_M_D", 0.81))    # the inner diagonals' weight, x CAP_W
+    CAP_M_OUT = float(os.environ.get("ALBO_ALD_CAP_M_O", 1.17))     # the outer strokes', x CAP_W
+    # THE VERTEX IS LEFT OF CENTRE. Poetica's M brings its two inner strokes
+    # down to about 0.42 of the letter's width rather than to the middle, which
+    # is what makes its right counter the wider of the two and gives the letter
+    # its lean; a centred vertex reads as a symmetrical W upside down.
+    CAP_M_VTX = float(os.environ.get("ALBO_ALD_CAP_M_V", 0.52))     # the vertex, x the width
+
+    @glyph('M')
+    def a_M(c):
+        """Four strokes. The two OUTER ones take the family's diagonal end
+        wedge at the cap line and a flat foot on the baseline; the two inner
+        ones meet at the vertex bare, which is what `a_V` does at the same
+        junction and for the same reason -- two strokes closing on each other
+        need no terminal between them."""
+        C = c["cap"]; x0 = CS * 0.5; w = CAP_M_W * C
+        sp = CS * CAP_M_SPLAY
+        lt = (x0 + sp, C); lb = (x0, 0)
+        rt = (x0 + w - sp, C); rb = (x0 + w, 0)
+        vtx = (x0 + w * CAP_M_VTX, 0)
+        left = _flat_foot_diag(lb, lt, CAP_M_OUT)
+        right = cdiag(rt, rb, CAP_M_OUT, serif0=1)
+        d1 = cdiag(lt, vtx, CAP_M_DIAG)
+        d2 = cdiag(rt, vtx, CAP_M_DIAG)
+        return geom.ink([left, d1, d2, right])
+
+
+    # ------------------------------------------- THE CAPS' OWN GATE, round 135
+    # Every module-level name that existed before the capitals were defined must
+    # still hold the object it held. See the note at the head of this section
+    # for the five that did not.
+    _CLOBBERED = sorted(k for k, v in _PRE_CAPS.items() if globals().get(k) is not v)
+    if _CLOBBERED:
+        raise RuntimeError(
+            "the Aldine CAPS block re-points " + ", ".join(_CLOBBERED) +
+            " -- those names belong to letters defined above it, and rebinding "
+            "one silently redraws that letter. Give the capital's dial a CAP_ "
+            "prefix.")
 
 
 # ---------------------------------------------------------------- THE GATE
