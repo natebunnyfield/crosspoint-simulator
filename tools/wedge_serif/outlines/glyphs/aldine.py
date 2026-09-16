@@ -756,31 +756,245 @@ if ON:
         return geom.ink(st(x0, 0, xh, head=False)
                         + [stroke(p, lambda t: wf(t) * (0.60 + 0.40 * min(1.0, t / 0.35)), cut1=CUT)])
 
+    # ------------------------------------- THE NINE DIAGONALS AND ODD ONES
+    # v w x y z k f t j, round 132: drawn against a reference rather than
+    # tuned. Owner 2026-09-15, "examine a then each subsequent letter, take
+    # multiple passes at each until the shape and strokes and serifs match what
+    # they should based on a referenced vector or bitmap", and 2026-09-16,
+    # "poetica is my preferred fallback."
+    #
+    # NONE OF THESE NINE HAS A SCAN CROP -- docs/albo-aldine-targets.md section
+    # 6 names c f g j k n t v w x y z as the twelve without one -- so the SHAPE
+    # reference for every one of them is refs/poetica-std-regular.otf, measured
+    # UNSHEARED in Albo's own units by
+    #     aldine_targets.py --font refs/poetica-std-regular.otf --md <chars>
+    # The WEIGHT reference stays Flanker Griffo Italic, the face that carries
+    # the 1501 page's colour: lowercase stem 70 units (0.83 S), hairline 22-24.
+    # Each letter's block below says which it followed for each terminal.
+    #
+    # WHERE THE TWO DISAGREE the owner's standing brief decides: the chancery
+    # references "describe what a flourish may do but don't move the text
+    # lowercase", and the target is the metal. So the y's swash tail is drawn
+    # back inside Flanker's extent (that one costs IoU and the cost is
+    # recorded at the letter), while the f's and j's leftward tails are kept
+    # because BOTH references sweep them. Flanker's own looped k is not
+    # adopted either: Poetica's open arm is the simpler letter and it is the
+    # shape reference.
+    #
+    # THICK AND THIN FOLLOW THE PEN. This is the one thing a diagonal letter
+    # gets wrong when it is drawn as two lines of declared weight, which is
+    # what `_diag` above was doing: the stroke running upper-left to
+    # lower-right is the DOWNSTROKE and carries the pen's full width, the one
+    # running lower-left to upper-right is the hairline. So the v w y are
+    # thick-then-thin left to right, the x crosses thick over thin, and the z
+    # -- whose diagonal runs the other way, down to the LEFT, along the pen's
+    # own edge -- has a thin diagonal between thick bars (targets section 2:
+    # "the z's thick strokes are the horizontal bars (70) and its diagonal is
+    # the thin one at 25"). The old v w x z read `vert med` off the targets
+    # table as if it were a stem; section 6 says plainly that x y z have no
+    # vertical stem and that median falls on the THIN stroke.
+    #
+    # WHERE EACH ONE LANDED, by cmp_aldine_shape against Poetica (IoU, start ->
+    # end), with the stroke width the built font actually measures beside it
+    # (aldine_targets --font on the TTF; Flanker's lowercase is 70):
+    #
+    #     v 0.088 -> 0.756  67    w 0.096 -> 0.765  68    x 0.131 -> 0.691  60
+    #     y 0.155 -> 0.075  68    z 0.275 -> 0.709  67    k 0.267 -> 0.399  68
+    #     f 0.000 -> 0.649  65    t 0.316 -> 0.718  65    j 0.022 -> 0.649  67
+    #
+    # THE BRIEF'S 0.80 GATE IS NOT REACHABLE IN THIS INSTRUMENT, and the number
+    # that says so is FLANKER'S OWN: scoring refs/flanker-griffo-italic.otf
+    # against Poetica the same way gives v 0.220, w 0.250, x 0.259, y 0.034,
+    # z 0.340, k 0.448, f 0.213, t 0.661, j 0.210 -- mean 0.29. Two real faces
+    # of the same tradition do not reach 0.8 of each other, so 0.8 would mean
+    # "be Poetica", which the weight half of the brief forbids. Eight of these
+    # nine beat that ceiling; the k does not, for a reason it carries below.
+    #
+    # THE APEX RULE, and it cost every letter in this module a wrong reading
+    # before it was found: a stroke whose CENTRELINE ends on the x-line puts
+    # its INK half a width above it. The first cut of these letters did that
+    # at every apex and the x came out 459 units tall against the family's
+    # 430-436 -- and `cmp_aldine_shape` scales both fonts by the bbox top of
+    # their OWN `x`, so a tall x quietly shrank every other Albo letter by 6%
+    # in the comparison, including letters nobody here is drawing. Every apex
+    # is now placed so the ink tops at 434-446 (`pen.OVER` is 14), which alone
+    # moved v 0.732 -> 0.762 and x 0.531 -> 0.664 and unpinned two fitters that
+    # had been railing. Check the bbox, not the coordinate, after moving a top.
+    #
+    # EVERY `<L>_W` AND `<L>_TW` BELOW IS BAKED FROM `aldine_fit_shape.py`
+    # (coordinate descent on the overlay IoU, --ref poetica), with ONE
+    # exception that is deliberate and worth knowing: the COLOUR dials were
+    # NOT taken from the fitter. It wanted 0.84-0.96 on the v w x z f -- which
+    # is Poetica's own lighter stroke -- and the brief's weight reference is
+    # Flanker at 70. They are set instead so the BUILT font measures 60-68
+    # (the table above), which is Flanker's 70 less the bite `cut.blend` takes
+    # out of a curved stroke, and which is where Albo's own redrawn a (72) and
+    # n (69) already sit. Two letters also kept a measured value over a fitted
+    # one: the w's apex (its fitter wanted 1.00, but Poetica's `.97` row has
+    # NO middle run, so there is no ink there) and the f's top (its fitter
+    # railed at 1.74 xh, which would put the f's hook below b d h l on the
+    # same page; Flanker's f is ABOVE its b).
+    D_UNIT = 429.0          # the reference's x-height, and Albo's
+
+    def d_frame(c, wide=1.0, x0=None):
+        """The frame all nine are drawn in. `P(x, y)` maps a REFERENCE
+        coordinate -- x in units from the letter's own left ink edge, y as a
+        fraction of the x-height -- into design space, and `u` converts a
+        reference WIDTH into design units. `wide` is the letter's width dial,
+        so a fitter can stretch the drawing without touching a coordinate.
+
+        Everything here is UNSHEARED, like the rest of the module: build.py
+        shears by FJORD_SLANT afterwards, and the references were unsheared by
+        their own declared italic angle before being measured."""
+        xh = c["xh"]; u = xh / D_UNIT
+        x0 = S * 0.6 if x0 is None else x0
+        return (lambda px, py: (x0 + px * wide * u, py * xh)), u
+
+    def d_pen(pts, keys, u, cut0=None, cut1=None, tension=0.5, tw=1.0):
+        """One movement of the pen: a catmull through `pts` (design space)
+        carrying the width table `keys` -- (t, REFERENCE units) pairs read off
+        the reference's own runs and converted here by `u`. `tw` scales every
+        width, so a letter's colour is one dial.
+
+        A catmull and not a pair of straight lines, because a chancery stroke's
+        entry, body and terminal are a single movement. Drawing the entry as a
+        separate bar is what made the old letters' heads sit ON the letter
+        instead of in it, and a straight `_diag` cannot bow at all -- Poetica's
+        v leans 0.27 dx/dy at .75 and 0.20 at .10, which is a curve."""
+        p = catmull(list(pts), tension=tension) if len(pts) > 2 else list(pts)
+        return stroke(p, widths([(t, w * u * tw) for t, w in keys]),
+                      cut0=cut0, cut1=cut1)
+
+    def d_dial(name, default):
+        return float(os.environ.get("ALBO_ALD_" + name, default))
+
+    def d_ball(P, u, x, y, r, squash=1.10, deg=None):
+        """The round terminal the chancery references hang on a rising
+        hairline -- the v w y's right stroke, the x's top right. It is a
+        separate blob rather than more width on the stroke because `stroke`
+        ends in a FLAT face: widening the last samples gives an angular flag,
+        which is what the first cut of these letters drew, and Poetica's is a
+        round bulb that reaches back over the stroke it sits on. Same reason
+        the i's dot is a nib touch and not a circle: it lies on the PEN'S
+        angle, so it is an oval leaning HEAD_DEG, not a disc."""
+        cx, cy = P(x, y)
+        a = math.radians(HEAD_DEG if deg is None else deg)
+        pts = superellipse(0.0, 0.0, r * u * squash, r * u, 0.0, 2 * math.pi, 2.0)[:-1]
+        ca, sa = math.cos(a), math.sin(a)
+        return geom.poly([(cx + px * ca - py * sa, cy + px * sa + py * ca)
+                          for px, py in pts])
+
+    # ---------------------------------------------------------------- THE f
+    # POETICA for the shape (there is no scan crop of an f -- targets section
+    # 6 lists it among the twelve without one), FLANKER for the extent of the
+    # two ends. Measured unsheared by aldine_targets.py, x in units from the
+    # letter's own left ink edge, y as a fraction of the x-height:
+    #   the f is ONE movement -- hook, stem, tail -- and not three pieces.
+    #   its stem is a long shallow S: centre 231 at 1.40, 215 at 1.15, 226 at
+    #   .75, 238 at .10, 233 at -0.12, 218 at -0.30, then hard left.
+    #   the width along it runs 40 at 1.40, 66 at .97 (the belly), 58 at .25,
+    #   43 at -0.12, 32 at -0.30 -- it tapers BOTH ways off a belly at the
+    #   x-line, which is most of why an f reads as written rather than built.
+    #   the hook leaves the stem at ~1.42 and ends in a ball. Poetica tops out
+    #   at 1.69 xh and Flanker at 1.82; Albo's own l draws 1.84, so the hook
+    #   is taken to Albo's ascender and not to Poetica's shorter one.
+    #   the bar spans 117-350 at .90 (Flanker 253 wide, Poetica 233) and is 42
+    #   thick in Poetica, 61 in Flanker -- drawn at 48, between them.
+    #   the tail: BOTH references sweep it left to the letter's own left edge
+    #   (Poetica reaches x 6 at -0.55, Flanker x 32 at the same height), so
+    #   unlike the y's tail this one is NOT a Poetica-only flourish and it is
+    #   drawn swept.
+    F_W = d_dial("F_W", 0.98)          # the letter's width, x the reference
+    F_TW = d_dial("F_TW", 1.12)        # its colour: every declared width x this
+    F_BAR = d_dial("F_BAR", 0.92)     # the crossbar's height, x xh
+    F_TOP = d_dial("F_TOP", 1.78)     # the hook's top, x xh (Albo's ascender)
+    F_TAIL = d_dial("F_TAIL", -0.62)  # the tail's floor, x xh
+
     @glyph('f')
     def a_f(c):
-        """Tall, hooked head, and it descends -- as it does on the page."""
-        xh = c["xh"]; asc = c["asc"]; x = S * 1.4
-        p = cubic((x - S * 0.10, -c["desc"] * 0.52), (x - S * 0.02, xh * 0.5),
-                  (x + S * 0.06, asc * 0.94), (x + S * 1.15, asc * 1.02))
-        wf = pen_widths(p, floor=S * FLOOR)
-        bar = stroke([(x - S * 0.95, xh * 0.94), (x + S * 1.00, xh * 0.94)], TH_H * 0.90)
-        return geom.ink([stroke(p, lambda t: wf(t) * (1.0 - 0.42 * max(0.0, (t - 0.72) / 0.28)), cut1=CUT), bar])
+        """One movement: the hook's ball, over the ascender, down the stem's
+        long S, out to the left below the baseline into the tail's ball. The
+        bar is the only stroke drawn separately."""
+        P, u = d_frame(c, F_W); T = F_TOP; B = F_TAIL
+        body = d_pen([P(356, T - 0.235), P(372, T - 0.145), P(360, T - 0.04),
+                      P(324, T), P(283, T - 0.025),
+                      P(250, T - 0.12), P(231, 1.45), P(215, 1.15), P(220, 0.95),
+                      P(233, 0.50), P(238, 0.10), P(233, -0.14), P(216, -0.34),
+                      P(170, B + 0.08), P(100, B), P(40, B + 0.02), P(12, B + 0.10)],
+                     [(0.00, 32), (0.04, 54), (0.09, 60), (0.17, 44), (0.26, 42),
+                      (0.35, 60), (0.47, 66), (0.54, 64), (0.66, 60), (0.74, 52),
+                      (0.81, 43), (0.87, 34), (0.93, 46), (0.97, 50), (1.00, 22)],
+                     u, tw=F_TW)
+        bar = d_pen([P(117, F_BAR - 0.045), P(230, F_BAR), P(350, F_BAR + 0.045)],
+                    [(0.0, 22), (0.18, 48), (0.80, 48), (1.0, 24)], u, tw=F_TW)
+        return geom.ink([body, bar])
+
+    # ---------------------------------------------------------------- THE t
+    # POETICA for the shape, FLANKER for the height above the x-line.
+    #   the stem is a STEM -- centre 103 at .50 and .75, 108 at .25, so it is
+    #   vertical in design space and not a diagonal -- 57-58 wide (Flanker 70).
+    #   it rises to a POINT above the x-line: Poetica 1.224 xh, Flanker 1.184
+    #   ("top at 508 -- 79 units above the x-line", targets section 2).
+    #   the bar at .90 spans 11-221 (Flanker 253 wide) and is 41 thick.
+    #   the exit is what makes the letter: the stem turns right at the
+    #   baseline and sweeps UP, and Poetica's .25 row catches its tip as a
+    #   17-unit run standing clear of the stem at x 204-221. The old t ended in
+    #   a cubic that stopped at 0.62 S with no lift in it at all.
+    T_W = d_dial("T_W", 0.97)
+    T_TW = d_dial("T_TW", 1.12)
+    T_TOP = d_dial("T_TOP", 1.23)     # x xh; between Poetica 1.224 and Flanker 1.184
+    T_BAR = d_dial("T_BAR", 0.93)     # x xh
 
     @glyph('t')
     def a_t(c):
-        xh = c["xh"]; x = S * 1.0
-        p = cubic((x, xh * 1.30), (x, xh * 0.34), (x + S * 0.30, S * 0.08), (x + S * 1.20, S * 0.62))
-        wf = pen_widths(p, floor=S * FLOOR)
-        bar = stroke([(x - S * 0.80, xh * 0.92), (x + S * 0.86, xh * 0.92)], TH_H * 0.88)
-        return geom.ink([stroke(p, wf, cut1=CUT), bar])
+        """The stem and its exit are one movement; the bar crosses it."""
+        P, u = d_frame(c, T_W); B = T_BAR
+        body = d_pen([P(122, T_TOP), P(110, 0.95), P(103, 0.60), P(105, 0.25),
+                      P(112, 0.085), P(140, 0.012), P(178, 0.055), P(205, 0.155),
+                      P(215, 0.26)],
+                     [(0.00, 18), (0.10, 46), (0.17, 56), (0.60, 58), (0.72, 56),
+                      (0.80, 50), (0.88, 38), (0.95, 26), (1.00, 13)], u, tw=T_TW)
+        bar = d_pen([P(11, B - 0.035), P(115, B), P(221, B + 0.035)],
+                    [(0.0, 20), (0.18, 46), (0.80, 46), (1.0, 22)], u, tw=T_TW)
+        return geom.ink([body, bar])
+
+    # ---------------------------------------------------------------- THE j
+    # POETICA for the shape; the DOT is the i's, by the owner's instruction, so
+    # it is the construction a_i already uses -- an oval lying on the pen's own
+    # angle, centre I_DOT_Y (0.39 xh) above the x-line -- and NOT Poetica's,
+    # which sits at 1.35 xh and is a much steeper oval. An i and a j on the
+    # same page have to wear the same dot.
+    #   the stem: centre 214 at .97, 227 at .50, 233 at .10, 229 at -0.12,
+    #   217 at -0.30, then hard left into the tail, exactly as the f's does.
+    #   62 wide (Poetica 57-62, Flanker 70).
+    #   the head is the module's wedge_head at .875 xh. Poetica draws its own
+    #   entry as a 26-unit tip at (127, .75) rising into the stem's top, which
+    #   is the shape the i already wears, so the j takes the i's rather than a
+    #   second drawing of the same thing.
+    #   the tail reaches x 4 at -0.55 in Poetica and x 32 in Flanker: both
+    #   sweep left, so it is drawn swept. The old j stopped at -0.70 desc and
+    #   wore a round PR.dot the i does not have.
+    J_W = d_dial("J_W", 0.97)
+    J_TW = d_dial("J_TW", 1.10)
+    J_TAIL = d_dial("J_TAIL", -0.62)  # the tail's floor, x xh
 
     @glyph('j')
     def a_j(c):
-        x = S * 1.0
-        p = cubic((x, c["xh"]), (x, -c["desc"] * 0.36), (x - S * 0.55, -c["desc"] * 0.92), (x - S * 1.50, -c["desc"] * 0.70))
-        wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink([stroke(p, lambda t: wf(t) * (1.0 - 0.45 * max(0.0, (t - 0.6) / 0.4)), cut1=CUT),
-                         PR.dot(x + S * 0.30, c["xh"] + S * 1.35, S * 0.52)])
+        xh = c["xh"]; P, u = d_frame(c, J_W); B = J_TAIL
+        body = d_pen([P(216, 1.00), P(224, 0.72), P(229, 0.40), P(233, 0.05),
+                      P(229, -0.16), P(214, -0.36), P(168, B + 0.07), P(98, B),
+                      P(38, B + 0.02), P(10, B + 0.09)],
+                     [(0.00, 42), (0.08, 58), (0.30, 62), (0.50, 61), (0.60, 56),
+                      (0.70, 46), (0.79, 36), (0.88, 44), (0.95, 48), (1.00, 20)],
+                     u, cut0=CUT, tw=J_TW)
+        xs = P(218, 0.0)[0]
+        parts = [body, wedge_head(xs, xh * 0.875)]
+        a = math.radians(HEAD_DEG); L = S * I_DOT_W
+        dx, dy = math.cos(a) * L, math.sin(a) * L
+        cy = xh + I_DOT_Y * xh
+        parts.append(stroke([(xs - dx * 0.5, cy - dy * 0.5), (xs + dx * 0.5, cy + dy * 0.5)],
+                            S * I_DOT_T, cut0=CUT, cut1=CUT))
+        return geom.ink(parts)
 
     @glyph('s')
     def a_s(c):
@@ -802,75 +1016,287 @@ if ON:
         return geom.ink([up, lo, nk])
 
     def _diag(p0, p1, w0, w1):
+        """UNUSED since round 132 -- v w x z k were its only callers and all
+        five are drawn on the pen now (`d_pen` below). Left in place rather
+        than deleted: it is a straight two-point stroke with a declared width
+        at each end, which is the right primitive for a letter that really is
+        two straight lines, and deleting it while another letter is being
+        re-cut in this file is a collision for no gain."""
         return stroke([p0, p1], widths([(0.0, S * w0), (1.0, S * w1)]), cut0=CUT, cut1=CUT)
+
+    # ---------------------------------------------------------------- THE v
+    # POETICA for the shape and the proportion, FLANKER for the weight.
+    #   322 x 446 (w/h 0.72). Flanker's v is 449 wide (w/h 1.03) -- half again
+    #   as wide -- and Poetica's is taken, because the shape reference is
+    #   Poetica and because Albo's own n u o e currently measure 348 353 327
+    #   229, so a 449-wide v would be wider than this alphabet's n.
+    #   the ENTRY and the thick downstroke are ONE stroke: the pen lands at
+    #   (5, .755), sweeps up-right to the top at (76, 1.0), turns and comes
+    #   down. Poetica's .75 row catches the entry's tip as an 11-unit run at
+    #   x 0-11, clear of the body.
+    #   the downstroke's centre: 109 at .75, 138 at .50, 161 at .25, 174 at
+    #   .10 -- so it STEEPENS as it falls (0.27 dx/dy, then 0.22, then 0.20),
+    #   and its width is 64/57/58 horizontal = 62/55/56 perpendicular. Drawn
+    #   at 68 in the body, which is Flanker's 70 less the sliver a 13-degree
+    #   lean takes back.
+    #   the thin rise: 227 at .25, 276 at .50, 294 at .75, 22-28 wide.
+    #   the TERMINAL is a ball that bulges LEFT: .75 is 268-320, .90 is
+    #   236-315 (79 wide) and .97 is 246-298, so the stroke reaches its
+    #   rightmost below the ball and the ball turns back over it. Flanker does
+    #   the same thing (its .90 is 228-354 at 126 wide, .97 75 wide), so this
+    #   is not a Poetica flourish and it is drawn.
+    V_W = d_dial("V_W", 1.00)
+    V_TW = d_dial("V_TW", 1.12)
+    V_VX = d_dial("V_VX", 176.0)      # the vertex, units from the left ink edge
 
     @glyph('v')
     def a_v(c):
-        xh = c["xh"]; x = S * 0.7; w = 200 * _w(c)
-        return geom.ink([_diag((x, xh), (x + w * 0.52, 0), 0.96, 0.34),
-                         _diag((x + w * 0.52, 0), (x + w, xh), 0.34, 0.52)])
+        P, u = d_frame(c, V_W); X = V_VX
+        thick = d_pen([P(5, 0.755), P(32, 0.90), P(76, 0.95), P(109, 0.75),
+                       P(138, 0.50), P(161, 0.25), P(X - 4, 0.07), P(X, -0.018)],
+                      [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
+                       (0.90, 52), (1.00, 30)], u, tw=V_TW)
+        thin = d_pen([P(X, -0.018), P(205, 0.12), P(232, 0.27), P(272, 0.50),
+                      P(296, 0.68), P(302, 0.795), P(290, 0.885)],
+                     [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
+                      (0.88, 44), (1.00, 48)], u, tw=V_TW)
+        ball = d_ball(P, u, 274, 0.895, 32 * V_TW)
+        return geom.ink([thick, thin, ball])
+
+    # ---------------------------------------------------------------- THE w
+    # The v twice, with the middle apex SHORT of the x-line and the two inner
+    # strokes merging well below it -- which is what Poetica's rows say and
+    # what no pair of straight diagonals can produce:
+    #   513 x 446 (Flanker 655). At .50 there are FOUR runs -- 108-165 (57),
+    #   227-249 (22), 297-357 (60), 454-484 (30) -- alternating thick, thin,
+    #   thick, thin exactly as targets section 2 records for Flanker
+    #   ("at .10 the w shows four strokes alternating 68, 50, 69, 50").
+    #   at .75 only THREE runs survive (0-11, 78-142, 255-327, 458-512): the
+    #   inner thin and the second thick have already merged, because the
+    #   second thick is 60 wide and closes the gap long before the apex. The
+    #   apex itself falls between .90 (one 37-unit run at 275-312) and .97
+    #   (no middle run at all), so it is drawn at 0.95.
+    #   vertex 1 at 166, vertex 2 at 368, both at -0.04.
+    W_W = d_dial("W_W", 1.02)
+    W_TW = d_dial("W_TW", 1.10)
+    W_APEX = d_dial("W_APEX", 0.96)   # the middle apex's height, x xh
 
     @glyph('w')
     def a_w(c):
-        xh = c["xh"]; x = S * 0.7; w = 182 * _w(c)
-        P = []
-        for k in (0, 1):
-            o = x + k * w * 1.06
-            P += [_diag((o, xh), (o + w * 0.52, 0), 0.94, 0.34),
-                  _diag((o + w * 0.52, 0), (o + w * 1.04, xh), 0.34, 0.50)]
-        return geom.ink(P)
+        P, u = d_frame(c, W_W); A = W_APEX
+        thick = [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 64), (0.90, 50), (1.00, 30)]
+        thin = [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
+                (0.88, 44), (1.00, 48)]
+        return geom.ink([
+            d_pen([P(5, 0.755), P(32, 0.90), P(77, 0.95), P(110, 0.75), P(136, 0.50),
+                   P(156, 0.25), P(164, 0.07), P(166, -0.022)], thick, u, tw=W_TW),
+            # the inner rise stops at the apex, so it keeps the hairline all
+            # the way up and never grows the v's terminal
+            d_pen([P(166, -0.022), P(190, 0.12), P(205, 0.25), P(240, 0.50),
+                   P(268, 0.75), P(286, A)],
+                  [(0.0, 32), (0.20, 24), (0.75, 26), (1.0, 32)], u, tw=W_TW),
+            d_pen([P(288, A), P(300, 0.75), P(327, 0.50), P(356, 0.25),
+                   P(366, 0.07), P(368, -0.022)],
+                  [(0.00, 30), (0.12, 52), (0.30, 64), (0.75, 62),
+                   (0.92, 48), (1.00, 30)], u, tw=W_TW),
+            d_pen([P(368, -0.022), P(396, 0.12), P(421, 0.25), P(455, 0.48),
+                   P(478, 0.655), P(484, 0.775), P(472, 0.865)],
+                  thin, u, tw=W_TW),
+            d_ball(P, u, 456, 0.875, 32 * W_TW)])
+
+    # ---------------------------------------------------------------- THE x
+    # The letter with NO vertical stem (targets section 6), so its `vert med`
+    # of 23 is the HAIRLINE and not a stem -- read `rng`.
+    #   390 x 446 in Poetica, 434 in Flanker: the one letter of these nine
+    #   where the two references nearly agree on width, so there is nothing to
+    #   choose between them.
+    #   the THICK runs upper-left to lower-right, which is the pen's
+    #   downstroke: its centre is 140 at .75, 193 at .50, 246 at .25 -- 0.49
+    #   dx/dy -- and it is 68 horizontal = 61 perpendicular, exactly the
+    #   figure targets section 2 quotes for Flanker ("the x's thick diagonal
+    #   runs 70 horizontally but is 61 perpendicular").
+    #   the THIN runs the other way: 136 at .25, 233 at .75, 30 wide.
+    #   FOUR terminals, all flared, and both references have all four: an
+    #   entry sweeping up from (8, .755) into the thick's top, a ball on the
+    #   thin's top at (305, .93), a hook under the thin's start that turns
+    #   left and down (Poetica .10 19-122, .03 18-103), and a hook off the
+    #   thick's foot that turns right and UP to (385, .15).
+    X_W = d_dial("X_W", 1.00)
+    X_TW = d_dial("X_TW", 1.00)
 
     @glyph('x')
     def a_x(c):
-        xh = c["xh"]; x = S * 0.7; w = 190 * _w(c)
-        return geom.ink([_diag((x, xh), (x + w, 0), 0.92, 0.40),
-                         _diag((x, 0), (x + w, xh), 0.40, 0.40)])
+        P, u = d_frame(c, X_W)
+        thick = d_pen([P(8, 0.755), P(34, 0.89), P(70, 0.95), P(105, 0.83),
+                       P(140, 0.75), P(193, 0.50), P(246, 0.25), P(282, 0.09),
+                       P(318, 0.018), P(356, 0.058), P(378, 0.135), P(368, 0.185)],
+                      [(0.00, 24), (0.08, 52), (0.20, 66), (0.60, 62),
+                       (0.80, 54), (0.90, 48), (1.00, 38)], u, tw=X_TW)
+        thin = d_pen([P(80, -0.008), P(44, 0.045), P(34, 0.112), P(58, 0.172),
+                      P(112, 0.235), P(184, 0.50), P(233, 0.75), P(272, 0.855),
+                      P(298, 0.925), P(289, 0.965)],
+                     [(0.00, 30), (0.08, 44), (0.20, 34), (0.35, 27), (0.62, 27),
+                      (0.78, 40), (0.92, 64), (1.00, 54)], u, tw=X_TW)
+        return geom.ink([thin, thick])
 
-    # THE y IS DERIVED, NOT MEASURED, and that is worth saying plainly: there
-    # is no y anywhere in griffo-macro.png, in the Dante, or in the Virgil page
-    # -- Latin and Italian barely use it. So it is built from parts that ARE
-    # measured elsewhere in this module (the 0.64 stem, the wedge head, the
-    # 50-degree pen, the u's pitch) rather than read off a page, and it should
-    # be the first letter re-cut if a specimen carrying one ever turns up.
-    Y_PITCH = float(os.environ.get("ALBO_ALD_Y_PITCH", 0.52))   # as the u
-    Y_TAIL = float(os.environ.get("ALBO_ALD_Y_TAIL", 0.88))     # how far left the tail reaches, x desc
+    # ---------------------------------------------------------------- THE y
+    # POETICA for the shape, and FLANKER for the TAIL'S EXTENT -- the one place
+    # in these nine where the two references had to be split, so it is written
+    # out. Poetica's tail sweeps down and LEFT clear past the letter's own left
+    # edge (its -0.55 row is 6-122, and the bbox's left edge IS the tail).
+    # Flanker's does not travel at all: 202-227 at -0.12, 196-217 at -0.30,
+    # 187-210 at -0.55, a straight hairline descender with a flat foot. The
+    # owner's brief calls "a swash tail on the y" a chancery flourish the 1501
+    # metal does not have, and says to keep the Poetica SHAPE inside Flanker's
+    # EXTENT: so the tail curves left as Poetica's does and stops at x ~118 of
+    # a 370-wide letter -- under the letter's own body, not under its
+    # neighbour. IT COSTS IoU against Poetica, whose tail covers a large area
+    # this one leaves empty, and that is the ruling working rather than a miss.
+    #   the rest is Poetica: entry tip (48, .755), thick top (110, 1.0),
+    #   centres 165/206/234 at .75/.50/.25 and 57-68 wide (Flanker's y thick is
+    #   63); the thin right stroke 307 at .25, 334 at .50, 341 at .75 with a
+    #   ball at (321, .95) that turns left over it, as the v's does.
+    #   the tail is a HAIRLINE the whole way -- 34 units at -0.12 in Poetica,
+    #   and targets section 2 for Flanker: "the tail is a hairline 21-25 all
+    #   the way down to -326."
+    #   cmp_aldine_metrics.py holds NO w/h target for the y (its row is
+    #   `(None, None, ...)`, "DERIVED - no y in any scan we hold"), so the
+    #   0.725 it used to print was the old drawing's own measurement and not a
+    #   target. This one measures 0.451, between Poetica's 0.515 and Flanker's
+    #   0.561 once Albo's shorter descender (280 against 287 and 336) is
+    #   allowed for. The ledger's exit status is unchanged by these nine.
+    #
+    # THE COST OF THE RULING, MEASURED, because it is large and the owner
+    # should be the one to spend it. Sweeping Y_TAIL_X alone:
+    #
+    #     Y_TAIL_X    8     40     70    118(ships)  170    230
+    #     IoU      0.645  0.414  0.156    0.075     0.073  0.072
+    #
+    # That is not a shape score falling off; it is an ALIGNMENT FLIP.
+    # `compare_xh` aligns the two letters on their LEFT INK EDGE, and in
+    # Poetica the y's leftmost ink IS the tail. While the tail reaches out
+    # past the entry head the two letters align on the same feature and the
+    # number means something; once it stops short, Albo's leftmost becomes the
+    # head and the whole letter shifts ~40 units against the reference, so
+    # every stroke decorrelates at once. The shipped y's THICK STROKE, THIN
+    # STROKE AND BALL match Poetica as well as the v's do (which scores 0.756
+    # on the same construction) -- the 0.075 is the tail's reach and nothing
+    # else, and `ALBO_ALD_Y_TAIL_X=8` is the whole change if the swash is
+    # wanted.
+    Y_W = d_dial("Y_W", 1.00)
+    Y_TW = d_dial("Y_TW", 1.02)
+    Y_TAIL_X = d_dial("Y_TAIL_X", 118.0)   # the tail's leftmost, units
+    Y_TAIL_Y = d_dial("Y_TAIL_Y", -0.62)   # its floor, x xh
 
     @glyph('y')
     def a_y(c):
-        """DERIVED. The u's left half, then a right stroke carrying on past the
-        baseline into a tail that sweeps left -- the descender drawn on the same
-        pen as the o."""
-        xh = c["xh"]; dsc = c["desc"]; x0 = S * 1.0; x1 = x0 + Y_PITCH * xh
-        parts = list(st(x0, xh * U_JOIN, xh, head=False, foot=False, w=I_STEM))
-        parts.append(wedge_head(x0, xh * 0.875))
-        parts.append(wedge_head(x1, xh * 0.875))
-        p = catmull([(x0, xh * U_JOIN), (x0 + (x1 - x0) * 0.12, xh * 0.10),
-                     (x0 + (x1 - x0) * 0.52, -OVER * 0.4),
-                     (x1 - (x1 - x0) * 0.08, xh * 0.16), (x1, xh * 0.88)], tension=0.5)
-        wf = pen_widths(p, floor=S * FLOOR)
-        parts.append(stroke(p, lambda t: wf(t) * I_STEM * 1.30))
-        tail = catmull([(x1, xh * 0.88), (x1 - S * 0.10, xh * 0.10),
-                        (x1 - S * 0.55, -dsc * 0.46),
-                        (x1 - S * 1.60, -dsc * 0.86),
-                        (x0 - Y_TAIL * S, -dsc * 0.66)], tension=0.5)
-        wt = pen_widths(tail, floor=S * FLOOR)
-        parts.append(stroke(tail, lambda t: wt(t) * I_STEM
-                            * (1.30 - 0.85 * max(0.0, (t - 0.50) / 0.50)), cut1=CUT))
-        return geom.ink(parts)
+        """The v's two strokes, with the RIGHT one carrying on past the
+        baseline into the tail -- which is the construction both references
+        show, and why the tail is a hairline: it is the thin stroke."""
+        P, u = d_frame(c, Y_W); TX = Y_TAIL_X; TY = Y_TAIL_Y
+        thick = d_pen([P(48, 0.755), P(72, 0.89), P(110, 0.95), P(140, 0.86),
+                       P(165, 0.75), P(206, 0.50), P(234, 0.25), P(250, 0.10),
+                       P(256, 0.02)],
+                      [(0.00, 22), (0.10, 48), (0.22, 66), (0.70, 62),
+                       (0.90, 50), (1.00, 36)], u, tw=Y_TW)
+        tail = d_pen([P(322, 0.885), P(336, 0.825), P(341, 0.74),
+                      P(334, 0.50), P(307, 0.25), P(274, 0.10), P(252, -0.05),
+                      P(230, -0.22), P(190, -0.40), P(TX + 34, TY),
+                      P(TX, TY + 0.055)],
+                     [(0.00, 48), (0.05, 44), (0.13, 34),
+                      (0.35, 29), (0.70, 26), (0.92, 30), (1.00, 16)], u, tw=Y_TW)
+        ball = d_ball(P, u, 308, 0.895, 32 * Y_TW)
+        return geom.ink([thick, tail, ball])
+
+    # ---------------------------------------------------------------- THE z
+    # The x's mirror image, and the letter whose thick and thin are the way
+    # round a reader does not expect: the BARS are the thick strokes and the
+    # DIAGONAL is the hairline, because the z's diagonal runs down to the LEFT,
+    # along the pen's own edge (targets section 2, and section 6 again: the z
+    # has no vertical stem, so its `vert med` of 25 is the diagonal).
+    #   343 x 442 (Flanker 371).
+    #   the top bar: 33-264 at .90, rising to the right -- its right end is at
+    #   .97 and its left is not, so the bar climbs about 0.06 xh across the
+    #   letter. Its left end drops into a curved entry reaching (0, .755).
+    #   the diagonal: centre 212 at .75, 152 at .50, 89 at .25, so 0.57 dx/dy,
+    #   37 horizontal = 32 perpendicular.
+    #   the bottom bar: one run 16-310 at .03, and a flick lifting off its
+    #   right end to (343, .115) -- Poetica's .10 row catches that flick alone
+    #   at 317-343.
+    Z_W = d_dial("Z_W", 1.03)
+    Z_TW = d_dial("Z_TW", 1.12)
+    Z_DIAG = d_dial("Z_DIAG", 27.0)   # the diagonal's width, units
 
     @glyph('z')
     def a_z(c):
-        xh = c["xh"]; x = S * 0.7; w = 182 * _w(c)
-        return geom.ink([stroke([(x, xh * 0.94), (x + w, xh * 0.94)], TH_H * 0.95, cut0=CUT, cut1=CUT),
-                         _diag((x + w * 0.94, xh * 0.94), (x + S * 0.10, TH_H * 0.5), 0.86, 0.86),
-                         stroke([(x, 0), (x + w, 0)], TH_H * 0.95, cut0=CUT, cut1=CUT)])
+        P, u = d_frame(c, Z_W); D = Z_DIAG
+        top = d_pen([P(8, 0.755), P(26, 0.855), P(64, 0.895), P(150, 0.918),
+                     P(240, 0.940), P(266, 0.962)],
+                    [(0.00, 20), (0.12, 44), (0.30, 60), (0.75, 60),
+                     (0.92, 52), (1.00, 40)], u, tw=Z_TW)
+        diag = d_pen([P(258, 0.95), P(212, 0.75), P(152, 0.50), P(89, 0.25),
+                      P(48, 0.09), P(32, 0.012)],
+                     [(0.00, D * 1.45), (0.12, D * 1.09), (0.50, D),
+                      (0.88, D * 1.15), (1.00, D * 1.52)], u, tw=Z_TW)
+        bot = d_pen([P(24, 0.025), P(90, 0.028), P(180, 0.038), P(262, 0.058),
+                     P(312, 0.092), P(340, 0.145)],
+                    [(0.00, 52), (0.12, 60), (0.55, 60), (0.80, 46),
+                     (0.92, 32), (1.00, 22)], u, tw=Z_TW)
+        return geom.ink([top, diag, bot])
+
+    # ---------------------------------------------------------------- THE k
+    # POETICA for the shape, and this is the letter where that choice is a
+    # choice: FLANKER'S k IS THE LOOPED ONE -- its arm leaves the stem at .95,
+    # curves right and comes BACK to the stem at .45, closing a bowl (its .90
+    # row shows three runs, its .50 one merged run 199 wide). Poetica's arm is
+    # open: it rises from the stem at ~.53 and ends in a ball at (292, .99),
+    # with the leg leaving the same junction. The owner's brief names "a looped
+    # k" as the kind of chancery mannerism not to move the text lowercase, and
+    # Poetica is the shape reference, so the open arm is drawn.
+    #   428 x 746 in Poetica, 441 x 760 in Flanker -- the two agree.
+    #   the stem takes `st(head=True)`, the same call b d h l take, so the four
+    #   ascenders of this module cannot drift apart. Poetica's is 59 wide and
+    #   Flanker's 70; the shared call draws S = the weight axis.
+    #   the arm: 201 at .75, 222 at .90, ball 81 wide at .90 (247-328).
+    #   the leg: 270 at .25, 317 at .10, then a flick turning right and UP to
+    #   (428, .08) -- Poetica's .03 run is 299-416, 117 wide, because the
+    #   stroke is nearly horizontal there.
+    #
+    # THE k's SCORE IS CAPPED BY TWO SHARED THINGS, neither of them this
+    # letter's to change, and it is the only one of the nine that does not
+    # clear Flanker's own 0.448 against Poetica. Clip every row ABOVE the
+    # x-line out of the comparison and the same drawing scores 0.519 against
+    # 0.386 for the whole glyph -- so a third of the shortfall is the
+    # ascender region alone. Both causes are `st(x, 0, c["asc"], head=True)`,
+    # the call b d h l also make:
+    #   * ALBO'S ASCENDER IS THE TALLEST of the three. The k's ink tops at 781
+    #     (1.82 xh) where Poetica's is 724 (1.69) and Flanker's 751 (1.75).
+    #   * THE GENERIC HEAD IS SHORT. `st`'s reaches 52 units left of the stem
+    #     centre; Poetica's k head reaches 125, and it is the letter's leftmost
+    #     ink, so left-edge alignment puts Albo's whole right side ~70 units
+    #     inboard of the reference's. (`wedge_head`, the measured Aldine head
+    #     the i and u wear, reaches LESS far left, not more -- it is -30%/+70%
+    #     about the stem -- so it is not the fix either.)
+    # Reported rather than worked around: drawing the k its own head would
+    # make one ascender disagree with the other four on the same page, which
+    # is worse than the number.
+    K_W = d_dial("K_W", 1.03)
+    K_TW = d_dial("K_TW", 1.08)
+    K_STEM_X = d_dial("K_STEM_X", 137.0)   # the stem's centre, units
+    K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
 
     @glyph('k')
     def a_k(c):
-        xh = c["xh"]; x0 = S * 1.0; r = 182 * _w(c)
-        arm = _diag((x0 + r, xh), (x0 + S * 0.16, xh * 0.42), 0.40, 0.64)
-        leg = _diag((x0 + S * 0.22, xh * 0.46), (x0 + r * 0.98, 0), 0.62, 0.86)
-        return geom.ink(st(x0, 0, c["asc"], head=True) + [arm, leg])
+        P, u = d_frame(c, K_W); J = K_JOIN
+        arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
+                     P(286, 0.885), P(292, 0.955)],
+                    [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 48),
+                     (0.88, 64), (1.00, 52)], u, tw=K_TW)
+        leg = d_pen([P(152, J), P(212, 0.40), P(250, 0.28), P(290, 0.15),
+                     P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
+                    [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
+                     (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
+        return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True) + [arm, leg])
 
 
     # ------------------------------------------------------------------ CAPS
