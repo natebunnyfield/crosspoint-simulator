@@ -61,14 +61,32 @@ FIT = {            # ch: (weight, width)
     # w/h and a letter can double its stroke without moving its bounding box.
     # The fitter no longer offers a weight dial to a letter nothing holds it
     # against; these four sit at the measured CAP_W instead.
-    'A': (1.325, 1.350),    # counter target: weight is real
-    'Q': (1.325, 1.225),    # counter target: weight is real
-    'V': (1.713, 1.350),
-    'S': (1.000, 0.975),
+    # WEIGHTS SOLVED AGAINST THE ROMAN CAPITALS this module does not redraw,
+    # letter BY letter: each italic capital is driven to the ratio its OWN
+    # roman carries against the roman's controls. So the target for the A is
+    # the roman A's 0.89, not 1.00 -- a diagonal letter is lighter than a
+    # stemmed one and always was, and a metric that does not know it will
+    # fatten every A in the alphabet.
+    #
+    # THE MEASURE IS 2 x AREA / OUTLINE LENGTH -- the mean width of the ink,
+    # taken off the OUTLINE with an area pen and a flattened-curve perimeter.
+    # Two earlier instruments both lied, in opposite directions, on the same
+    # letters: the MEDIAN of a row's horizontal runs read the A 1.81x too
+    # HEAVY (a crossbar is one run per row and hundreds of pixels long, so it
+    # drags the median off the strokes), and the 30th PERCENTILE read it 0.71x
+    # too LIGHT (it catches each letter's hairline, and a high-contrast letter
+    # has more hairline than stem). Area over length asks neither question.
+    # It also counts the WIDTH dial, which is right: a ring scaled 1.225x
+    # horizontally IS heavier on the page, and the Q's 1.18 came from nowhere
+    # else.
+    'A': (1.000, 1.350),
+    'Q': (0.492, 1.225),
+    'V': (1.000, 1.350),
+    'S': (1.218, 0.975),
     'N': (1.000, 1.100),
-    'H': (1.000, 1.100),
-    'G': (1.000, 1.100),
-    'U': (1.000, 1.225),
+    'H': (0.950, 1.100),
+    'G': (1.175, 1.100),
+    'U': (0.950, 1.225),
 }
 
 
@@ -928,7 +946,7 @@ if ON:
     # weight, and eight hairline capitals in an otherwise solid alphabet. The
     # same trap as the a's stem in round 127, and the same cure: measure the
     # rendered stroke, not the dial.
-    CAP_W = float(os.environ.get("ALBO_ALD_CAP_W", 2.00))        # the nib's thick, x CS
+    CAP_W = float(os.environ.get("ALBO_ALD_CAP_W", 1.36))        # the nib's thick, x CS
     # A SEPARATE WEIGHT FOR THE ROUND CAPITALS. CAP_W was solved on a
     # near-vertical STEM, where the nib gives back only a fraction of its thick
     # -- 2.00 renders 22 px there. A curve turns through every direction, so it
@@ -936,7 +954,31 @@ if ON:
     # the cap stem: the letter filled solid. One dial cannot serve strokes of
     # different directions, which is the same thing the a's stem taught in
     # round 127 arriving from the other side.
-    CAP_W_ROUND = float(os.environ.get("ALBO_ALD_CAP_WR", 1.05))  # x CS, for G Q S U
+    CAP_W_ROUND = float(os.environ.get("ALBO_ALD_CAP_WR", 0.79))  # x CS, for G Q S U
+    # CAPITALS ARE NOT AS HIGH-CONTRAST AS THE LOWERCASE. They were drawn on
+    # CON_O -- arm D, 9.26:1, the o's contrast -- and it made the A's two
+    # diagonals a hairline and a slab beside near-monoline roman capitals. The
+    # owner saw it as weight ("AHNV are all off on weight"), and it is weight,
+    # but the cause is spread rather than level: the thicks were too thick and
+    # the thins too thin for the company they keep.
+    CAP_CON = float(os.environ.get("ALBO_ALD_CAP_CON", 2.20))
+    # THE TWO DIAGONALS OF AN A, A V OR AN N TAKE THE SAME MULTIPLIER. The
+    # nib is what makes one of them thick and the other a hairline -- its width
+    # follows the stroke's direction -- so a per-stroke multiplier that differs
+    # between them is the pen's own contrast being overwritten by hand. Round
+    # 131c had the A at 0.46 left and 0.80 right and the N's diagonal at 0.92
+    # against stems at 1.00, which INVERTED the N: its diagonal came out
+    # lighter than its stems, where a pen makes that stroke the heaviest in the
+    # letter. One number per letter now, scaling both, and the nib keeps the
+    # relation.
+    A_DIAG = float(os.environ.get("ALBO_ALD_A_DIAG", 0.743))
+    V_DIAG = float(os.environ.get("ALBO_ALD_V_DIAG", 0.715))
+    # The N takes ONE number for both its parts, for the same reason: its
+    # stems and its diagonal are the same pen at different angles, and a
+    # multiplier on only one of them is a hand overriding the nib. At 0.46 on
+    # the diagonal against 1.00 on the stems the letter's heaviest stroke was
+    # its lightest.
+    N_SC = float(os.environ.get("ALBO_ALD_N_SC", 0.776))
     G_OPEN0 = float(os.environ.get("ALBO_ALD_G_A0", 36.0))   # the arc's start, degrees
     G_OPEN1 = float(os.environ.get("ALBO_ALD_G_A1", 312.0))  # and its end -- the gap is between
     G_BAR = float(os.environ.get("ALBO_ALD_G_BAR", 0.46))    # the bar's height, x C
@@ -951,7 +993,7 @@ if ON:
                       (x + S * bow, y0 + (y1 - y0) * 0.55),
                       (x + S * bow * 0.55, y0 + (y1 - y0) * 0.82), (x, y1)],
                      tension=0.5)
-        ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CON_O)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CAP_CON)
         return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]))
 
     def cdiag(a, b, w=None):
@@ -959,7 +1001,7 @@ if ON:
         so the two diagonals of an A or a V are NOT the same weight."""
         w = CAP_W if w is None else w
         p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
-        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CON_O)
+        ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON)
         return stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
                       cut0=CUT, cut1=CUT)
 
@@ -972,8 +1014,8 @@ if ON:
     @glyph('N')
     def a_N(c):
         C = c["cap"]; x0 = CS * 0.6; x1 = x0 + 0.66 * C
-        return geom.ink([cstem_i(x0, 0, C), cstem_i(x1, 0, C),
-                         cdiag((x0 + CS * 0.2, C * 0.96), (x1 - CS * 0.2, C * 0.06), 1.18)])
+        return geom.ink([cstem_i(x0, 0, C, w=CAP_W * N_SC), cstem_i(x1, 0, C, w=CAP_W * N_SC),
+                         cdiag((x0 + CS * 0.2, C * 0.96), (x1 - CS * 0.2, C * 0.06), N_SC)])
 
     @glyph('U')
     def a_U(c):
@@ -982,7 +1024,7 @@ if ON:
                       (x0 + (x1 - x0) * 0.52, -OVER * 0.4),
                       (x1 - (x1 - x0) * 0.12, C * 0.12), (x1, C * 0.46), (x1, C)],
                      tension=0.5)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.28 / S, CON_O)
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.28 / S, CAP_CON)
         return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
                                             for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
 
@@ -990,14 +1032,14 @@ if ON:
     def a_V(c):
         C = c["cap"]; x0 = CS * 0.5; w = 0.66 * C
         apex = (x0 + w * 0.52, -OVER * 0.3)
-        return geom.ink([cdiag((x0, C), apex, 1.22), cdiag(apex, (x0 + w, C), 0.58)])
+        return geom.ink([cdiag((x0, C), apex, V_DIAG), cdiag(apex, (x0 + w, C), V_DIAG)])
 
     @glyph('A')
     def a_A(c):
         C = c["cap"]; x0 = CS * 0.4; w = 0.68 * C
         apex = (x0 + w * 0.56, C)
-        left = cdiag((x0, 0), apex, 0.62)
-        right = cdiag(apex, (x0 + w, 0), 1.22)
+        left = cdiag((x0, 0), apex, A_DIAG)
+        right = cdiag(apex, (x0 + w, 0), A_DIAG)
         bar = stroke([(x0 + w * 0.16, C * 0.32), (x0 + w * 0.84, C * 0.35)], TH_H * 1.20)
         # the apex flag: a real italic A carries an entry reaching LEFT
         flag = stroke([(apex[0] - CS * 1.05, C * 1.02), (apex[0] + CS * 0.18, C)],
@@ -1011,7 +1053,7 @@ if ON:
                       (x0 + w * 0.04, C * 0.80), (x0 + w * 0.34, C * 0.55),
                       (x0 + w * 0.70, C * 0.44), (x0 + w * 0.94, C * 0.20),
                       (x0 + w * 0.50, -OVER * 0.3), (x0, C * 0.16)], tension=0.5)
-        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CON_O)
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.26 / S, CAP_CON)
         return geom.ink([stroke(p_, widths([(i / (len(ws) - 1), S * v)
                                             for i, v in enumerate(ws)]), cut0=CUT, cut1=CUT)])
 
@@ -1030,7 +1072,7 @@ if ON:
         A0, A1 = math.radians(G_OPEN0), math.radians(G_OPEN1)
         p_ = superellipse(cx, C / 2, rx, ry, A0, A1, BOWL_K)
         ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S,
-                        CON_O, smooth=7)
+                        CAP_CON, smooth=7)
         arc = stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
                      cut0=CUT, cut1=CUT)
         # the terminal the arc ends on, and the bar turning in from it

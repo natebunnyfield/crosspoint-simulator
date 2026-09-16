@@ -5440,3 +5440,52 @@ three things the first cut had wrong:
 It reads as a G now and sits with O C Q. It is still not Pagella's: that bowl is
 fuller and its bar longer and flatter under a true vertical. Reported rather
 than claimed.
+
+### Round 131c — A H N V weight, and two instruments that lied
+
+Owner: *"AHNV are all off on weight, especially N."* He was right, and the two
+metrics I reached for first were both wrong, in OPPOSITE directions on the same
+letters:
+
+- the **median** of each row's horizontal runs said the A was 1.81x too HEAVY.
+  A crossbar is one run per row and hundreds of pixels long, so it drags the
+  median right off the letter's strokes.
+- the **30th percentile** said it was 0.71x too LIGHT. It catches each letter's
+  hairline, and a high-contrast letter has more hairline than stem.
+
+**The measure that works is 2 x AREA / OUTLINE LENGTH** — the mean width of the
+ink, taken off the outline with an area pen and a flattened-curve perimeter. It
+asks neither question, it needs no raster, and it counts the horizontal WIDTH
+dial, which is right: a ring scaled 1.225x IS heavier on the page, and that is
+where the Q's 1.18 came from and nowhere else.
+
+**The target is per letter, and it is the letter's OWN roman.** Each italic
+capital is driven to the ratio its roman carries against the roman's untouched
+controls — the A's target is 0.89, not 1.00, because a diagonal letter is
+lighter than a stemmed one and always was. A metric that does not know this
+fattens every A in the alphabet. `tools/wedge_serif/` builds both fonts in half
+a second each, so the whole solve is a coordinate walk over eight letters.
+
+| | A | G | H | N | Q | S | U | V |
+|---|---|---|---|---|---|---|---|---|
+| roman (target) | 0.89 | 0.95 | 1.07 | 1.03 | 0.96 | 0.98 | 0.97 | 0.90 |
+| italic, was | 0.56 | 1.09 | 1.07 | 1.16 | 1.06 | 1.00 | 1.22 | 0.89 |
+| italic, now | 0.89 | 0.95 | 1.07 | 1.03 | 0.96 | 0.97 | 0.97 | 0.90 |
+
+#### The real finding: a hand multiplier had overwritten the pen
+
+Hitting the numbers was not enough, and the render is what said so. The first
+solve reached the targets with the N's diagonal cut to 0.46 against stems at
+1.00 — and **the N's diagonal then rendered LIGHTER than its stems**, which a
+broad nib cannot do: that stroke runs most nearly perpendicular to the pen and
+is the heaviest in the letter. The same hand had the A at 0.46 left and 0.80
+right, which is the nib's own contrast being restated, badly, on top of itself.
+
+So each of those letters now takes **ONE number scaling all of its strokes** —
+`A_DIAG`, `V_DIAG`, `N_SC` (the N's stems and diagonal together) — and the nib
+decides the relation between them. Weight and stress stop fighting: the total
+is a dial, the distribution is the pen's.
+
+Also changed: `CAP_W` 1.45 -> 1.36 and `CAP_W_ROUND` 1.05 -> 0.79, both because
+the round and stemmed capitals measured heavy against their romans once the
+instrument was honest.
