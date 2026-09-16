@@ -22,7 +22,11 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.basePen import BasePen
 
-RECUT = "AGHNQSUV"
+# Round 135 added Y and O. A letter joins this string the moment it is re-cut,
+# because the string does double duty: it names what is CHECKED, and it is
+# also what is EXCLUDED from the control median the check normalizes by. Leave
+# a re-cut letter out and it silently helps set the bar it is measured against.
+RECUT = "AGHNOQSUVY"
 CAPS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 HERE = os.path.dirname(os.path.abspath(__file__))
 COMMON = dict(FJORD_STEM="66.9", FJORD_CONTRAST="0.892", FJORD_WIDTH="95", PYTHON_GIL="0")

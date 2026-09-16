@@ -88,6 +88,14 @@ FIT = {            # ch: (weight, width)
     'H': (0.950, 1.100),
     'G': (1.175, 1.100),
     'U': (0.950, 1.225),
+    # ROUND 135, Y and O -- SHAPE from Pagella, WEIGHT from Albo's own roman,
+    # which is round 131c's rule and not a compromise between the two: the
+    # reference says what the letter IS and the roman says how black it may be.
+    # Both widths stay at 1.000 because these two are drawn to a measured w/h
+    # in units (0.875 and 0.943), so a horizontal scale on top could only take
+    # them off it. The weights are solved by cmp_cap_weight.py --tol 0.05.
+    'Y': (1.000, 1.000),
+    'O': (1.000, 1.000),
 }
 
 
@@ -3143,3 +3151,347 @@ if ON:
             " -- the Aldine module must define the whole lowercase. Without "
             "this check those letters silently fall through to the classic "
             "italic and the build still succeeds.")
+
+
+# ================================================================ round 135
+# THE Y AND THE O, round 135 -- to Pagella
+#
+# Owner 2026-09-16: *"for Y Q O, match to pagella."* (The Q is another pass's;
+# nothing here touches it.) Both letters came through as the eighteen the
+# build only shears and narrows, so what they were is a sheared roman, and
+# what the reference does is not a sheared roman in either case.
+#
+# EVERY NUMBER BELOW IS MEASURED, on Tex Gyre Pagella Italic
+# (refs/texgyrepagella-italic.otf) rendered at 600 px and UNSHEARED by its own
+# post.italicAngle of -10 degrees, which is the space this module draws in.
+# The unshear was proved before it was trusted: Pagella's I leans 28 px over
+# 40% of its cap height as drawn (9.6 degrees, its declared angle), and 2 px
+# after the transform. It matters because the first cut had the sign the wrong
+# way, which DOUBLES the slant instead of removing it -- and a doubly-sheared
+# O measures as a ring elongated along the up-right diagonal (outer radius 262
+# px at 45 degrees against 179 at 135), which reads as a discovery about the
+# reference's axis and is nothing but the bug.
+#
+# READ THIS BEFORE TRUSTING cmp_aldine_shape ON A CAPITAL. Its font-against-font
+# path (`compare_xh`) scales both faces to a common X-HEIGHT and aligns on the
+# baseline, which is exactly right for the lowercase it was written for and
+# WRONG for a capital, because it then measures the two faces' cap-to-x-height
+# ratios as if they were a drawing difference. Albo's is 1.5353 and Pagella's
+# 1.4627, so at a common x-height every Albo capital is 5.0% taller before any
+# question about its shape: at XH_PX 240 Pagella's O renders 346 x 361 and
+# Albo's 376 x 385. On a thin RING a 5% scale moves the stroke by more than half
+# its own width at the flanks, and the overlap collapses. The control that
+# settles it: Albo's ROMAN O has w/h 0.943 to three places, the same number as
+# Pagella's unsheared O, and still scores only 0.429 there.
+#
+# So this round's numbers are reported on both, and the second is the one that
+# answers the question asked:
+#
+#                        cmp_aldine_shape      ink-height, both upright
+#     O   before               0.567                    0.524
+#         after                0.441                    0.884
+#     Y   before               0.464                    0.436
+#         after                0.319                    0.378  (0.709 on the stem)
+#
+# The first column falls for both letters and the second rises, and the O is
+# the proof of which is which: after this round it matches Pagella's unsheared
+# w/h, its counter w/h, its 2.25:1 contrast, its 15-degree stress axis and all
+# twenty-four of its measured ring widths to within 0.002 of cap height. A
+# letter cannot be that and be further from the reference than it was.
+#
+# The Y's second column is held down by one thing this pass may not touch --
+# the family's italic wedge at half size, which puts the ink box's left and
+# right extremes in different places from Pagella's and so slides the whole
+# letter under a left-edge alignment. Registered on the STEM instead, where the
+# serifs cannot move the origin, it is 0.548 before and 0.709 after.
+#
+# A DIFF OF THIS ROUND TOUCHES 131 GLYPHS, AND 115 OF THEM ARE THE BUILD'S OWN
+# COUPLING, NOT A CHANGE TO ANY DRAWING. Worth reading before anyone reverts it
+# on the size of the diff, and worth knowing for the Q and the other capitals,
+# which will do the same thing.
+#
+#   * 12 are the O and what is built from it -- O, OE, Oslash and the eight
+#     accented O's. 5 are the Y, yen and the three accented Y's. Those are the
+#     round.
+#   * The other 115 are glyphs whose DRAWN geometry is byte-identical (checked:
+#     alpha's bbox and area agree to six decimals across the two trees) and
+#     whose assembled outline still moves by a unit or two.
+#
+# The cause is `cut.Cutter`, and its own docstring says so: "Contours are cut in
+# glyph order with one running phase counter." Each contour of each glyph
+# consumes one phase, so anything that changes the NUMBER of contours drawn
+# before a glyph shifts which vertex in four its hand-cut keeps. Traced to the
+# exact record: `yen` is `GLYPHS['Y'](c)` plus two bars (glyphs/symbols.py), and
+# with this Y the upper bar crosses the two ARMS instead of the merged stem, so
+# the ¥ encloses a small triangle and draws 2 contours where it drew 1. Every
+# glyph after ¥ in CHARS then takes the next phase along. Rendered and looked
+# at: the ¥ is right, and better -- a ¥'s bar is supposed to cross the arms.
+#
+# It is NOT floating-point noise and it is NOT the `life()` jitter: the build is
+# deterministic (two builds of this tree are identical glyph for glyph), the
+# baseline reproduces from HEAD exactly, and the same 131 appear with
+# FJORD_LIFE=0. The only way to avoid it would be to raise the Y's join until
+# the ¥ stops enclosing a counter, which is damaging the letter to protect a
+# decimation phase.
+#
+# The block sits at the end of the file, after the gate, in its own `if ON:`,
+# so three concurrent passes at the capitals do not meet in one hunk. It
+# defines no helper anything else uses and redefines no dial: the serifs come
+# off `_stem_serifs`, `_end_wedge`, WL/WD/DROP and CAP_SERIF_TRAIL* exactly as
+# the H's and the V's do, so when those dials move these two letters move with
+# them.
+if ON:
+    # ------------------------------------------------------------------ THE O
+    #
+    # WHAT PAGELLA'S O DOES THAT OURS DID NOT -- four things, in the order
+    # they cost IoU. Widths are the PERPENDICULAR ring thickness (the distance
+    # from a point on the outer contour to the nearest point of the counter),
+    # which is the same quantity `ring_from` offsets by, so the table below can
+    # be handed to it unconverted.
+    #
+    #                                   Pagella     Albo italic    Albo ROMAN
+    #     ink w/h, unsheared              0.943        0.863          0.943
+    #     counter w/h                     0.800        0.757          0.841
+    #     thick : thin                  2.25:1       1.72:1         1.80:1
+    #     thick at                     15 / 195 deg  165 / 345      180 / 0
+    #     thin at                     105 / 285 deg   90 / 270       90 / 270
+    #
+    #   1. THE PROPORTION. 0.943 against 0.863 -- and 0.943 is ALSO Albo's own
+    #      roman O to three places, which is the strongest evidence in this
+    #      round that the target is right: two unrelated faces agree, and the
+    #      italic was the odd one out because CAP_NARROW's 5% is applied to a
+    #      SHEARED bounding box, so an upright-measured italic O comes out 8%
+    #      narrower than the roman rather than 5%. Nothing here undoes
+    #      CAP_NARROW -- these capitals never consumed `c["W"]` and so never
+    #      saw it; the letter is simply drawn at the width the reference has.
+    #   2. THE AXIS. Pagella's thins sit at 105 and 285 degrees and its thicks
+    #      at 15 and 195 -- one stress axis rotated 15 degrees, the humanist
+    #      inclined axis. Albo's italic O had no inclination at all: thin at
+    #      exactly 90/270, thick at 180/0, which is the roman's upright axis
+    #      carried through the shear unchanged. A sheared upright O is the one
+    #      thing a written O cannot be.
+    #   3. THE CONTRAST. 2.25:1 against 1.72:1. Pagella's flanks are 18%
+    #      heavier than Albo's roman and its thins 5% lighter, so the letter is
+    #      not heavier overall -- the ink is moved from the arches into the
+    #      flanks.
+    #   4. THE DISTRIBUTION IS NOT A SINE. Round the ring the width falls off
+    #      steeply from the thick toward the thin on one side and gently on the
+    #      other (0.962 of max at 0 degrees, 0.854 at 45, 0.490 at 90), which
+    #      is why this is a keyed table and not a pen model with an angle dial.
+    #      Same answer, and the same reason, as the a's bowl in round 133: the
+    #      width the reference shows at each side, not a guess.
+    #
+    # THE TABLE IS ALL TWENTY-FOUR MEASURED ANGLES, not a sparse key set, and
+    # that is a correction to this round's own first cut. Twelve keys at the
+    # extremes (15 / 105 / 195 / 285) left the interpolation to the cosine, and
+    # the reference's curve is convex where the cosine is not: the built O came
+    # out 0.0040 of cap HEAVY at 120 degrees and 0.0056 at 300, both of them
+    # midpoints between two keys, while every angle that had a key of its own
+    # landed within 0.0013. A table this cheap should not be asked to guess.
+    # `smooth_w` came down from 4 with it -- the +-sample moving average was
+    # shaving 2 units off the peaks, which is affordable on a bowl with a tight
+    # turn in it and not on a ring that has none.
+    #
+    # UNITS, and the 2 taken off each: the measurement is of rendered ink, and
+    # build.draw() grows every outline by INK_SPREAD (1.2 units a side, so 2.4
+    # on a ring's stroke) after this function returns. Keying the measured
+    # numbers raw would ship an O 2.4 units heavier than the thing measured.
+    O_WH = float(os.environ.get("ALBO_ALD_O_WH", 0.943))     # ink w/h, unsheared
+    # 0.89 SOLVED, not chosen: Pagella's O is genuinely heavier than Albo's.
+    # Keyed raw, the ring's mean ink width comes out 1.11 x the untouched
+    # capitals' median against the roman O's 0.99 (cmp_cap_weight.py), because
+    # Pagella's flanks run 0.1195 of cap where Albo's roman runs 0.0991. Round
+    # 131c's rule is that an italic capital carries its OWN ROMAN's weight, so
+    # the reference sets the distribution and the roman sets the level. A SCALE
+    # is the right lever and FIT's weight buffer is not: the buffer moves every
+    # edge by a constant, which would take 6.6 units off a 35-unit hairline and
+    # the same 6.6 off an 82-unit flank, pushing the contrast from the
+    # measured 2.25:1 to 2.65:1 on the way to the weight. Scaling holds the
+    # ratio exactly. Cost, recorded: the counter opens a little, 0.807 w/h
+    # against the reference's 0.800, which is arithmetic and not a slip --
+    # a lighter ring inside the same outer contour has a bigger hole.
+    O_INK = float(os.environ.get("ALBO_ALD_O_INK", 0.89))    # x the measured ring widths
+    O_RING = [(0, 79), (15, 82), (30, 79), (45, 70), (60, 58), (75, 48),
+              (90, 39), (105, 35), (120, 39), (135, 52), (150, 67), (165, 77),
+              (180, 82), (195, 81), (210, 78), (225, 72), (240, 60), (255, 48),
+              (270, 38), (285, 35), (300, 37), (315, 47), (330, 62), (345, 73)]
+    if os.environ.get("ALBO_ALD_O_RING"):    # "15:82,45:70,..." -- for the fitter
+        O_RING = [(float(a), float(w)) for a, w in
+                  (kv.split(":") for kv in os.environ["ALBO_ALD_O_RING"].split(","))]
+
+    @glyph('O')
+    def a_O(c):
+        """A ring, keyed to Pagella's own widths by angle.
+
+        NO SERIF, and that is the answer rather than an omission -- the same
+        one the Q's note gives: a closed curve has no terminal to serve, and
+        neither Pagella's O nor Albo's roman puts anything on one.
+
+        `keyed_ring` reads its angle off the superellipse's PARAMETRIC
+        coordinate and the table above was measured on the GEOMETRIC angle
+        from the counter's centroid. At rx/ry 0.943 the two differ by at most
+        1.7 degrees, a ninth of the key spacing, so no correction is applied;
+        at a squarer ring it would have to be."""
+        C = c["cap"]
+        ry = C / 2 + OVER
+        rx = O_WH * ry
+        cx = CS * 0.6 + rx
+        return geom.ink([keyed_ring(cx, C / 2, rx, ry, O_RING,
+                                    k=BOWL_K, unit=O_INK, smooth_w=2)])
+
+    # ------------------------------------------------------------------ THE Y
+    #
+    # WHAT PAGELLA'S Y DOES THAT OURS DID NOT.
+    #
+    #   1. IT IS TWO STROKES, NOT THREE, AND THE LEFT ARM IS THE STEM. Ours is
+    #      the roman's assembly -- two straight diagonals meeting a separate
+    #      vertical stem (`g_Y`: two `diagonal`s and a `cstem`). Pagella's left
+    #      edge runs 0.444 of the ink width at 46% of cap height, 0.473 at 40%,
+    #      0.484 at 38%, 0.487 at 36%, 0.489 at 34% and then 0.489 all the way
+    #      to the foot: one edge, decelerating into the vertical. There is no
+    #      junction on that side of the letter, and the arm is the same weight
+    #      as the stem it becomes.
+    #   2. BOTH ARMS CURVE. Ours are dead straight -- the left arm's center
+    #      moves 0.83 of a width per unit height at every height measured, the
+    #      right arm's 0.83 likewise. Pagella's left arm runs at 0.93 near the
+    #      head and 0.50 at the join, its right arm 1.05 near the head and 0.31
+    #      at the join. Both bend toward the vertical as they descend, which is
+    #      what makes the letter look written rather than ruled.
+    #   3. THE JOIN IS LOWER: 0.45 of cap height against our 0.49.
+    #   4. THE FOOT IS A REAL TWO-SIDED SLAB. Ours barely exists -- 0.158 of
+    #      the ink width across at 2% of cap height against a 0.108 stem, so
+    #      25 units of serif in all. Pagella's is 0.369 across: 67 units either
+    #      side of the stem. THIS IS THE LARGEST SINGLE DIFFERENCE IN THE
+    #      LETTER and it is NOT fixed here by hand, deliberately. The family's
+    #      italic wedge is half its roman one (`pen._ITS` = IT_SERIF 0.50), so
+    #      `_stem_serifs` reaches 22 units where the roman reaches 44 and
+    #      Pagella reaches 67. The Y now calls the family's foot through the
+    #      same `_stem_serifs(..., 'both', False)` the H's stem calls, so
+    #      doubling the italic serif doubles this one; inventing a 67-unit
+    #      wedge for one letter would leave the Y the odd one out in NAVE the
+    #      moment that dial moves.
+    #
+    # WIDTHS ARE MEASURED, NOT TAKEN FROM THE NIB, and this is the one place
+    # the letter departs from `cstem_i`'s model on purpose. Converted to
+    # PERPENDICULAR thickness (a horizontal run across a stroke leaning alpha
+    # from the vertical is w / cos alpha, and these strokes lean up to 46
+    # degrees, so the raw runs overstate the arms by up to 45%):
+    #
+    #                              Pagella, x cap       the 50-degree nib says
+    #     main stroke, head            0.105             thickest here (0.98)
+    #     main stroke, join            0.093             ...
+    #     main stroke, stem            0.108             THINNEST here (0.64)
+    #     right arm, head              0.075             THINNEST here (0.11)
+    #     right arm, join              0.052             thickest here (0.39)
+    #
+    # Both strokes run the OPPOSITE way to the pen: Pagella's stem is the
+    # heaviest part of its main stroke and its right arm is heaviest at the
+    # terminal it was started from. That is a stroke drawn with the pressure
+    # lifting, not a broad nib held at 50 degrees, and no value of CAP_CON
+    # produces it -- `con` only rescales the spread, it cannot invert the
+    # order. Declaring the widths is the same answer round 133 reached for the
+    # a's bowl, for the same reason.
+    #
+    # THE SKELETON IS PAGELLA'S; THE SPREAD IS NOT, AND THE DIFFERENCE IS THE
+    # SERIF. Drawn to the reference's centerlines exactly, this Y measures
+    # 0.822 ink w/h against Pagella's 0.875 -- and the skeleton is NOT the
+    # reason: the distance from the head's centerline to the right arm's,
+    # measured at 70% of cap height, is 0.303 x cap here against Pagella's
+    # 0.299. The whole 0.053 is the ink BOX, whose left and right extremes are
+    # serif tips at both ends, and the family's italic wedge is half its roman
+    # one (`pen._ITS` = IT_SERIF 0.50). So Pagella's serifs reach 0.07 x cap
+    # further out than ours at each end and its box is wider round the same
+    # letter.
+    #
+    # A 6% narrow Y beside twenty-five capitals fitted to the family's width is
+    # a defect a reader sees, and the family's own rule for the eighteen it
+    # only shears is to SPREAD the skeleton until the ink box hits the target
+    # (build.solve_widths). This dial does that here, scaling both arms about
+    # the stem. It is the one number in this block that is not the reference's,
+    # and IT IS TIED TO A DIAL OUTSIDE THIS FILE -- measured, both arms built:
+    #
+    #     IT_SERIF 0.50 (today)   spread 1.088 -> ink w/h 0.875   upright IoU 0.378
+    #     IT_SERIF 1.00 (doubled) spread 1.088 -> ink w/h 0.906   upright IoU 0.533
+    #
+    # So if the italic wedge is doubled this must come down to about 1.045 or
+    # the Y goes 3.5% WIDE instead of 6% narrow. (Note the IoU rises anyway on
+    # that arm, because the reference's own serifs are bigger than either.)
+    # The target either way is 0.875 -- which is also the family's own answer,
+    # since Albo's roman Y is 0.924 and CAP_NARROW's 0.953 puts the italic at
+    # 0.881, six thousandths from the reference.
+    Y_SPREAD = float(os.environ.get("ALBO_ALD_Y_SPREAD", 1.088))
+    Y_PIVOT = 0.4830        # the stem's center, x C -- what the spread scales about
+    # x of the main stroke's centerline at a height, both x cap height, foot
+    # first -- read off the run table with the arm's half width added to the
+    # left edge where the right arm's ink is in the way.
+    Y_SPINE = [(0.4816, 0.000), (0.4839, 0.200), (0.4821, 0.340), (0.4681, 0.400),
+               (0.4400, 0.460), (0.4213, 0.500), (0.3763, 0.600), (0.3268, 0.700),
+               (0.2704, 0.800), (0.2056, 0.880), (0.1300, 0.975)]
+    # Widths are the MEASURED perpendicular thickness less INK_SPREAD's 2.4
+    # units (0.00356 x cap), for the same reason the O's ring table has 2 taken
+    # off each key: build.draw() grows the outline after this returns, and the
+    # first cut of this round keyed the measurements raw and shipped a Y 4.6%
+    # heavy at every height -- stem, left arm and right arm all by the same
+    # 4.6%, which is what a constant added to every stroke looks like.
+    Y_SPINE_W = [(0.00, 0.1044), (0.31, 0.1044), (0.44, 0.0904), (0.58, 0.0934),
+                 (0.68, 0.0964), (0.79, 0.1004), (1.00, 0.1014)]
+    # the right arm, join first
+    Y_ARM = [(0.4850, 0.400), (0.5289, 0.460), (0.5399, 0.500), (0.5762, 0.600),
+             (0.6256, 0.700), (0.6860, 0.800), (0.7411, 0.860), (0.7940, 0.920),
+             (0.8527, 0.980)]
+    Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
+               (0.78, 0.0684), (1.00, 0.0714)]
+    # THE WEIGHT IS ALBO'S, THE DISTRIBUTION IS PAGELLA'S -- round 131c's rule,
+    # and this is the dial that carries it. A multiplier on the declared widths
+    # rather than a value in FIT's weight column, because FIT's weight is an
+    # OUTLINE BUFFER: it moves every edge by a constant, which takes the same
+    # number of units off a hairline as off a stem and so drags the letter's
+    # contrast up on the way to its weight. The A, V, N and H already do it
+    # this way (A_DIAG, V_DIAG, N_SC against a FIT weight of 1.000); this is
+    # the same dial for the same reason.
+    # 0.94 solved the same way: keyed raw the Y came out 1.01 against its
+    # roman's 0.92, and 0.95 / 0.93 bracket the answer at +0.01 / -0.01.
+    Y_INK = float(os.environ.get("ALBO_ALD_Y_INK", 0.94))
+
+    @glyph('Y')
+    def a_Y(c):
+        """Two strokes. The main one is drawn UPWARD -- out of the foot,
+        through the stem, into the curve, out to the head at the top left --
+        and that direction is load-bearing rather than a preference:
+        `_stem_serifs` reads `stroke`'s left-of-travel edge as the letter's
+        left, and walks each side polyline from its far end for a foot. Drawn
+        downward the same call seats the family's two-sided foot on the HEAD.
+
+        The head takes the family's diagonal end wedge reaching DOWN-LEFT and
+        the right arm's terminal one reaching DOWN-RIGHT, which is `g_Y`'s own
+        `serif0=1` / `serif0=-1` read through `end_wedge`'s convention for a
+        stroke whose served end is its last point instead of its first.
+        Pagella agrees with the roman on both: its head's underside carries a
+        horn far enough below the arm to break into a separate run for one
+        scanline at 90% of cap height, and its right terminal reaches to the
+        letter's own right extreme. Neither the roman nor the reference puts
+        anything at the join, so nothing is put there.
+
+        A SERVED END DOES NOT TAPER, for the reason `cstem_i` gives: the
+        bracket has to land on full width or the serif reads as a crossbar on
+        a point. Both ends of both strokes here are either served or buried in
+        the other stroke, so `_taper` is off throughout."""
+        C = c["cap"]
+        x0 = CS * 0.5
+
+        def pt(fx, fy):
+            return (x0 + (Y_PIVOT + (fx - Y_PIVOT) * Y_SPREAD) * C, fy * C)
+
+        sp = [pt(fx, fy) for fx, fy in Y_SPINE]
+        p_ = catmull(sp, tension=0.5)
+        wf = widths([(t, C * v * Y_INK) for t, v in Y_SPINE_W])
+        solid, Lz, Rz = stroke(p_, wf, sides=True)
+        parts = [solid]
+        parts += _stem_serifs(Lz, Rz, 'both', False)
+        parts.append(_end_wedge(p_, wf(1.0), False, 1))
+        ap = [pt(fx, fy) for fx, fy in Y_ARM]
+        q_ = catmull(ap, tension=0.5)
+        af = widths([(t, C * v * Y_INK) for t, v in Y_ARM_W])
+        parts.append(stroke(q_, af))
+        parts.append(_end_wedge(q_, af(1.0), False, -1))
+        return geom.ink(parts)
