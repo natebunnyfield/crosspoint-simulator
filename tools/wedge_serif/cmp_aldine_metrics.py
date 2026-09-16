@@ -26,7 +26,14 @@ TARGETS = {
     # ("trim up a tail to be half as long"), which legitimately narrows the
     # letter to ~0.69. Keeping the old number would print a permanent false
     # failure -- which is how a ledger stops being read.
-    'a': (0.344, None,  'C 5.00', 1.65, "owner's target crop, 2026-09-15 (tail halved since)"),
+    # ROUND 132: the a's counter target moves to the REFERENCE VECTOR. The
+    # 0.344 came off the owner's crop -- a 160 x 181 px photograph whose ink
+    # spread closes the counter, and which aldine_targets.py marks SUSPECT
+    # (1.55 xh of ink, 26 components; docs/albo-aldine-targets.md section 6).
+    # Flanker Griffo's a measures 0.844 by this same flood fill, Pagella's
+    # 0.672, Poetica's 0.598; the Petrarch page's a's are open like Flanker's.
+    # Owner 2026-09-15: match the referenced vector or bitmap -- so Flanker.
+    'a': (0.844, 0.945, 'ref',    0.83, "Flanker Griffo Italic a (the crop's 0.344 is an ink-spread artifact)"),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'D 9.26', 0.64, 'griffo-macro.png, "rodigium"'),
     'o': (0.617, 0.759, 'D 9.26', 1.63, 'griffo-macro.png, "udos", 54px xh'),
