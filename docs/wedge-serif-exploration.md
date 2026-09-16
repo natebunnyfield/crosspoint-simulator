@@ -6177,3 +6177,52 @@ over the eight dials that move width, height and weight:
 
 The ledger's a row moved for the sixth time, and for the sixth time because
 the drawing did.
+
+### Round 140 — the R traced from Poetica, and its kick below the baseline
+
+*"copy 'R' from poetica"*, then *"the kick off the R needs go below the
+baseline and copy Poetica."* Traced, not approximated: Poetica's R flattened,
+**unsheared by 7.88°** — the lean of its own stem, not the declared 11°, which
+its `l` contradicts — and scaled **by CAP HEIGHT**, k = 1.3236. That scale is
+the one judgment call in the round, and it earns itself: Poetica's cap is
+0.774 of its x-height where Albo's is 0.636, so an x-height scale would have
+produced a 553-tall letter in a 674 alphabet — a small capital, not an R.
+
+Out of the trace: the bowl as a 25-point centerline with the width measured at
+each point along the counter's own outward normal, and the leg as 20 points
+with true perpendicular thickness from paired cuts. Both tables are in the
+comment with the height-by-height edge table, so the next round can check the
+letter without re-tracing it.
+
+**The trace corrected the STRUCTURE, not only the numbers.** Poetica's bowl is
+a **closed ring** whose thin bottom arm returns to the stem at 0.454 cap, and
+the leg springs from the bowl's lower RIGHT. Round 135's comment had it as a
+bowl closing on the stem with the leg leaving the stem; that reading was built
+first, rendered, and the picture refuted it.
+
+**The kick.** Poetica's bottoms at **−0.0196 cap**, 0.634 cap right of its stem
+midline, and it is the kick that gets there — its foot serif only reaches −2
+units. Shipped at **−0.0192 at 0.644**. The tail is placed by its
+**underside** rather than its centerline, because the weight gate thins the
+stroke and a thinner stroke on a fixed centerline lifts its own underside by
+half of what it lost.
+
+Word images, min white from the R's ink to the next letter's: *Rather* +0.008
+→ **+0.042**, *REMARK* **−0.057 (overlapping) → +0.002**, *Robert* +0.038 →
++0.057. `RA` unchanged at −0.145 — that is the A's own bearing, still open.
+
+**Three things recorded against future rounds:**
+- **`cmp_aldine_shape` must not judge a capital.** It scales to one x-height,
+  so an EXACT copy of Poetica's R at Albo's cap scores **0.214** there —
+  *lower than the drawing it replaces*. Cap-normalized it is 0.526 → **0.694**.
+- **The stem was left alone and that is a result**: Poetica's R stem varies by
+  one unit across its middle two thirds. No entasis worth drawing.
+- **A smoothstep is C1, and a C1 width profile facets a curve.** `widths()`
+  smoothsteps between keys, so the bowl's outer edge showed a curvature jump at
+  every control point; a moving average — the device `nib_widths` already uses
+  — fixed it.
+
+And one correction the measurement forced: the copy was expected to widen the
+letter and it **narrowed** it (ink 0.855 → 0.828 cap). Poetica's extra width is
+its **foot serif** — 147 units out of the stem against our wedge's 61 — while
+the kick's right extreme already agreed to within 7 units.
