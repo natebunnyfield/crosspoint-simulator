@@ -23,6 +23,16 @@ import aldine_autofit as AF
 LC = 'abcdefghijklmnopqrstuvwxyz'
 TOL = 0.12          # how far a measured letter may drift from its own target
 
+# WHAT EVEN LOOKS LIKE. Measured with this same metric on real faces, so the
+# target is not invented:
+#     Pagella Italic          0.84 to 1.17
+#     Poetica Std (chancery)  0.81 to 1.10
+#     Albo's own classic italic  0.77 to 1.20
+# A text face sits inside about 1.4 to 1. The Aldine started at 0.65 to 1.63 --
+# genuinely twice as uneven as any of them, which is what made this worth doing
+# rather than a metric chasing noise.
+GOOD = 1.20
+
 
 def colour_of(ttf, ch, size=200):
     """One letter's colour, absolute. Measured against the median from the
@@ -105,8 +115,17 @@ def main():
             if want is None:
                 from outlines.glyphs import aldine as A
                 want = A.FIT.get(ch, (1.0, 1.0))[0]
-            trial = dict(lw); trial[f'ALBO_ALD_LW_{ch}'] = max(
-                0.45, min(2.30, want * (1.0 / r) ** args.gain))
+            # BOTH LEVERS. Colour is ink over the ADVANCE, so a cramped letter
+            # reads dark however its strokes are drawn -- and weight alone
+            # could not move d (the darkest) or x (the lightest) at all. Width
+            # changes the denominator directly.
+            wantw = lw.get(f'ALBO_ALD_WD_{ch}')
+            if wantw is None:
+                from outlines.glyphs import aldine as A
+                wantw = A.FIT.get(ch, (1.0, 1.0))[1]
+            trial = dict(lw)
+            trial[f'ALBO_ALD_LW_{ch}'] = max(0.45, min(2.30, want * (1.0 / r) ** (args.gain * 0.6)))
+            trial[f'ALBO_ALD_WD_{ch}'] = max(0.60, min(1.70, wantw * r ** (args.gain * 0.7)))
             # refuse the move if it breaks a target the letter was measured on
             t = targets.get(ch)
             if t and not t.get('derived'):
