@@ -786,7 +786,11 @@ if ON:
     # shoulders spend no ink at all.
     O_W = float(os.environ.get("ALBO_ALD_O_W", 0.76))          # width, x xh
     O_K = float(os.environ.get("ALBO_ALD_O_K", 1.72))          # squareness; 1.6-1.7 off the scan's row widths
-    O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 25.0))      # the nib's angle, degrees
+    # 25 -> 35 in round 134 (the bulge pass): at 25 the ring's thick sat
+    # square on the flank's middle, 1.27 by cmp_aldine_bulge.py against
+    # Flanker's 1.15; at 35 it slides toward the lower left, 1.11, and the
+    # bow reads 1.15 against 1.17. 45 overshoots (1.07 / 0.72).
+    O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 35.0))      # the nib's angle, degrees
     # RULED 2026-09-16: the o takes the REFERENCE's ring weight, and the
     # ledger row moves with it. The scan's counter/ink of 0.617 is the printed
     # page's INK SPREAD, not the punch -- holding it put 104 units of ring on
@@ -1249,6 +1253,26 @@ if ON:
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)[0]
 
+    # The bowl's width round the counter, keyed by angle (degrees ccw from
+    # the right, 180 = the left flank), in units. Flanker's a, measured
+    # unsheared (docs/albo-aldine-targets.md): the left flank 68-73, the
+    # lower left 80, the bottom 58, the rise into the stem 34, the top 28.
+    # Scaled 1.12 from Flanker's numbers after the first build measured the
+    # counter at 0.49 of the ink against the scan's 0.42: the print is heavier
+    # than the revival, and the scan is the target.
+    A_FLANK = [(0, 38), (45, 29), (90, 31), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
+
+    def _a_flank(deg):
+        """Periodic cosine interpolation of A_FLANK."""
+        ks = sorted((d % 360, w) for d, w in A_FLANK); deg %= 360
+        for (a0, w0), (a1, w1) in zip(ks, ks[1:] + [(ks[0][0] + 360, ks[0][1])]):
+            if a0 <= deg <= a1 or (a1 > 360 and deg < a1 - 360):
+                if a1 > 360 and deg < a0: deg += 360
+                t = (deg - a0) / (a1 - a0) if a1 > a0 else 0.0
+                t = 0.5 - 0.5 * math.cos(math.pi * t)
+                return w0 + (w1 - w0) * t
+        return ks[0][1]
+
     def a_counter(u, x0):
         """The a's counter, drawn from the SCAN'S OWN PROFILE.
 
@@ -1265,13 +1289,15 @@ if ON:
         # the measurement cannot see a facet and the eye finds it immediately.
         rows = []
         for (f0, l0, r0), (f1, l1, r1) in zip(A_CTR_PROFILE, A_CTR_PROFILE[1:]):
-            for i in range(3):
-                t = i / 3.0
+            for i in range(6):
+                t = i / 6.0
                 rows.append((f0 + (f1 - f0) * t, l0 + (l1 - l0) * t, r0 + (r1 - r0) * t))
         rows.append(A_CTR_PROFILE[-1])
         left = [(x + l * w, bot + f * h) for f, l, r in rows]
         right = [(x + r * w, bot + f * h) for f, l, r in rows]
-        return geom.poly(catmull(left + right[::-1], tension=0.5, closed=True))
+        pts = catmull(left + right[::-1], tension=0.5, closed=True)
+        pts = geom.smooth(geom.resample(pts + [pts[0]])[:-1], 4, closed=True)
+        return geom.poly(geom.resample(pts + [pts[0]])[:-1])
 
     @glyph('a')
     def a_a(c):
@@ -1291,22 +1317,47 @@ if ON:
         top = xh + A_ASC * u
         stem = stroke([(xs, S * 0.10), (xs, top)], sw)
         head = bd_head(xs - sw / 2, xs + sw / 2, top, u)
-        # the bowl: a FILLED superellipse, with the counter cut out of it
-        # below. The ring's width keys (A_RING) are gone with the offset they
-        # fed -- the outside is the superellipse and the inside is drawn.
-        ry = (xh + OVER * 0.6) / 2.0
-        cxb = x0 + A_RX * u; cyb = A_CY * u
-        outer = superellipse(cxb, cyb, A_RX * u, ry, 0.0, 2 * math.pi, A_K)[:-1]
-        if A_SKEW:
-            outer = [(px + (py - cyb) * A_SKEW, py) for px, py in outer]
-        bowl_ = geom.poly(outer)
+        # THE BOWL IS A STROKE AROUND THE COUNTER (round 134). It was a
+        # filled superellipse with the counter cut out of it, and the
+        # difference between a round outside and a leaning, narrow inside is
+        # a flank that swells at mid-height -- the belly the owner called
+        # bulging. The metal's bowl is one stroke: thickest at the LOWER LEFT
+        # and thinning steadily up to the join (Flanker's a, left flank by
+        # height: .2 83 / .3 76 / .4 73 / .5 68 / .6 62 / .7 58 / .8 52, top
+        # 28, bottom 55-60, the rise into the stem 34). So the outside is now
+        # the counter's edge pushed out by that width at each angle, and the
+        # counter stays the scan's. No belly is possible: the width is
+        # monotone from the lower left round to the top.
+        ctr = a_counter(u, x0)
+        cpts = geom.resample(list(ctr.exterior.coords))[:-1]
+        cpts = geom.smooth(cpts, 5, closed=True)
+        cpts = geom.resample(cpts + [cpts[0]])[:-1]
+        cx_ = sum(q[0] for q in cpts) / len(cpts); cy_ = sum(q[1] for q in cpts) / len(cpts)
+        # signed area: offset AWAY from the centroid whichever way it winds
+        area = sum(cpts[i][0] * cpts[(i + 1) % len(cpts)][1] - cpts[(i + 1) % len(cpts)][0] * cpts[i][1]
+                   for i in range(len(cpts)))
+        side = 1 if area < 0 else -1
+        ang = [math.degrees(math.atan2(q[1] - cy_, q[0] - cx_)) for q in cpts]
+        ws = [_a_flank(a_) * u for a_ in ang]
+        # the width sequence is smoothed the way ring_from smooths its pen
+        # widths, and the offset is unfolded, smoothed and resampled the way
+        # ring_from treats its counter -- an offset of a tight turn folds on
+        # itself, and a fold is a facet on the outline.
+        n = len(cpts)
+        ws = [sum(ws[(i + k) % n] for k in range(-4, 5)) / 9.0 for i in range(n)]
+        tans = geom.tangents(cpts, closed=True)
+        outer = [(q[0] - tn[1] * side * w, q[1] + tn[0] * side * w) for q, tn, w in zip(cpts, tans, ws)]
+        outer = PR._unfold(outer, tans)
+        outer = geom.smooth(outer, 5, closed=True)
+        outer = geom.resample(outer + [outer[0]])[:-1]
+        bowl_ = geom.poly(outer).buffer(0)
         # the tail: down the stem, out along the baseline, lifting to a point
         tip = (x0 + A_TAIL_X * u, xh * A_TAIL_Y)
         tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
         tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
                       cut1=CUT)
-        return geom.ink([bowl_, stem, head, tail], [a_counter(u, x0)])
+        return geom.ink([bowl_, stem, head, tail], [ctr])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
@@ -2464,7 +2515,15 @@ if ON:
     # italic is that it should look written by the hand beside it. Their widths
     # are solved by aldine_autofit against the reference italics, the same way
     # every lowercase letter was.
-    CAP_BOW = float(os.environ.get("ALBO_ALD_CAP_BOW", -0.45))   # inward, as the a's
+    # ROUND 134: STRAIGHT. Owner: "there is a pervasive issue of bulging with
+    # a and H and other letters." The H's and N's stems were bowed inward by
+    # 0.45 x S at mid-height -- both edges curving, which the eye reads as a
+    # belly whatever the width does. The metal does not do it: Flanker's H
+    # stem is 116 px wide a fifth of the way up and 116 px at the slab, its
+    # centre on one line; the macro's i is 6-8 px the whole way down. The bow
+    # was round 127's idea for the a's stem, carried to the capitals in
+    # round 131, and the a lost it in round 132. Now the capitals do.
+    CAP_BOW = float(os.environ.get("ALBO_ALD_CAP_BOW", 0.0))
     # 2.00, MEASURED against the capitals this module does NOT redraw. CAP_W
     # is the NIB's thick and the nib takes most of it back on a near-vertical
     # stem, so the dial sits well above the width it produces: at 1.10 the H's
@@ -2472,7 +2531,12 @@ if ON:
     # weight, and eight hairline capitals in an otherwise solid alphabet. The
     # same trap as the a's stem in round 127, and the same cure: measure the
     # rendered stroke, not the dial.
-    CAP_W = float(os.environ.get("ALBO_ALD_CAP_W", 1.36))        # the nib's thick, x CS
+    # 1.36 -> 1.16 in round 134, when the stems went straight: a bowed stem
+    # runs off the vertical for most of its length and the nib thins it
+    # there, so straightening it made the H and N 18% and 15% heavier by
+    # cmp_cap_weight.py. The thick comes down by the same ratio and both
+    # land on their roman again.
+    CAP_W = float(os.environ.get("ALBO_ALD_CAP_W", 1.16))        # the nib's thick, x CS
     # A SEPARATE WEIGHT FOR THE ROUND CAPITALS. CAP_W was solved on a
     # near-vertical STEM, where the nib gives back only a fraction of its thick
     # -- 2.00 renders 22 px there. A curve turns through every direction, so it

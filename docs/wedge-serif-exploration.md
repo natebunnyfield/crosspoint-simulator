@@ -5775,3 +5775,49 @@ the **lower arc came up** (24 → 42, and 50 → 74 into the bottom terminal). T
 letter's weight now sits low and its diagonal is no longer the heaviest thing
 in it — which is exactly what the word image was showing, because a top-heavy
 s pulls the eye up out of the line.
+
+### Round 134 — the bulging, identified and fixed against the scans
+
+Owner: *"there is a pervasive issue of bulging with a and H and other
+letters. identify it and fix it based on scans."*
+
+**Two causes**, found by eye at 300 px and then measured:
+
+1. **The capital stems were BOWED.** `cstem_i` carried `CAP_BOW = -0.45` — the
+   stem's middle pulled 0.45 × S toward the letter — an idea from the a's
+   round 127 stem that the a itself lost in round 132 and the capitals kept.
+   Both edges curving reads as a belly whatever the width does. The metal
+   does not do it: Flanker's H stem is 116 px wide a fifth of the way up and
+   116 px at the slab, its centre on one line; the macro's i is 6–8 px the
+   whole way down. **`CAP_BOW` is 0.** Straightening made the H and N 18% and
+   15% heavier by `cmp_cap_weight.py` (a bowed stem runs off the vertical and
+   the nib thins it there), so `CAP_W` came down 1.36 → 1.16 and both land on
+   their roman again.
+2. **The a's bowl was a filled superellipse with a narrower, leaning counter
+   cut out of it**, and the difference between a round outside and a narrow
+   inside is a flank that swells at mid-height. The metal's bowl is one
+   stroke, thickest at the LOWER LEFT and thinning steadily up to the join
+   (Flanker's left flank by height: .2 83 / .3 76 / .4 73 / .5 68 / .6 62 /
+   .7 58 / .8 52; top 28; bottom 55–60; the rise 34). **The bowl is now that
+   stroke round the scan's counter** — the counter's edge pushed out by the
+   reference's width at each angle, scaled 1.12 because the print is heavier
+   than the revival. No belly is possible: the width is monotone from the
+   lower left round to the top. Counter/ink 0.46 against the scan's 0.42.
+
+**And one more, from the instrument:** the o's ring at a 25° pen sat its
+thick square on the flank's middle — 1.27 by `cmp_aldine_bulge.py` against
+Flanker's 1.15. At **35°** it slides toward the lower left: 1.11, bow 1.15
+against 1.17. 45° overshoots.
+
+**The instrument, and its honest limit.** `cmp_aldine_bulge.py` unshears each
+glyph, tracks every ink run into columns across 21 heights (a run joins a
+column only when its centre AND its width are continuous — a crossbar merging
+into a stem doubles the run in one row, and that is a junction, not a bulge),
+and reports per stroke the median middle width over the end widths (BULGE)
+and how far the centre leaves the chord in widths (BOW). Its first version
+without the width-continuity rule flagged every letter with a crossbar and
+none of the bowed stems; the second flagged o and p and missed the H, because
+a bowed stem keeps one width. The bow metric found it — and still reads the
+serifed H at 0.17 because the wedge horns pull the run centre at the ends. It
+finds candidates; the eye and the scan decide. Left flagged and not acted on:
+`p` bulge 1.14 vs 0.97 and `b` bow 0.74 vs 0.49 — the shared b/p ring's keys.
