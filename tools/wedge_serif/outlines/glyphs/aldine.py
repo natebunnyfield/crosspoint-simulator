@@ -1032,7 +1032,7 @@ if ON:
     # 53), a SMALLER eye (0.62 -> 0.54) and a bottom that stops earlier.
     # Measured after: scan IoU 0.563 -> 0.718, counter/ink 0.200 against 0.203,
     # w/h 0.65 against the crop's 0.65.
-    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.70))       # 38/58 measured
+    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.73))       # 38/58 measured
     # The bar's ends, off the macro: its TOP edge (the eye's floor) is at row
     # 371 where it leaves the left flank and row 364 at x620 -- 0.54 and 0.67
     # of the band. The eye itself is x608-622 by rows 353-369: 0.37 of the
@@ -1041,15 +1041,16 @@ if ON:
     # 0.55 W wide -- half again Griffo's -- and THAT, not the stroke weight,
     # was the counterspace. The macro's stroke is 0.79 x the stem: a LIGHT
     # letter with a small eye, not a heavy one.
-    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.50))   # the bar's LEFT end, x xh
-    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.61))  # its RIGHT end -- the rise
-    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.54))   # scales the upper loop's flanks
+    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.47))   # the bar's LEFT end, x xh
+    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.64))  # its RIGHT end -- the rise
+    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.49))   # scales the upper loop's flanks
     E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
     E_CON = float(os.environ.get("ALBO_ALD_E_CON", 1.00))   # contrast, x the measured 3.4:1
     E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.24))  # x S, across the nib
     E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.26))    # x S, along it
-    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.14))   # >1 eats counterspace
-    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.54))   # where the bottom stops. It STOPS.
+    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.08))   # >1 eats counterspace
+    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.80))   # where the terminal stops, x the width
+    E_END_Y = float(os.environ.get("ALBO_ALD_E_END_Y", 0.24))  # and how high it has risen, x xh
     # CHECKED AND LEFT ALONE, round 132, and worth saying so rather than
     # leaving the next pass to re-derive it. The mid-width column says the eye
     # sits high -- the scan's spans y 0.59-0.83 of the band and this letter's
@@ -1090,11 +1091,23 @@ if ON:
         Y = lambda f: f * xh
         mid = 0.50
         E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its center
+        # ROUND 133, against the macro's "naues" (owner: "match a and e to
+        # scans better. take multiple passes"). Two things the printed e does
+        # that this path did not, both obvious once the scan and the render
+        # are cropped to one height and set side by side:
+        #   THE LOWER BOWL CLOSES. Its terminal comes round the bottom and
+        #     rises to about 0.80 of the width at a quarter of the x-height,
+        #     so the aperture is a narrow slot. Stopping at 0.54 and 0.12 left
+        #     the stroke under the bar's middle, and the letter read as a c
+        #     with a bar laid across it.
+        #   THE BOTTOM IS FLAT AND WIDE, running from 0.26 to 0.52 of the
+        #     width before it turns up, where this path turned at 0.34.
         P = [(0.00, E_BAR),  (E(0.78), E_BAR_R),  # the bar, rising ~30 degrees
-             (E(0.84), E_SHOULDER), (E(0.52), E_TOP),   # up the eye's right, over the crown
-             (E(0.22), 0.86), (0.10, 0.66),      # down the left
-             (0.02, 0.34),   (0.08, 0.14),      # past its own start
-             (0.34, 0.02),   (E_END, 0.12)]     # round the bottom, and STOP
+             (E(0.86), E_SHOULDER), (E(0.54), E_TOP),   # up the eye's right, over the crown
+             (E(0.20), 0.87), (0.08, 0.68),      # down the left
+             (0.00, 0.38),   (0.06, 0.16),       # past its own start
+             (0.26, 0.01),   (0.52, 0.00),       # the flat wide bottom
+             (E_END, E_END_Y)]                   # and up into the aperture
         p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
         # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
         # The width at each point comes from the NIB and the direction the
@@ -1159,26 +1172,48 @@ if ON:
     # the d and not enough to read as an ascender. The 150 that made the a and
     # the d one letter, and the 96 this replaces, are both in the round 133 log.
     A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 8.0))             # units above the x-line
-    # THE COUNTER IS DRAWN, NOT OFFSET (owner 2026-09-16: "a needs a smaller
-    # counterspace that is rounded teardrop and 24 units above").
+    # THE COUNTER IS DRAWN, NOT OFFSET, AND ITS SHAPE IS THE SCAN'S.
+    # Owner 2026-09-16: "a needs a smaller counterspace that is rounded
+    # teardrop and 24 units above", then "match the counterspace for a to the
+    # griffo scans".
     #
-    # Until now the a's counter was whatever `ring_from` left after offsetting
-    # the bowl's outer edge inward by the ring's width at each angle. That
-    # cannot be asked for a SHAPE: the counter is a by-product of eight width
-    # keys, so every attempt to round it or raise it moves the outside of the
-    # letter too. The bowl is a filled superellipse now and the counter is its
-    # own closed curve, subtracted -- which is also how the o and the b d p q
-    # counters behave when they are asked for a shape rather than a weight.
+    # Until round 133 the counter was whatever `ring_from` left after
+    # offsetting the bowl's outer edge inward by eight width keys, so it could
+    # not be asked for a shape at all. The bowl is a filled superellipse now
+    # and the counter is its own closed curve, subtracted.
     #
-    # A TEARDROP POINTING UP: a round bottom, two flanks that draw in, and a
-    # short rounded tip under the join where the bowl meets the stem. Its floor
-    # sits 24 units above the baseline, which is the owner's number.
-    A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor: 24 units of it survive the cut
-    A_CTR_TOP = float(os.environ.get("ALBO_ALD_A_CTR_TOP", 318.0))  # its tip, units
-    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 186.0))      # its widest, units
-    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 146.0))    # the centre of that width, units from the letter's left
-    A_CTR_TIPX = float(os.environ.get("ALBO_ALD_A_CTR_TIPX", 214.0))  # where the tip leans to, units
-    A_CTR_BELLY = float(os.environ.get("ALBO_ALD_A_CTR_BELLY", 0.40))  # how far up the widest point sits, x its height
+    # MEASURED, on two a's that agree: the macro's "ad" (griffo-macro.png,
+    # 54 px x-height) and the owner's own crop, both binarized with Otsu on an
+    # 8x upscale and flooded from the border, so the counter is whatever white
+    # survives inside the ink (tools/wedge_serif, the round 133 log):
+    #
+    #                        macro "ad"    owner crop      the d, for scale
+    #   counter / ink            0.42          0.32              0.25
+    #   counter w/h              0.84          0.83              0.60
+    #   counter h / ink h        0.51          0.47              0.35
+    #   widest at                0.45          0.45              0.45
+    #   area / (w x h)           0.60          0.59              0.70
+    #
+    # An ellipse fills 0.79 of its box and a triangle 0.50, so at 0.60 this is
+    # neither: it is narrow at BOTH ends -- 0.15 of its width at the floor,
+    # 0.25 at the tip -- and widest across the middle. And it LEANS: its left
+    # edge starts 0.20 in at the floor, reaches the far left at 0.35 of the
+    # height, and has walked to 0.71 by the tip. That lean is the letter's own
+    # stress seen from the inside, and it is what a symmetric teardrop (the
+    # first cut of this) could not show.
+    A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor, units above the baseline
+    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 278.0))      # its height, units -- 0.51 x the ink, as the macro
+    A_CTR_WH = float(os.environ.get("ALBO_ALD_A_CTR_WH", 0.84))     # its width over its height, as both scans
+    A_CTR_X = float(os.environ.get("ALBO_ALD_A_CTR_X", 54.0))       # its left extreme, units from the letter's left
+    # height fraction (0 = floor) -> (left edge, right edge), both x the
+    # counter's width. The mean of the two a's, which differ by under 0.03
+    # everywhere except the floor.
+    A_CTR_PROFILE = [
+        (0.03, 0.37, 0.43), (0.05, 0.35, 0.43), (0.15, 0.16, 0.61),
+        (0.25, 0.05, 0.84), (0.35, 0.00, 0.87), (0.45, 0.01, 0.88),
+        (0.55, 0.07, 1.00), (0.65, 0.08, 0.96), (0.75, 0.25, 0.94),
+        (0.85, 0.32, 1.01), (0.95, 0.74, 0.92), (0.98, 0.81, 0.88),
+    ]
     # ring widths keyed by angle (degrees ccw from the right), in units
     A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
     if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
@@ -1215,33 +1250,28 @@ if ON:
                             smooth_w=smooth_w)[0]
 
     def a_counter(u, x0):
-        """The a's teardrop counter as a closed curve, in design units.
+        """The a's counter, drawn from the SCAN'S OWN PROFILE.
 
-        Round at the bottom, drawing in through two flanks to a short rounded
-        tip that leans right, under the join. Drawn as a catmull through eight
-        points rather than an offset, so `smaller`, `rounder` and `higher` are
-        three separate numbers and none of them touches the outside of the
-        letter."""
-        bot = A_CTR_BOT * u; top = A_CTR_TOP * u
-        h = top - bot; w = A_CTR_W * u
-        cx = x0 + A_CTR_CX * u; tipx = x0 + A_CTR_TIPX * u
-        by = bot + h * A_CTR_BELLY                      # the widest line
-        # Ten points, evenly spaced round the curve rather than bunched at the
-        # tip: a catmull with a long gap beside a short one kinks, and a kink
-        # in a counter is the first thing the eye finds. The round end is the
-        # BOTTOM LEFT and the tip is the TOP RIGHT, so the counter's own axis
-        # leans with the letter instead of across it.
-        P = [(cx - w * 0.16, bot),                       # the round floor
-             (cx - w * 0.40, bot + h * 0.10),
-             (cx - w * 0.50, by),                        # the widest, on the left
-             (cx - w * 0.44, by + h * 0.24),
-             (cx - w * 0.22, by + h * 0.48),             # drawing in toward the tip
-             (tipx - w * 0.10, top),                     # the tip, blunt
-             (tipx + w * 0.05, top - h * 0.07),
-             (cx + w * 0.44, by + h * 0.26),             # down the right flank
-             (cx + w * 0.50, by - h * 0.04),
-             (cx + w * 0.26, bot + h * 0.06)]            # round into the floor
-        return geom.poly(catmull(P, tension=0.5, closed=True))
+        `A_CTR_PROFILE` is a measured table of left and right edges by height,
+        so the curve is the scan's silhouette rather than an idea of a
+        teardrop: narrow at the floor, widest across the middle, narrowing to
+        a small tip, and leaning right the whole way up. Closed with a catmull
+        so the corners the sampling leaves become curves again."""
+        bot = A_CTR_BOT * u; h = A_CTR_H * u; w = A_CTR_H * A_CTR_WH * u
+        x = x0 + A_CTR_X * u
+        # The table is twelve rows; a catmull through twelve points at this
+        # size leaves visible facets on the counter's left flank, where the
+        # curve is flattest. Interpolate it to three points per gap first --
+        # the measurement cannot see a facet and the eye finds it immediately.
+        rows = []
+        for (f0, l0, r0), (f1, l1, r1) in zip(A_CTR_PROFILE, A_CTR_PROFILE[1:]):
+            for i in range(3):
+                t = i / 3.0
+                rows.append((f0 + (f1 - f0) * t, l0 + (l1 - l0) * t, r0 + (r1 - r0) * t))
+        rows.append(A_CTR_PROFILE[-1])
+        left = [(x + l * w, bot + f * h) for f, l, r in rows]
+        right = [(x + r * w, bot + f * h) for f, l, r in rows]
+        return geom.poly(catmull(left + right[::-1], tension=0.5, closed=True))
 
     @glyph('a')
     def a_a(c):

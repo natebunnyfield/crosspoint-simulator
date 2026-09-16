@@ -5683,3 +5683,52 @@ enough to read as an ascender.
 The a's ledger row moved a third time, and for the third time the rule is the
 same: **a target describes a drawing.** Both of its numbers are whole-glyph
 measurements, and the glyph changed twice today by ruling.
+
+##### The a's counter matched to the scan, and one pass on the e
+
+Owner: *"match the counterspace for a to the griffo scans"*, then *"match a
+and e to scans better. take multiple passes."*
+
+**A new instrument, and the point of it is that one piece of code reads both
+sides.** `cmp_aldine_counter.py` binarizes (Otsu on an upscale), floods the
+background in from the border, and calls every white region that survives
+inside the ink a counter — on a 54 px photograph of 1501 metal and on a 400 px
+render of our own outline alike. What it reports is scale-free: area over ink,
+proportion, **fill** (area over its bounding box: an ellipse is 0.79, a
+triangle 0.50 — the number that says *teardrop*, and the one a bbox cannot
+see), where the widest row sits, the floor, and a ten-row silhouette.
+`aldine_fit_counter.py` runs the passes.
+
+**The a, matched:**
+
+| | scan, macro "ad" | before | now |
+|---|---|---|---|
+| counter / ink | 0.42 | 0.20 | **0.42** |
+| fill | 0.60 | 0.54 | **0.58** |
+| widest at | 0.55 | 0.35 | **0.55** |
+| floor | 0.07 | 0.06 | **0.08** |
+| silhouette | — | off by up to 0.20 a row | **within 0.03 every row** |
+
+The counter is driven by a **measured profile table** — left and right edge at
+twelve heights, corrected over four fixed-point passes against the scan's own
+profile — rather than by an idea of a teardrop. What the table shows and a
+symmetric drawing could not: it is narrow at BOTH ends (0.15 of its width at
+the floor, 0.25 at the tip), widest across the middle, and **it leans** — the
+left edge starts 0.20 in, reaches the far left at 0.35 of the height, and has
+walked to 0.71 by the tip. That lean is the letter's stress seen from inside.
+
+**Two negative results worth the space.** The letter's own ink w/h was added to
+the score and then dropped: the scan crop clips the a's tail, so its 0.75 is a
+property of the crop and not the letter (both digital revivals measure 0.94).
+And the counter cannot be both 0.42 of the ink and 0.51 of the ink's height at
+this bowl weight — the scan's bowl is a thin stroke where ours is a filled
+superellipse. Area won; the height sits at 0.59.
+
+**The e, one pass, and NOT finished.** The dial fit moved it 2.43 → 1.73, and
+then the shape had to be drawn: the printed e's **lower bowl closes** — its
+terminal comes round and rises to 0.80 of the width at a quarter of the
+x-height, where ours stopped at 0.54 and 0.12 and read as *a c with a bar laid
+across it* — and its bottom is flat and wide. Both are fixed. **Still off: the
+eye is an angular wedge where the scan's is round** (fill 0.55 against 0.63,
+widest at 0.45 against 0.55), and the whole letter is lighter than the print.
+That is drawing, not dials, and it is the next pass.
