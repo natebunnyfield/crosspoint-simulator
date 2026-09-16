@@ -1357,7 +1357,20 @@ if ON:
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
         tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
                       cut1=CUT)
-        return geom.ink([bowl_, stem, head, tail], [ctr])
+        # THE TOP CONNECTS (owner 2026-09-16: "connect the top of the top
+        # left stroke to the other top right stroke. keep its counter as it
+        # is."). The bowl's stroke thins to 31 units at the top and the stem's
+        # head sits beside it, so at the join there was a notch -- a wedge of
+        # paper between the arc's end and the head. In the metal the arc
+        # runs INTO the head as one movement. A bridge stroke rides the top of
+        # the bowl from its crown into the head's left corner; the counter
+        # is cut afterward, so it is untouched.
+        crown = max(cpts, key=lambda q: q[1])
+        top_y = xh + A_ASC * u
+        br = catmull([(crown[0] - 30 * u, crown[1] + 34 * u), (crown[0] + 40 * u, crown[1] + 30 * u),
+                      (xs - sw * 0.5 - 6 * u, top_y - 20 * u), (xs, top_y - 26 * u)], tension=0.5)
+        bridge = stroke(br, widths([(0.0, 26 * u), (0.5, 40 * u), (1.0, 62 * u)]))
+        return geom.ink([bowl_, stem, head, tail, bridge], [ctr])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
@@ -2157,21 +2170,28 @@ if ON:
     # against zero of ours -- ink at a depth this family does not have. The p
     # and the q lose 0.02-0.05 the same way. Nothing here can recover it, and
     # changing `desc` to chase it would be a family decision, not a g one.
+    # ROUND 135, to the owner's Griffo detail of the g (2026-09-16, a crop
+    # he pasted: the upper bowl is a small near-round oval, the lower loop
+    # is WIDER than the bowl and flat along its floor, the neck is short and
+    # does not dive far left, the ear a short flat stroke at the x-line).
+    # Bowl 187 -> 158 tall and raised; loop 182 -> 205 half-width and its
+    # top lifted -43 -> -26 so it hangs off the neck rather than under it;
+    # the neck's leftmost 52 -> 78 (a shallower dive) and its waist 52 -> 44.
     G_CX = float(os.environ.get("ALBO_ALD_G_CX", 144.0))      # upper bowl centre
-    G_CY = float(os.environ.get("ALBO_ALD_G_CY", 257.0))
-    G_RX = float(os.environ.get("ALBO_ALD_G_RX", 152.0))
-    G_RY = float(os.environ.get("ALBO_ALD_G_RY", 187.0))
+    G_CY = float(os.environ.get("ALBO_ALD_G_CY", 268.0))
+    G_RX = float(os.environ.get("ALBO_ALD_G_RX", 150.0))
+    G_RY = float(os.environ.get("ALBO_ALD_G_RY", 158.0))
     G_SKEW = float(os.environ.get("ALBO_ALD_G_SKEW", -0.01))
-    G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 139.0))    # lower loop centre
-    G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 182.0))    # 185 at the reference's depth, scaled to Albo's 280
-    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", -43.0))  # the loop's top
+    G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 150.0))    # lower loop centre
+    G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 205.0))    # 185 at the reference's depth, scaled to Albo's 280
+    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", -20.0))  # the loop's top
     G_SKEW_L = float(os.environ.get("ALBO_ALD_G_SKEW_L", 0.07))
     G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 350.0))  # the ear's right tip
     G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 52.0))   # its thickness
     G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.84))   # the tip's height, x xh
-    G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 52.0))  # how far LEFT the neck dives
+    G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
-    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 52.0))   # its waist
+    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
     G_RING = [(0, 66), (45, 46), (90, 25), (135, 50), (180, 70), (225, 35), (270, 27), (315, 38)]
     G_LRING = [(0, 50), (45, 62), (90, 70), (135, 74), (180, 72), (225, 58), (270, 24), (315, 34)]
     if os.environ.get("ALBO_ALD_G_RING"):
