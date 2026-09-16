@@ -5113,3 +5113,40 @@ said mine was *rounder than the target* and neither matched what the eye saw.
 
 `A_FLANK` re-solved to 2.03 to hold counter/ink at 0.347 against 0.344. All
 three measured letters pass the ledger.
+
+### Round 123b — "a harmonious simpler curve": why dials cannot give it
+
+Owner: *"the counterspace of a needs to be a harmonious simpler curve."*
+**Not delivered. Reverted to the round-123 letter, which still passes the
+ledger.** What the attempt establishes is worth more than another sweep:
+
+**The counter in this glyph is DERIVED, and a derived counter has no curvature
+of its own to be harmonious about.** It is whatever is left between the inner
+offset of a stroke whose width varies along a catmull, and the stem's straight
+edge. It inherits every wobble of the width function and every unevenness of
+the path. That is a structural fact about how the letter is built, not a value
+any dial holds — which is why five separate dials have now moved its AREA onto
+target and left its SHAPE wrong.
+
+**The right construction is to DRAW the counter and cut it out**, so it is a
+single smooth closed curve by fiat. Two ways were tried and both failed, and
+the failures are the useful part:
+
+1. **Cutting a superellipse from the stroke alone breaches the bowl wall.** The
+   counter there is already open to the outside, so the cut does not define a
+   counter — it destroys the one that exists. Measured: enclosed area
+   16,187 → **0**.
+2. **Filling the bowl to its offset edge first does not work either.** The `L`
+   and `R` edges `stroke(..., sides=True)` returns are open polylines that
+   self-intersect when closed into a polygon, so the fill is not the bowl's
+   silhouette. Both sides tried: enclosed area 332 and 0.
+
+**What it actually needs** is the `a` rebuilt the way the `o` already is — an
+OUTLINE construction (`ring_from`-style: a designed outer path, a designed
+counter) rather than a centreline stroke. That is a redraw of the glyph, not a
+tuning pass, and it is the third time this letter has asked for one: the lens
+counter of round 121 and the sliver of round 123 are the same finding arriving
+by different routes.
+
+Cost of not doing it: the `a` keeps a counter whose area is right and whose
+shape is a leftover.
