@@ -6129,3 +6129,25 @@ stays +0.129 cap at every rung**. That number is his own −116 right bearing
 (`CAP_BEARING_ADJ['Y']`), and nothing in the drawing moves it. The Y's advance
 is 0.76 of the H's where Pagella sets 0.86 and Poetica 0.88 — the letter is
 narrow in its box before the arm is touched at all.
+
+### Round 141 — the a reduced to two strokes
+
+Owner, with a pasted editor state: **"THIS LETTER NEEDS TO BE REDUCED AND
+SIMPLIFIED."**
+
+It was **five pieces** — a bowl offset from its counter, a rectangular stem, a
+four-curve head polygon, a tail, and a conditional bridge — and every seam
+between them was a place to go wrong. The record says so: the notch round 136
+bridged, the sliver round 137 removed, the belly round 134 measured. All three
+were joins.
+
+It is **written** now: ONE pen movement from the head's tip, right across the
+top, down the stem and out into the tail, plus ONE ring for the bowl. The head
+is the entry stroke's **width** rather than a polygon, so there is no join to
+patch and the widths carry through it. His dials came with the state (stem 81
+at x 346, head reach 190, drop 109, thickness 120, ascender −11).
+
+**167 points → 159**, and one thing worth keeping: the stroke has to be built
+`raw`. `stroke()` re-densifies its own centerline, so thinning the path before
+handing it over does nothing at all — round 139's lesson arriving from the
+other side.
