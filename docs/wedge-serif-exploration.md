@@ -5640,3 +5640,24 @@ This is the second ledger row this round to move from a printed measurement to
 the reference vector (the `a`'s counter was the first). **The pattern is worth
 naming: a scan crop measures the page, and a page is the punch plus the ink it
 spread.** Proportion survives that; area does not.
+
+##### RULING 2026-09-16 — the a is a d with a short ascender
+
+Owner: *"make an 'a' based on scan that closer to 'd' with a short ascender."*
+The stem now carries **96 units past the x-line** (the d's own ascender clears
+it by 341) and takes the same `bd_head` the b, d and p wear — the wedge
+reaching LEFT — instead of the small right-hand nib mark round 132 gave it.
+That is what the Petrarch page and his crop show, and it is what makes the a
+belong to the same hand as the b and the d.
+
+**The ladder, because there is a wall in it:** 48 units is invisible at 27 px;
+96 reads as a short ascender and keeps a and d apart; 120 still does, barely;
+**at 150 the a and the d are the same letter at 27 px** in *dad*, *ad hoc*,
+*scandal*. Shipped at 96; 120 is one dial (`ALBO_ALD_A_ASC`).
+
+The ledger's a row was retargeted with it. Flanker's a has no ascender, so its
+counter/ink and w/h — both whole-glyph measurements — stopped describing this
+letter the moment the ruling landed. **Third row this round to move**, and the
+rule under all three is the same: a target describes a drawing, and when the
+owner rules the drawing changes, the target follows or it prints a false alarm
+until someone stops reading it.

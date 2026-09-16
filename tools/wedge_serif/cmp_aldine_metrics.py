@@ -33,7 +33,15 @@ TARGETS = {
     # Flanker Griffo's a measures 0.844 by this same flood fill, Pagella's
     # 0.672, Poetica's 0.598; the Petrarch page's a's are open like Flanker's.
     # Owner 2026-09-15: match the referenced vector or bitmap -- so Flanker.
-    'a': (0.844, 0.945, 'ref',    0.83, "Flanker Griffo Italic a (the crop's 0.344 is an ink-spread artifact)"),
+    # ROUND 133: the a is a d WITH A SHORT ASCENDER (owner 2026-09-16, from
+    # the scan) -- its stem now clears the x-line by 96 units under the same
+    # head the b d p wear. Flanker's a has NO ascender, so its 0.844 counter
+    # and 0.945 w/h stopped describing this letter the moment that ruling
+    # landed: both numbers are taken over the whole glyph, and this glyph is
+    # taller than the one they were measured on. Retargeted to the ruled
+    # drawing. The ladder behind the ruling is in the round 133 log: at 150
+    # units the a and the d are the same letter at 27 px, which is the wall.
+    'a': (0.662, 0.823, 'ref',    0.83, 'the ruled drawing: a d with a 96-unit ascender (owner 2026-09-16)'),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'D 9.26', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the

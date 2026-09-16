@@ -1148,6 +1148,13 @@ if ON:
     A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 434.0))    # tip, units from the left edge
     A_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TAIL_Y", 0.15))     # x xh
     A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 22.0))     # the head's reach right of the stem, units
+    # THE a IS A d WITH A SHORT ASCENDER (owner 2026-09-16, from the scan).
+    # The Petrarch page and the owner's crop both carry the a's stem past the
+    # x-line and finish it with the SAME head the b d p wear -- the wedge
+    # reaching left -- not the little right-hand nib mark the first cut gave
+    # it. A_ASC is how far above the x-line that stem goes, in units; the d's
+    # own ascender clears the x-line by 341, so this is a short one.
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 96.0))            # units above the x-line
     # ring widths keyed by angle (degrees ccw from the right), in units
     A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
     if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
@@ -1186,8 +1193,10 @@ if ON:
     @glyph('a')
     def a_a(c):
         """The Aldine single-storey a: a ring filling the x-height, a straight
-        stem the height of the x-line, and a short thick tail along the
-        baseline. See the block above for where every number comes from."""
+        stem carried a short way PAST it under the b/d/p head, and a short
+        thick tail along the baseline. It is a d with its ascender cut short
+        (owner 2026-09-16) -- which is what the scan shows and what makes the
+        a belong to the same hand as the b and the d rather than to itself."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
         xs = x0 + A_STEM_X * u; sw = A_STEM_W * u
         # the stem: straight, its top cut on the pen's angle. The owner's scan
@@ -1196,10 +1205,9 @@ if ON:
         # downstroke -- so the top face reaches a little past the stem on
         # that side and slopes down to the left. Flanker has the same corner,
         # smaller; the scan is the target.
-        stem = stroke([(xs, S * 0.10), (xs, xh * A_STEM_TOP)], sw, cut1=CUT)
-        hr = A_HEAD_R * u
-        head = geom.poly([(xs - sw / 2, xh * A_STEM_TOP - 26 * u), (xs + sw / 2 + hr, xh * A_STEM_TOP + 4 * u),
-                          (xs + sw / 2 + hr * 0.7, xh * A_STEM_TOP + 12 * u), (xs - sw / 2 + 10 * u, xh * A_STEM_TOP - 8 * u)])
+        top = xh + A_ASC * u
+        stem = stroke([(xs, S * 0.10), (xs, top)], sw)
+        head = bd_head(xs - sw / 2, xs + sw / 2, top, u)
         # the bowl
         ry = (xh + OVER * 0.6) / 2.0 + 0.0
         bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
