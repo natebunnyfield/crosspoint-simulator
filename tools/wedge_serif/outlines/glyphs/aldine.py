@@ -29,7 +29,32 @@ Everything is drawn on the pen, so the contrast is the pen's own; no widths
 are declared except where a stroke has to thin against its neighbour.
 """
 import math, os
-from . import glyph, GLYPHS
+from . import glyph as _register, GLYPHS
+
+# PER-LETTER WEIGHT, so the fitter can reach a letter without a dial of its
+# own. Every glyph here is wrapped to record which letter is being drawn, and
+# the shared width paths multiply by ALBO_ALD_LW_<ch>. It is one hook rather
+# than twenty-six dials, and it is what lets aldine_autofit solve a letter that
+# nobody has hand-tuned.
+_CUR = [None]
+
+
+def _lw():
+    ch = _CUR[0]
+    return float(os.environ.get(f"ALBO_ALD_LW_{ch}", 1.0)) if ch else 1.0
+
+
+def glyph(*chars):
+    def deco(fn):
+        def wrapped(c, _ch=chars[0], _fn=fn):
+            prev = _CUR[0]; _CUR[0] = _ch
+            try:
+                return _fn(c)
+            finally:
+                _CUR[0] = prev
+        wrapped.__name__ = getattr(fn, "__name__", "glyph")
+        return _register(*chars)(wrapped)
+    return deco
 from .. import geom, pen
 from ..geom import cubic, line, catmull, superellipse
 from ..primitives import stroke, pen_widths, widths, ring
@@ -160,7 +185,8 @@ def nib_widths(pts, thick, thin, target=None, smooth=9, boost=None, taper=True):
               len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
     if taper:
         ws = [w * m for w, m in zip(ws, _taper(n))]
-    return ws
+    lw = _lw()
+    return [w * lw for w in ws]
 
 
 def con(ws, target=None):
@@ -192,7 +218,7 @@ def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
     """A stem. `head` puts the Aldine angled head across its top; `foot` the
     blunt outstroke to the right at the baseline. `foot_len` overrides the
     outstroke's length (x the stem) for a letter whose exit runs longer."""
-    parts = [stroke([(x, y0), (x, y1)], S * w)]
+    parts = [stroke([(x, y0), (x, y1)], S * w * _lw())]
     if head:
         a = math.radians(HEAD_DEG); L = S * HEAD_LEN
         dx, dy = math.cos(a) * L, math.sin(a) * L

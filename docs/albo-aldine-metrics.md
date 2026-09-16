@@ -121,3 +121,39 @@ instead of Pagella fallbacks.
 high for an `s`. Either the crop admits white that is not a counter or the fill
 leaks through a thin place. Recorded rather than used; do not fit the `s` to it
 without re-cropping.
+
+
+### `--label`: naming every letter on a line, and why it is still eyeballed
+
+```bash
+python3 aldine_autofit.py --label
+```
+
+The segmenter returns boxes in reading order and **the lines' text is known**,
+so naming them needs no shape recognition at all — which is the thing rounds
+115–116 lacked. Template matching was trying to answer "which letter is this?"
+when the answer was already written down.
+
+Italic letters TOUCH, so box count never equals letter count. The boxes are
+aligned to the letters by **dynamic programming**: each box takes a contiguous
+RUN of letters, and the split minimising the disagreement between each box's
+width and its letters' expected widths wins. Boxes holding more than one letter
+are dropped rather than split.
+
+**It proposed 18 letters and FOUR were wrong** — it called an `a` a `c`, a `t`
+an `n`, a blob a `t`, and a `u` an `i`. So every crop is rendered as a contact
+sheet and looked at before it enters `SOURCES`. **An automatic labeller that is
+78% right silently poisons every number underneath it**, and nothing downstream
+would report it: a wrong crop still measures, still solves, still passes the
+ledger.
+
+Adopted from that pass, verified by eye: `b d h l m p q r s` — taking the
+lowercase from 4 scan-measured letters to 14, plus a capital `B` for when the
+capitals start.
+
+### Per-letter weight
+
+Every glyph in `aldine.py` is wrapped to record which letter is being drawn, and
+the shared width paths multiply by `ALBO_ALD_LW_<ch>`. One hook rather than
+twenty-six dials, and it is what lets the fitter reach a letter nobody has
+hand-tuned — `dials_for()` falls back to it.

@@ -53,7 +53,21 @@ SOURCES = {
     # matches the hand crop that was found the slow way in round 117c, which is
     # what made the rest of this line trustworthy.
     'u': (MACRO, (526, 340, 584, 411), 57, 'macro, "naues"'),
-    's': (MACRO, (640, 346, 679, 409), 57, 'macro, "naues,"'),
+    # --- from --label, EYEBALLED ONE BY ONE before adoption ---
+    # The alignment proposed 18 letters and FOUR were wrong: it called an `a` a
+    # `c`, a `t` an `n`, a blob a `t`, and a `u` an `i`. 14 of 18 is useful and
+    # is not trustworthy, so `--label` prints a contact sheet's worth of crops
+    # and nothing enters this table without being looked at. An automatic
+    # labeller that is 78% right silently poisons every number underneath it.
+    'b': (MACRO, (913, 152, 963, 255), 66, 'macro, "habitum"'),
+    'd': (MACRO, (83, 20, 142, 124), 66, 'macro, "udos"'),
+    'h': (MACRO, (783, 151, 836, 260), 66, 'macro, "habitum"'),
+    'l': (MACRO, (632, 20, 662, 112), 66, 'macro, "tumulum"'),
+    'm': (MACRO, (735, 46, 823, 112), 66, 'macro, "tumulum"'),
+    'p': (MACRO, (447, 633, 508, 745), 70, 'macro, "pater"'),
+    'q': (MACRO, (1085, 335, 1139, 420), 75, 'macro, "qu"'),
+    'r': (MACRO, (129, 207, 174, 266), 66, 'macro, "utri"'),
+    's': (MACRO, (199, 59, 234, 121), 66, 'macro, "udos"'),
 }
 FALLBACK_REF = os.path.join(REFS, 'texgyrepagella-italic.otf')
 
@@ -71,6 +85,13 @@ DIALS = {
     'e': [('ALBO_ALD_E_THICK', 0.6, 2.0), ('ALBO_ALD_E_W', 0.5, 0.9)],
     'o': [('ALBO_ALD_O_THICK', 1.0, 2.6), ('ALBO_ALD_O_W', 0.6, 0.95)],
 }
+def dials_for(ch):
+    """A letter's dials. Anything without hand-written ones gets the shared
+    per-letter weight, which every glyph honours through `_lw()` -- so a letter
+    nobody has tuned is still reachable by the fitter."""
+    return DIALS.get(ch, [(f'ALBO_ALD_LW_{ch}', 0.60, 1.90)])
+
+
 BUILD_ENV = dict(ALBO_ITALIC='aldine', FJORD_STEM='66.9', FJORD_CONTRAST='0.892',
                  FJORD_WIDTH='95', FJORD_SLANT='13')
 S_OVER_XH = 0.196          # the family's stem as a fraction of the x-height
@@ -178,9 +199,7 @@ def solve(ch, target, rounds=3, samples=5, verbose=True):
     """Coordinate descent over the letter's dials. Each pass walks one dial at
     a time, because the dials INTERACT -- every hand-fitted letter in rounds
     121-128 needed a second dial re-solved after the first moved."""
-    dials = DIALS.get(ch)
-    if not dials:
-        print(f"  {ch}: no dials registered -- nothing to solve"); return None
+    dials = dials_for(ch)
     cur = {}
     tmp = tempfile.mkdtemp(prefix=f'autofit-{ch}-')
     for name, lo, hi in dials: cur[name] = (lo + hi) / 2
@@ -233,13 +252,97 @@ def segment(path, y0, y1, thr=120, gap=2, minw=8):
     return out
 
 
+# The macro's five lines, and what each one SAYS. Knowing the text is what
+# makes labelling automatic: the segmenter returns boxes in reading order, so
+# zipping them against the line's letters names every box without any shape
+# recognition at all. That is the trick rounds 115-116 needed and did not have
+# -- template matching tried to answer "which letter is this?" when the answer
+# was already written down.
+#
+# Long s is spelled 'S' here and skipped; punctuation is dropped before zipping.
+LINES = [
+    (20,  140, "udos ad tumulum faciunt"),
+    (150, 275, "utri am Beroen habitum"),
+    (300, 420, "naendit naues Subitus qu"),
+    (455, 600, "rodigium eSt cunctis arde"),
+    (620, 750, "n Somnis pater AnchiSes"),
+]
+
+
+# Rough relative widths, for alignment only -- never for drawing. An i and an
+# m differ by nearly four to one, and a flat "width / median" rule mislabels a
+# line by several letters because of it.
+REL_W = {c: 1.0 for c in 'abcdeghknopqsuvxyz'}
+REL_W.update({c: 0.45 for c in 'ijl'}, **{c: 0.7 for c in 'frt'},
+             **{'m': 1.9, 'w': 1.8})
+
+
+def label_line(y0, y1, text, thr=120):
+    """Name every box on one line by aligning boxes to the line's own letters.
+
+    Italic letters TOUCH, so the box count never equals the letter count and a
+    naive zip renames everything after the first join. This aligns them by
+    dynamic programming: every box takes a contiguous RUN of letters, and the
+    split minimising the disagreement between each box's width and its letters'
+    expected widths wins. Boxes that end up holding more than one letter are
+    dropped rather than split -- a crop that is half of two letters is worse
+    than no crop, which is what rounds 115-116 paid to learn.
+    """
+    im = Image.open(MACRO)
+    boxes = segment(MACRO, y0, min(y1, im.size[1]), thr=thr)
+    want = [c for c in text if c.isalpha() and c != 'S']
+    if not boxes or not want: return None, "nothing to align"
+    W = [b[2] - b[0] for b in boxes]
+    unit = sum(W) / sum(REL_W.get(c, 1.0) for c in want)
+    nb, nl = len(boxes), len(want)
+    INF = float('inf')
+    # dp[i][j] = best cost using the first i boxes to cover the first j letters
+    dp = [[INF] * (nl + 1) for _ in range(nb + 1)]
+    back = [[None] * (nl + 1) for _ in range(nb + 1)]
+    dp[0][0] = 0.0
+    for i in range(nb):
+        for j in range(nl):
+            if dp[i][j] == INF: continue
+            for k in range(1, min(4, nl - j) + 1):     # a box holds 1..4 letters
+                exp = sum(REL_W.get(c, 1.0) for c in want[j:j + k]) * unit
+                cost = dp[i][j] + abs(W[i] - exp) / max(unit, 1)
+                if cost < dp[i + 1][j + k]:
+                    dp[i + 1][j + k] = cost; back[i + 1][j + k] = k
+    if dp[nb][nl] == INF: return None, "no alignment"
+    runs = []; i, j = nb, nl
+    while i > 0:
+        k = back[i][j]; runs.append(k); i -= 1; j -= k
+    runs.reverse()
+    out = []; j = 0
+    for b, k in zip(boxes, runs):
+        if k == 1: out.append((want[j], b))
+        j += k
+    return out, None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--letters', default='aeo')
     ap.add_argument('--dry', action='store_true', help='report targets, solve nothing')
     ap.add_argument('--rounds', type=int, default=3)
     ap.add_argument('--segment', help='IMAGE:Y0:Y1 -- propose letter boxes on one line')
+    ap.add_argument('--label', action='store_true', help='name every box on every known line')
     args = ap.parse_args()
+    if args.label:
+        found = {}
+        for y0, y1, text in LINES:
+            pairs, why = label_line(y0, y1, text)
+            if pairs is None:
+                print(f"  line y{y0}-{y1}: SKIPPED -- {why}"); continue
+            xh = sorted(b[3] - b[1] for _, b in pairs)[len(pairs) // 2]
+            print(f"  line y{y0}-{y1}: {len(pairs)} letters, median height {xh}")
+            for ch, b in pairs:
+                found.setdefault(ch, (b, xh, f'macro y{y0}'))
+        print("\n  # paste into SOURCES")
+        for ch in sorted(found):
+            b, xh, note = found[ch]
+            print(f"    '{ch}': (MACRO, {b}, {xh}, '{note}'),")
+        return 0
     if args.segment:
         path, y0, y1 = args.segment.rsplit(':', 2)
         path = {'macro': MACRO, 'virgil': VIRGIL}.get(path, path)
