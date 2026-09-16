@@ -22,7 +22,12 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.basePen import BasePen
 
-RECUT = "AGHNQSUV"
+# ROUND 135 added R P Z L K M, so fourteen of the twenty-six are re-cut and the
+# control set is down to twelve -- B C D E F I J O T W X Y. That is still a
+# median over a dozen letters of three different constructions (stems, rounds,
+# diagonals), which is what the normaliser needs; a control set that had shrunk
+# to one CLASS would quietly re-point the whole scale.
+RECUT = "AGHKLMNPQRSUVZ"
 CAPS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 HERE = os.path.dirname(os.path.abspath(__file__))
 COMMON = dict(FJORD_STEM="66.9", FJORD_CONTRAST="0.892", FJORD_WIDTH="95", PYTHON_GIL="0")
