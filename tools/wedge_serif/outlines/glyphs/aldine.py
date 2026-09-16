@@ -386,7 +386,14 @@ if ON:
     # be taken OUT of points read off the page or the letter is slanted twice.
     # NOTE: the shipping italic builds at 13, which this says is 4-5 deg
     # steeper than Griffo. Not changed here -- that is a family ruling.
-    E_PAGE_SLANT = float(os.environ.get("ALBO_ALD_PAGE_SLANT", 8.8))
+    # 13.0, not 8.8. The 8.8 came from fitting whole stems across a line, and
+    # that method was already known to scatter 5-16 degrees because chancery
+    # stems CURVE -- an entry and an exit at opposite ends drag a least-squares
+    # line off the stem's own angle. The owner's target crop of a single a
+    # gives 13.7 on 16 clean stem rows, and the family has shipped
+    # FJORD_SLANT=13 all along. Build the Aldine italic at 13 so this unshear
+    # cancels the build's shear exactly.
+    E_PAGE_SLANT = float(os.environ.get("ALBO_ALD_PAGE_SLANT", 13.0))
 
     @glyph('e')
     def a_e(c):
@@ -432,7 +439,7 @@ if ON:
     A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.15))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 0.90))  # the bowl's left flank, x the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.65))  # the bowl's left flank, x the stem
     # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
     # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
     # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
@@ -441,6 +448,14 @@ if ON:
     # to read as that exit.
     A_TAIL = float(os.environ.get("ALBO_ALD_A_TAIL", 3.30))  # the exit's length, x the stem
     A_TAIL_W = float(os.environ.get("ALBO_ALD_A_TAIL_W", 0.48))  # its weight where it ends
+    # THE BOWL'S SIZE, against the owner's target crop (2026-09-15). Measured
+    # on it: lean 13.7 deg over 16 clean stem rows, pen angle 50 deg (the same
+    # axis the o gave), w/h 0.891 and **counter/ink 0.344**. The proportion was
+    # already right at 0.920; the counter was not, at 0.652 -- nearly twice the
+    # target. As with the e, the lever is the bowl's GEOMETRY and not its
+    # weight: thickening to close a counter moves the page's colour to fix a
+    # ratio. A_BOWL scales the bowl's path about its own centroid.
+    A_BOWL = float(os.environ.get("ALBO_ALD_A_BOWL", 0.85))
 
     @glyph('a')
     def a_a(c):
@@ -458,9 +473,15 @@ if ON:
             dx, dy = math.cos(a) * L, math.sin(a) * L
             parts.append(stroke([(xs_ - dx * 0.70, top - dy * 0.70 - S * 0.05),
                                  (xs_ + dx * 0.34, top + dy * 0.34)], S * HEAD_W * A_HEAD_W, cut0=CUT))
-        p_ = catmull([(X(A_STEM - 0.01), Y(1.00)), (X(0.44), Y(0.88)), (X(0.25), Y(0.70)),
-                      (X(0.13), Y(0.48)), (X(0.11), Y(0.26)), (X(0.24), Y(0.06)),
-                      (X(0.44), Y(0.09)), (X(A_STEM - 0.09), Y(A_JOIN))], tension=0.5)
+        BP = [(A_STEM - 0.01, 1.00), (0.44, 0.88), (0.25, 0.70),
+              (0.13, 0.48), (0.11, 0.26), (0.24, 0.06),
+              (0.44, 0.09), (A_STEM - 0.09, A_JOIN)]
+        # Narrow the bowl TOWARD THE STEM, leaving its two ends where they
+        # are: they sit ON the stem, and a first version scaled every point
+        # about the bowl's centroid, which walked those ends inward and SEALED
+        # the counter -- counter/ink went to 0.000 at the first step down.
+        BP = [(A_STEM + (fx - A_STEM) * A_BOWL, fy) for fx, fy in BP]
+        p_ = catmull([(X(fx), Y(fy)) for fx, fy in BP], tension=0.5)
         # Weight read off the same rows: thin where the arc leaves the stem,
         # the flank at three quarters of the stem, the bottom heaviest.
         ap = con([0.60, 0.54, A_FLANK, A_FLANK + 0.10, 0.66])

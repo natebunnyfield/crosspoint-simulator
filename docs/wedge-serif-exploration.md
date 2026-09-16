@@ -5022,3 +5022,54 @@ One render-reading worth recording: the first proof strip showed letters
 dropping out of the words ("you d e uie"). That was not the letters — the font
 had been built with `--only "aeiouy"`. A missing glyph and a broken glyph look
 identical in a word image, so check the build flags before believing either.
+
+## Round 121 — the `a` against the owner's target crop: lean and stress
+
+Owner sent a crop of a single Griffo `a`: *"use this as the target for a. get
+the lean and stress right."*
+
+**Measured on it:**
+
+| | target | mine, before | mine, after |
+|---|---|---|---|
+| lean | **13.7°** (16 clean stem rows) | 8.8° | 13° |
+| pen angle (thick axis) | **50°** | 50° (the `o`'s) | 50° |
+| bowl contrast | ~4.5:1 | 2.8:1 | D arm, 5.6:1 |
+| w / h | 0.891 | 0.920 | **0.896** |
+| counter / ink | 0.344 | 0.652 | **0.331** |
+
+**The lean was the real finding: 13°, not 8.8.** My 8.8 came from fitting whole
+stems across a line, and that method was ALREADY KNOWN to scatter 5–16° because
+chancery stems curve — an entry and an exit at opposite ends drag a
+least-squares line off the stem's own angle. One clean stem measured properly
+gives 13.7, and **the family has shipped `FJORD_SLANT=13` all along.** The
+Aldine italic now builds at 13, and `E_PAGE_SLANT` moves with it so the `e`'s
+unshear still cancels the build's shear exactly.
+
+The stress axis needed nothing: 50°, the same axis the `o` gave, and the `a`'s
+width profile already put its thick on the lower-left where the target has it.
+
+### The ratios match and THE SHAPE STILL DOES NOT — say so
+
+counter/ink is 0.331 against 0.344 and w/h 0.896 against 0.891, and the letter
+is still visibly not the target's. The target's bowl is compact and low, with a
+small ROUNDED counter; mine is a long teardrop running from the stem's top all
+the way round, and its counter is a LENS — pointed at both ends.
+
+That is a **ductus** difference, not a dial one, and it is
+[[proportion-is-not-construction]] arriving again from the measurement side:
+two numbers can both land on the source while the construction underneath them
+is a different letter. The dials are at the right values and the bowl needs
+re-drawing as the target's two movements rather than one long sweep. **Not
+claimed as done.**
+
+### Two failed levers, recorded
+
+- **Scaling the bowl about its own centroid SEALED the counter** — 0.652 →
+  0.000 at the first step down — because the path's two ends sit ON the stem
+  and scaling walked them inward. Narrowing toward the stem line with the ends
+  anchored is the version that works.
+- **Widening the letter to recover w/h re-grew the counter**, because the
+  bowl's points are fractions of the letter's width: the two dials fight. The
+  bowl's WEIGHT is the independent lever, and the target's `a` is heavy enough
+  to take it (`A_FLANK` 0.90 → 1.65).
