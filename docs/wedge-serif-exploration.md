@@ -5489,3 +5489,64 @@ is a dial, the distribution is the pen's.
 Also changed: `CAP_W` 1.45 -> 1.36 and `CAP_W_ROUND` 1.05 -> 0.79, both because
 the round and stemmed capitals measured heavy against their romans once the
 instrument was honest.
+
+### Round 132 — the Aldine lowercase drawn against the reference, letter by letter
+
+Owner 2026-09-15: *"compare each of your italic letters with the recent italic
+reference ttf ones and make massive changes to clean them up. match them to
+the scans."* Then: *"I need paragraphs of meaningful english sentences in
+proofs, not just letters."* Then: *"examine a then each subsequent letter,
+take multiple passes at each until the shape and strokes and serifs match what
+they should based on a referenced vector or bitmap."* And 2026-09-16:
+*"poetica is my preferred fallback."*
+
+**The paragraph proof said what 52 letter rows had not.** The same English
+paragraph at 27 px in Albo and in Flanker Griffo Italic (his upload, the
+closest digital face to the 1501 page): Albo's lowercase spindly, uneven, the
+`a` a blob, `g` and `k` broken, while Flanker read as the Petrarch page does.
+Every proof page now leads with two paragraphs at two sizes in both faces
+(`aldine_proof.py`), and the letter sheet follows.
+
+**Reference order**, ruled: a SCAN CROP where one exists (14 lowercase letters
+in `aldine_autofit.SOURCES`); otherwise **Poetica** for the shape; Flanker for
+weight and color (its lowercase stem is exactly 70 units = 0.83 S on 19 of 26
+letters — `docs/albo-aldine-targets.md`, the whole reference measured
+unsheared in Albo's design units).
+
+**Instruments** built before the first letter, all in `tools/wedge_serif/`:
+`aldine_targets.py` (the measurement), `cmp_aldine_shape.py` (reference | Albo
+| overlay with IoU, fonts compared on one x-height with baselines aligned),
+`aldine_fit_shape.py` (coordinate descent of a letter's env dials on that
+IoU), `aldine_proof.py` (the proof page). The half-second build is what makes
+a per-pass loop possible.
+
+#### The a, four passes
+
+Redrawn from the numbers, not tuned: a ring filling the x-height whose stroke
+width is keyed by angle to what the reference measures at each side (left
+flank 66, lower-left 74, bottom 54, the rise into the stem 38, top 20 — in
+units of xh/429), a straight 70-unit stem with a small blunt head on its top
+right (the scan's and the Petrarch page's), a thick short tail along the
+baseline to (434, 0.15 xh). Overlay IoU against Flanker **0.25 → 0.58 → 0.77
+→ 0.85**; the fitter did the last two passes, the eye the first two (the bowl's
+skew was 0.20 and read as over-leaned; 0.06 is right).
+
+**Every earlier a-dial is retired** — rise, head reach, arm dive, inward bow,
+teardrop counter, crossing the stem. They were the owner's rulings, made
+without a clean reference in view, on a construction the reference does not
+have; his 2026-09-15 instruction to match the referenced vector supersedes
+them. Recorded here so nobody re-proposes them.
+
+**Poetica's a is a different letter** — narrower, its bowl smaller against the
+stem (overlay IoU 0.30 against ours, 0.85 against Flanker). The `a` keeps the
+scan/Flanker shape because it HAS a scan crop; Poetica rules only where no scan
+does. Worth a look when the page comes together: if the scan letters and the
+Poetica letters read as two hands, that is the reason.
+
+#### The rest of the lowercase — fanned out
+
+Owner: *"launch subagents ... run subagents with opus or sonnet."* Four opus
+agents, each in its own worktree, each owning a construction family and
+forbidden the shared helpers: `b d p q g` · `c e o s` · `h m n r u i l` ·
+`v w x y z k f t j`. Same loop each: overlay, look, fit, look, paragraph,
+ledger. Results merged and judged in the next entry.
