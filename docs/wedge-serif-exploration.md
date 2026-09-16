@@ -5150,3 +5150,32 @@ by different routes.
 
 Cost of not doing it: the `a` keeps a counter whose area is right and whose
 shape is a leftover.
+
+### Round 124 — the outline rebuild, and the owner's ruling: **the stroke wins**
+
+The `a`'s bowl was rebuilt as an OUTLINE construction — a designed outer curve
+with the counter as that curve offset inward by the nib and smoothed
+(`ring_from`, the `o`'s construction). It did exactly what round 123b predicted:
+**the counter became a single smooth closed curve**, no lens, no facets, no
+sliver. Solved to `A_WALL` 2.22 for counter/ink 0.339 against 0.344.
+
+**Owner: *"stroke derived counter wins."*** Reverted. The `a` ships on the
+centreline stroke of round 123.
+
+**This is the round's actual finding and it is worth more than the geometry
+was.** A harmonious counter was achievable, and buying it cost the letter
+something he valued more: the outline bowl is a round even-walled shape, and
+the stroke bowl carries the arm's dive and the pen's own unevenness. The
+counter was never the letter. Three rounds of my effort went into a property
+that, once delivered in isolation, lost to the version that did not have it.
+
+Two things stand for next time:
+
+- The `ring_from` route WORKS and is cheap to re-reach if the counter ever
+  becomes the priority — the dials and the solved wall are in this round's
+  history.
+- A teardrop counter with a short rounded tail (his last description before the
+  ruling) remains the goal FOR THE STROKE CONSTRUCTION, and round 123b's
+  finding still applies to it: it cannot come from the width dials, because a
+  derived counter has no curvature of its own. It would need the bowl's
+  centreline reshaped, not its widths.
