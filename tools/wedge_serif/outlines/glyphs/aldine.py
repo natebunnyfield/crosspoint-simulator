@@ -1785,103 +1785,67 @@ if ON:
         h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
         return [(x0 + lx * A_TRACE_S * u, bot + f * h) for f, lx in A_TRACE]
 
-    # ------------------------------------------------------------ THE a, round 144
-    # THREE PARTS, NAMED BY THE OWNER (2026-09-16): "there is an o shape with
-    # a teardrop counter and a brush stroke on the right. do it with
-    # precision."
+    # ------------------------------------------------------------ THE a, round 147
+    # TRACED. Owner 2026-09-16: "forget about the tear drop counter. just
+    # match the shape of the letter 'a' from the scans." So both contours are
+    # the page's -- outer AND counter -- and no part of this letter is a
+    # construction any more.
     #
-    #   1. THE O SHAPE -- literally the o's. Same superellipse, same k, same
-    #      50-degree nib at O_PEN, same thick and thin, same contrast arm, so
-    #      the a's bowl and the o are one letter's bowl seen twice. Only its
-    #      WIDTH differs: A_RX against the o's own half-width.
-    #   2. A TEARDROP COUNTER cut out of it -- round at the bottom left,
-    #      drawing to a blunt tip at the top right, on the pen's own axis.
-    #      One closed curve, five control points, no table.
-    #   3. A BRUSH STROKE ON THE RIGHT -- one movement down the letter's right
-    #      side and out along the baseline, entered on the nib's angle.
+    # Off griffo-macro.png, the a of "ad" (crop 263,42..302,112 at a 54 px
+    # x-height), upscaled 10x, Otsu, largest ink blob, and the d cut away at
+    # 0.78 of the crop's width -- the two letters touch in this print, which
+    # is what defeated every earlier attempt to measure this a. The outer and
+    # the counter are then walked with a Moore-neighbour boundary trace,
+    # converted to design units at xh = 429, and UNSHEARED by 13 degrees,
+    # because build.draw() shears the finished ink and a traced italic is
+    # already sheared -- tracing without that step doubles the slant.
     #
-    # Everything the last four rounds accumulated -- the traced silhouette,
-    # the keyed flank table, the counter profile table, the head polygon, the
-    # bridge -- is gone. Three parts, and every number below is a proportion
-    # of the o's own geometry or of the x-height.
-    A_O_W = float(os.environ.get("ALBO_ALD_A_O_W", 0.74))     # the bowl's width, x xh (the o is O_W)
-    # Sized against the o's OWN counter, measured with cmp_aldine_counter:
-    # the o reads area/ink 0.97 and fill 0.75, and at 0.64 x 0.80 with the
-    # drop's pinch at 0.40 the a reads 0.93 and 0.74 -- the same hole, drawn
-    # as a drop. (0.58/0.74 gives 0.86, 0.70/0.86 gives 1.01 and starts to
-    # thin the ring.)
-    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 0.70)) # the counter's width, x the bowl's
-    A_CTR_H2 = float(os.environ.get("ALBO_ALD_A_CTR_H2", 0.86))  # its height, x the bowl's
-    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 0.50))  # its centre, x the bowl's width
-    A_CTR_CY = float(os.environ.get("ALBO_ALD_A_CTR_CY", 0.54))  # x the bowl's height
-    A_TEAR = float(os.environ.get("ALBO_ALD_A_TEAR", 0.40))   # how far the tip draws in, 0 = an oval
-    # 232, NOT 52 (owner 2026-09-16: "wrong direction on the a fix. the
-    # bottom left needs to be thick"). The drop's POINT takes less room than
-    # its round end, so the end it points at is the side that keeps its ink:
-    # pointing the tip up-right left the bottom left thin, which is backwards
-    # for a pen on this axis. Tip down-left, round end up-right, and the
-    # counter itself moved up and right with it (0.50 / 0.54 of the bowl)
-    # so the weight lands where the pen would have put it.
-    A_TEAR_DEG = float(os.environ.get("ALBO_ALD_A_TEAR_DEG", 232.0))  # where the tip points
-    A_BRUSH_W = float(os.environ.get("ALBO_ALD_A_BRUSH_W", 1.06))   # the right stroke's body, x S
-    A_BRUSH_TOP = float(os.environ.get("ALBO_ALD_A_BRUSH_TOP", 1.00))  # where it starts, x xh
-    A_EXIT = float(os.environ.get("ALBO_ALD_A_EXIT", 0.24))   # how far its tail runs past the bowl, x xh
+    # 65 outer points and 42 counter points, resampled off 1751 and 780.
+    A_TRACE_OUTER = [
+        (144.1, 418.7), (149, 397.2), (154, 375.8), (158.9, 354.3),
+        (163.9, 332.9), (168.8, 311.4), (173.8, 290), (178.7, 268.5),
+        (183.7, 247.1), (188.6, 225.6), (193.6, 204.2), (198.5, 182.7),
+        (203.5, 161.3), (208.4, 139.8), (213.4, 118.4), (218.3, 96.9),
+        (223.3, 75.5), (228.2, 54), (233.2, 32.6), (238.1, 11.1),
+        (224.1, 3.2), (202.3, 4.8), (179.8, 12.7), (163.7, 34.2),
+        (159.6, 55.6), (156.2, 77.1), (157.6, 98.5), (144.3, 118.4),
+        (130.5, 102.5), (123.9, 82.6), (130.8, 66.7), (151.2, 46.9),
+        (143, 31), (122.9, 49.3), (110.1, 66.7), (92.2, 51.6),
+        (73.8, 38.1), (55.9, 26.2), (35.6, 21.4), (15.8, 17.5),
+        (-4, 17.5), (-9, 38.9), (-13.9, 60.4), (-18.9, 81.8),
+        (-23.8, 103.3), (-28.8, 124.7), (-33.7, 146.2), (-38.7, 167.6),
+        (-43.7, 189.1), (-48.6, 210.5), (-39.7, 227.2), (-27.1, 244.7),
+        (-17.8, 263), (-10.8, 277.3), (-15.7, 298.7), (6.6, 294.7),
+        (23.4, 311.4), (37.9, 328.1), (56.1, 335.3), (63.4, 355.1),
+        (83.4, 361.5), (98.8, 377.4), (118.8, 383.7), (124.4, 400.4),
+        (145.5, 402),
+    ]
+    A_TRACE_COUNTER = [
+        (91.1, 307.4), (107.5, 301.9), (122.7, 301.1), (139.4, 287.6),
+        (142.1, 272.5), (140, 257.4), (130.1, 248.7), (135.2, 233.6),
+        (148, 219.3), (143.6, 207.4), (146.3, 192.3), (135.6, 183.5),
+        (122.4, 178.8), (125.9, 163.7), (122.2, 148.6), (117, 133.5),
+        (105.6, 120.8), (91.8, 115.2), (78.7, 106.5), (69.2, 96.1),
+        (57.9, 86.6), (46.1, 85.8), (29.2, 93.7), (14.2, 107.2),
+        (-2.8, 122.3), (-11.9, 137.4), (-20.1, 152.5), (-25.2, 167.6),
+        (-19.9, 182.7), (-18.7, 197.8), (-12.6, 212.9), (-13.7, 228),
+        (-2.3, 233.6), (8.4, 242.3), (16.8, 257.4), (25.4, 268.5),
+        (30, 279.6), (44.5, 282), (57.2, 292.4), (72, 293.9),
+        (82, 298.7), (91.1, 307.4),
+    ]
+    A_TRACE_SMOOTH = int(os.environ.get("ALBO_ALD_A_TSMOOTH", 2))
+    A_TRACE_SCALE = float(os.environ.get("ALBO_ALD_A_TSCALE", 1.0))
 
     @glyph('a')
     def a_a(c):
-        """The o's bowl, a teardrop cut out of it, and one brush stroke down
-        the right. See the block above."""
-        xh = c["xh"]
-        rx = A_O_W * xh / 2; ry = xh / 2 + OVER * 0.5
-        cx = S * 0.6 + rx; cy = ry - OVER * 0.5
-        # 1. the o's own ring, to the letter
-        # THE BOWL IS FILLED, AND THE TEARDROP IS ITS ONLY HOLE. The first cut
-        # built it with `ring_from`, which carries a counter of its own -- so
-        # the letter had TWO overlapping holes and the visible counter was
-        # their union, with a corner wherever the two boundaries crossed. That
-        # is the lumpy counter; it was never the teardrop's own shape. The
-        # outer edge is still exactly the o's superellipse, so "the o shape"
-        # holds; the pen's varying width now comes from the drop's own
-        # geometry, which is what a counter cut into a bowl actually does.
-        outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
-        bowl = geom.poly(outer)
-        # 2. the teardrop, cut where the ring's own counter is
-        tcx = S * 0.6 + A_CTR_CX * (2 * rx); tcy = A_CTR_CY * (2 * ry)
-        tw = A_CTR_W * (2 * rx) / 2.0; th_ = A_CTR_H2 * (2 * ry) / 2.0
-        a_ = math.radians(A_TEAR_DEG)
-        # THE DROP IS A CURVE, NOT AN ELLIPSE WITH A POINT STUCK ON IT. The
-        # first cut pinched an ellipse's radius toward the tip and then pushed
-        # one vertex back out past it -- which renders as a rounded
-        # quadrilateral with a corner, because the pinch never reaches zero
-        # and the pushed vertex is a kink. The teardrop curve does it in one
-        # expression: x = cos t, y = sin t * sin(t/2)^m, pointed at t = 0 and
-        # round at t = pi, with m setting how sharply it draws in.
-        m_ = 1.0 + 2.6 * A_TEAR
-        pts = []
-        for i in range(28):
-            t = 2 * math.pi * i / 28.0
-            ux = math.cos(t); uy = math.sin(t) * (math.sin(t / 2.0) ** m_)
-            # the drop is drawn pointing right, then turned onto its axis
-            px = ux * math.cos(a_) - uy * math.sin(a_)
-            py = ux * math.sin(a_) + uy * math.cos(a_)
-            pts.append((tcx + tw * px, tcy + th_ * py))
-        tp = geom.smooth(catmull(pts, tension=0.5, closed=True), 2, closed=True)
-        tear = geom.poly(geom.resample(tp + [tp[0]], 16.0)[:-1])
-        # 3. the brush stroke on the right: down the letter's right side, out
-        bx = cx + rx * 0.86
-        # it STARTS INSIDE the bowl's crown -- butting it against the ring
-        # left a V of paper at the top right, the same failure the a's old
-        # head/bridge join kept producing.
-        p_ = catmull([(bx - S * 0.34, xh * A_BRUSH_TOP + OVER * 0.4),
-                      (bx, xh * 0.72), (bx, xh * 0.34),
-                      (bx + S * 0.06, xh * 0.08),
-                      (bx + xh * A_EXIT * 0.45, S * 0.20),
-                      (bx + xh * A_EXIT, xh * 0.16)], tension=0.5)
-        p_ = geom.resample(p_, 16.0)
-        brush = stroke(p_, widths([(0.00, S * A_BRUSH_W * 0.62), (0.16, S * A_BRUSH_W),
-                                   (0.62, S * A_BRUSH_W), (0.82, S * A_BRUSH_W * 0.70),
-                                   (1.00, S * A_BRUSH_W * 0.30)]), cut0=CUT, cut1=CUT, raw=True)
-        return geom.ink([bowl, brush], [tear])
+        """The scan's own a: its outer contour and its counter, traced,
+        unsheared and set on Albo's x-height. See the block above."""
+        xh = c["xh"]; u = xh / 429.0 * A_TRACE_SCALE; x0 = S * 0.6
+        def path(tbl):
+            pts = [(x0 + px * u, py * u) for px, py in tbl]
+            pts = geom.smooth(pts, A_TRACE_SMOOTH, closed=True)
+            return geom.poly(geom.resample(pts + [pts[0]], 14.0)[:-1])
+        return geom.ink([path(A_TRACE_OUTER)], [path(A_TRACE_COUNTER)])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
@@ -3472,7 +3436,7 @@ if ON:
             out.append(_wedge(e[-1], d, (sx, 0), ln, dp, dr, edge_at=_edge_back(e)))
         return out
 
-    def _cap_end_wedge(pts, w, at_start, side, scale=0.9, k=None):
+    def _cap_end_wedge(pts, w, at_start, side, scale=0.9, k=None, edge_at=None):
         """primitives.end_wedge with round 135's factor on ALL THREE of the
         wedge's dimensions.
 
@@ -3487,7 +3451,8 @@ if ON:
         nrm = (-d[1], d[0]); sd = (nrm[0] * side, nrm[1] * side)
         P = pts[0] if at_start else pts[-1]
         A = (P[0] + sd[0] * w / 2, P[1] + sd[1] * w / 2)
-        return _wedge(A, d, sd, WL * scale * k, WD * scale * k, DROP * k)
+        return _wedge(A, d, sd, WL * scale * k, WD * scale * k, DROP * k,
+                      **({} if edge_at is None else {'edge_at': edge_at}))
 
     def cstem_i(x, y0, y1, bow=None, w=None, top=None, foot=None):
         """A capital's stem, bowed inward and drawn on the nib -- the italic
@@ -4130,7 +4095,7 @@ if ON:
             out.append((dx, y - m * (1.0 - CAP_R_W) * w / 2 * abs(math.cos(th)), w))
         return out
 
-    def _R_traced(tab, x0, C):
+    def _R_traced(tab, x0, C, wscale=None):
         """A stroke from a traced table of (dx, y, width), all x cap and dx from
         the stem's midline: the centerline through EVERY traced point, and the
         widths keyed at those points' own arc-length fractions along the drawn
@@ -4151,7 +4116,7 @@ if ON:
         keys = []
         for (px, py), row in zip(pts, tab):
             j = min(range(len(p_)), key=lambda i: (p_[i][0] - px) ** 2 + (p_[i][1] - py) ** 2)
-            keys.append((d[j] / d[-1], row[2] * C * CAP_R_W))
+            keys.append((d[j] / d[-1], row[2] * C * (CAP_R_W if wscale is None else wscale)))
         # AND THEN DENSIFIED AND SMOOTHED, which is not tidying. `widths`
         # smoothsteps between its keys and a smoothstep is C1: its curvature
         # JUMPS at every key, and a stroke's edge is centerline + w/2, so one
@@ -4396,82 +4361,134 @@ if ON:
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='left'), bar])
 
     # ---------------------------------------------------------------- K
-    # POETICA'S K IS A STEM, A THIN ARM AND A SWASH LEG, and the leg is the
-    # difference. The arm comes down from the cap line to the stem at 0.47 of
-    # the cap and is a hairline for most of its run; the LEG springs from that
-    # same junction and CURVES out -- concave upward, its tip 1.02 of the cap
-    # right of the stem at a 300 px render and rising in its last tenth -- where
-    # the roman's leg is a straight kick to a wedged foot on the baseline. Same
-    # animal as this letter's R: one stroke that thins all the way out and ends
-    # in the pen's cut.
-    CAP_K_JOIN = float(os.environ.get("ALBO_ALD_CAP_K_J", 0.40))   # where arm and leg meet the stem, x C
-    CAP_K_ARM_X = float(os.environ.get("ALBO_ALD_CAP_K_AX", 0.56))  # the arm's top, x C right of the stem
-    # ROUND 138 -- THE K'S KICK, AND WHY ITS NUMBER IS THE OTHER ONE. Same owner
-    # instruction as the R's, same 600 px measurement, and the K fails a
-    # different half of it. Its REACH was never the problem:
+    # ROUND 148 -- TRACED FROM FLANKER GRIFFO ITALIC, NOT FROM POETICA. Owner
+    # 2026-09-16, the whole instruction: *"copy the K from franklin griffo"*.
+    # Rounds 135 and 138 cut this letter against POETICA, whose K is a stem, a
+    # hairline arm and a SWASH leg that thins all the way out and finishes on
+    # the pen. Flanker Griffo's K is a different animal and this round throws
+    # the Poetica drawing away for it.
     #
-    #             Albo 137   Poetica   Pagella   Flanker Griffo
-    #   leg past its own advance   -0.067   -0.053   -0.032   -0.076
-    #   leg tip's height, x C       0.079    0.010    0.038    0.027
+    # THE ONE STRUCTURAL DIFFERENCE, and it is the reason the round is worth
+    # its cost: **the leg ends in a FOOT SERIF ON THE BASELINE, not in a swash
+    # tip.** Cut at the baseline, Flanker's leg reads +236/+583 from its own
+    # stem midline -- 347 units of flare, both sides -- against +315/+476 (161)
+    # one twentieth of the cap higher. Poetica's leg at the same cut is a point.
+    # So the letter stops instead of trailing, which is what a following a or e
+    # has to live beside, and rounds 135-138's whole "swash that never stops"
+    # reading does not describe this reference at all.
     #
-    # -- ours already stopped further inside its advance than Poetica's or
-    # Pagella's, and by the R's note above that column is `-rsb` and no outline
-    # can move it anyway. What it did wrong was stop EARLY AND HIGH: the tip hung
-    # 0.079 of the cap above the line, two to eight times the references, with
-    # the last stretch nearly level, so it crossed the following letter's bowl at
-    # the bowl's widest. In `Kate` and `Kentish` at 180 px it reads as a rule
-    # ruled under the a and the e rather than as a stroke that has finished.
-    # By the a's left profile in the R's note (+0.067 C on the line, -0.002 by
-    # 0.08 C), moving the tip from 0.079 C to the baseline is worth about 0.07 C
-    # of white in `Ka` for no change in reach at all. All three references end
-    # the leg on the line. The last control moves in and up (0.56, 0.11 ->
-    # 0.54, 0.14) so it arrives steeply instead of sliding.
-    CAP_K_LEG_X = float(os.environ.get("ALBO_ALD_CAP_K_LX", 0.72))  # the leg's tip, x C right of the stem
-    CAP_K_LEG_Y = float(os.environ.get("ALBO_ALD_CAP_K_LY", 0.00))  # and how high above the baseline -- on the line
-    # THE LEG IS HEAVIER THAN THE ARM, and the split is Poetica's rather than a
-    # convenience: at a 300 px cap its arm measures about two thirds of its leg
-    # at the junction. Both were solved together against the roman K by
-    # cmp_cap_weight.py -- arm 0.85 / leg 1.30 lands at -0.019, and so does
-    # arm 0.95 / leg 1.25, so the tolerance does NOT choose between them and the
-    # reference does.
-    CAP_K_ARM_W = float(os.environ.get("ALBO_ALD_CAP_K_AW", 1.30))   # the arm's nib thick, x CS
-    # ROUND 138: 1.45 -> 1.62, paying back exactly what thinning the leg's TIP
-    # cost. `cmp_cap_weight.py` read the K at +0.01 against its roman before the
-    # taper changed and -0.04 after -- passing, but a 0.05 swing that spends the
-    # whole tolerance and leaves the next round none. The body carries it back
-    # to -0.00 without touching the tip, which is the shape of a swash anyway:
-    # heavy where the pen is down, gone by the time it lifts.
-    CAP_K_LEG_W = float(os.environ.get("ALBO_ALD_CAP_K_LW", 1.62))   # the leg's, x CAP_W
+    # HOW THE TRACE WAS TAKEN, same recipe as the R's (round 140) so the two
+    # copies are comparable. Flanker Griffo Italic is 2048 upem, cap 1500,
+    # x-height 900; scaled by CAP HEIGHT (k = 674/1500 = 0.4493) and NOT by the
+    # x-height, because an x-height scale turns a capital into a small capital
+    # -- Flanker's xh/cap is 0.600 against Albo's 0.636, closer than Poetica's
+    # 0.774 but still wrong for a copy. Unsheared by **12.00 degrees**, which
+    # here IS the declared `post.italicAngle`: measured on this letter's own
+    # stem over 0.55-0.90 cap it leans 12.003, so unlike Poetica (declared 11,
+    # measured 7.88 on its R) the font's own number is the letter's.
+    #
+    # THE LETTER, cut by horizontal lines, design units from the STEM'S MIDLINE
+    # at a cap of 674, unsheared -- the table to check a future K against
+    # without re-tracing:
+    #
+    #   y/cap   stem l/r      arm or leg l/r
+    #   1.00    -132/+132     +200/+504   <- the arm's flag terminal, 304 wide
+    #   0.95     -68/+68      +281/+411
+    #   0.90     -47/+47      +292/+360
+    #   0.85     -44/+44      +284/+335
+    #   0.75     -44/+44      +248/+294
+    #   0.65     -44/+44      +193/+244
+    #   0.55     -44/+44      +119/+181
+    #   0.50     -44/+201                 <- arm, leg and stem all one mass
+    #   0.45     -44/+47      +106/+240
+    #   0.35     -44/+44      +189/+304
+    #   0.25     -44/+44      +251/+358
+    #   0.15     -44/+44      +301/+406
+    #   0.05     -68/+68      +315/+476
+    #   0.00    -125/+125     +236/+583   <- the leg's FOOT SERIF, 347 wide
+    #
+    # THE ARM IS A HAIRLINE AND THE LEG IS A STEM, and the split is wider than
+    # the drawing it replaces. True perpendicular thickness (the horizontal cut
+    # corrected by the local slope, t = w*|dy|/hypot(dx,dy), so a diagonal is
+    # not reported as the width of the row it crosses): the arm's body runs
+    # 0.055-0.060 cap over its middle two thirds, the leg's 0.1245-0.1250, and
+    # Flanker's own stem is 0.1332. So arm/stem = 0.41 and leg/stem = 0.94 --
+    # the leg is a second stem, and the arm is a quarter of it. Round 138 had
+    # the arm at 1.30 x CS and the leg at 1.62, a ratio of 0.80.
+    #
+    # BOTH BRANCHES CURVE, and in opposite senses, which is what makes them
+    # read as one swept stroke through the junction rather than as a chevron.
+    # The arm's horizontal travel per 0.05 cap GROWS going down (16.5, 17.5, 21,
+    # 24.5, 28, 31.5, 37 units) -- it leaves the cap line steeply and flattens
+    # into the joint. The leg's SHRINKS going down (41, 32.5, 30, 28, 25.5,
+    # 23.5, 20.5) -- it leaves the joint flat and steepens onto the foot. Drawn
+    # as two straight lines this letter loses the thing that identifies it.
+    #
+    # WHAT STAYS ALBO'S, by the standing rule for every re-cut capital:
+    #   THE SERIFS   `cstem_i(top='left', foot='both')` on the stem, and the
+    #                CAP_SERIF_* wedge family at the arm's top and the leg's
+    #                foot. Flanker's arm terminal is a 304-unit flag and its
+    #                leg's foot a 347-unit slab; ours are wedges, and this K
+    #                stands beside B D E F H I J L N.
+    #   THE WEIGHT   CAP_K_W scales every traced width. The stem ratio predicts
+    #                it: Flanker's cap stem is 0.1332 cap against Albo's 0.101,
+    #                so 0.757 -- see the value below for what the gate said.
+    #   THE SLANT    13 degrees, applied by the build to an upright drawing;
+    #                Flanker leans 12, so 1 degree of any overlay residual is
+    #                this and cannot be taken out.
+    #   THE ADVANCE  CAP_BEARING_ADJ['K'] is the owner's own bench number.
+    K_ARM_EDGE = int(os.environ.get("ALBO_ALD_K_AEDGE", 0))
+    CAP_K_W = float(os.environ.get("ALBO_ALD_CAP_K_W", 0.76))   # every traced width x this
+    # THE ARM, traced, drawn from the CAP LINE DOWN INTO THE STEM:
+    # (x from the stem's midline, height, perpendicular width), all x cap. The
+    # first row carries the centerline to the cap line holding the width it had
+    # at 0.86 (everything above that in the reference is its flag serif and ours
+    # is a wedge); the last two rows BURY the stroke in the stem, thickened, so
+    # the union swallows the join and the arm's underside and the leg's topside
+    # do not leave a white V where they part -- which the first cut of this
+    # round did, at 0.47 cap.
+    CAP_K_ARM = [
+        (0.5400, 1.0000, 0.1068), (0.4957, 0.9200, 0.1068), (0.4846, 0.9000, 0.0896),
+        (0.4746, 0.8800, 0.0789), (0.4650, 0.8600, 0.0713),
+        (0.4555, 0.8400, 0.0661), (0.4453, 0.8200, 0.0621), (0.4343, 0.8000, 0.0591),
+        (0.4223, 0.7800, 0.0571), (0.4096, 0.7600, 0.0558), (0.3961, 0.7400, 0.0551),
+        (0.3817, 0.7200, 0.0550), (0.3666, 0.7000, 0.0553), (0.3507, 0.6800, 0.0558),
+        (0.3339, 0.6600, 0.0565), (0.3163, 0.6400, 0.0573), (0.2977, 0.6200, 0.0580),
+        (0.2781, 0.6000, 0.0585), (0.2573, 0.5800, 0.0587), (0.2352, 0.5600, 0.0604),
+        (0.1750, 0.5420, 0.0700), (0.0900, 0.5240, 0.0850), (-0.0200, 0.5080, 0.1000),
+    ]
+    # THE LEG, traced, drawn from the BASELINE UP INTO THE STEM so the family's
+    # `_stem_serifs` foot can be seated on it: that helper walks a stroke drawn
+    # upward, and this leg arrives at the line 17 degrees off vertical, which is
+    # inside what a stem foot handles. Same burial at the top; the first row
+    # carries the centerline to the baseline holding the width it had at 0.12,
+    # everything below that in the reference being its foot slab.
+    CAP_K_LEG = [
+        (0.5800, 0.0000, 0.1357), (0.5620, 0.0600, 0.1357), (0.5436, 0.1200, 0.1357),
+        (0.5313, 0.1400, 0.1320), (0.5183, 0.1600, 0.1291), (0.5047, 0.1800, 0.1270),
+        (0.4904, 0.2000, 0.1257), (0.4756, 0.2200, 0.1250), (0.4603, 0.2400, 0.1246),
+        (0.4445, 0.2600, 0.1245), (0.4282, 0.2800, 0.1245), (0.4114, 0.3000, 0.1247),
+        (0.3940, 0.3200, 0.1248), (0.3761, 0.3400, 0.1249), (0.3576, 0.3600, 0.1247),
+        (0.3383, 0.3800, 0.1243), (0.3181, 0.4000, 0.1231), (0.2966, 0.4200, 0.1197),
+        (0.2723, 0.4400, 0.1092), (0.2050, 0.4460, 0.1150), (0.1150, 0.4560, 0.1250),
+        (-0.0200, 0.4720, 0.1350),
+    ]
 
     @glyph('K')
     def a_K(c):
-        """The arm keeps `cdiag`'s outward end wedge at the cap line -- that
-        terminal is a cut end in both faces and it is where Albo's family shows.
-        The leg does not: it is a swash and finishes on the pen."""
+        """Stem, a hairline arm off the cap line and a stem-weight leg onto the
+        baseline -- Flanker Griffo's K, traced. The arm takes ONE outward wedge
+        at the cap, which is the terminal every other capital in this family
+        finishes on; the leg takes the family's TWO-SIDED STEM FOOT, because the
+        reference's leg stops on the line instead of trailing off, and a foot is
+        what a stroke that stops takes here."""
         C = c["cap"]; x0 = CS * 0.6
-        J = (x0 + CS * 0.10, C * CAP_K_JOIN)
-        arm = cdiag((x0 + C * CAP_K_ARM_X, C), J, CAP_K_ARM_W, serif0=1)
-        leg_p = catmull([J,
-                         (x0 + C * 0.28, C * 0.30),
-                         (x0 + C * 0.54, C * 0.14),
-                         (x0 + C * CAP_K_LEG_X, C * CAP_K_LEG_Y)], tension=0.5)
-        lw = nib_widths(leg_p, CS * CAP_W * CAP_K_LEG_W / S,
-                        CS * CAP_W * CAP_K_LEG_W * 0.30 / S, CAP_CON,
-                        smooth=7, taper=False)
-        lf = widths([(i / (len(lw) - 1), S * v) for i, v in enumerate(lw)])
-        # ROUND 138: the taper's end 0.55 -> 0.35 of the leg's body, which is the
-        # R's 0.32 and not a new idea. It is here for the TIP'S HEIGHT and not
-        # for colour: the rightmost ink of a swash is the outer corner of its end
-        # cut, so a thick tip sits half a stroke above the point it is drawn at,
-        # and with CAP_K_LEG_Y already on the baseline the leg's rightmost ink
-        # still measured 0.052 C up -- five times Poetica's 0.010. Thinned (and
-        # with the body put back to 1.62, below), it lands at 0.042, and the
-        # minimum white in the pairs that follow a K goes `Ka` 0.066 -> 0.089 C,
-        # `Ke` 0.140 -> 0.161, `Ki` 0.123 -> 0.113 -- the last one the only
-        # regression in the set, 0.010 C, and reported rather than hidden: an i
-        # is a bare stem whose left edge barely moves with height, so it is the
-        # one following letter that had nothing to gain from the drop.
-        leg = stroke(leg_p, lambda t: lf(t) * (1.05 - 0.70 * t), cut1=CUT)
+        ap, aw = _R_traced(CAP_K_ARM, x0, C, CAP_K_W)
+        lp, lw = _R_traced(CAP_K_LEG, x0, C, CAP_K_W)
+        asolid = stroke(ap, aw)
+        arm = geom.union([asolid, _cap_end_wedge(ap, aw(0.0), True, 1)])
+        lsolid, Lz, Rz = stroke(lp, lw, sides=True)
+        leg = geom.union([lsolid] + _stem_serifs(Lz, Rz, 'both', False))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
 
     # ---------------------------------------------------------------- M
