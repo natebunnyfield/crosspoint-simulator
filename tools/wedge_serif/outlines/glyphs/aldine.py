@@ -493,7 +493,7 @@ if ON:
     A_HEAD = float(os.environ.get("ALBO_ALD_A_HEAD", 1.45))
     A_HEAD_W = float(os.environ.get("ALBO_ALD_A_HEAD_W", 1.55))  # its weight, x HEAD_W
     A_JOIN = float(os.environ.get("ALBO_ALD_A_JOIN", 0.22)) # where the bowl's bottom meets the stem
-    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 2.23))  # the bowl's left flank, x the stem
+    A_FLANK = float(os.environ.get("ALBO_ALD_A_FLANK", 1.68))  # the bowl's left flank, x the stem
     # The exit. Owner 2026-09-15, choosing arm C: *"it needs more of an
     # extended tail to match the scan."* Palatino's italic a (TeX Gyre Pagella,
     # refs/texgyrepagella-italic.otf, his reference) runs the stem past the
@@ -534,8 +534,20 @@ if ON:
     # never looked like a curve however the bowl was tuned. Bowing the stem's
     # middle to the RIGHT makes its left flank concave, so the counter's right
     # boundary curves away from it instead of walling it off.
-    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", 0.70))   # the mid bows right, x S
+    # THE BOW IS INWARD (owner 2026-09-15: "right side stroke needs to bow
+    # inward, not outward"). Round 125 pushed the stem's middle RIGHT, away
+    # from the letter -- concave on the counter's side. It is the other way:
+    # the middle pulls LEFT, into the letter, so the stem's OUTER edge is the
+    # concave one. Negative values bow inward.
+    A_STEM_BOW = float(os.environ.get("ALBO_ALD_A_BOW", -0.55))  # the mid bows INWARD, x S
     A_STEM_LEAN = float(os.environ.get("ALBO_ALD_A_LEAN", 0.10)) # extra lean, x xh, on top of the shear
+    # The curved stem gets the NIB and arm C too. Round 125 drew it at a
+    # constant width -- which a straight stem can get away with, because a
+    # straight stroke has one direction and so one nib width all the way down.
+    # A CURVED one cannot: its direction changes, so a constant width is a
+    # monoline curve sitting in a letter whose every other stroke is on the
+    # pen. That is what "needs C level contrast" was pointing at.
+    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 1.85))   # the stem's thick, x S
     A_CROSS = float(os.environ.get("ALBO_ALD_A_CROSS", 0.08))   # x past the stem's centre
     A_TOP_Y = float(os.environ.get("ALBO_ALD_A_TOP_Y", 0.92))   # and how far below the top
     A_ARM_X = float(os.environ.get("ALBO_ALD_A_ARM_X", 0.34))  # how far left the arm dives
@@ -559,7 +571,9 @@ if ON:
                       (xs_ + S * A_STEM_BOW, top * 0.55),
                       (xs_ + lean * 0.5 + S * A_STEM_BOW * 0.55, top * 0.82),
                       (xs_ + lean * 0.5, top)], tension=0.5)
-        parts[0] = stroke(sp, S)
+        sw = nib_widths(sp, A_STEM_W, A_STEM_W * 0.30, CON_A, smooth=9)
+        parts[0] = stroke(sp, widths([(i / (len(sw) - 1), S * w_)
+                                      for i, w_ in enumerate(sw)]))
         if A_HEAD:
             # THE HEAD REACHES RIGHT (owner 2026-09-15: "the top right of a
             # needs to go over to the right, not the left"). It had been

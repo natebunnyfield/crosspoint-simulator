@@ -5224,3 +5224,37 @@ now, so the next correction to it lands on every letter that wears it rather
 than on whichever copy was noticed.
 
 Ledger unchanged and passing: `a` −1%, `e` +0%, `o` −3%.
+
+## Round 127 — the `a`'s stem: on the nib, and bowed INWARD
+
+Two corrections to round 125-126, both the owner's.
+
+### "needs C level contrast"
+
+Round 125 drew the curved stem at a **constant width**. A straight stem gets
+away with that — a straight stroke has one direction and so one nib width all
+the way down. A CURVED one cannot: its direction changes, so a constant width
+is a monoline curve sitting in a letter whose every other stroke is on the pen.
+
+Measured down the stem: **1.07:1 before, 1.87:1 after**. The achieved ratio is
+below arm C's 5:1 and that is correct rather than a shortfall — a
+mostly-vertical stroke only sweeps a narrow range of directions, so it can only
+show a slice of the pen's range. A 5:1 stem would mean a stem that curves far
+more than this one does.
+
+### "bow inward, not outward"
+
+Round 125 pushed the stem's middle RIGHT, away from the letter. It is the other
+way: the middle pulls **LEFT**, into the letter, so the stem's OUTER edge is the
+concave one. `A_STEM_BOW` is negative now (−0.55) and the sign is documented at
+the dial, because "concave" is ambiguous without saying which side.
+
+**Note what this costs, and that it was the right call anyway.** Round 125's
+outward bow was what finally made the counter read as a curve — bowing away
+from the counter let its right boundary curve away too. Bowing inward gives
+that back: the stem now bulges INTO the counter. The counter survives because
+the bowl was lightened to compensate (`A_FLANK` 2.23 → 1.68, `A_STEM_W` 1.85),
+but the counter is the stem's shape's dependent, not the other way round, and
+the owner's letter is the one that gets to be right.
+
+Counter/ink lands on 0.342 against 0.344; the ledger passes on all three.
