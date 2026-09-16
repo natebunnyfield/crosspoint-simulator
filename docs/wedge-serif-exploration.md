@@ -5661,3 +5661,25 @@ letter the moment the ruling landed. **Third row this round to move**, and the
 rule under all three is the same: a target describes a drawing, and when the
 owner rules the drawing changes, the target follows or it prints a false alarm
 until someone stops reading it.
+
+##### RULING 2026-09-16 — the a's counter is DRAWN, and the ascender is 8
+
+Two corrections in one sitting, both on the a:
+
+*"a needs a smaller counterspace that is rounded teardrop and 24 units
+above."* The counter was never a shape — it was whatever `ring_from` left
+after offsetting the bowl's outer edge inward by eight width keys, so it could
+not be asked to be rounder or higher without moving the outside of the letter
+too. The bowl is a **filled superellipse** now and the counter is **its own
+closed curve, subtracted**: a teardrop, round at the bottom left, drawing in to
+a blunt tip at the top right, its floor 24 units above the baseline. Measured:
+**40,484 square units against the old 55,945** (Flanker's a carries 67,470), and
+its floor lands at 22–24 after the cut.
+
+*"bring ascender down to 8 units above."* `A_ASC` 96 → **8**. The stem clears
+the x-line by a hair — enough that the a is the same gesture as the d, not
+enough to read as an ascender.
+
+The a's ledger row moved a third time, and for the third time the rule is the
+same: **a target describes a drawing.** Both of its numbers are whole-glyph
+measurements, and the glyph changed twice today by ruling.

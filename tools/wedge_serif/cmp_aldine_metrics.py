@@ -41,7 +41,7 @@ TARGETS = {
     # taller than the one they were measured on. Retargeted to the ruled
     # drawing. The ladder behind the ruling is in the round 133 log: at 150
     # units the a and the d are the same letter at 27 px, which is the wall.
-    'a': (0.662, 0.823, 'ref',    0.83, 'the ruled drawing: a d with a 96-unit ascender (owner 2026-09-16)'),
+    'a': (0.452, 0.948, 'ref',    0.83, 'the ruled drawing: 8-unit ascender, drawn teardrop counter 24 above the baseline (owner 2026-09-16)'),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'D 9.26', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the

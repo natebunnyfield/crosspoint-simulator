@@ -1154,7 +1154,31 @@ if ON:
     # reaching left -- not the little right-hand nib mark the first cut gave
     # it. A_ASC is how far above the x-line that stem goes, in units; the d's
     # own ascender clears the x-line by 341, so this is a short one.
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 96.0))            # units above the x-line
+    # 8, not 96 (owner 2026-09-16, after seeing 96 on the page): the stem
+    # clears the x-line by a hair -- enough that the a is the same gesture as
+    # the d and not enough to read as an ascender. The 150 that made the a and
+    # the d one letter, and the 96 this replaces, are both in the round 133 log.
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 8.0))             # units above the x-line
+    # THE COUNTER IS DRAWN, NOT OFFSET (owner 2026-09-16: "a needs a smaller
+    # counterspace that is rounded teardrop and 24 units above").
+    #
+    # Until now the a's counter was whatever `ring_from` left after offsetting
+    # the bowl's outer edge inward by the ring's width at each angle. That
+    # cannot be asked for a SHAPE: the counter is a by-product of eight width
+    # keys, so every attempt to round it or raise it moves the outside of the
+    # letter too. The bowl is a filled superellipse now and the counter is its
+    # own closed curve, subtracted -- which is also how the o and the b d p q
+    # counters behave when they are asked for a shape rather than a weight.
+    #
+    # A TEARDROP POINTING UP: a round bottom, two flanks that draw in, and a
+    # short rounded tip under the join where the bowl meets the stem. Its floor
+    # sits 24 units above the baseline, which is the owner's number.
+    A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor: 24 units of it survive the cut
+    A_CTR_TOP = float(os.environ.get("ALBO_ALD_A_CTR_TOP", 318.0))  # its tip, units
+    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 186.0))      # its widest, units
+    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 146.0))    # the centre of that width, units from the letter's left
+    A_CTR_TIPX = float(os.environ.get("ALBO_ALD_A_CTR_TIPX", 214.0))  # where the tip leans to, units
+    A_CTR_BELLY = float(os.environ.get("ALBO_ALD_A_CTR_BELLY", 0.40))  # how far up the widest point sits, x its height
     # ring widths keyed by angle (degrees ccw from the right), in units
     A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
     if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
@@ -1190,6 +1214,35 @@ if ON:
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)[0]
 
+    def a_counter(u, x0):
+        """The a's teardrop counter as a closed curve, in design units.
+
+        Round at the bottom, drawing in through two flanks to a short rounded
+        tip that leans right, under the join. Drawn as a catmull through eight
+        points rather than an offset, so `smaller`, `rounder` and `higher` are
+        three separate numbers and none of them touches the outside of the
+        letter."""
+        bot = A_CTR_BOT * u; top = A_CTR_TOP * u
+        h = top - bot; w = A_CTR_W * u
+        cx = x0 + A_CTR_CX * u; tipx = x0 + A_CTR_TIPX * u
+        by = bot + h * A_CTR_BELLY                      # the widest line
+        # Ten points, evenly spaced round the curve rather than bunched at the
+        # tip: a catmull with a long gap beside a short one kinks, and a kink
+        # in a counter is the first thing the eye finds. The round end is the
+        # BOTTOM LEFT and the tip is the TOP RIGHT, so the counter's own axis
+        # leans with the letter instead of across it.
+        P = [(cx - w * 0.16, bot),                       # the round floor
+             (cx - w * 0.40, bot + h * 0.10),
+             (cx - w * 0.50, by),                        # the widest, on the left
+             (cx - w * 0.44, by + h * 0.24),
+             (cx - w * 0.22, by + h * 0.48),             # drawing in toward the tip
+             (tipx - w * 0.10, top),                     # the tip, blunt
+             (tipx + w * 0.05, top - h * 0.07),
+             (cx + w * 0.44, by + h * 0.26),             # down the right flank
+             (cx + w * 0.50, by - h * 0.04),
+             (cx + w * 0.26, bot + h * 0.06)]            # round into the floor
+        return geom.poly(catmull(P, tension=0.5, closed=True))
+
     @glyph('a')
     def a_a(c):
         """The Aldine single-storey a: a ring filling the x-height, a straight
@@ -1208,17 +1261,22 @@ if ON:
         top = xh + A_ASC * u
         stem = stroke([(xs, S * 0.10), (xs, top)], sw)
         head = bd_head(xs - sw / 2, xs + sw / 2, top, u)
-        # the bowl
-        ry = (xh + OVER * 0.6) / 2.0 + 0.0
-        bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
-                           k=A_K, skew=A_SKEW, unit=u)
+        # the bowl: a FILLED superellipse, with the counter cut out of it
+        # below. The ring's width keys (A_RING) are gone with the offset they
+        # fed -- the outside is the superellipse and the inside is drawn.
+        ry = (xh + OVER * 0.6) / 2.0
+        cxb = x0 + A_RX * u; cyb = A_CY * u
+        outer = superellipse(cxb, cyb, A_RX * u, ry, 0.0, 2 * math.pi, A_K)[:-1]
+        if A_SKEW:
+            outer = [(px + (py - cyb) * A_SKEW, py) for px, py in outer]
+        bowl_ = geom.poly(outer)
         # the tail: down the stem, out along the baseline, lifting to a point
         tip = (x0 + A_TAIL_X * u, xh * A_TAIL_Y)
         tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
         tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
                       cut1=CUT)
-        return geom.ink([bowl_, stem, head, tail])
+        return geom.ink([bowl_, stem, head, tail], [a_counter(u, x0)])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
