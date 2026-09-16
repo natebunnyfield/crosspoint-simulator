@@ -5821,3 +5821,36 @@ a bowed stem keeps one width. The bow metric found it — and still reads the
 serifed H at 0.17 because the wedge horns pull the run centre at the ends. It
 finds candidates; the eye and the scan decide. Left flagged and not acted on:
 `p` bulge 1.14 vs 0.97 and `b` bow 0.74 vs 0.49 — the shared b/p ring's keys.
+
+### Round 135 — a batch of named references, and two rulings
+
+Owner 2026-09-16, a list. Each letter to a NAMED reference, verbatim:
+
+- the **a**: *"connect the top of the top left stroke to the other top right
+  stroke. keep its counter as it is."* — done: a bridge stroke rides the
+  bowl's crown into the stem head's left corner; the counter is cut afterward
+  and is untouched (`047d6d6`).
+- the **g**: *"use this griffo detail for g"* (a pasted crop: small round
+  upper bowl, a lower loop wider than the bowl and flat along its floor, a
+  short neck, a flat ear at the x-line) — done, same commit. The crop did not
+  reach disk, so this one is by eye against the image and not by number.
+- **i j**: double the dot's height, to Cancelleresca's relative size.
+- **e**: up off the baseline; the bottom-right terminal blunt, not angular.
+- **b**: the middle stroke's curve to Pagella.
+- **y**: the lowest stroke's swoop to Cancelleresca (the reach stays the
+  full swash, ruled earlier today).
+- **z**: to Poetica, "specifically the slight ribboning of the horizontal
+  strokes".
+- **capitals**: *"double the recently added serifs so they are visible and
+  not microserifs."*
+- **R P S Z L K M A** to Poetica; **Y O** to Pagella.
+
+##### RULING 2026-09-16 — the Q matches Pagella
+
+The Q was in both lists. Owner: **Pagella** — it sits with the O and the Y as
+a round capital, one ring and one stress. `ALBO_ALD_Q_REF` defaults to
+`pagella`; the Poetica arm stays reachable by the dial.
+
+Three opus agents in three worktrees carry the rest: `i j e b y z` · the
+capital serifs and `R P S Z L K M A Q` · `Y O` (placed at the end of the file
+so the two capital passes merge clean). Judged and merged in the next entry.
