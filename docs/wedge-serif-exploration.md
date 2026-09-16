@@ -5972,3 +5972,29 @@ fitter had wrong: **H N Y −86 to −116 on the right** (far too loose after a
 flat-sided capital), **A −151 on the left** (its apex overhangs and the fitter
 was paying for air), W −132 right, T +87 left. *NAVE* read as *N AV E* before
 this and reads as a word after it.
+
+##### Round 137's improving pass — three measured moves on his two states
+
+*"take a pass improving it further to match a readable word image."*
+
+**The word space, 166 → 205.** His 166 was chosen at 64 px BEFORE his tracking
+was baked into the letters. With it in, the word gap measures **2.22 of the
+letter gap** against every text reference's 2.32–2.95 (Poetica 2.32, Pagella
+2.47, Flanker 2.95, mean 2.58) — and at 27 px *"It is a truth"* set as *"It
+isa truth"*. 205 puts the ratio at 2.51.
+
+**The a's bowl weight, ×1.00 → ×0.70 — his drawing's WEIGHT, not its shape.**
+Measured against the n the way the o was in round 134: his a's mean ink width
+was **1.22 of the n's** where Flanker's a is 0.98 of its own n. 24% heavier
+than everything beside it, and the dark blob in every word it appears in — his
+long head adds ink at the top that the old bowl's weight was never carrying.
+At 0.70 the ratio is **1.00** and the counter opens 0.48 → 0.57. The shape,
+the counter's profile and the head are exactly as he drew them.
+
+**The f's right bearing −11**, his number, folded into `BEARINGS`.
+
+The a's ledger row moved a fifth time, and the reason is the same every time.
+
+**Open, his list of 2026-09-16:** the R and K kicks against a typical English
+word image; the P's top serif unified with the family's; the Z's fractures at
+the top-right and bottom-left connections.
