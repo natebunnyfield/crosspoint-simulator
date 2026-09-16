@@ -5419,3 +5419,24 @@ The colour pass was killed mid-run because **`aldine.py` was edited while a
 background job was reading it.** The job had two clean passes and then died on
 a NameError from a half-applied edit. Do not modify a file a background build
 is walking; commit first, then launch.
+
+### Round 131b — the G was the wrong shape
+
+Owner: *"G is the wrong shape."* It was, and the cause was one number.
+
+The arc ran **-34 deg to 250 deg**, which COVERS the right side and leaves the
+gap at the BOTTOM -- so the letter read as a broken O with a spur stuck on its
+flank. A G opens on the **right**, between about one and four o'clock.
+
+Checked against Pagella and Poetica rather than from memory, and both agree on
+three things the first cut had wrong:
+
+- the opening is on the right (arc now **36 deg to 312 deg**, the gap between);
+- the bar turns **INWARD** from the right terminal toward the counter -- mine
+  projected outward past the bowl;
+- a short **stem** joins the bar down to where the arc ends, which is what stops
+  the bar floating.
+
+It reads as a G now and sits with O C Q. It is still not Pagella's: that bowl is
+fuller and its bar longer and flatter under a true vertical. Reported rather
+than claimed.

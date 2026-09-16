@@ -937,6 +937,10 @@ if ON:
     # different directions, which is the same thing the a's stem taught in
     # round 127 arriving from the other side.
     CAP_W_ROUND = float(os.environ.get("ALBO_ALD_CAP_WR", 1.05))  # x CS, for G Q S U
+    G_OPEN0 = float(os.environ.get("ALBO_ALD_G_A0", 36.0))   # the arc's start, degrees
+    G_OPEN1 = float(os.environ.get("ALBO_ALD_G_A1", 312.0))  # and its end -- the gap is between
+    G_BAR = float(os.environ.get("ALBO_ALD_G_BAR", 0.46))    # the bar's height, x C
+    G_BAR_IN = float(os.environ.get("ALBO_ALD_G_IN", 0.16))  # how far in it reaches, x rx
 
     def cstem_i(x, y0, y1, bow=None, w=None):
         """A capital's stem, bowed inward and drawn on the nib -- the italic
@@ -1013,16 +1017,30 @@ if ON:
 
     @glyph('G')
     def a_G(c):
-        C = c["cap"]; rx = 0.33 * C; cx = CS * 0.6 + rx
-        p_ = superellipse(cx, C / 2, rx, C / 2 + OVER * 0.4,
-                          math.radians(-34), math.radians(250), BOWL_K)[:-1]
-        ws = nib_widths_closed(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S, CON_O)
+        """A G opens on the RIGHT, between about one and four o'clock; its bar
+        comes INWARD from the right terminal, and a short stem joins the two.
+
+        The first cut ran its arc from -34 to 250 degrees, which covers the
+        right side and leaves the gap at the BOTTOM -- so the letter read as a
+        broken O with a spur stuck on its flank. Compared against Pagella and
+        Poetica: both open at the right, both turn their bar in toward the
+        counter, and neither lets it project past the bowl.
+        """
+        C = c["cap"]; rx = 0.34 * C; ry = C / 2 + OVER * 0.4; cx = CS * 0.6 + rx
+        A0, A1 = math.radians(G_OPEN0), math.radians(G_OPEN1)
+        p_ = superellipse(cx, C / 2, rx, ry, A0, A1, BOWL_K)
+        ws = nib_widths(p_, CS * CAP_W_ROUND / S, CS * CAP_W_ROUND * 0.30 / S,
+                        CON_O, smooth=7)
         arc = stroke(p_, widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)]),
                      cut0=CUT, cut1=CUT)
-        bar = stroke([(cx + rx * 0.52, C * 0.44), (cx + rx * 1.02, C * 0.46)], TH_H * 1.15)
-        spur = stroke([(cx + rx * 0.96, C * 0.44), (cx + rx * 0.92, C * 0.24)],
-                      widths([(0.0, CS * 0.62), (1.0, CS * 0.34)]), cut1=CUT)
-        return geom.ink([arc, bar, spur])
+        # the terminal the arc ends on, and the bar turning in from it
+        ex = cx + rx * math.cos(A1); ey = C / 2 + ry * math.sin(A1)
+        by = C * G_BAR
+        stem_ = stroke([(ex, ey), (ex + (cx + rx * 0.92 - ex) * 0.5, by)],
+                       widths([(0.0, CS * 0.52), (1.0, CS * 0.86)]))
+        bar = stroke([(cx + rx * 0.96, by), (cx + rx * G_BAR_IN, by + C * 0.012)],
+                     widths([(0.0, TH_H * 1.30), (1.0, TH_H * 0.70)]), cut1=CUT)
+        return geom.ink([arc, stem_, bar])
 
     @glyph('Q')
     def a_Q(c):
