@@ -5607,3 +5607,12 @@ again.
 roman capitals; Albo shears them 13° — two arms on the page for a ruling), the
 spacing of the redrawn letters against each other, the `o`'s weight conflict,
 the `k`'s head, the page colour pass on the new lowercase.
+
+##### RULING 2026-09-16 — the italic keeps SLOPED capitals
+
+Owner, shown both arms in running text at 27 and 40 px: **keep sloped italic
+capitals**. So the 13° shear stays on all 26, the eight re-cut capitals
+(N H Q G V A S U, round 131) stay live, and the 1501 page's upright roman
+capitals are NOT adopted — a deliberate departure from the scans, on a face
+whose lowercase is drawn from them. Do not re-propose it; `capsarm.png` in the
+proof page is the figure this was decided on.
