@@ -6151,3 +6151,29 @@ at x 346, head reach 190, drop 109, thickness 120, ascender −11).
 `raw`. `stroke()` re-densifies its own centerline, so thinning the path before
 handing it over does nothing at all — round 139's lesson arriving from the
 other side.
+
+### Round 142 — the a fitted to the rest of the lowercase
+
+*"reshape and resize a to fit the rest of the lowercase letters and make a
+legible word image for common english words."*
+
+Measured against its own alphabet, the a was the outlier **three ways**: 468
+units of ink where the n is 392 and the o 336; its top **+26 over the x-line**
+where n o e sit at +4 +7 +13; and a mean ink width of **66** against 46–57 for
+everything else — a fifth heavier than the heaviest of its neighbours.
+
+**The targets are the references' own ratios, not a taste.** All three make
+the a **0.82–0.92 of the n's ink** (mean 0.88), and all three put its top
+**exactly on the x-line** — +0.000 xh, because an a's top is a flat head and
+takes no overshoot where a round letter does. Solved by coordinate descent
+over the eight dials that move width, height and weight:
+
+| | before | now | the alphabet |
+|---|---|---|---|
+| ink width | 468 | **386** | n 392, o 336, u 378 |
+| top over the x-line | +26 | **+1** | n +4, o +7, e +13 |
+| mean ink width | 66.4 | **54.1** | 46–57 |
+| counter fill | 0.65 | **0.65** | his shape, untouched |
+
+The ledger's a row moved for the sixth time, and for the sixth time because
+the drawing did.

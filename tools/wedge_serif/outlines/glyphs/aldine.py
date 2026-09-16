@@ -1299,14 +1299,14 @@ if ON:
     #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
     # Everything is written as a fraction of xh or S, so it rides the axes.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 346))   # stem center, units
-    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 81.0))     # units
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 302))   # stem center, units
+    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 77))     # units
     A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
     A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl center height, units
     A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))         # the egg's lean, dx per dy
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))               # squareness
-    A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 434.0))    # tip, units from the left edge
+    A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 424))    # tip, units from the left edge
     A_TAIL_Y = float(os.environ.get("ALBO_ALD_A_TAIL_Y", 0.15))     # x xh
     # (the old right-reaching nib mark's dial lived here and was shadowed by
     # the A_HEAD_R below from round 137 on -- the same name twice, the second
@@ -1330,8 +1330,8 @@ if ON:
     # bowl hangs under it. The a carries its own head dials for that reason;
     # the b d p head stays where he put it two rounds ago ("reduce visual
     # weight of top serif on b and d").
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -11))             # units, NEGATIVE = below the x-line
-    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 190))       # the head's reach left
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -27))             # units, NEGATIVE = below the x-line
+    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 220))       # the head's reach left
     A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 109))       # its tip below the stem's top
     A_TAIL_W1 = float(os.environ.get("ALBO_ALD_A_TAIL_W1", 21.0))  # the tail's tip width, units
     A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 120))       # where its underside rejoins the stem
@@ -1382,6 +1382,22 @@ if ON:
     A_CTR_FINE = int(os.environ.get("ALBO_ALD_A_FINE", 8))
     A_SPACING = float(os.environ.get("ALBO_ALD_A_SPACING", 16.0))
     A_CTR_BOT = float(os.environ.get("ALBO_ALD_A_CTR_BOT", 22.0))   # the counter's floor, units above the baseline
+    # ROUND 142 -- FITTED TO THE REST OF THE LOWERCASE (owner: "reshape and
+    # resize a to fit the rest of the lowercase letters and make a legible
+    # word image"). Measured against its own alphabet, the a was the outlier
+    # three ways: 468 units of ink where the n is 392 and the o 336, its top
+    # +26 over the x-line where n o e sit at +4 +7 +13, and a mean ink width
+    # of 66 against 46-57 for everything else -- a fifth heavier than the
+    # heaviest of its neighbours.
+    #
+    # THE TARGETS ARE THE REFERENCES' OWN RATIOS, not a taste: all three make
+    # the a 0.82-0.92 of the n's ink (mean 0.88 -> 345 here), and all three
+    # put its top EXACTLY on the x-line -- +0.000 xh, because an a's top is a
+    # flat head and takes no overshoot where a round letter does. Solved by
+    # coordinate descent over the eight dials that move width, height and
+    # weight: 386 wide (0.98 of the n), +1 over the line, mean ink 54.1
+    # against the lowercase's 46-57, counter fill 0.65 -- his shape.
+    #
     # ROUND 139: TALL ENOUGH TO OVERLAP THE X-LINE (owner 2026-09-16: "it
     # needs to be tall enough to slightly overlap x height. keep lean and
     # counter shape and lack of fractures ... the same"). His a topped at 376
@@ -1395,9 +1411,9 @@ if ON:
     # head rides up with it (A_ASC -54 -> +7) so the two still meet, and the
     # bowl's weight comes back to 0.86 because a bigger bowl at the same
     # stroke reads lighter: a/n 0.89 at 0.70, 1.01 at 0.86.
-    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 339.0))      # its height, units -- 0.51 x the ink, as the macro
+    A_CTR_H = float(os.environ.get("ALBO_ALD_A_CTR_H", 332))      # its height, units -- 0.51 x the ink, as the macro
     A_CTR_WH = float(os.environ.get("ALBO_ALD_A_CTR_WH", 0.84))     # its width over its height, as both scans
-    A_CTR_X = float(os.environ.get("ALBO_ALD_A_CTR_X", 54.0))       # its left extreme, units from the letter's left
+    A_CTR_X = float(os.environ.get("ALBO_ALD_A_CTR_X", 77))       # its left extreme, units from the letter's left
     # height fraction (0 = floor) -> (left edge, right edge), both x the
     # counter's width. The mean of the two a's, which differ by under 0.03
     # everywhere except the floor.
@@ -1458,7 +1474,7 @@ if ON:
     # 0.70 the ratio is 1.00 and the counter opens from 0.48 to 0.57 -- the
     # shape, the counter's profile and the head are all exactly as he drew
     # them.
-    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.86))   # scales every bowl width
+    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.66))   # scales every bowl width
     A_FLANK = [(0, 38), (45, 29), (90, 33), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
 
     def _a_flank(deg):
