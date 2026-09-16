@@ -1334,12 +1334,52 @@ if ON:
     # letter with a small eye, not a heavy one.
     E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.47))   # the bar's LEFT end, x xh
     E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.64))  # its RIGHT end -- the rise
-    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.49))   # scales the upper loop's flanks
+    # 0.49 -> 0.66, round 151. E_EYE scales the upper loop's four points about
+    # the letter's middle, so at 0.49 the crown and the eye were squeezed to
+    # half width while the bowl below stayed full -- a top-heavy letter with a
+    # slot for an eye. Measured against the scan, row .90: the printed crown
+    # is 190 of 285 units, **0.67 of the letter's width**, where the drawn one
+    # was 155 of 326, 0.48. The round-132 objection to a wider eye (it blew
+    # counter/ink to 0.264 against 0.203) was made under the phi=50 pen, whose
+    # crown was four times the reference's thickness; on the corrected pen the
+    # same width lands counter/ink inside the gate. Swept 0.49/0.58/0.66/0.74:
+    # the counter's `fill` goes 0.53/0.55/0.57/0.60 toward the scan's 0.63 and
+    # area/ink 0.18/0.19/0.21/0.22. 0.74 is not taken -- it buys 0.03 of fill
+    # for another 0.01 of area on a ledger row with 8% of room in it.
+    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.66))   # scales the upper loop's flanks
     E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
-    E_CON = float(os.environ.get("ALBO_ALD_E_CON", 1.00))   # contrast, x the measured 3.4:1
-    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.24))  # x S, across the nib
-    E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.26))    # x S, along it
-    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.08))   # >1 eats counterspace
+    # (ALBO_ALD_E_CON is GONE, round 151. It scaled each width about the
+    # letter's MEAN -- the shape the module's own comment on `con()` records
+    # as rejected, because it fattens the thicks as much as it thins the
+    # thins. `con(base, CON_E)` anchors on the thick and is the letter's only
+    # contrast control now; a second one over the top of it had nothing
+    # measured behind it and shipped at 1.00 in any case. Deleted rather than
+    # left, so the env var cannot look like a knob that does something.)
+    # THE WEIGHT FOLLOWS THE o'S 2026-09-16 RULING -- "the o takes the
+    # REFERENCE's ring weight, and the ledger row moves with it" -- for the
+    # same reason and with the same instrument. Once the pen was turned to 35
+    # the letter's flank measured **vert med 100 (1.19 S)** against Flanker's
+    # e at 69 and Albo's own o at 79: the e was the darkest thing in a line,
+    # which is the worst letter in English to have that be true of. The pen is
+    # scaled, not reshaped -- E_THIN/E_THICK holds at 0.21 so `con()`'s gamma
+    # and every direction's share are untouched. Swept at E_CTR 1.00, with
+    # Flanker's e at vert 69 / horz 50 and the scan's counter at area/ink 0.18:
+    #
+    #   E_THICK   vert  horz   area/ink   eye at col .50
+    #     1.24     100    49     0.10        71 units
+    #     1.05      79    39     0.16        83
+    #     1.00      79    37     0.18        --
+    #     0.95      72    36     0.20        86
+    #     0.85      65    32     0.24        90
+    #
+    # 1.00 is taken because it is where the COUNTER lands on the scan, which
+    # is the measured target; 0.95 would sit the flank closer to Flanker's 69
+    # and overshoot the counter by a tenth. E_CTR goes with it: at 1.08 it was
+    # eating 8% of counterspace this letter no longer has to spare, and the
+    # weight it was adding is now in E_THICK where it can be read.
+    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.08))  # x S, across the nib
+    E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.227))    # x S, along it
+    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.00))   # >1 eats counterspace
     E_END = float(os.environ.get("ALBO_ALD_E_END", 0.80))   # where the terminal stops, x the width
     E_END_Y = float(os.environ.get("ALBO_ALD_E_END_Y", 0.24))  # and how high it has risen, x xh
     # CHECKED AND LEFT ALONE, round 132, and worth saying so rather than
@@ -1427,6 +1467,161 @@ if ON:
     # FJORD_SLANT=13 all along. Build the Aldine italic at 13 so this unshear
     # cancels the build's shear exactly.
     E_PAGE_SLANT = float(os.environ.get("ALBO_ALD_PAGE_SLANT", 13.0))
+    # ---------------------------------------------------------------- ROUND 151
+    # Owner 2026-09-16: *"clean up a and e to be elegant and presentable and
+    # legible letters that fit the rest of font and make quality common english
+    # word images."* The e is the commonest letter in English, so this letter
+    # is the colour of every paragraph, and it was the darkest thing in a line.
+    #
+    # THE e WAS DRAWN ON A PEN ROTATED 15 DEGREES OFF THE ROUND LETTERS', and
+    # that one number is most of what was wrong with it. `nib()` is thinnest
+    # along the nib's own edge (direction == phi) and fullest across it
+    # (phi + 90). The e took the module DEFAULT of 50; the o's `O_PEN` is 35
+    # (its `abs(cos(parametric - 35))` is the same pen written the other way
+    # round, since a CCW ring travels at parametric + 90). Fifteen degrees is
+    # enough to invert which members of this letter are the thick ones:
+    #
+    #   direction    phi=50 (as drawn)   phi=35 (the o's)    Flanker's e
+    #   flank   90       0.643               0.819              69 units
+    #   bottom   0       0.766               0.574              50 units
+    #   bar     20       0.500               0.259              22-24
+    #   ratio flank:bottom   0.84            1.43               1.38
+    #
+    # MEASURED on the shipped build by `aldine_targets.py --font`, which is
+    # the same instrument that produced the reference table:
+    # **vert med 74 (0.88 S), horz med 97 (1.16 S)** against Flanker's e at
+    # vert 69 (0.83 S) and horz **50 (0.60 S)**. The e's horizontal members
+    # were 1.94x the reference's and its flank/bottom ratio 0.76 where the
+    # reference draws 1.38 -- the pen was on its side. That is where the crown
+    # blob, the slab bottom and the crushed eye all came from at once, and no
+    # amount of E_CTR or E_THICK could have reached it, because those scale
+    # both arms together.
+    #
+    # WHAT IT COST THE COUNTER, cut by cut at the letter's own mid-column
+    # (`aldine_targets.py`, col .50) against Flanker's:
+    #
+    #            Albo (phi 50)   Flanker
+    #   bottom arc      113          66
+    #   the bar          59          32
+    #   THE EYE          50         171
+    #   the crown       102          25
+    #
+    # A 102-unit crown over a 50-unit eye. `cmp_aldine_counter.py` reads that
+    # as fill **0.51** -- a triangle -- against the scan's 0.63, and area/ink
+    # 0.12 against 0.18. The eye was not small because it was drawn small; it
+    # was small because the crown and the bar had eaten it from both sides.
+    E_PEN = float(os.environ.get("ALBO_ALD_E_PEN", 35.0))   # the nib's angle, the o's own
+    # TWO MORE MECHANICAL FAULTS, both found by instrument rather than by eye,
+    # and both fixed here because the pen correction alone would have left
+    # them visible on a letter no longer hiding them under ink:
+    #
+    # 1. THE WIDTH KEYS WERE INDEXED BY CONTROL POINT AND CONSUMED BY
+    #    ARCLENGTH. `dirs` had one entry per CONTROL point (11 of them) and
+    #    `widths([(i/m, w)])` keyed them at i/10, but `stroke` evaluates its
+    #    width function at i/n over the RESAMPLED path -- equal arclength.
+    #    The control points are not equally spaced: measured on the shipped
+    #    path (1039 units, 104 samples), control point 9 sits at real
+    #    arclength 0.811 and was handed its width at 0.900, and point 8 at
+    #    0.733 against 0.800. **Up to 0.089 of the path, 93 units -- more than
+    #    a stroke width.** Every width on the upper loop was landing roughly
+    #    one control point late, which is why the thick meant for the crown
+    #    arrived on the eye's right shoulder and swelled it.
+    #    Fixed by taking the direction and the nib at EVERY SAMPLE of the
+    #    densified path, which is `nib_widths()`'s method and what the
+    #    capitals have always done. Its body is inlined here rather than
+    #    called, only so the e can pass its own `phi` without adding a
+    #    parameter to a helper eight capitals share.
+    #
+    # 2. `pieces=True` PAIRED TWO OFFSETS THAT WERE NO LONGER IN STEP.
+    #    `_unfold` drops the folded samples of an offset independently on each
+    #    side, so after the first fold L and R index different points of the
+    #    path; `pieces` unions quads built from `L[i:j] + R[i:j][::-1]`, which
+    #    pairs L's sample i with R's sample i. Round 135 read the resulting
+    #    wedge correctly as an artifact and moved it somewhere it would not
+    #    show by REVERSING the path -- the fault stayed, it was just buried.
+    #    The crossing that forced `pieces` is only the bar's last 7 units
+    #    reaching past the left flank's centerline, so the letter is drawn as
+    #    TWO strokes split in the middle of the bar, where it is straight and
+    #    a join cannot show: neither stroke crosses itself, both are ordinary
+    #    simple polygons, and the path goes back to its natural direction
+    #    (bar -> crown -> bottom -> terminal) with the terminal at the END.
+    E_SPLIT = float(os.environ.get("ALBO_ALD_E_SPLIT", 0.34))   # where the bar is cut, x its length
+    E_LAP = float(os.environ.get("ALBO_ALD_E_LAP", 0.22))       # how far the two strokes overlap
+    # ---------------------------------------------------------- ROUND 151, RESULT
+    # Against the scan crop (`cmp_aldine_shape.py --ref scan`) IoU **0.650 ->
+    # 0.730**. Against the macro scan's own counter (`cmp_aldine_counter.py`,
+    # scan first, build second): area/ink 0.18 / 0.18, h/ink 0.28 / 0.28,
+    # floor 0.57 / 0.58, fill 0.63 / 0.61, letter w/h 0.65 / 0.71. Row by row
+    # (`aldine_targets.py`, scan / build): .03 108 / 123, .10 171 / 197,
+    # .25 left flank 102 / 98, .75 52+62 / 56+65, .90 crown 190 of 285 /
+    # 192 of 318, .97 116 / 128. Strokes: **vert 83, horz 42** against
+    # Flanker's e at 69 / 50 and against ALBO'S OWN o at 79 / 43 -- the ask
+    # was a letter that fits the rest of the font, and that is the number for
+    # it. And in words, which is the test that was actually set:
+    # `word_weight.py` over the 147 commonest English words puts the e at
+    # **-0.1% of the lowercase colour median, from +6.7%**, with the o at
+    # +0.1 and the n at -2.5. The e is in 76 of those 147 words and carries
+    # ~13% of a page's ink, so it was setting the page's colour on its own.
+    #
+    # NEGATIVE RESULTS, so the next pass does not pay for them again:
+    #
+    #   E_EYE 0.74 REJECTED. It reaches the scan's `fill` almost exactly
+    #     (0.60 against 0.63, where 0.66 gives 0.60 too) but costs another
+    #     0.01 of area/ink on a row with little room, and it widens a letter
+    #     already at w/h 0.71 against the scan's 0.65.
+    #   E_CROWN_X 0.12 REJECTED. Moving the crown's left point outward as
+    #     well as up buys 0.01 of `fill` and costs the counter's RIGHT edge
+    #     (|dR| 0.077 -> 0.082) plus more width. Up alone was the move.
+    #   E_THICK 0.95 REJECTED. It sits the flank nearer Flanker's 69 and
+    #     overshoots the scan's counter by a tenth (area/ink 0.20 against
+    #     0.18) and leaves the page -4.3% light. The counter and the colour
+    #     agree on 1.08 and the flank alone does not.
+    #   SCALING THE PEN DOWN INSTEAD OF TURNING IT DOES NOT WORK, and this is
+    #     the one worth keeping. At phi 50 the letter's flank:bottom ratio is
+    #     0.84 where the reference draws 1.38, and `con()` anchors on the
+    #     THICK, so every uniform scale moves both arms together and the
+    #     ratio never budges. There was no weight at which the old pen gave a
+    #     right letter.
+    #
+    # CHECKED AND FOUND CLEAN, so it is not re-read:
+    #   The letter is NOT carrying the hand width list `nib()`'s docstring
+    #     warns about -- round 133 already replaced it, and every width here
+    #     comes from the nib.
+    #   E_TOP 0.96 and E_SHOULDER 0.82 were swept in round 132 and left; they
+    #     were re-checked on the corrected pen and neither moved the counter
+    #     profile toward the scan.
+    #   The band remap of round 135 (E_FLOOR, the e drawn in its own band so
+    #     it does not hang below the round letters) is untouched and still
+    #     measures: ink bottom -4 units against the o's -8.
+    #   `cmp_aldine_bulge.py` could not measure this letter at all before --
+    #     it printed `--` for both columns -- and now reads bulge 0.89 against
+    #     Flanker's 0.98, inside the reference, with 0 letters past it. Its
+    #     bow is 0.23 against Flanker's 0.79: the left flank is STRAIGHTER
+    #     than the reference's, which is the next thing to look at on this
+    #     letter and is deliberately not chased here.
+    #   `cmp_cap_weight.py --tol 0.05` is unaffected (0 capitals out), and an
+    #     outline diff of every glyph across the change moves exactly 12:
+    #     the e, `ae`, `oe` and the nine accented e's. 458 identical.
+    # THE CROWN'S LEFT, which is the eye's CEILING and was the last thing
+    # wrong with the counter's shape. `cmp_aldine_counter.py` reads the eye's
+    # left edge at ten heights, x the counter's own width; from 0.55 up, the
+    # drawn letter's climbed roughly 0.12 faster than the scan's all the way
+    # to the top (0.14/0.20/0.31/0.40/0.52 against 0.08/0.11/0.20/0.28/0.39),
+    # which is a counter with its top-left corner sliced off -- the crown
+    # leaving the apex at -27 degrees and then breaking to -47 at this point,
+    # a 20-degree kink whose concentrated version lands on the INNER edge.
+    # Raising it turns that break into an arch: the descent to the left flank
+    # steepens toward 230 degrees, which on this pen is the THIN (the o's own
+    # measurement puts its thinnest at the upper left, ~105/285 geometric), so
+    # the ceiling both rises and lightens. It was hardcoded at (0.20, 0.87).
+    # Swept on the counter's left-edge profile, mean absolute error against
+    # the scan's ten heights: y 0.87 gives 0.077, 0.90 gives 0.051, **0.92
+    # gives 0.042**, and `fill` rises 0.57 -> 0.60 -> 0.61 against the scan's
+    # 0.63. Moving x LEFT as well (0.20 -> 0.12 at y 0.92) reaches fill 0.62
+    # and is NOT taken: it costs the right edge (|dR| 0.077 -> 0.082) and it
+    # widens a letter already at w/h 0.70 against the scan's 0.65.
+    E_CROWN_X = float(os.environ.get("ALBO_ALD_E_CROWN_X", 0.20))  # x, before E()
+    E_CROWN_Y = float(os.environ.get("ALBO_ALD_E_CROWN_Y", 0.92))  # x the band
 
     @glyph('e')
     def a_e(c):
@@ -1451,61 +1646,62 @@ if ON:
         #     width before it turns up, where this path turned at 0.34.
         P = [(0.00, E_BAR),  (E(0.78), E_BAR_R),  # the bar, rising ~30 degrees
              (E(0.86), E_SHOULDER), (E(0.54), E_TOP),   # up the eye's right, over the crown
-             (E(0.20), 0.87), (0.08, 0.68),      # down the left
+             (E(E_CROWN_X), E_CROWN_Y), (0.08, 0.68),   # down the left
              (0.00, 0.38),   (0.06, 0.16),       # past its own start
              (0.26, 0.01),   (0.52, 0.00),       # the flat wide bottom
              (E_END, E_END_Y)]                   # and up into the aperture
-        # ROUND 135 -- THE MOVEMENT IS DRAWN FROM THE TERMINAL BACK TO THE BAR,
-        # and that one line is what makes the terminal blunt at all.
-        #
-        # WHY: `_unfold` DROPS the folded points of an offset, and this
-        # letter's inner offset folds twice -- measured, the eye's right
-        # shoulder has a curvature radius of 30 units under a 76-unit stroke
-        # and the crown's left 22 under 47, so (w/2)/R is 1.29 and 1.21 where
-        # 1.0 is the fold. Five of the 96 samples on the LEFT side are dropped,
-        # which leaves L five samples AHEAD of R for the whole rest of the
-        # path; `pieces=True` unions overlapping quads so the body heals
-        # itself, but the LAST quad has no successor to cover it and closes as
-        # a WEDGE. That wedge is the angular point the owner reported -- it is
-        # not the pen cut (it survived `cut1=None`) and it is not the width
-        # (it survived the E_END_W floor).
-        #
-        # Reversed, the geometry is identical -- `nib()` reads |sin(d - 50)|,
-        # so a direction and its opposite give the same width, and a catmull
-        # through reversed points is the same curve -- but the unhealed end is
-        # now the BAR'S LEFT END, which is buried under the descending left
-        # flank where the loop closes on itself. The terminal becomes sample 0,
-        # where L and R cannot be out of step. The cuts and the blunt floor
-        # swap ends to follow.
-        P = P[::-1]
-        p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
-        # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
-        # The width at each point comes from the NIB and the direction the
-        # stroke is travelling there, not from a hand-tuned list.
-        dirs = []
-        for i in range(len(P)):
-            a_ = P[max(0, i - 1)]; b_ = P[min(len(P) - 1, i + 1)]
-            dirs.append(math.degrees(math.atan2((b_[1] - a_[1]) * band * xh,
-                                                (b_[0] - a_[0]) * W)))
-        base = con([nib(d, E_THICK, E_THIN) for d in dirs], CON_E)
-        mean = sum(base) / len(base)
-        ws = [S * (mean + (w - mean) * E_CON) * E_WT * E_CTR for w in base]
-        # THE BLUNT LOWER TERMINAL, round 135 -- see the dial block. The width
-        # is raised to E_END_W over the last stretch on a cosine, so there is
-        # no step in the counter's edge where the floor takes over.
-        m = len(ws) - 1
-        run = 1.0 - E_END_T0                 # the terminal is the path's START now
+        # ROUND 151 -- the movement is drawn in its NATURAL direction again
+        # (round 135 had reversed it to bury an artifact that is now gone; see
+        # fault 2 in the dial block), and cut in two on the bar. `s` is a
+        # fraction along the bar from its left end.
+        on_bar = lambda s: (P[1][0] * s, E_BAR + (E_BAR_R - E_BAR) * s)
+        ARC = [on_bar(E_SPLIT)] + P[1:]      # mid-bar, round the loop, out to the terminal
+        BAR = [P[0], on_bar(E_SPLIT + E_LAP)]  # the bar's left end, overlapping the arc
+        pt = lambda q: (X(q[0], q[1]), Y(q[1]))
+        p = catmull([pt(q) for q in ARC], tension=0.5)
+        # THE WIDTH COMES FROM THE NIB AT EVERY SAMPLE -- `nib_widths()`'s body,
+        # inlined for `phi` alone (dial block, fault 1). The moving average is
+        # its own: `widths()` smoothsteps, and a smoothstep is C1, so its
+        # curvature jumps at every key and the counter's edge facets.
+        n = len(p)
+        base = []
+        for i in range(n):
+            a_ = p[max(0, i - 1)]; b_ = p[min(n - 1, i + 1)]
+            base.append(nib(math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0])),
+                            E_THICK, E_THIN, E_PEN))
+        base = con(base, CON_E)
+        sm = 9
+        base = [sum(base[max(0, i - sm):i + sm + 1]) /
+                len(base[max(0, i - sm):i + sm + 1]) for i in range(n)]
+        ws = [S * w * E_WT * E_CTR for w in base]
+        # THE BLUNT LOWER TERMINAL, round 135's ruling kept (owner
+        # 2026-09-16: *"make the bottom right terminal blunt instead of
+        # angular"*). The terminal is the path's END again, so the ramp runs
+        # the other way; it is a LERP toward E_END_W and not a floor, which on
+        # the corrected pen is what makes it blunt -- the nib gives this
+        # direction 0.61 S and the reference ends at 33 units (0.40 S), so the
+        # ramp now takes weight OFF a stub that would otherwise run out at
+        # nearly full width, instead of propping up the 6-unit spike phi=50
+        # left. Cosine, so there is no step in the counter's edge.
+        m = n - 1
+        run = 1.0 - E_END_T0
         for i in range(m + 1):
             t = i / m
-            if t < run:
-                k = 0.5 - 0.5 * math.cos(math.pi * (1.0 - t / run))
+            if t > E_END_T0:
+                k = 0.5 - 0.5 * math.cos(math.pi * (t - E_END_T0) / run)
                 ws[i] += (S * E_END_W - ws[i]) * k
         wf = widths([(i / m, w) for i, w in enumerate(ws)])
-        # pieces=True: the centerline CROSSES ITSELF where the loop closes on
-        # the bar. As one polygon that crossing becomes a HOLE -- the outline
-        # self-intersects and the fill cancels -- which was the bite in the
-        # letter's left side.
-        return geom.ink([stroke(p, wf, cut0=None, cut1=CUT, pieces=True)])
+        # Two simple strokes, neither self-crossing (dial block, fault 2). The
+        # bar's stub takes the arc's own width at the split -- they are
+        # collinear there, so one nib reading serves both and the join cannot
+        # show as a step. Its left end keeps the pen cut; it is buried under
+        # the left flank either way.
+        bp = catmull([pt(BAR[0]),
+                      ((pt(BAR[0])[0] + pt(BAR[1])[0]) / 2,
+                       (pt(BAR[0])[1] + pt(BAR[1])[1]) / 2),
+                      pt(BAR[1])], tension=0.5)
+        return geom.ink([stroke(p, wf, cut0=None, cut1=None),
+                         stroke(bp, ws[0], cut0=CUT, cut1=None)])
 
     # ------------------------------------------------------------ THE a, round 151
     # THE a IS THE d's BOWL UNDER THE i's STEM. Owner 2026-09-16, the brief
