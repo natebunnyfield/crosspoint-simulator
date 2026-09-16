@@ -1416,6 +1416,16 @@ if ON:
     # Scaled 1.12 from Flanker's numbers after the first build measured the
     # counter at 0.49 of the ink against the scan's 0.42: the print is heavier
     # than the revival, and the scan is the target.
+    # 0.70 -- ROUND 137'S IMPROVING PASS, and it moves his drawing's WEIGHT
+    # and not its shape. Measured against the n, the way the o was in round
+    # 134: his a's mean ink width was 1.22 of the n's where Flanker's a is
+    # 0.98 of its own n, so the a was 24% heavier than everything beside it
+    # and read as the dark blob in every word it appears in. His long head
+    # adds ink at the top that the old bowl's weight was never carrying. At
+    # 0.70 the ratio is 1.00 and the counter opens from 0.48 to 0.57 -- the
+    # shape, the counter's profile and the head are all exactly as he drew
+    # them.
+    A_FLANK_S = float(os.environ.get("ALBO_ALD_A_FLANK_S", 0.70))   # scales every bowl width
     A_FLANK = [(0, 38), (45, 29), (90, 33), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
 
     def _a_flank(deg):
@@ -1495,7 +1505,7 @@ if ON:
                    for i in range(len(cpts)))
         side = 1 if area < 0 else -1
         ang = [math.degrees(math.atan2(q[1] - cy_, q[0] - cx_)) for q in cpts]
-        ws = [_a_flank(a_) * u for a_ in ang]
+        ws = [_a_flank(a_) * A_FLANK_S * u for a_ in ang]
         # the width sequence is smoothed the way ring_from smooths its pen
         # widths, and the offset is unfolded, smoothed and resampled the way
         # ring_from treats its counter -- an offset of a tight turn folds on
@@ -3918,7 +3928,7 @@ if ON:
 # Letters he did not reach (b d g h j k m o q z) carry the tracking only.
 BEARINGS = {
     'a': ( -36,   44), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
-    'e': ( -19,   72), 'f': ( -32,   92), 'g': ( -13,   72), 'h': (   4,   58),
+    'e': ( -19,   72), 'f': ( -32,   81), 'g': ( -13,   72), 'h': (   4,   58),
     'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   14), 'l': (  14,   58),
     'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
     'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),

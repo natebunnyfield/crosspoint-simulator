@@ -433,8 +433,13 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # fine. At the three references' mean ratio of 2.58 the space is 182.
     from .glyphs import aldine as _ALD
     if _ALD.ON:
-        # 182 -> 166: the owner's own number off the spacing bench, 2026-09-16.
-        space_adv = 166.0 * (pen.XH / 429.0)
+        # 182 -> 166 (his own number off the bench) -> 205 in round 137's
+        # improving pass. His 166 was chosen at 64 px BEFORE his tracking was
+        # baked into the letters; with it in, the word gap measures 2.22 of
+        # the letter gap against every text reference's 2.32-2.95 (Poetica
+        # 2.32, Pagella 2.47, Flanker 2.95, mean 2.58) -- and at 27 px "It is
+        # a truth" set as "It isa truth". 205 puts the ratio at 2.51.
+        space_adv = 205.0 * (pen.XH / 429.0)
     glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)
