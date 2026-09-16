@@ -5324,3 +5324,55 @@ meaningless on a loop letter (`e` solved at 0.277 error against a stem that
 does not exist; 0.019 once gated), and counter/ink is sensitive to the crop box
 by more than the tolerance, so autofit's targets and this ledger's hand-measured
 ones are not interchangeable.
+
+## Round 130 — the lowercase fitted off the scans, the capitals narrowed, and what it exposed
+
+### Letter location, solved
+
+`--label` names every box on a line by aligning it to the line's KNOWN text by
+dynamic programming. No shape recognition: the answer is already written down,
+which is what rounds 115-116 lacked when template matching kept mis-finding the
+`a`. **It proposed 18 letters and FOUR were wrong** (an `a` called `c`, a `t`
+called `n`, a blob called `t`, a `u` called `i`), so every crop is eyeballed
+before adoption. Scan-measured lowercase went from 4 letters to **14**.
+
+### Two measurement bugs, both of which would have corrupted the fit
+
+- **Tight crops broke the counter.** `--segment` crops to the ink, so the letter
+  touches all four edges and a flood from one corner cannot reach the other
+  three -- everything missed counted as counter. An `r`, which has no closed
+  counter, reported **1.68**; b h p all read over 1.4. Padding fixed it, and the
+  proof is that letters with genuinely no counter now read ~0.
+- **~0 is a degenerate target.** h l m r s u have no counter, and matching 0.004
+  exactly is matching noise. Excluded.
+
+### The capitals: the banked measurement, finally implemented
+
+`docs/albo-italic-capitals.md` has been research-only since it was written.
+Median width ratio **0.953**, cap height **1.000**, serif spread **1.005** --
+italic capitals are neither shorter nor lighter-serifed, and the folklore that
+chancery capitals stand uprighter is refuted (12.97 deg lowercase against 12.94).
+**For 18 of the 26 that width is the whole change**, and it now applies.
+
+It had to go on the width TARGET, not the drawn outline: `solve_widths`
+re-solves each capital until its ink hits that number, so a scale in `draw()` is
+undone next pass -- the first attempt moved H from 752 to 749 instead of 721.
+
+### THE FINDING: a per-letter fit does not make an even page
+
+Every fitted letter matches its own source. Measured across the lowercase --
+ink inside the X-HEIGHT BAND over the advance, so neither ascenders nor
+descenders nor dots are counted -- the page's colour runs **0.64 to 1.62 times
+the median**, a spread of 2.5 to 1. The bowl letters (d o p b a q) are dark and
+the open ones (i x c u r l f j z) light.
+
+**Fitting each letter to its own target optimises the wrong thing.** The owner's
+brief is word images; a set of letters that each match their source can still
+make an uneven page, and this one does. The next pass is a colour normalisation
+CONSTRAINED by the measured targets -- not replacing them.
+
+Three metrics were tried before one could be trusted, which is worth recording
+because two of them looked reasonable: ink over advance x em ranked every
+ascender as "dark" (it was measuring height), and ink over the letter's own
+bounding box ranked every narrow and dotted letter as "light" (the dot's gap is
+inside the box). Only the x-height band measures colour.

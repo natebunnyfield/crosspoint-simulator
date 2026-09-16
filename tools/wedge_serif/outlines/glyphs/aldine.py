@@ -38,18 +38,55 @@ from . import glyph as _register, GLYPHS
 # nobody has hand-tuned.
 _CUR = [None]
 
+# SOLVED BY aldine_autofit.py against the scan crops, not by hand. Only the
+# letters whose fit actually CONVERGED are here -- d (err 0.106), q (0.108) and
+# u (0.151) are left at 1.0 because their solver pinned at a dial's rail, which
+# is the fitter saying the lever is wrong rather than the value. Re-run:
+#   python3 aldine_autofit.py --letters <chars>
+FIT = {            # ch: (weight, width)
+    'b': (0.550, 1.100),
+    'h': (0.938, 1.100),
+    'l': (0.550, 1.100),
+    'm': (1.131, 0.850),
+    'p': (0.550, 0.725),
+    'r': (0.938, 1.100),
+    's': (1.325, 1.100),
+}
+
 
 def _lw():
     ch = _CUR[0]
-    return float(os.environ.get(f"ALBO_ALD_LW_{ch}", 1.0)) if ch else 1.0
+    if not ch: return 1.0
+    v = os.environ.get(f"ALBO_ALD_LW_{ch}")
+    return float(v) if v is not None else FIT.get(ch, (1.0, 1.0))[0]
+
+
+def _wd():
+    ch = _CUR[0]
+    if not ch: return 1.0
+    v = os.environ.get(f"ALBO_ALD_WD_{ch}")
+    return float(v) if v is not None else FIT.get(ch, (1.0, 1.0))[1]
 
 
 def glyph(*chars):
+    """Registers a glyph AND gives it two dials nobody has to write by hand:
+    `ALBO_ALD_LW_<ch>` scales its stroke weight through the shared width paths,
+    and `ALBO_ALD_WD_<ch>` scales the finished outline horizontally.
+
+    The width one exists because the fitter kept pinning at the weight dial's
+    rail -- b p q u all solved to the low or high bound with an error still
+    over 0.09, which is a solver saying "this is not the lever". A letter whose
+    w/h is wrong cannot be fixed by making its strokes thinner."""
     def deco(fn):
         def wrapped(c, _ch=chars[0], _fn=fn):
             prev = _CUR[0]; _CUR[0] = _ch
             try:
-                return _fn(c)
+                g = _fn(c)
+                wd = _wd()
+                if abs(wd - 1.0) > 1e-6:
+                    from shapely import affinity
+                    g = affinity.scale(g, xfact=wd, yfact=1.0, origin=(0, 0))
+                return g
             finally:
                 _CUR[0] = prev
         wrapped.__name__ = getattr(fn, "__name__", "glyph")

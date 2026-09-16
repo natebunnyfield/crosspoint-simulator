@@ -89,7 +89,8 @@ def dials_for(ch):
     """A letter's dials. Anything without hand-written ones gets the shared
     per-letter weight, which every glyph honours through `_lw()` -- so a letter
     nobody has tuned is still reachable by the fitter."""
-    return DIALS.get(ch, [(f'ALBO_ALD_LW_{ch}', 0.60, 1.90)])
+    return DIALS.get(ch, [(f'ALBO_ALD_LW_{ch}', 0.55, 2.10),
+                          (f'ALBO_ALD_WD_{ch}', 0.60, 1.60)])
 
 
 BUILD_ENV = dict(ALBO_ITALIC='aldine', FJORD_STEM='66.9', FJORD_CONTRAST='0.892',
@@ -108,7 +109,17 @@ def _runs(px, W, y, thr):
 
 
 def _counter_and_ink(img, thr):
-    bw = img.point(lambda v: 0 if v < thr else 255)
+    """Enclosed white and ink. The image is PADDED first, and that is not a
+    nicety: `--segment` crops tight to the ink, so the letter touches all four
+    edges and a flood from one corner cannot reach the other three. Everything
+    it misses then counts as counter -- which is how an `r`, a letter with no
+    closed counter at all, reported counter/ink 1.68, and b h p all reported
+    over 1.4. A ratio above ~0.8 on any letter is this bug, not a measurement.
+    """
+    w, h = img.size
+    pad = Image.new('L', (w + 8, h + 8), 255)
+    pad.paste(img, (4, 4))
+    bw = pad.point(lambda v: 0 if v < thr else 255)
     fl = bw.copy(); ImageDraw.floodfill(fl, (0, 0), 128)
     enc = sum(1 for p in fl.get_flattened_data() if p == 255)
     ink = sum(1 for p in bw.get_flattened_data() if p == 0)
@@ -139,8 +150,12 @@ def measure_source(ch):
         flank, stem = _strokes(img, thr, xh) if ch in HAS_STEM else (None, None)
         bw = img.point(lambda v: 0 if v < thr else 255)
         bb = bw.point(lambda v: 255 - v).getbbox()
-        return dict(source=f'SCAN {note}', derived=False,
-                    counter=(enc / ink if ink else None),
+        # A letter with no closed counter reads ~0, and 0 is a degenerate
+        # target: matching it exactly is matching noise. h l m r s u all come
+        # back under 0.03 and are excluded here rather than fitted to.
+        c = (enc / ink) if ink else None
+        if c is not None and c < 0.05: c = None
+        return dict(source=f'SCAN {note}', derived=False, counter=c,
                     wh=((bb[2] - bb[0]) / (bb[3] - bb[1])) if bb else None,
                     flank=flank, stem=stem)
     # no specimen: fall back to a reference italic, and SAY SO
