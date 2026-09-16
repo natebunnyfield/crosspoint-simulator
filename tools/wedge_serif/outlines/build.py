@@ -197,10 +197,64 @@ BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, 
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
+try:                                     # the Aldine lowercase's own fitting table (round 133)
+    from .glyphs import aldine as ALD
+except ImportError:                      # the module is optional, exactly as in glyphs/__init__
+    ALD = None
+
+
+def fit_aldine(ch, conts):
+    """ROUND 133 -- the Aldine lowercase's bearings, read from a table in
+    UNSHEARED design units instead of derived from the roman's machinery.
+
+    Owner 2026-09-16: "fit the whole lowercase in one pass." Round 132 redrew
+    all 26 letters against a measured reference, which left every input of the
+    round-20 rule -- `A.SIDE_FRACTION`, `BEARING_ADJ`, `A_LEFT`, `capbear` --
+    solved for a drawing that no longer exists.
+
+    THE SPACE IS THE SHAPES' OWN. `conts` arrives SHEARED (draw() shears last),
+    so each point is put back upright by x - SHEAR*y before the band is read:
+    the reference was unsheared to be measured, the letters were drawn against
+    it upright, and a bearing measured in a third space would describe neither.
+    It also takes the two faces' 1.2 degrees of slant difference out of every
+    number, which in a sheared frame is a systematic 9 units at the x-line.
+    `dx` needs no conversion either way -- a horizontal translation commutes
+    with a shear about the baseline, so the same dx moves the sheared ink.
+
+    The band is the x-height band, as for every other letter. Fitting on the
+    FULL extent instead would price the f's head, the j's tail and the y's
+    swash as if they were spacing, when what a neighbour actually meets is the
+    stem. The table's own notes carry the per-letter rulings.
+    """
+    sh = pen.SHEAR
+    lo, hi = -pen.OVER, pen.XH + pen.OVER
+    # THE BAND TEST IS ON THE ROUNDED y, because that is the y the glyph ships
+    # with -- the TTF stores integers. The q is the letter that proves it: its
+    # tail crosses the band's lower edge at about y = -14.4, which rounds INTO
+    # the band, so the shipped outline has 73 more units of band ink than the
+    # float contour does. Fitted on the float the q came out 373 against the
+    # table's 446, and every pair it is in was 73 units tight -- with the table
+    # and the font each self-consistent and disagreeing. Round here and the
+    # fitter and the shipped glyph cannot drift apart.
+    band = [x - sh * y for pts, _ in conts for x, y in pts if lo <= round(y) <= hi]
+    xs_u = [x - sh * y for pts, _ in conts for x, y in pts]
+    l, r = (min(band), max(band)) if band else (min(xs_u), max(xs_u))
+    lsb, rsb = ALD.BEARINGS[ch]
+    adv = lsb + (r - l) + rsb
+    dx = lsb - l
+    return adv, dx, min(x for pts, _ in conts for x, y in pts) + dx
+
+
 def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
     for capitals and figures); the g and every non-letter on their full
     extent; bearing per side = capbear x SIDE_FRACTION + 17."""
+    # The Aldine lowercase only (round 133), and only when that module is the
+    # live italic: everything else in the font -- the roman, the classic
+    # italic, the capitals, the figures and the punctuation, including under
+    # ALBO_ITALIC=aldine -- falls straight through to the rule below.
+    if ALD is not None and ALD.ON and ch in ALD.BEARINGS:
+        return fit_aldine(ch, conts)
     isCap = ch.isupper() or isfig(ch); top = C if isCap else pen.XH
     xs_all = [x for pts, _ in conts for x, y in pts]
     band = [x for pts, _ in conts for x, y in pts if -pen.OVER <= y <= top + pen.OVER]

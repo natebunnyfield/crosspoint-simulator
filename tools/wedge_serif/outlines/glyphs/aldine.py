@@ -2527,6 +2527,125 @@ if ON:
 # a, b, d, p, q and r under an "aldine" label. The owner caught it by eye:
 # "why am I seeing the wrong a?"
 #
+# ------------------------------------------------------------ THE FITTING
+# ROUND 133: THE LOWERCASE'S SIDEBEARINGS, in the same UNSHEARED design space
+# the shapes were measured in, over the x-height band. Owner 2026-09-16: "fit
+# the whole lowercase in one pass."
+#
+# WHY A TABLE AND NOT THE ROMAN'S MACHINERY. Until this round these letters
+# inherited `build.SIDE_FRACTION` x `capbear` + 17 plus `build.BEARING_ADJ`,
+# and every one of those inputs was solved in round 96b/97 against a drawing
+# that no longer exists -- round 132 redrew all 26 against the reference. The
+# machinery's own terms say why it cannot be re-pointed cheaply: it fits a
+# letter from its SIDE CATEGORY (straight/round/open/diag) times a capital's
+# bearing, which is a rule for a family whose letters were never measured. The
+# Aldine letters are drawn in units against a named reference, so their
+# bearings are stated in units too, and nothing about the roman moves.
+#
+# HOW THE NUMBERS WERE GOT -- `outlines/cmp/aldine_space.py`, which re-solves
+# them and is the record; re-run it after ANY outline change here.
+#
+#   A sidebearing is only meaningful against the edge it is measured from.
+#   Flanker's `r` carries a right bearing of 64 units because its arm reaches
+#   387 across; Albo's r reaches 285, so the same 64 leaves a visibly bigger
+#   hole. Copying the reference's numbers transfers its bookkeeping, not its
+#   page. What transfers is the WHITE -- and the white between two letters at
+#   a given height is a horizontal distance at a fixed y, which a shear leaves
+#   alone, so Flanker's white and Albo's are directly comparable with no
+#   unshearing at all.
+#
+#   Writing glyph X's band ink from its own left extreme -- left(y) =
+#   lsb + pL(y), right(y) = lsb + pR(y), advance = lsb + W + rsb -- the pair
+#   A B has
+#
+#       gap(y) = rsb_A + lsb_B + [W_A - pR_A(y)] + pL_B(y)
+#
+#   in which lsb_A cancels: the white is an affine function of rsb_A + lsb_B
+#   over a pure-shape term. So all 676 ordered pairs give a linear least
+#   squares in these 52 numbers, with exactly one gauge freedom (add c to
+#   every lsb, take c off every rsb) pinned by splitting the mean shift evenly
+#   between the two sides -- the capitals, figures and punctuation still come
+#   from the round-20 fitter, and a one-sided gauge would silently re-space
+#   every lowercase-beside-capital pair in the font.
+#
+#   White is the mean over band rows of min(gap, counter): no gap between two
+#   letters counts as more white than the white INSIDE the letter. Without
+#   that clip the c's mouth and the r's shoulder spend their whole depth as
+#   inter-letter space and the letter is fitted far too tight.
+#
+#   THEN A RELIEF PASS, because a mean cannot see a collision. The least
+#   squares fits the average white and is blind to the minimum, so a pair can
+#   average correctly while an exit stroke and an entry stroke cross at one
+#   height. Rasterizing each glyph of a pair separately and intersecting the
+#   ink, the un-relieved table put 81 of 676 pairs in contact INSIDE the
+#   x-height band against Flanker's 7 -- ks, vp, wp, wv, zp, vv, zs -- about
+#   1.2 px of overlap at the 27 px reading size. Nothing downstream would have
+#   opened them: the lowercase is deliberately unkerned (`outlines/kern.py`,
+#   round 95). The floor is the REFERENCE'S OWN worst band minimum, -22 units,
+#   which Flanker spends on `rp` -- an italic may interlock, it may not
+#   interlock worse than the face it is drawn against. Twelve letters were
+#   opened, at most 11 units (g, p), and it cost 2 units of mean white:
+#   0.74 -> 0.75 x counter, which is still Flanker's 0.74 to within the
+#   measurement.
+#
+# THE SCALE, which is the one judgment in the round. Even color means the
+# white BETWEEN letters tracks the white INSIDE them, so what transfers from
+# the reference is a RATIO and not a number of units. Measured over all 676
+# pairs, as a multiple of each face's own mean counter (n and o):
+#
+#     Flanker Griffo Italic   0.74        Albo Medium, the roman      0.75
+#     Pagella Italic          0.82        Albo Italic, classic        0.87
+#     Poetica                 0.86        Albo Italic, aldine BEFORE  0.96
+#     Cancelleresca           0.92
+#
+# 0.74 is the target: the face round 132 drew against, with Albo's OWN roman
+# landing on 0.75 independently -- two unrelated anchors 0.01 apart. The
+# aldine italic was at 0.96, the loosest thing in the table bar a chancery
+# display face, which is what the page looked like: narrow letters adrift in
+# roman-sized gaps. Its counters are 153 against the roman's 272, so most of
+# that gap is the drawing being narrow and the fitting never having been told.
+#
+# The solve's own check that it is recovering the reference rather than
+# inventing: the LEFT bearings land on Flanker's almost exactly where the two
+# faces draw the same letter -- n -68 against Flanker's -67, i -73 / -74,
+# m -66 / -63, r -79 / -83, p -92 / -87, c -37 / -33, s -37 / -31. The right
+# bearings come out about 35 units tighter throughout, which is k = 0.678
+# doing its job on a narrower letter.
+#
+# NEGATIVE NUMBERS ARE NOT ERRORS, on either side.
+#   * A negative LSB is what an unsheared italic measurement looks like: the
+#     unshear pivots on the baseline, so a letter's leftmost band ink is its
+#     TOP-left and sits left of the origin. Flanker reads -67 on its own n.
+#   * z (-7) takes a negative RSB -- its tail crosses the advance by a tenth
+#     of a stem. Flanker allows the same thing outright, fitting its own f at
+#     -39. Checked as a MINIMUM and not as a mean (`aldine_space.py --gaps`):
+#     no pair in the font closes past -22, which is Flanker's own worst.
+#   * THE f KEEPS ITS OVERHANGS, which is a deliberate answer and not a
+#     leftover. Flanker's f reaches 211 units left of its origin and 39 past
+#     its advance; fitted on its band ink (the stem and the bar, which is what
+#     the neighbours actually meet) Albo's reaches 189 left and stays 31
+#     inside on the right. The head and the tail are allowed to pass over the
+#     neighbours exactly as the reference's do -- that IS the Aldine f -- and
+#     the band rule is what lets them, because fitting the f on its full
+#     extent would price the overhang as if it were spacing and drive the
+#     letter apart.
+#   * THE y IS FITTED ON ITS BAND INK, tail excluded, because Y_TAIL_X 8 (the
+#     owner's full swash, round 132) is MEANT to pass under the preceding
+#     letter. Its band bearings are -48/63 against Flanker's -62/82; the swash
+#     reaches 85 left of the origin, below the baseline, where only a
+#     descender can meet it.
+#
+# ch -> (lsb, rsb), design units, UNSHEARED, measured over the x-height band.
+BEARINGS = {
+    'a': (-36,  37), 'b': (-22,  74), 'c': (-37,  57), 'd': (-40,  19),
+    'e': (-34,  65), 'f': (-77,  80), 'g': (-26,  59), 'h':  (-9,  45),
+    'i': (-72,  28), 'j': (-11,  71), 'k': (-24,   1), 'l':  (-5,  47),
+    'm': (-66,  31), 'n': (-68,  35), 'o': (-47,  68), 'p': (-81,  71),
+    'q': (-29, 115), 'r': (-75,  64), 's': (-28,  71), 't': (-49,  95),
+    'u': (-63,  43), 'v': (-67,  51), 'w': (-66,  49), 'x':  (-7,  24),
+    'y': (-48,  63), 'z': (-35,  -7),
+}
+
 # A comment asking the next editor to be careful would not have caught it.
 # This does: the module declares what it is FOR -- the complete lowercase --
 # and refuses to load quietly without it.
