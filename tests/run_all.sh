@@ -369,6 +369,16 @@ run host_settings_desktop \
 run host_battery \
   c++ -std=c++20 -Isrc -o "$OUT/host_battery" tests/host_battery_test.cpp
 
+# THE SEEDED-FAMILY LEDGER's decision table. Deleting a bundled font did not
+# stick: the firmware removed the directory and the harness cloned it straight
+# back on the next launch, every launch (owner, 2026-09-15). The fix turns
+# "bundled, absent, and we are the ones who put it there" into "the owner
+# deleted it". Both ways of getting that wrong are silent and only show up a
+# launch later on a device -- a font that will not stay deleted, or a family a
+# new app version adds that never appears at all.
+run seed_ledger \
+  c++ -std=c++20 -Isrc -o "$OUT/seed_ledger" tests/seed_ledger_test.cpp
+
 run restart_semantics \
   c++ -std=c++20 -Isrc -o "$OUT/restart_semantics" tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp
 

@@ -270,6 +270,78 @@ bool cloneFontDirectory(const std::string &from, const std::string &to) {
   return false;
 }
 
+// --- The seeded-family ledger -----------------------------------------------
+//
+// WHY THIS EXISTS: without it, deleting a bundled font does not stick. The
+// firmware's FontInstaller::deleteFamily really does remove the family's
+// directory, and then the pass below finds the folder missing on the next
+// launch and clones it straight back. Reported by the owner 2026-09-15 --
+// "why are ... still showing up and reinstalling after I delete them" -- and
+// true of every bundled family, by construction.
+//
+// The ledger records which families this app has ever seeded onto this card.
+// That single fact is enough to tell the two cases apart WITHOUT a delete
+// notification from the firmware, which would otherwise mean a new HAL channel
+// for one bit:
+//
+//   bundled, absent, NOT in the ledger  -> never seeded here. Seed it. This is
+//                                          a fresh install, or a family a new
+//                                          app version added.
+//   bundled, absent, IN the ledger      -> we put it there and it is gone now.
+//                                          Only the owner could have done that.
+//                                          LEAVE IT DELETED.
+//   bundled, present                    -> seed/update as before, so a font fix
+//                                          in an app update still lands.
+//
+// It lives on the card under /.crosspoint/, beside the firmware's own settings,
+// because it describes THIS CARD's contents: restore the card and the state it
+// describes comes back with it. It is bookkeeping, not a secret -- File
+// Transfer and WebDAV serve that directory and that is fine.
+//
+// A missing or unreadable ledger is treated as EMPTY, which reverts to the old
+// behaviour (seed everything). That is the safe direction: the failure mode is
+// a font reappearing, not a font the owner wanted silently missing.
+const char *kSeedLedgerPath = ".crosspoint/seeded-fonts.txt";
+
+std::vector<std::string> readSeedLedger() {
+  std::vector<std::string> names;
+  std::ifstream in(kSeedLedgerPath);
+  if (!in) return names;
+  std::string line;
+  while (std::getline(in, line)) {
+    while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) line.pop_back();
+    if (line.empty() || line[0] == '#') continue;  // skip the header the writer emits
+    names.push_back(line);
+  }
+  return names;
+}
+
+bool ledgerHas(const std::vector<std::string> &names, const std::string &family) {
+  for (const std::string &n : names) {
+    if (n == family) return true;
+  }
+  return false;
+}
+
+// Rewritten whole rather than appended, so a family that leaves the bundle also
+// leaves the ledger: if it is ever re-added in a later app version it should be
+// seeded again rather than counted as "deleted by the owner" on the strength of
+// a record from a build that no longer carries it.
+void writeSeedLedger(const std::vector<std::string> &names) {
+  ::mkdir(".crosspoint", 0777);
+  const std::string tmp = std::string(kSeedLedgerPath) + ".tmp";
+  {
+    std::ofstream out(tmp, std::ios::trunc);
+    if (!out) return;
+    out << "# Families this app has seeded onto this card. A bundled family\n"
+           "# listed here but absent from fonts/ was deleted deliberately and\n"
+           "# is NOT re-seeded. Delete a line to have that family come back on\n"
+           "# the next launch.\n";
+    for (const std::string &n : names) out << n << "\n";
+  }
+  ::rename(tmp.c_str(), kSeedLedgerPath);
+}
+
 void seedBundledFontFamilies() {
   // SDL_GetBasePath: the bundle's Resources directory on iOS, the executable's
   // directory on a desktop host (where SeedFonts/ simply doesn't exist and
@@ -287,11 +359,23 @@ void seedBundledFontFamilies() {
   }
   ::closedir(dir);
 
+  const std::vector<std::string> ledger = readSeedLedger();
+  std::vector<std::string> seededNow;
+
   for (const std::string &family : families) {
     const std::string from = seedRoot + "/" + family;
     if (!isDirectory(from.c_str())) continue;
     ::mkdir("fonts", 0777);
     const std::string to = std::string("fonts/") + family;
+
+    // The owner deleted this one. Leave it deleted, and keep it in the ledger
+    // so the same decision holds on every launch after this.
+    if (!isDirectory(to.c_str()) && ledgerHas(ledger, family)) {
+      SDL_Log("[harness] %s was deleted by the owner; not re-seeding", family.c_str());
+      seededNow.push_back(family);
+      continue;
+    }
+    seededNow.push_back(family);
 
     // CLONE, never symlink (owner 2026-08-28). A symlink pointed this at the
     // read-only bundle, which is exactly why the fonts folder could not be
@@ -325,6 +409,8 @@ void seedBundledFontFamilies() {
       seedOneFontDirectory(from + hiResDir, to + hiResDir);
     }
   }
+
+  writeSeedLedger(seededNow);
 }
 
 // Default books ship under Resources/SeedBooks (ios/CMakeLists.txt) and are

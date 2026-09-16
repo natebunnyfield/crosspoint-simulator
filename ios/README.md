@@ -147,6 +147,51 @@ bug has nothing to show itself against. Add
 a Bayer 4×4 ramp, and per-corner glyphs that identify rotation. It is a build
 flag, not on-screen UI.
 
+### Deleting a bundled font now sticks (2026-09-15)
+
+Owner: *"why are lutetia, warbler, dante and tex gyre heros still showing up and
+reinstalling after I delete them in my ios app?"*
+
+Two different things were happening, and only one was a bug.
+
+**The bug: deletion was not durable, for any bundled family.**
+`FontInstaller::deleteFamily` really does remove the family's directory — the
+delete works. Then `seedBundledFontFamilies()` runs at the next launch, finds
+the folder missing, and clones it straight back. There was no memory of deletion
+anywhere in the app. That is why **TeX Gyre Heros** kept returning: it is one of
+the twelve `installed_families`, so it is in the bundle, so it was re-seeded
+every single launch.
+
+**Not a bug: Dante, Lutetia Nova and Warbler Text are orphans.** Upstream cut
+them from `installed_families` on 2026-09-11 (`791f2fcf6`), and builds before
+that had already seeded them onto the card. The seeding pass only ever *adds* —
+nothing removes a family that leaves the set — so they sit there from an older
+build. Both 201 and 202 carry the cut (verified against their pinned firmware),
+so on those builds deleting those three sticks on its own.
+
+**The fix is a ledger, not a delete notification.** `/.crosspoint/seeded-fonts.txt`
+records which families this app has seeded onto this card. That one fact
+separates the cases without the firmware having to tell the harness anything —
+which would otherwise have meant a whole HAL channel for one bit:
+
+| bundled | on card | in ledger | what happens |
+|---|---|---|---|
+| yes | no | **no** | never seeded here — seed it (fresh install, or a family a new app version added) |
+| yes | no | **yes** | we put it there and it is gone — **the owner deleted it, leave it deleted** |
+| yes | yes | either | seed/update as before, so a font fix in an app update still lands |
+
+It lives beside the firmware's own settings because it describes *this card's*
+contents: restore the card and the state it describes comes back with it. A
+missing or unreadable ledger reads as empty, which reverts to the old behaviour
+— the safe direction, since the failure mode is a font reappearing rather than
+one silently missing.
+
+**To get a deleted family back**, remove its line from
+`/.crosspoint/seeded-fonts.txt` (or delete the file) over File Transfer or
+WebDAV. The next launch then sees it absent and unlisted, which is the
+first-install case. `tests/seed_ledger_test.cpp` pins that round trip along with
+the rest of the table.
+
 ### Build numbers come from App Store Connect, not from our tags (2026-09-14)
 
 `testflight.sh` used to number a build as `max(local build-N tag) + 1`. That was
