@@ -1299,8 +1299,8 @@ if ON:
     #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
     # Everything is written as a fraction of xh or S, so it rides the axes.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 321))   # stem center, units
-    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 70.0))     # units
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 346))   # stem center, units
+    A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 81.0))     # units
     A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
     A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl center height, units
@@ -1330,10 +1330,11 @@ if ON:
     # bowl hangs under it. The a carries its own head dials for that reason;
     # the b d p head stays where he put it two rounds ago ("reduce visual
     # weight of top serif on b and d").
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 7))             # units, NEGATIVE = below the x-line
-    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 210))       # the head's reach left
-    A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 93))       # its tip below the stem's top
-    A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 59))       # where its underside rejoins the stem
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -11))             # units, NEGATIVE = below the x-line
+    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 190))       # the head's reach left
+    A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 109))       # its tip below the stem's top
+    A_TAIL_W1 = float(os.environ.get("ALBO_ALD_A_TAIL_W1", 21.0))  # the tail's tip width, units
+    A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 120))       # where its underside rejoins the stem
     # THE COUNTER IS DRAWN, NOT OFFSET, AND ITS SHAPE IS THE SCAN'S.
     # Owner 2026-09-16: "a needs a smaller counterspace that is rounded
     # teardrop and 24 units above", then "match the counterspace for a to the
@@ -1499,79 +1500,72 @@ if ON:
 
     @glyph('a')
     def a_a(c):
-        """The Aldine single-storey a: a ring filling the x-height, a straight
-        stem carried a short way PAST it under the b/d/p head, and a short
-        thick tail along the baseline. It is a d with its ascender cut short
-        (owner 2026-09-16) -- which is what the scan shows and what makes the
-        a belong to the same hand as the b and the d rather than to itself."""
+        """The Aldine single-storey a, in TWO STROKES.
+
+        Owner 2026-09-16, with a pasted state: "THIS LETTER NEEDS TO BE
+        REDUCED AND SIMPLIFIED." It was five pieces -- a bowl offset from its
+        counter, a rectangular stem, a four-curve head polygon, a tail, and a
+        conditional bridge -- and every seam between them was a place to go
+        wrong (the notch round 136 bridged, the sliver round 137 removed, the
+        belly round 134 measured).
+
+        It is how the letter is actually written instead: ONE pen movement
+        from the head's tip, right across the top, down the stem and out into
+        the tail, and ONE ring for the bowl. No head polygon, no separate
+        stem, no bridge, and no join to patch -- the head IS the stroke's
+        entry and the tail IS its exit, so the widths carry through them.
+        """
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
         xs = x0 + A_STEM_X * u; sw = A_STEM_W * u
-        # the stem: straight, its top cut on the pen's angle. The owner's scan
-        # crop and the Petrarch page both put a small blunt HEAD on the
-        # stem's top right -- the nib set down and pushed right before the
-        # downstroke -- so the top face reaches a little past the stem on
-        # that side and slopes down to the left. Flanker has the same corner,
-        # smaller; the scan is the target.
         top = xh + A_ASC * u
-        stem = stroke([(xs, S * 0.10), (xs, top)], sw)
-        head = bd_head(xs - sw / 2, xs + sw / 2, top, u,
-                       reach=A_HEAD_R, drop=A_HEAD_D, foot=A_HEAD_F)
-        # THE BOWL IS A STROKE AROUND THE COUNTER (round 134). It was a
-        # filled superellipse with the counter cut out of it, and the
-        # difference between a round outside and a leaning, narrow inside is
-        # a flank that swells at mid-height -- the belly the owner called
-        # bulging. The metal's bowl is one stroke: thickest at the LOWER LEFT
-        # and thinning steadily up to the join (Flanker's a, left flank by
-        # height: .2 83 / .3 76 / .4 73 / .5 68 / .6 62 / .7 58 / .8 52, top
-        # 28, bottom 55-60, the rise into the stem 34). So the outside is now
-        # the counter's edge pushed out by that width at each angle, and the
-        # counter stays the scan's. No belly is possible: the width is
-        # monotone from the lower left round to the top.
+        # THE ONE STROKE. Its centerline: in at the head's tip (low and left,
+        # the nib set down), up and right across the stem's top, then down the
+        # stem and out along the baseline to the tail's tip. The head's mass
+        # is the entry's WIDTH, not a polygon: A_HEAD_F is how thick the nib
+        # is where it crosses the stem, A_HEAD_R how far left it starts.
+        tipx = xs - sw / 2 - A_HEAD_R * u
+        p_ = catmull([(tipx, top - A_HEAD_D * u),
+                      (tipx + A_HEAD_R * 0.55 * u, top - A_HEAD_D * 0.34 * u),
+                      (xs - sw * 0.15, top - A_HEAD_D * 0.06 * u),
+                      (xs + sw * 0.10, top - sw * 0.55),
+                      (xs + sw * 0.02, xh * 0.55),
+                      (xs, xh * 0.16),
+                      (xs + 30 * u, 26 * u), (xs + 70 * u, 30 * u),
+                      (x0 + A_TAIL_X * u - 30 * u, xh * A_TAIL_Y - 14 * u),
+                      (x0 + A_TAIL_X * u, xh * A_TAIL_Y)], tension=0.5)
+        # Thinned to the a's own spacing before the stroke is built, and
+        # built `raw` -- `stroke()` re-densifies its centerline otherwise, so
+        # thinning it first does nothing at all. Round 139's lesson, arriving
+        # from the other side: the letter should not be the densest glyph in
+        # the font.
+        p_ = geom.resample(p_, A_SPACING)
+        # width along it: the head's nib, thinning as it turns over the top,
+        # the stem's full weight down the shaft, then the tail's taper.
+        hw = A_HEAD_F * u
+        one = stroke(p_, widths([(0.00, hw * 0.34), (0.10, hw * 0.92), (0.22, hw),
+                                 (0.30, sw * 1.02), (0.42, sw), (0.66, sw),
+                                 (0.80, sw * 0.90), (0.90, sw * 0.62),
+                                 (1.00, A_TAIL_W1 * u)]), cut0=CUT, raw=True)
+        # THE BOWL, unchanged: the counter's edge pushed out by the reference's
+        # width at each angle (round 134's cure for the belly).
         ctr = a_counter(u, x0)
         cpts = geom.resample(list(ctr.exterior.coords))[:-1]
         cpts = geom.smooth(cpts, 5, closed=True)
         cx_ = sum(q[0] for q in cpts) / len(cpts); cy_ = sum(q[1] for q in cpts) / len(cpts)
-        # signed area: offset AWAY from the centroid whichever way it winds
         area = sum(cpts[i][0] * cpts[(i + 1) % len(cpts)][1] - cpts[(i + 1) % len(cpts)][0] * cpts[i][1]
                    for i in range(len(cpts)))
         side = 1 if area < 0 else -1
         ang = [math.degrees(math.atan2(q[1] - cy_, q[0] - cx_)) for q in cpts]
         ws = [_a_flank(a_) * A_FLANK_S * u for a_ in ang]
-        # the width sequence is smoothed the way ring_from smooths its pen
-        # widths, and the offset is unfolded, smoothed and resampled the way
-        # ring_from treats its counter -- an offset of a tight turn folds on
-        # itself, and a fold is a facet on the outline.
         n = len(cpts)
         ws = [sum(ws[(i + k) % n] for k in range(-4, 5)) / 9.0 for i in range(n)]
         tans = geom.tangents(cpts, closed=True)
-        outer = [(q[0] - tn[1] * side * w, q[1] + tn[0] * side * w) for q, tn, w in zip(cpts, tans, ws)]
+        outer = [(q[0] - tn[1] * side * w, q[1] + tn[0] * side * w)
+                 for q, tn, w in zip(cpts, tans, ws)]
         outer = PR._unfold(outer, tans)
         outer = geom.smooth(outer, 5, closed=True)
         outer = geom.resample(outer + [outer[0]], A_SPACING)[:-1]
-        bowl_ = geom.poly(outer).buffer(0)
-        # the tail: down the stem, out along the baseline, lifting to a point
-        tip = (x0 + A_TAIL_X * u, xh * A_TAIL_Y)
-        tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
-                      (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
-        tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
-                      cut1=CUT)
-        # THE TOP CONNECTS -- AND SINCE ROUND 137 THE HEAD IS WHAT CONNECTS IT.
-        # Round 136 bridged the bowl's crown to the stem's head because the
-        # two met in a notch. The owner's own drawing makes the bridge
-        # redundant and worse than redundant: his head reaches 210 units left,
-        # which carries it out PAST the crown, so the bridge's little stroke
-        # ran back under ink it no longer had to reach and folded on itself --
-        # a white sliver at the join, visible at 560 px. It is drawn only when
-        # the head stops short of the crown.
-        crown = max(cpts, key=lambda q: q[1])
-        parts = [bowl_, stem, head, tail]
-        if xs - sw / 2 - A_HEAD_R * u > crown[0]:
-            br = catmull([(crown[0] - 30 * u, crown[1] + 34 * u),
-                          (crown[0] + 40 * u, crown[1] + 30 * u),
-                          (xs - sw * 0.5 - 6 * u, xh + A_ASC * u - 20 * u),
-                          (xs, xh + A_ASC * u - 26 * u)], tension=0.5)
-            parts.append(stroke(br, widths([(0.0, 26 * u), (0.5, 40 * u), (1.0, 62 * u)])))
-        return geom.ink(parts, [ctr])
+        return geom.ink([geom.poly(outer).buffer(0), one], [ctr])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
