@@ -4483,20 +4483,84 @@ if ON:
     # its lean; a centred vertex reads as a symmetrical W upside down.
     CAP_M_VTX = float(os.environ.get("ALBO_ALD_CAP_M_V", 0.52))     # the vertex, x the width
 
+    # ROUND 145 -- ALL FOUR OF THE M'S OWN TERMINALS ARE SERVED, AND TWO OF
+    # THEM WERE NOT. Owner 2026-09-16: *"these capitals need serifs: X heavy on
+    # light strokes, M, W."* Round 135's M claimed in its own docstring that
+    # "the two OUTER ones take the family's diagonal end wedge at the cap line
+    # and a flat foot on the baseline". Measured on the shipped build at a
+    # 1000-unit cap, with the 13-degree shear taken out (a shear maps a
+    # horizontal run to a horizontal run of the same length, so the runs below
+    # need no unshearing at all):
+    #
+    #                       run at the terminal   bare stroke   reach, and which way
+    #     left  cap line      77 and falling         138        NONE -- a bare point
+    #     left  baseline     164                     101        the A's flat foot
+    #     right cap line     167                     119        50 INWARD -- wrong side
+    #     right baseline      52 and falling         104        NONE -- a bare point
+    #
+    # So two of the four ended in a taper, and the one wedge that was there
+    # pointed the wrong way. `serif0=1` on a stroke drawn rt->rb puts the blade
+    # on the same side as `a_V`'s `serif0=1` does on ITS down-right stroke --
+    # which is outward for a V's left arm and INWARD for an M's right stem,
+    # where it lands on top of the inner diagonal arriving at the same point.
+    #
+    # WHAT THE REFERENCES DO AT THESE FOUR PLACES, measured the same way (units
+    # of a 1000-unit cap; "reach" is past the bare stroke's own edge):
+    #
+    #                    cap line, left   cap line, right   baseline feet
+    #     Poetica        142 out, 0 in    136 out, 0 in     two-sided slabs
+    #     Pagella        149 out, 0 in    112 out, 0 in     two-sided slabs
+    #     Flanker        130 out, 0 in    130 out, 0 in     two-sided slabs
+    #
+    # All three agree on the cap line and they agree with the roman: ONE-SIDED,
+    # OUTWARD. The inner diagonal owns the inward side of that junction and a
+    # wedge there is a serif on a join. At the FEET all three go two-sided,
+    # and the family does not -- `a_A`'s right leg finishes its baseline with
+    # one outward blade and nothing inward, and round 134's ruling is that
+    # where the reference italics disagree with the roman the roman wins. So
+    # the right foot takes `serif1=1`, which is `a_A`'s right leg word for
+    # word, and the left foot keeps the flat foot it already had.
+    #
+    # The inner vertex stays bare, which is not an omission: Poetica's middle
+    # run measures 18.6 units at 0.02 cap and nothing at 0.005, Pagella's 70.3
+    # falling to 58.2, Flanker's 74.4 falling to 55.6 -- all three taper it to
+    # a point, and so does this one (68.4 falling to 53.8).
     @glyph('M')
     def a_M(c):
-        """Four strokes. The two OUTER ones take the family's diagonal end
-        wedge at the cap line and a flat foot on the baseline; the two inner
-        ones meet at the vertex bare, which is what `a_V` does at the same
-        junction and for the same reason -- two strokes closing on each other
-        need no terminal between them."""
+        """Four strokes, and all four of the letter's own terminals served:
+        the two OUTER strokes take the family's diagonal end wedge OUTWARD at
+        the cap line, the left one the A's flat foot on the baseline and the
+        right one the A's outward blade there. The two inner strokes meet at
+        the vertex bare, which is what `a_V` does at the same junction and for
+        the same reason -- two strokes closing on each other need no terminal
+        between them.
+
+        THE LEFT STROKE IS DRAWN HERE rather than through `_flat_foot_diag`,
+        and that is the one structural change. The helper serves the foot and
+        TAPERS the other end (`ends=(False, True)`), which is right for the A,
+        whose apex is a join; round 134's rule is that a served end does not
+        also taper, because a bracket seated on a needle reads as a crossbar
+        stuck on a point. Everything else is the helper's body unchanged, so
+        the foot is still a level end face with the family's wedge growing
+        horizontally out of the leg's left edge and its tip ON the baseline."""
         C = c["cap"]; x0 = CS * 0.5; w = CAP_M_W * C
         sp = CS * CAP_M_SPLAY
         lt = (x0 + sp, C); lb = (x0, 0)
         rt = (x0 + w - sp, C); rb = (x0 + w, 0)
         vtx = (x0 + w * CAP_M_VTX, 0)
-        left = _flat_foot_diag(lb, lt, CAP_M_OUT)
-        right = cdiag(rt, rb, CAP_M_OUT, serif0=1)
+        lp = catmull([lb, ((lb[0] + lt[0]) / 2, (lb[1] + lt[1]) / 2), lt], tension=0.5)
+        lws = nib_widths(lp, CS * CAP_M_OUT / S, CS * CAP_M_OUT * 0.30 / S,
+                         CAP_CON, taper=False)
+        lwf = widths([(i / (len(lws) - 1), S * v) for i, v in enumerate(lws)])
+        ltn = geom.tangents(lp)[0]
+        lsolid, lLz, lRz = stroke(lp, lwf, cut0=math.atan2(-ltn[0], ltn[1]), sides=True)
+        left = geom.union([lsolid,
+                           _wedge(lLz[0], (0, -1), (-1, 0),
+                                  WL * 0.9 * CAP_SERIF_FULL,
+                                  WD * 0.9 * CAP_SERIF_TRAIL * CAP_SERIF_FULL,
+                                  0.0, edge_at=_edge_back(lLz[::-1])),
+                           _cap_end_wedge(lp, lwf(1.0), False, 1)])
+        right = cdiag(rt, rb, CAP_M_OUT, serif0=-1, serif1=1)
         d1 = cdiag(lt, vtx, CAP_M_DIAG)
         d2 = cdiag(rt, vtx, CAP_M_DIAG)
         return geom.ink([left, d1, d2, right])
@@ -5047,6 +5111,273 @@ if ON:
         parts.append(stroke(q_, af))
         parts.append(_end_wedge(q_, af(1.0), False, -1))
         return geom.ink(parts)
+
+
+# ============================================ ROUND 145: THE X AND THE W
+# Owner 2026-09-16: *"these capitals need serifs: X heavy on light strokes,
+# M, W."* The M is re-cut above and its half of the round is there. These two
+# were not re-cut at all -- they came from `caps_straight.g_X` / `g_W` through
+# the build's shear and 5% narrowing -- so they wore the ROMAN's undoubled
+# blade while A G H K L M N O P Q R S U V Y Z wore the doubled one that
+# `CAP_SERIF_FULL` 2 shipped on 2026-09-16. This block is its own `if ON:` at
+# the foot of the file for the reason the O/Y block gives: two passes at the
+# capitals should not meet in one hunk. It defines no helper and redefines no
+# dial.
+#
+# HOW BIG THE GAP WAS, measured rather than asserted. Rendered at a 1000-unit
+# cap and read as horizontal ink runs with the 13-degree shear taken out (a
+# shear maps a horizontal run to a horizontal run of the same length, so the
+# numbers need no unshearing), "reach" being the widest run over the terminal
+# minus the bare stroke's own run well clear of the bracket:
+#
+#                       bare   before   reach      after   reach
+#     X thick top      122.2    154.1     30.5     195.2    73.0
+#     X thin  top       54.4     95.1     38.7     149.7    95.3
+#     X thin  foot      56.4     93.9     37.5     148.2    91.8
+#     X thick foot     121.5    149.1     25.5     188.4    66.9
+#     W down-stroke    108.4    140.2     33.4     164.6    56.2
+#     W up-stroke       64.4     85.9     23.5     122.4    58.0
+#
+# THE FAMILY'S OWN BLADE IS 74.9, AND THE 101.1 IT LOOKS LIKE IS AN ARTEFACT.
+# `a_V`'s top terminal measures 208.3 over a bare 107.2 -- but FIT gives the V
+# a WIDTH of 1.350, which scales the finished outline horizontally, blades and
+# all, so 101.1 / 1.35 = 74.9 is the blade this family actually cuts. The X's
+# thick top now measures 73.0 and its foot 66.9, which is that blade to within
+# the hand cut's own wobble. This is worth writing down because the naive
+# comparison says the X is 28% short of the V and it is not short at all; the
+# same trap is waiting for anyone who measures the A (width 1.350 too).
+#
+# IT IS STILL HALF THE REFERENCES', AND THAT IS A FAMILY QUESTION AND NOT
+# THIS ROUND'S. Poetica's X reaches 222.9-272.3, Pagella's 241.7-263.5,
+# Flanker's 224.2-258.5 -- three times what Albo cuts -- and all three are
+# TWO-SIDED where Albo's are one-sided outward. `a_V` is exactly as far off
+# them on both counts, and so are `a_A`'s feet: it is the size and sidedness of
+# the whole doubled family, decided by the owner on 2026-09-16 ("yes to SFULL
+# 2") after seeing it, and moving it for three letters would make these three
+# the odd ones out instead. Recorded so the next pass does not re-measure it.
+#
+# "HEAVY ON LIGHT STROKES" -- WHAT THE REFERENCES ACTUALLY SAY, because the
+# instruction is checkable and the check does not simply confirm it. Each
+# reference X's serif reach on the THIN diagonal against the same reach on the
+# THICK one:
+#
+#                    top     foot
+#     Poetica        1.22    1.03
+#     Pagella        0.94    1.03
+#     Flanker        1.00    1.00
+#
+# The absolute reach is the SAME on both diagonals to within a few per cent in
+# five of those six pairs. A slab serif is a fixed length, which is round 135's
+# own finding arriving from the other side ("a slab serif is a fixed length,
+# not a multiple of the stem") -- and Albo's wedge is already fixed, since
+# `_cap_end_wedge` takes WL/WD/DROP and never the stroke's width. So the naive
+# reading of the instruction -- make the light stroke's blade absolutely bigger
+# -- is supported by exactly one measurement out of six, Poetica's top pair.
+#
+# WHAT IS SUPPORTED, by all three and by a wide margin, is the instruction's
+# EFFECT. A fixed blade on a stroke half the width is twice the event:
+#
+#                    reach / its own stroke      thick      thin
+#     Poetica                                     1.66      3.25
+#     Pagella                                     2.05      2.71
+#     Flanker                                     1.50      2.96
+#
+# 1.4x to 2.0x more serif per unit of stroke on the light diagonal, in every
+# reference. That is what "heavy on light strokes" looks like on a page, and
+# the mechanism is the fixed length rather than a bigger blade. `CAP_X_THIN`
+# is therefore SMALL -- 1.25 -- and not the 2x that reading the instruction
+# literally and skipping the measurement would have produced. It is a dial, so
+# the literal reading is one env var away.
+#
+# WHAT IT RENDERS, which is not the dial: reach on the thin over reach on the
+# thick comes out 1.30 at the cap line and 1.37 at the baseline, against the
+# dial's 1.25, because the two diagonals meet a horizontal scanline at
+# different angles and the geometry adds to the dial. Poetica, the one
+# reference that puts more blade on the light stroke, reads 1.22 and 1.03. So
+# this sits a little past the only measurement that supports it and a long way
+# short of a literal doubling. The relation the eye actually reads -- blade
+# against its OWN stroke -- comes out 0.60 on the thick and 1.75 on the thin,
+# both below the references (1.50-2.05 and 2.71-3.25) by the same factor of
+# about two-and-a-half, which is the family's half-size blade and not this
+# dial. What the instruction asked for is the RATIO between those two, and it
+# comes out 2.9 against the references' 1.3 to 2.0 -- past all three, because
+# the X's own contrast is steeper than theirs (0.454 against 0.508-0.708) and
+# a fixed blade on a thinner hairline is a bigger event for free. Reported
+# rather than tuned back: the instruction was "heavy on light strokes", the
+# arm that obeys it least is `ALBO_ALD_CAP_X_THIN=1.0`, and the owner has the
+# render.
+#
+# THE SIDES. All three references give the X two-sided slabs at all four
+# terminals (Flanker: 140 out, 84 in). The family does not, and the roman does
+# not: `a_V`'s tops and `a_A`'s feet are one-sided outward blades, and round
+# 134's ruling is that where the reference italics disagree with the roman on a
+# terminal the roman wins, because following them would make these letters the
+# odd ones out a second time in the other direction. One-sided outward, as the
+# roman's own `serif0=1 / serif1=1` and `serif0=-1 / serif1=-1` already said.
+#
+# THE W'S FEET AND THE W'S APEX TAKE NOTHING, and both are measurements rather
+# than omissions. Every reference W tapers its two baseline vertices to a point
+# -- Poetica 140.5 units of run at 0.10 cap falling to 58.2 at 0.005, Pagella
+# 125.0 to 79.3, Flanker 145.0 to 157.9 through a merge and then down -- and
+# none of them puts a terminal there. The apex keeps the roman's CROWN at
+# `W_CROWN` exactly, imported rather than copied so it cannot drift: it is the
+# owner's own 2026-09-13 ruling ("lower and reduce the protuberance of the top
+# middle connector in W"), and doubling it with the serifs would reverse that
+# ruling by the back door. Poetica's and Flanker's W's have four separate cap
+# terminals where this one has a pointed apex, so their middle pair has no
+# counterpart here at all; Pagella's W is built as this one is and its apex
+# carries nothing.
+#
+# WHAT IT COSTS BESIDES THE SERIFS, stated because it is not nothing. A re-cut
+# leaves `build.solve_widths` behind -- these capitals never consume `c["W"]`,
+# so the 5% italic narrowing that shaped the sheared X and W no longer reaches
+# them and the drawn width has to carry it. `CAP_X_W` and `CAP_VV_W` are
+# therefore solved off the SHIPPED letters: the stroke centres of the build
+# this round started from, read at 0.20 and 0.80 cap and extrapolated to the
+# cap line and the baseline, give the X 0.688 C of horizontal travel per
+# diagonal and the W a width of 1.375 C (its apex at 0.5 w and its feet at
+# 0.26 / 0.74 w reproduce to within a unit). The letters therefore stand where
+# they stood -- but their ADVANCES do not, because the bearing solver measures
+# ink and a blade is ink: X 710 -> 738, M 856 -> 898, W 941 -> 982, about 4%
+# each. Round 134's eight moved by the same kind of step when they were served
+# (its own table: H 0.910 -> 0.992 of its roman, N 0.916 -> 1.000), so this is
+# the serifs earning their width and not a spacing slip. The round-137 bearing
+# deltas (`CAP_BEARING_ADJ`, the owner's own hand on the bench) are untouched
+# and still apply on top of it.
+#
+# THE CONTRAST DOES NOT MOVE, AND THAT COST A BUILD TO ESTABLISH. The roman
+# gives the X's second diagonal and the W's two up-strokes an extra 0.72 by
+# hand (`caps_straight.pw`'s `mult`) on top of the pen's own angle-dependent
+# width. Round 131c's ruling forbids that in this module -- "a per-stroke
+# multiplier that differs between them is the pen's own contrast being
+# overwritten by hand" -- so the first cut of these two letters took ONE
+# multiplier each and let the nib make the relation, exactly as `a_V` does.
+# Built and measured, thin over thick as horizontal ink runs:
+#
+#                      shipped   one multiplier   Flanker  Poetica  Pagella
+#     X                 0.456        0.406         0.508    0.622    0.708
+#     W                 0.585        0.643         0.499    0.519    0.600
+#
+# The X came out LIGHTER in its hairline, not heavier, and further outside the
+# references' range than the letter it replaced. The reason is that round 131c
+# was solved on a V, and a V is not an X: `a_V`'s two strokes leave its apex at
+# about 18 degrees off vertical, while an X's cross at 34.5, and the nib's
+# ratio at those two pairs of angles is 0.64 and 0.41. The ruling's own
+# argument -- that the nib knows the relation -- therefore does not carry from
+# one letter to the other, and applying it here would have thinned the hairline
+# in a round whose whole subject is making these letters' terminals visible.
+#
+# So both letters keep the weights they ship with, to the unit, and each has a
+# second dial for its light arms. That is a departure from round 131c and it is
+# recorded as one: it is NOT the inversion that ruling was written against (a
+# hand making the pen's heaviest stroke its lightest), it is the roman's own
+# convention preserved, and it keeps this round to the terminals the owner
+# named. `CAP_X_THIN_W` 1.0 and `CAP_VV_THIN_W` 1.0 are the single-multiplier
+# arm, one env var away.
+if ON:
+    # The crown's two numbers are IMPORTED, not copied, for the same reason
+    # `CAP_BEAK_CUT` is: they are the owner's 2026-09-13 ruling on the roman W
+    # and a second copy here would drift the moment that ruling moves again.
+    from .caps_straight import (W_CROWN as CAP_VV_CROWN,
+                                W_CROWN_DROP as CAP_VV_CROWN_DROP)
+
+    # The W's dials cannot take a `CAP_W_` prefix -- `CAP_W` and `CAP_W_ROUND`
+    # are the PEN's thicks and have been since round 131 -- so the letter's own
+    # dials are `CAP_VV_`, the W being a double V.
+    CAP_X_W = float(os.environ.get("ALBO_ALD_CAP_X_W", 0.688))    # each diagonal's horizontal travel, x C
+    # 0.879 and 1.153 are SOLVED, not chosen, and they answer to the GATE
+    # rather than to a ruler. A build at 0.700 flat rendered the thick at 98.7
+    # units of a 1000-cap horizontal run and the thin at 40.4, and `nib_widths`
+    # is linear in this dial, so 0.877 / 1.115 put the pair on the shipped
+    # letter's 123.6 and 56.4 -- and cmp_cap_weight then read +0.012 against
+    # the roman X where the letter this replaced read +0.015. 0.891 lands the
+    # thick dead on 123.6 and costs +0.033. These two split it: the thick
+    # renders 1.4% under the shipped stroke, which is inside the hand cut's own
+    # wobble, and the gate reads what the shipped letter read. What it renders:
+    # 121.9 and 55.4, ratio 0.454 against the shipped letter's 0.456.
+    # It is a SCALE and not a FIT weight, for the reason `O_INK` and `Y_INK`
+    # give: FIT's weight column is an outline BUFFER that moves every edge by
+    # a constant, so it takes the same units off a hairline as off a stem and
+    # drags the letter's contrast up on the way to its weight. Scaling the
+    # stroke holds the ratio exactly.
+    CAP_X_DIAG = float(os.environ.get("ALBO_ALD_CAP_X_D", 0.879))  # the heavy diagonal's weight, x CS
+    CAP_X_THIN_W = float(os.environ.get("ALBO_ALD_CAP_X_TW", 1.153))  # the light diagonal's, x CAP_X_DIAG
+    CAP_X_THIN = float(os.environ.get("ALBO_ALD_CAP_X_THIN", 1.25))  # the light diagonal's blades, x the family's
+
+    @glyph('X')
+    def a_X(c):
+        """Two diagonals crossing, the roman's own construction: the THICK one
+        from the cap line at the left down to the baseline at the right, the
+        THIN one the other way. Four terminals, four one-sided outward blades,
+        and the thin diagonal's two at `CAP_X_THIN` of the family's.
+
+        The thin stroke is drawn here instead of through `cdiag` for one
+        reason: `cdiag` seats `_cap_end_wedge` at the family's own
+        `CAP_SERIF_FULL` and offers no way past it, and this round's whole
+        instruction is that these two blades are not that size. Everything
+        else is `cdiag`'s body word for word, so the `+1/-1` side convention
+        is the roman's unchanged and a served end neither tapers nor keeps a
+        pen cut behind the wedge's face."""
+        C = c["cap"]; x0 = CS * 0.5; dx = CAP_X_W * C
+        p0, p1 = (x0, C), (x0 + dx, 0)
+        q0, q1 = (x0 + dx, C), (x0, 0)
+        qp = catmull([q0, ((q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2), q1], tension=0.5)
+        qw = CAP_X_DIAG * CAP_X_THIN_W
+        qws = nib_widths(qp, CS * qw / S, CS * qw * 0.30 / S,
+                         CAP_CON, taper=False)
+        qwf = widths([(i / (len(qws) - 1), S * v) for i, v in enumerate(qws)])
+        k = CAP_SERIF_FULL * CAP_X_THIN
+        return geom.ink([cdiag(p0, p1, CAP_X_DIAG, serif0=1, serif1=1),
+                         stroke(qp, qwf),
+                         _cap_end_wedge(qp, qwf(0.0), True, -1, k=k),
+                         _cap_end_wedge(qp, qwf(1.0), False, -1, k=k)])
+
+    CAP_VV_W = float(os.environ.get("ALBO_ALD_CAP_VV_W", 1.375))   # the letter's width, x C
+    # 0.985 and 0.909 solved the same way and from the same build: at 0.640
+    # flat the down-strokes rendered 71.8 units of a 1000-cap horizontal run
+    # and the up-strokes 46.2, against the shipped letter's 107.35 and 62.75,
+    # which is 0.957 / 0.909. The extra 2.9% on top of that is the SERIFS
+    # being paid for: 2 x area / outline length is what the gate measures, a
+    # blade adds more outline than it adds area, and at 0.957 the re-cut W read
+    # -0.040 against its roman where the sheared W it replaces read -0.015.
+    # 0.985 puts it back on -0.013. Both arms are scaled together so the
+    # letter's own contrast does not move; see the X's note for why this is a
+    # scale and not a FIT weight. What it renders: 108.6 and 64.5, which is
+    # +1.2% and +2.8% on the shipped letter, ratio 0.594 against its 0.585.
+    CAP_VV_DIAG = float(os.environ.get("ALBO_ALD_CAP_VV_D", 0.985))  # the down-strokes' weight, x CS
+    CAP_VV_THIN_W = float(os.environ.get("ALBO_ALD_CAP_VV_TW", 0.909))  # the up-strokes', x CAP_VV_DIAG
+
+    @glyph('W')
+    def a_W(c):
+        """Four arms and a crown, `g_W`'s own construction: two down-strokes
+        landing at 0.26 and 0.74 of the width, two up-strokes leaving a
+        sixth of a cap stem to their right, and the crown hanging under the
+        apex where the middle pair meet.
+
+        ONLY THE TWO OUTER TOPS ARE SERVED. The inner pair end at the apex,
+        which the crown finishes; the two baseline vertices are junctions where
+        two strokes close on each other, and all three references taper theirs
+        to a point. `serif0=1` on the left arm and `serif0=-1` on the right are
+        `g_W`'s own, and they reach outward."""
+        C = c["cap"]; w = CAP_VV_W * C; s = CS; ox = CS * 0.2
+        f1, f2 = (ox + w * 0.26, 0), (ox + w * 0.74, 0)
+        apex = (ox + w * 0.5, C)
+        up = CAP_VV_DIAG * CAP_VV_THIN_W
+        a = cdiag((ox + s * 0.3, C), f1, CAP_VV_DIAG, serif0=1)
+        b = cdiag(apex, (f1[0] + s * 0.15, 0), up)
+        d = cdiag(apex, f2, CAP_VV_DIAG)
+        e = cdiag((ox + w - s * 0.3, C), (f2[0] + s * 0.15, 0), up, serif0=-1)
+        # the crown, `g_W`'s to the unit. `pw` cannot be used for its offset
+        # here -- these arms are drawn on the nib and `pw` is the roman's pen
+        # width for a straight line -- so the b arm's own width at the apex
+        # stands in for it, which is the quantity the roman was asking for.
+        bw = nib_widths(catmull([apex, ((apex[0] + f1[0] + s * 0.15) / 2, C / 2),
+                                 (f1[0] + s * 0.15, 0)], tension=0.5),
+                        CS * up / S, CS * up * 0.30 / S,
+                        CAP_CON, taper=False)[0] * S
+        crown = _wedge((apex[0] - bw * 0.35, C - DROP * (CAP_VV_CROWN_DROP - 1.0)),
+                       (0, 1), (-1, 0), WL * CAP_VV_CROWN, WD * CAP_VV_CROWN, DROP)
+        return geom.ink([a, b, d, e, crown])
 
 
 # ROUND 137 -- THE CAPITALS' SPACING, HIS. Set live on the bench
