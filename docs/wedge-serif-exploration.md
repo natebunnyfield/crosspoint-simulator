@@ -5625,3 +5625,18 @@ it. This is the one place a chancery reference is allowed to move the text
 lowercase, by his call; the f and j descenders keep the metal's extent.
 Checked for collisions at 27 and 54 px on *many quickly by day yes gravity
 company yellow* — none, against Flanker and Poetica set the same.
+
+##### RULING 2026-09-16 — the o takes the reference's ring, and the ledger follows
+
+Owner: **the reference; retarget the ledger.** `O_THICK` 1.44 → 1.08, and the
+ledger row moves from the scan's 0.617 to the 1.034 that produces. The scan's
+number is the printed page's INK SPREAD closing the counter, not the punch;
+holding it put 104 units of ring on a letter whose reference draws 66–71 and
+made the o the darkest thing in any line. Measured after: the o's mean ink
+width is **0.91 of the n's, against Flanker's own 0.90**. The w/h target is
+untouched — the scan's proportion was never the disputed number.
+
+This is the second ledger row this round to move from a printed measurement to
+the reference vector (the `a`'s counter was the first). **The pattern is worth
+naming: a scan crop measures the page, and a page is the punch plus the ink it
+spread.** Proportion survives that; area does not.

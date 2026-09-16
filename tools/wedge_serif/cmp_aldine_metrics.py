@@ -36,7 +36,13 @@ TARGETS = {
     'a': (0.844, 0.945, 'ref',    0.83, "Flanker Griffo Italic a (the crop's 0.344 is an ink-spread artifact)"),
     'e': (0.203, None,  'C 5.00', 1.12, 'griffo-macro.png, "naues", 54px xh'),
     'i': (None,  None,  'D 9.26', 0.64, 'griffo-macro.png, "rodigium"'),
-    'o': (0.617, 0.759, 'D 9.26', 1.63, 'griffo-macro.png, "udos", 54px xh'),
+    # ROUND 132 RULING: the o's counter target follows its weight to the
+    # reference (owner 2026-09-16). 0.617 is what the PRINTED page measures --
+    # ink spread closing the counter -- and holding it made the o's ring 104
+    # units against the reference's 66-71. The o now measures 0.91 of the n's
+    # mean ink width, where Flanker measures 0.90. The w/h is unchanged: the
+    # scan's proportion was never the disputed number.
+    'o': (1.034, 0.759, 'ref',    1.08, "Flanker's ring weight (the scan's 0.617 is the page's ink spread)"),
     'u': (None,  None,  'D 9.26', 0.64, 'pitch 0.52 xh from three stem pairs'),
     'y': (None,  None,  'D 9.26', 0.64, 'DERIVED - no y in any scan we hold'),
 }

@@ -787,7 +787,14 @@ if ON:
     O_W = float(os.environ.get("ALBO_ALD_O_W", 0.76))          # width, x xh
     O_K = float(os.environ.get("ALBO_ALD_O_K", 1.72))          # squareness; 1.6-1.7 off the scan's row widths
     O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 25.0))      # the nib's angle, degrees
-    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.44))  # x S, at the pen's fullest
+    # RULED 2026-09-16: the o takes the REFERENCE's ring weight, and the
+    # ledger row moves with it. The scan's counter/ink of 0.617 is the printed
+    # page's INK SPREAD, not the punch -- holding it put 104 units of ring on
+    # a letter whose reference draws 66-71, and the o was the darkest thing in
+    # any line. At 1.08 the o's mean ink width is 0.91 of the n's, against
+    # Flanker's own 0.90 -- the letter now sits with its neighbours instead of
+    # anchoring the page.
+    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.08))  # x S, at the pen's fullest
     O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.590))    # x S, across the nib
 
     @glyph('o')
