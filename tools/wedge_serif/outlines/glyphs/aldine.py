@@ -1713,17 +1713,56 @@ if ON:
     # rather than `nib_widths` because a ring has no ends: the open version
     # clamps its neighbour lookup at the first and last sample and leaves a
     # seam in the width where the contour closes.
+    def _hand_at(keys, ang, idx):
+        """One column of a HAND table, interpolated periodically and smoothly
+        round the ring. `keys` are (degrees, dr, dw) in units; `idx` 1 picks
+        the radial column and 2 the width's."""
+        if not keys:
+            return 0.0
+        ks = sorted((math.radians(d) % (2 * math.pi), row[idx - 1])
+                    for d, *row in keys)
+        ang %= 2 * math.pi
+        for (a0, v0), (a1, v1) in zip(ks, ks[1:] + [(ks[0][0] + 2 * math.pi, ks[0][1])]):
+            if a0 <= ang <= a1:
+                u = (ang - a0) / (a1 - a0) if a1 > a0 else 0.0
+                return v0 + (v1 - v0) * (0.5 - 0.5 * math.cos(math.pi * u))
+        a0, v0 = ks[-1]; a1, v1 = ks[0][0] + 2 * math.pi, ks[0][1]
+        if ang < ks[0][0]: ang += 2 * math.pi
+        u = (ang - a0) / (a1 - a0) if a1 > a0 else 0.0
+        return v0 + (v1 - v0) * (0.5 - 0.5 * math.cos(math.pi * u))
+
     def nib_ring(cx, cy, rx, ry, k=None, unit=1.0, smooth_w=2, floor=0.0,
-                 thick=None, thin_f=0.30, target=None, phi=50.0):
-        """A closed bowl carrying the G's own pen. Returns (solid, outer, inner)."""
+                 thick=None, thin_f=0.30, target=None, phi=50.0, hand=None):
+        """A closed bowl carrying the G's own pen. Returns (solid, outer, inner).
+
+        `hand` is an optional HAND-CUT table: (degrees, dr, dw) in design
+        units, interpolated smoothly round the ring, `dr` pushing the OUTER
+        contour out or in and `dw` thickening or thinning the stroke there. It
+        is a table and not a random jitter on purpose -- `life()` re-rolls per
+        build and a defect that moves is not a cut, it is noise."""
         k = BOWL_K if k is None else k
         thick = CS * CAP_W_ROUND if thick is None else thick
         target = CAP_CON if target is None else target
         outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
+        if hand:
+            warped = []
+            for x, y in outer:
+                ang = math.atan2((y - cy) / ry, (x - cx) / rx)
+                dr = _hand_at(hand, ang, 1)
+                nx, ny = (x - cx), (y - cy)
+                L = math.hypot(nx, ny) or 1.0
+                warped.append((x + nx / L * dr, y + ny / L * dr))
+            outer = geom.smooth(warped, 2, closed=True)
         # replicate ring_from's resampling so the widths line up with its points
         pts = geom.resample(outer + [outer[0]])[:-1]; n = len(pts)
-        ws = [max(w * unit, floor)
-              for w in nib_widths_closed(pts, thick, thick * thin_f, target, phi)]
+        ws = nib_widths_closed(pts, thick, thick * thin_f, target, phi)
+        out = []
+        for (x, y), w in zip(pts, ws):
+            v = w * unit
+            if hand:
+                v += _hand_at(hand, math.atan2((y - cy) / ry, (x - cx) / rx), 2)
+            out.append(max(v, floor))
+        ws = out
         return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                             smooth_w=smooth_w)
 
@@ -3802,6 +3841,40 @@ if ON:
     CAP_Q_RX = float(os.environ.get("ALBO_ALD_CAP_Q_RX", 0.41))   # the ring's x radius, x C (was 0.35)
     Q_AXIS = os.environ.get("ALBO_ALD_Q_AXIS", "nib").lower()   # 'bowl' = the pre-150 family profile
     Q_INK = float(os.environ.get("ALBO_ALD_Q_INK", 1.13))       # x the nib's widths
+    # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
+    # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
+    # every quadrant is the same quadrant and the only thing that varies round
+    # the ring is the pen's own angle. A punchcutter's Q is not that.
+    #
+    # SIX DELIBERATE CUTS, as (degrees ccw from the right, radial push in
+    # units, stroke thickening in units). They are a TABLE and not `life()`'s
+    # jitter, and the difference is the point: `life` re-rolls per build, and a
+    # defect that moves from one build to the next is noise rather than a cut.
+    # Read them as the tool's own history round the bowl --
+    #
+    #    60   the upper right is where the graver lifts: the ring pulls in 5
+    #         and the stroke thins 4, so the letter's lightest quarter is
+    #         lighter than the pen alone would make it.
+    #   105   and immediately past it the top is a little full, +4 -- the
+    #         over-correction that follows a lift.
+    #   150   a FLAT on the upper left, -6: the longest straight the cutter
+    #         took, and the one deviation big enough to read at text size.
+    #   225   the lower left flank is the heaviest press, +4 radial and +5 on
+    #         the stroke; this is the quarter the nib's own thick already
+    #         falls in, so the two agree rather than fight.
+    #   285   the bottom pulls in 3, which is what keeps the ring from
+    #         reading as a circle once 225 has been pushed out.
+    #   340   a second, shorter flat at the lower right, -4, where the tail
+    #         will leave -- the cutter squaring the ground for the join.
+    #
+    # Everything is 3 to 6 units on a ring whose stroke runs 62 to 115, so the
+    # biggest is a twentieth of the letter's own width. At 13 pt none of it is
+    # a feature; what it does is stop the four quadrants being the same
+    # quadrant, which is the whole complaint.
+    Q_HAND = [(60, -5.0, -4.0), (105, 4.0, 0.0), (150, -6.0, 2.0),
+              (225, 4.0, 5.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
+    if os.environ.get("ALBO_ALD_Q_HAND") == "0":
+        Q_HAND = None
 
     @glyph('Q')
     def a_Q(c):
@@ -3819,7 +3892,8 @@ if ON:
         # bowl profile, which measured 1.43:1 with its thick at 15/195: beside
         # a G at 2.20:1 on 50/230 the Q read as a different letter's O.
         ring_ = (ring(cx, C / 2, rx, ry, floor=S * FLOOR)[0] if Q_AXIS == 'bowl'
-                 else nib_ring(cx, C / 2, rx, ry, unit=Q_INK, floor=S * FLOOR)[0])
+                 else nib_ring(cx, C / 2, rx, ry, unit=Q_INK, floor=S * FLOOR,
+                                    hand=Q_HAND)[0])
         if CAP_Q_REF == 'poetica':
             # Poetica leaves the ring at five o'clock and runs out and down in
             # one shortening sweep.
@@ -4484,6 +4558,25 @@ if ON:
     #   THE ADVANCE  CAP_BEARING_ADJ['K'] is the owner's own bench number.
     K_ARM_EDGE = int(os.environ.get("ALBO_ALD_K_AEDGE", 0))
     CAP_K_W = float(os.environ.get("ALBO_ALD_CAP_K_W", 0.76))   # every traced width x this
+    # ROUND 151 -- THE ARM'S CAP TERMINAL. Owner 2026-09-16: *"top right serif
+    # of K needs to be visually heavier and reinforce top line"*. Two separate
+    # things, and the second is the one the family's wedge cannot do on its own:
+    # `_cap_end_wedge` lays its blade along the stroke's OWN direction, so on an
+    # arm arriving at 47 degrees the serif runs diagonally up-right and adds
+    # nothing to the cap line. The reference's arm finishes in a FLAG lying flat
+    # on the cap line -- 304 units of it, measured -- which is what defines the
+    # top of the word.
+    #   HEAVIER is the wedge scaled (all three of its dimensions, through `k`,
+    #   for the reason `_cap_end_wedge`'s own docstring gives: a `scale` passed
+    #   down `end_wedge` lengthens and deepens the blade and leaves its apex at
+    #   the old thickness, which is a longer sliver rather than a heavier serif).
+    #   REINFORCING THE TOP LINE is the flag: a short stroke running LEFT from
+    #   the arm's tip along the cap line, thickest where it meets the arm and
+    #   thinning to the pen's cut at its free end, which is the same shape the
+    #   A's apex flag already carries in this module.
+    CAP_K_ASER_L = float(os.environ.get("ALBO_ALD_CAP_K_ASER_L", 0.135))  # the slab's reach LEFT of the arm's tip, x C
+    CAP_K_ASER_R = float(os.environ.get("ALBO_ALD_CAP_K_ASER_R", 0.035))  # and right
+    CAP_K_ASER_T = float(os.environ.get("ALBO_ALD_CAP_K_ASER_T", 0.62))   # its thickness at the thickest, x S
     # THE ARM, traced, drawn from the CAP LINE DOWN INTO THE STEM:
     # (x from the stem's midline, height, perpendicular width), all x cap. The
     # first row carries the centerline to the cap line holding the width it had
@@ -4531,7 +4624,20 @@ if ON:
         ap, aw = _R_traced(CAP_K_ARM, x0, C, CAP_K_W)
         lp, lw = _R_traced(CAP_K_LEG, x0, C, CAP_K_W)
         asolid = stroke(ap, aw)
-        arm = geom.union([asolid, _cap_end_wedge(ap, aw(0.0), True, 1)])
+        # THE ARM'S CAP TERMINAL IS A SLAB, NOT A STACK OF WEDGES. See the note
+        # above CAP_K_ASER: both wedge arms left a hairline crack down the
+        # arm's left edge, because `_wedge` drops its root back along the
+        # stroke by DROP x k and a 36-unit arm has nothing there for a blade
+        # scaled past the family's unit to land on. A slab laid along the cap
+        # line is one polygon, unions with no seam, and is the thing the
+        # instruction actually asks for.
+        tx, ty = ap[0]
+        slab = stroke([(tx - C * CAP_K_ASER_L, ty - S * CAP_K_ASER_T * 0.5 - C * 0.004),
+                       (tx + C * CAP_K_ASER_R, ty - S * CAP_K_ASER_T * 0.5 + C * 0.006)],
+                      widths([(0.0, S * CAP_K_ASER_T * 0.74),
+                              (0.58, S * CAP_K_ASER_T),
+                              (1.0, S * CAP_K_ASER_T * 0.86)]), cut0=CUT, cut1=CUT)
+        arm = geom.union([asolid, slab])
         lsolid, Lz, Rz = stroke(lp, lw, sides=True)
         leg = geom.union([lsolid] + _stem_serifs(Lz, Rz, 'both', False))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
