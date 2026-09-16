@@ -391,6 +391,11 @@ if ON:
     I_STEM = float(os.environ.get("ALBO_ALD_I_STEM", 0.64))   # x S
     I_HEAD_LEN = float(os.environ.get("ALBO_ALD_I_HEAD", 1.60))  # x S
     I_FOOT = float(os.environ.get("ALBO_ALD_I_FOOT", 1.30))      # the exit, x S
+    # THESE THREE ARE RETIRED AND DRAW NOTHING (round 135). They were the
+    # j's copy of the dot; the j calls `ij_dot` now, so the live dials are
+    # HM_DOT_LEN / HM_DOT_TH / HM_DOT_CY. Kept named rather than deleted only
+    # because the prose above and in the j cites them -- setting one moves no
+    # ink, which is worth saying out loud where the next pass will look.
     I_DOT_Y = float(os.environ.get("ALBO_ALD_I_DOT_Y", 0.39))    # x xh, above the x-line
     I_DOT_W = float(os.environ.get("ALBO_ALD_I_DOT_W", 1.09))    # its long axis, x S
     I_DOT_T = float(os.environ.get("ALBO_ALD_I_DOT_T", 0.83))    # its thickness, x S
@@ -549,9 +554,33 @@ if ON:
     # its two end faces CROSS, `_unfold` drops the folded points, and what
     # rendered was a 45-unit triangle. Drawn as a rotated superellipse instead,
     # which at 84 x 44 on the 24-degree pen gives a 95 x 74 bounding box.
+    # ---------------------------------------------------------- ROUND 135
+    # THE DOT IS TWICE AS DEEP, AND IT IS CANCELLERESCA'S. Owner 2026-09-16:
+    # *"double the height of the dot on i and j to match the relative size of
+    # cancell."* Both halves of that sentence are true at one number, which is
+    # why this is the change rather than a compromise between them:
+    #
+    #   MEASURED, Cancelleresca Bastarda's i rendered at a 400 px x-height --
+    #   its dot is 76 x 81 px, so **0.190 xh wide by 0.203 xh tall**, aspect
+    #   0.94, and it is a DISC: the row runs grow 18 -> 76 -> 13 with the
+    #   widest rows in the middle and the center drifting only 6 px left over
+    #   81 rows. Not a teardrop, not a sliver -- one full touch of a round nib.
+    #   Albo's rendered 79 x 50 px, **0.125 xh tall**: a flat lozenge.
+    #   Doubling the SHORT AXIS (44 -> 88 units) turns the lozenge into that
+    #   disc and lands the rendered height on 0.204 xh against the reference's
+    #   0.203. The long axis is left at the 84 the scan measured, because the
+    #   owner asked about the dot's height and not its width; at 84 x 88 on the
+    #   24-degree pen, through the build's 13-degree shear, the rendered box is
+    #   86 x 87 units -- within 6% of Cancelleresca's on both axes.
+    #
+    # ITS HEIGHT ABOVE THE X-LINE IS THE REFERENCE'S TOO. Cancelleresca's dot
+    # floor stands 0.242 xh clear of the x-line and its center 1.343 xh above
+    # the baseline; at the old 1.400 center a dot this deep would have stood
+    # 0.298 clear, which is a dot drifting off its own stem. 1.343 puts the
+    # floor at 0.241.
     HM_DOT_LEN = _hm("DOT_LEN", 84.0)   # its long axis, units
-    HM_DOT_TH = _hm("DOT_TH", 44.0)     # its short axis, units
-    HM_DOT_CY = _hm("DOT_CY", 1.400)    # its center, x xh above the baseline
+    HM_DOT_TH = _hm("DOT_TH", 88.0)     # its short axis, units -- 2 x the 44 drawn to round 134
+    HM_DOT_CY = _hm("DOT_CY", 1.343)    # its center, x xh above the baseline (Cancelleresca's)
 
     def hm_u(c):
         return c["xh"] / HM_UNIT
@@ -639,17 +668,30 @@ if ON:
         return stroke(p, widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t),
                                  (0.60, t * 1.30), (0.80, t * 2.00), (1.00, sw)]))
 
+    def ij_dot(c, xc):
+        """THE DOT OF THE i AND THE j, drawn ONCE and called by both.
+
+        It was two drawings until round 135, and they had already drifted: the
+        i's was this rotated superellipse (rendered 79 x 50 px at a 400 px
+        x-height) while the j's was a `stroke` on I_DOT_W / I_DOT_T (88 x 76).
+        An i and a j on the same page have to wear the same dot -- the module
+        said so in the j's own comment and then drew a second one anyway -- so
+        the construction is a function now and the j calls it."""
+        xh = c["xh"]; u = hm_u(c)
+        return geom.poly(superellipse(xc, HM_DOT_CY * xh, HM_DOT_LEN * u / 2,
+                                      HM_DOT_TH * u / 2, 0.0, 2 * math.pi, 2.1,
+                                      rot=math.radians(HEAD_DEG)))
+
     @glyph('i')
     def a_i(c):
         """Stem, head, exit, dot. The scan's i is the family's cleanest single
         stroke, and the dot is one touch of the nib: 89 x 64 units on the scan
         (rows 1.35-1.45), 98 x 98 in Flanker, centered 1.40 x xh above the
-        baseline in both. Drawn 92 x 70 on the pen's own angle."""
+        baseline in both. Drawn 84 x 88 on the pen's own angle since round 135
+        -- Cancelleresca's disc, by the owner's ruling; see the dial block."""
         xh = c["xh"]; u = hm_u(c); x = S * 1.0
         parts = [hm_stem(c, x, 0, xh), hm_head(c, x, xh), hm_exit(c, x)]
-        parts.append(geom.poly(superellipse(x, HM_DOT_CY * xh, HM_DOT_LEN * u / 2,
-                                            HM_DOT_TH * u / 2, 0.0, 2 * math.pi, 2.1,
-                                            rot=math.radians(HEAD_DEG))))
+        parts.append(ij_dot(c, x))
         return geom.ink(parts)
 
     @glyph('l')
@@ -1083,6 +1125,60 @@ if ON:
     # having and will be worth having again.
     E_TOP = float(os.environ.get("ALBO_ALD_E_TOP", 0.96))      # the crown's apex, x xh
     E_SHOULDER = float(os.environ.get("ALBO_ALD_E_SHOULDER", 0.82))  # the eye's right shoulder, x xh
+    # ---------------------------------------------------------------- ROUND 135
+    # THE LETTER IS DRAWN IN A BAND, NOT FROM THE BASELINE. Owner 2026-09-16:
+    # *"bring e up above baseline."* Measured on the shipped font at a 400 px
+    # x-height, ink bottoms: **e -0.0925 xh** against the o's -0.0125, the c's
+    # -0.0150 and the n's -0.0175 -- the e hung seven times the round letters'
+    # overshoot below the line, and it was 1.10 xh of ink tall where the o is
+    # 1.008 and all three references' e's are 1.02-1.03 (Flanker -8 units,
+    # Poetica -14, Cancelleresca -13, every one of them topping at exactly
+    # 429). So the e was not sitting low, it was OVERSIZE, and translating it
+    # up would only move the fault to the crown -- 1.086 xh, a tenth of the
+    # band proud of the o on the same line.
+    #
+    # `f` is remapped into E_FLOOR..1.0 instead of 0..1.0. The bottom arc's
+    # centerline stands at E_FLOOR and its underside -- 40 units of half-width
+    # -- lands on the o's own overshoot; the crown is pinned, so nothing above
+    # the bar moves more than a thousandth of the band. The unshear reads the
+    # SAME remapped height, or the page's 13 degrees would be taken out at the
+    # wrong altitude, and `dirs` scales its dy by the band, or the nib would be
+    # asked for the width of a direction the stroke no longer travels in.
+    #
+    # MEASURED AFTER: ink bottom **-0.015 xh**, the c's own and within 0.003 of
+    # the o's, from -0.093; ink height 1.023 xh against the references' 1.02 to
+    # 1.03; IoU against the scan crop 0.663 -> 0.698 and against Poetica 0.510
+    # -> 0.553. IT COSTS COUNTER: the ledger row goes 0.194 -> 0.187 against a
+    # target of 0.203, so -4% becomes -8% inside a 10% gate. That is the
+    # compression, not a defect -- the eye's height is 7.8% of the band shorter
+    # because the letter is. E_EYE 0.49 -> 0.53 buys it all back (0.195) and is
+    # deliberately NOT taken: the ask was the baseline and the terminal, and
+    # E_EYE is a fitted shape dial. Whoever needs the margin knows where it is.
+    E_FLOOR = float(os.environ.get("ALBO_ALD_E_FLOOR", 0.078))   # the f=0 line, x xh
+    # THE LOWER TERMINAL IS BLUNT, NOT ANGULAR (the same ruling's second half).
+    # It ended in a 20-degree pen shear (`cut1=CUT`) laid across a stroke the
+    # nib was giving its THINNEST width -- the terminal runs at 49.6 degrees
+    # and the nib's own angle is 50, so `nib()` returned 0.27 x S there, the
+    # hair, and a sheared face on a hairline is a spike. Measured, the topmost
+    # row of each e's terminal: Albo 6 units, Poetica 17, Cancelleresca 23,
+    # Flanker 33. It was the finest of the four by a factor of three.
+    # Two changes: the end face is SQUARE rather than sheared (`cut1=None`),
+    # and the width is floored at E_END_W over the last E_END_T0 of the path so
+    # the face has something to be -- Poetica's 17 units is 0.25 x S, Flanker's
+    # 33 is 0.49, and 0.40 sits between them. Measured after, the terminal's
+    # top four rows: **15 / 26 / 37 / 43** units against Poetica's 17 / 26 / 32
+    # / 41 and the 6 / 14 / 23 / 32 this letter shipped with.
+    #
+    # A `PR.dot` CAP, the c's own round end, WAS TRIED AND IS NOT THIS. It
+    # rendered as a bead hung off a neck: `_unfold` drops the folded inner
+    # offset where a widening stroke turns, so the drawn ink stops ~12 units
+    # short of the path's last point, and a disc placed AT that point stands
+    # clear of it. `cs_round_end` exists for exactly that trap but wants a
+    # raw per-point width array, which this letter does not have -- it is
+    # drawn `pieces=True` because its centerline crosses itself. A square face
+    # on a 26-unit stroke is blunt, which is what was asked for.
+    E_END_W = float(os.environ.get("ALBO_ALD_E_END_W", 0.40))    # the terminal's width, x S
+    E_END_T0 = float(os.environ.get("ALBO_ALD_E_END_T0", 0.82))  # where the blunting starts, x the path
 
     # THE PAGE'S OWN SLANT. Whole-stem fits scatter badly -- chancery stems
     # curve, so one stroke gives 13 deg and its neighbour 4.7 -- but 52 sliding
@@ -1105,8 +1201,10 @@ if ON:
     def a_e(c):
         xh = c["xh"]; W = E_W * xh
         unshear = math.tan(math.radians(E_PAGE_SLANT)) * xh
-        X = lambda f, fy: S * 0.55 + f * W - unshear * fy
-        Y = lambda f: f * xh
+        band = 1.0 - E_FLOOR                     # round 135: the e's own band
+        YF = lambda f: E_FLOOR + f * band        # a y fraction -> its real height
+        X = lambda f, fy: S * 0.55 + f * W - unshear * YF(fy)
+        Y = lambda f: YF(f) * xh
         mid = 0.50
         E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its center
         # ROUND 133, against the macro's "naues" (owner: "match a and e to
@@ -1126,6 +1224,29 @@ if ON:
              (0.00, 0.38),   (0.06, 0.16),       # past its own start
              (0.26, 0.01),   (0.52, 0.00),       # the flat wide bottom
              (E_END, E_END_Y)]                   # and up into the aperture
+        # ROUND 135 -- THE MOVEMENT IS DRAWN FROM THE TERMINAL BACK TO THE BAR,
+        # and that one line is what makes the terminal blunt at all.
+        #
+        # WHY: `_unfold` DROPS the folded points of an offset, and this
+        # letter's inner offset folds twice -- measured, the eye's right
+        # shoulder has a curvature radius of 30 units under a 76-unit stroke
+        # and the crown's left 22 under 47, so (w/2)/R is 1.29 and 1.21 where
+        # 1.0 is the fold. Five of the 96 samples on the LEFT side are dropped,
+        # which leaves L five samples AHEAD of R for the whole rest of the
+        # path; `pieces=True` unions overlapping quads so the body heals
+        # itself, but the LAST quad has no successor to cover it and closes as
+        # a WEDGE. That wedge is the angular point the owner reported -- it is
+        # not the pen cut (it survived `cut1=None`) and it is not the width
+        # (it survived the E_END_W floor).
+        #
+        # Reversed, the geometry is identical -- `nib()` reads |sin(d - 50)|,
+        # so a direction and its opposite give the same width, and a catmull
+        # through reversed points is the same curve -- but the unhealed end is
+        # now the BAR'S LEFT END, which is buried under the descending left
+        # flank where the loop closes on itself. The terminal becomes sample 0,
+        # where L and R cannot be out of step. The cuts and the blunt floor
+        # swap ends to follow.
+        P = P[::-1]
         p = catmull([(X(fx, fy), Y(fy)) for fx, fy in P], tension=0.5)
         # Measured off the macro: thick 0.79 x the stem, the bar 0.23 -- 3.4:1.
         # The width at each point comes from the NIB and the direction the
@@ -1133,18 +1254,27 @@ if ON:
         dirs = []
         for i in range(len(P)):
             a_ = P[max(0, i - 1)]; b_ = P[min(len(P) - 1, i + 1)]
-            dirs.append(math.degrees(math.atan2((b_[1] - a_[1]) * xh,
+            dirs.append(math.degrees(math.atan2((b_[1] - a_[1]) * band * xh,
                                                 (b_[0] - a_[0]) * W)))
         base = con([nib(d, E_THICK, E_THIN) for d in dirs], CON_E)
         mean = sum(base) / len(base)
-        wf = widths([(i / (len(base) - 1),
-                      S * (mean + (w - mean) * E_CON) * E_WT * E_CTR)
-                     for i, w in enumerate(base)])
+        ws = [S * (mean + (w - mean) * E_CON) * E_WT * E_CTR for w in base]
+        # THE BLUNT LOWER TERMINAL, round 135 -- see the dial block. The width
+        # is raised to E_END_W over the last stretch on a cosine, so there is
+        # no step in the counter's edge where the floor takes over.
+        m = len(ws) - 1
+        run = 1.0 - E_END_T0                 # the terminal is the path's START now
+        for i in range(m + 1):
+            t = i / m
+            if t < run:
+                k = 0.5 - 0.5 * math.cos(math.pi * (1.0 - t / run))
+                ws[i] += (S * E_END_W - ws[i]) * k
+        wf = widths([(i / m, w) for i, w in enumerate(ws)])
         # pieces=True: the centerline CROSSES ITSELF where the loop closes on
         # the bar. As one polygon that crossing becomes a HOLE -- the outline
         # self-intersects and the fill cancels -- which was the bite in the
         # letter's left side.
-        return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT, pieces=True)])
+        return geom.ink([stroke(p, wf, cut0=None, cut1=CUT, pieces=True)])
 
     # ------------------------------------------------------------ THE a, round 132
     # DRAWN AGAINST THE REFERENCE, NOT TUNED. Owner 2026-09-15: "examine a
@@ -1495,13 +1625,65 @@ if ON:
     B_CX = float(os.environ.get("ALBO_ALD_B_CX", 279.0))           # bowl centre, units
     B_RX = float(os.environ.get("ALBO_ALD_B_RX", 159.0))           # the a's A_RX
     B_CY = float(os.environ.get("ALBO_ALD_B_CY", 207.0))
-    B_SKEW = float(os.environ.get("ALBO_ALD_B_SKEW", 0.13))
+    # ---------------------------------------------------------------- ROUND 135
+    # THE MIDDLE STROKE IS PAGELLA'S. Owner 2026-09-16: *"match the middle
+    # stroke curve of pagella"* -- the arm that leaves the stem and carries the
+    # bowl over. Measured on one row at a time, so the page's shear cancels:
+    # the arm's horizontal run, and its center's offset from the STEM's center
+    # at that same row.
+    #
+    #   height   Pagella          Poetica          Albo (round 134)   now
+    #   .85      off 102 t 45 gap 51   96 / 34 / 51   90 / 46 / 33   106 / 44 / 50
+    #   .80       79 / 31 / 35        73 / 27 / 32   68 / 38 / 15    81 / 32 / 31
+    #   .75       61 / 26 / 20        57 / 26 / 16   53 / 33 /  2    64 / 28 / 16
+    #   .72       53 / 25 / 13        48 / 25 /  8   merged          55 / 24 /  9
+    #   spring        .67                 .71            .75             .69
+    #
+    # TWO REFERENCES AGREE HERE AND THE THIRD DOES NOT, which is what makes
+    # this safe to move: Pagella and Poetica are within 5 units of each other
+    # on every row, while FLANKER -- the face this letter was fitted against in
+    # round 132 -- opens a **119-unit** gap at .85 against their 51, because
+    # its b is a far wider, more open letter. Albo was drawn to Flanker's
+    # thickness and Flanker's spring and came out with neither: an arm 27%
+    # thicker than Pagella's leaving the stem with a 2-unit slit where the
+    # references leave 16-20.
+    #
+    # WHAT MOVED. The skew 0.13 -> 0.25, which is the lever because the arm has
+    # to come RIGHT while the bowl's bottom goes LEFT -- a translation does the
+    # first and the wrong thing to the second (Albo's bowl bottom already sits
+    # 39 units right of Pagella's at .15). The module's own note records 0.34
+    # being tried by hand in round 132 and costing 0.06 of IoU against Flanker;
+    # 0.25 is not that, it is the value the two agreeing references ask for,
+    # and it is still well under the 0.35 the reference's own top-to-bottom
+    # lean implies. The IoU it costs against Flanker is 0.706 -> 0.687 and it
+    # BUYS 0.462 -> 0.468 against Pagella; both numbers are small because this
+    # comparison is dominated by the ascender, which is 1.76 xh here against
+    # Pagella's 1.52 and is a family metric, not this letter's.
+    B_SKEW = float(os.environ.get("ALBO_ALD_B_SKEW", 0.25))
     B_K = float(os.environ.get("ALBO_ALD_B_K", 2.44))
     B_EXIT = float(os.environ.get("ALBO_ALD_B_EXIT", 78.0))   # how far right the stem's turned bottom runs
+    # B_RING IS NOT THE b's TABLE ANY MORE, AND THAT IS DELIBERATE: `a_p` reads
+    # it too ("the p takes B_RING and its own centre"), and the p is not in
+    # this round. Left byte-for-byte as round 132 cut it, so the p is
+    # unchanged; the b takes B_BOWL_RING below. Whoever brings the p to a
+    # reference next should decide whether the two letters share one table
+    # again -- the reference says their flanks agree, so they probably should.
     B_RING = [(0, 68), (45, 61), (90, 34), (135, 28), (180, 25), (225, 26), (270, 26), (315, 42)]
     if os.environ.get("ALBO_ALD_B_RING"):
         B_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_B_RING"].split(","))]
+    # THE ARM IS A HAIRLINE FOR LONGER, three keys of it. 135 (0.87 xh) is the
+    # top of the arm and was already right; 150 and 165 (0.79 and 0.70 xh) are
+    # new, and they are what takes the run from 33 to 28 units at .75 against
+    # Pagella's 26. 180 -- the bowl's left flank, where it merges into the stem
+    # -- comes 25 -> 23 with them so the interpolation does not bulge back out
+    # below the arm. `keyed_ring` smooths the table over 4 samples, so a single
+    # narrow key moves the ink about a third as far as it reads.
+    B_BOWL_RING = [(0, 68), (45, 61), (90, 34), (135, 26), (150, 17), (165, 18),
+                   (180, 23), (225, 26), (270, 26), (315, 42)]
+    if os.environ.get("ALBO_ALD_B_BOWL_RING"):
+        B_BOWL_RING = [(float(a), float(w)) for a, w in
+                       (kv.split(":") for kv in os.environ["ALBO_ALD_B_BOWL_RING"].split(","))]
 
     def bd_head(xl, xr, yt, u=1.0, reach=None, drop=None, foot=None):
         """The Aldine ascender head, reaching LEFT across the stem's top.
@@ -1555,7 +1737,7 @@ if ON:
         stem = stroke(sp, widths([(0.0, sw), (0.78, sw), (0.90, sw * 0.84), (1.0, 46 * u)]))
         head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
         ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + B_CX * u, B_CY * u, B_RX * u, ry, B_RING,
+        bowl_ = keyed_ring(x0 + B_CX * u, B_CY * u, B_RX * u, ry, B_BOWL_RING,
                            k=B_K, skew=B_SKEW, unit=u)
         return geom.ink([bowl_, stem, head])
 
@@ -1983,10 +2165,11 @@ if ON:
 
     # ---------------------------------------------------------------- THE j
     # POETICA for the shape; the DOT is the i's, by the owner's instruction, so
-    # it is the construction a_i already uses -- an oval lying on the pen's own
-    # angle, centre I_DOT_Y (0.39 xh) above the x-line -- and NOT Poetica's,
-    # which sits at 1.35 xh and is a much steeper oval. An i and a j on the
-    # same page have to wear the same dot.
+    # it is the FUNCTION a_i calls -- `ij_dot`, a disc lying on the pen's own
+    # angle, centered HM_DOT_CY (1.343 xh) above the baseline -- and NOT
+    # Poetica's, which sits at 1.35 xh and is a much steeper oval. An i and a j
+    # on the same page have to wear the same dot, and until round 135 this
+    # paragraph said so while the code below drew a second one.
     #   the stem: centre 214 at .97, 227 at .50, 233 at .10, 229 at -0.12,
     #   217 at -0.30, then hard left into the tail, exactly as the f's does.
     #   62 wide (Poetica 57-62, Flanker 70).
@@ -2011,13 +2194,11 @@ if ON:
                       (0.70, 46), (0.79, 36), (0.88, 44), (0.95, 48), (1.00, 20)],
                      u, cut0=CUT, tw=J_TW)
         xs = P(218, 0.0)[0]
-        parts = [body, wedge_head(xs, xh * 0.875)]
-        a = math.radians(HEAD_DEG); L = S * I_DOT_W
-        dx, dy = math.cos(a) * L, math.sin(a) * L
-        cy = xh + I_DOT_Y * xh
-        parts.append(stroke([(xs - dx * 0.5, cy - dy * 0.5), (xs + dx * 0.5, cy + dy * 0.5)],
-                            S * I_DOT_T, cut0=CUT, cut1=CUT))
-        return geom.ink(parts)
+        # THE i's DOT, not a second drawing of one (round 135). This was a
+        # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
+        # rendered 79 x 50 -- two different dots on two letters the module's
+        # own comment says must wear the same one. `ij_dot` is that one.
+        return geom.ink([body, wedge_head(xs, xh * 0.875), ij_dot(c, xs)])
 
     # ------------------------------------------------------------ THE s, round 132
     # THE SCAN CROP IS OVERRULED FOR THIS LETTER, and that has to be said out
@@ -2416,6 +2597,32 @@ if ON:
     # the f and j descenders keep the metal's extent.
     Y_TAIL_X = d_dial("Y_TAIL_X", 8.0)     # the tail's leftmost, units
     Y_TAIL_Y = d_dial("Y_TAIL_Y", -0.62)   # its floor, x xh
+    # ---------------------------------------------------------------- ROUND 135
+    # THE SWOOP IS CANCELLERESCA'S. Owner 2026-09-16: *"match y lowest brush
+    # stroke to the swoop of cancell."* The REACH is not in question -- his own
+    # 2026-09-16 ruling above put the tail out at unit 8 and it stays there.
+    # What changes is the CURVE and the TERMINAL.
+    #
+    # WHAT THE REFERENCE DOES, read off Cancelleresca Bastarda's y rendered at
+    # a 429-unit x-height (its tail runs from the junction at -0.15 xh to ink
+    # bottom at -0.99, reaching its leftmost x=1 at -0.90):
+    #
+    #   IT HOLDS ITS x AND WHIPS AT THE END. Normalize both axes between the
+    #   junction and the leftmost point -- 94% of the DESCENT spends only 53%
+    #   of the leftward travel, and the last 6% spends the other 47%. Albo's
+    #   tail did the opposite: at the same normalized depths it had already
+    #   travelled 0.766 / 0.600 / 0.340 of the way left where the reference is
+    #   at 0.836 / 0.725 / 0.596. That is what makes Albo's read as a long flat
+    #   run with a knee in it and the reference's as a plunge.
+    #   IT IS A HAIRLINE UNTIL THE VERY END -- a dead-constant 26 units from
+    #   -0.50 to -0.82, where Albo's ran 31 / 35 / 43 / 52 / 58 and thickened
+    #   the whole way down.
+    #   IT ENDS IN A ROUND DROP, not a cut. The stroke swells to about 56 units
+    #   -- 2.2 x the hairline -- over the last stretch and closes as a rounded
+    #   lobe roughly 110 x 56. Albo's ended in a squared face with an upward
+    #   flick, which is the shape the old last point (TX, TY+0.055) drew.
+    Y_TAIL_W = d_dial("Y_TAIL_W", 26.0)    # the hairline, units -- the reference's
+    Y_TAIL_DROP = d_dial("Y_TAIL_DROP", 27.0)   # the terminal drop's radius, units
 
     @glyph('y')
     def a_y(c):
@@ -2428,14 +2635,27 @@ if ON:
                        P(256, 0.02)],
                       [(0.00, 22), (0.10, 48), (0.22, 66), (0.70, 62),
                        (0.90, 50), (1.00, 36)], u, tw=Y_TW)
+        W = Y_TAIL_W
         tail = d_pen([P(322, 0.885), P(336, 0.825), P(341, 0.74),
                       P(334, 0.50), P(307, 0.25), P(274, 0.10), P(252, -0.05),
-                      P(230, -0.22), P(190, -0.40), P(TX + 34, TY),
-                      P(TX, TY + 0.055)],
-                     [(0.00, 48), (0.05, 44), (0.13, 34),
-                      (0.35, 29), (0.70, 26), (0.92, 30), (1.00, 16)], u, tw=Y_TW)
+                      # the swoop: x held, then whipped -- see the block above
+                      P(243, -0.16), P(233, -0.27), P(221, -0.36),
+                      P(204, -0.45), P(178, -0.53), P(140, -0.586),
+                      P(TX + 26, TY)],
+                     [(0.00, 48), (0.05, 44), (0.13, 34), (0.35, 30),
+                      (0.55, W), (0.76, W), (0.86, W * 1.40), (1.00, W * 2.1)],
+                     u, tw=Y_TW)
         ball = d_ball(P, u, 308, 0.895, 32 * Y_TW)
-        return geom.ink([thick, tail, ball])
+        # THE DROP AT THE TAIL'S END. A `stroke` closes on a FLAT face, which
+        # on a 55-unit terminal reads as an angular flag -- the same reason the
+        # v w y's rising hairline carries `d_ball` rather than more width.
+        # It is an OVAL LYING ALONG THE STROKE, not the pen's own disc: the
+        # tail's last design segment runs 7.7 degrees below horizontal, so a
+        # blob at the pen's 24 degrees stands across it and leaves a shelf on
+        # the top edge -- which is exactly what the first cut of this rendered.
+        drop = d_ball(P, u, TX + 14.0, TY - 0.004, Y_TAIL_DROP * Y_TW,
+                      squash=1.55, deg=-8.0)
+        return geom.ink([thick, tail, ball, drop])
 
     # ---------------------------------------------------------------- THE z
     # The x's mirror image, and the letter whose thick and thin are the way
@@ -2452,6 +2672,43 @@ if ON:
     #   the bottom bar: one run 16-310 at .03, and a flick lifting off its
     #   right end to (343, .115) -- Poetica's .10 row catches that flick alone
     #   at 317-343.
+    # ---------------------------------------------------------------- ROUND 135
+    # THE BARS RIBBON. Owner 2026-09-16: *"match z to poetica, specifically the
+    # slight ribboning of the horizontal strokes."* A ribbon is two things at
+    # once and both were measured, column by column at a 429-unit x-height --
+    # the vertical extent at each x, which for a near-horizontal stroke is its
+    # thickness, and the two EDGES separately, which is where the undulation
+    # lives.
+    #
+    #   THE WIDTH SWELLS AND EASES. Poetica's top bar, normalized over its own
+    #   run (peak = 1.00): 0.05 at the tip, 0.37 / 0.48 / 0.63 / 0.77 / 0.90
+    #   climbing, 1.00 held from 0.56 to 0.66, then 0.98 / 0.95 / 0.88 to the
+    #   junction. Albo's was 0.24 / 0.69 / 0.82 / 0.90 / 0.96 / 0.97 / 1.00 /
+    #   1.00 / 0.99 / 0.97 / 0.96 -- at full weight within a twentieth of its
+    #   length and flat from there. A slab, not a ribbon. Its bottom bar was
+    #   the same: a dead 67 units from x80 to x200 where Poetica tapers 62 ->
+    #   15 over its right half.
+    #   THE EDGES ARE NOT PARALLEL. Poetica's top bar CRESTS -- its centerline
+    #   runs 0.855 / 0.899 / 0.908 / 0.902 / 0.892 / 0.889 across the letter,
+    #   up to a crest at 0.56 of its length and then DOWN. Albo's rose
+    #   monotonically, 0.840 / 0.877 / 0.889 / 0.898 / 0.907 / 0.912. And
+    #   Poetica's bottom bar SAGS -- 0.050 / 0.034 / 0.0245 / 0.0305 / 0.0525 /
+    #   0.1025, a dip at 0.55 of its length before the flick -- where Albo's
+    #   climbed 0.035 / 0.042 / 0.049 / 0.063 / 0.086 / 0.1235 all the way.
+    #
+    # THE PEAK IS NOT TOUCHED. Poetica's bar is 12% lighter than Albo's at its
+    # thickest (60 units against 68) and the whole letter is lighter with it,
+    # but the ask was the ribboning and this family's color is set against
+    # Flanker, not Poetica. Only the SHAPE of the profile is taken.
+    #
+    # MEASURED AFTER, top bar by column against Poetica's: 30/36/36/44/51/55/
+    # 59/62/60/59/56 against 22/29/38/46/54/58/60/60/59/56/53 at x 70..270 --
+    # the swell and the ease, within about 3 units through the body. Its top
+    # edge crests at 0.979 at x210 and falls to 0.944 at x310, where Poetica
+    # crests 0.977 at x190 and falls to the same 0.944. The bottom bar's
+    # center sags 0.046 -> 0.026 -> 0.101 against Poetica's 0.050 -> 0.025 ->
+    # 0.103, and its thickness tracks within 2 units from x130 to x340. IoU
+    # against Poetica **0.710 -> 0.834**, the largest single gain in the round.
     Z_W = d_dial("Z_W", 1.03)
     Z_TW = d_dial("Z_TW", 1.12)
     Z_DIAG = d_dial("Z_DIAG", 27.0)   # the diagonal's width, units
@@ -2459,18 +2716,33 @@ if ON:
     @glyph('z')
     def a_z(c):
         P, u = d_frame(c, Z_W); D = Z_DIAG
-        top = d_pen([P(8, 0.755), P(26, 0.855), P(64, 0.895), P(150, 0.918),
-                     P(240, 0.940), P(266, 0.962)],
-                    [(0.00, 20), (0.12, 44), (0.30, 60), (0.75, 60),
-                     (0.92, 52), (1.00, 40)], u, tw=Z_TW)
+        top = d_pen([P(8, 0.755), P(26, 0.855), P(64, 0.902), P(126, 0.928),
+                     P(196, 0.910), P(234, 0.922), P(268, 0.972)],
+                    [(0.00, 14), (0.05, 20), (0.17, 26), (0.23, 34),
+                     (0.30, 41), (0.36, 48), (0.43, 52), (0.50, 54),
+                     (0.56, 54), (0.61, 53), (0.67, 50), (0.76, 45),
+                     (0.90, 35), (1.00, 26)], u, tw=Z_TW)
         diag = d_pen([P(258, 0.95), P(212, 0.75), P(152, 0.50), P(89, 0.25),
                       P(48, 0.09), P(32, 0.012)],
                      [(0.00, D * 1.45), (0.12, D * 1.09), (0.50, D),
                       (0.88, D * 1.15), (1.00, D * 1.52)], u, tw=Z_TW)
-        bot = d_pen([P(24, 0.025), P(90, 0.028), P(180, 0.038), P(262, 0.058),
-                     P(312, 0.092), P(340, 0.145)],
-                    [(0.00, 52), (0.12, 60), (0.55, 60), (0.80, 46),
-                     (0.92, 32), (1.00, 22)], u, tw=Z_TW)
+        # the bottom bar's left end HOOKS UP FROM UNDER THE LINE -- Poetica's
+        # tip centers at -0.022 xh and is at +0.019 twenty units later. Without
+        # that entry the raised left end of the sag leaves a step where the
+        # diagonal's foot arrives, which is what the first cut of this drew.
+        # ITS x IS PINNED BY THE LETTER'S WIDTH, not by the reference's tip:
+        # at design 4 the entry reached 11 units left of the diagonal's foot
+        # and made the whole z 373 units wide against Poetica's 353 and this
+        # letter's own 356, which `compare_xh` aligns on -- IoU 0.633. At 18
+        # the foot is still the leftmost ink, the letter measures 359, and the
+        # same comparison reads 0.834. Dropping the tip to -0.022 to close the
+        # last 4 units of notch under the foot puts it proud on the left again
+        # and costs 0.03; the notch stays, and at 27 px it is a quarter pixel.
+        bot = d_pen([P(18, -0.010), P(46, 0.046), P(90, 0.058), P(180, 0.034),
+                     P(262, 0.022), P(312, 0.054), P(340, 0.112)],
+                    [(0.00, 14), (0.17, 40), (0.28, 50), (0.42, 55),
+                     (0.56, 55), (0.64, 53), (0.72, 48), (0.81, 38),
+                     (0.88, 27), (0.97, 16), (1.00, 13)], u, tw=Z_TW)
         return geom.ink([top, diag, bot])
 
     # ---------------------------------------------------------------- THE k
