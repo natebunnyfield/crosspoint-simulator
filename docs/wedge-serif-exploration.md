@@ -6098,3 +6098,34 @@ carries its whole horizontal travel in the first third and is a **stem** above
 visible corner at 380 px on every turn height tried. `1 − (1 − t) ** p` lands
 **tangent** to it. Three turn heights were built and looked at; 0.80 with
 p = 2.0 gives the longest true vertical while the curve still reads continuous.
+
+##### RULING 2026-09-16 — SFULL 2: every capital serif doubled
+
+Shown the ladder, he took arm 2. So `CAP_SERIF_FULL` = 2.0: not only the micro
+pieces (the S's and G's beak lips, the U's small wedge, doubled in round 135)
+but the stem blades too. Round 135 had measured those at the roman's own reach
+— 47 units against the I's 46 at depth 12 — and left them, shipping 1.0 and
+offering 2.0 as the arm he could see. The brackets now peak at 81 at depth 30
+against the roman-derived capitals' 46, about 1.75×. **That IS the serif family
+now**, and the consequence is worth writing down: the eighteen capitals that
+come from the roman are the ones that will look light beside these until they
+follow.
+
+One capital failed the weight gate on the doubling and was re-solved: the
+**P**, +0.05 against its roman, because its bowl already carried the extra
+weight round 138 gave it. `CAP_P_W` 1.15 → 1.06.
+
+##### The Y's right branch, shortened to the word rhythm
+
+*"shorten the right branch of Y until fits the horizontal rhythm of common
+english words."* 0.368 → **0.28** of the cap, laddered in *Yes Yellow
+Yorkshire ONLY SYZYGY* at 54 and 27 px against both references: at 0.368 the
+arm hangs over whatever follows, at 0.24 the letter reads narrow beside O N L.
+
+**And the ladder denied the instruction's premise, which is the finding.**
+Shortening the arm cannot change the gap to the next letter: the fitter
+measures ink, so the advance shrinks with the arm and **the right overhang
+stays +0.129 cap at every rung**. That number is his own −116 right bearing
+(`CAP_BEARING_ADJ['Y']`), and nothing in the drawing moves it. The Y's advance
+is 0.76 of the H's where Pagella sets 0.86 and Poetica 0.88 — the letter is
+narrow in its box before the arm is touched at all.

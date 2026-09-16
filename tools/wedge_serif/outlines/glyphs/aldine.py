@@ -3090,7 +3090,15 @@ if ON:
     # Both are dials, so the whole-alphabet doubling is one env var away
     # (ALBO_ALD_CAP_SFULL=2) and was built and looked at before this was set.
     CAP_SERIF_LEN = float(os.environ.get("ALBO_ALD_CAP_SLEN", 2.0))
-    CAP_SERIF_FULL = float(os.environ.get("ALBO_ALD_CAP_SFULL", 1.0))
+    # RULED 2026-09-16: "yes to SFULL 2" -- every capital serif doubled, not
+    # only the micro pieces. Round 135 measured the re-cut stem blades at the
+    # roman's own reach (47 units against the I's 46 at depth 12) and left
+    # them, shipping 1.0 and offering 2.0 as the arm he could see. He has seen
+    # it: the brackets now run to a peak of 81 at depth 30 against the
+    # roman-derived capitals' 46, about 1.75x, and that IS the serif family
+    # now -- the eighteen letters that come from the roman are the ones that
+    # will look light beside these until they follow.
+    CAP_SERIF_FULL = float(os.environ.get("ALBO_ALD_CAP_SFULL", 2.0))
 
     def _sk(small):
         """The scale a round-134 serif takes: the doubling for the 0.4-unit
@@ -3696,7 +3704,10 @@ if ON:
     # too, and pushes a spur out past the stem's left edge. Both were rendered
     # at 260 px and looked at.
     CAP_P_BOWL_END = float(os.environ.get("ALBO_ALD_CAP_P_END", -88.0))
-    CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.15))   # the bowl's weight, x CAP_W_ROUND
+    # 1.15 -> 1.06 when the serifs doubled (2026-09-16): the P was the one
+    # capital the doubling pushed past the gate (+0.05 against its roman),
+    # because its bowl already carried the extra weight round 138 gave it.
+    CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.06))   # the bowl's weight, x CAP_W_ROUND
     # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
     # of P."* The wedge itself was never the odd one: this letter's stem is
     # `cstem_i(top='left')`, the same call B D E F I J L H N reach, and measured
