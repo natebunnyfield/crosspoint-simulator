@@ -1810,12 +1810,19 @@ if ON:
     # drop's pinch at 0.40 the a reads 0.93 and 0.74 -- the same hole, drawn
     # as a drop. (0.58/0.74 gives 0.86, 0.70/0.86 gives 1.01 and starts to
     # thin the ring.)
-    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 0.64)) # the counter's width, x the bowl's
-    A_CTR_H2 = float(os.environ.get("ALBO_ALD_A_CTR_H2", 0.80))  # its height, x the bowl's
-    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 0.44))  # its centre, x the bowl's width
-    A_CTR_CY = float(os.environ.get("ALBO_ALD_A_CTR_CY", 0.46))  # x the bowl's height
+    A_CTR_W = float(os.environ.get("ALBO_ALD_A_CTR_W", 0.70)) # the counter's width, x the bowl's
+    A_CTR_H2 = float(os.environ.get("ALBO_ALD_A_CTR_H2", 0.86))  # its height, x the bowl's
+    A_CTR_CX = float(os.environ.get("ALBO_ALD_A_CTR_CX", 0.50))  # its centre, x the bowl's width
+    A_CTR_CY = float(os.environ.get("ALBO_ALD_A_CTR_CY", 0.54))  # x the bowl's height
     A_TEAR = float(os.environ.get("ALBO_ALD_A_TEAR", 0.40))   # how far the tip draws in, 0 = an oval
-    A_TEAR_DEG = float(os.environ.get("ALBO_ALD_A_TEAR_DEG", 52.0))  # where the tip points
+    # 232, NOT 52 (owner 2026-09-16: "wrong direction on the a fix. the
+    # bottom left needs to be thick"). The drop's POINT takes less room than
+    # its round end, so the end it points at is the side that keeps its ink:
+    # pointing the tip up-right left the bottom left thin, which is backwards
+    # for a pen on this axis. Tip down-left, round end up-right, and the
+    # counter itself moved up and right with it (0.50 / 0.54 of the bowl)
+    # so the weight lands where the pen would have put it.
+    A_TEAR_DEG = float(os.environ.get("ALBO_ALD_A_TEAR_DEG", 232.0))  # where the tip points
     A_BRUSH_W = float(os.environ.get("ALBO_ALD_A_BRUSH_W", 1.06))   # the right stroke's body, x S
     A_BRUSH_TOP = float(os.environ.get("ALBO_ALD_A_BRUSH_TOP", 1.00))  # where it starts, x xh
     A_EXIT = float(os.environ.get("ALBO_ALD_A_EXIT", 0.24))   # how far its tail runs past the bowl, x xh
