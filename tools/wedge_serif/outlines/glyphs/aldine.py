@@ -3841,6 +3841,7 @@ if ON:
     CAP_Q_RX = float(os.environ.get("ALBO_ALD_CAP_Q_RX", 0.41))   # the ring's x radius, x C (was 0.35)
     Q_AXIS = os.environ.get("ALBO_ALD_Q_AXIS", "nib").lower()   # 'bowl' = the pre-150 family profile
     Q_INK = float(os.environ.get("ALBO_ALD_Q_INK", 1.13))       # x the nib's widths
+    Q_DROP = float(os.environ.get("ALBO_ALD_Q_DROP", 0.045))    # how far the ring bottoms BELOW the baseline, x C
     # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
     # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
     # every quadrant is the same quadrant and the only thing that varies round
@@ -3885,20 +3886,44 @@ if ON:
         Flanker Griffo Italic and Poetica both finish the tail the same way, a
         swash thinning to a cut. Recorded so the next pass does not re-propose
         it."""
-        C = c["cap"]; rx = CAP_Q_RX * C; cx = CS * 0.6 + rx
-        ry = C / 2 + OVER * 0.4
+        # ROUND 152 -- THE RING IS SCALED UP OFF ITS OWN TOP. Owner 2026-09-16:
+        # *"scale up Q so oval shape is just slightly below baseline, but same
+        # height on top"*. So the TOP IS PINNED and the bottom is the free end:
+        # the ring's top stays at C + OVER*0.4 exactly where round 151 left it,
+        # the bottom goes to -Q_DROP*C, and ry and the centre follow from those
+        # two. `rx` is scaled by the SAME factor so the oval keeps its shape --
+        # a Q that dropped without widening would be a different letter, not a
+        # bigger one -- which means the letter grows to the RIGHT, cx being
+        # anchored on the left sidebearing.
+        #
+        # Round 151's ring bottomed at -5.6 units, 0.008 cap: an overshoot and
+        # not a descent. At Q_DROP it bottoms 30 units under, 0.045 cap, for a
+        # scale of 1.036 on both radii.
+        #
+        # The pen does NOT scale with it. `nib_ring`'s thick is CS*CAP_W_ROUND,
+        # an absolute, so a bigger ring is the same stroke round a longer path
+        # -- which is why cmp_cap_weight barely moves and why the counter opens
+        # rather than the letter fattening.
+        C = c["cap"]
+        top = C + OVER * 0.4                 # round 151's own top, pinned
+        bot = -C * Q_DROP
+        ry = (top - bot) / 2
+        cy = (top + bot) / 2
+        kq = ry / (C / 2 + OVER * 0.4)       # what the drop scaled the ring by
+        rx = CAP_Q_RX * C * kq; cx = CS * 0.6 + rx
+        dy = cy - C / 2                      # the tail rides down with the ring
         # ROUND 150: the ring is on the G's pen too -- same owner instruction as
         # the O's. `ring()` carried `bowl_th`, the family's vertically stressed
         # bowl profile, which measured 1.43:1 with its thick at 15/195: beside
         # a G at 2.20:1 on 50/230 the Q read as a different letter's O.
-        ring_ = (ring(cx, C / 2, rx, ry, floor=S * FLOOR)[0] if Q_AXIS == 'bowl'
-                 else nib_ring(cx, C / 2, rx, ry, unit=Q_INK, floor=S * FLOOR,
+        ring_ = (ring(cx, cy, rx, ry, floor=S * FLOOR)[0] if Q_AXIS == 'bowl'
+                 else nib_ring(cx, cy, rx, ry, unit=Q_INK, floor=S * FLOOR,
                                     hand=Q_HAND)[0])
         if CAP_Q_REF == 'poetica':
             # Poetica leaves the ring at five o'clock and runs out and down in
             # one shortening sweep.
-            tail = catmull([(cx + rx * 0.62, -C * 0.02), (cx + rx * 1.00, -C * 0.10),
-                            (cx + rx * 1.34, -C * 0.19)], tension=0.5)
+            tail = catmull([(cx + rx * 0.62, -C * 0.02 + dy), (cx + rx * 1.00, -C * 0.10 + dy),
+                            (cx + rx * 1.34, -C * 0.19 + dy)], tension=0.5)
             prof = lambda t: 1.10 - 0.72 * t
         else:
             # PAGELLA runs the tail UNDER the letter: it leaves the ring near
@@ -3913,10 +3938,10 @@ if ON:
             # the ring's own outline is at about +0.03 C, so a tail that starts
             # below the baseline starts in mid-air: the first cut left a visible
             # gap between bowl and tail and the glyph was two pieces.
-            tail = catmull([(cx - rx * 0.30, C * 0.045),
-                            (cx + rx * 0.10, -C * 0.17),
-                            (cx + rx * 0.80, -C * 0.16),
-                            (cx + rx * 1.08, -C * 0.03)], tension=0.5)
+            tail = catmull([(cx - rx * 0.30, C * 0.045 + dy),
+                            (cx + rx * 0.10, -C * 0.17 + dy),
+                            (cx + rx * 0.80, -C * 0.16 + dy),
+                            (cx + rx * 1.08, -C * 0.03 + dy)], tension=0.5)
             prof = lambda t: 0.62 + 0.80 * t - 0.82 * t * t
         wt = pen_widths(tail, floor=S * FLOOR)
         return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t), cut1=CUT)])
