@@ -4465,8 +4465,21 @@ if ON:
     Y_SPINE_W = [(0.00, 0.1044), (0.31, 0.1044), (0.44, 0.0904), (0.58, 0.0934),
                  (0.68, 0.0964), (0.79, 0.1004), (1.00, 0.1014)]
     # the right arm, join first
-    Y_ARM = [(round(0.4850 + 0.3677 * (((y - 0.40) / 0.58) ** 0.85), 4), y)
-             for y in (0.400, 0.460, 0.500, 0.600, 0.700, 0.800, 0.860, 0.920, 0.980)]
+    # THE RIGHT BRANCH STEMS UP VERTICALLY (owner 2026-09-16). It ran as one
+    # diagonal from the join to the cap line, which is what makes this a V on
+    # a stick rather than a Y: both references turn their right arm upright
+    # well before the top -- Pagella's is vertical from about 0.72 of the cap,
+    # Poetica's from 0.60. So the arm carries its whole horizontal travel in
+    # the first third and is a STEM above Y_ARM_VERT, parallel to the left
+    # one, which is also what lets its foot serif sit square.
+    Y_ARM_VERT = float(os.environ.get("ALBO_ALD_Y_ARM_VERT", 0.80))
+    # The curve that turns upright must arrive at the vertical with ZERO
+    # horizontal slope, or the join is an elbow: `t ** 0.70` reaches the
+    # vertical at full tilt and rendered as a visible corner at 380 px on
+    # every turn height tried. `1 - (1 - t) ** p` lands tangent to it.
+    Y_ARM_P = float(os.environ.get("ALBO_ALD_Y_ARM_P", 2.0))
+    Y_ARM = [(round(0.4850 + 0.3677 * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
+             for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
     # THE WEIGHT IS ALBO'S, THE DISTRIBUTION IS PAGELLA'S -- round 131c's rule,

@@ -6083,3 +6083,18 @@ corner-cuts it into a different letter. **167 points**, in family with the o's
 not a discovery: at 420 px the ladder reads smooth at 217, visibly flat-sided
 at 137 (spacing 22) and a polygon at 115 (spacing 30). At reading size none of
 it shows. 16 is the rung that keeps the curve.
+
+##### The Y's right branch stems up, 2026-09-16
+
+Owner: *"the right branch of Y needs to stem up vertically."* It ran as one
+diagonal from the join to the cap line — which is what made it a V on a stick.
+Both references turn that arm upright well before the top (Pagella's is
+vertical from about 0.72 of the cap, Poetica's from 0.60), so the arm now
+carries its whole horizontal travel in the first third and is a **stem** above
+0.80, parallel to the left one.
+
+**The first cut of it was an elbow**, and the reason is worth keeping: a
+`t ** 0.70` curve arrives at the vertical *at full tilt*, so the join is a
+visible corner at 380 px on every turn height tried. `1 − (1 − t) ** p` lands
+**tangent** to it. Three turn heights were built and looked at; 0.80 with
+p = 2.0 gives the longest true vertical while the curve still reads continuous.
