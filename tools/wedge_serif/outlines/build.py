@@ -409,7 +409,28 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # Kept proportional to the n counter so it tracks any later move in weight
     # or width, as the old rule did.
     SPACE_COUNTERS = 1.039
-    glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(pen.N_COUNTER_FULL * SPACE_COUNTERS)), 0)
+    space_adv = pen.N_COUNTER_FULL * SPACE_COUNTERS
+    # ROUND 133: THE ALDINE ITALIC GETS ITS OWN WORD SPACE, because its
+    # letters are no longer the roman's. That derivation above hangs off
+    # `pen.N_COUNTER_FULL` -- the ROMAN's n counter, 272 -- and the Aldine
+    # lowercase's counter is 153, so the space did not follow the letters in
+    # when they were re-fitted. Measured the same way the letter fitting is
+    # (mean white across the x-height band, word against letter):
+    #
+    #   face        letter white   word/letter   space, Albo units
+    #   Flanker          167           2.95            326
+    #   Pagella          151           2.47            223
+    #   Poetica          124           2.32            163
+    #   Albo aldine      115           3.25            259   <- before
+    #
+    # The ratio was the loosest of the four by 10%, on the tightest letters of
+    # the four -- which is the same trap round 100 recorded for the roman,
+    # arriving from the other side: there the letters were loose and the ratio
+    # fine. At the three references' mean ratio of 2.58 the space is 182.
+    from .glyphs import aldine as _ALD
+    if _ALD.ON:
+        space_adv = 182.0 * (pen.XH / 429.0)
+    glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)
     if "Italic" in style:   # round 100: the fsSelection ITALIC bit and the post table's angle
