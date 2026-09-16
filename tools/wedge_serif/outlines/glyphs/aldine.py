@@ -45,11 +45,12 @@ _CUR = [None]
 #   python3 aldine_autofit.py --letters <chars>
 FIT = {            # ch: (weight, width)
     'b': (0.550, 1.100),
-    'h': (0.938, 1.100),
-    'l': (0.550, 1.100),
-    'm': (1.131, 0.850),
+    # h l m r LEFT THIS TABLE in round 132: they are drawn to the reference in
+    # units now, so a weight buffer and a horizontal scale on top of the
+    # drawing can only take them away from it -- and the three different widths
+    # this table gave h, m and r were a large part of why they did not read as
+    # one hand.
     'p': (0.550, 0.725),
-    'r': (0.938, 1.100),
     's': (1.325, 1.100),
     # the eight re-cut capitals, fitted against Pagella Italic -- DERIVED, not
     # measured: the macro carries only an A and a B, and the Dante's lines
@@ -401,83 +402,344 @@ if ON:
                               (0.62, S * hw * hp[2]), (1.0, S * hw * hp[3])]),
                       cut0=CUT, cut1=CUT)
 
+    # ------------------------------------------- THE STEM-AND-ARCH FAMILY, round 132
+    # h m n r u i l DRAWN AGAINST THE REFERENCE, one construction, one hand.
+    # Owner 2026-09-15: "examine a then each subsequent letter, take multiple
+    # passes at each until the shape and strokes and serifs match what they
+    # should based on a referenced vector or bitmap", and 2026-09-16: "poetica
+    # is my preferred fallback". So the shapes below come from the scan crops
+    # (`aldine_autofit.SOURCES`) and from Poetica Std, and the WEIGHT from
+    # Flanker Griffo Italic, which is the face that matches the 1501 page's
+    # darkness. Everything is in units of xh/429 -- the a's convention
+    # (`u = xh / A_UNIT`), so a number here is directly the number in
+    # docs/albo-aldine-targets.md.
+    #
+    # WHAT THE SEVEN LETTERS SHARE, and where each number is from. Every
+    # position below is a fraction of the STEM PITCH P measured from the left
+    # stem's CENTER, or a fraction of the x-height -- so the arch is the same
+    # curve however wide the letter is set, which is what makes h m n r u one
+    # hand instead of five letters that happen to have stems.
+    #
+    #   THE STEM   70 units. Flanker holds exactly 70 on 19 of its 26 lowercase
+    #              (targets doc, section 2: "h m n r u -- every stem 70"), dead
+    #              constant from .25 to 1.40. The module's I_STEM (0.64 x S =
+    #              43 units, and it measured 45) is what made the paragraph
+    #              proof read spindly; the a already draws 70.
+    #              Its top is CUT down to the right: Flanker's i runs 9-79 at
+    #              .88 and 6-46 at .99, so the top face falls ~45 degrees.
+    #   THE HEAD   NOT a flick, and not "further right than left" -- that older
+    #              reading of the macro took the stem's position at the
+    #              BASELINE and compared it with the head 50 rows higher, which
+    #              on a 13-degree page is 12 px of shear. Corrected here: at
+    #              the head's own height the scan i's ink runs 55 units LEFT of
+    #              the stem and 17 right (rows .80-.95), Flanker's i 83 left,
+    #              Poetica's n 69 left. It is an ENTRY -- the nib set down
+    #              below and left, pushed up and right across the stem's top.
+    #              Its tip sits 0.155 x xh below the stroke's top in BOTH
+    #              Flanker's i (x-height) and its l (ascender), so one helper
+    #              serves the x-height letters and the ascenders.
+    #              Its underside is HOLLOW: Flanker's i at .85 shows the tip
+    #              detached (-74..-40) with 21 units of white before the stem,
+    #              which a straight stroke cannot do -- hence HM_HEAD_BOW.
+    #   THE ARCH   springs off the stem's center at ~0.36 xh, is inside the
+    #              stem until ~.55 (the doc's "the arch springs at HALF the
+    #              x-height and the spring is 84-100 wide -- a junction, not a
+    #              stroke"), climbs as the page's HAIRLINE and arches over with
+    #              its apex just short of the right stem.
+    #              Normalized, Flanker and Poetica are the SAME curve: at .70
+    #              the arch's center is 0.381 P along in Flanker and 0.373 in
+    #              Poetica; at .80, 0.521 and 0.527; the apex 0.930 and 0.933.
+    #              That agreement is why the arch is written in P at all.
+    #              Its thickness is 22 units (the doc's hairline, 22-24),
+    #              measured TWICE on the same stroke: Flanker's n gives a
+    #              32-unit horizontal run and a 33-unit vertical run where the
+    #              arch climbs at 48 degrees, and 32*sin48 = 23.4 against
+    #              33*cos48 = 22.0. Two cuts agreeing is what makes it a
+    #              stroke width rather than a run.
+    #   THE EXIT   the last stem of h m n u, and i and l, finishes with an
+    #              outstroke that rises: Flanker's i has a DETACHED tip at .15
+    #              (149-162) 76 units right of the stem, Poetica's at .25
+    #              (159-175) 63 right, the scan m's at .30 about 85 right. The
+    #              left stems of h m n have none -- Flanker's n reads exactly
+    #              70 at .02, and only the LAST stem of the m reads 88.
+    #              The tip's HEIGHT is the reference median and a sweep agrees:
+    #              0.11 to 0.27 scored on all seven letters against Poetica and
+    #              the scans moves the u .571 -> .597, the i .527 -> .545 and
+    #              the i against its own scan .400 -> .449, costing the h .007.
+    #              0.25 is Poetica's own and one step under the printed m's.
+    #   THE PITCH  0.470 x xh. The three sources split: the scan m's three stem
+    #              centers are 184 units apart (a horizontal distance at one
+    #              height, so shear-invariant and trustworthy), Poetica's n is
+    #              194, and Flanker's n 286 with its m at 249. Poetica and the
+    #              printed page are close and Flanker is a much wider face, so
+    #              the wide reading is dropped; the module meanwhile had three
+    #              different pitches -- h 263, n 239, m 190 -- which is the
+    #              opposite of one hand.
+    #              The final 0.470 is a SWEEP, not either reading: 0.425 to
+    #              0.500 in six steps, scored on h m n r u against Poetica and
+    #              against the four scans at once. It trades -- the h wants it
+    #              narrow against Poetica (.507 at 0.425, .394 at 0.500) and the
+    #              u wants it wide (.483 -> .596) -- and 0.470 is the joint
+    #              best against Poetica (sum 3.110, against 3.083 at 0.455 and
+    #              3.008 at 0.485) and within .05 of the best against the scans.
+    #              A dial this shared cannot be fitted on one letter.
+    #
+    # WHAT WAS FITTED AND WHAT WAS NOT. HEAD_L/D/R/W/T, HEAD_BOW, EXIT_R/Y/T
+    # and TOPCUT below were coordinate-descended by `aldine_fit_shape.py i
+    # --ref flanker` (IoU .707 -> .726) and then moved back to the measured
+    # value where a sweep across all seven letters disagreed with the single-
+    # letter fit; PITCH and EXIT_Y are sweeps, not fits.
+    #
+    # DO NOT FIT THESE AGAINST POETICA. Its lowercase stem is 57 units against
+    # the 70 this family is ruled to, so an overlap score charges Albo for ink
+    # it is required to have, and the cheapest way for a solver to buy that
+    # back is to AMPUTATE the thin parts: a full run against Poetica's n drove
+    # HEAD_L 80 -> 50, HEAD_BOW to 0, EXIT_R 74 -> 53 and EXIT_Y 0.185 ->
+    # 0.105, deleting most of the entry and the outstroke for +0.04 of IoU.
+    # Flanker's stem IS 70, so its i -- stem, head, exit and nothing else --
+    # is the honest target for these dials.
+    #
+    # AND THE SCORE HAS A CEILING THIS ROUND MAY NOT REACH. Rebuilding this
+    # same drawing with the REFERENCE's own family settings measures it:
+    # at Poetica's rendered slant (9.1 degrees against the family's 13) the l
+    # goes .228 -> .512 and the h .452 -> .697 while the x-height letters
+    # barely move; at its 57-unit stem the l gains another .080 and the n, m
+    # and r LOSE .02-.08; at its 723 ascender the l gains .066. With all three
+    # forced the best any of the seven reaches is .706. So a target of .80
+    # against Poetica is not a shape target at all -- it is FJORD_SLANT,
+    # FJORD_ASC and the stem ruling, none of which is this round's to move.
+    HM_UNIT = 429.0
+
+    def _hm(name, default):
+        return float(os.environ.get("ALBO_ALD_HM_" + name, default))
+
+    HM_STEMW = _hm("STEMW", 70.0)       # units
+    HM_PITCH = _hm("PITCH", 0.470)      # stem center to stem center, x xh
+    HM_TOPCUT = _hm("TOPCUT", 45.0)     # the stem's top face, degrees down to the right
+    HM_HEAD_L = _hm("HEAD_L", 70.0)     # the head's tip CENTER, units LEFT of the stem's left edge
+    HM_HEAD_D = _hm("HEAD_D", 0.157)    # the tip, x xh BELOW the stroke's top
+    HM_HEAD_R = _hm("HEAD_R", 0.04)     # where it ends, x the stem RIGHT of its center
+    HM_HEAD_W = _hm("HEAD_W", 50.0)     # the head's body, units
+    HM_HEAD_T = _hm("HEAD_T", 29.0)     # its tip, units
+    HM_HEAD_BOW = _hm("HEAD_BOW", 0.014)   # the hollow under it, x xh
+    HM_EXIT_R = _hm("EXIT_R", 84.0)     # the exit's tip, units RIGHT of the stem's right edge
+    HM_EXIT_Y = _hm("EXIT_Y", 0.250)    # the tip's height, x xh
+    HM_EXIT_T = _hm("EXIT_T", 19.0)     # the tip, units
+    HM_ARCH_T = _hm("ARCH_T", 22.0)     # the climb's hairline, units
+    HM_ARCH_TOP = _hm("ARCH_TOP", 0.935)   # the apex's centerline, x xh
+    HM_SPRING = _hm("SPRING", 0.355)    # where the arch leaves the stem's center, x xh
+    # the i's dot: the scan's is 89 x 64 units at 1.40 x xh, Flanker's 98 x 98
+    # at 1.41, Poetica's 79 wide at 1.36. One touch of the nib, so it is an
+    # OVAL LYING ON THE PEN'S ANGLE, not a disc -- and not a `stroke` either:
+    # a 22-unit stroke 70 wide with the family's 20-degree cut on both ends has
+    # its two end faces CROSS, `_unfold` drops the folded points, and what
+    # rendered was a 45-unit triangle. Drawn as a rotated superellipse instead,
+    # which at 84 x 44 on the 24-degree pen gives a 95 x 74 bounding box.
+    HM_DOT_LEN = _hm("DOT_LEN", 84.0)   # its long axis, units
+    HM_DOT_TH = _hm("DOT_TH", 44.0)     # its short axis, units
+    HM_DOT_CY = _hm("DOT_CY", 1.400)    # its center, x xh above the baseline
+
+    def hm_u(c):
+        return c["xh"] / HM_UNIT
+
+    def hm_stem(c, xc, y0, y1, w=None, cut=True):
+        """A stem: straight, 70 units, its top face cut down to the right so
+        the head can lie across it (Flanker's i, 9-79 at .88 -> 6-46 at .99).
+        `y1` is where the top-LEFT corner lands. `cut=False` for a stem an ARCH
+        lands on -- there the crown is the top, and a cut corner under it only
+        pokes a spike through the shoulder."""
+        u = hm_u(c); sw = (HM_STEMW if w is None else w) * u
+        if not cut:
+            return stroke([(xc, y0), (xc, y1)], sw)
+        drop = math.tan(math.radians(HM_TOPCUT)) * sw / 2
+        return stroke([(xc, y0), (xc, y1 - drop)], sw, cut1=-math.radians(HM_TOPCUT))
+
+    def hm_head(c, xc, ytop):
+        """The entry stroke: up from the lower left, across the stem's top.
+        Tapered at the tip -- Flanker's detached tip reads 34 units across a
+        stroke running at 53 degrees, so 34*sin53 = 27 perpendicular -- and
+        bowed, so its underside is hollow the way the reference's is."""
+        u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
+        # the END is the CENTERLINE's end: a stroke this thick running at ~53
+        # degrees puts its upper edge 0.30 of its width above the centerline,
+        # and the references' ink top is exactly the x-line (Flanker's n and i
+        # both bbox at 429) -- the head does not rise above it.
+        tip = (xc - sw / 2 - HM_HEAD_L * u, ytop - HM_HEAD_D * xh)
+        end = (xc + HM_HEAD_R * sw, ytop - 0.30 * HM_HEAD_W * u)
+        mid = ((tip[0] + end[0]) / 2, (tip[1] + end[1]) / 2 + HM_HEAD_BOW * xh)
+        p = catmull([tip, mid, end], tension=0.5)
+        return stroke(p, widths([(0.0, HM_HEAD_T * u), (0.55, HM_HEAD_W * u),
+                                 (1.0, HM_HEAD_W * 0.86 * u)]), cut0=CUT, cut1=CUT)
+
+    def hm_exit(c, xc):
+        """The outstroke: down the stem, round the baseline, out RIGHT and UP
+        to a hairline tip. One stroke, started inside the stem so there is no
+        seam where it leaves."""
+        u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
+        tip = (xc + sw / 2 + HM_EXIT_R * u, HM_EXIT_Y * xh)
+        # IT IS SHORT AND IT CLIMBS: a hook round the baseline, then a
+        # straight run at about 45 degrees. Measured off Flanker's i as the
+        # ink's right edge against the stem's -- 27 units past it at .02, 45 at
+        # .05, 75 at .10, 83 at the tip -- so the outer edge rises at about 54
+        # degrees and it is ONE CONTINUOUS RUN from the stem the whole way
+        # (14-154 at .10). The knee therefore sits at the stem's own right
+        # edge, not out in the margin. The first cut drew a long low flick that
+        # left the stem at the baseline and had pinched off into a detached
+        # curl by .05.
+        #
+        # THE UNDERSIDE lands on the overshoot, not the centerline: the stroke
+        # is ~0.94 x the stem where it rounds the baseline, so a centerline at
+        # -5 hangs its lower edge 38 units under the line. Flanker's i and n
+        # bottom out at exactly -9 and this module's own a at -4; the first cut
+        # of these seven sat at -34, which is a sunk letter.
+        botY = sw * 0.47 - 9 * u
+        knee = (xc + sw * 0.56, botY + 9 * u)
+        d = (tip[0] - knee[0], tip[1] - knee[1])
+        p = catmull([(xc, xh * 0.26), (xc + sw * 0.05, botY + 22 * u), (xc + sw * 0.30, botY),
+                     knee,
+                     (knee[0] + d[0] * 0.42, knee[1] + d[1] * 0.42),
+                     (knee[0] + d[0] * 0.76, knee[1] + d[1] * 0.76), tip],
+                    tension=0.5)
+        return stroke(p, widths([(0.0, sw), (0.36, sw * 0.94), (0.66, sw * 0.78),
+                                 (0.88, sw * 0.48), (1.0, HM_EXIT_T * u)]), cut1=CUT)
+
+    # The arch's centerline, as (fraction of the pitch from the left stem's
+    # CENTER, fraction of the x-height). The middle five come straight off
+    # Flanker's n -- vertical cuts at x 120/160/200/240/270 put the stroke's
+    # center at .575/.694/.796/.875/.907 of the x-height, which normalize to
+    # .234/.374/.514/.654/.759 of that letter's 286-unit pitch -- and Poetica
+    # lands within .01 of every one of them.
+    HM_ARCH_K = [(0.234, 0.575), (0.374, 0.694), (0.514, 0.796),
+                 (0.654, 0.875), (0.800, 0.925)]
+
+    def hm_arch(c, x0, x1):
+        """ONE movement: out of the stem low, up as a hairline, over the top,
+        down into the next stem. Not a shoulder turned near the top."""
+        u = hm_u(c); xh = c["xh"]; P = x1 - x0; sw = HM_STEMW * u
+        # the landing runs BELOW the stem's own top (0.86 xh) so the arch's
+        # blunt end face is buried inside it; ending them level left a hairline
+        # white slit across the junction on the m's second and third stems.
+        K = [(0.0, HM_SPRING)] + HM_ARCH_K + [(0.930, HM_ARCH_TOP), (1.0, 0.780)]
+        p = catmull([(x0 + fx * P, fy * xh) for fx, fy in K], tension=0.5)
+        t = HM_ARCH_T * u
+        return stroke(p, widths([(0.00, sw * 0.94), (0.14, t * 1.15), (0.36, t),
+                                 (0.60, t * 1.30), (0.80, t * 2.00), (1.00, sw)]))
+
     @glyph('i')
     def a_i(c):
-        xh = c["xh"]; x = S * 1.0
-        parts = list(st(x, 0, xh, head=False, foot=True, w=I_STEM,
-                        foot_len=I_FOOT, foot_w=0.46))
-        parts.append(wedge_head(x, xh * 0.875))
-        # the dot: one touch of the nib, so an oval lying on the pen's angle
-        a = math.radians(HEAD_DEG); L = S * I_DOT_W
-        dx, dy = math.cos(a) * L, math.sin(a) * L
-        cy = xh + I_DOT_Y * xh
-        parts.append(stroke([(x - dx * 0.5, cy - dy * 0.5), (x + dx * 0.5, cy + dy * 0.5)],
-                            S * I_DOT_T, cut0=CUT, cut1=CUT))
+        """Stem, head, exit, dot. The scan's i is the family's cleanest single
+        stroke, and the dot is one touch of the nib: 89 x 64 units on the scan
+        (rows 1.35-1.45), 98 x 98 in Flanker, centered 1.40 x xh above the
+        baseline in both. Drawn 92 x 70 on the pen's own angle."""
+        xh = c["xh"]; u = hm_u(c); x = S * 1.0
+        parts = [hm_stem(c, x, 0, xh), hm_head(c, x, xh), hm_exit(c, x)]
+        parts.append(geom.poly(superellipse(x, HM_DOT_CY * xh, HM_DOT_LEN * u / 2,
+                                            HM_DOT_TH * u / 2, 0.0, 2 * math.pi, 2.1,
+                                            rot=math.radians(HEAD_DEG))))
         return geom.ink(parts)
 
     @glyph('l')
     def a_l(c):
-        return geom.ink(st(S * 1.0, 0, c["asc"], head=True))
+        """The i's stem carried to the ascender. Flanker puts the head's tip
+        0.15 x xh below the ascender's top (l: -62 at 1.60, top 1.75) and
+        0.155 below the x-line on the i -- the same shape at the same drop,
+        which is why hm_head takes the top as an argument."""
+        return geom.ink([hm_stem(c, S * 1.0, 0, c["asc"]),
+                         hm_head(c, S * 1.0, c["asc"]), hm_exit(c, S * 1.0)])
 
     @glyph('n')
     def a_n(c):
-        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + 268 * _w(c)
-        return geom.ink(st(x0, 0, xh, head=False) + [arch(c, x0, x1)] + st(x1, 0, xh * 0.74, foot=True))
+        """Two stems one pitch apart, one arch, one head, one exit. The left
+        stem has NO foot: Flanker's n reads exactly 70 at .02, and the foot the
+        module used to put there was a roman's, not a chancery hand's."""
+        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
+        return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh), hm_arch(c, x0, x1),
+                         hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1)])
 
     @glyph('m')
     def a_m(c):
-        xh = c["xh"]; x0 = S * 1.0; d = 250 * _w(c); x1 = x0 + d; x2 = x1 + d
-        return geom.ink(st(x0, 0, xh, head=False) + [arch(c, x0, x1), arch(c, x1, x2)]
-                        + st(x1, 0, xh * 0.74, foot=False) + st(x2, 0, xh * 0.74))
+        """Three stems at one pitch -- the doc's "three stems at 70/70/70".
+        One head, on the first; one exit, on the last."""
+        xh = c["xh"]; x0 = S * 1.0; d = HM_PITCH * xh; x1 = x0 + d; x2 = x1 + d
+        return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh),
+                         hm_arch(c, x0, x1), hm_arch(c, x1, x2),
+                         hm_stem(c, x1, 0, xh * 0.86, cut=False),
+                         hm_stem(c, x2, 0, xh * 0.86, cut=False),
+                         hm_exit(c, x2)])
 
     @glyph('h')
     def a_h(c):
-        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + 268 * _w(c)
-        return geom.ink(st(x0, 0, c["asc"], head=True) + [arch(c, x0, x1)] + st(x1, 0, xh * 0.74))
+        """The n with its left stem carried to the ascender. The macro's h
+        finishes its right leg with an INWARD hook (its .05 row sits 60 units
+        left of its .20 row) -- a real feature of that printing and not taken,
+        because both digital references and the m's own last stem exit to the
+        RIGHT, and one letter cannot leave the family to follow one page."""
+        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
+        return geom.ink([hm_stem(c, x0, 0, c["asc"]), hm_head(c, x0, c["asc"]),
+                         hm_arch(c, x0, x1), hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1)])
 
     # THE STEM PITCH, measured three ways on griffo-macro.png and agreeing:
     # the m of "tumulum" puts its stems near x505/532/560, and the l and the
     # following u sit at 680 and 709 -- about 28 px on a 54 px x-height, so
-    # **0.52 x xh between stem centres**. Everything else in the u is already
+    # **0.52 x xh between stem centers**. Everything else in the u is already
     # measured on the i: the stem at 0.64 x S, the wedge head, the exit.
-    U_PITCH = float(os.environ.get("ALBO_ALD_U_PITCH", 0.52))   # stem centres, x xh
+    U_PITCH = float(os.environ.get("ALBO_ALD_U_PITCH", 0.52))   # stem centers, x xh
     U_JOIN = float(os.environ.get("ALBO_ALD_U_JOIN", 0.30))     # where the bottom curve meets, x xh
+
+    # THE u, round 132 -- redrawn on the family's own stem, head and exit.
+    # The old cut is corrected on three counts, each measured:
+    #   ITS LEFT STEM IS STRAIGHT. Flanker reads 29-99 at .25 AND at .75, and
+    #     Poetica 47-104 at .40 and .60 -- a dead-constant 70. The one-path
+    #     catmull bowed it (a control point 0.02 P left of the stem), and a
+    #     bowed stem beside the h's straight one is two hands.
+    #   ONE HEAD, NOT TWO. Flanker's u widens to 132 at .90 on the LEFT run
+    #     only, its right run staying 70 and tapering to 63 at .97; Poetica's
+    #     right stem goes 56 -> 53 -> 31 with no widening anywhere. The right
+    #     stem's top is where an upstroke ARRIVES, and an arrival is not an
+    #     entry.
+    #   THE RISE MEETS THE RIGHT STEM AT HALF THE X-HEIGHT. Flanker's rise is
+    #     a detached 32-unit run at .25, centered 0.577 of the pitch along, and
+    #     is absorbed into the stem by .55; Poetica's is at 0.605 P at .25.
+    # The bottom turn's own low point sits 0.22 P along, a touch under the
+    # baseline -- Flanker's ink bottom is -9 and its .03 row runs 45-142.
+    U_RISE_X = float(os.environ.get("ALBO_ALD_U_RISE_X", 0.590))  # the rise at .25 xh, x the pitch
+    U_BOT_X = float(os.environ.get("ALBO_ALD_U_BOT_X", 0.15))     # the turn's low point, x the pitch
 
     @glyph('u')
     def a_u(c):
-        """Written, not assembled. ONE movement makes the left stem, the bottom
-        turn and the rise to the right stem -- down, around, up -- and a second
-        stroke brings the right stem down to the baseline and out.
-
-        The first cut butted three pieces together: two stems and a bottom
-        curve drawn separately. It measured correctly and read as construction,
-        because the joins were seams rather than the places a stroke changes
-        direction. The pen's own widths along one path do the work instead:
-        thick down the left, thinning through the turn, thin on the rise --
-        which is what an upstroke is."""
-        xh = c["xh"]; x0 = S * 1.0; x1 = x0 + U_PITCH * xh
-        w = x1 - x0
-        # down, around, up -- one path
-        p = catmull([(x0, xh * 0.94), (x0 - w * 0.02, xh * 0.52),
-                     (x0 + w * 0.06, xh * 0.16), (x0 + w * 0.34, -OVER * 0.5),
-                     (x0 + w * 0.72, xh * 0.14), (x1, xh * 0.52), (x1, xh * 0.94)],
+        """Written, not assembled: ONE movement makes the left stem, the bottom
+        turn and the rise -- down, around, up -- and a second stroke brings the
+        right stem down to the baseline and out. The pen's widths along that
+        one path do the work: full down the left, thinning through the turn,
+        hairline on the rise, which is what an upstroke is."""
+        xh = c["xh"]; u = hm_u(c); x0 = S * 1.0; P = HM_PITCH * xh
+        x1 = x0 + P; sw = HM_STEMW * u
+        # down (dead straight), around, up -- one path
+        # The stem stays DEAD STRAIGHT to .24 and the turn happens under it:
+        # Poetica reads 47-104 at .50, 48-106 at .35 and 49-110 at .25, and only
+        # at .20 does the run run away (50-115). And THE TURN IS FULL WIDTH --
+        # Poetica's bottom run at .02 is 72, exactly its stem, and Flanker's 97
+        # -- so the thinning belongs on the RISE, which is the upstroke. The
+        # first cut thinned through the turn itself and the bottom pinched in
+        # two at .05, where both references show one continuous mass.
+        p = catmull([(x0, xh * 0.95), (x0, xh * 0.58), (x0, xh * 0.24),
+                     (x0 + P * 0.05, sw * 0.48 + 22 * u), (x0 + P * U_BOT_X, sw * 0.48 - 9 * u),
+                     (x0 + P * 0.38, sw * 0.48 - 3 * u), (x0 + P * U_RISE_X, xh * 0.25),
+                     (x0 + P * 0.84, xh * 0.50), (x0 + P * 0.97, xh * 0.66)],
                     tension=0.5)
-        # thick down the left, thinning through the turn, thin on the rise
-        up = con([1.00, 0.98, 0.74, 0.52, 0.46, 0.60, 0.78])
-        prof = widths([(i / (len(up) - 1), S * I_STEM * 1.34 * v) for i, v in enumerate(up)])
-        parts = [stroke(p, prof, cut0=CUT)]
+        prof = widths([(0.00, sw), (0.42, sw), (0.55, sw * 0.96), (0.66, sw * 0.72),
+                       (0.76, HM_ARCH_T * u * 1.25), (0.90, HM_ARCH_T * u * 1.45),
+                       (1.00, sw * 0.70)])
+        parts = [stroke(p, prof, cut0=-math.radians(HM_TOPCUT))]
         # the second stroke: the right stem down to the baseline, and out
-        parts += list(st(x1, 0, xh * 0.94, head=False, foot=True, w=I_STEM,
-                         foot_len=I_FOOT, foot_w=0.46))
-        parts.append(wedge_head(x0, xh * 0.875))
-        parts.append(wedge_head(x1, xh * 0.875))
+        parts += [hm_stem(c, x1, 0, xh * 0.985), hm_exit(c, x1), hm_head(c, x0, xh)]
         return geom.ink(parts)
 
     # MEASURED off the o of "udos" in griffo-macro.png: x145-185, y61-114 --
     # 41 wide by 54 tall, w/h 0.759, counter/ink 0.617.
     #
     # THE STRESS was read properly rather than guessed: walking a ray out from
-    # the letter's centre every 10 degrees and taking the FIRST contiguous band
+    # the letter's center every 10 degrees and taking the FIRST contiguous band
     # of ink. The naive "last ink out" walks into the neighbouring s and
     # reports 30 px of stroke, which is how a stress measurement goes wrong
     # without anyone noticing. Thickness peaks at 50 deg (13.8 px) and bottoms
@@ -601,7 +863,7 @@ if ON:
         X = lambda f, fy: S * 0.55 + f * W - unshear * fy
         Y = lambda f: f * xh
         mid = 0.50
-        E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its centre
+        E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its center
         P = [(0.00, E_BAR),  (E(0.78), E_BAR_R),  # the bar, rising ~30 degrees
              (E(0.84), 0.82), (E(0.52), 0.96),   # up the eye's right, over the crown
              (E(0.22), 0.86), (0.10, 0.66),      # down the left
@@ -650,11 +912,11 @@ if ON:
     #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
     # Everything is written as a fraction of xh or S, so it rides the axes.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 317.0))   # stem centre, units
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 317.0))   # stem center, units
     A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 70.0))     # units
     A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
-    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl centre height, units
+    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 215.0))            # bowl center height, units
     A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))         # the egg's lean, dx per dy
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))               # squareness
     A_TAIL_X = float(os.environ.get("ALBO_ALD_A_TAIL_X", 434.0))    # tip, units from the left edge
@@ -747,14 +1009,44 @@ if ON:
         return geom.ink([bowl(c, S * 0.6 + rx, rx, top=BOWL_TOP)]
                         + st(x1, -c["desc"], c["xh"], head=False))
 
+    # THE r, round 132 -- the family's stem and head, then an arm that is the
+    # arch's first half made STEEPER, stopped in a ball.
+    #   THE ARM springs off the stem exactly where the arch does and climbs
+    #     harder: normalized on the pitch, Flanker's arm is 0.55 xh high at
+    #     0.22 P, 0.76 at 0.36, 0.88 at 0.50, and Poetica's 0.55 / 0.74 / 0.85
+    #     at 0.165 / 0.32 / 0.47 -- the same curve, and above the arch's
+    #     0.575 / 0.694 / 0.796 at those same distances.
+    #   IT IS THE HAIRLINE. Flanker's vertical cut at x140 gives 47 units on a
+    #     stroke rising at 63 degrees: 47*cos63 = 21.
+    #   THE TERMINAL IS A BALL, not a flick, and it is heavy: 99 x 103 units
+    #     in Flanker (vertical cuts x220/250/280 -> 77/103/91) and 84 x 106 in
+    #     Poetica -- an OVAL taller than wide, not a disc -- and the macro's r
+    #     shows the same blob at .75. Its center sits 0.66 of the pitch right
+    #     of the stem's center in Poetica and 0.76 in Flanker, both at 0.876
+    #     xh; Poetica's is taken, with the arm RUNNING INTO it rather than
+    #     stopping short (the first cut left a one-unit gap at .80).
+    #   THE r HAS NO EXIT. Flanker reads a flat 70 from .02 to .15 and Poetica
+    #     49-57; the stroke stops at the baseline. The module gave it the
+    #     shared foot, which is a letter the references do not print.
+    R_ARM_X = float(os.environ.get("ALBO_ALD_R_ARM_X", 0.660))   # the ball's center, x the pitch
+    R_ARM_Y = float(os.environ.get("ALBO_ALD_R_ARM_Y", 0.876))   # its center, x xh
+    R_ARM_W = float(os.environ.get("ALBO_ALD_R_ARM_W", 84.0))    # its width, units
+    R_ARM_H = float(os.environ.get("ALBO_ALD_R_ARM_H", 106.0))   # its height, units
+
     @glyph('r')
     def a_r(c):
-        xh = c["xh"]; x0 = S * 1.0
-        p = cubic((x0, xh * BRANCH), (x0 + 26 * _w(c), xh * 0.90),
-                  (x0 + 96 * _w(c), xh + pen.ARCH_OVER), (x0 + 182 * _w(c), xh * 0.86))
-        wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink(st(x0, 0, xh, head=False)
-                        + [stroke(p, lambda t: wf(t) * (0.60 + 0.40 * min(1.0, t / 0.35)), cut1=CUT)])
+        xh = c["xh"]; u = hm_u(c); x0 = S * 1.0; P = HM_PITCH * xh; sw = HM_STEMW * u
+        t = HM_ARCH_T * u
+        arm = catmull([(x0, xh * HM_SPRING), (x0 + P * 0.17, xh * 0.55),
+                       (x0 + P * 0.32, xh * 0.745), (x0 + P * 0.47, xh * 0.850),
+                       (x0 + P * R_ARM_X, xh * 0.876)], tension=0.5)
+        ball = geom.poly(superellipse(x0 + P * R_ARM_X, R_ARM_Y * xh,
+                                      R_ARM_W * u / 2, R_ARM_H * u / 2,
+                                      0.0, 2 * math.pi, 2.2))
+        return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh),
+                         stroke(arm, widths([(0.00, sw * 0.94), (0.16, t * 1.15),
+                                             (0.42, t), (0.72, t * 1.25), (1.00, t * 2.1)])),
+                         ball])
 
     @glyph('f')
     def a_f(c):
