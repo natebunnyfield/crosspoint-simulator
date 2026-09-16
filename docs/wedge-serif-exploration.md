@@ -5550,3 +5550,60 @@ agents, each in its own worktree, each owning a construction family and
 forbidden the shared helpers: `b d p q g` · `c e o s` · `h m n r u i l` ·
 `v w x y z k f t j`. Same loop each: overlay, look, fit, look, paragraph,
 ledger. Results merged and judged in the next entry.
+
+#### Round 132, merged — all 26 lowercase drawn against the reference
+
+Four opus agents in four worktrees, merged clean (disjoint regions of
+`aldine.py`). Build green, ledger green (the `a`'s counter target moved from
+the suspect crop's 0.344 to Flanker's 0.844 — the crop's ink spread closes the
+counter). Overlay IoU per letter, first build → final, against the reference
+each was drawn to:
+
+| group | letter: ref, IoU start → end |
+|---|---|
+| `b d p q g` | b scan+Flanker .29→.71 (Flanker) · d .24→.83 · p .08→.71 · q .22→.76 · g Poetica+Flanker .19→.66. **g stays double-storey**: both references and the 1501 page are binocular with an ear |
+| `c e o s` | o scan .71→.79 · e scan .56→.72 · c Poetica .48→.64 · s Poetica .34→.76 (**scan overruled**: 0.94 xh of ink, a blob) |
+| `h m n r u i l` | h scan .28→.39 · m Poetica .54→.73 · n Poetica .38→.70 · r Poetica .54→.70 · u Poetica .27→.67 · i scan .24→.35 · l scan .40→.55 — ONE construction (`hm_stem hm_head hm_exit hm_arch`), pitch 0.52 xh |
+| `v w x y z k f t j` | v .09→.76 · w .10→.77 · x .13→.69 · y see below · z .28→.71 · k .27→.40 · f .00→.65 · t .32→.72 · j .02→.65, all Poetica |
+
+**The 0.80 gate was not reachable, and every agent measured why before
+saying so**: two professional revivals of the same 1501 source score
+**0.22–0.46 against each other** in this instrument, and 0.15–0.62 against
+the scan crops. The honest bar is the reference-vs-reference ceiling, and
+every letter now sits at or above it. Recorded so the number is not chased
+again.
+
+**Findings that outlive the round:**
+- **The head reaches LEFT, not right.** The module's standing note read the
+  stem's baseline position against a head 50 rows higher — 12 px of shear on a
+  13° page. At the head's own height the scan's i runs 55 units left of the
+  stem and 17 right; Flanker 83 left; Poetica 69 left. The generic
+  `wedge_head` still carries the error and still draws the k's and y's head.
+- **`FIT` rows are retired for redrawn letters** (b p h l m r): a weight
+  buffer and a horizontal scale on top of a drawing measured in units can only
+  take it away from the reference.
+- **Poetica cannot be the fitter's target for weight.** Its stem is 57 units
+  against the ruled 70, so an overlap score charges Albo for ink it must have
+  and the solver amputates (HEAD_L 80→50 for +0.04). Shape from Poetica by
+  eye; the stem, head and exit fitted on Flanker's i, which IS 70.
+- **The o's weight is a real conflict**: Flanker's ring is 66–71 where Albo's
+  was 104, but a Flanker-weight o measures counter/ink 1.32 against the
+  ledger's 0.617 — a number that is the printed page's ink spread. The ledger
+  won this round; the o is heavier than its neighbours for it.
+- **The `y`'s tail** ships as Poetica's shape inside the metal's extent (the
+  brief: a chancery flourish does not move the text lowercase). Poetica's full
+  swash is `ALBO_ALD_Y_TAIL_X=8`; the owner's call.
+- **Scan crops found bad**: `p` (0.87 xh wide, bowl clipped), `s` (0.94 xh),
+  `u` (a neighbor), `l` (a neighbor's ink), `q` (descender cut). The targets
+  doc's self-check tested crop HEIGHT only.
+- **`stroke(cut0=CUT, cut1=CUT)` degenerates silently** when the stroke is
+  shorter than tan(20°)·width — the i's 22×70 dot rendered as a triangle.
+- **`cut.Cutter`'s running phase counter makes no letter edit local**: ~40
+  unrelated glyphs move ≤1 unit per build; an md5 gate is unavailable here.
+- Dead now: `arch()`, `BRANCH`, `_diag`, `I_FOOT`, `I_DOT_*`, `U_PITCH`.
+  Left in place until the capitals pass, then swept.
+
+**Still open:** the capitals (the 1501 page sets its italic with small UPRIGHT
+roman capitals; Albo shears them 13° — two arms on the page for a ruling), the
+spacing of the redrawn letters against each other, the `o`'s weight conflict,
+the `k`'s head, the page colour pass on the new lowercase.
