@@ -132,11 +132,24 @@ def draw(ch, W=None):
     g = g.buffer(INK_SPREAD, join_style=2)
     if pen.SHEAR:   # round 100: the italic's slope, about the baseline
         import shapely.affinity as _aff
+        # AN ITALIC'S CAPITALS ARE ~5% NARROWER, and that is the ONLY thing
+        # that changes for most of them. Measured over 17 roman/italic pairs
+        # (docs/albo-italic-capitals.md): median width ratio 0.953, while the
+        # cap height ratio is 1.000 and the serif spread 1.005 -- so they are
+        # neither shorter nor lighter-serifed, and the folklore that chancery
+        # capitals stand uprighter than their lowercase is refuted outright
+        # (median lowercase slant 12.97 deg against the capitals' 12.94).
+        # Eight letters -- N H Q G V A S U -- are genuinely re-cut in a real
+        # italic and are NOT addressed by this; they are drawing work, listed
+        # in that doc. The other eighteen want exactly this and nothing else.
         g = _aff.affine_transform(g, (1, pen.SHEAR, 0, 1, 0, 0))
     if isfig(ch):
         import shapely.affinity
         g = shapely.affinity.translate(g, 0, latin.FIG_BOX[ch][1] * C)
     return g
+
+CAP_NARROW = float(os.environ.get("ALBO_IT_CAP_NARROW", 0.953))
+
 
 def solve_widths(passes=3):
     """Capitals and figures: scale each glyph's width multiplier so its ink
@@ -146,7 +159,24 @@ def solve_widths(passes=3):
         for ch in CHARS:
             if not (ch.isupper() or isfig(ch)) or ch in ('I', '1') or ch not in REF or ch not in GLYPHS: continue
             g = draw(ch, W); x0, y0, x1, y1 = geom.bbox(g); drawn = x1 - x0
-            target = REF[ch]["w"] * C * pen.WIDTH   # the wdth axis scales the references' widths
+            # AN ITALIC'S CAPITALS ARE ~5% NARROWER, and for most of them that
+            # is the ONLY change. Measured over 17 roman/italic pairs
+            # (docs/albo-italic-capitals.md): median width ratio 0.953, cap
+            # height ratio 1.000, serif spread 1.005 -- neither shorter nor
+            # lighter-serifed. The folklore that chancery capitals stand
+            # uprighter than their lowercase is refuted outright: median
+            # lowercase slant 12.97 deg against the capitals' 12.94.
+            #
+            # It goes on the TARGET and not on the drawn outline, because
+            # solve_widths re-solves each capital's multiplier until its ink
+            # hits this number -- a scale applied in draw() is simply undone on
+            # the next pass, which is what the first attempt did (H moved 752
+            # to 749 instead of to 717).
+            #
+            # Eight letters -- N H Q G V A S U -- are genuinely re-cut in a
+            # real italic and this does NOT address them; that is drawing work.
+            target = REF[ch]["w"] * C * pen.WIDTH
+            if pen.SHEAR: target *= CAP_NARROW
             if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 
