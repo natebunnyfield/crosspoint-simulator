@@ -746,16 +746,55 @@ if ON:
     # near 110 and 290 (about 5) -- so the PEN ANGLE is ~50 deg, a conventional
     # steep italic nib, and the contrast is ~2.8:1. Mean 8.7 px = 0.161 x xh =
     # 0.82 x the stem, which sits with the e's flanks at 0.79.
+    # ROUND 132, DRAWN AGAINST THE REFERENCE. Two of the three numbers above
+    # were wrong, and both were wrong for the same reason: a RAY out of the
+    # centre measures a RADIAL run, which over-reads wherever the ring's own
+    # normal is not radial -- worst at 45 degrees, which is exactly where the
+    # 50-degree reading landed. The distance transform does not have that
+    # error (at the stroke's medial axis the distance to the background IS
+    # half the perpendicular width, whatever direction the stroke runs), and
+    # re-measured that way the scan, Flanker and Poetica all agree:
+    #
+    #   THE THIN SITS AT ~105 AND ~285 DEGREES, not 135/315. Perpendicular
+    #     thickness by angle, geometric, in Albo's units: scan 90:33 105:29,
+    #     Flanker 90:30 105:23, Poetica 105:21 285:23. The thick is a broad
+    #     plateau (Flanker 0-30 at 66-71, the scan 15-60 at 69-93) whose peak
+    #     the three references put in different places, so the THIN is the
+    #     feature to key on -- it is sharp and all three agree on it. As drawn,
+    #     Albo's thin was at 135/315: a ring rotated 30 degrees off its
+    #     reference, which no dial in this block could say.
+    #   THE RING IS ROUNDER THAN THE FAMILY'S 2.1. Run width is
+    #     shear-invariant, so a scan row width compares directly with an
+    #     outline's. At .90 the scan is 154 wide and the drawn o 212; at .03,
+    #     90 against 145; at .25, 260 against 291. Solving the superellipse
+    #     for each gives k 1.6 at .90 and 1.7 at .25, against 2.15 as drawn --
+    #     the o's top and bottom were too FLAT, and that is where the extra
+    #     width was.
+    #
+    # THE WEIGHT IS ONLY PARTLY CORRECTED, and the limit is a ledger row
+    # rather than a judgment. Flanker's ring is 66-71 at the thick where this
+    # one was 104, so matching it outright would be right for the colour -- but
+    # `cmp_aldine_metrics` holds the o at counter/ink 0.617, measured off the
+    # scan, and a Flanker-weight o measures **1.322** there: twice the target,
+    # a failed row. The scan itself measures 0.559, so that target is a
+    # property of the printed page's INK SPREAD and not of the letter, and the
+    # two instructions cannot both be met. The ledger wins, the conflict is
+    # reported rather than silently split, and the thick came down as far as
+    # the row allows -- 1.63 to 1.44 x S, which lands counter/ink at 0.626
+    # (+2%) and w/h at 0.761 against the ledger's 0.759. The two shape moves
+    # above are free of all of it: rotating the stress and rounding the
+    # shoulders spend no ink at all.
     O_W = float(os.environ.get("ALBO_ALD_O_W", 0.76))          # width, x xh
-    O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 50.0))      # the nib's angle, degrees
-    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.63))  # x S, at the pen's fullest
+    O_K = float(os.environ.get("ALBO_ALD_O_K", 1.72))          # squareness; 1.6-1.7 off the scan's row widths
+    O_PEN = float(os.environ.get("ALBO_ALD_O_PEN", 25.0))      # the nib's angle, degrees
+    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.44))  # x S, at the pen's fullest
     O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.590))    # x S, across the nib
 
     @glyph('o')
     def a_o(c):
         xh = c["xh"]; rx = O_W * xh / 2; ry = xh / 2 + OVER * 0.5
         cx = S * 0.6 + rx
-        outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, BOWL_K)[:-1]
+        outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
         phi = math.radians(O_PEN)
         _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
         def wf(t):
@@ -763,12 +802,153 @@ if ON:
             return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
         return geom.ink([PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]])
 
+    # ------------------------------------------------------------ THE c, round 132
+    # DRAWN AGAINST POETICA for its shape -- owner 2026-09-16, *"poetica is my
+    # preferred fallback"* -- because the c is one of the twelve lowercase
+    # letters with NO scan crop at all (docs/albo-aldine-targets.md section 6),
+    # and against FLANKER for its weight, which is the other half of the same
+    # brief: flank 70 units, hairline 22-26.
+    #
+    # WHAT WAS WRONG, measured and not guessed:
+    #   TOO TALL BY A TENTH OF AN X-HEIGHT. y -28..452 = 480 units, against
+    #     Flanker's 438 and Poetica's 444. The semi-axis already carried the
+    #     overshoot and then half a stroke was laid outside it at each end, so
+    #     the letter grew by its own stroke. Everything downstream read as a
+    #     narrow c, because w/h was being measured against that inflated h.
+    #   THE BOTTOM ARC WAS A HAIRLINE. At mid-width Flanker's c is 62 units
+    #     thick along the bottom and Poetica's 61; this one was 42, and its
+    #     crown 32 where Flanker's is 26. It had the weight the wrong way up.
+    #   IT WAS CARRYING THE FAMILY'S PEN. `pen_widths` is Albo's own nib, not
+    #     the Aldine one; the c and the s were the last two letters in this
+    #     module still drawn from it, and both leave it in this round. Its
+    #     stress disagreed with the o standing next to it in every word.
+    #
+    # Measured after: IoU against Poetica 0.484 -> 0.643 and against Flanker
+    # 0.512 -> 0.566; bbox 294 x 480 -> 241 x 443, against Poetica's 250 x 444.
+    # The weight lands on Flanker almost exactly -- vertical median 71 units
+    # against its 70, thickest 75 at 0.27 of the band against its 73 at 0.29,
+    # and the .50 row 70 wide against its 70.
+    #   NO TERMINALS. Both references end the top in a blunt BEAK -- Flanker 59
+    #     units thick at 60 degrees where its crown is 24, Poetica 57 at 75
+    #     against a 50 crown -- and the bottom in a fine taper (Flanker 27 at
+    #     315 degrees, Poetica 19-22). This had one flat pen-cut at each end and
+    #     the same width running into both.
+    #
+    # THE WIDTHS ARE KEYED BY ANGLE, the a's method, rather than left to a pen
+    # model: the table below IS Flanker's perpendicular thickness round its own
+    # c, measured with a distance transform (a ray from the centre measures a
+    # RADIAL run and over-reads every place the stroke's normal is not radial),
+    # converted from the geometric angle it was read at to the superellipse's
+    # PARAMETRIC angle, which is what a point on the arc can be asked for.
+    # NO `con()` re-spread: the c carries no contrast-arm ruling, and the table
+    # is already the reference's own 74:24 -- whose hairline is the 22-26 the
+    # brief names. Re-spreading it to the module's 9.26 would put the crown at
+    # 8 units, which at 27 px is a broken letter.
+    C_W = float(os.environ.get("ALBO_ALD_C_W", 0.675))      # outer width, x xh
+    C_K = float(os.environ.get("ALBO_ALD_C_K", 1.88))      # squareness, as the o's
+    C_A0 = float(os.environ.get("ALBO_ALD_C_A0", 50.0))    # the top terminal's end, parametric deg
+    C_A1 = float(os.environ.get("ALBO_ALD_C_A1", 322.0))   # the bottom terminal's end
+    C_WT = float(os.environ.get("ALBO_ALD_C_WT", 1.00))    # scales every key
+    # THE TERMINALS ARE ROUNDED, and that is drawn rather than left to the
+    # stroke's end face. Both references end this letter in a lobe: Poetica's
+    # top terminal spans 59 units at its 0.75 column and is gone by 0.90, and
+    # its bottom one tapers to a rounded point that has curled up to a quarter
+    # of the x-height by the time it reaches the letter's right edge (row .25,
+    # x 235-254). A `stroke` can only end in a flat or sheared face, and on a
+    # 57-unit terminal that face reads as a cut corner.
+    #
+    # A STRAIGHT BEAK STROKE WAS TRIED FIRST AND IS NOT WHAT THIS IS. Butting a
+    # second stroke onto the arc's end scored BETTER against Poetica (0.644
+    # against 0.628) and looked worse: the two strokes meet at an angle, so the
+    # underside gains a V-notch and the top a spike. It is the case the brief
+    # names -- the number says a pass moved toward the reference and the
+    # picture says what it did. A semicircular cap is the same lobe with no
+    # join in it, and it costs nothing in width.
+    C_CAP0 = float(os.environ.get("ALBO_ALD_C_CAP0", 1.00))   # top terminal, x half its width
+    C_CAP1 = float(os.environ.get("ALBO_ALD_C_CAP1", 0.85))   # bottom terminal
+    C_RING = [(40, 52), (47, 59), (66, 32), (90, 24), (113, 34), (133, 47),
+              (160, 60), (171, 65), (180, 66), (189, 70), (200, 72), (212, 74),
+              (227, 73), (246, 68), (270, 60), (293, 51), (313, 38), (328, 27)]
+    if os.environ.get("ALBO_ALD_C_RING"):   # "40:52,47:59,..." -- for the fitter
+        C_RING = [(float(a), float(w)) for a, w in
+                  (kv.split(":") for kv in os.environ["ALBO_ALD_C_RING"].split(","))]
+
+    def cs_round_end(pts, ws, at_start, amount):
+        """Trim a stroke back and report the disc that caps it, so a ROUND
+        terminal does not grow the letter.
+
+        A disc simply dropped on the path's end is not a cap. At less than the
+        stroke's half-width it sits inside the end face and shows as a bump; at
+        exactly the half-width it is a true semicircular cap but it adds its
+        whole radius to the letter's extent, which on the s -- whose terminals
+        ARE its top-right and bottom-left corners -- grew the bounding box by a
+        third and cost 0.27 of IoU. Trimming the path back by that radius first
+        puts the finished ball's outer edge where the flat cut had it.
+
+        THE RADIUS IS THE ORIGINAL END'S HALF-WIDTH, not the trimmed point's.
+        Both references end these two strokes in a ball WIDER than the stroke
+        running into it; measuring at the trimmed point instead made a letter
+        that shrank -- the s lost a tenth of its width and 0.19 of IoU. Returns
+        the new index and the cap's radius; `amount` 0 leaves the end alone and
+        keeps the pen's flat cut. Serves the c and the s, the two letters here
+        with free terminals."""
+        n = len(pts) - 1
+        if amount <= 0: return (0 if at_start else n), 0.0
+        j = 0 if at_start else n
+        r = ws[j] * 0.5
+        k = j
+        while 0 <= k <= n and math.hypot(pts[k][0] - pts[j][0], pts[k][1] - pts[j][1]) < r * amount:
+            k += 1 if at_start else -1
+        k = max(0, min(n, k))
+        return k, r
+
+    def c_key_widths(pts, cx, cy, rx, ry, keys, unit):
+        """Widths for an OPEN arc, read off a table keyed by the parametric
+        angle at each point. `keyed_ring` cannot serve here -- it builds a
+        closed ring and returns a solid -- and an open arc has ends, which is
+        the whole point of the c."""
+        ks = sorted((a % 360.0, w) for a, w in keys)
+        def wat(a):
+            a %= 360.0
+            for (a0, w0), (a1, w1) in zip(ks, ks[1:] + [(ks[0][0] + 360.0, ks[0][1])]):
+                if a0 <= a <= a1 or (a1 > 360.0 and a < a1 - 360.0):
+                    if a1 > 360.0 and a < a0: a += 360.0
+                    t = (a - a0) / (a1 - a0) if a1 > a0 else 0.0
+                    t = 0.5 - 0.5 * math.cos(math.pi * t)     # smooth, so no corner in the counter
+                    return w0 + (w1 - w0) * t
+            return ks[0][1]
+        return [wat(math.degrees(math.atan2((y - cy) / ry, (x - cx) / rx))) * unit
+                for x, y in pts]
+
     @glyph('c')
     def a_c(c):
-        xh = c["xh"]; rx = 140 * _w(c); cx = S * 0.6 + rx
-        p = superellipse(cx, xh / 2, rx, xh / 2 + OVER * 0.5, math.radians(38), math.radians(322), BOWL_K)
-        wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT)])
+        xh = c["xh"]; u = xh / 429.0      # the reference's own units
+        def key(a):
+            return c_key_widths([(math.cos(math.radians(a)), math.sin(math.radians(a)))],
+                                0.0, 0.0, 1.0, 1.0, C_RING, u)[0] * C_WT
+        wt, wb, wl = key(90), key(270), key(180)
+        # THE OUTER EDGE lands on the overshoot, not the centerline -- and the
+        # top and the bottom are inset by DIFFERENT amounts, because the crown
+        # is 24 units and the bottom arc 60. Same outer band as the o
+        # (-OVER/2 .. xh+OVER/2), so the two round letters sit on one line.
+        y0, y1 = -OVER * 0.5 + wb / 2, xh + OVER * 0.5 - wt / 2
+        cy = (y0 + y1) / 2; ry = (y1 - y0) / 2
+        half = C_W * xh / 2
+        cx = S * 0.6 + half; rx = half - wl / 2
+        # CCW from the top terminal, over the crown, down the left, round the
+        # bottom: a0 < a1 is the LONG way round, and the short way is the
+        # aperture.
+        p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
+        ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT)
+        n = len(ws) - 1
+        i0, r0 = cs_round_end(p, ws, True, C_CAP0)
+        i1, r1 = cs_round_end(p, ws, False, C_CAP1)
+        q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
+        parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
+                        cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
+        if r0: parts.append(PR.dot(q[0][0], q[0][1], r0))
+        if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
+        return geom.ink(parts)
 
     # RE-MEASURED off griffo-dante-1502.jpg -- the Stagnino Dante, the same
     # cutter at THREE TIMES the linear resolution of aldine.png (a 35 px
@@ -820,7 +1000,32 @@ if ON:
     # So the letter has ONE enclosed counter, the eye, and it measures
     # 191 px against 941 px of ink -- a counter/ink ratio of 0.203, which is
     # what E_CTR is tuned against rather than a guess at a percentage.
-    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.65))       # 38/58 measured
+    # ------------------------------------------------------------ ROUND 132
+    # THE BAR WAS HALF A STROKE TOO HIGH, and it is the same misreading twice:
+    # the macro numbers above give the bar's TOP EDGE at 0.54 rising to 0.67
+    # (that is what "the eye's floor" means), and both were written straight
+    # into E_BAR / E_BAR_R, which are CENTERLINE fractions. With the bar 0.075
+    # xh thick its centerline belongs at 0.50 rising to ~0.63. Drawn from the
+    # top edge, the whole bar -- and the eye standing on it -- sat a half
+    # stroke up. A blind coordinate descent against the scan crop asked for
+    # 0.48 and 0.61 on its own, which is the measurement and the fit agreeing
+    # from opposite directions; 0.50 is taken because it is the measured one
+    # and it costs 0.002, and 0.61 because the rise it gives (0.11 of the band
+    # against the 0.13 read off the top edge) is inside one printed row at 54
+    # px and scores 0.028 better.
+    #
+    # THE REST OF THIS LETTER IS FITTED AGAINST THE SCAN CROP UNDER THE LEDGER
+    # AS A HARD CONSTRAINT, which is the part not to drop. A free descent
+    # reached IoU 0.719 by growing the eye to 0.71 -- and counter/ink with it,
+    # to 0.264 against a target of 0.203. That is a FAILED ledger row wearing
+    # a better number, and the eye it wanted is the one the macro block above
+    # already rejected ("half again Griffo's"). Constrained, the same descent
+    # reaches 0.720 legally: wider (0.65 -> 0.70), heavier (E_CTR 1.00 -> 1.14,
+    # E_THICK 1.12 -> 1.24, toward Flanker's 69 median against this letter's
+    # 53), a SMALLER eye (0.62 -> 0.54) and a bottom that stops earlier.
+    # Measured after: scan IoU 0.563 -> 0.718, counter/ink 0.200 against 0.203,
+    # w/h 0.65 against the crop's 0.65.
+    E_W = float(os.environ.get("ALBO_ALD_E_W", 0.70))       # 38/58 measured
     # The bar's ends, off the macro: its TOP edge (the eye's floor) is at row
     # 371 where it leaves the left flank and row 364 at x620 -- 0.54 and 0.67
     # of the band. The eye itself is x608-622 by rows 353-369: 0.37 of the
@@ -829,15 +1034,29 @@ if ON:
     # 0.55 W wide -- half again Griffo's -- and THAT, not the stroke weight,
     # was the counterspace. The macro's stroke is 0.79 x the stem: a LIGHT
     # letter with a small eye, not a heavy one.
-    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.54))   # the bar's LEFT end, x xh
-    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.67))  # its RIGHT end -- the rise
-    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.62))   # scales the upper loop's flanks
+    E_BAR = float(os.environ.get("ALBO_ALD_E_BAR", 0.50))   # the bar's LEFT end, x xh
+    E_BAR_R = float(os.environ.get("ALBO_ALD_E_BAR_R", 0.61))  # its RIGHT end -- the rise
+    E_EYE = float(os.environ.get("ALBO_ALD_E_EYE", 0.54))   # scales the upper loop's flanks
     E_WT = float(os.environ.get("ALBO_ALD_E_WT", 1.00))
     E_CON = float(os.environ.get("ALBO_ALD_E_CON", 1.00))   # contrast, x the measured 3.4:1
-    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.12))  # x S, across the nib
+    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.24))  # x S, across the nib
     E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.26))    # x S, along it
-    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.00))   # >1 eats counterspace
-    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.66))   # where the bottom stops. It STOPS.
+    E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.14))   # >1 eats counterspace
+    E_END = float(os.environ.get("ALBO_ALD_E_END", 0.54))   # where the bottom stops. It STOPS.
+    # CHECKED AND LEFT ALONE, round 132, and worth saying so rather than
+    # leaving the next pass to re-derive it. The mid-width column says the eye
+    # sits high -- the scan's spans y 0.59-0.83 of the band and this letter's
+    # 0.66-0.87 -- so the crown's apex and the eye's right shoulder were made
+    # dials and swept. BOTH ARE ALREADY AT THEIR BEST: lowering the crown to
+    # 0.93 costs 0.018 of IoU and 0.90 costs 0.043, and the shoulder falls off
+    # in both directions from 0.82. The reason is that the crown's outer edge
+    # is also the letter's TOP, so shortening it rescales the whole letter
+    # against a height-normalized reference and moves everything else with it.
+    # The eye's height is not reachable from here; it would need the loop's
+    # floor, which is the bar. They stay as dials because the sweep was worth
+    # having and will be worth having again.
+    E_TOP = float(os.environ.get("ALBO_ALD_E_TOP", 0.96))      # the crown's apex, x xh
+    E_SHOULDER = float(os.environ.get("ALBO_ALD_E_SHOULDER", 0.82))  # the eye's right shoulder, x xh
 
     # THE PAGE'S OWN SLANT. Whole-stem fits scatter badly -- chancery stems
     # curve, so one stroke gives 13 deg and its neighbour 4.7 -- but 52 sliding
@@ -865,7 +1084,7 @@ if ON:
         mid = 0.50
         E = lambda f: mid + (f - mid) * E_EYE   # the eye's flanks, about its center
         P = [(0.00, E_BAR),  (E(0.78), E_BAR_R),  # the bar, rising ~30 degrees
-             (E(0.84), 0.82), (E(0.52), 0.96),   # up the eye's right, over the crown
+             (E(0.84), E_SHOULDER), (E(0.52), E_TOP),   # up the eye's right, over the crown
              (E(0.22), 0.86), (0.10, 0.66),      # down the left
              (0.02, 0.34),   (0.08, 0.14),      # past its own start
              (0.34, 0.02),   (E_END, 0.12)]     # round the bottom, and STOP
@@ -1619,13 +1838,118 @@ if ON:
                             S * I_DOT_T, cut0=CUT, cut1=CUT))
         return geom.ink(parts)
 
+    # ------------------------------------------------------------ THE s, round 132
+    # THE SCAN CROP IS OVERRULED FOR THIS LETTER, and that has to be said out
+    # loud because the brief names the scan as the reference wherever one
+    # exists. Three things say this one cannot carry it, and section 6 of
+    # docs/albo-aldine-targets.md already flagged the first:
+    #   its ink is 0.94 xh, so either the crop clips or the declared x-height
+    #     is high -- the s is the crop the doc calls borderline;
+    #   the CEILING it sets is the lowest of the four letters by a wide
+    #     margin. Two professional revivals of the same source score 0.303
+    #     (Poetica) and 0.181 (Flanker) against it, where the o's crop lets
+    #     Poetica reach 0.617;
+    #   and the s as drawn scored 0.524 against it -- 1.7x better than Poetica
+    #     manages. That is not a better Griffo s than Poetica's. It is a fat
+    #     near-monoline letter matching a fat blob's MASS, and it scored 0.344
+    #     and 0.159 against the two real faces, the worst pair in the set.
+    # So this letter is drawn against Poetica for shape and Flanker for weight,
+    # as the c is. Afterwards it scores 0.755 / 0.340 / 0.334 against
+    # Poetica / Flanker / the scan -- the scan figure being, within noise,
+    # exactly the ceiling a Poetica-shaped s can reach against that crop.
+    #
+    # THE PATH WAS WRONG AND THE WEIGHT WAS WRONG, both:
+    #
+    #   THE ARCS WERE THREE TIMES TOO THICK. At mid-width Flanker's s cuts
+    #     three runs -- bottom arc 23, spine 89 (a diagonal, so ~67
+    #     perpendicular), top arc 23. This letter cut 61 / 75 / 72: an almost
+    #     monoline snake where the reference is a hairline-and-spine. It is why
+    #     the s read heavier than every letter beside it.
+    #   THE TERMINALS ARE BLOBS AND WERE FLAT SLABS. This is the one the first
+    #     cut got backwards. "Thinnest 22 at .97" names the top ARC, not the
+    #     end of the stroke: at its 0.90 column Flanker's top terminal is 68
+    #     units tall and its row .90 carries an 89-wide run, and Poetica ends
+    #     both strokes in a visible ball. A first pass read that 22 as the
+    #     terminal, drew two hairlines, and every IoU fell -- scan 0.524 ->
+    #     0.422, Poetica 0.344 -> 0.293. The overlay said why in one look.
+    #   IT DID NOT LEAN, BY 11 DEGREES. Measured by SEARCH and not by a fitted
+    #     axis, because a row-midpoint fit is meaningless on an s -- at a given
+    #     height the ink can be the top arc or the bottom arc, and under that
+    #     fit every real face's s reads -22 to -34 degrees, Poetica's and
+    #     Flanker's included. Shear the candidate through a range and take the
+    #     angle that best overlaps the reference: this s wanted **+11 degrees**
+    #     of extra lean to sit on Poetica's and +12 on Flanker's, where the o
+    #     wanted +2 and the c +1. It is not the build's shear (every letter
+    #     here is drawn upright and sheared at the end); it is the path.
+    #     Poetica's apex sits near the middle of the letter and its bottom
+    #     terminal reaches down to the baseline and far left, so the top of
+    #     the s is carried right of the bottom. This one had the apex at 0.20
+    #     of the width and the bottom terminal 14% of the x-height off the
+    #     ground. After: **+0** against Poetica. Flanker still asks +10, and
+    #     that is Flanker's own s -- it leans 5 degrees further than its o
+    #     where Poetica's leans like its o.
+    #   IT WAS ON THE FAMILY'S PEN. `pen_widths` floored at 0.30 S, so the
+    #     hairline could not go below 20 units and the pen decided the rest.
+    #
+    # So both the path and the width are keyed to the reference AT EACH PLACE
+    # ON THE STROKE, the a's method. The key positions are found by LOCATING
+    # each control point on the resampled path rather than by guessing a t for
+    # it: the six segments are nothing like equal in length, and a hand-written
+    # t puts the spine's weight somewhere the spine is not.
+    S_W = float(os.environ.get("ALBO_ALD_S_W", 176.0))      # the letter's width, units
+    S_WT = float(os.environ.get("ALBO_ALD_S_WT", 0.90))     # scales every key
+    S_APEX = float(os.environ.get("ALBO_ALD_S_APEX", 0.46))   # the top arc's apex, x w
+    S_TAIL_X = float(os.environ.get("ALBO_ALD_S_TAILX", 0.03))  # the bottom terminal, x w
+    S_TAIL_Y = float(os.environ.get("ALBO_ALD_S_TAILY", 0.06))  # x xh
+    S_HEAD_Y = float(os.environ.get("ALBO_ALD_S_HEADY", 0.86))  # the top terminal, x xh
+    S_UL = float(os.environ.get("ALBO_ALD_S_UL", 0.22))       # the upper-left flank, x w
+    S_LR = float(os.environ.get("ALBO_ALD_S_LR", 0.91))       # the lower-right turn, x w
+    # ROUNDED, like the c's -- both references end this stroke in a ball and a
+    # `stroke` can only end in a flat or sheared face, which on a 60-unit
+    # terminal reads as a cut corner.
+    S_CAP0 = float(os.environ.get("ALBO_ALD_S_CAP0", 1.00))   # top terminal, x half its width
+    S_CAP1 = float(os.environ.get("ALBO_ALD_S_CAP1", 0.50))   # bottom terminal
+    # WIDTH AT EACH PLACE, as (control point, fraction toward the next one,
+    # units). The two terminals and the spine are the thicks; the two arcs
+    # between them are the hairlines. Flanker at its 0.50 column: bottom arc
+    # 23, spine 89 (a diagonal, ~67 perpendicular), top arc 23.
+    # The terminal's width is HELD across the length the round cap trims away
+    # (0.32 of the first segment, 0.12 of the last), so the ball is a swelling
+    # of the stroke and not a lollipop on the end of it. Without that hold the
+    # width has already fallen to the arc's hairline by the time the cap is
+    # placed, and both terminals read as discs stuck on -- visible in the
+    # overlay long before the number moved.
+    S_KEYS = [(0, 0.00, 62.0), (0, 0.32, 56.0), (0, 0.70, 26.0), (1, 0.00, 34.0),
+              (2, 0.00, 52.0), (2, 0.50, 75.0), (3, 0.00, 55.0), (3, 0.60, 30.0),
+              (4, 0.00, 34.0), (4, 0.60, 24.0), (4, 0.88, 50.0), (5, 0.00, 60.0)]
+    if os.environ.get("ALBO_ALD_S_KEYS"):   # "0:0:62|0:0.5:26|..." -- for the fitter
+        S_KEYS = [tuple(float(v) for v in kv.split(":"))
+                  for kv in os.environ["ALBO_ALD_S_KEYS"].split("|")]
+
     @glyph('s')
     def a_s(c):
-        xh = c["xh"]; x = S * 0.7; w = 182 * _w(c)
-        p = catmull([(x + w * 0.92, xh * 0.86), (x + w * 0.20, xh * 0.98), (x + w * 0.10, xh * 0.62),
-                     (x + w * 0.86, xh * 0.40), (x + w * 0.94, xh * 0.08), (x + w * 0.16, xh * 0.14)], tension=0.5)
-        wf = pen_widths(p, floor=S * FLOOR)
-        return geom.ink([stroke(p, wf, cut0=CUT, cut1=CUT)])
+        xh = c["xh"]; u = xh / 429.0; x = S * 0.7; w = S_W * _w(c)
+        P = [(x + w * 0.92, xh * S_HEAD_Y), (x + w * S_APEX, xh * 0.98), (x + w * S_UL, xh * 0.62),
+             (x + w * 0.86, xh * 0.40), (x + w * S_LR, xh * 0.08),
+             (x + w * S_TAIL_X, xh * S_TAIL_Y)]
+        p = geom.resample(catmull(P, tension=0.5))
+        n = len(p) - 1
+        def at(q):
+            return min(range(n + 1), key=lambda j: (p[j][0] - q[0]) ** 2 + (p[j][1] - q[1]) ** 2) / n
+        ts = [at(q) for q in P]
+        keys = []
+        for i, f, wv in S_KEYS:
+            i = int(i); t0 = ts[i]; t1 = ts[i + 1] if i + 1 < len(ts) else 1.0
+            keys.append((t0 + (t1 - t0) * f, wv * u * S_WT))
+        wf = widths(keys); ws = [wf(i / n) for i in range(n + 1)]
+        i0, r0 = cs_round_end(p, ws, True, S_CAP0)
+        i1, r1 = cs_round_end(p, ws, False, S_CAP1)
+        q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
+        parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
+                        cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
+        if r0: parts.append(PR.dot(q[0][0], q[0][1], r0))
+        if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
+        return geom.ink(parts)
 
     # ------------------------------------------------------------ THE g, round 132
     # IT STAYS DOUBLE-STOREY, and that is a finding rather than an assumption.
