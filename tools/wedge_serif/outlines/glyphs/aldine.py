@@ -3730,12 +3730,15 @@ if ON:
     #         195/210/225 read 100/101/97 against the opposing 15/30/45 at
     #         84/90/92 -- thirteen units, on a stroke of ninety. Owner
     #         2026-09-16: *"thin out bottom left of Q to keep visual balance"*.
-    #         It is now +2 radial and **-6** on the stroke, which brings those
-    #         three to 89/89/86: a little UNDER the top right rather than level
-    #         with it, deliberately, because the tail joins here and pays the
-    #         difference back in ink the ring's own profile cannot see.
-    #         Swept: -6 balances, -10 (with a second key at 195) takes the
-    #         flank wiry and costs the letter weight it needs.
+    #         ROUND 154 SETTLED IT AT +2 radial and **-3** on the stroke, the
+    #         owner's own number after seeing the ladder. The three cuts then
+    #         read 92/92/89 against the top right's 84/90/92 -- level with it
+    #         rather than under it, which is the half of round 153 that went
+    #         too far: -6 took them to 89/89/86 and -10 (with a second key at
+    #         195) to 86/84/82, wiry, costing the letter weight it needs. The
+    #         tail joins in this quarter and adds ink the ring's own radial
+    #         profile cannot see, so a little over level is where it wants to
+    #         sit.
     #   285   the bottom pulls in 3, which is what keeps the ring from
     #         reading as a circle once 225 has been pushed out.
     #   340   a second, shorter flat at the lower right, -4, where the tail
@@ -3746,7 +3749,7 @@ if ON:
     # a feature; what it does is stop the four quadrants being the same
     # quadrant, which is the whole complaint.
     Q_HAND = [(60, -5.0, -4.0), (105, 4.0, 0.0), (150, -6.0, 2.0),
-              (225, 2.0, -6.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
+              (225, 2.0, -3.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
     if os.environ.get("ALBO_ALD_Q_HAND") == "0":
         Q_HAND = None
 
