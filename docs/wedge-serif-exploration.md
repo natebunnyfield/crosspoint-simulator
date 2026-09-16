@@ -6267,3 +6267,30 @@ and his counter are not the same letter's inside and outside.
 Shipped at `A_TRACE_S = 0` with the table and the finding in the code;
 `ALBO_ALD_A_TRACE_S=1` renders it. The choice is his: the scan's silhouette or
 his counter, not both.
+
+### Round 144 — the a is the o, a teardrop, and one brush stroke
+
+Owner: *"the 'a' is the worst it has ever been. there is an o shape with a
+teardrop counter and a brush stroke on the right. do it with precision."*
+
+Three parts, and **everything the last four rounds accumulated is gone** — the
+traced silhouette, the keyed flank table, the counter profile table, the head
+polygon, the bridge.
+
+1. **The bowl is literally the o's.** Same superellipse, same `O_K`, same nib
+   at `O_PEN`, same thick and thin, same contrast arm; only `A_O_W` differs,
+   so the a's bowl and the o are one bowl seen twice.
+2. **The counter is a teardrop CURVE**, not an ellipse with a point stuck on
+   it: `x = cos t, y = sin t · sin(t/2)^m` — pointed at one end and round at
+   the other in one expression. The first cut pinched an ellipse's radius
+   toward the tip and pushed one vertex back out past it, and it rendered as
+   a rounded quadrilateral with a kink, because the pinch never reaches zero
+   and the pushed vertex is a corner. Sized against the o's own counter:
+   **area/ink 0.86 against the o's 0.97, fill 0.73 against 0.75.**
+3. **One brush stroke on the right**, and it **starts inside the bowl's
+   crown** — butting it against the ring left a V of paper at the top right,
+   which is the same failure the old head/bridge join kept producing for
+   three rounds.
+
+Against its neighbours: ink **381** (n 392, o 336), top **+10**, mean ink
+**51.1** (n 54.7, o 52.1), **211** points.
