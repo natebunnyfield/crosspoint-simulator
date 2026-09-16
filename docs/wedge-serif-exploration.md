@@ -6226,3 +6226,44 @@ And one correction the measurement forced: the copy was expected to widen the
 letter and it **narrowed** it (ink 0.855 → 0.828 cap). Poetica's extra width is
 its **foot serif** — 147 units out of the stem against our wedge's 61 — while
 the kick's right extreme already agreed to within 7 units.
+
+### Round 143 — the m's three arches, and a trace of the a that does not ship
+
+**The m**, his four changes: the arches detwinned (it called one `hm_arch`
+twice), the right one **2.0% wider and 0.018 xh shorter**, the middle stem
+**lifted 0.060 xh onto a round foot**, and all three tops hand-cut. Two
+reference findings came with it and both are negative results worth keeping:
+
+- **On arch HEIGHT not one reference differentiates.** Flanker, Poetica,
+  Pagella and Cancelleresca all top BOTH arches at 0.9997–0.9999 xh — dead on
+  the x-line, zero difference to the pixel. "Shorter" has no period precedent;
+  it is a drawing decision and the difference was kept small accordingly.
+- **No reference lifts the middle foot** — all four sit their three feet level
+  within 2 px. Laddered at 27 px instead: 0.030 xh is 0.35 px and invisible,
+  0.120 xh reads as a broken stem, **0.060 xh** reads as a pen lifting.
+- A knot on the arch's top transmits only ~⅙ of itself to the rendered apex,
+  because the knot is the centerline and the ink's top is centerline plus half
+  a width that ramps across the same span. The shoulder had to be lowered as a
+  whole.
+
+Isolation proved rather than asserted: 289 designed outlines at `FJORD_CUT=0`,
+**288 identical, 1 changed**; 470 shipped glyphs, **469 identical, 1 changed**.
+
+#### The a traced from the scan — measured, kept, NOT shipped
+
+*"make a brand new a tracing the scans and using the counter of the existing
+a."* The trace is real and is in the file: the a of "ad" off `griffo-macro.png`,
+Otsu on an 8× upscale, largest ink blob only, the **left** edge read at 41
+heights in design units (the right side touches the d and cannot be read —
+which is also why round 132's crop measured the pair).
+
+**And the two halves of the instruction fight, which is the result.** The
+scan's left edge runs **dead straight from 0.10 to 0.40 of the ink's height**;
+his counter is an egg whose lower left curves away from it. So the width
+between them swells to 2–3× the flank exactly where the counter turns, and
+every band and clamp tried put a **spur on the bowl's lower left**. A page's a
+and his counter are not the same letter's inside and outside.
+
+Shipped at `A_TRACE_S = 0` with the table and the finding in the code;
+`ALBO_ALD_A_TRACE_S=1` renders it. The choice is his: the scan's silhouette or
+his counter, not both.

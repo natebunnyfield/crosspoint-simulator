@@ -1745,6 +1745,46 @@ if ON:
         pts = geom.smooth(pts, 5, closed=True)
         return geom.poly(geom.resample(pts + [pts[0]], A_SPACING)[:-1])
 
+    # ------------------------------------------------------------ THE a's SILHOUETTE, TRACED
+    # Owner 2026-09-16: "make a brand new a tracing the scans and using the
+    # counter of the existing a." So the letter's OUTSIDE is the 1501 page's
+    # and its INSIDE is his.
+    #
+    # Traced off griffo-macro.png, the a of "ad" (crop 263,42..308,112 at a
+    # 54 px x-height), binarized with Otsu on an 8x upscale, largest ink blob
+    # only, then the LEFT edge read at 41 heights and converted to design
+    # units. The left edge is the half of that print that is clean: the a's
+    # right side touches the d, which is why round 132's crop measured the
+    # pair and why this traces one edge rather than a silhouette.
+    #
+    # height above the ink's bottom (units)  ->  left edge (units)
+    #     0 214 | 49 0 | 99 0 | 148 0 | 198 0 | 247 35 | 297 52
+    #   346 139 | 396 210 | 445 258 | 495 309
+    # The whole ink is 495 units tall = 1.15 xh: the bowl's left extreme is a
+    # FLAT RUN from 0.10 to 0.40 of that height -- the pen's own side, not a
+    # curve -- and above it the silhouette walks right at a near-constant
+    # rate into the head.
+    A_TRACE = [(0.000, 214), (0.099, 0), (0.200, 0), (0.299, 0), (0.400, 0),
+               (0.499, 35), (0.600, 52), (0.699, 139), (0.800, 210),
+               (0.899, 258), (1.000, 309)]
+    A_TRACE_H = float(os.environ.get("ALBO_ALD_A_TRACE_H", 495.0))   # the traced ink's height, units
+    A_TRACE_BOT = float(os.environ.get("ALBO_ALD_A_TRACE_BOT", -24.0))  # where it sits, units off the baseline
+    # SHIPPED AT 0, AND THE REASON IS THE FINDING. Driving the left flank
+    # onto this trace puts a SPUR on the bowl's lower left, at every band and
+    # every clamp tried, because the two halves of the instruction fight:
+    # the scan's left edge runs dead straight from 0.10 to 0.40 of the ink's
+    # height, while the owner's counter is an egg whose lower left curves
+    # away from it -- so the width between them swells to 2-3x the flank as
+    # the counter turns. A page's a and his counter are not the same letter's
+    # inside and outside. The trace is kept because it is measured and
+    # correct; `ALBO_ALD_A_TRACE_S=1` renders it.
+    A_TRACE_S = float(os.environ.get("ALBO_ALD_A_TRACE_S", 0.0))     # 1 = drive the left flank from the scan
+
+    def a_traced_left(u, x0):
+        """The scan's left edge as a list of (x, y) in design units."""
+        h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
+        return [(x0 + lx * A_TRACE_S * u, bot + f * h) for f, lx in A_TRACE]
+
     @glyph('a')
     def a_a(c):
         """The Aldine single-storey a, in TWO STROKES.
@@ -1803,7 +1843,41 @@ if ON:
                    for i in range(len(cpts)))
         side = 1 if area < 0 else -1
         ang = [math.degrees(math.atan2(q[1] - cy_, q[0] - cx_)) for q in cpts]
-        ws = [_a_flank(a_) * A_FLANK_S * u for a_ in ang]
+        # THE LEFT FLANK'S WIDTH IS THE SCAN'S (round 143). On the left half
+        # the bowl's outer edge is not offset by a keyed width at all -- it is
+        # placed ON the traced silhouette, so the width at each point is
+        # whatever the distance from his counter to the page's own edge turns
+        # out to be. The right half keeps A_FLANK, because the print's right
+        # side touches the d and cannot be read.
+        tl = a_traced_left(u, x0)
+        def traced_x(y):
+            for (ax, ay), (bx, by) in zip(tl, tl[1:]):
+                if ay <= y <= by:
+                    t = (y - ay) / ((by - ay) or 1.0)
+                    return ax + (bx - ax) * t
+            return tl[0][0] if y < tl[0][1] else tl[-1][0]
+        ws = []
+        for q, a_ in zip(cpts, ang):
+            w = _a_flank(a_) * A_FLANK_S * u
+            if A_TRACE_S > 0 and 100.0 <= (a_ % 360) <= 260.0:   # the left half
+                # ...and only over the band where the trace is describing the
+                # BOWL. Its first row (214 units at height 0) is the tail's
+                # tip, and letting that drive a flank width put a spur on the
+                # bowl's lower left -- the first cut of this rendered one.
+                # The band is blended in and out with a cosine so no width
+                # step survives into the outline.
+                h = A_TRACE_H * A_TRACE_S * u; bot = A_TRACE_BOT * u
+                f = (q[1] - bot) / (h or 1.0)
+                g = 0.0
+                if 0.05 < f < 0.70:
+                    g = 1.0 if 0.15 <= f <= 0.55 else (
+                        0.5 - 0.5 * math.cos(math.pi * ((f - 0.05) / 0.10 if f < 0.15
+                                                        else (0.70 - f) / 0.15)))
+                if g > 0:
+                    want = q[0] - traced_x(q[1])
+                    if 0.25 * w < want < 3.0 * w:
+                        w = w + (want - w) * g
+            ws.append(w)
         n = len(cpts)
         ws = [sum(ws[(i + k) % n] for k in range(-4, 5)) / 9.0 for i in range(n)]
         tans = geom.tangents(cpts, closed=True)
@@ -1812,6 +1886,11 @@ if ON:
         outer = PR._unfold(outer, tans)
         outer = geom.smooth(outer, 5, closed=True)
         outer = geom.resample(outer + [outer[0]], A_SPACING)[:-1]
+        # The union of a traced SLAB was the first cut of this and it rendered
+        # as a chunky polygon with corners -- eleven trace points joined by
+        # straight segments, added as mass. Driving the WIDTH instead keeps
+        # the curve, because the outer edge is still an offset of his smooth
+        # counter; it just lands where the page says.
         return geom.ink([geom.poly(outer).buffer(0), one], [ctr])
 
     # ------------------------------------------------------------ THE b, round 132
