@@ -5942,3 +5942,33 @@ tracking only. Ledger and cap-weight gate green.
 
 Chosen live at 64 px against A, C and D. The o's earlier arm-D ruling is
 superseded by this whole-line one.
+
+### Round 137 — the owner drew the a, and spaced the capitals
+
+Two pasted states, both baked.
+
+**The a is his.** Set in the editor and pasted back, and it is a different
+letter from round 135's: the stem's top stops **54 units BELOW the x-line**
+and a long head — **210 units of reach** against the b's 58 — sweeps left
+across it and becomes the letter's top. So the a's arch is the HEAD and the
+bowl hangs under it. It carries its own head dials for that, leaving the b d p
+head where he put it two rounds ago. His counter profile and flank table came
+with it.
+
+**One thing his drawing made redundant, and it showed as a defect:** round
+136's bridge from the bowl's crown to the stem's head. His head reaches out
+past the crown, so the bridge ran back under ink it no longer had to reach and
+folded on itself — a white sliver at the join, visible at 560 px. It is drawn
+now only when the head stops short of the crown. The ledger's a row is
+retargeted a fourth time, same rule as the other three: **a target describes a
+drawing.**
+
+**The capitals' spacing is his**, set live on the bench at 58 px on arm B,
+every capital dialed by hand. They land as **deltas** on the round-20 rule
+(`CAP_BEARING_ADJ`), because a capital's bearings are solved from its own ink
+and the reference widths rather than read from a table — so the letter stays
+fitted to its drawing and his hand sits on top. The big numbers say what the
+fitter had wrong: **H N Y −86 to −116 on the right** (far too loose after a
+flat-sided capital), **A −151 on the left** (its apex overhangs and the fitter
+was paying for air), W −132 right, T +87 left. *NAVE* read as *N AV E* before
+this and reads as a word after it.

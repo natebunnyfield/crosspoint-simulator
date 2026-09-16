@@ -283,7 +283,11 @@ def fit(ch, conts, c):
     elif ch in PUNCT_FENCES or (not ch.isalnum() and ch not in SIDES): lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17   # round 99: every new symbol takes the fences' bearing rather than the tighter default
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
-    if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]   # round 97: the lowercase solve
+    if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
+    # ROUND 137: the owner's own capital spacing, set live on the bench and
+    # applied as a delta on the rule above -- aldine italic only.
+    if ALD is not None and ALD.ON and ch in getattr(ALD, 'CAP_BEARING_ADJ', {}):
+        lsb += ALD.CAP_BEARING_ADJ[ch][0]; rsb += ALD.CAP_BEARING_ADJ[ch][1]   # round 97: the lowercase solve
     adv = lsb + (r - l) + rsb; dx = lsb - l
     return adv, dx, min(xs_all) + dx
 

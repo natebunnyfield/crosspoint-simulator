@@ -1299,7 +1299,7 @@ if ON:
     #   the tail: underside ON the baseline from x 300 to 385, tip at (436, 0.15)
     # Everything is written as a fraction of xh or S, so it rides the axes.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 317.0))   # stem center, units
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 321))   # stem center, units
     A_STEM_W = float(os.environ.get("ALBO_ALD_A_STEMW", 70.0))     # units
     A_STEM_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 0.97))     # x xh
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 155.0))            # bowl outer half-width, units
@@ -1319,7 +1319,19 @@ if ON:
     # clears the x-line by a hair -- enough that the a is the same gesture as
     # the d and not enough to read as an ascender. The 150 that made the a and
     # the d one letter, and the 96 this replaces, are both in the round 133 log.
-    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", 8.0))             # units above the x-line
+    # ROUND 137: THE OWNER DREW THIS ONE. He set the a in the editor
+    # (https://claude.ai/artifact/81j24wds45Lfp31aCPatDB) and pasted its state
+    # back, which is a different letter from the one round 135 shipped: the
+    # stem's top stops 54 units BELOW the x-line and a long head -- 210 units
+    # of reach against the b's 58 -- sweeps left across it and becomes the
+    # letter's top. So the a's arch is the HEAD, not the bowl's crown, and the
+    # bowl hangs under it. The a carries its own head dials for that reason;
+    # the b d p head stays where he put it two rounds ago ("reduce visual
+    # weight of top serif on b and d").
+    A_ASC = float(os.environ.get("ALBO_ALD_A_ASC", -54))             # units, NEGATIVE = below the x-line
+    A_HEAD_R = float(os.environ.get("ALBO_ALD_A_HEAD_R", 210))       # the head's reach left
+    A_HEAD_D = float(os.environ.get("ALBO_ALD_A_HEAD_D", 93))       # its tip below the stem's top
+    A_HEAD_F = float(os.environ.get("ALBO_ALD_A_HEAD_F", 59))       # where its underside rejoins the stem
     # THE COUNTER IS DRAWN, NOT OFFSET, AND ITS SHAPE IS THE SCAN'S.
     # Owner 2026-09-16: "a needs a smaller counterspace that is rounded
     # teardrop and 24 units above", then "match the counterspace for a to the
@@ -1357,10 +1369,10 @@ if ON:
     # counter's width. The mean of the two a's, which differ by under 0.03
     # everywhere except the floor.
     A_CTR_PROFILE = [
-        (0.03, 0.37, 0.43), (0.05, 0.35, 0.43), (0.15, 0.16, 0.61),
-        (0.25, 0.05, 0.84), (0.35, 0.00, 0.87), (0.45, 0.01, 0.88),
-        (0.55, 0.07, 1.00), (0.65, 0.08, 0.96), (0.75, 0.25, 0.94),
-        (0.85, 0.32, 1.01), (0.95, 0.74, 0.92), (0.98, 0.81, 0.88),
+        (0.117, 0.357, 0.472), (0.143, 0.247, 0.579), (0.187, 0.140, 0.683),
+        (0.257, 0.064, 0.778), (0.370, 0.019, 0.870), (0.453, 0.024, 0.917),
+        (0.533, 0.040, 0.966), (0.661, 0.103, 0.995), (0.762, 0.178, 1.006),
+        (0.865, 0.313, 1.010), (0.958, 0.530, 0.936), (0.995, 0.736, 0.870),
     ]
     # ring widths keyed by angle (degrees ccw from the right), in units
     A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
@@ -1404,7 +1416,7 @@ if ON:
     # Scaled 1.12 from Flanker's numbers after the first build measured the
     # counter at 0.49 of the ink against the scan's 0.42: the print is heavier
     # than the revival, and the scan is the target.
-    A_FLANK = [(0, 38), (45, 29), (90, 31), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
+    A_FLANK = [(0, 38), (45, 29), (90, 33), (135, 54), (180, 78), (225, 90), (270, 65), (315, 40)]
 
     def _a_flank(deg):
         """Periodic cosine interpolation of A_FLANK."""
@@ -1460,7 +1472,8 @@ if ON:
         # smaller; the scan is the target.
         top = xh + A_ASC * u
         stem = stroke([(xs, S * 0.10), (xs, top)], sw)
-        head = bd_head(xs - sw / 2, xs + sw / 2, top, u)
+        head = bd_head(xs - sw / 2, xs + sw / 2, top, u,
+                       reach=A_HEAD_R, drop=A_HEAD_D, foot=A_HEAD_F)
         # THE BOWL IS A STROKE AROUND THE COUNTER (round 134). It was a
         # filled superellipse with the counter cut out of it, and the
         # difference between a round outside and a leaning, narrow inside is
@@ -1501,20 +1514,23 @@ if ON:
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
         tail = stroke(tp, widths([(0.0, sw), (0.30, sw * 0.90), (0.62, sw * 0.62), (1.0, sw * 0.30)]),
                       cut1=CUT)
-        # THE TOP CONNECTS (owner 2026-09-16: "connect the top of the top
-        # left stroke to the other top right stroke. keep its counter as it
-        # is."). The bowl's stroke thins to 31 units at the top and the stem's
-        # head sits beside it, so at the join there was a notch -- a wedge of
-        # paper between the arc's end and the head. In the metal the arc
-        # runs INTO the head as one movement. A bridge stroke rides the top of
-        # the bowl from its crown into the head's left corner; the counter
-        # is cut afterward, so it is untouched.
+        # THE TOP CONNECTS -- AND SINCE ROUND 137 THE HEAD IS WHAT CONNECTS IT.
+        # Round 136 bridged the bowl's crown to the stem's head because the
+        # two met in a notch. The owner's own drawing makes the bridge
+        # redundant and worse than redundant: his head reaches 210 units left,
+        # which carries it out PAST the crown, so the bridge's little stroke
+        # ran back under ink it no longer had to reach and folded on itself --
+        # a white sliver at the join, visible at 560 px. It is drawn only when
+        # the head stops short of the crown.
         crown = max(cpts, key=lambda q: q[1])
-        top_y = xh + A_ASC * u
-        br = catmull([(crown[0] - 30 * u, crown[1] + 34 * u), (crown[0] + 40 * u, crown[1] + 30 * u),
-                      (xs - sw * 0.5 - 6 * u, top_y - 20 * u), (xs, top_y - 26 * u)], tension=0.5)
-        bridge = stroke(br, widths([(0.0, 26 * u), (0.5, 40 * u), (1.0, 62 * u)]))
-        return geom.ink([bowl_, stem, head, tail, bridge], [ctr])
+        parts = [bowl_, stem, head, tail]
+        if xs - sw / 2 - A_HEAD_R * u > crown[0]:
+            br = catmull([(crown[0] - 30 * u, crown[1] + 34 * u),
+                          (crown[0] + 40 * u, crown[1] + 30 * u),
+                          (xs - sw * 0.5 - 6 * u, xh + A_ASC * u - 20 * u),
+                          (xs, xh + A_ASC * u - 26 * u)], tension=0.5)
+            parts.append(stroke(br, widths([(0.0, 26 * u), (0.5, 40 * u), (1.0, 62 * u)])))
+        return geom.ink(parts, [ctr])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
@@ -3902,11 +3918,11 @@ if ON:
 # Letters he did not reach (b d g h j k m o q z) carry the tracking only.
 BEARINGS = {
     'a': ( -36,   44), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
-    'e': ( -17,   71), 'f': ( -32,   92), 'g': ( -13,   72), 'h': (   4,   58),
+    'e': ( -19,   72), 'f': ( -32,   92), 'g': ( -13,   72), 'h': (   4,   58),
     'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   14), 'l': (  14,   58),
     'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
     'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),
-    'u': ( -47,   50), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
+    'u': ( -38,   38), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
     'y': ( -52,  118), 'z': ( -22,    6),
 }
 
@@ -4279,3 +4295,23 @@ if ON:
         parts.append(stroke(q_, af))
         parts.append(_end_wedge(q_, af(1.0), False, -1))
         return geom.ink(parts)
+
+
+# ROUND 137 -- THE CAPITALS' SPACING, HIS. Set live on the bench
+# (https://claude.ai/artifact/9RUVYkit1Vdk9foVUTFz46) at 58 px on arm B, every
+# capital dialed by hand. These are DELTAS in design units on whatever the
+# round-20 rule computes, because a capital's bearings are solved from its own
+# ink and the reference widths rather than read from a table -- so the letter
+# stays fitted to its drawing and this is the hand on top of it.
+# The big ones say what the fitter had wrong: H N Y -86 to -116 on the right
+# (far too loose after a flat-sided capital), A -151 on the left (its apex
+# overhangs and the fitter was paying for air), W -132 right, T +87 left.
+CAP_BEARING_ADJ = {
+    'A': (-151,    0), 'B': (   1,   -2), 'C': (  -7,  -54), 'D': (  -4,   14),
+    'E': ( -77,  -50), 'F': (   0,  -37), 'G': (   0,  -28), 'H': (   0,  -86),
+    'I': (  33,  -61), 'J': ( -84,    0), 'K': (   0,  -32), 'L': (  -3,  -24),
+    'M': (   0,  -48), 'N': (   0,  -86), 'O': (   9,  -16), 'P': (   0,    3),
+    'Q': (   0,  -30), 'R': (   0,  -56), 'S': (   0,   36), 'T': (  87,  -56),
+    'U': (   0,   12), 'V': (   0,  -48), 'W': (  35, -132), 'X': (   0,  -11),
+    'Y': (   0, -116), 'Z': (   0,  -78),
+}
