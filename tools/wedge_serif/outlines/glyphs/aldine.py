@@ -7629,7 +7629,7 @@ if ON:
 BEARINGS = {
     'a': ( -28,   50), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
     'e': ( -19,   72), 'f': ( -32,   81), 'g': ( -13,   72), 'h': (   4,   58),
-    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   64), 'l': (  14,   58),
+    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   64), 'l': (  14,   62),
     'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
     'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),
     'u': ( -38,   38), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
@@ -9211,17 +9211,17 @@ if ON:
 #   R's RIGHT collided with twelve letters after it (Rs RE Rk Rz Rh Rl Rj Rg
 #   Rm Rp Rr), and W's with five (WV W" W' WW WU).
 CAP_A_LSB = int(os.environ.get("ALBO_ALD_CAP_A_LSB", -25))
-CAP_R_RSB = int(os.environ.get("ALBO_ALD_CAP_R_RSB", 0))
+CAP_R_RSB = int(os.environ.get("ALBO_ALD_CAP_R_RSB", -55))
 CAP_W_RSB = int(os.environ.get("ALBO_ALD_CAP_W_RSB", -60))
-CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -72))
+CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -148))
 CAP_Y_LSB = int(os.environ.get("ALBO_ALD_CAP_Y_LSB", 90))
-CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -6))
+CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -79))
 CAP_BEARING_ADJ = {
-    'A': (CAP_A_LSB,    0), 'B': (   1,   -2), 'C': (  -7,  -54), 'D': (  -4,   14),
-    'E': ( -77,  -50), 'F': (   0,  -37), 'G': (   0,  -28), 'H': (   0,  -86),
-    'I': (  33,  -61), 'J': ( -84,    0), 'K': (   0,  -32), 'L': (  -3,  -24),
-    'M': (   0,  -48), 'N': (   0,  -86), 'O': (   9,  -16), 'P': (   0,    3),
-    'Q': (   0,  -30), 'R': (   0, CAP_R_RSB), 'S': (   0,   36), 'T': (  87,  -56),
-    'U': (   0, CAP_U_RSB), 'V': (   0,  -48), 'W': (  35, CAP_W_RSB), 'X': (   0,  -11),
-    'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (   0,  -78),
+    'A': (CAP_A_LSB,   12), 'B': ( -11,   -4), 'C': (  -4,  -51), 'D': ( -14,   14),
+    'E': ( -65,  -52), 'F': ( -11,  -53), 'G': (  -2,  -29), 'H': ( -12,  -90),
+    'I': (  13,  -59), 'J': (-104,  -14), 'K': ( -13,  -42), 'L': ( -14,   -6),
+    'M': ( -18,  -56), 'N': ( -12,  -92), 'O': (  21,  -55), 'P': ( -14,   -5),
+    'Q': (  -2,  -16), 'R': ( -36, CAP_R_RSB), 'S': (  22,  -32), 'T': (  87,  -66),
+    'U': (   0, CAP_U_RSB), 'V': (  23,  -68), 'W': (  49, CAP_W_RSB), 'X': (  -7,  -23),
+    'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (  -6,  -67),
 }

@@ -140,13 +140,67 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
+    # ROUND 198b -- WHAT THE OWNER'S TIGHTENING COSTS, paid in exceptions.
+    # His R at -55, U at -148 and O at -55 are rulings on those letters, and
+    # each collides with a specific set of partners: R against every ascender
+    # and round lowercase (19 of these 24), U and Y against the quotes, O
+    # against p and v. Opening them here keeps his letters where he put them --
+    # a pair exception is exactly the mechanism for "this letter, except when
+    # it meets that one". Solved to 0.022 em, a step clear of the 0.012 floor.
+    ('O', 'p'): 18,
+    ('O', 'v'): 18,
+    ('R', 'four'): 18,
+    ('R', 'A'): 54,
+    ('R', 'E'): 54,
+    ('R', 'M'): 36,
+    ('R', 'R'): 18,
+    ('R', 'g'): 54,
+    ('R', 'h'): 54,
+    ('R', 'i'): 36,
+    ('R', 'j'): 36,
+    ('R', 'k'): 72,
+    ('R', 'l'): 36,
+    ('R', 'm'): 36,
+    ('R', 'n'): 36,
+    ('R', 'p'): 36,
+    ('R', 'r'): 36,
+    ('R', 's'): 54,
+    ('R', 'x'): 36,
+    ('R', 'z'): 72,
+    ('U', 'quotedbl'): 36,
+    ('U', 'quotesingle'): 36,
+    ('Y', 'quotedbl'): 18,
+    ('Y', 'quotesingle'): 18,
+
+    # ROUND 198 -- THE OWNER'S OWN SPACING BENCH, 2026-09-17. Sixteen pairs he
+    # set by hand against words, capitals, title case and sentences; the values
+    # are his, snapped to the 18-unit STEP the table is quantised to.
+    ('A', 'P'): -36,
+    ('G', 'N'): -54,
+    ('I', 'A'): -72,
+    ('I', 'G'): 18,
+    ('J', 'o'): -54,
+    ('O', 'G'): 72,
+    ('P', 'H'): -72,
+    ('Q', 'U'): 36,
+    ('U', 'A'): -90,
+    ('U', 'R'): 36,
+    ('U', 'V'): 90,
+    ('V', 'I'): -108,
+    ('V', 'u'): -126,
+    ('X', 'I'): -72,
+    ('X', 'Y'): -54,
+    ('Y', 'v'): -36,
+    # NOTE Rg and Rs were listed here in round 197 and are now solved above by
+    # round 198b; a duplicate key is silent -- the LATER one wins -- so they are
+    # removed rather than left to shadow the new values. This is the second time
+    # a duplicate key has cost a build in this file.
     # ROUND 197 -- BOTH of the g's neighbours moved as the letter was re-cut,
     # and which pair fails moved with them: the leftward connector broke Rg,
     # the rightward descender broke gg, and lifting the loop onto the baseline
     # brought Rg back. Both are kerned. (gg was ALREADY in this table further
     # down at 18; a second entry here changed nothing, because the later key
     # wins in a dict literal -- it is raised at its own entry instead.)
-    ('R', 'g'): 18,
     ('T', 'i'): -36,          # the i's dot clears the bar; a full asc value is too little, a flat too much
     ('T', 'j'): -36,
     ('f', 'quoteright'): 36,  # the arm already reaches; push the quote off it
@@ -195,7 +249,7 @@ PAIRS = {
     ('Q', 'parenleft'): 36, ('Q', 'y'): 36, ('Q', 'q'): 36,
     ('f', 'U'): 36,  ('f', 'V'): 18,
     ('f', 'quotedbl'): 36, ('f', 'quotesingle'): 36,
-    ('Z', 'V'): 18,  ('R', 's'): 18,  ('k', 's'): 18, ('z', 's'): 18,
+    ('Z', 'V'): 18,  ('k', 's'): 18, ('z', 's'): 18,   # R,s solved in 198b
     ('w', 'v'): 18,  ('W', 'V'): 18,
 }
 
