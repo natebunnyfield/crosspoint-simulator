@@ -196,3 +196,90 @@ So the surviving finding is the one about POSITION, and the fix changes with it:
 the loop does not need more contrast, it needs its **axis rotated roughly 100–120°**
 so the thin lands where the pen is lifting. That is `G_LRING`'s keyed table,
 re-phased rather than re-scaled.
+
+---
+
+# Round 182 — the brush strokes, and why every previous fix was the wrong lever
+
+2026-09-17. Owner: *"copy off coelacanth for g until you understand how the
+brush strokes underlie the form. take the time to get it fully and stop fucking
+around."*
+
+He is right that the preceding rounds were churn. `G_LRING` width tables, a
+thin-at-angle dial, a run-out depth — all of them tuning **how wide** the stroke
+is, when `docs/italic-g-strokes.md` had already written down the rule on
+2026-09-14:
+
+> When a stroke comes out the wrong weight, check its **direction** before its
+> width. In a pen model the width **is** a function of where the stroke is going.
+
+## The instrument
+
+`tools/wedge_serif/cmp_g_strokes.py`. The glyph is rasterised unsheared; a
+chamfer distance transform is taken over the ink; the ridge of that transform is
+the stroke's centreline and the local thickness is twice the distance there; the
+local direction comes from the principal axis of the neighbouring ridge points.
+Binning thickness by direction gives **the pen's own signature**.
+
+A face drawn on one pen has **one signature for the whole letter** — a run at
+15° is thin wherever in the letter it happens. A face whose widths were declared
+per-region does not.
+
+**The instrument's own bug, which inverted its first answer:** the ridge test
+kept only ink in the top 38% of the distance range. That is not a mild filter —
+it *deletes every thin stroke from the sample*, because a thin stroke's distance
+is small all along it. It reported Coelacanth's contrast as 1.50:1 with thin and
+thick 45° apart; the real figures are below, and a broad nib must give 90°.
+
+## What it found
+
+| | bowl | loop | apart |
+|---|---|---|---|
+| Coelacanth | 15° | 30° | 15° |
+| Flanker | 15° | 15° | **0°** |
+| **Albo (before)** | **15°** | **75°** | **60°** |
+
+Albo's bowl was already a real pen and agreed with both references exactly. **Its
+loop was a different pen, 60° off its own bowl** — and the loop's profile was
+not a pen curve at all but noise:
+
+```
+Albo loop   … 75  28  34  40 102  42 …     adjacent 15° bins
+Coelacanth  … 52  78  94  93  90  88 …
+```
+
+That jumping is the fingerprint of a declared width table standing in for a pen,
+and **no amount of re-tuning that table could have fixed it.**
+
+## The cause
+
+`keyed_ring` takes `keys` that declare a width **at an angle round the ring**. A
+pen gives a width **for the direction the stroke runs**. On a circle those agree.
+On this loop — a skewed egg, warped further by a hand-cut table — they do not.
+
+## The fix
+
+`keyed_ring` gains a `pen=(thick, thin_fraction, target)` option that takes its
+widths from `nib_widths_closed` instead of the table, keeping the skew, the hand
+table and the outer contour the neck-trim needs. Both the bowl and the loop now
+use it — *one pen for the whole letter* is the claim, and a half-penned g does
+not make it.
+
+The bowl needed it too, and that is the subtle half: it was already **thin** in
+the right place (15°) while its **thick** sat at 75° against Coelacanth's 105°.
+A keyed table can land the thin correctly and still put the thick 30° away,
+because in a table those are two independent entries and in a pen they are one
+decision.
+
+| | before | after | Coelacanth |
+|---|---|---|---|
+| whole letter | 0°/60°, 1.57:1 | **30°/120°, 2.83:1** | 15°/105°, 2.80:1 |
+| thin↔thick | 60° apart | **90° apart** | 90° apart |
+
+The contrast dial is set by measuring the built font, not by reading the number:
+2.30 in measures 2.83 out, because the hand tables add on top and the ridge
+sampling takes junctions in.
+
+Gates: touch 0 of 5,193, metrics 0, cap weight 0, glitch 0 of 119, straight 38
+of 62. With both pens off the font is round 181 to the bit — 0 of 119 glyphs
+differ.

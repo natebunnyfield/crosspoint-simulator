@@ -2327,7 +2327,7 @@ if ON:
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
-                   hand=None, flat=None, want_outer=False):
+                   hand=None, flat=None, want_outer=False, pen=None):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2417,13 +2417,31 @@ if ON:
                     u = 0.5 - 0.5 * math.cos(math.pi * u)
                     return w0 + (w1 - w0) * u
             return ks[0][1]
-        ws = []
-        for x, y in pts:
-            ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
-            w = wat(ang) * unit
+        if pen is None:
+            ws = []
+            for x, y in pts:
+                ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
+                w = wat(ang) * unit
+                if hand:
+                    w += _hand_at(hand, ang, 2) * unit
+                ws.append(w)
+        else:
+            # ROUND 182 -- THE WIDTHS COME FROM THE PEN, NOT FROM THE TABLE.
+            #
+            # `keys` says how wide the stroke is AT AN ANGLE ROUND THE RING.
+            # A pen says how wide it is FOR THE DIRECTION THE STROKE IS
+            # RUNNING. On a circle those two agree; on a skewed egg with a
+            # hand-cut warp they do not, and the difference is the whole of
+            # why this letter never read as written. `pen` is
+            # (thick, thin_fraction, target_contrast).
+            _th, _tf, _tg = pen
+            _w = nib_widths_closed(pts, _th * unit, _th * _tf * unit, _tg)
+            _w = con(_w, _tg)
+            ws = list(_w)
             if hand:
-                w += _hand_at(hand, ang, 2) * unit
-            ws.append(w)
+                for i, (x, y) in enumerate(pts):
+                    ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
+                    ws[i] += _hand_at(hand, ang, 2) * unit
         sol, out_, _in = PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                                       smooth_w=smooth_w)
         return (sol, out_) if want_outer else sol
@@ -3830,6 +3848,59 @@ if ON:
     # to the 24 at 0 degrees and thickens the ring near 330. Built it and the g
     # changed at a default that was supposed to be inert, which is the whole
     # reason this project checks its off-arms against the previous round.
+    # ROUND 182 -- THE LOOP IS PUT BACK ON THE LETTER'S OWN PEN.
+    # Owner 2026-09-17: *"copy off coelacanth for g until you understand how the
+    # brush strokes underlie the form ... stop fucking around"*, after a run of
+    # rounds spent tuning this ring's width table. He is right that the table
+    # was the wrong lever, and `docs/italic-g-strokes.md` had already written
+    # down why on 2026-09-14: *"when a stroke comes out the wrong weight, check
+    # its DIRECTION before its width -- in a pen model the width IS a function
+    # of where the stroke is going."*
+    #
+    # MEASURED (`cmp_g_strokes.py`): the stroke's thickness against the
+    # DIRECTION it runs, over the ridge of a distance transform, bowl and loop
+    # taken separately. A face drawn on one pen has ONE signature for the whole
+    # letter -- a run at 15 degrees is thin wherever in the letter it happens.
+    #
+    #                    bowl          loop         apart
+    #     Coelacanth   15 deg        30 deg         15
+    #     Flanker      15 deg        15 deg          0
+    #     ALBO         15 deg        75 deg         60
+    #
+    # Albo's BOWL is a real pen and agrees with both references exactly. Its
+    # LOOP was a different pen, 60 degrees off its own bowl -- and its profile
+    # was not a pen curve at all but noise: 75, 28, 34, 40, 102, 42 in adjacent
+    # 15-degree bins, against Coelacanth's smooth 52, 78, 94, 93, 90, 88. That
+    # is the fingerprint of a declared width table standing in for a pen, and
+    # no amount of re-tuning the table could have fixed it.
+    #
+    # The cause is that `keys` declares a width AT AN ANGLE ROUND THE RING
+    # while a pen gives a width FOR THE DIRECTION THE STROKE RUNS. On a circle
+    # those agree. On this loop -- a skewed egg, warped further by a hand-cut
+    # table -- they do not. So the loop now asks the pen, exactly as the O and
+    # the Q were made to in round 150 when the owner said they had to match the
+    # G's axis and contrast. Same fault, same fix, two months apart.
+    #
+    # G_LOOP_PEN is the nib's thick in design units; 0 falls back to G_LRING
+    # and the round-181 letter.
+    # AND THE BOWL TOO, because "one pen for the whole letter" is the claim and
+    # a half-penned g does not make it. Measured, Albo's bowl was already ON a
+    # pen -- thin at 15, which is Coelacanth's and Flanker's angle exactly --
+    # but its THICK sat at 75 against Coelacanth's 105, so its axis was rotated
+    # 30 degrees and its contrast was 2.07 against 2.70. A keyed table can land
+    # the thin in the right place and still put the thick in the wrong one,
+    # because the two are not one decision in a table and ARE one decision in a
+    # pen.
+    # The CON dials are the target handed to `con()`, not the contrast that
+    # comes out: the hand-cut tables add on top and the ridge measurement takes
+    # junctions in too. 2.30 in measures 2.83 out, against Coelacanth's 2.80 --
+    # so the dial is set by measuring the built font, not by reading the number.
+    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 70.0))
+    G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.37))
+    G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 2.30))
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 74.0))
+    G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.36))
+    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 2.30))
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
     G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
     G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
@@ -3850,11 +3921,15 @@ if ON:
         the block above for where every number comes from."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
         up = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u, G_RING,
-                        k=A_K, skew=G_SKEW, unit=u, hand=_gh(G_BOWL_HAND))
+                        k=A_K, skew=G_SKEW, unit=u, hand=_gh(G_BOWL_HAND),
+                        pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
+                            if G_BOWL_PEN else None)
         lt = G_LTOP * u; lb = -dsc - OVER * 0.4
         lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
-                                  unit=u, want_outer=True, hand=_gh(G_LOOP_HAND))
+                                  unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
+                                  pen=(G_LOOP_PEN, G_LOOP_THIN_F, G_LOOP_CON)
+                                      if G_LOOP_PEN else None)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
         # Owner 2026-09-16: *"thin out and fix and make the connector in g
         # tastefully angular. do not overrun into counter"*. Three faults, and
