@@ -174,6 +174,10 @@ PAIRS = {
     ('q', 'j'): 126, ('q', 'f'): 108, ('q', 'y'): 90, ('q', 'p'): 18,
     ('j', 'f'): 36,  # round 189: the j's head now leans LEFT, so its own right
                      # side gained nothing while the f's hook still reaches back
+    ('j', 'j'): 72,  # round 190: and a LEFT-leaning head runs back into the
+                     # previous j's descender -- the one pair where the same
+                     # letter's new left reach meets its own old right one.
+                     # Measured -0.0087 em, i.e. actually touching.
     ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
     ('g', 'p'): 18,  # round 186: the g's loop grew where its neck now lands
     # Round 179: the Q's tail thickened downward (Q_TAIL_BOT) and its root was
