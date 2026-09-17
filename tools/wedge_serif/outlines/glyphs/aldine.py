@@ -4601,15 +4601,23 @@ if ON:
     #
     # ON THE P it has to be CUT, because the bowl's lower terminal and the stem
     # simply merge: measured the same way, 0.33 to 0.42 of the cap is one solid
-    # run and the counter only opens at 0.43. `geom.ink`'s cutout does it -- a
-    # wedge seated on the stem's right edge, widest where the counter opens and
-    # closing to nothing below, which is the Y's shape read upside down,
-    # because the P's two strokes come together going DOWN where the Y's come
-    # together going up.
+    # run and the counter only opens at 0.43. `geom.ink`'s cutout does it.
+    #
+    # ROUND 162 -- AND IT IS A CLEAN LINE THROUGH, not a wedge. Owner
+    # 2026-09-16: *"make it a clean line through for P hairline"*. Round 161
+    # copied the Y's SHAPE -- a wedge closing at the bottom -- and that was the
+    # wrong half to copy. On the Y the wedge closes because the two strokes
+    # genuinely meet there; on the P the bowl's terminal LIES AGAINST the stem
+    # for its whole last stretch, so a gap that closes reads as a nick taken
+    # out of a join rather than as two strokes side by side. The cut is now
+    # PARALLEL-SIDED and runs from the counter at 0.432 down to 0.305, which is
+    # below the bowl's own lowest ink (0.33) -- so it leaves the letter cleanly
+    # at both ends instead of tapering to a point inside it, and the bowl reads
+    # as a separate stroke standing on the stem.
     P_GAP = float(os.environ.get("ALBO_ALD_P_GAP", 1.0))            # 0 turns it off
-    P_GAP_W = float(os.environ.get("ALBO_ALD_P_GAP_W", 0.0172))     # its width, x C -- the Y's eight units
+    P_GAP_W = float(os.environ.get("ALBO_ALD_P_GAP_W", 0.0135))     # its width, x C -- the Y's eight units
     P_GAP_TOP = float(os.environ.get("ALBO_ALD_P_GAP_TOP", 0.432))  # where it meets the counter, x C
-    P_GAP_BOT = float(os.environ.get("ALBO_ALD_P_GAP_BOT", 0.384))  # and where it closes
+    P_GAP_BOT = float(os.environ.get("ALBO_ALD_P_GAP_BOT", 0.305))  # and where it leaves the ink
     P_GAP_X = float(os.environ.get("ALBO_ALD_P_GAP_X", 0.0645))      # the stem's right edge, x C right of x0 (x0 + half the stem)
     CAP_P_SMOOTH = int(os.environ.get("ALBO_ALD_CAP_P_SMOOTH", 7))  # the moving average nib_widths used to apply
     # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
@@ -4679,7 +4687,7 @@ if ON:
             xg = x0 + C * P_GAP_X
             w = C * P_GAP_W * P_GAP
             yb = C * P_GAP_BOT; yt = C * P_GAP_TOP
-            cuts.append(geom.poly([(xg, yb), (xg + w * 0.74, yb),
+            cuts.append(geom.poly([(xg, yb), (xg + w, yb),
                                    (xg + w, yt), (xg, yt)]))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
                          stroke(p_, bf, cut0=CUT, cut1=CUT)], cuts)

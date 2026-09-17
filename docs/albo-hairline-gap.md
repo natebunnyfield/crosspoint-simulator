@@ -47,17 +47,25 @@ there was no wedge for them to leave.
 ## How it is cut on the P
 
 `geom.ink`'s cutout, in `a_P` (`tools/wedge_serif/outlines/glyphs/aldine.py`):
-a four-point wedge seated on the stem's right edge, widest where the counter
-opens and narrowing downward, tapering to 0.74 of its width rather than to a
-point — because the Y's gap is near-parallel over its run and a true triangle
-reads as a nick rather than as a gap.
+a parallel-sided cut seated on the stem's right edge, running from the counter
+at 0.432 down to 0.305 — below the bowl's own lowest ink at 0.33 — so it
+**leaves the letter cleanly at both ends** instead of tapering to a point
+inside it.
+
+**Round 161 cut it as a wedge and round 162 corrected that**, on the owner's
+ruling: *"make it a clean line through for P hairline."* The first cut copied
+the Y's SHAPE, and that was the wrong half to copy. On the Y the wedge closes
+because the two strokes genuinely meet there; on the P the bowl's terminal
+**lies against** the stem for its whole last stretch, so a gap that closes
+reads as a nick taken out of a join rather than as two strokes side by side.
+What transfers between the two letters is the gap's WIDTH, not its outline.
 
 | dial | ships | what it is |
 |---|---|---|
 | `ALBO_ALD_P_GAP` | 1.0 | 0 turns it off; the letter is then byte-identical to round 160 |
-| `ALBO_ALD_P_GAP_W` | 0.0172 | width, × cap |
+| `ALBO_ALD_P_GAP_W` | 0.0135 | width, × cap |
 | `ALBO_ALD_P_GAP_TOP` | 0.432 | where it meets the counter, × cap |
-| `ALBO_ALD_P_GAP_BOT` | 0.384 | where it closes, × cap |
+| `ALBO_ALD_P_GAP_BOT` | 0.305 | where it leaves the ink, × cap |
 | `ALBO_ALD_P_GAP_X` | 0.0645 | the stem's right edge, × cap right of `x0` |
 
 **`P_GAP_X` is measured from `x0`, the glyph's own drawing origin, and not from
@@ -69,17 +77,22 @@ converted back through the bearing first.
 
 ## What it renders
 
-| y / cap | the P's gap after round 161 |
+| y / cap | the P's gap after round 162 |
 |---|---|
-| 0.38 | — closed |
-| 0.39 | 6.3 |
-| 0.40 | 7.0 |
-| 0.41 | 7.6 |
-| 0.42 | 8.3 |
+| 0.32 | — below the bowl's ink; stem only |
+| 0.33 | 7.0 |
+| 0.34–0.38 | 7.0 · 6.9 · 6.9 · 6.9 · 6.9 |
+| 0.39–0.42 | 6.9 · 6.8 · 6.8 · 6.8 |
 | 0.43 | 26.3 — the counter |
 
-Mean 7.3 against the Y's 7.7, and held within a unit over the same 0.04 of the
-cap. The two letters now leave the same white where their strokes meet.
+Constant to within 0.2 of a unit over 0.10 of the cap, against the Y's 7.7 over
+0.04. The two letters leave nearly the same white; the P's runs three times as
+far, because that is how far its two strokes lie against each other.
+
+`P_GAP_W` fell 0.0172 → 0.0135 when the wedge became a parallel cut, and that
+is arithmetic rather than a second decision: a tapered cut only reaches its
+declared width at one end, so the same number rendered 7.3 as a wedge and 9.8
+as a line.
 
 ## Where else it could go, and deliberately has not
 
