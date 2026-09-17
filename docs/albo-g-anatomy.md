@@ -157,3 +157,42 @@ references agree with it.
 measured. The fix is `G_LRING`, the loop's keyed width table: its thin needs to
 move from the right round to roughly 285°, and the run from the bottom up to the
 neck needs to fall much further than it now does.
+
+
+---
+
+## CORRECTION, same day — the contrast figures above came from a bad instrument
+
+The ray-from-the-counter's-centroid method used for the table above **produces
+spurious zeros**: a ray that escapes through the neck, or through any gap in the
+wall, returns a width of 0 and the contrast ratio computed from it is garbage.
+It was caught reading Albo's `6` at 880:1 and the `g` at 544:1 on runs that
+differed only in which sector was excluded. Three separate readings from it were
+wrong by that mechanism.
+
+**So the contrast column above (scan 12.3, Flanker 4.1, Coelacanth 4.4, Albo
+3.9) should not be used, and neither should the claim that Albo's loop "changes
+width most slowly".** Those were that instrument's output.
+
+Re-measured with **local stroke thickness** — a chamfer distance transform over
+the ink, the stroke's width at a point being twice the distance to the nearest
+background, which shoots no rays and cannot escape — over the loop alone, below
+the baseline, binned by angle about the loop's own centroid:
+
+| | contrast | thickest at | thinnest at |
+|---|---|---|---|
+| Albo | 1.74 | 180–200° | **20°** |
+| Coelacanth | 1.75 | 80° | **300°** |
+| Flanker | 1.70 | 80° | **320°** |
+
+**The three agree on how MUCH the loop varies — 1.70, 1.74, 1.75 — and disagree
+entirely on WHERE.** Albo's loop is thickest on the left and thinnest on the
+right; both references are thickest up at 80° and thinnest at the bottom-right,
+300–320°, where the stroke sweeps up and out of the loop. Albo's own numeral
+**6**, which the owner named as the target, thins in the same bottom-right place
+the references do.
+
+So the surviving finding is the one about POSITION, and the fix changes with it:
+the loop does not need more contrast, it needs its **axis rotated roughly 100–120°**
+so the thin lands where the pen is lifting. That is `G_LRING`'s keyed table,
+re-phased rather than re-scaled.
