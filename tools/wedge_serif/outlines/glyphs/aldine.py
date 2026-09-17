@@ -3798,7 +3798,44 @@ if ON:
     G_LOOP_HAND = [(45, 1.1, -0.8), (200, -1.2, 1.0), (300, 0.8, 0.6),
                    (135, 0.0, 0.0), (270, 0.0, 0.0)]
     _gh = lambda t: [(a, dr * G_HAND, dw * G_HAND) for a, dr, dw in t] if G_HAND else None
-    G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74), (270, 58), (315, 58)]
+    # ROUND 182 -- THE LOOP RUNS OUT, THE WAY THE NUMERAL 6'S TOP TAIL DOES.
+    # Owner 2026-09-17: *"status of getting bottom loop of g to thin out like 6
+    # does"*, then, when shown the 6's bowl: *"i was talking about the top tail
+    # of 6"*. That is a different and much sharper target than the bowl.
+    #
+    # MEASURED, thickness along the 6's rising tail from its root on the bowl
+    # to its tip, by local stroke thickness (a chamfer distance transform, which
+    # shoots no rays -- the ray instrument that produced the earlier loop
+    # figures returns a spurious 0 wherever a ray escapes, and three readings
+    # from it were wrong):
+    #
+    #     tip  0.12  0.18  0.26  0.41  0.48  0.50  0.50  0.50  0.48  0.53  0.63  1.00  root
+    #     ---> a taper of 8.4 : 1, run out to a true point.
+    #
+    # THE G'S LOOP HAS NO FREE END AT ALL -- it is a closed ring, and a closed
+    # ring cannot run out anywhere. The g's own ear, for scale, tapers 1.8:1.
+    # So the run-out has to be drawn INTO the ring's width table: the width is
+    # taken down hard at one angle, and that angle is where the loop's stroke
+    # is climbing back up toward the neck and a pen would be lifting.
+    #
+    # WHERE. Measured on the same instrument, both outline references put the
+    # loop's thinnest at the BOTTOM RIGHT -- Coelacanth 300 degrees, Flanker 320
+    # -- and Albo's sat at 20, on the right at x-height level, nearly 120
+    # degrees away. The three agree on how MUCH the loop varies (1.70, 1.74,
+    # 1.75) and disagree entirely on where, so this is a re-phasing and not a
+    # re-scaling.
+    # The run-out key is INSERTED, not substituted, and only when it is asked
+    # for. Substituting the 315 key with one at 300 plus one at 330 -- all three
+    # at the same 58 -- is NOT a no-op: it shortens the segment that wraps round
+    # to the 24 at 0 degrees and thickens the ring near 330. Built it and the g
+    # changed at a default that was supposed to be inert, which is the whole
+    # reason this project checks its off-arms against the previous round.
+    G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
+    G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
+    G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
+               (270, 58), (315, 58)]
+    if G_LRING_THIN != 58.0:
+        G_LRING = sorted(G_LRING + [(G_LRING_THIN_AT, G_LRING_THIN)])
     if os.environ.get("ALBO_ALD_G_RING"):
         G_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_G_RING"].split(","))]
