@@ -3792,6 +3792,8 @@ if ON:
     # inside the loop and never renders. The last rendered sample is at some
     # t < 1 and that is what sets the final weight. Fixing the trend means
     # changing where the trim happens, not what the end weighs.
+    G_NECK_AIM = os.environ.get("ALBO_ALD_G_NECK_AIM", "0") != "0"
+    G_NECK_BURY = float(os.environ.get("ALBO_ALD_G_NECK_BURY", 1.0))  # x half the wall, inward
     G_ONE_STROKE = os.environ.get("ALBO_ALD_G_ONE_STROKE", "0") != "0"
     G_LOOP_ENTER = float(os.environ.get("ALBO_ALD_G_LOOP_ENTER", 100.0))  # ring angle the neck enters at
     G_NECK_START_W = float(os.environ.get("ALBO_ALD_G_NECK_START_W", 42.0))
@@ -4156,7 +4158,49 @@ if ON:
         # protruding into the loop. That cured the spur by starving the join.
         # The end goes back up and the MIDDLE comes down instead.
         _n0 = (x0 + (G_CX + G_SKEW * -G_RY - 8) * u, (G_CY - G_RY) * u + 10 * u)
-        _n4 = (x0 + G_NECK_R * u, lt - G_NECK_END * u)
+        _nw = widths([(0.0, G_NECK_START_W * u * G_NECK_SCALE),
+                      (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
+                      (1.0, G_NECK_END_W * u * G_NECK_SCALE)])
+        _lk = sorted((float(a) % 360.0, float(w)) for a, w in G_LRING)
+        def _lw(ang, _k=_lk):
+            ang %= 360.0
+            for (a0_, w0_), (a1_, w1_) in zip(_k, _k[1:] + [(_k[0][0] + 360.0, _k[0][1])]):
+                if a0_ <= ang <= a1_:
+                    f_ = (ang - a0_) / (a1_ - a0_) if a1_ > a0_ else 0.0
+                    f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
+                    return w0_ + (w1_ - w0_) * f_
+            return _k[0][1]
+        # ROUND 188 -- THE CONNECTOR IS PART OF A COMPOUND PATH, so its end must
+        # land ON THE LOOP'S WALL -- not short of it, not through it.
+        # Owner 2026-09-17: *"treat it as a compound path for the connector that
+        # continues seamlessly from each loop with angled part (pay attention to
+        # corner vertex)."*
+        #
+        # The g's ink is ONE outer contour with two counters as holes. Where the
+        # connector meets a ring, its two side edges should each END ON that
+        # ring's contour and make a CORNER VERTEX there -- the joint in the
+        # references is a corner, not a fillet and not a cut face. A union does
+        # that for free, but ONLY if the connector's end face is buried inside
+        # the ring's WALL: short of the wall and the face shows as a spur, past
+        # it and the face pokes into the COUNTER, which is round 173's fault.
+        #
+        # The wall is only 50-90 units thick, so "buried" is a narrow target and
+        # aiming at it by eye is what produced the spur-or-shelf dilemma of
+        # rounds 174-187. It is not a matter of taste: the ring's own centreline
+        # at the entry angle is computable, so the end is AIMED AT IT.
+        _lcx_ = x0 + G_LCX * u; _lcy_ = (lt + lb) / 2.0
+        _lrx_ = G_LRX * u; _lry_ = (lt - lb) / 2.0
+        _ea_ = math.radians(G_LOOP_ENTER)
+        _ox_ = _lcx_ + _lrx_ * math.cos(_ea_); _oy_ = _lcy_ + _lry_ * math.sin(_ea_)
+        _ox_ += (_oy_ - _lcy_) * G_SKEW_L
+        # step in along the inward normal by half the wall's width there
+        _hw_ = _lw(G_LOOP_ENTER) * u * 0.5
+        _nx_ = _lcx_ - _ox_; _ny_ = _lcy_ - _oy_
+        _nl_ = math.hypot(_nx_, _ny_) or 1.0
+        _n4 = (_ox_ + _nx_ / _nl_ * _hw_ * G_NECK_BURY,
+               _oy_ + _ny_ / _nl_ * _hw_ * G_NECK_BURY)
+        if not G_NECK_AIM:
+            _n4 = (x0 + G_NECK_R * u, lt - G_NECK_END * u)
         # AND IT ARRIVES FLAT. Looking at the two side by side at 760 px is what
         # settled this: Coelacanth's connector FLATTENS as it nears the loop and
         # merges into the loop's own curve, while Albo's stayed steep and stabbed
@@ -4182,18 +4226,6 @@ if ON:
         if G_NECK_FLAT:
             _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
         _pen.append(_n4)
-        _nw = widths([(0.0, G_NECK_START_W * u * G_NECK_SCALE),
-                      (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
-                      (1.0, G_NECK_END_W * u * G_NECK_SCALE)])
-        _lk = sorted((float(a) % 360.0, float(w)) for a, w in G_LRING)
-        def _lw(ang, _k=_lk):
-            ang %= 360.0
-            for (a0_, w0_), (a1_, w1_) in zip(_k, _k[1:] + [(_k[0][0] + 360.0, _k[0][1])]):
-                if a0_ <= ang <= a1_:
-                    f_ = (ang - a0_) / (a1_ - a0_) if a1_ > a0_ else 0.0
-                    f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
-                    return w0_ + (w1_ - w0_) * f_
-            return _k[0][1]
         nk = stroke(catmull(_pen, tension=G_NECK_ANG), _nw,
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
