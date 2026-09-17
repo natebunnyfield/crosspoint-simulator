@@ -1510,7 +1510,7 @@ if ON:
     # The path runs bar -> up the eye's right -> over the crown -> down the
     # left -> past its own start -> the flat wide bottom -> up into the
     # aperture, so the bottom left is a little past halfway along it.
-    E_BL = float(os.environ.get("ALBO_ALD_E_BL", 0.09))      # x S at the bump's peak
+    E_BL = float(os.environ.get("ALBO_ALD_E_BL", 0.155))      # x S at the bump's peak
     E_BL_T = float(os.environ.get("ALBO_ALD_E_BL_T", 0.66))  # where it sits, x the path
     E_BL_R = float(os.environ.get("ALBO_ALD_E_BL_R", 0.17))  # its half-width, x the path
     E_END_T0 = float(os.environ.get("ALBO_ALD_E_END_T0", 0.82))  # where the blunting starts, x the path
