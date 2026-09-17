@@ -3595,12 +3595,26 @@ if ON:
     #   vertex 1 at 166, vertex 2 at 368, both at -0.04.
     W_W = d_dial("W_W", 1.02)
     W_TW = d_dial("W_TW", 1.10)
+    # ROUND 177 -- THE TWO THICKS THIN, AND THE TWO HAIRLINES DO NOT. Owner
+    # 2026-09-16: *"thin out w thick lines until legibility and balance is
+    # struck"*. `W_TW` cannot do it: it scales all four strokes, so thinning
+    # the blacks with it thins the hairlines by the same factor and the letter
+    # simply gets lighter without its balance changing at all.
+    #
+    # The w's problem is not that either thick is heavier than the v's -- they
+    # are not; at the shipped dials the v's peaks at 76 units and the w's two
+    # at 75 and 70. It is that there are TWO of them inside one letter's width,
+    # so the w lays down half again as much black as the v over a span only
+    # 1.3x wider, and in a word it reads as a blot where the v reads as a
+    # letter. W_THICK scales ONLY the first and third strokes' width tables.
+    W_THICK = d_dial("W_THICK", 1.0)
     W_APEX = d_dial("W_APEX", 0.96)   # the middle apex's height, x xh
 
     @glyph('w')
     def a_w(c):
         P, u = d_frame(c, W_W); A = W_APEX
-        thick = [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 64), (0.90, 50), (1.00, 30)]
+        thick = [(t, w * W_THICK) for t, w in
+                 [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 64), (0.90, 50), (1.00, 30)]]
         thin = [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
                 (0.88, 44), (1.00, 48)]
         return geom.ink([
@@ -3613,8 +3627,9 @@ if ON:
                   [(0.0, 32), (0.20, 24), (0.75, 26), (1.0, 32)], u, tw=W_TW),
             d_pen([P(288, A), P(300, 0.75), P(327, 0.50), P(356, 0.25),
                    P(366, 0.07), P(368, -0.022)],
-                  [(0.00, 30), (0.12, 52), (0.30, 64), (0.75, 62),
-                   (0.92, 48), (1.00, 30)], u, tw=W_TW),
+                  [(t, w * W_THICK) for t, w in
+                   [(0.00, 30), (0.12, 52), (0.30, 64), (0.75, 62),
+                    (0.92, 48), (1.00, 30)]], u, tw=W_TW),
             d_pen([P(368, -0.022), P(396, 0.12), P(421, 0.25), P(455, 0.48),
                    P(478, 0.655), P(484, 0.775), P(472, 0.865)],
                   thin, u, tw=W_TW),
@@ -3750,15 +3765,39 @@ if ON:
     Y_TAIL_W = d_dial("Y_TAIL_W", 26.0)    # the hairline, units -- the reference's
     Y_TAIL_DROP = d_dial("Y_TAIL_DROP", 27.0)   # the terminal drop's radius, units
 
+    # Round 177, the owner's: how far the left stroke bows OUT (left), in
+    # REFERENCE units at the middle of its descending run. Both ends pinned.
+    Y_LBOW = float(os.environ.get("ALBO_ALD_Y_LBOW", 0.0))
+
     @glyph('y')
     def a_y(c):
         """The v's two strokes, with the RIGHT one carrying on past the
         baseline into the tail -- which is the construction both references
         show, and why the tail is a hairline: it is the thin stroke."""
         P, u = d_frame(c, Y_W); TX = Y_TAIL_X; TY = Y_TAIL_Y
-        thick = d_pen([P(48, 0.755), P(72, 0.89), P(110, 0.95), P(140, 0.86),
-                       P(165, 0.75), P(206, 0.50), P(234, 0.25), P(250, 0.10),
-                       P(256, 0.02)],
+        # ROUND 177 -- THE LEFT STROKE BOWS OUTWARD. Owner 2026-09-16: *"bend
+        # left stroke of y outward to increase readability"*. It ran as a
+        # nearly straight diagonal from the crown down to the junction, which
+        # is what a v does; on a y the junction sits ABOVE the baseline (the
+        # measurement in docs/albo-hairline-gap.md's sibling note: the fork
+        # closes near the middle of the x-height and everything under it is
+        # tail), so a straight left stroke closes the counter early and the
+        # letter reads as a narrow wedge with a line hung off it.
+        #
+        # Bowing it LEFT opens that counter without moving either end. The
+        # displacement is a raised cosine over the DESCENDING run only -- from
+        # the crown at index 2 to the junction at the last index -- so both the
+        # entry hook and the junction are pinned and neither the fork's meeting
+        # point nor the tail's start moves at any value of the dial. Zero is
+        # the round-176 stroke exactly.
+        _yp = [(48, 0.755), (72, 0.89), (110, 0.95), (140, 0.86),
+               (165, 0.75), (206, 0.50), (234, 0.25), (250, 0.10), (256, 0.02)]
+        if Y_LBOW:
+            _i0, _i1 = 2, len(_yp) - 1
+            _yp = [(x - (Y_LBOW * math.sin(math.pi * (i - _i0) / (_i1 - _i0))
+                         if _i0 <= i <= _i1 else 0.0), y)
+                   for i, (x, y) in enumerate(_yp)]
+        thick = d_pen([P(x, y) for x, y in _yp],
                       [(0.00, 22), (0.10, 48), (0.22, 66), (0.70, 62),
                        (0.90, 50), (1.00, 36)], u, tw=Y_TW)
         W = Y_TAIL_W
@@ -4627,6 +4666,23 @@ if ON:
     # join (round 157's) nor the taper's tip (round 156's) moves. It ships at 0
     # because "increase tail thickness" names the tail and not its middle, and
     # because two weight changes in one stroke cannot be judged apart.
+    # ROUND 177 -- THE TAIL IS ENLARGED ABOUT ITS JOIN, not just fattened.
+    # Owner 2026-09-16: *"thicken Q tail by enlarging it, same connection
+    # place, just big enough to read at small scale"*. Two things in that
+    # sentence rule out Q_TAIL_W, which is the dial that was already here:
+    # width alone makes a short stroke STUBBY rather than legible, and the test
+    # he names is reading at small scale, where a tail fails by being too SHORT
+    # to survive the rasteriser as much as by being too thin.
+    #
+    # So the whole tail is scaled about its FIRST control point -- the join
+    # under the bowl's lower left, which round 156 established has to sit ON
+    # the ring or the glyph comes apart into two pieces. That point is the
+    # fixed point of the scaling, so "same connection place" is exact rather
+    # than approximate: at any Q_TAIL_SCALE the tail leaves the bowl at the
+    # same spot and at the same angle, and only its reach and its weight grow.
+    # The pen widths are scaled by the same factor, because a pen dragged over
+    # a longer path at the same speed does not draw a thinner line.
+    Q_TAIL_SCALE = float(os.environ.get("ALBO_ALD_Q_TAIL_SCALE", 1.0))
     Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 1.04))  # x the tail's whole profile
     Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
     Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
@@ -4745,10 +4801,16 @@ if ON:
             # the ring's own outline is at about +0.03 C, so a tail that starts
             # below the baseline starts in mid-air: the first cut left a visible
             # gap between bowl and tail and the glyph was two pieces.
-            tail = catmull([(cx - rx * 0.30, C * 0.045 + dy),
-                            (cx + rx * 0.10, -C * 0.17 + dy),
-                            (cx + rx * 0.80, -C * 0.16 + dy),
-                            (cx + rx * 1.08, -C * 0.03 + dy)], tension=0.5)
+            _tp = [(cx - rx * 0.30, C * 0.045 + dy),
+                   (cx + rx * 0.10, -C * 0.17 + dy),
+                   (cx + rx * 0.80, -C * 0.16 + dy),
+                   (cx + rx * 1.08, -C * 0.03 + dy)]
+            if Q_TAIL_SCALE != 1.0:
+                # about _tp[0], the join: see Q_TAIL_SCALE's note above
+                _ax, _ay = _tp[0]
+                _tp = [(_ax + (x - _ax) * Q_TAIL_SCALE,
+                        _ay + (y - _ay) * Q_TAIL_SCALE) for x, y in _tp]
+            tail = catmull(_tp, tension=0.5)
             # ROUND 157 -- THE TAIL IS THICKER WHERE IT LEAVES THE BOWL, AND
             # THE TAPER IS UNTOUCHED. Owner 2026-09-16: *"thicken tail of Q
             # under and to the left, keep taper as is"*. The tail is drawn
@@ -4780,7 +4842,8 @@ if ON:
                             0.5 + 0.5 * math.cos(math.pi * d / Q_TAIL_BODY_SPAN))
                 return v
         wt = pen_widths(tail, floor=S * FLOOR)
-        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W,
+        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W
+                                                 * Q_TAIL_SCALE,
                                        cut1=CUT)])
 
     # ================================================ ROUND 135: NINE TO POETICA
@@ -7626,12 +7689,40 @@ if ON:
 # The big ones say what the fitter had wrong: H N Y -86 to -116 on the right
 # (far too loose after a flat-sided capital), A -151 on the left (its apex
 # overhangs and the fitter was paying for air), W -132 right, T +87 left.
+# ROUND 177 -- THE U'S RIGHT AND THE Y'S TWO SIDES ARE DIALS. Owner
+# 2026-09-16: *"adjust the letter spacing of capitals especially after U and
+# with Y"*, and he named the right two letters. Measured as the MINIMUM WHITE
+# between two capitals' ink, in em, by the instrument these numbers were solved
+# on -- the same procedure on all three fonts, so the comparison is honest even
+# where a single reading is unintuitive.
+#
+# Albo's capitals run a uniform +0.045 em LOOSER than Flanker (HN +0.048,
+# NN +0.048, HH +0.043, OO +0.043, EN +0.070, DO +0.055), and nobody has
+# complained about those -- that is the face's own rhythm. So the target for a
+# pair is Flanker's white PLUS 0.045, and the fault is what sits off THAT.
+#
+#   after U, against that target:  UI +0.148  UM +0.108  UR +0.100  UP +0.088
+#                                  UN +0.090  UL +0.080  US +0.080  UO +0.043
+#   with Y:                        YO -0.190  YA -0.145  YU -0.135  OY -0.175
+#                                  LY -0.170  RY -0.138  YE -0.113  AY -0.093
+#
+# YU measured a NEGATIVE gap (-0.0125 em): the two letters actually touch.
+#
+# Why the Y and not the kern table: the Y is tight in BOTH directions, and
+# several of the worst pairs (OY, NY) have no kern cell at all -- O and N are
+# not left classes -- so the deficit is the letter's own bearings. Round 163
+# rebuilt the Y (the owner's weight ruling, the arm pulled in) and its bearings
+# were never re-solved against the new shape; -116 on its right was fitted to a
+# Y that no longer exists.
+CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -72))
+CAP_Y_LSB = int(os.environ.get("ALBO_ALD_CAP_Y_LSB", 90))
+CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -6))
 CAP_BEARING_ADJ = {
     'A': (-151,    0), 'B': (   1,   -2), 'C': (  -7,  -54), 'D': (  -4,   14),
     'E': ( -77,  -50), 'F': (   0,  -37), 'G': (   0,  -28), 'H': (   0,  -86),
     'I': (  33,  -61), 'J': ( -84,    0), 'K': (   0,  -32), 'L': (  -3,  -24),
     'M': (   0,  -48), 'N': (   0,  -86), 'O': (   9,  -16), 'P': (   0,    3),
     'Q': (   0,  -30), 'R': (   0,  -56), 'S': (   0,   36), 'T': (  87,  -56),
-    'U': (   0,   12), 'V': (   0,  -48), 'W': (  35, -132), 'X': (   0,  -11),
-    'Y': (   0, -116), 'Z': (   0,  -78),
+    'U': (   0, CAP_U_RSB), 'V': (   0,  -48), 'W': (  35, -132), 'X': (   0,  -11),
+    'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (   0,  -78),
 }

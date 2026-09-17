@@ -40,6 +40,7 @@ LEFT = {
     'FP':      ['F', 'P'],
     'K':       ['K', 'k'],                      # arm and leg: the top-right is open
     'R':       ['R'],
+    'Oleft':   ['C', 'G', 'O', 'Q'],            # round 177: a round capital BEFORE a V W Y -- see the note on that cell
     'r':       ['r'],
     'f':       ['f'],
     'vwy':     ['v', 'w', 'y'],
@@ -91,19 +92,36 @@ CLASS_PAIRS = {
     ('VW', 'period'): -126, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
     ('Y', 'round'): -108, ('Y', 'a'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18, ('Y', 'ascwedge'): -18,
-    ('Y', 'A'): -108, ('Y', 'O'): -54, ('Y', 'J'): -72,
+    ('Y', 'A'): 0, ('Y', 'O'): 0, ('Y', 'J'): -72,   # round 177: ('Y','O') -54 -> 0, the same re-solve as the Oleft cell
     ('Y', 'period'): -126, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
     ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -126,
     ('A', 'diag'): -36,
     # L: open above its arm
-    ('L', 'T'): -108, ('L', 'VWY'): -108, ('L', 'quote'): -144, ('L', 'O'): -18,
+    ('L', 'T'): -108, ('L', 'VWY'): -36, ('L', 'quote'): -144, ('L', 'O'): -18,
     ('L', 'diag'): -36, ('L', 'hyphen'): -54,
+    # ROUND 177 -- THE Y AGAINST A ROUND. Owner 2026-09-16: *"adjust the letter
+    # spacing of capitals especially after U and with Y"*. Re-solving the Y's
+    # own bearings (aldine.CAP_Y_LSB / CAP_Y_RSB) fixed the letter against
+    # flats and diagonals and left one family behind: Y beside a ROUND capital
+    # stayed about 0.08 em tighter than the face's own rhythm -- LY, OY, YO, RY
+    # -- because these cells were fitted to the Y of before round 163, which was
+    # a wider letter with more of its own white to give away. ('L','VWY') goes
+    # -108 -> -36 above; the rest are here.
+    #
+    # `Oleft` is a NEW left class, and it exists because OY was the worst pair
+    # in the whole measurement (-0.175 em against target) and had no cell at
+    # all: C G O Q were a RIGHT class only, so nothing could be said about a
+    # round capital FOLLOWED by a diagonal one. Its value is POSITIVE, which is
+    # rare here and correct: the two letters' closest approach is the O's belly
+    # against the Y's left arm, and the arm came in with round 163.
+    ('Oleft', 'VWY'): 36,
+    ('R', 'VWY'): 0,
     # F P: open below the bowl / the bar, so a period or comma tucks in
     ('FP', 'period'): -126, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
     # K k, R: an open top-right corner takes a round or a diagonal a little
     ('K', 'round'): -36, ('K', 'a'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
-    ('R', 'T'): -36, ('R', 'VWY'): -54, ('R', 'round'): -18, ('R', 'a'): -18,
+    ('R', 'T'): -36, ('R', 'round'): -18, ('R', 'a'): -18,   # ('R','VWY') moved up to round 177's block
     # lowercase overhangs before punctuation
     ('r', 'period'): -72, ('r', 'hyphen'): -18, ('r', 'quote'): -18,
     ('f', 'period'): -36, ('f', 'hyphen'): -18,
@@ -129,6 +147,11 @@ PAIRS = {
     ('f', 'question'): -18,
     ('r', 'quoteright'): -36, # 'r' before an apostrophe: "Mr's"
     ('quotesingle', 'quotesingle'): 0, ('quotedbl', 'quotedbl'): 0,
+    # Round 177, the two capitals the re-solved U bearing could not serve from
+    # one number. U's right went -72 units to cure a letter that stood about
+    # 0.13 em too far from everything after it; these two are what that left.
+    ('U', 'U'): 72,    # two identical stems, so both bearings are the tight one
+    ('U', 'I'): -54,   # the I carries a +33 left bearing of its own, being a bare stem
 }
 
 def feature_text():
