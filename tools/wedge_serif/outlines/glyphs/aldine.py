@@ -1893,7 +1893,7 @@ if ON:
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
-                   hand=None):
+                   hand=None, flat=None):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -1903,6 +1903,30 @@ if ON:
         outer = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
         if skew:
             outer = [(x + (y - cy) * skew, y) for x, y in outer]
+        if flat:
+            # `flat` is (amount, a0, b0) in degrees: every outer point whose
+            # angle lies between a0 and b0 is moved toward the straight chord
+            # joining the points AT a0 and b0, by `amount`. At 1.0 that stretch
+            # of the contour IS the chord. The angle is read with the skew
+            # removed, as the hand table's is, so the span means the same thing
+            # on a round ring and on an egg.
+            _amt, _a0, _b0 = flat
+            _r0, _r1 = math.radians(_a0), math.radians(_b0)
+            def _ang(x, y):
+                return math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx) % (2 * math.pi)
+            _pa = min(outer, key=lambda q: abs(((_ang(*q) - _r0 + math.pi) % (2 * math.pi)) - math.pi))
+            _pb = min(outer, key=lambda q: abs(((_ang(*q) - _r1 + math.pi) % (2 * math.pi)) - math.pi))
+            _out = []
+            for x, y in outer:
+                a = _ang(x, y)
+                if _r0 <= a <= _r1:
+                    t = (a - _r0) / (_r1 - _r0)
+                    cxp = _pa[0] + (_pb[0] - _pa[0]) * t
+                    cyp = _pa[1] + (_pb[1] - _pa[1]) * t
+                    _out.append((x + (cxp - x) * _amt, y + (cyp - y) * _amt))
+                else:
+                    _out.append((x, y))
+            outer = geom.smooth(_out, 1, closed=True)
         if hand:
             # the same (degrees, dr, dw) table `nib_ring` carries, on the
             # OUTER only: dr pushes a point along its own radius, dw is added
@@ -2099,6 +2123,25 @@ if ON:
     #              droop reads as a dent rather than as a slope.
     #
     # ALBO_ALD_A_DROOP scales all three; 0 is the round-151 letter exactly.
+    # ROUND 166 -- THE TOP LEFT, FROM ITS CURVE TO A DIAGONAL. Owner
+    # 2026-09-16, having rejected all ten of round 165's droops: *"none of
+    # those droop. look at the scan and bring the top left from current to a
+    # diagonal with seven steps between"*.
+    #
+    # The ten were all RADIAL PUSHES on the outer contour -- the ring pulled in
+    # or out along its own radius at three or four angles -- and a radial push
+    # on a superellipse gives a shallower curve, never a straight line. The
+    # scan's a does not have a shallower curve there: from about 10 o'clock to
+    # about 8 o'clock its outer edge is FLAT, one chord, and the "droop" is
+    # that chord meeting the crown at a corner.
+    #
+    # A_FLAT lerps every outer point between A_FLAT_A and A_FLAT_B degrees
+    # toward the straight chord joining those two angles' own points. 0 is the
+    # ring untouched, 1 is a dead straight edge, and the ladder between them is
+    # what the owner asked to see.
+    A_FLAT = float(os.environ.get("ALBO_ALD_A_FLAT", 0.0))
+    A_FLAT_A = float(os.environ.get("ALBO_ALD_A_FLAT_A", 92.0))    # where the flat begins, degrees ccw
+    A_FLAT_B = float(os.environ.get("ALBO_ALD_A_FLAT_B", 186.0))   # and where it ends
     A_DROOP = float(os.environ.get("ALBO_ALD_A_DROOP", 1.0))
     A_DROOP_HAND = [(75, 0.0, 0.0), (115, -17.0 * A_DROOP, 0.0),
                     (155, -9.0 * A_DROOP, 0.0), (200, 0.0, 0.0),
@@ -2123,7 +2166,8 @@ if ON:
         xs = x0 + A_STEM_X * u
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
-                           k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND)
+                           k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND,
+                           flat=(A_FLAT, A_FLAT_A, A_FLAT_B) if A_FLAT else None)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh), hm_exit(c, xs)])
 
     # ------------------------------------------------------------ THE b, round 132
@@ -2471,6 +2515,52 @@ if ON:
     PQ_FOOT_R = float(os.environ.get("ALBO_ALD_PQ_FOOT_R", 116.0))  # and right; ref 150
     PQ_FOOT_T = float(os.environ.get("ALBO_ALD_PQ_FOOT_T", 21.0))   # AT THE TIPS
 
+    # ROUND 166 -- FIVE TAIL TERMINALS FOR THE q, to choose from. Owner
+    # 2026-09-16: *"give me five option for q tail terminals"*. The q ships the
+    # p's own `pq_foot` -- a flat-bottomed two-sided bar, symmetrical, 21 units
+    # at each tip and 3.2x that where the stem lands. That is the right ending
+    # for a p, whose descender is a straight stem stopping. Whether it is right
+    # for a q, whose descender is where an italic hand runs on, is the
+    # question. `ALBO_ALD_Q_TAIL` picks: foot (as shipped), flourish, kick,
+    # hook, swash.
+    Q_TAIL = os.environ.get("ALBO_ALD_Q_TAIL", "foot").lower()
+
+    def q_tail(xc, ybot, u=1.0):
+        t = PQ_FOOT_T * u
+        if Q_TAIL == "foot":
+            return pq_foot(xc, ybot, u)
+        if Q_TAIL == "flourish":
+            # out of the stem's foot, right and up, thinning to the pen's cut:
+            # the capital Q's tail at a tenth of the size.
+            p = catmull([(xc - 26 * u, ybot + t * 1.05), (xc + 56 * u, ybot + t * 0.30),
+                         (xc + 112 * u, ybot + 30 * u), (xc + 150 * u, ybot + 74 * u)], tension=0.5)
+            return stroke(p, widths([(0.0, t * 1.45), (0.30, t * 1.30),
+                                     (0.66, t * 0.86), (1.0, t * 0.34)]), cut1=CUT)
+        if Q_TAIL == "kick":
+            # a straight kick right along the descender line, blunt: the R's
+            # leg's idea, at the bottom of a lowercase stem.
+            p = catmull([(xc - 20 * u, ybot + t * 0.95), (xc + 52 * u, ybot + t * 0.55),
+                         (xc + 124 * u, ybot + t * 0.30)], tension=0.5)
+            return stroke(p, widths([(0.0, t * 1.50), (0.55, t * 1.05), (1.0, t * 0.72)]),
+                          cut0=CUT, cut1=CUT)
+        if Q_TAIL == "hook":
+            # it dips under the line and turns back UP, closing on itself --
+            # the chancery q, and the only one of the five that re-enters the
+            # letter's own column.
+            p = catmull([(xc - 16 * u, ybot + t * 1.10), (xc + 44 * u, ybot - 6 * u),
+                         (xc + 104 * u, ybot + 26 * u), (xc + 116 * u, ybot + 92 * u)], tension=0.5)
+            return stroke(p, widths([(0.0, t * 1.40), (0.34, t * 1.12),
+                                     (0.70, t * 0.74), (1.0, t * 0.30)]), cut1=CUT)
+        if Q_TAIL == "swash":
+            # the longest of the five: it runs almost level under the letter
+            # and lifts only at its very end, which is Pagella's Q read down
+            # into the lowercase.
+            p = catmull([(xc - 30 * u, ybot + t * 1.00), (xc + 60 * u, ybot - 10 * u),
+                         (xc + 148 * u, ybot - 4 * u), (xc + 206 * u, ybot + 54 * u)], tension=0.5)
+            return stroke(p, widths([(0.0, t * 1.50), (0.28, t * 1.22),
+                                     (0.62, t * 0.80), (1.0, t * 0.26)]), cut1=CUT)
+        return pq_foot(xc, ybot, u)
+
     def pq_foot(xc, ybot, u=1.0):
         """The descender's spread foot: a flat-bottomed two-sided bar, 21 units
         at the tips and 3.2x that where the stem lands. The centerline RISES
@@ -2535,7 +2625,7 @@ if ON:
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, A_RING,
                            k=A_K, skew=Q_SKEW, unit=u)
-        return geom.ink([bowl_, stem, pq_foot(xs, ybot, u)])
+        return geom.ink([bowl_, stem, q_tail(xs, ybot, u)])
 
     # THE r, round 132 -- the family's stem and head, then an arm that is the
     # arch's first half made STEEPER, stopped in a ball.
@@ -3002,8 +3092,36 @@ if ON:
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
+    # ROUND 166 -- ONLY THE LOWER LOOP'S AXIS. Owner 2026-09-16, narrowing his
+    # own instruction after seeing the first cut: *"only correct the axis of the
+    # lower loop in g"*. So the bowl's table and both rings' WEIGHTS are put
+    # back exactly as they were, and one thing changes.
+    #
+    # What the measurement said, reading each ring's table for where its thick
+    # and its thin fall:
+    #
+    #                    thick at        thin at
+    #   the a's bowl      225 (74)        90 (20)     <- the alphabet's axis
+    #   the o             ~240            ~120        (measured radially)
+    #   the g's BOWL      180 (70)        90 (25)     <- 45 degrees off
+    #   the g's LOOP      135 (74)       270 (24)     <- 90 degrees off
+    #
+    # THE BOWL'S 45 DEGREES IS NOT A FAULT, and that is the finding that came
+    # out of trying to fix it. Rotated onto the alphabet's axis the bowl's
+    # weight lands on its UPPER LEFT, which no g in any reference has: a g's
+    # bowl sits on a neck that leaves its BOTTOM LEFT, and the ink has to be
+    # there to leave from. The bowl is stressed where its own construction
+    # needs the weight. Built and looked at at 340 px before it was thrown
+    # away.
+    #
+    # THE LOOP'S 90 DEGREES IS. Its table is rotated by 90 -- each key's width
+    # moved to the angle 90 degrees round from it -- so the loop keeps its own
+    # distribution and the shape of its own falloff and simply turns, with its
+    # thick landing at 225 where the a's and the o's are. Nothing else about
+    # this letter moves: the loop's weights are the same eight numbers in a
+    # different order, so its ink is unchanged to the unit.
     G_RING = [(0, 66), (45, 46), (90, 25), (135, 50), (180, 70), (225, 35), (270, 27), (315, 38)]
-    G_LRING = [(0, 50), (45, 62), (90, 70), (135, 74), (180, 72), (225, 58), (270, 24), (315, 34)]
+    G_LRING = [(0, 24), (45, 34), (90, 50), (135, 62), (180, 70), (225, 74), (270, 72), (315, 58)]
     if os.environ.get("ALBO_ALD_G_RING"):
         G_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_G_RING"].split(","))]
@@ -3141,6 +3259,7 @@ if ON:
     #   thin's top at (305, .93), a hook under the thin's start that turns
     #   left and down (Poetica .10 19-122, .03 18-103), and a hook off the
     #   thick's foot that turns right and UP to (385, .15).
+    X_BL = float(os.environ.get("ALBO_ALD_X_BL", 0.10))   # the bottom-left hook straightened, 0 = as drawn, 1 = gone
     X_W = d_dial("X_W", 1.00)
     X_TW = d_dial("X_TW", 1.00)
 
@@ -3152,7 +3271,21 @@ if ON:
                        P(318, 0.018), P(356, 0.058), P(378, 0.135), P(368, 0.185)],
                       [(0.00, 24), (0.08, 52), (0.20, 66), (0.60, 62),
                        (0.80, 54), (0.90, 48), (1.00, 38)], u, tw=X_TW)
-        thin = d_pen([P(80, -0.008), P(44, 0.045), P(34, 0.112), P(58, 0.172),
+        # ROUND 166 -- THE BOTTOM LEFT IS STRAIGHTENED, SLIGHTLY. Owner
+        # 2026-09-16: *"slightly straighten out the bottom left of x"* (after a
+        # first cut that FLIPPED it, which was the wrong reading and is
+        # reverted). The thin diagonal arrives at the baseline and hooks back
+        # left and up -- 80 -> 44 -> 34 -> 58 in the frame's own units, a comma
+        # curling away from the letter. X_BL lerps those three control points
+        # toward the straight line from the terminal to where the diagonal
+        # proper begins: 0 is the hook as drawn, 1 is no hook at all, and 0.45
+        # ships -- the curl is still there and it no longer reaches further
+        # left than the terminal itself. OWNER: **0.10 wins** -- the least of the
+        # four he was shown, which is what "slightly" turned out to mean.
+        _bl = [(44, 0.045), (34, 0.112), (58, 0.172)]
+        _bl = [(x + ((80 + 32 * ((y + 0.008) / 0.243)) - x) * X_BL, y)
+               for x, y in _bl]
+        thin = d_pen([P(80, -0.008), P(*_bl[0]), P(*_bl[1]), P(*_bl[2]),
                       P(112, 0.235), P(184, 0.50), P(233, 0.75), P(272, 0.855),
                       P(298, 0.925), P(289, 0.965)],
                      [(0.00, 30), (0.08, 44), (0.20, 34), (0.35, 27), (0.62, 27),
