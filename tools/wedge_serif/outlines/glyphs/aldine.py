@@ -5572,8 +5572,27 @@ if ON:
     # exponent is untouched, so the branch keeps the single curve the owner
     # ruled on earlier the same day: it is the same shape, reaching less far.
     Y_LEFT_REACH = float(os.environ.get("ALBO_ALD_Y_REACH", 0.2950))
+    # ROUND 159 -- THE BEND IS A DIAL. Owner 2026-09-16: *"give me many options
+    # for Y from current to straight to reverse bend of current"*. The branch's
+    # x is `0.4816 - reach * u**p` with u the height's own fraction, so the
+    # EXPONENT is the bend and nothing else in the expression is:
+    #   p > 1   convex -- the branch leaves the stem slowly and swings out near
+    #           the top. Pagella's shape, and what has shipped since round 141.
+    #   p = 1   a straight line from the stem to the head.
+    #   p < 1   concave, the reverse bend -- it leaves fast and flattens into
+    #           the head. The mirror of p is 1/p, so 0.625 is the exact reverse
+    #           of the shipped 1.6.
+    # The REACH is untouched by the dial, so every arm arrives at the same head
+    # and only the road there changes -- which is what makes the ladder a
+    # comparison rather than seven different letters.
+    # ROUND 160: **E WINS** -- owner 2026-09-16, off the seven-bend ladder.
+    # p 0.80 is the first of the reverse bends: the branch leaves the stem fast
+    # and flattens into the head, where the shipped 1.6 hugged the stem and
+    # swung out late. Every other number in the expression is unchanged, so the
+    # head lands exactly where round 158's reach put it.
+    Y_LEFT_P = float(os.environ.get("ALBO_ALD_Y_P", 0.80))
     Y_SPINE = [(0.4816, 0.000), (0.4816, 0.200), (0.4816, 0.300)] + [
-        (round(0.4816 - Y_LEFT_REACH * (((y - 0.30) / 0.675) ** 1.6), 4), y)
+        (round(0.4816 - Y_LEFT_REACH * (((y - 0.30) / 0.675) ** Y_LEFT_P), 4), y)
         for y in (0.40, 0.50, 0.60, 0.70, 0.80, 0.88, 0.975)]
     # Widths are the MEASURED perpendicular thickness less INK_SPREAD's 2.4
     # units (0.00356 x cap), for the same reason the O's ring table has 2 taken
@@ -5610,7 +5629,18 @@ if ON:
     # bearing (CAP_BEARING_ADJ['Y']) and nothing in the drawing moves it. The
     # Y's advance is 0.76 of the H's where Pagella sets 0.86 and Poetica 0.88,
     # so the letter is narrow in its box before the arm is touched at all.
-    Y_ARM_DX = float(os.environ.get("ALBO_ALD_Y_ARM_DX", 0.28))  # the arm's horizontal travel, x cap
+    # ROUND 160 -- AND THE RIGHT BRANCH IS THICKER AND NARROWER. Owner, in the
+    # same breath as picking E: *"the right branch needs to be thicker take up
+    # less horizontal space"*. Two dials, and they are the two halves of one
+    # idea -- with the left branch now leaving fast and flattening, the right
+    # arm was the thing still spending width, and a thin arm spending width is
+    # what made this letter read wide and light on its right side.
+    #   Y_ARM_DX   0.28 -> 0.225 cap of horizontal travel from the join.
+    #   Y_ARM_INK  every declared arm width x 1.18, on top of Y_INK.
+    # The arm's VERTICAL half is untouched: Y_ARM_VERT still turns it upright at
+    # 0.80 of the cap, which is the round-141 ruling and not this instruction's.
+    Y_ARM_DX = float(os.environ.get("ALBO_ALD_Y_ARM_DX", 0.225))  # the arm's horizontal travel, x cap
+    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.18))  # the arm's own weight, x Y_INK
     Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
              for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
@@ -5665,7 +5695,7 @@ if ON:
         parts.append(_end_wedge(p_, wf(1.0), False, 1))
         ap = [pt(fx, fy) for fx, fy in Y_ARM]
         q_ = catmull(ap, tension=0.5)
-        af = widths([(t, C * v * Y_INK) for t, v in Y_ARM_W])
+        af = widths([(t, C * v * Y_INK * Y_ARM_INK) for t, v in Y_ARM_W])
         parts.append(stroke(q_, af))
         parts.append(_end_wedge(q_, af(1.0), False, -1))
         return geom.ink(parts)
