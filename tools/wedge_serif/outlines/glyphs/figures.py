@@ -568,6 +568,7 @@ def g_eight(c):
 # ruled constants below are untouched, `_fit_left_bottom` puts the tip back on
 # its ruled leftmost and lowest, and the width under the bowl is what round
 # 72-74 ruled. 0 = the round-71 attachment.
+NINE_END_CUT = float(os.environ.get("ALBO_9_END_CUT", -34.0))  # round 195: the tail's end face, degrees; 0 = square (the roman)
 NINE_JOIN_SINK = 8.0
 
 NINE_FLAG_REACH = 12.4    # the wedge apex past the bowl's left ink: round 71's, the tail-tip rule as this pen draws it
@@ -645,7 +646,19 @@ def g_nine(c):
             ux, uy = -tn[1], tn[0]
             if uy < 0: ux, uy = -ux, -uy                                 # the upward normal
             center.append((p[0] - ux * d, p[1] - uy * d))
-        t, A, B = stroke(center, wf2, raw=True, sides=True)
+        # ROUND 195 -- THE TAIL'S END FACE IS SHEARED, so its LOWER corner does
+        # not stand out as a second prong. Owner 2026-09-17: *"remove bottom
+        # side of serif in 9."*
+        #
+        # The tail ended on a face SQUARE across its own travel, which has two
+        # corners. The family's diagonal wedge is added at the UPPER one (the
+        # A's, the V's) and the lower one was left standing -- so the terminal
+        # read as two points with a notch between them, where Coelacanth's 9
+        # simply tapers out. Shearing the face pulls the lower corner back along
+        # the tail and leaves the upper one, and therefore the flag, where they
+        # are. Italic only; the roman's 9 is untouched at NINE_END_CUT 0.
+        _ec = math.radians(NINE_END_CUT if pen.ITALIC else 0.0)
+        t, A, B = stroke(center, wf2, raw=True, sides=True, cut1=_ec)
         up, lo = (A, B) if A[-1][1] >= B[-1][1] else (B, A)
         d = tangents(resample(tail))[-1]
         v = (up[-1][0] - lo[-1][0], up[-1][1] - lo[-1][1]); n = math.hypot(*v) or 1.0; sd = (v[0] / n, v[1] / n)
