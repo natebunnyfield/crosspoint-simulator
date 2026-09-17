@@ -172,6 +172,8 @@ PAIRS = {
     # an order of magnitude across the family: qj was -0.110 em and Qf -0.004,
     # and one number that fixes qj opens qp to 0.127.
     ('q', 'j'): 126, ('q', 'f'): 108, ('q', 'y'): 90, ('q', 'p'): 18,
+    ('j', 'f'): 36,  # round 189: the j's head now leans LEFT, so its own right
+                     # side gained nothing while the f's hook still reaches back
     ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
     ('g', 'p'): 18,  # round 186: the g's loop grew where its neck now lands
     # Round 179: the Q's tail thickened downward (Q_TAIL_BOT) and its root was

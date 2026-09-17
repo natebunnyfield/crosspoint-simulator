@@ -528,6 +528,8 @@ def ent_sway(pts, amt, spacing=geom.SPACING / 2.0, waves=None, wave=None):
 HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
 HEAD_W = float(os.environ.get("ALBO_ALD_HEAD_W", 0.58))       # its weight, x the stem
+HEAD_LEAN = float(os.environ.get("ALBO_ALD_HEAD_LEAN", 0.30))  # fraction of the head left of the stem
+J_HEAD_LEAN = float(os.environ.get("ALBO_ALD_J_HEAD_LEAN", 0.70))  # the j's, mirrored -- see wedge_head
 FOOT_LEN = float(os.environ.get("ALBO_ALD_FOOT", 0.80))       # the foot's outstroke
 BRANCH = float(os.environ.get("ALBO_ALD_BRANCH", 0.34))       # where an arch leaves the stem, x xh
 BOWL_TOP = float(os.environ.get("ALBO_ALD_BOWL_TOP", 0.98))   # a bowl's top, x xh -- they sit LOW
@@ -614,7 +616,7 @@ if ON:
     I_DOT_W = float(os.environ.get("ALBO_ALD_I_DOT_W", 1.09))    # its long axis, x S
     I_DOT_T = float(os.environ.get("ALBO_ALD_I_DOT_T", 0.83))    # its thickness, x S
 
-    def wedge_head(x, y, length=None, w=None, deg=None):
+    def wedge_head(x, y, length=None, w=None, deg=None, lean=None):
         """The Aldine head: a diagonal rising to the right ACROSS the stem,
         THICK where it meets the stem and tapering to its right tip, reaching
         much further right than left.
@@ -630,7 +632,18 @@ if ON:
         dx, dy = math.cos(a) * L, math.sin(a) * L
         hw = (HEAD_W if w is None else w)
         hp = con([0.80, 2.05, 1.35, 0.82])
-        return stroke([(x - dx * 0.30, y - dy * 0.30), (x + dx * 0.70, y + dy * 0.70)],
+        # ROUND 189 -- `lean` is how much of the head sits LEFT of the stem.
+        # Owner 2026-09-17: *"switch serif to left on j to make more of a
+        # stroke."* The head reaches 0.30 left and 0.70 right on every letter
+        # that wears it, which is right for an i or an n, whose stem continues
+        # downward past it. The j's stem does not: it turns into a descender, so
+        # a head weighted to the RIGHT reads as a flag stuck on a hook, while
+        # one weighted LEFT reads as the entry stroke of a written j. Coelacanth
+        # draws it that way. Only the j passes a value; every other caller keeps
+        # the 0.30 and is byte-identical.
+        _lf = HEAD_LEAN if lean is None else lean
+        return stroke([(x - dx * _lf, y - dy * _lf),
+                       (x + dx * (1.0 - _lf), y + dy * (1.0 - _lf))],
                       widths([(0.0, S * hw * hp[0]), (0.30, S * hw * hp[1]),
                               (0.62, S * hw * hp[2]), (1.0, S * hw * hp[3])]),
                       cut0=CUT, cut1=CUT)
@@ -3496,7 +3509,7 @@ if ON:
         # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
         # rendered 79 x 50 -- two different dots on two letters the module's
         # own comment says must wear the same one. `ij_dot` is that one.
-        return geom.ink([body, wedge_head(xs, xh * 0.875), ij_dot(c, xs)])
+        return geom.ink([body, wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN), ij_dot(c, xs)])
 
     # ------------------------------------------------------------ THE s, round 132
     # THE SCAN CROP IS OVERRULED FOR THIS LETTER, and that has to be said out
@@ -4778,12 +4791,20 @@ if ON:
     @glyph('k')
     def a_k(c):
         P, u = d_frame(c, K_W); J = K_JOIN
+        K_KICK_Y = float(os.environ.get("ALBO_ALD_K_KICK_Y", -0.06))
         arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
                     [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 48),
                      (0.88, 64), (1.00, 52)], u, tw=K_TW)
+        # ROUND 189 -- THE KICK GOES BELOW THE BASELINE. Owner 2026-09-17:
+        # *"bring k kick down below baseline."* It ended at +0.115 of the
+        # x-height, curling back UP above the line, which is a foot rather than
+        # a kick; Coelacanth's k drives its leg through the baseline and lands
+        # under it. K_KICK_Y is where the tip sits, in x-height, negative being
+        # below the line.
         leg = d_pen([P(152, J), P(212, 0.40), P(250, 0.28), P(290, 0.15),
-                     P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
+                     P(322, 0.05), P(360, -0.01), P(398, K_KICK_Y * 0.55),
+                     P(414, K_KICK_Y)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
         return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True,

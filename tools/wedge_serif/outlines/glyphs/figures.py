@@ -15,7 +15,7 @@ lower bowl opens halfway to the 5's; the 4 has an OPEN counter (FOUR_OPEN);
 the 7's top right is one mitred corner; the 9's tail leaves the ring tangent
 to it (NINE_JOIN_SINK). Each constant carries its measurement and its
 rejected alternatives above it."""
-import math, os
+import math, os, os
 from . import glyph
 from .. import geom, pen
 from .. import primitives as PR
@@ -70,6 +70,8 @@ TWO_NECK_TAPER = 0.18
 # The 7's diagonal starts this far below the bar's top edge, in bar depths,
 # so both corners of its square end face lie inside the bar's band (round 75).
 SEVEN_DIAG_BURY = 0.45
+SEVEN_BAR_W = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W", 1.28))    # x the bar's own depth
+SEVEN_DIAG_W = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W", 0.76))  # x the pen's width on the diagonal
 
 # Owner 2026-09-13, on round 63: "5 top was extended much too far, match the
 # visual of 2's bottom." On the 2 the diagonal meets the base at its END, so
@@ -406,9 +408,16 @@ def g_seven(c):
     where the bar's top edge meets the diagonal's right edge. The diagonal
     starts inside the bar's band (SEVEN_DIAG_BURY of the bar's depth below
     its top edge) so both corners of its square face are buried."""
-    D = c["figH"]; w = W_(c, '7', 440); barw = max(TH_H, S * 0.5)
+    D = c["figH"]; w = W_(c, '7', 440)
+    # ROUND 189 -- the owner, 2026-09-17: *"for 7, thin out diagonal and
+    # thicken top bar."* Measured against Coelacanth the 7 was effectively
+    # MONOLINEAR -- 1.1:1 where Coelacanth is 2.6:1 -- so the two strokes were
+    # carrying the same weight and the figure had no colour. These two dials
+    # move them in opposite directions, which is what restores the contrast
+    # rather than simply making the whole figure heavier or lighter.
+    barw = max(TH_H, S * 0.5) * SEVEN_BAR_W
     p1 = (w * 0.3, 0); p0 = (w - S * 0.2, D - barw * SEVEN_DIAG_BURY)
-    wd = pw(p0, p1)
+    wd = pw(p0, p1) * SEVEN_DIAG_W
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy) or 1.0
     ux, uy = dx / L, dy / L; nx, ny = -uy, ux          # the up-right side of a stroke running down-left
     ex, ey = p0[0] + nx * wd / 2, p0[1] + ny * wd / 2  # a point on the diagonal's right edge
