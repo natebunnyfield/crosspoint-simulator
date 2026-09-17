@@ -5707,19 +5707,12 @@ if ON:
     # shown and both FAIL it, not because they are heavy in the abstract but
     # because they are heavier than Albo's ROMAN Y, and round 131c's rule is
     # that an italic capital carries its own roman's weight.
-    # ROUND 163 -- 1.38 -> 1.70, AND THE ROMAN-PARITY RULE BENDS FOR IT. Owner
-    # 2026-09-16: *"Y needs to match weight of other capitals be by thicker on
-    # right stroke"*. At 1.38 the italic Y measured 0.93 of the untouched
-    # capitals' median, the bottom of the alphabet beside V 0.85, W 0.89 and
-    # X 0.81; at 1.70 it reads 0.99, level with L at 0.99 and P at 1.00.
-    #
-    # It costs the round-131c rule, and that is recorded rather than hidden:
-    # Albo's ROMAN Y is itself the light one at 0.89, so no italic Y can both
-    # carry its own roman's weight AND sit with the other capitals. The
-    # exemption is a NAMED ROW in cmp_cap_weight.py with the numbers in it --
-    # see that file's EXEMPT block, including the way out, which is to thicken
-    # the roman Y's own arm.
-    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.70))  # the arm's own weight, x Y_INK
+    # THE ARM STAYS AT 1.38 -- the owner's own pick off the seven-weight ladder,
+    # and round 163's first cut wrongly took it to 1.70. He corrected it the
+    # same day: *"I meant thicken left stroke, not right"*. The alphabet's
+    # weight is bought on the SPINE now (Y_SPINE_INK, below); this dial is back
+    # where his ladder left it.
+    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.38))  # the arm's own weight, x Y_INK
     Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
               y + (Y_TOP_LIFT if y > 0.9 else 0.0))
              for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
@@ -5736,6 +5729,29 @@ if ON:
     # 0.94 solved the same way: keyed raw the Y came out 1.01 against its
     # roman's 0.92, and 0.95 / 0.93 bracket the answer at +0.01 / -0.01.
     Y_INK = float(os.environ.get("ALBO_ALD_Y_INK", 0.94))
+    # ROUND 163b -- THE WEIGHT IS BOUGHT ON THE LEFT STROKE. Owner 2026-09-16,
+    # correcting the first cut of this round: *"I meant thicken left stroke,
+    # not right"*. So the right arm goes back to the 1.38 he picked off the
+    # ladder and the SPINE carries the increase instead.
+    #
+    # The two are not interchangeable and the difference is the whole point of
+    # his correction. The spine is this letter's STEM -- it runs from the foot
+    # up through the join and out to the head, it is the stroke that sets the Y's
+    # colour in a word, and it is what the eye compares against the H's and the
+    # N's stems. The arm is a branch. Thickening the branch made the letter
+    # heavier by the numbers and left the stem reading light beside its
+    # neighbours, which is exactly the complaint he started with.
+    #
+    # Measured against the untouched capitals' median, with the arm held at
+    # 1.38 throughout: spine 1.00 -> 0.93, 1.10 -> 0.98, 1.12 -> 0.99,
+    # 1.16 -> 1.01, 1.24 -> 1.08. **1.12 ships**, which puts the Y level with
+    # L at 0.99 and just under P at 1.00. Note how much steeper this lever is
+    # than the arm's: 0.12 on the spine moves the letter as far as 0.32 on the
+    # arm did, because the spine is two thirds of the Y's ink.
+    # The roman-parity exemption stands for the same reason it was
+    # written -- see cmp_cap_weight.py's EXEMPT block -- because Albo's roman Y
+    # is the light one at 0.89 whichever stroke the italic spends on.
+    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.12))  # the spine's own weight, x Y_INK
 
     @glyph('Y')
     def a_Y(c):
@@ -5768,7 +5784,7 @@ if ON:
 
         sp = [pt(fx, fy) for fx, fy in Y_SPINE]
         p_ = catmull(sp, tension=0.5)
-        wf = widths([(t, C * v * Y_INK) for t, v in Y_SPINE_W])
+        wf = widths([(t, C * v * Y_INK * Y_SPINE_INK) for t, v in Y_SPINE_W])
         solid, Lz, Rz = stroke(p_, wf, sides=True)
         parts = [solid]
         parts += _stem_serifs(Lz, Rz, 'both', False)
