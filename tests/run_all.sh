@@ -358,6 +358,27 @@ run host_settings_host \
 run host_settings_desktop \
   c++ -std=c++20 -Isrc -o "$OUT/host_settings_desktop" tests/host_settings_test.cpp
 
+# THE HOST BATTERY'S RESOLUTION ORDER. Every failure mode here is a wrong
+# picture that still renders and still passes a build: a phone showing 100 %
+# beside iOS's own status bar, a charging bolt that never goes out, or a
+# headless capture whose battery quietly stops matching the one it was taken
+# with. The iOS backend needs a real device to answer, so what is pinned is the
+# decision -- which reading wins, that 0 % is a level and -1 is not, and that
+# the plug edge fires once per edge and not on the first reading (which would
+# repaint on every cold boot).
+run host_battery \
+  c++ -std=c++20 -Isrc -o "$OUT/host_battery" tests/host_battery_test.cpp
+
+# THE SEEDED-FAMILY LEDGER's decision table. Deleting a bundled font did not
+# stick: the firmware removed the directory and the harness cloned it straight
+# back on the next launch, every launch (owner, 2026-09-15). The fix turns
+# "bundled, absent, and we are the ones who put it there" into "the owner
+# deleted it". Both ways of getting that wrong are silent and only show up a
+# launch later on a device -- a font that will not stay deleted, or a family a
+# new app version adds that never appears at all.
+run seed_ledger \
+  c++ -std=c++20 -Isrc -o "$OUT/seed_ledger" tests/seed_ledger_test.cpp
+
 run restart_semantics \
   c++ -std=c++20 -Isrc -o "$OUT/restart_semantics" tests/restart_semantics_test.cpp src/SimulatorLifecycle.cpp
 

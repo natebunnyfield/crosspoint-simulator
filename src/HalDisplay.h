@@ -155,6 +155,30 @@ public:
                                 uint16_t yStart, uint16_t numRows);
   bool supportsStripGrayscale() const;
 
+  // Mirrors the firmware HAL (lib/hal/HalDisplay.h): does this panel have an
+  // absolute 4-level grayscale bank behind displayGrayBuffer(..., true)?
+  //
+  // FALSE ON X3, and that is the fidelity point rather than a stub's
+  // convenience: Uc8253X3Driver accepts the flag and has no absolute bank
+  // behind it, so a caller that assumes the capability from the flag's
+  // existence gets the bilevel fallback on the owner's own device. Answering
+  // true everywhere would hide exactly that
+  // (docs/grayscale-fast-refresh-spec-2026-09-14.md in the firmware repo).
+  bool supportsAbsoluteGrayscale() const;
+
+  // Mirrors the firmware HAL. The band is full width on every panel; x and w
+  // are accepted and ignored, exactly as the device does.
+  //
+  // The simulator PRESENTS the whole panel either way -- there is no partial
+  // path in SDL and inventing one would model the wrong thing. What this stub
+  // is for is the CALLER's logic: a firmware path that windows must still be
+  // reachable, and its fallback conditions (no previous frame, a band taller
+  // than two thirds) must still be taken off-device, because those are where
+  // the bugs are. The pixels are identical; the branch is not.
+  void displayWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                     bool turnOffScreen = false);
+  bool supportsWindowedRefresh() const;
+
   // Simulator only: call from main thread to push rendered pixels to SDL.
   // Suspend GPU work while the app is backgrounded.
   //
