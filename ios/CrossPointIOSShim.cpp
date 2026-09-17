@@ -76,6 +76,7 @@
 // applyTheme() below is where the two are reconciled.
 #include "CrossPointSettings.h"
 #include "CrossPointReadAloud.h"
+#include "CrossPointHostBattery.h"
 #include "CrossPointVolumeButtons.h"
 
 extern "C" void CrossPointTiltGestures_begin(void);
@@ -3679,6 +3680,9 @@ void CrossPointHarness_begin() {
   CrossPointVolumeButtons_resetForReboot();
   CrossPointVolumeButtons_begin();
   CrossPointTiltGestures_begin();
+  // The phone's own battery into the firmware's header. Idempotent and never
+  // torn down, so it is safe here on every wake as well as the first boot.
+  CrossPointHostBattery_start();
 
   SimulatorOverlay::requestPresent();
 

@@ -101,7 +101,7 @@ running the simulator and exercising the affected feature. Host tests live in
 `tests/` — run them when touching input, text entry, sleep, network, restart,
 task lifetime, read-aloud, palettes, the dial table, the sheet identity,
 device-fidelity flags, the compressed-font container, the seed-font tree, or
-build-configuration paths.
+build-configuration paths, or the host battery.
 
 ```bash
 tests/run_all.sh            # build and run every host test; non-zero on the first failure
@@ -162,6 +162,20 @@ tests/run_all.sh -k note_editor_repaint   # a note repaints while a HOST keyboar
 The simulator is a collection of host-side reimplementations of the firmware's hardware abstraction layer (HAL) and its Arduino/ESP-IDF dependencies. Each `Hal*.cpp/.h` here corresponds to a `Hal*` class in the firmware's `lib/hal/`, and **must keep the same public surface** or the firmware will not link.
 
 **The HAL stub rule.** When the firmware adds a new method to a HAL class and calls it, the simulator fails to link until a matching stub is added to the corresponding `Hal*.cpp` here. Most additions are one-line no-ops. This is the single most common reason a simulator build breaks after pulling firmware updates.
+
+**A stub is allowed to say NO, and sometimes must.** Three surfaces arrived on
+2026-09-14 and two of them are answered honestly rather than optimistically:
+`supportsAbsoluteGrayscale()` returns **false when the build is X3**, because
+`Uc8253X3Driver` accepts the absolute-grayscale flag and has no bank behind it —
+a stub that said true everywhere would hide the silent bilevel fallback on the
+device the owner actually reads on. `displayWindow()` presents the whole panel
+(SDL has no partial present and modelling one would model the wrong thing) but
+`supportsWindowedRefresh()` is still a question rather than a constant, because
+`PanelDriver`'s default is a whole-panel fallback and a future board may land
+without an override. The rule this is an instance of: **a capability predicate
+is part of the fidelity surface, not part of the plumbing.** Answering it `true`
+to make a link error go away converts a compile failure into a wrong picture on
+the owner's device, which is the trade S-001 was filed about.
 
 It runs the other way too, and that direction costs a firmware change: a capability the *host* has and the device does not (the keyboard channel — `setTextEntryActive` / `consumeTypedText`) has to exist on both sides, as a real implementation here and an inline no-op in the firmware's `lib/hal/HalGPIO.h`. Simulator-only methods the firmware never calls (`injectButtonDown/Up`, `injectTypedText`, `pumpHostTextInput`) need no counterpart and must not gain one.
 
@@ -1127,6 +1141,28 @@ pages by their links.
 ## The 2026-08-22 channels and hooks (quick index)
 
 Grown in one day; each is documented at its definition, this is the map:
+
+- **The host's battery** (`src/SimHostBattery.h`, 2026-09-14): the firmware's
+  header draws a battery icon and a percentage a few millimetres below iOS's
+  status bar, which draws the real one, and the two disagreed on every device
+  — both HAL stubs answered from an env var **latched into a function-local
+  `static`** (100 % and always-charging; a phone has no environment to set).
+  The host PUBLISHES and the HAL reads: `getBatteryPercentage()` is called from
+  the render task and `UIDevice` is main-thread-only, so
+  `ios/CrossPointHostBattery.mm` observes the two battery notifications on the
+  main thread and pushes, exactly as the appearance path does. Resolution is
+  **host reading → env var → historical default**, so a build that never
+  publishes is byte-identical to before — every desktop run and every headless
+  capture. Three things that each cost a wrong picture and no build error:
+  **the bolt is `isUsbConnected()`, not the percentage** (`LyraTheme::fillBatteryIcon`),
+  so the charging state has to travel too; **`wasUsbStateChanged()` was a flat
+  `false`**, and it is what `main.cpp:1177` turns into the repaint that puts the
+  bolt on screen between page turns — but the FIRST reading must not raise an
+  edge or every cold boot queues one; and **−1 is unknown, 0 is a real and
+  alarming level** — an iOS Simulator reports `batteryLevel` −1, which read as
+  0 would flat-line every capture and trip the low-battery paths. Nothing is
+  latched any more: a cable can be pulled out of a phone mid-session.
+  `tests/host_battery_test.cpp` pins the order, the −1/0 split and the edge.
 
 - **Reader text-block insets**: the firmware publishes its final insets
   (framebuffer px) through the HAL keyboard-channel pattern; the sim stores

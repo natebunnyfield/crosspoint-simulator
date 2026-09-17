@@ -147,6 +147,78 @@ bug has nothing to show itself against. Add
 a Bayer 4×4 ramp, and per-corner glyphs that identify rotation. It is a build
 flag, not on-screen UI.
 
+### Deleting a bundled font now sticks (2026-09-15)
+
+Owner: *"why are lutetia, warbler, dante and tex gyre heros still showing up and
+reinstalling after I delete them in my ios app?"*
+
+Two different things were happening, and only one was a bug.
+
+**The bug: deletion was not durable, for any bundled family.**
+`FontInstaller::deleteFamily` really does remove the family's directory — the
+delete works. Then `seedBundledFontFamilies()` runs at the next launch, finds
+the folder missing, and clones it straight back. There was no memory of deletion
+anywhere in the app. That is why **TeX Gyre Heros** kept returning: it is one of
+the twelve `installed_families`, so it is in the bundle, so it was re-seeded
+every single launch.
+
+**Not a bug: Dante, Lutetia Nova and Warbler Text are orphans.** Upstream cut
+them from `installed_families` on 2026-09-11 (`791f2fcf6`), and builds before
+that had already seeded them onto the card. The seeding pass only ever *adds* —
+nothing removes a family that leaves the set — so they sit there from an older
+build. Both 201 and 202 carry the cut (verified against their pinned firmware),
+so on those builds deleting those three sticks on its own.
+
+**The fix is a ledger, not a delete notification.** `/.crosspoint/seeded-fonts.txt`
+records which families this app has seeded onto this card. That one fact
+separates the cases without the firmware having to tell the harness anything —
+which would otherwise have meant a whole HAL channel for one bit:
+
+| bundled | on card | in ledger | what happens |
+|---|---|---|---|
+| yes | no | **no** | never seeded here — seed it (fresh install, or a family a new app version added) |
+| yes | no | **yes** | we put it there and it is gone — **the owner deleted it, leave it deleted** |
+| yes | yes | either | seed/update as before, so a font fix in an app update still lands |
+
+It lives beside the firmware's own settings because it describes *this card's*
+contents: restore the card and the state it describes comes back with it. A
+missing or unreadable ledger reads as empty, which reverts to the old behaviour
+— the safe direction, since the failure mode is a font reappearing rather than
+one silently missing.
+
+**To get a deleted family back**, remove its line from
+`/.crosspoint/seeded-fonts.txt` (or delete the file) over File Transfer or
+WebDAV. The next launch then sees it absent and unlisted, which is the
+first-install case. `tests/seed_ledger_test.cpp` pins that round trip along with
+the rest of the table.
+
+### Build numbers come from App Store Connect, not from our tags (2026-09-14)
+
+`testflight.sh` used to number a build as `max(local build-N tag) + 1`. That was
+wrong the moment a second uploader existed, and it had been wrong for weeks: the
+GitHub Actions workflow computes its own numbers and **does not push `build-N`
+tags back**, so local tags reached 194 while ASC already held 195–200 from CI.
+The Mac deploy then chose 195 — taken since 2026-09-12 — and **Apple silently
+assigned 201 instead**.
+
+Nothing went red, which is why it survived: the upload succeeds either way. What
+broke is the only thing the tags are for — `build-N` stopped answering "which
+commit is on my phone". Tag `build-195` pointed at the commit that shipped as
+201, and was corrected to `build-201` by hand.
+
+The script now takes `max(local tags, ASC's own latest build)` before choosing,
+using the same `.p8` it already authenticates the upload with and the same
+PyJWT-interpreter probe the processing watch needs (`~/.zshenv` replaces `PATH`
+for zsh scripts, so plain `python3` is often a homebrew one with no `jwt`).
+Self-correcting whoever uploaded last and by whatever route.
+
+**Non-fatal by design.** No PyJWT, no network, rotated credentials — it falls
+back to the tags and prints why. A deploy must not be blocked by a number it can
+usually guess right; the worst case is exactly the behaviour we had before.
+
+Verified against the live API on 2026-09-14: local tags 195, ASC 201, next build
+number 202.
+
 ## Deploying without touching the Mac
 
 **A `build-N` tag does not identify the firmware inside the build.** The tag is
@@ -1652,6 +1724,56 @@ pressed state would otherwise not appear until the next page render.
 `simulator_main.cpp` holds the only iOS-specific lines in the simulator: the
 `chdir()`, the harness install, and a normal `return 0` in place of `_exit(0)`
 (iOS reports a self-terminating process as a crash).
+
+### The battery in the header is the phone's (2026-09-14)
+
+The firmware draws a battery icon and a percentage in its header, a few
+millimetres below iOS's status bar, which draws the real one. Until this landed
+the two disagreed on every device: both HAL stubs answered from an environment
+variable **latched into a function-local `static` on first call**, so a phone —
+which has no environment to set — showed a flat 100 % and a charging bolt that
+never went out.
+
+**The host publishes; the HAL reads.** `getBatteryPercentage()` is called from
+the firmware's render task and `UIDevice` is main-thread-only, so
+[CrossPointHostBattery.mm](CrossPointHostBattery.mm) enables battery monitoring,
+observes `UIDeviceBatteryLevelDidChange` and `…StateDidChange` on the main
+thread, and pushes into the atomics in
+[src/SimHostBattery.h](../src/SimHostBattery.h). Same split, and the same
+reason, as the appearance path. `CrossPointHostBattery_start()` is called from
+`CrossPointHarness_begin()`, is idempotent, and is never torn down.
+
+Resolution is **host reading → `CROSSPOINT_SIM_BATTERY` / `CROSSPOINT_SIM_USB`
+→ the historical default**, so a build that never publishes is byte-identical
+to before — every desktop run, every headless capture, every screenshot in this
+repo.
+
+Four things about it that each cost a wrong picture and no build error:
+
+* **The bolt is not the percentage.** `LyraTheme::fillBatteryIcon` asks
+  `gpio.isUsbConnected()`, so the charging state is a second value that has to
+  travel. Feeding only the level would leave the bolt on forever.
+* **`wasUsbStateChanged()` was a flat `false`**, and it is what `main.cpp:1177`
+  turns into `activityManager.requestUpdate()` — the only thing that repaints
+  the header between page turns. Without it a correct reading would still sit
+  unseen until the next page. It consumes a real edge now.
+* **The first reading must NOT raise that edge.** −1 → 1 at launch is the
+  adapter starting up, not a cable going in; raising it there queues a repaint
+  on every cold boot.
+* **−1 is unknown; 0 is a real and alarming level.** An iOS *Simulator* reports
+  `batteryLevel` −1 and state Unknown unless the device menu has been used, so
+  conflating them would flat-line every simulator capture at empty and trip the
+  firmware's low-battery paths. Unknown falls back instead.
+
+`UIDeviceBatteryStateFull` counts as charging, because the bolt means *cable*:
+a phone at 100 % on the charger drawing no bolt would be the same disagreement
+this exists to end. The level is rounded, not truncated — truncation would show
+87 % against the status bar's 88 % for most of every percent.
+
+`tests/host_battery_test.cpp` pins the resolution order, the −1/0 split and the
+edge semantics. The iOS half needs a real battery to answer and is **SHIPPED —
+UNCONFIRMED**: look at the header on a phone, and at the one-shot
+`[battery] host battery monitoring on: N%, charging N` line in the log.
 
 ## Closed: level reads do not see injected keys
 

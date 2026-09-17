@@ -4441,6 +4441,29 @@ void HalDisplay::writeGrayscalePlaneStrip(bool lsbPlane, const uint8_t *rows,
   }
 }
 bool HalDisplay::supportsStripGrayscale() const { return true; }
+void HalDisplay::displayWindow(uint16_t x, uint16_t y, uint16_t w,
+                               uint16_t h, bool turnOffScreen) {
+  // The window is not modelled: SDL has no partial present and the panel
+  // texture is uploaded whole. Logged rather than silently aliased to a full
+  // refresh, because "did my windowed path actually run" is exactly the
+  // question a headless run should be able to answer.
+  if (std::getenv("CROSSPOINT_SIM_LOG_PRESENTS"))
+    SDL_Log("[window] displayWindow x=%u y=%u w=%u h=%u -> %u%% of panel "
+            "(presented whole)",
+            x, y, w, h,
+            static_cast<unsigned>(100.0 * w * h / (activeWidth() * activeHeight())));
+  displayBuffer(FAST_REFRESH, turnOffScreen);
+}
+
+bool HalDisplay::supportsWindowedRefresh() const { return true; }
+
+bool HalDisplay::supportsAbsoluteGrayscale() const {
+#if FREEINK_DEVICE_X3
+  return false;
+#else
+  return true;
+#endif
+}
 
 uint16_t HalDisplay::getDisplayWidth() const { return activeWidth(); }
 uint16_t HalDisplay::getDisplayHeight() const { return activeHeight(); }
