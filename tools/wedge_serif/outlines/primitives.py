@@ -24,6 +24,17 @@ from .pen import S, CS, XH, WL, WD, DROP, FILLET, FOOT, ENT, TH_V, TH_H, HAIR, C
 # 6% is a fifth of a pixel: the four-level render does not move; at 400 px
 # it is 4 units, a visible difference of hand. FJORD_LIFE=0 switches it off.
 LIFE = float(os.environ.get("FJORD_LIFE", 0.06))
+
+# GLITCH SWEEP 2026-09-16: how deep below a stem's top face the italic ENTRY
+# stroke's own end is buried, x S. Its square end face is 0.88 x the stem wide
+# and nearly vertical, so a shallow burial leaves the face's upper corner
+# standing past the stem as a pointed tab. The full account and the sweep are
+# beside the entry itself, in `stem`. 0.18 is what shipped before this.
+IT_END_BURY = float(os.environ.get("ALBO_IT_END_BURY", 0.45))
+# ... and how high above the baseline the italic EXIT stroke starts, x S, for
+# the mirror reason at the other end of the letter. Its own account is beside
+# the exit in `stem`. 0.16 is what shipped before this.
+IT_START_BURY = float(os.environ.get("ALBO_IT_START_BURY", 0.45))
 _life = {"glyph": None, "n": 0}
 def begin_glyph(name):
     """build.draw calls this before drawing a glyph; resets the call count."""
@@ -219,7 +230,23 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
         if pen.IT_EXIT and it_exit is not False:
             L = S * pen.IT_EXIT
             xe = x + wid(y0) / 2
-            path = cubic((xe - wid(y0) * 0.34, y0 + S * 0.16), (xe + L * 0.22, y0 + S * 0.02),
+            # GLITCH SWEEP 2026-09-16 -- THE SAME UNBURIED FACE AT THE FOOT.
+            # Round 103 cured one barb here by dropping the right foot wedge
+            # ("the feet grew barbs ... reads as thorns"); the other half was
+            # still standing. The exit's start face is 0.92 x the stem wide
+            # across a run that leaves almost horizontally, so the face is
+            # nearly VERTICAL and its LOWER corner hung 26.0 units under the
+            # baseline as a downward point, with a re-entrant step where the
+            # stem's flat bottom met it. Swept: S*0.16 (what shipped) reaches
+            # -26.0, S*0.25 -17.1, S*0.35 -7.7 and S*0.45 +1.5 -- the first
+            # value that puts the whole face inside the stem's own ink.
+            # IT_START_BURY is that start height, x S. It costs the flick its
+            # root below the baseline (the ink outside the stem falls 1866 ->
+            # 1216 units^2 and stops reaching left of the stem's right edge),
+            # which is the barb and the wrap around the foot's corner going
+            # together: the flick now leaves the stem at its edge, which is
+            # what the round-103 comment says it is for.
+            path = cubic((xe - wid(y0) * 0.34, y0 + S * IT_START_BURY), (xe + L * 0.22, y0 + S * 0.02),
                          (xe + L * 0.66, y0 + L * 0.26), (xe + L * 1.02, y0 + L * 0.82))
             parts.append(stroke(path, widths([(0.0, wid(y0) * 0.92), (0.45, max(S * 0.34, S * pen.IT_TIP)), (1.0, S * pen.IT_TIP)]), cut0=None))
         if pen.IT_ENTRY and it_entry is not False and (top or y1 > 0):
@@ -229,8 +256,29 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
             # own direction as it lands. The first cut came in steeply and every
             # stem top in "minimum" grew a thorn -- the exit's own mistake, at
             # the other end of the letter.
+            #
+            # GLITCH SWEEP 2026-09-16 -- AND IT STILL GREW ONE, at the OTHER
+            # end of the same stroke. The entry's far end is a SQUARE face
+            # (`cut1=None`) across a stroke 0.88 x the stem wide, and the face
+            # is perpendicular to a nearly-horizontal run, so its upper corner
+            # stood 20.5 units ABOVE the stem's flat top over a 52-unit span --
+            # 329 units^2 of pointed tab past the ink it was meant to be buried
+            # in, the same defect and the same measurement as the 1's flag in
+            # round 75 (`figures.ONE_FLAG_BURY`). Visible on the 1 and the 4 at
+            # 500 px as a second, taller peak to the right of the entry flag
+            # with a valley between them.
+            #
+            # IT_END_BURY is how far below the stem's top the end CENTRE sits,
+            # in stem widths of S. Swept: S*0.18 (the old value) leaves 329
+            # units^2 above the top, S*0.30 leaves 54, S*0.35 leaves 0.7, and
+            # S*0.45 clears it by 1.9 units -- enough that the cut's facets,
+            # which shave ~0.4 (see `figures.FOUR_OPEN_GAP`), cannot put the
+            # corner back over the line. The flag LEFT of the stem is what the
+            # reader sees and it is unchanged in shape: its bbox stays at the
+            # stem's own left edge, and it only loses the 150 units^2 the tab
+            # was adding on the far side.
             path = cubic((xs_ - L * 0.95, y1 - L * 0.40), (xs_ - L * 0.55, y1 - L * 0.14),
-                         (xs_ - L * 0.18, y1 - S * 0.02), (xs_ + wid(y1) * 0.26, y1 - S * 0.18))
+                         (xs_ - L * 0.18, y1 - S * 0.02), (xs_ + wid(y1) * 0.26, y1 - S * IT_END_BURY))
             parts.append(stroke(path, widths([(0.0, S * pen.IT_TIP), (0.62, max(S * 0.28, S * pen.IT_TIP)), (1.0, wid(y1) * 0.88)]), cut1=None))
     return geom.union(parts)
 
