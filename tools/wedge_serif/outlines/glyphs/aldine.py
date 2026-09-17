@@ -1991,7 +1991,7 @@ if ON:
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
-                   hand=None, flat=None):
+                   hand=None, flat=None, want_outer=False):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2088,8 +2088,9 @@ if ON:
             if hand:
                 w += _hand_at(hand, ang, 2) * unit
             ws.append(w)
-        return PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
-                            smooth_w=smooth_w)[0]
+        sol, out_, _in = PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
+                                      smooth_w=smooth_w)
+        return (sol, out_) if want_outer else sol
 
     # ---------------------------------------------------------------- nib_ring
     # OWNER 2026-09-16: *"O and Q need match the line contrast and axis tilt of
@@ -3302,8 +3303,26 @@ if ON:
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
     G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 0.80))  # all three neck widths
-    G_NECK_END = float(os.environ.get("ALBO_ALD_G_NECK_END", 8.0))       # how far below the loop's top it stops
+    G_NECK_END = float(os.environ.get("ALBO_ALD_G_NECK_END", 30.0))       # how far below the loop's top it aims; the trim decides where it stops
     G_NECK_ANG = float(os.environ.get("ALBO_ALD_G_NECK_ANG", 0.18))      # the neck's catmull tension; lower = more angular
+    # ROUND 174 -- AND ITS END FACE IS CUT ALONG THE LOOP. Owner 2026-09-16:
+    # *"do not extend the g connector stroke below or above after overlapping
+    # with a loop"*. Round 173 stopped the neck's CENTRELINE inside the loop,
+    # which is the right place for a centreline and the wrong question: the
+    # stroke is 51 units wide and its end face is SQUARE ACROSS its own
+    # direction, so the face's far corner stood outside the loop's outer edge
+    # as a flag however deep the centreline went. Laddered the depth at 8 / 18
+    # / 28 / 38 and there is no value that works -- shallow leaves the flag,
+    # deep puts the same corner through the ring and into the counter, which
+    # is the fault round 173 had just fixed.
+    #
+    # Depth cannot solve it because the two faults are on OPPOSITE CORNERS of
+    # the same face. What solves it is the face's ANGLE: sheared to lie along
+    # the loop's own outer edge, both corners sit on that edge at once and
+    # neither can project. `stroke`'s cut1 takes it in radians, measured from
+    # square across the stroke.
+    G_NECK_CUT = float(os.environ.get("ALBO_ALD_G_NECK_CUT", 0.0))       # degrees; moot once the trim is on
+    G_NECK_TRIM = os.environ.get("ALBO_ALD_G_NECK_TRIM", "1") != "0"
     # ROUND 166 -- ONLY THE LOWER LOOP'S AXIS. Owner 2026-09-16, narrowing his
     # own instruction after seeing the first cut: *"only correct the axis of the
     # lower loop in g"*. So the bowl's table and both rings' WEIGHTS are put
@@ -3350,8 +3369,9 @@ if ON:
         up = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u, G_RING,
                         k=A_K, skew=G_SKEW, unit=u)
         lt = G_LTOP * u; lb = -dsc - OVER * 0.4
-        lo = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u, (lt - lb) / 2.0,
-                        G_LRING, k=A_K, skew=G_SKEW_L, unit=u)
+        lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
+                                  (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
+                                  unit=u, want_outer=True)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
         # Owner 2026-09-16: *"thin out and fix and make the connector in g
         # tastefully angular. do not overrun into counter"*. Three faults, and
@@ -3380,7 +3400,28 @@ if ON:
                              (x0 + G_NECK_R * u, lt - G_NECK_END * u)], tension=G_NECK_ANG),
                     widths([(0.0, 56 * u * G_NECK_SCALE),
                             (0.42, G_NECK_W * u * G_NECK_SCALE),
-                            (1.0, 64 * u * G_NECK_SCALE)]))
+                            (1.0, 64 * u * G_NECK_SCALE)]),
+                    cut1=math.radians(G_NECK_CUT))
+        # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
+        # Owner 2026-09-16: *"trim the connector instead of fucking around with
+        # the excess"*, after two rounds of trying to stop the excess appearing
+        # -- a depth ladder (8/18/28/38: shallow leaves a flag outside the
+        # loop, deep drives the same corner into the counter) and then an
+        # end-face shear. Both were attempts to place a SQUARE FACE so that
+        # neither of its corners projects, and there is no such placement,
+        # because the two failures are on opposite corners of the one face.
+        #
+        # So the face is not placed: it is CUT AWAY. The neck is differenced
+        # against the loop's own filled outer contour, so every part of it that
+        # lies inside the loop simply ceases to exist and the stroke ends
+        # exactly on the loop's edge -- whatever shape that edge is, and
+        # wherever the neck happens to meet it. The union then puts the two
+        # back together as one shape. Nothing can protrude because nothing is
+        # there to protrude, and G_NECK_END and G_NECK_CUT stop being critical:
+        # the neck can be aimed generously into the loop and the trim decides
+        # where it stops.
+        if G_NECK_TRIM:
+            nk = nk.difference(geom.poly(lo_outer))
         # the ear: a short flat stroke off the bowl's top right, at the x-line
         ear = stroke([(x0 + (G_CX + G_RX * 0.55) * u, xh * 0.96),
                       (x0 + G_EAR_X * u, xh * G_EAR_Y)],
