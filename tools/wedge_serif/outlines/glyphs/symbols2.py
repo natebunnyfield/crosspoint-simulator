@@ -101,10 +101,18 @@ def g_alpha(c):
     return geom.ink([bowl, _s(tail, widths([(0.0, 0.72), (1.0, 0.92)]), cut0=None)])
 @glyph('β')      # beta
 def g_beta(c):
+    """GLITCH SWEEP 2026-09-16 -- A THIRD COUNTER, and a beta has two. The two
+    bowls were centred at XH*0.70 and XH*0.22, which left their strokes CROSSING
+    rather than overlapping where they meet the stem: a 398-unit^2 slit 8.26
+    units wide ran between them, a white hairline inside the ink at 400 px.
+    Swept on both centres -- the slit is 705 units^2 at (0.72, 0.22), 444 at
+    (0.70, 0.22), 252 at (0.68, 0.22), 119 at (0.68, 0.24) and gone at
+    (0.68, 0.26), which is 8.6 units down for the upper bowl and 17 up for the
+    lower. The two real counters move from 14594/16001 to 15237/13930."""
     x = S * 0.5; h = ASC * 0.86
     return geom.ink([_s(line((x, -DESC * 0.62), (x, h * 0.92)), w=TH_V * 0.92),
-                     _bowl(x + XH * 0.30, XH * 0.70, XH * 0.30, XH * 0.30, 0.86),
-                     _bowl(x + XH * 0.33, XH * 0.22, XH * 0.33, XH * 0.26, 0.92)])
+                     _bowl(x + XH * 0.30, XH * 0.68, XH * 0.30, XH * 0.30, 0.86),
+                     _bowl(x + XH * 0.33, XH * 0.26, XH * 0.33, XH * 0.26, 0.92)])
 @glyph('γ')      # gamma
 def g_gamma(c):
     return geom.ink([_s(line((0, XH), (XH * 0.42, -DESC * 0.30)), widths([(0.0, 0.66), (1.0, 1.0)])),
@@ -161,9 +169,20 @@ def g_Delta(c):
     return tri.difference(tri.buffer(-CS * 0.62))
 @glyph('Ω')      # Omega
 def g_Omega(c):
+    """GLITCH SWEEP 2026-09-16 -- THE FEET WERE NOT ATTACHED. The ring was cut
+    off at CAP*0.14 (94.4 units) and the two flat feet sit on the baseline
+    47.5 units thick, so a 46.9-unit band of PAPER ran between each leg and the
+    foot under it: the letter shipped as three ink islands, two of them loose
+    bars, which is what the SPLIT check in `cmp_aldine_glitch.py` reads. The
+    cut goes to CAP*0.06 instead -- the legs run down INTO their feet and
+    nothing else moves, the feet keeping their own thickness and their place on
+    the line. The band that joins is narrow at both ends, because the ring is
+    closing as it descends: measured, CAP*0.08 and above still leaves three
+    islands and CAP*0.05 to CAP*0.06 give one, so this is the middle of what
+    works rather than the edge of it."""
     r = CAP * 0.40
     a = _bowl(r, CAP * 0.46, r, CAP * 0.46, 1.0)
-    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.14)
+    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06)
     return geom.ink([a.difference(box).buffer(0),
                      bar(-r * 0.30, r * 0.52, 0, TH_H, align='bottom'),
                      bar(r * 1.48, r * 2.30, 0, TH_H, align='bottom')])
@@ -223,7 +242,14 @@ glyph('đ')(lambda c: _barred(c, 'd', y=ASC * 0.86, x_pad=0.10))
 glyph('Đ')(lambda c: _barred(c, 'D', y=CAP * 0.50, x_pad=0.06))
 glyph('ħ')(lambda c: _barred(c, 'h', y=ASC * 0.86, x_pad=0.10))
 glyph('Ħ')(lambda c: _barred(c, 'H', y=CAP * 0.82, x_pad=0.02))
-glyph('ŧ')(lambda c: _barred(c, 't', y=XH * 0.22, x_pad=0.16))
+# GLITCH SWEEP 2026-09-16: the bar was at XH*0.22, where it crosses the t's own
+# exit flick as that flick curls up and away -- and the triangle of paper caught
+# between the two is a COUNTER, 1,192 units^2 of it, in a letter that has none.
+# Swept: XH*0.18 traps 465 units^2, 0.22 traps 1192, 0.26 2106, 0.30 3158, and
+# the hole is gone at 0.14 and again at 0.34. 0.34 is the one that keeps the bar
+# in the lower half of the x-height where a stroked t wants it (Ŧ's is CAP*0.40
+# and Đ's CAP*0.50) instead of dropping it onto the foot.
+glyph('ŧ')(lambda c: _barred(c, 't', y=XH * 0.34, x_pad=0.16))
 glyph('Ŧ')(lambda c: _barred(c, 'T', y=CAP * 0.40, x_pad=-0.18))
 
 def _crossed_eth(c):
@@ -285,9 +311,30 @@ def g_Eng(c):
     return geom.ink([g, _s(tail, widths([(0.0, 0.95), (1.0, 0.44)]), cut0=None)])
 @glyph('ſ')      # long s
 def g_longs(c):
+    """The long s: the f's stem and hook, with the left-hand nub instead of a
+    full crossbar.
+
+    GLITCH SWEEP 2026-09-16 -- THE NUB WAS NOT TOUCHING THE LETTER. It ran
+    S*0.10 .. S*1.05 (8.4 .. 88.2 units), and at its own height the stem's ink
+    starts at 101.9: a 13.7-unit gap, so the glyph shipped as TWO ink islands
+    and the nub rendered as a loose dash floating in the left sidebearing --
+    3,321 units^2 of detached mark, which is what `cmp_aldine_glitch.py`'s
+    SPLIT check now catches. The right end is measured off the stem at the bar
+    height and taken to the middle of it, rather than nudged to another
+    constant, so the nub cannot come adrift again when the f is redrawn."""
     from .stems import f_ink
+    import shapely.geometry as _sg
     parts = f_ink(c, parts=True)
-    return geom.ink([parts[0], parts[1], bar(S * 0.10, S * 1.05, XH - TH_H * 0.4, TH_H * 0.8)])
+    y = XH - TH_H * 0.4
+    band = geom.union([parts[0], parts[1]]).intersection(
+        _sg.box(-9e3, y - TH_H * 0.4, 9e3, y + TH_H * 0.4))
+    # the LEFTMOST run, not the band's overall bounds: a height that also
+    # caught the hook would put the midpoint of the two in the air between them
+    runs = [band] if band.geom_type == 'Polygon' else list(getattr(band, 'geoms', []))
+    runs = [p for p in runs if p.geom_type == 'Polygon' and not p.is_empty]
+    x_in = min((p.bounds for p in runs), key=lambda b: b[0]) if runs else None
+    x_in = (x_in[0] + x_in[2]) / 2 if x_in else S * 1.05
+    return geom.ink([parts[0], parts[1], bar(S * 0.10, x_in, y, TH_H * 0.8)])
 @glyph('ĸ')      # kra
 def g_kra(c):
     g = GLYPHS['k'](c); x0, y0, x1, y1 = g.bounds
