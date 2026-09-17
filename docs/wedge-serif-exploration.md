@@ -1,6 +1,6 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE, 2026-09-12 (read this first; the log below is dated history)
+## STATE (read this first; each bullet is dated, the newest 2026-09-16; the log below is history)
 
 - **STATIC REGULAR 400, 2026-09-14 (round 95, owner):** "switch to making a
   non-variable 400 regular weight font with improved kerning and ligatures."
@@ -15,6 +15,52 @@
   device. Measurements, the three kerning options, the ligature set and the
   ranked feature list: round 95 at the foot. Queued there too: the 8 without
   reshaping its counters.
+- **THE ITALIC, 2026-09-16 (round 179).** The italic under active design is the
+  **Aldine lowercase**, `outlines/glyphs/aldine.py`, drawn from the Griffo
+  scans. **It is not the default**: `_DEFAULT = "classic"` in that file, so a
+  plain `--style Italic` build still ships the branching-arch italic of rounds
+  101-114b and the Aldine letters are reached by name. What every gate builds,
+  and the command that reproduces any number in rounds 114-179:
+
+  ```bash
+  cd tools/wedge_serif
+  ALBO_ITALIC=aldine FJORD_STEM=66.9 FJORD_CONTRAST=0.80 FJORD_WIDTH=95 \
+    FJORD_SLANT=13 PYTHON_GIL=0 python3 -m outlines.build <dir> --style Italic
+  ```
+
+  (`cmp_aldine_metrics.py`'s own env; `cmp_aldine_straight.py` adds
+  `FJORD_CUT=0`, `cmp_cap_weight.py` builds both the roman and this.)
+
+  **The module is no longer lowercase-only.** Round 118's note that it "defines
+  only the lowercase, so the capitals, figures and marks come from italic.py"
+  is history: at round 179 `aldine.py` draws the whole lowercase, twenty-one
+  capitals (A E F G H K L M N O P Q R S T U V W X Y Z), all ten figures through
+  a hand press (`FIG_HAND`, round 167), and it owns the capitals' bearing
+  deltas (`CAP_BEARING_ADJ` -- the round-137 bench, re-solved in rounds 177 and
+  178). The lowercase half is enforced at import: a load-time OWNERSHIP check
+  raises if any of a-z is not defined by this module, because those letters
+  otherwise fall through to the classic italic and **the build still succeeds**.
+
+  Where the letters stand at 179: the **g** redrawn against the scan, Flanker
+  and Pagella and hand-cut at `G_HAND` 8 (175-176); the **e**'s bottom-left
+  press at 13 units and its bar stub buried 3.5% wider than the arc (172); the
+  **a** rebuilt as the o with a teardrop counter (144); the **Q**'s tail at
+  SCALE 1.2 / BOT 0.24 / LIFT 0.05 (177-179); the **y**'s left stroke bowed 41
+  and the **w**'s two thicks at 0.86 (the owner's picks, 2026-09-16).
+
+  **The gates, and what green means at round 179** -- each exits non-zero on a
+  finding, and all are run from `tools/wedge_serif`:
+
+  | gate | green at 179 |
+  |---|---|
+  | `cmp_touch.py <ttf>` | 0 touching of 5,193 pairs, 0 under the 0.012 em floor |
+  | `cmp_aldine_metrics.py` | 0 letters outside 10% of their measured target |
+  | `cmp_cap_weight.py --tol 0.05` | 0 out, the Y exempt BY NAME (round 163) |
+  | `cmp_aldine_glitch.py` | 0 of 119 contours; `--all` is NOT green and its ten are listed in the script |
+  | `outlines/cmp/corpus.py` | the coverage gate, over the owner's 34 epubs |
+
+  `cmp_aldine_straight.py` reads like one and is **not** a gate -- it returns 0
+  whatever it finds. Its 44 of 62 is a census.
 - **NAME AND BOWLS, 2026-09-13 (round 58, owner):** the family is **Albo**
   (Fjord until this round; every `Fjord-*` name below is history), the target
   is "a wedge serif like Albertus, but more readable" (Van den Keere and
@@ -86,7 +132,8 @@
   draw a glyph that belongs -- the pen, the serif family, the proportions,
   the rulings, the judging loop:**
   [`docs/fjord-glyph-guide.md`](fjord-glyph-guide.md).
-- **The font is `Fjord-Regular.ttf`, 93 glyphs** (A–Z a–z 0–9, 30 marks
+- **SUPERSEDED, kept as the rounds 19-53 record** -- the font was
+  `Fjord-Regular.ttf`, 93 glyphs (A–Z a–z 0–9, 30 marks
   including a real & and @), built by `tools/wedge_serif/round20.py` from
   `alphabet2.py` (lowercase), `round17.py` (`cp_glyphs`: the counterpunched
   o d b p q g e a the font actually uses, the linear cut pen, `E_VARIANTS`
@@ -6313,3 +6360,374 @@ Laddered afterward and recorded: the counter cannot simply be enlarged to the
 o's own 0.97 area/ink — at 0.82 × 0.92 of the bowl the ring **opens**, and
 turning the drop's axis past 52° narrows it into a leaf. It ships at 0.64 ×
 0.80, pinch 0.40, axis 52°.
+
+### Rounds 145–171 are in the commits and NOT in this log
+
+Recorded so the next session does not read the gap as "nothing happened".
+The log above ends at round 144 (`999f0d4`, *albo: log round 144*); the
+entries below resume at 172. Everything between is committed and its
+reasoning is in the commit messages, which are long and carry the
+measurements:
+
+```bash
+git log --oneline --grep='round 1[4-7][0-9]'
+git show <sha>          # the message, not just the diff
+```
+
+Named there and nowhere here: the K rebuilt off Flanker Griffo (148–151), the
+Q hand cut and its tail (151–157, 167), the Y's weight and its branches
+(160–164), the hairline gap given to the P (161–162, which DID get its own
+doc, `docs/albo-hairline-gap.md`), the a rebuilt several more times (155,
+168–170), the straight-edge gate (`95c853b`), and E F T and the ten figures
+hand cut on a press (167).
+
+### Round 172 — the e's lower right, then the bottom LEFT, and the notch that was never at the join
+
+Three owner instructions on one letter in one round, and **two of them are
+corrections of my aim** — which is why the round is written up as one entry
+and not three.
+
+**The first cut was at the wrong terminal.** *"bottom right stroke of e needs
+to be slightly thicker"* took `E_END_W` 0.40 → 0.47 × S. It is the LERP TARGET
+the blunting ramp runs to over the path's last 18%, not a floor, so raising it
+thickens the terminal and nothing else, and the ramp being a cosine the
+counter's edge takes no step. Laddered 0.40 / 0.47 / 0.54 / 0.62 at 420 px and
+in *the level tree*: 0.54 reads as a deliberately heavy terminal rather than a
+slightly thicker one, and 0.62 closes the aperture toward the bar. A minute
+later he corrected it to the bottom LEFT, and `E_END_W` went back to **0.40**,
+which is the reference's own 33 units (0.40 S) and where it belongs.
+
+**The bottom left is a raised-cosine bump on the sampled widths**, centred at
+0.66 of the path and 0.17 wide. It sits on `ws` AFTER `con()` and after the
+moving average, deliberately: `con` re-spreads to the letter's contrast arm off
+the sequence's own min and max, so a bump added before it would be partly eaten
+AND would drag every other width with it. Laddered 0 / 0.09 / 0.14 / 0.20;
+0.14 reads as a decision and 0.20 as a blot. Shipped at 0.09 and then
+**settled by the owner at 13 units** — *"13 units wins"* — `E_BL` = **0.155 × S**,
+13.0 units at the bump's peak against 7.6 for the first cut and 11.8 / 16.8
+for the rungs either side (`dc51d5b`).
+
+**AND THE NOTCH WAS NEVER AT THE JOIN.** After three cuts aimed at the wrong
+place: *"not the join. the join was always okay. midway on top of bar"*. He was
+right, and the geometry says why. The arc begins MIDWAY ALONG THE BAR, at
+`on_bar(E_SPLIT)`, with `cut0=None` — a square end face standing across the
+stroke. The stub runs past it to `E_SPLIT + E_LAP` to bury that face, and it
+did so at **exactly equal width**, because the stub's width key was the arc's
+own width at that same point. Two coincident edges: every rounding difference
+between them shows, and what it showed was a jag on the bar's upper edge
+halfway along, nowhere near the join anyone was looking at.
+
+`E_BAR_BURY` = **1.035** makes the stub 3.5% wider than the arc over the
+overlap, so the face is UNDER ink rather than level with it. A per cent and not
+a unit, because the two strokes' widths vary together and what has to be
+guaranteed is the ratio. Built at 1.000 (the jag survives), 1.035 (gone, and
+the bar does not visibly fatten) and 1.07.
+
+**Three real improvements that were not the defect**, kept in the file as what
+they are: the stub's width went constant → lerped → sampled-from-the-arc, and
+the stub's centreline now follows the ARC'S OWN POINTS over the overlap so the
+two are the same curve by construction. All three improve the join. None of
+them was what he was reporting.
+
+##### One proof renderer, 2026-09-16 — because the proofs disagreed about the baseline
+
+*"when you are making the proof images, they seem to use different y vertical
+alignment logic"*. He is right, and it was the renderer's rather than the
+font's.
+
+PIL's `ImageDraw.text((x, y), ...)` places the text's ASCENT TOP at `y` unless
+an `anchor` is given; `anchor="ls"` places its BASELINE there. Every proof in
+this session was written inline and ad hoc and the two conventions got mixed —
+between images, and inside single images where a headline row was anchored and
+the word rows under it were not. Both are self-consistent, so nothing ever
+looked broken; what breaks is COMPARING two proofs, because the same letter
+sits `ascent` pixels apart between them for no reason visible on the page. A
+descender shows it first.
+
+It also hid a fact about this font, which `proof.py` now reports: **the
+declared descender is 280 units and the italic y reaches 297**, so a descender
+rule drawn from the metrics sits 17 units ABOVE the y's own tip and the letter
+appears to break a line that is not where its ink ends. At 200 px that is 56.0
+declared against 59.4 actual.
+
+`tools/wedge_serif/proof.py` takes no top coordinate anywhere. A row is a
+baseline and a size, the image is grown to hold the deepest ACTUAL descender of
+the text being set rather than the metrics' guess, and rules are drawn from the
+same numbers the type is.
+
+### Round 173 — the g's neck thins, turns angular, and stops at the loop
+
+*"thin out and fix and make the connector in g tastefully angular. do not
+overrun into counter"*. Three faults, and the third is the one that shows at
+620 px.
+
+**It overran.** The neck's last control point sat at `lt - 43u` — 43 units
+BELOW the loop's own top — so the stroke drove through the loop's ring and its
+end face stood inside the loop's COUNTER as a spur. `G_NECK_END` landed it 8
+units in instead, on the ring rather than through it; the union swallows the
+face and the counter is white all the way round.
+
+**It was thick:** 56 / 50 / 64 units at start, waist and end, on a letter whose
+two rings run 24 to 74. The neck is the one part of a g that is neither bowl
+nor loop and it is where the pen moves fastest. `G_NECK_SCALE` 0.80 took all
+three down together, so the waist stayed a waist rather than becoming a pinch.
+(Round 176 reverses this to 1.15; see there — the thinning was aimed at an
+overrun that round 174's trim actually cures.)
+
+**It was soft.** `catmull(tension=0.5)` through five points rounds the turn
+under the bowl into an even curve. `G_NECK_ANG` = **0.18** for this stroke
+alone pulls the path toward its own control polygon and puts a corner where the
+pen changes direction — angular BY DRAWING rather than by a cut laid over a
+curve, which is what "tastefully" has to mean in a face whose whole argument is
+that the hand is in the shapes.
+
+### Round 174 — the g's connector is TRIMMED at the loop
+
+*"do not extend the g connector stroke below or above after overlapping with a
+loop"*, and then, after two rounds of trying to PLACE the excess instead of
+removing it: *"trim the connector instead of fucking around with the excess"*.
+He was right both times.
+
+**Why placing it could never work**, which is the finding worth keeping. The
+neck is 51 units wide and its end face is SQUARE ACROSS ITS OWN DIRECTION, so
+the face has two corners and they fail in opposite directions:
+
+| depth | what the far corner does |
+|---|---|
+| shallow | stands OUTSIDE the loop's outer edge as a flag |
+| deep | drives THROUGH the ring and into the counter |
+
+Laddered at 8 / 18 / 28 / 38 — **no value clears both**, because the two faults
+are on opposite corners of one face. Shearing that face (this round's first
+attempt, `G_NECK_CUT`) only trades which corner offends.
+
+**So the face is not placed, it is cut away.** `keyed_ring` can hand back its
+own outer contour now, and the neck is differenced against the loop's filled
+outer: every part of the neck inside the loop ceases to exist and the stroke
+ends exactly on the loop's edge, whatever shape that edge is and wherever the
+neck happens to meet it. The union then puts the two back as one shape.
+Nothing can protrude because nothing is there to protrude.
+
+That retires two dials from being critical: `G_NECK_END` can now aim
+GENEROUSLY into the loop (8 → **30**) because the trim decides where the stroke
+stops, and `G_NECK_CUT` goes to **0**. `ALBO_ALD_G_NECK_TRIM=0` restores the
+old behaviour for anyone who wants to see the flag again.
+
+### Round 175 — the g is hand-cut, and the wall is at 44
+
+*"make g handcut until it almost doesn't read legible in a word, then come back
+50%"*.
+
+**Where the wall is.** The first ladder — 0/4/8/12/16/20 — never broke the
+letter, so a second ran 28/36/44/52 and found it. At **44** the bowl's counter
+is nearly pinched shut and `gauge` at 64 px reads as a blot; at **52** the
+letter is gone. 44 is "almost doesn't read", so the arithmetic in the
+instruction gives 22, and at 22 the g is plainly cut by hand at 320 px (the
+bowl bulges at ten o'clock and pinches at seven, the loop is no longer an
+ellipse) and reads clean at 70, 32 and 22 px.
+
+**The owner then shipped 8, not 22** — *"ship at 8 not 22"* (`92210e4`). The
+ladder stands and the wall stays measured; half of the wall is what the
+arithmetic produced, not what the letter wants. At `G_HAND` = **8** the bowl
+and loop carry a visible waver without either counter closing on itself.
+
+Both rings take the `(degrees, dr, dw)` table `keyed_ring` already carries for
+the a's droop, and **every press is placed where the pen is NOT already at its
+thickest** (round 153's lesson): the bowl's at 45/135/225/315, its thicks being
+0 and 180; the loop's at 45/200/300, its thick being 135.
+
+**THE EAR HAD TO BE TOLD.** Its root is a formula point on a ray from the
+bowl's centre, and the bowl's own contour is pushed −22 units along that ray at
+45° at depth 22 — so from `G_HAND` 20 upward the bowl walked out from under it
+and the ear became a **SECOND INK ISLAND, 7,060 units of detached blade** off
+the letter's top right. `cmp_aldine_glitch` caught it; **no proof image at
+reading size did**, which is the argument for the gate. The root now takes the
+same radial displacement `keyed_ring` gives the contour at its own angle, so
+the burial depth is constant at every depth, and with no hand the displacement
+is 0 — the g's outline at `ALBO_ALD_G_HAND=0` is byte-identical to round 174's.
+
+### Round 176 — the g redrawn against the scan, Flanker and Pagella
+
+*"do a better job connecting the ear of g, refer to scans and reference
+fonts"*, then *"redo g based on flanker, pagella and the scan detail"*.
+
+**The instrument first.** `cmp_aldine_g.py` measures a binocular g's anatomy on
+a RASTER at a fixed x-height, whatever it was drawn from — a font is rendered
+to one, a scan crop is thresholded into one — because one of the three
+references is a photograph of a printed page, and a figure off a Bezier is not
+comparable with one off ink unless the same procedure produced both.
+
+What it named, in Albo units at xh 429:
+
+| | scan | Flanker | Pagella | ALBO (before) |
+|---|---|---|---|---|
+| loop/bowl counter height | 0.80 | 0.79 | 0.89 | **0.58** |
+| neck ink at the waist | 90 | 84 | 50 | **45** |
+| crown x, fraction of width | 0.52 | 0.70 | 0.65 | **0.85** |
+
+The third row is the ear. In all three references the letter's HIGHEST INK is
+the bowl and the ear leaves it nearly level; in Albo the highest ink was the
+ear's own tip, out at 85% of the width, launched off the bowl's flank at −28°
+and reaching only 95 units past the crown against 182–199. **That is the whole
+of "stuck on".**
+
+**The fix is the SLOPE, not the root, and that took a ladder to learn.**
+Rooting the ear on the crown (0.12 / 0.28 / 0.40 × rx) put the top back on the
+bowl and **opened a notch every time**: up there the ring's tangent is
+horizontal, the ear's underside runs along it, and two edges grazing at a few
+degrees leave a concave white wedge. `cmp_aldine_glitch` passes all three,
+because a wedge like that is one contour and not two islands. The root stays on
+the upper-right flank where the union is an honest T-junction; the ear now
+leaves at **12°** and runs the reference's distance.
+
+Also: the loop's top rises (`G_LTOP` −20 → **14**) and its ring thins at 90 and
+270, taking its counter 150 → 207 and the ratio to **0.80** exactly; and the
+neck's waist goes 45 → 78 (`G_NECK_SCALE` 0.80 → **1.15**), round 173's
+thinning having been about an overrun that round 174's trim now cures.
+
+After: crown 0.68, ear reach 205, drop 42, depth 123, slope −12 — every ear row
+between Flanker's and Pagella's. Gates: metrics 0 outside 10%, cap weight 0
+outside 0.05, glitch 0 of 119, straight 45 → 44 (the redrawn g lost its
+straight run). `docs/albo-g-anatomy.md` carries the table and both negative
+results.
+
+### Round 177 — the capitals after U and around Y are re-spaced
+
+*"adjust the letter spacing of capitals especially after U and with Y"*. He
+named the right two letters.
+
+`cmp_cap_space.py` measures the minimum WHITE between two capitals in em, with
+the second glyph placed at the pair's SHAPED advance so the GPOS kern table is
+in the reading. **Albo's capitals run a uniform +0.045 em looser than Flanker**
+(HN, NN, HH, OO, EN, DO all +0.042 to +0.070) and nobody has complained about
+those, so a pair's target is Flanker plus that, and the fault is distance from
+THAT rather than from zero.
+
+| | worst pairs, vs Flanker |
+|---|---|
+| after U (too WIDE) | UI +0.193 · UM +0.153 · UR +0.145 · UN +0.135 · UP +0.133 |
+| with Y (too TIGHT) | YO −0.198 · YA −0.185 · LY −0.155 · YU −0.090 · RY −0.085 |
+
+**YA and YU measured a NEGATIVE gap: the two letters touched.**
+
+**The instrument's own bug is why that was found.** Its first cut placed the
+second glyph at `getlength(a)`, the UNKERNED advance, so the kern table was
+invisible and every number described bearings alone — that run called YA and YU
+merely tight, and a softening tuned to it would have shipped two colliding
+capitals. The offset is `getlength(a+b) - getlength(b)`.
+
+**The fix is mostly BEARINGS, not kerns**, and the measurement says why: Y is
+tight in BOTH directions and the worst pairs (OY, NY) have no kern cell at all,
+C G O Q and N being right-hand classes only. A deficit with no kern in play is
+the letter's own bearings — round 163 rebuilt the Y and the −116 on its right
+was fitted to a Y that no longer exists.
+
+    CAP_U_RSB +12 -> -72 · CAP_Y_LSB 0 -> +90 · CAP_Y_RSB -116 -> -6
+    ('L','VWY') -108 -> -36 · ('R','VWY') -54 -> 0 · ('Y','O') -54 -> 0
+    ('Y','A') -108 -> 0
+    NEW left class Oleft (C G O Q) with ('Oleft','VWY') +36
+    ('U','U') +72 and ('U','I') -54, the two the one U bearing could not serve
+
+The `Oleft` cell is POSITIVE and correct: OY was the worst pair in the sweep
+and could not be spoken about at all before the class existed. Every pair now
+sits inside the band the untouched control pairs occupy; worst residuals YO
+−0.035 and YT +0.088. `docs/albo-capital-spacing.md` carries the table and the
+instrument's bug.
+
+Also landed in this round at their **no-op defaults**, pending the owner's pick
+from the ladder, and proven byte-identical to round 176 at those defaults:
+`Q_TAIL_SCALE` (the Q's tail enlarged about its join), `Y_LBOW` (the y's left
+stroke bowed out, both ends pinned) and `W_THICK` (the w's two thicks thinned,
+hairlines untouched).
+
+##### The owner's three picks, 2026-09-16 — Q tail 1.2, y bow 41, w thicks 0.86
+
+*"Q 1.2 wins but thicken the middle of tail elegantly; y bow 41; w .86 wins"*.
+
+`Y_LBOW` **41** is past the ladder's top rung (0/12/24/36) — his call, not an
+extrapolation. The Q's middle is deliberately NOT in that commit: the amount is
+a judgment, and `Q_TAIL_BODY` — the raised-cosine bump round 167 already built
+for exactly this, zero AND flat at both its edges so it cannot crease the taper
+it fills — was laddered separately at 0.14 / 0.24 / 0.34 with its centre moved
+to t 0.62, between the profile's own peak at 0.488 and the waist the dial was
+first aimed at. **That ladder had no winner**, which is what round 178's
+`Q_TAIL_BOT` is a response to.
+
+### Round 178 — 46 touching pairs found and fixed, and a gate so they stay fixed
+
+*"fix LA and any other touching letter combinations"*. **The second half is the
+instruction** — LA was found by eye, and anything found by eye has siblings
+nobody happened to type.
+
+`cmp_touch.py` sweeps **all 5,193 pairs** by rendering each GLYPH once and
+reducing it to a right-edge and a left-edge profile per scanline, so a pair's
+white is arithmetic instead of a second render; the second glyph sits at the
+pair's SHAPED advance, so the kern table is in every number. It exits non-zero,
+so this is a gate and not a report.
+
+**46 pairs were touching.** LA was the 30th worst at −0.008 em, against RA at
+−0.145.
+
+1. **A's LEFT (−151) owned ten of them** — R k z x 4 3 A , d L. That number is
+   the owner's own from the round-137 bench and is what lets T V W Y tuck, so
+   it is raised **+126** (to −25) and the four tuck cells are deepened by
+   EXACTLY the same amount. TA VA FA PA YA measure within 0.0001 em of where he
+   set them; everything else before an A gains 0.126. **The raise is 126 and
+   not a round number** because a kern value must be a multiple of `STEP` (18)
+   and the compensation has to be exact.
+2. **R's RIGHT (−56 → 0) owned twelve and W's (−132 → −60) five.** WA moves
+   +0.072 as a consequence — the one approved pair this round changes — and
+   still sits tighter than VA.
+3. **THE FITTING BAND CANNOT SEE A DESCENDER**, which owned the last thirteen.
+   `build.py` fits from the ink inside the x-height or cap band, so a stroke
+   that leaves it is invisible to the letter's own bearings; g and J are
+   excepted there by name, q Q and f are not. **Fitting them on their full
+   extent is the tidier fix and the wrong one**: q's tail reaches far right
+   BELOW the baseline, so it would space `qu` — very nearly every q in English
+   — by ink nowhere near the u. The clash only exists when the SECOND letter
+   also has ink down there, which is what a kern pair is for. Per-pair and not
+   a class cell because the depths differ by an order of magnitude (qj −0.110,
+   Qf −0.004) and one number that fixes qj opens qp to 0.127.
+
+Result: **0 touching, 0 below the 0.012 em floor**, from 46 and 66.
+
+Also in that commit, `Q_TAIL_BOT`, the answer to *"no winner of Q body …
+thicken Q tail from the bottom"*. The `Q_TAIL_BODY` bump was symmetric about
+the centreline, so it pushed the tail's TOP edge into the bowl's white as much
+as it added weight below — **which is why no rung won**. `Q_TAIL_BOT` adds
+width and drops the centreline by half of what it added, so the upper edge does
+not move at any t. Both are multiplied by a smoothstep that is 0 and FLAT at
+t=0: round 156 requires the tail's first point to sit ON the ring, a constant
+drop moves it off, and the union then shows a step under the bowl (built at
+0.26 and 0.38; it is plainly there). Shipped at 0 pending his pick.
+
+### Round 179 — the Q's tail at BOT 0.24, its connector trimmed to LIFT 0.05
+
+*"Q .24 wins but trim down the connector and take care of gap"*, then *"lift
+.05 wins"*.
+
+**Both halves were one number.** `Q_TAIL_LIFT` was round 157's answer to
+*"thicken tail of Q under and to the left"*, written for a tail that had no
+weight of its own. `Q_TAIL_BOT` now carries that weight properly and from
+underneath, so the lift was doing the job twice, and its surplus stood at the
+root as a **LOBE** — the join between that lobe and the bowl's outer edge was
+the gap, a concave nick in the left profile.
+
+Measured rather than eyeballed, as the largest outward step in the left edge
+through the join band, in units at a 674 cap:
+
+| LIFT | 0.33 | 0.20 | 0.14 | 0.10 | 0.06 | 0.00 |
+|---|---|---|---|---|---|---|
+| nick | 1.6 | 1.1 | 0.5 | 0.0 | 0.0 | 0.0 |
+
+**The nick IS the lift, and it dies at 0.10.** The owner took **0.05**, one
+rung under that.
+
+**And the trim re-tightened the Q's own pairs**, which is the part a gate
+catches and an eye does not: more ink lower down put Qg at 0.002 em and Q(, Qf
+and Qj under the floor. Re-solved rather than nudged — `('Q','g')` 90 → 108,
+`('Q','j')` 54 → 72, `('Q','p')` 54 → 72, `('Q','f')` 18 → 36, plus new cells
+for `('Q','parenleft')`, `('Q','y')` and `('Q','q')`.
+
+Gates at this commit: touch 0 of 5,193 and 0 under the floor, metrics 0, cap
+weight 0, glitch 0 of 119, straight unchanged at 44 of 62.
