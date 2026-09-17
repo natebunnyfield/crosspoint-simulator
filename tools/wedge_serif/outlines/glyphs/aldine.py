@@ -1833,10 +1833,12 @@ if ON:
     # stem's left is x0 + A_STEM_X - halfstem, so moving them by d and 2d holds
     # their 60-unit lap exactly. Narrow either alone and the bowl either leaves
     # the stem or buries itself in it.
-    A_NARROW = float(os.environ.get("ALBO_ALD_A_NARROW", 14.0))   # units off the bowl's radius
+    A_NARROW = float(os.environ.get("ALBO_ALD_A_NARROW", 18.0))   # units off the bowl's radius
     A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 312.0 - 2 * A_NARROW))  # stem center, units -- the d's
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 168.0 - A_NARROW))  # bowl outer half-width, units -- the d's 159 + 9, see THE ONE DIAL below
-    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 211.0))          # bowl center height, units -- the d's
+    A_CY = float(os.environ.get("ALBO_ALD_A_CY", 211.0))          # bowl center height, units -- the d's (round 169: superseded by A_TOP/A_BOT for the a)
+    A_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 436.0))        # the bowl's drawn top, units -- the o's
+    A_BOT = float(os.environ.get("ALBO_ALD_A_BOT", -9.0))         # and its bottom, unchanged
     A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))       # the egg's lean, dx per dy -- the d's
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))             # squareness -- SHARED with d q g, do not move
     # THE STEM'S WIDTH IS NOT A DIAL HERE, deliberately. `hm_exit` reads
@@ -2235,8 +2237,26 @@ if ON:
         right by the stem that overlaps it."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6
         xs = x0 + A_STEM_X * u
-        ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + A_RX * u, A_CY * u, A_RX * u, ry, A_RING,
+        # ROUND 169 -- THE BOWL IS SIZED BY ITS OWN TOP AND BOTTOM. Owner
+        # 2026-09-16: *"resize it so the peak comes up to the x height"*.
+        # Measured on the built font, every lowercase letter's top in design
+        # units against an x-height of 429:
+        #
+        #   u 445   s 443   e 441   x 439   o 437   c 437   n 433   a **431**
+        #
+        # -- the a was the SHORTEST letter in the lowercase, and since round 167
+        # its highest point is the connector to the stem, so what fell short was
+        # exactly the peak he is asking about. It was `(xh + OVER*0.6)/2` about
+        # A_CY, which lands the crown at 430 where the o's lands at 436.
+        #
+        # A_TOP and A_BOT are the drawn top and bottom and ry and the centre
+        # follow from them, which is the honest way round for a letter whose
+        # ends are what is being specified: a bowl raised by translation would
+        # have lifted its foot off the baseline with it (the a's -9 is the o's
+        # -8, and correct), and a bowl scaled about its centre would have
+        # widened again against the same round's narrowing.
+        ry = (A_TOP - A_BOT) * u / 2.0
+        bowl_ = keyed_ring(x0 + A_RX * u, (A_TOP + A_BOT) * u / 2.0, A_RX * u, ry, A_RING,
                            k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND,
                            flat=(A_FLAT, A_FLAT_A, A_FLAT_B) if A_FLAT else None)
         return geom.ink([bowl_, hm_stem(c, xs, 0, xh), hm_exit(c, xs)])

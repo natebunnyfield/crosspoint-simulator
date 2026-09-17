@@ -100,7 +100,7 @@ TARGETS = {
     # says the letter is being reshaped deliberately and not drifting: every
     # move came out of the counter, where the ruling put it, and none out of
     # the proportion.
-    'a': (0.652, 0.911, 'ref',    0.83, "round 168: the DRAWING, drooped and narrowed (Flanker's round-topped a is 0.844)"),
+    'a': (0.634, 0.893, 'ref',    0.83, "round 169: the DRAWING, drooped, narrowed 18 and sized off its own top/bottom"),
     # ROUND 151 RETARGET, and it is the o's 2026-09-16 ruling applied to the
     # second letter it was always going to apply to. 0.203 is the PRINTED
     # page's number -- 191 px of counter against 941 px of ink on the macro
