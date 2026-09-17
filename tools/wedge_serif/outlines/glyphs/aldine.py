@@ -5751,7 +5751,7 @@ if ON:
     # The roman-parity exemption stands for the same reason it was
     # written -- see cmp_cap_weight.py's EXEMPT block -- because Albo's roman Y
     # is the light one at 0.89 whichever stroke the italic spends on.
-    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.12))  # the spine's own weight, x Y_INK
+    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.30))  # the spine's own weight, x Y_INK
 
     @glyph('Y')
     def a_Y(c):
