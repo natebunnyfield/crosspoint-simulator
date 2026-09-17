@@ -116,7 +116,17 @@ times**.
 
 Its instances, each of which cost rounds before the rule was named: the Q's tail
 root (179), the g's ear rooted on the crown (176), the g's neck landing on the
-loop (184), the g's ear against the bowl (185).
+loop (184), the g's ear against the bowl (185), and the g's neck **arriving** at
+the loop (186) — where the fix was to make the stroke come in LEVEL
+(`G_NECK_FLAT`) so it merges into the loop's curve instead of stabbing into it.
+
+That last one also carries a negative result worth keeping. The references
+reverse direction **twice** across the waist and Albo **zero** times — a real,
+correct measurement — and the inference drawn from it, that the connector needed
+a mid-path S, was wrong. Built at 0, 16 and 30 units of swing: neither the
+reversal count nor the picture moved. **The fault was at the END of the stroke,
+not in its middle.** A measurement can be sound and the thing you conclude from
+it still be the wrong lever.
 
 **How Coelacanth avoids it at the ear:** its bowl-top and ear are **one pen
 movement**, so there is no union to notch. Albo cannot restructure every letter
@@ -141,10 +151,24 @@ is at its **thinnest**, 49 units falling to 25. A stroke thicker than the one it
 joins cannot merge into it; it protrudes, and a trim then cuts the protrusion
 off square and leaves a spur.
 
-The same rule states the terminal case: **a terminal is a wedge, not a bar.**
-The ear ran 1.10 → 0.62 of its own thickness and stopped on a flat cut, so its
-edges stayed nearly parallel and it read as a slab. Coelacanth's closes to a
-true point — the two edges converge. Taper to 0.12 and it is a wedge.
+The same rule states the terminal case — **and I got its direction backwards,
+which is worth more than the rule itself.**
+
+I read the g's ear as thick at the root tapering to a point, and built it that
+way. Measured on columns that contain *only* the ear, Coelacanth runs
+`44 → 51 → 61 → 72 → cut` and Flanker `63 → 62 → 62 → 62 → cut`. **Both leave the
+bowl THIN, flare outward, and stop on a CUT. Neither comes to a point.** The
+error came from reading a crop in which the root's column still held the
+*bowl's* ink, so the root measured 228 units and looked like the thick end.
+
+> **A junction crop measures both strokes.** Isolate the stroke — columns or rows
+> containing only it — before reading any profile off it.
+
+And the standing instruction that follows, the owner's own (2026-09-17):
+
+> **For visuals, assume you might have it backwards, and test the inverted
+> reading before tuning anything.** A ladder built on an inverted premise never
+> converges, and it looks like progress the whole way.
 
 ## 1d. Provenance: measure freely, ship nothing foreign
 

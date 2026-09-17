@@ -173,6 +173,7 @@ PAIRS = {
     # and one number that fixes qj opens qp to 0.127.
     ('q', 'j'): 126, ('q', 'f'): 108, ('q', 'y'): 90, ('q', 'p'): 18,
     ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
+    ('g', 'p'): 18,  # round 186: the g's loop grew where its neck now lands
     # Round 179: the Q's tail thickened downward (Q_TAIL_BOT) and its root was
     # trimmed (Q_TAIL_LIFT), which put more ink lower and re-tightened every
     # pair whose second letter also goes below the baseline. Re-solved, not

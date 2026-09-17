@@ -3746,12 +3746,37 @@ if ON:
     # spur. Coelacanth's neck thins into the loop instead, which is why its
     # joint reads as one movement. G_NECK_END_W takes the neck's end DOWN to
     # meet what it is landing on rather than up.
-    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 34.0))
+    G_NECK_S = float(os.environ.get("ALBO_ALD_G_NECK_S", 0.0))
+    G_NECK_FLAT = float(os.environ.get("ALBO_ALD_G_NECK_FLAT", 80.0))  # level run into the loop, units  # the inflection; 0 = round 185's monotone slide
+    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 58.0))
     G_EAR_TANG = float(os.environ.get("ALBO_ALD_G_EAR_TANG", 0.34))  # how far the ear runs LEVEL out of the crown
-    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.12))    # tip width, x G_EAR_T
+    # ROUND 186 -- THE EAR FLARES; IT DOES NOT TAPER. Owner 2026-09-17: *"the g
+    # ear starts thinner and flares, not tapers down as the out."* He is right
+    # and round 184 had it exactly backwards.
+    #
+    # MEASURED, the ear's vertical ink column by column from its root outward,
+    # past the point where the bowl's own ink stops sharing the column:
+    #
+    #     Coelacanth   44  51  61  72  40  -> cut
+    #     Flanker      63  62  62  62  60  -> cut
+    #     ALBO (184)   63  56  49  40  27  15  1
+    #
+    # Coelacanth leaves the bowl THIN, swells to its widest near four fifths
+    # along, and stops on a CUT. Flanker holds near-constant and stops on a cut.
+    # Neither comes to a point, and round 184's 1.10 -> 0.12 taper -- written
+    # from LOOKING at a crop in which the root's column still held bowl ink, so
+    # the root read 228 units and appeared to be the thick end -- is the shape
+    # inverted. The lesson is the session's own: a crop at a junction measures
+    # both strokes, and the eye cannot separate them where the ink is continuous.
+    #
+    # A chancery ear is a stroke the pen ACCELERATES into and lifts off square,
+    # so it is thinnest where it starts. That is what these dials now say.
+    G_EAR_ROOT_W = float(os.environ.get("ALBO_ALD_G_EAR_ROOT_W", 0.60))  # x G_EAR_T at the bowl
+    G_EAR_FLARE = float(os.environ.get("ALBO_ALD_G_EAR_FLARE", 1.15))    # its widest, at 0.82 along
+    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.95))        # at the CUT, not a point
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
-    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
+    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 42.0))   # its waist
     # ROUND 176 -- AND THE NECK WAS TOO THIN, against the same three.
     # Ink across the WAIST (the row midway between the two counters, where the
     # neck is the only thing in the way): the scan 90, Flanker 84, Pagella 50,
@@ -4055,12 +4080,62 @@ if ON:
         #   tension for this stroke alone, which pulls the path toward its own
         #   control polygon and puts a corner where the pen changes direction
         #   -- angular by drawing rather than by a cut laid over a curve.
-        nk = stroke(catmull([(x0 + (G_CX + G_SKEW * -G_RY - 8) * u, (G_CY - G_RY) * u + 10 * u),
-                             (x0 + G_NECK_L * u, 46 * u), (x0 + (G_NECK_L - 6) * u, 4 * u),
-                             (x0 + (G_NECK_L + 56) * u, -40 * u),
-                             (x0 + G_NECK_R * u, lt - G_NECK_END * u)], tension=G_NECK_ANG),
+        # ROUND 186 -- THE CONNECTOR CHANGES DIRECTION. Owner 2026-09-17: *"the
+        # connector is missing a change in direction that makes the loops be
+        # elegant strokes."*
+        #
+        # MEASURED across the waist -- the rows between the bowl's floor and the
+        # loop's ceiling, where the neck is the only ink -- tracking the centre
+        # of the run down the letter:
+        #
+        #     Coelacanth   centre x  303 295 275 256 238 222 209 198   reverses 2x
+        #     Flanker      centre x  264 243 227 215 206 199 194 192   reverses 2x
+        #     ALBO         centre x  294 238 231 225 219 213 207 204   reverses 0x
+        #
+        # Albo's connector was a MONOTONE SLIDE: it left the bowl and went one
+        # way until it arrived. Both references reverse TWICE inside that narrow
+        # band, which is what makes the bowl, the neck and the loop read as one
+        # continuous written movement instead of two rings joined by a strut.
+        # G_NECK_S swings the two middle control points in OPPOSITE directions
+        # to put that inflection in; at 0 the path is the round-185 one.
+        #
+        # And the width was wrong in the same place. Both references run the
+        # connector THICK-THIN-THICK across the waist (Coelacanth 79 61 66 69 70
+        # 71 75 80, Flanker 78 70 67 67 68 69 73 77) -- a waist is a waist, thin
+        # in the middle and full at both ends. Albo ran 73 77 74 71 68 63 61 60,
+        # thinning all the way in, because round 184 took its END down to stop it
+        # protruding into the loop. That cured the spur by starving the join.
+        # The end goes back up and the MIDDLE comes down instead.
+        _n0 = (x0 + (G_CX + G_SKEW * -G_RY - 8) * u, (G_CY - G_RY) * u + 10 * u)
+        _n4 = (x0 + G_NECK_R * u, lt - G_NECK_END * u)
+        # AND IT ARRIVES FLAT. Looking at the two side by side at 760 px is what
+        # settled this: Coelacanth's connector FLATTENS as it nears the loop and
+        # merges into the loop's own curve, while Albo's stayed steep and stabbed
+        # in, leaving a V-notch between its underside and the loop's top left.
+        # That is rule 1b -- a union is tangent-continuous only if the edges were
+        # already going the same way -- and the cure is the same: arrive along
+        # the tangent. G_NECK_FLAT places a control point back along the
+        # HORIZONTAL from the landing point, so the last span of the stroke runs
+        # level into the loop instead of down into it.
+        #
+        # A mid-path S was tried first, on the reading that the references
+        # reverse direction twice across the waist (they do -- Coelacanth and
+        # Flanker both, Albo zero times). Built at 0, 16 and 30 units of swing:
+        # the reversal count did not move and neither did the picture, because
+        # the catmull's tension smooths an offset that small and the waist band
+        # being counted is not where Albo's neck actually turns. The measurement
+        # was real and the inference from it was wrong; the fault is at the END
+        # of the stroke, not in its middle. G_NECK_S is kept at 0.
+        _pen = [_n0,
+                (x0 + (G_NECK_L + G_NECK_S) * u, 46 * u),
+                (x0 + (G_NECK_L - 6 - G_NECK_S) * u, 4 * u),
+                (x0 + (G_NECK_L + 56 + G_NECK_S * 0.5) * u, -40 * u)]
+        if G_NECK_FLAT:
+            _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
+        _pen.append(_n4)
+        nk = stroke(catmull(_pen, tension=G_NECK_ANG),
                     widths([(0.0, 56 * u * G_NECK_SCALE),
-                            (0.42, G_NECK_W * u * G_NECK_SCALE),
+                            (0.45, G_NECK_W * u * G_NECK_SCALE),
                             (1.0, G_NECK_END_W * u * G_NECK_SCALE)]),
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
@@ -4124,7 +4199,9 @@ if ON:
         _elev = (_er[0] + (_etip[0] - _er[0]) * G_EAR_TANG, _er[1])
         _emid = ((_elev[0] + _etip[0]) / 2, (_elev[1] + _etip[1]) / 2 + G_EAR_BOW * xh)
         ear = stroke(catmull([tuple(_er), _elev, _emid, _etip], tension=0.5),
-                     widths([(0.0, G_EAR_T * u * 1.10), (0.55, G_EAR_T * u * 0.92),
+                     widths([(0.0, G_EAR_T * u * G_EAR_ROOT_W),
+                             (0.45, G_EAR_T * u * 0.85),
+                             (0.82, G_EAR_T * u * G_EAR_FLARE),
                              (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
         return geom.ink([up, lo, nk, ear])
 
