@@ -140,11 +140,11 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
-    # ROUND 199 -- THE TWO THE OWNER NAMED THAT A BEARING COULD NOT REACH.
-    # V's right could only take -20 before colliding, so Vi stays loose without
-    # a pair; the lowercase bearings are his round-136 fitting, so um is opened
-    # here rather than by moving m.
-    ('V', 'i'): -126,
+    # ROUND 199 -- um, OPENED. The lowercase bearings are the owner's own
+    # round-136 fitting, so the pair carries it rather than moving m.
+    # (A `Vi` kern of -126 stood here and is WITHDRAWN: see round 200 in
+    # docs/albo-spacing-method.md. It was fitted on a measure that counted the
+    # V's own splay as space between the letters.)
     ('u', 'm'): 30,
 
     # ROUND 198b -- WHAT THE OWNER'S TIGHTENING COSTS, paid in exceptions.
