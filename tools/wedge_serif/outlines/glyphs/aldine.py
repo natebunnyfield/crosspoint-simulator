@@ -4686,7 +4686,22 @@ if ON:
     # a longer path at the same speed does not draw a thinner line.
     Q_TAIL_SCALE = float(os.environ.get("ALBO_ALD_Q_TAIL_SCALE", 1.2))  # owner's pick, 2026-09-16
     Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 1.04))  # x the tail's whole profile
-    Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
+    # ROUND 179 -- THE CONNECTOR IS TRIMMED, AND THAT IS WHAT CLOSED THE GAP.
+    # Owner 2026-09-16: *"Q .24 wins but trim down the connector and take care of
+    # gap"*. Both halves are one number. The lift was round 157's answer to
+    # *"thicken tail of Q under and to the left"* on a tail that had no weight
+    # of its own; Q_TAIL_BOT now carries that weight properly, from underneath,
+    # so the lift was doing the job twice and its surplus showed as a LOBE at
+    # the root -- and the join between that lobe and the bowl's outer edge was
+    # the gap, a concave nick in the left profile.
+    #
+    # MEASURED rather than eyeballed, as the largest outward step in the left
+    # edge through the join band (units at a 674 cap): 0.33 -> 1.6, 0.20 -> 1.1,
+    # 0.14 -> 0.5, and 0.10, 0.06 and 0.00 all -> 0.0. The nick is the lift, it
+    # dies at 0.10, and 0.10 is therefore the trim rather than the removal --
+    # round 157's instruction still gets a trace of what it asked for. The owner
+    # took 0.05 off that ladder, one rung under the point the nick dies.
+    Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.05))  # added at the JOIN, gone by the profile's peak
     # ROUND 178 -- AND IT THICKENS DOWNWARD. Owner 2026-09-16, after the
     # Q_TAIL_BODY ladder: *"no winner of Q body ... thicken Q tail from the
     # bottom"*. The bump was a symmetric swelling about the centreline, so it
@@ -4710,7 +4725,7 @@ if ON:
     # is untouched at any depth, the underside swells in over the first quarter
     # of the stroke, and there is no corner because the ramp has zero slope
     # where it starts.
-    Q_TAIL_BOT = float(os.environ.get("ALBO_ALD_Q_TAIL_BOT", 0.0))
+    Q_TAIL_BOT = float(os.environ.get("ALBO_ALD_Q_TAIL_BOT", 0.24))
     Q_TAIL_BOT_IN = float(os.environ.get("ALBO_ALD_Q_TAIL_BOT_IN", 0.26))
     Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
     Q_TAIL_BODY_AT = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_AT", 0.74))  # where the waist is, t

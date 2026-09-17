@@ -173,7 +173,12 @@ PAIRS = {
     # and one number that fixes qj opens qp to 0.127.
     ('q', 'j'): 126, ('q', 'f'): 108, ('q', 'y'): 90, ('q', 'p'): 18,
     ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
-    ('Q', 'g'): 90,  ('Q', 'j'): 54,  ('Q', 'p'): 54, ('Q', 'f'): 18,
+    # Round 179: the Q's tail thickened downward (Q_TAIL_BOT) and its root was
+    # trimmed (Q_TAIL_LIFT), which put more ink lower and re-tightened every
+    # pair whose second letter also goes below the baseline. Re-solved, not
+    # nudged: Qg had fallen to 0.002 em.
+    ('Q', 'g'): 108, ('Q', 'j'): 72,  ('Q', 'p'): 72, ('Q', 'f'): 36,
+    ('Q', 'parenleft'): 36, ('Q', 'y'): 36, ('Q', 'q'): 36,
     ('f', 'U'): 36,  ('f', 'V'): 18,
     ('f', 'quotedbl'): 36, ('f', 'quotesingle'): 36,
     ('Z', 'V'): 18,  ('R', 's'): 18,  ('k', 's'): 18, ('z', 's'): 18,
