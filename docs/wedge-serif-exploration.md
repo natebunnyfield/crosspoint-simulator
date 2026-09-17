@@ -1,6 +1,6 @@
 # Wedge-serif exploration ("Albo", named round 58; "fjord" until then)
 
-## STATE (read this first; each bullet is dated, the newest 2026-09-16; the log below is history)
+## STATE (read this first; each bullet is dated, the newest 2026-09-17; the log below is history)
 
 - **STATIC REGULAR 400, 2026-09-14 (round 95, owner):** "switch to making a
   non-variable 400 regular weight font with improved kerning and ligatures."
@@ -15,12 +15,12 @@
   device. Measurements, the three kerning options, the ligature set and the
   ranked feature list: round 95 at the foot. Queued there too: the 8 without
   reshaping its counters.
-- **THE ITALIC, 2026-09-16 (round 179).** The italic under active design is the
+- **THE ITALIC, 2026-09-17 (round 195).** The italic under active design is the
   **Aldine lowercase**, `outlines/glyphs/aldine.py`, drawn from the Griffo
   scans. **It is not the default**: `_DEFAULT = "classic"` in that file, so a
   plain `--style Italic` build still ships the branching-arch italic of rounds
   101-114b and the Aldine letters are reached by name. What every gate builds,
-  and the command that reproduces any number in rounds 114-179:
+  and the command that reproduces any number in rounds 114-195:
 
   ```bash
   cd tools/wedge_serif
@@ -33,8 +33,9 @@
 
   **The module is no longer lowercase-only.** Round 118's note that it "defines
   only the lowercase, so the capitals, figures and marks come from italic.py"
-  is history: at round 179 `aldine.py` draws the whole lowercase, twenty-one
-  capitals (A E F G H K L M N O P Q R S T U V W X Y Z), all ten figures through
+  is history: at round 195 `aldine.py` draws the whole lowercase, twenty-three
+  capitals (A E F G H I J K L M N O P Q R S T U V W X Y Z -- the I and the J
+  joined it in round 192, thinned to 0.87 and 0.92 of the family stem), all ten figures through
   a hand press (`FIG_HAND`, round 167), and it owns the capitals' bearing
   deltas (`CAP_BEARING_ADJ` -- the round-137 bench, re-solved in rounds 177 and
   178). The lowercase half is enforced at import: a load-time OWNERSHIP check
@@ -161,6 +162,14 @@
   the pen's contrast on the rounds, the owner's to pull.
 - **Next**: bold and italic; accents (Latin-1, Extended-A); kerning;
   hinting and vertical metrics; the reader route (README).
+- **WHAT IS OPEN IN THE ITALIC, 2026-09-17**: six items, listed with their
+  measurements at the foot of this file under *"What is open, at the end of
+  2026-09-17"*. The first is the **g's neck-to-loop joint**, which the owner
+  specified as an explicitly constructed compound path and which is diagnosed
+  but not built; the second is the **8's contrast**, which needs its rings put
+  on the pen the way the g's were in round 182 rather than a dial. **Read
+  `docs/albo-method.md` before drawing anything** -- its seven rules are each
+  paid for by a day this log records.
 
 ## How the options are made
 
@@ -6748,3 +6757,176 @@ for `('Q','parenleft')`, `('Q','y')` and `('Q','q')`.
 
 Gates at this commit: touch 0 of 5,193 and 0 under the floor, metrics 0, cap
 weight 0, glitch 0 of 119, straight unchanged at 44 of 62.
+
+### Round 180 — entasis, and a centreline that sways
+
+No stem in this face is ruled any more. `b360137`. A letterpress stem is
+neither straight nor uniformly wide, and the two departures are separate: the
+EDGES bow (entasis, the width swelling toward the middle) and the CENTRELINE
+itself wanders. Both are tables, not jitter, per `docs/albo-imperfections.md`.
+
+**The negative result is the instrument, not the letter.** The `reach` measure
+written to check it takes its distance from a stem's EDGE — and entasis makes
+that edge bulge, so it read 0 for i, h and u, letters that plainly have the
+feature. Caught by rendering, not by the number. Anything measuring against a
+stem edge in this face has to say which edge and at what height.
+
+### Round 181 — every letter's bottom outstroke, cut from the corpus
+
+`59caa8b`, and the tool that judges it is `proof_words.py` (`49a0db5`): a proof
+built out of the words and the letter PAIRS the owner's own books contain,
+rather than a pangram. The reason is the standing brief — the target is the word
+image — and a pangram exercises letters, not pairs.
+
+### The g, rounds 182–188: the part of this session that cost the most
+
+Told plainly, because the honest account is the useful one. The owner's verdict
+partway through was *"most of what you have done so far has been worthless"* and
+*"you are claiming success repeatedly without matching the reference and
+understanding the underlying forms"*. Both were accurate. What had been
+happening was parameter tuning on a model that had never been verified.
+
+**The withdrawn figures.** `1687812`. The loop's contrast had been measured by
+casting rays from the counter's centroid, and the instrument produced contrasts
+of 880:1 and 544:1 — a ray that grazes a curve tangentially records a near-zero
+thickness. The figures were published, then withdrawn publicly and
+`docs/albo-g-anatomy.md` corrected. The replacement is a chamfer distance
+transform, which has no direction to get wrong.
+
+**Round 182 — the g goes on ONE pen.** `ed23f22`. This is what every earlier
+fix had missed. The bowl and the loop were two keyed width tables that happened
+to sit near each other; a pen draws both with one nib, so their widths are not
+independent numbers to tune but consequences of where each stroke is going.
+`keyed_ring(..., pen=(thick, thin_f, target))` takes its widths from
+`nib_widths_closed` instead of the table. **This is rule 1 of the method doc**
+(*"when a stroke comes out the wrong weight, check its DIRECTION before its
+width"*) applied to a whole letter rather than one stroke.
+
+**Round 183 — the two rings traced off Coelacanth, the pen fitted to the
+trace.** `cda15e0`. Owner: *"copy off coelacanth for g until you understand how
+the brush strokes underlie the form"*. The trace is RESEARCH; the shipped
+numbers are Albo's own, fitted. `G_TRACE` defaults to **0** and the reason is a
+licence ruling, below.
+
+**Rounds 185–187 — the ear and the connector.** The ear leaves the bowl TANGENT
+(`b487732`); it **starts thinner and flares** rather than tapering down
+(`652cbb5`, the owner's correction, and the shape of the correction is the
+permanent memory he wrote that day — *for visuals, assume you might have it
+backwards*); the connector arrives LEVEL and its WEIGHT now matches
+(`d0146f1`).
+
+**Round 188 — the joint, diagnosed and NOT solved.** `2554465`. The neck's
+upper edge stops short of the loop's outer edge instead of terminating ON it.
+Four approaches, all measured, all rejected: trimming leaves a shelf, a union
+leaves a spur (**rule 2 — a union does not blend**), burying the end pushes ink
+into the counter, and drawing the whole thing as one stroke self-overlaps into
+holes. The owner named the fix himself: *"treat it as a compound path for the
+connector that continues seamlessly from each loop with angled part (pay
+attention to corner vertex)."* A compound path is CONSTRUCTED — walk the outer
+contour, bowl's outer, down the connector's right edge, around the loop, up the
+connector's left edge — so each edge terminates on the next by construction and
+the corner vertex is placed rather than hoped for. **That is still the top open
+item in this file.**
+
+**No licence is adopted for Albo.** Owner, verbatim: *"do not adopt a license
+for albo."* Coelacanth is OFL with a reserved name; measuring it is research and
+shipping its numbers would be derivation. `G_TRACE=0` is where that line is
+drawn in code, and `refs_registry.py` is the gate that keeps every reference
+declared with its TRUE measured slant.
+
+### The comparison sweep — all 62 alphanumerics against Coelacanth
+
+`eca9b53`, at the owner's request. **Two instruments had to be rebuilt before
+the answer was honest**, and that is the more durable half:
+
+- `cmp_g_strokes.py` thresholded its ridge by distance, which deletes every
+  thin stroke — it reported Coelacanth's g at 1.50:1 and 45° when the letter is
+  2.80:1 at 90°. The percentile threshold is gone.
+- Slant measured over `l`, `n`, `m` gave a SIGN REVERSAL (Coelacanth −14.0,
+  Poetica −10.7). Only a single bare stem is valid. `l` alone.
+
+What the clean sweep then said, and what is still open from it: the E thins at
+148° where a 24° nib would thin at 24°; the d's bowl and ascender disagree; the
+X carries a 0.038-xh hairline, the thinnest in the face; and the bowl letters
+`a c d g q` run their nib 12–46° flatter than the rest. `docs/albo-vs-coelacanth.md`.
+
+### Rounds 189–192 — the owner's todo list, and two silent no-ops
+
+Owner's list: j serif left, capital serifs to match Coelacanth, contrast in the
+8, the k's kick below the baseline, the 9's serif, the 7's contrast, mid-bar
+microserifs on E and F, the Y's bottom, the b, and I and J thinned.
+
+Shipped: the 7's contrast (`SEVEN_BAR_W` 1.28, `SEVEN_DIAG_W` 0.76 — it was
+monolinear), the j's head as the family's microserif leaning left, J and T alone
+at the roman's full serif, I and J thinned (`CAP_I_W` 0.87, `CAP_J_W` 0.92).
+Reverted at the owner's word: the k's kick and every other capital serif change.
+
+**Two edits built BYTE-IDENTICAL FONTS WITH NO ERROR**, which is rule 1e of the
+method doc and the trap most likely to recur:
+
+| edit | patched | what actually draws it |
+|---|---|---|
+| J/T full serif | `caps_straight.WL/WD/DROP` | the wedges are cut in `primitives` |
+| I/J stem width | `caps_straight.CW` | `primitives.stem` reads `TH_V * pen.CAP_STEM` |
+
+`from ..pen import WL, WD, DROP` binds at IMPORT. An attribute lookup at draw
+time (`pen.CAP_STEM`) is patchable; a name bound at import is not, and the
+override is swallowed in silence.
+
+**And the cap-weight gate invented five failures.** H M N Q R all went OFF by
++0.06 to +0.09 in a build where not one of them was touched: the gate's median
+ran over a CONTROL SET that had been shrinking for 50 rounds, down to six
+letters, and taking I and J out of it moved the yardstick 2%. M's outline was
+verified byte-identical while its ratio moved. Fixed by normalising over all 26
+— a median over 26 cannot be moved by re-cutting two letters, which is what a
+median is for. Rule 1f.
+
+**A process error worth recording**: the j was committed BEFORE its gate was
+read, and `jj` was touching at −0.0087 em. Kerned in the next commit
+(`a63e13b`). The gate existed and said so; it was not run.
+
+### Rounds 193–194 — the b, the Y's foot, the E and F's middle bar
+
+Owner: *"for 'b': reduce ascender to almost to 'l' height; horizontal condense
+until it matches harmony and spacing within words"*, then *".98 and .9 win"*.
+`B_ASC` 0.98 and `B_COND` 0.90 — and the condense scales the bowl's RADIUS and
+its centre DISTANCE together, or the letter narrows by moving its bowl into its
+stem. `Y_FOOT_W` 0.77 (*"yes to .77"*). Mid-bar microserifs on E and F at
+`E_MIDSERIF` 0.42, cut with `PR.wedge` so they are the family's serif and not a
+new one.
+
+**The b edit hit the d**, because they share a line of source text
+(`head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)`). It failed loudly by
+luck. Restored by line number.
+
+### Round 195 — the 9's tail loses its second prong, and the 8 ships UNCHANGED
+
+`690aa81`: `NINE_END_CUT = -34.0` shears the 9's tail END FACE, italic-only via
+`pen.ITALIC`, laddered 0/−20/−34/−48. Verified that only `nine`, `uni2079` and
+`uni2089` changed.
+
+`aef63dc` is the more useful commit and it changes no letter. The 8's contrast
+was investigated, two approaches were measured, both were ruled out, and the
+letter shipped **unchanged** with `EIGHT_CON = 1.0` — verified 0 italic and 0
+roman glyphs differ. The reason is rule 1g: **contrast is a consequence of the
+pen, not a dial.** `ring(..., con=)` re-spreads widths about their geometric
+mean and cannot invent the direction-dependence a nib has; the 8 needs its rings
+put on the pen the way the g's were in round 182, and that is the work, not a
+number.
+
+### What is open, at the end of 2026-09-17
+
+1. **The g's neck-to-loop joint.** Diagnosed precisely, not built. The owner
+   specified the construction; see round 188 above.
+2. **The 8's contrast** — needs the round-182 pen treatment.
+3. **The E's bars run ~24% heavy** — measured at bar/stem 0.553 where a 24° nib
+   gives 0.445. Deliberately not changed: the E's serifs are something the owner
+   has ruled on twice and re-cutting them unattended is the wrong risk.
+4. The rest of the comparison sweep: the d's disagreement, the S, the H's
+   horizontal thins, the X's hairline, the 9's proportions, and the flat nib on
+   `a c d g q`.
+5. **The y's fork** — an agent recommends a new `Y_TAIL_PLUNGE` at 0.60. No
+   ruling given. `docs/albo-y-fork.md`.
+6. Rounds 145–171 remain unlogged here and live only in the commits.
+
+Gates at `690aa81`: touch 0 of 5,193, glitch 0 of 119, metrics 0, cap weight 0.
