@@ -3294,15 +3294,67 @@ if ON:
     G_SKEW = float(os.environ.get("ALBO_ALD_G_SKEW", -0.01))
     G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 150.0))    # lower loop centre
     G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 205.0))    # 185 at the reference's depth, scaled to Albo's 280
-    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", -20.0))  # the loop's top
+    # ROUND 176 -- THE LOOP'S COUNTER WAS HALF-SHUT. Measured on the same
+    # instrument, counter heights against the bowl's own:
+    #     the scan 0.80   Flanker 0.79   Pagella 0.89   ALBO 0.58
+    # All three references hold the loop's counter at about four fifths of the
+    # bowl's; Albo's was 150 units against a bowl of 257. The loop's OUTER can
+    # not go lower -- it is already on the descender -- so the room comes from
+    # its top rising and from its own ring thinning at the two ends the pen is
+    # travelling fastest through.
+    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", 14.0))   # the loop's top
     G_SKEW_L = float(os.environ.get("ALBO_ALD_G_SKEW_L", 0.07))
+    # ROUND 176 -- THE EAR IS ROOTED ON THE CROWN AND RUNS NEARLY FLAT.
+    # Owner 2026-09-16: *"do a better job connecting the ear of g, refer to
+    # scans and reference fonts"*, then *"redo g based on flanker, pagella and
+    # the scan detail"*. `cmp_aldine_g.py` measures a g's anatomy the same way
+    # on an outline and on a raster, and it named the fault in one row:
+    #
+    #     crown x, as a fraction of the letter's width
+    #        the scan 0.52   Flanker 0.70   Pagella 0.65   ALBO 0.85
+    #
+    # In all three references the letter's HIGHEST INK is the bowl, and the ear
+    # then runs out of it nearly level -- Flanker's top edge falls 5 degrees
+    # over its run, Pagella's 13, the scan's 10. In Albo the highest ink was
+    # the EAR'S OWN TIP, out at 85% of the width, because the ear was launched
+    # from the bowl's upper right FLANK at -28 degrees. That is the whole of
+    # "stuck on": a stroke that stands above the letter instead of leaving it.
+    # It also reached only 95 units past the crown against 182-199.
+    #
+    # THE FIX IS THE SLOPE, NOT THE ROOT -- and that took a ladder to learn.
+    # Moving the root left onto the crown (0.12, 0.28, 0.40 x rx) put the
+    # letter's top back on the bowl and immediately opened a NOTCH: up there
+    # the ring's own tangent is horizontal, the ear's underside runs along it,
+    # and two edges grazing at a few degrees leave a concave white wedge where
+    # they cross. Built all three and looked: every one of them had it, and
+    # `cmp_aldine_glitch` passes them all, because a wedge like that is one
+    # contour and not two islands.
+    #
+    # The root therefore stays out on the bowl's upper-right FLANK, where the
+    # ring's outward normal is nearly perpendicular to the ear and the union is
+    # an honest T-junction -- which is where it always was. What changes is
+    # that the ear now leaves nearly LEVEL (G_EAR_RY and G_EAR_Y, a 12-degree
+    # fall against 28) and runs the reference's distance, so its top edge stays
+    # under the bowl's crown for its whole length and the bowl is the letter's
+    # highest ink again.
     G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 350.0))  # the ear's right tip
     G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 52.0))   # its thickness
-    G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.84))   # the tip's height, x xh
+    G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.86))  # the tip's height, x xh
+    G_EAR_ROOT = float(os.environ.get("ALBO_ALD_G_EAR_ROOT", 0.55))  # root, x rx from the bowl's centre
+    G_EAR_RY = float(os.environ.get("ALBO_ALD_G_EAR_RY", 0.888))     # the root's height, x xh  -- its UPPER EDGE lands on the crown, so the centre sits one half-width under it
+    G_EAR_BOW = float(os.environ.get("ALBO_ALD_G_EAR_BOW", 0.012))   # its sag, x xh
+    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.62))    # tip width, x G_EAR_T
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
-    G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 0.80))  # all three neck widths
+    # ROUND 176 -- AND THE NECK WAS TOO THIN, against the same three.
+    # Ink across the WAIST (the row midway between the two counters, where the
+    # neck is the only thing in the way): the scan 90, Flanker 84, Pagella 50,
+    # ALBO 45. Round 173 thinned it on the owner's instruction, and that
+    # instruction was about an overrun into the counter rather than about
+    # colour -- the overrun is cured by round 174's trim, so the weight can go
+    # back toward what the references carry without the fault coming with it.
+    G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 1.15))  # all three neck widths
     G_NECK_END = float(os.environ.get("ALBO_ALD_G_NECK_END", 30.0))       # how far below the loop's top it aims; the trim decides where it stops
     G_NECK_ANG = float(os.environ.get("ALBO_ALD_G_NECK_ANG", 0.18))      # the neck's catmull tension; lower = more angular
     # ROUND 174 -- AND ITS END FACE IS CUT ALONG THE LOOP. Owner 2026-09-16:
@@ -3381,7 +3433,7 @@ if ON:
     G_LOOP_HAND = [(45, 1.1, -0.8), (200, -1.2, 1.0), (300, 0.8, 0.6),
                    (135, 0.0, 0.0), (270, 0.0, 0.0)]
     _gh = lambda t: [(a, dr * G_HAND, dw * G_HAND) for a, dr, dw in t] if G_HAND else None
-    G_LRING = [(0, 24), (45, 34), (90, 50), (135, 62), (180, 70), (225, 74), (270, 72), (315, 58)]
+    G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74), (270, 58), (315, 58)]
     if os.environ.get("ALBO_ALD_G_RING"):
         G_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_G_RING"].split(","))]
@@ -3463,7 +3515,7 @@ if ON:
         # gives the contour at its own angle, so the burial depth is constant
         # at every hand depth. With no hand the displacement is 0 and the ear
         # is the round-174 stroke exactly.
-        _er = [x0 + (G_CX + G_RX * 0.55) * u, xh * 0.96]
+        _er = [x0 + (G_CX + G_RX * G_EAR_ROOT) * u, xh * G_EAR_RY]
         if _gh(G_BOWL_HAND):
             _ecx, _ecy = x0 + G_CX * u, G_CY * u
             _ea = math.atan2((_er[1] - _ecy) / (G_RY * u),
@@ -3472,8 +3524,11 @@ if ON:
             _nx, _ny = _er[0] - _ecx, _er[1] - _ecy
             _L = math.hypot(_nx, _ny) or 1.0
             _er = [_er[0] + _nx / _L * _edr, _er[1] + _ny / _L * _edr]
-        ear = stroke([tuple(_er), (x0 + G_EAR_X * u, xh * G_EAR_Y)],
-                     widths([(0.0, G_EAR_T * u * 1.10), (1.0, G_EAR_T * u * 0.80)]), cut1=CUT)
+        _etip = (x0 + G_EAR_X * u, xh * G_EAR_Y)
+        _emid = ((_er[0] + _etip[0]) / 2, (_er[1] + _etip[1]) / 2 + G_EAR_BOW * xh)
+        ear = stroke(catmull([tuple(_er), _emid, _etip], tension=0.5),
+                     widths([(0.0, G_EAR_T * u * 1.10), (0.55, G_EAR_T * u * 0.92),
+                             (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
         return geom.ink([up, lo, nk, ear])
 
     def _diag(p0, p1, w0, w1):
