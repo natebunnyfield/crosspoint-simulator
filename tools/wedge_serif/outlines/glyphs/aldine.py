@@ -4195,8 +4195,65 @@ if ON:
     # where `prof` reaches 0.815 of the pen -- a swash that is four fifths of a
     # full stroke at its middle, against Flanker's and Poetica's, which are both
     # a clear hairline by their own midpoints.
-    Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 0.88))  # x the tail's whole profile
+    # ROUND 167 -- AND NOW IT IS THIN. Owner 2026-09-16: *"increase tail
+    # thickness of Q"*. Round 156 took this dial 1.00 -> 0.88 on his own
+    # "slightly thick" report and round 157 put weight back at the JOIN only,
+    # so the tail's body and tip have been at 0.88 of the pen since.
+    #
+    # THE HONEST QUESTION IS WHOLE-TAIL OR BODY-ONLY, and the measurement says
+    # the tail is light everywhere rather than light in one place. Measured off
+    # the built fonts -- perpendicular thickness of the tail's FREE run (clear
+    # of the bowl), cap units, beside each face's own bowl flank at 0.50 cap:
+    #
+    #             bowl flank   tail body (mean)   tail at its thinnest
+    #   Albo r166   0.1233          0.044               0.022
+    #   Pagella     0.1233          0.083               0.044
+    #   Poetica     0.0933          0.077               0.040
+    #   Flanker     0.1333          0.073               0.022
+    #
+    # Albo and Pagella carry the SAME bowl -- 0.1233 cap to three figures --
+    # and Albo's tail is half the weight of Pagella's over the same stretch.
+    # Pagella is this letter's declared reference (CAP_Q_REF), so on the
+    # reference's evidence the whole tail is light, not just its body.
+    #
+    # THAT IS NOT THE NUMBER SHIPPED, and the reason is written down rather
+    # than averaged away. Matching Pagella's body needs Q_TAIL_W about 1.66,
+    # and the owner called this tail "slightly thick" at 1.00 four rounds ago
+    # looking at the same drawing. A measurement against a reference cannot
+    # overrule the eye that asked for the change; what it does is say the
+    # direction is whole-tail, and say how much room there is above 1.00 before
+    # the letter starts arguing with its own reference. So the ladder is on
+    # Q_TAIL_W and it stops at 1.12.
+    #
+    # THE LADDER, all five built and looked at, cropped 3x NEAREST at a 340 px
+    # cap. The width column is the tail's own maximum in design units, computed
+    # off the drawing; the gate column is `cmp_cap_weight`'s Q row against its
+    # roman and is only filled where it was actually run (three arms; the two
+    # blanks were not measured and are not guessed):
+    #   0.88  72.7   shipped through round 166             -0.02
+    #   0.96  79.3   +9%, reads as the same tail             --
+    #   1.04  86.0   +18%, past round 156's own 1.00       -0.00
+    #   1.12  92.6   +27%, the heaviest arm built          +0.01
+    #   0.88 + BODY 0.45: the waist filled, tip untouched    --
+    # 1.04 is the ship: it is an increase he cannot miss beside 0.88, it clears
+    # round 156's own 1.00, and the gate reads -0.00 with 0.05 of tolerance
+    # either way -- and 1.12 was measured precisely so the top of the ladder is
+    # known to be reachable if he wants more.
+    #
+    # THE BODY ARM IS THE OTHER READING AND IT IS KEPT REACHABLE. The tail has
+    # a real WAIST -- `pen_widths` falls to 16.6 units at t 0.776 where the
+    # stroke turns up at the right, against 72.7 at its peak, and the tip then
+    # thickens again to 31.7. A waist followed by a thicker tip reads as a lump
+    # on the end. Q_TAIL_BODY adds a raised-cosine bump centred on that waist
+    # and dead by the peak and by the tip, so the body fills and neither the
+    # join (round 157's) nor the taper's tip (round 156's) moves. It ships at 0
+    # because "increase tail thickness" names the tail and not its middle, and
+    # because two weight changes in one stroke cannot be judged apart.
+    Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 1.04))  # x the tail's whole profile
     Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
+    Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
+    Q_TAIL_BODY_AT = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_AT", 0.74))  # where the waist is, t
+    Q_TAIL_BODY_SPAN = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_SPAN", 0.24))
     # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
     # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
     # every quadrant is the same quadrant and the only thing that varies round
@@ -4331,10 +4388,19 @@ if ON:
             # Past t 0.488 `prof` is the round-156 function to the bit.
             Q_TAIL_PEAK = 0.488
             def prof(t, _b=lambda t: 0.62 + 0.80 * t - 0.82 * t * t):
-                if t >= Q_TAIL_PEAK or Q_TAIL_LIFT == 0.0:
-                    return _b(t)
-                u = 1.0 - t / Q_TAIL_PEAK
-                return _b(t) + Q_TAIL_LIFT * u * u * (3.0 - 2.0 * u)
+                v = _b(t)
+                if t < Q_TAIL_PEAK and Q_TAIL_LIFT != 0.0:
+                    u = 1.0 - t / Q_TAIL_PEAK
+                    v += Q_TAIL_LIFT * u * u * (3.0 - 2.0 * u)
+                # round 167: the optional WAIST bump -- see Q_TAIL_BODY. A
+                # raised cosine, so it is zero AND flat at both its edges and
+                # cannot put a crease into the taper it is filling.
+                if Q_TAIL_BODY:
+                    d = abs(t - Q_TAIL_BODY_AT)
+                    if d < Q_TAIL_BODY_SPAN:
+                        v *= 1.0 + Q_TAIL_BODY * (
+                            0.5 + 0.5 * math.cos(math.pi * d / Q_TAIL_BODY_SPAN))
+                return v
         wt = pen_widths(tail, floor=S * FLOOR)
         return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W,
                                        cut1=CUT)])
@@ -4823,6 +4889,84 @@ if ON:
     P_GAP_BOT = float(os.environ.get("ALBO_ALD_P_GAP_BOT", 0.305))  # and where it leaves the ink
     P_GAP_X = float(os.environ.get("ALBO_ALD_P_GAP_X", 0.0645))      # the stem's right edge, x C right of x0 (x0 + half the stem)
     CAP_P_SMOOTH = int(os.environ.get("ALBO_ALD_CAP_P_SMOOTH", 7))  # the moving average nib_widths used to apply
+    # ROUND 167 -- THE "CROSSBAR" IS OPTICALLY TAPERED INTO THE STEM. Owner
+    # 2026-09-16: *"optically taper crossbar of P"*.
+    #
+    # THE READING FIRST, because this letter HAS NO CROSSBAR and the
+    # instruction has to be interpreted rather than executed. A P is a stem and
+    # one arc; there is no horizontal member joining two strokes anywhere in
+    # it. What it does have is the BOWL'S LOWER ARM -- the arc's last stretch,
+    # which comes back toward the stem at 0.37-0.46 of the cap, lies against
+    # it, and since round 162 has the hairline gap cut between the two. That
+    # arm reads as a horizontal bar on the page and it is the only thing in the
+    # letter that could be called one, so it is what is taped here. Stated in
+    # the report as an interpretation, not as a fact about the drawing.
+    #
+    # WHAT IT WAS DOING, measured on the drawn arc rather than on the render --
+    # `nib_arc_widths` output, design units at cap 674, t along the arc from the
+    # crown (0) to the terminal on the stem (1):
+    #
+    #   t      y/cap   width      t      y/cap   width
+    #   0.30   0.866   79.15  <- the arc's own maximum, the bowl's flank
+    #   0.51   0.652   63.44     0.86   0.394   62.38
+    #   0.60   0.558   50.53     0.91   0.380   65.77
+    #   0.67   0.505   46.98  <- the arc's MINIMUM     0.96   0.374   67.12
+    #   0.74   0.444   50.87     1.00   0.372   68.30  <- ON THE STEM
+    #
+    # So the arm SWELLS 45% over its run into the junction, and its heaviest
+    # point is the point at which it meets the stem. That is the pen being
+    # honest and the letter being wrong: `nib_arc_widths` reads the widths a
+    # CLOSED ring would carry at these angles, and the bottom of a closed bowl
+    # is a thick -- but this arc's bottom is not a bowl's bottom, it is an arm
+    # arriving at a stem, and where two strokes meet the ink already pools.
+    # Optically even means thinner there, which is the opposite of what it did.
+    #
+    # WHAT THE REFERENCES DO, same measurement off the built fonts (vertical
+    # cuts, slope-corrected, x measured right of the stem's right edge, cap
+    # units):
+    #
+    #            at the stem   mid-arm   at the bowl's turn
+    #   Albo        0.095       0.082          0.061     <- backwards
+    #   Poetica     0.062       0.030          0.081
+    #   Flanker     0.068       0.054            --      (the cut runs into the
+    #                                                     bowl before the turn)
+    #
+    # Neither reference is heaviest at the stem, and both run the other way
+    # round from Albo: thinnest in the middle or at the stem, thickest where the
+    # arm turns up into the bowl. Poetica is less than half its own mid-arm
+    # thickness where it lands.
+    #
+    # THE MECHANISM is a ramp on the arc's widths, not a second stroke and not
+    # a move of CAP_P_BOWL_END. It starts at the arc's own MINIMUM (t 0.67, so
+    # nothing above the bowl's turn is touched, and the ramp begins where the
+    # profile is flat so there is no corner where it starts) and reaches
+    # CAP_P_ARM_TAPER at the terminal, through a smoothstep -- C1 at both ends,
+    # which matters because `stroke`'s edge is centreline + w/2 and a linear
+    # ramp would put a visible crease at t 0.67. The centreline does NOT move,
+    # so the arm thins on both edges and the counter's floor drops by half of
+    # what comes off.
+    #
+    # WHAT WAS TRIED AND REJECTED. (a) Moving CAP_P_BOWL_END back from -88 to
+    # -80 so the arc simply stops short. Built and rendered: it does not thin
+    # the arm at all, it DETACHES it -- the terminal no longer lies against the
+    # stem, so round 162's parallel hairline gap stops being a gap and becomes a
+    # wedge of white opening leftward, which is the exact shape that round
+    # rejected. (Note the P has been ONE contour since the gap was cut; the
+    # counter drains through it. The round-135 two-contour argument for -88 is
+    # superseded, and the reason to keep -88 is now the gap, not the count.)
+    # (b) A taper starting at the arc's midpoint
+    # (t 0.50): it eats the bowl's lower right flank, which is not an arm and
+    # is carrying the letter's weight. (c) Thinning by lowering CAP_P_INK: that
+    # is the whole arc including the crown and the flank, and the P is already
+    # -0.01 from its roman on `cmp_cap_weight`.
+    # THE LADDER, all four built and rendered at a 620 px cap (terminal width
+    # in design units, and what the letter reads as):
+    #   1.00  68.30  shipped through round 166 -- heaviest at the junction
+    #   0.86  58.7   still thicker at the stem than at mid-arm; reads unchanged
+    #   0.74  50.5   level with the arm's own minimum -- an EVEN arm
+    #   0.64  43.7   visibly thinner at the stem than at mid-arm
+    CAP_P_ARM_TAPER = float(os.environ.get("ALBO_ALD_CAP_P_ATAPER", 0.74))
+    CAP_P_ARM_T0 = float(os.environ.get("ALBO_ALD_CAP_P_AT0", 0.67))   # where the ramp starts, t along the arc
     # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
     # of P."* The wedge itself was never the odd one: this letter's stem is
     # `cstem_i(top='left')`, the same call B D E F I J L H N reach, and measured
@@ -4877,6 +5021,17 @@ if ON:
                 kk = CAP_P_SMOOTH
                 w = [sum(w[max(0, i - kk):i + kk + 1]) /
                      len(w[max(0, i - kk):i + kk + 1]) for i in range(len(w))]
+            # round 167: the lower arm is tapered INTO the stem -- see the dial
+            # above. After the smoothing, so the ramp is the ramp and not a
+            # moving average of one.
+            if CAP_P_ARM_TAPER != 1.0 and len(w) > 1:
+                t0 = CAP_P_ARM_T0
+                for i in range(len(w)):
+                    t = i / (len(w) - 1)
+                    if t <= t0:
+                        continue
+                    u = (t - t0) / (1.0 - t0)
+                    w[i] *= 1.0 + (CAP_P_ARM_TAPER - 1.0) * u * u * (3.0 - 2.0 * u)
             return p, w
 
         p_, ws = _arc(cy, ry)
@@ -4978,6 +5133,173 @@ if ON:
     CAP_Z_IN_T = float(os.environ.get("ALBO_ALD_CAP_Z_IN_T", 0.50))   # the top end's inset from the bar's right end, x CS
     CAP_Z_IN_B = float(os.environ.get("ALBO_ALD_CAP_Z_IN_B", 0.62))   # the bottom end's inset from the bar's left end, x CS
 
+    # ================================================== ROUND 167: THE Z, TWICE
+    # Owner 2026-09-16, two instructions on one letter: *"make Z handcut and
+    # have a more squared bottom right corner"*.
+    #
+    # ---------------------------------------------------------------- HAND CUT
+    # THE MECHANISM IS A TABLE, as it is on the Q (`Q_HAND`) and the R
+    # (`CAP_R_BOWL_HAND`), and NOT `life()`'s jitter: `life` re-rolls per build,
+    # and a defect that moves from one build to the next is noise rather than a
+    # cut. What a cut MEANS had to be decided for this letter, because the Z is
+    # not a ring and not a traced table -- it is two bars, a straight diagonal
+    # and two ribbon terminals, and neither existing helper fits it.
+    #
+    # ON A BAR A CUT IS BOTH EDGES AT ONCE. A bar is drawn at a constant `th`,
+    # so there is no profile to press into; what a punchcutter leaves on one is
+    # that it is not quite level and not quite parallel-sided. So `_z_hand`
+    # takes (t, dn, dw): `dn` pushes the CENTRELINE sideways -- which moves both
+    # edges together and tilts the bar -- and `dw` opens or closes the stroke
+    # there, which moves them apart. Same raised-cosine bump `_hand_rows` uses,
+    # so a cut is a stretch of the stroke rather than one displaced point.
+    #
+    # ON THE DIAGONAL IT IS WIDTH ONLY. `PR.diagonal` is a straight line by
+    # construction and bending it would move both buried ends, which is the
+    # round-138 fracture waiting to be reopened; its `w` already accepts f(t),
+    # so it takes the same table with the `dn` column ignored.
+    #
+    # WHERE THE CUTS GO IS ROUND 153'S LESSON, and it is the whole reason this
+    # table looks lopsided. A hand cut placed where the pen is already thick
+    # does not read as a hand cut, it reads as a lump. On this letter the thick
+    # places are the four JUNCTIONS -- the diagonal is buried 0.60 of a bar's
+    # thickness into each bar (at t 0.886 of the top bar and t 0.142 of the
+    # bottom), the hook leaves the top bar at t 0.16, and the tail leaves the
+    # bottom bar at t 0.91 once CAP_Z_SQ has moved it. So every press is put in
+    # a bar's FREE middle, and each bump's half-width of 0.22 is checked against
+    # the nearest junction rather than assumed clear. Four of the six bumps land
+    # exactly zero at their nearest junction (the span does not reach it); the
+    # two that do not are the top bar's 0.34, worth 0.20 units where the hook
+    # leaves at 0.16, and the bottom bar's 0.72, worth 0.11 where the tail
+    # leaves at 0.91 -- against presses of 2.0 to 3.5.
+    #
+    #   TOP BAR     t 0.34  up 2.5 and 2.5 thinner: the graver running out of
+    #                       the hook's press, the bar rising as it goes.
+    #               t 0.58  down 2.0 and 3.0 heavier -- and 0.58 rather than
+    #                       0.66 so the bump dies before the diagonal's bury at
+    #                       0.886 rather than touching it.
+    #   BOTTOM BAR  t 0.44  down 2.5 and 3.0 heavier: the long bottom bar's own
+    #                       press, clear of the diagonal's bury at 0.142.
+    #               t 0.72  up 2.0 and 2.5 thinner, easing before the tail.
+    #   DIAGONAL    t 0.38  3.5 heavier, t 0.70  3.0 thinner -- both in the free
+    #                       middle, neither within a span of either bury.
+    #   THE HOOK    t 0.62  2.5 thinner, the pen lifting into the turn.
+    #
+    # THE TAIL IS DELIBERATELY NOT CUT, and that is a result rather than an
+    # omission: the corner ladder below is already moving that stroke, and two
+    # changes at the same place cannot be judged apart. The two terminals then
+    # differ, which is itself what a cut letter looks like.
+    #
+    # NET INK IS DESIGNED TO BE ABOUT ZERO -- each bar and the diagonal carry
+    # one press and one thin, +0.5 units apiece -- because `cmp_cap_weight` has
+    # the Z at -0.04 against its roman with a 0.05 tolerance, so this letter has
+    # 0.01 of room on the LIGHT side and 0.09 on the heavy. Measured after: the
+    # italic Z's own figure goes 0.94 -> 0.95 and the printed diff stays -0.04,
+    # so the cut spends none of that room. Two other numbers worth having when
+    # the table is next moved: yMin goes -4 -> -5 (the bottom bar's own press,
+    # ONE unit, against the 20-unit spur the JOIN ceiling above guards), and the
+    # point count 190 -> 301, which is four straight edges becoming curved ones.
+    # Magnitudes are 2.0-3.5 units on strokes of 50 (bars) and 104
+    # (diagonal), the same order as the Q's 2-6 and the R's 3-7.
+    CAP_Z_HAND = float(os.environ.get("ALBO_ALD_CAP_Z_HAND", 1.0))   # 0 turns every cut off
+    Z_HAND_TOP = [(0.34, 2.5, -2.5), (0.58, -2.0, 3.0)]
+    Z_HAND_BOT = [(0.44, -2.5, 3.0), (0.72, 2.0, -2.5)]
+    Z_HAND_DIAG = [(0.38, 0.0, 3.5), (0.70, 0.0, -3.0)]
+    Z_HAND_HOOK = [(0.62, 0.0, -2.5)]
+
+    def _z_cut(cuts, span=0.22, scale=None):
+        """The table read as a function: f(t, column) -> units. Column 1 is the
+        centreline push, column 2 the stroke's own opening. Each row is a raised
+        cosine of half-width `span`, so it is zero AND flat at its own edges and
+        cannot put a crease into the stroke it is marking."""
+        sc = CAP_Z_HAND if scale is None else scale
+        if not cuts or not sc:
+            return None
+        def amt(t, j):
+            a = 0.0
+            for row in cuts:
+                d = abs(t - row[0])
+                if d < span:
+                    a += row[j] * (0.5 + 0.5 * math.cos(math.pi * d / span))
+            return a * sc
+        return amt
+
+    def _z_hand_w(w0, cuts, span=0.22, scale=None):
+        """A stroke's width with the table's presses in it -- the whole of a
+        straight diagonal's cut, since a straight stroke has no centreline to
+        move without moving its buried ends."""
+        amt = _z_cut(cuts, span, scale)
+        if amt is None:
+            return w0
+        base = w0 if callable(w0) else (lambda t: w0)
+        return lambda t: max(base(t) * 0.25, base(t) + amt(t, 2))
+
+    def _z_hand(pts, w0, cuts, span=0.22, scale=None):
+        """A bar's or a ribbon's HAND CUT: returns (centreline, f(t)).
+
+        `cuts` are (t, dn, dw) in design units -- `dn` pushes the centreline to
+        the LEFT of travel, which tilts the stroke, and `dw` opens it, which
+        moves its two edges apart. A TABLE, never `life()`: see the note above.
+        """
+        amt = _z_cut(cuts, span, scale)
+        if amt is None:
+            return pts, w0
+        p = geom.resample(pts); tn = geom.tangents(p); n = max(1, len(p) - 1)
+        out = [(x - tn[i][1] * amt(i / n, 1), y + tn[i][0] * amt(i / n, 1))
+               for i, (x, y) in enumerate(p)]
+        return out, _z_hand_w(w0, cuts, span, scale)
+
+    # ------------------------------------------------- THE BOTTOM RIGHT CORNER
+    # Owner, the same message: *"...and have a more squared bottom right
+    # corner"*.
+    #
+    # WHAT IT WAS DOING. The tail's centreline left the bottom bar at
+    # x0 + w*0.84 -- 67 units back from the bar's own right end -- and its first
+    # control point sat at x0 + w*0.99, th*0.8, so the stroke ran very nearly
+    # FLAT for its first two fifths before lifting. A stroke that leaves a
+    # baseline tangentially takes its outer edge with it: the bar's bottom edge
+    # and the tail's outer edge are the same line for those 67 units and then
+    # curve away together, so the letter's bottom right is a fillet and the
+    # bar's square end face never appears at all. Measured on the drawing, the
+    # tail's centreline climbs 15 units over its first 63 of run (13 degrees)
+    # and 58 over its last 16 (75 degrees) -- nearly flat, then nearly upright,
+    # and the flat half is the half that sits on the baseline.
+    #
+    # Beside its references that is Albo's own choice rather than a defect --
+    # Flanker and Poetica both sweep -- but PAGELLA squares it, and a squared
+    # corner is what was asked for: its bar ends in a vertical face on the
+    # baseline and its tail stands nearly upright on top of it, so the two meet
+    # at a right angle you can point at.
+    #
+    # THE MECHANISM is the tail's own two leading control points and nothing
+    # else -- the bar is untouched, the tip is untouched, the advance is
+    # untouched (the last control point does not move). CAP_Z_SQ runs the start
+    # forward along the bar and lifts the middle control, so the tail leaves
+    # steeply, its start face stays buried inside the bar, and the bar's right
+    # face is left standing as the corner.
+    #
+    # THE LADDER, four arms built and rendered at a 330 px cap, 4x NEAREST:
+    #   0.00  start 0.840 w, mid th*0.80  the fillet, shipped through round 166
+    #   0.35  start 0.875 w, mid th*1.12  the turn tightens, still a radius
+    #   0.70  start 0.910 w, mid th*1.43  the bar's end face appears
+    #   1.00  start 0.940 w, mid th*1.70  a corner, with the tail standing off it
+    # 0.70 is the ship: it is the first arm with a corner in it rather than a
+    # radius, and 1.00 tips the tail far enough toward upright that the letter
+    # starts to read as Pagella's Z rather than as Albo's.
+    #
+    # THREE OTHER MECHANISMS, READ OFF THE DRAWING AND NOT BUILT -- said plainly
+    # so the next pass knows which of these was measured and which was reasoned.
+    # (a) Extending the bottom bar past the tail so the bar's own end cap IS the
+    # corner: the tail's outer edge already lies inside the bar's end face at
+    # the baseline, so a longer bar puts ink to the RIGHT of the tail and the
+    # corner becomes a spur rather than a corner. (b) A `cut1` on the bar's
+    # right end: `stroke`'s cut SHEARS the end face by tan(cut) x w/2, which
+    # makes that face more oblique, and the ask is for less. (c) Raising the
+    # middle control without moving the start: catmull's first tangent is set by
+    # its first two points, so the stroke would leave the bar at an angle from
+    # t 0 rather than curving into it -- a kink where the ribbon should turn.
+    # Both halves of the dial move together for that reason.
+    CAP_Z_SQ = float(os.environ.get("ALBO_ALD_CAP_Z_SQ", 0.70))   # 0 = round 166's fillet, 1 = fully squared
+
     @glyph('Z')
     def a_Z(c):
         """Two bars, a diagonal, and the two ribbon terminals that are the
@@ -4987,15 +5309,24 @@ if ON:
         cut."""
         C = c["cap"]; x0 = CS * 0.5; w = CAP_Z_W * C
         th = TH_H * CAP_Z_BAR
-        top = stroke([(x0, C - th / 2), (x0 + w, C - th / 2)], th, cut1=CUT)
-        bot = stroke([(x0, th / 2), (x0 + w, th / 2)], th, cut0=CUT)
+        # round 167: every stroke but the tail carries a hand cut -- see the
+        # table above the dials for where each press sits and why
+        tp, tw = _z_hand([(x0, C - th / 2), (x0 + w, C - th / 2)], th, Z_HAND_TOP)
+        top = stroke(tp, tw, cut1=CUT)
+        bp, bw = _z_hand([(x0, th / 2), (x0 + w, th / 2)], th, Z_HAND_BOT)
+        bot = stroke(bp, bw, cut0=CUT)
         hook_p = catmull([(x0 + w * 0.16, C - th / 2),
                           (x0 + w * 0.01, C - th * 0.8),
                           (x0 - CS * 0.30, C - C * CAP_Z_HOOK)], tension=0.5)
-        hook = stroke(hook_p, widths([(0.0, th), (0.55, th * 1.00),
-                                      (1.0, th * 1.00)]), cut1=CUT)
-        tail_p = catmull([(x0 + w * 0.84, th / 2),
-                          (x0 + w * 0.99, th * 0.8),
+        hk_p, hk_w = _z_hand(hook_p, th, Z_HAND_HOOK)
+        hook = stroke(hk_p, hk_w, cut1=CUT)
+        # round 167: the bottom right corner is squared by running the tail's
+        # start forward along the bar and lifting its middle control, so the
+        # stroke leaves steeply and the bar's own right face stands as the
+        # corner -- see CAP_Z_SQ. The tip does not move.
+        sq = CAP_Z_SQ
+        tail_p = catmull([(x0 + w * (0.84 + 0.10 * sq), th / 2),
+                          (x0 + w * (0.99 + 0.015 * sq), th * (0.8 + 0.9 * sq)),
                           (x0 + w + CS * 0.30, C * CAP_Z_TAIL)], tension=0.5)
         tail = stroke(tail_p, widths([(0.0, th), (0.55, th * 1.00),
                                       (1.0, th * 1.00)]), cut1=CUT)
@@ -5003,7 +5334,7 @@ if ON:
         bury = th * CAP_Z_JOIN
         dg = PR.diagonal((x0 + w - CS * CAP_Z_IN_T, C - th + bury),
                          (x0 + CS * CAP_Z_IN_B, th - bury),
-                         CS * CAP_Z_DIAG)
+                         _z_hand_w(CS * CAP_Z_DIAG, Z_HAND_DIAG))
         return geom.ink([top, bot, hook, tail, dg])
 
     # ---------------------------------------------------------------- L
