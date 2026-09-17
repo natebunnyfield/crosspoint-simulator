@@ -1198,7 +1198,21 @@ if ON:
         while 0 <= k <= n and math.hypot(pts[k][0] - pts[j][0], pts[k][1] - pts[j][1]) < r * amount:
             k += 1 if at_start else -1
         k = max(0, min(n, k))
-        return k, r
+        # GLITCH SWEEP 2026-09-16 -- A CAP SMALLER THAN THE STROKE IS NOT A CAP.
+        # The paragraph above is about where the ball's OUTER edge lands, and it
+        # stands; what it does not cover is the ball's own size against the face
+        # it has to swallow. The trim walks BACK along the arc, and on the c the
+        # arc is thickening as it goes: the bottom terminal's original end is
+        # 30.33 units wide (r = 15.16) but the trimmed point is 37.62, so the
+        # square face there stood 3.65 units proud of the ball on each side --
+        # a pointed tab with a re-entrant notch above it, plain at 500 px and
+        # the one thing wrong with that letter. The top terminal is the other
+        # way round (57.02 into 33.25) and is unaffected, which is why this only
+        # ever showed at the bottom.
+        # `max` keeps the round-118 rule intact -- the ball is never SMALLER
+        # than the original end's half width, so no letter can shrink -- and
+        # only raises it where the stroke it caps is wider than that.
+        return k, max(r, ws[k] * 0.5)
 
     def c_key_widths(pts, cx, cy, rx, ry, keys, unit):
         """Widths for an OPEN arc, read off a table keyed by the parametric
@@ -4407,6 +4421,31 @@ if ON:
              for i in range(len(v))]
         return p_, widths([(i / n, v[i]) for i in range(n + 1)])
 
+    def _sink_start(pts, wfn, amount):
+        """GLITCH SWEEP 2026-09-16 -- drop `amount` units of ARC LENGTH off the
+        FRONT of a traced stroke, re-keying its width function so every
+        surviving point keeps the width it was drawn with.
+
+        A stroke that finishes inside a terminal is meant to have its end FACE
+        swallowed by that terminal, and a face is `w` wide across a stroke that
+        may be arriving at any angle -- so a centerline that merely REACHES the
+        terminal's centre still throws both of its corners out past the
+        terminal's edges. Shortening the centerline is the honest fix: the
+        silhouette outside the terminal cannot change (it is the same stroke,
+        minus a piece that was buried), and the spur goes.
+
+        Re-keying is the half that is easy to drop. `stroke` asks the width
+        function for `i / n` over the RESAMPLED remainder, so handing it the
+        original `wfn` would stretch the whole width profile over the shorter
+        run and re-weight the entire stroke."""
+        if amount <= 0: return list(pts), wfn
+        d = [0.0]
+        for a_, b_ in zip(pts, pts[1:]): d.append(d[-1] + math.hypot(b_[0] - a_[0], b_[1] - a_[1]))
+        i = 0
+        while i < len(d) - 2 and d[i] < amount: i += 1
+        f = d[i] / d[-1]
+        return list(pts[i:]), (lambda t, _f=f, _w=wfn: _w(_f + t * (1 - _f)))
+
     @glyph('R')
     def a_R(c):
         """Stem, a closed ring bowl whose bottom arm returns to the stem, and a
@@ -4733,6 +4772,7 @@ if ON:
     CAP_K_ASER_L = float(os.environ.get("ALBO_ALD_CAP_K_ASER_L", 0.135))  # the slab's reach LEFT of the arm's tip, x C
     CAP_K_ASER_R = float(os.environ.get("ALBO_ALD_CAP_K_ASER_R", 0.035))  # and right
     CAP_K_ASER_T = float(os.environ.get("ALBO_ALD_CAP_K_ASER_T", 0.62))   # its thickness at the thickest, x S
+    CAP_K_ABURY = float(os.environ.get("ALBO_ALD_CAP_K_ABURY", 0.030))    # glitch sweep 2026-09-16: arc length trimmed off the arm's TOP end, x C, so its square face sits under the slab instead of spurring over the cap line (see a_K)
     # THE ARM, traced, drawn from the CAP LINE DOWN INTO THE STEM:
     # (x from the stem's midline, height, perpendicular width), all x cap. The
     # first row carries the centerline to the cap line holding the width it had
@@ -4779,7 +4819,20 @@ if ON:
         C = c["cap"]; x0 = CS * 0.6
         ap, aw = _R_traced(CAP_K_ARM, x0, C, CAP_K_W)
         lp, lw = _R_traced(CAP_K_LEG, x0, C, CAP_K_W)
-        asolid = stroke(ap, aw)
+        # GLITCH SWEEP 2026-09-16 -- THE ARM'S OWN END FACE WAS NOT BURIED. The
+        # slab below cured the hairline CRACK of round 151; what it did not
+        # cure is that the arm's centerline stops exactly at the cap line while
+        # its square end face is 54.7 units across a stroke arriving at ~61
+        # degrees, so the face's upper corner stood 11.9 units above the slab's
+        # own top over 167 units^2 -- a pointed tab over the cap line, with a
+        # re-entrant notch on each side of it, plain at 500 px.
+        # Measured: trimming 10 units of arc clears the slab by 3.6, 20 units
+        # by 14.2, and the arm's ink OUTSIDE the slab is 12631.34 at a 10-unit
+        # trim against 12630.77 at 20 -- the same silhouette to half a square
+        # unit, so from 10 units on only the buried face is moving. 0.030 C is
+        # 20.2 units, the more generous of the two.
+        ap_draw, aw_draw = _sink_start(ap, aw, C * CAP_K_ABURY)
+        asolid = stroke(ap_draw, aw_draw)
         # THE ARM'S CAP TERMINAL IS A SLAB, NOT A STACK OF WEDGES. See the note
         # above CAP_K_ASER: both wedge arms left a hairline crack down the
         # arm's left edge, because `_wedge` drops its root back along the
@@ -5717,6 +5770,7 @@ if ON:
     # +1.2% and +2.8% on the shipped letter, ratio 0.594 against its 0.585.
     CAP_VV_DIAG = float(os.environ.get("ALBO_ALD_CAP_VV_D", 0.985))  # the down-strokes' weight, x CS
     CAP_VV_THIN_W = float(os.environ.get("ALBO_ALD_CAP_VV_TW", 0.909))  # the up-strokes', x CAP_VV_DIAG
+    CAP_VV_BSINK = float(os.environ.get("ALBO_ALD_CAP_VV_BSINK", 0.16))  # glitch sweep 2026-09-16: how far back along its own line the LIGHT inner arm starts, x the stem, so its end face is buried in the heavy one instead of spiking over it (see a_W)
 
     @glyph('W')
     def a_W(c):
@@ -5735,7 +5789,26 @@ if ON:
         apex = (ox + w * 0.5, C)
         up = CAP_VV_DIAG * CAP_VV_THIN_W
         a = cdiag((ox + s * 0.3, C), f1, CAP_VV_DIAG, serif0=1)
-        b = cdiag(apex, (f1[0] + s * 0.15, 0), up)
+        # GLITCH SWEEP 2026-09-16 -- THE MIDDLE APEX WAS A TORN EDGE, not a
+        # point. Both inner arms start at the same `apex` ON the cap line, and
+        # `cdiag` gives an unserved end the pen's 20-degree cut -- which shears
+        # a face, it does not shorten it. The two faces are different widths
+        # arriving at different angles, so `b`'s stood 8.90 units above `d`'s
+        # with a re-entrant NOTCH between them: a spike on a flat shoulder,
+        # which is what the eye reads at 500 px. Same family as the Z's two
+        # corners (`caps_straight.g_Z`, "a spur to (447.1, 683.6) 8 units above
+        # the cap line") and the 4's apex.
+        # `b` is the lighter of the pair, so `b` is the one that goes under:
+        # its start slides back along its OWN line, which keeps its angle and
+        # every part of its silhouette that is not buried. Swept against `d`'s
+        # ink -- S*0.08 leaves 2.48 units standing, S*0.10 leaves 0.87, S*0.12
+        # tucks it 0.73 under and S*0.20 by 7.15. 0.16 clears it by 3.94, more
+        # than the ~0.4 the cut's facets can give back, and costs 0.5% of b's
+        # ink outside d (30580 -> 30416 units^2), all of it at the buried end.
+        _bx, _by = f1[0] + s * 0.15, 0
+        _ux, _uy = apex[0] - _bx, apex[1] - _by; _L = math.hypot(_ux, _uy) or 1.0
+        b = cdiag((apex[0] - _ux / _L * S * CAP_VV_BSINK,
+                   apex[1] - _uy / _L * S * CAP_VV_BSINK), (_bx, _by), up)
         d = cdiag(apex, f2, CAP_VV_DIAG)
         e = cdiag((ox + w - s * 0.3, C), (f2[0] + s * 0.15, 0), up, serif0=-1)
         # the crown, `g_W`'s to the unit. `pw` cannot be used for its offset
