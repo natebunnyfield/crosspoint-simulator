@@ -84,15 +84,15 @@ RIGHT['round'] = [g for g in RIGHT['round'] if g != 'a']
 CLASS_PAIRS = {
     # T: the bar overhangs; every lowercase tucks under it, rounds most
     ('T', 'round'): -126, ('T', 'a'): -126, ('T', 'flat'): -90, ('T', 'diag'): -90, ('T', 'asc'): -18, ('T', 'ascwedge'): -18,
-    ('T', 'A'): -90, ('T', 'O'): -36, ('T', 'J'): -72,
+    ('T', 'A'): -216, ('T', 'O'): -36, ('T', 'J'): -72,
     ('T', 'period'): -126, ('T', 'hyphen'): -108, ('T', 'colon'): -72,
     # V W: a diagonal right side; the rounds and the a tuck, the flats less
     ('VW', 'round'): -90, ('VW', 'a'): -90, ('VW', 'flat'): -54, ('VW', 'diag'): -36, ('VW', 'asc'): -18, ('VW', 'ascwedge'): -18,
-    ('VW', 'A'): -90, ('VW', 'O'): -36, ('VW', 'J'): -54,
+    ('VW', 'A'): -216, ('VW', 'O'): -36, ('VW', 'J'): -54,
     ('VW', 'period'): -126, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
     ('Y', 'round'): -108, ('Y', 'a'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18, ('Y', 'ascwedge'): -18,
-    ('Y', 'A'): 0, ('Y', 'O'): 0, ('Y', 'J'): -72,   # round 177: ('Y','O') -54 -> 0, the same re-solve as the Oleft cell
+    ('Y', 'A'): -126, ('Y', 'O'): 0, ('Y', 'J'): -72,   # round 177: ('Y','O') -54 -> 0, the same re-solve as the Oleft cell
     ('Y', 'period'): -126, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
     ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -126,
@@ -118,7 +118,7 @@ CLASS_PAIRS = {
     ('Oleft', 'VWY'): 36,
     ('R', 'VWY'): 0,
     # F P: open below the bowl / the bar, so a period or comma tucks in
-    ('FP', 'period'): -126, ('FP', 'A'): -72, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
+    ('FP', 'period'): -126, ('FP', 'A'): -198, ('FP', 'round'): -36, ('FP', 'a'): -36, ('FP', 'colon'): -36,
     # K k, R: an open top-right corner takes a round or a diagonal a little
     ('K', 'round'): -36, ('K', 'a'): -36, ('K', 'diag'): -36, ('K', 'O'): -36,
     ('R', 'T'): -36, ('R', 'round'): -18, ('R', 'a'): -18,   # ('R','VWY') moved up to round 177's block
@@ -152,6 +152,32 @@ PAIRS = {
     # 0.13 em too far from everything after it; these two are what that left.
     ('U', 'U'): 72,    # two identical stems, so both bearings are the tight one
     ('U', 'I'): -54,   # the I carries a +33 left bearing of its own, being a bare stem
+    # ROUND 178 -- THE DESCENDER-BAND COLLISIONS, and why they are PAIRS.
+    #
+    # `outlines/build.py` fits a glyph from the ink inside its x-height (or cap)
+    # BAND -- `band = [x for ... if -OVER <= y <= top + OVER]` -- so a stroke
+    # that leaves the band is invisible to the letter's own bearings. The g and
+    # the J are already excepted there by name; the q, the Q, the f and the y
+    # are not, and their tails and hooks are what the sweep found still
+    # touching after every bearing above was re-solved.
+    #
+    # Fitting those letters on their FULL EXTENT instead would be the tidier
+    # fix and it is the wrong one: q's tail reaches far to the right BELOW the
+    # baseline, so a full-extent fit spaces `qu` -- which is very nearly every q
+    # in English -- by ink that is nowhere near the u. The clash is genuinely
+    # pair-dependent: it happens only when the SECOND letter also has ink down
+    # there. That is what a kern pair is for.
+    #
+    # Values are per-pair rather than a class cell because the depths differ by
+    # an order of magnitude across the family: qj was -0.110 em and Qf -0.004,
+    # and one number that fixes qj opens qp to 0.127.
+    ('q', 'j'): 126, ('q', 'f'): 108, ('q', 'y'): 90, ('q', 'p'): 18,
+    ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
+    ('Q', 'g'): 90,  ('Q', 'j'): 54,  ('Q', 'p'): 54, ('Q', 'f'): 18,
+    ('f', 'U'): 36,  ('f', 'V'): 18,
+    ('f', 'quotedbl'): 36, ('f', 'quotesingle'): 36,
+    ('Z', 'V'): 18,  ('R', 's'): 18,  ('k', 's'): 18, ('z', 's'): 18,
+    ('w', 'v'): 18,  ('W', 'V'): 18,
 }
 
 def feature_text():

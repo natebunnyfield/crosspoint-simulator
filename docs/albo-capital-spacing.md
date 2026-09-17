@@ -73,3 +73,63 @@ longer exists.
 
 Every pair in the sweep now sits inside the band the untouched control pairs
 occupy. Worst residuals: YO −0.035 and YT +0.088.
+
+---
+
+# Round 178 — the collision sweep
+
+Owner 2026-09-16: *"fix LA and any other touching letter combinations"*. The
+second half is the instruction: `LA` was found by eye, and anything found by eye
+has siblings nobody happened to type.
+
+Instrument: **`tools/wedge_serif/cmp_touch.py`**, which sweeps **all 5,193 pairs**
+(A–Z, a–z, 0–9 and eleven marks). It renders each GLYPH once and reduces it to
+two profiles — for every scanline, the rightmost and leftmost ink — so a pair's
+white is arithmetic rather than a second render. The second glyph is placed at
+`getlength(a+b) - getlength(b)`, the pair's *shaped* advance, so the kern table
+is in every number.
+
+**46 pairs were touching.** `LA` was the 30th worst, at −0.008 em, against `RA`
+at −0.145.
+
+## Three causes, in order of how many pairs each owned
+
+**1. A's left bearing, −151 — ten pairs.** R k z x 4 3 A , d L all collided with
+it. That number is an owner's own from the round-137 bench, and it is what lets
+a T, V, W or Y tuck over the A's sloping left. So it is raised by **+126** and
+the four kern cells that do the tucking are deepened by *exactly* the same
+amount — `('T','A')` −90 → −216, `('VW','A')` −90 → −216, `('Y','A')` 0 → −126,
+`('FP','A')` −72 → −198. TA, VA, FA, PA and YA measure within **0.0001 em** of
+where they were; every other letter before an A gains 0.126. The raise is 126
+rather than a round number because a kern value must be a multiple of STEP (18,
+the reader's kern quantum) and the compensation has to be exact.
+
+**2. R's right (−56 → 0) and W's right (−132 → −60)** — twelve pairs and five.
+Rs RE Rk Rz Rh Rl Rj Rg Rm Rp Rr; WV W" W' WW WU. `WA` moves +0.072 as a
+consequence and is the one approved pair this round changes; it still sits
+tighter than VA.
+
+**3. THE FITTING BAND CANNOT SEE A DESCENDER** — the remaining thirteen.
+`outlines/build.py` fits a glyph from the ink inside its x-height or cap band
+(`-OVER <= y <= top + OVER`), so a stroke that leaves the band is invisible to
+the letter's own bearings. The g and the J are already excepted there by name;
+the q, the Q and the f are not, and their tails and hooks are what survived
+every bearing fix above — qj −0.110, qf −0.085, Qg −0.078, qy −0.060, gj −0.048.
+
+### Why those are kern pairs and not a band change
+
+Fitting those letters on their full extent is the tidier fix and it is the wrong
+one: **q's tail reaches far right *below* the baseline**, so a full-extent fit
+would space `qu` — very nearly every q in English — by ink that is nowhere near
+the u. The clash is genuinely pair-dependent: it happens only when the *second*
+letter also has ink down there. Values are per-pair rather than a class cell
+because the depths differ by an order of magnitude (qj −0.110, Qf −0.004), and
+one number that fixes qj opens `qp` to 0.127.
+
+## Result
+
+**0 touching, 0 below the 0.012 em floor**, from 46 and 66. The floor is stated
+rather than assumed: about a third of the thinnest hairline this face draws,
+which is where two letters stop reading as two at 13 pt. Pairs that are *meant*
+to interlock — the f's hook onto an ascender's top-left wedge — are in
+`cmp_touch.EXEMPT` with their reason.

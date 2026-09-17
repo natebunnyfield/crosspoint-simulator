@@ -4687,6 +4687,31 @@ if ON:
     Q_TAIL_SCALE = float(os.environ.get("ALBO_ALD_Q_TAIL_SCALE", 1.2))  # owner's pick, 2026-09-16
     Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 1.04))  # x the tail's whole profile
     Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
+    # ROUND 178 -- AND IT THICKENS DOWNWARD. Owner 2026-09-16, after the
+    # Q_TAIL_BODY ladder: *"no winner of Q body ... thicken Q tail from the
+    # bottom"*. The bump was a symmetric swelling about the centreline, so it
+    # pushed the tail's TOP edge up into the bowl's own white as much as it put
+    # weight underneath -- which is why none of its rungs won.
+    #
+    # Q_TAIL_BOT adds width as a fraction of the profile and then drops the
+    # centreline by HALF of what it added, so the tail's upper edge stays
+    # exactly where it is at every t and the whole gain appears below. The
+    # stroke runs nearly horizontally, so "half the added width, straight down"
+    # is the offset along its own normal to within a couple of degrees.
+    #
+    # AND IT RAMPS IN FROM THE JOIN, which is the "improve connector" half of
+    # the same instruction. Round 156 established that the tail's first control
+    # point has to sit ON the ring at 250 degrees -- start it below and the
+    # glyph is two pieces with a visible gap. Dropping the centreline by a
+    # constant fraction moves that first point straight off the ring, and the
+    # union then shows a step under the bowl: built at 0.26 and 0.38 and it is
+    # plainly there. So both the drop and the width gain are multiplied by a
+    # smoothstep that is 0 AND FLAT at t=0 and 1 by Q_TAIL_BOT_IN -- the join
+    # is untouched at any depth, the underside swells in over the first quarter
+    # of the stroke, and there is no corner because the ramp has zero slope
+    # where it starts.
+    Q_TAIL_BOT = float(os.environ.get("ALBO_ALD_Q_TAIL_BOT", 0.0))
+    Q_TAIL_BOT_IN = float(os.environ.get("ALBO_ALD_Q_TAIL_BOT_IN", 0.26))
     Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
     Q_TAIL_BODY_AT = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_AT", 0.74))  # where the waist is, t
     Q_TAIL_BODY_SPAN = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_SPAN", 0.24))
@@ -4844,9 +4869,21 @@ if ON:
                             0.5 + 0.5 * math.cos(math.pi * d / Q_TAIL_BODY_SPAN))
                 return v
         wt = pen_widths(tail, floor=S * FLOOR)
-        return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W
-                                                 * Q_TAIL_SCALE,
-                                       cut1=CUT)])
+        _w = lambda t: wt(t) * prof(t) * Q_TAIL_W * Q_TAIL_SCALE
+        if Q_TAIL_BOT:
+            # drop each sample by half of what this t is about to gain, so the
+            # top edge does not move -- see Q_TAIL_BOT's note above
+            def _ramp(t, _i=Q_TAIL_BOT_IN):
+                if t >= _i: return 1.0
+                u = t / _i
+                return u * u * (3.0 - 2.0 * u)
+            _n = len(tail) - 1
+            tail = [(x, y - _w(i / _n) * Q_TAIL_BOT * _ramp(i / _n) / 2.0)
+                    for i, (x, y) in enumerate(tail)]
+            _wf = lambda t: _w(t) * (1.0 + Q_TAIL_BOT * _ramp(t))
+        else:
+            _wf = _w
+        return geom.ink([ring_, stroke(tail, _wf, cut1=CUT)])
 
     # ================================================ ROUND 135: NINE TO POETICA
     # Owner 2026-09-16: *"match R P S Z Q L K M A to poetica."* R P Z L K M came
@@ -6271,11 +6308,11 @@ if ON:
 BEARINGS = {
     'a': ( -28,   50), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
     'e': ( -19,   72), 'f': ( -32,   81), 'g': ( -13,   72), 'h': (   4,   58),
-    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   14), 'l': (  14,   58),
+    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   64), 'l': (  14,   58),
     'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
     'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),
     'u': ( -38,   38), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
-    'y': ( -52,  118), 'z': ( -22,    6),
+    'y': ( -52,  118), 'z': ( -22,   26),
 }
 
 # A comment asking the next editor to be careful would not have caught it.
@@ -7716,15 +7753,35 @@ if ON:
 # rebuilt the Y (the owner's weight ruling, the arm pulled in) and its bearings
 # were never re-solved against the new shape; -116 on its right was fitted to a
 # Y that no longer exists.
+# ROUND 178 -- THE COLLISIONS. Owner 2026-09-16: *"fix LA and any other
+# touching letter combinations"*, and the second half is the whole instruction:
+# LA was found by eye, and `cmp_touch.py` then swept all 5,193 pairs and found
+# **46 of them TOUCHING** -- LA was the 30th worst, at -0.008 em, against RA at
+# -0.145.
+#
+# The sweep attributes them to two sides and one mechanism.
+#
+#   A's LEFT, at -151, collided with ten different letters before it: R k z x
+#   4 3 A , d L. That number is an owner's own from the round-137 bench and it
+#   is what lets a T, V, W or Y tuck over the A's sloping left -- so it is
+#   raised here and the four kern cells that do the tucking are deepened by
+#   exactly the same amount, leaving TA VA WA YA FA PA where he set them and
+#   giving every OTHER letter before an A the space it never had.
+#
+#   R's RIGHT collided with twelve letters after it (Rs RE Rk Rz Rh Rl Rj Rg
+#   Rm Rp Rr), and W's with five (WV W" W' WW WU).
+CAP_A_LSB = int(os.environ.get("ALBO_ALD_CAP_A_LSB", -25))
+CAP_R_RSB = int(os.environ.get("ALBO_ALD_CAP_R_RSB", 0))
+CAP_W_RSB = int(os.environ.get("ALBO_ALD_CAP_W_RSB", -60))
 CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -72))
 CAP_Y_LSB = int(os.environ.get("ALBO_ALD_CAP_Y_LSB", 90))
 CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -6))
 CAP_BEARING_ADJ = {
-    'A': (-151,    0), 'B': (   1,   -2), 'C': (  -7,  -54), 'D': (  -4,   14),
+    'A': (CAP_A_LSB,    0), 'B': (   1,   -2), 'C': (  -7,  -54), 'D': (  -4,   14),
     'E': ( -77,  -50), 'F': (   0,  -37), 'G': (   0,  -28), 'H': (   0,  -86),
     'I': (  33,  -61), 'J': ( -84,    0), 'K': (   0,  -32), 'L': (  -3,  -24),
     'M': (   0,  -48), 'N': (   0,  -86), 'O': (   9,  -16), 'P': (   0,    3),
-    'Q': (   0,  -30), 'R': (   0,  -56), 'S': (   0,   36), 'T': (  87,  -56),
-    'U': (   0, CAP_U_RSB), 'V': (   0,  -48), 'W': (  35, -132), 'X': (   0,  -11),
+    'Q': (   0,  -30), 'R': (   0, CAP_R_RSB), 'S': (   0,   36), 'T': (  87,  -56),
+    'U': (   0, CAP_U_RSB), 'V': (   0,  -48), 'W': (  35, CAP_W_RSB), 'X': (   0,  -11),
     'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (   0,  -78),
 }
