@@ -4792,6 +4792,7 @@ if ON:
     def a_k(c):
         P, u = d_frame(c, K_W); J = K_JOIN
         K_KICK_Y = float(os.environ.get("ALBO_ALD_K_KICK_Y", -0.06))
+        K_KICK_FLIP = float(os.environ.get("ALBO_ALD_K_KICK_FLIP", 0.055))
         arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
                     [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 48),
@@ -4802,9 +4803,15 @@ if ON:
         # a kick; Coelacanth's k drives its leg through the baseline and lands
         # under it. K_KICK_Y is where the tip sits, in x-height, negative being
         # below the line.
+        # ...AND IT FLIPS UP AT THE END. Owner 2026-09-17: *"include small flip
+        # up on kick of k."* The leg drives through the baseline to its low
+        # point at K_KICK_Y and then the tip rises by K_KICK_FLIP -- a pen
+        # leaving the paper, not a stroke stopping at its lowest point. The low
+        # point moves back to x 398 so there is length left to rise over; with
+        # the low point at the tip there is nowhere to put the flip.
         leg = d_pen([P(152, J), P(212, 0.40), P(250, 0.28), P(290, 0.15),
-                     P(322, 0.05), P(360, -0.01), P(398, K_KICK_Y * 0.55),
-                     P(414, K_KICK_Y)],
+                     P(322, 0.05), P(366, -0.01), P(398, K_KICK_Y),
+                     P(420, K_KICK_Y + K_KICK_FLIP)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
         return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True,
