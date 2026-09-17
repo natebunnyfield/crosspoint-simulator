@@ -8474,12 +8474,54 @@ if ON:
     def a_T(c):
         return _press(_full_serif(_CS.g_T, c), CAP_T_HAND)
 
+    # AND THE I AND THE J ARE THINNER THAN THE REST. Owner 2026-09-17: *"thin
+    # out J and I to closer fit other letters."*
+    #
+    # MEASURED, the narrowest ink run at mid cap-height -- which on these two
+    # letters IS the stem, they have nothing else there -- in units at cap 674:
+    #
+    #                 I     J  |   H     B     T     L
+    #     ALBO       91    90  |  92    91    91    86
+    #     Coelacanth 69    75  |  79    77    84    85
+    #
+    # Albo draws its I and J at exactly the weight of every other stem.
+    # Coelacanth does NOT: its I is 0.87 of its H and its J 0.95, so the two
+    # letters that are nothing BUT a stem are cut lighter than the letters where
+    # a stem stands next to a bowl or an arm. That is an optical correction --
+    # a lone vertical with white on both sides reads heavier than the same
+    # vertical with ink beside it -- and Albo was missing it.
+    #
+    # CAP_I_W and CAP_J_W are those ratios. Like the serif override they patch
+    # `caps_straight`'s OWN `CW`, because that module binds it at import.
+    def _thin_stem(fn, c, k):
+        # `pen.CAP_STEM`, NOT caps_straight's `CW`. `primitives.stem` computes
+        # its default width as `TH_V * pen.CAP_STEM` -- an ATTRIBUTE lookup on
+        # the module, resolved when the stem is drawn -- so that is the one name
+        # in this chain that can be patched from outside. `CW` is bound into
+        # caps_straight at import and nothing reads it for these two letters;
+        # patching it built I and J byte-identical, which is the second time in
+        # two rounds that an import-bound constant swallowed an override without
+        # raising anything. Compare the outlines after any override of this kind.
+        old_ = pen.CAP_STEM
+        pen.CAP_STEM = old_ * k
+        try:
+            return fn(c)
+        finally:
+            pen.CAP_STEM = old_
+
+    CAP_I_W = float(os.environ.get("ALBO_ALD_CAP_I_W", 0.87))
+    CAP_J_W = float(os.environ.get("ALBO_ALD_CAP_J_W", 0.92))
+
+    @glyph('I')
+    def a_I(c):
+        return _thin_stem(_CS.g_I, c, CAP_I_W)
+
     @glyph('J')
     def a_J(c):
         # The J was not registered here at all -- it fell through to the roman,
-        # sheared. It is registered now so it can carry the full wedge; nothing
-        # else about it changes.
-        return _full_serif(_CS.g_J, c)
+        # sheared. It is registered now so it can carry the full wedge and its
+        # own stem weight; nothing else about it changes.
+        return _full_serif(lambda cc: _thin_stem(_CS.g_J, cc, CAP_J_W), c)
 
     # ------------------------------------------------------------- THE FIGURES
     # OWNER 2026-09-16: *"make italic numerals handcut"*.

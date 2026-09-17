@@ -22,7 +22,14 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.basePen import BasePen
 
-RECUT = "AGHKLMNOPQRSUVWXYZ"   # both round-135 passes, plus round 145's X and W
+RECUT = "AGHIJKLMNOPQRSUVWXYZ"   # both round-135 passes, round 145's X and W, round 192's I and J
+# ROUND 192 ADDS I AND J, and the note above is exactly why it has to. The owner
+# had them thinned to fit the other capitals (I 0.87 of the family stem, J 0.92)
+# -- a deliberate re-cut, so they stop being CONTROLS. Left in the control set
+# they dragged the median DOWN and every other capital's ratio up with it: H, M,
+# N, Q and R all went "OFF" by +0.06 to +0.09 in one build without a single one
+# of them being touched. The yardstick had moved, not the letters. That is the
+# same trap round 145 recorded for the X and the W, arriving again.
 # ADDING A LETTER HERE ALSO TAKES IT OUT OF THE CONTROLS, and that is not the
 # harmless bookkeeping it looks like. `widths()` divides every ratio by the
 # median of the capitals NOT in this string, so round 145 shrank the controls
@@ -81,7 +88,22 @@ def widths(ttf):
         ap = AreaPen(gs); gs[n].draw(ap)
         pp = _Perim(gs); gs[n].draw(pp)
         if pp.L > 0: w[ch] = 2 * abs(ap.value) / pp.L
-    ctl = sorted(v for c, v in w.items() if c not in RECUT)
+    # ROUND 192 -- THE MEDIAN IS OVER ALL 26, not over the controls.
+    #
+    # The control set was the letters this project had not redrawn, and it has
+    # been shrinking for 50 rounds: round 145 took the X and the W, round 192
+    # the I and the J, and what was left was six letters -- B C D E F T. A
+    # median over six is not a yardstick, it is a sample, and it moved 2% when
+    # the I and the J left it. That lifted K and Z past the tolerance in a build
+    # where NEITHER WAS TOUCHED, which is the failure mode this gate exists to
+    # rule out, produced by the gate itself.
+    #
+    # A median over all 26 cannot be moved meaningfully by re-cutting one or two
+    # letters -- that is what a median is for -- and it is the same statistic on
+    # both faces, so the comparison the gate actually makes (roman against
+    # italic) is unchanged in kind. RECUT now only decides which rows are
+    # REPORTED as re-cut, not what they are measured against.
+    ctl = sorted(w.values())
     med = ctl[len(ctl) // 2]
     return {c: v / med for c, v in w.items()}
 
@@ -128,7 +150,11 @@ def build(out, italic):
 # (`caps_straight.g_Y`, whose arm is `pw(q0, q1, 0.72)` -- that 0.72 is the
 # thin factor). Then parity returns and this row goes. It was not done here
 # because the instruction named the italic and the roman ships in Albo Regular.
-EXEMPT = {"Y": "round 163: the owner's weight ruling; the roman Y is the light one"}
+EXEMPT = {"Y": "round 163: the owner's weight ruling; the roman Y is the light one",
+          "I": "round 192: the owner had it thinned to fit the other capitals -- "
+               "a lone vertical reads heavier than the same stem beside ink, and "
+               "Coelacanth cuts its I at 0.87 of its H. Lighter than its roman ON PURPOSE",
+          "J": "round 192: as the I, at 0.92"}
 
 
 def main():
