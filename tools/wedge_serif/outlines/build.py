@@ -240,6 +240,15 @@ def fit_aldine(ch, conts):
     xs_u = [x - sh * y for pts, _ in conts for x, y in pts]
     l, r = (min(band), max(band)) if band else (min(xs_u), max(xs_u))
     lsb, rsb = ALD.BEARINGS[ch]
+    # ROUND 197 -- ONE TRACKING DIAL over the whole lowercase, so the FIT can be
+    # judged without disturbing the table. That table is round 133's solve plus
+    # the owner's own sixteen hand-set letters (round 136) and a +26 tracking he
+    # dialled at his bench; re-solving it would throw his fitting away. This
+    # adds or removes tracking uniformly -- half on each side, the way his was
+    # applied -- and 0 is exactly what ships.
+    _trk = float(os.environ.get("ALBO_ALD_TRACK", "0"))
+    if _trk:
+        lsb += _trk / 2.0; rsb += _trk / 2.0
     adv = lsb + (r - l) + rsb
     dx = lsb - l
     return adv, dx, min(x for pts, _ in conts for x, y in pts) + dx
