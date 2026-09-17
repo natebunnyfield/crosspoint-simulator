@@ -1837,7 +1837,7 @@ if ON:
     A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 312.0 - 2 * A_NARROW))  # stem center, units -- the d's
     A_RX = float(os.environ.get("ALBO_ALD_A_RX", 168.0 - A_NARROW))  # bowl outer half-width, units -- the d's 159 + 9, see THE ONE DIAL below
     A_CY = float(os.environ.get("ALBO_ALD_A_CY", 211.0))          # bowl center height, units -- the d's (round 169: superseded by A_TOP/A_BOT for the a)
-    A_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 436.0))        # the bowl's drawn top, units -- the o's
+    A_TOP = float(os.environ.get("ALBO_ALD_A_TOP", 457.0))        # the bowl's drawn top, units -- the o's
     A_BOT = float(os.environ.get("ALBO_ALD_A_BOT", -9.0))         # and its bottom, unchanged
     A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))       # the egg's lean, dx per dy -- the d's
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))             # squareness -- SHARED with d q g, do not move
@@ -2259,7 +2259,17 @@ if ON:
         bowl_ = keyed_ring(x0 + A_RX * u, (A_TOP + A_BOT) * u / 2.0, A_RX * u, ry, A_RING,
                            k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND,
                            flat=(A_FLAT, A_FLAT_A, A_FLAT_B) if A_FLAT else None)
-        return geom.ink([bowl_, hm_stem(c, xs, 0, xh), hm_exit(c, xs)])
+        # ROUND 170 -- THE STEM'S TOP CUT GOES, AND THE LETTER IS ONE SHAPE.
+        # Owner 2026-09-16: *"simplify a by combining overlapping shapes"*,
+        # with the bowl taken to 457. `hm_stem`'s default cuts the stem's top
+        # face down to the right "so the head can lie across it" -- and this
+        # letter has no head (see the nine-arm ladder above for why) and, since
+        # the bowl went to 457, no longer has its stem as its top either. Its
+        # own docstring names the case exactly: `cut=False` for a stem an ARCH
+        # lands on, because "the crown is the top, and a cut corner under it
+        # only pokes a spike through the shoulder". That spike is what read as
+        # two overlapping shapes at the top right.
+        return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs)])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
