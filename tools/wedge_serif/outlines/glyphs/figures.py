@@ -231,7 +231,13 @@ def g_two(c):
     its right wedge, the corner crisp as Albertus's."""
     D = c["figH"]; w = W_(c, '2', 440); rx = w * 0.46
     barw = max(TH_H, S * 0.5)
-    foot = (S * 0.5, barw * 0.45)
+    # GLITCH SWEEP 2026-09-16: the slash's end is "buried in the base", and at
+    # barw*0.45 it was not quite -- its square face reached 3.55 units under
+    # the bar's own bottom edge and printed a 12.6-unit^2 downward spike, 8
+    # units wide, on an otherwise straight baseline. Swept: barw*0.45 dips
+    # -3.55, barw*0.60 clears by +3.35 and every value above it clears further.
+    # Same family as the 1's flag (ONE_FLAG_BURY) and the 4's apex.
+    foot = (S * 0.5, barw * 0.60)
     best = None
     for deg in range(-40, -8, 1):
         top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(deg), BOWL_K)
@@ -285,6 +291,7 @@ def g_three(c):
 # FOUR_OPEN = False restores the closed construction byte for byte.
 FOUR_OPEN = False          # owner 2026-09-13: "revert 4 to last closed version" (the curved-open construction stays behind the flag; future todo: reduce the thickness of the 4's top-left stroke)
 FOUR_OPEN_GAP = 0.62       # x the stem, the gap at the top-left corner: 0.6 S is the standing aperture floor (50.4) and the cut's facets shave ~0.4 off the built gap, so the drawn number is a shade over
+FOUR_DIAG_BURY = 0.25      # glitch sweep 2026-09-16: how far back along its own line the CLOSED diagonal's top end sits, x the stem, so its square end face is under the stem's top face instead of spurring out of it (see g_four)
 
 
 @glyph('4')
@@ -322,7 +329,25 @@ def g_four(c):
         return geom.ink([dg, b, st])
     p1 = (S * 0.1, bar_y); p0 = (xs - S * 0.2, D)
     wd = pw(p0, p1, 0.75)
-    dg = diagonal(p0, p1, wd)
+    # GLITCH SWEEP 2026-09-16 -- THE CLOSED 4's APEX. The diagonal's centerline
+    # ended exactly ON the figure's top line, and its end face is square across
+    # a stroke climbing at ~70 degrees, so the face's upper corner stood 9.95
+    # units ABOVE the stem's own top over a 122-unit^2 tab: a pointed spur out
+    # of the top-right of the apex, plainly visible at 500 px beside the stem's
+    # entry flag. Exactly the 1's flag defect of round 75 (ONE_FLAG_BURY) and
+    # the italic entry's of this sweep, in the third place it can happen.
+    # The start is slid BACK ALONG ITS OWN LINE, so the diagonal keeps its
+    # angle, its width function (`pw` still reads the undisplaced p0->p1) and
+    # every part of its silhouette that leaves the stem. Swept: 0 leaves 122
+    # units^2 above the top, S*0.10 leaves 7.6, S*0.20 leaves none with 5.0
+    # units to spare and S*0.25 with 8.7 -- and from S*0.20 on, the ink OUTSIDE
+    # the stem stops changing at all (19786.6 units^2 at both 0.20 and 0.30),
+    # which is the proof that only the buried face is moving.
+    # The OPEN construction below does not want this: its diagonal deliberately
+    # stands clear of the stem, so there is nothing for it to be buried in.
+    _ux, _uy = p0[0] - p1[0], p0[1] - p1[1]; _L = math.hypot(_ux, _uy) or 1.0
+    p0d = (p0[0] - _ux / _L * S * FOUR_DIAG_BURY, p0[1] - _uy / _L * S * FOUR_DIAG_BURY)
+    dg = diagonal(p0d, p1, wd)
     if FOUR_OPEN:
         from .. import build as _build     # lazy: build imports this module
         ux, uy = p0[0] - p1[0], p0[1] - p1[1]; L = math.hypot(ux, uy) or 1.0
