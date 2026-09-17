@@ -2839,6 +2839,27 @@ if ON:
     # measurement they do not correct anything, they undo it. The a carries no
     # FIT row for the same reason.
     FIT.pop('b', None); FIT.pop('p', None)
+    # ROUND 193 -- THE b IS SHORTER THAN THE l AND NARROWER THAN IT WAS.
+    # Owner 2026-09-17: *"for b: reduce ascender to almost to l height;
+    # horizontal condense until it matches harmony and spacing within words."*
+    #
+    # MEASURED, ink top above the baseline and ink width, units at xh 429:
+    #
+    #                  b top   l top   b/l  |  b width   o width   b/o
+    #     ALBO           774     774  1.000 |     493       371   1.331
+    #     Coelacanth     760     776  0.979 |     481       420   1.146
+    #
+    # Albo's b reached EXACTLY the l's height -- the two ascenders ended on the
+    # same line, which is what makes a row of them look mechanical. Coelacanth
+    # stops its b just under, at 0.979, and "almost to l height" is that.
+    #
+    # And the b was half again as wide as its own o where the reference is a
+    # seventh wider. B_COND scales the bowl's radius AND its centre's distance
+    # from the stem together, so the bowl narrows without drifting off the stem
+    # -- scaling the radius alone would leave a gap at the join, and moving the
+    # centre alone would squash the bowl into the stem.
+    B_ASC = float(os.environ.get("ALBO_ALD_B_ASC", 0.978))    # x the ascender
+    B_COND = float(os.environ.get("ALBO_ALD_B_COND", 0.88))   # the bowl's horizontal scale
     B_STEM_X = float(os.environ.get("ALBO_ALD_B_STEM_X", 114.0))    # stem centre, units from the head's tip
     B_STEM_W = float(os.environ.get("ALBO_ALD_B_STEMW", 70.0))     # units
     # LIGHTER (owner 2026-09-16: "reduce visual weight of top serif on b and
@@ -2986,14 +3007,16 @@ if ON:
         # 1, so folding it in over the stem's share would leave a step at the
         # 0.78 key and folding it in over the whole path would fatten the tail.
         # The sway alone is what this letter gets; see docs/albo-entasis.md.
-        sp = catmull(ent_sway([(xs, c["asc"]), (xs, xh * 0.62), (xs, xh * 0.28)],
+        asc_b = c["asc"] * B_ASC
+        sp = catmull(ent_sway([(xs, asc_b), (xs, xh * 0.62), (xs, xh * 0.28)],
                               ENT_SWAY * u) +
                      [(xs + 18 * u, 46 * u), (xs + 64 * u, 14 * u),
                       (xs + B_EXIT * u, 22 * u)], tension=0.5)
         stem = stroke(sp, widths([(0.0, sw), (0.78, sw), (0.90, sw * 0.84), (1.0, 46 * u)]))
-        head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
+        head = bd_head(xs - sw / 2, xs + sw / 2, asc_b, u)
         ry = (xh + OVER * 0.6) / 2.0
-        bowl_ = keyed_ring(x0 + B_CX * u, B_CY * u, B_RX * u, ry, B_BOWL_RING,
+        bowl_ = keyed_ring(x0 + (B_STEM_X + (B_CX - B_STEM_X) * B_COND) * u,
+                           B_CY * u, B_RX * B_COND * u, ry, B_BOWL_RING,
                            k=B_K, skew=B_SKEW, unit=u)
         return geom.ink([bowl_, stem, head])
 
