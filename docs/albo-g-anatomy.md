@@ -121,9 +121,15 @@ crosses the ring, and a ray there measures the neck instead of the loop.
 | | contrast (thick/thin) | change per 5° (×100) | thickest at | thinnest at |
 |---|---|---|---|---|
 | the scan | **12.3 : 1** | **7.6** | 180° (left) | 345° |
-| Flanker | 4.2 : 1 | 2.7 | 40° | 290° |
-| Pagella | 4.0 : 1 | 2.8 | 65° | 285° |
+| Flanker | 4.1 : 1 | 2.7 | 40° | 290° |
+| Coelacanth | 4.4 : 1 | 3.6 | 40° | 125° |
+| Pagella | 4.3 : 1 | 2.9 | 65° | 290° |
 | **Albo** | 3.9 : 1 | **2.1** | 205° | **0° (right)** |
+
+Coelacanth Italic was added to `refs/` on the owner's instruction after this was
+first measured, and it does not change the finding — it agrees with the other
+two outline references and puts more distance between them and Albo on the
+`change` column, which is the column that matters.
 
 ## The answer: barely, and not where it should
 

@@ -202,3 +202,31 @@ branching-arch italic, and nothing from rounds 114-179 has been installed.
 ## Reference faces (scratchpad `wedge/ref/`, measured in `docs/fjord-glyph-guide.md` §000)
 
 `Albertus-Medium.ttf` (the stroke target; `-sxh.ttf` is the same file with `OS/2.sxHeight` added so `outlines/cmp/proof.block` can rule it), `ITCBerkeley-{Medium,Bold,MediumItalic,BoldItalic}.otf`, `Berkeley-Oldstyle-Bold.ttf`, `miju-goudy/` (clone of aperezdc/miju-goudy: `font/MijuGoudy-*.ttf`, `sukhumala/`), `cheltenham-classic/` (clone of vetrivelcsamy/cheltenham-classic: `docs/font-files/CheltenhamClassic*.ttf`), `EBGaramond-400.ttf`. Van den Keere, Dante, Doves, Edgar live in the firmware repo's `lib/EpdFont/local_fonts/`. The scratchpad is session-local: re-copy from `~/.claude/uploads/` or re-clone if it is gone.
+
+## The reference italics
+
+`refs_registry.py` is the one list of them, and it exists for a single trap:
+**a font's declared italic angle is not its slant, and two of the five declare
+zero.** Every instrument here unshears a reference by its angle before comparing
+it with Albo, so trusting `post.italicAngle` measures those two faces *sheared*
+and produces plausible wrong numbers with no error.
+
+| reference | true slant | what it is for |
+|---|---|---|
+| Flanker Griffo Italic | 11.7° (declares 12.0) | the primary reference — Griffo's own letter |
+| **Coelacanth Italic** | **14.5° (declares 0)** | Centaur/Bruce Rogers lineage; the face `IT_SERIF` and the g's brush-stroke analysis were measured off. x-height 425/1000, the closest of any reference to Albo's 429 |
+| Pagella Italic | 11.7° (declares 10.0) | proportion fallback where no scan crop exists |
+| Poetica Std | 9.2° (declares 11.0) | the owner's preferred shape fallback |
+| Cancelleresca Bastarda | **10.3° (declares 0)** | a chancery hand, 28 glyphs, lowercase only |
+
+```bash
+PYTHON_GIL=0 python3 refs_registry.py     # prints the table and re-measures it; non-zero on drift
+```
+
+It is a gate as well as a table: it re-measures every face and fails if one has
+drifted, which is what happens when a file is replaced by a different cut under
+the same name. **The slant is measured off `l` and only `l`** — a single bare
+stem. The row-midpoint method spans two stems and an arch on `n`/`m` and a bowl
+on `b`/`d`/`h`/`k`; adding `n` and `m` to the median flipped Coelacanth from
++14.5 to −14.0 and Poetica from +9.2 to −10.7, which is how the error was
+caught. A sign reversal is too large to be a slant and too plausible to ignore.

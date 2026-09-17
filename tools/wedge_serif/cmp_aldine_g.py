@@ -85,6 +85,22 @@ def _components(mask):
     return out
 
 
+def _true_slant(ttf, f):
+    """A reference's REAL slant. `post.italicAngle` is zero on two of the five
+    reference italics, both of which plainly slant, so trusting the field
+    measures those faces sheared and every number that follows is wrong with no
+    error raised. The table lives in refs_registry."""
+    import os
+    try:
+        import refs_registry as RR
+        base = os.path.basename(ttf)
+        for n, (fn, sl, _) in RR.REFERENCES.items():
+            if fn == base:
+                return sl
+    except Exception:
+        pass
+    return -getattr(f["post"], "italicAngle", 0.0)
+
 def ink_from_font(ttf, xh_px=900):
     """Render g so its x-height is xh_px, UNSHEARED, and return an ink mask
     plus the baseline and x-line rows."""
@@ -93,7 +109,9 @@ def ink_from_font(ttf, xh_px=900):
     upm = f["head"].unitsPerEm
     try: sx = f["OS/2"].sxHeight or upm * 0.5
     except Exception: sx = upm * 0.5
-    ang = -getattr(f["post"], "italicAngle", 0.0)
+    # NOT post.italicAngle -- two of the five references declare zero and are
+    # plainly italic; see refs_registry's module docstring.
+    ang = _true_slant(ttf, f)
     size = int(round(xh_px * upm / sx))
     fnt = ImageFont.truetype(ttf, size)
     W = H = size * 3
@@ -246,9 +264,11 @@ def main():
     fonts = a.ttf or [os.path.join(REFS, "flanker-griffo-italic.otf"),
                       os.path.join(REFS, "texgyrepagella-italic.otf"),
                       os.path.join(REFS, "cancelleresca-bastarda-beta12.otf")]
-    labels = {"flanker-griffo-italic.otf": "Flanker Griffo",
-              "texgyrepagella-italic.otf": "Pagella",
-              "cancelleresca-bastarda-beta12.otf": "Cancelleresca"}
+    try:
+        import refs_registry as RR
+        labels = {fn: n for n, (fn, _s, _d) in RR.REFERENCES.items()}
+    except Exception:
+        labels = {}
     for t in fonts:
         m, b, xl, xp = ink_from_font(t, a.xh)
         subjects.append((labels.get(os.path.basename(t), os.path.basename(t)),

@@ -52,12 +52,29 @@ def ink_from_scan(path):
     a=np.asarray(im)
     return a<otsu(a)
 
+def _true_slant(ttf, f):
+    """A reference's REAL slant. `post.italicAngle` is zero on two of the five
+    reference italics, both of which plainly slant, so trusting the field
+    measures those faces sheared and every number that follows is wrong with no
+    error raised. The table lives in refs_registry."""
+    import os
+    try:
+        import refs_registry as RR
+        base = os.path.basename(ttf)
+        for n, (fn, sl, _) in RR.REFERENCES.items():
+            if fn == base:
+                return sl
+    except Exception:
+        pass
+    return -getattr(f["post"], "italicAngle", 0.0)
+
 def ink_from_font(ttf, px=900):
     from fontTools.ttLib import TTFont
     f=TTFont(ttf); upm=f["head"].unitsPerEm
     try: sx=f["OS/2"].sxHeight or upm*0.5
     except Exception: sx=upm*0.5
-    ang=-getattr(f["post"],"italicAngle",0.0)
+    # NOT post.italicAngle -- see refs_registry's module docstring
+    ang=_true_slant(ttf,f)
     size=int(round(px*upm/sx)); W=H=size*3
     im=Image.new("L",(W,H),255)
     ImageDraw.Draw(im).text((W*0.35,H*0.62),"g",font=ImageFont.truetype(ttf,size),fill=0,anchor="ls")
