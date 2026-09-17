@@ -1937,6 +1937,55 @@ if ON:
         u = (ang - a0) / (a1 - a0) if a1 > a0 else 0.0
         return v0 + (v1 - v0) * (0.5 - 0.5 * math.cos(math.pi * u))
 
+    # --------------------------------------------------------- nib_arc_widths
+    # OWNER 2026-09-16: *"make P axis and contrast match rest of italic"*, and
+    # the fault is not the pen -- the P's arc already calls `nib_widths` with
+    # CAP_W_ROUND and CAP_CON, the G's own arguments. It is `con()`.
+    #
+    # `con()` re-spreads a width sequence to a target contrast by measuring the
+    # MIN AND MAX PRESENT IN THAT SEQUENCE. On a closed ring the raw nib runs
+    # the full 0.30..1.00 of its thick, a raw ratio of 3.33, and con COMPRESSES
+    # it to CAP_CON's 2.20. On the P's arc -- 90 degrees round to -88, half the
+    # ring -- the raw nib only ever varies between |sin(130)| and |sin(-48)|,
+    # a raw ratio of 1.35, and con STRETCHES that to 2.20. Same dial, opposite
+    # operation, and the letter is over-modulated against every closed bowl in
+    # the alphabet. Measured on the built font, unsheared, the bowl's own ink
+    # from 0.50 to 0.80 of the cap: P 59 -> 105, a factor of 1.78, against the
+    # O's 73 -> 112, a factor of 1.53.
+    #
+    # The fix is to ask what the WHOLE ring would have done and read the arc's
+    # share of it: compute the widths on a closed ring of the same rx/ry, then
+    # look each arc point's own angle up in that sequence. An arc of a ring is
+    # then literally an arc of that ring, and no partial-sequence statistic can
+    # get between the two.
+    def nib_arc_widths(pts, cx, cy, rx, ry, thick, thin_f=0.30, target=None,
+                       phi=50.0, k=None, unit=1.0):
+        """The widths a CLOSED ring of this geometry would carry, sampled at
+        `pts`' own angles. Returns a list, one width per point."""
+        k = BOWL_K if k is None else k
+        target = CAP_CON if target is None else target
+        full = superellipse(cx, cy, rx, ry, 0.0, 2 * math.pi, k)[:-1]
+        wf = nib_widths_closed(full, thick, thick * thin_f, target, phi)
+        n = len(full)
+        angs = [math.atan2((y - cy) / ry, (x - cx) / rx) % (2 * math.pi)
+                for x, y in full]
+        order = sorted(range(n), key=lambda i: angs[i])
+        sa = [angs[i] for i in order]; sw = [wf[i] for i in order]
+        out = []
+        for x, y in pts:
+            a = math.atan2((y - cy) / ry, (x - cx) / rx) % (2 * math.pi)
+            lo, hi = 0, len(sa)
+            while lo < hi:                       # bisect, no import
+                mid = (lo + hi) // 2
+                if sa[mid] < a: lo = mid + 1
+                else: hi = mid
+            i1 = lo % len(sa); i0 = (lo - 1) % len(sa)
+            a0, a1 = sa[i0], sa[i1]
+            d = (a1 - a0) % (2 * math.pi)
+            u = ((a - a0) % (2 * math.pi)) / d if d else 0.0
+            out.append((sw[i0] + (sw[i1] - sw[i0]) * u) * unit)
+        return out
+
     def nib_ring(cx, cy, rx, ry, k=None, unit=1.0, smooth_w=2, floor=0.0,
                  thick=None, thin_f=0.30, target=None, phi=50.0, hand=None):
         """A closed bowl carrying the G's own pen. Returns (solid, outer, inner).
@@ -4391,6 +4440,39 @@ if ON:
             out.append((dx, y - m * (1.0 - CAP_R_W) * w / 2 * abs(math.cos(th)), w))
         return out
 
+    # ------------------------------------------------------------ _hand_rows
+    # OWNER 2026-09-16: *"make R more handcut"*, the same instruction the Q
+    # took in round 151 -- and the same answer, adapted to a letter that is
+    # STROKES rather than a ring. The Q's HAND table is keyed by angle round a
+    # closed contour; an R's bowl and leg are traced centrelines, so the key
+    # here is the FRACTION ALONG THE TABLE, and a cut moves the centreline in
+    # x and y and thickens or thins the stroke at that point.
+    #
+    # Each cut is (t, ddx, ddy, dw), all three deltas in CAP UNITS, applied
+    # with a raised-cosine bump of half-width `span` so a cut is a stretch of
+    # the stroke rather than one displaced control point -- a single point
+    # moved on a traced table is a kink, and `_R_traced` would then smooth a
+    # curvature break straight back out of it.
+    #
+    # As with the Q's: a TABLE, not `life()`. A defect that re-rolls per build
+    # is noise; a defect that stays is a cut.
+    def _hand_rows(tab, cuts, span=0.18, scale=1.0):
+        if not cuts or not scale:
+            return tab
+        n = len(tab) - 1
+        out = []
+        for i, (dx, y, w) in enumerate(tab):
+            t = i / n if n else 0.0
+            ax = ay = aw = 0.0
+            for ct, cdx, cdy, cdw in cuts:
+                d = abs(t - ct)
+                if d >= span:
+                    continue
+                m = 0.5 + 0.5 * math.cos(math.pi * d / span)
+                ax += cdx * m; ay += cdy * m; aw += cdw * m
+            out.append((dx + ax * scale, y + ay * scale, max(0.004, w + aw * scale)))
+        return out
+
     def _R_traced(tab, x0, C, wscale=None):
         """A stroke from a traced table of (dx, y, width), all x cap and dx from
         the stem's midline: the centerline through EVERY traced point, and the
@@ -4428,6 +4510,32 @@ if ON:
              for i in range(len(v))]
         return p_, widths([(i / n, v[i]) for i in range(n + 1)])
 
+    # THE R'S SIX CUTS, read as the cutter's own progress round the letter.
+    # `t` is the fraction along each traced table; ddx/ddy move the centreline,
+    # dw the stroke, all in cap units. Magnitudes are 3 to 7 units at a cap of
+    # 674 -- the same order as the Q's, and for the same reason: at 13 pt none
+    # of it is a feature, what it does is stop the two sides of a curve being
+    # the same curve.
+    #
+    #  BOWL
+    #   0.16  the lower arm, where the bowl comes back to the stem, pulls
+    #         DOWN 3 and thins 3: the shallowest part of the stroke and the
+    #         first place a graver wanders.
+    #   0.46  the flank's press -- out 4 and 4 heavier, just BELOW the nib's
+    #         own thickest at 0.55 so the two do not stack. That is round
+    #         153's lesson on the Q, applied before it could cost a round.
+    #   0.82  the crown lifts: in 3, down 2, and 4 thinner, which is the pen
+    #         leaving the paper rather than a lighter pen.
+    #  LEG
+    #   0.34  the elbow takes 5 more, where a swash is pressed hardest.
+    #   0.78  and gives 4 back before the tip, so the taper is not a ramp.
+    CAP_R_HAND = float(os.environ.get("ALBO_ALD_CAP_R_HAND", 1.0))
+    CAP_R_BOWL_HAND = [(0.16, 0.000, -0.0044, -0.0044),
+                       (0.46, 0.0059, 0.000, 0.0059),
+                       (0.82, -0.0044, -0.0030, -0.0059)]
+    CAP_R_LEG_HAND = [(0.34, 0.000, -0.0030, 0.0074),
+                      (0.78, 0.000, 0.0022, -0.0059)]
+
     @glyph('R')
     def a_R(c):
         """Stem, a closed ring bowl whose bottom arm returns to the stem, and a
@@ -4438,8 +4546,10 @@ if ON:
         `g_Q`'s tail and this module's other tails do. A foot wedge out there
         would be a serif on a swash."""
         C = c["cap"]; x0 = CS * 0.6
-        bp, bw = _R_traced(CAP_R_BOWL, x0, C)
-        lp, lw = _R_traced(_R_kick_sunk(CAP_R_LEG), x0, C)
+        bp, bw = _R_traced(_hand_rows(CAP_R_BOWL, CAP_R_BOWL_HAND,
+                                     scale=CAP_R_HAND), x0, C)
+        lp, lw = _R_traced(_R_kick_sunk(_hand_rows(CAP_R_LEG, CAP_R_LEG_HAND,
+                                                   scale=CAP_R_HAND)), x0, C)
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
                          stroke(bp, bw), stroke(lp, lw, cut1=CUT)])
 
@@ -4465,6 +4575,8 @@ if ON:
     # capital the doubling pushed past the gate (+0.05 against its roman),
     # because its bowl already carried the extra weight round 138 gave it.
     CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.06))   # the bowl's weight, x CAP_W_ROUND
+    CAP_P_INK = float(os.environ.get("ALBO_ALD_CAP_P_INK", 1.00))  # round 158: x the closed ring's widths
+    CAP_P_SMOOTH = int(os.environ.get("ALBO_ALD_CAP_P_SMOOTH", 7))  # the moving average nib_widths used to apply
     # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
     # of P."* The wedge itself was never the odd one: this letter's stem is
     # `cstem_i(top='left')`, the same call B D E F I J L H N reach, and measured
@@ -4509,9 +4621,16 @@ if ON:
         def _arc(cy_, ry_):
             p = superellipse(x0, cy_, rx, ry_, math.radians(90),
                              math.radians(CAP_P_BOWL_END), BOWL_K)
-            w = nib_widths(p, CS * CAP_W_ROUND * CAP_P_W / S,
-                           CS * CAP_W_ROUND * CAP_P_W * 0.30 / S,
-                           CAP_CON, smooth=7, taper=False)
+            # ROUND 158: the widths are the CLOSED ring's, read at this arc's
+            # own angles -- see `nib_arc_widths` for why `nib_widths` + `con`
+            # on a half ring stretches where the closed bowls compress.
+            w = [v / S for v in nib_arc_widths(
+                p, x0, cy_, rx, ry_, CS * CAP_W_ROUND * CAP_P_W,
+                unit=CAP_P_INK)]
+            if CAP_P_SMOOTH:
+                kk = CAP_P_SMOOTH
+                w = [sum(w[max(0, i - kk):i + kk + 1]) /
+                     len(w[max(0, i - kk):i + kk + 1]) for i in range(len(w))]
             return p, w
 
         p_, ws = _arc(cy, ry)
@@ -4755,6 +4874,8 @@ if ON:
     # is `_stem_serifs` now and takes the family's own WL/WD/DROP. What is left
     # is the ANGLE of the end cut the serif seats on.
     CAP_K_ATILT = float(os.environ.get("ALBO_ALD_CAP_K_ATILT", 8.0))   # degrees of shear on the arm's end face
+    CAP_K_ASER_LEN = float(os.environ.get("ALBO_ALD_CAP_K_ALEN", 1.35))  # the cap serif's LENGTH, x the family's
+    CAP_K_APEAK = float(os.environ.get("ALBO_ALD_CAP_K_APEAK", 0.014))   # the arm's last row dropped, x C
     # THE ARM, traced, drawn from the CAP LINE DOWN INTO THE STEM:
     # (x from the stem's midline, height, perpendicular width), all x cap. The
     # first row carries the centerline to the cap line holding the width it had
@@ -4775,7 +4896,7 @@ if ON:
         (0.3961, 0.7400, 0.0551), (0.4096, 0.7600, 0.0558), (0.4223, 0.7800, 0.0571),
         (0.4343, 0.8000, 0.0591), (0.4453, 0.8200, 0.0621), (0.4555, 0.8400, 0.0661),
         (0.4650, 0.8600, 0.0713), (0.4746, 0.8800, 0.0789), (0.4846, 0.9000, 0.0896),
-        (0.4957, 0.9200, 0.1068), (0.5400, 1.0000, 0.1068),
+        (0.4957, 0.9200, 0.1068), (0.5400, 1.0000 - CAP_K_APEAK, 0.1068),
     ]
     # THE LEG, traced, drawn from the BASELINE UP INTO THE STEM so the family's
     # `_stem_serifs` foot can be seated on it: that helper walks a stroke drawn
@@ -4827,7 +4948,29 @@ if ON:
         # stroke it sits on is the ledge-between-two-faces the owner had
         # cleaned off the roman E and F.
         asolid, aL, aR = stroke(ap, aw, cut1=math.radians(CAP_K_ATILT), sides=True)
-        arm = geom.union([asolid] + _stem_serifs(aL, aR, 'both', True))
+        # ROUND 159 -- LONGER, NOT TALLER, AND WITH THE PEAK OFF. Owner
+        # 2026-09-16: *"yes to tilt 8 on K but top right serif needs to be
+        # slightly enlarged without being taller, also reduce angular peak on
+        # top"*. Two separate dimensions of the same wedge, and
+        # `_stem_serifs` offers neither, so the two blades are written out
+        # here -- its body exactly, with CAP_K_ASER_LEN on the LENGTH only.
+        # WD and DROP are untouched, which is what "without being taller"
+        # means: a wedge's height is its depth and its drop, its reach along
+        # the cap line is its length.
+        #
+        # The PEAK is the other half. `cut1` shears the arm's end face, so at
+        # any tilt one of its two corners stands proud of the other and pokes
+        # up through the serif's flat top as a point. CAP_K_APEAK lowers the
+        # arm's last traced row so that corner comes down under the blades and
+        # the serif's own top edge is the letter's top -- the tilt is kept
+        # exactly, which is what he asked for; what goes is the spike it made.
+        kser = []
+        for sx, e in ((-1, aL), (1, aR)):
+            kser.append(_wedge(e[-1], (0, 1), (sx, 0),
+                               WL * CAP_SERIF_FULL * CAP_K_ASER_LEN,
+                               WD * CAP_SERIF_FULL * (CAP_SERIF_TRAIL_TOP if sx < 0 else 1.0),
+                               DROP * CAP_SERIF_FULL, edge_at=_edge_back(e)))
+        arm = geom.union([asolid] + kser)
         lsolid, Lz, Rz = stroke(lp, lw, sides=True)
         leg = geom.union([lsolid] + _stem_serifs(Lz, Rz, 'both', False))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
@@ -5419,8 +5562,18 @@ if ON:
     # curvature now: the spine straight to 0.30 and then a power curve
     # (exponent 1.6) into the top-left, the arm a power curve (0.85) from the
     # join to the top-right. The end points are Pagella's; the wobble is not.
+    # ROUND 158 -- THE LEFT BRANCH COMES IN. Owner 2026-09-16: *"move Y left
+    # branch over and closer to rest of letter"*. The head's reach is the 0.3516
+    # in this expression: the branch leaves the stem's x at 0.4816 of the cap
+    # and arrives at 0.4816 - reach. At Pagella's own 0.3516 the head lands at
+    # 0.1300 cap, which is 0.35 of the cap LEFT of the stem while the right arm
+    # only reaches 0.19 right of it -- the letter hangs to the left and the gap
+    # under the left branch is the biggest white in the capital alphabet. The
+    # exponent is untouched, so the branch keeps the single curve the owner
+    # ruled on earlier the same day: it is the same shape, reaching less far.
+    Y_LEFT_REACH = float(os.environ.get("ALBO_ALD_Y_REACH", 0.2950))
     Y_SPINE = [(0.4816, 0.000), (0.4816, 0.200), (0.4816, 0.300)] + [
-        (round(0.4816 - 0.3516 * (((y - 0.30) / 0.675) ** 1.6), 4), y)
+        (round(0.4816 - Y_LEFT_REACH * (((y - 0.30) / 0.675) ** 1.6), 4), y)
         for y in (0.40, 0.50, 0.60, 0.70, 0.80, 0.88, 0.975)]
     # Widths are the MEASURED perpendicular thickness less INK_SPREAD's 2.4
     # units (0.00356 x cap), for the same reason the O's ring table has 2 taken
