@@ -3301,6 +3301,9 @@ if ON:
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
+    G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 0.80))  # all three neck widths
+    G_NECK_END = float(os.environ.get("ALBO_ALD_G_NECK_END", 8.0))       # how far below the loop's top it stops
+    G_NECK_ANG = float(os.environ.get("ALBO_ALD_G_NECK_ANG", 0.18))      # the neck's catmull tension; lower = more angular
     # ROUND 166 -- ONLY THE LOWER LOOP'S AXIS. Owner 2026-09-16, narrowing his
     # own instruction after seeing the first cut: *"only correct the axis of the
     # lower loop in g"*. So the bowl's table and both rings' WEIGHTS are put
@@ -3349,13 +3352,35 @@ if ON:
         lt = G_LTOP * u; lb = -dsc - OVER * 0.4
         lo = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u, (lt - lb) / 2.0,
                         G_LRING, k=A_K, skew=G_SKEW_L, unit=u)
-        # the neck: out of the bowl's bottom at x 97, left to x 44 on the
-        # baseline, then right into the loop's top. Widths are the run widths
-        # taken perpendicular -- 46 at the waist, 58 where it enters the loop.
+        # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
+        # Owner 2026-09-16: *"thin out and fix and make the connector in g
+        # tastefully angular. do not overrun into counter"*. Three faults, and
+        # the third is the one that shows at 620 px:
+        #
+        #   IT OVERRAN. The neck's last control point sat at `lt - 43u` -- 43
+        #   units BELOW the loop's own top -- so the stroke drove through the
+        #   loop's ring and its end face stood inside the loop's COUNTER as a
+        #   spur. G_NECK_END lands it on the ring instead; the union then
+        #   swallows the face and the counter is white all the way round.
+        #
+        #   IT WAS THICK. 56 / 50 / 64 units at its start, waist and end, on a
+        #   letter whose two rings run 24 to 74. The neck is the one part of a
+        #   g that is neither bowl nor loop, and it is where the pen is moving
+        #   fastest. G_NECK_SCALE takes all three down together so the waist
+        #   stays a waist.
+        #
+        #   IT WAS SOFT. `catmull(tension=0.5)` through five points rounds the
+        #   turn under the bowl into an even curve. G_NECK_ANG drops the
+        #   tension for this stroke alone, which pulls the path toward its own
+        #   control polygon and puts a corner where the pen changes direction
+        #   -- angular by drawing rather than by a cut laid over a curve.
         nk = stroke(catmull([(x0 + (G_CX + G_SKEW * -G_RY - 8) * u, (G_CY - G_RY) * u + 10 * u),
                              (x0 + G_NECK_L * u, 46 * u), (x0 + (G_NECK_L - 6) * u, 4 * u),
-                             (x0 + (G_NECK_L + 56) * u, -40 * u), (x0 + G_NECK_R * u, lt - 43 * u)], tension=0.5),
-                    widths([(0.0, 56 * u), (0.42, G_NECK_W * u), (1.0, 64 * u)]))
+                             (x0 + (G_NECK_L + 56) * u, -40 * u),
+                             (x0 + G_NECK_R * u, lt - G_NECK_END * u)], tension=G_NECK_ANG),
+                    widths([(0.0, 56 * u * G_NECK_SCALE),
+                            (0.42, G_NECK_W * u * G_NECK_SCALE),
+                            (1.0, 64 * u * G_NECK_SCALE)]))
         # the ear: a short flat stroke off the bowl's top right, at the x-line
         ear = stroke([(x0 + (G_CX + G_RX * 0.55) * u, xh * 0.96),
                       (x0 + G_EAR_X * u, xh * G_EAR_Y)],
