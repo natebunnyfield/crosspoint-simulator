@@ -3786,7 +3786,68 @@ if ON:
     # thick landing at 225 where the a's and the o's are. Nothing else about
     # this letter moves: the loop's weights are the same eight numbers in a
     # different order, so its ink is unchanged to the unit.
+    # ROUND 183 -- BOTH RINGS ARE TRACED OFF COELACANTH.
+    # Owner 2026-09-17: *"trace g with an approved result."*
+    #
+    # `trace_g.py` rasterises Coelacanth's g unsheared, distance-transforms the
+    # ink, takes the ridge as the pen's centreline and twice the distance as its
+    # width there, assigns each sample to whichever of the letter's two counters
+    # it belongs to, and reads the width off at every 10 degrees round each ring.
+    # These are those numbers, in Albo's units at xh 429, thinned to 30-degree
+    # steps and scaled by G_TRACE_W to Albo's colour.
+    #
+    # NOT a bezier copy: what is traced is where the pen went and how wide it
+    # was. Coelacanth is OFL with the reserved name "Coelacanth"; a derivative
+    # under another name is permitted and Albo is another name.
+    #
+    # TWO BINS ARE DROPPED, and they are dropped for a stated reason rather than
+    # because they looked wrong: at the bowl's 240 and the loop's 80-90 the NECK
+    # crosses the ring, so a ridge sample there is the neck's centreline and not
+    # the ring's -- the loop reads radius 210 at 80 degrees against about 130
+    # either side of it, which is the neck, and the bowl reads 213 at 240. The
+    # neighbours are interpolated across instead: the loop's 90 traced 84 units
+    # between neighbours of 31 and 23, which is the neck's own centreline and
+    # not the loop's, and is carried here as 27; the bowl's 240 traced radius
+    # 213 against about 150 either side and is carried as 45.
+    #
+    # AND THE PEN IS FITTED OUT OF THE TRACE, rather than the trace being used
+    # raw. Carried raw at 10-degree steps the contours DENTED -- a visible bump
+    # in each counter, and not from the hand-cut table: built at G_HAND 0 and
+    # the dents were still there. The cause is in `nib_widths`' own note -- the
+    # inner offset of a stroke whose width changes fast develops a corner, and a
+    # narrow counter shows every one.
+    #
+    # The fast swings are REAL and they are the JUNCTIONS: the trace runs
+    # 73 -> 29 units across the bowl's 230-250 where the neck leaves, and
+    # 59 -> 87 across the loop's 190-210 where it lands. `aldine.py` draws the
+    # neck and the ear as their own strokes, so a plain ring must not carry
+    # their width changes as well -- it would be drawing those junctions twice.
+    #
+    # So each traced profile is least-squares fitted to what a broad nib can
+    # actually do, w = A*|sin(t - phi)| + B, and the FIT is what ships:
+    #
+    #     bowl   w = 47.5*|sin(t -  95)| + 23.0    3.06:1    rms 7.6 units
+    #     loop   w = 51.6*|sin(t - 132)| + 14.7    4.51:1    rms 12.0 units
+    #
+    # The residual is the evidence for the reading: the four worst-fitting bins
+    # on the bowl are 220, 230, 250 and 60, and on the loop 200, 210, 90 and
+    # 310 -- which is exactly where the neck and the ear meet each ring, and
+    # nowhere else.
+    #
+    # The traced pattern is what a pen must give: two lobes 180 degrees apart.
+    # Bowl thick at 0 and 210, thin at 70 and 250. Loop thick at 25 and 205,
+    # thin at 115 and 295. The two rings' axes sit about 20 degrees apart, which
+    # is one pen -- Coelacanth's measured bowl/loop signature is 15/30.
+    G_TRACE = os.environ.get("ALBO_ALD_G_TRACE", "1") != "0"
+    G_TRACE_W = float(os.environ.get("ALBO_ALD_G_TRACE_W", 0.88))
     G_RING = [(0, 66), (45, 46), (90, 25), (135, 50), (180, 70), (225, 35), (270, 27), (315, 38)]
+    if G_TRACE:
+        G_RING = [(a, w * G_TRACE_W) for a, w in
+                  [(0, 70), (15, 70), (30, 66), (45, 59), (60, 50), (75, 39),
+                   (90, 27), (105, 31), (120, 43), (135, 54), (150, 62),
+                   (165, 68), (180, 70), (195, 70), (210, 66), (225, 59),
+                   (240, 50), (255, 39), (270, 27), (285, 31), (300, 43),
+                   (315, 54), (330, 62), (345, 68)]]
     # ROUND 175 -- THE g IS HAND CUT, and the depth was found by breaking it.
     # Owner 2026-09-16: *"make g handcut until it almost doesn't read legible
     # in a word, then come back 50%"*. So the ladder is run PAST the useful
@@ -3895,16 +3956,23 @@ if ON:
     # comes out: the hand-cut tables add on top and the ridge measurement takes
     # junctions in too. 2.30 in measures 2.83 out, against Coelacanth's 2.80 --
     # so the dial is set by measuring the built font, not by reading the number.
-    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 70.0))
+    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 0.0))
     G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.37))
     G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 2.30))
-    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 74.0))
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 0.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.36))
     G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 2.30))
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
     G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
     G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
                (270, 58), (315, 58)]
+    if G_TRACE:
+        G_LRING = [(a, w * G_TRACE_W) for a, w in
+                   [(0, 53), (15, 61), (30, 65), (45, 66), (60, 64), (75, 58),
+                    (90, 49), (105, 38), (120, 25), (135, 17), (150, 31),
+                    (165, 43), (180, 53), (195, 61), (210, 65), (225, 66),
+                    (240, 64), (255, 58), (270, 49), (285, 38), (300, 25),
+                    (315, 17), (330, 31), (345, 43)]]
     if G_LRING_THIN != 58.0:
         G_LRING = sorted(G_LRING + [(G_LRING_THIN_AT, G_LRING_THIN)])
     if os.environ.get("ALBO_ALD_G_RING"):
