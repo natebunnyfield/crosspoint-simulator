@@ -3747,8 +3747,57 @@ if ON:
     # joint reads as one movement. G_NECK_END_W takes the neck's end DOWN to
     # meet what it is landing on rather than up.
     G_NECK_S = float(os.environ.get("ALBO_ALD_G_NECK_S", 0.0))
-    G_NECK_FLAT = float(os.environ.get("ALBO_ALD_G_NECK_FLAT", 80.0))  # level run into the loop, units  # the inflection; 0 = round 185's monotone slide
-    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 58.0))
+    G_NECK_FLAT = float(os.environ.get("ALBO_ALD_G_NECK_FLAT", 80.0))  # level run into the loop, units
+    # ROUND 187 -- WHERE THE CONNECTOR TURNS, AND WHAT IT WEIGHS THERE.
+    # Owner 2026-09-17: *"take a closer and smarter look at the reversal
+    # connector ... you are claiming success repeatedly without matching the
+    # reference."* Correct on both counts, and the earlier readings were junk:
+    # three attempts isolated the neck by DISTANCE from the two counters, and
+    # each time the rings' far walls wandered into the sample -- one reported
+    # the centre at x 411 and then x 48, which is the loop's right side and then
+    # its left. Nothing built on those numbers was worth anything.
+    #
+    # The neck is traced by CONNECTIVITY now (scratchpad/neck2.py): start at the
+    # row under the bowl's counter floor, take the ink run beneath the counter's
+    # centre, then step down taking the run that OVERLAPS the previous one. That
+    # is the connector and nothing else, by construction.
+    #
+    #                     turns at y   width there   through the turn
+    #     Coelacanth          +7           81        65 71 81 87  RISING
+    #     Flanker            +23           76        rising
+    #     ALBO               +30           55        78 68 55  STILL FALLING
+    #
+    # Two faults, and the second is the one no amount of path-shape work could
+    # have reached. The references turn AT THE BASELINE, not a third of the
+    # x-height above it. And they reach their WAIST BEFORE the turn, so the
+    # stroke is already gaining weight as it comes round -- which is what a pen
+    # does when it changes direction under pressure, and what makes the two
+    # bowls read as one movement rather than two rings and a strut. Albo's waist
+    # sat ON the turn, so the stroke was at its thinnest exactly where the
+    # reference is fullest.
+    # AND THE CONNECTOR IS TOO CONTRASTY, which the trace says and the path
+    # dials could not reach. Through the middle of the stroke Coelacanth runs
+    # 65 -> 71 -> 81 -> 87 (a range of 1.34) and Albo ran 111 -> 80 -> 64 -> 53
+    # (2.1): FATTER than the reference where it leaves the bowl and barely half
+    # its weight at the turn. Moving where the waist sits cannot fix a stroke
+    # whose waist is simply too deep -- the start comes down and the waist comes
+    # up, and the two together bring the range toward the reference's.
+    #
+    # WHERE IT STILL DOES NOT MATCH, stated rather than glossed. Through the
+    # turn Coelacanth runs 65 71 81 87, still RISING as it enters the loop;
+    # Albo now runs 78 87 88 80 -- the magnitudes bracket the reference but the
+    # last step falls where the reference's rises. Raising G_NECK_END_W from 78
+    # to 90 changes nothing, and the reason is round 174's TRIM: the neck is
+    # differenced against the loop's outer, so its declared end width is cut off
+    # inside the loop and never renders. The last rendered sample is at some
+    # t < 1 and that is what sets the final weight. Fixing the trend means
+    # changing where the trim happens, not what the end weighs.
+    G_ONE_STROKE = os.environ.get("ALBO_ALD_G_ONE_STROKE", "0") != "0"
+    G_LOOP_ENTER = float(os.environ.get("ALBO_ALD_G_LOOP_ENTER", 100.0))  # ring angle the neck enters at
+    G_NECK_START_W = float(os.environ.get("ALBO_ALD_G_NECK_START_W", 42.0))
+    G_NECK_TURN = float(os.environ.get("ALBO_ALD_G_NECK_TURN", 4.0))     # y of the turn, units
+    G_NECK_WAIST_AT = float(os.environ.get("ALBO_ALD_G_NECK_WAIST_AT", 0.30))  # t of the waist, BEFORE the turn  # the inflection; 0 = round 185's monotone slide
+    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 78.0))
     G_EAR_TANG = float(os.environ.get("ALBO_ALD_G_EAR_TANG", 0.34))  # how far the ear runs LEVEL out of the crown
     # ROUND 186 -- THE EAR FLARES; IT DOES NOT TAPER. Owner 2026-09-17: *"the g
     # ear starts thinner and flares, not tapers down as the out."* He is right
@@ -3776,7 +3825,7 @@ if ON:
     G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.95))        # at the CUT, not a point
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
-    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 42.0))   # its waist
+    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 66.0))   # its waist
     # ROUND 176 -- AND THE NECK WAS TOO THIN, against the same three.
     # Ink across the WAIST (the row midway between the two counters, where the
     # neck is the only thing in the way): the scan 90, Flanker 84, Pagella 50,
@@ -4128,15 +4177,24 @@ if ON:
         # of the stroke, not in its middle. G_NECK_S is kept at 0.
         _pen = [_n0,
                 (x0 + (G_NECK_L + G_NECK_S) * u, 46 * u),
-                (x0 + (G_NECK_L - 6 - G_NECK_S) * u, 4 * u),
+                (x0 + (G_NECK_L - 6 - G_NECK_S) * u, G_NECK_TURN * u),
                 (x0 + (G_NECK_L + 56 + G_NECK_S * 0.5) * u, -40 * u)]
         if G_NECK_FLAT:
             _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
         _pen.append(_n4)
-        nk = stroke(catmull(_pen, tension=G_NECK_ANG),
-                    widths([(0.0, 56 * u * G_NECK_SCALE),
-                            (0.45, G_NECK_W * u * G_NECK_SCALE),
-                            (1.0, G_NECK_END_W * u * G_NECK_SCALE)]),
+        _nw = widths([(0.0, G_NECK_START_W * u * G_NECK_SCALE),
+                      (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
+                      (1.0, G_NECK_END_W * u * G_NECK_SCALE)])
+        _lk = sorted((float(a) % 360.0, float(w)) for a, w in G_LRING)
+        def _lw(ang, _k=_lk):
+            ang %= 360.0
+            for (a0_, w0_), (a1_, w1_) in zip(_k, _k[1:] + [(_k[0][0] + 360.0, _k[0][1])]):
+                if a0_ <= ang <= a1_:
+                    f_ = (ang - a0_) / (a1_ - a0_) if a1_ > a0_ else 0.0
+                    f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
+                    return w0_ + (w1_ - w0_) * f_
+            return _k[0][1]
+        nk = stroke(catmull(_pen, tension=G_NECK_ANG), _nw,
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
         # Owner 2026-09-16: *"trim the connector instead of fucking around with
@@ -4156,7 +4214,51 @@ if ON:
         # there to protrude, and G_NECK_END and G_NECK_CUT stop being critical:
         # the neck can be aimed generously into the loop and the trim decides
         # where it stops.
-        if G_NECK_TRIM:
+        if G_ONE_STROKE:
+            # ROUND 188 -- THE NECK AND THE LOOP ARE ONE STROKE.
+            # Owner 2026-09-17: *"take a closer and smarter look at the reversal
+            # connector ... you are claiming success repeatedly without matching
+            # the reference and understanding the underlying forms."*
+            #
+            # The underlying form is that A WRITER DOES NOT LIFT THE PEN between
+            # the neck and the loop. Drawn as two shapes there is no good answer
+            # and both were built and looked at: UNIONED, the neck's square end
+            # face protrudes into the loop's counter as a block (that is why
+            # round 174 added the trim); TRIMMED, the difference cuts that face
+            # square against the loop's outer and leaves a SHELF on the
+            # underside, which got worse as round 187 made the neck fuller. Two
+            # failures on opposite sides of one junction, which is the signature
+            # of a structural fault rather than a dial that needs turning.
+            #
+            # So the neck's centreline is CONTINUED round the loop as one path
+            # and stroked once. There is no junction to fail, because there is
+            # no junction: the outline is continuous by construction, exactly as
+            # Coelacanth's is. The loop's own ring is then not drawn separately.
+            _lcx = x0 + G_LCX * u; _lcy = (lt + lb) / 2.0
+            _lrx = G_LRX * u; _lry = (lt - lb) / 2.0
+            _a0 = math.radians(G_LOOP_ENTER)
+            _ring = superellipse(_lcx, _lcy, _lrx, _lry, _a0, _a0 - 2 * math.pi,
+                                 k=A_K)[:-1]
+            if G_SKEW_L:
+                _ring = [(x + (y - _lcy) * G_SKEW_L, y) for x, y in _ring]
+            _neck_pts = catmull(_pen, tension=G_NECK_ANG)
+            _path = list(_neck_pts) + list(_ring)
+            _nn = len(_neck_pts); _tot = len(_path)
+            _split = _nn / float(_tot)
+
+            def _w(t, _s=_split):
+                if t <= _s:
+                    tt = t / _s if _s else 0.0
+                    return (_nw(tt))
+                tt = (t - _s) / (1.0 - _s) if _s < 1 else 0.0
+                ang = math.degrees(_a0 - 2 * math.pi * tt) % 360.0
+                return _lw(ang) * u
+            # A single open stroke traversing a full ring self-overlaps at the
+            # seam, and `geom.ink`'s even-odd fill renders that overlap as a
+            # checkerboard of holes. buffer(0) resolves the swept area into one
+            # simple polygon, which is what the ink actually is.
+            _one = stroke(_path, _w).buffer(0)
+        if not G_ONE_STROKE and G_NECK_TRIM:
             nk = nk.difference(geom.poly(lo_outer))
         # THE EAR IS ATTACHED TO THE BOWL, SO IT MOVES WITH IT (round 175).
         # Its root is a formula point on a ray from the bowl's centre, and the
@@ -4203,6 +4305,8 @@ if ON:
                              (0.45, G_EAR_T * u * 0.85),
                              (0.82, G_EAR_T * u * G_EAR_FLARE),
                              (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
+        if G_ONE_STROKE:
+            return geom.ink([up, _one, ear])
         return geom.ink([up, lo, nk, ear])
 
     def _diag(p0, p1, w0, w1):
