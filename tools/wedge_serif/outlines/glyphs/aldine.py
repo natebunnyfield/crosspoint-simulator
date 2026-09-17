@@ -3367,14 +3367,15 @@ if ON:
     # 45/200/300 (its thick is 135). G_HAND scales all of them; 0 is the
     # round-174 letter exactly.
     #
-    # WHERE 22 CAME FROM. A ladder at 0/4/8/12/16/20 never broke the letter at
-    # all, so a second ran 28/36/44/52 and found the wall: at 44 the bowl's
-    # counter is nearly pinched shut and `gauge` at 64 px reads as a blot, at
-    # 52 it is gone. 44 is therefore "almost doesn't read", and the shipping
-    # value is half of it. At 22 the letter is plainly hand-cut at 300 px --
-    # the bowl bulges top-left and pinches bottom-left, the loop is no longer
-    # an ellipse -- and reads clean at 64, 30 and 22 px.
-    G_HAND = float(os.environ.get("ALBO_ALD_G_HAND", 22.0))
+    # WHERE THE DEPTH CAME FROM. A ladder at 0/4/8/12/16/20 never broke the
+    # letter at all, so a second ran 28/36/44/52 and found the wall: at 44 the
+    # bowl's counter is nearly pinched shut and `gauge` at 64 px reads as a
+    # blot, at 52 it is gone. Half of that -- 22 -- was rendered and the OWNER
+    # RULED 8 (2026-09-16, against the 22 on the page). So the wall is measured
+    # and the shipping depth is his, which is the right way round: the ladder
+    # says what is possible, he says what ships. At 8 the cut reads as a
+    # letter cut by hand rather than as a letter fighting its own counter.
+    G_HAND = float(os.environ.get("ALBO_ALD_G_HAND", 8.0))
     G_BOWL_HAND = [(45, -1.0, 0.7), (135, 1.2, -0.9), (225, -0.8, 1.0),
                    (315, 0.9, -0.6), (0, 0.0, 0.0), (180, 0.0, 0.0)]
     G_LOOP_HAND = [(45, 1.1, -0.8), (200, -1.2, 1.0), (300, 0.8, 0.6),
