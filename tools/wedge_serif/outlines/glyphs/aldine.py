@@ -1492,19 +1492,27 @@ if ON:
     # raw per-point width array, which this letter does not have -- it is
     # drawn `pieces=True` because its centerline crosses itself. A square face
     # on a 26-unit stroke is blunt, which is what was asked for.
-    # ROUND 172 -- THE LOWER TERMINAL TAKES A LITTLE MORE. Owner 2026-09-16:
-    # *"bottom right stroke of e needs to be slightly thicker"*. 0.40 -> 0.47
-    # x S. This is the LERP TARGET the blunting ramp runs to over the path's
-    # last 18%, not a floor, so raising it thickens the terminal and nothing
-    # else -- the ramp is a cosine and the counter's edge takes no step.
+    # (Round 172 raised this to 0.47 on a misread -- the owner said "bottom
+    # right stroke" and then corrected it to the bottom LEFT the same minute.
+    # Back at 0.40, which is the reference's own 33 units, and the bottom left
+    # is E_BL below.)
+    E_END_W = float(os.environ.get("ALBO_ALD_E_END_W", 0.40))    # the terminal's width, x S
+    # ROUND 172 -- THE BOTTOM LEFT TAKES A LITTLE MORE. Owner 2026-09-16:
+    # *"bottom left stroke of e needs to be slightly thicker"*. A raised-cosine
+    # bump on the sampled widths, centred at E_BL_T of the path and E_BL_R
+    # wide, adding E_BL x S at its peak. It sits on `ws` AFTER `con()` and
+    # after the moving average, deliberately: `con` re-spreads to the letter's
+    # contrast arm off the sequence's own min and max, so a bump added before
+    # it would be partly eaten and would drag every other width with it. Added
+    # afterwards it is local, and the cosine means the counter's edge takes no
+    # step at either end of the bump.
     #
-    # Laddered 0.40 / 0.47 / 0.54 / 0.62 and looked at at 420 px and in `the
-    # level tree`: 0.54 reads as a deliberately heavy terminal rather than a
-    # slightly thicker one and 0.62 closes the aperture toward the bar. The
-    # reference ends at 33 units (0.40 S), so 0.47 is now a little OVER it --
-    # recorded rather than hidden, since round 151's blunting note was written
-    # to bring this terminal down TO the reference and this moves it back up.
-    E_END_W = float(os.environ.get("ALBO_ALD_E_END_W", 0.47))    # the terminal's width, x S
+    # The path runs bar -> up the eye's right -> over the crown -> down the
+    # left -> past its own start -> the flat wide bottom -> up into the
+    # aperture, so the bottom left is a little past halfway along it.
+    E_BL = float(os.environ.get("ALBO_ALD_E_BL", 0.09))      # x S at the bump's peak
+    E_BL_T = float(os.environ.get("ALBO_ALD_E_BL_T", 0.66))  # where it sits, x the path
+    E_BL_R = float(os.environ.get("ALBO_ALD_E_BL_R", 0.17))  # its half-width, x the path
     E_END_T0 = float(os.environ.get("ALBO_ALD_E_END_T0", 0.82))  # where the blunting starts, x the path
 
     # THE PAGE'S OWN SLANT. Whole-stem fits scatter badly -- chancery stems
@@ -1603,6 +1611,7 @@ if ON:
     #    (bar -> crown -> bottom -> terminal) with the terminal at the END.
     E_SPLIT = float(os.environ.get("ALBO_ALD_E_SPLIT", 0.34))   # where the bar is cut, x its length
     E_LAP = float(os.environ.get("ALBO_ALD_E_LAP", 0.22))       # how far the two strokes overlap
+    E_BAR_BURY = float(os.environ.get("ALBO_ALD_E_BAR_BURY", 1.035))  # the stub, x the arc's width over the overlap
     # ---------------------------------------------------------- ROUND 151, RESULT
     # Against the scan crop (`cmp_aldine_shape.py --ref scan`) IoU **0.650 ->
     # 0.730**. Against the macro scan's own counter (`cmp_aldine_counter.py`,
@@ -1730,6 +1739,11 @@ if ON:
         base = [sum(base[max(0, i - sm):i + sm + 1]) /
                 len(base[max(0, i - sm):i + sm + 1]) for i in range(n)]
         ws = [S * w * E_WT * E_CTR for w in base]
+        if E_BL:                                  # the bottom left's own press
+            for i in range(n):
+                dt = abs(i / (n - 1) - E_BL_T)
+                if dt < E_BL_R:
+                    ws[i] += S * E_BL * (0.5 + 0.5 * math.cos(math.pi * dt / E_BL_R))
         # THE BLUNT LOWER TERMINAL, round 135's ruling kept (owner
         # 2026-09-16: *"make the bottom right terminal blunt instead of
         # angular"*). The terminal is the path's END again, so the ramp runs
@@ -1752,12 +1766,60 @@ if ON:
         # collinear there, so one nib reading serves both and the join cannot
         # show as a step. Its left end keeps the pen cut; it is buried under
         # the left flank either way.
-        bp = catmull([pt(BAR[0]),
-                      ((pt(BAR[0])[0] + pt(BAR[1])[0]) / 2,
-                       (pt(BAR[0])[1] + pt(BAR[1])[1]) / 2),
-                      pt(BAR[1])], tension=0.5)
+        # ROUND 172c -- THE STUB FOLLOWS THE ARC'S OWN POINTS OVER THE OVERLAP.
+        # Owner: *"there is still a stray jagged corner in the counter above
+        # the bar"*. Two earlier cuts fixed the WIDTH mismatch (constant ->
+        # lerped -> sampled) and the corner survived all three, because it was
+        # never the width: the stub's centreline was a straight catmull while
+        # the arc is already CURVING over the same stretch, so the stub's
+        # square end face had its upper corner outside the arc's upper edge,
+        # and a corner outside the ink it is supposed to be buried in is a
+        # notch in the counter.
+        #
+        # The stub now runs from the bar's left end along the ARC'S OWN SAMPLES
+        # to the lap. Where they overlap the two are the same curve by
+        # construction -- not approximately, identically -- so there is no
+        # corner left to poke through, and the width question answers itself:
+        # each sample takes the arc's own width at that index.
+        jl = min(range(n), key=lambda k: (p[k][0] - pt(BAR[1])[0]) ** 2
+                                         + (p[k][1] - pt(BAR[1])[1]) ** 2)
+        bp = [pt(BAR[0])] + [p[k] for k in range(jl + 1)]
+        # ROUND 172 -- THE BAR WAS DISJOINTED, AND THE CAUSE IS ONE WORD IN THE
+        # NOTE ABOVE. Owner 2026-09-16: *"fix the disjointed crossbar of e"*.
+        # The stub was stroked at a CONSTANT `ws[0]` -- the arc's width at the
+        # split -- and the claim that "they are collinear there, so one nib
+        # reading serves both" is true at the split and false everywhere else:
+        # the stub runs E_LAP further along the bar, and over that run the arc
+        # has changed width, so at the lap's far end the two edges disagree and
+        # the union shows the difference as a step in the bar's upper edge.
+        # That step is the disjoint, and it is a WIDTH mismatch rather than a
+        # geometry one -- the two centrelines lie on each other exactly.
+        #
+        # The stub is tapered to the arc's own width AT THE LAP'S END now,
+        # found by nearest point rather than by arithmetic on E_SPLIT and E_LAP,
+        # so it stays right if either dial moves.
+        # ROUND 172d -- AND THE NOTCH WAS THE ARC'S OWN START FACE. Owner, after
+        # three cuts aimed at the wrong place: *"not the join. the join was
+        # always okay. midway on top of bar"*. He is right and the geometry
+        # says why: the ARC BEGINS MIDWAY ALONG THE BAR, at `on_bar(E_SPLIT)`,
+        # with `cut0=None` -- a square end face standing across the stroke. The
+        # stub runs past it to E_SPLIT + E_LAP and is supposed to bury it, and
+        # it does so at EXACTLY equal width, because the stub's first key was
+        # the arc's own width at that same point. Two coincident edges: every
+        # rounding difference between them shows, and what it shows is a jag on
+        # the bar's upper edge halfway along, nowhere near the join anybody was
+        # looking at.
+        #
+        # E_BAR_BURY makes the stub a hair wider than the arc over the overlap
+        # so the face is under ink rather than level with it. It is a per-cent,
+        # not a unit: the two strokes' widths vary together, so what has to be
+        # guaranteed is the RATIO.
+        bn = len(bp)
+        bw = widths([(0.0, ws[0] * E_BAR_BURY)] +
+                    [(i / (bn - 1), ws[min(n - 1, i - 1)] * E_BAR_BURY)
+                     for i in range(1, bn)])
         return geom.ink([stroke(p, wf, cut0=None, cut1=None),
-                         stroke(bp, ws[0], cut0=CUT, cut1=None)])
+                         stroke(bp, bw, cut0=CUT, cut1=None)])
 
     # ------------------------------------------------------------ THE a, round 151
     # THE a IS THE d's BOWL UNDER THE i's STEM. Owner 2026-09-16, the brief
