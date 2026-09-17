@@ -140,6 +140,13 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
+    # ROUND 199 -- THE TWO THE OWNER NAMED THAT A BEARING COULD NOT REACH.
+    # V's right could only take -20 before colliding, so Vi stays loose without
+    # a pair; the lowercase bearings are his round-136 fitting, so um is opened
+    # here rather than by moving m.
+    ('V', 'i'): -126,
+    ('u', 'm'): 30,
+
     # ROUND 198b -- WHAT THE OWNER'S TIGHTENING COSTS, paid in exceptions.
     # His R at -55, U at -148 and O at -55 are rulings on those letters, and
     # each collides with a specific set of partners: R against every ascender
