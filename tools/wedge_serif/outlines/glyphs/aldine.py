@@ -311,6 +311,220 @@ def con(ws, target=None):
     gamma = _m.log(target) / _m.log(hi / lo)
     return [hi * (w / hi) ** gamma for w in ws]
 
+
+# ------------------------------------------------------------------ ENTASIS
+# ROUND 180 -- NO STROKE IN THIS FACE IS DEAD STRAIGHT ANY MORE. Owner
+# 2026-09-16, asked whether to attack the straight runs by curving the
+# centreline or by varying the width along it: *"both curve and slight
+# enstasis"*. So both, and modestly.
+#
+# WHAT WAS WRONG. `cmp_aldine_straight.py` measures it: a run of outline
+# points is STRAIGHT when every one of them lies within 1.5 units of the chord
+# joining its ends, and a run of 129 units (0.30 xh) is longer than any pen cut
+# or serif blade this family draws, so it can only be a stroke. Before this
+# round **44 of 62 glyphs carried one**, and the three helpers below drew
+# almost all of them:
+#
+#   `hm_stem`   the lowercase stems -- a TWO-POINT path at a CONSTANT width,
+#               so both its edges were exactly parallel lines. l 656, b 485,
+#               m 365, a 361, i 315, u 308, h 301, n 301.
+#   `cstem_i`   the capital stems. It has taken a `bow` since round 131 and
+#               draws a five-point catmull for it, but CAP_BOW has shipped at
+#               0.0 since round 134 -- the bow was built and switched off.
+#               L 611, P 457, H 430, I 380, R 363, K 342.
+#   `cdiag`     the capital diagonals. Its `mid` defaults to the EXACT midpoint
+#               of the two ends, which makes a three-point catmull a straight
+#               line. V 669, W 625, N 591, M 577, A 524, X 381.
+#
+# THE SHAPE IS AN S, NOT A BOW, AND THAT IS NOT TASTE. Round 134 already
+# removed a single-hump bow from the capitals on the owner's own report --
+# *"there is a pervasive issue of bulging with a and H and other letters"* --
+# so a hump at any size he can see is a shape he has already rejected once. It
+# is also the wrong shape ARITHMETICALLY when there is entasis on top of it,
+# which is the part worth writing down:
+#
+#   a hump displaces the centreline by B*sin(pi t), whose second derivative is
+#   -B*pi^2*sin(pi t)/H^2 -- one sign for the whole stroke. A waist scales the
+#   half-width by (1 - E*(sin(pi t) - 2/pi)), whose second derivative is
+#   +(sw/2)*E*pi^2*sin(pi t)/H^2 -- ALSO one sign for the whole stroke, and the
+#   opposite one. The two therefore CANCEL exactly on the edge where they meet,
+#   at B = sw*E/2 (35*E units on the lowercase stem). At the very settings a
+#   designer would reach for -- a small bow plus a small entasis -- one flank of
+#   the stem comes out DEAD STRAIGHT, which is the defect this round exists to
+#   remove, arrived at by doing both of the things that were supposed to fix it.
+#
+#   An S is ODD about the stroke's middle where a waist is EVEN, so no choice
+#   of the two amplitudes can cancel anywhere but at isolated points. It also
+#   puts its own curvature maximum (a quarter and three quarters along) exactly
+#   where the waist's is zero, and its one inflection (the middle) exactly where
+#   the waist's curvature peaks. The two cover each other's flats. Measured on
+#   a modelled 429-unit stem at 70 wide: the S alone takes the longest straight
+#   run 429 -> 197, the waist alone 429 -> 356, and the two together 429 -> 223
+#   at a third of the amplitude either needs on its own.
+#
+# AND IT IS ZERO-MEAN AT BOTH ENDS, in both dials. `sin(2 pi t)` is 0 at t=0
+# and t=1, so a swayed stem starts and ends exactly where the straight one did
+# and every junction -- the head across its top, the exit off its foot, the
+# arch landing on it, the serif seated on its edge -- is untouched. The waist
+# is zero-mean over its length (the mean of sin(pi t) is 2/pi, which is what is
+# subtracted), so the letter's colour does not move either and `cmp_cap_weight`
+# stays green.
+#
+# THE ENTASIS IS APPLIED AFTER `con`, NEVER THROUGH IT, and this is the trap
+# that would have cost the most. `nib_widths` takes the width from the stroke's
+# DIRECTION, so it looks as though a swayed path would vary its own width for
+# free -- the brief for this round said so. It does not, because `con` above is
+# a NORMALISER and not a scaler: it re-spreads whatever range it is given onto
+# the letter's contrast target exactly. Measured by calling it:
+#
+#     con([1.000, 1.005], 2.20) -> 2.200:1        con([1.0, 1.10], 2.20) -> 2.200:1
+#
+# -- a half-percent ripple and a ten-percent one come out as the SAME 2.2:1
+# spread. A one-degree sway on a capital stem would therefore have rendered as
+# a stem half as wide at its waist as at its ends. So the sway is allowed to
+# move the centreline only, the nib widths are still solved on it, and the
+# waist is multiplied in afterwards beside `_taper`, which is applied post-`con`
+# for the same reason.
+ENT_SCALE = float(os.environ.get("ALBO_ALD_ENT", 1.0))        # the ladder's one dial
+
+
+def _ent(name, default):
+    """A dial, scaled by the master. `ALBO_ALD_ENT=0` is the bit-exact arm --
+    every path below falls back to its round-179 two-point straight line -- and
+    `ALBO_ALD_ENT=2` is the rung the owner can see from across the room."""
+    return float(os.environ.get("ALBO_ALD_ENT_" + name, default)) * ENT_SCALE
+
+
+# The magnitudes. The house's hand-cut unit is 2-7 units at a 674 cap
+# (docs/albo-imperfections.md), and these sit inside it: the lowercase stem is
+# 70 units wide, so a 3-unit sway is 4% of its own width and the waist moves 4
+# units across the whole stroke. The capitals are bigger letters and take a
+# little more in absolute units to read as the same gesture at the same size.
+ENT_SWAY = _ent("SWAY", 3.0)          # lowercase stems: the S, units
+ENT_WAIST = _ent("WAIST", 0.055)      # lowercase stems: the entasis, x the width
+ENT_CAP_SWAY = _ent("CAP_SWAY", 4.0)  # capital stems: the S, units
+ENT_CAP_WAIST = _ent("CAP_WAIST", 0.050)
+ENT_DIAG_SWAY = _ent("DIAG_SWAY", 4.0)   # capital diagonals: the S, units
+ENT_DIAG_WAIST = _ent("DIAG_WAIST", 0.045)
+
+# THE SWAY HAS A WAVELENGTH, and it is a LENGTH rather than a fraction of the
+# stroke. A hand's waver does not stretch to fit whatever stroke it is drawing,
+# and the measurement says the same thing from the other side: one S over a
+# stroke leaves its flattest patch at the inflection in the middle, and the
+# length of that patch grows as the SQUARE of the stroke's length. Measured at
+# the shipped 3-unit sway -- the i's 429-unit stem comes out with a longest run
+# of 208 units and the l's 725-unit ascender, drawn with exactly the same dial,
+# with 384. The l is not less swayed than the i; it is swayed over a longer
+# span, and the detector reads the difference as nearly twice the flat.
+#
+# So the period count is `round(length / ENT_WAVE)`, floored at 1. ROUNDED,
+# because a fractional number of periods does not come back to zero at the far
+# end and every junction in the face is built on the promise that it does -- an
+# ascender ending 2 units left of where its head lies across it is a defect, not
+# a waver. Set it to 0 (or to anything over about 1100) for exactly one period
+# on every stroke however long it is, which is what the first cut of this round
+# did.
+#
+# 250 IS THE NUMBER, AND IT IS THE WAVELENGTH AND NOT THE AMPLITUDE THAT BUYS
+# THE GATE. Working the detector's own arithmetic backwards says why. Near the
+# S's inflection the centreline departs from its tangent by
+# amt*(2*pi/lam)^3*d^3/6, so the flat patch the detector finds there is
+# 2*lam*(0.0363/amt)^(1/3) units long -- LINEAR in the wavelength and only a
+# CUBE ROOT in the amplitude. Getting that patch under the 129-unit floor at
+# lam 400 therefore needs the sway raised from 3 units to 8.6, which is 12% of
+# a stem's own width and a shape nobody would call slight; at lam 250 the
+# shipped 3 units does it. Measured on the built font, sweeping one dial at a
+# time:
+#
+#     lam 600   45 of 62 glyphs flagged, 48,798 units of straight edge
+#     lam 400   45                       42,975
+#     lam 300   45                       42,975   (429/300 still rounds to 1)
+#     lam 250   38                       37,087
+#     lam 200   34                       35,070
+#
+# and it stops at 250 because of what 200 LOOKS like rather than what it
+# measures: rendered at 400 px the H's left stem is visibly bent and the h's
+# ascender carries a double curve. 250 puts two periods on an x-height stem and
+# three on an ascender, and at 400 px reads as a stem that was cut by hand.
+ENT_WAVE = float(os.environ.get("ALBO_ALD_ENT_WAVE", 250.0))
+# A CAPITAL DIAGONAL GETS ITS OWN, AND A LONGER ONE. Rendered at 430 px and
+# looked at, which is the only way this one could have been decided: at the
+# stems' own 250 the l h n u H read as lively and the V's two diagonals read as
+# DENTED -- a visible notch a third of the way down the right one, where three
+# periods of a 4-unit sway cross a stroke that is otherwise one movement. It is
+# the same amplitude that is invisible on a stem, and the difference is what the
+# stroke is: a stem is drawn a dozen times a line and its waver is the page's
+# texture, a capital diagonal is drawn once and every departure from its chord
+# is read as an event. 600 puts one S on a 600-unit diagonal and two on the V's
+# 700-unit one, which is where the dent stops being visible.
+ENT_DIAG_WAVE = float(os.environ.get("ALBO_ALD_ENT_DIAG_WAVE", 600.0))
+
+
+def ent_waist(t, amt):
+    """The width multiplier along a stroke: FULLEST AT ITS ENDS, thinnest at
+    its waist, zero-mean over the run.
+
+    Ends-swell rather than middle-swell, because that is what the roman already
+    does -- `pen.ENT = DESIGN["flare"]`, "stems swell 14% at their ends" -- and
+    two halves of one family should not disagree about which way a stem
+    tapers. It is also the half of the choice the owner has already ruled on
+    from the other side: a stem fullest in the MIDDLE is the bulge round 134
+    took out of the capitals.
+
+    A closed form rather than a `widths()` key table, deliberately. `widths()`
+    smoothsteps between its keys, so its curvature jumps at every key and a
+    few-key table plants a visible crease at each one; `sin(pi t)` is smooth to
+    every order and its curvature is zero only at the two ends, where the head,
+    the foot and the serifs sit on top of the stroke anyway."""
+    if not amt:
+        return 1.0
+    return 1.0 - amt * (math.sin(math.pi * t) - 2.0 / math.pi)
+
+
+def ent_widths(ws, amt):
+    """`ent_waist` over an already-solved width LIST -- i.e. AFTER `con`. See
+    the block above for why it may not go in before it."""
+    if not amt or len(ws) < 2:
+        return list(ws)
+    n = len(ws) - 1
+    return [w * ent_waist(i / n, amt) for i, w in enumerate(ws)]
+
+
+def ent_sway(pts, amt, spacing=geom.SPACING / 2.0, waves=None, wave=None):
+    """Displace a path PERPENDICULAR TO ITSELF by an S of amplitude `amt`
+    units: zero at both ends, `+amt` a quarter along, `-amt` three quarters
+    along, measured to the LEFT of travel.
+
+    It takes a path rather than two endpoints so that one function serves a
+    two-point straight run (`hm_stem`), a five-point catmull (`cstem_i`) and a
+    diagonal that already carries a deliberate mid-point offset (`cdiag`, the
+    X). The input is resampled at half the family's 11-unit spacing first --
+    without that, `stroke`'s own `resample` would interpolate LINEARLY between
+    whatever few points it was handed and hand the detector back a chain of
+    dead straight chords, which is the bug this whole round is about arriving
+    by the back door.
+
+    `ENT_WAVE` decides how many periods fit; see its own note. `wave` names a
+    different wavelength (the capital diagonals take `ENT_DIAG_WAVE`), and
+    `waves` overrides the count outright for a stroke that knows better."""
+    if not amt or len(pts) < 2:
+        return list(pts)
+    p = geom.resample(list(pts), spacing)
+    n = len(p) - 1
+    if n < 2:
+        return list(pts)
+    if waves is None:
+        lam = ENT_WAVE if wave is None else wave
+        L = sum(math.dist(a, b) for a, b in zip(p, p[1:]))
+        waves = 1 if lam <= 0 else max(1, int(round(L / lam)))
+    tn = geom.tangents(p)
+    out = []
+    for i, (q, t_) in enumerate(zip(p, tn)):
+        d = amt * math.sin(2.0 * math.pi * waves * i / n)
+        out.append((q[0] - t_[1] * d, q[1] + t_[0] * d))
+    return out
+
+
 HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
 HEAD_W = float(os.environ.get("ALBO_ALD_HEAD_W", 0.58))       # its weight, x the stem
@@ -590,12 +804,39 @@ if ON:
         the head can lie across it (Flanker's i, 9-79 at .88 -> 6-46 at .99).
         `y1` is where the top-LEFT corner lands. `cut=False` for a stem an ARCH
         lands on -- there the crown is the top, and a cut corner under it only
-        pokes a spike through the shoulder."""
+        pokes a spike through the shoulder.
+
+        ROUND 180 -- IT IS NOT STRAIGHT ANY MORE, AND IT IS NOT MONOLINE. This
+        was `stroke([(xc, y0), (xc, y1)], sw)`: two points and one number, so
+        both of its edges were parallel straight lines for the stroke's whole
+        length. It is the single worst offender in the face -- eight of the
+        forty-four glyphs `cmp_aldine_straight.py` flagged are its stems, and
+        the l's 656-unit run was the longest thing in the lowercase.
+
+        `ENT_SWAY` sways the centreline and `ENT_WAIST` puts the entasis on the
+        width; the block by `ent_waist` says why an S and not a bow, and why the
+        waist is a closed form rather than a key table. Both are zero at the two
+        ends, so the head that lies across the top, the exit that leaves the
+        foot, the arch that lands on `cut=False` stems and the bowls hung on the
+        a's and the b's all meet the stem exactly where they met the straight
+        one -- nothing downstream was re-fitted for this, and nothing had to be.
+
+        THE TOP CUT STILL COMES OFF THE PATH'S OWN TANGENT. `stroke`'s `cut1`
+        shears the end face along `tans[-1]`, and the sway's tangent at t=1 is
+        the straight stem's (`sin(2 pi t)` has slope 2*pi*amt/H there -- 0.04
+        units per unit on a 3-unit sway over an x-height, a twentieth of a
+        degree). So the 45-degree face the head lies on is where it was."""
         u = hm_u(c); sw = (HM_STEMW if w is None else w) * u
+        wf = (lambda t: sw * ent_waist(t, ENT_WAIST))
         if not cut:
-            return stroke([(xc, y0), (xc, y1)], sw)
-        drop = math.tan(math.radians(HM_TOPCUT)) * sw / 2
-        return stroke([(xc, y0), (xc, y1 - drop)], sw, cut1=-math.radians(HM_TOPCUT))
+            return stroke(ent_sway([(xc, y0), (xc, y1)], ENT_SWAY * u), wf)
+        # the drop is taken off the width the stroke ACTUALLY HAS at its top,
+        # which the waist has just made 1 + 2*ENT_WAIST/pi of `sw`. Off `sw`
+        # itself the top-left corner would sit a unit above the y1 every letter
+        # here places its head at. Identical at ENT_WAIST 0.
+        drop = math.tan(math.radians(HM_TOPCUT)) * sw * ent_waist(1.0, ENT_WAIST) / 2
+        return stroke(ent_sway([(xc, y0), (xc, y1 - drop)], ENT_SWAY * u), wf,
+                      cut1=-math.radians(HM_TOPCUT))
 
     def hm_head(c, xc, ytop, cap=0.0):
         """The entry stroke: up from the lower left, across the stem's top.
@@ -932,7 +1173,13 @@ if ON:
         r = M_MID_FOOT * sw                  # the cap's depth below the shaft
         y0 = lift + r
         cap = geom.poly(superellipse(xc, y0, sw / 2, r, math.pi, 2 * math.pi, 2.0))
-        return [stroke([(xc, y0), (xc, top)], sw), cap]
+        # ROUND 180 -- the last two-point straight stem in the lowercase. It is
+        # `hm_stem`'s shape without `hm_stem`'s code, so it did not move when
+        # that helper did and it left the m with a 320-unit run when every other
+        # stroke in the letter was down under 180. Same two dials; the sway is
+        # zero at y0, so the round foot is still centred on the shaft it caps.
+        return [stroke(ent_sway([(xc, y0), (xc, top)], ENT_SWAY * u),
+                       lambda t: sw * ent_waist(t, ENT_WAIST)), cap]
 
     @glyph('m')
     def a_m(c):
@@ -1009,8 +1256,17 @@ if ON:
         # -- so the thinning belongs on the RISE, which is the upstroke. The
         # first cut thinned through the turn itself and the bottom pinched in
         # two at .05, where both references show one continuous mass.
-        p = catmull([(x0, xh * 0.95), (x0, xh * 0.58), (x0, xh * 0.24),
-                     (x0 + P * 0.05, sw * 0.48 + 22 * u), (x0 + P * U_BOT_X, sw * 0.48 - 9 * u),
+        # ROUND 180 -- the three collinear points are swayed, the turn and the
+        # rise are not, exactly as the b's ascender is: the sway is laid on the
+        # STRAIGHT SECTION only because `ent_sway` displaces a path
+        # perpendicular to itself and would ride a turn this tight round into
+        # the rise. All three are handed over rather than just the two ends, so
+        # `ALBO_ALD_ENT=0` returns them untouched and the catmull keeps every
+        # knot round 132 put here. The width table is left alone -- it runs over
+        # the stem, the turn and the rise on one t, which is the b's reason.
+        p = catmull(ent_sway([(x0, xh * 0.95), (x0, xh * 0.58), (x0, xh * 0.24)],
+                             ENT_SWAY * u) +
+                    [(x0 + P * 0.05, sw * 0.48 + 22 * u), (x0 + P * U_BOT_X, sw * 0.48 - 9 * u),
                      (x0 + P * 0.38, sw * 0.48 - 3 * u), (x0 + P * U_RISE_X, xh * 0.25),
                      (x0 + P * 0.84, xh * 0.50), (x0 + P * 0.97, xh * 0.66)],
                     tension=0.5)
@@ -2566,8 +2822,37 @@ if ON:
         # leftmost ink of both letters together, and a stem squared on the
         # baseline puts that point 23 units further left than the reference's,
         # which shifted the whole ascender and cost 0.18 of IoU on its own.
-        sp = catmull([(xs, c["asc"]), (xs, xh * 0.62), (xs, xh * 0.28),
-                      (xs + 18 * u, 46 * u), (xs + 64 * u, 14 * u),
+        # ROUND 180 -- THE ASCENDER SWAYS, THE TURN AND THE TAIL DO NOT. Three
+        # of the first four points here are the same x, which made this the
+        # third-worst straight run in the face (485, 472 and 462 units on the
+        # two edges) and left it untouched by the round's `hm_stem` change,
+        # because the b draws its own stem rather than calling that helper.
+        #
+        # The S is laid on the STRAIGHT SECTION ONLY -- from the ascender's top
+        # down to xh*0.28, where the stroke leaves the stem's line and runs into
+        # the bowl's bottom arc -- rather than on the whole path. Two reasons,
+        # and the second is the one that decided it: the tail is already curved
+        # so it has no straight run to fix, and `ent_sway` displaces a path
+        # PERPENDICULAR TO ITSELF, so over a turn as tight as this one a sway
+        # applied to the whole path rides round the corner and wavers the exit.
+        # The sway is zero at both ends of what it is given, so the junction at
+        # xh*0.28 is exactly where it was and the four tail points below are
+        # untouched. `catmull` through the swayed samples rather than through
+        # the three collinear points they replace -- and those three are handed
+        # to `ent_sway` rather than just their two ends, so that at
+        # `ALBO_ALD_ENT=0` it returns them unchanged and the catmull is through
+        # the same six points it was through in round 179. Through the two ends
+        # alone the zero arm would have dropped a knot and moved the letter.
+        #
+        # ITS WIDTH IS NOT TOUCHED, and that is a gap rather than a decision:
+        # this stroke's `widths()` table runs over the stem AND the turn AND the
+        # tail on one t, and `ent_waist` is 1 + 2*amt/pi at its ends rather than
+        # 1, so folding it in over the stem's share would leave a step at the
+        # 0.78 key and folding it in over the whole path would fatten the tail.
+        # The sway alone is what this letter gets; see docs/albo-entasis.md.
+        sp = catmull(ent_sway([(xs, c["asc"]), (xs, xh * 0.62), (xs, xh * 0.28)],
+                              ENT_SWAY * u) +
+                     [(xs + 18 * u, 46 * u), (xs + 64 * u, 14 * u),
                       (xs + B_EXIT * u, 22 * u)], tension=0.5)
         stem = stroke(sp, widths([(0.0, sw), (0.78, sw), (0.90, sw * 0.84), (1.0, 46 * u)]))
         head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
@@ -4310,7 +4595,22 @@ if ON:
         at, A V beside the untouched X at 420 px: with the taper kept the V's
         top wedges are slivers hanging off two points and the X's beside them
         are slabs; with it dropped the three terminals are the same terminal,
-        which is the whole object of the round."""
+        which is the whole object of the round.
+
+        ROUND 180 -- THE SWAY AND THE ENTASIS. `CAP_BOW` is still 0.0 and is
+        deliberately left there: it is the SINGLE HUMP round 134 removed on the
+        owner's own bulging report, and re-opening it is not what he asked for.
+        `ENT_CAP_SWAY` is the other shape -- an S, zero at both ends, so the
+        wedges seated on `Lz`/`Rz` land exactly where they did -- and
+        `ENT_CAP_WAIST` is the entasis, multiplied in HERE, beside the taper and
+        AFTER `con` has run inside `nib_widths`. Not before: `con` normalises
+        whatever width range it is handed onto CAP_CON exactly, so the ~1%
+        ripple a 4-unit sway puts into the nib's direction-following would have
+        come back out as a 2.2:1 stem. See the ENTASIS block at the head of this
+        module for the measurement. The widths are therefore solved on the
+        UNSWAYED path and the sway is applied to the centreline afterwards --
+        the two lists need not be the same length, because `wf` is a function of
+        t and `stroke` resamples the path it is actually given."""
         bow = CAP_BOW if bow is None else bow
         w = CAP_W if w is None else w
         p_ = catmull([(x, y0), (x + S * bow * 0.72, y0 + (y1 - y0) * 0.30),
@@ -4319,8 +4619,9 @@ if ON:
                      tension=0.5)
         ws = nib_widths(p_, CS * w / S, CS * w * 0.34 / S, CAP_CON, taper=False)
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(foot is None, top is None)))]
+        ws = ent_widths(ws, ENT_CAP_WAIST)
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
-        solid, Lz, Rz = stroke(p_, wf, sides=True)
+        solid, Lz, Rz = stroke(ent_sway(p_, ENT_CAP_SWAY), wf, sides=True)
         parts = [solid]
         if top: parts += _stem_serifs(Lz, Rz, top, True)
         if foot: parts += _stem_serifs(Lz, Rz, foot, False)
@@ -4341,7 +4642,15 @@ if ON:
         p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
         ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(False, True)))]
+        # ROUND 180 -- the A's left leg carried the second-longest straight run
+        # in the alphabet (481 units) for the same reason `cdiag` did: the mid
+        # control point above is the EXACT midpoint, which is a ruled line with
+        # extra steps. Same two dials, same order -- entasis after `con`, sway
+        # on the centreline afterwards, and the flat foot's cut and wedge both
+        # taken off the swayed path so they meet the stroke they terminate.
+        ws = ent_widths(ws, ENT_DIAG_WAIST)
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        p_ = ent_sway(p_, ENT_DIAG_SWAY, wave=ENT_DIAG_WAVE)
         tn = geom.tangents(p_)[0]
         solid, Lz, Rz = stroke(p_, wf, cut0=math.atan2(-tn[0], tn[1]), sides=True)
         return geom.union([solid,
@@ -4359,12 +4668,35 @@ if ON:
         DROPS ITS PEN CUT -- the wedge's face IS the terminal, and a cut behind
         it leaves the double facet with a ledge between two faces that the
         owner had cleaned off the roman E and F (caps_straight.py's note on
-        `bar`). It does not taper either, for the reason cstem_i gives."""
+        `bar`). It does not taper either, for the reason cstem_i gives.
+
+        ROUND 180 -- `mid` DEFAULTED TO THE EXACT MIDPOINT, which is what made
+        a three-point catmull a straight line and put the six longest runs in
+        the whole face on V W N M A X (669, 625, 591, 577, 524, 381 units).
+        `ENT_DIAG_SWAY` sways the drawn centreline and `ENT_DIAG_WAIST` is its
+        entasis; both are applied the same way `cstem_i` applies its pair, and
+        for the same reason -- the widths are solved on the straight chord so
+        that `con` sees a uniform list, and the sway goes on afterwards.
+
+        `mid` STILL MEANS WHAT IT MEANT. The X passes one deliberately, and the
+        sway is a displacement of the drawn path PERPENDICULAR TO ITSELF rather
+        than a second midpoint offset, so it composes with that instead of
+        fighting it.
+
+        THE SERIF WEDGES ARE SEATED ON THE SWAYED PATH, not the straight one:
+        `_cap_end_wedge` takes its direction from the path's own end tangent,
+        and the sway leaves the END POINTS alone but does tilt the tangent
+        there by 2*pi*amt/L -- about a degree and a half at the shipped 4 units
+        on a 600-unit diagonal. A wedge seated on the chord's direction instead
+        would sit a degree and a half off the stroke it terminates, which is
+        the kind of gap `cmp_aldine_glitch.py` reads as a notch."""
         w = CAP_W if w is None else w
         p_ = catmull([a, mid or ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
         ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
+        ws = ent_widths(ws, ENT_DIAG_WAIST)
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        p_ = ent_sway(p_, ENT_DIAG_SWAY, wave=ENT_DIAG_WAVE)
         parts = [stroke(p_, wf, cut0=None if serif0 else CUT, cut1=None if serif1 else CUT)]
         if serif0: parts.append(_cap_end_wedge(p_, wf(0.0), True, serif0))
         if serif1: parts.append(_cap_end_wedge(p_, wf(1.0), False, serif1))
@@ -6147,7 +6479,13 @@ if ON:
         lp = catmull([lb, ((lb[0] + lt[0]) / 2, (lb[1] + lt[1]) / 2), lt], tension=0.5)
         lws = nib_widths(lp, CS * CAP_M_OUT / S, CS * CAP_M_OUT * 0.30 / S,
                          CAP_CON, taper=False)
+        # ROUND 180 -- this stroke is `_flat_foot_diag`'s body copied, so it
+        # inherited the same ruled midpoint and the same 577-unit straight run.
+        # It takes the same pair of dials in the same order; `cdiag` applies
+        # them to the other three strokes of this letter for it.
+        lws = ent_widths(lws, ENT_DIAG_WAIST)
         lwf = widths([(i / (len(lws) - 1), S * v) for i, v in enumerate(lws)])
+        lp = ent_sway(lp, ENT_DIAG_SWAY, wave=ENT_DIAG_WAVE)
         ltn = geom.tangents(lp)[0]
         lsolid, lLz, lRz = stroke(lp, lwf, cut0=math.atan2(-ltn[0], ltn[1]), sides=True)
         left = geom.union([lsolid,
@@ -7065,7 +7403,16 @@ if ON:
         qw = CAP_X_DIAG * CAP_X_THIN_W
         qws = nib_widths(qp, CS * qw / S, CS * qw * 0.30 / S,
                          CAP_CON, taper=False)
+        # ROUND 180 -- the round-165 hand cut moved this stroke's MIDDLE control
+        # point, which bows it away from its own chord but leaves each half of
+        # it a near-straight run; the detector still read 381 units across the
+        # thick and 378 across the thin. The sway composes with that offset
+        # rather than replacing it (it displaces the drawn path perpendicular to
+        # ITSELF), so round 165's asymmetry between the two diagonals survives.
+        # `cdiag` does the same for the thick one, which passes its `mid` in.
+        qws = ent_widths(qws, ENT_DIAG_WAIST)
         qwf = widths([(i / (len(qws) - 1), S * v) for i, v in enumerate(qws)])
+        qp = ent_sway(qp, ENT_DIAG_SWAY, wave=ENT_DIAG_WAVE)
         k = CAP_SERIF_FULL * CAP_X_THIN
         pm = ((p0[0] + p1[0]) / 2 + C * CAP_X_HAND_KX,
               (p0[1] + p1[1]) / 2 + C * CAP_X_HAND_KY)
