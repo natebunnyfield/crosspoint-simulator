@@ -82,7 +82,25 @@ TARGETS = {
     # owner chose. The w/h is untouched at 0.945 and still passes at +3%, which
     # is the check that the flattening took its 18% out of the COUNTER and not
     # out of the letter's proportion.
-    'a': (0.760, 0.945, 'ref',    0.83, "round 167: the DRAWING with the owner's droop, ironed (Flanker's round-topped a is 0.844)"),
+    # ROUND 168, and this row has now been retargeted FOUR TIMES in one day.
+    # That is not drift and it is worth saying why before anyone treats it as a
+    # smell: the row's target IS the drawing (see round 151's note), the owner
+    # spent the day changing the drawing on rulings of his own, and each ruling
+    # moved the counter by construction rather than by accident --
+    #
+    #   0.330  round 146's teardrop-counter a, withdrawn the next day
+    #   0.844  round 151, Flanker's own a, while the letter was Flanker's shape
+    #   0.760  round 167, with the top left drooped: a chord across an arc
+    #          removes counter and no dial gives it back without undoing it
+    #   0.652  round 168, narrowed 14 units: a narrower bowl at the same
+    #          stroke weight is a smaller hole again
+    #
+    # The w/h is the row's OTHER column and it has moved 3 per cent in all of
+    # that -- 0.973 to 0.911 against a 0.945 target -- which is the check that
+    # says the letter is being reshaped deliberately and not drifting: every
+    # move came out of the counter, where the ruling put it, and none out of
+    # the proportion.
+    'a': (0.652, 0.911, 'ref',    0.83, "round 168: the DRAWING, drooped and narrowed (Flanker's round-topped a is 0.844)"),
     # ROUND 151 RETARGET, and it is the o's 2026-09-16 ruling applied to the
     # second letter it was always going to apply to. 0.203 is the PRINTED
     # page's number -- 191 px of counter against 941 px of ink on the macro

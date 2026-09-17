@@ -1822,8 +1822,20 @@ if ON:
     # A_RING, A_K and `keyed_ring` are NOT the a's alone -- the d, the q and
     # the g read them too -- so this round changes none of them.
     A_UNIT = 429.0
-    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 312.0))  # stem center, units -- the d's
-    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 168.0))          # bowl outer half-width, units -- the d's 159 + 9, see THE ONE DIAL below
+    # ROUND 168 -- THE LETTER COMES IN. Owner 2026-09-16: *"make a less wide"*.
+    # Measured on the built font, ink width in design units: a **428**, against
+    # b 425, n 392, h 391, u 378, o 337 -- the a was the widest lowercase in the
+    # alphabet except the d, and the d has an ascender to carry it.
+    #
+    # A_NARROW takes the bowl's radius in by its own value and the stem in by
+    # TWICE it, which is the one relation that preserves the overlap the agent's
+    # round-151 note pinned down: the bowl's right edge is x0 + 2*A_RX and the
+    # stem's left is x0 + A_STEM_X - halfstem, so moving them by d and 2d holds
+    # their 60-unit lap exactly. Narrow either alone and the bowl either leaves
+    # the stem or buries itself in it.
+    A_NARROW = float(os.environ.get("ALBO_ALD_A_NARROW", 14.0))   # units off the bowl's radius
+    A_STEM_X = float(os.environ.get("ALBO_ALD_A_STEM_X", 312.0 - 2 * A_NARROW))  # stem center, units -- the d's
+    A_RX = float(os.environ.get("ALBO_ALD_A_RX", 168.0 - A_NARROW))  # bowl outer half-width, units -- the d's 159 + 9, see THE ONE DIAL below
     A_CY = float(os.environ.get("ALBO_ALD_A_CY", 211.0))          # bowl center height, units -- the d's
     A_SKEW = float(os.environ.get("ALBO_ALD_A_SKEW", 0.06))       # the egg's lean, dx per dy -- the d's
     A_K = float(os.environ.get("ALBO_ALD_A_K", 1.90))             # squareness -- SHARED with d q g, do not move
@@ -1887,7 +1899,17 @@ if ON:
     # that is how the old A_HEAD_R was lost. Nothing outside this letter's
     # own dials is changed by round 151.
     # ring widths keyed by angle (degrees ccw from the right), in units
-    A_RING = [(0, 26), (45, 22), (90, 20), (135, 40), (180, 66), (225, 74), (270, 54), (315, 38)]
+    # ROUND 168 -- THE BOTTOM LEFT TAKES A LITTLE MORE. Owner 2026-09-16:
+    # *"slightly thicker on bottom left"*. A_BL adds to the three keys that
+    # make that quarter -- 180, 225 and 270 -- and to nothing else, so the
+    # letter's thin (90, at 20 units) and its two shoulders are untouched and
+    # the contrast arm does not move. The 225 key is already the ring's thick,
+    # which is where the a's own weight belongs: it is the flank the stem does
+    # not support.
+    A_BL = float(os.environ.get("ALBO_ALD_A_BL", 5.0))   # units added at 180/225/270
+    A_RING = [(0, 26), (45, 22), (90, 20), (135, 40),
+              (180, 66 + A_BL * 0.7), (225, 74 + A_BL), (270, 54 + A_BL * 0.6),
+              (315, 38)]
     if os.environ.get("ALBO_ALD_A_RING"):   # "0:34,45:30,..." -- for the fitter
         A_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
