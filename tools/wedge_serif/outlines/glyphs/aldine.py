@@ -1085,7 +1085,24 @@ if ON:
     # any line. At 1.08 the o's mean ink width is 0.91 of the n's, against
     # Flanker's own 0.90 -- the letter now sits with its neighbours instead of
     # anchoring the page.
-    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.08))  # x S, at the pen's fullest
+    # ROUND 165 -- THINNER AT ITS THICKEST. Owner 2026-09-16: *"o is too thick
+    # at its thickest"*. Measured as radial ink about the ring's own centre,
+    # unsheared: the o peaked at **101.0** units against a lowercase stem band
+    # of 72 (h) to 82 (n) -- a quarter heavier than the heaviest stem in the
+    # alphabet, where a round letter should carry only a few per cent more. At
+    # 1.00 it peaks at 92.3. The THIN end is untouched and so is CON_O: this
+    # moves the pen's fullest, not the letter's contrast arm.
+    #
+    # WHY 1.00 AND NOT FURTHER, which is a limit rather than a preference. The
+    # ledger holds this letter's counter to Flanker's ring weight, and a
+    # thinner ring inside the same outer contour has a bigger hole -- the O's
+    # own note says so. Counter/ink against Flanker's 1.034: 1.04 -> 1.029
+    # (-1%), 1.00 -> 1.095 (+6%), 0.96 -> 1.167 (+13%, FAILS), 0.92 -> 1.240
+    # (+20%, fails). So 1.00 is the thinnest peak available without either
+    # failing the gate or narrowing the letter, and the peak is still 92.3
+    # against a 72-82 stem band. Going below it means bringing O_W in with it,
+    # which is a different instruction and not this one.
+    O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.00))  # x S, at the pen's fullest
     O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.590))    # x S, across the nib
 
     @glyph('o')
@@ -1391,7 +1408,20 @@ if ON:
     # and overshoot the counter by a tenth. E_CTR goes with it: at 1.08 it was
     # eating 8% of counterspace this letter no longer has to spare, and the
     # weight it was adding is now in E_THICK where it can be read.
-    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 1.08))  # x S, across the nib
+    # ROUND 165 -- SAME COMPLAINT, SAME CURE. Owner 2026-09-16: *"e is too
+    # thick at its thickest"*. Measured on the LEFT FLANK only (180-290
+    # degrees, which is the one arc with neither the bar nor the eye in it):
+    # 95.3 units against the 72-82 stem band. At 0.86 it peaks at 86.5, level
+    # with the o's 85.1 -- which is the point, the two round letters having to
+    # agree before either can agree with a stem.
+    #
+    # THE LADDER IS NOT MONOTONIC and that is worth knowing before anyone
+    # sweeps it again: `con(base, CON_E)` anchors on the THICK and re-spreads,
+    # so lowering E_THICK changes the gamma as well as the peak. Built and
+    # measured: 1.08 -> 95.3, 1.00 -> 103.0, 0.94 -> 97.0, 0.88 -> 89.8,
+    # 0.86 -> 86.5, 0.84 -> 74.0. The 1.00 rung is HEAVIER than the 1.08 it
+    # came from.
+    E_THICK = float(os.environ.get("ALBO_ALD_E_THICK", 0.86))  # x S, across the nib
     E_THIN = float(os.environ.get("ALBO_ALD_E_THIN", 0.227))    # x S, along it
     E_CTR = float(os.environ.get("ALBO_ALD_E_CTR", 1.00))   # >1 eats counterspace
     E_END = float(os.environ.get("ALBO_ALD_E_END", 0.80))   # where the terminal stops, x the width
@@ -2073,6 +2103,11 @@ if ON:
     A_DROOP_HAND = [(75, 0.0, 0.0), (115, -17.0 * A_DROOP, 0.0),
                     (155, -9.0 * A_DROOP, 0.0), (200, 0.0, 0.0),
                     (300, 0.0, 0.0), (20, 0.0, 0.0)] if A_DROOP else None
+    # "deg:dr:dw,deg:dr:dw,..." -- the whole table, for laddering a droop's
+    # SHAPE rather than only its depth (round 165's ten options).
+    if os.environ.get("ALBO_ALD_A_HAND"):
+        A_DROOP_HAND = [tuple(float(x) for x in kv.split(":"))
+                        for kv in os.environ["ALBO_ALD_A_HAND"].split(",")]
 
     @glyph('a')
     def a_a(c):
@@ -3367,6 +3402,15 @@ if ON:
     K_W = d_dial("K_W", 1.03)
     K_TW = d_dial("K_TW", 1.08)
     K_STEM_X = d_dial("K_STEM_X", 137.0)   # the stem's centre, units
+    # ROUND 165 -- THE k's LEFT IS THINNED AND ITS WIDTH IS NOT. Owner
+    # 2026-09-16: *"k needs it's left to be thinned out without losing its
+    # width"*. Measured at 0.16 of the x-height, unsheared: the k's stem read
+    # 86 units against the h's 72, the n's 82 and the b's 65 -- the heaviest
+    # left stroke in the lowercase, on a letter whose arm and leg already carry
+    # more ink to its right than any of them. The width is untouched by this:
+    # the k's reach is K_W and the arm's and leg's own tables, none of which
+    # this dial enters.
+    K_STEM_W = d_dial("K_STEM_W", 0.84)   # the stem's width, x S
     K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
 
     @glyph('k')
@@ -3380,7 +3424,8 @@ if ON:
                      P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
-        return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True) + [arm, leg])
+        return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True,
+                            w=K_STEM_W) + [arm, leg])
 
 
     # ------------------------------------------------------------------ CAPS
@@ -3753,7 +3798,7 @@ if ON:
                                   WD * 0.9 * CAP_SERIF_TRAIL * CAP_SERIF_FULL,
                                   0.0, edge_at=_edge_back(Lz[::-1]))])
 
-    def cdiag(a, b, w=None, serif0=None, serif1=None):
+    def cdiag(a, b, w=None, serif0=None, serif1=None, mid=None):
         """A capital's diagonal, on the nib: its width follows its direction,
         so the two diagonals of an A or a V are NOT the same weight.
 
@@ -3764,7 +3809,7 @@ if ON:
         owner had cleaned off the roman E and F (caps_straight.py's note on
         `bar`). It does not taper either, for the reason cstem_i gives."""
         w = CAP_W if w is None else w
-        p_ = catmull([a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
+        p_ = catmull([a, mid or ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), b], tension=0.5)
         ws = nib_widths(p_, CS * w / S, CS * w * 0.30 / S, CAP_CON, taper=False)
         ws = [v * m for v, m in zip(ws, _taper(len(ws), ends=(serif0 is None, serif1 is None)))]
         wf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
@@ -4751,7 +4796,13 @@ if ON:
     # again -- the round-137 number exactly -- and every other re-cut capital is
     # unmoved.
     CAP_Z_DIAG = float(os.environ.get("ALBO_ALD_CAP_Z_D", 1.09))     # x CS; the roman declares 1.00 and this letter's bars are lighter, so it carries a touch more
-    CAP_Z_BAR = float(os.environ.get("ALBO_ALD_CAP_Z_BAR", 1.28))     # the bars' thickness, x TH_H
+    # ROUND 165 -- THE BARS COME DOWN. Owner 2026-09-16: *"reduce horizontal
+    # strokes of Z"*. 1.28 -> 1.06 x TH_H. The Z is the one capital whose
+    # horizontals carry two thirds of its ink, so a bar at the family's 1.28
+    # made it the darkest letter on a page of capitals; the diagonal is
+    # untouched (CAP_Z_DIAG still 1.09), which widens this letter's own
+    # thick-to-thin and is the direction an italic Z wants anyway.
+    CAP_Z_BAR = float(os.environ.get("ALBO_ALD_CAP_Z_BAR", 1.06))     # the bars' thickness, x TH_H
     # ROUND 138 -- THE TWO FRACTURES. Owner 2026-09-16: *"correct the fractures
     # of Z in top right and bottom left connections."* Rendered at 900 px and
     # cropped 8x NEAREST at both junctions, each one is a WEDGE OF PAPER driven
@@ -5776,7 +5827,7 @@ if ON:
     # The roman-parity exemption stands for the same reason it was
     # written -- see cmp_cap_weight.py's EXEMPT block -- because Albo's roman Y
     # is the light one at 0.89 whichever stroke the italic spends on.
-    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.30))  # the spine's own weight, x Y_INK
+    Y_SPINE_INK = float(os.environ.get("ALBO_ALD_Y_SPINE_INK", 1.44))  # the spine's own weight, x Y_INK
 
     @glyph('Y')
     def a_Y(c):
@@ -6030,16 +6081,44 @@ if ON:
         C = c["cap"]; x0 = CS * 0.5; dx = CAP_X_W * C
         p0, p1 = (x0, C), (x0 + dx, 0)
         q0, q1 = (x0 + dx, C), (x0, 0)
-        qp = catmull([q0, ((q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2), q1], tension=0.5)
+        # ROUND 165 -- THE X IS HAND CUT. Owner 2026-09-16: *"handcut X"*. Two
+        # straight lines crossing is the one construction in the alphabet with
+        # no hand in it at all: both strokes are `catmull` through three
+        # collinear points, so every quarter of this letter is the mirror of
+        # another quarter twice over. The Q's answer (round 151) and the R's
+        # (round 158) both apply, and the X takes the simplest form of it --
+        # each diagonal's MIDDLE control point is displaced, so the stroke bows
+        # instead of ruling, and the two bow in DIFFERENT directions and by
+        # different amounts, which is the part that matters. Equal opposite
+        # bows would just be a second symmetry.
+        #
+        #   thick   +3.0 x, -4.5 y at its middle -- it sags below its own
+        #           chord, the way a heavy stroke pulled downhill does
+        #   thin    -2.5 x, +2.0 y -- it lifts, being the stroke the pen is
+        #           travelling fastest on
+        #
+        # 2.0 to 4.5 units at a cap of 674: under a twentieth of the thick
+        # diagonal's own width, invisible at 13 pt, and enough at 400 px to
+        # stop the four arms being one arm rotated.
+        qm = ((q0[0] + q1[0]) / 2 + C * CAP_X_HAND_TX,
+              (q0[1] + q1[1]) / 2 + C * CAP_X_HAND_TY)
+        qp = catmull([q0, qm, q1], tension=0.5)
         qw = CAP_X_DIAG * CAP_X_THIN_W
         qws = nib_widths(qp, CS * qw / S, CS * qw * 0.30 / S,
                          CAP_CON, taper=False)
         qwf = widths([(i / (len(qws) - 1), S * v) for i, v in enumerate(qws)])
         k = CAP_SERIF_FULL * CAP_X_THIN
-        return geom.ink([cdiag(p0, p1, CAP_X_DIAG, serif0=1, serif1=1),
+        pm = ((p0[0] + p1[0]) / 2 + C * CAP_X_HAND_KX,
+              (p0[1] + p1[1]) / 2 + C * CAP_X_HAND_KY)
+        return geom.ink([cdiag(p0, p1, CAP_X_DIAG, serif0=1, serif1=1, mid=pm),
                          stroke(qp, qwf),
                          _cap_end_wedge(qp, qwf(0.0), True, -1, k=k),
                          _cap_end_wedge(qp, qwf(1.0), False, -1, k=k)])
+
+    CAP_X_HAND_KX = float(os.environ.get("ALBO_ALD_CAP_X_KX", 0.0045))   # the THICK diagonal's midpoint, x C
+    CAP_X_HAND_KY = float(os.environ.get("ALBO_ALD_CAP_X_KY", -0.0067))
+    CAP_X_HAND_TX = float(os.environ.get("ALBO_ALD_CAP_X_TX", -0.0037))  # and the THIN one's
+    CAP_X_HAND_TY = float(os.environ.get("ALBO_ALD_CAP_X_TY", 0.0030))
 
     CAP_VV_W = float(os.environ.get("ALBO_ALD_CAP_VV_W", 1.375))   # the letter's width, x C
     # 0.985 and 0.909 solved the same way and from the same build: at 0.640

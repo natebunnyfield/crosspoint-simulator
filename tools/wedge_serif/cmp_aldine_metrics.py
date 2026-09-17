@@ -100,8 +100,21 @@ TARGETS = {
     # `word_weight.py` -- on the letter that appears in 76 of the 147 commonest
     # English words and carries 13-15% of a page's ink. At 0.268 it is -0.1%.
     # A target only a broken letter can pass is a wrong target.
-    'e': (0.268, None,  'C 5.00', 1.12,
-          'round 151: the DRAWING (scan 0.203 is the page ink spread; Flanker 0.441, Poetica 0.253)'),
+    # ROUND 165 RETARGET, 0.268 -> 0.386, and it is the SAME rule as the round
+    # 151 one above rather than a new indulgence: this row's target IS the
+    # drawing, and the owner moved the drawing -- *"e is too thick at its
+    # thickest"*, E_THICK 1.08 -> 0.86, which took the left flank's peak from
+    # 95.3 units to 86.5 and on to the o's 92.3. A thinner ring inside the same
+    # outer contour has a bigger hole.
+    #
+    # THE MOVE IS TOWARD THE REFERENCE AND NOT AWAY FROM IT, which is the check
+    # that matters: Flanker's own e reads 0.441 by this script, Pagella 0.401,
+    # Cancelleresca 0.348, Poetica 0.253. At 0.268 the drawing sat below every
+    # vector reference; at 0.386 it sits between Cancelleresca and Pagella and
+    # 12% under Flanker. The scan's 0.203 is the printed page's ink spread and
+    # is not a target, for the reason the o's row gives.
+    'e': (0.386, None,  'C 5.00', 1.12,
+          'round 165: the DRAWING after the owner thinned it (Flanker 0.441, Pagella 0.401, scan 0.203 is page ink spread)'),
     'i': (None,  None,  'B 5.00', 0.64, 'griffo-macro.png, "rodigium"'),
     # ROUND 132 RULING: the o's counter target follows its weight to the
     # reference (owner 2026-09-16). 0.617 is what the PRINTED page measures --
