@@ -98,6 +98,39 @@ def build(out, italic):
     return os.path.join(out, name)
 
 
+# ROUND 163 -- ONE LETTER IS EXEMPT FROM THE ROMAN-PARITY RULE, BY NAME AND
+# WITH ITS REASON. Owner 2026-09-16: *"Y needs to match weight of other
+# capitals be by thicker on right stroke and tall enough to reach line"*.
+#
+# Round 131c's rule is that an italic capital carries its OWN roman's weight,
+# and that is what every other row here checks. The Y cannot do both things at
+# once, because Albo's ROMAN Y is itself the light one: measured as this script
+# measures, against the untouched capitals' median --
+#
+#   the italic capitals   A 0.88  G 0.90  H 1.09  K 0.95  L 0.99  M 0.96
+#                         N 1.02  O 0.97  P 1.00  Q 0.92  R 1.03  S 0.95
+#                         U 0.95  V 0.85  W 0.89  X 0.81  Z 1.01
+#   the roman Y           0.89
+#   the italic Y, before  0.93
+#
+# -- so holding parity with the roman pins the italic Y at 0.89-0.93, which is
+# the bottom of the alphabet beside V, W and X, and the owner is looking at a
+# page rather than at a gate. At the arm weight he asked for, the italic Y
+# reads 0.99: level with L at 0.99 and P at 1.00, which is what "match the
+# other capitals" means.
+#
+# THE EXEMPTION IS A NAMED ROW AND NOT A WIDER TOLERANCE, deliberately: moving
+# --tol would excuse every letter silently, and the next drift in any of the
+# other seventeen would pass unnoticed. The Y's own number is still PRINTED
+# every run, so the cost stays visible.
+#
+# THE WAY OUT, if it is ever wanted: thicken the ROMAN Y's right arm to match
+# (`caps_straight.g_Y`, whose arm is `pw(q0, q1, 0.72)` -- that 0.72 is the
+# thin factor). Then parity returns and this row goes. It was not done here
+# because the instruction named the italic and the roman ships in Albo Regular.
+EXEMPT = {"Y": "round 163: the owner's weight ruling; the roman Y is the light one"}
+
+
 def main():
     tol = 0.05
     if "--tol" in sys.argv: tol = float(sys.argv[sys.argv.index("--tol") + 1])
@@ -110,7 +143,10 @@ def main():
         if ch not in rom or ch not in ita: continue
         diff = ita[ch] - rom[ch]
         flag = "  <-- OFF" if abs(diff) > tol else ""
-        if flag: bad.append(ch)
+        if flag and ch in EXEMPT:
+            flag = "  <-- exempt: " + EXEMPT[ch]
+        elif flag:
+            bad.append(ch)
         print("  %s  %.2f    %.2f   %+.2f%s" % (ch, rom[ch], ita[ch], diff, flag))
     print("\n%d re-cut capital(s) more than %.2f from their roman." % (len(bad), tol))
     return 1 if bad else 0

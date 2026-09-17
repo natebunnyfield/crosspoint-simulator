@@ -5641,8 +5641,19 @@ if ON:
     # swung out late. Every other number in the expression is unchanged, so the
     # head lands exactly where round 158's reach put it.
     Y_LEFT_P = float(os.environ.get("ALBO_ALD_Y_P", 0.80))
+    # ROUND 163 -- AND IT REACHES THE LINE. Owner 2026-09-16: *"... and tall
+    # enough to reach line"*. Measured on the built font, the top of every
+    # capital's ink: the flat-topped group -- B D E F H I J L N P R T U Z --
+    # all read 675-676, and the Y read **671**, the only capital in the
+    # alphabet below the line. Both of its branches stopped short: the spine's
+    # last traced height was 0.975 of the cap and the arm's 0.980, and neither
+    # the head's wedge nor the arm's terminal made up the difference.
+    # Y_TOP_LIFT raises both last rows together, so the two ends arrive at the
+    # line without changing the bend or the reach that got them there.
+    Y_TOP_LIFT = float(os.environ.get("ALBO_ALD_Y_TOP_LIFT", 0.0085))
     Y_SPINE = [(0.4816, 0.000), (0.4816, 0.200), (0.4816, 0.300)] + [
-        (round(0.4816 - Y_LEFT_REACH * (((y - 0.30) / 0.675) ** Y_LEFT_P), 4), y)
+        (round(0.4816 - Y_LEFT_REACH * (((y - 0.30) / 0.675) ** Y_LEFT_P), 4),
+         y + (Y_TOP_LIFT if y > 0.9 else 0.0))
         for y in (0.40, 0.50, 0.60, 0.70, 0.80, 0.88, 0.975)]
     # Widths are the MEASURED perpendicular thickness less INK_SPREAD's 2.4
     # units (0.00356 x cap), for the same reason the O's ring table has 2 taken
@@ -5696,8 +5707,21 @@ if ON:
     # shown and both FAIL it, not because they are heavy in the abstract but
     # because they are heavier than Albo's ROMAN Y, and round 131c's rule is
     # that an italic capital carries its own roman's weight.
-    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.38))  # the arm's own weight, x Y_INK
-    Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
+    # ROUND 163 -- 1.38 -> 1.70, AND THE ROMAN-PARITY RULE BENDS FOR IT. Owner
+    # 2026-09-16: *"Y needs to match weight of other capitals be by thicker on
+    # right stroke"*. At 1.38 the italic Y measured 0.93 of the untouched
+    # capitals' median, the bottom of the alphabet beside V 0.85, W 0.89 and
+    # X 0.81; at 1.70 it reads 0.99, level with L at 0.99 and P at 1.00.
+    #
+    # It costs the round-131c rule, and that is recorded rather than hidden:
+    # Albo's ROMAN Y is itself the light one at 0.89, so no italic Y can both
+    # carry its own roman's weight AND sit with the other capitals. The
+    # exemption is a NAMED ROW in cmp_cap_weight.py with the numbers in it --
+    # see that file's EXEMPT block, including the way out, which is to thicken
+    # the roman Y's own arm.
+    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.70))  # the arm's own weight, x Y_INK
+    Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4),
+              y + (Y_TOP_LIFT if y > 0.9 else 0.0))
              for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
                (0.78, 0.0684), (1.00, 0.0714)]
