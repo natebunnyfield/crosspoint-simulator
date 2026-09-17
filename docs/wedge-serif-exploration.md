@@ -6381,6 +6381,23 @@ doc, `docs/albo-hairline-gap.md`), the a rebuilt several more times (155,
 168–170), the straight-edge gate (`95c853b`), and E F T and the ten figures
 hand cut on a press (167).
 
+### The commits behind rounds 172–179
+
+The entries below are written from these, and each commit message carries more
+arithmetic than fits here. Newest last.
+
+| round | commits |
+|---|---|
+| 172 | `c6b2109` the lower right · `a2dfd97` the bottom left and the bar's stub · `dc51d5b` E_BL settles at 13 units |
+| — | `641792a` `proof.py`, one renderer for every proof image |
+| 173 | `da0d2a3` |
+| 174 | `880ddca` |
+| 175 | `a1d8f0e` the ladder and the wall · `92210e4` shipped at 8 |
+| 176 | `d754792` (also `cmp_aldine_g.py` and `docs/albo-g-anatomy.md`) |
+| 177 | `5531d10` (also `cmp_cap_space.py` and `docs/albo-capital-spacing.md`) · `7b372a1` the owner's three picks |
+| 178 | `f3f8ed1` (also `cmp_touch.py`) |
+| 179 | `ee94121` |
+
 ### Round 172 — the e's lower right, then the bottom LEFT, and the notch that was never at the join
 
 Three owner instructions on one letter in one round, and **two of them are
