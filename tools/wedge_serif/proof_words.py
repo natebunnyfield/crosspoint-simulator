@@ -103,6 +103,76 @@ def cover(words, pairs, pool=3000, maxlen=9):
     return out, need
 
 
+def title_page(a, W, B, top, share):
+    """One page of TITLE CASE, built so every capital appears at least once.
+
+    A lowercase proof tests the lowercase. Title case is where a capital meets
+    the lowercase that follows it, which is the join the recent capital work --
+    the J and T serifs, the thinned I and J stems, the re-spaced U and Y -- can
+    only be judged at. So: for EVERY initial letter, the word starting with it
+    that carries the most top bigrams, title-cased.
+
+    Letters with no common English word of usable length (X, Z on a small
+    corpus) fall back to the commonest word starting with them, and are marked
+    in the report rather than silently dropped -- a page claiming to show 26
+    capitals must show 26.
+    """
+    import string
+    en = english()
+    tops = set(top)
+    best, missing = {}, []
+    for ini in string.ascii_lowercase:
+        cands = [(len({w[i:i+2] for i in range(len(w)-1)} & tops), W[w], w)
+                 for w, _ in W.most_common(6000)
+                 if w.startswith(ini) and 4 <= len(w) <= 11 and (en is None or w in en)]
+        if not cands:
+            # the corpus has no usable word for this initial (X, on any corpus
+            # this size). Fall back to the system dictionary, which is where a
+            # real word for it lives, and SAY SO -- a page claiming 26 capitals
+            # must show 26, and a bare letter standing in for a word is not one.
+            cands = [(0, 0, w) for w in sorted(en or ())
+                     if w.startswith(ini) and 4 <= len(w) <= 11]
+            if not cands:
+                cands = [(0, W[w], w) for w, _ in W.most_common(20000) if w.startswith(ini)]
+            if cands: missing.append(ini)
+        if cands:
+            best[ini] = max(cands)[2]
+    words = [best[k].capitalize() for k in sorted(best)]
+    print(f"\n  title case: {len(words)} initials covered"
+          + (f"; no dense word for {' '.join(missing)} -- commonest used instead" if missing else ""))
+    print("  " + " ".join(words))
+
+    from proof import Proof
+    from PIL import ImageFont
+    PAGE = 2000
+    def rows(pr, text, px, gap=6):
+        f = ImageFont.truetype(a.ttf, px)
+        line = ""
+        for w in text.split():
+            t = (line + " " + w).strip()
+            if f.getlength(t) > PAGE - 60 and line:
+                pr.row(line, px); pr.gap(gap); line = w
+            else:
+                line = t
+        if line: pr.row(line, px); pr.gap(gap)
+
+    pr = Proof(a.ttf, width=PAGE, pad=30)
+    pr.label("TITLE CASE — the densest word for every initial, %d of 26" % len(words))
+    for px in (62, 40, 26, 18):
+        rows(pr, " ".join(words), px)
+        pr.gap(14)
+    pr.label("THE LETTERS RECUT THIS SESSION — J T I U Y K W E F, in title case")
+    recut = [w for w in words if w[0] in "JTIUYKWEF"]
+    for px in (62, 34, 20):
+        rows(pr, " ".join(recut), px)
+        pr.gap(10)
+    pr.label("EVERY CAPITAL AGAINST ITS OWN LOWERCASE")
+    rows(pr, " ".join(f"{c}{c.lower()}" for c in string.ascii_uppercase), 54)
+    rows(pr, " ".join(f"{c}{c.lower()}" for c in string.ascii_uppercase), 26)
+    pr.save(a.out)
+    print("  wrote", a.out, "\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ttf")
@@ -110,6 +180,8 @@ def main():
     ap.add_argument("--pairs", type=int, default=60)
     ap.add_argument("--words", type=int, default=48)
     ap.add_argument("--rebuild", action="store_true")
+    ap.add_argument("--title", action="store_true",
+                    help="title-case page: the densest word for EVERY initial letter")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
 
@@ -138,6 +210,9 @@ def main():
         print("\n  top pairs :", " ".join(top))
         print("  cover     :", " ".join(cov))
         print("  densest   :", " ".join(f"{w}({n})" for n, _, w in dense))
+
+    if a.title:
+        return title_page(a, W, B, top, share)
 
     from proof import Proof
     from PIL import ImageFont
