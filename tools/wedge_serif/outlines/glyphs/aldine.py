@@ -4576,6 +4576,41 @@ if ON:
     # because its bowl already carried the extra weight round 138 gave it.
     CAP_P_W = float(os.environ.get("ALBO_ALD_CAP_P_W", 1.06))   # the bowl's weight, x CAP_W_ROUND
     CAP_P_INK = float(os.environ.get("ALBO_ALD_CAP_P_INK", 1.00))  # round 158: x the closed ring's widths
+    # ROUND 161 -- THE HAIRLINE GAP, TAKEN OFF THE Y AND GIVEN TO THE P. Owner
+    # 2026-09-16: *"record the hairline gap from Y into md file and add it to P
+    # before middle connector"*. Full account: docs/albo-hairline-gap.md.
+    #
+    # WHAT IT IS ON THE Y, measured on the built font, unsheared, cap 674 --
+    # horizontal cuts through the join:
+    #
+    #   y/cap   the two ink runs        the white between
+    #   0.37    86-169                  -- one run, the strokes are merged
+    #   0.38    83-163  170-179         7.2
+    #   0.39    79-156  164-186         7.9
+    #   0.40    76-151  158-194         7.7
+    #   0.41    72-144  152-203         8.1
+    #   0.42    69-139  147-210         7.8
+    #   0.43    65-134  148-217         14.7   <- opening into the fork
+    #
+    # About EIGHT UNITS wide, held within one unit over 0.04 of the cap, and
+    # CLOSED at the bottom -- a wedge the two strokes leave between them as
+    # they come together, not a slot. It was never drawn; it is what the arm's
+    # underside and the spine's right edge happen to leave, and it is the one
+    # place in the capital alphabet where the eye is shown two strokes MEETING
+    # rather than one shape.
+    #
+    # ON THE P it has to be CUT, because the bowl's lower terminal and the stem
+    # simply merge: measured the same way, 0.33 to 0.42 of the cap is one solid
+    # run and the counter only opens at 0.43. `geom.ink`'s cutout does it -- a
+    # wedge seated on the stem's right edge, widest where the counter opens and
+    # closing to nothing below, which is the Y's shape read upside down,
+    # because the P's two strokes come together going DOWN where the Y's come
+    # together going up.
+    P_GAP = float(os.environ.get("ALBO_ALD_P_GAP", 1.0))            # 0 turns it off
+    P_GAP_W = float(os.environ.get("ALBO_ALD_P_GAP_W", 0.0172))     # its width, x C -- the Y's eight units
+    P_GAP_TOP = float(os.environ.get("ALBO_ALD_P_GAP_TOP", 0.432))  # where it meets the counter, x C
+    P_GAP_BOT = float(os.environ.get("ALBO_ALD_P_GAP_BOT", 0.384))  # and where it closes
+    P_GAP_X = float(os.environ.get("ALBO_ALD_P_GAP_X", 0.0645))      # the stem's right edge, x C right of x0 (x0 + half the stem)
     CAP_P_SMOOTH = int(os.environ.get("ALBO_ALD_CAP_P_SMOOTH", 7))  # the moving average nib_widths used to apply
     # ROUND 138 -- UNIFY THE TOP SERIF. Owner 2026-09-16: *"unify the top serif
     # of P."* The wedge itself was never the odd one: this letter's stem is
@@ -4639,8 +4674,15 @@ if ON:
         if over:
             p_, ws = _arc(cy - over / 2, ry - over / 2)
         bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        cuts = []
+        if P_GAP:
+            xg = x0 + C * P_GAP_X
+            w = C * P_GAP_W * P_GAP
+            yb = C * P_GAP_BOT; yt = C * P_GAP_TOP
+            cuts.append(geom.poly([(xg, yb), (xg + w * 0.74, yb),
+                                   (xg + w, yt), (xg, yt)]))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
-                         stroke(p_, bf, cut0=CUT, cut1=CUT)])
+                         stroke(p_, bf, cut0=CUT, cut1=CUT)], cuts)
 
     # ---------------------------------------------------------------- Z
     # THE Z WAS ALREADY THE CLOSEST OF THE NINE (cap-aligned IoU 0.665 at round
@@ -5640,7 +5682,13 @@ if ON:
     # The arm's VERTICAL half is untouched: Y_ARM_VERT still turns it upright at
     # 0.80 of the cap, which is the round-141 ruling and not this instruction's.
     Y_ARM_DX = float(os.environ.get("ALBO_ALD_Y_ARM_DX", 0.225))  # the arm's horizontal travel, x cap
-    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.18))  # the arm's own weight, x Y_INK
+    # ROUND 161: **E WINS ON WEIGHT** -- owner 2026-09-16, off the seven-weight
+    # ladder. 1.18 -> 1.38, which is the last rung with real margin left in the
+    # weight gate (+0.03 of a tolerance of 0.05); 1.48 and 1.60 were built and
+    # shown and both FAIL it, not because they are heavy in the abstract but
+    # because they are heavier than Albo's ROMAN Y, and round 131c's rule is
+    # that an italic capital carries its own roman's weight.
+    Y_ARM_INK = float(os.environ.get("ALBO_ALD_Y_ARM_INK", 1.38))  # the arm's own weight, x Y_INK
     Y_ARM = [(round(0.4850 + Y_ARM_DX * (1.0 - (1.0 - min(1.0, (y - 0.40) / (Y_ARM_VERT - 0.40))) ** Y_ARM_P), 4), y)
              for y in (0.400, 0.460, 0.500, 0.560, 0.620, 0.680, 0.740, 0.800, 0.890, 0.980)]
     Y_ARM_W = [(0.00, 0.0484), (0.18, 0.0514), (0.38, 0.0574), (0.58, 0.0634),
