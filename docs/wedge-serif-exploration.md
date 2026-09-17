@@ -6916,8 +6916,10 @@ number.
 
 ### What is open, at the end of 2026-09-17
 
-1. **The g's neck-to-loop joint.** Diagnosed precisely, not built. The owner
-   specified the construction; see round 188 above.
+1. **The g's neck-to-loop joint.** BUILT AND INERT -- `ALBO_ALD_G_COMPOUND=1`
+   reaches it, the default is off, and the font is outline-identical without it
+   (0 glyphs differ). Turned on it still renders wrong. Two faults found, one
+   fixed, one precisely diagnosed and left; see round 196 below.
 2. **The 8's contrast** — needs the round-182 pen treatment.
 3. **The E's bars run ~24% heavy** — measured at bar/stem 0.553 where a 24° nib
    gives 0.445. Deliberately not changed: the E's serifs are something the owner
@@ -6930,3 +6932,51 @@ number.
 6. Rounds 145–171 remain unlogged here and live only in the commits.
 
 Gates at `690aa81`: touch 0 of 5,193, glitch 0 of 119, metrics 0, cap weight 0.
+
+### Round 196 — the compound path, built, inert, and not finished
+
+Owner 2026-09-17: *"treat it as a compound path for the connector that continues
+seamlessly from each loop with angled part (pay attention to corner vertex)."*
+
+**The construction exists now.** `ALBO_ALD_G_COMPOUND` walks the letter's outer
+contour instead of booleaning three shapes together: along the bowl's outer to
+where the connector leaves it, down the right edge, along the loop's outer, back
+up the left edge. The junctions become CHOICES rather than outcomes — the left
+edge leaves and arrives along each ring's own tangent (no corner, it is the
+silhouette), the right edge has zero-length handles at both ends, which is how a
+corner vertex is PLACED rather than hoped for. The middle of each edge is still
+the neck's own centreline offset by its own half width: the stroke's shape was
+never what was wrong.
+
+**It is OFF, and off it is provably inert** — a build with the dial unset is
+outline-identical to `4beb691`, 0 of the font's glyphs differ.
+
+**Fault 1, fixed: the four landing points were dials, and I guessed them.** The
+guesses put the bowl's two points at its SIDES — y 185 and 131 on a bowl whose
+floor is 0, a 91° span of ring — so the patch enclosed most of the letter and
+rendered as a blot with a white slash through it. They are derived now, from the
+neck's own centreline ends offset by its own half width.
+
+**And the joint gate scored that blot CLEAN.** `cmp_joints.py` reported the g at
+**0 notches and 1 sharp joint** against the shipping letter's 5 joints and 2
+notches — an apparently excellent result, produced by a filled bay, which has no
+concave corners in it to find. The only thing that caught it was rendering the
+letter and looking. That is rule 5's shape arriving again: **a gate measures the
+absence of a fault, never the presence of a letter.**
+
+**Fault 2, open and precisely located: the loop landing is degenerate.** The
+neck's end is deliberately BURIED inside the loop's wall, so both of its offset
+points are inside the ring and the nearest contour VERTEX to each is nearly the
+same one — 11 units apart on a stroke 78 units wide. The patch pinches there and
+the fill leaks into the bowl's counter.
+
+**The fix is named and it is not another nearest-point search**: the two landing
+points are where the neck's two EDGES CROSS the loop's outer contour — a
+segment/polyline intersection, one per edge, which is guaranteed to exist
+precisely because the end is buried. The span is then the stroke's true width at
+the wall, by construction. Same for the bowl end, which currently works only
+because the neck's start happens to sit near the bowl's surface rather than
+inside it.
+
+Stopped here rather than making a fourth attempt at it in one sitting. The
+picture is the judge and the owner has not seen one.

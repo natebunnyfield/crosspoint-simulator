@@ -3857,6 +3857,65 @@ if ON:
     G_NECK_AIM = os.environ.get("ALBO_ALD_G_NECK_AIM", "0") != "0"
     G_NECK_BURY = float(os.environ.get("ALBO_ALD_G_NECK_BURY", 1.0))  # x half the wall, inward
     G_ONE_STROKE = os.environ.get("ALBO_ALD_G_ONE_STROKE", "0") != "0"
+    # ROUND 196 -- THE CONNECTOR AS AN EXPLICITLY CONSTRUCTED COMPOUND PATH.
+    # Owner 2026-09-17: *"treat it as a compound path for the connector that
+    # continues seamlessly from each loop with angled part (pay attention to
+    # corner vertex)."*
+    #
+    # Every earlier attempt drew the connector as its OWN shape and then asked a
+    # boolean to make the junction good. A boolean cannot: `geom.ink` adds, so a
+    # union is tangent-continuous only where the two edges were already going
+    # the same way (rule 2), and a difference cuts a face square wherever the
+    # edge happens to be. Rounds 174-187 are four ways of discovering that --
+    # trim leaves a shelf, union leaves a spur, burying pushes into the counter,
+    # one stroke self-overlaps into holes.
+    #
+    # THE CONNECTOR IS NOT A SHAPE. It is the span of the letter's OUTER CONTOUR
+    # between the two rings, and the honest way to build it is to walk that
+    # contour: along the bowl's outer to where the connector leaves it, down one
+    # side, along the loop's outer, back up the other side. Each edge then ENDS
+    # ON the ring's own contour because that is where it was started from, and
+    # what happens at the four junctions is a CHOICE rather than an outcome:
+    #
+    #   the LEFT edge   is the letter's silhouette running bowl -> loop, so it
+    #                   leaves and arrives ALONG EACH RING'S OWN TANGENT and
+    #                   there is no corner at either end.
+    #   the RIGHT edge  is the inside of the turn, the bay between the two
+    #                   rings, and in both references it is a CORNER at each
+    #                   ring -- so its handles are zero there and the vertex is
+    #                   PLACED.
+    #
+    # The four angles say where on each ring the two edges land; they are the
+    # geometry of the joint and nothing else in the letter moves when they do.
+    # OFF by default: this changes the g's silhouette and the owner rules on
+    # pictures.
+    G_COMPOUND = os.environ.get("ALBO_ALD_G_COMPOUND", "0") != "0"
+    G_CP_TANG = float(os.environ.get("ALBO_ALD_G_CP_TANG", 0.34))  # handle, x the edge's chord
+    #
+    # STATE 2026-09-17, 03:50: BUILT, INERT, AND NOT FINISHED. The dial is off
+    # and `cmp_aldine_glitch` and the outline diff both say the font is
+    # byte-for-byte what it was without it. Turned ON it still renders wrong,
+    # and the two faults found so far are recorded because each cost a build:
+    #
+    #   1. THE LANDING POINTS WERE DIALS, AND GUESSING THEM PUT THE BOWL'S TWO
+    #      POINTS AT ITS SIDES -- y 185 and 131 on a bowl whose floor is 0, a
+    #      91-degree span, so the patch enclosed most of the letter and rendered
+    #      as a blot with a white slash through it. Fixed: they are derived from
+    #      the neck's own centreline ends offset by its own half width.
+    #      *The joint gate scored that blot CLEAN at 0 notches*, because a
+    #      filled bay has no concave corners in it. Only the picture caught it.
+    #
+    #   2. THE LOOP LANDING IS DEGENERATE, and this is what is still wrong. The
+    #      neck's end `_n4` is deliberately BURIED INSIDE the loop's wall, so
+    #      both of its offset points are inside the ring and the nearest CONTOUR
+    #      vertex to each is nearly the same one -- 11 units apart on a stroke
+    #      78 units wide. The patch pinches there and the fill leaks.
+    #
+    #      THE FIX IS NOT ANOTHER NEAREST-POINT SEARCH. The two landing points
+    #      are where the neck's two EDGES CROSS the loop's outer contour -- a
+    #      segment/polyline intersection, one per edge, which exists exactly
+    #      because the end is buried. Compute those and the span is the stroke's
+    #      true width at the wall, by construction.
     G_LOOP_ENTER = float(os.environ.get("ALBO_ALD_G_LOOP_ENTER", 100.0))  # ring angle the neck enters at
     G_NECK_START_W = float(os.environ.get("ALBO_ALD_G_NECK_START_W", 42.0))
     G_NECK_TURN = float(os.environ.get("ALBO_ALD_G_NECK_TURN", 4.0))     # y of the turn, units
@@ -4161,8 +4220,9 @@ if ON:
         through the baseline, a wide shallow loop under it, and an ear. See
         the block above for where every number comes from."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
-        up = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u, G_RING,
-                        k=A_K, skew=G_SKEW, unit=u, hand=_gh(G_BOWL_HAND),
+        up, up_outer = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u,
+                        G_RING, k=A_K, skew=G_SKEW, unit=u, want_outer=True,
+                        hand=_gh(G_BOWL_HAND),
                         pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
                             if G_BOWL_PEN else None)
         lt = G_LTOP * u; lb = -dsc - OVER * 0.4
@@ -4308,6 +4368,124 @@ if ON:
         # there to protrude, and G_NECK_END and G_NECK_CUT stop being critical:
         # the neck can be aimed generously into the loop and the trim decides
         # where it stops.
+        if G_COMPOUND:
+            # ROUND 196 -- THE OUTER CONTOUR IS WALKED, not booleaned together.
+            # See the dial block for why. Four landing points, two edges, and
+            # the junctions are CHOICES: the left edge leaves and arrives along
+            # each ring's own tangent, the right edge makes a corner at both.
+            _bcx, _bcy = x0 + G_CX * u, G_CY * u
+            _brx, _bry = G_RX * u, G_RY * u
+
+            def _cp_at(poly, cx, cy, rx, ry, skew, deg):
+                t = math.radians(deg) % (2 * math.pi); bi = 0; bd = 9e9
+                for i, (x, y) in enumerate(poly):
+                    a = math.atan2((y - cy) / ry,
+                                   (x - (y - cy) * skew - cx) / rx) % (2 * math.pi)
+                    d = abs((a - t + math.pi) % (2 * math.pi) - math.pi)
+                    if d < bd: bd, bi = d, i
+                return bi
+
+            def _cp_arc(poly, i, j):
+                # THE SHORT WAY ROUND, always -- the first cut walked forward
+                # on an assumed-CCW contour and took the long arc, which wraps
+                # the patch right around the ring and fills its counter. It
+                # rendered as a blot with a white slash through it, and the
+                # joint gate scored it CLEAN (0 notches) because a filled bay
+                # has no concave corners in it. A picture caught what the
+                # measurement could not: rule 5's shape, arriving again.
+                n = len(poly)
+                fwd = (j - i) % n
+                step = 1 if fwd <= n - fwd else -1
+                out = []; k = i
+                for _ in range(n + 1):
+                    out.append(poly[k])
+                    if k == j: break
+                    k = (k + step) % n
+                return out
+
+            def _cp_tan(poly, i):
+                n = len(poly)
+                ax, ay = poly[(i - 1) % n]; bx, by = poly[(i + 1) % n]
+                dx, dy = bx - ax, by - ay; L = math.hypot(dx, dy) or 1.0
+                return dx / L, dy / L
+
+            # both contours CCW, so "forward" means the same thing on each
+            _bo = list(up_outer)
+            if geom.signed_area(_bo) < 0: _bo = _bo[::-1]
+            _lo_o = list(lo_outer)
+            if geom.signed_area(_lo_o) < 0: _lo_o = _lo_o[::-1]
+            # WHERE the edges land is NOT a dial. The first cut made the four
+            # angles parameters and guessed them, and the guesses put the bowl's
+            # two points at its SIDES (y 185 and 131 on a bowl whose floor is at
+            # 0) -- a 91-degree span of ring, so the "connector" enclosed most of
+            # the letter and rendered as a blot. The neck already knows where it
+            # leaves and where it arrives: its own centreline ends, offset by
+            # its own half width, ARE the four points, and the nearest contour
+            # vertex to each is where that edge must terminate.
+
+            # THE MIDDLE of each edge is still the neck's own centreline, offset
+            # by half its own width -- the stroke's shape was never what was
+            # wrong, only its two ends, so it is kept rather than re-invented.
+            _cl = catmull(_pen, tension=G_NECK_ANG)
+            _ct = geom.tangents(_cl)
+
+            def _cp_side(side, t0=0.20, t1=0.82):
+                out = []; n = len(_cl)
+                for i, (x, y) in enumerate(_cl):
+                    t = i / (n - 1.0)
+                    if t < t0 or t > t1: continue
+                    tx, ty = _ct[i]; hw = _nw(t) * 0.5 * side
+                    out.append((x - ty * hw, y + tx * hw))
+                return out
+
+            _ml = _cp_side(+1.0)          # left of travel: the silhouette
+            _mr = _cp_side(-1.0)          # right of travel: the bay
+
+            def _cp_edge(i, side):
+                x, y = _cl[i]; tx, ty = _ct[i]
+                hw = _nw(i / (len(_cl) - 1.0)) * 0.5 * side
+                return (x - ty * hw, y + tx * hw)
+
+            def _cp_near(poly, pt):
+                bi = 0; bd = 9e9
+                for i, q in enumerate(poly):
+                    d = (q[0] - pt[0]) ** 2 + (q[1] - pt[1]) ** 2
+                    if d < bd: bd, bi = d, i
+                return bi
+
+            _ibl = _cp_near(_bo, _cp_edge(0, +1.0))
+            _ibr = _cp_near(_bo, _cp_edge(0, -1.0))
+            _ill = _cp_near(_lo_o, _cp_edge(len(_cl) - 1, +1.0))
+            _ilr = _cp_near(_lo_o, _cp_edge(len(_cl) - 1, -1.0))
+            _Bl, _Br = _bo[_ibl], _bo[_ibr]
+            _Lr, _Ll = _lo_o[_ilr], _lo_o[_ill]
+
+            def _cp_handle(pt, tan, aim, chord):
+                dx, dy = tan
+                if (aim[0] - pt[0]) * dx + (aim[1] - pt[1]) * dy < 0:
+                    dx, dy = -dx, -dy
+                L = chord * G_CP_TANG
+                return (pt[0] + dx * L, pt[1] + dy * L)
+
+            _ch = math.dist(_Bl, _Ll)
+            _left = catmull([_Bl,
+                             _cp_handle(_Bl, _cp_tan(_bo, _ibl), _ml[0], _ch)]
+                            + _ml +
+                            [_cp_handle(_Ll, _cp_tan(_lo_o, _ill), _ml[-1], _ch),
+                             _Ll], tension=0.5)
+            # NO HANDLE on the right edge: a zero-length handle IS the corner
+            # vertex, placed on the ring rather than left to a boolean.
+            _right = catmull([_Br] + _mr + [_Lr], tension=0.5)
+            _patch = (_cp_arc(_bo, _ibl, _ibr) + list(_right)
+                      + _cp_arc(_lo_o, _ilr, _ill) + list(reversed(_left)))
+            _cp = geom.poly(_patch)     # the ear is built below; return at the foot
+            if os.environ.get("ALBO_ALD_G_CP_DUMP"):
+                import json
+                json.dump({"patch": _patch, "bo": _bo, "lo": _lo_o,
+                           "left": list(_left), "right": list(_right),
+                           "ml": _ml, "mr": _mr,
+                           "B": [_Bl, _Br], "L": [_Lr, _Ll]},
+                          open(os.environ["ALBO_ALD_G_CP_DUMP"], "w"))
         if G_ONE_STROKE:
             # ROUND 188 -- THE NECK AND THE LOOP ARE ONE STROKE.
             # Owner 2026-09-17: *"take a closer and smarter look at the reversal
@@ -4399,6 +4577,8 @@ if ON:
                              (0.45, G_EAR_T * u * 0.85),
                              (0.82, G_EAR_T * u * G_EAR_FLARE),
                              (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
+        if G_COMPOUND:
+            return geom.ink([up, lo, _cp, ear])
         if G_ONE_STROKE:
             return geom.ink([up, _one, ear])
         return geom.ink([up, lo, nk, ear])
