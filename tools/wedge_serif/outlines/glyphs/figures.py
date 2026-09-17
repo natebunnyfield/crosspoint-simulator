@@ -109,6 +109,37 @@ EIGHT_LOWER = 1.0          # the lower counter's width, x that counter's width
 EIGHT_UPPER = 0.75         # the upper counter, x the lower's WIDTH, linearly (width and height alike); ruled: C
 EIGHT_LOWER_TALL = 1.08    # the lower counter's height, x the circle's (1.0 = 1.036 wide over tall)
 EIGHT_FLOOR = 0.65         # round 98b (owner 2026-09-14: "yes to c"): the hairs at 11 and 5 o'clock never under 0.65 S, counters untouched, ink +5.6%. (0.55, his first pick, sat under the bowl hair's 0.554 and bound nothing.)
+EIGHT_CSM = 2          # unchanged: smoothing does not cure the pinch (see EIGHT_CON)
+EIGHT_FLOOR_IT = EIGHT_FLOOR   # unchanged: the floor was measured not to bind (see EIGHT_CON)
+# ROUND 195 -- THE 8'S CONTRAST, AND WHY THE EXPONENT DOES NOT SHIP.
+# Owner 2026-09-17: *"add line contrast to 8."* Measured against Coelacanth the
+# figure is nearly monolinear -- 1.69:1 against its 3.59:1, thins of 52 units
+# where the reference's are 23.
+#
+# TWO THINGS WERE RULED OUT BY MEASUREMENT, in this order:
+#   the HAIR FLOOR is not what binds it. EIGHT_FLOOR 0.65 -> 0.50 -> 0.40 ->
+#   0.32 moved the contrast 1.63 -> 1.69 and then stopped, because the family's
+#   bowl profile never asks for anything thinner than that.
+#   the CONTRAST EXPONENT reaches the number and ruins the letter. `ring(con=)`
+#   re-spreads the ring's own widths about their geometric mean and gets 2.04,
+#   2.22 and 2.55 at 1.6, 1.9 and 2.3 -- and at every one of them the COUNTER
+#   necks into a kidney shape at the sides, because `ring` offsets the counter
+#   inward by the width at each point and a width swinging twice as far swings
+#   the inner contour with it. counter_smooth 2, 7 and 14 all render the same
+#   pinch: it is not a sampling artifact, the counter genuinely necks.
+#
+# WHAT THAT MEANS, and it is this session's own lesson arriving at another
+# letter: Coelacanth does not get 3.59:1 from a deeper bowl profile. It gets it
+# from the PEN -- thin where the stroke runs along the nib's edge, thick where
+# it runs across -- which varies the width without ever pinching a counter,
+# because the thin and the thick land where the stroke's DIRECTION puts them
+# rather than wherever a profile says. The g's rings were moved onto the pen in
+# round 182 for exactly this reason and the 8's want the same treatment.
+#
+# So EIGHT_CON ships at 1.0 and the letter is unchanged. `ring(con=)` stays --
+# it is inert at 1.0, every existing caller is byte-identical, and it is the
+# arm that measured all of the above.
+EIGHT_CON = 1.0        # the italic 8's stroke contrast exponent; see the note above
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The
@@ -467,7 +498,7 @@ def g_eight(c):
     w_up, w_lo = E('ALBO_8_W_UP', 1.0), E('ALBO_8_W_LO', 1.0)   # stroke weight x, upper / lower ring
     waist = E('ALBO_8_WAIST', 1.0)                                 # the rings' overlap, x one bowl stroke
     lean = E('ALBO_8_LEAN', 0.0)                                   # the upper ring's centre, units right of the lower's
-    floor_ = E('ALBO_8_FLOOR', EIGHT_FLOOR) * S                    # the hair floor, x the stem (the 6's tail is 0.55)
+    floor_ = E('ALBO_8_FLOOR', EIGHT_FLOOR_IT if pen.ITALIC else EIGHT_FLOOR) * S                    # the hair floor, x the stem (the 6's tail is 0.55)
     kk = E('ALBO_8_K', 0.0) or None                                # the outer's squareness (BOWL_K 2.1 when unset)
     rot_up = math.radians(E('ALBO_8_ROT', 0.0))                    # the upper ring's tilt
     rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
@@ -475,8 +506,24 @@ def g_eight(c):
     cx = rx2
     y2 = -OVER + ry2                                     # the lower ring's bottom at -OVER
     y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1     # over the lower by one bowl stroke (x waist)
-    lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_)
-    up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up)
+    # OWNER 2026-09-17: *"add line contrast to 8."* Measured against Coelacanth
+    # the figure was nearly monolinear -- 1.63:1 against its 3.59:1, with thins
+    # of 52 units where the reference's are 23. The FLOOR is not what was
+    # binding it: lowering EIGHT_FLOOR from 0.65 through 0.50, 0.40 and 0.32
+    # moved the contrast 1.63 -> 1.69 and then stopped, because the family's
+    # bowl profile never asked for anything thinner. `con` re-spreads the ring's
+    # own widths instead. Italic only -- the roman's 8 is not what he is looking
+    # at, and `ALBO_8_CON` defaults to 1.0 there.
+    con8 = E('ALBO_8_CON', EIGHT_CON if pen.ITALIC else 1.0)
+    # AND THE COUNTER NEEDS MORE SMOOTHING TO CARRY IT. `ring` offsets the
+    # counter inward by the width at each point, so a width that now swings
+    # nearly twice as far swings the inner contour with it and the counter
+    # developed a visible kidney-shaped pinch at the sides -- the same trap
+    # `nib_widths` records, an inner offset cornering where the width changes
+    # fast. counter_smooth 2 -> EIGHT_CSM.
+    csm = int(E('ALBO_8_CSM', EIGHT_CSM if pen.ITALIC else 2))
+    lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_, con=con8, counter_smooth=csm)
+    up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up, con=con8, counter_smooth=csm)
     return geom.ink([up, lo])
 
 # Owner 2026-09-13 (round 72), on round 71's ten serifed tails: "flag-diag

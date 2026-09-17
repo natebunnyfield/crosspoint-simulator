@@ -336,7 +336,7 @@ def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=()):
     return geom.union(parts)
 
 # ---------------------------------------------------------------- rounds
-def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi):
+def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0):
     """A full bowl: the OUTER is the designed superellipse (k = squareness);
     the COUNTER is its inward offset by the pen's width at each tangent
     (x w_scale, never under `floor`), smoothed so it reads as a drawn
@@ -347,9 +347,21 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     k = k * (1 + LIFE * u1); rot = rot + math.radians(10 * LIFE * u2)
     outer = superellipse(cx, cy, rx, ry, a0, a1, k, rot=rot)[:-1]
     tans = tangents(outer, closed=True)
+    # `con` RE-SPREADS THE RING'S OWN WIDTHS about their geometric mean before
+    # the floor is applied: w' = mean * (w/mean) ** con. 1.0 is the family's
+    # bowl profile untouched and every existing caller gets exactly that; above
+    # 1 the thicks thicken and the thins thin, in proportion, WITHOUT moving the
+    # family's BOWL_HAIR / BOWL_MAX -- which is the point, since those are
+    # shared with every bowl in both faces and a letter that needs more contrast
+    # than its family is a letter, not a new family.
+    ws = [bowl_th(tn) * w_scale for tn in tans]
+    if con != 1.0 and ws:
+        import math as _m
+        gm = _m.exp(sum(_m.log(max(w, 1e-6)) for w in ws) / len(ws))
+        ws = [gm * (w / gm) ** con for w in ws]
     inner = []
-    for p, tn in zip(outer, tans):
-        w = max(bowl_th(tn) * w_scale, floor)
+    for p, tn, w in zip(outer, tans, ws):
+        w = max(w, floor)
         inner.append((p[0] - tn[1] * w, p[1] + tn[0] * w))   # inward: the LEFT normal of a ccw outer
     inner = _unfold(inner, tans)
     inner = smooth(inner, counter_smooth, closed=True)
