@@ -2858,8 +2858,8 @@ if ON:
     # from the stem together, so the bowl narrows without drifting off the stem
     # -- scaling the radius alone would leave a gap at the join, and moving the
     # centre alone would squash the bowl into the stem.
-    B_ASC = float(os.environ.get("ALBO_ALD_B_ASC", 0.978))    # x the ascender
-    B_COND = float(os.environ.get("ALBO_ALD_B_COND", 0.88))   # the bowl's horizontal scale
+    B_ASC = float(os.environ.get("ALBO_ALD_B_ASC", 0.98))    # x the ascender
+    B_COND = float(os.environ.get("ALBO_ALD_B_COND", 0.90))   # the bowl's horizontal scale
     B_STEM_X = float(os.environ.get("ALBO_ALD_B_STEM_X", 114.0))    # stem centre, units from the head's tip
     B_STEM_W = float(os.environ.get("ALBO_ALD_B_STEMW", 70.0))     # units
     # LIGHTER (owner 2026-09-16: "reduce visual weight of top serif on b and
@@ -7633,7 +7633,14 @@ if ON:
     # first cut of this round keyed the measurements raw and shipped a Y 4.6%
     # heavy at every height -- stem, left arm and right arm all by the same
     # 4.6%, which is what a constant added to every stroke looks like.
-    Y_SPINE_W = [(0.00, 0.1044), (0.31, 0.1044), (0.44, 0.0904), (0.58, 0.0934),
+    # ROUND 194 -- THE FOOT IS LIGHTER THAN THE FORK. Owner 2026-09-17:
+    # *"reduce thickness of bottom of Y."* The spine is drawn FOOT-UPWARD, so
+    # t 0.00 and 0.31 are the stem below the fork and Y_FOOT_W scales those two
+    # stops alone -- the fork, the curve and the head keep the weights round 163
+    # settled on the owner's own ruling, and only the run he named moves.
+    Y_FOOT_W = float(os.environ.get("ALBO_ALD_Y_FOOT_W", 0.77))
+    Y_SPINE_W = [(0.00, 0.1044 * Y_FOOT_W), (0.31, 0.1044 * Y_FOOT_W),
+                 (0.44, 0.0904), (0.58, 0.0934),
                  (0.68, 0.0964), (0.79, 0.1004), (1.00, 0.1014)]
     # the right arm, join first
     # THE RIGHT BRANCH STEMS UP VERTICALLY (owner 2026-09-16). It ran as one
@@ -8457,11 +8464,35 @@ if ON:
         every capital. Re-drawing it was considered and rejected: the letter
         the owner asked to have HAND CUT is this letter, and a second copy of
         `g_E`'s bar arithmetic in this module is a copy that drifts."""
-        return _press(_CS.g_E(c), CAP_E_HAND)
+        return _press(geom.ink([_CS.g_E(c), _midbar_serif(c, 'E')]), CAP_E_HAND)
 
     @glyph('F')
     def a_F(c):
-        return _press(_CS.g_F(c), CAP_F_HAND)
+        return _press(geom.ink([_CS.g_F(c), _midbar_serif(c, 'F')]), CAP_F_HAND)
+
+    # ROUND 194 -- THE MIDDLE BAR GETS A MICROSERIF. Owner 2026-09-17: *"add
+    # microserifs to mid bar of E F."*
+    #
+    # The roman draws all three bars with `bar(...)`, and the top and the bottom
+    # each pass `wedges=[('right', ...)]` while THE MIDDLE PASSES NONE -- its
+    # only end treatment is `cut1=CUT`, the pen's own cut. So the middle arm of
+    # both letters ends on a bare face while the arms above and below it carry
+    # the family's blade, which is what makes the middle read unfinished.
+    #
+    # It is a MICROserif and not the family's full wedge: the middle bar is
+    # 0.9 of the others' depth and stops short of their reach, so a full blade
+    # on it would be the heaviest thing in the letter. E_MIDSERIF scales the
+    # family's own WL/WD so it stays in the family as that dial moves.
+    E_MIDSERIF = float(os.environ.get("ALBO_ALD_E_MIDSERIF", 0.42))
+
+    def _midbar_serif(c, which):
+        C = c["cap"]; x = CS / 2
+        w = _CS.W_(c, which, 420 if which == 'E' else 400)
+        frac = 0.74 if which == 'E' else 0.72
+        th = pen.CAP_BAR * 0.9
+        tip = (x + w * frac, C * 0.54 - th / 2)      # the bar's lower-right corner
+        return PR.wedge(tip, (1.0, 0.0), (0.0, -1.0),
+                        PR.WL * E_MIDSERIF, PR.WD * E_MIDSERIF, PR.DROP * E_MIDSERIF)
 
     # OWNER RULING 2026-09-17: *"revert k and all capital changes, except set
     # 1.0 serif for J T."* So the family's italic wedge stays at IT_SERIF 0.50
