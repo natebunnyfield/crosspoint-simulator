@@ -3955,6 +3955,7 @@ if ON:
     # full stroke at its middle, against Flanker's and Poetica's, which are both
     # a clear hairline by their own midpoints.
     Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 0.88))  # x the tail's whole profile
+    Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
     # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
     # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
     # every quadrant is the same quadrant and the only thing that varies round
@@ -4072,7 +4073,27 @@ if ON:
                             (cx + rx * 0.10, -C * 0.17 + dy),
                             (cx + rx * 0.80, -C * 0.16 + dy),
                             (cx + rx * 1.08, -C * 0.03 + dy)], tension=0.5)
-            prof = lambda t: 0.62 + 0.80 * t - 0.82 * t * t
+            # ROUND 157 -- THE TAIL IS THICKER WHERE IT LEAVES THE BOWL, AND
+            # THE TAPER IS UNTOUCHED. Owner 2026-09-16: *"thicken tail of Q
+            # under and to the left, keep taper as is"*. The tail is drawn
+            # LEFT TO RIGHT -- t 0 is the join under the bowl's lower left, t 1
+            # the tip out to the right -- so "under and to the left" is the
+            # stroke's own FIRST half and the taper he is keeping is
+            # everything past the peak.
+            #
+            # The quadratic's peak sits at t 0.488 (0.80 / 1.64) and the lift
+            # is therefore shaped to be full at t 0 and exactly zero from that
+            # peak on: a smoothstep in u = 1 - t/0.488, which lands with zero
+            # slope at the peak so the two halves meet without a curvature
+            # break -- `widths` would otherwise put a visible flat right at the
+            # tail's thickest, which is the same C1 trap the R's note records.
+            # Past t 0.488 `prof` is the round-156 function to the bit.
+            Q_TAIL_PEAK = 0.488
+            def prof(t, _b=lambda t: 0.62 + 0.80 * t - 0.82 * t * t):
+                if t >= Q_TAIL_PEAK or Q_TAIL_LIFT == 0.0:
+                    return _b(t)
+                u = 1.0 - t / Q_TAIL_PEAK
+                return _b(t) + Q_TAIL_LIFT * u * u * (3.0 - 2.0 * u)
         wt = pen_widths(tail, floor=S * FLOOR)
         return geom.ink([ring_, stroke(tail, lambda t: wt(t) * prof(t) * Q_TAIL_W,
                                        cut1=CUT)])
@@ -4730,9 +4751,10 @@ if ON:
     #   the arm's tip along the cap line, thickest where it meets the arm and
     #   thinning to the pen's cut at its free end, which is the same shape the
     #   A's apex flag already carries in this module.
-    CAP_K_ASER_L = float(os.environ.get("ALBO_ALD_CAP_K_ASER_L", 0.135))  # the slab's reach LEFT of the arm's tip, x C
-    CAP_K_ASER_R = float(os.environ.get("ALBO_ALD_CAP_K_ASER_R", 0.035))  # and right
-    CAP_K_ASER_T = float(os.environ.get("ALBO_ALD_CAP_K_ASER_T", 0.62))   # its thickness at the thickest, x S
+    # ROUND 158 retired CAP_K_ASER_L/R/T with the slab they sized; the terminal
+    # is `_stem_serifs` now and takes the family's own WL/WD/DROP. What is left
+    # is the ANGLE of the end cut the serif seats on.
+    CAP_K_ATILT = float(os.environ.get("ALBO_ALD_CAP_K_ATILT", 8.0))   # degrees of shear on the arm's end face
     # THE ARM, traced, drawn from the CAP LINE DOWN INTO THE STEM:
     # (x from the stem's midline, height, perpendicular width), all x cap. The
     # first row carries the centerline to the cap line holding the width it had
@@ -4741,15 +4763,19 @@ if ON:
     # the union swallows the join and the arm's underside and the leg's topside
     # do not leave a white V where they part -- which the first cut of this
     # round did, at 0.47 cap.
+    # ROUND 158 REVERSED THIS TABLE -- junction first, cap line last -- so the
+    # arm is a stroke drawn UPWARD and `_stem_serifs` can seat the family's
+    # ordinary stem serif on its top. The numbers are the round-148 trace to
+    # the digit; only the order changed.
     CAP_K_ARM = [
-        (0.5400, 1.0000, 0.1068), (0.4957, 0.9200, 0.1068), (0.4846, 0.9000, 0.0896),
-        (0.4746, 0.8800, 0.0789), (0.4650, 0.8600, 0.0713),
-        (0.4555, 0.8400, 0.0661), (0.4453, 0.8200, 0.0621), (0.4343, 0.8000, 0.0591),
-        (0.4223, 0.7800, 0.0571), (0.4096, 0.7600, 0.0558), (0.3961, 0.7400, 0.0551),
-        (0.3817, 0.7200, 0.0550), (0.3666, 0.7000, 0.0553), (0.3507, 0.6800, 0.0558),
-        (0.3339, 0.6600, 0.0565), (0.3163, 0.6400, 0.0573), (0.2977, 0.6200, 0.0580),
-        (0.2781, 0.6000, 0.0585), (0.2573, 0.5800, 0.0587), (0.2352, 0.5600, 0.0604),
-        (0.2000, 0.5350, 0.0620), (0.1350, 0.4820, 0.0600),
+        (0.1350, 0.4820, 0.0600), (0.2000, 0.5350, 0.0620),
+        (0.2352, 0.5600, 0.0604), (0.2573, 0.5800, 0.0587), (0.2781, 0.6000, 0.0585),
+        (0.2977, 0.6200, 0.0580), (0.3163, 0.6400, 0.0573), (0.3339, 0.6600, 0.0565),
+        (0.3507, 0.6800, 0.0558), (0.3666, 0.7000, 0.0553), (0.3817, 0.7200, 0.0550),
+        (0.3961, 0.7400, 0.0551), (0.4096, 0.7600, 0.0558), (0.4223, 0.7800, 0.0571),
+        (0.4343, 0.8000, 0.0591), (0.4453, 0.8200, 0.0621), (0.4555, 0.8400, 0.0661),
+        (0.4650, 0.8600, 0.0713), (0.4746, 0.8800, 0.0789), (0.4846, 0.9000, 0.0896),
+        (0.4957, 0.9200, 0.1068), (0.5400, 1.0000, 0.1068),
     ]
     # THE LEG, traced, drawn from the BASELINE UP INTO THE STEM so the family's
     # `_stem_serifs` foot can be seated on it: that helper walks a stroke drawn
@@ -4779,21 +4805,29 @@ if ON:
         C = c["cap"]; x0 = CS * 0.6
         ap, aw = _R_traced(CAP_K_ARM, x0, C, CAP_K_W)
         lp, lw = _R_traced(CAP_K_LEG, x0, C, CAP_K_W)
-        asolid = stroke(ap, aw)
-        # THE ARM'S CAP TERMINAL IS A SLAB, NOT A STACK OF WEDGES. See the note
-        # above CAP_K_ASER: both wedge arms left a hairline crack down the
-        # arm's left edge, because `_wedge` drops its root back along the
-        # stroke by DROP x k and a 36-unit arm has nothing there for a blade
-        # scaled past the family's unit to land on. A slab laid along the cap
-        # line is one polygon, unions with no seam, and is the thing the
-        # instruction actually asks for.
-        tx, ty = ap[0]
-        slab = stroke([(tx - C * CAP_K_ASER_L, ty - S * CAP_K_ASER_T * 0.5 - C * 0.004),
-                       (tx + C * CAP_K_ASER_R, ty - S * CAP_K_ASER_T * 0.5 + C * 0.006)],
-                      widths([(0.0, S * CAP_K_ASER_T * 0.74),
-                              (0.58, S * CAP_K_ASER_T),
-                              (1.0, S * CAP_K_ASER_T * 0.86)]), cut0=CUT, cut1=CUT)
-        arm = geom.union([asolid, slab])
+        # ROUND 158 -- THE ARM'S CAP TERMINAL IS THE FAMILY'S ORDINARY STEM
+        # SERIF. Owner 2026-09-16: *"turn K top right serif into normal serif
+        # with a flatter but slightly angled top"*. Round 151's slab was a
+        # one-off polygon built for this letter alone; this is `_stem_serifs`,
+        # the same call the B D E F H I L stems make, which is what "normal"
+        # means here and which is also the only version of this terminal that
+        # cannot drift from the rest of the capitals.
+        #
+        # IT NEEDED THE ARM DRAWN THE OTHER WAY ROUND. `_stem_serifs` walks a
+        # stroke drawn UPWARD -- it takes `e[-1]` off each side and grows the
+        # wedge along (0, 1) -- so the arm's table is reversed and the stroke
+        # now runs JUNCTION -> CAP. Everything else about the trace is
+        # unchanged; `_R_traced` keys widths by arc length, so reversing the
+        # table reverses the widths with it.
+        #
+        # AND THE TOP IS ANGLED BY THE STROKE'S OWN END CUT, not by tilting the
+        # serif. `cut1` shears the arm's end face by CAP_K_ATILT radians, the
+        # wedges seat on the sheared corners `stroke` actually drew, and the
+        # whole terminal leans with it -- a serif tilted independently of the
+        # stroke it sits on is the ledge-between-two-faces the owner had
+        # cleaned off the roman E and F.
+        asolid, aL, aR = stroke(ap, aw, cut1=math.radians(CAP_K_ATILT), sides=True)
+        arm = geom.union([asolid] + _stem_serifs(aL, aR, 'both', True))
         lsolid, Lz, Rz = stroke(lp, lw, sides=True)
         leg = geom.union([lsolid] + _stem_serifs(Lz, Rz, 'both', False))
         return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'), arm, leg])
