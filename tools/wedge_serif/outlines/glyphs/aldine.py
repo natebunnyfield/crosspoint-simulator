@@ -4817,8 +4817,6 @@ if ON:
     @glyph('k')
     def a_k(c):
         P, u = d_frame(c, K_W); J = K_JOIN
-        K_KICK_Y = float(os.environ.get("ALBO_ALD_K_KICK_Y", -0.06))
-        K_KICK_FLIP = float(os.environ.get("ALBO_ALD_K_KICK_FLIP", 0.055))
         arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
                     [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 48),
@@ -4829,15 +4827,14 @@ if ON:
         # a kick; Coelacanth's k drives its leg through the baseline and lands
         # under it. K_KICK_Y is where the tip sits, in x-height, negative being
         # below the line.
-        # ...AND IT FLIPS UP AT THE END. Owner 2026-09-17: *"include small flip
-        # up on kick of k."* The leg drives through the baseline to its low
-        # point at K_KICK_Y and then the tip rises by K_KICK_FLIP -- a pen
-        # leaving the paper, not a stroke stopping at its lowest point. The low
-        # point moves back to x 398 so there is length left to rise over; with
-        # the low point at the tip there is nowhere to put the flip.
+        # ROUNDS 189-190 REVERTED. The kick was taken below the baseline and
+        # given a flip-up at its tip; the owner looked at both and reverted them
+        # (2026-09-17, *"revert k"*). The leg is round 188's again -- it ends
+        # ABOVE the line at +0.115 of the x-height. The dials are gone with it
+        # rather than left at zero, because a dial nobody may turn is a reader's
+        # tax on the file.
         leg = d_pen([P(152, J), P(212, 0.40), P(250, 0.28), P(290, 0.15),
-                     P(322, 0.05), P(366, -0.01), P(398, K_KICK_Y),
-                     P(420, K_KICK_Y + K_KICK_FLIP)],
+                     P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
         return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True,
@@ -8443,9 +8440,46 @@ if ON:
     def a_F(c):
         return _press(_CS.g_F(c), CAP_F_HAND)
 
+    # OWNER RULING 2026-09-17: *"revert k and all capital changes, except set
+    # 1.0 serif for J T."* So the family's italic wedge stays at IT_SERIF 0.50
+    # -- every other capital is untouched -- and exactly two letters wear the
+    # ROMAN's full-length one.
+    #
+    # It has to be done by patching `caps_straight`'s own names, not `pen`'s.
+    # That module does `from ..pen import ... WL, WD, DROP`, which BINDS the
+    # values into its namespace at import: setting `pen.WL` afterwards moves
+    # nothing there, and the letter would build unchanged with no error. The
+    # scale is 1 / IT_SERIF, so this reads "undo the italic's halving for these
+    # two" rather than hard-coding a length that would drift if that dial moved.
+    #
+    # AND IT IS BOTH MODULES, not just caps_straight. The wedges are actually
+    # cut in `primitives` (`stem`, `bar`, `diag_wedge` all read WL/WD/DROP from
+    # ITS namespace), which binds them the same way. Patching caps_straight
+    # alone built T and J byte-identical to before -- no error, no warning, just
+    # nothing -- and the outline comparison is the only reason that was caught
+    # rather than reported as done.
+    def _full_serif(fn, c):
+        k = 1.0 / pen.IT_SERIF if pen.IT_SERIF else 1.0
+        mods = (_CS, PR)          # BOTH, and that cost a silent no-op first
+        saved = [(m, m.WL, m.WD, m.DROP) for m in mods]
+        for m in mods:
+            m.WL, m.WD, m.DROP = m.WL * k, m.WD * k, m.DROP * k
+        try:
+            return fn(c)
+        finally:
+            for m, wl, wd, dr in saved:
+                m.WL, m.WD, m.DROP = wl, wd, dr
+
     @glyph('T')
     def a_T(c):
-        return _press(_CS.g_T(c), CAP_T_HAND)
+        return _press(_full_serif(_CS.g_T, c), CAP_T_HAND)
+
+    @glyph('J')
+    def a_J(c):
+        # The J was not registered here at all -- it fell through to the roman,
+        # sheared. It is registered now so it can carry the full wedge; nothing
+        # else about it changes.
+        return _full_serif(_CS.g_J, c)
 
     # ------------------------------------------------------------- THE FIGURES
     # OWNER 2026-09-16: *"make italic numerals handcut"*.
