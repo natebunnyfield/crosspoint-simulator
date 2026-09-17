@@ -102,6 +102,70 @@ two months earlier; it recurred because nothing tested for it.
 
 ---
 
+## 1b. THE SECOND RULE: a union does not blend
+
+Found 2026-09-17, after it had been treated as a per-letter bug **four separate
+times**.
+
+> `geom.ink` / `union` does not blend two strokes, it **adds** them. Where a
+> stroke is unioned onto another, the outline is tangent-continuous only if the
+> two edges were already going the same way. If they cross at an angle the union
+> leaves a **concave notch** on one side and a **convex spur** on the other —
+> and **neither can be tuned away by changing either stroke's width**, because
+> the fault is in the direction the edges arrive at, not in how fat they are.
+
+Its instances, each of which cost rounds before the rule was named: the Q's tail
+root (179), the g's ear rooted on the crown (176), the g's neck landing on the
+loop (184), the g's ear against the bowl (185).
+
+**How Coelacanth avoids it at the ear:** its bowl-top and ear are **one pen
+movement**, so there is no union to notch. Albo cannot restructure every letter
+that way, so the working fix is to make the joining stroke **leave tangent** —
+in the g's ear, the stroke is held level for its first third (`G_EAR_TANG`)
+because the crown's own tangent is level there. The edges then leave parallel by
+construction rather than by a fitted number. Rooting it elsewhere, bowing it and
+thinning it were all tried first; all still notched, because all of them change
+width and position and none changes direction.
+
+`tools/wedge_serif/cmp_joints.py` finds these: it ranks every sharp vertex on
+the designed outline by turn angle × the shorter arm, and splits notches from
+spurs. **Not every sharp corner is a fault** — a serif tip, the inside of a v,
+a deliberate knife-stop are all legitimately sharp, and the instrument correctly
+ranks the E's and T's serif tips at the top. It reports; you look.
+
+## 1c. THE THIRD RULE: a stroke's end must match what it lands on
+
+The g's neck arrived at its **full** width — and a *widening* one, its profile
+running 56 / 50 / 64 over its length — onto the part of the loop where the ring
+is at its **thinnest**, 49 units falling to 25. A stroke thicker than the one it
+joins cannot merge into it; it protrudes, and a trim then cuts the protrusion
+off square and leaves a spur.
+
+The same rule states the terminal case: **a terminal is a wedge, not a bar.**
+The ear ran 1.10 → 0.62 of its own thickness and stopped on a flat cut, so its
+edges stayed nearly parallel and it read as a slab. Coelacanth's closes to a
+true point — the two edges converge. Taper to 0.12 and it is a wedge.
+
+## 1d. Provenance: measure freely, ship nothing foreign
+
+Owner ruling 2026-09-17: *"do not adopt a license for albo."*
+
+Coelacanth is OFL **with a reserved font name**. OFL's terms attach to a
+derivative, so **numbers traced off it cannot ship** in a font that is to stay
+unencumbered. The line that follows is clean and worth stating once:
+
+> **Measuring a reference is research. Shipping its numbers is derivation.**
+
+Every `cmp_*` script here measures references; that is fine and is the whole
+method. `trace_g.py` may be run freely. But what shipped in the end was the g's
+rings derived from **Albo's own pen** (`nib_widths_closed` on the family nib),
+and it reaches the same place by the same physics — measured on the built font,
+30°/120° at 2.83:1 against Coelacanth's 15°/105° at 2.80:1, thin and thick 90°
+apart in both. **The pen equation is mathematics, not anyone's expression.**
+The traced tables are kept behind `ALBO_ALD_G_TRACE=1` as a comparison arm only.
+
+---
+
 ## 2. The order of operations
 
 1. **Measure the references before drawing.** All of them, on one instrument, in
@@ -134,6 +198,8 @@ All in `tools/wedge_serif/`, all runnable as `PYTHON_GIL=0 python3 <name>`.
 | `cmp_cap_weight.py` | **gate.** an italic capital carries its roman's weight |
 | `cmp_aldine_glitch.py` | **gate.** seven classes of union artifact |
 | `cmp_aldine_straight.py` | how much dead-straight outline the face carries (a REPORT — it returns 0 whatever it finds) |
+| `cmp_joints.py` | every place two strokes meet, ranked — notches and spurs |
+| `trace_g.py` | a reference letter's centreline and width, ring by ring (research only — see §1d) |
 | `refs_registry.py` | **gate.** the references and their TRUE slants |
 | `proof_words.py` | a proof built from the owner's own corpus |
 | `proof.py` | the one renderer. Every row is a BASELINE. |
@@ -302,7 +368,9 @@ letters at display size. So:
 
 What produced value this session: the **corpus** measurement of the outstroke;
 the **collision sweep**; the **pen-signature** instrument and the one-pen fix;
-the capital re-spacing. Four things.
+the capital re-spacing; and — after the owner said the work so far was worthless
+and to go and understand the strokes — the three rules in §1b–§1d, each of which
+had been costing rounds unnamed.
 
 What was worthless: every round spent tuning the g's loop *width* — a table
 re-phased, a thin-at-angle dial, a run-out ladder, a taper amount — because the

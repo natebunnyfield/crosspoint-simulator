@@ -3723,10 +3723,32 @@ if ON:
     G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 350.0))  # the ear's right tip
     G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 52.0))   # its thickness
     G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.86))  # the tip's height, x xh
-    G_EAR_ROOT = float(os.environ.get("ALBO_ALD_G_EAR_ROOT", 0.55))  # root, x rx from the bowl's centre
-    G_EAR_RY = float(os.environ.get("ALBO_ALD_G_EAR_RY", 0.888))     # the root's height, x xh  -- its UPPER EDGE lands on the crown, so the centre sits one half-width under it
-    G_EAR_BOW = float(os.environ.get("ALBO_ALD_G_EAR_BOW", 0.012))   # its sag, x xh
-    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.62))    # tip width, x G_EAR_T
+    G_EAR_ROOT = float(os.environ.get("ALBO_ALD_G_EAR_ROOT", 0.30))  # root, x rx from the bowl's centre
+    G_EAR_RY = float(os.environ.get("ALBO_ALD_G_EAR_RY", 0.955))     # the root's height, x xh  -- its UPPER EDGE lands on the crown, so the centre sits one half-width under it
+    G_EAR_BOW = float(os.environ.get("ALBO_ALD_G_EAR_BOW", 0.0))   # its sag, x xh
+    # ROUND 184 -- THE EAR TAPERS TO A POINT AND THE NECK THINS INTO THE JOINT.
+    # Owner 2026-09-17: *"you are missing the tapered shape of the serif and the
+    # joint in the connecting line."* Both are visible at 900 px beside
+    # Coelacanth and both have the same cause -- a stroke arriving at a width
+    # that does not belong where it lands.
+    #
+    # THE EAR. Coelacanth's leaves the bowl and closes to a TRUE POINT: its top
+    # and bottom edges converge. Albo's ran 1.10 -> 0.62 of its own thickness
+    # and then stopped on a flat cut, so the two edges stayed nearly parallel
+    # and it read as a slab with a blunt end. A wedge, not a bar.
+    #
+    # THE JOINT. Measured off the fitted loop, the ring is at its THINNEST where
+    # the neck lands -- 49 units falling to 25 between 90 and 120 degrees --
+    # while the neck arrived at its own FULL width and, worse, a WIDENING one:
+    # its profile ran 56 / 50 / 64, thickening over the last half. A stroke
+    # thicker than the one it joins cannot merge into it; it protrudes, and the
+    # trim of round 174 then cuts that protrusion off square and leaves the
+    # spur. Coelacanth's neck thins into the loop instead, which is why its
+    # joint reads as one movement. G_NECK_END_W takes the neck's end DOWN to
+    # meet what it is landing on rather than up.
+    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 34.0))
+    G_EAR_TANG = float(os.environ.get("ALBO_ALD_G_EAR_TANG", 0.34))  # how far the ear runs LEVEL out of the crown
+    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.12))    # tip width, x G_EAR_T
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 50.0))   # its waist
@@ -3838,7 +3860,20 @@ if ON:
     # Bowl thick at 0 and 210, thin at 70 and 250. Loop thick at 25 and 205,
     # thin at 115 and 295. The two rings' axes sit about 20 degrees apart, which
     # is one pen -- Coelacanth's measured bowl/loop signature is 15/30.
-    G_TRACE = os.environ.get("ALBO_ALD_G_TRACE", "1") != "0"
+    # OWNER RULING 2026-09-17: *"do not adopt a license for albo."* Coelacanth
+    # is OFL with a reserved name, and OFL's terms attach to a DERIVATIVE -- so
+    # numbers traced off it cannot ship in a font that is to stay unencumbered.
+    # G_TRACE therefore defaults OFF and the traced tables below are kept only
+    # as the measurement they are, reachable with ALBO_ALD_G_TRACE=1 for
+    # comparison. MEASURING a reference is research and is what every cmp_*
+    # script here does; SHIPPING its numbers is derivation. That is the line.
+    #
+    # What ships instead is round 182's derivation from ALBO'S OWN pen --
+    # `nib_widths_closed` on the family's nib -- which reaches the same place by
+    # the same physics: measured on the built font, 30/120 degrees at 2.83:1
+    # against Coelacanth's 15/105 at 2.80:1, thin and thick 90 degrees apart in
+    # both. The pen equation is mathematics, not anyone's expression.
+    G_TRACE = os.environ.get("ALBO_ALD_G_TRACE", "0") != "0"
     G_TRACE_W = float(os.environ.get("ALBO_ALD_G_TRACE_W", 0.88))
     G_RING = [(0, 66), (45, 46), (90, 25), (135, 50), (180, 70), (225, 35), (270, 27), (315, 38)]
     if G_TRACE:
@@ -3956,10 +3991,10 @@ if ON:
     # comes out: the hand-cut tables add on top and the ridge measurement takes
     # junctions in too. 2.30 in measures 2.83 out, against Coelacanth's 2.80 --
     # so the dial is set by measuring the built font, not by reading the number.
-    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 0.0))
+    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 70.0))
     G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.37))
     G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 2.30))
-    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 0.0))
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 74.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.36))
     G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 2.30))
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
@@ -4026,7 +4061,7 @@ if ON:
                              (x0 + G_NECK_R * u, lt - G_NECK_END * u)], tension=G_NECK_ANG),
                     widths([(0.0, 56 * u * G_NECK_SCALE),
                             (0.42, G_NECK_W * u * G_NECK_SCALE),
-                            (1.0, 64 * u * G_NECK_SCALE)]),
+                            (1.0, G_NECK_END_W * u * G_NECK_SCALE)]),
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
         # Owner 2026-09-16: *"trim the connector instead of fucking around with
@@ -4070,8 +4105,25 @@ if ON:
             _L = math.hypot(_nx, _ny) or 1.0
             _er = [_er[0] + _nx / _L * _edr, _er[1] + _ny / _L * _edr]
         _etip = (x0 + G_EAR_X * u, xh * G_EAR_Y)
-        _emid = ((_er[0] + _etip[0]) / 2, (_er[1] + _etip[1]) / 2 + G_EAR_BOW * xh)
-        ear = stroke(catmull([tuple(_er), _emid, _etip], tension=0.5),
+        # ROUND 185 -- THE EAR LEAVES TANGENT, which is the only way a unioned
+        # stroke can avoid notching its host. `geom.ink` does not blend, it
+        # adds: where two edges cross at an angle the union leaves a concave
+        # notch on one side and a spur on the other, and NEITHER can be tuned
+        # away by changing either stroke's width. Rooting the ear further along
+        # the flank, bowing it, thinning it -- all tried, all still notched,
+        # because all of them change width and position and none changes the
+        # DIRECTION the ear's edge arrives at.
+        #
+        # Coelacanth has no notch here because its ear leaves the bowl AT THE
+        # CROWN, where the ring's own tangent is already horizontal and the ear
+        # is going horizontally too. So the first span of this stroke is held
+        # LEVEL -- `_elev` places a second control point at the root's own
+        # height, G_EAR_TANG of the way to the tip -- and only after it does the
+        # stroke fall to the tip. The edges then leave parallel by construction
+        # rather than by a fitted number.
+        _elev = (_er[0] + (_etip[0] - _er[0]) * G_EAR_TANG, _er[1])
+        _emid = ((_elev[0] + _etip[0]) / 2, (_elev[1] + _etip[1]) / 2 + G_EAR_BOW * xh)
+        ear = stroke(catmull([tuple(_er), _elev, _emid, _etip], tension=0.5),
                      widths([(0.0, G_EAR_T * u * 1.10), (0.55, G_EAR_T * u * 0.92),
                              (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
         return geom.ink([up, lo, nk, ear])
