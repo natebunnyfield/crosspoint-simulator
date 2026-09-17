@@ -2573,7 +2573,7 @@ if ON:
     # question. `ALBO_ALD_Q_TAIL` picks: foot (as shipped), flourish, kick,
     # hook, swash.
     Q_TAIL = os.environ.get("ALBO_ALD_Q_TAIL", "foot").lower()
-    Q_FOOT_LMUL = float(os.environ.get("ALBO_ALD_Q_FOOT_LMUL", 0.38))  # the q foot's LEFT arm, x the p's
+    Q_FOOT_LMUL = float(os.environ.get("ALBO_ALD_Q_FOOT_LMUL", 0.65))  # the q foot's LEFT arm, x the p's
 
     def q_tail(xc, ybot, u=1.0):
         t = PQ_FOOT_T * u
@@ -2587,7 +2587,10 @@ if ON:
             # under a bowl that is already carrying the letter's weight to the
             # LEFT, so the left arm was the one piece of ink the letter did not
             # need. Q_FOOT_LMUL scales that arm alone; the right arm, the
-            # thickness and the p are untouched.
+            # thickness and the p are untouched. Laddered at 1.00 / 0.55 /
+            # 0.38 / 0.25 and shown; **0.65 wins**, off the owner's own eye and
+            # above every rung he was offered -- a microserif here turns out to
+            # be a serif two thirds the length, not a nub.
             return pq_foot(xc, ybot, u, lmul=Q_FOOT_LMUL)
         if Q_TAIL == "flourish":
             # out of the stem's foot, right and up, thinning to the pen's cut:
