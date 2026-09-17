@@ -140,6 +140,13 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
+    # ROUND 197 -- BOTH of the g's neighbours moved as the letter was re-cut,
+    # and which pair fails moved with them: the leftward connector broke Rg,
+    # the rightward descender broke gg, and lifting the loop onto the baseline
+    # brought Rg back. Both are kerned. (gg was ALREADY in this table further
+    # down at 18; a second entry here changed nothing, because the later key
+    # wins in a dict literal -- it is raised at its own entry instead.)
+    ('R', 'g'): 18,
     ('T', 'i'): -36,          # the i's dot clears the bar; a full asc value is too little, a flat too much
     ('T', 'j'): -36,
     ('f', 'quoteright'): 36,  # the arm already reaches; push the quote off it
@@ -178,13 +185,13 @@ PAIRS = {
                      # previous j's descender -- the one pair where the same
                      # letter's new left reach meets its own old right one.
                      # Measured -0.0087 em, i.e. actually touching.
-    ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 18, ('g', 'v'): 18,
+    ('g', 'j'): 72,  ('g', 'f'): 54,  ('g', 'g'): 36, ('g', 'v'): 18,
     ('g', 'p'): 18,  # round 186: the g's loop grew where its neck now lands
     # Round 179: the Q's tail thickened downward (Q_TAIL_BOT) and its root was
     # trimmed (Q_TAIL_LIFT), which put more ink lower and re-tightened every
     # pair whose second letter also goes below the baseline. Re-solved, not
     # nudged: Qg had fallen to 0.002 em.
-    ('Q', 'g'): 108, ('Q', 'j'): 72,  ('Q', 'p'): 72, ('Q', 'f'): 36,
+    ('Q', 'g'): 126, ('Q', 'j'): 72,  ('Q', 'p'): 72, ('Q', 'f'): 36,
     ('Q', 'parenleft'): 36, ('Q', 'y'): 36, ('Q', 'q'): 36,
     ('f', 'U'): 36,  ('f', 'V'): 18,
     ('f', 'quotedbl'): 36, ('f', 'quotesingle'): 36,

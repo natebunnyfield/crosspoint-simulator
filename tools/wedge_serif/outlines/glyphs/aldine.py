@@ -28,7 +28,7 @@ WHAT THE SCAN SHOWS, and what each of these is built from:
 Everything is drawn on the pen, so the contrast is the pen's own; no widths
 are declared except where a stroke has to thin against its neighbour.
 """
-import math, os
+import json, math, os
 from . import glyph as _register, GLYPHS
 
 # PER-LETTER WEIGHT, so the fitter can reach a letter without a dial of its
@@ -2270,6 +2270,7 @@ if ON:
     # A_RING, A_K and `keyed_ring` are NOT the a's alone -- the d, the q and
     # the g read them too -- so this round changes none of them.
     A_UNIT = 429.0
+    _RING_PARTS = []     # export scratch: each ring's sampled outer and widths
     # ROUND 168 -- THE LETTER COMES IN. Owner 2026-09-16: *"make a less wide"*.
     # Measured on the built font, ink width in design units: a **428**, against
     # b 425, n 392, h 391, u 378, o 337 -- the a was the widest lowercase in the
@@ -2365,7 +2366,8 @@ if ON:
                   (kv.split(":") for kv in os.environ["ALBO_ALD_A_RING"].split(","))]
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
-                   hand=None, flat=None, want_outer=False, pen=None):
+                   hand=None, flat=None, want_outer=False, pen=None, adj=None,
+                   want_parts=False):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2480,8 +2482,39 @@ if ON:
                 for i, (x, y) in enumerate(pts):
                     ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
                     ws[i] += _hand_at(hand, ang, 2) * unit
+        # ROUND 197 -- A PER-SECTION ADJUSTMENT ON THE WALL.
+        # Owner 2026-09-17: *"i need to thin out different sections of both
+        # loops"*. The pen decides the wall from the stroke's direction, which
+        # is right for the letter's colour and gives no way to say "here, and
+        # not there". `adj` is a multiplier curve round the ring -- [(deg,
+        # mult), ...], interpolated the same cosine way the width table is --
+        # so a section can be taken down without moving the ring or re-fitting
+        # the pen. At 1.0 everywhere it is inert.
+        if adj:
+            _aj = sorted((float(d) % 360.0, float(m)) for d, m in adj)
+            def _at(ang, _k=_aj):
+                ang %= 360.0
+                for i in range(len(_k)):
+                    a0_, m0_ = _k[i]
+                    a1_, m1_ = (_k[0][0] + 360.0, _k[0][1]) if i == len(_k) - 1 else _k[i + 1]
+                    if a0_ <= ang <= a1_:
+                        f_ = (ang - a0_) / (a1_ - a0_) if a1_ > a0_ else 0.0
+                        f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
+                        return m0_ + (m1_ - m0_) * f_
+                return _k[0][1]
+            for i, (x, y) in enumerate(pts):
+                ang = math.degrees(math.atan2((y - cy) / ry,
+                                              (x - (y - cy) * skew - cx) / rx)) % 360.0
+                ws[i] *= _at(ang)
         sol, out_, _in = PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                                       smooth_w=smooth_w)
+        if os.environ.get("ALBO_ALD_G_EXPORT"):
+            _RING_PARTS.append(dict(
+                outer=[[round(x, 2), round(y, 2)] for x, y in out_],
+                w=[round(float(v), 2) for v in ws],
+                cx=cx, cy=cy, rx=rx, ry=ry, skew=skew))
+        if want_parts:
+            return sol, out_, list(pts), list(ws)
         return (sol, out_) if want_outer else sol
 
     # ---------------------------------------------------------------- nib_ring
@@ -3738,7 +3771,11 @@ if ON:
     G_RY = float(os.environ.get("ALBO_ALD_G_RY", 158.0))
     G_SKEW = float(os.environ.get("ALBO_ALD_G_SKEW", -0.01))
     G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 150.0))    # lower loop centre
-    G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 205.0))    # 185 at the reference's depth, scaled to Albo's 280
+    G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 194.0))
+    G_LOOP_Y = float(os.environ.get("ALBO_ALD_G_LOOP_Y", 64.0))   # moves the whole loop
+    # per-section wall multipliers round each ring: JSON [[deg, mult], ...]
+    G_RING_ADJ = json.loads(os.environ["ALBO_ALD_G_RING_ADJ"]) if os.environ.get("ALBO_ALD_G_RING_ADJ") else None
+    G_LRING_ADJ = json.loads(os.environ["ALBO_ALD_G_LRING_ADJ"]) if os.environ.get("ALBO_ALD_G_LRING_ADJ") else None    # 185 at the reference's depth, scaled to Albo's 280
     # ROUND 176 -- THE LOOP'S COUNTER WAS HALF-SHUT. Measured on the same
     # instrument, counter heights against the bowl's own:
     #     the scan 0.80   Flanker 0.79   Pagella 0.89   ALBO 0.58
@@ -3747,7 +3784,7 @@ if ON:
     # not go lower -- it is already on the descender -- so the room comes from
     # its top rising and from its own ring thinning at the two ends the pen is
     # travelling fastest through.
-    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", 14.0))   # the loop's top
+    G_LTOP = float(os.environ.get("ALBO_ALD_G_LTOP", 4.0))   # the loop's top
     G_SKEW_L = float(os.environ.get("ALBO_ALD_G_SKEW_L", 0.07))
     # ROUND 176 -- THE EAR IS ROOTED ON THE CROWN AND RUNS NEARLY FLAT.
     # Owner 2026-09-16: *"do a better job connecting the ear of g, refer to
@@ -3917,10 +3954,33 @@ if ON:
     #      because the end is buried. Compute those and the span is the stroke's
     #      true width at the wall, by construction.
     G_LOOP_ENTER = float(os.environ.get("ALBO_ALD_G_LOOP_ENTER", 100.0))  # ring angle the neck enters at
-    G_NECK_START_W = float(os.environ.get("ALBO_ALD_G_NECK_START_W", 42.0))
+    G_NECK_START_W = float(os.environ.get("ALBO_ALD_G_NECK_START_W", 0.0))
     G_NECK_TURN = float(os.environ.get("ALBO_ALD_G_NECK_TURN", 4.0))     # y of the turn, units
-    G_NECK_WAIST_AT = float(os.environ.get("ALBO_ALD_G_NECK_WAIST_AT", 0.30))  # t of the waist, BEFORE the turn  # the inflection; 0 = round 185's monotone slide
-    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 78.0))
+    G_NECK_WAIST_AT = float(os.environ.get("ALBO_ALD_G_NECK_WAIST_AT", 0.26))  # t of the waist, BEFORE the turn  # the inflection; 0 = round 185's monotone slide
+    G_NECK_END_W = float(os.environ.get("ALBO_ALD_G_NECK_END_W", 48.0))
+    G_NECK_TWIST = float(os.environ.get("ALBO_ALD_G_NECK_TWIST", 38.0))   # width AT the pivot; 0 = no twist
+    G_NECK_TWIST_AT = float(os.environ.get("ALBO_ALD_G_NECK_TWIST_AT", 0.98))  # t of the pivot
+    # THE HEIGHT OF THE BAND'S RIGHT HALF, and the reason it is a dial at all:
+    # the open white BAY between the bowl's bottom right and the loop's top
+    # right is a feature of the reference, not a leftover. Albo's band ran
+    # across it and pinched it to a hairline slit -- which reads as a crack in
+    # the letter rather than as a space. This drops that half of the stroke so
+    # the bay opens. It was -40 hardcoded.
+    G_NECK_MID_Y = float(os.environ.get("ALBO_ALD_G_NECK_MID_Y", -40.0))
+    G_NECK_RIDE = float(os.environ.get("ALBO_ALD_G_NECK_RIDE", 0.0))  # degrees of ring the band rides in; 0 = off
+    G_NECK_RIDE0 = float(os.environ.get("ALBO_ALD_G_NECK_RIDE0", 0.0))  # the same at the BOWL end; 0 = off
+    # explicit control points, design units, JSON: [[x,y],...]; overrides the path dials
+    # ROUND 197 -- THE OWNER PLACED THESE BY HAND in the connector bench, and
+    # they are the letter's shape now: the dials that used to compute them are
+    # bypassed while this is set. Design units, x from the glyph's own origin.
+    G_NECK_PTS_DEFAULT = [[259.5, 143.7], [231.4, 120.4], [117.7, 101.5],
+                          [91.1, 84.0], [122.5, 67.9], [272.7, 49.0],
+                          [340.8, -25.3], [348.1, -88.0]]
+    G_NECK_PTS = (json.loads(os.environ["ALBO_ALD_G_NECK_PTS"])
+                  if os.environ.get("ALBO_ALD_G_NECK_PTS") else G_NECK_PTS_DEFAULT)
+    G_BOWL_EXIT = float(os.environ.get("ALBO_ALD_G_BOWL_EXIT", 260.0))  # bowl angle the band leaves from
+    G_NECK_START_MATCH = os.environ.get("ALBO_ALD_G_NECK_START_MATCH", "0") != "0"
+    G_NECK_MATCH_W = os.environ.get("ALBO_ALD_G_NECK_MATCH_W", "0") != "0"
     G_EAR_TANG = float(os.environ.get("ALBO_ALD_G_EAR_TANG", 0.34))  # how far the ear runs LEVEL out of the crown
     # ROUND 186 -- THE EAR FLARES; IT DOES NOT TAPER. Owner 2026-09-17: *"the g
     # ear starts thinner and flares, not tapers down as the out."* He is right
@@ -3948,7 +4008,7 @@ if ON:
     G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.95))        # at the CUT, not a point
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
-    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 66.0))   # its waist
+    G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 21.0))   # its waist
     # ROUND 176 -- AND THE NECK WAS TOO THIN, against the same three.
     # Ink across the WAIST (the row midway between the two counters, where the
     # neck is the only thing in the way): the scan 90, Flanker 84, Pagella 50,
@@ -3956,9 +4016,9 @@ if ON:
     # instruction was about an overrun into the counter rather than about
     # colour -- the overrun is cured by round 174's trim, so the weight can go
     # back toward what the references carry without the fault coming with it.
-    G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 1.15))  # all three neck widths
+    G_NECK_SCALE = float(os.environ.get("ALBO_ALD_G_NECK_SCALE", 1.05))  # all three neck widths
     G_NECK_END = float(os.environ.get("ALBO_ALD_G_NECK_END", 30.0))       # how far below the loop's top it aims; the trim decides where it stops
-    G_NECK_ANG = float(os.environ.get("ALBO_ALD_G_NECK_ANG", 0.18))      # the neck's catmull tension; lower = more angular
+    G_NECK_ANG = float(os.environ.get("ALBO_ALD_G_NECK_ANG", 0.13))      # the neck's catmull tension; lower = more angular
     # ROUND 174 -- AND ITS END FACE IS CUT ALONG THE LOOP. Owner 2026-09-16:
     # *"do not extend the g connector stroke below or above after overlapping
     # with a loop"*. Round 173 stopped the neck's CENTRELINE inside the loop,
@@ -4188,12 +4248,12 @@ if ON:
     # comes out: the hand-cut tables add on top and the ridge measurement takes
     # junctions in too. 2.30 in measures 2.83 out, against Coelacanth's 2.80 --
     # so the dial is set by measuring the built font, not by reading the number.
-    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 70.0))
-    G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.37))
+    G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 61.0))
+    G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.52))
     G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 2.30))
-    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 74.0))
-    G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.36))
-    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 2.30))
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 64.0))
+    G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
+    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 1.70))
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
     G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
     G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
@@ -4220,15 +4280,23 @@ if ON:
         through the baseline, a wide shallow loop under it, and an ear. See
         the block above for where every number comes from."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
+        del _RING_PARTS[:]
         up, up_outer = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u,
                         G_RING, k=A_K, skew=G_SKEW, unit=u, want_outer=True,
-                        hand=_gh(G_BOWL_HAND),
+                        hand=_gh(G_BOWL_HAND), adj=G_RING_ADJ,
                         pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
                             if G_BOWL_PEN else None)
-        lt = G_LTOP * u; lb = -dsc - OVER * 0.4
+        # ROUND 197 -- THE LOOP CAN BE MOVED AS A WHOLE.
+        # Owner 2026-09-17: *"move the bottom loop up until the top stroke of it
+        # rests on the baseline"*. G_LTOP moves only the ring's top, which
+        # RESIZES the loop; this offsets both ends, which MOVES it. The two are
+        # different asks and the letter needs both dials.
+        lt = G_LTOP * u + G_LOOP_Y * u
+        lb = -dsc - OVER * 0.4 + G_LOOP_Y * u
         lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
                                   unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
+                                  adj=G_LRING_ADJ,
                                   pen=(G_LOOP_PEN, G_LOOP_THIN_F, G_LOOP_CON)
                                       if G_LOOP_PEN else None)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
@@ -4280,9 +4348,22 @@ if ON:
         # protruding into the loop. That cured the spur by starving the join.
         # The end goes back up and the MIDDLE comes down instead.
         _n0 = (x0 + (G_CX + G_SKEW * -G_RY - 8) * u, (G_CY - G_RY) * u + 10 * u)
-        _nw = widths([(0.0, G_NECK_START_W * u * G_NECK_SCALE),
-                      (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
-                      (1.0, G_NECK_END_W * u * G_NECK_SCALE)])
+        # ROUND 197 -- THE TURN IS A RIBBON TWIST, NOT A CORNER.
+        # Owner 2026-09-17: *"thin it out and make the corner into a ribbon
+        # twist or something that turns"*.
+        #
+        # This is what the pen does anyway and the letter was not being allowed
+        # to. A broad nib carried through a reversal passes through the angle of
+        # its own edge, and AT that angle it is showing its thin dimension -- so
+        # the stroke necks down to a hairline at the pivot and flares again on
+        # the far side. A ribbon turning over, not a mitre.
+        #
+        # It also dissolves the joint that rounds 174-196 could not place. Every
+        # one of those failures -- the shelf, the spur, the buried face -- is a
+        # BROAD end arriving at the loop. A stroke that is a hairline where it
+        # turns has no broad end to land badly: there is nothing there to
+        # protrude, and the corner vertex stops being a thing that must be
+        # constructed at all.
         _lk = sorted((float(a) % 360.0, float(w)) for a, w in G_LRING)
         def _lw(ang, _k=_lk):
             ang %= 360.0
@@ -4292,6 +4373,41 @@ if ON:
                     f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
                     return w0_ + (w1_ - w0_) * f_
             return _k[0][1]
+        _endw = (_lw(G_LOOP_ENTER) / u if G_NECK_MATCH_W else G_NECK_END_W * G_NECK_SCALE)
+        # ROUND 197b -- AND THE SAME AT THE BOWL END.
+        # The V-notch spike where the bowl's right wall met the band's top edge
+        # is the loop's fault over again, mirrored: two strokes CROSSING at an
+        # angle, which a union answers with a notch on one side and a spur on
+        # the other (rule 2). The cure is the same and it is not a width -- the
+        # band LEAVES ALONG THE BOWL'S OWN CENTRELINE, so where the two meet
+        # they are one stroke going one way.
+        _bk = sorted((float(a) % 360.0, float(w)) for a, w in G_RING)
+        def _bw(ang, _k=_bk):
+            ang %= 360.0
+            for (a0_, w0_), (a1_, w1_) in zip(_k, _k[1:] + [(_k[0][0] + 360.0, _k[0][1])]):
+                if a0_ <= ang <= a1_:
+                    f_ = (ang - a0_) / (a1_ - a0_) if a1_ > a0_ else 0.0
+                    f_ = 0.5 - 0.5 * math.cos(math.pi * f_)
+                    return w0_ + (w1_ - w0_) * f_
+            return _k[0][1]
+
+        def _bowl_mid(ang):
+            r_ = math.radians(ang)
+            px_ = x0 + G_CX * u + G_RX * u * math.cos(r_)
+            py_ = G_CY * u + G_RY * u * math.sin(r_)
+            px_ += (py_ - G_CY * u) * G_SKEW
+            hw_ = _bw(ang) * u * 0.5
+            dx_, dy_ = (x0 + G_CX * u) - px_, G_CY * u - py_
+            dl_ = math.hypot(dx_, dy_) or 1.0
+            return (px_ + dx_ / dl_ * hw_, py_ + dy_ / dl_ * hw_)
+
+        _startw = (_bw(G_BOWL_EXIT) if G_NECK_START_MATCH else G_NECK_START_W * G_NECK_SCALE)
+        _nk = [(0.0, _startw * u),
+               (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
+               (1.0, _endw * u)]
+        if G_NECK_TWIST:
+            _nk = sorted(_nk + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE)])
+        _nw = widths(_nk)
         # ROUND 188 -- THE CONNECTOR IS PART OF A COMPOUND PATH, so its end must
         # land ON THE LOOP'S WALL -- not short of it, not through it.
         # Owner 2026-09-17: *"treat it as a compound path for the connector that
@@ -4341,13 +4457,55 @@ if ON:
         # being counted is not where Albo's neck actually turns. The measurement
         # was real and the inference from it was wrong; the fault is at the END
         # of the stroke, not in its middle. G_NECK_S is kept at 0.
-        _pen = [_n0,
-                (x0 + (G_NECK_L + G_NECK_S) * u, 46 * u),
-                (x0 + (G_NECK_L - 6 - G_NECK_S) * u, G_NECK_TURN * u),
-                (x0 + (G_NECK_L + 56 + G_NECK_S * 0.5) * u, -40 * u)]
-        if G_NECK_FLAT:
-            _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
-        _pen.append(_n4)
+
+        if G_NECK_PTS:
+            # ROUND 197 -- THE CONTROL POINTS, GIVEN OUTRIGHT.
+            # Owner 2026-09-17: *"I need to be able to move verticies"*. The
+            # dials place these points by formula, which is the right way to
+            # keep a letter parametric and the wrong way to answer "not there,
+            # HERE". This takes the polygon literally, in design units, and the
+            # other path dials stand down; the WIDTH profile still applies, so
+            # a moved vertex is still a pen stroke rather than an outline.
+            _pen = [(float(a) * u, float(b) * u) for a, b in G_NECK_PTS]
+        elif G_NECK_RIDE0:
+            _pen = [_bowl_mid(G_BOWL_EXIT - G_NECK_RIDE0), _bowl_mid(G_BOWL_EXIT)]
+        else:
+            _pen = [_n0]
+        if not G_NECK_PTS:
+            _pen += [(x0 + (G_NECK_L + G_NECK_S) * u, 46 * u),
+                     (x0 + (G_NECK_L - 6 - G_NECK_S) * u, G_NECK_TURN * u)]
+        if G_NECK_PTS:
+            pass
+        elif G_NECK_RIDE:
+            # ROUND 197 -- THE BAND RIDES THE LOOP'S OWN CENTRELINE.
+            #
+            # The white CRACK through the band, seen at 2x on the junction crop,
+            # is the neck CROSSING the ring instead of joining it: the neck ran
+            # flat while the ring's top edge fell away under it, and the sliver
+            # of paper between the two is a bay nobody drew. Lowering the band,
+            # burying its end, trimming it -- rounds 174 to 196 -- all move a
+            # stroke that is in the wrong PLACE relative to the ring.
+            #
+            # A writer does not cross the loop, so the last span of this stroke
+            # is put ON the ring's centreline: two control points computed from
+            # the loop's own geometry at G_LOOP_ENTER and one step before it.
+            # The neck and the ring then occupy the same path where they meet
+            # and the union has nothing to leave behind -- seamless because the
+            # two strokes ARE the same stroke there, not because a width was
+            # fitted.
+            for _ra in (G_LOOP_ENTER + G_NECK_RIDE, G_LOOP_ENTER):
+                _rr = math.radians(_ra)
+                _px_ = _lcx_ + _lrx_ * math.cos(_rr); _py_ = _lcy_ + _lry_ * math.sin(_rr)
+                _px_ += (_py_ - _lcy_) * G_SKEW_L
+                _hw2 = _lw(_ra) * u * 0.5
+                _dx_, _dy_ = _lcx_ - _px_, _lcy_ - _py_
+                _dl_ = math.hypot(_dx_, _dy_) or 1.0
+                _pen.append((_px_ + _dx_ / _dl_ * _hw2, _py_ + _dy_ / _dl_ * _hw2))
+        else:
+            _pen.append((x0 + (G_NECK_L + 56 + G_NECK_S * 0.5) * u, G_NECK_MID_Y * u))
+            if G_NECK_FLAT:
+                _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
+            _pen.append(_n4)
         nk = stroke(catmull(_pen, tension=G_NECK_ANG), _nw,
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
@@ -4577,6 +4735,37 @@ if ON:
                              (0.45, G_EAR_T * u * 0.85),
                              (0.82, G_EAR_T * u * G_EAR_FLARE),
                              (1.0, G_EAR_T * u * G_EAR_TIP)]), cut1=CUT)
+        # ROUND 197 -- AN EXPORT HOOK FOR THE INTERACTIVE CONNECTOR EDITOR.
+        # Owner 2026-09-17: *"make an interactive editor for g for me to dial in
+        # the connector"*. The page cannot run this module, so it needs the two
+        # RINGS as finished outlines plus the geometry the connector is computed
+        # FROM -- both ellipses, their width tables, and the unit scale. It then
+        # redraws only the connector, which is the part being dialled.
+        # Env-gated and writes nothing unless asked.
+        if os.environ.get("ALBO_ALD_G_EXPORT"):
+            import json
+            def _cs(g):
+                # geom.contours returns [(points, is_hole)]
+                return [{"hole": bool(h),
+                         "pts": [[round(x, 2), round(y, 2)] for x, y in c]}
+                        for c, h in geom.contours(g)]
+            json.dump({
+                "xh": xh, "u": u, "x0": x0, "desc": dsc,
+                "bowl": _cs(up), "loop": _cs(lo), "ear": _cs(ear),
+                "bowl_ring": dict(cx=x0 + G_CX * u, cy=G_CY * u, rx=G_RX * u,
+                                  ry=G_RY * u, skew=G_SKEW, keys=list(G_RING)),
+                "loop_ring": dict(cx=_lcx_, cy=_lcy_, rx=_lrx_, ry=_lry_,
+                                  skew=G_SKEW_L, keys=list(G_LRING)),
+                "parts": list(_RING_PARTS[:2]),
+                "neck": dict(L=G_NECK_L, turn=G_NECK_TURN, mid_y=G_NECK_MID_Y,
+                             ang=G_NECK_ANG, start_w=G_NECK_START_W,
+                             w=G_NECK_W, end_w=G_NECK_END_W,
+                             waist_at=G_NECK_WAIST_AT, twist=G_NECK_TWIST,
+                             twist_at=G_NECK_TWIST_AT, scale=G_NECK_SCALE,
+                             enter=G_LOOP_ENTER, ride=G_NECK_RIDE,
+                             ride0=G_NECK_RIDE0, bowl_exit=G_BOWL_EXIT,
+                             bury=G_NECK_BURY, flat=G_NECK_FLAT),
+            }, open(os.environ["ALBO_ALD_G_EXPORT"], "w"))
         if G_COMPOUND:
             return geom.ink([up, lo, _cp, ear])
         if G_ONE_STROKE:
