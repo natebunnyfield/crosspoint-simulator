@@ -529,7 +529,8 @@ HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
 HEAD_W = float(os.environ.get("ALBO_ALD_HEAD_W", 0.58))       # its weight, x the stem
 HEAD_LEAN = float(os.environ.get("ALBO_ALD_HEAD_LEAN", 0.30))  # fraction of the head left of the stem
-J_HEAD_LEAN = float(os.environ.get("ALBO_ALD_J_HEAD_LEAN", 0.70))  # the j's, mirrored -- see wedge_head
+J_HEAD_LEAN = float(os.environ.get("ALBO_ALD_J_HEAD_LEAN", 0.60))  # the j's -- see wedge_head
+J_HEAD_LEN = float(os.environ.get("ALBO_ALD_J_HEAD_LEN", 0.62))   # x I_HEAD_LEN -- shortened WITH the lean; see below
 FOOT_LEN = float(os.environ.get("ALBO_ALD_FOOT", 0.80))       # the foot's outstroke
 BRANCH = float(os.environ.get("ALBO_ALD_BRANCH", 0.34))       # where an arch leaves the stem, x xh
 BOWL_TOP = float(os.environ.get("ALBO_ALD_BOWL_TOP", 0.98))   # a bowl's top, x xh -- they sit LOW
@@ -641,7 +642,31 @@ if ON:
         # one weighted LEFT reads as the entry stroke of a written j. Coelacanth
         # draws it that way. Only the j passes a value; every other caller keeps
         # the 0.30 and is byte-identical.
+        # AND THE PROFILE MIRRORS WITH IT. Owner 2026-09-17: *"fix j microserif
+        # to be like every other microserif. it's a big blob currently."* He is
+        # right, and the first cut of `lean` is why. The head's width runs
+        # 0.80 / 2.05 / 1.35 / 0.82 along its length -- thickest a quarter of the
+        # way from its START -- and that mass is meant to sit ON THE STEM, where
+        # the stem absorbs it. Leaning the head left without touching the
+        # profile moved the thick quarter out into the open on the left, where
+        # there is no stem under it, and it read as a lump twice the size of the
+        # i's or the l's. The shape was never the problem; WHICH END the mass
+        # was on was. Past half, the profile is reversed so the thick quarter
+        # stays against the stem and the taper runs out to the left tip -- the
+        # same microserif every other letter wears, mirrored.
+        #
+        # AND MIRRORING THE PROFILE WAS NOT ENOUGH ON ITS OWN. Built and looked
+        # at: at lean 0.70 with the profile reversed the head was still a lump,
+        # because the LENGTH is what puts mass out on the left as much as the
+        # width table does -- 0.70 of a head sized for a stem that continues
+        # downward is simply a long stroke hanging off a hook. The j therefore
+        # shortens its head as it leans it (J_HEAD_LEN 0.62), and the two
+        # together give what the owner asked for twice: on the LEFT, and the
+        # same small microserif the i and the l wear. Laddered .30/.45/.55/.70
+        # at full length (all blobs past .30) and then .30/.60+.62/.70+.50.
         _lf = HEAD_LEAN if lean is None else lean
+        if _lf > 0.5:
+            hp = list(reversed(hp))
         return stroke([(x - dx * _lf, y - dy * _lf),
                        (x + dx * (1.0 - _lf), y + dy * (1.0 - _lf))],
                       widths([(0.0, S * hw * hp[0]), (0.30, S * hw * hp[1]),
@@ -3509,7 +3534,8 @@ if ON:
         # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
         # rendered 79 x 50 -- two different dots on two letters the module's
         # own comment says must wear the same one. `ij_dot` is that one.
-        return geom.ink([body, wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN), ij_dot(c, xs)])
+        return geom.ink([body, wedge_head(xs, xh * 0.875, lean=J_HEAD_LEAN,
+                                          length=I_HEAD_LEN * J_HEAD_LEN), ij_dot(c, xs)])
 
     # ------------------------------------------------------------ THE s, round 132
     # THE SCAN CROP IS OVERRULED FOR THIS LETTER, and that has to be said out
