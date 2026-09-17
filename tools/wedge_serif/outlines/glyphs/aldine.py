@@ -3352,6 +3352,34 @@ if ON:
     # this letter moves: the loop's weights are the same eight numbers in a
     # different order, so its ink is unchanged to the unit.
     G_RING = [(0, 66), (45, 46), (90, 25), (135, 50), (180, 70), (225, 35), (270, 27), (315, 38)]
+    # ROUND 175 -- THE g IS HAND CUT, and the depth was found by breaking it.
+    # Owner 2026-09-16: *"make g handcut until it almost doesn't read legible
+    # in a word, then come back 50%"*. So the ladder is run PAST the useful
+    # range on purpose and the shipping value is half of wherever the letter
+    # stops being a g -- which is a different instruction from every other
+    # hand cut in this module, all of which were sized to stay invisible at
+    # reading size.
+    #
+    # Both rings take a table, in the (degrees, dr, dw) form `keyed_ring`
+    # already carries for the a's droop. Every press is placed where the pen
+    # is NOT already at its thickest -- round 153's lesson -- so the bowl's
+    # cuts sit at 45/135/225/315 (its thicks are 0 and 180) and the loop's at
+    # 45/200/300 (its thick is 135). G_HAND scales all of them; 0 is the
+    # round-174 letter exactly.
+    #
+    # WHERE 22 CAME FROM. A ladder at 0/4/8/12/16/20 never broke the letter at
+    # all, so a second ran 28/36/44/52 and found the wall: at 44 the bowl's
+    # counter is nearly pinched shut and `gauge` at 64 px reads as a blot, at
+    # 52 it is gone. 44 is therefore "almost doesn't read", and the shipping
+    # value is half of it. At 22 the letter is plainly hand-cut at 300 px --
+    # the bowl bulges top-left and pinches bottom-left, the loop is no longer
+    # an ellipse -- and reads clean at 64, 30 and 22 px.
+    G_HAND = float(os.environ.get("ALBO_ALD_G_HAND", 22.0))
+    G_BOWL_HAND = [(45, -1.0, 0.7), (135, 1.2, -0.9), (225, -0.8, 1.0),
+                   (315, 0.9, -0.6), (0, 0.0, 0.0), (180, 0.0, 0.0)]
+    G_LOOP_HAND = [(45, 1.1, -0.8), (200, -1.2, 1.0), (300, 0.8, 0.6),
+                   (135, 0.0, 0.0), (270, 0.0, 0.0)]
+    _gh = lambda t: [(a, dr * G_HAND, dw * G_HAND) for a, dr, dw in t] if G_HAND else None
     G_LRING = [(0, 24), (45, 34), (90, 50), (135, 62), (180, 70), (225, 74), (270, 72), (315, 58)]
     if os.environ.get("ALBO_ALD_G_RING"):
         G_RING = [(float(a), float(w)) for a, w in
@@ -3367,11 +3395,11 @@ if ON:
         the block above for where every number comes from."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
         up = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u, G_RING,
-                        k=A_K, skew=G_SKEW, unit=u)
+                        k=A_K, skew=G_SKEW, unit=u, hand=_gh(G_BOWL_HAND))
         lt = G_LTOP * u; lb = -dsc - OVER * 0.4
         lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
-                                  unit=u, want_outer=True)
+                                  unit=u, want_outer=True, hand=_gh(G_LOOP_HAND))
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
         # Owner 2026-09-16: *"thin out and fix and make the connector in g
         # tastefully angular. do not overrun into counter"*. Three faults, and
@@ -3422,9 +3450,28 @@ if ON:
         # where it stops.
         if G_NECK_TRIM:
             nk = nk.difference(geom.poly(lo_outer))
-        # the ear: a short flat stroke off the bowl's top right, at the x-line
-        ear = stroke([(x0 + (G_CX + G_RX * 0.55) * u, xh * 0.96),
-                      (x0 + G_EAR_X * u, xh * G_EAR_Y)],
+        # THE EAR IS ATTACHED TO THE BOWL, SO IT MOVES WITH IT (round 175).
+        # Its root is a formula point on a ray from the bowl's centre, and the
+        # bowl's own contour is pushed along that same ray by the HAND table --
+        # -22 units at 45 degrees at the shipping depth. At G_HAND 16 the root
+        # was still buried; at 20 the bowl had walked out from under it and the
+        # ear became a SECOND INK ISLAND, 7,060 units of detached blade sitting
+        # off the letter's top right. `cmp_aldine_glitch` caught it; nothing in
+        # the picture at reading size did, which is the whole argument for the
+        # gate. The root now takes the same radial displacement `keyed_ring`
+        # gives the contour at its own angle, so the burial depth is constant
+        # at every hand depth. With no hand the displacement is 0 and the ear
+        # is the round-174 stroke exactly.
+        _er = [x0 + (G_CX + G_RX * 0.55) * u, xh * 0.96]
+        if _gh(G_BOWL_HAND):
+            _ecx, _ecy = x0 + G_CX * u, G_CY * u
+            _ea = math.atan2((_er[1] - _ecy) / (G_RY * u),
+                             (_er[0] - (_er[1] - _ecy) * G_SKEW - _ecx) / (G_RX * u))
+            _edr = _hand_at(_gh(G_BOWL_HAND), _ea, 1) * u
+            _nx, _ny = _er[0] - _ecx, _er[1] - _ecy
+            _L = math.hypot(_nx, _ny) or 1.0
+            _er = [_er[0] + _nx / _L * _edr, _er[1] + _ny / _L * _edr]
+        ear = stroke([tuple(_er), (x0 + G_EAR_X * u, xh * G_EAR_Y)],
                      widths([(0.0, G_EAR_T * u * 1.10), (1.0, G_EAR_T * u * 0.80)]), cut1=CUT)
         return geom.ink([up, lo, nk, ear])
 
