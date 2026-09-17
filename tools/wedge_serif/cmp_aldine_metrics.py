@@ -66,7 +66,23 @@ TARGETS = {
     # construction of its own -- outlines/glyphs/aldine.py, round 151), so it
     # takes Flanker's own numbers, which is the SAME rule the o's row already
     # states one line down. It builds at 0.828 / 0.973: -1.9% and +3.0%.
-    'a': (0.844, 0.945, 'ref',    0.83, "Flanker's own a, measured by this script (round 146's 0.330 described a withdrawn drawing)"),
+    # ROUND 167 RETARGET, 0.844 -> 0.691, and the reason is a RULING rather than
+    # a drift. Round 151 put this row on Flanker's own a, which was right while
+    # the letter was Flanker's shape: the d's ring, round at the top. The owner
+    # has since flattened its top left to a chord running from the stem
+    # connector down to eight o'clock -- *"bring the top left from current to a
+    # diagonal"*, then *"the peak should be at the connector to the stem"*, then
+    # E off the nine-step ladder -- and a chord across an arc removes counter by
+    # construction. There is no dial to give it back that does not undo the
+    # droop.
+    #
+    # So the row goes on the DRAWING, and says so. Measured: 0.691 against
+    # Flanker's 0.844, 18% under. That gap IS the droop and it is expected to
+    # stay; what the row now catches is the letter drifting from the shape the
+    # owner chose. The w/h is untouched at 0.945 and still passes at +3%, which
+    # is the check that the flattening took its 18% out of the COUNTER and not
+    # out of the letter's proportion.
+    'a': (0.760, 0.945, 'ref',    0.83, "round 167: the DRAWING with the owner's droop, ironed (Flanker's round-topped a is 0.844)"),
     # ROUND 151 RETARGET, and it is the o's 2026-09-16 ruling applied to the
     # second letter it was always going to apply to. 0.203 is the PRINTED
     # page's number -- 191 px of counter against 941 px of ink on the macro

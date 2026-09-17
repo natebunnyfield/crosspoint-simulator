@@ -1904,29 +1904,59 @@ if ON:
         if skew:
             outer = [(x + (y - cy) * skew, y) for x, y in outer]
         if flat:
-            # `flat` is (amount, a0, b0) in degrees: every outer point whose
-            # angle lies between a0 and b0 is moved toward the straight chord
-            # joining the points AT a0 and b0, by `amount`. At 1.0 that stretch
-            # of the contour IS the chord. The angle is read with the skew
-            # removed, as the hand table's is, so the span means the same thing
-            # on a round ring and on an egg.
+            # ROUND 167 -- THE TOP LEFT IS ONE BEZIER, NOT A CHORD. Owner
+            # 2026-09-16: *"none of those smoothed a -- I mean make the curve
+            # simple and graceful"*.
+            #
+            # The first cut lerped the contour toward a straight chord and then
+            # averaged the result. Averaging a corner does not produce a curve;
+            # it produces a rounded corner, which is what he kept seeing. The
+            # span is now REPLACED by a single cubic whose end points are the
+            # ring's own points at a0 and b0 and whose handles run along the
+            # RING'S OWN TANGENTS there -- so it meets the rest of the contour
+            # with no corner at all, by construction rather than by smoothing,
+            # and the whole top left is one curve with one parameter.
+            #
+            # `amount` is the handle length as a fraction of the chord. At
+            # about 0.55 the cubic reproduces the arc it replaced; below that it
+            # falls inside it and the edge straightens toward the chord; the
+            # droop is the difference. One number, monotonic, and every value
+            # of it is smooth.
             _amt, _a0, _b0 = flat
             _r0, _r1 = math.radians(_a0), math.radians(_b0)
             def _ang(x, y):
                 return math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx) % (2 * math.pi)
-            _pa = min(outer, key=lambda q: abs(((_ang(*q) - _r0 + math.pi) % (2 * math.pi)) - math.pi))
-            _pb = min(outer, key=lambda q: abs(((_ang(*q) - _r1 + math.pi) % (2 * math.pi)) - math.pi))
-            _out = []
-            for x, y in outer:
-                a = _ang(x, y)
-                if _r0 <= a <= _r1:
-                    t = (a - _r0) / (_r1 - _r0)
-                    cxp = _pa[0] + (_pb[0] - _pa[0]) * t
-                    cyp = _pa[1] + (_pb[1] - _pa[1]) * t
-                    _out.append((x + (cxp - x) * _amt, y + (cyp - y) * _amt))
-                else:
-                    _out.append((x, y))
-            outer = geom.smooth(_out, 1, closed=True)
+            n_ = len(outer)
+            inside = [_r0 <= _ang(*q) <= _r1 for q in outer]
+            if sum(inside) > 3:
+                # ROUND 167b -- THE SLICE IS TAKEN IN INDEX ORDER, NOT BY
+                # SORTING ON ANGLE. Owner: *"the droop of a needs to stay, just
+                # iron out the wrinkly curves"*. The wrinkles were mine: the
+                # first cut rebuilt the contour as `pre + arc + post` with pre
+                # and post SORTED BY ANGLE, and a sheared superellipse's points
+                # are not monotonic in angle -- near the span's two ends the
+                # sort interleaved neighbours, which put small reversals in the
+                # outline that `resample` then preserved as wobble. A closed
+                # contour is already in order; the only honest edit is to
+                # replace one contiguous RUN of it.
+                i0 = next(k for k in range(n_) if inside[k] and not inside[(k - 1) % n_])
+                i1 = next(k for k in range(n_) if inside[k] and not inside[(k + 1) % n_])
+                run = []
+                k = i0
+                while True:
+                    run.append(k)
+                    if k == i1: break
+                    k = (k + 1) % n_
+                p0, p1 = outer[run[0]], outer[run[-1]]
+                t0 = outer[(run[0] - 3) % n_]; t1 = outer[(run[-1] + 3) % n_]
+                d0 = (p0[0] - t0[0], p0[1] - t0[1]); d1 = (t1[0] - p1[0], t1[1] - p1[1])
+                L0 = math.hypot(*d0) or 1.0; L1 = math.hypot(*d1) or 1.0
+                ch = math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * _amt
+                c0 = (p0[0] + d0[0] / L0 * ch, p0[1] + d0[1] / L0 * ch)
+                c1 = (p1[0] - d1[0] / L1 * ch, p1[1] - d1[1] / L1 * ch)
+                arc = list(geom.cubic(p0, c0, c1, p1))
+                keep = [outer[(i1 + 1 + m) % n_] for m in range((n_ - len(run)))]
+                outer = arc + keep
         if hand:
             # the same (degrees, dr, dw) table `nib_ring` carries, on the
             # OUTER only: dr pushes a point along its own radius, dw is added
@@ -2139,8 +2169,27 @@ if ON:
     # toward the straight chord joining those two angles' own points. 0 is the
     # ring untouched, 1 is a dead straight edge, and the ladder between them is
     # what the owner asked to see.
-    A_FLAT = float(os.environ.get("ALBO_ALD_A_FLAT", 0.0))
-    A_FLAT_A = float(os.environ.get("ALBO_ALD_A_FLAT_A", 92.0))    # where the flat begins, degrees ccw
+    # OWNER 2026-09-16: **E wins** off the nine-step ladder -- 4/8 -- *"E wins
+    # for a droop, clean up the curve to be smooth"*. So A_FLAT ships at 0.500
+    # and A_FLAT_A at 58, the angle where the bowl meets the stem, which is
+    # where he placed the peak.
+    #
+    # THE SMOOTHING IS THE SECOND HALF OF HIS SENTENCE. The lerp's displacement
+    # is already ZERO at both ends of the span -- at a = A_FLAT_A the chord's
+    # own start IS the ring's point there, and the same at the other end -- so
+    # the contour does not step. What it does is change TANGENT: inside the
+    # span it is heading along a chord and outside it is heading round a ring,
+    # and the two meet at an angle. That is the kink he is looking at, and no
+    # amount of lerp tuning removes it, because it is a derivative and not a
+    # position. A_FLAT_SM passes a moving average over the warped contour,
+    # which is the same cure `_R_traced` uses on a width sequence and for the
+    # same reason: an average of a C0 curve is C1. Laddered at 1 / 3 / 4 / 7 /
+    # 12 passes and looked at at 420 px: 1 and 3 still show both junctions, 12
+    # has rounded the diagonal back toward the arch it replaced, and **7
+    # ships** -- the droop is a clean continuous edge from the connector down
+    # to eight o'clock and neither end announces itself.
+    A_FLAT = float(os.environ.get("ALBO_ALD_A_FLAT", 0.34))   # the cubic's handle length, x the chord
+    A_FLAT_A = float(os.environ.get("ALBO_ALD_A_FLAT_A", 58.0))    # where the flat begins, degrees ccw -- the stem connector
     A_FLAT_B = float(os.environ.get("ALBO_ALD_A_FLAT_B", 186.0))   # and where it ends
     A_DROOP = float(os.environ.get("ALBO_ALD_A_DROOP", 1.0))
     A_DROOP_HAND = [(75, 0.0, 0.0), (115, -17.0 * A_DROOP, 0.0),
@@ -2524,11 +2573,22 @@ if ON:
     # question. `ALBO_ALD_Q_TAIL` picks: foot (as shipped), flourish, kick,
     # hook, swash.
     Q_TAIL = os.environ.get("ALBO_ALD_Q_TAIL", "foot").lower()
+    Q_FOOT_LMUL = float(os.environ.get("ALBO_ALD_Q_FOOT_LMUL", 0.38))  # the q foot's LEFT arm, x the p's
 
     def q_tail(xc, ybot, u=1.0):
         t = PQ_FOOT_T * u
         if Q_TAIL == "foot":
-            return pq_foot(xc, ybot, u)
+            # ROUND 167 -- THE q's LEFT ARM IS A MICROSERIF. Owner 2026-09-16,
+            # having looked at the five tails and kept this one: *"just make
+            # the left serif of q into a microserif"*. `pq_foot` is symmetrical
+            # by design -- 98 units left of the stem's centre and 116 right --
+            # and that symmetry is right for the p, whose descender is a stem
+            # stopping with nothing on either side of it. The q's foot sits
+            # under a bowl that is already carrying the letter's weight to the
+            # LEFT, so the left arm was the one piece of ink the letter did not
+            # need. Q_FOOT_LMUL scales that arm alone; the right arm, the
+            # thickness and the p are untouched.
+            return pq_foot(xc, ybot, u, lmul=Q_FOOT_LMUL)
         if Q_TAIL == "flourish":
             # out of the stem's foot, right and up, thinning to the pen's cut:
             # the capital Q's tail at a tenth of the size.
@@ -2561,17 +2621,37 @@ if ON:
                                      (0.62, t * 0.80), (1.0, t * 0.26)]), cut1=CUT)
         return pq_foot(xc, ybot, u)
 
-    def pq_foot(xc, ybot, u=1.0):
+    def pq_foot(xc, ybot, u=1.0, lmul=1.0):
         """The descender's spread foot: a flat-bottomed two-sided bar, 21 units
         at the tips and 3.2x that where the stem lands. The centerline RISES
         toward the middle, because the underside is straight and the stroke
         thickens upward from it."""
-        l = PQ_FOOT_L * u; r = PQ_FOOT_R * u; t = PQ_FOOT_T * u
-        p = catmull([(xc - l, ybot + t * 0.50), (xc - l * 0.46, ybot + t * 0.68),
-                     (xc, ybot + t * 1.60), (xc + r * 0.46, ybot + t * 0.68),
-                     (xc + r, ybot + t * 0.50)], tension=0.5)
-        return stroke(p, widths([(0.0, t), (0.24, t * 1.32), (0.50, t * 3.20),
-                                 (0.76, t * 1.32), (1.0, t)]), cut0=CUT, cut1=CUT)
+        l = PQ_FOOT_L * u * lmul; r = PQ_FOOT_R * u; t = PQ_FOOT_T * u
+        cps = [(xc - l, ybot + t * 0.50), (xc - l * 0.46, ybot + t * 0.68),
+               (xc, ybot + t * 1.60), (xc + r * 0.46, ybot + t * 0.68),
+               (xc + r, ybot + t * 0.50)]
+        p = catmull(cps, tension=0.5)
+        # ROUND 167 -- THE WIDTHS ARE KEYED TO THE CONTROL POINTS, NOT TO FIFTHS
+        # OF THE PATH. They were (0.0, 0.24, 0.50, 0.76, 1.0), which is only
+        # the five control points' positions while the two arms are the same
+        # length. Shorten one -- which is exactly what the q's microserif does
+        # -- and 0.24 no longer lands on the left arm's own middle and 0.50 no
+        # longer lands at the stem: the profile slides right and the short arm
+        # comes out a blob instead of a small serif. Owner, on the first cut:
+        # *"you did it all wrong. just reduce the extension of the left serif."*
+        # Each control point's own arc-length fraction along the drawn curve is
+        # measured and the width keyed there, so the profile stays attached to
+        # the geometry however long either arm is. Same device as `_R_traced`,
+        # same reason.
+        d = [0.0]
+        for a_, b_ in zip(p, p[1:]):
+            d.append(d[-1] + math.hypot(b_[0] - a_[0], b_[1] - a_[1]))
+        ws = [t, t * 1.32, t * 3.20, t * 1.32, t]
+        keys = []
+        for (px, py), w in zip(cps, ws):
+            j = min(range(len(p)), key=lambda i: (p[i][0] - px) ** 2 + (p[i][1] - py) ** 2)
+            keys.append((d[j] / d[-1], w))
+        return stroke(p, widths(keys), cut0=CUT, cut1=CUT)
 
     @glyph('p')
     def a_p(c):
