@@ -3607,7 +3607,7 @@ if ON:
     # so the w lays down half again as much black as the v over a span only
     # 1.3x wider, and in a word it reads as a blot where the v reads as a
     # letter. W_THICK scales ONLY the first and third strokes' width tables.
-    W_THICK = d_dial("W_THICK", 1.0)
+    W_THICK = d_dial("W_THICK", 0.86)   # owner's pick, 2026-09-16, off the 1.00/0.92/0.84/0.76 ladder
     W_APEX = d_dial("W_APEX", 0.96)   # the middle apex's height, x xh
 
     @glyph('w')
@@ -3767,7 +3767,9 @@ if ON:
 
     # Round 177, the owner's: how far the left stroke bows OUT (left), in
     # REFERENCE units at the middle of its descending run. Both ends pinned.
-    Y_LBOW = float(os.environ.get("ALBO_ALD_Y_LBOW", 0.0))
+    # Owner's pick from the 0/12/24/36 ladder, 2026-09-16: 41 -- past the
+    # ladder's top rung, which is his call and not an extrapolation of mine.
+    Y_LBOW = float(os.environ.get("ALBO_ALD_Y_LBOW", 41.0))
 
     @glyph('y')
     def a_y(c):
@@ -4682,7 +4684,7 @@ if ON:
     # same spot and at the same angle, and only its reach and its weight grow.
     # The pen widths are scaled by the same factor, because a pen dragged over
     # a longer path at the same speed does not draw a thinner line.
-    Q_TAIL_SCALE = float(os.environ.get("ALBO_ALD_Q_TAIL_SCALE", 1.0))
+    Q_TAIL_SCALE = float(os.environ.get("ALBO_ALD_Q_TAIL_SCALE", 1.2))  # owner's pick, 2026-09-16
     Q_TAIL_W = float(os.environ.get("ALBO_ALD_Q_TAIL_W", 1.04))  # x the tail's whole profile
     Q_TAIL_LIFT = float(os.environ.get("ALBO_ALD_Q_TAIL_LIFT", 0.33))  # added at the JOIN, gone by the profile's peak
     Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
