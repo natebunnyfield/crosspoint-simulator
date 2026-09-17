@@ -758,6 +758,10 @@ if ON:
     HM_EXIT_R = _hm("EXIT_R", 84.0)     # the exit's tip, units RIGHT of the stem's right edge
     HM_EXIT_Y = _hm("EXIT_Y", 0.250)    # the tip's height, x xh
     HM_EXIT_T = _hm("EXIT_T", 19.0)     # the tip, units
+    # round 181: how far to push the per-letter outstroke table. 0 puts every
+    # letter back on the one shared stroke, which is the round-180 font to the
+    # bit -- the arm for judging whether the variety is worth its cost.
+    HM_EXIT_VARY = _hm("EXIT_VARY", 1.0)
     HM_ARCH_T = _hm("ARCH_T", 22.0)     # the climb's hairline, units
     HM_ARCH_TOP = _hm("ARCH_TOP", 0.935)   # the apex's centerline, x xh
     HM_SPRING = _hm("SPRING", 0.355)    # where the arch leaves the stem's center, x xh
@@ -880,12 +884,87 @@ if ON:
                                                         0.0, 2 * math.pi, 2.0,
                                                         rot=ang))])
 
-    def hm_exit(c, xc):
+    # ROUND 181 -- THE OUTSTROKE IS DIFFERENT ON EVERY LETTER, AND THE
+    # DIFFERENCE IS MEASURED OFF THE OWNER'S OWN BOOKS.
+    #
+    # Owner 2026-09-17: *"the bottom serif for i h n m u and others needs to
+    # vary a lot more and be designed for how they appear in common words"*.
+    # Both halves are answerable and the second one decides the first.
+    #
+    # WHAT IT WAS. `hm_exit(c, xc)` took a position and nothing else, so the
+    # seven letters that call it -- i l n m h u a -- had one byte-identical
+    # outstroke between them. Measured on the built font, reach past the stem's
+    # own right edge, in units at xh 429: i 44, u 44, h 41, n 41, l 41, m 40.
+    # A spread of four units across six letters is one punch used six times.
+    #
+    # WHAT THE REFERENCES DO, measured the same way: Flanker 23-24 across all
+    # six and Pagella 23-28 -- just as uniform as Albo, so they do NOT support
+    # this change. COELACANTH does: i 56, l 59, n 51, m 51, u 42, h 0, t 76.
+    # It is the one reference that varies and it is the one the owner added to
+    # refs/ the day before asking for this.
+    #
+    # WHERE THE NUMBERS COME FROM. Not taste: 512,344 word tokens out of the
+    # owner's own epub library (`outlines/cmp/corpus.py`'s source, the reader's
+    # real corpus). For each letter, how often it ENDS a word -- where its
+    # outstroke is a terminal standing in white space and can be long -- and
+    # what follows it when it does not:
+    #
+    #     ch   ends a word   next is round   next is a stem   commonest
+    #     t       24.2%           34%             64%          h37 e14
+    #     n       24.1%           74%             25%          d19 g16
+    #     r       19.6%           64%             35%          e27
+    #     l       15.4%           52%             46%          e20 a14
+    #     m       14.6%           69%             31%          e33 a18
+    #     h       10.5%           79%             21%          e51 a19
+    #     u        5.8%           35%             63%          r16 n13
+    #     i        2.7%           40%             56%          n25 t14
+    #
+    # Two facts do the work. An `i` ENDS A WORD 2.7% OF THE TIME -- its
+    # outstroke is a connector into the next letter in 97 appearances out of
+    # 100, so a long free flick is drawn for a case that essentially never
+    # happens. An `h` IS FOLLOWED BY AN `e` 51% OF THE TIME (the, he, she,
+    # when, there) and by some round letter 79% of the time; a round letter's
+    # ink starts set in from its own left edge, so the h's exit has less room
+    # to cross than any other letter's. Coelacanth gives the h NO EXIT AT ALL,
+    # which is that fact taken to its end.
+    #
+    #     scale = 0.55 + 0.75 * min(1, final/24) - 0.30 * min(1, round_next/60)
+    #
+    # It agrees with Coelacanth on t (longest), h and u (shortest) and
+    # disagrees on i and l, where Coelacanth is long and the corpus says short.
+    # The corpus wins here because it is the instruction: this is the letter as
+    # it appears in words, not as it appears on a specimen sheet.
+    HM_EXIT_BY = {
+        't': 1.13, 'n': 1.00, 'r': 0.86, 'l': 0.77,
+        'm': 0.71, 'h': 0.58, 'u': 0.56, 'i': 0.44,
+        'a': 0.80,   # a ends a word 11.6% and takes a round 61% of the time
+        'b': 0.62,   # 3.6% final; its own bowl already reaches right
+    }
+
+    def hm_exit(c, xc, ch=None):
         """The outstroke: down the stem, round the baseline, out RIGHT and UP
         to a hairline tip. One stroke, started inside the stem so there is no
-        seam where it leaves."""
+        seam where it leaves.
+
+        `ch` names the letter, and the letter is what decides how far it
+        reaches, how high its tip climbs and how fine that tip is -- see the
+        block above. Passing nothing keeps the round-180 stroke exactly, so an
+        unconverted caller is unchanged rather than silently re-cut."""
         u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
-        tip = (xc + sw / 2 + HM_EXIT_R * u, HM_EXIT_Y * xh)
+        # HM_EXIT_VARY is an AMOUNT, not a switch: 0 puts every letter back on
+        # the one shared stroke, 1 is the corpus-derived table above, and past
+        # 1 the same ordering is pushed further. So the ladder the owner judges
+        # is one number and every rung keeps the letters in the order the
+        # corpus put them in.
+        k = 1.0 + HM_EXIT_VARY * (HM_EXIT_BY.get(ch, 1.0) - 1.0)
+        # the three things the letter moves: how far out, how high, how fine.
+        # The tip climbs with the reach because this is ONE run at a roughly
+        # constant angle -- a short exit that still rose to the full height
+        # would be a steeper stroke, which is a different pen and not a shorter
+        # one -- and it thins with it because a shorter run has less length to
+        # taper over.
+        tip = (xc + sw / 2 + HM_EXIT_R * u * k,
+               HM_EXIT_Y * xh * (0.62 + 0.38 * k))
         # IT IS SHORT AND IT CLIMBS: a hook round the baseline, then a
         # straight run at about 45 degrees. Measured off Flanker's i as the
         # ink's right edge against the stem's -- 27 units past it at .02, 45 at
@@ -910,7 +989,8 @@ if ON:
                      (knee[0] + d[0] * 0.76, knee[1] + d[1] * 0.76), tip],
                     tension=0.5)
         return stroke(p, widths([(0.0, sw), (0.36, sw * 0.94), (0.66, sw * 0.78),
-                                 (0.88, sw * 0.48), (1.0, HM_EXIT_T * u)]), cut1=CUT)
+                                 (0.88, sw * 0.48),
+                                 (1.0, HM_EXIT_T * u * (0.78 + 0.22 * k))]), cut1=CUT)
 
     # The arch's centerline, as (fraction of the pitch from the left stem's
     # CENTER, fraction of the x-height). The middle five come straight off
@@ -1033,7 +1113,7 @@ if ON:
         baseline in both. Drawn 84 x 88 on the pen's own angle since round 135
         -- Cancelleresca's disc, by the owner's ruling; see the dial block."""
         xh = c["xh"]; u = hm_u(c); x = S * 1.0
-        parts = [hm_stem(c, x, 0, xh), hm_head(c, x, xh), hm_exit(c, x)]
+        parts = [hm_stem(c, x, 0, xh), hm_head(c, x, xh), hm_exit(c, x, 'i')]
         parts.append(ij_dot(c, x))
         return geom.ink(parts)
 
@@ -1044,7 +1124,7 @@ if ON:
         0.155 below the x-line on the i -- the same shape at the same drop,
         which is why hm_head takes the top as an argument."""
         return geom.ink([hm_stem(c, S * 1.0, 0, c["asc"]),
-                         hm_head(c, S * 1.0, c["asc"]), hm_exit(c, S * 1.0)])
+                         hm_head(c, S * 1.0, c["asc"]), hm_exit(c, S * 1.0, 'l')])
 
     @glyph('n')
     def a_n(c):
@@ -1053,7 +1133,7 @@ if ON:
         module used to put there was a roman's, not a chancery hand's."""
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh), hm_arch(c, x0, x1),
-                         hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1)])
+                         hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1, 'n')])
 
     # ------------------------------------------------ ROUND 143, THE m ALONE
     # Owner 2026-09-16, verbatim: *"the arches of 'm' need to be slightly
@@ -1199,7 +1279,7 @@ if ON:
                          hm_arch(c, x1, x2, drop=M_A2_DROP, crown=M_CROWN),
                          *m_midstem(c, x1, M_MID_LIFT * xh, xh * 0.86),
                          hm_stem(c, x2, 0, xh * 0.86, cut=False),
-                         hm_exit(c, x2)])
+                         hm_exit(c, x2, 'm')])
 
     @glyph('h')
     def a_h(c):
@@ -1210,7 +1290,7 @@ if ON:
         RIGHT, and one letter cannot leave the family to follow one page."""
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
         return geom.ink([hm_stem(c, x0, 0, c["asc"]), hm_head(c, x0, c["asc"]),
-                         hm_arch(c, x0, x1), hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1)])
+                         hm_arch(c, x0, x1), hm_stem(c, x1, 0, xh * 0.86, cut=False), hm_exit(c, x1, 'h')])
 
     # THE STEM PITCH, measured three ways on griffo-macro.png and agreeing:
     # the m of "tumulum" puts its stems near x505/532/560, and the l and the
@@ -1275,7 +1355,7 @@ if ON:
                        (1.00, sw * 0.70)])
         parts = [stroke(p, prof, cut0=-math.radians(HM_TOPCUT))]
         # the second stroke: the right stem down to the baseline, and out
-        parts += [hm_stem(c, x1, 0, xh * 0.985), hm_exit(c, x1), hm_head(c, x0, xh)]
+        parts += [hm_stem(c, x1, 0, xh * 0.985), hm_exit(c, x1, 'u'), hm_head(c, x0, xh)]
         return geom.ink(parts)
 
     # MEASURED off the o of "udos" in griffo-macro.png: x145-185, y61-114 --
@@ -2600,7 +2680,7 @@ if ON:
         # lands on, because "the crown is the top, and a cut corner under it
         # only pokes a spike through the shoulder". That spike is what read as
         # two overlapping shapes at the top right.
-        return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs)])
+        return geom.ink([bowl_, hm_stem(c, xs, 0, xh, cut=False), hm_exit(c, xs, 'a')])
 
     # ------------------------------------------------------------ THE b, round 132
     # DRAWN AGAINST THE REFERENCE, by the a's method and in the a's units.
