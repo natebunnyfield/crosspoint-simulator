@@ -1492,7 +1492,19 @@ if ON:
     # raw per-point width array, which this letter does not have -- it is
     # drawn `pieces=True` because its centerline crosses itself. A square face
     # on a 26-unit stroke is blunt, which is what was asked for.
-    E_END_W = float(os.environ.get("ALBO_ALD_E_END_W", 0.40))    # the terminal's width, x S
+    # ROUND 172 -- THE LOWER TERMINAL TAKES A LITTLE MORE. Owner 2026-09-16:
+    # *"bottom right stroke of e needs to be slightly thicker"*. 0.40 -> 0.47
+    # x S. This is the LERP TARGET the blunting ramp runs to over the path's
+    # last 18%, not a floor, so raising it thickens the terminal and nothing
+    # else -- the ramp is a cosine and the counter's edge takes no step.
+    #
+    # Laddered 0.40 / 0.47 / 0.54 / 0.62 and looked at at 420 px and in `the
+    # level tree`: 0.54 reads as a deliberately heavy terminal rather than a
+    # slightly thicker one and 0.62 closes the aperture toward the bar. The
+    # reference ends at 33 units (0.40 S), so 0.47 is now a little OVER it --
+    # recorded rather than hidden, since round 151's blunting note was written
+    # to bring this terminal down TO the reference and this moves it back up.
+    E_END_W = float(os.environ.get("ALBO_ALD_E_END_W", 0.47))    # the terminal's width, x S
     E_END_T0 = float(os.environ.get("ALBO_ALD_E_END_T0", 0.82))  # where the blunting starts, x the path
 
     # THE PAGE'S OWN SLANT. Whole-stem fits scatter badly -- chancery stems
