@@ -6320,6 +6320,593 @@ if ON:
                        (0, 1), (-1, 0), WL * CAP_VV_CROWN, WD * CAP_VV_CROWN, DROP)
         return geom.ink([a, b, d, e, crown])
 
+    # THESE TWO IMPORTS BELONG INSIDE `if ON:` AND NOT AT THE MODULE TOP, which
+    # is where they were until adversarial review caught it. `glyphs/__init__`
+    # imports every family in a try/except whose guard is `if _m not in str(e):
+    # raise` -- so a family that cannot import is tolerated, by name. A top-level
+    # `from . import figures` in THIS module re-raises that ImportError under
+    # aldine's name, the guard does not recognise it, and the whole package
+    # fails to import instead of one optional family. Down here it is only
+    # reached by a build that is actually drawing the Aldine italic, which is
+    # the one case where failing is right. (`caps_straight` was already exposed
+    # this way by `figures.py` itself; only `figures` was newly at risk.)
+    from . import caps_straight as _CS, figures as _FG
+
+    # ==================================================== ROUND 167 -- THE PRESS
+    # OWNER 2026-09-16, two instructions: *"make E F T X handcut"* and *"make
+    # italic numerals handcut"*. The X was cut in round 165 and is the worked
+    # example; this is the other three letters and the ten figures.
+    #
+    # WHAT WAS MEASURED FIRST, because the instruction is only worth obeying
+    # where there is a symmetry to break. Each number is the SYMMETRIC
+    # DIFFERENCE between the drawn glyph and its own mirror, as a percentage of
+    # its ink, taken on the UNSHEARED drawing with the builder's solved widths:
+    #
+    #     T   mirrored about the arm's centre      0.223%   of the letter
+    #         the arm alone                        0.428%   of the arm
+    #     0   mirrored about x  0.49%    about y   0.50%
+    #     8   mirrored about x                     0.59%
+    #     9   the bowl alone, about x              0.69%
+    #     6   the bowl alone, about x              2.58%
+    #     E   the top bar against the bottom bar,
+    #         mirrored and registered              5.77%
+    #
+    # -- and the residue in the T and in the rings is `life()`'s +-6% on the
+    # two wedges and NOTHING ELSE. The T's arm IS its own mirror: the bar runs
+    # 0..w with a wedge at each end and the stem is planted at exactly w/2.
+    # The 0 is an ellipse whose four quadrants agree to a tenth of a unit --
+    # mean outer radius 220.4 / 225.1 / 220.4 / 225.0 -- with its ink 84 at 0
+    # and 180 degrees and 50 at 90 and 270. The 8 is that ellipse twice on one
+    # vertical axis.
+    #
+    # WHAT WAS MEASURED AND LEFT ALONE, which is the half a summary drops:
+    #
+    #   * The E's three bars are NOT one bar three times. Top and bottom are
+    #     CAP_BAR (56.05) and the middle is CAP_BAR*0.9 (50.40); their right
+    #     ink stands at 345.3 / 277.2 / 356.9, so the bottom already reaches 12
+    #     units past the top and the middle stops 68 short of it. The F's two
+    #     differ the same way (56.05/50.40, right ink 327.8/249.4). Only the
+    #     E's top-and-bottom PAIR is a mirror, and only in its band shape.
+    #   * The figures 1 2 3 4 5 7 measure 59% to 132% against their own
+    #     mirrors -- they are already two different halves and were given one
+    #     cut each or none, rather than a table.
+    #   * The figures' HEIGHTS are not a defect. They are old-style by ruling
+    #     (`latin.FIG_BOX`: 0 1 2 sit in the x-height band, 6 and 8 ascend,
+    #     3 4 5 7 9 descend) and nothing here touches a box.
+    #   * 6 against 9: not one letter rotated. Symmetric difference of the 6
+    #     against the 9 turned 180 degrees and re-centred is 57.6% of the 6.
+    #     Their BOWLS are near-mirrors of themselves, which is what is cut.
+    #
+    # THE MECHANISM IS THE SILHOUETTE, not the centreline, and that is a choice
+    # against both existing precedents rather than an omission of them. The X's
+    # is a displaced middle control point and the R's is `_hand_rows` keyed by
+    # fraction along a traced stroke; neither reaches a BAR, whose centreline is
+    # TWO points that `stroke` re-densifies, and re-tracing a bar as a curve
+    # invalidates `primitives.bar`'s end-wedge seat -- the arithmetic that plants
+    # a wedge on the SHEARED corner of a straight end face, which the owner has
+    # had fixed twice already (the E's and F's top right, the 2's base). It does
+    # not reach a figure either without redrawing all ten. A press moves the
+    # drawn edge BETWEEN the terminals and leaves every terminal alone.
+    #
+    # On a ring it is strictly more expressive than the Q's angle table, not
+    # less. MEASURED on a clean annulus (outer 200, inner 120) through
+    # `_press_ring` itself, one cut at one angle, depth 5:
+    #
+    #                          inner   outer   width   mean radius
+    #     base                 120     200      80       160
+    #     ext +5 alone         120     205      85       162.5
+    #     int +5 alone         115     200      85       157.5
+    #     ext +5, int +5       115     205      90       160      <- pure dw
+    #     ext +5, int -5       125     205      80       165      <- pure dr
+    #
+    # So: an `ext` cut alone is the Q's `dr` and `dw` moving together; the SAME
+    # sign on both contours is the Q's `dw` with `dr` = 0 (the stroke thickens
+    # by 2d where it is, the ring does not move); and OPPOSITE signs are the Q's
+    # `dr` with `dw` = 0 (the ring bulges, the stroke keeps its width). THIS
+    # PARAGRAPH SAID THOSE LAST TWO THE WRONG WAY ROUND until adversarial review
+    # measured them. The sign rule is the reason -- `d` > 0 adds ink on both
+    # contours, and adding ink on both sides of a ring is a thicker stroke, not
+    # a bigger ring.
+    #
+    # A TABLE, NOT `life()`. Round 151's ruling, and the reason is unchanged:
+    # `life()` re-rolls whenever a glyph's call order moves, and a defect that
+    # moves between builds is noise. These numbers do not move.
+    #
+    # MAGNITUDES: 2.0 to 4.5 units, against a cap of 674 and figure stems of 84
+    # -- under a twentieth of a stroke's own width, the same band the Q, the R
+    # and the X work in. At 13 pt none of it is a feature. What it does is stop
+    # the two halves of a letter being the same half.
+    #
+    # WHERE THEY GO: round 153's ruling on the Q -- *a cut where the pen is
+    # already thick reads as a lump, not as a hand*. Every ring cut below is
+    # placed off the flanks, at the shoulders where the 0's ink measures 71 to
+    # 83 rather than at 0 and 180 degrees where it measures 84.6 and is at its
+    # maximum; the one flank cut in the table (the 8's lower loop at 5 o'clock)
+    # is a +2.5 on a stroke already 85 wide and was checked on the render for
+    # exactly that failure.
+
+    # THE DEPTH IS A LADDER AND 1.0 IS WHAT SHIPS. `ALBO_ALD_HAND` scales every
+    # `d` in every table below; 0 is the round-166 drawing byte for byte, which
+    # was verified rather than assumed (all 289 glyph outlines identical, see
+    # the commit). Five arms were built and looked at, at 260 px, at 190 px and
+    # at 60 px. What each one measures -- the greatest distance the pressed
+    # edge stands off the round-166 edge, across E F T and the ten figures, and
+    # the largest ink change any one glyph takes:
+    #
+    #     HAND   max edge offset   mean offset   |ink| change
+    #     0.5        2.24 units       0.12          0.100%
+    #     0.75       3.36             0.18          0.149%
+    #     1.0        4.48             0.24          0.198%   <- shipped
+    #     1.5        6.71             0.36          0.296%
+    #     2.0        8.95             0.48          0.393%
+    #
+    # (0.75 was built because five arms left the decision point unbracketed --
+    # 0.5 too little and 1.0 the pick, with nothing between them. It is the one
+    # real alternative: on the render it reads as a hand rather than a ruler and
+    # is a shade quieter than 1.0. If the owner wants less, 0.75 is the arm,
+    # not 0.5.)
+    #
+    # 1.0 IS THE ONLY ARM WHOSE DEEPEST CUT SITS INSIDE THE BAND THE ALPHABET
+    # ALREADY WORKS IN: the Q's deepest is 6 units, the R's 0.0074 cap = 5.0,
+    # the X's 4.5. MIND THE SPACE when re-deriving that comparison -- the 4.48
+    # above is measured on the BUILT outline, after the 1.2-unit ink spread and
+    # the 13-degree shear, while those three are DECLARED values in table space.
+    # This table's own declared maximum is 4.00 (the 0's first cut), so the two
+    # readings of the same arm differ by about 12% and the comparison is
+    # honest-but-approximate rather than exact. It is the right comparison
+    # anyway: what the reader sees is the built edge.
+    # 1.5 and 2.0 go past all three, and on the render they show
+    # it -- at 1.5 the E's bars carry a visible notch and at 2.0 the T's arm is
+    # scalloped. 0.5 is honest but the T's arm still reads as a ruled bar.
+    #
+    # AND A FINDING THAT DECIDED IT, which is not obvious and cost the first
+    # build: A PRESS ON A FLAT EDGE SHOWS AT TWICE THE DEPTH A PRESS ON A CURVE
+    # DOES. The figures hold together at 2.0 -- their strokes are curved and a
+    # wander in a curve reads as a hand -- while the capitals' bars, which are
+    # long horizontals the eye tracks for straightness, read as damaged by 1.5.
+    # One dial has to serve both, so it is set by the letters, not the figures,
+    # and the figures' tables are written a shade deeper to compensate (their
+    # ring cuts run to 4.0 where the bars' run to 3.5).
+    #
+    # NONE OF IT SURVIVES TO READING SIZE, which is the point and was checked
+    # rather than asserted: "EFFECT FETE TEXT 1492" set at 60 px and magnified
+    # 2x NEAREST is pixel-indistinguishable across all five arms, 0 through 2.0.
+    #
+    # WHAT THE PRESS DOES TO THE NUMBER IT IS AIMED AT, and the negative result
+    # under it. `cmp_hand_symmetry.py` re-runs this; at HAND = 1.0 --
+    #
+    #     T   0.22% -> 1.22%      0   0.49 / 0.50% -> 1.70 / 1.71%
+    #     8   0.59% -> 1.59%
+    #
+    # -- a factor of three to five. THE PRESSED THREE ARE NOW INTERLEAVED WITH
+    # LETTERS NOBODY HAS CUT, which is the honest reading and is not what this
+    # paragraph said first. Swept over the whole alphabet and the figures rather
+    # than over `EFT0-9` plus the H, the five tightest mirrors are:
+    #
+    #     T 1.22%   D 1.51%   8 1.59%   0 1.70%   I 1.76%
+    #
+    # The D and the I are untouched letters sitting inside the range the cut
+    # ones now occupy, so "still the tightest in the alphabet" was an artefact
+    # of a too-narrow `--chars`; adversarial review caught it with the very
+    # script this round added, by widening it. The conclusion survives and its
+    # reason improves: 1.22% is where a hand-cut near-symmetric letter belongs,
+    # because that is where Albo's own D and I already sit.
+    #
+    # Raising the dial to chase a bigger number is still the wrong move. A
+    # pressed glyph's symmetric difference runs about 2 x mean offset x
+    # perimeter, so taking the T to, say, the H's 11.06% needs a mean offset of
+    # 1.83 units and a deepest cut near 22 -- a third of a stem, a deformed
+    # letter rather than a cut one. The number to hold this work to is the EDGE
+    # OFFSET against the Q, the R and the X, which is the table above, and not
+    # this one.
+    _HAND = float(os.environ.get("ALBO_ALD_HAND", 1.0))   # the ladder dial. 0 = the round-166 drawing, byte for byte.
+
+    def _seg_dist(a, b, x, y):
+        ax, ay = b[0] - a[0], b[1] - a[1]
+        L2 = ax * ax + ay * ay
+        t = 0.0 if L2 <= 0 else max(0.0, min(1.0, ((x - a[0]) * ax + (y - a[1]) * ay) / L2))
+        return math.hypot(a[0] + ax * t - x, a[1] + ay * t - y)
+
+    def _press_ring(pts, cuts):
+        """One closed contour, pressed. `cuts` are already absolute and already
+        filtered to this contour's role: (x, y, r, d)."""
+        n = len(pts)
+        # DENSIFY FIRST, AND ONLY UNDER A CUT. These contours are NOT evenly
+        # spaced: measured on the thirteen glyphs, the mean edge is about 11
+        # units (`stroke` and `superellipse` both resample) but the longest
+        # SINGLE edge runs 59.6 on the E, 88.5 on the F and the T and 108.8 on
+        # the 3, wherever a straight run needed no intermediate point. A cut of
+        # reach 42 landing on one of those has two or three samples to shape
+        # itself with, and a raised cosine sampled two or three times is a
+        # corner, not a press. The step is a cut's reach over eight, so the
+        # shallowest press still gets eight samples across it -- and points are
+        # added NOWHERE ELSE, so every part of the outline no cut touches keeps
+        # the drawing's own vertices and the diff stays readable.
+        out = []
+        for i in range(n):
+            a = pts[i]; b = pts[(i + 1) % n]
+            out.append(a)
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            step = None
+            for cx, cy, r, d in cuts:
+                if _seg_dist(a, b, cx, cy) < r * 1.6:
+                    step = r / 8.0 if step is None else min(step, r / 8.0)
+            if step and L > step:
+                k = int(L / step)
+                for j in range(1, k):
+                    t = j / k
+                    out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+        # SNAP each cut ONTO this contour, then displace. The table's (fx, fy)
+        # is a place on the letter written by eye; the cut's own centre is the
+        # nearest point of the edge it is cutting. Without the snap a fraction
+        # written half a stem off the silhouette presses at a fraction of its
+        # depth and the table stops meaning what it says -- and every figure's
+        # horizontal multiplier is re-solved per build by `solve_widths`, so a
+        # fraction cannot be relied on to stay on the edge by itself. A cut
+        # whose nearest point on this contour is further than its own reach is
+        # NOT this contour's cut and is dropped, which is what keeps a cut aimed
+        # at the 8's lower counter out of its upper one.
+        local = []
+        for cx, cy, r, d in cuts:
+            j = min(range(len(out)), key=lambda i: (out[i][0] - cx) ** 2 + (out[i][1] - cy) ** 2)
+            if math.hypot(out[j][0] - cx, out[j][1] - cy) > r:
+                continue
+            local.append((out[j][0], out[j][1], r, d))
+        if not local:
+            return pts
+        m = len(out); res = []
+        for i, p in enumerate(out):
+            q = out[(i - 1) % m]; s = out[(i + 1) % m]
+            tx, ty = s[0] - q[0], s[1] - q[1]
+            L = math.hypot(tx, ty) or 1.0
+            # `orient(poly, 1.0)` leaves the exterior ccw and every counter cw,
+            # which puts the INK on the left of travel for both. Moving an edge
+            # toward its own ink takes ink away (a counter's boundary moved
+            # toward the ink opens the counter), so the RIGHT normal is the one
+            # that ADDS ink -- on the outside and in a counter alike, with no
+            # per-role sign. That is why `d` can mean one thing everywhere.
+            nx, ny = ty / L, -tx / L
+            dx = dy = 0.0
+            for cx, cy, r, d in local:
+                dist = math.hypot(p[0] - cx, p[1] - cy)
+                if dist >= r:
+                    continue
+                amt = d * (0.5 + 0.5 * math.cos(math.pi * dist / r))
+                dx += nx * amt; dy += ny * amt
+            res.append((p[0] + dx, p[1] + dy))
+        return res
+
+    def _press(g, cuts):
+        """THE CUTTER'S PRESS: a table of local displacements of the drawn
+        silhouette, in design units.
+
+        Each row is `(fx, fy, r, d, where)`:
+
+            fx, fy  where the cut lands, as a fraction of the glyph's own ink
+                    bounding box. A fraction and not an absolute, because
+                    `solve_widths` re-solves every capital's and every figure's
+                    horizontal multiplier on every build and an absolute x
+                    would drift off the letter with it. It is then SNAPPED to
+                    the nearest point of the edge it cuts (see `_press_ring`),
+                    so it only has to be written to the nearest percent.
+            r       the cut's reach, x the stem S. The displacement falls off
+                    as a raised cosine over it, so a cut is a STRETCH of the
+                    edge rather than one moved point -- `_hand_rows` records
+                    what a single moved point costs on a traced stroke, and the
+                    same is true of an edge: one point is a kink and the ink
+                    spread then files it back off.
+            d       its depth in UNITS. POSITIVE ADDS INK -- on the outer
+                    silhouette and in a counter alike, which is what lets one
+                    number mean one thing everywhere. See `_press_ring` for why
+                    that needs no per-role sign, and the annulus table in the
+                    round-167 block for what a pair of them does to a ring.
+            where   'ext' the outer silhouette, 'int' a counter, 'both'.
+
+        `'both'` IS OFFERED AND NO TABLE USES IT, and it does not mean "whichever
+        contour is nearest". The cut is handed to the exterior AND to every
+        counter, each of which snaps it independently, so a `'both'` row is N
+        separate FULL-DEPTH cuts at possibly distant places -- useful on a ring
+        (see the annulus table) and a trap anywhere else. An `ext` row and an
+        `int` row written at the same fraction say the same thing and say it
+        visibly, which is why the shipped tables spell it out that way.
+        """
+        from shapely.geometry import Polygon
+        from shapely.geometry.polygon import orient
+        cuts = [c for c in cuts if c[3] * _HAND]
+        if not cuts:
+            return g
+        x0, y0, x1, y1 = geom.bbox(g)
+        w, h = (x1 - x0) or 1.0, (y1 - y0) or 1.0
+        abs_cuts = [(x0 + w * fx, y0 + h * fy, rS * S, d * _HAND, wh)
+                    for fx, fy, rS, d, wh in cuts]
+        polys = [g] if g.geom_type == 'Polygon' else list(g.geoms)
+        out = []
+        for p in polys:
+            p = orient(p, 1.0)
+            ext = _press_ring(list(p.exterior.coords)[:-1],
+                              [(x, y, r, d) for x, y, r, d, wh in abs_cuts if wh in ('ext', 'both')])
+            ins = [_press_ring(list(ring_.coords)[:-1],
+                               [(x, y, r, d) for x, y, r, d, wh in abs_cuts if wh in ('int', 'both')])
+                   for ring_ in p.interiors]
+            out.append(Polygon(ext, ins).buffer(0))
+        return geom.union(out) if len(out) > 1 else out[0]
+
+    # ------------------------------------------------------------------ E F T
+    # THE DEFECT IN EACH, measured above and repeated here because it is what
+    # the numbers below are answering:
+    #
+    #   T   the arm is `bar(0, w, C, th, wedges=[('left',-1),('right',-1)])`
+    #       and the stem is planted at exactly `w/2`. Both ends carry the same
+    #       hanging wedge. Mirrored about the bar's centre the whole letter
+    #       differs from itself by 0.223% and the arm alone by 0.428%, all of
+    #       it `life()`'s jitter on the two wedges. So the T takes the deepest
+    #       cuts in this table: -3.5 under the LEFT arm and -2.5 off the top of
+    #       the RIGHT -- a different edge, a different depth, in a different
+    #       place, which is the only way a mirror stops being one.
+    #   E   the top and the bottom bar are one bar mirrored (5.77% apart once
+    #       registered, and that is nearly all length: their right ink stands
+    #       at 345.3 and 356.9). One is hollowed UNDERNEATH and the other
+    #       bellied on TOP, so the pair reads as two strokes of one hand.
+    #   F   its two bars are already different (56.05 and 50.40 thick, right
+    #       ink 327.8 and 249.4) -- but they are the SAME TWO BARS THE E HAS,
+    #       from the same two lines of `caps_straight`, and "EFFECT" sets three
+    #       of them in a row. So the F's cuts are deliberately not the E's:
+    #       they land on the top bar's TOP edge and the middle bar's TOP edge,
+    #       where the E's land underneath.
+    #
+    # The stem cut in each is the second half of the same argument: all three
+    # stems are `cstem`, one straight vertical of constant width, and a letter
+    # whose bars wander on a ruled stem reads as a bar problem rather than a
+    # hand.
+    CAP_E_HAND = [
+        (0.658, 0.917, 0.50, -3.0, 'ext'),   # the top bar's UNDERSIDE, hollowed mid-length
+        (0.832, 0.083, 0.46, +2.5, 'ext'),   # the bottom bar's TOP edge, bellied near its free end
+        (0.460, 0.503, 0.42, -2.0, 'ext'),   # the middle bar's underside, in close to the stem
+        (0.092, 0.350, 0.55, +2.0, 'ext'),   # the stem's left edge, low
+    ]
+    CAP_F_HAND = [
+        (0.785, 0.999, 0.48, -3.0, 'ext'),   # the top bar's TOP edge, shaved right of centre
+        (0.591, 0.577, 0.44, +2.5, 'ext'),   # the middle bar's TOP edge, bellied
+        (0.354, 0.780, 0.52, -2.0, 'ext'),   # the stem's right edge, between the two bars
+    ]
+    CAP_T_HAND = [
+        (0.205, 0.930, 0.45, -3.5, 'ext'),   # under the LEFT arm, hollowed
+        (0.735, 0.999, 0.42, -2.5, 'ext'),   # off the top of the RIGHT arm
+        (0.425, 0.460, 0.60, +2.5, 'ext'),   # the stem's left edge bellies at mid-height
+        (0.575, 0.220, 0.50, -2.0, 'ext'),   # ...and its right edge draws in, lower down
+    ]
+
+    @glyph('E')
+    def a_E(c):
+        """The roman's E, hand cut. Nothing about the CONSTRUCTION is re-cut
+        here -- `caps_straight.g_E` is the drawing, including the owner's own
+        ruling on its top-right serif -- and the italic difference is the press
+        table and the 5% narrowing `build.solve_widths` already applies to
+        every capital. Re-drawing it was considered and rejected: the letter
+        the owner asked to have HAND CUT is this letter, and a second copy of
+        `g_E`'s bar arithmetic in this module is a copy that drifts."""
+        return _press(_CS.g_E(c), CAP_E_HAND)
+
+    @glyph('F')
+    def a_F(c):
+        return _press(_CS.g_F(c), CAP_F_HAND)
+
+    @glyph('T')
+    def a_T(c):
+        return _press(_CS.g_T(c), CAP_T_HAND)
+
+    # ------------------------------------------------------------- THE FIGURES
+    # OWNER 2026-09-16: *"make italic numerals handcut"*.
+    #
+    # WHERE THEY COME FROM, checked before anything was drawn: this module
+    # defines no figure at all, and neither does `glyphs/italic.py` -- its
+    # header says so in as many words ("the capitals, figures and marks come
+    # from italic.py under both settings", and italic.py draws no figure
+    # either). So the italic's 0-9 are the ROMAN's `glyphs/figures.py`,
+    # sheared by 13 degrees at build time and nothing else. That is the same
+    # complaint the owner made about the whole italic in round 103 -- an
+    # oblique is not an italic -- arriving one family later.
+    #
+    # HOW THE ROMAN IS KEPT OUT OF IT. These ten register from inside this
+    # module's `if ON:` block, exactly as a_X and a_W do, so they exist only
+    # under ALBO_ITALIC=aldine. `glyphs/figures.py` is not edited by one byte
+    # and `Albo-Medium.ttf` is built without that variable, so the roman's
+    # figures cannot move. Proven rather than asserted: the roman was rebuilt
+    # and every one of its 119 glyph outlines diffed against the round-166
+    # roman, and all 119 are identical.
+    #
+    # WHAT THE MEASUREMENT SAID TO CUT, and it is not what it looked like:
+    #
+    #   * THE RINGS. The 0 is an ellipse whose four quadrants agree to a tenth
+    #     of a unit and which is its own mirror in BOTH axes to within 0.5%.
+    #     The 8 is that twice on one vertical axis (0.59%). The 9's bowl is
+    #     0.69% and the 6's 2.58%. Four figures, one defect.
+    #   * THE RULED STROKES, which the eye finds before the rings do. Scanned
+    #     every 8% of their height, these strokes do not vary by ONE TENTH OF A
+    #     UNIT over their whole run:
+    #         7  the diagonal   69.4 units, fy 0.08 to 0.88   (520 units of it)
+    #         4  the diagonal   49.0 units, fy 0.40 to 0.80
+    #         4  the stem       77.5 units, fy 0.24 to 0.72
+    #         1  the stem       77.5 units, fy 0.32 to 0.64
+    #         5  the stem       74.9 units, fy 0.56 to 0.88
+    #     That is the X's complaint in five more places -- a straight line
+    #     ruled, not drawn -- and it is why the 1 4 5 7 get cuts at all when
+    #     their mirror numbers (132%, 121%, 103%, 120%) say they are already
+    #     two different halves.
+    #   * THE 2 AND THE 3 got one cut each and no more. The 2's slash already
+    #     tapers 97.8 -> 68.9 down its run and the 3's two bowls are two
+    #     different bowls by ruling (round 75's "halfway to the 5"), so there
+    #     is less here to break and a table would be decoration.
+    #
+    # WHAT WAS DELIBERATELY NOT TOUCHED: every figure's HEIGHT and BOX. These
+    # are old-style by ruling -- `latin.FIG_BOX` puts 0 1 2 in the x-height
+    # band, 6 and 8 above it and 3 4 5 7 9 below -- and a column proof was set
+    # to confirm the alignment is the design and not a defect. No cut moves a
+    # box, an advance or a bearing. Nor does any cut go near the 9's tail tip,
+    # whose leftmost and lowest are solved by `_fit_left_bottom` against a
+    # ruled overhang; the tail's cut sits mid-run and the built tip was
+    # re-measured after it.
+    #
+    # WHAT WAS RE-MEASURED AFTER THE PRESS AND FOUND CLEAN -- every ruling in
+    # `figures.py` that a moved edge could have broken, checked with the press
+    # on and off and printing the same number both times:
+    #
+    #   the 9's tail tip      leftmost -11.04, its bowl's leftmost 0.00, so the
+    #                         overhang is 11.04 against NINE_OVERHANG's 11, and
+    #                         its lowest is -5.67. IDENTICAL with the press on.
+    #                         `_fit_left_bottom` is not disturbed.
+    #   the 2's extent        bbox x -37.56..328.75, y 8.00..480.59, identical
+    #                         with the press on -- so TWO_LIFT's "base on the
+    #                         optical baseline" and the base's own overhang
+    #                         both stand.
+    #   the advances          287 of 289 unchanged, and ONE MOVED: the 3 goes
+    #                         502 -> 501, a single unit. That is the fitter
+    #                         working rather than a fault -- the 3's upper-bowl
+    #                         cut sits 37 units inside its rightmost ink with a
+    #                         42-unit reach, so it DOES move the ink the width
+    #                         rule is solved from, and a letter whose extreme
+    #                         ink moves gets refitted. Every left sidebearing is
+    #                         unchanged, including the 3's, and every one of the
+    #                         8 kern pairs is unchanged. IT IS A PROPERTY OF THE
+    #                         MECHANISM, not of this table: a press that reaches
+    #                         a glyph's extreme ink moves its advance, and the
+    #                         other twelve do not only because their cuts do not
+    #                         reach one. Left as drawn rather than pulled
+    #                         inboard -- moving a cut off the shape it is for, to
+    #                         hold a rounding boundary, is tuning the letter to
+    #                         the gate.
+    #   the figure boxes      unchanged. `latin.FIG_BOX` is applied after the
+    #                         glyph function returns and no cut can reach it.
+    #   the counters          minimum widths move by at most 0.2 units. The
+    #                         FIVE `int` cuts (0, 6, 9 one each and the 8 two)
+    #                         DO bite, in the intended directions and by the
+    #                         intended amount: counter areas 0 +95, 6 -75,
+    #                         8-lower +71, 8-upper -71, 9 +76 square units, on
+    #                         counters of 24k to 72k.
+    #   the glitch sweep      `cmp_aldine_glitch.py` still reports 2 findings,
+    #                         both the known non-shipping ligatures, and no
+    #                         third. No press opened a pinch or a spur.
+    #   the colour            `cmp_cap_weight.py --tol 0.05` prints the same
+    #                         table row for row with the press on and off. E F
+    #                         and T stay in that script's CONTROL set rather
+    #                         than being added to RECUT, deliberately: RECUT's
+    #                         own note records that moving a letter out of the
+    #                         controls shifts the median ~5% and puts H M N
+    #                         within 0.005 of the rail, and these three are
+    #                         hand cuts on the roman's drawing rather than a
+    #                         re-cut of it. On that script's OWN measure --
+    #                         2 x area / outline length, off the built TTF --
+    #                         the three move -0.023% (E), -0.225% (F) and
+    #                         -0.244% (T), a tenth of what its two printed
+    #                         decimals can show. NAME THE INSTRUMENT when
+    #                         quoting these: the same three read
+    #                         -0.008 / -0.184 / -0.186 as ink AREA off the TTF
+    #                         and -0.008 / -0.132 / -0.198 as shapely area on
+    #                         the pre-TTF contours, and an adversarial pass
+    #                         spent a finding on the gap between two of them.
+    FIG_HAND = {
+        # THE 0 -- four cuts round the ring and one in the counter. Placed at
+        # 60 / 120 / 220 / 300 degrees, where the ink measures 71 / 71 / 83 /
+        # 71 against the flanks' 84.7 maximum at 20 and 160: round 153's rule,
+        # a cut where the pen is already thick reads as a lump. The counter
+        # cut opens the bowl at ten o'clock, which is the counterpunch and not
+        # the graver, and it is the one thing an `ext` table cannot say.
+        '0': [(0.794, 0.918, 0.50, -4.0, 'ext'),   # 60 deg, the top-right shoulder flattened
+              (0.206, 0.918, 0.50, +3.0, 'ext'),   # 120, the top left pushed out
+              (0.079, 0.210, 0.50, -3.5, 'ext'),   # 220, the lower left drawn in
+              (0.794, 0.082, 0.50, +2.5, 'ext'),   # 300, the lower right out
+              (0.216, 0.585, 0.45, -2.5, 'int')],  # the counter opened at ten o'clock
+        # THE 1 -- the stem is 77.5 units at every height from 0.32 to 0.64 of
+        # the figure. One belly and one hollow, on opposite edges at different
+        # heights, so it is a drawn vertical and not a ruled one. The flag is
+        # left alone: it carries ONE_FLAG_WEDGE's microserif at its tip and the
+        # owner has ruled on that tip twice.
+        '1': [(0.486, 0.420, 0.60, +2.5, 'ext'),
+              (0.787, 0.660, 0.50, -2.0, 'ext')],
+        # THE 2 -- the slash bellies on its lower-left edge, the arc is shaved
+        # off its top right. Two cuts, because the letter is already two
+        # unlike halves.
+        '2': [(0.574, 0.400, 0.55, +2.5, 'ext'),
+              (0.856, 0.880, 0.50, -3.0, 'ext')],
+        # THE 3 -- one cut on each bowl, opposite signs. Both are kept OFF the
+        # right flank (ink 83 to 93 there, against 65 where these land) and off
+        # both terminals, which are the round-44 ruling.
+        '3': [(0.897, 0.800, 0.50, -3.0, 'ext'),
+              (0.924, 0.160, 0.42, +2.5, 'ext')],
+        # THE 4 -- both ruled strokes. The diagonal's reach is held to 0.38 S
+        # (31.9 units) rather than the 0.50 S used elsewhere because the stroke
+        # is the narrowest thing pressed here: 49.0 units measured across, 43.6
+        # perpendicular to its own axis. 0.50 S is 42.0, which does NOT quite
+        # span it -- an earlier version of this comment claimed it did, and its
+        # own two numbers refuted it. The margin is 1.6 units, which is no
+        # margin at all once the cut is snapped and the edge curves at its ends.
+        #
+        # AND THE FAILURE IT WOULD CAUSE IS THE OPPOSITE OF WHAT THAT COMMENT
+        # SAID. A reach that spans a stroke does not part-cancel: `d` > 0 adds
+        # ink on EVERY contour it reaches, so both edges move outward and the
+        # stroke FATTENS while its own edge still takes the full declared depth.
+        # Measured on a synthetic 40-unit stroke, one cut on the left edge,
+        # r = 60, d = +2.5: the left edge moves -2.45 of its declared 2.5, the
+        # right edge +0.61, and the stroke goes 40.00 -> 43.06. So it delivers
+        # very nearly exactly
+        # what its number says and ALSO does something nobody asked for -- which
+        # is worse for a hand cut than doing half, because a stroke that fattens
+        # is not a stroke that wanders. Both halves found by adversarial review.
+        '4': [(0.215, 0.560, 0.38, -2.5, 'ext'),
+              (0.810, 0.480, 0.55, +2.0, 'ext')],
+        # THE 5 -- the stem (74.9 flat over a third of the figure) hollowed,
+        # and the bowl bellied low on the right where its ink is 62.9 rather
+        # than the 78 to 96 it carries higher up.
+        '5': [(0.405, 0.740, 0.55, -2.5, 'ext'),
+              (0.922, 0.160, 0.45, +2.5, 'ext')],
+        # THE 6 -- the bowl is a ring (2.58% off its own mirror) and the tail
+        # is one long sweep. Two ring cuts at 240 and 300 degrees (ink 74.0 and
+        # 68.5, against the 89.0 flank), one counter cut, and one on the
+        # ascending stroke's outer edge.
+        '6': [(0.173, 0.073, 0.50, +3.0, 'ext'),
+              (0.797, 0.058, 0.50, -3.5, 'ext'),
+              (0.633, 0.900, 0.45, -2.5, 'ext'),
+              (0.390, 0.092, 0.45, +2.0, 'int')],
+        # THE 7 -- the worst of the five ruled strokes: 69.4 units at every one
+        # of eleven heights across 520 units of run. A belly low on the left
+        # and a hollow higher on the right, so the stroke wanders across its
+        # own chord the way the X's diagonals were made to.
+        '7': [(0.415, 0.400, 0.55, +3.0, 'ext'),
+              (0.774, 0.640, 0.55, -2.5, 'ext')],
+        # THE 8 -- the left-right mirror (0.59%) broken on the lower loop, and
+        # the crown broken across its own middle: LIFTED on the left, FLATTENED
+        # on the right. Both crown cuts sit where the ink is 55, the thinnest
+        # place on the figure, which is the Q's 105-and-285 precedent rather
+        # than a breach of round 153's rule -- that rule forbids a cut at the
+        # MAXIMUM, not at the minimum. One cut in each counter, opposite signs,
+        # so the two loops are not one loop scaled.
+        '8': [(0.151, 0.079, 0.50, -3.5, 'ext'),   # the lower left, in
+              (0.848, 0.079, 0.50, +2.0, 'ext'),   # the lower right, out
+              (0.374, 0.989, 0.45, +2.5, 'ext'),   # the crown's left half, lifted
+              (0.625, 0.989, 0.45, -3.0, 'ext'),   # its right half, flattened
+              (0.280, 0.760, 0.42, +2.0, 'int'),   # the upper counter, closed on the left
+              (0.676, 0.128, 0.42, -2.0, 'int')],  # the lower counter, opened at the foot
+        # THE 9 -- the tightest mirror in the set (0.69% on the bowl alone).
+        # Two ring cuts at 60 and 120 degrees, a counter cut, and one on the
+        # tail's underside at mid-run -- clear of the tip, whose leftmost and
+        # lowest are solved against a ruled overhang by `_fit_left_bottom`.
+        '9': [(0.855, 0.918, 0.50, -3.5, 'ext'),
+              (0.180, 0.922, 0.50, +2.5, 'ext'),
+              (0.379, 0.092, 0.45, +2.0, 'ext'),
+              (0.238, 0.630, 0.45, -2.0, 'int')],
+    }
+
+    _FIG_FN = {'0': 'g_zero', '1': 'g_one', '2': 'g_two', '3': 'g_three', '4': 'g_four',
+               '5': 'g_five', '6': 'g_six', '7': 'g_seven', '8': 'g_eight', '9': 'g_nine'}
+    for _ch, _fn in _FIG_FN.items():
+        def _mk(_ch=_ch, _fn=_fn):
+            @glyph(_ch)
+            def a_fig(c, _ch=_ch, _fn=_fn):
+                return _press(getattr(_FG, _fn)(c), FIG_HAND[_ch])
+            return a_fig
+        _mk()
+    del _ch, _fn
+
 
 # ROUND 137 -- THE CAPITALS' SPACING, HIS. Set live on the bench
 # (https://claude.ai/artifact/9RUVYkit1Vdk9foVUTFz46) at 58 px on arm B, every
