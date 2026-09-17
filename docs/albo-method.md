@@ -190,6 +190,75 @@ The traced tables are kept behind `ALBO_ALD_G_TRACE=1` as a comparison arm only.
 
 ---
 
+## 1e. THE FOURTH RULE: an import-bound constant swallows an override in silence
+
+Found twice in two rounds, 2026-09-17, and it will happen again.
+
+Several modules here do `from ..pen import S, CS, WL, WD, DROP, TH_V, ...`. That
+**binds the values into that module's namespace at import**. Setting `pen.WL`
+afterwards moves nothing there. A per-letter override that patches the wrong
+namespace builds the letter **byte-identical to before — no error, no warning,
+nothing at all.**
+
+| override | patched | actually read from |
+|---|---|---|
+| J and T's full serif | `caps_straight.WL/WD/DROP` | **`primitives`** — `stem`, `bar`, `diag_wedge` |
+| I and J's thinner stem | `caps_straight.CW` | **`pen.CAP_STEM`**, as an *attribute* |
+
+The second is the useful distinction: `primitives.stem` computes its default as
+`TH_V * pen.CAP_STEM` — an **attribute lookup resolved when the glyph is drawn**
+— so `pen.CAP_STEM` is patchable while `caps_straight.CW` is not. Before writing
+an override, grep for where the value is actually *read*, and prefer a name
+reached through the module (`pen.X`) over one bound into it (`from pen import X`).
+
+**And always diff the outlines after.** A build that "succeeds" proves nothing:
+
+```python
+from fontTools.pens.recordingPen import RecordingPen
+# ... compare rp.value for every glyph, before vs after
+```
+
+Both of these were caught only that way.
+
+## 1f. THE FIFTH RULE: a gate normalised by a shrinking control set will invent failures
+
+`cmp_cap_weight` divided every capital by the median of "the capitals we have
+not redrawn". That set shrank for fifty rounds — round 145 took the X and the W,
+round 192 the I and the J — until it was **six letters**. A median over six is a
+sample, not a yardstick.
+
+When I and J left it, the median moved 2% and **H, M, N, Q and R all reported
+OFF in a build where not one of them was touched.** The gate manufactured
+exactly the failure mode it exists to rule out. The median now runs over all 26,
+which one or two re-cut letters cannot move — that is what a median is for.
+
+The general form: **a gate whose baseline is computed from the thing being
+measured drifts as the work proceeds.** Prefer a baseline that is either fixed
+or robust. And when a gate fails a glyph you did not touch, *check whether its
+outline changed at all* before believing it — twice this session the answer was
+"byte-identical, the ruler moved."
+
+## 1g. Contrast is a consequence of the pen, not a dial to turn
+
+The 8 measured 1.69:1 against Coelacanth's 3.59:1 and the owner asked for more
+contrast. Two ways were tried and **both are recorded as failures**:
+
+- **the hair floor** is not what binds it — 0.65 → 0.50 → 0.40 → 0.32 moved the
+  contrast 1.63 → 1.69 and then stopped, because the family's bowl profile never
+  asks for anything thinner;
+- **a contrast exponent** on the ring's own widths reaches the number (2.55 at
+  2.3) and **necks the counter into a kidney shape at every value**, because
+  `ring` offsets the counter inward by the width at each point. `counter_smooth`
+  2, 7 and 14 render the same pinch — it is not a sampling artifact.
+
+Coelacanth gets 3.59:1 from the **pen**: thin where the stroke runs along the
+nib's edge, thick where it runs across. That varies the width without ever
+pinching a counter, because thin and thick land where the stroke's *direction*
+puts them. Which is §1 again. **The 8's rings want what the g's rings got in
+round 182**, and no dial substitutes for it.
+
+---
+
 ## 2. The order of operations
 
 1. **Measure the references before drawing.** All of them, on one instrument, in
@@ -223,6 +292,8 @@ All in `tools/wedge_serif/`, all runnable as `PYTHON_GIL=0 python3 <name>`.
 | `cmp_aldine_glitch.py` | **gate.** seven classes of union artifact |
 | `cmp_aldine_straight.py` | how much dead-straight outline the face carries (a REPORT — it returns 0 whatever it finds) |
 | `cmp_joints.py` | every place two strokes meet, ranked — notches and spurs |
+| `cmp_vs_coelacanth.py` | all 62 alphanumerics against the reference, worst-first, as a table graphic |
+| `proof_words.py --title` | a title-case page: the densest word for every initial, so every capital is shown against lowercase |
 | `trace_g.py` | a reference letter's centreline and width, ring by ring (research only — see §1d) |
 | `refs_registry.py` | **gate.** the references and their TRUE slants |
 | `proof_words.py` | a proof built from the owner's own corpus |
