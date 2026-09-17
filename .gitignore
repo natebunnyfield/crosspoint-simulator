@@ -33,3 +33,4 @@ settings.json
 # The reading-experiment ledger a desktop run appends to
 # (docs/reading-experiments.md). Per-machine measurement data.
 reading.jsonl
+tools/wedge_serif/.corpus_words.json
