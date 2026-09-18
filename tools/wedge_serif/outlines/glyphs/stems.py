@@ -37,11 +37,14 @@ G_NECK_END = float(os.environ.get("ALBO_G_NECK_END", 0.21))  # and where it meet
 # *"the top stroke of the bottom loop of the roman 'g' needs to sit on the
 # baseline."* The loop was anchored with its outer top at +TH_H/2 -- the top
 # stroke straddling the line, half a pen above it. G_LOOP_TOP is where the
-# loop's top ink edge sits, in units above the baseline: 0 puts it ON the
-# line, TH_H/2 (about 30) is the old drawing. The loop keeps its size and
+# loop's top ink edge sits, in units above the baseline. Round 230 read the
+# ruling as the edge ON the line (0); the owner corrected it the same day --
+# *"sit on the baseline, meaning above the baseline"* -- so the top stroke
+# STANDS on the line: its underside at 0, its top edge at TH_H. TH_H/2 (24)
+# was the old drawing, straddling the line. The loop keeps its size and
 # moves down, so the descender deepens by the same amount -- the same move
 # the owner ruled for the italic in round 197, in the other direction.
-G_LOOP_TOP = float(os.environ.get("ALBO_G_LOOP_TOP", 0.0))
+G_LOOP_TOP = float(os.environ.get("ALBO_G_LOOP_TOP", TH_H))   # round 232: "sit on the baseline, meaning ABOVE the baseline" -- the top stroke's underside on the line, the stroke standing on it
 def g_ear_scale(): return 1.0 + float(os.environ.get('ALBO_G_EAR_EXTEND', G_EAR_EXTEND))
 
 # owner, 2026-09-13: "make a version of 't' that is a triangle on the right
