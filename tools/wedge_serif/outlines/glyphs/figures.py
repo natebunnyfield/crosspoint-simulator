@@ -274,6 +274,36 @@ THREE_BOT_R = 0.315
 THREE_BOT_END = -156.0
 THREE_BOT_CX = 0.52
 THREE_W = 330.0   # the 3's nominal drawn width, before the builder's solved multiplier
+# THE 3'S OPTIONS.
+# (b) NARROWER, onto the face's OWN declared target. `build.solve_widths` aims
+# each figure's ink at `round20.REF['3']['w'] x CAP x WIDTH` = 313 units and
+# the roman's 3 is built at 362 -- 15.6% over -- because the width multiplier
+# is clamped at 0.70 and the 3 sits on that clamp. Only the drawn width can
+# take it the rest of the way. At 282 it lands on 313, which is Georgia's
+# 0.899 of the 0's advance and Poetica's 0.845 rather than today's 0.826 -- so
+# it also OPENS the pair `3` makes with its neighbours, which is the round-216
+# measure. (NOTE: an earlier note in this file records the 3's bowl centre as
+# a dead knob, "0.44 / 0.52 / 0.60 all render byte for byte". That was true
+# while the solver still had room; on the clamp the drawing is what shows.)
+# (c) TWO BOWLS MORE ALIKE, which is Georgia's 3 and Big Caslon's: today the
+# upper bowl's radius is 0.20 of the figure's height against the lower's
+# 0.315, so the 3 reads as a small hook over a big bowl. 0.255 evens them
+# without touching the round-75 aperture ruling on the lower one.
+THREE_OPT = {
+    'b': dict(W=282.0),
+    'c': dict(top_rx=0.545, top_cx=0.515),
+}
+# WHY OPTION c WIDENS THE UPPER BOWL RATHER THAN DEEPENING IT, which is what
+# it did for two builds. The upper bowl's radius sets where its sweep ENDS,
+# and that end has to land on the lower bowl's start (0.41 w, 0.63 D) or the
+# two terminals fork and leave a white slit at the waist -- which is exactly
+# what a top_r of 0.240 produced, visible at 620 px as two prongs. The ellipse
+# cannot be made taller and still reach that point: at r1 = 0.24 D its lowest
+# point is 0.52 D, below the junction, and no sweep angle recovers it. r1 is
+# therefore pinned by the junction at ~0.20, and the only axis left is WIDTH.
+# 0.545 w against today's 0.46 w brings the upper bowl to within a tenth of
+# the lower's 0.62 w, which is the proportion Georgia's 3 and Big Caslon's
+# have and Albo's has not.
 
 # ROUND 211 -- THE ITALIC'S FIGURES GET A CUT AND AN AXIS. Owner 2026-09-18:
 # *"add appropriate line contrast and axis to 8 0 2 9 in italic"*. The italic's
@@ -303,24 +333,167 @@ NINE_RING_CON = float(os.environ.get("ALBO_ALD_NINE_RING_CON", 0.0)) or None
 NINE_RING_OVAL = float(os.environ.get("ALBO_ALD_NINE_RING_OVAL", -1.0))
 NINE_RING_OVAL = None if NINE_RING_OVAL < 0 else NINE_RING_OVAL
 
-def fig_ring(cx, cy, rx_c, ry_c, con=None, oval=None):
+# ============================== THE OPTIONS ==============================
+# Owner 2026-09-18: *"improve both 7s"*, *"redo all numerals to fit together
+# and read well in long numbers"*, *"subagent to remake numerals based on
+# reference fonts that have old style figures and give me multiple options for
+# each to choose from."*
+#
+# ONE DIAL PER DIGIT, `ALBO_FIG_<d>` = a|b|c|d, read once at import.
+# `ALBO_FIG_SET` sets all ten at once, which is how the options sheet is built
+# (one font per option letter rather than one per digit-option).
+#
+# **'a' IS TODAY'S DRAWING IN BOTH STYLES AND IS BYTE-IDENTICAL** -- proved on
+# a build of every glyph of both fonts against r225, outlines and hmtx.
+# `FIG_SHIP_ROM` / `FIG_SHIP_IT` are the per-STYLE defaults, so a winner ships
+# by changing one letter in one of those two dicts and nothing else; the owner
+# may pick a different option for the roman and the italic of the same digit.
+#
+# THE OPTION LETTER MEANS A DIFFERENT THING IN EACH STYLE, deliberately: the
+# roman's 7 and the italic's 7 are not the same problem (the italic's carries
+# five of his own rulings from rounds 211-219 and every option keeps all five;
+# the roman's has never been touched and reads -21% of its family). What the
+# letters mean, per digit, is in the table at the foot of this block.
+#
+# THE GATE ON EVERY ITALIC/ROMAN DIFFERENCE IS `pen.ITALIC`, on the WHOLE
+# branch and not on the shape alone -- round 213's `SEVEN_BAR_W` and round
+# 217's `ONE_FLAG_W` each leaked a weight into the roman while their shape was
+# gated, and both were caught by diffing every glyph of both builds rather
+# than by reading the code.
+#
+# AND THE ITALIC'S FIGURES ARE NOT THE LAST WORD HERE. `glyphs/aldine.py`
+# re-registers all ten as `_press(figures.g_<name>(c), FIG_HAND[ch])` -- round
+# 167's hand-cut, the owner's *"make italic numerals handcut"* -- whose cuts
+# are placed as FRACTIONS of the glyph's own bbox. So an option that changes a
+# figure's bounds moves where those cuts land: the taller 8 (`8b`/`8d`), the
+# shorter tail (`9b`/`9d`) and above all the 6 drawn as the rotated 9 (`6b`),
+# which is handed the 6's press over a 9's shape. Every arm was swept with
+# `cmp_aldine_glitch --ttf` (0 of 119) and looked at, and nothing has gone
+# wrong -- the cuts are 2 to 3.5 units -- but a winner among those three
+# wants its `FIG_HAND` row re-checked by eye in `aldine.py`, which was outside
+# this round's partition. The ROMAN does not go through `_press` at all.
+_FIG_OPT_ALL = (os.environ.get("ALBO_FIG_SET", "") or "").strip().lower()
+_FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip().lower()
+                for d in "0123456789"}
+FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
+FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
+
+def OPT(d):
+    """Which option this build draws for digit `d`. Env first, then the
+    per-style shipped default. Unknown letters fall back to 'a' rather than
+    raising, so a typo in a sheet script cannot silently build a third thing."""
+    o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
+    return o if o in ('a', 'b', 'c', 'd') else 'a'
+
+# WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
+# with old-style figures, all measured at ONE x-height (429 units) by
+# `refmeas.py` in the round's scratch dir: Flanker Griffo Italic and TeX Gyre
+# Pagella Italic through their `onum` feature, Poetica Std and Coelacanth
+# Italic (old-style by default), Georgia and Georgia Italic (old-style by
+# default), Big Caslon. The full table is in the round's report. The three
+# numbers each option is answering:
+#
+#   CONTRAST  thick/thin on the chamfer ridge. The references' 0 runs 2.33-3.07
+#             and their 8 2.05-5.29; Albo's roman 0 is 1.61 and its 8 1.52.
+#   HEIGHT    the ascending figures against the x-height. The references' 8
+#             tops at 1.31-1.54 x-heights and sits on their 6's line; Albo's
+#             roman 8 tops at 1.21 and is 97 units short of its own 6.
+#   WIDTH     `build.solve_widths` pins each figure's ink to
+#             `round20.REF[ch]['w']`, but the multiplier is CLAMPED at 0.70 and
+#             six of the ten figures sit ON that clamp -- so the 5 is built
+#             +20.6% over its own target, the 3 +15.6%, the 8 +12.4%, the 9
+#             +6.5%. A narrowing option is the only way those four reach the
+#             target the face already declares for them.
+# ========================================================================
+
+def fig_ring(cx, cy, rx_c, ry_c, con=None, oval=None, stress=None, k=None):
+    """The figures' ring. `con` / `oval` / `stress` / `k` are the OPTION
+    levers; with none of them the roman gets the plain ring it always had and
+    the italic round 211's cut and axis, byte for byte."""
+    kw = {} if k is None else {'k': k}
     if pen.ITALIC and (FIG_CON != 1.0 or FIG_STRESS or FIG_OVAL):
         return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2,
                     con=FIG_CON if con is None else con,
-                    stress=math.radians(FIG_STRESS),
-                    oval=FIG_OVAL if oval is None else oval)
-    return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2)
+                    stress=math.radians(FIG_STRESS if stress is None else stress),
+                    oval=FIG_OVAL if oval is None else oval, **kw)
+    if con is None and stress is None and oval is None and not kw:
+        return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2)
+    return ring(cx, cy, rx_c + TH_V / 2, ry_c + TH_H / 2,
+                con=1.0 if con is None else con,
+                stress=math.radians(stress or 0.0),
+                oval=0.0 if oval is None else oval, **kw)
 
-def zero_bowl(c, D):
+def _okw(d, rom, it=None):
+    """The option overrides for digit `d` in the style this build is drawing.
+    `it` None means the two styles share the table."""
+    return (it if (pen.ITALIC and it is not None) else rom).get(OPT(d), {})
+
+# THE 0. Its width is already on the solver's target (1.007) and its height is
+# the box's, so neither is available as an option; what IS available, and what
+# the references say is missing, is the CUT and the AXIS. Albo's roman 0 reads
+# thick/thin 1.61 and its italic 2.12, where Flanker is 2.91, Georgia 3.07,
+# Poetica 2.65, Coelacanth 2.33 and Pagella 2.45. (Big Caslon's 1.23 is the
+# one face that draws the 0 as a near-monolinear circle -- which is option d.)
+# A NOTE ON `k`, BECAUSE THE FIRST CUT OF OPTION d WAS WRONG AND LOOKED
+# DELIBERATE: `k` is the superellipse EXPONENT and 2.0 is a true ellipse.
+# BOWL_K 2.1 is therefore already very slightly squared, and going BELOW 2 --
+# 1.72, chosen to make the 0 "rounder, like Big Caslon's circle" -- makes the
+# ring POINTED at 12 and 6 o'clock, a lens rather than an O. Caught on the
+# render, not in the code. There is no rounder available above an ellipse, so
+# the fourth arm goes the other way instead: 2.55 is Georgia's squarer ring,
+# which is a real and different answer rather than a smaller version of b.
+ZERO_OPT = {
+    'b': dict(con=1.90),                     # Georgia/Flanker's cut, axis unmoved
+    'c': dict(con=1.90, stress=-26.0),       # ...and Poetica's oblique axis with it
+    'd': dict(k=2.55),                       # Georgia's squarer ring, cut as today
+}
+ZERO_OPT_IT = {
+    'b': dict(con=2.55),                     # past round 211's 1.8, to Flanker's 2.91
+    'c': dict(con=2.55, stress=-46.0),       # ...and the axis further over, Coelacanth's
+    'd': dict(k=2.55),
+}
+
+# THE 1: (how far left the flag starts, in units; where on the stem, x D).
+# HOW FAR THE FLAG MAY REACH IS SET BY THE FITTER, not by taste, and the two
+# styles have different room. `_body_edges` in `outlines/build.py` takes a
+# glyph's left edge as the 20th percentile of its per-row ink extremes, and the
+# flag occupies only the top ~28% of the 1's rows -- so at the percentile the
+# 1's left edge is still its STEM, and everything the flag adds is read as pure
+# overhang and absorbed (0.75 of it in the italic, 0.45 in the roman). The
+# italic therefore runs out of bearing much sooner: at 205 units `cmp_touch`
+# reports `O1 w1 o1 p1` TOUCHING and `b1 j1` under the floor, at 250 nine pairs
+# touching. Laddered below until every `x1` pair clears the 0.012 em floor with
+# the italic's own bearings and no new kern -- kerns live in `kern.py`, which
+# is out of this round's partition. The roman shows no `1` pair anywhere near
+# the floor at either value, so it keeps the wider reaches.
+_E = lambda k, d: float(os.environ.get(k, d))
+ONE_OPT = {'b': dict(flag=(_E('ALBO_FIG_1B_X', 195.0), 0.72)),
+           'c': dict(flag=(_E('ALBO_FIG_1C_X', 238.0), 0.635))}
+ONE_OPT_IT = {'b': dict(flag=(_E('ALBO_FIG_1B_X_IT', 158.0), 0.72)),
+              'c': dict(flag=(_E('ALBO_FIG_1C_X_IT', 180.0), 0.635))}
+# THE ITALIC LADDER, `O1`'s white in em (the floor is 0.012), and what the
+# advance ratio buys: 150 (today) 0.0210 at 0.552 -- 158 0.0167 at 0.562 --
+# 162 0.0138 -- 172 0.0052 UNDER -- 182 -0.0019 TOUCHING -- 192/205/250 worse.
+# On the lower start: 175 0.0167 at 0.577 -- 180 0.0152 at 0.583 -- 190 0.0095
+# UNDER -- 220 TOUCHING. **So the italic 1 cannot be taken past about 0.58 of
+# the 0's advance from inside this file.** The references run 0.700 (Georgia),
+# 0.736 (Coelacanth), 0.778 (Poetica); reaching those needs the 1's left
+# BEARING or a handful of `x1` kerns, and `build.py` and `kern.py` are both
+# outside this round's partition. Recorded rather than forced.
+# The ROMAN has room and takes it: b reaches 0.692 and c 0.787 with `O1` at
+# 0.0429 and 0.0471, four times the floor.
+
+def zero_bowl(c, D, **kw):
     """The 0's ring at figure height D: (solid, outer, inner). Also the 8's
     reference counter when EIGHT_COUNTER_OF is '0'."""
     rx = W_(c, '0', 230)
-    return fig_ring(rx + TH_V / 2, D / 2, rx, D / 2 + OVER - TH_H / 2)
+    return fig_ring(rx + TH_V / 2, D / 2, rx, D / 2 + OVER - TH_H / 2, **kw)
 
-def six_bowl(c, D):
+def six_bowl(c, D, r_frac=0.29):
     """The 6's bowl at figure height D: (solid, outer, inner), rx, r, ry.
-    Also the 8's reference counter when EIGHT_COUNTER_OF is '6'."""
-    rx = W_(c, '6', 230); r = D * 0.29; ry = r + OVER - TH_H / 2
+    Also the 8's reference counter when EIGHT_COUNTER_OF is '6' -- which calls
+    it at the default `r_frac`, so an option on the 6 cannot move the 8."""
+    rx = W_(c, '6', 230); r = D * r_frac; ry = r + OVER - TH_H / 2
     return fig_ring(rx + TH_V / 2, r, rx, ry), rx, r, ry
 
 def counter_box(solid):
@@ -344,7 +517,7 @@ def ring_for_counter(cx, cy, cw, ch, w_scale=1.0, k=None, floor=0.0, rot=0.0):
 @glyph('0')
 def g_zero(c):
     D = c["figH"]
-    solid, o, i = zero_bowl(c, D); return solid
+    solid, o, i = zero_bowl(c, D, **_okw('0', ZERO_OPT, ZERO_OPT_IT)); return solid
 
 @glyph('1')
 def g_one(c):
@@ -366,7 +539,20 @@ def g_one(c):
     brushed = pen.ITALIC and ONE_FOOT_BRUSH > 1.0
     st = stem(x, 0, D, top=None, foot=(None if brushed else 'both'),
               it_exit_len=(ONE_EXIT_LEN if pen.ITALIC else 1.0))
-    _p0 = (x - 150, D * 0.72); _p1 = (x, D - TH_V * ONE_FLAG_BURY)
+    # THE 1'S OPTIONS ARE WIDTH AND FIT ONLY. Its shape is ruled three times
+    # over -- the buried flag and its microserif (round 75, roman), the curve
+    # and its bow (rounds 217-218, italic), the brushed foot and the shortened
+    # exit (rounds 215, 218) -- and none of that is re-opened here. What is
+    # open is how far the flag REACHES, which is what sets the 1's advance and
+    # therefore how a run of figures reads: Albo's 1 takes 0.62 of the 0's
+    # advance in the roman and 0.55 in the italic, where Georgia is 0.70,
+    # Coelacanth 0.74, Poetica 0.78 and Pagella 0.92 (Flanker's figures are
+    # tabular, so all ten are 1.00). `11` is the 8th-widest of the roman's 100
+    # figure pairs, so the gap is measured as well as seen. The 1 is the one
+    # figure `solve_widths` deliberately skips, so its drawn width IS its
+    # built width and these numbers move the letter directly.
+    _fx, _fy = _okw('1', ONE_OPT, ONE_OPT_IT).get('flag', (150.0, 0.72))
+    _p0 = (x - _fx, D * _fy); _p1 = (x, D - TH_V * ONE_FLAG_BURY)
     curved = pen.ITALIC and ONE_FLAG_CURVE
     if curved:
         _dx, _dy = _p1[0] - _p0[0], _p1[1] - _p0[1]
@@ -436,13 +622,16 @@ def g_two(c):
     # on the top": the arc at TWO_TOP_W of the profile, the slash growing to
     # full by the base, the base bar TWO_BASE_W heavier
     f_arc = _plen(top) / max(_plen(center), 1e-6)
-    prof = widths([(0.0, TWO_TOP_W * 1.1), (0.15, TWO_TOP_W), (f_arc, TWO_TOP_W), (1.0, 1.0)])
+    _o2 = _okw('2', TWO_OPT)
+    _topw = _o2.get('top_w', TWO_TOP_W); _slashw = _o2.get('slash_w', TWO_SLASH_W)
+    _basew = _o2.get('base_w', TWO_BASE_W); _over2 = _o2.get('over', NINE_OVERHANG)
+    prof = widths([(0.0, _topw * 1.1), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
     _st = math.radians(FIG_STRESS) if pen.ITALIC else 0.0
     _cn = FIG_CON if pen.ITALIC else 1.0
-    body = stroke(center, PR.bowl_widths(center, prof, floor=S * TWO_SLASH_W * TWO_TOP_W,
+    body = stroke(center, PR.bowl_widths(center, prof, floor=S * _slashw * _topw,
                                          stress=_st, con=_cn), cut0=CUT)
-    x1 = geom.bbox(body)[2] + NINE_OVERHANG
-    g = geom.ink([body, bar(0, x1, -_drop, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
+    x1 = geom.bbox(body)[2] + _over2
+    g = geom.ink([body, bar(0, x1, -_drop, barw * _basew, align='bottom', wedges=[('right', 1)])])
     # owner 2026-09-13: "push 2 back up to optical baseline" -- the built 2
     # bottomed at -7 (the cut's facets and the ink spread under a flat base);
     # lifted so the base sits on the line like the 1's feet
@@ -455,12 +644,28 @@ TWO_SLASH_W = 0.80
 TWO_TOP_W = 0.82      # the arc's weight, x the profile (lighter on top)
 TWO_LIFT = 8.0        # units up, so the base's ink bottoms at the baseline
 TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
+# THE 2'S OPTIONS, and they are two different readings of the same figure.
+# (b) is GEORGIA's: a light arc over a long, heavy, flat base -- the base runs
+# 26 units past the body instead of 11 (the 9's tail overhang, which is what
+# the 2's base was matched to in 2026-09-13) and carries 1.50 of the bar
+# weight against today's 1.22, so the figure's mass is unmistakably at the
+# bottom. (c) is POETICA's and COELACANTH's: the contrast is put in the STROKE
+# rather than in the base -- a thin arc (0.62 of the profile against 0.82)
+# running into a diagonal at nearly full width, with the base back at 1.10.
+# Both styles share the table; the italic's bar drop (round 212) is untouched.
+TWO_OPT = {
+    'b': dict(base_w=1.50, top_w=0.74, over=26.0),
+    'c': dict(top_w=0.62, slash_w=0.98, base_w=1.45),
+}
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 @glyph('3')
 def g_three(c):
-    D = c["figH"]; w = W_(c, '3', THREE_W); r1 = D * 0.20; r2 = D * THREE_BOT_R
-    top = superellipse(w * 0.52, D - r1, w * 0.46, r1, math.radians(165), math.radians(-105), BOWL_K)
+    _o3 = _okw('3', THREE_OPT)
+    D = c["figH"]; w = W_(c, '3', _o3.get('W', THREE_W))
+    r1 = D * _o3.get('top_r', 0.20); r2 = D * THREE_BOT_R
+    top = superellipse(w * _o3.get('top_cx', 0.52), D - r1, w * _o3.get('top_rx', 0.46), r1,
+                       math.radians(165), math.radians(_o3.get('top_end', -105)), BOWL_K)
     bot = superellipse(w * THREE_BOT_CX, r2, w * THREE_BOT_RX, r2 + OVER - TH_H / 2,
                        math.radians(100), math.radians(THREE_BOT_END), BOWL_K)
     t = stroke(top, pen_widths(top, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (1.0, 0.4)])), cut0=CUT)
@@ -501,9 +706,11 @@ def g_four(c):
     start (a pen cut), full by a quarter of the run, merging into the bar.
     FOUR_CURVED False keeps round 77's straight open diagonal; FOUR_OPEN
     False the closed 4."""
+    _o4 = _okw('4', FOUR_OPT)
     D = c["figH"]; w = W_(c, '4', 480); xs = w * 0.7
-    barw = max(TH_H, S * 0.5); bar_y = D * 0.3
-    st = stem(xs, 0, D, top=None, foot='both')
+    barw = max(TH_H, S * 0.5) * _o4.get('bar', 1.0); bar_y = D * 0.3
+    st = stem(xs, 0, D, top=None, foot='both',
+              **({} if 'stem' not in _o4 else dict(w=TH_V * _o4['stem'])))
     b = bar(0, w, bar_y, barw)
     if FOUR_OPEN and FOUR_CURVED:
         x_edge = xs - TH_V / 2
@@ -520,7 +727,7 @@ def g_four(c):
         dg = stroke(curve, PR.bowl_widths(curve, prof, floor=S * 0.72), cut0=CUT)
         return geom.ink([dg, b, st])
     p1 = (S * 0.1, bar_y); p0 = (xs - S * 0.2, D)
-    wd = pw(p0, p1, 0.75)
+    wd = pw(p0, p1, _o4.get('diag', 0.75))
     # GLITCH SWEEP 2026-09-16 -- THE CLOSED 4's APEX. The diagonal's centerline
     # ended exactly ON the figure's top line, and its end face is square across
     # a stroke climbing at ~70 degrees, so the face's upper corner stood 9.95
@@ -554,10 +761,50 @@ def g_four(c):
 
 FOUR_CURVED = True      # the Goudy open 4: a bowed stroke rounding into the bar (owner 2026-09-13)
 FOUR_BOW = 0.10         # how far left of the start the bow's upper control sits, x S
+# THE 4'S OPTIONS. The 4 is the second-lightest figure in BOTH styles -- roman
+# stroke 49.7 against a figure median of 65.9 (-24.6%), italic 49.7 against
+# 65.5 (-24.1%) -- and no reference is anywhere near that: Georgia's 4 is -14%
+# of its figures, Coelacanth's -12%, Pagella's -2%, Poetica's +6%. A 4 is
+# legitimately a little lighter than its family (it is three thin strokes over
+# a big open counter), but not by a quarter.
+# (b) simply PUTS THE WEIGHT BACK -- all three strokes up together, so the
+# figure keeps the proportions it has and only stops reading as a hole.
+# (c) puts the same weight in UNEVENLY, which is the file's own standing todo
+# from round 75 (*"reduce the thickness of the 4's top-left stroke"*) and is
+# how Poetica and Coelacanth draw it: a thin diagonal against a thick stem and
+# a thick bar, so the 4 gains colour without gaining a heavy diagonal.
+# The closed construction (his round-75 revert) is kept in every option; the
+# open/curved 4 behind `FOUR_OPEN` is NOT re-offered, because he ruled it out.
+FOUR_OPT = {
+    'b': dict(diag=0.86, bar=1.12, stem=1.10),
+    'c': dict(diag=0.62, bar=1.34, stem=1.20),
+}
+
+# THE 5'S OPTIONS, and they are two independent questions, so there are four
+# arms rather than three.
+# THE FLAG. `FIVE_TOP_INSET` is where the top bar's right end stops relative
+# to the bowl's rightmost ink, and -24 is his own ruling of 2026-09-13 off a
+# four-arm ladder (-36 / -24 / -12 / 0). The references cut it much shorter:
+# measured as a fraction of the figure's ink width, Georgia's top bar stops
+# 0.19 of the width short of the bowl's right edge and Poetica's 0.16, where
+# Albo's -24 is 0.07. (b) takes it to -78, which is 0.21.
+# THE WIDTH. The 5 is the worst-fitting figure in the face by the solver's own
+# reckoning: its target is 321 units of ink and it is built at 387, **+20.6%**,
+# because the width multiplier is on its 0.70 clamp. It is also the widest
+# figure relative to the references -- 0.911 of the 0's advance in the roman
+# and 0.941 in the italic, against Georgia 0.861, Poetica 0.778, Coelacanth
+# 0.720 and Pagella 0.899. (c) draws it at 338 instead of 400, which lands the
+# ink on 321. (d) is both, and is the arm the set recommendation uses.
+FIVE_OPT = {
+    'b': dict(inset=-78.0),
+    'c': dict(W=338.0),
+    'd': dict(W=338.0, inset=-78.0),
+}
 
 @glyph('5')
 def g_five(c):
-    D = c["figH"]; w = W_(c, '5', 400); r = D * 0.31
+    _o5 = _okw('5', FIVE_OPT)
+    D = c["figH"]; w = W_(c, '5', _o5.get('W', 400)); r = D * 0.31
     st = stem(S * 0.3 + S / 2, D * 0.5, D + 10, w=TH_V * 0.85 * pen.CAP_STEM, top=None, foot=None, ent=0.0)   # round 51: vstem at 0.85 x the cap stem
     bowl = superellipse(w * 0.5, r, w * 0.55, r + OVER - TH_H / 2, math.radians(125), math.radians(-160), BOWL_K)
     if pen.ITALIC and FIVE_TAIL_END:
@@ -569,19 +816,116 @@ def g_five(c):
     # it NINE_OVERHANG past; before that it ended 0.95 w, 72 units inside);
     # the square end and the hanging wedge's apex both sit at x1, so x1 is
     # the bar's rightmost ink
-    x1 = geom.bbox(bw)[2] + FIVE_TOP_INSET
+    x1 = geom.bbox(bw)[2] + _o5.get('inset', FIVE_TOP_INSET)
     top = bar(S * 0.3, x1, D, max(TH_H, S * 0.5), align='center', cut0=CUT, wedges=[('right', -1)])   # round 51: centred ON D, its top at D + 28
     return geom.ink([top, st, bw])
 
-@glyph('6')
-def g_six(c):
-    D = c["figH"]
-    (solid, o, i), rx, r, ry = six_bowl(c, D); cx = rx + TH_V / 2
-    p0 = (cx - rx, r); tip = (cx + rx * 0.85, D - 10)
+# THE 6'S OPTIONS.
+# (b) IS THE ONE OPTION IN THIS ROUND THAT IS A CONSTRUCTION AND NOT A DIAL:
+# **the 6 drawn as the 9 turned through 180 degrees**, which is how Georgia and
+# Big Caslon draw the pair. Measured: Georgia's 6 and 9 have the SAME ink width
+# (423 units at a 429 x-height) and the same advance (504); Big Caslon's are
+# 417 and 464. Albo's are 379/462 in the roman and 447/536 in the italic -- two
+# separate drawings that have drifted apart, and in a run like `1969` the 6 and
+# the 9 do not look like each other. This arm builds `g_nine` at the 6's own
+# figure height, turns it about its bbox centre and lands it on the default
+# 6's own left and bottom, so the pair is a rotation by construction and
+# cannot drift again. Two consequences, both named rather than discovered:
+# the 6 then takes the 9's SOLVED WIDTH MULTIPLIER (`W_(c, '9', ...)` inside
+# `g_nine`), which is what makes the two equal and leaves `W['6']` inert; and
+# the 9's terminal treatment comes with it -- the roman's wedge flag ends up at
+# the top right of the 6 and the italic's run-out taper likewise, where today
+# the 6's tail simply thins to 0.12.
+# (c) is the quieter answer to the same complaint: a BIGGER BOWL and a SHORTER
+# tail, so the 6 carries its weight low the way Georgia's does, without
+# changing what the terminal is.
+SIX_OPT = {
+    'b': dict(rotate_nine=True),
+    'c': dict(r=0.325, tip=(0.80, -46.0)),
+}
+
+def _six_draw(c, D, o):
+    (solid, oo, i), rx, r, ry = six_bowl(c, D, r_frac=o.get('r', 0.29)); cx = rx + TH_V / 2
+    _tx, _ty = o.get('tip', (0.85, -10.0))
+    p0 = (cx - rx, r); tip = (cx + rx * _tx, D + _ty)
     top = cubic(p0, (p0[0], p0[1] + ry * 1.5), (tip[0] - rx * 0.55, tip[1] - rx * 0.75), tip)
     base = pen_widths(top); prof = widths([(0.0, 0.15), (0.06, 1.0), (0.65, 1.0), (1.0, 0.12)])
     t = stroke(top, lambda u: max(base(u), SIX_TAIL_FLOOR * S) * prof(u))   # the floor under the pen, the profile over both
     return geom.ink([solid, t])
+
+@glyph('6')
+def g_six(c):
+    D = c["figH"]; o = _okw('6', SIX_OPT)
+    if o.get('rotate_nine'):
+        import shapely.affinity as _aff
+        ref = _six_draw(c, D, {})                      # today's 6, for its box only
+        g = _aff.rotate(g_nine(c), 180, origin='center')
+        x0, y0, _, _ = geom.bbox(g); rx0, ry0, _, _ = geom.bbox(ref)
+        return _aff.translate(g, rx0 - x0, ry0 - y0)
+    return _six_draw(c, D, o)
+
+# ============================== THE 7'S OPTIONS ==========================
+# Owner 2026-09-18: *"improve both 7s."* They are two different faults.
+#
+# THE ROMAN 7 HAS NEVER BEEN TOUCHED and is the worst-fitting figure in the
+# style: stroke 51.9 against a figure median of 65.9 (**-21%**), and
+# thin/stroke 0.97 -- the FLATTEST glyph in the roman, a constant-width bar
+# meeting a constant-width diagonal. Round 219 fixed exactly this in the
+# italic (0.94 -> 0.83) and the roman was left where it was; `SEVEN_BAR_W` and
+# `SEVEN_DIAG_W` are SHARED between the styles, which is round 213's leak, so
+# every roman option here goes through the option table and NOT through those
+# two constants. What the references do with the same two strokes, measured at
+# one x-height: Georgia's 7 cuts 2.06 thick to thin, Coelacanth's 2.25,
+# Poetica's 2.38, Big Caslon's 4.25 -- and Flanker's is 1.28, i.e. flat like
+# Albo's, but it pays for that with a leg that descends to -311 where every
+# other face stops between -136 and -233.
+#   (b) GEORGIA'S: the bar thickened and TAPERED to the mitre, the leg thinned.
+#       The whole contrast is in the two strokes' relative weight.
+#   (c) FLANKER'S: a heavier bar still, and the leg tapers along its own run
+#       as well -- `bar(prof=)` plus the taper branch the italic already uses,
+#       with the curve off, because a straight leg is the roman's.
+#   (d) WEIGHT FIRST: the least shape change that puts the figure's stroke on
+#       its family. Bar and leg both up, a light bar taper, nothing else.
+#
+# THE ITALIC 7 CARRIES FIVE OF HIS OWN RULINGS and every option keeps all five
+# -- the pressed foot that grows out of the taper (round 215, *"212 wins but
+# needs serif on end"*), the tapering bar and the thinning leg (round 219,
+# *"adjust 7's strokes so it varies pleasantly"*), the leg that curves to
+# vertical at the foot (round 212), the foot at 0.30 of the drawn width (round
+# 215's revert), and the weight matched to the 6 (round 212). What varies is
+# HOW FAR, in one direction or the other:
+#   (b) MORE modulation -- the bar tapers to 0.42 instead of 0.55 and the leg
+#       starts thinning at 0.45 of its run instead of 0.55.
+#   (c) LESS -- 0.72 and 0.68, for a steadier 7 in a column of figures.
+#   (d) HEAVIER, modulation as shipped: the 7 is the lightest figure by colour
+#       in both styles (0.171 italic, 0.147 roman, against medians of 0.215
+#       and 0.223) and round 212 recorded that colour cannot converge by
+#       matching strokes. This arm answers the colour instead of the stroke.
+#
+# AND THE ROMAN BAR HAS A CLIFF AT 1.50, WHICH IS THE FITTER AND NOT THE EYE.
+# `_body_edges` reads a glyph's left edge as the 20th percentile of its
+# per-row ink extremes. The roman 7's left side is its own open white -- the
+# bar's underside -- so while the bar is shallow that percentile lands on the
+# LEG and the fitter gives the 7 a wide left bearing; once the bar is deep
+# enough, the percentile lands on the BAR and the bearing collapses. Laddered
+# on the tightest figure pair (`cmp_figure_space --body`), everything else
+# held: 1.28 / 1.36 / 1.42 / 1.45 / **1.48** all read 0.0934 em, and 1.52 /
+# 1.56 read **0.0519**, 1.70 reads 0.0491. The pairs that close are every
+# `x7`. So (b) stops at 1.48, one step under the cliff, and (c) goes past it
+# deliberately -- it is Flanker's 7 and Flanker's bar is that heavy -- with
+# the cost recorded rather than hidden. `ALBO_FIG_7_BAR` re-runs the ladder.
+SEVEN_OPT = {
+    'b': dict(bar_w=1.48, diag_w=0.70, bar_mod=0.74),
+    'c': dict(bar_w=1.70, diag_w=0.74, bar_mod=0.60,
+              leg_taper=0.62, leg_from=0.55, curve=0.0, flare=1.0),
+    'd': dict(bar_w=1.48, diag_w=0.98, bar_mod=0.68,
+              leg_taper=0.70, leg_from=0.60, curve=0.0, flare=1.0),
+}
+SEVEN_OPT_IT = {
+    'b': dict(bar_w=1.80, diag_w=1.18, bar_mod=0.42, leg_from=0.45, leg_taper=0.52),
+    'c': dict(bar_w=1.55, diag_w=1.05, bar_mod=0.72, leg_from=0.68, leg_taper=0.66),
+    'd': dict(bar_w=1.95, diag_w=1.18),
+}
 
 @glyph('7')
 def g_seven(c):
@@ -603,56 +947,116 @@ def g_seven(c):
     starts inside the bar's band (SEVEN_DIAG_BURY of the bar's depth below
     its top edge) so both corners of its square face are buried."""
     D = c["figH"]; w = W_(c, '7', 440)
+    _o7 = _okw('7', SEVEN_OPT, SEVEN_OPT_IT)
     # ROUND 189 -- the owner, 2026-09-17: *"for 7, thin out diagonal and
     # thicken top bar."* Measured against Coelacanth the 7 was effectively
     # MONOLINEAR -- 1.1:1 where Coelacanth is 2.6:1 -- so the two strokes were
     # carrying the same weight and the figure had no colour. These two dials
     # move them in opposite directions, which is what restores the contrast
     # rather than simply making the whole figure heavier or lighter.
-    barw = max(TH_H, S * 0.5) * (SEVEN_BAR_W_IT if pen.ITALIC else SEVEN_BAR_W)
-    p1 = (w * (SEVEN_FOOT_X if pen.ITALIC else 0.3), 0)
+    barw = max(TH_H, S * 0.5) * _E('ALBO_FIG_7_BAR',
+                                   _o7.get('bar_w', SEVEN_BAR_W_IT if pen.ITALIC else SEVEN_BAR_W))
+    p1 = (w * _o7.get('foot_x', SEVEN_FOOT_X if pen.ITALIC else 0.3), 0)
     p0 = (w - S * 0.2, D - barw * SEVEN_DIAG_BURY)
-    wd = pw(p0, p1) * (SEVEN_DIAG_W_IT if pen.ITALIC else SEVEN_DIAG_W)
+    wd = pw(p0, p1) * _E('ALBO_FIG_7_DIAG',
+                         _o7.get('diag_w', SEVEN_DIAG_W_IT if pen.ITALIC else SEVEN_DIAG_W))
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy) or 1.0
     ux, uy = dx / L, dy / L; nx, ny = -uy, ux          # the up-right side of a stroke running down-left
     ex, ey = p0[0] + nx * wd / 2, p0[1] + ny * wd / 2  # a point on the diagonal's right edge
-    yc = D - barw / 2                                  # the bar's centerline (align='top')
+    # A TAPERED BAR ENDS AT A DIFFERENT HEIGHT, so it must be mitred at a
+    # different x. The bar's end face is laid ON the diagonal's right edge and
+    # `x1` is where that edge crosses the bar's CENTRELINE; with `prof` the
+    # bar's depth at the mitre is `barw x _mod`, so its centreline there is
+    # `D - barw x _mod / 2` -- higher up, where the leaning edge is further
+    # right. Solved at the full depth, the tapered bar stops short of the
+    # diagonal and leaves a re-entrant step at the top right, plainly visible
+    # at 620 px on every option that tapers.
+    # MEASURED, not eyeballed: the largest RISE in the rightmost-ink profile
+    # over the top quarter of the glyph, at a 900 px x-height. Roman: **10 px
+    # of step** on a tapered bar solved at the full depth, **0** solved at the
+    # tapered one. Italic: the shipped 7 already carries **5 px** and every
+    # option here reads **3** -- so the italic does not want this correction
+    # and is left on the shipped rule, which is why the `pen.ITALIC` guard is
+    # in the expression. (A white-gap detector reads ZERO on all eight arms:
+    # the fault is a re-entrant STEP in the outline, not a hole, and a gap
+    # test cannot see it. That cost a wrong reading first.)
+    # OPTION 'a' IS UNTOUCHED IN BOTH STYLES: `_o7` is empty there, so the
+    # expression is `barw / 2` exactly as before.
+    _mod = _E('ALBO_FIG_7_MOD', _o7.get('bar_mod', SEVEN_BAR_MOD if pen.ITALIC else 1.0))
+    yc = D - barw * (_mod if (_o7 and not pen.ITALIC) else 1.0) / 2   # the bar's centerline (align='top')
     x1 = ex + ux * (yc - ey) / uy                      # where that edge crosses it: the bar's end
     mitre = -math.atan2(abs(dx), abs(dy))              # the end face parallel to the diagonal
-    if pen.ITALIC and SEVEN_TAIL_TAPER:
+    _leg = _o7.get('leg_taper', SEVEN_TAIL_TAPER if pen.ITALIC else 0.0)
+    _legfrom = _o7.get('leg_from', SEVEN_TAIL_FROM)
+    _curve = _o7.get('curve', SEVEN_TAIL_CURVE if pen.ITALIC else 0.0)
+    _flare = _o7.get('flare', SEVEN_FOOT_FLARE if pen.ITALIC else 1.0)
+    if _leg:
         # the lower stroke runs out downward the way the 6's tail runs out
         # upward: a pen stroke on the same line, held to its width until
         # SEVEN_TAIL_FROM and then tapered to the foot.
-        if SEVEN_FOOT_FLARE > 1.0:
+        if _flare > 1.0:
             # THE PRESS, AND NOT A WAIST. The first cut forced the taper to
             # reach SEVEN_TAIL_TAPER at FLARE_T and spread from there, which
             # put a pinch in the leg -- at 330 px the 7 grew a knee the 6's
             # tail does not have, and past 1.55 it read as a defect rather
             # than a stroke. The stroke thins MONOTONICALLY as it always did;
             # the serif is only the last few percent, where the pen presses.
-            _t = (SEVEN_FOOT_FLARE_T - SEVEN_TAIL_FROM) / max(1e-6, 1.0 - SEVEN_TAIL_FROM)
-            _w = 1.0 + (SEVEN_TAIL_TAPER - 1.0) * min(1.0, max(0.0, _t))
-            prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0),
+            _t = (SEVEN_FOOT_FLARE_T - _legfrom) / max(1e-6, 1.0 - _legfrom)
+            _w = 1.0 + (_leg - 1.0) * min(1.0, max(0.0, _t))
+            prof = widths([(0.0, 1.0), (_legfrom, 1.0),
                            (SEVEN_FOOT_FLARE_T, _w),
-                           (1.0, _w * SEVEN_FOOT_FLARE)])
+                           (1.0, _w * _flare)])
         else:
-            prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0), (1.0, SEVEN_TAIL_TAPER)])
-        if SEVEN_TAIL_CURVE:
+            prof = widths([(0.0, 1.0), (_legfrom, 1.0), (1.0, _leg)])
+        if _curve:
             _L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
             c1 = (p0[0] + (p1[0] - p0[0]) * SEVEN_TAIL_HOLD,
                   p0[1] + (p1[1] - p0[1]) * SEVEN_TAIL_HOLD)
-            c2 = (p1[0] + (p0[0] - p1[0]) * (1 - SEVEN_TAIL_CURVE) * 0.30,
-                  p1[1] + _L * SEVEN_TAIL_RISE * SEVEN_TAIL_CURVE)   # straight above the foot
+            c2 = (p1[0] + (p0[0] - p1[0]) * (1 - _curve) * 0.30,
+                  p1[1] + _L * SEVEN_TAIL_RISE * _curve)   # straight above the foot
             path = cubic(p0, c1, c2, p1)
         else:
             path = [p0, p1]
         diag = stroke(path, lambda u: wd * prof(u))
     else:
         diag = diagonal(p0, p1, wd)
-    _bp = (widths([(0.0, 1.0), (1.0, SEVEN_BAR_MOD)])
-           if (pen.ITALIC and SEVEN_BAR_MOD != 1.0) else None)
+    _bp = widths([(0.0, 1.0), (1.0, _mod)]) if _mod != 1.0 else None
     return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre,
                          wedges=[('left', -1)], prof=_bp), diag])
+
+# ============================== THE 8'S OPTIONS ==========================
+# TWO FAULTS, AND THE FIRST ONE IS A RULING, so it is offered and not shipped.
+#
+# HEIGHT. In every reference the 8 tops on the 6's line: Georgia 633/633,
+# Flanker 620/644, Coelacanth 657/656, Pagella 622/622, Big Caslon 659/660,
+# Poetica 562/562. Albo's roman 8 tops at **520 against its 6's 617** and its
+# italic at 561 against 639. Against the x-height the references' 8 stands
+# 1.31-1.54 x-heights tall and Albo's roman 1.21. That is the single most
+# visible thing about a run of Albo's figures -- in `1889` the two 8s sit in a
+# dip. It is ALSO the owner's own ruling of 2026-09-13, round 64: *"remake 8
+# again but make it shorter so counters can match other numerals or optical
+# circles"*, and then *"for 8, C wins but the bottom counter needs to be
+# slightly taller"* -- so `a` stays exactly where he left it and the taller 8
+# is an option for him to look at. `tall` multiplies BOTH counters' heights,
+# not their widths, so the figure grows upward into the box it already owns
+# (FIG_BOX['8'] is the 6's, top 0.98 CAP) and does not get wider: at 1.19 the
+# roman 8 tops at about the 6's line with a width/height of 0.62, which is
+# Flanker's 0.637 and Coelacanth's 0.649 rather than today's 0.693.
+#
+# CONTRAST. The roman's 8 cuts **1.52** thick to thin where the references run
+# 2.05 (Pagella) to 5.29 (Big Caslon); it is the flattest round shape in the
+# style. `con` re-spreads the ring's own widths about their geometric mean, so
+# the letter's colour does not move, and `oval` has to come with it.
+EIGHT_OPT = {
+    'b': dict(tall=1.19),
+    'c': dict(con=1.85, oval=1.0),
+    'd': dict(tall=1.19, con=1.85, oval=1.0),
+}
+EIGHT_OPT_IT = {
+    'b': dict(tall=1.16),
+    'c': dict(con=3.40),
+    'd': dict(tall=1.16, con=3.40),
+}
 
 @glyph('8')
 def g_eight(c):
@@ -682,10 +1086,12 @@ def g_eight(c):
     Dr = (latin.FIG_BOX[EIGHT_COUNTER_OF][0] - latin.FIG_BOX[EIGHT_COUNTER_OF][1]) * pen.CAP
     ref = six_bowl(c, Dr)[0][0] if EIGHT_COUNTER_OF == '6' else zero_bowl(c, Dr)[0]
     x0, y0, x1, y1 = counter_box(ref)
+    _o8 = _okw('8', EIGHT_OPT, EIGHT_OPT_IT)
+    _tall = _o8.get('tall', 1.0)
     bw2 = (x1 - x0 - 2 * sp) * EIGHT_LOWER              # the lower counter's width, as built
     bw1 = bw2 * EIGHT_UPPER
-    cw2, ch2 = bw2 + 2 * sp, bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL + 2 * sp     # drawn (pre-spread) targets
-    cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH + 2 * sp
+    cw2, ch2 = bw2 + 2 * sp, bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp     # drawn (pre-spread) targets
+    cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH * _tall + 2 * sp
     # Round 98 (owner 2026-09-14: "without reshaping the two counterspaces,
     # give me options for making an 8 that visually fits the rest of the
     # numbers"): the OUTER's levers, each an env override for the options
@@ -711,7 +1117,7 @@ def g_eight(c):
     # bowl profile never asked for anything thinner. `con` re-spreads the ring's
     # own widths instead. Italic only -- the roman's 8 is not what he is looking
     # at, and `ALBO_8_CON` defaults to 1.0 there.
-    con8 = E('ALBO_8_CON', EIGHT_CON if pen.ITALIC else 1.0)
+    con8 = E('ALBO_8_CON', _o8.get('con', EIGHT_CON if pen.ITALIC else 1.0))
     # AND THE COUNTER NEEDS MORE SMOOTHING TO CARRY IT. `ring` offsets the
     # counter inward by the width at each point, so a width that now swings
     # nearly twice as far swings the inner contour with it and the counter
@@ -720,7 +1126,13 @@ def g_eight(c):
     # fast. counter_smooth 2 -> EIGHT_CSM.
     csm = int(E('ALBO_8_CSM', EIGHT_CSM if pen.ITALIC else 2))
     _st = math.radians(FIG_STRESS) if pen.ITALIC else 0.0
-    _ov = FIG_OVAL if pen.ITALIC else 0.0
+    # THE OVALISE IS WHAT LETS A RING CARRY CONTRAST AT ALL (round 204's cure
+    # for the g's bowl, round 211's for these). The roman's 8 has never needed
+    # it because its `con` is 1.0; an option that raises `con` must switch it
+    # on in the same breath, or the counter necks into a kidney -- which this
+    # file's own EIGHT_CON note records, measured, at counter_smooth 2, 7 and
+    # 14 alike.
+    _ov = FIG_OVAL if pen.ITALIC else _o8.get('oval', 0.0)
     lo, *_ = ring(cx, y2, rx2, ry2, w_scale=w_lo, k=kk or pen.BOWL_K, floor=floor_, con=con8, counter_smooth=csm, stress=_st, oval=_ov)
     up, *_ = ring(cx + lean, y1, rx1, ry1, w_scale=w_up, k=kk or pen.BOWL_K, floor=floor_, rot=rot_up, con=con8, counter_smooth=csm, stress=_st, oval=_ov)
     return geom.ink([up, lo])
@@ -823,6 +1235,33 @@ def _fit_left_bottom(make, target_left, bot, spread, iters=6):
         dx -= ex; dy -= ey
     return make(dx, dy)
 
+# ============================== THE 9'S OPTIONS ==========================
+# The 9's fault is not its ink but its FLANK. `NINE_FLAG_REACH` puts the tail's
+# tip 12.4 units past the bowl's leftmost ink, and round 216 measured what that
+# costs in a run: before the body-edge fit the 9's own left white was 0.114 em
+# and its left flank 0.222 -- every overhang paid for twice. The fit absorbs
+# 0.75 of it in the italic and 0.45 in the roman, and what is left still makes
+# the 9 the widest figure in the italic by advance (1.044 of the 0's, where
+# Georgia is 0.922, Coelacanth 0.940, Poetica 0.959 and Pagella 0.957) and the
+# second widest in the roman (0.992).
+#   (b) SHORTER REACH -- the tip stops 3 units past the bowl instead of 12.4,
+#       and its nominal x comes in with it. The wedge flag, the bottom line,
+#       the thinning off the top edge and the ring are all round 71-74's and
+#       are untouched; only how far the tail flies moves. (It must stay at or
+#       past the bowl's left edge: `_fit_left_bottom` slides the tip until the
+#       GLYPH's leftmost spread ink lands on the target, and if the ring were
+#       the leftmost thing the fit would have nothing to solve.)
+#   (c) BIGGER BOWL -- the ring at 0.325 of the figure's height instead of
+#       0.29, so the 9 carries its weight in the loop the way Georgia's and
+#       Big Caslon's do (both draw the 9 as their 6 turned over, and both have
+#       a ring far larger relative to the tail than Albo's).
+#   (d) both.
+NINE_OPT = {
+    'b': dict(reach=3.0, tip_x=1.00),
+    'c': dict(r=0.325),
+    'd': dict(reach=3.0, tip_x=1.00, r=0.325),
+}
+
 @glyph('9')
 def g_nine(c):
     """Round 71's flag-diag (owner, round 72: "flag-diag wins"): the round-42
@@ -841,17 +1280,18 @@ def g_nine(c):
     from .. import build as _build     # lazy: build imports this module
     from shapely.geometry import Point
     sp = _build.INK_SPREAD
-    D = c["figH"]; rx = W_(c, '9', 230); r = D * 0.29; cx = rx + TH_V / 2
+    _o9 = _okw('9', NINE_OPT)
+    D = c["figH"]; rx = W_(c, '9', 230); r = D * _o9.get('r', 0.29); cx = rx + TH_V / 2
     solid, o, i = fig_ring(cx, D - r, rx, r, con=NINE_RING_CON, oval=NINE_RING_OVAL)
     _sink = NINE_JOIN_SINK_IT if pen.ITALIC else NINE_JOIN_SINK
     _exit = NINE_EXIT_DEG if pen.ITALIC else -20.0
     p0 = (cx + (rx - _sink) * math.cos(math.radians(_exit)),
           D - r + (r - _sink) * math.sin(math.radians(_exit)))
-    target_left = (cx - rx - TH_V / 2 - sp) - NINE_FLAG_REACH
+    target_left = (cx - rx - TH_V / 2 - sp) - _o9.get('reach', NINE_FLAG_REACH)
     tap = widths(NINE_TAPER_IT if pen.ITALIC else NINE_TAPER)
     floor = S * NINE_TAIL_MIN if NINE_TAIL_TOP >= 0.5 else 0.0
     def make(dx, dy):
-        tip = (cx - rx * 1.12 + dx, 22 + dy)
+        tip = (cx - rx * _o9.get('tip_x', 1.12) + dx, 22 + dy)
         tail = cubic(p0, (p0[0] - rx * 0.15, p0[1] - r * 1.5), (tip[0] + rx * 1.15, tip[1] + r * 0.55), tip)
         base = pen_widths(tail)
         wf = lambda u: max(base(u), S * NINE_FLOOR) * tap(u)            # round 71's width
