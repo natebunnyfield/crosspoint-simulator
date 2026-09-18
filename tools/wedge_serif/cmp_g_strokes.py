@@ -41,7 +41,7 @@ def raster(ttf, ch, slant, px=520):
     ImageDraw.Draw(im).text((W * 0.35, base), ch,
                             font=ImageFont.truetype(ttf, size), fill=0, anchor="ls")
     if abs(slant) > 0.05:
-        k = math.tan(math.radians(slant))
+        k = -math.tan(math.radians(slant))   # sign fixed 2026-09-18: +13 was doubling the shear (see cmp_weight_survey.raster)
         im = im.transform((W, H), Image.AFFINE, (1, k, -k * base, 0, 1, 0),
                           resample=Image.BICUBIC, fillcolor=255)
     a = np.asarray(im) < 128

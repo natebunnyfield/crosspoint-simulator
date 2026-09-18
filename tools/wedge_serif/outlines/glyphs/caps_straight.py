@@ -395,19 +395,55 @@ def g_P(c):
 # thins along its sweep; the ring is untouched and unbroken.
 Q_TAIL_FLOOR = 0.55   # x the stem: the family's tail floor, the 6's and the 9's (rounds 70, 71)
 
+# ROUND 224 -- THE TAIL'S LENGTH IS THE DRAWING'S, AND THIS IS ITS DIAL.
+# Fourteen of the roman's nineteen touching pairs are this one letter --
+# Q( Q) Q3 Q4 Q5 Q7 Q9 Qg Qj QJ Qp Qq QQ Qy, the worst Q3 at -0.489 em -- and
+# a kern was tried first and removed the same round (see the note in
+# outlines/kern.py: the pairs want +270 to +522 units, a third to a half of
+# the Q's own advance, and three still touch afterwards because the tail meets
+# a following descender at a different row).
+#
+# WHAT THE NUMBER IS, measured off the built fonts rather than asserted. The
+# tip lands at 1.80 ring-widths, so the ink box runs 36..1250 against an
+# advance of 741: **509 units of tail hang past the letter's own advance**,
+# and the ink is 1.80 cap heights wide where the rest of the round family is
+# 0.89-0.99. Both reference romans keep the tail INSIDE the advance and take
+# it DOWN rather than right -- Times ends its Q's ink 38 units short of the
+# advance and drops to -196, Georgia 39 short and -188 -- and the owner's own
+# italic Q, whose tail he ruled at Q_TAIL_SCALE 1.2 in round 178, ends 32
+# units PAST its advance. So the family's character is a tail that reaches
+# about as far as the letter does, and this one reaches two thirds again.
+#
+# The tail is scaled about its JOIN and not re-drawn. That holds round 156's
+# requirement that the tail's first point sit ON the ring, and a uniform scale
+# about a fixed point leaves every tangent direction unchanged -- including
+# the departure tangent, so the join cannot open the step under the bowl that
+# round 179 spent a round closing.
+Q_TAIL = float(os.environ.get("ALBO_ROM_Q_TAIL", 0.50))   # x the tail's reach, about the join; 1.0 is round 223 byte for byte
+
 @glyph('Q')
 def g_Q(c):
     """The O with Van den Keere's swash tail (round 42): from the ring's
     centerline at 250 degrees, heaviest at its belly (1.05 stems), thinning
-    to a pen-cut tip at 1.8 O-widths, 0.2 C down."""
+    to a pen-cut tip at 1.8 O-widths, 0.2 C down -- Q_TAIL of that reach."""
     C = c["cap"]; rx_c = W_(c, 'O', 350); solid, o, i = cap_ring(c, rx_c); s = CS
     rx = rx_c + TH_V / 2; ry_c = C / 2 + OVER - TH_H / 2; W = 2 * rx
     p0 = superellipse(rx, C / 2, rx_c, ry_c, math.radians(250), math.radians(250.5), BOWL_K)[0]
-    tail = cubic(p0, (W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20))
+    tp = [(W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20)]
+    if Q_TAIL != 1.0:
+        tp = [(p0[0] + (x - p0[0]) * Q_TAIL, p0[1] + (y - p0[1]) * Q_TAIL) for x, y in tp]
+    tail = cubic(p0, *tp)
     base = pen_widths(tail)
     def wfn(t):
+        # THE BELLY SCALES WITH THE TAIL. It is an ABSOLUTE -- 1.05 stems, 100
+        # units -- and the header note above already records what an absolute
+        # did to this letter once: the solved Q (width x 0.70) got the bulge at
+        # full size on a smaller ring, which is the bulge the owner asked to
+        # lose. A shortened tail carrying the same 100 units is the same fault
+        # again, so the floor travels with the reach; at Q_TAIL 1.0 the
+        # expression is the original one multiplied by exactly 1.0.
         belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
-        return max(base(t), s * 1.05 * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+        return max(base(t), s * 1.05 * Q_TAIL * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
 
 Q_BELLY = 0.15
@@ -433,22 +469,69 @@ def g_R(c):
 R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30
 
+# ROUND 224 -- THE S IS THE ROUND FAMILY'S ONE HEAVY LETTER, AND IT SITS PROUD.
+# Measured on the built roman with a PADDED chamfer mask (see the note under
+# S_CROWN): stroke 84.3 against a round-family median of 66.2, +27%, and 22%
+# over its own O at 69.2. Both references run the S LIGHTER than the O, not
+# heavier -- Times S 48.2 against O 66.2 (-27%), Georgia 54.2 against 68.5
+# (-21%) -- so the sign is wrong here, not just the size. The lever is the
+# DECLARED middle weight: `st * 0.92` overrides the pen with 0.92 cap stems
+# (87.9 units, the cap stem itself) through the whole waist, and the `bot`
+# bump adds a further fifth on the way out of it. The pen at the ends is
+# untouched, so the letter's contrast is set by what the nib does at the S's
+# own shallow angles and not by a second declared number.
+S_SPINE = float(os.environ.get("ALBO_ROM_S_SPINE", 0.82))   # the waist's declared weight, x CS; 0.92 is round 223
+S_BOT = float(os.environ.get("ALBO_ROM_S_BOT", 0.12))       # the lower curve's extra, x itself; 0.20 is round 223
+
+# ...AND ITS CROWN AND FOOT STAND OUTSIDE THE ROUND FAMILY'S LINE. Ink top 699
+# and bottom -25 against O 690/-15, G 691/-17, C 691/-17: ten units proud at
+# each end. Both references put the S's extremes ON the O's -- Times 677.2 for
+# both, Georgia 708.5 against 709.5. It is not the beak: the topmost ink sits
+# at x 280-314, the crown of the arc, where the beak is away at the top-right
+# terminal. The catmull OVERSHOOTS its own second point, so the crown is an
+# artefact of the curve rather than a declared overshoot, and the honest lever
+# is to pull the two extreme points inside the band by the measured amount.
+S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 3.0))    # units the crown and foot come inside the cap band; 0 is round 223
+
+# ...AND THE REASON THE WAIST HAD TO BE DECLARED AT ALL: THE S IS THE ONE
+# ROUND CAPITAL DRAWN ON THE RAW PEN. C, G, O, Q and the B/D/P/R bowls all
+# take their widths from `primitives.bowl_th` -- the family's switched bowl
+# profile, whose hair is `1 - 0.5 CONTRAST` of the stem, 50.4 units at the
+# shipped contrast -- while `g_S` calls `pen_widths`, whose floor is the nib's
+# own minimum of 22.2 at the 18-degree run the S makes over its shoulders. So
+# the letter arrives with hairline ends the family does not have, and the 0.92
+# cap stems through its waist is what was put in to stop it reading as wire.
+# The two together are the measurement: cut 2.95 against the O's 1.60, +84%,
+# where Times holds S/O at 1.27 and Georgia at 0.94. Blending the S's own
+# widths onto the family's profile fixes the ratio at both ends at once and
+# needs no new number -- `bowl_th` IS the round family's definition, imported
+# rather than restated.
+S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 1.0))      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
+
 @glyph('S')
 def g_S(c):
     C = c["cap"]; w = W_(c, 'S', 440); o = OVER - TH_H / 2; st = CS
-    spine = catmull([(w * 0.93, C * 0.80), (w * 0.62, C + o * 0.9), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
-                     (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9), (w * 0.04, C * 0.22)], tension=0.55)
+    spine = catmull([(w * 0.93, C * 0.80), (w * 0.62, C + o * 0.9 - S_CROWN), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
+                     (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9 + S_CROWN), (w * 0.04, C * 0.22)], tension=0.55)
     base = pen_widths(spine)
+    if S_BOWL != 0.0:
+        _pen, _bowl = base, bowl_widths(spine)
+        base = lambda t: _pen(t) * (1.0 - S_BOWL) + _bowl(t) * S_BOWL
     def wfn(t):
-        mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * 0.92 * mid
-        bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
+        mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * S_SPINE * mid
+        bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + S_BOT * (3 * bot * bot - 2 * bot ** 3)
         return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, S_BOTTOM_END)])(t)
     if PR.BOWL and PR.BOWL.get('widen'):
         wid = widen_terminal(widen_terminal(None, True), False)
-        base2 = pen_widths(spine)
+        # `base`, not a second `pen_widths(spine)`: this branch kept its own
+        # copy, which was identical until S_BOWL existed and would now be the
+        # one place in the letter still on the raw pen. Unreachable at the
+        # ruled bowl ('B' declares widen=None) and the built font is
+        # unchanged, but a second definition is how the next dial drifts.
+        base2 = base
         def wfn2(t):
-            mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base2(t) * (1 - mid) + st * 0.92 * mid
-            bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + 0.2 * (3 * bot * bot - 2 * bot ** 3)
+            mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base2(t) * (1 - mid) + st * S_SPINE * mid
+            bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + S_BOT * (3 * bot * bot - 2 * bot ** 3)
             return want * wid(t)
         return geom.ink([stroke(spine, wfn2, cut0=CUT, cut1=CUT)])
     body = stroke(spine, wfn, cut0=math.radians(BEAK_CUT))
@@ -510,11 +593,29 @@ def g_V(c):
 W_CROTCH_LIFT = 0.22   # x the stem: how far the crotch's point rises
 W_CROTCH_DROP = 0.22   # x the stem: where the cut rejoins the two edges
 
+# ROUND 224 -- THE W's +43% IS THE INSTRUMENT, AND IT SHIPS AT ITS NO-OP.
+# `cmp_weight_survey` reads the W's stroke at 89.6 against a diagonal-family
+# median of 62.8 and flags it as the family's heaviest. It is not. The survey
+# reports the MEDIAN thickness along a letter's ridge, and a W is two thicks
+# and two thins where a V is one of each -- so the V's median falls on its
+# thin (59.5) and the W's on its thick (89.6) while the two letters' THICKS
+# are 89.6 and 90.3, within a raster step of each other, because both are the
+# same `pw(p0, p1, 1.0)` on strokes within two degrees of the pen's thick
+# axis. Both references order the three the same way and by more: Times W 93.3
+# > V 90.3 > X 86.6, Georgia 96.3 > 95.6 > 88.8. By COLOUR -- ink over the
+# reading band, which no stroke count can skew -- the W is 0.256 against its
+# family's 0.272, slightly LIGHT, and the references agree in sign (-3%, -10%).
+# So the dial exists for a future ruling and is shipped at 1.0, which is round
+# 223 byte for byte. What the W IS wide: 1.52 cap heights of ink against Times
+# 1.39 and Georgia 1.43. That is `W_(c, 'W', 820)` and the builder's solve, it
+# is a proportion rather than a weight, and it is not changed here.
+W_THICK = float(os.environ.get("ALBO_ROM_W_THICK", 1.0))   # the two down-strokes, x the pen at their angle
+
 @glyph('W')
 def g_W(c):
     C = c["cap"]; s = CS; w = W_(c, 'W', 820)
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
-    P = [((s * 0.3, C), f1, 1.0, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, 1.0, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
+    P = [((s * 0.3, C), f1, W_THICK, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, W_THICK, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
     a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
     # owner 2026-09-13: "lower and reduce the protuberance of the top middle
     # connector in W" -- the crown at W_CROWN of the family's wedge, seated
@@ -522,11 +623,29 @@ def g_W(c):
     crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C - DROP * (W_CROWN_DROP - 1.0)), (0, 1), (-1, 0), WL * W_CROWN, WD * W_CROWN, DROP)
     return geom.ink([a, b, d, e, crown])
 
+# ROUND 224 -- THE X's LIGHT DIAGONAL IS THE PEN'S THIN TWICE OVER.
+# THE ONE RULE FIRST (docs/albo-method.md): check the DIRECTION before the
+# width. The X's two strokes run at 49 and 131 degrees; the pen's own thin
+# axis is 30 and its thick 120, so at those angles the nib already gives 44.9
+# and 81.5 where the V's steeper pair get 61.2 and 83.7. The thick is
+# therefore right and is not touched. What is NOT the pen is the 0.72 the
+# light stroke is then multiplied by: it is the family's declared thin factor,
+# uniform across A V W X Y, and at the X's angle it lands on a nib width that
+# is already near its minimum, so the two thinnings COMPOUND. The result, on
+# the built roman, is 33.1 units -- with the S's 32.4 the thinnest capital
+# stroke in the face, 0.66 of the V's thin where both references run their X's
+# thin at 0.89 (Times) and 0.93 (Georgia) of their V's, and where the X's own
+# contrast is 2.45 against the V's 1.78 where the references hold the two
+# within 8% of each other. At a 13 px em that stroke is 0.43 device pixels and
+# the backslash of SWIX reads as a wire. docs/albo-imperfections.md's fourth
+# rule: an imperfection that costs legibility is a defect.
+X_THIN = float(os.environ.get("ALBO_ROM_X_THIN", 0.90))   # the light diagonal, x the pen at its own angle; 0.72 is round 223
+
 @glyph('X')
 def g_X(c):
     C = c["cap"]; s = CS; w = W_(c, 'X', 540)
     p0, p1 = (s * 0.3, C), (w - s * 0.3, 0); q0, q1 = (w - s * 0.3, C), (s * 0.3, 0)
-    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1, serif1=-1)])
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), diagonal(q0, q1, pw(q0, q1, X_THIN), serif0=-1, serif1=-1)])
 
 @glyph('Y')
 def g_Y(c):

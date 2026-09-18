@@ -478,3 +478,31 @@ in this repo three days earlier, and took one command to run.
 
 > Before you turn a dial, measure whether the thing the dial controls is the
 > thing that is wrong.
+
+## Two more instrument bugs, 2026-09-18 — the survey's slant sign and its crop edge
+
+Six and seven in this file's series, and like the five before them each
+produced a believable number that was acted on. Both live in
+`tools/wedge_serif/cmp_weight_survey.py::raster` (the slant one also in
+`cmp_g_strokes.py`), both are fixed, and both were found not by reading the
+code but by two agents measuring a case whose answer is known: a bare stem's
+lean, and a Z's bar against its own outline.
+
+1. **The slant sign.** `Image.AFFINE` maps *output* to *input*, so the "unshear"
+   with a positive `k` doubled the shear. The italic `l` leaned +12.2° at slant
+   0, **+24.0° at `--slant 13`**, −0.8° at −13. The default was +13. Every
+   italic weight in `docs/albo-weight-survey-2026-09-17.md` and in rounds
+   208–219 was taken at 26°. The owner's rulings in those rounds were made on
+   pictures and stand; the *numbers* beside them do not, and the ones that
+   mattered were re-measured — the 6/7/8 match of round 212 holds (65.1 / 65.5
+   / 63.2 on the fixed instrument).
+2. **The crop edge.** The mask was cropped to the ink's bounding box before the
+   chamfer, so any stroke on the box's edge had no background beyond it and
+   read at up to twice its width. It inflated every letter whose thick stroke
+   is its outer edge — the roman Z (+65% → −23%), W, E, F, L, T, I, the 7's
+   bar, the 2 and 5 — and it is why the misfit audit's roman table led with a
+   letter that was never heavy.
+
+The rule these add to the five above: **an instrument's first run must include
+a case whose answer you already know.** A bare stem has one width and one
+angle; a bar has the thickness its outline says. Neither had been checked.

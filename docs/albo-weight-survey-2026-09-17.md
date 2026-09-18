@@ -1,5 +1,16 @@
 # Albo's weight, letter by letter — 2026-09-17
 
+> **2026-09-18, later: every ITALIC number in this file was measured at 26° of
+> shear** — `cmp_weight_survey.py`'s `--slant` sign was inverted (see
+> `docs/albo-method.md`, instrument bug 6) — and every stroke lying on a glyph's
+> bounding-box edge, in BOTH styles, read up to twice its width (bug 7). The
+> rulings recorded below were made on pictures and stand. The numbers do not;
+> the ones that carried a decision were re-measured on the fixed instrument in
+> `docs/albo-misfit-audit-2026-09-18.md`'s correction table (the 6/7/8 match
+> survives at 65.1 / 65.5 / 63.2; the roman `z` and `Z` were never heavy).
+> `cmp_weight_survey.py` re-runs the whole ledger correctly now.
+
+
 Owner, 2026-09-17: *"do a full survey of all roman and italic letters and
 numerals"*, asked in the same breath as *"increase thickness of bottom loop
 enough to match visual weight of other letters"*. This is that question asked of
@@ -626,3 +637,47 @@ Three italic glyphs move: the 7 and its superscript and subscript. Gates: glitch
 0 of 119, touch 0 of 5,197, roman byte-identical in outlines and metrics, figure
 spacing holds at 1.31×. `bar(prof=None)` is byte-identical across the whole
 font, proven on a build.
+
+### Round 224 — the merged pass: roman Q S X, italic z A k, and the instrument
+
+Owner: *"take a pass at improving all of Albo regular and italic, then show me
+a complete specimen."* Two agents, one per style, one file each; the lead
+gated and merged.
+
+**Roman** (`caps_straight.py`): the **Q**'s tail gets a dial, `ALBO_ROM_Q_TAIL`
+0.50 — its reach 1.80 → 1.08 cap heights; all fourteen of its touching pairs
+clear (the roman's collision list goes 19 → 4, every survivor an `f` pair or
+`VI`, all pre-existing); the join is untouched, the tail's departure tangent is
+exactly as it was. The **S** is rebuilt on the round family's own bowl profile
+(`ALBO_ROM_S_BOWL` 1.0, spine 0.82, bottom 0.12, crown +3) — 84.3 → 77.5, cut
+2.95 → 1.48, top 699 → 690 on the O's line. The **X**'s thin raised 0.72 →
+0.90 (`ALBO_ROM_X_THIN`), 45.2 → 51.2. **Z and W not touched** — both findings
+were the instrument (above). Eight roman glyphs, outlines only.
+
+**Italic** (`aldine.py`): the **z**'s diagonal 27 → 36 (`ALBO_ALD_Z_DIAG`) —
+the reference split on whether a z's diagonal is thicker than its bars
+(Flanker 0.87, Coelacanth 1.00, Poetica 0.71, Pagella 0.68) and round 135's own
+words settle it on Flanker; 0.67 → 0.88, colour 0.255 → 0.282, no longer the
+palest lowercase diagonal. The **A**'s apex 712 → **695** (`ALBO_ALD_CAP_A_FLAG_Y`
+0.96): every reference and Albo's own roman overshoot the flat line by 10–17;
+the italic was +32, and the tall thing was the flag, not the apex. The **k**'s
+head 806 → **774** (`ALBO_ALD_K_ASC` 0.958), onto the h/l line — it was the only
+face with the k proud, and the module comment claiming b d h l shared the call
+was wrong and is corrected. Thirteen italic outlines (three letters and their
+composites), four metrics.
+
+**Measured and left, each with its ruling:** italic Y (three rulings, rounds
+161/163/194; −6% on the fixed instrument); italic b 759 (rounds 193–194,
+*".98 and .9 win"*); italic f +24 over the line (Flanker's is +29); the g's
+descender (rounds 197/205, the loop anchored on the baseline by his word); the
+italic 1 (+21% of a bowl-led median — a stem; its lever is `figures.py`); the
+roman Y (`cmp_cap_weight` exempts it by name, round 163).
+
+**One gate is red and is recorded rather than hidden.** `cmp_cap_weight`
+reports M +0.06 (pre-existing), Q +0.06 (the roman Q lost a third of its ink
+with the tail — a proportion, not a stroke), and **X −0.07**: the roman X was
+raised toward its family and the italic X, at 0.79 of the capitals' median, is
+now the lighter of the pair. The italic X is the next item, not an exemption.
+
+Gates otherwise: italic glitch 0 of 119, touch 0 of 5,201, `cmp_aldine_metrics`
+0 outside 10%, figures 1.31×; roman glitch 0 of 119, touch 4 (from 19).

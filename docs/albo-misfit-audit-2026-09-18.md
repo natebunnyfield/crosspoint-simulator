@@ -1,5 +1,39 @@
 # Which letters do not fit the rest of Albo — 2026-09-18
 
+> **CORRECTION, later the same day — read this before the tables below.** The
+> instrument this audit's weight columns came from, `cmp_weight_survey.py`, had
+> two bugs, found by the two glyph agents of round 224 and verified on cases
+> whose answers are known:
+>
+> 1. **Its `--slant` sign was inverted.** PIL's affine maps output → input, so
+>    the "unshear" ADDED 13° instead of removing it: the italic `l`'s stem, +12.2°
+>    at slant 0, read **+24.0° at +13** and −0.8° at −13. Every ITALIC number in
+>    section (b) below, in `docs/albo-weight-survey-2026-09-17.md`, and in this
+>    session's rounds 208–219 was measured at **26° of shear**.
+> 2. **It cropped the raster to the ink's bounding box**, so a stroke lying on the
+>    box edge — a bar, a Z's top, a stem's outer side — had no background beyond
+>    it and read at up to **twice** its thickness. The roman Z's 59-unit bars came
+>    back as 93 and 117 and the letter as "+65%, the heaviest in the roman".
+>
+> Both are fixed in the script (sign flipped; a 48 px margin kept). On the fixed
+> instrument, against the merged round-224 builds:
+>
+> | glyph | this audit said | corrected | verdict |
+> |---|---|---|---|
+> | italic Y | +92% of diagonals | −6% of capitals (70.4) | not a fault; ruled anyway (rounds 161/163/194) |
+> | italic A | +39%, apex 712 | −19% of capitals (61.0); apex **695** after round 224 | the apex was real, the weight was the shear |
+> | italic z | −36%, thin/stroke 0.89 | −28% of lowercase → diagonal 27 → 36 in round 224; 50.4 now | real, and fixed |
+> | italic 1 | +36% of figures | +21% — a lone stem against a bowl-led median | not a fault |
+> | italic 6 / 7 / 8 | (rounds 212–219's "matched at 53.4") | **65.1 / 65.5 / 63.2** — still matched | the match survives; the number was wrong |
+> | roman Z | +65%, heaviest, monoline | 58.7, **−23% of capitals**; bars 0.63 of its diagonal | **void** — crop artifact; not touched |
+> | roman W | +43% | +18% — a median of two thicks and two thins | stroke-count artifact; not touched |
+> | roman Q | +84% width, 14 touching pairs | tail 1.80 → **1.08** cap heights in round 224; all 14 clear | real, and fixed |
+> | roman S | +27% | 77.5, +2% after round 224 (profile rebuilt on the round family's bowl) | real, and fixed |
+> | roman X | −28% | 51.2, −33% of capitals (its thin raised 0.72 → 0.90) | partly fixed; the italic X is now the lighter of the pair |
+>
+> The (c) finding that the roman figures never received the body fit was
+> correct and is round 223. Sections (d) and (e) stand.
+
 Owner, 2026-09-18: *"identify what characters in the font are not fitting the
 rest of the font in roman and italic, update md file with results."*
 

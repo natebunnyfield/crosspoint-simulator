@@ -1561,6 +1561,25 @@ if ON:
     # the set. `r_scale` on `cs_round_end` grows the disc without trimming the
     # stroke back any further, so the extra size reads as reach.
     C_CAP0_R = float(os.environ.get("ALBO_ALD_C_CAP0_R", 1.15))
+    # 2026-09-17 -- THE TOP SERIF HANGS OFF THE STROKE. Owner: *"serif needs to
+    # hang low off of current brush stroke, not be a weird finial that has
+    # happened before"*. A disc centred ON the path's end reads as a knob added
+    # to the arc -- it sits on the stroke's own axis and leaves a re-entrant
+    # notch under it. The references hang this terminal BELOW the stroke: the
+    # brush carries past the crown and droops. C_CAP0_DROP moves the cap's
+    # centre down (design units) so its mass is under the stroke's underside
+    # and the notch is swallowed rather than deepened; C_A0 carries the stroke
+    # itself further round before it stops.
+    C_CAP0_DROP = float(os.environ.get("ALBO_ALD_C_CAP0_DROP", 0.0))
+    # ...AND IT GROWS FROM THE BRUSH. Dropping the disc alone still reads as a
+    # disc: the arm arrives at its old width and the ball hangs off it. The s's
+    # foot needed the same three things (round 208) -- widen the PATH into the
+    # terminal so the cap grows with it, let the cap swallow its own end face,
+    # and fillet what the union leaves. C_HEAD is that widening, over t 0 ..
+    # C_HEAD_T from the top end; C_BLEND is the fillet, in design units.
+    C_HEAD = float(os.environ.get("ALBO_ALD_C_HEAD", 1.00))
+    C_HEAD_T = float(os.environ.get("ALBO_ALD_C_HEAD_T", 0.22))
+    C_BLEND = float(os.environ.get("ALBO_ALD_C_BLEND", 0.0))
     C_CAP1 = float(os.environ.get("ALBO_ALD_C_CAP1", 0.85))   # bottom terminal
     C_RING = [(40, 52), (47, 59), (66, 32), (90, 24), (113, 34), (133, 47),
               (160, 60), (171, 65), (180, 66), (189, 70), (200, 72), (212, 74),
@@ -1662,14 +1681,20 @@ if ON:
         p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
         ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT)
         n = len(ws) - 1
+        if C_HEAD != 1.0:
+            for i in range(n + 1):
+                t = i / n
+                if t > C_HEAD_T: continue
+                k = 0.5 + 0.5 * math.cos(math.pi * (t / C_HEAD_T))
+                ws[i] *= 1.0 + (C_HEAD - 1.0) * k
         i0, r0 = cs_round_end(p, ws, True, C_CAP0, C_CAP0_R)
         i1, r1 = cs_round_end(p, ws, False, C_CAP1)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
         parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
                         cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
-        if r0: parts.append(PR.dot(q[0][0], q[0][1], r0))
+        if r0: parts.append(PR.dot(q[0][0], q[0][1] - C_CAP0_DROP * u, r0))
         if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
-        return geom.ink(parts)
+        return geom.close_corners(geom.ink(parts), C_BLEND * u)
 
     # RE-MEASURED off griffo-dante-1502.jpg -- the Stagnino Dante, the same
     # cutter at THREE TIMES the linear resolution of aldine.png (a 35 px
@@ -5499,7 +5524,42 @@ if ON:
     # against Poetica **0.710 -> 0.834**, the largest single gain in the round.
     Z_W = d_dial("Z_W", 1.03)
     Z_TW = d_dial("Z_TW", 1.12)
-    Z_DIAG = d_dial("Z_DIAG", 27.0)   # the diagonal's width, units
+    # ---------------------------------------------------------- 2026-09-18
+    # THE DIAGONAL CARRIES THE LETTER, AND IT WAS NOT CARRYING IT. The z was
+    # the palest mark in the lowercase -- colour 0.255 against v 0.314, w
+    # 0.327, x 0.297, y 0.276 -- and at 13 px it dropped out of "zigzag",
+    # "jazz" and "lazy" while the a and g beside it held.
+    #
+    # MEASURED ON THE REFERENCES FIRST, because the audit that raised this said
+    # the z's bars and diagonal were INVERTED against a pen-drawn italic, and
+    # they are not. Unsheared at xh 429, the diagonal's run divided by the
+    # bars' thickness: Flanker Griffo 0.87, Coelacanth 1.00, Poetica 0.71,
+    # Pagella 0.68, Albo 0.67. In none of the four is the diagonal the heavy
+    # stroke by the margin the audit assumed; the references SPLIT, with
+    # Flanker and Coelacanth near parity and Poetica and Pagella below it.
+    #
+    # THE BARS ARE NOT TOUCHED. Round 135 took Poetica's ribboning -- the swell
+    # and ease of the bars' width and the crest and sag of their centres -- and
+    # said in the same breath that "this family's colour is set against
+    # Flanker, not Poetica". The diagonal's weight is colour, so it is set
+    # against Flanker: 0.87, which this reaches at 36 (measured 0.88). The
+    # bars measure 57 / 56 before and 57 / 57 after.
+    #
+    # LADDERED 27 / 30 / 33 / 36 / 39 -> diag-to-bars 0.67 / 0.74 / 0.81 /
+    # 0.88 / 0.95, rendered as "zigzag jazz" at a 150 px x-height and
+    # "zigzag jazz lazy" at 13 px x12. 30 and 33 lighten the fault without
+    # curing it -- at 33 the z's colour is 0.273, still level with the y for
+    # palest in the family. 39 makes the diagonal the letter's mass and the
+    # bars read as attachments. At 36 the letter's stroke median goes 45.2 ->
+    # 50.4 (its lowercase diagonal family's median is 54.2, so -17% -> -7%) and
+    # its colour 0.255 -> 0.282, clear of the y.
+    #
+    # WHAT IT COSTS, recorded because it is the one number that moves the wrong
+    # way: `cmp_aldine_shape z` against Poetica falls 0.837 -> 0.756, and
+    # against Flanker rises 0.337 -> 0.381. That is the colour ruling being
+    # applied on top of a shape taken from a different reference, which is what
+    # round 135 set up; it is not the ribboning being undone.
+    Z_DIAG = d_dial("Z_DIAG", 36.0)   # the diagonal's width, units
 
     @glyph('z')
     def a_z(c):
@@ -5582,6 +5642,35 @@ if ON:
     # this dial enters.
     K_STEM_W = d_dial("K_STEM_W", 0.84)   # the stem's width, x S
     K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
+    # 2026-09-18 -- THE k's HEAD COMES DOWN ONTO THE ASCENDER LINE. The k's ink
+    # topped at 806 where d 771, h 774 and l 774: +32 over the line, 7% of the
+    # x-height, and the tallest thing in the lowercase. The cause is not the
+    # stem, which goes to `c["asc"]` like every other ascender -- it is
+    # `st(head=True)`, whose head is drawn ACROSS the stem's top and rises
+    # `dy*0.36 - S*0.02` past it plus half its own width, about 0.41 S = 35
+    # units. Measured against the references, normalised to xh 429, the k sits
+    # exactly ON the ascender line in Flanker (751, with b d h l), in Poetica
+    # (724) and in Pagella (652), and with the l in Coelacanth (801). Albo was
+    # the only one of the five with the k proud of its own line.
+    #
+    # THE FIX IS THE STEM'S TOP, NOT THE HEAD. Owner 2026-09-13 (round 84):
+    # *"the top right serif needs to be slightly larger so visually balances"* --
+    # so the head's SIZE is his and is untouched; K_ASC lowers the whole
+    # assembly, head and all, and the serif keeps every dimension he set.
+    #
+    # THE COMMENT ABOVE THIS GLYPH WAS STALE and is corrected here rather than
+    # left: it says `st(x, 0, c["asc"], head=True)` is "the call b d h l also
+    # make", and it is not -- b and d take `bd_head`, h and l take `hm_head`,
+    # and the k is the ONLY caller of `st(head=True)` in this module. So this
+    # is a k-only change; it cannot make one ascender disagree with the other
+    # four, which is the reason that comment gives for leaving it alone.
+    #
+    # LADDERED 1.000 / 0.985 / 0.970 / 0.958 / 0.950 -> ink top 806 / 794 /
+    # 783 / 774 / 768, rendered as "bulk hold khaki blackbird lakh" at 13 px
+    # x12 and at a 150 px x-height. 0.985 and 0.970 still read as a spike over
+    # the l; 0.950 dips under it and the k reads short. 0.958 puts the head on
+    # the h and l's 774 exactly.
+    K_ASC = d_dial("K_ASC", 0.958)         # the stem's top, x the ascender
 
     @glyph('k')
     def a_k(c):
@@ -5606,7 +5695,7 @@ if ON:
                      P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
-        return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"], head=True,
+        return geom.ink(st(P(K_STEM_X, 0.0)[0], 0, c["asc"] * K_ASC, head=True,
                             w=K_STEM_W) + [arm, leg])
 
 
@@ -6147,6 +6236,34 @@ if ON:
     CAP_A_APEX = float(os.environ.get("ALBO_ALD_CAP_A_AP", 0.56))  # where the apex sits, x w
     CAP_A_BAR = float(os.environ.get("ALBO_ALD_CAP_A_BAR", 0.31))  # the crossbar's height, x C
     CAP_A_FLAG = float(os.environ.get("ALBO_ALD_CAP_A_FLAG", 0.45))  # the apex entry's reach, x round 134's
+    # 2026-09-18 -- THE APEX COMES DOWN INTO THE OVERSHOOT FAMILY. The A's ink
+    # topped at 712, the tallest capital in the style, +32 over the flat cap
+    # line (676-680) where V is 687, W 690 and M 685. Measured on the four
+    # references and on Albo's own roman, each normalised to xh 429, an A
+    # overshoots its face's flat capital line by: Flanker +10, Poetica +10,
+    # Pagella +11, Coelacanth +17, Albo roman +15. Albo's italic was +32.
+    #
+    # WHAT WAS ACTUALLY TALL IS THE FLAG, not the apex. The two diagonals meet
+    # at C and their outer edges cross about 690; the entry stroke starts at
+    # C * 1.02 and carries half of S * 0.72 above its own centreline, which put
+    # 712 on top of a 690 letter. So the dial is the flag's far end, and
+    # CAP_A_AP -- which the misfit audit named as the lever -- is a HORIZONTAL
+    # position and moves none of this.
+    #
+    # LADDERED 1.02 / 1.00 / 0.98 / 0.96 / 0.94 / 0.90 -> 712 / 705 / 699 /
+    # 695 / 693 / 690, rendered as "AVWMX HAVANA Anna Albo Attack". 690 is the
+    # floor: below about 0.94 the flag is no longer the top of the letter and
+    # only flattens into the apex, losing the written entry round 134 put there
+    # and round 135 deliberately kept. `cmp_joints` counts 7 sharp joints at
+    # 1.02, 0.98 and 0.96 and EIGHT at 0.94, so 0.96 is the last rung that adds
+    # nothing; `cmp_aldine_glitch` is 0 findings at every rung. 695 is +15 over
+    # the flat line, which is Albo's own roman A exactly.
+    #
+    # NEGATIVE RESULT, measured and not taken: at 0.96 a shorter entry
+    # (CAP_A_FLAG 0.45 -> 0.34) tops at 694 and drops `cmp_joints` to SIX, one
+    # better than the shipped letter. It is left alone because 0.45 is round
+    # 135's own value and the ask was the apex's height, not the entry's reach.
+    CAP_A_FLAG_Y = float(os.environ.get("ALBO_ALD_CAP_A_FLAG_Y", 0.96))  # the flag's far end, x C
 
     @glyph('A')
     def a_A(c):
@@ -6164,7 +6281,7 @@ if ON:
         bar = stroke([(x0 + w * 0.16, C * CAP_A_BAR), (x0 + w * 0.84, C * (CAP_A_BAR + 0.03))],
                      TH_H * 1.20)
         # the apex flag: a real italic A carries an entry reaching LEFT
-        flag = stroke([(apex[0] - CS * 1.05 * CAP_A_FLAG, C * 1.02),
+        flag = stroke([(apex[0] - CS * 1.05 * CAP_A_FLAG, C * CAP_A_FLAG_Y),
                        (apex[0] + CS * 0.18, C)],
                       widths([(0.0, S * 0.30), (0.55, S * 0.72), (1.0, S * 0.50)]), cut0=CUT)
         return geom.ink([left, right, bar, flag])

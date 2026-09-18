@@ -44,13 +44,31 @@ def raster(ttf, ch, slant, px=380):
     ImageDraw.Draw(im).text((W * 0.33, base), ch,
                             font=ImageFont.truetype(ttf, size), fill=0, anchor="ls")
     if abs(slant) > 0.05:      # unshear, so a stroke's thickness is its own
-        k = math.tan(math.radians(slant))
+        # TWO INSTRUMENT BUGS, found 2026-09-18 by the two glyph agents of the
+        # misfit round and verified on the cases whose answers are known:
+        # (1) THE SIGN. PIL's AFFINE maps output -> input, x_in = x + k*y, so a
+        #     POSITIVE k here ADDED the shear instead of removing it: the italic
+        #     l's stem, +12.2 deg at slant 0, read +24.0 deg at +13 and -0.8 deg
+        #     at -13. Every italic number this script had produced -- the whole
+        #     2026-09-17 ledger, rounds 208-219's matches, the audit's section
+        #     (b) -- was measured at 26 degrees of shear. The sign is flipped so
+        #     that `--slant 13` means what it says.
+        k = -math.tan(math.radians(slant))
         im = im.transform((W, H), Image.AFFINE, (1, k, -k * base, 0, 1, 0),
                           resample=Image.BICUBIC, fillcolor=255)
     a = np.asarray(im) < 128
     ys, xs = np.nonzero(a)
     if not len(ys): return None, 0
-    return a[ys.min():ys.max() + 1, xs.min():xs.max() + 1], base - ys.min()
+    # (2) THE CROP EDGE. The mask was cropped to the ink's bounding box, so a
+    #     stroke lying ON the box edge -- a bar, a stem's outer side, the top
+    #     of a Z -- had no background beyond it and the chamfer read it at up
+    #     to twice its thickness: the roman Z's 59-unit bars came back as 93
+    #     and 117 and the letter as "+65%, the heaviest in the roman". It is
+    #     not. The crop keeps a margin of background on every side now.
+    PADX = 48
+    y0, y1 = max(0, ys.min() - PADX), min(a.shape[0], ys.max() + 1 + PADX)
+    x0, x1 = max(0, xs.min() - PADX), min(a.shape[1], xs.max() + 1 + PADX)
+    return a[y0:y1, x0:x1], base - ys.min()
 
 
 def chamfer(mask):
