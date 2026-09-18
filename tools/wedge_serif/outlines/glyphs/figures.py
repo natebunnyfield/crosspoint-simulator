@@ -167,8 +167,15 @@ EIGHT_W_IT = 0.70      # x the ring's stroke weight
 # sees. "Simple" is the wedge: the italic drops it, because a microserif on the
 # end of a curve is the finial he ruled out on the s in round 209. Italic only;
 # 0 restores the straight flag exactly.
-ONE_FLAG_CURVE = float(os.environ.get("ALBO_ALD_ONE_FLAG_CURVE", 0.18))
-ONE_FLAG_W = float(os.environ.get("ALBO_ALD_ONE_FLAG_W", 1.25))
+# ROUND 218 -- AND THE EXIT IS SHORTENED. Owner 2026-09-18: *"reduce length of
+# bottom right serif."* The 1's bottom right is the calligraphic exit flick
+# round 103 put on every italic stem, at S x pen.IT_EXIT. That dial is the
+# FAMILY's -- every i, m, n and u foot is drawn from it -- so this scales the
+# 1's alone through stem(it_exit_len=...), which is a new parameter for exactly
+# this and defaults to 1.0 everywhere else.
+ONE_EXIT_LEN = float(os.environ.get("ALBO_ALD_ONE_EXIT_LEN", 0.70))
+ONE_FLAG_CURVE = float(os.environ.get("ALBO_ALD_ONE_FLAG_CURVE", -0.18))
+ONE_FLAG_W = float(os.environ.get("ALBO_ALD_ONE_FLAG_W", 1.15))
 ONE_FOOT_BRUSH = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH", 1.45))
 ONE_FOOT_BRUSH_H = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH_H", 0.20))
 SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.65))
@@ -345,7 +352,8 @@ def g_one(c):
     2's base carries the family's bar-end wedge and the 1 carried nothing."""
     D = c["figH"]; x = 200 * c["wf"] + S / 2
     brushed = pen.ITALIC and ONE_FOOT_BRUSH > 1.0
-    st = stem(x, 0, D, top=None, foot=(None if brushed else 'both'))
+    st = stem(x, 0, D, top=None, foot=(None if brushed else 'both'),
+              it_exit_len=(ONE_EXIT_LEN if pen.ITALIC else 1.0))
     _p0 = (x - 150, D * 0.72); _p1 = (x, D - TH_V * ONE_FLAG_BURY)
     curved = pen.ITALIC and ONE_FLAG_CURVE
     if curved:

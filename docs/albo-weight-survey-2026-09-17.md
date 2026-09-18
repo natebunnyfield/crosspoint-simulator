@@ -522,13 +522,19 @@ diagonal end wedge at a sixth of its 0.9 — the microserif he ruled in round 75
 (*"reduce the top spur on 1 into a microserif"*). It is now an arc.
 
 **Three dials do the sentence, and each word is one of them.** *Curve*:
-`ONE_FLAG_CURVE` bows the stroke perpendicular to its own chord, 0.18 of that
-chord's length. Swept — 0.10 still reads straight, 0.26 turns the flag into a
-hook, and **−0.18 bows it the wrong way** and the flag sags, which is worth
-recording because the sign is not obvious from the letter. *Thick*:
-`ONE_FLAG_W` 1.25 on the profile; at 1.35 the head begins to fill at 13 px.
-*Simple*: the end wedge is dropped, because a microserif on the end of a curve
-is the finial he ruled out on the s in round 209.
+`ONE_FLAG_CURVE` bows the stroke perpendicular to its own chord. *Thick*:
+`ONE_FLAG_W` on the profile. *Simple*: the end wedge is dropped, because a
+microserif on the end of a curve is the finial he ruled out on the s in round
+209.
+
+**HE PICKED THE ARM I HAD WRITTEN OFF — see round 218 below.** I shipped +0.18
+at 1.25 and recorded −0.18 as a negative result, "bows it the wrong way and the
+flag sags". His ruling: *"−0.18 w1.15 wins."* He is right, and the reason my
+reading was wrong is instructive: bowed the other way the flag's UNDERSIDE goes
+concave, which is what a pen actually leaves when it sweeps in and lifts, and
+"sagging" was me reading the outline rather than the stroke. This is the third
+entry in this file where a measure or a judgment of mine and his reading of the
+page diverged, and the standing rule held all three times.
 
 **ROUND 75'S MICROSERIF STANDS IN THE ROMAN and is superseded only in the
 italic.** `ONE_FLAG_WEDGE` is untouched; the curve gates it off. Anyone
@@ -548,3 +554,30 @@ Five italic glyphs move: the 1 and its superscript, subscript and two fraction
 variants. Gates: glitch 0 of 119, touch 0 of 5,197, the 290-glyph sweep reports
 the same 13 pre-existing findings, roman byte-identical in outlines and metrics.
 Figure spacing holds at 1.34× spread after round 216's refit.
+
+### Round 218 — the flag bows the other way, and the exit is cut back
+
+*"−0.18 w1.15 wins."* Then: *"reduce length of bottom right serif."*
+
+**The bow is negative.** `ONE_FLAG_CURVE` −0.18 at `ONE_FLAG_W` 1.15 — the arm
+round 217 built and rejected. Bowed this way the flag's underside is concave and
+it reads as an entry the pen swept in and lifted off; bowed the other way it
+reads as a drawn arc. Both were on the ladder and only one of them is written.
+
+**The exit flick is the FAMILY's, and now the 1's is not.** The bottom right is
+round 103's calligraphic exit, drawn on every italic stem at `S × pen.IT_EXIT`
+— every i, m, n and u foot comes from that one number, so shortening it for the
+1 would have re-footed the whole lowercase. `stem()` gains `it_exit_len`, a
+per-call scale defaulting to 1.0, and `ONE_EXIT_LEN` is **0.70** — his own
+number off the ladder (0.80 barely changes it, 0.50 is a tick, 0.35 stops
+reading as a flick at all). Measured, the flick's reach past the stem's own
+right edge goes **+9 units to +1**: it is still the letter's right edge, but
+only just.
+
+Five italic glyphs move, the 1 and its four variants; the n is byte-identical,
+which is the point of the new parameter. The 1's advance goes 300 → 290 and its
+left bearing 20 → 2, because the concave flag reaches further left than the
+convex one did.
+
+Gates: glitch 0 of 119, touch 0 of 5,197, roman byte-identical in outlines and
+metrics, figure spacing holds at 1.31×.

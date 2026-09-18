@@ -170,7 +170,7 @@ def stem_width(w0, ent, t):
 
 def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=False,   # round 103: `cap` also gates the italic entry/exit
          top_len=1.0, top_depth=1.0, foot_len=FOOT, foot_depth=1.0, top_drop=1.0, foot_drop=0.6,
-         top_scale=1.0, cut_top=None, it_entry=None, it_exit=None):   # round 106: None = the italic's default, False = never (an arch IS its second stem's entry)
+         top_scale=1.0, cut_top=None, it_entry=None, it_exit=None, it_exit_len=1.0):   # round 106: None = the italic's default, False = never (an arch IS its second stem's entry)
     """A vertical stem from y0 to y1 with entasis, its wedges as part of the
     same solid. w: mid width (default the pen's vertical, x1.137 for cap).
     top: None | 'left' | 'right' | 'both' | 'left+' | 'right+' ('+' adds the
@@ -228,7 +228,10 @@ def stem(x, y0, y1, w=None, top=None, foot=None, ent=ENT, ent_span=None, cap=Fal
     # of the capitals or figures do (`cap` gates that).
     if pen.ITALIC and not cap and abs(y0) < 1.0:
         if pen.IT_EXIT and it_exit is not False:
-            L = S * pen.IT_EXIT
+            # round 218: it_exit_len scales THIS stem's flick only. pen.IT_EXIT
+            # is the family's and drives every lowercase foot; the 1 needed a
+            # shorter one and nothing else did.
+            L = S * pen.IT_EXIT * it_exit_len
             xe = x + wid(y0) / 2
             # GLITCH SWEEP 2026-09-16 -- THE SAME UNBURIED FACE AT THE FOOT.
             # Round 103 cured one barb here by dropping the right foot wedge
