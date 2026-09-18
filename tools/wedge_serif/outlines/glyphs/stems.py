@@ -33,6 +33,15 @@ G_EAR_EXTEND = 0.15
 G_NECK = float(os.environ.get("ALBO_G_NECK", 0.34))          # the neck's floor, x the stem (0.55 before; owner: thin the connector)
 G_NECK_MID = float(os.environ.get("ALBO_G_NECK_MID", 0.60))  # the neck's middle, x its profile
 G_NECK_END = float(os.environ.get("ALBO_G_NECK_END", 0.21))  # and where it meets the LOWER oval
+# ROUND 230 -- THE LOOP'S TOP STROKE SITS ON THE BASELINE. Owner 2026-09-18:
+# *"the top stroke of the bottom loop of the roman 'g' needs to sit on the
+# baseline."* The loop was anchored with its outer top at +TH_H/2 -- the top
+# stroke straddling the line, half a pen above it. G_LOOP_TOP is where the
+# loop's top ink edge sits, in units above the baseline: 0 puts it ON the
+# line, TH_H/2 (about 30) is the old drawing. The loop keeps its size and
+# moves down, so the descender deepens by the same amount -- the same move
+# the owner ruled for the italic in round 197, in the other direction.
+G_LOOP_TOP = float(os.environ.get("ALBO_G_LOOP_TOP", 0.0))
 def g_ear_scale(): return 1.0 + float(os.environ.get('ALBO_G_EAR_EXTEND', G_EAR_EXTEND))
 
 # owner, 2026-09-13: "make a version of 't' that is a triangle on the right
@@ -340,7 +349,7 @@ def g_g(c):
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]
     rx = 172 * wf + TH_V / 2; ry = (xh * 0.66 + OVER * 2) / 2; cy = xh + OVER - ry; cx = rx + S * 0.35
     bowl, bo, bi = ring(cx, cy, rx, ry)
-    lrx = 190 * wf + TH_V / 2; lry = desc * 0.50 + TH_H / 2; lcx = cx + 18 * wf; lcy = -desc * 0.50
+    lrx = 190 * wf + TH_V / 2; lry = desc * 0.50 + TH_H / 2; lcx = cx + 18 * wf; lcy = G_LOOP_TOP - lry   # round 230: the loop's top edge at G_LOOP_TOP
     loop, lo, li = ring(lcx, lcy, lrx, lry)
     crx, cry = rx - TH_V / 2, ry - TH_H / 2; clrx, clry = lrx - TH_V / 2, lry - TH_H / 2
     def on(cx_, cy_, rx_, ry_, deg):
