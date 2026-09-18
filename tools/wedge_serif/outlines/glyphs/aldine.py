@@ -7627,13 +7627,13 @@ if ON:
 # so this row is not re-solved from it; re-solving the alphabet is its own
 # round and would move every glyph in the font.
 BEARINGS = {
-    'a': ( -28,   50), 'b': (  -9,   87), 'c': ( -24,   87), 'd': ( -27,   32),
-    'e': ( -19,   72), 'f': ( -32,   81), 'g': ( -13,   72), 'h': (   4,   58),
-    'i': ( -44,   57), 'j': (   2,   84), 'k': ( -11,   64), 'l': (  14,   62),
-    'm': ( -53,   44), 'n': ( -45,   48), 'o': ( -34,   81), 'p': ( -62,   84),
-    'q': ( -16,  128), 'r': ( -53,   85), 's': ( -18,   84), 't': ( -36,   99),
-    'u': ( -38,   38), 'v': ( -61,   88), 'w': ( -57,   74), 'x': ( -17,   37),
-    'y': ( -52,  118), 'z': ( -22,   26),
+    'a': ( -12,   65), 'b': (   7,  102), 'c': (  -8,  102), 'd': ( -11,   47),
+    'e': (  -3,   87), 'f': ( -34,   75), 'g': (   3,   87), 'h': (  20,   73),
+    'i': ( -28,   72), 'j': (  18,   99), 'k': (   5,   79), 'l': (  30,   77),
+    'm': ( -37,   59), 'n': ( -29,   63), 'o': ( -18,   58), 'p': ( -46,   99),
+    'q': (   0,  136), 'r': ( -37,  100), 's': (  -2,   99), 't': ( -20,  114),
+    'u': ( -22,   78), 'v': ( -45,  103), 'w': ( -41,   89), 'x': (  -1,   52),
+    'y': ( -36,  120), 'z': (  -6,   41),
 }
 
 # A comment asking the next editor to be careful would not have caught it.
@@ -9210,18 +9210,18 @@ if ON:
 #
 #   R's RIGHT collided with twelve letters after it (Rs RE Rk Rz Rh Rl Rj Rg
 #   Rm Rp Rr), and W's with five (WV W" W' WW WU).
-CAP_A_LSB = int(os.environ.get("ALBO_ALD_CAP_A_LSB", -25))
-CAP_R_RSB = int(os.environ.get("ALBO_ALD_CAP_R_RSB", -55))
-CAP_W_RSB = int(os.environ.get("ALBO_ALD_CAP_W_RSB", -60))
-CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -148))
-CAP_Y_LSB = int(os.environ.get("ALBO_ALD_CAP_Y_LSB", 90))
-CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -79))
+CAP_A_LSB = int(os.environ.get("ALBO_ALD_CAP_A_LSB", -17))
+CAP_R_RSB = int(os.environ.get("ALBO_ALD_CAP_R_RSB", -48))
+CAP_W_RSB = int(os.environ.get("ALBO_ALD_CAP_W_RSB", -96))
+CAP_U_RSB = int(os.environ.get("ALBO_ALD_CAP_U_RSB", -141))
+CAP_Y_LSB = int(os.environ.get("ALBO_ALD_CAP_Y_LSB", 98))
+CAP_Y_RSB = int(os.environ.get("ALBO_ALD_CAP_Y_RSB", -83))
 CAP_BEARING_ADJ = {
-    'A': (CAP_A_LSB,   12), 'B': ( -11,   -4), 'C': (  -4,  -51), 'D': ( -14,   14),
-    'E': ( -65,  -52), 'F': ( -11,  -53), 'G': (  -2,  -29), 'H': ( -12,  -90),
-    'I': (  13,  -59), 'J': (-104,  -88), 'K': ( -13,  -42), 'L': ( -14,   -6),
-    'M': ( -18,  -56), 'N': ( -12,  -92), 'O': (  21,  -55), 'P': ( -14,   -5),
-    'Q': (  -2,  -16), 'R': ( -36, CAP_R_RSB), 'S': (  22,  -32), 'T': (  87,  -66),
-    'U': (   0, CAP_U_RSB), 'V': (  23,  -68), 'W': (  49, CAP_W_RSB), 'X': (  -7,  -23),
-    'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (  -6,  -67),
+    'A': (CAP_A_LSB,   19), 'B': (  -3,    3), 'C': (   4,  -45), 'D': (  -6,   21),
+    'E': ( -57,  -45), 'F': (  -3,  -46), 'G': (   6,  -22), 'H': (  -4,  -83),
+    'I': (  21,  -52), 'J': ( -96,  -81), 'K': (  -5,  -35), 'L': (  -6,    1),
+    'M': ( -10,  -49), 'N': (  -4,  -85), 'O': (  29,  -48), 'P': (  -6,    2),
+    'Q': (   6,   -9), 'R': ( -28, CAP_R_RSB), 'S': (  30,  -25), 'T': (  95,  -59),
+    'U': (   8, CAP_U_RSB), 'V': (  31,  -66), 'W': (  57, CAP_W_RSB), 'X': (   1,  -16),
+    'Y': (CAP_Y_LSB, CAP_Y_RSB), 'Z': (   2,  -60),
 }

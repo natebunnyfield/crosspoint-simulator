@@ -92,7 +92,7 @@ CLASS_PAIRS = {
     ('VW', 'period'): -126, ('VW', 'hyphen'): -72, ('VW', 'colon'): -54,
     # Y: the deepest overhang after the T
     ('Y', 'round'): -108, ('Y', 'a'): -108, ('Y', 'flat'): -72, ('Y', 'diag'): -54, ('Y', 'asc'): -18, ('Y', 'ascwedge'): -18,
-    ('Y', 'A'): -126, ('Y', 'O'): 0, ('Y', 'J'): -72,   # round 177: ('Y','O') -54 -> 0, the same re-solve as the Oleft cell
+    ('Y', 'A'): -162, ('Y', 'O'): 0, ('Y', 'J'): -72,   # round 177: ('Y','O') -54 -> 0, the same re-solve as the Oleft cell
     ('Y', 'period'): -126, ('Y', 'hyphen'): -90, ('Y', 'colon'): -72,
     # A: its right side slopes away at the top, so the tall overhangs fall into it
     ('A', 'T'): -90, ('A', 'VWY'): -90, ('A', 'O'): -18, ('A', 'quote'): -126,
@@ -140,6 +140,20 @@ CLASS_PAIRS = {
 # Single-glyph exceptions (written first, so the reader's first-wins overlay
 # takes them over the class value; format-1 subtable before the format-2).
 PAIRS = {
+    # ROUND 202 -- the owner's second bench pass, from the phone. His W at -43
+    # puts it where the U and the Y already were against the quotes.
+    ('U', 'quotedbl'): 36,
+    ('U', 'quotesingle'): 36,
+    ('Y', 'quotedbl'): 18,
+    ('Y', 'quotesingle'): 18,
+    ('W', 'quotedbl'): 36,
+    ('W', 'quotesingle'): 36,
+    ('J', 'U'): 54,
+    ('R', 'Y'): -18,
+    ('V', 'a'): -126,
+    ('k', 'e'): -54,
+    ('o', 'c'): 36,
+    ('o', 'r'): 36,
     # ROUND 199 -- um, OPENED. The lowercase bearings are the owner's own
     # round-136 fitting, so the pair carries it rather than moving m.
     # (A `Vi` kern of -126 stood here and is WITHDRAWN: see round 200 in
@@ -147,6 +161,12 @@ PAIRS = {
     # V's own splay as space between the letters.)
     ('u', 'm'): 30,
 
+    # ROUND 202 NOTE: eleven of these are GONE, not lost -- the owner's +31/+15
+    # tracking opened them past the floor on its own, and leaving them would have
+    # loosened those pairs twice. Removed: Op Ov RR Ri Rj Rn Rx.
+    # (The four quote pairs were removed too and PUT BACK: the redundancy test
+    # split "Uquotedbl" by character and measured U against a lowercase q, which
+    # is not the pair. The touch gate caught it at 0.0001 em.)
     # ROUND 198b -- WHAT THE OWNER'S TIGHTENING COSTS, paid in exceptions.
     # His R at -55, U at -148 and O at -55 are rulings on those letters, and
     # each collides with a specific set of partners: R against every ascender
@@ -154,30 +174,19 @@ PAIRS = {
     # against p and v. Opening them here keeps his letters where he put them --
     # a pair exception is exactly the mechanism for "this letter, except when
     # it meets that one". Solved to 0.022 em, a step clear of the 0.012 floor.
-    ('O', 'p'): 18,
-    ('O', 'v'): 18,
     ('R', 'four'): 18,
     ('R', 'A'): 54,
     ('R', 'E'): 54,
     ('R', 'M'): 36,
-    ('R', 'R'): 18,
     ('R', 'g'): 54,
     ('R', 'h'): 54,
-    ('R', 'i'): 36,
-    ('R', 'j'): 36,
     ('R', 'k'): 72,
     ('R', 'l'): 36,
     ('R', 'm'): 36,
-    ('R', 'n'): 36,
     ('R', 'p'): 36,
     ('R', 'r'): 36,
     ('R', 's'): 54,
-    ('R', 'x'): 36,
     ('R', 'z'): 72,
-    ('U', 'quotedbl'): 36,
-    ('U', 'quotesingle'): 36,
-    ('Y', 'quotedbl'): 18,
-    ('Y', 'quotesingle'): 18,
 
     # ROUND 198 -- THE OWNER'S OWN SPACING BENCH, 2026-09-17. Sixteen pairs he
     # set by hand against words, capitals, title case and sentences; the values
@@ -186,7 +195,7 @@ PAIRS = {
     ('G', 'N'): -54,
     ('I', 'A'): -72,
     ('I', 'G'): 18,
-    ('J', 'o'): -54,
+    ('J', 'o'): 36,
     ('O', 'G'): 72,
     ('P', 'H'): -72,
     ('Q', 'U'): 36,

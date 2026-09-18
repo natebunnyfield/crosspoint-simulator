@@ -5,6 +5,8 @@ round-20 rule, write the TrueType and the round-19 specimen.
     cd tools/wedge_serif && PYTHON_GIL=0 python3 -m outlines.build <out_dir> [--nocut]
 """
 import os, sys, math
+# round 202: the owner's own word space, from the phone bench
+WORD_SPACE_ADJ = float(os.environ.get('ALBO_ALD_WORD_SPACE', 27.0))
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.dirname(HERE))
 import round19, round20, latin, alphabet2 as A
 from fontTools.fontBuilder import FontBuilder
@@ -422,7 +424,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # Kept proportional to the n counter so it tracks any later move in weight
     # or width, as the old rule did.
     SPACE_COUNTERS = 1.039
-    space_adv = pen.N_COUNTER_FULL * SPACE_COUNTERS
+    space_adv = pen.N_COUNTER_FULL * SPACE_COUNTERS + WORD_SPACE_ADJ
     # ROUND 133: THE ALDINE ITALIC GETS ITS OWN WORD SPACE, because its
     # letters are no longer the roman's. That derivation above hangs off
     # `pen.N_COUNTER_FULL` -- the ROMAN's n counter, 272 -- and the Aldine
@@ -448,7 +450,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         # the letter gap against every text reference's 2.32-2.95 (Poetica
         # 2.32, Pagella 2.47, Flanker 2.95, mean 2.58) -- and at 27 px "It is
         # a truth" set as "It isa truth". 205 puts the ratio at 2.51.
-        space_adv = 205.0 * (pen.XH / 429.0)
+        space_adv = 205.0 * (pen.XH / 429.0) + WORD_SPACE_ADJ
     glyphs['space'] = TTGlyphPen(None).glyph(); metrics['space'] = (int(round(space_adv)), 0)
     fb.setupGlyf(glyphs); fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=VM_ASCENT, descent=VM_DESCENT, lineGap=0)
