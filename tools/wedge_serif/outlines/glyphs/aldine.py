@@ -3726,7 +3726,19 @@ if ON:
     # where this face's own o runs 4.6. `con` re-spreads a width list about its
     # geometric mean, which is how the rings already take their contrast, so the
     # s can be set to the right weight and then cut to the right ratio.
-    S_PEN_CON = float(os.environ.get("ALBO_ALD_S_PEN_CON", 5.4))
+    S_PEN_CON = float(os.environ.get("ALBO_ALD_S_PEN_CON", 7.0))
+    # 2026-09-17 -- THE LETTER'S HEIGHT, AND ITS TOP LINE'S WEIGHT. Owner: *"the
+    # s is slightly too tall, reduce the top line's visual weight, especially up
+    # its contrast"*. Measured, the shipped s's ink topped at 449 units where
+    # this face's o tops at 437 and its e at 440 -- and Flanker's s tops at
+    # exactly its own o's height, so an s that stands 12 units proud of the
+    # round letters is the fault he is seeing. S_HEIGHT scales the path about
+    # the baseline; S_TOP is a width multiplier over the head and the top arc
+    # (t 0 .. S_TOP_T, raised cosine out), which lightens the top line without
+    # touching the spine or the foot.
+    S_HEIGHT = float(os.environ.get("ALBO_ALD_S_HEIGHT", 0.975))
+    S_TOP = float(os.environ.get("ALBO_ALD_S_TOP", 0.86))
+    S_TOP_T = float(os.environ.get("ALBO_ALD_S_TOP_T", 0.40))
     # WIDTH AT EACH PLACE, as (control point, fraction toward the next one,
     # units). The two terminals and the spine are the thicks; the two arcs
     # between them are the hairlines. Flanker at its 0.50 column: bottom arc
@@ -3835,6 +3847,8 @@ if ON:
         P = [(x + w * 0.92, xh * S_HEAD_Y), (x + w * S_APEX, xh * 0.98), (x + w * S_UL, xh * 0.62),
              (x + w * 0.86, xh * 0.40), (x + w * S_LR, xh * 0.08),
              (x + w * S_TAIL_X, xh * S_TAIL_Y)]
+        if S_HEIGHT != 1.0:
+            P = [(px_, py_ * S_HEIGHT) for px_, py_ in P]
         p = geom.resample(catmull(P, tension=0.5))
         n = len(p) - 1
         def at(q):
@@ -3866,6 +3880,12 @@ if ON:
                 if S_BASE_FLOOR:
                     wv += (max(wv, S_BASE_FLOOR * u * S_WT) - wv) * k
                 ws[i] = wv
+        if S_TOP != 1.0:
+            for i in range(n + 1):
+                t = i / n
+                if t > S_TOP_T: continue
+                k = 0.5 + 0.5 * math.cos(math.pi * (t / S_TOP_T))
+                ws[i] *= 1.0 + (S_TOP - 1.0) * k
         if S_PEN_CON:
             ws = list(con(ws, S_PEN_CON))
         if S_FOOT != 1.0:

@@ -233,3 +233,28 @@ weight dial could reach it. Three things had to change together:
 
 Gates: glitch 0 of 119, touch 0 of 5,193. Six glyphs move — the s and its five
 accented composites, which inherit it as TrueType components.
+
+### The height and the top line — same round, his second look
+
+*"The s is slightly too tall, reduce the top line's visual weight, especially up
+its contrast."* All three were measurable and all three were true:
+
+| | ink top | top arc | base | top ÷ base | cut | colour |
+|---|---|---|---|---|---|---|
+| s as first shipped | 449.4 | 51.1 | 54.6 | 0.94 | 3.28 | 0.331 |
+| **s now** | **433.1** | **43.3** | 49.0 | **0.88** | **4.06** | 0.313 |
+| the face's o | 437.2 | — | — | — | 4.50 | 0.384 |
+| the face's e | 440.2 | — | — | — | 3.32 | 0.316 |
+| Flanker's s | 438.2 | 34.7 | 38.7 | 0.89 | — | — |
+
+The first version stood **12 units proud of the o** — and Flanker's s tops at
+exactly its own o's height, so an s above the round letters' line is a fault
+rather than an overshoot choice. `S_HEIGHT` scales the path about the baseline
+(0.975); `S_TOP` is a width multiplier over the head and top arc only (0.86),
+so the top line lightens without touching the spine or the foot; `S_PEN_CON`
+goes 5.4 → 7.0, which puts the cut at 4.06 between the e's 3.32 and the o's
+4.50.
+
+Colour falls 0.331 → 0.313 doing it, which is the honest cost of a lighter top:
+still above the e and far above the 0.285 it started at. Gates clean, six
+glyphs moved.
