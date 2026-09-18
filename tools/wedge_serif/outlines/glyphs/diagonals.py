@@ -1,6 +1,6 @@
 """v w x y z k: the diagonals, wedges on the outer side (0.9 x 0.9); the
 thin strokes at 0.72 of the thick; the k's leg the A's kick at 56 degrees."""
-import math
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import cubic, line
@@ -144,9 +144,30 @@ def g_z(c):
     cut_tr = half(corner, +1).intersection(_box(corner[0] - S * 2, xh - th - 2, corner[0] + far, xh + far))
     cut_bl = half(corner2, -1).intersection(_box(corner2[0] - far, -far, corner2[0] + S * 2, th + 2))
     return g.difference(cut_tr).difference(cut_bl)
-Z_BAR = 0.52    # the z's bars, x the stem (owner 2026-09-14: "slightly reduce the line thickness ... of the horizontal strokes in 'z'"; 0.62 before). The bars stay ON the x-height and the baseline (align top / bottom), so the vertical grid holds
-Z_DIAG = 1.05   # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
-Z_BAR_ADJ, Z_DIAG_ADJ = 0.58, 0.90   # round 92 (adj 'z'): the darkest thing on any line it was in -- diagonal down, bars up, one color
+# ROUND 207 -- THE Z'S TWO STROKES ARE DIALS. Owner 2026-09-17: *"give me
+# options for a roman z that has thicker crossbar and thinner diagonal"*, after
+# the weight survey measured this letter as the heaviest lowercase in the face
+# (stroke 99.3 against the roman lowercase median of 79.0) while its italic is
+# the lightest glyph in the face at 27.1 -- 73% apart, and not recognisable as
+# one typeface's z.
+#
+# Note what this reverses: the construction above was read off Albertus and
+# Berkeley, where the z's DIAGONAL is the heavy stroke and the bars are light.
+# His ask inverts that relationship, which is his to make -- and the survey is
+# the argument for it, since the diagonal is what makes this z the darkest thing
+# on its line.
+#
+# HIS RULING, 2026-09-17: B -- bars 0.85, diagonal 0.70. Measured off the
+# raster, that is a bar of 90.9 units against a diagonal of 61.4 (bar/diag
+# 1.48, from 1.00), with the bars now clearly the heavy stroke and the diagonal
+# at the weight of a round letter's curve. Colour goes 0.337 -> 0.368 against a
+# lowercase median of 0.330: thickening two full-width bars adds more ink than
+# thinning one 45-degree run removes, so this letter gets DARKER by making its
+# heaviest stroke lighter. Glitch gate clean; the mitres hold.
+Z_BAR = float(os.environ.get("ALBO_Z_BAR", 0.52))    # the z's bars, x the stem (owner 2026-09-14: "slightly reduce the line thickness ... of the horizontal strokes in 'z'"; 0.62 before). The bars stay ON the x-height and the baseline (align top / bottom), so the vertical grid holds
+Z_DIAG = float(os.environ.get("ALBO_Z_DIAG", 1.05))  # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
+Z_BAR_ADJ = float(os.environ.get("ALBO_Z_BAR_ADJ", 0.85))    # round 92 (adj 'z'): the darkest thing on any line it was in -- diagonal down, bars up, one color
+Z_DIAG_ADJ = float(os.environ.get("ALBO_Z_DIAG_ADJ", 0.70))
 
 @glyph('k')
 def g_k(c):
