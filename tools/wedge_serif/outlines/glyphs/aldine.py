@@ -3820,7 +3820,7 @@ if ON:
     # under the bowl's crown for its whole length and the bowl is the letter's
     # highest ink again.
     G_EAR_X = float(os.environ.get("ALBO_ALD_G_EAR_X", 350.0))  # the ear's right tip
-    G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 52.0))   # its thickness
+    G_EAR_T = float(os.environ.get("ALBO_ALD_G_EAR_T", 35.0))   # its thickness
     G_EAR_Y = float(os.environ.get("ALBO_ALD_G_EAR_Y", 0.86))  # the tip's height, x xh
     G_EAR_ROOT = float(os.environ.get("ALBO_ALD_G_EAR_ROOT", 0.30))  # root, x rx from the bowl's centre
     G_EAR_RY = float(os.environ.get("ALBO_ALD_G_EAR_RY", 0.955))     # the root's height, x xh  -- its UPPER EDGE lands on the crown, so the centre sits one half-width under it
@@ -4004,8 +4004,8 @@ if ON:
     # A chancery ear is a stroke the pen ACCELERATES into and lifts off square,
     # so it is thinnest where it starts. That is what these dials now say.
     G_EAR_ROOT_W = float(os.environ.get("ALBO_ALD_G_EAR_ROOT_W", 0.60))  # x G_EAR_T at the bowl
-    G_EAR_FLARE = float(os.environ.get("ALBO_ALD_G_EAR_FLARE", 1.15))    # its widest, at 0.82 along
-    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.95))        # at the CUT, not a point
+    G_EAR_FLARE = float(os.environ.get("ALBO_ALD_G_EAR_FLARE", 1.02))    # its widest, at 0.82 along
+    G_EAR_TIP = float(os.environ.get("ALBO_ALD_G_EAR_TIP", 0.79))        # at the CUT, not a point
     G_NECK_L = float(os.environ.get("ALBO_ALD_G_NECK_L", 78.0))  # how far LEFT the neck dives
     G_NECK_R = float(os.environ.get("ALBO_ALD_G_NECK_R", 208.0))  # where it enters the loop
     G_NECK_W = float(os.environ.get("ALBO_ALD_G_NECK_W", 21.0))   # its waist
