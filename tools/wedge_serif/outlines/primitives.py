@@ -316,10 +316,31 @@ def diagonal(p0, p1, w, serif0=None, serif1=None, cut0=None, cut1=None):
     if serif1: parts.append(end_wedge(pts, wf(1.0), False, serif1))
     return geom.union(parts)
 
-def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=()):
+def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=(), prof=None):
     """A horizontal bar. align: 'center' | 'top' | 'bottom' (which edge sits
     on y). wedges: [(end, side)] with end 'left'|'right' and side +1 (rising)
-    or -1 (hanging) -- the bar-end wedge, 0.85 x 0.9 of the family."""
+    or -1 (hanging) -- the bar-end wedge, 0.85 x 0.9 of the family.
+
+    prof: round 219. A width profile in t, so a bar can MODULATE the way every
+    other stroke in the face does -- `w` stays the width at the end the wedge
+    hangs from, and the named edge stays straight while the other one moves.
+    None is the flat bar, byte for byte."""
+    if prof is not None:
+        sgn = -1.0 if align == "top" else (1.0 if align == "bottom" else 0.0)
+        n = max(8, geom._n(abs(x1 - x0), geom.SPACING))
+        wf = lambda t: w * prof(t)
+        pts = [(x0 + (x1 - x0) * i / n, y + sgn * wf(i / n) / 2) for i in range(n + 1)]
+        parts = [stroke(pts, wf, cut0=cut0, cut1=cut1)]
+        yc = y + sgn * w / 2          # the wedge hangs off the END, where w is w
+        for end, side in wedges:
+            if end == 'left':
+                sh = math.tan(cut0) * w / 2 if cut0 is not None else 0.0
+                A = (x0 + side * sh, yc + side * w / 2); d = (-1, 0)
+            else:
+                sh = math.tan(cut1) * w / 2 if cut1 is not None else 0.0
+                A = (x1 - side * sh, yc + side * w / 2); d = (1, 0)
+            parts.append(wedge(A, d, (0, side), WL * 0.85, WD * 0.9, 0.0))
+        return geom.union(parts)
     yc = y - w / 2 if align == "top" else (y + w / 2 if align == "bottom" else y)
     pts = line((x0, yc), (x1, yc)); parts = [stroke(pts, w, cut0=cut0, cut1=cut1)]
     for end, side in wedges:

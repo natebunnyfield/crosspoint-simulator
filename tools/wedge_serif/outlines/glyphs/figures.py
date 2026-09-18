@@ -186,6 +186,18 @@ SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 1.02))
 # is 0.25, the 1's 0.28 and the 4's 0.38. Italic only; the roman's 7 keeps its
 # 0.30 of w.
 SEVEN_FOOT_X = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_X", 0.30))
+# ROUND 219 -- THE 7'S STROKES MODULATE. Owner 2026-09-18: *"adjust 7's strokes
+# so it varies pleasantly and fitting rest of font."* Measured
+# (`cmp_weight_survey.py`), the 7 was the most MONOLINEAR glyph in the italic:
+# its thin (the 10th percentile of thickness along the centreline) read 51.2
+# against a stroke median of 54.2 -- a ratio of 0.94, where the o is 0.40, the
+# 6 0.42 and the a 0.46. It had almost no thin anywhere, because the bar was a
+# constant-width slab and the diagonal held one width for 84% of its run.
+# BAR_MOD is the bar's width at its RIGHT end over its left, the wedge end
+# keeping SEVEN_BAR_W_IT; the LEG is thinned instead by starting its existing
+# taper far earlier (SEVEN_TAIL_FROM 0.84 -> 0.55), which is monotone and so
+# cannot grow the knee a local waist does. 1.0 is the flat bar.
+SEVEN_BAR_MOD = float(os.environ.get("ALBO_ALD_SEVEN_BAR_MOD", 0.55))
 # ROUND 215 -- AND THE FOOT TAKES A BRUSHED SERIF. Owner 2026-09-18: *"212
 # wins but needs serif on end."* Round 214's answer was the family's chiselled
 # end WEDGE stuck on the foot, and it went out with the rest of that round.
@@ -222,7 +234,7 @@ SIX_TAIL_FLOOR = 0.55
 THREE_TAIL_END = float(os.environ.get("ALBO_ALD_THREE_TAIL_END", 0.45))  # italic: the bottom terminal's width at its tip (0 = the roman's 1.25 and a cut)
 FIVE_TAIL_END  = float(os.environ.get("ALBO_ALD_FIVE_TAIL_END",  0.45))  # italic: the same on the 5
 SEVEN_TAIL_TAPER = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_TAPER", 0.58))  # italic: the diagonal's width at its foot (0 = the constant-width diagonal)
-SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.84))   # where the taper starts, t along the diagonal
+SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.55))   # where the taper starts, t along the diagonal
 # ROUND 212 -- AND IT CURVES INTO THE VERTICAL. Owner 2026-09-18: *"curve 7
 # tail to be vertical and less thin so quickly."* The lower stroke was a
 # straight run at the diagonal's own angle; this bends it so it ARRIVES
@@ -637,7 +649,10 @@ def g_seven(c):
         diag = stroke(path, lambda u: wd * prof(u))
     else:
         diag = diagonal(p0, p1, wd)
-    return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre, wedges=[('left', -1)]), diag])
+    _bp = (widths([(0.0, 1.0), (1.0, SEVEN_BAR_MOD)])
+           if (pen.ITALIC and SEVEN_BAR_MOD != 1.0) else None)
+    return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre,
+                         wedges=[('left', -1)], prof=_bp), diag])
 
 @glyph('8')
 def g_eight(c):

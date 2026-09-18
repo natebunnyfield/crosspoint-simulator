@@ -581,3 +581,48 @@ convex one did.
 
 Gates: glitch 0 of 119, touch 0 of 5,197, roman byte-identical in outlines and
 metrics, figure spacing holds at 1.31×.
+
+### Round 219 — the 7 was the most monolinear glyph in the face
+
+*"Adjust 7's strokes so it varies pleasantly and fitting rest of font."*
+
+**The complaint has a number, and this file already held it.** `thin` is the
+10th percentile of thickness along a glyph's centreline, so `thin ÷ stroke` is
+how much a letter modulates *within itself*. The italic reads:
+
+| | o | 6 | a | v | s | 9 | 8 | z | **7** |
+|---|---|---|---|---|---|---|---|---|---|
+| thin ÷ stroke | 0.40 | 0.42 | 0.46 | 0.55 | 0.60 | 0.65 | 0.78 | 0.89 | **0.94** |
+
+The 7 was the least modulated glyph in the italic: its bar was a constant-width
+slab and its leg held one width for 84% of its run, so 90% of the letter's ridge
+sat at a single thickness.
+
+**Two changes, one per stroke.** The bar tapers, 1.0 at the wedge end to
+**0.55** at the mitre where the leg takes over — `bar()` gained a `prof`
+argument for it, which keeps the named edge straight and moves the other, so the
+figure's top line stays flat and the underside rises. The leg's existing taper
+starts at **0.55** of its run instead of 0.84.
+
+**THE LEG IS THINNED BY STARTING ITS TAPER EARLIER AND NOT BY A WAIST, and both
+were built.** A local waist reads as a *knee* — round 215's finding on this same
+letter — and it also moves the weight: at waist 0.85 the stroke median fell 54.2
+→ 51.2. Starting the existing taper earlier is monotone, so there is no knee and
+the median holds at 53.4.
+
+**AND THICKENING THE LEG'S HEAD DOES NOTHING FOR THE RATIO.** Three arms put
+1.14–1.22 into the top of the leg on the theory that it should carry the bar's
+weight down: `thin` went 51.2 → 56.4 and `stroke` 54.2 → 59.5, so `thin ÷
+stroke` went **0.94 → 0.95** and the figure simply got heavier. Only removing
+ink where the letter is already thin moves that number. Recorded because it is
+the intuitive move and it is wrong.
+
+Shipped: thin 51.2 → **44.4**, ratio 0.94 → **0.83**, stroke **53.4** (held),
+colour 0.184 → 0.171. The `thick` figure falls 162.6 → 110.6, which is not a
+lost thick — that number was the *junction blob* where a flat bar met a flat
+diagonal, and the taper is what dissolves it.
+
+Three italic glyphs move: the 7 and its superscript and subscript. Gates: glitch
+0 of 119, touch 0 of 5,197, roman byte-identical in outlines and metrics, figure
+spacing holds at 1.31×. `bar(prof=None)` is byte-identical across the whole
+font, proven on a build.
