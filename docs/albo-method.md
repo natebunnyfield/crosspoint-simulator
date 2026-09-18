@@ -506,3 +506,50 @@ lean, and a Z's bar against its own outline.
 The rule these add to the five above: **an instrument's first run must include
 a case whose answer you already know.** A bare stem has one width and one
 angle; a bar has the thickness its outline says. Neither had been checked.
+
+## 2026-09-18, round 226 — "I don't see a wobble difference": the wobble is the polygon
+
+The owner asked for most of the wobble to come out; round 225 cut every
+deliberate irregularity to a third (`ALBO_HAND_SCALE` 0.3) and he saw no
+difference. Measured, he was right: **the imperfection layer moves the italic
+lowercase by zero units** and the roman lowercase by ≤ 8 (the i's dot). The
+tables live on A g Q R Z X E F T; the `LIFE` jitter is a fifth of a pixel at
+13 px by design. None of it is what reads as wobble.
+
+**What reads as wobble is the export.** Every contour leaves the builder as a
+dense polyline at ~11-unit spacing, unioned facet by facet and rounded to the
+integer grid. A curvature-noise measure (the second difference of the edge's
+angle per 10 units of contour, on the flattened outline):
+
+| | n | m | o | e | a | s |
+|---|---|---|---|---|---|---|
+| Albo italic | 19.8 | 21.1 | 6.1 | 11.3 | 11.7 | **129** |
+| Albo roman | 16.7 | 19.5 | 4.4 | 7.6 | 11.5 | 8.3 |
+| Georgia italic | 3.1 | 3.1 | 2.1 | 4.1 | 2.6 | 1.6 |
+| Flanker Griffo | 0.7 | 0.7 | 0.9 | 1.1 | 1.2 | 1.4 |
+
+Albo's edges are 3–20× noisier than the references'. The n's and m's arches
+turn 12–28° at individual facets. That is the "hand-drawn" look he is calling
+wobble, and it is not a table — it is the union of stroke polygons.
+
+**Three export-side cures were built and none ships** (`ALBO_CURVES`, default
+0, keeps the code; `geom.fit_curves`):
+
+1. *Corner-preserving averaging* of the polygon — noise went UP (n 19.8 → 26.3)
+   because the integer grid re-quantises the moved points, and small marks
+   shrank up to 24%.
+2. *Least-squares cubic fitting* between corners — noise down 2–25×, but the
+   fit drifts: a heart's inner contour left its polygon by 144 units and the
+   roman e's tail pinched to 2 units at every tolerance tried.
+3. *Catmull-Rom interpolation* through every third point, clamped handles,
+   per-run verification with polygon fallback — safe (area change median
+   0.02%), but it can only fit the runs that are already gentle, which
+   excludes exactly the faceted arches; n 16.7 → 14.7, still five times
+   Georgia, with two pinch findings per style from tips.
+
+**The fix is upstream, and it is a round of its own**: the strokes have to be
+smooth before they are unioned — width functions sampled without per-point
+noise, or the union followed by a curve-aware smoothing that knows a hairline
+from a bowl. Recorded here so the next attempt starts from these numbers and
+not from the tables again. `ALBO_HAND_SCALE` stays at 0.3: the capitals'
+hand cuts (Q R Z) were visible and he asked for less.

@@ -341,6 +341,31 @@ FIG_TRACK = float(os.environ.get("ALBO_ALD_FIG_TRACK", "20"))
 # under the baseline) and it wants less absorbed and less given back.
 ROM_FIG_BODY = float(os.environ.get("ALBO_ROM_FIG_BODY", "0.45"))
 ROM_FIG_TRACK = float(os.environ.get("ALBO_ROM_FIG_TRACK", "8"))
+# ROUND 226 -- the export smooths every contour between its corners; see
+# geom.smooth_corners for the measurement that found the wobble was the
+# polygon and not the imperfection tables. 0 is the old export byte for byte.
+CURVES = int(os.environ.get("ALBO_CURVES", "0"))   # OFF: see docs/albo-method.md, "the wobble is the polygon"
+CURVE_TURN = float(os.environ.get("ALBO_CURVE_TURN", "28"))
+CURVE_STEP = int(os.environ.get("ALBO_CURVE_STEP", "3"))   # every 3rd dense point (~33 units) is interpolated
+CURVE_DEV = float(os.environ.get("ALBO_CURVE_DEV", "1.2"))   # a contour whose curve leaves the polygon by more falls back to it
+CURVE_FALLBACKS = [0, 0]   # (contours fitted, contours that fell back) -- printed at the end of a build
+from fontTools.cu2qu import curve_to_quadratic as _c2q
+
+
+def _cu2qu(p0, c1, c2, p3, dx):
+    """One fitted cubic to TrueType quadratics, translated by the fit's dx and
+    rounded; p0 is the pen's current point (fontTools tracks it as the last
+    point emitted, so the caller passes it via the qCurveTo chain)."""
+    global _LAST
+    a = _LAST
+    cub = [(a[0], a[1]), (c1[0] + dx, c1[1]), (c2[0] + dx, c2[1]), (p3[0] + dx, p3[1])]
+    q = _c2q(cub, 0.75)
+    _LAST = (p3[0] + dx, p3[1])
+    return [(round(x), round(y)) for x, y in q[1:]]
+_LAST = (0.0, 0.0)
+def _LAST_SET(p):
+    global _LAST
+    _LAST = p
 
 
 def _body_edges(conts, q=80.0):
@@ -476,9 +501,26 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         if conts:
             adv, dx, lsb_ink = fit(ch, conts, c)
             for pts, hole in conts:
-                q = [(round(x + dx), round(y)) for x, y in pts]
-                pen_.moveTo(q[0])
-                for p in q[1:]: pen_.lineTo(p)
+                fitted = geom.fit_curves(pts, turn=CURVE_TURN, step=CURVE_STEP, max_dev=CURVE_DEV) if CURVES else None
+                if fitted is not None:
+                    CURVE_FALLBACKS[0] += fitted[2]; CURVE_FALLBACKS[1] += fitted[3]; fitted = fitted[:2]
+                if fitted is None:
+                    q = [(round(x + dx), round(y)) for x, y in pts]
+                    pen_.moveTo(q[0])
+                    for p in q[1:]: pen_.lineTo(p)
+                    pen_.closePath(); continue
+                # round 226: quadratic curves between the contour's corners
+                start, segs = fitted
+                _LAST_SET((start[0] + dx, start[1]))
+                pen_.moveTo((round(start[0] + dx), round(start[1])))
+                for sg in segs:
+                    if sg[0] == 'line':
+                        _LAST_SET((sg[1][0] + dx, sg[1][1]))
+                        pen_.lineTo((round(sg[1][0] + dx), round(sg[1][1])))
+                    else:
+                        c1, c2, p3 = sg[1], sg[2], sg[3]
+                        quads = _cu2qu(None, c1, c2, p3, dx)
+                        pen_.qCurveTo(*quads)
                 pen_.closePath()
             report[ch] = dict(adv=adv, contours=len(conts), verts=sum(len(p) for p, _ in conts), lsb=lsb_ink, phases=phases,
                               pts=[([(x + dx, y) for x, y in pts], hole) for pts, hole in dense])   # the DENSE contours, translated by the cut's fit: the variable builder's master input
@@ -615,6 +657,7 @@ if __name__ == "__main__":
     dump = sys.argv[sys.argv.index("--dump") + 1] if "--dump" in sys.argv else None
     only = set(sys.argv[sys.argv.index("--only") + 1]) if "--only" in sys.argv else None   # round 98: build these chars only (the rest empty), for a variant ladder
     path, W, rep = build(out, style=style, do_cut=do_cut, dump=dump, only=only)
+    if CURVES: print(f"curves: {CURVE_FALLBACKS[0]} runs fitted, {CURVE_FALLBACKS[1]} runs kept as polygon")
     if only: print("ok", path); sys.exit(0)
     if style != "Medium": print("ok", path); sys.exit(0)
     open(os.path.join(out, "albo-specimen.html"), "w").write(round19.page(path).replace("Round 19. The complete Latin set in one file, Fjord-Regular.ttf, on the k6 construction: capitals, lowercase, lining figures, text punctuation, quotes and dashes.", "Albo (named 2026-09-13, round 58; Fjord until then): all 93 glyphs as designed outlines under the standing rulings, the bowls on the Albertus-like firm profile he picked, the wedge family kept, the linear cut applied last. Design defaults: weight " + f"{pen.S:g}, contrast {pen.CONTRAST:g}, ascender {pen.ASC:g}, descender {pen.DESC:g}, width {pen.WIDTH * 100:g}, cut {pen.CUT_AMOUNT:g}, x-height {pen.XH:g}, serif {pen.SERIF * 100:g}.").replace("Fjord-Regular.ttf", "Albo-Medium.ttf").replace("Fjord", "Albo"))
