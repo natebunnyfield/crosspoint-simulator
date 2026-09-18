@@ -283,3 +283,49 @@ sampling takes junctions in.
 Gates: touch 0 of 5,193, metrics 0, cap weight 0, glitch 0 of 119, straight 38
 of 62. With both pens off the font is round 181 to the bit — 0 of 119 glyphs
 differ.
+
+## The bowl's size, and the axis lever — 2026-09-17 (round 203)
+
+The owner asked for a smaller top loop and for options that move the bowl's
+axis. Both halves were measured before anything was drawn, and the second half
+found the lever in a different place from where it was looked for.
+
+**Size.** The bowl came down one notch, to **rx 144 / ry 152** (from 150/158,
+−4%). That is not taste, it is the floor: the glitch gate reads the outline
+pinching at the connector's join past about −5%, 2.2 units at −9% and worse at
+−15%. Smaller than this needs the connector re-placed by hand, which is vertex
+work in the bench and not a dial.
+
+| | rx / ry | change | gate |
+|---|---|---|---|
+| round 202 | 150 / 158 | — | clean |
+| **shipped** | **144 / 152** | −4% | clean |
+| B | 136 / 143 | −9% | PINCH, 2.2 units |
+| C | 128 / 135 | −15% | PINCH |
+
+**Where each round letter is thickest**, so "in step with the others" is a
+number rather than an impression:
+
+| o | a | q | e | b | g bowl | d | g loop |
+|---|---|---|---|---|---|---|---|
+| 40° | 40° | 40° | 30° | 30° | 30° | 20° | 20° |
+
+The bowl is **not** the outlier — it sits with the e and the b, in the middle of
+a face that spans 20–40°. The letter at the edge is the **lower loop**, at 20°.
+
+**`G_SKEW` does not move the axis.** Measured at four values: the thickest point
+stayed at 30° in every one. Shearing a ring into an egg changes its shape, and a
+pen-drawn ring takes its stress from the NIB, not from the ring — so the skew
+moves where the ring is fat, never where the stroke is heavy. What it did do was
+collapse the bowl's thin from 24 units to **4** past 0.16, which is the kind of
+damage that reads as a broken letter rather than a moved axis.
+
+The lever is the nib's angle, and `nib_widths_closed` had always taken one —
+only the dial was missing. `ALBO_ALD_G_BOWL_PHI` and `ALBO_ALD_G_LOOP_PHI`
+(both 50.0, the family's) are threaded through `keyed_ring(..., _phi=)`.
+Verified on the built font: phi 38 → 30°, 50 → 30°, **64 → 40°**, which is the
+o's. So the axis is now reachable per ring, and reachable in the bench
+(`scratchpad/ged`, published) where the two rings have an axis and a contrast
+slider each and the same live g is set into words.
+
+Gates at the shipped values: glitch 0 of 119, touch 0 of 5,193.

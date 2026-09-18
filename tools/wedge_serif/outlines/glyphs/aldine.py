@@ -2367,7 +2367,7 @@ if ON:
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
                    hand=None, flat=None, want_outer=False, pen=None, adj=None,
-                   want_parts=False):
+                   want_parts=False, _phi=50.0):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2475,7 +2475,7 @@ if ON:
             # why this letter never read as written. `pen` is
             # (thick, thin_fraction, target_contrast).
             _th, _tf, _tg = pen
-            _w = nib_widths_closed(pts, _th * unit, _th * _tf * unit, _tg)
+            _w = nib_widths_closed(pts, _th * unit, _th * _tf * unit, _tg, _phi)
             _w = con(_w, _tg)
             ws = list(_w)
             if hand:
@@ -2509,9 +2509,19 @@ if ON:
         sol, out_, _in = PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                                       smooth_w=smooth_w)
         if os.environ.get("ALBO_ALD_G_EXPORT"):
+            # the pen's own contribution, separated from the hand table, so a
+            # bench can recompute the widths at another nib angle or contrast
+            _pen_w = None
+            if pen is not None:
+                _t, _f, _g = pen
+                _pen_w = nib_widths_closed(pts, _t * unit, _t * _f * unit, _g, _phi)
             _RING_PARTS.append(dict(
                 outer=[[round(x, 2), round(y, 2)] for x, y in out_],
                 w=[round(float(v), 2) for v in ws],
+                hand=[round(float(a_ - b_), 3) for a_, b_ in zip(ws, _pen_w)] if _pen_w else None,
+                thick=(pen[0] * unit if pen else None),
+                thin=(pen[0] * pen[1] * unit if pen else None),
+                target=(pen[2] if pen else None), phi=_phi,
                 cx=cx, cy=cy, rx=rx, ry=ry, skew=skew))
         if want_parts:
             return sol, out_, list(pts), list(ws)
@@ -3767,8 +3777,8 @@ if ON:
     # the neck's leftmost 52 -> 78 (a shallower dive) and its waist 52 -> 44.
     G_CX = float(os.environ.get("ALBO_ALD_G_CX", 144.0))      # upper bowl centre
     G_CY = float(os.environ.get("ALBO_ALD_G_CY", 268.0))
-    G_RX = float(os.environ.get("ALBO_ALD_G_RX", 150.0))
-    G_RY = float(os.environ.get("ALBO_ALD_G_RY", 158.0))
+    G_RX = float(os.environ.get("ALBO_ALD_G_RX", 144.0))
+    G_RY = float(os.environ.get("ALBO_ALD_G_RY", 152.0))
     G_SKEW = float(os.environ.get("ALBO_ALD_G_SKEW", -0.01))
     G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 150.0))    # lower loop centre
     G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 194.0))
@@ -4254,6 +4264,13 @@ if ON:
     G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 64.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
     G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 1.70))
+    # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and
+    # does NOT move where the thick falls: a pen-drawn ring takes its stress
+    # from the nib, so the axis lever has to be the nib's angle. 50 is the
+    # family's, and `nib_widths_closed` already took a phi -- only the dial was
+    # missing.
+    G_BOWL_PHI = float(os.environ.get("ALBO_ALD_G_BOWL_PHI", 50.0))
+    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 50.0))
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
     G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
     G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
@@ -4283,7 +4300,7 @@ if ON:
         del _RING_PARTS[:]
         up, up_outer = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u,
                         G_RING, k=A_K, skew=G_SKEW, unit=u, want_outer=True,
-                        hand=_gh(G_BOWL_HAND), adj=G_RING_ADJ,
+                        hand=_gh(G_BOWL_HAND), adj=G_RING_ADJ, _phi=G_BOWL_PHI,
                         pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
                             if G_BOWL_PEN else None)
         # ROUND 197 -- THE LOOP CAN BE MOVED AS A WHOLE.
@@ -4296,7 +4313,7 @@ if ON:
         lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
                                   unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
-                                  adj=G_LRING_ADJ,
+                                  adj=G_LRING_ADJ, _phi=G_LOOP_PHI,
                                   pen=(G_LOOP_PEN, G_LOOP_THIN_F, G_LOOP_CON)
                                       if G_LOOP_PEN else None)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
