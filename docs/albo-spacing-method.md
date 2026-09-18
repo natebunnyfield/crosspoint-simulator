@@ -216,3 +216,82 @@ same x-height, while its absolute inter-letter white is **127 against Flanker's
 narrow relative to their fitting. No table can fix that, and it is the reason
 every spacing rule tried so far wants to close gaps that are not really open.
 That is a drawing decision.
+
+## Round 216 — the figures, and the measure-1 failure a third time
+
+Owner, 2026-09-18: *"correct numeral spacing."*
+
+**Again the ITALIC. The roman's figures were already right** — median body-edge
+gap 0.108 em against Georgia's 0.106 and Pagella's 0.129 — and are byte-identical
+after this round, outlines and metrics.
+
+### The fault was mechanical, and it is this document's own subject
+
+`outlines/build.py`'s `fit` gives a figure its bearing off `min(xs_all)` /
+`max(xs_all)` — where the glyph *reaches*. Measured with
+`tools/wedge_serif/cmp_figure_space.py`, each italic digit's flank white tracked
+almost exactly how far it reaches past where it *stands*:
+
+| digit | own white, left (em) | its left flank (em) |
+|---|---|---|
+| 9 | **0.114** | **0.222** |
+| 4 | 0.072 | 0.173 |
+| 3 | 0.069 | 0.172 |
+| 5 | 0.057 | 0.172 |
+| 0 | **0.006** | **0.112** |
+
+The 9's tail swings left under the baseline, so everything before a 9 was pushed
+a full bearing past the tail's tip; the 0 reaches nowhere and sat tight. **Every
+overhang was paid for twice** — once as the glyph's own shape and again as
+spacing. That is measure 1's failure from the top of this document, in the
+figures, and the cure is the same measure 3: fit on the body edge.
+
+`_body_edges` in `outlines/build.py` takes each side as a percentile of the
+glyph's per-row ink extremes (80th right, 20th left) on the **sheared** contours
+— sheared is correct, because both glyphs of a pair move together at any one
+row, so a gap is shear-invariant.
+
+### Two dials, because evenness and colour are two decisions
+
+`FIG_BODY` is how much of the overhang is absorbed and `FIG_TRACK` gives the
+tightening back uniformly. Absorbing it all is not available:
+
+| body / track | median | spread | flank sd | tightest pair |
+|---|---|---|---|---|
+| 0 / 0 (round 215) | 0.1532 | 2.03× | 0.0275 | 0.0708 |
+| 0.50 / 0 | 0.1113 | 1.61× | 0.0141 | 0.0436 |
+| 0.75 / 0 | 0.0932 | 1.47× | 0.0108 | **0.0080** — under the floor |
+| 1.00 / 0 | 0.0743 | 1.67× | 0.0127 | **−0.0298** — touching |
+| **0.75 / 20** | **0.1332** | **1.31×** | **0.0108** | 0.0480 |
+
+At full absorption the tails genuinely collide: a 9's tail needs *some*
+clearance even though it is not spacing. **0.75 / 20** takes the evenness of the
+0.75 arm and puts the colour back — median 0.1332 against New York 0.135,
+Pagella 0.129, Coelacanth 0.139.
+
+Per-digit flanks go from a 0.112–0.222 spread to **0.114–0.157**.
+
+### Three kerns, for round 178's reason exactly
+
+The R's leg and the Q's tail were already the tightest ink in the font
+(0.023–0.031 em against letters), and the digits' new left bearings took three
+pairs under the floor: `R4` 0.031 → −0.012 and `R2` 0.024 → −0.004, both
+touching, and `Q3` 0.035 → 0.011.
+
+They are **pairs and not a looser fit**, because the clash is pair-dependent:
+the R's leg reaches right *below* the figures' band, so it only meets a digit
+with ink down there — `R4` and `R2` do, `R8` and `R0` do not — and widening the
+4's left bearing to clear one R would open every other pair the 4 is in.
+`O1`, `R1` and `Q5` tightened too and all three still clear the floor, so they
+are left alone: three kerns, not six.
+
+### What moved
+
+Ten glyphs: the ten ASCII digits, metrics only — their outlines are identical
+to round 215's once normalised on their own left edge (worst point deviation
+1.00 unit, which is the integer grid). The superscript, subscript and fraction
+figures are **not** touched: `isfig` is ASCII-only by design, and those are
+composed at other sizes.
+
+Gates: glitch 0 of 119, touch 0 of 5,197, roman byte-identical in both outlines
+and metrics.

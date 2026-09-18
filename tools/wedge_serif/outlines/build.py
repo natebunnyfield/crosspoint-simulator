@@ -288,6 +288,36 @@ def fit_aldine(ch, conts):
     return adv, dx, min(x for pts, _ in conts for x, y in pts) + dx
 
 
+
+FIG_BODY = float(os.environ.get("ALBO_ALD_FIG_BODY", "0.75"))     # round 216, set below
+FIG_BODY_Q = float(os.environ.get("ALBO_ALD_FIG_BODY_Q", "80"))
+# Absorbing the overhang also TIGHTENS the whole set, because most digits own
+# some. FIG_TRACK gives it back uniformly, per side, so the two decisions stay
+# separate: FIG_BODY is the evenness and FIG_TRACK is the colour.
+FIG_TRACK = float(os.environ.get("ALBO_ALD_FIG_TRACK", "20"))
+
+
+def _body_edges(conts, q=80.0):
+    """Where a glyph STANDS on each side, as a percentile of its per-row ink
+    extremes -- docs/albo-spacing-method.md measure 3. The contours arrive
+    SHEARED (see fit_aldine), which is what we want: a gap is judged on the
+    shipped shape, and shear moves both glyphs of a pair equally at any one
+    row."""
+    rows = {}
+    for pts, _ in conts:
+        for x, y in pts:
+            k = int(y // 12)
+            lo, hi = rows.get(k, (x, x))
+            rows[k] = (min(lo, x), max(hi, x))
+    if not rows: return 0.0, 0.0
+    los = sorted(v[0] for v in rows.values()); his = sorted(v[1] for v in rows.values())
+    def pct(a, p):
+        if len(a) == 1: return a[0]
+        i = (len(a) - 1) * p / 100.0; f = int(i)
+        return a[f] + (a[min(f + 1, len(a) - 1)] - a[f]) * (i - f)
+    return pct(los, 100.0 - q), pct(his, q)
+
+
 def fit(ch, conts, c):
     """Round 20's bearing rule: ink measured in the x-height band (cap band
     for capitals and figures); the g and every non-letter on their full
@@ -310,6 +340,20 @@ def fit(ch, conts, c):
     # collapsed from 410 to 217. That is what every rung of the J_DROP ladder
     # hit before this line changed.
     if ch in ('g', 'J') or not ch.isalpha(): l, r = min(xs_all), max(xs_all)
+    # ROUND 216 -- THE ITALIC FIGURES ARE FITTED ON THEIR BODY, NOT THEIR REACH.
+    # Owner 2026-09-18: *"correct numeral spacing."* Measured
+    # (`cmp_figure_space.py`), the italic's figure gaps track, almost exactly,
+    # how far each digit REACHES past where it stands: the 9 owns 0.114 em of
+    # open white on its left (its tail) and its left flank is the loosest in the
+    # set at 0.222, while the 0 owns 0.004 and is the tightest at 0.112. The
+    # line above hands the bearing rule the extreme, so every overhang is paid
+    # for twice -- once as the glyph's own shape and again as spacing. That is
+    # docs/albo-spacing-method.md's measure-1 failure, in the figures, and the
+    # cure it names is measure 3: take the edge where the glyph STANDS.
+    # FIG_BODY is how much of the overhang is absorbed; 0 is the old rule.
+    if FIG_BODY and isfig(ch) and ALD is not None and ALD.ON:
+        bl, br = _body_edges(conts, FIG_BODY_Q)
+        l += (bl - l) * FIG_BODY; r += (br - r) * FIG_BODY
     lt, rt = SIDES.get(ch, ('straight', 'straight') if ch.isalnum() else ('punct', 'punct'))
     capbear = REF["Hbear"] / 2 * C * pen.WIDTH   # the fitting follows the width axis
     lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
@@ -326,6 +370,8 @@ def fit(ch, conts, c):
     elif ch in PUNCT_FENCES or (not ch.isalnum() and ch not in SIDES): lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17   # round 99: every new symbol takes the fences' bearing rather than the tighter default
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
+    if FIG_TRACK and isfig(ch) and ALD is not None and ALD.ON:
+        lsb += FIG_TRACK; rsb += FIG_TRACK
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.

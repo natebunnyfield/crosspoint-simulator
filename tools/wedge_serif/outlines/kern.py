@@ -293,6 +293,26 @@ except ImportError:
 if _ALD is not None and _ALD.ON:
     PAIRS[('o', 'c')] = 18
     PAIRS[('o', 'r')] = 18
+    # ------------------------------------------------------ round 216, italic
+    # THE ITALIC FIGURES ARE NOW FITTED ON THEIR BODY rather than their reach
+    # (FIG_BODY in outlines/build.py), which took roughly three quarters of
+    # every digit's overhang out of its bearings -- and the R's leg and the Q's
+    # tail were already the tightest ink in the font, at 0.023-0.031 em against
+    # letters. Three pairs went under the floor with the digits' left bearings:
+    # R4 0.031 -> -0.012 and R2 0.024 -> -0.004 (both TOUCHING) and Q3
+    # 0.035 -> 0.011.
+    #
+    # PAIRS and not a looser fit, for round 178's reason exactly: the clash is
+    # pair-dependent. The R's leg reaches right BELOW the figures' own band, so
+    # it only meets a digit that has ink down there -- R4 and R2 do, R8 and R0
+    # do not, and widening the 4's left bearing to clear one R would open every
+    # other pair the 4 is in. Only the three pairs that fail the gate are
+    # kerned; O1, R1 and Q5 tightened too and all three still clear it.
+    #
+    # Values are STEP multiples, so they survive the phone's kern quantum.
+    PAIRS[('R', 'four')] = 72
+    PAIRS[('R', 'two')] = 54
+    PAIRS[('Q', 'three')] = 36
 
 
 def feature_text():
