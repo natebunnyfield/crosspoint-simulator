@@ -140,6 +140,16 @@ EIGHT_FLOOR_IT = EIGHT_FLOOR   # unchanged: the floor was measured not to bind (
 # it is inert at 1.0, every existing caller is byte-identical, and it is the
 # arm that measured all of the above.
 EIGHT_CON = 2.1        # the italic 8's contrast exponent. 1.0 until round 211: the ring could not carry one until `oval` made its counter an ellipse
+# ROUND 212 -- AND ITS WEIGHT, AGAINST THE 6. Owner 2026-09-18: *"match weight
+# of 8 and 7 to 6."* Measured on the built italic: the 6's stroke runs 53.4
+# units, the 8's 64.0 (+20%) and the 7's 41.4 (-23%). This scales both of the
+# 8's rings; the 7's two dials go the other way. Italic only.
+EIGHT_W_IT = 0.70      # x the ring's stroke weight
+# the 7's half of the same ruling. SEVEN_BAR_W and SEVEN_DIAG_W are SHARED with
+# the roman -- changing their defaults moved the roman's 7, which a build diff
+# caught -- so the italic takes its own pair.
+SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.65))
+SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 1.02))
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The
@@ -163,8 +173,17 @@ SIX_TAIL_FLOOR = 0.55
 # lever the 9's end cut already uses -- at 0 the roman is untouched.
 THREE_TAIL_END = float(os.environ.get("ALBO_ALD_THREE_TAIL_END", 0.45))  # italic: the bottom terminal's width at its tip (0 = the roman's 1.25 and a cut)
 FIVE_TAIL_END  = float(os.environ.get("ALBO_ALD_FIVE_TAIL_END",  0.45))  # italic: the same on the 5
-SEVEN_TAIL_TAPER = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_TAPER", 0.30))  # italic: the diagonal's width at its foot (0 = the constant-width diagonal)
-SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.55))   # where the taper starts, t along the diagonal
+SEVEN_TAIL_TAPER = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_TAPER", 0.58))  # italic: the diagonal's width at its foot (0 = the constant-width diagonal)
+SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.84))   # where the taper starts, t along the diagonal
+# ROUND 212 -- AND IT CURVES INTO THE VERTICAL. Owner 2026-09-18: *"curve 7
+# tail to be vertical and less thin so quickly."* The lower stroke was a
+# straight run at the diagonal's own angle; this bends it so it ARRIVES
+# vertical at the foot -- a cubic whose first handle keeps the diagonal's
+# direction and whose second stands straight above the foot, so the top half is
+# the diagonal it always was and only the last part turns.
+SEVEN_TAIL_CURVE = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_CURVE", 1.00))  # 0 = the straight run; 1 = fully upright at the foot
+SEVEN_TAIL_HOLD = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_HOLD", 0.60))   # how long the first handle holds the diagonal's own line before the bend
+SEVEN_TAIL_RISE = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_RISE", 0.55))   # the second handle's length straight above the foot, x the chord: this is what actually makes the foot vertical
 NINE_TAIL_END = float(os.environ.get("ALBO_ALD_NINE_TAIL_END", 0.35))    # italic: taper the tail out instead of ending it on a flag
 
 # Owner 2026-09-13 (round 75): "give more of space at bottom curve of '3',
@@ -213,6 +232,13 @@ FIG_OVAL = float(os.environ.get("ALBO_ALD_FIG_OVAL", 1.0))      # italic: pull t
 # tail's upper edge bites a notch out of the counter -- visible at 380 px and
 # not curable by the ovalise, since the biting ink is the tail's and not the
 # ring's. Lower here, and the notch closes without the other three moving.
+# ROUND 212 -- THE 2'S BAR DROPS TO THE 4'S. Owner 2026-09-18: *"lower the
+# crossbar of 2 from baseline to where the crossbar of 4 is."* Measured on the
+# built italic, ink-weighted over the rows each bar occupies: the 2's base bar
+# centres at +43 and the 4's crossbar at +7.3, so the drop is 36 units. The
+# slash's foot goes down with it, or the stroke stops short of its own bar.
+# Italic only; the roman's 2 keeps the baseline.
+TWO_BAR_DROP = float(os.environ.get("ALBO_ALD_TWO_BAR_DROP", 42.0))
 NINE_RING_CON = float(os.environ.get("ALBO_ALD_NINE_RING_CON", 0.0)) or None
 NINE_RING_OVAL = float(os.environ.get("ALBO_ALD_NINE_RING_OVAL", -1.0))
 NINE_RING_OVAL = None if NINE_RING_OVAL < 0 else NINE_RING_OVAL
@@ -309,7 +335,8 @@ def g_two(c):
     # units wide, on an otherwise straight baseline. Swept: barw*0.45 dips
     # -3.55, barw*0.60 clears by +3.35 and every value above it clears further.
     # Same family as the 1's flag (ONE_FLAG_BURY) and the 4's apex.
-    foot = (S * 0.5, barw * 0.60)
+    _drop = TWO_BAR_DROP if pen.ITALIC else 0.0
+    foot = (S * 0.5, barw * 0.60 - _drop)
     best = None
     for deg in range(-40, -8, 1):
         top = superellipse(rx, D - rx * 0.95, rx, rx * 0.95, math.radians(190), math.radians(deg), BOWL_K)
@@ -329,7 +356,7 @@ def g_two(c):
     body = stroke(center, PR.bowl_widths(center, prof, floor=S * TWO_SLASH_W * TWO_TOP_W,
                                          stress=_st, con=_cn), cut0=CUT)
     x1 = geom.bbox(body)[2] + NINE_OVERHANG
-    g = geom.ink([body, bar(0, x1, 0, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
+    g = geom.ink([body, bar(0, x1, -_drop, barw * TWO_BASE_W, align='bottom', wedges=[('right', 1)])])
     # owner 2026-09-13: "push 2 back up to optical baseline" -- the built 2
     # bottomed at -7 (the cut's facets and the ink spread under a flat base);
     # lifted so the base sits on the line like the 1's feet
@@ -496,9 +523,9 @@ def g_seven(c):
     # carrying the same weight and the figure had no colour. These two dials
     # move them in opposite directions, which is what restores the contrast
     # rather than simply making the whole figure heavier or lighter.
-    barw = max(TH_H, S * 0.5) * SEVEN_BAR_W
+    barw = max(TH_H, S * 0.5) * (SEVEN_BAR_W_IT if pen.ITALIC else SEVEN_BAR_W)
     p1 = (w * 0.3, 0); p0 = (w - S * 0.2, D - barw * SEVEN_DIAG_BURY)
-    wd = pw(p0, p1) * SEVEN_DIAG_W
+    wd = pw(p0, p1) * (SEVEN_DIAG_W_IT if pen.ITALIC else SEVEN_DIAG_W)
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy) or 1.0
     ux, uy = dx / L, dy / L; nx, ny = -uy, ux          # the up-right side of a stroke running down-left
     ex, ey = p0[0] + nx * wd / 2, p0[1] + ny * wd / 2  # a point on the diagonal's right edge
@@ -510,7 +537,16 @@ def g_seven(c):
         # upward: a pen stroke on the same line, held to its width until
         # SEVEN_TAIL_FROM and then tapered to the foot.
         prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0), (1.0, SEVEN_TAIL_TAPER)])
-        diag = stroke([p0, p1], lambda u: wd * prof(u))
+        if SEVEN_TAIL_CURVE:
+            _L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+            c1 = (p0[0] + (p1[0] - p0[0]) * SEVEN_TAIL_HOLD,
+                  p0[1] + (p1[1] - p0[1]) * SEVEN_TAIL_HOLD)
+            c2 = (p1[0] + (p0[0] - p1[0]) * (1 - SEVEN_TAIL_CURVE) * 0.30,
+                  p1[1] + _L * SEVEN_TAIL_RISE * SEVEN_TAIL_CURVE)   # straight above the foot
+            path = cubic(p0, c1, c2, p1)
+        else:
+            path = [p0, p1]
+        diag = stroke(path, lambda u: wd * prof(u))
     else:
         diag = diagonal(p0, p1, wd)
     return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre, wedges=[('left', -1)]), diag])
@@ -552,7 +588,8 @@ def g_eight(c):
     # numbers"): the OUTER's levers, each an env override for the options
     # page, the counters re-solved to the same boxes under every one of them.
     E = lambda k, d: float(os.environ.get(k, d))
-    w_up, w_lo = E('ALBO_8_W_UP', 1.0), E('ALBO_8_W_LO', 1.0)   # stroke weight x, upper / lower ring
+    _w8 = EIGHT_W_IT if pen.ITALIC else 1.0
+    w_up, w_lo = E('ALBO_8_W_UP', _w8), E('ALBO_8_W_LO', _w8)   # stroke weight x, upper / lower ring
     waist = E('ALBO_8_WAIST', 1.0)                                 # the rings' overlap, x one bowl stroke
     lean = E('ALBO_8_LEAN', 0.0)                                   # the upper ring's centre, units right of the lower's
     floor_ = E('ALBO_8_FLOOR', EIGHT_FLOOR_IT if pen.ITALIC else EIGHT_FLOOR) * S                    # the hair floor, x the stem (the 6's tail is 0.55)
@@ -636,7 +673,7 @@ NINE_JOIN_SINK = float(os.environ.get('ALBO_ALD_NINE_JOIN_SINK', 8.0))
 # worse, which is the diagnostic: the join wants to start further OUT, on the
 # ring's own edge, where the tail runs along the wall instead of through it.
 # The roman's 9 keeps 8.0 and is untouched.
-NINE_JOIN_SINK_IT = float(os.environ.get('ALBO_ALD_NINE_JOIN_SINK_IT', -10.0))
+NINE_JOIN_SINK_IT = float(os.environ.get('ALBO_ALD_NINE_JOIN_SINK_IT', 30.0))
 
 NINE_FLAG_REACH = 12.4    # the wedge apex past the bowl's left ink: round 71's, the tail-tip rule as this pen draws it
 NINE_TAIL_TOP = 0.60      # the tail's width at the wedge end, x round 71's, thinned from the top edge (1.0 = round 71); ruled
@@ -645,6 +682,18 @@ NINE_TAIL_MIN = 0.55      # the 6's ruled floor, x stem: holds while NINE_TAIL_T
 NINE_BOTTOM = -7.3        # the round-42 tail's lowest spread ink, drawing coords (built -216.4 on the owner's pen); kept
 NINE_FLOOR = 0.9          # the record's weight floor on the tail, x stem
 NINE_TAPER = [(0.0, 0.15), (0.06, 1.0)]   # the tail's taper into the ring
+# ROUND 212 -- ITALIC ONLY. With the join moved out to the ring's edge (so the
+# tail stops biting the counter) its first samples sit OUTSIDE the ring, and at
+# the round's width they showed as a step on the 9's right flank. A longer,
+# thinner entry hides them inside the ring's own ink.
+NINE_TAPER_IT = [(0.0, float(os.environ.get("ALBO_ALD_NINE_ENTRY_W", 0.08))),
+                 (float(os.environ.get("ALBO_ALD_NINE_ENTRY_T", 0.28)), 1.0)]
+# ...and WHERE on the ring it leaves. The step on the right flank is the tail's
+# own start standing proud of the ring's outer contour: at -20 degrees the exit
+# is on the flank, where the ring's edge is nearly vertical and any part of the
+# stroke outside it shows. Lower down the ring the edge turns under and the same
+# stroke is covered.
+NINE_EXIT_DEG = float(os.environ.get("ALBO_ALD_NINE_EXIT_DEG", -20.0))
 
 def _walk_back(side):
     """edge_at for wedge(): the point `dist` back along a stroke's REAL side
@@ -692,10 +741,11 @@ def g_nine(c):
     D = c["figH"]; rx = W_(c, '9', 230); r = D * 0.29; cx = rx + TH_V / 2
     solid, o, i = fig_ring(cx, D - r, rx, r, con=NINE_RING_CON, oval=NINE_RING_OVAL)
     _sink = NINE_JOIN_SINK_IT if pen.ITALIC else NINE_JOIN_SINK
-    p0 = (cx + (rx - _sink) * math.cos(math.radians(-20)),
-          D - r + (r - _sink) * math.sin(math.radians(-20)))
+    _exit = NINE_EXIT_DEG if pen.ITALIC else -20.0
+    p0 = (cx + (rx - _sink) * math.cos(math.radians(_exit)),
+          D - r + (r - _sink) * math.sin(math.radians(_exit)))
     target_left = (cx - rx - TH_V / 2 - sp) - NINE_FLAG_REACH
-    tap = widths(NINE_TAPER)
+    tap = widths(NINE_TAPER_IT if pen.ITALIC else NINE_TAPER)
     floor = S * NINE_TAIL_MIN if NINE_TAIL_TOP >= 0.5 else 0.0
     def make(dx, dy):
         tip = (cx - rx * 1.12 + dx, 22 + dy)

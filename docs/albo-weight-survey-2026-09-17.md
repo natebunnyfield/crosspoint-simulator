@@ -323,3 +323,50 @@ figures and the superscript and fraction variants built from the same functions.
 The **6's ring** takes the same contrast and axis as the others, which the ask
 did not name — it goes through the same `fig_ring` and leaving it out would make
 it the only figure on the roman's stress. Flagged rather than assumed.
+
+### Round 212 — the 2's bar, the 7's foot, and three weights
+
+Four more italic asks, all measured before they were moved:
+
+**The 2's crossbar** — *"lower the crossbar of 2 from baseline to where the
+crossbar of 4 is."* Ink-weighted over the rows each bar occupies, the 2's base
+bar centred at **+43** and the 4's crossbar at **+7.3**; the drop is 42 units
+(the bar's own wedge shifts its centre, so 36 of geometry lands 13.1 and 42
+lands on the 4's). The slash's foot goes down with it or the stroke stops short
+of its own bar. The 2's ink bottom goes 7 → −29, which makes it descend like the
+0 rather than sit on the line: named, not assumed.
+
+**The 7's foot** — *"curve 7 tail to be vertical and less thin so quickly."*
+Both halves needed a dial. The taper starts at 0.84 of the run instead of 0.55
+and ends at 0.58 of the width instead of 0.30. The curve is a cubic whose first
+handle holds the diagonal's own line for 0.60 of the chord and whose second
+stands above the foot; that second handle's LENGTH is what bends it, and it
+saturates — 0.34 / 0.55 / 0.75 / 0.95 of the chord read −27.8° / −26.1° /
+−25.4° / −25.3° from upright, so past about 0.55 the extra only puts a kink in
+the flank. Shipped at 0.55, the foot at −26° where the straight run was −38°.
+
+**8 and 7 to the 6** — *"match weight of 8 and 7 to 6."* The 6's stroke runs
+53.4 units, the 8's ran 64.0 (+20%) and the 7's 41.4 (−23%). The 8's two rings
+scale to 0.70 and the 7's bar and diagonal to 1.65 and 1.02; all three now read
+53.4 / 54.2 / 54.2. **By COLOUR they do not converge and cannot**: the 6 is
+0.255, the 8 0.292 and the 7 0.165, because a 7 is two strokes over a lot of
+white and a figure's blackness is mostly its structure. The stroke is the
+measure that answers his ask; the colour is recorded so nobody re-opens it.
+
+**The 9's right flank** — *"clean up right side of 9."* The step was the tail's
+own start standing proud of the ring's outer contour, and the ladder is worth
+keeping because four plausible cures were wrong: a longer, thinner ENTRY taper
+(three values — step unmoved); moving the EXIT angle down the ring (−35, −50 —
+the step follows the join); the ring's contrast; and the ovalise. The tail
+reaches full width at 6% of its path, which is still inside the wall. Burying
+the join mid-wall (`NINE_JOIN_SINK_IT` 30) **and** holding the entry thin until
+28% — so it is at full width only once it is clear of the ring — closes it with
+the counter intact.
+
+**One leak, caught by the diff and not by the eye.** `SEVEN_BAR_W` and
+`SEVEN_DIAG_W` are shared with the roman, so setting their defaults for the
+italic moved the roman's 7. The build comparison across all glyphs reported it;
+the italic now takes its own `_IT` pair. Every other dial in this round was
+gated on `pen.ITALIC` from the start, and the roman is byte-identical.
+
+Gates: glitch 0 of 119, touch 0 of 5,193.
