@@ -342,6 +342,16 @@ if _ALD is not None and _ALD.ON:
 if _ALD is None or not _ALD.ON:
     PAIRS[('seven', 'seven')] = 36
     PAIRS[('four', 'four')] = 18
+    # ROUND 225 -- THE ROMAN Q KEEPS ITS LONG TAIL. Owner 2026-09-18: *"leave
+    # the Q tail on roman long, it only needs to pair with other capitals and
+    # 'u'."* Round 224's shortened tail (ALBO_ROM_Q_TAIL 0.50) is reverted to
+    # 1.0 and the letter is judged on those pairs alone. Measured on the long
+    # tail: Qu +0.079 em and every capital clears except QQ -0.042 and QJ
+    # -0.452. QQ is kerned here. QJ is NOT: the J's hook runs back under the
+    # tail by nearly half an em, no kern short of a word space clears it, and
+    # no English word contains QJ -- it is exempted by name in cmp_touch.py
+    # with the rest of the Q pairs the ruling accepts.
+    PAIRS[('Q', 'Q')] = 72
     # THE Q's TAIL IS NOT A KERNING PROBLEM. Fourteen of the roman's nineteen
     # touching pairs are one letter (Q( Q) Q3 Q4 Q5 Q7 Q9 Qg Qj QJ Qp Qq QQ Qy),
     # and a kern was tried here first: the pairs measure -0.25 to -0.49 em --

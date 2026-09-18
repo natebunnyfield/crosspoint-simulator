@@ -23,7 +23,13 @@ from .pen import S, CS, XH, WL, WD, DROP, FILLET, FOOT, ENT, TH_V, TH_H, HAIR, C
 # exponent and +-0.6 deg of rotation. At 54 px a wedge is 3.5 x 7 px, so
 # 6% is a fifth of a pixel: the four-level render does not move; at 400 px
 # it is 4 units, a visible difference of hand. FJORD_LIFE=0 switches it off.
-LIFE = float(os.environ.get("FJORD_LIFE", 0.06))
+# ROUND 225 -- MOST OF THE WOBBLE COMES OUT. Owner 2026-09-18: *"reduce most
+# of the wobble effect on letters."* ALBO_HAND_SCALE is one number over every
+# deliberate irregularity in the face (docs/albo-imperfections.md): the LIFE
+# jitter here, and in aldine.py the A's droop, the g's and Q's hand tables, the
+# R's, the Z's and the X's. 1.0 is round 224 byte for byte; 0.3 ships.
+HAND_SCALE = float(os.environ.get("ALBO_HAND_SCALE", 0.3))
+LIFE = float(os.environ.get("FJORD_LIFE", 0.06)) * HAND_SCALE
 
 # GLITCH SWEEP 2026-09-16: how deep below a stem's top face the italic ENTRY
 # stroke's own end is buried, x S. Its square end face is 0.88 x the stem wide

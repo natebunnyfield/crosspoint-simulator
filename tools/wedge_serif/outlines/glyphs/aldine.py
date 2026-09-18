@@ -2785,7 +2785,7 @@ if ON:
     A_FLAT = float(os.environ.get("ALBO_ALD_A_FLAT", 0.34))   # the cubic's handle length, x the chord
     A_FLAT_A = float(os.environ.get("ALBO_ALD_A_FLAT_A", 58.0))    # where the flat begins, degrees ccw -- the stem connector
     A_FLAT_B = float(os.environ.get("ALBO_ALD_A_FLAT_B", 186.0))   # and where it ends
-    A_DROOP = float(os.environ.get("ALBO_ALD_A_DROOP", 1.0))
+    A_DROOP = float(os.environ.get("ALBO_ALD_A_DROOP", 1.0)) * PR.HAND_SCALE   # round 225: the wobble scale
     A_DROOP_HAND = [(75, 0.0, 0.0), (115, -17.0 * A_DROOP, 0.0),
                     (155, -9.0 * A_DROOP, 0.0), (200, 0.0, 0.0),
                     (300, 0.0, 0.0), (20, 0.0, 0.0)] if A_DROOP else None
@@ -4425,7 +4425,7 @@ if ON:
     # and the shipping depth is his, which is the right way round: the ladder
     # says what is possible, he says what ships. At 8 the cut reads as a
     # letter cut by hand rather than as a letter fighting its own counter.
-    G_HAND = float(os.environ.get("ALBO_ALD_G_HAND", 8.0))
+    G_HAND = float(os.environ.get("ALBO_ALD_G_HAND", 8.0)) * PR.HAND_SCALE   # round 225: the wobble scale
     G_BOWL_HAND = [(45, -1.0, 0.7), (135, 1.2, -0.9), (225, -0.8, 1.0),
                    (315, 0.9, -0.6), (0, 0.0, 0.0), (180, 0.0, 0.0)]
     G_LOOP_HAND = [(45, 1.1, -0.8), (200, -1.2, 1.0), (300, 0.8, 0.6),
@@ -6575,6 +6575,7 @@ if ON:
               (225, 2.0, -3.0), (285, -3.0, 0.0), (340, -4.0, -2.0)]
     if os.environ.get("ALBO_ALD_Q_HAND") == "0":
         Q_HAND = None
+    elif Q_HAND: Q_HAND = [(a, dr * PR.HAND_SCALE, dw * PR.HAND_SCALE) for a, dr, dw in Q_HAND]   # round 225
 
     @glyph('Q')
     def a_Q(c):
@@ -7087,7 +7088,7 @@ if ON:
     #  LEG
     #   0.34  the elbow takes 5 more, where a swash is pressed hardest.
     #   0.78  and gives 4 back before the tip, so the taper is not a ramp.
-    CAP_R_HAND = float(os.environ.get("ALBO_ALD_CAP_R_HAND", 1.0))
+    CAP_R_HAND = float(os.environ.get("ALBO_ALD_CAP_R_HAND", 1.0)) * PR.HAND_SCALE   # round 225: the wobble scale
     CAP_R_BOWL_HAND = [(0.16, 0.000, -0.0044, -0.0044),
                        (0.46, 0.0059, 0.000, 0.0059),
                        (0.82, -0.0044, -0.0030, -0.0059)]
@@ -7489,7 +7490,7 @@ if ON:
     # point count 190 -> 301, which is four straight edges becoming curved ones.
     # Magnitudes are 2.0-3.5 units on strokes of 50 (bars) and 104
     # (diagonal), the same order as the Q's 2-6 and the R's 3-7.
-    CAP_Z_HAND = float(os.environ.get("ALBO_ALD_CAP_Z_HAND", 1.0))   # 0 turns every cut off
+    CAP_Z_HAND = float(os.environ.get("ALBO_ALD_CAP_Z_HAND", 1.0)) * PR.HAND_SCALE   # 0 turns every cut off
     Z_HAND_TOP = [(0.34, 2.5, -2.5), (0.58, -2.0, 3.0)]
     Z_HAND_BOT = [(0.44, -2.5, 3.0), (0.72, 2.0, -2.5)]
     Z_HAND_DIAG = [(0.38, 0.0, 3.5), (0.70, 0.0, -3.0)]
@@ -8890,10 +8891,10 @@ if ON:
                          _cap_end_wedge(qp, qwf(0.0), True, -1, k=k),
                          _cap_end_wedge(qp, qwf(1.0), False, -1, k=k)])
 
-    CAP_X_HAND_KX = float(os.environ.get("ALBO_ALD_CAP_X_KX", 0.0045))   # the THICK diagonal's midpoint, x C
-    CAP_X_HAND_KY = float(os.environ.get("ALBO_ALD_CAP_X_KY", -0.0067))
-    CAP_X_HAND_TX = float(os.environ.get("ALBO_ALD_CAP_X_TX", -0.0037))  # and the THIN one's
-    CAP_X_HAND_TY = float(os.environ.get("ALBO_ALD_CAP_X_TY", 0.0030))
+    CAP_X_HAND_KX = float(os.environ.get("ALBO_ALD_CAP_X_KX", 0.0045)) * PR.HAND_SCALE   # the THICK diagonal's midpoint, x C
+    CAP_X_HAND_KY = float(os.environ.get("ALBO_ALD_CAP_X_KY", -0.0067)) * PR.HAND_SCALE
+    CAP_X_HAND_TX = float(os.environ.get("ALBO_ALD_CAP_X_TX", -0.0037)) * PR.HAND_SCALE  # and the THIN one's
+    CAP_X_HAND_TY = float(os.environ.get("ALBO_ALD_CAP_X_TY", 0.0030)) * PR.HAND_SCALE
 
     CAP_VV_W = float(os.environ.get("ALBO_ALD_CAP_VV_W", 1.375))   # the letter's width, x C
     # 0.985 and 0.909 solved the same way and from the same build: at 0.640

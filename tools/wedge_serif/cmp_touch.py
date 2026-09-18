@@ -33,6 +33,17 @@ from fontTools.ttLib import TTFont
 # Pairs whose ink is MEANT to meet or nearly meet. Each needs its reason.
 EXEMPT = {
     ('f', 'b'): "the f's hook is drawn to land on an ascender's top-left wedge (round 96b)",
+    # ROUND 225 -- the ROMAN Q's tail, by ruling. Owner 2026-09-18: "leave the
+    # Q tail on roman long, it only needs to pair with other capitals and 'u'."
+    # Qu and every capital but J clear on the long tail (QQ is kerned); the
+    # lowercase, figure and fence pairs below are accepted as touching, and QJ
+    # because no English word contains it. In the ITALIC these same pairs are
+    # clean (its tail is the shortened one) and are not exempt there.
+    ('Q', 'J'): "round 225: the J's hook runs half an em back under the tail; QJ occurs in no English word",
+    ('Q', 'g'): "round 225: the roman Q pairs only with capitals and u, by ruling",
+    ('Q', 'j'): "round 225: as Qg", ('Q', 'p'): "round 225: as Qg", ('Q', 'q'): "round 225: as Qg", ('Q', 'y'): "round 225: as Qg",
+    ('Q', '3'): "round 225: as Qg", ('Q', '4'): "round 225: as Qg", ('Q', '5'): "round 225: as Qg", ('Q', '7'): "round 225: as Qg", ('Q', '9'): "round 225: as Qg",
+    ('Q', '('): "round 225: as Qg", ('Q', ')'): "round 225: as Qg",
     ('f', 'h'): "as f+b",
     ('f', 'k'): "as f+b",
     ('f', 'l'): "as f+b",
