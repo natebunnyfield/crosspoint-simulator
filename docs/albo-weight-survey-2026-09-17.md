@@ -699,3 +699,26 @@ In flight as this is written: the numerals as OPTIONS from old-style
 references (an agent in `figures.py`), and the italic Q's tail from the roman's
 shortened construction plus the g redrawn in the roman's style with a shorter
 ear (an agent in `aldine.py`).
+
+### Rounds 226–228 — the wobble named, the italic Q and g, the roman R
+
+**226 — the wobble is the polygon.** *"I don't see a wobble difference"*: the
+imperfection layer moves the italic lowercase by zero units; what reads as
+wobble is the export's dense polyline. Numbers and the three parked cures in
+`docs/albo-method.md`. `ALBO_HAND_SCALE` stays 0.3.
+
+**227 — the italic Q and g.** The Q's tail is the roman's construction at 0.50
+(`ALBO_ALD_Q_TAIL_STYLE=roman`, `ALBO_ALD_Q_TAIL_ROM` 0.50): ink x 819 → 763,
+every Q pair clear. The g is redrawn in the roman's two-storey construction
+(`ALBO_ALD_G_STYLE=roman`; `cursive` rebuilds rounds 197–225): loop bottom
+−194 → **−305** (rounds 197/205's baseline anchoring superseded by this ruling),
+ear 76 → **42** units past the bowl (roman 33, Flanker 55), stroke 63.2 (−10%
+of the lowercase, was −27%), colour 0.304 against the o's 0.316, one pen for
+the whole letter. A third instrument had round 224's slant bug
+(`cmp_aldine_g.py`); fixed.
+
+**228 — the roman R kicks.** Fourteen dials in `caps_straight.py`,
+`ALBO_ROM_R_KICK=0` is round 225 exactly: exit 17°, reach 0.730 cap (ink 0.733
+vs the italic's 0.735), the pen's cut for a foot, junction −52 → −66° so the leg
+springs where the italic's does. Ra / Re / Ro open 0.067 / 0.097 / 0.100 →
+0.102 / 0.152 / 0.162 em; RY 0.167 wants a kern beside the other wide Y pairs.

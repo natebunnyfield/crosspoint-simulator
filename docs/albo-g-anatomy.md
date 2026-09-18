@@ -432,3 +432,30 @@ Gates on the shipped letter: glitch 0 of 119, touch 0 of 5,193.
 carries a timestamp, so two byte-identical drawings hash differently. Compare
 the glyph's `RecordingPen` output instead — that is what proved `G_BSCALE` /
 `G_LSCALE` inert at 1.0.
+
+## Round 227 — the italic g is redrawn in the roman's construction
+
+Owner 2026-09-18: *"redraw 'g' to be the roman style of the italic 'g'"*, then
+*"reduce far right extension ear of italic 'g' to improve legibility"*.
+
+`ALBO_ALD_G_STYLE=roman` (the default now; `cursive` rebuilds the binocular g
+of rounds 197–225 byte for byte). Measured on a correctly unsheared raster —
+**`cmp_aldine_g.py` unsheared with the wrong sign until this round** (round
+224's bug, in a third place: the roman g at slant 0 came out upright and every
+italic leaned ~25°), so its width, crown and ear columns above this section
+were taken on a doubly sheared g and are not comparable to these:
+
+| | bowl counter | loop counter | ear past bowl | descender |
+|---|---|---|---|---|
+| cursive g (rounds 197–225) | 149 × 208 | 228 × 182 | **76** | −194 |
+| **roman-style g (ships)** | 154 × 227 | 179 × 249 | **42** | **−305** |
+| Albo roman g | 213 × 207 | 246 × 225 | 33 | −305 |
+| Flanker | 174 × 314 | 265 × 247 | 55 | — |
+| Pagella | 172 × 227 | 241 × 202 | 55 | — |
+
+The ear was laddered 0.80 / 1.00 / 1.15 / 1.30 → 23 / 42 / 58 / 72: at 0.80 it
+disappears at 13 px; 1.15 re-widens the letter; 1.30 is the fault. Loop depth
+0.44 / 0.47 / 0.50 / 0.53 → −271 / −288 / −305 / −321; 0.50 is the roman's own
+figure (p q −282, y −297). Pen signature: bowl and loop on one axis, 15°/105°
+at 2.6–2.8:1 — the cursive arm had the loop on a second pen. Rounds 197/205's
+"loop on the baseline" are superseded for the loop's depth by this ruling.
