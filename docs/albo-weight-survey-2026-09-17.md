@@ -512,3 +512,39 @@ Gates: glitch 0 of 119, touch 0 of 5,193, the 290-glyph sweep reports round
 212's same 13 pre-existing findings, roman byte-identical. Eight italic glyphs
 move: the 1, the 7 and the superscript, subscript and fraction variants built
 from the same two functions.
+
+### Round 217 — the 1's flag becomes a curve
+
+*"Turn top left stroke of 1 to simple thick curve."*
+
+It was a straight run on the bowl profile, ending in a taper with the family's
+diagonal end wedge at a sixth of its 0.9 — the microserif he ruled in round 75
+(*"reduce the top spur on 1 into a microserif"*). It is now an arc.
+
+**Three dials do the sentence, and each word is one of them.** *Curve*:
+`ONE_FLAG_CURVE` bows the stroke perpendicular to its own chord, 0.18 of that
+chord's length. Swept — 0.10 still reads straight, 0.26 turns the flag into a
+hook, and **−0.18 bows it the wrong way** and the flag sags, which is worth
+recording because the sign is not obvious from the letter. *Thick*:
+`ONE_FLAG_W` 1.25 on the profile; at 1.35 the head begins to fill at 13 px.
+*Simple*: the end wedge is dropped, because a microserif on the end of a curve
+is the finial he ruled out on the s in round 209.
+
+**ROUND 75'S MICROSERIF STANDS IN THE ROMAN and is superseded only in the
+italic.** `ONE_FLAG_WEDGE` is untouched; the curve gates it off. Anyone
+restoring it to the italic is undoing this round, not fixing a regression.
+
+**AND THE WEIGHT MULTIPLIER LEAKED INTO THE ROMAN ON THE FIRST CUT** — the
+curve was gated on `pen.ITALIC` and the width was not, so the roman's 1 got a
+25% heavier flag. Caught by diffing every glyph of both builds, which is the
+same leak and the same catch as `SEVEN_BAR_W` in round 213. Gating the shape
+and forgetting the weight is now a pattern rather than an accident: the gate
+belongs on the whole branch.
+
+The 1's advance moves 300 → 305 and its left bearing 20 → 13, because the
+thicker arc reaches further left and the fitter sees it.
+
+Five italic glyphs move: the 1 and its superscript, subscript and two fraction
+variants. Gates: glitch 0 of 119, touch 0 of 5,197, the 290-glyph sweep reports
+the same 13 pre-existing findings, roman byte-identical in outlines and metrics.
+Figure spacing holds at 1.34× spread after round 216's refit.

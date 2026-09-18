@@ -157,6 +157,18 @@ EIGHT_W_IT = 0.70      # x the ring's stroke weight
 # s's and the 7's idiom: the serif IS the stroke, the pen simply pressing as
 # it lands. BRUSH is the foot's width over the stem's; BRUSH_H is how far up
 # the press reaches, x S. 1.0 restores the wedge.
+# ROUND 217 -- THE 1'S FLAG IS A CURVE. Owner 2026-09-18: *"turn top left
+# stroke of 1 to simple thick curve."* It was a straight run on the bowl
+# profile with the family's diagonal end wedge at a sixth (his round-75
+# microserif). CURVE is the bow, as a fraction of the flag's own chord, applied
+# perpendicular to it -- positive bows the stroke UP and away from the stem, the
+# way a pen arrives; W is the profile multiplier; TIP is the width at the far
+# end over the width at the stem, so the thick end can be the one the reader
+# sees. "Simple" is the wedge: the italic drops it, because a microserif on the
+# end of a curve is the finial he ruled out on the s in round 209. Italic only;
+# 0 restores the straight flag exactly.
+ONE_FLAG_CURVE = float(os.environ.get("ALBO_ALD_ONE_FLAG_CURVE", 0.18))
+ONE_FLAG_W = float(os.environ.get("ALBO_ALD_ONE_FLAG_W", 1.25))
 ONE_FOOT_BRUSH = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH", 1.45))
 ONE_FOOT_BRUSH_H = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH_H", 0.20))
 SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.65))
@@ -334,12 +346,28 @@ def g_one(c):
     D = c["figH"]; x = 200 * c["wf"] + S / 2
     brushed = pen.ITALIC and ONE_FOOT_BRUSH > 1.0
     st = stem(x, 0, D, top=None, foot=(None if brushed else 'both'))
-    path = line((x - 150, D * 0.72), (x, D - TH_V * ONE_FLAG_BURY))
+    _p0 = (x - 150, D * 0.72); _p1 = (x, D - TH_V * ONE_FLAG_BURY)
+    curved = pen.ITALIC and ONE_FLAG_CURVE
+    if curved:
+        _dx, _dy = _p1[0] - _p0[0], _p1[1] - _p0[1]
+        _L = math.hypot(_dx, _dy) or 1.0
+        _nx, _ny = -_dy / _L, _dx / _L          # perpendicular, up-left of the run
+        _b = _L * ONE_FLAG_CURVE
+        path = cubic(_p0,
+                     (_p0[0] + _dx * 0.30 + _nx * _b, _p0[1] + _dy * 0.30 + _ny * _b),
+                     (_p0[0] + _dx * 0.70 + _nx * _b, _p0[1] + _dy * 0.70 + _ny * _b),
+                     _p1)
+    else:
+        path = line(_p0, _p1)
     # the flag on the bowl profile at the stem's weight (a pen-drawn flag
     # is a hairline at this contrast; Albertus's 1 carries a short solid
     # flag) -- reflection of 2026-09-13: chiselled, not calligraphic
-    wf = PR.bowl_widths(path, widths([(0.0, 0.8), (0.5, 0.9), (1.0, 0.9)]), floor=S * 0.62)
-    parts = [st, stroke(path, wf, cut0=None if ONE_FLAG_WEDGE else CUT)]
+    wf0 = PR.bowl_widths(path, widths([(0.0, 0.8), (0.5, 0.9), (1.0, 0.9)]), floor=S * 0.62)
+    # ITALIC-GATED, like the curve. Ungated this multiplier moved the ROMAN's
+    # 1 as well -- the same leak SEVEN_BAR_W had in round 213, caught the same
+    # way, by diffing every glyph of both builds rather than by reading it.
+    wf = (lambda u: wf0(u) * ONE_FLAG_W) if (curved and ONE_FLAG_W != 1.0) else wf0
+    parts = [st, stroke(path, wf, cut0=None if (ONE_FLAG_WEDGE and not curved) else CUT)]
     if brushed:
         # the press: the stem's own width spreading into the baseline. Square
         # end faces (cut0/cut1 None) so the foot sits flat on the line and the
@@ -348,7 +376,7 @@ def g_one(c):
         fp = line((x, S * ONE_FOOT_BRUSH_H), (x, 0))
         parts.append(stroke(fp, widths([(0.0, w0), (1.0, w0 * ONE_FOOT_BRUSH)]),
                             cut0=None, cut1=None))
-    if ONE_FLAG_WEDGE:   # the 9's flag-diag construction: a square face across the stroke, the wedge off its UPPER corner
+    if ONE_FLAG_WEDGE and not curved:   # the 9's flag-diag construction: a square face across the stroke, the wedge off its UPPER corner
         parts.append(end_wedge(path, wf(0.0), True, 1, scale=ONE_FLAG_WEDGE_SCALE))
     return geom.ink(parts)
 
