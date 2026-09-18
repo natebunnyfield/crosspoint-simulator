@@ -258,3 +258,68 @@ goes 5.4 → 7.0, which puts the cut at 4.06 between the e's 3.32 and the o's
 Colour falls 0.331 → 0.313 doing it, which is the honest cost of a lighter top:
 still above the e and far above the 0.285 it started at. Gates clean, six
 glyphs moved.
+
+## The italic's figures — round 211 (2026-09-18)
+
+Owner: *"add appropriate line contrast and axis to 8 0 2 9 in italic ... make
+bottom tail of 7 into a vertical taper like 6, change tails of 3 5 9 to match
+their version of 6's tail."*
+
+**The italic's figures were the ROMAN's drawings, sheared.** That is why they
+were nearly monoline and why their stress was upright: a shear moves a shape,
+not the pen that drew it. Measured before and after, with the italic's own
+round letters as the target (o cut 4.64 at 102°, e 99°, a 91°):
+
+| | cut before | cut now | axis before | axis now |
+|---|---|---|---|---|
+| 0 | 1.67 | **2.88** | 92° | 97° |
+| 2 | 2.56 | **2.69** | 88° | 92° |
+| 8 | 1.68 | **2.69** | 107° | 103° |
+| 9 | 1.90 | **3.06** | 87° | 96° |
+
+Three levers, all italic-only and all inert for the roman (proved: the roman
+build is byte-identical across this round):
+
+- **`FIG_CON`** re-spreads a ring's widths about their geometric mean, so the
+  ratio goes to the power of it and the letter's COLOUR does not move — the 0's
+  is 0.252 before and 0.253 after.
+- **`FIG_STRESS`** rotates the NIB the widths are read from. `ring` already had
+  a `rot`, and `rot` turns the superellipse and its tangents together, so the
+  stress travels with the shape and the axis does not move — the same trap
+  `G_SKEW` turned out to be on the g in round 203. Rotating the tangent before
+  the width lookup is the real lever.
+- **`FIG_OVAL`** pulls each ring's counter onto its own ellipse, which is round
+  204's cure for the g's bowl and **the thing that made the contrast possible at
+  all**. The 8's own note in this file says smoothing does not fix the pinch a
+  swinging width puts in a counter, and it is right: at counter_smooth 6, 8 and
+  10 the 8's counters were still dented. `EIGHT_CON` had been sitting at 1.0
+  since the round that added it for exactly this reason.
+
+### The tails
+
+The 6's tail is a pen stroke whose profile runs out to 0.12 at the tip. The
+others did not have one: the 3's and the 5's terminals THICKENED to 1.25 and
+took a cut, the 7's lower stroke was a constant-width diagonal, and the 9's
+ended on a sheared face with a wedge flag. Each now runs out — 0.45, 0.45, 0.30
+and 0.35 of its width — and each is gated on `pen.ITALIC`.
+
+### One thing the contrast broke, and how it was found
+
+The 9's counter took a **notch** where its tail leaves the ring. The ladder that
+located it is worth keeping, because three plausible causes were wrong:
+
+- the ring's own contrast — swept 1.8, 1.5, 1.3, 1.0: the notch survived all four
+- the ovalise — built with and without: present either way
+- sinking the join DEEPER (`NINE_JOIN_SINK` 8 → 20 → 32 → 44): **worse at every
+  step**, which is the diagnostic that named the cure
+
+The tail leaves from a point sunk into the ring, and with the new cut the wall
+is thin there, so the tail's inner edge crossed the counter. Sinking it the
+other way — `NINE_JOIN_SINK_IT = -10`, so the join starts on the ring's own edge
+and the tail runs ALONG the wall instead of through it — closes it. Italic only.
+
+Gates: glitch 0 of 119, touch 0 of 5,193. Twenty-six italic glyphs move: the
+figures and the superscript and fraction variants built from the same functions.
+The **6's ring** takes the same contrast and axis as the others, which the ask
+did not name — it goes through the same `fig_ring` and leaving it out would make
+it the only figure on the roman's stress. Flagged rather than assumed.

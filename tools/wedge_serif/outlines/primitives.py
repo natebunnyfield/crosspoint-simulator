@@ -336,7 +336,7 @@ def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=()):
     return geom.union(parts)
 
 # ---------------------------------------------------------------- rounds
-def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0):
+def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0, stress=0.0, oval=0.0):
     """A full bowl: the OUTER is the designed superellipse (k = squareness);
     the COUNTER is its inward offset by the pen's width at each tangent
     (x w_scale, never under `floor`), smoothed so it reads as a drawn
@@ -354,7 +354,17 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     # family's BOWL_HAIR / BOWL_MAX -- which is the point, since those are
     # shared with every bowl in both faces and a letter that needs more contrast
     # than its family is a letter, not a new family.
-    ws = [bowl_th(tn) * w_scale for tn in tans]
+    # `stress` ROTATES THE NIB, not the ring. `rot` turns the superellipse and
+    # its tangents together, so the stress travels with the shape and the axis
+    # does not move -- the same trap the g's G_SKEW turned out to be in round
+    # 203. Rotating the TANGENT before the width lookup is the real lever: the
+    # ring keeps its shape and the thick moves round it.
+    if stress:
+        _c, _s = math.cos(stress), math.sin(stress)
+        _t = [(t[0] * _c - t[1] * _s, t[0] * _s + t[1] * _c) for t in tans]
+    else:
+        _t = tans
+    ws = [bowl_th(tn) * w_scale for tn in _t]
     if con != 1.0 and ws:
         import math as _m
         gm = _m.exp(sum(_m.log(max(w, 1e-6)) for w in ws) / len(ws))
@@ -366,6 +376,13 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     inner = _unfold(inner, tans)
     inner = smooth(inner, counter_smooth, closed=True)
     inner = resample(inner + [inner[0]])[:-1]
+    # `oval` PULLS THE COUNTER ONTO ITS OWN ELLIPSE -- round 204's cure for the
+    # g's bowl, and the one thing that lets a ring carry real contrast. The
+    # counter is the outer offset inward by the width, so a width that swings
+    # twice as far swings the counter with it and it dents; the 8's own note
+    # records that smoothing does NOT fix that, and it does not.
+    if oval:
+        inner = ovalise(inner, outer, oval, 0.0)
     solid = geom.poly(outer, [inner[::-1]])
     return solid, outer, inner
 
@@ -521,11 +538,24 @@ def bowl_th(tn):
     phi = math.atan2(tn[1], tn[0]) - math.radians(BOWL.get('stress', 0.0))
     return S * (BOWL['hair'] + (BOWL['max'] - BOWL['hair']) * abs(math.sin(phi)) ** BOWL['pow'])
 
-def bowl_widths(center, profile=None, floor=0.0):
-    """Like pen_widths, on the bowl profile (the pen when none is set)."""
+def bowl_widths(center, profile=None, floor=0.0, stress=0.0, con=1.0):
+    """Like pen_widths, on the bowl profile (the pen when none is set).
+
+    `stress` rotates the NIB the width is read from (radians) and `con`
+    re-spreads the resulting widths about their geometric mean, the same two
+    levers `ring` carries -- so an open stroke can be given a letter's axis and
+    cut without redrawing its path."""
     tans = tangents(center); n = len(center) - 1
+    if stress:
+        _c, _s = math.cos(stress), math.sin(stress)
+        tans = [(t[0] * _c - t[1] * _s, t[0] * _s + t[1] * _c) for t in tans]
+    _gm = None
+    if con != 1.0:
+        _w = [bowl_th(t) for t in tans]
+        _gm = math.exp(sum(math.log(max(w, 1e-6)) for w in _w) / max(len(_w), 1))
     def f(t):
         i = min(n, int(round(t * n))); w = bowl_th(tans[i])
+        if _gm is not None: w = _gm * (w / _gm) ** con
         if profile: w *= profile(t)
         return max(w, floor)
     return f
