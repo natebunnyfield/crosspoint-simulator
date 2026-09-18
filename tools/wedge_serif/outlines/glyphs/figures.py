@@ -148,14 +148,21 @@ EIGHT_W_IT = 0.70      # x the ring's stroke weight
 # the 7's half of the same ruling. SEVEN_BAR_W and SEVEN_DIAG_W are SHARED with
 # the roman -- changing their defaults moved the roman's 7, which a build diff
 # caught -- so the italic takes its own pair.
-SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.12))
-SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 0.80))
+SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.30))
+SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 0.86))
 # ROUND 213 -- WHERE THE FOOT LANDS. Owner 2026-09-18: *"make 7 tail centered
 # and taper more like 6."* Measured on the built italic, the foot sits at 0.06
 # of the figure's own ink width -- hard against its left edge -- where the 6's
 # is 0.25, the 1's 0.28 and the 4's 0.38. Italic only; the roman's 7 keeps its
 # 0.30 of w.
-SEVEN_FOOT_X = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_X", 0.82))
+SEVEN_FOOT_X = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_X", 0.66))
+# ROUND 214 -- AND THE FOOT TAKES A MICROSERIF. Owner 2026-09-18: *"redo the
+# tail to be microserifed."* The family's diagonal end wedge at 0.15 of its
+# 0.9 -- the same sixth the 1's flag takes, which he ruled a microserif in
+# round 75 ("reduce the top spur on 1 into a microserif"). 0 is the plain
+# tapered end.
+SEVEN_FOOT_SERIF = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_SERIF", 0.25))
+SEVEN_FOOT_SERIF_SIDE = int(os.environ.get("ALBO_ALD_SEVEN_FOOT_SERIF_SIDE", -1))
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The
@@ -179,8 +186,8 @@ SIX_TAIL_FLOOR = 0.55
 # lever the 9's end cut already uses -- at 0 the roman is untouched.
 THREE_TAIL_END = float(os.environ.get("ALBO_ALD_THREE_TAIL_END", 0.45))  # italic: the bottom terminal's width at its tip (0 = the roman's 1.25 and a cut)
 FIVE_TAIL_END  = float(os.environ.get("ALBO_ALD_FIVE_TAIL_END",  0.45))  # italic: the same on the 5
-SEVEN_TAIL_TAPER = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_TAPER", 0.25))  # italic: the diagonal's width at its foot (0 = the constant-width diagonal)
-SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.65))   # where the taper starts, t along the diagonal
+SEVEN_TAIL_TAPER = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_TAPER", 0.58))  # italic: the diagonal's width at its foot (0 = the constant-width diagonal)
+SEVEN_TAIL_FROM = float(os.environ.get("ALBO_ALD_SEVEN_TAIL_FROM", 0.84))   # where the taper starts, t along the diagonal
 # ROUND 212 -- AND IT CURVES INTO THE VERTICAL. Owner 2026-09-18: *"curve 7
 # tail to be vertical and less thin so quickly."* The lower stroke was a
 # straight run at the diagonal's own angle; this bends it so it ARRIVES
@@ -553,7 +560,13 @@ def g_seven(c):
             path = cubic(p0, c1, c2, p1)
         else:
             path = [p0, p1]
-        diag = stroke(path, lambda u: wd * prof(u))
+        _wf = lambda u: wd * prof(u)
+        diag = stroke(path, _wf)
+        if SEVEN_FOOT_SERIF:
+            _pp = path if len(path) > 2 else resample(path)
+            diag = geom.ink([diag, end_wedge(_pp, _wf(1.0), False,
+                                             SEVEN_FOOT_SERIF_SIDE,
+                                             scale=SEVEN_FOOT_SERIF)])
     else:
         diag = diagonal(p0, p1, wd)
     return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre, wedges=[('left', -1)]), diag])

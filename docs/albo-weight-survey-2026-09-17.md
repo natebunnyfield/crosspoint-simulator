@@ -397,3 +397,32 @@ against the 6's 0.255 — the structural gap recorded in round 212, now wider
 because the letter carries less ink in the same box.
 
 Gates: glitch 0 of 119, touch 0 of 5,193, roman byte-identical.
+
+### Round 214 — the 7 reverted, moved halfway, and microserifed
+
+*"Revert 7 to last version, but move it halfway to center. Keep the curve. Redo
+the tail to be microserifed."* Round 213's fully centred foot is out; round 212's
+taper (0.84 → 0.58) and its curve are back.
+
+**Halfway is a measured point, not a feeling.** Round 212's foot sat at 0.06 of
+the figure's own ink and round 213's at 0.40, so halfway is 0.23; the shipped
+foot reads **0.24**. The dial is not linear in that ratio — 0.56 of the drawn
+width gives 0.15, not the 0.23 a straight line through the earlier sweep
+predicts, because the microserif kicks left and pulls the foot's measured centre
+with it — so it was measured rather than interpolated.
+
+**The microserif is the family's diagonal end wedge at 0.25 of its 0.9**, on the
+foot's left. The 1's flag takes the same wedge at 0.15, which is the owner's own
+ruling from round 75 (*"reduce the top spur on 1 into a microserif"*); at 0.15
+on the 7 it is a nub you have to look for, and at 0.38 a notch opens above it.
+Side matters: on the right (+1) the wedge leaves a re-entrant corner against the
+taper, on the left it does not.
+
+**And the weight had to be re-matched a second time.** Moving the foot changes
+how much of the letter's centreline is bar, so round 212's 1.65 / 1.02 read
++18% at the new position. 1.30 / 0.86 puts it back at **53.4** — the 6's exactly.
+That is twice in three rounds that a shape change silently moved a weight that
+was previously matched: the stroke median is a function of the geometry, not a
+property of the dials, so it has to be re-measured after every move.
+
+Gates: glitch 0 of 119, touch 0 of 5,193, roman byte-identical.
