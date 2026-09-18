@@ -18,8 +18,8 @@ from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 # Applied INSIDE g_o only: O_RX itself is also the roman a's bowl (stems.py)
 # and the classic italic's, which are not the ask. Roman only -- the aldine
 # italic's o is its own. 1.0 / 1.0 is round 225 exactly.
-O_RX_ADJ = float(os.environ.get("ALBO_ROM_O_RX", 0.95))
-O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.08))
+O_RX_ADJ = float(os.environ.get("ALBO_ROM_O_RX", 0.93))
+O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.10))
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
 # ROUND 111. _IO is the ONE place IT_OVAL may be read from, and both the o's
 # constructions now go through it. Round 101 wrote `pen.IT_OVAL` straight into
