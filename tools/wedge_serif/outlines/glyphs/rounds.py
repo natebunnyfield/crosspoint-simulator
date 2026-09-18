@@ -3,7 +3,7 @@ with its counter the pen's inward offset -- the o's stress -- sized so the
 counter is 1.036 wide over tall (ruling). The c and the e's eye are the
 o's ring opened; their terminals are the family's: a flared face at the
 top, a thinner pen-cut end below (c), a blunt end (e, ruling)."""
-import math, os
+import math, os, os
 from . import glyph
 from .. import geom, pen
 from ..geom import superellipse, line, join, cubic
@@ -11,6 +11,15 @@ from ..primitives import ring, stroke, pen_widths, widths, bar, beak, bowl_width
 from .. import primitives as PR
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 
+# ROUND 225 -- THE ROMAN o, A LITTLE SMALLER AND A LITTLE HEAVIER. Owner
+# 2026-09-18: *"'o' roman seems slightly too big and thin, but not by much."*
+# Two dials so the two halves of that can be judged apart: O_RX_ADJ scales the
+# o's centreline radius (227 is the record's), O_W_ADJ its ring's pen width.
+# Applied INSIDE g_o only: O_RX itself is also the roman a's bowl (stems.py)
+# and the classic italic's, which are not the ask. Roman only -- the aldine
+# italic's o is its own. 1.0 / 1.0 is round 225 exactly.
+O_RX_ADJ = float(os.environ.get("ALBO_ROM_O_RX", 0.95))
+O_W_ADJ = float(os.environ.get("ALBO_ROM_O_W", 1.08))
 O_RX = 227; C_RX = 210; E_RX = 186   # centerline radii of the record (x wf); the outer adds half the pen's vertical
 # ROUND 111. _IO is the ONE place IT_OVAL may be read from, and both the o's
 # constructions now go through it. Round 101 wrote `pen.IT_OVAL` straight into
@@ -35,9 +44,9 @@ O_FLOOR_ADJ = 0.55   # round 92 (adj 'o'): the o read hollow -- its knot the low
 @glyph('o')
 def g_o(c):
     if adj('o'):
-        xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * wf + TH_V / 2
-        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, floor=S * O_FLOOR_ADJ); return solid
-    solid, outer, inner = o_ring(c, O_RX)
+        xh = c["xh"]; wf = c["wf"] * _IO; rx = O_RX * O_RX_ADJ * wf + TH_V / 2 * O_W_ADJ   # round 225: the o's own size and weight dials
+        solid, outer, inner = ring(rx, xh / 2, rx, xh / 2 + OVER, w_scale=O_W_ADJ, floor=S * O_FLOOR_ADJ); return solid
+    solid, outer, inner = o_ring(c, O_RX * O_RX_ADJ, w_scale=O_W_ADJ)
     return solid
 
 def open_arc(c, rx_center, a0_deg, a1_deg, profile, cut0=None, cut1=None, k=BOWL_K, cx=None, cy=None, ry_center=None):
