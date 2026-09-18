@@ -507,3 +507,24 @@ clear — their tails hang inward.
 Six italic glyphs move, outlines and metrics; the roman is byte-identical.
 Gates: glitch 0 of 119, touch 0 of 5,197. Class medians after: letter+quote
 0.119, quote+letter 0.126.
+
+## Round 223 — the roman's figures get the body fit; the Q's tail does not get a kern
+
+The misfit audit (`docs/albo-misfit-audit-2026-09-18.md`) found round 216's
+body fit gated to the italic. `ROM_FIG_BODY` / `ROM_FIG_TRACK` in
+`outlines/build.py` give the roman its own pair, and the roman wants less of
+both: its digits have no tails swinging under the baseline, and absorbing 0.75
+of the overhang puts `77` and `44` into contact (the 7's bar and the 4's
+crossbar, meeting themselves). **0.45 / 8**, with `77` +36 and `44` +18 as
+roman-gated pairs: spread **2.10× → 1.53×**, flank sd 0.030 → 0.017, median
+0.1148 (Georgia 0.106, Pagella 0.129), tightest figure pair 0.042 em. The
+roman's 19 pre-existing touching pairs are unchanged — not one added — and the
+italic is byte-identical.
+
+**The Q's tail was tried as fourteen kerns and that is the wrong rule.** The
+pairs measure −0.25 to −0.49 em — the tail runs half an em under the next glyph
+— so the smallest kerns that clear the floor are +270 to +522 units, up to half
+the Q's own advance, and `Qg` `Qj` `Qp` still touch afterwards because the tail
+meets a descender at a different row. Removed in the same round. The fault is
+the tail's length (`caps_straight.py g_Q`, a hard-coded cubic with no dial) and
+it is fixed there, as a drawing.

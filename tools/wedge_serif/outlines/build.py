@@ -333,6 +333,14 @@ FIG_BODY_Q = float(os.environ.get("ALBO_ALD_FIG_BODY_Q", "80"))
 # some. FIG_TRACK gives it back uniformly, per side, so the two decisions stay
 # separate: FIG_BODY is the evenness and FIG_TRACK is the colour.
 FIG_TRACK = float(os.environ.get("ALBO_ALD_FIG_TRACK", "20"))
+# ROUND 223 -- THE ROMAN'S FIGURES GET THE SAME FIT. The misfit audit
+# (docs/albo-misfit-audit-2026-09-18.md) found round 216's body fit had been
+# gated to the italic, so the roman's digits were still fitted on their reach:
+# spread 2.10x against the italic's 1.31x, `00` 0.081 em against `47` 0.266.
+# Its own two dials, because the roman's overhangs are smaller (no tails swing
+# under the baseline) and it wants less absorbed and less given back.
+ROM_FIG_BODY = float(os.environ.get("ALBO_ROM_FIG_BODY", "0.45"))
+ROM_FIG_TRACK = float(os.environ.get("ALBO_ROM_FIG_TRACK", "8"))
 
 
 def _body_edges(conts, q=80.0):
@@ -389,9 +397,11 @@ def fit(ch, conts, c):
     # docs/albo-spacing-method.md's measure-1 failure, in the figures, and the
     # cure it names is measure 3: take the edge where the glyph STANDS.
     # FIG_BODY is how much of the overhang is absorbed; 0 is the old rule.
-    if FIG_BODY and isfig(ch) and ALD is not None and ALD.ON:
+    _ald_on = ALD is not None and ALD.ON
+    _fb = FIG_BODY if _ald_on else ROM_FIG_BODY
+    if _fb and isfig(ch):
         bl, br = _body_edges(conts, FIG_BODY_Q)
-        l += (bl - l) * FIG_BODY; r += (br - r) * FIG_BODY
+        l += (bl - l) * _fb; r += (br - r) * _fb
     lt, rt = SIDES.get(ch, ('straight', 'straight') if ch.isalnum() else ('punct', 'punct'))
     capbear = REF["Hbear"] / 2 * C * pen.WIDTH   # the fitting follows the width axis
     lsb = capbear * A.SIDE_FRACTION[lt] + 17; rsb = capbear * A.SIDE_FRACTION[rt] + 17
@@ -410,8 +420,9 @@ def fit(ch, conts, c):
     elif ch in PUNCT_FENCES or (not ch.isalnum() and ch not in SIDES): lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17   # round 99: every new symbol takes the fences' bearing rather than the tighter default
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
-    if FIG_TRACK and isfig(ch) and ALD is not None and ALD.ON:
-        lsb += FIG_TRACK; rsb += FIG_TRACK
+    _ft = FIG_TRACK if (ALD is not None and ALD.ON) else ROM_FIG_TRACK
+    if _ft and isfig(ch):
+        lsb += _ft; rsb += _ft
     if ALD is not None and ALD.ON and ch in ALD_PUNCT_ADJ:
         lsb += ALD_PUNCT_ADJ[ch][0]; rsb += ALD_PUNCT_ADJ[ch][1]
     if ALD is not None and ALD.ON and ch in PUNCT_QUOTES:

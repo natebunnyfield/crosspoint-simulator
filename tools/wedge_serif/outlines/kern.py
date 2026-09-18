@@ -333,6 +333,27 @@ if _ALD is not None and _ALD.ON:
     PAIRS[('quotesingle', 'W')] = 18
 
 
+# ---------------------------------------------------------- round 223, ROMAN
+# The roman's figures took round 216's body fit (ROM_FIG_BODY 0.45 / TRACK 8 in
+# outlines/build.py) and, as in the italic, two overhangs meet themselves
+# first: the 7's bar over a 7 (77 0.009 em) and the 4's crossbar over a 4 (44
+# 0.024). Pairs, for round 178's reason. Gated to the ROMAN -- the italic's 77
+# reads 0.048 at ship and does not want them.
+if _ALD is None or not _ALD.ON:
+    PAIRS[('seven', 'seven')] = 36
+    PAIRS[('four', 'four')] = 18
+    # THE Q's TAIL IS NOT A KERNING PROBLEM. Fourteen of the roman's nineteen
+    # touching pairs are one letter (Q( Q) Q3 Q4 Q5 Q7 Q9 Qg Qj QJ Qp Qq QQ Qy),
+    # and a kern was tried here first: the pairs measure -0.25 to -0.49 em --
+    # the tail runs half an em under the next glyph -- so the smallest pairs
+    # that clear the floor are +270 to +522 units, a third to a half of the
+    # Q's own advance, and three still touch afterwards because the tail meets
+    # a following descender at a different row (Qg -0.086, Qj -0.045, Qp
+    # -0.038). A rule that wants to move that much is the wrong rule
+    # (docs/albo-spacing-method.md). Removed the same round; the tail's length
+    # is the drawing's, in caps_straight.py g_Q, and that is where it is fixed.
+
+
 def feature_text():
     lines = ['languagesystem DFLT dflt;', 'languagesystem latn dflt;']
     for k, gs in LEFT.items(): lines.append(f"@L_{k} = [{' '.join(gs)}];")
