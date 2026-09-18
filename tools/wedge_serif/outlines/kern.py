@@ -152,7 +152,7 @@ PAIRS = {
     ('R', 'Y'): -18,
     ('V', 'a'): -126,
     ('k', 'e'): -54,
-    ('o', 'c'): 36,
+    ('o', 'c'): 36,     # round 211 halves both of these, ITALIC ONLY -- see below
     ('o', 'r'): 36,
     # ROUND 199 -- um, OPENED. The lowercase bearings are the owner's own
     # round-136 fitting, so the pair carries it rather than moving m.
@@ -268,6 +268,32 @@ PAIRS = {
     ('Z', 'V'): 18,  ('k', 's'): 18, ('z', 's'): 18,   # R,s solved in 198b
     ('w', 'v'): 18,  ('W', 'V'): 18,
 }
+
+# ---------------------------------------------------------- round 211, italic
+# THE ITALIC o's RIGHT BEARING GAINED 28 UNITS this round (owner 2026-09-18,
+# *"adjust oo spacing until 'good' looks correct (it currently touches)"*; the
+# measurement and the reasoning are at ALD_BEARING_ADJ in outlines/build.py).
+# Both `oc` and `or` are round-202 bench values of HIS, and they have not been
+# overruled -- but the letter now supplies most of the opening they were set to
+# make, and the full 36 on top of it would carry both pairs far past where he
+# put them: oc 0.086 -> 0.114 em and or 0.108 -> 0.136, against reference
+# medians of 0.074 and 0.075. Halved, they land 0.096 and 0.118: ten units off
+# his own figures, which is half a STEP and about half a pixel at 13 pt on the
+# 2x app -- as close as the quantum allows.
+#
+# GATED, because this table is shared and the ROMAN o was not touched and does
+# not need to be (its oo measures 0.073 em against a 0.071 reference median).
+# An ungated halving would have moved two roman pairs nobody asked about. The
+# gate reads ALD.ON rather than re-deriving it from the environment, so it
+# cannot disagree with the predicate `fit` uses to choose fit_aldine.
+try:
+    from .glyphs import aldine as _ALD
+except ImportError:
+    _ALD = None
+if _ALD is not None and _ALD.ON:
+    PAIRS[('o', 'c')] = 18
+    PAIRS[('o', 'r')] = 18
+
 
 def feature_text():
     lines = ['languagesystem DFLT dflt;', 'languagesystem latn dflt;']

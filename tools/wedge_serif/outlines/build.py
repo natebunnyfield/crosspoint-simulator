@@ -205,6 +205,36 @@ except ImportError:                      # the module is optional, exactly as in
     ALD = None
 
 
+# ROUND 211 -- THE ITALIC o's RIGHT BEARING, +28. Owner 2026-09-18: *"adjust oo
+# spacing until 'good' looks correct (it currently touches)"*.
+#
+# It is a BEARING and not an `oo` kern because the fault is the letter's, and
+# his own word proves it: in `good` the two gaps after the g are o+o at 0.040 em
+# and o+d at 0.048, while g+o is 0.118 -- nearly three times either. A kern on
+# `oo` alone would have fixed one of the two and left the next one shut.
+#
+# Measured, min white on the cmp_touch instrument at a 300 px x-height, against
+# the median of seven fitted faces (Flanker Griffo, Coelacanth, Pagella,
+# Poetica, Times, Georgia, New York): the o's LEFT-side family (x+o) sits +0.012
+# em above that median -- healthy -- while its RIGHT-side family (o+x) sits
+# -0.020 below it, and `oo`, two identical bowls meeting at the same height, is
+# the worst case at -0.030. +28 brings the right side to +0.006, i.e. into
+# agreement with the letter's own left, and lands oo at 0.068 em and od at 0.076
+# against reference medians of 0.071 and 0.077.
+#
+# The ROMAN is NOT touched and does not need to be: its oo measures 0.073 em
+# against the same 0.071 median. This table is read inside fit_aldine, which
+# runs only when the Aldine italic is live.
+#
+# The arithmetic is exact and needs no ladder: a bearing is added to the advance
+# and `dx = lsb - l` is untouched, so rsb += D adds exactly D units of white to
+# every `o?` pair and moves nothing else in the font.
+#
+# It belongs in ALD.BEARINGS['o'] -- (-18, 58) -> (-18, 86) -- and is held here
+# only because glyphs/aldine.py was being edited by another hand on the day.
+ALD_BEARING_ADJ = {'o': (0, 28)}
+
+
 def fit_aldine(ch, conts):
     """ROUND 133 -- the Aldine lowercase's bearings, read from a table in
     UNSHEARED design units instead of derived from the roman's machinery.
@@ -242,6 +272,8 @@ def fit_aldine(ch, conts):
     xs_u = [x - sh * y for pts, _ in conts for x, y in pts]
     l, r = (min(band), max(band)) if band else (min(xs_u), max(xs_u))
     lsb, rsb = ALD.BEARINGS[ch]
+    if ch in ALD_BEARING_ADJ:                      # round 211, above
+        lsb += ALD_BEARING_ADJ[ch][0]; rsb += ALD_BEARING_ADJ[ch][1]
     # ROUND 197 -- ONE TRACKING DIAL over the whole lowercase, so the FIT can be
     # judged without disturbing the table. That table is round 133's solve plus
     # the owner's own sixteen hand-set letters (round 136) and a +26 tracking he

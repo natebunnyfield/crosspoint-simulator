@@ -122,6 +122,92 @@ V's own bearing rather than out of the pair.
 The sixteen pairs and five bearings the owner set at his bench (round 198) are
 untouched throughout.
 
+## Round 211 — what `oo` measures in faces that are fitted, and the o's own two sides
+
+Owner, 2026-09-18: *"adjust oo spacing until 'good' looks correct (it currently
+touches)."*
+
+**He was reading the ITALIC. The roman was already right and was not touched.**
+
+The pair never reached zero white, so `cmp_touch` never flagged it — it is a
+fitting fault, not a collision, which is what the gate is for and what it is
+blind to. The instrument that answers it is the same min white, measured
+against **seven faces that are fitted**: Flanker Griffo Italic, Coelacanth
+Italic, Pagella Italic, Poetica, Times New Roman, Georgia, New York.
+
+| `oo`, min white at a 300 px x-height | em |
+|---|---|
+| Poetica | 0.067 |
+| Georgia | 0.070 |
+| Pagella It | 0.071 |
+| Times New Roman | 0.071 |
+| Flanker Griffo It | 0.075 |
+| Coelacanth It | 0.079 |
+| New York | 0.081 |
+| **median** | **0.071** |
+| Albo ROMAN | **0.073** — inside the band, 31st tightest of 676 lowercase pairs |
+| Albo ITALIC | **0.040** — 43% under, 6th tightest of 676 |
+
+Every fitted face in reach lands `oo` between 0.067 and 0.081 em, roman and
+italic alike. That band is the single most useful number this round produced:
+it is narrow, it crosses five centuries and two postures, and it costs seven
+font loads to re-derive.
+
+**Why a bearing and not an `oo` kern.** His own word settles it. In `good` the
+two gaps after the g were o+o 0.040 and o+d 0.048, against g+o 0.118 — nearly
+three times either. A kern on `oo` fixes one of the two and leaves the next one
+shut, and he would have looked at the same word again.
+
+**The letter's two sides disagreed, and only one of them was wrong.** Measured
+as deviation from the seven-face median: the o's LEFT-side family (`x+o`, 17
+partners) sits **+0.012 em** — healthy. Its RIGHT-side family (`o+x`) sits
+**−0.020**, and `oo`, two identical bowls approaching at the same height, is its
+worst case at −0.030. So the correction is the right bearing alone: `ALD.BEARINGS['o']`
+(−18, 58) → (−18, 86), held for now as `ALD_BEARING_ADJ` in `outlines/build.py`.
+The right side lands at +0.006, i.e. in agreement with the letter's own left;
+`oo` lands 0.068 and `od` 0.076 against medians of 0.071 and 0.077.
+
+**The arithmetic is exact, so no ladder was run.** A bearing enters the advance
+and leaves `dx = lsb - l` alone, so `rsb += D` adds exactly D units of white to
+every `o?` pair and moves nothing else in the font — confirmed after the build:
+the o's outline is byte-identical, 187 points, same bbox, advance 368 → 396.
+Every shape, counter, contrast and detwinning gate is therefore unaffected by
+construction and none was re-run.
+
+### The negative results
+
+* **The ROMAN needs nothing.** 0.073 against the 0.071 median. Its `oo` was left
+  exactly as it was and the roman build is bit-identical — 0 glyph metric
+  changes. Do not "fix" it.
+* **The ratio agreed with itself and was useless.** `oo` ÷ mean(`on`,`no`) is
+  0.49 in the roman and 0.51 in the italic — the two styles look equally wrong
+  on a ratio, and one of them is correct. Only the ABSOLUTE white separated
+  them. The ratio misleads here because Albo's `n` stands well inside its own
+  serifs (roman: the serif reaches x=49, the stem stands at ~119), so `on` and
+  `nn` measure a different thing from what they measure in the references.
+  `nn`'s minimum is its FOOT SERIFS (105 units) while its real channel is 226.
+* **`ov ow oy ox` are still short** (−0.035 to −0.016) and are NOT the o's fault:
+  `vo wo yo` all sit at or above the reference. That is the v/w/y/x LEFT side.
+  Left alone.
+* **`o` before a mark opened 28 units with everything else**, and was already
+  correct before — the marks carry deliberately generous bearings (round 97b,
+  *"punctuation needs to breathe"*), which had been silently paying for the o's
+  tight right side. On min white it now reads loose (`o.` +0.046, `o,` +0.089
+  against the reference median), but min white cannot see a mark sitting low and
+  open — the doc above is about exactly this failure — so it was judged by eye
+  at the phone's real 54 px em and reads airier rather than loose. Deliberately
+  NOT compensated; six italic-only pair exceptions is a bigger change than the
+  fault. If it is ever revisited, the numbers are here.
+* **`oc` and `or` are round-202 bench values of HIS and were not overruled.**
+  The bearing would have carried them to 0.114 and 0.136 against medians of
+  0.074 and 0.075, so their kerns are halved 36 → 18, ITALIC ONLY, landing them
+  0.096 and 0.118 — ten units from his own figures, half a STEP, about half a
+  pixel at 13 pt on the 2x app. The gate on that halving reads `ALD.ON` rather
+  than re-reading the environment, so it cannot disagree with the predicate
+  `fit()` uses to choose `fit_aldine`.
+* **No kern pair was added.** The single-glyph table is 79 entries before and
+  after, against the reader's 255 cap.
+
 ## The larger finding, which measure 3 does not remove
 
 Albo's italic counters measure **145 units against Flanker Griffo's 226** at the
