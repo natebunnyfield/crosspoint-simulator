@@ -369,6 +369,100 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     solid = geom.poly(outer, [inner[::-1]])
     return solid, outer, inner
 
+def _fit_ellipse(pts):
+    """Least-squares conic through a near-elliptical closed contour.
+    Returns (cx, cy, Q) where Q is the 2x2 form with (p-c)Q(p-c) = 1."""
+    import numpy as np
+    P = np.asarray(pts, float)
+    c0 = P.mean(axis=0)
+    x, y = (P[:, 0] - c0[0]), (P[:, 1] - c0[1])
+    # a x^2 + b xy + c y^2 + d x + e y = 1
+    D = np.column_stack([x * x, x * y, y * y, x, y])
+    sol, *_ = np.linalg.lstsq(D, np.ones_like(x), rcond=None)
+    a, b, c, d, e = sol
+    M = np.array([[a, b / 2.0], [b / 2.0, c]])
+    if np.linalg.det(M) <= 1e-12:          # not an ellipse -- leave it alone
+        return None
+    # centre of the conic, then renormalise so the form is exactly 1 on it
+    ctr = np.linalg.solve(2 * M, -np.array([d, e]))
+    k = 1.0 + float(ctr @ M @ ctr + np.array([d, e]) @ ctr)
+    if k <= 1e-9:
+        return None
+    return (c0[0] + ctr[0], c0[1] + ctr[1], M / k)
+
+
+def ovalise(inner, outer, amount=1.0, wall_min=0.0, hand=None, counter_smooth=2):
+    """ROUND 204 -- PULL A COUNTER ONTO ITS OWN BEST-FIT ELLIPSE.
+
+    `ring_from` builds the counter by offsetting the outer inward by the
+    stroke's width at each point. That is the right construction for the WALL
+    and the wrong one for the WHITE: every kink in the width table, every hand
+    press and every fast turn lands in the counter as a facet or a corner, and
+    at a high contrast the counter stops being a shape and becomes the residue
+    of one. Owner 2026-09-17: *"smooth out counters to be even oval"*.
+
+    So the counter is fitted with an ellipse and each point is pulled onto it.
+    `amount` 1.0 is the ellipse exactly, 0.0 the offset contour untouched.
+    The outer does not move, so ALL of the contrast now lives in the wall,
+    which is what a pen actually does -- the white it leaves is even and the
+    black around it is not.
+
+    `wall_min` is the guard: a point is never pulled so far that the wall
+    thins past it (measured to the outer, in the same units). `hand` is a
+    (degrees, dr) table pressed into the finished oval, because an ellipse
+    drawn by a machine is not what this face is.
+    """
+    import numpy as np
+    fit = _fit_ellipse(inner)
+    if not fit:
+        return inner
+    cx, cy, Q = fit
+    out = np.asarray(outer, float)
+    res = []
+    for px, py in inner:
+        ux, uy = px - cx, py - cy
+        u = np.array([ux, uy])
+        q = float(u @ Q @ u)
+        if q <= 1e-12:
+            res.append((px, py)); continue
+        t = 1.0 / math.sqrt(q)              # the ellipse along this point's own ray
+        ex, ey = cx + ux * t, cy + uy * t
+        a = amount
+        if wall_min > 0.0:
+            # back the blend off until the wall holds
+            for _ in range(6):
+                bx, by = px + (ex - px) * a, py + (ey - py) * a
+                d = float(np.min(np.hypot(out[:, 0] - bx, out[:, 1] - by)))
+                if d >= wall_min or a <= 0.0:
+                    break
+                a *= 0.5
+        res.append((px + (ex - px) * a, py + (ey - py) * a))
+    if hand:
+        pressed = []
+        for px, py in res:
+            ang = math.degrees(math.atan2(py - cy, px - cx)) % 360.0
+            dr = _table_at(hand, ang)
+            L = math.hypot(px - cx, py - cy) or 1.0
+            pressed.append((px + (px - cx) / L * dr, py + (py - cy) / L * dr))
+        res = pressed
+    res = smooth(res, counter_smooth, closed=True)
+    return resample(res + [res[0]])[:-1]
+
+
+def _table_at(table, ang):
+    """(degrees, value) read periodically, cosine-interpolated."""
+    ks = sorted((float(d) % 360.0, float(v)) for d, v in table)
+    ang %= 360.0
+    for i in range(len(ks)):
+        a0, v0 = ks[i]
+        a1, v1 = (ks[0][0] + 360.0, ks[0][1]) if i == len(ks) - 1 else ks[i + 1]
+        if a0 <= ang <= a1:
+            f = (ang - a0) / (a1 - a0) if a1 > a0 else 0.0
+            f = 0.5 - 0.5 * math.cos(math.pi * f)
+            return v0 + (v1 - v0) * f
+    return ks[0][1]
+
+
 def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, post_inner=None, smooth_w=0):
     """A bowl from a DESIGNED closed outer path (ccw): the counter is the
     inward offset by the pen's width at each tangent (or widths_fn(t)),

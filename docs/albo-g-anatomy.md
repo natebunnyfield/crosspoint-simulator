@@ -329,3 +329,106 @@ o's. So the axis is now reachable per ring, and reachable in the bench
 slider each and the same live g is set into words.
 
 Gates at the shipped values: glitch 0 of 119, touch 0 of 5,193.
+
+## Even counters, smaller loops, and a welded connector — 2026-09-17 (rounds 204–205)
+
+Three owner instructions in one arc, each with a measurement that changed what
+was built.
+
+### The counter is a shape, not the residue of the wall
+
+*"smooth out counters to be even oval, handcut the letter slightly."*
+
+`ring_from` builds a counter by pushing the outer inward by the stroke's width
+at each point, so every step in the width table, every hand press and every fast
+turn lands in the white as a facet. At the owner's contrast (3.25 bowl, 3.7
+loop) that was most of what the counter was: the bowl had a point at its lower
+left and a straight run down its right, the loop four flats.
+
+`PR.ovalise` fits the counter's own ellipse (least-squares conic) and pulls each
+point onto it, guarded so no point is pulled far enough to thin the wall past 16
+units. The outer does not move, so ALL of the contrast now lives in the wall —
+which is what a pen does: even white, uneven black. **The white is not paid
+for**: bowl counter 31,110 → 31,018 design units, loop 49,538 → 49,608. The
+ellipse averages the shape it replaces rather than shrinking it.
+
+The handcut is `G_CUT`, a four-angle table pressed into the FINISHED oval,
+alongside the existing `G_HAND` press on the outer. A ladder at 3/5/8 units of
+counter cut (with 8/13/18 on the outer) costs 0.0% / 1.4% / 2.7% more ink; 3
+ships.
+
+### Each loop shrinks about the edge it is pinned by
+
+*"anchor top loop to where current sits at top ... anchor bottom loop on top
+sitting on baseline as it is now."*
+
+`G_BSCALE` and `G_LSCALE`, both 0.9 as shipped. The bowl is scaled about its
+CROWN (`G_CY + G_RY` held, the centre rises to meet it); the loop about its TOP
+(`lt` held, `lb` raised), which is the edge resting on the baseline. Verified:
+the loop's top holds at 72.4 → 72.5 units across the whole ladder.
+
+**The scaling is applied on the DIALS, not at `keyed_ring`.** The connector's
+start, its bowl-exit ride, the ear's root and the export each read
+`G_CY`/`G_RX`/`G_RY` for themselves, so a scale applied at the ring shrinks the
+bowl and leaves all four pointing at the ring it used to be.
+
+**A literal vertex list cannot follow a ring that moves.** `G_NECK_PTS` is in
+absolute design units, so the first shrink pulled the bowl's floor 18 units off
+its first vertex and the glitch gate read the join closing to 2.24 units of ink.
+Each vertex now takes the bowl's transform at the bowl end and the loop's at the
+loop end, blended along the run (`G_NECK_FOLLOW`).
+
+What the two scales bought and spent, measured at a 16 px x-height:
+
+| | ring-to-ring white | bowl counter, short way | `eggy` vs the face's own descenders |
+|---|---|---|---|
+| round 204 | 1.62 px | 5.79 px | +30% |
+| shipped, 0.9 / 0.9 | **2.74 px** | 4.77 px | **+16%** |
+| (0.82 loop, laddered) | — | — | −1% |
+
+"Reads evenly" was given a number: ink in the descender band against ink in the
+x-height band, with `yappy` as the control, since the face already owns a
+descender rhythm in its y and p. The loop reaches that rhythm at 0.82 and is
+still 16% heavy at the owner's 0.9. Note 0.94 measured slightly WORSE than no
+change at all — the loop narrows faster than it shallows, so the same ink lands
+in a shorter band.
+
+### The join was a crack, and only one of three cures worked
+
+*"make sure the connector blends perfectly so it appears to be continuous
+strokes."*
+
+Walking the finished outline and measuring the turn over a ±6 sample window, the
+worst corner at the joins was **141°**. Three cures, in the order tried:
+
+| | worst join corner |
+|---|---|
+| abutted (round 204) | 141° |
+| **weld** — each end moved onto the ring's own centreline, carrying the ring's wall | 139° |
+| **+ tangent approach** — a control point on the ring's tangent | 59°, plus new kinks |
+| **+ closing** — `geom.close_corners`, dilate 10 units then erode 10 | **45°** |
+
+The weld barely moved the number and is still required: without it the closing
+has a 141° corner to work on, and the weld's first version — aimed by the width
+TABLE — put a tooth through the bowl's counter, because after `ovalise` the
+table no longer describes the wall. The weld measures the BUILT contours
+(`_RING_GEOM`) instead, taking the ring's real centreline and its real wall at
+the angle the owner's own vertex names, and holds that wall across the whole
+welded span so the band and the ring are the same width everywhere they overlap.
+
+The **closing** is what actually closes a corner: a dilate-then-erode rounds
+concave corners to the radius and returns convex ones where they were. Radius is
+a ceiling rather than a taste — a closing bridges any white channel narrower
+than twice its radius, and the white between the loops is 73.6 units; at 18 it
+begins eating the open bay under the bowl. 10 costs 0.7% more ink.
+
+The **tangent approach measured worse than doing nothing** and ships at 0
+(`G_WELD_TANG`): the extra control point bends the span BEFORE the weld and the
+catmull kinks there instead.
+
+Gates on the shipped letter: glitch 0 of 119, touch 0 of 5,193.
+
+**And an instrument note: md5 is not an identity test for these builds.** A font
+carries a timestamp, so two byte-identical drawings hash differently. Compare
+the glyph's `RecordingPen` output instead — that is what proved `G_BSCALE` /
+`G_LSCALE` inert at 1.0.

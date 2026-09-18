@@ -155,6 +155,25 @@ def ink(solids, cutouts=()):
         g = g.difference(union(cutouts))
     return g
 
+def close_corners(g, r, segs=24):
+    """ROUND 205b -- FILL THE CONCAVE CORNERS A UNION LEAVES.
+
+    `ink` adds shapes, and where a band meets a ring at an angle the result is
+    a notch on one side and a knuckle on the other, however well the two are
+    aimed. A morphological CLOSING -- dilate by r, erode by r -- fills exactly
+    those: a concave corner is rounded to radius r, a convex one comes back
+    where it was, and no edge moves in between. Owner 2026-09-17: *"make sure
+    the connector blends perfectly so it appears to be continuous strokes"*.
+
+    r must stay well under half the narrowest white the letter is meant to
+    keep, because a closing also bridges any channel narrower than 2r.
+    """
+    if not r or r <= 0:
+        return g
+    return _largest(g.buffer(r, join_style=1, quad_segs=segs)
+                     .buffer(-r, join_style=1, quad_segs=segs))
+
+
 def contours(g, min_area=40.0):
     """[(points, is_hole)] with exteriors wound CCW (positive area) and holes
     CW -- the nonzero winding TrueType wants. Tiny slivers are dropped."""

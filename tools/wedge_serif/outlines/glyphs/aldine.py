@@ -2270,7 +2270,8 @@ if ON:
     # A_RING, A_K and `keyed_ring` are NOT the a's alone -- the d, the q and
     # the g read them too -- so this round changes none of them.
     A_UNIT = 429.0
-    _RING_PARTS = []     # export scratch: each ring's sampled outer and widths
+    _RING_PARTS = []
+    _RING_GEOM = []     # each ring's FINISHED outer and counter, for the weld
     # ROUND 168 -- THE LETTER COMES IN. Owner 2026-09-16: *"make a less wide"*.
     # Measured on the built font, ink width in design units: a **428**, against
     # b 425, n 392, h 391, u 378, o 337 -- the a was the widest lowercase in the
@@ -2367,7 +2368,8 @@ if ON:
 
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
                    hand=None, flat=None, want_outer=False, pen=None, adj=None,
-                   want_parts=False, _phi=50.0):
+                   want_parts=False, _phi=50.0, oval=0.0, oval_wall=0.0,
+                   oval_hand=None):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2508,6 +2510,21 @@ if ON:
                 ws[i] *= _at(ang)
         sol, out_, _in = PR.ring_from(outer, widths_fn=lambda t: ws[min(n - 1, int(round(t * n))) % n],
                                       smooth_w=smooth_w)
+        # ROUND 204 -- THE COUNTER IS A SHAPE, NOT THE RESIDUE OF THE WALL.
+        # Owner 2026-09-17: *"smooth out counters to be even oval, handcut the
+        # letter slightly"*. The offset counter carries every facet the width
+        # table and the hand presses put into it; at his contrast (3.25 and
+        # 3.7) that is most of what the white was. Pulled onto its own fitted
+        # ellipse the white is even and the wall keeps all the contrast --
+        # then `oval_hand` presses the oval back off true, by a table.
+        if oval:
+            _in = PR.ovalise(_in, out_, oval, oval_wall, oval_hand)
+            sol = geom.poly(out_, [_in[::-1]])
+        # ROUND 205b -- THE FINISHED CONTOURS, KEPT. The connector welds itself
+        # onto the ring's real centreline, and after `ovalise` the width TABLE
+        # no longer describes the wall: the counter moved and the table did not.
+        # A weld aimed by the table put a tooth through the bowl's counter.
+        _RING_GEOM.append((list(out_), list(_in)))
         if os.environ.get("ALBO_ALD_G_EXPORT"):
             # the pen's own contribution, separated from the hand table, so a
             # bench can recompute the widths at another nib angle or contrast
@@ -3779,9 +3796,50 @@ if ON:
     G_CY = float(os.environ.get("ALBO_ALD_G_CY", 268.0))
     G_RX = float(os.environ.get("ALBO_ALD_G_RX", 144.0))
     G_RY = float(os.environ.get("ALBO_ALD_G_RY", 152.0))
+    # ROUND 205 -- THE TWO LOOPS SHRINK ABOUT AN ANCHOR, NOT ABOUT THEIR
+    # CENTRES. Owner 2026-09-17: *"reduce the top loop enough that there is a
+    # slight optical gap at smaller font sizes. anchor top loop to where
+    # current sits at top ... anchor bottom loop on top sitting on baseline as
+    # it is now."* Scaling a ring by its radii moves BOTH its edges, so the
+    # bowl's crown would drop and the loop's crown would leave the baseline --
+    # the two places this letter is pinned.
+    #
+    # It is done HERE, on the dials, and not at the ring: the connector's start,
+    # its bowl-exit ride, the ear's root and the export all read G_CY/G_RX/G_RY
+    # for themselves, so a scale applied at `keyed_ring` shrinks the bowl and
+    # leaves every one of them pointing at the ring it used to be. The crown
+    # (G_CY + G_RY) is held and the centre rises to meet it, which is the
+    # anchor he named. 1.0 is the round-204 letter to the bit.
+    G_BSCALE = float(os.environ.get("ALBO_ALD_G_BSCALE", 0.9))
+    G_CROWN = G_CY + G_RY                      # the anchor, before anything moves
+    if G_BSCALE != 1.0:
+        G_RX *= G_BSCALE
+        G_RY *= G_BSCALE
+        G_CY = G_CROWN - G_RY
     G_SKEW = float(os.environ.get("ALBO_ALD_G_SKEW", -0.01))
     G_LCX = float(os.environ.get("ALBO_ALD_G_LCX", 150.0))    # lower loop centre
     G_LRX = float(os.environ.get("ALBO_ALD_G_LRX", 194.0))
+    # the loop's half of the same ruling -- its rx here, its ry where lt and lb
+    # are worked out, because the loop is built from its two EDGES and its top
+    # edge is the one resting on the baseline.
+    G_LSCALE = float(os.environ.get("ALBO_ALD_G_LSCALE", 0.9))
+    G_LRX *= G_LSCALE
+    G_NECK_FOLLOW = os.environ.get("ALBO_ALD_G_NECK_FOLLOW", "1") != "0"
+    G_NECK_WELD = os.environ.get("ALBO_ALD_G_NECK_WELD", "1") != "0"
+    G_WELD_RIDE = float(os.environ.get("ALBO_ALD_G_WELD_RIDE", 14.0))  # degrees along each ring
+    # the fillet radius that finishes both joins, in design units. It must stay
+    # well under half the white between the two loops (73.6 units at 0.9/0.9),
+    # because a closing bridges any channel narrower than twice its radius.
+    G_BLEND = float(os.environ.get("ALBO_ALD_G_BLEND", 10.0))
+    # HOW FAR BACK ALONG EACH RING'S TANGENT THE APPROACH POINT SITS -- and a
+    # NEGATIVE RESULT, kept at 0. The reasoning was sound (arrive along the
+    # ring's tangent and the band cannot turn onto it at an angle) and the
+    # measurement disagreed: walking the finished outline, the worst join
+    # corner was 45 deg with the closing alone and 59 deg at 0.55 / 78 deg at
+    # 0.80, because the extra control point bends the span BEFORE the weld and
+    # the catmull then kinks there instead. The closing is what cures this
+    # join; this dial is left reachable and off.
+    G_WELD_TANG = float(os.environ.get("ALBO_ALD_G_WELD_TANG", 0.0))
     G_LOOP_Y = float(os.environ.get("ALBO_ALD_G_LOOP_Y", 64.0))   # moves the whole loop
     # per-section wall multipliers round each ring: JSON [[deg, mult], ...]
     G_RING_ADJ = json.loads(os.environ["ALBO_ALD_G_RING_ADJ"]) if os.environ.get("ALBO_ALD_G_RING_ADJ") else None
@@ -3985,7 +4043,7 @@ if ON:
     # bypassed while this is set. Design units, x from the glyph's own origin.
     G_NECK_PTS_DEFAULT = [[259.5, 143.7], [231.4, 120.4], [117.7, 101.5],
                           [91.1, 84.0], [122.5, 67.9], [272.7, 49.0],
-                          [340.8, -25.3], [348.1, -88.0]]
+                          [340.8, -25.3], [369.8, -104.8]]
     G_NECK_PTS = (json.loads(os.environ["ALBO_ALD_G_NECK_PTS"])
                   if os.environ.get("ALBO_ALD_G_NECK_PTS") else G_NECK_PTS_DEFAULT)
     G_BOWL_EXIT = float(os.environ.get("ALBO_ALD_G_BOWL_EXIT", 260.0))  # bowl angle the band leaves from
@@ -4260,17 +4318,31 @@ if ON:
     # so the dial is set by measuring the built font, not by reading the number.
     G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 61.0))
     G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.52))
-    G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 2.30))
+    G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 3.25))
     G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 64.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
-    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 1.70))
+    G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 3.70))
     # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and
     # does NOT move where the thick falls: a pen-drawn ring takes its stress
     # from the nib, so the axis lever has to be the nib's angle. 50 is the
     # family's, and `nib_widths_closed` already took a phi -- only the dial was
     # missing.
-    G_BOWL_PHI = float(os.environ.get("ALBO_ALD_G_BOWL_PHI", 50.0))
-    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 50.0))
+    G_BOWL_PHI = float(os.environ.get("ALBO_ALD_G_BOWL_PHI", 21.0))
+    G_LOOP_PHI = float(os.environ.get("ALBO_ALD_G_LOOP_PHI", 29.0))
+    # ROUND 204 -- AN EVEN OVAL COUNTER, AND A HAND PRESSED BACK INTO IT.
+    # `PR.ovalise` fits the counter's own ellipse and pulls it on; 1.0 is the
+    # ellipse, 0.0 the round-203 letter to the bit. OVAL_WALL is the guard --
+    # no point is pulled so far that the wall thins past it -- and the two CUT
+    # tables are the handcut: (degrees, dr) on the FINISHED oval, placed off
+    # the thicks the way G_BOWL_HAND's presses are, so the white reads as cut
+    # rather than as computed.
+    G_BOWL_OVAL = float(os.environ.get("ALBO_ALD_G_BOWL_OVAL", 1.0))
+    G_LOOP_OVAL = float(os.environ.get("ALBO_ALD_G_LOOP_OVAL", 1.0))
+    G_OVAL_WALL = float(os.environ.get("ALBO_ALD_G_OVAL_WALL", 16.0))
+    G_CUT = float(os.environ.get("ALBO_ALD_G_CUT", 3.0))
+    G_BOWL_CUT = [(30, 1.0), (110, -0.8), (200, 0.9), (290, -1.0)]
+    G_LOOP_CUT = [(60, -0.9), (150, 1.0), (240, -0.7), (330, 0.8)]
+    _gc = lambda t: [(a, d * G_CUT) for a, d in t] if G_CUT else None
     G_LRING_THIN = float(os.environ.get("ALBO_ALD_G_LRING_THIN", 58.0))
     G_LRING_THIN_AT = float(os.environ.get("ALBO_ALD_G_LRING_THIN_AT", 300.0))
     G_LRING = [(0, 24), (45, 34), (90, 38), (135, 62), (180, 70), (225, 74),
@@ -4298,9 +4370,12 @@ if ON:
         the block above for where every number comes from."""
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
         del _RING_PARTS[:]
+        del _RING_GEOM[:]
         up, up_outer = keyed_ring(x0 + G_CX * u, G_CY * u, G_RX * u, G_RY * u,
                         G_RING, k=A_K, skew=G_SKEW, unit=u, want_outer=True,
                         hand=_gh(G_BOWL_HAND), adj=G_RING_ADJ, _phi=G_BOWL_PHI,
+                        oval=G_BOWL_OVAL, oval_wall=G_OVAL_WALL * u,
+                        oval_hand=_gc(G_BOWL_CUT),
                         pen=(G_BOWL_PEN, G_BOWL_THIN_F, G_BOWL_CON)
                             if G_BOWL_PEN else None)
         # ROUND 197 -- THE LOOP CAN BE MOVED AS A WHOLE.
@@ -4310,10 +4385,13 @@ if ON:
         # different asks and the letter needs both dials.
         lt = G_LTOP * u + G_LOOP_Y * u
         lb = -dsc - OVER * 0.4 + G_LOOP_Y * u
+        lb = lt - (lt - lb) * G_LSCALE          # the crown stays on the baseline
         lo, lo_outer = keyed_ring(x0 + G_LCX * u, (lt + lb) / 2.0, G_LRX * u,
                                   (lt - lb) / 2.0, G_LRING, k=A_K, skew=G_SKEW_L,
                                   unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
                                   adj=G_LRING_ADJ, _phi=G_LOOP_PHI,
+                                  oval=G_LOOP_OVAL, oval_wall=G_OVAL_WALL * u,
+                                  oval_hand=_gc(G_LOOP_CUT),
                                   pen=(G_LOOP_PEN, G_LOOP_THIN_F, G_LOOP_CON)
                                       if G_LOOP_PEN else None)
         # ROUND 173 -- THE NECK IS THINNER, ANGULAR, AND STOPS AT THE LOOP.
@@ -4483,7 +4561,101 @@ if ON:
             # HERE". This takes the polygon literally, in design units, and the
             # other path dials stand down; the WIDTH profile still applies, so
             # a moved vertex is still a pen stroke rather than an outline.
-            _pen = [(float(a) * u, float(b) * u) for a, b in G_NECK_PTS]
+            # ROUND 205 -- AND THE POLYGON RIDES BOTH ANCHORS.
+            # A literal vertex list is in ABSOLUTE design units, so it cannot
+            # follow a ring that shrinks: at G_BSCALE 0.94 the bowl's floor rose
+            # 18 units away from its first vertex and the glitch gate read the
+            # join closing to 2.24 units of ink. Each vertex therefore takes the
+            # bowl's own transform at the bowl end and the loop's at the loop
+            # end, blended along the run, so the hand-placed SHAPE is kept while
+            # both joins stay where they were welded. Inert when both scales are
+            # 1.0, and `G_NECK_FOLLOW=0` turns it off.
+            _lt_u = G_LTOP + G_LOOP_Y
+            _npn = max(len(G_NECK_PTS) - 1, 1)
+            def _follow(a, b, i):
+                if not G_NECK_FOLLOW or (G_BSCALE == 1.0 and G_LSCALE == 1.0):
+                    return a, b
+                t = i / _npn
+                bx = G_CX + (a - G_CX) * G_BSCALE
+                by = G_CROWN - (G_CROWN - b) * G_BSCALE
+                lx = G_LCX + (a - G_LCX) * G_LSCALE
+                ly = _lt_u - (_lt_u - b) * G_LSCALE
+                return (a + (1 - t) * (bx - a) + t * (lx - a),
+                        b + (1 - t) * (by - b) + t * (ly - b))
+            _pen = [tuple(v * u for v in _follow(float(a), float(b), i))
+                    for i, (a, b) in enumerate(G_NECK_PTS)]
+            # ROUND 205b -- THE TWO JOINS ARE WELDED, NOT ABUTTED.
+            # Owner 2026-09-17: *"make sure the connector blends perfectly so it
+            # appears to be continuous strokes"*. `geom.ink` ADDS: where a band
+            # arrives at a ring at any angle at all, the union leaves a corner
+            # on one side and a knuckle on the other, and no width fitting cures
+            # it -- rounds 174 to 196 are the record of trying.
+            #
+            # The cure is the one round 197 found for the loop end and never got
+            # applied to a hand-placed polygon: make the band and the ring BE
+            # the same stroke where they meet. Each end vertex is moved onto its
+            # ring's own CENTRELINE at the angle he put it at -- the angle is
+            # read off his point, so the join stays where he welded it -- a
+            # second point is laid one step further along that same centreline,
+            # and the end width is set to the ring's WALL there. The two strokes
+            # then occupy the same path with the same width for that span, so
+            # the union has nothing left to leave behind.
+            def _centreline(idx):
+                """The ring's REAL middle and wall, off the built contours."""
+                out2, in2 = _RING_GEOM[idx]
+                mids, walls = [], []
+                for ox, oy in out2:
+                    bd, bj = 1e18, in2[0]
+                    for ix, iy in in2:
+                        v = (ix - ox) ** 2 + (iy - oy) ** 2
+                        if v < bd: bd, bj = v, (ix, iy)
+                    mids.append(((ox + bj[0]) / 2.0, (oy + bj[1]) / 2.0))
+                    walls.append(math.sqrt(bd))
+                return mids, walls
+            def _weld_end(idx, p, away):
+                mids, walls = _centreline(idx)
+                n2 = len(mids)
+                j = min(range(n2), key=lambda i: (mids[i][0] - p[0]) ** 2 + (mids[i][1] - p[1]) ** 2)
+                k = max(3, int(n2 * G_WELD_RIDE / 360.0))
+                cand = [(j + k) % n2, (j - k) % n2]
+                # the ride runs along the ring, away from where the band goes
+                ride = max(cand, key=lambda i: (mids[i][0] - away[0]) ** 2 + (mids[i][1] - away[1]) ** 2)
+                return mids[j], mids[ride], walls[j], walls[ride]
+            if G_NECK_WELD and len(_pen) >= 2 and len(_RING_GEOM) >= 2:
+                _b_at, _b_ride, _b_wall, _b_wall2 = _weld_end(0, _pen[0], _pen[1])
+                _l_at, _l_ride, _l_wall, _l_wall2 = _weld_end(1, _pen[-1], _pen[-2])
+                # AND IT ARRIVES ALONG THE RING'S TANGENT. Welding the ends on
+                # is not enough on its own: the band still turned onto the
+                # centreline at an angle, and that angle is the shoulder the
+                # loop join kept showing (it is there with the handcut off, so
+                # it was the join and not the press). A control point is laid on
+                # the ring's own tangent line, back along the band's run, so the
+                # last span before the weld is already going the ring's way.
+                def _tang_pt(at, ride, prev, f):
+                    tx, ty = at[0] - ride[0], at[1] - ride[1]
+                    tl = math.hypot(tx, ty) or 1.0
+                    d = f * math.hypot(prev[0] - at[0], prev[1] - at[1])
+                    return (at[0] + tx / tl * d, at[1] + ty / tl * d)
+                _pen[0] = _b_at
+                _pen[-1] = _l_at
+                if G_WELD_TANG:
+                    _pen.insert(1, _tang_pt(_b_at, _b_ride, _pen[1], G_WELD_TANG))
+                    _pen.insert(len(_pen) - 1,
+                                _tang_pt(_l_at, _l_ride, _pen[-2], G_WELD_TANG))
+                _pen.insert(0, _b_ride)
+                _pen.append(_l_ride)
+                # the ride spans carry the RING'S OWN wall at both of their
+                # ends, so the band and the ring are the same width everywhere
+                # they overlap -- a width interpolated from the waist instead
+                # leaves the step the loop join was still showing.
+                _seg = [math.hypot(_pen[i + 1][0] - _pen[i][0], _pen[i + 1][1] - _pen[i][1])
+                        for i in range(len(_pen) - 1)]
+                _tot = sum(_seg) or 1.0
+                _t1 = _seg[0] / _tot
+                _t2 = 1.0 - _seg[-1] / _tot
+                _weld_w = (_b_wall2, _b_wall, _l_wall, _l_wall2, _t1, _t2)
+            else:
+                _weld_w = None
         elif G_NECK_RIDE0:
             _pen = [_bowl_mid(G_BOWL_EXIT - G_NECK_RIDE0), _bowl_mid(G_BOWL_EXIT)]
         else:
@@ -4523,6 +4695,17 @@ if ON:
             if G_NECK_FLAT:
                 _pen.append((_n4[0] - G_NECK_FLAT * u, _n4[1]))
             _pen.append(_n4)
+        if G_NECK_PTS and _weld_w:
+            # the ends now carry the ring's own wall; his waist and twist keep
+            # their places in between
+            _bw2, _bw1, _lw1, _lw2, _t1, _t2 = _weld_w
+            _nk2 = [(0.0, _bw2), (_t1, _bw1),
+                    (G_NECK_WAIST_AT, G_NECK_W * u * G_NECK_SCALE),
+                    (_t2, _lw1), (1.0, _lw2)]
+            if G_NECK_TWIST and G_NECK_TWIST_AT < _t2:
+                _nk2 = sorted(_nk2 + [(G_NECK_TWIST_AT, G_NECK_TWIST * u * G_NECK_SCALE)])
+            _nk2 = sorted({round(t, 5): w for t, w in sorted(_nk2)}.items())
+            _nw = widths(_nk2)
         nk = stroke(catmull(_pen, tension=G_NECK_ANG), _nw,
                     cut1=math.radians(G_NECK_CUT))
         # ROUND 174 -- THE CONNECTOR IS TRIMMED AT THE LOOP, not fitted to it.
@@ -4787,7 +4970,7 @@ if ON:
             return geom.ink([up, lo, _cp, ear])
         if G_ONE_STROKE:
             return geom.ink([up, _one, ear])
-        return geom.ink([up, lo, nk, ear])
+        return geom.close_corners(geom.ink([up, lo, nk, ear]), G_BLEND * u)
 
     def _diag(p0, p1, w0, w1):
         """UNUSED since round 132 -- v w x z k were its only callers and all
