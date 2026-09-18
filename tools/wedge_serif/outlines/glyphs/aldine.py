@@ -1562,7 +1562,7 @@ if ON:
         C_RING = [(float(a), float(w)) for a, w in
                   (kv.split(":") for kv in os.environ["ALBO_ALD_C_RING"].split(","))]
 
-    def cs_round_end(pts, ws, at_start, amount):
+    def cs_round_end(pts, ws, at_start, amount, r_scale=1.0):
         """Trim a stroke back and report the disc that caps it, so a ROUND
         terminal does not grow the letter.
 
@@ -1585,8 +1585,19 @@ if ON:
         if amount <= 0: return (0 if at_start else n), 0.0
         j = 0 if at_start else n
         r = ws[j] * 0.5
+        # 2026-09-17 -- THE BALL CAN BE BIGGER THAN THE STROKE IT CAPS. Owner:
+        # *"you need enlarge the bottom serif of the s too, not just thicken one
+        # stroke"*. The radius is the end's half-width, which ties the serif's
+        # SIZE to the stroke's weight and leaves no way to say "a bigger foot on
+        # the same stroke" -- which is what the references have: Flanker's and
+        # Coelacanth's s both stand on a foot far broader than the arm running
+        # into it. `r_scale` grows the disc; the TRIM still walks back by the
+        # unscaled radius, so the extra size shows as reach rather than being
+        # swallowed by a deeper trim.
+        r_trim = r * amount
+        r = r * r_scale
         k = j
-        while 0 <= k <= n and math.hypot(pts[k][0] - pts[j][0], pts[k][1] - pts[j][1]) < r * amount:
+        while 0 <= k <= n and math.hypot(pts[k][0] - pts[j][0], pts[k][1] - pts[j][1]) < r_trim:
             k += 1 if at_start else -1
         k = max(0, min(n, k))
         # GLITCH SWEEP 2026-09-16 -- A CAP SMALLER THAN THE STROKE IS NOT A CAP.
@@ -3681,8 +3692,8 @@ if ON:
     S_W = float(os.environ.get("ALBO_ALD_S_W", 183.0))      # the letter's width, units
     S_WT = float(os.environ.get("ALBO_ALD_S_WT", 0.95))     # scales every key
     S_APEX = float(os.environ.get("ALBO_ALD_S_APEX", 0.46))   # the top arc's apex, x w
-    S_TAIL_X = float(os.environ.get("ALBO_ALD_S_TAILX", 0.03))  # the bottom terminal, x w
-    S_TAIL_Y = float(os.environ.get("ALBO_ALD_S_TAILY", 0.06))  # x xh
+    S_TAIL_X = float(os.environ.get("ALBO_ALD_S_TAILX", -0.06))  # the bottom terminal, x w
+    S_TAIL_Y = float(os.environ.get("ALBO_ALD_S_TAILY", 0.03))  # x xh
     S_HEAD_Y = float(os.environ.get("ALBO_ALD_S_HEADY", 0.86))  # the top terminal, x xh
     S_UL = float(os.environ.get("ALBO_ALD_S_UL", 0.22))       # the upper-left flank, x w
     S_LR = float(os.environ.get("ALBO_ALD_S_LR", 0.87))       # the lower-right turn, x w
@@ -3690,7 +3701,32 @@ if ON:
     # `stroke` can only end in a flat or sheared face, which on a 60-unit
     # terminal reads as a cut corner.
     S_CAP0 = float(os.environ.get("ALBO_ALD_S_CAP0", 1.00))   # top terminal, x half its width
-    S_CAP1 = float(os.environ.get("ALBO_ALD_S_CAP1", 0.50))   # bottom terminal
+    S_CAP1 = float(os.environ.get("ALBO_ALD_S_CAP1", 1.00))   # bottom terminal
+    S_CAP1_R = float(os.environ.get("ALBO_ALD_S_CAP1_R", 1.00))  # x the bottom ball's radius
+    # 2026-09-17 -- THE FOOT IS THE STROKE SWELLING, NOT A BALL ADDED. Growing
+    # `S_CAP1_R` alone enlarges the disc and leaves the arm running into it at
+    # its old width, so the foot reads as a lump stuck on the end -- and at 1.9
+    # the handcut DOT_STYLE polygon that serves the i's dot is plainly faceted
+    # at that size. Widening the PATH over its last stretch grows the ball for
+    # free, because the cap's radius is half the end width, so the two can never
+    # step against each other. S_FOOT is that multiplier, ramped in over
+    # S_FOOT_T..1.0 on a raised cosine.
+    S_FOOT = float(os.environ.get("ALBO_ALD_S_FOOT", 1.50))
+    S_FOOT_T = float(os.environ.get("ALBO_ALD_S_FOOT_T", 0.86))
+    # the fillet that finishes the foot, in design units. A disc capping a
+    # stroke leaves a concave corner where the ball's edge meets the arm's --
+    # `geom.close_corners` (round 205, the g's joins) fills exactly that. The
+    # s's narrowest white is its lower bay at ~139 units, so a closing radius
+    # must stay well under 70 or it would bridge the letter shut.
+    S_BLEND = float(os.environ.get("ALBO_ALD_S_BLEND", 18.0))
+    # 2026-09-17 -- LEVEL AND CUT, SEPARATELY. Putting the whole letter on the
+    # nib fixes its COLOUR and flattens its CONTRAST: the ratio scales thick and
+    # thin together, so at the level that matches the rounds (0.76) the s comes
+    # out at 2.2 where the references run 3.3 (Flanker) to 4.0 (Coelacanth) and
+    # where this face's own o runs 4.6. `con` re-spreads a width list about its
+    # geometric mean, which is how the rings already take their contrast, so the
+    # s can be set to the right weight and then cut to the right ratio.
+    S_PEN_CON = float(os.environ.get("ALBO_ALD_S_PEN_CON", 5.4))
     # WIDTH AT EACH PLACE, as (control point, fraction toward the next one,
     # units). The two terminals and the spine are the thicks; the two arcs
     # between them are the hairlines. Flanker at its 0.50 column: bottom arc
@@ -3716,6 +3752,83 @@ if ON:
         S_KEYS = [tuple(float(v) for v in kv.split(":"))
                   for kv in os.environ["ALBO_ALD_S_KEYS"].split("|")]
 
+    # ------------------------------------- THE s's BASE, 2026-09-17 (base pass)
+    # Owner 2026-09-17: *"make several versions of s with a thicker base that
+    # matches the other letters and maximizes legibility"*.
+    #
+    # THE ONE RULE FIRST (docs/albo-method.md section 1), and here it ANSWERS
+    # the brief rather than clearing it. Measured on the built Italic at
+    # xh 429: the declared width at every sample of the s's own path, against
+    # the ALDINE ROUND NIB the o is drawn on -- nib(direction, S*O_THICK,
+    # S*O_THIN, O_PEN), re-spread to CON_O, which at the shipping dials is
+    # thick 84 / thin 16.8 at phi 35.
+    #
+    #     region             t          decl/nib   min
+    #     head             0.00-0.14      0.61     0.50
+    #     top arc          0.14-0.37      0.63     0.51
+    #     SPINE            0.37-0.58      0.62     0.59
+    #     RIGHT FLANK      0.58-0.79      0.43     0.36   <<
+    #     base + terminal  0.79-1.00      0.70     0.55
+    #
+    # The letter is drawn at a steady 0.62 of the round nib -- that is its
+    # character and nothing here changes it -- EXCEPT from the spine's end to
+    # the bottom turn, where it falls to 0.36. And that is NOT the pen being
+    # thin there: over t 0.62-0.75 the path runs at 105, 98 and 89 degrees,
+    # the nib's THICK half (nib 80, 77, 71), and the table declares 50, 35 and
+    # 28. The nib is thinnest at 35 degrees and the path does not reach 35
+    # until t 0.80, so the hairline sits a quarter of the path away from the
+    # direction that would earn it. A width table standing in for a nib, which
+    # is the fingerprint section 1 names.
+    #
+    # THE REFERENCES DISAGREE, and that is information rather than a tie. Same
+    # instrument, each s against ITS OWN o (stroke median, units at xh 429):
+    #     Flanker Griffo It   s 47.4 / o 45.2   the s is 5% HEAVIER
+    #     Poetica Std         s 24.8 / o 33.5   the s is 26% LIGHTER
+    #     Albo, today         s 45.2 / o 53.4   15% lighter
+    # Round 133 fitted these keys to the POETICA overlay, so Albo inherited
+    # Poetica's light s -- while this module takes its WEIGHT from Flanker (the
+    # c's round-132 note says so in as many words). Flanker's s base band reads
+    # 36.9 against its own o's 35.4, level; and Flanker's base is ON a pen --
+    # binned by direction it runs 23/27/33/44/60 over 0..60 degrees, monotone,
+    # where Albo's reads 45/42/59/29/41/50 over the same bins.
+    #
+    # THREE ARMS, three characters, each ONE env var, each a no-op at its
+    # default -- with none set the `if` below is not entered at all and the
+    # letter is reproduced byte for byte:
+    #   ALBO_ALD_S_BASE_PEN    blend the window toward the round nib at the
+    #                          letter's own S_BASE_RATIO. The model fix: weight
+    #                          lands where the DIRECTION puts it, heavy down
+    #                          the near-vertical right flank and thin only at
+    #                          the 35-degree turn. It moves the SHOULDER, not
+    #                          the footing, because the footing is already at
+    #                          the letter's ratio.
+    #   ALBO_ALD_S_BASE        a plain multiplier over the window. The letter
+    #                          keeps its fitted shape and its contrast and is
+    #                          simply heavier below, footing included.
+    #   ALBO_ALD_S_BASE_FLOOR  a floor, in the same units as an S_KEYS entry,
+    #                          over the window: only the hairline moves and
+    #                          everything already carrying weight is untouched,
+    #                          so the base's own contrast drops. At 13 px a
+    #                          15-unit hairline is 0.20 of a pixel of coverage
+    #                          and a 40-unit one is 0.52 -- this is the arm
+    #                          aimed straight at "maximizes legibility".
+    # They compose (each is applied in turn) but are meant to be ruled on one
+    # at a time.
+    #
+    # THE WINDOW STOPS AT 0.955 because the last 0.12 of the final segment is
+    # the terminal's HELD width (see S_CAP1 above): that ball runs 1.11 of the
+    # nib deliberately, and pulling it back to 0.62 would put the lollipop this
+    # letter was cured of in round 133 back on the end of the stroke. It also
+    # leaves `cs_round_end`'s radius -- read at ws[n] and at the trimmed index,
+    # both past 0.955 -- exactly where it was.
+    S_BASE_T0 = float(os.environ.get("ALBO_ALD_S_BASE_T0", 0.0))     # P3, the spine's end
+    S_BASE_T1 = float(os.environ.get("ALBO_ALD_S_BASE_T1", 1.0))     # before the terminal hold
+    S_BASE_RAMP = float(os.environ.get("ALBO_ALD_S_BASE_RAMP", 0.05))  # raised cosine, in t
+    S_BASE_PEN = float(os.environ.get("ALBO_ALD_S_BASE_PEN", 1.00))     # 0 = today, 1 = on the nib
+    S_BASE_RATIO = float(os.environ.get("ALBO_ALD_S_BASE_RATIO", 0.80))  # the letter's own ratio
+    S_BASE = float(os.environ.get("ALBO_ALD_S_BASE", 1.0))             # multiplier over the window
+    S_BASE_FLOOR = float(os.environ.get("ALBO_ALD_S_BASE_FLOOR", 0.0))  # units, as an S_KEYS entry
+
     @glyph('s')
     def a_s(c):
         xh = c["xh"]; u = xh / 429.0; x = S * 0.7; w = S_W * _w(c)
@@ -3732,14 +3845,43 @@ if ON:
             i = int(i); t0 = ts[i]; t1 = ts[i + 1] if i + 1 < len(ts) else 1.0
             keys.append((t0 + (t1 - t0) * f, wv * u * S_WT))
         wf = widths(keys); ws = [wf(i / n) for i in range(n + 1)]
+        if S_BASE_PEN or S_BASE != 1.0 or S_BASE_FLOOR:   # 2026-09-17, the base
+            _bt, _bn = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
+            _bt *= S; _bn *= S
+            for i in range(n + 1):
+                t = i / n
+                if not (S_BASE_T0 <= t <= S_BASE_T1): continue
+                # raised cosine, so nothing steps into or out of the window
+                k = 0.5 - 0.5 * math.cos(math.pi * max(0.0, min(
+                    1.0, (t - S_BASE_T0) / S_BASE_RAMP, (S_BASE_T1 - t) / S_BASE_RAMP)))
+                wv = ws[i]
+                if S_BASE_PEN:
+                    # +/-3 samples (66 units of arc) so the direction is the
+                    # stroke's run and not one resampling step's jitter
+                    a_ = p[max(0, i - 3)]; b_ = p[min(n, i + 3)]
+                    d = math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0]))
+                    wv += (nib(d, _bt, _bn, O_PEN) * S_BASE_RATIO - wv) * S_BASE_PEN * k
+                if S_BASE != 1.0:
+                    wv *= 1.0 + (S_BASE - 1.0) * k
+                if S_BASE_FLOOR:
+                    wv += (max(wv, S_BASE_FLOOR * u * S_WT) - wv) * k
+                ws[i] = wv
+        if S_PEN_CON:
+            ws = list(con(ws, S_PEN_CON))
+        if S_FOOT != 1.0:
+            for i in range(n + 1):
+                t = i / n
+                if t < S_FOOT_T: continue
+                k = 0.5 - 0.5 * math.cos(math.pi * min(1.0, (t - S_FOOT_T) / (1.0 - S_FOOT_T)))
+                ws[i] *= 1.0 + (S_FOOT - 1.0) * k
         i0, r0 = cs_round_end(p, ws, True, S_CAP0)
-        i1, r1 = cs_round_end(p, ws, False, S_CAP1)
+        i1, r1 = cs_round_end(p, ws, False, S_CAP1, S_CAP1_R)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
         parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
                         cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
         if r0: parts.append(PR.dot(q[0][0], q[0][1], r0))
         if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
-        return geom.ink(parts)
+        return geom.close_corners(geom.ink(parts), S_BLEND * u)
 
     # ------------------------------------------------------------ THE g, round 132
     # IT STAYS DOUBLE-STOREY, and that is a finding rather than an assumption.
@@ -4319,7 +4461,15 @@ if ON:
     G_BOWL_PEN = float(os.environ.get("ALBO_ALD_G_BOWL_PEN", 61.0))
     G_BOWL_THIN_F = float(os.environ.get("ALBO_ALD_G_BOWL_THIN_F", 0.52))
     G_BOWL_CON = float(os.environ.get("ALBO_ALD_G_BOWL_CON", 3.25))
-    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 64.0))
+    # ROUND 206 -- THE LOWER LOOP CARRIES THE FACE'S WEIGHT. Owner 2026-09-17:
+    # *"increase thickness of bottom loop enough to match visual weight of other
+    # letters"*. Measured on the chamfer ridge, the loop's stroke ran 36.8 units
+    # against the round letters' 46.7 (o 53.4, a 49.7, c 46.7, s 45.2, e 36.9)
+    # -- the lightest thing in the face. 84 puts it at 48.9, inside that band.
+    # Not higher: at 96 the thickening crown closes on the connector (the glitch
+    # gate reads 2.83 units of white left) and at 104 that white is gone, which
+    # no gate can see because a filled bay has no concave corner.
+    G_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_LOOP_PEN", 84.0))
     G_LOOP_THIN_F = float(os.environ.get("ALBO_ALD_G_LOOP_THIN_F", 0.62))
     G_LOOP_CON = float(os.environ.get("ALBO_ALD_G_LOOP_CON", 3.70))
     # ROUND 203 -- EACH RING GETS ITS OWN NIB ANGLE. G_SKEW shears the ring and

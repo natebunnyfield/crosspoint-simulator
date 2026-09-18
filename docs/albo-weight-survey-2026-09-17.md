@@ -147,3 +147,89 @@ rounds' 53.4. Nothing was done about that; it is his call.
 - **The `O`/`M` pair** is bit-identical in weight across the two styles, which
   is a useful anchor: it says the two builds share a scale and the −16% is real
   and not an artefact of measuring two different rasters.
+
+## The s, put on the face's weight — round 208
+
+Owner: *"increase thickness of bottom loop"* was the g; this is the letter he
+came back to three times — *"you need enlarge the bottom serif of the s too, not
+just thicken one stroke. work optically"*, then *"try harder and just make the s
+work optically to match the weight of all letters"*, then *"keep the contrast
+and brush strokes evident"*.
+
+**The yardstick that settled it is a RATIO, not a stroke width.** Each font's own
+s against its own o, by ink area in the reading band:
+
+| | s/o ink area |
+|---|---|
+| Flanker Griffo | 0.82 |
+| Pagella | 0.81 |
+| Coelacanth | 0.73 |
+| Cancelleresca | 0.70 |
+| Poetica | 0.67 |
+| **Albo, before** | **0.64** |
+| **Albo, shipped** | **0.80** |
+
+Albo's s was lighter than every reference, Poetica included — and Poetica is the
+one round 133 fitted these keys to, which is how the deficit got in. The s's ink
+WIDTH was never the problem (0.99 of its o against the references' 0.92–1.03);
+it was a thin drawing of a correctly proportioned letter.
+
+**Two measures had to be satisfied at once, and the first attempt sacrificed the
+second.** Colour parity alone (putting the whole letter on the nib at a level
+that matches the rounds) flattens the cut from 3.34 to 2.2, because the ratio
+scales thick and thin together — and this face's s is supposed to be MORE
+contrasted than its o, which is what the references do (s/o cut 1.14 Flanker,
+1.42 Coelacanth) and what Albo does the other way round. `S_PEN_CON` re-spreads
+the pen's widths about their geometric mean after the level is set, so weight
+and cut are independent dials.
+
+Shipped: the whole letter on the nib at **0.80** with the cut re-spread to
+**5.4**, plus the foot below.
+
+| | thin | thick | cut | colour | advance |
+|---|---|---|---|---|---|
+| s before | 24.5 | 81.9 | 3.34 | 0.285 | 310 |
+| **s shipped** | 31.1 | 102.1 | **3.28** | **0.331** | 322 |
+| the o | 22.3 | 100.1 | 4.50 | 0.384 | 368 |
+| the e | 28.9 | 96.0 | 3.32 | 0.316 | 404 |
+| the c | 30.9 | 88.7 | 2.87 | 0.271 | 337 |
+
+The s now sits between the e and the o in colour where it sat 18% under the
+rounds, and its cut is unchanged from the letter it replaces.
+
+### The foot, and why three changes were needed rather than one
+
+The bottom terminal is a disc whose radius is half the stroke's end width, so no
+weight dial could reach it. Three things had to change together:
+
+1. **The foot grows from the stroke, not as a ball added.** Scaling the disc
+   alone (`S_CAP1_R`) left the arm arriving at its old width — a lump stuck on —
+   and at 1.9x the handcut `DOT_STYLE` polygon that serves an i's dot was
+   visibly faceted at that size. `S_FOOT` widens the PATH over its last stretch,
+   which grows the ball for free and cannot step against it.
+2. **The cap has to swallow the face.** At the shipped cap amount the trimmed
+   end stood proud of its own disc and left a nick on top of the foot. `S_CAP1`
+   1.00 clears it. This is the same trap already recorded in `cs_round_end` for
+   the c.
+3. **The stroke has to reach where the foot goes.** A shoulder survived both,
+   because the arm pointed past where the ball hung. Extending the tail and
+   filleting the junction with `geom.close_corners` — the pass that welded the
+   g's connector in round 205 — makes it one curve.
+
+### Negative results
+
+- **`S_CAP1_R` alone**: rejected, above. It is left reachable and at 1.0.
+- **A pen cut instead of a ball** (`S_CAP1=0`): the foot ends in a slanted
+  blade, which is a cut stroke and not a serif.
+- **A hairline floor to stop dropout** (`S_BASE_FLOOR` 30–36): it works and it
+  flattens the letter — cut 2.29 at the weight that matches. Shipped at 0; the
+  pen's own thin at this level clears the dropout threshold without it.
+- **`close_corners` leaked into the `c`.** The c and the s end with identical
+  code, and a `str.replace` without a count changed both — the c came back
+  altered in a build that was supposed to touch one letter. Caught by diffing
+  all 470 glyphs against the previous build rather than by reading the diff.
+  The c is reverted; whether it WANTS that fillet at its own bottom terminal is
+  a separate question, and its documented notch says it might.
+
+Gates: glitch 0 of 119, touch 0 of 5,193. Six glyphs move — the s and its five
+accented composites, which inherit it as TrueType components.
