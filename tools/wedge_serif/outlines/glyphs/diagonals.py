@@ -124,7 +124,7 @@ def g_z(c):
     Z_DIAG x S, each bar's end at the diagonal cut along the diagonal's
     outer edge, the bottom bar run out so both right edges share one x."""
     from shapely.geometry import Polygon, box as _box
-    xh = c["xh"]; wf = c["wf"]; w = 400 * wf
+    xh = c["xh"]; wf = c["wf"]; w = 400 * wf * Z_W
     th = S * (Z_BAR_ADJ if adj('z') else Z_BAR); dw = S * (Z_DIAG_ADJ if adj('z') else Z_DIAG)
     p_top, p_bot = (w - S * 0.12, xh - th / 2), (S * 0.12, th / 2)
     dg = diagonal(p_top, p_bot, dw)
@@ -157,17 +157,35 @@ def g_z(c):
 # the argument for it, since the diagonal is what makes this z the darkest thing
 # on its line.
 #
-# HIS RULING, 2026-09-17: B -- bars 0.85, diagonal 0.70. Measured off the
+# REWORKED 2026-09-18, and the round-207 ruling below is superseded on the
+# numbers while its PRINCIPLE stands: the bars still carry this letter, the
+# diagonal still gives way. Owner: *"z is too wide and heavy in roman. rework
+# so razzmatazz is balanced."* Both faults measured -- ink 1.05 of the o where
+# Georgia sets 0.83 and Times 0.95, and colour +12% over the lowercase median.
+# Shipped: width 0.84, bars 0.73, diagonal 0.605 -- ink 0.85 of the o, colour
+# +3%, the bar/diagonal ratio kept at round 207's 1.48. In razzmatazz the z's
+# now sit with the a and the m instead of stamping through them; one notch
+# lighter again (0.70 / 0.58) and they go paler than the r, which is the other
+# fault.
+#
+# ROUND 207, 2026-09-17: B -- bars 0.85, diagonal 0.70. Measured off the
 # raster, that is a bar of 90.9 units against a diagonal of 61.4 (bar/diag
 # 1.48, from 1.00), with the bars now clearly the heavy stroke and the diagonal
 # at the weight of a round letter's curve. Colour goes 0.337 -> 0.368 against a
 # lowercase median of 0.330: thickening two full-width bars adds more ink than
 # thinning one 45-degree run removes, so this letter gets DARKER by making its
 # heaviest stroke lighter. Glitch gate clean; the mitres hold.
+# ROUND 210 -- THE Z'S WIDTH. Owner 2026-09-18: *"z is too wide and heavy in
+# roman. rework so razzmatazz is balanced."* Measured, the z's ink runs 1.05 of
+# the o's where Georgia sets 0.83 and Times New Roman 0.95 -- a lowercase z is
+# narrower than its o in every text roman to hand, and Albo's was wider. Z_W
+# scales the drawn width; the fitter takes the sidebearings from the ink, so
+# the advance follows it down.
+Z_W = float(os.environ.get("ALBO_Z_W", 0.84))
 Z_BAR = float(os.environ.get("ALBO_Z_BAR", 0.52))    # the z's bars, x the stem (owner 2026-09-14: "slightly reduce the line thickness ... of the horizontal strokes in 'z'"; 0.62 before). The bars stay ON the x-height and the baseline (align top / bottom), so the vertical grid holds
 Z_DIAG = float(os.environ.get("ALBO_Z_DIAG", 1.05))  # the z's diagonal, x the stem (the heavy stroke, as Albertus and Berkeley)
-Z_BAR_ADJ = float(os.environ.get("ALBO_Z_BAR_ADJ", 0.85))    # round 92 (adj 'z'): the darkest thing on any line it was in -- diagonal down, bars up, one color
-Z_DIAG_ADJ = float(os.environ.get("ALBO_Z_DIAG_ADJ", 0.70))
+Z_BAR_ADJ = float(os.environ.get("ALBO_Z_BAR_ADJ", 0.73))    # round 92 (adj 'z'): the darkest thing on any line it was in -- diagonal down, bars up, one color
+Z_DIAG_ADJ = float(os.environ.get("ALBO_Z_DIAG_ADJ", 0.605))
 
 @glyph('k')
 def g_k(c):
