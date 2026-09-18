@@ -450,3 +450,60 @@ kerns sit on the marks' LEFT and are untouched.
   next step if the roman is ever to be re-fitted, not this table.
 
 Gates: glitch 0 of 119, touch 0 of 5,197, figure spacing 1.31×.
+
+## Round 222 — the apostrophe, third time: it comes down
+
+Owner, on the round-221 proof: *"too much space between apostrophe and previous
+and next letters. compare with other reference fonts."*
+
+### Round 221 judged the band at its loose end
+
+Rendered side by side at one x-height — the comparison he asked for — the mark
+visibly NESTS between the letters in Georgia, New York, Coelacanth and Poetica
+and floats in Albo. Round 221's band ran 0.105–0.217 because Flanker (0.254 on
+`'s`) and Pagella hold its top; "in band" meant "not looser than the loosest".
+The faces that read fitted are the tight four, and their medians are the
+targets this round is fitted to: `t'` 0.109, `n'` 0.210, `s'` 0.166, `'s`
+0.164, `'t` 0.115, `'l` 0.070.
+
+### Bearings alone cannot get there
+
+At the apostrophe's height its neighbours are capitals and ascenders. Sweeping
+the two bearings (`ALD_QUOTE_LSB` × `ALD_QUOTE_RSB`) toward the tight four
+flags 14 pairs at −40 / −140 — `'V` `"V` `f'` `U'` `T'` `V'` `'W` `j'` and the
+quote-on-quote pairs — while `'s` is still at 0.189. The mark grazes the tall
+glyphs beside it long before it reaches the x-height letter it is usually next
+to, because that gap is a *diagonal* down to the letter's top.
+
+### The lever the references use is HEIGHT
+
+Measured (bounds, ÷ x-height): Albo's apostrophe hung from CAP — top 1.57,
+bottom 1.09 — like Times and New York; the faces that nest sit lower: Georgia
+top 1.52 / bottom 0.98, Pagella 1.39, Poetica 1.09. `QUOTE_DROP` in
+`outlines/glyphs/marks.py` lowers all six quote glyphs, italic only — the
+straight and curly quotes stay top-aligned to each other as they were designed.
+Lowering the mark shortens the diagonal to an x-height letter's top without
+moving it toward a capital's stem:
+
+| drop / lsb / rsb | `t'` | `n'` | `s'` | `'s` | `'t` | `'l` | touch gate |
+|---|---|---|---|---|---|---|---|
+| 0 / −20 / −120 | 0.152 | 0.229 | 0.203 | 0.201 | 0.170 | 0.089 | `'V` `"V` touching |
+| **50 / −20 / −120 — A, shipped** | **0.134** | **0.195** | **0.168** | **0.164** | **0.128** | 0.108 | `'V` `"V` `'W` → 3 kerns, then clean |
+| 100 / −20 / −120 — B, built | 0.098 | 0.167 | 0.135 | 0.130 | 0.086 | 0.120 | clean, no kerns |
+| 150 / −20 / −120 | 0.080 | 0.145 | 0.111 | 0.102 | 0.061 | 0.111 | `'?` under the floor |
+| tight-four median | 0.109 | 0.210 | 0.166 | 0.164 | 0.115 | 0.070 | |
+
+**A lands on the tight-four medians** (`'s` 0.164 exactly; `s'` 0.168 against
+0.166) with the mark's bottom at 0.98 xh, which is Georgia's to the hundredth.
+**B is tighter than every one of the tight four** on the round letters and
+matches New York and Coelacanth on `'s`; it needs no kern. Both are built and on
+the proof; A ships because it is the measured middle of the faces that read
+right, and B is one dial away (`ALBO_ALD_QUOTE_DROP=100`).
+
+The three kerns are the V's splay meeting the STRAIGHT quotes (`'V` −0.014,
+`"V` −0.013, `'W` 0.012 at A): pairs, for round 178's reason. The curly quotes
+clear — their tails hang inward.
+
+Six italic glyphs move, outlines and metrics; the roman is byte-identical.
+Gates: glitch 0 of 119, touch 0 of 5,197. Class medians after: letter+quote
+0.119, quote+letter 0.126.

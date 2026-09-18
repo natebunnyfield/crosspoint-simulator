@@ -213,7 +213,15 @@ ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
 # 13 degrees, so its ink already leans toward the next letter. Units off the
 # right bearing of every quote, italic only.
 PUNCT_QUOTES = set("'\"\u2018\u2019\u201c\u201d")
-ALD_QUOTE_RSB = float(os.environ.get("ALBO_ALD_QUOTE_RSB", "-100"))
+ALD_QUOTE_RSB = float(os.environ.get("ALBO_ALD_QUOTE_RSB", "-120"))
+# ROUND 222 -- AND THE LEFT SIDE TOO. Owner 2026-09-18, on the round-221
+# proof: *"too much space between apostrophe and previous and next letters.
+# compare with other reference fonts."* Rendered side by side at one x-height,
+# the mark NESTS between the letters in Georgia, New York, Coelacanth and
+# Poetica and floats in Albo -- and the round-221 band was judged against its
+# loose end (Flanker, Pagella), not against the faces that read tight. Units
+# off the LEFT bearing of every quote, italic only.
+ALD_QUOTE_LSB = float(os.environ.get("ALBO_ALD_QUOTE_LSB", "-20"))
 # Round 97 (owner: "go" on the whole-lowercase refit) / 97b (owner: "crosses
 # seems way too spaced out", "same for frozen"): per-letter (lsb, rsb) deltas
 # from `outlines.cmp.rhythm.solve_cat` on the round-96b file. The first solve
@@ -406,8 +414,8 @@ def fit(ch, conts, c):
         lsb += FIG_TRACK; rsb += FIG_TRACK
     if ALD is not None and ALD.ON and ch in ALD_PUNCT_ADJ:
         lsb += ALD_PUNCT_ADJ[ch][0]; rsb += ALD_PUNCT_ADJ[ch][1]
-    if ALD_QUOTE_RSB and ALD is not None and ALD.ON and ch in PUNCT_QUOTES:
-        rsb += ALD_QUOTE_RSB
+    if ALD is not None and ALD.ON and ch in PUNCT_QUOTES:
+        rsb += ALD_QUOTE_RSB; lsb += ALD_QUOTE_LSB
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.

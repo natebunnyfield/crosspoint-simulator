@@ -320,6 +320,17 @@ if _ALD is not None and _ALD.ON:
     # it is a pair and not the comma's bearing, which is now measured against
     # seven faces and should not move for one capital.
     PAIRS[('Q', 'comma')] = 36
+    # ------------------------------------------------------ round 222, italic
+    # The quotes came DOWN 50 units and IN 20 / 120 (QUOTE_DROP in marks.py,
+    # ALD_QUOTE_LSB/RSB in build.py) and the V's splayed left arm -- its own
+    # white, by the spacing doc's first rule -- is the one thing at that height
+    # the straight quotes now meet: 'V -0.014 em, "V -0.013, 'W 0.012. The
+    # curly quotes clear (their tail hangs inward). Pairs, for round 178's
+    # reason: the class is measured against seven faces and should not move
+    # for one capital.
+    PAIRS[('quotesingle', 'V')] = 36
+    PAIRS[('quotedbl', 'V')] = 36
+    PAIRS[('quotesingle', 'W')] = 18
 
 
 def feature_text():

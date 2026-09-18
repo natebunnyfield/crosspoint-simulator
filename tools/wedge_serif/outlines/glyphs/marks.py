@@ -135,18 +135,30 @@ QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bow
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 
 QUOTE_BODY = 2 * DOT_R   # straight and curly quotes share this body height, top-aligned to CAP
+# ROUND 222 -- THE ITALIC'S QUOTES SIT LOWER. Owner 2026-09-18, on the round-221
+# proof: *"too much space between apostrophe and previous and next letters.
+# compare with other reference fonts."* Measured at one x-height, Albo's
+# apostrophe hangs from CAP (top 1.57 xh) like Times and New York, while the
+# faces whose marks visibly NEST -- Georgia 1.52, Pagella 1.39, Poetica 1.09 --
+# sit lower. And the bearings alone cannot get there: at cap height the mark's
+# neighbours are capitals and ascenders, which it grazes (14 pairs flagged at
+# lsb -40 / rsb -140) while the lowercase it usually stands beside is far
+# below. Lowering the mark shortens the diagonal to an x-height letter's top
+# without moving it toward a capital's stem. Units below CAP; italic only.
+QUOTE_DROP = float(os.environ.get("ALBO_ALD_QUOTE_DROP", "50"))
+def _qdrop(): return QUOTE_DROP if pen.ITALIC else 0.0
 DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don't touch"): the two marks' centers, x S (1.3 before: a 48-unit gap, 2.6 px at 13 pt, gray between them)
 @glyph("'")
-def g_quotesingle(c): C = CAP(c); return stroke(line((S * 0.5, C - QUOTE_BODY), (S * 0.5, C)), TH_V * 0.8, cut0=CUT)
+def g_quotesingle(c): C = CAP(c) - _qdrop(); return stroke(line((S * 0.5, C - QUOTE_BODY), (S * 0.5, C)), TH_V * 0.8, cut0=CUT)
 @glyph('"')
 def g_quotedbl(c):
-    C = CAP(c); return geom.ink([stroke(line((S * 0.5 + i * S * DQ_GAP, C - QUOTE_BODY), (S * 0.5 + i * S * DQ_GAP, C)), TH_V * 0.8, cut0=CUT) for i in (0, 1)])
+    C = CAP(c) - _qdrop(); return geom.ink([stroke(line((S * 0.5 + i * S * DQ_GAP, C - QUOTE_BODY), (S * 0.5 + i * S * DQ_GAP, C)), TH_V * 0.8, cut0=CUT) for i in (0, 1)])
 def quote(c, x, up):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
     baseline -- top of the dot flush with CAP, matching the straight
     quotes' top and body height exactly."""
-    C = CAP(c); y = C - DOT_R
+    C = CAP(c) - _qdrop(); y = C - DOT_R
     return geom.ink([dot(x, y, DOT_R), comma_tail(x, y, up, 0.85, 0.3)])
 @glyph('’')
 def g_quoteright(c): return quote(c, S * 0.7, True)
