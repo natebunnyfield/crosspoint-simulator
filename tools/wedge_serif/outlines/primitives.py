@@ -28,7 +28,7 @@ from .pen import S, CS, XH, WL, WD, DROP, FILLET, FOOT, ENT, TH_V, TH_H, HAIR, C
 # deliberate irregularity in the face (docs/albo-imperfections.md): the LIFE
 # jitter here, and in aldine.py the A's droop, the g's and Q's hand tables, the
 # R's, the Z's and the X's. 1.0 is round 224 byte for byte; 0.3 ships.
-HAND_SCALE = float(os.environ.get("ALBO_HAND_SCALE", 0.3))
+HAND_SCALE = float(os.environ.get("ALBO_HAND_SCALE", 0.0))   # round 231: "remove all awful wavy lines for now"
 LIFE = float(os.environ.get("FJORD_LIFE", 0.06)) * HAND_SCALE
 
 # GLITCH SWEEP 2026-09-16: how deep below a stem's top face the italic ENTRY

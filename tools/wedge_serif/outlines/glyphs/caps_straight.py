@@ -650,8 +650,8 @@ S_BOTTOM_END = 1.30
 # bump adds a further fifth on the way out of it. The pen at the ends is
 # untouched, so the letter's contrast is set by what the nib does at the S's
 # own shallow angles and not by a second declared number.
-S_SPINE = float(os.environ.get("ALBO_ROM_S_SPINE", 0.92))   # the waist's declared weight, x CS; 0.92 is round 223
-S_BOT = float(os.environ.get("ALBO_ROM_S_BOT", 0.20))       # the lower curve's extra, x itself; 0.20 is round 223
+S_SPINE = float(os.environ.get("ALBO_ROM_S_SPINE", 0.87))   # the waist's declared weight, x CS; 0.92 is round 223
+S_BOT = float(os.environ.get("ALBO_ROM_S_BOT", 0.16))       # the lower curve's extra, x itself; 0.20 is round 223
 
 # ...AND ITS CROWN AND FOOT STAND OUTSIDE THE ROUND FAMILY'S LINE. Ink top 699
 # and bottom -25 against O 690/-15, G 691/-17, C 691/-17: ten units proud at
@@ -661,7 +661,7 @@ S_BOT = float(os.environ.get("ALBO_ROM_S_BOT", 0.20))       # the lower curve's 
 # terminal. The catmull OVERSHOOTS its own second point, so the crown is an
 # artefact of the curve rather than a declared overshoot, and the honest lever
 # is to pull the two extreme points inside the band by the measured amount.
-S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 0))    # units the crown and foot come inside the cap band; 0 is round 223
+S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 1.5))    # units the crown and foot come inside the cap band; 0 is round 223
 
 # ...AND THE REASON THE WAIST HAD TO BE DECLARED AT ALL: THE S IS THE ONE
 # ROUND CAPITAL DRAWN ON THE RAW PEN. C, G, O, Q and the B/D/P/R bowls all
@@ -676,7 +676,7 @@ S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 0))    # units the crown and 
 # widths onto the family's profile fixes the ratio at both ends at once and
 # needs no new number -- `bowl_th` IS the round family's definition, imported
 # rather than restated.
-S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 0))      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
+S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 0.5))      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
 
 @glyph('S')
 def g_S(c):

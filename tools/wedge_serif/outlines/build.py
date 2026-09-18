@@ -344,10 +344,11 @@ ROM_FIG_TRACK = float(os.environ.get("ALBO_ROM_FIG_TRACK", "8"))
 # ROUND 226 -- the export smooths every contour between its corners; see
 # geom.smooth_corners for the measurement that found the wobble was the
 # polygon and not the imperfection tables. 0 is the old export byte for byte.
-CURVES = int(os.environ.get("ALBO_CURVES", "0"))   # OFF: see docs/albo-method.md, "the wobble is the polygon"
+CURVES = int(os.environ.get("ALBO_CURVES", "0"))   # OFF (round 231): with the clearance guard it is gate-clean on 119 but adds one finding on the 290 sweep and smooths only bowls; the bumps are being marked for the owner instead -- docs/albo-method.md
 CURVE_TURN = float(os.environ.get("ALBO_CURVE_TURN", "28"))
 CURVE_STEP = int(os.environ.get("ALBO_CURVE_STEP", "3"))   # every 3rd dense point (~33 units) is interpolated
-CURVE_DEV = float(os.environ.get("ALBO_CURVE_DEV", "1.2"))   # a contour whose curve leaves the polygon by more falls back to it
+CURVE_DEV = float(os.environ.get("ALBO_CURVE_DEV", "1.2"))
+CURVE_CLEAR = float(os.environ.get("ALBO_CURVE_CLEAR", "44"))   # a run within this of its contour's other side stays a polygon   # a contour whose curve leaves the polygon by more falls back to it
 CURVE_FALLBACKS = [0, 0]   # (contours fitted, contours that fell back) -- printed at the end of a build
 from fontTools.cu2qu import curve_to_quadratic as _c2q
 
@@ -500,8 +501,9 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         pen_ = TTGlyphPen(None)
         if conts:
             adv, dx, lsb_ink = fit(ch, conts, c)
-            for pts, hole in conts:
-                fitted = geom.fit_curves(pts, turn=CURVE_TURN, step=CURVE_STEP, max_dev=CURVE_DEV) if CURVES else None
+            for ci, (pts, hole) in enumerate(conts):
+                _obst = [q for cj, (p2, _) in enumerate(conts) if cj != ci for q in p2] if CURVES else None
+                fitted = geom.fit_curves(pts, turn=CURVE_TURN, step=CURVE_STEP, max_dev=CURVE_DEV, clearance=CURVE_CLEAR, obstacles=_obst) if CURVES else None
                 if fitted is not None:
                     CURVE_FALLBACKS[0] += fitted[2]; CURVE_FALLBACKS[1] += fitted[3]; fitted = fitted[:2]
                 if fitted is None:

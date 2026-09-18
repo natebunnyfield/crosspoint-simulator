@@ -310,7 +310,7 @@ def _dev_to_polyline(F, P):
         if d > worst: worst = float(d)
     return worst
 
-def fit_curves(pts, turn=28.0, step=3, max_dev=2.0, min_len=40.0, gentle_turn=12.0):
+def fit_curves(pts, turn=28.0, step=3, max_dev=2.0, min_len=30.0, gentle_turn=28.0, clearance=28.0, obstacles=None):
     """ROUND 226 -- THE WOBBLE WAS THE POLYGON, and averaging it made it worse.
     Every contour left the builder as a dense polyline at ~11-unit spacing,
     rounded to the integer grid: half a unit of rounding on an 11-unit segment
@@ -347,6 +347,26 @@ def fit_curves(pts, turn=28.0, step=3, max_dev=2.0, min_len=40.0, gentle_turn=12
         length = sum(math.hypot(run[i + 1][0] - run[i][0], run[i + 1][1] - run[i][1]) for i in range(len(run) - 1))
         turns = [_turn(run[i - 1], run[i], run[i + 1]) for i in range(1, len(run) - 1)]
         gentle = length >= min_len and (not turns or max(turns) < gentle_turn)
+        # ROUND 231 -- THE CLEARANCE GUARD. The pinches of the earlier cuts
+        # were all at hairline tips, where a run's overshoot met the contour's
+        # other side. A run whose points come within `clearance` units of any
+        # OTHER part of its contour is left as the polygon; a bowl's or an
+        # arch's side has hundreds of units of counter beside it and is fitted.
+        if gentle and clearance > 0:
+            # the two ADJACENT runs meet this one at a shared corner and are
+            # 11 units away there by construction -- that is not a pinch, so
+            # they are left out; every other run of the contour is checked
+            ri = runs.index(run); nr = len(runs)
+            others = [q for j, r2 in enumerate(runs) if j not in (ri, (ri - 1) % nr, (ri + 1) % nr) for q in r2[1:-1]]
+            # ...and the glyph's OTHER contours: a counter is its own contour,
+            # and the roman 4's closed to 1.9 units when the guard saw only
+            # the run's own ring
+            if obstacles: others = others + list(obstacles)
+            if others:
+                import numpy as _np
+                O = _np.array(others, float); R = _np.array(run[1:-1] if len(run) > 3 else run, float)
+                d2 = ((R[:, None, 0] - O[None, :, 0]) ** 2 + (R[:, None, 1] - O[None, :, 1]) ** 2).min(axis=1)
+                if float(_np.sqrt(d2.min())) < clearance: gentle = False
         if gentle:
             cand = _catmull_run(run, step)
             if _dev_to_polyline(_flatten(run[0], cand), run) <= max_dev:
