@@ -448,23 +448,193 @@ def g_Q(c):
 
 Q_BELLY = 0.15
 
+# ROUND 226 -- THE ROMAN R's LEG KICKS. Owner 2026-09-18, verbatim: *"make the
+# roman R kick like the italic one (make other changes to it as needed)"*.
+#
+# WHAT THE KICK IS ON THE ITALIC, and then what this R does -- both measured the
+# SAME WAY on the BUILT fonts (the italic unsheared by 13 degrees), taking the
+# rightmost ink run at each height, its centre as x from that letter's OWN stem
+# midline, the travel direction of that centre, and the run's perpendicular
+# thickness. Cap 674 both sides:
+#
+#            ------- the italic -------      ---- this R, as it ships ----
+#     y      centre       travel  thick      centre       travel  thick
+#    270    0.283 cap      -59     67        0.345 cap      -63     80
+#    200    0.342          -59     68        0.395          -62     91
+#    150    0.388          -56     71        0.437          -61     93
+#    120    0.418          -54     72        0.463          -57     91
+#     90    0.452          -52     72        0.490          -58     93
+#     60    0.498          -47     75        0.526          -46     80
+#     40    0.528          -42     70        0.560          -37     71
+#     30    0.547          -36     64        0.583          -30     61
+#     20    0.571          -25     45        0.612          -25     51
+#     10    0.607          -23     41        0.644          -28     55
+#      0    0.645          -23     45        0.670          -25     35
+#    -10    0.676          -40     51        0.707          -23     14
+#
+# (the roman's thickness above y 90 reads the bowl and the leg as one run, where
+# they overlap; the leg alone is the ruled 88 plus the build's 1.2 of spread.)
+#
+# Read down the italic's travel column and the kick is NOT a bow along the whole
+# leg, which is what it looks like at a glance and what a first cut here would
+# draw. For its upper two thirds that leg is STRAIGHT and at the roman's own
+# ruled angle -- -59 degrees against R_LEG_ANG's 60 -- and the whole kick lives
+# in the last 0.15 of the cap: the travel rotates from -59 to -23 over 90 units
+# of height, the stroke swells about a tenth where it turns (67 -> 75 at y 60,
+# the elbow), and then it tapers hard, 75 -> 45, running out to 0.735 cap of ink
+# and finishing a few units under the baseline on the pen's cut.
+#
+# So the roman keeps everything above the knee -- the junction on the bowl, the
+# 60-degree run, the ruled width (1.05 x the pen at that angle, round 42) -- and
+# gains the turn and the run-out. The stroke is drawn JUNCTION-FIRST now rather
+# than foot-first, because the width has to key to the RUN (thin where it
+# springs, full down the straight, a swell at the elbow, a taper out to the tip)
+# and a foot-first table would state all four of those backwards.
+#
+# WHAT IS ROMAN ABOUT IT, and none of it is negotiable:
+#   THE PEN     the widths are `pen_widths(leg_c, scale=1.05)` -- the same pen
+#               and the same 1.05 the straight leg was drawn at, so the run's
+#               thinning as it flattens is the nib's own (83.8 units at -60
+#               degrees of travel, 65.9 at -20, 47.5 at 0) and not a declared
+#               taper laid over it. At the junction that reproduces round 42's
+#               88.0 to the unit, which is why the letter's colour barely moves.
+#   THE FOOT    THE PEN'S OWN CUT, and this is the one place the letter gives
+#               up a family serif -- so it is a negative result rather than a
+#               preference. The straight strut ended in `end_wedge`, the A's
+#               foot, and the wedge was the first thing tried out here. It
+#               cannot work at a shallow exit and the reason is mechanical:
+#               `diag_wedge` seats its apex `WL` along the OUTWARD NORMAL of the
+#               stroke's end, and at -17 degrees of travel that normal points
+#               up and to the right. Rendered at 520 px and looked at, four
+#               ways: full wedge on the outer side is a 59-unit barb standing
+#               up off the tail (`B` in the ladder -- a spearhead); at 0.35 of
+#               the family it is a smaller spearhead; hung under the tail
+#               (FOOT_SIDE -1) at 0.35 and at 0.60 it is a downward claw. A
+#               wedge is a serif for a stroke that STOPS, and this one runs out.
+#               So the tail is cut with `CUT`, which is what the italic does and
+#               what `g_Q`'s tail already did in this module. R_KICK_FOOT > 0
+#               brings the wedge back for anyone who wants to re-argue it.
+#   THE UPRIGHT nothing is sheared: this is drawn upright and the kick's
+#               geometry is stated in the roman's own frame.
+#
+# WHAT ELSE MOVED, AND IT IS ONE THING: THE JUNCTION ON THE BOWL, -52 -> -66
+# degrees. That is the "other changes as needed", and it is not a taste call --
+# it is what gives the run-out somewhere to go. In DESIGN units, from each
+# letter's stem midline: at -52 this leg springs at 0.333 cap and 0.547 high,
+# where the italic's table (`CAP_R_LEG`, row 0) springs at 0.247 and 0.464. So
+# the roman started 0.086 cap further out, and a run-out of the italic's own
+# length would have finished 0.09 cap past the italic's tip -- which the fitter
+# then bills for (see THE REACH). At -66 the spring lands at 0.250 and 0.517:
+# the same distance out as the italic's, a little higher up the bowl, which is
+# what an upright letter's bowl puts there. On the built letters the two legs
+# then run within 0.03 cap of one another all the way down (the table above).
+#
+# Laddered -52 / -60 / -66 / -72 at the shipped tail and rendered at 500 px.
+# All four pass the glitch sweep; the render is what separates them. -52 leaves
+# a visible step where the leg's upper edge crosses the bowl's outer edge, and
+# the crotch between the bowl's lower arm and the leg is a sharp V. -72 pulls
+# the spring under the bowl and pinches the counter's lower right into a narrow
+# wedge. -66 is the one where the bowl's underside and the leg read as one
+# continuous shape.
+#
+# Nothing else moved: the bowl's size and profile, the stem, the serifs, the
+# straight run's 60 degrees and its ruled width are all untouched.
+#
+# THE REACH IS SET BY THE FITTER'S BILL, NOT BY THE DRAWING, and the number that
+# decides it is the RIGHTMOST INK rather than the tip's centre. `build.fit`
+# measures a capital over the CAP BAND, so every unit the tail gains inside that
+# band is a unit on the advance: at R_KICK_REACH 0.780 the R's widest in-band
+# ink went 650 -> 689 and its advance went 680 -> 718, +5.6%. Measured, all four
+# from the stem's own midline:
+#
+#                 rightmost ink    at y      R's advance   RY min white
+#   round 225        0.723 cap    +0.099 cap     680         0.130 em
+#   reach 0.730      0.733        -0.028         684         0.170
+#   reach 0.780      0.784        -0.028         718         0.245
+#   the italic       0.735        -0.016          --           --
+#
+# 0.730 puts the roman's tail within two units of the italic's own reach AND
+# leaves the letter's fitting where it was; 0.780 overshoots the italic by 0.05
+# cap and buys nothing but a longer run-out. The tip's HEIGHT is the lever that
+# actually pays -- round 138's finding, and it holds here: the overhang used to
+# sit a tenth of a cap UP (the wedge's apex) where a following a, o or e is
+# already at its widest, and it now sits below the baseline where they are open.
+# Minimum white on the shaped pair, round 225 -> this: **Ra 0.067 -> 0.102 em,
+# Re 0.097 -> 0.152, Ro 0.100 -> 0.162**. Two pairs move the other way and both
+# are reported rather than fixed. **Rn 0.139 -> 0.089**, the n's flat left stem
+# meeting the tail where the old leg had already stopped -- still seven times
+# `cmp_touch`'s 0.012 em floor. And **RY 0.126 -> 0.167** (`cmp_cap_space`
+# 0.130 -> 0.170, which flags it WIDE beside the AY, LY, OY, VY and NY it
+# already flagged): the leg no longer reaches UP toward the Y's arm, so the
+# closest approach moved. That is a kern pair, not a shorter leg, and the kern
+# table is not touched here.
+#
+# R_KICK = 0 is round 225's letter BYTE FOR BYTE -- the branch below is the old
+# code verbatim, not a special case of the new one, and it was proved by
+# building both from one tree state and diffing all 470 glyphs with a
+# RecordingPen.
+R_JOIN = float(os.environ.get("ALBO_ROM_R_JOIN", -66.0))        # degrees round the bowl where the leg springs; -52 is round 42's
+R_LEG_ANG = float(os.environ.get("ALBO_ROM_R_LEG_ANG", 60.0))   # the straight run's angle; 60 is the ruling of round 32
+R_KICK = float(os.environ.get("ALBO_ROM_R_KICK", 1.0))          # 0 = the straight strut of round 225, byte for byte
+R_KICK_EXIT = float(os.environ.get("ALBO_ROM_R_KICK_EXIT", 17.0))    # degrees below horizontal the tail leaves at (the italic's last run measures -23)
+R_KICK_REACH = float(os.environ.get("ALBO_ROM_R_KICK_REACH", 0.730))  # x cap: the tip's CENTRE, right of the stem's midline; see THE REACH
+R_KICK_DROP = float(os.environ.get("ALBO_ROM_R_KICK_DROP", 0.004))   # x cap: the tip's centre below the baseline (the italic's is 0.006)
+R_KICK_BEND = float(os.environ.get("ALBO_ROM_R_KICK_BEND", 0.70))    # the departure handle, x the chord: how LOW the turn sits
+R_KICK_FLARE = float(os.environ.get("ALBO_ROM_R_KICK_FLARE", 0.38))  # the arrival handle, x the chord: how long the run-out is
+R_KICK_ELBOW = float(os.environ.get("ALBO_ROM_R_KICK_ELBOW", 0.62))  # t of the swell at the turn
+R_KICK_SWELL = float(os.environ.get("ALBO_ROM_R_KICK_SWELL", 0.06))  # the elbow's extra, x itself (the italic's is 0.10)
+R_KICK_TIP = float(os.environ.get("ALBO_ROM_R_KICK_TIP", 0.42))      # the tip's width, x the pen's own there
+R_KICK_SPRING = float(os.environ.get("ALBO_ROM_R_KICK_SPRING", 0.42))  # and at the junction, x the pen's -- round 225's own 0.42
+R_KICK_FOOT = float(os.environ.get("ALBO_ROM_R_KICK_FOOT", 0.0))     # 0 = the pen's cut (see THE FOOT above); >0 = the family's wedge at x 0.9 of it
+R_KICK_FOOT_SIDE = float(os.environ.get("ALBO_ROM_R_KICK_FOOT_SIDE", 1.0))  # +1 the outer (upper) side, as the A's foot; -1 hangs it below
+
 @glyph('R')
 def g_R(c):
     C = c["cap"]; x = CS / 2; w = W_(c, 'R', 400); edge = x + CW / 2
     bowl, cx, cy, rx, ry, L, R = half_bowl(edge, C, C * 0.46, w * 0.95 * 0.72 + TH_V / 2, open_bottom=0.06)
-    ang = math.radians(-52); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
-    # the leg as the nib writes it: thin where it leaves the bowl, the
-    # pen's width at 60 degrees x 1.05 (64, round 42) by the foot, on a
-    # slight outward bow; drawn foot-first so the foot wedge is the A's
-    foot = (J[0] + J[1] / math.tan(math.radians(60)), 0)
+    ang = math.radians(R_JOIN); J = (cx + rx * math.cos(ang), cy + ry * math.sin(ang))
+    # `foot` is where the straight 60-degree run would MEET the baseline, and it
+    # is still computed in both branches: round 225 drew the leg from it, and
+    # the kick still takes its ruled width from it (`pw(foot, J, 1.05)`, the
+    # pen at the leg's own angle -- round 42/51).
+    foot = (J[0] + J[1] / math.tan(math.radians(R_LEG_ANG)), 0)
     d = (J[0] - foot[0], J[1] - foot[1]); Ld = math.hypot(*d); d = (d[0] / Ld, d[1] / Ld); nrm = (-d[1], d[0])
-    end = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)
-    c1 = (foot[0] + d[0] * Ld * 0.35 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.35 - nrm[1] * 9)
-    c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
-    leg_c = cubic(foot, c1, c2, end)
     w_foot = pw(foot, J, 1.05)
-    leg = stroke(leg_c, lambda t: w_foot * widths([(0.0, 1.0), (0.45, 1.0), (1.0, 0.42)])(t))
-    return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, w_foot, True, 1)])
+    if not R_KICK:
+        end = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)
+        c1 = (foot[0] + d[0] * Ld * 0.35 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.35 - nrm[1] * 9)
+        c2 = (foot[0] + d[0] * Ld * 0.70 - nrm[0] * 9, foot[1] + d[1] * Ld * 0.70 - nrm[1] * 9)
+        leg_c = cubic(foot, c1, c2, end)
+        leg = stroke(leg_c, lambda t: w_foot * widths([(0.0, 1.0), (0.45, 1.0), (1.0, 0.42)])(t))
+        return geom.ink([cstem(x, 0, C), bowl, leg, end_wedge(leg_c, w_foot, True, 1)])
+    # THE KICK. ONE cubic from inside the bowl to the tip, with the departure
+    # tangent pinned to the straight run's own angle and the arrival tangent to
+    # R_KICK_EXIT. One curve and not a line plus an arc, because a straight
+    # segment joined to a curve is tangent-continuous but NOT curvature-
+    # continuous, and a stroke's edge is centreline +/- w/2: the curvature step
+    # lands on both edges at once and shows as a flat, which is the fault
+    # `_R_traced` records on the italic's bowl at a 400 px cap. A cubic whose
+    # first handle is the longer holds its departure direction over most of its
+    # length, so the upper two thirds stay the straight 60-degree leg the letter
+    # already had and the turn collects in the last fifth of the cap -- the
+    # travel column of the table at the head of this block, measured on the
+    # shipped build, is the check on that.
+    start = (J[0] + d[0] * CS * 0.15, J[1] + d[1] * CS * 0.15)   # buried in the bowl, as the strut was
+    u0 = (-d[0], -d[1])
+    e = math.radians(R_KICK_EXIT); u1 = (math.cos(e), -math.sin(e))
+    tip = (x + R_KICK_REACH * C, -R_KICK_DROP * C)
+    chd = math.hypot(tip[0] - start[0], tip[1] - start[1])
+    k1 = (start[0] + u0[0] * chd * R_KICK_BEND, start[1] + u0[1] * chd * R_KICK_BEND)
+    k2 = (tip[0] - u1[0] * chd * R_KICK_FLARE, tip[1] - u1[1] * chd * R_KICK_FLARE)
+    leg_c = cubic(start, k1, k2, tip)
+    base = pen_widths(leg_c, scale=1.05)
+    prof = widths([(0.0, R_KICK_SPRING), (0.30, 1.0), (R_KICK_ELBOW, 1.0 + R_KICK_SWELL), (1.0, R_KICK_TIP)])
+    leg = stroke(leg_c, lambda t: base(t) * prof(t), cut1=(None if R_KICK_FOOT else CUT))
+    parts = [cstem(x, 0, C), bowl, leg]
+    if R_KICK_FOOT:
+        parts.append(end_wedge(leg_c, base(1.0) * R_KICK_TIP, False,
+                               1 if R_KICK_FOOT_SIDE >= 0 else -1, scale=0.9 * R_KICK_FOOT))
+    return geom.ink(parts)
 
 R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30
