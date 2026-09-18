@@ -722,3 +722,31 @@ the whole letter. A third instrument had round 224's slant bug
 vs the italic's 0.735), the pen's cut for a foot, junction −52 → −66° so the leg
 springs where the italic's does. Ra / Re / Ro open 0.067 / 0.097 / 0.100 →
 0.102 / 0.152 / 0.162 em; RY 0.167 wants a kern beside the other wide Y pairs.
+
+### Rounds 230–232 — the roman g's loop, the S at half, the wobble named again, and the bump sheet
+
+*"The top stroke of the bottom loop of the roman 'g' needs to sit on the
+baseline"* — then, the same day, *"meaning above the baseline"*. Round 230 put
+the stroke's top edge on the line; round 232 stands the stroke on it: underside
+at 0, top at TH_H (48), `G_LOOP_TOP` in `stems.py`. The descender lands at −281,
+the p's and q's depth. The italic's roman-style g keeps its own anchoring; the
+ruling named the roman.
+
+*"For roman S, go halfway between your proposed S and the current one.
+Improved visual weight but with line contrast"* — bowl 0.5 / spine 0.87 /
+bottom 0.16 / crown 1.5: stroke 84.3 → 80.5 (the proposal was 77.5), cut 2.93
+→ 1.94 (the proposal 1.48).
+
+*"Remove all awful wavy lines for now"* — `ALBO_HAND_SCALE` 0. The guarded
+curve export (clearance 44, deviation 1.2) is gate-clean on 119 glyphs but
+adds one finding on the italic's 290 sweep and smooths only the bowls (roman
+n 16.7 → 14.3, italic arches unmoved); it stays off. Instead: *"make a hires
+image with thin red circles around all of the bumps and glitches you can
+identify in each character"* — `albo_bumps.py`, 563 roman and 568 italic
+circles, sent to the owner to confirm. The circles sit on the diagonals (M W
+N V X K Z A v w) and at stroke joins; the round letters C O o 0 come back
+clean. Two detectors were built and rejected first: a turn-jolt threshold
+circled every facet (1,623), and a moving-average residual lit every bowl —
+the average of an arc's neighbours lies inside it by the sagitta, six units
+at the o's ends. A circle fitted to the ±6 neighbours is the trend that is
+zero on any true arc.
