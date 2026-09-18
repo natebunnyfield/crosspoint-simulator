@@ -370,3 +370,30 @@ the italic now takes its own `_IT` pair. Every other dial in this round was
 gated on `pen.ITALIC` from the start, and the roman is byte-identical.
 
 Gates: glitch 0 of 119, touch 0 of 5,193.
+
+### Round 213 — the 7's foot, centred
+
+*"Make 7 tail centered and taper more like 6."* Measured off the built outline,
+the foot's centre as a fraction of the figure's own ink: the 7's sat at **0.06**
+— hard against its left edge — where the 6's is 0.36 and the 4's 0.57. Shipped
+at **0.40**, between the two. The taper starts at 0.65 of the run like the 6's
+and ends at 0.25 (the 6 ends at 0.12; the 7's foot stands on the line and cannot
+run out to a hair the way a tail flying up can).
+
+**Two instrument notes, because the first number was wrong.** Measuring the foot
+on the RASTER, relative to the ink's bounding box, reported 0.06 → 0.04 → 0.04
+→ 0.04 across a sweep that plainly moved in the renders: the figure narrows as
+the foot centres — the bar's right end is solved from where the diagonal crosses
+it — so the box shrinks with the thing being measured and the ratio stands
+still. Read off the outline instead it is 0.06 / 0.05 / 0.12 / 0.19, which
+matches the pictures. The same trap as the round-208 yardstick that included the
+letter it was judging.
+
+And **the shape change undid the weight match**: a steeper, shorter tail leaves
+more of the letter's centreline on the bar, so the same dials that read 54.2
+last round read **68.5** at the new geometry. The 7's bar and diagonal come back
+to 1.12 / 0.80 and it reads 54.2 again, +1% of the 6. Its colour falls to 0.145
+against the 6's 0.255 — the structural gap recorded in round 212, now wider
+because the letter carries less ink in the same box.
+
+Gates: glitch 0 of 119, touch 0 of 5,193, roman byte-identical.
