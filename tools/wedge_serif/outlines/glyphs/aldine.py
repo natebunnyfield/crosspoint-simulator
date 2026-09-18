@@ -4565,11 +4565,214 @@ if ON:
         G_LRING = [(float(a), float(w)) for a, w in
                    (kv.split(":") for kv in os.environ["ALBO_ALD_G_LRING"].split(","))]
 
+    # ======================================================================
+    # ROUND 226 -- THE ITALIC g IS REDRAWN IN THE ROMAN'S CONSTRUCTION.
+    #
+    # Owner 2026-09-18, verbatim: *"redraw 'g' to be the roman style of the
+    # italic 'g'"*, and then *"reduce far right extension ear of italic 'g' to
+    # improve legibility"*.
+    #
+    # WHAT IS TAKEN FROM THE ROMAN and what is not. The CONSTRUCTION and the
+    # PROPORTIONS are `stems.g_g`'s -- a bowl sitting in the x-height band, an
+    # ear off its shoulder at 44 degrees, a neck leaving the bowl at 240 and
+    # entering the loop at 150, and a FULL ROUND LOOP centred half a descender
+    # below the baseline, so its top sits just over the line and its floor
+    # reaches the descender. What is Albo's italic is everything the strokes
+    # are MADE of: the g's own nib (thick, thin fraction, contrast target and
+    # angle), the italic x-height, the italic descender, the italic's oval
+    # narrowing (`pen.IT_OVAL`), the hand tables and the ovalised counters of
+    # rounds 204/225, and the 13-degree shear, which is applied to the whole
+    # glyph at BUILD time -- so everything here is drawn UPRIGHT.
+    #
+    # THIS SUPERSEDES ROUNDS 197 AND 205 ON THE LOOP'S DEPTH, and says so
+    # rather than quietly contradicting them. Round 197 (*"move the bottom loop
+    # up until the top stroke of it rests on the baseline"*) and round 205
+    # (*"anchor bottom loop on top sitting on baseline as it is now"*) both
+    # pinned the loop's TOP to the baseline and let its floor come up with it;
+    # measured on the shipped letter, the italic g bottomed at **-194** where
+    # the italic p and q bottom at -282 and the y at -297. A loop that
+    # "descends as the roman's does" cannot also be pinned that way. The
+    # roman's own anchoring gives the same top -- `lcy + lry` is exactly
+    # `TH_H/2`, half a horizontal pen width over the line, at every depth --
+    # so what those two rulings were actually about is preserved and only the
+    # floor moves.
+    #
+    # THE EAR'S REACH IS MEASURED, NOT GUESSED, and the instrument that was
+    # supposed to answer it is broken. `cmp_aldine_g.py::ink_from_font`
+    # unshears with the WRONG SIGN -- `Image.AFFINE` maps OUTPUT to INPUT, so
+    # `(1, +k, -k*base)` with `k = tan(angle)` DOUBLES an italic's shear rather
+    # than removing it. It is the same bug `docs/albo-method.md` records for
+    # `cmp_weight_survey.raster` and `cmp_g_strokes`, in a third place, and it
+    # is caught by the case whose answer is known: the roman g (slant 0) comes
+    # out upright and every italic comes out leaning about 25 degrees. So that
+    # instrument's overall width, crown x and "ear reach past the crown" are
+    # all taken on a doubly sheared g and none of them can be used here.
+    #
+    # Re-measured on a CORRECTLY unsheared raster (xh 900 px), as the ear
+    # band's rightmost ink less the bowl flank's, in Albo units at xh 429:
+    #
+    #     Flanker 55   Pagella 55   Coelacanth 62   ALBO ITALIC r225 76   Albo roman 33
+    #
+    # The owner's report is exact: the shipped italic reaches further right
+    # than any of the three references. G_R_EAR is that reach as a fraction of
+    # the roman's own 96*wf*1.15, laddered below.
+    G_STYLE = os.environ.get("ALBO_ALD_G_STYLE", "roman").lower()   # 'cursive' = rounds 197-225 to the bit
+    # the roman's own numbers, kept as its numbers so the two letters can be
+    # read against each other -- rx in units before the italic's oval, heights
+    # as fractions of the x-height and the descender
+    G_R_BOWL_RX = float(os.environ.get("ALBO_ALD_G_R_BOWL_RX", 172.0))
+    G_R_BOWL_H = float(os.environ.get("ALBO_ALD_G_R_BOWL_H", 0.66))
+    G_R_LOOP_RX = float(os.environ.get("ALBO_ALD_G_R_LOOP_RX", 190.0))
+    G_R_LOOP_H = float(os.environ.get("ALBO_ALD_G_R_LOOP_H", 0.50))   # x the descender, BOTH the centre's drop and the radius
+    G_R_LOOP_DX = float(os.environ.get("ALBO_ALD_G_R_LOOP_DX", 18.0))
+    G_R_OVAL = float(os.environ.get("ALBO_ALD_G_R_OVAL", 1.0))        # x pen.IT_OVAL; 0 would give the roman's own width
+    # ONE PEN FOR THE WHOLE LETTER (docs/albo-method.md section 1). The rings,
+    # the neck and the ear all take these four numbers: the bowl's, which round
+    # 182 measured as the letter's true pen. The cursive arm kept a SECOND pen
+    # for the loop (84 / 0.62 / 3.70 at phi 29) and that is exactly the split
+    # section 1 says a face drawn on one pen does not have.
+    G_R_PEN = float(os.environ.get("ALBO_ALD_G_R_PEN", 84.0))
+    G_R_THIN_F = float(os.environ.get("ALBO_ALD_G_R_THIN_F", 0.52))
+    G_R_CON = float(os.environ.get("ALBO_ALD_G_R_CON", 3.25))
+    G_R_PHI = float(os.environ.get("ALBO_ALD_G_R_PHI", 21.0))
+    G_R_LOOP_PEN = float(os.environ.get("ALBO_ALD_G_R_LOOP_PEN", 0.0))  # 0 = the same pen as the bowl
+    # NO SKEW. The cursive arm sheared both rings into eggs (-0.01 and +0.07);
+    # the roman's rings are plain superellipses and round 203 already measured
+    # that a skew moves where the ring is FAT and never where the stroke is
+    # HEAVY, while collapsing the bowl's thin past 0.16. Reachable, off.
+    G_R_SKEW = float(os.environ.get("ALBO_ALD_G_R_SKEW", 0.0))
+    G_R_SKEW_L = float(os.environ.get("ALBO_ALD_G_R_SKEW_L", 0.0))
+    G_R_EAR = float(os.environ.get("ALBO_ALD_G_R_EAR", 1.00))    # x the roman's own 96*wf*1.15
+    G_R_EAR_FLOOR = float(os.environ.get("ALBO_ALD_G_R_EAR_FLOOR", 0.37))  # x S; the roman's 0.72 carried onto this pen's thin
+    G_R_EAR_AT = float(os.environ.get("ALBO_ALD_G_R_EAR_AT", 44.0))    # degrees round the bowl
+    G_R_EAR_RISE = float(os.environ.get("ALBO_ALD_G_R_EAR_RISE", 8.0))  # degrees
+    G_R_NECK_FROM = float(os.environ.get("ALBO_ALD_G_R_NECK_FROM", 240.0))
+    G_R_NECK_TO = float(os.environ.get("ALBO_ALD_G_R_NECK_TO", 150.0))
+    G_R_NECK_MID = float(os.environ.get("ALBO_ALD_G_R_NECK_MID", 0.60))  # the roman's own
+    G_R_NECK_END = float(os.environ.get("ALBO_ALD_G_R_NECK_END", 0.21))
+    G_R_NECK_FLOOR = float(os.environ.get("ALBO_ALD_G_R_NECK_FLOOR", 0.34))  # x S
+    G_R_BLEND = float(os.environ.get("ALBO_ALD_G_R_BLEND", 10.0))  # close_corners radius, as the cursive arm's G_BLEND
+
+    def _g_roman(c):
+        """`stems.g_g`'s construction, on the italic's pen. Drawn upright; the
+        shear arrives at build time."""
+        from shapely.geometry import LineString as _LS, Point as _Pt
+        xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
+        wf = c["wf"] * (pen.IT_OVAL if G_R_OVAL else 1.0) * (G_R_OVAL or 1.0)
+        del _RING_PARTS[:]
+        del _RING_GEOM[:]
+        _lp = G_R_LOOP_PEN or G_R_PEN
+
+        def _pen_of(th):
+            return (th, G_R_THIN_F, G_R_CON)
+
+        def _pen_ws(pts, thick, smooth=9):
+            """`nib_widths` WITH THE NIB'S ANGLE EXPOSED. That helper fixes phi
+            at the module's 50 and hands the neck and the ear a different pen
+            from the one the rings are on -- which is exactly the split
+            docs/albo-method.md section 1 says a letter drawn on one pen does
+            not have, and it is invisible in a build. Same arithmetic
+            otherwise: the nib, `con` to the letter's target, a moving average
+            so no step survives, and no taper (the profiles own the ends)."""
+            n = len(pts); ws = []
+            for i in range(n):
+                a_ = pts[max(0, i - 1)]; b_ = pts[min(n - 1, i + 1)]
+                ws.append(nib(math.degrees(math.atan2(b_[1] - a_[1], b_[0] - a_[0])),
+                              thick, thick * G_R_THIN_F, G_R_PHI))
+            ws = con(ws, G_R_CON)
+            if smooth:
+                ws = [sum(ws[max(0, i - smooth):i + smooth + 1]) /
+                      len(ws[max(0, i - smooth):i + smooth + 1]) for i in range(n)]
+            return ws
+
+        # ---- the BOWL, sitting in the x-height band as the roman's does
+        brx = G_R_BOWL_RX * wf + TH_V / 2
+        bry = (xh * G_R_BOWL_H + OVER * 2) / 2
+        bcy = xh + OVER - bry
+        bcx = x0 + brx
+        up = keyed_ring(bcx, bcy, brx, bry, G_RING, k=A_K, skew=G_R_SKEW,
+                        unit=u, want_outer=True, hand=_gh(G_BOWL_HAND),
+                        adj=G_RING_ADJ, _phi=G_R_PHI, oval=G_BOWL_OVAL,
+                        oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_BOWL_CUT),
+                        pen=_pen_of(G_R_PEN))[0]
+        # ---- the LOOP, a full round below the line. `lcy + lry` is TH_H/2 at
+        # every depth, so its top holds just over the baseline while its floor
+        # follows G_R_LOOP_H -- which is how rounds 197/205's anchoring survives
+        # a loop that actually descends.
+        lrx = G_R_LOOP_RX * wf + TH_V / 2
+        lry = dsc * G_R_LOOP_H + TH_H / 2
+        lcx = bcx + G_R_LOOP_DX * wf
+        lcy = -dsc * G_R_LOOP_H
+        lo = keyed_ring(lcx, lcy, lrx, lry, G_LRING, k=A_K, skew=G_R_SKEW_L,
+                        unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
+                        adj=G_LRING_ADJ, _phi=G_R_PHI, oval=G_LOOP_OVAL,
+                        oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_LOOP_CUT),
+                        pen=_pen_of(_lp))[0]
+        # THE CENTRELINE AND THE WALL ARE MEASURED OFF THE BUILT CONTOURS.
+        # The roman can write its centreline down (`rx - TH_V/2`, `ry - TH_H/2`)
+        # because its ring is the family's bowl at the family's widths. These
+        # rings are a nib ring with a hand table pressed into the outer and an
+        # ovalised counter, so no constant describes their wall -- and round
+        # 205b already paid for assuming one, with a weld aimed by a width
+        # table that put a tooth through the bowl's counter.
+        def _mid(idx, cx_, cy_, rx_, ry_, skew_, deg):
+            out_, in_ = _RING_GEOM[idx]
+            t_ = math.radians(deg) % (2 * math.pi); bi = 0; bd = 9e9
+            for i, (px, py) in enumerate(out_):
+                a_ = math.atan2((py - cy_) / ry_,
+                                (px - (py - cy_) * skew_ - cx_) / rx_) % (2 * math.pi)
+                d_ = abs((a_ - t_ + math.pi) % (2 * math.pi) - math.pi)
+                if d_ < bd: bd, bi = d_, i
+            P = out_[bi]
+            w_ = _LS(list(in_) + [list(in_)[0]]).distance(_Pt(P))
+            dx_, dy_ = cx_ - P[0], cy_ - P[1]
+            dl_ = math.hypot(dx_, dy_) or 1.0
+            return (P[0] + dx_ / dl_ * w_ / 2.0, P[1] + dy_ / dl_ * w_ / 2.0), w_
+
+        # ---- the NECK: the roman's cubic, between the two centrelines
+        p0, _w0 = _mid(0, bcx, bcy, brx, bry, G_R_SKEW, G_R_NECK_FROM)
+        p3, _w3 = _mid(1, lcx, lcy, lrx, lry, G_R_SKEW_L, G_R_NECK_TO)
+        a1 = math.radians(G_R_NECK_TO)
+        tl = (-math.sin(a1), math.cos(a1)); gap = p0[1] - p3[1]
+        neck = cubic(p0, (p0[0] - gap * 0.05, p0[1] - gap * 0.58),
+                     (p3[0] - tl[0] * gap * 0.55, p3[1] - tl[1] * gap * 0.55), p3)
+        _nprof = widths([(0.0, 0.30), (0.16, 0.9), (0.45, G_R_NECK_MID),
+                         (0.85, 0.9 * min(1.0, G_R_NECK_END / 0.30)),
+                         (1.0, G_R_NECK_END)])
+        _nws = _pen_ws(neck, G_R_PEN * u)
+        _nn = len(neck) - 1
+        nk = stroke(neck, lambda t: max(_nws[min(_nn, int(round(t * _nn)))] * _nprof(t),
+                                        S * G_R_NECK_FLOOR * u))
+        # ---- the EAR: a short heavy stroke off the shoulder, leaving the bowl
+        # THIN, flaring, and stopping on the pen's CUT -- which is what both
+        # outline references actually do (docs/albo-method.md section 1c; the
+        # opposite reading cost a round). Rooted at 44 degrees on the upper
+        # right flank, where the ring's outward normal is nearly perpendicular
+        # to the ear and the union is an honest T-junction rather than the
+        # grazing notch round 176 measured up on the crown.
+        (ex, ey), _we = _mid(0, bcx, bcy, brx, bry, G_R_SKEW, G_R_EAR_AT)
+        _L = 96.0 * c["wf"] * 1.15 * G_R_EAR
+        ear_c = [(ex, ey), (ex + _L, ey + _L * math.tan(math.radians(G_R_EAR_RISE)))]
+        _eprof = widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)])
+        _ews = _pen_ws(ear_c, G_R_PEN * u, smooth=0)
+        _en = len(ear_c) - 1
+        ear = stroke(ear_c,
+                     lambda t: max(_ews[min(_en, int(round(t * _en)))] * _eprof(t),
+                                   S * G_R_EAR_FLOOR * u),
+                     cut1=CUT)
+        g_ = geom.ink([up, lo, nk, ear])
+        return geom.close_corners(g_, G_R_BLEND * u) if G_R_BLEND else g_
+
     @glyph('g')
     def a_g(c):
         """The Aldine binocular g: an o on the x-line, a neck that dives left
         through the baseline, a wide shallow loop under it, and an ear. See
-        the block above for where every number comes from."""
+        the block above for where every number comes from.
+
+        Since round 226 this is the `cursive` arm; `ALBO_ALD_G_STYLE` ships
+        `roman` and `_g_roman` draws it."""
+        if G_STYLE == 'roman':
+            return _g_roman(c)
         xh = c["xh"]; u = xh / A_UNIT; x0 = S * 0.6; dsc = c["desc"]
         del _RING_PARTS[:]
         del _RING_GEOM[:]
@@ -6524,6 +6727,56 @@ if ON:
     Q_TAIL_BODY = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY", 0.0))   # a bump at the WAIST only; 0 = off
     Q_TAIL_BODY_AT = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_AT", 0.74))  # where the waist is, t
     Q_TAIL_BODY_SPAN = float(os.environ.get("ALBO_ALD_Q_TAIL_BODY_SPAN", 0.24))
+    # ROUND 226 -- THE ITALIC Q TAKES THE ROMAN'S SHORTENED TAIL.
+    # Owner 2026-09-18, verbatim: *"replace the italic Q tail with the shortened
+    # Q roman tail you just made (but italicized)"*. The roman's tail is
+    # `caps_straight.g_Q`'s -- a single CUBIC off the ring's centreline at 250
+    # degrees to a pen-cut tip at 1.8 ring-widths and 0.2 cap down, scaled about
+    # its join by `ALBO_ROM_Q_TAIL`. Round 224's lead set that scale to 0.50 for
+    # one round; the owner liked it HERE and not on the roman, which keeps 1.0.
+    #
+    # WHY THIS IS A REPLACEMENT AND NOT A PARAMETER CHANGE. The two tails are
+    # different animals and no value of the round-177/178 dials reaches this
+    # shape: this one is a 4-point CUBIC that dips to 0.56 cap below the
+    # baseline at its belly and lifts back to 0.20 cap at the tip, carrying the
+    # pen's own widths under a `max(pen, belly)` floor and a 0.6 -> 1.0 -> 0.7
+    # taper; the aldine tail is a 4-point CATMULL that never goes below 0.19 cap,
+    # is squared off under the bowl by Q_TAIL_BOT's downward swell, and ends on a
+    # blunt cut. Q_TAIL_SCALE / Q_TAIL_W / Q_TAIL_LIFT / Q_TAIL_BOT are all
+    # inert under `roman` and the `aldine` arm below rebuilds round 225 to the bit.
+    #
+    # WHAT IS ITALICISED, AND WHAT IS NOT. The 13-degree shear is applied to the
+    # whole glyph at BUILD time, so this is drawn upright and the lean arrives
+    # for free (`docs/albo-method.md` section 8). What has to be translated by
+    # hand is the tail's FRAME: the roman's control points are stated in the
+    # ring's own outer width W and in cap heights, measured from the ring's LEFT
+    # OUTER EDGE, and for the roman that edge is x 0 because its `cx == rx`. The
+    # italic's ring is narrower (CAP_Q_RX 0.41 C against the roman's O width),
+    # dropped below the baseline by Q_DROP and set in from x 0 by CS*0.6 -- so
+    # the frame is rebuilt off `cx - rx`, off `2*rx`, and the whole tail rides
+    # down by the same `dy` the aldine tail always rode down by.
+    #
+    # THE JOIN IS THE ITALIC RING'S OWN, and it is measured rather than
+    # declared. The roman gets its join from a centreline ellipse it can write
+    # down (`rx - TH_V/2`, `ry - TH_H/2`); the italic's ring is a nib ring with a
+    # six-key hand table pressed into it, so its wall at 250 degrees is not any
+    # constant. The point is taken off the BUILT outer contour at 250 degrees and
+    # pushed inward by half the measured distance to the BUILT counter -- so the
+    # stroke leaves the ring at exactly the ring's own weight, and round 156's
+    # requirement (the first point sits ON the ring, or the glyph is two pieces)
+    # is met by construction at every hand depth.
+    #
+    # ROUND 179'S JOIN FIX IS KEPT, and it is kept STRUCTURALLY rather than by
+    # carrying its number. That fix trimmed Q_TAIL_LIFT to 0.05 because the lift
+    # was adding weight at the root that Q_TAIL_BOT was already carrying, and the
+    # surplus showed as a LOBE whose meeting with the bowl's outer edge was the
+    # gap he reported. The roman profile has no lift and no bottom swell at all
+    # -- it starts at 0.6 of the pen and ramps to 1.0 by t 0.12 -- so there is no
+    # lobe to leave a nick. And the scale is applied ABOUT THE JOIN, which leaves
+    # every tangent direction unchanged, so the departure tangent is continuous
+    # at every reach (the same argument round 224 wrote down for the roman).
+    Q_TAIL_STYLE = os.environ.get("ALBO_ALD_Q_TAIL_STYLE", "roman").lower()
+    Q_TAIL_ROM = float(os.environ.get("ALBO_ALD_Q_TAIL_ROM", 0.50))  # x the roman tail's reach, about the join
     # ROUND 151 -- THE Q IS HAND CUT. Owner 2026-09-16: *"make Q more
     # handcut"*. A superellipse on a nib is a machine's O with a tail on it:
     # every quadrant is the same quadrant and the only thing that varies round
@@ -6616,9 +6869,50 @@ if ON:
         # the O's. `ring()` carried `bowl_th`, the family's vertically stressed
         # bowl profile, which measured 1.43:1 with its thick at 15/195: beside
         # a G at 2.20:1 on 50/230 the Q read as a different letter's O.
-        ring_ = (ring(cx, cy, rx, ry, floor=S * FLOOR)[0] if Q_AXIS == 'bowl'
-                 else nib_ring(cx, cy, rx, ry, unit=Q_INK, floor=S * FLOOR,
-                                    hand=Q_HAND)[0])
+        ring_, _q_out, _q_in = (ring(cx, cy, rx, ry, floor=S * FLOOR) if Q_AXIS == 'bowl'
+                                else nib_ring(cx, cy, rx, ry, unit=Q_INK, floor=S * FLOOR,
+                                              hand=Q_HAND))
+        if Q_TAIL_STYLE == 'roman':
+            # see the Q_TAIL_STYLE block above. The roman's own numbers, in its
+            # own frame: the join at 250 degrees on the ring's centreline, then
+            # (0.85 W, -0.30 C), (1.40 W, -0.56 C), (1.80 W, -0.20 C) off the
+            # ring's left outer edge, scaled about the join by Q_TAIL_ROM.
+            from shapely.geometry import LineString as _LS, Point as _Pt
+            def _q_at(poly, deg):
+                t_ = math.radians(deg) % (2 * math.pi); bi = 0; bd = 9e9
+                for i, (px, py) in enumerate(poly):
+                    a_ = math.atan2((py - cy) / ry, (px - cx) / rx) % (2 * math.pi)
+                    d_ = abs((a_ - t_ + math.pi) % (2 * math.pi) - math.pi)
+                    if d_ < bd: bd, bi = d_, i
+                return poly[bi]
+            _po = _q_at(list(_q_out), 250.0)
+            # the wall AT the join, measured to the built counter rather than
+            # assumed -- this is what makes the tail leave at the ring's weight
+            _wall = _LS(list(_q_in) + [list(_q_in)[0]]).distance(_Pt(_po))
+            _dx0, _dy0 = cx - _po[0], cy - _po[1]
+            _dl0 = math.hypot(_dx0, _dy0) or 1.0
+            p0 = (_po[0] + _dx0 / _dl0 * _wall / 2.0,
+                  _po[1] + _dy0 / _dl0 * _wall / 2.0)
+            _xl = cx - rx                    # the ring's left OUTER edge = the roman's x 0
+            _W = 2 * rx                      # the ring's full outer width = the roman's W
+            _tp = [(_xl + _W * 0.85, -C * 0.30 + dy),
+                   (_xl + _W * 1.40, -C * 0.56 + dy),
+                   (_xl + _W * 1.80, -C * 0.20 + dy)]
+            if Q_TAIL_ROM != 1.0:
+                _tp = [(p0[0] + (x - p0[0]) * Q_TAIL_ROM,
+                        p0[1] + (y - p0[1]) * Q_TAIL_ROM) for x, y in _tp]
+            tail = cubic(p0, *_tp)
+            _base = pen_widths(tail)
+            def _wf(t, _b=_base):
+                # THE BELLY SCALES WITH THE REACH, exactly as the roman's does
+                # and for the roman's reason: 1.05 cap stems is an ABSOLUTE, and
+                # a shortened tail carrying it whole is the bulge the owner asked
+                # this letter to lose in the first place.
+                belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
+                return max(_b(t), CS * 1.05 * Q_TAIL_ROM
+                           * (3 * belly * belly - 2 * belly ** 3)) \
+                    * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+            return geom.ink([ring_, stroke(tail, _wf, cut1=CUT)])
         if CAP_Q_REF == 'poetica':
             # Poetica leaves the ring at five o'clock and runs out and down in
             # one shortening sweep.

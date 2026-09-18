@@ -119,7 +119,7 @@ def ink_from_font(ttf, xh_px=900):
     ImageDraw.Draw(im).text((W * 0.35, H * 0.62), "g", font=fnt, fill=0, anchor="ls")
     base = H * 0.62
     if abs(ang) > 0.05:        # unshear about the baseline
-        k = math.tan(math.radians(ang))
+        k = -math.tan(math.radians(ang))
         im = im.transform((W, H), Image.AFFINE, (1, k, -k * base, 0, 1, 0),
                           resample=Image.BICUBIC, fillcolor=255)
     a = np.asarray(im)
