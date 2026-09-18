@@ -313,6 +313,13 @@ if _ALD is not None and _ALD.ON:
     PAIRS[('R', 'four')] = 72
     PAIRS[('R', 'two')] = 54
     PAIRS[('Q', 'three')] = 36
+    # ------------------------------------------------------ round 220, italic
+    # The stops' bearings came in (ALD_STOP_BEAR, outlines/build.py) and the Q's
+    # tail found the comma the way it found the 3: Q, fell to 0.008 em. Same
+    # shape, same reason -- the tail runs right BELOW the comma's own band, so
+    # it is a pair and not the comma's bearing, which is now measured against
+    # seven faces and should not move for one capital.
+    PAIRS[('Q', 'comma')] = 36
 
 
 def feature_text():

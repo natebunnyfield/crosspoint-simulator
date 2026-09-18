@@ -184,6 +184,25 @@ def solve_widths(passes=3):
 
 PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
 PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
+# ROUND 220 -- THE STOPS AND THE QUOTES ARE NOT ONE CLASS IN AN ITALIC. Owner
+# 2026-09-18 had asked for the italic's punctuation; measured as the 2-D
+# closest approach against seven fitted faces (a row-wise measure cannot see
+# `s'` at all -- the s and the apostrophe share no scanline), the QUOTES sit in
+# the band (s' 0.216 em against Flanker 0.257, Pagella 0.222, a reference
+# median of 0.168) while every STOP is the loosest of the eight: s, 0.198
+# against 0.048-0.168, e! 0.156 against 0.068-0.140, !a 0.236 against
+# 0.100-0.187. Round 97b's 2.25 was set on the roman and is right for the
+# quotes; the stops take their own factor, italic only.
+PUNCT_STOPS = set(".,:;!?\u2026")
+ALD_STOP_BEAR = float(os.environ.get("ALBO_ALD_STOP_BEAR", "1.05"))
+# ...and two of the stops still want their own delta after the class factor,
+# because the class is symmetric and their shapes are not. Measured at
+# STOP_BEAR 1.05: the comma reads s, 0.166 against a 0.129 reference median
+# while ,a reads 0.080 against 0.123 -- its ink hangs to the LEFT of where a
+# period's sits, so the same pair of bearings lands it wrong on both sides at
+# once; and the ! and the ? are still loose on the right alone (!a 0.206 and
+# ?o 0.190 against 0.167 and 0.142). Units, (left, right), italic only.
+ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
 # Round 97 (owner: "go" on the whole-lowercase refit) / 97b (owner: "crosses
 # seems way too spaced out", "same for frozen"): per-letter (lsb, rsb) deltas
 # from `outlines.cmp.rhythm.solve_cat` on the round-96b file. The first solve
@@ -366,12 +385,16 @@ def fit(ch, conts, c):
     # 33 / 16). Picked on a ladder: marks 1.5 (59), fences and dashes 1.0 (45),
     # the a's left 2.0 (73).
     # Round 97b (owner: "punctuation is still too close. it needs to breathe"): marks 60 -> 80 (Berkeley 82, Albertus 74), fences 45 -> 60
-    if ch in PUNCT_MARKS: lsb = capbear * 2.25 + 17; rsb = capbear * 2.25 + 17
+    if ch in PUNCT_MARKS:
+        _pf = (ALD_STOP_BEAR if (ALD is not None and ALD.ON and ch in PUNCT_STOPS) else 2.25)
+        lsb = capbear * _pf + 17; rsb = capbear * _pf + 17
     elif ch in PUNCT_FENCES or (not ch.isalnum() and ch not in SIDES): lsb = capbear * 1.55 + 17; rsb = capbear * 1.55 + 17   # round 99: every new symbol takes the fences' bearing rather than the tighter default
     if ch == 'a': lsb = capbear * A_LEFT + 17
     if ch == 'j': rsb = capbear * J_RIGHT + 17
     if FIG_TRACK and isfig(ch) and ALD is not None and ALD.ON:
         lsb += FIG_TRACK; rsb += FIG_TRACK
+    if ALD is not None and ALD.ON and ch in ALD_PUNCT_ADJ:
+        lsb += ALD_PUNCT_ADJ[ch][0]; rsb += ALD_PUNCT_ADJ[ch][1]
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.

@@ -295,3 +295,70 @@ composed at other sizes.
 
 Gates: glitch 0 of 119, touch 0 of 5,197, roman byte-identical in both outlines
 and metrics.
+
+## Round 220 — the italic's punctuation, and the mark that was not the fault
+
+Owner's own italic to-do, 2026-09-18: *"adjust punctuation of italic (include
+apostrophe with 's' having too much space)."*
+
+### A row-wise measure cannot see `s'` AT ALL
+
+Both instruments this project uses for a gap — `cmp_touch`'s minimum white and
+this document's body-edge gap — walk the rows the two glyphs **share**. An `s`
+and an apostrophe share none: the s lives in the x-height band and the mark sits
+entirely above it. `s'` came back `n/a` from both, on Albo and on three of the
+seven references.
+
+The gap a reader sees there is **diagonal** — the s's top-right shoulder against
+the apostrophe's lower-left — so the honest measure is the closest approach in
+TWO dimensions between the two ink sets, taken on the shaped pair. That is a
+third measure, and it is the one this round is fitted on. (Implemented as the
+nearest distance between A's right ink boundary and B's left; a full distance
+transform needs scipy, which is not installed here.)
+
+### And on that measure the apostrophe was in band
+
+| pair | Albo, was | reference median | reference range |
+|---|---|---|---|
+| `s'` | 0.216 | 0.168 | 0.134 – 0.257 |
+| `n'` | 0.242 | 0.218 | 0.171 – 0.301 |
+| `s,` | **0.198** | 0.129 | 0.048 – 0.168 |
+| `s.` | **0.164** | 0.132 | 0.052 – 0.155 |
+| `e!` | **0.156** | 0.119 | 0.068 – 0.140 |
+| `!a` | **0.236** | 0.167 | 0.100 – 0.187 |
+| `?o` | **0.218** | 0.142 | 0.120 – 0.305 |
+
+Flanker Griffo — the primary reference — puts `s'` at **0.257** and Pagella at
+0.222, both looser than Albo's 0.216. **The quotes were never the fault.** Every
+STOP, by contrast, was the loosest of the eight faces measured.
+
+This corrects what the owner was told earlier in the session, which was that
+`s'` opened 120 units against `so`'s 70. That is true and it is not evidence:
+it compares a mark's bearing against a letter's without asking what a fitted
+face does with the same pair, which is the whole method at the top of this file.
+
+### The fix is a class split, not a dial
+
+`PUNCT_MARKS` held the stops and the quotes together at round 97b's
+`capbear × 2.25 + 17`, which was set on the ROMAN and is right for the quotes.
+`PUNCT_STOPS` now takes its own factor, **1.05**, italic only — and two marks
+need a delta on top, because a symmetric class factor cannot fit an asymmetric
+shape:
+
+* the **comma** at 1.05 read `s,` 0.166 against 0.129 *and* `,a` 0.080 against
+  0.123 — wrong on both sides at once, because its ink hangs left of where a
+  period's sits. `(−37, +43)` units.
+* the **!** and the **?** were loose on the right alone: `(0, −39)` and
+  `(0, −48)`.
+
+Shipped, every pair lands on its reference median: `s,` **0.130** (ref 0.129),
+`s.` 0.132 (0.132), `e!` 0.125 (0.119), `n?` 0.138 (0.130), `!a` 0.167 (0.167),
+`?o` 0.152 (0.142), `,a` 0.122 (0.123). The quotes are untouched.
+
+**One kern, and it is the Q again.** `Q,` fell to 0.008 em when the comma's
+bearings came in — the same tail, the same reason, and the same answer as `Q3`
+in round 216: the tail runs below the comma's own band, so it is a pair.
+
+Seven italic glyphs move, metrics only: period, comma, colon, semicolon, exclam,
+question, ellipsis. Roman byte-identical in outlines and metrics. Gates: glitch
+0 of 119, touch 0 of 5,197, figure spacing holds at 1.31×.
