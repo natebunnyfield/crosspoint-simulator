@@ -1554,6 +1554,13 @@ if ON:
     # picture says what it did. A semicircular cap is the same lobe with no
     # join in it, and it costs nothing in width.
     C_CAP0 = float(os.environ.get("ALBO_ALD_C_CAP0", 1.00))   # top terminal, x half its width
+    # 2026-09-17 -- THE C'S TOP SERIF, ON ITS OWN DIAL. Owner: *"slightly
+    # increase top serif of c a bit"*. Measured against each reference's own c,
+    # the top terminal over the left arc's thickness: Coelacanth 2.86, Flanker
+    # 2.33, Pagella 2.09, Cancelleresca 1.80 -- and Albo 1.56, the smallest of
+    # the set. `r_scale` on `cs_round_end` grows the disc without trimming the
+    # stroke back any further, so the extra size reads as reach.
+    C_CAP0_R = float(os.environ.get("ALBO_ALD_C_CAP0_R", 1.15))
     C_CAP1 = float(os.environ.get("ALBO_ALD_C_CAP1", 0.85))   # bottom terminal
     C_RING = [(40, 52), (47, 59), (66, 32), (90, 24), (113, 34), (133, 47),
               (160, 60), (171, 65), (180, 66), (189, 70), (200, 72), (212, 74),
@@ -1655,7 +1662,7 @@ if ON:
         p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
         ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT)
         n = len(ws) - 1
-        i0, r0 = cs_round_end(p, ws, True, C_CAP0)
+        i0, r0 = cs_round_end(p, ws, True, C_CAP0, C_CAP0_R)
         i1, r1 = cs_round_end(p, ws, False, C_CAP1)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
         parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
