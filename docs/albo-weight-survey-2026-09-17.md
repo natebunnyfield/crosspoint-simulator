@@ -681,3 +681,21 @@ now the lighter of the pair. The italic X is the next item, not an exemption.
 
 Gates otherwise: italic glitch 0 of 119, touch 0 of 5,201, `cmp_aldine_metrics`
 0 outside 10%, figures 1.31×; roman glitch 0 of 119, touch 4 (from 19).
+
+### Round 225 — three rulings on the round-224 specimen, and the roman o
+
+*"Leave the Q tail on roman long, it only needs to pair with other capitals and
+'u'"* — `ALBO_ROM_Q_TAIL` back to 1.0; `Qu` +0.079 em and every capital clears
+except `QQ` (kerned +72, roman only) and `QJ` (no English word; exempt). The
+lowercase, figure and fence pairs the ruling accepts are exempt by name in
+`cmp_touch.py`, so the roman gate reads 4 touching, all the f's arm and `VI`.
+*"Leave S as it was because it looked and felt better"* — every S dial back to
+round 223. *"Reduce most of the wobble effect"* — `ALBO_HAND_SCALE` 0.3, see
+`docs/albo-imperfections.md`. *"'o' roman seems slightly too big and thin, but
+not by much"* — `ALBO_ROM_O_RX` 0.95 / `ALBO_ROM_O_W` 1.08: width 485 → 471,
+stroke 66.2 → 72.3 (0.81 → 0.89 of the n's stem), colour 0.308 → 0.335.
+
+In flight as this is written: the numerals as OPTIONS from old-style
+references (an agent in `figures.py`), and the italic Q's tail from the roman's
+shortened construction plus the g redrawn in the roman's style with a shorter
+ear (an agent in `aldine.py`).

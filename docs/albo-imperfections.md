@@ -134,3 +134,17 @@ Not everything irregular is wanted, and three cases mark the edge:
    0.99 and level, while the letter's own stem was the lightest in the
    alphabet, because the Y spends on an arm what other capitals spend on a
    second stem.
+
+## 2026-09-18, round 225 — most of it comes out, by ruling
+
+Owner, on the round-224 specimen: *"reduce most of the wobble effect on
+letters."* One number now scales every irregularity this document lists —
+`ALBO_HAND_SCALE` in `outlines/primitives.py`, **0.3**: the `LIFE` jitter in
+both styles (0.06 → 0.018 effective), and in the italic the A's droop, the g's
+and Q's hand tables, the R's, the Z's and the X's four midpoint dials. Each
+keeps its own dial; at 1.0 the build is round 224 byte for byte, proven on both
+styles. At 0.3 it moves 187 roman and 154 italic glyphs by one to three units.
+The structural items — the a's cubic, the m's three arches, the g's axis, the
+Y/P hairline gap — are not wobble and are not scaled. This supersedes the
+claim at the head of this file only in DEGREE: the irregularities stay, at a
+third of their size.
