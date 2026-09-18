@@ -148,21 +148,37 @@ EIGHT_W_IT = 0.70      # x the ring's stroke weight
 # the 7's half of the same ruling. SEVEN_BAR_W and SEVEN_DIAG_W are SHARED with
 # the roman -- changing their defaults moved the roman's 7, which a build diff
 # caught -- so the italic takes its own pair.
-SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.30))
-SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 0.86))
+# ROUND 215 -- THE 1'S FOOT IS BRUSHED, NOT SLABBED. Owner 2026-09-18:
+# *"change big serif on 1 to brushed."* The stem's foot='both' draws the
+# family's chiselled bracket, and in the italic the right half is already
+# replaced by the calligraphic exit (round 103) -- so what was left was one
+# long pointed slab sweeping LEFT, twice the reach of anything else on the
+# italic's baseline and the only slab foot among the figures. Brushed is the
+# s's and the 7's idiom: the serif IS the stroke, the pen simply pressing as
+# it lands. BRUSH is the foot's width over the stem's; BRUSH_H is how far up
+# the press reaches, x S. 1.0 restores the wedge.
+ONE_FOOT_BRUSH = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH", 1.45))
+ONE_FOOT_BRUSH_H = float(os.environ.get("ALBO_ALD_ONE_FOOT_BRUSH_H", 0.20))
+SEVEN_BAR_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_BAR_W_IT", 1.65))
+SEVEN_DIAG_W_IT = float(os.environ.get("ALBO_ALD_SEVEN_DIAG_W_IT", 1.02))
 # ROUND 213 -- WHERE THE FOOT LANDS. Owner 2026-09-18: *"make 7 tail centered
 # and taper more like 6."* Measured on the built italic, the foot sits at 0.06
 # of the figure's own ink width -- hard against its left edge -- where the 6's
 # is 0.25, the 1's 0.28 and the 4's 0.38. Italic only; the roman's 7 keeps its
 # 0.30 of w.
-SEVEN_FOOT_X = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_X", 0.66))
-# ROUND 214 -- AND THE FOOT TAKES A MICROSERIF. Owner 2026-09-18: *"redo the
-# tail to be microserifed."* The family's diagonal end wedge at 0.15 of its
-# 0.9 -- the same sixth the 1's flag takes, which he ruled a microserif in
-# round 75 ("reduce the top spur on 1 into a microserif"). 0 is the plain
-# tapered end.
-SEVEN_FOOT_SERIF = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_SERIF", 0.25))
-SEVEN_FOOT_SERIF_SIDE = int(os.environ.get("ALBO_ALD_SEVEN_FOOT_SERIF_SIDE", -1))
+SEVEN_FOOT_X = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_X", 0.30))
+# ROUND 215 -- AND THE FOOT TAKES A BRUSHED SERIF. Owner 2026-09-18: *"212
+# wins but needs serif on end."* Round 214's answer was the family's chiselled
+# end WEDGE stuck on the foot, and it went out with the rest of that round.
+# This is the s's idiom instead (round 209, his ruling: *"serif needs to hang
+# low off of current brush stroke, not be a weird finial"*): the serif is not
+# an object added to the stroke, it IS the stroke -- the pen thins to its
+# waist and then presses back out as it lands, so the foot spreads out of the
+# taper with no join to see. FLARE is the foot's width over the waist's;
+# FLARE_T is where along the run the waist sits, so the spread happens after
+# it. 1.0 is the plain tapered end.
+SEVEN_FOOT_FLARE = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_FLARE", 1.45))
+SEVEN_FOOT_FLARE_T = float(os.environ.get("ALBO_ALD_SEVEN_FOOT_FLARE_T", 0.94))
 EIGHT_COUNTER_WH = 1.036   # the counters wide over tall: the o's ruling (round 35); the lower then x EIGHT_LOWER_TALL
 
 # Owner 2026-09-13 (round 64): "give me options for thickening 6 tail." The
@@ -316,13 +332,22 @@ def g_one(c):
     wedge now, on the UPPER side, which is (c) the mismatch with the 2: the
     2's base carries the family's bar-end wedge and the 1 carried nothing."""
     D = c["figH"]; x = 200 * c["wf"] + S / 2
-    st = stem(x, 0, D, top=None, foot='both')
+    brushed = pen.ITALIC and ONE_FOOT_BRUSH > 1.0
+    st = stem(x, 0, D, top=None, foot=(None if brushed else 'both'))
     path = line((x - 150, D * 0.72), (x, D - TH_V * ONE_FLAG_BURY))
     # the flag on the bowl profile at the stem's weight (a pen-drawn flag
     # is a hairline at this contrast; Albertus's 1 carries a short solid
     # flag) -- reflection of 2026-09-13: chiselled, not calligraphic
     wf = PR.bowl_widths(path, widths([(0.0, 0.8), (0.5, 0.9), (1.0, 0.9)]), floor=S * 0.62)
     parts = [st, stroke(path, wf, cut0=None if ONE_FLAG_WEDGE else CUT)]
+    if brushed:
+        # the press: the stem's own width spreading into the baseline. Square
+        # end faces (cut0/cut1 None) so the foot sits flat on the line and the
+        # top of the press disappears into the stem it is part of.
+        w0 = PR.stem_width(TH_V, pen.ENT, 0.0)
+        fp = line((x, S * ONE_FOOT_BRUSH_H), (x, 0))
+        parts.append(stroke(fp, widths([(0.0, w0), (1.0, w0 * ONE_FOOT_BRUSH)]),
+                            cut0=None, cut1=None))
     if ONE_FLAG_WEDGE:   # the 9's flag-diag construction: a square face across the stroke, the wedge off its UPPER corner
         parts.append(end_wedge(path, wf(0.0), True, 1, scale=ONE_FLAG_WEDGE_SCALE))
     return geom.ink(parts)
@@ -550,7 +575,20 @@ def g_seven(c):
         # the lower stroke runs out downward the way the 6's tail runs out
         # upward: a pen stroke on the same line, held to its width until
         # SEVEN_TAIL_FROM and then tapered to the foot.
-        prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0), (1.0, SEVEN_TAIL_TAPER)])
+        if SEVEN_FOOT_FLARE > 1.0:
+            # THE PRESS, AND NOT A WAIST. The first cut forced the taper to
+            # reach SEVEN_TAIL_TAPER at FLARE_T and spread from there, which
+            # put a pinch in the leg -- at 330 px the 7 grew a knee the 6's
+            # tail does not have, and past 1.55 it read as a defect rather
+            # than a stroke. The stroke thins MONOTONICALLY as it always did;
+            # the serif is only the last few percent, where the pen presses.
+            _t = (SEVEN_FOOT_FLARE_T - SEVEN_TAIL_FROM) / max(1e-6, 1.0 - SEVEN_TAIL_FROM)
+            _w = 1.0 + (SEVEN_TAIL_TAPER - 1.0) * min(1.0, max(0.0, _t))
+            prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0),
+                           (SEVEN_FOOT_FLARE_T, _w),
+                           (1.0, _w * SEVEN_FOOT_FLARE)])
+        else:
+            prof = widths([(0.0, 1.0), (SEVEN_TAIL_FROM, 1.0), (1.0, SEVEN_TAIL_TAPER)])
         if SEVEN_TAIL_CURVE:
             _L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
             c1 = (p0[0] + (p1[0] - p0[0]) * SEVEN_TAIL_HOLD,
@@ -560,13 +598,7 @@ def g_seven(c):
             path = cubic(p0, c1, c2, p1)
         else:
             path = [p0, p1]
-        _wf = lambda u: wd * prof(u)
-        diag = stroke(path, _wf)
-        if SEVEN_FOOT_SERIF:
-            _pp = path if len(path) > 2 else resample(path)
-            diag = geom.ink([diag, end_wedge(_pp, _wf(1.0), False,
-                                             SEVEN_FOOT_SERIF_SIDE,
-                                             scale=SEVEN_FOOT_SERIF)])
+        diag = stroke(path, lambda u: wd * prof(u))
     else:
         diag = diagonal(p0, p1, wd)
     return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre, wedges=[('left', -1)]), diag])

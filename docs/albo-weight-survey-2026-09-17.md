@@ -426,3 +426,89 @@ was previously matched: the stroke median is a function of the geometry, not a
 property of the dials, so it has to be re-measured after every move.
 
 Gates: glitch 0 of 119, touch 0 of 5,193, roman byte-identical.
+
+### Round 215 — the 7 back to 212, and two feet that are strokes rather than slabs
+
+*"Revert 7 and adjust line width according to legibility."* Then, on the
+ladder: *"212 wins but needs serif on end."* And separately: *"change big serif
+on 1 to brushed."*
+
+**The revert is proven, not asserted.** Round 214's halfway foot and its end
+wedge are out. `SEVEN_FOOT_X` goes back to 0.30, the wedge dial is deleted, and
+bar/diagonal return to **1.65 / 1.02**. The rebuilt italic is byte-identical to
+round 212 across **every** glyph, checked against a worktree build of `2308faa`
+rather than against the dials.
+
+**The width ladder, and what it preferred.** Six arms, measured on a raster the
+script builds itself — `tools/wedge_serif/cmp_seven_legibility.py`. Four
+numbers, each naming a way a 7 actually fails on a panel: `leg_min` (the
+darkest pixel in the weakest row of the lower stroke — low means the leg greys
+out), `leg_mass`, the junction `aperture`, and `d1`, the 7's distance from the
+1 at the same size.
+
+| arm | bar/diag | 13px leg_min | d1 | ink7/ink6 |
+|---|---|---|---|---|
+| A | 1.35 / 0.83 | 0.361 | 0.601 | 0.592 |
+| B | 1.50 / 0.93 | 0.385 | 0.594 | 0.656 |
+| **C = round 212** | **1.65 / 1.02** | **0.381** | **0.591** | **0.714** |
+| D | 1.80 / 1.11 | 0.402 | 0.584 | 0.771 |
+| E | 1.45 / 1.14 | 0.414 | 0.618 | 0.739 |
+| F | 1.85 / 0.92 | 0.381 | 0.568 | 0.696 |
+
+**The measure preferred E and the owner ruled C.** E wins both legibility
+numbers because its diagonal is the fattest of the set — but a fatter diagonal
+is the round-189 ruling (*"thin out diagonal and thicken top bar"*) run
+backwards, and E's bar/diagonal ratio is 1.27 against 212's 1.62. Recorded as a
+negative result: on this figure the legibility measure and the contrast ruling
+point in opposite directions, and the ruling wins.
+
+**THE INSTRUMENT'S FIRST CUT WAS A NO-OP AND SAID SO CONVINCINGLY.** It averaged
+each measure over nine sub-pixel phases, because a per-pixel number on a 13 px
+raster otherwise reports which phase of the grid the stroke landed on. PIL
+**floors a float xy in `ImageDraw.text`** — measured, the ink sum is identical
+at ox 0.00 / 0.33 / 0.66 — so the average was the same number nine times, and
+two columns of the table were phase noise wearing an average's clothes. The
+script rasterises the outline itself now: filled at 16x and box-downsampled,
+which is coverage AA (what the panel's four-level path does) and where a
+fractional offset means something. The sixth instrument bug of this series, and
+like the other five it produced believable numbers.
+
+**Both feet are now the stroke, not an object on it.** This is the s's idiom
+from round 209 — his own ruling, *"serif needs to hang low off of current brush
+stroke, not be a weird finial"* — applied twice.
+
+The **7** thins monotonically as it always did and then presses back out over
+the last 6% of the run: `SEVEN_FOOT_FLARE` 1.45 at `SEVEN_FOOT_FLARE_T` 0.94.
+The first cut forced the taper to bottom out at the flare point and spread from
+there, which put a **pinch** in the leg — at 330 px the 7 grew a knee the 6's
+tail does not have, and past 1.55 it read as a defect. There is no waist now;
+the serif is only the press.
+
+The **1**'s foot was the family's chiselled bracket (`stem(foot='both')`, whose
+right half the italic exit already replaced in round 103), so what stood there
+was one long pointed slab sweeping left — the only slab foot among the figures.
+It is a press now too: `ONE_FOOT_BRUSH` 1.45 over `ONE_FOOT_BRUSH_H` 0.20 of S.
+
+**A bracket and a press are distinguishable in one measurement**, which is what
+made this rulable rather than arguable. Ink width across the 1's foot, by height
+above the baseline:
+
+| | h0 | h10 | h25 | h50 |
+|---|---|---|---|---|
+| round 212, the slab | 148 | **160** | 149 | 94 |
+| now, the press | 142 | 145 | 136 | 90 |
+
+The bracket is **widest above the baseline** and pinches into the stem; the
+press is widest **at** the baseline and only narrows. Left reach past the stem
+goes 67 → 61 units, so the foot is slightly smaller than the slab it replaced
+and not larger — the ladder's 1.90 reached **82**, wider than the thing he asked
+to change, and was rejected on that number.
+
+Weight: the 7's stroke median is **54.2**, unchanged, still +0% of the figures'
+median; its advance grows 490 → 506 because the press is ink the fitter sees.
+The 1 is unmoved at 73.8.
+
+Gates: glitch 0 of 119, touch 0 of 5,193, the 290-glyph sweep reports round
+212's same 13 pre-existing findings, roman byte-identical. Eight italic glyphs
+move: the 1, the 7 and the superscript, subscript and fraction variants built
+from the same two functions.
