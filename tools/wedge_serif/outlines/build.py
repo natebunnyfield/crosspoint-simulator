@@ -203,6 +203,17 @@ ALD_STOP_BEAR = float(os.environ.get("ALBO_ALD_STOP_BEAR", "1.05"))
 # once; and the ! and the ? are still loose on the right alone (!a 0.206 and
 # ?o 0.190 against 0.167 and 0.142). Units, (left, right), italic only.
 ALD_PUNCT_ADJ = {',': (-37, 43), '!': (0, -39), '?': (0, -48)}
+# ROUND 221 -- THE QUOTES' RIGHT SIDE. Owner 2026-09-18: *"take a pass at all
+# spacing including 'apostrophe s'."* Round 220 judged the quotes in band on
+# `s'` -- the letter BEFORE the mark -- and never measured `'s`, the pair he
+# named. On the 2-D closest approach (cmp_space_2d.py) the quote+letter class
+# reads 0.244 em against a 0.105-0.217 reference band, and each mark's RIGHT
+# side is nearly twice its left (quoteright 0.255 / 0.133): the same flat
+# bearing on both sides of a mark that sits at cap height, in a face sheared
+# 13 degrees, so its ink already leans toward the next letter. Units off the
+# right bearing of every quote, italic only.
+PUNCT_QUOTES = set("'\"\u2018\u2019\u201c\u201d")
+ALD_QUOTE_RSB = float(os.environ.get("ALBO_ALD_QUOTE_RSB", "-100"))
 # Round 97 (owner: "go" on the whole-lowercase refit) / 97b (owner: "crosses
 # seems way too spaced out", "same for frozen"): per-letter (lsb, rsb) deltas
 # from `outlines.cmp.rhythm.solve_cat` on the round-96b file. The first solve
@@ -395,6 +406,8 @@ def fit(ch, conts, c):
         lsb += FIG_TRACK; rsb += FIG_TRACK
     if ALD is not None and ALD.ON and ch in ALD_PUNCT_ADJ:
         lsb += ALD_PUNCT_ADJ[ch][0]; rsb += ALD_PUNCT_ADJ[ch][1]
+    if ALD_QUOTE_RSB and ALD is not None and ALD.ON and ch in PUNCT_QUOTES:
+        rsb += ALD_QUOTE_RSB
     if ch in BEARING_ADJ: lsb += BEARING_ADJ[ch][0]; rsb += BEARING_ADJ[ch][1]
     # ROUND 137: the owner's own capital spacing, set live on the bench and
     # applied as a delta on the rule above -- aldine italic only.

@@ -362,3 +362,91 @@ in round 216: the tail runs below the comma's own band, so it is a pair.
 Seven italic glyphs move, metrics only: period, comma, colon, semicolon, exclam,
 question, ellipsis. Roman byte-identical in outlines and metrics. Gates: glitch
 0 of 119, touch 0 of 5,197, figure spacing holds at 1.31×.
+
+## Round 221 — the whole font on one measure, and the quote's other side
+
+Owner, 2026-09-18: *"take a pass at all spacing including 'apostrophe s'. use
+and update md files."*
+
+### Measure 4: the closest approach in two dimensions
+
+`tools/wedge_serif/cmp_space_2d.py`. Every gap instrument before it — minimum
+white, the body-edge gap — walks the rows two glyphs *share*, and a high mark
+and a low letter share none. Round 220 measured `s'` (the letter before the
+mark), found it in band, and never once measured `'s`, which is the pair the
+owner had named. **A row-wise measure returned n/a for exactly the pair under
+complaint, and the round shipped on the pair next to it.** Measure 4 takes the
+nearest distance between the first glyph's right ink boundary and the second's
+left, on the shaped pair, in em — the diagonal a reader actually sees.
+
+It also groups by CLASS AND SIDE, because a bearing is a property of one side
+of one letter (round 211), and reports each class's median against the seven
+references' medians. A class out of band is a bearing; a pair out of band is a
+kern.
+
+### The ledger, both styles, at the start of the round
+
+| class | italic | roman | ref median | ref band | italic verdict |
+|---|---|---|---|---|---|
+| lower+lower | 0.095 | 0.108 | 0.079 | 0.058 – 0.086 | loose, by his tracking |
+| cap+lower | 0.128 | 0.128 | 0.100 | 0.073 – 0.119 | loose — the capitals are his |
+| cap+cap | 0.129 | 0.095 | 0.078 | 0.058 – 0.094 | the documented +0.045 rhythm |
+| digit+digit | 0.132 | 0.102 | 0.115 | 0.078 – 0.154 | in band (round 216) |
+| letter+stop | 0.130 | 0.134 | 0.099 | 0.074 – 0.136 | in band (round 220) |
+| stop+letter | 0.131 | 0.141 | 0.123 | 0.065 – 0.146 | in band (round 220) |
+| letter+quote | 0.163 | 0.216 | 0.155 | 0.105 – 0.221 | in band |
+| **quote+letter** | **0.244** | 0.195 | 0.148 | 0.105 – 0.217 | **LOOSE — this round** |
+
+(The references are seven ITALICS. The roman column is measured against them
+for want of a roman set, so its "loose" reads overstate: a roman is normally
+fitted a little wider than its italic. Recorded, not acted on.)
+
+### What was fixed: the quotes' right side
+
+Each quote's two sides, median white against lowercase partners:
+
+| mark | its right | its left |
+|---|---|---|
+| ’ | **0.255** | 0.133 |
+| ” | **0.256** | 0.132 |
+| ' | **0.249** | 0.208 |
+
+The right side is nearly twice the left, from one flat bearing on both sides of
+a mark that sits at cap height in a face sheared 13° — its ink already leans
+toward the next letter. `ALD_QUOTE_RSB` takes 100 units off every quote's
+right bearing, italic only. A horizontal shift does not transfer 1:1 to a
+diagonal gap (−60 → −0.043 em, −100 → −0.071), so it was swept rather than
+computed:
+
+| rsb | quote+letter | `'s` | `'l` | touch gate |
+|---|---|---|---|---|
+| 0 | 0.244 | 0.286 | 0.208 | clean |
+| −60 | 0.201 | 0.241 | 0.148 | clean |
+| **−100** | **0.173** | **0.214** | **0.109** | **clean** |
+| −120 | 0.161 | 0.201 | 0.089 | `'V` `"V` touching |
+
+References for `'s`: 0.136 – 0.254, Flanker 0.254 and Pagella 0.224 above
+Albo's 0.214, five faces below it. `'l`: 0.030 – 0.136. Six italic glyphs move,
+metrics only; the roman is byte-identical. The owner's `f`+quote and `r`+quote
+kerns sit on the marks' LEFT and are untouched.
+
+### What was measured and deliberately not moved
+
+* **The lowercase is his.** Italic lower+lower reads 0.095 against a 0.079
+  median, and per letter the excess is UNIFORM (sd 0.010 across 18 letters'
+  right sides) — that is round 136's +26 tracking he dialled at his bench, 13 a
+  side, almost exactly the 0.016 em gap to the median. Built and measured so the
+  question can be put with pictures: at +13 the class reads **0.083** (in band,
+  one f-pair under the floor — `fU` 0.010), at +0 it reads **0.070** (on the
+  median, eight f-pairs under the floor). Both arms are `ALBO_ALD_TRACK`, which
+  exists for exactly this. Not shipped; his call.
+* **Every capital's bearing is in `CAP_BEARING_ADJ`, round 137 — his table.**
+  cap+lower's 0.128 is the right sides of E, H, N, T (0.153 – 0.165 against a
+  0.100 median); T's, V's and W's LEFT sides at 0.205 – 0.231 are their own
+  open white and not a fault by this document's first rule. cap+cap's 0.129 is
+  the +0.045 rhythm `docs/albo-capital-spacing.md` records. Left alone.
+* **The roman.** lower+lower 0.108, uniform (sd 0.017), against italic
+  references only. No roman reference set is loaded; measuring one is the
+  next step if the roman is ever to be re-fitted, not this table.
+
+Gates: glitch 0 of 119, touch 0 of 5,197, figure spacing 1.31×.
