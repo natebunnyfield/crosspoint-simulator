@@ -263,6 +263,17 @@ Ten of the 57 boxes were NOT what he marked (R06, R27, R29, R31, R32, R36, R38, 
 
 Six more boxes were not his (I11, I15, I22, I31, I39, I49, I53) and his last line is the ruling on the method: *"NOTE THAT YOU FUCKED UP THE HIGHLIGHTS THAT I GAVE YOU SO REDO THEM."* Eye-reading coordinates off a screenshot is not an instrument; the boxes must come from his marked images themselves (a colour threshold on the yellow), which needs the images as files. His text stands and is acted on; the index is re-cut from the files when they arrive.
 
+## The index re-cut from his pixels (2026-09-18, later)
+
+Three of the four marked sheets reached `~/Downloads` (roman top, italic top,
+italic bottom; the roman bottom is still to come). `tools/wedge_serif/markup/
+extract.py` thresholds the yellow, labels the blobs and maps each bounding box
+back through the sheet's cell geometry into glyph units -- no eye in the loop.
+25 roman-top and 127 italic regions, ids by glyph in reading order (RA1, RG2,
+Ib1). The forms `docs/albo-bump-feedback-roman.md` / `-italic.md` were
+regenerated on those ids with his earlier write-up carried under each glyph;
+the tables above keep the old ids for the record of what he wrote against.
+
 ## Unresolved by the geometry
 
 * **R01** (roman A, left leg at the crossbar): nothing found — both crossbar
