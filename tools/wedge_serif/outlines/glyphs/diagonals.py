@@ -35,6 +35,9 @@ def pw(p0, p1, mult=1.0):
 # is then one chisel face, the thick's, from its outer corner to where the
 # thin's outer edge runs straight into it; nothing is buried, nothing
 # tapers, and the inner crotch is exactly where it was.
+W_APEX = os.environ.get("ALBO_ROM_W_APEX", "a")   # round 248: a = the thick stroke's face tops the middle apex (ships), b = the thin's
+if W_APEX not in ("a", "b"): W_APEX = "a"
+W_APEX_HALF = 70.0    # the apex face's reach either side of the apex point; the outer serifs are 200+ away
 V_CLIP_HALF = 140.0   # the clip's reach along the face, either side of the vertex (the other vertex of a w is 313 away)
 V_CLIP_DEEP = 200.0   # and beyond the face
 
@@ -52,12 +55,13 @@ def _flat_corner(p0, p1, w, side, at_end=True):
     P = p1 if at_end else p0
     return (P[0] + side * w / (2 * abs(tn[1])), P[1])
 
-def _vertex_clip(p0, p1):
+def _vertex_clip(p0, p1, half=None):
     """The region beyond the thick stroke p0 -> p1's square end face, near
     the vertex: subtract it from the union so the thin stroke ends on that
-    face. The face passes through p1 perpendicular to the stroke."""
+    face. The face passes through p1 perpendicular to the stroke. `half`
+    is the reach along the face either side of p1 (V_CLIP_HALF)."""
     tn = geom.tangents(line(p0, p1))[0]; f = (-tn[1], tn[0])
-    H, D = V_CLIP_HALF, V_CLIP_DEEP
+    H, D = (V_CLIP_HALF if half is None else half), V_CLIP_DEEP
     return geom.poly([(p1[0] + f[0] * H, p1[1] + f[1] * H), (p1[0] - f[0] * H, p1[1] - f[1] * H),
                       (p1[0] - f[0] * H + tn[0] * D, p1[1] - f[1] * H + tn[1] * D),
                       (p1[0] + f[0] * H + tn[0] * D, p1[1] + f[1] * H + tn[1] * D)])
@@ -66,9 +70,9 @@ def _vertex_clip(p0, p1):
 def g_v(c):
     xh = c["xh"]; wf = c["wf"]; w = 440 * wf
     p0, p1 = (S * 0.4, xh), (w / 2, 0); q0, q1 = (w - S * 0.4, xh), (w / 2 + S * 0.12, 0)
-    if pen.ITALIC:
-        return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
-    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)], [_vertex_clip(p0, p1)])
+    # ROUND 248. Owner 2026-09-18: "restore v and w". The round-235 vertex
+    # clip (R32) is off this letter; the v is round 232's again, both styles.
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
 
 def _clean_apex_notch(b, d, apex, apex_x, apex_y, band=110):
     """Owner 2026-09-13: "clean up top middle of 'w'." Two defects at the
@@ -119,46 +123,37 @@ def g_w(c):
         apex = wedge((apex_x, apex_y), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
         mid = _clean_apex_notch(b, d, apex, apex_x, apex_y)
         return geom.ink([a, e, mid])
-    # R33, owner 2026-09-18, the top-left serif to the first apex: "correct
-    # join to be without corners and overlapping bullshit." What was there,
-    # measured on the built w: b (thin, down-left) and d (thick, down-right)
-    # started at one point and were each cut square to their own axis, so
-    # their two faces tilted opposite ways and the top ran from the crown
-    # wedge's edge at y 410 up a jog to 420 and on to d's raised corner at
-    # 427 -- a stepped ramp, the wedge 4.5 units below the diagonal's flat
-    # top; and the wedge itself was seated 0.36 of b's width in from the
-    # apex with its bracket running STRAIGHT DOWN (wedge()'s default edge),
-    # which on a diagonal is a line out in the counter, so the bracket and
-    # its inner strip hung in the air between the two strokes. Now, the
-    # documented method (caps_straight: flat_face / flat_corner): both
-    # strokes are cut HORIZONTAL on apex_y, so the crown is one flat face --
-    # d's, the wider, b's lying inside it; the wedge is seated on d's real
-    # left corner and its bracket follows d's real left edge; and the sliver
-    # that bracket would still lay into the counter below the crotch (it
-    # lands on d's edge 131 units down, the crotch is 86) is cut away along
-    # the two strokes' own edges. The old apex code and its opening pass are
-    # not needed on a clean apex; `_clean_apex_notch` stays for the italic.
-    (a0, a1, ma, sa), (b0, b1, mb, _), (d0, d1, md, _), (e0, e1, me, se) = P
-    wa, wb, wd, we = pw(a0, a1, ma), pw(b0, b1, mb), pw(d0, d1, md), pw(e0, e1, me)
-    a = diagonal(a0, a1, wa, serif0=sa)
-    d = stroke(line(d0, d1), wd, cut0=_flat_face(d0, d1, at_end=False))
-    b = stroke(line(b0, b1), wb, cut0=_flat_face(b0, b1, at_end=False))
-    e = diagonal(e0, e1, we, serif0=se)
-    clips = [_vertex_clip(a0, a1), _vertex_clip(d0, d1)]     # R32's vertex, on both of the w's
-    A = _flat_corner(d0, d1, wd, -1, at_end=False)
-    td = geom.tangents(line(d0, d1))[0]
-    crown = wedge(A, (0, 1), (-1, 0), WL * 0.9, WD, DROP, edge_at=lambda t: (A[0] + td[0] * t, A[1] + td[1] * t))
-    # the counter's top: where b's right edge meets d's left edge
-    tb = geom.tangents(line(b0, b1))[0]
-    bR = (b0[0] + tb[1] * wb / 2, b0[1] - tb[0] * wb / 2)     # right of b's travel (down-left): its right edge, at the apex
-    dL = A
-    den = tb[0] * td[1] - tb[1] * td[0]
-    s = ((dL[0] - bR[0]) * td[1] - (dL[1] - bR[1]) * td[0]) / den
-    X = (bR[0] + tb[0] * s, bR[1] + tb[1] * s)
-    far = 2000.0
-    counter = geom.poly([X, (X[0] + tb[0] * far, X[1] + tb[1] * far), (X[0] + td[0] * far, X[1] + td[1] * far)])
-    crown = crown.difference(counter)
-    return geom.ink([a, b, d, e, crown], clips)
+    # ROUND 248. Owner 2026-09-18: "restore v and w, except give top middle
+    # of w a simple tall diagonal top edge without corners". The round-235
+    # drawing (R33: both strokes cut flat, a crown wedge seated on the thick
+    # stroke's corner, the vertex clips) is gone; the four strokes are round
+    # 232's, the outer two with their serifs, and the middle apex carries
+    # NO wedge. Its top is one straight face: the thick stroke d's own
+    # square end face (perpendicular to d, so it rises to the right -- d's
+    # right corner is the apex's highest point), extended across the thin
+    # stroke b, whose opposite-tilted corner is cut off by it. That is the
+    # V's vertex rule turned upside down: one face, the thick stroke's, from
+    # where b's outer edge runs into it up to d's outer corner. W_APEX b is
+    # the same with the thin stroke's face (falls to the right) for the
+    # comparison; a ships.
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
+    (b0, b1), (d0, d1) = P[1][:2], P[2][:2]
+    if W_APEX == 'b':
+        top = _vertex_clip(b1, b0, half=W_APEX_HALF)   # beyond b's start face
+    else:
+        top = _vertex_clip(d1, d0, half=W_APEX_HALF)   # beyond d's start face
+    # d's top-left corner stands 6 units west of b's outer edge (d is twice
+    # as wide and its face is cut the other way), a spur under the face's
+    # left end; cut everything west of b's outer edge in a box around the
+    # apex, so the face runs straight into that edge. The box stays clear
+    # of the a stroke's material at the first vertex.
+    wb = pw(b0, b1, P[1][2]); tb = geom.tangents(line(b0, b1))[0]
+    E = (b0[0] + tb[1] * wb / 2, b0[1] - tb[0] * wb / 2)   # b's western edge at the apex (right hand of its down-left travel)
+    far = 600.0
+    west = geom.poly([(E[0] - tb[0] * far, E[1] - tb[1] * far), (E[0] + tb[0] * far, E[1] + tb[1] * far),
+                      (E[0] + tb[0] * far - far, E[1] + tb[1] * far), (E[0] - tb[0] * far - far, E[1] - tb[1] * far)])
+    west = west.intersection(geom.poly([(b0[0] - 150, apex_y - 60), (b0[0] + 10, apex_y - 60), (b0[0] + 10, apex_y + 80), (b0[0] - 150, apex_y + 80)]))
+    return geom.ink([a, b, d, e], [top, west])
 
 X_BL_WEDGE = 1.15   # the x's bottom-left wedge, x the family's diagonal end (0.9 is the family's own)
 X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0), not the thin's

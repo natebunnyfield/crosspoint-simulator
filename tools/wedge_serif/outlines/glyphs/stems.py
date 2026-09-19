@@ -128,7 +128,7 @@ def f_bar(x, xh, wf, th, opt):
     # cuts from bottom left top to top right instead of vertical". Both end
     # faces lean the same way, F_BAR_CUT_DEG off the vertical (8; b's was the
     # family's full 20), the bottom corner left of the top corner at each end.
-    if F_BAR_CUT_DEG > 0:
+    if F_BAR_CUT_DEG > 0 and not pen.ITALIC:   # round 248: roman only -- round 246 had leaked into the italic ligatures' bars
         a_ = math.radians(F_BAR_CUT_DEG)
         return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=a_, cut1=-a_)
     return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th)

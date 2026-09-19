@@ -287,6 +287,6 @@ R_REACH, R_FLOOR, R_FLARE = 190, 0.72, 1.35   # round 94: was 205, 0.78, 1.5
 #   a  today: floor 0.72, flare 1.35
 #   b  the arm thinner: floor 0.60, the flare as today
 #   c  thinner and less swell at the tip: floor 0.60, flare 1.15
-R_THIN = os.environ.get("ALBO_ROM_R_THIN", "a")
+R_THIN = os.environ.get("ALBO_ROM_R_THIN", "c")   # round 248: c ships -- owner 2026-09-18, "ALBO_ROM_R_THIN c wins"
 if R_THIN not in ("a", "b", "c"): R_THIN = "a"   # review 2026-09-18: unknown letters fall back to today's r
 R_THIN_OPTS = {'a': (R_FLOOR, R_FLARE), 'b': (0.60, R_FLARE), 'c': (0.60, 1.15)}
