@@ -127,69 +127,69 @@ italic H K L N P R T Y b h l are, and it is NOT the hand table round 231 zeroed
 
 | id | glyph | region | my reading (correct me) | owner's write-up |
 |---|---|---|---|---|
-| I01 | `A` | apex (3) | two diagonal cut ends meeting; the apex serif | |
-| I02 | `D` | bowl top meets the stem (11) | — | |
-| I03 | `D` | bowl bottom meets the stem (10) | — | |
-| I04 | `E` | top arm, right end (14) | the pen cut plus the hanging wedge: the double facet with a ledge | |
-| I05 | `E` | middle arm | its cut end: a tooth under the arm end | |
-| I06 | `F` | top arm, right end (17) | as I04 | |
-| I07 | `F` | middle arm | as I05 | |
-| I08 | `G` | the bar | as R05 | |
-| I09 | `G` | spur meets the bowl (21) | — | |
-| I10 | `H` | both stems, full length | the round-180 S-sway (ENT_CAP_SWAY 4 units) on every capital stem; visible bend at the crossbar | |
-| I11 | `J` | tail end (34) | — | |
-| I12 | `K` | stem, full length + junction (36) | sway (I10); arm/leg meet the stem | |
-| I13 | `L` | stem, full length | sway (I10) | |
-| I14 | `M` | top-left (50) | — | |
-| I15 | `M` | right junction (46) | — | |
-| I16 | `M` | middle vertex (52) | — | |
-| I17 | `N` | both stems and the diagonal | sway on all three (ENT_CAP_SWAY, ENT_DIAG_SWAY) | |
-| I18 | `P` | stem, full length | sway | |
-| I19 | `P` | bowl top meets the stem (60) | — | |
-| I20 | `Q` | tail root (63) | — | |
-| I21 | `R` | stem, full length | sway | |
-| I22 | `R` | bowl / leg junction (65) | — | |
-| I23 | `S` | top terminal (70) | — | |
-| I24 | `S` | bottom terminal (69) | (faint mark -- confirm) | |
-| I25 | `T` | stem, full length | sway | |
-| I26 | `T` | bar top, over the stem | — | |
-| I27 | `V` | vertex (80) | — | |
-| I28 | `W` | middle apex (81/82) | — | |
-| I29 | `W` | left vertex (83/86) | — | |
-| I30 | `W` | right vertex (87) | — | |
-| I31 | `X` | crossing (92/93) | — | |
-| I32 | `Y` | stem, full length + junction (95) | sway; the junction | |
-| I33 | `Z` | top bar, left end (101) | — | |
-| I34 | `Z` | top bar meets the diagonal (98/99) | — | |
-| I35 | `Z` | bottom bar meets the diagonal (100/103) | — | |
-| I36 | `Z` | bottom bar | — | |
-| I37 | `a` | top of the bowl / arch (104) | — | |
-| I38 | `b` | stem, full length | sway (ENT_SWAY 3 units, lowercase) | |
-| I39 | `b` | bowl meets the stem (108) | — | |
-| I40 | `c` | top terminal | no circle: the detector missed it | |
-| I41 | `d` | ascender top (entry) | — | |
-| I42 | `d` | foot / exit (109/110) | — | |
-| I43 | `e` | terminal | — | |
-| I44 | `f` | hook end | — | |
-| I45 | `f` | bar | — | |
-| I46 | `f` | descender tail end | — | |
-| I47 | `h` | stem, full length + top (117) | sway; the head | |
-| I48 | `h` | foot / exit (115/118) | — | |
-| I49 | `i` | head (121) | the entry head across the stem top: its end face and the re-entrant notch under it | |
-| I50 | `i` | foot / exit (122/123) | the exit flick root: a step at the stem bottom | |
-| I51 | `j` | head | as I49 | |
-| I52 | `j` | tail end | — | |
-| I53 | `k` | head (127) | as I49 | |
-| I54 | `k` | foot (125/126) | as I50 | |
-| I55 | `l` | stem, full length + head + foot (128/129/130) | sway; head; exit | |
-| I56 | `m` | first head (136) | — | |
-| I57 | `m` | arch crowns (135/137) | — | |
-| I58 | `m` | first foot (133) | — | |
-| I59 | `m` | last foot / exit (138/139) | — | |
-| I60 | `n` | head (143) | — | |
-| I61 | `n` | arch crown (141) | — | |
-| I62 | `n` | first foot | — | |
-| I63 | `n` | exit (142/144) | — | |
+| I01 | `A` | apex (3) | two diagonal cut ends meeting; the apex serif |correct, somewhat based on roman A |
+| I02 | `D` | bowl top meets the stem (11) | — |correct path to be smooth on top |
+| I03 | `D` | bowl bottom meets the stem (10) | — |correct path to be smooth on top |
+| I04 | `E` | top arm, right end (14) | the pen cut plus the hanging wedge: the double facet with a ledge |smooth |
+| I05 | `E` | middle arm | its cut end: a tooth under the arm end |smooth and integrate or remove spur from bottom right of bar |
+| I06 | `F` | top arm, right end (17) | as I04 |smooth |
+| I07 | `F` | middle arm | as I05 |same I05 |
+| I08 | `G` | the bar | as R05 |remove burrs where I highlighted them |
+| I09 | `G` | spur meets the bowl (21) | — |correct join |
+| I10 | `H` | both stems, full length | the round-180 S-sway (ENT_CAP_SWAY 4 units) on every capital stem; visible bend at the crossbar |correct waves |
+| I11 | `J` | tail end (34) | — |I did not highlight this |
+| I12 | `K` | stem, full length + junction (36) | sway (I10); arm/leg meet the stem |correct waves |
+| I13 | `L` | stem, full length | sway (I10) |correct waves |
+| I14 | `M` | top-left (50) | — |correct weird top right corner of top left stem |
+| I15 | `M` | right junction (46) | — |NOT WHAT I HIGHLIGHTED remove burr from top |
+| I16 | `M` | middle vertex (52) | — |fix overlap bullshit |
+| I17 | `N` | both stems and the diagonal | sway on all three (ENT_CAP_SWAY, ENT_DIAG_SWAY) |correct waves |
+| I18 | `P` | stem, full length | sway |correct waves, stem intact, taper off internal |
+| I19 | `P` | bowl top meets the stem (60) | — |remove bad join on top, correct axis of P |
+| I20 | `Q` | tail root (63) | — |reduce ink collection at join |
+| I21 | `R` | stem, full length | sway |remove waves |
+| I22 | `R` | bowl / leg junction (65) | — |NOT WHAT I HIGHLIGHTED. correct weirdness around 70% down kick |
+| I23 | `S` | top terminal (70) | — |fix bad join |
+| I24 | `S` | bottom terminal (69) | (faint mark -- confirm) |fix bad join |
+| I25 | `T` | stem, full length | sway |remove waves |
+| I26 | `T` | bar top, over the stem | — |remove waves or dip on top |
+| I27 | `V` | vertex (80) | — |correct weird bottom left |
+| I28 | `W` | middle apex (81/82) | — |same as I27 |
+| I29 | `W` | left vertex (83/86) | — |same as I27 |
+| I30 | `W` | right vertex (87) | — |correct weird top left join |
+| I31 | `X` | crossing (92/93) | — |I DID NOT HIGHLIGHT THIS |
+| I32 | `Y` | stem, full length + junction (95) | sway; the junction |increase gap between right branch and trunk. correct shitty join dink on left of trunk. correct right side of left branch. |
+| I33 | `Z` | top bar, left end (101) | — |correct top left serif. |
+| I34 | `Z` | top bar meets the diagonal (98/99) | — |fix shitty join on the top right |
+| I35 | `Z` | bottom bar meets the diagonal (100/103) | — |fix shitty join on the bottom left |
+| I36 | `Z` | bottom bar | — |fix shitty join on the bottom right |
+| I37 | `a` | top of the bowl / arch (104) | — |give me options for making this a more attractive character |
+| I38 | `b` | stem, full length | sway (ENT_SWAY 3 units, lowercase) |remove waves |
+| I39 | `b` | bowl meets the stem (108) | — |fix shitty counter at bottom right. I DID NOT HIGHLIGHT WHAT YOU ARE ZOOMING IN ON |
+| I40 | `c` | top terminal | no circle: the detector missed it |fix uncalligraphic serif |
+| I41 | `d` | ascender top (entry) | — |fix shitty joins |
+| I42 | `d` | foot / exit (109/110) | — |fix shitty joins |
+| I43 | `e` | terminal | — |give me improved options |
+| I44 | `f` | hook end | — |give me improve options over taper |
+| I45 | `f` | bar | — |same I44 |
+| I46 | `f` | descender tail end | — |give me improved options |
+| I47 | `h` | stem, full length + top (117) | sway; the head |remove waves |
+| I48 | `h` | foot / exit (115/118) | — |fix shitty join |
+| I49 | `i` | head (121) | the entry head across the stem top: its end face and the re-entrant notch under it |I DID NOT HIGHLIGHT THIS |
+| I50 | `i` | foot / exit (122/123) | the exit flick root: a step at the stem bottom |fix shitty join |
+| I51 | `j` | head | as I49 |fix shitty join |
+| I52 | `j` | tail end | — |fix shitty join |
+| I53 | `k` | head (127) | as I49 |I DID NOT HIGHLIGHT THIS |
+| I54 | `k` | foot (125/126) | as I50 |give improved options |
+| I55 | `l` | stem, full length + head + foot (128/129/130) | sway; head; exit |remove waves |
+| I56 | `m` | first head (136) | — |remove waves |
+| I57 | `m` | arch crowns (135/137) | — |remove shitty mismatch joins |
+| I58 | `m` | first foot (133) | — |I56 |
+| I59 | `m` | last foot / exit (138/139) | — |give me improved options for middle stem terminal. fix shitty bottom right join |
+| I60 | `n` | head (143) | — |remove waves |
+| I61 | `n` | arch crown (141) | — |fix shitty joins |
+| I62 | `n` | first foot | — |fix shitty joins |
+| I63 | `n` | exit (142/144) | — |fix shitty joins AND NOTE THAT YOU FUCKED UP THE HIGHLIGHTS THAT I GAVE YOU SO REDO THEM |
 | I64 | `o` | top join (146) | the two strokes of the o meet at the top | |
 | I65 | `o` | bottom join (147) | — | |
 | I66 | `p` | head (148) | — | |
@@ -258,6 +258,10 @@ italic H K L N P R T Y b h l are, and it is NOT the hand table round 231 zeroed
 ## The owner's roman write-up, 2026-09-18 -- what it says about the index
 
 Ten of the 57 boxes were NOT what he marked (R06, R27, R29, R31, R32, R36, R38, R39, R40, R43, R57 -- his words on each row); the eye-read coordinates put the box on the nearest feature rather than his. His text names the real target in each case and the fix goes by his text, not the box. Fourteen rows ask for OPTIONS (G bar, Q tail, a, f bar, m middle stem, r, 1, 2, 6, 8, quotes, hyphen, &), the rest are direct fixes.
+
+## The owner's italic write-up, I01-I63, and the verdict on the index
+
+Six more boxes were not his (I11, I15, I22, I31, I39, I49, I53) and his last line is the ruling on the method: *"NOTE THAT YOU FUCKED UP THE HIGHLIGHTS THAT I GAVE YOU SO REDO THEM."* Eye-reading coordinates off a screenshot is not an instrument; the boxes must come from his marked images themselves (a colour threshold on the yellow), which needs the images as files. His text stands and is acted on; the index is re-cut from the files when they arrive.
 
 ## Unresolved by the geometry
 
