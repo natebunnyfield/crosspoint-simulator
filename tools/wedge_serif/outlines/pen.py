@@ -122,7 +122,12 @@ _ITS = IT_SERIF if ITALIC else 1.0   # round 101: a real italic reduces or drops
 # dimension and 2.2x at the 900. Above stem 84 they are taken at the 400's
 # stem, 66.9: length 52.3, depth 104.6, drop 17.2. At and under 84 (the 400,
 # the 200) the stem's own, as before -- byte-identical.
-_SWEDGE = S if S <= 84.0 else 66.9
+# ROUND 279 -- AND THE 200's IS 0.75 OF THE 400's. Owner 2026-09-19, on a
+# ladder of five sizes for the ExtraLight (stem-scaled 0.66; 0.75; the square
+# root, 0.81; 0.90; the 400's): *"b wins"* -- 39.2 long, 78.4 deep, drop 12.9.
+# Below the 400's stem the wedge is taken at 0.75 x 66.9; at the 400 itself
+# the stem's own (byte-identical); above 84 the 400's (round 277).
+_SWEDGE = (66.9 * 0.75) if S < 66.9 else (S if S <= 84.0 else 66.9)
 WL = DESIGN["wedge_len"] * _SWEDGE * SERIF * _ITS; WD = DESIGN["wedge_depth"] * _SWEDGE * SERIF * _ITS   # 69.7 x 139.4 at stem 82: the wedge family's unit
 DROP = DESIGN["serif_drop"] * _SWEDGE * SERIF * _ITS; FILLET = DESIGN["fillet"]             # 23, 0.65
 FOOT = DESIGN["foot_scale"]                  # feet are 0.85 of a top wedge's length

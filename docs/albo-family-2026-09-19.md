@@ -1267,6 +1267,19 @@ shards, 5 steps (round 274's own number).
 Proofs: `tools/wedge_serif/shape/weights277/` and the page
 https://claude.ai/artifact/Aepy8FgRGaKoTmACyW2YQq
 
+## 22. Round 279 — the 200's wedge
+
+Owner 2026-09-19, on a ladder of five sizes for the ExtraLight's wedge
+(stem-scaled 0.66 of the 400's; 0.75; the square root of the stem ratio,
+0.81; 0.90; the 400's own): *"b wins."* The 200's wedge is 0.75 of the
+400's — 39.2 long, 78.4 deep, drop 12.9 — instead of 34 × 68. `pen.py`'s
+rule is now three-valued: below the 400's stem 0.75 × 66.9, at the 400 the
+stem's own, above 84 the 400's (round 277). Moved: 179 glyphs in the 200,
+every wedge-bearing one; the Regular 400 byte-identical. Gates at the 200
+unchanged: the ruled β alone, touch 2 / 17 / 14.
+
+Proofs: `tools/wedge_serif/shape/weights279/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

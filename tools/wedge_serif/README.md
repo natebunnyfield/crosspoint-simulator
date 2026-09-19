@@ -247,6 +247,10 @@ the new fit") -- the a's advance 519 -> 510 at the 700 and 558 -> 545 at the
 900, the J, r, 3 and 5 by 1-4 units, because the teardrop point the fitter had
 measured to is gone. No bearing delta.
 
+**Ruling 2026-09-19 (owner, on the light-serif ladder: "b wins"): the
+ExtraLight 200's wedge is 0.75 of the 400's** -- 39.2 long, 78.4 deep, drop
+12.9 -- instead of scaling with its stem (34 x 68). `pen.py`, round 279.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
