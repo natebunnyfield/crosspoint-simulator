@@ -182,7 +182,8 @@ def solve_widths(passes=3):
             if drawn > 1: W[ch] = max(0.7, min(1.45, W.get(ch, 1.0) * (target / drawn) ** 0.85))
     return W
 
-PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*")   # round 96
+PUNCT_MARKS = set(".,:;!?'\"\u2018\u2019\u201c\u201d\u2026*"
+                  "\u201a\u201e\u02bc\u02bb")   # round 96; round 262 adds the low quotes and the modifier apostrophes, which are QUOTES and must be fitted as the ones they copy -- measured before it, U+201A took the new-symbol fallback (advance 226) where its own drawing, the comma, takes 264, and U+02BC took 197 where the apostrophe it copies takes 264
 PUNCT_FENCES = set("()[]/\\-\u2013\u2014+=#@_%&")
 # ROUND 220 -- THE STOPS AND THE QUOTES ARE NOT ONE CLASS IN AN ITALIC. Owner
 # 2026-09-18 had asked for the italic's punctuation; measured as the 2-D

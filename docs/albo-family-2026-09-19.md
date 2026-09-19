@@ -66,6 +66,14 @@ U+20BF (bitcoin), U+2117, U+20A9/20B9/20BD, U+2023, U+203B, U+2042, U+2031 and
 U+222B were judged not commonly needed for a reading face and are recorded
 here so the next pass does not re-propose them without a reason.
 
+**One follow-up the additions needed.** A character the fitter does not know
+falls to the new-symbol fallback, and four of the additions are quotes, so
+they were fitted tighter than the drawings they copy: U+201A took advance 226
+where its own drawing, the comma, takes 264, and U+02BC took 197 where the
+apostrophe it copies takes 264. The four were added to `PUNCT_MARKS` (round
+262) and now measure exactly as their models do — 264/78 for the singles,
+415 against the double quote's 416.
+
 ## 2. The four styles could not bind as a family, so the bold was unreachable
 
 This is the defect with the largest practical cost and nothing in the
