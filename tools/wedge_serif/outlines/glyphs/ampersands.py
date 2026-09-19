@@ -600,4 +600,13 @@ AMP_OPTIONS = {
     'c': dict(top='open', loop=1.0, bowl=1.0, arm_end='pencut', arm=0.54, cross=41.2, loop_shape='egg', egg_pinch=0.92, egg_power=3.0),
     'd': dict(top='closed', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
               spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.6, egg_power=2.0),
+    # ROUND 252, owner 2026-09-18: *"ALBO_AMP_OPT d with a b top."* d's body --
+    # the crossing, the arm on its pen cut, the straight leg to the wedge foot,
+    # the round bowl -- under b's OPEN top: the spur runs on as the loop's left
+    # side in one stroke. e takes b's loop whole (its egg, 0.85 / 3.0); f keeps
+    # d's own egg (0.6 / 2.0) and opens it only.
+    'e': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0),
+    'f': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.6, egg_power=2.0),
 }

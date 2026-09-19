@@ -376,7 +376,7 @@ def g_ampersand(c):
     dials = dict(dict(VARIANTS2)['round_bowl'].dials)
     dials.update(cross=41.2, arm_end='beak')
     return bred(c, **dials)
-AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a")
+AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a" if pen.ITALIC else "e")   # round 252: e ships on the roman -- owner 2026-09-18, "ALBO_AMP_OPT d with a b top" / "e wins for ampersand"
 @glyph('%')
 def g_percent(c):
     C = CAP(c); r = 120; p = line((60, 0), (440, C))
