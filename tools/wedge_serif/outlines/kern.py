@@ -378,6 +378,14 @@ if _ALD is not None and _ALD.ON:
 # 0.024). Pairs, for round 178's reason. Gated to the ROMAN -- the italic's 77
 # reads 0.048 at ship and does not want them.
 if _ALD is None or not _ALD.ON:
+    # ROUND 277 -- the wedge serif is the 400's at every weight above it (owner,
+    # "b wins"), and the fitter, which measures the ink in the band, drew the V
+    # and the I closer once their wedges shrank: VI went from 0.0108 em under
+    # the floor to -0.0026 em, touching, at the 700. The pair carries -108 at
+    # the 400 (the capitals' pairing); above stem 84 it gives back 8.
+    from . import pen as _penr
+    if _penr.S > 84.0:
+        PAIRS[('V', 'I')] = PAIRS.get(('V', 'I'), 0) + 8
     PAIRS[('seven', 'seven')] = 36
     PAIRS[('four', 'four')] = 18
     # ROUND 225 -- THE ROMAN Q KEEPS ITS LONG TAIL. Owner 2026-09-18: *"leave

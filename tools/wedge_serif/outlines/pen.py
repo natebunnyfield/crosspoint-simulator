@@ -114,8 +114,17 @@ SHEAR = math.tan(math.radians(SLANT))
 WF = DESIGN["lc_width"] * WIDTH * (IT_NARROW if ITALIC else 1.0)
 ENT = DESIGN["flare"]                       # entasis: stems swell 14% at their ends
 _ITS = IT_SERIF if ITALIC else 1.0   # round 101: a real italic reduces or drops its serifs
-WL = DESIGN["wedge_len"] * S * SERIF * _ITS; WD = DESIGN["wedge_depth"] * S * SERIF * _ITS   # 69.7 x 139.4 at stem 82: the wedge family's unit
-DROP = DESIGN["serif_drop"] * S * SERIF * _ITS; FILLET = DESIGN["fillet"]             # 23, 0.65
+# ROUND 277 -- THE WEDGE IS THE 400's AT EVERY WEIGHT ABOVE IT. Owner
+# 2026-09-19, on a ladder of four sizes: *"reduce the amount of flare serif on
+# bold. I would like the serif to be optically similar to the 400 serif"* --
+# then *"b wins"*, b being the 400's wedge unchanged. The wedge's three
+# numbers were fractions of S, so at the 700 it was 1.73x the 400's in every
+# dimension and 2.2x at the 900. Above stem 84 they are taken at the 400's
+# stem, 66.9: length 52.3, depth 104.6, drop 17.2. At and under 84 (the 400,
+# the 200) the stem's own, as before -- byte-identical.
+_SWEDGE = S if S <= 84.0 else 66.9
+WL = DESIGN["wedge_len"] * _SWEDGE * SERIF * _ITS; WD = DESIGN["wedge_depth"] * _SWEDGE * SERIF * _ITS   # 69.7 x 139.4 at stem 82: the wedge family's unit
+DROP = DESIGN["serif_drop"] * _SWEDGE * SERIF * _ITS; FILLET = DESIGN["fillet"]             # 23, 0.65
 FOOT = DESIGN["foot_scale"]                  # feet are 0.85 of a top wedge's length
 CUT = math.radians(DESIGN["cut_deg"])        # 20 deg pen cut
 BOWL_K = DESIGN["bowl_k"]                    # 2.1: the family's superellipse

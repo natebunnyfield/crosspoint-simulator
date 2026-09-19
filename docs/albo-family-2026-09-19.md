@@ -1232,6 +1232,41 @@ gate is one comparison.
 Proofs: `tools/wedge_serif/shape/weights274/` — before above after at 3
 px/unit for u n ı m h l r i a, and the runs at 13 px ×8 and 40 px ×2.
 
+## STANDING RULING — the wedge serif above the 400 is the 400's
+
+Owner 2026-09-19: *"reduce the amount of flare serif on bold. I would like
+the serif to be optically similar to the 400 serif"*, and on a ladder of four
+sizes (as drawn; the 400's absolute; square-root growth; the 400's × 1.15):
+*"b wins."* `pen.WL / WD / DROP` are taken at stem 66.9 above 84 — 52.3,
+104.6, 17.2 — in both styles; at and under 84 they follow the stem as they
+always did.
+
+## 21. Round 277 — the bold serifs
+
+The wedge's three numbers were fractions of S, so the 700's wedge was 91 ×
+181 and the 900's 116 × 232 against the 400's 52 × 105 — 1.73× and 2.2× in
+every dimension, which is the flare the owner saw. One line in `pen.py`
+(`_SWEDGE = S if S <= 84 else 66.9`) puts the 400's wedge on every weight
+above it. Moved: 212 glyphs in each of the Bold and the Black and 125 in the
+Bold Italic — every wedge-bearing glyph. Regular 400 and Italic 400
+byte-identical; ExtraLight 200 untouched (differs from round 275 in the cent
+alone, round 276's ruling).
+
+**One pair.** The fitter measures the ink in the band, and with the smaller
+wedges it drew the V and the I closer at the 700: 0.0108 em under the floor →
+−0.0026, touching. `kern.py`'s roman block gives the pair back 8 above stem
+84 (−108 → −100): 0.0054 at the 700, 0.0111 at the 900, under the floor and
+not touching, as before.
+
+**Gates.** Glitch 0 at 700 / 900 / bold italic, the ruled β at the 400s and
+the 200; touch 4 / 6 / 14 at the 700 and 5 / 6 / 14 at the 900 (the round-275
+baselines), 0 / 0 on the bold italic; dents 0 in all three heavy fonts;
+figure spread 1.42×; `cmp_junctions.py` on the bold italic 0 slivers, 0
+shards, 5 steps (round 274's own number).
+
+Proofs: `tools/wedge_serif/shape/weights277/` and the page
+https://claude.ai/artifact/Aepy8FgRGaKoTmACyW2YQq
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1255,3 +1290,4 @@ px/unit for u n ı m h l r i a, and the runs at 13 px ×8 and 40 px ×2.
 - Round 273: the italic u's right stem tops at 431 in both italics against the ı's 430; no other glyph moved but the u's composites and µ.
 - Round 275: the round finials of the roman changed out for the c's top end -- see docs/albo-finials-2026-09-19.md.
 - Round 274: the bold italic's head/stem, arch/stem and exit/foot junctions read 0 white slivers, 0 ink shards on u n ı m h l r i a; the Italic 400 is byte-identical in outlines, advances and GPOS to a build of the same tree with the previous `aldine.py`; glitch 0 of 122, touch 0 / 0, figure spread 1.41×, dents 0. The arch's crest is not moved by `hm_sweep` (vertices identical); the u's right stem keeps round 273's top (431); the r has no exit and takes only the head fix; the a moves only at its exit.
+- Round 277: after the wedge ruling, every roman and italic weight passes the gates it passed before; the 400s are byte-identical; the one pair the fitter tightened (VI at the 700) is kerned back under the floor.

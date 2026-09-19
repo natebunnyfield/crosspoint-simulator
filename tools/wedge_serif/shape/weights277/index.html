@@ -1,0 +1,40 @@
+<title>Albo Bold Serifs Fixed</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Bold Serifs Fixed</h1>
+    <p class="lede"><em>"reduce the amount of flare serif on bold. I would like the serif to be optically similar to the 400 serif"</em> &mdash; and on the ladder, <em>"b wins."</em> The wedge above the 400 is now the 400&rsquo;s own: 52 long, 105 deep, drop 17, where it had been 1.73&times; that at the 700 and 2.2&times; at the 900. Both styles. Each row: the 400 for reference, then the weight before and after. Native pixels.</p>
+  </header>
+  <section><h2>Roman 700</h2>
+    <figure><img src="nH-700.png" alt="n H: the 400, then the 700 before and after"><figcaption>n H at 0.255 px/unit &mdash; the 400, the 700 before, the 700 after</figcaption></figure>
+    <figure><img src="r700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="nH-900.png" alt="n H: the 400, then the 900 before and after"><figcaption>n H at 0.255 px/unit &mdash; the 400, the 900 before, the 900 after</figcaption></figure>
+    <figure><img src="r900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="nHl-bi.png" alt="bold italic n H l before and after"><figcaption>n H l at 0.30 px/unit, before and after</figcaption></figure>
+    <figure><img src="bi-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>What else moved</h2>
+    <p class="note">One kern pair: the fitter measures the ink in the band, and with smaller wedges it drew the V and the I closer at the 700 (0.0108 em under the floor &rarr; touching at &minus;0.0026). The pair carries &minus;108 at the 400; above stem 84 it gives back 8. Every other count is at its baseline; the ExtraLight 200 keeps its stem-scaled wedge, which was not asked.</p>
+  </section>
+</div>
