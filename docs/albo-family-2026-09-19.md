@@ -376,6 +376,46 @@ two. **The usable span today is about 300 to 800, and only the 500 is
 finished.** The 800 and 900 stems rest on nothing measured: no serif family on
 this machine ships either class.
 
+## 11. What the 400 and the 500 WERE, and what they are now
+
+Both were first built on 2026-09-13 in round 76 and those files are still on
+disk at `build/fjord-fonts/weights/` (94 glyphs each; today's builds carry
+486). Measured with the same instrument:
+
+| | stem/xh | hair/xh | thick:thin | n adv/xh | cap/capH |
+|---|---|---|---|---|---|
+| 400 — round 76 | 0.1461 | 0.0932 | 1.57 | 1.3171 | 0.1078 |
+| 400 — now | 0.1495 | **0.1134** | **1.32** | 1.3106 | 0.1082 |
+| 500 — round 76 | 0.1779 | 0.1078 | 1.65 | 1.4413 | 0.1348 |
+| 500 — now | 0.1851 | **0.1388** | **1.33** | 1.4437 | 0.1344 |
+
+**The stems did not move.** 66.9 and 84 design units then and now; the 2–4%
+in the measured column is a hundred and eighty rounds of redrawing, not the
+axis. **The widths and the capitals did not move either** — 1.3171 → 1.3106
+and 1.4413 → 1.4437, 0.1078 → 0.1082 and 0.1348 → 0.1344.
+
+**What changed is the hairline.** It thickened 22% on the 400 and 29% on the
+500, and the contrast fell from 1.57 and 1.65 to 1.32 and 1.33. Round 76
+built both at a CONTRAST dial of 0.95 (the 400 at its own derived 0.892);
+every build since runs at **0.80**, which is the round-62 default the code
+still carries — round 65's amendment to 0.95 survives as a comment in
+`pen.py` above the line that sets 0.80, and every build command in the repo
+passes `FJORD_CONTRAST=0.80` explicitly anyway. The dial is
+`hair = stem × (1 − contrast)`, so 0.95 gives a hairline 5% of the stem and
+0.80 gives 20%. That one number is most of the difference, and it is why the
+roman now measures as the flattest face on the weight plane.
+
+**And the names changed under them.** The file called `Albo-Regular.ttf` WAS
+the 84-stem drawing. Round 76 recommended renaming it and the owner ruled it
+in round 83 — *"Rename to Medium"* — so the drawing that had been the Regular
+became the 500, and a NEW, lighter 400 was derived beneath it at stem 66.9.
+The 500 is what ships. **The 400 does not ship**: no build command in the
+repo produces it, and it exists only as those round-76 files and as a recipe.
+
+Graphs of the whole plane, every reference family and both of Albo's nine-rung
+ladders: `tools/wedge_serif/cmp_weight_plots.py`,
+https://claude.ai/artifact/3oRe6qTBt6jMNFngAwvkok
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
