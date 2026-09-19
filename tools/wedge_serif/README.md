@@ -259,8 +259,8 @@ moved.
 **Ruling 2026-09-19 (owner): the roman Q is KERNED against , ; and .** at
 every weight -- each pair the measured overlap (0.41 em at the 700 for the
 comma and the semicolon) plus the floor -- the tail itself unchanged under
-round 225's "leave the Q tail on roman long". Landed as round 280 (+430 at
-the 700, +456 at the 900; the 400 and 200 never listed the pairs).
+round 225's "leave the Q tail on roman long". Lands with round 278, once the
+italic finials agent releases `kern.py`.
 
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic

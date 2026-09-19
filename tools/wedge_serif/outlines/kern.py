@@ -415,17 +415,6 @@ if _ALD is None or not _ALD.ON:
     from . import pen as _penr
     if _penr.S > 84.0:
         PAIRS[('V', 'I')] = PAIRS.get(('V', 'I'), 0) + 8
-        # ROUND 280 -- THE Q AGAINST THE PUNCTUATION. Owner 2026-09-19: the roman
-        # Q is kerned against , ; and . at every weight, the tail unchanged under
-        # round 225. Measured white on the shaped pair: at the 400 and the 200
-        # the comma and the semicolon clear the tail (the sweep lists neither);
-        # at the 700 they sit -0.4139 em into it and at the 900 -0.4391. Each
-        # value is that overlap plus the 0.012 em floor plus clearance, added to
-        # what the pair carries (nothing today); the period takes the comma's,
-        # its dot being the same dot at the same place.
-        _qk = 430 if _penr.S < 130.0 else 456
-        for _m in ('comma', 'semicolon', 'period'):
-            PAIRS[('Q', _m)] = PAIRS.get(('Q', _m), 0) + _qk
     PAIRS[('seven', 'seven')] = 36
     PAIRS[('four', 'four')] = 18
     # ROUND 225 -- THE ROMAN Q KEEPS ITS LONG TAIL. Owner 2026-09-18: *"leave
