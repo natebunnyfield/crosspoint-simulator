@@ -1154,6 +1154,84 @@ https://claude.ai/artifact/HZfp3UosWv2BEBn4RqyoyC. Awaiting the pick; the
 winner then goes to every round finial in the roman — f r j y s, the g's
 ear, C G S J, the ?, the figures' ends — each measured before it ships.
 
+## 20. Round 274 — the bold italic's junctions
+
+Owner 2026-09-19, on a crop of the bold italic "u n ı u": *"fix glitches."*
+Every junction of the arch letters at the 700 was measured, fixed at its
+cause in `aldine.py`'s `hm_*` helpers, and re-measured; every change is
+gated on `ALD_JUNCT = S > 84.0`, so the Italic 400 is byte-identical
+(`diffglyphs`: `glyphs differing: 0 [] | GPOS pairs changed: 0`, against a
+build of the same tree with the round-273 `aldine.py`). Two detectors,
+now `tools/wedge_serif/cmp_junctions.py`: white SLIVERS and ink SHARDS
+narrower than 6 units (the region minus its opening at 3, pieces of 10
+units² and over), and STEPS (a jog of 1.5 units or more between two
+turns of opposite sign whose neighbors run nearly parallel). Numbers are
+design units unless marked; "before" is the round-273 build.
+
+| junction | letters | cause | before | after |
+|---|---|---|---|---|
+| white wedge under the head | i l n m h r | the head flattens with the weight (its tip stays 0.157 xh under the top, its end drops with `HM_HEAD_W`): the underside runs at 12° at the 700 against 20° at the 400, and the stem's top face falls to the left at a fixed 24° — and not even 24°: `stroke` moves the cut corner 22 units, past the 11-unit resample spacing, and `_unfold` drops it, so the face ran at 18.4° from the point before. The underside stood ABOVE the face by 11.8 units at the stem's left edge, 4.6 at its center | 80–106 units² per letter (n m r i 80, h l 106 in the shipped outline) | 0; the face is cut by `hm_follow_cut` to run `HM_JUNCT_BURY` (5.5) under the head's underside at the left edge — 8.6°, buried 5.6 / 6.1 / 3.9 / 1.3 / 0 across the stem; at the 400 the same underside sits 5.9–8.1 BELOW the 24° face, so the 400 has no wedge |
+| stem corner proud of the head's end face | i l n m h r | `hm_top_right_y` crossed the face at the NOMINAL edge `xc + sw/2` while the stem's top is `ent_waist` wider (100.1 against 96.7), and the head's end sat at a fixed 0.45 sw, which puts the face's lower corner 1.5 short of the edge at the 700 (1.4 PAST it at the 400) | a 2.4-unit step at the corner (1.9 on the m's capped head) | 0: `hm_head_geom` solves the head's end so the face's lower corner lands on the stem's actual top edge, with the face normal `stroke` itself will use (the last resampled segment, not the chord — the chord left the two corners one font unit apart in the shipped h and l, a 13-unit hairline, found by the detector on the first build) |
+| stem corner proud of the arch's outer edge | n h m | the right stem topped at 0.86 xh with a square face; the arch's centerline ended at 0.78 xh heading 12° right of vertical with a 96.7 landing under a 100.1 stem | a ledge of 11.6 (n h), 14.5 (m) — the notch in the crop | 0: the arch lands LEVEL — its end face is cut square to the baseline (`cut1 = -θ`, θ read off the resampled centerline), its landing width is the stem's top width × cos θ so the level face IS the stem's top, and the stem is drawn up to that face (`hm_arch_end`); the outer edge leaves the stem's edge with a 12° bend. The crown, the climb and the width profile are untouched |
+| the arch's fold under the crown | n h m | `stroke` offsets the two sides and `_unfold` drops points that step backwards; the inner side folds through the crest while the width ramps, and a fold whose chord still runs forward survives, the chord cutting across the true edge — a 27-unit needle of white, [−52..−19 × 360..374] of the landing stem, which the stem's square top at 0.86 xh used to hide (the m showed 4 units² of it above that top) | hidden (n h), 3.9 units² (m) | 0: `hm_sweep` draws the arch as the union of its swept quads, which differs from `stroke` by exactly that needle (59 units²) and nothing else — the crest's vertices are identical |
+| the exit at the foot | i l n m h u, the a | the exit's underside passed the stem's foot corner at +0.8 (i), +0.2 (h), −0.4 (u), −1.3 (m), −2.8 (l), −4.7 (n): the shorter the exit (`k`), the flatter its run off the knee and the higher its underside at the corner, so the corner poked through or grazed it | steps of 4.4 / 3.0 (h), 4.0 (m) in the shipped outline; the i's corner 0.8 through | `hm_exit` reads its underside at the foot corner and rebuilds with the turn lowered by the shortfall: −5.4 to −6.1 under the corner on every letter, the tip unmoved; the lowest point of the hook now −7.4 (n) to −10.4 (l) against the design's intended −9 (it had been −3.8 to −6.8) |
+| the u's left stem | u | drawn with the round-233 45° cut (`cut0`), which round 234's follow cut never reached: the corner stood at 459 | 30 units over the x-line, 28 over its own head — the spike in the crop | the top is clipped to the follow face (the path and its width table are not moved, see below): ink top 432, the head's own |
+| the m's middle foot | m | the round cap was sw/2 wide under a stroke whose start is `ent_waist` wider | 1.8-unit steps each side of the rim | 0: the cap takes the stroke's start width |
+| the ı | ı | not this module's: the italic's dotless i fell through to `accents.py`'s roman stem (a wedge head, a two-sided foot, sheared, the italic entry and exit laid over them) | at the 700 a forked head with three spurs, steps of 3.0 / 3.0 / 1.8 | at the 700 it is the i without its dot (`a_dotlessi`, fitted with the i's bearings); its eight composites follow |
+
+Gates on the BoldItalic, verbatim: `cmp_aldine_glitch.py --ttf` → `122
+glyphs swept, 0 with findings`; `cmp_touch.py` → `0 pair(s) TOUCHING, 0
+below the 0.012 em floor`; `cmp_figure_space.py --body` → `even: p90/p10 is
+1.41x, within the 2.50x allowed`; `cmp_counter_dents.py` → `0 dent(s) in 0
+glyph(s)`; `cmp_junctions.py` → `white slivers < 6: 0, ink shards < 6: 0,
+steps >= 1.5: 5` (before: `6, 0, 15`). The five steps left are named below.
+Glyphs that moved in the BoldItalic: 39 — a h i l m n r u ı and their
+composites (ª µ æ ħ ĳ ł ŋ ⁿ ì í î ï ĩ ī ĭ į ù ú û ü ũ ū ŭ ů ű ų ĥ ĺ ļ ľ);
+0 GPOS pairs.
+
+**What was tried and did not work.** (1) Starting the u's one-path stroke
+lower, at the follow face, instead of clipping it: the path's widths are
+keyed on the fraction of its length, so a top 30 units lower shifted every
+width along the turn and the rise, and the rise came out 7–9 units heavier
+at 0.25 xh — the u's crotch grew a 24-unit² sliver. (2) Lowering the
+landing stem to the arch's end without touching the arch: it exposed the
+crest fold above (10–14 units² per letter). (3) Deriving the head's face
+normal from the chord `end − mid` rather than the resampled spline's last
+segment: the head's corner and the stem's corner rounded to font units one
+apart, a 13-unit hairline on the h and the l in the shipped outline. (4) A
+vertical arrival for the arch (a knot at 1.0 P above the end) was priced
+and not taken: to be vertical and stem-wide by 0.86 xh the width ramp has
+to be compressed into the descent and the crest gains 7–14 units of weight;
+the level end face costs the crown nothing.
+
+**Left as constructed, for a ruling.** The outstroke's underside leaves the
+stem's flat foot in a concave corner on every one of these letters at both
+weights — the stem is square-footed and the exit rounds the baseline, so
+the two meet at 26–34° — and lowering the hook steepened it on the short
+exits: the detector reads it as a step of 6.0 (l) and 7.0 (a) now, 2.0 on
+the i and the ı, where before it read 4.4 / 3.0 on the h and 4.0 on the m
+and nothing on the l and the a (the 400 reads 3–6 on i h l m n u a). Making
+it disappear means rounding the foot into the exit, which is a change to
+the letter and not a repair. The m's capped head meets the stem's right
+edge in the crotch under its round (4.7 in the shipped outline, 2.8 in
+design; 1.9 before) — that is the round of M_HEAD_CAP hanging past the
+stem, as ruled in round 143.
+
+**The Italic 400's own numbers, unchanged and recorded** (`cmp_junctions.py`
+on the shipped Italic): the head's end face pokes 1.4 units past the stem's
+edge (steps of 1.9 and 1.7 at the corner on n i r h l); the arch's landing
+ledge is 9.7 (n h) and 8.7 (m); the exit seams read 3–6 on i h l m n u a;
+the u's left stem tops at 438 against its head's 431 (9 over the x-line,
+the same 45° cut); the m's capped head 6.8; the ı is the roman stem in the
+italic, with 2.0-unit steps at its head and foot, and it is not the i
+without its dot — at the 400 the i and the ı are two constructions, and so
+are í ì î ï ĩ ī ĭ against the i. Fixing any of these moves a shipped glyph
+and is the owner's call; the mechanism is the same as the 700's and the
+gate is one comparison.
+
+Proofs: `tools/wedge_serif/shape/weights274/` — before above after at 3
+px/unit for u n ı m h l r i a, and the runs at 13 px ×8 and 40 px ×2.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1176,3 +1254,4 @@ ear, C G S J, the ?, the figures' ends — each measured before it ships.
 - Round 272: with the ampersand's counters convex, `cmp_counter_dents.py` reads 0 dents in the Bold, the Black and the Bold Italic over its whole charset; the a's counter lower-right reads 93% / 98% white at 700 / 900 against 88% / 89% at its lower left; the M has 0 ink shards and 0 white slivers at 200 / 400 / 700 / 900.
 - Round 273: the italic u's right stem tops at 431 in both italics against the ı's 430; no other glyph moved but the u's composites and µ.
 - Round 275: the round finials of the roman changed out for the c's top end -- see docs/albo-finials-2026-09-19.md.
+- Round 274: the bold italic's head/stem, arch/stem and exit/foot junctions read 0 white slivers, 0 ink shards on u n ı m h l r i a; the Italic 400 is byte-identical in outlines, advances and GPOS to a build of the same tree with the previous `aldine.py`; glitch 0 of 122, touch 0 / 0, figure spread 1.41×, dents 0. The arch's crest is not moved by `hm_sweep` (vertices identical); the u's right stem keeps round 273's top (431); the r has no exit and takes only the head fix; the a moves only at its exit.

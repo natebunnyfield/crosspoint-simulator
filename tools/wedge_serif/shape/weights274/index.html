@@ -1,0 +1,72 @@
+<title>Albo Italic Junctions</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Italic Junctions</h1>
+    <p class="lede">Round 274, the bold italic&rsquo;s junctions &mdash; owner: &ldquo;fix glitches&rdquo;, on a crop of &ldquo;u n &imath; u&rdquo;. Every figure is a crop of the shipped outline at 3 px per unit, before (top) above after (bottom), native pixels, lossless. The Italic 400 is byte-identical to the previous build (0 of 486 glyphs, 0 GPOS pairs).</p>
+  </header>
+  <section><h2>Measured, design units, the 700</h2>
+    <div class="scroll"><table>
+      <tr><th>junction</th><th>letters</th><th>before</th><th>after</th></tr>
+      <tr><td>white wedge under the head (units&sup2;)</td><td>i l n m h r</td><td>80&ndash;106</td><td class="ok">0</td></tr>
+      <tr><td>stem corner proud of the head&rsquo;s face (units)</td><td>i l n m h r</td><td>2.4 (m 1.9)</td><td class="ok">0</td></tr>
+      <tr><td>stem corner proud of the arch&rsquo;s outer edge (units)</td><td>n h / m</td><td>11.6 / 14.5</td><td class="ok">0</td></tr>
+      <tr><td>exit&rsquo;s underside at the foot corner (units, &minus; is under)</td><td>i h u m l n</td><td>+0.8 +0.2 &minus;0.4 &minus;1.3 &minus;2.8 &minus;4.7</td><td class="ok">&minus;5.4 to &minus;6.1</td></tr>
+      <tr><td>u left stem&rsquo;s top over the x-line (units)</td><td>u</td><td>30</td><td class="ok">3 (the head&rsquo;s own top)</td></tr>
+      <tr><td>m middle foot, cap rim step (units)</td><td>m</td><td>1.8</td><td class="ok">0</td></tr>
+      <tr><td>white slivers &lt; 6 units, ink shards &lt; 6</td><td>u n &imath; m h l r i a</td><td>6 / 0</td><td class="ok">0 / 0</td></tr>
+    </table></div>
+  </section>
+  <section><h2>The u</h2>
+    <figure><img src="u-top.png" alt="u top, before and after"><figcaption>u, the head on the left stem and the right stem's top; 3 px/unit, units 289..464</figcaption></figure>
+    <figure><img src="u-foot.png" alt="u foot"><figcaption>u, the exit at the foot; 3 px/unit, units -30..150</figcaption></figure>
+  </section>
+  <section><h2>The n</h2>
+    <figure><img src="n-top.png" alt="n top"><figcaption>n, the head on the stem and the arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="n-foot.png" alt="n foot"><figcaption>n, the exit at the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The dotless i</h2>
+    <figure><img src="dotlessi-top.png" alt="dotless i top"><figcaption>dotless i: the roman stem (before) and the i's stem and head (after); 3 px/unit</figcaption></figure>
+    <figure><img src="dotlessi-foot.png" alt="dotless i foot"><figcaption>dotless i, the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The m</h2>
+    <figure><img src="m-top-left.png" alt="m top left"><figcaption>m, left: the capped head and the first arch; 3 px/unit</figcaption></figure>
+    <figure><img src="m-top-right.png" alt="m top right"><figcaption>m, right: the second arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="m-foot.png" alt="m foot"><figcaption>m, right: the middle foot and the exit; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The h</h2>
+    <figure><img src="h-head.png" alt="h head"><figcaption>h, the head on the ascender; 3 px/unit, units 630..805</figcaption></figure>
+    <figure><img src="h-arch.png" alt="h arch"><figcaption>h, the arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="h-foot.png" alt="h foot"><figcaption>h, the exit at the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The l</h2>
+    <figure><img src="l-head.png" alt="l head"><figcaption>l, the head on the ascender; 3 px/unit</figcaption></figure>
+    <figure><img src="l-foot.png" alt="l foot"><figcaption>l, the exit at the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The r, the i, the a</h2>
+    <figure><img src="r-top.png" alt="r top"><figcaption>r, the head on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="i-top.png" alt="i top"><figcaption>i, the head on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="i-foot.png" alt="i foot"><figcaption>i, the exit at the foot; 3 px/unit</figcaption></figure>
+    <figure><img src="a-foot.png" alt="a foot"><figcaption>a, the exit at the foot (the a shares hm_exit); 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>Reading runs</h2>
+    <figure><img src="runs.png" alt="bold italic runs"><figcaption>13 px x8 and 40 px x2, nearest; lines alternate before / after</figcaption></figure>
+  </section>
+</div>
