@@ -439,6 +439,47 @@ Graphs of the whole plane, every reference family and both of Albo's nine-rung
 ladders: `tools/wedge_serif/cmp_weight_plots.py`,
 https://claude.ai/artifact/3oRe6qTBt6jMNFngAwvkok
 
+## RULING — the family re-anchors on the 400 at stem 66.9 (round 266)
+
+Owner 2026-09-19, asked how to resolve the four-weight ruling against a face
+drawn and judged at stem 84: **re-anchor to 66.9**. He was shown the
+measurement first — 66.9 puts stem/x-height at 0.1495 where the twelve
+reference regulars run a median of 0.181, so the shipping face lands lighter
+than every one of them — and ruled for it. `DESIGN["stem"]` is 66.9.
+
+**The contrast ruling survives the move**: the 400 measures **1.71:1**,
+against the 1.67 the 500 measured, so "around 1.7" holds at the new anchor
+without touching the dials.
+
+**What it cost, and what I fixed.** The two shipped styles went from 0 glitch
+findings to 3 each. All three were the same failure: **a part positioned on
+the x-height grid, which does not move, overlapping a stroke sized in S, which
+thins with the weight.** Two are fixed, weight-proof:
+
+- **the ffi ligature** shipped as three ink islands. Measured, the first f's
+  bar ends at x 274 and the second f's begins at 302 — a 28-unit gap that does
+  not exist at 84. `_bridge` in `ligatures.py` joins two f-bars across
+  whatever gap the weight opens, in their own y band and at their own
+  thickness, and returns nothing when they already touch, so the drawing at 84
+  is untouched. It covers ff, ffi and ffl.
+- **the Ω** shipped as three islands, its two feet loose. The ring's cut was
+  swept at 84, where CAP × 0.05–0.06 gives one island; it now scales as
+  `CAP × 0.06 × min(1, S/84)`, cutting lower — more leg into the foot — as the
+  face lightens.
+
+**Still broken, and not guessed at: the β.** The two bowls' centres were swept
+at 84, where (0.68, 0.26) just closes the slit where they meet the stem; at
+66.9 it reopens as a 4.17-unit crack. Moving the bowls toward each other — the
+same move that closed it at 84 — made it **worse**, two cracks of 5.84 and
+2.89, so the relation is not monotonic in the centres and the fix is a
+re-sweep of that letter at the new anchor, not a nudge. One finding in each
+shipped style, in a Greek lowercase.
+
+Final gates at the new anchor: roman **1 finding**, 3 touching pairs (down
+from 4), figure spread 1.62×; italic **1 finding**, 0 touching. The other
+three weights are unchanged in kind — ExtraLight 7 findings, Bold 2, Black 7 —
+and remain unfinished cuts.
+
 ## RULING — the contrast ships at 1.7 (round 265)
 
 Owner 2026-09-19, on the dialling page: **"around 1.7 wins"**. Step 2 of the

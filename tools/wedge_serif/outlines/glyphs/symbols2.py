@@ -119,6 +119,14 @@ def g_beta(c):
     (0.70, 0.22), 252 at (0.68, 0.22), 119 at (0.68, 0.24) and gone at
     (0.68, 0.26), which is 8.6 units down for the upper bowl and 17 up for the
     lower. The two real counters move from 14594/16001 to 15237/13930."""
+    # ROUND 266 -- STILL BROKEN AT THE 400, AND NOT GUESSED AT. The centres
+    # below were swept at stem 84, where (0.68, 0.26) just closes the slit
+    # where the two bowls meet the stem. The strokes thin with the weight, so
+    # at the 400's 66.9 the slit reopens: CRACK, hole mean width 4.17, area
+    # 108. Moving the two bowls toward each other -- the same move that closed
+    # it at 84 -- made it WORSE, two cracks of 5.84 and 2.89, so the relation
+    # is not monotonic in the centres and the fix is a re-sweep of this letter
+    # at the new anchor rather than a nudge. Left as it is, and recorded.
     x = S * 0.5; h = ASC * 0.86
     return geom.ink([_s(line((x, -DESC * 0.62), (x, h * 0.92)), w=TH_V * 0.92),
                      _bowl(x + XH * 0.30, XH * 0.68, XH * 0.30, XH * 0.30, 0.86),
@@ -192,7 +200,13 @@ def g_Omega(c):
     works rather than the edge of it."""
     r = CAP * 0.40
     a = _bowl(r, CAP * 0.46, r, CAP * 0.46, 1.0)
-    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06)
+    # ROUND 266: the cut FOLLOWS THE STEM. The 0.06 was swept at stem 84,
+    # where 0.05-0.06 give one island; the legs thin with the weight while the
+    # feet stay on the baseline, so at the 400's 66.9 the joining band vanished
+    # and the letter went back to three islands. Scaled by S/84 it is 0.06 at
+    # 84 exactly, and cuts lower -- more leg into the foot -- as the face
+    # lightens.
+    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06 * min(1.0, pen.S / 84.0))
     return geom.ink([a.difference(box).buffer(0),
                      bar(-r * 0.30, r * 0.52, 0, TH_H, align='bottom'),
                      bar(r * 1.48, r * 2.30, 0, TH_H, align='bottom')])

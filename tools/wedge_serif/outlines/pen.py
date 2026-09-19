@@ -13,7 +13,16 @@ DESIGN["stem"] = 94                          # owner ruling, round 59 (2026-09-1
 # contrast 0.80, ascender 770, descender 256, width 100, cut 115, x-height
 # 429, serif 100. The caps stay at 1.625 x 415 = 674 (the XHGT axis moved
 # the lowercase against fixed caps, and 429 was picked on that slider).
-DESIGN["stem"] = 84; DESIGN["contrast"] = 0.80; DESIGN["asc"] = 770; DESIGN["desc"] = 256; DESIGN["xh"] = 429
+# ROUND 266 -- THE FAMILY RE-ANCHORS ON THE 400. Owner 2026-09-19, after the
+# four-weight ruling ("only test and ship 200 400 700 900"), chose to take it
+# literally: the shipping regular is the 400, which round 76 derived at stem
+# 66.9, and NOT the 84 the face has been drawn and judged at since round 59.
+# He was shown the measurement first -- 66.9 puts stem/x-height at 0.1495
+# where the twelve reference regulars run a median of 0.181, so the face lands
+# lighter than every one of them -- and ruled for it anyway. Every drawing
+# ruling before this was made at 84; what that costs is measured in
+# docs/albo-family-2026-09-19.md rather than assumed.
+DESIGN["stem"] = 66.9; DESIGN["contrast"] = 0.80; DESIGN["asc"] = 770; DESIGN["desc"] = 256; DESIGN["xh"] = 429
 DESIGN["cut"] = 115                          # the cut as an AMOUNT: 0 the dense outline, 100 the 1-in-4 projection, 200 the 1-in-8, linear between
 # Round 65 (owner): "set default to .95 contrast, update contrast range to
 # full 0-100; set DESC default to 280." Then, same round: "new defaults:
