@@ -49,14 +49,25 @@ def g_o(c):
     solid, outer, inner = o_ring(c, O_RX * O_RX_ADJ, w_scale=O_W_ADJ)
     return solid
 
-def open_arc(c, rx_center, a0_deg, a1_deg, profile, cut0=None, cut1=None, k=BOWL_K, cx=None, cy=None, ry_center=None):
+def open_arc(c, rx_center, a0_deg, a1_deg, profile, cut0=None, cut1=None, k=BOWL_K, cx=None, cy=None, ry_center=None, smooth=False):
     """An open round stroke on the o's centerline (rx_center x wf, the
-    centerline overshoot), the pen's widths times a declared profile."""
+    centerline overshoot), the pen's widths times a declared profile.
+
+    `smooth` (the roman c, 2026-09-18): the tangent the width is read from
+    is interpolated at the fractional index instead of rounded -- the arch's
+    sawtooth fix, arches.smooth_widths (R23); `bowl_widths` rounds, and the
+    width steps by one and two indices wherever it is changing. Off by
+    default: symbols2 draws on this too and is not in the round."""
     xh = c["xh"]; wf = c["wf"]; rx = rx_center * wf
     ry = (xh / 2 + OVER - TH_H / 2) if ry_center is None else ry_center
     cx = rx + TH_V / 2 if cx is None else cx; cy = xh / 2 if cy is None else cy
     center = superellipse(cx, cy, rx, ry, math.radians(a0_deg), math.radians(a1_deg), k)
-    return stroke(center, bowl_widths(center, profile), cut0=cut0, cut1=cut1), center
+    if smooth:
+        from .arches import smooth_widths
+        wfn = smooth_widths(center, PR.bowl_th, profile)
+    else:
+        wfn = bowl_widths(center, profile)
+    return stroke(center, wfn, cut0=cut0, cut1=cut1), center
 
 @glyph('c')
 def g_c(c):
@@ -68,9 +79,23 @@ def g_c(c):
         solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=CUT, cut1=CUT); return solid
     top = 1.10 if adj('c') else 1.30   # round 92 (adj 'c'): both terminals heavy (band +15% Albertus) -- the top's swell 1.30 -> 1.10
     prof = widths([(0.0, top), (0.13, 1.0), (0.82, 1.0), (1.0, 0.70)])
-    solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT)
-    lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
-    return geom.ink([solid, lip])
+    if pen.ITALIC:
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT)
+        lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
+        return geom.ink([solid, lip])
+    # R18, owner 2026-09-18, on the upper terminal: "despur." The spur was
+    # the beak's LIP -- the 0.35 x 0.6 bracket wedge `beak()` hangs from the
+    # face's inner corner into the aperture. Measured on the built c: the
+    # stroke's inner edge ran vertical for its last 12 units (the lip's
+    # inner strip) into a point 19 units below and left of the corner (the
+    # lip's tip), and the lip's seat missed the face's sheared corner by a
+    # unit or two, which was the jog on the cut face. The lip goes; the
+    # swelled stroke keeps its -28-degree face, which is the family's beak
+    # face without the beak, and the terminal ends on that face and nothing
+    # else. (The capital C in caps_straight carries the same `beak()` lip at
+    # 0.4 x 0.7; it is not in this round.)
+    solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+    return geom.ink([solid])
 
 E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rounds 39 + 46)
 # Round 109 (owner: "redo e for a steeper crossbar and less of a tail
@@ -176,7 +201,20 @@ def g_e(c):
     stroke) is thinned and shifted right per E_ARM_THIN / E_ARM_OUT (owner
     instruction, 2026-09-13)."""
     xh = c["xh"]; wf = c["wf"]
-    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN, E_ARM_OUT)
+    # R19, owner 2026-09-18, on the roman's lower stroke: "correct curve."
+    # The counter floor stepped up 4 units just past the bowl's bottom, and
+    # the step was NOT the handover to the tail: it was E_ARM_THIN. Round 94
+    # thinned the arm over ARM_START..ARM_END, easing in over the first
+    # quarter of that span -- 15 degrees of ring when the arm ran 270..330.
+    # Round 110 moved E_END_R to 276 and gave the lower-right sweep to the
+    # tail, which left the ring's thinning squeezed into a 6-degree sliver
+    # with its ease-in over 1.5 degrees: the inner edge climbed 4 units in
+    # the ten units of path after the bottom (measured: 26.6 degrees where
+    # the outer edge runs at 4.8), and the tail then left that point flat.
+    # So the ROMAN ring is no longer thinned -- the sliver is gone -- and the
+    # tail carries the 0.92 instead, eased in along its own first third
+    # (_e_tail). The italic keeps the ring thinning as it was.
+    solid, outer, inner = _e_ring(c, E_RX * _IO, E_ARM_THIN if pen.ITALIC else 1.0, E_ARM_OUT)
     rx = E_RX * _IO * wf + TH_V / 2; cx = rx; cy = xh / 2
     tilt = math.radians(E_DEG_IT if pen.ITALIC else E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
@@ -187,9 +225,68 @@ def g_e(c):
     b = stroke([(cx - rx + 8, bar_top(cx - rx + 8) - th / 2), (cx + rx - 42, bar_top(cx + rx - 42) - th / 2)], th)
     # the aperture: between the arm's end face (radial at E_END) and the bar's underside
     a = math.radians(E_END_IT if pen.ITALIC else E_END_R); far = 3 * rx
-    aperture = geom.poly([(cx, cy), (cx + far * math.cos(a), cy + far * math.sin(a)), (cx + far, under(cx + far)), (cx, under(cx))])
-    parts = [solid.difference(aperture), b, _e_tail(outer, inner, cx, cy, rx, xh, a)]
+    if pen.ITALIC:
+        aperture = geom.poly([(cx, cy), (cx + far * math.cos(a), cy + far * math.sin(a)), (cx + far, under(cx + far)), (cx, under(cx))])
+        parts = [solid.difference(aperture), b, _e_tail(outer, inner, cx, cy, rx, xh, a)]
+        return geom.ink(parts)
+    # R19, the other half: the ring's end face is cut along the NORMAL at the
+    # handover, not the radial. The tail's inner edge starts at Po + n * w0
+    # (edge_stroke offsets along the outer's normal), while the radial face
+    # put the ring's inner corner Pi 6 degrees away -- 1.8 units along the
+    # floor, with a 0.2-unit step between the two corners, which the curve
+    # fitter turned into a 2-unit pimple on the counter floor. With the face
+    # on the normal the two corners are one point.
+    cut = _normal_cut(outer, inner, cx, cy, a, rx, xh)
+    Po, To, Pi, n_in = cut
+    C1 = (Po[0] + n_in[0] * far, Po[1] + n_in[1] * far)      # far along the normal, into the counter and out the top
+    P_out = (Po[0] - n_in[0] * 20, Po[1] - n_in[1] * 20)     # just outside the ring
+    aperture = geom.poly([C1, P_out, (cx + far, P_out[1]), (cx + far, under(cx + far)), (C1[0], under(C1[0]))])
+    aperture = aperture.intersection(geom.poly([(cx - 1, -far), (cx + far, -far), (cx + far, under(cx + far)), (cx - 1, under(cx - 1))]))
+    parts = [solid.difference(aperture), b, _e_tail(outer, inner, cx, cy, rx, xh, a, cut=cut)]
     return geom.ink(parts)
+
+
+def _e_tail_edge(Po, To, cx, rx, xh):
+    """The tail's OUTER edge: from Po along the ring's tangent To, decelerating
+    into a near-straight run to the tip (see _e_tail)."""
+    tail_end, tipx, tipy, tipdeg = ((E_TAIL_IT, E_TIP_X, E_TIP_Y, E_TIP_DEG) if pen.ITALIC
+                                    else (E_TAIL_R, E_TIPX_R, E_TIPY_R, E_TIPDEG_R))
+    tip = (cx + tipx * rx, tipy * xh)
+    L = math.hypot(tip[0] - Po[0], tip[1] - Po[1])
+    d2 = math.radians(tipdeg); D2 = (math.cos(d2), math.sin(d2))
+    return cubic(Po,
+                 (Po[0] + To[0] * L * 0.30, Po[1] + To[1] * L * 0.30),
+                 (tip[0] - D2[0] * L * 0.55, tip[1] - D2[1] * L * 0.55),
+                 tip), tail_end
+
+
+def _normal_cut(outer, inner, cx, cy, a_cut, rx, xh):
+    """The handover on the NORMAL: Po and To off the outer contour on the ray
+    at a_cut (as the radial cut found them); then the normal the tail's inner
+    edge is actually offset along at its start -- edge_stroke resamples the
+    tail's cubic and reads its first tangent off the resampled points, and
+    that chord sits ~3 degrees off To, which put the tail's start 2.9 units
+    along the floor from a corner cut on To's normal (built and measured);
+    then the inner contour's point Pi on the line through Po along it."""
+    R = (math.cos(a_cut), math.sin(a_cut))
+    Po, To = _ray_hit(outer, cx, cy, R)
+    if To[0] < 0: To = (-To[0], -To[1])
+    edge, _ = _e_tail_edge(Po, To, cx, rx, xh)
+    t0 = geom.tangents(geom.resample(edge))[0]
+    n_in = (-t0[1], t0[0])                     # left of travel (counterclockwise up the right side): inward, as edge_stroke's side=1
+    best = None
+    for p, q in zip(inner, inner[1:] + inner[:1]):
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        den = dx * n_in[1] - dy * n_in[0]
+        if abs(den) < 1e-9: continue
+        ex, ey = p[0] - Po[0], p[1] - Po[1]
+        u = (ey * n_in[0] - ex * n_in[1]) / den
+        if not (0.0 <= u <= 1.0): continue
+        s = (ex + u * dx) * n_in[0] + (ey + u * dy) * n_in[1]
+        if s <= 0: continue
+        if best is None or s < best[0]: best = (s, (p[0] + u * dx, p[1] + u * dy))
+    Pi = best[1] if best else _ray_hit(inner, cx, cy, R)[0]
+    return Po, To, Pi, n_in
 
 
 def _ray_hit(poly, cx, cy, R):
@@ -212,7 +309,7 @@ def _ray_hit(poly, cx, cy, R):
     return None, None
 
 
-def _e_tail(outer, inner, cx, cy, rx, xh, a_cut):
+def _e_tail(outer, inner, cx, cy, rx, xh, a_cut, cut=None):
     """THE TAIL IS ITS OWN STROKE, not the ring carried on round.
 
     Measured on Coelacanth's italic e: the tail's outer edge leaves the bowl's
@@ -237,21 +334,26 @@ def _e_tail(outer, inner, cx, cy, rx, xh, a_cut):
     tooth. Built from the edge, the tail's silhouette IS the bowl's carried
     on."""
     R = (math.cos(a_cut), math.sin(a_cut))
-    Po, To = _ray_hit(outer, cx, cy, R)
-    Pi, _ = _ray_hit(inner, cx, cy, R)
+    if cut is not None:        # the roman: the ring was cut on the normal (g_e), so Pi is where the tail's inner edge starts
+        Po, To, Pi, _ = cut
+    else:
+        Po, To = _ray_hit(outer, cx, cy, R)
+        Pi, Ti = _ray_hit(inner, cx, cy, R)
     if Po is None or Pi is None:
         return geom.poly([(0, 0), (0, 0), (0, 0)])
-    tail_end, tipx, tipy, tipdeg = ((E_TAIL_IT, E_TIP_X, E_TIP_Y, E_TIP_DEG) if pen.ITALIC
-                                    else (E_TAIL_R, E_TIPX_R, E_TIPY_R, E_TIPDEG_R))
     w0 = math.hypot(Po[0] - Pi[0], Po[1] - Pi[1])   # the ring's width on the cut
     if To[0] < 0:            # travel counterclockwise, up the bowl's right
         To = (-To[0], -To[1])
-    tip = (cx + tipx * rx, tipy * xh)
-    L = math.hypot(tip[0] - Po[0], tip[1] - Po[1])
-    d2 = math.radians(tipdeg); D2 = (math.cos(d2), math.sin(d2))
-    edge = cubic(Po,
-                 (Po[0] + To[0] * L * 0.30, Po[1] + To[1] * L * 0.30),
-                 (tip[0] - D2[0] * L * 0.55, tip[1] - D2[1] * L * 0.55),
-                 tip)
+    edge, tail_end = _e_tail_edge(Po, To, cx, rx, xh)
     wf = lambda t: w0 * (1.0 - (1.0 - tail_end) * (3 * t * t - 2 * t ** 3))
+    if not pen.ITALIC:
+        # R19 (see g_e): the round-94 thinning now belongs to the tail, eased
+        # in over its first E_ARM_EASE_R so the inner edge leaves the ring's
+        # inner edge with no break in slope, and holding from there -- so
+        # from E_ARM_EASE_R on, the tail is byte for byte the width it was.
+        wf0 = wf
+        def wf(t):
+            u = min(1.0, t / E_ARM_EASE_R); su = 3 * u * u - 2 * u ** 3
+            return wf0(t) * (1.0 + (E_ARM_THIN - 1.0) * su)
     return PR.edge_stroke(edge, wf, side=1)[0]
+E_ARM_EASE_R = 0.35   # the roman tail reaches the round-94 thinning this far along its length

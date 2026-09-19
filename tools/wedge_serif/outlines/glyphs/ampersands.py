@@ -395,6 +395,35 @@ def loop_path(cx, cy, rx, ry, Pt, flare=0.06):
 def lerp_pts(a, b, t):
     return [(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t) for p, q in zip(a, b)]
 
+def egg_loop_path(cx, top_y, Pt, rx, pinch=0.85, power=3.0):
+    """ROUND 233 -- THE LOOP AS AN EGG, for the options the owner asked for on
+    2026-09-18 (R54 upper loop, R55 right side / terminal, R56 lower-left:
+    *"give me options that fix the unattractive lumpy and droopiness"*).
+
+    `loop_path` is `teardrop_outer` turned: a superellipse over the top and
+    two CUBICS down to the point, each leaving the equator with its first
+    handle pulled OUTWARD by `flare` -- so the loop's sides bulge below the
+    equator before they turn in, and the lower left (R56) droops where the
+    cubic and the spur's width blend meet. This is one smooth closed curve
+    instead: an ellipse whose half-width shrinks smoothly from `rx` at the
+    top to `rx x (1 - pinch)` at the bottom -- by `((1 - cos) / 2) ** power`,
+    so at power 3 the equator still has 0.9 of the width and the narrowing
+    happens in the last third (power 1 gave straight sides from above the
+    equator down, a triangle with a round cap) -- and whose bottom is sheared
+    onto the point `Pt`. The curvature changes continuously all the way
+    round and the only sharp place is the crossing itself. Same direction as
+    `loop_path` (from the point up the LEFT side, over the top, down the
+    right, back to the point) and the same top (`top_y`), so it drops into
+    `bred` where `loop_path` was."""
+    ry = (top_y - Pt[1]) / 2.0; cy = Pt[1] + ry; N = 240; pts = []
+    for i in range(N + 1):
+        th = math.pi + 2 * math.pi * i / N                    # bottom -> left -> top -> right -> bottom
+        c, s = math.cos(th), math.sin(th)
+        f = 1.0 - pinch * ((1.0 - c) / 2.0) ** power          # 1 at the top, 1 - pinch at the bottom
+        pts.append((cx + rx * f * s + (Pt[0] - cx) * (1.0 - c) / 2.0, cy + ry * c))
+    pts[0] = Pt; pts[-1] = Pt
+    return geom.resample(pts)
+
 def arm_beak(center, w_end):
     """The C's beak transposed to a RISING arm: the end face sheared to the
     vertical (stroke's cut1 = minus the arm's angle: the upper-left corner
@@ -417,8 +446,16 @@ BOWL_CUR = [(0.06, 0.17), (0.18, 0.03), (0.38, 0.0), (0.53, 0.10), (0.60, 0.26)]
 BOWL_O = [(0.05, 0.12), (0.15, 0.01), (0.35, 0.0), (0.55, 0.04), (0.65, 0.17)]
 
 def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm_end='flag',
-         spur_w=1.0, spur_x=0.97, spur_foot='hook', bowl=0.5, width=1.0, opening=0.58, hook_end='cut'):
+         spur_w=1.0, spur_x=0.97, spur_foot='hook', bowl=0.5, width=1.0, opening=0.58, hook_end='cut',
+         loop_shape='tear', egg_pinch=0.85, egg_power=3.0):
     """One & from the dials.
+    loop_shape (round 233): 'tear' = `loop_path`, the teardrop every entry
+         in VARIANTS2 was built on; 'egg' = `egg_loop_path`, one smooth
+         curve pinched to the point by `egg_pinch` -- for the 'open' and the
+         'closed' tops.
+    arm_end 'pencut' (round 233): the arm ends in the family's pen cut and
+         nothing hangs from it -- 'cut' in the 'open' branch was a plain
+         square face and is left as it was, since VARIANTS2 was built on it.
     top: 'open' = the current's spiral (the spur runs on as the loop's left
          side, one stroke, the pen's width there); 'half' = the loop's left
          side comes down from the top as its own stroke and stops above the
@@ -457,9 +494,11 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
     else:
         sp_pts = [(spur_x * w, 0.0)]
     parts = []; spur_end = (X[0] - 0.02 * w, X[1] + 0.03 * C)    # buried in the loop's point / the diagonal's start
+    end_cut = beak_cut if arm_end == 'beak' else (CUT if arm_end == 'pencut' else None)
     if top == 'open':
         # ONE spine: spur -> X -> up the loop's left -> top -> down its right -> X -> diagonal -> bowl -> arm
-        lp = loop_path(cx, cy, rx - 0.45 * S, ry - hb / 2, X)
+        if loop_shape == 'egg': lp = egg_loop_path(cx, cy + ry - hb / 2, X, rx - 0.45 * S, egg_pinch, egg_power)
+        else: lp = loop_path(cx, cy, rx - 0.45 * S, ry - hb / 2, X)
         spur_sp = catmull(sp_pts + [X], tension=0.5) if spur_foot == 'hook' else line(sp_pts[0], X)
         sp = geom.resample(spur_sp[:-1] + lp + body[1:])
         tX1 = t_of(sp, X); tL = t_of(sp, lp[len(lp) // 4]); tR = t_of(sp, lp[3 * len(lp) // 4]); tX2 = t_of(sp, lp[-1])
@@ -470,8 +509,7 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
         sw = widths([(0.0, spur_w), (tX1 - 0.03, spur_w), (tX1 + 0.02, 1.0)])
         # the loop's left side (spiral): the pen at its angle, floored at THIN -- the current's thin
         wf = mixw(sp, blend, lambda t: prof(t) * sw(t), floor=THIN)
-        parts.append(stroke(sp, wf, pieces=True, cut0=CUT if spur_foot == 'plain' else None,
-                            cut1=beak_cut if arm_end == 'beak' else None))
+        parts.append(stroke(sp, wf, pieces=True, cut0=CUT if spur_foot == 'plain' else None, cut1=end_cut))
         if spur_foot == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, +1, 0.9))
         arm_sp, arm_w = sp, wf(1.0)
     else:
@@ -482,12 +520,14 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
         parts.append(stroke(spur_sp, sw, cut0=CUT if spur_foot == 'plain' else None))
         if spur_foot == 'wedge': parts.append(end_wedge(spur_sp, sw(0.0), True, +1, 0.9))
         if top == 'closed':
-            outer = teardrop_outer(cx, cy, rx, ry, X)
+            # the egg runs clockwise like `loop_path`; `ring_from` offsets inward from a ccw outline, so reverse it
+            if loop_shape == 'egg': outer = egg_loop_path(cx, cy + ry, X, rx, egg_pinch, egg_power)[:-1][::-1]
+            else: outer = teardrop_outer(cx, cy, rx, ry, X)
             lo, _, _ = teardrop_loop(outer); parts.append(lo)
             sp = body
             blend = widths([(0.0, 1.0), (tD - 0.02, 1.0), (tD + 0.03, 0.0), (tB5 - 0.02, 0.0), (tB5 + 0.04, 1.0)])
             wf = mixw(sp, blend, floor=THIN)
-            parts.append(stroke(sp, wf, cut1=beak_cut if arm_end == 'beak' else None))
+            parts.append(stroke(sp, wf, cut1=end_cut))
         else:   # 'half': the hook + the body as one spine
             # the loop's sides bow out a little more than the ring's, so the
             # hook's free end sits LEFT of the spur's line rather than on it
@@ -501,8 +541,7 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
             tH = t_of(sp, H); tX2 = t_of(sp, lp[-1]); tD2 = t_of(sp, D); tB = t_of(sp, B5)
             blend = widths([(0.0, 0.0), (tX2 + 0.02, 0.0), (tD2 - 0.02, 1.0), (tD2 + 0.03, 0.0), (tB - 0.02, 0.0), (tB + 0.04, 1.0)])
             wf = mixw(sp, blend, widths([(0.0, 0.92), (tH + 0.03, 1.0)]), floor=THIN)
-            parts.append(stroke(sp, wf, pieces=True, cut0=CUT if hook_end == 'cut' else None,
-                                cut1=beak_cut if arm_end == 'beak' else None))
+            parts.append(stroke(sp, wf, pieces=True, cut0=CUT if hook_end == 'cut' else None, cut1=end_cut))
             if hook_end == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, -1, 0.6))
         arm_sp, arm_w = sp, wf(1.0)
     # ---- the arm's end
@@ -529,3 +568,36 @@ VARIANTS2 = [
     ('upturn', _v(top='closed', loop=0.88, point=(0.37, 0.60), arm=0.56, arm_end='up', spur_x=0.93, spur_foot='plain')),
     ('round_bowl', _v(top='open', loop=1.1, bowl=1.0, arm_end='cut', arm=0.54)),
 ]
+
+# ROUND 233 -- THE OWNER'S OPTIONS ON THE SHIPPING &. 2026-09-18, three lines
+# on the bump markup (R54 the upper loop, R55 its right side down to the
+# crossing, R56 its lower left): *"give me options that fix the unattractive
+# lumpy and droopiness."* Read on the outline at 3 px/unit: the loop is
+# `teardrop_outer` turned -- a superellipse over the top and two cubics to
+# the point, each leaving the equator with a handle pulled OUTWARD (flare
+# 0.06) -- so the sides swell below the equator and the lower left sags into
+# the crossing, and the width there is `mixw`'s blend from the pen (at the
+# spur) to the bowl profile (on the left side), which crosses the THIN floor
+# as it goes. `marks.g_ampersand` picks one of these by ALBO_AMP_OPT; 'a' is
+# today's drawing, unchanged.
+#   b  the SAME & with the loop redrawn as an egg (`egg_loop_path`): one
+#      smooth curve, no flare, pinched 0.80 to the point; loop 1.1 -> 1.0
+#      (Georgia's loop is 0.48 of the &'s width; this is 0.44)
+#   c  as b, tighter and cleaner: loop 0.92, pinch 0.90 (the sides come into
+#      the crossing steeper, so nothing hangs at the lower left), and the
+#      arm ends in the family's pen cut with no lip (the beak's lip is the
+#      notch numbered 212 on his sheet)
+#   d  redrawn from GEORGIA in the family's pen: its & measured at 1000 px
+#      against its E -- 1.05 cap tall, 0.97 cap wide (Albo's is 1.09), the
+#      loop 0.48 of the width and 0.40 cap tall, the crossing at 0.58 cap,
+#      the arm rising at ~51 degrees to a flat terminal at 0.63 cap, a
+#      straight thick leg from the crossing to a flat foot at the lower
+#      right, the bowl round. That is `bred`'s closed teardrop with the
+#      egg for its ring, the wedge foot (the A's) on a straight leg, the
+#      o's bowl, and the arm on a pen cut.
+AMP_OPTIONS = {
+    'b': dict(top='open', loop=1.1, bowl=1.0, arm_end='beak', arm=0.54, cross=41.2, loop_shape='egg', egg_pinch=0.85, egg_power=3.0),
+    'c': dict(top='open', loop=1.0, bowl=1.0, arm_end='pencut', arm=0.54, cross=41.2, loop_shape='egg', egg_pinch=0.92, egg_power=3.0),
+    'd': dict(top='closed', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.6, egg_power=2.0),
+}

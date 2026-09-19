@@ -14,11 +14,61 @@ def pw(p0, p1, mult=1.0):
     thin stroke of v w x y (36-40), not 0.72 of the stem."""
     tn = geom.tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
 
+# THE VERTEX, 2026-09-18 (the owner's roman bump markup, R32 on the v, R33
+# on the w). The thick and the thin stroke of a v both ran to the baseline
+# and each was cut square to its own axis, so the letter's bottom was two
+# prongs with a notch between: measured on the built v, corners at y -16.4
+# (the thick's) and -9.3 (the thin's) with the notch up to +0.6 -- the
+# thin's face standing beside the thick's, which is the heavy join. Owner,
+# R32: "THIS IS NOT WHAT I HIGHLIGHTED. improve the heavy join."
+#
+# The guide's rule -- bury the thin a fifth to a third of a stem inside the
+# thick, thinning into the junction -- was built first and does not fit
+# here: a 47-unit face at 70 degrees cannot sit inside the thick stroke's
+# last 15 units without a corner poking out of its right edge or under its
+# chisel face (the two conditions on the bury depth contradict: >= 27.4 and
+# <= 25.9 units), and tapering it to fit left a 5-unit concave kink on the
+# outer edge where the narrowed thin met the thick's edge. So the thin
+# stroke ends ON the thick's own end face instead: both strokes are drawn as
+# before and the union is cut along the thick stroke's square face, locally
+# (V_CLIP_HALF either side of the vertex, V_CLIP_DEEP beyond it). The bottom
+# is then one chisel face, the thick's, from its outer corner to where the
+# thin's outer edge runs straight into it; nothing is buried, nothing
+# tapers, and the inner crotch is exactly where it was.
+V_CLIP_HALF = 140.0   # the clip's reach along the face, either side of the vertex (the other vertex of a w is 313 away)
+V_CLIP_DEEP = 200.0   # and beyond the face
+
+def _flat_face(p0, p1, at_end=True):
+    """caps_straight.flat_face, copied rather than imported (that module
+    registers glyphs at import): the shear that makes a diagonal's end face
+    HORIZONTAL instead of perpendicular to its own axis."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    return math.atan2(dx if at_end else -dx, dy)
+
+def _flat_corner(p0, p1, w, side, at_end=True):
+    """caps_straight.flat_corner: the corner of that horizontal face on the
+    stroke's real edge (side -1 left, +1 right)."""
+    tn = geom.tangents(line(p0, p1))[0]
+    P = p1 if at_end else p0
+    return (P[0] + side * w / (2 * abs(tn[1])), P[1])
+
+def _vertex_clip(p0, p1):
+    """The region beyond the thick stroke p0 -> p1's square end face, near
+    the vertex: subtract it from the union so the thin stroke ends on that
+    face. The face passes through p1 perpendicular to the stroke."""
+    tn = geom.tangents(line(p0, p1))[0]; f = (-tn[1], tn[0])
+    H, D = V_CLIP_HALF, V_CLIP_DEEP
+    return geom.poly([(p1[0] + f[0] * H, p1[1] + f[1] * H), (p1[0] - f[0] * H, p1[1] - f[1] * H),
+                      (p1[0] - f[0] * H + tn[0] * D, p1[1] - f[1] * H + tn[1] * D),
+                      (p1[0] + f[0] * H + tn[0] * D, p1[1] + f[1] * H + tn[1] * D)])
+
 @glyph('v')
 def g_v(c):
     xh = c["xh"]; wf = c["wf"]; w = 440 * wf
     p0, p1 = (S * 0.4, xh), (w / 2, 0); q0, q1 = (w - S * 0.4, xh), (w / 2 + S * 0.12, 0)
-    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
+    if pen.ITALIC:
+        return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)])
+    return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1), diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)], [_vertex_clip(p0, p1)])
 
 def _clean_apex_notch(b, d, apex, apex_x, apex_y, band=110):
     """Owner 2026-09-13: "clean up top middle of 'w'." Two defects at the
@@ -59,15 +109,56 @@ def g_w(c):
     tm = 0.68 if adj('w') else 0.72   # round 92 (adj 'w'): the darkest wide letter, its thins 0.72 -> 0.68 of the pen
     P = [((S * 0.4, xh), (w * 0.27, 0), 1.0, 1), ((w * 0.5, xh * 0.96), (w * 0.27 + S * 0.12, 0), tm, None),
          ((w * 0.5, xh * 0.96), (w * 0.73, 0), 1.0, None), ((w - S * 0.4, xh), (w * 0.73 + S * 0.12, 0), tm, -1)]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
     apex_y = xh * 0.96
-    # the depth was 0.9 x WD (only this glyph); the family's apex wedge
-    # (M, W) is 0.9 x 1.0 -- matched here too, so the bracket reaches as
-    # far into the strokes as it does everywhere else it's used
-    apex_x = w * 0.5 - pw(P[1][0], P[1][1], tm) * 0.36
-    apex = wedge((apex_x, apex_y), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    mid = _clean_apex_notch(b, d, apex, apex_x, apex_y)
-    return geom.ink([a, e, mid])
+    if pen.ITALIC:
+        a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
+        # the depth was 0.9 x WD (only this glyph); the family's apex wedge
+        # (M, W) is 0.9 x 1.0 -- matched here too, so the bracket reaches as
+        # far into the strokes as it does everywhere else it's used
+        apex_x = w * 0.5 - pw(P[1][0], P[1][1], tm) * 0.36
+        apex = wedge((apex_x, apex_y), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+        mid = _clean_apex_notch(b, d, apex, apex_x, apex_y)
+        return geom.ink([a, e, mid])
+    # R33, owner 2026-09-18, the top-left serif to the first apex: "correct
+    # join to be without corners and overlapping bullshit." What was there,
+    # measured on the built w: b (thin, down-left) and d (thick, down-right)
+    # started at one point and were each cut square to their own axis, so
+    # their two faces tilted opposite ways and the top ran from the crown
+    # wedge's edge at y 410 up a jog to 420 and on to d's raised corner at
+    # 427 -- a stepped ramp, the wedge 4.5 units below the diagonal's flat
+    # top; and the wedge itself was seated 0.36 of b's width in from the
+    # apex with its bracket running STRAIGHT DOWN (wedge()'s default edge),
+    # which on a diagonal is a line out in the counter, so the bracket and
+    # its inner strip hung in the air between the two strokes. Now, the
+    # documented method (caps_straight: flat_face / flat_corner): both
+    # strokes are cut HORIZONTAL on apex_y, so the crown is one flat face --
+    # d's, the wider, b's lying inside it; the wedge is seated on d's real
+    # left corner and its bracket follows d's real left edge; and the sliver
+    # that bracket would still lay into the counter below the crotch (it
+    # lands on d's edge 131 units down, the crotch is 86) is cut away along
+    # the two strokes' own edges. The old apex code and its opening pass are
+    # not needed on a clean apex; `_clean_apex_notch` stays for the italic.
+    (a0, a1, ma, sa), (b0, b1, mb, _), (d0, d1, md, _), (e0, e1, me, se) = P
+    wa, wb, wd, we = pw(a0, a1, ma), pw(b0, b1, mb), pw(d0, d1, md), pw(e0, e1, me)
+    a = diagonal(a0, a1, wa, serif0=sa)
+    d = stroke(line(d0, d1), wd, cut0=_flat_face(d0, d1, at_end=False))
+    b = stroke(line(b0, b1), wb, cut0=_flat_face(b0, b1, at_end=False))
+    e = diagonal(e0, e1, we, serif0=se)
+    clips = [_vertex_clip(a0, a1), _vertex_clip(d0, d1)]     # R32's vertex, on both of the w's
+    A = _flat_corner(d0, d1, wd, -1, at_end=False)
+    td = geom.tangents(line(d0, d1))[0]
+    crown = wedge(A, (0, 1), (-1, 0), WL * 0.9, WD, DROP, edge_at=lambda t: (A[0] + td[0] * t, A[1] + td[1] * t))
+    # the counter's top: where b's right edge meets d's left edge
+    tb = geom.tangents(line(b0, b1))[0]
+    bR = (b0[0] + tb[1] * wb / 2, b0[1] - tb[0] * wb / 2)     # right of b's travel (down-left): its right edge, at the apex
+    dL = A
+    den = tb[0] * td[1] - tb[1] * td[0]
+    s = ((dL[0] - bR[0]) * td[1] - (dL[1] - bR[1]) * td[0]) / den
+    X = (bR[0] + tb[0] * s, bR[1] + tb[1] * s)
+    far = 2000.0
+    counter = geom.poly([X, (X[0] + tb[0] * far, X[1] + tb[1] * far), (X[0] + td[0] * far, X[1] + td[1] * far)])
+    crown = crown.difference(counter)
+    return geom.ink([a, b, d, e, crown], clips)
 
 X_BL_WEDGE = 1.15   # the x's bottom-left wedge, x the family's diagonal end (0.9 is the family's own)
 X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0), not the thin's

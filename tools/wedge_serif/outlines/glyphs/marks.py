@@ -126,11 +126,54 @@ def _q8(c):   # the original (round-19 to 76) question mark, Albertus heavy and 
     # the gap and the ? merged into one contour -- it lost its dot, in the
     # bold only, which no render of the Regular could show.
     end_y = max(C * 0.22, Q_DOT_CLEAR(r=DOT_R * 1.1, half=S * Q8_FLOOR / 2))
-    hook = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5), (w * 0.5, (C * 0.36 + end_y) / 2), (w * 0.5, end_y)], tension=0.5)
-    wf = PR.bowl_widths(hook, widths([(0.0, 0.7), (0.15, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR)
+    # ROUND 233 -- TWO STRAY CORNERS AND A BULGE. Owner 2026-09-18 (R49): *"fix
+    # stray corner in bottom right of stroke, fix bad bulge on left."* Measured
+    # on the spine at 4 px/unit:
+    # - THE BULGE: the width plan reached 1.0 at t 0.15, where the left arm still
+    #   rises at 60 degrees and the bowl profile is near its thick, so the arm
+    #   went floor 65.5 -> 76.1 (t 0.136, at (90, 615)) -> floor 65.5 again at
+    #   the top: a +16% swell between two equal widths. The plan now holds 0.7
+    #   through the left arm and the top (t 0..0.25) and rises to 1.0 by the
+    #   right side (t 0.5), so the arm and the top run at the floor and the
+    #   weight lives on the right and the descent, where a broad nib puts it.
+    # - THE FIRST CORNER, the one in his box: the inner edge kinked at (187, 633)
+    #   where that width fell back through the floor (`max(w, floor)` is C0)
+    #   while the spine turned at radius 76 against a half-width of 38. The
+    #   plan above takes the width change out of the turn; `_smooth_wf` then
+    #   rounds every remaining floor crossing over +/-4 samples, because the
+    #   right side's rise through the floor at t 0.41 would otherwise kink the
+    #   same way (2 units per sample, a 5-degree jog in each edge).
+    # - THE SECOND CORNER, at the descent's end above the dot: the spine's last
+    #   leg (218, 218) -> (218, 194) was 24 units for a 36-degree swing, radius
+    #   7 against a half-width of 42 -- the offset folded and the end face came
+    #   out on a tangent of -48 degrees, a spike 40 units below the plan
+    #   (bottom at 154, not 179). A catmull cannot arrive vertical there: its
+    #   tangent at a point is the chord between the neighbours, and the
+    #   neighbour above sits 105 units to the right, so every knee tried (a
+    #   longer last leg, a cubic hung off the knee) folded at radius 20-37.
+    #   The descent is now ONE cubic from the shoulder point (0.74 w, 0.5 C),
+    #   leaving on the catmull's own tangent there and arriving on the
+    #   vertical at (0.5 w, end_y): minimum radius 84, end tangent -93
+    #   degrees, and at most 8 units off the old spine anywhere on the descent.
+    # Nothing else moved: the five upper spine points, Q8_SCALE, Q8_FLOOR, the
+    # dot and the clearance rule are as they were.
+    upper = catmull([(w * 0.08, C * 0.74), (w * 0.28, C * 0.97), (w * 0.62, C * 0.98), (w * 0.88, C * 0.74), (w * 0.74, C * 0.5)], tension=0.5)
+    P = upper[-1]; tn = geom.tangents(upper)[-1]; E = (w * 0.5, end_y); L = math.dist(P, E)
+    hook = geom.resample(upper + cubic(P, (P[0] + tn[0] * Q8_TAIL_K1 * L, P[1] + tn[1] * Q8_TAIL_K1 * L), (E[0], E[1] + Q8_TAIL_K2 * L), E)[1:])
+    wf = _smooth_wf(PR.bowl_widths(hook, widths([(0.0, 0.7), (0.25, 0.7), (0.5, 1.0), (0.8, 1.0), (1.0, 1.05)]), floor=S * Q8_FLOOR), len(hook) - 1)
     return geom.ink([dot(w * 0.5, DOT_R * 1.1, DOT_R * 1.1), stroke(hook, wf, cut0=CUT, cut1=CUT)])
+def _smooth_wf(wf, n, passes=4):
+    """A width function sampled at the spine's n+1 points and smoothed by a
+    [1 2 1]/4 kernel `passes` times, so a floor's C0 crossing becomes a curve
+    over about +/-`passes` samples (44 units at 4 passes) instead of a corner
+    in both edges. The ends are held."""
+    ws = [wf(i / n) for i in range(n + 1)]
+    for _ in range(passes):
+        ws = [ws[0]] + [(ws[i - 1] + 2 * ws[i] + ws[i + 1]) / 4 for i in range(1, n)] + [ws[-1]]
+    return lambda t: ws[min(n, int(round(t * n)))]
 Q8_SCALE = 1.15   # owner 2026-09-13: "make the question mark back into its original question mark shape and albertus heavy, larger to read correctly in a sentence"
 Q8_FLOOR = 0.78   # the hook never under 0.78 S: Albertus weight
+Q8_TAIL_K1, Q8_TAIL_K2 = 0.35, 0.45   # round 233: the descent cubic's handles, x its chord (swept 0.3-0.6 each; this pair had the largest minimum radius, 84)
 QUESTION_VARIANTS = [('original, Albertus heavy', _q8), ('round 77', _q0), ('bowl profile', _q1), ('garalde wide', _q2), ('tall narrow', _q3), ('beak terminal', _q4), ('Albertus heavy', _q5), ('curled terminal', _q7)]   # a stem-foot variant was built and dropped: its foot wedges read as a claw
 QUESTION_VARIANT = int(os.environ.get('FJORD_Q_VARIANT', 0))
 
@@ -148,11 +191,46 @@ QUOTE_BODY = 2 * DOT_R   # straight and curly quotes share this body height, top
 QUOTE_DROP = float(os.environ.get("ALBO_ALD_QUOTE_DROP", "50"))
 def _qdrop(): return QUOTE_DROP if pen.ITALIC else 0.0
 DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don't touch"): the two marks' centers, x S (1.3 before: a 48-unit gap, 2.6 px at 13 pt, gray between them)
+# ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE STRAIGHT QUOTES. Owner 2026-09-18
+# (R51 ', R52 "): *"give me calligraphic options."* Today's mark is one
+# vertical stroke, TH_V x 0.8 wide, QUOTE_BODY tall, one pen cut at its foot.
+# ALBO_QUOTE_OPT picks; every option keeps the mark's TOP at the cap (less the
+# italic's QUOTE_DROP), the body height where it can, and the x of the stroke:
+#   a  today, byte-identical
+#   b  a WRITTEN TICK: the nib lands full at the top (pen cut) and lifts away
+#      down and to the left, the stroke bowing slightly and thinning to 0.4 --
+#      an apostrophe as a pen makes it in one touch
+#   c  the family's WEDGE: the top face full width, the two sides falling on
+#      the serif's own concave bracket to an apex a little left of centre
+#   d  COMMA-SHAPED: the curly quote's own dot-and-tail (the , turned to hang
+#      from the top), so the straight and curly marks are one drawing
+#   e  PEN-CUT ENDS: today's stroke with the pen cut at both ends
+QUOTE_OPT = os.environ.get("ALBO_QUOTE_OPT", "a")
+def straight_quote(c, x):
+    """One straight-quote mark at x, per QUOTE_OPT (see above)."""
+    C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY; w = TH_V * 0.8; opt = QUOTE_OPT
+    if opt == "b":
+        dx = S * 0.16
+        p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - QUOTE_BODY * 0.45), (x - dx * 0.2, bot + QUOTE_BODY * 0.35), (x - dx * 0.6, bot))
+        return stroke(p, pen_widths(p, widths([(0.0, 0.85), (0.5, 0.8), (1.0, 0.5)]), scale=TH_V / pen.PEN.th((0.0, 1.0))), cut0=CUT)
+    if opt == "c":
+        A = (x - w / 2, top); B = (x + w / 2, top); P = (x - w * 0.18, bot)
+        # the bracket: a concave quadratic from each top corner to the apex, its control 0.65 of the way down the straight side and pulled INTO the wedge
+        def side(Q):
+            cx_, cy_ = Q[0] + (P[0] - Q[0]) * 0.65, Q[1] + (P[1] - Q[1]) * 0.65
+            inward = (P[0] - Q[0]) * 0.25
+            return geom.quad(Q, (cx_ + inward, cy_), P)
+        return geom.poly(side(A) + side(B)[::-1][1:])
+    if opt == "d":
+        y = C - DOT_R
+        return geom.ink([dot(x, y, DOT_R), comma_tail(x, y, True, 0.85, 0.3)])
+    if opt == "e":
+        return stroke(line((x, bot), (x, top)), w, cut0=CUT, cut1=CUT)
+    return stroke(line((x, bot), (x, top)), w, cut0=CUT)
 @glyph("'")
-def g_quotesingle(c): C = CAP(c) - _qdrop(); return stroke(line((S * 0.5, C - QUOTE_BODY), (S * 0.5, C)), TH_V * 0.8, cut0=CUT)
+def g_quotesingle(c): return straight_quote(c, S * 0.5)
 @glyph('"')
-def g_quotedbl(c):
-    C = CAP(c) - _qdrop(); return geom.ink([stroke(line((S * 0.5 + i * S * DQ_GAP, C - QUOTE_BODY), (S * 0.5 + i * S * DQ_GAP, C)), TH_V * 0.8, cut0=CUT) for i in (0, 1)])
+def g_quotedbl(c): return geom.ink([straight_quote(c, S * 0.5 + i * S * DQ_GAP) for i in (0, 1)])
 def quote(c, x, up):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
@@ -168,7 +246,30 @@ def g_quoteleft(c): return quote(c, S * 0.7, False)
 def g_quotedblright(c): return geom.ink([quote(c, S * 0.7, True), quote(c, S * (0.7 + DQ_GAP), True)])
 @glyph('“')
 def g_quotedblleft(c): return geom.ink([quote(c, S * 0.7, False), quote(c, S * (0.7 + DQ_GAP), False)])
-def dash(c, length): C = CAP(c); return stroke(line((0, C * 0.34), (length * C, C * 0.34)), TH_H)
+# ROUND 233 -- CALLIGRAPHIC OPTIONS FOR THE HYPHEN. Owner 2026-09-18 (R53):
+# *"give me calligraphic options."* Today's hyphen is a plain bar, TH_H thick,
+# square ends, at 0.34 C. ALBO_HYPHEN_OPT picks; the en and em dashes go
+# through the same `dash` so they take the option with it and the three stay
+# one drawing. Every option keeps the bar's length and its height:
+#   a  today, byte-identical
+#   b  PEN-CUT ENDS: both end faces sheared at the family's 20 degrees
+#   c  a SLIGHT RISE: the bar climbs HYPHEN_RISE_DEG to the right, as a written
+#      dash does, pen-cut ends
+#   d  MODULATED: thinner at the ends (0.55) and full in the middle, the
+#      pressure of one stroke, square ends
+#   e  a SHORT WEDGE: full at the left face (pen cut), tapering to 0.3 at the
+#      right -- the family's wedge lying down
+HYPHEN_OPT = os.environ.get("ALBO_HYPHEN_OPT", "a")
+HYPHEN_RISE_DEG = 4.0
+def dash(c, length):
+    C = CAP(c); y = C * 0.34; L = length * C; opt = HYPHEN_OPT
+    if opt == "b": return stroke(line((0, y), (L, y)), TH_H, cut0=CUT, cut1=CUT)
+    if opt == "c":
+        rise = L * math.tan(math.radians(HYPHEN_RISE_DEG))
+        return stroke(line((0, y - rise / 2), (L, y + rise / 2)), TH_H, cut0=CUT, cut1=CUT)
+    if opt == "d": return stroke(line((0, y), (L, y)), widths([(0.0, TH_H * 0.55), (0.5, TH_H), (1.0, TH_H * 0.55)]))
+    if opt == "e": return stroke(line((0, y), (L, y)), widths([(0.0, TH_H), (0.45, TH_H), (1.0, TH_H * 0.3)]), cut0=CUT)
+    return stroke(line((0, y), (L, y)), TH_H)
 @glyph('-')
 def g_hyphen(c): return dash(c, 0.37)
 @glyph('–')
@@ -249,10 +350,13 @@ def g_ampersand(c):
     other size checked). `spur_foot`, `point`, `bowl`, `loop`, `arm`,
     `top` -- the lower bowl's own construction and the spur's hooked foot
     -- are untouched; the join there already reads as one gesture."""
-    from .ampersands import bred, VARIANTS2
+    from .ampersands import bred, VARIANTS2, AMP_OPTIONS
+    if AMP_OPT in AMP_OPTIONS:   # round 233: the owner's options (R54-R56), see ampersands.AMP_OPTIONS; 'a' is the drawing below
+        return bred(c, **AMP_OPTIONS[AMP_OPT])
     dials = dict(dict(VARIANTS2)['round_bowl'].dials)
     dials.update(cross=41.2, arm_end='beak')
     return bred(c, **dials)
+AMP_OPT = os.environ.get("ALBO_AMP_OPT", "a")
 @glyph('%')
 def g_percent(c):
     C = CAP(c); r = 120; p = line((60, 0), (440, C))
@@ -287,10 +391,27 @@ def g_at(c):
     sx_want = cx + rx * AT_STEM_X
     bx, by = sx_want - brx, cy + ri * 0.02
     bowl, bo, bi = ring(bx, by, brx + TH_V * 0.42, bry + TH_H * 0.42, w_scale=0.85)
-    sx = bx + brx + TH_V * 0.42 * 0.15
+    # ROUND 233 -- THE INNER a's RIGHT SIDE, THINNED TO THE a's OWN STEM. Owner
+    # 2026-09-18 (R57): *"fix overthickness in middle, right of interior
+    # strokes."* Measured on the built glyph, horizontal ink from the counter's
+    # right edge to the stem's right edge at the bowl's equator: 88 units (90-99
+    # a little lower), against the real a's stem of 80 (`stems.g_a`: `stem()` at
+    # the pen's vertical TH_V 77.5, plus the 1.2-unit ink spread each side). Two
+    # things made it: the stem was on the BOWL's thick (bowl_th vertical, 84)
+    # rather than the pen's, and its centre sat 4.9 units RIGHT of the ring's
+    # outer edge, so the ring's inner wall stood 4 units clear of the stem's
+    # left edge and added itself to the run. The stem is now AT_STEM_W wide
+    # (TH_V, the a's) and centred so its left edge lies AT_STEM_BURY inside the
+    # counter's right edge (`bi`, the ring's inner contour) -- the a's own rule,
+    # the bowl kept to the stem. The width plan's shape (0.75 at the top, full
+    # from 30% down), the cut top, the ring, the bowl's size and the hook are
+    # unchanged; the stem's outer edge moves about 8 units left.
+    cr = max(p[0] for p in bi)                       # the counter's right edge, before the skew
+    sx = cr - AT_STEM_BURY + AT_STEM_W / 2
     s_top, s_bot = by + bry + TH_H * 0.35, by - bry - TH_H * 0.25
     stem_c = [(sx, s_top), (sx, s_bot)]
-    stm = stroke(stem_c, PR.bowl_widths(stem_c, widths([(0.0, 0.75), (0.3, 1.0), (1.0, 1.0)]), floor=S * 0.62), cut0=CUT)
+    q = AT_STEM_W / PR.bowl_th((0.0, 1.0))           # the plan is on the bowl's thick; scale it to the pen's
+    stm = stroke(stem_c, PR.bowl_widths(stem_c, widths([(0.0, 0.75 * q), (0.3, q), (1.0, q)]), floor=S * 0.62), cut0=CUT)
     tan_s = math.tan(math.radians(AT_SLANT))
     inner = aff.skew(geom.union([bowl, stm]), xs=AT_SLANT, origin=(bx, by))
     p0 = (sx + tan_s * (s_bot - by), s_bot)
@@ -313,6 +434,8 @@ AT_STEM_X = 0.40       # the a's stem centre, x rx right of the ring's centre
 AT_START_DEG = -38.0   # the ring begins at 4 o'clock, where the a's hook enters it
 AT_SWEEP = 296.0       # counterclockwise; the open end lands at about 5 o'clock, under the start
 AT_SLANT = 6.0   # degrees, the inner a's italic slant
+AT_STEM_W = TH_V       # round 233: the inner a's stem is the a's own (the pen's vertical); was the bowl's thick, 84
+AT_STEM_BURY = 1.5     # round 233: the stem's left edge this far inside the counter's right edge -- the composite run is AT_STEM_W + this
 
 @glyph('_')
 def g_underscore(c): return stroke(line((0, -DESC * 0.5), (500, -DESC * 0.5)), TH_H)

@@ -8,6 +8,7 @@ from ..primitives import stem, stem_edge_x, ring, ring_from, stroke, pen_widths,
 from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, ENT, WL, WD, DROP, adj
 from .rounds import o_ring, open_arc
+from .arches import smooth_widths   # R23's sawtooth fix, shared by the f's hook and the a's hood
 
 DOT_R = 0.62 * S   # round 36: a dot 1.24 stems across reads as the stem's weight
 DOT_R_ADJ = 0.58 * S   # round 92 (adj 'i', 'j'): the i a dot with a stalk (band -11%), the j's dot +27%
@@ -70,26 +71,92 @@ def g_j(c):
     the turn and thinning to a point past the bottom (rounds 22, 25)."""
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; r = 125 * wf; x = 120 * wf + S / 2
     B = -desc * 0.97; y0 = B + r
-    st = stem(x, y0 - 30, xh, top=None, foot=None, ent_span=(y0 - 260, xh))
+    # R26, owner 2026-09-18: "remove corner from bottom right (outside of
+    # what you highlighted, but within what I highlighted)." The tail begins
+    # at y0 on the stem's centerline with a vertical tangent, so the two
+    # could meet flush; they did not, for two reasons measured on the built
+    # outline. The stem ran 30 units PAST the tail's start (to y0 - 30), by
+    # which height the tail's centerline had swung 4.4 units left, and the
+    # tail was drawn 69.8 wide (TH_V x round 92's 0.9) against a stem of 77.7
+    # at y0 -- so the stem's bottom-right corner stood 8.3 units proud of the
+    # tail's inner edge at y -188, a step where the tail begins. Now the stem
+    # ends 2 units into the tail (the overlap the union needs and no more)
+    # and the tail starts at the stem's own width, easing to the round-92
+    # profile by its 0.45 key -- the tail is a few units heavier over its
+    # first 100 units and the same thereafter; the dot is not touched.
+    # Gated on the style: the italic's own j lives in aldine.py, but
+    # accents.py builds the dotless j and the j-circumflex of BOTH styles by
+    # calling this function directly, so an ungated change here moves the
+    # italic's uni0237 and jcircumflex (it did, on the first build).
+    lo = y0 - 260
+    st = stem(x, y0 - (30 if pen.ITALIC else 2), xh, top=None, foot=None, ent_span=(lo, xh))
+    w_st = PR.stem_width(TH_V, ENT, (y0 - lo) / (xh - lo))   # the stem's width where the tail takes over
     a0, a1 = 0.0, math.radians(-118)
     tail = [(x - r + r * math.cos(a0 + (a1 - a0) * i / 48), y0 + r * math.sin(a0 + (a1 - a0) * i / 48)) for i in range(49)]
     jt = 0.9 if adj('j') else 1.0   # round 92 (adj 'j'): the heaviest letter by band (+27%) -- the tail 0.9, the dot as the i's
-    wfn = widths([(0.0, TH_V * jt), (0.45, S * jt), (1.0, S * 0.10)])
+    wfn = widths([(0.0, TH_V * jt if pen.ITALIC else w_st), (0.45, S * jt), (1.0, S * 0.10)])
     return geom.ink([st, stroke(tail, wfn), dot(x, dot_y(xh), DOT_R_ADJ if adj('j') else DOT_R)])
 
-def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True):
+# ALBO_ROM_F_BAR -- R21 / R22, owner 2026-09-18, on the f's bar ends: "give me
+# options for slightly calligraphic treatments." Today's bar is a plain
+# rectangle 0.8 of the pen's horizontal, square at both ends, its top on the
+# x-height, 45 wf left of the stem and 120 wf right. Every option keeps the
+# top on the x-height and the reach.
+#   a  today
+#   b  the pen's own ends: both faces sheared by the family's 20-degree cut,
+#      as a broad nib leaves a horizontal (a parallelogram)
+#   c  modulated: the bar thins to 0.70 at both ends the way bar(prof=) does
+#      for the 7, the top edge held straight, the faces cut as b
+#   d  b with small wedge ends -- hanging from the left end, rising from the
+#      right, at half the bar-end wedge's size
+F_BAR = os.environ.get("ALBO_ROM_F_BAR", "a")
+def f_bar(x, xh, wf, th, opt):
+    x0, x1 = x - S * 0.5 - 45 * wf, x + S * 0.5 + 120 * wf
+    if opt == 'b':
+        return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=CUT, cut1=CUT)
+    if opt == 'c':
+        return PR.bar(x0, x1, xh, th, align='top', cut0=CUT, cut1=CUT, prof=widths([(0.0, 0.70), (0.30, 1.0), (0.70, 1.0), (1.0, 0.70)]))
+    if opt == 'd':
+        b = stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=CUT, cut1=CUT)
+        sh = math.tan(CUT) * th / 2   # the cut moves the bottom-left and the top-right corner outward by this (bar()'s own seating)
+        k = 0.5
+        wl = wedge((x0 - sh, xh - th), (-1, 0), (0, -1), WL * 0.85 * k, WD * 0.9 * k, 0.0)
+        wr = wedge((x1 - sh, xh), (1, 0), (0, 1), WL * 0.85 * k, WD * 0.9 * k, 0.0)
+        return geom.union([b, wl, wr])
+    return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th)
+
+def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True, flush=False):
     """The f's three solids (round 42 construction). The ligatures (round 96,
     `glyphs/ligatures.py`) re-aim the hook: `hook_end` replaces the cubic's
     end point, `hook_c2` its second control, `hook_profile` the width keys;
-    `parts=True` returns [stem, hook, bar] unfused."""
+    `parts=True` returns [stem, hook, bar] unfused.
+
+    `flush` (the standalone roman f only, R20): the hook leaves the stem with
+    both edges continuous. Off, this is round 42's drawing byte for byte --
+    the ligatures and the & keep it, since they are not in the round."""
     xh = c["xh"]; asc = c["asc"]; wf = c["wf"]; r = 200 * wf; x = 110 * wf + S / 2
-    st = stem(x, 0, asc - r + 30, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
+    # R20, owner 2026-09-18: "remove corners on both sides." Measured on the
+    # built f: the stem ran 30 units past the hook's start (to asc - r + 30),
+    # by which height the hook's centerline had already swung right, so the
+    # hook's outer edge began 4.9 units INSIDE the stem's left edge at y 623
+    # -- the stem's top-left corner stood out as a step -- and the hook was
+    # the pen's 77.5 against a stem of 79.1 there, a 2.1-unit jog on the
+    # right. Now the stem ends 2 units into the hook (the overlap the union
+    # needs, over which the centerline moves 0.01), and the hook begins at
+    # the stem's own width, easing to the pen's by a quarter of its length.
+    st_top = asc - r + (2 if flush else 30)
+    st = stem(x, 0, st_top, top=None, foot=('left' if adj('f') else 'both'), ent_span=(0, asc))   # round 92 (adj 'f'): the double foot wide under the hook's reach -- left foot only
     end = hook_end or (x + r * 1.25, asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9, asc + 8)
     hook = cubic((x, asc - r), (x, asc + 8), c2, end)
     prof = hook_profile or [(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)]
-    hk = stroke(hook, pen_widths(hook, widths(prof)), cut1=(CUT if hook_cut else None))
+    if flush:
+        f0 = PR.stem_width(TH_V, ENT, st_top / asc) / TH_V   # the hook's start tangent is vertical, so the pen there IS TH_V
+        prof = [(0.0, f0), (0.25, 1.0)] + [k for k in prof if k[0] > 0.25]
+    # flush also takes the arch's sawtooth fix (arches.smooth_widths, R23): the hook's edges carried the same 1-2 unit steps
+    hw = smooth_widths(hook, pen.PEN.th, widths(prof)) if flush else pen_widths(hook, widths(prof))
+    hk = stroke(hook, hw, cut1=(CUT if hook_cut else None))
     th = TH_H * 0.8
-    b = stroke([(x - S * 0.5 - 45 * wf, xh - th / 2), (x + S * 0.5 + 120 * wf, xh - th / 2)], th)
+    b = f_bar(x, xh, wf, th, F_BAR if flush else 'a')
     return [st, hk, b] if parts else geom.ink([st, hk, b])
 
 def f_geometry(c):
@@ -149,7 +216,7 @@ def g_f(c):
     x-height, 45 left / 120 right."""
     if pen.ITALIC: return g_f_italic(c)   # round 100: an italic f descends
     if pen.ITALIC: return g_f_italic(c)
-    return f_ink(c)
+    return f_ink(c, flush=True)
 
 @glyph('t')
 def g_t(c):
@@ -196,6 +263,21 @@ A_HOOD_FLUSH = True
 A_HOOD_W = 0.92   # round 94: the hood's stroke x this (both its outer run-then-arc and the underside cubic)
 A_UNDER_LEAN = 14   # round 86's curve 8 lean, for the underside cubic
 A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
+# ALBO_ROM_A_OPT -- R17, owner 2026-09-18: "remove corner on shoulder, also
+# give me an option that reduces visual imbalance in bottom right and options
+# for a top left serif where the corner was." The shoulder is a FIX (below,
+# in g_a); these are the options:
+#   a  today, with the shoulder fixed
+#   b  the bottom right lightened: the stem's right foot at 0.75 of the
+#      family's length and depth (the one serif the a wears -- its left foot
+#      is buried in the bowl -- and the mass the bowl's bottom joins at)
+#   c  a small wedge serif at the hood's terminal, up-left, where the old
+#      hood's flag was (the corner the 2026-09-13 redraw took away):
+#      0.45 of the family's diagonal end
+#   d  the same at 0.70
+A_OPT = os.environ.get("ALBO_ROM_A_OPT", "a")
+A_FOOT_B = 0.75
+A_TERM_WEDGE = {'c': 0.45, 'd': 0.70}
 
 @glyph('a')
 def g_a(c):
@@ -217,7 +299,11 @@ def g_a(c):
     # hood takes over from lower on the stem, leaning out to the right as it
     # climbs, so the outer contour at the top right is the hood's own curve
     top_f, start_f, lean, up = A_CURVES[A_CURVE]
-    st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
+    if A_OPT == 'b':   # option b: the right foot smaller; the left foot is inside the bowl either way
+        st = geom.union([stem(x, 0, xh * top_f, top=None, foot='left', ent_span=(0, xh)),
+                         stem(x, 0, xh * top_f, top=None, foot='right', ent_span=(0, xh), foot_len=PR.FOOT * A_FOOT_B, foot_depth=A_FOOT_B)])   # stem()'s foot_len default is FOOT, so the factor multiplies it
+    else:
+        st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
     if A_HOOD_FLUSH:
         # owner 2026-09-14, "smooth off the top right so there is no corner
@@ -229,13 +315,24 @@ def g_a(c):
         # the hood; nothing steps. (Measured before this: the cubic from
         # start_f bent left at once, and at the stem's top its outer edge was
         # 21 units inside the stem's -- the stem's corner was the bump.)
-        w_st = PR.stem_width(TH_V, PR.ENT, top_f); f0 = w_st / S
+        # R17, owner 2026-09-18: "remove corner on shoulder." The comment
+        # above was true at round 86 and false from round 94: A_HOOD_W
+        # multiplies the WHOLE profile, f0 included, so the hood left the
+        # stem at 0.92 of the stem's width -- 3.2 units inside its right edge
+        # (measured on the built a: the hood's outer edge at 357.5 against
+        # the stem's at 361.5, an 87-degree turn at the corner). f0 is now
+        # divided by A_HOOD_W, so after the round-94 factor the hood IS the
+        # stem's width where the stem's flat top lies inside it, and the
+        # arc, whose first control point is straight above (lean 0, curve
+        # 8), leaves the stem's edge vertical. The 0.92 still applies from
+        # the turn on, which is what round 94 asked for.
+        w_st = PR.stem_width(TH_V, PR.ENT, top_f); f0 = w_st / S / A_HOOD_W
         run = line((x, xh * start_f), (x, xh * top_f))
         arc = cubic((x, xh * top_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         hood = join(run, arc)
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
-        prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn (a 3-unit inner ledge otherwise)
+        prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn
         prof = lambda t: prof0(t) * A_HOOD_W   # round 94 (owner: "slightly reduce the top stroke of 'a'")
         # owner 2026-09-14, on the smoothed corner: "there is now a corner
         # sticking out under the top stroke, on the other side of where the
@@ -251,9 +348,24 @@ def g_a(c):
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
-    hd = stroke(hood, PR.bowl_widths(hood, prof, floor=S * 0.5), cut1=CUT)
+    # the hood and its underside take the arch's sawtooth fix (arches.smooth_widths, R23): the same lookup, the same 1-2 unit steps
+    hood_w = smooth_widths(hood, PR.bowl_th, prof, floor=S * 0.5) if A_HOOD_FLUSH else PR.bowl_widths(hood, prof, floor=S * 0.5)
+    hd = stroke(hood, hood_w, cut1=CUT)
     if A_HOOD_FLUSH:
-        hd = geom.union([hd, stroke(under, PR.bowl_widths(under, under_prof, floor=S * 0.5), cut1=CUT)])
+        hd = geom.union([hd, stroke(under, smooth_widths(under, PR.bowl_th, under_prof, floor=S * 0.5), cut1=CUT)])
+    if A_OPT in A_TERM_WEDGE:
+        # options c / d: a wedge serif on the hood's terminal, on its outer
+        # (up-left) side, seated on the corner the pen cut leaves there. The
+        # terminal travels down-left; left of that travel is the inner side,
+        # so the outer corner is the stroke's R end, which cut1 moves
+        # FORWARD by tan(CUT) x w/2 -- the wedge sits on the moved corner, as
+        # bar() seats its wedges on the sheared corner, or its flat top would
+        # overrun the face.
+        tn = geom.tangents(hood); d = tn[-1]; w_end = hood_w(1.0)
+        sd = (d[1], -d[0])                     # right of travel = up-left here
+        P = hood[-1]; fwd = math.tan(CUT) * w_end / 2
+        A = (P[0] + sd[0] * w_end / 2 + d[0] * fwd, P[1] + sd[1] * w_end / 2 + d[1] * fwd)
+        hd = geom.union([hd, PR.diag_wedge(A, d, sd, A_TERM_WEDGE[A_OPT])])
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round
     # shoulder out to the left extreme at 0.30 xh, a round bottom, back
     # into the stem near the foot

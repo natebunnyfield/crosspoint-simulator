@@ -274,6 +274,34 @@ Ib1). The forms `docs/albo-bump-feedback-roman.md` / `-italic.md` were
 regenerated on those ids with his earlier write-up carried under each glyph;
 the tables above keep the old ids for the record of what he wrote against.
 
+## Round 235 -- the roman write-up acted on (2026-09-18)
+
+Four agents, one file set each (caps_straight; stems/arches/rounds/diagonals;
+figures; marks+ampersands+primitives.dot), worktrees, briefs in
+`$SP/fix/COMMON.md`; reports saved beside this doc's scratch. Merged and
+rebuilt on a clean worktree: roman 108 glyphs move (the marked letters, their
+composites, every dot-bearing glyph), italic only the dots, the c/s ball
+terminals, ? and @ (shared constructions); glitch 0 of 119 both; touch the
+same four pre-existing f pairs; figure space 1.54x (the 4 widened 10 units by
+the solver once its tooth went). The proof page is the artifact "Albo Round
+235, Roman Fixes". Option dials, all defaulting to today's drawing:
+ALBO_ROM_G_BAR a-d, ALBO_ROM_Q_TAIL_OPT a-e, ALBO_ROM_A_OPT a-d, ALBO_ROM_F_BAR
+a-d, ALBO_ROM_M_MID a-d, ALBO_ROM_R_THIN a-c, ALBO_FIG_1 d-h, ALBO_FIG_2 d-f,
+ALBO_FIG_3 d-e, ALBO_FIG_6 d-h, ALBO_FIG_8 e-g, ALBO_FIG_9 e-f, ALBO_DOT_PUNCH
+a-c, ALBO_QUOTE_OPT a-e, ALBO_HYPHEN_OPT a-e, ALBO_AMP_OPT a-d.
+
+**Adversarial review** (`docs/albo-bump-review-2026-09-18.md`): no defect in
+the geometry it probed (six regions at 5 px/unit, opening/closing at r 6 and
+1.5, raw pre-fit polygon diffs); the italic's 54 changed glyphs all explained;
+option defaults byte-identical. It found three dials that raised on an unknown
+letter (fixed: they fall back to a), two comments attributing the caller's
+brief to the owner (rewritten), and two DEPARTURES for the owner to rule on:
+the roman arch trap is off (`ALBO_ROM_N_TRAP` restores it), and the W's and
+w's crowns now show at their declared size, which the 2026-09-13 "lower and
+reduce" ruling never saw. Carried: the n foot's 1.3-unit zigzag is
+`primitives.wedge()` dropping the fillet's first point -- every serif in the
+face, one token, its own round.
+
 ## Unresolved by the geometry
 
 * **R01** (roman A, left leg at the crossbar): nothing found — both crossbar

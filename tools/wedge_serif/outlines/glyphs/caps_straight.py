@@ -23,6 +23,156 @@ def pw(p0, p1, mult=1.0):
     tn = tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
 BEAK_CUT = -28.0
 
+# ---------------------------------------------------------------------------
+# THE 2026-09-18 BUMP FIXES (owner's write-up on the hi-res bump sheets,
+# docs/albo-bump-markup-2026-09-18.md, rows R01-R16). Every fix below is
+# gated on FIX_ROM: the italic draws its capitals through these same
+# functions, and the caller's brief for this round (not an owner ruling)
+# required the italic byte-identical, so the roman alone takes them. Each glyph's own comment carries his words, what was
+# wrong in units, what moved and what did not.
+FIX_ROM = not pen.ITALIC
+
+def _left_of(p, tn, ylo, yhi, reach=1500.0):
+    """The half-plane LEFT of the line through p with direction tn, cut to
+    the band ylo..yhi -- the clip that keeps a thick stroke's flat corner from
+    standing out past the thin stroke that makes the letter's silhouette (the
+    A's apex, the M's and the W's)."""
+    xat = lambda y: p[0] + tn[0] / tn[1] * (y - p[1])
+    return geom.poly([(xat(ylo), ylo), (xat(yhi), yhi), (xat(yhi) - reach, yhi), (xat(ylo) - reach, ylo)])
+
+def _half_bowl_flat(edge, y_top, y_bot, rx, k=pen.BOWL_K * 1.12, open_bottom=0.0, w_scale=1.0, into=22.0, taper=0.7, taper_span=0.08):
+    """`primitives.half_bowl` with its end TAPER taken from the counter side
+    only (R02/R03, owner: "straighten, no fracture"). The primitive eases each
+    end to `taper` of the hairline symmetrically about the centreline, so the
+    OUTER edge -- the bowl's flat run on the baseline or the cap line -- rose
+    2.3 units (B) and 3 (D) over the last ~30 units before the stem, and at
+    the stem it met the stem's own square corner with a 2-unit step. Here
+    the centreline is shifted toward the outer edge by half of what the
+    taper takes, so that edge holds y_bot / y_top from the arc's tangent
+    point all the way into the stem and the taper shows only on the counter
+    side, buried where the bowl runs `into` the stem. Widths are read off
+    the UNSHIFTED centreline's tangents, so every width is the primitive's
+    own to the unit; the arc, the flats, the shoulders and open_bottom are
+    untouched. Local to this file rather than a primitive change: the same
+    primitive draws the P, the R and every lowercase bowl, and none of those
+    was named."""
+    from ..geom import resample
+    hair = S * (PR.BOWL['hair'] if PR.BOWL else PR.BOWL_HAIR); mx = S * (PR.BOWL['max'] if PR.BOWL else PR.BOWL_MAX)
+    if PR.BOWL: taper = PR.BOWL['taper']
+    ry_c = (y_top - y_bot) / 2 - hair / 2; rx_c = rx - mx / 2
+    cy = (y_top + y_bot) / 2; cx = edge + rx * 0.05
+    arc_rx = min(rx_c, ry_c * PR.BOWL_ARC); flat = rx_c - arc_rx; ax = cx + flat
+    arc = superellipse(ax, cy, arc_rx, ry_c, -math.pi / 2, math.pi / 2, PR.BOWL['k'] if PR.BOWL else PR.BOWL_ARC_K)
+    center = [(edge - into, cy - ry_c)] + arc + [(edge - into, cy + ry_c)]
+    center = resample(center)
+    n = len(center) - 1
+    if open_bottom:
+        def win(t): return max(0.0, math.sin(math.pi * (t - 0.04) / 0.46)) if 0.04 <= t <= 0.50 else 0.0
+        center = [(px, py + 0.5 * open_bottom * TH_H * win(i / n)) for i, (px, py) in enumerate(center)]
+    tans = tangents(center)
+    def ease(t):
+        if t < taper_span: u = t / taper_span
+        elif t > 1 - taper_span: u = (1 - t) / taper_span
+        else: return 1.0
+        return taper + (1 - taper) * (3 * u * u - 2 * u ** 3)
+    def wfull(t):
+        i = min(n, int(round(t * n)))
+        w = PR.bowl_profile(tans[i]) * w_scale
+        if open_bottom: w += open_bottom * TH_H * win(t)
+        return w
+    def wfn(t): return wfull(t) * ease(t)
+    # Only the OUTER edge moves. The primitive's taper took dw off the width
+    # symmetrically -- dw/2 off each edge. Here the counter edge keeps exactly
+    # that dw/2 (so the counter is the primitive's to the unit) and the outer
+    # edge gives up its half: width wfull - dw/2, centreline shifted dw/4
+    # toward the outer edge. The end face is then 0.925 of the hairline,
+    # vertical, 22 units inside the stem.
+    def wfn(t): return wfull(t) * (1.0 - (1.0 - ease(t)) / 2)
+    shifted = []
+    for i, (px, py) in enumerate(center):
+        t = i / n; dw = wfull(t) * (1 - ease(t))
+        shifted.append((px, py + (-1.0 if t < 0.5 else 1.0) * dw / 4))   # bottom run: the outer edge is below; top run: above
+    solid, L, R = stroke(shifted, wfn, raw=True, sides=True)
+    return solid, cx, cy, rx_c, ry_c, L, R
+
+def _flat_diag(p0, p1, w, flat0=False, flat1=False, serif0=None, serif1=None):
+    """`primitives.diagonal` with either end cut HORIZONTAL -- the M's and
+    W's apexes and the M's middle vertex, where two strokes meet at one point
+    and each square face tilts its own way. `flat_face` was written for
+    `stroke`'s cut0/cut1, and its algebra is right, but the shear it asks
+    for is tan(cut) x w/2 = 15-20 units on these strokes and `stroke`'s
+    `_unfold` drops any side point moved back past the previous 11-unit
+    sample: the M's vertex face came out tilted with its corner 9 units
+    UNDER the baseline. So the stroke is drawn one width past the point and
+    clipped at the line through it -- exact, and nothing to unfold. The end
+    wedges are seated from the ORIGINAL ends, as `diagonal` seats them."""
+    from shapely.geometry import box as _box
+    tn = tangents(line(p0, p1))[0]
+    q0 = (p0[0] - tn[0] * w, p0[1] - tn[1] * w) if flat0 else p0
+    q1 = (p1[0] + tn[0] * w, p1[1] + tn[1] * w) if flat1 else p1
+    body = stroke(line(q0, q1), w)
+    far = 5000.0
+    if flat0: body = body.difference(_box(-far, -far, far, p0[1]) if p1[1] > p0[1] else _box(-far, p0[1], far, far))
+    if flat1: body = body.difference(_box(-far, p1[1], far, far) if p1[1] > p0[1] else _box(-far, -far, far, p1[1]))
+    pts = line(p0, p1); parts = [body]
+    if serif0: parts.append(end_wedge(pts, w, True, serif0))
+    if serif1: parts.append(end_wedge(pts, w, False, serif1))
+    return geom.union(parts)
+
+def _beak_lip(pts, L, w, cut_deg=BEAK_CUT, lip=(0.4, 0.7), inset=6.0, fillet=0.40):
+    """The C/G/S beak's lip, drawn as ONE terminal with the cut face (R04,
+    R14; owner: "make it one cohesive serif, not overlapping", "make cohesive
+    and without any kink"). Three things `primitives.beak` did wrong, each
+    measured on the built G:
+      * its polygon closed from the inner corner A straight into the stroke
+        along the unsheared normal, and with the face sheared 28 degrees that
+        segment stands 6 sin 28 = 2.8 units BEHIND the face -- the 2-unit jog
+        at (548,519) -> (543,514);
+      * its bracket was built on the TANGENT line at A (`wedge`'s default
+        edge), and the arc's real inner edge leaves that line by the sagitta
+        -- 14 units in 92 on the G's radius, far more on the S's crown -- so
+        the bracket crossed the real edge at an angle: the overlap on the G
+        and the 6-unit Z-kink on the S at (329,566) -> (335,559);
+      * its top edge left A perpendicular to the stroke while the face left A
+        at 28 degrees, a kink at the corner between two pieces of one
+        terminal.
+    So: the polygon starts AT A (nothing behind the face); the bracket's
+    seat and its samples are the stroke's own L side, walked by arc length,
+    with the quadratic's control on the real edge's tangent at C so it
+    leaves the edge tangent; and B sits on the cut face's own line (drop =
+    -length tan cut), so outer corner, A and B are one straight cut. The
+    lip's size is the family's 0.4 x 0.7, unchanged.
+
+    THE APEX. Measured with a morphological opening at r 6 (what a 12-unit
+    disc cannot reach): every wedge tip in the family gives up 40-50 units^2
+    in a 13 x 11 box, and its apex is ~38 degrees. The lip is 3.5 times as
+    deep as it is long where the family's wedge is 2, so with the family's
+    fillet (control 0.65 of the depth from C) and B on the face line its
+    bracket leaves B at 30 degrees and the opening took 78 units^2 in an
+    11 x 21 box off the G -- the needle. `fillet` 0.40 puts the control
+    further down the edge, the bracket leaves B at 41 degrees, and the tip
+    goes back to a foot wedge's size. It is the lip's own number; every
+    other wedge keeps 0.65."""
+    tn = tangents(pts); d = (-tn[0][0], -tn[0][1]); nl = (-tn[0][1], tn[0][0])
+    A = L[0]
+    length = WL * lip[0]; depth = WD * lip[1]; drop = -length * math.tan(math.radians(abs(cut_deg)))
+    B = (A[0] + nl[0] * length - d[0] * drop, A[1] + nl[1] * length - d[1] * drop)
+    cum = [0.0]
+    for a, b in zip(L, L[1:]): cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    def edge_at(dist):
+        for i in range(1, len(L)):
+            if cum[i] >= dist:
+                u = (dist - cum[i - 1]) / max(cum[i] - cum[i - 1], 1e-9)
+                return (L[i - 1][0] + (L[i][0] - L[i - 1][0]) * u, L[i - 1][1] + (L[i][1] - L[i - 1][1]) * u)
+        return L[-1]
+    C = edge_at(depth); Cb = edge_at(max(depth - 4.0, 0.0))
+    tC = (Cb[0] - C[0], Cb[1] - C[1]); Lt = math.hypot(*tC) or 1.0; tC = (tC[0] / Lt, tC[1] / Lt)   # back toward A, along the real edge
+    ctrl = (C[0] + tC[0] * fillet * depth, C[1] + tC[1] * fillet * depth)   # as `wedge`: ctrl = A*fillet + C*(1-fillet), `fillet` of the depth from C
+    fil = geom.quad(C, ctrl, B)
+    edge = [edge_at(depth * i / 12) for i in range(13)]
+    outline = [A] + [(p[0] - nl[0] * inset, p[1] - nl[1] * inset) for p in edge[1:]] + fil[1:] + [B]
+    return geom.poly(outline)
+
 def cstem(x, y0, y1, top='left', foot='both', **kw):
     return stem(x, y0, y1, cap=True, top=top, foot=foot, **kw)
 
@@ -99,6 +249,20 @@ def g_A(c):
     foot = wedge(Apt, (0, -1), (-1, 0), WL * 0.9, WD * 0.9, 0.0, edge_at=edge_at)
     r0, r1 = (w - s * 0.3, 0), (w / 2 - s * 0.18, C)
     right = diagonal(r0, r1, pw(r0, r1), serif0=1)
+    if FIX_ROM:
+        # R01, owner 2026-09-18: "the outside edge is slightly funky and
+        # distracting." Measured on the built roman: the thin leg's outer
+        # edge is one line (slope 0.368, every vertex within rounding) from
+        # the foot bracket's top at y 102 up to y 617 -- and there it STOPS,
+        # because the thin stroke ends 30 units under the cap line buried in
+        # the thick leg, and the thick leg's own left edge, which leans the
+        # other way, takes over the silhouette for the last 57 units: a
+        # 41-degree bend in the A's left profile, then the thick leg's tilted
+        # square face. The thick leg is clipped to the thin leg's outer line
+        # here, so the outside edge is one straight line from the bracket to
+        # the apex face. Nothing else moves: both legs' widths, angles and
+        # ends, the foot, the bar and the apex face are as they were.
+        right = right.difference(_left_of(Apt, tn, C * 0.6, C + 40.0))
     b = stroke(line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28)), CAP_BAR * 0.9)   # round 94: the capitals' bar unit
     return geom.ink([left, foot, right, b])
 
@@ -115,8 +279,16 @@ def g_B(c):
     # (waist 0.55 C), so the waist is one horizontal at the bowl's thin, the
     # stroke the P's bowl makes where it returns to the stem
     waist = C * 0.55; h = PR.bowl_hair()
-    up, *_ = half_bowl(edge, C, waist - h / 2, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
-    lo, *_ = half_bowl(edge, waist + h / 2, 0, w * 0.72 + TH_V / 2, open_bottom=0.06)
+    # R02, owner 2026-09-18: "straighten, no fracture" -- the lower bowl's
+    # bottom edge rose 2.3 units over its last 30 before the stem and met the
+    # stem's corner with a 2-unit step (the primitive's symmetric end
+    # taper); the top of the upper bowl dropped 2 the same way, and at the
+    # waist both bowls tapered toward each other so the shared bar pinched
+    # from 50 to 45 units at the stem. `_half_bowl_flat` holds every outer
+    # edge on its line; see it for what moved.
+    hb = _half_bowl_flat if FIX_ROM else half_bowl
+    up, *_ = hb(edge, C, waist - h / 2, w * 0.86 * 0.72 + TH_V / 2, open_bottom=0.0)
+    lo, *_ = hb(edge, waist + h / 2, 0, w * 0.72 + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, up, lo])
 
 def cap_arc(c, rx_c, a0, a1, profile, cut0=None, cut1=None, k=BOWL_K, ry_c=None, cy=None):
@@ -138,7 +310,9 @@ def g_C(c):
 def g_D(c):
     C = c["cap"]; x = CS / 2; rx = W_(c, 'D', 330); edge = x + CW / 2
     st = cstem(x, 0, C, top='left', foot='left')
-    bowl, *_ = half_bowl(edge, C, 0, rx + TH_V / 2, open_bottom=0.06)
+    # R03, owner 2026-09-18: "straighten" -- the same end taper as the B's,
+    # 3 units at the baseline and 3 at the cap line. `_half_bowl_flat`.
+    bowl, *_ = (_half_bowl_flat if FIX_ROM else half_bowl)(edge, C, 0, rx + TH_V / 2, open_bottom=0.06)
     return geom.ink([st, bowl])
 
 # owner, verbatim: "the top right serif of E and F need cleanup." The top
@@ -202,10 +376,74 @@ def g_G(c):
         if t >= t1: return CW
         if t > t0: u = (t - t0) / (t1 - t0); return w + (CW - w) * (3 * u * u - 2 * u ** 3)
         return w
-    body = stroke(pts, wfn, cut0=math.radians(BEAK_CUT))
-    lip = beak(pts, wfn(0.0), True, BEAK_CUT)
-    b = bar(xg - s * 1.1, xg + s * 0.6, yb, bar_th, cut0=CUT, cut1=CUT)
+    if not FIX_ROM:
+        body = stroke(pts, wfn, cut0=math.radians(BEAK_CUT))
+        lip = beak(pts, wfn(0.0), True, BEAK_CUT)
+        b = bar(xg - s * 1.1, xg + s * 0.6, yb, bar_th, cut0=CUT, cut1=CUT)
+        return geom.ink([body, lip, b])
+    # R04, owner 2026-09-18: "make it one cohesive serif, not overlapping" --
+    # the lip on the stroke's real inner edge, its top edge on the cut face's
+    # line, nothing behind the face. `_beak_lip` carries the measurements.
+    body, Lside, _ = stroke(pts, wfn, cut0=math.radians(BEAK_CUT), sides=True)
+    lip = _beak_lip(pts, Lside, wfn(0.0), BEAK_CUT)
+    # R05, owner 2026-09-18: "give me other options with more calligraphic
+    # treatment" for the bar. ALBO_ROM_G_BAR picks; `a` is today's drawing
+    # byte for byte. Today: both ends pen-cut the same way, so the bar is a
+    # keystone -- 180 wide underneath, 145 on top -- overhanging the spur 69
+    # left and 22 right, its underside sitting on the spur's run with the run
+    # ending 8 units inside it. The bar's height (0.42 C) and thickness
+    # (0.8 x the capitals' bar unit) are kept in every option.
+    #   a  today: the keystone, cut0 = cut1 = CUT.
+    #   b  a PEN-DRAWN bar: both end faces sheared the SAME way (cut0 = CUT,
+    #      cut1 = -CUT), so the ends are parallel as a nib leaves them, and
+    #      the family's bar modulation (`bar(prof=)`, round 219): the top
+    #      edge straight, the underside rising to 0.85 of the thickness at
+    #      the free left end, full by 0.7 of the run into the spur.
+    #   c  a SMALL WEDGE: the left end square with the I's small rising
+    #      wedge on its top corner (0.5 x 0.6 of the family, drop 0 -- the
+    #      wedge's face IS the terminal, as on the E's and T's arms), the
+    #      right end the pen cut as today.
+    #   d  the bar FLOWS OUT OF THE SPUR as one written stroke: a single
+    #      centreline down the spur, turning left through a round inner
+    #      corner into the bar and running out to the same left end under
+    #      the pen's cut, on the pen's own widths scaled so the level run is
+    #      the bar's thickness; no right overhang, and the spur's run comes
+    #      down flush with the bar's underside so the bottom is one line.
+    x0b, x1b = xg - s * 1.1, xg + s * 0.6
+    if G_BAR == 'b':
+        b = bar(x0b, x1b, yb + bar_th / 2, bar_th, align='top', cut0=CUT, cut1=-CUT, prof=widths([(0.0, 0.85), (0.7, 1.0), (1.0, 1.0)]))
+    elif G_BAR == 'c':
+        b = geom.union([bar(x0b, x1b, yb, bar_th, cut1=CUT),
+                        wedge((x0b, yb + bar_th / 2), (-1, 0), (0, 1), WL * 0.5, WD * 0.6, 0.0)])
+    elif G_BAR == 'd':
+        # The spur RISES: the arc ends at 312 degrees on the bowl's underside
+        # and the bend climbs to p1, 55 units under the bar's centre, at the
+        # cap stem's width. The written stroke takes over exactly there -- the
+        # spur's straight run is dropped, the path starts at p1 going up,
+        # turns left through a round corner and runs out to the bar's left
+        # end -- so the top-right of the junction is the pen's own rounded
+        # turn rather than the square corner a bar laid on a spur makes. The
+        # width is the pen's, scaled so the vertical run is the cap stem (the
+        # spur's own 88) and the level run the bar's 45.
+        turn = bar_th * 1.1
+        # the path starts 12 units under p1, inside the bend's last 2% of
+        # ramp (its width is within 0.3 of the cap stem there): two square
+        # faces meeting exactly at p1 left a hairline crack in the union
+        path = cubic((xg, p1[1] - 12.0), (xg, yb - turn * 0.45), (xg - turn * 0.45, yb), (xg - turn * 1.6, yb)) + line((xg - turn * 1.6, yb), (x0b, yb))[1:]
+        base_b = pen_widths(path); tans_b = tangents(path); nb = len(path) - 1
+        def wfn_b(t):
+            tn_ = tans_b[min(nb, int(round(t * nb)))]; a = abs(tn_[1]) / (abs(tn_[0]) + abs(tn_[1]))
+            return base_b(t) * ((CW / TH_V) * a + (bar_th / TH_H) * (1 - a))
+        b = stroke(path, wfn_b, cut1=CUT)
+        pts = arc + bend; N = len(pts) - 1; t0 = (len(arc) - 1) / N; t1 = 1.0
+        base = bowl_widths(pts)
+        body, Lside, _ = stroke(pts, wfn, cut0=math.radians(BEAK_CUT), sides=True)
+        lip = _beak_lip(pts, Lside, wfn(0.0), BEAK_CUT)
+    else:
+        b = bar(x0b, x1b, yb, bar_th, cut0=CUT, cut1=CUT)
     return geom.ink([body, lip, b])
+
+G_BAR = os.environ.get("ALBO_ROM_G_BAR", "a")   # a | b | c | d, see g_G; a is round 232 byte for byte
 
 @glyph('H')
 def g_H(c):
@@ -332,6 +570,20 @@ def g_L(c):
         parts = [st, top_right]
     else:
         parts = [cstem(x, 0, C, top='left+', foot='left')]
+    if FIX_ROM:
+        # R07, owner 2026-09-18: "use the same treatment as B D and other
+        # similar joints" at the inside corner. The stem's right side carries
+        # the family's foot entasis although there is no foot wedge on that
+        # side (`foot='left'`), so its edge flared 2.3 units outward over the
+        # last 100 units above the arm and met the arm's flat top as a
+        # 1.7-degree angle. The flare is clipped back to the stem's mid width
+        # between the arm's top (y = CAP_BAR, the bar's own top edge) and the
+        # stem's waist at C/2, where the entasis is exactly zero, so the edge
+        # runs straight down into the arm's top and the corner is square. The
+        # flare below the arm's top is inside the bar and stays; the left
+        # side, the foot, the top wedges and the bar are untouched.
+        from shapely.geometry import box as _box
+        parts[0] = parts[0].difference(_box(x + CW / 2, CAP_BAR, x + CW / 2 + 40.0, C / 2))
     return geom.ink(parts + [bar(x, x + w, 0, CAP_BAR, align='bottom', cut1=CUT, wedges=[('right', 1)])])   # round 94
 
 # owner, verbatim: "slightly cleanup the top and middle serifs of 'M'."
@@ -358,16 +610,67 @@ def g_M(c):
     C = c["cap"]; s = CS; w = W_(c, 'M', 720); x0 = s / 2; x1 = x0 + w
     P = [((x0 + s * 0.25, 0), (x0 + s * 0.45, C), 0.72, -1, None), ((x0 + s * 0.45, C), (x0 + w / 2, 0), 1.0, None, None),
          ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
-    apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
-    return geom.ink([a, b, d, e, apex])
+    if not FIX_ROM:
+        a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
+        apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+        return geom.ink([a, b, d, e, apex])
+    # R08 / R09 / R10, owner 2026-09-18: "make cohesive and straightened",
+    # "make cohesive and straighten", "remove small overlapping triangle on
+    # right". The fix the block above documents, applied -- it left with the
+    # round-81 caps revert -- plus the two things it did not foresee, both
+    # measured on the built roman with every face cut flat:
+    #  * the FACES: every meeting face is cut horizontal (`flat_face`), so
+    #    the left apex is one face on the cap line, the right apex one face
+    #    (the thin diagonal's square end stood 10 units above the cap line
+    #    there, the spike), and the middle vertex one face on the baseline.
+    #  * the CROWN is seated at the thin stroke's flat corner (`flat_corner`)
+    #    and its bracket follows that stroke's real edge, so its top edge
+    #    leaves the cap line at the corner (it emerged 4.5 units below it).
+    #  * a THICK stroke's flat face is wider than the thin stroke's it meets,
+    #    and where the thick one is the INNER stroke its corner stands out
+    #    past the thin outer stroke's line: 20 units at the left apex (the
+    #    inner stroke's corner 57 units down the outer stroke's silhouette),
+    #    9 at the right apex on the counter side, and 13 at the middle
+    #    vertex -- that last one is the "small overlapping triangle on
+    #    right", the thick stroke's corner beyond the thin stroke's right
+    #    edge. Each is clipped back to the thin stroke's edge line.
+    #  * the top-right wedge is seated at the thick stroke's flat corner on
+    #    the real edge rather than at the square face's corner 1.2 below it.
+    # Widths, angles, the wedge family's sizes, the splay and the advance are
+    # untouched; the leftmost and rightmost ink are still the feet.
+    wa, wb, wd, we = [pw(p0, p1, m) for p0, p1, m, _, _ in P]
+    a = _flat_diag(P[0][0], P[0][1], wa, flat1=True, serif0=-1)
+    b = _flat_diag(P[1][0], P[1][1], wb, flat0=True, flat1=True)
+    d = _flat_diag(P[2][0], P[2][1], wd, flat0=True, flat1=True)
+    e = _flat_diag(P[3][0], P[3][1], we, flat1=True, serif0=1)
+    ta, tb, td, te = [tangents(line(p0, p1))[0] for p0, p1, *_ in P]
+    # the thin strokes' edge lines the thick ones are kept behind
+    aL = flat_corner(P[0][0], P[0][1], wa, -1, True)          # left apex: the outer stroke's left corner
+    b = b.difference(_left_of(aL, ta, C - 150.0, C + 10.0))
+    dL = flat_corner(P[2][0], P[2][1], wd, -1, False)         # right apex: the thin stroke's left corner
+    e = e.difference(_left_of(dL, td, C - 150.0, C + 10.0))
+    vT = flat_corner(P[2][0], P[2][1], wd, +1, True)          # middle vertex: the thin stroke's right corner
+    vK = flat_corner(P[1][0], P[1][1], wb, +1, True)          # ... and the thick stroke's, 13 units further right
+    vX = _cross(vT, (vT[0] - td[0], vT[1] - td[1]), vK, (vK[0] - tb[0], vK[1] - tb[1]))
+    nd = (td[1], -td[0])                                      # into the thin stroke from its right edge (a hair, against slivers)
+    b = b.difference(geom.poly([(vT[0] + nd[0] * 0.02, vT[1] + nd[1] * 0.02), (vX[0] + nd[0] * 0.02, vX[1] + nd[1] * 0.02),
+                                (vK[0] + 40.0, vX[1]), (vK[0] + 40.0, -40.0), (vT[0], -40.0)]))
+    apex = wedge(aL, (0, 1), (-1, 0), WL * 0.9, WD, DROP, edge_at=lambda t: (aL[0] - ta[0] * t, aL[1] - ta[1] * t))
+    eR = flat_corner(P[3][0], P[3][1], we, +1, True)
+    top_right = wedge(eR, (0, 1), (1, 0), WL * 0.9, WD * 0.9, DROP, edge_at=lambda t: (eR[0] - te[0] * t, eR[1] - te[1] * t))
+    return geom.ink([a, b, d, e, apex, top_right])
 
 @glyph('N')
 def g_N(c):
     C = c["cap"]; s = CS; w = W_(c, 'N', 560); x0 = s / 2; x1 = x0 + w
     d0, d1 = (x0 + s * 0.1, C - s * 0.3), (x1 - s * 0.1, s * 0.3)
+    # R11, owner 2026-09-18: "add a microserif on left inside of top right
+    # stem" -- the stem primitive's 'right+' top, the same small inward wedge
+    # (0.4 x 0.6 of the family at 0.4 drop) the I and the U's right stem
+    # carry. The diagonal arrives at that stem 0.3 stems above the baseline,
+    # nowhere near the top; nothing else on the letter moves.
     return geom.ink([cstem(x0, 0, C, top='left', foot='both', w=THIN), diagonal(d0, d1, pw(d0, d1)),
-                     cstem(x1, 0, C, top='right', foot=None, w=THIN)])
+                     cstem(x1, 0, C, top='right+' if FIX_ROM else 'right', foot=None, w=THIN)])
 
 def cap_ring(c, rx_c):
     C = c["cap"]; rx = rx_c + TH_V / 2; ry = C / 2 + OVER
@@ -444,7 +747,34 @@ def g_Q(c):
         # expression is the original one multiplied by exactly 1.0.
         belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
         return max(base(t), s * 1.05 * Q_TAIL * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+    if FIX_ROM and Q_TAIL_OPT != 'a':
+        # R12, owner 2026-09-18: "give me more options that are less
+        # distracting with the bulge placement and size." The tail's path,
+        # its ruled reach (Q_TAIL, "tail long") and the end profile are the
+        # same in every option; only the belly -- the `max(pen, belly)` floor
+        # that a smoothstep hump lays over the pen's own widths -- moves.
+        # Measured on today's tail (option a): the pen alone runs 74 at the
+        # root, 66 at 0.4, 54 at 0.6, 28 at 0.8; the belly lifts that to 100
+        # at t 0.45 (peak 1.05 stems, half-width 0.4 of the run).
+        #   a  today: peak 1.05 CS at t 0.45, half-width 0.40.
+        #   b  belly SMALLER: peak 0.85 CS (81 units) at the same place.
+        #   c  belly NEARER THE BOWL: peak 1.05 CS at t 0.30, half-width 0.30,
+        #      so the swell sits under the ring and the run out is the pen's.
+        #   d  an EVEN TAPER, no belly: the pen at its own angle with the
+        #      family's tail floor (0.55 S, the 6's and 9's) -- 74 at the root
+        #      thinning to the floor and the cut, which is what the header
+        #      note above this glyph describes.
+        #   e  belly LATER: peak 1.05 CS at t 0.60, half-width 0.35.
+        peak, at, hw = {'b': (0.85, 0.45, 0.40), 'c': (1.05, 0.30, 0.30), 'd': (0.0, 0.45, 0.40), 'e': (1.05, 0.60, 0.35)}[Q_TAIL_OPT]
+        endp = widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])
+        def wfn(t):
+            belly = max(0.0, 1 - abs(t - at) / hw)
+            floor = s * peak * Q_TAIL * (3 * belly * belly - 2 * belly ** 3) if peak else S * Q_TAIL_FLOOR
+            return max(base(t), floor) * endp(t)
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
+
+Q_TAIL_OPT = os.environ.get("ALBO_ROM_Q_TAIL_OPT", "a")   # a | b | c | d | e, see g_Q; a is round 232 byte for byte
+if Q_TAIL_OPT not in ("a", "b", "c", "d", "e"): Q_TAIL_OPT = "a"   # review 2026-09-18: unknown letters fall back to a
 
 Q_BELLY = 0.15
 
@@ -634,7 +964,20 @@ def g_R(c):
     if R_KICK_FOOT:
         parts.append(end_wedge(leg_c, base(1.0) * R_KICK_TIP, False,
                                1 if R_KICK_FOOT_SIDE >= 0 else -1, scale=0.9 * R_KICK_FOOT))
-    return geom.ink(parts)
+    cutouts = []
+    if FIX_ROM:
+        # R13, owner 2026-09-18: "remove tooth from counter." The leg's
+        # start is `CS * 0.15` up its own line from J, and its start face --
+        # 37.6 units wide, square to a 60-degree run -- has its upper corner
+        # at (240.2, 370.6): 7.6 units above the counter floor (363), an
+        # 18-unit-wide tooth standing up from the bowl's inner edge. The
+        # leg is clipped by the counter's air (the polygon of the bowl's own
+        # inner side, `L`), so the floor is the bowl's one edge again. The
+        # leg's path, widths, spring and tip do not move; the alternative --
+        # burying the start 14 units lower on its line -- would have moved
+        # the whole cubic by a unit or two.
+        cutouts.append(leg.intersection(geom.poly(L)))
+    return geom.ink(parts, cutouts)
 
 R_LEG_BURY = 0.28
 S_BOTTOM_END = 1.30
@@ -704,8 +1047,17 @@ def g_S(c):
             bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + S_BOT * (3 * bot * bot - 2 * bot ** 3)
             return want * wid(t)
         return geom.ink([stroke(spine, wfn2, cut0=CUT, cut1=CUT)])
-    body = stroke(spine, wfn, cut0=math.radians(BEAK_CUT))
-    return geom.ink([body, beak(spine, wfn(0.0), True, BEAK_CUT)])
+    if not FIX_ROM:
+        body = stroke(spine, wfn, cut0=math.radians(BEAK_CUT))
+        return geom.ink([body, beak(spine, wfn(0.0), True, BEAK_CUT)])
+    # R14, owner 2026-09-18: "make cohesive and without any kink" -- the
+    # same lip as the G's, on the spine's real inner edge (`_beak_lip`): the
+    # 6-unit Z-kink two thirds down the terminal was the lip's bracket,
+    # built on the tangent line, crossing the spine's real edge where the
+    # crown's curve had already left that line; the 3-unit zig on the face
+    # was the lip polygon standing 6 sin 28 units behind the sheared face.
+    body, Lside, _ = stroke(spine, wfn, cut0=math.radians(BEAK_CUT), sides=True)
+    return geom.ink([body, _beak_lip(spine, Lside, wfn(0.0), BEAK_CUT)])
 
 @glyph('T')
 def g_T(c):
@@ -719,8 +1071,15 @@ def g_U(c):
     """Left stem at cap weight, the bowl reaching the overshoot and thinning
     to the thin right stem (0.78), whose top wedge is two-sided (ruling)."""
     C = c["cap"]; s = CS; w = W_(c, 'U', 520); x0 = s / 2; x1 = x0 + w; y0 = C * 0.42
-    left = cstem(x0, y0 - 30, C, top='left', foot=None, ent_span=(0, C))
-    right = cstem(x1, y0 - 30, C, top='right+', foot=None, w=CW * 0.78, ent_span=(0, C))
+    # R15 (see below): the stems ran 30 units down INTO the bowl, and the
+    # bowl's cubic has already drifted 1.2 units sideways by the end of that
+    # overlap, so a stem at its own width and the bowl at the same width
+    # could not both be flush -- the stem's square bottom stood a unit out.
+    # The stems now end 2 units into the bowl (drift 0.006), where the
+    # bowl's start face, the same width, is flat on the same line.
+    yover = 2 if FIX_ROM else 30
+    left = cstem(x0, y0 - yover, C, top='left', foot=None, ent_span=(0, C))
+    right = cstem(x1, y0 - yover, C, top='right+', foot=None, w=CW * 0.78, ent_span=(0, C))
     yb = -OVER + TH_H / 2; cy = (8 * yb - 2 * y0) / 6
     pts = cubic((x0, y0), (x0, cy), (x1, cy), (x1, y0))
     # round 51: the pen's widths x CAP_STEM(1 - 0.22 t), swelling by the
@@ -728,6 +1087,29 @@ def g_U(c):
     amt = ENT; base = pen_widths(pts)
     bump = lambda t: 1.0 + amt * (max(0.0, 1 - t / 0.15) + max(0.0, 1 - (1 - t) / 0.15))
     wfn = lambda t: base(t) * CAP_STEM * (1 - 0.22 * t) * bump(t) * widths([(0.0, 0.9), (0.05, 1.0), (0.88, 1.0), (1.0, 0.8)])(t)
+    if FIX_ROM:
+        # R15, owner 2026-09-18: "correct shitty joins." The bowl's width was
+        # to swell "by the entasis over the first and last 15% to meet the
+        # stems' ends" -- but both stems are drawn with `ent_span=(0, C)`, a
+        # piece of a full-height stem, so at y0 they are at MID width (88.1
+        # and 68.7) with no swell to meet. The bump then made the bowl 3.5
+        # units wider than the left stem on each side just below the join
+        # (the outer edge bulged to x 115 against the stem's 118: the knee)
+        # and, with the 0.8 end factor, 6 units NARROWER than the right stem
+        # where it arrives, so the right stem's square bottom stood out 3
+        # units on both sides at y 253. The bowl now holds each stem's own
+        # width across the overlap and eases onto the pen from there: the
+        # pen's vertical x CAP_STEM(1 - 0.22 t), which IS 88.1 at t 0 and
+        # 68.7 at t 1, so every edge runs straight out of its stem and
+        # curves away tangent. The path, the middle of the bowl's weight and
+        # both stems are untouched; what moved is the bowl's first and last
+        # 15%, which lose the swell that never met anything.
+        nat = lambda t: base(t) * CAP_STEM * (1 - 0.22 * t)
+        def _ease(u): return 3 * u * u - 2 * u ** 3
+        def wfn(t):
+            if t < 0.06: k = _ease(max(0.0, (t - 0.03) / 0.03)); return CW * (1 - k) + nat(0.06) * k
+            if t > 0.94: k = _ease(max(0.0, (0.97 - t) / 0.03)); return CW * 0.78 * (1 - k) + nat(0.94) * k
+            return nat(t)
     return geom.ink([left, right, stroke(pts, wfn)])
 
 @glyph('V')
@@ -786,11 +1168,44 @@ def g_W(c):
     C = c["cap"]; s = CS; w = W_(c, 'W', 820)
     f1, f2, apex = (w * 0.26, 0), (w * 0.74, 0), (w * 0.5, C)
     P = [((s * 0.3, C), f1, W_THICK, 1), (apex, (f1[0] + s * 0.15, 0), 0.72, None), (apex, f2, W_THICK, None), ((w - s * 0.3, C), (f2[0] + s * 0.15, 0), 0.72, -1)]
-    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
-    # owner 2026-09-13: "lower and reduce the protuberance of the top middle
-    # connector in W" -- the crown at W_CROWN of the family's wedge, seated
-    # W_CROWN_DROP x the family's drop lower
-    crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C - DROP * (W_CROWN_DROP - 1.0)), (0, 1), (-1, 0), WL * W_CROWN, WD * W_CROWN, DROP)
+    if not FIX_ROM:
+        a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=sf) for p0, p1, m, sf in P]
+        # owner 2026-09-13: "lower and reduce the protuberance of the top middle
+        # connector in W" -- the crown at W_CROWN of the family's wedge, seated
+        # W_CROWN_DROP x the family's drop lower
+        crown = wedge((apex[0] - pw(P[1][0], P[1][1], 0.72) * 0.35, C - DROP * (W_CROWN_DROP - 1.0)), (0, 1), (-1, 0), WL * W_CROWN, WD * W_CROWN, DROP)
+        return geom.ink([a, b, d, e, crown])
+    # R16, owner 2026-09-18: "despur entirely." Measured on the built roman:
+    # the thin inner stroke's square start face stood 7 units over the cap
+    # line and the thick one's 13, with a dip to the line between them (the
+    # two peaks and the dip); and the crown was a 20 x 11 SPUR, because its
+    # seat was 0.35 of the thin stroke's width in from the apex -- which at
+    # this apex is the stroke's CENTRE -- so all but the tip of a 39 x 79
+    # wedge was buried in the stroke and a thorn was what came out. The
+    # documented fix, applied: both inner strokes cut flat on the cap line
+    # (`flat_face`), and the crown seated ON the thin stroke's real left edge
+    # at its ruled height (W_CROWN_DROP x the family's drop under the line,
+    # round 84) with its bracket following that edge, so the whole of the
+    # ruled 0.6 wedge shows and nothing is left standing. Plus what the
+    # M taught: the thick stroke's flat face is 24 units wider on the left
+    # than the thin stroke's, so its corner is clipped back to the thin
+    # stroke's edge line. `crotch_blunt` is NOT applied: the crotch below,
+    # measured on the same build, is one clean V at (448.8, 564.8) with a
+    # 1.2-unit facet -- the zigzag the comment above describes is gone, and
+    # a cut that narrows a clean crotch to 9 degrees would be a change with
+    # no fault under it. Widths, angles, the crown's ruled size and drop, the
+    # splay and the advance are untouched.
+    wa, wb, wd, we = [pw(p0, p1, m) for p0, p1, m, _ in P]
+    a = diagonal(P[0][0], P[0][1], wa, serif0=1)
+    b = _flat_diag(P[1][0], P[1][1], wb, flat0=True)
+    d = _flat_diag(P[2][0], P[2][1], wd, flat0=True)
+    e = diagonal(P[3][0], P[3][1], we, serif0=-1)
+    tb = tangents(line(P[1][0], P[1][1]))[0]
+    bL = flat_corner(P[1][0], P[1][1], wb, -1, False)
+    d = d.difference(_left_of(bL, tb, C - 150.0, C + 10.0))
+    seat_y = C - DROP * (W_CROWN_DROP - 1.0)
+    A = (bL[0] + tb[0] * (seat_y - C) / tb[1], seat_y)          # the thin stroke's left edge at the crown's ruled height
+    crown = wedge(A, (0, 1), (-1, 0), WL * W_CROWN, WD * W_CROWN, DROP, edge_at=lambda t: (A[0] + tb[0] * t, A[1] + tb[1] * t))
     return geom.ink([a, b, d, e, crown])
 
 # ROUND 224 -- THE X's LIGHT DIAGONAL IS THE PEN'S THIN TWICE OVER.

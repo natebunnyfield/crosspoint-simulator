@@ -676,15 +676,64 @@ def beak(pts, w, at_start=True, cut_deg=-28.0, lip=(0.4, 0.7)):
     return wedge(A, d, (-nrm[0], -nrm[1]), WL * lip[0], WD * lip[1], 0.0)
 
 DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 1))   # owner 2026-09-14: "dot style 1 wins"
+# ROUND 233 -- THE PUNCHED DOT. Owner 2026-09-18, on the bump markup, one line
+# for every dot in the roman (R24 i, R25 j, R44 . R45 , R46 : R47 ; R48 ! R50 ?):
+# *"replace lines with more metal punch inspired treatment."* What style 1 drew
+# was an ELEVEN-SIDED POLYGON (12 - style sides, superellipse exponent 1.94,
+# radial jitter x LIFE -- and LIFE is 0 since round 231, so the jitter was
+# already gone and the only thing the style still did was show its eleven
+# facets). Those facets are the "lines". A dot cut by a punch is a full round,
+# its outline dense enough to read as a curve at any size; the style NUMBER is
+# kept (the 2026-09-14 ruling chose 1 off a ladder of ten and everything reads
+# it) and what it draws is replaced. ALBO_DOT_PUNCH picks the punch:
+#   a  a full round -- a true circle at DOT_PUNCH_N vertices (the default)
+#   b  a superellipse at exponent 2.3 -- squared a touch, the shoulders of a
+#      punch that was filed flat on four sides
+#   c  a round with a slight TEARDROP lean toward the writing direction: the
+#      radius swells DOT_PUNCH_LEAN toward DOT_PUNCH_LEAN_DEG (right and a
+#      little down) and shrinks by the same on the far side; the geometric
+#      centre and the width do not move, the ink's weight does
+# Styles 2-9 keep the ladder's polygons; 0 keeps the round superellipse.
+DOT_PUNCH = os.environ.get("ALBO_DOT_PUNCH", "a")
+DOT_PUNCH_N = 40           # vertices: 8.2 units apart on the i's dot, under the family's 11-unit SPACING
+# The punch is drawn at 0.98 r, not r, and that number is the old polygon's SIZE
+# and not a taste: an 11-gon on circumradius r is 1.9595 r wide (vertex to the
+# opposite flat) and 0.9575 pi r^2 in area, and a circle at 0.98 r is 1.96 r wide
+# and 0.9604 pi r^2 -- the same width to 0.03 unit on the i's dot and the same
+# ink to half a percent. The 2026-09-14 ruling chose the dot at that size, and
+# the marks were fitted on that extent in rounds 220-222: a circle at the full r
+# is 2 units wider, and the build's bearing rule then moves every stop's and
+# curly quote's advance by those 2 units (measured: period 260 -> 262). At
+# 0.98 r the advances are byte-identical to the ship's.
+DOT_PUNCH_SCALE = 0.98
+DOT_PUNCH_K = 2.3          # option b's exponent
+DOT_PUNCH_LEAN = 0.08      # option c: the radius swells 8% toward the lean and shrinks 8% away from it
+DOT_PUNCH_LEAN_DEG = -20.0 # option c: the lean's direction, degrees from 3 o'clock (negative = below it)
+def _punch_dot(cx, cy, r, opt):
+    n = DOT_PUNCH_N; pts = []; r = r * DOT_PUNCH_SCALE
+    lean = math.radians(DOT_PUNCH_LEAN_DEG)
+    for i in range(n):
+        a = 2 * math.pi * i / n; ca, sa = math.cos(a), math.sin(a)
+        if opt == "b":
+            kk = DOT_PUNCH_K
+            x = math.copysign(abs(ca) ** (2 / kk), ca); y = math.copysign(abs(sa) ** (2 / kk), sa)
+        else:
+            x, y = ca, sa
+        rr = r * (1 + DOT_PUNCH_LEAN * math.cos(a - lean)) if opt == "c" else r
+        pts.append((cx + rr * x, cy + rr * y))
+    return geom.poly(pts)
 def dot(cx, cy, r, k=2.0):
     """The dot of i j and the marks. DOT_STYLE 0-9 (owner 2026-09-14: "make
     ten increasingly handcut versions of dots"): 0 the round superellipse;
+    1 the PUNCHED dot (round 233, `_punch_dot`, `ALBO_DOT_PUNCH`); from 2
     the exponent falls toward a squarer form, the outline becomes a polygon
     of fewer sides, and each vertex takes a deterministic radial jitter
     from life() -- 9 is a rough-cut five-sided lump."""
     st = DOT_STYLE
     if st <= 0:
         return geom.poly(superellipse(cx, cy, r, r, 0, 2 * math.pi, k)[:-1])
+    if st == 1:
+        return _punch_dot(cx, cy, r, DOT_PUNCH)
     n = max(5, 12 - st)
     jit = 0.035 * st
     ks = k - 0.06 * st
