@@ -432,6 +432,12 @@ def g_G(c):
     #      down flush with the bar's underside so the bottom is one line.
     x0b, x1b = xg - s * 1.1, xg + s * 0.6
     if G_BAR == 'b':
+        # ROUND 238. Owner 2026-09-18: "ALBO_ROM_G_BAR b but extend the bar
+        # tastefully." b ships, and the bar's free left end runs G_BAR_EXT_L
+        # units further into the counter (G_BAR_EXT_R the spur side); 30 / 0
+        # is the shipped reading of "tastefully", the ladder 0 / 30 / 60 and
+        # 30+15 is on the round-238 page for his correction.
+        x0b -= G_BAR_EXT_L; x1b += G_BAR_EXT_R
         b = bar(x0b, x1b, yb + bar_th / 2, bar_th, align='top', cut0=CUT, cut1=-CUT, prof=widths([(0.0, 0.85), (0.7, 1.0), (1.0, 1.0)]))
     elif G_BAR == 'c':
         b = geom.union([bar(x0b, x1b, yb, bar_th, cut1=CUT),
@@ -464,7 +470,9 @@ def g_G(c):
         b = bar(x0b, x1b, yb, bar_th, cut0=CUT, cut1=CUT)
     return geom.ink([body, lip, b])
 
-G_BAR = os.environ.get("ALBO_ROM_G_BAR", "a")   # a | b | c | d, see g_G; a is round 232 byte for byte
+G_BAR = os.environ.get("ALBO_ROM_G_BAR", "b")   # a | b | c | d, see g_G; a is round 232 byte for byte; b ships since round 238 (owner's pick)
+G_BAR_EXT_L = float(os.environ.get("ALBO_ROM_G_BAR_EXT_L", 30.0))   # round 238: the bar's left end, units further into the counter
+G_BAR_EXT_R = float(os.environ.get("ALBO_ROM_G_BAR_EXT_R", 0.0))
 
 @glyph('H')
 def g_H(c):
