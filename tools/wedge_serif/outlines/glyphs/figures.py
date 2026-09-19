@@ -412,6 +412,7 @@ _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
+FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'e'})   # round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
 def OPT(d):
@@ -426,7 +427,7 @@ def OPT(d):
     so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
     for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') else 'a'
+    return o if o in 'abcdefghijklm' and len(o) == 1 else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -1117,6 +1118,7 @@ SIX_OPT = {
     'f': dict(end='flag', end_w=0.45, flag=0.55),   # a WEDGE: square face at 0.45 and the family's diagonal end wedge off its upper corner, at 0.55 (the 9's flag is 0.9)
     'g': dict(tip=(1.05, 0.0)),                 # LONGER: the tip 32 units further right and 10 higher, the run-out as 'a'
     'h': dict(tip=(0.62, -40.0)),               # SHORTER: 37 units less reach and 30 lower
+    'i': dict(end='cut', end_w=0.30, tip=(0.62, -40.0)),   # ROUND 250, owner 2026-09-18: "d and h blunt and short" -- d's pen cut on h's shorter tail; ships
 }
 SIX_OPT_IT = {k: SIX_OPT[k] for k in ('b', 'c')}
 
@@ -1465,6 +1467,15 @@ EIGHT_OPT = {
     # stroke ('waist' 1.0), so there is no crossing and the waist is one band.
     'e': dict(upper=0.82, waist=1.65, to_six=True),                       # Georgia's: two family rings on the 6's line, the upper counter 0.82 of the lower's width, overlapping 1.65 strokes so the waist crosses
     'f': dict(written=True, upper=0.82, stress=-25.0),                   # a WRITTEN figure-8: one pen stroke on the lemniscate of Gerono (two teardrops crossing at the waist, no straights), the nib turned 25 degrees so the down-right arm of the crossing is the thick one
+    # ROUND 250, owner 2026-09-18: *"make variants of the existing not creative
+    # options."* So: today's two-ring 8 (a) with ONE lever moved a little, the
+    # way b, c and d are; e-g stay in the table but are not what he asked for.
+    'h': dict(tall=1.10),                                                # a little taller (b is 1.19): the 8 tops 43 units higher, still under the 6's line
+    'i': dict(upper=0.88),                                               # the upper counter 0.88 of the lower's width (a is 0.95): a lighter top, same height
+    'j': dict(waist=1.25),                                               # the rings overlap 1.25 strokes instead of 1.00: the waist pinches, the figure 6 units shorter
+    'k': dict(tall=1.10, upper=0.88),                                    # h and i together
+    'l': dict(con=1.40, oval=1.0),                                       # a milder contrast than c's 1.85, the counters ovalised with it
+    'm': dict(tall=1.10, upper=0.88, waist=1.25),                        # h, i and j together
     'g': dict(upper=0.92, waist=1.65, to_six=True, con=1.85, oval=1.0),  # Big Caslon's: lobes nearly equal (0.92), crossing waist, on the 6's line, with option c's contrast
 }
 EIGHT_OPT_IT = {
@@ -1750,6 +1761,16 @@ NINE_OPT = {
     # the fixed departure and inside join (NINE_TANGENT_EXIT, NINE_JOIN_FILLET).
     'e': dict(k=2.0),                           # a ROUNDER loop: a true ellipse instead of the 2.1 superellipse, whose right flank measures 11 units of sag over the middle 40% of its height
     'f': dict(exit=-32.0),                      # the tail leaves LOWER on the loop (-32 degrees against -20), so the loop's bottom-right opens into the tail
+    # ROUND 250, owner 2026-09-18: *"e wins but give me blunt and serif and
+    # microserif and other options on tail."* Every one of these is e (the
+    # round loop) with a different END on the same tail; the tip is re-fitted
+    # to the same reach and bottom line each time.
+    'g': dict(k=2.0, end='none'),                        # BLUNT, square: the face across the tail as it is, no wedge
+    'h': dict(k=2.0, end='none', end_cut=-34.0),         # BLUNT, sheared: the face pulled back at the lower corner (the italic's -34 degrees), no wedge
+    'i': dict(k=2.0, flag=1.0),                          # SERIF: the family's full diagonal wedge (1.0 x 1.0; e's is 0.9 x 0.9)
+    'j': dict(k=2.0, flag=0.5),                          # MICROSERIF: the wedge at half size
+    'k': dict(k=2.0, end='ball', ball=0.22),             # BALL: the tail thins to 0.72 over its last fifth and a round of 0.22 S caps it
+    'l': dict(k=2.0, end='taper', taper=0.35),           # RUN-OUT: the tail thins to 0.35 over its last 28%, no wedge (the italic's ending)
 }
 NINE_OPT_IT = {k: NINE_OPT[k] for k in ('b', 'c', 'd')}
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
@@ -1864,6 +1885,9 @@ def g_nine(c):
         if NINE_TAIL_EASE > 0: k_of = widths([(t_exit, 1.0), (t_exit + NINE_TAIL_EASE * (1.0 - t_exit), NINE_TAIL_TOP)])   # full at the exit, easing to the step's factor
         else: k_of = widths([(t_exit - 0.04, 1.0), (t_exit + 0.10, NINE_TAIL_TOP)])   # the uniform thinning: 1.0 inside the ring, the factor under the bowl
         _end = widths([(0.0, 1.0), (0.72, 1.0), (1.0, NINE_TAIL_END)]) if (pen.ITALIC and NINE_TAIL_END) else None
+        _o_end = _o9.get('end')                                                   # round 250: the roman tail's endings
+        if _o_end == 'taper': _end = widths([(0.0, 1.0), (0.72, 1.0), (1.0, _o9['taper'])])
+        elif _o_end == 'ball': _end = widths([(0.0, 1.0), (0.80, 1.0), (1.0, 0.72)])
         def wf2(u):
             w = wf(u); v = max(w * k_of(u), min(floor, w))
             return v * _end(u) if _end else v
@@ -1884,15 +1908,22 @@ def g_nine(c):
         # simply tapers out. Shearing the face pulls the lower corner back along
         # the tail and leaves the upper one, and therefore the flag, where they
         # are. Italic only; the roman's 9 is untouched at NINE_END_CUT 0.
-        _ec = math.radians(NINE_END_CUT if pen.ITALIC else 0.0)
+        _ec = math.radians(NINE_END_CUT if pen.ITALIC else _o9.get('end_cut', 0.0))
         t, A, B = stroke(center, wf2, raw=True, sides=True, cut1=_ec)
         up, lo = (A, B) if A[-1][1] >= B[-1][1] else (B, A)
         d = tangents(resample(tail))[-1]
         v = (up[-1][0] - lo[-1][0], up[-1][1] - lo[-1][1]); n = math.hypot(*v) or 1.0; sd = (v[0] / n, v[1] / n)
         if pen.ITALIC and NINE_TAIL_END:
             return geom.ink([solid, t])       # no flag: the tail runs out instead
-        flag = wedge(up[-1], d, sd, WL * 0.9, WD * 0.9, DROP, edge_at=_walk_back(up))
-        parts = [solid, t, flag]
+        if _o_end in ('none', 'taper'):
+            parts = [solid, t]
+        elif _o_end == 'ball':
+            _ex, _ey = (up[-1][0] + lo[-1][0]) / 2, (up[-1][1] + lo[-1][1]) / 2
+            parts = [solid, t, Point(_ex, _ey).buffer(S * _o9['ball'], 24)]
+        else:
+            _fs = _o9.get('flag', 0.9)
+            flag = wedge(up[-1], d, sd, WL * _fs, WD * _fs, DROP, edge_at=_walk_back(up))
+            parts = [solid, t, flag]
         if not pen.ITALIC and NINE_JOIN_FILLET > 0:
             fil = _crotch_fillet(up, o, S * NINE_JOIN_FILLET)     # round 233 (R43): the inside join
             if fil is not None: parts.append(fil)
