@@ -234,6 +234,14 @@ the italic's wedges take the same three numbers. Lands as round 277, applied
 in `pen.py` once round 274 (the bold italic's junctions) releases the tree;
 the 200 keeps its stem-scaled wedge (not asked).
 
+**Ruling 2026-09-19 (owner): round 274's junction rebuild -- the head on the
+stem, the arch's landing, the exit at the foot, the u's left stem top, the
+dotless i as the i without its dot -- applies to the ITALIC 400 as well as
+the 700** ("Yes, both weights"). The `S > 84` gates on that code in
+`aldine.py` come off as round 278, after round 276 (the italic's finials)
+releases the file; the Italic 400 moves in about 40 glyphs (a h i l m n r u
+dotless-i and their composites), measured and proofed as round 274 was.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
