@@ -1239,7 +1239,9 @@ the serif to be optically similar to the 400 serif"*, and on a ladder of four
 sizes (as drawn; the 400's absolute; square-root growth; the 400's × 1.15):
 *"b wins."* `pen.WL / WD / DROP` are taken at stem 66.9 above 84 — 52.3,
 104.6, 17.2 — in both styles; at and under 84 they follow the stem as they
-always did.
+always did. Confirmed for the 900 on its own ladder the same day (*"a wins"*, the
+400's wedge against 1.15 / 1.30 / 1.49 / 1.75); the 200 takes 0.75 of the
+400's (round 279).
 
 ## 21. Round 277 — the bold serifs
 

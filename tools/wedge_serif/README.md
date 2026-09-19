@@ -251,6 +251,11 @@ measured to is gone. No bearing delta.
 ExtraLight 200's wedge is 0.75 of the 400's** -- 39.2 long, 78.4 deep, drop
 12.9 -- instead of scaling with its stem (34 x 68). `pen.py`, round 279.
 
+**Ruling 2026-09-19 (owner, on the black-serif ladder: "a wins"): the Black
+900 keeps the 400's wedge** (52 x 105, round 277's rule) -- laddered against
+1.15, 1.30, the square root (1.49) and 1.75, and confirmed as it stands. Nothing
+moved.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
