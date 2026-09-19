@@ -35,6 +35,29 @@ A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"
 L_CORNER_CLIP = os.environ.get("ALBO_ROM_L_CORNER_CLIP", "0") == "1"
 M_SPURS = os.environ.get("ALBO_ROM_M_SPURS", "1") == "1"
 M_RIGHT_CROWN = os.environ.get("ALBO_ROM_M_RIGHT_CROWN", "1") == "1"   # round 243: the right top takes the left crown, mirrored
+# ROUND 271 -- THE RIGHT TOP IS THE LEFT TOP, MIRRORED. Owner 2026-09-19,
+# verbatim: "M needs to have symmetrical stem tops, based on left top."
+# Round 243 rebuilt the right crown from the left's RECIPE (the family's
+# wedge, seated at the thick stem's outer corner), and the two still did not
+# match, because the recipes are seated on strokes of different widths: the
+# left crown sits 0.35 of the THIN stroke's width inside its top and the
+# right one on the THICK stem's outer corner, so the right serif projected
+# 7 units further at the 400, 28 at the 700 and 46 at the 900, and only the
+# left top carried the 17-unit peak over the cap line (the thick inner
+# stroke's square-cut corner). Measured on the built letter, row by row
+# (docs/albo-family-2026-09-19.md, round 271). So the right top is now the
+# left top's INK, reflected about the letter's axis -- the outer strokes are
+# placed symmetrically, x0 + 0.25 s and x1 - 0.25 s -- and shifted outward
+# by half the difference of the two outer strokes' widths, so the two
+# silhouettes align on the stems' OUTER edges, which is what the eye reads.
+# The band taken is the left top down to 130 under the cap line, and no
+# further in than the peak, so nothing of the thick inner stroke's body
+# travels. The round-243 right crown is off under this dial (it is what the
+# mirror replaces); the spike trim and the vertex stay.
+M_TOP_MIRROR = float(os.environ.get("ALBO_ROM_M_MIRROR", 1.0))
+# (A "come to a point" ladder was drawn the same hour and withdrawn by the
+# owner before it was shown: "left was okay before, just need to match
+# right to left." The left top is round 243's, untouched.)
 M_VERTEX_V = os.environ.get("ALBO_ROM_M_VERTEX_V", "1") == "1"         # round 243: the vertex one point, as the V   # round 240: strokes as round 232, errant spurs cut; 0 is round 232 exactly   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
 
 def _left_of(p, tn, ylo, yhi, reach=1500.0):
@@ -749,6 +772,45 @@ def g_M(c):
     if M_VERTEX_V:
         rest2 = d.difference(b); p2 = list(rest2.geoms) if hasattr(rest2, 'geoms') else [rest2]
         tri = geom.union([tri] + [q for q in p2 if q.bounds[3] < 60.0 and q.area < 800.0])
+    if M_TOP_MIRROR:
+        # THE LEFT'S RECIPE ON THE RIGHT'S OWN STROKES. The wedge projects
+        # past the thick stem's outer edge by exactly what the left wedge
+        # projects past the thin stroke's; the point stands on the thin inner
+        # stroke's inner edge carried up, as the left's stands on the thick
+        # one's; the fill and the trim are the same shapes. (Mirroring the
+        # left's ink was tried first and dragged a chunk of the thick inner
+        # stroke onto the thin one -- a shelf on the inside of the junction.)
+        a_out = min(_corners(P[0][0], P[0][1], wa, True), key=lambda q: q[0])   # the thin outer stroke's outer top corner
+        proj = a_out[0] - tip[0]
+        e_out = max(_corners(P[3][0], P[3][1], we, True), key=lambda q: q[0])   # the thick outer stem's outer top corner
+        rtip = (e_out[0] + proj, C - DROP); rseat = (rtip[0] - WL * 0.9, C)
+        rcrown = wedge(rseat, (0, 1), (1, 0), WL * 0.9, WD, DROP)
+        e = diagonal(P[3][0], P[3][1], we, serif0=1)                          # the foot wedge only; the crown is the one above
+        d_in = min(_corners(P[2][0], P[2][1], wd, False), key=lambda q: q[0])  # the thin inner stroke's inner (higher) top corner -- the right's peak, as b's inner corner is the left's
+        rpoint = d_in
+        rfill = _Poly([rtip, rpoint, (rseat[0], rseat[1] - 40.0)])
+        rdir = (rpoint[0] - rtip[0], rpoint[1] - rtip[1]); Lr = math.hypot(*rdir); rdir = (rdir[0] / Lr, rdir[1] / Lr)
+        rlip = geom.union([e, d, rcrown]).intersection(_side(rtip, rdir, -1)).intersection(_box(rpoint[0] - 60.0, C - 60.0, rtip[0] + 10.0, C + 200.0))
+        # THE THICK STEM'S INNER SHOULDER. Both strokes' tops are centred on
+        # the same point, so the thick outer stem's inner top corner stands
+        # out past the thin inner stroke's edge -- 30 units at the 900 -- on
+        # the INSIDE of the junction, where on the left it is the thick
+        # stroke's own edge that runs up to the peak and nothing shoulders
+        # it. So the inside of the right junction is the thin stroke's inner
+        # edge, carried up to the peak: the stem's ink left of that edge line,
+        # above where the two edges cross, is cut.
+        _td = tangents(line(rpoint, P[2][1]))[0]                              # down d's inner edge
+        # the cut is the half-plane and a box, NOT intersected with the stem
+        # first: a cut whose boundary is the stem's own face leaves a
+        # zero-area loop in the difference, which the build's ink spread then
+        # inflates into a 2.4-unit sliver along the face (seen at the 900).
+        # The line is set half a unit into the cut side so the thin stroke's
+        # own edge, which it runs along, is never on the boundary.
+        _nl = (_td[1] * 0.5, -_td[0] * 0.5)                                   # half a unit to the left of the line
+        shoulder = _side((rpoint[0] + _nl[0], rpoint[1] + _nl[1]), _td, -1).intersection(
+            _box(rpoint[0] - 80.0, C - 200.0, rpoint[0] + 1.0, C + 200.0))
+        g = geom.ink([a, b, d, e, apex, fill, rcrown, rfill])
+        return g.difference(geom.union([lip, tri, rlip, shoulder]))          # no spike trim: the thin stroke's corner is the peak
     g = geom.ink([a, b, d, e, apex, fill, rcrown, rfill])
     return g.difference(geom.union([lip, spike, tri, rlip]))
 

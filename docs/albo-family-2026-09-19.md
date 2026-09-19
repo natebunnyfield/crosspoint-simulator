@@ -975,14 +975,52 @@ block: qy +14, qf +10, qj +10, qp +3, f? +3. The bold italic's touch sweep
 reads 0 touching, 0 under the floor.
 
 **Byte identity.** Regular 400 and Italic 400: no counter moved (the gate is
-the stem), and the Italic's GPOS is unchanged; the Regular and the ExtraLight
-200 carry the M change that lands with round 271, nothing else. The roman 700 and 900 keep their round-267 touch
+the stem), and the Italic's GPOS is unchanged; the Regular differs from
+round 269 only in the M and the ™ built from it (round 271). ExtraLight
+200: the same two glyphs. The roman 700 and 900 keep their round-267 touch
 counts (4/7/14 and 5/7/14).
 
 Proofs: `tools/wedge_serif/shape/weights270/` — the dented letters before
 and after at 0.40 px/unit for the roman 700, the roman 900 and the bold
 italic, and runs at 13 and 40 px; the page
 https://claude.ai/artifact/Fqs4aZzvSeu7ao7Do5fmQL
+
+## 17. Round 271 — the M's right top from the left top's recipe
+
+Owner 2026-09-19: *"M needs to have symmetrical stem tops, based on left
+top"* and, on a "come to a point" ladder drawn the same hour and withdrawn
+before it was shown, *"left was okay before, just need to match right to
+left."* The left top is round 243's, untouched.
+
+**Measured first**, row by row at one pixel per unit against the letter's
+own extremes: the right serif projected 7 units further than the left at
+the 400, 28 at the 700 and 46 at the 900, and only the left top carried the
+17-unit peak over the cap line. Round 243 had rebuilt the right crown from
+the left's recipe, but seated it on the thick stem's outer corner where the
+left's sits 0.35 of the thin stroke's width inside its top — so the two
+never matched, and the gap grew with weight.
+
+**The recipe, on the right's own strokes.** The wedge projects past the
+thick stem's outer edge by exactly what the left wedge projects past the
+thin stroke's; the peak is the thin inner stroke's inner top corner, as the
+left's is the thick inner stroke's; the fill and the trim are the same
+shapes. Two things it took to get there, both recorded because each cost a
+render: mirroring the left top's INK dragged a chunk of the thick inner
+stroke onto the thin one (a shelf on the inside of the junction); and the
+thick outer stem's inner top corner stood 30 units past the thin stroke's
+edge on the inside at the 900 — both strokes' tops are centred on one point
+— so the stem's ink left of the thin stroke's inner edge, above where the
+two edges cross, is cut, with a half-plane rather than the stem's own face
+as the boundary (a boundary on the face left a zero-area loop that the
+build's ink spread inflated into a 2.4-unit sliver).
+
+**What moved:** the M and the ™ built from it, in every roman weight, the
+400 included — an owner instruction. The italic M is the aldine module's
+own and is untouched. Glitch sweep on the M: 0 findings at 400, 700, 900.
+
+Proofs: `tools/wedge_serif/shape/weights271/` — the M at 400/700/900 before
+and after at 0.5 px/unit, and MIMICRY runs at 13 and 40 px; the page
+https://claude.ai/artifact/PeDcULppdXAS9EnbHKaUvM
 
 ## What was checked and found CLEAN
 
@@ -1002,3 +1040,4 @@ https://claude.ai/artifact/Fqs4aZzvSeu7ao7Do5fmQL
 - Round 269: the a b d p q counters stay open at the 700 (131-177 wide at half the x-height); the g's bowl counter is 84-126 wide across the x-height and its loop's 140 at -0.30 xh (194 before).
 - Round 269: the five f-ligatures are not among the 58 glyphs that moved -- they are built from the roman f's parts and were already on the axis.
 - Round 270: after the convex counters, the dent detector reads one dent per face at every weight, the ampersand's; the bold italic's touch sweep is 0 / 0; glitch 0 at 700 / 900 / bold italic and the ruled β alone at the 400s and the 200.
+- Round 271: the M's two tops read the same projection past their stems at all three roman weights; the ExtraLight 200 differs from round 267's build only in the M and the ™.

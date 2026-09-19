@@ -1,0 +1,42 @@
+<title>Albo M Tops</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child,th:last-child,td:last-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .note{border-left:3px solid var(--accent);padding-left:14px;color:var(--soft);}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo M Tops</h1>
+    <p class="lede"><em>"M needs to have symmetrical stem tops, based on left top."</em> The left top is untouched; the right top now takes the left&rsquo;s recipe on its own strokes &mdash; the wedge projects past the stem by what the left&rsquo;s does, the peak is the inner stroke&rsquo;s inner corner, the thick stem&rsquo;s inner shoulder is cut. Every roman weight, the 400 included; the italic M is its own and unchanged.</p>
+  </header>
+  <section><h2>Measured</h2>
+    <div class="scroll"><table>
+      <tr><th>weight</th><th>right serif past the left&rsquo;s, before</th><th>after</th><th>peak over the cap line, left / right before</th><th>after</th></tr>
+      <tr><td>400</td><td>+7 units</td><td class="ok">0</td><td>17 / 0</td><td>17 / 17</td></tr>
+      <tr><td>700</td><td>+28</td><td class="ok">0</td><td>23 / 0</td><td>23 / 23</td></tr>
+      <tr><td>900</td><td>+46</td><td class="ok">0</td><td>25 / 0</td><td>25 / 25</td></tr>
+    </table></div>
+  </section>
+  <section><h2>Before</h2>
+    <figure><img src="M-before.png" alt="the M before at 400, 700, 900"><figcaption>400, 700, 900 at 0.5 px/unit, vector render</figcaption></figure>
+  </section>
+  <section><h2>After</h2>
+    <figure><img src="M-after.png" alt="the M after at 400, 700, 900"><figcaption>400, 700, 900 at 0.5 px/unit, vector render</figcaption></figure>
+  </section>
+  <section><h2>In runs</h2>
+    <figure><img src="M-runs.png" alt="MIMICRY runs before and after at three weights"><figcaption>13 px &times;8 and 40 px &times;2 &mdash; each weight before, then after</figcaption></figure>
+  </section>
+</div>
