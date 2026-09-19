@@ -302,6 +302,32 @@ reduce" ruling never saw. Carried: the n foot's 1.3-unit zigzag is
 `primitives.wedge()` dropping the fillet's first point -- every serif in the
 face, one token, its own round.
 
+## Rounds 236-249 -- the owner's picks, one glyph at a time (2026-09-18)
+
+Each line is his ruling verbatim, then what shipped. Every dial from round
+235 that he did not name is still where it was.
+
+| Round | Owner | Shipped |
+|---|---|---|
+| 236 | "R01 restore apex" | The A's apex as before; the round-235 clip is `ALBO_ROM_A_APEX_CLIP`, off. |
+| 237 | "S beak was not fully corrected" | The lip keeps its seat point, the needle tip cut square (`_blunt_tip`, a 40-unit box -- the half-plane version split the S into two islands). |
+| 238 | "ALBO_ROM_G_BAR b but extend the bar tastefully" | `G_BAR` b, the bar 30 units further into the counter (`G_BAR_EXT_L`). |
+| 239 | "R07 should tuck inside slightly like other interior corners do" | The L's inside corner keeps its flare, as the E's does; `L_CORNER_CLIP` off. |
+| 240-241 | "ALBO_ROM_Q_TAIL_OPT d / for M, the topmost vertices should stay where they are extend serif from those. keep the strokes as they are but address errant spurs" / "give me options for lightening L top serif" | Q tail d. The M's strokes as round 232 with the spurs cut (`M_SPURS`). `ALBO_ROM_L_TOP` a-e, a byte-identical. |
+| 242 | "rebalance S so the bottom is optically balanced either the top (give me options)" | `ALBO_ROM_S_BAL` a-e, a byte-identical. Unpicked. |
+| 243 | "make the right top serif of M match the left better and remove the odd corners sticking out of middle bottom join (match V better)" | The right crown is the left one mirrored (`M_RIGHT_CROWN`); the vertex is one point like the V's (`M_VERTEX_V`: the small islands of `b - d` and `d - b` below y 60 removed). |
+| 244 | "for "a" a and b" | The a ships as option b. |
+| 245 | "for e and c: remove the hump on top of bottom stoke, respect the curve better" | The e's tail is drawn from the ring's own inner edge (`E_TAIL_INNER`), so there is no hump where the tail's inner edge used to leave the ring; the c was already clean. |
+| 246 | "for f: a wins but make very slight pen cuts from bottom left top to top right instead of vetrical" | The f bar keeps a; both end faces lean 8 degrees (`F_BAR_CUT_DEG`); the ligatures' bars follow. **Leaked into the italic ligatures' bars** -- gated in round 248. |
+| 247 | "ALBO_ROM_M_MID d wins" | Both of the m's middle feet at 0.60 (`M_MID` d). |
+| 248 | "ALBO_ROM_R_THIN c wins" / "restore v and w, except give top middle of w s simple tall diagonal top edge without corners" | `R_THIN` c (floor 0.60, flare 1.15). The v and the w are round 232's strokes again -- no vertex clips, the outer serifs as they were -- and the w's middle apex carries no wedge: its top is ONE face, the thick stroke's own square end face extended across the thin stroke (it rises to the right, the thick stroke's right corner the highest point), and the thick stroke's left corner, which stood 6 units west of the thin's outer edge, is cut so the face runs straight into that edge. `ALBO_ROM_W_APEX` b is the thin stroke's face instead, for comparison. Also: round 246's f-bar lean gated to the roman (the italic ligatures are round 245's again). |
+| 249 | "ALBO_FIG_1 h" / "ALBO_FIG_2 b without the bulge" | `FIG_SHIP_ROM` 1 = h, 2 = b. The 2's arc started at 1.1 of its own weight (a swell at the left terminal, every option since 2026-09-13); option b now starts at 1.0 (`start_w`), so the terminal is the arc's weight. Figure spread 1.54x -> 1.59x, within the 2.50x gate. |
+
+Still his to pick: L top a-e, S balance a-e, 3 d-e, 6 d-h, 8 e-g, 9 e-f,
+dots a-c, quotes a-e, hyphen a-e, & a-d, the W crown, the arch trap. R01's
+"funky outside edge" is still unexplained; the n foot's `wedge()` fillet
+fix (one token, every serif) is deferred.
+
 ## Unresolved by the geometry
 
 * **R01** (roman A, left leg at the crossbar): nothing found — both crossbar

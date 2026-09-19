@@ -411,6 +411,7 @@ _FIG_OPT_ALL = (os.environ.get("ALBO_FIG_SET", "") or "").strip().lower()
 _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip().lower()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
+FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
 def OPT(d):
@@ -762,7 +763,7 @@ def g_two(c):
         prof = widths([(0.0, _topw * 1.1), (0.15, _topw), (f_arc, _topw),
                        (f_arc + 0.35 * (1 - f_arc), 1.0), (1.0, _send)])
     else:
-        prof = widths([(0.0, _topw * 1.1), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
+        prof = widths([(0.0, _topw * _o2.get('start_w', 1.1)), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
     wfn = PR.bowl_widths(center, prof, floor=S * _slashw * _topw, stress=_st, con=_cn)
     if _send:
         # ...and its OUTER edge lands ON the base's top-left corner, so the
@@ -826,7 +827,7 @@ TWO_BASE_W = 1.22     # the base bar, x the bar weight (heavier on the bottom)
 # running into a diagonal at nearly full width, with the base back at 1.10.
 # Both styles share the table; the italic's bar drop (round 212) is untouched.
 TWO_OPT = {
-    'b': dict(base_w=1.50, top_w=0.74, over=26.0),
+    'b': dict(base_w=1.50, top_w=0.74, over=26.0, start_w=1.0),   # round 249: start_w 1.0 -- owner 2026-09-18, "ALBO_FIG_2 b without the bulge": the arc's left terminal no longer swells to 1.1 of the arc
     'c': dict(top_w=0.62, slash_w=0.98, base_w=1.45),
     # ROUND 233 (R36, R37), owner 2026-09-18: *"give me options for improving
     # the diagonal and join in bottom left"* / *"same as R36"*. What is there
