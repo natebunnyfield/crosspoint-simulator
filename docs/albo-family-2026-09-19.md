@@ -467,6 +467,12 @@ thins with the weight.** Two are fixed, weight-proof:
   `CAP × 0.06 × min(1, S/84)`, cutting lower — more leg into the foot — as the
   face lightens.
 
+**RULED 2026-09-19: the β stays as it is.** Owner, offered a re-sweep, a
+wider Greek pass, or leaving it: *"Leave it, it is recorded."* So both shipped
+styles carry one glitch finding, in a Greek lowercase, deliberately. It stops
+appearing in triage; the measurement and the failed attempt below are the
+record for whoever picks it up.
+
 **Still broken, and not guessed at: the β.** The two bowls' centres were swept
 at 84, where (0.68, 0.26) just closes the slit where they meet the stem; at
 66.9 it reopens as a 4.17-unit crack. Moving the bowls toward each other — the
