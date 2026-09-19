@@ -171,8 +171,23 @@ def _beak_lip(pts, L, w, cut_deg=BEAK_CUT, lip=(0.4, 0.7), inset=6.0, fillet=0.4
     ctrl = (C[0] + tC[0] * fillet * depth, C[1] + tC[1] * fillet * depth)   # as `wedge`: ctrl = A*fillet + C*(1-fillet), `fillet` of the depth from C
     fil = geom.quad(C, ctrl, B)
     edge = [edge_at(depth * i / 12) for i in range(13)]
-    outline = [A] + [(p[0] - nl[0] * inset, p[1] - nl[1] * inset) for p in edge[1:]] + fil[1:] + [B]
+    # round 237: `fil` whole, C included -- skipping fil[0] jumped from the
+    # inset edge to the first fillet sample past C and left a 1-2 unit step
+    # at the seat (the S, after round 235: "S beak was not fully corrected").
+    outline = [A] + [(p[0] - nl[0] * inset, p[1] - nl[1] * inset) for p in edge[1:]] + fil + [B]
     return geom.poly(outline)
+
+def _blunt_tip(A, B, back):
+    """Round 237, the S: the terminal's point B cut off `back` units up the
+    face A->B by a face perpendicular to it -- the half-plane beyond that line,
+    to subtract. The lip's own apex is 41 degrees and still reads as a needle
+    on the S's long, shallow terminal; a short flat end is what the family's
+    pen leaves."""
+    d = (B[0] - A[0], B[1] - A[1]); L = math.hypot(*d) or 1.0; d = (d[0] / L, d[1] / L)
+    P = (B[0] - d[0] * back, B[1] - d[1] * back); n = (-d[1], d[0]); far = 40.0   # a box round the tip only: a half-plane cut the S's lower bowl (2 islands)
+    return geom.poly([(P[0] + n[0] * far, P[1] + n[1] * far), (P[0] - n[0] * far, P[1] - n[1] * far),
+                      (P[0] - n[0] * far + d[0] * far, P[1] - n[1] * far + d[1] * far),
+                      (P[0] + n[0] * far + d[0] * far, P[1] + n[1] * far + d[1] * far)])
 
 def cstem(x, y0, y1, top='left', foot='both', **kw):
     return stem(x, y0, y1, cap=True, top=top, foot=foot, **kw)
@@ -1025,7 +1040,8 @@ S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 1.5))    # units the crown an
 # widths onto the family's profile fixes the ratio at both ends at once and
 # needs no new number -- `bowl_th` IS the round family's definition, imported
 # rather than restated.
-S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 0.5))      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
+S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 0.5))
+S_BEAK_TIP = float(os.environ.get("ALBO_ROM_S_BEAK_TIP", 12.0))   # round 237: units of the terminal's point cut off square; 0 is round 235      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
 
 @glyph('S')
 def g_S(c):
@@ -1063,7 +1079,17 @@ def g_S(c):
     # crown's curve had already left that line; the 3-unit zig on the face
     # was the lip polygon standing 6 sin 28 units behind the sheared face.
     body, Lside, _ = stroke(spine, wfn, cut0=math.radians(BEAK_CUT), sides=True)
-    return geom.ink([body, _beak_lip(spine, Lside, wfn(0.0), BEAK_CUT)])
+    lip = _beak_lip(spine, Lside, wfn(0.0), BEAK_CUT)
+    # ROUND 237. Owner 2026-09-18, on the round-235 page: "S beak was not
+    # fully corrected." Two things were left: the seat step (fixed in
+    # `_beak_lip`) and the tip, a 41-degree needle at the end of a 100-unit
+    # face. S_BEAK_TIP units of the point are cut off square to the face.
+    if S_BEAK_TIP > 0:
+        tn = tangents(spine); d = (-tn[0][0], -tn[0][1]); nl = (-tn[0][1], tn[0][0])
+        A = Lside[0]; length = WL * 0.4; drop = -length * math.tan(math.radians(abs(BEAK_CUT)))
+        B = (A[0] + nl[0] * length - d[0] * drop, A[1] + nl[1] * length - d[1] * drop)
+        return geom.ink([body, lip], [_blunt_tip(A, B, S_BEAK_TIP)])
+    return geom.ink([body, lip])
 
 @glyph('T')
 def g_T(c):
