@@ -256,6 +256,12 @@ ExtraLight 200's wedge is 0.75 of the 400's** -- 39.2 long, 78.4 deep, drop
 1.15, 1.30, the square root (1.49) and 1.75, and confirmed as it stands. Nothing
 moved.
 
+**Ruling 2026-09-19 (owner): the roman Q is KERNED against , ; and .** at
+every weight -- each pair the measured overlap (0.41 em at the 700 for the
+comma and the semicolon) plus the floor -- the tail itself unchanged under
+round 225's "leave the Q tail on roman long". Lands with round 278, once the
+italic finials agent releases `kern.py`.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
