@@ -256,11 +256,14 @@ ExtraLight 200's wedge is 0.75 of the 400's** -- 39.2 long, 78.4 deep, drop
 1.15, 1.30, the square root (1.49) and 1.75, and confirmed as it stands. Nothing
 moved.
 
-**Ruling 2026-09-19 (owner): the roman Q is KERNED against , ; and .** at
-every weight -- each pair the measured overlap (0.41 em at the 700 for the
-comma and the semicolon) plus the floor -- the tail itself unchanged under
-round 225's "leave the Q tail on roman long". Lands with round 278, once the
-italic finials agent releases `kern.py`.
+**WITHDRAWN 2026-09-19 (owner): the roman Q is NOT kerned against , ; and .**
+Round 280 added +430 / +456 to those three pairs at the 700 / 900 on a question
+framed as "kern the Q against the punctuation, or leave it"; the owner, on
+seeing the result: *"lose the Q punctuation kerning. you misunderstood the need
+entirely."* Reverted the same day (the kern table carries no Q pair; the tail
+itself was never changed and stays long under round 225). The need behind the
+Q-and-punctuation item is OPEN and is not "space them apart"; do not re-propose
+a kern for it.
 
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
