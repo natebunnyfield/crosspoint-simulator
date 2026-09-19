@@ -355,5 +355,36 @@ def _e_tail(outer, inner, cx, cy, rx, xh, a_cut, cut=None):
         def wf(t):
             u = min(1.0, t / E_ARM_EASE_R); su = 3 * u * u - 2 * u ** 3
             return wf0(t) * (1.0 + (E_ARM_THIN - 1.0) * su)
+        if E_TAIL_INNER:
+            # ROUND 245 (owner: "remove the hump on top of bottom stroke,
+            # respect the curve better"). The roman tail is drawn from its
+            # INNER edge -- the counter floor the reader sees against the
+            # white -- as one cubic from the ring's inner cut point along the
+            # counter's own tangent, offset OUTWARD by the width; so the
+            # floor cannot wave whatever the width does, and the taper shows
+            # on the outer, convex edge where it reads as the pen lifting.
+            # The tip is the same outer tip: the inner cubic aims one end
+            # width inside it.
+            _Pi2, Ti = _ray_hit(inner, cx, cy, R)   # the counter's own direction where the ray crosses it
+            if Ti is None: Ti = To
+            if Ti[0] < 0: Ti = (-Ti[0], -Ti[1])
+            tail_end_, tipx, tipy, tipdeg = (E_TAIL_R, E_TIPX_R, E_TIPY_R, E_TIPDEG_R)
+            d2 = math.radians(tipdeg); D2 = (math.cos(d2), math.sin(d2)); nout = (D2[1], -D2[0])
+            tip_o = (cx + tipx * rx, tipy * xh); w1 = wf(1.0)
+            tip_i = (tip_o[0] - nout[0] * w1, tip_o[1] - nout[1] * w1)
+            Pi = _Pi2 if _Pi2 is not None else Pi   # the ring's own inner point on the ray: the cut's Pi sat 2 units off it (a step at the handover)
+            L = math.hypot(tip_i[0] - Pi[0], tip_i[1] - Pi[1])
+            edge_i = cubic(Pi, (Pi[0] + Ti[0] * L * 0.30, Pi[1] + Ti[1] * L * 0.30),
+                           (tip_i[0] - D2[0] * L * 0.55, tip_i[1] - D2[1] * L * 0.55), tip_i)
+            return PR.edge_stroke(edge_i, wf, side=-1)[0]
     return PR.edge_stroke(edge, wf, side=1)[0]
-E_ARM_EASE_R = 0.35   # the roman tail reaches the round-94 thinning this far along its length
+E_TAIL_INNER = __import__('os').environ.get("ALBO_ROM_E_TAIL_INNER", "1") == "1"   # round 245: the roman tail drawn from its inner edge
+# ROUND 245. Owner 2026-09-18: "for e and c: remove the hump on top of bottom
+# stroke, respect the curve better." Measured on the e's counter floor after
+# round 235: 38 38 38 / 40 40 40 / 39 38 38 38 / 40 -- a 2-unit wave, the
+# 0.92 thinning easing in over the tail's first 35% while the outer edge is
+# still rising, so the inner edge flattened, rose, dipped. Eased over the
+# WHOLE tail now (1.0): one monotone width from the ring's own to 0.92 x the
+# 0.40 end, and the inner edge follows the outer's curve. The c's floor
+# measured clean (37 36 36 37, symmetric) and is untouched.
+E_ARM_EASE_R = float(__import__('os').environ.get("ALBO_ROM_E_EASE", 1.0))   # the roman tail reaches the round-94 thinning this far along its length (0.35 was round 235)
