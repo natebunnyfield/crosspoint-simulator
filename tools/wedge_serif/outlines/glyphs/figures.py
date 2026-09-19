@@ -309,6 +309,30 @@ THREE_OPT = {
     # (below), these are the other two defensible drawings of the same waist
     'd': dict(waist='point'),                   # a POINTED waist: both strokes run out to one point, the pen's reversal
     'e': dict(waist='beak'),                    # the flat face with a small lip hanging from its lower corner, the C's beak idiom
+    # ROUND 255 (owner 2026-09-19, "optically balanced with rest of numerals"),
+    # roman only, all three on e's beak waist, which ships (round 250). What is
+    # measurably off on the 3 is not its weight -- its ridge stroke is 75.3
+    # against the shipped 0 1 5 6 9's median 74.5 -- but its UPPER BOWL.
+    # Measured on a 1000-unit-x-height raster (`shape.py`, round's scratch):
+    #                    upper/lower lobe width   upper counter, of the width
+    #   Georgia              0.90                    0.53
+    #   Flanker              0.97                    0.53
+    #   Pagella              1.02                    0.55
+    #   Big Caslon           1.04                    0.59
+    #   Poetica              1.14                    0.53
+    #   Coelacanth           1.20                    0.56
+    #   Albo 3e (today)      0.84                    0.37
+    # Every reference's upper counter is 0.53-0.59 of the figure's width;
+    # Albo's is 0.37 -- a hook over a bowl, which is what option c was drawn
+    # against and e was not. These are c's width lever on e's waist, laddered:
+    # the upper bowl's x radius 0.50 / 0.545 / 0.60 of the width (today 0.46),
+    # its centre moved right with it so the bowl's right edge stays inside the
+    # lower's (0.52 + 0.62 = 1.14 w) and the solved width does not grow. The
+    # sweep's end lands 0.375-0.40 w either way, so the round-233 waist joins
+    # both strokes at one T as before.
+    'f': dict(waist='beak', top_rx=0.50, top_cx=0.51),      # halfway: the upper counter to ~0.45 of the width
+    'g': dict(waist='beak', top_rx=0.545, top_cx=0.515),    # option c's bowl on e's waist: the upper within a tenth of the lower (Georgia, Flanker)
+    'h': dict(waist='beak', top_rx=0.60, top_cx=0.53),      # the upper AS WIDE as the lower (Pagella, Big Caslon)
 }
 THREE_OPT_IT = {k: THREE_OPT[k] for k in ('b', 'c')}   # the italic's waist is untouched (its lower terminal is round 211's run-out)
 # ROUND 233 (R38), owner 2026-09-18 on the roman 3: *"redo middle stem."* The
@@ -763,6 +787,14 @@ def g_two(c):
         # figure's weight and the slash reads as the written stroke into it
         prof = widths([(0.0, _topw * 1.1), (0.15, _topw), (f_arc, _topw),
                        (f_arc + 0.35 * (1 - f_arc), 1.0), (1.0, _send)])
+    elif _o2.get('slash_k'):
+        # round 255 (g-i): the slash HELD at `slash_k` of the profile for its
+        # run -- easing down from the arc's weight over the slash's first
+        # quarter and flat from there -- instead of easing UP to the full
+        # profile by the base. The arc keeps `top_w`; the base is its own bar.
+        _sk = _o2['slash_k']
+        prof = widths([(0.0, _topw * _o2.get('start_w', 1.1)), (0.15, _topw), (f_arc, _topw),
+                       (f_arc + 0.25 * (1 - f_arc), _sk), (1.0, _sk)])
     else:
         prof = widths([(0.0, _topw * _o2.get('start_w', 1.1)), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
     wfn = PR.bowl_widths(center, prof, floor=S * _slashw * _topw, stress=_st, con=_cn)
@@ -840,8 +872,43 @@ TWO_OPT = {
     'd': dict(fillet=0.45),                     # the inside crotch filleted with the family's bracket, 0.45 S along each edge; outer corner as today
     'e': dict(slash_end=0.58, ),                # the slash THINS into the base (to 0.58 of the profile) and its outer edge lands ON the base's corner
     'f': dict(turn=0.55),                       # a WRITTEN TURN: the slash rounds into the base as one stroke, centerline radius 0.55 S, outer edge still reaching x 0
+    # ROUND 255, owner 2026-09-19: *"redo 2 3 4 7 8 to be optically balanced
+    # with rest of numerals. use other old style figures as inspiration."*
+    # Roman only, every arm built on the shipped b (start_w 1.0, the long
+    # base) so his round-249 ruling stands under all three. Measured on a
+    # raster at a 1000-unit x-height (`shape.py` in the round's scratch), each
+    # stroke as a fraction of THAT face's own 0's thick side, so faces of
+    # different weight compare -- and Albo's five shipped figures are the
+    # yardstick, not the references' absolute weights:
+    #                    arc side   base    slash    (of the 0's thick side, all measured on the raster)
+    #   Georgia            0.99     0.80    0.40
+    #   Flanker            0.98     0.96    0.40
+    #   Coelacanth         0.87     0.86    0.39
+    #   Pagella            1.23     0.92    0.54
+    #   Poetica            1.43     1.20    0.55
+    #   Albo 2b (today)    0.72     0.80    0.64
+    # (The slash is read perpendicular to its own local edge on rows 0.64-0.80
+    # of the height; a first cut read it on rows 0.50-0.72, which on Albo's 2
+    # is still the arc's tail, and put it 20% too light. Corrected here.)
+    # The 2's ridge stroke reads 57.2 against the shipped 0 1 5 6 9's median
+    # 74.5 (-23%), and the table says where that is: the ARC is 0.72 of the
+    # 0's side where every reference runs 0.87-1.43, the BASE 0.80 is at the
+    # bottom of their 0.80-1.20, and the SLASH, 0.64, is already ABOVE their
+    # 0.39-0.55. So the weight goes into the arc and the base and comes OUT of
+    # the slash -- `top_w` 1.0 puts the arc's sides on the 0's (measured 0.96),
+    # and `slash_k` is a new lever that holds the slash at 0.70 of the profile
+    # for its run instead of letting it ease up to the full 1.0 by the base
+    # (measured 0.55, Pagella's and Poetica's; Georgia's 0.40 would be a 1 px
+    # slash at 13 px on this pen and is deliberately not chased). Without it a
+    # heavier arc makes a heavier slash, which is the one stroke that was not
+    # light.
+    # (`slash_w` is the slash's FLOOR, x S x top_w; at b's 0.80 it would stand
+    # at 67 units and hold the slash up over `slash_k`, so it drops under it.)
+    'g': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.50, over=26.0, start_w=1.0),  # the ARC to the 0's weight; base as b
+    'h': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=26.0, start_w=1.0),  # ...and the BASE to the references' median (80 units, 0.93 of the 0's thick): heavier on the bottom, as ruled in round 81
+    'i': dict(top_w=1.0, slash_k=0.70, slash_w=0.55, base_w=1.90, over=60.0, start_w=1.0),  # ...and the base LONGER: 60 units past the body (0.17 of the width -- Pagella 0.17, Coelacanth 0.18, Big Caslon 0.17; b's 26 is Georgia's 0.06)
 }
-TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-f: its bar sits on the round-212 drop and its press cuts are placed on the bbox
+TWO_OPT_IT = {k: TWO_OPT[k] for k in ('b', 'c')}   # the italic keeps round 229's two and draws 'a' under d-i: its bar sits on the round-212 drop and its press cuts are placed on the bbox
 def _plen(pts): return sum(math.hypot(q[0] - p_[0], q[1] - p_[1]) for p_, q in zip(pts, pts[1:]))
 
 @glyph('3')
@@ -936,9 +1003,9 @@ def g_four(c):
     start (a pen cut), full by a quarter of the run, merging into the bar.
     FOUR_CURVED False keeps round 77's straight open diagonal; FOUR_OPEN
     False the closed 4."""
-    _o4 = _okw('4', FOUR_OPT)
+    _o4 = _okw('4', FOUR_OPT, FOUR_OPT_IT)
     D = c["figH"]; w = W_(c, '4', 480); xs = w * 0.7
-    barw = max(TH_H, S * 0.5) * _o4.get('bar', 1.0); bar_y = D * 0.3
+    barw = max(TH_H, S * 0.5) * _o4.get('bar', 1.0); bar_y = D * _o4.get('bar_y', 0.3)   # round 255: the bar's height is a lever (d-f)
     st = stem(xs, 0, D, top=None, foot='both',
               **({} if 'stem' not in _o4 else dict(w=TH_V * _o4['stem'])))
     b = bar(0, w, bar_y, barw)
@@ -1045,7 +1112,35 @@ FOUR_BOW = 0.10         # how far left of the start the bow's upper control sits
 FOUR_OPT = {
     'b': dict(diag=0.86, bar=1.12, stem=1.10),
     'c': dict(diag=0.62, bar=1.34, stem=1.20),
+    # ROUND 255 (owner 2026-09-19, "optically balanced with rest of
+    # numerals"), roman only. Two things measured off, and neither is the
+    # diagonal. On a 1000-unit-x-height raster (`shape.py`), each stroke as a
+    # fraction of that face's own 0's thick side:
+    #                    bar     stem    diagonal   bar centre above the baseline (units at xh 429)
+    #   Georgia          0.59    0.86     0.42        +68
+    #   Flanker          0.96    0.96     0.36        +35
+    #   Coelacanth       1.10    0.81     0.41        +37
+    #   Pagella          0.82    1.00     0.51        +25
+    #   Poetica          0.98    1.26     0.57        +88
+    #   Big Caslon       --      --       --          +39
+    #   Albo 4a (today)  0.55    0.88     0.48        -13
+    # The stem (0.88) and the diagonal (0.48) are inside the references'
+    # bands; the BAR is under every one of them (0.55 against 0.59-1.10), and
+    # the bar sits 13 units BELOW the baseline where every reference puts it
+    # 25-88 ABOVE (median 38) -- so in `1234` the 4's bar runs under the 1's
+    # feet. `bar_y` is new: the bar's centre as a fraction of the figure's
+    # height, 0.30 today; 0.378 puts the centre at +38. Raising it steepens
+    # the diagonal 31 -> ~36 degrees, which is TOWARD the references (29-41,
+    # median 38), and leaves 0.34 of the height under the bar (they run
+    # 0.27-0.37). The ridge "stroke" of a 4 sits on its longest stroke, the
+    # diagonal, so the -33% it reads against the shipped five is what a 4 IS
+    # (Georgia's reads -18% of its 0); the colour, 0.76 of the 0's, is inside
+    # their 0.69-0.96. Hence no arm here thickens the diagonal.
+    'd': dict(bar_y=0.378),                                  # the bar RAISED to the references' line; nothing else
+    'e': dict(bar_y=0.378, bar=1.45),                        # ...and the bar at the CAPITALS' bar weight (61 units, 0.94 of pen.CAP_BAR; 0.75 of the 0's thick -- Georgia 0.59, Pagella 0.82)
+    'f': dict(bar_y=0.378, bar=1.70, diag=0.80),             # ...the bar at the references' median (71 units, 0.90) and the diagonal at theirs (0.42): Coelacanth's, Flanker's
 }
+FOUR_OPT_IT = {k: FOUR_OPT[k] for k in ('b', 'c')}   # round 255: the italic keeps round 229's two and draws 'a' under d-f (the table was shared until then; b and c are the same dicts)
 
 # THE 5'S OPTIONS, and they are two independent questions, so there are four
 # arms rather than three.
@@ -1229,6 +1324,35 @@ SEVEN_OPT = {
               leg_taper=0.62, leg_from=0.55, curve=0.0, flare=1.0),
     'd': dict(bar_w=1.48, diag_w=0.98, bar_mod=0.68,
               leg_taper=0.70, leg_from=0.60, curve=0.0, flare=1.0),
+    # ROUND 255 (owner 2026-09-19, "optically balanced with rest of
+    # numerals"), roman only -- i-k, because e-h are the ITALIC 7's rows and
+    # `ALBO_FIG_7=e` on a roman build was proved to change nothing in round
+    # 231; that proof stands. Measured on a 1000-unit-x-height raster
+    # (`shape.py`), the bar at mid-span and the leg on its own rows, each as a
+    # fraction of that face's own 0's thick side, plus the bar's taper (its
+    # thickness at 0.60 of its span over 0.25) and the 7's top against its 0's:
+    #                    bar     leg    bar/leg   taper   top vs the 0
+    #   Georgia          0.75    0.47    1.58     0.98     -3%
+    #   Flanker          0.96    0.86    1.12     0.99     -1%
+    #   Coelacanth       0.82    0.44    1.87     0.98     +4%
+    #   Pagella          1.10    0.72    1.51     0.98     +1%
+    #   Poetica          1.37    0.70    1.92     0.90     +3%
+    #   Albo 7a (today)  0.70    0.55    1.29     0.99     -6%
+    # Three findings. The bar is under every reference (0.70 against
+    # 0.75-1.37, median 0.96) and the leg is at the bottom of their band (0.55
+    # against 0.44-0.86, median 0.70); the references' bars are FLAT (taper
+    # 0.90-0.99), so b-d's tapered bars are not what they do; and the 7 tops
+    # 28 units under the round figures (its box is 0.64 CAP, the 0's 0.66 plus
+    # overshoot) where every reference tops within 4% of its 0. `top_up` is
+    # new: units added to the figure's height, so the bar's top rises and the
+    # leg's foot stays on its line; 14 puts the top on the 0.66 box line, 3%
+    # under the 0's overshoot, which is Georgia's 7. The fitter's CLIFF at bar
+    # 1.50 (above) is still there: i stops one step under it, j goes past it
+    # for the references' bar/leg and pays the `x7` bearing for it -- the
+    # `cmp_figure_space --body` number is in the round's report.
+    'i': dict(bar_w=1.48, diag_w=0.90, top_up=14.0),                  # a FLAT bar one step under the cliff (measured 0.78 of the 0's thick), the leg to the references' median (measured 0.64), the top on the box line
+    'j': dict(bar_w=1.80, diag_w=0.90, top_up=14.0),                  # the bar at the 0's own thick (measured 0.95; bar/leg 1.48, beside Pagella's 1.51) -- past the cliff, cost recorded
+    'k': dict(bar_w=1.48, diag_w=0.90, top_up=14.0, foot_x=0.18),     # i with the leg at the references' angle: the foot at 0.18 of the width (Georgia 0.19, Flanker 0.18) puts the leg at ~24 degrees against today's 22 (they run 24-30)
 }
 # ROUND 231 -- FOUR MORE ITALIC 7s, e TO h. Owner 2026-09-18: *"give me more
 # options for the italic 7 that match the rest of the numerals and font's
@@ -1321,8 +1445,10 @@ def g_seven(c):
     where the bar's top edge meets the diagonal's right edge. The diagonal
     starts inside the bar's band (SEVEN_DIAG_BURY of the bar's depth below
     its top edge) so both corners of its square face are buried."""
-    D = c["figH"]; w = W_(c, '7', 440)
     _o7 = _okw('7', SEVEN_OPT, SEVEN_OPT_IT)
+    # round 255 (i-k): the bar's top may stand above the 0.64 box; the foot
+    # stays on the box's floor, so only the height D grows
+    D = c["figH"] + _E('ALBO_FIG_7_TOP', _o7.get('top_up', 0.0)); w = W_(c, '7', 440)
     # ROUND 189 -- the owner, 2026-09-17: *"for 7, thin out diagonal and
     # thicken top bar."* Measured against Coelacanth the 7 was effectively
     # MONOLINEAR -- 1.1:1 where Coelacanth is 2.6:1 -- so the two strokes were
@@ -1477,6 +1603,42 @@ EIGHT_OPT = {
     'l': dict(con=1.40, oval=1.0),                                       # a milder contrast than c's 1.85, the counters ovalised with it
     'm': dict(tall=1.10, upper=0.88, waist=1.25),                        # h, i and j together
     'g': dict(upper=0.92, waist=1.65, to_six=True, con=1.85, oval=1.0),  # Big Caslon's: lobes nearly equal (0.92), crossing waist, on the 6's line, with option c's contrast
+    # ROUND 255 (owner 2026-09-19, "optically balanced with rest of
+    # numerals"; round 250, "make variants of the existing not creative
+    # options"), roman only: today's two rings, the counters as his round-64
+    # rulings left them, ONE lever each on top of the exact height solve.
+    # Measured on a 1000-unit-x-height raster (`shape.py`, the waist found as
+    # the one-run band between the two counters -- an ink-minimum finds the
+    # lobes' flanks on a ring pair that does not cross, and read 0.59 first):
+    #                 8 top / 6 top   upper/lower counter: width   height   outer pinch, of W
+    #   Georgia          1.003              0.84          0.92          0.43
+    #   Flanker          0.964              0.91          0.87          0.41
+    #   Pagella          1.000              0.89          0.86          0.37
+    #   Coelacanth       0.997              0.83          0.83          0.28
+    #   Poetica          1.000              0.74          0.80          0.35
+    #   Big Caslon       1.004              0.98          0.98          0.42
+    #   Albo 8a (today)  0.887              0.75          0.69          0.54
+    # The lobe ratio (0.85 of the lower by width; theirs 0.81-0.96) and the
+    # counters' WIDTH ratio (0.75; theirs 0.74-0.98) are inside the bands. Off
+    # are the HEIGHT (11% under the 6 where the nearest reference is 4%), the
+    # upper counter's HEIGHT against the lower's (0.69 where they run
+    # 0.80-0.98 -- exactly 0.75 / 1.08, the round-64 rulings compounding), the
+    # waist (no pinch at all: 0.54 of the width, theirs 0.28-0.43) and the cut
+    # (1.52 against 2.05+). `up_tall` is new: the upper counter's height x
+    # this, its width untouched; 1.22 puts the height ratio at 0.85, the
+    # references' median. `to_six` (option e's solve) lands the top ON the 6's
+    # current line -- the 6 moved in round 250 and b's fixed 1.19 now stands 3
+    # units over it.
+    'n': dict(to_six='shipped'),                                         # today's 8 solved exactly onto the shipped 6's line (its tail tip); nothing else moves
+    'o': dict(to_six='shipped', up_tall=1.22),                           # ...and the upper counter taller, to the references' 0.85 of the lower's height
+    'p': dict(to_six='shipped', up_tall=1.22, con=1.40, oval=1.0),       # ...and option l's mild cut (1.40) with it, counters ovalised
+    # NEGATIVE RESULT, so nobody offers it again: option j's `waist` 1.25 was
+    # built on top of o and measured -- the outer pinch went 0.514 -> 0.556 of
+    # the width, WIDER. On two rings that do not cross, a deeper overlap puts
+    # the narrowest section into wider parts of each ring; a pinch like the
+    # references' needs lobes that narrow toward the waist (option f's
+    # teardrops), which round 250 ruled out as "creative". Not offered.
+    'q': dict(to_six='shipped', upper=0.84, up_tall=1.09),               # ...o's height ratio (0.84 x 1.09 / 1.08 = 0.85) with the upper counter WIDER: 0.84 of the lower's width, Georgia's (theirs 0.74-0.98; a is 0.75)
 }
 EIGHT_OPT_IT = {
     'b': dict(tall=1.16),
@@ -1520,9 +1682,15 @@ def g_eight(c):
     # 6's), for the options that put the 8 on the 6's line
     if _o8.get('to_six') or _o8.get('written'):
         _c6 = dict(c); _c6['figH'] = Dr
-        six_top = geom.bbox(_six_draw(_c6, Dr, {}))[3]
+        # round 255 (n-q): `to_six='shipped'` solves onto the 6 THIS BUILD
+        # draws -- the shipped i since round 250, whose shorter tail tops 31
+        # units under the round-233 6 that e/g (True) still aim at; e and g are
+        # left on that older line so they build as they did.
+        _o6 = _okw('6', SIX_OPT, SIX_OPT_IT) if _o8.get('to_six') == 'shipped' else {}
+        six_top = geom.bbox(_six_draw(_c6, Dr, _o6))[3]
+    _uptall = _o8.get('up_tall', 1.0)    # round 255 (o-q): the upper counter's height alone, x this
     cw2, ch2 = bw2 + 2 * sp, bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp     # drawn (pre-spread) targets
-    cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH * _tall + 2 * sp
+    cw1, ch1 = bw1 + 2 * sp, bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
     # Round 98 (owner 2026-09-14: "without reshaping the two counterspaces,
     # give me options for making an 8 that visually fits the rest of the
     # numbers"): the OUTER's levers, each an env override for the options
@@ -1601,7 +1769,7 @@ def g_eight(c):
             if abs(top8 - six_top) < 0.3: break
             _tall *= (six_top + OVER) / (top8 + OVER)
             ch2 = bw2 / EIGHT_COUNTER_WH * EIGHT_LOWER_TALL * _tall + 2 * sp
-            ch1 = bw1 / EIGHT_COUNTER_WH * _tall + 2 * sp
+            ch1 = bw1 / EIGHT_COUNTER_WH * _tall * _uptall + 2 * sp
             rx2, ry2 = ring_for_counter(0.0, 0.0, cw2, ch2, w_scale=w_lo, k=kk, floor=floor_)
             rx1, ry1 = ring_for_counter(0.0, 0.0, cw1, ch1, w_scale=w_up, k=kk, floor=floor_, rot=rot_up)
             cx = rx2; y2 = -OVER + ry2; y1 = -OVER + 2 * ry2 - bowl_hair() * waist + ry1

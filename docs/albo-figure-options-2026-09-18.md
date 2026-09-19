@@ -447,3 +447,57 @@ Both are stated on the sheet so the choice is made with them in view.
 `it_7_runs_13px_x6.png` and `it_7_runs_40px.png` (`1977`, `7,777`,
 `77 the 7th of 7`, `0123456789` in each of the eight). PNG at native pixels,
 integer NEAREST where magnified.
+
+## Round 255 — 2 3 4 7 8 redrawn for optical balance against the shipped five (2026-09-19)
+
+Owner: *"subagent to redo 2 3 4 7 8 to be optically balanced with rest of
+numerals. use other old style figures as inspiration."* Sixteen options added,
+NOTHING shipped: the default build is byte-identical to the one before, in
+both styles, and the italic is unchanged under every new letter.
+
+The yardstick is Albo's own shipped 0 1 5 6 9 (ridge stroke median 74.5), and
+each reference is measured as a fraction of ITS OWN 0's thick side so faces of
+different weight compare. What the five redrawn digits measured, shipped:
+
+| digit | stroke vs the five's 74.5 | the miss |
+|---|---|---|
+| 2 (b) | −23% | the arc is 0.72 of the 0's side where the references run 0.87–1.43 |
+| 3 (e) | +1% | the upper counter is 0.37 of the width against every reference's 0.53–0.59 |
+| 4 (a) | −33% | the bar is 0.55 of the 0's thick against 0.59–1.12, and its centre sits 13 units BELOW the baseline where every reference is 25–88 above |
+| 7 (a) | −30% | the bar is 0.70, under every reference's 0.75–1.37; the top sits 6% under the 0 where they run −3% to +4% |
+| 8 (a) | −11% | 11% under the 6 where the nearest reference is 4%; the upper counter's height is 0.69 of the lower's against 0.80–0.98 |
+
+New letters: `TWO_OPT` g h i (new lever `slash_k`), `THREE_OPT` f g h,
+`FOUR_OPT` d e f (new lever `bar_y`, and a new `FOUR_OPT_IT` so the italic
+cannot see them), `SEVEN_OPT` i j k (new lever `top_up`), `EIGHT_OPT` n o p q
+(new levers `up_tall` and `to_six='shipped'`, which solves onto the 6 THIS
+build draws rather than the round-233 one).
+
+**Recommended set 1 — 2h 3g 4e 7i 8o.** Each arm moves exactly one measured
+miss into the middle of the references' band without crossing the fitter's
+cliff. The stroke spread across the ten figures goes from 0.73–1.20 × the
+median to **0.85–1.12**; figure spread 1.60× → **1.57×**; glitch 0 of 122;
+the touching list is identical to today's, verified by diffing the full
+reports rather than the counts. Set 2 (2g 3h 4f 7j 8p) reaches further and
+costs more: 7j's heavy bar takes the tightest figure pair to 0.0467 em.
+
+**Negative results, recorded so they are not re-offered.** Deepening the 8's
+waist overlap on top of a taller upper counter makes the outer pinch WIDER
+(0.514 → 0.556 of the width), because on two rings that do not cross the
+narrowest section moves into wider parts of each ring; a reference-like pinch
+needs teardrop lobes, which round 250 ruled out. The 2's slash cannot reach
+Georgia's and Flanker's 0.40 without becoming a 1 px slash at 13 px, so it
+stops at Pagella's and Poetica's 0.55. The 7's foot flare (four references
+press the foot 1.7–2.3×) was not offered: the roman 7 has never had a foot
+serif and no ruling asks for one. Raising the 4's bar costs 5–7 units of
+advance through the fitter, noted and not compensated.
+
+**Four instrument bugs, each of which produced a believable number first** —
+the 7's bar read 0.185 of the cap by row-counting because its hanging wedge
+spans the rows under the bar; the 2's base had the same fault from its rising
+wedge; the 8's waist read 0.59 by ink-minimum, because on two rings that do
+not cross the minimum is the lobes' flanks; and the 2's slash was read on rows
+that were still the arc's tail. All four were corrected and each correction
+validates against a designed number.
+
+Proofs: `tools/wedge_serif/shape/fig255/` — 18 PNGs at native pixels.
