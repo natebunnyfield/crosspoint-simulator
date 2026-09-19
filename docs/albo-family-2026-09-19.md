@@ -231,6 +231,62 @@ None of these five is a reason to undo round 263 — a bold italic whose
 lowercase is the regular has no touching pairs for the same reason a blank
 page has none.
 
+## 8. The bold masters — measured, and the stem is YOUR ruling
+
+The bold pass measured the `l`'s stem, the `H`'s stem, the `o`'s thinnest bowl
+and the `n`'s advance across 12 upright and 11 italic Regular/Bold reference
+pairs (`tools/wedge_serif/cmp_bold_stem.py`):
+
+| | stem / x-height | cap stem / cap height |
+|---|---|---|
+| Albo Medium (84) | 0.1851 | 0.1344 |
+| Albo Bold 107 | 0.2345 | 0.1738 |
+| **Albo Bold 116** | **0.2526** | **0.1902** |
+| Albo Bold 122 | 0.2680 | 0.2033 |
+| reference regulars, median | 0.181 | 0.1375 |
+| **garalde bolds** (Charter, Dante, Van den Keere, Venetian) | **0.2545** | **0.1933** |
+| all 12 reference bolds, median | 0.2999 | 0.2381 |
+
+**116 hits the garalde bold on both measures.** 107 is 8% light on the stem
+and 10% on the cap stem — it measures between Hoefler Text's *Regular* and
+Dante's *Medium*. The all-reference median wants about 135, but that group is
+transitional and Scotch and its bolds are black; Albo belongs with the garalde
+four. The counters agree: at 107 the `a` and `e` counters are looser than
+every reference bold measured, at 116 they sit inside them.
+
+**The width stays 95, not the 100 I had guessed.** Reference bolds gain only
+1.3% (garalde) to 4.2% (all) of `n` advance over their regular. Albo at 116/95
+already gains **17.5%**, because the face's own rule holds the n's counter
+constant as the stem grows. 100 would add another 2.5 points and buy counter
+width the `a` does not need.
+
+**The honest trade, and why nothing is shipped.** With the x fixed, Bold at
+107 sweeps **0 findings of 122**. At 116 it is **2** and the bold italic **3**
+— new cracks in the `ß` and `φ`, all the same class of butt-join as the x. So
+107 is clean and measures like a Medium; 116 measures like a bold and owes two
+joins. That is a ruling, not a calculation, and the image that answers it is
+`tools/wedge_serif/shape/bold/stem-ladder/ladder-40px-x2.png`.
+
+**Fixed: the roman `x` split in two at bold weight.** `end_wedge` anchors a
+wedge half the width it is *given* off the centreline, and the x's bottom-left
+wedge is deliberately given the THICK diagonal's width (the owner's 2026-09-14
+"increase the visual weight of the bottom left serif in 'x'") while the stroke
+under it is drawn at 0.72 of that. The root therefore stands 0.14 of the pen's
+width outside the stroke's edge — a fraction of the stem, so it grows with
+weight. At 84 the wedge's body bridges it; by 107 it does not. `x_bl_anchor()`
+holds the overhang at the units it has at the Medium via `min(1.0, 84/pen.S)`,
+exactly 1.0 at 84, so the Medium is untouched.
+
+**An instrument bug that inverted the answer once, recorded because it looked
+right.** The first cut of the bold measurement read the x-height off the `x`
+alone — and Albo's `x` has flaring wedge serifs that overshoot its own
+x-height (ink 481 against a declared 429), an overshoot that GROWS with the
+stem, so the denominator moved with the thing being measured. Albo Medium read
+0.1663 where it is 0.1851: the difference between "lighter than every regular
+measured" and "the median regular". The tool now takes the minimum ink height
+over `x z v w`. Declared metrics are no fallback either — Dante MT declares an
+`sxHeight` of 403 on a 2048-em body, a 5× error that looks entirely plausible.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

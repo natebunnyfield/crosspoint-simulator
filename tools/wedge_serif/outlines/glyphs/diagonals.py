@@ -157,6 +157,30 @@ def g_w(c):
 
 X_BL_WEDGE = 1.15   # the x's bottom-left wedge, x the family's diagonal end (0.9 is the family's own)
 X_BL_WIDTH = 1.0    # the width the wedge is sized on: the THICK diagonal's (1.0), not the thin's
+X_BL_THIN = 0.72    # ... and the width the stroke it lands on actually has
+
+# THE WEDGE'S OVERHANG IS A KNIFE-CUT, NOT A WEIGHT (2026-09-19, the bold
+# masters). `end_wedge` anchors a wedge half of the width it is GIVEN off the
+# stroke's centreline, and the x's bottom-left wedge is deliberately given the
+# THICK diagonal's width (X_BL_WIDTH 1.0, owner 2026-09-14: "increase the visual
+# weight of the bottom left serif in 'x'") while the stroke it sits on is drawn
+# at X_BL_THIN of that. So its root stands (1.0 - 0.72)/2 = 0.14 of the pen's
+# width OUTSIDE the thin stroke's edge, and that overhang is a FRACTION of the
+# stem -- it grows with the weight axis. At the Medium's 84 the wedge's own body
+# still bridges it; by FJORD_STEM 107 it does not, and the glitch gate reads the
+# x as a SPLIT: two ink islands, 87,873 and 6,961 square units, the second being
+# the whole serif lying detached at the bottom left (x 71..256, y 13..176).
+#
+# The cure is to hold that overhang at the number of UNITS it has at the Medium
+# instead of at a fraction of the stem: a serif's reach past its own stroke is a
+# detail of the cut, and nothing about a heavier pen says the gap between the two
+# should open. `84.0 / S` is exactly 1.0 at the shipping Medium, so the anchor
+# width is `pw(q0, q1)` there to the bit and the roman is unchanged; above it the
+# wedge walks back in toward the stroke as fast as the stroke thickens.
+# Measured: 0 glitch findings at stems 107, 116, 122 and 140.
+def x_bl_anchor(q0, q1):
+    thin = pw(q0, q1, X_BL_THIN)
+    return thin + (pw(q0, q1, X_BL_WIDTH) - thin) * min(1.0, 84.0 / pen.S)
 
 @glyph('x')
 def g_x(c):
@@ -166,8 +190,8 @@ def g_x(c):
     # in 'x'" -- that serif ends the THIN diagonal, so the family's wedge
     # scaled on the thin stroke's width is small; it is drawn on the thick
     # diagonal's width instead, at X_BL_WEDGE of the family's diagonal end
-    thin = diagonal(q0, q1, pw(q0, q1, 0.72), serif0=-1)
-    bl = end_wedge([q0, q1], pw(q0, q1) * X_BL_WIDTH, False, -1, scale=X_BL_WEDGE)
+    thin = diagonal(q0, q1, pw(q0, q1, X_BL_THIN), serif0=-1)
+    bl = end_wedge([q0, q1], x_bl_anchor(q0, q1), False, -1, scale=X_BL_WEDGE)
     return geom.ink([diagonal(p0, p1, pw(p0, p1), serif0=1, serif1=1), thin, bl])
 
 # owner 2026-09-14 ("Beyond", "Tuesday"): "the 'y' is too dark in a word

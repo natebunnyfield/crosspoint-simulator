@@ -102,6 +102,14 @@ FJORD_STEM=66.9 FJORD_CONTRAST=0.892 \
 # branching-arch italic. This is the env every gate below builds with:
 ALBO_ITALIC=aldine FJORD_STEM=66.9 FJORD_CONTRAST=0.80 FJORD_WIDTH=95 \
   FJORD_SLANT=13 PYTHON_GIL=0 python3 -m outlines.build /tmp/albo --style Italic
+
+# THE BOLD PAIR (round 259, 2026-09-19). The weight axis is FJORD_STEM; the
+# Medium is 84. The stem is NOT settled -- 107 is gate-clean and 116 is what
+# the reference garalde bolds measure. See docs/albo-family-2026-09-19.md.
+FJORD_STEM=116 FJORD_SLANT=0 FJORD_CONTRAST=0.80 FJORD_WIDTH=95 FJORD_CUT=0 \
+  PYTHON_GIL=0 python3 -m outlines.build /tmp/albo --style Bold
+ALBO_ITALIC=aldine FJORD_STEM=116 FJORD_SLANT=13 FJORD_CONTRAST=0.80 \
+  FJORD_WIDTH=95 FJORD_CUT=0 PYTHON_GIL=0 python3 -m outlines.build /tmp/albo --style BoldItalic
 ```
 
 The historical per-round scripts still run, from the repo root:
