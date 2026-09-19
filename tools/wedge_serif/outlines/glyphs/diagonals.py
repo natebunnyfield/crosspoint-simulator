@@ -206,7 +206,18 @@ Y_LEFT_W = float(__import__('os').environ.get('FJORD_Y_LEFT_W', 0.97))   # owner
 @glyph('y')
 def g_y(c):
     xh = c["xh"]; wf = c["wf"]; desc = c["desc"]; w = 440 * wf
-    p0, p1 = (S * 0.4, xh), (w / 2 + S * 0.1, -S * 0.4)
+    # ROUND 267 -- THE DIAGONAL MUST REACH THE TAIL AT ANY WEIGHT. Its end was
+    # -S x 0.4 below the line: an overlap sized in the stem, crossing a tail
+    # whose path sits on the descender grid. At the 200's stem of 43.8 that is
+    # 17.5 units and the tail's ink no longer covers it -- the y shipped as TWO
+    # islands (25568 and 22308 units^2). The end is now the deeper of the two,
+    # S x 0.4 or 0.16 of the descender (41 units): at 66.9 the extension sits
+    # entirely inside the tail's ink, so the shipped 400 is unchanged.
+    # Gated to stems under the 400's 66.9: at 66.9 the deeper end poked out of
+    # the tail's ink by a few units and moved a ruled letter, so the shipped
+    # weight keeps -S x 0.4 exactly and only the lighter cuts take the floor.
+    _yend = -max(S * 0.4, desc * 0.16) if S < 66.0 else -S * 0.4
+    p0, p1 = (S * 0.4, xh), (w / 2 + S * 0.1, _yend)
     w_full = pw(p0, p1); w_left = w_full * Y_LEFT_W
     if Y_LEFT_W != 1.0:
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]; L = math.hypot(dx, dy)

@@ -51,7 +51,15 @@ def ff_first(c):
     """The first f of ff: its hook shortened into the second f's stem; its
     bar reaches the second bar so the two read as one."""
     x, r, bar_r = f_geometry(c); x2 = x + r * FF_STEP
-    end = (x2 + S * 0.2, c["asc"] - r * 0.40)
+    # ROUND 267 -- at the 200 the first hook's tip only kissed the second
+    # hook's edge (PINCH, 2.2 units at 379, 712): its end is S x 0.2 past the
+    # second stem, an overlap sized in the stem, and at 43.8 that is 8.8
+    # units. Under the 400's stem the tip goes further in and higher, into
+    # the second hook's body; at 66.9 and above the end is exactly as it was.
+    if S < 66.0:
+        end = (x2 + S * 0.45, c["asc"] - r * 0.30)
+    else:
+        end = (x2 + S * 0.2, c["asc"] - r * 0.40)
     c2 = (x + r * 1.0, c["asc"] + 8)
     f = f_ink(c, hook_end=end, hook_c2=c2, hook_profile=[(0.0, 1.0), (1.0, 1.0)], parts=True, hook_cut=False)
     return f, x2 - x

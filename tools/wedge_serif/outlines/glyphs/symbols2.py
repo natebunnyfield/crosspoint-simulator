@@ -100,8 +100,12 @@ def g_pi(c):
                      _s(line((w - XH * 0.22, 0), (w - XH * 0.18, XH - TH_H * 0.5)), widths([(0.0, 1.05), (1.0, 0.92)]))])
 @glyph('φ')      # phi
 def g_phi(c):
-    r = XH * 0.36
-    return geom.ink([_bowl(r, XH * 0.50, r, XH * 0.50, 0.84),
+    # ROUND 267 -- as the theta: at a 116 stem the wall (0.84 S = 97) is most
+    # of the radius (154) and the stem through the middle cut the counter to
+    # two slits (CRACKs of 5.4 and 5.3). The wall scale falls with the stem
+    # above 84; at and under 84 it is 0.84 as drawn.
+    r = XH * 0.36; ws = 0.84 * min(1.0, 84.0 / S)
+    return geom.ink([_bowl(r, XH * 0.50, r, XH * 0.50, ws),
                      _s(line((r, -DESC * 0.62), (r, XH + XH * 0.30)), w=TH_V * 0.86)])
 @glyph('α')      # alpha
 def g_alpha(c):
@@ -133,8 +137,15 @@ def g_beta(c):
                      _bowl(x + XH * 0.33, XH * 0.26, XH * 0.33, XH * 0.26, 0.92)])
 @glyph('γ')      # gamma
 def g_gamma(c):
-    return geom.ink([_s(line((0, XH), (XH * 0.42, -DESC * 0.30)), widths([(0.0, 0.66), (1.0, 1.0)])),
-                     _s(line((XH * 0.78, XH), (XH * 0.34, XH * 0.30)), widths([(0.0, 0.62), (1.0, 0.92)]))])
+    # ROUND 267 -- THE SHORT STROKE ENDED BESIDE THE LONG ONE, NOT ON IT. Its
+    # end at (0.34, 0.30) XH sat 39 units right of the long stroke's
+    # centreline at that height, and only the strokes' widths bridged the gap
+    # -- widths sized in S, so at the 200 the letter shipped as two islands.
+    # The end now lies ON the long stroke's centreline, 0.05 XH past it.
+    p0, p1 = (0, XH), (XH * 0.42, -DESC * 0.30)
+    yj = XH * 0.30; xj = p0[0] + (p1[0] - p0[0]) * (p0[1] - yj) / (p0[1] - p1[1])
+    return geom.ink([_s(line(p0, p1), widths([(0.0, 0.66), (1.0, 1.0)])),
+                     _s(line((XH * 0.78, XH), (xj - XH * 0.05, yj - XH * 0.03)), widths([(0.0, 0.62), (1.0, 0.92)]))])
 @glyph('δ')      # delta
 def g_delta(c):
     top = cubic((XH * 0.62, XH * 0.96), (XH * 0.24, XH * 1.06), (XH * 0.20, XH * 0.74), (XH * 0.44, XH * 0.58))
@@ -143,14 +154,29 @@ def g_delta(c):
 @glyph('ε')      # epsilon
 def g_epsilon(c):
     from .rounds import open_arc
-    up = superellipse(XH * 0.30, XH * 0.70, XH * 0.30, XH * 0.30, math.radians(-40), math.radians(200), 2.05)
+    # ROUND 267 -- THE UPPER ARC ENDS INSIDE THE LOWER ONE, not on its edge.
+    # At -40 degrees the upper stroke's end corner landed exactly on the lower
+    # stroke's outer edge, and only the strokes' widths made that an overlap;
+    # at the 200 it closed to a 2.8-unit point contact (PINCH at 292, 209).
+    # From -50 degrees the upper arc's centreline runs 7 units inside the
+    # lower stroke's centreline, so the two overlap at any weight.
+    up = superellipse(XH * 0.30, XH * 0.70, XH * 0.30, XH * 0.30, math.radians(-50), math.radians(200), 2.05)
     lo = superellipse(XH * 0.30, XH * 0.26, XH * 0.30, XH * 0.26, math.radians(160), math.radians(-70), 2.05)
     pr = widths([(0.0, 0.62), (0.5, 1.0), (1.0, 0.68)])
     return geom.ink([_s(up, pr), _s(lo, pr)])
 @glyph('θ')      # theta
 def g_theta(c):
-    r = XH * 0.32
-    return geom.ink([_bowl(r, ASC * 0.42, r, ASC * 0.42, 0.86), bar(r * 0.30, r * 1.70, ASC * 0.42, MATH * 0.92)])
+    # ROUND 267 -- two faults, one letter. LIGHT: the bar stopped at 0.30 r
+    # and 1.70 r, inside the counter, reaching the walls only through their
+    # thickness -- at the 200 it shipped loose (SPLIT, 4485 units^2). It now
+    # runs 0.05 r to 1.95 r, into the walls and inside the outer edge, so at
+    # every weight it is buried and the union at the 400 is unchanged. HEAVY:
+    # at a 148 stem the wall (0.86 S = 127) exceeds the ring's radius (137)
+    # and the counter closed to two slits either side of the bar. The wall's
+    # scale now falls with the stem above 84, 0.86 x 84/S, so the counter
+    # keeps its room; below 84 it is 0.86 as drawn.
+    r = XH * 0.32; ws = 0.86 * min(1.0, 84.0 / S)
+    return geom.ink([_bowl(r, ASC * 0.42, r, ASC * 0.42, ws), bar(r * 0.05, r * 1.95, ASC * 0.42, MATH * 0.92)])
 @glyph('λ')      # lambda
 def g_lambda(c):
     return geom.ink([_s(line((0, 0), (XH * 0.52, ASC * 0.82)), widths([(0.0, 0.72), (1.0, 0.95)])),
@@ -162,8 +188,16 @@ def g_mu(c):
                      _s(line((XH * 0.52, XH * 0.30), (XH * 0.52, XH)), w=TH_V * 0.86)])
 @glyph('ρ')      # rho
 def g_rho(c):
+    # ROUND 267 -- at a 148 stem the rho showed three slits (CRACKs of 9.8,
+    # 3.5 and 9.7). First read as the bowl crossing the stem; see below.
+    # CORRECTED the same round: pushing the bowl into the stem did nothing,
+    # because the three slits are not at the stem. At a 148 stem the wall,
+    # 0.90 S = 133, is as wide as the ring's radius, 137, and the COUNTER
+    # itself is the 8-unit slit. Same class as the theta, same fix: the wall
+    # scale falls with the stem above 84.
+    ws = 0.90 * min(1.0, 84.0 / S)
     return geom.ink([_s(line((0, XH * 0.50), (0, -DESC * 0.60)), w=TH_V * 0.92),
-                     _bowl(XH * 0.32, XH * 0.50, XH * 0.32, XH * 0.50, 0.90)])
+                     _bowl(XH * 0.32, XH * 0.50, XH * 0.32, XH * 0.50, ws)])
 @glyph('σ')      # sigma
 def g_sigma(c):
     return geom.ink([_bowl(XH * 0.34, XH * 0.34, XH * 0.34, XH * 0.34, 0.92),
@@ -174,12 +208,19 @@ def g_tau(c):
                      _s(line((XH * 0.40, 0), (XH * 0.38, XH - TH_H * 0.5)), widths([(0.0, 0.95), (1.0, 0.86)]))])
 @glyph('ω')      # omega
 def g_omega(c):
-    a = _bowl(XH * 0.26, XH * 0.34, XH * 0.26, XH * 0.34, 0.86)
-    b = _bowl(XH * 0.62, XH * 0.34, XH * 0.26, XH * 0.34, 0.86)
+    # ROUND 267 -- at a 148 stem the two small bowls (radius 0.26 XH = 112)
+    # closed: a wall of 0.86 S = 127 is wider than the radius, and each
+    # counter became two slits (four CRACKs). The wall scale falls with the
+    # stem above 84, as the theta's does; and the two bars now run INTO their
+    # bowls' walls (to 0.30 XH and from 0.58 XH) instead of stopping at the
+    # cut edge, so they cannot come adrift at the light end either.
+    ws = 0.86 * min(1.0, 84.0 / S)
+    a = _bowl(XH * 0.26, XH * 0.34, XH * 0.26, XH * 0.34, ws)
+    b = _bowl(XH * 0.62, XH * 0.34, XH * 0.26, XH * 0.34, ws)
     box = sg.box(-XH, -XH, XH * 1.4, XH * 0.10)
     return geom.ink([a.difference(box).buffer(0), b.difference(box).buffer(0),
-                     bar(0, XH * 0.20, XH * 0.06, TH_H * 0.86, align='bottom'),
-                     bar(XH * 0.68, XH * 0.88, XH * 0.06, TH_H * 0.86, align='bottom')])
+                     bar(0, XH * 0.30, XH * 0.06, TH_H * 0.86, align='bottom'),
+                     bar(XH * 0.58, XH * 0.88, XH * 0.06, TH_H * 0.86, align='bottom')])
 @glyph('Δ')      # Delta
 def g_Delta(c):
     from ..pen import CS
@@ -207,9 +248,15 @@ def g_Omega(c):
     # 84 exactly, and cuts lower -- more leg into the foot -- as the face
     # lightens.
     box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06 * min(1.0, pen.S / 84.0))
+    # ROUND 267 -- THE FEET NOW REACH UNDER THE LEGS. At the cut height the
+    # ring's legs stand at 0.585 r and 1.415 r; the feet ended at 0.52 r and
+    # 1.48 r, 18 units short on each side, and only the wall's thickness
+    # bridged that -- so at the 200 the feet came loose again despite the
+    # scaled cut. The inner ends run to 0.68 r and 1.32 r, under the legs at
+    # any weight; the extra length is beneath the legs' ink.
     return geom.ink([a.difference(box).buffer(0),
-                     bar(-r * 0.30, r * 0.52, 0, TH_H, align='bottom'),
-                     bar(r * 1.48, r * 2.30, 0, TH_H, align='bottom')])
+                     bar(-r * 0.30, r * 0.68, 0, TH_H, align='bottom'),
+                     bar(r * 1.32, r * 2.30, 0, TH_H, align='bottom')])
 @glyph('Σ')      # Sigma
 def g_Sigma(c):
     w = CAP * 0.66
@@ -234,10 +281,33 @@ def g_product(c): return g_Pi(c)
 
 # ------------------------------------------------- the non-composite Latin
 def _joined(c, a, b, overlap=0.18):
-    """Two letters run together at their stems: the ligated vowels."""
-    ga = GLYPHS[a](c); gb = GLYPHS[b](c)
+    """Two letters run together at their stems: the ligated vowels.
+
+    ROUND 267 -- the overlap is a fraction of the SECOND letter's width, and
+    at a 148 stem the E's serifs and bars widen its box faster than the O's
+    flank reaches it, so the OE shipped as two islands (378394 and 200834
+    units^2). If the pair does not touch at the declared overlap, the second
+    letter slides left in 4-unit steps until it does -- the first placement
+    that is one piece. A pair that already touches is placed exactly where it
+    was, so nothing at the 400 moves."""
+    ra = GLYPHS[a](c); rb = GLYPHS[b](c)
+    ga = geom.ink([ra]); gb = geom.ink([rb])          # inked copies for COUNTING only
+    def _n(g): return 1 if g.geom_type == 'Polygon' else len(g.geoms)
+    # the pair must merge exactly ONE island: an ij is four pieces (two dots)
+    # that become three, an ae one that stays one. The first cut of this loop
+    # asked for a single piece and slid the ij 240 units into itself.
+    want = _n(ga) + _n(gb) - 1
     ax0, _, ax1, _ = ga.bounds; bx0, _, bx1, _ = gb.bounds
-    return geom.ink([ga, aff.translate(gb, ax1 - bx0 - (bx1 - bx0) * overlap, 0)])
+    dx0 = ax1 - bx0 - (bx1 - bx0) * overlap; dx = dx0
+    limit = (bx1 - bx0) * 0.25          # never slide more than a quarter of the second letter
+    while dx0 - dx <= limit:
+        if _n(geom.ink([ga, aff.translate(gb, dx, 0)])) <= want: break
+        dx -= 4.0
+    else:
+        dx = dx0                          # could not join within the limit: keep the declared place
+    # built from the RAW parts exactly as before, so a pair that needed no
+    # slide is byte-identical to what shipped
+    return geom.ink([ra, aff.translate(rb, dx, 0)])
 
 # The a's round-155 rebuild pulled its right side in, and at the old 0.10
 # the two letters no longer touched -- `cmp_aldine_glitch.py` read the ae
@@ -307,8 +377,14 @@ glyph('Ł')(lambda c: _sloped_bar(c, 'L', 0.34))
 def g_thorn(c):
     from .stems import bowl_stem
     x = S / 2
+    # ROUND 267 -- at a 148 stem the thorn showed two slits (CRACKs of 9.3 and
+    # 9.4). First read as the bowl crossing the stem; see below.
+    # CORRECTED the same round, as the rho: the slits are the counter itself
+    # closing (wall 0.92 S = 136 against a radius of 137), not the join. The
+    # wall scale falls with the stem above 84.
+    ws = 0.92 * min(1.0, 84.0 / S)
     return geom.ink([stem(x, -c["desc"] * 0.86, c["asc"] * 0.92, top='left', foot='both'),
-                     _bowl(x + XH * 0.30, XH * 0.50, XH * 0.32, XH * 0.50, 0.92)])
+                     _bowl(x + XH * 0.30, XH * 0.50, XH * 0.32, XH * 0.50, ws)])
 @glyph('Þ')      # Thorn
 def g_Thorn(c):
     from ..pen import CS
@@ -323,10 +399,17 @@ def g_germandbls(c):
     sh = cubic((x, ASC * 0.72), (x, ASC * 0.96), (x + XH * 0.50, ASC * 0.98), (x + XH * 0.48, ASC * 0.62))
     lower = cubic((x + XH * 0.48, ASC * 0.62), (x + XH * 0.44, XH * 0.62), (x + XH * 0.10, XH * 0.58), (x + XH * 0.16, XH * 0.40))
     tail = cubic((x + XH * 0.16, XH * 0.40), (x + XH * 0.62, XH * 0.30), (x + XH * 0.60, -XH * 0.02), (x + XH * 0.18, XH * 0.06))
+    # ROUND 267 -- at a 148 stem the shoulder and the lower stroke filled the
+    # upper bowl to a slit (CRACK, mean width 9.6, area 823): the letter's
+    # counter is small and its strokes are sized in S. Above 84 the three
+    # curved strokes lighten by the square root of 84/S -- 0.75 at 148 -- so
+    # the bowl keeps its room while the stem carries the weight. At and under
+    # 84 the factor is 1 and the drawing is as it was.
+    _lt = min(1.0, (84.0 / S) ** 0.5)
     pr = widths([(0.0, 0.80), (0.5, 0.95), (1.0, 0.82)])
     return geom.ink([stem(x, 0, ASC * 0.74, top=None, foot='both'),
-                     _s(sh, pr, cut0=None, cut1=None), _s(lower, pr, cut0=None, cut1=None),
-                     _s(tail, widths([(0.0, 0.82), (0.6, 0.95), (1.0, 0.50)]), cut0=None)])
+                     _s(sh, pr, cut0=None, cut1=None, light=_lt), _s(lower, pr, cut0=None, cut1=None, light=_lt),
+                     _s(tail, widths([(0.0, 0.82), (0.6, 0.95), (1.0, 0.50)]), cut0=None, light=_lt)])
 @glyph('ŋ')      # eng
 def g_eng(c):
     g = GLYPHS['n'](c); x0, y0, x1, y1 = g.bounds

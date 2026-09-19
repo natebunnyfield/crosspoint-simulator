@@ -329,7 +329,15 @@ def g_C(c):
     prof = widths([(0.0, 1.3), (0.12, 1.0), (0.78, 1.0), (1.0, 0.3)])
     body, center = cap_arc(c, rx, 43, 334, prof, cut0=math.radians(BEAK_CUT))
     lip = beak(center, PR.bowl_th(tangents(center)[0]) * 1.3, True, BEAK_CUT)
-    return geom.ink([body, lip])
+    # ROUND 267 -- at a 148 stem the lip's underside and the arc's end face
+    # leave a 2.9-unit sliver of paper between them (CRACK, area 208). A
+    # morphological close of 2 units seals any sliver under 4 wide and is
+    # gated to stems above the 84 the letter was drawn at, so nothing under
+    # that -- the shipped 400 included -- is touched.
+    g = geom.ink([body, lip])
+    if pen.S > 84.0:
+        g = g.buffer(4.0, join_style=2).buffer(-4.0, join_style=2)   # 2.0 left the 2.8-unit crack untouched; a hole's MAX width is what a close has to span
+    return g
 
 @glyph('D')
 def g_D(c):

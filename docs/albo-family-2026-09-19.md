@@ -584,6 +584,61 @@ subset, emit) and `albo_dial_page.py` (the page). Judge SHAPE there: it renders
 with the browser's antialiasing, not the reader's four grey levels, so the
 legibility half of the ruling still belongs to the 13 px proofs.
 
+## 13. Round 267 — the 200 and the 900 corrected, by class
+
+Owner 2026-09-19: *"take pass at correcting 200 and 900 issues based on
+prior md findings and strategies."* The strategies were the ones already in
+this file: the x's `min(1, 84/S)` anchor, the Ω's scaled cut, the ffi bridge,
+`ALD_WF`. Every finding at both ends fell into one of three classes, and every
+fix is weight-proof and gated so the shipped 400 does not move except where a
+letter was structurally redrawn.
+
+| weight | before | after | what is left |
+|---|---|---|---|
+| 200 (stem 43.8) | 7 findings | **1** | the β, ruled |
+| 400 (shipped) | 1 | **1** | the β, ruled |
+| 700 (stem 116) | 2 | **0** | — |
+| 900 (stem 148) | 7 | **0** | — |
+| italic 400 | 1 | **1** | the β, ruled |
+
+**Class 1 — joins sized in S that open at the light end** (a part on the
+x-height grid, which does not move, overlapping a stroke sized in the stem,
+which thins). The **y**'s diagonal ended S × 0.4 below the line, 17.5 units at
+43.8, and the tail's ink no longer covered it: the end is now the deeper of
+S × 0.4 or 0.16 of the descender, gated under the 400's stem so the shipped
+letter is byte-identical. The **γ**'s short stroke ended 39 units beside the
+long one's centreline and now ends on it. The **θ**'s bar stopped inside the
+counter and now runs into the walls. The **Ω**'s feet ended 18 units short of
+the legs and now reach under them. The **ε**'s upper arc ended its corner on
+the lower arc's edge (a 2.8-unit point contact) and now buries 7 units inside
+it. The **ff/ffi/ffl** first hook only kissed the second hook (2.2 units) and
+goes further in and higher under the 400's stem.
+
+**Class 2 — small counters that collapse at the heavy end.** At a 148 stem
+a bowl wall of 0.86–0.92 × S is 127–136 units against radii of 112–154, so
+the θ, φ, ω, ρ and þ counters closed to slits — and I misread the ρ and þ as
+join faults first, pushed their bowls into the stem, and measured no change
+before seeing why. All five now scale the wall by `min(1, 84/S)` above the
+stem they were drawn at; at and under 84 they are as drawn. The **ß**
+lightens its three curved strokes by √(84/S) for the same reason.
+
+**Class 3 — positions that drift with weight.** The **Œ** placed the E by a
+fraction of the E's own width, and at 148 the E's serifs widen its box faster
+than the O's flank reaches it, so the pair split. `_joined` now tests the
+inked union and slides the second letter left in 4-unit steps until exactly
+one island merges, capped at a quarter of its width, and builds from the raw
+parts — so æ, œ, ĳ and Ĳ, which needed no slide, are byte-identical. (The
+first cut of that loop asked for a single island and slid the ĳ, which has
+two dots, 240 units into itself; caught by the 400 diff.) The **C**'s beak
+left a 2.9-unit sliver against the arc at 148 and takes a 4-unit
+morphological close above stem 84.
+
+**Moved at the shipped 400, in both styles: Ω, γ, ε, θ, ω** — five Greek
+letters, none ruled on, each a structural join. Every Latin glyph, every
+figure and every ligature is byte-identical to the build before this pass.
+The italic's figure spread reads 1.36×; it was 1.36× before the pass too (the
+re-anchor moved it from 1.32×), so nothing here touched it.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
