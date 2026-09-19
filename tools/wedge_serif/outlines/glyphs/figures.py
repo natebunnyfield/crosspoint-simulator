@@ -412,7 +412,7 @@ _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
-FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'e'})   # round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
+FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'j'})   # round 253: the 9 ships as j (owner: "i already picked j"); round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
 def OPT(d):
@@ -427,7 +427,7 @@ def OPT(d):
     so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
     for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in 'abcdefghijklm' and len(o) == 1 else 'a'
+    return o if o in 'abcdefghijklmnopqr' and len(o) == 1 else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -1771,6 +1771,15 @@ NINE_OPT = {
     'j': dict(k=2.0, flag=0.5),                          # MICROSERIF: the wedge at half size
     'k': dict(k=2.0, end='ball', ball=0.22),             # BALL: the tail thins to 0.72 over its last fifth and a round of 0.22 S caps it
     'l': dict(k=2.0, end='taper', taper=0.35),           # RUN-OUT: the tail thins to 0.35 over its last 28%, no wedge (the italic's ending)
+    # ROUND 253, owner 2026-09-18: *"i already picked j i need more microserif
+    # options."* j ships; these are the small wedge other ways. `flag` may be
+    # (length, depth) x the family's WL, WD; `drop` overrides DROP.
+    'm': dict(k=2.0, flag=0.35),                          # smaller still
+    'n': dict(k=2.0, flag=0.65),                          # between j and e
+    'o': dict(k=2.0, flag=(0.70, 0.35)),                  # long and shallow: j's depth, 0.7 of the length
+    'p': dict(k=2.0, flag=(0.35, 0.70)),                  # short and deep
+    'q': dict(k=2.0, flag=0.5, end_cut=-34.0),            # j on the sheared face (the lower corner pulled back under it)
+    'r': dict(k=2.0, flag=0.5, drop=0.0),                 # j with no drop: the wedge's bracket meets the edge without the family's DROP
 }
 NINE_OPT_IT = {k: NINE_OPT[k] for k in ('b', 'c', 'd')}
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
@@ -1922,7 +1931,8 @@ def g_nine(c):
             parts = [solid, t, Point(_ex, _ey).buffer(S * _o9['ball'], 24)]
         else:
             _fs = _o9.get('flag', 0.9)
-            flag = wedge(up[-1], d, sd, WL * _fs, WD * _fs, DROP, edge_at=_walk_back(up))
+            _fl, _fd = (_fs if isinstance(_fs, tuple) else (_fs, _fs))
+            flag = wedge(up[-1], d, sd, WL * _fl, WD * _fd, _o9.get('drop', DROP), edge_at=_walk_back(up))
             parts = [solid, t, flag]
         if not pen.ITALIC and NINE_JOIN_FILLET > 0:
             fil = _crotch_fillet(up, o, S * NINE_JOIN_FILLET)     # round 233 (R43): the inside join
