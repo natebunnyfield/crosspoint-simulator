@@ -472,7 +472,7 @@ because the o "read hollow — its knot the lowest of any letter (−11%), the
 hairs dropping to gray at 13 pt", which is the size he reads at on the
 four-level pipeline. Opening the contrast is therefore a LEGIBILITY trade, and
 the three arms are rendered at 13 px, 17 px and 40 px for him to rule on:
-https://claude.ai/artifact/o6CyMU6c4jWhkg8xAP8MYA
+https://claude.ai/artifact/GuqYrtvf5hbNqc8dKhaDtu
 
 Glitch sweep is 3 findings on every arm, so opening the contrast breaks
 nothing that was not already broken at this weight. 1.87 is inside the
