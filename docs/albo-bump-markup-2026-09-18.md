@@ -345,3 +345,27 @@ fix (one token, every serif) is deferred.
 * **R11** (roman N, top-left of the right stem) and the whole-glyph marks
   (R42 / I116, the 8s; I72, the italic r) are design questions rather than
   outline defects; the write-up decides them.
+
+## CLOSED — the outstanding option ladders stand as drawn (2026-09-19)
+
+Owner, offered a walk-through, a partial close, or a full close: **"Close them
+all as drawn."**
+
+So each of these is ruled by default on the arm it already ships, which is the
+drawing he has been reading all week and which survived both the 1.7 contrast
+ruling and the re-anchor to stem 66.9. **They stop appearing in triage.** The
+dials stay in the code, inert, so any of them can be re-opened by name.
+
+| ladder | round | ships |
+|---|---|---|
+| the L's top serif, `ALBO_ROM_L_TOP` a–e | 241 | a |
+| the S's balance, `ALBO_ROM_S_BAL` a–e | 242 | a |
+| the dots, `ALBO_DOT_PUNCH` a–c | 235 | a |
+| the W's crown, 0.6 / 0.3 / none | — | as drawn |
+| the arch trap, `ALBO_ROM_N_TRAP` on/off | — | off |
+| the capital sharp S, U+1E9E | — | not drawn, and stays undrawn |
+
+The capital sharp S was offered separately and closed with the rest: it is
+needed only for all-caps German, it has two competing standard shapes, and no
+ruling asks for it. It is NOT a coverage gap to be fixed silently by a later
+pass — it is a letter this face deliberately does not carry.
