@@ -558,9 +558,6 @@ def g_J(c):
                  (x - r * 0.55, -desc * 0.55 - _j), (x - r * 1.1, -desc * 0.1 - _j))
     base = pen_widths(tail)
     blend = lambda t: (CW if t < 0.1 else (base(t) if t > 0.45 else CW + (base(t) - CW) * (3 * ((t - 0.1) / 0.35) ** 2 - 2 * ((t - 0.1) / 0.35) ** 3)))
-    if pen.ITALIC:
-        wfn = lambda t: blend(t) * widths([(0.65, 1.0), (1.0, 1.3)])(t)
-        return geom.ink([st, stroke(tail, wfn, cut1=CUT)])
     # ROUND 275 -- THE HOOK'S END IS THE c's TOP FINIAL. Owner 2026-09-19:
     # "change out round finials (like c top serif)." The hook flared 1.3 over
     # its last 35% into the 20-degree cut -- 84.8 wide at the 400, a teardrop
@@ -568,6 +565,10 @@ def g_J(c):
     # PR.finial_cut): the swell to 1.10 over the last 13% (71.8) and the face
     # sheared 28 degrees toward the vertical, the inner corner forward. The
     # top is the I's wedge and is not a finial.
+    # ROUND 276: the ITALIC too (owner, on the italic cent page: "that italic
+    # has round finials that needs to replaced along with others") -- its
+    # branch kept the 1.3 flare into the cut for one round (86.7 wide at the
+    # Italic 400, the last teardrop in the family) and is gone.
     return geom.ink([st, stroke(tail, PR.finial_widths(blend, False), cut1=PR.finial_cut(tail, False))])
 
 # owner, verbatim: "the kick on K and R needs to taper (give me options to

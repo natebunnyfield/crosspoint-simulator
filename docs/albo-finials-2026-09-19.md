@@ -249,3 +249,254 @@ italic 3 / 5 tails become run-outs when `THREE_TAIL_END` / `FIVE_TAIL_END`
 are set). Which of those are balls and which are run-outs is a render
 question for that round; this round's inventory method (the `stroke()`
 patch in `scratchpad/R275/probe.py`) applies as is.
+
+## Round 276 — the italic's finials
+
+Date 2026-09-19. HEAD `01fe91f` (round 277) surveyed; built and gated on the
+working tree that became round 276. Owner, on the italic cent page: *"that
+italic has round finials that needs to replaced along with others."* Both
+italic weights move, the shipped Italic 400 included; the Regular is proved
+byte-identical below. Proofs: `tools/wedge_serif/shape/weights276/index.html`
+(per glyph, before/after at 0.5 px/unit, the 400 and the 700 side by side;
+runs at 13 px x8 and 40 px x2 for both weights; PNG at native pixels,
+NEAREST only). Every number is measured on the built outline (the design-mode
+probe, `scratchpad/R276/probe_it.py`, round 275's instrument with the
+aldine module patched in and `PR.dot` logged) or on the built font.
+
+### 1. The same construction, and one number the italic had to supply
+
+The ends compose round 275's three primitives unchanged — `finial_widths`,
+`finial_cut`, the swell to 1.10 over 13% into the face sheared 28 degrees
+toward the vertical, no lip. What the italic adds is the FLOOR, because its
+contrast is per letter and nearly every converted end sits on a hairline:
+the c's top is 33.2 units wide at the 400, the r's arm 36.8, the y's tail
+26.5, and 1.10 of any of those is a thin cut, not the c's terminal.
+
+The floor is **the italic c's own top end** — the width its ball had, the
+ring's width at the path's start x C_CAP0_R, the 2026-09-17 serif scale:
+**65.6 at the 400, 90.6 at the 700** (`aldine.fin_floor`). Not
+`rounds.c_top_width()`, and that is a measured decision, not a preference:
+under the italic's pen that function reads 65.3 at the 400 (0.5% from the
+italic's own) but **111.5 at the 700**, because it scales with S (x1.73 from
+the 400) where every stroke in the aldine module scales with `ALD_WF_UP`
+(x1.38). Built with it, the BoldItalic's terminals were a face 96% of the
+stem wide on 43-unit hairlines, the c's top corner stood 20 units above the
+letter's own crown (471 against the ball's 450), and the y's tail went 41
+units deeper. The italic's own number keeps the c's top at the ball's weight
+at both weights and lands every other converted end on it.
+
+### 2. The inventory, decided by rendering
+
+3 px/unit crops around every `stroke()` end and every `PR.dot`, at the 400
+and the 700, before and after (`scratchpad/R276/base400.png`, `base700.png`,
+`base400b.png` for the capitals, marks and figures, `base400c.png` for the
+rest of the lowercase and the aldine capitals; `final400.png`,
+`final700.png`). "was" is the construction read from the code and confirmed
+on the render; widths are the terminal's ink at the end, design units,
+400 / 700; the face is `stroke()`'s signed cut in degrees. The 400's
+"before" widths and every "after" are measured; the 700's "before" for the
+table-drawn lobes and the `d_ball` ovals (f j k x v w y, the r's oval, the
+J's flare) are the 400's x ALD_WF_UP (1.381), the module's own scaling, not
+re-measured -- the discs of the c and the s at the 700 are measured.
+
+| terminal | was | decision | end width before | after | face before -> after |
+|---|---|---|---|---|---|
+| c top (`a_c`) | `cs_round_end` + `PR.dot`, the disc 1.15 x the end's half-width, on a 33.2 / 43.6 stroke | CONVERTED, floored (the floor IS this width); trimmed as the cap trimmed it | 65.6 / 90.6 | 65.6 / 90.6 | round -> -28 |
+| c bottom | a semicircular cap of the stroke's width | CONVERTED, floored; trimmed as before | 37.6 / 52.2 | 65.6 / 90.6 | round -> -28 |
+| s head (`a_s`) | a semicircular cap | CONVERTED, floored; untrimmed | 41.5 / 59.2 | 65.6 / 90.6 | round -> -28 |
+| s foot | a disc on a path widened 1.5x over its last 14% (`S_FOOT`, the 2026-09-17 foot) | CONVERTED, floored; the 1.5x widening goes with the disc it grew (kept, the foot flares 1.65x into the face — a flared cut, not the c's 1.10); trimmed back by the face's throw, (w/2) tan 28 | 84.6 / 67.2 | 65.6 / 90.6 | round -> -28 |
+| r arm (`a_r`) | a separate 84 x 106 oval (x ALD_WF_UP: 116 x 146 at the 700) on an arm 36.8 / 59.4 wide at its end | CONVERTED, floored (1.10 x 36.8 = 40.5); the arm carried `fin_reach` past the ball's old centre so the rightmost ink holds: 243 -> 244 / 308 -> 309 | 84 / 116 | 65.6 / 90.6 | oval -> -28 |
+| f hook (`a_f`) | a lobe in the width table (32 -> 54 -> 60 -> 44, x F_TW), closing on a flat face | CONVERTED, floored (1.10 x 49.3 = 54.2); the table now carries the hook at its own 44 | 67.2 (tip 35.8) / 92.8 | 65.6 / 90.6 | flat -> +28 |
+| f tail | a lobe (34 -> 46 -> 50 -> 22) on a flat face | CONVERTED, floored; the hairline eases 34 -> 42 | 56.0 (tip 24.6) / 77.3 | 65.6 / 90.6 | flat -> +28 |
+| j tail (`a_j`) | a lobe (36 -> 44 -> 48 -> 20) on a flat face | CONVERTED, floored; 36 -> 42 | 52.8 (tip 22.0) / 72.9 | 65.6 / 90.6 | flat -> +28 |
+| j head | the pen cut under the wedge head | not a finial, stays | 46.2 / 63.8 | -- | +20 |
+| v rise (`a_v`) | `d_ball`, a 70 x 64 oval on the pen's angle set back over a 53.8 flat end | CONVERTED, floored (1.10 x 53.8 = 59.2); centerline end unmoved — the ball sat back over the stroke and the stroke's own face reached as far | 70 / 97 | 65.6 / 90.6 | oval -> +28 |
+| w rise (`a_w`) | the same, over 52.8 | CONVERTED, floored | 70 / 97 | 65.6 / 90.6 | oval -> +28 |
+| w apex ends | buried in the apex | stay | -- | -- | -- |
+| x top right (`a_x`) | a swell in the table (27 -> 40 -> 64 -> 54) on a flat face — "the ball on the thin's top" drawn as width | CONVERTED, floored; 27 -> 34 -> 40 | 64.0 (tip 54.0) / 88.3 | 65.6 / 90.6 | flat -> +28 |
+| x hooks (under the thin's start, off the thick's foot) | curls narrowing to a tip (30, 38) below their bend | not balls, stay | 30.0 / 38.0 | -- | flat |
+| y rise (`a_y`) | `d_ball` over a 49.0 end | CONVERTED, floored | 70 / 97 | 65.6 / 90.6 | oval -> +28 |
+| y tail | the round-135 DROP: `d_ball` at squash 1.55 (84 x 54) with the hairline swelling 1.4x then 2.1x into it | CONVERTED, floored: the tail is the reference's constant 26.5 hairline to its end and the floor is a 2.5x swell over the last 13%; the end carried `fin_reach` along the last segment so the swash keeps Y_TAIL_X: leftmost 19 -> 20 / 32 -> 34 | 84 / 116 | 65.6 / 90.6 | oval -> -28 |
+| k arm (`a_k`) | a swell (40 -> 48 -> 64 -> 52) on a flat face, "ball 81 wide at .90" drawn as width | CONVERTED, floored; 40 -> 44 -> 48 | 69.1 (tip 56.2) / 95.4 | 65.6 / 90.6 | flat -> -28 |
+| k leg | a flick tapering to 23.8 | not a ball, stays | 23.8 / 32.8 | -- | flat |
+| J hook (`caps_straight.g_J`, the `pen.ITALIC` branch) | the flare 1.3 over the last 35% into the 20-degree cut — round 275's roman teardrop, left in the italic for one round | CONVERTED: the branch removed, the italic takes the roman's finial (no floor, the J's own) | 86.7 / 150.3 | 73.4 / 127.2 | +20 -> +28 |
+| 2 top (`figures.g_two`, italic option a) | the profile's 1.1 swell over the first 15% into the cut, the 3's top's construction | CONVERTED (same end width; span 15 -> 13%, the face); gated `pen.ITALIC`, the roman's option b keeps round 249's plain cut | 75.0 / 128.6 | 75.0 / 128.6 | +20 -> -28 |
+| 3 top (`g_three`, the `pen.ITALIC` branch) | the 1.1 swell over 10% into the cut | CONVERTED: the branch merged into the roman's finial line (same end width; span, face) | 60.7 / 105.2 | 60.7 / 105.2 | +20 -> +28 |
+| 3 bottom, 5 bowl end | run-outs to 0.45 of the pen (`THREE_TAIL_END`, `FIVE_TAIL_END`) | not balls, stay | 29.9 / 29.8 | -- | flat |
+| 5 top | a bar with a hanging wedge | not a finial, stays | -- | -- | -- |
+| cent | the c with the bar | follows the c | as the c | as the c | -- |
+| e terminal (`a_e`) | the blunt 0.40 S end of 2026-09-16 ("blunt instead of angular") | not a ball, stays | 26.8 / 46.4 | -- | flat |
+| g ear | a bar flaring then narrowing into the 20-degree cut | a bar on a cut, stays | 55.4 / 76.5 | -- | +20 |
+| t top, t exit, t bar | points and tapers (20.2 / 14.6 / 22-25) | stay | -- | -- | -- |
+| z (four tips, the top bar's right end) | tapers to 13-29 | stay | -- | -- | -- |
+| a exit | the hairline exit, 14.5 at the cut | stays | -- | -- | +20 |
+| C G S | the beaks with lips (73 / 36 / 60 at the -28 cut) | beaks, stay (round 275's reading) | -- | -- | -28 |
+| ?, & | `_q8`'s cuts, the ampersand's own -53 cut | stay | -- | -- | -- |
+| 6 top, 9 tail, 7 | a 4.6-unit point, a 12.9 tip on a -34 cut, bars | stay | -- | -- | -- |
+| every dot | `ij_dot`, `dot()` | not a finial, stay | -- | -- | -- |
+| b d h i l m n o p q u; H N U V A G Q R P Z L K M Y X W E F T I | probed at 1.5 px/unit: no disc; every flat end wider than 45 units is a stem under a head or a foot | clean | -- | -- | -- |
+
+`cs_round_end` still serves the c (its walk-back is the trim); `d_ball` has
+no callers and is left as `_diag` was; `C_CAP0_DROP`, `S_CAP0`, `S_CAP1`,
+`S_CAP1_R`, `S_FOOT`, `S_FOOT_T` are gone (a dial nobody may turn), their
+history left in place. `d_pen` grew `fin0` / `fin1`; `_c_ring` is the c's
+path factored out so `fin_floor` can read the letter's own end.
+
+### 3. Position and reach
+
+The centerline end of every converted stroke is where it was, with two
+exceptions carried on purpose: the r's arm and the y's tail, whose ball stood
+PROUD of the stroke, are carried `fin_reach` further — the ball's extent past
+the old end less the face's own throw along x — so the r's rightmost and the
+y's leftmost ink hold to within two units at both weights (above). Measured
+in the built fonts (sheared units, advance / lsb / bbox):
+
+- Italic 400: c 337 -> 341 (xmax 314 -> 299, the top's face reaches less far
+  right than the ball did); r 340 -> 341 (xmax 329 -> 339); v 394 (xmax 371
+  -> 376); w 573 -> 574; x 455 (ymax 439 -> 451); k unchanged; J 315 -> 308
+  (xmax 352 -> 345, as the roman's J did); 2 471 -> 473; 3 unchanged; cent
+  399 -> 384 (its bar moved by the earlier ruling in the same build).
+  f lsb -199 -> -215, j -210 -> -226, y -155 -> -166 and ymin -297 -> -319:
+  the tails' faces lie across a stroke heading up-left, so the lower corner
+  reaches 16 units further left and 22 deeper than the lobe's tip — outside
+  the fitting band, so no advance moves; the pairs it met are kerned (below).
+- BoldItalic: c 336 -> 344 (xmax 314 -> 287); r 375 -> 376 (xmax 365 ->
+  378); v 408 -> 409; w 586 -> 587; J 372 -> 360; 2 496 -> 504 (lsb 6 -> 14);
+  f lsb -206 -> -226, j -187 -> -211, y -167 -> -182 and ymin -307 -> -337.
+- **The s: 313 -> 292, lsb 0 -> -31 at the 400; lsb 8 -> -8 at the 700, the
+  advance 336 unchanged.** The mechanism, read in `build.fit_aldine`: the
+  bearings are solved from the ink inside the band [-OVER, XH+OVER]. The old
+  foot's disc had its leftmost at y 7, INSIDE the band, so the foot priced the
+  letter's left. The new foot's face lies across a stroke running out level,
+  its two corners 2 (w/2) tan 28 = 35 units apart along the stroke, and the
+  forward (lower) corner sits at y -27 — outside the band. So the band's
+  leftmost is now the face's upper corner and the lower one hangs 31 units
+  past the origin; the head's face likewise reaches 16 units less far right
+  than its disc did, and the band width shrank 28, which the advance follows.
+  NOT pinned, for round 275's reason: the rule measures the band's ink and
+  the disc no longer occupies it. `ALD.BEARINGS['s']` is one line if the
+  owner wants the old advance back. The touch gate is the safety here and it
+  passes (Rs 0.0176, qs cleared).
+
+### 4. What was tried and did not hold
+
+- `rounds.c_top_width()` as the floor (section 1): 111.5 at the 700, the
+  terminal 96% of the stem, the c's top corner above its crown. Replaced by
+  the italic c's own end.
+- `fin_reach` with the face's across-offset ADDED to its throw: the r came
+  out 15 units short of its reach (228 for 243) and the y 20 (39 for 19). On
+  both ends the forward corner is the one inside the turn, which gives that
+  offset BACK; the sign is measured, and the docstring says so.
+- The c on its untrimmed path: 19 units wider on the right in the build,
+  because the cap's trim was what kept a round terminal from growing the
+  letter (its own docstring) — the top's face stood 15 units further along
+  the path than the ball's centre. The cap's trim is kept, C_CAP0 / C_CAP1
+  now naming only that.
+- The s on its untrimmed path: 37 / 47 units further left at 400 / 700 in the
+  build, and Rs 0.0090 / qs 0.0094 under the floor. Trimmed back by the face's
+  throw; the fitter then re-priced it as section 3 says.
+- The first touch sweep after the finials: **4 touching / 6 under the floor
+  at the 400, 7 / 9 at the 700**, from a baseline of 0 / 0 at both — every one
+  an f hook against a capital's top-left serif (fV -0.0150 em, fW -0.0073, fU
+  0.0116; at the 700 fV -0.0259, fW -0.0167, f? -0.0117, fE 0.0048, fU 0.0078),
+  or an f / j tail's lower corner under the 4's foot or the q's (4j -0.0167,
+  4f -0.0038, qf 0.0119; at the 700 4f -0.0245, 4j -0.0102, qj -0.0080, qf
+  -0.0037). Baseline: fV 0.0222, fW 0.0228, fU 0.0273, qf 0.0219, 4j 0.1007,
+  4f 0.1150; at the 700 f? 0.0127, qf 0.0149, qj 0.0149, fE 0.0219, fV
+  0.0242, fW 0.0262, fU 0.0279, 4f 0.0985, 4j 0.1114. A descender clash is a
+  kern pair (round 178's reason), and the hook's is the same shape: it meets
+  only a capital with a serif at that height. Kerned in `kern.py`'s italic
+  block, added to what each pair carries: fV +30, 4j +32, fW +22, 4f +18, fU
+  +4, qf +4 at both weights; the 700 over those f? +27, qj +23, 4f +21, qf
+  +15, fV +11, fW +10, fE +10, fU +4. GPOS pairs changed: 6 in the Italic, 9
+  in the BoldItalic (listed in section 6).
+- `echo ====` in zsh, again: it ate the 700's final probe once.
+
+### 5. Gates, verbatim (built fonts, this round)
+
+```
+== Italic 400: glitch
+β  U+03B2
+    CRACK   hole mean width 4.04 < 12.0 (area 106, perim 52)
+122 glyphs swept, 1 with findings
+== touch
+  0 pair(s) TOUCHING, 0 below the 0.012 em floor, 1 exempt.
+== dents
+-- Albo-Italic: 1 dent(s) in 1 glyph(s)
+   9:1058/13.7
+== junctions
+Albo-Italic.ttf [unımhlria]: white slivers < 6: 0, ink shards < 6: 0, steps >= 1.5: 24
+== figure_space --body
+  even: p90/p10 is 1.36x, within the 2.50x allowed.
+== BoldItalic: glitch
+122 glyphs swept, 0 with findings
+== touch
+  0 pair(s) TOUCHING, 0 below the 0.012 em floor.
+== dents
+-- Albo-BoldItalic: 0 dent(s) in 0 glyph(s)
+== junctions
+Albo-BoldItalic.ttf [unımhlria]: white slivers < 6: 0, ink shards < 6: 0, steps >= 1.5: 5
+== figure_space --body
+  even: p90/p10 is 1.47x, within the 2.50x allowed.
+```
+
+Against the baselines: glitch the ruled β alone at the 400 and 0 at the 700;
+touch 0 / 0 / 1 exempt and 0 / 0 (baseline 0 / 0 / 1 and 0 / 0); dents the
+9's `9:1058/13.7` at the 400 byte-for-byte the baseline's and 0 at the 700;
+junction steps 24 at the 400 (baseline 24) and 5 at the 700 (round 274's 5),
+slivers and shards 0.
+
+`cmp_aldine_metrics.py`, before -> after: a 0.767 -> 0.768 (+21%, OFF at
+both — pre-existing, not this round's letter), e 0.371 -> 0.369, o 1.106 ->
+1.105, y w/h 0.713 -> 0.707 (DERIVED, no target: the tail's face is wider
+and deeper); i and u unchanged. 1 letter outside 10% before and after, the
+same letter.
+
+### 6. Glyphs moved per weight
+
+`diffglyphs.py` against `R277b/i400`, `R277b/bi`, `R277b/r400`:
+
+```
+italic glyphs differing: 44 | GPOS pairs changed: 6 [(('f', 'U'), (36, 40)), (('f', 'V'), (18, 48)), (('f', 'W'), (0, 22)), (('four', 'f'), (0, 18)), (('four', 'j'), (0, 32)), (('q', 'f'), (108, 112))]
+bolditalic glyphs differing: 44 | GPOS pairs changed: 9 [(('f', 'E'), (0, 10)), (('f', 'U'), (36, 44)), (('f', 'V'), (18, 59)), (('f', 'W'), (0, 32)), (('f', 'question'), (-15, 12)), (('four', 'f'), (0, 39)), (('four', 'j'), (0, 32)), (('q', 'f'), (190, 209)), (('q', 'j'), (170, 193))]
+r400 glyphs differing: 0 [] | GPOS pairs changed: 0 []
+```
+
+The 44, identical at both weights: IJ J Jcircumflex c cacute ccaron ccedilla
+ccircumflex cdotaccent cent f ij j k kgreenlandic onehalf onethird r racute
+rcaron s sacute scaron scedilla scircumflex three threeeighths threequarters
+two twothirds uni00B2 uni00B3 uni0157 uni0219 uni2082 uni2083 v w wcircumflex
+x y yacute ycircumflex ydieresis — every one a converted glyph or a composite
+of one. The 3 is in it for its top only. The Italic's cent carries the
+earlier `_currency_bar(counter=True)` ruling in the same build, as expected.
+
+### 7. What was checked and found CLEAN
+
+- The Regular 400: 0 glyphs, 0 GPOS pairs — `g_J`'s roman line, the figures'
+  roman branches and `kern.py`'s roman table are untouched; the kern block is
+  inside the aldine gate.
+- The tidy that retired the dials: byte-identical to the build before it, 0
+  glyphs / 0 GPOS at both italic weights.
+- Every end in the table's lower half (e g t z a, the x's hooks, the k's leg,
+  the j's head, the w's apex, the 3's and 5's run-outs, the 5's bar, the 6,
+  the 9, the 7, C G S, ? and &, the dots), and the 31 glyphs probed at 1.5
+  px/unit: no disc, no lobe.
+- The BoldItalic's J shows a hairline white notch at the hook / stem junction
+  in the proof — in the BEFORE image as well as the after; pre-existing, and
+  the glitch sweep reads 0 on it.
+- The italic's `_solid` (the v's and y's fold above the 400) still applies;
+  the BoldItalic's glitch sweep is 0 with the new ends.
+- The figures' spread: 1.36x / 1.47x, within 2.5x, both weights.
+- `git status`: exactly `aldine.py`, `caps_straight.py`, `figures.py`,
+  `kern.py`, the two docs and `shape/weights276/` — nothing else.
+
+### 8. Left for a later round
+
+- The s's advance (313 -> 292 at the 400) is the band fitter's honest reading
+  of a foot whose lower corner now hangs below the band; if he wants the old
+  fit, `ALD.BEARINGS['s']`.
+- The f, j and y tails' lower corners reach 16-24 units further left and
+  22-30 deeper than the lobes did; priced only where they met the 4 and the q.
+- C G S keep their beaks with lips, as the roman's do — the same open
+  question round 275 left.
+- `d_ball` is dead code, kept as `_diag` is.

@@ -369,6 +369,35 @@ if _ALD is not None and _ALD.ON:
     PAIRS[('quotedbl', 'V')] = 36
     PAIRS[('quotesingle', 'W')] = 18
     PAIRS[('quotedbl', 'W')] = 18   # round 233: the W's diagonals lost their 4-unit sway and "W fell to 0.0110 em, under the 0.012 floor
+    # ------------------------------------------------------ round 276, italic
+    # THE ITALIC'S ROUND FINIALS BECAME THE c's TOP (owner 2026-09-19: "that
+    # italic has round finials that needs to replaced along with others"),
+    # and two of the converted ends reach where a ball did not. The f's HOOK
+    # now ends on a 65.6-unit face lying across a stroke that heads down-left,
+    # so its right corner sits ~15 units further right and 15 lower than the
+    # old bulb's -- at the height of the capitals' top-left serifs; and the f's
+    # and j's TAILS end on the same face across a stroke heading up-left, so
+    # their left corner reaches 16 units further left at the 400 (20 / 24 at
+    # the 700), under the 4's foot and the q's. Measured on the built fonts,
+    # baseline 0 touching / 0 under the floor at both weights; after the
+    # finials, at the 400: 4j -0.0167 em, fV -0.0150, fW -0.0073, 4f -0.0038
+    # (touching), fU 0.0116, qf 0.0119 (under the 0.012 floor). A descender
+    # clash is a kern pair and not a wider fitting band (round 178's reason),
+    # and the hook's is the same shape -- it meets only a capital with a
+    # serif at that height. Each value is the measured overlap, the floor,
+    # and a few units of clearance, ADDED to what the pair carries (fV 18 and
+    # fU 36 above, qf 108 + the bold's 82; 4f 4j fW carried nothing).
+    for _k, _v in ((('four', 'j'), 32), (('f', 'V'), 30), (('f', 'W'), 22), (('four', 'f'), 18),
+                   (('f', 'U'), 4), (('q', 'f'), 4)):
+        PAIRS[_k] = PAIRS.get(_k, 0) + _v
+    # ...and the 700's, over those: the same faces on strokes 1.38x wider.
+    # Measured with the base additions in the pair: fV 0.0041, 4f -0.0065,
+    # fW 0.0053, qf 0.0003, fU 0.0118; and three pairs that clear at the 400
+    # and not here -- f? -0.0117, qj -0.0080, fE 0.0048.
+    if _pen.S > 84.0:
+        for _k, _v in ((('f', 'question'), 27), (('q', 'j'), 23), (('four', 'f'), 21), (('q', 'f'), 15),
+                       (('f', 'V'), 11), (('f', 'W'), 10), (('f', 'E'), 10), (('f', 'U'), 4)):
+            PAIRS[_k] = PAIRS.get(_k, 0) + _v
 
 
 # ---------------------------------------------------------- round 223, ROMAN

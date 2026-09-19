@@ -796,7 +796,16 @@ def g_two(c):
         prof = widths([(0.0, _topw * _o2.get('start_w', 1.1)), (0.15, _topw), (f_arc, _topw),
                        (f_arc + 0.25 * (1 - f_arc), _sk), (1.0, _sk)])
     else:
-        prof = widths([(0.0, _topw * _o2.get('start_w', 1.1)), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
+        # ROUND 276 -- THE ITALIC'S TOP IS THE c's TOP FINIAL (owner 2026-09-19:
+        # "that italic has round finials that needs to replaced along with
+        # others"): the italic 2 (option a) swelled 1.1 over its first 15%
+        # into the 20-degree cut, the 3's top's construction, and takes the
+        # same conversion -- the swell in the profile goes and PR.finial_widths
+        # / PR.finial_cut put the family's end on it below (same end width,
+        # 75.0 at the 400; the span and the face move). The roman is untouched:
+        # its shipped option b has start_w 1.0 by round 249's ruling ("without
+        # the bulge") and keeps its plain cut.
+        prof = widths([(0.0, _topw * (1.0 if pen.ITALIC else _o2.get('start_w', 1.1))), (0.15, _topw), (f_arc, _topw), (1.0, 1.0)])
     wfn = PR.bowl_widths(center, prof, floor=S * _slashw * _topw, stress=_st, con=_cn)
     if _send:
         # ...and its OUTER edge lands ON the base's top-left corner, so the
@@ -813,7 +822,10 @@ def g_two(c):
             foot2 = (corner[0] - uy * w_f / 2, corner[1] + ux * w_f / 2)   # corner - (w/2) x the outer (up-left) normal
             center = join(top, line(tipd, foot2))
             wfn = PR.bowl_widths(center, prof, floor=S * _slashw * _topw, stress=_st, con=_cn)
-    body = stroke(center, wfn, cut0=CUT)
+    if pen.ITALIC:   # round 276: the italic's top is the c's top finial (see the profile above)
+        body = stroke(center, PR.finial_widths(wfn, True), cut0=PR.finial_cut(center, True))
+    else:
+        body = stroke(center, wfn, cut0=CUT)
     x1 = geom.bbox(body)[2] + _over2
     parts = [body, bar(0, x1, -_drop, barw * _basew, align='bottom', wedges=[('right', 1)])]
     if _o2.get('fillet'):
@@ -952,10 +964,12 @@ def g_three(c):
                 under = _edge_from(g, A, +1)
                 g = geom.ink([g, wedge(A, (-1, 0), (0, -1), WL * 0.35, WD * 0.45, 0.0, edge_at=_walk_back(under))])
         return g
-    if pen.ITALIC:
-        t = stroke(top, pen_widths(top, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (1.0, 0.4)])), cut0=CUT)
-    else:   # round 275: the roman's free ends are the c's top finial (see the beak waist above)
-        t = stroke(top, PR.finial_widths(pen_widths(top, widths([(0.0, 1.0), (0.88, 1.0), (1.0, 0.4)])), True), cut0=PR.finial_cut(top, True))
+    # round 275: the roman's free ends are the c's top finial (see the beak
+    # waist above); round 276: the italic's top too (owner 2026-09-19, "that
+    # italic has round finials that needs to replaced along with others") --
+    # it kept the 1.1 swell over 10% into the 20-degree cut for one round.
+    # Same end width either way (60.7 at the 400): the span and the face move.
+    t = stroke(top, PR.finial_widths(pen_widths(top, widths([(0.0, 1.0), (0.88, 1.0), (1.0, 0.4)])), True), cut0=PR.finial_cut(top, True))
     if pen.ITALIC and THREE_TAIL_END:      # runs out like the 6's tail
         b = stroke(bot, pen_widths(bot, widths([(0.0, 0.4), (0.1, 1.0), (0.70, 1.0),
                                                 (1.0, THREE_TAIL_END)])))

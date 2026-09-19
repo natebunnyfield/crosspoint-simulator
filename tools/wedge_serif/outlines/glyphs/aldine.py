@@ -1964,7 +1964,7 @@ if ON:
     # centre down (design units) so its mass is under the stroke's underside
     # and the notch is swallowed rather than deepened; C_A0 carries the stroke
     # itself further round before it stops.
-    C_CAP0_DROP = float(os.environ.get("ALBO_ALD_C_CAP0_DROP", 0.0))
+    # (C_CAP0_DROP, the disc's drop, went with the disc in round 276.)
     # ...AND IT GROWS FROM THE BRUSH. Dropping the disc alone still reads as a
     # disc: the arm arrives at its old width and the ball hangs off it. The s's
     # foot needed the same three things (round 208) -- widen the PATH into the
@@ -2054,8 +2054,10 @@ if ON:
         return [wat(math.degrees(math.atan2((y - cy) / ry, (x - cx) / rx))) * unit
                 for x, y in pts]
 
-    @glyph('c')
-    def a_c(c):
+    def _c_ring(c):
+        """The c's path and its width at every sample, before the head widening
+        and the terminals: factored out of a_c in round 276 so `fin_floor` can
+        read the letter's own top end without drawing it."""
         xh = c["xh"]; u = xh / 429.0      # the reference's own units
         def key(a):
             return c_key_widths([(math.cos(math.radians(a)), math.sin(math.radians(a)))],
@@ -2074,6 +2076,11 @@ if ON:
         # aperture.
         p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
         ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT * ALD_WF_UP)   # round 269
+        return p, ws, u
+
+    @glyph('c')
+    def a_c(c):
+        p, ws, u = _c_ring(c)
         n = len(ws) - 1
         if C_HEAD != 1.0:
             for i in range(n + 1):
@@ -2081,13 +2088,29 @@ if ON:
                 if t > C_HEAD_T: continue
                 k = 0.5 + 0.5 * math.cos(math.pi * (t / C_HEAD_T))
                 ws[i] *= 1.0 + (C_HEAD - 1.0) * k
-        i0, r0 = cs_round_end(p, ws, True, C_CAP0, C_CAP0_R)
-        i1, r1 = cs_round_end(p, ws, False, C_CAP1)
+        # ROUND 276 -- BOTH ENDS ARE THE c's TOP FINIAL (owner 2026-09-19, on
+        # the italic cent page: "that italic has round finials that needs to
+        # replaced along with others"). The top was a disc 1.15 x the end's
+        # half-width dropped on the path's end (65.6 wide at the 400, on a
+        # 33-unit stroke) and the bottom a semicircular cap of the stroke's
+        # own width (37.6): both round. Now the family's finial on the
+        # UNTRIMMED path, both ends held to `fin_floor` (see the block above
+        # d_ball): the top keeps the ball's weight (65.6) and the
+        # bottom comes up to it from 37.6. C_HEAD's widening still applies
+        # under it. THE PATH IS STILL TRIMMED AS THE CAPS TRIMMED IT --
+        # `cs_round_end`'s walk-back, C_CAP0 / C_CAP1 x the end's half-width
+        # -- because that trim is what kept a round terminal from growing
+        # the letter and it keeps this one from growing it too: untrimmed,
+        # the top's face stood 15 units further along the path than the
+        # ball's centre and the built c came out 19 units wider. C_CAP0_R
+        # now sizes `fin_floor` and nothing else; C_CAP0_DROP is gone.
+        fl = fin_floor()
+        i0, _ = cs_round_end(p, ws, True, C_CAP0)
+        i1, _ = cs_round_end(p, ws, False, C_CAP1)
         q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
-        parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
-                        cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
-        if r0: parts.append(PR.dot(q[0][0], q[0][1] - C_CAP0_DROP * u, r0))
-        if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
+        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl),
+                              False, floor=fl)
+        parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
         return geom.close_corners(geom.ink(parts), C_BLEND * u)
 
     # RE-MEASURED off griffo-dante-1502.jpg -- the Stagnino Dante, the same
@@ -3810,16 +3833,28 @@ if ON:
     def a_r(c):
         xh = c["xh"]; u = hm_u(c); x0 = S * 1.0; P = HM_PITCH * xh; sw = HM_STEMW * u
         t = HM_ARCH_T * u
+        # ROUND 276 -- THE BALL IS THE c's TOP FINIAL (owner 2026-09-19: "that
+        # italic has round finials that needs to replaced along with others").
+        # The 84 x 106 oval that stood on the arm's end (116 x 146 at the 700)
+        # is gone; the arm keeps its own table -- it thickens from the climb's
+        # hairline to 2.1 x it into the terminal, the reference's arm running
+        # into its ball -- and ends in the family's finial held to `fin_floor`
+        # (65.6 at the 400 against 1.10 x its 36.8). The centerline is carried
+        # `fin_reach` past the ball's old centre so the letter's rightmost ink
+        # stays where the ball's edge was (design units: 243 -> 244 at the
+        # 400, 308 -> 309 at the 700): the reach is the r's, not the ball's.
+        ax, ay = x0 + P * R_ARM_X, xh * 0.876
+        px, py = x0 + P * 0.47, xh * 0.850
+        dl = math.hypot(ax - px, ay - py)
+        ext = fin_reach(R_ARM_W * u * ALD_WF_UP / 2, ((ax - px) / dl, (ay - py) / dl))
         arm = catmull([(x0, xh * HM_SPRING), (x0 + P * 0.17, xh * 0.55),
-                       (x0 + P * 0.32, xh * 0.745), (x0 + P * 0.47, xh * 0.850),
-                       (x0 + P * R_ARM_X, xh * 0.876)], tension=0.5)
-        ball = geom.poly(superellipse(x0 + P * R_ARM_X, R_ARM_Y * xh,
-                                      R_ARM_W * u * ALD_WF_UP / 2, R_ARM_H * u * ALD_WF_UP / 2,
-                                      0.0, 2 * math.pi, 2.2))   # round 269: the ball grows with the pen
+                       (x0 + P * 0.32, xh * 0.745), (px, py),
+                       (ax + (ax - px) / dl * ext, ay + (ay - py) / dl * ext)], tension=0.5)
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh),
-                         stroke(arm, widths([(0.00, sw * 0.94), (0.16, t * 1.15),
-                                             (0.42, t), (0.72, t * 1.25), (1.00, t * 2.1)])),
-                         ball])
+                         stroke(arm, PR.finial_widths(widths([(0.00, sw * 0.94), (0.16, t * 1.15),
+                                                              (0.42, t), (0.72, t * 1.25), (1.00, t * 2.1)]),
+                                                      False, floor=fin_floor()),
+                                cut1=PR.finial_cut(arm, False))])
 
     # ------------------------------------- THE NINE DIAGONALS AND ODD ONES
     # v w x y z k f t j, round 132: drawn against a reference rather than
@@ -3915,7 +3950,7 @@ if ON:
         x0 = S * 0.6 if x0 is None else x0
         return (lambda px, py: (x0 + px * wide * u, py * xh)), u
 
-    def d_pen(pts, keys, u, cut0=None, cut1=None, tension=0.5, tw=1.0):
+    def d_pen(pts, keys, u, cut0=None, cut1=None, tension=0.5, tw=1.0, fin0=False, fin1=False):
         """One movement of the pen: a catmull through `pts` (design space)
         carrying the width table `keys` -- (t, REFERENCE units) pairs read off
         the reference's own runs and converted here by `u`. `tw` scales every
@@ -3925,15 +3960,72 @@ if ON:
         entry, body and terminal are a single movement. Drawing the entry as a
         separate bar is what made the old letters' heads sit ON the letter
         instead of in it, and a straight `_diag` cannot bow at all -- Poetica's
-        v leans 0.27 dx/dy at .75 and 0.20 at .10, which is a curve."""
+        v leans 0.27 dx/dy at .75 and 0.20 at .10, which is a curve.
+
+        ROUND 276: `fin0` / `fin1` end that side in the family's finial (the
+        c's top -- PR.finial_widths / PR.finial_cut, held to `fin_floor`),
+        replacing the balls these strokes used to carry; the cut on that side
+        is then the finial's, whatever was passed."""
         p = catmull(list(pts), tension=tension) if len(pts) > 2 else list(pts)
         # round 269: the tables are the reference's runs at the Medium's stem;
         # ALD_WF_UP carries them up the weight axis and is 1.0 at the 400.
-        return stroke(p, widths([(t, w * u * tw * ALD_WF_UP) for t, w in keys]),
-                      cut0=cut0, cut1=cut1)
+        wf = widths([(t, w * u * tw * ALD_WF_UP) for t, w in keys])
+        if fin0: wf = PR.finial_widths(wf, True, floor=fin_floor()); cut0 = PR.finial_cut(p, True)
+        if fin1: wf = PR.finial_widths(wf, False, floor=fin_floor()); cut1 = PR.finial_cut(p, False)
+        return stroke(p, wf, cut0=cut0, cut1=cut1)
 
     def d_dial(name, default):
         return float(os.environ.get("ALBO_ALD_" + name, default))
+
+    # ---------------------------------------------------- ROUND 276, the finials
+    # Owner 2026-09-19: *"change out round finials (like c top serif)"*; on the
+    # ladder for that top, *"a works but my ask was about the round finials"*;
+    # and on the italic cent page, *"that italic has round finials that needs
+    # to replaced along with others"*. So the balls and drops this module hung
+    # on its strokes (the c's and s's discs, the r's oval, `d_ball` on v w y,
+    # the y's drop, the f j k x's swellings into a flat face) become the c's
+    # top as drawn: the stroke swells to 1.10 of its own width over its last
+    # 13% and ends on a face sheared 28 degrees toward the vertical, no lip --
+    # PR.finial_widths / PR.finial_cut, the one definition the roman's went to
+    # in round 275. `fin_floor` is the least width such an end may have: this
+    # italic's contrast is per letter and most of these ends sit on hairlines
+    # (the c's top is 33 units at the 400), and 1.10 of a hairline is a thin
+    # cut, not the c's terminal -- so a hairline end takes the swell that lands
+    # it on the family's c-top width at this pen instead, exactly as the
+    # roman's y did. The width is the italic c's OWN top end -- 65.6 at the
+    # 400, 90.6 at the 700, the width its ball had -- and not
+    # rounds.c_top_width(), for the reason in fin_floor's docstring: the two
+    # agree at the 400 (65.3) and part at the 700 (111.5), where the roman's
+    # number scales with S and this module's strokes do not.
+    def fin_floor():
+        """The italic c's own top end: the ring's width at the path's start x
+        C_CAP0_R, the 2026-09-17 serif scale -- the width the c's ball HAD
+        (65.6 at the 400, 90.6 at the 700), so the top keeps its weight and
+        every other converted end takes the c's. Not rounds.c_top_width():
+        that is the ROMAN c drawn under this build's pen, 65.3 at the 400
+        (0.5% from this) but 111.5 at the 700, because it scales with S
+        (x1.73 from the 400) where every stroke in this module scales with
+        ALD_WF_UP (x1.38) -- measured, it put a face 96% of the stem on the
+        700's hairlines and the c's own top corner 20 units above its
+        crown. This number scales with the italic."""
+        return _c_ring(dict(xh=XH))[1][0] * C_CAP0_R
+
+    def fin_reach(reach, d):
+        """How far to carry a centerline PAST the point where a ball's centre
+        stood, so the finial's outer corner lands where the ball's edge did
+        and the letter's horizontal reach is kept: the ball's extent past that
+        point, less the face's own throw along x at the floor width -- the
+        forward corner sits (w / 2) tan 28 along the tangent `d` and w / 2
+        across it, and on both of these ends it is the corner on the INSIDE
+        of the turn -- the one whose across-offset gives back |dy| of reach
+        rather than adding it (measured: with the sign the other way the r
+        came up 15 short and the y 20). The r's arm and the y's tail are the two ends whose ball
+        stood proud of the stroke; on the v w y's rising hairline the ball sat
+        back over the stroke and the stroke's own face already reached as far,
+        so nothing is added there. Measured on the build: the r's rightmost
+        and the y's leftmost ink hold to within a unit at both weights."""
+        w2 = fin_floor() / 2
+        return reach - w2 * (math.tan(math.radians(PR.FINIAL_CUT_DEG)) * abs(d[0]) - abs(d[1]))
 
     def d_ball(P, u, x, y, r, squash=1.10, deg=None):
         """The round terminal the chancery references hang on a rising
@@ -3943,7 +4035,8 @@ if ON:
         which is what the first cut of these letters drew, and Poetica's is a
         round bulb that reaches back over the stroke it sits on. Same reason
         the i's dot is a nib touch and not a circle: it lies on the PEN'S
-        angle, so it is an oval leaning HEAD_DEG, not a disc."""
+        angle, so it is an oval leaning HEAD_DEG, not a disc.
+        NO CALLERS since round 276 (the finials above); kept as `_diag` is."""
         cx, cy = P(x, y)
         a = math.radians(HEAD_DEG if deg is None else deg)
         r = r * ALD_WF_UP   # round 269: a heavier pen leaves a heavier blob
@@ -4006,15 +4099,24 @@ if ON:
         long S, out to the left below the baseline into the tail's ball. The
         bar is the only stroke drawn separately."""
         P, u = d_frame(c, F_W); T = F_TOP; B = F_TAIL
+        # ROUND 276 -- BOTH BALLS ARE THE c's TOP FINIAL (owner 2026-09-19:
+        # "that italic has round finials that needs to replaced along with
+        # others"). The hook swelled 32 -> 54 -> 60 -> 44 over its first 17%
+        # and the tail 34 -> 46 -> 50 -> 22 over its last 13%, each a lobe
+        # closing on a flat face. The tables now carry each end at the
+        # stroke's own width there (the hook's 44, the tail's hairline eased
+        # to 42) and `fin0` / `fin1` put the family's finial on it, held to
+        # `fin_floor`: 65.6 at the 400 for the hook's 67.2 lobe and the
+        # tail's 56.
         body = d_pen([P(356, T - 0.235), P(372, T - 0.145), P(360, T - 0.04),
                       P(324, T), P(283, T - 0.025),
                       P(250, T - 0.12), P(231, 1.45), P(215, 1.15), P(220, 0.95),
                       P(233, 0.50), P(238, 0.10), P(233, -0.14), P(216, -0.34),
                       P(170, B + 0.08), P(100, B), P(40, B + 0.02), P(12, B + 0.10)],
-                     [(0.00, 32), (0.04, 54), (0.09, 60), (0.17, 44), (0.26, 42),
+                     [(0.00, 44), (0.17, 44), (0.26, 42),
                       (0.35, 60), (0.47, 66), (0.54, 64), (0.66, 60), (0.74, 52),
-                      (0.81, 43), (0.87, 34), (0.93, 46), (0.97, 50), (1.00, 22)],
-                     u, tw=F_TW)
+                      (0.81, 43), (0.87, 34), (0.93, 38), (1.00, 42)],
+                     u, tw=F_TW, fin0=True, fin1=True)
         bar = d_pen([P(117, F_BAR - 0.045), P(230, F_BAR), P(350, F_BAR + 0.045)],
                     [(0.0, 22), (0.18, 48), (0.80, 48), (1.0, 24)], u, tw=F_TW)
         return geom.ink([body, bar])
@@ -4072,12 +4174,18 @@ if ON:
     @glyph('j')
     def a_j(c):
         xh = c["xh"]; P, u = d_frame(c, J_W); B = J_TAIL
+        # ROUND 276 -- THE TAIL'S LOBE IS THE c's TOP FINIAL (owner 2026-09-19:
+        # "that italic has round finials that needs to replaced along with
+        # others"): it swelled 36 -> 44 -> 48 -> 20 over its last 21% into a
+        # flat face, the f's tail's lobe. The hairline now eases to 42 and
+        # `fin1` ends it in the family's finial held to `fin_floor` (65.6 at
+        # the 400 for the lobe's 52.8). The head's cut is not a finial.
         body = d_pen([P(216, 1.00), P(224, 0.72), P(229, 0.40), P(233, 0.05),
                       P(229, -0.16), P(214, -0.36), P(168, B + 0.07), P(98, B),
                       P(38, B + 0.02), P(10, B + 0.09)],
                      [(0.00, 42), (0.08, 58), (0.30, 62), (0.50, 61), (0.60, 56),
-                      (0.70, 46), (0.79, 36), (0.88, 44), (0.95, 48), (1.00, 20)],
-                     u, cut0=CUT, tw=J_TW)
+                      (0.70, 46), (0.79, 36), (0.90, 40), (1.00, 42)],
+                     u, cut0=CUT, tw=J_TW, fin1=True)
         xs = P(218, 0.0)[0]
         # THE i's DOT, not a second drawing of one (round 135). This was a
         # `stroke` on I_DOT_W / I_DOT_T and rendered 88 x 76 px where the i's
@@ -4155,9 +4263,8 @@ if ON:
     # ROUNDED, like the c's -- both references end this stroke in a ball and a
     # `stroke` can only end in a flat or sheared face, which on a 60-unit
     # terminal reads as a cut corner.
-    S_CAP0 = float(os.environ.get("ALBO_ALD_S_CAP0", 1.00))   # top terminal, x half its width
-    S_CAP1 = float(os.environ.get("ALBO_ALD_S_CAP1", 1.00))   # bottom terminal
-    S_CAP1_R = float(os.environ.get("ALBO_ALD_S_CAP1_R", 1.00))  # x the bottom ball's radius
+    # (S_CAP0 / S_CAP1 / S_CAP1_R, the two discs and the foot's scale, went
+    # with the discs in round 276 -- the ends are the c's top finial now.)
     # 2026-09-17 -- THE FOOT IS THE STROKE SWELLING, NOT A BALL ADDED. Growing
     # `S_CAP1_R` alone enlarges the disc and leaves the arm running into it at
     # its old width, so the foot reads as a lump stuck on the end -- and at 1.9
@@ -4166,8 +4273,7 @@ if ON:
     # free, because the cap's radius is half the end width, so the two can never
     # step against each other. S_FOOT is that multiplier, ramped in over
     # S_FOOT_T..1.0 on a raised cosine.
-    S_FOOT = float(os.environ.get("ALBO_ALD_S_FOOT", 1.50))
-    S_FOOT_T = float(os.environ.get("ALBO_ALD_S_FOOT_T", 0.86))
+    # (S_FOOT / S_FOOT_T went with the disc they grew, round 276.)
     # the fillet that finishes the foot, in design units. A disc capping a
     # stroke leaves a concave corner where the ball's edge meets the arm's --
     # `geom.close_corners` (round 205, the g's joins) fills exactly that. The
@@ -4343,19 +4449,34 @@ if ON:
                 ws[i] *= 1.0 + (S_TOP - 1.0) * k
         if S_PEN_CON:
             ws = list(con(ws, S_PEN_CON))
-        if S_FOOT != 1.0:
-            for i in range(n + 1):
-                t = i / n
-                if t < S_FOOT_T: continue
-                k = 0.5 - 0.5 * math.cos(math.pi * min(1.0, (t - S_FOOT_T) / (1.0 - S_FOOT_T)))
-                ws[i] *= 1.0 + (S_FOOT - 1.0) * k
-        i0, r0 = cs_round_end(p, ws, True, S_CAP0)
-        i1, r1 = cs_round_end(p, ws, False, S_CAP1, S_CAP1_R)
-        q, qw = p[i0:i1 + 1], ws[i0:i1 + 1]; m = len(q) - 1
-        parts = [stroke(q, lambda t: qw[min(m, int(round(t * m)))],
-                        cut0=None if r0 else CUT, cut1=None if r1 else CUT, raw=True)]
-        if r0: parts.append(PR.dot(q[0][0], q[0][1], r0))
-        if r1: parts.append(PR.dot(q[-1][0], q[-1][1], r1))
+        # ROUND 276 -- BOTH ENDS ARE THE c's TOP FINIAL (owner 2026-09-19:
+        # "that italic has round finials that needs to replaced along with
+        # others"). The head was a semicircular cap of the stroke's width
+        # (41.5 at the 400) and the foot a disc on a path widened 1.5x over
+        # its last 14% (S_FOOT; 84.6 wide) -- both round. Now the family's
+        # finial on the untrimmed path, both ends held to `fin_floor` (the
+        # block above d_ball): 65.6 at the 400. The foot's 1.5x widening goes
+        # with the ball it was drawn to grow -- with it kept, the foot would
+        # flare 1.65x into the face, a flared cut and not the c's 1.10 -- so
+        # the foot is now the c's end and 23% lighter than the ball was; the
+        # head comes up to the same width from 41.5. S_FOOT / S_FOOT_T,
+        # S_CAP0 / S_CAP1 / S_CAP1_R and `cs_round_end` no longer draw this
+        # letter (their definitions went with them); S_BLEND's closing stays,
+        # and has nothing to close.
+        # THE FOOT IS TRIMMED BACK BY THE FACE'S OWN THROW, (w / 2) tan 28,
+        # so its forward corner lands where the disc's edge did (the disc was
+        # trimmed back by its radius for exactly this reason) -- the foot runs
+        # out nearly level, so that corner is the LOWER one and it is the
+        # letter's leftmost ink: untrimmed, the built s stood 37 units further
+        # left at the 400 and 47 at the 700 and Rs / qs closed under the
+        # floor. The head keeps the full path: its face lies across a
+        # diagonal and moved the letter's right edge by 3.
+        fl = fin_floor(); d = fl / 2 * math.tan(math.radians(PR.FINIAL_CUT_DEG)); k = n
+        while k > 0 and math.hypot(p[k][0] - p[n][0], p[k][1] - p[n][1]) < d: k -= 1
+        q, qw = p[:k + 1], ws[:k + 1]; m = len(q) - 1
+        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl),
+                              False, floor=fl)
+        parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
         return geom.close_corners(geom.ink(parts), S_BLEND * u)
 
     # ------------------------------------------------------------ THE g, round 132
@@ -5841,12 +5962,20 @@ if ON:
                        P(138, 0.50), P(161, 0.25), P(X - 4, 0.07), P(X, -0.018)],
                       [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
                        (0.90, 52), (1.00, 30)], u, tw=V_TW)
+        # ROUND 276 -- THE BALL IS THE c's TOP FINIAL (owner 2026-09-19: "that
+        # italic has round finials that needs to replaced along with others").
+        # `d_ball` (a 70 x 64 oval on the pen's angle, set back over the
+        # stroke) is gone; the hairline keeps its own table -- 24 rising to 48
+        # into the terminal, the reference's stroke growing into its bulb --
+        # and `fin1` ends it in the family's finial held to `fin_floor` (65.6
+        # at the 400 against 1.10 x its 53.8). The centerline's end is where
+        # it was: the ball sat back over the stroke, and the stroke's own
+        # face already reached as far right as the ball did.
         thin = d_pen([P(X, -0.018), P(205, 0.12), P(232, 0.27), P(272, 0.50),
                       P(296, 0.68), P(302, 0.795), P(290, 0.885)],
                      [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
-                      (0.88, 44), (1.00, 48)], u, tw=V_TW)
-        ball = d_ball(P, u, 274, 0.895, 32 * V_TW)
-        g_ = geom.ink([thick, thin, ball])
+                      (0.88, 44), (1.00, 48)], u, tw=V_TW, fin1=True)
+        g_ = geom.ink([thick, thin])
         # round 269: the hook's inner fold above the Medium -- see `_solid`.
         # Gated so the 400 is byte-identical (it has no fold to drop anyway).
         return _solid(g_) if ALD_WF_UP > 1.0 else g_
@@ -5902,10 +6031,10 @@ if ON:
                   [(t, w * W_THICK) for t, w in
                    [(0.00, 30), (0.12, 52), (0.30, 64), (0.75, 62),
                     (0.92, 48), (1.00, 30)]], u, tw=W_TW),
+            # round 276: the ball is the c's top finial, as the v's (see a_v)
             d_pen([P(368, -0.022), P(396, 0.12), P(421, 0.25), P(455, 0.48),
                    P(478, 0.655), P(484, 0.775), P(472, 0.865)],
-                  thin, u, tw=W_TW),
-            d_ball(P, u, 456, 0.875, 32 * W_TW)])
+                  thin, u, tw=W_TW, fin1=True)])
 
     # ---------------------------------------------------------------- THE x
     # The letter with NO vertical stem (targets section 6), so its `vert med`
@@ -5950,11 +6079,19 @@ if ON:
         _bl = [(44, 0.045), (34, 0.112), (58, 0.172)]
         _bl = [(x + ((80 + 32 * ((y + 0.008) / 0.243)) - x) * X_BL, y)
                for x, y in _bl]
+        # ROUND 276 -- THE TOP-RIGHT BALL IS THE c's TOP FINIAL (owner
+        # 2026-09-19: "that italic has round finials that needs to replaced
+        # along with others"). The thin swelled 27 -> 40 -> 64 -> 54 over its
+        # last 38% into a flat face -- the ball on the thin's top, drawn as
+        # width. It now rises to 40 and `fin1` ends it in the family's finial
+        # held to `fin_floor` (65.6 at the 400 for the 64). The two hooks --
+        # under the thin's start and off the thick's foot -- curl to a tip
+        # narrower than their bend and are not balls; they stay.
         thin = d_pen([P(80, -0.008), P(*_bl[0]), P(*_bl[1]), P(*_bl[2]),
                       P(112, 0.235), P(184, 0.50), P(233, 0.75), P(272, 0.855),
                       P(298, 0.925), P(289, 0.965)],
                      [(0.00, 30), (0.08, 44), (0.20, 34), (0.35, 27), (0.62, 27),
-                      (0.78, 40), (0.92, 64), (1.00, 54)], u, tw=X_TW)
+                      (0.80, 34), (1.00, 40)], u, tw=X_TW, fin1=True)
         return geom.ink([thin, thick])
 
     # ---------------------------------------------------------------- THE y
@@ -6080,24 +6217,33 @@ if ON:
         # round-135 path held x through the baseline and then whipped left
         # -- an inflection at -0.05, which read as an S. The tail is now one
         # arc of one sign of curvature from the ball to the drop.
+        # ROUND 276 -- THE BALL AND THE DROP ARE THE c's TOP FINIAL (owner
+        # 2026-09-19: "that italic has round finials that needs to replaced
+        # along with others"). The rising hairline's `d_ball` goes as the v's
+        # did (a_v). The tail's DROP -- the round-135 lobe, an 84 x 54 oval
+        # lying along the stroke with the hairline swelling 1.4x then 2.1x
+        # into it -- goes too: the tail is the reference's dead-constant
+        # hairline to its end and `fin0`'s counterpart `fin1` puts the
+        # family's finial on it, held to `fin_floor` (65.6 at the 400, a
+        # 2.5x swell over the last 13% of a 700-unit path). The drop stood
+        # 54 units past the centerline's end; the end is carried `fin_reach`
+        # further along the tail's own last segment so the swash still
+        # reaches the letter's left edge (Y_TAIL_X, the 2026-09-16 ruling):
+        # leftmost ink 19 -> 20 at the 400, 32 -> 34 at the 700 (design
+        # units); the face's lower corner does reach 22 / 30 units deeper
+        # than the drop's underside did.
+        _t0 = P(128, -0.55); _t1 = P(TX + 26, TY)
+        _dl = math.hypot(_t1[0] - _t0[0], _t1[1] - _t0[1]); _d = ((_t1[0] - _t0[0]) / _dl, (_t1[1] - _t0[1]) / _dl)
+        # the drop's centre sat 12 reference units PAST the end, its half-length 1.55 x its radius
+        _ext = fin_reach(12.0 * u + Y_TAIL_DROP * Y_TW * u * ALD_WF_UP * 1.55, _d)
         tail = d_pen([P(322, 0.885), P(336, 0.825), P(341, 0.74),
                       P(331, 0.50), P(306, 0.25), P(276, 0.05), P(244, -0.15),
-                      P(210, -0.32), P(172, -0.46), P(128, -0.55),
-                      P(TX + 26, TY)],
+                      P(210, -0.32), P(172, -0.46), _t0,
+                      (_t1[0] + (_t1[0] - _t0[0]) / _dl * _ext, _t1[1] + (_t1[1] - _t0[1]) / _dl * _ext)],
                      [(0.00, 48), (0.05, 44), (0.13, 34), (0.35, 30),
-                      (0.55, W), (0.76, W), (0.86, W * 1.40), (1.00, W * 2.1)],
-                     u, tw=Y_TW)
-        ball = d_ball(P, u, 308, 0.895, 32 * Y_TW)
-        # THE DROP AT THE TAIL'S END. A `stroke` closes on a FLAT face, which
-        # on a 55-unit terminal reads as an angular flag -- the same reason the
-        # v w y's rising hairline carries `d_ball` rather than more width.
-        # It is an OVAL LYING ALONG THE STROKE, not the pen's own disc: the
-        # tail's last design segment runs 7.7 degrees below horizontal, so a
-        # blob at the pen's 24 degrees stands across it and leaves a shelf on
-        # the top edge -- which is exactly what the first cut of this rendered.
-        drop = d_ball(P, u, TX + 14.0, TY - 0.004, Y_TAIL_DROP * Y_TW,
-                      squash=1.55, deg=-8.0)
-        g_ = geom.ink([thick, tail, ball, drop])
+                      (0.55, W), (1.00, W)],
+                     u, tw=Y_TW, fin1=True)
+        g_ = geom.ink([thick, tail])
         # round 269: the same inner fold at the hook's apex as the v's (two
         # pockets, 76 and 4 units of area, 2.5 wide) -- see `_solid`.
         return _solid(g_) if ALD_WF_UP > 1.0 else g_
@@ -6307,10 +6453,17 @@ if ON:
     @glyph('k')
     def a_k(c):
         P, u = d_frame(c, K_W); J = K_JOIN
+        # ROUND 276 -- THE ARM'S BALL IS THE c's TOP FINIAL (owner 2026-09-19:
+        # "that italic has round finials that needs to replaced along with
+        # others"): the arm swelled 40 -> 48 -> 64 -> 52 over its last 30%
+        # into a flat face, the reference's "ball 81 wide at .90" drawn as
+        # width. It now rises to 48 and `fin1` ends it in the family's finial
+        # held to `fin_floor` (65.6 at the 400 for the 69.1). The leg's flick
+        # tapers to 22 and is not a ball; it stays.
         arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
-                    [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 48),
-                     (0.88, 64), (1.00, 52)], u, tw=K_TW)
+                    [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 44),
+                     (1.00, 48)], u, tw=K_TW, fin1=True)
         # ROUND 189 -- THE KICK GOES BELOW THE BASELINE. Owner 2026-09-17:
         # *"bring k kick down below baseline."* It ended at +0.115 of the
         # x-height, curling back UP above the line, which is a foot rather than
