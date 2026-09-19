@@ -33,7 +33,9 @@ BEAK_CUT = -28.0
 FIX_ROM = not pen.ITALIC
 A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"
 L_CORNER_CLIP = os.environ.get("ALBO_ROM_L_CORNER_CLIP", "0") == "1"
-M_SPURS = os.environ.get("ALBO_ROM_M_SPURS", "1") == "1"   # round 240: strokes as round 232, errant spurs cut; 0 is round 232 exactly   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
+M_SPURS = os.environ.get("ALBO_ROM_M_SPURS", "1") == "1"
+M_RIGHT_CROWN = os.environ.get("ALBO_ROM_M_RIGHT_CROWN", "1") == "1"   # round 243: the right top takes the left crown, mirrored
+M_VERTEX_V = os.environ.get("ALBO_ROM_M_VERTEX_V", "1") == "1"         # round 243: the vertex one point, as the V   # round 240: strokes as round 232, errant spurs cut; 0 is round 232 exactly   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
 
 def _left_of(p, tn, ylo, yhi, reach=1500.0):
     """The half-plane LEFT of the line through p with direction tn, cut to
@@ -699,12 +701,28 @@ def g_M(c):
     seat = (x0 + s * 0.45 - wa * 0.35, C); tip = (seat[0] - WL * 0.9, C - DROP)
     fill = _Poly([tip, peak, (seat[0], seat[1] - 40.0)])
     ldir = (peak[0] - tip[0], peak[1] - tip[1]); Ll = math.hypot(*ldir); ldir = (ldir[0] / Ll, ldir[1] / Ll)
-    lip = a.intersection(_side(tip, ldir, +1)).intersection(_box(tip[0], C - 60.0, peak[0], C + 80.0))
+    lip = geom.union([a, apex]).intersection(_side(tip, ldir, +1)).intersection(_box(tip[0], C - 60.0, peak[0], C + 80.0))   # round 243: the crown's own corner at (seat, C) stood a unit over the line too
     # RIGHT TOP: what the thin stroke d stands above the thick stem e's end face
     eA, eB = _corners(P[3][0], P[3][1], we, True)
     lo, hi = (eA, eB) if eA[0] < eB[0] else (eB, eA)
     fdir = (hi[0] - lo[0], hi[1] - lo[1]); Lf = math.hypot(*fdir); fdir = (fdir[0] / Lf, fdir[1] / Lf)
     spike = d.intersection(_side(lo, fdir, +1)).intersection(_box(lo[0] - 60.0, C - 60.0, hi[0], C + 80.0))
+    # ROUND 243. Owner: "make the right top serif of M match the left better".
+    # The right top carried the diagonal-end wedge (0.9 x 0.9, hanging off the
+    # square face's corner); it takes the LEFT crown's construction now,
+    # mirrored: the family's wedge (WL 0.9, WD, DROP) seated at the thick
+    # stem's top-right corner pointing right, its top edge carried in one line
+    # from the wedge's tip to the face's high corner, the same fill.
+    if M_RIGHT_CROWN:
+        e = diagonal(P[3][0], P[3][1], we, serif0=1)                        # the foot wedge only
+        rseat = hi; rtip = (rseat[0] + WL * 0.9, C - DROP)
+        rcrown = wedge(rseat, (0, 1), (1, 0), WL * 0.9, WD, DROP)
+        rpeak = max((lo, hi), key=lambda q: q[1])
+        rfill = _Poly([rtip, rpeak, (rseat[0], rseat[1] - 40.0)])
+        rdir = (rpeak[0] - rtip[0], rpeak[1] - rtip[1]); Lr = math.hypot(*rdir); rdir = (rdir[0] / Lr, rdir[1] / Lr)
+        rlip = geom.union([e, rcrown]).intersection(_side(rtip, rdir, -1)).intersection(_box(rpeak[0], C - 60.0, rtip[0], C + 80.0))
+    else:
+        rcrown = rfill = rlip = geom.poly([(0, 0), (0, 1), (1, 0)])
     # MIDDLE VERTEX: the thin stroke d's lower corner past the thick stroke b's right edge, below their crossing
     # the poking corner is the piece of d OUTSIDE b that touches the baseline
     # region -- d minus b falls into d's body above the crossing and this
@@ -716,8 +734,15 @@ def g_M(c):
     # piece near the baseline. The thin stroke's own prong stays.
     rest = b.difference(d); pieces = list(rest.geoms) if hasattr(rest, 'geoms') else [rest]
     tri = geom.union([q for q in pieces if q.bounds[3] < 60.0 and q.area < 800.0])
-    g = geom.ink([a, b, d, e, apex, fill])
-    return g.difference(geom.union([lip, spike, tri]))
+    # ROUND 243. Owner: "remove the odd corners sticking out of middle bottom
+    # join (match V better)". The V's vertex is one point -- the thick
+    # stroke's cut tip, the thin stroke's face running into its edge. So the
+    # thin stroke's own prong (d outside b, near the baseline) goes too.
+    if M_VERTEX_V:
+        rest2 = d.difference(b); p2 = list(rest2.geoms) if hasattr(rest2, 'geoms') else [rest2]
+        tri = geom.union([tri] + [q for q in p2 if q.bounds[3] < 60.0 and q.area < 800.0])
+    g = geom.ink([a, b, d, e, apex, fill, rcrown, rfill])
+    return g.difference(geom.union([lip, spike, tri, rlip]))
 
 @glyph('N')
 def g_N(c):
