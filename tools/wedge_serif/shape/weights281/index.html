@@ -1,0 +1,43 @@
+<title>Albo Q Tail Under the Marks</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Q Tail Under the Marks</h1>
+    <p class="lede">Ruling: the , ; . sit on the baseline right after the bowl and the tail sweeps below them. Measured on the built fonts, the tail already does &mdash; but the comma descends with the weight and the tail thickens, so the white between the comma&rsquo;s lowest point and the tail&rsquo;s upper edge is 136 units at the 400, 59 at the 700 and 10 at the 900. At 13 px on the reader a pixel is 77 units: the 400 keeps two rows of white, the 700 and 900 merge into one blob. Three clearances, each solved per weight by deepening the tail about the baseline (it leaves the ring where it did and reaches the same x); the 400 and 200 are untouched. One number applies to both heavy weights.</p>
+  </header>
+  <section><h2>The arms</h2>
+    <div class="scroll"><table>
+      <tr><th>arm</th><th>clearance</th><th>at 13 px</th><th>700 tail bottom</th><th>900 tail bottom</th></tr>
+      <tr><td>as now</td><td>59 / 10</td><td>0.8 / 0.1 px</td><td>&minus;284</td><td>&minus;294</td></tr>
+      <tr><td>a</td><td>77</td><td>1 px</td><td>&minus;303</td><td>&minus;366</td></tr>
+      <tr><td>b</td><td>115</td><td>1.5 px</td><td>&minus;344</td><td>&minus;407</td></tr>
+      <tr><td>c</td><td>154</td><td>2 px</td><td>&minus;385</td><td>&minus;449</td></tr>
+      <tr><td>the 400</td><td>136</td><td>1.8 px</td><td>&minus;271</td><td></td></tr>
+    </table></div>
+    <p>The descender line is &minus;300; the p and g reach &minus;281. Every arm past a runs the Black&rsquo;s tail below the descender line, into the leading.</p>
+  </section>
+  <section><h2>Bold 700</h2>
+    <figure><img src="r700-strip.png" alt="700 arms"><figcaption>Q, Q; Q. at 0.20 px/unit &mdash; rows: the 400, the 700 as now, a, b, c</figcaption></figure>
+    <figure><img src="r700-runs.png" alt="700 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; lines: the 400, the 700 as now, a, b, c</figcaption></figure>
+  </section>
+  <section><h2>Black 900</h2>
+    <figure><img src="r900-strip.png" alt="900 arms"><figcaption>Q, Q; Q. at 0.20 px/unit &mdash; rows: the 400, the 900 as now, a, b, c</figcaption></figure>
+    <figure><img src="r900-runs.png" alt="900 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; lines: the 400, the 900 as now, a, b, c</figcaption></figure>
+  </section>
+</div>

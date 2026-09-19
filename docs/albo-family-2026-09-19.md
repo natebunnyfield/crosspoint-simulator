@@ -1371,6 +1371,30 @@ Proofs: `tools/wedge_serif/shape/weights278/` — before above after at 3
 px/unit for u n ı m h l r i a (the same rows and bands as round 274's), and
 the runs at 13 px ×8 and 40 px ×2.
 
+## 24. Round 281 — the Q's tail under the marks (laddered, ruling pending)
+
+Round 280's kern was withdrawn the same day (owner: *"lose the Q punctuation
+kerning. you misunderstood the need entirely"*); asked what the need is, he
+chose *"Tail under the marks"* — the , ; . sit on the baseline right after
+the bowl and the tail sweeps BELOW them, nothing spaced apart. Measured on
+the built fonts the tail already passes under them at every weight; what
+fails is the CLEARANCE, because the comma descends with the weight (−81 /
+−139 / −176) and the tail thickens: 136 units of white between the comma's
+lowest point and the tail's upper edge at the 400, 59 at the 700, 10 at the
+900 — so at 13 px on the reader (77 units to a pixel) the 700 and the 900
+merge the comma into the tail. `caps_straight.q_tail_deep` scales the tail's
+control points in y about the baseline until a least clearance `Q_CLEAR` is
+met, above stem 84 only; the dial `ALBO_ROM_Q_CLEAR` (0 = as drawn, the
+default until ruled) built the ladder: a 77 (1 px), b 115 (1.5 px), c 154
+(2 px). The Black's tail bottom goes −294 → −366 / −407 / −449 against a
+−300 descender line. The touch sweep's "Q, −0.41 em" was never an ink
+collision: the comma sits in the concave between the bowl and the tail's
+upturned end and the row-wise measure reads the tail's tip to its right as
+overlap (the `cmp_space_2d` case). The 400 is byte-identical with the code
+in.
+
+Proofs: `tools/wedge_serif/shape/weights281/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

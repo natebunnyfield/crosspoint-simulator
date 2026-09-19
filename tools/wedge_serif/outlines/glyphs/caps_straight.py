@@ -920,6 +920,50 @@ Q_TAIL_FLOOR = 0.55   # x the stem: the family's tail floor, the 6's and the 9's
 # round 179 spent a round closing.
 Q_TAIL = float(os.environ.get("ALBO_ROM_Q_TAIL", 1.0))   # x the tail's reach, about the join; 1.0 is round 223 byte for byte
 
+# ROUND 281 -- THE TAIL SWEEPS UNDER THE MARKS. Owner 2026-09-19, choosing
+# among three readings of what the Q and a following , ; . need: "Tail under
+# the marks" -- the marks sit on the baseline right after the bowl and the
+# tail passes BELOW them; nothing is spaced apart. (A kern was tried the same
+# day as round 280 and withdrawn: "you misunderstood the need entirely".)
+#
+# What the built fonts measured before this: the tail already dips under the
+# marks at every weight, and the CLEARANCE between its upper edge and the
+# comma's lowest point, over the comma's own footprint, was 136 units at the
+# 400, 59 at the 700 and 10 at the 900 -- the comma descends with the weight
+# (-81 / -139 / -176) and the tail thickens, so at 13 px on the reader (77
+# units to the pixel) the comma and the tail merge into one blob at the 700
+# and the 900 while the 400 keeps two pixel rows of white. Q_CLEAR is the
+# least clearance, in units, above stem 84; the tail's control points are
+# scaled in y about the baseline until the clearance is met, so the tail
+# leaves the ring where it always did and reaches the same x, and only
+# deepens. The 400 and the 200 are untouched (deep = 1.0 exactly).
+Q_CLEAR = float(os.environ.get("ALBO_ROM_Q_CLEAR", 0.0))   # least clearance under the marks above stem 84, design units; 0 = the tail as drawn
+Q_MARK_GAP = 114.0   # the ring's right edge to the following comma's first ink: the Q's rsb (36-37) + the comma's lsb (78), measured off the built 400 / 700 / 900, 2026-09-19
+
+def q_tail_deep(c, solid, tail_for):
+    """The y-scale for the Q's tail control points (see Q_CLEAR): 1.0 unless
+    above stem 84 with a clearance asked for, else the least scale in [1, 2]
+    that puts the tail's upper edge Q_CLEAR under the comma's lowest point
+    over the comma's footprint after the Q. Measured on the raw stroke; both
+    inks take the build's 1.2 spread, so 2.4 is added to the ask."""
+    if not (S > 84.0 and Q_CLEAR > 0.0): return 1.0
+    from shapely.geometry import box
+    from . import GLYPHS
+    cb = GLYPHS[','](c).bounds
+    x0 = solid.bounds[2] + Q_MARK_GAP; x1 = x0 + (cb[2] - cb[0]); ymin = cb[1]
+    need = Q_CLEAR + 2 * 1.2
+    def clear(deep):
+        tail_, wfn_ = tail_for(deep); under = stroke(tail_, wfn_, cut1=CUT).intersection(box(x0, -2000, x1, -1.0))
+        return (ymin - under.bounds[3]) if not under.is_empty else 1e9
+    if clear(1.0) >= need: return 1.0
+    lo, hi = 1.0, 2.0
+    if clear(hi) < need: return hi
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        if clear(mid) >= need: hi = mid
+        else: lo = mid
+    return hi
+
 @glyph('Q')
 def g_Q(c):
     """The O with Van den Keere's swash tail (round 42): from the ring's
@@ -931,42 +975,49 @@ def g_Q(c):
     tp = [(W * 0.85, -C * 0.30), (W * 1.40, -C * 0.56), (W * 1.80, -C * 0.20)]
     if Q_TAIL != 1.0:
         tp = [(p0[0] + (x - p0[0]) * Q_TAIL, p0[1] + (y - p0[1]) * Q_TAIL) for x, y in tp]
-    tail = cubic(p0, *tp)
-    base = pen_widths(tail)
-    def wfn(t):
-        # THE BELLY SCALES WITH THE TAIL. It is an ABSOLUTE -- 1.05 stems, 100
-        # units -- and the header note above already records what an absolute
-        # did to this letter once: the solved Q (width x 0.70) got the bulge at
-        # full size on a smaller ring, which is the bulge the owner asked to
-        # lose. A shortened tail carrying the same 100 units is the same fault
-        # again, so the floor travels with the reach; at Q_TAIL 1.0 the
-        # expression is the original one multiplied by exactly 1.0.
-        belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
-        return max(base(t), s * 1.05 * Q_TAIL * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
-    if FIX_ROM and Q_TAIL_OPT != 'a':
-        # R12, owner 2026-09-18: "give me more options that are less
-        # distracting with the bulge placement and size." The tail's path,
-        # its ruled reach (Q_TAIL, "tail long") and the end profile are the
-        # same in every option; only the belly -- the `max(pen, belly)` floor
-        # that a smoothstep hump lays over the pen's own widths -- moves.
-        # Measured on today's tail (option a): the pen alone runs 74 at the
-        # root, 66 at 0.4, 54 at 0.6, 28 at 0.8; the belly lifts that to 100
-        # at t 0.45 (peak 1.05 stems, half-width 0.4 of the run).
-        #   a  today: peak 1.05 CS at t 0.45, half-width 0.40.
-        #   b  belly SMALLER: peak 0.85 CS (81 units) at the same place.
-        #   c  belly NEARER THE BOWL: peak 1.05 CS at t 0.30, half-width 0.30,
-        #      so the swell sits under the ring and the run out is the pen's.
-        #   d  an EVEN TAPER, no belly: the pen at its own angle with the
-        #      family's tail floor (0.55 S, the 6's and 9's) -- 74 at the root
-        #      thinning to the floor and the cut, which is what the header
-        #      note above this glyph describes.
-        #   e  belly LATER: peak 1.05 CS at t 0.60, half-width 0.35.
-        peak, at, hw = {'b': (0.85, 0.45, 0.40), 'c': (1.05, 0.30, 0.30), 'd': (0.0, 0.45, 0.40), 'e': (1.05, 0.60, 0.35)}[Q_TAIL_OPT]
-        endp = widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])
-        def wfn(t):
-            belly = max(0.0, 1 - abs(t - at) / hw)
-            floor = s * peak * Q_TAIL * (3 * belly * belly - 2 * belly ** 3) if peak else S * Q_TAIL_FLOOR
-            return max(base(t), floor) * endp(t)
+    def _tail_for(deep):
+        # ROUND 281 (q_tail_deep below): the control points' y scaled about
+        # the baseline by `deep` -- p0 stays on the ring, the tip's x stays --
+        # 1.0 at and below the 400 (byte-identical), the solved number above.
+        tp_ = tp if deep == 1.0 else [(x, y * deep) for x, y in tp]
+        tail_ = cubic(p0, *tp_)
+        base_ = pen_widths(tail_)
+        def wfn_(t):
+            # THE BELLY SCALES WITH THE TAIL. It is an ABSOLUTE -- 1.05 stems, 100
+            # units -- and the header note above already records what an absolute
+            # did to this letter once: the solved Q (width x 0.70) got the bulge at
+            # full size on a smaller ring, which is the bulge the owner asked to
+            # lose. A shortened tail carrying the same 100 units is the same fault
+            # again, so the floor travels with the reach; at Q_TAIL 1.0 the
+            # expression is the original one multiplied by exactly 1.0.
+            belly = max(0.0, 1 - abs(t - 0.45) / 0.4)
+            return max(base_(t), s * 1.05 * Q_TAIL * (3 * belly * belly - 2 * belly ** 3)) * widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])(t)
+        if FIX_ROM and Q_TAIL_OPT != 'a':
+            # R12, owner 2026-09-18: "give me more options that are less
+            # distracting with the bulge placement and size." The tail's path,
+            # its ruled reach (Q_TAIL, "tail long") and the end profile are the
+            # same in every option; only the belly -- the `max(pen, belly)` floor
+            # that a smoothstep hump lays over the pen's own widths -- moves.
+            # Measured on today's tail (option a): the pen alone runs 74 at the
+            # root, 66 at 0.4, 54 at 0.6, 28 at 0.8; the belly lifts that to 100
+            # at t 0.45 (peak 1.05 stems, half-width 0.4 of the run).
+            #   a  today: peak 1.05 CS at t 0.45, half-width 0.40.
+            #   b  belly SMALLER: peak 0.85 CS (81 units) at the same place.
+            #   c  belly NEARER THE BOWL: peak 1.05 CS at t 0.30, half-width 0.30,
+            #      so the swell sits under the ring and the run out is the pen's.
+            #   d  an EVEN TAPER, no belly: the pen at its own angle with the
+            #      family's tail floor (0.55 S, the 6's and 9's) -- 74 at the root
+            #      thinning to the floor and the cut, which is what the header
+            #      note above this glyph describes.
+            #   e  belly LATER: peak 1.05 CS at t 0.60, half-width 0.35.
+            peak, at, hw = {'b': (0.85, 0.45, 0.40), 'c': (1.05, 0.30, 0.30), 'd': (0.0, 0.45, 0.40), 'e': (1.05, 0.60, 0.35)}[Q_TAIL_OPT]
+            endp = widths([(0.0, 0.6), (0.12, 1.0), (0.8, 1.0), (1.0, 0.7)])
+            def wfn_(t):
+                belly = max(0.0, 1 - abs(t - at) / hw)
+                floor = s * peak * Q_TAIL * (3 * belly * belly - 2 * belly ** 3) if peak else S * Q_TAIL_FLOOR
+                return max(base_(t), floor) * endp(t)
+        return tail_, wfn_
+    tail, wfn = _tail_for(q_tail_deep(c, solid, _tail_for))
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
 
 Q_TAIL_OPT = os.environ.get("ALBO_ROM_Q_TAIL_OPT", "d")   # a | b | c | d | e, see g_Q; a is round 232 byte for byte; d ships since round 240 (owner's pick)

@@ -265,6 +265,15 @@ itself was never changed and stays long under round 225). The need behind the
 Q-and-punctuation item is OPEN and is not "space them apart"; do not re-propose
 a kern for it.
 
+**Ruling 2026-09-19 (owner): the roman Q's TAIL SWEEPS UNDER the , ; . that
+follow it** -- "Tail under the marks": the marks sit on the baseline right
+after the bowl, nothing is spaced apart. The tail already passes under them;
+the CLEARANCE at the 700 / 900 (59 / 10 units against the 400's 136) is what
+merges them at 13 px. `caps_straight.q_tail_deep` deepens the tail above
+stem 84 to a least clearance `Q_CLEAR`; the amount is laddered in round 281
+(77 / 115 / 154) and not yet ruled -- the dial ships 0 (tail as drawn) until
+it is.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
