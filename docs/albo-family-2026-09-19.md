@@ -439,6 +439,40 @@ Graphs of the whole plane, every reference family and both of Albo's nine-rung
 ladders: `tools/wedge_serif/cmp_weight_plots.py`,
 https://claude.ai/artifact/3oRe6qTBt6jMNFngAwvkok
 
+## RULING — the contrast ships at 1.7 (round 265)
+
+Owner 2026-09-19, on the dialling page: **"around 1.7 wins"**. Step 2 of the
+grid ships: `BOWL['hair'] = 0.46` (`primitives.py`) and `O_FLOOR_ADJ = 0.50`
+(`rounds.py`). Round 92's floor is lowered by his ruling; the `1 − 0.5c`
+mapping is kept in the file as history and no longer decides.
+
+Built and measured on all four styles:
+
+| style | thick:thin | hairline | stem | glitch | touching |
+|---|---|---|---|---|---|
+| Medium | **1.67** | 47.5u | 79.6u | 0 of 122 | 4, all pre-existing |
+| Italic | 2.15 | 30.6u | 65.7u | 0 of 122 | 0 |
+| Bold | 1.68 | 64.7u | 108.4u | 2 | 4 |
+| Bold Italic | 2.26 | 40.1u | 90.4u | 3 | **8** |
+
+**The two shipped styles are clean and their gates did not move** — glitch 0
+of 122 on both, the roman's four pre-existing touching pairs, the italic's
+zero, figure spread 1.59× and 1.32× against the 2.50× allowed. The roman went
+from flatter than every reference regular (1.32) to inside their range (1.67).
+
+**What it cost, stated plainly.** 103 roman glyphs and 62 italic glyphs
+changed outline — every round shape in the face, which is what a contrast
+ruling means. And the **bold italic's touching pairs went 5 → 8**: thinner
+hairlines at bold weight bring more near-collisions. That style is not yet
+finished and its gates were already the worst of the four, but the regression
+is real and is recorded rather than glossed.
+
+**The italic barely moved** — 2.11 → 2.15 — because the Aldine italic was
+already drawn with real contrast and sits inside its own reference band
+either way. The ruling is effectively a roman change.
+
+Proofs: `tools/wedge_serif/shape/contrast/ship-{13,17,40}px.png`.
+
 ## 12. Round 264 — the contrast is three clamps, and the last is a ruling
 
 Owner 2026-09-19, choosing between a new test phrase and a redraw:

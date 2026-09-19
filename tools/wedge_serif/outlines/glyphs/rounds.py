@@ -51,7 +51,7 @@ def o_ring(c, rx_center, ry_center=None, cy=None, k=BOWL_K, w_scale=1.0):
 # reads at. Lowering it is therefore a LEGIBILITY trade and his to rule, not a
 # number to tune. ALBO_O_FLOOR is the ladder's dial; unset, the ruling stands
 # and every build is byte-identical.
-O_FLOOR_ADJ = float(__import__('os').environ.get('ALBO_O_FLOOR', 0.55))   # round 92 (adj 'o'): the o read hollow -- its knot the lowest of any letter (-11%), the hairs dropping to gray at 13 pt; floored like the 6's tail
+O_FLOOR_ADJ = float(__import__('os').environ.get('ALBO_O_FLOOR', 0.50))   # round 265: 0.55 -> 0.50, the owner's "around 1.7 wins"; round 92 (adj 'o'): the o read hollow -- its knot the lowest of any letter (-11%), the hairs dropping to gray at 13 pt; floored like the 6's tail
 @glyph('o')
 def g_o(c):
     if adj('o'):

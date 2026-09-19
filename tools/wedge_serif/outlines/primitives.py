@@ -572,7 +572,13 @@ BOWL['hair'] = 1.0 - 0.5 * pen.CONTRAST
 # the setting, is what holds Albo flat.
 # ALBO_BOWL_HAIR sets the fraction DIRECTLY, bypassing the mapping. Unset, the
 # line above stands and every build is byte-identical.
-if os.environ.get('ALBO_BOWL_HAIR'): BOWL['hair'] = float(os.environ['ALBO_BOWL_HAIR'])
+# ROUND 265 -- THE RULING. Owner 2026-09-19, on the twenty-build dialling
+# page: *"around 1.7 wins"*. That is step 2 of the grid, bowl hair 0.46 with
+# the o's floor at 0.50, which measures 1.70 / 1.71 / 1.68 / 1.69 at the 200 /
+# 400 / 700 / 900 -- inside the reference regulars' 1.49-3.00 where the face
+# used to sit under all of them at 1.32. The `1 - 0.5c` line above is kept as
+# the history of how the dial used to be derived; it no longer decides.
+BOWL['hair'] = float(os.environ.get('ALBO_BOWL_HAIR', 0.46))
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""
