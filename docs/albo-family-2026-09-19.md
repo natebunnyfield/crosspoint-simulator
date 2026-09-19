@@ -200,6 +200,37 @@ the c are OPEN on the right, so their own white is being counted as gap. It is
 the case Measure 4 (`cmp_space_2d.py`) exists to see and the row-wise measures
 cannot.
 
+## 7. Where the four styles stand at 03:40, measured
+
+| style | glitch sweep | touching pairs | figure spread |
+|---|---|---|---|
+| Medium | 0 of 122 | 4, all pre-existing (ff, fi, f), fT and VI) | 1.60× |
+| Italic | 0 of 122 | 0 | 1.31× |
+| Bold | **1** of 122 | 5 | 1.62× |
+| Bold Italic | **2** of 122 | 5 | 1.42× |
+
+The two shipped styles are clean. The bold pair's defects, by glyph, so the
+next pass does not have to find them again:
+
+- **Bold, the x** — SPLIT, two ink islands of 87,873 and 7,006 units². The
+  bottom-left wedge (`X_BL_WEDGE`, `diagonals.py`) comes adrift from the
+  strokes at a 107 stem; it is attached at 84.
+- **Bold Italic, the P** — CRACK, a hole whose mean width is 6.31 against the
+  12.0 floor (area 581, perimeter 184). The bowl closes on the stem.
+- **Bold Italic, the ħ** — CRACK, mean width 2.16 (area 128). The bar crosses
+  the ascender and the gap left is a hairline.
+- **Bold, Q+comma and Q+semicolon** — the long tail crosses the mark. A kern
+  pair, not a fitting change, per the rule in `docs/albo-capital-spacing.md`.
+- **Bold Italic, q+f, q+p, q+y, q+j, q+1** — five pairs, and these are a
+  CONSEQUENCE OF ROUND 263 and must be named as such: before the italic
+  followed the weight axis the Bold Italic had 0 touching pairs, because its
+  lowercase was not bold. Making the q's tail actually heavy is what put it
+  into its neighbours. They want kern pairs at bold italic weight.
+
+None of these five is a reason to undo round 263 — a bold italic whose
+lowercase is the regular has no touching pairs for the same reason a blank
+page has none.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
