@@ -341,6 +341,29 @@ None of the three is fixed. They are design questions: whether the bold should
 buy less width, whether the roman's contrast should rise into the bold as most
 references do, and whether the roman's 1.32:1 is the intended colour.
 
+## STANDING RULING — the family is FOUR weights: 200, 400, 700, 900
+
+Owner, 2026-09-19: *"for future cuts: only test and ship 200 400 700 900."*
+
+So 100, 300, 500, 600 and 800 are **out of scope**: not built, not gated, not
+proofed, not shipped. They stop appearing in ladders and in triage. The nine-
+rung sweep below is the evidence that produced this ruling and stays as a
+dated record; it is not a plan.
+
+Two consequences worth stating plainly, because both cut against what the
+repo says today:
+
+- **The 500 is no longer a shipping class.** Today's `Albo-Medium.ttf` IS the
+  500 (the owner's round-83 ruling, *"Rename to Medium"*), and it is the only
+  finished drawing in the face. Under this ruling the shipping regular becomes
+  the **400**, which is the class round 76 derived at stem 66.9 and which
+  nothing in the repo currently builds. That is a rename and a re-anchor, not
+  a redraw, and it needs its own ruling before anything moves.
+- **900 is the one rung with nothing measured behind it.** Its stem of 148 was
+  extrapolated, no serif family on this machine ships a 900, and it swept 8
+  glitch findings — the worst of the nine. It needs a real calibration the way
+  the 700 got one from the garalde bolds.
+
 ## 10. The nine-weight ladder, "Hamburg and wafflers."
 
 The original test is **round 76, 2026-09-13** (`outlines/cmp/weights.py`,
