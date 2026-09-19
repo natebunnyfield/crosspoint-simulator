@@ -639,6 +639,10 @@ figure and every ligature is byte-identical to the build before this pass.
 The italic's figure spread reads 1.36×; it was 1.36× before the pass too (the
 re-anchor moved it from 1.32×), so nothing here touched it.
 
+Proofs: `tools/wedge_serif/shape/weights267/` (every failing glyph before
+and after at both ends, and runs at 13 and 40 px) and the page
+https://claude.ai/artifact/JfDfKSeZL8mNbX1nggfSNH
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
