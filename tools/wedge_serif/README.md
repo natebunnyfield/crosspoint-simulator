@@ -201,6 +201,19 @@ the next family is the same: copy the TTFs in, add the entry, run
 `build-sd-fonts.py --only Albo` at 1x and `--scale 2`, validate with
 `tools/validate_seed_fonts.py`.
 
+**Ruling 2026-09-19 (owner, on the question "run the TestFlight font
+refresh up to the validation gate?"): yes, refresh through validation, stop
+before the deploy.** When rounds 274 (the bold italic's junctions) and 275
+(the round finials) land: copy the four TTFs (Regular, Italic, Bold,
+BoldItalic at the re-anchored 400 and the corrected 700s) into
+`lib/EpdFont/local_fonts/Albo/`, delete `Albo-SemiBold.ttf` (the 500 is
+retired), correct the recipe's comment block, `build-sd-fonts.py --only Albo`
+at 1x and `--scale 2` into `~/src/crosspoint-reader/fs_/fonts`, run
+`tools/validate_seed_fonts.py`, and hand over the deploy command plus a 1x
+contact sheet of the reader's own raster (the 400's weight is judged there).
+The deploy itself is the owner's: it needs his GUI Terminal for codesign.
+The full checklist is section 14 of `docs/albo-family-2026-09-19.md`.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
