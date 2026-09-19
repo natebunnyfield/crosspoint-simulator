@@ -412,7 +412,7 @@ _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
-FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'j'})   # round 253: the 9 ships as j (owner: "i already picked j"); round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
+FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 's'})   # round 254: the 9 ships as s (p's short deep wedge, tail flush with the bowl -- owner 2026-09-19: "p wins but shorten the tail until it fits the rest of the 9"); round 253 j; round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
 def OPT(d):
@@ -427,7 +427,7 @@ def OPT(d):
     so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
     for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in 'abcdefghijklmnopqr' and len(o) == 1 else 'a'
+    return o if o in 'abcdefghijklmnopqrst' and len(o) == 1 else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -1780,6 +1780,13 @@ NINE_OPT = {
     'p': dict(k=2.0, flag=(0.35, 0.70)),                  # short and deep
     'q': dict(k=2.0, flag=0.5, end_cut=-34.0),            # j on the sheared face (the lower corner pulled back under it)
     'r': dict(k=2.0, flag=0.5, drop=0.0),                 # j with no drop: the wedge's bracket meets the edge without the family's DROP
+    # ROUND 254, owner 2026-09-19: *"p wins but shorten the tail until it fits
+    # the rest of the 9."* p's wedge with the tail's reach 0: the fit slides
+    # the tip right until the glyph's leftmost ink is the bowl's own (the tip
+    # used to fly 12.4 units past it). t tucks it 12 units inside for the
+    # comparison.
+    's': dict(k=2.0, flag=(0.35, 0.70), reach=0.0, tip_x=1.00),
+    't': dict(k=2.0, flag=(0.35, 0.70), reach=-12.0, tip_x=0.94),
 }
 NINE_OPT_IT = {k: NINE_OPT[k] for k in ('b', 'c', 'd')}
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
