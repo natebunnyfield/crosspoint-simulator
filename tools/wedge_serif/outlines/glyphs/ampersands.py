@@ -447,7 +447,7 @@ BOWL_O = [(0.05, 0.12), (0.15, 0.01), (0.35, 0.0), (0.55, 0.04), (0.65, 0.17)]
 
 def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm_end='flag',
          spur_w=1.0, spur_x=0.97, spur_foot='hook', bowl=0.5, width=1.0, opening=0.58, hook_end='cut',
-         loop_shape='tear', egg_pinch=0.85, egg_power=3.0):
+         loop_shape='tear', egg_pinch=0.85, egg_power=3.0, bowl_shape='points', bowl_k=(1.0, 1.0), bowl_bottom=0.35):
     """One & from the dials.
     loop_shape (round 233): 'tear' = `loop_path`, the teardrop every entry
          in VARIANTS2 was built on; 'egg' = `egg_loop_path`, one smooth
@@ -483,8 +483,39 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
     yE = arm * C; xE = B5[0] + (yE - B5[1]) / math.tan(ang); E = (xE, yE)
     tail = 0.9 * WD if arm_end in ('flag', 'beak') else 0.35 * WD   # the flag's and the beak's brackets run down a STRAIGHT edge
     A1 = (E[0] - tail * math.cos(ang), E[1] - tail * math.sin(ang))
-    body_pts = [X, M, D] + bp + [A1]
-    body = geom.resample(catmull(body_pts, tension=0.5) + line(A1, E)[1:])
+    # ROUND 256, owner 2026-09-19: *"smooth out lower loop of ampersand to be
+    # use fewer and more graceful curves."* 'points' is the lower bowl as it
+    # was: a Catmull-Rom through the five BOWL_* points between the diagonal's
+    # end D and the arm's foot A1. 'cubic' replaces the five with ONE cubic
+    # from D to A1: its first handle continues the diagonal's direction, its
+    # last arrives along the arm's, so the bowl is tangent-continuous with
+    # both and has no interior knots; the two handle lengths are bowl_k x the
+    # chord, scaled together until the curve's lowest point is on -o (the
+    # overshoot the points reached). 'three' keeps the spline but through
+    # three points only -- D, the bottom (bowl_bottom x w, -o) and A1.
+    if bowl_shape in ('cubic', 'three'):
+        head = catmull([X, M, D], tension=0.5)
+        if bowl_shape == 'three':
+            bowl_path = catmull([M, D, (bowl_bottom * w, -o), A1, E], tension=0.5)
+            i0 = min(range(len(bowl_path)), key=lambda k: math.dist(bowl_path[k], D)); i1 = min(range(len(bowl_path)), key=lambda k: math.dist(bowl_path[k], A1))
+            bowl_path = bowl_path[i0:i1 + 1]
+        else:
+            d_in = (D[0] - M[0], D[1] - M[1]); Ld = math.hypot(*d_in) or 1.0; d_in = (d_in[0] / Ld, d_in[1] / Ld)
+            d_out = (math.cos(ang), math.sin(ang)); chord = math.dist(D, A1)
+            def _bowl(scale):
+                L1, L2 = bowl_k[0] * chord * scale * 0.5, bowl_k[1] * chord * scale * 0.5
+                return cubic(D, (D[0] + d_in[0] * L1, D[1] + d_in[1] * L1), (A1[0] - d_out[0] * L2, A1[1] - d_out[1] * L2), A1)
+            scale = 1.0
+            for _ in range(12):   # bring the lowest point onto -o
+                bowl_path = _bowl(scale); ymin = min(q[1] for q in bowl_path)
+                if abs(ymin + o) < 0.5: break
+                scale *= 1.0 + (-o - ymin) / max(chord, 1.0) * 1.5
+            bowl_path = _bowl(scale)
+        body = geom.resample(head + bowl_path[1:] + line(A1, E)[1:])
+        B5 = bowl_path[int(len(bowl_path) * 0.82)]   # the width plan's "arm from here" key sits on the curve where the fifth point used to
+    else:
+        body_pts = [X, M, D] + bp + [A1]
+        body = geom.resample(catmull(body_pts, tension=0.5) + line(A1, E)[1:])
     if arm_end == 'up': body = stand_up(body, WD * 1.2)   # a SMALL upturn: the last WD x 1.2 bent up (0.6 of it straight, past the 0.7 wedge's depth) under the stem wedge
     tD, tB5 = t_of(body, D), t_of(body, B5)
     beak_cut, beak_lip = arm_beak(body, 0.0)[0], None       # the shear alone here; the lip needs the arm's final width
@@ -609,4 +640,17 @@ AMP_OPTIONS = {
               spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0),
     'f': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
               spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.6, egg_power=2.0),
+    # ROUND 256 (owner: "smooth out lower loop of ampersand to be use fewer and
+    # more graceful curves. give me options to choose from."): e with its lower
+    # bowl redrawn, see `bred` bowl_shape.
+    'g': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='cubic', bowl_k=(1.0, 1.0)),   # ONE cubic, even handles
+    'h': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='cubic', bowl_k=(1.4, 0.8)),   # one cubic, the diagonal's direction carried further: fuller lower left, tighter into the arm
+    'i': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='cubic', bowl_k=(0.8, 1.4)),   # one cubic, the arm's direction carried further: tight under the diagonal, a long sweep up into the arm
+    'j': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='three', bowl_bottom=0.35),     # the spline through three points instead of five
+    'k': dict(top='open', loop=1.1, point=(0.36, 0.58), cross=41.2, arm=0.63, arm_end='pencut', spur_x=0.97,
+              spur_foot='wedge', bowl=1.0, loop_shape='egg', egg_pinch=0.85, egg_power=3.0, bowl_shape='three', bowl_bottom=0.42),     # three points, the bottom further right: a rounder underside
 }
