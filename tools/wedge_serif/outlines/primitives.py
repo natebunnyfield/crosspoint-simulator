@@ -561,6 +561,18 @@ if os.environ.get('FJORD_ARCH_FLOOR'): BOWL['arch_floor'] = float(os.environ['FJ
 # the 0.60 it was picked at, 0.60 at 0.80, 0.525 at 0.95, 0.50 at 1.00; the
 # max unchanged.
 BOWL['hair'] = 1.0 - 0.5 * pen.CONTRAST
+# ROUND 264 -- THE CONTRAST DIAL CANNOT REACH A REAL CONTRAST, and the line
+# above is why. Owner 2026-09-19 asked for Albo's contrast to be redrawn
+# toward the reference faces. Measured first, on a ladder of FJORD_CONTRAST at
+# the 400: the dial from 0.80 to 0.98 moves the built thick:thin only 1.32 to
+# 1.50, because `1 - 0.5c` bottoms out at 0.50 of the stem even at c = 1.0 --
+# a 2:1 bowl at the absolute end of the axis, and about 1.5:1 as the letters
+# actually measure. The reference regulars run 1.49 to 3.00 with a median of
+# 2.34 (docs/albo-family-2026-09-19.md section 9), so the architecture, not
+# the setting, is what holds Albo flat.
+# ALBO_BOWL_HAIR sets the fraction DIRECTLY, bypassing the mapping. Unset, the
+# line above stands and every build is byte-identical.
+if os.environ.get('ALBO_BOWL_HAIR'): BOWL['hair'] = float(os.environ['ALBO_BOWL_HAIR'])
 
 def bowl_th(tn):
     """Width of a bowl stroke at tangent tn: the switched profile, or the pen."""

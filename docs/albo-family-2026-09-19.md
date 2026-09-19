@@ -439,6 +439,46 @@ Graphs of the whole plane, every reference family and both of Albo's nine-rung
 ladders: `tools/wedge_serif/cmp_weight_plots.py`,
 https://claude.ai/artifact/3oRe6qTBt6jMNFngAwvkok
 
+## 12. Round 264 — the contrast is three clamps, and the last is a ruling
+
+Owner 2026-09-19, choosing between a new test phrase and a redraw:
+**"Redraw Albo's contrast."** Nothing is shipped; both new dials default to
+today's drawing and the Medium and Italic builds are byte-identical, 0 of 486
+glyphs differing.
+
+Laddered at the **400**, since that is the regular under the four-weight
+ruling. What was found, in order:
+
+1. **`FJORD_CONTRAST` cannot reach a real contrast.** From 0.80 to 0.98 the
+   built thick:thin moves only **1.32 → 1.50**. The bowl's hairline is
+   `BOWL['hair'] = 1 − 0.5c` (`primitives.py`), which bottoms out at 0.50 of
+   the stem even at c = 1.0. The architecture, not the setting, holds Albo
+   flat.
+2. **Bypassed with a direct dial (`ALBO_BOWL_HAIR`), it saturates at 1.61.**
+   The o's hairline may not go under `O_FLOOR_ADJ` × the stem.
+3. **Lowering that floor (`ALBO_O_FLOOR`) reaches 1.87 and stops again**, on a
+   third clamp not chased further.
+
+| arm | bowl hair | o floor | thick:thin | hairline, units | glitch |
+|---|---|---|---|---|---|
+| today | 0.60 | 0.55 | 1.32 | 48.6 | 3 |
+| mid | 0.50 | 0.55 | 1.57 | 40.9 | 3 |
+| opened | 0.40 | 0.46 | **1.87** | 34.3 | 3 |
+| reference regulars | | | 1.49–3.00, median 2.34 | | |
+| Albo italic today | | | 2.11 | | |
+
+**`O_FLOOR_ADJ` is an owner ruling, not an oversight.** Round 92 set it
+because the o "read hollow — its knot the lowest of any letter (−11%), the
+hairs dropping to gray at 13 pt", which is the size he reads at on the
+four-level pipeline. Opening the contrast is therefore a LEGIBILITY trade, and
+the three arms are rendered at 13 px, 17 px and 40 px for him to rule on:
+https://claude.ai/artifact/o6CyMU6c4jWhkg8xAP8MYA
+
+Glitch sweep is 3 findings on every arm, so opening the contrast breaks
+nothing that was not already broken at this weight. 1.87 is inside the
+reference regulars' range; the median of 2.34 is not reachable without
+finding and moving the third clamp.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

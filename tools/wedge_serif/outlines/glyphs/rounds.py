@@ -40,7 +40,18 @@ def o_ring(c, rx_center, ry_center=None, cy=None, k=BOWL_K, w_scale=1.0):
     cy = xh / 2 if cy is None else cy
     return ring(rx, cy, rx, ry, k=k, w_scale=w_scale)
 
-O_FLOOR_ADJ = 0.55   # round 92 (adj 'o'): the o read hollow -- its knot the lowest of any letter (-11%), the hairs dropping to gray at 13 pt; floored like the 6's tail
+# ROUND 264 -- THE REAL CONTRAST CLAMP IS THIS LINE, and it is a RULING, not
+# an oversight. Owner 2026-09-19 asked for Albo's contrast redrawn toward the
+# references. Two ladders located the clamp: FJORD_CONTRAST 0.80 to 0.98 moves
+# the built thick:thin only 1.32 to 1.50 (the `1 - 0.5c` mapping bottoms out
+# at 0.50 of the stem), and with that mapping bypassed the ratio saturates at
+# 1.61 -- because the o's hairline may not go under O_FLOOR_ADJ x the stem.
+# That floor is the owner's own round-92 ruling, quoted below: the hairs were
+# dropping to gray at 13 pt on the four-level pipeline, which is the size he
+# reads at. Lowering it is therefore a LEGIBILITY trade and his to rule, not a
+# number to tune. ALBO_O_FLOOR is the ladder's dial; unset, the ruling stands
+# and every build is byte-identical.
+O_FLOOR_ADJ = float(__import__('os').environ.get('ALBO_O_FLOOR', 0.55))   # round 92 (adj 'o'): the o read hollow -- its knot the lowest of any letter (-11%), the hairs dropping to gray at 13 pt; floored like the 6's tail
 @glyph('o')
 def g_o(c):
     if adj('o'):
