@@ -247,7 +247,11 @@ def g_Omega(c):
     # and the letter went back to three islands. Scaled by S/84 it is 0.06 at
     # 84 exactly, and cuts lower -- more leg into the foot -- as the face
     # lightens.
-    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06 * min(1.0, pen.S / 84.0))
+    # round 272: and ABOVE 84 the cut must clear the ring's bottom wall, which
+    # is thicker than 0.06 C at the 700 and the 900 -- the counter closed and
+    # the letter read as an O on two feet (adversarial review). 0.55 S is
+    # above the wall at both.
+    box = sg.box(-CAP, -CAP, CAP * 2, CAP * 0.06 * min(1.0, pen.S / 84.0) if pen.S <= 84.0 else max(CAP * 0.06, pen.S * 0.55))
     # ROUND 267 -- THE FEET NOW REACH UNDER THE LEGS. At the cut height the
     # ring's legs stand at 0.585 r and 1.415 r; the feet ended at 0.52 r and
     # 1.48 r, 18 units short on each side, and only the wall's thickness
@@ -273,7 +277,9 @@ def g_Pi(c):
 def g_Phi(c):
     from ..pen import CS
     r = CAP * 0.34
-    return geom.ink([_bowl(r, CAP * 0.50, r, CAP * 0.34, 1.0), stem(r, 0, CAP, w=CS, top='left', foot='both')])
+    # round 272: the one Greek bowl in this file whose wall did not scale (the
+    # rest take min(1, 84/S)); at the 900 it was a solid disc (adversarial review)
+    return geom.ink([_bowl(r, CAP * 0.50, r, CAP * 0.34, 1.0 * min(1.0, 84.0 / S)), stem(r, 0, CAP, w=CS, top='left', foot='both')])
 @glyph('∑')
 def g_summation(c): return g_Sigma(c)
 @glyph('∏')
@@ -419,9 +425,17 @@ def g_germandbls(c):
     # 84 the factor is 1 and the drawing is as it was.
     _lt = min(1.0, (84.0 / S) ** 0.5)
     pr = widths([(0.0, 0.80), (0.5, 0.95), (1.0, 0.82)])
-    return geom.ink([stem(x, 0, ASC * 0.74, top=None, foot='both'),
-                     _s(sh, pr, cut0=None, cut1=None, light=_lt), _s(lower, pr, cut0=None, cut1=None, light=_lt),
-                     _s(tail, widths([(0.0, 0.82), (0.6, 0.95), (1.0, 0.50)]), cut0=None, light=_lt)])
+    g = geom.ink([stem(x, 0, ASC * 0.74, top=None, foot='both'),
+                  _s(sh, pr, cut0=None, cut1=None, light=_lt), _s(lower, pr, cut0=None, cut1=None, light=_lt),
+                  _s(tail, widths([(0.0, 0.82), (0.6, 0.95), (1.0, 0.50)]), cut0=None, light=_lt)])
+    if S > 84.0:
+        # round 272: the ruling (no indentations in a counter at the 700 and
+        # the 900) reaches the eszett's two counters, which are strokes and
+        # not rings -- dents of 21-34 units at the heavy ends (adversarial
+        # review); each counter is its own convex hull above 84
+        from .. import primitives as _PR
+        g = _PR.convex_holes(g)
+    return g
 @glyph('ŋ')      # eng
 def g_eng(c):
     g = GLYPHS['n'](c); x0, y0, x1, y1 = g.bounds

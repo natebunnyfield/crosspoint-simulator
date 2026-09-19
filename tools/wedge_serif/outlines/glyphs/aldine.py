@@ -1619,6 +1619,19 @@ if ON:
     # which is a different instruction and not this one.
     O_THICK = float(os.environ.get("ALBO_ALD_O_THICK", 1.00))  # x S, at the pen's fullest
     O_THIN = float(os.environ.get("ALBO_ALD_O_THIN", 0.590))    # x S, across the nib
+    # ROUND 272 -- THE o ABOVE STEM 84. Owner 2026-09-19, on the bold italic:
+    # *"'o' bold italic needs thinning to match other letters."* The o's pen
+    # is a fraction of S and grows with it one for one; the bowls of a b d p
+    # q and the c's wall are absolute Aldine widths that round 269 put on
+    # `max(1, S/84)`, so they grow from the MEDIUM's 72 units, not from the
+    # 400's. Below 84 the o is the lighter of the two (66.9 against 72 at the
+    # 400, which the owner has passed); above it the o outgrows them -- at
+    # 116 its thickest measured 129 units on the ridge against the a's 113,
+    # the b's 115, the d's 117 and the c's 120. So above 84 the o's pen is
+    # measured on sqrt(84 S) instead of S: exactly S at 84, 98.7 nominal at
+    # 116 (the a's 99), the contrast arm CON_O untouched. The Italic 400 is
+    # byte-identical.
+    O_S_UP = float(os.environ.get("ALBO_ALD_O_S_UP", 1.0))      # 0 = the pen on S at every weight, as before
 
     @glyph('o')
     def a_o(c):
@@ -1627,9 +1640,10 @@ if ON:
         outer = superellipse(cx, ry - OVER * 0.5, rx, ry, 0.0, 2 * math.pi, O_K)[:-1]
         phi = math.radians(O_PEN)
         _thick, _thin = (con([O_THIN, O_THICK], CON_O)[::-1] if CON_O else (O_THICK, O_THIN))
+        _So = math.sqrt(84.0 * S) if (S > 84.0 and O_S_UP) else S
         def wf(t):
             th = t * 2 * math.pi
-            return S * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
+            return _So * (_thin + (_thick - _thin) * abs(math.cos(th - phi)))
         return geom.ink([PR.ring_from(outer, widths_fn=wf, smooth_w=3)[0]])
 
     # ------------------------------------------------------------ THE c, round 132

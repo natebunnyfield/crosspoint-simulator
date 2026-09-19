@@ -221,7 +221,21 @@ def g_paragraph(c):
     parts = list(g.geoms) if hasattr(g, 'geoms') else [g]
     filled = geom.ink([sg.Polygon(pp.exterior) for pp in parts])
     x0, y0, x1, y1 = filled.bounds
-    return geom.ink([filled, stem(x1 - CS * 0.5, 0, CAP, w=CS * 0.92, foot='both')])
+    g = geom.ink([filled, stem(x1 - CS * 0.5, 0, CAP, w=CS * 0.92, foot='both')])
+    if S > 84.0:
+        # round 272: at the 700 and the 900 the two stems' inner feet meet and
+        # the slot between the stems becomes an enclosed counter with a dent
+        # in it (adversarial review); the feet's ink under each such slot is
+        # cut so the slot opens to the baseline as it does at the 400
+        parts = list(g.geoms) if hasattr(g, 'geoms') else [g]
+        cuts = []
+        for pp in parts:
+            for r in pp.interiors:
+                hx0, hy0, hx1, hy1 = sg.Polygon(r).bounds
+                if hy0 < CAP * 0.5:
+                    cuts.append(sg.box(hx0 + 1.0, -CAP * 0.1, hx1 - 1.0, hy0 + CS * 0.35))   # up past where the brackets come within the ink spread of each other
+        if cuts: g = g.difference(geom.union(cuts))
+    return g
 
 @glyph('†')      # dagger
 def g_dagger(c):
@@ -329,7 +343,11 @@ def g_radical(c):
 @glyph('°')      # degree
 def g_degree(c):
     r = XH * 0.20
-    solid, *_ = ring(r, CAP - r, r, r, w_scale=0.62, floor=HAIR * 0.9)
+    # round 272: the same ring as the ring accent, and the same collapse -- at
+    # the 900 a 92-unit wall on an 86-unit radius left a solid dot
+    # (adversarial review); the wall scales by min(1, 84/S) as the accent's
+    # has since round 268
+    solid, *_ = ring(r, CAP - r, r, r, w_scale=0.62 * min(1.0, 84.0 / S), floor=HAIR * 0.9)
     return solid
 @glyph('©')      # copyright
 def _enclosed_letter_c(c): return _enclosed(c, 'C')
@@ -360,11 +378,26 @@ def g_trademark(c):
         parts.append(g); x += (x1 - x0) + S * 0.22
     return geom.ink(parts)
 
-def _currency_bar(g, n=1, vertical=True, span=1.22):
+def _currency_bar(g, n=1, vertical=True, span=1.22, counter=False):
     """The stroke that makes a letter a currency sign: through the ink, the
-    pen's own weight, over-reaching the letter by the usual sixth."""
+    pen's own weight, over-reaching the letter by the usual sixth.
+    counter (round 272): the bar is centred on the letter's COUNTER -- from
+    the inner edge of the first ink run at mid-height to the letter's right
+    extreme -- not on its bounds. The cent's c is open on the right and
+    thick on the left, so its bounds' centre falls inside the left wall
+    once the wall carries the bold's weight: round 269 put the bold
+    italic's c on the axis (wall 69 -> 96) and the cent's bar sank into it
+    (adversarial review, 2026-09-19: the daylight between bar and wall,
+    3,094 units^2, gone). Above stem 84 only, so the 400s are as drawn."""
     x0, y0, x1, y1 = g.bounds; parts = [g]
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    if counter and S > 84.0:
+        from shapely.geometry import LineString as _LS
+        _row = g.intersection(_LS([(x0 - 10, cy), (x1 + 10, cy)]))
+        _segs = list(_row.geoms) if _row.geom_type == 'MultiLineString' else ([_row] if not _row.is_empty else [])
+        if _segs:
+            _first = min(_segs, key=lambda q: q.bounds[0])
+            cx = (_first.bounds[2] + x1) / 2
     for i in range(n):
         off = ((i - (n - 1) / 2) * XH * 0.17)
         if vertical: parts.append(_s(line((cx + off, y0 - (y1 - y0) * (span - 1) / 2), (cx + off, y1 + (y1 - y0) * (span - 1) / 2)), w=MATH))
@@ -380,7 +413,7 @@ def g_cent(c):
     import shapely.affinity as aff
     from . import GLYPHS
     g = GLYPHS['c'](c)
-    return _currency_bar(g)
+    return _currency_bar(g, counter=True)
 @glyph('£')      # sterling
 def g_sterling(c):
     """An italic L crossed, with a foot: the capital's own bowl gesture."""

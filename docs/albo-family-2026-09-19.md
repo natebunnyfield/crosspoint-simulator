@@ -1022,6 +1022,107 @@ Proofs: `tools/wedge_serif/shape/weights271/` — the M at 400/700/900 before
 and after at 0.5 px/unit, and MIMICRY runs at 13 and 40 px; the page
 https://claude.ai/artifact/PeDcULppdXAS9EnbHKaUvM
 
+## 18. Round 272 — six instructions on the heavy ends, and the review's findings
+
+Owner 2026-09-19, in order: *"'o' bold italic needs thinning to match other
+letters"*; *"for roman 700 and 900, 'w' 'v' and possibly others are too heavy
+compared to others. ampersand is way too wide"*; *"roman 700 and 900 'a' is
+too thick especially lower right within counter"*; *"correct errors and
+defects of M in the after (shards and glitches)"*; *"the inside of the
+diagonal right stroke of M has a fracture"*; *"fix the overlap mismatch
+glitches on the right of 'a'."* Every fix is gated above stem 84; the Regular
+400 and the Italic 400 differ from round 271 only in the M and the ™ (the
+peak-height change below), the ExtraLight 200 the same two.
+
+**The bold italic o** (`aldine.py` `a_o`). Its pen is a fraction of S and
+grew one for one with it; the bowls of a b d p q and the c's wall are
+absolute Aldine widths on `max(1, S/84)` since round 269 and grow from the
+Medium's 72, not the 400's — so below 84 the o is the lighter (66.9 against
+72, which the owner has passed) and above it outgrows them: thickest 110 on
+the ridge against a 101.6, b 99.3, d 102.4, c 103.9. Above 84 the pen is
+measured on √(84 S): 99.3 now. The contrast arm is untouched.
+
+**The M's shards and the fracture** (`caps_straight.py`). The shoulder cut's
+line ran from the thin diagonal's corner to the axis's end at the vertex, a
+line that converges into the stroke, so it shaved a wedge off the diagonal's
+inside down to the box's floor and left a 4-unit step at C − 200 at every
+weight — the fracture. It is the axis direction now. The left crown's trim
+had its boundary exactly on the fill's top edge, which left a zero-width
+strip the ink spread inflated to a 26 × 2.4 sliver on the cap line at the
+700; both trims overshoot by a third of a unit. The right peak stood 5–10
+units under the left's (the review): it is carried up the thin stroke's edge
+to the left peak's height at every weight. Shards, slivers and holes: 0 at
+200, 400, 700 and 900.
+
+**The a** (`stems.py` `g_a`). The counter's lower right was the stem's
+INSIDE FOOT: under the bottom stroke at the 400, its bracket climbs into the
+counter with the weight — a chamfer from (191, 61) to the stem's edge at y
+160 at the 900, the counter covering 35% of its own lower-right 60 × 60
+against 67% at the 400 and 88% at its own lower left. Above 84 the stem
+carries its right foot only: 93% at the 700, 98% at the 900. The hood's
+profile (0.85–1.12 of the pen, a 125–165 unit hood at the 900) is scaled by
+√(84/S) above 84, ramped in past the run. The right-edge glitches were the
+hood leaving the stem 1.5 units narrower than the stem as drawn (the arc's
+first tangent leans, the bowl profile hands it a smaller width, then the
+widths are smoothed) plus the stem's own chamfered corner: the hood is now
+built, its edge just above the stem's top read against the stem's edge just
+below, and built again scaled by the miss; the run is trimmed to the stem's
+footprint, the outer edge held at the stem's edge for 30 units, the corner
+filled. Steps: 2–3 units → 0.2. Two things that did NOT work, recorded: a
+flat thinning factor put a 10-unit step where the arc starts; cutting the
+bowl's ink inside the stem's footprint did nothing, because the stem is drawn
+after and fills it back.
+
+**The diagonals** (`diagonals.py`, `caps_straight.py`, `ampersands.py`
+`pw`). Round 51's rule makes a down-right diagonal the pen's broad, ~1.10 of
+the stem at every weight. Above 84 the pen's width is capped at `DIAG_CAP` ×
+S = 0.93 — where the n's stem itself measures at those weights. Ridge
+maximum over the n's stroke, before → after: v 1.12 → 1.09 and 1.23 → 1.18,
+w 1.17 → 1.09 and 1.22 → 1.17, x 1.11 → 1.05 and 1.18 → 1.11, y 1.09 → 1.02
+and 1.19 → 1.14, A V W 1.12 → 1.05 and 1.17 → 1.11–1.14. What is left at the
+900 is the VERTEX, where two strokes merge — the n reads 190 there against
+its 135 stem by the same measure — and the w's color, 1.09 of the n's,
+which is four strokes in a w's width. K, Y, Z do not go through `pw` and
+did not move.
+
+**The ampersand** (`ampersands.py`, `marks.py`). Its whole skeleton is drawn
+in `CUR_W` = 8.76 stems, so it grew with the weight like a stroke: 629 units
+of ink at the 400, 1,004 at the 700, 1,245 at the 900, against an H of 744
+→ 780. Above 84 the skeleton's stem is 66.9 × (S/66.9)^0.17 and the strokes
+lighten by √(84/S) with the foot wedge seated on the lightened stroke: 694
+and 736 now (&/H 0.92, 0.94). With the narrower skeleton the loops' counters
+dented 14 and 19 units where the diagonal crosses, so the ruling reaches the
+ampersand above 84 too (`convex_holes`); the round-256 concavity stands at
+the 400.
+
+**The adversarial review of rounds 268–271** (read-only, 2026-09-19) and
+what was done:
+
+| finding | severity | done |
+|---|---|---|
+| bold italic ¢: round 269's thicker c swallowed the bar's daylight (counter 3,094 units² → none) | silent-wrong-output | the bar is centered on the c's counter above 84 (`_currency_bar(counter=True)`); the 400s' marginal placement is left for a ruling |
+| ° a solid dot at the 900; Φ a solid disc; Ω a closed ring at 700 / 900 / bold italic; roman ¶ an enclosed slot with a dent; ß dented 21–34 | silent-wrong-output, outside every sweep | ° and Φ walls scale by min(1, 84/S); the Ω's cut is max(0.06 C, 0.55 S) above 84; the ¶'s feet under the slot are cut so it opens to the baseline; the ß's counters convex above 84 |
+| the Black declared usWeightClass 400 with the REGULAR bit | latent | 900; the REGULAR bit only on the Regular; ExtraBold 800 added |
+| the M's right peak 5–10 units under the left's | cosmetic | at the left's height now |
+| §15's b and p walls read 91 / 90 after round 270's hull, not 96; §16's moved-list omits ° º ∞ β δ σ α Þ ø ð ‰ and the super/subscript figures; §14 omits ✔ at the 700s and the 900's `--all` ($, ¸ and the cedilla composites, « », ∞, ▫ △ ▽); the bold italic 6 keeps a 4.0-unit dent under the tool's threshold | docs | recorded here, as stated |
+| `kern.py:33`'s "18 units is a sixteenth of a pixel" is 16× off (it is 0.97 px at 54 px/em) | docs, out of scope | recorded |
+
+The review's clean list stands as written in its report: `convex_counter`'s
+gate and its interaction with `oval`, round 269's factor sites and the
+`_solid` interior filter, the kern block's values against the built GPOS,
+the round-271 cuts at four weights, the round-268 P, the name table, and
+every byte-identity claim re-made.
+
+**Gates on the final builds.** Glitch: 0 at 700 / 900 / bold italic, the
+ruled β alone at the 400s and the 200; every named glyph also clean under
+`--all`. Touch: unchanged at every weight (bold italic 0 / 0). Dents
+(`cmp_counter_dents.py`): 0 in all three heavy fonts — the ampersand
+included now. Figure spread 1.42×. Byte identity: Italic 400 exact; Regular
+400 and ExtraLight 200 differ in M and ™ only.
+
+Proofs: `tools/wedge_serif/shape/weights272/` and the page
+https://claude.ai/artifact/ViZgNhEz6ATEqUfAVUtPzu
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1041,3 +1142,4 @@ https://claude.ai/artifact/PeDcULppdXAS9EnbHKaUvM
 - Round 269: the five f-ligatures are not among the 58 glyphs that moved -- they are built from the roman f's parts and were already on the axis.
 - Round 270: after the convex counters, the dent detector reads one dent per face at every weight, the ampersand's; the bold italic's touch sweep is 0 / 0; glitch 0 at 700 / 900 / bold italic and the ruled β alone at the 400s and the 200.
 - Round 271: the M's two tops read the same projection past their stems at all three roman weights; the ExtraLight 200 differs from round 267's build only in the M and the ™.
+- Round 272: with the ampersand's counters convex, `cmp_counter_dents.py` reads 0 dents in the Bold, the Black and the Bold Italic over its whole charset; the a's counter lower-right reads 93% / 98% white at 700 / 900 against 88% / 89% at its lower left; the M has 0 ink shards and 0 white slivers at 200 / 400 / 700 / 900.

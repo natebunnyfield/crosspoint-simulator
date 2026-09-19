@@ -16,11 +16,25 @@ from ..primitives import bowl_widths, widen_terminal
 def W_(c, ch, default): return default * c["W"].get(ch, 1.0)
 CW = TH_V * CAP_STEM          # the drawn cap stem, 87.9
 THIN = CW * 0.72              # the capitals' thin STEM (N's stems: round 51's _cstem thin=0.72)
+# ROUND 272 -- THE DIAGONALS ABOVE STEM 84. Owner 2026-09-19: *"for roman
+# 700 and 900, 'w' 'v' and possibly others are too heavy compared to
+# others."* Round 51's rule makes a down-right diagonal the PEN's broad,
+# about 1.10 of the stem at every weight, and at the heavy ends that tenth
+# is what reads: measured on the ridge, the v's thick ran 1.12 x the n's
+# stem at the 700 and 1.23 at the 900, the w's 1.17 and 1.22, the k's 1.14
+# and 1.21, the K's 1.18 and 1.31. Above 84 the pen's width is capped at
+# DIAG_CAP x S -- 0.93, which is where the n's stem itself measures at
+# those weights (0.95 S at the 700, 0.91 S at the 900, the stem's own
+# entasis) -- so the thick diagonal lands on the stem. At and under 84 the
+# rule is round 51's and the 400 is byte-identical.
+DIAG_CAP = float(os.environ.get("ALBO_DIAG_CAP", 0.93))
 def pw(p0, p1, mult=1.0):
     """Round 51's `latin.diag`: a capital's diagonal is `mult` x the PEN's
     width at its own angle (the cap factor cancelled out of it); the thin
     strokes 0.72 x that."""
-    tn = tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
+    tn = tangents(line(p0, p1))[0]; th = pen.th_t(tn)
+    if S > 84.0 and DIAG_CAP: th = min(th, S * DIAG_CAP)   # round 272, see DIAG_CAP
+    return th * mult
 BEAK_CUT = -28.0
 
 # ---------------------------------------------------------------------------
@@ -733,6 +747,12 @@ def g_M(c):
     fill = _Poly([tip, peak, (seat[0], seat[1] - 40.0)])
     ldir = (peak[0] - tip[0], peak[1] - tip[1]); Ll = math.hypot(*ldir); ldir = (ldir[0] / Ll, ldir[1] / Ll)
     lip = geom.union([a, apex]).intersection(_side(tip, ldir, +1)).intersection(_box(tip[0], C - 60.0, peak[0], C + 80.0))   # round 243: the crown's own corner at (seat, C) stood a unit over the line too
+    if M_TOP_MIRROR:
+        # ROUND 272 -- the trim overshoots its line by a third of a unit: a cut
+        # whose boundary is exactly the fill's top edge left a zero-width strip
+        # that the build's ink spread inflated into a 26 x 2.4 sliver on the
+        # cap line at the 700 (owner: "shards and glitches").
+        lip = lip.buffer(0.34, join_style=2)
     # RIGHT TOP: what the thin stroke d stands above the thick stem e's end face
     eA, eB = _corners(P[3][0], P[3][1], we, True)
     lo, hi = (eA, eB) if eA[0] < eB[0] else (eB, eA)
@@ -787,10 +807,14 @@ def g_M(c):
         rcrown = wedge(rseat, (0, 1), (1, 0), WL * 0.9, WD, DROP)
         e = diagonal(P[3][0], P[3][1], we, serif0=1)                          # the foot wedge only; the crown is the one above
         d_in = min(_corners(P[2][0], P[2][1], wd, False), key=lambda q: q[0])  # the thin inner stroke's inner (higher) top corner -- the right's peak, as b's inner corner is the left's
-        rpoint = d_in
-        rfill = _Poly([rtip, rpoint, (rseat[0], rseat[1] - 40.0)])
+        # round 272: the right peak at the LEFT peak's height (adversarial
+        # review: the thin stroke's corner stood 5-10 units under the thick
+        # stroke's), carried up the thin stroke's inner edge
+        _tdu = tangents(line(P[2][1], P[2][0]))[0]                            # d's axis, pointing up
+        rpoint = (d_in[0] + _tdu[0] * (peak[1] - d_in[1]) / _tdu[1], peak[1]) if peak[1] > d_in[1] else d_in
+        rfill = _Poly([rtip, rpoint, d_in, (rseat[0], rseat[1] - 40.0)])
         rdir = (rpoint[0] - rtip[0], rpoint[1] - rtip[1]); Lr = math.hypot(*rdir); rdir = (rdir[0] / Lr, rdir[1] / Lr)
-        rlip = geom.union([e, d, rcrown]).intersection(_side(rtip, rdir, -1)).intersection(_box(rpoint[0] - 60.0, C - 60.0, rtip[0] + 10.0, C + 200.0))
+        rlip = geom.union([e, d, rcrown]).intersection(_side(rtip, rdir, -1)).intersection(_box(rpoint[0] - 60.0, C - 60.0, rtip[0] + 10.0, C + 200.0)).buffer(0.34, join_style=2)
         # THE THICK STEM'S INNER SHOULDER. Both strokes' tops are centred on
         # the same point, so the thick outer stem's inner top corner stands
         # out past the thin inner stroke's edge -- 30 units at the 900 -- on
@@ -799,7 +823,14 @@ def g_M(c):
         # it. So the inside of the right junction is the thin stroke's inner
         # edge, carried up to the peak: the stem's ink left of that edge line,
         # above where the two edges cross, is cut.
-        _td = tangents(line(rpoint, P[2][1]))[0]                              # down d's inner edge
+        # ROUND 272 -- the line is the stroke's AXIS direction through the
+        # corner, which is its inner edge. The first cut ran from the corner
+        # to the axis's own end at the vertex, a line that converges into the
+        # stroke, so it shaved a wedge off the diagonal's inside down to the
+        # box's floor at C - 200 and left a step there at every weight
+        # (owner: "the inside of the diagonal right stroke of M has a
+        # fracture").
+        _td = tangents(line(P[2][0], P[2][1]))[0]                             # d's axis, pointing down
         # the cut is the half-plane and a box, NOT intersected with the stem
         # first: a cut whose boundary is the stem's own face leaves a
         # zero-area loop in the difference, which the build's ink spread then
@@ -808,7 +839,7 @@ def g_M(c):
         # own edge, which it runs along, is never on the boundary.
         _nl = (_td[1] * 0.5, -_td[0] * 0.5)                                   # half a unit to the left of the line
         shoulder = _side((rpoint[0] + _nl[0], rpoint[1] + _nl[1]), _td, -1).intersection(
-            _box(rpoint[0] - 80.0, C - 200.0, rpoint[0] + 1.0, C + 200.0))
+            _box(rpoint[0] - 80.0, C - 300.0, rpoint[0] + 1.0, C + 200.0))
         g = geom.ink([a, b, d, e, apex, fill, rcrown, rfill])
         return g.difference(geom.union([lip, tri, rlip, shoulder]))          # no spike trim: the thin stroke's corner is the peak
     g = geom.ink([a, b, d, e, apex, fill, rcrown, rfill])

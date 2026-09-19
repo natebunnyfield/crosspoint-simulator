@@ -372,7 +372,17 @@ def g_ampersand(c):
     -- are untouched; the join there already reads as one gesture."""
     from .ampersands import bred, VARIANTS2, AMP_OPTIONS
     if AMP_OPT in AMP_OPTIONS:   # round 233: the owner's options (R54-R56), see ampersands.AMP_OPTIONS; 'a' is the drawing below
-        return bred(c, **AMP_OPTIONS[AMP_OPT])
+        g = bred(c, **AMP_OPTIONS[AMP_OPT])
+        if S > 84.0:
+            # round 272: the ruling -- no indentations in a counter at the 700
+            # and the 900 -- reaches the ampersand too, once its skeleton is
+            # the 400's width and its strokes the bold's: the loops' counters
+            # dented 14 and 19 units where the diagonal crosses. Each counter
+            # is its own convex hull above 84; at and under 84 the lower
+            # loop's drawn concavity stands (the round-256 shape).
+            from .. import primitives as _PR
+            g = _PR.convex_holes(g)
+        return g
     dials = dict(dict(VARIANTS2)['round_bowl'].dials)
     dials.update(cross=41.2, arm_end='beak')
     return bred(c, **dials)

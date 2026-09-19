@@ -397,6 +397,20 @@ def convex_counter(inner):
     hull = smooth(hull, 1, closed=True)
     return resample(hull + [hull[0]])[:-1]
 
+def convex_holes(g):
+    """Every enclosed counter of a finished glyph made its own convex hull
+    (round 272) -- for the counters that are strokes and not rings, where
+    `convex_counter` cannot reach. Ink inside a counter's hull is removed;
+    nothing else moves."""
+    from shapely.geometry import Polygon as _P
+    polys = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+    out = []
+    for poly in polys:
+        holes = [list(_P(r).convex_hull.exterior.coords)[:-1] for r in poly.interiors]
+        holes = [smooth(h, 1, closed=True) for h in holes]
+        out.append(geom.poly(list(poly.exterior.coords), holes))
+    return geom.union(out)
+
 def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0, stress=0.0, oval=0.0):
     """A full bowl: the OUTER is the designed superellipse (k = squareness);
     the COUNTER is its inward offset by the pen's width at each tangent

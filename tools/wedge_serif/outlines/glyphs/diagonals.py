@@ -7,12 +7,26 @@ from ..geom import cubic, line
 from ..primitives import stem, diagonal, stroke, pen_widths, widths, wedge, diag_wedge, end_wedge, bar
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, WL, WD, DROP, ENT, adj
 
+# ROUND 272 -- THE DIAGONALS ABOVE STEM 84. Owner 2026-09-19: *"for roman
+# 700 and 900, 'w' 'v' and possibly others are too heavy compared to
+# others."* Round 51's rule makes a down-right diagonal the PEN's broad,
+# about 1.10 of the stem at every weight, and at the heavy ends that tenth
+# is what reads: measured on the ridge, the v's thick ran 1.12 x the n's
+# stem at the 700 and 1.23 at the 900, the w's 1.17 and 1.22, the k's 1.14
+# and 1.21, the K's 1.18 and 1.31. Above 84 the pen's width is capped at
+# DIAG_CAP x S -- 0.93, which is where the n's stem itself measures at
+# those weights (0.95 S at the 700, 0.91 S at the 900, the stem's own
+# entasis) -- so the thick diagonal lands on the stem. At and under 84 the
+# rule is round 51's and the 400 is byte-identical.
+DIAG_CAP = float(os.environ.get("ALBO_DIAG_CAP", 0.93))
 def pw(p0, p1, mult=1.0):
     """Round 51's rule for every diagonal (`_diag`): the width is `mult` x
     the PEN's width at the stroke's own angle -- a down-right stroke is the
     pen's broad ~82, a down-left one its thin ~50, and 0.72 of THAT is the
     thin stroke of v w x y (36-40), not 0.72 of the stem."""
-    tn = geom.tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
+    tn = geom.tangents(line(p0, p1))[0]; th = pen.th_t(tn)
+    if S > 84.0 and DIAG_CAP: th = min(th, S * DIAG_CAP)   # round 272, see DIAG_CAP
+    return th * mult
 
 # THE VERTEX, 2026-09-18 (the owner's roman bump markup, R32 on the v, R33
 # on the w). The thick and the thin stroke of a v both ran to the baseline

@@ -463,7 +463,7 @@ def fit(ch, conts, c):
     return adv, dx, min(xs_all) + dx
 
 WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700,
-                "Italic": 400, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 268: "Italic" is the REGULAR's italic since the re-anchor (round 266) and declares 400 like it -- round 261 had it at 500 when the Medium was the text weight; the pair must declare ONE weight or the family will not bind   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
+                "Italic": 400, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700, "ExtraBold": 800, "Black": 900}   # round 272: the Black declared 400 (adversarial review)   # round 268: "Italic" is the REGULAR's italic since the re-anchor (round 266) and declares 400 like it -- round 261 had it at 500 when the Medium was the text weight; the pair must declare ONE weight or the family will not bind   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
 
 # Round 100, the vertical metrics (they were 900/-300 with no measurement
 # behind them). Measured across every style: the ink reaches 971 on the
@@ -665,7 +665,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                            typographicFamily=name, typographicSubfamily=_typo))
     fb.setupOS2(sTypoAscender=VM_ASCENT, sTypoDescender=VM_DESCENT, sTypoLineGap=0, usWinAscent=VM_WIN_ASCENT, usWinDescent=VM_WIN_DESCENT, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
     fb.setupPost(italicAngle=-pen.SLANT)
-    fb.font['OS/2'].fsSelection = 0x40   # REGULAR, cleared below by an italic or a bold
+    fb.font['OS/2'].fsSelection = 0x40 if style in ("Regular", "Medium") else 0x00   # REGULAR only on the regular (round 272: the Black and the ExtraLight carried it); cleared below by an italic or a bold
     if _ital:
         fb.font['OS/2'].fsSelection = (fb.font['OS/2'].fsSelection & ~0x40) | 0x01
         fb.font['head'].macStyle |= 0x02

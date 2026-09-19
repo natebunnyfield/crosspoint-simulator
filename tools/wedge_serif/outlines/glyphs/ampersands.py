@@ -68,7 +68,9 @@ def mixw(center, blend, profile=None, floor=HAIR):
 
 def pw(p0, p1, mult=1.0):
     """The pen's width for a straight stroke p0 -> p1 (the diagonals' rule)."""
-    tn = geom.tangents(line(p0, p1))[0]; return pen.th_t(tn) * mult
+    tn = geom.tangents(line(p0, p1))[0]; th = pen.th_t(tn)
+    if S > 84.0: th = min(th, S * 0.93)   # round 272: the diagonals' cap, see diagonals.DIAG_CAP
+    return th * mult
 
 def spur(foot, top, taper=0.35, mult=1.0):
     """The garalde &'s thick down-right spur, drawn FOOT-FIRST as the A's
@@ -375,7 +377,16 @@ VARIANTS = [
 # degrees the pen runs into its stress angle and would vanish (4 units at
 # the owner's 0.95 contrast).
 
-CUR_W = 8.76 * S * pen.WIDTH   # the shipping &'s 736, in the pen's units, on the width axis
+# ROUND 272 -- THE AMPERSAND'S WIDTH ABOVE STEM 84. Owner 2026-09-19, on the
+# roman 700 and 900: *"ampersand is way too wide."* The letter's whole
+# skeleton is drawn in CUR_W, which is 8.76 stems, so it grew with the
+# weight like a stroke: 629 units of ink at the 400, 1,004 at the 700, 1,245
+# at the 900, against an H that grew from 744 to 780. Above 84 the skeleton's
+# stem is 66.9 x (S / 66.9) ^ 0.17 -- the 400's skeleton widened a tenth at
+# the 700 and a seventh at the 900, which is what a bold ampersand does --
+# and the strokes stay on S. At and under 84 the 400 is byte-identical.
+_SW = S if S <= 84.0 else 66.9 * (S / 66.9) ** 0.17
+CUR_W = 8.76 * _SW * pen.WIDTH   # the shipping &'s 736, in the pen's units, on the width axis
 THIN = 0.30 * S                # the thin diagonal's floor: what the pen gives at 41 degrees
 
 def t_of(sp, P):
@@ -472,6 +483,13 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
          the pen cut).  bowl: 0 = the current's lower bowl, 1 = the o's.
     width: x the current's advance-width proportion."""
     C = CAP(c); w = CUR_W * width; o = ob(); hb = PR.bowl_hair()
+    # ROUND 272 -- THE STROKES ABOVE STEM 84. With the skeleton held to the
+    # 400's width (CUR_W above) and the strokes on the bold's pen, the upper
+    # loop closed to a slit at the 900 and the crossing became a mass; the
+    # strokes lighten by sqrt(84/S) -- 0.85 at the 700, 0.75 at the 900 -- as
+    # the eszett's do (round 267). At and under 84 the factor is 1.
+    _lt = (84.0 / S) ** 0.5 if S > 84.0 else 1.0
+    _L = lambda f: (lambda t, _f=f: _f(t) * _lt)
     X = (point[0] * w, point[1] * C)
     # ---- the loop: outer top on C + OVER, widest rx, centre a little left of the point
     rx = 0.22 * w * loop; ry = 0.20 * C + OVER; cy = C + OVER - ry; cx = X[0] - 0.06 * w
@@ -545,17 +563,17 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
         prof = widths([(0.0, 0.3 if spur_foot == 'hook' else 1.0), (0.05, 1.0)])
         sw = widths([(0.0, spur_w), (tX1 - 0.03, spur_w), (tX1 + 0.02, 1.0)])
         # the loop's left side (spiral): the pen at its angle, floored at THIN -- the current's thin
-        wf = mixw(sp, blend, lambda t: prof(t) * sw(t), floor=THIN)
-        parts.append(stroke(sp, wf, pieces=True, cut0=CUT if spur_foot == 'plain' else None, cut1=end_cut))
-        if spur_foot == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, +1, 0.9))
+        wf = mixw(sp, blend, lambda t: prof(t) * sw(t), floor=THIN * _lt)
+        parts.append(stroke(sp, _L(wf), pieces=True, cut0=CUT if spur_foot == 'plain' else None, cut1=end_cut))
+        if spur_foot == 'wedge': parts.append(end_wedge(sp, wf(0.0) * _lt, True, +1, 0.9))   # round 272: the wedge seats on the stroke as lightened
         arm_sp, arm_w = sp, wf(1.0)
     else:
         # the spur, its own stroke, thinning into the crossing
         spur_sp = geom.resample(catmull(sp_pts + [spur_end], tension=0.5) if spur_foot == 'hook' else line(sp_pts[0], spur_end))
         prof = widths([(0.0, 0.3 if spur_foot == 'hook' else 1.0), (0.05, 1.0), (0.72, 1.0), (1.0, 0.65)])
-        sw = pen_widths(spur_sp, prof, floor=THIN, scale=spur_w)
-        parts.append(stroke(spur_sp, sw, cut0=CUT if spur_foot == 'plain' else None))
-        if spur_foot == 'wedge': parts.append(end_wedge(spur_sp, sw(0.0), True, +1, 0.9))
+        sw = pen_widths(spur_sp, prof, floor=THIN * _lt, scale=spur_w)
+        parts.append(stroke(spur_sp, _L(sw), cut0=CUT if spur_foot == 'plain' else None))
+        if spur_foot == 'wedge': parts.append(end_wedge(spur_sp, sw(0.0) * _lt, True, +1, 0.9))   # round 272: the wedge seats on the stroke as lightened
         if top == 'closed':
             # the egg runs clockwise like `loop_path`; `ring_from` offsets inward from a ccw outline, so reverse it
             if loop_shape == 'egg': outer = egg_loop_path(cx, cy + ry, X, rx, egg_pinch, egg_power)[:-1][::-1]
@@ -563,8 +581,8 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
             lo, _, _ = teardrop_loop(outer); parts.append(lo)
             sp = body
             blend = widths([(0.0, 1.0), (tD - 0.02, 1.0), (tD + 0.03, 0.0), (tB5 - 0.02, 0.0), (tB5 + 0.04, 1.0)])
-            wf = mixw(sp, blend, floor=THIN)
-            parts.append(stroke(sp, wf, cut1=end_cut))
+            wf = mixw(sp, blend, floor=THIN * _lt)
+            parts.append(stroke(sp, _L(wf), cut1=end_cut))
         else:   # 'half': the hook + the body as one spine
             # the loop's sides bow out a little more than the ring's, so the
             # hook's free end sits LEFT of the spur's line rather than on it
@@ -577,8 +595,8 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
             sp = geom.resample(hook + body[1:])
             tH = t_of(sp, H); tX2 = t_of(sp, lp[-1]); tD2 = t_of(sp, D); tB = t_of(sp, B5)
             blend = widths([(0.0, 0.0), (tX2 + 0.02, 0.0), (tD2 - 0.02, 1.0), (tD2 + 0.03, 0.0), (tB - 0.02, 0.0), (tB + 0.04, 1.0)])
-            wf = mixw(sp, blend, widths([(0.0, 0.92), (tH + 0.03, 1.0)]), floor=THIN)
-            parts.append(stroke(sp, wf, pieces=True, cut0=CUT if hook_end == 'cut' else None, cut1=end_cut))
+            wf = mixw(sp, blend, widths([(0.0, 0.92), (tH + 0.03, 1.0)]), floor=THIN * _lt)
+            parts.append(stroke(sp, _L(wf), pieces=True, cut0=CUT if hook_end == 'cut' else None, cut1=end_cut))
             if hook_end == 'wedge': parts.append(end_wedge(sp, wf(0.0), True, -1, 0.6))
         arm_sp, arm_w = sp, wf(1.0)
     # ---- the arm's end

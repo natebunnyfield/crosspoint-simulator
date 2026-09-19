@@ -1,0 +1,56 @@
+<title>Albo Heavy Ends</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child,th:last-child,td:last-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .note{border-left:3px solid var(--accent);padding-left:14px;color:var(--soft);}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Heavy Ends</h1>
+    <p class="lede">Six instructions on the 700 and the 900 and the bold italic, and the adversarial review&rsquo;s findings, in one round. Top row before, bottom row after. Native pixels, nearest-neighbour. The Regular 400 and the Italic 400 do not move except the M, which you ruled.</p>
+  </header>
+  <section><h2>What you asked, what moved</h2>
+    <div class="scroll"><table>
+      <tr><th>instruction</th><th>measured before</th><th>after</th></tr>
+      <tr><td>bold italic o, thinner to match</td><td>thickest 110 against a b d c at 100&ndash;104</td><td class="ok">99</td></tr>
+      <tr><td>M: shards and glitches; the fracture inside the right diagonal</td><td>26 &times; 2.4 sliver on the cap line; a 4-unit step at C&minus;200 on the diagonal&rsquo;s inner edge</td><td class="ok">0 shards, 0 slivers at 200 / 400 / 700 / 900</td></tr>
+      <tr><td>a: too thick, lower right of the counter; overlap glitches on the right</td><td>counter&rsquo;s lower-right 60&times;60 only 52% / 35% white (700 / 900); 2&ndash;3 unit steps where the hood leaves the stem</td><td class="ok">93% / 98%; steps 0.2 units</td></tr>
+      <tr><td>v w and others too heavy (700 / 900)</td><td>v thick 1.12&times; / 1.23&times; the stem, w 1.17 / 1.22</td><td class="ok">diagonals capped at 0.93 stem above 84: v 1.09 / 1.18, w 1.09 / 1.17</td></tr>
+      <tr><td>ampersand way too wide</td><td>1,004 / 1,245 units of ink against an H of 758 / 780</td><td class="ok">694 / 736 &mdash; skeleton on the 400&rsquo;s width, strokes lightened, counters convex</td></tr>
+    </table></div>
+    <p class="note">From the review: the bold italic &cent; had lost the daylight beside its bar (round 269&rsquo;s thicker c); the &deg; was a solid dot at the 900, the &Phi; a solid disc, the &Omega; a closed ring at 700 and 900 in both styles, the roman &para;&rsquo;s slot an enclosed counter, the &szlig;&rsquo;s counters dented 21&ndash;34 units; the Black declared weight 400. All corrected. The M&rsquo;s right peak now stands at the left peak&rsquo;s height.</p>
+  </section>
+  <section><h2>Roman 700</h2>
+    <figure><img src="r700-avwM.png" alt="a v w M at the 700, before and after"><figcaption>a v w M at 0.38 px/unit</figcaption></figure>
+    <figure><img src="r700-amp.png" alt="ampersand n o at the 700"><figcaption>&amp; n o at 0.34 px/unit</figcaption></figure>
+    <figure><img src="r700-review.png" alt="cent degree Phi Omega pilcrow eszett at the 700"><figcaption>&cent; &deg; &Phi; &Omega; &para; &szlig; at 0.34 px/unit</figcaption></figure>
+    <figure><img src="r700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="r900-avwM.png" alt="a v w M at the 900, before and after"><figcaption>a v w M at 0.38 px/unit</figcaption></figure>
+    <figure><img src="r900-amp.png" alt="ampersand n o at the 900"><figcaption>&amp; n o at 0.34 px/unit</figcaption></figure>
+    <figure><img src="r900-review.png" alt="cent degree Phi Omega pilcrow eszett at the 900"><figcaption>&cent; &deg; &Phi; &Omega; &para; &szlig; at 0.34 px/unit</figcaption></figure>
+    <figure><img src="r900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>The M&rsquo;s tops, close</h2>
+    <figure><img src="M-tops.png" alt="the M's top band before and after at 700 and 900"><figcaption>the top band at 1 px/unit, 700 then 900, before then after</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bi-o.png" alt="o a b d c o in the bold italic"><figcaption>o a b d c o at 0.38 px/unit</figcaption></figure>
+    <figure><img src="bi-symbols.png" alt="ampersand n cent degree Omega in the bold italic"><figcaption>&amp; n &cent; &deg; &Omega; at 0.38 px/unit</figcaption></figure>
+    <figure><img src="bi-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+</div>

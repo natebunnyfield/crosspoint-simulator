@@ -307,11 +307,22 @@ def g_a(c):
     # hood takes over from lower on the stem, leaning out to the right as it
     # climbs, so the outer contour at the top right is the hood's own curve
     top_f, start_f, lean, up = A_CURVES[A_CURVE]
+    # ROUND 272 -- THE COUNTER'S LOWER RIGHT is the stem's INSIDE FOOT. Owner
+    # 2026-09-19: *"roman 700 and 900 'a' is too thick especially lower right
+    # within counter."* The left foot sits inside the bowl, under the bottom
+    # stroke at the 400, but its bracket grows with the weight and at the
+    # heavy ends it climbs into the counter as a chamfer: at the 900 from
+    # (191, 61) on the counter's bottom to the stem's inner edge at y 160,
+    # so the counter covered 35% of its own lower-right 60 x 60 against 67%
+    # at the 400 and 88% at its own lower left. Above 84 the stem carries
+    # its right foot only; at and under 84 both feet, and the 400 is
+    # byte-identical.
+    _feet_in = S <= 84.0
     if A_OPT == 'b':   # option b: the right foot smaller; the left foot is inside the bowl either way
-        st = geom.union([stem(x, 0, xh * top_f, top=None, foot='left', ent_span=(0, xh)),
-                         stem(x, 0, xh * top_f, top=None, foot='right', ent_span=(0, xh), foot_len=PR.FOOT * A_FOOT_B, foot_depth=A_FOOT_B)])   # stem()'s foot_len default is FOOT, so the factor multiplies it
+        st = geom.union(([stem(x, 0, xh * top_f, top=None, foot='left', ent_span=(0, xh))] if _feet_in else []) +
+                        [stem(x, 0, xh * top_f, top=None, foot='right', ent_span=(0, xh), foot_len=PR.FOOT * A_FOOT_B, foot_depth=A_FOOT_B)])   # stem()'s foot_len default is FOOT, so the factor multiplies it
     else:
-        st = stem(x, 0, xh * top_f, top=None, foot='both', ent_span=(0, xh))
+        st = stem(x, 0, xh * top_f, top=None, foot='both' if _feet_in else 'right', ent_span=(0, xh))
     peak = xh + OVER - PR.bowl_hair() / 2
     if A_HOOD_FLUSH:
         # owner 2026-09-14, "smooth off the top right so there is no corner
@@ -340,27 +351,61 @@ def g_a(c):
         hood = join(run, arc)
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
-        prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn
-        prof = lambda t: prof0(t) * A_HOOD_W   # round 94 (owner: "slightly reduce the top stroke of 'a'")
-        # owner 2026-09-14, on the smoothed corner: "there is now a corner
-        # sticking out under the top stroke, on the other side of where the
-        # corner was fixed. keep the original underneath, white space curve."
-        # The run-then-arc hood leaves the stem's inner edge at top_f with a
-        # turn; round 86's hood (the cubic from start_f, bending left at
-        # once) gave the hollow a curve from lower on the stem. So the hood
-        # is the UNION of the two: the run-then-arc owns the outer edge (it
-        # is the wider one outside), the round-86 cubic owns the underside.
         under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
-        under_prof = lambda t: under0(t) * A_HOOD_W   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
-    # the hood and its underside take the arch's sawtooth fix (arches.smooth_widths, R23): the same lookup, the same 1-2 unit steps
-    hood_w = smooth_widths(hood, PR.bowl_th, prof, floor=S * 0.5) if A_HOOD_FLUSH else PR.bowl_widths(hood, prof, floor=S * 0.5)
-    hd = stroke(hood, hood_w, cut1=CUT)
-    if A_HOOD_FLUSH:
-        hd = geom.union([hd, stroke(under, smooth_widths(under, PR.bowl_th, under_prof, floor=S * 0.5), cut1=CUT)])
+    # ROUND 272 -- THE a ABOVE STEM 84. Owner 2026-09-19: *"roman 700 and 900
+    # 'a' is too thick especially lower right within counter"* and *"fix the
+    # overlap mismatch glitches on the right of 'a'."* The hood's profile is
+    # 0.85-1.12 of the pen, which at a 148 stem is a 125-165 unit hood over a
+    # counter 115 wide; above 84 it is scaled by sqrt(84/S) -- 0.85 at the
+    # 700, 0.75 at the 900 -- RAMPED IN past the run, so the hood leaves the
+    # stem at the stem's own width and thins along the arc (a flat factor put
+    # a 10-unit step where the arc starts). At and under 84 the factor is 1
+    # and every line below is today's code path, so the 400 is byte-identical.
+    _hf = (84.0 / S) ** 0.5 if S > 84.0 else 1.0
+    _t0 = (min(0.6, tv + 0.12) if A_HOOD_FLUSH else 0.30); _t1 = min(0.95, _t0 + 0.25)
+    def _ramp(t):
+        if _hf == 1.0: return 1.0
+        return 1.0 if t <= _t0 else (_hf if t >= _t1 else 1.0 + (_hf - 1.0) * (t - _t0) / (_t1 - _t0))
+    def _build(f0):
+        if A_HOOD_FLUSH:
+            prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn
+            prof_ = lambda t: prof0(t) * A_HOOD_W * _ramp(t)   # round 94 (owner: "slightly reduce the top stroke of 'a'")
+            under_prof = lambda t: under0(t) * A_HOOD_W * _ramp(t)   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
+            hood_w_ = smooth_widths(hood, PR.bowl_th, prof_, floor=S * 0.5 * _hf)
+            hd_ = stroke(hood, hood_w_, cut1=CUT)
+            hd_ = geom.union([hd_, stroke(under, smooth_widths(under, PR.bowl_th, under_prof, floor=S * 0.5 * _hf), cut1=CUT)])
+        else:
+            prof_ = lambda t: prof(t) * _ramp(t)
+            hood_w_ = PR.bowl_widths(hood, prof_, floor=S * 0.5 * _hf)
+            hd_ = stroke(hood, hood_w_, cut1=CUT)
+        return prof_, hood_w_, hd_
+    prof, hood_w, hd = _build(f0 if A_HOOD_FLUSH else None)
+    if S > 84.0 and A_HOOD_FLUSH:
+        # THE JUNCTION, FLUSH BY MEASUREMENT. The hood's start width is the
+        # stem's width at top_f as `stem_width` predicts it, and the hood as
+        # drawn is narrower than the stem as drawn -- the arc's first tangent
+        # leans, the bowl profile hands it a smaller width, the widths are
+        # smoothed -- by 1.5 units at the 700 and 2-3 at the 900: a step on the
+        # letter's right edge where the hood leaves the stem. So the hood is
+        # built, its edge just above the stem's top is READ against the stem's
+        # edge just below it, and it is built again with the start width scaled
+        # by the miss. Then the run is trimmed to the stem's own footprint, the
+        # outer edge is held at the stem's edge for 30 units above the top (the
+        # smoothed widths overshoot there), and the stem's chamfered top corner
+        # is filled under the hood's edge.
+        from shapely.geometry import LineString as _LS, box as _box
+        _xr = st.intersection(_LS([(x, xh * top_f - 0.75), (x + 3 * S, xh * top_f - 0.75)])).bounds[2]
+        _hr = hd.intersection(_LS([(x, xh * top_f + 0.5), (x + 3 * S, xh * top_f + 0.5)])).bounds[2]
+        if abs(_hr - _xr) > 0.15 and _hr > x:
+            prof, hood_w, hd = _build(f0 * (_xr - x) / (_hr - x))
+        _band = _box(x, xh * start_f - 2.0, x + 3 * S, xh * top_f)
+        hd = hd.difference(_band.difference(st))
+        hd = hd.difference(_box(_xr, xh * top_f - 2.0, x + 3 * S, xh * top_f + 30.0))
+        hd = geom.union([hd, _box(x, xh * top_f - 6.0, _xr, xh * top_f + 1.0)])
     if A_OPT in A_TERM_WEDGE:
         # options c / d: a wedge serif on the hood's terminal, on its outer
         # (up-left) side, seated on the corner the pen cut leaves there. The
