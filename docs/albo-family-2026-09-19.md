@@ -341,6 +341,41 @@ None of the three is fixed. They are design questions: whether the bold should
 buy less width, whether the roman's contrast should rise into the bold as most
 references do, and whether the roman's 1.32:1 is the intended colour.
 
+## 10. The nine-weight ladder, "Hamburg and wafflers."
+
+The original test is **round 76, 2026-09-13** (`outlines/cmp/weights.py`,
+page https://claude.ai/code/artifact/565ef7ca-ef1c-48fe-b27f-78e1b1ff7ed0).
+It sets *Hamburgefonstiv 1928* and covers **100 to 500 only** — the owner's
+ask that day was *"make thinner versions (calibrate against industry norms
+(100 200 300 400) if we consider this to be 500"*. The fonts are still in
+`build/fjord-fonts/weights/`. There was never a 600–900 end; it did not exist
+until 2026-09-19.
+
+Re-run 2026-09-19 with "Hamburg and wafflers." across all nine classes. Only
+the stem moves — contrast held at 0.80 and width at 95 for every rung, so it
+is a pure weight axis with nothing confounded. Page:
+https://claude.ai/artifact/TUa5tMhuQekcdhXiPQuMEP
+
+| class | name | stem | × the 500 | where the number comes from | glitch findings |
+|---|---|---|---|---|---|
+| 100 | Thin | 28.9 | 0.34 | round 76, measured | 12 |
+| 200 | ExtraLight | 43.8 | 0.52 | round 76, measured | 9 |
+| 300 | Light | 54.6 | 0.65 | round 76, measured | 4 |
+| 400 | Regular | 66.9 | 0.80 | round 76, measured | 3 |
+| 500 | Medium | 84 | 1.00 | the anchor, shipped | **0** |
+| 600 | SemiBold | 100 | 1.19 | interpolated 500–700 | 3 |
+| 700 | Bold | 116 | 1.38 | measured on the garalde bolds (§8) | 2 |
+| 800 | ExtraBold | 132 | 1.57 | extrapolated | 2 |
+| 900 | Black | 148 | 1.76 | extrapolated | 8 |
+
+The light end thins the hairline faster than the stem, so by 200 and 100 the
+bowls break — round 76 already called those two *"previews, not finished
+cuts."* The heavy end closes the counters and the `ffl` ligature blocks up
+first, which is why 900 jumps back to eight findings after 700 and 800 sit at
+two. **The usable span today is about 300 to 800, and only the 500 is
+finished.** The 800 and 900 stems rest on nothing measured: no serif family on
+this machine ships either class.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
