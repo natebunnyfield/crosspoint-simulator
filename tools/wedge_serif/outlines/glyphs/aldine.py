@@ -400,11 +400,19 @@ def _ent(name, default):
 # 70 units wide, so a 3-unit sway is 4% of its own width and the waist moves 4
 # units across the whole stroke. The capitals are bigger letters and take a
 # little more in absolute units to read as the same gesture at the same size.
-ENT_SWAY = _ent("SWAY", 3.0)          # lowercase stems: the S, units
+# ROUND 233 -- THE SWAY COMES OUT. Owner 2026-09-18, on the marked bump sheet,
+# with every italic stem highlighted top to bottom and the same two words on H,
+# K, L, N, P, R, T, Y, b, h, l, m, n: *"correct waves"* / *"remove waves"*. At a
+# 300-px cap two periods of a 3-4 unit S on a stem read as a bent stroke, and
+# round 231's "remove all awful wavy lines for now" (ALBO_HAND_SCALE 0) never
+# reached these three dials -- they were a separate source of wave. The three
+# amplitudes ship at 0.0; the waists (the entasis) are not waves and stay. The
+# old values (3.0 / 4.0 / 4.0) are still one env var away for the record.
+ENT_SWAY = _ent("SWAY", 0.0)          # lowercase stems: the S, units (3.0 rounds 180-232)
 ENT_WAIST = _ent("WAIST", 0.055)      # lowercase stems: the entasis, x the width
-ENT_CAP_SWAY = _ent("CAP_SWAY", 4.0)  # capital stems: the S, units
+ENT_CAP_SWAY = _ent("CAP_SWAY", 0.0)  # capital stems: the S, units (4.0 rounds 180-232)
 ENT_CAP_WAIST = _ent("CAP_WAIST", 0.050)
-ENT_DIAG_SWAY = _ent("DIAG_SWAY", 4.0)   # capital diagonals: the S, units
+ENT_DIAG_SWAY = _ent("DIAG_SWAY", 0.0)   # capital diagonals: the S, units (4.0 rounds 180-232)
 ENT_DIAG_WAIST = _ent("DIAG_WAIST", 0.045)
 
 # THE SWAY HAS A WAVELENGTH, and it is a LENGTH rather than a fraction of the

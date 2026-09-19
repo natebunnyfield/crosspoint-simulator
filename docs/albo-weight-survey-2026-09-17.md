@@ -756,3 +756,17 @@ across). 213 roman, 215 italic: every W end, the A's apex and feet, the m's
 and n's joins, the K's and N's crotches; the round letters clean. The rule
 this adds: **an instrument built without the owner's example of the fault
 measures the instrument-maker's idea of it.**
+
+**Round 233 -- the italic sway comes out** (2026-09-18). The owner's bump
+markup put a full-length yellow stroke on every italic stem -- H K L N P R T Y
+b h l m n -- with the words *"correct waves"* / *"remove waves"*. That is round
+180's `ENT_CAP_SWAY` 4 / `ENT_SWAY` 3 / `ENT_DIAG_SWAY` 4: an S at wavelength
+250 (two periods on an x-height stem, three on an ascender) laid along every
+stem and capital diagonal so no run would be straight. Round 231's
+`ALBO_HAND_SCALE` 0 never reached these three dials; they were a second source
+of wave. All three ship at 0.0; the waists (entasis) stay. 83 italic glyphs
+move (every stem and diagonal letter and its composites), the roman is
+byte-identical; glitch 0 of 119, metrics 0 outside 10%, figure space
+unchanged; one kern added, `"W` 18, because the W's diagonals lost their sway
+and the pair fell to 0.0110 em against the 0.012 floor.
+

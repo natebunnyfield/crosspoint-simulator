@@ -331,6 +331,7 @@ if _ALD is not None and _ALD.ON:
     PAIRS[('quotesingle', 'V')] = 36
     PAIRS[('quotedbl', 'V')] = 36
     PAIRS[('quotesingle', 'W')] = 18
+    PAIRS[('quotedbl', 'W')] = 18   # round 233: the W's diagonals lost their 4-unit sway and "W fell to 0.0110 em, under the 0.012 floor
 
 
 # ---------------------------------------------------------- round 223, ROMAN
