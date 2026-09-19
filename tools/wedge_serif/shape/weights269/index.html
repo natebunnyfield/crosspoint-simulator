@@ -1,0 +1,56 @@
+<!doctype html><meta charset='utf-8'><title>Albo round 269 -- the bold italic evened</title>
+<style>body{font:15px/1.45 -apple-system,Helvetica,Arial,sans-serif;margin:16px;max-width:1400px}img{width:100%;height:auto;image-rendering:pixelated;display:block;margin:6px 0 4px}figure{margin:0 0 28px}figcaption{color:#333;font-size:14px}table{border-collapse:collapse;margin:8px 0 18px}td,th{border:1px solid #bbb;padding:3px 8px;font-size:14px;text-align:right}th:first-child,td:first-child{text-align:left}code{font-size:13px}</style>
+<h1>Albo round 269 -- the bold italic evened</h1>
+<p>Owner 2026-09-19: <i>"correct unequal illegible weights of italic 700. need to be more even in common english word images."</i> BoldItalic at stem 116, judged against the shipped Italic 400 at 66.9, which is byte-identical in outlines, advances and GPOS (0 of 486 glyphs differ). Every figure is PNG at native pixels, magnified by the integer factor in its caption with nearest-neighbour sampling; no image is wider than 1400 px.</p>
+<h2>Counts</h2>
+<p>Horizontal ink runs at one pixel per unit, at half the x-height (0.50), BoldItalic at stem 116. The n's stem is 97-99 on every row; the roman 700's is 109-111. Before = round 268, after = round 269.</p>
+<table><tr><th>letter</th><th>run before</th><th>run after</th><th>what it is</th></tr>
+<tr><td>t</td><td>67</td><td>91</td><td>stem (d_pen)</td></tr>
+<tr><td>f</td><td>74</td><td>101</td><td>stem (d_pen)</td></tr>
+<tr><td>j</td><td>70</td><td>96</td><td>stem (d_pen)</td></tr>
+<tr><td>c</td><td>69</td><td>96</td><td>left wall (C_RING)</td></tr>
+<tr><td>v</td><td>79 / 33</td><td>108 / 45</td><td>thick / thin (d_pen)</td></tr>
+<tr><td>w</td><td>65 / 32 / 65 / 33</td><td>89 / 43 / 88 / 45</td><td>four strokes (d_pen)</td></tr>
+<tr><td>x</td><td>72</td><td>99</td><td>thick (d_pen)</td></tr>
+<tr><td>y</td><td>69 / 36</td><td>95 / 49</td><td>thick / thin (d_pen)</td></tr>
+<tr><td>z</td><td>50</td><td>69</td><td>diagonal (d_pen, the hairline by design)</td></tr>
+<tr><td>k</td><td>80 (0.30 row)</td><td>110</td><td>arm (d_pen)</td></tr>
+<tr><td>a</td><td>72 / 98</td><td>98 / 98</td><td>bowl wall / stem (A_RING)</td></tr>
+<tr><td>b</td><td>99 / 71</td><td>99 / 96</td><td>stem / bowl wall (B_BOWL_RING)</td></tr>
+<tr><td>d</td><td>71 / 99</td><td>96 / 99</td><td>bowl wall / stem (D_RING)</td></tr>
+<tr><td>p</td><td>99 / 70</td><td>102 / 96</td><td>stem / bowl wall (B_RING)</td></tr>
+<tr><td>q</td><td>71 / 100</td><td>96 / 100</td><td>bowl wall / stem (A_RING)</td></tr>
+<tr><td>g</td><td>97 / 61</td><td>129 / 76</td><td>bowl walls (G_RING on the roman-style g's pen)</td></tr>
+<tr><td>r</td><td>111 (0.85 row)</td><td>127</td><td>the ball</td></tr>
+<tr><td>R</td><td>67</td><td>99</td><td>bowl (traced, x cap)</td></tr>
+<tr><td>Y</td><td>66</td><td>89</td><td>arm (x cap)</td></tr>
+<tr><td>K</td><td>97 / 40 (0.30 / 0.70)</td><td>128 / 54</td><td>arm / leg (traced, x cap)</td></tr>
+</table>
+<p>The ridge survey (<code>cmp_weight_survey.py</code>, chamfer ridge, 380 px, unsheared 13 deg), regrouped by construction family, BoldItalic against the roman 700:</p>
+<table><tr><th>family</th><th>n</th><th>median before</th><th>median after</th><th>spread before</th><th>spread after</th><th>over 15% before</th><th>over 15% after</th></tr>
+<tr><td>stem</td><td>30</td><td>99.3</td><td>99.3</td><td>-34% .. +30%</td><td>-11% .. +30%</td><td>f t R j p (light); J L P B D F T H (heavy)</td><td>J L P B D F T H (heavy, as the roman's)</td></tr>
+<tr><td>round</td><td>11</td><td>80.2</td><td>90.7</td><td>-23% .. +35%</td><td>-23% .. +20%</td><td>g c (light); s G O S Q (heavy)</td><td>e (as the roman's e); Q</td></tr>
+<tr><td>diag</td><td>11</td><td>70.0</td><td>81.3</td><td>-42% .. +34%</td><td>-35% .. +21%</td><td>y z x w (light); A W V</td><td>y (its tail is a hairline by design); V</td></tr>
+<tr><td>figure</td><td>10</td><td>86.9</td><td>86.9</td><td>-22% .. +25%</td><td>-22% .. +25%</td><td>4, 1</td><td>4, 1 (set aside by ruling)</td></tr>
+</table>
+<p>Per letter, the italic 700's stroke over the roman 700's, lowercase: before 0.46 (y) .. 1.15 with t f j p at 0.58-0.63 and y w z x at 0.46-0.69; after 0.60 (y) .. 1.19 with t f j p at 0.81-0.84 and w z x v at 0.78-1.02. The 700/400 ratio, which the weight axis puts at 1.73 for a stem: t c f w x y z j g v were 0.98-1.03 (no response at all) and are 1.38 now; a b d p q bowls 1.00 -> 1.38; the hm letters were and are 1.65-1.69.</p>
+<p>Gates on the final BoldItalic: glitch sweep <code>122 glyphs swept, 0 with findings</code>; figure spread <code>1.42x, within the 2.50x allowed</code>; Italic 400 <code>glyphs differing: 0 [] | GPOS pairs changed: 0</code>; touch sweep <code>0 pair(s) TOUCHING, 5 below the 0.012 em floor</code> -- the five in the last figure, all caused by terminals that now carry the bold's weight against the q's foot; the ruled remedy is a kern pair and kern.py is outside this round's fence.</p>
+
+<figure><img src='w100-before-13px-x8.png' alt='w100-before-13px-x8.png'><figcaption>BEFORE (round 268): the 100 most common English words, BoldItalic at 13 px, x8 nearest. The t f w y v x z c g j sit at the Medium's stroke beside stems at the bold's; the p's bowl is half the weight of its stem.</figcaption></figure>
+<figure><img src='w100-after-13px-x8.png' alt='w100-after-13px-x8.png'><figcaption>AFTER (round 269): the same words, same size, x8 nearest. Every letter on one stroke.</figcaption></figure>
+<figure><img src='para-before-13px-x8.png' alt='para-before-13px-x8.png'><figcaption>BEFORE: the paragraph at 13 px, x8 nearest.</figcaption></figure>
+<figure><img src='para-after-13px-x8.png' alt='para-after-13px-x8.png'><figcaption>AFTER: the paragraph at 13 px, x8 nearest.</figcaption></figure>
+<figure><img src='mixed-after-13px-x8.png' alt='mixed-after-13px-x8.png'><figcaption>AFTER: the shipped Italic 400 (byte-identical) with the round-269 BoldItalic inline, 13 px, x8 nearest -- how a page uses the two.</figcaption></figure>
+<figure><img src='w100-before-17px-x6.png' alt='w100-before-17px-x6.png'><figcaption>BEFORE: the 100 words at 17 px, x6 nearest.</figcaption></figure>
+<figure><img src='w100-after-17px-x6.png' alt='w100-after-17px-x6.png'><figcaption>AFTER: the 100 words at 17 px, x6 nearest.</figcaption></figure>
+<figure><img src='para-before-17px-x6.png' alt='para-before-17px-x6.png'><figcaption>BEFORE: the paragraph at 17 px, x6 nearest.</figcaption></figure>
+<figure><img src='para-after-17px-x6.png' alt='para-after-17px-x6.png'><figcaption>AFTER: the paragraph at 17 px, x6 nearest.</figcaption></figure>
+<figure><img src='mixed-after-17px-x6.png' alt='mixed-after-17px-x6.png'><figcaption>AFTER: Italic 400 with the BoldItalic inline, 17 px, x6 nearest.</figcaption></figure>
+<figure><img src='w100-before-40px-x2.png' alt='w100-before-40px-x2.png'><figcaption>BEFORE: the 100 words at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='w100-after-40px-x2.png' alt='w100-after-40px-x2.png'><figcaption>AFTER: the 100 words at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='para-before-40px-x2.png' alt='para-before-40px-x2.png'><figcaption>BEFORE: the paragraph at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='para-after-40px-x2.png' alt='para-after-40px-x2.png'><figcaption>AFTER: the paragraph at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='alpha-before-40px-x2.png' alt='alpha-before-40px-x2.png'><figcaption>BEFORE: alphabet and word tests at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='alpha-after-40px-x2.png' alt='alpha-after-40px-x2.png'><figcaption>AFTER: alphabet and word tests at 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='mixed-after-40px-x2.png' alt='mixed-after-40px-x2.png'><figcaption>AFTER: Italic 400 with the BoldItalic inline, 40 px, x2 nearest.</figcaption></figure>
+<figure><img src='pairs-under-floor-x2.png' alt='pairs-under-floor-x2.png'><figcaption>CONTEXT, not evidence: the five pairs the touch gate reports under its 0.012 em floor after this round, shaped with the kern table, at 2 px per unit (qy 0.0009 em, qf 0.0049, qj 0.0049, f? 0.0111, qp 0.0114). The grown terminals -- the y's tail drop, the f's hook -- against the q's foot. The ruled remedy is a kern pair (round 268's block in kern.py), outside this round's fence.</figcaption></figure>

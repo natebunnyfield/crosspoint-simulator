@@ -160,6 +160,39 @@ from ..primitives import stroke, pen_widths, widths, ring
 from .. import primitives as PR
 from ..pen import S, XH, ASC, DESC, OVER, TH_V, TH_H, CUT, BOWL_K, CS
 
+# ROUND 269 -- THE WEIGHT ABOVE THE MEDIUM, for every width this module
+# declares in ABSOLUTE units and that never met ALD_WF. Owner 2026-09-19:
+# "correct unequal illegible weights of italic 700. need to be more even in
+# common english word images."
+#
+# Round 263 put the hm_* letters (a b d h i l m n p q r u and the heads, exits,
+# arches and dots) on the weight axis through ALD_WF = S / 84, and left every
+# other declared width where the reference measured it. Measured on the
+# round-268 BoldItalic against the shipped Italic, as horizontal ink runs at
+# one pixel per unit on five rows of the x-height: t c f w y v x z j g came
+# out BYTE-IDENTICAL at the two weights (the t's stem 67 at both, the v's
+# thick 79, the y's 69/36), and the bowls of a b d p q read the same 70-72
+# wall at the 700 as at the 400 beside stems that had gone 57 -> 98. Ten
+# letters at the Medium's weight and five half-bold, inside a lowercase whose
+# stems are at the bold's -- which is the unevenness the owner saw in words.
+#
+# The declared widths all sit in one of six places: `d_pen`'s tables (f t j
+# v w x y z and the k's arm and leg), `d_ball`, `keyed_ring`'s tables (the a
+# b d p q bowls and the g's two rings), the c's C_RING, the g's neck and ear
+# pen, the r's ball, the p and q's foot, and in the capitals the traced R and
+# K and the Y's cap-unit widths. Each takes this ONE factor, which is S / 84
+# above the Medium and EXACTLY 1.0 at and under it -- so the shipped Italic
+# at 66.9 draws the identical outline to the unit (proven by diffglyphs, 0 of
+# 486), and the module's own calibration at 84 (Flanker's 70-unit stem, the
+# nine diagonals measuring 60-68) is what the 700 is scaled up from.
+# POSITIONS -- reaches, pitches, apexes, the heads' tips, the foot's arms --
+# are not scaled, for the reason ALD_WF's own note gives.
+#
+# Not folded into ALD_WF, deliberately: ALD_WF is 0.796 at the 400 and the
+# shipped Italic depends on it being so; a factor that also went DOWN would
+# re-cut ten letters of a face the owner has already judged.
+ALD_WF_UP = max(1.0, S / 84.0)
+
 # WHICH ITALIC. Two complete italic lowercases now exist and BOTH are kept
 # (owner 2026-09-15: "be sure to make an alternative of the prior italic, then
 # we can make this griffo scans one the new, default Albo Italic"):
@@ -1773,7 +1806,7 @@ if ON:
         xh = c["xh"]; u = xh / 429.0      # the reference's own units
         def key(a):
             return c_key_widths([(math.cos(math.radians(a)), math.sin(math.radians(a)))],
-                                0.0, 0.0, 1.0, 1.0, C_RING, u)[0] * C_WT
+                                0.0, 0.0, 1.0, 1.0, C_RING, u)[0] * C_WT * ALD_WF_UP
         wt, wb, wl = key(90), key(270), key(180)
         # THE OUTER EDGE lands on the overshoot, not the centerline -- and the
         # top and the bottom are inset by DIFFERENT amounts, because the crown
@@ -1787,7 +1820,7 @@ if ON:
         # bottom: a0 < a1 is the LONG way round, and the short way is the
         # aperture.
         p = superellipse(cx, cy, rx, ry, math.radians(C_A0), math.radians(C_A1), C_K)
-        ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT)
+        ws = c_key_widths(p, cx, cy, rx, ry, C_RING, u * C_WT * ALD_WF_UP)   # round 269
         n = len(ws) - 1
         if C_HEAD != 1.0:
             for i in range(n + 1):
@@ -2520,7 +2553,7 @@ if ON:
     def keyed_ring(cx, cy, rx, ry, keys, k=None, skew=0.0, unit=1.0, smooth_w=4,
                    hand=None, flat=None, want_outer=False, pen=None, adj=None,
                    want_parts=False, _phi=50.0, oval=0.0, oval_wall=0.0,
-                   oval_hand=None):
+                   oval_hand=None, wscale=1.0):
         """A bowl whose OUTER is the designed superellipse (optionally skewed
         into an egg) and whose stroke width is read off a table keyed by the
         angle round the ring -- the width the reference shows at each side,
@@ -2614,7 +2647,9 @@ if ON:
             ws = []
             for x, y in pts:
                 ang = math.atan2((y - cy) / ry, (x - (y - cy) * skew - cx) / rx)
-                w = wat(ang) * unit
+                # round 269: `wscale` is the weight above the Medium on the
+                # WALL only -- the hand's presses stay in the hand's own units
+                w = wat(ang) * unit * wscale
                 if hand:
                     w += _hand_at(hand, ang, 2) * unit
                 ws.append(w)
@@ -2628,7 +2663,8 @@ if ON:
             # why this letter never read as written. `pen` is
             # (thick, thin_fraction, target_contrast).
             _th, _tf, _tg = pen
-            _w = nib_widths_closed(pts, _th * unit, _th * _tf * unit, _tg, _phi)
+            _w = nib_widths_closed(pts, _th * unit * wscale, _th * _tf * unit * wscale,
+                                   _tg, _phi)
             _w = con(_w, _tg)
             ws = list(_w)
             if hand:
@@ -2935,7 +2971,7 @@ if ON:
         # widened again against the same round's narrowing.
         ry = (A_TOP - A_BOT) * u / 2.0
         bowl_ = keyed_ring(x0 + A_RX * u, (A_TOP + A_BOT) * u / 2.0, A_RX * u, ry, A_RING,
-                           k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND,
+                           k=A_K, skew=A_SKEW, unit=u, hand=A_DROOP_HAND, wscale=ALD_WF_UP,
                            flat=(A_FLAT, A_FLAT_A, A_FLAT_B) if A_FLAT else None)
         # ROUND 170 -- THE STEM'S TOP CUT GOES, AND THE LETTER IS ONE SHAPE.
         # Owner 2026-09-16: *"simplify a by combining overlapping shapes"*,
@@ -3223,12 +3259,13 @@ if ON:
                               ENT_SWAY * u) +
                      [(xs + 18 * u, 46 * u), (xs + 64 * u, 14 * u),
                       (xs + B_EXIT * u, 22 * u)], tension=0.5)
-        stem = stroke(sp, widths([(0.0, sw), (0.78, sw), (0.90, sw * 0.84), (1.0, 46 * u)]))
+        stem = stroke(sp, widths([(0.0, sw), (0.78, sw), (0.90, sw * 0.84),
+                                  (1.0, 46 * u * ALD_WF_UP)]))
         head = bd_head(xs - sw / 2, xs + sw / 2, asc_b, u)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + (B_STEM_X + (B_CX - B_STEM_X) * B_COND) * u,
                            B_CY * u, B_RX * B_COND * u, ry, B_BOWL_RING,
-                           k=B_K, skew=B_SKEW, unit=u)
+                           k=B_K, skew=B_SKEW, unit=u, wscale=ALD_WF_UP)
         return geom.ink([bowl_, stem, head])
 
     # ------------------------------------------------------------ THE d, round 132
@@ -3279,7 +3316,7 @@ if ON:
         head = bd_head(xs - sw / 2, xs + sw / 2, c["asc"], u)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + D_RX * u, D_CY * u, D_RX * u, ry, D_RING,
-                           k=A_K, skew=D_SKEW, unit=u)
+                           k=A_K, skew=D_SKEW, unit=u, wscale=ALD_WF_UP)
         tip = (x0 + D_TAIL_X * u, xh * D_TAIL_Y)
         tp = catmull([(xs, xh * 0.30), (xs + 4 * u, xh * 0.10), (xs + 30 * u, 26 * u),
                       (xs + 70 * u, 30 * u), (tip[0] - 30 * u, tip[1] - 14 * u), tip], tension=0.5)
@@ -3344,7 +3381,7 @@ if ON:
     # p and 0.02 on the q against the fitter's answer.
     PQ_FOOT_L = float(os.environ.get("ALBO_ALD_PQ_FOOT_L", 98.0))   # reach left of the stem centre; ref -65 against a centre of 33
     PQ_FOOT_R = float(os.environ.get("ALBO_ALD_PQ_FOOT_R", 116.0))  # and right; ref 150
-    PQ_FOOT_T = float(os.environ.get("ALBO_ALD_PQ_FOOT_T", 21.0))   # AT THE TIPS
+    PQ_FOOT_T = float(os.environ.get("ALBO_ALD_PQ_FOOT_T", 21.0)) * ALD_WF_UP   # AT THE TIPS; round 269: the foot's THICKNESS follows the weight, its two arms' reach does not
 
     # ROUND 166 -- FIVE TAIL TERMINALS FOR THE q, to choose from. Owner
     # 2026-09-16: *"give me five option for q tail terminals"*. The q ships the
@@ -3447,7 +3484,7 @@ if ON:
                        reach=P_HEAD_R, drop=P_HEAD_D, foot=P_HEAD_F)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + P_CX * u, P_CY * u, P_RX * u, ry, B_RING,
-                           k=B_K, skew=P_SKEW, unit=u)
+                           k=B_K, skew=P_SKEW, unit=u, wscale=ALD_WF_UP)
         return geom.ink([bowl_, stem, head, pq_foot(xs, ybot, u)])
 
     # ------------------------------------------------------------ THE q, round 132
@@ -3489,7 +3526,7 @@ if ON:
         stem = stroke([(xs, ybot + PQ_FOOT_T * u * 1.30), (xs, xh)], sw, cut1=CUT)
         ry = (xh + OVER * 0.6) / 2.0
         bowl_ = keyed_ring(x0 + Q_RX * u, Q_CY * u, Q_RX * u, ry, A_RING,
-                           k=A_K, skew=Q_SKEW, unit=u)
+                           k=A_K, skew=Q_SKEW, unit=u, wscale=ALD_WF_UP)
         return geom.ink([bowl_, stem, q_tail(xs, ybot, u)])
 
     # THE r, round 132 -- the family's stem and head, then an arm that is the
@@ -3524,8 +3561,8 @@ if ON:
                        (x0 + P * 0.32, xh * 0.745), (x0 + P * 0.47, xh * 0.850),
                        (x0 + P * R_ARM_X, xh * 0.876)], tension=0.5)
         ball = geom.poly(superellipse(x0 + P * R_ARM_X, R_ARM_Y * xh,
-                                      R_ARM_W * u / 2, R_ARM_H * u / 2,
-                                      0.0, 2 * math.pi, 2.2))
+                                      R_ARM_W * u * ALD_WF_UP / 2, R_ARM_H * u * ALD_WF_UP / 2,
+                                      0.0, 2 * math.pi, 2.2))   # round 269: the ball grows with the pen
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh),
                          stroke(arm, widths([(0.00, sw * 0.94), (0.16, t * 1.15),
                                              (0.42, t), (0.72, t * 1.25), (1.00, t * 2.1)])),
@@ -3637,7 +3674,9 @@ if ON:
         instead of in it, and a straight `_diag` cannot bow at all -- Poetica's
         v leans 0.27 dx/dy at .75 and 0.20 at .10, which is a curve."""
         p = catmull(list(pts), tension=tension) if len(pts) > 2 else list(pts)
-        return stroke(p, widths([(t, w * u * tw) for t, w in keys]),
+        # round 269: the tables are the reference's runs at the Medium's stem;
+        # ALD_WF_UP carries them up the weight axis and is 1.0 at the 400.
+        return stroke(p, widths([(t, w * u * tw * ALD_WF_UP) for t, w in keys]),
                       cut0=cut0, cut1=cut1)
 
     def d_dial(name, default):
@@ -3654,10 +3693,33 @@ if ON:
         angle, so it is an oval leaning HEAD_DEG, not a disc."""
         cx, cy = P(x, y)
         a = math.radians(HEAD_DEG if deg is None else deg)
+        r = r * ALD_WF_UP   # round 269: a heavier pen leaves a heavier blob
         pts = superellipse(0.0, 0.0, r * u * squash, r * u, 0.0, 2 * math.pi, 2.0)[:-1]
         ca, sa = math.cos(a), math.sin(a)
         return geom.poly([(cx + px * ca - py * sa, cy + px * sa + py * ca)
                           for px, py in pts])
+
+    def _solid(g, max_hole=200.0):
+        """ROUND 269 -- DROP THE SLIVERS A FOLDED HOOK LEAVES, in a letter that
+        has no counter. The v's and the y's thick stroke turns ~130 degrees at
+        its apex; above the Medium that stroke is 83 units wide and the inner
+        offset of the turn crosses itself, so the union leaves a pocket 2-3
+        units wide (41 and 76 units of area) on the hook's concave side -- the
+        glitch gate's CRACK. At the 400's 60 units there is no fold.
+
+        A morphological close was tried first (the C's and the barred letters'
+        4-unit one): it took the v's pocket and left the y's at 8 x 7, and a
+        close wide enough for that also fills the fork's apex 13-23 units up
+        from where the two strokes meet. This removes only INTERIORS smaller
+        than `max_hole` units^2 -- a real counter in this face is thousands --
+        and moves no edge at all."""
+        from shapely.geometry import Polygon as _Poly, MultiPolygon as _MP
+        def one(p):
+            keep = [h for h in p.interiors if _Poly(h).area > max_hole]
+            return _Poly(p.exterior, keep) if len(keep) != len(p.interiors) else p
+        if isinstance(g, _MP):
+            return _MP([one(p) for p in g.geoms])
+        return one(g) if isinstance(g, _Poly) else g
 
     # ---------------------------------------------------------------- THE f
     # POETICA for the shape (there is no scan crop of an f -- targets section
@@ -4802,7 +4864,7 @@ if ON:
                         unit=u, want_outer=True, hand=_gh(G_BOWL_HAND),
                         adj=G_RING_ADJ, _phi=G_R_PHI, oval=G_BOWL_OVAL,
                         oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_BOWL_CUT),
-                        pen=_pen_of(G_R_PEN))[0]
+                        pen=_pen_of(G_R_PEN), wscale=ALD_WF_UP)[0]
         # ---- the LOOP, a full round below the line. `lcy + lry` is TH_H/2 at
         # every depth, so its top holds just over the baseline while its floor
         # follows G_R_LOOP_H -- which is how rounds 197/205's anchoring survives
@@ -4815,7 +4877,7 @@ if ON:
                         unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
                         adj=G_LRING_ADJ, _phi=G_R_PHI, oval=G_LOOP_OVAL,
                         oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_LOOP_CUT),
-                        pen=_pen_of(_lp))[0]
+                        pen=_pen_of(_lp), wscale=ALD_WF_UP)[0]
         # THE CENTRELINE AND THE WALL ARE MEASURED OFF THE BUILT CONTOURS.
         # The roman can write its centreline down (`rx - TH_V/2`, `ry - TH_H/2`)
         # because its ring is the family's bowl at the family's widths. These
@@ -4847,7 +4909,7 @@ if ON:
         _nprof = widths([(0.0, 0.30), (0.16, 0.9), (0.45, G_R_NECK_MID),
                          (0.85, 0.9 * min(1.0, G_R_NECK_END / 0.30)),
                          (1.0, G_R_NECK_END)])
-        _nws = _pen_ws(neck, G_R_PEN * u)
+        _nws = _pen_ws(neck, G_R_PEN * u * ALD_WF_UP)   # round 269: the rings' pen, at the rings' weight
         _nn = len(neck) - 1
         nk = stroke(neck, lambda t: max(_nws[min(_nn, int(round(t * _nn)))] * _nprof(t),
                                         S * G_R_NECK_FLOOR * u))
@@ -4862,7 +4924,7 @@ if ON:
         _L = 96.0 * c["wf"] * 1.15 * G_R_EAR
         ear_c = [(ex, ey), (ex + _L, ey + _L * math.tan(math.radians(G_R_EAR_RISE)))]
         _eprof = widths([(0.0, 0.4), (0.35, 1.0), (1.0, 1.05)])
-        _ews = _pen_ws(ear_c, G_R_PEN * u, smooth=0)
+        _ews = _pen_ws(ear_c, G_R_PEN * u * ALD_WF_UP, smooth=0)
         _en = len(ear_c) - 1
         ear = stroke(ear_c,
                      lambda t: max(_ews[min(_en, int(round(t * _en)))] * _eprof(t),
@@ -5531,7 +5593,10 @@ if ON:
                      [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
                       (0.88, 44), (1.00, 48)], u, tw=V_TW)
         ball = d_ball(P, u, 274, 0.895, 32 * V_TW)
-        return geom.ink([thick, thin, ball])
+        g_ = geom.ink([thick, thin, ball])
+        # round 269: the hook's inner fold above the Medium -- see `_solid`.
+        # Gated so the 400 is byte-identical (it has no fold to drop anyway).
+        return _solid(g_) if ALD_WF_UP > 1.0 else g_
 
     # ---------------------------------------------------------------- THE w
     # The v twice, with the middle apex SHORT of the x-line and the two inner
@@ -5779,7 +5844,10 @@ if ON:
         # the top edge -- which is exactly what the first cut of this rendered.
         drop = d_ball(P, u, TX + 14.0, TY - 0.004, Y_TAIL_DROP * Y_TW,
                       squash=1.55, deg=-8.0)
-        return geom.ink([thick, tail, ball, drop])
+        g_ = geom.ink([thick, tail, ball, drop])
+        # round 269: the same inner fold at the hook's apex as the v's (two
+        # pockets, 76 and 4 units of area, 2.5 wide) -- see `_solid`.
+        return _solid(g_) if ALD_WF_UP > 1.0 else g_
 
     # ---------------------------------------------------------------- THE z
     # The x's mirror image, and the letter whose thick and thin are the way
@@ -7444,7 +7512,10 @@ if ON:
         keys = []
         for (px, py), row in zip(pts, tab):
             j = min(range(len(p_)), key=lambda i: (p_[i][0] - px) ** 2 + (p_[i][1] - py) ** 2)
-            keys.append((d[j] / d[-1], row[2] * C * (CAP_R_W if wscale is None else wscale)))
+            # round 269: a traced width is x the CAP, not x the stem, so it
+            # never moved with the weight; ALD_WF_UP carries it above the Medium
+            keys.append((d[j] / d[-1], row[2] * C * (CAP_R_W if wscale is None else wscale)
+                         * ALD_WF_UP))
         # AND THEN DENSIFIED AND SMOOTHED, which is not tidying. `widths`
         # smoothsteps between its keys and a smoothstep is C1: its curvature
         # JUMPS at every key, and a stroke's edge is centerline + w/2, so one
@@ -9066,14 +9137,15 @@ if ON:
 
         sp = [pt(fx, fy) for fx, fy in Y_SPINE]
         p_ = catmull(sp, tension=0.5)
-        wf = widths([(t, C * v * Y_INK * Y_SPINE_INK) for t, v in Y_SPINE_W])
+        # round 269: cap-unit widths, carried above the Medium by ALD_WF_UP
+        wf = widths([(t, C * v * Y_INK * Y_SPINE_INK * ALD_WF_UP) for t, v in Y_SPINE_W])
         solid, Lz, Rz = stroke(p_, wf, sides=True)
         parts = [solid]
         parts += _stem_serifs(Lz, Rz, 'both', False)
         parts.append(_end_wedge(p_, wf(1.0), False, 1))
         ap = [pt(fx, fy) for fx, fy in Y_ARM]
         q_ = catmull(ap, tension=0.5)
-        af = widths([(t, C * v * Y_INK * Y_ARM_INK) for t, v in Y_ARM_W])
+        af = widths([(t, C * v * Y_INK * Y_ARM_INK * ALD_WF_UP) for t, v in Y_ARM_W])
         parts.append(stroke(q_, af))
         parts.append(_end_wedge(q_, af(1.0), False, -1))
         return geom.ink(parts)

@@ -780,6 +780,145 @@ not draw fall to Noto on the page (the build prints the count); the 200 and
 Proofs: `tools/wedge_serif/shape/weights268/` and the page
 https://claude.ai/artifact/Jkd26fTEVfcfi1XANnNeBE
 
+## 15. Round 269 -- the bold italic evened
+
+Owner 2026-09-19: *"subagent to correct unequal illegible weights of italic
+700. need to be more even in common english word images."* BoldItalic at stem
+116, judged against the shipped Italic 400 at 66.9, which may not move.
+
+**The cause, measured before anything was edited.** Horizontal ink runs at one
+pixel per unit on five rows of the x-height (a shear maps a horizontal run to
+a horizontal run of the same length, so no unshearing is needed), round-268
+BoldItalic beside the shipped Italic: **t c f w y v x z j g came out
+byte-identical at the two weights** -- the t's stem 67 at both, the v's thick
+79, the y's 69/36, the c's wall 69 -- and the bowls of a b d p q read the same
+70-72 wall at the 700 as at the 400, beside stems that had gone 57 -> 98. The
+ridge survey said the same thing as a ratio: the weight axis takes a stem from
+the 400 to the 700 by 1.73x, the hm letters measured 1.65-1.69x, and those ten
+letters measured **0.98-1.03x** -- no response to the axis at all. In the
+capitals the R (1.00x), Y (0.97x) and K (1.32x) were the same fault.
+
+Round 263 had put the hm_* letters on the axis through `ALD_WF = S / 84` and
+left every other declared width where the reference measured it. Those widths
+sit in six places, and every one is in absolute units that never met ALD_WF:
+`d_pen`'s tables (f t j v w x y z, the k's arm and leg), `d_ball` (the v w x y
+terminals and the y's drop), `keyed_ring`'s tables (the a b d p q bowls and
+the g's two rings), the c's `C_RING`, the g's neck and ear pen (`G_R_PEN` 84),
+the r's ball (`R_ARM_W/H`), the p and q's foot thickness (`PQ_FOOT_T`), and in
+the capitals `_R_traced`'s widths (x the CAP, so the R and K) and the Y's
+cap-unit width tables.
+
+**The fix is one factor.** `ALD_WF_UP = max(1.0, S / 84)` -- S / 84 above the
+Medium and exactly 1.0 at and under it -- multiplies every width in that list.
+It is not folded into ALD_WF, deliberately: ALD_WF is 0.796 at the 400 and the
+shipped Italic depends on it being so; a factor that also went DOWN would
+re-cut ten letters of a face the owner has already judged. `keyed_ring` takes
+it as a new `wscale` argument at the five lowercase call sites and the g's two
+rings rather than inside the helper, because the capital O's ring was already
+on the axis (1.67x) and a factor inside the helper would have scaled it twice.
+The hand tables (`A_DROOP_HAND`, the g's presses) and every POSITION -- the
+heads' reaches, the foot's two arms, the pitch, the tails' extents -- are left
+in their own units, for the reason ALD_WF's note gives.
+
+| letter | run at 0.50 xh, before | after | what it is |
+|---|---|---|---|
+| t | 67 | 91 | stem (`d_pen`) |
+| f | 74 | 101 | stem (`d_pen`) |
+| j | 70 | 96 | stem (`d_pen`) |
+| c | 69 | 96 | left wall (`C_RING`) |
+| v | 79 / 33 | 108 / 45 | thick / thin (`d_pen`) |
+| w | 65 / 32 / 65 / 33 | 89 / 43 / 88 / 45 | four strokes (`d_pen`) |
+| x | 72 | 99 | thick (`d_pen`) |
+| y | 69 / 36 | 95 / 49 | thick / thin (`d_pen`) |
+| z | 50 | 69 | the diagonal, a hairline by design (`d_pen`) |
+| k | 80 (0.30 row) | 110 | arm (`d_pen`) |
+| a | 72 / 98 | 98 / 98 | bowl wall / stem (`A_RING`) |
+| b | 99 / 71 | 99 / 96 | stem / bowl wall (`B_BOWL_RING`) |
+| d | 71 / 99 | 96 / 99 | bowl wall / stem (`D_RING`) |
+| p | 99 / 70 | 102 / 96 | stem / bowl wall (`B_RING`) |
+| q | 71 / 100 | 96 / 100 | bowl wall / stem (`A_RING`) |
+| g | 97 / 61 | 129 / 76 | bowl walls (`G_RING` on `_g_roman`'s pen) |
+| r | 111 (0.85 row) | 127 | the ball |
+| R | 67 | 99 | bowl (`_R_traced`, x cap) |
+| Y | 66 | 89 | arm (x cap) |
+| K | 97 / 40 (0.30 / 0.70) | 128 / 54 | arm / leg (`_R_traced`) |
+
+The n's stem is 97-99 on every row before and after; the roman 700's is
+109-111. The a's counter at 0.50 goes 157 -> 131 wide, the b's 174 -> 149,
+the p's 187 -> 158, the q's 202 -> 177 -- all still wider than the roman 700's
+(89, 214, 206, 205) except the b's, and open.
+
+**The ridge survey, regrouped by construction family** (BoldItalic against the
+roman 700, `cmp_weight_survey.py` at 380 px, `--slant 13`; the survey's own
+case grouping flags the alphabet rather than the drawing):
+
+| family | n | median before | after | spread before | after | over 15% before | after |
+|---|---|---|---|---|---|---|---|
+| stem | 30 | 99.3 | 99.3 | -34% .. +30% | **-11% .. +30%** | f t R j p light; J L P B D F T H heavy | J L P B D F T H heavy, as the roman's F H I J L P T are |
+| round | 11 | 80.2 | 90.7 | -23% .. +35% | **-23% .. +20%** | g c light; s G O S Q heavy | e (the roman's e reads -28%); Q |
+| diag | 11 | 70.0 | 81.3 | -42% .. +34% | **-35% .. +21%** | y z x w light; A W V | y; V |
+| figure | 10 | 86.9 | 86.9 | -22% .. +25% | -22% .. +25% | 4, 1 | 4, 1 -- set aside by ruling |
+
+Per letter, the italic 700's stroke over the roman 700's: the lowercase ran
+**0.46 (y) .. 1.15** before, with t f j p at 0.58-0.63 and y w z x at
+0.46-0.69; it runs **0.60 (y) .. 1.19** after, with t f j p at 0.81-0.84 and
+w z x v at 0.78-1.02. The three letters that still read light on this
+instrument -- y (-35% of the diagonals), e (-23% of the rounds), z -- read
+light in the ROMAN 700 by the same measure and for the same reason: most of
+their centerline is a hairline (the y's tail, the e's eye, the z's diagonal),
+and the ridge median reports what most of the centerline is, not what the
+letter's thick is. The y's thick is 94.1 now, the stems' 97-101.
+
+**Two slivers the weight opened, and how they were closed.** The v's and the
+y's thick stroke turns ~130 degrees at its apex; at the 700's 83 units the
+inner offset of that turn crosses itself and the union left a pocket 2-3
+units wide on the hook's concave side (41 and 76 units of area) -- the glitch
+gate's CRACK, visible as a white fleck at 2 px per unit. A 4-unit
+morphological close (the C's and the barred letters' fix) took the v's and
+left the y's at 8 x 7 units, and a close wide enough for that also fills the
+fork's apex 13-23 units up from where the two strokes meet. `_solid` drops
+interiors under 200 units^2 instead -- a real counter is thousands, these two
+letters have none -- and moves no edge; gated above 84 like the rest.
+
+**What was tried and did not help, or was checked and left.**
+
+- The FIT table's b and p rows (0.550 weight, 0.725 width) looked like a
+  cause of the p's light bowl; they are popped at import (`FIT.pop('b')`,
+  line ~3052) and inert. The env dials `ALBO_ALD_LW_*` do work.
+- The b d p heads (`bd_head`, 58 reach / 44 drop / 96 down the stem) are in
+  absolute units and were left: the head's thickness at the stem is already
+  the 700 stem's own width, and scaling it makes a 133-unit flag on a 97-unit
+  stem.
+- `PQ_FOOT_T` is scaled (the foot's thickness, 21 -> 29 at the tips, 67 -> 93
+  at the stem); its two arms' reach is not.
+- The ligatures fi fl ff ffi ffl come from the roman f's parts and were on
+  the axis already -- none of the five is among the 58 glyphs that moved;
+  "first office fluffy" is on the 40 px sheet.
+
+**What is left, with the numbers.**
+
+- **Five pairs under the touch gate's 0.012 em floor, none touching**: qy
+  0.0009, qf 0.0049, qj 0.0049, f? 0.0111, qp 0.0114 (the gate exits 1). All
+  five are terminals that now carry the bold's weight -- the y's, f's and j's
+  tail drops and the f's hook ball -- against the q's foot and the ?'s hook.
+  The ruled remedy is a kern pair (round 268's block in `kern.py`, "a descender
+  clash is a kern pair, not a wider fitting band"), and `kern.py` was outside
+  this round's fence. By that block's own rule (overlap + floor + 2-3 units,
+  ADDED to what the pair carries), the values are **qy +14, qf +10, qj +10,
+  qp +3, f-question +3**. Four of the five occur in no English word.
+- **The Italic 400 has the mirror of this fault and is byte-locked.** At the
+  400 the same ten letters sit at the Medium's weight over stems at 0.796 of
+  it: t 67, f 74, v 79, c 69 against the n's 57 at 0.50 xh. `ALD_WF_UP` is
+  1.0 there by design; evening the 400 means letting the factor go below 1,
+  which re-cuts ten letters of the shipped face and wants its own ruling.
+- The italic u's right stem (61 under the x-height at the 700) is untouched,
+  awaiting the ruling recorded in section 14.
+
+Proofs: `tools/wedge_serif/shape/weights269/` -- the 100 most common English
+words and a paragraph, before and after, at 13 px x8, 17 px x6 and 40 px x2
+nearest, the shipped Italic with the BoldItalic inline, and the five pairs'
+collision zones -- and its `index.html`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -793,3 +932,7 @@ https://claude.ai/artifact/Jkd26fTEVfcfi1XANnNeBE
 - The roman's response to the weight axis is correct everywhere measured.
 - Round 268: the Regular 400 and Italic 400 are byte-identical to the round-267 builds in outlines, advances AND GPOS pair values; the Bold 700 differs only in `ring`; the Black 900 rebuilt clean (0 glitch findings). The italic 400's touch sweep is still 0 / 0 with one exemption. The bold italic's figure spread is 1.42× (allowed 2.50×).
 - Round 268: the pilcrow's construction at the 700 italic now matches the 400's (open counter, 328 vertices, no hole); the composed å Å ů Ů carry the opened ring at the 700 in both styles.
+- Round 269: the Italic 400 is byte-identical to the round-268 build in outlines, advances AND GPOS pair values (0 of 486 glyphs differ; only `head`'s timestamps differ between the two files). The BoldItalic differs from round 268 in exactly 58 glyphs -- the twenty base letters `K R Y a b c d f g j k p q r t v w x y z` and their composites -- and 0 GPOS pairs. Glitch sweep 0 of 122; figure spread 1.42x.
+- Round 269: the hm letters (a's stem, b d h i l m n p q r u, the heads, exits, arches and dots), the o, e, s, the italic figures and every capital except R Y K were already on the weight axis (700/400 stroke 1.62-1.93x) and were not touched. The capital O's `keyed_ring` is on the axis through its own `unit`, which is why `wscale` is a call-site argument and not a change inside the helper.
+- Round 269: the a b d p q counters stay open at the 700 (131-177 wide at half the x-height); the g's bowl counter is 84-126 wide across the x-height and its loop's 140 at -0.30 xh (194 before).
+- Round 269: the five f-ligatures are not among the 58 glyphs that moved -- they are built from the roman f's parts and were already on the axis.
