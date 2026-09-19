@@ -1282,6 +1282,95 @@ unchanged: the ruled β alone, touch 2 / 17 / 14.
 
 Proofs: `tools/wedge_serif/shape/weights279/`.
 
+## 23. Round 278 — the Italic 400's junctions
+
+Owner ruling 2026-09-19 (recorded in `tools/wedge_serif/README.md`): round
+274's junction rebuild — the head on the stem, the arch's landing, the exit
+at the foot, the u's left stem top, the dotless i as the i without its dot —
+applies to the ITALIC 400 as well as the 700. This round takes the gate
+off. "Before" is a build of HEAD (`30929b6`) with the gate in place; every
+number is the 400's, design units unsheared from the design-space probe
+unless marked "font" (the built outline, sheared and spread, read by
+`cmp_junctions.py`).
+
+**What was gated.** `ALD_JUNCT = pen.S > 84.0` in `aldine.py`, read at
+eleven sites: `hm_stem`'s follow cut (`if ALD_JUNCT and headed`),
+`hm_head`'s solved end (`hm_head_geom` against a fixed end at
+`HM_HEAD_R_FOLLOW × sw`), `hm_exit`'s bury loop, `hm_arch`'s level landing
+(`hm_sweep` against `stroke`), the landing stems' top in the n, the h and
+twice in the m (`hm_arch_end(c)` against `xh * 0.86`), the m's middle-foot
+cap width, the u's left-stem clip, and `a_dotlessi`'s fallback to the roman
+stem — plus a twelfth at the foot of the module, `if ON and pen.S > 84.0:
+BEARINGS['ı'] = BEARINGS['i']`. All twelve are gone, with the flag and the
+arms only it selected. One arm that looked dead is not and stays: the
+round-234 face in `hm_stem` is what the u's right stem (`headed=False`)
+draws at both weights, so `hm_head_face` and `hm_top_right_y` remain.
+Nothing else was ungated — round 269's `ALD_WF_UP`, round 272's o
+(`_So`), round 268's P gap and the finials' floors were each read and left
+as they are.
+
+| junction | letters | before (400) | after (400) |
+|---|---|---|---|
+| the stem's top face under the head | i l n m h r | no wedge at this weight: the head's underside runs at 20.6° and sits 5.6 / 5.9 / 6.2 / 6.9 / 8.0 units under the stem's face across it (left → right), the face at 22.6° — at the 400 the 24° cut's corner moves 12.8 units, past the resample spacing, and `_unfold` keeps it here where it dropped it at the 700 | `hm_follow_cut` cuts the face to 17.4°, buried 3.5 / 2.3 / 1.1 / 0.3 / 0 under the head's underside; `HM_JUNCT_BURY` is 3.2 at this weight (4.0 × 66.9 / 84), so the numbers are smaller than the 700's 5.6 / 6.1 / 3.9 / 1.3 / 0 by construction |
+| stem corner against the head's end face | i l n m h r | the face's lower corner 1.4 past the stem's edge: two steps at the corner, 1.9 and 1.7 (font), on n i r h l; the m's 6.8 (its capped head) | 0: the corner is solved onto the stem's actual top edge (57.7 wide against a nominal 55.8), the stem's corner 396.5 = the face's 396.5 |
+| stem corner proud of the arch's outer edge | n h m | ledge 9.7 (n h), 8.7 (m) (font); 9.5 / 12.2 in design | 0: level landing at `hm_arch_end` (0.780 xh), the face's corners the stem's |
+| the arch's fold under the crown | n h m | hidden under the stem's square top at 0.86 xh | 0 (`hm_sweep`) |
+| exit underside at the foot corner (− is under) | i h u m l n a | −0.8 / −1.3 / −1.7 / −1.9 / −4.4 / −5.8 / −3.2 | −4.2 / −4.6 / −3.2 / −5.0 / −4.4 / −5.8 / −3.2: only the four short of the bury moved (i h u m); the l and the n already passed the corner by more and the a by exactly 3.2, the bury itself, so the loop's 0.05 tolerance left all three alone — **the a does not move at the 400**, which is why it is missing from the glyph list below. The hook's lowest point: i −4.3 → −8.0, h −5.1 → −8.0, m −5.6 → −8.0, u −4.1 → −5.5 (font: −6 / −6 / −7 → −9 on i h m) |
+| the u's left stem | u | tops at 438 (font), 9 over the x-line, 7 over its own head — the 45° cut's corner; a 2.7 step where the head's face meets it | clipped to the follow face: 431, the head's own top; 0 steps |
+| the m's middle foot | m | cap sw / 2 wide under a start `ent_waist` wider | the cap takes the stroke's start width |
+| the ı | ı | the roman stem sheared, with the italic entry and exit over it: steps 2.0 at its head and 2.0 at its foot (font), advance 283 | the i without its dot: 0 steps, advance 218 = the i's, and ì í î ï ĩ ī ĭ take it |
+
+`cmp_junctions.py` on the 400: before `white slivers < 6: 0, ink shards <
+6: 0, steps >= 1.5: 24`; after `0, 0, 5`. The five left are the ones round
+274 left at the 700 (§20, "left as constructed"): the outstroke's underside
+leaving the square foot in a concave corner — u 6.0 (4.0 before: the lowered
+hook steepened it, as predicted for the short exits), a 5.0, n 3.0, l 3.0
+(the last three unmoved) — and the m's capped head hanging past its stem,
+7.8 (6.8 before; it grew by 1.0 because the head's end is now solved 1.4
+units further left, onto the stem's edge, and round 143's round hangs the
+further past it).
+
+**Gates, verbatim.** `cmp_aldine_glitch.py --ttf` → `122 glyphs swept, 1
+with findings` (β, the ruled crack, as before); `cmp_figure_space.py --body`
+→ `even: p90/p10 is 1.37x, within the 2.50x allowed` (1.36 before);
+`cmp_touch.py` → `0 pair(s) TOUCHING, 1 below the 0.012 em floor, 1 exempt`
+(before: `0, 0, 1`). **The one pair under the floor is `f?` at 0.0119 em
+(0.0134 before), and it is an instrument reading, not a spacing change:**
+neither the f nor the ? moved (0 outline, advance or GPOS difference), the
+pair's white measured from the OUTLINES with its kern (−18) is 11.44 units =
+0.0114 em in both builds — under the floor in outline space before and
+after, the raster read it a pixel high before — and the f's own raster at
+the tool's 699 px em differs by 558 of 45,008 pixels between the two fonts
+though its outline is byte-identical: FreeType's autohinter takes its blue
+zones from letters this round moved, and every glyph's raster shifts by up
+to a pixel with them (4f, qf, O1, UW, RR moved one pixel the same way, in
+both directions). Not kerned — a kern on an unmoved pair for an
+instrument's pixel is a change beyond the ruling; it is left here for a
+ruling (one line in `kern.py`'s italic block, +18, would read 0.0134 in
+outline space). `cmp_aldine_metrics.py` before → after: i w/h 0.322 →
+0.320 (the hook), u w/h 0.770 → 0.782 (the left stem's top off the spike),
+a / e / o counter-to-ink ±0.002 (raster; those letters did not move — the
+a's +21% OFF is pre-existing and unchanged); no letter crossed its 10%
+tolerance.
+
+**Moved.** 35 glyph records differ, 0 GPOS pairs: h i l m n r u ı µ ħ ĳ ł ŋ
+ⁿ and 21 accented composites whose placement or advance follows them (ì í î
+ï ĩ ī ĭ ù ú û ü ĥ ĺ ļ ľ ũ ū ŭ ů ű ų); eight more (į ñ ń ņ ň ŕ ŗ ř) are
+components referencing a moved base with an unchanged record and move with
+it on the page — 43 glyphs in all, against the 39 recorded for the 700 (the
+a, ª, æ and į are the difference: the a did not move here, and the 700's
+count was `diffglyphs`' records too). Advances: the ı and ì í î ï ĩ ī ĭ 283
+→ 218 (the i's, `BEARINGS['ı'] = BEARINGS['i']`), ħ 435 → 428, ľ 378 → 375
+(their marks are placed off the base's ink, which moved at the head).
+BoldItalic and Regular: byte-identical to builds of HEAD (`glyphs
+differing: 0 [] | GPOS pairs changed: 0`, each) — the gate selected nothing
+above 84 and nothing in the roman, so removing it changed a gate and only a
+gate.
+
+Proofs: `tools/wedge_serif/shape/weights278/` — before above after at 3
+px/unit for u n ı m h l r i a (the same rows and bands as round 274's), and
+the runs at 13 px ×8 and 40 px ×2.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1307,3 +1396,4 @@ Proofs: `tools/wedge_serif/shape/weights279/`.
 - Round 274: the bold italic's head/stem, arch/stem and exit/foot junctions read 0 white slivers, 0 ink shards on u n ı m h l r i a; the Italic 400 is byte-identical in outlines, advances and GPOS to a build of the same tree with the previous `aldine.py`; glitch 0 of 122, touch 0 / 0, figure spread 1.41×, dents 0. The arch's crest is not moved by `hm_sweep` (vertices identical); the u's right stem keeps round 273's top (431); the r has no exit and takes only the head fix; the a moves only at its exit.
 - Round 277: after the wedge ruling, every roman and italic weight passes the gates it passed before; the 400s are byte-identical; the one pair the fitter tightened (VI at the 700) is kerned back under the floor.
 - Round 276: the italic's round finials changed out for the c's top end, both weights — see docs/albo-finials-2026-09-19.md.
+- Round 278: with round 274's gate removed, the BoldItalic and the Regular are byte-identical to builds of HEAD (0 of 486 glyphs, 0 GPOS pairs, each); the Italic 400 reads 0 white slivers, 0 ink shards on u n ı m h l r i a, glitch the ruled β alone, figure spread 1.37×; the a's outline did not move (its exit already passed the foot corner by the bury); the u's right stem keeps round 273's top (431) on the round-234 face, which is live and was not removed; no letter in the metrics tool crossed its tolerance; the other `S > 84` sites in `aldine.py` (rounds 268, 269, 272) were each read and left alone; the `f?` touch reading is the raster, not the outline (0.0114 em in both builds).

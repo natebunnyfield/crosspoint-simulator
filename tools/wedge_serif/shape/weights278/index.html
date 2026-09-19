@@ -1,0 +1,73 @@
+<title>Albo Italic Junctions at the 400</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Italic Junctions at the 400</h1>
+    <p class="lede">Round 278 &mdash; round 274&rsquo;s junction rebuild (the head on the stem, the arch&rsquo;s landing, the exit at the foot, the u&rsquo;s left stem top, the dotless i as the i without its dot) applied to the Italic 400, by the owner&rsquo;s ruling of 2026-09-19 that it applies to both weights. Every figure is a crop of the shipped outline at 3 px per unit, before (top) above after (bottom), native pixels, lossless. The Bold Italic and the Regular are byte-identical to builds of the same tree with the gate in place (0 of 486 glyphs, 0 GPOS pairs, each).</p>
+  </header>
+  <section><h2>Measured, design units, the 400</h2>
+    <div class="scroll"><table>
+      <tr><th>junction</th><th>letters</th><th>before</th><th>after</th></tr>
+      <tr><td>head&rsquo;s end face past the stem&rsquo;s edge (units)</td><td>i l n m h r</td><td>1.4 (steps 1.9 + 1.7 at the corner)</td><td class="ok">0</td></tr>
+      <tr><td>stem&rsquo;s top face under the head, buried left&rarr;right (units)</td><td>i l n m h r</td><td>no wedge; the 20&deg; underside 5.6&ndash;8.0 under a 23&deg; face</td><td class="ok">3.5 / 2.3 / 1.1 / 0.3 / 0 under it, face at 17&deg;</td></tr>
+      <tr><td>stem corner proud of the arch&rsquo;s outer edge (font units)</td><td>n h / m</td><td>9.7 / 8.7</td><td class="ok">0</td></tr>
+      <tr><td>exit&rsquo;s underside at the foot corner (units, &minus; is under; bury 3.2)</td><td>i h u m l n a</td><td>&minus;0.8 &minus;1.3 &minus;1.7 &minus;1.9 &minus;4.4 &minus;5.8 &minus;3.2</td><td class="ok">&minus;4.2 &minus;4.6 &minus;3.2 &minus;5.0 &minus;4.4 &minus;5.8 &minus;3.2</td></tr>
+      <tr><td>u left stem&rsquo;s top (font units; x-height 429)</td><td>u</td><td>438 (the 45&deg; cut&rsquo;s corner)</td><td class="ok">431 (the head&rsquo;s own top)</td></tr>
+      <tr><td>dotless i</td><td>&imath;</td><td>the roman stem sheared: steps 2.0 / 2.0, advance 283</td><td class="ok">the i without its dot: 0 steps, advance 218</td></tr>
+      <tr><td>white slivers &lt; 6 units / ink shards &lt; 6 / steps &ge; 1.5</td><td>u n &imath; m h l r i a</td><td>0 / 0 / 24</td><td class="ok">0 / 0 / 5</td></tr>
+    </table></div>
+    <p>The five steps left are the ones round 274 left at the 700: the outstroke&rsquo;s underside leaving the square foot in a concave corner (u 6.0, a 5.0, n 3.0, l 3.0) and the m&rsquo;s capped head hanging past its stem (7.8), as ruled in round 143.</p>
+  </section>
+  <section><h2>The u</h2>
+    <figure><img src="u-top.png" alt="u top, before and after"><figcaption>u, the head on the left stem and the right stem's top; 3 px/unit, units 289..464</figcaption></figure>
+    <figure><img src="u-foot.png" alt="u foot"><figcaption>u, the exit at the foot; 3 px/unit, units -30..150</figcaption></figure>
+  </section>
+  <section><h2>The n</h2>
+    <figure><img src="n-top.png" alt="n top"><figcaption>n, the head on the stem and the arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="n-foot.png" alt="n foot"><figcaption>n, the exit at the foot (unmoved: it already passed the corner by 5.8); 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The dotless i</h2>
+    <figure><img src="dotlessi-top.png" alt="dotless i top"><figcaption>dotless i: the roman stem (before) and the i's stem and head (after); 3 px/unit</figcaption></figure>
+    <figure><img src="dotlessi-foot.png" alt="dotless i foot"><figcaption>dotless i, the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The m</h2>
+    <figure><img src="m-top-left.png" alt="m top left"><figcaption>m, left: the capped head and the first arch; 3 px/unit</figcaption></figure>
+    <figure><img src="m-top-right.png" alt="m top right"><figcaption>m, right: the second arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="m-foot.png" alt="m foot"><figcaption>m, right: the middle foot and the exit; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The h</h2>
+    <figure><img src="h-head.png" alt="h head"><figcaption>h, the head on the ascender; 3 px/unit, units 630..805</figcaption></figure>
+    <figure><img src="h-arch.png" alt="h arch"><figcaption>h, the arch on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="h-foot.png" alt="h foot"><figcaption>h, the exit at the foot; 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The l</h2>
+    <figure><img src="l-head.png" alt="l head"><figcaption>l, the head on the ascender; 3 px/unit</figcaption></figure>
+    <figure><img src="l-foot.png" alt="l foot"><figcaption>l, the exit at the foot (unmoved: it already passed the corner by 4.4); 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>The r, the i, the a</h2>
+    <figure><img src="r-top.png" alt="r top"><figcaption>r, the head on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="i-top.png" alt="i top"><figcaption>i, the head on the stem; 3 px/unit</figcaption></figure>
+    <figure><img src="i-foot.png" alt="i foot"><figcaption>i, the exit at the foot; 3 px/unit</figcaption></figure>
+    <figure><img src="a-foot.png" alt="a foot"><figcaption>a, the exit at the foot (the a shares hm_exit; its underside already passed the corner by 3.2, the bury itself, so it did not move); 3 px/unit</figcaption></figure>
+  </section>
+  <section><h2>Reading runs</h2>
+    <figure><img src="runs.png" alt="italic 400 runs"><figcaption>13 px x8 and 40 px x2, nearest; lines alternate before / after</figcaption></figure>
+  </section>
+</div>

@@ -897,12 +897,15 @@ if ON:
 
     # ------------------------------------------------------------ ROUND 274
     # THE BOLD ITALIC'S JUNCTIONS. Owner 2026-09-19, on a crop of the bold
-    # italic "u n ı u": *"fix glitches"*. Every change below is gated on
-    # ALD_JUNCT -- the weight ABOVE the Medium -- so the shipped Italic 400
-    # draws the identical outline to the unit (diffglyphs: 0 glyphs, 0 GPOS
-    # pairs), and the 400's own smaller versions of the same faults are
-    # recorded in docs/albo-family-2026-09-19.md section 20 for a ruling
-    # rather than moved behind its back.
+    # italic "u n ı u": *"fix glitches"*. Every change below WAS gated on
+    # ALD_JUNCT (pen.S > 84, the weight ABOVE the Medium) from round 274 to
+    # round 277, so the shipped Italic 400 drew the identical outline to the
+    # unit and its own smaller versions of the same faults were recorded in
+    # docs/albo-family-2026-09-19.md section 20 for a ruling rather than
+    # moved behind its back. ROUND 278 -- the ruling (owner 2026-09-19: round
+    # 274's junction rebuild applies to the Italic 400 as well as the 700):
+    # the gate is gone and both weights take the one construction; the 400's
+    # before -> after is section 23 of the same doc.
     #
     # MEASURED on the round-273 build at the 700, design units, before -> after
     # (the two detectors are cmp_junctions.py's: the white SLIVER / ink SHARD
@@ -964,10 +967,10 @@ if ON:
     #   THE ı was not this module's at all: the italic's dotless i fell
     #     through to accents.py's roman stem (a wedge head and a two-sided
     #     foot, sheared, with the italic entry and exit laid over them), which
-    #     at the 700 is the forked head in the crop. At this weight it is the i
-    #     without its dot (`a_dotlessi`). The 400's stays as it was: changing
-    #     the construction of a shipped letter and its composites is a ruling.
-    ALD_JUNCT = pen.S > 84.0
+    #     at the 700 is the forked head in the crop. It is the i without its
+    #     dot (`a_dotlessi`) -- at the 700 since round 274, at the 400 since
+    #     round 278, when the ruling above made the change of construction
+    #     the owner's; the bearings block at the foot of the module follows.
     HM_JUNCT_BURY = _hm("JUNCT_BURY", 4.0) * ALD_WF   # units a face is buried under the ink that hides it
 
     def hm_head_geom(c, xc, ytop, wtop=None):
@@ -1152,11 +1155,12 @@ if ON:
         # itself the top-left corner would sit a unit above the y1 every letter
         # here places its head at. Identical at ENT_WAIST 0.
         if HM_TOP_FOLLOW:
-            if ALD_JUNCT and headed:
-                # round 274: the corner on the head's face at the stem's ACTUAL
-                # top edge, the face under the head's underside -- the block
-                # above hm_head_geom. `headed=False` is the u's right stem,
-                # which has no head and keeps round 273's top.
+            if headed:
+                # round 274 (both weights since round 278): the corner on the
+                # head's face at the stem's ACTUAL top edge, the face under the
+                # head's underside -- the block above hm_head_geom.
+                # `headed=False` is the u's right stem, which has no head and
+                # keeps round 273's top on the round-234 face below.
                 wtop = sw * ent_waist(1.0, ENT_WAIST)
                 ytr, ang = hm_follow_cut(c, xc, y1, wtop)
                 drop = math.tan(ang) * wtop / 2
@@ -1190,19 +1194,16 @@ if ON:
         which was tried first and is the wrong tool: the corner is CONVEX and
         its right flank falls at about 70 degrees, so every dome wide enough
         to round the apex jutted out past the stem as a slab."""
-        u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
-        if ALD_JUNCT:
-            # round 274: the end face's lower corner on the stem's actual edge
-            tip, end, mid, n, hw = hm_head_geom(c, xc, ytop, wtop)
-        else:
-            # the END is the CENTERLINE's end: a stroke this thick running at ~53
-            # degrees puts its upper edge 0.30 of its width above the centerline,
-            # and the references' ink top is exactly the x-line (Flanker's n and i
-            # both bbox at 429) -- the head does not rise above it.
-            tip = (xc - sw / 2 - HM_HEAD_L * u, ytop - HM_HEAD_D * xh)
-            end = (xc + (HM_HEAD_R_FOLLOW if HM_TOP_FOLLOW else HM_HEAD_R) * sw,
-                   ytop - (HM_HEAD_END_DROP if HM_TOP_FOLLOW else 0.30) * HM_HEAD_W * u)
-            mid = ((tip[0] + end[0]) / 2, (tip[1] + end[1]) / 2 + HM_HEAD_BOW * xh)
+        u = hm_u(c)
+        # round 274 (both weights since round 278): the end face's lower
+        # corner solved onto the stem's actual edge. The END is the
+        # CENTERLINE's end: a stroke this thick running at ~53 degrees puts
+        # its upper edge 0.30 of its width above the centerline, and the
+        # references' ink top is exactly the x-line (Flanker's n and i both
+        # bbox at 429) -- the head does not rise above it. (Until round 278
+        # the 400 took `end` at a fixed HM_HEAD_R_FOLLOW x sw with no solve,
+        # which is the 1.4-unit poke past the stem's edge section 20 records.)
+        tip, end, mid, n, hw = hm_head_geom(c, xc, ytop, wtop)
         p = catmull([tip, mid, end], tension=0.5)
         body = stroke(p, widths([(0.0, HM_HEAD_T * u), (0.55, HM_HEAD_W * u),
                                  (1.0, HM_HEAD_W * 0.86 * u)]), cut0=CUT,
@@ -1332,20 +1333,19 @@ if ON:
                                      (0.88, sw * 0.48),
                                      (1.0, HM_EXIT_T * u * (0.78 + 0.22 * k))]), cut1=CUT)
         ex = build(botY)
-        if ALD_JUNCT:
-            # round 274: the underside must pass UNDER the stem's foot corner,
-            # by HM_JUNCT_BURY, whatever `k` did to the run -- see the block
-            # above hm_head_geom. Read, lower the turn by the shortfall, read
-            # again (the tip is pinned, so a lowered turn transmits a little
-            # under 1:1 at the corner).
-            from shapely.geometry import LineString
-            xr = xc + sw * ent_waist(0.0, ENT_WAIST) / 2 - 0.5
-            for _ in range(3):
-                cut_ = LineString([(xr, -sw), (xr, xh * 0.5)]).intersection(ex)
-                ys = [q[1] for g in getattr(cut_, "geoms", [cut_]) if not g.is_empty for q in g.coords]
-                short = (min(ys) if ys else 0.0) + HM_JUNCT_BURY
-                if short <= 0.05: break
-                botY -= short; ex = build(botY)
+        # round 274 (both weights since round 278): the underside must pass
+        # UNDER the stem's foot corner, by HM_JUNCT_BURY, whatever `k` did to
+        # the run -- see the block above hm_head_geom. Read, lower the turn by
+        # the shortfall, read again (the tip is pinned, so a lowered turn
+        # transmits a little under 1:1 at the corner).
+        from shapely.geometry import LineString
+        xr = xc + sw * ent_waist(0.0, ENT_WAIST) / 2 - 0.5
+        for _ in range(3):
+            cut_ = LineString([(xr, -sw), (xr, xh * 0.5)]).intersection(ex)
+            ys = [q[1] for g in getattr(cut_, "geoms", [cut_]) if not g.is_empty for q in g.coords]
+            short = (min(ys) if ys else 0.0) + HM_JUNCT_BURY
+            if short <= 0.05: break
+            botY -= short; ex = build(botY)
         return ex
 
     # The arch's centerline, as (fraction of the pitch from the left stem's
@@ -1445,18 +1445,19 @@ if ON:
                  + [(fb, yb + crown * wa), (fa, tp), (fc, yc + crown * wb),
                     (1.0, 0.780)])
         p = catmull([(x0 + fx * P, lower(fx, fy) * xh) for fx, fy in K], tension=0.5)
-        if ALD_JUNCT:
-            # round 274: the landing is LEVEL and is exactly the stem's top --
-            # the block above hm_head_geom. theta is the arrival, read off the
-            # same resampled centerline `stroke` will use; the end face is cut
-            # square to the baseline and the landing width is the stem's top
-            # width x cos theta, so the face's corners are the stem's.
-            q = geom.resample(p); tn = geom.tangents(q)[-1]
-            th = math.atan2(tn[0], -tn[1])
-            wtop = sw * ent_waist(1.0, ENT_WAIST)
-            prof[-1] = (1.00, wtop * math.cos(th))
-            return hm_sweep(p, widths(prof), cut1=-th)
-        return stroke(p, widths(prof))
+        # round 274 (both weights since round 278): the landing is LEVEL and
+        # is exactly the stem's top -- the block above hm_head_geom. theta is
+        # the arrival, read off the same resampled centerline `stroke` will
+        # use; the end face is cut square to the baseline and the landing
+        # width is the stem's top width x cos theta, so the face's corners are
+        # the stem's. (Until round 278 the 400 took `stroke(p, widths(prof))`
+        # here under a stem topped at 0.86 xh -- the 9.7-unit ledge section 20
+        # records.)
+        q = geom.resample(p); tn = geom.tangents(q)[-1]
+        th = math.atan2(tn[0], -tn[1])
+        wtop = sw * ent_waist(1.0, ENT_WAIST)
+        prof[-1] = (1.00, wtop * math.cos(th))
+        return hm_sweep(p, widths(prof), cut1=-th)
 
     def ij_dot(c, xc):
         """THE DOT OF THE i AND THE j, drawn ONCE and called by both.
@@ -1484,19 +1485,16 @@ if ON:
         parts.append(ij_dot(c, x))
         return geom.ink(parts)
 
-    # ROUND 274 -- THE ITALIC'S DOTLESS i IS THE i WITHOUT ITS DOT, at the
-    # weight above the Medium. It was never this module's: accents.py
-    # registers it as the roman stem (wedge head, two-sided foot) and the
-    # italic build shears that, entry and exit laid over the serifs -- at the
-    # 700 a forked head with three spurs (the ı in the owner's crop).
-    # Under the gate the 400 keeps exactly the glyph it shipped with, and so do
-    # its composites; see the block above hm_head_geom.
-    _DOTLESS_BEFORE = GLYPHS.get('ı')
-
+    # ROUND 274 -- THE ITALIC'S DOTLESS i IS THE i WITHOUT ITS DOT. It was
+    # never this module's: accents.py registers it as the roman stem (wedge
+    # head, two-sided foot) and the italic build sheared that, entry and exit
+    # laid over the serifs -- at the 700 a forked head with three spurs (the ı
+    # in the owner's crop), at the 400 a 2.0-unit step at its head and at its
+    # foot. At the 700 since round 274; at the 400 since round 278, by the
+    # ruling in the block above hm_head_geom. One construction for the i and
+    # the ı at both weights, and the ı's composites follow it.
     @glyph('ı')
     def a_dotlessi(c):
-        if not ALD_JUNCT:
-            return _DOTLESS_BEFORE(c)
         xh = c["xh"]; x = S * 1.0
         return geom.ink([hm_stem(c, x, 0, xh), hm_head(c, x, xh), hm_exit(c, x, 'i')])
 
@@ -1516,7 +1514,7 @@ if ON:
         module used to put there was a roman's, not a chancery hand's."""
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh), hm_arch(c, x0, x1),
-                         hm_stem(c, x1, 0, hm_arch_end(c) if ALD_JUNCT else xh * 0.86, cut=False),
+                         hm_stem(c, x1, 0, hm_arch_end(c), cut=False),
                          hm_exit(c, x1, 'n')])
 
     # ------------------------------------------------ ROUND 143, THE m ALONE
@@ -1636,9 +1634,10 @@ if ON:
         u = hm_u(c); sw = HM_STEMW * u
         r = M_MID_FOOT * sw                  # the cap's depth below the shaft
         y0 = lift + r
-        # round 274: the cap is as wide as the stroke's START, which the waist
-        # makes 1 + 2*ENT_WAIST/pi of sw -- the block above hm_head_geom.
-        cap = geom.poly(superellipse(xc, y0, (sw * ent_waist(0.0, ENT_WAIST) if ALD_JUNCT else sw) / 2,
+        # round 274 (both weights since round 278): the cap is as wide as the
+        # stroke's START, which the waist makes 1 + 2*ENT_WAIST/pi of sw --
+        # the block above hm_head_geom.
+        cap = geom.poly(superellipse(xc, y0, sw * ent_waist(0.0, ENT_WAIST) / 2,
                                      r, math.pi, 2 * math.pi, 2.0))
         # ROUND 180 -- the last two-point straight stem in the lowercase. It is
         # `hm_stem`'s shape without `hm_stem`'s code, so it did not move when
@@ -1664,8 +1663,8 @@ if ON:
         return geom.ink([hm_stem(c, x0, 0, xh), hm_head(c, x0, xh, cap=M_HEAD_CAP),
                          hm_arch(c, x0, x1, crown=M_CROWN),
                          hm_arch(c, x1, x2, drop=M_A2_DROP, crown=M_CROWN),
-                         *m_midstem(c, x1, M_MID_LIFT * xh, hm_arch_end(c) if ALD_JUNCT else xh * 0.86),
-                         hm_stem(c, x2, 0, hm_arch_end(c, M_A2_DROP) if ALD_JUNCT else xh * 0.86, cut=False),
+                         *m_midstem(c, x1, M_MID_LIFT * xh, hm_arch_end(c)),
+                         hm_stem(c, x2, 0, hm_arch_end(c, M_A2_DROP), cut=False),
                          hm_exit(c, x2, 'm')])
 
     @glyph('h')
@@ -1678,7 +1677,7 @@ if ON:
         xh = c["xh"]; x0 = S * 1.0; x1 = x0 + HM_PITCH * xh
         return geom.ink([hm_stem(c, x0, 0, c["asc"]), hm_head(c, x0, c["asc"]),
                          hm_arch(c, x0, x1),
-                         hm_stem(c, x1, 0, hm_arch_end(c) if ALD_JUNCT else xh * 0.86, cut=False),
+                         hm_stem(c, x1, 0, hm_arch_end(c), cut=False),
                          hm_exit(c, x1, 'h')])
 
     # THE STEM PITCH, measured three ways on griffo-macro.png and agreeing:
@@ -1736,7 +1735,8 @@ if ON:
         # ROUND 274 -- THE LEFT STEM'S TOP FOLLOWS ITS HEAD, as hm_stem's has
         # since round 234; this one-path stem kept the round-233 45-degree cut
         # and its corner stood 30 units over the x-line at the 700 -- the
-        # spike on the u in the owner's crop. The block above hm_head_geom.
+        # spike on the u in the owner's crop -- and 9 over it at the 400. The
+        # block above hm_head_geom; both weights since round 278.
         # The path and its width table are NOT moved for it: the widths are
         # keyed on the fraction of the path's length, so starting the path 30
         # units lower shifted every width along the turn and the rise (the
@@ -1752,12 +1752,11 @@ if ON:
                        (0.76, HM_ARCH_T * u * 1.25), (0.90, HM_ARCH_T * u * 1.45),
                        (1.00, sw * 0.70)])
         parts = [stroke(p, prof, cut0=-math.radians(HM_TOPCUT))]
-        if ALD_JUNCT:
-            _ytr, _ang = hm_follow_cut(c, x0, xh, sw)
-            _xr = x0 + sw / 2; _xl = x0 - sw - 10.0; _xrr = _xr + 10.0
-            _line = lambda x: _ytr + (x - _xr) * math.tan(_ang)
-            _above = geom.poly([(_xl, _line(_xl)), (_xrr, _line(_xrr)), (_xrr, xh * 2), (_xl, xh * 2)])
-            parts[0] = parts[0].difference(_above)
+        _ytr, _ang = hm_follow_cut(c, x0, xh, sw)
+        _xr = x0 + sw / 2; _xl = x0 - sw - 10.0; _xrr = _xr + 10.0
+        _line = lambda x: _ytr + (x - _xr) * math.tan(_ang)
+        _above = geom.poly([(_xl, _line(_xl)), (_xrr, _line(_xrr)), (_xrr, xh * 2), (_xl, xh * 2)])
+        parts[0] = parts[0].difference(_above)
         # the second stroke: the right stem down to the baseline, and out
         # ROUND 273 -- THE RIGHT STEM'S TOP ON THE x-HEIGHT. Owner 2026-09-19:
         # *"check that the right stem of 'u' is bit low on any shipping font
@@ -9046,8 +9045,8 @@ BEARINGS = {
     'u': ( -22,   78), 'v': ( -45,  103), 'w': ( -41,   89), 'x': (  -1,   52),
     'y': ( -36,  120), 'z': (  -6,   41),
 }
-if ON and pen.S > 84.0:
-    BEARINGS['ı'] = BEARINGS['i']   # round 274: the 700's dotless i is the i's stem, head and exit, fitted as the i
+if ON:
+    BEARINGS['ı'] = BEARINGS['i']   # round 274 (both weights since round 278): the dotless i is the i's stem, head and exit, fitted as the i
 
 # A comment asking the next editor to be careful would not have caught it.
 # This does: the module declares what it is FOR -- the complete lowercase --
