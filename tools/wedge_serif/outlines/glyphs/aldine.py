@@ -1534,7 +1534,21 @@ if ON:
                        (1.00, sw * 0.70)])
         parts = [stroke(p, prof, cut0=-math.radians(HM_TOPCUT))]
         # the second stroke: the right stem down to the baseline, and out
-        parts += [hm_stem(c, x1, 0, xh * 0.985), hm_exit(c, x1, 'u'), hm_head(c, x0, xh)]
+        # ROUND 273 -- THE RIGHT STEM'S TOP ON THE x-HEIGHT. Owner 2026-09-19:
+        # *"check that the right stem of 'u' is bit low on any shipping font
+        # faces"*, then *"status on fix 'u' right stem top being short."*
+        # Measured at one pixel per unit: every roman face tops both of the
+        # u's stems at 430 on a 429 x-height; the Italic's right stem topped
+        # at 400 and the Bold Italic's at 368. The stem was drawn to 0.985 xh
+        # with `hm_stem`'s default top cut -- the face cut down for a HEAD to
+        # lie across, on the one stem in the alphabet that gets no head -- so
+        # the cut's drop, which grows with the stem's width, was the whole
+        # miss. The stem is built to the x-height, its top read, and built
+        # again raised by the miss, so the face's high corner sits ON the
+        # line at any weight. Both italics move; the 400 by the owner's word.
+        _rs = hm_stem(c, x1, 0, xh)
+        _rs = hm_stem(c, x1, 0, xh + (xh - _rs.bounds[3]))
+        parts += [_rs, hm_exit(c, x1, 'u'), hm_head(c, x0, xh)]
         return geom.ink(parts)
 
     # MEASURED off the o of "udos" in griffo-macro.png: x145-185, y61-114 --

@@ -1,0 +1,41 @@
+<title>Albo Italic u</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Italic u</h1>
+    <p class="lede">The right stem&rsquo;s top, on the x-height in both italics. It was drawn to 0.985 of the x-height with the stem helper&rsquo;s default top cut &mdash; the face cut down for a head to lie across, on the one stem that gets no head &mdash; and the cut&rsquo;s drop grows with the weight. Top row before, bottom row after. Native pixels.</p>
+  </header>
+  <section><h2>Measured, one pixel per unit, x-height 429</h2>
+    <div class="scroll"><table>
+      <tr><th>face</th><th>u left stem</th><th>u right stem before</th><th>after</th><th>n left / right</th></tr>
+      <tr><td>Italic 400</td><td>423</td><td>400</td><td class="ok">431</td><td>422 / 424</td></tr>
+      <tr><td>Bold Italic 700</td><td>426</td><td>368</td><td class="ok">431</td><td>426 / 437</td></tr>
+      <tr><td>every roman face</td><td>430</td><td>430</td><td>430</td><td>430 / 433&ndash;436</td></tr>
+    </table></div>
+  </section>
+  <section><h2>Italic 400</h2>
+    <figure><img src="i400-u.png" alt="u n dotless i u, italic 400, before and after"><figcaption>u n &imath; u at 0.42 px/unit</figcaption></figure>
+    <figure><img src="i400-runs.png" alt="italic 400 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bi-u.png" alt="u n dotless i u, bold italic, before and after"><figcaption>u n &imath; u at 0.42 px/unit</figcaption></figure>
+    <figure><img src="bi-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+</div>

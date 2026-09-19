@@ -3,11 +3,11 @@ with its counter the pen's inward offset -- the o's stress -- sized so the
 counter is 1.036 wide over tall (ruling). The c and the e's eye are the
 o's ring opened; their terminals are the family's: a flared face at the
 top, a thinner pen-cut end below (c), a blunt end (e, ruling)."""
-import math, os, os
+import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import superellipse, line, join, cubic
-from ..primitives import ring, stroke, pen_widths, widths, bar, beak, bowl_widths, widen_terminal
+from ..primitives import ring, stroke, pen_widths, widths, bar, beak, bowl_widths, widen_terminal, end_wedge
 from .. import primitives as PR
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 
@@ -105,8 +105,35 @@ def g_c(c):
     # face without the beak, and the terminal ends on that face and nothing
     # else. (The capital C in caps_straight carries the same `beak()` lip at
     # 0.4 x 0.7; it is not in this round.)
-    solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+    # ROUND 273 -- THE c's TOP FINIAL AS OPTIONS. Owner 2026-09-19: *"change
+    # out round finials (like c top serif)."* The top as drawn is a swell to
+    # 1.10 of the pen into a -28-degree face, which reads as a ball. Five
+    # ends, one dial, 'a' today's drawing byte for byte:
+    #   a  the swell into the -28 face (as drawn)
+    #   b  the pen cut and no swell -- the bottom terminal's end, at the top
+    #   c  the flared cut: the stroke widens 15% over its last 12% into the
+    #      family's cut (variant C's `widen_terminal` rule, on this letter)
+    #   d  the wedge: no swell, the pen cut, and the family's diagonal end
+    #      wedge on the outer side (the v's and the y's)
+    #   e  the beak with its lip: the capital C's terminal (the swell, the
+    #      face, the 0.35 x 0.6 bracket wedge hanging into the aperture)
+    if C_TOP == 'a':
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+        return geom.ink([solid])
+    if C_TOP == 'e':
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+        lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
+        return geom.ink([solid, lip])
+    if C_TOP == 'c':
+        prof2 = widths([(0.0, 1.15), (0.12, 1.0), (0.82, 1.0), (1.0, 0.70)])
+    else:
+        prof2 = widths([(0.0, 1.0), (0.82, 1.0), (1.0, 0.70)])
+    solid, center = open_arc(c, C_RX * _IO, 40, 318, prof2, cut0=CUT, cut1=CUT, smooth=True)
+    if C_TOP == 'd':
+        w0 = PR.bowl_th(geom.tangents(center)[0]) * prof2(0.0)
+        return geom.ink([solid, end_wedge(center, w0, True, -1, 0.9)])
     return geom.ink([solid])
+C_TOP = os.environ.get("ALBO_ROM_C_TOP", "a")   # round 273, see g_c
 
 E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rounds 39 + 46)
 # Round 109 (owner: "redo e for a steeper crossbar and less of a tail

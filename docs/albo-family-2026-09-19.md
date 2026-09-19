@@ -1123,6 +1123,37 @@ included now. Figure spread 1.42×. Byte identity: Italic 400 exact; Regular
 Proofs: `tools/wedge_serif/shape/weights272/` and the page
 https://claude.ai/artifact/ViZgNhEz6ATEqUfAVUtPzu
 
+## 19. Round 273 — the italic u's right stem, and the finials ladder
+
+**The u.** Owner 2026-09-19: *"check that the right stem of 'u' is bit low
+on any shipping font faces"*, and after the numbers, *"status on fix 'u'
+right stem top being short."* Measured at one pixel per unit against the 429
+x-height, every roman face tops both of the u's stems at 430; the Italic's
+right stem topped at 400 and the Bold Italic's at 368 (`aldine.py` `a_u`).
+The stem was `hm_stem(c, x1, 0, xh * 0.985)` with the helper's default top
+cut — the face cut down for a HEAD to lie across, on the one stem in the
+alphabet that gets none — so the cut's drop, which grows with the stem's
+width, was the miss. The stem is now built to the x-height, its top read,
+and built again raised by the miss: 431 in both italics, beside the ı's 430.
+Moved: u, µ and the ten u composites in both italics; the Italic 400 moves
+by the owner's word. GPOS unchanged; glitch and touch unchanged (0 / 0 on the
+bold italic, 0 / 0 / 1 exempt on the italic). The Regular is byte-identical.
+
+Proofs: `tools/wedge_serif/shape/weights273/` and the page
+https://claude.ai/artifact/Dxqw8sbaoHEGUTbUtnsSdk
+
+**The finials ladder, open.** Owner 2026-09-19: *"change out round finials
+(like c top serif)."* The roman c's top is the exemplar — a swell to 1.10 of
+the pen into a −28° face, which reads as a ball — and `ALBO_ROM_C_TOP` in
+`rounds.py` `g_c` draws five ends, `a` being today's byte for byte: `b` the
+pen cut with no swell, `c` the flared cut (the stroke widens 15% over its
+last 12% into the family's cut, variant C's rule), `d` the pen cut with the
+family's diagonal end wedge hanging into the aperture, `e` the capital C's
+beak with its lip. Shown at 400 and 700 with a word:
+https://claude.ai/artifact/HZfp3UosWv2BEBn4RqyoyC. Awaiting the pick; the
+winner then goes to every round finial in the roman — f r j y s, the g's
+ear, C G S J, the ?, the figures' ends — each measured before it ships.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1143,3 +1174,4 @@ https://claude.ai/artifact/ViZgNhEz6ATEqUfAVUtPzu
 - Round 270: after the convex counters, the dent detector reads one dent per face at every weight, the ampersand's; the bold italic's touch sweep is 0 / 0; glitch 0 at 700 / 900 / bold italic and the ruled β alone at the 400s and the 200.
 - Round 271: the M's two tops read the same projection past their stems at all three roman weights; the ExtraLight 200 differs from round 267's build only in the M and the ™.
 - Round 272: with the ampersand's counters convex, `cmp_counter_dents.py` reads 0 dents in the Bold, the Black and the Bold Italic over its whole charset; the a's counter lower-right reads 93% / 98% white at 700 / 900 against 88% / 89% at its lower left; the M has 0 ink shards and 0 white slivers at 200 / 400 / 700 / 900.
+- Round 273: the italic u's right stem tops at 431 in both italics against the ı's 430; no other glyph moved but the u's composites and µ.
