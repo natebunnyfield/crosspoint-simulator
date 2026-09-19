@@ -501,3 +501,21 @@ that were still the arc's tail. All four were corrected and each correction
 validates against a designed number.
 
 Proofs: `tools/wedge_serif/shape/fig255/` — 18 PNGs at native pixels.
+
+### SET ASIDE, 2026-09-19
+
+Owner, shown all sixteen options rebuilt at the re-anchored 400 and the 1.7
+contrast (https://claude.ai/artifact/XqemvKefixaFqfrqsF6KDL): **"set those
+changes aside for now."**
+
+So the 2, 3, 4, 7 and 8 keep their shipped drawings and the sixteen options
+stay in their tables behind the dials, inert and costing nothing. This is a
+DEFERRAL, not a rejection: the measurements above stand, the page is built,
+and the decision can be picked up where it was left. Do not redraw or
+re-measure them without a new ask.
+
+One number changed under them and is recorded here so the next pass does not
+quote the old one: at the old anchor the recommended set 2h 3g 4e 7i 8o
+improved the figure-space gate 1.60x to 1.57x. At the re-anchored 400 both
+measure 1.62x, so that benefit is gone and the case for the set is the stroke
+weights alone.
