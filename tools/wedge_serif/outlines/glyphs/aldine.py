@@ -537,6 +537,7 @@ HEAD_DEG = float(os.environ.get("ALBO_ALD_HEAD_DEG", 24.0))   # the head's slant
 HEAD_LEN = float(os.environ.get("ALBO_ALD_HEAD_LEN", 1.15))   # its length, x the stem
 HEAD_W = float(os.environ.get("ALBO_ALD_HEAD_W", 0.58))       # its weight, x the stem
 HEAD_LEAN = float(os.environ.get("ALBO_ALD_HEAD_LEAN", 0.30))  # fraction of the head left of the stem
+HEAD_FOLLOW = float(os.environ.get("ALBO_ALD_HEAD_FOLLOW", 1.0))  # round 234: the head ends inside the stem, the stem's top follows it (0 = round 233)
 J_HEAD_LEAN = float(os.environ.get("ALBO_ALD_J_HEAD_LEAN", 0.60))  # the j's -- see wedge_head
 J_HEAD_LEN = float(os.environ.get("ALBO_ALD_J_HEAD_LEN", 0.62))   # x I_HEAD_LEN -- shortened WITH the lean; see below
 FOOT_LEN = float(os.environ.get("ALBO_ALD_FOOT", 0.80))       # the foot's outstroke
@@ -553,8 +554,32 @@ def st(x, y0, y1, head=False, foot=True, w=1.0, foot_len=None, foot_w=None):
     """A stem. `head` puts the Aldine angled head across its top; `foot` the
     blunt outstroke to the right at the baseline. `foot_len` overrides the
     outstroke's length (x the stem) for a letter whose exit runs longer."""
-    parts = [stroke([(x, y0), (x, y1)], S * w)]
-    if head:
+    if head and HEAD_FOLLOW:
+        # ROUND 234 -- the k's head may not cross the stem (owner 2026-09-18:
+        # "make sure that italic h does not make a cross at lower resolutions"
+        # -- "true for all ascenders"; the k is the one letter still on this
+        # head). Same cure as hm_head/hm_stem: the head ENDS with a square face
+        # whose right corner sits on the stem's right edge, and the stem's top
+        # face is cut down to the LEFT so its top-right corner lands where that
+        # face crosses the edge -- the letter's top is one line from the tip to
+        # that corner. The head's angle, weight and left reach (round 84's
+        # size ruling) are untouched; only the 0.36 L that ran past the stem
+        # is gone.
+        a = math.radians(HEAD_DEG); L = S * HEAD_LEN; hw = S * HEAD_W / 2
+        d = (math.cos(a), math.sin(a)); n = (-d[1], d[0])
+        p0 = (x - d[0] * L * 0.74, y1 - d[1] * L * 0.74 - S * 0.06)
+        xr = x + S * w / 2
+        # the end centre: its upper-right face corner (centre + n*hw) on x = xr
+        ex = xr - n[0] * hw
+        t = (ex - p0[0]) / d[0]
+        p1 = (ex, p0[1] + d[1] * t)
+        ytr = p1[1] + n[1] * hw            # the face's corner on the stem's right edge
+        drop = math.tan(math.radians(HEAD_DEG)) * S * w / 2
+        parts = [stroke([(x, y0), (x, ytr - drop)], S * w, cut1=math.radians(HEAD_DEG)),
+                 stroke([p0, p1], S * HEAD_W, cut0=CUT)]
+    else:
+        parts = [stroke([(x, y0), (x, y1)], S * w)]
+    if head and not HEAD_FOLLOW:
         a = math.radians(HEAD_DEG); L = S * HEAD_LEN
         dx, dy = math.cos(a) * L, math.sin(a) * L
         p0 = (x - dx * 0.74, y1 - dy * 0.74 - S * 0.06)
@@ -798,6 +823,50 @@ if ON:
     HM_HEAD_L = _hm("HEAD_L", 70.0)     # the head's tip CENTER, units LEFT of the stem's left edge
     HM_HEAD_D = _hm("HEAD_D", 0.157)    # the tip, x xh BELOW the stroke's top
     HM_HEAD_R = _hm("HEAD_R", 0.04)     # where it ends, x the stem RIGHT of its center
+    # ROUND 234 -- THE HEAD MAY NOT CROSS THE STEM. Owner 2026-09-18, on a 13 px
+    # "Nothing": *"make sure that italic h does not make a cross at lower
+    # resolutions"* -- *"true for all ascenders"*. Measured on the h at 4
+    # px/unit: the head's end face overhung the stem's RIGHT edge by 12 units,
+    # and the stem's top-left corner stood 40 units ABOVE the head's upper edge
+    # (the head arrives at only 23 degrees and its upper edge at the stem's left
+    # edge is 24 units under the corner). Two tips either side of the crossing
+    # point, and at 11-14 px they rasterize as an X. With HM_TOP_FOLLOW on: the
+    # head ends INSIDE the stem, its end face's right corner on the stem's right
+    # edge (HEAD_R 0.26 with a square face), and the stem's top face is cut to
+    # FOLLOW the head's upper edge -- down to the LEFT at HM_TOPCUT_FOLLOW
+    # degrees, its top-right corner 2 units under the head's top -- so the
+    # letter's top is one line from the head's tip to the stem's right corner
+    # and nothing pokes past it on either side. Flanker's i reads the same way
+    # (9-79 at .88, 6-46 at .99: the right side lower). 0 is round 233 exactly.
+    HM_TOP_FOLLOW = _hm("TOP_FOLLOW", 1.0)
+    HM_TOPCUT_FOLLOW = _hm("TOPCUT_FOLLOW", 24.0)   # the stem's top face, degrees down to the LEFT
+    HM_HEAD_R_FOLLOW = _hm("HEAD_R_FOLLOW", 0.45)   # the head's end centre, x the stem right of its centre
+    HM_HEAD_END_DROP = _hm("HEAD_END_DROP", 0.40)   # the end centre, x HEAD_W under ytop (0.30 put the face's upper corner 5 over the x-line)
+
+    def hm_head_face(c, xc, ytop):
+        """The head's END FACE, as the stem needs it: (end centre, unit normal
+        of the face pointing up-left, half width). The stem's top-right corner
+        is put where this face crosses the stem's right edge, so the corner
+        cannot stand proud of the face (a triangle past it) or under it (a
+        notch between them) -- both were built and looked at at 4 px/unit
+        before the corner was tied to the face."""
+        u = hm_u(c); xh = c["xh"]; sw = HM_STEMW * u
+        tip = (xc - sw / 2 - HM_HEAD_L * u, ytop - HM_HEAD_D * xh)
+        end = (xc + HM_HEAD_R_FOLLOW * sw, ytop - HM_HEAD_END_DROP * HM_HEAD_W * u)
+        mid = ((tip[0] + end[0]) / 2, (tip[1] + end[1]) / 2 + HM_HEAD_BOW * xh)
+        d = (end[0] - mid[0], end[1] - mid[1]); L = math.hypot(*d) or 1.0
+        n = (-d[1] / L, d[0] / L)
+        return end, n, HM_HEAD_W * 0.86 * u / 2
+
+    def hm_top_right_y(c, xc, ytop):
+        """Where the head's end face crosses the stem's right edge: the y the
+        stem's top-right corner lands on under HM_TOP_FOLLOW."""
+        u = hm_u(c); sw = HM_STEMW * u
+        end, n, hw = hm_head_face(c, xc, ytop)
+        if abs(n[0]) < 1e-6:
+            return end[1]
+        t = (xc + sw / 2 - end[0]) / n[0]
+        return end[1] + t * n[1]
     HM_HEAD_W = _hm("HEAD_W", 50.0)     # the head's body, units
     HM_HEAD_T = _hm("HEAD_T", 29.0)     # its tip, units
     HM_HEAD_BOW = _hm("HEAD_BOW", 0.014)   # the hollow under it, x xh
@@ -884,6 +953,16 @@ if ON:
         # which the waist has just made 1 + 2*ENT_WAIST/pi of `sw`. Off `sw`
         # itself the top-left corner would sit a unit above the y1 every letter
         # here places its head at. Identical at ENT_WAIST 0.
+        if HM_TOP_FOLLOW:
+            # round 234: the top face falls to the LEFT along the head; the
+            # top-RIGHT corner lands 2 units under y1 (the head's top edge) and
+            # the left corner a tan(TOPCUT_FOLLOW) x stem-width below it, under
+            # the head's body. `stroke` moves the right corner UP by `drop` for
+            # a positive cut1, so the path stops `drop` short of the corner.
+            drop = math.tan(math.radians(HM_TOPCUT_FOLLOW)) * sw * ent_waist(1.0, ENT_WAIST) / 2
+            ytr = hm_top_right_y(c, xc, y1)
+            return stroke(ent_sway([(xc, y0), (xc, ytr - drop)], ENT_SWAY * u), wf,
+                          cut1=math.radians(HM_TOPCUT_FOLLOW))
         drop = math.tan(math.radians(HM_TOPCUT)) * sw * ent_waist(1.0, ENT_WAIST) / 2
         return stroke(ent_sway([(xc, y0), (xc, y1 - drop)], ENT_SWAY * u), wf,
                       cut1=-math.radians(HM_TOPCUT))
@@ -910,11 +989,13 @@ if ON:
         # and the references' ink top is exactly the x-line (Flanker's n and i
         # both bbox at 429) -- the head does not rise above it.
         tip = (xc - sw / 2 - HM_HEAD_L * u, ytop - HM_HEAD_D * xh)
-        end = (xc + HM_HEAD_R * sw, ytop - 0.30 * HM_HEAD_W * u)
+        end = (xc + (HM_HEAD_R_FOLLOW if HM_TOP_FOLLOW else HM_HEAD_R) * sw,
+               ytop - (HM_HEAD_END_DROP if HM_TOP_FOLLOW else 0.30) * HM_HEAD_W * u)
         mid = ((tip[0] + end[0]) / 2, (tip[1] + end[1]) / 2 + HM_HEAD_BOW * xh)
         p = catmull([tip, mid, end], tension=0.5)
         body = stroke(p, widths([(0.0, HM_HEAD_T * u), (0.55, HM_HEAD_W * u),
-                                 (1.0, HM_HEAD_W * 0.86 * u)]), cut0=CUT, cut1=CUT)
+                                 (1.0, HM_HEAD_W * 0.86 * u)]), cut0=CUT,
+                      cut1=(None if HM_TOP_FOLLOW else CUT))   # round 234: a square face, buried in the stem
         if cap <= 0.0:
             return body
         # AN ELLIPSE ON THE END FACE, not a disc. The face is `hw` half-wide,

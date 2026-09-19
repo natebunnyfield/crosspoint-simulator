@@ -770,3 +770,17 @@ byte-identical; glitch 0 of 119, metrics 0 outside 10%, figure space
 unchanged; one kern added, `"W` 18, because the W's diagonals lost their sway
 and the pair fell to 0.0110 em against the 0.012 floor.
 
+**Round 234 -- the italic head may not cross the stem** (2026-09-18). Owner,
+on a 13 px "Nothing": *"make sure that italic h does not make a cross at lower
+resolutions"* -- *"true for all ascenders"*. Measured on the h at 4 px/unit:
+the entry head's end face overhung the stem's right edge by 12 units and the
+stem's top-left corner stood 40 units above the head's upper edge -- two tips
+either side of the crossing, an X at 11-14 px. Now the head ends INSIDE the
+stem (its square end face's right corner on the stem's right edge) and the
+stem's top face is cut to follow it, down to the left, its top-right corner
+where the face crosses the edge (`hm_head_face` / `hm_top_right_y`,
+`HM_TOP_FOLLOW`; the k's `st(head=True)` the same way, `HEAD_FOLLOW`). The b
+and d were already right: `bd_head` reaches left only. 36 italic glyphs move
+(h i k l m n r u and composites), roman byte-identical; glitch 0 of 119, touch
+0, metrics 0 outside 10%.
+
