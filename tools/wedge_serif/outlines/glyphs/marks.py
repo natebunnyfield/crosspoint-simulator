@@ -205,13 +205,25 @@ DQ_GAP = 1.8   # round 94 (owner: "give more space for double quotes so they don
 #   d  COMMA-SHAPED: the curly quote's own dot-and-tail (the , turned to hang
 #      from the top), so the straight and curly marks are one drawing
 #   e  PEN-CUT ENDS: today's stroke with the pen cut at both ends
-QUOTE_OPT = os.environ.get("ALBO_QUOTE_OPT", "a")
-def straight_quote(c, x):
-    """One straight-quote mark at x, per QUOTE_OPT (see above)."""
+# ROUND 251. Owner 2026-09-18: *"ALBO_QUOTE_OPT b but slightly randomized and
+# taller."* b ships on the roman (the italic keeps a). Taller: the written
+# tick's body is QUOTE_B_TALL x QUOTE_BODY, the top still at the cap.
+# Randomized: NOT a jitter -- a TABLE, per docs/albo-imperfections.md -- one
+# row per mark, (body scale, lean scale): the single quote takes row 0, the
+# double quote's two marks rows 1 and 2, so the pair differs by a few units
+# in height and in how far the stroke leans, and every build is the same.
+QUOTE_OPT = os.environ.get("ALBO_QUOTE_OPT", "a" if pen.ITALIC else "b")
+QUOTE_B_TALL = float(os.environ.get("ALBO_QUOTE_B_TALL", 1.15))
+QUOTE_B_VAR = [(1.00, 1.00), (0.96, 1.12), (1.03, 0.90)]   # (body x, lean x): rows 0, 1, 2 -- about 5 units of height and 3 of lean between the marks of a pair
+def straight_quote(c, x, k=0):
+    """One straight-quote mark at x, per QUOTE_OPT (see above); k is the
+    mark's row in QUOTE_B_VAR (option b only)."""
     C = CAP(c) - _qdrop(); top, bot = C, C - QUOTE_BODY; w = TH_V * 0.8; opt = QUOTE_OPT
     if opt == "b":
-        dx = S * 0.16
-        p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - QUOTE_BODY * 0.45), (x - dx * 0.2, bot + QUOTE_BODY * 0.35), (x - dx * 0.6, bot))
+        bs, ls = QUOTE_B_VAR[k % len(QUOTE_B_VAR)]
+        body = QUOTE_BODY * QUOTE_B_TALL * bs; bot = top - body
+        dx = S * 0.16 * ls
+        p = cubic((x + dx * 0.5, top), (x + dx * 0.35, top - body * 0.45), (x - dx * 0.2, bot + body * 0.35), (x - dx * 0.6, bot))
         return stroke(p, pen_widths(p, widths([(0.0, 0.85), (0.5, 0.8), (1.0, 0.5)]), scale=TH_V / pen.PEN.th((0.0, 1.0))), cut0=CUT)
     if opt == "c":
         A = (x - w / 2, top); B = (x + w / 2, top); P = (x - w * 0.18, bot)
@@ -230,7 +242,7 @@ def straight_quote(c, x):
 @glyph("'")
 def g_quotesingle(c): return straight_quote(c, S * 0.5)
 @glyph('"')
-def g_quotedbl(c): return geom.ink([straight_quote(c, S * 0.5 + i * S * DQ_GAP) for i in (0, 1)])
+def g_quotedbl(c): return geom.ink([straight_quote(c, S * 0.5 + i * S * DQ_GAP, k=i + 1) for i in (0, 1)])
 def quote(c, x, up):
     """The curly quotes: the comma's own dot+tail (same DOT_R body as every
     other mark), turned to hang from the top instead of sitting on the
@@ -259,13 +271,21 @@ def g_quotedblleft(c): return geom.ink([quote(c, S * 0.7, False), quote(c, S * (
 #      pressure of one stroke, square ends
 #   e  a SHORT WEDGE: full at the left face (pen cut), tapering to 0.3 at the
 #      right -- the family's wedge lying down
-HYPHEN_OPT = os.environ.get("ALBO_HYPHEN_OPT", "a")
-HYPHEN_RISE_DEG = 4.0
+# ROUND 251. Owner 2026-09-18: *"ALBO_HYPHEN_OPT c but much less rise, 1 degree
+# for longest dash."* c ships on the roman (the italic keeps a). The rise is
+# now the SAME NUMBER OF UNITS on every dash -- what the em dash (the longest,
+# DASH_LONGEST x C) rises at HYPHEN_RISE_DEG -- so the em dash rises 1 degree,
+# the en dash 1.9 and the hyphen 3.8 (16.6 units over 950, 485 and 249).
+# ALBO_HYPHEN_RISE=angle gives every dash the 1 degree instead.
+HYPHEN_OPT = os.environ.get("ALBO_HYPHEN_OPT", "a" if pen.ITALIC else "c")
+HYPHEN_RISE_DEG = float(os.environ.get("ALBO_HYPHEN_RISE_DEG", 1.0))   # 4.0 in round 233's c
+HYPHEN_RISE_MODE = os.environ.get("ALBO_HYPHEN_RISE", "units")           # units: one rise for all three dashes; angle: one angle
+DASH_LONGEST = 1.41
 def dash(c, length):
     C = CAP(c); y = C * 0.34; L = length * C; opt = HYPHEN_OPT
     if opt == "b": return stroke(line((0, y), (L, y)), TH_H, cut0=CUT, cut1=CUT)
     if opt == "c":
-        rise = L * math.tan(math.radians(HYPHEN_RISE_DEG))
+        rise = (DASH_LONGEST * C if HYPHEN_RISE_MODE == "units" else L) * math.tan(math.radians(HYPHEN_RISE_DEG))
         return stroke(line((0, y - rise / 2), (L, y + rise / 2)), TH_H, cut0=CUT, cut1=CUT)
     if opt == "d": return stroke(line((0, y), (L, y)), widths([(0.0, TH_H * 0.55), (0.5, TH_H), (1.0, TH_H * 0.55)]))
     if opt == "e": return stroke(line((0, y), (L, y)), widths([(0.0, TH_H), (0.45, TH_H), (1.0, TH_H * 0.3)]), cut0=CUT)
