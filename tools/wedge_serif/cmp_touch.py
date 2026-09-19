@@ -50,14 +50,31 @@ EXEMPT = {
 }
 
 
-def profiles(ttf, chars, xh_px=300):
+def profiles(ttf, chars, xh_px=300, index=0, xh_src="declared"):
     """For each char: (right[y], left[y]) in px at the pen origin, and the row
-    span it occupies. None where the row has no ink."""
-    f = TTFont(ttf); upm = f["head"].unitsPerEm
-    try: sx = f["OS/2"].sxHeight or upm * 0.5
-    except Exception: sx = upm * 0.5
-    size = int(round(xh_px * upm / sx))
-    fnt = ImageFont.truetype(ttf, size)
+    span it occupies. None where the row has no ink.
+
+    `index` picks a face out of a .ttc -- the reference bolds live in
+    Baskerville.ttc, Charter.ttc, Palatino.ttc and Hoefler Text.ttc (refsets.py).
+
+    `xh_src` stays **declared** here on purpose, even though `OS/2.sxHeight` is
+    absent in Charter and Iowan, zero in New York and wrong by 34% in Poetica
+    (refsets.py's header). It only sizes the raster -- every number out of this
+    file is per-em -- and this function feeds the TOUCH GATE, whose tightest
+    passing pair is `"W` at 0.0124 em against a 0.012 floor. Re-sizing the
+    raster moves a number that close to its floor by more than the margin, so a
+    tidy-up here could flag or hide a collision. `measured` is for instruments
+    that compare against Poetica and the .ttc bolds (cmp_word_white.py)."""
+    if xh_src == "measured":
+        import refsets
+        size = int(round(xh_px / refsets.measure_xh(ttf, index)))
+    else:
+        f = TTFont(ttf, fontNumber=index) if ttf.lower().endswith(".ttc") else TTFont(ttf)
+        upm = f["head"].unitsPerEm
+        try: sx = f["OS/2"].sxHeight or upm * 0.5
+        except Exception: sx = upm * 0.5
+        size = int(round(xh_px * upm / sx))
+    fnt = ImageFont.truetype(ttf, size, index=index)
     W = H = size * 3
     ox, oy = size, int(size * 2.1)
     out = {}

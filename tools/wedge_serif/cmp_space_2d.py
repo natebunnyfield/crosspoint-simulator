@@ -19,8 +19,19 @@ capital before lowercase, quote before letter, letter before stop... -- and a
 class is judged by its MEDIAN against the seven references' medians. A single
 pair is a kern; a class is a bearing.
 
+WHICH REFERENCES. Not a list in this file any more: `refsets.py` holds four
+sets -- roman, italic, bold, bolditalic -- and the set is chosen from the built
+font's NAME unless `--set` says otherwise. The seven italics are unchanged and
+in their original order, so every number in docs/albo-spacing-method.md stays
+comparable; the other three sets are new on 2026-09-19 and close the hole
+docs/albo-misfit-audit-2026-09-18.md §d names, which is that a roman was being
+judged against italics. Read `refsets.py`'s header before trusting a bold band:
+Albo's Bold is a 1.30 weight ratio where the references' are 1.39-2.29.
+
     PYTHON_GIL=0 python3 cmp_space_2d.py <built>/Albo-Italic.ttf
     PYTHON_GIL=0 python3 cmp_space_2d.py <ttf> --refs            # the reference band
+    PYTHON_GIL=0 python3 cmp_space_2d.py <ttf> --refs --set bold # force a set
+    PYTHON_GIL=0 python3 cmp_space_2d.py <ttf> --refs --unit xh  # per x-height, not per em
     PYTHON_GIL=0 python3 cmp_space_2d.py <ttf> --pairs "'s 't 'c s' o. ,a"
     PYTHON_GIL=0 python3 cmp_space_2d.py <ttf> --per-glyph quotes # each mark's own two sides
 """
@@ -28,17 +39,9 @@ import argparse, os, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from fontTools.ttLib import TTFont
+import refsets
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REFS = [
-    ("Flanker Griffo it", os.path.join(HERE, "refs", "flanker-griffo-italic.otf")),
-    ("Pagella it",        os.path.join(HERE, "refs", "texgyrepagella-italic.otf")),
-    ("Poetica",           os.path.join(HERE, "refs", "poetica-std-regular.otf")),
-    ("Coelacanth it",     os.path.join(HERE, "refs", "coelacanth-italic.otf")),
-    ("Times",             "/System/Library/Fonts/Supplemental/Times New Roman Italic.ttf"),
-    ("Georgia",           "/System/Library/Fonts/Supplemental/Georgia Italic.ttf"),
-    ("New York",          "/System/Library/Fonts/NewYorkItalic.ttf"),
-]
 LOWER = "aeinorstuvxhldmgpc"          # the frequent lowercase, both sides
 UPPER = "AEHNOTRSLVW"
 DIGIT = "0123456789"
@@ -57,14 +60,21 @@ CLASSES = {                           # name: (lefts, rights)
 
 
 class Face:
-    def __init__(self, path, xh=150):
+    def __init__(self, path, xh=150, index=0, unit="em"):
         self.path = path
-        f = TTFont(path); upm = f["head"].unitsPerEm
-        try: sx = f["OS/2"].sxHeight or upm * 0.5
-        except Exception: sx = upm * 0.5
-        self.size = int(round(xh * upm / sx))
-        self.fnt = ImageFont.truetype(path, self.size)
+        f = TTFont(path, fontNumber=index) if path.lower().endswith(".ttc") else TTFont(path)
+        # THE X-HEIGHT IS MEASURED, NOT DECLARED. `OS/2.sxHeight` is absent in
+        # Charter and Iowan, zero in New York and wrong by 34% in Poetica --
+        # see refsets.py's header. It only sizes the raster (every number here
+        # is per-em), but a face rendered 52% off its asked-for size quantises
+        # its gaps on a different grid from what it is compared with.
+        self.xh_em = refsets.measure_xh(path, index)
+        self.size = int(round(xh / self.xh_em))
+        self.fnt = ImageFont.truetype(path, self.size, index=index)
         self.cmap = f.getBestCmap()
+        # `em` keeps every published number comparable; `xh` is the unit a
+        # reader actually sees, since these faces' x-heights run 0.395-0.481 em.
+        self.denom = self.size if unit == "em" else self.size * self.xh_em
         self.W = self.H = self.size * 4
         self.ox, self.oy = self.size, int(self.size * 2.4)
         self._edge = {}
@@ -94,7 +104,7 @@ class Face:
         off = self.fnt.getlength(a + b) - self.fnt.getlength(b)
         P = ea[0]; Q = eb[1].copy(); Q[:, 0] += off
         d = np.sqrt((P[:, None, 0] - Q[None, :, 0]) ** 2 + (P[:, None, 1] - Q[None, :, 1]) ** 2)
-        return float(d.min() / self.size)
+        return float(d.min() / self.denom)
 
 
 def class_medians(face):
@@ -105,25 +115,43 @@ def class_medians(face):
     return out
 
 
+def glyph_sides(face, chars):
+    """For each glyph: its median white as the LEFT of a pair (i.e. its own
+    right side) and as the RIGHT (its own left side), against the lowercase."""
+    out = {}
+    for ch in chars:
+        R = [g for b in LOWER if (g := face.gap(ch, b)) is not None]
+        L = [g for x in LOWER if (g := face.gap(x, ch)) is not None]
+        if R and L: out[ch] = (float(np.median(R)), float(np.median(L)))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ttf")
     ap.add_argument("--refs", action="store_true")
+    ap.add_argument("--set", dest="rset", default="auto",
+                    choices=["auto", "roman", "italic", "bold", "bolditalic"],
+                    help="which reference set (default: from the font's name)")
+    ap.add_argument("--unit", default="em", choices=["em", "xh"])
     ap.add_argument("--pairs", help="space-separated pairs to print individually")
     ap.add_argument("--per-glyph", choices=["quotes", "stops", "lower", "upper"],
                     help="each glyph of that set: its median white as LEFT of a pair and as RIGHT")
     ap.add_argument("--xh", type=int, default=150)
     a = ap.parse_args()
 
-    me = Face(a.ttf, a.xh)
-    print(f"\n{os.path.basename(a.ttf)} -- closest approach in 2-D, em, at a {a.xh} px x-height\n")
+    rset = refsets.pick(a.ttf) if a.rset == "auto" else a.rset
+    me = Face(a.ttf, a.xh, unit=a.unit)
+    print(f"\n{os.path.basename(a.ttf)} -- closest approach in 2-D, {a.unit}, at a {a.xh} px x-height"
+          f"  [refs: {rset}]\n")
     mine = class_medians(me)
-    refs = []
+    refs, rfaces = [], []
     if a.refs:
-        for n, p in REFS:
-            if os.path.exists(p):
-                try: refs.append((n, class_medians(Face(p, a.xh))))
-                except Exception as e: print(f"  ({n}: {type(e).__name__})")
+        for n, p, i in refsets.entries(rset):
+            try:
+                f = Face(p, a.xh, index=i, unit=a.unit)
+                rfaces.append((n, f)); refs.append((n, class_medians(f)))
+            except Exception as e: print(f"  ({n}: {type(e).__name__} {e})")
     print(f"  {'class':14}{'Albo':>8}" + (f"{'ref med':>9}{'ref lo':>8}{'ref hi':>8}{'verdict':>10}" if refs else "") + "   n")
     for name in CLASSES:
         m, n = mine[name]
@@ -138,21 +166,34 @@ def main():
 
     if a.per_glyph:
         sets = {"quotes": QUOTES, "stops": list(STOPS), "lower": list(LOWER), "upper": list(UPPER)}[a.per_glyph]
+        mySide = glyph_sides(me, sets)
+        rSide = [glyph_sides(f, sets) for _, f in rfaces]
         print(f"\n  each {a.per_glyph} glyph: median white as the LEFT of a pair (its right side) and as the RIGHT (its left side)")
-        print(f"    {'glyph':8}{'its right':>11}{'its left':>10}")
+        hdr = f"    {'glyph':8}{'its right':>11}{'its left':>10}"
+        if rSide: hdr += f"{'ref R':>9}{'ref L':>9}{'dR':>8}{'dL':>8}"
+        print(hdr)
         for ch in sets:
-            R = [g for b in LOWER if (g := me.gap(ch, b)) is not None]
-            L = [g for x in LOWER if (g := me.gap(x, ch)) is not None]
-            if R and L:
-                print(f"    {repr(ch):8}{np.median(R):11.3f}{np.median(L):10.3f}")
+            if ch not in mySide: continue
+            R, L = mySide[ch]
+            row = f"    {repr(ch):8}{R:11.3f}{L:10.3f}"
+            if rSide:
+                rr = [d[ch][0] for d in rSide if ch in d]; rl = [d[ch][1] for d in rSide if ch in d]
+                if rr and rl:
+                    mr, ml = float(np.median(rr)), float(np.median(rl))
+                    row += f"{mr:9.3f}{ml:9.3f}{R - mr:+8.3f}{L - ml:+8.3f}"
+            print(row)
 
     if a.pairs:
         print()
-        faces = [("Albo", me)] + ([(n, Face(p, a.xh)) for n, p in REFS if os.path.exists(p)] if a.refs else [])
+        faces = [("Albo", me)] + (rfaces if a.refs else [])
         prs = a.pairs.split()
         print(f"  {'face':20}" + "".join(f"{p:>8}" for p in prs))
         for n, f in faces:
             print(f"  {n:20}" + "".join((f"{g:8.3f}" if (g := f.gap(p[0], p[1])) is not None else "     n/a") for p in prs))
+        if a.refs and len(faces) > 1:
+            print(f"  {'ref median':20}" + "".join(
+                (f"{np.median(v):8.3f}" if (v := [g for _, f in rfaces if (g := f.gap(p[0], p[1])) is not None]) else "     n/a")
+                for p in prs))
     print()
 
 

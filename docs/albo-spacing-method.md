@@ -528,3 +528,221 @@ the Q's own advance, and `Qg` `Qj` `Qp` still touch afterwards because the tail
 meets a descender at a different row. Removed in the same round. The fault is
 the tail's length (`caps_straight.py g_Q`, a hard-coded cubic with no dial) and
 it is fixed there, as a drawing.
+
+## Round 258 (2026-09-19) — the roman and the bold had no reference band, and the four words
+
+Owner: *"take at least one pass at smart spacing for letters and words on all
+fonts."* All fonts is now FOUR. **This round changed no bearing, no kern and no
+word space: it is a measurement pass plus the instruments the next one needs,
+and the recommendations are at the foot.** Everything below is against the tree
+at `4d7e47c`; the italic's weight axis (`ALD_WF = pen.S / 84.0`) landed after
+it, so every BOLD ITALIC number here is superseded and must be re-taken.
+
+### The hole that had to be closed first: every reference was an ITALIC
+
+`docs/albo-misfit-audit-2026-09-18.md` §d names it — *"A roman reference band.
+`cmp_space_2d`'s seven references are all ITALICS"* — and with a Bold and a Bold
+Italic in the family the same hole opens twice more. `refsets.py` is the
+registry: **roman** (Times, Georgia, New York, Palatino, Baskerville, Charter,
+Iowan Old Style, Hoefler Text), **italic** (the SAME seven, in the same order,
+so every number above stays comparable), **bold** and **bolditalic** (the 700s
+of those families, plus Flanker Griffo Bold Italic and Baskerville SemiBold).
+`cmp_space_2d.py` picks the set from the built font's NAME.
+
+Two caveats that belong with every number in this section:
+
+* **Albo's Bold is not the references' Bold.** Stem over x-height, from the
+  rendered `n`: Medium 0.176, Bold 0.216 — a ratio of **1.30**, where the eight
+  reference families run **1.39–2.29** (median 1.45). A "tight" verdict against
+  a bold band on a 1.30 weight is expected rather than a fault.
+* **The roman references are TIGHTER than the italic ones, not looser.** The
+  audit's caveat said a roman verdict measured against italics *overstates*,
+  since a roman is normally fitted a little wider. Measured: `lower+lower`
+  median **0.076 em** across the eight romans against **0.079** across the seven
+  italics, and the band's top 0.088 against 0.087. **That premise is wrong and
+  the roman's looseness was if anything understated.**
+
+### The before table — all four styles, each against its own set
+
+2-D closest approach (measure 4), em, at a 150 px x-height. The reference
+median is in brackets.
+
+| class | Medium | vs roman | Italic | vs italic | Bold | vs bold | BoldItalic | vs b-it |
+|---|---|---|---|---|---|---|---|---|
+| lower+lower | 0.108 | **LOOSE** (0.076) | 0.096 | **LOOSE** (0.079) | 0.111 | **LOOSE** (0.069) | 0.096 | **LOOSE** (0.070) |
+| cap+lower | 0.126 | **LOOSE** (0.095) | 0.127 | **LOOSE** (0.101) | 0.129 | **LOOSE** (0.086) | 0.128 | **LOOSE** (0.093) |
+| cap+cap | 0.094 | **LOOSE** (0.065) | 0.128 | **LOOSE** (0.079) | 0.099 | **LOOSE** (0.068) | 0.125 | **LOOSE** (0.073) |
+| digit+digit | 0.092 | in band (0.117) | 0.133 | in band (0.115) | 0.091 | in band (0.105) | 0.134 | in band (0.115) |
+| letter+stop | 0.133 | **LOOSE** (0.105) | 0.131 | in band (0.100) | 0.140 | **LOOSE** (0.095) | 0.130 | **LOOSE** (0.096) |
+| stop+letter | 0.141 | **LOOSE** (0.116) | 0.130 | in band (0.122) | 0.144 | **LOOSE** (0.111) | 0.131 | in band (0.122) |
+| letter+quote | 0.209 | **LOOSE** (0.140) | 0.120 | in band (0.155) | 0.209 | **LOOSE** (0.138) | 0.112 | tight (0.150) |
+| quote+letter | 0.201 | **LOOSE** (0.130) | 0.124 | in band (0.148) | 0.197 | **LOOSE** (0.127) | 0.109 | in band (0.126) |
+| between/within | 0.459 | **LOOSE** (0.378) | 0.736 | **LOOSE** (0.439) | 0.439 | in band (0.411) | 0.735 | **LOOSE** (0.523) |
+| space/counter | 1.234 | in band (1.186) | 1.785 | **LOOSE** (1.302) | 1.220 | tight (1.490) | 1.785 | in band (1.961) |
+| word space ÷ xh | 0.637 | over (0.569) | 0.527 | in band (0.497) | 0.666 | over (0.572) | 0.527 | in band (0.592) |
+
+**The italic's eight class rows reproduce rounds 221 and 222 to 0.002 em** on an
+instrument whose x-height normalisation changed, which is what says the change
+was harmless (see the last section).
+
+**The roman's punctuation is the round-223 pattern again.** Rounds 220–222
+re-fitted the stops and the quotes and gated all of it to the italic
+(`ALD_STOP_BEAR`, `ALD_QUOTE_LSB/RSB`, `QUOTE_DROP`); against a roman band the
+roman's four punctuation classes are the loosest rows in the table, by up to
+0.07 em — exactly as the roman's figures were until round 223 gave them
+`ROM_FIG_BODY`.
+
+### The four words that break, and which half of the report is real
+
+Reported from a rendered paragraph: *about* reads as *a bout*, *capitals* as
+*capita ls*, *the* as *t he*, *between* as *bet ween* — at 13 px and at 40 px,
+so fitting rather than rasterisation. Measured three ways and rendered twice:
+
+| pair | control | measure 5, Albo | Albo ÷ control | reference median of that ratio | verdict |
+|---|---|---|---|---|---|
+| `th` | `nh` | 0.2627 / 0.2188 | **1.20** | 1.21 (1.11–1.40) | NOT the t's fault — it sits on the reference median |
+| `tw` | `nw` | 0.3010 / 0.2601 | **1.16** | 1.19 (1.08–1.34) | NOT the t's fault — tighter than the median |
+| `ab` | `nb` | 0.1965 / 0.2143 | **0.92** | 1.00 (0.93–1.02) | NOT the a's fault — 8% TIGHTER than every reference but one |
+| `al` | `nl` | 0.1981 / 0.2158 | **0.92** | 1.03 (1.00–1.06) | NOT the a's fault — 10% tighter |
+
+The renders agree with the numbers: at 13 px ×14, `about` beside `nbout` shows
+the SAME gap after the first letter, while `the` beside `nhe` shows the t's gap
+visibly wider — so the t half of the report is visible and the a half is not,
+and neither is a fitting fault of that letter against a fitted face.
+`shape/spacing/Medium-40px-x2-pairs4.png` is the strip (`nb ab nl al nh th nw
+tw`), and `Medium-13px-x8-para1-line5.png` is the sentence.
+
+**What is wrong is the whole lowercase, uniformly.** Albo's `nn` measures
+0.2269 against a roman-reference median of 0.1735 (**+31%**), `nb` +31%, `nh`
++26%, `no` +19% — while `oo` is +4%. Every straight-sided pair carries about
+**0.03 em** of extra white and the round-sided pairs do not, which at 13 px is
+very nearly one extra blank pixel column in every word. That is what breaks a
+word image, and no per-letter fix reaches it: the lever is the lowercase
+TRACKING and the straight-to-round ratio (`A.SIDE_FRACTION`, 1.00 / 0.72), not
+the a, the t, or a kern pair.
+
+### Measure 5, and why a fifth one was needed
+
+`cmp_word_white.py`: mean white over the x-height band, **clamped at the face's
+own `n` counter**. The four existing measures cannot answer this question.
+Minimum white and the 2-D closest approach call `tw` TIGHTER than `nw` (the
+crossbar is the closest ink) while the eye plainly sees a hole; the unclamped
+mean IS measure 2, which drove `Vi` shut in round 199. The clamp is the face's
+own interior white — round 3's ruling used as a distance — so a V's splay is
+discounted and an a's open shoulder is not. Validated on fifteen pairs with
+known answers, which the script prints on every run.
+
+**Its bias, stated:** the clamp is each face's own counter, and Albo's is the
+widest in the set (0.516 xh against 0.413–0.528), so Albo reads high against the
+references wherever a gap exceeds the clamp. The unbiased measure 4 agrees in
+direction and size (`lower+lower` +42% against the roman band), so no finding
+here rests on the clamp alone.
+
+### The word space: a measured NEGATIVE result
+
+Across eleven reference families, regular → bold, the word space **over the
+x-height barely moves: 0.978–1.057, median 1.000**, while its ratio to the `n`
+counter climbs by a third because the counters shrink. So *"a bold wants a wider
+word space"* is false of the references in absolute terms. Albo's Bold is +4.6%
+over the Medium (an accident of the width axis, not a decision) and its Bold
+Italic is identical to the Italic — **both inside the reference behaviour, so
+neither is a bug**. The Bold Italic's identical space is a symptom of the next
+section, not of a word-space formula.
+
+In absolute terms the two romans sit over the top of the roman band (0.637 and
+0.666 xh against 0.440–0.621) and the two italics are mid-band.
+`WORD_SPACE_ADJ` is the owner's own bench value (round 202) and was not touched.
+
+### THE BOLD ITALIC'S LOWERCASE WAS NOT BOLD (at `4d7e47c`)
+
+`FJORD_STEM=107` reached the capitals, the figures and the marks and **not the
+Aldine lowercase**: 17 of its 26 letters were byte-identical to the Italic's,
+`n` and `o` identical in outline, bearing and advance, and the measured stem
+0.159 xh in both. Every BoldItalic row above is therefore a regular-weight
+lowercase under bold capitals. Fixed on main after this round by
+`ALD_WF = pen.S / 84.0`; **re-measure before acting on any bold-italic number.**
+
+### The gates, as they stand (nothing changed, so these are baselines)
+
+| style | `cmp_touch` | figure spread |
+|---|---|---|
+| Medium | 4 touching (`ff fi f) fT`), 6 under the floor, 14 exempt | 1.60× |
+| Italic | **0 touching, 0 under the floor** | 1.31× |
+| Bold | **5 touching** — the Medium's four plus **`Q,` at −0.4166 em** | 1.62× |
+| BoldItalic | 0 touching, **1 under the floor: `R1` 0.0083** (the Italic's is 0.0150) | 1.42× |
+
+Both bold faults are the documented shape — a kern that exists for the italic
+only. `('Q','comma') = 36` was added in round 220 inside the `ALD.ON` gate, so
+the roman never got it and the Bold's heavier tail reaches past the comma;
+`R1` is the R's leg, which round 216 kerned against `4` and `2` in the italic
+alone.
+
+### Recommended, in order, none of it applied
+
+1. **`Q,` for the roman** — one kern, gated `if _ALD is None or not _ALD.ON`,
+   the mirror of round 220's italic cell. Clears the Bold's fifth touching pair
+   and cannot move the Medium's four, which are the `f`.
+2. **`R1` for the bold italic** — one pair, after re-measuring on the new weight
+   axis.
+3. **The roman's stops and quotes**, as round 223 did the roman's figures:
+   `ALD_STOP_BEAR` and `ALD_QUOTE_LSB/RSB` re-derived against the ROMAN band
+   rather than left italic-only. Four class rows, 0.02–0.07 em each.
+4. **A roman tracking dial** — `ALBO_TRACK`, default 0 so the build stays
+   byte-identical, as `ALBO_ALD_TRACK` is for the italic — with both arms built
+   for the owner to judge. The measured arm is **−32 units per gap, 16 a side**,
+   which lands `lower+lower` on the roman reference median. This is the one
+   change that answers the broken words, and it is his call: round 221 put the
+   same question for the italic and left it with him.
+5. **`A.SIDE_FRACTION`'s straight-to-round ratio (1.00 / 0.72)** — the excess is
+   almost entirely on the straight-sided pairs (`nn` +31%, `oo` +4%), so a
+   uniform tracking cut alone would leave the rounds too tight. Measure per
+   letter first (`cmp_word_white.py --sides`), then move the ratio rather than
+   the letters.
+6. **The five missing typographic spaces** (U+2009 thin, U+200A hair, U+202F
+   narrow no-break, U+2007 figure, U+2008 punctuation) — advance-only glyphs.
+   Not started. U+00A0 is already present. Note Albo's figures are proportional
+   old-style (advances 288–494), so U+2007 has no single digit width to match.
+
+### What was checked and found CLEAN
+
+* The italic's eight class medians reproduce rounds 221 and 222 to 0.002 em.
+* `digit+digit` is in band in all four styles; rounds 216 and 223 hold, and the
+  figure-spread gate passes everywhere (1.31–1.62× against the 2.50× allowed).
+* The Italic is still 0 touching / 0 under the floor over 5,199 pairs.
+* The word space in all four styles behaves as the eleven reference families do
+  across a weight change.
+* The `a`'s right side and the `t`'s right side, against eight roman references:
+  both at or inside the reference ratio to their own `n`.
+* The Medium's four touching pairs and 14 exempt are exactly the documented set;
+  nothing new appeared in the roman.
+
+### The two instruments that were MODIFIED, and exactly how
+
+Stated plainly because the failure mode is moving a threshold until a result
+passes (`docs/albo-method.md` §4, the five instrument bugs of 2026-09-17).
+
+* **`cmp_space_2d.py`** — the seven hard-coded italic references became
+  `refsets.py`'s four sets, chosen from the font's name (`--set` overrides);
+  `Face` gained `index` for `.ttc` references and a `--unit xh` alternative to
+  em; and the x-height is now MEASURED off a rendered `x` rather than read from
+  `OS/2.sxHeight`, which is absent in Charter and Iowan, zero in New York and
+  wrong by 34% in Poetica. **No threshold and no classification moved.** The
+  x-height change only sizes the raster — every number is per em — and on the
+  same `Albo-Italic.ttf` the eight class medians move from the documented
+  0.095 / 0.128 / 0.129 / 0.132 / 0.130 / 0.131 / 0.119 / 0.126 to
+  0.096 / 0.127 / 0.128 / 0.133 / 0.131 / 0.130 / 0.120 / 0.124 — at most
+  0.002 em, no verdict changed.
+* **`cmp_touch.py`** — `profiles()` gained `index` (for the `.ttc` references)
+  and an OPT-IN `xh_src="measured"`. **The gate's own path is untouched and
+  still uses the declared x-height**, deliberately: its tightest passing pair is
+  `"W` at 0.0124 em against a 0.012 floor, and re-sizing the raster moves a
+  number that close to its floor by more than the margin, so a tidy-up there
+  could hide a collision or invent one.
+
+New files: `refsets.py` (the four reference sets and the spacing basis),
+`cmp_space_all.py` (all four styles on one page, with between/within and
+space/counter), `cmp_word_white.py` (measure 5), `cmp_reading_gap.py` (blank
+pixel columns at the reading size — its header records why it is a confirmation
+and not a ladder: the count is phase-dependent, and averaged over phase it
+reduces to minimum white minus one pixel), `spacing_proof.py` (the proof
+sheets).
