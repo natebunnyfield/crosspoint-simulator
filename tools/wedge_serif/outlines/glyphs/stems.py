@@ -275,7 +275,7 @@ A_CURVE = int(__import__('os').environ.get('FJORD_A_CURVE', 8))
 #      hood's flag was (the corner the 2026-09-13 redraw took away):
 #      0.45 of the family's diagonal end
 #   d  the same at 0.70
-A_OPT = os.environ.get("ALBO_ROM_A_OPT", "a")
+A_OPT = os.environ.get("ALBO_ROM_A_OPT", "b")   # round 244: b ships -- owner 2026-09-18, "for a: a and b" (the fix and the rebalanced right foot)
 A_FOOT_B = 0.75
 A_TERM_WEDGE = {'c': 0.45, 'd': 0.70}
 
