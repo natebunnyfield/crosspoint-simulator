@@ -32,7 +32,8 @@ BEAK_CUT = -28.0
 # wrong in units, what moved and what did not.
 FIX_ROM = not pen.ITALIC
 A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"
-L_CORNER_CLIP = os.environ.get("ALBO_ROM_L_CORNER_CLIP", "0") == "1"   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
+L_CORNER_CLIP = os.environ.get("ALBO_ROM_L_CORNER_CLIP", "0") == "1"
+M_SPURS = os.environ.get("ALBO_ROM_M_SPURS", "1") == "1"   # round 240: strokes as round 232, errant spurs cut; 0 is round 232 exactly   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
 
 def _left_of(p, tn, ylo, yhi, reach=1500.0):
     """The half-plane LEFT of the line through p with direction tn, cut to
@@ -577,6 +578,8 @@ L_TOP_RIGHT = float(__import__("os").environ.get("FJORD_L_TOP", 0.45))   # owner
 L_TOP_RIGHT_DEPTH = 0.66   # the I's small wedge is 0.4 x 0.6 x 0.4 drop; the L's 0.5 x 0.72 x 0.5 (owner: "give it life")
 L_TOP_RIGHT_DROP = 0.45
 L_TOP_LEFT = 0.96          # the left wedge a touch shorter than the family's 1.0   # FJORD_L_TOP: ladder override
+L_TOP = os.environ.get("ALBO_ROM_L_TOP", "a")   # round 241: a | b | c | d | e, see g_L; a is today byte for byte
+if L_TOP not in ('a', 'b', 'c', 'd', 'e'): L_TOP = 'a'
 
 @glyph('L')
 def g_L(c):
@@ -592,11 +595,22 @@ def g_L(c):
     # L_TOP_RIGHT_DEPTH at L_TOP_RIGHT_DROP) and its left wedge a touch
     # shorter (L_TOP_LEFT), so the two crowns are kin, not twins.
     if L_TOP_RIGHT > 0:
-        st = cstem(x, 0, C, top='left', foot='left', top_len=L_TOP_LEFT)
+        # ROUND 241 -- OPTIONS. Owner 2026-09-18: "give me options for
+        # lightening L top serif". ALBO_ROM_L_TOP picks; a is today. The left
+        # wedge's length (x L_TOP_LEFT), its depth and drop, and the small
+        # right wedge scale together or apart:
+        #   a  today: left 0.96 x WL, depth 1.0, drop 1.0; right 0.45 / 0.66 / 0.45
+        #   b  both a shade lighter: left 0.85, depth 0.85; right 0.38 / 0.56
+        #   c  lighter still: left 0.75, depth 0.75, drop 0.8; right 0.32 / 0.50
+        #   d  the left wedge only, lightened to c; the right micro-serif as today
+        #   e  the right micro-serif dropped, the left wedge as today (the I's own top, one-sided)
+        lt = {'a': (L_TOP_LEFT, 1.0, 1.0), 'b': (0.85, 0.85, 1.0), 'c': (0.75, 0.75, 0.8), 'd': (0.75, 0.75, 0.8), 'e': (L_TOP_LEFT, 1.0, 1.0)}[L_TOP]
+        rt = {'a': (L_TOP_RIGHT, L_TOP_RIGHT_DEPTH), 'b': (0.38, 0.56), 'c': (0.32, 0.50), 'd': (L_TOP_RIGHT, L_TOP_RIGHT_DEPTH), 'e': (0.0, 0.0)}[L_TOP]
+        st = cstem(x, 0, C, top='left', foot='left', top_len=lt[0], top_depth=lt[1], top_drop=lt[2])
         cap_w = TH_V * CAP_STEM
         def _wid(y): return cap_w * (1.0 + ENT * (2 * y / C - 1) ** 4)
-        top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * L_TOP_RIGHT, WD * L_TOP_RIGHT_DEPTH, DROP * L_TOP_RIGHT_DROP,
-                           edge_at=lambda d: (x + _wid(C - d) / 2, C - d))
+        top_right = wedge((x + _wid(C) / 2, C), (0, 1), (1, 0), WL * rt[0], WD * rt[1], DROP * L_TOP_RIGHT_DROP,
+                           edge_at=lambda d: (x + _wid(C - d) / 2, C - d)) if rt[0] > 0 else geom.poly([(x, 0), (x, 1), (x + 1, 0)])
         parts = [st, top_right]
     else:
         parts = [cstem(x, 0, C, top='left+', foot='left')]
@@ -647,55 +661,63 @@ def g_M(c):
     C = c["cap"]; s = CS; w = W_(c, 'M', 720); x0 = s / 2; x1 = x0 + w
     P = [((x0 + s * 0.25, 0), (x0 + s * 0.45, C), 0.72, -1, None), ((x0 + s * 0.45, C), (x0 + w / 2, 0), 1.0, None, None),
          ((x1 - s * 0.45, C), (x0 + w / 2, 0), 0.72, None, None), ((x1 - s * 0.25, 0), (x1 - s * 0.45, C), 1.0, 1, -1)]
-    if not FIX_ROM:
-        a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
-        apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    a, b, d, e = [diagonal(p0, p1, pw(p0, p1, m), serif0=s0, serif1=s1) for p0, p1, m, s0, s1 in P]
+    apex = wedge((x0 + s * 0.45 - pw(P[0][0], P[0][1], 0.72) * 0.35, C), (0, 1), (-1, 0), WL * 0.9, WD, DROP)
+    if not FIX_ROM or not M_SPURS:
         return geom.ink([a, b, d, e, apex])
-    # R08 / R09 / R10, owner 2026-09-18: "make cohesive and straightened",
-    # "make cohesive and straighten", "remove small overlapping triangle on
-    # right". The fix the block above documents, applied -- it left with the
-    # round-81 caps revert -- plus the two things it did not foresee, both
-    # measured on the built roman with every face cut flat:
-    #  * the FACES: every meeting face is cut horizontal (`flat_face`), so
-    #    the left apex is one face on the cap line, the right apex one face
-    #    (the thin diagonal's square end stood 10 units above the cap line
-    #    there, the spike), and the middle vertex one face on the baseline.
-    #  * the CROWN is seated at the thin stroke's flat corner (`flat_corner`)
-    #    and its bracket follows that stroke's real edge, so its top edge
-    #    leaves the cap line at the corner (it emerged 4.5 units below it).
-    #  * a THICK stroke's flat face is wider than the thin stroke's it meets,
-    #    and where the thick one is the INNER stroke its corner stands out
-    #    past the thin outer stroke's line: 20 units at the left apex (the
-    #    inner stroke's corner 57 units down the outer stroke's silhouette),
-    #    9 at the right apex on the counter side, and 13 at the middle
-    #    vertex -- that last one is the "small overlapping triangle on
-    #    right", the thick stroke's corner beyond the thin stroke's right
-    #    edge. Each is clipped back to the thin stroke's edge line.
-    #  * the top-right wedge is seated at the thick stroke's flat corner on
-    #    the real edge rather than at the square face's corner 1.2 below it.
-    # Widths, angles, the wedge family's sizes, the splay and the advance are
-    # untouched; the leftmost and rightmost ink are still the feet.
+    # ROUND 240. Owner 2026-09-18, on round 235's M: "the topmost vertices
+    # should stay where they are, extend serif from those. keep the strokes as
+    # they are but address errant spurs." So round 232's four strokes and crown
+    # are drawn exactly as they were, and three things are done to the union:
+    #  * LEFT APEX: the crown's top edge is carried in ONE line from its tip to
+    #    the thick stroke's topmost face corner (the peak that stays), which
+    #    fills the 4.5-unit step where the wedge's top met the thin stroke's
+    #    flat -- a triangle tip/peak/seat added.
+    #  * RIGHT TOP: the thin diagonal's cut corner stood 10 units above the
+    #    thick stem's top face (the spike); everything above that face's line
+    #    across the face's own span is cut away. The face, its corners and the
+    #    wedge on its right are untouched.
+    #  * MIDDLE VERTEX: the thin stroke's lower corner stands 13 units right of
+    #    the thick stroke's right edge ("small overlapping triangle on right");
+    #    the part of it beyond that edge, below where the two edges cross, is
+    #    cut away. The two prongs and the notch between them at the baseline
+    #    are the strokes as they are, and stay.
+    from shapely.geometry import Polygon as _Poly
+    def _corners(p0, p1, wgt, at_end):
+        tn = tangents(line(p0, p1))[0]; n = (-tn[1], tn[0]); P_ = p1 if at_end else p0
+        return (P_[0] + n[0] * wgt / 2, P_[1] + n[1] * wgt / 2), (P_[0] - n[0] * wgt / 2, P_[1] - n[1] * wgt / 2)
+    def _side(p, dvec, sign, span=1500.0):
+        """The half-plane on `sign` side (+1 left of travel) of the line through p along dvec."""
+        n = (-dvec[1] * sign, dvec[0] * sign)
+        return _Poly([(p[0] - dvec[0] * span, p[1] - dvec[1] * span), (p[0] + dvec[0] * span, p[1] + dvec[1] * span),
+                      (p[0] + dvec[0] * span + n[0] * span, p[1] + dvec[1] * span + n[1] * span),
+                      (p[0] - dvec[0] * span + n[0] * span, p[1] - dvec[1] * span + n[1] * span)])
+    from shapely.geometry import box as _box
     wa, wb, wd, we = [pw(p0, p1, m) for p0, p1, m, _, _ in P]
-    a = _flat_diag(P[0][0], P[0][1], wa, flat1=True, serif0=-1)
-    b = _flat_diag(P[1][0], P[1][1], wb, flat0=True, flat1=True)
-    d = _flat_diag(P[2][0], P[2][1], wd, flat0=True, flat1=True)
-    e = _flat_diag(P[3][0], P[3][1], we, flat1=True, serif0=1)
-    ta, tb, td, te = [tangents(line(p0, p1))[0] for p0, p1, *_ in P]
-    # the thin strokes' edge lines the thick ones are kept behind
-    aL = flat_corner(P[0][0], P[0][1], wa, -1, True)          # left apex: the outer stroke's left corner
-    b = b.difference(_left_of(aL, ta, C - 150.0, C + 10.0))
-    dL = flat_corner(P[2][0], P[2][1], wd, -1, False)         # right apex: the thin stroke's left corner
-    e = e.difference(_left_of(dL, td, C - 150.0, C + 10.0))
-    vT = flat_corner(P[2][0], P[2][1], wd, +1, True)          # middle vertex: the thin stroke's right corner
-    vK = flat_corner(P[1][0], P[1][1], wb, +1, True)          # ... and the thick stroke's, 13 units further right
-    vX = _cross(vT, (vT[0] - td[0], vT[1] - td[1]), vK, (vK[0] - tb[0], vK[1] - tb[1]))
-    nd = (td[1], -td[0])                                      # into the thin stroke from its right edge (a hair, against slivers)
-    b = b.difference(geom.poly([(vT[0] + nd[0] * 0.02, vT[1] + nd[1] * 0.02), (vX[0] + nd[0] * 0.02, vX[1] + nd[1] * 0.02),
-                                (vK[0] + 40.0, vX[1]), (vK[0] + 40.0, -40.0), (vT[0], -40.0)]))
-    apex = wedge(aL, (0, 1), (-1, 0), WL * 0.9, WD, DROP, edge_at=lambda t: (aL[0] - ta[0] * t, aL[1] - ta[1] * t))
-    eR = flat_corner(P[3][0], P[3][1], we, +1, True)
-    top_right = wedge(eR, (0, 1), (1, 0), WL * 0.9, WD * 0.9, DROP, edge_at=lambda t: (eR[0] - te[0] * t, eR[1] - te[1] * t))
-    return geom.ink([a, b, d, e, apex, top_right])
+    # LEFT APEX: the crown's tip to the thick stroke's peak in one line -- fill under it, trim over it
+    peak = max(_corners(P[1][0], P[1][1], wb, False), key=lambda q: q[1])
+    seat = (x0 + s * 0.45 - wa * 0.35, C); tip = (seat[0] - WL * 0.9, C - DROP)
+    fill = _Poly([tip, peak, (seat[0], seat[1] - 40.0)])
+    ldir = (peak[0] - tip[0], peak[1] - tip[1]); Ll = math.hypot(*ldir); ldir = (ldir[0] / Ll, ldir[1] / Ll)
+    lip = a.intersection(_side(tip, ldir, +1)).intersection(_box(tip[0], C - 60.0, peak[0], C + 80.0))
+    # RIGHT TOP: what the thin stroke d stands above the thick stem e's end face
+    eA, eB = _corners(P[3][0], P[3][1], we, True)
+    lo, hi = (eA, eB) if eA[0] < eB[0] else (eB, eA)
+    fdir = (hi[0] - lo[0], hi[1] - lo[1]); Lf = math.hypot(*fdir); fdir = (fdir[0] / Lf, fdir[1] / Lf)
+    spike = d.intersection(_side(lo, fdir, +1)).intersection(_box(lo[0] - 60.0, C - 60.0, hi[0], C + 80.0))
+    # MIDDLE VERTEX: the thin stroke d's lower corner past the thick stroke b's right edge, below their crossing
+    # the poking corner is the piece of d OUTSIDE b that touches the baseline
+    # region -- d minus b falls into d's body above the crossing and this
+    # small corner below it; taking the component by position (its top under
+    # y 60) needs no analytic crossing, which the resampled edges miss by a
+    # unit or two (an 8-unit box left a 3-unit tooth).
+    # ... and it is the THICK stroke's corner standing past the thin one's
+    # right edge (13 units), not the thin stroke's: b minus d, the small
+    # piece near the baseline. The thin stroke's own prong stays.
+    rest = b.difference(d); pieces = list(rest.geoms) if hasattr(rest, 'geoms') else [rest]
+    tri = geom.union([q for q in pieces if q.bounds[3] < 60.0 and q.area < 800.0])
+    g = geom.ink([a, b, d, e, apex, fill])
+    return g.difference(geom.union([lip, spike, tri]))
 
 @glyph('N')
 def g_N(c):
@@ -810,7 +832,7 @@ def g_Q(c):
             return max(base(t), floor) * endp(t)
     return geom.ink([solid, stroke(tail, wfn, cut1=CUT)])
 
-Q_TAIL_OPT = os.environ.get("ALBO_ROM_Q_TAIL_OPT", "a")   # a | b | c | d | e, see g_Q; a is round 232 byte for byte
+Q_TAIL_OPT = os.environ.get("ALBO_ROM_Q_TAIL_OPT", "d")   # a | b | c | d | e, see g_Q; a is round 232 byte for byte; d ships since round 240 (owner's pick)
 if Q_TAIL_OPT not in ("a", "b", "c", "d", "e"): Q_TAIL_OPT = "a"   # review 2026-09-18: unknown letters fall back to a
 
 Q_BELLY = 0.15
