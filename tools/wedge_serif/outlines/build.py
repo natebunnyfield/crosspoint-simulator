@@ -463,7 +463,7 @@ def fit(ch, conts, c):
     return adv, dx, min(xs_all) + dx
 
 WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700,
-                "Italic": 500, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 261: "Italic" is the MEDIUM's italic and must declare 500 like it, or the pair is two weights and the family will not bind   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
+                "Italic": 400, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 268: "Italic" is the REGULAR's italic since the re-anchor (round 266) and declares 400 like it -- round 261 had it at 500 when the Medium was the text weight; the pair must declare ONE weight or the family will not bind   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
 
 # Round 100, the vertical metrics (they were 900/-300 with no measurement
 # behind them). Measured across every style: the ink reaches 971 on the
@@ -657,7 +657,7 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
     # installed Albo-Medium or Albo-Italic is not renamed under the owner --
     # except that "Albo BoldItalic" gains the space it was missing.
     _RIBBI = {"Medium": "Regular", "Italic": "Italic", "Bold": "Bold", "BoldItalic": "Bold Italic"}
-    _TYPO  = {"Medium": "Medium", "Italic": "Medium Italic", "Bold": "Bold", "BoldItalic": "Bold Italic"}
+    _TYPO  = {"Medium": "Medium", "Italic": "Italic", "Bold": "Bold", "BoldItalic": "Bold Italic"}   # round 268: the 400 italic is the REGULAR's italic since the re-anchor (round 266), so its typographic subfamily is "Italic" and its full name "Albo Italic"; "Medium Italic" named the retired 500 pairing
     _sub = _RIBBI.get(style, style); _typo = _TYPO.get(style, style)
     _full = f"{name} {_typo}"
     fb.setupNameTable(dict(familyName=name, styleName=_sub, fullName=_full, psName=f"{name}-{style}",

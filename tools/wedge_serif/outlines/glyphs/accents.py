@@ -93,7 +93,16 @@ def g_ring(c):
     """A small bowl, its counter open enough to survive 13 pt: the ring is
     the family's, at a radius that makes the mark ACC_H*1.25 tall."""
     ry = ACC_H * 0.62; rx = ry * 1.02
-    solid, *_ = ring(rx, ry, rx, ry, k=BOWL_K, w_scale=0.62, floor=HAIR * 0.9)
+    # ROUND 268 -- THE RING'S COUNTER COLLAPSES AT THE HEAVY END, the same
+    # class as the theta's and the phi's (round 267): the radius is on the
+    # accent grid (ACC_H, which does not move with weight) and the wall is
+    # 0.62 of the pen, which does. At the 700 the wall is 72 units on a
+    # 93-unit radius and the counter is two slits 7 and 8 units wide (the
+    # --all sweep, both styles); at the 900 it would be gone, and the a-ring
+    # and u-ring would carry a dot. The wall is scaled by min(1, 84/S) above
+    # the stem the mark was drawn at, exactly as the Greek bowls are; at and
+    # under 84 it is as drawn, so the 200 and the 400s are byte-identical.
+    solid, *_ = ring(rx, ry, rx, ry, k=BOWL_K, w_scale=0.62 * min(1.0, 84.0 / S), floor=HAIR * 0.9)
     return solid
 
 @glyph('˝')      # double acute

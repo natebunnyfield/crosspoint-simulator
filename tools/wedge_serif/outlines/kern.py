@@ -293,6 +293,34 @@ except ImportError:
 if _ALD is not None and _ALD.ON:
     PAIRS[('o', 'c')] = 18
     PAIRS[('o', 'r')] = 18
+    # ROUND 268 -- THE BOLD ITALIC q's FOOT, eight pairs, gated to the bold.
+    # The italic q ships the p's foot, a flat bar reaching a MEASURED 116
+    # units right of the stem (PQ_FOOT_R, aldine.py -- "do not let the fitter
+    # size this foot"). That reach does not move with weight; what moves is
+    # the next letter's descending stroke, which widens with ALD_WF, and the
+    # foot's own thickness. At the 400 the eight pairs clear; at the 700 they
+    # were the ONLY touching pairs in the style (qf -0.0571 em, qy -0.0322,
+    # qp -0.0298, qj -0.0205, q1 -0.0163, q2 -0.0135, qv -0.0063, qw -0.0034).
+    # A descender clash is a kern pair, not a wider fitting band
+    # (docs/albo-capital-spacing.md), and these are 3-14% of the q's advance
+    # -- nothing like the roman Q's half-em, which round 225 ruled out of the
+    # kern table. Each value is the measured overlap, the 0.012 em floor, and
+    # a few units of clearance, ADDED to whatever the pair already carries:
+    # qj, qf, qy and qp were kerned above (126, 108, 90, 18) and those
+    # overlaps were measured WITH that kern in the pair. The first cut of
+    # this block assigned instead of adding and made three of the four worse
+    # (qj -0.0205 -> -0.1125 em: exactly the 92 units it took away). Five
+    # more pairs sat UNDER the floor without touching -- qm and qr at
+    # 0.0008 em, qn 0.0080, qi 0.0094 (the foot against a baseline serif)
+    # and R1 at 0.0048 (the bold R's leg, the one figure pair round 216 did
+    # not reach) -- and take the same treatment. Under stem 84 the block is
+    # skipped and the Italic's kern table is exactly as it was.
+    from . import pen as _pen
+    if _pen.S > 84.0:
+        for _k, _v in (('f', 72), ('y', 46), ('p', 44), ('j', 34), ('one', 30), ('two', 26), ('v', 20), ('w', 16),
+                       ('m', 14), ('r', 14), ('n', 6), ('i', 5)):
+            PAIRS[('q', _k)] = PAIRS.get(('q', _k), 0) + _v
+        PAIRS[('R', 'one')] = PAIRS.get(('R', 'one'), 0) + 10
     # ------------------------------------------------------ round 216, italic
     # THE ITALIC FIGURES ARE NOW FITTED ON THEIR BODY rather than their reach
     # (FIG_BODY in outlines/build.py), which took roughly three quarters of

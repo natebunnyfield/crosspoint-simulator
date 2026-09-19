@@ -660,6 +660,126 @@ Proofs: `tools/wedge_serif/shape/weights267/` (every failing glyph before
 and after at both ends, and runs at 13 and 40 px) and the page
 https://claude.ai/artifact/JfDfKSeZL8mNbX1nggfSNH
 
+## 14. Round 268 — the italic 700 corrected, and the ring at both heavy ends
+
+Owner 2026-09-19, narrowing the round-267 pass: *"italic is just 400 and
+700."* So the italic pass is one weight, the BoldItalic at stem 116, judged
+against the shipped Italic at 66.9, which must not move.
+
+| style | glitch before | after | touching / under the floor before | after |
+|---|---|---|---|---|
+| BoldItalic 700 | 2 (P, ħ) | **0** | 8 touching, 5 under | **0 / 0** |
+| Italic 400 | 1 (β, ruled) | 1 | 0 / 0 | 0 / 0, byte-identical |
+| Bold 700 | 0 | 0 | 4 / 7 / 14 exempt (round 267's) | unchanged; only the ring moved |
+| Black 900 | 0 | 0 | — | rebuilt for the ring; 0 findings |
+| Regular 400 | 1 (β) | 1 | — | byte-identical |
+
+**The P (class 3, a declared position drifting with weight).** The italic P's
+hairline gap is a cut rectangle placed by `P_GAP_X`, a number calibrated at
+the 400 where the stem's right edge sits at x0 + 33 and the cut 10 units past
+it, down through the arm's free terminal and out to the paper — so the 400's
+counter is OPEN and its census shows no hole at all. At 116 the stem is 132
+wide: the same cut sat entirely inside it (a 9 × 86 rectangle of paper with
+four vertices, the 581-unit CRACK), while the thicker arm reached below the
+cut's bottom and above its top and landed on the stem. Both edges are now
+read from the strokes actually drawn above stem 84 — the cut sits 10 units
+past the stem's measured edge and spans the terminal's measured thickness —
+so the 400's construction holds at the 700: free terminal, open counter. The
+pilcrow is built from this bowl and was a solid black mass at the 700 for the
+same reason; it inherits the fix. My first diagnosis was wrong and is
+recorded: deepening the arc's end with weight changed nothing, because the
+hole was the rectangle, not the arm.
+
+**The barred letters (ħ đ Đ Ð ŧ Ŧ Ħ).** The ħ's bar runs under the italic
+h's head bracket and the two enclose a sliver 49 units long and 4 wide at its
+mouth (209 units² drawn, 90 after the build's 1.2-unit ink spread narrows
+it). A 2-unit close did nothing — a close fills only what is narrower than
+twice its radius — so it is the C's 4, gated above 84 AND to the italic: the
+roman 700 and 900 barred letters had no finding and are byte-identical.
+
+**The q's foot, thirteen kern pairs, gated above 84.** The italic q ships
+the p's measured 116-unit foot, which does not move with weight; the next
+letter's descender does. At the 700 the foot touched f y p j 1 2 v w and ran
+under the floor against m r n i, and the R's leg under it against the 1.
+Each value is the measured overlap plus the 0.012 em floor plus clearance,
+**added to what the pair already carried** — qj qf qy qp were kerned at 126
+108 90 18 and the overlaps were measured with that kern in. The first cut
+assigned instead of adding and made three of the four worse (qj −0.0205 →
+−0.1125 em, exactly the 92 units it took away). The Italic's GPOS is
+identical: 526 pairs, 0 changed.
+
+**The ring accent (class 2, both styles, both heavy ends).** Found by the
+`--all` sweep, which the round-267 pass did not run: the ring's radius is on
+the accent grid and its wall is 0.62 of the pen, so at the 700 the wall is 72
+units on a 93-unit radius and the counter is two slits 7 and 8 units wide —
+in the roman 700 too, and å Å ů Ů carry it. The wall now scales by
+`min(1, 84/S)` above 84 as the Greek bowls do: at the 700 the counter is
+3,080 units² and 22 wide, at the 900 3,026 and 21. This is the ONE glyph
+that moved in the roman 700 (`ring`, and the four composites that reference
+it); the 200 is under the gate and was not rebuilt.
+
+**Names.** The Italic declared usWeightClass 500 and "Medium Italic" since
+round 261, when the Medium was the text weight; since the re-anchor it is the
+Regular's italic and now declares 400, "Italic", "Albo Italic". Outlines and
+kerning untouched.
+
+**The rest of the `--all` sweep, recorded and not fixed.** At the 400s: ¥ β
+√ ♕ ♣ ♤ ♧ ⇔, all documented in `cmp_aldine_glitch.py`'s own list of accepted
+symbol cracks. At the 700s the same set plus ✓ (2.5 units, the tick's fold,
+whose documented cure changes every `_s` glyph) — and none of them is a
+letter.
+
+**An instrument bug.** `diffglyphs.py`'s "kern same" compared the legacy
+`kern` table, which these fonts do not carry, so it read None == None and
+would have called any GPOS change identical. It compares GPOS pair values now;
+every byte-identity claim above was re-made with it.
+
+**Owner's report the same day, measured — the u's right stem.** *"check that
+the right stem of 'u' is bit low on any shipping font faces."* Rasterised at
+one pixel per unit, the top of each stem against the 429 x-height:
+
+| face | u left stem | u right stem | n left stem | ı |
+|---|---|---|---|---|
+| Regular 400, Bold 700, Black 900, ExtraLight 200 | 430 | **430** | 430 | 430 |
+| Italic 400 | 422 | **400** (−29) | 422 | 430 |
+| BoldItalic 700 | 425 | **368** (−61) | 426 | 430 |
+
+Confirmed on both italics and on no roman. The aldine u's right stem is
+`hm_stem(c, x1, 0, xh * 0.985)` with a cut head, so the cut's drop grows
+with the stem's width — 22 units under its own left stem at the 400 and 57
+at the 700. Not corrected in this round; awaiting the ruling.
+
+**What remains before a TestFlight build carries these fonts** (asked the
+same day). Albo is already an installed family in the firmware recipe
+(`lib/EpdFont/scripts/sd-fonts.yaml`, installed 2026-09-14) and the seed
+tree the deploy uses (`~/src/crosspoint-reader/fs_/fonts/Albo`, 1x + 2x)
+carries the 2026-09-14 TTFs — five cuts, the pre-Aldine italic, the old
+500 as the text weight. So the route is a refresh, not an install:
+
+1. Copy the four TTFs of this round into
+   `~/src/crosspoint-reader/lib/EpdFont/local_fonts/Albo/` and delete
+   `Albo-SemiBold.ttf` (the 500 is retired; the reader has four style slots).
+   Update the recipe's comment block (five cuts → four, 11° → 13°, 470 → 486
+   glyphs); its `metrics: {ascent: 1023, descent: -343}` still clears the new
+   extents (yMax 1004, yMin −322).
+2. `build-sd-fonts.py --only Albo` at 1x and `--scale 2` into that seed
+   tree; the ramp is `[8, 10, 12, 14, 16, 18]`.
+3. `tools/validate_seed_fonts.py` on the tree with the recipe — the gate the
+   iOS configure runs anyway.
+4. A 1x contact sheet from the `.cpfont` (the reader's own raster, 2-bit,
+   autohinted): 13 pt is 27 px on the X3, the Regular's stem 1.8 px and its
+   hair 0.2 px. The 400's paleness against the reference regulars (section
+   11, deferred) is decided on that raster, not on FreeType's.
+5. `osascript ios/deploy.applescript "CROSSPOINT_SEED_FONTS_DIR=$HOME/src/crosspoint-reader/fs_/fonts"`
+   from a GUI Terminal, after both repos are pushed.
+
+Not blocking, worth knowing: the `reading` interval's codepoints Albo does
+not draw fall to Noto on the page (the build prints the count); the 200 and
+900 have no reader slot and are family cuts only.
+
+Proofs: `tools/wedge_serif/shape/weights268/` and the page
+https://claude.ai/artifact/Jkd26fTEVfcfi1XANnNeBE
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -671,3 +791,5 @@ https://claude.ai/artifact/JfDfKSeZL8mNbX1nggfSNH
 - Adding them moved no existing glyph: the outline diff against the previous
   build is exactly the new glyphs and nothing else.
 - The roman's response to the weight axis is correct everywhere measured.
+- Round 268: the Regular 400 and Italic 400 are byte-identical to the round-267 builds in outlines, advances AND GPOS pair values; the Bold 700 differs only in `ring`; the Black 900 rebuilt clean (0 glitch findings). The italic 400's touch sweep is still 0 / 0 with one exemption. The bold italic's figure spread is 1.42× (allowed 2.50×).
+- Round 268: the pilcrow's construction at the 700 italic now matches the 400's (open counter, 328 vertices, no hole); the composed å Å ů Ů carry the opened ring at the 700 in both styles.

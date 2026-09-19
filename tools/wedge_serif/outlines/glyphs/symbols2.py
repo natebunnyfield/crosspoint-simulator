@@ -333,7 +333,19 @@ def _barred(c, ch, y=None, x_pad=0.20, w=None):
     g = GLYPHS[ch](c); x0, y0, x1, y1 = g.bounds
     yy = y if y is not None else (y0 + y1) / 2
     d = (x1 - x0) * x_pad
-    return geom.ink([g, bar(x0 - d, x1 + d, yy, w or MATH)])
+    g2 = geom.ink([g, bar(x0 - d, x1 + d, yy, w or MATH)])
+    # ROUND 268 -- at the bold italic's 116 stem the straight bar and the
+    # italic h's head bracket enclose a sliver of paper, 49 units long and
+    # 4 wide at its mouth, where the bar's top edge runs under the bracket
+    # (CRACK: 209 units^2 in the drawn geometry, 90 after the build's 1.2-unit
+    # ink spread narrows it). A 2-unit close did not seal it -- a close fills
+    # only what is narrower than twice its radius, and the mouth is 4 -- so
+    # it is the C's 4, which does. Gated above stem 84 AND to the italic: the
+    # roman 700 and 900 barred letters had no finding and stay byte-identical
+    # to round 267's builds.
+    if S > 84.0 and pen.SHEAR:
+        g2 = g2.buffer(4.0, join_style=2).buffer(-4.0, join_style=2)
+    return g2
 glyph('ð')(lambda c: _crossed_eth(c))
 glyph('Ð')(lambda c: _barred(c, 'D', y=CAP * 0.50, x_pad=0.06))
 glyph('đ')(lambda c: _barred(c, 'd', y=ASC * 0.86, x_pad=0.10))

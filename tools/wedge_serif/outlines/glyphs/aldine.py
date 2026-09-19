@@ -7580,6 +7580,7 @@ if ON:
     P_GAP_TOP = float(os.environ.get("ALBO_ALD_P_GAP_TOP", 0.432))  # where it meets the counter, x C
     P_GAP_BOT = float(os.environ.get("ALBO_ALD_P_GAP_BOT", 0.305))  # and where it leaves the ink
     P_GAP_X = float(os.environ.get("ALBO_ALD_P_GAP_X", 0.0645))      # the stem's right edge, x C right of x0 (x0 + half the stem)
+    P_GAP_PAST = float(os.environ.get("ALBO_ALD_P_GAP_PAST", 0.015))  # round 268: above stem 84, the cut's distance past the DRAWN stem's edge, x C -- the 400's measured 10 units
     CAP_P_SMOOTH = int(os.environ.get("ALBO_ALD_CAP_P_SMOOTH", 7))  # the moving average nib_widths used to apply
     # ROUND 167 -- THE "CROSSBAR" IS OPTICALLY TAPERED INTO THE STEM. Owner
     # 2026-09-16: *"optically taper crossbar of P"*.
@@ -7732,15 +7733,51 @@ if ON:
         if over:
             p_, ws = _arc(cy - over / 2, ry - over / 2)
         bf = widths([(i / (len(ws) - 1), S * v) for i, v in enumerate(ws)])
+        st = cstem_i(x0, 0, C, top='left', foot='both')
+        arm = stroke(p_, bf, cut0=CUT, cut1=CUT)
         cuts = []
         if P_GAP:
             xg = x0 + C * P_GAP_X
             w = C * P_GAP_W * P_GAP
             yb = C * P_GAP_BOT; yt = C * P_GAP_TOP
+            if S > 84.0:
+                # ROUND 268 -- THE GAP FOLLOWS THE DRAWN STEM AND THE DRAWN
+                # ARM. P_GAP_X and P_GAP_BOT are DECLARED numbers, calibrated
+                # at the 400: the stem's right edge sits at x0 + 33 and the
+                # cut 10 units past it, running down through the arm's
+                # terminal and out of the ink at 0.305 C, so the counter opens
+                # to the paper and the terminal hangs free (no hole at all in
+                # the 400's census). At the bold italic's 116 the stem is 132
+                # wide and the same cut sat entirely INSIDE it -- a 9 x 86
+                # rectangle of paper with four vertices and no way out, the
+                # 581-unit CRACK -- while the thicker arm reached below 0.305 C
+                # and landed on the stem, closing the counter. Both edges are
+                # now read from the strokes actually drawn (as the crown's
+                # flush is, above): the cut sits P_GAP_PAST past the stem's
+                # edge and spans the terminal's whole thickness there, from
+                # the paper under it to the counter above it, so the 400's
+                # construction -- a free terminal, an open counter -- holds
+                # at any weight. (At the 700 it was the TOP that failed: the
+                # thicker terminal's upper edge rose past 0.432 C and the ink
+                # above the cut still tied the arm to the stem.) Gated above
+                # 84; the Italic is byte-identical.
+                def _edge(y_lo, y_hi):
+                    _band = geom.poly([(x0 - C, y_lo), (x0 + C, y_lo),
+                                       (x0 + C, y_hi), (x0 - C, y_hi)])
+                    return st.intersection(_band).bounds[2] + C * P_GAP_PAST
+                xg = _edge(yb, yt)
+                # the terminal alone: the crown crosses this column too, up
+                # near the cap line, and must not be cut
+                _col = geom.poly([(xg, C * 0.10), (xg + w, C * 0.10),
+                                  (xg + w, C * 0.55), (xg, C * 0.55)])
+                _term = arm.intersection(_col)
+                if not _term.is_empty:
+                    yb = min(yb, _term.bounds[1] - C * 0.01)
+                    yt = max(yt, _term.bounds[3] + C * 0.01)
+                xg = max(xg, _edge(yb, yt))
             cuts.append(geom.poly([(xg, yb), (xg + w, yb),
                                    (xg + w, yt), (xg, yt)]))
-        return geom.ink([cstem_i(x0, 0, C, top='left', foot='both'),
-                         stroke(p_, bf, cut0=CUT, cut1=CUT)], cuts)
+        return geom.ink([st, arm], cuts)
 
     # ---------------------------------------------------------------- Z
     # THE Z WAS ALREADY THE CLOSEST OF THE NINE (cap-aligned IoU 0.665 at round
