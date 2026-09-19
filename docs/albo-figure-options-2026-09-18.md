@@ -320,3 +320,130 @@ All PNG at native pixels, integer NEAREST where magnified.
   right instrument for "does the leg grey out at 13 px" and would sharpen the
   choice between roman `7b`, `7c` and `7d`; the arms were judged on rendered
   long numbers instead.
+
+---
+
+# Round 231 — four more italic 7s, e to h
+
+Owner, 2026-09-18: *"give me more options for the italic 7 that match the rest
+of the numerals and font's style."*
+
+`b`, `c` and `d` vary how far the shipped 7's own dials go. These four are
+different GESTURES, each lifted from a stroke that already ships elsewhere in
+these ten figures, so the 7 is made out of the family's own parts rather than
+tuned against it. `ALBO_FIG_7` now takes `a`–`h`; `a` is still the default and
+still byte-identical (470 glyphs, outlines and hmtx, against
+`r229_it/Albo-Italic.ttf`). Each arm moves exactly **three** glyphs — the 7 and
+its superscript and subscript — and the roman is untouched by all four.
+
+Built from a tree frozen at **0f15a72**, so every number below is comparable.
+
+| arm | what it changes | dial |
+|---|---|---|
+| **e** | the leg turns upright EARLIER and the press sits LOWER — the 6's tail turned over rather than a straight run with a bend at the end | `hold` 0.60→0.34, `rise` 0.55→0.62, `flare_t` 0.94→0.975 |
+| **f** | the bar takes a WRITTEN ENTRY at its left, as the 2's arc does, and the family's hanging wedge goes with it | `entry` 0.42, `entry_t` 0.33 |
+| **g** | the leg ends like the 9'S TAIL: runs out to 0.35 and ends on a face sheared −34°, no press | `leg_taper` 0.35, `flare` 1.0, `end_cut` −34 |
+| **h** | the BAR HEAVIER THAN THE LEG, at 1.30 | `bar_w` 2.05, `diag_w` 0.86 |
+
+Four new levers, all defaulting to the shipped constants: `hold`, `rise`
+(the two handles of round 212's upright curve), `flare_t` (where the press
+begins) and `end_cut` (the 9's sheared face), plus `entry`/`entry_t` on the bar.
+
+## The survey rows (`cmp_weight_survey`, fixed instrument, slant 13)
+
+`off%` is against the arm's own figure family median; `thin ÷ stroke` is round
+219's modulation measure; `bar/leg` is the ridge median of the top 12% of the
+glyph against its 45–85% band.
+
+| arm | stroke | off% | thin | thin÷str | cut | colour | col off% | bar/leg |
+|---|---|---|---|---|---|---|---|---|
+| a | 65.5 | +0% | 45.2 | 0.69 | 1.62 | 0.158 | −14% | 0.98 |
+| b | 63.2 | −2% | 40.6 | 0.64 | 2.00 | 0.169 | −9% | 0.89 |
+| c | 69.2 | +3% | 40.6 | 0.59 | 1.83 | 0.158 | −14% | 0.96 |
+| d | 76.8 | +14% | 42.0 | 0.55 | 2.04 | 0.178 | −6% | 0.97 |
+| **e** | **65.5** | **+0%** | 40.6 | 0.62 | 1.83 | 0.162 | −12% | 0.99 |
+| **f** | 67.7 | +2% | 45.2 | 0.67 | 1.70 | 0.154 | −16% | 1.05 |
+| **g** | 64.7 | −1% | **27.5** | **0.43** | **2.68** | 0.161 | −12% | 1.00 |
+| **h** | 58.7 | −9% | 38.4 | 0.65 | 2.29 | 0.160 | −13% | **1.30** |
+
+**e, f and g all hold round 212's weight match** (the 7 to the 6) within 2%.
+**g is the most modulated 7 the face has had** — 0.43 puts it beside the o
+(0.40) and the 6 (0.42), where round 219 shipped 0.83 and a reads 0.69 on the
+fixed instrument.
+
+## `cmp_seven_legibility`, 13 px and 17 px
+
+`legmin` is the darkest pixel in the weakest row of the leg (low = the leg greys
+out); `d1` is the 7's distance from the 1 at the same size (low = they converge).
+
+| arm | 13px legmin | mass | aper | d1 | 17px legmin | d1 | ink7/ink6 |
+|---|---|---|---|---|---|---|---|
+| a | 0.378 | 0.86 | 0.82 | 0.573 | 0.417 | 0.598 | 0.653 |
+| b | 0.386 | 0.93 | 0.85 | 0.568 | 0.390 | 0.591 | 0.707 |
+| c | 0.410 | 0.93 | 0.79 | 0.600 | 0.417 | 0.622 | 0.689 |
+| d | 0.406 | 0.98 | 0.81 | 0.565 | 0.412 | 0.585 | 0.754 |
+| **e** | 0.362 | 0.85 | 0.82 | **0.522** | 0.391 | **0.544** | 0.653 |
+| **f** | 0.378 | 0.86 | 0.75 | **0.599** | 0.417 | 0.618 | 0.642 |
+| **g** | **0.274** | 0.80 | 0.82 | 0.567 | 0.341 | 0.578 | 0.626 |
+| **h** | 0.330 | 0.73 | 0.84 | **0.520** | 0.361 | 0.547 | 0.630 |
+
+**Two costs the pictures confirm.** `e` and `h` have the lowest `d1` of the
+eight — the 7 and the 1 converge, and at 13 px in `1977` they are the two arms
+where the 1 and the 7s read most alike; `e` because its leg is a long upright
+arc and `h` because its leg is light. `g`'s `legmin` 0.274 is the weakest leg in
+the set: in `0123456789` at 13 px its 7 is the palest mark on the row. `f` has
+the best `d1` and costs nothing anywhere — its entry is simply invisible below
+about 20 px.
+
+## Gates
+
+Re-verified before commit on a clean worktree at **0eced05** (the agent built
+at 0f15a72): with the change in, both styles' defaults are byte-identical to
+the shipping builds — 470 glyphs, outlines, hmtx and kern, roman and italic —
+and each of `e`–`h` moves exactly `seven`, `uni2077` and `uni2087`;
+`ALBO_FIG_7=e` on a ROMAN build changes nothing. Per arm, re-run:
+`cmp_aldine_glitch --ttf` 0 of 119 and `cmp_touch` 0 touching, 0 under the
+floor.
+
+Every arm: `cmp_aldine_glitch --ttf` **0 of 119**; the 290-glyph sweep reports
+the control's own **13** pre-existing findings, not one added; `cmp_touch`
+**0 touching, 0 below the 0.012 em floor** of 5,201 pairs; `cmp_figure_space
+--body` **1.31×**, the control's number exactly. The roman build is identical
+to the control under all four.
+
+## Rejected, with the measurement
+
+* **A bar LIGHTER than the leg** — the brief's own idea, *"the reverse contrast
+  of the roman 7, checked against Flanker's and Poetica's italic 7s"*. **The
+  check refutes it.** Bar ÷ leg in the references: Coelacanth it **1.85**,
+  Poetica **1.64**, Georgia it **1.55**, Pagella it **1.38**, Flanker it
+  **1.14** — every one of them draws the bar heavier. Albo's italic already
+  sits at **0.98**, at the parity end of that range and past all of them. Built
+  at `bar 1.30 / diag 1.45` (ratio 0.72) and rejected on the measurement rather
+  than on taste. Option `h` goes the other way instead.
+* **Taking `h` further, to Georgia's 1.55 or Coelacanth's 1.85.** The ratio and
+  round 212's weight match cannot both be had on this skeleton: 1.65/1.02 →
+  0.98 at +0% of the figure family; 2.05/0.86 → **1.30 at −9%**; 2.20/0.82 →
+  1.42 at −13%; 2.05/0.78 → 1.43 at −17%; 2.20/0.74 → 1.59 at −22%. `h` stops
+  at the last point that is still recognisably the family's weight.
+
+## Two rulings deliberately set aside, and which arm does it
+
+Both are stated on the sheet so the choice is made with them in view.
+
+* **`f` drops the bar's hanging wedge.** The guide's wedge table gives the 7 a
+  wedge at the bar's left end. A bracket on a stroke already tapering to nothing
+  is the finial the owner ruled out on the s (round 209) and on the 1's flag
+  (round 217), so a written entry and that wedge cannot both stand.
+* **`g` drops the pressed foot** — round 215, *"212 wins but needs serif on
+  end"*. The 9's answer to the same question was the opposite: take the serif
+  off and shear the face (round 195, *"remove bottom side of serif in 9"*).
+  Offered because the 7 and the 9 are the style's two long descending tails and
+  today they end differently; the two rulings cannot both be true on one foot.
+
+## The sheet
+
+`it_7.png` (all eight arms at a 300 px x-height, labelled and captioned),
+`it_7_runs_13px_x6.png` and `it_7_runs_40px.png` (`1977`, `7,777`,
+`77 the 7th of 7`, `0123456789` in each of the eight). PNG at native pixels,
+integer NEAREST where magnified.

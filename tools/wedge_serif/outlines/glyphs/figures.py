@@ -381,9 +381,16 @@ FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 def OPT(d):
     """Which option this build draws for digit `d`. Env first, then the
     per-style shipped default. Unknown letters fall back to 'a' rather than
-    raising, so a typo in a sheet script cannot silently build a third thing."""
+    raising, so a typo in a sheet script cannot silently build a third thing.
+
+    a-h. Round 229 gave every digit a-d; round 231 added e-h to the ITALIC 7
+    alone (owner: *"give me more options for the italic 7 that match the rest
+    of the numerals and font's style"*). A letter with no row in a digit's
+    table resolves to an empty override, which IS that digit's option 'a' --
+    so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
+    for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in ('a', 'b', 'c', 'd') else 'a'
+    return o if o in ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -921,10 +928,76 @@ SEVEN_OPT = {
     'd': dict(bar_w=1.48, diag_w=0.98, bar_mod=0.68,
               leg_taper=0.70, leg_from=0.60, curve=0.0, flare=1.0),
 }
+# ROUND 231 -- FOUR MORE ITALIC 7s, e TO h. Owner 2026-09-18: *"give me more
+# options for the italic 7 that match the rest of the numerals and font's
+# style."* b, c and d vary HOW FAR the shipped 7's own dials go; these four are
+# different GESTURES, each taken from a stroke that already ships elsewhere in
+# these ten figures, so the 7 is made out of the family's own parts rather than
+# tuned against it.
+#
+# WHAT THE OTHER NINE ACTUALLY DO, measured on the shipped italic and quoted
+# here because that is what "match the rest of the numerals" means:
+#   the 6's tail   a pen stroke running out to 0.12 of its width at the tip,
+#                  with a floor of 0.55 S under the pen (round 64's ruling)
+#   the 2's base   the figure's mass at the bottom, the bar at 1.22 of the
+#                  bar weight, and its ARC entering thin at the top left
+#   the 9's tail   runs out to 0.35 and ends on a face sheared -34 degrees
+#                  (NINE_TAIL_END, NINE_END_CUT -- round 195, the owner's
+#                  *"remove bottom side of serif in 9"*)
+#   the 1's foot   a brushed PRESS, not a slab: the stroke thins and the pen
+#                  spreads as it lands (round 215)
+#
+#   (e) THE LEG TURNS UPRIGHT EARLIER, AND THE PRESS SITS LOWER. Round 212's
+#       curve holds the diagonal's own line for 0.60 of the chord and only
+#       then bends; this holds it for 0.34, so the foot is the 6's tail turned
+#       over -- a long arc rather than a straight run with a bend at the end --
+#       and the press moves from 0.94 to 0.975 of the run so it happens ON the
+#       line. Both of the owner's foot rulings are kept: the foot is still
+#       vertical (round 212) and it is still a press and not a serif (215).
+#   (f) THE BAR TAKES A WRITTEN ENTRY. Its left end starts at 0.42 of its
+#       depth and swells to full over the first third, as the 2's arc does,
+#       and the family's hanging wedge goes with it -- a bracket on a stroke
+#       already tapering to nothing is the finial ruled out on the s (209) and
+#       on the 1's flag (217). **This is the one arm that sets aside a ruling**:
+#       the guide's wedge table gives the 7 a wedge at the bar's left. Nothing
+#       else moves.
+#   (g) THE LEG ENDS LIKE THE 9'S TAIL. Runs out to 0.35 instead of 0.58 and
+#       ends on a face sheared -34 degrees, which is NINE_END_CUT exactly.
+#       **This one sets aside round 215's press** (*"212 wins but needs serif
+#       on end"*) and says so: the 9's answer to the same question was to take
+#       the serif OFF and shear the face, and the two cannot both be true on
+#       one foot. Offered because the 7 and the 9 are the style's two long
+#       descending tails and today they end differently.
+#   (h) THE BAR IS HEAVIER THAN THE LEG, which is what every reference does
+#       and Albo's italic uniquely does not. Measured (`seven_ratio.py`, the
+#       ridge median of the top 12% of the glyph against the 45-85% band):
+#       Coelacanth it **1.85**, Poetica **1.64**, Georgia it **1.55**, Pagella
+#       it **1.38**, Flanker it **1.14** -- and Albo's italic **0.98**, a bar
+#       very slightly LIGHTER than its own leg. This arm puts it at **1.30**,
+#       inside the Flanker-to-Pagella end of that band.
+#       IT STOPS THERE BECAUSE THE RATIO AND ROUND 212'S WEIGHT MATCH CANNOT
+#       BOTH BE HAD. Laddered (bar/diag -> bar/leg, and the 7's stroke against
+#       its own figure family): 1.65/1.02 -> 0.98 at **+0%**; 2.05/0.86 ->
+#       **1.30 at -9%**; 2.05/0.78 -> 1.43 at -17%; 2.20/0.82 -> 1.42 at -13%;
+#       2.20/0.74 -> 1.59 at -22%. Coelacanth's 1.85 is not reachable on this
+#       skeleton at anything like the family's weight. Same shape of trade as
+#       round 215's (the legibility measure preferred E and the contrast
+#       ruling won); recorded rather than split the difference silently.
+#       **THE BRIEF'S OWN IDEA WAS THE OTHER WAY** (*"a lighter bar with a
+#       heavier leg ... checked against Flanker's and Poetica's italic 7s"*)
+#       and the check refutes it: no reference italic 7 draws a bar lighter
+#       than its leg, and Albo already sits at the parity end of the range.
+#       Built as `ALBO_FIG_7_BAR=1.30 ALBO_FIG_7_DIAG=1.45` (ratio 0.72) and
+#       rejected on that measurement, not on taste; the number is in the
+#       report so nobody re-proposes it.
 SEVEN_OPT_IT = {
     'b': dict(bar_w=1.80, diag_w=1.18, bar_mod=0.42, leg_from=0.45, leg_taper=0.52),
     'c': dict(bar_w=1.55, diag_w=1.05, bar_mod=0.72, leg_from=0.68, leg_taper=0.66),
     'd': dict(bar_w=1.95, diag_w=1.18),
+    'e': dict(hold=0.34, rise=0.62, flare_t=0.975),
+    'f': dict(entry=0.42, entry_t=0.33),
+    'g': dict(leg_taper=0.35, flare=1.0, end_cut=-34.0),
+    'h': dict(bar_w=2.05, diag_w=0.86),
 }
 
 @glyph('7')
@@ -990,6 +1063,16 @@ def g_seven(c):
     _legfrom = _o7.get('leg_from', SEVEN_TAIL_FROM)
     _curve = _o7.get('curve', SEVEN_TAIL_CURVE if pen.ITALIC else 0.0)
     _flare = _o7.get('flare', SEVEN_FOOT_FLARE if pen.ITALIC else 1.0)
+    # ROUND 231's new levers, all four defaulting to the shipped constants so
+    # options a-d are untouched. `hold` / `rise` are the two handles of the
+    # curve that takes the leg upright (round 212), so an arm can turn it
+    # EARLIER; `flare_t` is where along the run the press begins, so an arm can
+    # put the spread LOWER; `end_cut` shears the leg's end face the way the
+    # italic 9's tail is sheared (NINE_END_CUT, round 195).
+    _hold = _o7.get('hold', SEVEN_TAIL_HOLD)
+    _rise = _o7.get('rise', SEVEN_TAIL_RISE)
+    _flare_t = _o7.get('flare_t', SEVEN_FOOT_FLARE_T)
+    _endcut = _o7.get('end_cut', 0.0)
     if _leg:
         # the lower stroke runs out downward the way the 6's tail runs out
         # upward: a pen stroke on the same line, held to its width until
@@ -1001,28 +1084,45 @@ def g_seven(c):
             # tail does not have, and past 1.55 it read as a defect rather
             # than a stroke. The stroke thins MONOTONICALLY as it always did;
             # the serif is only the last few percent, where the pen presses.
-            _t = (SEVEN_FOOT_FLARE_T - _legfrom) / max(1e-6, 1.0 - _legfrom)
+            _t = (_flare_t - _legfrom) / max(1e-6, 1.0 - _legfrom)
             _w = 1.0 + (_leg - 1.0) * min(1.0, max(0.0, _t))
             prof = widths([(0.0, 1.0), (_legfrom, 1.0),
-                           (SEVEN_FOOT_FLARE_T, _w),
+                           (_flare_t, _w),
                            (1.0, _w * _flare)])
         else:
             prof = widths([(0.0, 1.0), (_legfrom, 1.0), (1.0, _leg)])
         if _curve:
             _L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
-            c1 = (p0[0] + (p1[0] - p0[0]) * SEVEN_TAIL_HOLD,
-                  p0[1] + (p1[1] - p0[1]) * SEVEN_TAIL_HOLD)
+            c1 = (p0[0] + (p1[0] - p0[0]) * _hold,
+                  p0[1] + (p1[1] - p0[1]) * _hold)
             c2 = (p1[0] + (p0[0] - p1[0]) * (1 - _curve) * 0.30,
-                  p1[1] + _L * SEVEN_TAIL_RISE * _curve)   # straight above the foot
+                  p1[1] + _L * _rise * _curve)   # straight above the foot
             path = cubic(p0, c1, c2, p1)
         else:
             path = [p0, p1]
-        diag = stroke(path, lambda u: wd * prof(u))
+        diag = stroke(path, lambda u: wd * prof(u),
+                      cut1=(math.radians(_endcut) if _endcut else None))
     else:
         diag = diagonal(p0, p1, wd)
-    _bp = widths([(0.0, 1.0), (1.0, _mod)]) if _mod != 1.0 else None
+    # THE BAR'S LEFT END. `a` plants the family's hanging wedge there (the
+    # guide's wedge table gives the 7 a wedge at the left and nothing at the
+    # right). An arm may instead give it a WRITTEN ENTRY -- the pen landing
+    # light and pressing in, which is what the 2's arc does at its top and
+    # what every entry stroke in this italic does -- and then the wedge MUST
+    # go: a bracket on the end of a stroke that is already thinning to nothing
+    # is the finial the owner ruled out on the s in round 209 and on the 1's
+    # flag in round 217. `entry` is the bar's width at its left end over its
+    # width at the mitre; `entry_t` is how far along the bar it reaches full.
+    _entry = _o7.get('entry', 1.0)
+    _entry_t = _o7.get('entry_t', 0.30)
+    if _entry != 1.0:
+        _bp = widths([(0.0, _entry), (_entry_t, 1.0), (1.0, _mod)])
+        _wedges = []
+    else:
+        _bp = widths([(0.0, 1.0), (1.0, _mod)]) if _mod != 1.0 else None
+        _wedges = [('left', -1)]
     return geom.ink([bar(0, x1, D, barw, align='top', cut1=mitre,
-                         wedges=[('left', -1)], prof=_bp), diag])
+                         wedges=_wedges, prof=_bp), diag])
 
 # ============================== THE 8'S OPTIONS ==========================
 # TWO FAULTS, AND THE FIRST ONE IS A RULING, so it is offered and not shipped.
