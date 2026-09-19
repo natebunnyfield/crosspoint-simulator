@@ -388,10 +388,11 @@ def _currency_bar(g, n=1, vertical=True, span=1.22, counter=False):
     once the wall carries the bold's weight: round 269 put the bold
     italic's c on the axis (wall 69 -> 96) and the cent's bar sank into it
     (adversarial review, 2026-09-19: the daylight between bar and wall,
-    3,094 units^2, gone). Above stem 84 only, so the 400s are as drawn."""
+    3,094 units^2, gone). Above stem 84 first; at every weight since the
+    owner's ruling of 2026-09-19 on the cent page ("center it at the 400s too")."""
     x0, y0, x1, y1 = g.bounds; parts = [g]
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    if counter and S > 84.0:
+    if counter:   # round 276: at every weight -- owner 2026-09-19, on the cent page: "center it at the 400s too"
         from shapely.geometry import LineString as _LS
         _row = g.intersection(_LS([(x0 - 10, cy), (x1 + 10, cy)]))
         _segs = list(_row.geoms) if _row.geom_type == 'MultiLineString' else ([_row] if not _row.is_empty else [])

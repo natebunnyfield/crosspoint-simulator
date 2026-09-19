@@ -222,6 +222,10 @@ teardrop end in `aldine.py` -- as round 276, after rounds 274 and 275 land,
 reusing the roman round's helper. The c's top as drawn (`ALBO_ROM_C_TOP` a)
 is the model, per the owner's "a works".
 
+**Ruling 2026-09-19 (owner, on the cent page): the cent's bar is centered on
+the c's counter at every weight**, the 400s included -- `symbols._currency_bar(counter=True)`
+ungated (round 276).
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
