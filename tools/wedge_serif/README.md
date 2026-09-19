@@ -214,6 +214,14 @@ contact sheet of the reader's own raster (the 400's weight is judged there).
 The deploy itself is the owner's: it needs his GUI Terminal for codesign.
 The full checklist is section 14 of `docs/albo-family-2026-09-19.md`.
 
+**Queued 2026-09-19 (owner, on the cent page: "that italic has round
+finials that needs to replaced along with others"):** the ITALIC's round
+finials go the way of the roman's (round 275, `docs/albo-finials-2026-09-19.md`)
+-- the italic c's top (its beak's ball), the r's ball, and every other ball or
+teardrop end in `aldine.py` -- as round 276, after rounds 274 and 275 land,
+reusing the roman round's helper. The c's top as drawn (`ALBO_ROM_C_TOP` a)
+is the model, per the owner's "a works".
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
