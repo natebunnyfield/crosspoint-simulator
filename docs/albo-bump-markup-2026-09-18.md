@@ -65,63 +65,63 @@ italic H K L N P R T Y b h l are, and it is NOT the hand table round 231 zeroed
 
 | id | glyph | region | my reading (correct me) | owner's write-up |
 |---|---|---|---|---|
-| R01 | `A` | left leg at the crossbar | no notch found at 6 px/unit: crossbar top/bottom meet the thin leg cleanly; thin leg straight. UNEXPLAINED -- say what you see | |
-| R02 | `B` | lower bowl meets the foot | bowl bottom edge rises 2.3 units over its last 30 units before the stem: the ring is past its tangent point when it reaches the stem (half_bowl); wants a flat from the stem to the tangent | |
-| R03 | `D` | bowl meets the foot | same as R02, 3 units | |
-| R04 | `G` | arc terminal (19) | the beak: a 2-unit jog on the cut face and a needle tip -- the arc thins to a point where the cut face meets the inner edge | |
-| R05 | `G` | the bar | a keystone: both ends pen-cut the same way so the bar is 180 wide at its underside and 145 at its top; overhangs the spur 69 left / 22 right; underside sits on the spur with two steps | |
-| R06 | `K` | arm and leg meet the stem (36/37) | arm: a 4-unit triangular notch where its lower edge meets the stem 7 units below the stem-edge turn; leg: its cut end pokes 8 units above its own upper edge (a spur) at the stem | |
-| R07 | `L` | inside corner (40) | the stem right edge kinks 2.3 units outward over the last 100 units above the arm -- the entasis flare meets the arm as an angle, not a bracket | |
-| R08 | `M` | top-left crown (48) | the crown wedge top edge ends 4.5 units below the diagonal flat top: a step at x 124 | |
-| R09 | `M` | top of the right stem | the thin diagonal cut end stands 10 units above the cap line as a spike (the documented flat_face fix is not in the code -- reverted with round 81) | |
-| R10 | `M` | middle vertex | two cut end faces cross: a notch between them and the thin stroke corner pokes 8 units right; the bottom spans 15 units of height (-13 to +2). Same missing fix as R09 | |
-| R11 | `N` | top-left of the right stem | a bare square corner: top=right gives that stem a serif on the right only; the H right stem has both | |
-| R12 | `Q` | tail (58 + its length) | tail leaves the bowl bottom-left and runs under it with a thin white sliver between (the notch at 58); its edges are 11-unit facets along a 700-unit stroke | |
-| R13 | `R` | bowl/leg junction (63) | a 7-unit tooth stands up from the counter floor where the bowl lower stroke end face crosses the stem edge; the leg top edge meets the bowl underside with a notch (63) | |
-| R14 | `S` | top terminal (64) | a 6-unit Z-kink on the outer edge two thirds down the terminal (two pieces of spine overlap), a 3-unit zig on the cut face, and a needle tip: the last 12 units taper to nothing | |
-| R15 | `U` | left stem into the bowl | the bowl outer edge bulges 4 units left of the stem line where the ring starts (its leftmost point is not on the stem edge): a knee | |
-| R16 | `W` | middle apex (81/78) | jagged crown: a spur left at 629, peaks at 686 and 692 with a dip at 678 between, and a step on the right; the documented flat_face/crotch_blunt fix is not in the code | |
-| R17 | `a` | shoulder | the arch outer curve meets the stem right edge at ~40 degrees off vertical with a 3-unit ledge: a corner on the shoulder | |
-| R18 | `c` | upper terminal (100) | a needle: the inner edge runs vertical for the last 12 units and meets a 102-unit straight cut face at 20 degrees; a 2-unit jog on the cut face | |
-| R19 | `e` | lower stroke / terminal (104) | the counter floor steps up 4 units at x 257 where the tail stroke takes over from the ring; the terminal tip beyond | |
-| R20 | `f` | hook leaves the stem | the hook outer curve starts 6.7 units inside the stem left edge at y 634: a step | |
-| R21 | `f` | bar, left end | plain rectangle end, 41 units past the stem, square | |
-| R22 | `f` | bar, right end | square end 106 units past the stem; one level bar (403-447) | |
-| R23 | `h` | arch inner edge (114) | a 10-unit jog on the counter top at (241,401): the shoulder stroke inner edge and the arch inner edge do not meet | |
-| R24 | `i` | the dot | an 11-gon (dot() at DOT_STYLE 1: 12-1 sides), asymmetric | |
-| R25 | `j` | the dot | same 11-gon | |
-| R26 | `j` | tail (118) | the tail outer edge starts 8 units inside the stem right edge at y -188: a step; the tip a 12-unit blunt face | |
-| R27 | `m` | first arch inner edge | class of R23: the arch inner edge jog where it springs | |
-| R28 | `m` | feet of the 2nd and 3rd stems (133/135/131) | the 0.66-xh stems feet under the arches | |
-| R29 | `n` | arch inner edge | class of R23 | |
-| R30 | `n` | right stem foot (143) | the foot under the arch | |
-| R31 | `r` | stem, right side, top to bottom | the arm leaves the stem; the trap notch at 0.52 xh; the foot | |
-| R32 | `v` | vertex (162) | two cut end faces meeting at the baseline, class of R10 | |
-| R33 | `w` | top-left serif to first apex | class of R08: the crown wedge on a diagonal top | |
-| R34 | `1` | flag (189) | the flag stroke | |
-| R35 | `1` | feet (186/187) | — | |
-| R36 | `2` | spine | the diagonal from the bowl to the base | |
-| R37 | `2` | base, left end (190/191) | — | |
-| R38 | `3` | waist | where the two bowls meet at the left | |
-| R39 | `4` | apex (194) | diagonal meets the stem at the top | |
-| R40 | `4` | bar, left end (197) | — | |
-| R41 | `6` | top terminal (200) | — | |
-| R42 | `8` | the whole 8 | — | |
-| R43 | `9` | right side into the tail (206) | class of R15: bowl to tail | |
-| R44 | `.` | the dot | 11-gon (R24) | |
-| R45 | `,` | head and tail (207) | 11-gon head; the tail stroke | |
-| R46 | `:` | both dots | 11-gons | |
-| R47 | `;` | dot and comma (208) | 11-gons; the tail | |
-| R48 | `!` | the dot | 11-gon | |
-| R49 | `?` | terminal | — | |
-| R50 | `?` | the dot | 11-gon | |
-| R51 | `'` | the mark (209) | a straight stroke with one pen cut | |
-| R52 | `"` | both marks and the line between (210/211) | — | |
-| R53 | `-` | the hyphen | a plain bar, square ends | |
-| R54 | `&` | upper loop | — | |
-| R55 | `&` | right leg / terminal (212) | — | |
-| R56 | `&` | bottom-left foot | — | |
-| R57 | `@` | inner a / tail end (213) | — | |
+| R01 | `A` | left leg at the crossbar | no notch found at 6 px/unit: crossbar top/bottom meet the thin leg cleanly; thin leg straight. UNEXPLAINED -- say what you see |the outside edge is slightly funky and distracting |
+| R02 | `B` | lower bowl meets the foot | bowl bottom edge rises 2.3 units over its last 30 units before the stem: the ring is past its tangent point when it reaches the stem (half_bowl); wants a flat from the stem to the tangent |straighten, no fracture |
+| R03 | `D` | bowl meets the foot | same as R02, 3 units |straighten |
+| R04 | `G` | arc terminal (19) | the beak: a 2-unit jog on the cut face and a needle tip -- the arc thins to a point where the cut face meets the inner edge |make it one cohesive serif, not overlapping |
+| R05 | `G` | the bar | a keystone: both ends pen-cut the same way so the bar is 180 wide at its underside and 145 at its top; overhangs the spur 69 left / 22 right; underside sits on the spur with two steps |give me other options with more calligraphic treatment |
+| R06 | `K` | arm and leg meet the stem (36/37) | arm: a 4-unit triangular notch where its lower edge meets the stem 7 units below the stem-edge turn; leg: its cut end pokes 8 units above its own upper edge (a spur) at the stem |I did not highlight this |
+| R07 | `L` | inside corner (40) | the stem right edge kinks 2.3 units outward over the last 100 units above the arm -- the entasis flare meets the arm as an angle, not a bracket |use the same treatment as B D and other similar joints |
+| R08 | `M` | top-left crown (48) | the crown wedge top edge ends 4.5 units below the diagonal flat top: a step at x 124 |make cohesive and straightened |
+| R09 | `M` | top of the right stem | the thin diagonal cut end stands 10 units above the cap line as a spike (the documented flat_face fix is not in the code -- reverted with round 81) |make cohesive and straighten |
+| R10 | `M` | middle vertex | two cut end faces cross: a notch between them and the thin stroke corner pokes 8 units right; the bottom spans 15 units of height (-13 to +2). Same missing fix as R09 |remove small overlapping triangle on right |
+| R11 | `N` | top-left of the right stem | a bare square corner: top=right gives that stem a serif on the right only; the H right stem has both |add a microserif on left inside of top right stem |
+| R12 | `Q` | tail (58 + its length) | tail leaves the bowl bottom-left and runs under it with a thin white sliver between (the notch at 58); its edges are 11-unit facets along a 700-unit stroke |give me more options that are less distracting with the bulge placement and size |
+| R13 | `R` | bowl/leg junction (63) | a 7-unit tooth stands up from the counter floor where the bowl lower stroke end face crosses the stem edge; the leg top edge meets the bowl underside with a notch (63) |remove tooth from counter |
+| R14 | `S` | top terminal (64) | a 6-unit Z-kink on the outer edge two thirds down the terminal (two pieces of spine overlap), a 3-unit zig on the cut face, and a needle tip: the last 12 units taper to nothing |make cohesive and without any kink |
+| R15 | `U` | left stem into the bowl | the bowl outer edge bulges 4 units left of the stem line where the ring starts (its leftmost point is not on the stem edge): a knee |correct shitty joins |
+| R16 | `W` | middle apex (81/78) | jagged crown: a spur left at 629, peaks at 686 and 692 with a dip at 678 between, and a step on the right; the documented flat_face/crotch_blunt fix is not in the code |despur entirely |
+| R17 | `a` | shoulder | the arch outer curve meets the stem right edge at ~40 degrees off vertical with a 3-unit ledge: a corner on the shoulder |remove corner on shoulder, also give me an option that reduces visual imbalance in bottom right and options for a top left serif where the corner was |
+| R18 | `c` | upper terminal (100) | a needle: the inner edge runs vertical for the last 12 units and meets a 102-unit straight cut face at 20 degrees; a 2-unit jog on the cut face |despur |
+| R19 | `e` | lower stroke / terminal (104) | the counter floor steps up 4 units at x 257 where the tail stroke takes over from the ring; the terminal tip beyond |correct curve |
+| R20 | `f` | hook leaves the stem | the hook outer curve starts 6.7 units inside the stem left edge at y 634: a step |remove corners on both sides |
+| R21 | `f` | bar, left end | plain rectangle end, 41 units past the stem, square |give me options for slightly calligraphic treatments |
+| R22 | `f` | bar, right end | square end 106 units past the stem; one level bar (403-447) |give me options for slightly calligraphic treatments |
+| R23 | `h` | arch inner edge (114) | a 10-unit jog on the counter top at (241,401): the shoulder stroke inner edge and the arch inner edge do not meet |correct weird thin bending |
+| R24 | `i` | the dot | an 11-gon (dot() at DOT_STYLE 1: 12-1 sides), asymmetric |replace lines with more metal punch inspired treatment |
+| R25 | `j` | the dot | same 11-gon |same R24 |
+| R26 | `j` | tail (118) | the tail outer edge starts 8 units inside the stem right edge at y -188: a step; the tip a 12-unit blunt face |remove corner from bottom right (outside of what you highlighted, but within what I highlighted) |
+| R27 | `m` | first arch inner edge | class of R23: the arch inner edge jog where it springs |I did not highlight this, I wanted to slightly reduce the weight of the joins |
+| R28 | `m` | feet of the 2nd and 3rd stems (133/135/131) | the 0.66-xh stems feet under the arches |reduce the interior serifs slightly and give me options for the middle stem |
+| R29 | `n` | arch inner edge | class of R23 |same as R27 |
+| R30 | `n` | right stem foot (143) | the foot under the arch |same as R26 |
+| R31 | `r` | stem, right side, top to bottom | the arm leaves the stem; the trap notch at 0.52 xh; the foot |THIS IS NOT WHAT I HIGHLIGHTED. remove burr on right side of stem, give me options for thinning out the right side for word image legibility |
+| R32 | `v` | vertex (162) | two cut end faces meeting at the baseline, class of R10 |THIS IS NOT WHAT I HIGHLIGHTED. improve the heavy join. |
+| R33 | `w` | top-left serif to first apex | class of R08: the crown wedge on a diagonal top |correct join to be without corners and overlapping bullshit |
+| R34 | `1` | flag (189) | the flag stroke |remove errant flick |
+| R35 | `1` | feet (186/187) | — |give me options for improved 1 |
+| R36 | `2` | spine | the diagonal from the bowl to the base |NOT HIGHLIGHTED. give me options for improving the diagonal and join in bottom left |
+| R37 | `2` | base, left end (190/191) | — |same as R36 |
+| R38 | `3` | waist | where the two bowls meet at the left |NOT WHAT I HIGHLIGHTED. redo middle stem |
+| R39 | `4` | apex (194) | diagonal meets the stem at the top |correct bad join in counter where I highlighted, not what you highlighted |
+| R40 | `4` | bar, left end (197) | — |correct bad join on middle left, not what you highlighted |
+| R41 | `6` | top terminal (200) | — |correct end of tail and give me options to choose from |
+| R42 | `8` | the whole 8 | — |redo entire character to match the rest, give me options |
+| R43 | `9` | right side into the tail (206) | class of R15: bowl to tail |NOT WHAT I HIGHLIGHTED. redo bottom and middle right side of loop. treat the inside join. too. |
+| R44 | `.` | the dot | 11-gon (R24) |same R24 |
+| R45 | `,` | head and tail (207) | 11-gon head; the tail stroke |same R24 |
+| R46 | `:` | both dots | 11-gons |same R24 |
+| R47 | `;` | dot and comma (208) | 11-gons; the tail |same R24 |
+| R48 | `!` | the dot | 11-gon |same R24 |
+| R49 | `?` | terminal | — |fix stray corner in bottom right of stroke, fix bad bulge on left |
+| R50 | `?` | the dot | 11-gon |same R24 |
+| R51 | `'` | the mark (209) | a straight stroke with one pen cut |give me calligraphic options |
+| R52 | `"` | both marks and the line between (210/211) | — |same R51 |
+| R53 | `-` | the hyphen | a plain bar, square ends |same R51 |
+| R54 | `&` | upper loop | — |give me options that fix the unattractive lumpy and droopiness |
+| R55 | `&` | right leg / terminal (212) | — |R54 |
+| R56 | `&` | bottom-left foot | — |R54 |
+| R57 | `@` | inner a / tail end (213) | — |NOT WHAT I HIGHLIGHTED. fix overthickness in middle, right of interior strokes |
 
 ## Italic
 
@@ -254,6 +254,10 @@ italic H K L N P R T Y b h l are, and it is NOT the hand table round 231 zeroed
 | I125 | `?` | the dot | — | |
 | I126 | `&` | right leg / terminal | — | |
 | I127 | `&` | bottom-left | — | |
+
+## The owner's roman write-up, 2026-09-18 -- what it says about the index
+
+Ten of the 57 boxes were NOT what he marked (R06, R27, R29, R31, R32, R36, R38, R39, R40, R43, R57 -- his words on each row); the eye-read coordinates put the box on the nearest feature rather than his. His text names the real target in each case and the fix goes by his text, not the box. Fourteen rows ask for OPTIONS (G bar, Q tail, a, f bar, m middle stem, r, 1, 2, 6, 8, quotes, hyphen, &), the rest are direct fixes.
 
 ## Unresolved by the geometry
 
