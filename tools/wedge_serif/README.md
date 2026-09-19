@@ -226,6 +226,14 @@ is the model, per the owner's "a works".
 the c's counter at every weight**, the 400s included -- `symbols._currency_bar(counter=True)`
 ungated (round 276).
 
+**Ruling 2026-09-19 (owner, on the bold-serifs ladder: "b wins"): the wedge
+serif is the 400's at every weight above the 400** -- length 52.3, depth 104.6,
+drop 17.2, the numbers `pen.WL / WD / DROP` give at stem 66.9 -- instead of
+scaling with the stem (1.73x at the 700, 2.2x at the 900). Both styles, since
+the italic's wedges take the same three numbers. Lands as round 277, applied
+in `pen.py` once round 274 (the bold italic's junctions) releases the tree;
+the 200 keeps its stem-scaled wedge (not asked).
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
