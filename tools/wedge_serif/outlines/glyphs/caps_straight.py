@@ -1079,21 +1079,36 @@ S_CROWN = float(os.environ.get("ALBO_ROM_S_CROWN", 1.5))    # units the crown an
 # needs no new number -- `bowl_th` IS the round family's definition, imported
 # rather than restated.
 S_BOWL = float(os.environ.get("ALBO_ROM_S_BOWL", 0.5))
-S_BEAK_TIP = float(os.environ.get("ALBO_ROM_S_BEAK_TIP", 12.0))   # round 237: units of the terminal's point cut off square; 0 is round 235      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
+S_BEAK_TIP = float(os.environ.get("ALBO_ROM_S_BEAK_TIP", 12.0))
+S_BAL = os.environ.get("ALBO_ROM_S_BAL", "a")   # round 242: a | b | c | d | e, see g_S; a is today byte for byte
+if S_BAL not in ("a", "b", "c", "d", "e"): S_BAL = "a"   # round 237: units of the terminal's point cut off square; 0 is round 235      # 0 = the raw pen (round 223), 1 = the round family's own bowl profile
 
 @glyph('S')
 def g_S(c):
     C = c["cap"]; w = W_(c, 'S', 440); o = OVER - TH_H / 2; st = CS
-    spine = catmull([(w * 0.93, C * 0.80), (w * 0.62, C + o * 0.9 - S_CROWN), (w * 0.18, C * 0.86), (w * 0.2, C * 0.6),
-                     (w * 0.8, C * 0.42), (w * 0.84, C * 0.16), (w * 0.42, -o * 0.9 + S_CROWN), (w * 0.04, C * 0.22)], tension=0.55)
+    # ROUND 242 -- OPTIONS. Owner 2026-09-18: "rebalance S so the bottom is
+    # optically balanced [with] the top (give me options)". Measured on the
+    # spine: the top bowl spans 0.18-0.93 of the width and 0.40 of the cap,
+    # the bottom 0.04-0.84 and 0.42, and the bottom stroke carries S_BOT 0.16
+    # extra and a 1.30 flare at its end. ALBO_ROM_S_BAL picks; a is today.
+    #   b  the bottom bowl narrower: its right extreme 0.84 -> 0.80, the end 0.04 -> 0.07
+    #   c  the bottom stroke lighter: S_BOT 0.16 -> 0.08, the end flare 1.30 -> 1.15
+    #   d  b and c together
+    #   e  the TOP bowl bigger instead: start 0.93 -> 0.96, crown 0.62 -> 0.60, left 0.18 -> 0.15, waist 0.60 -> 0.58
+    sb = {'a': (0.84, 0.04, 0.16, S_BOTTOM_END, 0.93, 0.62, 0.18, 0.60), 'b': (0.80, 0.07, 0.16, S_BOTTOM_END, 0.93, 0.62, 0.18, 0.60),
+          'c': (0.84, 0.04, 0.08, 1.15, 0.93, 0.62, 0.18, 0.60), 'd': (0.80, 0.07, 0.08, 1.15, 0.93, 0.62, 0.18, 0.60),
+          'e': (0.84, 0.04, 0.16, S_BOTTOM_END, 0.96, 0.60, 0.15, 0.58)}[S_BAL]
+    bx, ex, s_bot, s_end, tx0, cx_, lx, wy = sb
+    spine = catmull([(w * tx0, C * 0.80), (w * cx_, C + o * 0.9 - S_CROWN), (w * lx, C * 0.86), (w * 0.2, C * wy),
+                     (w * 0.8, C * 0.42), (w * bx, C * 0.16), (w * 0.42, -o * 0.9 + S_CROWN), (w * ex, C * 0.22)], tension=0.55)
     base = pen_widths(spine)
     if S_BOWL != 0.0:
         _pen, _bowl = base, bowl_widths(spine)
         base = lambda t: _pen(t) * (1.0 - S_BOWL) + _bowl(t) * S_BOWL
     def wfn(t):
         mid = 1.0 - min(1.0, abs(t - 0.5) / 0.28); want = base(t) * (1 - mid) + st * S_SPINE * mid
-        bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + S_BOT * (3 * bot * bot - 2 * bot ** 3)
-        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, S_BOTTOM_END)])(t)
+        bot = max(0.0, 1 - abs(t - 0.74) / 0.22); want *= 1 + s_bot * (3 * bot * bot - 2 * bot ** 3)
+        return want * widths([(0.0, 1.3), (0.10, 1.0), (0.86, 1.0), (1.0, s_end)])(t)
     if PR.BOWL and PR.BOWL.get('widen'):
         wid = widen_terminal(widen_terminal(None, True), False)
         # `base`, not a second `pen_widths(spine)`: this branch kept its own
