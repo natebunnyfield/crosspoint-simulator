@@ -746,3 +746,20 @@ pixel columns at the reading size — its header records why it is a confirmatio
 and not a ladder: the count is phase-dependent, and averaged over phase it
 reduces to minimum white minus one pixel), `spacing_proof.py` (the proof
 sheets).
+
+### RULING — the tracking stands as it is (2026-09-19)
+
+Owner, asked whether to apply the measured whole-lowercase tracking move,
+build both arms for judging, or leave it: **"Leave the tracking alone."**
+
+So the round-258 spacing pass closes as a MEASUREMENT with no change. What
+that accepts, stated once so it is not re-litigated: the roman lowercase
+carries about 0.03 em of extra white on its STRAIGHT-sided pairs and not on
+its round ones — `nn` +31% of the eight reference regulars' median, `nb` +31%,
+`nh` +26%, `no` +19%, `oo` only +4% — which at 13 px is nearly one extra blank
+pixel column in every word, and is why *about* reads as "a bout", *capitals*
+as "capita ls", *the* as "t he" and *between* as "bet ween".
+
+The face's rhythm is CONSISTENT even where it is loose, and consistency is
+worth something. This is a ruling, not a deferral: the tracking stops
+appearing in triage, and the four words stay as they are.
