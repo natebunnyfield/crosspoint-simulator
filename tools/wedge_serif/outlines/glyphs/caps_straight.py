@@ -31,7 +31,8 @@ BEAK_CUT = -28.0
 # required the italic byte-identical, so the roman alone takes them. Each glyph's own comment carries his words, what was
 # wrong in units, what moved and what did not.
 FIX_ROM = not pen.ITALIC
-A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"   # round 236: the R01 clip is off, owner: "restore apex"
+A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"
+L_CORNER_CLIP = os.environ.get("ALBO_ROM_L_CORNER_CLIP", "0") == "1"   # round 239: off, the flare tucks in like the E's   # round 236: the R01 clip is off, owner: "restore apex"
 
 def _left_of(p, tn, ylo, yhi, reach=1500.0):
     """The half-plane LEFT of the line through p with direction tn, cut to
@@ -611,8 +612,15 @@ def g_L(c):
         # runs straight down into the arm's top and the corner is square. The
         # flare below the arm's top is inside the bar and stays; the left
         # side, the foot, the top wedges and the bar are untouched.
-        from shapely.geometry import box as _box
-        parts[0] = parts[0].difference(_box(x + CW / 2, CAP_BAR, x + CW / 2 + 40.0, C / 2))
+        # ROUND 239 -- THE FLARE COMES BACK. Owner 2026-09-18, on the round-235
+        # page: "R07 should tuck inside slightly like other interior corners
+        # do." The E's bottom inside corner carries exactly this flare (the
+        # stem's edge running 2 units toward the arm over its last 40, seen at
+        # 6 px/unit), so the square clip was the odd one out. L_CORNER_CLIP
+        # keeps round 235's cut for the record; the L is round 232's again.
+        if L_CORNER_CLIP:
+            from shapely.geometry import box as _box
+            parts[0] = parts[0].difference(_box(x + CW / 2, CAP_BAR, x + CW / 2 + 40.0, C / 2))
     return geom.ink(parts + [bar(x, x + w, 0, CAP_BAR, align='bottom', cut1=CUT, wedges=[('right', 1)])])   # round 94
 
 # owner, verbatim: "slightly cleanup the top and middle serifs of 'M'."
