@@ -287,6 +287,60 @@ measured" and "the median regular". The tool now takes the minimum ink height
 over `x z v w`. Declared metrics are no fallback either — Dante MT declares an
 `sxHeight` of 403 on a 2048-em body, a 5× error that looks entirely plausible.
 
+## 9. What a weight axis actually changes — Albo against 23 reference pairs
+
+Owner, 2026-09-19: *"so bold just increases the stroke widths without
+increasing the width as much, give me the numbers for regular (skip medium
+500) and bold changes to width, thickness, thinness, contrast, etc in albo and
+other reference fonts."*
+
+**The premise is true of the references and false of Albo.** That is the
+finding. Instrument: `tools/wedge_serif/cmp_weight_axis.py`, which imports
+`cmp_bold_stem`'s measures rather than re-implementing them. Albo's Regular is
+the 400 (`FJORD_STEM=66.9`), not the shipped Medium.
+
+**Bold ÷ regular, median across the families:**
+
+| | 12 upright references | 11 italic references | **Albo 66.9 → 116** | Albo italic |
+|---|---|---|---|---|
+| thickness (stem/xh) | **1.66×** (1.42–2.25) | 1.59× (1.43–2.50) | **1.69×** ✓ | 1.69× ✓ |
+| thinness (hair/xh) | 1.39× (1.11–2.66) | 1.31× (0.97–2.08) | **1.68×** high | 1.58× |
+| contrast (thick:thin) | 1.17× (0.85–1.53) | 1.22× (0.90–1.59) | **1.00×** flat | 1.07× |
+| **WIDTH (n advance/xh)** | **1.04×** (0.97–1.16) | 1.03× (0.97–1.40) | **1.30×** ✗ | 1.10× |
+| cap stem (cap/capH) | 1.68× (1.47–1.94) | 1.66× (1.45–1.87) | 1.76× ✓ | 1.81× ✓ |
+
+**The width is the anomaly, and it is the owner's own observation inverted.**
+A real bold buys almost no width — the median family widens its `n` by 4%
+while thickening its stem by 66%, and five of the twelve get *narrower*
+(Venetian 0.97, Van den Keere 0.98, Edgar 0.99). Albo widens **30%**. The
+cause is the face's own documented rule, `NW = n_width·WF + (S−110)·0.9`,
+which holds the n's counter constant as the stem grows; every reference lets
+the counter close instead. At 116 Albo's `n` advance is 1.70 x-heights where
+the widest reference bold is Baskerville's 1.51 and the median is 1.31.
+
+**Albo's contrast does not move at all, at any weight**, because the axis
+defines `hair = stem × (1 − CONTRAST)` and so preserves the ratio exactly.
+The references mostly *increase* contrast into the bold (Warbler 1.53×,
+Georgia 1.44×, Dante 1.43×), a few decrease it (Baskerville 0.85×).
+
+**And the absolute numbers say the roman is flat and light to begin with:**
+
+| | Albo Regular | reference regulars |
+|---|---|---|
+| thickness, stem/xh | **0.1495** | 0.144–0.207, median 0.181 |
+| thinness, hair/xh | **0.1134** | 0.058–0.118, median 0.081 |
+| contrast, thick:thin | **1.32:1** | 1.49–3.00:1, median 2.34:1 |
+
+Albo's Regular has the *second thickest hairline in the set* and nearly the
+thinnest stem, so its contrast is the lowest of the thirteen. The Aldine
+italic does not share this — it measures 2.11:1, inside the italic
+references' 1.36–2.94 — so this is the ROMAN's low contrast, not the face's,
+and it is pre-existing at every weight rather than anything the bold did.
+
+None of the three is fixed. They are design questions: whether the bold should
+buy less width, whether the roman's contrast should rise into the bold as most
+references do, and whether the roman's 1.32:1 is the intended colour.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
