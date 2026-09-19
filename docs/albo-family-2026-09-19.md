@@ -359,10 +359,18 @@ repo says today:
   the **400**, which is the class round 76 derived at stem 66.9 and which
   nothing in the repo currently builds. That is a rename and a re-anchor, not
   a redraw, and it needs its own ruling before anything moves.
-- **900 is the one rung with nothing measured behind it.** Its stem of 148 was
-  extrapolated, no serif family on this machine ships a 900, and it swept 8
-  glitch findings — the worst of the nine. It needs a real calibration the way
-  the 700 got one from the garalde bolds.
+- **900 — extrapolated, then MEASURED, and it holds.** Its stem of 148 was
+  extrapolated with nothing behind it. Measured 2026-09-19 on the families on
+  this machine that ship a black: Charter's black is 1.35× its bold and
+  Superclarendon's 1.25× (serif/slab median **1.30×**); Avenir Next 1.34× and
+  Gill Sans 1.45× (sans median 1.39×). Albo's 148 is **1.28× its 700**, which
+  at the serif median would be 151 — within 2%. So 148 stands, and this is a
+  negative result recorded so it is not re-derived: the black-over-bold step
+  is the right anchor because the 700 was itself calibrated; the black-over-
+  regular step (serif median 1.82× → 122) is not, because Albo's 400→700 step
+  already sits at the top of the reference band. Two serifs is a thin sample;
+  Iowan Old Style ships a Black too but its file was not where the script
+  looked, and it is the next family to add.
 
 ## 10. The nine-weight ladder, "Hamburg and wafflers."
 
