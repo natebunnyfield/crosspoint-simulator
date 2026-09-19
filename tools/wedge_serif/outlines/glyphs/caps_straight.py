@@ -31,6 +31,7 @@ BEAK_CUT = -28.0
 # required the italic byte-identical, so the roman alone takes them. Each glyph's own comment carries his words, what was
 # wrong in units, what moved and what did not.
 FIX_ROM = not pen.ITALIC
+A_APEX_CLIP = os.environ.get("ALBO_ROM_A_APEX_CLIP", "0") == "1"   # round 236: the R01 clip is off, owner: "restore apex"
 
 def _left_of(p, tn, ylo, yhi, reach=1500.0):
     """The half-plane LEFT of the line through p with direction tn, cut to
@@ -262,7 +263,12 @@ def g_A(c):
         # here, so the outside edge is one straight line from the bracket to
         # the apex face. Nothing else moves: both legs' widths, angles and
         # ends, the foot, the bar and the apex face are as they were.
-        right = right.difference(_left_of(Apt, tn, C * 0.6, C + 40.0))
+        # ROUND 236 -- RESTORED. Owner 2026-09-18, on the round-235 page: "R01
+        # restore apex." The clip took the thick leg's overhang off the apex,
+        # and that overhang is the apex he wants; the A is round 232's again,
+        # byte for byte. R01's "funky outside edge" stays open for his word.
+        if A_APEX_CLIP:
+            right = right.difference(_left_of(Apt, tn, C * 0.6, C + 40.0))
     b = stroke(line((w * 0.19, C * 0.28), (w * 0.81, C * 0.28)), CAP_BAR * 0.9)   # round 94: the capitals' bar unit
     return geom.ink([left, foot, right, b])
 
