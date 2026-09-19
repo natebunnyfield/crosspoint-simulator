@@ -919,6 +919,71 @@ words and a paragraph, before and after, at 13 px x8, 17 px x6 and 40 px x2
 nearest, the shipped Italic with the BoldItalic inline, and the five pairs'
 collision zones -- and its `index.html`.
 
+The page: https://claude.ai/artifact/1MKtph3thcXCwaAGNkiSeL
+
+## STANDING RULING — at the 700 and the 900, counters have no indentations
+
+Owner 2026-09-19, verbatim: *"for 700 and 900, counters should not have
+indentations in their counters."* Stated as geometry in `primitives.ring` and
+`ring_from`: above stem 84 a counter is its own convex hull, one Chaikin
+pass to round the chord ends, the outer untouched. `cmp_counter_dents.py` is
+the gate that measures it. The one designed exception is the ampersand's
+lower loop, which carries the same concavity at the 400 (737 units², 9
+deep) and is drawn that way; it stands at the 700 and the 900 until ruled
+otherwise.
+
+## 16. Round 270 — the counters at the heavy ends, and five kern top-ups
+
+**What was there.** Every bowl's counter in this face is the outer shape
+offset inward by the pen's width at each tangent. The width carries the
+stress — thick at the sides, thin at top and bottom — and at the 400 the
+swing is small enough that the counter stays a clean oval. At 116 and 148
+the thick sides push in 7–18 units further than the thin top and bottom,
+and the counter becomes an hourglass with a dent at 3 and at 9 o'clock.
+Measured as ink inside the counter's own convex hull, thicker than 6 units:
+
+| face | dents | glyphs | deepest | where |
+|---|---|---|---|---|
+| Regular 400 | 1 | 1 | 9.1 | the & (drawn so) |
+| Italic 400 | 1 | 1 | 13.7 | the 9's tail join (drawn so) |
+| Bold 700 | 9 | 5 | 12.5 | 8 g a @ & |
+| Bold Italic 700 | 3 | 2 | 15.5 | & o |
+| Black 900 | 17 | 8 | 18.2 | 8 g @ a o 6 & q |
+
+`ovalise` (round 204, the g's cure) was the same finding fixed for one
+letter; this is the ruling applied to every ring. After: one dent per face,
+the ampersand's, at every weight. The glyphs that moved at the 700 and the
+900, both styles: O Q a b d g o p q 0 6 8 9 % @ ¤ © ª ® and the ring accent
+— 57 outlines in the roman 700, 55 in the 900, 60 in the bold italic (the
+composites that reference a moved base count). At the wall's thickest the
+letter is lighter by the dent's depth — 12 units of a 148 stem on the 900's
+o — and nothing else moves.
+
+**What did NOT catch it.** The glitch sweep looks for holes narrower than a
+hairline and for cracks; a counter with a 12-unit dent is neither. A
+narrow-notch measure (white narrower than 16 units) was tried first and
+found only hairline slivers — the P's slot, the italic heads' brackets, the
+M's crotch — none of which is what a reader sees. The convex-hull measure
+is the one that found the thing on the page, and it is the tool that
+ships.
+
+**Five kern top-ups.** Round 269 put the bold italic's y, f, j and p on the
+weight axis, so their tails and the f's hook came back down against the q's
+foot: qy 0.0009 em, qf and qj 0.0049, qp 0.0114, f? 0.0111 — under the
+floor, none touching. Added to what the pairs carry, in round 268's gated
+block: qy +14, qf +10, qj +10, qp +3, f? +3. The bold italic's touch sweep
+reads 0 touching, 0 under the floor.
+
+**Byte identity.** Regular 400 and Italic 400: no counter moved (the gate is
+the stem), and the Italic's GPOS is unchanged; the Regular and the ExtraLight
+200 carry the M change that lands with round 271, nothing else. The roman 700 and 900 keep their round-267 touch
+counts (4/7/14 and 5/7/14).
+
+Proofs: `tools/wedge_serif/shape/weights270/` — the dented letters before
+and after at 0.40 px/unit for the roman 700, the roman 900 and the bold
+italic, and runs at 13 and 40 px; the page
+https://claude.ai/artifact/Fqs4aZzvSeu7ao7Do5fmQL
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -936,3 +1001,4 @@ collision zones -- and its `index.html`.
 - Round 269: the hm letters (a's stem, b d h i l m n p q r u, the heads, exits, arches and dots), the o, e, s, the italic figures and every capital except R Y K were already on the weight axis (700/400 stroke 1.62-1.93x) and were not touched. The capital O's `keyed_ring` is on the axis through its own `unit`, which is why `wscale` is a call-site argument and not a change inside the helper.
 - Round 269: the a b d p q counters stay open at the 700 (131-177 wide at half the x-height); the g's bowl counter is 84-126 wide across the x-height and its loop's 140 at -0.30 xh (194 before).
 - Round 269: the five f-ligatures are not among the 58 glyphs that moved -- they are built from the roman f's parts and were already on the axis.
+- Round 270: after the convex counters, the dent detector reads one dent per face at every weight, the ampersand's; the bold italic's touch sweep is 0 / 0; glitch 0 at 700 / 900 / bold italic and the ruled β alone at the 400s and the 200.

@@ -321,6 +321,15 @@ if _ALD is not None and _ALD.ON:
                        ('m', 14), ('r', 14), ('n', 6), ('i', 5)):
             PAIRS[('q', _k)] = PAIRS.get(('q', _k), 0) + _v
         PAIRS[('R', 'one')] = PAIRS.get(('R', 'one'), 0) + 10
+        # ROUND 270 -- round 269 put the y's, f's and j's strokes on the
+        # weight axis (they had been the 400's widths at the 700), so their
+        # tails and hook came back down against the q's foot: qy 0.0009 em,
+        # qf and qj 0.0049, qp 0.0114, and the f's hook against the question
+        # mark 0.0111 -- under the floor, none touching. The same rule, the
+        # same block, added to what the pairs carry.
+        for _k, _v in (('y', 14), ('f', 10), ('j', 10), ('p', 3)):
+            PAIRS[('q', _k)] = PAIRS.get(('q', _k), 0) + _v
+        PAIRS[('f', 'question')] = PAIRS.get(('f', 'question'), 0) + 3
     # ------------------------------------------------------ round 216, italic
     # THE ITALIC FIGURES ARE NOW FITTED ON THEIR BODY rather than their reach
     # (FIG_BODY in outlines/build.py), which took roughly three quarters of

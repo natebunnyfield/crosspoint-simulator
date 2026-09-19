@@ -1,0 +1,50 @@
+<title>Albo Clean Counters</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child,th:last-child,td:last-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .note{border-left:3px solid var(--accent);padding-left:14px;color:var(--soft);}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Clean Counters</h1>
+    <p class="lede">Your ruling, <em>"for 700 and 900, counters should not have indentations in their counters,"</em> applied to every ring: above stem 84 a counter is its own convex hull, the outer untouched. Top row before, bottom row after. Native pixels, nearest-neighbour.</p>
+  </header>
+  <section><h2>The count</h2>
+    <div class="scroll"><table>
+      <tr><th>face</th><th>dents before</th><th>after</th><th>deepest before</th><th>what moved</th></tr>
+      <tr><td>Bold 700</td><td>9 in 5 glyphs</td><td class="ok">1 (the &amp;)</td><td>12.5</td><td>O Q a b d g o p q 0 6 8 9 % @ &curren; &copy; &ordf; and the ring</td></tr>
+      <tr><td>Black 900</td><td>17 in 8 glyphs</td><td class="ok">1 (the &amp;)</td><td>18.2</td><td>the same set</td></tr>
+      <tr><td>Bold Italic 700</td><td>3 in 2 glyphs</td><td class="ok">1 (the &amp;)</td><td>15.5</td><td>the same set, plus &reg;</td></tr>
+      <tr><td>Regular 400, Italic 400</td><td>1 each, drawn so</td><td>1 each</td><td>&mdash;</td><td class="ok">nothing &mdash; byte-identical</td></tr>
+    </table></div>
+    <p class="note">The ampersand&rsquo;s lower loop carries the same concavity at the 400 and is drawn that way; it is the one counter left with an indentation at the heavy ends. Say the word and it goes too.</p>
+  </section>
+  <section><h2>Roman 700</h2>
+    <figure><img src="r700-glyphs-1.png" alt="8 g a o at the 700, before and after"><figcaption>8 g a o at 0.40 px/unit</figcaption></figure>
+    <figure><img src="r700-glyphs-2.png" alt="6 q @ &amp; at the 700, before and after"><figcaption>6 q @ &amp; at 0.36 px/unit</figcaption></figure>
+    <figure><img src="r700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="r900-glyphs-1.png" alt="8 g a o at the 900, before and after"><figcaption>8 g a o at 0.40 px/unit</figcaption></figure>
+    <figure><img src="r900-glyphs-2.png" alt="6 q @ &amp; at the 900, before and after"><figcaption>6 q @ &amp; at 0.36 px/unit</figcaption></figure>
+    <figure><img src="r900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bi-glyphs-1.png" alt="8 g a o in the bold italic, before and after"><figcaption>8 g a o at 0.40 px/unit</figcaption></figure>
+    <figure><img src="bi-glyphs-2.png" alt="6 q @ &amp; in the bold italic, before and after"><figcaption>6 q @ &amp; at 0.36 px/unit</figcaption></figure>
+    <figure><img src="bi-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 40 px &times;2, lines alternate before / after</figcaption></figure>
+  </section>
+</div>

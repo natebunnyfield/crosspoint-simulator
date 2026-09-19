@@ -366,6 +366,37 @@ def bar(x0, x1, y, w, align="center", cut0=None, cut1=None, wedges=(), prof=None
     return geom.union(parts)
 
 # ---------------------------------------------------------------- rounds
+
+# ROUND 270 -- NO INDENTATIONS IN THE COUNTERS AT THE 700 AND THE 900. Owner
+# 2026-09-19, verbatim: "for 700 and 900, counters should not have
+# indentations in their counters." A ring's counter is the outer offset
+# inward by the pen's width at each tangent, and the width swings with the
+# stress: at the 400 the swing is small and the counter stays convex; at
+# 116 and 148 the thick sides push in 7-18 units further than the thin top
+# and bottom and the counter of an 8, g, o, 6, a, q or @ becomes an
+# hourglass, dented at 3 and 9 o'clock (`cmp_counter_dents.py` measures it;
+# the 400s read 0 dents, the 700 nine, the 900 seventeen). The cure is the
+# ruling stated as geometry: above stem 84 the counter is its own convex
+# hull, one Chaikin pass to round the chord ends, and nothing else moves --
+# the outer is untouched, so the ink that filled the dent is the only ink
+# that goes, and the wall at the dent thins by the dent's depth. At and
+# under 84 the counter is exactly the offset it always was, so the 200 and
+# the 400s are byte-identical. ALBO_COUNTER_CONVEX=0 turns it off.
+COUNTER_CONVEX = float(os.environ.get('ALBO_COUNTER_CONVEX', 1.0))
+
+def convex_counter(inner):
+    """The counter's convex hull, resampled and lightly smoothed, in the
+    input's winding."""
+    from shapely.geometry import Polygon as _P
+    hull = list(_P(inner).convex_hull.exterior.coords)[:-1]
+    if geom.signed_area(hull) * geom.signed_area(inner) < 0: hull = hull[::-1]
+    # start the hull at the point nearest the input's first point, so the
+    # caller's t = 0 stays where it was
+    i0 = min(range(len(hull)), key=lambda i: math.dist(hull[i], inner[0]))
+    hull = hull[i0:] + hull[:i0]
+    hull = smooth(hull, 1, closed=True)
+    return resample(hull + [hull[0]])[:-1]
+
 def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_smooth=2, a0=0.0, a1=2 * math.pi, con=1.0, stress=0.0, oval=0.0):
     """A full bowl: the OUTER is the designed superellipse (k = squareness);
     the COUNTER is its inward offset by the pen's width at each tangent
@@ -406,6 +437,8 @@ def ring(cx, cy, rx, ry, k=pen.BOWL_K, w_scale=1.0, floor=0.0, rot=0.0, counter_
     inner = _unfold(inner, tans)
     inner = smooth(inner, counter_smooth, closed=True)
     inner = resample(inner + [inner[0]])[:-1]
+    if S > 84.0 and COUNTER_CONVEX:      # round 270, see convex_counter
+        inner = convex_counter(inner)
     # `oval` PULLS THE COUNTER ONTO ITS OWN ELLIPSE -- round 204's cure for the
     # g's bowl, and the one thing that lets a ring carry real contrast. The
     # counter is the outer offset inward by the width, so a width that swings
@@ -526,6 +559,8 @@ def ring_from(outer, w_scale=1.0, floor=0.0, widths_fn=None, counter_smooth=2, p
     if post_inner: inner = [post_inner(p) for p in inner]
     inner = smooth(inner, counter_smooth, closed=True)
     inner = resample(inner + [inner[0]])[:-1]
+    if S > 84.0 and COUNTER_CONVEX:      # round 270, see convex_counter
+        inner = convex_counter(inner)
     return geom.poly(outer, [inner[::-1]]), outer, inner
 
 BOWL_HAIR, BOWL_MAX, BOWL_POW = 0.42, 1.18, 1.7    # round 57's D-family profile, fitted to Van den Keere's rays (kept for the record; the shipping font)
