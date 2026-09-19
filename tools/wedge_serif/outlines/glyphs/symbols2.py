@@ -72,6 +72,16 @@ def _fraction(c, num, den):
 glyph('¼')(lambda c: _fraction(c, '1', '4'))
 glyph('½')(lambda c: _fraction(c, '1', '2'))
 glyph('¾')(lambda c: _fraction(c, '3', '4'))
+# ROUND 260, owner 2026-09-19 ("all commonly needed ... characters"): the
+# THIRDS and the EIGHTH, built the same way from the same figures, so every
+# ruling on a digit reaches them too. A recipe book and a ruler both want them
+# and Albo carried only the quarters and the half.
+glyph('⅓')(lambda c: _fraction(c, '1', '3'))
+glyph('⅔')(lambda c: _fraction(c, '2', '3'))
+glyph('⅛')(lambda c: _fraction(c, '1', '8'))
+glyph('⅜')(lambda c: _fraction(c, '3', '8'))
+glyph('⅝')(lambda c: _fraction(c, '5', '8'))
+glyph('⅞')(lambda c: _fraction(c, '7', '8'))
 glyph('⁄')(lambda c: _s(line((0, -XH * 0.12), (XH * 0.44, XH * 1.02)), w=MATH * 0.95))   # fraction slash
 
 # ---------------------------------------------------------------- Greek
