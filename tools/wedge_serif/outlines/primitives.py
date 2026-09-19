@@ -742,6 +742,67 @@ def beak(pts, w, at_start=True, cut_deg=-28.0, lip=(0.4, 0.7)):
     A = (P0[0] - nrm[0] * w / 2, P0[1] - nrm[1] * w / 2)
     return wedge(A, d, (-nrm[0], -nrm[1]), WL * lip[0], WD * lip[1], 0.0)
 
+# ---------------------------------------------------------------- the c's top finial
+# ROUND 275 -- THE ROUND FINIALS TAKE THE c's TOP. Owner 2026-09-19: *"change
+# out round finials (like c top serif)"*, and on round 273's ladder of five
+# ends for that top: *"a works but my ask was about the round finials"* -- so
+# the c's top AS DRAWN is the model, and the ball and teardrop ends elsewhere
+# in the roman become it. That top (rounds.g_c, despurred in R18) is two
+# numbers and a face: the stroke SWELLS to 1.10 of the pen over its first 13%
+# and ends on a face sheared 28 degrees toward the vertical, no lip. What the
+# converted ends had been, measured on the built 400 and 700 before this: a
+# flare of 1.15-1.3 of the pen over the last 25-45% of the stroke into the
+# family's 20-degree pen cut (f r y a J), or a 1.1-1.25 flare into the same
+# cut (2 3 5) -- a long flare into a face lying ACROSS the stroke, which is
+# what read as a ball. These three are the ONE definition; a glyph composes
+# them and declares no swell, span or face of its own, so a later change is
+# one place. The c itself draws its top through them (rounds.g_c) and is
+# byte-identical to before.
+FINIAL_SWELL = 1.10   # the end's width, x the stroke's own width there
+FINIAL_SPAN = 0.13    # the swell rises over this fraction of the stroke's length
+FINIAL_CUT_DEG = 28.0 # the face, sheared this far toward the vertical
+def finial_widths(base, at_start, profile=None, floor=0.0, swell=FINIAL_SWELL, span=FINIAL_SPAN):
+    """The c's swell on one end of a width function: f(t) = base(t) *
+    profile(t), rising to `swell` x that over the end's `span` of the stroke
+    (the same smoothstep `widths()` interpolates with, so a profile declared
+    as [(0, 1.10), (0.13, 1.0), ...] and this compose to the same numbers).
+    `floor` is the least width the swelled end may have: a terminal on a
+    hairline (the y's tail runs out on the pen's thin) would otherwise swell
+    to 1.10 of nearly nothing, so it takes the swell that lands it on the
+    floor instead -- rounds.c_top_width() is the c's own end, the reference."""
+    bf = base if callable(base) else (lambda t: base)
+    pf = profile if callable(profile) else (lambda t: 1.0)
+    te = 0.0 if at_start else 1.0
+    w_end = bf(te) * pf(te)
+    sw = max(swell, floor / w_end) if (floor and w_end > 0) else swell
+    def f(t):
+        w = bf(t) * pf(t)
+        u = t if at_start else 1.0 - t
+        if u < span:
+            v = u / span
+            w = w * (sw + (1.0 - sw) * (3 * v * v - 2 * v * v * v))
+        return w
+    return f
+def finial_cut(pts, at_start, deg=FINIAL_CUT_DEG):
+    """The c's face on one end of a centerline: the signed cut, in stroke()'s
+    convention, that shears the end face `deg` toward the vertical. stroke()
+    shears by moving the left-of-travel corner forward and the right one back
+    (at the start; the reverse at the end), so the face after the cut runs
+    along n + tn tan(cut) at a start and n - tn tan(cut) at an end; the sign
+    is the one that leaves that face nearer the vertical. On the c's top,
+    which leaves its start heading up-left, this is -28 degrees, the number
+    g_c always carried. A stroke ending exactly horizontal has a face already
+    vertical and takes the negative shear (the c's) -- neither is nearer."""
+    tn = tangents(pts)[0 if at_start else -1]
+    n = (-tn[1], tn[0]); s = 1.0 if at_start else -1.0
+    best = None
+    for sign in (-1.0, 1.0):
+        tg = math.tan(math.radians(sign * deg))
+        fx, fy = n[0] + s * tn[0] * tg, n[1] + s * tn[1] * tg
+        off = abs(math.degrees(math.atan2(fy, fx)) % 180.0 - 90.0)
+        if best is None or off < best[0] - 1e-9: best = (off, sign)
+    return math.radians(best[1] * deg)
+
 DOT_STYLE = int(os.environ.get("FJORD_DOT_STYLE", 1))   # owner 2026-09-14: "dot style 1 wins"
 # ROUND 233 -- THE PUNCHED DOT. Owner 2026-09-18, on the bump markup, one line
 # for every dot in the roman (R24 i, R25 j, R44 . R45 , R46 : R47 ; R48 ! R50 ?):

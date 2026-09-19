@@ -242,8 +242,22 @@ def g_y(c):
     a = diagonal(p0, p1, w_left, serif0=1)
     tail = cubic((w - S * 0.4, xh), (w * 0.52, -desc * 0.55), (w * 0.44, -desc * 1.08), (w * 0.02, -desc * 0.95))
     # round 51: the pen's width along the tail x (0.72 rising to 1.0 by the middle), flaring 0.3 into the cut
-    wfn = pen_widths(tail, lambda t: (0.72 + 0.28 * min(1.0, t * 2)) * widths([(0.7, 1.0), (1.0, 1.3)])(t))
-    t = stroke(tail, wfn, cut1=CUT)
+    wfn = pen_widths(tail, lambda t: (0.72 + 0.28 * min(1.0, t * 2)) * widths([(0.7, 1.0), (1.0, 1.3)])(t)); tail_cut = CUT
+    if not pen.ITALIC:
+        # ROUND 275 -- THE TAIL'S END IS THE c's TOP FINIAL. Owner 2026-09-19:
+        # "change out round finials (like c top serif)." The tail flared 1.3
+        # over its last 30% into the 20-degree cut, a teardrop at the lower
+        # left -- 61.1 wide at the 400, 106.0 at the 700. It runs out heading
+        # left, on the pen's THIN (47.0 and 81.5 there), so 1.10 of that would
+        # be 15% under the c's own end; it takes the family's finial with the
+        # c's end width as its floor (rounds.c_top_width: 60.8 and 103.4), so
+        # the swell here is 1.29 of the pen rather than 1.10 -- the ball's
+        # weight kept, its shape and face changed. The face is sheared 28
+        # degrees toward the vertical, the upper (inner) corner forward.
+        from .rounds import c_top_width
+        from .. import primitives as PR
+        wfn = PR.finial_widths(pen_widths(tail, lambda t: 0.72 + 0.28 * min(1.0, t * 2)), False, floor=c_top_width()); tail_cut = PR.finial_cut(tail, False)
+    t = stroke(tail, wfn, cut1=tail_cut)
     return geom.ink([a, t, end_wedge(tail, wfn(0.0), True, -1)])
 
 @glyph('z')

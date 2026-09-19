@@ -1,0 +1,56 @@
+<title>Albo Finials Changed</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Finials Changed</h1>
+    <p class="lede">Round 275. Owner: &ldquo;change out round finials (like c top serif)&rdquo; and, on the round-273 ladder, &ldquo;a works but my ask was about the round finials.&rdquo; The c&rsquo;s top as drawn is the model: the stroke swells to 1.10 of the pen over its first 13% and ends on a face sheared 28 degrees toward the vertical, no lip. The seven flared-cut ends that read as balls (f r y a J, the 3&rsquo;s two ends, the 5&rsquo;s bowl end) now take that construction from one helper. The c is byte-identical. Every roman weight moved; the italic did not. Full account: docs/albo-finials-2026-09-19.md.</p>
+  </header>
+  <section><h2>Measured, design units, 400 / 700</h2>
+    <div class="scroll"><table>
+      <tr><th>terminal</th><th>was</th><th>end width before</th><th>end width after</th><th>face before</th><th>face after</th></tr>
+      <tr><td>c top (model)</td><td>swell 1.10 / 13%, -28 deg</td><td>60.8 / 103.4</td><td class="ok">60.8 / 103.4</td><td>-28</td><td class="ok">-28</td></tr>
+      <tr><td>f hook end</td><td>flare 1.2 / 30%, cut 20</td><td>79.9 / 138.6</td><td>73.3 / 127.1</td><td>+20</td><td>+28</td></tr>
+      <tr><td>r arm end</td><td>flare 1.15 / 45%, cut 20</td><td>66.8 / 106.3</td><td>63.9 / 101.6</td><td>+20</td><td>+28</td></tr>
+      <tr><td>y tail end</td><td>flare 1.3 / 30%, cut 20</td><td>61.1 / 106.0</td><td>60.8 / 103.4 (floored to the c)</td><td>+20</td><td>+28</td></tr>
+      <tr><td>a hood end</td><td>flare 1.12 / 25%, cut 20</td><td>66.4 / 97.3</td><td>65.2 / 95.6</td><td>+20</td><td>-28</td></tr>
+      <tr><td>J hook end</td><td>flare 1.3 / 35%, cut 20</td><td>80.8 / 143.9</td><td>68.3 / 121.2</td><td>+20</td><td>+28</td></tr>
+      <tr><td>3 top</td><td>swell 1.1 / 10%, cut 20</td><td>60.7 / 105.2</td><td>60.7 / 105.2</td><td>+20</td><td>+28</td></tr>
+      <tr><td>3 bottom</td><td>flare 1.25 / 15%, cut 20</td><td>83.1 / 144.3</td><td>73.1 / 127.0</td><td>+20</td><td>+28</td></tr>
+      <tr><td>5 bowl end</td><td>flare 1.25 / 15%, cut 20</td><td>82.8 / 144.0</td><td>72.9 / 126.7</td><td>+20</td><td>+28</td></tr>
+    </table></div>
+    <p>The face angle is stroke()&rsquo;s signed cut: 28 toward the vertical, the sign chosen per end by the helper (the a&rsquo;s hood heads down-left, so its sign is the c&rsquo;s). Left as they are, after rendering: the j&rsquo;s tail (a point), the g&rsquo;s ear (a bar on the cut, at its floor), the ?&rsquo;s hook start (a plain cut), the 2&rsquo;s top (a blunt cut; its swell was removed in round 249), the 6&rsquo;s top (thins to a cut), the 9&rsquo;s tail (a wedge), and every dot.</p>
+  </section>
+  <section><h2>Each converted letter</h2>
+    <figure><img src="glyph-c.png" alt="c before and after, 400 and 700"><figcaption>c -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the model, NOT changed: the swell to 1.10 over the first 13% and the -28 degree face (byte-identical in all four builds)</figcaption></figure>
+    <figure><img src="glyph-f.png" alt="f before and after, 400 and 700"><figcaption>f -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the hook: 1.2 flare over 30% into the 20 deg cut -> the finial; end 79.9 -> 73.3 (400), 138.6 -> 127.1 (700)</figcaption></figure>
+    <figure><img src="glyph-r.png" alt="r before and after, 400 and 700"><figcaption>r -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the arm: 1.15 flare over 45% -> the finial, near-vertical face; end 66.8 -> 63.9 (400), 106.3 -> 101.6 (700)</figcaption></figure>
+    <figure><img src="glyph-y.png" alt="y before and after, 400 and 700"><figcaption>y -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the tail: 1.3 flare over 30% -> the finial floored to the c's end (the tail runs on the pen's thin); end 61.1 -> 60.8 (400), 106.0 -> 103.4 (700)</figcaption></figure>
+    <figure><img src="glyph-a.png" alt="a before and after, 400 and 700"><figcaption>a -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the hood: 1.12 flare over 25% (a teardrop) -> the finial, lower corner forward; end 66.4 -> 65.2 (400), 97.3 -> 95.6 (700)</figcaption></figure>
+    <figure><img src="glyph-J.png" alt="J before and after, 400 and 700"><figcaption>J -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the hook: 1.3 flare over 35% -> the finial; end 80.8 -> 68.3 (400), 143.9 -> 121.2 (700). The top is the I's wedge and did not move</figcaption></figure>
+    <figure><img src="glyph-three.png" alt="3 before and after, 400 and 700"><figcaption>3 -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. top: 1.1 over 10% -> the finial (same end width, 60.7 / 105.2, span and face changed); bottom: 1.25 flare -> the finial, 83.1 -> 73.1 (400), 144.3 -> 127.0 (700)</figcaption></figure>
+    <figure><img src="glyph-five.png" alt="5 before and after, 400 and 700"><figcaption>5 -- 400 before, 400 after, 700 before, 700 after at 0.5 px/unit (font size 500 on a 1000 upm), native pixels. the bowl's end: 1.25 flare -> the finial, 82.8 -> 72.9 (400), 144.0 -> 126.7 (700). The top is a bar with its wedge and did not move</figcaption></figure>
+  </section>
+  <section><h2>Runs, all four roman weights</h2>
+    <figure><img src="runs-400.png" alt="runs 400"><figcaption>400: 13 px x8 NEAREST (three lines, each before then after) then 40 px x2 NEAREST (two lines, each before then after). "for a jury of gray fogs, 2359 &amp; 6 Jaffa fjords"</figcaption></figure>
+    <figure><img src="runs-700.png" alt="runs 700"><figcaption>700: 13 px x8 NEAREST (three lines, each before then after) then 40 px x2 NEAREST (two lines, each before then after). "for a jury of gray fogs, 2359 &amp; 6 Jaffa fjords"</figcaption></figure>
+    <figure><img src="runs-900.png" alt="runs 900"><figcaption>900: 13 px x8 NEAREST (three lines, each before then after) then 40 px x2 NEAREST (two lines, each before then after). "for a jury of gray fogs, 2359 &amp; 6 Jaffa fjords"</figcaption></figure>
+    <figure><img src="runs-200.png" alt="runs 200"><figcaption>200: 13 px x8 NEAREST (three lines, each before then after) then 40 px x2 NEAREST (two lines, each before then after). "for a jury of gray fogs, 2359 &amp; 6 Jaffa fjords"</figcaption></figure>
+  </section>
+</div>

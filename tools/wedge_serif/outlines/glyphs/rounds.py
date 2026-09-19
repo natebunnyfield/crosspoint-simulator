@@ -7,7 +7,7 @@ import math, os
 from . import glyph
 from .. import geom, pen
 from ..geom import superellipse, line, join, cubic
-from ..primitives import ring, stroke, pen_widths, widths, bar, beak, bowl_widths, widen_terminal, end_wedge
+from ..primitives import ring, stroke, pen_widths, widths, bar, beak, bowl_widths, widen_terminal, end_wedge, finial_widths, finial_cut
 from .. import primitives as PR
 from ..pen import S, XH, OVER, TH_V, TH_H, HAIR, CUT, BOWL_K, adj
 
@@ -89,9 +89,15 @@ def g_c(c):
         prof = widen_terminal(widen_terminal(None, True), False)
         solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=CUT, cut1=CUT); return solid
     top = 1.10 if adj('c') else 1.30   # round 92 (adj 'c'): both terminals heavy (band +15% Albertus) -- the top's swell 1.30 -> 1.10
-    prof = widths([(0.0, top), (0.13, 1.0), (0.82, 1.0), (1.0, 0.70)])
+    # ROUND 275: the top's swell and face are the family's finial primitives
+    # now (PR.finial_widths / PR.finial_cut, the c's own numbers moved there
+    # so the round finials elsewhere could take them); this composes to the
+    # same widths as widths([(0.0, 1.10), (0.13, 1.0), ...]) did, and the cut
+    # resolves to the -28 degrees the c always carried. Byte-identical.
+    prof = finial_widths(1.0, True, widths([(0.0, 1.0), (0.82, 1.0), (1.0, 0.70)]), swell=top)
+    c_cut = finial_cut(_c_center(c), True)
     if pen.ITALIC:
-        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT)
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT)
         lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
         return geom.ink([solid, lip])
     # R18, owner 2026-09-18, on the upper terminal: "despur." The spur was
@@ -118,10 +124,10 @@ def g_c(c):
     #   e  the beak with its lip: the capital C's terminal (the swell, the
     #      face, the 0.35 x 0.6 bracket wedge hanging into the aperture)
     if C_TOP == 'a':
-        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT, smooth=True)
         return geom.ink([solid])
     if C_TOP == 'e':
-        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=math.radians(-28), cut1=CUT, smooth=True)
+        solid, center = open_arc(c, C_RX * _IO, 40, 318, prof, cut0=c_cut, cut1=CUT, smooth=True)
         lip = beak(center, PR.bowl_th(geom.tangents(center)[0]) * top, True, -28.0, lip=(0.35, 0.6))
         return geom.ink([solid, lip])
     if C_TOP == 'c':
@@ -134,6 +140,20 @@ def g_c(c):
         return geom.ink([solid, end_wedge(center, w0, True, -1, 0.9)])
     return geom.ink([solid])
 C_TOP = os.environ.get("ALBO_ROM_C_TOP", "a")   # round 273, see g_c
+
+def _c_center(c):
+    """The c's centerline exactly as open_arc builds it for g_c (the roman
+    ring from 40 to 318 degrees) -- read for its start tangent only."""
+    xh = c["xh"]; wf = c["wf"]; rx = C_RX * _IO * wf
+    ry = xh / 2 + OVER - TH_H / 2; cx = rx + TH_V / 2; cy = xh / 2
+    return superellipse(cx, cy, rx, ry, math.radians(40), math.radians(318), BOWL_K)
+def c_top_width():
+    """ROUND 275: the c's top end width -- FINIAL_SWELL x the bowl pen at the
+    c's start tangent, from the c's own drawing (60.8 at the 400's stem of
+    66.9, 103.4 at the 700's 116; measured on the built c before this existed
+    and equal to it). The floor a finial on a thin stroke is held to: the
+    y's tail runs out on the pen's thin, and 1.10 of that is 15% under this."""
+    return PR.FINIAL_SWELL * PR.bowl_th(geom.tangents(_c_center(dict(xh=pen.XH, wf=pen.WF)))[0])
 
 E_DEG, E_BAR, E_TH, E_END = 5.0, 0.62, 0.72, 330   # the e's dials (rulings, rounds 39 + 46)
 # Round 109 (owner: "redo e for a steeper crossbar and less of a tail

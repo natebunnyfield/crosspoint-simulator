@@ -1175,3 +1175,4 @@ ear, C G S J, the ?, the figures' ends — each measured before it ships.
 - Round 271: the M's two tops read the same projection past their stems at all three roman weights; the ExtraLight 200 differs from round 267's build only in the M and the ™.
 - Round 272: with the ampersand's counters convex, `cmp_counter_dents.py` reads 0 dents in the Bold, the Black and the Bold Italic over its whole charset; the a's counter lower-right reads 93% / 98% white at 700 / 900 against 88% / 89% at its lower left; the M has 0 ink shards and 0 white slivers at 200 / 400 / 700 / 900.
 - Round 273: the italic u's right stem tops at 431 in both italics against the ı's 430; no other glyph moved but the u's composites and µ.
+- Round 275: the round finials of the roman changed out for the c's top end -- see docs/albo-finials-2026-09-19.md.

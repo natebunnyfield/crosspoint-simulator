@@ -157,12 +157,42 @@ def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_c
     end = hook_end or (x + r * 1.25, asc - r * 0.55); c2 = hook_c2 or (x + r * 0.9, asc + 8)
     hook = cubic((x, asc - r), (x, asc + 8), c2, end)
     prof = hook_profile or [(0.0, 1.0), (0.7, 1.0), (1.0, 1.2)]
+    hook_cut1 = CUT if hook_cut else None
+    # ROUND 275 -- THE HOOK'S END IS THE c's TOP FINIAL. Owner 2026-09-19:
+    # "change out round finials (like c top serif)." The hook flared to 1.2 of
+    # the pen over its last 30% into the family's 20-degree cut, a face lying
+    # across a stroke heading down-right -- measured 79.9 wide at the 400 and
+    # 138.6 at the 700, against the c's top of 60.8 and 103.4, and it read as
+    # a teardrop. Now the family's finial (PR.finial_widths / PR.finial_cut):
+    # the swell to 1.10 over the last 13%, the face sheared 28 degrees toward
+    # the vertical (73.3 and 127.1 wide). The standalone roman f only, with
+    # the flush hook: the ligatures re-aim the hook and pass their own
+    # profile with no cut, and keep round 42's drawing.
+    _finial = flush and hook_profile is None and hook_cut
+    if _finial:
+        # The face is sheared 28 degrees against the cut's 20, so its forward
+        # (inner, lower) corner would reach tan(28) x 1.10 / 2 - tan(20) x 1.2
+        # / 2 = 0.074 of the pen further down-right than round 42's did --
+        # 4.9 units at the 400, 8.6 at the 700 -- into the f-capital pairs
+        # that already sit at the touch floor: measured, fW touched at the 200
+        # (-0.0024 em) and fT fell under the floor at the 700 (0.0086). The
+        # hook's end retreats along its own tangent by that amount, so the
+        # forward corner lands where it always has and the pairs measure as
+        # they did; the hook is 0.074 of a pen shorter on its centerline.
+        F_FINIAL_RETREAT = (math.tan(math.radians(PR.FINIAL_CUT_DEG)) * PR.FINIAL_SWELL - math.tan(CUT) * 1.2) / 2
+        _ux, _uy = end[0] - c2[0], end[1] - c2[1]; _L = math.hypot(_ux, _uy) or 1.0
+        _pe = pen.PEN.th((_ux / _L, _uy / _L)) * F_FINIAL_RETREAT
+        end = (end[0] - _ux / _L * _pe, end[1] - _uy / _L * _pe)
+        hook = cubic((x, asc - r), (x, asc + 8), c2, end)
     if flush:
         f0 = PR.stem_width(TH_V, ENT, st_top / asc) / TH_V   # the hook's start tangent is vertical, so the pen there IS TH_V
         prof = [(0.0, f0), (0.25, 1.0)] + [k for k in prof if k[0] > 0.25]
+        if _finial: prof = [k for k in prof if k[0] < 1.0] + [(1.0, 1.0)]
     # flush also takes the arch's sawtooth fix (arches.smooth_widths, R23): the hook's edges carried the same 1-2 unit steps
     hw = smooth_widths(hook, pen.PEN.th, widths(prof)) if flush else pen_widths(hook, widths(prof))
-    hk = stroke(hook, hw, cut1=(CUT if hook_cut else None))
+    if _finial:
+        hw = PR.finial_widths(hw, False); hook_cut1 = PR.finial_cut(hook, False)
+    hk = stroke(hook, hw, cut1=hook_cut1)
     th = TH_H * 0.8
     b = f_bar(x, xh, wf, th, F_BAR if flush else 'a')
     return [st, hk, b] if parts else geom.ink([st, hk, b])
@@ -352,7 +382,7 @@ def g_a(c):
         tot = sum(math.hypot(hood[i + 1][0] - hood[i][0], hood[i + 1][1] - hood[i][1]) for i in range(len(hood) - 1))
         tv = xh * (top_f - start_f) / tot   # the run's share of the arc length
         under = cubic((x, xh * start_f), (x + A_UNDER_LEAN * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
-        under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.12)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
+        under0 = widths([(0.0, 0.85), (0.35, 0.92), (0.75, 1.0), (1.0, 1.0)]) if adj('a') else widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.0)])   # round 275: the 1.12 at the end is the finial's swell now (below)
     else:
         hood = cubic((x, xh * start_f), (x + lean * wf, xh * up), (x - 236 * wf, peak + 44), (x - 286 * wf, xh * 0.72))
         prof = widths([(0.0, 0.85), (0.22, 1.0), (0.75, 1.0), (1.0, 1.12)])
@@ -372,12 +402,24 @@ def g_a(c):
         return 1.0 if t <= _t0 else (_hf if t >= _t1 else 1.0 + (_hf - 1.0) * (t - _t0) / (_t1 - _t0))
     def _build(f0):
         if A_HOOD_FLUSH:
-            prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.12)])   # the stem's width held through the turn
+            prof0 = widths([(0.0, f0), (min(0.6, tv + 0.12), f0), (0.75, 1.0), (1.0, 1.0)])   # the stem's width held through the turn
             prof_ = lambda t: prof0(t) * A_HOOD_W * _ramp(t)   # round 94 (owner: "slightly reduce the top stroke of 'a'")
             under_prof = lambda t: under0(t) * A_HOOD_W * _ramp(t)   # round 92 (adj 'a'): the heaviest common letter (band +19% Albertus) -- the underside held light longer
-            hood_w_ = smooth_widths(hood, PR.bowl_th, prof_, floor=S * 0.5 * _hf)
-            hd_ = stroke(hood, hood_w_, cut1=CUT)
-            hd_ = geom.union([hd_, stroke(under, smooth_widths(under, PR.bowl_th, under_prof, floor=S * 0.5 * _hf), cut1=CUT)])
+            # ROUND 275 -- THE HOOD'S TERMINAL IS THE c's TOP FINIAL (owner:
+            # "change out round finials (like c top serif)"). It swelled to
+            # 1.12 over its last 25% into the 20-degree cut, "a teardrop not a
+            # flag" -- 66.4 wide at the 400, 97.3 at the 700, the cut leaving
+            # the OUTER (up-left) corner as the drop's point. Now the family's
+            # finial on both strokes that share this end (the hood and its
+            # underside end on one point at one width, so both must take it):
+            # the swell to 1.10 over the last 13% and the face sheared 28
+            # degrees toward the vertical, which on a stroke heading down-left
+            # leaves the inner corner forward, as the c's top does. 65.2 and
+            # 95.6 wide; no floor at the 700, where round 272 thinned this hood
+            # on purpose. PR.finial_widths / PR.finial_cut.
+            hood_w_ = PR.finial_widths(smooth_widths(hood, PR.bowl_th, prof_, floor=S * 0.5 * _hf), False)
+            hd_ = stroke(hood, hood_w_, cut1=PR.finial_cut(hood, False))
+            hd_ = geom.union([hd_, stroke(under, PR.finial_widths(smooth_widths(under, PR.bowl_th, under_prof, floor=S * 0.5 * _hf), False), cut1=PR.finial_cut(under, False))])
         else:
             prof_ = lambda t: prof(t) * _ramp(t)
             hood_w_ = PR.bowl_widths(hood, prof_, floor=S * 0.5 * _hf)
@@ -416,7 +458,7 @@ def g_a(c):
         # overrun the face.
         tn = geom.tangents(hood); d = tn[-1]; w_end = hood_w(1.0)
         sd = (d[1], -d[0])                     # right of travel = up-left here
-        P = hood[-1]; fwd = math.tan(CUT) * w_end / 2
+        P = hood[-1]; fwd = math.tan(PR.finial_cut(hood, False) if A_HOOD_FLUSH else CUT) * w_end / 2   # round 275: the flush hood's face is the finial's cut, and the wedge seats on the corner that cut leaves
         A = (P[0] + sd[0] * w_end / 2 + d[0] * fwd, P[1] + sd[1] * w_end / 2 + d[1] * fwd)
         hd = geom.union([hd, PR.diag_wedge(A, d, sd, A_TERM_WEDGE[A_OPT])])
     # the bowl's OUTER path (ccw): from inside the stem at 0.60 xh, a round

@@ -927,8 +927,18 @@ def g_three(c):
         # ('a') lands exactly where the old tip stood and the arm keeps its reach
         T = ((top[-1][0] + bot[0][0]) / 2 - THREE_WAIST_FLAT, (top[-1][1] + bot[0][1]) / 2)
         top2 = resample(top + [T]); bot2 = resample([T] + bot)
-        t = stroke(top2, pen_widths(top2, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (0.955, 0.45), (1.0, 0.04)])), cut0=CUT)
-        b = stroke(bot2, pen_widths(bot2, widths([(0.0, 0.04), (0.04, 0.45), (0.1, 1.0), (0.85, 1.0), (1.0, 1.25)])), cut1=CUT)
+        # ROUND 275 -- BOTH FREE ENDS ARE THE c's TOP FINIAL (owner 2026-09-19:
+        # "change out round finials (like c top serif)"). The top swelled 1.1
+        # over its first 10% and the bottom flared 1.25 over its last 15%,
+        # both into the 20-degree cut. Now PR.finial_widths / PR.finial_cut:
+        # the swell to 1.10 over 13% and the face sheared 28 degrees toward
+        # the vertical; the bottom end is held to the c's own end width
+        # (rounds.c_top_width) so the lower terminal does not go lighter than
+        # the letter it is modelled on. Roman only by construction (the
+        # italic's 3 cannot select this waist).
+        from .rounds import c_top_width
+        t = stroke(top2, PR.finial_widths(pen_widths(top2, widths([(0.0, 1.0), (0.88, 1.0), (0.955, 0.45), (1.0, 0.04)])), True), cut0=PR.finial_cut(top2, True))
+        b = stroke(bot2, PR.finial_widths(pen_widths(bot2, widths([(0.0, 0.04), (0.04, 0.45), (0.1, 1.0), (1.0, 1.0)])), False, floor=c_top_width()), cut1=PR.finial_cut(bot2, False))
         g = geom.ink([t, b])
         if mode == 'point': return g
         Xc = T[0] + THREE_WAIST_FLAT
@@ -942,12 +952,18 @@ def g_three(c):
                 under = _edge_from(g, A, +1)
                 g = geom.ink([g, wedge(A, (-1, 0), (0, -1), WL * 0.35, WD * 0.45, 0.0, edge_at=_walk_back(under))])
         return g
-    t = stroke(top, pen_widths(top, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (1.0, 0.4)])), cut0=CUT)
+    if pen.ITALIC:
+        t = stroke(top, pen_widths(top, widths([(0.0, 1.1), (0.1, 1.0), (0.88, 1.0), (1.0, 0.4)])), cut0=CUT)
+    else:   # round 275: the roman's free ends are the c's top finial (see the beak waist above)
+        t = stroke(top, PR.finial_widths(pen_widths(top, widths([(0.0, 1.0), (0.88, 1.0), (1.0, 0.4)])), True), cut0=PR.finial_cut(top, True))
     if pen.ITALIC and THREE_TAIL_END:      # runs out like the 6's tail
         b = stroke(bot, pen_widths(bot, widths([(0.0, 0.4), (0.1, 1.0), (0.70, 1.0),
                                                 (1.0, THREE_TAIL_END)])))
-    else:
+    elif pen.ITALIC:
         b = stroke(bot, pen_widths(bot, widths([(0.0, 0.4), (0.1, 1.0), (0.85, 1.0), (1.0, 1.25)])), cut1=CUT)
+    else:
+        from .rounds import c_top_width
+        b = stroke(bot, PR.finial_widths(pen_widths(bot, widths([(0.0, 0.4), (0.1, 1.0), (1.0, 1.0)])), False, floor=c_top_width()), cut1=PR.finial_cut(bot, False))
     return geom.ink([t, b])
 
 def _vruns(g, x):
@@ -1172,8 +1188,17 @@ def g_five(c):
     if pen.ITALIC and FIVE_TAIL_END:
         bw = stroke(bowl, pen_widths(bowl, widths([(0.0, 0.45), (0.12, 1.0), (0.70, 1.0),
                                                    (1.0, FIVE_TAIL_END)])))
-    else:
+    elif pen.ITALIC:
         bw = stroke(bowl, pen_widths(bowl, widths([(0.0, 0.45), (0.12, 1.0), (0.85, 1.0), (1.0, 1.25)])), cut1=CUT)
+    else:
+        # ROUND 275 -- THE BOWL'S END IS THE c's TOP FINIAL (owner 2026-09-19:
+        # "change out round finials (like c top serif)"). It flared 1.25 over
+        # its last 15% into the 20-degree cut. Now PR.finial_widths /
+        # PR.finial_cut, held to the c's own end width (rounds.c_top_width)
+        # as the 3's lower end is. The top is a bar with a hanging wedge and
+        # is not a finial.
+        from .rounds import c_top_width
+        bw = stroke(bowl, PR.finial_widths(pen_widths(bowl, widths([(0.0, 0.45), (0.12, 1.0), (1.0, 1.0)])), False, floor=c_top_width()), cut1=PR.finial_cut(bowl, False))
     # the top ends FIVE_TOP_INSET from the bowl's rightmost ink (round 63 ran
     # it NINE_OVERHANG past; before that it ended 0.95 w, 72 units inside);
     # the square end and the hanging wedge's apex both sit at x1, so x1 is

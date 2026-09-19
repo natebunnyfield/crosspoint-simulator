@@ -259,8 +259,20 @@ def g_r(c):
     base = (smooth_widths(center, pen.PEN.th, floor=S * r_floor) if not pen.ITALIC   # the arch's sawtooth fix (smooth_widths, R23), the same lookup on this arm
             else pen_widths(center, floor=S * r_floor))
     prof = widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, 1.05)]) if r_on else widths([(0.0, 0.5), (0.35, 1.0), (0.55, 1.0), (1.0, r_flare)])
-    wfn = lambda t: base(t) * prof(t)
-    arm = stroke(center, wfn, cut1=CUT)
+    wfn = lambda t: base(t) * prof(t); arm_cut = CUT
+    if not pen.ITALIC:
+        # ROUND 275 -- THE ARM'S END IS THE c's TOP FINIAL. Owner 2026-09-19:
+        # "change out round finials (like c top serif)." R31's option c flared
+        # the arm 1.15 over its last 45% into the 20-degree cut -- 66.8 wide
+        # at the 400, 106.3 at the 700, a knob on the arm's tip. Now the
+        # family's finial (PR.finial_widths / PR.finial_cut): the swell to
+        # 1.10 over the last 13% (63.9 and 101.7, against the c's own 60.8
+        # and 103.4 -- no floor needed) and the face sheared 28 degrees toward
+        # the vertical, which on this arm is a near-vertical face with the
+        # lower corner forward. The floor (0.60 S) and the reach are R31's.
+        prof = widths([(0.0, 0.5), (0.35, 1.0), (1.0, 1.0)])
+        wfn = PR.finial_widths(base, False, prof); arm_cut = PR.finial_cut(center, False)
+    arm = stroke(center, wfn, cut1=arm_cut)
     # (a family end wedge was tried on the arm's tip and stood up like a horn -- the plain cut it is)
     if pen.ITALIC:
         xl = stem_edge_x(x0, TH_V, ENT, 0.52 * xh, 0, xh, +1)
