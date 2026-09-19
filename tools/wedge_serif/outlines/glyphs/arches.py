@@ -183,7 +183,7 @@ M_INNER_FOOT = 0.85   # the interior feet, length AND depth x this (the wedge ke
 #   b  one foot only, the LEFT (the side the reading eye reaches first)
 #   c  no foot: the stem ends square on the baseline
 #   d  both feet, shorter still: 0.60 of the family's
-M_MID = os.environ.get("ALBO_ROM_M_MID", "a")
+M_MID = os.environ.get("ALBO_ROM_M_MID", "d")   # round 247: d ships -- owner 2026-09-18, "ALBO_ROM_M_MID d wins" (both middle feet at 0.60)
 if M_MID not in ("a", "b", "c", "d"): M_MID = "a"   # review 2026-09-18: an unknown letter drew a KeyError, not today's m
 def _footed(x, top, xh, left_k, right_k):
     """A 0.66-xh stem under an arch with feet of two different sizes (None = no
