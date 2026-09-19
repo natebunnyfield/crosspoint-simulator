@@ -25,7 +25,7 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.recordingPen import RecordingPen
 
 GLYPHS = list(string.ascii_uppercase) + list(string.ascii_lowercase) + list("0123456789") + list(".,;:!?'\"-&@()")
-KINK, CORNER, WAVE, MERGE = 9.0, 38.0, 7.0, 48.0     # degrees, degrees, degrees, units (MERGE: one circle per 48 units of a wavy edge)
+KINK, CORNER, WAVE, MERGE = 9.0, 38.0, 7.0, 30.0     # MERGE: units between two circles
 
 
 def contours(ttf, ch, f=None):
@@ -50,67 +50,55 @@ def contours(ttf, ch, f=None):
     return polys
 
 
-def bumps(polys):
+def bumps(polys, r=12.0, min_area=70.0, max_extent=80.0):
     """[(x, y, kind, value)] in design units.
 
-    The first cut marked every vertex whose turn jolted by 9 degrees -- which
-    is every facet of every bowl at 11-unit spacing (1,623 circles on the
-    roman), not a bump. A bump is a DEVIATION FROM THE LOCAL TREND: each
-    vertex is compared with a Gaussian average of its neighbours over +-WIN
-    vertices; where the outline is a smooth arc that average lies a fraction
-    of a unit inside it (a facet is not a bump), where the edge waves it lies
-    off by units. Local maxima of that deviation over DEV units are circled;
-    corners (turn over CORNER) and their two neighbours are excluded, because
-    smoothing across a designed corner invents a deviation. Kinks over KINK
-    degrees that are not corners are circled too."""
+    RECALIBRATED 2026-09-18, on the owner's W. Three detectors circled the
+    edges' sub-unit waviness -- facets, then bowls, then diagonals (563 on the
+    roman, 40 of them on the W's flanks) -- and he called it a complete miss:
+    *"each end of the W strokes have errors ... I'm looking for big optical
+    glitches."* Those are FEATURES of the ink, not deviations of an edge: a
+    notch at a junction, a tab or spur standing off a terminal, a step where
+    two pieces of a stroke did not meet. They are all things smaller than the
+    pen. So the ink is compared with itself at the pen's scale: a CLOSING
+    (dilate r, erode r) fills every concavity narrower than 2r -- what it
+    adds is a NOTCH; an OPENING (erode r, dilate r) removes every protrusion
+    thinner than 2r -- what it removes is a SPUR. A region is reported when
+    it is bigger than a sliver (min_area) and smaller than a feature of the
+    letter (max_extent): the crotch of a V fills a sliver and a hairline
+    stroke is longer than max_extent, and neither is circled."""
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    rings = [Polygon(P) for P in polys if len(P) > 3]
+    rings = [g.buffer(0) for g in rings if g.is_valid or True]
+    if not rings: return []
+    # even-odd: the glyph is the symmetric difference of its rings
+    shape = rings[0]
+    for g in rings[1:]: shape = shape.symmetric_difference(g)
+    shape = shape.buffer(0)
+    if shape.is_empty: return []
+    closing = shape.buffer(r, join_style=1).buffer(-r, join_style=1)
+    opening = shape.buffer(-r, join_style=1).buffer(r, join_style=1)
     hits = []
-    WIN, DEV, KINKD = 6, 1.2, 20.0
-    # The moving-average residual of the second cut was wrong on tight curves:
-    # the average of an arc's neighbours lies INSIDE the arc by its sagitta,
-    # six units at the o's ends, so every bowl lit up (1,504 circles). The
-    # trend is a CIRCLE fitted to the +-WIN neighbours (Kasa's algebraic fit)
-    # and the residual is the vertex's distance from that circle -- zero on a
-    # true arc of any radius, units on a wave.
-    def circle_resid(Q, i):
-        idx = [(i + k) % len(Q) for k in range(-WIN, WIN + 1) if k != 0]
-        X = Q[idx]; x, y = X[:, 0], X[:, 1]
-        M = np.column_stack([x, y, np.ones_like(x)]); b = -(x * x + y * y)
-        try: (D, E, F), *_ = np.linalg.lstsq(M, b, rcond=None)
-        except Exception: return 0.0
-        cx, cy = -D / 2, -E / 2; r2 = cx * cx + cy * cy - F
-        if r2 <= 0: return 0.0
-        r = math.sqrt(r2)
-        if r > 4000: # a straight run: distance from the fitted line instead
-            u = X[-1] - X[0]; L = math.hypot(*u) or 1.0; v = Q[i] - X[0]
-            return abs(u[0] * v[1] - u[1] * v[0]) / L
-        return abs(math.hypot(Q[i][0] - cx, Q[i][1] - cy) - r)
-    for P in polys:
-        A = np.array(P, float); n = len(A)
-        if n < 2 * WIN + 4: continue
-        d = np.roll(A, -1, axis=0) - A; seg = np.hypot(d[:, 0], d[:, 1])
-        ang = np.degrees(np.arctan2(d[:, 1], d[:, 0]))
-        turn = np.roll((np.roll(ang, -1) - ang + 180) % 360 - 180, 1)
-        corner = np.abs(turn) > CORNER
-        near_corner = corner.copy()
-        for k in range(1, WIN + 1): near_corner |= np.roll(corner, k) | np.roll(corner, -k)
-        dev = np.array([0.0 if near_corner[i] else circle_resid(A, i) for i in range(n)])
-        for i in range(n):
-            if near_corner[i] or seg[i] < 0.5 or seg[i - 1] < 0.5: continue
-            if dev[i] > DEV and dev[i] >= dev[i - 1] and dev[i] >= dev[(i + 1) % n]:
-                hits.append((float(A[i, 0]), float(A[i, 1]), 'wave', float(dev[i])))
-            elif abs(turn[i]) > KINKD and not corner[i]:
-                hits.append((float(A[i, 0]), float(A[i, 1]), 'kink', float(abs(turn[i]))))
+    for diff, kind in ((closing.difference(shape), 'notch'), (shape.difference(opening), 'spur')):
+        parts = list(diff.geoms) if hasattr(diff, 'geoms') else [diff]
+        for g in parts:
+            if g.is_empty or g.area < min_area: continue
+            x0, y0, x1, y1 = g.bounds
+            if max(x1 - x0, y1 - y0) > max_extent: continue
+            c = g.centroid
+            hits.append((float(c.x), float(c.y), kind, float(g.area)))
     hits.sort(key=lambda h: -h[3]); out = []
     for h in hits:
         if all(math.hypot(h[0]-o[0], h[1]-o[1]) > MERGE for o in out): out.append(h)
     return out
 
 
-def sheet(ttf, out_png, out_index, label, per_row=8, cap_px=300):
+def sheet(ttf, out_png, out_index, label, per_row=6, cap_px=300):
     f = TTFont(ttf); upm = f['head'].unitsPerEm
     cap = 674.0; scale = cap_px / cap
     fnt = ImageFont.truetype(ttf, int(round(upm * scale)))
-    cell_w, cell_h = int(cap_px * 1.75), int(cap_px * 2.05)
+    cell_w, cell_h = int(cap_px * 2.35), int(cap_px * 2.05)   # the W is 1.52 cap wide and the italic leans
     rows = (len(GLYPHS) + per_row - 1) // per_row
     W, H = cell_w * per_row + 40, cell_h * rows + 80
     im = Image.new("RGB", (W, H), (255, 255, 255)); d = ImageDraw.Draw(im)
@@ -131,7 +119,7 @@ def sheet(ttf, out_png, out_index, label, per_row=8, cap_px=300):
         for (x, y, kind, val) in bumps(polys):
             k += 1
             px = ox + (x - xmin + lsb) * scale; py = base - y * scale
-            r = 13
+            r = 22
             d.ellipse([px - r, py - r, px + r, py + r], outline=(220, 30, 30), width=2)
             d.text((px + r + 2, py - r - 4), str(k), fill=(220, 30, 30), font=lab)
             index.append(dict(style=label, glyph=ch, n=k, x=round(x), y=round(y), kind=kind, degrees=round(val, 1)))

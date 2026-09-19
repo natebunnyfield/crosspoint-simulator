@@ -742,11 +742,17 @@ curve export (clearance 44, deviation 1.2) is gate-clean on 119 glyphs but
 adds one finding on the italic's 290 sweep and smooths only the bowls (roman
 n 16.7 → 14.3, italic arches unmoved); it stays off. Instead: *"make a hires
 image with thin red circles around all of the bumps and glitches you can
-identify in each character"* — `albo_bumps.py`, 563 roman and 568 italic
-circles, sent to the owner to confirm. The circles sit on the diagonals (M W
-N V X K Z A v w) and at stroke joins; the round letters C O o 0 come back
-clean. Two detectors were built and rejected first: a turn-jolt threshold
-circled every facet (1,623), and a moving-average residual lit every bowl —
-the average of an arc's neighbours lies inside it by the sagitta, six units
-at the o's ends. A circle fitted to the ±6 neighbours is the trend that is
-zero on any true arc.
+identify in each character"* — `albo_bumps.py`. **The first sheet was a
+miss, and the owner said so on the W**: three detectors in a row circled the
+edges' sub-unit waviness (facets, then bowls, then the diagonals — 563 on the
+roman, forty of them on the W's flanks) and not one of them marked a stroke
+end. *"Each end of the W strokes have errors ... I'm looking for big optical
+glitches."* Those are FEATURES smaller than the pen, not deviations of an
+edge: the ink compared with itself at the pen's scale — a closing (dilate 12,
+erode 12) fills every notch narrower than two pen-widths, an opening removes
+every spur thinner than that, and what differs is circled if it is bigger
+than a sliver (70 units²) and smaller than a feature of the letter (80 units
+across). 213 roman, 215 italic: every W end, the A's apex and feet, the m's
+and n's joins, the K's and N's crotches; the round letters clean. The rule
+this adds: **an instrument built without the owner's example of the fault
+measures the instrument-maker's idea of it.**
