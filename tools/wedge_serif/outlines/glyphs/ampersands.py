@@ -500,16 +500,22 @@ def bred(c, top='half', loop=1.0, point=(0.36, 0.555), cross=41.0, arm=0.58, arm
             i0 = min(range(len(bowl_path)), key=lambda k: math.dist(bowl_path[k], D)); i1 = min(range(len(bowl_path)), key=lambda k: math.dist(bowl_path[k], A1))
             bowl_path = bowl_path[i0:i1 + 1]
         else:
-            d_in = (D[0] - M[0], D[1] - M[1]); Ld = math.hypot(*d_in) or 1.0; d_in = (d_in[0] / Ld, d_in[1] / Ld)
+            # the bowl DEPARTS D heading down (the five points went straight
+            # down from D before turning right: D (48, 201) -> (44, 115) on the
+            # shipped &), not along the diagonal's 41 degrees -- a handle on
+            # the diagonal's own direction points back out to the left and the
+            # solver then has nothing to pull the curve down with.
+            d_in = (-0.05, -1.0); Ld = math.hypot(*d_in); d_in = (d_in[0] / Ld, d_in[1] / Ld)
             d_out = (math.cos(ang), math.sin(ang)); chord = math.dist(D, A1)
             def _bowl(scale):
                 L1, L2 = bowl_k[0] * chord * scale * 0.5, bowl_k[1] * chord * scale * 0.5
                 return cubic(D, (D[0] + d_in[0] * L1, D[1] + d_in[1] * L1), (A1[0] - d_out[0] * L2, A1[1] - d_out[1] * L2), A1)
-            scale = 1.0
-            for _ in range(12):   # bring the lowest point onto -o
-                bowl_path = _bowl(scale); ymin = min(q[1] for q in bowl_path)
-                if abs(ymin + o) < 0.5: break
-                scale *= 1.0 + (-o - ymin) / max(chord, 1.0) * 1.5
+            lo_, hi_ = 0.05, 6.0           # bisect on the handle scale: longer handles, lower curve
+            for _ in range(30):
+                scale = (lo_ + hi_) / 2; ymin = min(q[1] for q in _bowl(scale))
+                if abs(ymin + o) < 0.25: break
+                if ymin > -o: lo_ = scale
+                else: hi_ = scale
             bowl_path = _bowl(scale)
         body = geom.resample(head + bowl_path[1:] + line(A1, E)[1:])
         B5 = bowl_path[int(len(bowl_path) * 0.82)]   # the width plan's "arm from here" key sits on the curve where the fifth point used to

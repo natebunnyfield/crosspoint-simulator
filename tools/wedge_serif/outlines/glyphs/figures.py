@@ -412,7 +412,7 @@ _FIG_OPT_ENV = {d: (os.environ.get("ALBO_FIG_" + d, "") or _FIG_OPT_ALL).strip()
                 for d in "0123456789"}
 FIG_SHIP_ROM = dict.fromkeys("0123456789", 'a')
 FIG_SHIP_ROM.update({'1': 'h', '2': 'b'})   # round 249, owner 2026-09-18: "ALBO_FIG_1 h", "ALBO_FIG_2 b without the bulge"
-FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 's'})   # round 254: the 9 ships as s (p's short deep wedge, tail flush with the bowl -- owner 2026-09-19: "p wins but shorten the tail until it fits the rest of the 9"); round 253 j; round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
+FIG_SHIP_ROM.update({'3': 'e', '6': 'i', '9': 'u'})   # round 257: the 9's tail joins as the 6's does, tip 5 units past the bowl (owner: "p wins but only got optically just past bowl and switch tail to join the same way that 6's tail does"); round 254: the 9 ships as s (p's short deep wedge, tail flush with the bowl -- owner 2026-09-19: "p wins but shorten the tail until it fits the rest of the 9"); round 253 j; round 250, owner 2026-09-18: "ALBO_FIG_3 e", "ALBO_FIG_6 d and h blunt and short", "ALBO_FIG_9 e wins"
 FIG_SHIP_IT = dict.fromkeys("0123456789", 'a')
 
 def OPT(d):
@@ -427,7 +427,7 @@ def OPT(d):
     so `ALBO_FIG_SET=e` draws eight arms of 'e' for the 7 and today's drawing
     for the other nine, and the roman 7 likewise. Proven on a build."""
     o = _FIG_OPT_ENV.get(d) or (FIG_SHIP_IT if pen.ITALIC else FIG_SHIP_ROM)[d]
-    return o if o in 'abcdefghijklmnopqrst' and len(o) == 1 else 'a'
+    return o if o in 'abcdefghijklmnopqrstuvw' and len(o) == 1 else 'a'
 
 # WHAT THE REFERENCES MEASURE, and where each option comes from. Seven faces
 # with old-style figures, all measured at ONE x-height (429 units) by
@@ -1787,6 +1787,18 @@ NINE_OPT = {
     # comparison.
     's': dict(k=2.0, flag=(0.35, 0.70), reach=0.0, tip_x=1.00),
     't': dict(k=2.0, flag=(0.35, 0.70), reach=-12.0, tip_x=0.94),
+    # ROUND 257, owner 2026-09-19: *"p wins but only got optically just past
+    # bowl and switch tail to join the same way that 6's tail does."* join
+    # 'six' draws the departure exactly as `_six_draw` does, mirrored: the
+    # tail leaves the ring's CENTERLINE at its rightmost point (angle 0, no
+    # sink, no wall-width match), its first handle straight DOWN at 1.5 r as
+    # the 6's is straight up at 1.5 ry, and its width starts at 0.15 of the
+    # pen and reaches full by 6% of the run -- NINE_TAPER, which is the 6's
+    # own profile. No crotch fillet: the 6 has none. reach 5 puts the wedge's
+    # apex 5 units past the bowl's left ink, optically just past it.
+    'u': dict(k=2.0, flag=(0.35, 0.70), reach=5.0, tip_x=1.00, join='six'),
+    'v': dict(k=2.0, flag=(0.35, 0.70), reach=10.0, tip_x=1.02, join='six'),
+    'w': dict(k=2.0, flag=(0.35, 0.70), reach=5.0, tip_x=1.00),
 }
 NINE_OPT_IT = {k: NINE_OPT[k] for k in ('b', 'c', 'd')}
 # ROUND 233 (R43), owner 2026-09-18 on the roman 9: *"redo bottom and middle
@@ -1853,7 +1865,11 @@ def g_nine(c):
     p0 = (cx + (rx - _sink) * math.cos(math.radians(_exit)),
           D - r + (r - _sink) * math.sin(math.radians(_exit)))
     _tap_rom = None
-    if pen.ITALIC or not NINE_TANGENT_EXIT:
+    if _o9.get('join') == 'six':
+        # round 257: the 6's own departure, mirrored (see NINE_OPT 'u')
+        p0 = (cx + rx, D - r)
+        c1 = (p0[0], p0[1] - r * 1.5)
+    elif pen.ITALIC or not NINE_TANGENT_EXIT:
         c1 = (p0[0] - rx * 0.15, p0[1] - r * 1.5)
     else:
         # round 233 (R43): the tail starts ON the ring's centerline (no sink),
@@ -1941,7 +1957,7 @@ def g_nine(c):
             _fl, _fd = (_fs if isinstance(_fs, tuple) else (_fs, _fs))
             flag = wedge(up[-1], d, sd, WL * _fl, WD * _fd, _o9.get('drop', DROP), edge_at=_walk_back(up))
             parts = [solid, t, flag]
-        if not pen.ITALIC and NINE_JOIN_FILLET > 0:
+        if not pen.ITALIC and NINE_JOIN_FILLET > 0 and _o9.get('join') != 'six':
             fil = _crotch_fillet(up, o, S * NINE_JOIN_FILLET)     # round 233 (R43): the inside join
             if fil is not None: parts.append(fil)
         return geom.ink(parts)
