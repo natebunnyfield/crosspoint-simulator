@@ -462,7 +462,7 @@ def fit(ch, conts, c):
     return adv, dx, min(xs_all) + dx
 
 WEIGHT_CLASS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400, "Medium": 500, "SemiBold": 600, "Bold": 700,
-                "Italic": 400, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
+                "Italic": 500, "MediumItalic": 500, "SemiBoldItalic": 600, "BoldItalic": 700}   # round 261: "Italic" is the MEDIUM's italic and must declare 500 like it, or the pair is two weights and the family will not bind   # round 100: an italic style name must still carry its weight, or a Bold Italic ships as a 400
 
 # Round 100, the vertical metrics (they were 900/-300 with no measurement
 # behind them). Measured across every style: the ink reaches 971 on the
@@ -635,7 +635,33 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
         _ital = True
     else:
         _ital = False
-    fb.setupNameTable(dict(familyName=name, styleName=style, fullName=f"{name} {style}", psName=f"{name}-{style}", uniqueFontIdentifier=f"{name};{style};2026-09-13"))
+    # ROUND 261 -- THE FOUR STYLES HAVE TO BIND AS ONE FAMILY, or the bold is
+    # unreachable. Owner 2026-09-19: "all commonly needed roman, italic, bold
+    # and bold italic characters." Measured on the built fonts before this:
+    # every style declared familyName "Albo" with the STYLE NAME as its
+    # subfamily -- "Medium", "Italic", "Bold", "BoldItalic" -- and no
+    # typographic names at all. The classic name table groups only the four
+    # RIBBI slots (Regular / Italic / Bold / Bold Italic) by subfamily, so a
+    # subfamily of "Medium" puts the roman in its own family and pressing the
+    # bold button in any application cannot find the Bold. The italic also
+    # declared usWeightClass 400 against its roman's 500, which separates the
+    # pair again on weight.
+    #
+    # So: nameID 1/2 carry the RIBBI grouping (Albo + Regular/Italic/Bold/Bold
+    # Italic, the Medium being this family's regular weight, which is the
+    # owner's round-83 ruling "Rename to Medium"), and nameID 16/17 carry the
+    # typographic truth (Albo + Medium / Medium Italic / Bold / Bold Italic)
+    # for applications that read them. The full name (4) and the PostScript
+    # name (6) keep the identity each style already shipped with, so an
+    # installed Albo-Medium or Albo-Italic is not renamed under the owner --
+    # except that "Albo BoldItalic" gains the space it was missing.
+    _RIBBI = {"Medium": "Regular", "Italic": "Italic", "Bold": "Bold", "BoldItalic": "Bold Italic"}
+    _TYPO  = {"Medium": "Medium", "Italic": "Medium Italic", "Bold": "Bold", "BoldItalic": "Bold Italic"}
+    _sub = _RIBBI.get(style, style); _typo = _TYPO.get(style, style)
+    _full = f"{name} {_typo}"
+    fb.setupNameTable(dict(familyName=name, styleName=_sub, fullName=_full, psName=f"{name}-{style}",
+                           uniqueFontIdentifier=f"{name};{style};2026-09-13",
+                           typographicFamily=name, typographicSubfamily=_typo))
     fb.setupOS2(sTypoAscender=VM_ASCENT, sTypoDescender=VM_DESCENT, sTypoLineGap=0, usWinAscent=VM_WIN_ASCENT, usWinDescent=VM_WIN_DESCENT, sxHeight=int(pen.XH), sCapHeight=int(C), usWeightClass=WEIGHT_CLASS.get(style, 400))
     fb.setupPost(italicAngle=-pen.SLANT)
     fb.font['OS/2'].fsSelection = 0x40   # REGULAR, cleared below by an italic or a bold
