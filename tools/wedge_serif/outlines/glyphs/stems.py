@@ -110,6 +110,7 @@ def g_j(c):
 #   d  b with small wedge ends -- hanging from the left end, rising from the
 #      right, at half the bar-end wedge's size
 F_BAR = os.environ.get("ALBO_ROM_F_BAR", "a")
+F_BAR_CUT_DEG = float(os.environ.get("ALBO_ROM_F_BAR_CUT", 8.0))   # round 246: the bar's end faces lean this much, bottom-left to top-right; 0 is round 235
 def f_bar(x, xh, wf, th, opt):
     x0, x1 = x - S * 0.5 - 45 * wf, x + S * 0.5 + 120 * wf
     if opt == 'b':
@@ -123,6 +124,13 @@ def f_bar(x, xh, wf, th, opt):
         wl = wedge((x0 - sh, xh - th), (-1, 0), (0, -1), WL * 0.85 * k, WD * 0.9 * k, 0.0)
         wr = wedge((x1 - sh, xh), (1, 0), (0, 1), WL * 0.85 * k, WD * 0.9 * k, 0.0)
         return geom.union([b, wl, wr])
+    # ROUND 246. Owner 2026-09-18: "for f: a wins but make very slight pen
+    # cuts from bottom left top to top right instead of vertical". Both end
+    # faces lean the same way, F_BAR_CUT_DEG off the vertical (8; b's was the
+    # family's full 20), the bottom corner left of the top corner at each end.
+    if F_BAR_CUT_DEG > 0:
+        a_ = math.radians(F_BAR_CUT_DEG)
+        return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th, cut0=a_, cut1=-a_)
     return stroke([(x0, xh - th / 2), (x1, xh - th / 2)], th)
 
 def f_ink(c, hook_end=None, hook_c2=None, hook_profile=None, parts=False, hook_cut=True, flush=False):
