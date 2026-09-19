@@ -2,7 +2,7 @@
 extent), the & and @ real glyphs (round 42)."""
 import math, os
 import shapely.affinity as aff
-from . import glyph
+from . import glyph, GLYPHS
 from .. import geom, pen
 from .. import primitives as PR
 from ..geom import cubic, line, superellipse, catmull
@@ -461,3 +461,44 @@ AT_STEM_BURY = 1.5     # round 233: the stem's left edge this far inside the cou
 def g_underscore(c): return stroke(line((0, -DESC * 0.5), (500, -DESC * 0.5)), TH_H)
 @glyph('…')
 def g_ellipsis(c): return geom.ink([dot(DOT_R + i * S * 2.4, DOT_R, DOT_R) for i in range(3)])
+
+# ============ ROUND 258: THE DASH, LOW-QUOTE AND APOSTROPHE FAMILIES ==========
+# Owner 2026-09-19: *"continue autonomously on all commonly needed roman,
+# italic, bold and bold italic characters."* Measured against a book face's
+# working set, Albo was missing these and nothing else in the dash, quote and
+# space families. Each is the drawing the face already has, encoded at the
+# codepoint that needs it -- NOT a new shape: a reader that meets U+2010 in an
+# epub should get the face's hyphen, not a fallback face's.
+@glyph('\u2010')   # HYPHEN -- the real one; '-' is HYPHEN-MINUS and text sources use both
+def g_hyphen_true(c): return dash(c, 0.37)
+@glyph('\u2011')   # NON-BREAKING HYPHEN
+def g_hyphen_nb(c): return dash(c, 0.37)
+@glyph('\u00AD')   # SOFT HYPHEN -- invisible until the line breaks on it, and then it is a hyphen. Justified text with hyphenation needs it
+def g_softhyphen(c): return dash(c, 0.37)
+@glyph('\u2012')   # FIGURE DASH -- as wide as a figure. Albo's figures are
+# PROPORTIONAL old-style (advances 288 for the 1 to 494 for the 0, mean 440),
+# so there is no tabular width to match and the mean is the honest target:
+# 0.45 of the cap gives 442 against the en dash's 624.
+def g_figuredash(c): return dash(c, 0.45)
+@glyph('\u2015')   # HORIZONTAL BAR -- the quotation dash, the em dash's length
+def g_horizbar(c): return dash(c, 1.41)
+@glyph('\u201A')   # SINGLE LOW-9 QUOTATION MARK -- the comma, as the opening quote of German and Czech
+def g_quotesinglbase(c): return geom.ink([dot(DOT_R, DOT_R, DOT_R), comma_tail(DOT_R, DOT_R)])
+@glyph('\u201E')   # DOUBLE LOW-9 QUOTATION MARK
+def g_quotedblbase(c):
+    return geom.ink([p_ for i in (0, 1) for p_ in (dot(DOT_R + i * S * DQ_GAP, DOT_R, DOT_R), comma_tail(DOT_R + i * S * DQ_GAP, DOT_R))])
+@glyph('\u02BC')   # MODIFIER LETTER APOSTROPHE -- the letter, not the punctuation: Ukrainian, Uzbek, many transliterations
+def g_modapostrophe(c): return quote(c, S * 0.7, True)
+@glyph('\u02BB')   # MODIFIER LETTER TURNED COMMA -- the Hawaiian okina
+def g_modturnedcomma(c): return quote(c, S * 0.7, False)
+
+@glyph('\u00B5')   # MICRO SIGN -- the u with its left stem run on below the
+# baseline. Not a borrowed Greek mu: the letter is Albo's own u (so the bowl,
+# the taper into the right stem and both top wedges are the face's), and the
+# descender is the family's straight stroke on the pen, thinning to 0.62 and
+# cut at the family's angle, the way the p's and q's stems end.
+def g_micro(c):
+    xh = c["xh"]; x0 = S / 2
+    tailp = line((x0, xh * 0.55), (x0 - S * 0.06, -pen.DESC * 0.72))
+    tail = stroke(tailp, pen_widths(tailp, widths([(0.0, 1.0), (0.62, 1.0), (1.0, 0.62)])), cut1=CUT)
+    return geom.ink([GLYPHS['u'](c), tail])
