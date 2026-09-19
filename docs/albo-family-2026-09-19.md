@@ -341,6 +341,15 @@ None of the three is fixed. They are design questions: whether the bold should
 buy less width, whether the roman's contrast should rise into the bold as most
 references do, and whether the roman's 1.32:1 is the intended colour.
 
+## STANDING RULING — the italic is TWO weights: 400 and 700
+
+Owner, 2026-09-19, asked whether to run the end-correction pass on the italic
+200/700/900: **"italic is just 400 and 700."**
+
+So the italic family is the Italic (400) and the Bold Italic (700) and nothing
+else: no italic 200, no italic 900 — not built, not gated, not proofed. They
+stop appearing in ladders and triage. The roman keeps its four.
+
 ## STANDING RULING — the family is FOUR weights: 200, 400, 700, 900
 
 Owner, 2026-09-19: *"for future cuts: only test and ship 200 400 700 900."*
