@@ -482,19 +482,57 @@ def g_a(c):
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
     return geom.ink([st, hd, solid])
 
+def _s_head_x():
+    """Round 282: the head's reach, x the s's width. The finial's face lies
+    nearer the vertical than the 20-degree cut it replaced and is trimmed
+    back by its own throw, (w / 2) tan 28 -- 16 units at the 400 and 35 at
+    the 900 -- so a fixed start point loses reach as the end thickens. These
+    are the starts that land the built s's right edge where the old head's
+    did at each weight (334 / 346 / 370 / 382 at the 200 / 400 / 700 / 900,
+    measured in design mode), interpolated on the stem."""
+    env = os.environ.get("ALBO_ROM_S_HEAD_X")
+    if env: return float(env)
+    table = [(43.8, 1.00), (66.9, 1.04), (116.0, 1.10), (148.0, 1.12)]
+    if S <= table[0][0]: return table[0][1]
+    for (s0, x0), (s1, x1) in zip(table, table[1:]):
+        if S <= s1: return x0 + (x1 - x0) * (S - s0) / (s1 - s0)
+    return table[-1][1]
+S_HEAD_X = _s_head_x()
+S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", 0.82))   # round 282: the head's height, x the x-height (0.80 before)
 @glyph('s')
 def g_s(c):
     """One smooth spine on the pen's own widths (round 51's s: no spine
-    boost -- that is the capital's rule), flaring 1.25 into a 20-degree pen
-    cut at both ends."""
+    boost -- that is the capital's rule).
+
+    ROUND 282 -- BOTH ENDS ARE THE c's TOP FINIAL. Owner 2026-09-19: *"for
+    round finial, c is fine but there needs to be parity with s in small
+    scale rendering. right now it is too light and low on vertical grid."*
+    Round 275 changed the roman's round finials out for the c's end and left
+    this letter alone: its ends were the pen cut at 20 degrees with a 1.25
+    flare over the last 12%, and the head's end runs down a steep diagonal
+    where the pen is thin -- 21 units tall on its face against the c's 42,
+    so at 13 px (77 units to the pixel) the c's end is a pixel and the s's
+    is not. Measured on the built 400 before this: the head's face spans
+    y 354..375, the c's top end 352..394; at 13 px the s's head lands one
+    row under the c's and half as dark. Now: the family's finial on both
+    ends (PR.finial_widths / PR.finial_cut, held to rounds.c_top_width() --
+    60.8 at the 400, the c's own), the head's start raised 0.80 -> 0.82 xh
+    so its face tops out where the c's does (397 against 397), and reaching
+    further -- 0.93 -> 1.04 of the width at the 400, per weight in
+    `_s_head_x` -- because the finial's face lies nearer the vertical than
+    the 20-degree cut did and pulled the letter's right edge in by 27 units
+    at the 400 and 25 at the 900; the built s is as wide as it was."""
     xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = OVER - TH_H / 2
-    pts = [(w * 0.93, xh * 0.80), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
+    pts = [(w * S_HEAD_X, xh * S_HEAD_Y), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
            (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)]
     spine = catmull(pts, tension=0.55)
-    prof = widths([(0.0, 1.25), (0.12, 1.0), (0.88, 1.0), (1.0, 1.25)])
-    if PR.BOWL and PR.BOWL.get('widen'): prof = widen_terminal(widen_terminal(None, True), False)
-    wfn = pen_widths(spine, prof)
-    return geom.ink([stroke(spine, wfn, cut0=CUT, cut1=CUT)])
+    if PR.BOWL and PR.BOWL.get('widen'):
+        prof = widen_terminal(widen_terminal(None, True), False)
+        return geom.ink([stroke(spine, pen_widths(spine, prof), cut0=CUT, cut1=CUT)])
+    from .rounds import c_top_width
+    fl = c_top_width()
+    wfn = PR.finial_widths(PR.finial_widths(pen_widths(spine, None), True, floor=fl), False, floor=fl)
+    return geom.ink([stroke(spine, wfn, cut0=PR.finial_cut(spine, True), cut1=PR.finial_cut(spine, False))])
 
 def bowl_stem(c, side, top, bottom):
     """b d p q: the o's ring at the b's radius, KEPT TO THE STEM (ruling,

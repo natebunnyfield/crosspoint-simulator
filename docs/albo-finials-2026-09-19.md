@@ -500,3 +500,26 @@ earlier `_currency_bar(counter=True)` ruling in the same build, as expected.
 - C G S keep their beaks with lips, as the roman's do — the same open
   question round 275 left.
 - `d_ball` is dead code, kept as `_diag` is.
+
+## Round 282 (2026-09-19) — the s, both styles
+
+Owner: *"for round finial, c is fine but there needs to be parity with s in
+small scale rendering. right now it is too light and low on vertical grid."*
+Round 275's inventory left the roman s as "not a ball, stays"; the ends were
+the pen cut with a 1.25 flare, thin where the head runs down its diagonal.
+Both ends are now the c's top finial (`PR.finial_widths` / `PR.finial_cut`
+held to `rounds.c_top_width()`), the head raised 0.80 → 0.82 xh and reaching
+per weight so the built width holds (`stems._s_head_x`). The italic's head
+(already the finial since round 276) rises 0.86 → 0.94 xh at the 400 and
+0.89 at the 700 to the c's height. Measured, built, design units:
+
+| font | s head face top before → after | c top | s right edge before → after |
+|---|---|---|---|
+| roman 400 | 375 → 397 | 397 | 381 → 378 |
+| roman 700 | — → 449 | 438 | 416 → 415 |
+| roman 900 | — → 450 | 436 | 443 → 444 |
+| roman 200 | — → 446 | 442 | 362 → 360 |
+| italic 400 | 407 → 437 | 441 | 264 → 259 |
+| bold italic 700 | 447 → 458 | 458 | 334 → 321 |
+
+Proofs: `tools/wedge_serif/shape/weights282/`; the family doc's §25.

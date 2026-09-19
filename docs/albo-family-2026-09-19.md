@@ -1395,6 +1395,29 @@ in.
 
 Proofs: `tools/wedge_serif/shape/weights281/`.
 
+## 25. Round 282 — the s's finial: parity with the c
+
+Owner 2026-09-19: *"for round finial, c is fine but there needs to be parity
+with s in small scale rendering. right now it is too light and low on
+vertical grid."* Round 275 had left the roman s alone: its ends were the
+20-degree pen cut with a 1.25 flare, and the head runs down a steep diagonal
+where the pen is thin, so its face was 21 units tall against the c's 42 and
+sat one pixel row under the c's at 13 px. `stems.g_s` now puts the family's
+finial on both ends (held to `rounds.c_top_width()`, the c's own 60.8 at
+the 400), raises the head's start 0.80 → 0.82 xh so its face tops out at
+397 where the c's does, and reaches further per weight (`_s_head_x`, 1.00 /
+1.04 / 1.10 / 1.12 at the 200 / 400 / 700 / 900) because the finial's face
+is trimmed back by its own throw and a fixed start lost 27 units of the
+letter's width at the 400 and 25 at the 900; the built s is as wide as it
+was. The italic s already had the finial (round 276) but its head sat 34
+under the c's: `S_HEAD_Y` 0.86 → 0.94 at the 400 (437 against the c's 441)
+and 0.89 at the 700 (458 = the c's), on the stem between. Every weight,
+both styles; the shipped 400s move (the owner's ask). Gates at baseline in
+all six fonts: only s ś ŝ ş š ș moved, no kern pair changed, glitch and
+touch counts as before, 0 dents.
+
+Proofs: `tools/wedge_serif/shape/weights282/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

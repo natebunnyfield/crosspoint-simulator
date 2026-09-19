@@ -4256,7 +4256,15 @@ if ON:
     S_APEX = float(os.environ.get("ALBO_ALD_S_APEX", 0.46))   # the top arc's apex, x w
     S_TAIL_X = float(os.environ.get("ALBO_ALD_S_TAILX", -0.06))  # the bottom terminal, x w
     S_TAIL_Y = float(os.environ.get("ALBO_ALD_S_TAILY", 0.03))  # x xh
-    S_HEAD_Y = float(os.environ.get("ALBO_ALD_S_HEADY", 0.86))  # the top terminal, x xh
+    # ROUND 282: 0.86 -> 0.94 at the 400 and 0.89 at the 700, on the stem
+    # between. Owner 2026-09-19: "for round finial, c is fine but there needs
+    # to be parity with s in small scale rendering. right now it is too light
+    # and low on vertical grid." The head's face topped out at 407 against the
+    # c's 441 at the 400 -- one pixel row under the c at 13 px; at 0.94 it tops
+    # out at 437. The 700's end is thicker and the same start would carry it
+    # to 476 against its c's 458, so 0.89 there (464 -> matches the c within
+    # a stroke), measured in design mode.
+    S_HEAD_Y = float(os.environ.get("ALBO_ALD_S_HEADY", 0.94 - 0.05 * max(0.0, min(1.0, (pen.S - 66.9) / 49.1))))  # the top terminal, x xh
     S_UL = float(os.environ.get("ALBO_ALD_S_UL", 0.22))       # the upper-left flank, x w
     S_LR = float(os.environ.get("ALBO_ALD_S_LR", 0.87))       # the lower-right turn, x w
     # ROUNDED, like the c's -- both references end this stroke in a ball and a

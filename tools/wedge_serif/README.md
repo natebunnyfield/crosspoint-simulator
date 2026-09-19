@@ -274,6 +274,13 @@ stem 84 to a least clearance `Q_CLEAR`; the amount is laddered in round 281
 (77 / 115 / 154) and not yet ruled -- the dial ships 0 (tail as drawn) until
 it is.
 
+**Ruling 2026-09-19 (owner): the s's finial has PARITY with the c's** ("c is
+fine but there needs to be parity with s in small scale rendering. right now
+it is too light and low on vertical grid") -- both ends of the roman s take
+the c's top finial at the c's end width, its head tops out where the c's
+does, the italic's head rises to the c's. Round 282, every weight, both
+styles.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the
