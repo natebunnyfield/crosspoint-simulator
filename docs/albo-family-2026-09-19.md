@@ -1282,6 +1282,19 @@ unchanged: the ruled β alone, touch 2 / 17 / 14.
 
 Proofs: `tools/wedge_serif/shape/weights279/`.
 
+## 23. Round 280 — the roman Q kerned against , ; .
+
+Owner 2026-09-19: *"Kern Q against , ; ."* (chosen over shortening the tail
+at the heavy weights, which round 225's "leave the Q tail on roman long"
+rules out). `kern.py`'s roman block, above stem 84, adds +430 (Bold 700) /
++456 (Black 900) to `Q,` `Q;` `Q.` — the measured overlap on the shaped run
+(−0.414 em / −0.439 em) plus the 0.012 em floor and a margin. The 400 and
+the 200 never list these pairs; their sweeps are unchanged. No outline moved:
+the diff against round 277's builds is exactly three GPOS pairs per font.
+Touching pairs 4 → 2 at the 700 (ff fi, both declared), 5 → 3 at the 900.
+
+Proofs: `tools/wedge_serif/shape/weights280/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
