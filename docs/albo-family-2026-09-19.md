@@ -134,6 +134,18 @@ capitals and e, g, k, o, s got heavier and the arches did not. The fix is to
 express those targets as multiples of `pen.S` (dividing the measured value by
 the Medium's 84, so the shipped Italic is unchanged to the unit).
 
+**Fixed in round 263.** `ALD_WF = pen.S / 84.0` multiplies every absolute
+THICKNESS in `aldine.py` — the lowercase stem, the head's body and tip, the
+exit's tip, the arch's hairline, the dot's two axes, and the B, D, P and Q
+capitals' stems, which were absolute 70s as well. POSITIONS are deliberately
+not scaled: the pitch, the spring, the arch's apex, the head's reach and the
+exit's reach say where the letter is, not how heavy it is. The factor is
+exactly 1.0 at the Medium's stem of 84, so the shipped Italic is unchanged to
+the unit. Measured after: the n's stems go 71.0 / 81.5 in the Italic to 90.0 /
+94.9 in the Bold Italic (they were 71.0 / 81.5 in both), the m, h, u and l the
+same way, and **17 of the 26 lowercase now respond to the axis where 5 did.**
+The 9 that still do not are recorded as unfinished rather than claimed.
+
 The same failure appears in the spacing: the Bold Italic's word space is 232,
 exactly the Italic's, while the Bold's is 308 against the Medium's 290.
 

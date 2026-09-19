@@ -812,12 +812,31 @@ if ON:
     # forced the best any of the seven reaches is .706. So a target of .80
     # against Poetica is not a shape target at all -- it is FJORD_SLANT,
     # FJORD_ASC and the stem ruling, none of which is this round's to move.
+    # ROUND 263 -- THE ITALIC HAS TO FOLLOW THE WEIGHT AXIS. Owner 2026-09-19:
+    # "all commonly needed roman, italic, bold and bold italic characters."
+    # Measured on a Bold Italic master (FJORD_STEM=107) against the shipped
+    # Italic: TWENTY-TWO letters came out byte-identical -- a b c d f h i j l m
+    # n p q r t u v w x y z and Y -- so the bold italic was a bold set of
+    # capitals over a regular lowercase. The n's stems measured 71.0 and 81.5
+    # in BOTH, where the roman's n goes 80 to 101 between Medium and Bold.
+    #
+    # The cause is that this module's thicknesses are the MEASURED targets of
+    # the reference italic in absolute design units (docs/albo-aldine-targets.md
+    # -- "Flanker's lowercase stem is 70 units = 0.83 S on 19 of 26 letters"),
+    # scaled only by the x-height ratio `hm_u`, so nothing in them can move
+    # when the stem does. ALD_WF is that missing term: every absolute
+    # THICKNESS below is multiplied by it, and it is exactly 1.0 at the
+    # Medium's stem of 84, so the shipped Italic is unchanged to the unit
+    # (proven: 0 glyphs differ). POSITIONS are deliberately NOT scaled -- the
+    # pitch, the spring, the arch's apex, the head's reach and the exit's
+    # reach are where the letter is, not how heavy it is.
+    ALD_WF = pen.S / 84.0
     HM_UNIT = 429.0
 
     def _hm(name, default):
         return float(os.environ.get("ALBO_ALD_HM_" + name, default))
 
-    HM_STEMW = _hm("STEMW", 70.0)       # units
+    HM_STEMW = _hm("STEMW", 70.0) * ALD_WF       # units
     HM_PITCH = _hm("PITCH", 0.470)      # stem center to stem center, x xh
     HM_TOPCUT = _hm("TOPCUT", 45.0)     # the stem's top face, degrees down to the right
     HM_HEAD_L = _hm("HEAD_L", 70.0)     # the head's tip CENTER, units LEFT of the stem's left edge
@@ -867,17 +886,17 @@ if ON:
             return end[1]
         t = (xc + sw / 2 - end[0]) / n[0]
         return end[1] + t * n[1]
-    HM_HEAD_W = _hm("HEAD_W", 50.0)     # the head's body, units
-    HM_HEAD_T = _hm("HEAD_T", 29.0)     # its tip, units
+    HM_HEAD_W = _hm("HEAD_W", 50.0) * ALD_WF     # the head's body, units
+    HM_HEAD_T = _hm("HEAD_T", 29.0) * ALD_WF     # its tip, units
     HM_HEAD_BOW = _hm("HEAD_BOW", 0.014)   # the hollow under it, x xh
     HM_EXIT_R = _hm("EXIT_R", 84.0)     # the exit's tip, units RIGHT of the stem's right edge
     HM_EXIT_Y = _hm("EXIT_Y", 0.250)    # the tip's height, x xh
-    HM_EXIT_T = _hm("EXIT_T", 19.0)     # the tip, units
+    HM_EXIT_T = _hm("EXIT_T", 19.0) * ALD_WF     # the tip, units
     # round 181: how far to push the per-letter outstroke table. 0 puts every
     # letter back on the one shared stroke, which is the round-180 font to the
     # bit -- the arm for judging whether the variety is worth its cost.
     HM_EXIT_VARY = _hm("EXIT_VARY", 1.0)
-    HM_ARCH_T = _hm("ARCH_T", 22.0)     # the climb's hairline, units
+    HM_ARCH_T = _hm("ARCH_T", 22.0) * ALD_WF     # the climb's hairline, units
     HM_ARCH_TOP = _hm("ARCH_TOP", 0.935)   # the apex's centerline, x xh
     HM_SPRING = _hm("SPRING", 0.355)    # where the arch leaves the stem's center, x xh
     # the i's dot: the scan's is 89 x 64 units at 1.40 x xh, Flanker's 98 x 98
@@ -911,8 +930,8 @@ if ON:
     # the baseline; at the old 1.400 center a dot this deep would have stood
     # 0.298 clear, which is a dot drifting off its own stem. 1.343 puts the
     # floor at 0.241.
-    HM_DOT_LEN = _hm("DOT_LEN", 84.0)   # its long axis, units
-    HM_DOT_TH = _hm("DOT_TH", 88.0)     # its short axis, units -- 2 x the 44 drawn to round 134
+    HM_DOT_LEN = _hm("DOT_LEN", 84.0) * ALD_WF   # its long axis, units
+    HM_DOT_TH = _hm("DOT_TH", 88.0) * ALD_WF     # its short axis, units -- 2 x the 44 drawn to round 134
     HM_DOT_CY = _hm("DOT_CY", 1.343)    # its center, x xh above the baseline (Cancelleresca's)
 
     def hm_u(c):
@@ -3053,7 +3072,7 @@ if ON:
     B_ASC = float(os.environ.get("ALBO_ALD_B_ASC", 0.98))    # x the ascender
     B_COND = float(os.environ.get("ALBO_ALD_B_COND", 0.90))   # the bowl's horizontal scale
     B_STEM_X = float(os.environ.get("ALBO_ALD_B_STEM_X", 114.0))    # stem centre, units from the head's tip
-    B_STEM_W = float(os.environ.get("ALBO_ALD_B_STEMW", 70.0))     # units
+    B_STEM_W = float(os.environ.get("ALBO_ALD_B_STEMW", 70.0)) * ALD_WF     # units
     # LIGHTER (owner 2026-09-16: "reduce visual weight of top serif on b and
     # d"): reach 74 -> 58, drop 60 -> 44, and the underside rejoins the stem
     # 96 below the top instead of 143 -- the wedge loses a third of its area
@@ -3241,7 +3260,7 @@ if ON:
     # five, which is what you would expect of the letter the reference draws as
     # the a with an ascender on it.
     D_STEM_X = float(os.environ.get("ALBO_ALD_D_STEM_X", 312.0))   # = the a's A_STEM_X
-    D_STEM_W = float(os.environ.get("ALBO_ALD_D_STEMW", 70.0))
+    D_STEM_W = float(os.environ.get("ALBO_ALD_D_STEMW", 70.0)) * ALD_WF
     D_RX = float(os.environ.get("ALBO_ALD_D_RX", 159.0))
     D_CY = float(os.environ.get("ALBO_ALD_D_CY", 211.0))
     D_SKEW = float(os.environ.get("ALBO_ALD_D_SKEW", 0.06))
@@ -3294,7 +3313,7 @@ if ON:
     # came out 6 units tighter than the b's (the reference's p bowl is 280
     # across where its b's is 295) and the head's tip 15 units shallower.
     P_STEM_X = float(os.environ.get("ALBO_ALD_P_STEM_X", 114.0))
-    P_STEM_W = float(os.environ.get("ALBO_ALD_P_STEMW", 70.0))
+    P_STEM_W = float(os.environ.get("ALBO_ALD_P_STEMW", 70.0)) * ALD_WF
     P_CX = float(os.environ.get("ALBO_ALD_P_CX", 273.0))    # 6 tighter than the b: the reference's p bowl is 280 across, the b's 295
     P_RX = float(os.environ.get("ALBO_ALD_P_RX", 145.0))
     P_CY = float(os.environ.get("ALBO_ALD_P_CY", 203.0))
@@ -3458,7 +3477,7 @@ if ON:
     # reference's own measurement and 70 is what the reference reads at every
     # row from -0.64 xh to .24.
     Q_STEM_X = float(os.environ.get("ALBO_ALD_Q_STEM_X", 322.0))
-    Q_STEM_W = float(os.environ.get("ALBO_ALD_Q_STEMW", 70.0))
+    Q_STEM_W = float(os.environ.get("ALBO_ALD_Q_STEMW", 70.0)) * ALD_WF
     Q_RX = float(os.environ.get("ALBO_ALD_Q_RX", 155.0))
     Q_CY = float(os.environ.get("ALBO_ALD_Q_CY", 215.0))
     Q_SKEW = float(os.environ.get("ALBO_ALD_Q_SKEW", 0.06))
