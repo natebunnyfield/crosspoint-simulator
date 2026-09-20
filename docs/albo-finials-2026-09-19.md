@@ -523,3 +523,15 @@ per weight so the built width holds (`stems._s_head_x`). The italic's head
 | bold italic 700 | 447 → 458 | 458 | 334 → 321 |
 
 Proofs: `tools/wedge_serif/shape/weights282/`; the family doc's §25.
+
+## Round 283 (2026-09-19) — the s's two ends, ranked
+
+Owner, on round 282's page: *".93/.82 wins"* (the head's start), *"the bottom
+needs to be optically equal to the top and the top is too heavy"*, then *"for
+all s, make the top equally or less visually heavy than the bottom"*. The
+rule now, both styles: the FOOT is the c's finial (swell 1.10, held to the
+c's end width); the HEAD's end is 0.85 of the foot's end width and tapers
+into its face (`stems.S_HEAD_END`, read by `aldine.a_s` too). Built end
+widths, head / foot: roman 400 57 / 67, 700 96 / 113, 900 123 / 144, 200
+39 / 46; italic 400 56 / 66, 700 77 / 91. The 900's burrs and their fix are
+the family doc's §26. Proofs: `tools/wedge_serif/shape/weights283/`.

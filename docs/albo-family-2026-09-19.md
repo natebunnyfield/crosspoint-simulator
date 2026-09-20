@@ -1418,6 +1418,33 @@ touch counts as before, 0 dents.
 
 Proofs: `tools/wedge_serif/shape/weights282/`.
 
+## 26. Round 283 — the s's terminals settled, and the 900 deburred
+
+Three owner rulings on round 282's page, applied in one pass. *".93/.82
+wins"* on the ladder of head starts: the head's reach stays at the drawn
+0.93 (round 282's per-weight stretch to 1.04–1.12 is gone), so the built s
+is 10% narrower (advance 399 → 361 at the 400) and the head tucks over the
+bowl. *"the bottom needs to be optically equal to the top and the top is
+too heavy"*, then *"for all s, make the top equally or less visually heavy
+than the bottom"*: the foot keeps the c's finial (the 1.10 swell held to the
+c's end width) and the head's end is `S_HEAD_END` = 0.85 of the foot's,
+tapering into its face where the foot swells into its — the head's blunt
+near-vertical face on a stroke that stays thick all the way in was the
+heavier terminal to the eye whatever the ink area said (the foot had 3–15%
+more); the foot's start is the head's mirrored about the two apexes (0.11 of
+the width, from 0.06). The italic s reads the same dial (56 / 66 at the 400,
+77 / 91 at the 700). *"deburr the 900 s"* (there is no italic 900; the Black's
+s carried the burrs): a nub stood into each aperture. It is not a fold — the
+spine's tightest bend clears the half-width by 8 units — and not a sliver (a
+morphological opening of radius 10 removed 18 square units); the pen's own
+width climbs 54 → 136 across that bend, where the direction crosses the thin
+axis, and the inner offset of a width rising that fast on a bend that tight
+bulges. Above stem 84 the pen widths are box-averaged over ±0.6 stem of
+path before the finials go on (`stems._smooth_widths`; ±0.35 leaves the
+nubs, ±0.6 clears both). Gates at baseline in all six fonts.
+
+Proofs: `tools/wedge_serif/shape/weights283/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

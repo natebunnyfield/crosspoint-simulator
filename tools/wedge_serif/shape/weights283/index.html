@@ -1,0 +1,64 @@
+<title>Albo s Terminals Settled</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo s Terminals Settled</h1>
+    <p class="lede">Round 283, three owner rulings on the s in one pass. <em>".93/.82 wins"</em> &mdash; the head keeps its drawn reach of 0.93 (round 282 had stretched it per weight to hold the old width; the letter is now 10% narrower and the head tucks over the bowl). <em>"for all s, make the top equally or less visually heavy than the bottom"</em> &mdash; the foot keeps the c&rsquo;s finial (the 1.10 swell at the c&rsquo;s end width) and the head&rsquo;s end is 0.85 of the foot&rsquo;s, tapering into its face instead of swelling; the foot&rsquo;s start mirrors the head&rsquo;s about the two apexes. Both styles read the same dial. <em>"deburr the 900 s"</em> &mdash; the Black&rsquo;s s stood a nub into each aperture: not a fold and not a sliver, but the pen&rsquo;s width climbing 54 to 136 across the tightest bend; above stem 84 the pen widths are averaged over &plusmn;0.6 stem of path before the finials go on, which clears both. Before (round 282) then after, native pixels.</p>
+  </header>
+  <section><h2>Measured on the built fonts (design units)</h2>
+    <div class="scroll"><table>
+      <tr><th>font</th><th>s advance, before</th><th>after</th><th>head end width</th><th>foot end width</th><th>s top</th><th>c top</th></tr>
+      <tr><td>roman 400</td><td>399</td><td>361</td><td>57</td><td>67</td><td>448</td><td>441</td></tr>
+      <tr><td>roman 700</td><td>436</td><td>400</td><td>96</td><td>113</td><td>451</td><td>438</td></tr>
+      <tr><td>roman 900</td><td>466</td><td>420</td><td>123</td><td>144</td><td>452</td><td>436</td></tr>
+      <tr><td>roman 200</td><td>381</td><td>347</td><td>39</td><td>46</td><td>445</td><td>442</td></tr>
+      <tr><td>italic 400</td><td>292</td><td>292</td><td>56</td><td>66</td><td>435</td><td>441</td></tr>
+      <tr><td>bold italic 700</td><td>337</td><td>337</td><td>77</td><td>91</td><td>452</td><td>458</td></tr>
+    </table></div>
+    <p>Gates at baseline in all six fonts: only the s and its composites moved, no kern pair changed, glitch and touch counts unchanged, no dents.</p>
+  </section>
+  <section><h2>The 900&rsquo;s burrs</h2>
+    <figure><img src="roman-900-s-big.png" alt="roman 900 s before and after"><figcaption>roman 900 s at 1.0 px/unit &mdash; before (left), after (right)</figcaption></figure>
+  </section>
+  <section><h2>Roman 400</h2>
+    <figure><img src="roman-400-vec.png" alt="roman 400 cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="roman-400-runs.png" alt="roman 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+  <section><h2>Italic 400</h2>
+    <figure><img src="italic-400-vec.png" alt="italic 400 cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="italic-400-runs.png" alt="italic 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+  <section><h2>Roman 700</h2>
+    <figure><img src="roman-700-vec.png" alt="roman 700 cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="roman-700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bold-italic-700-vec.png" alt="bold italic cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="bold-italic-700-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="roman-900-vec.png" alt="roman 900 cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="roman-900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+  <section><h2>Roman 200</h2>
+    <figure><img src="roman-200-vec.png" alt="roman 200 cs sc"><figcaption>cs sc at 0.5 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+    <figure><img src="roman-200-runs.png" alt="roman 200 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+  </section>
+</div>

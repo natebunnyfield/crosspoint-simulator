@@ -4481,8 +4481,14 @@ if ON:
         fl = fin_floor(); d = fl / 2 * math.tan(math.radians(PR.FINIAL_CUT_DEG)); k = n
         while k > 0 and math.hypot(p[k][0] - p[n][0], p[k][1] - p[n][1]) < d: k -= 1
         q, qw = p[:k + 1], ws[:k + 1]; m = len(q) - 1
-        wf = PR.finial_widths(PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], True, floor=fl),
-                              False, floor=fl)
+        # ROUND 283 -- THE HEAD NO HEAVIER THAN THE FOOT (owner: "for all s,
+        # make the top equally or less visually heavy than the bottom"): the
+        # foot keeps the finial held to `fin_floor`; the head's end is
+        # stems.S_HEAD_END (0.85) of the foot's end width and tapers into its
+        # face instead of swelling. Both weights.
+        from .stems import S_HEAD_END
+        foot = PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], False, floor=fl)
+        wf = PR.finial_widths(foot, True, floor=0.0, swell=S_HEAD_END * foot(1.0) / foot(0.0))
         parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
         return geom.close_corners(geom.ink(parts), S_BLEND * u)
 

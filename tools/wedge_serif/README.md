@@ -281,6 +281,14 @@ the c's top finial at the c's end width, its head tops out where the c's
 does, the italic's head rises to the c's. Round 282, every weight, both
 styles.
 
+**Rulings 2026-09-19 (owner), round 283, on the s:** *".93/.82 wins"* -- the
+head's start is 0.93 of the width, 0.82 of the x-height, at every weight;
+*"for all s, make the top equally or less visually heavy than the bottom"*
+-- the foot carries the c's finial, the head's end is 0.85 of the foot's and
+tapers into its face (`stems.S_HEAD_END`, both styles); *"deburr the 900 s"*
+-- above stem 84 the s's pen widths are averaged over +/-0.6 stem of path
+before the finials (`stems._smooth_widths`).
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the

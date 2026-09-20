@@ -482,22 +482,10 @@ def g_a(c):
     solid, o, i = ring_from(outer, widths_fn=wfn2, counter_smooth=3, smooth_w=6)
     return geom.ink([st, hd, solid])
 
-def _s_head_x():
-    """Round 282: the head's reach, x the s's width. The finial's face lies
-    nearer the vertical than the 20-degree cut it replaced and is trimmed
-    back by its own throw, (w / 2) tan 28 -- 16 units at the 400 and 35 at
-    the 900 -- so a fixed start point loses reach as the end thickens. These
-    are the starts that land the built s's right edge where the old head's
-    did at each weight (334 / 346 / 370 / 382 at the 200 / 400 / 700 / 900,
-    measured in design mode), interpolated on the stem."""
-    env = os.environ.get("ALBO_ROM_S_HEAD_X")
-    if env: return float(env)
-    table = [(43.8, 1.00), (66.9, 1.04), (116.0, 1.10), (148.0, 1.12)]
-    if S <= table[0][0]: return table[0][1]
-    for (s0, x0), (s1, x1) in zip(table, table[1:]):
-        if S <= s1: return x0 + (x1 - x0) * (S - s0) / (s1 - s0)
-    return table[-1][1]
-S_HEAD_X = _s_head_x()
+S_HEAD_X = float(os.environ.get("ALBO_ROM_S_HEAD_X", 0.93))   # round 283: the head's reach, x the s's width -- 0.93 as drawn (owner, on the ladder: ".93/.82 wins"; round 282's per-weight reach is gone)
+S_FOOT_X = float(os.environ.get("ALBO_ROM_S_FOOT_X", 0.11))   # round 283: the foot's reach, the head's mirrored about the apexes (0.42 - (0.93 - 0.62)); 0.06 before
+S_HEAD_END = float(os.environ.get("ALBO_S_HEAD_END", 0.85))   # round 283: the head's end width, x the foot's (owner: "for all s, make the top equally or less visually heavy than the bottom"); both styles read this
+S_SMOOTH = float(os.environ.get("ALBO_ROM_S_SMOOTH", 0.6))   # round 283: the deburr -- the pen widths averaged over +/- this x the stem of path, above stem 84 (89 units at the 900); 0.35 leaves the nubs
 S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", 0.82))   # round 282: the head's height, x the x-height (0.80 before)
 @glyph('s')
 def g_s(c):
@@ -509,30 +497,63 @@ def g_s(c):
     scale rendering. right now it is too light and low on vertical grid."*
     Round 275 changed the roman's round finials out for the c's end and left
     this letter alone: its ends were the pen cut at 20 degrees with a 1.25
-    flare over the last 12%, and the head's end runs down a steep diagonal
-    where the pen is thin -- 21 units tall on its face against the c's 42,
-    so at 13 px (77 units to the pixel) the c's end is a pixel and the s's
-    is not. Measured on the built 400 before this: the head's face spans
-    y 354..375, the c's top end 352..394; at 13 px the s's head lands one
-    row under the c's and half as dark. Now: the family's finial on both
-    ends (PR.finial_widths / PR.finial_cut, held to rounds.c_top_width() --
-    60.8 at the 400, the c's own), the head's start raised 0.80 -> 0.82 xh
-    so its face tops out where the c's does (397 against 397), and reaching
-    further -- 0.93 -> 1.04 of the width at the 400, per weight in
-    `_s_head_x` -- because the finial's face lies nearer the vertical than
-    the 20-degree cut did and pulled the letter's right edge in by 27 units
-    at the 400 and 25 at the 900; the built s is as wide as it was."""
+    flare over the last 12%, an oblique face that read light at 13 px and
+    landed one pixel row under the c's. Now the family's finial on both ends
+    (PR.finial_widths / PR.finial_cut, the head held to rounds.c_top_width()
+    -- 60.8 at the 400, the c's own), the head's start raised 0.80 -> 0.82
+    xh so its face tops out where the c's does (397 against 397).
+
+    ROUND 283 -- THE HEAD AS DRAWN, THE FOOT ITS EQUAL, AND NO BURRS. Owner,
+    on a ladder of head starts: *".93/.82 wins"* -- the reach stays at 0.93
+    (round 282 had stretched it to 1.04 and beyond, per weight, to keep the
+    old width; that was the "top too heavy"), so the built s is 28 units
+    narrower at the 400 than it was and the head tucks in over the bowl.
+    *"the bottom needs to be optically equal to the top"*, then *"for all s,
+    make the top equally or less visually heavy than the bottom"*: the foot's
+    start is the head's mirrored about the two apexes (0.42 - 0.31 = 0.11 of
+    the width, from 0.06); the foot keeps the c's finial -- the 1.10 swell,
+    held to the c's end width -- and the head's end is S_HEAD_END (0.85) of
+    the foot's, so it TAPERS into its face where the foot swells into its:
+    the head's blunt near-vertical face on a stroke that stays thick all the
+    way in was the heavier terminal to the eye whatever the ink said. The
+    italic s (aldine.a_s) reads the same dial. *"deburr the 900 s"*: the
+    Black's s stood a nub into each aperture. Not a fold (the tightest bend
+    clears the half-width by 8 units) and not a sliver (an opening of radius
+    10 took 18 square units off it): the pen's width climbs 54 -> 136 across
+    the bend where the direction crosses the thin axis, and the inner offset
+    of a width rising that fast on a bend that tight bulges. Above stem 84
+    the pen widths are averaged over +/- S_SMOOTH x the stem of path
+    (`_smooth_widths`, before the finials) -- 0.35 leaves the nubs, 0.6
+    clears both; the 400 and the 200 keep the pen's own widths."""
     xh = c["xh"]; wf = c["wf"]; w = 370 * wf; o = OVER - TH_H / 2
     pts = [(w * S_HEAD_X, xh * S_HEAD_Y), (w * 0.62, xh + o * 0.9), (w * 0.20, xh * 0.86), (w * 0.22, xh * 0.60),
-           (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * 0.06, xh * 0.19)]
+           (w * 0.78, xh * 0.42), (w * 0.82, xh * 0.16), (w * 0.42, -o * 0.9), (w * S_FOOT_X, xh * 0.19)]
     spine = catmull(pts, tension=0.55)
     if PR.BOWL and PR.BOWL.get('widen'):
         prof = widen_terminal(widen_terminal(None, True), False)
         return geom.ink([stroke(spine, pen_widths(spine, prof), cut0=CUT, cut1=CUT)])
     from .rounds import c_top_width
-    fl = c_top_width()
-    wfn = PR.finial_widths(PR.finial_widths(pen_widths(spine, None), True, floor=fl), False, floor=fl)
+    fl = c_top_width(); base = pen_widths(spine, None)
+    if S > 84.0 and S_SMOOTH > 0.0: base = _smooth_widths(base, spine, S * S_SMOOTH)   # the deburr, see the docstring
+    foot = PR.finial_widths(base, False, floor=fl)                       # the foot: the c's finial, held to the c's end width
+    wfn = PR.finial_widths(foot, True, floor=0.0, swell=S_HEAD_END * foot(1.0) / foot(0.0))   # the head: S_HEAD_END of the foot's end, tapering into its face
     return geom.ink([stroke(spine, wfn, cut0=PR.finial_cut(spine, True), cut1=PR.finial_cut(spine, False))])
+
+def _smooth_widths(f, center, win, N=600):
+    """The width function `f(t)` box-averaged over +/- `win` units of the
+    path (round 283's deburr for the s; the finials go on AFTER this so the
+    ends keep their declared swells). At the 900 the pen runs 54 wide at
+    t 0.2 and 136 at 0.4 -- the direction swings through the thin axis on
+    the s's tightest bend -- and the inner offset of a width rising that fast
+    on that bend bulges into the aperture; averaged over the stroke's own
+    width of path it does not (69 / 131)."""
+    from shapely.geometry import LineString
+    L = LineString(geom.resample(center)).length; k = win / L
+    ys = [f(i / N) for i in range(N + 1)]
+    def g(t):
+        lo = max(0, int((t - k) * N)); hi = min(N, int(math.ceil((t + k) * N)))
+        return sum(ys[lo:hi + 1]) / (hi - lo + 1)
+    return g
 
 def bowl_stem(c, side, top, bottom):
     """b d p q: the o's ring at the b's radius, KEPT TO THE STEM (ruling,
