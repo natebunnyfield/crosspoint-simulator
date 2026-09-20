@@ -305,6 +305,14 @@ terminal did not, and the floor between them ran out of room to rise (headroom
 arc with its outgoing handle eased 1.6x. The 400s, the 200 and both italics
 are byte-identical.
 
+**Ruling 2026-09-20 (owner): the italic g is thinned to its family's COLOR**
+("italic 400 g needs to be thinned out", then "e wins" on a five-rung
+ladder) -- `ALBO_ALD_G_WALL` 0.82 scales both of the g's ring width tables in
+`_g_roman`, taking its color from 0.307 to 0.272 against the lowercase median
+of 0.275. It was the heaviest letter in the italic lowercase. The stroke
+median would have been 0.90; the color median is the rung he picked, and the
+two differ because the g packs two bowls and a neck into one x-height.
+
 **Ruling 2026-09-20 (owner): the TestFlight refresh WAITS for the italic
 cleanup.** The refresh itself was ruled on 2026-09-19 ("refresh through
 validation") and has been held twice while the drawing moved; asked whether to

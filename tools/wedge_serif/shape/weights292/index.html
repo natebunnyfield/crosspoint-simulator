@@ -1,0 +1,55 @@
+<title>Albo Italic g Weight</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:30px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:14px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Italic g Weight</h1>
+    <p class="lede">You are right that it is heavy, and it is the heaviest thing in the italic lowercase: measured on the built Italic 400, the g&rsquo;s color reads 0.307 against the family&rsquo;s 0.275 median, its stroke 63.2 against 58.7, and its thick 82.0, beaten only by the v. Five arms below thin the width table of both loops together, so the shapes, the centers and round 205&rsquo;s crown anchor are all untouched &mdash; only the walls move. Note the g&rsquo;s color runs higher than its stroke alone would explain, because two bowls and a neck are packed into one x-height; that is why matching the family on stroke and matching it on color are different rungs.</p>
+  </header>
+  <section><h2>Measured against the family (lowercase median: stroke 58.7, color 0.275)</h2>
+    <div class="scroll"><table>
+      <tr><th>arm</th><th>wall</th><th>stroke</th><th>vs family</th><th>color</th><th>thick</th></tr>
+      <tr><td>a</td><td>1.00</td><td>63.2</td><td>+8%</td><td>0.307</td><td>82.0</td></tr>
+      <tr><td>b</td><td>0.94</td><td>60.2</td><td>+3%</td><td>0.296</td><td>77.5</td></tr>
+      <tr><td>c</td><td>0.90</td><td>59.5</td><td class="ok">+1% &mdash; on the family&rsquo;s stroke</td><td>0.289</td><td>74.5</td></tr>
+      <tr><td>d</td><td>0.86</td><td>56.4</td><td>&minus;4%</td><td>0.281</td><td>72.3</td></tr>
+      <tr><td>e</td><td>0.82</td><td>54.2</td><td>&minus;8%</td><td class="ok">0.272 &mdash; on the family&rsquo;s color</td><td>70.0</td></tr>
+    </table></div>
+  </section>
+  <section><h2>The letter alone</h2>
+    <figure><img src="g-alone.png" alt="the g at five weights"><figcaption>a b c d e &mdash; 400 px em, native pixels</figcaption></figure>
+  </section>
+  <section><h2>Beside its neighbors</h2>
+    <figure><img src="nb-a.png" alt="a"><figcaption>a</figcaption></figure>
+    <figure><img src="nb-b.png" alt="b"><figcaption>b</figcaption></figure>
+    <figure><img src="nb-c.png" alt="c"><figcaption>c</figcaption></figure>
+    <figure><img src="nb-d.png" alt="d"><figcaption>d</figcaption></figure>
+    <figure><img src="nb-e.png" alt="e"><figcaption>e</figcaption></figure>
+  </section>
+  <section><h2>In words</h2>
+    <figure><img src="w-a.png" alt="a"><figcaption>a</figcaption></figure>
+    <figure><img src="w-b.png" alt="b"><figcaption>b</figcaption></figure>
+    <figure><img src="w-c.png" alt="c"><figcaption>c</figcaption></figure>
+    <figure><img src="w-d.png" alt="d"><figcaption>d</figcaption></figure>
+    <figure><img src="w-e.png" alt="e"><figcaption>e</figcaption></figure>
+  </section>
+  <section><h2>At the reader&rsquo;s raster</h2>
+    <figure><img src="reading.png" alt="at reading size"><figcaption>26 px em at the 2x tier, 4-bit gray, x4 NEAREST &mdash; arms a to e</figcaption></figure>
+  </section>
+</div>

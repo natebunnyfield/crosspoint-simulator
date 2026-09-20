@@ -1905,6 +1905,39 @@ points.
 
 Proof page: `tools/wedge_serif/shape/weights291/`.
 
+## 33. Round 292 — the italic g thinned to its family
+
+Owner 2026-09-20: *"italic 400 g needs to be thinned out."* Measured on the
+built Italic 400 with `cmp_weight_survey.py`, he is describing the heaviest
+letter in the italic lowercase: the g's color reads 0.307 against the
+family's 0.275 median, its stroke 63.2 against 58.7 (+8%), and its thick 82.0,
+beaten only by the v's 81.3. So this is a correction rather than a departure.
+
+`G_WALL` scales the width table of BOTH rings in `_g_roman` — the arm that
+actually ships, `G_STYLE` defaulting to roman; the cursive arm is dead code
+kept as the record, and an early cut of this dial went into it and moved
+nothing, which is worth knowing before editing this letter. The shapes, the
+centers and round 205's crown anchor are untouched; only the walls move.
+
+Laddered at 1.00 / 0.94 / 0.90 / 0.86 / 0.82 and RULED on the render:
+*"e wins"* — 0.82. That is the rung which lands the g on the family's COLOR
+median (0.272 against 0.275) rather than its stroke median, which 0.90 would
+have given. The two are different rungs because the g's color runs high for
+its stroke: two bowls and a neck are packed into one x-height, so it carries
+more ink per unit of area than a single-bowl letter at the same wall.
+
+Moved: the g and its four composites in both italics. Every roman weight is
+byte-identical; glitch and touch counts unchanged; the contour-hair gate
+reports exactly the same pre-existing findings before and after (b, p, W),
+so the thinning introduced none.
+
+Also in this commit, two dials added and left INERT pending rulings: the
+f-ligatures' internal fit (`ALBO_FI_PUSH`, `ALBO_FL_PUSH`, `ALBO_FF_STEP` in
+`ligatures.py`, laddered for the owner) and the k's inner spacing at the
+heavy weights (`ALBO_ALD_K_SPREAD`, default 0). Neither changes a glyph.
+
+Proofs: `tools/wedge_serif/shape/weights292/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

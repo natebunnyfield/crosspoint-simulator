@@ -13,9 +13,17 @@ from ..primitives import stem, dot
 from ..pen import S, XH, ASC, TH_H, adj
 from .stems import f_ink, f_geometry, dot_y, DOT_R, DOT_R_ADJ
 
-FI_PUSH = 0.35    # the i's stem centre sits this many stems RIGHT of the hook's free end (first cut at -0.15 piled the hook into the stem top)
-FL_PUSH = 0.40
-FF_STEP = 1.38    # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
+import os as _os
+# ROUND 292 -- HOW TIGHT AN f-LIGATURE MAY SET. Owner 2026-09-20: *"update
+# spacing, the fl ffl and fi ligatures are too close."* Measured on the built
+# fonts as the ligature's advance against the same letters set apart, which is
+# what "too close" means here: at the Regular the fl set 14.2% tighter, the fi
+# 16.0, the ffl 18.6 and the ffi 19.7, and the Bold ran 16.8 / 18.5 / 23.8 /
+# 24.9. The italic, which he did NOT complain about, sets 0 to 11.5% tighter,
+# so the italic is the reference for how much a ligature here should save.
+FI_PUSH = float(_os.environ.get("ALBO_FI_PUSH", 0.35))   # the i's stem centre, this many stems RIGHT of the hook's free end (first cut at -0.15 piled the hook into the stem top)
+FL_PUSH = float(_os.environ.get("ALBO_FL_PUSH", 0.40))
+FF_STEP = float(_os.environ.get("ALBO_FF_STEP", 1.38))   # the second f's stem centre, in hook radii past the first (the natural pair is ~1.47; 1.02 was cramped)
 
 def _i_stem(x, c):
     return stem(x, 0, c["xh"], top='left', foot='both')

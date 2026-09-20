@@ -4596,6 +4596,18 @@ if ON:
     # join; this dial is left reachable and off.
     G_WELD_TANG = float(os.environ.get("ALBO_ALD_G_WELD_TANG", 0.0))
     G_LOOP_Y = float(os.environ.get("ALBO_ALD_G_LOOP_Y", 64.0))   # moves the whole loop
+    # ROUND 292 -- THE g's WALLS. Owner 2026-09-20: *"italic 400 g needs to be
+    # thinned out."* Measured on the built Italic 400 (cmp_weight_survey), the
+    # g is the DARKEST letter in the italic lowercase: colour 0.307 against
+    # the family's 0.275 median (+12%), stroke 63.2 against 58.7 (+8%), and a
+    # thick of 82.0 beaten only by the v's 81.3. G_WALL scales the width table
+    # of BOTH rings, so the two loops thin together and their shapes, their
+    # centres and the crown anchor of round 205 are all untouched.
+    # RULED on a five-rung ladder, owner 2026-09-20: *"e wins"* -- 0.82, the
+    # rung that puts the g on the family's COLOR median (0.272 against 0.275)
+    # rather than its stroke median, because the g's color runs high for its
+    # stroke: two bowls and a neck in one x-height.
+    G_WALL = float(os.environ.get("ALBO_ALD_G_WALL", 0.82))
     # per-section wall multipliers round each ring: JSON [[deg, mult], ...]
     G_RING_ADJ = json.loads(os.environ["ALBO_ALD_G_RING_ADJ"]) if os.environ.get("ALBO_ALD_G_RING_ADJ") else None
     G_LRING_ADJ = json.loads(os.environ["ALBO_ALD_G_LRING_ADJ"]) if os.environ.get("ALBO_ALD_G_LRING_ADJ") else None    # 185 at the reference's depth, scaled to Albo's 280
@@ -5255,7 +5267,7 @@ if ON:
                         unit=u, want_outer=True, hand=_gh(G_BOWL_HAND),
                         adj=G_RING_ADJ, _phi=G_R_PHI, oval=G_BOWL_OVAL,
                         oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_BOWL_CUT),
-                        pen=_pen_of(G_R_PEN), wscale=ALD_WF_UP)[0]
+                        pen=_pen_of(G_R_PEN), wscale=ALD_WF_UP * G_WALL)[0]
         # ---- the LOOP, a full round below the line. `lcy + lry` is TH_H/2 at
         # every depth, so its top holds just over the baseline while its floor
         # follows G_R_LOOP_H -- which is how rounds 197/205's anchoring survives
@@ -5268,7 +5280,7 @@ if ON:
                         unit=u, want_outer=True, hand=_gh(G_LOOP_HAND),
                         adj=G_LRING_ADJ, _phi=G_R_PHI, oval=G_LOOP_OVAL,
                         oval_wall=G_OVAL_WALL * u, oval_hand=_gc(G_LOOP_CUT),
-                        pen=_pen_of(_lp), wscale=ALD_WF_UP)[0]
+                        pen=_pen_of(_lp), wscale=ALD_WF_UP * G_WALL)[0]
         # THE CENTRELINE AND THE WALL ARE MEASURED OFF THE BUILT CONTOURS.
         # The roman can write its centreline down (`rx - TH_V/2`, `ry - TH_H/2`)
         # because its ring is the family's bowl at the family's widths. These
@@ -6437,6 +6449,15 @@ if ON:
     # this dial enters.
     K_STEM_W = d_dial("K_STEM_W", 0.84)   # the stem's width, x S
     K_JOIN = d_dial("K_JOIN", 0.52)        # where the arm and leg leave it, x xh
+    # ROUND 293 -- THE k's INSIDE, AT THE HEAVY WEIGHT. Owner 2026-09-20:
+    # *"BoldItalic 700 k needs spacing inside."* Measured as the widest disc
+    # that fits the pocket between the stem, the arm and the leg: 83.5 units
+    # at the Italic 400 and 40.5 at the BoldItalic -- less than half, on a
+    # letter whose arm and leg thicken with the weight while their departure
+    # points do not move. K_SPREAD pushes the arm's start UP and the leg's
+    # DOWN by this fraction of the x-height each, above stem 84 only, so the
+    # 400 is untouched and the two strokes leave the stem further apart.
+    K_SPREAD = float(os.environ.get("ALBO_ALD_K_SPREAD", 0.0)) if pen.S > 84.0 else 0.0
     # 2026-09-18 -- THE k's HEAD COMES DOWN ONTO THE ASCENDER LINE. The k's ink
     # topped at 806 where d 771, h 774 and l 774: +32 over the line, 7% of the
     # x-height, and the tallest thing in the lowercase. The cause is not the
@@ -6477,7 +6498,7 @@ if ON:
         # width. It now rises to 48 and `fin1` ends it in the family's finial
         # held to `fin_floor` (65.6 at the 400 for the 69.1). The leg's flick
         # tapers to 22 and is not a ball; it stays.
-        arm = d_pen([P(150, J + 0.02), P(196, 0.60), P(238, 0.70), P(270, 0.79),
+        arm = d_pen([P(150, J + 0.02 + K_SPREAD), P(196, 0.60 + K_SPREAD * 0.55), P(238, 0.70), P(270, 0.79),
                      P(286, 0.885), P(292, 0.955)],
                     [(0.00, 60), (0.18, 44), (0.45, 40), (0.70, 44),
                      (1.00, 48)], u, tw=K_TW, fin1=True)
@@ -6493,7 +6514,7 @@ if ON:
         # ABOVE the line at +0.115 of the x-height. The dials are gone with it
         # rather than left at zero, because a dial nobody may turn is a reader's
         # tax on the file.
-        leg = d_pen([P(152, J), P(212, 0.40), P(250, 0.28), P(290, 0.15),
+        leg = d_pen([P(152, J - K_SPREAD), P(212, 0.40 - K_SPREAD * 0.55), P(250, 0.28), P(290, 0.15),
                      P(322, 0.05), P(360, 0.01), P(398, 0.05), P(414, 0.115)],
                     [(0.00, 62), (0.15, 58), (0.55, 58), (0.75, 52),
                      (0.88, 40), (0.96, 30), (1.00, 22)], u, tw=K_TW)
