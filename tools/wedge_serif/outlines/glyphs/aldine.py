@@ -6043,7 +6043,9 @@ if ON:
     #
     # The dial lifts the terminal's own point and half-lifts its neighbor, so
     # the hook keeps its shape and its turn back to the left; the hairline's
-    # rise, its width table and round 276's finial are untouched. On the v and
+    # rise, its width table and round 276's finial WIDTH are untouched (its
+    # FACE rotates about 6 degrees: `finial_cut` reads `tangents(p)[-1]`, so
+    # raising the last point steepens the final segment). On the v and
     # the w the terminal is the stroke's LAST point, the rising hairline ending
     # there; on the y it is the tail's FIRST, because the y's right stroke
     # carries on down past the baseline into the swash instead of stopping.

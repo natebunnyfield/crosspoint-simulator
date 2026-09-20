@@ -2390,6 +2390,26 @@ The y is the worst of the three. **A whole-half measure cannot see a terminal on
 a narrow letter; take the slice.** The x (1.050) and the z (1.004) are genuinely
 clean by either measure, so the family is v, w and y and nothing else.
 
+**AND THE BAND ABOVE IS A HALF-MEASURE BAND — do not compare it against these
+three numbers.** Found by the pre-release review, 2026-09-20. "0.986 to 1.050"
+comes from the FIRST table, the letter's right-hand half; the v/w/y figures come
+from the rightmost FIFTH. Read on the fifth measure the alphabet does not run
+0.986 to 1.050 at all:
+
+```
+  k 0.918   y 0.919   w 0.936   v 0.956   o 0.962   m 0.965   g 0.968   e 0.985
+```
+
+**The k reads 0.918, below the y**, and four more letters sit under 0.986. Those
+are INSTRUMENT ARTIFACTS, not low terminals: a round letter's rightmost fifth is
+its shoulder, and the k's is the foot of its leg. That is exactly why this has
+to be written down — a session re-running the adopted measure finds five more
+"low terminals" and has nothing here telling it they are not real.
+
+The ruling stands on the comparison that is like for like: terminal-of-a-diagonal
+against terminal-of-a-diagonal, the v, the w and the y are the three lowest and
+the x and the z the two highest.
+
 ### What shipped
 
 `DIAG_ENTRY_Y`'s sibling `DIAG_TERM_RISE` in `outlines/glyphs/aldine.py`, at
@@ -2400,6 +2420,15 @@ shape and its turn back to the left; the hairline's rise, its width table and
 round 276's finial are untouched. On the v and the w the terminal is the
 stroke's LAST point; on the y it is the tail's FIRST, because the y's right
 stroke carries on past the baseline into the swash instead of stopping.
+
+One qualification on "the finial is untouched", from the pre-release review:
+true of its WIDTH, not of its ANGLE. `finial_cut` reads `tangents(p)[-1]`, so
+raising the last point steepened the v's final segment from about 107 to about
+101 degrees and the terminal's face rotates with it, roughly 6 degrees. The
+width genuinely does not move — `finial_widths` reads `bf(1.0)` and
+`fin_floor()`, neither of which changed, confirmed on the y's far end where the
+widths below the baseline match to 0.04 units. The owner judged arm d from a
+render, so the rotated face is in what he approved.
 
 | | v | w | y |
 |---|---|---|---|
@@ -2413,13 +2442,46 @@ not a heavy-end repair.
 
 A raised terminal reaches further right — the v's ink to 462 design units
 against 453, the w's to 652 against 642, the y's to 487 against 483 — so the
-right-side fit was re-measured on all 24 pairs whose left letter moved, as
-closest approach in 2-D. Every delta is under 0.006 em against a 0.098 em
-lowercase median, they go in BOTH directions (`ve` +0.005, `yn` −0.004), and the
-tightest pair in the set (`yy` at 0.063) does not move at all. No bearing
-changed. The reason is geometric and worth keeping: the terminal sits at the
-x-line, where the following letter's left side is far away, so growing it does
-not close the gap the measure reports.
+right-side fit was re-measured on 24 pairs, as closest approach in 2-D. Every
+delta among those 24 is under 0.006 em against a 0.098 em lowercase median, they
+go in BOTH directions (`ve` +0.005, `yn` −0.004), and the tightest of them
+(`yy` at 0.063) does not move at all.
+
+**THAT IS A BOUND ON THE 24, NOT ON EVERYTHING THAT MOVED, and the first draft
+of this section said otherwise.** Corrected by the pre-release review,
+2026-09-20. There are **213 pairs per style** with v, w or y on the left, and
+the ones not picked — v/w/y followed by a CAPITAL — move three to four times
+that bound:
+
+```
+  Italic      vV 0.201 -> 0.179   wY 0.214 -> 0.192   yY 0.222 -> 0.201
+  BoldItalic  vV 0.196 -> 0.172   vW 0.172 -> 0.156   yp 0.067 -> 0.058
+```
+
+"No bearing changed" needs the same care. The BEARINGS **table** did not (the
+v's lsb is 44.59 before and after). The fitted advance and the right sidebearing
+of the shipped TTFs did:
+
+| upm 1000 | Italic v | w | y | BoldItalic v | w | y |
+|---|---|---|---|---|---|---|
+| rsb before | 18 | 20 | 22 | 16 | 17 | 22 |
+| rsb after | 9 | 9 | 15 | 5 | 6 | 14 |
+
+The mechanism is worth keeping, because it will catch the next person who moves
+a point on a sheared face: `fit_aldine` measures the right edge in UNSHEARED
+space, so raising a point by 0.10 of the x-height subtracts `shear x dy` — about
+9.9 units at 13 degrees — from its unsheared x. The advance therefore SHRINKS by
+0.9 to 3.4 while the sheared `xMax` GROWS by 9 to 10.
+
+**Nothing in the drawing needs fixing, and that was checked rather than
+asserted**: `cmp_touch.py` is green on both arms (0 touching, 0 under the 0.012
+em floor, both italics), the tightest v/w/y pair after the change is `y1` at
+0.041 em, `cmp_space_2d --per-glyph lower` moves only the v's left median
+(0.099 -> 0.102) and `letter+quote` (0.135 -> 0.131), and the `.cpfont` converter
+sources each glyph bitmap from FreeType's `bitmap_left`/`bitmap_top` rather than
+from the advance, so a 5-unit right sidebearing cannot clip anything on the
+device. What was wrong was the record, and the record is what the next spacing
+round would have trusted instead of re-measuring.
 
 ### The despike chord, 2.5 → 3.0
 
@@ -2443,9 +2505,15 @@ rules that each ate the arrows. Across all six shipped fonts:
 - Hair findings: BoldItalic 2 → 1, every other font unchanged.
 
 It touches all six point streams, and is taken under the owner's standing
-*"Chase them to zero first"*. Counter dents and the collision sweep are
-byte-identical before and after on every font; the roman's two touching pairs
-are pre-existing and unchanged.
+*"Chase them to zero first"*.
+
+Counter dents: the COUNTS are identical before and after (1/1/0/0/1/0), but
+"byte-identical" was too strong — the Italic `9`'s dent moved 1058/13.7 to
+998/13.1, because the despike removed a point from `nine`. It got smaller.
+Collision sweep: every font is unchanged, and the roman is not "two touching
+pairs" — two is the REGULAR's count. ExtraLight 1, Regular 2, Bold 4, Black 5,
+all four pre-existing and all four unmoved. Both corrections from the
+pre-release review, 2026-09-20.
 
 ### Measured and NOT ruled: the left entry serifs
 

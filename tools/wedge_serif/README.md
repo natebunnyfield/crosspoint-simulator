@@ -398,7 +398,8 @@ caught. A sign reversal is too large to be a slant and too plausible to ignore.
 — *"top right serif of v, not topleft"* … *"look at w and others too"* …
 *"d wins, correct y too"*. Their rising hairlines' terminals topped out at
 0.956, 0.936 and 0.919 of the x-height where the rest of the alphabet runs
-0.986 to 1.050, while the v's own left apex was the tallest thing in the
+0.986 to 1.050 on the same measure that band was taken with, while the v's own
+left apex was the tallest thing in the
 lowercase at 1.041 — the letters were tilted, not merely short.
 `DIAG_TERM_RISE` in `outlines/glyphs/aldine.py` ships at **0.10 xh**, arm d off
 the round-297 ladder, at every italic weight. The x and the z are clean and are
@@ -414,3 +415,17 @@ Same section.
 their entry at 0.745–0.750 xh where the i m n r u all land at 0.815.
 `DIAG_ENTRY_Y` is in the file at its shipped value, so nothing moved. Do not
 act on it without an owner ruling; do not re-raise it as a defect.
+
+**Correction 2026-09-20, from the pre-release review, to the round-297 record
+(the type is unaffected; all four are documentation defects):** the
+"0.986 to 1.050" band is a right-HALF measure and the v/w/y figures are a
+right-FIFTH measure, and on the fifth measure the `k` reads 0.918, BELOW the y
+(a round letter's rightmost fifth is its shoulder, not a terminal) -- do not
+re-run the adopted measure and treat those as low terminals. The "every delta
+under 0.006 em" spacing bound covers the 24 pairs measured, NOT all 213 pairs
+with v/w/y on the left: v/w/y before a CAPITAL close by about 0.022 em, and the
+fitted right sidebearing moves (Italic v 18 -> 9) even though the BEARINGS table
+does not, because `fit_aldine` measures in unsheared space. Counter-dent COUNTS
+are unchanged but not byte-identical (the Italic 9's dent shrank), and the
+touching-pair count of two is the Regular's, not "the roman's". Full account:
+`docs/albo-family-2026-09-19.md` section 38.
