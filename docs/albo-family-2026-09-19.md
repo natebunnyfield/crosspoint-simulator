@@ -1687,6 +1687,57 @@ the fix (14.55 against 3.57 at the 900): a circle fitted across a cluster of
 sub-unit segments returns garbage. The turn-on-a-real-segment measure above is
 the honest one.
 
+## 31. Rounds 289 and 290 — the Black e's bottom stroke, and why it had to move
+
+Owner 2026-09-19, after round 287: *"the 900 e lowest stroke does not have a
+bumpfree simple curve to it."* Round 287 had stopped the floor SAGGING by
+shortening its outgoing handle until the cubic's y no longer turned back.
+Monotone it was; simple it was not, and no choice of handles could have made
+it so.
+
+THE MECHANISM IS THE TWO ENDS, NOT THE CURVE. The floor leaves the bowl on
+the counter's own tangent and must arrive at the terminal on E_TIPDEG_R's 50
+degrees (round 110). Between those fixed ends the room to rise collapses as
+the stroke thickens, because the bowl's counter climbs — 8.6, 19.3, 41.6,
+56.0 at the 200, 400, 700 and 900 — while the terminal sat at 0.19 of the
+x-height at every weight. The chord from handover to tip flattens from 28.5
+degrees to 13.2; against a departure tangent of about 13 degrees that leaves
+headroom of +14.7, +13.0, +5.0 and −0.8. At the Black it is NEGATIVE: the
+floor must leave the bowl rising and still arrive below where its own tangent
+would carry it, so it dips and recovers. That is the corner he was pointing
+at, and it was decided before any curve was drawn.
+
+RULED, on a sheet of four cuts: *"d is closest but still not graceful
+curve"*, then on a second sheet *"d2 wins"*. The terminal now RIDES UP WITH
+THE WEIGHT (`_e_tipy`): 0.19 at and below the 400, ramping to
+`E_TIPY_HEAVY` = 0.28 at the 900, which restores +10.2 degrees of headroom
+there and +10.8 at the 700 against the 400's +13.0. The floor itself is one
+circular arc (`_arc_handles`) with its outgoing handle eased 1.6× so the
+curvature peaks mid-run and relaxes into the terminal, which is the shape the
+400 has; the curvature profile goes from climbing-to-the-tip to a single hump
+at both heavy weights.
+
+A BUG OF MINE, recorded because it cost a round: `_match_kappa_handle`
+returned the LONGEST first handle when the bowl's curvature was out of
+reach, where it should return the shortest — curvature at the start goes as
+1/h², so the long handle flattened the floor's first half into a straight and
+then bent it at the tip. That is what made the first cut of d read stiff, and
+the owner caught it by eye before the measurement did.
+
+TRIED AND RULED OUT, with numbers: moving the departure point later around
+the bowl (headroom −48.8 degrees at 300 degrees, −73 at 310, because the
+counter is climbing steeply there); pulling the terminal inward rather than
+upward (+0.3 degrees, nothing); and the tangent-INTERSECTION construction for
+the floor, whose triangle is near-degenerate here — the end tangents meet 4.4
+units in front of the tip at the 900 and 25.3 units behind it at the 700 — so
+it built a curve at one weight and refused at the other.
+
+Moved: the e and its composites at the 700 and the 900 only. The 200, both
+400s and both italics are byte-identical; glitch, touch and dent counts are
+at their baselines and no kern pair changed.
+
+Proofs: `tools/wedge_serif/shape/weights290/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

@@ -192,6 +192,31 @@ E_END_R = float(os.environ.get("ALBO_E_END_R", 276.0))     # the ring stops at t
 E_TAIL_R = float(os.environ.get("ALBO_E_TAIL_R", 0.40))    # the tail's width where it ends, x its width where it leaves the bowl
 E_TIPX_R = float(os.environ.get("ALBO_E_TIPX_R", 0.92))    # the tip, this many bowl radii right of the bowl's centre
 E_TIPY_R = float(os.environ.get("ALBO_E_TIPY_R", 0.19))    # and this fraction of the x-height above the baseline
+# ROUND 290 -- THE TERMINAL RIDES UP WITH THE WEIGHT. Owner 2026-09-19, on a
+# sheet of four cuts of the Black: *"d2 wins"* -- the terminal at 0.28 of the
+# x-height with the floor's outgoing handle eased 1.6x.
+#
+# WHY IT HAD TO MOVE AT ALL, measured on the built letters. The floor of the
+# bottom stroke leaves the bowl on the counter's own tangent and must arrive
+# at the terminal on E_TIPDEG_R's 50 degrees (round 110). Between those two
+# fixed ends the room to rise collapses as the stroke thickens, because the
+# bowl's counter climbs -- 8.6, 19.3, 41.6, 56.0 at the 200, 400, 700 and 900
+# -- while the terminal sat at 0.19 xh for all of them. The chord from the
+# handover to the tip therefore flattens from 28.5 degrees to 13.2, and
+# against a departure tangent of about 13 that headroom reads +14.7, +13.0,
+# +5.0 and -0.8: at the Black the floor has to leave the bowl RISING and
+# still arrive BELOW where its own tangent would carry it, so it must dip and
+# recover. No choice of handles removes that -- round 287's clamp made the
+# dip monotone, which is not the same as simple, and the owner said so.
+#
+# So the terminal rises with the stem, 0.19 at and below the 400 (which is
+# byte-identical, and is the weight he is happy with) to E_TIPY_HEAVY at the
+# 900, which restores +10 degrees of headroom there and about +8 at the 700.
+E_TIPY_HEAVY = float(os.environ.get("ALBO_E_TIPY_HEAVY", 0.28))
+def _e_tipy():
+    if not _heavy(): return E_TIPY_R
+    t = min(1.0, max(0.0, (pen.S - E_HEAVY_S) / (148.0 - E_HEAVY_S)))
+    return E_TIPY_R + (E_TIPY_HEAVY - E_TIPY_R) * t
 E_TIPDEG_R = float(os.environ.get("ALBO_E_TIPDEG_R", 50.0))# the direction the tail is travelling when it ends
 
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
@@ -220,6 +245,11 @@ E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its b
 # that is an architectural call for the owner, not a number to tune here. So
 # only the e's own bar moves, and only above E_HEAVY_S.
 E_BAR_HEAVY = float(os.environ.get("ALBO_E_BAR_HEAVY", "1.22"))
+E_TAIL_ARC = os.environ.get("ALBO_E_TAIL_ARC", "1") == "1"    # round 289: the tail's inner edge as one simple arc (see _arc_handles); 0 falls back to round 287's monotone clamp
+E_TAIL_LO = float(os.environ.get("ALBO_E_TAIL_LO", "0.04"))   # round 289: the shortest the floor's first handle may be, x its chord
+E_TAIL_H2 = float(os.environ.get("ALBO_E_TAIL_H2", "1.6"))    # round 289: the floor's second handle, x the circular arc's -- longer eases the terminal and moves the curvature's peak back toward the middle, which is the shape the 400 has
+E_TAIL_G2 = float(os.environ.get("ALBO_E_TAIL_G2", "1.0"))   # round 289: the floor leaves the bowl on this fraction of the bowl counter's own curvature; 0 = tangent only, the round-287 behaviour
+E_TAIL_ARC_K = float(os.environ.get("ALBO_E_TAIL_ARC_K", 1.0))   # x the circular-arc handle; 1.0 is the arc itself, lower flattens the floor toward its chord
 
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
 # sweeping up to the 330-degree terminal, ARM_END_DEG = E_END): owner
@@ -414,7 +444,106 @@ def _monotone_handle(P0, C1, P3, D2, s):
     return lo
 
 
-def _e_tail_inner(Pi, Ti, w0, cx, rx, xh):
+def _contour_kappa(pts, P, span=4):
+    """The signed curvature of a polyline contour near the point P -- the
+    bowl's counter where the tail leaves it. Averaged over `span` steps each
+    side, because one step of a resampled contour is noise."""
+    j = min(range(1, len(pts) - 1),
+            key=lambda i: (pts[i][0] - P[0]) ** 2 + (pts[i][1] - P[1]) ** 2)
+    ks = []
+    for i in range(max(1, j - span), min(len(pts) - 1, j + span + 1)):
+        (x0, y0), (x1, y1), (x2, y2) = pts[i - 1], pts[i], pts[i + 1]
+        a = math.hypot(x1 - x0, y1 - y0); b = math.hypot(x2 - x1, y2 - y1)
+        d = math.hypot(x2 - x0, y2 - y0)
+        sp = (a + b + d) / 2.0
+        ar = max(1e-12, sp * (sp - a) * (sp - b) * (sp - d)) ** 0.5
+        cr = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1)
+        ks.append(math.copysign(4 * ar / (a * b * d), cr))
+    return sum(ks) / len(ks) if ks else 0.0
+
+
+def _kappa0(P0, C1, C2):
+    """A cubic's signed curvature at t = 0."""
+    ax, ay = C1[0] - P0[0], C1[1] - P0[1]
+    bx, by = C2[0] - C1[0], C2[1] - C1[1]
+    h = math.hypot(ax, ay)
+    if h < 1e-9: return 0.0
+    return (2.0 / 3.0) * (ax * by - ay * bx) / (h ** 3)
+
+
+def _match_kappa_handle(P0, T0, C2, target, lo_f, hi_f, chord):
+    """The first handle's LENGTH that starts the cubic at `target` curvature.
+
+    ROUND 289 -- what the owner is actually pointing at. The floor's curvature
+    where it leaves the bowl REVERSES SIGN against the counter it is leaving:
+    measured on the built letters, the bowl's counter carries +11.3 (x1000) at
+    the handover and the tail's floor started at -3.2 at the 900 and -1.3 at
+    the 700, where the 400 -- the weight he is happy with -- starts at +0.6 and
+    simply continues. A tangent is shared and a curvature is not, so the eye
+    sees a corner however monotone the curve is.
+
+    Curvature at t=0 goes as 1/h^3, so it is monotone in the handle's length
+    and a bisection finds it. The handle is only ever SHORTENED toward the
+    target, never turned, so the counter's tangent at the handover and
+    E_TIPDEG_R at the terminal both stay exact."""
+    def k(h):
+        return _kappa0(P0, (P0[0] + T0[0] * h, P0[1] + T0[1] * h), C2)
+    lo, hi = max(1e-3, lo_f * chord), hi_f * chord
+    # UNREACHABLE GOES SHORT, NOT LONG. Curvature at the start goes as 1/h^2,
+    # so the shortest handle is the most curved one; returning the longest --
+    # which the first cut of this function did -- flattens the floor's first
+    # half into a straight and then bends it, which is the opposite of the
+    # ask. The owner saw that immediately: "d is closest but still not
+    # graceful curve."
+    if k(lo) < target: return lo
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        if k(mid) >= target: lo = mid
+        else: hi = mid
+    return 0.5 * (lo + hi)
+
+
+def _arc_handles(P0, T0, P3, D3, k=1.0):
+    """ROUND 289 -- the tail's floor as one CIRCULAR arc, so it cannot bump.
+
+    Owner 2026-09-19, on the Black: *"the 900 e lowest stroke does not have a
+    bumpfree simple curve to it."* Round 287 had stopped the floor SAGGING by
+    shortening the second handle until the cubic's y no longer turned back,
+    and monotone it duly was -- but monotone is not simple. Shortening one
+    handle and leaving the other piles the curvature up near the tip: the
+    floor left the bowl, flattened into a run that reads as a straight, and
+    then bent up to the terminal. That corner is what he is pointing at.
+
+    The two end tangents here turn only 37.6 degrees apart (12.4 at the
+    handover, E_TIPDEG_R's 50 at the tip), so the curve they want is very
+    nearly a circular arc -- and the cubic that best approximates one has BOTH
+    handles the same length, h = (4/3) tan(turn/4) R, with R the radius the
+    chord and the turn imply. Equal handles on a modest turn cannot inflect,
+    so the floor is one simple arc by construction at any weight rather than
+    by a clamp that has to be re-checked. Both END TANGENTS are exact, so the
+    counter's tangent at the handover and E_TIPDEG_R at the terminal (a
+    round-110 ruling) both survive untouched.
+
+    The tangent-INTERSECTION construction was tried first and rejected on
+    measurement: the triangle is near-degenerate here -- the tangents meet
+    4.4 units in front of the tip at the 900 and 25.3 units BEHIND it at the
+    700 -- so it built a usable curve at one weight, refused at the other, and
+    the one it built hugged the tip's tangent and thinned the tail.
+
+    Returns None if the turn is negligible or reverses, and the caller keeps
+    round 287's clamp for that case."""
+    turn = math.atan2(T0[0] * D3[1] - T0[1] * D3[0], T0[0] * D3[0] + T0[1] * D3[1])
+    if abs(turn) < math.radians(2.0) or abs(turn) > math.radians(160.0): return None
+    chord = math.hypot(P3[0] - P0[0], P3[1] - P0[1])
+    if chord <= 0.0: return None
+    R = chord / (2.0 * math.sin(abs(turn) / 2.0))
+    h = (4.0 / 3.0) * math.tan(abs(turn) / 4.0) * R * k
+    h = min(h, chord * 0.5)
+    return ((P0[0] + T0[0] * h, P0[1] + T0[1] * h),
+            (P3[0] - D3[0] * h, P3[1] - D3[1] * h))
+
+
+def _e_tail_inner(Pi, Ti, w0, cx, rx, xh, k_bowl=None):
     """The roman tail's INNER edge -- the counter floor the reader sees against
     the white -- and its width function. Round 245's construction: one cubic
     from the ring's own inner point along the counter's tangent to one end
@@ -434,11 +563,24 @@ def _e_tail_inner(Pi, Ti, w0, cx, rx, xh):
     never lengthened, and never turned."""
     wfn = _e_tail_width(w0)
     d2 = math.radians(E_TIPDEG_R); D2 = (math.cos(d2), math.sin(d2)); nout = (D2[1], -D2[0])
-    tip_o = (cx + E_TIPX_R * rx, E_TIPY_R * xh); w1 = wfn(1.0)
+    tip_o = (cx + E_TIPX_R * rx, _e_tipy() * xh); w1 = wfn(1.0)
     tip_i = (tip_o[0] - nout[0] * w1, tip_o[1] - nout[1] * w1)
     L = math.hypot(tip_i[0] - Pi[0], tip_i[1] - Pi[1])
     c1 = (Pi[0] + Ti[0] * L * 0.30, Pi[1] + Ti[1] * L * 0.30)
     s = L * 0.55
+    if _heavy() and E_TAIL_ARC:          # round 289, see _arc_handles
+        h = _arc_handles(Pi, Ti, tip_i, D2, E_TAIL_ARC_K)
+        if h is not None:
+            c1a, c2a = h
+            if E_TAIL_H2 != 1.0:          # ease the terminal: lengthen its handle along D2
+                _hl2 = math.hypot(tip_i[0] - c2a[0], tip_i[1] - c2a[1]) * E_TAIL_H2
+                c2a = (tip_i[0] - D2[0] * _hl2, tip_i[1] - D2[1] * _hl2)
+            if k_bowl is not None and E_TAIL_G2:
+                # leave the bowl on the bowl's own curvature, E_TAIL_G2 of it
+                chord = math.hypot(tip_i[0] - Pi[0], tip_i[1] - Pi[1])
+                hl = _match_kappa_handle(Pi, Ti, c2a, k_bowl * E_TAIL_G2, E_TAIL_LO, 0.60, chord)
+                c1a = (Pi[0] + Ti[0] * hl, Pi[1] + Ti[1] * hl)
+            return cubic(Pi, c1a, c2a, tip_i), wfn
     if _heavy():
         s = _monotone_handle(Pi, c1, tip_i, D2, s)
     c2 = (tip_i[0] - D2[0] * s, tip_i[1] - D2[1] * s)
@@ -472,7 +614,7 @@ def _inner_cut(outer, inner, cx, cy, a_cut, rx, xh, w0_seed):
     if Ti[0] < 0: Ti = (-Ti[0], -Ti[1])
     w0 = w0_seed; out = None
     for _ in range(4):
-        edge_i, _wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh)
+        edge_i, _wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh, _contour_kappa(inner, Pi))
         t0 = geom.tangents(geom.resample(edge_i))[0]
         n_out = (t0[1], -t0[0])                 # edge_stroke's side=-1: right of travel
         hit = _line_hit(outer, Pi, n_out)
@@ -599,7 +741,7 @@ def _e_tail(outer, inner, cx, cy, rx, xh, a_cut, cut=None):
             # (`_e_tail_inner` / `_e_tail_width`), which is also what
             # `_inner_cut` cuts the ring against -- the two cannot drift apart.
             # Below E_HEAVY_S it is round 245's cubic and wf byte for byte.
-            edge_i, wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh)
+            edge_i, wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh, _contour_kappa(inner, Pi))
             return PR.edge_stroke(edge_i, wfn, side=-1)[0]
     return PR.edge_stroke(edge, wf, side=1)[0]
 E_TAIL_INNER = __import__('os').environ.get("ALBO_ROM_E_TAIL_INNER", "1") == "1"   # round 245: the roman tail drawn from its inner edge

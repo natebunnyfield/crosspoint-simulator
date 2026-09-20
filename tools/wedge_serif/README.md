@@ -295,6 +295,16 @@ both sides on the lowercase median -- and the head's size is SOLVED per weight
 (`stems.s_head_end`) for a foot/head end ink of 1.12 rather than declared as a
 flat multiplier.
 
+**Ruling 2026-09-19 (owner), rounds 289-290, on the Black e:** *"the 900 e
+lowest stroke does not have a bumpfree simple curve to it"*, then *"d is
+closest"* and *"d2 wins"*. The e's TERMINAL RIDES UP WITH THE WEIGHT --
+`rounds._e_tipy`, 0.19 of the x-height at and below the 400, ramping to 0.28
+at the 900 -- because the bowl's counter climbs with the stroke while the
+terminal did not, and the floor between them ran out of room to rise (headroom
++13.0 degrees at the 400 against -0.8 at the 900). The floor is one circular
+arc with its outgoing handle eased 1.6x. The 400s, the 200 and both italics
+are byte-identical.
+
 **Ruling 2026-09-19 (owner), rounds 285-286, on the s:** on a page of five
 flow options, *"b wins, but the space on the top loop needs to be reduced and
 the bottom space needs to increase"*, then *"plus .01 wins"*. The shipped
