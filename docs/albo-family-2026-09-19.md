@@ -2053,6 +2053,264 @@ Moved: 45 / 10 / 5 / 8 / 48 / 12 glyphs by at most 0.02% of their area, in
 the ExtraLight, Regular, Bold, Black, Italic and BoldItalic. No kern pair
 changed; glitch, touch and dent counts unmoved.
 
+## 37. Round 296 — the 24 were three sites, and the six that are left are one
+
+Owner's ruling of the day before stands: *"Chase them to zero first."* Round
+295 took the gate from 33 letter findings to 24 by removing the spikes the
+integer grid leaves, and handed the rest over as drawing faults wanting
+per-letter work. **They were not 24 faults. They were three shared sites
+around ONE call**, and they are six now. Regular 400 and Black 900 are GREEN.
+
+| font | before | after |
+|---|---|---|
+| ExtraLight 200 | 6 | 1 |
+| Regular 400 | 3 | **0** |
+| Bold 700 | 1 | 1 |
+| Black 900 | 3 | **0** |
+| Italic 400 | 9 | 3 |
+| BoldItalic 700 | 2 | 1 |
+| **total** | **24** | **6** |
+
+### The one call
+
+`build.draw` finishes every glyph with `g.buffer(1.2, join_style=2)` — the
+record's ink spread, kept because those 1.2 units were part of the shipped
+weight. **An offsetter cannot say anything true about a feature finer than the
+distance it is offsetting by**, and three different things go wrong there.
+
+**Its INPUT carried degenerate edges.** `primitives.wedge` ends its outline
+`inner + fil[1:] + [B, A]`, and `fil` already ends at B — so every wedge in
+the face repeats its apex, and a union of two parts that share a corner
+exactly repeats that corner as well. A zero-length edge has no direction, so
+the offset normal at it is arbitrary. Measured on the ExtraLight v's top-left
+serif: the raw union is one straight face from the stroke's corner, and after
+the spread it came back with a 2.8-unit HORIZONTAL spur standing off it. That
+site is `v y w W M` and the `r`'s terminal — six of the 24.
+
+**Its OUTPUT carries them at a shallow concave corner**, where the two offset
+edges are near-antiparallel and their intersection is a pair of vertices a
+fraction of a unit apart rather than one. The M's left apex is the same shape
+from a different cause: round 272 cut the crown's trim with a lip dilated by
+0.34 units, to stop a zero-width strip the spread would inflate, and the
+dilation ends where the strokes' ink above the line ends — a 0.75-unit step on
+the apex edge at every roman weight.
+
+`geom.collapse_micro` cleans both sides of the spread: a vertex within
+**one unit** of the last vertex KEPT before it is dropped. One unit is the
+whole argument for the number — it is the grid the exporter rounds to, so
+nothing the pass can reach survives into the font anyway, and it is under the
+1.2 units the very next operation offsets by. **The rule moves no point**: a
+vertex is kept exactly where it is or removed, and a removed vertex lies
+within a unit of a retained one, so no excursion larger than a one-unit disk
+can be taken out. That is the property round 295's shallow-spur pass could not
+have — it compared each vertex to a chord that MOVED as its neighbors were
+removed, which is how an iterated sweep drifted and flattened the ExtraLight
+arrows' concave notches. Here the comparison is always against a retained
+point and there is nothing to drift along. Measured on the letters round 295
+could not help: `arrowboth` moves **0.511%** of its area and `arrowright`
+**0.181%**, against the 4.1%, 4.1% and 2.9% the three rejected rules cost
+them.
+
+### The third site: the vertices that lie ON the line they are in the middle of
+
+Where two diagonals meet — the `w`'s and the `W`'s inner vertex, the `m`'s
+arch against its stem, the `r`'s shoulder — the union's boundary arrives along
+one straight run and leaves along another, and the spread's offset lands its
+intersection a few units short of the nearest vertex on each run. The corner
+is then a real 150-degree crotch with a 3-unit arm on it, which is exactly the
+signature `cmp_contour_hairs` calls a HAIR: *"a drawn corner has two long arms,
+a spike has one arm a unit or two long."* Here both are true at once, because
+the vertex NEXT to the crotch is redundant. Measured on the Black `w`'s
+crotch, that neighbor stands **0.0006 units** off the chord through it.
+
+`geom.drop_collinear` removes it, at a fiftieth of a unit — two
+hundred-thousandths of the em, and a quarter of the 0.076 units of sagitta an
+11-unit chord already carries across a 200-unit bowl. No sampled curve is
+reachable: at the Regular the roman `o` and `0` keep all 230 and 231 of their
+points, the `s` loses 3 of 180 and the `8` one of 300. The straight-sided
+letters are another matter, and that is the finding nobody was looking for —
+**the face was exporting its straight edges as staircases.** The ExtraLight em
+dash is two straight lines and it shipped as 148 points stepping 207, 208,
+208, 208, 209; it is 4 points now. The Regular `M` goes 466 → 59, the `W`
+470 → 48, the `v` 164 → 31, the `z` 108 → 31.
+
+| font | total points | after |
+|---|---|---|
+| ExtraLight | 58,024 | 38,831 (−33.1%) |
+| Regular | 56,747 | 38,935 (−31.4%) |
+| Bold | 54,384 | 38,426 (−29.3%) |
+| Black | 52,439 | 37,860 (−27.8%) |
+| Italic | 57,792 | 41,557 (−28.1%) |
+| BoldItalic | 53,665 | 40,362 (−24.8%) |
+
+### Three negative results, each of which cost a build
+
+**Douglas-Peucker is the wrong sweep for this, by its anchors.** DP carries
+the right bound — every dropped point is measured against the chord that
+replaces it, so a run cannot bow away from the line a little at a time — but
+it picks the point FARTHEST from a chord as a split and keeps it whatever it
+is, and at a crotch the vertex beside the corner is exactly that point.
+Measured on the Black `w`: DP at this tolerance merged the run on one side of
+the crotch into 265 units and kept a 2.0-unit stub on the other. The shipped
+pass is a forward sweep that re-checks every held point against the new chord,
+which has DP's bound and none of its anchors.
+
+**A tolerance loose enough to be a simplifier creates findings.** DP at a
+fiftieth of a unit applied globally cleared five and CREATED five, in letters
+that had none — the ExtraLight `h`, the italic `r`, four of the BoldItalic —
+because at that point it starts keeping a SUBSET rather than the same line,
+and a three-point wobble that was two 8-degree turns becomes one 16-degree
+turn somewhere else. A local rule instead — walk out from each sharp corner,
+drop the neighbor within a hundredth of its own chord — was built and
+measured and is worse still, **20 findings**, because the crotch it is aimed
+at turns 149.9 degrees and sits under any threshold that does not also admit
+half the letter.
+
+**Neither pass may run inside `draw()`.** `fit_aldine` reads its bearings off
+the vertices whose ROUNDED y falls in the x-height band, and `solve_widths`
+re-solves each capital's and figure's multiplier off `geom.bbox(draw(...))`
+until its ink width hits a target. Dropping a vertex that happens to sit on
+the band's edge moves a bearing by whatever that vertex was holding: with the
+collinear pass inside `draw()`, the ExtraLight `four` came out **349 wide
+against 444** and the `seven` 470 against 402, which put 35 more pairs on
+`cmp_touch`'s TOUCHING list and took `cmp_figure_space`'s roman spread to
+2.57x, over its 2.50x. It runs at export now, after `fit`, beside round 295's
+despike; the fitter sees every vertex it always saw and only the written
+outline is decimated. `collapse_micro` is the exception and stays in `draw()`,
+because it is what the spread itself needs on both sides — and it moves at
+most two units of advance on at most twelve glyphs in any font.
+
+### The six that stay, and the measurement that says they cannot be drawn out
+
+All six are one thing: a CONCAVE CROTCH where a bowl or an arch springs from a
+stem. **A crotch of included angle θ advances its own vertex `1.2 / sin(θ/2)`
+units up the bisector under the ink spread, and that comes off both arms.**
+
+| glyph | raw crotch | included | raw arms | spread eats | an 8-unit arm needs |
+|---|---|---|---|---|---|
+| ExtraLight `m` | 160.5° | 19.5° | 8.15 / 10.71 | 7.09 | 15.1 |
+| Bold `m` | 142.2° | 37.8° | 11.73 / 5.89 | 3.71 | 11.7 |
+| Italic `q` | 162.0° | 18.0° | 7.19 / 10.82 | 7.68 | 15.7 |
+| Italic `b` | 158.9° | 21.1° | 4.60 / 12.08 | 6.54 | 14.5 |
+| Italic `p` | 166.7° | 13.3° | 9.78 / 1.60 | 10.38 | 18.4 |
+| BoldItalic `p` | 154.9° | 25.1° | 11.11 / 9.09 | 5.51 | 13.5 |
+
+The last column is the one that settles it. **Five of the six would need a
+last facet longer than `geom.SPACING`, the project's own 11-unit sampling**,
+before the spread could leave an 8-unit arm — so the arm the gate wants does
+not exist in the drawing to begin with, and no amount of vertex hygiene can
+produce it. Resampling every crotch arm to a full 11 units was priced and
+would not clear ONE of the six: the Bold `m` would go 5.89 → 11 and leave a
+7.29-unit stub, the BoldItalic `p` 9.09 → 11 and leave 5.49. Nor is it the
+mitre limit — `join_style=2` at limits 5, 20 and 100 gives byte-identical
+geometry at the ExtraLight `m`'s crotch, so GEOS is not beveling anything; the
+short arms are the true offset.
+
+Rendered before and after, these six are the same drawing (figure 6 on the
+page). **They are recommended as EXEMPTIONS**, and there are two ways to zero
+that are both the owner's to rule on: open those crotches, which is a shape
+change in the `m` and in the italic `b p q` and which nobody has asked for; or
+have `cmp_contour_hairs` measure the arms on the contour BEFORE the ink
+spread, where they are 4.6 to 12.1 units and nothing has been eaten.
+
+### What moved
+
+No letter in any of the six fonts moves more than **0.80%** of its area
+(ExtraLight `z`, which is all straight lines and whose staircases collapsed),
+and only sixteen letters across all six move more than 0.3%: ExtraLight
+`z` +0.80, `A` +0.69, `W` +0.66, `M` +0.60, `v` −0.46, `Y` +0.35, `x` −0.32,
+`F` +0.31, `Z` +0.31; Regular `V` +0.41, `M` −0.40, `z` +0.31; Bold `x` +0.31;
+Black `A` +0.32, `V` +0.31; Italic `l` +0.39; BoldItalic none. Every one is a straight-sided letter and the
+direction is the staircase being replaced by the line it was sampling.
+
+The largest move in the whole build is on the MARKS, and it is the same effect
+at a smaller scale: the ExtraLight `acute` −2.25%, `asciicircum` −2.08%, the
+dashes +1.4 to +1.5%. A thin mark's long edge was a stair snapping to whole
+units at each sample; as one segment it rounds once, which is worth up to half
+a unit of thickness either way. That is a coin flip per edge and it is
+recorded rather than defended, because it is the price of the em dash not
+being 148 points.
+
+### What the adversarial pass found, and what it cost
+
+Three real findings, all fixed before this shipped, and they are the reason
+the two functions look the way they do rather than the obvious way.
+
+**`collapse_micro` could delete a whole RING, and the guard it had could not
+see it.** The rule chains — each dropped vertex is within a unit of the last
+KEPT one — so a ring every one of whose vertices is within a unit of the last
+collapses entirely, however long it is: a 100-unit sliver of 17.5 units² area
+qualifies. The caller then dropped the polygon or the hole, which is a
+perfectly VALID result, so the `res.is_valid` fallback never fired and its
+comment described a failure mode that was not the reachable one. It fires on
+the real corpus: three holes, in the `a`, the feminine ordinal and the `æ`,
+each 0.08 × 0.33 units and 0.02 of area — which `contours(min_area=40)` drops
+anyway, so nothing had changed. `clean()` now returns the ring untouched
+rather than short. Latent and ungated is not the same as absent.
+
+**The forward sweep's bound was `tol` everywhere except at the ring's seam,
+where it was 2·`tol`.** `pts[0]` is wherever the ring happened to start and is
+kept by construction, so it is tested last — but the points already dropped on
+either side of it were measured against chords that ENDED or BEGAN at it, and
+popping it moves their chord without re-checking them. Measured on the yen
+sign at the Regular: **0.0289 units off the final chord against a tol of
+0.02.** Cosmetic at three hundred-thousandths of the em, and the docstring's
+claim was still false. The seam's two runs are re-checked now; the bound is
+`tol` on every vertex of every ring.
+
+**One doc claim did not reproduce and one was wrong.** The advance figure is
+above. *"The roman o s 0 8 keep every point they had"* was corrected to the
+measured 230→230, 231→231, 180→177 and 300→299 before the review landed, and
+the review found the mechanism behind the two that do move: `cut.blend` puts
+points onto their chords, and a chord is exactly what this pass removes. On
+the shipped build `FJORD_CUT=0` so the blend is a no-op and the effect is
+three points in the `s`; it is worth knowing that a build WITH the cut would
+see much more of it.
+
+**One thing to re-run, not a fault:** `outlines/cmp/variety.py` — the
+detwinning sweep — compares serifs for byte-identical twins, and every outline
+in the face has moved. Its "129 of 144" figure
+(`docs/albo-variety-audit-2026-09-13.md`) is stale until it is re-run. And a
+pre-existing note it surfaced, not new this round: `hmtx`'s `lsb` is computed
+from `conts` while the exported `xMin` comes from the decimated-then-rounded
+points, so a decimation can move `xMin` inward by up to `tol` before rounding.
+Round 295's `despike` already had this and it is bounded by a unit.
+
+### What was checked and found CLEAN, this round
+
+`cmp_aldine_glitch --all` 18 / 19 / 23 / 25 / 20 / 23 findings, **identical**
+to the baseline in all six. `cmp_touch` 1 / 2 / 4 / 5 / 0 / 0 TOUCHING,
+identical (the Regular's *below the floor* count improves, 4 → 2).
+`cmp_counter_dents` 1 / 1 / 0 / 0 / 1 / 0, identical, the `&`'s and the italic
+`9`'s single dents moving by at most one unit of depth. Contour and hole
+counts are unchanged on every glyph in every style. `cmp_figure_space
+--body` 1.77 / 1.62 / 1.54 / 1.54 / 1.36 / 1.47x, all *even*, the Italic alone
+moving and by 0.01x. **GPOS: 0 pairs changed in any of the six.** Advance
+widths move by at most 2 units, on 0 to 12 glyphs per font — **measured on the
+shipped build configuration**, which matters: adversarial review measured the
+same thing with `FJORD_STEM` alone and got 19 to 26 glyphs and up to 4 units,
+because `FJORD_CUT=0` makes `pen.CUT_AMOUNT` 0 and `cut.blend` a no-op, and
+without it three of every four dense points sit on their chords where
+`drop_collinear` can reach them. Quote an advance figure with the env that
+produced it. `cmp_cap_space`
+reports the same WIDE/TIGHT rows before and after in both the Regular and the
+Italic, the largest move being `RY` by 0.0025 em.
+
+**The reading-size color does not move.** A 1,300 px line of English plus the
+letters that changed most (`MWvz`, the em dash, the acute), rendered through
+FreeType at 13 px and 26 px in four of the six styles: the mean ink of the
+whole field moves by at most **0.045 of a code value out of 255** — the Black
+at 26 px, which is 0.2% of its ink — and by 0.003 to 0.015 everywhere else.
+Between 1.3% and 3.9% of the pixels differ at all, which is the edges that
+moved by their half unit.
+
+**And the sweep nobody asked for: the gate's FULL run, all 306 glyphs rather
+than the 52 letters, improves in every one of the six and is worse in none** —
+30 → 20, 21 → 15, 12 → 11, 20 → 12, 34 → 18, 15 → 13, a total of 132 → 89. The
+symbols and the marks were carrying the same three faults as the letters.
+
+Page: `tools/wedge_serif/shape/weights296/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

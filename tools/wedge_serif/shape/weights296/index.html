@@ -1,0 +1,74 @@
+<title>Albo Contour Hairs To Six</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;--bad:#8a3b2e;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:30px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:14px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .bad{color:var(--bad);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Contour Hairs To Six</h1>
+    <p class="lede">Round 296. The contour-hair gate&rsquo;s 24 surviving letter findings are 6. They were not 24 faults: they were three shared sites around the ONE call that finishes every glyph, <code>g.buffer(1.2, join_style=2)</code> &mdash; the record&rsquo;s ink spread. Its input carried exact duplicates and sub-unit edges, its output carried them at every shallow concave corner, and the vertices that lie ON the line they are in the middle of were being exported and then rounded into a staircase. Regular 400 and Black 900 are GREEN. In every figure BEFORE is on the left and AFTER on the right, at one pixel per design unit magnified x8 NEAREST, with the exported vertices circled.</p>
+  </header>
+
+  <section><h2>Where the 24 went</h2>
+    <div class="scroll"><table>
+      <tr><th>font</th><th>before</th><th>after</th></tr>
+      <tr><td>ExtraLight 200</td><td>6</td><td class="bad">1</td></tr>
+      <tr><td>Regular 400</td><td>3</td><td class="ok">0</td></tr>
+      <tr><td>Bold 700</td><td>1</td><td class="bad">1</td></tr>
+      <tr><td>Black 900</td><td>3</td><td class="ok">0</td></tr>
+      <tr><td>Italic 400</td><td>9</td><td class="bad">3</td></tr>
+      <tr><td>BoldItalic 700</td><td>2</td><td class="bad">1</td></tr>
+      <tr><td><strong>total</strong></td><td><strong>24</strong></td><td><strong>6</strong></td></tr>
+    </table></div>
+  </section>
+
+  <section><h2>1 &mdash; the wedge that repeated its own apex</h2>
+    <p><code>wedge()</code> ends its outline <code>fil[1:] + [B, A]</code> and <code>fil</code> already ends at B, so every wedge in the face repeated its apex; a union of two parts sharing a corner repeated that corner too. A zero-length edge has no direction, so the offset normal at it is arbitrary, and the ExtraLight v&rsquo;s top-left serif came back with a 2.8-unit horizontal spur standing off a face that is one straight line in the drawing. This site is v y w W M and the r&rsquo;s terminal.</p>
+    <figure><img src="01-extralight-v-serif.png" alt="ExtraLight v top-left serif, before and after"><figcaption>ExtraLight 200, v, top-left serif at (55,410) &mdash; 84x84 design units, x8 NEAREST. BEFORE four vertices and a 2.8-unit step; AFTER one.</figcaption></figure>
+  </section>
+
+  <section><h2>2 &mdash; the crotch whose neighbor carried nothing</h2>
+    <p>Where two diagonals meet, the union arrives along one straight run and leaves along another, and the ink spread&rsquo;s offset lands its intersection a few units short of the nearest vertex on each run. The corner is then a real 150-degree crotch with a 3-unit arm &mdash; the gate&rsquo;s exact signature for a hair &mdash; because the vertex NEXT to it is redundant. On the Black w that neighbor stands 0.0006 units off the chord through it.</p>
+    <figure><img src="02-black-w-crotch.png" alt="Black w crotch, before and after"><figcaption>Black 900, w, inner crotch at (541,196) &mdash; 84x84 design units, x8 NEAREST. BEFORE eight vertices around a notched tip; AFTER two and a point.</figcaption></figure>
+    <figure><img src="04-extralight-r-shoulder.png" alt="ExtraLight r shoulder, before and after"><figcaption>ExtraLight 200, r, shoulder against the stem at (140,400) &mdash; 84x84 design units, x8 NEAREST. The stem&rsquo;s edge dipped past the spring and came back.</figcaption></figure>
+  </section>
+
+  <section><h2>3 &mdash; the M&rsquo;s apex, and round 272&rsquo;s 0.34</h2>
+    <p>Round 272 cut the crown&rsquo;s trim with a lip dilated by a third of a unit, to stop a zero-width strip the ink spread would inflate. The dilation ends where the strokes&rsquo; ink above the line ends, so it left a 0.75-unit step on the apex edge at every roman weight. One unit is the grid the exporter rounds to, so the step is below anything the font can carry, and it is gone.</p>
+    <figure><img src="03-regular-M-apex.png" alt="Regular M left apex, before and after"><figcaption>Regular 400, M, left apex at (128,678) &mdash; 84x84 design units, x8 NEAREST. BEFORE a kink and a doubled vertex at the peak; AFTER one edge to one corner.</figcaption></figure>
+  </section>
+
+  <section><h2>4 &mdash; the straight edges that shipped as staircases</h2>
+    <p>CONTEXT figure (a diagram of the point stream, not a render). The ExtraLight em dash is two straight edges and it shipped as 148 points stepping 207, 208, 208, 208, 209 &mdash; an 11-unit facet chain rounded to the em grid. At the Regular the roman o and 0 keep all 230 and 231 of their points and the s loses 3 of 180; the M goes from 466 to 59 and the W from 470 to 48. Total point count is down 25 to 33% depending on the style.</p>
+    <figure><img src="05-extralight-emdash-points.png" alt="em dash point stream before and after"><figcaption>ExtraLight 200, em dash, exported vertices. CONTEXT.</figcaption></figure>
+  </section>
+
+  <section><h2>The six that stay, and why</h2>
+    <p>All six are one thing: a CONCAVE CROTCH where a bowl or an arch springs from a stem. A crotch of included angle &theta; advances its own vertex <code>1.2 / sin(&theta;/2)</code> units up the bisector under the ink spread, and that comes off both arms. At the angles these are drawn at, the arm the gate wants does not exist in the drawing to begin with &mdash; five of the six would need a last facet longer than the project&rsquo;s own 11-unit sampling. Resampling would not clear one of them.</p>
+    <div class="scroll"><table>
+      <tr><th>glyph</th><th>crotch</th><th>included</th><th>raw arms</th><th>spread eats</th><th>needs for an 8-unit arm</th></tr>
+      <tr><td>ExtraLight m</td><td>160.5&deg;</td><td>19.5&deg;</td><td>8.15 / 10.71</td><td>7.09</td><td class="bad">15.1</td></tr>
+      <tr><td>Bold m</td><td>142.2&deg;</td><td>37.8&deg;</td><td>11.73 / 5.89</td><td>3.71</td><td class="bad">11.7</td></tr>
+      <tr><td>Italic q</td><td>162.0&deg;</td><td>18.0&deg;</td><td>7.19 / 10.82</td><td>7.68</td><td class="bad">15.7</td></tr>
+      <tr><td>Italic b</td><td>158.9&deg;</td><td>21.1&deg;</td><td>4.60 / 12.08</td><td>6.54</td><td class="bad">14.5</td></tr>
+      <tr><td>Italic p</td><td>166.7&deg;</td><td>13.3&deg;</td><td>9.78 / 1.60</td><td>10.38</td><td class="bad">18.4</td></tr>
+      <tr><td>BoldItalic p</td><td>154.9&deg;</td><td>25.1&deg;</td><td>11.11 / 9.09</td><td>5.51</td><td class="bad">13.5</td></tr>
+    </table></div>
+    <figure><img src="06-italic-p-crotch.png" alt="Italic p crotch, before and after"><figcaption>Italic 400, p, the bowl springing from the stem at (170,292) &mdash; 84x84 design units, x8 NEAREST. the crotch is identical before and after &mdash; 166.3&deg;, arms 4.5 / 148.7 in both. This one is not a fault.</figcaption></figure>
+    <p>Two ways to zero, both owner decisions. Open those crotches, which is a shape change in the m and in the italic b p q; or have the gate measure the arms on the contour BEFORE the ink spread, where they are 4.6 to 12.1 units and nothing is eaten.</p>
+  </section>
+</div>

@@ -643,3 +643,180 @@ def _turn(a, b, c):
     if l1 < 1e-9 or l2 < 1e-9: return 0.0
     d = max(-1.0, min(1.0, (v1[0] * v2[0] + v1[1] * v2[1]) / (l1 * l2)))
     return math.degrees(math.acos(d))
+
+
+# ROUND 296 -- THE MICRO-EDGES THE INK SPREAD IS HANDED AND THE ONES IT MAKES.
+# `build.draw` finishes every glyph with a 1.2-unit MITRE dilation, and that one
+# call is where most of the contour-hair gate's surviving letter findings are
+# born. See `collapse_micro`.
+MICRO_TOL = float(os.environ.get("ALBO_MICRO_TOL", 1.0))     # one unit of the em: the grid the exporter rounds to
+COLLINEAR_TOL = float(os.environ.get("ALBO_COLLINEAR_TOL", 0.02))
+
+
+def collapse_micro(g, tol=None):
+    """Drop every vertex that sits within `tol` of the last vertex KEPT before
+    it, on every ring of a polygonal geometry.
+
+    ROUND 296. `build.draw` ends with `g.buffer(1.2, join_style=2)` -- the
+    record's ink spread -- and an offsetter cannot say anything true about a
+    feature finer than the distance it is offsetting by. Two things go wrong
+    there and between them they account for most of the contour-hair gate's
+    letter findings:
+
+      * ITS INPUT carries exact duplicates and sub-unit edges. `wedge()` ends
+        its outline `fil[1:] + [B, A]`, and `fil` already ends at B, so every
+        wedge in the face repeats its apex; a union of two parts that share a
+        corner exactly repeats that corner as well. A zero-length edge has no
+        direction, so the offset normal at it is arbitrary, and the ExtraLight
+        v's top-left serif came back with a 2.8-unit horizontal spur standing
+        off a face that is one straight line in the drawing.
+
+      * ITS OUTPUT carries them at a shallow CONCAVE corner, where the two
+        offset edges are near-antiparallel and their intersection is a pair of
+        vertices a fraction of a unit apart rather than one. That is the w's
+        and the W's crotch, and the M's.
+
+    So the ink spread is cleaned on both sides. THE RULE MOVES NO POINT: a
+    vertex is either kept exactly where it is or removed, and a removed vertex
+    lies within `tol` of a vertex that was kept, so no excursion larger than a
+    `tol` disk can be taken out. That is the property round 295's shallow-spur
+    pass could not have -- it compared each vertex to a chord that MOVED as its
+    neighbors were removed, which is how an iterated sweep drifted and
+    flattened the arrows' notches. Here the comparison is always against a
+    retained point, so there is nothing to drift along.
+
+    It is NOT a simplifier and must not become one. ONE UNIT is the whole
+    argument for the number: it is the grid the exporter rounds to, so nothing
+    it can reach survives into the font anyway, and it is under the 1.2 units
+    the very next operation offsets by. A wedge tip, an arrow's point and the
+    designed hairline gap are all tens of units across and are not reachable
+    -- measured, `arrowboth` moves 0.511% of its area and `arrowright` 0.181%,
+    against the 4.1% and 2.9% the three rules round 295 rejected cost them.
+    ALBO_MICRO_TOL=0 turns it off.
+    """
+    tol = MICRO_TOL if tol is None else tol
+    if tol <= 0 or g.is_empty: return g
+
+    def clean(ring):
+        out = []
+        for p in ring:
+            if not out or math.dist(out[-1], p) > tol: out.append(p)
+        while len(out) > 2 and math.dist(out[0], out[-1]) <= tol: out.pop()
+        # A RING THAT COLLAPSES IS KEPT, NOT DROPPED. Adversarial review
+        # 2026-09-20: a ring every one of whose vertices is within tol of the
+        # last is not a micro-EDGE, it is a whole sliver -- and it can be 100
+        # units long and still qualify, because the rule chains. Returning it
+        # short would have the caller drop the polygon or the hole outright,
+        # which is a valid result, so `res.is_valid` below cannot see it. On
+        # the six fonts it fires on three holes (the a, the feminine ordinal
+        # and the ae), each 0.08 x 0.33 units and 0.02 of area, which
+        # `contours(min_area=40)` drops anyway -- but latent and ungated is
+        # not the same as absent.
+        return out if len(out) >= 3 else list(ring)
+
+    polys = [g] if g.geom_type == 'Polygon' else [p for p in getattr(g, 'geoms', []) if p.geom_type == 'Polygon']
+    out = []
+    for p in polys:
+        ext = clean(list(p.exterior.coords)[:-1])
+        if len(ext) < 3: continue                      # cannot happen: clean() keeps the ring
+        holes = [h for h in (clean(list(r.coords)[:-1]) for r in p.interiors) if len(h) >= 3]
+        out.append(Polygon(ext, holes))
+    if not out: return g
+    res = out[0] if len(out) == 1 else MultiPolygon(out)
+    # the POLYGON-level guard: a hole brought against its exterior would make an
+    # invalid shape. Nothing in the six fonts does. It cannot see a ring that
+    # vanished, which is why `clean` refuses to let one -- see there.
+    return res if res.is_valid else g
+
+
+def drop_collinear(pts, tol=None):
+    """A forward sweep at a fiftieth of a unit: the vertices that lie ON the
+    line they are in the middle of, and nothing else.
+
+    ROUND 296, and the other half of the CROTCH fault. Where two diagonals
+    meet -- the w's and the W's inner vertex, the m's arch against its stem --
+    the union's boundary arrives at the crotch along one straight run and
+    leaves along another, and the ink spread's offset lands its intersection a
+    few units short of the nearest vertex on each run. The corner is then a
+    real 150-degree crotch with a 3-unit arm on it, which is exactly the
+    signature `cmp_contour_hairs` calls a HAIR: "a drawn corner has two long
+    arms, a spike has one arm a unit or two long." Here both are true at once
+    -- the corner is drawn AND its arms are short -- because the vertex NEXT
+    to the crotch is redundant. Measured on the Black w's crotch, that
+    neighbor stands 0.0006 units off the chord through it: it is ON the line
+    it is in the middle of, and dropping it merges the stub into the 11-unit
+    facet beyond, so the crotch reads with the arms it actually has.
+
+    THE TOLERANCE IS THE WHOLE ARGUMENT AND IT IS NOT A SIMPLIFIER'S. A
+    fiftieth of a unit is two hundred-thousandths of the em, and a quarter of
+    the 0.076 units of sagitta an 11-unit chord already carries across a
+    200-unit bowl -- so no sampled curve is reachable: at the Regular the roman
+    o and 0 keep all 230 and 231 of their points, the s loses 3 of 180 and the
+    8 one of 300, while the M goes from 466 to 59 and the W from 470 to 48,
+    because those letters are straight lines that were being written as
+    11-unit facets and rounded into a staircase. The ExtraLight em
+    dash shipped as 148 points along two straight edges, stepping 207, 208,
+    208, 208, 209; it is four points now.
+
+    IT CARRIES DOUGLAS-PEUCKER'S BOUND WITHOUT ITS ANCHORS, and that is why it
+    is written out rather than handed to `shapely.simplify`. Every point
+    dropped is re-checked against the chord that will replace it, so a run of
+    them cannot bow away from the line a little at a time -- the drift round
+    295's iterated pass could not rule out. But DP picks the point FARTHEST
+    from a chord as a split and keeps it whatever it is, and at a crotch the
+    vertex beside the corner is exactly that point: measured on the Black w,
+    DP at this tolerance merged the run on one side of the crotch into 265
+    units and kept a 2.0-unit stub on the other, because its recursion had
+    made that stub an anchor.
+
+    A local rule -- walk out from each sharp corner, drop the neighbor within
+    a hundredth of its own chord -- was built and measured and is WORSE: 20
+    findings against this pass's 6, because the crotch it is aimed at turns
+    149.9 degrees and sits under any threshold that does not also admit half
+    the letter. Recorded so it is not built again.
+
+    IT RUNS AT EXPORT, after `fit` and never inside `draw`. The Aldine fitter
+    reads its bearings off the vertices whose ROUNDED y falls in the x-height
+    band (`fit_aldine`, and the q's tail is why), so dropping a vertex that
+    happens to sit on the band's edge moves a bearing by whatever that vertex
+    was holding. Measured with this pass inside draw(): the ExtraLight four
+    came out 349 wide against 444 and the seven 470 against 402, which put 35
+    more pairs on cmp_touch's TOUCHING list and took cmp_figure_space's roman
+    spread to 2.57x, over its 2.50x. The fitter now sees every vertex it
+    always saw and only the written outline is decimated.
+
+    ALBO_COLLINEAR_TOL=0 turns it off.
+    """
+    tol = COLLINEAR_TOL if tol is None else tol
+    if tol <= 0 or len(pts) < 6: return list(pts)
+
+    def dev(a, b, c):
+        """How far b lies off the chord a -> c."""
+        L = math.hypot(c[0] - a[0], c[1] - a[1])
+        if L < 1e-12: return math.dist(a, b)
+        return abs((c[0] - a[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (c[1] - a[1])) / L
+
+    P = list(pts)
+    out = [P[0]]
+    run = []            # the points already dropped since out[-1]
+    first_run = None    # ... and the ones dropped between out[0] and out[1]
+    hold = None         # the point being held, which the next one may drop
+    for p in P[1:] + [P[0]]:
+        if hold is None: hold = p; continue
+        if all(dev(out[-1], q, p) <= tol for q in run + [hold]):
+            run.append(hold)                      # every dropped point is within tol of the NEW chord
+        else:
+            if len(out) == 1: first_run = list(run)
+            out.append(hold); run = []
+        hold = p
+    # THE SEAM. pts[0] is wherever the ring happened to start and it is kept by
+    # construction, so it is tested last -- but the points already dropped on
+    # either side of it were measured against chords that ENDED or BEGAN at it,
+    # and popping it moves their chord. Adversarial review 2026-09-20 measured
+    # the version that popped without re-checking: 0.0289 units off the final
+    # chord against a tol of 0.02, on the yen sign. So they are re-checked, and
+    # the bound is tol everywhere on the ring rather than tol and 2 tol.
+    if len(out) > 2 and first_run is not None:
+        seam = run + [out[0]] + first_run
+        if all(dev(out[-1], q, out[1]) <= tol for q in seam): out.pop(0)
+    return out if len(out) >= 3 else list(pts)

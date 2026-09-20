@@ -131,7 +131,13 @@ def draw(ch, W=None):
     # grow 3.0 x 0.4) to re-close the joins it had opened; the joins are
     # real now, but the 1.2 units were part of the shipped weight (the l's
     # stem measured 81, not the pen's 77), so the same ink spread is kept.
-    g = g.buffer(INK_SPREAD, join_style=2)
+    # round 296: the ink spread is a 1.2-unit MITRE dilation, and an offsetter
+    # cannot say anything true about a feature finer than that. Its input is
+    # cleaned of sub-tolerance edges (wedge() repeats its apex; a union repeats
+    # a shared corner) and so is its output (a shallow concave corner offsets to
+    # two vertices a fraction of a unit apart). geom.collapse_micro.
+    g = geom.collapse_micro(g).buffer(INK_SPREAD, join_style=2)
+    g = geom.collapse_micro(g)
     if pen.SHEAR:   # round 100: the italic's slope, about the baseline
         import shapely.affinity as _aff
         # AN ITALIC'S CAPITALS ARE ~5% NARROWER, and that is the ONLY thing
@@ -531,7 +537,10 @@ def build(out_dir, name="Albo", style="Medium", do_cut=True, only=None, dump=Non
                 if fitted is not None:
                     CURVE_FALLBACKS[0] += fitted[2]; CURVE_FALLBACKS[1] += fitted[3]; fitted = fitted[:2]
                 if fitted is None:
-                    q = geom.despike([(round(x + dx), round(y)) for x, y in pts])   # round 295
+                    # round 296: the vertices that lie ON the line they are in the
+                    # middle of, dropped BEFORE the rounding (afterwards the grid has
+                    # already moved them off it), then round 295's spikes
+                    q = geom.despike([(round(x + dx), round(y)) for x, y in geom.drop_collinear(pts)])
                     if len(q) < 3: continue
                     pen_.moveTo(q[0])
                     for p in q[1:]: pen_.lineTo(p)
