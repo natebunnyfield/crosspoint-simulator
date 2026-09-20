@@ -196,6 +196,31 @@ E_TIPDEG_R = float(os.environ.get("ALBO_E_TIPDEG_R", 50.0))# the direction the t
 
 E_BAR_ADJ, E_TH_ADJ = 0.58, 0.66   # round 92 (adj 'e'): the eye small for its bar -- bar top 0.62 -> 0.58 xh (eye taller), bar 0.72 -> 0.66 of the pen
 
+# ROUND 287 -- THE HEAVY e's BAR. Owner 2026-09-19: *"that e could be
+# heavier."* Measured against its own CONSTRUCTION family at the 900 (the
+# rounds -- o c a b d g p q s -- not the case group, which flags the alphabet
+# rather than the drawing): the e's colour is 0.418 against the family's
+# median 0.457, -8.5%, and on the chamfer-ridge stroke median it is 72.3
+# against 103.5, -30%, the LIGHTEST of the family. So this is a correction,
+# not a departure.
+#
+# The bar is the lever, and the other two were ruled out rather than passed
+# over. The BOWL cannot take it: the e's ring is `ring()`'s pipeline at the
+# e's radius, so its pen is the o's pen at the same tangent by construction,
+# and widening it here would make the e the one round whose pen is its own.
+# The TAIL cannot take it either: it is the "bottom right stroke" the owner
+# has twice asked to make LIGHTER (round 94, then 2026-09-14, "slightly
+# reduce the visual weight of the bottom right tail stroke of e"), and
+# E_ARM_THIN 0.92 is that instruction -- thickening it would quietly reverse
+# a standing ruling. The bar is 20% of the letter's ink and is the part that
+# reads as the e's colour at text size.
+#
+# Note what is NOT done: the face's contrast is weight-invariant by design
+# (TH_H / S is 0.566 at the 400, the 700 and the 900 alike), and changing
+# that is an architectural call for the owner, not a number to tune here. So
+# only the e's own bar moves, and only above E_HEAVY_S.
+E_BAR_HEAVY = float(os.environ.get("ALBO_E_BAR_HEAVY", "1.22"))
+
 # The lower-right stroke (the arm, from the bottom -- ARM_START_DEG, 270 --
 # sweeping up to the 330-degree terminal, ARM_END_DEG = E_END): owner
 # instruction, verbatim, "thin out the bottom right stroke of 'e' slightly
@@ -276,6 +301,7 @@ def g_e(c):
     rx = E_RX * _IO * wf + TH_V / 2; cx = rx; cy = xh / 2
     tilt = math.radians(E_DEG_IT if pen.ITALIC else E_DEG); slope = math.tan(tilt)
     e_bar, e_th = (E_BAR_ADJ, E_TH_ADJ) if adj('e') else (E_BAR, E_TH)
+    if _heavy() and not pen.ITALIC: e_th *= E_BAR_HEAVY   # round 287, see E_BAR_HEAVY
     th = max(pen.th(E_DEG_IT if pen.ITALIC else E_DEG) * e_th, S * 0.35)
     bar_top = lambda x: xh * e_bar + (x - cx) * slope
     under = lambda x: bar_top(x) - th
@@ -295,6 +321,10 @@ def g_e(c):
     # fitter turned into a 2-unit pimple on the counter floor. With the face
     # on the normal the two corners are one point.
     cut = _normal_cut(outer, inner, cx, cy, a, rx, xh)
+    if _heavy() and E_TAIL_INNER:      # round 287: the seam, see _inner_cut
+        _ic = _inner_cut(outer, inner, cx, cy, a, rx, xh,
+                         math.hypot(cut[0][0] - cut[2][0], cut[0][1] - cut[2][1]))
+        if _ic is not None: cut = _ic
     Po, To, Pi, n_in = cut
     C1 = (Po[0] + n_in[0] * far, Po[1] + n_in[1] * far)      # far along the normal, into the counter and out the top
     P_out = (Po[0] - n_in[0] * 20, Po[1] - n_in[1] * 20)     # just outside the ring
@@ -316,6 +346,144 @@ def _e_tail_edge(Po, To, cx, rx, xh):
                  (Po[0] + To[0] * L * 0.30, Po[1] + To[1] * L * 0.30),
                  (tip[0] - D2[0] * L * 0.55, tip[1] - D2[1] * L * 0.55),
                  tip), tail_end
+
+
+# ROUND 287 -- THE 900's e. Owner 2026-09-19, on a magnified Black e:
+# *"address to wobble wave and bumps of 900 e"*, and *"that e could be
+# heavier."* Everything this round changes is gated above E_HEAVY_S, which
+# sits between the 400's stem (66.9) and the 700's (116), so the shipped
+# Regular, ExtraLight and both italics are byte-identical.
+E_HEAVY_S = 84.0
+def _heavy():
+    return pen.S > E_HEAVY_S
+
+
+def _line_hit(poly, P, D):
+    """Where a closed contour first crosses the ray from P in direction D,
+    and the contour's own direction there. Unlike `_ray_hit` the origin need
+    not be inside the contour, so the nearest crossing is taken."""
+    best = None
+    for p, q in zip(poly, poly[1:] + poly[:1]):
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        den = dx * D[1] - dy * D[0]
+        if abs(den) < 1e-9: continue
+        ex, ey = p[0] - P[0], p[1] - P[1]
+        u = (ey * D[0] - ex * D[1]) / den
+        if not (0.0 <= u <= 1.0): continue
+        s = (ex + u * dx) * D[0] + (ey + u * dy) * D[1]
+        if s <= 1e-9: continue
+        if best is None or s < best[0]:
+            m = math.hypot(dx, dy) or 1.0
+            best = (s, (p[0] + u * dx, p[1] + u * dy), (dx / m, dy / m))
+    return (best[1], best[2]) if best else None
+
+
+def _e_tail_width(w0):
+    """The roman tail's width along its run: the ring's width at the handover
+    tapering to E_TAIL_R of it, with the round-94 thinning eased in over
+    E_ARM_EASE_R (round 245). Extracted unchanged, so that the cut face and
+    the drawn tail cannot disagree about how wide the stroke is."""
+    def wfn(t):
+        v = w0 * (1.0 - (1.0 - E_TAIL_R) * (3 * t * t - 2 * t ** 3))
+        u = min(1.0, t / E_ARM_EASE_R); su = 3 * u * u - 2 * u ** 3
+        return v * (1.0 + (E_ARM_THIN - 1.0) * su)
+    return wfn
+
+
+def _monotone_handle(P0, C1, P3, D2, s):
+    """The longest second handle, at most `s`, for which the cubic's y never
+    turns back. y'(t)/3 is a quadratic in Bernstein form with coefficients
+    a = C1y - P0y, b = C2y - C1y, c = P3y - C2y; with a and c non-negative it
+    is non-negative on [0, 1] exactly when b >= 0, or c > 0 and a*c >= b*b.
+    Only the LENGTH is searched -- C2 stays on the ray back from the tip along
+    D2 -- so the terminal's angle (E_TIPDEG_R, a ruling of round 110) is
+    untouched whatever the clamp does."""
+    a = C1[1] - P0[1]
+    def ok(ss):
+        c2y = P3[1] - D2[1] * ss
+        b = c2y - C1[1]; c = P3[1] - c2y
+        if a < 0 or c < 0: return False
+        if b >= 0: return True
+        return c > 0 and a * c >= b * b
+    if ok(s): return s
+    lo, hi = 0.0, s
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        if ok(mid): lo = mid
+        else: hi = mid
+    return lo
+
+
+def _e_tail_inner(Pi, Ti, w0, cx, rx, xh):
+    """The roman tail's INNER edge -- the counter floor the reader sees against
+    the white -- and its width function. Round 245's construction: one cubic
+    from the ring's own inner point along the counter's tangent to one end
+    width inside the tip.
+
+    ROUND 287 -- THE SAGGING FLOOR. The second control point is pulled back
+    from the tip along the tip's own direction by 0.55 of the chord, which
+    leaves it at a nearly FIXED HEIGHT -- measured 18.9, 20.3 and 20.5 units at
+    the 400, 700 and 900 -- because the tip's y is 0.19 xh at every weight and
+    only the chord grows. The start point Pi, however, CLIMBS with the pen:
+    19.3, 41.6, 56.0. At the 400 the two are level and the floor is one curve;
+    above it the control sits up to 35 units BELOW the start and the cubic sags
+    between them. Measured on the built 900: the floor rose 2.5 units, fell 5.6
+    and rose again -- six turning points against the 400's one -- and at its
+    lowest it dug 1.5 units under the bowl's own counter floor, which is what
+    reads as the wave. The handle is SHORTENED until the floor is monotone;
+    never lengthened, and never turned."""
+    wfn = _e_tail_width(w0)
+    d2 = math.radians(E_TIPDEG_R); D2 = (math.cos(d2), math.sin(d2)); nout = (D2[1], -D2[0])
+    tip_o = (cx + E_TIPX_R * rx, E_TIPY_R * xh); w1 = wfn(1.0)
+    tip_i = (tip_o[0] - nout[0] * w1, tip_o[1] - nout[1] * w1)
+    L = math.hypot(tip_i[0] - Pi[0], tip_i[1] - Pi[1])
+    c1 = (Pi[0] + Ti[0] * L * 0.30, Pi[1] + Ti[1] * L * 0.30)
+    s = L * 0.55
+    if _heavy():
+        s = _monotone_handle(Pi, c1, tip_i, D2, s)
+    c2 = (tip_i[0] - D2[0] * s, tip_i[1] - D2[1] * s)
+    return cubic(Pi, c1, c2, tip_i), wfn
+
+
+def _inner_cut(outer, inner, cx, cy, a_cut, rx, xh, w0_seed):
+    """ROUND 287 -- CUT THE RING ON THE FACE THE TAIL ACTUALLY STARTS ON.
+
+    Round 245 gave the roman tail its INNER edge as the drawn curve, starting
+    at the ring's own inner point on the ray. The RING, though, went on being
+    cut by `_normal_cut`: a face through the ray's point on the OUTER contour,
+    along the normal of the OUTER cubic that an inner-edge tail no longer
+    draws. Two different lines, so the two pieces do not meet. Measured at the
+    bottom of the bowl, the tail's outer edge starts 3.0 units to the right of
+    the ring's cut face at the 400 and 9.6 at the 900, and the union leaves the
+    difference as a crack -- a reversal of 174 to 177 degrees whose depth runs
+    0.5 units at the 400, 8.8 at the 700 and 21.7 at the 900. It is the needle
+    standing up out of the letter's underside in the owner's magnified render.
+
+    So the face is taken from the TAIL instead: through the tail's own start
+    point, along the normal of its inner edge there, out to the outer contour.
+    `edge_stroke(..., side=-1)` offsets by exactly that normal, so the tail's
+    outer edge at t=0 lands on the returned Po and the two pieces share an
+    edge. w0 feeds the taper, the taper moves the tip, and the tip moves the
+    edge's start tangent, so it is iterated; three passes settle it under a
+    hundredth of a unit."""
+    R = (math.cos(a_cut), math.sin(a_cut))
+    Pi, Ti = _ray_hit(inner, cx, cy, R)
+    if Pi is None or Ti is None: return None
+    if Ti[0] < 0: Ti = (-Ti[0], -Ti[1])
+    w0 = w0_seed; out = None
+    for _ in range(4):
+        edge_i, _wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh)
+        t0 = geom.tangents(geom.resample(edge_i))[0]
+        n_out = (t0[1], -t0[0])                 # edge_stroke's side=-1: right of travel
+        hit = _line_hit(outer, Pi, n_out)
+        if hit is None: return None
+        Po, To = hit
+        w_new = math.hypot(Po[0] - Pi[0], Po[1] - Pi[1])
+        out = (Po, To, Pi, (-n_out[0], -n_out[1]))
+        if abs(w_new - w0) < 0.01:
+            w0 = w_new; break
+        w0 = w_new
+    return out
 
 
 def _normal_cut(outer, inner, cx, cy, a_cut, rx, xh):
@@ -426,15 +594,13 @@ def _e_tail(outer, inner, cx, cy, rx, xh, a_cut, cut=None):
             _Pi2, Ti = _ray_hit(inner, cx, cy, R)   # the counter's own direction where the ray crosses it
             if Ti is None: Ti = To
             if Ti[0] < 0: Ti = (-Ti[0], -Ti[1])
-            tail_end_, tipx, tipy, tipdeg = (E_TAIL_R, E_TIPX_R, E_TIPY_R, E_TIPDEG_R)
-            d2 = math.radians(tipdeg); D2 = (math.cos(d2), math.sin(d2)); nout = (D2[1], -D2[0])
-            tip_o = (cx + tipx * rx, tipy * xh); w1 = wf(1.0)
-            tip_i = (tip_o[0] - nout[0] * w1, tip_o[1] - nout[1] * w1)
             Pi = _Pi2 if _Pi2 is not None else Pi   # the ring's own inner point on the ray: the cut's Pi sat 2 units off it (a step at the handover)
-            L = math.hypot(tip_i[0] - Pi[0], tip_i[1] - Pi[1])
-            edge_i = cubic(Pi, (Pi[0] + Ti[0] * L * 0.30, Pi[1] + Ti[1] * L * 0.30),
-                           (tip_i[0] - D2[0] * L * 0.55, tip_i[1] - D2[1] * L * 0.55), tip_i)
-            return PR.edge_stroke(edge_i, wf, side=-1)[0]
+            # ROUND 287: the edge and its width come from ONE definition now
+            # (`_e_tail_inner` / `_e_tail_width`), which is also what
+            # `_inner_cut` cuts the ring against -- the two cannot drift apart.
+            # Below E_HEAVY_S it is round 245's cubic and wf byte for byte.
+            edge_i, wfn = _e_tail_inner(Pi, Ti, w0, cx, rx, xh)
+            return PR.edge_stroke(edge_i, wfn, side=-1)[0]
     return PR.edge_stroke(edge, wf, side=1)[0]
 E_TAIL_INNER = __import__('os').environ.get("ALBO_ROM_E_TAIL_INNER", "1") == "1"   # round 245: the roman tail drawn from its inner edge
 # ROUND 245. Owner 2026-09-18: "for e and c: remove the hump on top of bottom

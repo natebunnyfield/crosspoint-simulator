@@ -1557,6 +1557,136 @@ and x, and the italic d, p, g, t and z. Re-fitting those is its own round.
 
 Proofs: `tools/wedge_serif/shape/weights288/`.
 
+## 30. Round 287 — the Black e's wave, its crack, and its bar
+
+Owner 2026-09-19, on a magnified Black `e`: *"subagent to address to wobble
+wave and bumps of 900 e"*, then *"that e could be heavier."* Two separate
+faults and one weight change. Everything here is gated on `pen.S > 84.0`
+(`rounds.E_HEAVY_S`, between the Regular's 66.9 stem and the Bold's 116), so
+the ExtraLight, the Regular, the Italic and the Bold Italic are byte-identical
+— 0 glyphs and 0 GPOS pairs against round 288 in all four.
+
+THE INSTRUMENT FIRST, because the one this project already has cannot see
+either fault. `albo_bumps.py` returned nothing on the roman `e` at the 900,
+before or after — 202 circles on the sheet either way, none of them on this
+letter. That is correct behaviour, not a miss: after its 2026-09-18
+recalibration it looks for NOTCHES and SPURS, features of the ink at the pen's
+scale, and it was deliberately moved off exactly the edge-waviness detectors
+that the owner had called a complete miss. A wave in an edge is not a notch.
+So two measures were written for this round (`efinal.py`, in the round's
+scratch): the deepest REVERSAL on the outer contour (a turn over 150 degrees,
+with its depth from the chord of its neighbours) and the lower counter's
+FLOOR read left to right as y(x), counted by turning points. A floor that is
+one curve falls to the bowl's low point and rises to the tip: one turning
+point. Every extra one is a wave.
+
+THE WAVE. The tail's inner edge — the counter floor the reader sees against
+the white — is one cubic from the bowl's inner edge out to the tip (round
+245). Its second control point is pulled back from the tip along the tip's own
+direction by 0.55 of the chord, which leaves it at a nearly FIXED HEIGHT:
+measured 18.9, 20.3 and 20.5 units at the 400, 700 and 900, because the tip
+sits at 0.19 of the x-height at every weight and only the chord grows. The
+point the curve STARTS from, though, climbs with the pen: 19.3, 41.6, 56.0. At
+the 400 the two are level and the floor is one curve. At the 900 the control
+sits 35 units BELOW the start and the cubic sags between them — the floor rose
+2.5 units, fell 5.6 and rose again, six turning points against the 400's one,
+and at its lowest it dug 1.5 units under the bowl's own counter floor. The
+handle is now SHORTENED until the floor is monotone (`_monotone_handle`), and
+only shortened, never turned: C2 stays on the ray back from the tip, so the
+terminal's angle — E_TIPDEG_R, a ruling of round 110 — is untouched whatever
+the clamp does. At the 900 it takes the handle from 101.1 units to 73.1, a
+28% trim, and at the 400 it is a no-op even ungated, which is the second
+reason to believe the diagnosis.
+
+THE CRACK — the "bumps" half, and an older fault. Round 245 gave the roman
+tail its INNER edge as the drawn curve, starting at the ring's own inner point
+on the ray. The RING went on being cut by `_normal_cut`: a face through the
+ray's point on the OUTER contour, along the normal of the OUTER cubic that an
+inner-edge tail no longer draws. Two different lines, so the two pieces do not
+meet. Measured at the bottom of the bowl, the tail's outer edge starts 3.0
+units to the right of the ring's cut face at the 400 and 9.6 at the 900, and
+the union leaves the difference as a crack — a reversal of 174 to 177 degrees
+whose depth runs 0.5 units at the 400, 8.8 at the 700 and 21.7 at the 900. It
+is the needle standing up out of the letter's underside in the owner's render.
+`_inner_cut` takes the face from the TAIL instead: through the tail's own
+start point, along the normal of its inner edge there, out to the outer
+contour. `edge_stroke(..., side=-1)` offsets by exactly that normal, so the
+tail's outer edge at t=0 lands on the returned Po and the two pieces share an
+edge. w0 feeds the taper, the taper moves the tip, and the tip moves the
+edge's start tangent, so it is iterated to a fixed point; three passes settle
+it under a hundredth of a unit.
+
+MEASURED, on the built fonts:
+
+| cut | crack before | crack after | floor turns before | after |
+|---|---|---|---|---|
+| ExtraLight 200 | none | none | 1 | 1 |
+| Regular 400 | none | none | 1 | 1 |
+| Bold 700 | 9.0 u, 174° | **none** | 2 | **1** |
+| Black 900 | 22.0 u, 175° | **none** | 2 | **1** |
+
+On the 900's own turn-angle ledger the change is starker still. Before, three
+of the five sharpest features on the whole outer contour were the crack: 175°
+at (297,8) on a 22-unit segment, with 89° and 94° mouth corners either side of
+it. After, all three are gone and the sharpest things left are the tail's tip
+(91°, 90°), the bar's two ends (86°, 81°) — every one of them a designed
+corner.
+
+THE WEIGHT, measured before it was moved. Against its own CONSTRUCTION family
+at the 900 — the rounds, o c a b d g p q s, and NOT the case group, which
+flags the alphabet rather than the drawing — the `e`'s colour is 0.418 against
+the family's median 0.457, −8.5%, and on `cmp_weight_survey.py`'s chamfer-ridge
+stroke median it is 72.3 against 103.5, −30%, the LIGHTEST of the family. Only
+the `c` is lighter on colour, and the `c` is legitimately lighter for being an
+open letter. So heavier is a CORRECTION, not a departure. (For the record, the
+case-grouped survey reads the `e` at −48% of the lowercase median; that is the
+grouping CLAUDE.md warns about, and it is not the number this round acted on.)
+
+THE BAR IS THE LEVER, and the other two were ruled out rather than passed
+over. The BOWL cannot take it: the e's ring is `ring()`'s pipeline at the e's
+radius, so its pen is the o's pen at the same tangent by construction, and
+widening it here would make the `e` the one round whose pen is its own. The
+TAIL cannot take it either — it is the bottom-right stroke the owner has twice
+asked to make LIGHTER (round 94, then 2026-09-14), and `E_ARM_THIN` 0.92 IS
+that instruction; thickening it would quietly reverse a standing ruling. The
+bar is 20% of the letter's ink. `E_BAR_HEAVY` = 1.22 multiplies `E_TH` above
+the gate. Its top is a ruling of round 39, so it grows downward only: the eye
+is untouched and the lower counter pays.
+
+| measure | 400 | 700 before | 700 after | 900 before | 900 after |
+|---|---|---|---|---|---|
+| bar (units) | 25.9 | 43.2 | **49.5** | 54.4 | **62.4** |
+| bar / stem | 0.387 | 0.372 | **0.427** | 0.368 | **0.422** |
+| eye height | 160.7 | 138.0 | 138.0 | 123.4 | 123.4 |
+| lower counter | 205.9 | 166.1 | 159.8 | 140.1 | 132.1 |
+| ink area | 58797 | 93757 | 95781 | 113985 | 116563 |
+
+1.22 is the largest rung that keeps the lower counter clearly larger than the
+eye (132.1 against 123.4 at the 900) while lifting the bar above the Regular's
+share of the stem — which is the direction a Black should move, since the
+bar/stem ratio was FALLING with weight (0.387, 0.372, 0.368) where a heavier
+cut should carry proportionally more horizontal. 1.35 makes the two counters
+equal and 1.50 inverts them; the ladder is on the proof page so another rung
+can be chosen without a rebuild.
+
+WHAT WAS DELIBERATELY NOT DONE. The face's contrast is weight-invariant by
+design — TH_H / S is 0.566 at the 400, the 700 and the 900 alike — and
+changing that is an architectural call for the owner, not a number to tune in
+one letter. So only the `e`'s own bar moves.
+
+A LEFTOVER, measured and left. The new join rounds to two coincident integer
+points at the 900: the contour runs 301,−14 → 304,−14 → 305,−13 → 305,−13 →
+312,−12, an exact duplicate vertex plus a 1.4-unit segment. It draws no ink
+(1.4 units against a 674 cap is 0.2%, well under a pixel at any reading size)
+and the glyph already carried one such duplicate at the tail's tip in every
+weight, this round included. It is NOT cleaned, because a general
+duplicate-vertex pass at export would move the shipped 400s, which this round
+may not do. It is recorded here so the next session does not re-diagnose it —
+and note that it is what makes a naive circle-fit residual read WORSE after
+the fix (14.55 against 3.57 at the 900): a circle fitted across a cluster of
+sub-unit segments returns garbage. The turn-on-a-real-segment measure above is
+the honest one.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
@@ -1583,3 +1713,8 @@ Proofs: `tools/wedge_serif/shape/weights288/`.
 - Round 277: after the wedge ruling, every roman and italic weight passes the gates it passed before; the 400s are byte-identical; the one pair the fitter tightened (VI at the 700) is kerned back under the floor.
 - Round 276: the italic's round finials changed out for the c's top end, both weights — see docs/albo-finials-2026-09-19.md.
 - Round 278: with round 274's gate removed, the BoldItalic and the Regular are byte-identical to builds of HEAD (0 of 486 glyphs, 0 GPOS pairs, each); the Italic 400 reads 0 white slivers, 0 ink shards on u n ı m h l r i a, glitch the ruled β alone, figure spread 1.37×; the a's outline did not move (its exit already passed the foot corner by the bury); the u's right stem keeps round 273's top (431) on the round-234 face, which is live and was not removed; no letter in the metrics tool crossed its tolerance; the other `S > 84` sites in `aldine.py` (rounds 268, 269, 272) were each read and left alone; the `f?` touch reading is the raster, not the outline (0.0114 em in both builds).
+- Round 287: the ExtraLight 200, the Regular 400, the Italic 400 and the BoldItalic are byte-identical to the round-288 builds in outlines, advances AND GPOS pair values (0 of 486 glyphs, 0 pairs, each of the four). The Black 900 differs in exactly `e ae oe` and the Bold 700 in `e ae oe eacute`; `eacute` is a true composite referencing `e`, so at the 900 it inherits the change with no record of its own, and at the 700 its own record moves only because the accent's x offset rounds 107 → 108. No kern pair changed at either weight.
+- Round 287: gates at baseline. Black 900 — glitch 306 swept / 25 with findings, touch 5 pairs touching / 6 below the 0.012 em floor / 14 exempt, dents 0. Bold 700 — glitch 306 / 23, touch 4 / 6 / 14, dents 0, all three identical before and after. The counter-dent gate was re-run specifically because the bar thickened, and the eye is untouched by construction (the bar's top is a round-39 ruling and it grows downward only).
+- Round 287: the `o` and the `c` were measured alongside the `e` and are NOT affected by either fault. Their outer contours read 0.09–0.10 units of circle-fit residual at every weight; the `e`'s read 0.11 at the 400 and 3.92 / 4.12 at the 700 / 900, which is what localised the fault to the tail's handover rather than to the shared ring. The o's counter does wave at the heavy weights (1.53 units at the 900 against 0.05 at the 400) — that is the inward offset of a superellipse at a heavy pen, a separate and much smaller effect, and it was deliberately not touched this round.
+- Round 287: `albo_bumps.py` was run before and after and is unchanged — 202 circles on the roman 900 sheet, 204 on the italic, none of them on the `e` in either build. It cannot see either of this round's faults by design: after its 2026-09-18 recalibration it detects notches and spurs at the pen's scale, having been deliberately moved off the edge-waviness detectors the owner had rejected. This is recorded so the next session does not read its silence as the letter being clean.
+- Round 287: the export curve fitter (`geom.fit_curves`) was checked and ruled out as the cause — `ALBO_CURVES` is 0, so every contour ships as the dense polygon at both the clean 400 and the wavy 900, and the fault reproduces in the design geometry before export. `geom.SPACING`, `close_corners` and the ink-spread mitre were likewise not involved: the defect is present with all three unchanged and absent at the 400 with all three unchanged.

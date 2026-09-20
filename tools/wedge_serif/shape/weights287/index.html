@@ -1,0 +1,75 @@
+<title>Albo Black e Wave and Weight</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Black e &mdash; the wave, the bumps, and the weight</h1>
+    <p class="lede">Round 287. <em>&ldquo;subagent to address to wobble wave and bumps of 900 e&rdquo;</em>, and <em>&ldquo;that e could be heavier.&rdquo;</em> Two separate faults and one weight change, all three gated above a stem of 84 &mdash; between the Regular&rsquo;s 66.9 and the Bold&rsquo;s 116 &mdash; so the ExtraLight, the Regular, the Italic and the Bold Italic are byte-identical. Every figure is PNG at native pixels; each magnification is an integer factor with nearest-neighbour resampling and is stated in its caption.</p>
+  </header>
+
+  <section><h2>What the wave was</h2>
+    <p>The tail&rsquo;s inner edge &mdash; the counter floor you read against the white &mdash; is one cubic from the bowl&rsquo;s inner edge out to the tip. Its second control point is pulled back from the tip along the tip&rsquo;s own direction by 0.55 of the chord, which leaves it at a nearly <em>fixed height</em>: 18.9, 20.3 and 20.5 units at the 400, 700 and 900, because the tip sits at 0.19 of the x-height at every weight and only the chord grows. The point the curve <em>starts</em> from, though, climbs with the pen: 19.3, 41.6, 56.0. At the Regular the two are level and the floor is one curve. At the Black the control sits 35 units <em>below</em> the start, and the curve sags between them.</p>
+    <figure><img src="e900-floor.png" alt="the counter floor before and after"><figcaption>the lower counter floor, x4 of design units, NEAREST &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+
+  <section><h2>What the bump was</h2>
+    <p>A separate fault, and older. Round 245 gave the roman tail its inner edge as the drawn curve, starting at the bowl&rsquo;s own inner point; the <em>ring</em> went on being cut along a different line &mdash; the normal of the outer curve that an inner-edge tail no longer draws. Two lines, so the two pieces never met. The gap between them is 3.0 units at the Regular and 9.6 at the Black, and the union left the difference as a crack: a 175-degree reversal 22 units deep, standing up out of the letter&rsquo;s underside. The ring is now cut on the face the tail actually starts on, so the two pieces share one edge.</p>
+    <figure><img src="e900-seam.png" alt="the seam before and after"><figcaption>the seam at the bottom of the bowl, x5 of design units, NEAREST &mdash; before (left), after (right)</figcaption></figure>
+  </section>
+
+  <section><h2>Measured, on the built fonts</h2>
+    <div class="scroll"><table>
+      <tr><th>cut</th><th>crack, before</th><th>crack, after</th><th>floor turns, before</th><th>floor turns, after</th></tr>
+      <tr><td>ExtraLight 200</td><td>none</td><td>none</td><td>1</td><td>1</td></tr>
+      <tr><td>Regular 400</td><td>none</td><td>none</td><td>1</td><td>1</td></tr>
+      <tr><td>Bold 700</td><td>9.0 u, 174&deg;</td><td class="ok">none</td><td>2</td><td class="ok">1</td></tr>
+      <tr><td>Black 900</td><td>22.0 u, 175&deg;</td><td class="ok">none</td><td>2</td><td class="ok">1</td></tr>
+    </table></div>
+    <p>A floor that is one curve falls to the bowl&rsquo;s low point and rises to the tip: one turning point. Every extra one is a wave. The 200 and the 400 were already clean, which is why they are left alone.</p>
+  </section>
+
+  <section><h2>The weight</h2>
+    <p>Measured against its own <em>construction</em> family at the 900 &mdash; the rounds, o c a b d g p q s, not the case group, which flags the alphabet rather than the drawing &mdash; the e&rsquo;s colour is 0.418 against the family median of 0.457, and on the chamfer-ridge stroke median it is 72.3 against 103.5, the lightest of the family. So heavier is a correction, not a departure.</p>
+    <p>The bar is the lever, and the other two were ruled out rather than passed over. The <em>bowl</em> cannot take it: the e&rsquo;s ring is the o&rsquo;s pipeline at the e&rsquo;s radius, so its pen is the o&rsquo;s pen at the same tangent by construction. The <em>tail</em> cannot take it either &mdash; it is the bottom-right stroke you have twice asked to make lighter, and thickening it would quietly reverse that. The bar is 20% of the letter&rsquo;s ink. Its top is a ruling of round 39, so it grows downward only: the eye is untouched and the lower counter pays.</p>
+    <figure><img src="e900-bar-ladder.png" alt="the bar ladder"><figcaption>the ladder, design geometry at 0.60 px per unit &mdash; x1.22 ships</figcaption></figure>
+    <div class="scroll"><table>
+      <tr><th>measure</th><th>Regular 400</th><th>Bold 700 before</th><th>Bold 700 after</th><th>Black 900 before</th><th>Black 900 after</th></tr>
+      <tr><td>bar (units)</td><td>25.9</td><td>43.2</td><td class="ok">49.5</td><td>54.4</td><td class="ok">62.4</td></tr>
+      <tr><td>bar / stem</td><td>0.387</td><td>0.372</td><td class="ok">0.427</td><td>0.368</td><td class="ok">0.422</td></tr>
+      <tr><td>eye height</td><td>160.7</td><td>138.0</td><td>138.0</td><td>123.4</td><td>123.4</td></tr>
+      <tr><td>lower counter</td><td>205.9</td><td>166.1</td><td>159.8</td><td>140.1</td><td>132.1</td></tr>
+      <tr><td>ink area</td><td>58797</td><td>93757</td><td>95781</td><td>113985</td><td>116563</td></tr>
+    </table></div>
+    <p>x1.22 is the largest rung that keeps the lower counter clearly larger than the eye &mdash; 132.1 against 123.4 at the Black &mdash; while lifting the bar above the Regular&rsquo;s share of the stem, which is the direction a Black should move. x1.35 makes the two counters equal and x1.50 inverts them. No counter dents at either weight, before or after.</p>
+  </section>
+
+  <section><h2>The letter, whole</h2>
+    <figure><img src="e900-whole.png" alt="the Black e before and after"><figcaption>Black 900 roman e, 1.24 px per design unit &mdash; before (left), after (right)</figcaption></figure>
+    <figure><img src="e900-neighbours.png" alt="e beside o c a"><figcaption>e beside its neighbours at the 900, 0.60 px per design unit &mdash; before (top row), after (bottom row)</figcaption></figure>
+  </section>
+
+  <section><h2>At reading size</h2>
+    <figure><img src="e900-runs13.png" alt="13 px runs"><figcaption>13 px, x8 NEAREST &mdash; before then after</figcaption></figure>
+    <figure><img src="e900-runs26.png" alt="26 px runs"><figcaption>26 px, x4 NEAREST &mdash; before then after</figcaption></figure>
+  </section>
+
+  <section><h2>Gates</h2>
+    <p>Black 900: 306 glyphs swept, 25 with findings; 5 pairs touching, 6 below the floor, 14 exempt; 0 dents. Bold 700: 306 swept, 23 with findings; 4 touching, 6 below the floor, 14 exempt; 0 dents. All at their baselines. Against round 288, the only glyphs that moved are the e and the composites that carry it &mdash; e, ae, oe at the Black, and eacute too at the Bold, where the accent&rsquo;s x offset rounds one unit differently. No kern pair changed. The ExtraLight, the Regular, the Italic and the Bold Italic are byte-identical: 0 glyphs, 0 GPOS pairs.</p>
+  </section>
+</div>
