@@ -1508,6 +1508,55 @@ option's `ratio` field, so picking a roman option silently re-cut the italic;
 
 Proofs: `tools/wedge_serif/shape/weights286/`.
 
+## 29. Round 288 — the redrawn letters re-spaced
+
+Owner 2026-09-19: *"fix the spacing around the recently redone characters."*
+
+WHICH CHARACTERS, read off the fonts rather than off memory: diffed against
+the pre-268 build, the roman 400 moved J M a f r s y 3 5 cent (plus
+composites) and the italic 400 moved J c f h i j k l m n r s u v w x y 2 3
+dotlessi. Each was then measured on its own two flanks with
+`cmp_space_2d.py` — closest approach in TWO dimensions, by class and side,
+the only one of this project's four spacing measures that can see an open
+shape — against the lowercase median of 0.108 em (roman) and 0.098
+(italic).
+
+WHAT WAS OFF AND BY HOW MUCH. The roman f's right flank read 0.093 and the
+r's 0.094, the two tightest right sides in the alphabet: both ends were
+re-cut in round 275's finials, which shortened the f's hook and the r's arm,
+and the band rule priced the shorter reach as spacing. In the italic, rounds
+274/276/278 moved where the ink STANDS without moving the table that says
+where it sits: the f's right had fallen to 0.068, the x's to 0.082, the w's
+to 0.086 and 0.088, the v's left to 0.085, while the c's right had opened to
+0.123, the y's to 0.116. Deltas in units — roman f +16, r +15; italic c −27,
+f +45 (in two passes; its hook reaches so far right that the band rule
+prices almost none of it), i +10, m +9, v +14, w +11/+13, x +17, y −19.
+Every one now reads within 0.005 em of its median.
+
+THE ff LIGATURE HAD TO FOLLOW THE f. `uniFB00` is the one f-ligature that
+ENDS in an f, so its right side is the f's; it is fitted independently and
+did not pick the +16 up. `cmp_touch`'s pair white is
+`getlength(ab) − getlength(b)`, which puts the ligature's advance against
+the plain f's, so it read ff as newly touching at every roman weight while
+the ligature's drawing had not moved a unit. The +16 on the ligature is the
+real fix rather than the tool's.
+
+WHAT WAS TRIED AND PUT BACK: the italic j at −16 on its left. Its left was
+only 0.015 loose, and tightening it closed Rj, 4j and qj onto the touch
+sweep — a bad trade for a mild looseness.
+
+Gates: fT stops touching at the 200 and the 400 (the f's hook had been on
+the T's arm); the 200's sub-floor count falls 17 → 3 and the 400's 5 → 4;
+the Italic 400's one sub-floor pair clears to 0. Nothing new touches at any
+weight, glitch counts and counter dents are at their baselines, the figure
+spread is 1.37×, and no kern pair changed in any of the six fonts.
+
+NOT IN SCOPE, measured and deliberately left: letters the recent rounds
+never touched that still read off the median — the roman k, j, b, w, z, q
+and x, and the italic d, p, g, t and z. Re-fitting those is its own round.
+
+Proofs: `tools/wedge_serif/shape/weights288/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.

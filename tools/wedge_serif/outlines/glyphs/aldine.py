@@ -9059,14 +9059,30 @@ if ON:
 # 0.074 em, `as` `us` 0.086 against the lowercase's 0.097 while `es` `rs`
 # sat at 0.115-0.118; +12 lifts the tight three to the median and leaves the
 # loose two under 0.13 (owner: "all s need work, mostly spacing").
+# ROUND 288 (2026-09-19): nine rows re-fitted. Owner: "fix the spacing
+# around the recently redone characters." Rounds 274/276/278 re-cut the
+# italic's finials and its head/arch/exit junctions, which moved where each
+# letter's ink STANDS without moving the table that says where it sits; read
+# against the lowercase median of 0.098 em (cmp_space_2d, closest approach in
+# two dimensions), the f's right flank had fallen to 0.068, the x's to 0.082,
+# the w's to 0.086 on one side and 0.088 on the other, and the v's left to
+# 0.085, while the c's right had opened to 0.123, the y's to 0.116 and the
+# j's left to 0.113. Deltas, in units: c -27, f +32, i +10, j -16, m +9,
+# v +14, w +11/+13, x +17, y -19; the j was laddered at -16 and PUT BACK --
+# its left was only 0.015 loose and tightening it closed Rj, 4j and qj onto
+# the touch sweep, which is a bad trade for a mild looseness; the f took a second +13 after the first
+# rebuild still read 0.086 -- its hook reaches so far right that the band
+# rule prices almost none of it. The h, l, n, r, s, u and k measured on the
+# median and were left alone; the dotless i follows the i's row as it has
+# since round 274.
 BEARINGS = {
-    'a': ( -12,   65), 'b': (   7,  102), 'c': (  -8,  102), 'd': ( -11,   47),
-    'e': (  -3,   87), 'f': ( -34,   75), 'g': (   3,   87), 'h': (  20,   73),
-    'i': ( -28,   72), 'j': (  18,   99), 'k': (   5,   79), 'l': (  30,   77),
-    'm': ( -37,   59), 'n': ( -29,   63), 'o': ( -18,   58), 'p': ( -46,   99),
+    'a': ( -12,   65), 'b': (   7,  102), 'c': (  -8,   75), 'd': ( -11,   47),
+    'e': (  -3,   87), 'f': ( -34,  120), 'g': (   3,   87), 'h': (  20,   73),
+    'i': ( -28,   82), 'j': (  18,   99), 'k': (   5,   79), 'l': (  30,   77),
+    'm': ( -37,   68), 'n': ( -29,   63), 'o': ( -18,   58), 'p': ( -46,   99),
     'q': (   0,  136), 'r': ( -37,  100), 's': (  10,   99), 't': ( -20,  114),
-    'u': ( -22,   78), 'v': ( -45,  103), 'w': ( -41,   89), 'x': (  -1,   52),
-    'y': ( -36,  120), 'z': (  -6,   41),
+    'u': ( -22,   78), 'v': ( -31,  103), 'w': ( -30,  102), 'x': (  -1,   69),
+    'y': ( -36,  101), 'z': (  -6,   41),
 }
 if ON:
     BEARINGS['ı'] = BEARINGS['i']   # round 274 (both weights since round 278): the dotless i is the i's stem, head and exit, fitted as the i

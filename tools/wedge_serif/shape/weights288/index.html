@@ -1,0 +1,80 @@
+<title>Albo Respacing the Redrawn</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;--bad:#8a3b2e;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:13px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .bad{color:var(--bad);}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Respacing the Redrawn</h1>
+    <p class="lede">Round 288. <em>"fix the spacing around the recently redone characters."</em> Which characters those are was read off the fonts rather than off memory: diffed against the build from before round 268, the roman moved J M a f r s y 3 5 and the cent, the italic moved J c f h i j k l m n r s u v w x y 2 3 and the dotless i. Every one of them was then measured on its own two flanks &mdash; closest approach in two dimensions, by class and side, which is the only one of this project&rsquo;s four spacing measures that can see an open shape &mdash; against the lowercase median of 0.108 em in the roman and 0.098 in the italic. Eleven flanks were off by more than a hundredth of an em. They are now on the median. Letters the recent rounds never touched were left alone even where they measure off, because that is a different job.</p>
+  </header>
+  <section><h2>What moved, and by how much (units)</h2>
+    <div class="scroll"><table>
+      <tr><th>letter</th><th>flank</th><th>was</th><th>now</th><th>delta</th></tr>
+      <tr><td>roman f</td><td>right</td><td class="bad">0.093</td><td class="ok">0.110</td><td>+16</td></tr>
+      <tr><td>roman r</td><td>right</td><td class="bad">0.094</td><td class="ok">0.108</td><td>+15</td></tr>
+      <tr><td>italic f</td><td>right</td><td class="bad">0.068</td><td class="ok">0.099</td><td>+45</td></tr>
+      <tr><td>italic x</td><td>right</td><td class="bad">0.082</td><td class="ok">0.100</td><td>+17</td></tr>
+      <tr><td>italic w</td><td>right / left</td><td class="bad">0.086 / 0.088</td><td class="ok">0.098 / 0.098</td><td>+13 / +11</td></tr>
+      <tr><td>italic v</td><td>left</td><td class="bad">0.085</td><td class="ok">0.098</td><td>+14</td></tr>
+      <tr><td>italic c</td><td>right</td><td class="bad">0.123</td><td class="ok">0.098</td><td>&minus;27</td></tr>
+      <tr><td>italic y</td><td>right</td><td class="bad">0.116</td><td class="ok">0.097</td><td>&minus;19</td></tr>
+      <tr><td>italic i</td><td>right</td><td>0.089</td><td class="ok">0.099</td><td>+10</td></tr>
+      <tr><td>italic m</td><td>right</td><td>0.090</td><td class="ok">0.101</td><td>+9</td></tr>
+    </table></div>
+    <p>The italic j was laddered at &minus;16 and <strong>put back</strong>: its left was only 0.015 loose, and tightening it closed Rj, 4j and qj onto the touch sweep. That is a bad trade for a mild looseness, and it is recorded rather than quietly dropped.</p>
+  </section>
+  <section><h2>The ff ligature had to follow the f</h2>
+    <p>The ff ligature is the one f-ligature that ENDS in an f, so its right side is the f&rsquo;s; the other four end in an i or an l. It is fitted independently, so it did not pick up the f&rsquo;s +16, and the collision sweep &mdash; whose pair white is the shaped advance of the two glyphs, which puts the ligature&rsquo;s advance against the plain f&rsquo;s &mdash; read ff as newly touching at every roman weight while the ligature&rsquo;s own drawing had not moved a unit. The +16 on the ligature is the real fix rather than the tool&rsquo;s: after an ff the next letter now stands where it stands after a plain f.</p>
+  </section>
+  <section><h2>The collision sweep, before and after</h2>
+    <div class="scroll"><table>
+      <tr><th>font</th><th>touching, before</th><th>after</th><th>under the floor, before</th><th>after</th></tr>
+      <tr><td>roman 200</td><td>2 &mdash; fT, VI</td><td class="ok">1 &mdash; VI</td><td>17</td><td class="ok">3</td></tr>
+      <tr><td>roman 400</td><td>3 &mdash; fT, VI, ff</td><td class="ok">2 &mdash; VI, ff</td><td>5</td><td class="ok">4</td></tr>
+      <tr><td>roman 700</td><td>4</td><td>4</td><td>6</td><td>6</td></tr>
+      <tr><td>roman 900</td><td>5</td><td>5</td><td>6</td><td>6</td></tr>
+      <tr><td>italic 400</td><td>0</td><td>0</td><td>1</td><td class="ok">0</td></tr>
+      <tr><td>bold italic</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+    </table></div>
+    <p>fT clears at the 200 and the 400, where the f&rsquo;s hook had been touching the T&rsquo;s arm. Nothing new touches anywhere. Glitch counts, counter dents and the figure spread are all at their baselines, and no kern pair changed in any of the six fonts.</p>
+  </section>
+  <section><h2>Roman 400</h2>
+    <figure><img src="roman-400-runs.png" alt="roman 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-400-vec.png" alt="roman 400 words"><figcaption>offer first refer fT at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Italic 400</h2>
+    <figure><img src="italic-400-runs.png" alt="italic 400 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="italic-400-vec.png" alt="italic 400 words"><figcaption>vivify wax mixture cyclic at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 700</h2>
+    <figure><img src="roman-700-runs.png" alt="roman 700 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-700-vec.png" alt="roman 700 words"><figcaption>offer first refer fT at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Bold Italic 700</h2>
+    <figure><img src="bold-italic-700-runs.png" alt="bold italic runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="bold-italic-700-vec.png" alt="bold italic words"><figcaption>vivify wax mixture cyclic at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 900</h2>
+    <figure><img src="roman-900-runs.png" alt="roman 900 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-900-vec.png" alt="roman 900 words"><figcaption>offer first refer fT at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+  <section><h2>Roman 200</h2>
+    <figure><img src="roman-200-runs.png" alt="roman 200 runs"><figcaption>13 px &times;8 and 26 px &times;4, nearest &mdash; before then after</figcaption></figure>
+    <figure><img src="roman-200-vec.png" alt="roman 200 words"><figcaption>offer first refer fT at 0.13 px/unit &mdash; before (top), after (bottom)</figcaption></figure>
+  </section>
+</div>

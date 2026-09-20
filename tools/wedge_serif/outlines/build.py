@@ -240,7 +240,24 @@ ALD_QUOTE_LSB = float(os.environ.get("ALBO_ALD_QUOTE_LSB", "-20"))
 # cmp_space_2d read the s at 0.072 em on its right and 0.090 on its left
 # against the lowercase's 0.106 (owner: "all s need work, mostly spacing").
 # +34 / +16 put both sides on the median.
-BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 9), 'g': (-11, -19), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, -2), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23)}
+# ROUND 288 (2026-09-19): the f's and the r's right sides, +16 and +15.
+# Owner: "fix the spacing around the recently redone characters." Both ends
+# were re-cut in round 275 (the finials), which shortened the f's hook and
+# the r's arm, and the band rule then priced a shorter reach as spacing:
+# cmp_space_2d read the f's right at 0.093 em and the r's at 0.094 against
+# the lowercase median of 0.108, the two tightest right flanks in the
+# alphabet. The a, the s and the y, redone in the same rounds, measured on
+# the median and were left alone.
+#
+# THE ff LIGATURE TRACKS THE f. uniFB00 is the one f-ligature that ENDS in an
+# f, so its right side is the f's; the other four end in an i or an l and take
+# those. It is fitted independently, so it did not pick the +16 up, and
+# cmp_touch -- whose pair white is `getlength(ab) - getlength(b)`, arithmetic
+# that puts the ligature's advance against the plain f's -- read ff as newly
+# touching at every roman weight while the ligature's own drawing had not
+# moved a unit. The +16 here is the real fix rather than the tool's: after an
+# ff the next letter now stands where it stands after a plain f.
+BEARING_ADJ = {'a': (-13, 3), 'b': (-4, 0), 'c': (2, 15), 'd': (3, 1), 'e': (2, -1), 'f': (5, 25), 'g': (-11, -19), 'h': (0, -2), 'i': (0, -1), 'j': (0, 14), 'k': (0, 18), 'l': (-3, 2), 'm': (0, -2), 'n': (4, 0), 'o': (0, -2), 'p': (-11, -1), 'q': (0, 37), 'r': (2, 13), 's': (17, 19), 't': (-11, 0), 'u': (-9, 3), 'v': (-1, -4), 'w': (6, 4), 'x': (42, 0), 'y': (0, 13), 'z': (0, -23), 'ﬀ': (0, 16)}
 A_LEFT = 1.40   # round 96b: 56 units -- measured, not laddered (outlines/cmp/rhythm.py); 2.0 (74) was loose after a stem, 0.72 (37) tight
 J_RIGHT = 1.83  # round 96b: the j's right bearing was measured to its bare stem while the n's is measured to a foot tip, so every j-pair sat ~27 tighter; 68 stands the stem where the n's stands
 
