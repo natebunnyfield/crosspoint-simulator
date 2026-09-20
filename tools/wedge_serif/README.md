@@ -287,6 +287,14 @@ tapers into its face (`stems.S_HEAD_END`, both styles); *"deburr the 900 s"*
 -- above stem 84 the s's pen widths are averaged over +/-0.6 stem of path
 before the finials (`stems._smooth_widths`).
 
+**Ruling 2026-09-19 (owner), round 284, on the s:** *"all s need work, mostly
+spacing work but also the bottom needs to be slightly bigger than the top."*
+The s's bearings are re-fitted to round 283's narrower drawing -- roman
+`BEARING_ADJ['s']` (1, -15) -> (17, 19), italic `BEARINGS['s']` left -2 -> 10,
+both sides on the lowercase median -- and the head's size is SOLVED per weight
+(`stems.s_head_end`) for a foot/head end ink of 1.12 rather than declared as a
+flat multiplier.
+
 **Those installed files predate the Aldine italic.** They were written
 2026-09-14 18:10; rounds 114-179 ran on 2026-09-15 and -16, and the italic
 lowercase they drew is reached only by `ALBO_ITALIC=aldine`, which is not the

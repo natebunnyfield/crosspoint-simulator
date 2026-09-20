@@ -4481,15 +4481,19 @@ if ON:
         fl = fin_floor(); d = fl / 2 * math.tan(math.radians(PR.FINIAL_CUT_DEG)); k = n
         while k > 0 and math.hypot(p[k][0] - p[n][0], p[k][1] - p[n][1]) < d: k -= 1
         q, qw = p[:k + 1], ws[:k + 1]; m = len(q) - 1
-        # ROUND 283 -- THE HEAD NO HEAVIER THAN THE FOOT (owner: "for all s,
-        # make the top equally or less visually heavy than the bottom"): the
-        # foot keeps the finial held to `fin_floor`; the head's end is
-        # stems.S_HEAD_END (0.85) of the foot's end width and tapers into its
-        # face instead of swelling. Both weights.
-        from .stems import S_HEAD_END
-        foot = PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], False, floor=fl)
-        wf = PR.finial_widths(foot, True, floor=0.0, swell=S_HEAD_END * foot(1.0) / foot(0.0))
-        parts = [stroke(q, wf, cut0=PR.finial_cut(q, True), cut1=PR.finial_cut(q, False), raw=True)]
+        # ROUND 283/284 -- THE FOOT SLIGHTLY BIGGER THAN THE HEAD (owner:
+        # "for all s, make the top equally or less visually heavy than the
+        # bottom", then "the bottom needs to be slightly bigger than the
+        # top"): the foot keeps the finial held to `fin_floor`; the head
+        # tapers into its face by whatever `stems.s_head_end` has to take
+        # off to leave the foot's end ink 1.12 x the head's. Both weights.
+        from .stems import S_HEAD_SPAN, S_FOOT_SWELL, s_head_end
+        foot = PR.finial_widths(lambda t: qw[min(m, int(round(t * m)))], False, floor=fl, swell=S_FOOT_SWELL)
+        _c0, _c1 = PR.finial_cut(q, True), PR.finial_cut(q, False)
+        def _mk(he):
+            _wf = PR.finial_widths(foot, True, floor=0.0, swell=he * foot(1.0) / foot(0.0), span=S_HEAD_SPAN)
+            return stroke(q, _wf, cut0=_c0, cut1=_c1, raw=True), q[0], q[-1], _wf(0.0), _wf(1.0)
+        parts = [_mk(s_head_end(_mk))[0]]
         return geom.close_corners(geom.ink(parts), S_BLEND * u)
 
     # ------------------------------------------------------------ THE g, round 132
@@ -9050,12 +9054,17 @@ if ON:
 # residual against it is the SMALLEST of the 26 (advance -8, bearings -2/-6),
 # so this row is not re-solved from it; re-solving the alphabet is its own
 # round and would move every glyph in the font.
+# ROUND 284: the s's left -2 -> 10. Its foot's forward corner hangs 30 units
+# under the letter before it since round 276, and cmp_space_2d read `is` at
+# 0.074 em, `as` `us` 0.086 against the lowercase's 0.097 while `es` `rs`
+# sat at 0.115-0.118; +12 lifts the tight three to the median and leaves the
+# loose two under 0.13 (owner: "all s need work, mostly spacing").
 BEARINGS = {
     'a': ( -12,   65), 'b': (   7,  102), 'c': (  -8,  102), 'd': ( -11,   47),
     'e': (  -3,   87), 'f': ( -34,   75), 'g': (   3,   87), 'h': (  20,   73),
     'i': ( -28,   72), 'j': (  18,   99), 'k': (   5,   79), 'l': (  30,   77),
     'm': ( -37,   59), 'n': ( -29,   63), 'o': ( -18,   58), 'p': ( -46,   99),
-    'q': (   0,  136), 'r': ( -37,  100), 's': (  -2,   99), 't': ( -20,  114),
+    'q': (   0,  136), 'r': ( -37,  100), 's': (  10,   99), 't': ( -20,  114),
     'u': ( -22,   78), 'v': ( -45,  103), 'w': ( -41,   89), 'x': (  -1,   52),
     'y': ( -36,  120), 'z': (  -6,   41),
 }

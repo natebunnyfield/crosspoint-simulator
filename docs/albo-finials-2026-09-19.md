@@ -535,3 +535,16 @@ into its face (`stems.S_HEAD_END`, read by `aldine.a_s` too). Built end
 widths, head / foot: roman 400 57 / 67, 700 96 / 113, 900 123 / 144, 200
 39 / 46; italic 400 56 / 66, 700 77 / 91. The 900's burrs and their fix are
 the family doc's §26. Proofs: `tools/wedge_serif/shape/weights283/`.
+
+## Round 284 (2026-09-19) — the head's size is solved, not declared
+
+Owner: *"the bottom needs to be slightly bigger than the top."* Round 283's
+flat 0.85 multiplier was replaced by `stems.s_head_end`, which bisects the
+head's end width for a foot/head END INK ratio of `S_FOOT_RATIO` = 1.12,
+ceiling 1.00. Solved, roman: 0.959 at the 200, 0.983 at the 400, 1.000 at
+the 700 and the 900 — at equal end widths the foot is ALREADY the bigger
+mark (1.031 / 1.085 / 1.133 / 1.158), so the heavy weights need no trim at
+all. The italic solves the same way. The measure is the ink within a disc of
+the end's own width at each end point, which is what a terminal reads as;
+end WIDTH alone does not separate them, because the 28-degree face lies at a
+different angle across each stroke. Proofs: `tools/wedge_serif/shape/weights284/`.

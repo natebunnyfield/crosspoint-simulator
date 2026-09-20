@@ -484,8 +484,11 @@ def g_a(c):
 
 S_HEAD_X = float(os.environ.get("ALBO_ROM_S_HEAD_X", 0.93))   # round 283: the head's reach, x the s's width -- 0.93 as drawn (owner, on the ladder: ".93/.82 wins"; round 282's per-weight reach is gone)
 S_FOOT_X = float(os.environ.get("ALBO_ROM_S_FOOT_X", 0.11))   # round 283: the foot's reach, the head's mirrored about the apexes (0.42 - (0.93 - 0.62)); 0.06 before
-S_HEAD_END = float(os.environ.get("ALBO_S_HEAD_END", 0.85))   # round 283: the head's end width, x the foot's (owner: "for all s, make the top equally or less visually heavy than the bottom"); both styles read this
+S_FOOT_RATIO = float(os.environ.get("ALBO_S_FOOT_RATIO", 1.12))   # round 284: the foot's end ink, x the head's -- "the bottom needs to be slightly bigger than the top"; both styles solve to this
+S_HEAD_END = float(os.environ.get("ALBO_S_HEAD_END", 0.0))        # override: the head's end width x the foot's, fixed; 0 = solve for S_FOOT_RATIO
 S_SMOOTH = float(os.environ.get("ALBO_ROM_S_SMOOTH", 0.6))   # round 283: the deburr -- the pen widths averaged over +/- this x the stem of path, above stem 84 (89 units at the 900); 0.35 leaves the nubs
+S_HEAD_SPAN = float(os.environ.get("ALBO_S_HEAD_SPAN", PR.FINIAL_SPAN))   # round 284 ladder: the head's taper runs over this fraction of the path (the c's 0.13)
+S_FOOT_SWELL = float(os.environ.get("ALBO_S_FOOT_SWELL", PR.FINIAL_SWELL))  # round 284 ladder: the foot's swell into its face (the c's 1.10)
 S_HEAD_Y = float(os.environ.get("ALBO_ROM_S_HEAD_Y", 0.82))   # round 282: the head's height, x the x-height (0.80 before)
 @glyph('s')
 def g_s(c):
@@ -509,14 +512,18 @@ def g_s(c):
     old width; that was the "top too heavy"), so the built s is 28 units
     narrower at the 400 than it was and the head tucks in over the bowl.
     *"the bottom needs to be optically equal to the top"*, then *"for all s,
-    make the top equally or less visually heavy than the bottom"*: the foot's
-    start is the head's mirrored about the two apexes (0.42 - 0.31 = 0.11 of
-    the width, from 0.06); the foot keeps the c's finial -- the 1.10 swell,
-    held to the c's end width -- and the head's end is S_HEAD_END (0.85) of
-    the foot's, so it TAPERS into its face where the foot swells into its:
-    the head's blunt near-vertical face on a stroke that stays thick all the
-    way in was the heavier terminal to the eye whatever the ink said. The
-    italic s (aldine.a_s) reads the same dial. *"deburr the 900 s"*: the
+    make the top equally or less visually heavy than the bottom"*, and in
+    round 284 *"the bottom needs to be slightly bigger than the top"*: the
+    foot's start is the head's mirrored about the two apexes (0.42 - 0.31 =
+    0.11 of the width, from 0.06); the foot keeps the c's finial -- the 1.10
+    swell, held to the c's end width -- and the head TAPERS into its face by
+    however much `s_head_end` has to take off to leave the foot's end ink
+    S_FOOT_RATIO (1.12) of the head's. Round 283's flat 0.85 made that ratio
+    1.49 at the 400 and 1.55 at the 900, which is a difference rather than a
+    slight one; the solve lands 0.98 / 0.96 at the light weights and takes
+    nothing at all at the 700 and the 900, where the pen's own asymmetry
+    already leaves the foot bigger. The italic s (aldine.a_s) solves the
+    same way. *"deburr the 900 s"*: the
     Black's s stood a nub into each aperture. Not a fold (the tightest bend
     clears the half-width by 8 units) and not a sliver (an opening of radius
     10 took 18 square units off it): the pen's width climbs 54 -> 136 across
@@ -535,9 +542,45 @@ def g_s(c):
     from .rounds import c_top_width
     fl = c_top_width(); base = pen_widths(spine, None)
     if S > 84.0 and S_SMOOTH > 0.0: base = _smooth_widths(base, spine, S * S_SMOOTH)   # the deburr, see the docstring
-    foot = PR.finial_widths(base, False, floor=fl)                       # the foot: the c's finial, held to the c's end width
-    wfn = PR.finial_widths(foot, True, floor=0.0, swell=S_HEAD_END * foot(1.0) / foot(0.0))   # the head: S_HEAD_END of the foot's end, tapering into its face
-    return geom.ink([stroke(spine, wfn, cut0=PR.finial_cut(spine, True), cut1=PR.finial_cut(spine, False))])
+    foot = PR.finial_widths(base, False, floor=fl, swell=S_FOOT_SWELL)   # the foot: the c's finial, held to the c's end width
+    c0, c1 = PR.finial_cut(spine, True), PR.finial_cut(spine, False)
+    def _mk(he):
+        wf_ = PR.finial_widths(foot, True, floor=0.0, swell=he * foot(1.0) / foot(0.0), span=S_HEAD_SPAN)
+        return stroke(spine, wf_, cut0=c0, cut1=c1), spine[0], spine[-1], wf_(0.0), wf_(1.0)
+    return geom.ink([_mk(s_head_end(_mk))[0]])
+
+def s_head_end(make, target=None, lo=0.80, hi=1.00, steps=9):
+    """ROUND 284 -- how much smaller the s's HEAD is than its FOOT, solved
+    rather than declared. Owner 2026-09-19: *"the bottom needs to be slightly
+    bigger than the top."* Measured on the built stroke, the two ends are
+    already unequal at equal END WIDTHS and not by a constant: the ink within
+    a disc of the end's own width runs 3% more at the foot at the 200, 8% at
+    the 400, 13% at the 700 and 16% at the 900, because the pen is wider
+    where the foot leaves the bowl and the 28-degree face lies at a different
+    angle across each. So a fixed multiplier (round 283's 0.85) made the foot
+    half again the head's ink at the 400 and 55% more at the 900 -- a
+    difference, not a slight one.
+
+    `make(head_end)` returns (ink, head_point, foot_point, head_w, foot_w).
+    This bisects head_end in [lo, hi] for foot_ink / head_ink == `target`,
+    and the ceiling of 1.00 is load-bearing: where the pen's own asymmetry
+    already exceeds the target (the 700 and the 900) the two ends take the
+    same width and the foot is bigger by the pen alone."""
+    from shapely.geometry import Point
+    tgt = S_FOOT_RATIO if target is None else target
+    if S_HEAD_END: return S_HEAD_END
+    def ratio(he):
+        ink, ph, pf, wh, wf_ = make(he)
+        h = ink.intersection(Point(ph).buffer(wh * 0.8)).area
+        f = ink.intersection(Point(pf).buffer(wf_ * 0.8)).area
+        return (f / h) if h > 0 else tgt
+    if ratio(hi) >= tgt: return hi          # the pen alone already does it
+    a, b = lo, hi
+    for _ in range(steps):
+        m = (a + b) / 2
+        if ratio(m) >= tgt: a = m
+        else: b = m
+    return (a + b) / 2
 
 def _smooth_widths(f, center, win, N=600):
     """The width function `f(t)` box-averaged over +/- `win` units of the

@@ -1446,6 +1446,36 @@ nubs, ±0.6 clears both). Gates at baseline in all six fonts.
 
 Proofs: `tools/wedge_serif/shape/weights283/`.
 
+## 27. Round 284 — the s spaced, and its foot slightly the bigger end
+
+Owner 2026-09-19: *"all s need work, mostly spacing work but also the bottom
+needs to be slightly bigger than the top."*
+
+SPACING. Round 283 brought the head back to its drawn reach and the letter
+narrowed 38 units at the 400; the bearing rows were round 97's solve against
+a wider drawing, so `cmp_space_2d` read the roman s at 0.072 em on its right
+and 0.090 on its left against the lowercase median of 0.106 — the tightest
+letter in the alphabet on both flanks, with `st` at 0.062 and `so` at 0.069.
+`build.BEARING_ADJ['s']` goes (1, −15) → (17, 19), which puts both sides on
+the median (0.103 / 0.111). The italic's left goes −2 → 10 in
+`aldine.BEARINGS` (its foot's forward corner has hung 30 units under the
+previous letter since round 276): the tight three lift (`is` 0.074 → 0.084,
+`as` 0.086 → 0.095) and the two loosest stay under 0.13.
+
+THE TERMINALS. Round 283's flat `S_HEAD_END` 0.85 left the foot half again
+the head's end ink at the 400 and 55% more at the 900. Measured, the two
+ends are unequal at EQUAL end widths and not by a constant — the foot's ink
+runs 3% more at the 200, 8% at the 400, 13% at the 700, 16% at the 900,
+because the pen is wider where the foot leaves the bowl and the 28-degree
+face crosses each stroke at its own angle. So the head's size is SOLVED
+(`stems.s_head_end`, bisect, ceiling 1.00) for a foot/head end ink of
+`S_FOOT_RATIO` = 1.12: it lands 0.959 / 0.983 at the 200 and 400 and takes
+nothing at the 700 and 900, where the pen alone already does it. The italic
+solves the same way. Gates at baseline in all six fonts; only the s and its
+five composites moved, no kern pair changed.
+
+Proofs: `tools/wedge_serif/shape/weights284/`.
+
 ## What was checked and found CLEAN
 
 - Every codepoint the reader's corpus doc names is present in Albo.
