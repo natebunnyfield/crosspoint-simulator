@@ -5981,6 +5981,79 @@ if ON:
     #   rightmost below the ball and the ball turns back over it. Flanker does
     #   the same thing (its .90 is 228-354 at 126 wide, .97 75 wide), so this
     #   is not a Poetica flourish and it is drawn.
+    # ROUND 297 -- MEASURED, NOT RULED, AND SHIPPING OFF. The owner's ask was
+    # *"Italic 400 v needs higher left top serif"*, corrected minutes later to
+    # *"top right serif of v, not topleft"* -- so the LEFT entry is NOT what he
+    # asked about and this dial is at its shipped value, byte-identical. The
+    # measurement is kept because it was taken and it is real; the ruling on it
+    # has not been asked for and must not be assumed.
+    #
+    # THE DIAGONALS' ENTRY SERIFS SIT LOW ON THE GRID, ALL FIVE OF THEM. It is
+    # not one letter and it
+    # is not a judgment call -- measured on the shipped Italic 400 by walking
+    # the leftmost ink down row by row until it jumps back to the body, the
+    # entry serif's tip bottoms out at:
+    #
+    #     i m n r u   0.815 of the x-height, all five at the same figure
+    #     f           0.830      t   0.850
+    #     v w x y     0.745      z   0.750
+    #
+    # So the alphabet has ONE entry-serif line and the five diagonals hang a
+    # fourteenth of an x-height below it -- and the v and the w are also the
+    # letters whose apexes are the TALLEST things in the lowercase (446 and
+    # 441 against the n's 431). High on the right, low on the left, on exactly
+    # the letters that could least afford it.
+    #
+    # One dial, because one number is what is wrong: every one of the five
+    # declares its entry landing at 0.755 while the n's family lands higher.
+    # Only the LANDING moves -- each letter's swing and apex are untouched, so
+    # the serif gets higher and shallower rather than shorter, and its reach to
+    # the left is kept. The z is in the family by its number and not by its
+    # construction: its entry is the left tip of the TOP BAR rather than a
+    # diagonal's, so it is the one of the five that could reasonably be ruled
+    # out on shape.
+    DIAG_ENTRY_Y = d_dial("DIAG_ENTRY_Y", 0.755)
+
+    # ROUND 297 -- THE TOP RIGHT SERIF OF THE v IS THE ONE THAT IS LOW. Owner
+    # 2026-09-20: *"top right serif of v, not topleft"*. Measured on the
+    # shipped Italic 400 as the top of each letter's own right-hand half:
+    #
+    #     x 1.050   c 1.029   y 1.028   o 1.019   e 1.016   s 1.013
+    #     z 1.004   u 1.004   n 0.988   m 0.987   r 0.986
+    #     w 0.971                       v 0.956
+    #
+    # The v's rising hairline stops its terminal a twentieth of an x-height
+    # below anything else in the alphabet, and the w's is second lowest -- and
+    # the v's LEFT apex is meanwhile the tallest thing in the lowercase at
+    # 1.041, so the letter is not merely short on the right, it is TILTED:
+    # 1.041 on one arm against 0.956 on the other.
+    #
+    # THE y IS IN THE FAMILY, AND THE FIRST READING SAID IT WAS NOT. Owner
+    # 2026-09-20: *"d wins, correct y too"*. The figures above are the top of
+    # each letter's right-hand HALF, and on a letter as narrow as the y that
+    # half catches the LEFT stroke's crown -- so the y read 1.028 and looked
+    # clean. Measured on the rightmost FIFTH instead, which is the terminal
+    # and nothing else, the three are
+    #
+    #     v 0.956      w 0.936      y 0.919
+    #
+    # and the y is the worst of them. The x (1.050) and the z (1.004) are
+    # genuinely clean by either measure. A whole-half measure cannot see a
+    # terminal on a narrow letter; take the slice.
+    #
+    # The dial lifts the terminal's own point and half-lifts its neighbor, so
+    # the hook keeps its shape and its turn back to the left; the hairline's
+    # rise, its width table and round 276's finial are untouched. On the v and
+    # the w the terminal is the stroke's LAST point, the rising hairline ending
+    # there; on the y it is the tail's FIRST, because the y's right stroke
+    # carries on down past the baseline into the swash instead of stopping.
+    #
+    # SHIPPED AT 0.10 of the x-height -- the owner's arm d off the round-297
+    # ladder, which takes each letter's terminal up to its own apex so the tilt
+    # goes to zero. It applies at every italic weight, the BoldItalic included:
+    # this is the drawing, not a heavy-end repair.
+    DIAG_TERM_RISE = d_dial("DIAG_TERM_RISE", 0.10)
+
     V_W = d_dial("V_W", 1.00)
     V_TW = d_dial("V_TW", 1.12)
     V_VX = d_dial("V_VX", 176.0)      # the vertex, units from the left ink edge
@@ -5988,7 +6061,7 @@ if ON:
     @glyph('v')
     def a_v(c):
         P, u = d_frame(c, V_W); X = V_VX
-        thick = d_pen([P(5, 0.755), P(32, 0.90), P(76, 0.95), P(109, 0.75),
+        thick = d_pen([P(5, DIAG_ENTRY_Y), P(32, 0.90), P(76, 0.95), P(109, 0.75),
                        P(138, 0.50), P(161, 0.25), P(X - 4, 0.07), P(X, -0.018)],
                       [(0.00, 22), (0.10, 48), (0.24, 68), (0.70, 66),
                        (0.90, 52), (1.00, 30)], u, tw=V_TW)
@@ -6002,7 +6075,8 @@ if ON:
         # it was: the ball sat back over the stroke, and the stroke's own
         # face already reached as far right as the ball did.
         thin = d_pen([P(X, -0.018), P(205, 0.12), P(232, 0.27), P(272, 0.50),
-                      P(296, 0.68), P(302, 0.795), P(290, 0.885)],
+                      P(296, 0.68), P(302, 0.795 + DIAG_TERM_RISE * 0.5),
+                      P(290, 0.885 + DIAG_TERM_RISE)],
                      [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
                       (0.88, 44), (1.00, 48)], u, tw=V_TW, fin1=True)
         g_ = geom.ink([thick, thin])
@@ -6049,7 +6123,7 @@ if ON:
         thin = [(0.00, 30), (0.15, 24), (0.55, 25), (0.72, 32),
                 (0.88, 44), (1.00, 48)]
         return geom.ink([
-            d_pen([P(5, 0.755), P(32, 0.90), P(77, 0.95), P(110, 0.75), P(136, 0.50),
+            d_pen([P(5, DIAG_ENTRY_Y), P(32, 0.90), P(77, 0.95), P(110, 0.75), P(136, 0.50),
                    P(156, 0.25), P(164, 0.07), P(166, -0.022)], thick, u, tw=W_TW),
             # the inner rise stops at the apex, so it keeps the hairline all
             # the way up and never grows the v's terminal
@@ -6063,7 +6137,8 @@ if ON:
                     (0.92, 48), (1.00, 30)]], u, tw=W_TW),
             # round 276: the ball is the c's top finial, as the v's (see a_v)
             d_pen([P(368, -0.022), P(396, 0.12), P(421, 0.25), P(455, 0.48),
-                   P(478, 0.655), P(484, 0.775), P(472, 0.865)],
+                   P(478, 0.655), P(484, 0.775 + DIAG_TERM_RISE * 0.5),
+                   P(472, 0.865 + DIAG_TERM_RISE)],
                   thin, u, tw=W_TW, fin1=True)])
 
     # ---------------------------------------------------------------- THE x
@@ -6090,7 +6165,7 @@ if ON:
     @glyph('x')
     def a_x(c):
         P, u = d_frame(c, X_W)
-        thick = d_pen([P(8, 0.755), P(34, 0.89), P(70, 0.95), P(105, 0.83),
+        thick = d_pen([P(8, DIAG_ENTRY_Y), P(34, 0.89), P(70, 0.95), P(105, 0.83),
                        P(140, 0.75), P(193, 0.50), P(246, 0.25), P(282, 0.09),
                        P(318, 0.018), P(356, 0.058), P(378, 0.135), P(368, 0.185)],
                       [(0.00, 24), (0.08, 52), (0.20, 66), (0.60, 62),
@@ -6231,7 +6306,7 @@ if ON:
         # entry hook and the junction are pinned and neither the fork's meeting
         # point nor the tail's start moves at any value of the dial. Zero is
         # the round-176 stroke exactly.
-        _yp = [(48, 0.755), (72, 0.89), (110, 0.95), (140, 0.86),
+        _yp = [(48, DIAG_ENTRY_Y), (72, 0.89), (110, 0.95), (140, 0.86),
                (165, 0.75), (206, 0.50), (234, 0.25), (250, 0.10), (256, 0.02)]
         if Y_LBOW:
             _i0, _i1 = 2, len(_yp) - 1
@@ -6266,7 +6341,8 @@ if ON:
         _dl = math.hypot(_t1[0] - _t0[0], _t1[1] - _t0[1]); _d = ((_t1[0] - _t0[0]) / _dl, (_t1[1] - _t0[1]) / _dl)
         # the drop's centre sat 12 reference units PAST the end, its half-length 1.55 x its radius
         _ext = fin_reach(12.0 * u + Y_TAIL_DROP * Y_TW * u * ALD_WF_UP * 1.55, _d)
-        tail = d_pen([P(322, 0.885), P(336, 0.825), P(341, 0.74),
+        tail = d_pen([P(322, 0.885 + DIAG_TERM_RISE),
+                      P(336, 0.825 + DIAG_TERM_RISE * 0.5), P(341, 0.74),
                       P(331, 0.50), P(306, 0.25), P(276, 0.05), P(244, -0.15),
                       P(210, -0.32), P(172, -0.46), _t0,
                       (_t1[0] + (_t1[0] - _t0[0]) / _dl * _ext, _t1[1] + (_t1[1] - _t0[1]) / _dl * _ext)],
@@ -6372,7 +6448,7 @@ if ON:
     @glyph('z')
     def a_z(c):
         P, u = d_frame(c, Z_W); D = Z_DIAG
-        top = d_pen([P(8, 0.755), P(26, 0.855), P(64, 0.902), P(126, 0.928),
+        top = d_pen([P(8, DIAG_ENTRY_Y), P(26, 0.855), P(64, 0.902), P(126, 0.928),
                      P(196, 0.910), P(234, 0.922), P(268, 0.972)],
                     [(0.00, 14), (0.05, 20), (0.17, 26), (0.23, 34),
                      (0.30, 41), (0.36, 48), (0.43, 52), (0.50, 54),

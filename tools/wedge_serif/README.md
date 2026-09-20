@@ -393,3 +393,24 @@ stem. The row-midpoint method spans two stems and an arch on `n`/`m` and a bowl
 on `b`/`d`/`h`/`k`; adding `n` and `m` to the median flipped Coelacanth from
 +14.5 to −14.0 and Poetica from +9.2 to −10.7, which is how the error was
 caught. A sign reversal is too large to be a slant and too plausible to ignore.
+
+**Ruling 2026-09-20 (owner): the italic v, w and y get a HIGHER TOP RIGHT SERIF**
+— *"top right serif of v, not topleft"* … *"look at w and others too"* …
+*"d wins, correct y too"*. Their rising hairlines' terminals topped out at
+0.956, 0.936 and 0.919 of the x-height where the rest of the alphabet runs
+0.986 to 1.050, while the v's own left apex was the tallest thing in the
+lowercase at 1.041 — the letters were tilted, not merely short.
+`DIAG_TERM_RISE` in `outlines/glyphs/aldine.py` ships at **0.10 xh**, arm d off
+the round-297 ladder, at every italic weight. The x and the z are clean and are
+NOT touched. The fitting was re-measured on all 24 affected pairs and no bearing
+moved. `docs/albo-family-2026-09-19.md` section 38.
+
+**Ruling 2026-09-20: `geom.DESPIKE_CHORD` 2.5 → 3.0**, under the standing "chase
+the hair gate to zero". Removes 17 points across all six fonts, moves total ink
+by +0.0000%, moves no arrow, and takes the BoldItalic's hair findings 2 → 1.
+Same section.
+
+**Measured 2026-09-20 and NOT ruled: the left entry serifs.** The v w x y z land
+their entry at 0.745–0.750 xh where the i m n r u all land at 0.815.
+`DIAG_ENTRY_Y` is in the file at its shipped value, so nothing moved. Do not
+act on it without an owner ruling; do not re-raise it as a defect.

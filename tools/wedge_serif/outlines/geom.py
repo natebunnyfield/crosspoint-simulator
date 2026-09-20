@@ -335,7 +335,24 @@ WELDS = [0]        # how many cracks the last build spliced -- printed by build.
 DESPIKE_ARM = float(os.environ.get("ALBO_DESPIKE_ARM", 6.0))    # the longest arm a spike may have, units
 DESPIKE_TURN = float(os.environ.get("ALBO_DESPIKE_TURN", 150.0))  # the turn that makes one, degrees
 DESPIKE_DEV = float(os.environ.get("ALBO_DESPIKE_DEV", 0.0))      # the shallow-spur pass, OFF by measurement -- see pass 2; 1.8 was the tolerance the letters wanted
-DESPIKE_CHORD = float(os.environ.get("ALBO_DESPIKE_CHORD", 2.5)) # or: the neighbours this close together mean the contour doubled back
+# ROUND 297 -- 2.5 -> 3.0. Round 295 picked 2.5 without a case at the boundary
+# to test it against; round 297's v/w/y terminals produced one. The BoldItalic
+# w exports ... (412,107) (410,103) (410,105) ... -- a two-unit spur the grid
+# left, whose neighbors are 2.83 apart, so the 2.5 limit skipped it by a third
+# of a unit and the hair gate read 153.4 degrees. The SAME spur is in the
+# shipped drawing at (413,107), where the arm is 5.0 rather than 4.47 and the
+# turn falls just under the gate's 150: latent grid noise, not a new fault, and
+# a one-unit shift anywhere would have tripped it.
+#
+# MEASURED BEFORE CHANGING IT, because round 295 records three tolerance rules
+# that each ate the arrows. Across all six shipped fonts, 2.5 -> 3.0 removes
+# SEVENTEEN points -- 2 to 4 per font, 2 to 4 glyphs touched -- total ink moves
+# by +0.0000%, NO arrow moves at all, and the only glyph whose area moves by
+# more than a hundredth of a percent is the ExtraLight's currency sign, by 3
+# units of 29,099 (+0.010%). Hair findings: the BoldItalic 2 -> 1, every other
+# font unchanged. It touches all six point streams and is taken under the
+# owner's standing "Chase them to zero first" (2026-09-20).
+DESPIKE_CHORD = float(os.environ.get("ALBO_DESPIKE_CHORD", 3.0)) # or: the neighbors this close together mean the contour doubled back
 
 
 def despike(q, arm=None, turn=None, dev=None, chord_lim=None):

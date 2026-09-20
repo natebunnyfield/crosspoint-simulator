@@ -2348,3 +2348,111 @@ Page: `tools/wedge_serif/shape/weights296/`.
 - Round 291: the one-unit "spurs" reported on `e i m n r u` are the integer em grid, not the drawing. Each is a 1.0-unit segment between two ~100-degree turns on a shallow edge; the weld's 12-unit minimum path length leaves every one of them, deliberately, and they are present on letters nobody reported. One unit is 0.013 px at 13 px.
 - Round 291: welding was tested at `WELD_WIDTH` 12 (which would reach the `y`'s 8.52-unit crack) and REJECTED on a rendered before/after sheet of all 26 sites it would newly touch — it cuts the tips off the wedge serifs of `a h m n u y A K M N Q V W 4 6 9`. Re-tested at `WELD_TURN` 152 with the same width: 14 new sites, still blunting the `u`, the `M`, the `4` and the `9`. Both arms recorded so the same candidate is not re-proposed.
 - Round 291: the designed hairline gap on the Y and the P is untouched. The weld can splice at most two vertices, and that gap is three to six vertices down each flank by its own measured width and run (`docs/albo-hairline-gap.md`); the italic Y's single weld adds 13.7 square units, 0.015% of the glyph, at its arm junction and not at the gap.
+
+## 38. Round 297 — the v's top RIGHT serif, and the y that the first measure could not see
+
+Owner 2026-09-20: *"Italic 400 v needs higher left top serif"*, corrected within
+the same turn to *"top right serif of v, not topleft"*, then *"look at w and
+others too"*, then *"d wins, correct y too"*.
+
+### What the fault is
+
+The top right serif is the rising hairline's terminal. Measured on the shipped
+Italic 400 as the top of each letter's own right-hand half:
+
+| letter | top of its right side, x x-height |
+|---|---|
+| x | 1.050 |
+| c · y | 1.029 · 1.028 |
+| o · e · s | 1.019 · 1.016 · 1.013 |
+| u · z | 1.004 |
+| n · m · r | 0.988 · 0.987 · 0.986 |
+| **w** | **0.971** |
+| **v** | **0.956** |
+
+The v's terminal stops a twentieth of an x-height below anything else, and its
+LEFT apex is meanwhile the tallest thing in the whole lowercase at 1.041. The
+letter is not merely short on the right, it is **tilted**: 1.041 on one arm
+against 0.956 on the other.
+
+### The measure that was wrong, and the owner caught it
+
+That table reads the top of each letter's right-hand HALF, and on a letter as
+narrow as the y that half catches the LEFT stroke's crown — so the y read 1.028
+and this document's first draft said the y was clean. It is not. Measured on
+the rightmost FIFTH instead, which is the terminal and nothing else:
+
+| | v | w | y |
+|---|---|---|---|
+| terminal top | 0.956 | 0.936 | **0.919** |
+
+The y is the worst of the three. **A whole-half measure cannot see a terminal on
+a narrow letter; take the slice.** The x (1.050) and the z (1.004) are genuinely
+clean by either measure, so the family is v, w and y and nothing else.
+
+### What shipped
+
+`DIAG_ENTRY_Y`'s sibling `DIAG_TERM_RISE` in `outlines/glyphs/aldine.py`, at
+**0.10 of the x-height** — the owner's arm d off the ladder, which takes each
+letter's terminal up to its own apex so the tilt goes to zero. The dial lifts
+the terminal's own point and half-lifts its neighbor, so the hook keeps its
+shape and its turn back to the left; the hairline's rise, its width table and
+round 276's finial are untouched. On the v and the w the terminal is the
+stroke's LAST point; on the y it is the tail's FIRST, because the y's right
+stroke carries on past the baseline into the swash instead of stopping.
+
+| | v | w | y |
+|---|---|---|---|
+| terminal, before → after | 0.956 → 1.048 | 0.936 → 1.028 | 0.919 → 1.007 |
+| tilt, before → after | 0.085 → 0.000 | 0.091 → 0.000 | 0.109 → 0.021 |
+
+It applies at every italic weight, the BoldItalic included: this is the drawing,
+not a heavy-end repair.
+
+### The fitting did NOT need to move, and that was measured rather than assumed
+
+A raised terminal reaches further right — the v's ink to 462 design units
+against 453, the w's to 652 against 642, the y's to 487 against 483 — so the
+right-side fit was re-measured on all 24 pairs whose left letter moved, as
+closest approach in 2-D. Every delta is under 0.006 em against a 0.098 em
+lowercase median, they go in BOTH directions (`ve` +0.005, `yn` −0.004), and the
+tightest pair in the set (`yy` at 0.063) does not move at all. No bearing
+changed. The reason is geometric and worth keeping: the terminal sits at the
+x-line, where the following letter's left side is far away, so growing it does
+not close the gap the measure reports.
+
+### The despike chord, 2.5 → 3.0
+
+Raising the w's terminal tripped a NEW hair-gate finding on the BoldItalic w —
+153.4 degrees at (410, 103), arms 4.5/2.0. It is not a drawing fault. The
+outline there exports as `(412,107) (410,103) (410,105)`: a two-unit spur the
+integer grid left, whose neighbors are 2.83 apart, so round 295's `chord_lim`
+of 2.5 skipped it by a third of a unit. **The same spur is in the shipped
+drawing** at (413,107), where the arm is 5.0 and the turn falls just under the
+gate's 150 — latent grid noise that a one-unit shift anywhere would have
+tripped.
+
+Widened to 3.0, and measured first, because round 295 records three tolerance
+rules that each ate the arrows. Across all six shipped fonts:
+
+- **17 points removed in total** — 2 to 4 per font, 2 to 4 glyphs touched.
+- Total ink moves by **+0.0000%**.
+- **No arrow moves at all.**
+- The only glyph whose area moves by more than a hundredth of a percent is the
+  ExtraLight's `currency`, by 3 units of 29,099 (+0.010%).
+- Hair findings: BoldItalic 2 → 1, every other font unchanged.
+
+It touches all six point streams, and is taken under the owner's standing
+*"Chase them to zero first"*. Counter dents and the collision sweep are
+byte-identical before and after on every font; the roman's two touching pairs
+are pre-existing and unchanged.
+
+### Measured and NOT ruled: the left entry serifs
+
+Taken before the owner's correction, and kept because it is real and cost the
+measurement. The entry serif's tip bottoms at **0.815 xh on the i, m, n, r and
+u — all five at the same figure** — and at **0.745 to 0.750 on the v, w, x, y
+and z**. The five diagonals hang a fourteenth of an x-height below the
+alphabet's one entry line. `DIAG_ENTRY_Y` is in the file at its shipped 0.755,
+so every letter is byte-identical on that axis. It is recorded rather than acted
+on, because it is not what was asked about.

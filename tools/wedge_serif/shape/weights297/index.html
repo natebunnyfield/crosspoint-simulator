@@ -1,0 +1,63 @@
+<title>Albo Italic Right Terminals</title>
+<style>
+  :root{--ink:#1b1917;--soft:#5d574e;--ground:#f6f4ef;--rule:#ded8cc;--accent:#7b5430;--ok:#3d6a46;--bad:#8a3b2e;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}}
+  :root[data-theme="dark"]{--ink:#ece8e0;--soft:#9a9288;--ground:#141312;--rule:#343029;--accent:#d4a26e;--ok:#80b289;--bad:#d98b78;}
+  body{background:var(--ground);color:var(--ink);padding-block:30px 70px;padding-left:16px;padding-right:16px;font:16px/1.6 "Iowan Old Style",Palatino,Georgia,serif;}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:30px;}
+  h1{font-size:27px;margin:0;font-weight:600;} h2{font-size:19px;margin:0;font-weight:600;padding-top:10px;border-top:2px solid var(--rule);}
+  p{margin:0;max-width:66ch;} .lede{color:var(--soft);}
+  figure{margin:0;display:flex;flex-direction:column;gap:6px;}
+  figure img{display:block;width:100%;height:auto;image-rendering:pixelated;background:#fff;border:1px solid var(--rule);}
+  figcaption{font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--soft);}
+  section{display:flex;flex-direction:column;gap:14px;} .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;}
+  th,td{text-align:right;padding:6px 14px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  th{font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ok{color:var(--ok);font-weight:700;} .bad{color:var(--bad);font-weight:700;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Albo Italic Right Terminals</h1>
+    <p class="lede">Round 297, shipped. Arm d &mdash; the terminal raised <strong>0.10 of the x-height</strong>, taking each letter&rsquo;s top right serif up to its own apex so the tilt goes to zero &mdash; on the <strong>v, the w and the y</strong>, at every italic weight. Before is the upper row of each figure and after the lower.</p>
+  </header>
+
+  <section><h2>What moved</h2>
+    <div class="scroll"><table>
+      <tr><th></th><th>v</th><th>w</th><th>y</th></tr>
+      <tr><td>terminal top, x xh</td><td>0.956 &rarr; <span class="ok">1.048</span></td><td>0.936 &rarr; <span class="ok">1.028</span></td><td>0.919 &rarr; <span class="ok">1.007</span></td></tr>
+      <tr><td>tilt against its own apex</td><td>0.085 &rarr; <span class="ok">0.000</span></td><td>0.091 &rarr; <span class="ok">0.000</span></td><td>0.109 &rarr; <span class="ok">0.021</span></td></tr>
+    </table></div>
+    <p>The rest of the alphabet&rsquo;s right-hand tops run 0.986 to 1.050, so all three are now inside it. The x (1.050) and the z (1.004) were already clean and are untouched.</p>
+    <p><strong>You caught a bad measurement.</strong> My first table read the top of each letter&rsquo;s right-hand <em>half</em>, and on a letter as narrow as the y that half catches the LEFT stroke&rsquo;s crown &mdash; so the y read 1.028 and I called it clean. Read on the rightmost fifth, which is the terminal and nothing else, the y was <strong>0.919, the worst of the three</strong>. A whole-half measure cannot see a terminal on a narrow letter.</p>
+  </section>
+
+  <section><h2>The letters, before over after</h2>
+    <figure><img src="01-Italic.png" alt="Italic o v w y x"><figcaption>Italic &mdash; o v w y x, 360 px em, native pixels</figcaption></figure>
+    <figure><img src="01-BoldItalic.png" alt="BoldItalic o v w y x"><figcaption>BoldItalic &mdash; o v w y x, 360 px em, native pixels</figcaption></figure>
+  </section>
+
+  <section><h2>The terminals themselves</h2>
+    <figure><img src="02-terminals-Italic.png" alt="Italic terminals"><figcaption>Italic &mdash; 150 px em, x5 NEAREST, before beside after</figcaption></figure>
+    <figure><img src="02-terminals-BoldItalic.png" alt="BoldItalic terminals"><figcaption>BoldItalic &mdash; 150 px em, x5 NEAREST, before beside after</figcaption></figure>
+  </section>
+
+  <section><h2>At the reader&rsquo;s raster</h2>
+    <figure><img src="03-reading-Italic.png" alt="Italic reading size"><figcaption>Italic &mdash; 26 px em, x4 NEAREST; round 296 (top), round 297 (bottom)</figcaption></figure>
+    <figure><img src="03-reading-BoldItalic.png" alt="BoldItalic reading size"><figcaption>BoldItalic &mdash; 26 px em, x4 NEAREST; round 296 (top), round 297 (bottom)</figcaption></figure>
+  </section>
+
+  <section><h2>The fitting did not need to move, and that was measured</h2>
+    <p>A raised terminal reaches further right &mdash; the v&rsquo;s ink to 462 design units against 453, the w&rsquo;s to 652 against 642, the y&rsquo;s to 487 against 483 &mdash; so the right-side fit was re-measured on <strong>all 24 pairs whose left letter moved</strong>, as closest approach in 2-D. Every delta is under 0.006 em against a 0.098 em lowercase median, they go in both directions (<code>ve</code> +0.005, <code>yn</code> &minus;0.004), and the tightest pair in the set (<code>yy</code> at 0.063) does not move at all. No bearing changed. The reason is geometric and worth keeping: the terminal sits at the x-line, where the following letter&rsquo;s left side is far away.</p>
+  </section>
+
+  <section><h2>One gate finding, chased rather than exempted</h2>
+    <p>Raising the w&rsquo;s terminal tripped a new hair-gate reading on the BoldItalic w. It is not a drawing fault: the outline exports as <code>(412,107) (410,103) (410,105)</code>, a two-unit spur the integer grid left, whose neighbors are 2.83 apart &mdash; so round 295&rsquo;s chord limit of 2.5 skipped it by a third of a unit. <strong>The same spur is in the shipped drawing</strong>, one unit over, where the turn falls just under the gate&rsquo;s threshold.</p>
+    <p>The limit went to 3.0, measured first, because round 295 records three tolerance rules that each ate the arrows. Across all six shipped fonts it removes <strong>17 points in total</strong> (2 to 4 per font), total ink moves by <strong>+0.0000%</strong>, <strong>no arrow moves at all</strong>, and the only glyph whose area moves by more than a hundredth of a percent is the ExtraLight&rsquo;s currency sign, by 3 units of 29,099. Hair findings: BoldItalic 2 &rarr; 1, every other font unchanged. Counter dents and the collision sweep are identical before and after on every font.</p>
+  </section>
+
+  <section><h2>Measured on the way, and NOT acted on</h2>
+    <p>Before you corrected me I measured the <em>left</em> entry serifs, and that reading stands on its own: the tip bottoms at 0.815 xh on the i, m, n, r and u &mdash; all five at the same figure &mdash; and at 0.745 to 0.750 on the v, w, x, y and z. The five diagonals hang a fourteenth of an x-height below the alphabet&rsquo;s one entry line. Its dial is in the file at the shipped value, so those letters are byte-identical on that axis. Recorded, not acted on, because it is not what you asked about.</p>
+  </section>
+</div>
