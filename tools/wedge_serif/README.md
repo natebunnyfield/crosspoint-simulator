@@ -265,14 +265,12 @@ itself was never changed and stays long under round 225). The need behind the
 Q-and-punctuation item is OPEN and is not "space them apart"; do not re-propose
 a kern for it.
 
-**Ruling 2026-09-19 (owner): the roman Q's TAIL SWEEPS UNDER the , ; . that
-follow it** -- "Tail under the marks": the marks sit on the baseline right
-after the bowl, nothing is spaced apart. The tail already passes under them;
-the CLEARANCE at the 700 / 900 (59 / 10 units against the 400's 136) is what
-merges them at 13 px. `caps_straight.q_tail_deep` deepens the tail above
-stem 84 to a least clearance `Q_CLEAR`; the amount is laddered in round 281
-(77 / 115 / 154) and not yet ruled -- the dial ships 0 (tail as drawn) until
-it is.
+**Ruling 2026-09-19 (owner): the roman Q's tail STAYS AS DRAWN at every
+weight** -- "for Q, leave as is", on round 281's ladder of clearances under a
+following , ; . (77 / 115 / 154 units at the 700 and 900, against the 59 / 10
+the tail has). The clearance solve (`caps_straight.q_tail_deep`) stays in the
+code behind `ALBO_ROM_Q_CLEAR`, which ships 0; the tail sweeps under the marks
+as it does, the marks sit where they sit, and the item is closed.
 
 **Ruling 2026-09-19 (owner): the s's finial has PARITY with the c's** ("c is
 fine but there needs to be parity with s in small scale rendering. right now

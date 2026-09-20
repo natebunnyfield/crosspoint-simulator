@@ -1387,7 +1387,8 @@ control points in y about the baseline until a least clearance `Q_CLEAR` is
 met, above stem 84 only; the dial `ALBO_ROM_Q_CLEAR` (0 = as drawn, the
 default until ruled) built the ladder: a 77 (1 px), b 115 (1.5 px), c 154
 (2 px). The Black's tail bottom goes −294 → −366 / −407 / −449 against a
-−300 descender line. The touch sweep's "Q, −0.41 em" was never an ink
+−300 descender line. **Ruled the same day: "for Q, leave as is" — the tail
+stays as drawn at every weight; the dial ships 0 and the item is closed.** The touch sweep's "Q, −0.41 em" was never an ink
 collision: the comma sits in the concave between the bowl and the tail's
 upturned end and the row-wise measure reads the tail's tip to its right as
 overlap (the `cmp_space_2d` case). The 400 is byte-identical with the code
